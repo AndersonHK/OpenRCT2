@@ -1449,6 +1449,23 @@ namespace OpenRCT2
                             return true;
                         });
                     }
+                    if (version >= kRidePriceTargetVersion)
+                    {
+                        auto priceTarget = static_cast<uint8_t>(ride.priceTarget);
+                        cs.readWrite(priceTarget);
+                        if (cs.getMode() == OrcaStream::Mode::reading)
+                        {
+                            if (priceTarget > static_cast<uint8_t>(RidePriceTarget::badValue))
+                            {
+                                priceTarget = static_cast<uint8_t>(RidePriceTarget::neutral);
+                            }
+                            ride.priceTarget = static_cast<RidePriceTarget>(priceTarget);
+                        }
+                    }
+                    else
+                    {
+                        ride.priceTarget = RidePriceTarget::neutral;
+                    }
 
                     // Colours
                     cs.readWrite(ride.entranceStyle);

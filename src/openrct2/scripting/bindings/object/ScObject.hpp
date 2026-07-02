@@ -468,7 +468,7 @@ namespace OpenRCT2::Scripting
                 JS_CGETSET_DEF("shopItem", ScRideObject::shopItem_get, nullptr),
                 JS_CGETSET_DEF("shopItemSecondary", ScRideObject::shopItemSecondary_get, nullptr),
             };
-            JS_SetPropertyFunctionList(ctx, obj, funcs, std::size(funcs));
+            JS_SetPropertyFunctionList(ctx, obj, funcs, static_cast<int32_t>(std::size(funcs)));
         }
 
         static JSValue description_get(JSContext* ctx, JSValue thisVal)
@@ -655,7 +655,7 @@ namespace OpenRCT2::Scripting
             static constexpr JSCFunctionListEntry funcs[] = {
                 JS_CGETSET_DEF("sceneryGroups", ScSceneryObject::sceneryGroups_get, nullptr),
             };
-            JS_SetPropertyFunctionList(ctx, obj, funcs, std::size(funcs));
+            JS_SetPropertyFunctionList(ctx, obj, funcs, static_cast<int32_t>(std::size(funcs)));
         }
 
         static JSValue sceneryGroups_get(JSContext* ctx, JSValue thisVal)
@@ -699,7 +699,7 @@ namespace OpenRCT2::Scripting
                 JS_CGETSET_DEF("price", ScSmallSceneryObject::price_get, nullptr),
                 JS_CGETSET_DEF("removalPrice", ScSmallSceneryObject::removalPrice_get, nullptr),
             };
-            JS_SetPropertyFunctionList(ctx, obj, funcs, std::size(funcs));
+            JS_SetPropertyFunctionList(ctx, obj, funcs, static_cast<int32_t>(std::size(funcs)));
         }
 
         static JSValue flags_get(JSContext* ctx, JSValue thisVal)
@@ -839,7 +839,7 @@ namespace OpenRCT2::Scripting
             static constexpr JSCFunctionListEntry funcs[] = {
                 JS_CGETSET_DEF("tiles", ScLargeSceneryObject::tiles_get, nullptr),
             };
-            JS_SetPropertyFunctionList(ctx, obj, funcs, std::size(funcs));
+            JS_SetPropertyFunctionList(ctx, obj, funcs, static_cast<int32_t>(std::size(funcs)));
         }
 
         static JSValue tiles_get(JSContext* ctx, JSValue thisVal)
@@ -916,7 +916,7 @@ namespace OpenRCT2::Scripting
             static constexpr JSCFunctionListEntry funcs[] = {
                 JS_CGETSET_DEF("flags", ScFootpathSurfaceObject::flags_get, nullptr),
             };
-            JS_SetPropertyFunctionList(ctx, obj, funcs, std::size(funcs));
+            JS_SetPropertyFunctionList(ctx, obj, funcs, static_cast<int32_t>(std::size(funcs)));
         }
 
         static JSValue flags_get(JSContext* ctx, JSValue thisVal)
@@ -948,7 +948,7 @@ namespace OpenRCT2::Scripting
             static constexpr JSCFunctionListEntry funcs[] = {
                 JS_CGETSET_DEF("items", ScSceneryGroupObject::items_get, nullptr),
             };
-            JS_SetPropertyFunctionList(ctx, obj, funcs, std::size(funcs));
+            JS_SetPropertyFunctionList(ctx, obj, funcs, static_cast<int32_t>(std::size(funcs)));
         }
 
         static JSValue items_get(JSContext* ctx, JSValue thisVal)

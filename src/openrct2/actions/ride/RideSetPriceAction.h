@@ -11,6 +11,10 @@
 
 #include "../GameAction.hpp"
 
+#include <cstdint>
+
+enum class RidePriceTarget : uint8_t;
+
 namespace OpenRCT2::GameActions
 {
     class RideSetPriceAction final : public GameActionBase<GameCommand::SetRidePrice>
@@ -23,6 +27,7 @@ namespace OpenRCT2::GameActions
     public:
         RideSetPriceAction() = default;
         RideSetPriceAction(RideId rideIndex, money64 price, bool primaryPrice);
+        RideSetPriceAction(RideId rideIndex, RidePriceTarget priceTarget);
 
         void AcceptParameters(GameActionParameterVisitor&) final;
 

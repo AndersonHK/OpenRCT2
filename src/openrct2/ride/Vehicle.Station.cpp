@@ -23,6 +23,7 @@
 #include "../world/tile_element/TrackElement.h"
 #include "Ride.h"
 #include "RideData.h"
+#include "RideRatings.h"
 #include "TrackIteration.h"
 
 using namespace OpenRCT2;
@@ -41,6 +42,29 @@ constexpr int32_t SYNCHRONISED_VEHICLE_COUNT = 16;
 static SynchronisedVehicle _synchronisedVehicles[SYNCHRONISED_VEHICLE_COUNT] = {};
 
 static SynchronisedVehicle* _lastSynchronisedVehicle = nullptr;
+
+static void RideRatingPublishTrainSample(Vehicle& vehicle)
+{
+    if (!vehicle.IsHead() || vehicle.flags.has(VehicleFlag::testing) || vehicle.isGhost())
+    {
+        return;
+    }
+
+    auto* ride = vehicle.GetRide();
+    if (ride == nullptr || ride->getRideTypeDescriptor().RatingsData.Type != RatingsCalculationType::Normal)
+    {
+        return;
+    }
+
+    auto* accumulator = RideFindActiveRatingSample(*ride, vehicle.id);
+    if (accumulator == nullptr || !accumulator->hasSamples())
+    {
+        return;
+    }
+
+    RideRating::RecordRiderSample(*ride, *accumulator);
+    accumulator->clear();
+}
 
 /**
  * Checks if a map position contains a synchronised ride station and adds the vehicle
@@ -908,6 +932,8 @@ void Vehicle::UpdateWaitingToDepart()
  */
 void Vehicle::UpdateUnloadingPassengers()
 {
+    RideRatingPublishTrainSample(*this);
+
     if (sub_state == 0)
     {
         if (OpenRestraints())

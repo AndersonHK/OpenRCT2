@@ -49,6 +49,7 @@
 #include "../world/tile_element/WallElement.h"
 #include "Ride.h"
 #include "RideData.h"
+#include "RideRatings.h"
 #include "Track.h"
 #include "TrackData.h"
 #include "TrackIteration.h"
@@ -68,6 +69,235 @@ using namespace OpenRCT2::RideVehicle;
 
 constexpr int16_t kVehicleMaxSpinSpeedForStopping = 700;
 constexpr int16_t kVehicleStoppingSpinSpeed = 600;
+
+static bool RideRatingTickIsSheltered(const CoordsXYZ& location)
+{
+    if (location.x == kLocationNull)
+    {
+        return false;
+    }
+
+    auto surfaceElement = MapGetSurfaceElementAt(CoordsXY{ location.x, location.y });
+    if (surfaceElement != nullptr && surfaceElement->getBaseZ() <= location.z)
+    {
+        return TrackGetIsSheltered(location);
+    }
+
+    return true;
+}
+
+static int32_t RideRatingGetLocalContextScore(const CoordsXY& location, RideId rideId)
+{
+    if (location.x == kLocationNull)
+    {
+        return 0;
+    }
+
+    int32_t score = 0;
+    auto tileLocation = TileCoordsXY(location);
+    auto& gameState = getGameState();
+    for (int32_t yy = std::max(tileLocation.y - 1, 0); yy <= std::min(tileLocation.y + 1, gameState.mapSize.y - 1); yy++)
+    {
+        for (int32_t xx = std::max(tileLocation.x - 1, 0); xx <= std::min(tileLocation.x + 1, gameState.mapSize.x - 1); xx++)
+        {
+            TileElement* tileElement = MapGetFirstElementAt(TileCoordsXY{ xx, yy });
+            if (tileElement == nullptr)
+            {
+                continue;
+            }
+
+            do
+            {
+                if (tileElement->isGhost())
+                {
+                    continue;
+                }
+
+                const auto type = tileElement->getType();
+                if (type == TileElementType::SmallScenery || type == TileElementType::LargeScenery
+                    || type == TileElementType::Wall || type == TileElementType::Path)
+                {
+                    score++;
+                }
+                else if (type == TileElementType::Track && tileElement->asTrack()->GetRideIndex() != rideId)
+                {
+                    score++;
+                }
+            } while (!(tileElement++)->isLastForTile());
+        }
+    }
+
+    return std::min(score, 16);
+}
+
+static void RideRatingAccumulateTick(
+    RideRatingAccumulator& accumulator, TrackElemType trackType, const GForces& gForces, int32_t velocity, bool isSheltered,
+    int32_t contextScore, bool isSynchronised)
+{
+    const auto& ted = GetTrackElementDescriptor(trackType);
+    const int32_t speed = std::abs(velocity) >> 16;
+    const int32_t positiveVerticalG = std::max(gForces.verticalG - 100, 0);
+    const int32_t negativeVerticalG = std::max(100 - gForces.verticalG, 0);
+    const int32_t lateralG = std::abs(gForces.lateralG);
+
+    int64_t excitement = 1 + (std::min(speed, 90) / 5) + (std::min(positiveVerticalG, 400) / 12)
+        + (std::min(negativeVerticalG, 300) / 8) + (std::min(lateralG, 300) / 18);
+    int64_t intensity = (std::min(speed, 90) / 4) + (std::min(positiveVerticalG, 450) / 5)
+        + (std::min(negativeVerticalG, 350) / 4) + (std::min(lateralG, 350) / 3);
+    int64_t nausea = (std::min(speed, 90) / 8) + (std::min(positiveVerticalG, 450) / 10)
+        + (std::min(negativeVerticalG, 350) / 5) + (std::min(lateralG, 350) / 2);
+
+    if (ted.flags.hasAny(TrackElementFlag::turnLeft, TrackElementFlag::turnRight))
+    {
+        const bool banked = ted.flags.has(TrackElementFlag::turnBanked);
+        excitement += banked ? 3 : 2;
+        intensity += banked ? 2 : 4;
+        nausea += banked ? 2 : 4;
+    }
+    if (ted.flags.has(TrackElementFlag::turnSloped))
+    {
+        excitement += 2;
+        nausea += 2;
+    }
+    if (ted.flags.has(TrackElementFlag::helix))
+    {
+        excitement += 5;
+        intensity += 4;
+        nausea += 5;
+    }
+    if (ted.flags.has(TrackElementFlag::normalToInversion))
+    {
+        excitement += 8;
+        intensity += 9;
+        nausea += 6;
+    }
+    if (ted.flags.has(TrackElementFlag::down))
+    {
+        excitement += 2;
+        intensity += 1;
+    }
+
+    switch (trackType)
+    {
+        case TrackElemType::spinningTunnel:
+            excitement += 4;
+            intensity += 3;
+            nausea += 6;
+            break;
+        case TrackElemType::rapids:
+        case TrackElemType::waterSplash:
+            excitement += 5;
+            intensity += 3;
+            nausea += 2;
+            break;
+        case TrackElemType::waterfall:
+            excitement += 5;
+            intensity += 2;
+            break;
+        case TrackElemType::whirlpool:
+            excitement += 4;
+            intensity += 2;
+            nausea += 3;
+            break;
+        case TrackElemType::logFlumeReverser:
+            excitement += 4;
+            intensity += 5;
+            nausea += 6;
+            break;
+        default:
+            break;
+    }
+
+    if (isSheltered)
+    {
+        excitement += 2;
+        intensity += 1;
+        nausea += 1;
+    }
+
+    if (isSynchronised)
+    {
+        excitement += 3;
+        intensity += 1;
+        nausea += 1;
+    }
+
+    excitement += contextScore;
+
+    accumulator.excitement += excitement;
+    accumulator.intensity += intensity;
+    accumulator.nausea += nausea;
+    accumulator.ticks++;
+}
+
+static bool RideRatingStatusIsLiveSampled(Vehicle::Status status)
+{
+    switch (status)
+    {
+        case Vehicle::Status::departing:
+        case Vehicle::Status::travelling:
+        case Vehicle::Status::arriving:
+        case Vehicle::Status::travellingBoat:
+        case Vehicle::Status::travellingCableLift:
+            return true;
+        default:
+            return false;
+    }
+}
+
+static bool RideRatingTrainHasRiders(const Vehicle& head)
+{
+    for (const Vehicle* vehicle = &head; vehicle != nullptr;
+         vehicle = getGameState().entities.GetEntity<Vehicle>(vehicle->next_vehicle_on_train))
+    {
+        if (vehicle->num_peeps != 0)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static void RideRatingUpdateLiveTrainSample(Vehicle& vehicle)
+{
+    if (!vehicle.IsHead() || vehicle.flags.has(VehicleFlag::testing) || vehicle.isGhost()
+        || !RideRatingStatusIsLiveSampled(vehicle.status) || !RideRatingTrainHasRiders(vehicle))
+    {
+        return;
+    }
+
+    auto curRide = vehicle.GetRide();
+    if (curRide == nullptr || curRide->getRideTypeDescriptor().RatingsData.Type != RatingsCalculationType::Normal)
+    {
+        return;
+    }
+
+    auto currentTrackType = vehicle.GetTrackType();
+    if (currentTrackType == TrackElemType::none)
+    {
+        return;
+    }
+
+    auto* accumulator = RideGetOrCreateActiveRatingSample(*curRide, vehicle.id);
+    if (accumulator == nullptr)
+    {
+        return;
+    }
+
+    GForces gForces{ 100, 0 };
+    if (curRide->getRideTypeDescriptor().flags.has(RtdFlag::hasGForces))
+    {
+        gForces = vehicle.GetGForces();
+    }
+
+    const auto location = CoordsXYZ{ vehicle.x, vehicle.y, vehicle.z };
+    const bool isSynchronised = (curRide->departFlags & RIDE_DEPART_SYNCHRONISE_WITH_ADJACENT_STATIONS)
+        && RideHasAdjacentStation(*curRide);
+    RideRatingAccumulateTick(
+        *accumulator, currentTrackType, gForces, vehicle.velocity, RideRatingTickIsSheltered(location),
+        RideRatingGetLocalContextScore(CoordsXY{ vehicle.x, vehicle.y }, curRide->id), isSynchronised);
+}
 
 Vehicle* gCurrentVehicle;
 
@@ -495,6 +725,8 @@ void Vehicle::UpdateMeasurements()
             stationForTestSegment.SegmentTime++;
         }
 
+        auto currentTrackType = GetTrackType();
+        GForces gForces{ 100, 0 };
         int32_t distance = abs(((velocity + acceleration) >> 10) * 42);
         if (NumLaps == 0)
         {
@@ -503,7 +735,7 @@ void Vehicle::UpdateMeasurements()
 
         if (curRide->getRideTypeDescriptor().flags.has(RtdFlag::hasGForces))
         {
-            auto gForces = GetGForces();
+            gForces = GetGForces();
             gForces.verticalG += curRide->previousVerticalG;
             gForces.lateralG += curRide->previousLateralG;
             gForces.verticalG /= 2;
@@ -524,6 +756,16 @@ void Vehicle::UpdateMeasurements()
 
             gForces.lateralG = std::abs(gForces.lateralG);
             curRide->maxLateralG = std::max(curRide->maxLateralG, static_cast<fixed16_2dp>(gForces.lateralG));
+        }
+
+        if (curRide->getRideTypeDescriptor().RatingsData.Type == RatingsCalculationType::Normal)
+        {
+            const auto location = CoordsXYZ{ x, y, z };
+            const bool isSynchronised = (curRide->departFlags & RIDE_DEPART_SYNCHRONISE_WITH_ADJACENT_STATIONS)
+                && RideHasAdjacentStation(*curRide);
+            RideRatingAccumulateTick(
+                curRide->ratingAccumulator, currentTrackType, gForces, velocity, RideRatingTickIsSheltered(location),
+                RideRatingGetLocalContextScore(CoordsXY{ x, y }, curRide->id), isSynchronised);
         }
     }
 
@@ -789,7 +1031,13 @@ void Vehicle::Update()
         return;
 
     if (flags.has(VehicleFlag::testing))
+    {
         UpdateMeasurements();
+    }
+    else
+    {
+        RideRatingUpdateLiveTrainSample(*this);
+    }
 
     _vehicleBreakdown = Breakdown::none;
     if (curRide->flags.hasAny(RideFlag::breakdownPending, RideFlag::brokenDown))
@@ -956,6 +1204,8 @@ static void test_finish(Ride& ride)
     totalTime = std::max(totalTime, 1u);
     ride.averageSpeed = ride.averageSpeed / totalTime;
 
+    RideRating::RecordRiderSample(ride, ride.ratingAccumulator);
+
     auto* windowMgr = Ui::GetWindowManager();
     windowMgr->InvalidateByNumber(WindowClass::ride, ride.id.ToUnderlying());
 }
@@ -997,6 +1247,8 @@ static void test_reset(Ride& ride, StationIndex curStation)
     ride.numDrops = 0;
     ride.numPoweredLifts = 0;
     ride.shelteredLength = 0;
+    ride.ratingAccumulator.clear();
+    RideClearRiderRatingSamples(ride);
     ride.var11C = 0;
     ride.numShelteredSections = 0;
     ride.highestDropHeight = 0;

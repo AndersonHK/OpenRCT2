@@ -98,13 +98,14 @@ namespace OpenRCT2::Park
         /**
          * Probability out of 65535, of gaining a new guest per game tick.
          * new guests per second = 40 * (probability / 65535)
-         * With a full park rating, non-overpriced entrance fee, less guests than the suggested maximum and four positive
-         * awards, approximately 1 guest per second can be generated (+60 guests in one minute).
+         * This is driven by park rating and scaled geometrically from park value, using $11,000 as the baseline. Guest
+         * count does not directly cap generation; crowded paths and long queues reduce arrivals by reducing happiness.
          */
         int32_t guestGenerationProbability;
 
         /**
-         * In a difficult guest generation scenario, no guests will be generated if over this value.
+         * Legacy UI/script estimate of how many guests the current ride mix can support.
+         * Guest generation no longer treats this value as a cap.
          */
         uint32_t suggestedGuestMaximum;
 

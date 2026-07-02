@@ -206,6 +206,10 @@ namespace OpenRCT2::GameActions
         {
             ride->overallView = startLoc;
         }
+        if (!flags.has(CommandFlag::ghost))
+        {
+            ride->ratingAccumulator.clear();
+        }
 
         return res;
     }

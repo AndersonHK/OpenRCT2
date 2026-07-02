@@ -269,6 +269,7 @@ namespace OpenRCT2::GameActions
         }
 
         ride->value = kRideValueUndefined;
+        ride->priceTarget = RidePriceTarget::neutral;
         ride->satisfaction = 255;
         ride->popularity = 255;
         ride->buildDate = GetDate().GetMonthsElapsed();

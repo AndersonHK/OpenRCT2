@@ -75,6 +75,7 @@
 #include "Vehicle.h"
 #include "ted/TrackElementDescriptor.h"
 
+#include <algorithm>
 #include <cassert>
 #include <iterator>
 #include <limits>
@@ -295,6 +296,112 @@ int32_t RideGetCount()
 {
     auto& gameState = getGameState();
     return static_cast<int32_t>(RideManager(gameState).size());
+}
+
+RideRatingAccumulator* RideFindActiveRatingSample(Ride& ride, EntityId sampleEntity)
+{
+    if (sampleEntity.IsNull())
+    {
+        return nullptr;
+    }
+
+    for (auto& sample : ride.activeRatingSamples)
+    {
+        if (sample.sampleEntity == sampleEntity)
+        {
+            return &sample;
+        }
+    }
+
+    return nullptr;
+}
+
+RideRatingAccumulator* RideGetOrCreateActiveRatingSample(Ride& ride, EntityId sampleEntity)
+{
+    if (sampleEntity.IsNull())
+    {
+        return nullptr;
+    }
+
+    if (auto* existingSample = RideFindActiveRatingSample(ride, sampleEntity); existingSample != nullptr)
+    {
+        return existingSample;
+    }
+
+    for (auto& sample : ride.activeRatingSamples)
+    {
+        if (sample.sampleEntity.IsNull() && !sample.hasSamples())
+        {
+            sample.sampleEntity = sampleEntity;
+            return &sample;
+        }
+    }
+
+    return nullptr;
+}
+
+RideRatingAccumulator RideGetRecentRatingAccumulator(const Ride& ride)
+{
+    RideRatingAccumulator result{};
+    const auto sampleCount = std::min<size_t>(ride.recentRatingSampleCount, ride.recentRatingSamples.size());
+    size_t validSamples = 0;
+
+    for (size_t i = 0; i < sampleCount; i++)
+    {
+        const auto& sample = ride.recentRatingSamples[i];
+        if (!sample.hasSamples())
+        {
+            continue;
+        }
+
+        result.excitement += sample.excitement;
+        result.intensity += sample.intensity;
+        result.nausea += sample.nausea;
+        result.ticks += sample.ticks;
+        validSamples++;
+    }
+
+    if (validSamples == 0)
+    {
+        return {};
+    }
+
+    result.excitement /= static_cast<int64_t>(validSamples);
+    result.intensity /= static_cast<int64_t>(validSamples);
+    result.nausea /= static_cast<int64_t>(validSamples);
+    result.ticks = std::max<uint32_t>(1, result.ticks / static_cast<uint32_t>(validSamples));
+    return result;
+}
+
+void RideAddRecentRatingSample(Ride& ride, const RideRatingAccumulator& sample)
+{
+    if (!sample.hasSamples())
+    {
+        return;
+    }
+
+    auto storedSample = sample;
+    storedSample.sampleEntity = EntityId::GetNull();
+    storedSample.sampleComplete = true;
+
+    ride.recentRatingSamples[ride.recentRatingSampleNext] = storedSample;
+    ride.recentRatingSampleNext = static_cast<uint8_t>((ride.recentRatingSampleNext + 1) % ride.recentRatingSamples.size());
+    ride.recentRatingSampleCount = static_cast<uint8_t>(
+        std::min<size_t>(ride.recentRatingSampleCount + 1, ride.recentRatingSamples.size()));
+}
+
+void RideClearRiderRatingSamples(Ride& ride)
+{
+    for (auto& sample : ride.activeRatingSamples)
+    {
+        sample.clear();
+    }
+    for (auto& sample : ride.recentRatingSamples)
+    {
+        sample.clear();
+    }
+    ride.recentRatingSampleCount = 0;
+    ride.recentRatingSampleNext = 0;
 }
 
 size_t Ride::getNumPrices() const
@@ -1924,7 +2031,7 @@ std::pair<RideMeasurement*, StringWithArgs> Ride::getMeasurement()
 VehicleColour RideGetVehicleColour(const Ride& ride, int32_t vehicleIndex)
 {
     // Prevent indexing array out of bounds
-    vehicleIndex = std::clamp<int32_t>(vehicleIndex, 0, std::size(ride.vehicleColours) - 1);
+    vehicleIndex = std::clamp<int32_t>(vehicleIndex, 0, static_cast<int32_t>(std::size(ride.vehicleColours) - 1));
     return ride.vehicleColours[vehicleIndex];
 }
 
@@ -4397,6 +4504,8 @@ void InvalidateTestResults(Ride& ride)
 {
     ride.measurement = {};
     ride.ratings.setNull();
+    ride.ratingAccumulator.clear();
+    RideClearRiderRatingSamples(ride);
     ride.flags.unset(RideFlag::tested, RideFlag::testInProgress);
     if (ride.flags.has(RideFlag::onTrack))
     {
@@ -5091,6 +5200,120 @@ RideClassification Ride::getClassification() const
 bool Ride::isRide() const
 {
     return getClassification() == RideClassification::ride;
+}
+
+namespace
+{
+    constexpr money64 kRidePriceGoodValueMinMargin = 0.10_GBP;
+    constexpr money64 kRidePriceNeutralMinMargin = 0.20_GBP;
+    constexpr money64 kRidePriceBadValueMinMargin = 0.10_GBP;
+    constexpr int64_t kRideTargetPriceScaleNumerator = 4;
+    constexpr int64_t kRideTargetPriceScaleDenominator = 5;
+
+    money64 RideGetGuestFacingValue(const Ride& ride)
+    {
+        auto value = ride.value;
+        const auto& park = getGameState().park;
+        if ((park.flags & PARK_FLAGS_UNLOCK_ALL_PRICES) && park.entranceFee > 0
+            && !(park.flags & PARK_FLAGS_PARK_FREE_ENTRY))
+        {
+            value /= 4;
+        }
+        return std::max(0.00_GBP, value);
+    }
+
+    money64 RidePriceBelowBoundary(money64 boundary, money64 minMargin, int32_t marginDivisor = 10)
+    {
+        if (boundary <= 0.00_GBP)
+        {
+            return 0.00_GBP;
+        }
+
+        const auto margin = std::max(minMargin, boundary / marginDivisor);
+        return boundary > margin ? boundary - margin : 0.00_GBP;
+    }
+
+    money64 RideClampAdmissionPrice(money64 price)
+    {
+        return std::clamp(price, kRideMinPrice, kRideMaxPrice);
+    }
+
+    money64 RideApplyTargetPriceScale(money64 price)
+    {
+        return (price * kRideTargetPriceScaleNumerator) / kRideTargetPriceScaleDenominator;
+    }
+} // namespace
+
+bool RideUsesTargetPricing(const Ride& ride)
+{
+    if (!ride.isRide())
+    {
+        return false;
+    }
+
+    auto rideEntry = ride.getRideEntry();
+    if (rideEntry == nullptr)
+    {
+        return false;
+    }
+
+    const auto& rtd = ride.getRideTypeDescriptor();
+    if (rtd.flags.has(RtdFlag::isShopOrFacility) || rtd.specialType == RtdSpecialType::toilet)
+    {
+        return false;
+    }
+
+    return rideEntry->shop_item[0] == ShopItem::none;
+}
+
+money64 RideGetTargetPrice(const Ride& ride, RidePriceTarget target)
+{
+    if (ride.value == kRideValueUndefined)
+    {
+        return ride.price[0];
+    }
+
+    const auto value = RideGetGuestFacingValue(ride);
+    money64 price = 0.00_GBP;
+    switch (target)
+    {
+        case RidePriceTarget::goodValue:
+            price = RidePriceBelowBoundary(value / 2, kRidePriceGoodValueMinMargin);
+            break;
+        case RidePriceTarget::neutral:
+            price = RidePriceBelowBoundary(value, kRidePriceNeutralMinMargin);
+            break;
+        case RidePriceTarget::badValue:
+            price = RidePriceBelowBoundary(value * 2, kRidePriceBadValueMinMargin, 20);
+            break;
+    }
+
+    return RideClampAdmissionPrice(RideApplyTargetPriceScale(price));
+}
+
+void RideUpdateTargetPrice(Ride& ride)
+{
+    if (!RideUsesTargetPricing(ride))
+    {
+        return;
+    }
+
+    const auto& park = getGameState().park;
+    money64 price = ride.price[0];
+    if ((park.flags & PARK_FLAGS_NO_MONEY) || !Park::RidePricesUnlocked(park))
+    {
+        price = 0.00_GBP;
+    }
+    else if (ride.value != kRideValueUndefined)
+    {
+        price = RideGetTargetPrice(ride, ride.priceTarget);
+    }
+
+    if (ride.price[0] != price)
+    {
+        ride.price[0] = price;
+        ride.windowInvalidateFlags.set(RideInvalidateFlag::income);
+    }
 }
 
 money64 RideGetPrice(const Ride& ride)

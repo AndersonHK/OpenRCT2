@@ -31,6 +31,8 @@
 #include "TrackData.h"
 #include "TrackIteration.h"
 
+#include <cmath>
+#include <cstdint>
 #include <iterator>
 
 using namespace OpenRCT2;
@@ -93,6 +95,14 @@ struct ShelteredEights
 // The total amount would be MaxRideRatingSubSteps * RideRating::kMaxUpdateStates which
 // would be currently 80, this is the worst case of sub-steps and may break out earlier.
 static constexpr size_t MaxRideRatingUpdateSubSteps = 20;
+static constexpr int64_t kAggregatedRideRatingDivisor = 1000;
+
+struct RawRideRating
+{
+    int64_t excitement{};
+    int64_t intensity{};
+    int64_t nausea{};
+};
 
 static void ride_ratings_update_state(RideRating::UpdateState& state);
 static void ride_ratings_update_state_0(RideRating::UpdateState& state);
@@ -106,6 +116,9 @@ static void RideRatingsCalculate(RideRating::UpdateState& state, Ride& ride);
 static void RideRatingsCalculateValue(Ride& ride);
 static void ride_ratings_score_close_proximity(RideRating::UpdateState& state, TileElement* inputTileElement);
 static void RideRatingsAdd(RideRating::Tuple& ratings, int32_t excitement, int32_t intensity, int32_t nausea);
+static RideRating::Tuple RideRatingsCalculateAggregated(
+    RideRating::UpdateState& state, const Ride& ride, const RideRatingsDescriptor& descriptor, uint8_t shelteredEighths,
+    const RideRatingAccumulator& accumulator);
 
 static ShelteredEights GetNumOfShelteredEighths(const Ride& ride);
 static money64 RideComputeUpkeep(RideRating::UpdateState& state, const Ride& ride);
@@ -189,6 +202,18 @@ void RideRating::UpdateRide(const Ride& ride)
             ride_ratings_update_state(state);
         }
     }
+}
+
+void RideRating::RecordRiderSample(Ride& ride, const RideRatingAccumulator& sample)
+{
+    if (!sample.hasSamples() || ride.flags.has(RideFlag::fixedRatings))
+    {
+        return;
+    }
+
+    RideAddRecentRatingSample(ride, sample);
+    UpdateRide(ride);
+    ride.windowInvalidateFlags.set(RideInvalidateFlag::ratings);
 }
 
 /**
@@ -875,7 +900,8 @@ static void ride_ratings_score_close_proximity(RideRating::UpdateState& state, T
 
 static void RideRatingsCalculate(RideRating::UpdateState& state, Ride& ride)
 {
-    const auto& rrd = ride.getRideTypeDescriptor().RatingsData;
+    const auto& rtd = ride.getRideTypeDescriptor();
+    const auto& rrd = rtd.RatingsData;
 
     switch (rrd.Type)
     {
@@ -900,155 +926,181 @@ static void RideRatingsCalculate(RideRating::UpdateState& state, Ride& ride)
     ride.shelteredEighths = (rrd.RideShelter == kDynamicRideShelterRating) ? shelteredEighths.TotalShelteredEighths
                                                                            : rrd.RideShelter;
 
-    RideRating::Tuple ratings = rrd.BaseRatings;
-    // Apply Modifiers
-    for (const auto& modifier : rrd.Modifiers)
+    RideRating::Tuple ratings{};
+    const auto recentAccumulator = RideGetRecentRatingAccumulator(ride);
+    const RideRatingAccumulator* aggregateAccumulator = nullptr;
+    if (recentAccumulator.hasSamples())
     {
-        switch (modifier.type)
-        {
-            case RatingsModifierType::BonusLength:
-                RideRatingsApplyBonusLength(ratings, ride, modifier);
-                break;
-            case RatingsModifierType::BonusSynchronisation:
-                RideRatingsApplyBonusSynchronisation(ratings, ride, modifier);
-                break;
-            case RatingsModifierType::BonusTrainLength:
-                RideRatingsApplyBonusTrainLength(ratings, ride, modifier);
-                break;
-            case RatingsModifierType::BonusMaxSpeed:
-                RideRatingsApplyBonusMaxSpeed(ratings, ride, modifier);
-                break;
-            case RatingsModifierType::BonusAverageSpeed:
-                RideRatingsApplyBonusAverageSpeed(ratings, ride, modifier);
-                break;
-            case RatingsModifierType::BonusDuration:
-                RideRatingsApplyBonusDuration(ratings, ride, modifier);
-                break;
-            case RatingsModifierType::BonusGForces:
-                RideRatingsApplyBonusGForces(ratings, ride, modifier);
-                break;
-            case RatingsModifierType::BonusTurns:
-                RideRatingsApplyBonusTurns(ratings, ride, modifier);
-                break;
-            case RatingsModifierType::BonusDrops:
-                RideRatingsApplyBonusDrops(ratings, ride, modifier);
-                break;
-            case RatingsModifierType::BonusSheltered:
-                RideRatingsApplyBonusSheltered(ratings, ride, modifier);
-                break;
-            case RatingsModifierType::BonusProximity:
-                RideRatingsApplyBonusProximity(ratings, ride, state, modifier);
-                break;
-            case RatingsModifierType::BonusScenery:
-                RideRatingsApplyBonusScenery(ratings, ride, modifier);
-                break;
-            case RatingsModifierType::BonusRotations:
-                RideRatingsApplyBonusRotations(ratings, ride, modifier);
-                break;
-            case RatingsModifierType::BonusOperationOption:
-                RideRatingsApplyBonusOperationOption(ratings, ride, modifier);
-                break;
-            case RatingsModifierType::BonusReversedTrains:
-                RideRatingsApplyBonusReversedTrains(ratings, ride, modifier);
-                break;
-            case RatingsModifierType::BonusGoKartRace:
-                RideRatingsApplyBonusGoKartRace(ratings, ride, modifier);
-                break;
-            case RatingsModifierType::BonusTowerRide:
-                RideRatingsApplyBonusTowerRide(ratings, ride, modifier);
-                break;
-            case RatingsModifierType::BonusRotoDrop:
-                RideRatingsApplyBonusRotoDrop(ratings, ride);
-                break;
-            case RatingsModifierType::BonusMazeSize:
-                RideRatingsApplyBonusMazeSize(ratings, ride, modifier);
-                break;
-            case RatingsModifierType::BonusBoatHireNoCircuit:
-                RideRatingsApplyBonusBoatHireNoCircuit(ratings, ride, modifier);
-                break;
-            case RatingsModifierType::BonusSlideUnlimitedRides:
-                RideRatingsApplyBonusSlideUnlimitedRides(ratings, ride, modifier);
-                break;
-            case RatingsModifierType::BonusMotionSimulatorMode:
-                RideRatingsApplyBonusMotionSimulatorMode(ratings, ride, modifier);
-                break;
-            case RatingsModifierType::Bonus3DCinemaMode:
-                RideRatingsApplyBonus3DCinemaMode(ratings, ride, modifier);
-                break;
-            case RatingsModifierType::BonusTopSpinMode:
-                RideRatingsApplyBonusTopSpinMode(ratings, ride, modifier);
-                break;
-            case RatingsModifierType::BonusReversals:
-                RideRatingsApplyBonusReversals(ratings, ride, state, modifier);
-                break;
-            case RatingsModifierType::BonusHoles:
-                RideRatingsApplyBonusHoles(ratings, ride, modifier);
-                break;
-            case RatingsModifierType::BonusNumTrains:
-                RideRatingsApplyBonusNumTrains(ratings, ride, modifier);
-                break;
-            case RatingsModifierType::BonusDownwardLaunch:
-                RideRatingsApplyBonusDownwardLaunch(ratings, ride, modifier);
-                break;
-            case RatingsModifierType::BonusLaunchedFreefallSpecial:
-                RideRatingsApplyBonusLaunchedFreefallSpecial(ratings, ride, state, modifier);
-                break;
-            case RatingsModifierType::RequirementLength:
-                RideRatingsApplyRequirementLength(ratings, ride, modifier);
-                break;
-            case RatingsModifierType::RequirementMaxSpeed:
-                RideRatingsApplyRequirementMaxSpeed(ratings, ride, modifier);
-                break;
-            case RatingsModifierType::RequirementLateralGs:
-                RideRatingsApplyRequirementLateralGs(ratings, ride, modifier);
-                break;
-            case RatingsModifierType::RequirementInversions:
-                RideRatingsApplyRequirementInversions(ratings, ride, modifier);
-                break;
-            case RatingsModifierType::RequirementUnsheltered:
-                RideRatingsApplyRequirementUnsheltered(ratings, ride, shelteredEighths.TrackShelteredEighths, modifier);
-                break;
-            case RatingsModifierType::RequirementReversals:
-                RideRatingsApplyRequirementReversals(ratings, ride, state, modifier);
-                break;
-            case RatingsModifierType::RequirementHoles:
-                RideRatingsApplyRequirementHoles(ratings, ride, modifier);
-                break;
-            case RatingsModifierType::RequirementStations:
-                RideRatingsApplyRequirementStations(ratings, ride, modifier);
-                break;
-            case RatingsModifierType::RequirementSplashdown:
-                RideRatingsApplyRequirementSplashdown(ratings, ride, modifier);
-                break;
-            case RatingsModifierType::PenaltyLateralGs:
-                RideRatingsApplyPenaltyLateralGs(ratings, ride, modifier);
-                break;
-            default:
-                break;
-        }
+        aggregateAccumulator = &recentAccumulator;
+    }
+    else if (ride.ratingAccumulator.hasSamples())
+    {
+        aggregateAccumulator = &ride.ratingAccumulator;
+    }
 
-        // Requirements that may be ignored if the ride has inversions
-        if (ride.numInversions == 0 || !rrd.RelaxRequirementsIfInversions)
+    const bool aggregateRatingType = rrd.Type == RatingsCalculationType::Normal || rtd.specialType == RtdSpecialType::maze;
+    if (aggregateRatingType && aggregateAccumulator != nullptr)
+    {
+        ratings = RideRatingsCalculateAggregated(
+            state, ride, rrd, shelteredEighths.TrackShelteredEighths, *aggregateAccumulator);
+    }
+    else if (aggregateRatingType)
+    {
+        ratings = {};
+    }
+    else
+    {
+        ratings = rrd.BaseRatings;
+
+        // Apply Modifiers
+        for (const auto& modifier : rrd.Modifiers)
         {
             switch (modifier.type)
             {
-                case RatingsModifierType::RequirementDropHeight:
-                    RideRatingsApplyRequirementDropHeight(ratings, ride, modifier);
+                case RatingsModifierType::BonusLength:
+                    RideRatingsApplyBonusLength(ratings, ride, modifier);
                     break;
-                case RatingsModifierType::RequirementNumDrops:
-                    RideRatingsApplyRequirementNumDrops(ratings, ride, modifier);
+                case RatingsModifierType::BonusSynchronisation:
+                    RideRatingsApplyBonusSynchronisation(ratings, ride, modifier);
                     break;
-                case RatingsModifierType::RequirementNegativeGs:
-                    RideRatingsApplyRequirementNegativeGs(ratings, ride, modifier);
+                case RatingsModifierType::BonusTrainLength:
+                    RideRatingsApplyBonusTrainLength(ratings, ride, modifier);
+                    break;
+                case RatingsModifierType::BonusMaxSpeed:
+                    RideRatingsApplyBonusMaxSpeed(ratings, ride, modifier);
+                    break;
+                case RatingsModifierType::BonusAverageSpeed:
+                    RideRatingsApplyBonusAverageSpeed(ratings, ride, modifier);
+                    break;
+                case RatingsModifierType::BonusDuration:
+                    RideRatingsApplyBonusDuration(ratings, ride, modifier);
+                    break;
+                case RatingsModifierType::BonusGForces:
+                    RideRatingsApplyBonusGForces(ratings, ride, modifier);
+                    break;
+                case RatingsModifierType::BonusTurns:
+                    RideRatingsApplyBonusTurns(ratings, ride, modifier);
+                    break;
+                case RatingsModifierType::BonusDrops:
+                    RideRatingsApplyBonusDrops(ratings, ride, modifier);
+                    break;
+                case RatingsModifierType::BonusSheltered:
+                    RideRatingsApplyBonusSheltered(ratings, ride, modifier);
+                    break;
+                case RatingsModifierType::BonusProximity:
+                    RideRatingsApplyBonusProximity(ratings, ride, state, modifier);
+                    break;
+                case RatingsModifierType::BonusScenery:
+                    RideRatingsApplyBonusScenery(ratings, ride, modifier);
+                    break;
+                case RatingsModifierType::BonusRotations:
+                    RideRatingsApplyBonusRotations(ratings, ride, modifier);
+                    break;
+                case RatingsModifierType::BonusOperationOption:
+                    RideRatingsApplyBonusOperationOption(ratings, ride, modifier);
+                    break;
+                case RatingsModifierType::BonusReversedTrains:
+                    RideRatingsApplyBonusReversedTrains(ratings, ride, modifier);
+                    break;
+                case RatingsModifierType::BonusGoKartRace:
+                    RideRatingsApplyBonusGoKartRace(ratings, ride, modifier);
+                    break;
+                case RatingsModifierType::BonusTowerRide:
+                    RideRatingsApplyBonusTowerRide(ratings, ride, modifier);
+                    break;
+                case RatingsModifierType::BonusRotoDrop:
+                    RideRatingsApplyBonusRotoDrop(ratings, ride);
+                    break;
+                case RatingsModifierType::BonusMazeSize:
+                    RideRatingsApplyBonusMazeSize(ratings, ride, modifier);
+                    break;
+                case RatingsModifierType::BonusBoatHireNoCircuit:
+                    RideRatingsApplyBonusBoatHireNoCircuit(ratings, ride, modifier);
+                    break;
+                case RatingsModifierType::BonusSlideUnlimitedRides:
+                    RideRatingsApplyBonusSlideUnlimitedRides(ratings, ride, modifier);
+                    break;
+                case RatingsModifierType::BonusMotionSimulatorMode:
+                    RideRatingsApplyBonusMotionSimulatorMode(ratings, ride, modifier);
+                    break;
+                case RatingsModifierType::Bonus3DCinemaMode:
+                    RideRatingsApplyBonus3DCinemaMode(ratings, ride, modifier);
+                    break;
+                case RatingsModifierType::BonusTopSpinMode:
+                    RideRatingsApplyBonusTopSpinMode(ratings, ride, modifier);
+                    break;
+                case RatingsModifierType::BonusReversals:
+                    RideRatingsApplyBonusReversals(ratings, ride, state, modifier);
+                    break;
+                case RatingsModifierType::BonusHoles:
+                    RideRatingsApplyBonusHoles(ratings, ride, modifier);
+                    break;
+                case RatingsModifierType::BonusNumTrains:
+                    RideRatingsApplyBonusNumTrains(ratings, ride, modifier);
+                    break;
+                case RatingsModifierType::BonusDownwardLaunch:
+                    RideRatingsApplyBonusDownwardLaunch(ratings, ride, modifier);
+                    break;
+                case RatingsModifierType::BonusLaunchedFreefallSpecial:
+                    RideRatingsApplyBonusLaunchedFreefallSpecial(ratings, ride, state, modifier);
+                    break;
+                case RatingsModifierType::RequirementLength:
+                    RideRatingsApplyRequirementLength(ratings, ride, modifier);
+                    break;
+                case RatingsModifierType::RequirementMaxSpeed:
+                    RideRatingsApplyRequirementMaxSpeed(ratings, ride, modifier);
+                    break;
+                case RatingsModifierType::RequirementLateralGs:
+                    RideRatingsApplyRequirementLateralGs(ratings, ride, modifier);
+                    break;
+                case RatingsModifierType::RequirementInversions:
+                    RideRatingsApplyRequirementInversions(ratings, ride, modifier);
+                    break;
+                case RatingsModifierType::RequirementUnsheltered:
+                    RideRatingsApplyRequirementUnsheltered(ratings, ride, shelteredEighths.TrackShelteredEighths, modifier);
+                    break;
+                case RatingsModifierType::RequirementReversals:
+                    RideRatingsApplyRequirementReversals(ratings, ride, state, modifier);
+                    break;
+                case RatingsModifierType::RequirementHoles:
+                    RideRatingsApplyRequirementHoles(ratings, ride, modifier);
+                    break;
+                case RatingsModifierType::RequirementStations:
+                    RideRatingsApplyRequirementStations(ratings, ride, modifier);
+                    break;
+                case RatingsModifierType::RequirementSplashdown:
+                    RideRatingsApplyRequirementSplashdown(ratings, ride, modifier);
+                    break;
+                case RatingsModifierType::PenaltyLateralGs:
+                    RideRatingsApplyPenaltyLateralGs(ratings, ride, modifier);
                     break;
                 default:
                     break;
             }
+
+            // Requirements that may be ignored if the ride has inversions
+            if (ride.numInversions == 0 || !rrd.RelaxRequirementsIfInversions)
+            {
+                switch (modifier.type)
+                {
+                    case RatingsModifierType::RequirementDropHeight:
+                        RideRatingsApplyRequirementDropHeight(ratings, ride, modifier);
+                        break;
+                    case RatingsModifierType::RequirementNumDrops:
+                        RideRatingsApplyRequirementNumDrops(ratings, ride, modifier);
+                        break;
+                    case RatingsModifierType::RequirementNegativeGs:
+                        RideRatingsApplyRequirementNegativeGs(ratings, ride, modifier);
+                        break;
+                    default:
+                        break;
+                }
+            }
         }
+        // Universl ratings adjustments
+        RideRatingsApplyIntensityPenalty(ratings);
+        RideRatingsApplyAdjustments(ride, ratings);
     }
-    // Universl ratings adjustments
-    RideRatingsApplyIntensityPenalty(ratings);
-    RideRatingsApplyAdjustments(ride, ratings);
     if (ride.ratings != ratings)
     {
         ride.ratings = ratings;
@@ -1168,6 +1220,7 @@ static void RideRatingsCalculateValue(Ride& ride)
         value -= value / 4;
 
     ride.value = std::max(0.00_GBP, value);
+    RideUpdateTargetPrice(ride);
 }
 
 /**
@@ -1820,6 +1873,208 @@ static void RideRatingsAdd(RideRating::Tuple& ratings, int32_t excitement, int32
     ratings.excitement = std::clamp<int32_t>(newExcitement, 0, INT16_MAX);
     ratings.intensity = std::clamp<int32_t>(newIntensity, 0, INT16_MAX);
     ratings.nausea = std::clamp<int32_t>(newNausea, 0, INT16_MAX);
+}
+
+static RideRating_t RideRatingsRawToRating(int64_t raw)
+{
+    if (raw <= 0)
+    {
+        return 0;
+    }
+
+    const double value = std::sqrt(static_cast<double>(raw) / static_cast<double>(kAggregatedRideRatingDivisor)) * 100.0;
+    return static_cast<RideRating_t>(std::clamp<int64_t>(static_cast<int64_t>(std::llround(value)), 0, INT16_MAX));
+}
+
+static void RideRatingsRawDivide(RawRideRating& raw, RatingsModifier modifier)
+{
+    if (modifier.excitement > 1)
+    {
+        raw.excitement /= modifier.excitement;
+    }
+    if (modifier.intensity > 1)
+    {
+        raw.intensity /= modifier.intensity;
+    }
+    if (modifier.nausea > 1)
+    {
+        raw.nausea /= modifier.nausea;
+    }
+}
+
+static void RideRatingsRawApplyRideEntryMultipliers(RawRideRating& raw, const Ride& ride)
+{
+    const auto* rideEntry = GetRideEntryByIndex(ride.subtype);
+    if (rideEntry == nullptr)
+    {
+        return;
+    }
+
+    raw.excitement += (raw.excitement * rideEntry->excitement_multiplier) >> 7;
+    raw.intensity += (raw.intensity * rideEntry->intensity_multiplier) >> 7;
+    raw.nausea += (raw.nausea * rideEntry->nausea_multiplier) >> 7;
+}
+
+static void RideRatingsRawApplyRequirement(
+    RawRideRating& raw, const Ride& ride, RideRating::UpdateState& state, uint8_t shelteredEighths, RatingsModifier modifier)
+{
+    switch (modifier.type)
+    {
+        case RatingsModifierType::RequirementLength:
+            // Minimum circuit length now gates the raw stat mass instead of dividing already-final ratings.
+            if (ride.getStation().SegmentLength < modifier.threshold)
+            {
+                RideRatingsRawDivide(raw, modifier);
+            }
+            break;
+        case RatingsModifierType::RequirementDropHeight:
+            // Minimum drop height gates raw momentum/distance stats before geometric scaling.
+            if (ride.highestDropHeight < modifier.threshold)
+            {
+                RideRatingsRawDivide(raw, modifier);
+            }
+            break;
+        case RatingsModifierType::RequirementMaxSpeed:
+            // Minimum speed gates the raw result because speed is sampled per tick.
+            if (ride.maxSpeed < modifier.threshold)
+            {
+                RideRatingsRawDivide(raw, modifier);
+            }
+            break;
+        case RatingsModifierType::RequirementNumDrops:
+            // Drop count remains a track-piece gate over the per-tick drop contributions.
+            if (ride.numDrops < modifier.threshold)
+            {
+                RideRatingsRawDivide(raw, modifier);
+            }
+            break;
+        case RatingsModifierType::RequirementNegativeGs:
+            // Negative-G requirement gates airtime-derived raw stats.
+            if (ride.maxNegativeVerticalG >= modifier.threshold)
+            {
+                RideRatingsRawDivide(raw, modifier);
+            }
+            break;
+        case RatingsModifierType::RequirementLateralGs:
+            // Lateral-G requirement gates raw cornering stats.
+            if (ride.maxLateralG < modifier.threshold)
+            {
+                RideRatingsRawDivide(raw, modifier);
+            }
+            break;
+        case RatingsModifierType::RequirementInversions:
+            // Inversion requirements now gate raw inversion ticks.
+            if (ride.numInversions < modifier.threshold)
+            {
+                RideRatingsRawDivide(raw, modifier);
+            }
+            break;
+        case RatingsModifierType::RequirementUnsheltered:
+            // Too much shelter reduces raw track-context value before the diminishing-return curve.
+            if (shelteredEighths >= modifier.threshold)
+            {
+                RideRatingsRawDivide(raw, modifier);
+            }
+            break;
+        case RatingsModifierType::RequirementReversals:
+            // Reverser requirements gate raw special-track value.
+            if (state.AmountOfReversers < modifier.threshold)
+            {
+                RideRatingsRawDivide(raw, modifier);
+            }
+            break;
+        case RatingsModifierType::RequirementHoles:
+            // Mini-golf holes are discrete track pieces, so missing holes gate raw stats.
+            if (ride.numHoles < modifier.threshold)
+            {
+                RideRatingsRawDivide(raw, modifier);
+            }
+            break;
+        case RatingsModifierType::RequirementStations:
+            // Station count requirements can still remove excitement, but now at raw level.
+            if (ride.numStations <= modifier.threshold)
+            {
+                raw.excitement = 0;
+                if (modifier.intensity > 1)
+                {
+                    raw.intensity /= modifier.intensity;
+                }
+                if (modifier.nausea > 1)
+                {
+                    raw.nausea /= modifier.nausea;
+                }
+            }
+            break;
+        case RatingsModifierType::RequirementSplashdown:
+            // Splashdown requirements gate water-track raw effects.
+            if (!ride.specialTrackElements.has(SpecialElement::splash))
+            {
+                RideRatingsRawDivide(raw, modifier);
+            }
+            break;
+        default:
+            break;
+    }
+}
+
+static void RideRatingsRawApplyModifiers(
+    RawRideRating& raw, RideRating::UpdateState& state, const Ride& ride, const RideRatingsDescriptor& descriptor,
+    uint8_t shelteredEighths)
+{
+    for (const auto& modifier : descriptor.Modifiers)
+    {
+        // Aggregate ratings must start from sampled ticks only. Additive legacy bonuses are skipped here because applying
+        // them after sampling would reintroduce fixed post-hoc stats. Positional effects are sampled in Vehicle.cpp, while
+        // requirements below can only reduce or gate the accumulated raw totals.
+        switch (modifier.type)
+        {
+            case RatingsModifierType::BonusReversedTrains:
+                if (ride.flags.has(RideFlag::reversedTrains))
+                {
+                    raw.excitement += (raw.excitement * modifier.excitement) >> 7;
+                    raw.intensity += (raw.intensity * modifier.intensity) >> 7;
+                    raw.nausea += (raw.nausea * modifier.nausea) >> 7;
+                }
+                break;
+            case RatingsModifierType::PenaltyLateralGs:
+                if (ride.maxLateralG > MakeFixed16_2dp(3, 10))
+                {
+                    raw.excitement /= 2;
+                }
+                break;
+            default:
+                break;
+        }
+
+        const bool mayApplyRelaxedRequirement = ride.numInversions == 0 || !descriptor.RelaxRequirementsIfInversions;
+        if (mayApplyRelaxedRequirement
+            || (modifier.type != RatingsModifierType::RequirementDropHeight
+                && modifier.type != RatingsModifierType::RequirementNumDrops
+                && modifier.type != RatingsModifierType::RequirementNegativeGs))
+        {
+            RideRatingsRawApplyRequirement(raw, ride, state, shelteredEighths, modifier);
+        }
+    }
+}
+
+static RideRating::Tuple RideRatingsCalculateAggregated(
+    RideRating::UpdateState& state, const Ride& ride, const RideRatingsDescriptor& descriptor, uint8_t shelteredEighths,
+    const RideRatingAccumulator& accumulator)
+{
+    RawRideRating raw = {
+        .excitement = accumulator.excitement,
+        .intensity = accumulator.intensity,
+        .nausea = accumulator.nausea,
+    };
+
+    RideRatingsRawApplyModifiers(raw, state, ride, descriptor, shelteredEighths);
+    RideRatingsRawApplyRideEntryMultipliers(raw, ride);
+
+    return {
+        .excitement = RideRatingsRawToRating(raw.excitement),
+        .intensity = RideRatingsRawToRating(raw.intensity),
+        .nausea = RideRatingsRawToRating(raw.nausea),
+    };
 }
 
 static void RideRatingsApplyBonusLength(RideRating::Tuple& ratings, const Ride& ride, RatingsModifier modifier)

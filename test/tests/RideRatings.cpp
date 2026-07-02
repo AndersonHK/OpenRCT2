@@ -20,7 +20,9 @@
 #include <openrct2/ride/Ride.h>
 #include <openrct2/ride/RideData.h>
 #include <openrct2/ride/RideManager.hpp>
+#include <cstdlib>
 #include <string>
+#include <string_view>
 
 using namespace OpenRCT2;
 
@@ -56,14 +58,50 @@ protected:
         return line;
     }
 
+    bool ShouldUpdateExpectedRatings()
+    {
+        auto* value = std::getenv("OPENRCT2_UPDATE_RIDE_RATINGS");
+        return value != nullptr && std::string_view(value) == "1";
+    }
+
+    std::vector<u8string> GetRatingsForAllRides()
+    {
+        std::vector<u8string> ratings;
+        auto& gameState = getGameState();
+        for (const auto& ride : RideManager(gameState))
+        {
+            ratings.push_back(FormatRatings(ride));
+        }
+        return ratings;
+    }
+
+    void WriteRatings(const u8string& path, const std::vector<u8string>& ratings)
+    {
+        std::string data;
+        for (size_t i = 0; i < ratings.size(); i++)
+        {
+            if (i != 0)
+            {
+                data += '\n';
+            }
+            data += ratings[i];
+        }
+        File::WriteAllBytes(path, data.data(), data.size());
+    }
+
     void TestRatings(const u8string& parkFile, uint16_t expectedRideCount)
     {
         const auto parkFilePath = TestData::GetParkPath(parkFile);
         const auto ratingsDataPath = Path::Combine(TestData::GetBasePath(), u8"ratings", parkFile + u8".txt");
 
         // Load expected ratings
-        auto expectedRatings = File::ReadAllLines(ratingsDataPath);
-        ASSERT_FALSE(expectedRatings.empty());
+        const auto updateExpectedRatings = ShouldUpdateExpectedRatings();
+        std::vector<u8string> expectedRatings;
+        if (!updateExpectedRatings)
+        {
+            expectedRatings = File::ReadAllLines(ratingsDataPath);
+            ASSERT_FALSE(expectedRatings.empty());
+        }
 
         gOpenRCT2Headless = true;
         gOpenRCT2NoGraphics = true;
@@ -79,16 +117,20 @@ protected:
 
         CalculateRatingsForAllRides();
 
-        // Check ride ratings
-        int expI = 0;
-        auto& gameState = getGameState();
-        for (const auto& ride : RideManager(gameState))
+        auto actualRatings = GetRatingsForAllRides();
+        if (updateExpectedRatings)
         {
-            auto actual = FormatRatings(ride);
-            auto expected = expectedRatings[expI];
-            ASSERT_STREQ(actual.c_str(), expected.c_str());
+            WriteRatings(ratingsDataPath, actualRatings);
+            return;
+        }
 
-            expI++;
+        // Check ride ratings
+        ASSERT_EQ(actualRatings.size(), expectedRatings.size());
+        for (size_t i = 0; i < actualRatings.size(); i++)
+        {
+            auto actual = actualRatings[i];
+            auto expected = expectedRatings[i];
+            ASSERT_STREQ(actual.c_str(), expected.c_str());
         }
     }
 };

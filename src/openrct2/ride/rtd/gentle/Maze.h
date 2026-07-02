@@ -60,10 +60,7 @@ constexpr RideTypeDescriptor MazeRTD =
         8,
         0,
         false,
-        {
-            { RatingsModifierType::BonusMazeSize, 100, 1, 2, 0 },
-            { RatingsModifierType::BonusScenery,  0,   22310, 0, 0 },
-        },
+        {},
     },
     .UpdateRotating = UpdateRotatingDefault,
     .LightFXAddLightsMagicVehicle = nullptr,

@@ -553,7 +553,7 @@ namespace OpenRCT2::Scripting
                 JS_CGETSET_DEF("image", ScButtonWidget::image_get, ScButtonWidget::image_set),
                 JS_CGETSET_DEF("text", ScWidget::text_get, ScWidget::text_set),
             };
-            JS_SetPropertyFunctionList(ctx, obj, funcs, std::size(funcs));
+            JS_SetPropertyFunctionList(ctx, obj, funcs, static_cast<int32_t>(std::size(funcs)));
         }
 
     private:
@@ -642,7 +642,7 @@ namespace OpenRCT2::Scripting
                 JS_CGETSET_DEF("isChecked", ScCheckBoxWidget::isChecked_get, ScCheckBoxWidget::isChecked_set),
                 JS_CGETSET_DEF("text", ScWidget::text_get, ScWidget::text_set),
             };
-            JS_SetPropertyFunctionList(ctx, obj, funcs, std::size(funcs));
+            JS_SetPropertyFunctionList(ctx, obj, funcs, static_cast<int32_t>(std::size(funcs)));
         }
 
     private:
@@ -679,7 +679,7 @@ namespace OpenRCT2::Scripting
             static constexpr JSCFunctionListEntry funcs[] = {
                 JS_CGETSET_DEF("colour", ScColourPickerWidget::colour_get, ScColourPickerWidget::colour_set),
             };
-            JS_SetPropertyFunctionList(ctx, obj, funcs, std::size(funcs));
+            JS_SetPropertyFunctionList(ctx, obj, funcs, static_cast<int32_t>(std::size(funcs)));
         }
 
     private:
@@ -718,7 +718,7 @@ namespace OpenRCT2::Scripting
                 JS_CGETSET_DEF("selectedIndex", ScDropdownWidget::selectedIndex_get, ScDropdownWidget::selectedIndex_set),
                 JS_CGETSET_DEF("text", ScWidget::text_get, ScWidget::text_set),
             };
-            JS_SetPropertyFunctionList(ctx, obj, funcs, std::size(funcs));
+            JS_SetPropertyFunctionList(ctx, obj, funcs, static_cast<int32_t>(std::size(funcs)));
         }
 
     private:
@@ -790,7 +790,7 @@ namespace OpenRCT2::Scripting
             static constexpr JSCFunctionListEntry funcs[] = {
                 JS_CGETSET_DEF("text", ScWidget::text_get, ScWidget::text_set),
             };
-            JS_SetPropertyFunctionList(ctx, obj, funcs, std::size(funcs));
+            JS_SetPropertyFunctionList(ctx, obj, funcs, static_cast<int32_t>(std::size(funcs)));
         }
     };
 
@@ -803,7 +803,7 @@ namespace OpenRCT2::Scripting
                 JS_CGETSET_DEF("text", ScWidget::text_get, ScWidget::text_set),
                 JS_CGETSET_DEF("textAlign", ScLabelWidget::textAlign_get, ScLabelWidget::textAlign_set),
             };
-            JS_SetPropertyFunctionList(ctx, obj, funcs, std::size(funcs));
+            JS_SetPropertyFunctionList(ctx, obj, funcs, static_cast<int32_t>(std::size(funcs)));
         }
 
     private:
@@ -851,7 +851,7 @@ namespace OpenRCT2::Scripting
                 JS_CGETSET_DEF("columns", ScListViewWidget::columns_get, ScListViewWidget::columns_set),
                 JS_CGETSET_DEF("items", ScListViewWidget::items_get, ScListViewWidget::items_set),
             };
-            JS_SetPropertyFunctionList(ctx, obj, funcs, std::size(funcs));
+            JS_SetPropertyFunctionList(ctx, obj, funcs, static_cast<int32_t>(std::size(funcs)));
         }
 
     private:
@@ -1052,7 +1052,7 @@ namespace OpenRCT2::Scripting
             static constexpr JSCFunctionListEntry funcs[] = {
                 JS_CGETSET_DEF("text", ScWidget::text_get, ScWidget::text_set),
             };
-            JS_SetPropertyFunctionList(ctx, obj, funcs, std::size(funcs));
+            JS_SetPropertyFunctionList(ctx, obj, funcs, static_cast<int32_t>(std::size(funcs)));
         }
     };
 
@@ -1065,7 +1065,7 @@ namespace OpenRCT2::Scripting
                 JS_CGETSET_DEF("maxLength", ScTextBoxWidget::maxLength_get, ScTextBoxWidget::maxLength_set),
                 JS_CGETSET_DEF("text", ScWidget::text_get, ScWidget::text_set), JS_CFUNC_DEF("focus", 0, ScTextBoxWidget::focus)
             };
-            JS_SetPropertyFunctionList(ctx, obj, funcs, std::size(funcs));
+            JS_SetPropertyFunctionList(ctx, obj, funcs, static_cast<int32_t>(std::size(funcs)));
         }
 
     private:
@@ -1115,7 +1115,7 @@ namespace OpenRCT2::Scripting
             static constexpr JSCFunctionListEntry funcs[] = {
                 JS_CGETSET_DEF("viewport", ScViewportWidget::viewport_get, nullptr),
             };
-            JS_SetPropertyFunctionList(ctx, obj, funcs, std::size(funcs));
+            JS_SetPropertyFunctionList(ctx, obj, funcs, static_cast<int32_t>(std::size(funcs)));
         }
 
     private:

@@ -16,6 +16,7 @@
 #include <array>
 
 struct Ride;
+struct RideRatingAccumulator;
 
 namespace OpenRCT2
 {
@@ -71,6 +72,7 @@ namespace OpenRCT2
 
         void ResetUpdateStates();
         void UpdateRide(const Ride& ride);
+        void RecordRiderSample(Ride& ride, const RideRatingAccumulator& sample);
         void UpdateAll();
     } // namespace RideRating
 } // namespace OpenRCT2

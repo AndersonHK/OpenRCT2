@@ -21,10 +21,39 @@
 
 namespace OpenRCT2::GameActions
 {
+    static money64 EncodePriceTarget(RidePriceTarget priceTarget)
+    {
+        return -1 - static_cast<money64>(static_cast<uint8_t>(priceTarget));
+    }
+
+    static bool DecodePriceTarget(money64 price, RidePriceTarget& priceTarget)
+    {
+        if (price >= kRideMinPrice)
+        {
+            return false;
+        }
+
+        const auto rawTarget = (-price) - 1;
+        if (rawTarget < 0 || rawTarget > static_cast<money64>(static_cast<uint8_t>(RidePriceTarget::badValue)))
+        {
+            return false;
+        }
+
+        priceTarget = static_cast<RidePriceTarget>(static_cast<uint8_t>(rawTarget));
+        return true;
+    }
+
     RideSetPriceAction::RideSetPriceAction(RideId rideIndex, money64 price, bool primaryPrice)
         : _rideIndex(rideIndex)
         , _price(price)
         , _primaryPrice(primaryPrice)
+    {
+    }
+
+    RideSetPriceAction::RideSetPriceAction(RideId rideIndex, RidePriceTarget priceTarget)
+        : _rideIndex(rideIndex)
+        , _price(EncodePriceTarget(priceTarget))
+        , _primaryPrice(true)
     {
     }
 
@@ -63,6 +92,16 @@ namespace OpenRCT2::GameActions
             return Result(Status::invalidParameters, STR_ERR_INVALID_PARAMETER, STR_ERR_RIDE_OBJECT_ENTRY_NOT_FOUND);
         }
 
+        RidePriceTarget priceTarget{};
+        if (_primaryPrice && DecodePriceTarget(_price, priceTarget))
+        {
+            if (!RideUsesTargetPricing(*ride))
+            {
+                return Result(Status::invalidParameters, STR_ERR_INVALID_PARAMETER, kStringIdEmpty);
+            }
+            return Result();
+        }
+
         if (_price < kRideMinPrice || _price > kRideMaxPrice)
         {
             LOG_ERROR("Attempting to set an invalid price for rideIndex %u", _rideIndex.ToUnderlying());
@@ -91,7 +130,9 @@ namespace OpenRCT2::GameActions
             return Result(Status::invalidParameters, STR_ERR_INVALID_PARAMETER, STR_ERR_RIDE_OBJECT_ENTRY_NOT_FOUND);
         }
 
-        if (_price < kRideMinPrice || _price > kRideMaxPrice)
+        RidePriceTarget priceTarget{};
+        const bool setsPriceTarget = _primaryPrice && DecodePriceTarget(_price, priceTarget);
+        if (!setsPriceTarget && (_price < kRideMinPrice || _price > kRideMaxPrice))
         {
             LOG_ERROR("Attempting to set an invalid price for rideIndex %u", _rideIndex.ToUnderlying());
             return Result(Status::invalidParameters, STR_ERR_INVALID_PARAMETER, kStringIdEmpty);
@@ -104,6 +145,19 @@ namespace OpenRCT2::GameActions
         }
 
         auto* windowMgr = Ui::GetWindowManager();
+
+        if (setsPriceTarget)
+        {
+            if (!RideUsesTargetPricing(*ride))
+            {
+                return Result(Status::invalidParameters, STR_ERR_INVALID_PARAMETER, kStringIdEmpty);
+            }
+
+            ride->priceTarget = priceTarget;
+            RideUpdateTargetPrice(*ride);
+            windowMgr->InvalidateByClass(WindowClass::ride);
+            return res;
+        }
 
         ShopItem shopItem;
         if (_primaryPrice)

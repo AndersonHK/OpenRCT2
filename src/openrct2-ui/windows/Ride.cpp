@@ -8,6 +8,7 @@
  *****************************************************************************/
 
 #include <cassert>
+#include <array>
 #include <cmath>
 #include <iterator>
 #include <limits>
@@ -60,6 +61,7 @@
 #include <openrct2/object/PeepAnimationsObject.h>
 #include <openrct2/object/StationObject.h>
 #include <openrct2/rct1/RCT1.h>
+#include <openrct2/ride/Ride.h>
 #include <openrct2/ride/RideConstruction.h>
 #include <openrct2/ride/RideData.h>
 #include <openrct2/ride/ShopItem.h>
@@ -90,6 +92,40 @@ namespace OpenRCT2::Ui::Windows
 
     static constexpr StringId kWindowTitle = STR_RIDE_WINDOW_TITLE;
     static constexpr ScreenSize kWindowSize = { kMinimumWindowWidth, 207 };
+
+    static constexpr std::array<RidePriceTarget, 3> kIncomeRidePriceTargets = {
+        RidePriceTarget::goodValue,
+        RidePriceTarget::neutral,
+        RidePriceTarget::badValue,
+    };
+
+    static const char* GetRidePriceTargetName(RidePriceTarget target)
+    {
+        switch (target)
+        {
+            case RidePriceTarget::goodValue:
+                return "Good deal";
+            case RidePriceTarget::neutral:
+                return "No effect";
+            case RidePriceTarget::badValue:
+                return "Bad deal";
+        }
+        return "No effect";
+    }
+
+    static u8string FormatIncomePrice(money64 price)
+    {
+        return price == 0.00_GBP ? FormatStringID(STR_FREE) : FormatStringID(STR_BOTTOM_TOOLBAR_CASH, price);
+    }
+
+    static u8string FormatRidePriceTargetCaption(const Ride& ride, RidePriceTarget target, money64 price)
+    {
+        u8string caption = GetRidePriceTargetName(target);
+        caption += " (";
+        caption += ride.value == kRideValueUndefined ? "waiting for rating" : FormatIncomePrice(price);
+        caption += ")";
+        return caption;
+    }
 
     enum
     {
@@ -1042,6 +1078,9 @@ namespace OpenRCT2::Ui::Windows
                     break;
                 case WINDOW_RIDE_PAGE_MEASUREMENTS:
                     MeasurementsOnDropdown(widgetIndex, selectedIndex);
+                    break;
+                case WINDOW_RIDE_PAGE_INCOME:
+                    IncomeOnDropdown(widgetIndex, selectedIndex);
                     break;
             }
         }
@@ -6459,6 +6498,45 @@ namespace OpenRCT2::Ui::Windows
             GameActions::Execute(&rideSetPriceAction, getGameState());
         }
 
+        bool IncomeUsesTargetPricing()
+        {
+            auto ride = GetRide(rideId);
+            return ride != nullptr && RideUsesTargetPricing(*ride);
+        }
+
+        void IncomeSetPrimaryPriceTarget(RidePriceTarget target)
+        {
+            auto rideSetPriceAction = GameActions::RideSetPriceAction(rideId, target);
+            GameActions::Execute(&rideSetPriceAction, getGameState());
+        }
+
+        void IncomeShowPrimaryPriceTargetDropdown()
+        {
+            auto ride = GetRide(rideId);
+            if (ride == nullptr || !RideUsesTargetPricing(*ride) || !IncomeCanModifyPrimaryPrice())
+                return;
+
+            auto& dropdownWidget = widgets[WIDX_PRIMARY_PRICE];
+            auto dropdownWidth = widgets[WIDX_PRIMARY_PRICE_INCREASE].right - dropdownWidget.left;
+            WindowDropdownShowTextCustomWidth(
+                { windowPos.x + dropdownWidget.left, windowPos.y + dropdownWidget.top }, dropdownWidget.height(), colours[1],
+                0, 0, kIncomeRidePriceTargets.size(), dropdownWidth);
+
+            for (size_t i = 0; i < kIncomeRidePriceTargets.size(); i++)
+            {
+                const auto target = kIncomeRidePriceTargets[i];
+                const auto price = RideGetTargetPrice(*ride, target);
+                gDropdown.items[i] = Dropdown::MenuLabel(FormatRidePriceTargetCaption(*ride, target, price));
+                gDropdown.items[i].value = static_cast<uint32_t>(target);
+                if (ride->priceTarget == target)
+                {
+                    gDropdown.items[i].setChecked(true);
+                    gDropdown.highlightedIndex = static_cast<int32_t>(i);
+                    gDropdown.defaultIndex = static_cast<int32_t>(i);
+                }
+            }
+        }
+
         void IncomeIncreasePrimaryPrice()
         {
             if (!IncomeCanModifyPrimaryPrice())
@@ -6567,6 +6645,12 @@ namespace OpenRCT2::Ui::Windows
                     if (!IncomeCanModifyPrimaryPrice())
                         return;
 
+                    if (IncomeUsesTargetPricing())
+                    {
+                        IncomeShowPrimaryPriceTargetDropdown();
+                        return;
+                    }
+
                     auto ride = GetRide(rideId);
                     if (ride != nullptr)
                     {
@@ -6607,9 +6691,16 @@ namespace OpenRCT2::Ui::Windows
             switch (widgetIndex)
             {
                 case WIDX_PRIMARY_PRICE_INCREASE:
+                    if (IncomeUsesTargetPricing())
+                    {
+                        IncomeShowPrimaryPriceTargetDropdown();
+                        break;
+                    }
                     IncomeIncreasePrimaryPrice();
                     break;
                 case WIDX_PRIMARY_PRICE_DECREASE:
+                    if (IncomeUsesTargetPricing())
+                        break;
                     IncomeDecreasePrimaryPrice();
                     break;
                 case WIDX_SECONDARY_PRICE_INCREASE:
@@ -6619,6 +6710,18 @@ namespace OpenRCT2::Ui::Windows
                     IncomeDecreaseSecondaryPrice();
                     break;
             }
+        }
+
+        void IncomeOnDropdown(WidgetIndex widgetIndex, int32_t dropdownIndex)
+        {
+            if (dropdownIndex == -1)
+                return;
+
+            if (widgetIndex != WIDX_PRIMARY_PRICE && widgetIndex != WIDX_PRIMARY_PRICE_INCREASE)
+                return;
+
+            const auto priceTarget = static_cast<RidePriceTarget>(gDropdown.items[dropdownIndex].value);
+            IncomeSetPrimaryPriceTarget(priceTarget);
         }
 
         void IncomeUpdate()
@@ -6637,6 +6740,9 @@ namespace OpenRCT2::Ui::Windows
 
         void IncomeOnTextInput(WidgetIndex widgetIndex, std::string_view text)
         {
+            if (widgetIndex == WIDX_PRIMARY_PRICE && IncomeUsesTargetPricing())
+                return;
+
             if ((widgetIndex != WIDX_PRIMARY_PRICE && widgetIndex != WIDX_SECONDARY_PRICE) || text.empty())
                 return;
 
@@ -6674,18 +6780,30 @@ namespace OpenRCT2::Ui::Windows
 
             widgets[WIDX_PRIMARY_PRICE_LABEL].tooltip = kStringIdNone;
             widgets[WIDX_PRIMARY_PRICE].tooltip = kStringIdNone;
+            widgets[WIDX_PRIMARY_PRICE_INCREASE].tooltip = kStringIdNone;
+            widgets[WIDX_PRIMARY_PRICE_DECREASE].tooltip = kStringIdNone;
 
             auto& park = getGameState().park;
 
             // If ride prices are locked, do not allow setting the price, unless we're dealing with a shop or toilet.
             const auto& rtd = ride->getRideTypeDescriptor();
+            const bool primaryUsesTargetPricing = RideUsesTargetPricing(*ride);
+            widgets[WIDX_PRIMARY_PRICE].type = primaryUsesTargetPricing ? WidgetType::dropdownMenu : WidgetType::spinner;
+            widgets[WIDX_PRIMARY_PRICE_INCREASE].type = WidgetType::button;
+            widgets[WIDX_PRIMARY_PRICE_DECREASE].type = primaryUsesTargetPricing ? WidgetType::empty : WidgetType::button;
+            widgets[WIDX_PRIMARY_PRICE_INCREASE].text = primaryUsesTargetPricing ? STR_DROPDOWN_GLYPH : STR_NUMERIC_UP;
+            widgets[WIDX_PRIMARY_PRICE_DECREASE].text = STR_NUMERIC_DOWN;
+
             const bool primaryPriceLocked = !Park::RidePricesUnlocked(park) && rideEntry->shop_item[0] == ShopItem::none
                 && rtd.specialType != RtdSpecialType::toilet;
             setWidgetDisabled(WIDX_PRIMARY_PRICE, primaryPriceLocked);
+            setWidgetDisabled(WIDX_PRIMARY_PRICE_INCREASE, primaryPriceLocked);
+            setWidgetDisabled(WIDX_PRIMARY_PRICE_DECREASE, primaryPriceLocked || primaryUsesTargetPricing);
             if (primaryPriceLocked)
             {
                 widgets[WIDX_PRIMARY_PRICE_LABEL].tooltip = STR_RIDE_INCOME_ADMISSION_PAY_FOR_ENTRY_TIP;
                 widgets[WIDX_PRIMARY_PRICE].tooltip = STR_RIDE_INCOME_ADMISSION_PAY_FOR_ENTRY_TIP;
+                widgets[WIDX_PRIMARY_PRICE_INCREASE].tooltip = STR_RIDE_INCOME_ADMISSION_PAY_FOR_ENTRY_TIP;
             }
 
             widgets[WIDX_PRIMARY_PRICE_LABEL].text = STR_RIDE_INCOME_ADMISSION_PRICE;
@@ -6693,7 +6811,12 @@ namespace OpenRCT2::Ui::Windows
             widgets[WIDX_PRIMARY_PRICE_SAME_THROUGHOUT_PARK].type = WidgetType::empty;
 
             auto ridePrimaryPrice = RideGetPrice(*ride);
-            if (ridePrimaryPrice == 0)
+            if (primaryUsesTargetPricing)
+            {
+                _spinnerCaption0 = FormatRidePriceTargetCaption(*ride, ride->priceTarget, ridePrimaryPrice);
+                widgets[WIDX_PRIMARY_PRICE].setString(_spinnerCaption0.c_str());
+            }
+            else if (ridePrimaryPrice == 0)
             {
                 widgets[WIDX_PRIMARY_PRICE].setString(STR_FREE);
             }

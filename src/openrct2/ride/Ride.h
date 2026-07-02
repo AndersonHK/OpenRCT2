@@ -22,6 +22,7 @@
 #include "ted/TrackGroup.h"
 
 #include <array>
+#include <cstdint>
 #include <limits>
 #include <memory>
 #include <span>
@@ -57,6 +58,13 @@ constexpr uint16_t kMazeClearanceHeight = 4 * kCoordsZStep;
 
 constexpr money64 kRideMinPrice = 0.00_GBP;
 constexpr money64 kRideMaxPrice = 20.00_GBP;
+
+enum class RidePriceTarget : uint8_t
+{
+    goodValue,
+    neutral,
+    badValue,
+};
 
 extern const StringId kRideInspectionIntervalNames[];
 
@@ -237,6 +245,34 @@ enum class SpecialElement : uint8_t
 };
 using SpecialElements = FlagHolder<uint8_t, SpecialElement>;
 
+struct RideRatingAccumulator
+{
+    int64_t excitement{};
+    int64_t intensity{};
+    int64_t nausea{};
+    uint32_t ticks{};
+    EntityId sampleEntity{ EntityId::GetNull() };
+    bool sampleComplete{};
+
+    void clear()
+    {
+        excitement = 0;
+        intensity = 0;
+        nausea = 0;
+        ticks = 0;
+        sampleEntity = EntityId::GetNull();
+        sampleComplete = false;
+    }
+
+    bool hasSamples() const
+    {
+        return ticks != 0;
+    }
+};
+
+constexpr size_t kRideRatingRecentSampleCount = 10;
+constexpr size_t kRideRatingActiveSampleCount = 8;
+
 /**
  * Ride structure.
  *
@@ -308,6 +344,11 @@ struct Ride
     uint8_t startDropHeight{};
     uint8_t highestDropHeight{};
     int32_t shelteredLength{};
+    RideRatingAccumulator ratingAccumulator{};
+    std::array<RideRatingAccumulator, kRideRatingActiveSampleCount> activeRatingSamples{};
+    std::array<RideRatingAccumulator, kRideRatingRecentSampleCount> recentRatingSamples{};
+    uint8_t recentRatingSampleCount{};
+    uint8_t recentRatingSampleNext{};
     // Unused always 0? Should affect nausea
     uint16_t var11C{};
     uint8_t numShelteredSections{}; // (?abY YYYY)
@@ -318,6 +359,7 @@ struct Ride
     // Customer count in the last 10 * 960 game ticks (sliding window)
     uint16_t numCustomers[OpenRCT2::Limits::kCustomerHistorySize]{};
     money64 price[OpenRCT2::RCT2::ObjectLimits::kMaxShopItemsPerRideEntry]{};
+    RidePriceTarget priceTarget{ RidePriceTarget::neutral };
     TileCoordsXYZ chairliftBullwheelLocation[2];
     OpenRCT2::RideRating::Tuple ratings{};
     money64 value{};
@@ -872,6 +914,9 @@ uint32_t RideCustomersInLast5Minutes(const Ride& ride);
 Vehicle* RideGetBrokenVehicle(const Ride& ride);
 
 money64 RideGetPrice(const Ride& ride);
+money64 RideGetTargetPrice(const Ride& ride, RidePriceTarget target);
+bool RideUsesTargetPricing(const Ride& ride);
+void RideUpdateTargetPrice(Ride& ride);
 
 OpenRCT2::TileElement* GetStationPlatform(const CoordsXYRangedZ& coords);
 bool RideHasAdjacentStation(const Ride& ride);
@@ -886,6 +931,11 @@ OpenRCT2::ObjectEntryIndex RideGetEntryIndex(ride_type_t rideType, OpenRCT2::Obj
 
 void DetermineRideEntranceAndExitLocations();
 void RideClearLeftoverEntrances(const Ride& ride);
+RideRatingAccumulator* RideGetOrCreateActiveRatingSample(Ride& ride, EntityId sampleEntity);
+RideRatingAccumulator* RideFindActiveRatingSample(Ride& ride, EntityId sampleEntity);
+RideRatingAccumulator RideGetRecentRatingAccumulator(const Ride& ride);
+void RideAddRecentRatingSample(Ride& ride, const RideRatingAccumulator& sample);
+void RideClearRiderRatingSamples(Ride& ride);
 
 void SetBrakeClosedMultiTile(OpenRCT2::TrackElement& trackElement, const CoordsXY& trackLocation, bool isClosed);
 

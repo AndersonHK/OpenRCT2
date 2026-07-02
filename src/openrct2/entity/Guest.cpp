@@ -48,6 +48,7 @@
 #include "../ride/Ride.h"
 #include "../ride/RideData.h"
 #include "../ride/RideManager.hpp"
+#include "../ride/RideRatings.h"
 #include "../ride/ShopItem.h"
 #include "../ride/Station.h"
 #include "../ride/Vehicle.h"
@@ -4953,6 +4954,63 @@ namespace OpenRCT2
         { 14, 10, 12, 13 },
     };
 
+    static int32_t RideRatingGetMazeLocalContextScore(const CoordsXY& location)
+    {
+        int32_t score = 0;
+        auto tileLocation = TileCoordsXY(location);
+        auto& gameState = getGameState();
+        for (int32_t yy = std::max(tileLocation.y - 1, 0); yy <= std::min(tileLocation.y + 1, gameState.mapSize.y - 1); yy++)
+        {
+            for (int32_t xx = std::max(tileLocation.x - 1, 0); xx <= std::min(tileLocation.x + 1, gameState.mapSize.x - 1); xx++)
+            {
+                auto* tileElement = MapGetFirstElementAt(TileCoordsXY{ xx, yy });
+                if (tileElement == nullptr)
+                {
+                    continue;
+                }
+
+                do
+                {
+                    if (tileElement->isGhost())
+                    {
+                        continue;
+                    }
+
+                    const auto type = tileElement->getType();
+                    if (type == TileElementType::SmallScenery || type == TileElementType::LargeScenery
+                        || type == TileElementType::Wall || type == TileElementType::Path)
+                    {
+                        score++;
+                    }
+                } while (!(tileElement++)->isLastForTile());
+            }
+        }
+
+        return std::min(score, 12);
+    }
+
+    static void RideRatingAccumulateMazeStep(
+        Ride& ride, EntityId guestId, const CoordsXY& location, uint8_t openCount, bool isExitStep)
+    {
+        auto* accumulator = RideGetOrCreateActiveRatingSample(ride, guestId);
+        if (accumulator == nullptr)
+        {
+            return;
+        }
+
+        const auto contextScore = RideRatingGetMazeLocalContextScore(location);
+        const int64_t choiceComplexity = std::min<uint8_t>(openCount, 3);
+
+        accumulator->excitement += 45 + (choiceComplexity * 12) + (contextScore * 3) + (isExitStep ? 90 : 0);
+        accumulator->intensity += 8 + (openCount <= 1 ? 10 : 0) + (isExitStep ? 4 : 0);
+        accumulator->ticks++;
+        if (isExitStep)
+        {
+            RideRating::RecordRiderSample(ride, *accumulator);
+            accumulator->clear();
+        }
+    }
+
     /**
      *
      *  rct2: 0x00692A83
@@ -5065,6 +5123,7 @@ namespace OpenRCT2
                 SetDestination(targetLoc);
                 Var37 = kMazeGetNewDirectionFromEdge[Var37 / 4][chosenEdge];
                 MazeLastEdge = chosenEdge;
+                RideRatingAccumulateMazeStep(*ride, id, targetLoc, openCount, false);
                 break;
             case maze_type::entrance_or_exit:
                 targetLoc = GetDestination();
@@ -5079,6 +5138,7 @@ namespace OpenRCT2
                 SetDestination(targetLoc);
                 Var37 = 16;
                 MazeLastEdge = chosenEdge;
+                RideRatingAccumulateMazeStep(*ride, id, targetLoc, openCount, true);
                 break;
         }
 
