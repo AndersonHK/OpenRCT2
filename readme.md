@@ -18,7 +18,7 @@ This repository is a fork built for my personal use. It is not the official Open
 
 If you are looking for normal OpenRCT2, the correct upstream repository is [OpenRCT2/OpenRCT2](https://github.com/OpenRCT2/OpenRCT2), and the official downloads are at [openrct2.io](https://openrct2.io). You should use those unless you are specifically after this personal mod fork.
 
-I do not mind if people take any changes I made here and adapt them for their own mods or propose them back to the core OpenRCT2 project. The original OpenRCT2 licence still applies; see [licence.txt](licence.txt).
+Although this fork is built for my own use, I hope parts of it may prove useful to other modders, or even as ideas that can be adapted back into core OpenRCT2. The original OpenRCT2 licence still applies; see [licence.txt](licence.txt).
 
 The rest of this README still includes the upstream OpenRCT2 project information so the fork stays easy to understand in context. The section below is the important part if you are trying to understand what makes this fork different.
 
