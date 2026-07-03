@@ -27,7 +27,7 @@ namespace OpenRCT2
         _legacyType.flags = stream->ReadValue<uint16_t>();
         _legacyType.draw_type = static_cast<PathAdditionDrawType>(stream->ReadValue<uint8_t>());
         _legacyType.tool_id = static_cast<CursorID>(stream->ReadValue<uint8_t>());
-        _legacyType.price = stream->ReadValue<money16>();
+        _legacyType.price = ToMoney64(stream->ReadValue<money16>());
         _legacyType.scenery_tab_id = kObjectEntryIndexNull;
         stream->Seek(2, STREAM_SEEK_CURRENT);
 
@@ -101,7 +101,7 @@ namespace OpenRCT2
         {
             _legacyType.draw_type = ParseDrawType(Json::GetString(properties["renderAs"]));
             _legacyType.tool_id = Cursor::FromString(Json::GetString(properties["cursor"]), CursorID::LamppostDown);
-            _legacyType.price = Json::GetNumber<money64>(properties["price"]);
+            _legacyType.price = ToMoney64(Json::GetNumber<money32>(properties["price"]));
 
             SetPrimarySceneryGroup(ObjectEntryDescriptor(Json::GetString(properties["sceneryGroup"])));
 

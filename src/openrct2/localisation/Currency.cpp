@@ -22,25 +22,25 @@ namespace OpenRCT2
 {
     // clang-format off
     CurrencyDescriptor CurrencyDescriptors[EnumValue(CurrencyType::count)] = {
-        {   "GBP",  10,     CurrencyAffix::prefix,    u8"£",      CurrencyAffix::suffix,    "GBP",  STR_POUNDS          },  // British Pound
-        {   "USD",  10,     CurrencyAffix::prefix,    u8"$",      CurrencyAffix::prefix,    "$",    STR_DOLLARS         },  // US Dollar
-        {   "FRF",  10,     CurrencyAffix::suffix,    u8"F",      CurrencyAffix::suffix,    "F",    STR_FRANC           },  // French Franc
-        {   "DEM",  10,     CurrencyAffix::prefix,    u8"DM",     CurrencyAffix::prefix,    "DM",   STR_DEUTSCHE_MARK   },  // Deutsche Mark
-        {   "JPY",  1000,   CurrencyAffix::prefix,    u8"¥",      CurrencyAffix::suffix,    "YEN",  STR_YEN             },  // Japanese Yen
-        {   "ESP",  10,     CurrencyAffix::suffix,    u8"Pts",    CurrencyAffix::suffix,    "Pts",  STR_PESETA          },  // Spanish Peseta
-        {   "ITL",  1000,   CurrencyAffix::prefix,    u8"L",      CurrencyAffix::prefix,    "L",    STR_LIRA            },  // Italian Lira
-        {   "NLG",  10,     CurrencyAffix::prefix,    u8"ƒ ",     CurrencyAffix::prefix,    "fl.",  STR_GUILDERS        },  // Dutch Guilder
-        {   "SEK",  100,    CurrencyAffix::suffix,    u8" kr",    CurrencyAffix::suffix,    " kr",  STR_KRONA           },  // Swedish Krona
-        {   "EUR",  10,     CurrencyAffix::prefix,    u8"€",      CurrencyAffix::suffix,    "EUR",  STR_EUROS           },  // Euro
-        {   "KRW",  10000,  CurrencyAffix::prefix,    u8"₩",      CurrencyAffix::prefix,    "W",    STR_WON             },  // South Korean Won
-        {   "RUB",  1000,   CurrencyAffix::suffix,    u8"₽",      CurrencyAffix::prefix,    "R ",   STR_ROUBLE          },  // Russian Rouble
-        {   "CZK",  100,    CurrencyAffix::suffix,    u8" Kč",    CurrencyAffix::suffix,   " Kc",  STR_CZECH_KORUNA    },  // Czech koruna
-        {   "HKD",  100,    CurrencyAffix::prefix,    u8"$",      CurrencyAffix::prefix,    "HKD",  STR_HONG_KONG_DOLLAR},  // Hong Kong Dollar
-        {   "TWD",  1000,   CurrencyAffix::prefix,    u8"NT$",    CurrencyAffix::prefix,    "NT$",  STR_NEW_TAIWAN_DOLLAR}, // New Taiwan Dollar
-        {   "CNY",  100,    CurrencyAffix::prefix,    u8"CN¥",    CurrencyAffix::prefix,    "CNY",  STR_CHINESE_YUAN    },  // Chinese Yuan
-        {   "HUF",  1000,   CurrencyAffix::suffix,    u8" Ft",    CurrencyAffix::suffix,    " Ft",  STR_HUNGARIAN_FORINT},  // Hungarian Forint
-        {   "PLN",  100,    CurrencyAffix::suffix,    u8" zł",    CurrencyAffix::suffix,    " zł",  STR_POLISH_ZLOTY},      // Polish Złoty
-        {   "CTM",  10,     CurrencyAffix::prefix,    u8"Ctm",    CurrencyAffix::prefix,    "Ctm",  STR_CUSTOM_CURRENCY },  // Customizable currency
+        {   "GBP",  1,      CurrencyAffix::prefix,    u8"£",      CurrencyAffix::suffix,    "GBP",  STR_POUNDS          },  // British Pound
+        {   "USD",  1,      CurrencyAffix::prefix,    u8"$",      CurrencyAffix::prefix,    "$",    STR_DOLLARS         },  // US Dollar
+        {   "FRF",  1,      CurrencyAffix::suffix,    u8"F",      CurrencyAffix::suffix,    "F",    STR_FRANC           },  // French Franc
+        {   "DEM",  1,      CurrencyAffix::prefix,    u8"DM",     CurrencyAffix::prefix,    "DM",   STR_DEUTSCHE_MARK   },  // Deutsche Mark
+        {   "JPY",  100,    CurrencyAffix::prefix,    u8"¥",      CurrencyAffix::suffix,    "YEN",  STR_YEN             },  // Japanese Yen
+        {   "ESP",  1,      CurrencyAffix::suffix,    u8"Pts",    CurrencyAffix::suffix,    "Pts",  STR_PESETA          },  // Spanish Peseta
+        {   "ITL",  100,    CurrencyAffix::prefix,    u8"L",      CurrencyAffix::prefix,    "L",    STR_LIRA            },  // Italian Lira
+        {   "NLG",  1,      CurrencyAffix::prefix,    u8"ƒ ",     CurrencyAffix::prefix,    "fl.",  STR_GUILDERS        },  // Dutch Guilder
+        {   "SEK",  10,     CurrencyAffix::suffix,    u8" kr",    CurrencyAffix::suffix,    " kr",  STR_KRONA           },  // Swedish Krona
+        {   "EUR",  1,      CurrencyAffix::prefix,    u8"€",      CurrencyAffix::suffix,    "EUR",  STR_EUROS           },  // Euro
+        {   "KRW",  1000,   CurrencyAffix::prefix,    u8"₩",      CurrencyAffix::prefix,    "W",    STR_WON             },  // South Korean Won
+        {   "RUB",  100,    CurrencyAffix::suffix,    u8"₽",      CurrencyAffix::prefix,    "R ",   STR_ROUBLE          },  // Russian Rouble
+        {   "CZK",  10,     CurrencyAffix::suffix,    u8" Kč",    CurrencyAffix::suffix,   " Kc",  STR_CZECH_KORUNA    },  // Czech koruna
+        {   "HKD",  10,     CurrencyAffix::prefix,    u8"$",      CurrencyAffix::prefix,    "HKD",  STR_HONG_KONG_DOLLAR},  // Hong Kong Dollar
+        {   "TWD",  100,    CurrencyAffix::prefix,    u8"NT$",    CurrencyAffix::prefix,    "NT$",  STR_NEW_TAIWAN_DOLLAR}, // New Taiwan Dollar
+        {   "CNY",  10,     CurrencyAffix::prefix,    u8"CN¥",    CurrencyAffix::prefix,    "CNY",  STR_CHINESE_YUAN    },  // Chinese Yuan
+        {   "HUF",  100,    CurrencyAffix::suffix,    u8" Ft",    CurrencyAffix::suffix,    " Ft",  STR_HUNGARIAN_FORINT},  // Hungarian Forint
+        {   "PLN",  10,     CurrencyAffix::suffix,    u8" zł",    CurrencyAffix::suffix,    " zł",  STR_POLISH_ZLOTY},      // Polish Złoty
+        {   "CTM",  1,      CurrencyAffix::prefix,    u8"Ctm",    CurrencyAffix::prefix,    "Ctm",  STR_CUSTOM_CURRENCY },  // Customizable currency
     };
     // clang-format on
 
@@ -128,14 +128,14 @@ namespace OpenRCT2
         }
 
         auto number = std::stod(processedString, nullptr);
-        number /= (currencyDesc->rate / 10.0);
+        number /= static_cast<double>(currencyDesc->rate);
 
         return ToMoney64FromGBP(number);
     }
 
     /**
      *
-     * @param amount The amount in tens of pounds, e.g. 123 = £ 12.30
+     * @param amount The amount in hundredths of pounds, e.g. 1230 = £12.30
      * @param buffer_to_put_value_to Output parameter.
      * @param buffer_len Length of the buffer.
      * @param forceDecimals Show decimals, even if the amount does not have them. Will be ignored if the current exchange
@@ -174,7 +174,8 @@ namespace OpenRCT2
         else if (whole == 0 && decimal > 0)
         {
             const char* decimalChar = LanguageGetString(STR_LOCALE_DECIMAL_POINT);
-            snprintf(buffer_to_put_value_to, buffer_len, "%s0%s%llu", sign, decimalChar, decimal);
+            auto precedingZero = (decimal < 10) ? "0" : "";
+            snprintf(buffer_to_put_value_to, buffer_len, "%s0%s%s%llu", sign, decimalChar, precedingZero, decimal);
         }
         else
         {

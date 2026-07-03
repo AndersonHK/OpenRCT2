@@ -127,7 +127,7 @@ class ScenarioFileIndex final : public FileIndex<ScenarioIndexEntry>
 {
 private:
     static constexpr uint32_t kMagicNumber = 0x58444953; // SIDX
-    static constexpr uint16_t kVersion = 9;
+    static constexpr uint16_t kVersion = 10;
     static constexpr auto kPattern = "*.sc4;*.sc6;*.sea;*.park";
 
 public:
@@ -273,7 +273,12 @@ private:
 class ScenarioRepository final : public IScenarioRepository
 {
 private:
-    static constexpr uint32_t HighscoreFileVersion = 2;
+    static constexpr uint32_t HighscoreFileVersion = 3;
+
+    static money64 LegacyHighscoreMoney64ToCurrent(money64 value)
+    {
+        return value == kMoney64Undefined ? kMoney64Undefined : value * 10;
+    }
 
     IPlatformEnvironment& _env;
     ScenarioFileIndex const _fileIndex;
@@ -549,7 +554,7 @@ private:
         {
             auto fs = FileStream(path, FileMode::open);
             uint32_t fileVersion = fs.ReadValue<uint32_t>();
-            if (fileVersion != 1 && fileVersion != 2)
+            if (fileVersion != 1 && fileVersion != 2 && fileVersion != 3)
             {
                 Console::Error::WriteLine("Invalid or incompatible highscores file.");
                 return;
@@ -563,7 +568,18 @@ private:
                 ScenarioHighscoreEntry* highscore = InsertHighscore();
                 highscore->fileName = fs.ReadString();
                 highscore->name = fs.ReadString();
-                highscore->company_value = fileVersion == 1 ? fs.ReadValue<money32>() : fs.ReadValue<money64>();
+                if (fileVersion == 1)
+                {
+                    highscore->company_value = ToMoney64(fs.ReadValue<money32>());
+                }
+                else if (fileVersion == 2)
+                {
+                    highscore->company_value = LegacyHighscoreMoney64ToCurrent(fs.ReadValue<money64>());
+                }
+                else
+                {
+                    highscore->company_value = fs.ReadValue<money64>();
+                }
                 highscore->timestamp = fs.ReadValue<datetime64>();
             }
         }
@@ -620,11 +636,12 @@ private:
                             notFound = false;
 
                             // Check if legacy highscore is better
-                            if (scBasic.CompanyValue > highscore->company_value)
+                            auto legacyCompanyValue = ToMoney64(scBasic.CompanyValue);
+                            if (legacyCompanyValue > highscore->company_value)
                             {
                                 std::string name = RCT2StringToUTF8(scBasic.CompletedBy, RCT2LanguageId::englishUK);
                                 highscore->name = name;
-                                highscore->company_value = scBasic.CompanyValue;
+                                highscore->company_value = legacyCompanyValue;
                                 highscore->timestamp = kDatetime64Min;
                                 break;
                             }
@@ -636,7 +653,7 @@ private:
                         highscore->fileName = scBasic.Path;
                         std::string name = RCT2StringToUTF8(scBasic.CompletedBy, RCT2LanguageId::englishUK);
                         highscore->name = name;
-                        highscore->company_value = scBasic.CompanyValue;
+                        highscore->company_value = ToMoney64(scBasic.CompanyValue);
                         highscore->timestamp = kDatetime64Min;
                     }
                 }

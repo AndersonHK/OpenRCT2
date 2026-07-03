@@ -13,6 +13,7 @@
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/config/Config.h>
 #include <openrct2/core/String.hpp>
+#include <openrct2/localisation/Currency.h>
 #include <openrct2/localisation/CurrencyTypes.h>
 #include <openrct2/localisation/Formatter.h>
 #include <openrct2/localisation/Formatting.h>
@@ -140,60 +141,85 @@ TEST_F(FormattingTests, comma_large)
 TEST_F(FormattingTests, currency)
 {
     Config::Get().general.currencyFormat = CurrencyType::pounds;
-    ASSERT_EQ(u8"-£251", FormatString("{CURRENCY}", -2510));
-    ASSERT_EQ(u8"£1", FormatString("{CURRENCY}", 4));
-    ASSERT_EQ(u8"£1", FormatString("{CURRENCY}", 5));
-    ASSERT_EQ(u8"£1", FormatString("{CURRENCY}", 10));
-    ASSERT_EQ(u8"£2", FormatString("{CURRENCY}", 11));
-    ASSERT_EQ(u8"£112", FormatString("{CURRENCY}", 1111));
+    ASSERT_EQ(u8"-£251", FormatString("{CURRENCY}", -25100));
+    ASSERT_EQ(u8"£1", FormatString("{CURRENCY}", 40));
+    ASSERT_EQ(u8"£1", FormatString("{CURRENCY}", 50));
+    ASSERT_EQ(u8"£1", FormatString("{CURRENCY}", 100));
+    ASSERT_EQ(u8"£2", FormatString("{CURRENCY}", 110));
+    ASSERT_EQ(u8"£112", FormatString("{CURRENCY}", 11110));
 }
 
 TEST_F(FormattingTests, currency2dp)
 {
     Config::Get().general.currencyFormat = CurrencyType::pounds;
-    ASSERT_EQ(u8"-£251.00", FormatString("{CURRENCY2DP}", -2510));
-    ASSERT_EQ(u8"£0.40", FormatString("{CURRENCY2DP}", 4));
-    ASSERT_EQ(u8"£0.50", FormatString("{CURRENCY2DP}", 5));
-    ASSERT_EQ(u8"£1.00", FormatString("{CURRENCY2DP}", 10));
-    ASSERT_EQ(u8"£1.10", FormatString("{CURRENCY2DP}", 11));
-    ASSERT_EQ(u8"£111.10", FormatString("{CURRENCY2DP}", 1111));
+    ASSERT_EQ(u8"-£251.00", FormatString("{CURRENCY2DP}", -25100));
+    ASSERT_EQ(u8"£0.40", FormatString("{CURRENCY2DP}", 40));
+    ASSERT_EQ(u8"£0.50", FormatString("{CURRENCY2DP}", 50));
+    ASSERT_EQ(u8"£1.00", FormatString("{CURRENCY2DP}", 100));
+    ASSERT_EQ(u8"£1.10", FormatString("{CURRENCY2DP}", 110));
+    ASSERT_EQ(u8"£111.10", FormatString("{CURRENCY2DP}", 11110));
+}
+
+TEST_F(FormattingTests, money_to_string_cent_precision)
+{
+    Config::Get().general.currencyFormat = CurrencyType::pounds;
+
+    char buffer[kMoneyStringMaxlength] = {};
+    MoneyToString(2.05_GBP, buffer, sizeof(buffer), true);
+    ASSERT_STREQ("2.05", buffer);
+
+    MoneyToString(0.05_GBP, buffer, sizeof(buffer), true);
+    ASSERT_STREQ("0.05", buffer);
+
+    MoneyToString(0.01_GBP, buffer, sizeof(buffer), true);
+    ASSERT_STREQ("0.01", buffer);
+}
+
+TEST_F(FormattingTests, string_to_money_cent_precision)
+{
+    Config::Get().general.currencyFormat = CurrencyType::pounds;
+
+    ASSERT_EQ(StringToMoney("2.05"), 2.05_GBP);
+    ASSERT_EQ(StringToMoney("0.05"), 0.05_GBP);
+    ASSERT_EQ(StringToMoney("0.01"), 0.01_GBP);
+    ASSERT_EQ(StringToMoney("2.00"), 2.00_GBP);
 }
 
 TEST_F(FormattingTests, currency_yen)
 {
     Config::Get().general.currencyFormat = CurrencyType::yen;
-    ASSERT_EQ(u8"-¥25,100", FormatString("{CURRENCY}", -2510));
-    ASSERT_EQ(u8"¥40", FormatString("{CURRENCY2DP}", 4));
-    ASSERT_EQ(u8"¥50", FormatString("{CURRENCY2DP}", 5));
-    ASSERT_EQ(u8"¥100", FormatString("{CURRENCY2DP}", 10));
-    ASSERT_EQ(u8"¥110", FormatString("{CURRENCY2DP}", 11));
-    ASSERT_EQ(u8"¥11,110", FormatString("{CURRENCY2DP}", 1111));
+    ASSERT_EQ(u8"-¥25,100", FormatString("{CURRENCY}", -25100));
+    ASSERT_EQ(u8"¥40", FormatString("{CURRENCY2DP}", 40));
+    ASSERT_EQ(u8"¥50", FormatString("{CURRENCY2DP}", 50));
+    ASSERT_EQ(u8"¥100", FormatString("{CURRENCY2DP}", 100));
+    ASSERT_EQ(u8"¥110", FormatString("{CURRENCY2DP}", 110));
+    ASSERT_EQ(u8"¥11,110", FormatString("{CURRENCY2DP}", 11110));
 }
 
 TEST_F(FormattingTests, currency2dp_yen)
 {
     Config::Get().general.currencyFormat = CurrencyType::yen;
-    ASSERT_EQ(u8"-¥25,100", FormatString("{CURRENCY2DP}", -2510));
-    ASSERT_EQ(u8"¥40", FormatString("{CURRENCY2DP}", 4));
-    ASSERT_EQ(u8"¥50", FormatString("{CURRENCY2DP}", 5));
-    ASSERT_EQ(u8"¥100", FormatString("{CURRENCY2DP}", 10));
-    ASSERT_EQ(u8"¥110", FormatString("{CURRENCY2DP}", 11));
-    ASSERT_EQ(u8"¥11,110", FormatString("{CURRENCY2DP}", 1111));
+    ASSERT_EQ(u8"-¥25,100", FormatString("{CURRENCY2DP}", -25100));
+    ASSERT_EQ(u8"¥40", FormatString("{CURRENCY2DP}", 40));
+    ASSERT_EQ(u8"¥50", FormatString("{CURRENCY2DP}", 50));
+    ASSERT_EQ(u8"¥100", FormatString("{CURRENCY2DP}", 100));
+    ASSERT_EQ(u8"¥110", FormatString("{CURRENCY2DP}", 110));
+    ASSERT_EQ(u8"¥11,110", FormatString("{CURRENCY2DP}", 11110));
 }
 
 TEST_F(FormattingTests, currency_pts)
 {
     Config::Get().general.currencyFormat = CurrencyType::peseta;
-    ASSERT_EQ("-251Pts", FormatString("{CURRENCY}", -2510));
-    ASSERT_EQ("112Pts", FormatString("{CURRENCY}", 1111));
+    ASSERT_EQ("-251Pts", FormatString("{CURRENCY}", -25100));
+    ASSERT_EQ("112Pts", FormatString("{CURRENCY}", 11110));
 }
 
 TEST_F(FormattingTests, currency2dp_pts)
 {
     Config::Get().general.currencyFormat = CurrencyType::peseta;
-    ASSERT_EQ("-251.00Pts", FormatString("{CURRENCY2DP}", -2510));
-    ASSERT_EQ("0.40Pts", FormatString("{CURRENCY2DP}", 4));
-    ASSERT_EQ("111.10Pts", FormatString("{CURRENCY2DP}", 1111));
+    ASSERT_EQ("-251.00Pts", FormatString("{CURRENCY2DP}", -25100));
+    ASSERT_EQ("0.40Pts", FormatString("{CURRENCY2DP}", 40));
+    ASSERT_EQ("111.10Pts", FormatString("{CURRENCY2DP}", 11110));
 }
 
 TEST_F(FormattingTests, string)

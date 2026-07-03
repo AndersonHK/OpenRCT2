@@ -42,6 +42,8 @@
 #include "tile_element/EntranceElement.h"
 #include "tile_element/SurfaceElement.h"
 
+#include <algorithm>
+#include <array>
 #include <cmath>
 #include <limits>
 #include <type_traits>
@@ -52,6 +54,9 @@ using namespace OpenRCT2::Scripting;
 namespace OpenRCT2::Park
 {
     static Guest* generateGuestFromCampaign(int32_t campaign);
+
+    static constexpr auto kParkEntranceValueNumerator = 7;
+    static constexpr auto kParkEntranceValueDenominator = 10;
 
     /**
      * Choose a random peep spawn and iterates through until defined spawn is found.
@@ -169,13 +174,13 @@ namespace OpenRCT2::Park
 
     static uint32_t calculateGuestGenerationProbability(ParkData& park)
     {
-        constexpr money64 kGuestGenerationBaselineParkValue = 11000.00_GBP;
+        constexpr money64 kGuestGenerationBaselineParkValue = 15000.00_GBP;
         constexpr uint32_t kGuestGenerationFullRatingProbability = 850;
 
         // Rating now reflects average guest happiness, so crowding and queues affect arrivals through happiness.
         uint32_t probability = (static_cast<uint32_t>(park.rating) * kGuestGenerationFullRatingProbability) / 999;
 
-        // Keep the tuned probability at $11,000 park value, then scale geometrically from park value.
+        // Keep the tuned probability at $15,000 park value, then scale geometrically from park value.
         if (park.value <= 0)
         {
             probability = 0;
@@ -192,13 +197,14 @@ namespace OpenRCT2::Park
             probability = (probability * 3) / 4;
         }
 
-        // Penalty for overpriced entrance fee relative to total ride value
+        // Penalty for overpriced entrance fee relative to debuffed total ride value.
         auto entranceFee = GetEntranceFee(park);
-        if (entranceFee > park.totalRideValueForMoney)
+        auto parkEntranceValue = (park.totalRideValueForMoney * kParkEntranceValueNumerator) / kParkEntranceValueDenominator;
+        if (entranceFee > parkEntranceValue)
         {
             probability /= 4;
             // Extra penalty for very overpriced entrance fee
-            if (entranceFee / 2 > park.totalRideValueForMoney)
+            if (entranceFee / 2 > parkEntranceValue)
             {
                 probability /= 4;
             }
@@ -288,6 +294,7 @@ namespace OpenRCT2::Park
         SetAllSceneryItemsInvented();
 
         park.entranceFee = 10.00_GBP;
+        park.entranceFeeTarget = ParkEntranceFeeTarget::affordable;
 
         gameState.peepSpawns.clear();
         ParkEntranceReset();
@@ -307,6 +314,7 @@ namespace OpenRCT2::Park
         gameState.scenarioOptions.landPrice = 90.00_GBP;
         gameState.scenarioOptions.constructionRightsPrice = 40.00_GBP;
         park.flags = PARK_FLAGS_NO_MONEY | PARK_FLAGS_SHOW_REAL_GUEST_NAMES;
+        UpdateEntranceFee(park);
 
         ResetHistories(park);
         FinanceResetHistory();
@@ -336,6 +344,7 @@ namespace OpenRCT2::Park
             park.value = CalculateParkValue(park, gameState);
             park.companyValue = CalculateCompanyValue(park);
             park.totalRideValueForMoney = calculateTotalRideValueForMoney(park, gameState);
+            UpdateEntranceFee(park);
             park.suggestedGuestMaximum = calculateSuggestedMaxGuests(park, gameState);
             park.guestGenerationProbability = calculateGuestGenerationProbability(park);
 
@@ -637,6 +646,116 @@ namespace OpenRCT2::Park
         return getGameState().cheats.forcedParkRating;
     }
 
+    static money64 ClampEntranceFee(money64 entranceFee)
+    {
+        return std::clamp(entranceFee, 0.00_GBP, kMaxEntranceFee);
+    }
+
+    static std::array<money64, 4> GetGuestSpawnCashSamples(const ParkData& park)
+    {
+        auto& gameState = getGameState();
+        if ((park.flags & PARK_FLAGS_NO_MONEY) || gameState.scenarioOptions.guestInitialCash == kMoney64Undefined)
+        {
+            return { 0.00_GBP, 0.00_GBP, 0.00_GBP, 0.00_GBP };
+        }
+
+        if (gameState.scenarioOptions.guestInitialCash == 0.00_GBP)
+        {
+            return { 50.00_GBP, 50.00_GBP, 50.00_GBP, 50.00_GBP };
+        }
+
+        const auto initialCash = gameState.scenarioOptions.guestInitialCash;
+        return {
+            std::max(0.00_GBP, initialCash - 10.00_GBP),
+            std::max(0.00_GBP, initialCash),
+            std::max(0.00_GBP, initialCash + 10.00_GBP),
+            std::max(0.00_GBP, initialCash + 20.00_GBP),
+        };
+    }
+
+    static money64 GetDebuffedParkEntranceValue(const ParkData& park)
+    {
+        if (park.totalRideValueForMoney <= 0)
+        {
+            return 0.00_GBP;
+        }
+        return (park.totalRideValueForMoney * kParkEntranceValueNumerator) / kParkEntranceValueDenominator;
+    }
+
+    static money64 GetProfitMaximisingEntranceFee(const ParkData& park)
+    {
+        const auto parkEntranceValue = GetDebuffedParkEntranceValue(park);
+        const auto maximumFee = ClampEntranceFee(parkEntranceValue);
+        if (maximumFee == 0.00_GBP)
+        {
+            return 0.00_GBP;
+        }
+
+        auto cashSamples = GetGuestSpawnCashSamples(park);
+        std::sort(cashSamples.begin(), cashSamples.end());
+
+        std::array<money64, 5> candidates{};
+        size_t candidateCount = 0;
+        candidates[candidateCount++] = maximumFee;
+        for (auto cash : cashSamples)
+        {
+            candidates[candidateCount++] = std::min(cash, maximumFee);
+        }
+        std::sort(candidates.begin(), candidates.begin() + candidateCount);
+        candidateCount = static_cast<size_t>(
+            std::unique(candidates.begin(), candidates.begin() + candidateCount) - candidates.begin());
+
+        money64 bestPrice = 0.00_GBP;
+        money64 bestRevenue = 0.00_GBP;
+        for (size_t i = 0; i < candidateCount; i++)
+        {
+            const auto candidate = candidates[i];
+            const auto affordableGuests = static_cast<money64>(
+                std::count_if(cashSamples.begin(), cashSamples.end(), [candidate](money64 cash) { return cash >= candidate; }));
+            const auto revenue = candidate * affordableGuests;
+            if (revenue > bestRevenue)
+            {
+                bestPrice = candidate;
+                bestRevenue = revenue;
+            }
+        }
+
+        return bestPrice;
+    }
+
+    money64 GetEntranceFeeForTarget(const ParkData& park, ParkEntranceFeeTarget target)
+    {
+        if (target == ParkEntranceFeeTarget::custom)
+        {
+            return ClampEntranceFee(park.entranceFee);
+        }
+
+        const auto parkEntranceValue = GetDebuffedParkEntranceValue(park);
+        const auto cashSamples = GetGuestSpawnCashSamples(park);
+
+        switch (target)
+        {
+            case ParkEntranceFeeTarget::incomePerGuest:
+                return ClampEntranceFee(std::min(*std::max_element(cashSamples.begin(), cashSamples.end()), parkEntranceValue));
+            case ParkEntranceFeeTarget::profit:
+                return GetProfitMaximisingEntranceFee(park);
+            case ParkEntranceFeeTarget::affordable:
+                return ClampEntranceFee(std::min(*std::min_element(cashSamples.begin(), cashSamples.end()), parkEntranceValue));
+            case ParkEntranceFeeTarget::custom:
+                break;
+        }
+
+        return 0.00_GBP;
+    }
+
+    void UpdateEntranceFee(ParkData& park)
+    {
+        if (park.entranceFeeTarget != ParkEntranceFeeTarget::custom)
+        {
+            park.entranceFee = GetEntranceFeeForTarget(park, park.entranceFeeTarget);
+        }
+    }
+
     money64 GetEntranceFee(const ParkData& park)
     {
         if (park.flags & PARK_FLAGS_NO_MONEY)
@@ -648,7 +767,7 @@ namespace OpenRCT2::Park
             return 0;
         }
 
-        return park.entranceFee;
+        return GetEntranceFeeForTarget(park, park.entranceFeeTarget);
     }
 
     bool RidePricesUnlocked(const ParkData& park)

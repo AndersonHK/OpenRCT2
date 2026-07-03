@@ -11,6 +11,13 @@
 
 #include "../GameAction.hpp"
 
+#include <cstdint>
+
+namespace OpenRCT2::Park
+{
+    enum class ParkEntranceFeeTarget : uint8_t;
+}
+
 namespace OpenRCT2::GameActions
 {
     class ParkSetEntranceFeeAction final : public GameActionBase<GameCommand::SetParkEntranceFee>
@@ -21,6 +28,7 @@ namespace OpenRCT2::GameActions
     public:
         ParkSetEntranceFeeAction() = default;
         ParkSetEntranceFeeAction(money64 fee);
+        ParkSetEntranceFeeAction(Park::ParkEntranceFeeTarget target);
 
         void AcceptParameters(GameActionParameterVisitor&) final;
 

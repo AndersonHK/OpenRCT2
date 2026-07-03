@@ -131,7 +131,7 @@ namespace OpenRCT2::GameActions
 
                     if (_edgeStyle != curEdgeStyle)
                     {
-                        edgeCost += 100;
+                        edgeCost += 10.00_GBP;
                     }
                 }
             }
@@ -204,7 +204,7 @@ namespace OpenRCT2::GameActions
 
                     if (_edgeStyle != curEdgeStyle)
                     {
-                        edgeCost += 100;
+                        edgeCost += 10.00_GBP;
 
                         surfaceElement->SetEdgeObjectIndex(_edgeStyle);
                         MapInvalidateTileFull(coords);

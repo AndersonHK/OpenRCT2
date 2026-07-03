@@ -213,6 +213,40 @@ struct GameStateSnapshots final : public IGameStateSnapshots
         ds << snapshot.parkParameters;
     }
 
+    virtual void ConvertLegacyMoney(GameStateSnapshot_t& snapshot) const override final
+    {
+        auto spriteList = BuildSpriteList(snapshot);
+        for (auto& sprite : spriteList)
+        {
+            switch (sprite.base.type)
+            {
+                case EntityType::guest:
+                {
+                    auto& guest = static_cast<Guest&>(sprite.base);
+                    guest.paidToEnter = ToMoney64(static_cast<money32>(guest.paidToEnter));
+                    guest.paidOnRides = ToMoney64(static_cast<money32>(guest.paidOnRides));
+                    guest.paidOnFood = ToMoney64(static_cast<money32>(guest.paidOnFood));
+                    guest.paidOnDrink = ToMoney64(static_cast<money32>(guest.paidOnDrink));
+                    guest.paidOnSouvenirs = ToMoney64(static_cast<money32>(guest.paidOnSouvenirs));
+                    guest.cashInPocket = ToMoney64(static_cast<money32>(guest.cashInPocket));
+                    guest.cashSpent = ToMoney64(static_cast<money32>(guest.cashSpent));
+                    break;
+                }
+                case EntityType::moneyEffect:
+                {
+                    auto& moneyEffect = static_cast<MoneyEffect&>(sprite.base);
+                    moneyEffect.value = ToMoney64(static_cast<money32>(moneyEffect.value));
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+
+        snapshot.SerialiseSprites(
+            [&spriteList](const EntityId index) { return &spriteList[index.ToUnderlying()]; }, kMaxEntities, true);
+    }
+
     std::vector<EntitySnapshot> BuildSpriteList(GameStateSnapshot_t& snapshot) const
     {
         std::vector<EntitySnapshot> spriteList;

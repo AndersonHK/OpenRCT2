@@ -187,7 +187,7 @@ namespace OpenRCT2::Config
             model->confirmationPrompt = reader->GetBoolean("confirmation_prompt", false);
             model->currencyFormat = reader->GetEnum<CurrencyType>(
                 "currency_format", Platform::GetLocaleCurrency(), Enum_Currency);
-            model->customCurrencyRate = reader->GetInt32("custom_currency_rate", 10);
+            model->customCurrencyRate = reader->GetInt32("custom_currency_rate", 1);
             model->customCurrencyAffix = reader->GetEnum<CurrencyAffix>(
                 "custom_currency_affix", CurrencyAffix::suffix, Enum_CurrencySymbolAffix);
             model->customCurrencySymbol = reader->GetString("custom_currency_symbol", "Ctm");

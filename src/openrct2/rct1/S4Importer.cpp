@@ -88,7 +88,7 @@ static constexpr ObjectEntryIndex ObjectEntryIndexIgnore = 254;
 
 namespace OpenRCT2::RCT1
 {
-    constexpr uint8_t kDefaultParkValueConversionFactor = 100;
+    constexpr uint16_t kDefaultParkValueConversionFactor = 1000;
 
     class S4Importer final : public IParkImporter
     {
@@ -96,7 +96,7 @@ namespace OpenRCT2::RCT1
         std::string _s4Path;
         S4 _s4 = {};
         uint8_t _gameVersion = 0;
-        uint8_t _parkValueConversionFactor = kDefaultParkValueConversionFactor;
+        uint16_t _parkValueConversionFactor = kDefaultParkValueConversionFactor;
         bool _isScenario = false;
 
         // Lists of dynamic object entries
@@ -236,11 +236,7 @@ namespace OpenRCT2::RCT1
 
             dst->ObjectiveType = _s4.ScenarioObjectiveType;
             dst->ObjectiveArg1 = _s4.ScenarioObjectiveYears;
-            // RCT1 used another way of calculating park value.
-            if (_s4.ScenarioObjectiveType == Scenario::ObjectiveType::parkValueBy)
-                dst->ObjectiveArg2 = CorrectRCT1ParkValue(_s4.ScenarioObjectiveCurrency);
-            else
-                dst->ObjectiveArg2 = _s4.ScenarioObjectiveCurrency;
+            dst->ObjectiveArg2 = ConvertObjectiveCurrency(_s4.ScenarioObjectiveType, _s4.ScenarioObjectiveCurrency);
             dst->ObjectiveArg3 = _s4.ScenarioObjectiveNumGuests;
             // This does not seem to be saved in the objective arguments, so look up the ID from the available rides instead.
             if (_s4.ScenarioObjectiveType == Scenario::ObjectiveType::buildTheBest)
@@ -285,7 +281,7 @@ namespace OpenRCT2::RCT1
         }
 
     private:
-        uint8_t calculateParkValueConversionFactor(const Park::ParkData& park, const GameState_t& gameState)
+        uint16_t calculateParkValueConversionFactor(const Park::ParkData& park, const GameState_t& gameState)
         {
             if (_s4.ParkValue == 0)
                 return kDefaultParkValueConversionFactor;
@@ -304,7 +300,17 @@ namespace OpenRCT2::RCT1
 
             assert(_parkValueConversionFactor != 0);
 
-            return (oldParkValue * _parkValueConversionFactor) / 10;
+            return (static_cast<money64>(oldParkValue) * _parkValueConversionFactor) / 10;
+        }
+
+        money64 ConvertObjectiveCurrency(Scenario::ObjectiveType type, money32 value)
+        {
+            if (type == Scenario::ObjectiveType::parkValueBy)
+            {
+                return CorrectRCT1ParkValue(value);
+            }
+
+            return Scenario::ObjectiveNeedsMoney(type) ? ToMoney64(value) : value;
         }
 
         std::unique_ptr<S4> ReadAndDecodeS4(IStream* stream, bool isScenario)
@@ -1069,8 +1075,8 @@ namespace OpenRCT2::RCT1
 
             // Finance / customers
             dst->upkeepCost = ToMoney64(src->upkeepCost);
-            dst->price[0] = src->price;
-            dst->price[1] = src->priceSecondary;
+            dst->price[0] = ToMoney64(src->price);
+            dst->price[1] = ToMoney64(src->priceSecondary);
             dst->incomePerHour = ToMoney64(src->incomePerHour);
             dst->totalCustomers = src->totalCustomers;
             dst->profit = ToMoney64(src->profit);
@@ -1475,7 +1481,8 @@ namespace OpenRCT2::RCT1
         {
             auto& park = gameState.park;
 
-            park.entranceFee = _s4.ParkEntranceFee;
+            park.entranceFee = ToMoney64(_s4.ParkEntranceFee);
+            park.entranceFeeTarget = Park::ParkEntranceFeeTarget::custom;
             gameState.scenarioOptions.landPrice = ToMoney64(_s4.LandPrice);
             gameState.scenarioOptions.constructionRightsPrice = ToMoney64(_s4.ConstructionRightsPrice);
 
@@ -2314,7 +2321,7 @@ namespace OpenRCT2::RCT1
             }
 
             park.size = _s4.ParkSize;
-            park.totalRideValueForMoney = _s4.TotalRideValueForMoney;
+            park.totalRideValueForMoney = ToMoney64(_s4.TotalRideValueForMoney);
             park.samePriceThroughoutPark = 0;
             if (_gameVersion == FILE_VERSION_RCT1_LL)
             {
@@ -2443,13 +2450,10 @@ namespace OpenRCT2::RCT1
             gameState.scenarioOptions.objective.Year = _s4.ScenarioObjectiveYears;
             gameState.scenarioOptions.objective.NumGuests = _s4.ScenarioObjectiveNumGuests;
 
-            // RCT1 used a different way of calculating the park value.
-            // This is corrected here, but since scenario_objective_currency doubles as minimum excitement rating,
-            // we need to check the goal to avoid affecting scenarios like Volcania.
-            if (_s4.ScenarioObjectiveType == Scenario::ObjectiveType::parkValueBy)
-                gameState.scenarioOptions.objective.Currency = CorrectRCT1ParkValue(_s4.ScenarioObjectiveCurrency);
-            else
-                gameState.scenarioOptions.objective.Currency = ToMoney64(_s4.ScenarioObjectiveCurrency);
+            // RCT1 park value needs a bespoke conversion factor, while this union also stores
+            // non-money values such as the minimum excitement rating for Volcania-style goals.
+            gameState.scenarioOptions.objective.Currency = ConvertObjectiveCurrency(
+                _s4.ScenarioObjectiveType, _s4.ScenarioObjectiveCurrency);
 
             // This does not seem to be saved in the objective arguments, so look up the ID from the available rides instead.
             if (_s4.ScenarioObjectiveType == Scenario::ObjectiveType::buildTheBest)
@@ -2956,18 +2960,18 @@ namespace OpenRCT2::RCT1
         dst->nauseaTolerance = static_cast<PeepNauseaTolerance>(src->NauseaTolerance);
         dst->guestTimeOnRide = src->TimeOnRide;
         dst->daysInQueue = src->DaysInQueue;
-        dst->cashInPocket = src->CashInPocket;
-        dst->cashSpent = src->CashSpent;
+        dst->cashInPocket = ToMoney64(src->CashInPocket);
+        dst->cashSpent = ToMoney64(src->CashSpent);
         dst->parkEntryTime = src->ParkEntryTime;
         dst->guestNumRides = src->NumRides;
         dst->amountOfDrinks = src->NumDrinks;
         dst->amountOfFood = src->NumFood;
         dst->amountOfSouvenirs = src->NumSouvenirs;
-        dst->paidToEnter = src->PaidToEnter;
-        dst->paidOnRides = src->PaidOnRides;
-        dst->paidOnDrink = src->PaidOnDrink;
-        dst->paidOnFood = src->PaidOnFood;
-        dst->paidOnSouvenirs = src->PaidOnSouvenirs;
+        dst->paidToEnter = ToMoney64(src->PaidToEnter);
+        dst->paidOnRides = ToMoney64(src->PaidOnRides);
+        dst->paidOnDrink = ToMoney64(src->PaidOnDrink);
+        dst->paidOnFood = ToMoney64(src->PaidOnFood);
+        dst->paidOnSouvenirs = ToMoney64(src->PaidOnSouvenirs);
         dst->voucherRideId = RCT12RideIdToOpenRCT2RideId(src->VoucherArguments);
         dst->voucherType = src->VoucherType;
         dst->surroundingsThoughtTimeout = src->SurroundingsThoughtTimeout;
@@ -3065,7 +3069,7 @@ namespace OpenRCT2::RCT1
         dst->moveDelay = src->MoveDelay;
         dst->numMovements = src->NumMovements;
         dst->guestPurchase = src->Vertical;
-        dst->value = src->Value;
+        dst->value = ToMoney64(src->Value);
         dst->offsetX = src->OffsetX;
         dst->wiggle = src->Wiggle;
     }

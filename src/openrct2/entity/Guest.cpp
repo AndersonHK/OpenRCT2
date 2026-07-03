@@ -83,6 +83,8 @@
 namespace OpenRCT2
 {
     static const uint8_t kTicksToGoUpSpiralSlide = 30;
+    static constexpr int64_t kGuestRideValueIncomeScaleNumerator = 7;
+    static constexpr int64_t kGuestRideValueIncomeScaleDenominator = 10;
 
     // Locations of the spiral slide platform that a peep walks from the entrance of the ride to the
     // entrance of the slide. Up to 4 waypoints for each 4 sides that an ride entrance can be located
@@ -457,6 +459,7 @@ namespace OpenRCT2
     static bool GuestShouldGoOnRideAgain(Guest& guest, const Ride& ride);
     static bool GuestShouldPreferredIntensityIncrease(Guest& guest);
     static bool GuestReallyLikedRide(Guest& guest, const Ride& ride);
+    static money64 GuestGetRideValueForPricePerception(const Guest& guest, const Ride& ride);
     static PeepThoughtType GuestAssessSurroundings(int16_t centre_x, int16_t centre_y, int16_t centre_z);
     static void GuestUpdateHunger(Guest& guest);
     static void GuestDecideWhetherToLeavePark(Guest& guest);
@@ -1620,7 +1623,8 @@ namespace OpenRCT2
                         if (guest.happiness >= 180)
                             itemValue /= 2;
                     }
-                    if (itemValue > (static_cast<money64>(ScenarioRand() & 0x07)) && !(gameState.cheats.ignorePrice))
+                    if (itemValue > ToMoney64(static_cast<money32>(ScenarioRand() & 0x07))
+                        && !(gameState.cheats.ignorePrice))
                     {
                         // "I'm not paying that much for x"
                         guest.insertNewThought(shopItemDescriptor.TooMuchThought, ride.id);
@@ -1635,14 +1639,14 @@ namespace OpenRCT2
 
                 if (!(gameState.park.flags & PARK_FLAGS_NO_MONEY))
                 {
-                    if (itemValue >= static_cast<money64>(ScenarioRand() & 0x07))
+                    if (itemValue >= ToMoney64(static_cast<money32>(ScenarioRand() & 0x07)))
                     {
                         // "This x is a really good value"
                         guest.insertNewThought(shopItemDescriptor.GoodValueThought, ride.id);
                     }
                 }
 
-                int32_t happinessGrowth = itemValue * 4;
+                int32_t happinessGrowth = ToMoney16(itemValue) * 4;
                 guest.happinessTarget = std::min((guest.happinessTarget + happinessGrowth), kPeepMaxHappiness);
                 guest.happiness = std::min((guest.happiness + happinessGrowth), kPeepMaxHappiness);
             }
@@ -1651,13 +1655,13 @@ namespace OpenRCT2
             itemValue = getItemValue(shopItemDescriptor);
             itemValue -= price;
             uint8_t satisfaction = 0;
-            if (itemValue > -8)
+            if (itemValue > -0.80_GBP)
             {
                 satisfaction++;
-                if (itemValue > -3)
+                if (itemValue > -0.30_GBP)
                 {
                     satisfaction++;
-                    if (itemValue > 3)
+                    if (itemValue > 0.30_GBP)
                         satisfaction++;
                 }
             }
@@ -2205,16 +2209,12 @@ namespace OpenRCT2
                     }
                 }
 
-                money64 value = ride.value;
+                money64 value = GuestGetRideValueForPricePerception(*this, ride);
 
                 // If the value of the ride hasn't yet been calculated, peeps will be willing to pay any amount for the ride.
                 if (value != kRideValueUndefined && !GuestHasVoucherForFreeRide(*this, ride)
                     && !(gameState.park.flags & PARK_FLAGS_NO_MONEY))
                 {
-                    // The amount peeps are willing to pay is decreased by 75% if they had to pay to enter the park.
-                    if (PeepFlags & PEEP_FLAGS_HAS_PAID_FOR_PARK_ENTRY)
-                        value /= 4;
-
                     // Peeps won't pay more than twice the value of the ride.
                     ridePrice = RideGetPrice(ride);
                     if ((ridePrice > (value * 2)) && !(gameState.cheats.ignorePrice))
@@ -2452,6 +2452,23 @@ namespace OpenRCT2
     {
         return guest.hasItem(ShopItem::voucher) && guest.voucherType == VOUCHER_TYPE_RIDE_FREE
             && guest.voucherRideId == ride.id;
+    }
+
+    static money64 GuestGetRideValueForPricePerception(const Guest& guest, const Ride& ride)
+    {
+        auto value = ride.value;
+        if (value == kRideValueUndefined)
+        {
+            return value;
+        }
+
+        // Preserve the vanilla paid-entry reduction, then apply the global income/value debuff.
+        if (guest.PeepFlags & PEEP_FLAGS_HAS_PAID_FOR_PARK_ENTRY)
+        {
+            value /= 4;
+        }
+
+        return (value * kGuestRideValueIncomeScaleNumerator) / kGuestRideValueIncomeScaleDenominator;
     }
 
     /**
@@ -2696,6 +2713,7 @@ namespace OpenRCT2
         auto value = ride.value;
         if (value != kRideValueUndefined)
         {
+            value = GuestGetRideValueForPricePerception(guest, ride);
             if (((value * 2) < ridePrice) && !(getGameState().cheats.ignorePrice))
             {
                 guest.insertNewThought(PeepThoughtType::badValue, guest.CurrentRide);
@@ -7418,13 +7436,14 @@ namespace OpenRCT2
         peep->PeepId = gameState.nextGuestNumber++;
         peep->Name = nullptr;
 
-        money64 cash = (static_cast<money64>(ScenarioRand() & 0x3) * 100) - 100 + gameState.scenarioOptions.guestInitialCash;
+        money64 cash = ToMoney64(static_cast<money32>(((ScenarioRand() & 0x3) * 100) - 100))
+            + gameState.scenarioOptions.guestInitialCash;
         if (cash < 0)
             cash = 0;
 
         if (gameState.scenarioOptions.guestInitialCash == 0.00_GBP)
         {
-            cash = 500;
+            cash = 50.00_GBP;
         }
 
         if (gameState.park.flags & PARK_FLAGS_NO_MONEY)

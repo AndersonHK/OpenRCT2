@@ -52,6 +52,7 @@
 #include "../ride/Track.h"
 #include "../ride/Vehicle.h"
 #include "../scenario/Scenario.h"
+#include "../scenario/ScenarioObjective.h"
 #include "../scenario/ScenarioRepository.h"
 #include "../scripting/ScriptEngine.h"
 #include "../ui/WindowManager.h"
@@ -124,6 +125,76 @@ namespace OpenRCT2
             if (/*header.targetVersion < kParkFileMinSupportedVersion || */ header.minVersion > kParkFileCurrentVersion)
             {
                 throw UnsupportedVersionException(header.minVersion, header.targetVersion);
+            }
+        }
+
+        static money64 ReadLegacyParkMoney64(money64 value)
+        {
+            return value == kMoney64Undefined ? kMoney64Undefined : value * 10;
+        }
+
+        static money64 WriteLegacyParkMoney64(money64 value)
+        {
+            return value == kMoney64Undefined ? kMoney64Undefined : value / 10;
+        }
+
+        static void ReadWriteParkMoney64(OrcaStream::ChunkStream& cs, money64& value, uint32_t version)
+        {
+            if (version >= kCentMoneyVersion)
+            {
+                cs.readWrite(value);
+                return;
+            }
+
+            money64 legacyValue = WriteLegacyParkMoney64(value);
+            cs.readWrite(legacyValue);
+            if (cs.getMode() == OrcaStream::Mode::reading)
+            {
+                value = ReadLegacyParkMoney64(legacyValue);
+            }
+        }
+
+        static money64 ReadLegacyScenarioObjectiveCurrency(Scenario::ObjectiveType type, money64 value)
+        {
+            return Scenario::ObjectiveNeedsMoney(type) ? ReadLegacyParkMoney64(value) : value;
+        }
+
+        static money64 WriteLegacyScenarioObjectiveCurrency(Scenario::ObjectiveType type, money64 value)
+        {
+            return Scenario::ObjectiveNeedsMoney(type) ? WriteLegacyParkMoney64(value) : value;
+        }
+
+        static void ReadWriteScenarioObjectiveCurrency(
+            OrcaStream::ChunkStream& cs, Scenario::Objective& objective, uint32_t version)
+        {
+            if (version >= kCentMoneyVersion)
+            {
+                cs.readWrite(objective.Currency);
+                return;
+            }
+
+            money64 legacyValue = WriteLegacyScenarioObjectiveCurrency(objective.Type, objective.Currency);
+            cs.readWrite(legacyValue);
+            if (cs.getMode() == OrcaStream::Mode::reading)
+            {
+                objective.Currency = ReadLegacyScenarioObjectiveCurrency(objective.Type, legacyValue);
+            }
+        }
+
+        static void ReadWriteScenarioCompanyValue(OrcaStream::ChunkStream& cs, money64& value, uint32_t version)
+        {
+            if (version >= kCentMoneyVersion)
+            {
+                cs.readWrite(value);
+                return;
+            }
+
+            money64 legacyValue = value == kCompanyValueOnFailedObjective ? value : WriteLegacyParkMoney64(value);
+            cs.readWrite(legacyValue);
+            if (cs.getMode() == OrcaStream::Mode::reading)
+            {
+                value = legacyValue == kCompanyValueOnFailedObjective ? kCompanyValueOnFailedObjective
+                                                                       : ReadLegacyParkMoney64(legacyValue);
             }
         }
 
@@ -220,7 +291,7 @@ namespace OpenRCT2
         {
             ScenarioIndexEntry entry{};
             auto& os = *_os;
-            os.readWriteChunk(ParkFileChunkType::scenario, [&entry](OrcaStream::ChunkStream& cs) {
+            os.readWriteChunk(ParkFileChunkType::scenario, [&entry, version = os.getHeader().targetVersion](OrcaStream::ChunkStream& cs) {
                 entry.Category = cs.read<Scenario::Category>();
 
                 std::string name;
@@ -239,7 +310,11 @@ namespace OpenRCT2
                 entry.ObjectiveType = cs.read<Scenario::ObjectiveType>();
                 entry.ObjectiveArg1 = cs.read<uint8_t>();
                 entry.ObjectiveArg3 = cs.read<uint16_t>();
-                entry.ObjectiveArg2 = cs.read<int32_t>();
+                money64 objectiveCurrency{};
+                cs.readWrite(objectiveCurrency);
+                entry.ObjectiveArg2 = version < kCentMoneyVersion
+                    ? ReadLegacyScenarioObjectiveCurrency(entry.ObjectiveType, objectiveCurrency)
+                    : objectiveCurrency;
 
                 entry.SourceGame = ScenarioSource::Other;
             });
@@ -250,14 +325,15 @@ namespace OpenRCT2
         {
             ParkPreview preview{};
             auto& os = *_os;
-            os.readWriteChunk(ParkFileChunkType::preview, [&preview](OrcaStream::ChunkStream& cs) {
+            os.readWriteChunk(
+                ParkFileChunkType::preview, [&preview, version = os.getHeader().targetVersion](OrcaStream::ChunkStream& cs) {
                 cs.readWrite(preview.parkName);
                 cs.readWrite(preview.parkRating);
                 cs.readWrite(preview.year);
                 cs.readWrite(preview.month);
                 cs.readWrite(preview.day);
                 cs.readWrite(preview.parkUsesMoney);
-                cs.readWrite(preview.cash);
+                ReadWriteParkMoney64(cs, preview.cash, version);
                 cs.readWrite(preview.numRides);
                 cs.readWrite(preview.numGuests);
 
@@ -495,11 +571,11 @@ namespace OpenRCT2
                 cs.readWrite(gameState.scenarioOptions.objective.Type);
                 cs.readWrite(gameState.scenarioOptions.objective.Year);
                 cs.readWrite(gameState.scenarioOptions.objective.NumGuests);
-                cs.readWrite(gameState.scenarioOptions.objective.Currency);
+                ReadWriteScenarioObjectiveCurrency(cs, gameState.scenarioOptions.objective, os.getHeader().targetVersion);
 
                 cs.readWrite(gameState.scenarioParkRatingWarningDays);
 
-                cs.readWrite(gameState.scenarioCompletedCompanyValue);
+                ReadWriteScenarioCompanyValue(cs, gameState.scenarioCompletedCompanyValue, os.getHeader().targetVersion);
                 if (gameState.scenarioCompletedCompanyValue == kMoney64Undefined
                     || gameState.scenarioCompletedCompanyValue == kCompanyValueOnFailedObjective)
                 {
@@ -532,7 +608,7 @@ namespace OpenRCT2
 
         void ReadWritePreviewChunk(GameState_t& gameState, OrcaStream& os)
         {
-            os.readWriteChunk(ParkFileChunkType::preview, [&gameState](OrcaStream::ChunkStream& cs) {
+            os.readWriteChunk(ParkFileChunkType::preview, [&gameState, version = os.getHeader().targetVersion](OrcaStream::ChunkStream& cs) {
                 auto preview = generatePreviewFromGameState(gameState);
 
                 cs.readWrite(preview.parkName);
@@ -541,7 +617,7 @@ namespace OpenRCT2
                 cs.readWrite(preview.month);
                 cs.readWrite(preview.day);
                 cs.readWrite(preview.parkUsesMoney);
-                cs.readWrite(preview.cash);
+                ReadWriteParkMoney64(cs, preview.cash, version);
                 cs.readWrite(preview.numRides);
                 cs.readWrite(preview.numGuests);
 
@@ -613,7 +689,7 @@ namespace OpenRCT2
                 }
                 else
                 {
-                    cs.readWrite(gameState.scenarioOptions.guestInitialCash);
+                    ReadWriteParkMoney64(cs, gameState.scenarioOptions.guestInitialCash, version);
                 }
                 cs.readWrite(gameState.scenarioOptions.guestInitialHunger);
                 cs.readWrite(gameState.scenarioOptions.guestInitialThirst);
@@ -637,8 +713,8 @@ namespace OpenRCT2
                 }
                 else
                 {
-                    cs.readWrite(gameState.scenarioOptions.landPrice);
-                    cs.readWrite(gameState.scenarioOptions.constructionRightsPrice);
+                    ReadWriteParkMoney64(cs, gameState.scenarioOptions.landPrice, version);
+                    ReadWriteParkMoney64(cs, gameState.scenarioOptions.constructionRightsPrice, version);
                 }
                 cs.readWrite(gameState.grassSceneryTileLoopPosition);
                 cs.readWrite(gameState.widePathTileLoopPosition);
@@ -899,9 +975,9 @@ namespace OpenRCT2
             os.readWriteChunk(
                 ParkFileChunkType::park, [version = os.getHeader().targetVersion, &park](OrcaStream::ChunkStream& cs) {
                     cs.readWrite(park.name);
-                    cs.readWrite(park.cash);
-                    cs.readWrite(park.bankLoan);
-                    cs.readWrite(park.maxBankLoan);
+                    ReadWriteParkMoney64(cs, park.cash, version);
+                    ReadWriteParkMoney64(cs, park.bankLoan, version);
+                    ReadWriteParkMoney64(cs, park.maxBankLoan, version);
                     cs.readWrite(park.bankLoanInterestRate);
                     cs.readWrite(park.flags);
                     if (version <= 18)
@@ -912,7 +988,25 @@ namespace OpenRCT2
                     }
                     else
                     {
-                        cs.readWrite(park.entranceFee);
+                        ReadWriteParkMoney64(cs, park.entranceFee, version);
+                    }
+
+                    if (version >= kParkEntranceFeeTargetVersion)
+                    {
+                        auto entranceFeeTarget = static_cast<uint8_t>(park.entranceFeeTarget);
+                        cs.readWrite(entranceFeeTarget);
+                        if (cs.getMode() == OrcaStream::Mode::reading)
+                        {
+                            if (entranceFeeTarget > static_cast<uint8_t>(Park::ParkEntranceFeeTarget::custom))
+                            {
+                                entranceFeeTarget = static_cast<uint8_t>(Park::ParkEntranceFeeTarget::affordable);
+                            }
+                            park.entranceFeeTarget = static_cast<Park::ParkEntranceFeeTarget>(entranceFeeTarget);
+                        }
+                    }
+                    else if (cs.getMode() == OrcaStream::Mode::reading)
+                    {
+                        park.entranceFeeTarget = Park::ParkEntranceFeeTarget::custom;
                     }
 
                     cs.readWrite(park.staffHandymanColour);
@@ -929,7 +1023,7 @@ namespace OpenRCT2
                         {
                             for (uint32_t j = 0; j < numTypes; j++)
                             {
-                                park.expenditureTable[i][j] = cs.read<money64>();
+                                ReadWriteParkMoney64(cs, park.expenditureTable[i][j], version);
                             }
                         }
                     }
@@ -944,11 +1038,12 @@ namespace OpenRCT2
                         {
                             for (uint32_t j = 0; j < numTypes; j++)
                             {
-                                cs.write(park.expenditureTable[i][j]);
+                                auto value = park.expenditureTable[i][j];
+                                ReadWriteParkMoney64(cs, value, version);
                             }
                         }
                     }
-                    cs.readWrite(park.historicalProfit);
+                    ReadWriteParkMoney64(cs, park.historicalProfit, version);
 
                     // Marketing
                     cs.readWriteVector(park.marketingCampaigns, [&cs](MarketingCampaign& campaign) {
@@ -982,28 +1077,28 @@ namespace OpenRCT2
                             cs.readWrite(award.type);
                         });
                     }
-                    cs.readWrite(park.value);
-                    cs.readWrite(park.companyValue);
+                    ReadWriteParkMoney64(cs, park.value, version);
+                    ReadWriteParkMoney64(cs, park.companyValue, version);
                     cs.readWrite(park.size);
                     cs.readWrite(park.numGuestsInPark);
                     cs.readWrite(park.numGuestsHeadingForPark);
                     cs.readWrite(park.rating);
                     cs.readWrite(park.ratingCasualtyPenalty);
-                    cs.readWrite(park.currentExpenditure);
-                    cs.readWrite(park.currentProfit);
-                    cs.readWrite(park.weeklyProfitAverageDividend);
+                    ReadWriteParkMoney64(cs, park.currentExpenditure, version);
+                    ReadWriteParkMoney64(cs, park.currentProfit, version);
+                    ReadWriteParkMoney64(cs, park.weeklyProfitAverageDividend, version);
                     cs.readWrite(park.weeklyProfitAverageDivisor);
                     cs.readWrite(park.totalAdmissions);
-                    cs.readWrite(park.totalIncomeFromAdmissions);
+                    ReadWriteParkMoney64(cs, park.totalIncomeFromAdmissions, version);
                     if (version <= 16)
                     {
                         money16 legacyTotalRideValueForMoney = 0;
                         cs.readWrite(legacyTotalRideValueForMoney);
-                        park.totalRideValueForMoney = legacyTotalRideValueForMoney;
+                        park.totalRideValueForMoney = ToMoney64(legacyTotalRideValueForMoney);
                     }
                     else
                     {
-                        cs.readWrite(park.totalRideValueForMoney);
+                        ReadWriteParkMoney64(cs, park.totalRideValueForMoney, version);
                     }
                     cs.readWrite(park.numGuestsInParkLastWeek);
                     cs.readWrite(park.guestChangeModifier);
@@ -1067,16 +1162,16 @@ namespace OpenRCT2
                         return true;
                     });
 
-                    cs.readWriteArray(park.cashHistory, [&cs](money64& value) {
-                        cs.readWrite(value);
+                    cs.readWriteArray(park.cashHistory, [&cs, version](money64& value) {
+                        ReadWriteParkMoney64(cs, value, version);
                         return true;
                     });
-                    cs.readWriteArray(park.weeklyProfitHistory, [&cs](money64& value) {
-                        cs.readWrite(value);
+                    cs.readWriteArray(park.weeklyProfitHistory, [&cs, version](money64& value) {
+                        ReadWriteParkMoney64(cs, value, version);
                         return true;
                     });
-                    cs.readWriteArray(park.valueHistory, [&cs](money64& value) {
-                        cs.readWrite(value);
+                    cs.readWriteArray(park.valueHistory, [&cs, version](money64& value) {
+                        ReadWriteParkMoney64(cs, value, version);
                         return true;
                     });
                 });
@@ -1439,13 +1534,13 @@ namespace OpenRCT2
                             cs.readWrite(price);
                             return true;
                         });
-                        ride.price[0] = prices[0];
-                        ride.price[1] = prices[1];
+                        ride.price[0] = ToMoney64(prices[0]);
+                        ride.price[1] = ToMoney64(prices[1]);
                     }
                     else
                     {
-                        cs.readWriteArray(ride.price, [&cs](money64& price) {
-                            cs.readWrite(price);
+                        cs.readWriteArray(ride.price, [&cs, &version](money64& price) {
+                            ReadWriteParkMoney64(cs, price, version);
                             return true;
                         });
                     }
@@ -1668,12 +1763,12 @@ namespace OpenRCT2
                         }
                         else
                         {
-                            ride.value = tempRideValue;
+                            ride.value = ReadLegacyParkMoney64(tempRideValue);
                         }
                     }
                     else
                     {
-                        cs.readWrite(ride.value);
+                        ReadWriteParkMoney64(cs, ride.value, version);
                     }
 
                     cs.readWrite(ride.numRiders);
@@ -1687,7 +1782,7 @@ namespace OpenRCT2
                     }
                     else
                     {
-                        cs.readWrite(ride.upkeepCost);
+                        ReadWriteParkMoney64(cs, ride.upkeepCost, version);
                     }
 
                     cs.readWrite(ride.curNumCustomers);
@@ -1699,15 +1794,15 @@ namespace OpenRCT2
                     });
 
                     cs.readWrite(ride.totalCustomers);
-                    cs.readWrite(ride.totalProfit);
+                    ReadWriteParkMoney64(cs, ride.totalProfit, version);
                     cs.readWrite(ride.popularity);
                     cs.readWrite(ride.popularityTimeout);
                     cs.readWrite(ride.popularityNext);
                     cs.readWrite(ride.guestsFavourite);
                     cs.readWrite(ride.numPrimaryItemsSold);
                     cs.readWrite(ride.numSecondaryItemsSold);
-                    cs.readWrite(ride.incomePerHour);
-                    cs.readWrite(ride.profit);
+                    ReadWriteParkMoney64(cs, ride.incomePerHour, version);
+                    ReadWriteParkMoney64(cs, ride.profit, version);
                     cs.readWrite(ride.satisfaction);
                     cs.readWrite(ride.satisfactionTimeout);
                     cs.readWrite(ride.satisfactionNext);
@@ -2366,11 +2461,11 @@ namespace OpenRCT2
         }
         else
         {
-            cs.readWrite(guest.paidToEnter);
-            cs.readWrite(guest.paidOnRides);
-            cs.readWrite(guest.paidOnFood);
-            cs.readWrite(guest.paidOnDrink);
-            cs.readWrite(guest.paidOnSouvenirs);
+            ReadWriteParkMoney64(cs, guest.paidToEnter, version);
+            ReadWriteParkMoney64(cs, guest.paidOnRides, version);
+            ReadWriteParkMoney64(cs, guest.paidOnFood, version);
+            ReadWriteParkMoney64(cs, guest.paidOnDrink, version);
+            ReadWriteParkMoney64(cs, guest.paidOnSouvenirs, version);
         }
 
         cs.readWrite(guest.outsideOfPark);
@@ -2458,8 +2553,8 @@ namespace OpenRCT2
         }
         else
         {
-            cs.readWrite(guest.cashInPocket);
-            cs.readWrite(guest.cashSpent);
+            ReadWriteParkMoney64(cs, guest.cashInPocket, version);
+            ReadWriteParkMoney64(cs, guest.cashSpent, version);
         }
 
         cs.readWrite(guest.photo1RideRef);
@@ -2567,7 +2662,7 @@ namespace OpenRCT2
         cs.readWrite(moneyEffect.moveDelay);
         cs.readWrite(moneyEffect.numMovements);
         cs.readWrite(moneyEffect.guestPurchase);
-        cs.readWrite(moneyEffect.value);
+        ReadWriteParkMoney64(cs, moneyEffect.value, os.getHeader().targetVersion);
         cs.readWrite(moneyEffect.offsetX);
         cs.readWrite(moneyEffect.wiggle);
     }

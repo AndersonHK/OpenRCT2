@@ -6548,7 +6548,7 @@ namespace OpenRCT2::Ui::Windows
 
             auto price = ride->price[0];
             if (price < kRideMaxPrice)
-                price++;
+                price = std::min(kRideMaxPrice, price + 0.10_GBP);
 
             IncomeSetPrimaryPrice(price);
         }
@@ -6564,7 +6564,7 @@ namespace OpenRCT2::Ui::Windows
 
             auto price = ride->price[0];
             if (price > kRideMinPrice)
-                price--;
+                price = std::max(kRideMinPrice, price - 0.10_GBP);
 
             IncomeSetPrimaryPrice(price);
         }
@@ -6604,7 +6604,7 @@ namespace OpenRCT2::Ui::Windows
             auto price = IncomeGetSecondaryPrice();
 
             if (price < kRideMaxPrice)
-                price++;
+                price = std::min(kRideMaxPrice, price + 0.10_GBP);
 
             IncomeSetSecondaryPrice(price);
         }
@@ -6614,7 +6614,7 @@ namespace OpenRCT2::Ui::Windows
             auto price = IncomeGetSecondaryPrice();
 
             if (price > 0.00_GBP)
-                price--;
+                price = std::max(0.00_GBP, price - 0.10_GBP);
 
             IncomeSetSecondaryPrice(price);
         }

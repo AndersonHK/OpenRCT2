@@ -25,7 +25,7 @@ namespace OpenRCT2
         stream->Seek(6, STREAM_SEEK_CURRENT);
         _legacyType.scrolling_mode = stream->ReadValue<uint8_t>();
         _legacyType.flags = stream->ReadValue<uint8_t>();
-        _legacyType.price = stream->ReadValue<money16>();
+        _legacyType.price = ToMoney64(stream->ReadValue<money16>());
         _legacyType.scenery_tab_id = kObjectEntryIndexNull;
         stream->Seek(2, STREAM_SEEK_CURRENT);
 
@@ -87,7 +87,7 @@ namespace OpenRCT2
         if (properties.is_object())
         {
             _legacyType.scrolling_mode = Json::GetNumber<uint8_t>(properties["scrollingMode"]);
-            _legacyType.price = Json::GetNumber<money64>(properties["price"]);
+            _legacyType.price = ToMoney64(Json::GetNumber<money32>(properties["price"]));
             _legacyType.flags = Json::GetFlags<uint8_t>(
                 properties,
                 {

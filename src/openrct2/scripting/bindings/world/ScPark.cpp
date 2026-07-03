@@ -125,7 +125,7 @@ namespace OpenRCT2::Scripting
 
     JSValue ScPark::entranceFee_get(JSContext* ctx, JSValue thisVal)
     {
-        return JS_NewInt64(ctx, getGameState().park.entranceFee);
+        return JS_NewInt64(ctx, Park::GetEntranceFee(getGameState().park));
     }
     JSValue ScPark::entranceFee_set(JSContext* ctx, JSValue thisVal, JSValue value)
     {
@@ -135,6 +135,7 @@ namespace OpenRCT2::Scripting
         auto& gameState = getGameState();
         if (gameState.park.entranceFee != valueInt)
         {
+            gameState.park.entranceFeeTarget = Park::ParkEntranceFeeTarget::custom;
             gameState.park.entranceFee = valueInt;
             auto* windowMgr = Ui::GetWindowManager();
             windowMgr->InvalidateByClass(WindowClass::parkInformation);

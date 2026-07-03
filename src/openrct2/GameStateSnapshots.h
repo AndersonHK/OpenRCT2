@@ -94,6 +94,11 @@ struct IGameStateSnapshots
     virtual void SerialiseSnapshot(GameStateSnapshot_t& snapshot, OpenRCT2::DataSerialiser& serialiser) const = 0;
 
     /*
+     * Converts replay snapshots saved before money64 changed from 0.10 to 0.01 units.
+     */
+    virtual void ConvertLegacyMoney(GameStateSnapshot_t& snapshot) const = 0;
+
+    /*
      * Compares two states resulting GameStateCompareData with all mismatches stored.
      */
     virtual GameStateCompareData Compare(const GameStateSnapshot_t& base, const GameStateSnapshot_t& cmp) const = 0;

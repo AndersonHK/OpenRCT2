@@ -19,14 +19,17 @@
 #include <openrct2/actions/GameActionRunner.h>
 #include <openrct2/actions/park/ParkSetEntranceFeeAction.h>
 #include <openrct2/actions/park/ParkSetParameterAction.h>
+#include <openrct2/actions/ride/RideCreateAction.h>
 #include <openrct2/actions/ride/RideSetPriceAction.h>
 #include <openrct2/actions/ride/RideSetStatusAction.h>
 #include <openrct2/drawing/Drawing.h>
 #include <openrct2/entity/EntityRegistry.h>
 #include <openrct2/entity/EntityTweener.h>
 #include <openrct2/entity/Peep.h>
+#include <openrct2/object/ObjectLimits.h>
 #include <openrct2/object/ObjectManager.h>
 #include <openrct2/ride/Ride.h>
+#include <openrct2/ride/RideData.h>
 #include <openrct2/ride/RideManager.hpp>
 #include <openrct2/world/MapAnimation.h>
 #include <openrct2/world/Park.h>
@@ -86,6 +89,50 @@ static void execute(Args&&... args)
     GameActions::Execute(&ga, getGameState());
 }
 
+template<class GA, class... Args>
+static GameActions::Result executeImmediate(Args&&... args)
+{
+    GA ga(std::forward<Args>(args)...);
+    return GameActions::ExecuteNested(&ga, getGameState());
+}
+
+static void InsertGuestAtBackOfQueue(Guest& guest, Ride& ride, StationIndex stationIndex, const Peep& queueAnchor)
+{
+    auto& station = ride.getStation(stationIndex);
+    ASSERT_FALSE(station.LastPeepInQueue.IsNull());
+
+    guest.moveTo(queueAnchor.getLocation());
+    guest.NextLoc = queueAnchor.NextLoc;
+    guest.PeepDirection = queueAnchor.PeepDirection;
+    guest.InteractionRideIndex = ride.id;
+    guest.guestNextInQueue = station.LastPeepInQueue;
+    station.LastPeepInQueue = guest.id;
+    station.QueueLength++;
+
+    guest.CurrentRide = ride.id;
+    guest.CurrentRideStation = stationIndex;
+    guest.State = PeepState::queuing;
+    guest.daysInQueue = 0;
+    guest.RideSubState = PeepRideSubState::inQueue;
+    guest.DestinationTolerance = 2;
+    guest.timeInQueue = 0;
+}
+
+static Ride* FindFerrisWheel(GameState_t& gameState)
+{
+    auto rideManager = RideManager(gameState);
+    auto it = std::find_if(
+        rideManager.begin(), rideManager.end(), [](const auto& ride) { return ride.type == RIDE_TYPE_FERRIS_WHEEL; });
+    return it == rideManager.end() ? nullptr : &*it;
+}
+
+static bool GuestHasRideThought(const Guest& guest, PeepThoughtType thoughtType, RideId rideId)
+{
+    return std::any_of(guest.thoughts.begin(), guest.thoughts.end(), [thoughtType, rideId](const auto& thought) {
+        return thought.type == thoughtType && thought.rideId == rideId;
+    });
+}
+
 TEST_F(PlayTests, SecondGuestInQueueShouldNotRideIfNoFunds)
 {
     /* This test verifies that a guest, when second in queue, won't be forced to enter
@@ -122,7 +169,7 @@ TEST_F(PlayTests, SecondGuestInQueueShouldNotRideIfNoFunds)
 
     // Insert a rich guest
     auto richGuest = Park::GenerateGuest();
-    richGuest->cashInPocket = 3000;
+    richGuest->cashInPocket = 300.00_GBP;
 
     // Wait for rich guest to get in queue
     bool matched = updateUntil(1000, [&]() { return richGuest->State == PeepState::queuing; });
@@ -130,25 +177,18 @@ TEST_F(PlayTests, SecondGuestInQueueShouldNotRideIfNoFunds)
 
     // Insert poor guest
     auto poorGuest = Park::GenerateGuest();
-    poorGuest->cashInPocket = 5;
+    poorGuest->cashInPocket = 0.49_GBP;
+    InsertGuestAtBackOfQueue(*poorGuest, ferrisWheel, richGuest->CurrentRideStation, *richGuest);
 
-    // Wait for poor guest to get in queue
-    matched = updateUntil(1000, [&]() { return poorGuest->State == PeepState::queuing; });
-    ASSERT_TRUE(matched);
+    // Raise the price of the ride to a value poor guest can't pay.
+    poorGuest->cashInPocket = 0.49_GBP;
+    execute<GameActions::RideSetPriceAction>(ferrisWheel.id, 1.00_GBP, true);
+    ASSERT_GT(RideGetPrice(ferrisWheel), poorGuest->cashInPocket);
 
-    // Raise the price of the ride to a value poor guest can't pay
-    execute<GameActions::RideSetPriceAction>(ferrisWheel.id, 10, true);
-
-    // Verify that the poor guest goes back to walking without riding
-    // since it doesn't have enough money to pay for it
-    bool enteredTheRide = false;
-    matched = updateUntil(10000, [&]() {
-        enteredTheRide |= poorGuest->State == PeepState::onRide;
-        return poorGuest->State == PeepState::walking || enteredTheRide;
-    });
-
-    ASSERT_TRUE(matched);
-    ASSERT_FALSE(enteredTheRide);
+    const auto cashBeforeDecision = poorGuest->cashInPocket;
+    EXPECT_FALSE(poorGuest->shouldGoOnRide(ferrisWheel, poorGuest->CurrentRideStation, true, false));
+    EXPECT_NE(poorGuest->State, PeepState::onRide);
+    EXPECT_EQ(poorGuest->cashInPocket, cashBeforeDecision);
 }
 
 TEST_F(PlayTests, CarRideWithOneCarOnlyAcceptsTwoGuests)
@@ -198,4 +238,148 @@ TEST_F(PlayTests, CarRideWithOneCarOnlyAcceptsTwoGuests)
         ASSERT_LE(numRiding, 2);
         gameStateUpdateLogic();
     }
+}
+
+TEST_F(PlayTests, ParkEntranceFeeTargetsUseGuestCashAndDebuffedParkValue)
+{
+    std::string initStateFile = TestData::GetParkPath("small_park_with_ferris_wheel.sv6");
+
+    auto context = localStartGame(initStateFile);
+    ASSERT_NE(context.get(), nullptr);
+
+    auto& gameState = getGameState();
+    gameState.park.flags &= ~PARK_FLAGS_NO_MONEY;
+    gameState.park.flags &= ~PARK_FLAGS_PARK_FREE_ENTRY;
+    gameState.park.flags |= PARK_FLAGS_UNLOCK_ALL_PRICES;
+    gameState.park.entranceFeeTarget = Park::ParkEntranceFeeTarget::affordable;
+
+    gameState.scenarioOptions.guestInitialCash = 10.00_GBP;
+    gameState.park.totalRideValueForMoney = 100.00_GBP;
+
+    EXPECT_EQ(Park::GetEntranceFeeForTarget(gameState.park, Park::ParkEntranceFeeTarget::incomePerGuest), 30.00_GBP);
+    EXPECT_EQ(Park::GetEntranceFeeForTarget(gameState.park, Park::ParkEntranceFeeTarget::profit), 20.00_GBP);
+    EXPECT_EQ(Park::GetEntranceFeeForTarget(gameState.park, Park::ParkEntranceFeeTarget::affordable), 0.00_GBP);
+
+    gameState.scenarioOptions.guestInitialCash = 1000.00_GBP;
+    EXPECT_EQ(Park::GetEntranceFeeForTarget(gameState.park, Park::ParkEntranceFeeTarget::incomePerGuest), 70.00_GBP);
+
+    auto result = executeImmediate<GameActions::ParkSetEntranceFeeAction>(Park::ParkEntranceFeeTarget::incomePerGuest);
+    ASSERT_EQ(result.error, GameActions::Status::ok);
+    EXPECT_EQ(gameState.park.entranceFeeTarget, Park::ParkEntranceFeeTarget::incomePerGuest);
+    EXPECT_EQ(Park::GetEntranceFee(gameState.park), 70.00_GBP);
+}
+
+TEST_F(PlayTests, RideCreateConvertsLegacyDefaultPricesToCentMoney)
+{
+    std::string initStateFile = TestData::GetParkPath("small_park_with_ferris_wheel.sv6");
+
+    auto context = localStartGame(initStateFile);
+    ASSERT_NE(context.get(), nullptr);
+
+    auto& gameState = getGameState();
+    gameState.park.flags &= ~PARK_FLAGS_NO_MONEY;
+    gameState.park.flags |= PARK_FLAGS_UNLOCK_ALL_PRICES;
+    gameState.park.entranceFee = 0.00_GBP;
+
+    const auto& rtd = GetRideTypeDescriptor(RIDE_TYPE_FERRIS_WHEEL);
+    const auto defaultPrice = rtd.DefaultPrices[0];
+    const auto defaultPriceCentMoney = ToMoney64(static_cast<money32>(defaultPrice));
+    ASSERT_EQ(defaultPrice, 10);
+    ASSERT_EQ(defaultPriceCentMoney, 1.00_GBP);
+
+    auto result = executeImmediate<GameActions::RideCreateAction>(
+        RIDE_TYPE_FERRIS_WHEEL, kObjectEntryIndexNull, 0, 0, kObjectEntryIndexNull, RideInspection::every30Minutes);
+    ASSERT_EQ(result.error, GameActions::Status::ok);
+
+    const auto rideId = result.getData<RideId>();
+    const auto* ride = GetRide(rideId);
+    ASSERT_NE(ride, nullptr);
+    EXPECT_EQ(ride->price[0], 1.00_GBP);
+    EXPECT_EQ(ride->price[1], 0.00_GBP);
+}
+
+TEST_F(PlayTests, RideSetPriceActionPreservesCentPrices)
+{
+    std::string initStateFile = TestData::GetParkPath("small_park_with_ferris_wheel.sv6");
+
+    auto context = localStartGame(initStateFile);
+    ASSERT_NE(context.get(), nullptr);
+
+    auto& gameState = getGameState();
+    gameState.park.flags |= PARK_FLAGS_UNLOCK_ALL_PRICES;
+
+    auto rideManager = RideManager(gameState);
+    auto it = std::find_if(
+        rideManager.begin(), rideManager.end(), [](const auto& ride) { return ride.type == RIDE_TYPE_FERRIS_WHEEL; });
+    ASSERT_NE(it, rideManager.end());
+    Ride& ferrisWheel = *it;
+
+    auto result = executeImmediate<GameActions::RideSetPriceAction>(ferrisWheel.id, 1.23_GBP, true);
+    ASSERT_EQ(result.error, GameActions::Status::ok);
+    EXPECT_EQ(ferrisWheel.price[0], 1.23_GBP);
+}
+
+TEST_F(PlayTests, RideTargetPriceUsesIncomeDebuff)
+{
+    std::string initStateFile = TestData::GetParkPath("small_park_with_ferris_wheel.sv6");
+
+    auto context = localStartGame(initStateFile);
+    ASSERT_NE(context.get(), nullptr);
+
+    auto& gameState = getGameState();
+    gameState.park.flags &= ~PARK_FLAGS_NO_MONEY;
+    gameState.park.flags |= PARK_FLAGS_UNLOCK_ALL_PRICES;
+    gameState.park.entranceFeeTarget = Park::ParkEntranceFeeTarget::custom;
+    gameState.park.entranceFee = 0.00_GBP;
+
+    auto rideManager = RideManager(gameState);
+    auto it = std::find_if(
+        rideManager.begin(), rideManager.end(), [](const auto& ride) { return ride.type == RIDE_TYPE_FERRIS_WHEEL; });
+    ASSERT_NE(it, rideManager.end());
+    Ride& ferrisWheel = *it;
+    ferrisWheel.value = 10.00_GBP;
+
+    EXPECT_EQ(RideGetTargetPrice(ferrisWheel, RidePriceTarget::neutral), 6.30_GBP);
+}
+
+TEST_F(PlayTests, GuestRideValueThresholdsUseIncomeDebuff)
+{
+    std::string initStateFile = TestData::GetParkPath("small_park_with_ferris_wheel.sv6");
+
+    auto context = localStartGame(initStateFile);
+    ASSERT_NE(context.get(), nullptr);
+
+    auto& gameState = getGameState();
+    gameState.park.flags &= ~PARK_FLAGS_NO_MONEY;
+    gameState.park.flags |= PARK_FLAGS_UNLOCK_ALL_PRICES;
+    gameState.park.entranceFeeTarget = Park::ParkEntranceFeeTarget::custom;
+    gameState.park.entranceFee = 0.00_GBP;
+    gameState.cheats.ignoreRideIntensity = true;
+
+    Ride* ferrisWheel = FindFerrisWheel(gameState);
+    ASSERT_NE(ferrisWheel, nullptr);
+    auto openResult = executeImmediate<GameActions::RideSetStatusAction>(ferrisWheel->id, RideStatus::open);
+    ASSERT_EQ(openResult.error, GameActions::Status::ok);
+    ferrisWheel->value = 10.00_GBP;
+    auto& station = ferrisWheel->getStation(StationIndex::FromUnderlying(0));
+    station.LastPeepInQueue = EntityId::GetNull();
+    station.QueueLength = 0;
+
+    auto* badValueGuest = Park::GenerateGuest();
+    badValueGuest->cashInPocket = 100.00_GBP;
+    badValueGuest->guestHeadingToRideId = ferrisWheel->id;
+
+    auto result = executeImmediate<GameActions::RideSetPriceAction>(ferrisWheel->id, 14.01_GBP, true);
+    ASSERT_EQ(result.error, GameActions::Status::ok);
+    EXPECT_FALSE(badValueGuest->shouldGoOnRide(*ferrisWheel, StationIndex::FromUnderlying(0), false, false));
+    EXPECT_TRUE(GuestHasRideThought(*badValueGuest, PeepThoughtType::badValue, ferrisWheel->id));
+
+    auto* goodValueGuest = Park::GenerateGuest();
+    goodValueGuest->cashInPocket = 100.00_GBP;
+    goodValueGuest->guestHeadingToRideId = ferrisWheel->id;
+
+    result = executeImmediate<GameActions::RideSetPriceAction>(ferrisWheel->id, 3.50_GBP, true);
+    ASSERT_EQ(result.error, GameActions::Status::ok);
+    EXPECT_TRUE(goodValueGuest->shouldGoOnRide(*ferrisWheel, StationIndex::FromUnderlying(0), false, false));
+    EXPECT_TRUE(GuestHasRideThought(*goodValueGuest, PeepThoughtType::goodValue, ferrisWheel->id));
 }

@@ -28,8 +28,8 @@ namespace OpenRCT2
         _legacyType.flags = stream->ReadValue<SmallSceneryFlags>();
         _legacyType.height = stream->ReadValue<uint8_t>();
         _legacyType.tool_id = static_cast<CursorID>(stream->ReadValue<uint8_t>());
-        _legacyType.price = stream->ReadValue<int16_t>() * 10;
-        _legacyType.removal_price = stream->ReadValue<int16_t>() * 10;
+        _legacyType.price = ToMoney64FromGBP(stream->ReadValue<int16_t>());
+        _legacyType.removal_price = ToMoney64FromGBP(stream->ReadValue<int16_t>());
         stream->Seek(4, STREAM_SEEK_CURRENT);
         _legacyType.animation_delay = stream->ReadValue<uint16_t>();
         _legacyType.animation_mask = stream->ReadValue<uint16_t>();
@@ -187,8 +187,8 @@ void SmallSceneryObject::PerformFixes()
         {
             _legacyType.height = Json::GetNumber<uint8_t>(properties["height"]);
             _legacyType.tool_id = Cursor::FromString(Json::GetString(properties["cursor"]), CursorID::StatueDown);
-            _legacyType.price = Json::GetNumber<int16_t>(properties["price"]) * 10;
-            _legacyType.removal_price = Json::GetNumber<int16_t>(properties["removalPrice"]) * 10;
+            _legacyType.price = ToMoney64FromGBP(Json::GetNumber<int16_t>(properties["price"]));
+            _legacyType.removal_price = ToMoney64FromGBP(Json::GetNumber<int16_t>(properties["removalPrice"]));
             _legacyType.animation_delay = Json::GetNumber<uint16_t>(properties["animationDelay"]);
             _legacyType.animation_mask = Json::GetNumber<uint16_t>(properties["animationMask"]);
             _legacyType.num_frames = Json::GetNumber<uint16_t>(properties["numFrames"]);

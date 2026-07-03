@@ -51,6 +51,42 @@ namespace OpenRCT2::Ui::Windows
     static constexpr ScreenCoordsXY kGraphBottomRightPadding{ 25, 10 };
     static constexpr uint8_t kGraphNumYLabels = 6;
 
+    static constexpr std::array<Park::ParkEntranceFeeTarget, 3> kEntranceFeeTargets = {
+        Park::ParkEntranceFeeTarget::incomePerGuest,
+        Park::ParkEntranceFeeTarget::profit,
+        Park::ParkEntranceFeeTarget::affordable,
+    };
+
+    static const char* GetEntranceFeeTargetName(Park::ParkEntranceFeeTarget target)
+    {
+        switch (target)
+        {
+            case Park::ParkEntranceFeeTarget::incomePerGuest:
+                return "Richest guest";
+            case Park::ParkEntranceFeeTarget::profit:
+                return "Max profit";
+            case Park::ParkEntranceFeeTarget::affordable:
+                return "All guests";
+            case Park::ParkEntranceFeeTarget::custom:
+                return "Custom";
+        }
+        return "All guests";
+    }
+
+    static u8string FormatEntranceFee(money64 price)
+    {
+        return price == 0.00_GBP ? FormatStringID(STR_FREE) : FormatStringID(STR_BOTTOM_TOOLBAR_CASH, price);
+    }
+
+    static u8string FormatEntranceFeeTargetCaption(const ParkData& park, Park::ParkEntranceFeeTarget target)
+    {
+        u8string caption = GetEntranceFeeTargetName(target);
+        caption += " (";
+        caption += FormatEntranceFee(Park::GetEntranceFeeForTarget(park, target));
+        caption += ")";
+        return caption;
+    }
+
     enum WindowParkPage
     {
         WINDOW_PARK_PAGE_ENTRANCE,
@@ -88,8 +124,6 @@ namespace OpenRCT2::Ui::Windows
 
         WIDX_PRICE_LABEL = 11,
         WIDX_PRICE,
-        WIDX_INCREASE_PRICE,
-        WIDX_DECREASE_PRICE,
 
         WIDX_ENTER_NAME = 11
     };
@@ -132,9 +166,9 @@ namespace OpenRCT2::Ui::Windows
     );
 
     static constexpr auto _priceWidgets = makeWidgets(
-        makeParkWidgets(230),
-        makeWidget                ({ 21, 50}, {126, 14}, WidgetType::label,   WindowColour::secondary, STR_ADMISSION_PRICE),
-        makeHoldableSpinnerWidgets({147, 50}, { 76, 14}, WidgetType::spinner, WindowColour::secondary                     ) // Price (3 widgets)
+        makeParkWidgets(316),
+        makeWidget({ 21, 50}, {110, 14}, WidgetType::label,        WindowColour::secondary, STR_ADMISSION_PRICE),
+        makeWidget({135, 50}, {174, 14}, WidgetType::dropdownMenu, WindowColour::secondary                     )
     );
 
     static constexpr auto _statsWidgets = makeWidgets(
@@ -177,6 +211,7 @@ namespace OpenRCT2::Ui::Windows
         ScreenRect _guestGraphBounds;
 
         ParkData& _parkData;
+        u8string _priceCaption;
 
     public:
         ParkWindow(ParkData& parkData)
@@ -280,6 +315,9 @@ namespace OpenRCT2::Ui::Windows
             {
                 case WINDOW_PARK_PAGE_ENTRANCE:
                     onDropdownEntrance(widgetIndex, selectedIndex);
+                    break;
+                case WINDOW_PARK_PAGE_PRICE:
+                    onDropdownPrice(widgetIndex, selectedIndex);
                     break;
             }
         }
@@ -799,38 +837,56 @@ namespace OpenRCT2::Ui::Windows
 #pragma region Price page
         void onResizePrice()
         {
-            WindowSetResize(*this, { 230, 124 }, { 230, 124 });
+            WindowSetResize(*this, { 316, 124 }, { 316, 124 });
+        }
+
+        void showEntranceFeeTargetDropdown()
+        {
+            auto& park = getGameState().park;
+            if ((park.flags & PARK_FLAGS_NO_MONEY) || !Park::EntranceFeeUnlocked(park))
+            {
+                return;
+            }
+
+            auto& dropdownWidget = widgets[WIDX_PRICE];
+            WindowDropdownShowTextCustomWidth(
+                { windowPos.x + dropdownWidget.left, windowPos.y + dropdownWidget.top }, dropdownWidget.height(), colours[1],
+                0, 0, kEntranceFeeTargets.size(), dropdownWidget.width());
+            gDropdown.highlightedIndex = -1;
+            gDropdown.defaultIndex = -1;
+
+            for (size_t i = 0; i < kEntranceFeeTargets.size(); i++)
+            {
+                const auto target = kEntranceFeeTargets[i];
+                gDropdown.items[i] = Dropdown::MenuLabel(FormatEntranceFeeTargetCaption(park, target));
+                gDropdown.items[i].value = static_cast<uint32_t>(target);
+                if (park.entranceFeeTarget == target)
+                {
+                    gDropdown.items[i].setChecked(true);
+                    gDropdown.highlightedIndex = static_cast<int32_t>(i);
+                    gDropdown.defaultIndex = static_cast<int32_t>(i);
+                }
+            }
         }
 
         void onMouseDownPrice(WidgetIndex widgetIndex)
         {
-            auto& gameState = getGameState();
-            auto& park = _parkData;
-
-            switch (widgetIndex)
+            if (widgetIndex == WIDX_PRICE)
             {
-                case WIDX_INCREASE_PRICE:
-                {
-                    const auto newFee = std::min(kMaxEntranceFee, _parkData.entranceFee + 1.00_GBP);
-                    auto gameAction = GameActions::ParkSetEntranceFeeAction(newFee);
-                    GameActions::Execute(&gameAction, gameState);
-                    break;
-                }
-                case WIDX_DECREASE_PRICE:
-                {
-                    const auto newFee = std::max(0.00_GBP, _parkData.entranceFee - 1.00_GBP);
-                    auto gameAction = GameActions::ParkSetEntranceFeeAction(newFee);
-                    GameActions::Execute(&gameAction, gameState);
-                    break;
-                }
-                case WIDX_PRICE:
-                {
-                    utf8 _moneyInputText[kMoneyStringMaxlength] = {};
-                    MoneyToString(Park::GetEntranceFee(park), _moneyInputText, kMoneyStringMaxlength, false);
-                    WindowTextInputRawOpen(
-                        this, WIDX_PRICE, STR_ENTER_NEW_VALUE, STR_ENTER_NEW_VALUE, {}, _moneyInputText, kMoneyStringMaxlength);
-                }
+                showEntranceFeeTargetDropdown();
             }
+        }
+
+        void onDropdownPrice(WidgetIndex widgetIndex, int32_t dropdownIndex)
+        {
+            if (widgetIndex != WIDX_PRICE || dropdownIndex == -1)
+            {
+                return;
+            }
+
+            const auto target = static_cast<Park::ParkEntranceFeeTarget>(gDropdown.items[dropdownIndex].value);
+            auto gameAction = GameActions::ParkSetEntranceFeeAction(target);
+            GameActions::Execute(&gameAction, getGameState());
         }
 
         void onUpdatePrice()
@@ -856,18 +912,16 @@ namespace OpenRCT2::Ui::Windows
                 widgets[WIDX_PRICE].tooltip = STR_ADMISSION_PRICE_PAY_PER_RIDE_TIP;
             }
 
-            // If the entry price is locked at free, disable the widget, unless the unlock_all_prices cheat is active.
             if ((park.flags & PARK_FLAGS_NO_MONEY) || !Park::EntranceFeeUnlocked(park))
             {
                 widgets[WIDX_PRICE].type = WidgetType::labelCentred;
-                widgets[WIDX_INCREASE_PRICE].type = WidgetType::empty;
-                widgets[WIDX_DECREASE_PRICE].type = WidgetType::empty;
+                widgets[WIDX_PRICE].setString(STR_FREE);
             }
             else
             {
-                widgets[WIDX_PRICE].type = WidgetType::spinner;
-                widgets[WIDX_INCREASE_PRICE].type = WidgetType::button;
-                widgets[WIDX_DECREASE_PRICE].type = WidgetType::button;
+                widgets[WIDX_PRICE].type = WidgetType::dropdownMenu;
+                _priceCaption = FormatEntranceFeeTargetCaption(park, park.entranceFeeTarget);
+                widgets[WIDX_PRICE].setString(_priceCaption.c_str());
             }
 
             WindowAlignTabs(this, WIDX_TAB_1, WIDX_TAB_7);
@@ -883,19 +937,6 @@ namespace OpenRCT2::Ui::Windows
             auto ft = Formatter();
             ft.Add<money64>(getGameState().park.totalIncomeFromAdmissions);
             drawText(rt, screenCoords, STR_INCOME_FROM_ADMISSIONS, ft);
-
-            auto& park = getGameState().park;
-
-            money64 parkEntranceFee = Park::GetEntranceFee(park);
-            ft = Formatter();
-            ft.Add<money64>(parkEntranceFee);
-
-            StringId stringId = STR_BOTTOM_TOOLBAR_CASH;
-            if (parkEntranceFee == 0)
-                stringId = STR_FREE;
-
-            screenCoords = windowPos + ScreenCoordsXY{ widgets[WIDX_PRICE].left + 1, widgets[WIDX_PRICE].top + 1 };
-            drawText(rt, screenCoords, stringId, ft, { colours[1] });
         }
 #pragma endregion
 

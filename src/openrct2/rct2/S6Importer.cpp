@@ -43,6 +43,7 @@
 #include "../ride/Vehicle.h"
 #include "../sawyer_coding/SawyerChunkReader.h"
 #include "../scenario/Scenario.h"
+#include "../scenario/ScenarioObjective.h"
 #include "../scenario/ScenarioRepository.h"
 #include "../scenario/ScenarioSources.h"
 #include "../world/Entrance.h"
@@ -70,6 +71,11 @@ using namespace OpenRCT2::SawyerCoding;
 namespace OpenRCT2::RCT2
 {
 #define DECRYPT_MONEY(money) (static_cast<money32>(Numerics::rol32((money) ^ 0xF4EC9621, 13)))
+
+    static money64 ImportScenarioObjectiveCurrency(Scenario::ObjectiveType type, money32 value)
+    {
+        return Scenario::ObjectiveNeedsMoney(type) ? ToMoney64(value) : value;
+    }
 
     /**
      * Class to import RollerCoaster Tycoon 2 scenarios (*.SC6) and saved games (*.SV6).
@@ -240,7 +246,7 @@ namespace OpenRCT2::RCT2
             dst->Category = _s6.Info.Category;
             dst->ObjectiveType = _s6.Info.ObjectiveType;
             dst->ObjectiveArg1 = _s6.Info.ObjectiveArg1;
-            dst->ObjectiveArg2 = _s6.Info.ObjectiveArg2;
+            dst->ObjectiveArg2 = ImportScenarioObjectiveCurrency(_s6.Info.ObjectiveType, _s6.Info.ObjectiveArg2);
             dst->ObjectiveArg3 = _s6.Info.ObjectiveArg3;
             dst->Highscore = nullptr;
 
@@ -384,7 +390,8 @@ namespace OpenRCT2::RCT2
                     park.flags &= ~PARK_FLAGS_NO_MONEY;
             }
 
-            park.entranceFee = _s6.ParkEntranceFee;
+            park.entranceFee = ToMoney64(_s6.ParkEntranceFee);
+            park.entranceFeeTarget = Park::ParkEntranceFeeTarget::custom;
             // rct1_park_entranceX
             // rct1_park_entrance_y
             // Pad013573EE
@@ -454,7 +461,7 @@ namespace OpenRCT2::RCT2
             gameState.scenarioOptions.guestInitialHappiness = _s6.GuestInitialHappiness;
             park.size = _s6.ParkSize;
             park.guestGenerationProbability = _s6.GuestGenerationProbability;
-            park.totalRideValueForMoney = _s6.TotalRideValueForMoney;
+            park.totalRideValueForMoney = ToMoney64(_s6.TotalRideValueForMoney);
             park.maxBankLoan = ToMoney64(_s6.MaximumLoan);
             gameState.scenarioOptions.guestInitialCash = ToMoney64(_s6.GuestInitialCash);
             gameState.scenarioOptions.guestInitialHunger = _s6.GuestInitialHunger;
@@ -462,7 +469,7 @@ namespace OpenRCT2::RCT2
             gameState.scenarioOptions.objective.Type = _s6.ObjectiveType;
             gameState.scenarioOptions.objective.Year = _s6.ObjectiveYear;
             // Pad013580FA
-            gameState.scenarioOptions.objective.Currency = _s6.ObjectiveCurrency;
+            gameState.scenarioOptions.objective.Currency = ImportScenarioObjectiveCurrency(_s6.ObjectiveType, _s6.ObjectiveCurrency);
             // In RCT2, the ride string IDs start at index STR_0002 and are directly mappable.
             // This is not always the case in OpenRCT2, so we use the actual ride ID.
             if (gameState.scenarioOptions.objective.Type == Scenario::ObjectiveType::buildTheBest)
@@ -508,7 +515,7 @@ namespace OpenRCT2::RCT2
             // Pad01358776
             // _s6.CdKey
             _gameVersion = _s6.GameVersionNumber;
-            gameState.scenarioCompanyValueRecord = _s6.CompletedCompanyValueRecord;
+            gameState.scenarioCompanyValueRecord = ToMoney64(_s6.CompletedCompanyValueRecord);
             // _s6.LoanHash;
             // Pad013587CA
             park.historicalProfit = ToMoney64(_s6.HistoricalProfit);
@@ -889,7 +896,7 @@ namespace OpenRCT2::RCT2
                 dst->numCustomers[i] = src->numCustomers[i];
             }
 
-            dst->price[0] = src->price;
+            dst->price[0] = ToMoney64(src->price);
 
             for (uint8_t i = 0; i < 2; i++)
             {
@@ -940,7 +947,7 @@ namespace OpenRCT2::RCT2
             dst->brokenCar = src->brokenCar;
             dst->breakdownReason = src->breakdownReason;
 
-            dst->price[1] = src->priceSecondary;
+            dst->price[1] = ToMoney64(src->priceSecondary);
 
             dst->reliability = src->reliability;
             dst->unreliabilityFactor = src->unreliabilityFactor;
@@ -2124,7 +2131,7 @@ namespace OpenRCT2::RCT2
         dst->timeToConsume = src->TimeToConsume;
         dst->intensity = static_cast<IntensityRange>(src->Intensity);
         dst->nauseaTolerance = static_cast<PeepNauseaTolerance>(src->NauseaTolerance);
-        dst->paidOnDrink = src->PaidOnDrink;
+        dst->paidOnDrink = ToMoney64(src->PaidOnDrink);
 
         RideUse::GetHistory().Set(dst->id, RCT12GetRidesBeenOn(src));
         RideUse::GetTypeHistory().Set(dst->id, RCT12GetRideTypesBeenOn(src));
@@ -2136,8 +2143,8 @@ namespace OpenRCT2::RCT2
         dst->photo4RideRef = RCT12RideIdToOpenRCT2RideId(src->Photo4RideRef);
         dst->guestNextInQueue = EntityId::FromUnderlying(src->NextInQueue);
         dst->timeInQueue = src->TimeInQueue;
-        dst->cashInPocket = src->CashInPocket;
-        dst->cashSpent = src->CashSpent;
+        dst->cashInPocket = ToMoney64(src->CashInPocket);
+        dst->cashSpent = ToMoney64(src->CashSpent);
         dst->parkEntryTime = AdjustScenarioToCurrentTicks(_s6, src->ParkEntryTime);
         dst->rejoinQueueTimeout = src->RejoinQueueTimeout;
         dst->previousRide = RCT12RideIdToOpenRCT2RideId(src->PreviousRide);
@@ -2159,10 +2166,10 @@ namespace OpenRCT2::RCT2
         dst->litterCount = src->LitterCount;
         dst->guestTimeOnRide = src->TimeOnRide;
         dst->disgustingCount = src->DisgustingCount;
-        dst->paidToEnter = src->PaidToEnter;
-        dst->paidOnRides = src->PaidOnRides;
-        dst->paidOnFood = src->PaidOnFood;
-        dst->paidOnSouvenirs = src->PaidOnSouvenirs;
+        dst->paidToEnter = ToMoney64(src->PaidToEnter);
+        dst->paidOnRides = ToMoney64(src->PaidOnRides);
+        dst->paidOnFood = ToMoney64(src->PaidOnFood);
+        dst->paidOnSouvenirs = ToMoney64(src->PaidOnSouvenirs);
         dst->amountOfFood = src->NoOfFood;
         dst->amountOfDrinks = src->NoOfDrinks;
         dst->amountOfSouvenirs = src->NoOfSouvenirs;
@@ -2220,7 +2227,7 @@ namespace OpenRCT2::RCT2
         dst->moveDelay = src->MoveDelay;
         dst->numMovements = src->NumMovements;
         dst->guestPurchase = src->Vertical;
-        dst->value = src->Value;
+        dst->value = ToMoney64(src->Value);
         dst->offsetX = src->OffsetX;
         dst->wiggle = src->Wiggle;
     }

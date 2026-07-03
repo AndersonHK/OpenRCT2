@@ -12,6 +12,8 @@
 #include "../core/Money.hpp"
 #include "Location.hpp"
 
+#include <cstdint>
+
 namespace OpenRCT2
 {
     struct GameState_t;
@@ -21,6 +23,7 @@ namespace OpenRCT2
 namespace OpenRCT2::Park
 {
     struct ParkData;
+    enum class ParkEntranceFeeTarget : uint8_t;
 
     void Initialise(ParkData& park, GameState_t& gameState);
     void Update(ParkData& park, GameState_t& gameState);
@@ -47,6 +50,8 @@ namespace OpenRCT2::Park
     bool IsOpen(const ParkData& park);
     void SetOpen(const ParkData& park, bool open);
     money64 GetEntranceFee(const ParkData& park);
+    money64 GetEntranceFeeForTarget(const ParkData& park, ParkEntranceFeeTarget target);
+    void UpdateEntranceFee(ParkData& park);
 
     bool RidePricesUnlocked(const ParkData& park);
     bool EntranceFeeUnlocked(const ParkData& park);

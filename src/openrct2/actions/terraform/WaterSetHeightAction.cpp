@@ -106,7 +106,7 @@ namespace OpenRCT2::GameActions
             return Result(Status::disallowed, STR_ERR_INVALID_PARAMETER, STR_ERR_TRACK_ON_THIS_TILE_NEEDS_WATER);
         }
 
-        res.cost = 250;
+        res.cost = 25.00_GBP;
 
         return res;
     }
@@ -139,7 +139,7 @@ namespace OpenRCT2::GameActions
         }
         MapInvalidateTileFull(_coords);
 
-        res.cost = 250;
+        res.cost = 25.00_GBP;
 
         return res;
     }

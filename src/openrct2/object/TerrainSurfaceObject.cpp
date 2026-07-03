@@ -86,7 +86,7 @@ namespace OpenRCT2
         {
             Colour = colourFromString(Json::GetString(properties["colour"]), Drawing::kColourNull);
             Rotations = Json::GetNumber<int8_t>(properties["rotations"], 1);
-            Price = Json::GetNumber<money64>(properties["price"]);
+            Price = ToMoney64(Json::GetNumber<money32>(properties["price"]));
             Flags = Json::GetFlagHolder<TerrainSurfaceFlags, TerrainSurfaceFlag>(
                 properties,
                 { { "smoothWithSelf", TerrainSurfaceFlag::smoothWithSelf },

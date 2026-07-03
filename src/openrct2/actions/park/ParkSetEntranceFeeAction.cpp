@@ -17,8 +17,35 @@
 
 namespace OpenRCT2::GameActions
 {
+    static money64 EncodeEntranceFeeTarget(Park::ParkEntranceFeeTarget target)
+    {
+        return -1 - static_cast<money64>(static_cast<uint8_t>(target));
+    }
+
+    static bool DecodeEntranceFeeTarget(money64 fee, Park::ParkEntranceFeeTarget& target)
+    {
+        if (fee >= 0.00_GBP)
+        {
+            return false;
+        }
+
+        const auto rawTarget = (-fee) - 1;
+        if (rawTarget < 0 || rawTarget > static_cast<money64>(static_cast<uint8_t>(Park::ParkEntranceFeeTarget::affordable)))
+        {
+            return false;
+        }
+
+        target = static_cast<Park::ParkEntranceFeeTarget>(static_cast<uint8_t>(rawTarget));
+        return true;
+    }
+
     ParkSetEntranceFeeAction::ParkSetEntranceFeeAction(money64 fee)
         : _fee(fee)
+    {
+    }
+
+    ParkSetEntranceFeeAction::ParkSetEntranceFeeAction(Park::ParkEntranceFeeTarget target)
+        : _fee(EncodeEntranceFeeTarget(target))
     {
     }
 
@@ -51,7 +78,13 @@ namespace OpenRCT2::GameActions
             LOG_ERROR("Park entrance fee is locked");
             return Result(Status::disallowed, STR_ERR_CANT_CHANGE_PARK_ENTRANCE_FEE, kStringIdNone);
         }
-        else if (_fee < 0.00_GBP || _fee > kMaxEntranceFee)
+        Park::ParkEntranceFeeTarget target{};
+        if (DecodeEntranceFeeTarget(_fee, target))
+        {
+            return Result();
+        }
+
+        if (_fee < 0.00_GBP || _fee > kMaxEntranceFee)
         {
             LOG_ERROR("Invalid park entrance fee %d", _fee);
             return Result(Status::invalidParameters, STR_ERR_INVALID_PARAMETER, STR_ERR_VALUE_OUT_OF_RANGE);
@@ -62,7 +95,23 @@ namespace OpenRCT2::GameActions
 
     Result ParkSetEntranceFeeAction::Execute(GameState_t& gameState, Park::ParkData& park) const
     {
-        park.entranceFee = _fee;
+        Park::ParkEntranceFeeTarget target{};
+        if (DecodeEntranceFeeTarget(_fee, target))
+        {
+            park.entranceFeeTarget = target;
+            Park::UpdateEntranceFee(park);
+        }
+        else
+        {
+            if (_fee < 0.00_GBP || _fee > kMaxEntranceFee)
+            {
+                LOG_ERROR("Invalid park entrance fee %d", _fee);
+                return Result(Status::invalidParameters, STR_ERR_INVALID_PARAMETER, STR_ERR_VALUE_OUT_OF_RANGE);
+            }
+
+            park.entranceFeeTarget = Park::ParkEntranceFeeTarget::custom;
+            park.entranceFee = _fee;
+        }
 
         auto* windowMgr = Ui::GetWindowManager();
         windowMgr->InvalidateByClass(WindowClass::parkInformation);

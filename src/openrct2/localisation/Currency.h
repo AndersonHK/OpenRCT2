@@ -24,7 +24,7 @@ namespace OpenRCT2
     struct CurrencyDescriptor
     {
         char isoCode[4];
-        // Rate is relative to 0.10 GBP
+        // Rate is relative to 0.01 GBP
         int32_t rate;
         CurrencyAffix affix_unicode;
         utf8 symbol_unicode[kCurrencySymbolMaxSize];

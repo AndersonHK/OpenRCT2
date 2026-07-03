@@ -334,7 +334,7 @@ namespace OpenRCT2::Editor
             park.flags &= ~PARK_FLAGS_SPRITES_INITIALISED;
 
             scenarioOptions.guestInitialCash = std::clamp(scenarioOptions.guestInitialCash, 10.00_GBP, kMaxEntranceFee);
-            scenarioOptions.initialCash = std::min<money64>(scenarioOptions.initialCash, 100000);
+            scenarioOptions.initialCash = std::min<money64>(scenarioOptions.initialCash, 10000.00_GBP);
             FinanceResetCashToInitial();
 
             park.bankLoan = std::clamp<money64>(park.bankLoan, 0.00_GBP, 5000000.00_GBP);

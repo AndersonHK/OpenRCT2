@@ -30,10 +30,13 @@
 #include "core/FileStream.h"
 #include "core/FileSystem.hpp"
 #include "core/Guard.hpp"
+#include "core/Money.hpp"
 #include "core/Path.hpp"
 #include "core/String.hpp"
+#include "entity/EntityList.h"
 #include "entity/EntityRegistry.h"
 #include "entity/EntityTweener.h"
+#include "entity/Guest.h"
 #include "interface/Window.h"
 #include "localisation/Formatting.h"
 #include "localisation/StringIds.h"
@@ -113,8 +116,9 @@ namespace OpenRCT2
 
     class ReplayManager final : public IReplayManager
     {
-        static constexpr uint16_t kReplayVersion = 11;
+        static constexpr uint16_t kReplayVersion = 12;
         static constexpr uint16_t kReplayMinCompatVersion = 10;
+        static constexpr uint16_t kReplayCentMoneyVersion = 12;
         static constexpr uint32_t kReplayMagic = 0x5243524F; // ORCR.
         static constexpr int kReplayCompressionLevel = 18;
         static constexpr int kNormalRecordingChecksumTicks = 1;
@@ -173,6 +177,74 @@ namespace OpenRCT2
         void AddChecksum(uint32_t tick, EntitiesChecksum&& checksum)
         {
             _currentRecording->checksums.emplace_back(tick, std::move(checksum));
+        }
+
+        static money64 ToLegacyReplayMoney(money64 value)
+        {
+            if (value == kMoney64Undefined)
+            {
+                return value;
+            }
+
+            return value >= 0 ? (value + 5) / 10 : (value - 5) / 10;
+        }
+
+        EntitiesChecksum GetCurrentPlaybackChecksum()
+        {
+            if (_currentReplay == nullptr || _currentReplay->version >= kReplayCentMoneyVersion)
+            {
+                return getGameState().entities.GetAllEntitiesChecksum();
+            }
+
+            struct GuestMoneyBackup
+            {
+                Guest* guest{};
+                money64 paidToEnter{};
+                money64 paidOnRides{};
+                money64 paidOnFood{};
+                money64 paidOnDrink{};
+                money64 paidOnSouvenirs{};
+                money64 cashInPocket{};
+                money64 cashSpent{};
+            };
+
+            std::vector<GuestMoneyBackup> backups;
+            for (auto* guest : EntityList<Guest>())
+            {
+                backups.push_back(GuestMoneyBackup{
+                    guest,
+                    guest->paidToEnter,
+                    guest->paidOnRides,
+                    guest->paidOnFood,
+                    guest->paidOnDrink,
+                    guest->paidOnSouvenirs,
+                    guest->cashInPocket,
+                    guest->cashSpent,
+                });
+
+                guest->paidToEnter = ToLegacyReplayMoney(guest->paidToEnter);
+                guest->paidOnRides = ToLegacyReplayMoney(guest->paidOnRides);
+                guest->paidOnFood = ToLegacyReplayMoney(guest->paidOnFood);
+                guest->paidOnDrink = ToLegacyReplayMoney(guest->paidOnDrink);
+                guest->paidOnSouvenirs = ToLegacyReplayMoney(guest->paidOnSouvenirs);
+                guest->cashInPocket = ToLegacyReplayMoney(guest->cashInPocket);
+                guest->cashSpent = ToLegacyReplayMoney(guest->cashSpent);
+            }
+
+            auto checksum = getGameState().entities.GetAllEntitiesChecksum();
+
+            for (const auto& backup : backups)
+            {
+                backup.guest->paidToEnter = backup.paidToEnter;
+                backup.guest->paidOnRides = backup.paidOnRides;
+                backup.guest->paidOnFood = backup.paidOnFood;
+                backup.guest->paidOnDrink = backup.paidOnDrink;
+                backup.guest->paidOnSouvenirs = backup.paidOnSouvenirs;
+                backup.guest->cashInPocket = backup.cashInPocket;
+                backup.guest->cashSpent = backup.cashSpent;
+            }
+
+            return checksum;
         }
 
         // Function runs each Tick.
@@ -385,7 +457,7 @@ namespace OpenRCT2
             return true;
         }
 
-        void LoadAndCompareSnapshot(MemoryStream& snapshotStream)
+        void LoadAndCompareSnapshot(MemoryStream& snapshotStream, uint16_t replayVersion)
         {
             DataSerialiser ds(false, snapshotStream);
 
@@ -393,6 +465,10 @@ namespace OpenRCT2
 
             GameStateSnapshot_t& replaySnapshot = snapshots->CreateSnapshot();
             snapshots->SerialiseSnapshot(replaySnapshot, ds);
+            if (replayVersion < kReplayCentMoneyVersion)
+            {
+                snapshots->ConvertLegacyMoney(replaySnapshot);
+            }
 
             const auto currentTicks = getGameState().currentTicks;
 
@@ -449,11 +525,12 @@ namespace OpenRCT2
 
             getGameState().currentTicks = replayData->tickStart;
 
-            LoadAndCompareSnapshot(replayData->gameStateSnapshots);
+            LoadAndCompareSnapshot(replayData->gameStateSnapshots, replayData->version);
 
             _currentReplay = std::move(replayData);
             _currentReplay->checksumIndex = 0;
             _faultyChecksumIndex = -1;
+            _legacyChecksumMismatchLogged = false;
 
             // Make sure game is not paused.
             gGamePaused = 0;
@@ -472,7 +549,7 @@ namespace OpenRCT2
             if (_mode != ReplayMode::PLAYING && _mode != ReplayMode::NORMALISATION)
                 return false;
 
-            LoadAndCompareSnapshot(_currentReplay->gameStateSnapshots);
+            LoadAndCompareSnapshot(_currentReplay->gameStateSnapshots, _currentReplay->version);
 
             // During normal playback we pause the game if stopped.
             if (_mode == ReplayMode::PLAYING)
@@ -806,10 +883,24 @@ namespace OpenRCT2
             {
                 _currentReplay->checksumIndex++;
 
-                EntitiesChecksum checksum = getGameState().entities.GetAllEntitiesChecksum();
+                EntitiesChecksum checksum = GetCurrentPlaybackChecksum();
                 if (savedChecksum.second.raw != checksum.raw)
                 {
                     uint32_t replayTick = currentTicks - _currentReplay->tickStart;
+
+                    if (_currentReplay->version < kReplayCentMoneyVersion)
+                    {
+                        if (!_legacyChecksumMismatchLogged)
+                        {
+                            LOG_WARNING(
+                                "Ignoring sprite checksum mismatch at tick %u (Replay Tick: %u) for pre-cent replay version "
+                                "%u; Saved: %s, Current: %s. Old replay checksums use the legacy 0.10 money scale.",
+                                currentTicks, replayTick, _currentReplay->version, savedChecksum.second.ToString().c_str(),
+                                checksum.ToString().c_str());
+                            _legacyChecksumMismatchLogged = true;
+                        }
+                        return;
+                    }
 
                     // Detected different game state.
                     LOG_WARNING(
@@ -883,6 +974,7 @@ namespace OpenRCT2
         std::unique_ptr<ReplayRecordData> _currentRecording;
         std::unique_ptr<ReplayRecordData> _currentReplay;
         int32_t _faultyChecksumIndex = -1;
+        bool _legacyChecksumMismatchLogged = false;
         uint32_t _commandId = 0;
         uint32_t _nextChecksumTick = 0;
         uint32_t _nextReplayTick = 0;

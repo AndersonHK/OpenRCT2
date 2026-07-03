@@ -14,14 +14,14 @@ If there are no guests in the park, rating returns a neutral `500`. The forced p
 
 ## Guest generation
 
-`calculateGuestGenerationProbability()` now scales smoothly from park rating and park value. The previous rating-derived spawn rate is treated as the rate for a `$11,000` park value, then adjusted by a square-root park-value factor:
+`calculateGuestGenerationProbability()` now scales smoothly from park rating and park value. The previous rating-derived spawn rate is treated as the rate for a `$15,000` park value, then adjusted by a square-root park-value factor:
 
 ```text
-valueScale = sqrt(currentParkValue / 11000.00)
+valueScale = sqrt(currentParkValue / 15000.00)
 spawnProbability = ratingProbability * valueScale
 ```
 
-This keeps the tuned arrival rate around `$11,000`, lets larger parks draw more guests when happiness and pricing are equal, and gives diminishing returns so park value growth does not explode arrivals linearly. For example, a `$44,000` park generates about twice as many normal guests as an `$11,000` park, while a `$2,750` park generates about half as many.
+This keeps the tuned arrival rate around `$15,000`, lets larger parks draw more guests when happiness and pricing are equal, and gives diminishing returns so park value growth does not explode arrivals linearly. For example, a `$60,000` park generates about twice as many normal guests as a `$15,000` park, while a `$3,750` park generates about half as many.
 
 Guest generation no longer divides probability when the guest count exceeds `suggestedGuestMaximum`, and it no longer has the extra 52,000-guest throttle. This means population pressure feeds back through simulation: long queues and crowded paths reduce happiness, lower happiness reduces rating, and lower rating reduces future arrivals.
 

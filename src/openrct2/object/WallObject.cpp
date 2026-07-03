@@ -27,7 +27,7 @@ namespace OpenRCT2
         _legacyType.flags = stream->ReadValue<uint8_t>();
         _legacyType.height = stream->ReadValue<uint8_t>();
         _legacyType.flags2 = stream->ReadValue<uint8_t>();
-        _legacyType.price = stream->ReadValue<money16>();
+        _legacyType.price = ToMoney64(stream->ReadValue<money16>());
         _legacyType.scenery_tab_id = kObjectEntryIndexNull;
         stream->Seek(1, STREAM_SEEK_CURRENT);
         _legacyType.scrolling_mode = stream->ReadValue<uint8_t>();
@@ -106,7 +106,7 @@ namespace OpenRCT2
         {
             _legacyType.tool_id = Cursor::FromString(Json::GetString(properties["cursor"]), CursorID::FenceDown);
             _legacyType.height = Json::GetNumber<uint8_t>(properties["height"]);
-            _legacyType.price = Json::GetNumber<money64>(properties["price"]);
+            _legacyType.price = ToMoney64(Json::GetNumber<money32>(properties["price"]));
 
             _legacyType.scrolling_mode = Json::GetNumber<uint8_t>(properties["scrollingMode"], kScrollingModeNone);
 

@@ -57,8 +57,8 @@ namespace OpenRCT2
         stream->Seek(6, STREAM_SEEK_CURRENT);
         _legacyType.tool_id = static_cast<CursorID>(stream->ReadValue<uint8_t>());
         _legacyType.flags.holder = stream->ReadValue<uint8_t>();
-        _legacyType.price = stream->ReadValue<int16_t>() * 10;
-        _legacyType.removal_price = stream->ReadValue<int16_t>() * 10;
+        _legacyType.price = ToMoney64FromGBP(stream->ReadValue<int16_t>());
+        _legacyType.removal_price = ToMoney64FromGBP(stream->ReadValue<int16_t>());
         stream->Seek(5, STREAM_SEEK_CURRENT);
         _legacyType.scenery_tab_id = kObjectEntryIndexNull;
         _legacyType.scrolling_mode = stream->ReadValue<uint8_t>();
@@ -205,8 +205,8 @@ namespace OpenRCT2
         {
             _legacyType.tool_id = Cursor::FromString(Json::GetString(properties["cursor"]), CursorID::StatueDown);
 
-            _legacyType.price = Json::GetNumber<int16_t>(properties["price"]) * 10;
-            _legacyType.removal_price = Json::GetNumber<int16_t>(properties["removalPrice"]) * 10;
+            _legacyType.price = ToMoney64FromGBP(Json::GetNumber<int16_t>(properties["price"]));
+            _legacyType.removal_price = ToMoney64FromGBP(Json::GetNumber<int16_t>(properties["removalPrice"]));
 
             _legacyType.scrolling_mode = Json::GetNumber<uint8_t>(properties["scrollingMode"], kScrollingModeNone);
 

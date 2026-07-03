@@ -18,8 +18,15 @@ namespace OpenRCT2
     struct GameState_t;
     struct ObjectRepositoryItem;
 
+    // Fork-owned save versions live in a high private band so future upstream OpenRCT2 versions can continue advancing
+    // sequentially without colliding with this mod's format changes.
+    constexpr uint16_t kOpenRCT2ModParkFileVersionBase = 60000;
+    constexpr uint16_t kRidePriceTargetVersion = kOpenRCT2ModParkFileVersionBase;
+    constexpr uint16_t kCentMoneyVersion = kOpenRCT2ModParkFileVersionBase + 1;
+    constexpr uint16_t kParkEntranceFeeTargetVersion = kOpenRCT2ModParkFileVersionBase + 2;
+
     // Current version that is saved.
-    constexpr uint32_t kParkFileCurrentVersion = 62;
+    constexpr uint32_t kParkFileCurrentVersion = kParkEntranceFeeTargetVersion;
 
     // The minimum version that is forwards compatible with the current version.
     constexpr uint32_t kParkFileMinVersion = 57;
@@ -61,7 +68,6 @@ namespace OpenRCT2
     constexpr uint16_t kRevertToVanillaFairRidePriceCalculation = 58;
     constexpr uint16_t kParkFileVersionUprightQuarterHelices = 60;
     constexpr uint16_t kExtendedInvertedRollerCoasterVersion = 61;
-    constexpr uint16_t kRidePriceTargetVersion = 62;
 
     class ParkFileExporter
     {

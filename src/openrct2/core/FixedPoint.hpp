@@ -19,6 +19,7 @@ using fixed16_2dp = int16_t;
 using fixed32_1dp = int32_t;
 using fixed32_2dp = int32_t;
 using fixed64_1dp = int64_t;
+using fixed64_2dp = int64_t;
 
 // Construct a fixed point number. For example, to create the value 3.65 you
 // would write MakeFixed2dp(3, 65)

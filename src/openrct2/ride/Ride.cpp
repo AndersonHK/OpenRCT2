@@ -5204,17 +5204,17 @@ bool Ride::isRide() const
 
 namespace
 {
-    constexpr money64 kRidePriceGoodValueMinMargin = 0.10_GBP;
-    constexpr money64 kRidePriceNeutralMinMargin = 0.20_GBP;
-    constexpr money64 kRidePriceBadValueMinMargin = 0.10_GBP;
-    constexpr int64_t kRideTargetPriceScaleNumerator = 4;
-    constexpr int64_t kRideTargetPriceScaleDenominator = 5;
+    constexpr money64 kRidePriceGoodValueMinMargin = 0.05_GBP;
+    constexpr money64 kRidePriceNeutralMinMargin = 0.05_GBP;
+    constexpr money64 kRidePriceBadValueMinMargin = 0.05_GBP;
+    constexpr int64_t kRideTargetPriceScaleNumerator = 7;
+    constexpr int64_t kRideTargetPriceScaleDenominator = 10;
 
     money64 RideGetGuestFacingValue(const Ride& ride)
     {
         auto value = ride.value;
         const auto& park = getGameState().park;
-        if ((park.flags & PARK_FLAGS_UNLOCK_ALL_PRICES) && park.entranceFee > 0
+        if ((park.flags & PARK_FLAGS_UNLOCK_ALL_PRICES) && Park::GetEntranceFee(park) > 0
             && !(park.flags & PARK_FLAGS_PARK_FREE_ENTRY))
         {
             value /= 4;

@@ -61,6 +61,14 @@ enum : uint32_t
 
 namespace OpenRCT2::Park
 {
+    enum class ParkEntranceFeeTarget : uint8_t
+    {
+        incomePerGuest,
+        profit,
+        affordable,
+        custom,
+    };
+
     struct ParkData final
     {
         std::string name;
@@ -69,6 +77,7 @@ namespace OpenRCT2::Park
         uint16_t ratingHistory[kParkRatingHistorySize];
         int16_t ratingCasualtyPenalty;
         money64 entranceFee;
+        ParkEntranceFeeTarget entranceFeeTarget{ ParkEntranceFeeTarget::affordable };
         std::vector<CoordsXYZD> entrances;
         uint32_t size;
         money64 value;
@@ -98,7 +107,7 @@ namespace OpenRCT2::Park
         /**
          * Probability out of 65535, of gaining a new guest per game tick.
          * new guests per second = 40 * (probability / 65535)
-         * This is driven by park rating and scaled geometrically from park value, using $11,000 as the baseline. Guest
+         * This is driven by park rating and scaled geometrically from park value, using $15,000 as the baseline. Guest
          * count does not directly cap generation; crowded paths and long queues reduce arrivals by reducing happiness.
          */
         int32_t guestGenerationProbability;

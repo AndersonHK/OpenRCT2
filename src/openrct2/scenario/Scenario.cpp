@@ -157,6 +157,7 @@ void ScenarioReset(GameState_t& gameState)
     {
         park.flags |= PARK_FLAGS_PARK_OPEN;
         park.entranceFee = 0;
+        park.entranceFeeTarget = Park::ParkEntranceFeeTarget::custom;
     }
 
     park.flags |= PARK_FLAGS_SPRITES_INITIALISED;

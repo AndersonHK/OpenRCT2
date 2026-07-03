@@ -155,18 +155,21 @@ namespace OpenRCT2::GameActions
                         park.flags |= PARK_FLAGS_PARK_FREE_ENTRY;
                         park.flags &= ~PARK_FLAGS_UNLOCK_ALL_PRICES;
                         park.entranceFee = 0.00_GBP;
+                        park.entranceFeeTarget = Park::ParkEntranceFeeTarget::custom;
                     }
                     else if (_value == 1)
                     {
                         park.flags &= ~PARK_FLAGS_PARK_FREE_ENTRY;
                         park.flags &= ~PARK_FLAGS_UNLOCK_ALL_PRICES;
                         park.entranceFee = 10.00_GBP;
+                        park.entranceFeeTarget = Park::ParkEntranceFeeTarget::custom;
                     }
                     else
                     {
                         park.flags |= PARK_FLAGS_PARK_FREE_ENTRY;
                         park.flags |= PARK_FLAGS_UNLOCK_ALL_PRICES;
                         park.entranceFee = 10.00_GBP;
+                        park.entranceFeeTarget = Park::ParkEntranceFeeTarget::custom;
                     }
                 }
                 else
@@ -192,6 +195,7 @@ namespace OpenRCT2::GameActions
                 break;
             case ScenarioSetSetting::parkChargeEntryFee:
                 park.entranceFee = std::clamp<money64>(_value, 0.00_GBP, kMaxEntranceFee);
+                park.entranceFeeTarget = Park::ParkEntranceFeeTarget::custom;
                 windowMgr->InvalidateByClass(WindowClass::parkInformation);
                 break;
             case ScenarioSetSetting::forbidTreeRemoval:

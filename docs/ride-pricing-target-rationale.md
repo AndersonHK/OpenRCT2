@@ -12,11 +12,11 @@ no effect  = just below 1.0 * guest-facing ride value
 bad deal   = just below 2.0 * guest-facing ride value
 ```
 
-Each target includes a conservative margin. Good-deal and no-effect prices leave a 10% buffer, with a minimum 0.10 or 0.20. Bad-deal pricing leaves a smaller 5% buffer with a minimum 0.10 because the intent is to approach the maximum amount happy/value-tolerant guests will still ride for, without crossing into the hard "too expensive" refusal threshold.
+Each target includes a conservative margin. Good-deal and no-effect prices leave a 10% buffer, and bad-deal pricing leaves a smaller 5% buffer because the intent is to approach the maximum amount happy/value-tolerant guests will still ride for, without crossing into the hard "too expensive" refusal threshold. All three targets use a minimum `$0.05` margin now that `money64` stores cent precision.
 
-The requested 0.05 minimum price precision is blocked by the existing `money64` representation in `src/openrct2/core/Money.hpp`, which stores money as multiples of 0.10. Changing displayed and stored ride prices to true 0.05 increments would require a project-wide money representation and save/import migration rather than a local ride-pricing tweak.
+After the target and margin are calculated, the automatic ride-admission price is globally scaled to 70% before the normal min/max clamp is applied. This makes a ride that would previously target `$10.00` target `$7.00` instead, and it reduces how quickly high-value rides flatten against the `$20.00` admission cap.
 
-After the target and margin are calculated, the automatic ride-admission price is globally scaled to 80% before the normal min/max clamp is applied. This makes a ride that would previously target `$10.00` target `$8.00` instead, and it reduces how quickly high-value rides flatten against the `$20.00` admission cap.
+Guests use the same 70% scale when judging ride admission prices. A `$10.00` ride value is therefore perceived as `$7.00` for price thresholds: "good value" is at or below `$3.50`, while "bad value" refusal begins above `$14.00`. The existing paid-entry reduction still applies before this scale.
 
 This makes the three targets distinct:
 
@@ -34,7 +34,7 @@ When a ride has no value yet, the current price is preserved. Once ratings produ
 
 Target pricing applies only to normal ride admission. Shops, facilities, toilets, and secondary/photo items retain direct price controls because their prices are item costs rather than ride admission value.
 
-Existing save files load with the neutral/no-effect target. New saves persist the target in park-file version 62.
+Existing save files load with the neutral/no-effect target. The target field was introduced in fork-private park-file version `60000`; cent-precision money begins at fork-private version `60001`; new saves now use fork-private version `60002` because park entrance pricing policies are also serialized. The high version band is intentional so future upstream OpenRCT2 save versions can continue from their own latest number without colliding with this mod's custom fields.
 
 ## Functions touched
 
@@ -42,5 +42,7 @@ Existing save files load with the neutral/no-effect target. New saves persist th
 - `RideRatingsCalculateValue()` in `src/openrct2/ride/RideRatings.cpp`.
 - `RideSetPriceAction` in `src/openrct2/actions/ride/RideSetPriceAction.h` and `src/openrct2/actions/ride/RideSetPriceAction.cpp`.
 - Ride creation defaults in `src/openrct2/actions/ride/RideCreateAction.cpp`.
+- Guest good-value and bad-value price thresholds in `src/openrct2/entity/Guest.cpp`.
 - Income-page UI controls in `src/openrct2-ui/windows/Ride.cpp`.
 - Park-file ride serialization in `src/openrct2/park/ParkFile.h` and `src/openrct2/park/ParkFile.cpp`.
+- Cent-money representation and legacy conversion details are covered in [Money cent precision rationale](money-cent-precision-rationale.md).

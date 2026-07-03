@@ -206,12 +206,12 @@ namespace OpenRCT2::GameActions
         {
             for (auto i = 0; i < RCT2::ObjectLimits::kMaxShopItemsPerRideEntry; i++)
             {
-                ride->price[i] = rtd.DefaultPrices[i];
+                ride->price[i] = ToMoney64(static_cast<money32>(rtd.DefaultPrices[i]));
             }
 
             if (rideEntry->shop_item[0] == ShopItem::none)
             {
-                if (!Park::RidePricesUnlocked(park) || park.entranceFee > 0)
+                if (!Park::RidePricesUnlocked(park) || Park::GetEntranceFee(park) > 0)
                 {
                     ride->price[0] = 0;
                 }
