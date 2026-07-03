@@ -6,9 +6,83 @@
   </a>
 </p>
 
-<h1 align="center">OpenRCT2</h1>
+<h1 align="center">OpenRCT2 - Personal Mod Fork</h1>
 
-<h3 align="center">An open-source re-implementation of RollerCoaster Tycoon 2, a construction and management simulation video game that simulates amusement park management.</h3>
+<h3 align="center">A personal gameplay and economy mod fork of OpenRCT2, an open-source re-implementation of RollerCoaster Tycoon 2.</h3>
+
+---
+
+## Personal fork notice
+
+This repository is a fork built for my personal use. It is not the official OpenRCT2 project, and it intentionally changes some core gameplay and economy behaviour.
+
+If you are looking for normal OpenRCT2, the correct upstream repository is [OpenRCT2/OpenRCT2](https://github.com/OpenRCT2/OpenRCT2), and the official downloads are at [openrct2.io](https://openrct2.io). You should use those unless you are specifically after this personal mod fork.
+
+I do not mind if people take any changes I made here and adapt them for their own mods or propose them back to the core OpenRCT2 project. The original OpenRCT2 licence still applies; see [licence.txt](licence.txt).
+
+The rest of this README still includes the upstream OpenRCT2 project information so the fork stays easy to understand in context. The section below is the important part if you are trying to understand what makes this fork different.
+
+## High-level mod changes
+
+### Ride stats are sampled from actual rides
+
+Excitement, intensity, and nausea are no longer meant to be mostly post-processed from a ride-wide recipe. For aggregate-rated rides, the mod samples the ride while it is testing and while guests actually ride it, adding raw stat contributions from velocity, G-forces, track pieces, shelter, nearby scenery, paths, nearby rides, and synchronized operation.
+
+The reason for this change is to make ratings feel more like a property of the trip the guest experienced. A coaster that is twice as long should collect roughly twice as much raw rating material, but the final displayed score should have diminishing returns rather than doubling outright.
+
+Current balancing uses a square-root finalizer, roughly `sqrt(raw / 1000) * 100`. Completed rider, train, and test-run samples are kept in a rolling cache of the last ten samples, and the displayed ride rating is based on that average. Aggregate-rated rides with no samples display zero aggregate stats instead of hidden base ratings. Mazes are handled the same way: they gain stats from the paths guests actually walk, not from a flat maze-size bonus.
+
+More detail: [Ride rating aggregate rationale](docs/ride-rating-aggregate-rationale.md).
+
+### Guest growth is regulated by happiness instead of a soft cap
+
+Normal guest generation no longer directly slows down just because the park has passed a suggested guest maximum. Park rating is now calculated smoothly from the average of guest happiness and guest happiness target, so long queues, crowded paths, bad pricing, litter, nausea, and similar problems reduce future demand through guest experience.
+
+The reason for this change is to make park population pressure emerge from the simulation. A successful park should attract more guests, but if the park cannot absorb them, the resulting crowding and unhappiness should naturally pull the rating and arrival rate down.
+
+Current balancing keeps the old rating-derived arrival rate as the baseline for a `$15,000` park value, then scales arrivals by `sqrt(parkValue / 15000)`. That means larger parks attract more guests when everything else is equal, but value growth has diminishing returns.
+
+More detail: [Guest generation and park rating rationale](docs/guest-generation-rating-rationale.md).
+
+### Money uses cent precision
+
+Runtime money now uses `$0.01` precision instead of the old `$0.10` precision. This affects ride prices, guest cash, park finances, scenario money, save data, replay compatibility paths, and money formatting.
+
+The reason for this change is partly practical and partly balance-related. The pricing changes need smaller increments than ten cents, and the game had several legacy tables and import paths that would become ten times too small if their old tenth-based values were treated as cents without conversion.
+
+Current balancing keeps legacy authored values compatible by converting old tenth-based money at runtime boundaries. Ride price buttons still step by `$0.10` for convenience, but typed prices and commands can use exact cent values. Target-pricing margins currently use `$0.05` minimums.
+
+More detail: [Money cent precision rationale](docs/money-cent-precision-rationale.md).
+
+### Ride admission is target-based and globally toned down
+
+Normal ride admission pricing is no longer just a direct price field. Rides can target one of three value bands: a good deal, no special price reaction, or a high-but-still-rideable bad deal. Prices are recalculated from the ride's current value after ratings update.
+
+The reason for this change is to make ride pricing easier to manage while making money less automatic. In vanilla-style play it is easy to push strong rides to the `$20.00` cap; this fork tries to keep profitable pricing possible while lowering the ceiling on effortless income.
+
+Current balancing applies a 70% global scale to automatic ride prices before the normal cap. The guest-side good-value and overpriced thresholds use the same 70% scale, so pricing targets and guest reactions stay aligned. A `$10.00` guest-facing ride value is treated as `$7.00` for those thresholds.
+
+More detail: [Ride pricing target rationale](docs/ride-pricing-target-rationale.md).
+
+### Park entrance pricing is policy-based
+
+Park entrance admission now has three visible policies. `Richest guest` charges up to the richest guest spawn-cash amount and maximizes income per admitted guest. `Max profit` searches the scenario's guest cash distribution for the fee that maximizes total admission revenue after unaffordable guests leave. `All guests` stays affordable to the poorest spawning guest and is the default.
+
+The reason for this change is to make the entrance fee a clear strategic choice rather than a single magic number. A park can chase high margin, high total gate income, or universal affordability.
+
+Current balancing applies the same 70% value debuff used by ride admission pricing before entrance caps are applied. That means a park needs more ride value before it can justify the same gate fee, and high-value parks hit the maximum entrance fee later.
+
+More detail: [Park entrance pricing target rationale](docs/park-entrance-pricing-target-rationale.md).
+
+### Save compatibility is intentionally fork-private
+
+This fork uses a private `.park` save-version band starting at `60000` for its custom fields, rather than taking upstream OpenRCT2's latest save version and adding one.
+
+The reason for this change is future-proofing. Upstream OpenRCT2 will keep advancing its own save format, and I may want to fetch those changes later. Using a private high-numbered band reduces the chance that an upstream save-version bump is mistaken for this fork's custom ride pricing, cent-money, or park entrance data.
+
+Current compatibility should be treated as mod-specific. Saves from this fork may not load correctly in official OpenRCT2, and official future saves may need merge work if upstream changes the same systems.
+
+More detail: [OpenRCT2 overhaul changelog](docs/openrct2-overhaul-changelog.md).
 
 ---
 
