@@ -64,6 +64,14 @@ Current balancing applies a 70% global scale to automatic ride prices before the
 
 More detail: [Ride pricing target rationale](docs/ride-pricing-target-rationale.md).
 
+### New ride ticket-price bonus is proportional again
+
+New rides once again get their early ticket-price value bonus as a multiplier instead of a flat amount. Rides under five months old receive a `1.5x` value multiplier, and rides under thirteen months old receive a `1.2x` value multiplier before normal age decay and same-type competition penalties apply.
+
+The reason for this change is to keep the new-ride bonus proportional to the ride itself. A flat bonus over-rewards weak low-value rides and barely matters for strong high-value rides, while the multiplier keeps the bonus readable across the full ride-value range.
+
+Current balancing restores the older OpenRCT2 multiplier behaviour after upstream reverted the table to vanilla-style `+30` and `+10` flat bonuses in September 2025. The restored behaviour is covered by `RideRatings.NewRideValueBonusUsesMultiplier`.
+
 ### Park entrance pricing is policy-based
 
 Park entrance admission now has three visible policies. `Richest guest` charges up to the richest guest spawn-cash amount and maximizes income per admitted guest. `Max profit` searches the scenario's guest cash distribution for the fee that maximizes total admission revenue after unaffordable guests leave. `All guests` stays affordable to the poorest spawning guest and is the default.

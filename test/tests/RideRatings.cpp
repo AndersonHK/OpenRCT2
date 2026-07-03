@@ -9,8 +9,10 @@
 
 #include "TestData.h"
 
+#include <algorithm>
 #include <gtest/gtest.h>
 #include <openrct2/Context.h>
+#include <openrct2/Date.h>
 #include <openrct2/Game.h>
 #include <openrct2/GameState.h>
 #include <openrct2/OpenRCT2.h>
@@ -20,6 +22,7 @@
 #include <openrct2/ride/Ride.h>
 #include <openrct2/ride/RideData.h>
 #include <openrct2/ride/RideManager.hpp>
+#include <openrct2/ride/RideRatings.h>
 #include <cstdlib>
 #include <string>
 #include <string_view>
@@ -143,6 +146,42 @@ TEST_F(RideRatings, bpb)
 TEST_F(RideRatings, BigMap)
 {
     TestRatings("BigMapTest.sv6", 100);
+}
+
+TEST_F(RideRatings, NewRideValueBonusUsesMultiplier)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+
+    GetContext()->LoadParkFromFile(TestData::GetParkPath("small_park_with_ferris_wheel.sv6"));
+
+    auto& gameState = getGameState();
+    auto rideManager = RideManager(gameState);
+    auto it = std::find_if(
+        rideManager.begin(), rideManager.end(), [](const auto& ride) { return ride.type == RIDE_TYPE_FERRIS_WHEEL; });
+    ASSERT_NE(it, rideManager.end());
+
+    Ride& ferrisWheel = *it;
+    ferrisWheel.status = RideStatus::open;
+    gameState.cheats.disableRideValueAging = false;
+
+    const auto currentMonth = static_cast<int32_t>(GetDate().GetMonthsElapsed());
+    ferrisWheel.buildDate = currentMonth - 13;
+    RideRating::UpdateRide(ferrisWheel);
+    const auto baseValue = ferrisWheel.value;
+    ASSERT_GT(baseValue, 0.00_GBP);
+    const auto legacyBaseValue = static_cast<money32>(baseValue / 10);
+
+    ferrisWheel.buildDate = currentMonth;
+    RideRating::UpdateRide(ferrisWheel);
+    EXPECT_EQ(ferrisWheel.value, ToMoney64(static_cast<money32>(legacyBaseValue * 3 / 2)));
+
+    ferrisWheel.buildDate = currentMonth - 5;
+    RideRating::UpdateRide(ferrisWheel);
+    EXPECT_EQ(ferrisWheel.value, ToMoney64(static_cast<money32>(legacyBaseValue * 6 / 5)));
 }
 
 TEST_F(RideRatings, EverythingPark)

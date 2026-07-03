@@ -182,7 +182,8 @@ TEST_F(PlayTests, SecondGuestInQueueShouldNotRideIfNoFunds)
 
     // Raise the price of the ride to a value poor guest can't pay.
     poorGuest->cashInPocket = 0.49_GBP;
-    execute<GameActions::RideSetPriceAction>(ferrisWheel.id, 1.00_GBP, true);
+    auto raisePriceResult = executeImmediate<GameActions::RideSetPriceAction>(ferrisWheel.id, 1.00_GBP, true);
+    ASSERT_EQ(raisePriceResult.error, GameActions::Status::ok);
     ASSERT_GT(RideGetPrice(ferrisWheel), poorGuest->cashInPocket);
 
     const auto cashBeforeDecision = poorGuest->cashInPocket;

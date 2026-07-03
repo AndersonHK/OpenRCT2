@@ -1160,8 +1160,8 @@ static void RideRatingsCalculateValue(Ride& ride)
         int32_t months, multiplier, divisor, summand;
     };
     static constexpr auto kAgeTable = std::to_array<Row>({
-        { 5, 1, 1, 30 },      // +30
-        { 13, 1, 1, 10 },     // +10
+        { 5, 3, 2, 0 },       // 1.5x
+        { 13, 6, 5, 0 },      // 1.2x
         { 40, 1, 1, 0 },      // 1x
         { 64, 3, 4, 0 },      // 0.75x
         { 88, 9, 16, 0 },     // 0.56x
