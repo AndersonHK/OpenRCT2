@@ -19,7 +19,9 @@
 #include "../config/Config.h"
 #include "../core/EnumUtils.hpp"
 #include "../core/FixedPoint.hpp"
+#include "../core/GameTime.hpp"
 #include "../core/Speed.hpp"
+#include "../core/UnitConversion.h"
 #include "../entity/EntityList.h"
 #include "../entity/EntityRegistry.h"
 #include "../entity/EntityTweener.h"
@@ -70,6 +72,12 @@ using namespace OpenRCT2::RideVehicle;
 
 constexpr int16_t kVehicleMaxSpinSpeedForStopping = 700;
 constexpr int16_t kVehicleStoppingSpinSpeed = 600;
+
+static int32_t GetRealRideLengthDelta(int32_t velocity, int32_t acceleration)
+{
+    const auto legacyDistance = ((static_cast<int64_t>(velocity) + acceleration) >> 10) * 42;
+    return ScaleLegacyRideLengthToReal(legacyDistance);
+}
 
 static bool RideRatingTickIsSheltered(const CoordsXYZ& location)
 {
@@ -743,7 +751,7 @@ void Vehicle::UpdateMeasurements()
         auto& stationForTestSegment = curRide->getStation(stationIndex);
 
         curRide->averageSpeedTestTimeout++;
-        if (curRide->averageSpeedTestTimeout >= 32)
+        if (curRide->averageSpeedTestTimeout >= GameTime::kTicksPerSecond)
             curRide->averageSpeedTestTimeout = 0;
 
         int32_t absVelocity = abs(velocity);
@@ -759,7 +767,7 @@ void Vehicle::UpdateMeasurements()
         }
 
         GForces gForces{ 100, 0 };
-        int32_t distance = abs(((velocity + acceleration) >> 10) * 42);
+        int32_t distance = abs(GetRealRideLengthDelta(velocity, acceleration));
         if (NumLaps == 0)
         {
             stationForTestSegment.SegmentLength = AddClamp<int32_t>(stationForTestSegment.SegmentLength, distance);
@@ -1029,7 +1037,7 @@ void Vehicle::UpdateMeasurements()
         }
     }
 
-    int32_t distance = ((velocity + acceleration) >> 10) * 42;
+    int32_t distance = GetRealRideLengthDelta(velocity, acceleration);
     if (distance < 0)
         return;
 

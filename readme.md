@@ -74,6 +74,16 @@ Current balancing keeps legacy authored values compatible by converting old tent
 
 More detail: [Money cent precision rationale](docs/money-cent-precision-rationale.md).
 
+### Time measurements use real 40 TPS conversions
+
+Real-time displays and real-time gameplay settings now use `40` game ticks per second as the canonical clock. Seconds, minutes, hours, and bought advertising weeks are no longer allowed to silently use legacy `32` TPS shortcuts, `2048`-tick pseudo-minutes, calendar-day queue approximations, unrelated "per hour" denominators, or the old inflated ride-length scale.
+
+The reason for this change is to make the same time word mean the same thing across ride duration, station waiting time, queue time, customer and income rates, air time, inspection time, running costs, loan interest, marketing weeks, guest time in park, and speed-versus-length reporting.
+
+Current balancing keeps the existing RCT operating calendar for months and monthly finance periods, but real-time conversions go through explicit helpers. A week is seven calendar days when a feature is actually sold or graphed as weeks. Ride length is now corrected at the stored stat level to match the horizontal scale implied by park area and vehicle speed, while height-scale inconsistencies are documented as future work.
+
+More detail: [Time measurement fix ledger](docs/time-measurement-fix-ledger.md).
+
 ### Ride admission is target-based and globally toned down
 
 Normal ride admission pricing is no longer just a direct price field. Rides can target one of three value bands: discount, fair price, or expensive. Prices are recalculated from the ride's current value after ratings update.

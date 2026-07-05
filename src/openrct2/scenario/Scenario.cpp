@@ -285,6 +285,7 @@ static void ScenarioDayUpdate(GameState_t& gameState)
 {
     FinanceUpdateDailyProfit();
     PeepUpdateDaysInQueue();
+    MarketingUpdate();
     switch (gameState.scenarioOptions.objective.Type)
     {
         case ObjectiveType::tenRollercoasters:
@@ -317,7 +318,6 @@ static void ScenarioWeekUpdate()
     FinancePayWages();
     FinancePayResearch();
     FinancePayInterest();
-    MarketingUpdate();
     PeepProblemWarningsUpdate();
     RideCheckAllReachable();
     RideUpdateFavouritedStat();

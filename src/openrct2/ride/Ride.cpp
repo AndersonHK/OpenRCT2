@@ -25,6 +25,7 @@
 #include "../config/Config.h"
 #include "../core/BitSet.hpp"
 #include "../core/EnumUtils.hpp"
+#include "../core/GameTime.hpp"
 #include "../core/Guard.hpp"
 #include "../core/Numerics.hpp"
 #include "../drawing/Drawing.h"
@@ -147,6 +148,56 @@ const StringId kRideInspectionIntervalNames[] = {
     STR_NEVER,
 };
 // clang-format on
+
+static constexpr int32_t kPreciseBuildDateMarker = 1'000'000;
+static constexpr int32_t kBuildDateFractionsPerMonth = 256;
+
+static int64_t GetCurrentBuildDateFraction()
+{
+    const auto& date = GetDate();
+    return (static_cast<int64_t>(date.GetMonthsElapsed()) * kBuildDateFractionsPerMonth)
+        + ((static_cast<int64_t>(date.GetMonthTicks()) * kBuildDateFractionsPerMonth) / kTicksPerMonth);
+}
+
+static int64_t DecodeBuildDateFraction(int32_t buildDate)
+{
+    if (buildDate >= kPreciseBuildDateMarker)
+    {
+        return buildDate - kPreciseBuildDateMarker;
+    }
+
+    return static_cast<int64_t>(buildDate) * kBuildDateFractionsPerMonth;
+}
+
+static money64 ScaleMoneyByRatio(money64 amount, uint32_t numerator, uint32_t denominator)
+{
+    return (amount * numerator + (denominator / 2)) / denominator;
+}
+
+static uint32_t SumRecentCounts(const uint16_t (&history)[OpenRCT2::Limits::kCustomerHistorySize])
+{
+    uint32_t sum = 0;
+    for (const auto count : history)
+    {
+        sum += count;
+    }
+    return sum;
+}
+
+int32_t RideGetCurrentBuildDate()
+{
+    return kPreciseBuildDateMarker + static_cast<int32_t>(GetCurrentBuildDateFraction());
+}
+
+money64 RideGetUpkeepCostPerHour(const Ride& ride)
+{
+    if (ride.upkeepCost == kMoney64Undefined)
+    {
+        return kMoney64Undefined;
+    }
+
+    return ScaleMoneyByRatio(ride.upkeepCost, GameTime::kTicksPerHour, GameTime::kGameTicksPerCalendarHalfMonth);
+}
 
 // A special instance of Ride that is used to draw previews such as the track designs.
 static Ride _previewRide{};
@@ -438,7 +489,8 @@ size_t Ride::getNumPrices() const
 
 int32_t Ride::getAge() const
 {
-    return GetDate().GetMonthsElapsed() - buildDate;
+    const auto age = GetCurrentBuildDateFraction() - DecodeBuildDateFraction(buildDate);
+    return static_cast<int32_t>(std::max<int64_t>(0, age) / kBuildDateFractionsPerMonth);
 }
 
 int32_t Ride::getTotalQueueLength() const
@@ -543,43 +595,49 @@ money64 Ride::calculateIncomePerHour() const
     {
         return 0;
     }
-    auto customersPerHour = RideCustomersPerHour(*this);
-    money64 priceMinusCost = RideGetPrice(*this);
+    const auto customersPerHour = RideCustomersPerHour(*this);
+    const auto primaryItemsPerHour = SumRecentCounts(numPrimaryItemsSoldHistory) * 12;
+    const auto secondaryItemsPerHour = SumRecentCounts(numSecondaryItemsSoldHistory) * 12;
 
-    ShopItem currentShopItem = entry->shop_item[0];
-    if (currentShopItem != ShopItem::none)
+    money64 primaryProfit = RideGetPrice(*this);
+    ShopItem primaryShopItem = entry->shop_item[0];
+    if (primaryShopItem != ShopItem::none)
     {
-        priceMinusCost -= GetShopItemDescriptor(currentShopItem).Cost;
+        primaryProfit -= GetShopItemDescriptor(primaryShopItem).Cost;
     }
 
-    currentShopItem = flags.has(RideFlag::onRidePhoto) ? getRideTypeDescriptor().PhotoItem : entry->shop_item[1];
-
-    if (currentShopItem != ShopItem::none)
+    ShopItem secondaryShopItem = flags.has(RideFlag::onRidePhoto) ? getRideTypeDescriptor().PhotoItem : entry->shop_item[1];
+    if (secondaryShopItem == ShopItem::none)
     {
-        const money64 shopItemProfit = price[1] - GetShopItemDescriptor(currentShopItem).Cost;
-
-        if (GetShopItemDescriptor(currentShopItem).IsPhoto())
+        if (primaryShopItem != ShopItem::none && primaryItemsPerHour != 0)
         {
-            const int32_t rideTicketsSold = totalCustomers - numSecondaryItemsSold;
-
-            // Use the ratio between photo sold and total admissions to approximate the photo income(as not every guest will buy
-            // one).
-            // TODO: use data from the last 5 minutes instead of all-time values for a more accurate calculation
-            if (rideTicketsSold > 0)
-            {
-                priceMinusCost += ((static_cast<int32_t>(numSecondaryItemsSold) * shopItemProfit) / rideTicketsSold);
-            }
+            return primaryItemsPerHour * primaryProfit;
         }
-        else
-        {
-            priceMinusCost += shopItemProfit;
-        }
-
-        if (entry->shop_item[0] != ShopItem::none)
-            priceMinusCost /= 2;
+        return customersPerHour * primaryProfit;
     }
 
-    return customersPerHour * priceMinusCost;
+    const auto& secondaryShopItemDescriptor = GetShopItemDescriptor(secondaryShopItem);
+    const money64 secondaryProfit = price[1] - secondaryShopItemDescriptor.Cost;
+    if (secondaryShopItemDescriptor.IsPhoto())
+    {
+        return (customersPerHour * primaryProfit) + (secondaryItemsPerHour * secondaryProfit);
+    }
+
+    if (primaryItemsPerHour != 0 || secondaryItemsPerHour != 0)
+    {
+        return (primaryItemsPerHour * primaryProfit) + (secondaryItemsPerHour * secondaryProfit);
+    }
+
+    int64_t primarySales = primaryShopItem == ShopItem::none ? totalCustomers : numPrimaryItemsSold;
+    int64_t secondarySales = numSecondaryItemsSold;
+    const auto totalSales = primarySales + secondarySales;
+    if (totalSales == 0)
+    {
+        return customersPerHour * primaryProfit;
+    }
+
+    const auto weightedProfit = ((primaryProfit * primarySales) + (secondaryProfit * secondarySales)) / totalSales;
+    return customersPerHour * weightedProfit;
 }
 
 /**
@@ -777,9 +835,11 @@ void RideInitAll()
 void ResetAllRideBuildDates()
 {
     auto& gameState = getGameState();
+    const auto currentBuildDateFraction = GetCurrentBuildDateFraction();
     for (auto& ride : RideManager(gameState))
     {
-        ride.buildDate -= GetDate().GetMonthsElapsed();
+        const auto age = std::max<int64_t>(0, currentBuildDateFraction - DecodeBuildDateFraction(ride.buildDate));
+        ride.buildDate = -static_cast<int32_t>(age / kBuildDateFractionsPerMonth);
     }
 }
 
@@ -925,26 +985,32 @@ void Ride::update()
     // Update financial statistics
     numCustomersTimeout++;
 
-    if (numCustomersTimeout >= 960)
+    if (numCustomersTimeout >= GameTime::SecondsToTicks(30))
     {
-        // This is meant to update about every 30 seconds
+        // This updates every 30 real seconds.
         numCustomersTimeout = 0;
 
         // Shift number of customers history, start of the array is the most recent one
         for (int32_t i = Limits::kCustomerHistorySize - 1; i > 0; i--)
         {
             numCustomers[i] = numCustomers[i - 1];
+            numPrimaryItemsSoldHistory[i] = numPrimaryItemsSoldHistory[i - 1];
+            numSecondaryItemsSoldHistory[i] = numSecondaryItemsSoldHistory[i - 1];
         }
         numCustomers[0] = curNumCustomers;
+        numPrimaryItemsSoldHistory[0] = curNumPrimaryItemsSold;
+        numSecondaryItemsSoldHistory[0] = curNumSecondaryItemsSold;
 
         curNumCustomers = 0;
+        curNumPrimaryItemsSold = 0;
+        curNumSecondaryItemsSold = 0;
         windowInvalidateFlags.set(RideInvalidateFlag::customers);
 
         incomePerHour = calculateIncomePerHour();
         windowInvalidateFlags.set(RideInvalidateFlag::income);
 
         if (upkeepCost != kMoney64Undefined)
-            profit = incomePerHour - (upkeepCost * 16);
+            profit = incomePerHour - RideGetUpkeepCostPerHour(*this);
     }
 
     // Ride specific updates
@@ -1132,7 +1198,7 @@ static uint8_t _breakdownProblemProbabilities[] = {
  */
 static void RideInspectionUpdate(Ride& ride)
 {
-    if (getGameState().currentTicks & 2047)
+    if ((getGameState().currentTicks % GameTime::kTicksPerMinute) != 0)
         return;
     if (gLegacyScene == LegacyScene::trackDesigner)
         return;
@@ -5149,7 +5215,7 @@ uint32_t RideCustomersPerHour(const Ride& ride)
     return RideCustomersInLast5Minutes(ride) * 12;
 }
 
-// Calculates the number of customers for this ride in the last 5 minutes (or more correctly 9600 game ticks)
+// Calculates the number of customers for this ride in the last 5 real minutes.
 uint32_t RideCustomersInLast5Minutes(const Ride& ride)
 {
     uint32_t sum = 0;
@@ -5185,7 +5251,7 @@ void Ride::remove()
 void Ride::renew()
 {
     // Set build date to current date (so the ride is brand new)
-    buildDate = GetDate().GetMonthsElapsed();
+    buildDate = RideGetCurrentBuildDate();
     reliability = kRideInitialReliability;
     std::fill(std::begin(downtimeHistory), std::end(downtimeHistory), 0);
     downtime = 0;

@@ -13,6 +13,7 @@
 #include "../core/MemoryStream.h"
 #include "../core/Path.hpp"
 #include "../core/String.hpp"
+#include "../core/UnitConversion.h"
 #include "../object/ObjectRepository.h"
 #include "../object/RideObject.h"
 #include "../rct12/TD46.h"
@@ -193,7 +194,7 @@ namespace OpenRCT2::RCT2
             td->operation.operationSetting = td6.OperationSetting;
             td->statistics.maxSpeed = td6.MaxSpeed;
             td->statistics.averageSpeed = td6.AverageSpeed;
-            td->statistics.rideLength = td6.RideLength;
+            td->statistics.rideLength = static_cast<uint16_t>(ScaleLegacyRideLengthToReal(td6.RideLength));
             td->statistics.maxPositiveVerticalG = td6.MaxPositiveVerticalG * kTD46GForcesMultiplier;
             td->statistics.maxNegativeVerticalG = td6.MaxNegativeVerticalG * kTD46GForcesMultiplier;
             td->statistics.maxLateralG = td6.MaxLateralG * kTD46GForcesMultiplier;

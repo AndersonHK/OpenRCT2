@@ -18,6 +18,7 @@
 #include "../audio/Audio.h"
 #include "../config/Config.h"
 #include "../core/DataSerialiser.h"
+#include "../core/GameTime.hpp"
 #include "../core/Guard.hpp"
 #include "../core/Numerics.hpp"
 #include "../core/String.hpp"
@@ -77,6 +78,7 @@
 #include <cassert>
 #include <functional>
 #include <iterator>
+#include <limits>
 #include <sfl/static_vector.hpp>
 #include <span>
 
@@ -1052,10 +1054,7 @@ namespace OpenRCT2
         if (State == PeepState::walking && !outsideOfPark && !(PeepFlags & PEEP_FLAGS_LEAVING_PARK) && guestNumRides == 0
             && guestHeadingToRideId.IsNull())
         {
-            uint32_t time_duration = currentTicks - parkEntryTime;
-            time_duration /= 2048;
-
-            if (time_duration >= 5)
+            if (currentTicks - parkEntryTime >= GameTime::MinutesToTicks(5))
             {
                 GuestPickRideToGoOn(*this);
 
@@ -3494,6 +3493,7 @@ namespace OpenRCT2
                     UpdateCurrentAnimationType();
 
                     ride->numPrimaryItemsSold = AddClamp(ride->numPrimaryItemsSold, 1u);
+                    ride->curNumPrimaryItemsSold++;
                 }
             }
             else
@@ -3511,6 +3511,7 @@ namespace OpenRCT2
                     if (item_bought)
                     {
                         ride->numSecondaryItemsSold = AddClamp(ride->numSecondaryItemsSold, 1u);
+                        ride->curNumSecondaryItemsSold++;
                     }
                 }
 
@@ -3522,6 +3523,7 @@ namespace OpenRCT2
                     if (item_bought)
                     {
                         ride->numPrimaryItemsSold = AddClamp(ride->numPrimaryItemsSold, 1u);
+                        ride->curNumPrimaryItemsSold++;
                     }
                 }
             }
@@ -3966,11 +3968,8 @@ namespace OpenRCT2
         }
 
         RideSubState = PeepRideSubState::leaveEntrance;
-        uint8_t queueTime = daysInQueue;
-        if (queueTime < 253)
-            queueTime += 3;
-
-        queueTime /= 2;
+        uint8_t queueTime = static_cast<uint8_t>(
+            std::min<uint32_t>(GameTime::TicksToMinutes(timeInQueue), std::numeric_limits<uint8_t>::max()));
         auto& station = ride.getStation(CurrentRideStation);
         if (queueTime != station.QueueTime)
         {
@@ -4537,6 +4536,7 @@ namespace OpenRCT2
             if (GuestDecideAndBuyItem(*this, *ride, secondaryItem, ride->price[1]))
             {
                 ride->numSecondaryItemsSold = AddClamp(ride->numSecondaryItemsSold, 1u);
+                ride->curNumSecondaryItemsSold++;
             }
         }
         RideSubState = PeepRideSubState::leaveExit;

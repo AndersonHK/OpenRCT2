@@ -5942,7 +5942,7 @@ namespace OpenRCT2::Ui::Windows
                             auto length = ride->getStation(stationIndex).SegmentLength;
                             if (length != 0)
                             {
-                                length >>= 16;
+                                length = ToHumanReadableRideLength(length);
                                 ft.Add<StringId>(STR_RIDE_LENGTH_ENTRY_WITH_SEPARATOR);
                                 ft.Add<uint16_t>(length & 0xFFFF);
                                 numLengths++;
@@ -6959,7 +6959,7 @@ namespace OpenRCT2::Ui::Windows
             }
 
             // Running cost per hour
-            money64 costPerHour = ride->upkeepCost * 16;
+            money64 costPerHour = RideGetUpkeepCostPerHour(*ride);
             stringId = ride->upkeepCost == kMoney64Undefined ? STR_RUNNING_COST_UNKNOWN : STR_RUNNING_COST_PER_HOUR;
             auto ft = Formatter();
             ft.Add<money64>(costPerHour);

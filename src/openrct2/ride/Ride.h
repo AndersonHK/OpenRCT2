@@ -352,12 +352,18 @@ struct Ride
     // Unused always 0? Should affect nausea
     uint16_t var11C{};
     uint8_t numShelteredSections{}; // (?abY YYYY)
-    // Customer counter in the current 960 game tick (about 30 seconds) interval
+    // Customer counter in the current 30 real-second interval.
     uint16_t curNumCustomers{};
-    // Counts ticks to update customer intervals, resets each 960 game ticks.
+    // Counts ticks to update customer intervals.
     uint16_t numCustomersTimeout{};
-    // Customer count in the last 10 * 960 game ticks (sliding window)
+    // Customer count in the last 10 * 30 real-second intervals (sliding window).
     uint16_t numCustomers[OpenRCT2::Limits::kCustomerHistorySize]{};
+    // Item sale counters matching the current customer interval.
+    uint16_t curNumPrimaryItemsSold{};
+    uint16_t curNumSecondaryItemsSold{};
+    // Item sale counts in the last 10 * 30 real-second intervals (sliding window).
+    uint16_t numPrimaryItemsSoldHistory[OpenRCT2::Limits::kCustomerHistorySize]{};
+    uint16_t numSecondaryItemsSoldHistory[OpenRCT2::Limits::kCustomerHistorySize]{};
     money64 price[OpenRCT2::RCT2::ObjectLimits::kMaxShopItemsPerRideEntry]{};
     RidePriceTarget priceTarget{ RidePriceTarget::neutral };
     TileCoordsXYZ chairliftBullwheelLocation[2];
@@ -464,13 +470,13 @@ public:
     StationIndex::UnderlyingType getStationNumber(StationIndex in) const;
 
     void chainQueues() const;
+    money64 calculateIncomePerHour() const;
 
 private:
     void update();
     void updateQueueLength(StationIndex stationIndex);
     ResultWithMessage createVehicles(const CoordsXYE& element, bool isApplying, bool isSimulating);
     void moveTrainsToBlockBrakes(const CoordsXYZ& firstBlockPosition, OpenRCT2::TrackElement& firstBlock);
-    money64 calculateIncomePerHour() const;
     void constructMissingEntranceOrExit() const;
 
     ResultWithMessage changeStatusDoStationChecks(StationIndex& stationIndex);
@@ -910,6 +916,8 @@ OpenRCT2::BitSet<EnumValue(OpenRCT2::TrackGroup::count)> RideEntryGetSupportedTr
 
 uint32_t RideCustomersPerHour(const Ride& ride);
 uint32_t RideCustomersInLast5Minutes(const Ride& ride);
+int32_t RideGetCurrentBuildDate();
+money64 RideGetUpkeepCostPerHour(const Ride& ride);
 
 Vehicle* RideGetBrokenVehicle(const Ride& ride);
 

@@ -9,8 +9,25 @@
 
 #include "UnitConversion.h"
 
+#include "GameTime.hpp"
+
+#include <algorithm>
+#include <limits>
+
 namespace OpenRCT2
 {
+    namespace
+    {
+        constexpr int64_t kLegacyRideLengthNumerator = 158;
+        constexpr int64_t kLegacyRideLengthDenominator = 213;
+
+        int64_t DivideRoundedMagnitude(int64_t magnitude)
+        {
+            return (magnitude * kLegacyRideLengthNumerator + (kLegacyRideLengthDenominator / 2))
+                / kLegacyRideLengthDenominator;
+        }
+    } // namespace
+
     int32_t SquaredMetresToSquaredFeet(int32_t squaredMetres)
     {
         // 1 metre squared = 10.7639104 feet squared
@@ -68,11 +85,38 @@ namespace OpenRCT2
 
     int32_t ToHumanReadableAirTime(uint16_t airTime)
     {
-        return airTime * 3;
+        return GameTime::TicksToCentiseconds(airTime);
     }
 
     int32_t ToHumanReadableRideLength(int32_t rideLength)
     {
         return rideLength >> 16;
+    }
+
+    int32_t ScaleLegacyRideLengthToReal(int64_t legacyRideLength)
+    {
+        const auto int32Min = static_cast<int64_t>(std::numeric_limits<int32_t>::min());
+        const auto int32Max = static_cast<int64_t>(std::numeric_limits<int32_t>::max());
+        const auto maxBeforeMultiply = std::numeric_limits<int64_t>::max() / kLegacyRideLengthNumerator;
+
+        int64_t scaled = 0;
+        if (legacyRideLength >= maxBeforeMultiply)
+        {
+            scaled = int32Max;
+        }
+        else if (legacyRideLength <= -maxBeforeMultiply)
+        {
+            scaled = int32Min;
+        }
+        else if (legacyRideLength >= 0)
+        {
+            scaled = DivideRoundedMagnitude(legacyRideLength);
+        }
+        else
+        {
+            scaled = -DivideRoundedMagnitude(-legacyRideLength);
+        }
+
+        return static_cast<int32_t>(std::clamp(scaled, int32Min, int32Max));
     }
 } // namespace OpenRCT2

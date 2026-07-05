@@ -25,6 +25,7 @@
 #include <openrct2/actions/peep/PeepPickupAction.h>
 #include <openrct2/config/Config.h>
 #include <openrct2/core/EnumUtils.hpp>
+#include <openrct2/core/GameTime.hpp>
 #include <openrct2/core/String.hpp>
 #include <openrct2/drawing/ColourMap.h>
 #include <openrct2/drawing/Drawing.h>
@@ -1152,7 +1153,7 @@ namespace OpenRCT2::Ui::Windows
             int32_t guestEntryTime = peep->getParkEntryTime();
             if (guestEntryTime != -1)
             {
-                int32_t timeInPark = (getGameState().currentTicks - guestEntryTime) >> 11;
+                int32_t timeInPark = GameTime::TicksToMinutes(getGameState().currentTicks - guestEntryTime);
                 auto ft = Formatter();
                 ft.Add<uint16_t>(timeInPark & 0xFFFF);
                 drawText(rt, screenCoords, STR_GUEST_STAT_TIME_IN_PARK, ft);

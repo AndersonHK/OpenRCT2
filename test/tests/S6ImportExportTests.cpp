@@ -21,6 +21,7 @@
 #include <openrct2/core/Crypt.h>
 #include <openrct2/core/MemoryStream.h>
 #include <openrct2/core/String.hpp>
+#include <openrct2/core/UnitConversion.h>
 #include <openrct2/drawing/Drawing.h>
 #include <openrct2/entity/EntityRegistry.h>
 #include <openrct2/entity/EntityTweener.h>
@@ -118,6 +119,25 @@ static bool ExportSave(MemoryStream& stream, std::unique_ptr<IContext>& context)
     exporter->Export(gameState, stream, kParkFileSaveCompressionLevel);
 
     return true;
+}
+
+static void SetParkFileTargetVersion(MemoryStream& stream, uint32_t targetVersion)
+{
+    stream.SetPosition(sizeof(uint32_t));
+    stream.WriteValue(targetVersion);
+    stream.SetPosition(0);
+}
+
+static Ride* GetFirstRide()
+{
+    for (auto& ride : getGameState().rides)
+    {
+        if (ride.id != RideId::GetNull())
+        {
+            return &ride;
+        }
+    }
+    return nullptr;
 }
 
 static void RecordGameStateSnapshot(std::unique_ptr<IContext>& context, MemoryStream& snapshotStream)
@@ -227,6 +247,60 @@ TEST(S6ImportExportBasic, all)
     CompareStates(importBuffer, exportBuffer, snapshotStream);
 
     SUCCEED();
+}
+
+TEST(ParkFileMigration, LegacyRideLengthsScaleOnce)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    MemoryStream oldVersionPark;
+    MemoryStream currentVersionPark;
+
+    {
+        std::unique_ptr<IContext> context = CreateContext();
+        ASSERT_NE(context, nullptr);
+        ASSERT_TRUE(context->Initialise());
+
+        MemoryStream importBuffer;
+        std::string testParkPath = TestData::GetParkPath("BigMapTest.sv6");
+        ASSERT_TRUE(LoadFileToBuffer(importBuffer, testParkPath));
+        ASSERT_TRUE(ImportS6(importBuffer, context, false));
+
+        auto* ride = GetFirstRide();
+        ASSERT_NE(ride, nullptr);
+        ride->getStation().SegmentLength = static_cast<int32_t>(static_cast<int64_t>(426) << 16);
+        ride->shelteredLength = static_cast<int32_t>(static_cast<int64_t>(213) << 16);
+
+        ASSERT_TRUE(ExportSave(oldVersionPark, context));
+        SetParkFileTargetVersion(oldVersionPark, kRideItemSalesHistoryVersion);
+    }
+
+    {
+        std::unique_ptr<IContext> context = CreateContext();
+        ASSERT_NE(context, nullptr);
+        ASSERT_TRUE(context->Initialise());
+        ASSERT_TRUE(ImportPark(oldVersionPark, context, true));
+
+        auto* ride = GetFirstRide();
+        ASSERT_NE(ride, nullptr);
+        EXPECT_EQ(ToHumanReadableRideLength(ride->getStation().SegmentLength), 316);
+        EXPECT_EQ(ToHumanReadableRideLength(ride->shelteredLength), 158);
+
+        ASSERT_TRUE(ExportSave(currentVersionPark, context));
+    }
+
+    {
+        std::unique_ptr<IContext> context = CreateContext();
+        ASSERT_NE(context, nullptr);
+        ASSERT_TRUE(context->Initialise());
+        ASSERT_TRUE(ImportPark(currentVersionPark, context, true));
+
+        auto* ride = GetFirstRide();
+        ASSERT_NE(ride, nullptr);
+        EXPECT_EQ(ToHumanReadableRideLength(ride->getStation().SegmentLength), 316);
+        EXPECT_EQ(ToHumanReadableRideLength(ride->shelteredLength), 158);
+    }
 }
 
 TEST(S6ImportExportAdvanceTicks, all)

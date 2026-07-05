@@ -18,6 +18,7 @@
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/SpriteIds.h>
 #include <openrct2/config/Config.h>
+#include <openrct2/core/GameTime.hpp>
 #include <openrct2/drawing/Drawing.String.h>
 #include <openrct2/drawing/Drawing.h>
 #include <openrct2/drawing/Rectangle.h>
@@ -233,7 +234,7 @@ namespace OpenRCT2::Ui::Windows
             auto nextWeatherSpriteId = Weather::getWeatherSpriteId(getGameState().weatherNext.weatherType);
             if (currentWeatherSpriteId != nextWeatherSpriteId)
             {
-                if (getGameState().weatherUpdateTimer < 960)
+                if (getGameState().weatherUpdateTimer < GameTime::SecondsToTicks(30))
                 {
                     GfxDrawSprite(rt, ImageId(SPR_NEXT_WEATHER), screenCoords + ScreenCoordsXY{ 27, 5 });
                     GfxDrawSprite(rt, ImageId(nextWeatherSpriteId), screenCoords + ScreenCoordsXY{ 40, 0 });

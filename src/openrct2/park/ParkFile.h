@@ -24,9 +24,11 @@ namespace OpenRCT2
     constexpr uint16_t kRidePriceTargetVersion = kOpenRCT2ModParkFileVersionBase;
     constexpr uint16_t kCentMoneyVersion = kOpenRCT2ModParkFileVersionBase + 1;
     constexpr uint16_t kParkEntranceFeeTargetVersion = kOpenRCT2ModParkFileVersionBase + 2;
+    constexpr uint16_t kRideItemSalesHistoryVersion = kOpenRCT2ModParkFileVersionBase + 3;
+    constexpr uint16_t kRideLengthScaleVersion = kOpenRCT2ModParkFileVersionBase + 4;
 
     // Current version that is saved.
-    constexpr uint32_t kParkFileCurrentVersion = kParkEntranceFeeTargetVersion;
+    constexpr uint32_t kParkFileCurrentVersion = kRideLengthScaleVersion;
 
     // The minimum version that is forwards compatible with the current version.
     constexpr uint32_t kParkFileMinVersion = 57;

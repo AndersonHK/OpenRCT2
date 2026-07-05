@@ -17,6 +17,7 @@
 #include "../OpenRCT2.h"
 #include "../actions/GameActionRunner.h"
 #include "../actions/park/ParkSetParameterAction.h"
+#include "../core/GameTime.hpp"
 #include "../core/String.hpp"
 #include "../entity/EntityList.h"
 #include "../entity/Guest.h"
@@ -54,6 +55,21 @@ using namespace OpenRCT2::Scripting;
 namespace OpenRCT2::Park
 {
     static Guest* generateGuestFromCampaign(int32_t campaign);
+
+    static bool IsSevenDayWeekStart(const Date& date)
+    {
+        constexpr int32_t kCalendarDaysPerOperatingYear = 245;
+
+        auto monthsElapsed = static_cast<int32_t>(date.GetMonthsElapsed());
+        auto elapsedDays = DateGetYear(monthsElapsed) * kCalendarDaysPerOperatingYear;
+        for (int32_t month = 0; month < DateGetMonth(monthsElapsed); month++)
+        {
+            elapsedDays += Date::GetDaysInMonth(month);
+        }
+        elapsedDays += date.GetDay();
+
+        return elapsedDays != 0 && (elapsedDays % GameTime::kDaysPerWeek) == 0;
+    }
 
     static constexpr auto kParkEntranceValueNumerator = 7;
     static constexpr auto kParkEntranceValueDenominator = 10;
@@ -352,8 +368,8 @@ namespace OpenRCT2::Park
     {
         PROFILED_FUNCTION();
 
-        // Every new week
-        if (gameState.date.IsWeekStart())
+        // Every seven calendar days.
+        if (gameState.date.IsDayStart() && IsSevenDayWeekStart(gameState.date))
         {
             UpdateHistories(park);
         }

@@ -19,6 +19,7 @@
 #include "../audio/AudioMixer.h"
 #include "../config/Config.h"
 #include "../core/EnumUtils.hpp"
+#include "../core/GameTime.hpp"
 #include "../drawing/Drawing.h"
 #include "../object/ClimateObject.h"
 #include "../object/ObjectManager.h"
@@ -154,7 +155,7 @@ namespace OpenRCT2::Weather
         {
             if (gameState.weatherUpdateTimer)
             {
-                if (gameState.weatherUpdateTimer == 960)
+                if (gameState.weatherUpdateTimer == GameTime::SecondsToTicks(30))
                 {
                     auto intent = Intent(INTENT_ACTION_UPDATE_CLIMATE);
                     ContextBroadcastIntent(&intent);
@@ -245,7 +246,7 @@ namespace OpenRCT2::Weather
         gameState.weatherCurrent.level = trait.level;
         gameState.weatherCurrent.weatherEffect = trait.effectLevel;
         gameState.weatherCurrent.temperature = pattern.baseTemperature + trait.temperatureDelta;
-        gameState.weatherUpdateTimer = 1920;
+        gameState.weatherUpdateTimer = GameTime::SecondsToTicks(60);
 
         determineFutureWeather(ScenarioRand());
 
@@ -365,7 +366,7 @@ namespace OpenRCT2::Weather
         gameState.weatherNext.weatherGloom = nextWeatherTrait.gloomLevel;
         gameState.weatherNext.level = nextWeatherTrait.level;
 
-        gameState.weatherUpdateTimer = 1920;
+        gameState.weatherUpdateTimer = GameTime::SecondsToTicks(60);
     }
 
     static void updateWeatherSound()

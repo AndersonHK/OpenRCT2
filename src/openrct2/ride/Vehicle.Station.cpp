@@ -12,6 +12,7 @@
 #include "../GameState.h"
 #include "../audio/Audio.h"
 #include "../config/Config.h"
+#include "../core/GameTime.hpp"
 #include "../core/Speed.hpp"
 #include "../entity/EntityRegistry.h"
 #include "../entity/Guest.h"
@@ -614,7 +615,7 @@ void Vehicle::UpdateWaitingForPassengers()
         {
             if (curRide->departFlags & RIDE_DEPART_WAIT_FOR_MINIMUM_LENGTH)
             {
-                if (curRide->minWaitingTime * 32 > time_waiting)
+                if (GameTime::SecondsToTicks(curRide->minWaitingTime) > time_waiting)
                 {
                     TrainReadyToDepart(num_peeps_on_train, num_used_seats_on_train);
                     return;
@@ -622,7 +623,7 @@ void Vehicle::UpdateWaitingForPassengers()
             }
             if (curRide->departFlags & RIDE_DEPART_WAIT_FOR_MAXIMUM_LENGTH)
             {
-                if (curRide->maxWaitingTime * 32 < time_waiting)
+                if (GameTime::SecondsToTicks(curRide->maxWaitingTime) < time_waiting)
                 {
                     flags.set(VehicleFlag::readyToDepart);
                     TrainReadyToDepart(num_peeps_on_train, num_used_seats_on_train);
@@ -1333,7 +1334,7 @@ void Vehicle::CheckIfMissing()
     if (curRide->flags.has(RideFlag::hasStalledVehicle))
         return;
 
-    uint16_t limit = curRide->type == RIDE_TYPE_BOAT_HIRE ? 15360 : 9600;
+    uint16_t limit = curRide->type == RIDE_TYPE_BOAT_HIRE ? GameTime::MinutesToTicks(8) : GameTime::MinutesToTicks(5);
 
     if (lost_time_out <= limit)
         return;

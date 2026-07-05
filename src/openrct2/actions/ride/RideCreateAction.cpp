@@ -272,7 +272,7 @@ namespace OpenRCT2::GameActions
         ride->priceTarget = RidePriceTarget::neutral;
         ride->satisfaction = 255;
         ride->popularity = 255;
-        ride->buildDate = GetDate().GetMonthsElapsed();
+        ride->buildDate = RideGetCurrentBuildDate();
         ride->musicTuneId = kTuneIDNull;
 
         ride->breakdownReason = Breakdown::none;

@@ -17,13 +17,18 @@
 #include <openrct2/GameState.h>
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/core/File.h>
+#include <openrct2/core/GameTime.hpp>
 #include <openrct2/core/Path.hpp>
 #include <openrct2/core/String.hpp>
+#include <openrct2/core/UnitConversion.h>
 #include <openrct2/ride/Ride.h>
 #include <openrct2/ride/RideData.h>
+#include <openrct2/ride/RideEntry.h>
 #include <openrct2/ride/RideManager.hpp>
 #include <openrct2/ride/RideRatings.h>
+#include <openrct2/ride/ShopItem.h>
 #include <cstdlib>
+#include <limits>
 #include <string>
 #include <string_view>
 
@@ -182,6 +187,138 @@ TEST_F(RideRatings, NewRideValueBonusUsesMultiplier)
     ferrisWheel.buildDate = currentMonth - 5;
     RideRating::UpdateRide(ferrisWheel);
     EXPECT_EQ(ferrisWheel.value, ToMoney64(static_cast<money32>(legacyBaseValue * 6 / 5)));
+}
+
+TEST_F(RideRatings, RealTimeConversionsUseFortyTicksPerSecond)
+{
+    EXPECT_EQ(GameTime::SecondsToTicks(60), 2400u);
+    EXPECT_EQ(GameTime::MinutesToTicks(60), 144000u);
+    EXPECT_EQ(ToHumanReadableAirTime(40), 100);
+}
+
+TEST_F(RideRatings, LegacyRideLengthScalesToHorizontalTileLength)
+{
+    EXPECT_EQ(ScaleLegacyRideLengthToReal(426), 316);
+    EXPECT_EQ(ToHumanReadableRideLength(ScaleLegacyRideLengthToReal(static_cast<int64_t>(426) << 16)), 316);
+}
+
+TEST_F(RideRatings, LegacyRideLengthScalingIsSignSafeAndClamped)
+{
+    EXPECT_EQ(ScaleLegacyRideLengthToReal(0), 0);
+    EXPECT_EQ(ScaleLegacyRideLengthToReal(-426), -316);
+    EXPECT_EQ(ScaleLegacyRideLengthToReal(std::numeric_limits<int64_t>::max()), std::numeric_limits<int32_t>::max());
+    EXPECT_EQ(ScaleLegacyRideLengthToReal(std::numeric_limits<int64_t>::min()), std::numeric_limits<int32_t>::min());
+}
+
+TEST_F(RideRatings, ChainLiftSpeedKeepsOriginalRealWorldScale)
+{
+    constexpr int32_t chainLiftRawSpeed = 7 * 31079;
+    EXPECT_EQ(ToHumanReadableSpeed(chainLiftRawSpeed), 7);
+    EXPECT_EQ(MphToKmph(ToHumanReadableSpeed(chainLiftRawSpeed)), 11);
+}
+
+TEST_F(RideRatings, RunningCostPerHourScalesHalfMonthPaymentsToRealHour)
+{
+    Ride ride{};
+    ride.upkeepCost = 0.64_GBP;
+
+    EXPECT_EQ(RideGetUpkeepCostPerHour(ride), 11.25_GBP);
+}
+
+TEST_F(RideRatings, OnRidePhotoIncomeKeepsAdmissionRevenue)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+
+    GetContext()->LoadParkFromFile(TestData::GetParkPath("small_park_with_ferris_wheel.sv6"));
+
+    auto& gameState = getGameState();
+    gameState.park.flags |= PARK_FLAGS_UNLOCK_ALL_PRICES;
+
+    auto rideManager = RideManager(gameState);
+    auto it = std::find_if(
+        rideManager.begin(), rideManager.end(), [](const auto& ride) { return ride.type == RIDE_TYPE_FERRIS_WHEEL; });
+    ASSERT_NE(it, rideManager.end());
+
+    Ride& ferrisWheel = *it;
+    ferrisWheel.flags.set(RideFlag::onRidePhoto);
+    ferrisWheel.price[0] = 5.00_GBP;
+    ferrisWheel.price[1] = 2.00_GBP;
+    ferrisWheel.totalCustomers = 100;
+    ferrisWheel.numSecondaryItemsSold = 25;
+    std::fill(std::begin(ferrisWheel.numCustomers), std::end(ferrisWheel.numCustomers), 0);
+    std::fill(
+        std::begin(ferrisWheel.numSecondaryItemsSoldHistory), std::end(ferrisWheel.numSecondaryItemsSoldHistory), 0);
+    ferrisWheel.numCustomers[0] = 10;
+    ferrisWheel.numSecondaryItemsSoldHistory[0] = 3;
+
+    const auto photoItem = ferrisWheel.getRideTypeDescriptor().PhotoItem;
+    const auto photoProfit = ferrisWheel.price[1] - GetShopItemDescriptor(photoItem).Cost;
+    const auto photoSalesPerHour = ferrisWheel.numSecondaryItemsSoldHistory[0] * 12;
+    const auto expectedIncomePerHour = (RideCustomersPerHour(ferrisWheel) * ferrisWheel.price[0])
+        + (photoSalesPerHour * photoProfit);
+
+    EXPECT_EQ(ferrisWheel.calculateIncomePerHour(), expectedIncomePerHour);
+}
+
+TEST_F(RideRatings, DualItemStallIncomeUsesRecentItemSales)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+
+    GetContext()->LoadParkFromFile(TestData::GetParkPath("EverythingPark.park"));
+
+    auto& gameState = getGameState();
+    auto rideManager = RideManager(gameState);
+    auto it = std::find_if(rideManager.begin(), rideManager.end(), [](const auto& ride) {
+        const auto* entry = ride.getRideEntry();
+        return entry != nullptr && entry->shop_item[0] != ShopItem::none && entry->shop_item[1] != ShopItem::none;
+    });
+    ASSERT_NE(it, rideManager.end());
+
+    Ride& stall = *it;
+    const auto* entry = stall.getRideEntry();
+    ASSERT_NE(entry, nullptr);
+
+    stall.price[0] = 3.00_GBP;
+    stall.price[1] = 7.00_GBP;
+    std::fill(std::begin(stall.numPrimaryItemsSoldHistory), std::end(stall.numPrimaryItemsSoldHistory), 0);
+    std::fill(std::begin(stall.numSecondaryItemsSoldHistory), std::end(stall.numSecondaryItemsSoldHistory), 0);
+    stall.numPrimaryItemsSoldHistory[0] = 4;
+    stall.numSecondaryItemsSoldHistory[0] = 6;
+
+    const auto primaryProfit = stall.price[0] - GetShopItemDescriptor(entry->shop_item[0]).Cost;
+    const auto secondaryProfit = stall.price[1] - GetShopItemDescriptor(entry->shop_item[1]).Cost;
+    const auto expectedIncomePerHour = (stall.numPrimaryItemsSoldHistory[0] * 12 * primaryProfit)
+        + (stall.numSecondaryItemsSoldHistory[0] * 12 * secondaryProfit);
+
+    EXPECT_EQ(stall.calculateIncomePerHour(), expectedIncomePerHour);
+}
+
+TEST_F(RideRatings, PreciseNewRideAgeWaitsForFullMonth)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+
+    GetDate() = Date::FromYMD(1, MONTH_MARCH, 29);
+
+    Ride ride{};
+    ride.buildDate = RideGetCurrentBuildDate();
+
+    GetDate() = Date::FromYMD(1, MONTH_APRIL, 0);
+    EXPECT_EQ(ride.getAge(), 0);
+
+    GetDate() = Date::FromYMD(1, MONTH_APRIL, 29);
+    EXPECT_EQ(ride.getAge(), 1);
 }
 
 TEST_F(RideRatings, RecentAccumulatorAveragesLastTwentySamples)

@@ -18,10 +18,12 @@
 #include "../core/BitSet.hpp"
 #include "../core/Console.hpp"
 #include "../core/FileStream.h"
+#include "../core/GameTime.hpp"
 #include "../core/Guard.hpp"
 #include "../core/IStream.hpp"
 #include "../core/Path.hpp"
 #include "../core/String.hpp"
+#include "../core/UnitConversion.h"
 #include "../entity/Balloon.h"
 #include "../entity/Duck.h"
 #include "../entity/EntityList.h"
@@ -77,6 +79,7 @@
 #include "RCT1.h"
 #include "Tables.h"
 
+#include <algorithm>
 #include <cassert>
 #include <memory>
 #include <vector>
@@ -914,7 +917,7 @@ namespace OpenRCT2::RCT1
                 dstStation.QueueLength = src->numPeepsInQueue[i];
 
                 dstStation.SegmentTime = src->time[i];
-                dstStation.SegmentLength = src->length[i];
+                dstStation.SegmentLength = ScaleLegacyRideLengthToReal(src->length[i]);
             }
             // All other values take 0 as their default. Since they're already memset to that, no need to do it again.
             for (int32_t i = Limits::kMaxStationsPerRide; i < OpenRCT2::Limits::kMaxStationsPerRide; i++)
@@ -948,7 +951,7 @@ namespace OpenRCT2::RCT1
             dst->numHelices = split.first;
             dst->specialTrackElements = split.second;
             dst->numShelteredSections = src->numShelteredSections;
-            dst->shelteredLength = src->shelteredLength;
+            dst->shelteredLength = ScaleLegacyRideLengthToReal(src->shelteredLength);
 
             // Operation
             dst->departFlags = src->departFlags;
@@ -1528,9 +1531,11 @@ namespace OpenRCT2::RCT1
             {
                 if (_s4.MarketingStatus[i] & CAMPAIGN_ACTIVE_FLAG)
                 {
-                    MarketingCampaign campaign;
+                    MarketingCampaign campaign{};
                     campaign.type = i;
-                    campaign.weeksLeft = _s4.MarketingStatus[i] & ~CAMPAIGN_ACTIVE_FLAG;
+                    const auto legacyWeeksLeft = _s4.MarketingStatus[i] & ~CAMPAIGN_ACTIVE_FLAG;
+                    campaign.weeksLeft = static_cast<uint8_t>(
+                        std::min<uint16_t>(legacyWeeksLeft * OpenRCT2::GameTime::kDaysPerWeek, 255));
                     if (campaign.type == ADVERTISING_CAMPAIGN_RIDE_FREE || campaign.type == ADVERTISING_CAMPAIGN_RIDE)
                     {
                         campaign.rideId = RCT12RideIdToOpenRCT2RideId(_s4.MarketingAssoc[i]);

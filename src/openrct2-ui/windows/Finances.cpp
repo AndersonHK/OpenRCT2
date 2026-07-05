@@ -15,6 +15,7 @@
 #include <openrct2/SpriteIds.h>
 #include <openrct2/actions/GameActionRunner.h>
 #include <openrct2/actions/park/ParkSetLoanAction.h>
+#include <openrct2/core/GameTime.hpp>
 #include <openrct2/drawing/ColourMap.h>
 #include <openrct2/drawing/Drawing.String.h>
 #include <openrct2/drawing/Drawing.h>
@@ -741,7 +742,7 @@ namespace OpenRCT2::Ui::Windows
                 drawTextEllipsised(rt, screenCoords + ScreenCoordsXY{ 4, 0 }, 296, kMarketingCampaignNames[i][1], ft);
 
                 // Duration
-                uint16_t weeksRemaining = marketingCampaign->weeksLeft;
+                uint16_t weeksRemaining = (marketingCampaign->weeksLeft + GameTime::kDaysPerWeek - 1) / GameTime::kDaysPerWeek;
                 ft = Formatter();
                 ft.Add<uint16_t>(weeksRemaining);
                 drawText(

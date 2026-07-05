@@ -54,6 +54,7 @@ namespace OpenRCT2
 struct MarketingCampaign
 {
     uint8_t type{};
+    // Legacy field name: OpenRCT2 now counts remaining campaign duration in days.
     uint8_t weeksLeft{};
     OpenRCT2::MarketingCampaignFlags flags{};
     union

@@ -24,4 +24,5 @@ namespace OpenRCT2
     int32_t ToHumanReadableSpeed(int32_t baseSpeed);
     int32_t ToHumanReadableAirTime(uint16_t airTime);
     int32_t ToHumanReadableRideLength(int32_t rideLength);
+    int32_t ScaleLegacyRideLengthToReal(int64_t legacyRideLength);
 } // namespace OpenRCT2

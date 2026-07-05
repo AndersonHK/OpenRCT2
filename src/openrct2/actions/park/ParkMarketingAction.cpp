@@ -9,6 +9,7 @@
 
 #include "ParkMarketingAction.h"
 
+#include "../../core/GameTime.hpp"
 #include "../../localisation/StringIds.h"
 #include "../../management/Finance.h"
 #include "../../management/Marketing.h"
@@ -16,7 +17,9 @@
 #include "../../windows/Intent.h"
 #include "../../world/ParkData.h"
 
+#include <algorithm>
 #include <iterator>
+#include <limits>
 
 namespace OpenRCT2::GameActions
 {
@@ -64,8 +67,8 @@ namespace OpenRCT2::GameActions
     {
         MarketingCampaign campaign{};
         campaign.type = _type;
-        campaign.weeksLeft = _numWeeks;
-        campaign.flags = { MarketingCampaignFlag::firstWeek };
+        campaign.weeksLeft = static_cast<uint8_t>(
+            std::min<int32_t>(_numWeeks * OpenRCT2::GameTime::kDaysPerWeek, std::numeric_limits<uint8_t>::max()));
         if (campaign.type == ADVERTISING_CAMPAIGN_RIDE_FREE || campaign.type == ADVERTISING_CAMPAIGN_RIDE)
         {
             campaign.rideId = RideId::FromUnderlying(_item);

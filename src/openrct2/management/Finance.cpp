@@ -14,6 +14,7 @@
 #include "../GameState.h"
 #include "../OpenRCT2.h"
 #include "../core/EnumUtils.hpp"
+#include "../core/GameTime.hpp"
 #include "../entity/EntityList.h"
 #include "../entity/Peep.h"
 #include "../entity/Staff.h"
@@ -157,8 +158,9 @@ void FinancePayInterest()
     // that will overflow money64 if the loan is greater than (1 << 31) / (5 * current_interest_rate)
     const money64 current_loan = park.bankLoan;
     const auto current_interest_rate = park.bankLoanInterestRate;
-    const money64 interest_to_pay = (park.flags & PARK_FLAGS_RCT1_INTEREST) ? (current_loan / 2400)
-                                                                            : (current_loan * 5 * current_interest_rate) >> 14;
+    const money64 interest_to_pay = (park.flags & PARK_FLAGS_RCT1_INTEREST)
+        ? (current_loan / 2400)
+        : (current_loan * current_interest_rate) / (100 * GameTime::kCalendarFinancePeriodsPerYear);
 
     FinancePayment(interest_to_pay, ExpenditureType::interest);
 }

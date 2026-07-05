@@ -9,6 +9,7 @@
 
 #include "Vehicle.h"
 
+#include "../core/GameTime.hpp"
 #include "../scenario/Scenario.h"
 #include "../world/Map.h"
 #include "../world/tile_element/SurfaceElement.h"
@@ -409,7 +410,7 @@ void Vehicle::UpdateBoatLocation()
     uint8_t curDirection = ((orientation + 19) >> 3) & 3;
     uint8_t randDirection = ScenarioRand() & 3;
 
-    if (lost_time_out > 1920)
+    if (lost_time_out > GameTime::SecondsToTicks(60))
     {
         if (ScenarioRand() & 1)
         {

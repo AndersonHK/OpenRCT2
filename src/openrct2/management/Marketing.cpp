@@ -122,13 +122,7 @@ void MarketingUpdate()
     for (auto it = gameState.park.marketingCampaigns.begin(); it != gameState.park.marketingCampaigns.end();)
     {
         auto& campaign = *it;
-        if (campaign.flags.has(MarketingCampaignFlag::firstWeek))
-        {
-            // This ensures the campaign is active for x full weeks if started within the
-            // middle of a week.
-            campaign.flags.unset(MarketingCampaignFlag::firstWeek);
-        }
-        else if (campaign.weeksLeft > 0)
+        if (campaign.weeksLeft > 0)
         {
             campaign.weeksLeft--;
         }

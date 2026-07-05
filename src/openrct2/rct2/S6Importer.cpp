@@ -13,8 +13,10 @@
 #include "../GameState.h"
 #include "../ParkImporter.h"
 #include "../core/FileStream.h"
+#include "../core/GameTime.hpp"
 #include "../core/Path.hpp"
 #include "../core/String.hpp"
+#include "../core/UnitConversion.h"
 #include "../entity/Balloon.h"
 #include "../entity/Duck.h"
 #include "../entity/Guest.h"
@@ -63,6 +65,7 @@
 #include "../world/tile_element/TrackElement.h"
 #include "../world/tile_element/WallElement.h"
 
+#include <algorithm>
 #include <cassert>
 
 using namespace OpenRCT2;
@@ -795,7 +798,7 @@ namespace OpenRCT2::RCT2
 
                 destStation.LastPeepInQueue = EntityId::FromUnderlying(src->lastPeepInQueue[i]);
 
-                destStation.SegmentLength = src->length[i];
+                destStation.SegmentLength = ScaleLegacyRideLengthToReal(src->length[i]);
                 destStation.SegmentTime = src->time[i];
 
                 destStation.QueueTime = src->queueTime[i];
@@ -884,7 +887,7 @@ namespace OpenRCT2::RCT2
             dst->numPoweredLifts = splitDropsLifts.second;
             dst->startDropHeight = src->startDropHeight;
             dst->highestDropHeight = src->highestDropHeight;
-            dst->shelteredLength = src->shelteredLength;
+            dst->shelteredLength = ScaleLegacyRideLengthToReal(src->shelteredLength);
             dst->var11C = src->var11C;
             dst->numShelteredSections = src->numShelteredSections;
 
@@ -1613,11 +1616,9 @@ namespace OpenRCT2::RCT2
                 {
                     MarketingCampaign campaign{};
                     campaign.type = static_cast<uint8_t>(i);
-                    campaign.weeksLeft = _s6.CampaignWeeksLeft[i] & ~(CAMPAIGN_ACTIVE_FLAG | CAMPAIGN_FIRST_WEEK_FLAG);
-                    if ((_s6.CampaignWeeksLeft[i] & CAMPAIGN_FIRST_WEEK_FLAG) != 0)
-                    {
-                        campaign.flags.set(MarketingCampaignFlag::firstWeek);
-                    }
+                    const auto legacyWeeksLeft = _s6.CampaignWeeksLeft[i] & ~(CAMPAIGN_ACTIVE_FLAG | CAMPAIGN_FIRST_WEEK_FLAG);
+                    campaign.weeksLeft = static_cast<uint8_t>(
+                        std::min<uint16_t>(legacyWeeksLeft * OpenRCT2::GameTime::kDaysPerWeek, 255));
                     if (campaign.type == ADVERTISING_CAMPAIGN_RIDE_FREE || campaign.type == ADVERTISING_CAMPAIGN_RIDE)
                     {
                         campaign.rideId = RCT12RideIdToOpenRCT2RideId(_s6.CampaignRideIndex[i]);

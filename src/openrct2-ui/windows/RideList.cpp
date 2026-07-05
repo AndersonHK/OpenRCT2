@@ -747,7 +747,7 @@ namespace OpenRCT2::Ui::Windows
                         if (ridePtr->upkeepCost != kMoney64Undefined)
                         {
                             formatSecondary = STR_RIDE_LIST_RUNNING_COST_LABEL;
-                            ft.Add<money64>(ridePtr->upkeepCost * 16);
+                            ft.Add<money64>(RideGetUpkeepCostPerHour(*ridePtr));
                         }
                         break;
                     case INFORMATION_TYPE_QUEUE_LENGTH:

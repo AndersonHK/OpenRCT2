@@ -11,6 +11,7 @@
 
 #include "../Game.h"
 #include "../GameState.h"
+#include "../core/GameTime.hpp"
 #include "../entity/Guest.h"
 #include "../scenario/Scenario.h"
 #include "../world/Location.hpp"
@@ -105,7 +106,7 @@ static void RideUpdateStationDodgems(Ride& ride, StationIndex stationIndex)
 
     if (ride.flags.has(RideFlag::passStationNoStopping))
     {
-        int32_t dx = ride.timeLimit * 32;
+        int32_t dx = GameTime::SecondsToTicks(ride.timeLimit);
         int32_t dh = (dx >> 8) & 0xFF;
         for (size_t i = 0; i < ride.numTrains; i++)
         {
@@ -175,7 +176,7 @@ static void RideUpdateStationNormal(Ride& ride, StationIndex stationIndex)
         }
         else
         {
-            if (time != 127 && !(currentTicks & 31))
+            if (time != 127 && GameTime::IsWholeSecondTick(currentTicks))
                 time--;
 
             station.Depart = time;

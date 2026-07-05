@@ -15,7 +15,6 @@
 
 using namespace OpenRCT2;
 
-constexpr int32_t kMonthTicksIncrement = 4;
 constexpr int32_t kMaskWeekTicks = 0x3FFF;
 constexpr int32_t kMaskFortnightTicks = 0x7FFF;
 constexpr int32_t kMaskMonthTicks = 0xFFFF;

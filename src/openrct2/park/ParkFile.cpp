@@ -26,6 +26,7 @@
 #include "../core/OrcaStream.hpp"
 #include "../core/Path.hpp"
 #include "../core/String.hpp"
+#include "../core/UnitConversion.h"
 #include "../drawing/Drawing.h"
 #include "../entity/Balloon.h"
 #include "../entity/Duck.h"
@@ -195,6 +196,14 @@ namespace OpenRCT2
             {
                 value = legacyValue == kCompanyValueOnFailedObjective ? kCompanyValueOnFailedObjective
                                                                        : ReadLegacyParkMoney64(legacyValue);
+            }
+        }
+
+        static void MigrateLegacyRideLength(OrcaStream::ChunkStream& cs, int32_t& length, uint32_t version)
+        {
+            if (cs.getMode() == OrcaStream::Mode::reading && version < kRideLengthScaleVersion)
+            {
+                length = ScaleLegacyRideLengthToReal(length);
             }
         }
 
@@ -1581,7 +1590,7 @@ namespace OpenRCT2
 
                     // Stations
                     cs.readWrite(ride.numStations);
-                    cs.readWriteArray(ride.getStations(), [&cs](RideStation& station) {
+                    cs.readWriteArray(ride.getStations(), [&cs, version](RideStation& station) {
                         cs.readWrite(station.Start);
                         cs.readWrite(station.Height);
                         cs.readWrite(station.Length);
@@ -1590,6 +1599,7 @@ namespace OpenRCT2
                         cs.readWrite(station.Entrance);
                         cs.readWrite(station.Exit);
                         cs.readWrite(station.SegmentLength);
+                        MigrateLegacyRideLength(cs, station.SegmentLength, version);
                         cs.readWrite(station.SegmentTime);
                         cs.readWrite(station.QueueTime);
                         cs.readWrite(station.QueueLength);
@@ -1717,6 +1727,7 @@ namespace OpenRCT2
                     cs.readWrite(ride.startDropHeight);
                     cs.readWrite(ride.highestDropHeight);
                     cs.readWrite(ride.shelteredLength);
+                    MigrateLegacyRideLength(cs, ride.shelteredLength, version);
                     cs.readWrite(ride.var11C);
                     cs.readWrite(ride.numShelteredSections);
                     if (version >= kInversionsHolesShelteredEightsSplit)
@@ -1792,6 +1803,20 @@ namespace OpenRCT2
                         cs.readWrite(v);
                         return true;
                     });
+
+                    if (version >= kRideItemSalesHistoryVersion)
+                    {
+                        cs.readWrite(ride.curNumPrimaryItemsSold);
+                        cs.readWrite(ride.curNumSecondaryItemsSold);
+                        cs.readWriteArray(ride.numPrimaryItemsSoldHistory, [&cs](uint16_t& v) {
+                            cs.readWrite(v);
+                            return true;
+                        });
+                        cs.readWriteArray(ride.numSecondaryItemsSoldHistory, [&cs](uint16_t& v) {
+                            cs.readWrite(v);
+                            return true;
+                        });
+                    }
 
                     cs.readWrite(ride.totalCustomers);
                     ReadWriteParkMoney64(cs, ride.totalProfit, version);
