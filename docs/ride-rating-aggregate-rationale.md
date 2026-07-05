@@ -23,6 +23,18 @@ The initial divisor is `1000`, so doubling raw accumulated stats produces roughl
 
 The aggregate path does not seed ratings from `RideRatingsDescriptor::BaseRatings`. If an aggregate-rated ride has no samples, it displays zero aggregate stats rather than falling back to hidden base stats.
 
+## G-force scoring
+
+Per-tick G-force scoring now treats different accelerations as different ride sensations instead of one generic deviation from normal gravity:
+
+- `1.0G` vertical is neutral because it is the normal resting load.
+- `1.0G` down to `0.0G` is airtime, mostly excitement with moderate intensity and light nausea.
+- negative vertical G starts with the full airtime effect, then adds steeper intensity and nausea as restraint pressure gets harsher.
+- positive vertical G adds some excitement, but mostly intensity and nausea, following the old weighting where high positive G was more forceful than fun.
+- lateral G uses the steepest curve. Mild sideways force is tolerable, but the curve rises quickly enough that a faster vehicle through the same curve can score higher even if it spends fewer ticks in that curve.
+
+The old ride-wide G-force code is used as a calibration reference. Its `2.8G` and `3.1G` lateral thresholds are no longer hard cliffs, but the smooth curve is already severe near those landmarks: excitement tapers while intensity and nausea continue to compound.
+
 ## Function flow
 
 - `RideRatingAccumulator` in `src/openrct2/ride/Ride.h` stores raw totals and tick count for one active or completed sample.
@@ -76,10 +88,10 @@ The aggregate path treats old ride-wide modifiers differently:
 - `src/openrct2/ride/Vehicle.cpp`: `RideRatingTickIsSheltered`, `RideRatingGetLocalContextScore`, `RideRatingAccumulateTick`, `RideRatingUpdateLiveTrainSample`, `Vehicle::UpdateMeasurements`, `test_finish`, `test_reset`.
 - `src/openrct2/ride/Vehicle.Station.cpp`: `RideRatingPublishTrainSample`, `Vehicle::UpdateUnloadingPassengers`.
 - `src/openrct2/ride/Ride.cpp`: active/recent rating sample helpers, `InvalidateTestResults`.
-- `src/openrct2/ride/RideRatings.cpp`: `RideRating::RecordRiderSample`, `RideRatingsCalculate`, `RideRatingsRawToRating`, `RideRatingsRawDivide`, `RideRatingsRawApplyRideEntryMultipliers`, `RideRatingsRawApplyRequirement`, `RideRatingsRawApplyModifiers`, `RideRatingsCalculateAggregated`.
+- `src/openrct2/ride/RideRatings.h` and `src/openrct2/ride/RideRatings.cpp`: `RideRating::ScoreAirtimeGForTick`, `RideRating::ScoreNegativeVerticalGForTick`, `RideRating::ScorePositiveVerticalGForTick`, `RideRating::ScoreLateralGForTick`, `RideRating::ScoreGForcesForTick`, `RideRating::RecordRiderSample`, `RideRatingsCalculate`, `RideRatingsRawToRating`, `RideRatingsRawDivide`, `RideRatingsRawApplyRideEntryMultipliers`, `RideRatingsRawApplyRequirement`, `RideRatingsRawApplyModifiers`, `RideRatingsCalculateAggregated`.
 - `src/openrct2/ride/rtd/gentle/Maze.h`: removes post-hoc maze size and scenery bonuses from the Maze descriptor.
 - `test/tests/RideRatings.cpp` and `test/tests/testdata/ratings/*.txt`: update the fixture expectations for aggregate-rated rides with no samples; the helper can regenerate fixtures with `OPENRCT2_UPDATE_RIDE_RATINGS=1`.
 
 ## Verification notes
 
-The project builds with `/WX` using the local Windows build command. The ride-rating fixture tests now assert that aggregate-rated saved-park rides with no live/test samples do not receive legacy base stats.
+The project builds with `/WX` using the local Windows build command. The ride-rating fixture tests now assert that aggregate-rated saved-park rides with no live/test samples do not receive legacy base stats. Focused G-force tests assert that airtime is exciting, negative vertical G is nastier than airtime, positive vertical G mostly feeds intensity, and lateral G grows superlinearly.

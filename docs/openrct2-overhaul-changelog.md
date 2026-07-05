@@ -78,6 +78,8 @@ Correction: completed test runs now publish their measured raw stat accumulator 
 
 Correction: Maze no longer receives descriptor base stats or `BonusMazeSize`/`BonusScenery` post bonuses. Maze pathfinding now records per-guest active samples and publishes each completed exit path into the same rolling cache, so maze length contributes only through the paths guests actually walk.
 
+Tuning: per-tick G-force scoring now uses smooth curves informed by the old ride-wide G-force logic. `1.0G` vertical is neutral, `0.0G` is treated as exciting airtime, negative vertical G becomes progressively nastier, positive vertical G mostly feeds intensity, and lateral G has the steepest curve with the old `2.8G`/`3.1G` lateral penalties translated into a smooth severe range.
+
 Details: [Ride rating aggregate rationale](ride-rating-aggregate-rationale.md)
 
 ### Guest generation and park rating

@@ -14,6 +14,7 @@
 #include "../world/Location.hpp"
 
 #include <array>
+#include <cstdint>
 
 struct Ride;
 struct RideRatingAccumulator;
@@ -51,6 +52,13 @@ namespace OpenRCT2
 
 #pragma pack(pop)
 
+        struct TickScore
+        {
+            int64_t excitement{};
+            int64_t intensity{};
+            int64_t nausea{};
+        };
+
         struct UpdateState
         {
             CoordsXYZ Proximity;
@@ -69,6 +77,12 @@ namespace OpenRCT2
 
         static constexpr size_t kMaxUpdateStates = 4;
         using UpdateStates = std::array<UpdateState, kMaxUpdateStates>;
+
+        TickScore ScoreAirtimeGForTick(int32_t verticalG);
+        TickScore ScoreNegativeVerticalGForTick(int32_t verticalG);
+        TickScore ScorePositiveVerticalGForTick(int32_t verticalG);
+        TickScore ScoreLateralGForTick(int32_t lateralG);
+        TickScore ScoreGForcesForTick(int32_t verticalG, int32_t lateralG);
 
         void ResetUpdateStates();
         void UpdateRide(const Ride& ride);

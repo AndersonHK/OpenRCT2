@@ -30,7 +30,7 @@ Excitement, intensity, and nausea are no longer meant to be mostly post-processe
 
 The reason for this change is to make ratings feel more like a property of the trip the guest experienced. A coaster that is twice as long should collect roughly twice as much raw rating material, but the final displayed score should have diminishing returns rather than doubling outright.
 
-Current balancing uses a square-root finalizer, roughly `sqrt(raw / 1000) * 100`. Train ticks average the contribution of every vehicle on the train, then completed rider, train, and test-run samples are kept in a rolling cache of the last twenty samples. The displayed ride rating is based on that average. Aggregate-rated rides with no samples display zero aggregate stats instead of hidden base ratings. Mazes are handled the same way: they gain stats from the paths guests actually walk, not from a flat maze-size bonus.
+Current balancing uses a square-root finalizer, roughly `sqrt(raw / 1000) * 100`. Train ticks average the contribution of every vehicle on the train, then completed rider, train, and test-run samples are kept in a rolling cache of the last twenty samples. The displayed ride rating is based on that average. G-force scoring uses smooth curves informed by the original ride-wide thresholds: 0G airtime is fun, negative G and high positive G become harsher, and lateral G grows the fastest so a brief high-speed unbanked turn can matter more than a longer mild turn. Aggregate-rated rides with no samples display zero aggregate stats instead of hidden base ratings. Mazes are handled the same way: they gain stats from the paths guests actually walk, not from a flat maze-size bonus.
 
 More detail: [Ride rating aggregate rationale](docs/ride-rating-aggregate-rationale.md).
 

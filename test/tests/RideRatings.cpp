@@ -209,6 +209,53 @@ TEST_F(RideRatings, RecentAccumulatorAveragesLastTwentySamples)
     EXPECT_EQ(accumulator.ticks, 1u);
 }
 
+TEST_F(RideRatings, GForceTickScoringTreatsAirtimeAsExciting)
+{
+    const auto neutral = RideRating::ScoreGForcesForTick(100, 0);
+    const auto airtime = RideRating::ScoreGForcesForTick(0, 0);
+
+    EXPECT_EQ(neutral.excitement, 0);
+    EXPECT_EQ(neutral.intensity, 0);
+    EXPECT_EQ(neutral.nausea, 0);
+    EXPECT_GT(airtime.excitement, 30);
+    EXPECT_GT(airtime.excitement, airtime.intensity);
+    EXPECT_GT(airtime.intensity, airtime.nausea);
+}
+
+TEST_F(RideRatings, GForceTickScoringMakesNegativeVerticalGNastierThanAirtime)
+{
+    const auto airtime = RideRating::ScoreGForcesForTick(0, 0);
+    const auto negative = RideRating::ScoreGForcesForTick(-100, 0);
+
+    EXPECT_GT(negative.excitement, airtime.excitement);
+    EXPECT_GT(negative.intensity, airtime.intensity * 3);
+    EXPECT_GT(negative.nausea, airtime.nausea * 5);
+    EXPECT_GT(negative.intensity, negative.excitement);
+}
+
+TEST_F(RideRatings, GForceTickScoringWeightsPositiveVerticalGMostlyAsIntensity)
+{
+    const auto mild = RideRating::ScoreGForcesForTick(200, 0);
+    const auto strong = RideRating::ScoreGForcesForTick(300, 0);
+
+    EXPECT_GT(strong.intensity, mild.intensity * 2);
+    EXPECT_GT(strong.intensity, strong.excitement);
+    EXPECT_GT(strong.nausea, strong.excitement);
+}
+
+TEST_F(RideRatings, GForceTickScoringMakesLateralGSuperlinear)
+{
+    const auto oneG = RideRating::ScoreGForcesForTick(100, 100);
+    const auto twoG = RideRating::ScoreGForcesForTick(100, 200);
+    const auto severe = RideRating::ScoreGForcesForTick(100, 310);
+
+    EXPECT_GT(twoG.intensity, oneG.intensity * 3);
+    EXPECT_GT(twoG.nausea, oneG.nausea * 3);
+    EXPECT_GT(severe.intensity, twoG.intensity * 3);
+    EXPECT_GT(severe.nausea, twoG.nausea * 3);
+    EXPECT_LT(severe.excitement, twoG.excitement);
+}
+
 TEST_F(RideRatings, EverythingPark)
 {
     TestRatings("EverythingPark.park", 529);

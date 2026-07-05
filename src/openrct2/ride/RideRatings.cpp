@@ -32,6 +32,7 @@
 #include "TrackData.h"
 #include "TrackIteration.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <iterator>
@@ -104,6 +105,92 @@ struct RawRideRating
     int64_t intensity{};
     int64_t nausea{};
 };
+
+static int64_t RideRatingCurveScore(int32_t hundredthsOfG, double coefficient, double exponent)
+{
+    if (hundredthsOfG <= 0)
+    {
+        return 0;
+    }
+
+    const auto g = static_cast<double>(hundredthsOfG) / 100.0;
+    const auto score = coefficient * std::pow(g, exponent);
+    if (!std::isfinite(score) || score <= 0.0)
+    {
+        return 0;
+    }
+    return static_cast<int64_t>(std::llround(score));
+}
+
+static void RideRatingAddTickScore(RideRating::TickScore& total, const RideRating::TickScore& value)
+{
+    total.excitement += value.excitement;
+    total.intensity += value.intensity;
+    total.nausea += value.nausea;
+}
+
+RideRating::TickScore RideRating::ScoreAirtimeGForTick(int32_t verticalG)
+{
+    const auto airtimeG = std::clamp(100 - verticalG, 0, 100);
+    return {
+        .excitement = RideRatingCurveScore(airtimeG, 45.0, 1.25),
+        .intensity = RideRatingCurveScore(airtimeG, 18.0, 1.35),
+        .nausea = RideRatingCurveScore(airtimeG, 8.0, 1.35),
+    };
+}
+
+RideRating::TickScore RideRating::ScoreNegativeVerticalGForTick(int32_t verticalG)
+{
+    const auto negativeG = std::max(-verticalG, 0);
+    return {
+        .excitement = RideRatingCurveScore(negativeG, 22.0, 1.50),
+        .intensity = RideRatingCurveScore(negativeG, 58.0, 1.70),
+        .nausea = RideRatingCurveScore(negativeG, 34.0, 1.70),
+    };
+}
+
+RideRating::TickScore RideRating::ScorePositiveVerticalGForTick(int32_t verticalG)
+{
+    const auto positiveG = std::max(verticalG - 100, 0);
+    return {
+        .excitement = RideRatingCurveScore(positiveG, 14.0, 1.35),
+        .intensity = RideRatingCurveScore(positiveG, 40.0, 1.55),
+        .nausea = RideRatingCurveScore(positiveG, 18.0, 1.55),
+    };
+}
+
+RideRating::TickScore RideRating::ScoreLateralGForTick(int32_t lateralG)
+{
+    const auto sidewaysG = std::abs(lateralG);
+    const auto excitementG = std::min(sidewaysG, 200);
+    auto excitement = RideRatingCurveScore(excitementG, 12.0, 1.35);
+
+    // The old code had hard penalties around 2.8G and 3.1G. Smoothly taper fun before those landmarks
+    // while continuing to compound intensity and nausea.
+    if (sidewaysG > 260)
+    {
+        const auto g = static_cast<double>(sidewaysG) / 100.0;
+        const auto excitementScale = std::max(0.35, 1.0 - ((g - 2.60) * 0.35));
+        excitement = static_cast<int64_t>(std::llround(static_cast<double>(excitement) * excitementScale));
+    }
+
+    const auto severeSidewaysG = std::max(sidewaysG - 200, 0);
+    return {
+        .excitement = excitement,
+        .intensity = RideRatingCurveScore(sidewaysG, 35.0, 2.00) + RideRatingCurveScore(severeSidewaysG, 160.0, 2.20),
+        .nausea = RideRatingCurveScore(sidewaysG, 24.0, 2.00) + RideRatingCurveScore(severeSidewaysG, 90.0, 2.20),
+    };
+}
+
+RideRating::TickScore RideRating::ScoreGForcesForTick(int32_t verticalG, int32_t lateralG)
+{
+    TickScore result{};
+    RideRatingAddTickScore(result, ScoreAirtimeGForTick(verticalG));
+    RideRatingAddTickScore(result, ScoreNegativeVerticalGForTick(verticalG));
+    RideRatingAddTickScore(result, ScorePositiveVerticalGForTick(verticalG));
+    RideRatingAddTickScore(result, ScoreLateralGForTick(lateralG));
+    return result;
+}
 
 static void ride_ratings_update_state(RideRating::UpdateState& state);
 static void ride_ratings_update_state_0(RideRating::UpdateState& state);

@@ -137,16 +137,11 @@ static void RideRatingAccumulateTick(
 {
     const auto& ted = GetTrackElementDescriptor(trackType);
     const int32_t speed = std::abs(velocity) >> 16;
-    const int32_t positiveVerticalG = std::max(gForces.verticalG - 100, 0);
-    const int32_t negativeVerticalG = std::max(100 - gForces.verticalG, 0);
-    const int32_t lateralG = std::abs(gForces.lateralG);
+    const auto gForceScore = RideRating::ScoreGForcesForTick(gForces.verticalG, gForces.lateralG);
 
-    int64_t excitement = 1 + (std::min(speed, 90) / 5) + (std::min(positiveVerticalG, 400) / 12)
-        + (std::min(negativeVerticalG, 300) / 8) + (std::min(lateralG, 300) / 18);
-    int64_t intensity = (std::min(speed, 90) / 4) + (std::min(positiveVerticalG, 450) / 5)
-        + (std::min(negativeVerticalG, 350) / 4) + (std::min(lateralG, 350) / 3);
-    int64_t nausea = (std::min(speed, 90) / 8) + (std::min(positiveVerticalG, 450) / 10)
-        + (std::min(negativeVerticalG, 350) / 5) + (std::min(lateralG, 350) / 2);
+    int64_t excitement = 1 + (std::min(speed, 90) / 5) + gForceScore.excitement;
+    int64_t intensity = (std::min(speed, 90) / 4) + gForceScore.intensity;
+    int64_t nausea = (std::min(speed, 90) / 8) + gForceScore.nausea;
 
     if (ted.flags.hasAny(TrackElementFlag::turnLeft, TrackElementFlag::turnRight))
     {
