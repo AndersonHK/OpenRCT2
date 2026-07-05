@@ -270,7 +270,7 @@ struct RideRatingAccumulator
     }
 };
 
-constexpr size_t kRideRatingRecentSampleCount = 10;
+constexpr size_t kRideRatingRecentSampleCount = 20;
 constexpr size_t kRideRatingActiveSampleCount = 8;
 
 /**

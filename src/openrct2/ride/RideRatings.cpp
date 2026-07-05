@@ -20,6 +20,7 @@
 #include "../scripting/ScriptEngine.h"
 #include "../ui/WindowManager.h"
 #include "../world/Map.h"
+#include "../world/Scenery.h"
 #include "../world/tile_element/PathElement.h"
 #include "../world/tile_element/SurfaceElement.h"
 #include "../world/tile_element/TileElement.h"
@@ -613,6 +614,10 @@ static void ride_ratings_score_close_proximity_in_direction(
         switch (tileElement->getType())
         {
             case TileElementType::Surface:
+                if (TileElementCountsAsDecoration(*tileElement))
+                {
+                    proximity_score_increment(state, PROXIMITY_SCENERY_SIDE_BELOW);
+                }
                 if (state.ProximityBaseHeight <= inputTileElement->baseHeight)
                 {
                     if (inputTileElement->clearanceHeight <= tileElement->baseHeight)
@@ -1842,8 +1847,7 @@ static int32_t ride_ratings_get_scenery_score(const Ride& ride)
                 if (tileElement->isGhost())
                     continue;
 
-                const auto type = tileElement->getType();
-                if (type == TileElementType::SmallScenery || type == TileElementType::LargeScenery)
+                if (TileElementCountsAsDecoration(*tileElement))
                     numSceneryItems++;
             } while (!(tileElement++)->isLastForTile());
         }

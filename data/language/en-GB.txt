@@ -1013,7 +1013,7 @@ STR_1643    :
 STR_1644    :
 STR_1645    :
 STR_1646    :
-STR_1647    :
+STR_1647    :“{STRINGID} isn’t worth the money”
 STR_1648    :“Help! Put me down!”
 STR_1649    :“I’m running out of cash!”
 STR_1650    :“Wow! A new ride being built!”

@@ -28,7 +28,7 @@ Replay files were bumped to version 12. Older replay snapshots convert guest pai
 
 Guest shop and cash logic had several raw numeric comparisons that assumed tenths. Those now use `_GBP`, `ToMoney64()`, or `ToMoney16()` so value judgments, satisfaction, generated cash, and shop happiness continue to mean the same thing after the storage scale changed.
 
-Ride target pricing now uses `$0.05` minimum margins for good-deal, no-effect, and bad-deal targets. Because the runtime money type can represent cents, the previous `$0.10` precision limitation no longer applies.
+Ride target pricing now uses `$0.05` minimum margins for discount, fair-price, and expensive targets. Because the runtime money type can represent cents, the previous `$0.10` precision limitation no longer applies.
 
 Ride descriptors intentionally keep their old tenth-based `DefaultPrices` and `UpkeepCosts` tables. `RideCreateAction` converts default admission prices with `ToMoney64()`, `RideRatingsCalculateValue()` stores computed ride value as cent money, and `RideComputeUpkeep()` converts its final legacy upkeep calculation once. This preserves the old authored tables while preventing new rides, automatic target prices, and running costs from becoming 10x too small.
 

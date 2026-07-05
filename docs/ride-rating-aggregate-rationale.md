@@ -13,7 +13,7 @@ Each sampled vehicle tick contributes raw excitement, intensity, and nausea from
 - local scenery, path, and nearby-ride context around the sampled tile
 - synchronized station operation
 
-Raw totals are stored in active rider/train/test samples. Completed samples are copied into a rolling cache of the last ten rider/train/test results, and the displayed rating is calculated from the average raw sample before applying the geometric curve:
+Raw totals are stored in active rider/train/test samples. Completed samples are copied into a rolling cache of the last twenty rider/train/test results, and the displayed rating is calculated from the average raw sample before applying the geometric curve:
 
 ```text
 rating = sqrt(raw / divisor) * 100
@@ -26,14 +26,15 @@ The aggregate path does not seed ratings from `RideRatingsDescriptor::BaseRating
 ## Function flow
 
 - `RideRatingAccumulator` in `src/openrct2/ride/Ride.h` stores raw totals and tick count for one active or completed sample.
-- `Ride::activeRatingSamples` tracks currently running guest/train samples, and `Ride::recentRatingSamples` stores the last ten completed samples used for display smoothing.
+- `Ride::activeRatingSamples` tracks currently running guest/train samples, and `Ride::recentRatingSamples` stores the last twenty completed samples used for display smoothing.
 - `RideGetOrCreateActiveRatingSample()`, `RideAddRecentRatingSample()`, and `RideGetRecentRatingAccumulator()` in `src/openrct2/ride/Ride.cpp` manage active samples and the rolling average.
-- `Vehicle::UpdateMeasurements()` in `src/openrct2/ride/Vehicle.cpp` samples the current track piece and G forces during test runs.
+- `Vehicle::UpdateMeasurements()` in `src/openrct2/ride/Vehicle.cpp` samples the train's current per-car track pieces and G forces during test runs.
 - `test_finish()` in `src/openrct2/ride/Vehicle.cpp` publishes the completed test accumulator into the rolling sample cache.
 - `RideRatingUpdateLiveTrainSample()` in `src/openrct2/ride/Vehicle.cpp` samples normal passenger trains during live operation.
 - `RideRatingPublishTrainSample()` in `src/openrct2/ride/Vehicle.Station.cpp` publishes a train sample when the train unloads.
 - `RideRatingAccumulateTick()` converts that tick state into raw excitement, intensity, and nausea.
 - `RideRatingTickIsSheltered()` and `RideRatingGetLocalContextScore()` move shelter, scenery, path, and nearby-ride effects into the sampled tick path.
+- Train samples average the per-tick contributions of every vehicle on the train before adding that tick to the active train sample, so back cars and middle cars affect ratings without multiplying the ride duration.
 - `test_reset()` and `InvalidateTestResults()` clear test and rider samples whenever test data is reset.
 - `RideRating::RecordRiderSample()` in `src/openrct2/ride/RideRatings.cpp` records completed rider/train/test samples and immediately recalculates the displayed rating.
 - `RideRatingsCalculate()` in `src/openrct2/ride/RideRatings.cpp` uses aggregate finalization for normal rides and mazes, preferring the rolling sample cache and falling back only to an in-progress formal test accumulator.
@@ -50,7 +51,7 @@ Maze sampling happens in `Guest::updateRideMazePathfinding()`:
 - each active maze guest can claim an active sample slot while it pathfinds
 - each hedge or entrance/exit step contributes raw excitement and intensity
 - step contribution is based on local choice complexity, nearby scenery/path context, and whether the step exits the maze
-- the sample is published once the guest reaches the exit, then folded into the last-ten-sample rolling average
+- the sample is published once the guest reaches the exit, then folded into the last-twenty-sample rolling average
 - high traffic does not inflate ride stats because completed paths are averaged for display rather than summed ride-wide
 - editing maze track clears active and recent samples so the next rider traversal retests the changed layout
 

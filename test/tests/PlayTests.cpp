@@ -320,6 +320,29 @@ TEST_F(PlayTests, RideSetPriceActionPreservesCentPrices)
     EXPECT_EQ(ferrisWheel.price[0], 1.23_GBP);
 }
 
+static Park::ParkData MakeGuestGenerationPark(uint16_t rating, money64 value)
+{
+    Park::ParkData park{};
+    park.flags = PARK_FLAGS_NO_MONEY;
+    park.rating = rating;
+    park.value = value;
+    return park;
+}
+
+TEST_F(PlayTests, GuestGenerationRatingScaleDoublesEveryHundredRatingPoints)
+{
+    EXPECT_EQ(Park::CalculateGuestGenerationProbability(MakeGuestGenerationPark(500, 40000.00_GBP)), 213u);
+    EXPECT_EQ(Park::CalculateGuestGenerationProbability(MakeGuestGenerationPark(600, 40000.00_GBP)), 425u);
+    EXPECT_EQ(Park::CalculateGuestGenerationProbability(MakeGuestGenerationPark(700, 40000.00_GBP)), 850u);
+    EXPECT_EQ(Park::CalculateGuestGenerationProbability(MakeGuestGenerationPark(800, 40000.00_GBP)), 1700u);
+}
+
+TEST_F(PlayTests, GuestGenerationKeepsSmallPositiveParkValueChance)
+{
+    EXPECT_EQ(Park::CalculateGuestGenerationProbability(MakeGuestGenerationPark(600, 0.00_GBP)), 0u);
+    EXPECT_EQ(Park::CalculateGuestGenerationProbability(MakeGuestGenerationPark(600, 0.01_GBP)), 1u);
+}
+
 TEST_F(PlayTests, RideTargetPriceUsesIncomeDebuff)
 {
     std::string initStateFile = TestData::GetParkPath("small_park_with_ferris_wheel.sv6");
@@ -374,6 +397,16 @@ TEST_F(PlayTests, GuestRideValueThresholdsUseIncomeDebuff)
     ASSERT_EQ(result.error, GameActions::Status::ok);
     EXPECT_FALSE(badValueGuest->shouldGoOnRide(*ferrisWheel, StationIndex::FromUnderlying(0), false, false));
     EXPECT_TRUE(GuestHasRideThought(*badValueGuest, PeepThoughtType::badValue, ferrisWheel->id));
+
+    auto* expensiveGuest = Park::GenerateGuest();
+    expensiveGuest->cashInPocket = 100.00_GBP;
+    expensiveGuest->guestHeadingToRideId = ferrisWheel->id;
+
+    result = executeImmediate<GameActions::RideSetPriceAction>(ferrisWheel->id, 10.51_GBP, true);
+    ASSERT_EQ(result.error, GameActions::Status::ok);
+    EXPECT_TRUE(expensiveGuest->shouldGoOnRide(*ferrisWheel, StationIndex::FromUnderlying(0), false, false));
+    EXPECT_TRUE(GuestHasRideThought(*expensiveGuest, PeepThoughtType::expensiveRide, ferrisWheel->id));
+    EXPECT_FALSE(GuestHasRideThought(*expensiveGuest, PeepThoughtType::badValue, ferrisWheel->id));
 
     auto* goodValueGuest = Park::GenerateGuest();
     goodValueGuest->cashInPocket = 100.00_GBP;

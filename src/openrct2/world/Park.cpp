@@ -172,29 +172,53 @@ namespace OpenRCT2::Park
         return suggestedMaxGuests;
     }
 
-    static uint32_t calculateGuestGenerationProbability(ParkData& park)
+    static uint32_t QuantizeGuestGenerationProbability(double probability)
     {
-        constexpr money64 kGuestGenerationBaselineParkValue = 15000.00_GBP;
-        constexpr uint32_t kGuestGenerationFullRatingProbability = 850;
+        if (!std::isfinite(probability) || probability <= 0.0)
+        {
+            return 0;
+        }
+
+        if (probability < 1.0)
+        {
+            return 1;
+        }
+
+        constexpr double kMaxProbability = std::numeric_limits<uint16_t>::max();
+        if (probability >= kMaxProbability)
+        {
+            return std::numeric_limits<uint16_t>::max();
+        }
+
+        return static_cast<uint32_t>(std::lround(probability));
+    }
+
+    uint32_t CalculateGuestGenerationProbability(const ParkData& park)
+    {
+        constexpr money64 kGuestGenerationBaselineParkValue = 40000.00_GBP;
+        constexpr double kGuestGenerationRating700Probability = 850.0;
 
         // Rating now reflects average guest happiness, so crowding and queues affect arrivals through happiness.
-        uint32_t probability = (static_cast<uint32_t>(park.rating) * kGuestGenerationFullRatingProbability) / 999;
+        // Every 100 rating points doubles or halves generation around the 700-rating reference point.
+        const auto clampedRating = std::clamp<uint16_t>(park.rating, 0, 999);
+        double probability = kGuestGenerationRating700Probability
+            * std::pow(2.0, (static_cast<double>(clampedRating) - 700.0) / 100.0);
 
-        // Keep the tuned probability at $15,000 park value, then scale geometrically from park value.
+        // Keep the tuned probability at $40,000 park value, then scale geometrically from park value.
         if (park.value <= 0)
         {
-            probability = 0;
+            probability = 0.0;
         }
         else
         {
             const auto valueScale = std::sqrt(
                 static_cast<double>(park.value) / static_cast<double>(kGuestGenerationBaselineParkValue));
-            probability = static_cast<uint32_t>(std::lround(static_cast<double>(probability) * valueScale));
+            probability *= valueScale;
         }
 
         if (park.flags & PARK_FLAGS_DIFFICULT_GUEST_GENERATION)
         {
-            probability = (probability * 3) / 4;
+            probability *= 0.75;
         }
 
         // Penalty for overpriced entrance fee relative to debuffed total ride value.
@@ -202,29 +226,29 @@ namespace OpenRCT2::Park
         auto parkEntranceValue = (park.totalRideValueForMoney * kParkEntranceValueNumerator) / kParkEntranceValueDenominator;
         if (entranceFee > parkEntranceValue)
         {
-            probability /= 4;
+            probability *= 0.25;
             // Extra penalty for very overpriced entrance fee
             if (entranceFee / 2 > parkEntranceValue)
             {
-                probability /= 4;
+                probability *= 0.25;
             }
         }
 
         // Reward or penalties for park awards
         for (const auto& award : park.currentAwards)
         {
-            // +/- 0.25% of the probability
+            // +/- 25% of the probability
             if (AwardIsPositive(award.type))
             {
-                probability += probability / 4;
+                probability *= 1.25;
             }
             else
             {
-                probability -= probability / 4;
+                probability *= 0.75;
             }
         }
 
-        return std::min<uint32_t>(probability, std::numeric_limits<uint16_t>::max());
+        return QuantizeGuestGenerationProbability(probability);
     }
 
     static void generateGuests(ParkData& park, GameState_t& gameState)
@@ -346,7 +370,7 @@ namespace OpenRCT2::Park
             park.totalRideValueForMoney = calculateTotalRideValueForMoney(park, gameState);
             UpdateEntranceFee(park);
             park.suggestedGuestMaximum = calculateSuggestedMaxGuests(park, gameState);
-            park.guestGenerationProbability = calculateGuestGenerationProbability(park);
+            park.guestGenerationProbability = CalculateGuestGenerationProbability(park);
 
             windowMgr->InvalidateByClass(WindowClass::finances);
             auto intent = Intent(INTENT_ACTION_UPDATE_PARK_RATING);

@@ -25,9 +25,11 @@
 #include "../world/tile_element/BannerElement.h"
 #include "../world/tile_element/EntranceElement.h"
 #include "../world/tile_element/PathElement.h"
+#include "../world/tile_element/SurfaceElement.h"
 #include "../world/tile_element/TileElement.h"
 #include "../world/tile_element/TrackElement.h"
 
+#include <array>
 #include <bit>
 #include <bitset>
 #include <cassert>
@@ -64,6 +66,8 @@ namespace OpenRCT2::PathFinding
     };
 
     static int32_t GuestSurfacePathFinding(Peep& peep);
+
+    static constexpr uint8_t kGuestSurfacePathRejoinSearchRadius = 3;
 
     enum class PathSearchResult
     {
@@ -250,12 +254,150 @@ namespace OpenRCT2::PathFinding
         return 0;
     }
 
+    struct SurfacePathSearchNode
+    {
+        CoordsXY loc;
+        int32_t baseZ;
+        int32_t walkZ;
+        Direction firstDirection;
+        uint8_t distance;
+    };
+
+    static bool SurfacePathHasReachableFootpath(const CoordsXY& loc, int32_t walkZ)
+    {
+        const auto* tileElement = MapGetFirstElementAt(loc);
+        if (tileElement == nullptr)
+            return false;
+
+        const int32_t baseZ = std::max(0, (walkZ / kCoordsZStep) - 2);
+        const int32_t topZ = (walkZ / kCoordsZStep) + 1;
+
+        for (;;)
+        {
+            if (baseZ <= tileElement->baseHeight && topZ >= tileElement->baseHeight && !tileElement->isGhost()
+                && tileElement->getType() == TileElementType::Path)
+            {
+                return true;
+            }
+
+            if (tileElement->isLastForTile())
+                return false;
+
+            tileElement++;
+        }
+    }
+
+    static bool SurfacePathCanStepFromNode(const SurfacePathSearchNode& node, Direction direction, CoordsXY& nextLoc)
+    {
+        auto pathPos = CoordsXYRangedZ{ node.loc, node.baseZ, node.baseZ + kPathClearance };
+        if (WallInTheWay(pathPos, direction))
+            return false;
+
+        nextLoc = (node.loc + CoordsDirectionDelta[direction]).ToTileStart();
+        pathPos = CoordsXYRangedZ{ nextLoc, node.baseZ, node.baseZ + kPathClearance };
+        if (WallInTheWay(pathPos, DirectionReverse(direction)))
+            return false;
+
+        return true;
+    }
+
+    static bool SurfacePathTryMakeSearchNode(
+        const SurfacePathSearchNode& previousNode, const CoordsXY& loc, Direction firstDirection,
+        SurfacePathSearchNode& nextNode)
+    {
+        if (!MapIsLocationInPark(loc) || MapSurfaceIsBlocked(loc))
+            return false;
+
+        const auto* surfaceElement = MapGetSurfaceElementAt(loc);
+        if (surfaceElement == nullptr || surfaceElement->GetWaterHeight() > 0)
+            return false;
+
+        const int32_t walkZ = TileElementHeight(loc.ToTileCentre());
+        if (std::abs(walkZ - previousNode.walkZ) > 3)
+            return false;
+
+        nextNode = SurfacePathSearchNode{
+            loc,
+            surfaceElement->getBaseZ(),
+            walkZ,
+            firstDirection,
+            static_cast<uint8_t>(previousNode.distance + 1),
+        };
+        return true;
+    }
+
+    static bool SurfacePathSearchVisited(
+        const std::array<SurfacePathSearchNode, 32>& nodes, size_t nodeCount, const CoordsXY& loc)
+    {
+        for (size_t i = 0; i < nodeCount; i++)
+        {
+            if (nodes[i].loc == loc)
+                return true;
+        }
+        return false;
+    }
+
+    static Direction GuestSurfaceFindPathRejoinDirection(const Peep& peep)
+    {
+        std::array<SurfacePathSearchNode, 32> nodes{};
+        size_t head = 0;
+        size_t tail = 1;
+
+        nodes[0] = SurfacePathSearchNode{
+            CoordsXY{ peep.NextLoc }.ToTileStart(),
+            peep.NextLoc.z,
+            peep.z,
+            kInvalidDirection,
+            0,
+        };
+
+        while (head < tail)
+        {
+            const auto node = nodes[head++];
+            if (node.distance >= kGuestSurfacePathRejoinSearchRadius)
+                continue;
+
+            for (Direction direction : kAllDirections)
+            {
+                CoordsXY nextLoc;
+                if (!SurfacePathCanStepFromNode(node, direction, nextLoc))
+                    continue;
+
+                const Direction firstDirection = node.firstDirection == kInvalidDirection ? direction : node.firstDirection;
+                if (SurfacePathHasReachableFootpath(nextLoc, node.walkZ))
+                    return firstDirection;
+
+                if (node.distance + 1 >= kGuestSurfacePathRejoinSearchRadius)
+                    continue;
+
+                SurfacePathSearchNode nextNode{};
+                if (!SurfacePathTryMakeSearchNode(node, nextLoc, firstDirection, nextNode))
+                    continue;
+
+                if (SurfacePathSearchVisited(nodes, tail, nextLoc))
+                    continue;
+
+                if (tail >= nodes.size())
+                    return kInvalidDirection;
+
+                nodes[tail++] = nextNode;
+            }
+        }
+
+        return kInvalidDirection;
+    }
+
     /**
      *
      *  rct2: 0x00694C41
      */
     static int32_t GuestSurfacePathFinding(Peep& peep)
     {
+        if (const auto rejoinDirection = GuestSurfaceFindPathRejoinDirection(peep); rejoinDirection != kInvalidDirection)
+        {
+            return PeepMoveOneTile(rejoinDirection, peep);
+        }
+
         auto pathPos = CoordsXYRangedZ{ peep.NextLoc, peep.NextLoc.z, peep.NextLoc.z + kPathClearance };
         Direction randDirection = ScenarioRand() & 3;
 

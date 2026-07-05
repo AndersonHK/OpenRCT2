@@ -15,6 +15,11 @@
 
 #include <vector>
 
+namespace OpenRCT2
+{
+    struct TileElement;
+}
+
 constexpr uint8_t kSceneryWitherAgeThreshold1 = 0x28;
 constexpr uint8_t kSceneryWitherAgeThreshold2 = 0x37;
 
@@ -70,6 +75,7 @@ void SceneryUpdateTile(const CoordsXY& sceneryPos);
 void SceneryRemoveGhostToolPlacement();
 
 bool IsSceneryAvailableToBuild(const ScenerySelection& item);
+bool TileElementCountsAsDecoration(const OpenRCT2::TileElement& tileElement);
 
 bool IsSceneryItemRestricted(const ScenerySelection& item);
 void ClearRestrictedScenery();

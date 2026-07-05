@@ -30,7 +30,7 @@ Excitement, intensity, and nausea are no longer meant to be mostly post-processe
 
 The reason for this change is to make ratings feel more like a property of the trip the guest experienced. A coaster that is twice as long should collect roughly twice as much raw rating material, but the final displayed score should have diminishing returns rather than doubling outright.
 
-Current balancing uses a square-root finalizer, roughly `sqrt(raw / 1000) * 100`. Completed rider, train, and test-run samples are kept in a rolling cache of the last ten samples, and the displayed ride rating is based on that average. Aggregate-rated rides with no samples display zero aggregate stats instead of hidden base ratings. Mazes are handled the same way: they gain stats from the paths guests actually walk, not from a flat maze-size bonus.
+Current balancing uses a square-root finalizer, roughly `sqrt(raw / 1000) * 100`. Train ticks average the contribution of every vehicle on the train, then completed rider, train, and test-run samples are kept in a rolling cache of the last twenty samples. The displayed ride rating is based on that average. Aggregate-rated rides with no samples display zero aggregate stats instead of hidden base ratings. Mazes are handled the same way: they gain stats from the paths guests actually walk, not from a flat maze-size bonus.
 
 More detail: [Ride rating aggregate rationale](docs/ride-rating-aggregate-rationale.md).
 
@@ -40,9 +40,29 @@ Normal guest generation no longer directly slows down just because the park has 
 
 The reason for this change is to make park population pressure emerge from the simulation. A successful park should attract more guests, but if the park cannot absorb them, the resulting crowding and unhappiness should naturally pull the rating and arrival rate down.
 
-Current balancing keeps the old rating-derived arrival rate as the baseline for a `$15,000` park value, then scales arrivals by `sqrt(parkValue / 15000)`. That means larger parks attract more guests when everything else is equal, but value growth has diminishing returns.
+Current balancing treats park rating `700` as the healthy baseline, doubles or halves guest generation for roughly every 100 rating points above or below that, then scales arrivals by `sqrt(parkValue / 40000)`. That means high-rating parks can accelerate hard, low-rating parks crater, and larger parks still attract more guests with diminishing returns. Small parks with any positive value keep a tiny non-zero generation chance instead of rounding down to nothing.
 
 More detail: [Guest generation and park rating rationale](docs/guest-generation-rating-rationale.md).
+
+### Guests try to recover onto nearby paths
+
+Guests that end up off a footpath no longer rely purely on random grass wandering. When standing on a surface tile, they first look for a reachable footpath within three tiles and step toward the nearest one they can access.
+
+The reason for this change is to make off-path behavior look less broken. If a guest is only a tile or two away from the path network, they should usually try to rejoin it instead of meandering deeper into the park lawn.
+
+Current balancing keeps this intentionally local: the search radius is three tiles, it respects walls, blocked surfaces, water, ownership, and height differences, and the original random wandering remains the fallback when no nearby path is reachable.
+
+More detail: [Guest surface path rejoin rationale](docs/guest-surface-path-rejoin-rationale.md).
+
+### Mowed grass matters as decoration
+
+Mowed grass now counts as nearby decoration for ride scenery checks, per-tick ride context, maze path samples, and guest scenery impressions.
+
+The reason for this change is to give groundskeeper mowing a real gameplay purpose. A tidy lawn beside a ride or path should make the area feel more cared for, rather than being purely visual.
+
+Current balancing treats each growable mowed-grass tile as one lightweight decoration item. Grass that is merely short, growing, clumped, underwater, non-grass terrain, or ghosted does not count.
+
+More detail: [Mowed grass decoration rationale](docs/mowed-grass-decoration-rationale.md).
 
 ### Money uses cent precision
 
@@ -56,11 +76,11 @@ More detail: [Money cent precision rationale](docs/money-cent-precision-rational
 
 ### Ride admission is target-based and globally toned down
 
-Normal ride admission pricing is no longer just a direct price field. Rides can target one of three value bands: a good deal, no special price reaction, or a high-but-still-rideable bad deal. Prices are recalculated from the ride's current value after ratings update.
+Normal ride admission pricing is no longer just a direct price field. Rides can target one of three value bands: discount, fair price, or expensive. Prices are recalculated from the ride's current value after ratings update.
 
 The reason for this change is to make ride pricing easier to manage while making money less automatic. In vanilla-style play it is easy to push strong rides to the `$20.00` cap; this fork tries to keep profitable pricing possible while lowering the ceiling on effortless income.
 
-Current balancing applies a 70% global scale to automatic ride prices before the normal cap. The guest-side good-value and overpriced thresholds use the same 70% scale, so pricing targets and guest reactions stay aligned. A `$10.00` guest-facing ride value is treated as `$7.00` for those thresholds.
+Current balancing applies a 70% global scale to automatic ride prices before the normal cap. The guest-side discount, expensive, and refusal thresholds use the same 70% scale, so pricing targets and guest reactions stay aligned. A `$10.00` guest-facing ride value is treated as `$7.00` for those thresholds.
 
 More detail: [Ride pricing target rationale](docs/ride-pricing-target-rationale.md).
 

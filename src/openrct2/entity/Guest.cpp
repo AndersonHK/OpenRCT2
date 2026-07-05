@@ -460,6 +460,7 @@ namespace OpenRCT2
     static bool GuestShouldPreferredIntensityIncrease(Guest& guest);
     static bool GuestReallyLikedRide(Guest& guest, const Ride& ride);
     static money64 GuestGetRideValueForPricePerception(const Guest& guest, const Ride& ride);
+    static money64 GuestGetExpensiveRideThoughtThreshold(money64 value);
     static PeepThoughtType GuestAssessSurroundings(int16_t centre_x, int16_t centre_y, int16_t centre_z);
     static void GuestUpdateHunger(Guest& guest);
     static void GuestDecideWhetherToLeavePark(Guest& guest);
@@ -2232,7 +2233,13 @@ namespace OpenRCT2
                         return false;
                     }
 
-                    // A ride is good value if the price is 50% or less of the ride value and the peep didn't pay to enter the
+                    if (ridePrice > GuestGetExpensiveRideThoughtThreshold(value) && ridePrice <= (value * 2)
+                        && peepAtRide)
+                    {
+                        insertNewThought(PeepThoughtType::expensiveRide, ride.id);
+                    }
+
+                    // A ride is discounted if the price is 50% or less of the ride value and the peep didn't pay to enter the
                     // park.
                     if (ridePrice <= (value / 2) && peepAtRide)
                     {
@@ -2469,6 +2476,11 @@ namespace OpenRCT2
         }
 
         return (value * kGuestRideValueIncomeScaleNumerator) / kGuestRideValueIncomeScaleDenominator;
+    }
+
+    static money64 GuestGetExpensiveRideThoughtThreshold(money64 value)
+    {
+        return value + (value / 2);
     }
 
     /**
@@ -2719,6 +2731,11 @@ namespace OpenRCT2
                 guest.insertNewThought(PeepThoughtType::badValue, guest.CurrentRide);
                 PeepUpdateRideAtEntranceTryLeave(guest);
                 return false;
+            }
+
+            if (ridePrice > GuestGetExpensiveRideThoughtThreshold(value) && ridePrice <= (value * 2))
+            {
+                guest.insertNewThought(PeepThoughtType::expensiveRide, guest.CurrentRide);
             }
         }
         return true;
@@ -3011,6 +3028,12 @@ namespace OpenRCT2
                         continue;
                     }
 
+                    if (TileElementCountsAsDecoration(*tileElement))
+                    {
+                        num_scenery++;
+                        continue;
+                    }
+
                     switch (tileElement->getType())
                     {
                         case TileElementType::Path:
@@ -3038,10 +3061,6 @@ namespace OpenRCT2
                             }
                             break;
                         }
-                        case TileElementType::LargeScenery:
-                        case TileElementType::SmallScenery:
-                            num_scenery++;
-                            break;
                         case TileElementType::Track:
                         {
                             auto* ride = GetRide(tileElement->asTrack()->GetRideIndex());
@@ -4995,8 +5014,8 @@ namespace OpenRCT2
                     }
 
                     const auto type = tileElement->getType();
-                    if (type == TileElementType::SmallScenery || type == TileElementType::LargeScenery
-                        || type == TileElementType::Wall || type == TileElementType::Path)
+                    if (TileElementCountsAsDecoration(*tileElement) || type == TileElementType::Wall
+                        || type == TileElementType::Path)
                     {
                         score++;
                     }

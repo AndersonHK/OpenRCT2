@@ -30,6 +30,7 @@ namespace OpenRCT2::Park
 
     uint32_t CalculateParkSize(ParkData& park);
     int32_t CalculateParkRating(const ParkData& park, const GameState_t& gameState);
+    uint32_t CalculateGuestGenerationProbability(const ParkData& park);
     money64 CalculateParkValue(const ParkData& park, const GameState_t& gameState);
     money64 CalculateCompanyValue(const ParkData& park);
 

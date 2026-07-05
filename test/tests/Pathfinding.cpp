@@ -14,7 +14,9 @@
 #include <openrct2/scenario/Scenario.h>
 #include <openrct2/world/Footpath.h>
 #include <openrct2/world/Map.h>
+#include <openrct2/world/Wall.h>
 #include <openrct2/world/tile_element/SurfaceElement.h>
+#include <openrct2/world/tile_element/TileElement.h>
 #include <string>
 
 using namespace OpenRCT2;
@@ -52,6 +54,14 @@ public:
     }
 
 protected:
+    struct SurfaceRejoinCandidate
+    {
+        CoordsXY loc;
+        int32_t baseZ;
+        int32_t walkZ;
+        Direction pathDirection;
+    };
+
     static Ride* FindRideByName(const char* name)
     {
         auto& gameState = getGameState();
@@ -64,6 +74,84 @@ protected:
             }
         }
         return nullptr;
+    }
+
+    static bool TileHasReachablePathAtHeight(const CoordsXY& loc, int32_t walkZ)
+    {
+        const auto* tileElement = MapGetFirstElementAt(loc);
+        if (tileElement == nullptr)
+            return false;
+
+        const int32_t baseZ = std::max(0, (walkZ / kCoordsZStep) - 2);
+        const int32_t topZ = (walkZ / kCoordsZStep) + 1;
+
+        for (;;)
+        {
+            if (baseZ <= tileElement->baseHeight && topZ >= tileElement->baseHeight && !tileElement->isGhost()
+                && tileElement->getType() == TileElementType::Path)
+            {
+                return true;
+            }
+
+            if (tileElement->isLastForTile())
+                return false;
+
+            tileElement++;
+        }
+    }
+
+    static bool SurfaceStepIsClear(const CoordsXY& loc, int32_t baseZ, Direction direction)
+    {
+        auto pathPos = CoordsXYRangedZ{ loc, baseZ, baseZ + kPathClearance };
+        if (WallInTheWay(pathPos, direction))
+            return false;
+
+        auto nextLoc = (loc + CoordsDirectionDelta[direction]).ToTileStart();
+        pathPos = CoordsXYRangedZ{ nextLoc, baseZ, baseZ + kPathClearance };
+        return !WallInTheWay(pathPos, DirectionReverse(direction));
+    }
+
+    static bool FindSurfaceRejoinCandidate(SurfaceRejoinCandidate& result)
+    {
+        const auto& gameState = getGameState();
+        for (int32_t y = 1; y < gameState.mapSize.y - 1; y++)
+        {
+            for (int32_t x = 1; x < gameState.mapSize.x - 1; x++)
+            {
+                const auto loc = TileCoordsXY{ x, y }.ToCoordsXY();
+                const auto* surfaceElement = MapGetSurfaceElementAt(loc);
+                if (surfaceElement == nullptr || !MapIsLocationInPark(loc) || MapSurfaceIsBlocked(loc))
+                    continue;
+
+                const int32_t baseZ = surfaceElement->getBaseZ();
+                const int32_t walkZ = TileElementHeight(loc.ToTileCentre());
+                if (TileHasReachablePathAtHeight(loc, walkZ))
+                    continue;
+
+                uint8_t pathDirectionCount = 0;
+                Direction pathDirection = kInvalidDirection;
+                for (Direction direction : kAllDirections)
+                {
+                    if (!SurfaceStepIsClear(loc, baseZ, direction))
+                        continue;
+
+                    const auto nextLoc = (loc + CoordsDirectionDelta[direction]).ToTileStart();
+                    if (TileHasReachablePathAtHeight(nextLoc, walkZ))
+                    {
+                        pathDirection = direction;
+                        pathDirectionCount++;
+                    }
+                }
+
+                if (pathDirectionCount == 1)
+                {
+                    result = SurfaceRejoinCandidate{ loc, baseZ, walkZ, pathDirection };
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     static bool FindPath(TileCoordsXYZ* pos, const TileCoordsXYZ& goal, int expectedSteps, RideId targetRideID)
@@ -209,6 +297,26 @@ TEST_P(SimplePathfindingTest, CanFindPathFromStartToGoal)
             << pos << " before giving up.";
 
     EXPECT_TRUE(succeeded);
+}
+
+TEST_F(PathfindingTestBase, SurfaceGuestsStepTowardAdjacentPath)
+{
+    SurfaceRejoinCandidate candidate{};
+    ASSERT_TRUE(FindSurfaceRejoinCandidate(candidate));
+
+    auto* peep = Guest::generate({ candidate.loc.ToTileCentre(), candidate.walkZ });
+    ASSERT_NE(peep, nullptr);
+
+    peep->outsideOfPark = false;
+    peep->SetState(PeepState::walking);
+    peep->NextLoc = { candidate.loc, candidate.baseZ };
+    peep->SetNextFlags(0, false, true);
+    peep->SetDestination(candidate.loc.ToTileCentre(), 2);
+
+    EXPECT_EQ(PathFinding::CalculateNextDestination(*peep), 0);
+    EXPECT_EQ(peep->PeepDirection, candidate.pathDirection);
+
+    PeepEntityRemove(peep);
 }
 
 INSTANTIATE_TEST_SUITE_P(

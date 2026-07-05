@@ -39,6 +39,8 @@
 #include "Park.h"
 #include "tile_element/PathElement.h"
 #include "tile_element/SmallSceneryElement.h"
+#include "tile_element/SurfaceElement.h"
+#include "tile_element/TileElement.h"
 
 uint8_t gSceneryQuadrant;
 
@@ -69,6 +71,29 @@ const CoordsXY SceneryQuadrantOffsets[] = {
     { 24, 24 },
     { 24, 8 },
 };
+
+bool TileElementCountsAsDecoration(const TileElement& tileElement)
+{
+    if (tileElement.isGhost())
+    {
+        return false;
+    }
+
+    switch (tileElement.getType())
+    {
+        case TileElementType::SmallScenery:
+        case TileElementType::LargeScenery:
+            return true;
+        case TileElementType::Surface:
+        {
+            const auto* surfaceElement = tileElement.asSurface();
+            return surfaceElement != nullptr && surfaceElement->CanGrassGrow()
+                && (surfaceElement->GetGrassLength() & 0x7) == GRASS_LENGTH_MOWED;
+        }
+        default:
+            return false;
+    }
+}
 
 LargeSceneryText::LargeSceneryText(const RCTLargeSceneryText& original)
 {

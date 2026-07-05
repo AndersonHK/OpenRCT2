@@ -13,11 +13,15 @@
 #include <memory>
 #include <openrct2/Context.h>
 #include <openrct2/Game.h>
+#include <openrct2/GameState.h>
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/world/Footpath.h>
 #include <openrct2/world/Map.h>
+#include <openrct2/world/Scenery.h>
 #include <openrct2/world/tile_element/EntranceElement.h>
 #include <openrct2/world/tile_element/PathElement.h>
+#include <openrct2/world/tile_element/SurfaceElement.h>
+#include <openrct2/world/tile_element/TileElement.h>
 #include <openrct2/world/tile_element/TrackElement.h>
 
 using namespace OpenRCT2;
@@ -172,4 +176,38 @@ TEST_F(TileElementWantsFootpathConnection, MapEdge)
 
     // The tile in the -X direction is a normal tile and should not be marked as an edge
     EXPECT_FALSE(edges & (1 << 2));
+}
+
+TEST_F(TileElementWantsFootpathConnection, MowedGrassCountsAsDecoration)
+{
+    SurfaceElement* surfaceElement = nullptr;
+    const auto& gameState = getGameState();
+    for (int32_t y = 1; y < gameState.mapSize.y - 1 && surfaceElement == nullptr; y++)
+    {
+        for (int32_t x = 1; x < gameState.mapSize.x - 1; x++)
+        {
+            auto* candidate = MapGetSurfaceElementAt(TileCoordsXY{ x, y });
+            if (candidate != nullptr && candidate->CanGrassGrow())
+            {
+                surfaceElement = candidate;
+                break;
+            }
+        }
+    }
+
+    ASSERT_NE(surfaceElement, nullptr);
+
+    const auto originalGrassLength = surfaceElement->GetGrassLength();
+    const auto& tileElement = *surfaceElement->as<TileElement>();
+
+    surfaceElement->SetGrassLength(GRASS_LENGTH_CLEAR_1);
+    EXPECT_FALSE(TileElementCountsAsDecoration(tileElement));
+
+    surfaceElement->SetGrassLength(GRASS_LENGTH_MOWED);
+    EXPECT_TRUE(TileElementCountsAsDecoration(tileElement));
+
+    surfaceElement->SetGrassLength(GRASS_LENGTH_CLEAR_0);
+    EXPECT_FALSE(TileElementCountsAsDecoration(tileElement));
+
+    surfaceElement->SetGrassLength(originalGrassLength);
 }

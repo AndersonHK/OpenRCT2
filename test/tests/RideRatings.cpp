@@ -184,6 +184,31 @@ TEST_F(RideRatings, NewRideValueBonusUsesMultiplier)
     EXPECT_EQ(ferrisWheel.value, ToMoney64(static_cast<money32>(legacyBaseValue * 6 / 5)));
 }
 
+TEST_F(RideRatings, RecentAccumulatorAveragesLastTwentySamples)
+{
+    Ride ride{};
+
+    for (size_t i = 0; i < kRideRatingRecentSampleCount + 5; i++)
+    {
+        const auto value = static_cast<int64_t>(i + 1);
+        RideRatingAccumulator sample{};
+        sample.excitement = value * 2;
+        sample.intensity = value * 4;
+        sample.nausea = value * 6;
+        sample.ticks = 1;
+
+        RideAddRecentRatingSample(ride, sample);
+    }
+
+    EXPECT_EQ(ride.recentRatingSampleCount, kRideRatingRecentSampleCount);
+
+    const auto accumulator = RideGetRecentRatingAccumulator(ride);
+    EXPECT_EQ(accumulator.excitement, 31);
+    EXPECT_EQ(accumulator.intensity, 62);
+    EXPECT_EQ(accumulator.nausea, 93);
+    EXPECT_EQ(accumulator.ticks, 1u);
+}
+
 TEST_F(RideRatings, EverythingPark)
 {
     TestRatings("EverythingPark.park", 529);

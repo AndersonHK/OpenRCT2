@@ -104,13 +104,13 @@ namespace OpenRCT2::Ui::Windows
         switch (target)
         {
             case RidePriceTarget::goodValue:
-                return "Good deal";
+                return "Discount";
             case RidePriceTarget::neutral:
-                return "No effect";
+                return "Fair price";
             case RidePriceTarget::badValue:
-                return "Bad deal";
+                return "Expensive";
         }
-        return "No effect";
+        return "Fair price";
     }
 
     static u8string FormatIncomePrice(money64 price)

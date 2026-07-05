@@ -41,6 +41,7 @@
 #include "../windows/Intent.h"
 #include "../world/Map.h"
 #include "../world/MapAnimation.h"
+#include "../world/Scenery.h"
 #include "../world/tile_element/LargeSceneryElement.h"
 #include "../world/tile_element/PathElement.h"
 #include "../world/tile_element/SmallSceneryElement.h"
@@ -114,8 +115,8 @@ static int32_t RideRatingGetLocalContextScore(const CoordsXY& location, RideId r
                 }
 
                 const auto type = tileElement->getType();
-                if (type == TileElementType::SmallScenery || type == TileElementType::LargeScenery
-                    || type == TileElementType::Wall || type == TileElementType::Path)
+                if (TileElementCountsAsDecoration(*tileElement) || type == TileElementType::Wall
+                    || type == TileElementType::Path)
                 {
                     score++;
                 }
@@ -259,6 +260,58 @@ static bool RideRatingTrainHasRiders(const Vehicle& head)
     return false;
 }
 
+static bool RideRatingAccumulateVehicleTick(
+    RideRatingAccumulator& accumulator, const Ride& ride, const Vehicle& vehicle, bool isSynchronised,
+    const GForces* gForcesOverride = nullptr)
+{
+    auto currentTrackType = vehicle.GetTrackType();
+    if (currentTrackType == TrackElemType::none)
+    {
+        return false;
+    }
+
+    GForces gForces{ 100, 0 };
+    if (gForcesOverride != nullptr)
+    {
+        gForces = *gForcesOverride;
+    }
+    else if (ride.getRideTypeDescriptor().flags.has(RtdFlag::hasGForces))
+    {
+        gForces = vehicle.GetGForces();
+    }
+
+    const auto location = CoordsXYZ{ vehicle.x, vehicle.y, vehicle.z };
+    RideRatingAccumulateTick(
+        accumulator, currentTrackType, gForces, vehicle.velocity, RideRatingTickIsSheltered(location),
+        RideRatingGetLocalContextScore(CoordsXY{ vehicle.x, vehicle.y }, ride.id), isSynchronised);
+    return true;
+}
+
+static bool RideRatingAccumulateTrainTick(
+    RideRatingAccumulator& accumulator, const Ride& ride, const Vehicle& head, bool isSynchronised,
+    const GForces* headGForcesOverride = nullptr)
+{
+    RideRatingAccumulator trainTick{};
+    for (const Vehicle* vehicle = &head; vehicle != nullptr;
+         vehicle = getGameState().entities.GetEntity<Vehicle>(vehicle->next_vehicle_on_train))
+    {
+        const auto* gForcesOverride = (vehicle->id == head.id) ? headGForcesOverride : nullptr;
+        RideRatingAccumulateVehicleTick(trainTick, ride, *vehicle, isSynchronised, gForcesOverride);
+    }
+
+    if (!trainTick.hasSamples())
+    {
+        return false;
+    }
+
+    const auto vehicleSampleCount = static_cast<int64_t>(trainTick.ticks);
+    accumulator.excitement += trainTick.excitement / vehicleSampleCount;
+    accumulator.intensity += trainTick.intensity / vehicleSampleCount;
+    accumulator.nausea += trainTick.nausea / vehicleSampleCount;
+    accumulator.ticks++;
+    return true;
+}
+
 static void RideRatingUpdateLiveTrainSample(Vehicle& vehicle)
 {
     if (!vehicle.IsHead() || vehicle.flags.has(VehicleFlag::testing) || vehicle.isGhost()
@@ -273,30 +326,15 @@ static void RideRatingUpdateLiveTrainSample(Vehicle& vehicle)
         return;
     }
 
-    auto currentTrackType = vehicle.GetTrackType();
-    if (currentTrackType == TrackElemType::none)
-    {
-        return;
-    }
-
     auto* accumulator = RideGetOrCreateActiveRatingSample(*curRide, vehicle.id);
     if (accumulator == nullptr)
     {
         return;
     }
 
-    GForces gForces{ 100, 0 };
-    if (curRide->getRideTypeDescriptor().flags.has(RtdFlag::hasGForces))
-    {
-        gForces = vehicle.GetGForces();
-    }
-
-    const auto location = CoordsXYZ{ vehicle.x, vehicle.y, vehicle.z };
     const bool isSynchronised = (curRide->departFlags & RIDE_DEPART_SYNCHRONISE_WITH_ADJACENT_STATIONS)
         && RideHasAdjacentStation(*curRide);
-    RideRatingAccumulateTick(
-        *accumulator, currentTrackType, gForces, vehicle.velocity, RideRatingTickIsSheltered(location),
-        RideRatingGetLocalContextScore(CoordsXY{ vehicle.x, vehicle.y }, curRide->id), isSynchronised);
+    RideRatingAccumulateTrainTick(*accumulator, *curRide, vehicle, isSynchronised);
 }
 
 Vehicle* gCurrentVehicle;
@@ -725,7 +763,6 @@ void Vehicle::UpdateMeasurements()
             stationForTestSegment.SegmentTime++;
         }
 
-        auto currentTrackType = GetTrackType();
         GForces gForces{ 100, 0 };
         int32_t distance = abs(((velocity + acceleration) >> 10) * 42);
         if (NumLaps == 0)
@@ -758,14 +795,11 @@ void Vehicle::UpdateMeasurements()
             curRide->maxLateralG = std::max(curRide->maxLateralG, static_cast<fixed16_2dp>(gForces.lateralG));
         }
 
-        if (curRide->getRideTypeDescriptor().RatingsData.Type == RatingsCalculationType::Normal)
+        if (IsHead() && curRide->getRideTypeDescriptor().RatingsData.Type == RatingsCalculationType::Normal)
         {
-            const auto location = CoordsXYZ{ x, y, z };
             const bool isSynchronised = (curRide->departFlags & RIDE_DEPART_SYNCHRONISE_WITH_ADJACENT_STATIONS)
                 && RideHasAdjacentStation(*curRide);
-            RideRatingAccumulateTick(
-                curRide->ratingAccumulator, currentTrackType, gForces, velocity, RideRatingTickIsSheltered(location),
-                RideRatingGetLocalContextScore(CoordsXY{ x, y }, curRide->id), isSynchronised);
+            RideRatingAccumulateTrainTick(curRide->ratingAccumulator, *curRide, *this, isSynchronised, &gForces);
         }
     }
 
