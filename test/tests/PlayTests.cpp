@@ -331,10 +331,10 @@ static Park::ParkData MakeGuestGenerationPark(uint16_t rating, money64 value)
 
 TEST_F(PlayTests, GuestGenerationRatingScaleDoublesEveryHundredRatingPoints)
 {
-    EXPECT_EQ(Park::CalculateGuestGenerationProbability(MakeGuestGenerationPark(500, 40000.00_GBP)), 213u);
-    EXPECT_EQ(Park::CalculateGuestGenerationProbability(MakeGuestGenerationPark(600, 40000.00_GBP)), 425u);
-    EXPECT_EQ(Park::CalculateGuestGenerationProbability(MakeGuestGenerationPark(700, 40000.00_GBP)), 850u);
-    EXPECT_EQ(Park::CalculateGuestGenerationProbability(MakeGuestGenerationPark(800, 40000.00_GBP)), 1700u);
+    EXPECT_EQ(Park::CalculateGuestGenerationProbability(MakeGuestGenerationPark(500, 50000.00_GBP)), 213u);
+    EXPECT_EQ(Park::CalculateGuestGenerationProbability(MakeGuestGenerationPark(600, 50000.00_GBP)), 425u);
+    EXPECT_EQ(Park::CalculateGuestGenerationProbability(MakeGuestGenerationPark(700, 50000.00_GBP)), 850u);
+    EXPECT_EQ(Park::CalculateGuestGenerationProbability(MakeGuestGenerationPark(800, 50000.00_GBP)), 1700u);
 }
 
 TEST_F(PlayTests, GuestGenerationKeepsSmallPositiveParkValueChance)

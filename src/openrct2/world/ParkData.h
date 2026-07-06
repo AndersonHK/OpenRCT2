@@ -107,7 +107,7 @@ namespace OpenRCT2::Park
         /**
          * Probability out of 65535, of gaining a new guest per game tick.
          * new guests per second = 40 * (probability / 65535)
-         * This is driven by an exponential park-rating curve and scaled geometrically from park value, using $40,000 as
+         * This is driven by an exponential park-rating curve and scaled geometrically from park value, using $50,000 as
          * the baseline. Guest count does not directly cap generation; crowded paths and long queues reduce arrivals by
          * reducing happiness.
          */

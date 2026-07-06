@@ -458,6 +458,36 @@ TEST_F(RideRatings, LocalContextSceneryUsesUncappedSqrtDiminishingReturns)
     EXPECT_GT(RideRating::ScoreSceneryForLocalContext(4800), 18);
 }
 
+TEST_F(RideRatings, LocalContextSceneryScalesWithVehicleSpeed)
+{
+    const RideRating::LocalContextScore contextScore = {
+        .excitement = 46,
+        .intensity = 7,
+        .nausea = 3,
+        .scenery = 18,
+    };
+
+    const auto fullSpeed = RideRating::ScoreLocalContextForVehicleTick(contextScore, 90);
+    const auto halfSpeed = RideRating::ScoreLocalContextForVehicleTick(contextScore, 45);
+    const auto thirdSpeed = RideRating::ScoreLocalContextForVehicleTick(contextScore, 30);
+
+    EXPECT_EQ(fullSpeed.excitement, 46);
+    EXPECT_EQ(halfSpeed.excitement, 28);
+    EXPECT_EQ(thirdSpeed.excitement, 22);
+    EXPECT_EQ(halfSpeed.intensity, contextScore.intensity);
+    EXPECT_EQ(halfSpeed.nausea, contextScore.nausea);
+}
+
+TEST_F(RideRatings, BoatHireFreeRoamAddsGuidedTurnStatDistribution)
+{
+    const auto firstTick = RideRating::ScoreBoatHireFreeRoamForTick(0);
+    const auto secondTick = RideRating::ScoreBoatHireFreeRoamForTick(1);
+
+    EXPECT_EQ(firstTick.excitement + secondTick.excitement, 1);
+    EXPECT_EQ(firstTick.intensity + secondTick.intensity, 2);
+    EXPECT_EQ(firstTick.nausea + secondTick.nausea, 2);
+}
+
 TEST_F(RideRatings, LocalContextHeightExtendsSceneryRange)
 {
     gOpenRCT2Headless = true;

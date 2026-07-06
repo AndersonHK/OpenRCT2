@@ -12,6 +12,20 @@ Current balancing: raw scenery `1200` maps to the former 18-point local scenery 
 
 Details: [Ride rating local context plan](ride-rating-local-context-plan.md)
 
+### Ride and guest tuning
+
+Decision: vehicle-sampled decoration excitement now scales by vehicle speed around a `90` speed baseline. A vehicle at `45` speed receives half of the scenery excitement for that tick, and a vehicle at `30` receives one third, while path and track proximity bonuses stay unscaled.
+
+Decision: Boat Hire free-roam and unbanked guided-turn ticks now use a gentler `0.5/1/1` excitement/intensity/nausea distribution instead of the coaster-style `2/4/4` unbanked turn score.
+
+Known issue: Boat Hire stats inflated during the recent ride-rating tuning work and remain too high. Skipping the generic vehicle accumulator path was tested and walked back, and reducing the Boat Hire free-roam score did not fully solve the inflation. The main suspect is the new decoration/local-context scoring, which will need a separate balancing pass.
+
+Decision: visible water now counts as a lightweight surface decoration, using the same low raw scenery weight as mowed grass. This gives water features a small local scenery payoff without making lakes equivalent to dense scenery placement.
+
+Tuning: normal guest generation now uses `$50,000` park value as the square-root baseline instead of `$40,000`, reducing arrivals for parks below the new baseline while preserving the same curve shape.
+
+Details: [Ride rating local context plan](ride-rating-local-context-plan.md), [Guest generation and park rating rationale](guest-generation-rating-rationale.md)
+
 ## 2026-07-05
 
 ### Height-aware ride scenery context
@@ -118,7 +132,7 @@ Details: [Ride rating aggregate rationale](ride-rating-aggregate-rationale.md)
 
 Decision: remove the active guest-count soft cap from normal guest generation. Park rating is now a smooth projection of average in-park guest happiness and happiness target, so crowding and queue pressure regulate future guests through happiness rather than a hardcoded suggested maximum.
 
-Tuning: normal guest generation now scales geometrically with park value, using `$40,000` as the baseline for the tuned spawn rate. A larger park attracts more guests when rating, pricing, awards, and entry value are otherwise equal, but square-root scaling keeps the growth in arrivals sublinear.
+Tuning: normal guest generation now scales geometrically with park value, using `$50,000` as the current baseline for the tuned spawn rate. A larger park attracts more guests when rating, pricing, awards, and entry value are otherwise equal, but square-root scaling keeps the growth in arrivals sublinear.
 
 Tuning: park rating now applies exponentially to guest generation, doubling about every 100 rating points around the `700` reference point. Rating `700` is the healthy baseline, `800` generates about twice as many guests as `700`, `600` about half as many, and `500` about half of `600`.
 

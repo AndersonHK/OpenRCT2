@@ -109,6 +109,7 @@ static constexpr int32_t kRideRatingContextTowerRideMinEyeHeight = 4 * kCoordsZS
 static constexpr int32_t kRideRatingContextTowerRideMaxEyeHeight = 14 * kCoordsZStep;
 static constexpr int32_t kRideRatingContextSceneryFormerCap = 18;
 static constexpr int32_t kRideRatingContextSceneryRawAtFormerCap = 1200;
+static constexpr int32_t kRideRatingDecorationSpeedBaseline = 90;
 static constexpr int32_t kRideRatingContextWeightScale = 256;
 static constexpr std::array<int32_t, kRideRatingContextMaxRadius + 1> kRideRatingContextDistanceWeights = {
     256, 218, 154, 90, 46, 28, 18, 12
@@ -197,6 +198,29 @@ int32_t RideRating::ScoreSceneryForLocalContext(int32_t rawScenery)
     const auto score = static_cast<double>(kRideRatingContextSceneryFormerCap)
         * std::sqrt(static_cast<double>(rawScenery) / kRideRatingContextSceneryRawAtFormerCap);
     return std::max<int32_t>(1, static_cast<int32_t>(std::llround(score)));
+}
+
+RideRating::TickScore RideRating::ScoreLocalContextForVehicleTick(const LocalContextScore& contextScore, int32_t speed)
+{
+    const auto sceneryExcitement = static_cast<int64_t>(contextScore.scenery) * 2;
+    const auto nonSceneryExcitement = static_cast<int64_t>(contextScore.excitement) - sceneryExcitement;
+    const auto scaledSceneryExcitement = (sceneryExcitement * std::max(speed, 0)) / kRideRatingDecorationSpeedBaseline;
+
+    return {
+        .excitement = nonSceneryExcitement + scaledSceneryExcitement,
+        .intensity = contextScore.intensity,
+        .nausea = contextScore.nausea,
+    };
+}
+
+RideRating::TickScore RideRating::ScoreBoatHireFreeRoamForTick(uint32_t tickIndex)
+{
+    // Boat Hire should feel gently eventful without the coaster-style unbanked turn weight.
+    return {
+        .excitement = (tickIndex % 2) == 0 ? 1 : 0,
+        .intensity = 1,
+        .nausea = 1,
+    };
 }
 
 static int32_t RideRatingGetLocalContextGroundZ(const TileCoordsXY& tileLocation)
@@ -386,12 +410,15 @@ static void RideRatingAccumulateLocalContextElement(
             }
             break;
         default:
-            if (TileElementCountsAsDecoration(tileElement) && hasLineOfSight)
+        {
+            const auto decorationScore = TileElementGetDecorationScore(tileElement);
+            if (decorationScore > 0 && hasLineOfSight)
             {
-                raw.scenery += (90 * RideRatingGetLocalContextWeightedValue(origin, tileElement, distance, true))
+                raw.scenery += (decorationScore * RideRatingGetLocalContextWeightedValue(origin, tileElement, distance, true))
                     / kRideRatingContextWeightScale;
             }
             break;
+        }
     }
 }
 

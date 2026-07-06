@@ -72,27 +72,43 @@ const CoordsXY SceneryQuadrantOffsets[] = {
     { 24, 8 },
 };
 
-bool TileElementCountsAsDecoration(const TileElement& tileElement)
+int32_t TileElementGetDecorationScore(const TileElement& tileElement)
 {
     if (tileElement.isGhost())
     {
-        return false;
+        return 0;
     }
 
     switch (tileElement.getType())
     {
         case TileElementType::SmallScenery:
         case TileElementType::LargeScenery:
-            return true;
+            return 90;
         case TileElementType::Surface:
         {
             const auto* surfaceElement = tileElement.asSurface();
-            return surfaceElement != nullptr && surfaceElement->CanGrassGrow()
-                && (surfaceElement->GetGrassLength() & 0x7) == GRASS_LENGTH_MOWED;
+            if (surfaceElement == nullptr)
+            {
+                return 0;
+            }
+            if (surfaceElement->GetWaterHeight() > surfaceElement->getBaseZ())
+            {
+                return 18;
+            }
+            if (surfaceElement->CanGrassGrow() && (surfaceElement->GetGrassLength() & 0x7) == GRASS_LENGTH_MOWED)
+            {
+                return 18;
+            }
+            return 0;
         }
         default:
-            return false;
+            return 0;
     }
+}
+
+bool TileElementCountsAsDecoration(const TileElement& tileElement)
+{
+    return TileElementGetDecorationScore(tileElement) > 0;
 }
 
 LargeSceneryText::LargeSceneryText(const RCTLargeSceneryText& original)

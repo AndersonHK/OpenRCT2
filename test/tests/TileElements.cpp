@@ -197,9 +197,11 @@ TEST_F(TileElementWantsFootpathConnection, MowedGrassCountsAsDecoration)
 
     ASSERT_NE(surfaceElement, nullptr);
 
+    const auto originalWaterHeight = surfaceElement->GetWaterHeight();
     const auto originalGrassLength = surfaceElement->GetGrassLength();
     const auto& tileElement = *surfaceElement->as<TileElement>();
 
+    surfaceElement->SetWaterHeight(0);
     surfaceElement->SetGrassLength(GRASS_LENGTH_CLEAR_1);
     EXPECT_FALSE(TileElementCountsAsDecoration(tileElement));
 
@@ -209,5 +211,41 @@ TEST_F(TileElementWantsFootpathConnection, MowedGrassCountsAsDecoration)
     surfaceElement->SetGrassLength(GRASS_LENGTH_CLEAR_0);
     EXPECT_FALSE(TileElementCountsAsDecoration(tileElement));
 
+    surfaceElement->SetGrassLength(originalGrassLength);
+    surfaceElement->SetWaterHeight(originalWaterHeight);
+}
+
+TEST_F(TileElementWantsFootpathConnection, WaterCountsAsDecoration)
+{
+    SurfaceElement* surfaceElement = nullptr;
+    const auto& gameState = getGameState();
+    for (int32_t y = 1; y < gameState.mapSize.y - 1 && surfaceElement == nullptr; y++)
+    {
+        for (int32_t x = 1; x < gameState.mapSize.x - 1; x++)
+        {
+            auto* candidate = MapGetSurfaceElementAt(TileCoordsXY{ x, y });
+            if (candidate != nullptr)
+            {
+                surfaceElement = candidate;
+                break;
+            }
+        }
+    }
+
+    ASSERT_NE(surfaceElement, nullptr);
+
+    const auto originalWaterHeight = surfaceElement->GetWaterHeight();
+    const auto originalGrassLength = surfaceElement->GetGrassLength();
+    const auto& tileElement = *surfaceElement->as<TileElement>();
+
+    surfaceElement->SetGrassLength(GRASS_LENGTH_CLEAR_0);
+    surfaceElement->SetWaterHeight(0);
+    EXPECT_FALSE(TileElementCountsAsDecoration(tileElement));
+
+    surfaceElement->SetWaterHeight(surfaceElement->getBaseZ() + (2 * kCoordsZStep));
+    EXPECT_TRUE(TileElementCountsAsDecoration(tileElement));
+    EXPECT_EQ(TileElementGetDecorationScore(tileElement), 18);
+
+    surfaceElement->SetWaterHeight(originalWaterHeight);
     surfaceElement->SetGrassLength(originalGrassLength);
 }

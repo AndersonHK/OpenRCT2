@@ -95,6 +95,8 @@ namespace OpenRCT2
         TickScore ScorePositiveVerticalGForTick(int32_t verticalG);
         TickScore ScoreLateralGForTick(int32_t lateralG);
         TickScore ScoreGForcesForTick(int32_t verticalG, int32_t lateralG);
+        TickScore ScoreLocalContextForVehicleTick(const LocalContextScore& contextScore, int32_t speed);
+        TickScore ScoreBoatHireFreeRoamForTick(uint32_t tickIndex);
         TickScore ApplyRideEntryMultipliers(TickScore score, const RideObjectEntry& rideEntry);
         int32_t ScoreSceneryForLocalContext(int32_t rawScenery);
         LocalContextScore GetLocalContextScore(const CoordsXYZ& origin, RideId rideId);

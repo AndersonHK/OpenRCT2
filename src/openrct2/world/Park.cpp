@@ -211,7 +211,7 @@ namespace OpenRCT2::Park
 
     uint32_t CalculateGuestGenerationProbability(const ParkData& park)
     {
-        constexpr money64 kGuestGenerationBaselineParkValue = 40000.00_GBP;
+        constexpr money64 kGuestGenerationBaselineParkValue = 50000.00_GBP;
         constexpr double kGuestGenerationRating700Probability = 850.0;
 
         // Rating now reflects average guest happiness, so crowding and queues affect arrivals through happiness.
@@ -220,7 +220,7 @@ namespace OpenRCT2::Park
         double probability = kGuestGenerationRating700Probability
             * std::pow(2.0, (static_cast<double>(clampedRating) - 700.0) / 100.0);
 
-        // Keep the tuned probability at $40,000 park value, then scale geometrically from park value.
+        // Keep the tuned probability at $50,000 park value, then scale geometrically from park value.
         if (park.value <= 0)
         {
             probability = 0.0;

@@ -98,7 +98,7 @@ static bool RideRatingTickIsSheltered(const CoordsXYZ& location)
 
 static void RideRatingAccumulateTick(
     RideRatingAccumulator& accumulator, TrackElemType trackType, const GForces& gForces, int32_t velocity, bool isSheltered,
-    const RideRating::LocalContextScore& contextScore, bool isSynchronised)
+    const RideRating::LocalContextScore& contextScore, bool isSynchronised, bool isBoatHire)
 {
     const auto& ted = GetTrackElementDescriptor(trackType);
     const int32_t speed = std::abs(velocity) >> 16;
@@ -111,9 +111,19 @@ static void RideRatingAccumulateTick(
     if (ted.flags.hasAny(TrackElementFlag::turnLeft, TrackElementFlag::turnRight))
     {
         const bool banked = ted.flags.has(TrackElementFlag::turnBanked);
-        excitement += banked ? 3 : 2;
-        intensity += banked ? 2 : 4;
-        nausea += banked ? 2 : 4;
+        if (isBoatHire && !banked)
+        {
+            const auto boatHireScore = RideRating::ScoreBoatHireFreeRoamForTick(accumulator.ticks);
+            excitement += boatHireScore.excitement;
+            intensity += boatHireScore.intensity;
+            nausea += boatHireScore.nausea;
+        }
+        else
+        {
+            excitement += banked ? 3 : 2;
+            intensity += banked ? 2 : 4;
+            nausea += banked ? 2 : 4;
+        }
     }
     if (ted.flags.has(TrackElementFlag::turnSloped))
     {
@@ -183,9 +193,10 @@ static void RideRatingAccumulateTick(
         nausea += 1;
     }
 
-    excitement += contextScore.excitement;
-    intensity += contextScore.intensity;
-    nausea += contextScore.nausea;
+    const auto contextTickScore = RideRating::ScoreLocalContextForVehicleTick(contextScore, speed);
+    excitement += contextTickScore.excitement;
+    intensity += contextTickScore.intensity;
+    nausea += contextTickScore.nausea;
 
     accumulator.excitement += excitement;
     accumulator.intensity += intensity;
@@ -256,7 +267,8 @@ static bool RideRatingAccumulateVehicleTick(
     const auto location = CoordsXYZ{ vehicle.x, vehicle.y, vehicle.z };
     RideRatingAccumulateTick(
         accumulator, currentTrackType, gForces, vehicle.velocity, RideRatingTickIsSheltered(location),
-        RideRating::GetLocalContextScore(location, ride.id), isSynchronised);
+        RideRating::GetLocalContextScore(location, ride.id), isSynchronised,
+        ride.getRideTypeDescriptor().specialType == RtdSpecialType::boatHire);
     return true;
 }
 

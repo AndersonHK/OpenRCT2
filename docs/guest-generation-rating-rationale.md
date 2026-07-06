@@ -18,13 +18,13 @@ If there are no guests in the park, rating returns a neutral `500`. The forced p
 
 ```text
 ratingScale = 2 ^ ((parkRating - 700) / 100)
-valueScale = sqrt(currentParkValue / 40000.00)
+valueScale = sqrt(currentParkValue / 50000.00)
 spawnProbability = 850 * ratingScale * valueScale
 ```
 
-At the `$40,000` park-value baseline, rating `600` produces about half the guests of rating `700`, rating `800` produces about twice the guests of rating `700`, and rating `500` produces about half the guests of rating `600`. This makes the `600` to `700` range the normal healthy range, supercharges parks above `700`, and craters arrivals as ratings fall below `600`.
+At the `$50,000` park-value baseline, rating `600` produces about half the guests of rating `700`, rating `800` produces about twice the guests of rating `700`, and rating `500` produces about half the guests of rating `600`. This makes the `600` to `700` range the normal healthy range, supercharges parks above `700`, and craters arrivals as ratings fall below `600`.
 
-Park value still gives diminishing returns so value growth does not explode arrivals linearly. For example, at the same rating, a `$160,000` park generates about twice as many normal guests as a `$40,000` park, while a `$10,000` park generates about half as many.
+Park value still gives diminishing returns so value growth does not explode arrivals linearly. For example, at the same rating, a `$200,000` park generates about twice as many normal guests as a `$50,000` park, while a `$12,500` park generates about half as many.
 
 Guest generation now keeps its intermediate math in floating point until all rating, value, difficult-generation, entrance-fee, and award modifiers have been applied. A positive non-zero raw probability below `1` is rounded up to `1`, so small viable parks keep a tiny chance of generating guests instead of truncating to zero. A park value of `$0.00` still produces zero normal generation.
 

@@ -41,9 +41,11 @@ Scenery is raycast toward the element's top. Path and foreign-track proximity ar
 
 ## Diminishing returns
 
-Scenery applies an uncapped square-root curve after distance, height, and visibility weighting. Four times the old raw scenery divisor reaches the previous local scenery cap, and additional scenery keeps helping at a slower rate instead of stopping completely.
+Scenery applies an uncapped square-root curve after distance, height, and visibility weighting. Four times the old raw scenery divisor reaches the previous local scenery cap, and additional scenery keeps helping at a slower rate instead of stopping completely. Vehicle-sampled scenery is then scaled by vehicle speed relative to a `90` speed baseline, so a vehicle moving at `45` receives half of the local scenery excitement for that tick and a vehicle moving at `30` receives one third. This keeps slow-moving vehicles from gaining extra decoration stats simply because they spend more ticks near the same objects.
 
 Path proximity, foreign-track proximity, and vertical interaction still use saturating curves because those bonuses represent nearby interactions that should taper to a practical local maximum.
+
+Full scenery objects contribute the full local scenery raw score. Surface decoration is intentionally lighter: mowed grass and visible water contribute a small scenery value so landscaping and water features help without making every open water tile equivalent to a built scenery item.
 
 ## Cache ownership
 

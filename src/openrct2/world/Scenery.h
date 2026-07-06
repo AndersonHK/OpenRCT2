@@ -13,6 +13,7 @@
 #include "Location.hpp"
 #include "ScenerySelection.h"
 
+#include <cstdint>
 #include <vector>
 
 namespace OpenRCT2
@@ -76,6 +77,7 @@ void SceneryRemoveGhostToolPlacement();
 
 bool IsSceneryAvailableToBuild(const ScenerySelection& item);
 bool TileElementCountsAsDecoration(const OpenRCT2::TileElement& tileElement);
+int32_t TileElementGetDecorationScore(const OpenRCT2::TileElement& tileElement);
 
 bool IsSceneryItemRestricted(const ScenerySelection& item);
 void ClearRestrictedScenery();
