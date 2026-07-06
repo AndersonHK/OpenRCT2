@@ -72,6 +72,7 @@ using namespace OpenRCT2::RideVehicle;
 
 constexpr int16_t kVehicleMaxSpinSpeedForStopping = 700;
 constexpr int16_t kVehicleStoppingSpinSpeed = 600;
+constexpr int32_t kRideRatingAccumulatorSpeedFloor = 1;
 
 static int32_t GetRealRideLengthDelta(int32_t velocity, int32_t acceleration)
 {
@@ -95,61 +96,17 @@ static bool RideRatingTickIsSheltered(const CoordsXYZ& location)
     return true;
 }
 
-static int32_t RideRatingGetLocalContextScore(const CoordsXY& location, RideId rideId)
-{
-    if (location.x == kLocationNull)
-    {
-        return 0;
-    }
-
-    int32_t score = 0;
-    auto tileLocation = TileCoordsXY(location);
-    auto& gameState = getGameState();
-    for (int32_t yy = std::max(tileLocation.y - 1, 0); yy <= std::min(tileLocation.y + 1, gameState.mapSize.y - 1); yy++)
-    {
-        for (int32_t xx = std::max(tileLocation.x - 1, 0); xx <= std::min(tileLocation.x + 1, gameState.mapSize.x - 1); xx++)
-        {
-            TileElement* tileElement = MapGetFirstElementAt(TileCoordsXY{ xx, yy });
-            if (tileElement == nullptr)
-            {
-                continue;
-            }
-
-            do
-            {
-                if (tileElement->isGhost())
-                {
-                    continue;
-                }
-
-                const auto type = tileElement->getType();
-                if (TileElementCountsAsDecoration(*tileElement) || type == TileElementType::Wall
-                    || type == TileElementType::Path)
-                {
-                    score++;
-                }
-                else if (type == TileElementType::Track && tileElement->asTrack()->GetRideIndex() != rideId)
-                {
-                    score++;
-                }
-            } while (!(tileElement++)->isLastForTile());
-        }
-    }
-
-    return std::min(score, 16);
-}
-
 static void RideRatingAccumulateTick(
     RideRatingAccumulator& accumulator, TrackElemType trackType, const GForces& gForces, int32_t velocity, bool isSheltered,
-    int32_t contextScore, bool isSynchronised)
+    const RideRating::LocalContextScore& contextScore, bool isSynchronised)
 {
     const auto& ted = GetTrackElementDescriptor(trackType);
     const int32_t speed = std::abs(velocity) >> 16;
     const auto gForceScore = RideRating::ScoreGForcesForTick(gForces.verticalG, gForces.lateralG);
 
-    int64_t excitement = 1 + (std::min(speed, 90) / 5) + gForceScore.excitement;
-    int64_t intensity = (std::min(speed, 90) / 4) + gForceScore.intensity;
-    int64_t nausea = (std::min(speed, 90) / 8) + gForceScore.nausea;
+    int64_t excitement = 1 + (std::max(speed, kRideRatingAccumulatorSpeedFloor) / 5) + gForceScore.excitement;
+    int64_t intensity = (std::max(speed, kRideRatingAccumulatorSpeedFloor) / 4) + gForceScore.intensity;
+    int64_t nausea = (std::max(speed, kRideRatingAccumulatorSpeedFloor) / 8) + gForceScore.nausea;
 
     if (ted.flags.hasAny(TrackElementFlag::turnLeft, TrackElementFlag::turnRight))
     {
@@ -226,7 +183,9 @@ static void RideRatingAccumulateTick(
         nausea += 1;
     }
 
-    excitement += contextScore;
+    excitement += contextScore.excitement;
+    intensity += contextScore.intensity;
+    nausea += contextScore.nausea;
 
     accumulator.excitement += excitement;
     accumulator.intensity += intensity;
@@ -263,6 +222,17 @@ static bool RideRatingTrainHasRiders(const Vehicle& head)
     return false;
 }
 
+static bool RideTestingShouldSampleCircuit(const Ride& ride, const Vehicle& vehicle)
+{
+    return vehicle.flags.has(VehicleFlag::testing) && (ride.status == RideStatus::testing || !ride.flags.has(RideFlag::tested));
+}
+
+static bool RideTestingShouldStartCircuit(const Ride& ride, const Vehicle& vehicle)
+{
+    return !ride.flags.has(RideFlag::testInProgress) && !vehicle.isGhost()
+        && (ride.status == RideStatus::testing || !ride.flags.has(RideFlag::tested));
+}
+
 static bool RideRatingAccumulateVehicleTick(
     RideRatingAccumulator& accumulator, const Ride& ride, const Vehicle& vehicle, bool isSynchronised,
     const GForces* gForcesOverride = nullptr)
@@ -286,7 +256,7 @@ static bool RideRatingAccumulateVehicleTick(
     const auto location = CoordsXYZ{ vehicle.x, vehicle.y, vehicle.z };
     RideRatingAccumulateTick(
         accumulator, currentTrackType, gForces, vehicle.velocity, RideRatingTickIsSheltered(location),
-        RideRatingGetLocalContextScore(CoordsXY{ vehicle.x, vehicle.y }, ride.id), isSynchronised);
+        RideRating::GetLocalContextScore(location, ride.id), isSynchronised);
     return true;
 }
 
@@ -798,11 +768,16 @@ void Vehicle::UpdateMeasurements()
             curRide->maxLateralG = std::max(curRide->maxLateralG, static_cast<fixed16_2dp>(gForces.lateralG));
         }
 
-        if (IsHead() && curRide->getRideTypeDescriptor().RatingsData.Type == RatingsCalculationType::Normal)
+        if (IsHead() && RideTestingShouldSampleCircuit(*curRide, *this)
+            && curRide->getRideTypeDescriptor().RatingsData.Type == RatingsCalculationType::Normal)
         {
-            const bool isSynchronised = (curRide->departFlags & RIDE_DEPART_SYNCHRONISE_WITH_ADJACENT_STATIONS)
-                && RideHasAdjacentStation(*curRide);
-            RideRatingAccumulateTrainTick(curRide->ratingAccumulator, *curRide, *this, isSynchronised, &gForces);
+            auto* accumulator = RideGetOrCreateActiveRatingSample(*curRide, id);
+            if (accumulator != nullptr)
+            {
+                const bool isSynchronised = (curRide->departFlags & RIDE_DEPART_SYNCHRONISE_WITH_ADJACENT_STATIONS)
+                    && RideHasAdjacentStation(*curRide);
+                RideRatingAccumulateTrainTick(*accumulator, *curRide, *this, isSynchronised, &gForces);
+            }
         }
     }
 
@@ -1241,8 +1216,6 @@ static void test_finish(Ride& ride)
     totalTime = std::max(totalTime, 1u);
     ride.averageSpeed = ride.averageSpeed / totalTime;
 
-    RideRating::RecordRiderSample(ride, ride.ratingAccumulator);
-
     auto* windowMgr = Ui::GetWindowManager();
     windowMgr->InvalidateByNumber(WindowClass::ride, ride.id.ToUnderlying());
 }
@@ -1253,6 +1226,7 @@ void Vehicle::UpdateTestFinish()
     if (curRide == nullptr)
         return;
     test_finish(*curRide);
+    RideRating::RecordActiveRiderSample(*curRide, id);
     flags.unset(VehicleFlag::testing);
 }
 
@@ -1260,7 +1234,7 @@ void Vehicle::UpdateTestFinish()
  *
  *  rct2: 0x006D6BE7
  */
-static void test_reset(Ride& ride, StationIndex curStation)
+static void test_reset(Ride& ride, StationIndex curStation, bool preserveRecentSamples)
 {
     ride.flags.set(RideFlag::testInProgress);
     ride.flags.unset(RideFlag::noRawStats);
@@ -1285,7 +1259,17 @@ static void test_reset(Ride& ride, StationIndex curStation)
     ride.numPoweredLifts = 0;
     ride.shelteredLength = 0;
     ride.ratingAccumulator.clear();
-    RideClearRiderRatingSamples(ride);
+    if (preserveRecentSamples)
+    {
+        for (auto& sample : ride.activeRatingSamples)
+        {
+            sample.clear();
+        }
+    }
+    else
+    {
+        RideClearRiderRatingSamples(ride);
+    }
     ride.var11C = 0;
     ride.numShelteredSections = 0;
     ride.highestDropHeight = 0;
@@ -1303,13 +1287,13 @@ static void test_reset(Ride& ride, StationIndex curStation)
     windowMgr->InvalidateByNumber(WindowClass::ride, ride.id.ToUnderlying());
 }
 
-void Vehicle::TestReset()
+void Vehicle::TestReset(bool preserveRecentSamples)
 {
     flags.set(VehicleFlag::testing);
     auto curRide = GetRide();
     if (curRide == nullptr)
         return;
-    test_reset(*curRide, current_station);
+    test_reset(*curRide, current_station, preserveRecentSamples);
 }
 
 // The result of this function is used to decide whether a vehicle on a tower ride should go further up or not.
@@ -1395,24 +1379,21 @@ void Vehicle::UpdateTravellingCableLift()
 
         sub_state = 1;
         PeepEasterEggHereWeAre();
-        if (!curRide->flags.has(RideFlag::tested))
+        if (RideTestingShouldSampleCircuit(*curRide, *this))
         {
-            if (flags.has(VehicleFlag::testing))
+            if (curRide->currentTestSegment + 1 < curRide->numStations)
             {
-                if (curRide->currentTestSegment + 1 < curRide->numStations)
-                {
-                    curRide->currentTestSegment++;
-                    curRide->currentTestStation = current_station;
-                }
-                else
-                {
-                    UpdateTestFinish();
-                }
+                curRide->currentTestSegment++;
+                curRide->currentTestStation = current_station;
             }
-            else if (!curRide->flags.has(RideFlag::testInProgress) && !isGhost())
+            else
             {
-                TestReset();
+                UpdateTestFinish();
             }
+        }
+        else if (RideTestingShouldStartCircuit(*curRide, *this))
+        {
+            TestReset(curRide->flags.has(RideFlag::tested));
         }
     }
 

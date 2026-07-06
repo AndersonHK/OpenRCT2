@@ -44,6 +44,17 @@ static SynchronisedVehicle _synchronisedVehicles[SYNCHRONISED_VEHICLE_COUNT] = {
 
 static SynchronisedVehicle* _lastSynchronisedVehicle = nullptr;
 
+static bool RideTestingShouldSampleCircuit(const Ride& ride, const Vehicle& vehicle)
+{
+    return vehicle.flags.has(VehicleFlag::testing) && (ride.status == RideStatus::testing || !ride.flags.has(RideFlag::tested));
+}
+
+static bool RideTestingShouldStartCircuit(const Ride& ride, const Vehicle& vehicle)
+{
+    return !ride.flags.has(RideFlag::testInProgress) && !vehicle.isGhost()
+        && (ride.status == RideStatus::testing || !ride.flags.has(RideFlag::tested));
+}
+
 static void RideRatingPublishTrainSample(Vehicle& vehicle)
 {
     if (!vehicle.IsHead() || vehicle.flags.has(VehicleFlag::testing) || vehicle.isGhost())
@@ -57,14 +68,7 @@ static void RideRatingPublishTrainSample(Vehicle& vehicle)
         return;
     }
 
-    auto* accumulator = RideFindActiveRatingSample(*ride, vehicle.id);
-    if (accumulator == nullptr || !accumulator->hasSamples())
-    {
-        return;
-    }
-
-    RideRating::RecordRiderSample(*ride, *accumulator);
-    accumulator->clear();
+    RideRating::RecordActiveRiderSample(*ride, vehicle.id);
 }
 
 /**
@@ -982,8 +986,7 @@ void Vehicle::UpdateUnloadingPassengers()
             if (sub_state != 1)
                 return;
 
-            if (!curRide->flags.has(RideFlag::tested) && flags.has(VehicleFlag::testing)
-                && curRide->currentTestSegment + 1 >= curRide->numStations)
+            if (RideTestingShouldSampleCircuit(*curRide, *this) && curRide->currentTestSegment + 1 >= curRide->numStations)
             {
                 UpdateTestFinish();
             }
@@ -1023,8 +1026,7 @@ void Vehicle::UpdateUnloadingPassengers()
             return;
     }
 
-    if (!curRide->flags.has(RideFlag::tested) && flags.has(VehicleFlag::testing)
-        && curRide->currentTestSegment + 1 >= curRide->numStations)
+    if (RideTestingShouldSampleCircuit(*curRide, *this) && curRide->currentTestSegment + 1 >= curRide->numStations)
     {
         UpdateTestFinish();
     }
@@ -1078,24 +1080,21 @@ void Vehicle::UpdateDeparting()
             Play3D(SoundId::rideLaunch2, getLocation());
         }
 
-        if (!curRide->flags.has(RideFlag::tested))
+        if (RideTestingShouldSampleCircuit(*curRide, *this))
         {
-            if (flags.has(VehicleFlag::testing))
+            if (curRide->currentTestSegment + 1 < curRide->numStations)
             {
-                if (curRide->currentTestSegment + 1 < curRide->numStations)
-                {
-                    curRide->currentTestSegment++;
-                    curRide->currentTestStation = current_station;
-                }
-                else
-                {
-                    UpdateTestFinish();
-                }
+                curRide->currentTestSegment++;
+                curRide->currentTestStation = current_station;
             }
-            else if (!curRide->flags.has(RideFlag::testInProgress) && !isGhost())
+            else
             {
-                TestReset();
+                UpdateTestFinish();
             }
+        }
+        else if (RideTestingShouldStartCircuit(*curRide, *this))
+        {
+            TestReset(curRide->flags.has(RideFlag::tested));
         }
     }
 

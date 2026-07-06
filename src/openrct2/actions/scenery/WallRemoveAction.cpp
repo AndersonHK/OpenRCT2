@@ -14,6 +14,7 @@
 #include "../../OpenRCT2.h"
 #include "../../localisation/StringIds.h"
 #include "../../management/Finance.h"
+#include "../../ride/RideRatings.h"
 #include "../../world/Location.hpp"
 #include "../../world/Map.h"
 #include "../../world/TileElementsView.h"
@@ -85,6 +86,7 @@ namespace OpenRCT2::GameActions
         res.position.z = _loc.z;
 
         wallElement->RemoveBannerEntry();
+        RideRating::InvalidateLocalContextCacheAround(_loc);
         MapInvalidateTileZoom1({ _loc, wallElement->getBaseZ(), (wallElement->getBaseZ()) + 72 });
         TileElementRemove(wallElement);
 

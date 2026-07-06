@@ -1,6 +1,34 @@
 # OpenRCT2 overhaul changelog
 
+## 2026-07-06
+
+### Decoration diminishing returns
+
+Decision: local scenery now uses an uncapped square-root diminishing-return curve. It takes about four times as much raw decoration to reach the former local scenery cap, and denser decoration can still add value beyond that point at a slower rate. Fixed-ride scenery modifiers use the same uncapped local scenery score.
+
+Reasoning: decoration was too influential at modest density and then stopped mattering too early. The new curve keeps dense scenery worthwhile without making the first few visible items dominate ride stats.
+
+Current balancing: raw scenery `1200` maps to the former 18-point local scenery contribution. Raw scenery `300`, the old scenery divisor, maps to 9 points, and raw scenery above `1200` continues growing by square root.
+
+Details: [Ride rating local context plan](ride-rating-local-context-plan.md)
+
 ## 2026-07-05
+
+### Height-aware ride scenery context
+
+Decision: replace the direct 3x3 vehicle and maze decoration scans with a shared cached local-context query. The query now scales from 5x5 at ground level up to 15x15 for high ride samples, applies distance falloff, line-of-sight checks against solid vertical volumes, mild lower-scenery height penalties, and diminishing returns per context channel. Range is resolved through a downward sight ray toward each candidate tile, so hills extend vision over lower land, pits reduce vision toward higher land, and scenery on cliff tops above the rider is occluded. Flat-ride scenery modifiers also use this context from the station/start tile with an eye-height offset, so elevated flat rides benefit from increased sight range.
+
+Reasoning: decoration and proximity bonuses are now accumulated where riders actually are, so the local query needs to represent what riders can plausibly see instead of acting like a tiny immediate-neighbour count. Caching by origin tile and ride id keeps the expensive visibility work away from per-vehicle hot paths. Test-mode circuits now keep producing rating samples after the first completed test, preserving the rolling average while letting scenery/context edits show up after later test runs.
+
+Correction: fixed-ride scenery origins now use ride-specific eye heights for tall non-coaster rides such as observation towers, roto-drop rides, launched freefall rides, lifts, ferris wheels, and chairlifts. Mazes use a lower viewpoint and maze track now blocks line of sight, so maze walls behave as walls for local decoration visibility.
+
+Details: [Ride rating local context plan](ride-rating-local-context-plan.md)
+
+### Ride rating sample save data
+
+Decision: persist the ride rating raw accumulator plus active and recent rider/test samples in fork save version `60005`.
+
+Reasoning: visible excitement/intensity/nausea ratings were already saved, but the new rolling sample cache was not. That meant an aggregate-rated ride loaded from a save could briefly recalculate from no samples and collapse to very low or zero ratings, then slowly recover as new riders rode it. New saves carry the rolling samples forward. Older saves clear the new sample fields but preserve the already-saved visible rating until a fresh rider/test sample exists.
 
 ### Boat Hire return routing rollback
 
@@ -76,9 +104,13 @@ Correction: train rating samples now average the sampled contribution from every
 
 Correction: completed test runs now publish their measured raw stat accumulator into the same rolling sample cache. Tested rides therefore display aggregate stats from the test run instead of staying at zero until guests ride them.
 
+Correction: formal vehicle tests now accumulate excitement/intensity/nausea in the same active train sample slot used by live rider trains, keyed by the head vehicle as a phantom rider sample. In-progress test accumulators are no longer used for display, so the ride window keeps its existing rating during a test and updates only when a test train completes its circuit.
+
 Correction: Maze no longer receives descriptor base stats or `BonusMazeSize`/`BonusScenery` post bonuses. Maze pathfinding now records per-guest active samples and publishes each completed exit path into the same rolling cache, so maze length contributes only through the paths guests actually walk.
 
 Tuning: per-tick G-force scoring now uses smooth curves informed by the old ride-wide G-force logic. `1.0G` vertical is neutral, `0.0G` is treated as exciting airtime, negative vertical G becomes progressively nastier, positive vertical G mostly feeds intensity, and lateral G has the steepest curve with the old `2.8G`/`3.1G` lateral penalties translated into a smooth severe range.
+
+Tuning: the accumulator speed guard now floors speed at `1` instead of capping it at `90`, so speed continues to scale normally while zero-speed samples are guarded. Vehicle-object rating multipliers remain on the raw aggregate before the square-root finalizer, which is equivalent to applying the same ride-entry bonus to each sampled tick while preserving saved raw samples.
 
 Details: [Ride rating aggregate rationale](ride-rating-aggregate-rationale.md)
 

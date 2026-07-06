@@ -9,6 +9,7 @@
 
 #include "Wall.h"
 
+#include "../ride/RideRatings.h"
 #include "Map.h"
 #include "tile_element/TileElement.h"
 #include "tile_element/WallElement.h"
@@ -24,6 +25,7 @@ void WallRemoveAt(const CoordsXYRangedZ& wallPos)
     for (auto wallElement = MapGetWallElementAt(wallPos); wallElement != nullptr; wallElement = MapGetWallElementAt(wallPos))
     {
         reinterpret_cast<TileElement*>(wallElement)->RemoveBannerEntry();
+        RideRating::InvalidateLocalContextCacheAround(wallPos);
         MapInvalidateTileZoom1({ wallPos, wallElement->getBaseZ(), wallElement->getBaseZ() + 72 });
         TileElementRemove(reinterpret_cast<TileElement*>(wallElement));
     }
@@ -59,6 +61,7 @@ void WallRemoveIntersectingWalls(const CoordsXYRangedZ& wallPos, Direction direc
             continue;
 
         tileElement->RemoveBannerEntry();
+        RideRating::InvalidateLocalContextCacheAround(wallPos);
         MapInvalidateTileZoom1({ wallPos, tileElement->getBaseZ(), tileElement->getBaseZ() + 72 });
         TileElementRemove(tileElement);
         tileElement--;

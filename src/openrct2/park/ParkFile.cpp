@@ -48,6 +48,7 @@
 #include "../object/ObjectRepository.h"
 #include "../peep/RideUseSystem.h"
 #include "../rct2/RCT2.h"
+#include "../ride/Ride.h"
 #include "../ride/RideManager.hpp"
 #include "../ride/ShopItem.h"
 #include "../ride/Track.h"
@@ -205,6 +206,41 @@ namespace OpenRCT2
             {
                 length = ScaleLegacyRideLengthToReal(length);
             }
+        }
+
+        static void ReadWriteRideRatingAccumulator(OrcaStream::ChunkStream& cs, RideRatingAccumulator& accumulator)
+        {
+            cs.readWrite(accumulator.excitement);
+            cs.readWrite(accumulator.intensity);
+            cs.readWrite(accumulator.nausea);
+            cs.readWrite(accumulator.ticks);
+            cs.readWrite(accumulator.sampleEntity);
+            cs.readWrite(accumulator.sampleComplete);
+        }
+
+        static void ReadWriteRideRatingSamples(OrcaStream::ChunkStream& cs, Ride& ride, uint32_t version)
+        {
+            if (version < kRideRatingSamplesVersion)
+            {
+                if (cs.getMode() == OrcaStream::Mode::reading)
+                {
+                    ride.ratingAccumulator.clear();
+                    RideClearRiderRatingSamples(ride);
+                }
+                return;
+            }
+
+            ReadWriteRideRatingAccumulator(cs, ride.ratingAccumulator);
+            cs.readWriteArray(ride.activeRatingSamples, [&cs](RideRatingAccumulator& sample) {
+                ReadWriteRideRatingAccumulator(cs, sample);
+                return true;
+            });
+            cs.readWriteArray(ride.recentRatingSamples, [&cs](RideRatingAccumulator& sample) {
+                ReadWriteRideRatingAccumulator(cs, sample);
+                return true;
+            });
+            cs.readWrite(ride.recentRatingSampleCount);
+            cs.readWrite(ride.recentRatingSampleNext);
         }
 
     public:
@@ -1750,6 +1786,7 @@ namespace OpenRCT2
                     cs.readWrite(ride.ratings.excitement);
                     cs.readWrite(ride.ratings.intensity);
                     cs.readWrite(ride.ratings.nausea);
+                    ReadWriteRideRatingSamples(cs, ride, version);
 
                     if (version <= 18)
                     {

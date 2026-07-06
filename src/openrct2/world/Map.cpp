@@ -42,6 +42,7 @@
 #include "../ride/RideConstruction.h"
 #include "../ride/RideData.h"
 #include "../ride/RideManager.hpp"
+#include "../ride/RideRatings.h"
 #include "../ride/TrackData.h"
 #include "../ride/TrackDesign.h"
 #include "../windows/Intent.h"
@@ -149,6 +150,7 @@ namespace OpenRCT2
         _tileIndex = TilePointerIndex<TileElement>(
             kMaximumMapSizeTechnical, gameState.tileElements.data(), gameState.tileElements.size());
         _tileElementsInUse = gameState.tileElements.size();
+        RideRating::ClearLocalContextCache();
     }
 
     static TileElement GetDefaultSurfaceElement()
@@ -1178,6 +1180,7 @@ namespace OpenRCT2
             } while (!((newTileElement - 1)->isLastForTile()));
         }
 
+        RideRating::InvalidateLocalContextCacheAround(loc);
         return insertedElement;
     }
 
@@ -1715,6 +1718,7 @@ namespace OpenRCT2
      */
     void MapInvalidateTile(const CoordsXYRangedZ& tilePos)
     {
+        RideRating::InvalidateLocalContextCacheAround(tilePos);
         MapInvalidateTileUnderZoom(tilePos.x, tilePos.y, tilePos.baseZ, tilePos.clearanceZ, ZoomLevel{ -1 });
     }
 
@@ -1752,6 +1756,7 @@ namespace OpenRCT2
 
     void MapInvalidateRegion(const CoordsXY& mins, const CoordsXY& maxs)
     {
+        RideRating::ClearLocalContextCache();
         int32_t x0 = mins.x + 16;
         int32_t y0 = mins.y + 16;
         int32_t x1 = maxs.x + 16;

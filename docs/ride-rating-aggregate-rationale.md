@@ -7,7 +7,7 @@ This change moves excitement, intensity, and nausea away from a purely post-test
 Each sampled vehicle tick contributes raw excitement, intensity, and nausea from:
 
 - current track element descriptor and special track element type
-- current velocity
+- current velocity, floored to `1` as a zero-speed guard so speed still scales normally
 - vertical and lateral G forces
 - whether the sampled vehicle position is sheltered or underground
 - local scenery, path, and nearby-ride context around the sampled tile
@@ -41,7 +41,8 @@ The old ride-wide G-force code is used as a calibration reference. Its `2.8G` an
 - `Ride::activeRatingSamples` tracks currently running guest/train samples, and `Ride::recentRatingSamples` stores the last twenty completed samples used for display smoothing.
 - `RideGetOrCreateActiveRatingSample()`, `RideAddRecentRatingSample()`, and `RideGetRecentRatingAccumulator()` in `src/openrct2/ride/Ride.cpp` manage active samples and the rolling average.
 - `Vehicle::UpdateMeasurements()` in `src/openrct2/ride/Vehicle.cpp` samples the train's current per-car track pieces and G forces during test runs.
-- `test_finish()` in `src/openrct2/ride/Vehicle.cpp` publishes the completed test accumulator into the rolling sample cache.
+- formal vehicle tests use the head vehicle id as a phantom rider sample in the same active sample cache used by live rider trains.
+- `test_finish()` in `src/openrct2/ride/Vehicle.cpp` marks the test complete, then publishes the completed phantom train sample into the rolling sample cache.
 - `RideRatingUpdateLiveTrainSample()` in `src/openrct2/ride/Vehicle.cpp` samples normal passenger trains during live operation.
 - `RideRatingPublishTrainSample()` in `src/openrct2/ride/Vehicle.Station.cpp` publishes a train sample when the train unloads.
 - `RideRatingAccumulateTick()` converts that tick state into raw excitement, intensity, and nausea.
@@ -49,7 +50,8 @@ The old ride-wide G-force code is used as a calibration reference. Its `2.8G` an
 - Train samples average the per-tick contributions of every vehicle on the train before adding that tick to the active train sample, so back cars and middle cars affect ratings without multiplying the ride duration.
 - `test_reset()` and `InvalidateTestResults()` clear test and rider samples whenever test data is reset.
 - `RideRating::RecordRiderSample()` in `src/openrct2/ride/RideRatings.cpp` records completed rider/train/test samples and immediately recalculates the displayed rating.
-- `RideRatingsCalculate()` in `src/openrct2/ride/RideRatings.cpp` uses aggregate finalization for normal rides and mazes, preferring the rolling sample cache and falling back only to an in-progress formal test accumulator.
+- `RideRating::RecordActiveRiderSample()` in `src/openrct2/ride/RideRatings.cpp` publishes completed active samples for both live trains and phantom test trains.
+- `RideRatingsCalculate()` in `src/openrct2/ride/RideRatings.cpp` uses aggregate finalization for normal rides and mazes from completed rolling samples only; in-progress formal test accumulators are deliberately not displayed.
 - `RideRatingsCalculateAggregated()` finalizes raw totals through the square-root curve.
 
 ## Maze handling
@@ -75,7 +77,7 @@ The aggregate path treats old ride-wide modifiers differently:
 
 - Track length, duration, speed, G-force, turns, drops, shelter, synchronization, proximity, and scenery bonuses are skipped in the post modifier pass because those effects are already present in sampled ticks.
 - Additive train length, reversals, holes, train count, operation options, downward launch, launched freefall mode, go-kart race, and similar legacy ride-wide bonuses are skipped until they can be represented as sampled tick effects.
-- Pure multipliers, such as reversed-train and ride-entry multipliers, can only scale existing sampled raw totals; they cannot create stats from zero.
+- Pure multipliers, such as reversed-train and ride-entry multipliers, can only scale existing sampled raw totals; they cannot create stats from zero. Ride-entry multipliers use the legacy `value * multiplier >> 7` scale and are applied to raw totals before the square-root finalizer, which is equivalent to applying the same vehicle-object bonus to every sampled tick for a ride.
 - Requirements are translated into raw-level divisors or gates with comments in `RideRatingsRawApplyRequirement()`, so the old hardcoded requirements are documented where the formula now acts.
 - The existing non-aggregate path remains for flat rides, stalls, and other non-aggregate rating types. Aggregate-rated normal rides and mazes without samples no longer use the legacy fallback path.
 
@@ -88,7 +90,7 @@ The aggregate path treats old ride-wide modifiers differently:
 - `src/openrct2/ride/Vehicle.cpp`: `RideRatingTickIsSheltered`, `RideRatingGetLocalContextScore`, `RideRatingAccumulateTick`, `RideRatingUpdateLiveTrainSample`, `Vehicle::UpdateMeasurements`, `test_finish`, `test_reset`.
 - `src/openrct2/ride/Vehicle.Station.cpp`: `RideRatingPublishTrainSample`, `Vehicle::UpdateUnloadingPassengers`.
 - `src/openrct2/ride/Ride.cpp`: active/recent rating sample helpers, `InvalidateTestResults`.
-- `src/openrct2/ride/RideRatings.h` and `src/openrct2/ride/RideRatings.cpp`: `RideRating::ScoreAirtimeGForTick`, `RideRating::ScoreNegativeVerticalGForTick`, `RideRating::ScorePositiveVerticalGForTick`, `RideRating::ScoreLateralGForTick`, `RideRating::ScoreGForcesForTick`, `RideRating::RecordRiderSample`, `RideRatingsCalculate`, `RideRatingsRawToRating`, `RideRatingsRawDivide`, `RideRatingsRawApplyRideEntryMultipliers`, `RideRatingsRawApplyRequirement`, `RideRatingsRawApplyModifiers`, `RideRatingsCalculateAggregated`.
+- `src/openrct2/ride/RideRatings.h` and `src/openrct2/ride/RideRatings.cpp`: `RideRating::ScoreAirtimeGForTick`, `RideRating::ScoreNegativeVerticalGForTick`, `RideRating::ScorePositiveVerticalGForTick`, `RideRating::ScoreLateralGForTick`, `RideRating::ScoreGForcesForTick`, `RideRating::ApplyRideEntryMultipliers`, `RideRating::RecordRiderSample`, `RideRating::RecordActiveRiderSample`, `RideRatingsCalculate`, `RideRatingsRawToRating`, `RideRatingsRawDivide`, `RideRatingsRawApplyRideEntryMultipliers`, `RideRatingsRawApplyRequirement`, `RideRatingsRawApplyModifiers`, `RideRatingsCalculateAggregated`.
 - `src/openrct2/ride/rtd/gentle/Maze.h`: removes post-hoc maze size and scenery bonuses from the Maze descriptor.
 - `test/tests/RideRatings.cpp` and `test/tests/testdata/ratings/*.txt`: update the fixture expectations for aggregate-rated rides with no samples; the helper can regenerate fixtures with `OPENRCT2_UPDATE_RIDE_RATINGS=1`.
 

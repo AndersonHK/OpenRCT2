@@ -17,6 +17,7 @@
 #include <cstdint>
 
 struct Ride;
+struct RideObjectEntry;
 struct RideRatingAccumulator;
 
 namespace OpenRCT2
@@ -59,6 +60,17 @@ namespace OpenRCT2
             int64_t nausea{};
         };
 
+        struct LocalContextScore
+        {
+            int32_t excitement{};
+            int32_t intensity{};
+            int32_t nausea{};
+            int32_t scenery{};
+            int32_t pathProximity{};
+            int32_t foreignTrackProximity{};
+            int32_t verticalInteraction{};
+        };
+
         struct UpdateState
         {
             CoordsXYZ Proximity;
@@ -83,10 +95,17 @@ namespace OpenRCT2
         TickScore ScorePositiveVerticalGForTick(int32_t verticalG);
         TickScore ScoreLateralGForTick(int32_t lateralG);
         TickScore ScoreGForcesForTick(int32_t verticalG, int32_t lateralG);
+        TickScore ApplyRideEntryMultipliers(TickScore score, const RideObjectEntry& rideEntry);
+        int32_t ScoreSceneryForLocalContext(int32_t rawScenery);
+        LocalContextScore GetLocalContextScore(const CoordsXYZ& origin, RideId rideId);
+        CoordsXYZ GetFixedRideLocalContextOrigin(const Ride& ride);
+        void InvalidateLocalContextCacheAround(const CoordsXY& location);
+        void ClearLocalContextCache();
 
         void ResetUpdateStates();
         void UpdateRide(const Ride& ride);
         void RecordRiderSample(Ride& ride, const RideRatingAccumulator& sample);
+        bool RecordActiveRiderSample(Ride& ride, EntityId sampleEntity);
         void UpdateAll();
     } // namespace RideRating
 } // namespace OpenRCT2
