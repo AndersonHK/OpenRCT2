@@ -1,5 +1,27 @@
 # OpenRCT2 overhaul changelog
 
+## 2026-07-07
+
+### Decoration visibility policy
+
+Decision: outside-decoration scenery bonuses now use a ride-type visibility multiplier after local scenery diminishing returns. Fully enclosed `3d_cinema`, `motion_simulator`, and `circus` rides receive no outside-decoration bonus. `haunted_house` and `flying_saucers` receive half. `crooked_house` and `dodgems` receive one quarter. Mazes and other ride types keep the full local scenery score.
+
+Reasoning: the local-context system was correctly measuring nearby scenery, but it treated all riders as if they could see outside equally well. Fully enclosed shows should not be excited by gardens they cannot see, while limited-visibility rides should get a reduced benefit instead of an all-or-nothing rule.
+
+Correction: local-context line of sight now traces to both the bottom and top of a candidate object. The existing terrain-relative range gate is preserved, but a tall decoration, elevated path, or elevated foreign track can now count if its upper ray clears maze walls or other solid blockers. Low objects behind same-height maze walls remain blocked.
+
+Details: [Ride rating local context plan](ride-rating-local-context-plan.md)
+
+### Fixed-ride scenery sampling
+
+Decision: fixed rides with `BonusScenery` now sample their local scenery context from the ride footprint centre and derive normal flat-ride eye height from the ride descriptor clearance box. Tower-like rides still use their dynamic height, while enclosed rides and mazes keep low viewpoints.
+
+Reasoning: flat rides such as the Haunted House revealed that the remaining fixed-ride scenery hook was still too legacy-shaped. Clearance-derived viewpoints make Ferris Wheel, Magic Carpet, Enterprise, and similar rides benefit from height without hand-maintaining each ride type, while footprint-centred sampling avoids judging a multi-tile ride from only its station tile.
+
+Current balancing: the local scenery score remains uncapped and square-rooted. `BonusScenery` consumes that same uncapped score; there is no restored legacy cap in the fixed-ride adapter.
+
+Details: [Ride rating local context plan](ride-rating-local-context-plan.md)
+
 ## 2026-07-06
 
 ### Decoration diminishing returns
@@ -121,6 +143,8 @@ Correction: completed test runs now publish their measured raw stat accumulator 
 Correction: formal vehicle tests now accumulate excitement/intensity/nausea in the same active train sample slot used by live rider trains, keyed by the head vehicle as a phantom rider sample. In-progress test accumulators are no longer used for display, so the ride window keeps its existing rating during a test and updates only when a test train completes its circuit.
 
 Correction: Maze no longer receives descriptor base stats or `BonusMazeSize`/`BonusScenery` post bonuses. Maze pathfinding now records per-guest active samples and publishes each completed exit path into the same rolling cache, so maze length contributes only through the paths guests actually walk.
+
+Tuning: Maze capacity is now a three-mode policy instead of a literal rider-count setting. Normal allows one guest per maze tile, Overcrowding doubles that capacity while halving the raw accumulated rating stats before the square-root finalizer, and Sparse allows one guest per two tiles with a minimum of one while doubling the raw accumulated stats. Legacy numeric S4/S6 park imports normalise to Normal; track-design imports preserve `0`/`1`/`2` bucket values and otherwise normalise to Normal.
 
 Tuning: per-tick G-force scoring now uses smooth curves informed by the old ride-wide G-force logic. `1.0G` vertical is neutral, `0.0G` is treated as exciting airtime, negative vertical G becomes progressively nastier, positive vertical G mostly feeds intensity, and lateral G has the steepest curve with the old `2.8G`/`3.1G` lateral penalties translated into a smooth severe range.
 

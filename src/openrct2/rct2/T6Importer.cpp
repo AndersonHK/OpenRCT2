@@ -236,6 +236,7 @@ namespace OpenRCT2::RCT2
             if (rtd.specialType == RtdSpecialType::maze)
             {
                 importMazeElements(*td);
+                td->NormaliseMazeOperationSetting();
             }
             else
             {

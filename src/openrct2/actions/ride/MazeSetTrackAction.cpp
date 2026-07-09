@@ -248,6 +248,7 @@ namespace OpenRCT2::GameActions
             MapInvalidateTileFull(startLoc);
 
             ride->mazeTiles++;
+            ride->updateMazeCapacityForConstruction();
             ride->getStation().SetBaseZ(tileElement->getBaseZ());
             ride->getStation().Start = { 0, 0 };
 
@@ -351,6 +352,7 @@ namespace OpenRCT2::GameActions
             TileElementRemove(tileElement);
             ride->validateStations();
             ride->mazeTiles--;
+            ride->updateMazeCapacityForConstruction();
         }
         if (!flags.has(CommandFlag::ghost))
         {

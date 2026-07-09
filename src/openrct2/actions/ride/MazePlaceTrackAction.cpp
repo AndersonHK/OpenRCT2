@@ -199,6 +199,7 @@ namespace OpenRCT2::GameActions
         MapInvalidateTileFull(startLoc);
 
         ride->mazeTiles++;
+        ride->updateMazeCapacityForConstruction();
         ride->getStation().SetBaseZ(trackElement->getBaseZ());
         ride->getStation().Start = { 0, 0 };
 

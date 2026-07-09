@@ -195,8 +195,7 @@ namespace OpenRCT2::GameActions
             }
         }
 
-        const auto& operatingSettings = rtd.OperatingSettings;
-        ride->operationOption = (operatingSettings.MinValue * 3 + operatingSettings.MaxValue) / 4;
+        ride->operationOption = ride->getDefaultOperationOption();
 
         ride->liftHillSpeed = rtd.LiftData.minimum_speed;
 

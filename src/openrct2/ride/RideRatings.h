@@ -15,6 +15,7 @@
 
 #include <array>
 #include <cstdint>
+#include <utility>
 
 struct Ride;
 struct RideObjectEntry;
@@ -99,6 +100,7 @@ namespace OpenRCT2
         TickScore ScoreBoatHireFreeRoamForTick(uint32_t tickIndex);
         TickScore ApplyRideEntryMultipliers(TickScore score, const RideObjectEntry& rideEntry);
         int32_t ScoreSceneryForLocalContext(int32_t rawScenery);
+        std::pair<int32_t, int32_t> GetSceneryVisibilityMultiplier(const Ride& ride);
         LocalContextScore GetLocalContextScore(const CoordsXYZ& origin, RideId rideId);
         CoordsXYZ GetFixedRideLocalContextOrigin(const Ride& ride);
         void InvalidateLocalContextCacheAround(const CoordsXY& location);

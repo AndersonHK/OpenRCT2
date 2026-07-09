@@ -4985,6 +4985,130 @@ static int32_t RideGetTrackLength(const Ride& ride)
     return result;
 }
 
+uint8_t Ride::getMazeMaximumCapacity() const
+{
+    if (type != RIDE_TYPE_MAZE)
+        return 0;
+
+    return getMazeCapacityForMode(MazeCapacityMode::overcrowded);
+}
+
+MazeCapacityMode RideNormaliseMazeCapacityMode(uint8_t operationOption)
+{
+    switch (static_cast<MazeCapacityMode>(operationOption))
+    {
+        case MazeCapacityMode::sparse:
+        case MazeCapacityMode::normal:
+        case MazeCapacityMode::overcrowded:
+            return static_cast<MazeCapacityMode>(operationOption);
+    }
+
+    return MazeCapacityMode::normal;
+}
+
+uint8_t Ride::getMazeCapacityForMode(MazeCapacityMode capacityMode) const
+{
+    if (type != RIDE_TYPE_MAZE || mazeTiles == 0)
+        return 0;
+
+    uint32_t capacity = mazeTiles;
+    switch (capacityMode)
+    {
+        case MazeCapacityMode::sparse:
+            capacity = std::max<uint32_t>(1, capacity / 2);
+            break;
+        case MazeCapacityMode::normal:
+            break;
+        case MazeCapacityMode::overcrowded:
+            capacity *= 2;
+            break;
+    }
+
+    return static_cast<uint8_t>(std::min<uint32_t>(capacity, std::numeric_limits<uint8_t>::max()));
+}
+
+MazeCapacityMode Ride::getMazeCapacityMode() const
+{
+    if (type != RIDE_TYPE_MAZE)
+        return MazeCapacityMode::normal;
+
+    return RideNormaliseMazeCapacityMode(operationOption);
+}
+
+std::pair<int32_t, int32_t> Ride::getMazeRatingAccumulatorScale() const
+{
+    if (type != RIDE_TYPE_MAZE)
+        return { 1, 1 };
+
+    switch (getMazeCapacityMode())
+    {
+        case MazeCapacityMode::sparse:
+            return { 2, 1 };
+        case MazeCapacityMode::normal:
+            return { 1, 1 };
+        case MazeCapacityMode::overcrowded:
+            return { 1, 2 };
+    }
+
+    return { 1, 1 };
+}
+
+uint8_t Ride::getOperationOptionMinimum(bool unlockOperatingLimits) const
+{
+    if (type == RIDE_TYPE_MAZE)
+        return static_cast<uint8_t>(MazeCapacityMode::sparse);
+
+    if (unlockOperatingLimits)
+        return 0;
+
+    return getRideTypeDescriptor().OperatingSettings.MinValue;
+}
+
+uint8_t Ride::getOperationOptionMaximum(bool unlockOperatingLimits) const
+{
+    if (type == RIDE_TYPE_MAZE)
+        return static_cast<uint8_t>(MazeCapacityMode::overcrowded);
+
+    if (unlockOperatingLimits)
+        return Limits::kCheatsMaxOperatingLimit;
+
+    return getRideTypeDescriptor().OperatingSettings.MaxValue;
+}
+
+uint8_t Ride::getDefaultOperationOption() const
+{
+    if (type == RIDE_TYPE_MAZE)
+        return static_cast<uint8_t>(MazeCapacityMode::normal);
+
+    const auto& operatingSettings = getRideTypeDescriptor().OperatingSettings;
+    return (operatingSettings.MinValue * 3 + operatingSettings.MaxValue) / 4;
+}
+
+uint8_t Ride::getStoredOperationOption() const
+{
+    if (type == RIDE_TYPE_MAZE)
+        return static_cast<uint8_t>(getMazeCapacityMode());
+
+    return operationOption;
+}
+
+uint8_t Ride::getEffectiveOperationOption() const
+{
+    if (type == RIDE_TYPE_MAZE)
+        return getMazeCapacityForMode(getMazeCapacityMode());
+
+    return operationOption;
+}
+
+void Ride::updateMazeCapacityForConstruction()
+{
+    if (type != RIDE_TYPE_MAZE)
+        return;
+
+    operationOption = getStoredOperationOption();
+    windowInvalidateFlags.set(RideInvalidateFlag::operatingSettings);
+}
+
 /**
  *
  *  rct2: 0x006DD57D

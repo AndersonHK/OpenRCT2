@@ -31,17 +31,21 @@ This gives the intended edge cases:
 
 ## Ride eye heights
 
-Vehicle-sampled rides use each vehicle's current map height as the eye origin. Fixed/scenery-modifier rides need an explicit origin because they do not always have a representative moving vehicle in the rating path. Ground-level fixed rides use a small rider eye-height offset from the station tile. Mazes use a lower origin and maze track counts as an opaque wall for line of sight. Observation towers, roto-drop rides, launched freefall rides, lift rides, ferris wheels, and chairlifts use larger ride-specific offsets so their scenery context reflects their much higher passenger viewpoint.
+Vehicle-sampled rides use each vehicle's current map height as the eye origin. Fixed/scenery-modifier rides need an explicit origin because they do not always have a representative moving vehicle in the rating path. Normal flat rides derive their viewpoint from the ride descriptor clearance box, using roughly 30% of the collision/clearance height as the rider eye height. The sampled x/y origin comes from the centre of the ride's track footprint when a footprint is available, falling back to the station tile for synthetic or incomplete rides. This makes wide or long flat rides sample their middle instead of only one station corner.
+
+Mazes use a lower origin and maze track counts as an opaque wall for line of sight. Enclosed fixed rides keep a low viewpoint even if their collision box is tall, because exterior scenery should not imply a panoramic rider view. Observation towers, roto-drop rides, launched freefall rides, lift rides, and chairlifts keep ride-specific tall offsets based on their dynamic height profile.
 
 ## Visibility and proximity
 
 The query treats ordinary track and supports as transparent. Solid items such as walls, entrances, scenery, and maze track block line of sight only if the sight ray passes through their vertical volume. A rider above the top of a solid item can see over it. Terrain is special: candidate tiles whose surface is above the downward sight ray are outside the contextual scenery range, and intermediate terrain blocks when the sight ray passes below the surface.
 
-Scenery is raycast toward the element's top. Path and foreign-track proximity are scored as their own channels, not as generic decoration. If path or foreign track sits above or below the sampled origin on the same tile, it is scored as a distance-zero vertical interaction with a large bonus. This covers coasters threading through other rides and path bridges crossing track.
+Visibility is tested with two rays: one to the bottom of the candidate element and one to its top/clearance. If either ray is clear, the candidate counts as visible. The range gate still uses the candidate footprint terrain, so expanded views stay bounded by the same 5x5 to 15x15 terrain-relative rule. This lets tall trees, elevated paths, and elevated foreign track count over maze walls while flat low decorations behind those walls remain hidden.
+
+Path and foreign-track proximity are scored as their own channels, not as generic decoration. If path or foreign track sits above or below the sampled origin on the same tile, it is scored as a distance-zero vertical interaction with a large bonus. This covers coasters threading through other rides and path bridges crossing track.
 
 ## Diminishing returns
 
-Scenery applies an uncapped square-root curve after distance, height, and visibility weighting. Four times the old raw scenery divisor reaches the previous local scenery cap, and additional scenery keeps helping at a slower rate instead of stopping completely. Vehicle-sampled scenery is then scaled by vehicle speed relative to a `90` speed baseline, so a vehicle moving at `45` receives half of the local scenery excitement for that tick and a vehicle moving at `30` receives one third. This keeps slow-moving vehicles from gaining extra decoration stats simply because they spend more ticks near the same objects.
+Scenery applies an uncapped square-root curve after distance, height, and visibility weighting. Four times the old raw scenery divisor reaches the previous local scenery cap, and additional scenery keeps helping at a slower rate instead of stopping completely. Fixed-ride `BonusScenery` modifiers consume this same uncapped local scenery score rather than restoring the old cap through the descriptor adapter. The final local scenery score is then multiplied by the ride's outside-visibility policy: no outside-decoration bonus for `3d_cinema`, `motion_simulator`, and `circus`; half for `haunted_house` and `flying_saucers`; one quarter for `crooked_house` and `dodgems`; full value for mazes and other ride types. Vehicle-sampled scenery is then scaled by vehicle speed relative to a `90` speed baseline, so a vehicle moving at `45` receives half of the local scenery excitement for that tick and a vehicle at `30` receives one third. This keeps slow-moving vehicles from gaining extra decoration stats simply by spending more ticks near the same objects.
 
 Path proximity, foreign-track proximity, and vertical interaction still use saturating curves because those bonuses represent nearby interactions that should taper to a practical local maximum.
 
@@ -54,11 +58,12 @@ The cache is owned by ride rating code and keyed by origin tile, origin height, 
 ## Functions touched
 
 - `RideRating::GetLocalContextScore`: shared cached local context query.
+- `RideRating::GetSceneryVisibilityMultiplier`: ride-type policy for outside-decoration visibility.
 - `RideRating::GetFixedRideLocalContextOrigin`: shared fixed-ride origin helper with ride-specific eye heights.
 - `RideRating::InvalidateLocalContextCacheAround`: dirties cached origins near a changed tile.
 - `RideRating::ClearLocalContextCache`: clears the context cache for map resets and broad invalidations.
 - `RideRatingAccumulateVehicleTick`: samples cached local context from the vehicle's current origin.
 - `RideRatingAccumulateMazeStep`: samples cached local context from the maze guest's current step.
-- `ride_ratings_get_scenery_score`: flat rides keep their existing descriptor-driven ratings, but their scenery modifier now samples this local context from the ride station/start tile with a rider eye-height offset instead of using the old fixed scenery count.
+- `ride_ratings_get_scenery_score`: flat rides keep their existing descriptor-driven ratings, but their scenery modifier now samples this local context from the ride footprint centre with a clearance-derived rider eye-height offset instead of using the old fixed scenery count.
 - `Vehicle::TestReset` and station test-finish handlers: repeat test-mode circuits preserve the recent sample history while clearing the active circuit accumulator, so test runs continue to refresh ride stats after the first completed test.
 - `MapInvalidateTile`, `MapInvalidateRegion`, `SetTileElements`, `TileElementInsert`, and wall-removal paths: cache invalidation hooks for construction, scenery, terrain, grass, wall occlusion, and map reset changes.

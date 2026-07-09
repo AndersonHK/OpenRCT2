@@ -14,6 +14,7 @@
 #include <openrct2/Context.h>
 #include <openrct2/Game.h>
 #include <openrct2/GameState.h>
+#include <openrct2/Limits.h>
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/ParkImporter.h>
 #include <openrct2/actions/GameActionRunner.h>
@@ -31,9 +32,11 @@
 #include <openrct2/ride/Ride.h>
 #include <openrct2/ride/RideData.h>
 #include <openrct2/ride/RideManager.hpp>
+#include <openrct2/ride/TrackDesign.h>
 #include <openrct2/world/MapAnimation.h>
 #include <openrct2/world/Park.h>
 #include <string>
+#include <utility>
 
 using namespace OpenRCT2;
 
@@ -318,6 +321,79 @@ TEST_F(PlayTests, RideSetPriceActionPreservesCentPrices)
     auto result = executeImmediate<GameActions::RideSetPriceAction>(ferrisWheel.id, 1.23_GBP, true);
     ASSERT_EQ(result.error, GameActions::Status::ok);
     EXPECT_EQ(ferrisWheel.price[0], 1.23_GBP);
+}
+
+TEST_F(PlayTests, MazeCapacityModesDeriveCapacityFromTileCount)
+{
+    Ride maze{};
+    maze.type = RIDE_TYPE_MAZE;
+
+    EXPECT_EQ(maze.getMazeMaximumCapacity(), 0);
+    EXPECT_EQ(maze.getOperationOptionMinimum(false), 0);
+    EXPECT_EQ(maze.getOperationOptionMaximum(false), 2);
+    EXPECT_EQ(maze.getDefaultOperationOption(), static_cast<uint8_t>(MazeCapacityMode::normal));
+    EXPECT_EQ(maze.getEffectiveOperationOption(), 0);
+
+    maze.mazeTiles = 5;
+    maze.operationOption = 64;
+    EXPECT_EQ(maze.getMazeCapacityMode(), MazeCapacityMode::normal);
+    EXPECT_EQ(maze.getMazeCapacityForMode(MazeCapacityMode::sparse), 2);
+    EXPECT_EQ(maze.getMazeCapacityForMode(MazeCapacityMode::normal), 5);
+    EXPECT_EQ(maze.getMazeCapacityForMode(MazeCapacityMode::overcrowded), 10);
+    EXPECT_EQ(maze.getMazeMaximumCapacity(), 10);
+    EXPECT_EQ(maze.getStoredOperationOption(), static_cast<uint8_t>(MazeCapacityMode::normal));
+    EXPECT_EQ(maze.getEffectiveOperationOption(), 5);
+
+    maze.updateMazeCapacityForConstruction();
+    EXPECT_EQ(maze.operationOption, static_cast<uint8_t>(MazeCapacityMode::normal));
+
+    maze.operationOption = static_cast<uint8_t>(MazeCapacityMode::sparse);
+    EXPECT_EQ(maze.getEffectiveOperationOption(), 2);
+    EXPECT_EQ(maze.getMazeRatingAccumulatorScale(), std::make_pair(2, 1));
+
+    maze.mazeTiles = 1;
+    EXPECT_EQ(maze.getEffectiveOperationOption(), 1);
+
+    maze.mazeTiles = 100;
+    maze.operationOption = static_cast<uint8_t>(MazeCapacityMode::overcrowded);
+    maze.updateMazeCapacityForConstruction();
+    EXPECT_EQ(maze.operationOption, static_cast<uint8_t>(MazeCapacityMode::overcrowded));
+    EXPECT_EQ(maze.getEffectiveOperationOption(), 200);
+    EXPECT_EQ(maze.getMazeRatingAccumulatorScale(), std::make_pair(1, 2));
+
+    maze.mazeTiles = 300;
+    EXPECT_EQ(maze.getMazeMaximumCapacity(), Limits::kCheatsMaxOperatingLimit);
+}
+
+TEST_F(PlayTests, ImportedMazeTrackDesignCapacityDefaultsToNormalMode)
+{
+    TrackDesign mazeDesign{};
+    mazeDesign.trackAndVehicle.rtdIndex = RIDE_TYPE_MAZE;
+    mazeDesign.operation.operationSetting = 4;
+
+    mazeDesign.mazeElements.resize(37);
+    mazeDesign.NormaliseMazeOperationSetting();
+    EXPECT_EQ(mazeDesign.operation.operationSetting, static_cast<uint8_t>(MazeCapacityMode::normal));
+
+    mazeDesign.operation.operationSetting = static_cast<uint8_t>(MazeCapacityMode::sparse);
+    mazeDesign.mazeElements.resize(37);
+    mazeDesign.NormaliseMazeOperationSetting();
+    EXPECT_EQ(mazeDesign.operation.operationSetting, static_cast<uint8_t>(MazeCapacityMode::sparse));
+
+    mazeDesign.operation.operationSetting = static_cast<uint8_t>(MazeCapacityMode::overcrowded);
+    mazeDesign.mazeElements.resize(37);
+    mazeDesign.NormaliseMazeOperationSetting();
+    EXPECT_EQ(mazeDesign.operation.operationSetting, static_cast<uint8_t>(MazeCapacityMode::overcrowded));
+
+    mazeDesign.operation.operationSetting = 50;
+    mazeDesign.mazeElements.resize(37);
+    mazeDesign.NormaliseMazeOperationSetting();
+    EXPECT_EQ(mazeDesign.operation.operationSetting, static_cast<uint8_t>(MazeCapacityMode::normal));
+
+    mazeDesign.operation.operationSetting = 4;
+    mazeDesign.mazeElements.resize(300);
+    mazeDesign.NormaliseMazeOperationSetting();
+    EXPECT_EQ(mazeDesign.operation.operationSetting, static_cast<uint8_t>(MazeCapacityMode::normal));
 }
 
 static Park::ParkData MakeGuestGenerationPark(uint16_t rating, money64 value)

@@ -99,6 +99,18 @@ namespace OpenRCT2::Ui::Windows
         RidePriceTarget::badValue,
     };
 
+    static constexpr std::array<StringId, 3> kMazeCapacityModeNames = {
+        STR_MAZE_CAPACITY_SPARSE,
+        STR_MAZE_CAPACITY_NORMAL,
+        STR_MAZE_CAPACITY_OVERCROWDING,
+    };
+
+    static StringId GetMazeCapacityModeName(MazeCapacityMode mode)
+    {
+        return kMazeCapacityModeNames[std::clamp<size_t>(
+            static_cast<size_t>(mode), 0, kMazeCapacityModeNames.size() - 1)];
+    }
+
     static const char* GetRidePriceTargetName(RidePriceTarget target)
     {
         switch (target)
@@ -3147,21 +3159,15 @@ namespace OpenRCT2::Ui::Windows
             if (ride == nullptr)
                 return;
 
-            const auto& operatingSettings = ride->getRideTypeDescriptor().OperatingSettings;
             const auto& gameState = getGameState();
-            uint8_t maxValue = operatingSettings.MaxValue;
-            uint8_t minValue = gameState.cheats.unlockOperatingLimits ? 0 : operatingSettings.MinValue;
-
-            if (gameState.cheats.unlockOperatingLimits)
-            {
-                maxValue = Limits::kCheatsMaxOperatingLimit;
-            }
+            auto minValue = ride->getOperationOptionMinimum(gameState.cheats.unlockOperatingLimits);
+            auto maxValue = ride->getOperationOptionMaximum(gameState.cheats.unlockOperatingLimits);
 
             uint8_t increment = ride->mode == RideMode::dodgems ? 10 : 1;
 
             SetOperatingSetting(
                 rideId, GameActions::RideSetSetting::operation,
-                std::clamp<int16_t>(ride->operationOption + increment, minValue, maxValue));
+                std::clamp<int16_t>(ride->getStoredOperationOption() + increment, minValue, maxValue));
         }
 
         void ModeTweakDecrease()
@@ -3170,20 +3176,15 @@ namespace OpenRCT2::Ui::Windows
             if (ride == nullptr)
                 return;
 
-            const auto& operatingSettings = ride->getRideTypeDescriptor().OperatingSettings;
             const auto& gameState = getGameState();
-            uint8_t maxValue = operatingSettings.MaxValue;
-            uint8_t minValue = gameState.cheats.unlockOperatingLimits ? 0 : operatingSettings.MinValue;
-            if (gameState.cheats.unlockOperatingLimits)
-            {
-                maxValue = Limits::kCheatsMaxOperatingLimit;
-            }
+            auto minValue = ride->getOperationOptionMinimum(gameState.cheats.unlockOperatingLimits);
+            auto maxValue = ride->getOperationOptionMaximum(gameState.cheats.unlockOperatingLimits);
 
             uint8_t decrement = ride->mode == RideMode::dodgems ? 10 : 1;
 
             SetOperatingSetting(
                 rideId, GameActions::RideSetSetting::operation,
-                std::clamp<int16_t>(ride->operationOption - decrement, minValue, maxValue));
+                std::clamp<int16_t>(ride->getStoredOperationOption() - decrement, minValue, maxValue));
         }
 
         void ModeDropdown(Widget* widget)
@@ -3416,6 +3417,9 @@ namespace OpenRCT2::Ui::Windows
 
         void OperatingTweakTextInput(const Ride& ride)
         {
+            if (ride.type == RIDE_TYPE_MAZE)
+                return;
+
             switch (ride.mode)
             {
                 case RideMode::poweredLaunchPasstrough:
@@ -3431,16 +3435,16 @@ namespace OpenRCT2::Ui::Windows
 
             const auto& operatingSettings = ride.getRideTypeDescriptor().OperatingSettings;
             const auto& gameState = getGameState();
-            int16_t maxValue = gameState.cheats.unlockOperatingLimits ? Limits::kCheatsMaxOperatingLimit
-                                                                      : operatingSettings.MaxValue;
-            int16_t minValue = gameState.cheats.unlockOperatingLimits ? 0 : operatingSettings.MinValue;
+            int16_t minValue = ride.getOperationOptionMinimum(gameState.cheats.unlockOperatingLimits);
+            int16_t maxValue = ride.getOperationOptionMaximum(gameState.cheats.unlockOperatingLimits);
 
             const auto& title = widgets[WIDX_MODE_TWEAK_LABEL].text;
             Formatter ft;
             ft.Add<int16_t>(minValue * operatingSettings.OperatingSettingMultiplier);
             ft.Add<int16_t>(maxValue * operatingSettings.OperatingSettingMultiplier);
 
-            uint16_t currentValue = static_cast<uint16_t>(ride.operationOption) * operatingSettings.OperatingSettingMultiplier;
+            uint16_t currentValue = static_cast<uint16_t>(ride.getEffectiveOperationOption())
+                * operatingSettings.OperatingSettingMultiplier;
             char buffer[6]{};
             snprintf(buffer, std::size(buffer), "%u", currentValue);
 
@@ -3512,11 +3516,9 @@ namespace OpenRCT2::Ui::Windows
 
             if (widgetIndex == WIDX_MODE_TWEAK)
             {
-                const auto& operatingSettings = ride->getRideTypeDescriptor().OperatingSettings;
                 const auto& gameState = getGameState();
-                uint32_t maxValue = gameState.cheats.unlockOperatingLimits ? Limits::kCheatsMaxOperatingLimit
-                                                                           : operatingSettings.MaxValue;
-                uint32_t minValue = gameState.cheats.unlockOperatingLimits ? 0 : operatingSettings.MinValue;
+                uint32_t minValue = ride->getOperationOptionMinimum(gameState.cheats.unlockOperatingLimits);
+                uint32_t maxValue = ride->getOperationOptionMaximum(gameState.cheats.unlockOperatingLimits);
                 auto multiplier = ride->getRideTypeDescriptor().OperatingSettings.OperatingSettingMultiplier;
 
                 try
@@ -3689,7 +3691,7 @@ namespace OpenRCT2::Ui::Windows
 
             // Mode specific functionality
             auto multiplier = ride->getRideTypeDescriptor().OperatingSettings.OperatingSettingMultiplier;
-            uint16_t tweakValue = static_cast<uint16_t>(ride->operationOption) * multiplier;
+            uint16_t tweakValue = static_cast<uint16_t>(ride->getEffectiveOperationOption()) * multiplier;
 
             switch (ride->mode)
             {
@@ -3732,11 +3734,21 @@ namespace OpenRCT2::Ui::Windows
                     tooltip = STR_NUMBER_OF_ROTATIONS_TIP;
                     break;
                 default:
-                    format = STR_COMMA16;
-                    caption = STR_MAX_PEOPLE_ON_RIDE;
-                    tooltip = STR_MAX_PEOPLE_ON_RIDE_TIP;
-                    if (!ride->getRideTypeDescriptor().flags.has(RtdFlag::noVehicles))
-                        format = kStringIdEmpty;
+                    if (ride->type == RIDE_TYPE_MAZE)
+                    {
+                        tweakValue = GetMazeCapacityModeName(ride->getMazeCapacityMode());
+                        format = STR_STRINGID;
+                        caption = STR_MAZE_CAPACITY_MODE;
+                        tooltip = STR_MAZE_CAPACITY_MODE_TIP;
+                    }
+                    else
+                    {
+                        format = STR_COMMA16;
+                        caption = STR_MAX_PEOPLE_ON_RIDE;
+                        tooltip = STR_MAX_PEOPLE_ON_RIDE_TIP;
+                        if (!ride->getRideTypeDescriptor().flags.has(RtdFlag::noVehicles))
+                            format = kStringIdEmpty;
+                    }
                     break;
             }
 

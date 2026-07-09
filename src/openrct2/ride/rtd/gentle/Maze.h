@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include "../../../Limits.h"
 #include "../../../SpriteIds.h"
 #include "../../RideAudio.h"
 #include "../../RideData.h"
@@ -33,7 +34,7 @@ constexpr RideTypeDescriptor MazeRTD =
                      RtdFlag::guestsCanUseUmbrella),
     .RideModes = EnumsToFlags(RideMode::maze),
     .DefaultMode = RideMode::maze,
-    .OperatingSettings = { 1, 64 },
+    .OperatingSettings = { 0, 2 },
     .Naming = { STR_RIDE_NAME_MAZE, STR_RIDE_DESCRIPTION_MAZE },
     .NameConvention = { RideComponentType::Train, RideComponentType::Track, RideComponentType::Station },
     .availableBreakdowns = {},

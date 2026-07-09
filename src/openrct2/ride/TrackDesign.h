@@ -219,6 +219,7 @@ struct TrackDesign
 public:
     ResultWithMessage CreateTrackDesign(TrackDesignState& tds, const Ride& ride);
     ResultWithMessage CreateTrackDesignScenery(TrackDesignState& tds);
+    void NormaliseMazeOperationSetting();
     void Serialise(OpenRCT2::DataSerialiser& stream);
 
 private:

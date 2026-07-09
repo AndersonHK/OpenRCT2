@@ -3584,7 +3584,7 @@ namespace OpenRCT2
 
         if (ride->getRideTypeDescriptor().flags.has(RtdFlag::noVehicles))
         {
-            if (ride->numRiders >= ride->operationOption)
+            if (ride->numRiders >= ride->getEffectiveOperationOption())
                 return;
         }
         else
@@ -5001,10 +5001,8 @@ namespace OpenRCT2
         }
 
         const auto contextScore = RideRating::GetLocalContextScore(location, ride.id);
-        const int64_t choiceComplexity = std::min<uint8_t>(openCount, 3);
-
-        accumulator->excitement += 45 + (choiceComplexity * 12) + contextScore.excitement + (isExitStep ? 90 : 0);
-        accumulator->intensity += 8 + (openCount <= 1 ? 10 : 0) + contextScore.intensity + (isExitStep ? 4 : 0);
+        accumulator->excitement += 20 + (openCount * 12) + contextScore.excitement + (isExitStep ? 90 : 0);
+        accumulator->intensity += 4 + (openCount <= 1 ? 5 : 0) + contextScore.intensity + (isExitStep ? 4 : 0);
         accumulator->nausea += contextScore.nausea;
         accumulator->ticks++;
         if (isExitStep)

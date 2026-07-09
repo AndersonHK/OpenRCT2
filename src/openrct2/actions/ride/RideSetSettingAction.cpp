@@ -268,14 +268,8 @@ namespace OpenRCT2::GameActions
 
     bool RideSetSettingAction::RideIsValidOperationOption(GameState_t& gameState, const Ride& ride) const
     {
-        const auto& operatingSettings = ride.getRideTypeDescriptor().OperatingSettings;
-        uint8_t minValue = operatingSettings.MinValue;
-        uint8_t maxValue = operatingSettings.MaxValue;
-        if (gameState.cheats.unlockOperatingLimits)
-        {
-            minValue = 0;
-            maxValue = 255;
-        }
+        auto minValue = ride.getOperationOptionMinimum(gameState.cheats.unlockOperatingLimits);
+        auto maxValue = ride.getOperationOptionMaximum(gameState.cheats.unlockOperatingLimits);
 
         return _value >= minValue && _value <= maxValue;
     }

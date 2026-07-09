@@ -27,6 +27,7 @@
 #include <memory>
 #include <span>
 #include <string_view>
+#include <utility>
 
 struct IObjectManager;
 struct Ride;
@@ -65,6 +66,15 @@ enum class RidePriceTarget : uint8_t
     neutral,
     badValue,
 };
+
+enum class MazeCapacityMode : uint8_t
+{
+    sparse,
+    normal,
+    overcrowded,
+};
+
+MazeCapacityMode RideNormaliseMazeCapacityMode(uint8_t operationOption);
 
 extern const StringId kRideInspectionIntervalNames[];
 
@@ -499,6 +509,16 @@ public:
     void setReversedTrains(bool reversedTrains);
     void updateMaxVehicles();
     void updateNumberOfCircuits();
+    uint8_t getMazeMaximumCapacity() const;
+    uint8_t getMazeCapacityForMode(MazeCapacityMode mode) const;
+    MazeCapacityMode getMazeCapacityMode() const;
+    std::pair<int32_t, int32_t> getMazeRatingAccumulatorScale() const;
+    uint8_t getOperationOptionMinimum(bool unlockOperatingLimits) const;
+    uint8_t getOperationOptionMaximum(bool unlockOperatingLimits) const;
+    uint8_t getDefaultOperationOption() const;
+    uint8_t getStoredOperationOption() const;
+    uint8_t getEffectiveOperationOption() const;
+    void updateMazeCapacityForConstruction();
 
     bool hasSpinningTunnel() const;
     bool hasWaterSplash() const;

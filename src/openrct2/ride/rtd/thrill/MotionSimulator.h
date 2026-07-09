@@ -27,7 +27,7 @@ constexpr RideTypeDescriptor MotionSimulatorRTD =
     .InvertedTrackPaintFunctions = {},
     .flags = RtdFlags(RtdFlag::hasSinglePieceStation, RtdFlag::cannotHaveGaps,
                      RtdFlag::hasLoadOptions, RtdFlag::vehicleIsIntegral, RtdFlag::noWallsAroundTrack,
-                     RtdFlag::isFlatRide, RtdFlag::hasVehicleColours, RtdFlag::allowMusic,
+                     RtdFlag::isFlatRide, RtdFlag::hasVehicleColours, RtdFlag::describeAsInside, RtdFlag::allowMusic,
                      RtdFlag::hasEntranceAndExit, RtdFlag::singleSession,
                      RtdFlag::slightlyInterestingToLookAt, RtdFlag::listVehiclesSeparately),
     .RideModes = EnumsToFlags(RideMode::filmAvengingAviators, RideMode::filmThrillRiders),

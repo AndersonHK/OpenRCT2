@@ -59,7 +59,7 @@ constexpr RideTypeDescriptor CrookedHouseRTD =
         5,
         7,
         false,
-        { { RatingsModifierType::NoModifier, 0, 0, 0, 0 } }
+        { { RatingsModifierType::BonusScenery, 0, 11155, 0, 0 } }
     },
 };
 } // namespace OpenRCT2

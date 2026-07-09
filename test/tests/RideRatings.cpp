@@ -28,6 +28,7 @@
 #include <openrct2/ride/RideRatings.h>
 #include <openrct2/ride/ShopItem.h>
 #include <openrct2/world/Map.h>
+#include <openrct2/world/tile_element/PathElement.h>
 #include <openrct2/world/tile_element/SmallSceneryElement.h>
 #include <openrct2/world/tile_element/SurfaceElement.h>
 #include <openrct2/world/tile_element/TileElement.h>
@@ -77,6 +78,39 @@ protected:
         ASSERT_NE(sceneryElement, nullptr);
 
         sceneryElement->setClearanceZ(clearanceZ);
+        MapInvalidateTileFull(tile.ToCoordsXY());
+    }
+
+    void PlaceMazeTrack(const TileCoordsXY& tile, int32_t baseZ, int32_t clearanceZ, RideId rideId)
+    {
+        auto* mazeElement = TileElementInsert<TrackElement>({ tile.ToCoordsXY(), baseZ }, 0);
+        ASSERT_NE(mazeElement, nullptr);
+
+        mazeElement->setClearanceZ(clearanceZ);
+        mazeElement->SetTrackType(TrackElemType::maze);
+        mazeElement->SetRideType(RIDE_TYPE_MAZE);
+        mazeElement->SetRideIndex(rideId);
+        MapInvalidateTileFull(tile.ToCoordsXY());
+    }
+
+    void PlaceFlatTrack(const TileCoordsXY& tile, int32_t baseZ, int32_t clearanceZ, RideId rideId)
+    {
+        auto* trackElement = TileElementInsert<TrackElement>({ tile.ToCoordsXY(), baseZ }, 0);
+        ASSERT_NE(trackElement, nullptr);
+
+        trackElement->setClearanceZ(clearanceZ);
+        trackElement->SetTrackType(TrackElemType::flatTrack1x4A);
+        trackElement->SetRideType(RIDE_TYPE_MINIATURE_RAILWAY);
+        trackElement->SetRideIndex(rideId);
+        MapInvalidateTileFull(tile.ToCoordsXY());
+    }
+
+    void PlacePath(const TileCoordsXY& tile, int32_t baseZ, int32_t clearanceZ)
+    {
+        auto* pathElement = TileElementInsert<PathElement>({ tile.ToCoordsXY(), baseZ }, 0);
+        ASSERT_NE(pathElement, nullptr);
+
+        pathElement->setClearanceZ(clearanceZ);
         MapInvalidateTileFull(tile.ToCoordsXY());
     }
 
@@ -458,6 +492,26 @@ TEST_F(RideRatings, LocalContextSceneryUsesUncappedSqrtDiminishingReturns)
     EXPECT_GT(RideRating::ScoreSceneryForLocalContext(4800), 18);
 }
 
+TEST_F(RideRatings, SceneryVisibilityMultiplierUsesRideTypePolicy)
+{
+    Ride ride{};
+
+    ride.type = RIDE_TYPE_CIRCUS;
+    EXPECT_EQ(RideRating::GetSceneryVisibilityMultiplier(ride), std::make_pair(0, 1));
+
+    ride.type = RIDE_TYPE_HAUNTED_HOUSE;
+    EXPECT_EQ(RideRating::GetSceneryVisibilityMultiplier(ride), std::make_pair(1, 2));
+
+    ride.type = RIDE_TYPE_MAZE;
+    EXPECT_EQ(RideRating::GetSceneryVisibilityMultiplier(ride), std::make_pair(1, 1));
+
+    ride.type = RIDE_TYPE_DODGEMS;
+    EXPECT_EQ(RideRating::GetSceneryVisibilityMultiplier(ride), std::make_pair(1, 4));
+
+    ride.type = RIDE_TYPE_OBSERVATION_TOWER;
+    EXPECT_EQ(RideRating::GetSceneryVisibilityMultiplier(ride), std::make_pair(1, 1));
+}
+
 TEST_F(RideRatings, LocalContextSceneryScalesWithVehicleSpeed)
 {
     const RideRating::LocalContextScore contextScore = {
@@ -700,8 +754,22 @@ TEST_F(RideRatings, FixedRideContextOriginUsesRideSpecificEyeHeight)
     groundRide.getStation().Start = stationTile.ToCoordsXY();
     groundRide.getStation().SetBaseZ(baseZ);
 
+    Ride ferrisRide{};
+    ferrisRide.id = RideId::FromUnderlying(2);
+    ferrisRide.type = RIDE_TYPE_FERRIS_WHEEL;
+    ferrisRide.numStations = 1;
+    ferrisRide.getStation().Start = stationTile.ToCoordsXY();
+    ferrisRide.getStation().SetBaseZ(baseZ);
+
+    Ride indoorRide{};
+    indoorRide.id = RideId::FromUnderlying(3);
+    indoorRide.type = RIDE_TYPE_HAUNTED_HOUSE;
+    indoorRide.numStations = 1;
+    indoorRide.getStation().Start = stationTile.ToCoordsXY();
+    indoorRide.getStation().SetBaseZ(baseZ);
+
     Ride towerRide{};
-    towerRide.id = RideId::FromUnderlying(2);
+    towerRide.id = RideId::FromUnderlying(4);
     towerRide.type = RIDE_TYPE_OBSERVATION_TOWER;
     towerRide.numStations = 1;
     towerRide.getStation().Start = stationTile.ToCoordsXY();
@@ -709,11 +777,45 @@ TEST_F(RideRatings, FixedRideContextOriginUsesRideSpecificEyeHeight)
     towerRide.getStation().SegmentLength = 12 << 16;
 
     const auto groundOrigin = RideRating::GetFixedRideLocalContextOrigin(groundRide);
+    const auto ferrisOrigin = RideRating::GetFixedRideLocalContextOrigin(ferrisRide);
+    const auto indoorOrigin = RideRating::GetFixedRideLocalContextOrigin(indoorRide);
     const auto towerOrigin = RideRating::GetFixedRideLocalContextOrigin(towerRide);
 
     EXPECT_EQ(groundOrigin.z, baseZ + (2 * kCoordsZStep));
+    EXPECT_EQ(ferrisOrigin.z, baseZ + (6 * kCoordsZStep));
+    EXPECT_EQ(indoorOrigin.z, groundOrigin.z);
+    EXPECT_GT(ferrisOrigin.z, groundOrigin.z);
     EXPECT_GE(towerOrigin.z, baseZ + (12 * kCoordsZStep));
-    EXPECT_GT(towerOrigin.z, groundOrigin.z);
+    EXPECT_GT(towerOrigin.z, ferrisOrigin.z);
+}
+
+TEST_F(RideRatings, FixedRideContextOriginUsesDescriptorFootprintCentre)
+{
+    const auto stationTile = TileCoordsXY{ 10, 10 };
+    constexpr int32_t baseZ = 14 * kCoordsZStep;
+
+    Ride groundRide{};
+    groundRide.id = RideId::FromUnderlying(1);
+    groundRide.type = RIDE_TYPE_MERRY_GO_ROUND;
+    groundRide.numStations = 1;
+    groundRide.getStation().Start = stationTile.ToCoordsXY();
+    groundRide.getStation().SetBaseZ(baseZ);
+
+    Ride ferrisRide{};
+    ferrisRide.id = RideId::FromUnderlying(2);
+    ferrisRide.type = RIDE_TYPE_FERRIS_WHEEL;
+    ferrisRide.numStations = 1;
+    ferrisRide.getStation().Start = stationTile.ToCoordsXY();
+    ferrisRide.getStation().SetBaseZ(baseZ);
+
+    const auto stationStart = stationTile.ToCoordsXY();
+    const auto groundOrigin = RideRating::GetFixedRideLocalContextOrigin(groundRide);
+    const auto ferrisOrigin = RideRating::GetFixedRideLocalContextOrigin(ferrisRide);
+
+    EXPECT_EQ(groundOrigin.x, stationStart.x + kCoordsXYHalfTile);
+    EXPECT_EQ(groundOrigin.y, stationStart.y + kCoordsXYHalfTile);
+    EXPECT_EQ(ferrisOrigin.x, stationStart.x);
+    EXPECT_EQ(ferrisOrigin.y, stationStart.y + kCoordsXYHalfTile);
 }
 
 TEST_F(RideRatings, LocalContextMazeTrackBlocksLineOfSight)
@@ -752,6 +854,130 @@ TEST_F(RideRatings, LocalContextMazeTrackBlocksLineOfSight)
 
     const auto after = RideRating::GetLocalContextScore(origin, rideId);
     EXPECT_EQ(after.scenery, 0);
+}
+
+TEST_F(RideRatings, LocalContextOwnMazeTrackBlocksLineOfSightToSameHeightForeignMazeTrack)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    MapInit({ 30, 30 });
+
+    const auto originTile = TileCoordsXY{ 10, 10 };
+    const auto blockerTile = TileCoordsXY{ 11, 10 };
+    const auto foreignMazeTile = TileCoordsXY{ 12, 10 };
+    const auto rideId = RideId::FromUnderlying(1);
+    const auto foreignRideId = RideId::FromUnderlying(2);
+    constexpr int32_t groundZ = 14 * kCoordsZStep;
+    constexpr int32_t clearanceZ = groundZ + (3 * kCoordsZStep);
+    const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), groundZ + kCoordsZStep };
+
+    SetSurfaceZ(originTile, groundZ);
+    SetSurfaceZ(blockerTile, groundZ);
+    SetSurfaceZ(foreignMazeTile, groundZ);
+    PlaceMazeTrack(foreignMazeTile, groundZ, clearanceZ, foreignRideId);
+
+    const auto before = RideRating::GetLocalContextScore(origin, rideId);
+    ASSERT_GT(before.foreignTrackProximity, 0);
+
+    PlaceMazeTrack(blockerTile, groundZ, clearanceZ, rideId);
+    RideRating::ClearLocalContextCache();
+
+    const auto after = RideRating::GetLocalContextScore(origin, rideId);
+    EXPECT_EQ(after.foreignTrackProximity, 0);
+}
+
+TEST_F(RideRatings, LocalContextSeesTallSceneryOverMazeTrack)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    MapInit({ 30, 30 });
+
+    const auto originTile = TileCoordsXY{ 10, 10 };
+    const auto blockerTile = TileCoordsXY{ 12, 10 };
+    const auto sceneryTile = TileCoordsXY{ 14, 10 };
+    const auto rideId = RideId::FromUnderlying(1);
+    constexpr int32_t groundZ = 14 * kCoordsZStep;
+    constexpr int32_t mazeTopZ = groundZ + (3 * kCoordsZStep);
+    const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), groundZ + (4 * kCoordsZStep) };
+
+    SetSurfaceZ(originTile, groundZ);
+    SetSurfaceZ(blockerTile, groundZ);
+    SetSurfaceZ(sceneryTile, groundZ);
+    PlaceMazeTrack(blockerTile, groundZ, mazeTopZ, RideId::FromUnderlying(2));
+    PlaceSmallScenery(sceneryTile, groundZ, groundZ + (8 * kCoordsZStep));
+
+    const auto score = RideRating::GetLocalContextScore(origin, rideId);
+    EXPECT_GT(score.scenery, 0);
+}
+
+TEST_F(RideRatings, LocalContextSeesElevatedForeignTrackOverMazeTrack)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    MapInit({ 30, 30 });
+
+    const auto originTile = TileCoordsXY{ 10, 10 };
+    const auto blockerTile = TileCoordsXY{ 11, 10 };
+    const auto foreignTrackTile = TileCoordsXY{ 12, 10 };
+    const auto rideId = RideId::FromUnderlying(1);
+    const auto foreignRideId = RideId::FromUnderlying(2);
+    constexpr int32_t groundZ = 14 * kCoordsZStep;
+    const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), groundZ + kCoordsZStep };
+
+    SetSurfaceZ(originTile, groundZ);
+    SetSurfaceZ(blockerTile, groundZ);
+    SetSurfaceZ(foreignTrackTile, groundZ);
+    PlaceMazeTrack(blockerTile, groundZ, groundZ + (3 * kCoordsZStep), rideId);
+    PlaceFlatTrack(foreignTrackTile, groundZ + (6 * kCoordsZStep), groundZ + (8 * kCoordsZStep), foreignRideId);
+
+    const auto score = RideRating::GetLocalContextScore(origin, rideId);
+    EXPECT_GT(score.foreignTrackProximity, 0);
+}
+
+TEST_F(RideRatings, LocalContextOriginMazeTileBlocksLowSceneryButSeesOverWalls)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    MapInit({ 30, 30 });
+
+    const auto originTile = TileCoordsXY{ 10, 10 };
+    const auto gardenTile = TileCoordsXY{ 11, 10 };
+    const auto tallTreeTile = TileCoordsXY{ 9, 10 };
+    const auto elevatedPathTile = TileCoordsXY{ 10, 11 };
+    const auto rideId = RideId::FromUnderlying(1);
+    constexpr int32_t groundZ = 14 * kCoordsZStep;
+    constexpr int32_t mazeTopZ = groundZ + (3 * kCoordsZStep);
+    const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), groundZ + kCoordsZStep };
+
+    SetSurfaceZ(originTile, groundZ);
+    SetSurfaceZ(gardenTile, groundZ);
+    SetSurfaceZ(tallTreeTile, groundZ);
+    SetSurfaceZ(elevatedPathTile, groundZ);
+    PlaceMazeTrack(originTile, groundZ, mazeTopZ, rideId);
+    PlaceSmallScenery(gardenTile, groundZ, groundZ + (2 * kCoordsZStep));
+
+    const auto gardenOnly = RideRating::GetLocalContextScore(origin, rideId);
+    EXPECT_EQ(gardenOnly.scenery, 0);
+
+    PlaceSmallScenery(tallTreeTile, groundZ, groundZ + (8 * kCoordsZStep));
+    PlacePath(elevatedPathTile, groundZ + (6 * kCoordsZStep), groundZ + (7 * kCoordsZStep));
+    RideRating::ClearLocalContextCache();
+
+    const auto overWall = RideRating::GetLocalContextScore(origin, rideId);
+    EXPECT_GT(overWall.scenery, 0);
+    EXPECT_GT(overWall.pathProximity, 0);
 }
 
 TEST_F(RideRatings, AggregateRatingsPreserveLoadedRatingUntilSamplesExist)

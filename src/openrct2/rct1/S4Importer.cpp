@@ -958,6 +958,10 @@ namespace OpenRCT2::RCT1
             dst->minWaitingTime = src->minWaitingTime;
             dst->maxWaitingTime = src->maxWaitingTime;
             dst->operationOption = src->operationOption;
+            if (dst->type == RIDE_TYPE_MAZE)
+            {
+                dst->operationOption = static_cast<uint8_t>(MazeCapacityMode::normal);
+            }
             dst->numCircuits = 1;
             dst->minCarsPerTrain = rideEntry->min_cars_in_train;
             dst->maxCarsPerTrain = rideEntry->max_cars_in_train;

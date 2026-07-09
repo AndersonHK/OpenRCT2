@@ -76,6 +76,7 @@
 #include "Vehicle.h"
 #include "ted/TrackElementDescriptor.h"
 
+#include <algorithm>
 #include <iterator>
 #include <memory>
 
@@ -154,7 +155,7 @@ ResultWithMessage TrackDesign::CreateTrackDesign(TrackDesignState& tds, const Ri
     trackAndVehicle.numberOfCarsPerTrain = ride.numCarsPerTrain;
     operation.minWaitingTime = ride.minWaitingTime;
     operation.maxWaitingTime = ride.maxWaitingTime;
-    operation.operationSetting = ride.operationOption;
+    operation.operationSetting = ride.getStoredOperationOption();
     operation.liftHillSpeed = ride.liftHillSpeed;
     operation.numCircuits = ride.numCircuits;
 
@@ -184,6 +185,17 @@ ResultWithMessage TrackDesign::CreateTrackDesign(TrackDesignState& tds, const Ri
     {
         return CreateTrackDesignTrack(tds, ride);
     }
+}
+
+void TrackDesign::NormaliseMazeOperationSetting()
+{
+    const auto& rtd = GetRideTypeDescriptor(trackAndVehicle.rtdIndex);
+    if (rtd.specialType != RtdSpecialType::maze)
+    {
+        return;
+    }
+
+    operation.operationSetting = static_cast<uint8_t>(RideNormaliseMazeCapacityMode(operation.operationSetting));
 }
 
 ResultWithMessage TrackDesign::CreateTrackDesignTrack(TrackDesignState& tds, const Ride& ride)
