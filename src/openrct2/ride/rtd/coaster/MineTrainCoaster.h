@@ -83,6 +83,7 @@ constexpr RideTypeDescriptor MineTrainCoasterRTD =
             { RatingsModifierType::PenaltyLateralGs,      0,                40960, 35746, 49648 },
         },
     },
+    .SampledRatings = kRollerCoasterSampledRideRatingProfile,
     .UpdateRotating = UpdateRotatingDefault,
     .LightFXAddLightsMagicVehicle = Drawing::LightFx::AddLightsMagicVehicle_MineTrainCoaster,
 };

@@ -66,6 +66,8 @@ namespace OpenRCT2::Scripting
             JS_CGETSET_DEF("maxPositiveVerticalGs", ScRide::maxPositiveVerticalGs_get, nullptr),
             JS_CGETSET_DEF("maxNegativeVerticalGs", ScRide::maxNegativeVerticalGs_get, nullptr),
             JS_CGETSET_DEF("maxLateralGs", ScRide::maxLateralGs_get, nullptr),
+            JS_CGETSET_DEF("maxPositiveLongitudinalGs", ScRide::maxPositiveLongitudinalGs_get, nullptr),
+            JS_CGETSET_DEF("maxNegativeLongitudinalGs", ScRide::maxNegativeLongitudinalGs_get, nullptr),
             JS_CGETSET_DEF("totalAirTime", ScRide::totalAirTime_get, nullptr),
             JS_CGETSET_DEF("numDrops", ScRide::numDrops_get, nullptr),
             JS_CGETSET_DEF("numLiftHills", ScRide::numLiftHills_get, nullptr),
@@ -741,6 +743,18 @@ namespace OpenRCT2::Scripting
     {
         auto ride = GetRide(thisVal);
         return JS_NewFloat64(ctx, ride != nullptr ? ride->getDisplayMaxLateralG() / 100.0 : 0);
+    }
+
+    JSValue ScRide::maxPositiveLongitudinalGs_get(JSContext* ctx, JSValue thisVal)
+    {
+        auto ride = GetRide(thisVal);
+        return JS_NewFloat64(ctx, ride != nullptr ? ride->getDisplayMaxPositiveLongitudinalG() / 100.0 : 0);
+    }
+
+    JSValue ScRide::maxNegativeLongitudinalGs_get(JSContext* ctx, JSValue thisVal)
+    {
+        auto ride = GetRide(thisVal);
+        return JS_NewFloat64(ctx, ride != nullptr ? ride->getDisplayMaxNegativeLongitudinalG() / 100.0 : 0);
     }
 
     JSValue ScRide::totalAirTime_get(JSContext* ctx, JSValue thisVal)

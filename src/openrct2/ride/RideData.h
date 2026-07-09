@@ -252,6 +252,31 @@ struct RideRatingsDescriptor
     RatingsModifier Modifiers[32];
 };
 
+constexpr int32_t kSampledRideRatingProfileScale = 1000;
+
+struct SampledRideRatingProfile
+{
+    int32_t LocalContext = kSampledRideRatingProfileScale;
+    int32_t Speed = kSampledRideRatingProfileScale;
+    int32_t LongitudinalG = kSampledRideRatingProfileScale;
+    int32_t VerticalG = kSampledRideRatingProfileScale;
+    int32_t LateralG = kSampledRideRatingProfileScale;
+    int32_t Airtime = kSampledRideRatingProfileScale;
+    int32_t SpeedGCoupling = kSampledRideRatingProfileScale;
+};
+
+constexpr SampledRideRatingProfile kDefaultSampledRideRatingProfile{};
+constexpr SampledRideRatingProfile kRollerCoasterSampledRideRatingProfile = {
+    .Speed = 300,
+    .VerticalG = 2000,
+    .LateralG = 500,
+    .SpeedGCoupling = 500,
+};
+constexpr SampledRideRatingProfile kGoKartsSampledRideRatingProfile = {
+    .Speed = 3000,
+    .LateralG = 3000,
+};
+
 struct UpkeepCostsDescriptor
 {
     /**
@@ -534,6 +559,7 @@ struct RideTypeDescriptor
     std::string_view Name{};
 
     RideRatingsDescriptor RatingsData{};
+    SampledRideRatingProfile SampledRatings{};
 
     UpdateRotatingFunction UpdateRotating = UpdateRotatingDefault;
 

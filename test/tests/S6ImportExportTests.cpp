@@ -108,24 +108,19 @@ static bool ImportPark(MemoryStream& stream, std::unique_ptr<IContext>& context,
     return true;
 }
 
-static bool ExportSave(MemoryStream& stream, std::unique_ptr<IContext>& context)
+static bool ExportSave(
+    MemoryStream& stream, std::unique_ptr<IContext>& context, uint32_t targetVersion = kParkFileCurrentVersion)
 {
     auto& objManager = context->GetObjectManager();
 
     auto exporter = std::make_unique<ParkFileExporter>();
     exporter->ExportObjectsList = objManager.GetPackableObjects();
+    exporter->TargetVersion = targetVersion;
 
     auto& gameState = getGameState();
     exporter->Export(gameState, stream, kParkFileSaveCompressionLevel);
 
     return true;
-}
-
-static void SetParkFileTargetVersion(MemoryStream& stream, uint32_t targetVersion)
-{
-    stream.SetPosition(sizeof(uint32_t));
-    stream.WriteValue(targetVersion);
-    stream.SetPosition(0);
 }
 
 static Ride* GetFirstRide()
@@ -272,8 +267,7 @@ TEST(ParkFileMigration, LegacyRideLengthsScaleOnce)
         ride->getStation().SegmentLength = static_cast<int32_t>(static_cast<int64_t>(426) << 16);
         ride->shelteredLength = static_cast<int32_t>(static_cast<int64_t>(213) << 16);
 
-        ASSERT_TRUE(ExportSave(oldVersionPark, context));
-        SetParkFileTargetVersion(oldVersionPark, kRideItemSalesHistoryVersion);
+        ASSERT_TRUE(ExportSave(oldVersionPark, context, kRideItemSalesHistoryVersion));
     }
 
     {
@@ -300,6 +294,122 @@ TEST(ParkFileMigration, LegacyRideLengthsScaleOnce)
         ASSERT_NE(ride, nullptr);
         EXPECT_EQ(ToHumanReadableRideLength(ride->getStation().SegmentLength), 316);
         EXPECT_EQ(ToHumanReadableRideLength(ride->shelteredLength), 158);
+    }
+}
+
+TEST(ParkFileMigration, LongitudinalGStatsRoundTripAndDefaultForPreviousVersion)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    MemoryStream currentVersionPark;
+    MemoryStream longitudinalStatsVersionPark;
+    MemoryStream previousVersionPark;
+
+    {
+        std::unique_ptr<IContext> context = CreateContext();
+        ASSERT_NE(context, nullptr);
+        ASSERT_TRUE(context->Initialise());
+
+        MemoryStream importBuffer;
+        const std::string testParkPath = TestData::GetParkPath("BigMapTest.sv6");
+        ASSERT_TRUE(LoadFileToBuffer(importBuffer, testParkPath));
+        ASSERT_TRUE(ImportS6(importBuffer, context, false));
+
+        auto* ride = GetFirstRide();
+        ASSERT_NE(ride, nullptr);
+        ride->maxPositiveLongitudinalG = 135;
+        ride->maxNegativeLongitudinalG = -95;
+        ride->previousLongitudinalG = 42;
+        ride->previousLongitudinalVelocity = 123456;
+        ride->hasPreviousLongitudinalVelocity = true;
+        ride->ratingAccumulator.previousTrainVelocity = 654321;
+        ride->ratingAccumulator.hasPreviousTrainVelocity = true;
+        ride->stableStats.valid = true;
+        ride->stableStats.maxPositiveLongitudinalG = 125;
+        ride->stableStats.maxNegativeLongitudinalG = -85;
+        ride->measurement = std::make_unique<RideMeasurement>();
+        ride->measurement->num_items = 2;
+        ride->measurement->previousVelocity = 345678;
+        ride->measurement->hasPreviousVelocity = true;
+        ride->measurement->longitudinal[0] = 17;
+        ride->measurement->longitudinal[1] = -23;
+
+        ASSERT_TRUE(ExportSave(currentVersionPark, context));
+        ASSERT_TRUE(ExportSave(longitudinalStatsVersionPark, context, kLongitudinalGStatsVersion));
+        ASSERT_TRUE(ExportSave(previousVersionPark, context, kRideRatingActiveSampleVectorVersion));
+    }
+
+    {
+        std::unique_ptr<IContext> context = CreateContext();
+        ASSERT_NE(context, nullptr);
+        ASSERT_TRUE(context->Initialise());
+        ASSERT_TRUE(ImportPark(currentVersionPark, context, true));
+
+        const auto* ride = GetFirstRide();
+        ASSERT_NE(ride, nullptr);
+        EXPECT_EQ(ride->maxPositiveLongitudinalG, 135);
+        EXPECT_EQ(ride->maxNegativeLongitudinalG, -95);
+        EXPECT_EQ(ride->previousLongitudinalG, 42);
+        EXPECT_EQ(ride->previousLongitudinalVelocity, 123456);
+        EXPECT_TRUE(ride->hasPreviousLongitudinalVelocity);
+        EXPECT_EQ(ride->ratingAccumulator.previousTrainVelocity, 654321);
+        EXPECT_TRUE(ride->ratingAccumulator.hasPreviousTrainVelocity);
+        EXPECT_EQ(ride->stableStats.maxPositiveLongitudinalG, 125);
+        EXPECT_EQ(ride->stableStats.maxNegativeLongitudinalG, -85);
+        ASSERT_NE(ride->measurement, nullptr);
+        EXPECT_EQ(ride->measurement->previousVelocity, 345678);
+        EXPECT_TRUE(ride->measurement->hasPreviousVelocity);
+        EXPECT_EQ(ride->measurement->longitudinal[0], 17);
+        EXPECT_EQ(ride->measurement->longitudinal[1], -23);
+    }
+
+    {
+        std::unique_ptr<IContext> context = CreateContext();
+        ASSERT_NE(context, nullptr);
+        ASSERT_TRUE(context->Initialise());
+        ASSERT_TRUE(ImportPark(longitudinalStatsVersionPark, context, true));
+
+        const auto* ride = GetFirstRide();
+        ASSERT_NE(ride, nullptr);
+        EXPECT_EQ(ride->maxPositiveLongitudinalG, 135);
+        EXPECT_EQ(ride->maxNegativeLongitudinalG, -95);
+        EXPECT_EQ(ride->previousLongitudinalG, 42);
+        EXPECT_EQ(ride->previousLongitudinalVelocity, 0);
+        EXPECT_FALSE(ride->hasPreviousLongitudinalVelocity);
+        EXPECT_EQ(ride->ratingAccumulator.previousTrainVelocity, 0);
+        EXPECT_FALSE(ride->ratingAccumulator.hasPreviousTrainVelocity);
+        EXPECT_EQ(ride->stableStats.maxPositiveLongitudinalG, 125);
+        EXPECT_EQ(ride->stableStats.maxNegativeLongitudinalG, -85);
+        ASSERT_NE(ride->measurement, nullptr);
+        EXPECT_EQ(ride->measurement->previousVelocity, 0);
+        EXPECT_FALSE(ride->measurement->hasPreviousVelocity);
+        EXPECT_EQ(ride->measurement->longitudinal[0], 17);
+        EXPECT_EQ(ride->measurement->longitudinal[1], -23);
+    }
+
+    {
+        std::unique_ptr<IContext> context = CreateContext();
+        ASSERT_NE(context, nullptr);
+        ASSERT_TRUE(context->Initialise());
+        ASSERT_TRUE(ImportPark(previousVersionPark, context, true));
+
+        const auto* ride = GetFirstRide();
+        ASSERT_NE(ride, nullptr);
+        EXPECT_EQ(ride->maxPositiveLongitudinalG, 0);
+        EXPECT_EQ(ride->maxNegativeLongitudinalG, 0);
+        EXPECT_EQ(ride->previousLongitudinalG, 0);
+        EXPECT_EQ(ride->previousLongitudinalVelocity, 0);
+        EXPECT_FALSE(ride->hasPreviousLongitudinalVelocity);
+        EXPECT_EQ(ride->ratingAccumulator.previousTrainVelocity, 0);
+        EXPECT_FALSE(ride->ratingAccumulator.hasPreviousTrainVelocity);
+        EXPECT_EQ(ride->stableStats.maxPositiveLongitudinalG, 0);
+        EXPECT_EQ(ride->stableStats.maxNegativeLongitudinalG, 0);
+        ASSERT_NE(ride->measurement, nullptr);
+        EXPECT_EQ(ride->measurement->previousVelocity, 0);
+        EXPECT_FALSE(ride->measurement->hasPreviousVelocity);
+        EXPECT_EQ(ride->measurement->longitudinal[0], 0);
+        EXPECT_EQ(ride->measurement->longitudinal[1], 0);
     }
 }
 

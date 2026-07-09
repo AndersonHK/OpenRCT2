@@ -29,7 +29,8 @@ constexpr RideTypeDescriptor GoKartsRTD =
     }),
     .InvertedTrackPaintFunctions = {},
     .flags = RtdFlags(RtdFlag::hasTrackColourMain, RtdFlag::hasTrackColourSupports, RtdFlag::noTestMode, RtdFlag::hasOneStation,
-                     RtdFlag::noWallsAroundTrack, RtdFlag::guestsWillRideAgain, RtdFlag::hasVehicleColours, RtdFlag::hasTrack,
+                     RtdFlag::noWallsAroundTrack, RtdFlag::guestsWillRideAgain, RtdFlag::hasVehicleColours,
+                     RtdFlag::hasDataLogging, RtdFlag::hasGForces, RtdFlag::hasTrack,
                      RtdFlag::supportsMultipleColourSchemes, RtdFlag::allowMusic, RtdFlag::hasEntranceAndExit, RtdFlag::interestingToLookAt),
     .RideModes = EnumsToFlags(RideMode::race, RideMode::continuousCircuit),
     .DefaultMode = RideMode::race,
@@ -74,6 +75,7 @@ constexpr RideTypeDescriptor GoKartsRTD =
             { RatingsModifierType::RequirementUnsheltered, 6,   2, 1, 1 },
         },
     },
+    .SampledRatings = kGoKartsSampledRideRatingProfile,
     .UpdateRotating = UpdateRotatingDefault,
     .LightFXAddLightsMagicVehicle = Drawing::LightFx::AddLightsMagicVehicle_BoatHire,
 };

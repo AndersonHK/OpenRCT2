@@ -75,6 +75,7 @@ constexpr RideTypeDescriptor ReverseFreefallCoasterRTD =
             { RatingsModifierType::RequirementDropHeight, 34,               2, 2, 2 },
         },
     },
+    .SampledRatings = kRollerCoasterSampledRideRatingProfile,
 };
 } // namespace OpenRCT2
 // clang-format on

@@ -31,9 +31,11 @@ namespace OpenRCT2
     constexpr uint16_t kRideRatingSampleScaleVersion = kOpenRCT2ModParkFileVersionBase + 7;
     constexpr uint16_t kRideStableStatsVersion = kOpenRCT2ModParkFileVersionBase + 8;
     constexpr uint16_t kRideRatingActiveSampleVectorVersion = kOpenRCT2ModParkFileVersionBase + 9;
+    constexpr uint16_t kLongitudinalGStatsVersion = kOpenRCT2ModParkFileVersionBase + 10;
+    constexpr uint16_t kRealisedLongitudinalGVersion = kOpenRCT2ModParkFileVersionBase + 11;
 
     // Current version that is saved.
-    constexpr uint32_t kParkFileCurrentVersion = kRideRatingActiveSampleVectorVersion;
+    constexpr uint32_t kParkFileCurrentVersion = kRealisedLongitudinalGVersion;
 
     // The minimum version that is forwards compatible with the current version.
     constexpr uint32_t kParkFileMinVersion = 57;
@@ -80,6 +82,7 @@ namespace OpenRCT2
     {
     public:
         std::vector<const ObjectRepositoryItem*> ExportObjectsList;
+        uint32_t TargetVersion = kParkFileCurrentVersion;
 
         void Export(GameState_t& gameState, std::string_view path, int16_t compressionLevel);
         void Export(GameState_t& gameState, IStream& stream, int16_t compressionLevel);

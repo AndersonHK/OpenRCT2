@@ -78,6 +78,7 @@ constexpr RideTypeDescriptor AlpineCoasterRTD =
             { RatingsModifierType::RequirementLength,     0x1720000,        2, 2, 2 },
         },
     },
+    .SampledRatings = kRollerCoasterSampledRideRatingProfile,
 };
 } // namespace OpenRCT2
 // clang-format on

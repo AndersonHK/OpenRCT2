@@ -22,6 +22,7 @@
 struct Ride;
 struct RideObjectEntry;
 struct RideRatingAccumulator;
+struct SampledRideRatingProfile;
 
 namespace OpenRCT2
 {
@@ -108,11 +109,16 @@ namespace OpenRCT2
         TickScore ScoreNegativeVerticalGForTick(int32_t verticalG);
         TickScore ScorePositiveVerticalGForTick(int32_t verticalG);
         TickScore ScoreLateralGForTick(int32_t lateralG);
-        TickScore ScoreGForcesForTick(int32_t verticalG, int32_t lateralG);
-        TickScore ScoreVehicleSpeedForTick(int32_t speed);
-        TickScore ScoreBoatHireSpeedForTick(int32_t speed);
-        TickScore ScoreLocalContextForVehicleTick(const LocalContextScore& contextScore, int32_t speed);
-        TickScore ScoreBoatHireLocalContextForVehicleTick(const LocalContextScore& contextScore, int32_t speed);
+        TickScore ScoreLongitudinalGForTick(int32_t longitudinalG);
+        TickScore ScoreGForcesForTick(int32_t verticalG, int32_t lateralG, int32_t longitudinalG = 0);
+        TickScore ScoreGForcesForVehicleTick(
+            int32_t verticalG, int32_t lateralG, int32_t longitudinalG, int32_t speed,
+            const SampledRideRatingProfile& profile);
+        TickScore ScoreVehicleSpeedForTick(int32_t speed, int32_t coefficient = 1000);
+        TickScore ScoreLocalContextForVehicleTick(
+            const LocalContextScore& contextScore, int32_t speed, int32_t coefficient = 1000);
+        TickScore ScoreBoatHireLocalContextForVehicleTick(
+            const LocalContextScore& contextScore, int32_t speed, int32_t coefficient = 1000);
         TickScore ScoreBoatHireFreeRoamForTick(uint32_t tickIndex);
         TickScore ApplyRideEntryMultipliers(TickScore score, const RideObjectEntry& rideEntry);
         int32_t ScoreSceneryForLocalContext(int32_t rawScenery);

@@ -78,6 +78,7 @@ constexpr RideTypeDescriptor MineRideRTD =
             { RatingsModifierType::PenaltyLateralGs,      0,                40960, 29789, 49648 },
         },
     },
+    .SampledRatings = kRollerCoasterSampledRideRatingProfile,
 };
 } // namespace OpenRCT2
 // clang-format on

@@ -80,6 +80,7 @@ constexpr RideTypeDescriptor MiniSuspendedCoasterRTD =
             { RatingsModifierType::PenaltyLateralGs,      0,                24576, 35746, 49648 },
         },
     },
+    .SampledRatings = kRollerCoasterSampledRideRatingProfile,
 };
 } // namespace OpenRCT2
 // clang-format on

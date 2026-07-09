@@ -83,6 +83,7 @@ constexpr RideTypeDescriptor SteelWildMouseRTD =
             { RatingsModifierType::PenaltyLateralGs,      0,                102400, 35746, 49648 },
         },
     },
+    .SampledRatings = kRollerCoasterSampledRideRatingProfile,
 };
 } // namespace OpenRCT2
 // clang-format on

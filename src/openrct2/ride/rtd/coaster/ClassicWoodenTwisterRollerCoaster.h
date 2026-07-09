@@ -87,6 +87,7 @@ constexpr RideTypeDescriptor ClassicWoodenTwisterRollerCoasterRTD =
                 { RatingsModifierType::PenaltyLateralGs,      0,                40960, 34555, 49648 },
             },
     },
+    .SampledRatings = kRollerCoasterSampledRideRatingProfile,
 };
 } // namespace OpenRCT2
 // clang-format on

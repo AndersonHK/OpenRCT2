@@ -84,6 +84,7 @@ constexpr RideTypeDescriptor VerticalDropCoasterRTD =
             { RatingsModifierType::PenaltyLateralGs,      0,                40960, 35746, 49648 },
         },
     },
+    .SampledRatings = kRollerCoasterSampledRideRatingProfile,
 };
 } // namespace OpenRCT2
 // clang-format on

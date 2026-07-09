@@ -81,6 +81,7 @@ constexpr RideTypeDescriptor CompactInvertedCoasterRTD =
             { RatingsModifierType::PenaltyLateralGs,      0,                24576, 30980, 55606 },
         },
     },
+    .SampledRatings = kRollerCoasterSampledRideRatingProfile,
 };
 } // namespace OpenRCT2
 // clang-format on

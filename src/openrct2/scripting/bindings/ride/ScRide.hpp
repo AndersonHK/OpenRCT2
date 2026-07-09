@@ -140,6 +140,8 @@ namespace OpenRCT2::Scripting
         static JSValue maxPositiveVerticalGs_get(JSContext* ctx, JSValue thisVal);
         static JSValue maxNegativeVerticalGs_get(JSContext* ctx, JSValue thisVal);
         static JSValue maxLateralGs_get(JSContext* ctx, JSValue thisVal);
+        static JSValue maxPositiveLongitudinalGs_get(JSContext* ctx, JSValue thisVal);
+        static JSValue maxNegativeLongitudinalGs_get(JSContext* ctx, JSValue thisVal);
         static JSValue totalAirTime_get(JSContext* ctx, JSValue thisVal);
         static JSValue numDrops_get(JSContext* ctx, JSValue thisVal);
         static JSValue numLiftHills_get(JSContext* ctx, JSValue thisVal);

@@ -212,8 +212,11 @@ struct RideMeasurement
     uint16_t current_item{};
     uint8_t vehicle_index{};
     StationIndex current_station{};
+    int32_t previousVelocity{};
+    bool hasPreviousVelocity{};
     int8_t vertical[kMaxItems]{};
     int8_t lateral[kMaxItems]{};
+    int8_t longitudinal[kMaxItems]{};
     uint8_t velocity[kMaxItems]{};
     uint8_t altitude[kMaxItems]{};
 };
@@ -265,6 +268,8 @@ struct RideRatingAccumulator
     uint32_t ticks{};
     EntityId sampleEntity{ EntityId::GetNull() };
     bool sampleComplete{};
+    int32_t previousTrainVelocity{};
+    bool hasPreviousTrainVelocity{};
 
     void clear()
     {
@@ -274,6 +279,8 @@ struct RideRatingAccumulator
         ticks = 0;
         sampleEntity = EntityId::GetNull();
         sampleComplete = false;
+        previousTrainVelocity = 0;
+        hasPreviousTrainVelocity = false;
     }
 
     bool hasSamples() const
@@ -302,6 +309,8 @@ struct RideStableStats
     fixed16_2dp maxPositiveVerticalG{};
     fixed16_2dp maxNegativeVerticalG{};
     fixed16_2dp maxLateralG{};
+    fixed16_2dp maxPositiveLongitudinalG{};
+    fixed16_2dp maxNegativeLongitudinalG{};
     uint8_t numDrops{};
     uint8_t numPoweredLifts{};
     uint8_t numInversions{};
@@ -366,8 +375,13 @@ struct Ride
     fixed16_2dp maxPositiveVerticalG{};
     fixed16_2dp maxNegativeVerticalG{};
     fixed16_2dp maxLateralG{};
+    fixed16_2dp maxPositiveLongitudinalG{};
+    fixed16_2dp maxNegativeLongitudinalG{};
     fixed16_2dp previousVerticalG{};
     fixed16_2dp previousLateralG{};
+    fixed16_2dp previousLongitudinalG{};
+    int32_t previousLongitudinalVelocity{};
+    bool hasPreviousLongitudinalVelocity{};
     RideTestingFlags testingFlags{};
     // x y z map location of the current track piece during a test
     // this is to prevent counting special tracks multiple times
@@ -628,6 +642,8 @@ public:
     fixed16_2dp getDisplayMaxPositiveVerticalG() const;
     fixed16_2dp getDisplayMaxNegativeVerticalG() const;
     fixed16_2dp getDisplayMaxLateralG() const;
+    fixed16_2dp getDisplayMaxPositiveLongitudinalG() const;
+    fixed16_2dp getDisplayMaxNegativeLongitudinalG() const;
     uint16_t getDisplayTotalAirTime() const;
     uint8_t getDisplayNumDrops() const;
     uint8_t getDisplayNumPoweredLifts() const;

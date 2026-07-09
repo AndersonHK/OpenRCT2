@@ -115,6 +115,7 @@ namespace OpenRCT2
         ObjectList RequiredObjects;
         std::vector<const ObjectRepositoryItem*> ExportObjectsList;
         bool OmitTracklessRides{};
+        uint32_t TargetVersion = kParkFileCurrentVersion;
 
     private:
         std::unique_ptr<OrcaStream> _os;
@@ -209,7 +210,8 @@ namespace OpenRCT2
             }
         }
 
-        static void ReadWriteRideRatingAccumulator(OrcaStream::ChunkStream& cs, RideRatingAccumulator& accumulator)
+        static void ReadWriteRideRatingAccumulator(
+            OrcaStream::ChunkStream& cs, RideRatingAccumulator& accumulator, uint32_t version)
         {
             cs.readWrite(accumulator.excitement);
             cs.readWrite(accumulator.intensity);
@@ -217,6 +219,16 @@ namespace OpenRCT2
             cs.readWrite(accumulator.ticks);
             cs.readWrite(accumulator.sampleEntity);
             cs.readWrite(accumulator.sampleComplete);
+            if (version >= kRealisedLongitudinalGVersion)
+            {
+                cs.readWrite(accumulator.previousTrainVelocity);
+                cs.readWrite(accumulator.hasPreviousTrainVelocity);
+            }
+            else if (cs.getMode() == OrcaStream::Mode::reading)
+            {
+                accumulator.previousTrainVelocity = 0;
+                accumulator.hasPreviousTrainVelocity = false;
+            }
         }
 
         static void ScaleLegacyRideRatingAccumulator(RideRatingAccumulator& accumulator)
@@ -238,12 +250,12 @@ namespace OpenRCT2
                 return;
             }
 
-            ReadWriteRideRatingAccumulator(cs, ride.ratingAccumulator);
+            ReadWriteRideRatingAccumulator(cs, ride.ratingAccumulator, version);
             if (version < kRideRatingActiveSampleVectorVersion)
             {
                 std::array<RideRatingAccumulator, kRideRatingLegacyActiveSampleCount> legacyActiveSamples{};
-                cs.readWriteArray(legacyActiveSamples, [&cs](RideRatingAccumulator& sample) {
-                    ReadWriteRideRatingAccumulator(cs, sample);
+                cs.readWriteArray(legacyActiveSamples, [&cs, version](RideRatingAccumulator& sample) {
+                    ReadWriteRideRatingAccumulator(cs, sample, version);
                     return true;
                 });
                 if (cs.getMode() == OrcaStream::Mode::reading)
@@ -253,12 +265,12 @@ namespace OpenRCT2
             }
             else
             {
-                cs.readWriteVector(ride.activeRatingSamples, [&cs](RideRatingAccumulator& sample) {
-                    ReadWriteRideRatingAccumulator(cs, sample);
+                cs.readWriteVector(ride.activeRatingSamples, [&cs, version](RideRatingAccumulator& sample) {
+                    ReadWriteRideRatingAccumulator(cs, sample, version);
                 });
             }
-            cs.readWriteArray(ride.recentRatingSamples, [&cs](RideRatingAccumulator& sample) {
-                ReadWriteRideRatingAccumulator(cs, sample);
+            cs.readWriteArray(ride.recentRatingSamples, [&cs, version](RideRatingAccumulator& sample) {
+                ReadWriteRideRatingAccumulator(cs, sample, version);
                 return true;
             });
             cs.readWrite(ride.recentRatingSampleCount);
@@ -305,6 +317,16 @@ namespace OpenRCT2
             cs.readWrite(ride.stableStats.maxPositiveVerticalG);
             cs.readWrite(ride.stableStats.maxNegativeVerticalG);
             cs.readWrite(ride.stableStats.maxLateralG);
+            if (version >= kLongitudinalGStatsVersion)
+            {
+                cs.readWrite(ride.stableStats.maxPositiveLongitudinalG);
+                cs.readWrite(ride.stableStats.maxNegativeLongitudinalG);
+            }
+            else if (cs.getMode() == OrcaStream::Mode::reading)
+            {
+                ride.stableStats.maxPositiveLongitudinalG = 0;
+                ride.stableStats.maxNegativeLongitudinalG = 0;
+            }
             cs.readWrite(ride.stableStats.numDrops);
             cs.readWrite(ride.stableStats.numPoweredLifts);
             cs.readWrite(ride.stableStats.numInversions);
@@ -378,7 +400,7 @@ namespace OpenRCT2
 
             auto& header = os.getHeader();
             header.magic = kParkFileMagic;
-            header.targetVersion = kParkFileCurrentVersion;
+            header.targetVersion = TargetVersion;
             header.minVersion = kParkFileMinVersion;
 
             ReadWriteAuthoringChunk(os);
@@ -1789,7 +1811,7 @@ namespace OpenRCT2
                         if (hasMeasurement != 0)
                         {
                             ride.measurement = std::make_unique<RideMeasurement>();
-                            ReadWriteRideMeasurement(cs, *ride.measurement);
+                            ReadWriteRideMeasurement(cs, *ride.measurement, version);
                         }
                     }
                     else
@@ -1801,7 +1823,7 @@ namespace OpenRCT2
                         else
                         {
                             cs.write<uint8_t>(1);
-                            ReadWriteRideMeasurement(cs, *ride.measurement);
+                            ReadWriteRideMeasurement(cs, *ride.measurement, version);
                         }
                     }
 
@@ -1828,6 +1850,28 @@ namespace OpenRCT2
                     cs.readWrite(ride.maxLateralG);
                     cs.readWrite(ride.previousVerticalG);
                     cs.readWrite(ride.previousLateralG);
+                    if (version >= kLongitudinalGStatsVersion)
+                    {
+                        cs.readWrite(ride.maxPositiveLongitudinalG);
+                        cs.readWrite(ride.maxNegativeLongitudinalG);
+                        cs.readWrite(ride.previousLongitudinalG);
+                    }
+                    else if (cs.getMode() == OrcaStream::Mode::reading)
+                    {
+                        ride.maxPositiveLongitudinalG = 0;
+                        ride.maxNegativeLongitudinalG = 0;
+                        ride.previousLongitudinalG = 0;
+                    }
+                    if (version >= kRealisedLongitudinalGVersion)
+                    {
+                        cs.readWrite(ride.previousLongitudinalVelocity);
+                        cs.readWrite(ride.hasPreviousLongitudinalVelocity);
+                    }
+                    else if (cs.getMode() == OrcaStream::Mode::reading)
+                    {
+                        ride.previousLongitudinalVelocity = 0;
+                        ride.hasPreviousLongitudinalVelocity = false;
+                    }
 
                     cs.readWrite(ride.testingFlags.holder);
                     cs.readWrite(ride.curTestTrackLocation);
@@ -2000,7 +2044,8 @@ namespace OpenRCT2
             });
         }
 
-        static void ReadWriteRideMeasurement(OrcaStream::ChunkStream& cs, RideMeasurement& measurement)
+        static void ReadWriteRideMeasurement(
+            OrcaStream::ChunkStream& cs, RideMeasurement& measurement, uint32_t version)
         {
             cs.readWrite(measurement.flags.holder);
             cs.readWrite(measurement.last_use_tick);
@@ -2008,10 +2053,28 @@ namespace OpenRCT2
             cs.readWrite(measurement.current_item);
             cs.readWrite(measurement.vehicle_index);
             cs.readWrite(measurement.current_station);
+            if (version >= kRealisedLongitudinalGVersion)
+            {
+                cs.readWrite(measurement.previousVelocity);
+                cs.readWrite(measurement.hasPreviousVelocity);
+            }
+            else if (cs.getMode() == OrcaStream::Mode::reading)
+            {
+                measurement.previousVelocity = 0;
+                measurement.hasPreviousVelocity = false;
+            }
             for (size_t i = 0; i < measurement.num_items; i++)
             {
                 cs.readWrite(measurement.vertical[i]);
                 cs.readWrite(measurement.lateral[i]);
+                if (version >= kLongitudinalGStatsVersion)
+                {
+                    cs.readWrite(measurement.longitudinal[i]);
+                }
+                else if (cs.getMode() == OrcaStream::Mode::reading)
+                {
+                    measurement.longitudinal[i] = 0;
+                }
                 cs.readWrite(measurement.velocity[i]);
                 cs.readWrite(measurement.altitude[i]);
             }
@@ -2989,6 +3052,7 @@ namespace OpenRCT2
     void ParkFileExporter::Export(GameState_t& gameState, std::string_view path, int16_t compressionLevel)
     {
         auto parkFile = std::make_unique<ParkFile>();
+        parkFile->TargetVersion = TargetVersion;
         parkFile->Save(gameState, path, compressionLevel);
     }
 
@@ -2996,6 +3060,7 @@ namespace OpenRCT2
     {
         auto parkFile = std::make_unique<ParkFile>();
         parkFile->ExportObjectsList = ExportObjectsList;
+        parkFile->TargetVersion = TargetVersion;
         parkFile->Save(gameState, stream, compressionLevel);
     }
 } // namespace OpenRCT2

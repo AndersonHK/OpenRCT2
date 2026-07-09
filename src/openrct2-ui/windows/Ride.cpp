@@ -279,6 +279,7 @@ namespace OpenRCT2::Ui::Windows
         WIDX_GRAPH_ALTITUDE,
         WIDX_GRAPH_VERTICAL,
         WIDX_GRAPH_LATERAL,
+        WIDX_GRAPH_LONGITUDINAL,
 
         WIDX_PRIMARY_PRICE_LABEL = 14,
         WIDX_PRIMARY_PRICE,
@@ -437,10 +438,11 @@ namespace OpenRCT2::Ui::Windows
     static constexpr auto _graphsWidgets = makeWidgets(
         kMainRideWidgets,
         makeWidget({  3,  46}, {306, 112}, WidgetType::scroll, WindowColour::secondary, SCROLL_HORIZONTAL,       STR_LOGGING_DATA_FROM_TIP                               ),
-        makeWidget({  3, 163}, { 73,  14}, WidgetType::button, WindowColour::secondary, STR_RIDE_STATS_VELOCITY, STR_SHOW_GRAPH_OF_VELOCITY_AGAINST_TIME_TIP             ),
-        makeWidget({ 76, 163}, { 73,  14}, WidgetType::button, WindowColour::secondary, STR_RIDE_STATS_ALTITUDE, STR_SHOW_GRAPH_OF_ALTITUDE_AGAINST_TIME_TIP             ),
-        makeWidget({149, 163}, { 73,  14}, WidgetType::button, WindowColour::secondary, STR_RIDE_STATS_VERT_G,   STR_SHOW_GRAPH_OF_VERTICAL_ACCELERATION_AGAINST_TIME_TIP),
-        makeWidget({222, 163}, { 73,  14}, WidgetType::button, WindowColour::secondary, STR_RIDE_STATS_LAT_G,    STR_SHOW_GRAPH_OF_LATERAL_ACCELERATION_AGAINST_TIME_TIP )
+        makeWidget({  3, 163}, { 58,  14}, WidgetType::button, WindowColour::secondary, STR_RIDE_STATS_VELOCITY, STR_SHOW_GRAPH_OF_VELOCITY_AGAINST_TIME_TIP                 ),
+        makeWidget({ 61, 163}, { 58,  14}, WidgetType::button, WindowColour::secondary, STR_RIDE_STATS_ALTITUDE, STR_SHOW_GRAPH_OF_ALTITUDE_AGAINST_TIME_TIP                 ),
+        makeWidget({119, 163}, { 58,  14}, WidgetType::button, WindowColour::secondary, STR_RIDE_STATS_VERT_G,   STR_SHOW_GRAPH_OF_VERTICAL_ACCELERATION_AGAINST_TIME_TIP    ),
+        makeWidget({177, 163}, { 58,  14}, WidgetType::button, WindowColour::secondary, STR_RIDE_STATS_LAT_G,    STR_SHOW_GRAPH_OF_LATERAL_ACCELERATION_AGAINST_TIME_TIP     ),
+        makeWidget({235, 163}, { 58,  14}, WidgetType::button, WindowColour::secondary, STR_RIDE_STATS_LONG_G,   STR_SHOW_GRAPH_OF_LONGITUDINAL_ACCELERATION_AGAINST_TIME_TIP)
     );
 
     // 0x009AE844
@@ -647,8 +649,9 @@ namespace OpenRCT2::Ui::Windows
         GraphsYAxis{ 10, 0, 15, STR_RIDE_STATS_ALTITUDE_FORMAT }, // GRAPH_ALTITUDE
         GraphsYAxis{ 13, -3, 1, STR_RIDE_STATS_G_FORCE_FORMAT },  // GRAPH_VERTICAL
         GraphsYAxis{ 13, -4, 1, STR_RIDE_STATS_G_FORCE_FORMAT },  // GRAPH_LATERAL
+        GraphsYAxis{ 13, -4, 1, STR_RIDE_STATS_G_FORCE_FORMAT },  // GRAPH_LONGITUDINAL
     };
-    static_assert(std::size(GraphsYAxisDetails) == 4);
+    static_assert(std::size(GraphsYAxisDetails) == 5);
 
     static constexpr auto kRideGForcesRedNegVertical = -MakeFixed16_2dp(2, 50);
     static constexpr auto kRideGForcesRedLateral = MakeFixed16_2dp(2, 80);
@@ -5670,7 +5673,8 @@ namespace OpenRCT2::Ui::Windows
 
         void MeasurementsResize()
         {
-            WindowSetResize(*this, { kMinimumWindowWidth, 234 }, { kMinimumWindowWidth, 234 });
+            constexpr int32_t measurementsHeight = 234 + (2 * kListRowHeight);
+            WindowSetResize(*this, { kMinimumWindowWidth, measurementsHeight }, { kMinimumWindowWidth, measurementsHeight });
         }
 
         void MeasurementsOnMouseDown(WidgetIndex widgetIndex)
@@ -6012,6 +6016,16 @@ namespace OpenRCT2::Ui::Windows
                             drawText(rt, screenCoords, stringId, ft);
                             screenCoords.y += kListRowHeight;
 
+                            ft = Formatter();
+                            ft.Add<int32_t>(static_cast<int32_t>(ride->getDisplayMaxPositiveLongitudinalG()));
+                            drawText(rt, screenCoords, STR_MAX_POSITIVE_LONGITUDINAL_G, ft);
+                            screenCoords.y += kListRowHeight;
+
+                            ft = Formatter();
+                            ft.Add<int32_t>(static_cast<int32_t>(ride->getDisplayMaxNegativeLongitudinalG()));
+                            drawText(rt, screenCoords, STR_MAX_NEGATIVE_LONGITUDINAL_G, ft);
+                            screenCoords.y += kListRowHeight;
+
                             // Total 'air' time
                             ft = Formatter();
                             ft.Add<fixed32_2dp>(ToHumanReadableAirTime(ride->getDisplayTotalAirTime()));
@@ -6064,7 +6078,8 @@ namespace OpenRCT2::Ui::Windows
             GRAPH_VELOCITY,
             GRAPH_ALTITUDE,
             GRAPH_VERTICAL,
-            GRAPH_LATERAL
+            GRAPH_LATERAL,
+            GRAPH_LONGITUDINAL
         };
 
         void SetGraph(int32_t type)
@@ -6122,6 +6137,9 @@ namespace OpenRCT2::Ui::Windows
                     break;
                 case WIDX_GRAPH_LATERAL:
                     SetGraph(GRAPH_LATERAL);
+                    break;
+                case WIDX_GRAPH_LONGITUDINAL:
+                    SetGraph(GRAPH_LONGITUDINAL);
                     break;
             }
         }
@@ -6216,7 +6234,9 @@ namespace OpenRCT2::Ui::Windows
 
             // Set pressed graph button type
             widgetSetPressedExclusive(
-                *this, { WIDX_GRAPH_VELOCITY, WIDX_GRAPH_ALTITUDE, WIDX_GRAPH_VERTICAL, WIDX_GRAPH_LATERAL },
+                *this,
+                { WIDX_GRAPH_VELOCITY, WIDX_GRAPH_ALTITUDE, WIDX_GRAPH_VERTICAL, WIDX_GRAPH_LATERAL,
+                  WIDX_GRAPH_LONGITUDINAL },
                 WIDX_GRAPH_VELOCITY + listInformationType);
 
             // Hide graph buttons that are not applicable
@@ -6224,11 +6244,13 @@ namespace OpenRCT2::Ui::Windows
             {
                 widgets[WIDX_GRAPH_VERTICAL].type = WidgetType::button;
                 widgets[WIDX_GRAPH_LATERAL].type = WidgetType::button;
+                widgets[WIDX_GRAPH_LONGITUDINAL].type = WidgetType::button;
             }
             else
             {
                 widgets[WIDX_GRAPH_VERTICAL].type = WidgetType::empty;
                 widgets[WIDX_GRAPH_LATERAL].type = WidgetType::empty;
+                widgets[WIDX_GRAPH_LONGITUDINAL].type = WidgetType::empty;
             }
 
             // Anchor graph widget
@@ -6238,15 +6260,28 @@ namespace OpenRCT2::Ui::Windows
             widgets[WIDX_GRAPH].right = x;
             widgets[WIDX_GRAPH].bottom = y;
             y += 3;
-            widgets[WIDX_GRAPH_VELOCITY].top = y;
-            widgets[WIDX_GRAPH_ALTITUDE].top = y;
-            widgets[WIDX_GRAPH_VERTICAL].top = y;
-            widgets[WIDX_GRAPH_LATERAL].top = y;
+            constexpr std::array graphWidgets = {
+                WIDX_GRAPH_VELOCITY,
+                WIDX_GRAPH_ALTITUDE,
+                WIDX_GRAPH_VERTICAL,
+                WIDX_GRAPH_LATERAL,
+                WIDX_GRAPH_LONGITUDINAL,
+            };
+            const auto graphButtonWidth = (width - 6) / static_cast<int32_t>(graphWidgets.size());
+            auto graphButtonLeft = 3;
+            for (const auto graphWidget : graphWidgets)
+            {
+                widgets[graphWidget].left = graphButtonLeft;
+                widgets[graphWidget].right = graphButtonLeft + graphButtonWidth - 1;
+                widgets[graphWidget].top = y;
+                graphButtonLeft += graphButtonWidth;
+            }
+            widgets[WIDX_GRAPH_LONGITUDINAL].right = width - 4;
             y += kButtonFaceHeight + 1;
-            widgets[WIDX_GRAPH_VELOCITY].bottom = y;
-            widgets[WIDX_GRAPH_ALTITUDE].bottom = y;
-            widgets[WIDX_GRAPH_VERTICAL].bottom = y;
-            widgets[WIDX_GRAPH_LATERAL].bottom = y;
+            for (const auto graphWidget : graphWidgets)
+            {
+                widgets[graphWidget].bottom = y;
+            }
 
             WindowAlignTabs(this, WIDX_TAB_1, WIDX_TAB_10);
         }
@@ -6354,6 +6389,7 @@ namespace OpenRCT2::Ui::Windows
 
                 constexpr int32_t VerticalGraphHeightOffset = 39;
                 constexpr int32_t LateralGraphHeightOffset = 52;
+                constexpr int32_t LongitudinalGraphHeightOffset = 52;
 
                 switch (listType)
                 {
@@ -6375,6 +6411,10 @@ namespace OpenRCT2::Ui::Windows
                         secondPoint = measurement->lateral[x + 1] + LateralGraphHeightOffset;
                         intensityThresholdPositive = (kRideGForcesRedLateral / 8) + LateralGraphHeightOffset;
                         intensityThresholdNegative = -(kRideGForcesRedLateral / 8) + LateralGraphHeightOffset;
+                        break;
+                    case GRAPH_LONGITUDINAL:
+                        firstPoint = measurement->longitudinal[x] + LongitudinalGraphHeightOffset;
+                        secondPoint = measurement->longitudinal[x + 1] + LongitudinalGraphHeightOffset;
                         break;
                     default:
                         LOG_ERROR("Wrong graph type %d", listType);

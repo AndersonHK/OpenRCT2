@@ -82,6 +82,7 @@ constexpr RideTypeDescriptor SuspendedSwingingCoasterRTD =
             { RatingsModifierType::PenaltyLateralGs,      0,                32768, 23831, 79437 },
         },
     },
+    .SampledRatings = kRollerCoasterSampledRideRatingProfile,
 };
 } // namespace OpenRCT2
 // clang-format on

@@ -848,6 +848,16 @@ fixed16_2dp Ride::getDisplayMaxLateralG() const
     return hasStableStats() ? stableStats.maxLateralG : maxLateralG;
 }
 
+fixed16_2dp Ride::getDisplayMaxPositiveLongitudinalG() const
+{
+    return hasStableStats() ? stableStats.maxPositiveLongitudinalG : maxPositiveLongitudinalG;
+}
+
+fixed16_2dp Ride::getDisplayMaxNegativeLongitudinalG() const
+{
+    return hasStableStats() ? stableStats.maxNegativeLongitudinalG : maxNegativeLongitudinalG;
+}
+
 uint16_t Ride::getDisplayTotalAirTime() const
 {
     return hasStableStats() ? stableStats.totalAirTime : totalAirTime;
@@ -886,6 +896,8 @@ void Ride::publishCurrentStatsAsStable()
     stableStats.maxPositiveVerticalG = maxPositiveVerticalG;
     stableStats.maxNegativeVerticalG = maxNegativeVerticalG;
     stableStats.maxLateralG = maxLateralG;
+    stableStats.maxPositiveLongitudinalG = maxPositiveLongitudinalG;
+    stableStats.maxNegativeLongitudinalG = maxNegativeLongitudinalG;
     stableStats.numDrops = numDrops;
     stableStats.numPoweredLifts = numPoweredLifts;
     stableStats.numInversions = numInversions;
@@ -2048,6 +2060,7 @@ static void RideMeasurementUpdate(Ride& ride, RideMeasurement& measurement)
             return;
 
         measurement.flags.unset(RideMeasurementFlag::unloading);
+        measurement.hasPreviousVelocity = false;
         if (measurement.current_station == vehicle->current_station)
             measurement.current_item = 0;
     }
@@ -2055,6 +2068,7 @@ static void RideMeasurementUpdate(Ride& ride, RideMeasurement& measurement)
     if (vehicle->status == Vehicle::Status::unloadingPassengers)
     {
         measurement.flags.set(RideMeasurementFlag::unloading);
+        measurement.hasPreviousVelocity = false;
         return;
     }
 
@@ -2074,17 +2088,26 @@ static void RideMeasurementUpdate(Ride& ride, RideMeasurement& measurement)
     if (measurement.flags.has(RideMeasurementFlag::gForces))
     {
         auto gForces = vehicle->GetGForces();
+        if (measurement.hasPreviousVelocity)
+        {
+            gForces.longitudinalG = CalculateLongitudinalG(measurement.previousVelocity, vehicle->velocity);
+        }
+        measurement.previousVelocity = vehicle->velocity;
+        measurement.hasPreviousVelocity = true;
         gForces.verticalG = std::clamp(gForces.verticalG / 8, -127, 127);
         gForces.lateralG = std::clamp(gForces.lateralG / 8, -127, 127);
+        gForces.longitudinalG = std::clamp(gForces.longitudinalG / 8, -127, 127);
 
         if (currentTicks & 1)
         {
             gForces.verticalG = (gForces.verticalG + measurement.vertical[measurement.current_item]) / 2;
             gForces.lateralG = (gForces.lateralG + measurement.lateral[measurement.current_item]) / 2;
+            gForces.longitudinalG = (gForces.longitudinalG + measurement.longitudinal[measurement.current_item]) / 2;
         }
 
         measurement.vertical[measurement.current_item] = gForces.verticalG & 0xFF;
         measurement.lateral[measurement.current_item] = gForces.lateralG & 0xFF;
+        measurement.longitudinal[measurement.current_item] = gForces.longitudinalG & 0xFF;
     }
 
     auto velocity = std::min(std::abs((vehicle->velocity * 5) >> 16), 255);
@@ -2145,6 +2168,7 @@ void RideMeasurementsUpdate()
                             measurement->current_station = vehicle->current_station;
                             measurement->flags.set(RideMeasurementFlag::running);
                             measurement->flags.unset(RideMeasurementFlag::unloading);
+                            measurement->hasPreviousVelocity = false;
                             RideMeasurementUpdate(ride, *measurement);
                             break;
                         }

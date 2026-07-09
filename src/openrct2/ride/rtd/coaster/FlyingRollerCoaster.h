@@ -93,6 +93,7 @@ constexpr RideTypeDescriptor FlyingRollerCoasterRTD =
             { RatingsModifierType::PenaltyLateralGs,      0,                24576, 38130, 49648 },
         },
     },
+    .SampledRatings = kRollerCoasterSampledRideRatingProfile,
 };
 
 constexpr RideTypeDescriptor FlyingRollerCoasterAltRTD =

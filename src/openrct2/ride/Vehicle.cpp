@@ -103,12 +103,14 @@ static constexpr int64_t RideRatingRawTenths(int32_t tenths)
 
 static void RideRatingAccumulateTick(
     RideRatingAccumulator& accumulator, TrackElemType trackType, const GForces& gForces, int32_t velocity, bool isSheltered,
-    const RideRating::LocalContextScore& contextScore, bool isSynchronised, bool isBoatHire)
+    const RideRating::LocalContextScore& contextScore, bool isSynchronised, bool isBoatHire,
+    const SampledRideRatingProfile& profile)
 {
     const auto& ted = GetTrackElementDescriptor(trackType);
     const int32_t speed = std::abs(velocity) >> 16;
-    const auto speedScore = isBoatHire ? RideRating::ScoreBoatHireSpeedForTick(speed) : RideRating::ScoreVehicleSpeedForTick(speed);
-    const auto gForceScore = RideRating::ScoreGForcesForTick(gForces.verticalG, gForces.lateralG);
+    const auto speedScore = RideRating::ScoreVehicleSpeedForTick(speed, profile.Speed);
+    const auto gForceScore = RideRating::ScoreGForcesForVehicleTick(
+        gForces.verticalG, gForces.lateralG, gForces.longitudinalG, speed, profile);
     int64_t trackFeatureExcitement = 0;
     int64_t trackFeatureIntensity = 0;
     int64_t trackFeatureNausea = 0;
@@ -136,25 +138,25 @@ static void RideRatingAccumulateTick(
     }
     if (ted.flags.has(TrackElementFlag::turnSloped))
     {
-        trackFeatureExcitement += RideRatingRawTenths(8);
-        trackFeatureNausea += RideRatingRawTenths(8);
+        trackFeatureExcitement += RideRatingRawTenths(12);
+        trackFeatureNausea += RideRatingRawTenths(12);
     }
     if (ted.flags.has(TrackElementFlag::helix))
     {
-        trackFeatureExcitement += RideRatingRawTenths(20);
-        trackFeatureIntensity += RideRatingRawTenths(16);
-        trackFeatureNausea += RideRatingRawTenths(20);
+        trackFeatureExcitement += RideRatingRawTenths(40);
+        trackFeatureIntensity += RideRatingRawTenths(32);
+        trackFeatureNausea += RideRatingRawTenths(40);
     }
     if (ted.flags.has(TrackElementFlag::normalToInversion))
     {
-        trackFeatureExcitement += RideRatingRawTenths(32);
-        trackFeatureIntensity += RideRatingRawTenths(36);
-        trackFeatureNausea += RideRatingRawTenths(24);
+        trackFeatureExcitement += RideRatingRawTenths(64);
+        trackFeatureIntensity += RideRatingRawTenths(72);
+        trackFeatureNausea += RideRatingRawTenths(48);
     }
     if (ted.flags.has(TrackElementFlag::down))
     {
-        trackFeatureExcitement += RideRatingRawTenths(8);
-        trackFeatureIntensity += RideRatingRawTenths(4);
+        trackFeatureExcitement += RideRatingRawTenths(20);
+        trackFeatureIntensity += RideRatingRawTenths(12);
     }
 
     switch (trackType)
@@ -207,8 +209,9 @@ static void RideRatingAccumulateTick(
     intensity += (trackFeatureIntensity * normalisedSpeed) / RideRating::kVehicleRatingBaselineSpeed;
     nausea += (trackFeatureNausea * normalisedSpeed) / RideRating::kVehicleRatingBaselineSpeed;
 
-    const auto contextTickScore = isBoatHire ? RideRating::ScoreBoatHireLocalContextForVehicleTick(contextScore, speed)
-                                             : RideRating::ScoreLocalContextForVehicleTick(contextScore, speed);
+    const auto contextTickScore = isBoatHire
+        ? RideRating::ScoreBoatHireLocalContextForVehicleTick(contextScore, speed, profile.LocalContext)
+        : RideRating::ScoreLocalContextForVehicleTick(contextScore, speed, profile.LocalContext);
     excitement += contextTickScore.excitement;
     intensity += contextTickScore.intensity;
     nausea += contextTickScore.nausea;
@@ -275,8 +278,8 @@ static bool RideTestingShouldStartCircuit(const Ride& ride, const Vehicle& vehic
 }
 
 static bool RideRatingAccumulateVehicleTick(
-    RideRatingAccumulator& accumulator, const Ride& ride, const Vehicle& vehicle, int32_t trainVelocity, bool isSynchronised,
-    const GForces* gForcesOverride = nullptr)
+    RideRatingAccumulator& accumulator, const Ride& ride, const Vehicle& vehicle, int32_t trainVelocity,
+    bool isSynchronised)
 {
     auto currentTrackType = vehicle.GetTrackType();
     if (currentTrackType == TrackElemType::none)
@@ -284,26 +287,25 @@ static bool RideRatingAccumulateVehicleTick(
         return false;
     }
 
-    GForces gForces{ 100, 0 };
-    if (gForcesOverride != nullptr)
+    auto gForces = vehicle.GetGForces(trainVelocity);
+    if (accumulator.hasPreviousTrainVelocity)
     {
-        gForces = *gForcesOverride;
+        gForces.longitudinalG = CalculateLongitudinalG(accumulator.previousTrainVelocity, trainVelocity);
     }
-    else if (ride.getRideTypeDescriptor().flags.has(RtdFlag::hasGForces))
-    {
-        gForces = vehicle.GetGForces(trainVelocity);
-    }
+    accumulator.previousTrainVelocity = trainVelocity;
+    accumulator.hasPreviousTrainVelocity = true;
 
+    const auto& rtd = ride.getRideTypeDescriptor();
     const auto location = CoordsXYZ{ vehicle.x, vehicle.y, vehicle.z };
     RideRatingAccumulateTick(
         accumulator, currentTrackType, gForces, trainVelocity, RideRatingTickIsSheltered(location),
         RideRating::GetVehicleLocalContextScore(location, ride.id, currentTrackType, vehicle.GetTrackDirection()), isSynchronised,
-        ride.getRideTypeDescriptor().specialType == RtdSpecialType::boatHire);
+        rtd.specialType == RtdSpecialType::boatHire, rtd.SampledRatings);
     return true;
 }
 
 static bool RideRatingAccumulateTrainTick(
-    Ride& ride, const Vehicle& head, bool isSynchronised, const GForces* headGForcesOverride = nullptr)
+    Ride& ride, const Vehicle& head, bool isSynchronised)
 {
     bool accumulated = false;
     const int32_t trainVelocity = head.velocity;
@@ -316,8 +318,8 @@ static bool RideRatingAccumulateTrainTick(
             continue;
         }
 
-        const auto* gForcesOverride = (vehicle->id == head.id) ? headGForcesOverride : nullptr;
-        accumulated |= RideRatingAccumulateVehicleTick(*accumulator, ride, *vehicle, trainVelocity, isSynchronised, gForcesOverride);
+        accumulated |= RideRatingAccumulateVehicleTick(
+            *accumulator, ride, *vehicle, trainVelocity, isSynchronised);
     }
 
     return accumulated;
@@ -797,7 +799,7 @@ void Vehicle::UpdateMeasurements()
             stationForTestSegment.SegmentTime++;
         }
 
-        GForces gForces{ 100, 0 };
+        GForces gForces{ 100, 0, 0 };
         int32_t distance = abs(GetRealRideLengthDelta(velocity, acceleration));
         if (NumLaps == 0)
         {
@@ -806,14 +808,26 @@ void Vehicle::UpdateMeasurements()
 
         if (curRide->getRideTypeDescriptor().flags.has(RtdFlag::hasGForces))
         {
-            gForces = GetGForces();
+            const auto* head = TrainHead();
+            const auto trainVelocity = head != nullptr ? head->velocity : velocity;
+            gForces = GetGForces(trainVelocity);
+            if (curRide->hasPreviousLongitudinalVelocity)
+            {
+                gForces.longitudinalG = CalculateLongitudinalG(
+                    curRide->previousLongitudinalVelocity, trainVelocity);
+            }
+            curRide->previousLongitudinalVelocity = trainVelocity;
+            curRide->hasPreviousLongitudinalVelocity = true;
             gForces.verticalG += curRide->previousVerticalG;
             gForces.lateralG += curRide->previousLateralG;
+            gForces.longitudinalG += curRide->previousLongitudinalG;
             gForces.verticalG /= 2;
             gForces.lateralG /= 2;
+            gForces.longitudinalG /= 2;
 
             curRide->previousVerticalG = gForces.verticalG;
             curRide->previousLateralG = gForces.lateralG;
+            curRide->previousLongitudinalG = gForces.longitudinalG;
             if (gForces.verticalG <= 0)
             {
                 curRide->totalAirTime++;
@@ -827,6 +841,11 @@ void Vehicle::UpdateMeasurements()
 
             gForces.lateralG = std::abs(gForces.lateralG);
             curRide->maxLateralG = std::max(curRide->maxLateralG, static_cast<fixed16_2dp>(gForces.lateralG));
+
+            curRide->maxPositiveLongitudinalG = std::max(
+                curRide->maxPositiveLongitudinalG, static_cast<fixed16_2dp>(gForces.longitudinalG));
+            curRide->maxNegativeLongitudinalG = std::min(
+                curRide->maxNegativeLongitudinalG, static_cast<fixed16_2dp>(gForces.longitudinalG));
         }
 
     }
@@ -1300,8 +1319,13 @@ static void test_reset(
     ride.maxPositiveVerticalG = MakeFixed16_2dp(1, 0);
     ride.maxNegativeVerticalG = MakeFixed16_2dp(1, 0);
     ride.maxLateralG = 0;
+    ride.maxPositiveLongitudinalG = 0;
+    ride.maxNegativeLongitudinalG = 0;
     ride.previousVerticalG = MakeFixed16_2dp(1, 0);
     ride.previousLateralG = 0;
+    ride.previousLongitudinalG = 0;
+    ride.previousLongitudinalVelocity = 0;
+    ride.hasPreviousLongitudinalVelocity = false;
     ride.measurement = {};
     ride.testingFlags.clearAll();
     ride.curTestTrackLocation.SetNull();
@@ -1525,12 +1549,31 @@ GForces Vehicle::GetGForces(int32_t trainVelocity) const
     gForceLateral *= 10;
     gForceVert >>= 16;
     gForceLateral >>= 16;
-    return { static_cast<int16_t>(gForceVert & 0xFFFF), static_cast<int16_t>(gForceLateral & 0xFFFF) };
+
+    return {
+        static_cast<int16_t>(gForceVert & 0xFFFF),
+        static_cast<int16_t>(gForceLateral & 0xFFFF),
+        0,
+    };
+}
+
+int32_t CalculateLongitudinalG(int32_t previousVelocity, int32_t currentVelocity)
+{
+    // A vertical free-fall acceleration is one G in the vehicle physics model.
+    constexpr int32_t kVehicleAccelerationForOneG = (642000 * 21) / 512;
+
+    const auto previousSpeed = std::abs(static_cast<int64_t>(previousVelocity));
+    const auto currentSpeed = std::abs(static_cast<int64_t>(currentVelocity));
+    const auto scaledLongitudinalG = (currentSpeed - previousSpeed) * 100;
+    return static_cast<int32_t>(scaledLongitudinalG >= 0
+            ? (scaledLongitudinalG + (kVehicleAccelerationForOneG / 2)) / kVehicleAccelerationForOneG
+            : -((-scaledLongitudinalG + (kVehicleAccelerationForOneG / 2)) / kVehicleAccelerationForOneG));
 }
 
 GForces Vehicle::GetGForces() const
 {
-    return GetGForces(velocity);
+    const auto* head = TrainHead();
+    return GetGForces(head != nullptr ? head->velocity : velocity);
 }
 
 void Vehicle::SetMapToolbar() const

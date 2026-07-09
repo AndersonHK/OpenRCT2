@@ -255,3 +255,7 @@ STR_7034    :Select sparse, normal, or overcrowding capacity policy for this maz
 STR_7035    :Sparse
 STR_7036    :Normal
 STR_7037    :Overcrowding
+STR_7038    :{WINDOW_COLOUR_2}Max. positive longitudinal Gs: {BLACK}{COMMA2DP32}g
+STR_7039    :{WINDOW_COLOUR_2}Max. negative longitudinal Gs: {BLACK}{COMMA2DP32}g
+STR_7040    :{WINDOW_COLOUR_2}Long. Gs
+STR_7041    :Show graph of longitudinal acceleration against time

@@ -42,6 +42,7 @@ struct GForces
 {
     int32_t verticalG{};
     int32_t lateralG{};
+    int32_t longitudinalG{};
 };
 
 // Size: 0x09
@@ -560,6 +561,7 @@ constexpr uint8_t kVehicleSeatNumMask = 0x7F;
 
 OpenRCT2::TrackMetadata::PitchAndRoll PitchAndRollStart(bool useInvertedSprites, OpenRCT2::TileElement* tileElement);
 int32_t GetAccelerationDecrease2(const int32_t velocity, const int32_t totalMass);
+int32_t CalculateLongitudinalG(int32_t previousVelocity, int32_t currentVelocity);
 
 Vehicle* TryGetVehicle(EntityId spriteIndex);
 void VehicleUpdateAll();

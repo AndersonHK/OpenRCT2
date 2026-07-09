@@ -78,6 +78,7 @@ constexpr RideTypeDescriptor VirginiaReelRTD =
             { RatingsModifierType::PenaltyLateralGs,      0,                110592, 29789, 59578 },
         },
     },
+    .SampledRatings = kRollerCoasterSampledRideRatingProfile,
 };
 } // namespace OpenRCT2
 // clang-format on

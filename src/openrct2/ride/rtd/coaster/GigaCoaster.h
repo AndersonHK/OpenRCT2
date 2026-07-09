@@ -87,6 +87,7 @@ constexpr RideTypeDescriptor GigaCoasterRTD =
             { RatingsModifierType::PenaltyLateralGs,      0,                36864, 30384, 49648 },
         },
     },
+    .SampledRatings = kRollerCoasterSampledRideRatingProfile,
 };
 } // namespace OpenRCT2
 // clang-format on

@@ -85,6 +85,7 @@ constexpr RideTypeDescriptor SteeplechaseRTD =
             { RatingsModifierType::PenaltyLateralGs,      0,                20480, 20852, 49648 },
         },
     },
+    .SampledRatings = kRollerCoasterSampledRideRatingProfile,
 };
 } // namespace OpenRCT2
 // clang-format on

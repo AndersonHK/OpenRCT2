@@ -693,6 +693,32 @@ TEST_F(RideRatings, VehicleGForcesCanUseSharedTrainVelocityForTrailerCars)
     EXPECT_GT(std::abs(trainVelocityGForces.lateralG), 0);
 }
 
+TEST_F(RideRatings, LongitudinalGUsesSignedChangeInTrainSpeedMagnitude)
+{
+    constexpr int32_t oneGAcceleration = (642000 * 21) / 512;
+    constexpr int32_t baseSpeed = 10 << 16;
+
+    EXPECT_EQ(CalculateLongitudinalG(baseSpeed, baseSpeed), 0);
+    EXPECT_EQ(CalculateLongitudinalG(baseSpeed, baseSpeed + oneGAcceleration), 100);
+    EXPECT_EQ(CalculateLongitudinalG(baseSpeed, baseSpeed - oneGAcceleration), -100);
+    EXPECT_EQ(CalculateLongitudinalG(-baseSpeed, -baseSpeed - oneGAcceleration), 100);
+    EXPECT_EQ(CalculateLongitudinalG(-baseSpeed, -baseSpeed + oneGAcceleration), -100);
+}
+
+TEST_F(RideRatings, LongitudinalGDoesNotDuplicateConstantSpeedCurveForces)
+{
+    Vehicle vehicle{};
+    vehicle.SetTrackType(TrackElemType::leftCorkscrewUp);
+    vehicle.pitch = VehiclePitch::flat;
+    vehicle.roll = VehicleRoll::unbanked;
+    vehicle.track_progress = 128;
+
+    auto gForces = vehicle.GetGForces(20 << 16);
+    gForces.longitudinalG = CalculateLongitudinalG(20 << 16, 20 << 16);
+    EXPECT_GT(std::abs(gForces.lateralG), 0);
+    EXPECT_EQ(gForces.longitudinalG, 0);
+}
+
 TEST_F(RideRatings, GForceTickScoringTreatsAirtimeAsExciting)
 {
     const auto neutral = RideRating::ScoreGForcesForTick(100, 0);
@@ -702,9 +728,8 @@ TEST_F(RideRatings, GForceTickScoringTreatsAirtimeAsExciting)
     EXPECT_EQ(neutral.excitement, 0);
     EXPECT_EQ(neutral.intensity, 0);
     EXPECT_EQ(neutral.nausea, 0);
-    EXPECT_GT(partialAirtime.excitement, 12000);
-    EXPECT_GT(airtime.excitement, 44000);
-    EXPECT_GT(airtime.excitement, partialAirtime.excitement * 3);
+    EXPECT_GT(partialAirtime.excitement, 0);
+    EXPECT_GT(airtime.excitement, partialAirtime.excitement * 4);
     EXPECT_GT(airtime.excitement, airtime.intensity);
     EXPECT_GT(airtime.intensity, airtime.nausea);
 }
@@ -715,7 +740,7 @@ TEST_F(RideRatings, GForceTickScoringMakesNegativeVerticalGNastierThanAirtime)
     const auto negative = RideRating::ScoreGForcesForTick(-100, 0);
 
     EXPECT_GT(negative.excitement, airtime.excitement);
-    EXPECT_GT(negative.excitement, airtime.excitement + 30000);
+    EXPECT_GT(negative.excitement * 2, airtime.excitement * 3);
     EXPECT_GT(negative.intensity, airtime.intensity * 5);
     EXPECT_GT(negative.intensity, negative.excitement);
 }
@@ -726,12 +751,13 @@ TEST_F(RideRatings, GForceTickScoringRewardsNormalPositiveVerticalGAndPunishesEx
     const auto strong = RideRating::ScoreGForcesForTick(300, 0);
     const auto excessive = RideRating::ScoreGForcesForTick(450, 0);
 
-    EXPECT_GT(mild.excitement, 24000);
+    EXPECT_GT(mild.excitement, 0);
     EXPECT_GT(mild.excitement, mild.intensity);
     EXPECT_GT(strong.excitement, mild.excitement * 3);
     EXPECT_GT(strong.intensity, mild.intensity * 3);
-    EXPECT_GT(strong.excitement, strong.intensity);
-    EXPECT_GT(excessive.intensity, excessive.excitement * 3);
+    EXPECT_GT(strong.intensity, strong.excitement);
+    EXPECT_GT(excessive.intensity, excessive.excitement);
+    EXPECT_GT(excessive.intensity, strong.intensity);
 }
 
 TEST_F(RideRatings, GForceTickScoringMakesLateralGSuperlinear)
@@ -742,31 +768,128 @@ TEST_F(RideRatings, GForceTickScoringMakesLateralGSuperlinear)
 
     EXPECT_GT(twoG.excitement, oneG.excitement * 3);
     EXPECT_GT(twoG.intensity, oneG.intensity * 4);
-    EXPECT_GT(twoG.excitement, twoG.intensity);
+    EXPECT_GT(twoG.intensity, twoG.excitement);
     EXPECT_GT(severe.intensity, twoG.intensity * 5);
     EXPECT_LT(severe.excitement, twoG.excitement);
 }
 
-TEST_F(RideRatings, VehicleSpeedTickScoringUsesSmoothSquaredSpeed)
+TEST_F(RideRatings, LongitudinalGScoringDistinguishesAccelerationFromBraking)
+{
+    const auto acceleration = RideRating::ScoreLongitudinalGForTick(100);
+    const auto braking = RideRating::ScoreLongitudinalGForTick(-100);
+    const auto lateral = RideRating::ScoreLateralGForTick(100);
+    const auto vertical = RideRating::ScorePositiveVerticalGForTick(200);
+
+    EXPECT_GT(acceleration.excitement, lateral.excitement);
+    EXPECT_LT(acceleration.excitement, vertical.excitement);
+    EXPECT_LT(acceleration.intensity, lateral.intensity);
+    EXPECT_LT(acceleration.nausea, lateral.nausea);
+    EXPECT_LT(braking.excitement, acceleration.excitement);
+    EXPECT_GT(braking.intensity, acceleration.intensity);
+    EXPECT_GT(braking.nausea, acceleration.nausea);
+    EXPECT_LT(braking.intensity, lateral.intensity);
+    EXPECT_LT(braking.nausea, lateral.nausea);
+}
+
+TEST_F(RideRatings, VehicleSpeedTickScoringUsesLinearSourceCoefficients)
 {
     const auto stopped = RideRating::ScoreVehicleSpeedForTick(0);
-    const auto lowSpeed = RideRating::ScoreVehicleSpeedForTick(8);
-    const auto moderateSpeed = RideRating::ScoreVehicleSpeedForTick(37);
+    const auto halfSpeed = RideRating::ScoreVehicleSpeedForTick(RideRating::kVehicleRatingBaselineSpeed / 2);
     const auto normalSpeed = RideRating::ScoreVehicleSpeedForTick(RideRating::kVehicleRatingBaselineSpeed);
-    const auto expectedScore = [](int64_t speed) {
-        return (speed * speed * RideRating::kRideRatingAccumulatorRawScale)
-            / ((RideRating::kVehicleRatingBaselineSpeed * 5) / 2);
-    };
+    const auto doubleSpeed = RideRating::ScoreVehicleSpeedForTick(RideRating::kVehicleRatingBaselineSpeed * 2);
 
     EXPECT_EQ(stopped.excitement, 0);
     EXPECT_EQ(stopped.intensity, 0);
     EXPECT_EQ(stopped.nausea, 0);
-    EXPECT_EQ(lowSpeed.excitement, expectedScore(8));
-    EXPECT_EQ(lowSpeed.intensity, expectedScore(8));
-    EXPECT_EQ(lowSpeed.nausea, expectedScore(8));
-    EXPECT_GT(lowSpeed.excitement, 0);
-    EXPECT_EQ(moderateSpeed.excitement, expectedScore(37));
-    EXPECT_EQ(normalSpeed.excitement, expectedScore(RideRating::kVehicleRatingBaselineSpeed));
+    EXPECT_EQ(normalSpeed.excitement, (90 * RideRating::kRideRatingAccumulatorRawScale) / 5);
+    EXPECT_EQ(normalSpeed.intensity, (90 * RideRating::kRideRatingAccumulatorRawScale) / 4);
+    EXPECT_EQ(normalSpeed.nausea, (90 * RideRating::kRideRatingAccumulatorRawScale) / 8);
+    EXPECT_EQ(halfSpeed.excitement * 2, normalSpeed.excitement);
+    EXPECT_EQ(doubleSpeed.excitement, normalSpeed.excitement * 2);
+    EXPECT_EQ(doubleSpeed.intensity, normalSpeed.intensity * 2);
+    EXPECT_EQ(doubleSpeed.nausea, normalSpeed.nausea * 2);
+}
+
+TEST_F(RideRatings, SampledRatingProfilesApplyInitialRideTypeMultipliers)
+{
+    const auto& woodenProfile = GetRideTypeDescriptor(RIDE_TYPE_WOODEN_ROLLER_COASTER).SampledRatings;
+    const auto& goKartsRtd = GetRideTypeDescriptor(RIDE_TYPE_GO_KARTS);
+    const auto& goKartsProfile = goKartsRtd.SampledRatings;
+
+    EXPECT_EQ(woodenProfile.VerticalG, 2000);
+    EXPECT_EQ(woodenProfile.LateralG, 500);
+    EXPECT_EQ(woodenProfile.Speed, 300);
+    EXPECT_EQ(woodenProfile.SpeedGCoupling, 500);
+    EXPECT_EQ(goKartsProfile.Speed, 3000);
+    EXPECT_EQ(goKartsProfile.LateralG, 3000);
+    EXPECT_TRUE(goKartsRtd.flags.has(RtdFlag::hasGForces));
+    EXPECT_TRUE(goKartsRtd.flags.has(RtdFlag::hasDataLogging));
+
+    const auto defaultSpeed = RideRating::ScoreVehicleSpeedForTick(90, kSampledRideRatingProfileScale);
+    const auto kartSpeed = RideRating::ScoreVehicleSpeedForTick(90, goKartsProfile.Speed);
+    EXPECT_EQ(kartSpeed.excitement, defaultSpeed.excitement * 3);
+    EXPECT_EQ(kartSpeed.intensity, defaultSpeed.intensity * 3);
+    EXPECT_EQ(kartSpeed.nausea, defaultSpeed.nausea * 3);
+}
+
+TEST_F(RideRatings, SampledRatingProfileScalesEveryNonSpeedChannel)
+{
+    SampledRideRatingProfile profile{};
+    profile.VerticalG = 2000;
+    profile.LateralG = 500;
+    profile.LongitudinalG = 3000;
+    profile.Airtime = 4000;
+    profile.SpeedGCoupling = 0;
+
+    SampledRideRatingProfile defaultProfile{};
+    defaultProfile.SpeedGCoupling = 0;
+    const auto defaultVertical = RideRating::ScoreGForcesForVehicleTick(200, 0, 0, 90, defaultProfile);
+    const auto scaledVertical = RideRating::ScoreGForcesForVehicleTick(200, 0, 0, 90, profile);
+    const auto defaultLateral = RideRating::ScoreGForcesForVehicleTick(100, 100, 0, 90, defaultProfile);
+    const auto scaledLateral = RideRating::ScoreGForcesForVehicleTick(100, 100, 0, 90, profile);
+    const auto defaultLongitudinal = RideRating::ScoreGForcesForVehicleTick(100, 0, 100, 90, defaultProfile);
+    const auto scaledLongitudinal = RideRating::ScoreGForcesForVehicleTick(100, 0, 100, 90, profile);
+    const auto defaultAirtime = RideRating::ScoreGForcesForVehicleTick(0, 0, 0, 90, defaultProfile);
+    const auto scaledAirtime = RideRating::ScoreGForcesForVehicleTick(0, 0, 0, 90, profile);
+
+    EXPECT_EQ(scaledVertical.excitement, defaultVertical.excitement * 2);
+    EXPECT_EQ(scaledLateral.excitement * 2, defaultLateral.excitement);
+    EXPECT_EQ(scaledLongitudinal.excitement, defaultLongitudinal.excitement * 3);
+    EXPECT_EQ(scaledAirtime.excitement, defaultAirtime.excitement * 4);
+
+    const RideRating::LocalContextScore contextScore = { .excitement = 10, .intensity = 6, .nausea = 4 };
+    const auto fullContext = RideRating::ScoreLocalContextForVehicleTick(contextScore, 90, 1000);
+    const auto halfContext = RideRating::ScoreLocalContextForVehicleTick(contextScore, 90, 500);
+    const auto clampedContext = RideRating::ScoreLocalContextForVehicleTick(contextScore, 90, 2000);
+    EXPECT_EQ(halfContext.excitement * 2, fullContext.excitement);
+    EXPECT_EQ(clampedContext.excitement, fullContext.excitement);
+}
+
+TEST_F(RideRatings, SpeedGCouplingRewardsEqualForcesAtHigherSpeed)
+{
+    SampledRideRatingProfile profile{};
+    profile.SpeedGCoupling = 1000;
+    const auto halfSpeed = RideRating::ScoreGForcesForVehicleTick(100, 100, 0, 45, profile);
+    const auto baseline = RideRating::ScoreGForcesForVehicleTick(100, 100, 0, 90, profile);
+    const auto doubleSpeed = RideRating::ScoreGForcesForVehicleTick(100, 100, 0, 180, profile);
+
+    EXPECT_NEAR(halfSpeed.excitement * 4, baseline.excitement, 4);
+    EXPECT_EQ(doubleSpeed.excitement, baseline.excitement * 4);
+    EXPECT_NEAR(halfSpeed.excitement * 2, baseline.excitement / 2, 2);
+    EXPECT_EQ(doubleSpeed.excitement / 2, baseline.excitement * 2);
+}
+
+TEST_F(RideRatings, StableStatsPublishLongitudinalGExtrema)
+{
+    Ride ride{};
+    ride.maxPositiveLongitudinalG = 125;
+    ride.maxNegativeLongitudinalG = -85;
+    ride.publishCurrentStatsAsStable();
+    ride.maxPositiveLongitudinalG = 0;
+    ride.maxNegativeLongitudinalG = 0;
+
+    EXPECT_EQ(ride.getDisplayMaxPositiveLongitudinalG(), 125);
+    EXPECT_EQ(ride.getDisplayMaxNegativeLongitudinalG(), -85);
 }
 
 TEST_F(RideRatings, RideEntryMultipliersApplyToRawAggregateBeforeGeometricFinalRating)
@@ -832,14 +955,12 @@ TEST_F(RideRatings, LocalContextSceneryScalesWithVehicleSpeed)
         contextScore, 41);
     const auto slowestSpeed = RideRating::ScoreLocalContextForVehicleTick(
         contextScore, 17);
-    constexpr int64_t trackedRideContextRawPerPoint = (RideRating::kRideRatingAccumulatorRawScale * 2) / 5;
-
-    EXPECT_EQ(normalSpeed.excitement, contextScore.excitement * trackedRideContextRawPerPoint);
-    EXPECT_EQ(normalSpeed.intensity, 16 * trackedRideContextRawPerPoint);
+    EXPECT_EQ(normalSpeed.excitement, 41200);
+    EXPECT_EQ(normalSpeed.intensity, 12400);
     EXPECT_EQ(normalSpeed.nausea, 2000);
-    EXPECT_EQ(slowerSpeed.excitement, 14031);
-    EXPECT_EQ(slowestSpeed.excitement, 5817);
-    EXPECT_EQ(slowerSpeed.intensity, 2915);
+    EXPECT_EQ(slowerSpeed.excitement, 18768);
+    EXPECT_EQ(slowestSpeed.excitement, 7782);
+    EXPECT_EQ(slowerSpeed.intensity, 5648);
     EXPECT_EQ(slowerSpeed.nausea, 911);
 }
 
@@ -870,8 +991,8 @@ TEST_F(RideRatings, LocalContextVehicleTickScoringPreservesFractionalRawNausea)
 
     const auto score = RideRating::ScoreLocalContextForVehicleTick(contextScore, RideRating::kVehicleRatingBaselineSpeed);
 
-    EXPECT_EQ(score.excitement, 2 * ((RideRating::kRideRatingAccumulatorRawScale * 2) / 5));
-    EXPECT_EQ(score.intensity, (RideRating::kRideRatingAccumulatorRawScale * 2) / 5);
+    EXPECT_EQ(score.excitement, 1600);
+    EXPECT_EQ(score.intensity, 800);
     EXPECT_EQ(score.nausea, 133);
 }
 

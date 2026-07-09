@@ -98,6 +98,7 @@ constexpr RideTypeDescriptor WaterCoasterRTD =
             { RatingsModifierType::PenaltyLateralGs,      0,                20480, 23831, 49648 },
         },
     },
+    .SampledRatings = kRollerCoasterSampledRideRatingProfile,
     .UpdateRotating = UpdateRotatingDefault,
     .LightFXAddLightsMagicVehicle = Drawing::LightFx::AddLightsMagicVehicle_BoatHire,
     .StartRideMusic = RideAudio::DefaultStartRideMusicChannel,

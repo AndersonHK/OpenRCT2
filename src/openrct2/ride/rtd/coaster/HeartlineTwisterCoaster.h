@@ -81,6 +81,7 @@ constexpr RideTypeDescriptor HeartlineTwisterCoasterRTD =
             { RatingsModifierType::PenaltyLateralGs,      0,    24576, 44683, 89367 },
         },
     },
+    .SampledRatings = kRollerCoasterSampledRideRatingProfile,
 };
 } // namespace OpenRCT2
 // clang-format on

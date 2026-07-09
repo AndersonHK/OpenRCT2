@@ -8,7 +8,7 @@ Each sampled vehicle tick contributes raw excitement, intensity, and nausea from
 
 - current track element descriptor and special track element type
 - current velocity
-- vertical and lateral G forces
+- vertical, lateral, and longitudinal G forces
 - whether the sampled vehicle position is sheltered or underground
 - local scenery, path, and nearby-ride context around the sampled tile
 - synchronized station operation
@@ -32,6 +32,15 @@ Per-tick G-force scoring now treats different accelerations as different ride se
 - negative vertical G starts with the full airtime effect, then adds steeper intensity and nausea as restraint pressure gets harsher.
 - positive vertical G adds some excitement, but mostly intensity and nausea, following the old weighting where high positive G was more forceful than fun.
 - lateral G uses the steepest curve. Mild sideways force is tolerable, but the curve rises quickly enough that a faster vehicle through the same curve can score higher even if it spends fewer ticks in that curve.
+- longitudinal G is the signed change between consecutive realised head-train speed magnitudes. Acceleration is weighted toward excitement, while braking is less exciting and more uncomfortable. Direct launch, brake, and chain-speed assignments are observed even when they bypass the vehicle's `acceleration` field; constant-speed curves still produce no longitudinal G.
+
+All G channels are speed-normalized at the `90` baseline, then receive a smooth speed/G coupling factor. Standalone speed is linear, so equal track distance does not gain extra raw score merely because it was sampled in fewer ticks; the additional high-speed thrill belongs to force experienced at speed.
+
+## Sampled ride profiles
+
+`RideTypeDescriptor::SampledRatings` supplies source-level per-mille coefficients for local context, speed, longitudinal G, vertical G, lateral G, airtime, and speed/G coupling. Track-feature bonuses deliberately remain outside the profile.
+
+The roller-coaster profile uses `0.3` standalone speed, `2.0` vertical G, `0.5` lateral G, and `0.5` speed/G coupling. Go Karts retain `3.0` speed and lateral G. The lower coaster speed source keeps short flat layouts restrained, while the softer coupling lets force, special track, and vertical context matter at ordinary coaster speeds. All unspecified coefficients remain `1.0`.
 
 The old ride-wide G-force code is used as a calibration reference. Its `2.8G` and `3.1G` lateral thresholds are no longer hard cliffs, but the smooth curve is already severe near those landmarks: excitement tapers while intensity and nausea continue to compound.
 
@@ -47,7 +56,7 @@ The old ride-wide G-force code is used as a calibration reference. Its `2.8G` an
 - `RideRatingPublishTrainSample()` in `src/openrct2/ride/Vehicle.Station.cpp` publishes a train sample when the train unloads.
 - `RideRatingAccumulateTick()` converts that tick state into raw excitement, intensity, and nausea.
 - `RideRatingTickIsSheltered()` and `RideRatingGetLocalContextScore()` move shelter, scenery, path, and nearby-ride effects into the sampled tick path.
-- Train samples average the per-tick contributions of every vehicle on the train before adding that tick to the active train sample, so back cars and middle cars affect ratings without multiplying the ride duration.
+- Every vehicle keeps an independent accumulator for its complete lap. Completed vehicle samples are combined only when the train finishes, so nonlinear speed and G curves are evaluated before cars are averaged.
 - `test_reset()` and `InvalidateTestResults()` clear test and rider samples whenever test data is reset.
 - `RideRating::RecordRiderSample()` in `src/openrct2/ride/RideRatings.cpp` records completed rider/train/test samples and immediately recalculates the displayed rating.
 - `RideRating::RecordActiveRiderSample()` in `src/openrct2/ride/RideRatings.cpp` publishes completed active samples for both live trains and phantom test trains.
@@ -90,7 +99,7 @@ The aggregate path treats old ride-wide modifiers differently:
 - `src/openrct2/ride/Vehicle.cpp`: `RideRatingTickIsSheltered`, `RideRatingGetLocalContextScore`, `RideRatingAccumulateTick`, `RideRatingUpdateLiveTrainSample`, `Vehicle::UpdateMeasurements`, `test_finish`, `test_reset`.
 - `src/openrct2/ride/Vehicle.Station.cpp`: `RideRatingPublishTrainSample`, `Vehicle::UpdateUnloadingPassengers`.
 - `src/openrct2/ride/Ride.cpp`: active/recent rating sample helpers, `InvalidateTestResults`.
-- `src/openrct2/ride/RideRatings.h` and `src/openrct2/ride/RideRatings.cpp`: `RideRating::ScoreAirtimeGForTick`, `RideRating::ScoreNegativeVerticalGForTick`, `RideRating::ScorePositiveVerticalGForTick`, `RideRating::ScoreLateralGForTick`, `RideRating::ScoreGForcesForTick`, `RideRating::ApplyRideEntryMultipliers`, `RideRating::RecordRiderSample`, `RideRating::RecordActiveRiderSample`, `RideRatingsCalculate`, `RideRatingsRawToRating`, `RideRatingsRawDivide`, `RideRatingsRawApplyRideEntryMultipliers`, `RideRatingsRawApplyRequirement`, `RideRatingsRawApplyModifiers`, `RideRatingsCalculateAggregated`.
+- `src/openrct2/ride/RideRatings.h` and `src/openrct2/ride/RideRatings.cpp`: source curves for airtime, vertical, lateral, and longitudinal G; profile and speed/G coupling application; ride-entry multipliers; completed-sample recording; and aggregate finalization.
 - `src/openrct2/ride/rtd/gentle/Maze.h`: removes post-hoc maze size and scenery bonuses from the Maze descriptor.
 - `test/tests/RideRatings.cpp` and `test/tests/testdata/ratings/*.txt`: update the fixture expectations for aggregate-rated rides with no samples; the helper can regenerate fixtures with `OPENRCT2_UPDATE_RIDE_RATINGS=1`.
 
