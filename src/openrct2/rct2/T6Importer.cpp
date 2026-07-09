@@ -229,9 +229,6 @@ namespace OpenRCT2::RCT2
             }
             td->version = version;
 
-            td->operation.operationSetting = std::min(
-                td->operation.operationSetting, GetRideTypeDescriptor(td->trackAndVehicle.rtdIndex).OperatingSettings.MaxValue);
-
             const auto& rtd = GetRideTypeDescriptor(td->trackAndVehicle.rtdIndex);
             if (rtd.specialType == RtdSpecialType::maze)
             {
@@ -240,6 +237,7 @@ namespace OpenRCT2::RCT2
             }
             else
             {
+                td->operation.operationSetting = std::min(td->operation.operationSetting, rtd.OperatingSettings.MaxValue);
                 if (version == TD46Version::td7)
                     importTrackElementsTD7(*td);
                 else

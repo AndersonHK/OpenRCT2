@@ -1673,7 +1673,15 @@ namespace OpenRCT2
                     });
 
                     // Operation
-                    cs.readWrite(ride.operationOption);
+                    if (cs.getMode() == OrcaStream::Mode::reading)
+                    {
+                        cs.readWrite(ride.operationOption);
+                    }
+                    else
+                    {
+                        auto operationOption = ride.getStoredOperationOption();
+                        cs.readWrite(operationOption);
+                    }
                     cs.readWrite(ride.liftHillSpeed);
                     cs.readWrite(ride.numCircuits);
 
@@ -1685,6 +1693,14 @@ namespace OpenRCT2
                     cs.readWrite(ride.chairliftBullwheelRotation);
                     cs.readWrite(ride.slideInUse);
                     cs.readWrite(ride.slidePeep);
+                    if (cs.getMode() == OrcaStream::Mode::reading)
+                    {
+                        if (version < kMazeCapacityModeVersion && ride.type == RIDE_TYPE_MAZE)
+                            ride.operationOption = static_cast<uint8_t>(
+                                ride.getClosestMazeCapacityModeForCapacity(ride.operationOption));
+                        else
+                            ride.normaliseMazeCapacityMode();
+                    }
                     cs.readWrite(ride.slidePeepTShirtColour);
                     cs.readWrite(ride.spiralSlideProgress);
                     cs.readWrite(ride.raceWinner);

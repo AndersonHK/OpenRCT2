@@ -218,6 +218,7 @@ namespace OpenRCT2::RCT1
             CheatsReset();
             ClearRestrictedScenery();
             RestrictAllMiscScenery();
+            GameFixRideNumRiders();
         }
 
         bool PopulateIndexEntry(ScenarioIndexEntry* dst) override
@@ -958,10 +959,6 @@ namespace OpenRCT2::RCT1
             dst->minWaitingTime = src->minWaitingTime;
             dst->maxWaitingTime = src->maxWaitingTime;
             dst->operationOption = src->operationOption;
-            if (dst->type == RIDE_TYPE_MAZE)
-            {
-                dst->operationOption = static_cast<uint8_t>(MazeCapacityMode::normal);
-            }
             dst->numCircuits = 1;
             dst->minCarsPerTrain = rideEntry->min_cars_in_train;
             dst->maxCarsPerTrain = rideEntry->max_cars_in_train;
@@ -1079,6 +1076,11 @@ namespace OpenRCT2::RCT1
             dst->spiralSlideProgress = src->spiralSlideProgress;
             // Doubles as slidePeep
             dst->mazeTiles = src->mazeTiles;
+            if (dst->type == RIDE_TYPE_MAZE)
+            {
+                dst->operationOption = static_cast<uint8_t>(
+                    dst->getClosestMazeCapacityModeForCapacity(src->operationOption));
+            }
 
             // Finance / customers
             dst->upkeepCost = ToMoney64(src->upkeepCost);

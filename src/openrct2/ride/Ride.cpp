@@ -78,6 +78,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstdlib>
 #include <iterator>
 #include <limits>
 #include <optional>
@@ -5035,6 +5036,31 @@ MazeCapacityMode Ride::getMazeCapacityMode() const
     return RideNormaliseMazeCapacityMode(operationOption);
 }
 
+MazeCapacityMode Ride::getClosestMazeCapacityModeForCapacity(uint8_t capacity) const
+{
+    if (type != RIDE_TYPE_MAZE || mazeTiles == 0)
+        return MazeCapacityMode::normal;
+
+    auto capacityDifference = [this, capacity](MazeCapacityMode mode) {
+        return std::abs(static_cast<int32_t>(capacity) - getMazeCapacityForMode(mode));
+    };
+
+    auto bestMode = MazeCapacityMode::normal;
+    auto bestDifference = capacityDifference(bestMode);
+    auto considerMode = [&bestMode, &bestDifference, capacityDifference](MazeCapacityMode mode) {
+        auto difference = capacityDifference(mode);
+        if (difference < bestDifference)
+        {
+            bestMode = mode;
+            bestDifference = difference;
+        }
+    };
+
+    considerMode(MazeCapacityMode::sparse);
+    considerMode(MazeCapacityMode::overcrowded);
+    return bestMode;
+}
+
 std::pair<int32_t, int32_t> Ride::getMazeRatingAccumulatorScale() const
 {
     if (type != RIDE_TYPE_MAZE)
@@ -5100,12 +5126,20 @@ uint8_t Ride::getEffectiveOperationOption() const
     return operationOption;
 }
 
-void Ride::updateMazeCapacityForConstruction()
+void Ride::normaliseMazeCapacityMode()
 {
     if (type != RIDE_TYPE_MAZE)
         return;
 
     operationOption = getStoredOperationOption();
+}
+
+void Ride::updateMazeCapacityForConstruction()
+{
+    normaliseMazeCapacityMode();
+    if (type != RIDE_TYPE_MAZE)
+        return;
+
     windowInvalidateFlags.set(RideInvalidateFlag::operatingSettings);
 }
 

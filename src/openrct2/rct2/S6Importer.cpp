@@ -627,6 +627,7 @@ namespace OpenRCT2::RCT2
 
             CheatsReset();
             ClearRestrictedScenery();
+            GameFixRideNumRiders();
         }
 
         void AddDefaultEntries()
@@ -842,10 +843,6 @@ namespace OpenRCT2::RCT2
 
             // Includes timeLimit, NumLaps, launchSpeed, speed, rotations
             dst->operationOption = src->operationOption;
-            if (dst->type == RIDE_TYPE_MAZE)
-            {
-                dst->operationOption = static_cast<uint8_t>(MazeCapacityMode::normal);
-            }
 
             dst->boatHireReturnDirection = src->boatHireReturnDirection;
             dst->boatHireReturnPosition = { src->boatHireReturnPosition.x, src->boatHireReturnPosition.y };
@@ -935,6 +932,11 @@ namespace OpenRCT2::RCT2
             dst->slideInUse = src->slideInUse;
             // Includes mazeTiles
             dst->slidePeep = EntityId::FromUnderlying(src->slidePeep);
+            if (dst->type == RIDE_TYPE_MAZE)
+            {
+                dst->operationOption = static_cast<uint8_t>(
+                    dst->getClosestMazeCapacityModeForCapacity(src->operationOption));
+            }
             // Pad160[0xE];
             dst->slidePeepTShirtColour = src->slidePeepTShirtColour;
             // Pad16F[0x7];

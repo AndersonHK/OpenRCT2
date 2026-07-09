@@ -78,6 +78,7 @@
 
 #include <algorithm>
 #include <iterator>
+#include <limits>
 #include <memory>
 
 using namespace OpenRCT2;
@@ -195,7 +196,12 @@ void TrackDesign::NormaliseMazeOperationSetting()
         return;
     }
 
-    operation.operationSetting = static_cast<uint8_t>(RideNormaliseMazeCapacityMode(operation.operationSetting));
+    Ride maze{};
+    maze.type = RIDE_TYPE_MAZE;
+    maze.mazeTiles = static_cast<uint16_t>(
+        std::min<size_t>(mazeElements.size(), std::numeric_limits<decltype(maze.mazeTiles)>::max()));
+    operation.operationSetting = static_cast<uint8_t>(
+        maze.getClosestMazeCapacityModeForCapacity(operation.operationSetting));
 }
 
 ResultWithMessage TrackDesign::CreateTrackDesignTrack(TrackDesignState& tds, const Ride& ride)

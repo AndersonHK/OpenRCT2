@@ -26,6 +26,7 @@
 #include <openrct2/drawing/Drawing.h>
 #include <openrct2/entity/EntityRegistry.h>
 #include <openrct2/entity/EntityTweener.h>
+#include <openrct2/entity/Guest.h>
 #include <openrct2/entity/Peep.h>
 #include <openrct2/object/ObjectLimits.h>
 #include <openrct2/object/ObjectManager.h>
@@ -365,35 +366,107 @@ TEST_F(PlayTests, MazeCapacityModesDeriveCapacityFromTileCount)
     EXPECT_EQ(maze.getMazeMaximumCapacity(), Limits::kCheatsMaxOperatingLimit);
 }
 
-TEST_F(PlayTests, ImportedMazeTrackDesignCapacityDefaultsToNormalMode)
+TEST_F(PlayTests, LegacyMazeCapacityMapsToClosestCapacityMode)
+{
+    Ride maze{};
+    maze.type = RIDE_TYPE_MAZE;
+    maze.mazeTiles = 4;
+
+    EXPECT_EQ(maze.getMazeCapacityForMode(MazeCapacityMode::sparse), 2);
+    EXPECT_EQ(maze.getMazeCapacityForMode(MazeCapacityMode::normal), 4);
+    EXPECT_EQ(maze.getMazeCapacityForMode(MazeCapacityMode::overcrowded), 8);
+
+    EXPECT_EQ(maze.getClosestMazeCapacityModeForCapacity(1), MazeCapacityMode::sparse);
+    EXPECT_EQ(maze.getClosestMazeCapacityModeForCapacity(4), MazeCapacityMode::normal);
+    EXPECT_EQ(maze.getClosestMazeCapacityModeForCapacity(7), MazeCapacityMode::overcrowded);
+
+    // Ties favour normal so old saves do not become sparse or overcrowded unless they are closer.
+    EXPECT_EQ(maze.getClosestMazeCapacityModeForCapacity(3), MazeCapacityMode::normal);
+
+    maze.mazeTiles = 1;
+    EXPECT_EQ(maze.getClosestMazeCapacityModeForCapacity(1), MazeCapacityMode::normal);
+    EXPECT_EQ(maze.getClosestMazeCapacityModeForCapacity(4), MazeCapacityMode::overcrowded);
+
+    maze.operationOption = 64;
+    maze.normaliseMazeCapacityMode();
+    EXPECT_EQ(maze.operationOption, static_cast<uint8_t>(MazeCapacityMode::normal));
+}
+
+TEST_F(PlayTests, GameFixRideNumRidersRebuildsCountsFromGuestStates)
+{
+    auto& gameState = getGameState();
+    gameState.entities.ResetAllEntities();
+    for (auto& ride : gameState.rides)
+    {
+        ride.id = RideId::GetNull();
+        ride.type = kRideTypeNull;
+        ride.numRiders = 0;
+    }
+    gameState.ridesEndOfUsedRange = 2;
+
+    auto& maze = gameState.rides[0];
+    maze.id = RideId::FromUnderlying(0);
+    maze.type = RIDE_TYPE_MAZE;
+    maze.mazeTiles = 1;
+    maze.operationOption = static_cast<uint8_t>(MazeCapacityMode::normal);
+    maze.numRiders = 64;
+
+    auto& ferrisWheel = gameState.rides[1];
+    ferrisWheel.id = RideId::FromUnderlying(1);
+    ferrisWheel.type = RIDE_TYPE_FERRIS_WHEEL;
+    ferrisWheel.numRiders = 64;
+
+    auto addGuest = [&gameState](RideId rideId, PeepState state) {
+        auto* guest = gameState.entities.CreateEntity<Guest>();
+        EXPECT_NE(guest, nullptr);
+        guest->CurrentRide = rideId;
+        guest->State = state;
+        return guest;
+    };
+
+    addGuest(maze.id, PeepState::onRide);
+    addGuest(maze.id, PeepState::enteringRide);
+    addGuest(maze.id, PeepState::walking);
+    addGuest(ferrisWheel.id, PeepState::onRide);
+    addGuest(RideId::FromUnderlying(99), PeepState::onRide);
+
+    GameFixRideNumRiders();
+
+    EXPECT_EQ(maze.getEffectiveOperationOption(), 1);
+    EXPECT_EQ(maze.numRiders, 2);
+    EXPECT_GT(maze.numRiders, maze.getEffectiveOperationOption());
+    EXPECT_EQ(ferrisWheel.numRiders, 1);
+}
+
+TEST_F(PlayTests, ImportedMazeTrackDesignCapacityMapsToClosestMode)
 {
     TrackDesign mazeDesign{};
     mazeDesign.trackAndVehicle.rtdIndex = RIDE_TYPE_MAZE;
-    mazeDesign.operation.operationSetting = 4;
 
-    mazeDesign.mazeElements.resize(37);
+    mazeDesign.operation.operationSetting = 1;
+    mazeDesign.mazeElements.resize(4);
+    mazeDesign.NormaliseMazeOperationSetting();
+    EXPECT_EQ(mazeDesign.operation.operationSetting, static_cast<uint8_t>(MazeCapacityMode::sparse));
+
+    mazeDesign.operation.operationSetting = 3;
+    mazeDesign.mazeElements.resize(4);
     mazeDesign.NormaliseMazeOperationSetting();
     EXPECT_EQ(mazeDesign.operation.operationSetting, static_cast<uint8_t>(MazeCapacityMode::normal));
 
-    mazeDesign.operation.operationSetting = static_cast<uint8_t>(MazeCapacityMode::sparse);
+    mazeDesign.operation.operationSetting = 7;
+    mazeDesign.mazeElements.resize(4);
+    mazeDesign.NormaliseMazeOperationSetting();
+    EXPECT_EQ(mazeDesign.operation.operationSetting, static_cast<uint8_t>(MazeCapacityMode::overcrowded));
+
+    mazeDesign.operation.operationSetting = 4;
     mazeDesign.mazeElements.resize(37);
     mazeDesign.NormaliseMazeOperationSetting();
     EXPECT_EQ(mazeDesign.operation.operationSetting, static_cast<uint8_t>(MazeCapacityMode::sparse));
 
-    mazeDesign.operation.operationSetting = static_cast<uint8_t>(MazeCapacityMode::overcrowded);
-    mazeDesign.mazeElements.resize(37);
+    mazeDesign.operation.operationSetting = 4;
+    mazeDesign.mazeElements.resize(1);
     mazeDesign.NormaliseMazeOperationSetting();
     EXPECT_EQ(mazeDesign.operation.operationSetting, static_cast<uint8_t>(MazeCapacityMode::overcrowded));
-
-    mazeDesign.operation.operationSetting = 50;
-    mazeDesign.mazeElements.resize(37);
-    mazeDesign.NormaliseMazeOperationSetting();
-    EXPECT_EQ(mazeDesign.operation.operationSetting, static_cast<uint8_t>(MazeCapacityMode::normal));
-
-    mazeDesign.operation.operationSetting = 4;
-    mazeDesign.mazeElements.resize(300);
-    mazeDesign.NormaliseMazeOperationSetting();
-    EXPECT_EQ(mazeDesign.operation.operationSetting, static_cast<uint8_t>(MazeCapacityMode::normal));
 }
 
 static Park::ParkData MakeGuestGenerationPark(uint16_t rating, money64 value)

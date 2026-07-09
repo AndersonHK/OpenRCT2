@@ -36,6 +36,7 @@
 #include "drawing/ScrollingText.h"
 #include "entity/EntityList.h"
 #include "entity/EntityRegistry.h"
+#include "entity/Guest.h"
 #include "entity/PatrolArea.h"
 #include "entity/Peep.h"
 #include "entity/Staff.h"
@@ -77,6 +78,7 @@
 
 #include <cstdio>
 #include <iterator>
+#include <limits>
 #include <memory>
 
 #ifdef __EMSCRIPTEN__
@@ -324,6 +326,28 @@ static void FixInvalidSurfaces()
     }
 }
 
+void GameFixRideNumRiders()
+{
+    auto& gameState = getGameState();
+    for (auto& ride : gameState.rides)
+    {
+        if (ride.type != kRideTypeNull)
+            ride.numRiders = 0;
+    }
+
+    for (auto* guest : EntityList<Guest>())
+    {
+        if (guest->State != PeepState::onRide && guest->State != PeepState::enteringRide)
+            continue;
+
+        auto* ride = GetRide(guest->CurrentRide);
+        if (ride == nullptr || ride->numRiders == std::numeric_limits<decltype(ride->numRiders)>::max())
+            continue;
+
+        ride->numRiders++;
+    }
+}
+
 // OpenRCT2 workaround to recalculate some values which are saved redundantly in the save to fix corrupted files.
 // For example recalculate guest count by looking at all the guests instead of trusting the value in the file.
 void GameFixSaveVars()
@@ -333,6 +357,8 @@ void GameFixSaveVars()
     FixGuestCount();
 
     FixPeepsWithInvalidRideReference();
+
+    GameFixRideNumRiders();
 
     FixInvalidSurfaces();
 

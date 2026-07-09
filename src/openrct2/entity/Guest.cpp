@@ -87,6 +87,11 @@ namespace OpenRCT2
     static const uint8_t kTicksToGoUpSpiralSlide = 30;
     static constexpr int64_t kGuestRideValueIncomeScaleNumerator = 7;
     static constexpr int64_t kGuestRideValueIncomeScaleDenominator = 10;
+    static constexpr uint8_t kGuestSickNauseaThreshold = 128;
+    static constexpr uint8_t kGuestVerySickNauseaThreshold = 170;
+    static constexpr uint8_t kGuestVeryVerySickNauseaThreshold = 200;
+    // The very sick thought is separate from the face/animation tier and starts at the very-very-sick visual tier.
+    static constexpr uint8_t kGuestVerySickThoughtNauseaThreshold = kGuestVeryVerySickNauseaThreshold;
 
     // Locations of the spiral slide platform that a peep walks from the entrance of the ride to the
     // entrance of the slide. Up to 4 waypoints for each 4 sides that an ride entrance can be located
@@ -469,6 +474,7 @@ namespace OpenRCT2
     static void GuestLeavePark(Guest& guest);
     static void GuestHeadForNearestRideWithFlag(Guest& guest, bool considerOnlyCloseRides, RtdFlag rtdFlag);
     static void GuestHeadForNearestRideWithSpecialType(Guest& guest, bool considerOnlyCloseRides, RtdSpecialType specialType);
+    static void GuestHeadForNearestFirstAid(Guest& guest);
     static bool Loc690FD0(Guest& guest, RideId* rideToView, uint8_t* rideSeatToView, TileElement* tileElement);
     static void GuestUpdateWalkingBreakScenery(Guest& guest);
     static bool GuestFindRideToLookAt(Guest& guest, uint8_t edge, RideId* rideToView, uint8_t* rideSeatToView);
@@ -781,7 +787,7 @@ namespace OpenRCT2
         else
             happinessTarget++;
 
-        nauseaTarget = std::max(nauseaTarget - 2, 0);
+        nauseaTarget = std::max(nauseaTarget - 1, 0);
 
         if (Energy <= 50)
         {
@@ -803,9 +809,9 @@ namespace OpenRCT2
             happinessTarget = std::max(happinessTarget - 1, 0);
         }
 
-        if (State == PeepState::walking && nauseaTarget >= 128)
+        if (State == PeepState::walking && nauseaTarget >= kGuestSickNauseaThreshold)
         {
-            if ((ScenarioRand() & 0xFF) <= static_cast<uint8_t>((nausea - 128) / 2))
+            if ((ScenarioRand() & 0xFF) <= static_cast<uint8_t>((nausea - kGuestSickNauseaThreshold) / 2))
             {
                 if (IsActionInterruptableSafely())
                 {
@@ -1160,14 +1166,14 @@ namespace OpenRCT2
              * remaining times the encompassing conditional is
              * executed (which is also every second time, but
              * the alternate time to the true branch). */
-            if (nausea >= 140)
+            if (nausea >= kGuestSickNauseaThreshold)
             {
                 PeepThoughtType thought_type = PeepThoughtType::sick;
-                if (nausea >= 200)
+                if (nausea >= kGuestVerySickThoughtNauseaThreshold)
                 {
                     thought_type = PeepThoughtType::verySick;
-                    GuestHeadForNearestRideWithSpecialType(*this, true, RtdSpecialType::firstAid);
                 }
+                GuestHeadForNearestFirstAid(*this);
                 insertNewThought(thought_type);
             }
         }
@@ -2310,7 +2316,7 @@ namespace OpenRCT2
 
         if (rtd.specialType == RtdSpecialType::firstAid)
         {
-            if (guest.nausea < 128)
+            if (guest.nausea < kGuestSickNauseaThreshold && guest.guestHeadingToRideId != ride.id)
             {
                 guest.choseNotToGoOnRide(ride, peepAtShop, true);
                 return false;
@@ -2928,14 +2934,14 @@ namespace OpenRCT2
      * Update the nausea growth of the peep based on a ride. This is calculated based on:
      * - The nausea rating of the ride
      * - Their new happiness growth rate (the higher, the less nauseous)
-     * - How hungry the peep is (+0% nausea at 50% hunger up to +100% nausea at 100% hunger)
+     * - How full the peep is (1x nausea at 0 hunger up to 4x nausea at 255 hunger)
      * - The peep's nausea tolerance (Final modifier: none: 100%, low: 50%, average: 25%, high: 12.5%)
      */
     static void GuestUpdateRideNauseaGrowth(Guest& guest, const Ride& ride)
     {
         const auto nauseaMultiplier = std::clamp(256 - guest.happinessTarget, 64, 200);
         const auto rideGeneratedNausea = (ride.ratings.nausea * nauseaMultiplier) / 512;
-        const auto hungerAdjustedNausea = ((rideGeneratedNausea * std::max<uint8_t>(128, guest.hunger)) / 128) * 2;
+        const auto hungerAdjustedNausea = (rideGeneratedNausea * (255 + static_cast<int32_t>(guest.hunger) * 3)) / 255;
         const auto nauseaGrowthRateChange = hungerAdjustedNausea >> (EnumValue(guest.nauseaTolerance) & 3);
         guest.nauseaTarget = static_cast<uint8_t>(std::min<int32_t>(guest.nauseaTarget + nauseaGrowthRateChange, 255));
     }
@@ -3320,6 +3326,87 @@ namespace OpenRCT2
         if (closestRide != nullptr)
         {
             // Head to that ride
+            guest.guestHeadingToRideId = closestRide->id;
+            guest.guestIsLostCountdown = 200;
+            guest.ResetPathfindGoal();
+            guest.WindowInvalidateFlags |= PEEP_INVALIDATE_PEEP_ACTION;
+            guest.timeLost = 0;
+        }
+    }
+
+    static bool GuestIsHeadingForSpecialRideType(const Guest& guest, RtdSpecialType specialType)
+    {
+        if (guest.guestHeadingToRideId.IsNull())
+        {
+            return false;
+        }
+
+        auto ride = GetRide(guest.guestHeadingToRideId);
+        return ride != nullptr && ride->getRideTypeDescriptor().specialType == specialType;
+    }
+
+    static int32_t GuestGetFirstAidSearchRadius(const Guest& guest)
+    {
+        if (guest.nausea < kGuestSickNauseaThreshold)
+        {
+            return 0;
+        }
+
+        const auto radiusTiles = 1 + (guest.nausea - kGuestSickNauseaThreshold);
+        return radiusTiles * kCoordsXYStep;
+    }
+
+    static void GuestHeadForNearestFirstAid(Guest& guest)
+    {
+        if (guest.State != PeepState::sitting && guest.State != PeepState::watching && guest.State != PeepState::walking)
+        {
+            return;
+        }
+        if (guest.PeepFlags & PEEP_FLAGS_LEAVING_PARK)
+            return;
+        if (guest.x == kLocationNull)
+            return;
+        if (GuestIsHeadingForSpecialRideType(guest, RtdSpecialType::firstAid))
+            return;
+
+        const auto searchRadius = GuestGetFirstAidSearchRadius(guest);
+        if (searchRadius <= 0)
+        {
+            return;
+        }
+
+        Ride* closestRide{};
+        auto closestRideDistance = std::numeric_limits<int32_t>::max();
+
+        auto& gameState = getGameState();
+        for (auto& ride : RideManager(gameState))
+        {
+            if (ride.getRideTypeDescriptor().specialType != RtdSpecialType::firstAid)
+            {
+                continue;
+            }
+            if (ride.flags.has(RideFlag::queueFull))
+            {
+                continue;
+            }
+
+            auto rideLocation = ride.getStation().Start;
+            int32_t distance = abs(rideLocation.x - guest.x) + abs(rideLocation.y - guest.y);
+            if (distance > searchRadius || distance >= closestRideDistance)
+            {
+                continue;
+            }
+            if (!guest.shouldGoOnRide(ride, StationIndex::FromUnderlying(0), false, true))
+            {
+                continue;
+            }
+
+            closestRide = &ride;
+            closestRideDistance = distance;
+        }
+
+        if (closestRide != nullptr)
+        {
             guest.guestHeadingToRideId = closestRide->id;
             guest.guestIsLostCountdown = 200;
             guest.ResetPathfindGoal();
@@ -5668,7 +5755,7 @@ namespace OpenRCT2
         if (PeepFlags & PEEP_FLAGS_LEAVING_PARK)
             return;
 
-        if (nausea > 140)
+        if (nausea >= kGuestSickNauseaThreshold + 1)
             return;
 
         if (happiness < 120)
@@ -6178,6 +6265,10 @@ namespace OpenRCT2
         {
             return false;
         }
+        if (GuestIsHeadingForSpecialRideType(*this, RtdSpecialType::firstAid))
+        {
+            return false;
+        }
 
         if (hasFoodOrDrink())
         {
@@ -6190,7 +6281,7 @@ namespace OpenRCT2
             }
         }
 
-        if (nausea <= 170 && Energy > 50)
+        if (nausea <= kGuestVerySickNauseaThreshold && Energy > 50)
         {
             return false;
         }
@@ -7062,13 +7153,13 @@ namespace OpenRCT2
             return;
         }
 
-        if (nausea > 170)
+        if (nausea >= kGuestVerySickNauseaThreshold + 1)
         {
             setAnimationGroup(PeepAnimationGroup::veryNauseous);
             return;
         }
 
-        if (nausea > 140)
+        if (nausea >= kGuestSickNauseaThreshold + 1)
         {
             setAnimationGroup(PeepAnimationGroup::nauseous);
             return;
@@ -7542,15 +7633,15 @@ namespace OpenRCT2
             return PEEP_FACE_OFFSET_ANGRY;
 
         // VERY_VERY_SICK
-        if (peep->nausea > 200)
+        if (peep->nausea >= kGuestVeryVerySickNauseaThreshold + 1)
             return PEEP_FACE_OFFSET_VERY_VERY_SICK;
 
         // VERY_SICK
-        if (peep->nausea > 170)
+        if (peep->nausea >= kGuestVerySickNauseaThreshold + 1)
             return PEEP_FACE_OFFSET_VERY_SICK;
 
         // SICK
-        if (peep->nausea > 140)
+        if (peep->nausea >= kGuestSickNauseaThreshold + 1)
             return PEEP_FACE_OFFSET_SICK;
 
         // VERY_TIRED

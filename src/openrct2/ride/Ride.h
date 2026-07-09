@@ -512,12 +512,14 @@ public:
     uint8_t getMazeMaximumCapacity() const;
     uint8_t getMazeCapacityForMode(MazeCapacityMode mode) const;
     MazeCapacityMode getMazeCapacityMode() const;
+    MazeCapacityMode getClosestMazeCapacityModeForCapacity(uint8_t capacity) const;
     std::pair<int32_t, int32_t> getMazeRatingAccumulatorScale() const;
     uint8_t getOperationOptionMinimum(bool unlockOperatingLimits) const;
     uint8_t getOperationOptionMaximum(bool unlockOperatingLimits) const;
     uint8_t getDefaultOperationOption() const;
     uint8_t getStoredOperationOption() const;
     uint8_t getEffectiveOperationOption() const;
+    void normaliseMazeCapacityMode();
     void updateMazeCapacityForConstruction();
 
     bool hasSpinningTunnel() const;

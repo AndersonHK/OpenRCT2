@@ -250,8 +250,7 @@ namespace OpenRCT2::RCT1
             td->trackAndVehicle.numberOfCarsPerTrain = td4Base.NumberOfCarsPerTrain;
             td->operation.minWaitingTime = td4Base.MinWaitingTime;
             td->operation.maxWaitingTime = td4Base.MaxWaitingTime;
-            td->operation.operationSetting = std::min(
-                td4Base.OperationSetting, GetRideTypeDescriptor(td->trackAndVehicle.rtdIndex).OperatingSettings.MaxValue);
+            td->operation.operationSetting = td4Base.OperationSetting;
             td->statistics.maxSpeed = td4Base.MaxSpeed;
             td->statistics.averageSpeed = td4Base.AverageSpeed;
             td->statistics.rideLength = static_cast<uint16_t>(ScaleLegacyRideLengthToReal(td4Base.RideLength));
@@ -273,8 +272,6 @@ namespace OpenRCT2::RCT1
             td->statistics.spaceRequired.SetNull();
             td->operation.liftHillSpeed = 5;
             td->operation.numCircuits = 1;
-            td->operation.operationSetting = std::min(
-                td->operation.operationSetting, GetRideTypeDescriptor(td->trackAndVehicle.rtdIndex).OperatingSettings.MaxValue);
 
             const auto& rtd = GetRideTypeDescriptor(td->trackAndVehicle.rtdIndex);
             if (rtd.specialType == RtdSpecialType::maze)
@@ -284,6 +281,7 @@ namespace OpenRCT2::RCT1
             }
             else
             {
+                td->operation.operationSetting = std::min(td->operation.operationSetting, rtd.OperatingSettings.MaxValue);
                 importTrackElements(*td);
             }
 

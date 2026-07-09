@@ -1,5 +1,25 @@
 # OpenRCT2 overhaul changelog
 
+## 2026-07-09
+
+### Guest nausea and first aid behavior
+
+Decision: guest nausea now behaves more like a condition that guests can respond to instead of only a hidden post-ride penalty. Sick thoughts and first-aid interest begin at nausea `128`, while the sick face and nauseous animation begin at `128 + 1` so the visual tiers stay explicit and easy to retune.
+
+Tuning: ride nausea growth now scales across the full hunger bar, from `1x` at empty to `4x` at full, instead of only scaling the upper half of hunger and then doubling. Normal standing/walking nausea target decay is gentler, dropping by `1` per idle motive update instead of `2`.
+
+Decision: sick guests now look for first aid over a range that scales with how sick they are. At nausea `128` they consider first aid within one tile; at nausea `255` they consider first aid within 128 tiles. The search is specified in tiles but compared using the engine's coordinate units.
+
+Correction: guests who have already committed to a first-aid clinic do not try to sit on benches, and they are allowed to use that clinic when they arrive even if their nausea has fallen below the initial sick threshold. Guests can also use first aid opportunistically when they are already sick enough and bump into it.
+
+Maintenance: the sick, very sick, and very-very-sick nausea tiers are now named constants, with display-start checks written as `threshold + 1`. The very sick thought remains intentionally separate from the face/animation tier and starts at the very-very-sick visual tier.
+
+Verification:
+
+- `msbuild openrct2.proj /m /nr:false /p:Configuration=Release /p:Platform=x64 /p:VCToolsVersion=14.44.35207`
+- From `bin`: `.\tests.exe --gtest_filter=PlayTests.*`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\deploy-local.ps1 -Configuration Release -Platform x64 -VCToolsVersion 14.44.35207`
+
 ## 2026-07-07
 
 ### Decoration visibility policy

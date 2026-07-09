@@ -44,6 +44,16 @@ Current balancing treats park rating `700` as the healthy baseline, doubles or h
 
 More detail: [Guest generation and park rating rationale](docs/guest-generation-rating-rationale.md).
 
+### Nausea is treated as an active guest need
+
+Guest nausea is no longer only a hidden post-ride value that occasionally produces vomiting or a thought. Sick guests begin responding earlier, with first-aid interest starting at the sick threshold and the visible sick face/animation following one point later.
+
+The reason for this change is to make nausea legible as a condition the park can manage. Very full guests now gain more ride nausea across the whole hunger bar, sick guests will commute farther to first aid as their nausea gets worse, and guests already heading to first aid will not abandon that intent just because they are briefly calm enough to sit down.
+
+Current balancing starts first-aid interest at nausea `128`, scales first-aid search from one tile at that threshold to 128 tiles at maximum nausea, and keeps first-aid use valid once a guest has committed to the clinic.
+
+More detail: [OpenRCT2 overhaul changelog](docs/openrct2-overhaul-changelog.md).
+
 ### Guests try to recover onto nearby paths
 
 Guests that end up off a footpath no longer rely purely on random grass wandering. When standing on a surface tile, they first look for a reachable footpath within three tiles and step toward the nearest one they can access.
