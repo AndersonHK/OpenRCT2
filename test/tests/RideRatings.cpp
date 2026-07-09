@@ -702,8 +702,8 @@ TEST_F(RideRatings, GForceTickScoringTreatsAirtimeAsExciting)
     EXPECT_EQ(neutral.excitement, 0);
     EXPECT_EQ(neutral.intensity, 0);
     EXPECT_EQ(neutral.nausea, 0);
-    EXPECT_GT(partialAirtime.excitement, 30000);
-    EXPECT_GT(airtime.excitement, 110000);
+    EXPECT_GT(partialAirtime.excitement, 12000);
+    EXPECT_GT(airtime.excitement, 44000);
     EXPECT_GT(airtime.excitement, partialAirtime.excitement * 3);
     EXPECT_GT(airtime.excitement, airtime.intensity);
     EXPECT_GT(airtime.intensity, airtime.nausea);
@@ -715,7 +715,7 @@ TEST_F(RideRatings, GForceTickScoringMakesNegativeVerticalGNastierThanAirtime)
     const auto negative = RideRating::ScoreGForcesForTick(-100, 0);
 
     EXPECT_GT(negative.excitement, airtime.excitement);
-    EXPECT_GT(negative.excitement, airtime.excitement + 75000);
+    EXPECT_GT(negative.excitement, airtime.excitement + 30000);
     EXPECT_GT(negative.intensity, airtime.intensity * 5);
     EXPECT_GT(negative.intensity, negative.excitement);
 }
@@ -726,7 +726,7 @@ TEST_F(RideRatings, GForceTickScoringRewardsNormalPositiveVerticalGAndPunishesEx
     const auto strong = RideRating::ScoreGForcesForTick(300, 0);
     const auto excessive = RideRating::ScoreGForcesForTick(450, 0);
 
-    EXPECT_GT(mild.excitement, 60000);
+    EXPECT_GT(mild.excitement, 24000);
     EXPECT_GT(mild.excitement, mild.intensity);
     EXPECT_GT(strong.excitement, mild.excitement * 3);
     EXPECT_GT(strong.intensity, mild.intensity * 3);
@@ -754,7 +754,8 @@ TEST_F(RideRatings, VehicleSpeedTickScoringUsesSmoothSquaredSpeed)
     const auto moderateSpeed = RideRating::ScoreVehicleSpeedForTick(37);
     const auto normalSpeed = RideRating::ScoreVehicleSpeedForTick(RideRating::kVehicleRatingBaselineSpeed);
     const auto expectedScore = [](int64_t speed) {
-        return (speed * speed * RideRating::kRideRatingAccumulatorRawScale) / RideRating::kVehicleRatingBaselineSpeed;
+        return (speed * speed * RideRating::kRideRatingAccumulatorRawScale)
+            / ((RideRating::kVehicleRatingBaselineSpeed * 5) / 2);
     };
 
     EXPECT_EQ(stopped.excitement, 0);
@@ -831,14 +832,15 @@ TEST_F(RideRatings, LocalContextSceneryScalesWithVehicleSpeed)
         contextScore, 41);
     const auto slowestSpeed = RideRating::ScoreLocalContextForVehicleTick(
         contextScore, 17);
+    constexpr int64_t trackedRideContextRawPerPoint = (RideRating::kRideRatingAccumulatorRawScale * 2) / 5;
 
-    EXPECT_EQ(normalSpeed.excitement, contextScore.excitement * RideRating::kRideRatingAccumulatorRawScale);
-    EXPECT_EQ(normalSpeed.intensity, contextScore.intensity * RideRating::kRideRatingAccumulatorRawScale);
-    EXPECT_EQ(normalSpeed.nausea, 5000);
-    EXPECT_EQ(slowerSpeed.excitement, 35077);
-    EXPECT_EQ(slowestSpeed.excitement, 14544);
-    EXPECT_EQ(slowerSpeed.intensity, 7288);
-    EXPECT_EQ(slowerSpeed.nausea, 2277);
+    EXPECT_EQ(normalSpeed.excitement, contextScore.excitement * trackedRideContextRawPerPoint);
+    EXPECT_EQ(normalSpeed.intensity, 16 * trackedRideContextRawPerPoint);
+    EXPECT_EQ(normalSpeed.nausea, 2000);
+    EXPECT_EQ(slowerSpeed.excitement, 14031);
+    EXPECT_EQ(slowestSpeed.excitement, 5817);
+    EXPECT_EQ(slowerSpeed.intensity, 2915);
+    EXPECT_EQ(slowerSpeed.nausea, 911);
 }
 
 TEST_F(RideRatings, LocalContextVehicleTickScoringSpeedNormalizesPathProximity)
@@ -852,7 +854,9 @@ TEST_F(RideRatings, LocalContextVehicleTickScoringSpeedNormalizesPathProximity)
     const auto moving = RideRating::ScoreLocalContextForVehicleTick(contextScore, 37);
 
     EXPECT_EQ(stopped.excitement, 0);
-    EXPECT_EQ(moving.excitement, (5 * RideRating::kRideRatingAccumulatorRawScale * 37) / RideRating::kVehicleRatingBaselineSpeed);
+    EXPECT_EQ(
+        moving.excitement,
+        (5 * ((RideRating::kRideRatingAccumulatorRawScale * 2) / 5) * 37) / RideRating::kVehicleRatingBaselineSpeed);
 }
 
 TEST_F(RideRatings, LocalContextVehicleTickScoringPreservesFractionalRawNausea)
@@ -866,9 +870,9 @@ TEST_F(RideRatings, LocalContextVehicleTickScoringPreservesFractionalRawNausea)
 
     const auto score = RideRating::ScoreLocalContextForVehicleTick(contextScore, RideRating::kVehicleRatingBaselineSpeed);
 
-    EXPECT_EQ(score.excitement, 2 * RideRating::kRideRatingAccumulatorRawScale);
-    EXPECT_EQ(score.intensity, RideRating::kRideRatingAccumulatorRawScale);
-    EXPECT_EQ(score.nausea, RideRating::kRideRatingAccumulatorRawScale / 3);
+    EXPECT_EQ(score.excitement, 2 * ((RideRating::kRideRatingAccumulatorRawScale * 2) / 5));
+    EXPECT_EQ(score.intensity, (RideRating::kRideRatingAccumulatorRawScale * 2) / 5);
+    EXPECT_EQ(score.nausea, 133);
 }
 
 TEST_F(RideRatings, BoatHireFreeRoamAddsGuidedTurnStatDistribution)
@@ -876,7 +880,7 @@ TEST_F(RideRatings, BoatHireFreeRoamAddsGuidedTurnStatDistribution)
     const auto firstTick = RideRating::ScoreBoatHireFreeRoamForTick(0);
     const auto secondTick = RideRating::ScoreBoatHireFreeRoamForTick(1);
 
-    EXPECT_EQ(firstTick.excitement + secondTick.excitement, RideRating::kRideRatingAccumulatorRawScale);
+    EXPECT_EQ(firstTick.excitement + secondTick.excitement, (8 * RideRating::kRideRatingAccumulatorRawScale) / 5);
     EXPECT_EQ(firstTick.intensity + secondTick.intensity, 2 * RideRating::kRideRatingAccumulatorRawScale);
     EXPECT_EQ(firstTick.nausea + secondTick.nausea, 2 * RideRating::kRideRatingAccumulatorRawScale);
 }
@@ -1833,6 +1837,76 @@ TEST_F(RideRatings, AggregateRatingsPreserveLoadedRatingUntilSamplesExist)
     RideRating::UpdateRide(*target);
 
     EXPECT_EQ(target->ratings, savedRatings);
+}
+
+TEST_F(RideRatings, CompletedAggregateSampleMarksRideTestedAndPublishesRatings)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    GetContext()->LoadParkFromFile(TestData::GetParkPath("bpb.sv6"));
+
+    auto* target = FindNormalAggregateRideWithSummaryStatGate();
+    ASSERT_NE(target, nullptr);
+
+    target->status = RideStatus::open;
+    target->flags.unset(RideFlag::tested, RideFlag::testInProgress);
+    target->ratings.setNull();
+    RideClearRiderRatingSamples(*target);
+
+    RideRatingAccumulator sample{};
+    sample.excitement = 100000 * RideRating::kRideRatingAccumulatorRawScale;
+    sample.intensity = 80000 * RideRating::kRideRatingAccumulatorRawScale;
+    sample.nausea = 60000 * RideRating::kRideRatingAccumulatorRawScale;
+    sample.ticks = 100;
+
+    RideRating::RecordRiderSample(*target, sample);
+
+    EXPECT_TRUE(target->flags.has(RideFlag::tested));
+    EXPECT_EQ(target->recentRatingSampleCount, 1);
+    EXPECT_FALSE(target->ratings.isNull());
+}
+
+TEST_F(RideRatings, MazeCompletedSamplesRemainAveragedOverRecentTwenty)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    GetContext()->LoadParkFromFile(TestData::GetParkPath("EverythingPark.park"));
+
+    auto* target = FindMazeRide();
+    ASSERT_NE(target, nullptr);
+
+    target->status = RideStatus::open;
+    target->flags.unset(RideFlag::tested, RideFlag::testInProgress);
+    target->ratings.setNull();
+    RideClearRiderRatingSamples(*target);
+
+    for (size_t i = 0; i < kRideRatingRecentSampleCount + 5; i++)
+    {
+        const auto value = static_cast<int64_t>(i + 1);
+        RideRatingAccumulator sample{};
+        sample.excitement = value * 2;
+        sample.intensity = value * 4;
+        sample.nausea = value * 6;
+        sample.ticks = 1;
+
+        RideRating::RecordRiderSample(*target, sample);
+    }
+
+    EXPECT_TRUE(target->flags.has(RideFlag::tested));
+    EXPECT_EQ(target->recentRatingSampleCount, kRideRatingRecentSampleCount);
+
+    const auto accumulator = RideGetRecentRatingAccumulator(*target);
+    EXPECT_EQ(accumulator.excitement, 31);
+    EXPECT_EQ(accumulator.intensity, 62);
+    EXPECT_EQ(accumulator.nausea, 93);
+    EXPECT_EQ(accumulator.ticks, 1u);
+    EXPECT_FALSE(target->ratings.isNull());
 }
 
 TEST_F(RideRatings, AggregateRatingsIgnoreInProgressTestAccumulator)

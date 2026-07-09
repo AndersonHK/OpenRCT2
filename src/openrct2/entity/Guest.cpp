@@ -5089,9 +5089,17 @@ namespace OpenRCT2
 
         const auto contextScore = RideRating::GetMazeLocalContextScore(location, ride.id);
         constexpr int64_t rawScale = RideRating::kRideRatingAccumulatorRawScale;
-        accumulator->excitement += (20 + (openCount * 12) + contextScore.excitement + (isExitStep ? 90 : 0)) * rawScale;
-        accumulator->intensity += (4 + (openCount <= 1 ? 5 : 0) + contextScore.intensity + (isExitStep ? 4 : 0)) * rawScale;
-        accumulator->nausea += contextScore.nausea * rawScale;
+        accumulator->excitement += 10 * rawScale;
+        accumulator->excitement += static_cast<int64_t>(openCount) * 6 * rawScale;
+        accumulator->excitement += (static_cast<int64_t>(contextScore.excitement) * rawScale) / 2;
+        accumulator->excitement += isExitStep ? 45 * rawScale : 0;
+
+        accumulator->intensity += 2 * rawScale;
+        accumulator->intensity += openCount <= 1 ? (5 * rawScale) / 2 : 0;
+        accumulator->intensity += (static_cast<int64_t>(contextScore.intensity) * rawScale) / 2;
+        accumulator->intensity += isExitStep ? 2 * rawScale : 0;
+
+        accumulator->nausea += (static_cast<int64_t>(contextScore.nausea) * rawScale) / 2;
         accumulator->ticks++;
         if (isExitStep)
         {

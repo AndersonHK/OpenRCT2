@@ -96,14 +96,18 @@ static bool RideRatingTickIsSheltered(const CoordsXYZ& location)
     return true;
 }
 
+static constexpr int64_t RideRatingRawTenths(int32_t tenths)
+{
+    return (static_cast<int64_t>(tenths) * RideRating::kRideRatingAccumulatorRawScale) / 10;
+}
+
 static void RideRatingAccumulateTick(
     RideRatingAccumulator& accumulator, TrackElemType trackType, const GForces& gForces, int32_t velocity, bool isSheltered,
     const RideRating::LocalContextScore& contextScore, bool isSynchronised, bool isBoatHire)
 {
     const auto& ted = GetTrackElementDescriptor(trackType);
     const int32_t speed = std::abs(velocity) >> 16;
-    constexpr int64_t rawScale = RideRating::kRideRatingAccumulatorRawScale;
-    const auto speedScore = RideRating::ScoreVehicleSpeedForTick(speed);
+    const auto speedScore = isBoatHire ? RideRating::ScoreBoatHireSpeedForTick(speed) : RideRating::ScoreVehicleSpeedForTick(speed);
     const auto gForceScore = RideRating::ScoreGForcesForTick(gForces.verticalG, gForces.lateralG);
     int64_t trackFeatureExcitement = 0;
     int64_t trackFeatureIntensity = 0;
@@ -125,60 +129,60 @@ static void RideRatingAccumulateTick(
         }
         else
         {
-            trackFeatureExcitement += (banked ? 3 : 2) * rawScale;
-            trackFeatureIntensity += (banked ? 2 : 4) * rawScale;
-            trackFeatureNausea += (banked ? 2 : 4) * rawScale;
+            trackFeatureExcitement += banked ? RideRatingRawTenths(12) : RideRatingRawTenths(8);
+            trackFeatureIntensity += banked ? RideRatingRawTenths(8) : RideRatingRawTenths(16);
+            trackFeatureNausea += banked ? RideRatingRawTenths(8) : RideRatingRawTenths(16);
         }
     }
     if (ted.flags.has(TrackElementFlag::turnSloped))
     {
-        trackFeatureExcitement += 2 * rawScale;
-        trackFeatureNausea += 2 * rawScale;
+        trackFeatureExcitement += RideRatingRawTenths(8);
+        trackFeatureNausea += RideRatingRawTenths(8);
     }
     if (ted.flags.has(TrackElementFlag::helix))
     {
-        trackFeatureExcitement += 5 * rawScale;
-        trackFeatureIntensity += 4 * rawScale;
-        trackFeatureNausea += 5 * rawScale;
+        trackFeatureExcitement += RideRatingRawTenths(20);
+        trackFeatureIntensity += RideRatingRawTenths(16);
+        trackFeatureNausea += RideRatingRawTenths(20);
     }
     if (ted.flags.has(TrackElementFlag::normalToInversion))
     {
-        trackFeatureExcitement += 8 * rawScale;
-        trackFeatureIntensity += 9 * rawScale;
-        trackFeatureNausea += 6 * rawScale;
+        trackFeatureExcitement += RideRatingRawTenths(32);
+        trackFeatureIntensity += RideRatingRawTenths(36);
+        trackFeatureNausea += RideRatingRawTenths(24);
     }
     if (ted.flags.has(TrackElementFlag::down))
     {
-        trackFeatureExcitement += 2 * rawScale;
-        trackFeatureIntensity += rawScale;
+        trackFeatureExcitement += RideRatingRawTenths(8);
+        trackFeatureIntensity += RideRatingRawTenths(4);
     }
 
     switch (trackType)
     {
         case TrackElemType::spinningTunnel:
-            trackFeatureExcitement += 4 * rawScale;
-            trackFeatureIntensity += 3 * rawScale;
-            trackFeatureNausea += 6 * rawScale;
+            trackFeatureExcitement += RideRatingRawTenths(16);
+            trackFeatureIntensity += RideRatingRawTenths(12);
+            trackFeatureNausea += RideRatingRawTenths(24);
             break;
         case TrackElemType::rapids:
         case TrackElemType::waterSplash:
-            trackFeatureExcitement += 5 * rawScale;
-            trackFeatureIntensity += 3 * rawScale;
-            trackFeatureNausea += 2 * rawScale;
+            trackFeatureExcitement += RideRatingRawTenths(20);
+            trackFeatureIntensity += RideRatingRawTenths(12);
+            trackFeatureNausea += RideRatingRawTenths(8);
             break;
         case TrackElemType::waterfall:
-            trackFeatureExcitement += 5 * rawScale;
-            trackFeatureIntensity += 2 * rawScale;
+            trackFeatureExcitement += RideRatingRawTenths(20);
+            trackFeatureIntensity += RideRatingRawTenths(8);
             break;
         case TrackElemType::whirlpool:
-            trackFeatureExcitement += 4 * rawScale;
-            trackFeatureIntensity += 2 * rawScale;
-            trackFeatureNausea += 3 * rawScale;
+            trackFeatureExcitement += RideRatingRawTenths(16);
+            trackFeatureIntensity += RideRatingRawTenths(8);
+            trackFeatureNausea += RideRatingRawTenths(12);
             break;
         case TrackElemType::logFlumeReverser:
-            trackFeatureExcitement += 4 * rawScale;
-            trackFeatureIntensity += 5 * rawScale;
-            trackFeatureNausea += 6 * rawScale;
+            trackFeatureExcitement += RideRatingRawTenths(16);
+            trackFeatureIntensity += RideRatingRawTenths(20);
+            trackFeatureNausea += RideRatingRawTenths(24);
             break;
         default:
             break;
@@ -186,16 +190,16 @@ static void RideRatingAccumulateTick(
 
     if (isSheltered)
     {
-        trackFeatureExcitement += 2 * rawScale;
-        trackFeatureIntensity += rawScale;
-        trackFeatureNausea += rawScale;
+        trackFeatureExcitement += RideRatingRawTenths(8);
+        trackFeatureIntensity += RideRatingRawTenths(4);
+        trackFeatureNausea += RideRatingRawTenths(4);
     }
 
     if (isSynchronised)
     {
-        trackFeatureExcitement += 3 * rawScale;
-        trackFeatureIntensity += rawScale;
-        trackFeatureNausea += rawScale;
+        trackFeatureExcitement += RideRatingRawTenths(12);
+        trackFeatureIntensity += RideRatingRawTenths(4);
+        trackFeatureNausea += RideRatingRawTenths(4);
     }
 
     const auto normalisedSpeed = std::max<int64_t>(speed, 0);
@@ -203,7 +207,8 @@ static void RideRatingAccumulateTick(
     intensity += (trackFeatureIntensity * normalisedSpeed) / RideRating::kVehicleRatingBaselineSpeed;
     nausea += (trackFeatureNausea * normalisedSpeed) / RideRating::kVehicleRatingBaselineSpeed;
 
-    const auto contextTickScore = RideRating::ScoreLocalContextForVehicleTick(contextScore, speed);
+    const auto contextTickScore = isBoatHire ? RideRating::ScoreBoatHireLocalContextForVehicleTick(contextScore, speed)
+                                             : RideRating::ScoreLocalContextForVehicleTick(contextScore, speed);
     excitement += contextTickScore.excitement;
     intensity += contextTickScore.intensity;
     nausea += contextTickScore.nausea;

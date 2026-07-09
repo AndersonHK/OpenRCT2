@@ -7,7 +7,7 @@ This change moves excitement, intensity, and nausea away from a purely post-test
 Each sampled vehicle tick contributes raw excitement, intensity, and nausea from:
 
 - current track element descriptor and special track element type
-- current velocity, floored to `1` as a zero-speed guard so speed still scales normally
+- current velocity
 - vertical and lateral G forces
 - whether the sampled vehicle position is sheltered or underground
 - local scenery, path, and nearby-ride context around the sampled tile
@@ -19,7 +19,7 @@ Raw totals are stored in active rider/train/test samples. Completed samples are 
 rating = sqrt(raw / divisor) * 100
 ```
 
-The initial divisor is `1000`, so doubling raw accumulated stats produces roughly `sqrt(2)` final growth, or about 40% higher final ratings. This is intentionally a first tuning point: the model now has the requested shape, while exact per-ride balance can be tuned by adjusting the per-tick weights and divisor.
+The initial divisor is `1000`, so doubling raw accumulated stats produces roughly `sqrt(2)` final growth, or about 40% higher final ratings. Balance should be tuned by adjusting the per-source weights documented in `docs/ride-rating-stat-source-manifest.md`, not by adding post-aggregate category scalars.
 
 The aggregate path does not seed ratings from `RideRatingsDescriptor::BaseRatings`. If an aggregate-rated ride has no samples, it displays zero aggregate stats rather than falling back to hidden base stats.
 

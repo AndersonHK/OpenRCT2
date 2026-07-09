@@ -113,6 +113,11 @@ static constexpr int32_t kRideRatingContextTowerRideMaxEyeHeight = 14 * kCoordsZ
 static constexpr int32_t kRideRatingContextSceneryFormerCap = 18;
 static constexpr int32_t kRideRatingContextSceneryRawAtFormerCap = 1200;
 static constexpr int32_t kRideRatingContextWeightScale = 256;
+static constexpr int32_t kTrackedRideSpeedRatingDivisor = 225;
+static constexpr int64_t kTrackedRideRawPerLocalContextPoint = 400;
+static constexpr int64_t kTrackedRideRawPerForeignTrackIntensityPoint = 200;
+static constexpr int64_t kTrackedRideVerticalContextNauseaNumerator = 2;
+static constexpr int64_t kTrackedRideVerticalContextNauseaDenominator = 15;
 static constexpr int32_t kRideRatingPathBridgeRaw = 120;
 static constexpr int32_t kRideRatingPathNearMissRaw = 180;
 static constexpr int32_t kRideRatingPathLoopRaw = 260;
@@ -406,6 +411,36 @@ static int32_t RideRatingApplySceneryVisibilityMultiplier(int32_t scenery, const
 
 RideRating::TickScore RideRating::ScoreLocalContextForVehicleTick(const LocalContextScore& contextScore, int32_t speed)
 {
+    const auto verticalIntensity = static_cast<int64_t>(contextScore.pathNearMiss) + contextScore.pathLoop
+        + contextScore.trackVerticalInteraction + contextScore.ownTrackVerticalInteraction;
+    const auto heightExposureIntensity = static_cast<int64_t>(contextScore.trackHeightExposure);
+    const auto foreignTrackProximityIntensity = static_cast<int64_t>(contextScore.foreignTrackProximity) / 2;
+    const auto nonForeignTrackProximityIntensity = static_cast<int64_t>(contextScore.intensity) - verticalIntensity
+        - heightExposureIntensity - foreignTrackProximityIntensity;
+    const auto verticalNausea = verticalIntensity / 3;
+    const auto heightExposureNausea = heightExposureIntensity / 3;
+    const auto nonVerticalNausea = static_cast<int64_t>(contextScore.nausea) - verticalNausea - heightExposureNausea;
+    const auto excitementRaw = static_cast<int64_t>(contextScore.excitement) * kTrackedRideRawPerLocalContextPoint;
+    const auto foreignTrackProximityIntensityRaw = static_cast<int64_t>(contextScore.foreignTrackProximity)
+        * kTrackedRideRawPerForeignTrackIntensityPoint;
+    const auto intensityRaw = (nonForeignTrackProximityIntensity * kTrackedRideRawPerLocalContextPoint)
+        + foreignTrackProximityIntensityRaw
+        + ((verticalIntensity + heightExposureIntensity) * kTrackedRideRawPerLocalContextPoint);
+    const auto nauseaRaw = (nonVerticalNausea * kTrackedRideRawPerLocalContextPoint)
+        + (((verticalIntensity + heightExposureIntensity) * kRideRatingAccumulatorRawScale
+            * kTrackedRideVerticalContextNauseaNumerator)
+           / kTrackedRideVerticalContextNauseaDenominator);
+    const auto normalisedSpeed = std::max<int64_t>(speed, 0);
+
+    return {
+        .excitement = (excitementRaw * normalisedSpeed) / kVehicleRatingBaselineSpeed,
+        .intensity = (intensityRaw * normalisedSpeed) / kVehicleRatingBaselineSpeed,
+        .nausea = (nauseaRaw * normalisedSpeed) / kVehicleRatingBaselineSpeed,
+    };
+}
+
+RideRating::TickScore RideRating::ScoreBoatHireLocalContextForVehicleTick(const LocalContextScore& contextScore, int32_t speed)
+{
     constexpr int64_t rawScale = kRideRatingAccumulatorRawScale;
     const auto verticalIntensity = static_cast<int64_t>(contextScore.pathNearMiss) + contextScore.pathLoop
         + contextScore.trackVerticalInteraction + contextScore.ownTrackVerticalInteraction;
@@ -434,7 +469,7 @@ RideRating::TickScore RideRating::ScoreBoatHireFreeRoamForTick(uint32_t tickInde
 {
     // Boat Hire should feel gently eventful without the coaster-style unbanked turn weight.
     return {
-        .excitement = (tickIndex % 2) == 0 ? kRideRatingAccumulatorRawScale : 0,
+        .excitement = (tickIndex % 2) == 0 ? (8 * kRideRatingAccumulatorRawScale) / 5 : 0,
         .intensity = kRideRatingAccumulatorRawScale,
         .nausea = kRideRatingAccumulatorRawScale,
     };
@@ -1106,9 +1141,9 @@ RideRating::TickScore RideRating::ScoreAirtimeGForTick(int32_t verticalG)
 {
     const auto airtimeG = std::clamp(100 - verticalG, 0, 100);
     return {
-        .excitement = RideRatingCurveScore(airtimeG, 115.0, 1.85),
-        .intensity = RideRatingCurveScore(airtimeG, 32.0, 1.95),
-        .nausea = RideRatingCurveScore(airtimeG, 9.0, 1.60),
+        .excitement = RideRatingCurveScore(airtimeG, 46.0, 1.85),
+        .intensity = RideRatingCurveScore(airtimeG, 12.8, 1.95),
+        .nausea = RideRatingCurveScore(airtimeG, 3.6, 1.60),
     };
 }
 
@@ -1117,9 +1152,9 @@ RideRating::TickScore RideRating::ScoreNegativeVerticalGForTick(int32_t vertical
     const auto negativeG = std::max(-verticalG, 0);
     const auto excessiveNegativeG = std::max(negativeG - 150, 0);
     return {
-        .excitement = RideRatingCurveScore(negativeG, 80.0, 2.00),
-        .intensity = RideRatingCurveScore(negativeG, 180.0, 2.35) + RideRatingCurveScore(excessiveNegativeG, 450.0, 2.70),
-        .nausea = RideRatingCurveScore(negativeG, 50.0, 2.05),
+        .excitement = RideRatingCurveScore(negativeG, 32.0, 2.00),
+        .intensity = RideRatingCurveScore(negativeG, 72.0, 2.35) + RideRatingCurveScore(excessiveNegativeG, 180.0, 2.70),
+        .nausea = RideRatingCurveScore(negativeG, 20.0, 2.05),
     };
 }
 
@@ -1129,9 +1164,9 @@ RideRating::TickScore RideRating::ScorePositiveVerticalGForTick(int32_t vertical
     const auto normalPositiveG = std::min(positiveG, 200);
     const auto excessivePositiveG = std::max(positiveG - 200, 0);
     return {
-        .excitement = RideRatingCurveScore(normalPositiveG, 62.0, 1.75) + RideRatingCurveScore(excessivePositiveG, 22.0, 2.25),
-        .intensity = RideRatingCurveScore(normalPositiveG, 48.0, 1.90) + RideRatingCurveScore(excessivePositiveG, 240.0, 2.65),
-        .nausea = RideRatingCurveScore(positiveG, 20.0, 1.90),
+        .excitement = RideRatingCurveScore(normalPositiveG, 24.8, 1.75) + RideRatingCurveScore(excessivePositiveG, 8.8, 2.25),
+        .intensity = RideRatingCurveScore(normalPositiveG, 19.2, 1.90) + RideRatingCurveScore(excessivePositiveG, 96.0, 2.65),
+        .nausea = RideRatingCurveScore(positiveG, 8.0, 1.90),
     };
 }
 
@@ -1139,7 +1174,7 @@ RideRating::TickScore RideRating::ScoreLateralGForTick(int32_t lateralG)
 {
     const auto sidewaysG = std::abs(lateralG);
     const auto excitementG = std::min(sidewaysG, 200);
-    auto excitement = RideRatingCurveScore(excitementG, 32.0, 1.80);
+    auto excitement = RideRatingCurveScore(excitementG, 12.8, 1.80);
 
     // The old code had hard penalties around 2.8G and 3.1G. Smoothly taper fun before those landmarks
     // while continuing to compound intensity and nausea.
@@ -1153,8 +1188,8 @@ RideRating::TickScore RideRating::ScoreLateralGForTick(int32_t lateralG)
     const auto severeSidewaysG = std::max(sidewaysG - 200, 0);
     return {
         .excitement = excitement,
-        .intensity = RideRatingCurveScore(sidewaysG, 22.0, 2.05) + RideRatingCurveScore(severeSidewaysG, 320.0, 2.80),
-        .nausea = RideRatingCurveScore(sidewaysG, 25.0, 2.25) + RideRatingCurveScore(severeSidewaysG, 95.0, 2.45),
+        .intensity = RideRatingCurveScore(sidewaysG, 8.8, 2.05) + RideRatingCurveScore(severeSidewaysG, 128.0, 2.80),
+        .nausea = RideRatingCurveScore(sidewaysG, 10.0, 2.25) + RideRatingCurveScore(severeSidewaysG, 38.0, 2.45),
     };
 }
 
@@ -1169,6 +1204,17 @@ RideRating::TickScore RideRating::ScoreGForcesForTick(int32_t verticalG, int32_t
 }
 
 RideRating::TickScore RideRating::ScoreVehicleSpeedForTick(int32_t speed)
+{
+    const auto normalisedSpeed = std::max<int64_t>(speed, 0);
+    const auto score = (normalisedSpeed * normalisedSpeed * kRideRatingAccumulatorRawScale) / kTrackedRideSpeedRatingDivisor;
+    return {
+        .excitement = score,
+        .intensity = score,
+        .nausea = score,
+    };
+}
+
+RideRating::TickScore RideRating::ScoreBoatHireSpeedForTick(int32_t speed)
 {
     const auto normalisedSpeed = std::max<int64_t>(speed, 0);
     const auto score = (normalisedSpeed * normalisedSpeed * kRideRatingAccumulatorRawScale) / kVehicleRatingBaselineSpeed;
@@ -1256,6 +1302,12 @@ static void RideRatingsApplyRequirementStations(RideRating::Tuple& ratings, cons
 static void RideRatingsApplyRequirementSplashdown(RideRating::Tuple& ratings, const Ride& ride, RatingsModifier modifier);
 static void RideRatingsApplyPenaltyLateralGs(RideRating::Tuple& ratings, const Ride& ride, RatingsModifier modifier);
 
+static bool RideRatingsUsesAggregateSamples(const Ride& ride)
+{
+    const auto& rtd = ride.getRideTypeDescriptor();
+    return rtd.RatingsData.Type == RatingsCalculationType::Normal || rtd.specialType == RtdSpecialType::maze;
+}
+
 void RideRating::ResetUpdateStates()
 {
     UpdateState nullState{};
@@ -1293,6 +1345,10 @@ void RideRating::RecordRiderSample(Ride& ride, const RideRatingAccumulator& samp
     }
 
     RideAddRecentRatingSample(ride, sample);
+    if (RideRatingsUsesAggregateSamples(ride))
+    {
+        ride.flags.set(RideFlag::tested);
+    }
     UpdateRide(ride);
     ride.windowInvalidateFlags.set(RideInvalidateFlag::ratings);
 }
@@ -2056,7 +2112,7 @@ static void RideRatingsCalculate(RideRating::UpdateState& state, Ride& ride)
         aggregateAccumulator = &recentAccumulator;
     }
 
-    const bool aggregateRatingType = rrd.Type == RatingsCalculationType::Normal || rtd.specialType == RtdSpecialType::maze;
+    const bool aggregateRatingType = RideRatingsUsesAggregateSamples(ride);
     if (aggregateRatingType && aggregateAccumulator != nullptr)
     {
         ratings = RideRatingsCalculateAggregated(ride, *aggregateAccumulator);

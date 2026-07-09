@@ -974,11 +974,15 @@ void Vehicle::UpdateWaitingToDepart()
  */
 void Vehicle::UpdateUnloadingPassengers()
 {
-    const auto* curRide = GetRide();
+    auto* curRide = GetRide();
     if (curRide == nullptr)
         return;
 
-    if (!flags.has(VehicleFlag::testing) && !RideIsStatsSampleVehicle(*curRide, *this))
+    if (RideTestingShouldSampleCircuit(*curRide, *this) && curRide->currentTestSegment + 1 >= curRide->numStations)
+    {
+        UpdateTestFinish();
+    }
+    else if (!flags.has(VehicleFlag::testing))
     {
         RideRatingPublishTrainSample(*this);
     }
