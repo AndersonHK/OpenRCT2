@@ -27,6 +27,7 @@
 #include <openrct2/ride/RideManager.hpp>
 #include <openrct2/ride/RideRatings.h>
 #include <openrct2/ride/ShopItem.h>
+#include <openrct2/ride/Vehicle.h>
 #include <openrct2/world/Map.h>
 #include <openrct2/world/tile_element/PathElement.h>
 #include <openrct2/world/tile_element/SmallSceneryElement.h>
@@ -609,6 +610,87 @@ TEST_F(RideRatings, RecentAccumulatorAveragesLastTwentySamples)
     EXPECT_EQ(accumulator.intensity, 62);
     EXPECT_EQ(accumulator.nausea, 93);
     EXPECT_EQ(accumulator.ticks, 1u);
+}
+
+TEST_F(RideRatings, ActiveRatingSamplesGrowBeyondLegacyTrainLimit)
+{
+    Ride ride{};
+    constexpr size_t sampleCount = kRideRatingLegacyActiveSampleCount + 4;
+
+    for (size_t i = 0; i < sampleCount; i++)
+    {
+        const auto sampleEntity = EntityId::FromUnderlying(static_cast<EntityId::UnderlyingType>(i + 1));
+        auto* sample = RideGetOrCreateActiveRatingSample(ride, sampleEntity);
+
+        ASSERT_NE(sample, nullptr);
+        sample->excitement = static_cast<int64_t>(i + 1);
+        sample->ticks = 1;
+    }
+
+    EXPECT_GE(ride.activeRatingSamples.size(), sampleCount);
+    for (size_t i = 0; i < sampleCount; i++)
+    {
+        const auto sampleEntity = EntityId::FromUnderlying(static_cast<EntityId::UnderlyingType>(i + 1));
+        auto* sample = RideFindActiveRatingSample(ride, sampleEntity);
+
+        ASSERT_NE(sample, nullptr);
+        EXPECT_EQ(sample->sampleEntity, sampleEntity);
+        EXPECT_TRUE(sample->hasSamples());
+    }
+}
+
+TEST_F(RideRatings, ActiveRiderTrainSampleCombinesCompletedVehicleLapsAtPublish)
+{
+    Ride ride{};
+    std::array<EntityId, 3> sampleEntities = {
+        EntityId::FromUnderlying(1),
+        EntityId::FromUnderlying(2),
+        EntityId::FromUnderlying(3),
+    };
+
+    auto* firstVehicleSample = RideGetOrCreateActiveRatingSample(ride, sampleEntities[0]);
+    ASSERT_NE(firstVehicleSample, nullptr);
+    firstVehicleSample->excitement = 1000;
+    firstVehicleSample->intensity = 2000;
+    firstVehicleSample->nausea = 3000;
+    firstVehicleSample->ticks = 10;
+
+    auto* secondVehicleSample = RideGetOrCreateActiveRatingSample(ride, sampleEntities[1]);
+    ASSERT_NE(secondVehicleSample, nullptr);
+    secondVehicleSample->excitement = 5000;
+    secondVehicleSample->intensity = 7000;
+    secondVehicleSample->nausea = 9000;
+    secondVehicleSample->ticks = 20;
+
+    EXPECT_TRUE(RideRating::RecordActiveRiderSamples(ride, sampleEntities));
+    ASSERT_EQ(ride.recentRatingSampleCount, 1);
+
+    const auto& storedSample = ride.recentRatingSamples[0];
+    EXPECT_EQ(storedSample.excitement, 3000);
+    EXPECT_EQ(storedSample.intensity, 4500);
+    EXPECT_EQ(storedSample.nausea, 6000);
+    EXPECT_EQ(storedSample.ticks, 15u);
+    EXPECT_TRUE(storedSample.sampleComplete);
+    EXPECT_TRUE(storedSample.sampleEntity.IsNull());
+
+    EXPECT_EQ(RideFindActiveRatingSample(ride, sampleEntities[0]), nullptr);
+    EXPECT_EQ(RideFindActiveRatingSample(ride, sampleEntities[1]), nullptr);
+}
+
+TEST_F(RideRatings, VehicleGForcesCanUseSharedTrainVelocityForTrailerCars)
+{
+    Vehicle vehicle{};
+    vehicle.SetTrackType(TrackElemType::leftCorkscrewUp);
+    vehicle.pitch = VehiclePitch::flat;
+    vehicle.roll = VehicleRoll::unbanked;
+    vehicle.track_progress = 128;
+    vehicle.velocity = 0;
+
+    const auto storedVelocityGForces = vehicle.GetGForces();
+    const auto trainVelocityGForces = vehicle.GetGForces(20 << 16);
+
+    EXPECT_EQ(storedVelocityGForces.lateralG, 0);
+    EXPECT_GT(std::abs(trainVelocityGForces.lateralG), 0);
 }
 
 TEST_F(RideRatings, GForceTickScoringTreatsAirtimeAsExciting)

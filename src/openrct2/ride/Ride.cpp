@@ -389,7 +389,9 @@ RideRatingAccumulator* RideGetOrCreateActiveRatingSample(Ride& ride, EntityId sa
         }
     }
 
-    return nullptr;
+    auto& sample = ride.activeRatingSamples.emplace_back();
+    sample.sampleEntity = sampleEntity;
+    return &sample;
 }
 
 RideRatingAccumulator RideGetRecentRatingAccumulator(const Ride& ride)
@@ -444,10 +446,7 @@ void RideAddRecentRatingSample(Ride& ride, const RideRatingAccumulator& sample)
 
 void RideClearRiderRatingSamples(Ride& ride)
 {
-    for (auto& sample : ride.activeRatingSamples)
-    {
-        sample.clear();
-    }
+    ride.activeRatingSamples.clear();
     for (auto& sample : ride.recentRatingSamples)
     {
         sample.clear();

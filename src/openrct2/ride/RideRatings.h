@@ -15,6 +15,7 @@
 
 #include <array>
 #include <cstdint>
+#include <span>
 #include <type_traits>
 #include <utility>
 
@@ -126,6 +127,7 @@ namespace OpenRCT2
         void UpdateRide(const Ride& ride);
         void RecordRiderSample(Ride& ride, const RideRatingAccumulator& sample);
         bool RecordActiveRiderSample(Ride& ride, EntityId sampleEntity);
+        bool RecordActiveRiderSamples(Ride& ride, std::span<const EntityId> sampleEntities);
         void UpdateAll();
     } // namespace RideRating
 } // namespace OpenRCT2

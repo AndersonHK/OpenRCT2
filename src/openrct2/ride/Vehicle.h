@@ -284,6 +284,7 @@ struct Vehicle : OpenRCT2::EntityBase
     std::optional<EntityId> DodgemsCarWouldCollideAt(const CoordsXY& coords) const;
     int32_t UpdateTrackMotion(int32_t* outStation);
     int32_t CableLiftUpdateTrackMotion();
+    GForces GetGForces(int32_t trainVelocity) const;
     GForces GetGForces() const;
     void SetMapToolbar() const;
     int32_t IsUsedInPairs() const;

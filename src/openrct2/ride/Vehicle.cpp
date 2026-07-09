@@ -64,6 +64,7 @@
 
 #include <cassert>
 #include <iterator>
+#include <vector>
 
 using namespace OpenRCT2;
 using namespace OpenRCT2::Audio;
@@ -269,7 +270,7 @@ static bool RideTestingShouldStartCircuit(const Ride& ride, const Vehicle& vehic
 }
 
 static bool RideRatingAccumulateVehicleTick(
-    RideRatingAccumulator& accumulator, const Ride& ride, const Vehicle& vehicle, bool isSynchronised,
+    RideRatingAccumulator& accumulator, const Ride& ride, const Vehicle& vehicle, int32_t trainVelocity, bool isSynchronised,
     const GForces* gForcesOverride = nullptr)
 {
     auto currentTrackType = vehicle.GetTrackType();
@@ -285,40 +286,64 @@ static bool RideRatingAccumulateVehicleTick(
     }
     else if (ride.getRideTypeDescriptor().flags.has(RtdFlag::hasGForces))
     {
-        gForces = vehicle.GetGForces();
+        gForces = vehicle.GetGForces(trainVelocity);
     }
 
     const auto location = CoordsXYZ{ vehicle.x, vehicle.y, vehicle.z };
     RideRatingAccumulateTick(
-        accumulator, currentTrackType, gForces, vehicle.velocity, RideRatingTickIsSheltered(location),
+        accumulator, currentTrackType, gForces, trainVelocity, RideRatingTickIsSheltered(location),
         RideRating::GetVehicleLocalContextScore(location, ride.id, currentTrackType, vehicle.GetTrackDirection()), isSynchronised,
         ride.getRideTypeDescriptor().specialType == RtdSpecialType::boatHire);
     return true;
 }
 
 static bool RideRatingAccumulateTrainTick(
-    RideRatingAccumulator& accumulator, const Ride& ride, const Vehicle& head, bool isSynchronised,
-    const GForces* headGForcesOverride = nullptr)
+    Ride& ride, const Vehicle& head, bool isSynchronised, const GForces* headGForcesOverride = nullptr)
 {
-    RideRatingAccumulator trainTick{};
+    bool accumulated = false;
+    const int32_t trainVelocity = head.velocity;
     for (const Vehicle* vehicle = &head; vehicle != nullptr;
          vehicle = getGameState().entities.GetEntity<Vehicle>(vehicle->next_vehicle_on_train))
     {
+        auto* accumulator = RideGetOrCreateActiveRatingSample(ride, vehicle->id);
+        if (accumulator == nullptr)
+        {
+            continue;
+        }
+
         const auto* gForcesOverride = (vehicle->id == head.id) ? headGForcesOverride : nullptr;
-        RideRatingAccumulateVehicleTick(trainTick, ride, *vehicle, isSynchronised, gForcesOverride);
+        accumulated |= RideRatingAccumulateVehicleTick(*accumulator, ride, *vehicle, trainVelocity, isSynchronised, gForcesOverride);
     }
 
-    if (!trainTick.hasSamples())
+    return accumulated;
+}
+
+static std::vector<EntityId> RideRatingCollectTrainVehicleIds(const Vehicle& head)
+{
+    std::vector<EntityId> sampleEntities;
+    for (const Vehicle* vehicle = &head; vehicle != nullptr;
+         vehicle = getGameState().entities.GetEntity<Vehicle>(vehicle->next_vehicle_on_train))
     {
-        return false;
+        sampleEntities.push_back(vehicle->id);
     }
+    return sampleEntities;
+}
 
-    const auto vehicleSampleCount = static_cast<int64_t>(trainTick.ticks);
-    accumulator.excitement += trainTick.excitement / vehicleSampleCount;
-    accumulator.intensity += trainTick.intensity / vehicleSampleCount;
-    accumulator.nausea += trainTick.nausea / vehicleSampleCount;
-    accumulator.ticks++;
-    return true;
+static void RideRatingClearTrainActiveSamples(Ride& ride, const Vehicle& head)
+{
+    for (const auto sampleEntity : RideRatingCollectTrainVehicleIds(head))
+    {
+        if (auto* accumulator = RideGetOrCreateActiveRatingSample(ride, sampleEntity); accumulator != nullptr)
+        {
+            accumulator->clear();
+        }
+    }
+}
+
+static bool RideRatingRecordTrainSamples(Ride& ride, const Vehicle& head)
+{
+    const auto sampleEntities = RideRatingCollectTrainVehicleIds(head);
+    return RideRating::RecordActiveRiderSamples(ride, sampleEntities);
 }
 
 static void RideRatingUpdateLiveTrainSample(Vehicle& vehicle)
@@ -335,15 +360,9 @@ static void RideRatingUpdateLiveTrainSample(Vehicle& vehicle)
         return;
     }
 
-    auto* accumulator = RideGetOrCreateActiveRatingSample(*curRide, vehicle.id);
-    if (accumulator == nullptr)
-    {
-        return;
-    }
-
     const bool isSynchronised = (curRide->departFlags & RIDE_DEPART_SYNCHRONISE_WITH_ADJACENT_STATIONS)
         && RideHasAdjacentStation(*curRide);
-    RideRatingAccumulateTrainTick(*accumulator, *curRide, vehicle, isSynchronised);
+    RideRatingAccumulateTrainTick(*curRide, vehicle, isSynchronised);
 }
 
 Vehicle* gCurrentVehicle;
@@ -1251,7 +1270,7 @@ void Vehicle::UpdateTestFinish()
     if (curRide == nullptr)
         return;
     test_finish(*curRide);
-    RideRating::RecordActiveRiderSample(*curRide, id);
+    RideRatingRecordTrainSamples(*curRide, *this);
     flags.unset(VehicleFlag::testing);
 }
 
@@ -1297,10 +1316,7 @@ static void test_reset(
     }
     else if (clearActiveRatingSamples)
     {
-        for (auto& sample : ride.activeRatingSamples)
-        {
-            sample.clear();
-        }
+        ride.activeRatingSamples.clear();
     }
     ride.var11C = 0;
     ride.numShelteredSections = 0;
@@ -1329,10 +1345,7 @@ void Vehicle::TestReset(bool preserveRecentSamples, bool preserveActiveSamples, 
     test_reset(*curRide, current_station, id, preserveRecentSamples, !preserveActiveSamples);
     if (preserveActiveSamples)
     {
-        if (auto* sample = RideGetOrCreateActiveRatingSample(*curRide, id); sample != nullptr)
-        {
-            sample->clear();
-        }
+        RideRatingClearTrainActiveSamples(*curRide, *this);
     }
 }
 
@@ -1482,7 +1495,7 @@ void Vehicle::UpdateTravellingCableLift()
  * dx: lateralG
  * esi: vehicle
  */
-GForces Vehicle::GetGForces() const
+GForces Vehicle::GetGForces(int32_t trainVelocity) const
 {
     int32_t gForceVert = ((static_cast<int64_t>(0x280000)) * Geometry::getPitchVector32(pitch).x) >> 32;
     gForceVert = ((static_cast<int64_t>(gForceVert)) * Geometry::getRollHorizontalComponent(roll)) >> 32;
@@ -1495,12 +1508,12 @@ GForces Vehicle::GetGForces() const
 
     if (vertFactor != 0)
     {
-        gForceVert += abs(velocity) * 98 / vertFactor;
+        gForceVert += abs(trainVelocity) * 98 / vertFactor;
     }
 
     if (lateralFactor != 0)
     {
-        gForceLateral += abs(velocity) * 98 / lateralFactor;
+        gForceLateral += abs(trainVelocity) * 98 / lateralFactor;
     }
 
     gForceVert *= 10;
@@ -1508,6 +1521,11 @@ GForces Vehicle::GetGForces() const
     gForceVert >>= 16;
     gForceLateral >>= 16;
     return { static_cast<int16_t>(gForceVert & 0xFFFF), static_cast<int16_t>(gForceLateral & 0xFFFF) };
+}
+
+GForces Vehicle::GetGForces() const
+{
+    return GetGForces(velocity);
 }
 
 void Vehicle::SetMapToolbar() const

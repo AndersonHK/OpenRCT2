@@ -1299,14 +1299,50 @@ void RideRating::RecordRiderSample(Ride& ride, const RideRatingAccumulator& samp
 
 bool RideRating::RecordActiveRiderSample(Ride& ride, EntityId sampleEntity)
 {
-    auto* accumulator = RideFindActiveRatingSample(ride, sampleEntity);
-    if (accumulator == nullptr || !accumulator->hasSamples())
+    std::array<EntityId, 1> sampleEntities = { sampleEntity };
+    return RecordActiveRiderSamples(ride, sampleEntities);
+}
+
+bool RideRating::RecordActiveRiderSamples(Ride& ride, std::span<const EntityId> sampleEntities)
+{
+    RideRatingAccumulator combinedSample{};
+    size_t completedSampleCount = 0;
+
+    for (const auto sampleEntity : sampleEntities)
+    {
+        auto* accumulator = RideFindActiveRatingSample(ride, sampleEntity);
+        if (accumulator == nullptr || !accumulator->hasSamples())
+        {
+            continue;
+        }
+
+        combinedSample.excitement += accumulator->excitement;
+        combinedSample.intensity += accumulator->intensity;
+        combinedSample.nausea += accumulator->nausea;
+        combinedSample.ticks += accumulator->ticks;
+        completedSampleCount++;
+    }
+
+    if (completedSampleCount == 0)
     {
         return false;
     }
 
-    RecordRiderSample(ride, *accumulator);
-    accumulator->clear();
+    combinedSample.excitement /= static_cast<int64_t>(completedSampleCount);
+    combinedSample.intensity /= static_cast<int64_t>(completedSampleCount);
+    combinedSample.nausea /= static_cast<int64_t>(completedSampleCount);
+    combinedSample.ticks = std::max<uint32_t>(1, combinedSample.ticks / static_cast<uint32_t>(completedSampleCount));
+
+    RecordRiderSample(ride, combinedSample);
+
+    for (const auto sampleEntity : sampleEntities)
+    {
+        if (auto* accumulator = RideFindActiveRatingSample(ride, sampleEntity); accumulator != nullptr)
+        {
+            accumulator->clear();
+        }
+    }
+
     return true;
 }
 

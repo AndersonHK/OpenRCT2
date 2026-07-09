@@ -29,6 +29,7 @@
 #include <string_view>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 struct IObjectManager;
 struct Ride;
@@ -285,7 +286,7 @@ static_assert(std::is_same_v<decltype(RideRatingAccumulator::intensity), int64_t
 static_assert(std::is_same_v<decltype(RideRatingAccumulator::nausea), int64_t>);
 
 constexpr size_t kRideRatingRecentSampleCount = 20;
-constexpr size_t kRideRatingActiveSampleCount = 8;
+constexpr size_t kRideRatingLegacyActiveSampleCount = 8;
 
 struct RideStableStationStats
 {
@@ -383,7 +384,7 @@ struct Ride
     int32_t shelteredLength{};
     RideStableStats stableStats{};
     RideRatingAccumulator ratingAccumulator{};
-    std::array<RideRatingAccumulator, kRideRatingActiveSampleCount> activeRatingSamples{};
+    std::vector<RideRatingAccumulator> activeRatingSamples{};
     std::array<RideRatingAccumulator, kRideRatingRecentSampleCount> recentRatingSamples{};
     uint8_t recentRatingSampleCount{};
     uint8_t recentRatingSampleNext{};

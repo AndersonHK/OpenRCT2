@@ -69,6 +69,7 @@
 #include "Legacy.h"
 #include "ParkPreview.h"
 
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <ctime>
@@ -238,10 +239,24 @@ namespace OpenRCT2
             }
 
             ReadWriteRideRatingAccumulator(cs, ride.ratingAccumulator);
-            cs.readWriteArray(ride.activeRatingSamples, [&cs](RideRatingAccumulator& sample) {
-                ReadWriteRideRatingAccumulator(cs, sample);
-                return true;
-            });
+            if (version < kRideRatingActiveSampleVectorVersion)
+            {
+                std::array<RideRatingAccumulator, kRideRatingLegacyActiveSampleCount> legacyActiveSamples{};
+                cs.readWriteArray(legacyActiveSamples, [&cs](RideRatingAccumulator& sample) {
+                    ReadWriteRideRatingAccumulator(cs, sample);
+                    return true;
+                });
+                if (cs.getMode() == OrcaStream::Mode::reading)
+                {
+                    ride.activeRatingSamples.assign(legacyActiveSamples.begin(), legacyActiveSamples.end());
+                }
+            }
+            else
+            {
+                cs.readWriteVector(ride.activeRatingSamples, [&cs](RideRatingAccumulator& sample) {
+                    ReadWriteRideRatingAccumulator(cs, sample);
+                });
+            }
             cs.readWriteArray(ride.recentRatingSamples, [&cs](RideRatingAccumulator& sample) {
                 ReadWriteRideRatingAccumulator(cs, sample);
                 return true;

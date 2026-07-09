@@ -27,6 +27,8 @@
 #include "RideRatings.h"
 #include "TrackIteration.h"
 
+#include <vector>
+
 using namespace OpenRCT2;
 using namespace OpenRCT2::Audio;
 
@@ -97,7 +99,13 @@ static void RideRatingPublishTrainSample(Vehicle& vehicle)
         return;
     }
 
-    RideRating::RecordActiveRiderSample(*ride, vehicle.id);
+    std::vector<EntityId> sampleEntities;
+    for (const Vehicle* trainVehicle = &vehicle; trainVehicle != nullptr;
+         trainVehicle = getGameState().entities.GetEntity<Vehicle>(trainVehicle->next_vehicle_on_train))
+    {
+        sampleEntities.push_back(trainVehicle->id);
+    }
+    RideRating::RecordActiveRiderSamples(*ride, sampleEntities);
 }
 
 /**

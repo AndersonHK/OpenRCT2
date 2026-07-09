@@ -30,9 +30,10 @@ namespace OpenRCT2
     constexpr uint16_t kMazeCapacityModeVersion = kOpenRCT2ModParkFileVersionBase + 6;
     constexpr uint16_t kRideRatingSampleScaleVersion = kOpenRCT2ModParkFileVersionBase + 7;
     constexpr uint16_t kRideStableStatsVersion = kOpenRCT2ModParkFileVersionBase + 8;
+    constexpr uint16_t kRideRatingActiveSampleVectorVersion = kOpenRCT2ModParkFileVersionBase + 9;
 
     // Current version that is saved.
-    constexpr uint32_t kParkFileCurrentVersion = kRideStableStatsVersion;
+    constexpr uint32_t kParkFileCurrentVersion = kRideRatingActiveSampleVectorVersion;
 
     // The minimum version that is forwards compatible with the current version.
     constexpr uint32_t kParkFileMinVersion = 57;
