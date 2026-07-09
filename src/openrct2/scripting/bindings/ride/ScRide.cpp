@@ -704,67 +704,67 @@ namespace OpenRCT2::Scripting
     JSValue ScRide::maxSpeed_get(JSContext* ctx, JSValue thisVal)
     {
         auto ride = GetRide(thisVal);
-        return JS_NewFloat64(ctx, ride != nullptr ? ToHumanReadableSpeed(ride->maxSpeed) : 0);
+        return JS_NewFloat64(ctx, ride != nullptr ? ToHumanReadableSpeed(ride->getDisplayMaxSpeed()) : 0);
     }
 
     JSValue ScRide::averageSpeed_get(JSContext* ctx, JSValue thisVal)
     {
         auto ride = GetRide(thisVal);
-        return JS_NewFloat64(ctx, ride != nullptr ? ToHumanReadableSpeed(ride->averageSpeed) : 0);
+        return JS_NewFloat64(ctx, ride != nullptr ? ToHumanReadableSpeed(ride->getDisplayAverageSpeed()) : 0);
     }
 
     JSValue ScRide::rideTime_get(JSContext* ctx, JSValue thisVal)
     {
         auto ride = GetRide(thisVal);
-        return JS_NewInt32(ctx, ride != nullptr ? ride->getTotalTime() : 0);
+        return JS_NewInt32(ctx, ride != nullptr ? ride->getDisplayTotalTime() : 0);
     }
 
     JSValue ScRide::rideLength_get(JSContext* ctx, JSValue thisVal)
     {
         auto ride = GetRide(thisVal);
-        return JS_NewFloat64(ctx, ride != nullptr ? ToHumanReadableRideLength(ride->getTotalLength()) : 0);
+        return JS_NewFloat64(ctx, ride != nullptr ? ToHumanReadableRideLength(ride->getDisplayTotalLength()) : 0);
     }
 
     JSValue ScRide::maxPositiveVerticalGs_get(JSContext* ctx, JSValue thisVal)
     {
         auto ride = GetRide(thisVal);
-        return JS_NewFloat64(ctx, ride != nullptr ? ride->maxPositiveVerticalG / 100.0 : 0);
+        return JS_NewFloat64(ctx, ride != nullptr ? ride->getDisplayMaxPositiveVerticalG() / 100.0 : 0);
     }
 
     JSValue ScRide::maxNegativeVerticalGs_get(JSContext* ctx, JSValue thisVal)
     {
         auto ride = GetRide(thisVal);
-        return JS_NewFloat64(ctx, ride != nullptr ? ride->maxNegativeVerticalG / 100.0 : 0);
+        return JS_NewFloat64(ctx, ride != nullptr ? ride->getDisplayMaxNegativeVerticalG() / 100.0 : 0);
     }
 
     JSValue ScRide::maxLateralGs_get(JSContext* ctx, JSValue thisVal)
     {
         auto ride = GetRide(thisVal);
-        return JS_NewFloat64(ctx, ride != nullptr ? ride->maxLateralG / 100.0 : 0);
+        return JS_NewFloat64(ctx, ride != nullptr ? ride->getDisplayMaxLateralG() / 100.0 : 0);
     }
 
     JSValue ScRide::totalAirTime_get(JSContext* ctx, JSValue thisVal)
     {
         auto ride = GetRide(thisVal);
-        return JS_NewFloat64(ctx, ride != nullptr ? ToHumanReadableAirTime(ride->totalAirTime) / 100.0 : 0);
+        return JS_NewFloat64(ctx, ride != nullptr ? ToHumanReadableAirTime(ride->getDisplayTotalAirTime()) / 100.0 : 0);
     }
 
     JSValue ScRide::numDrops_get(JSContext* ctx, JSValue thisVal)
     {
         auto ride = GetRide(thisVal);
-        return JS_NewUint32(ctx, ride != nullptr ? ride->numDrops : 0);
+        return JS_NewUint32(ctx, ride != nullptr ? ride->getDisplayNumDrops() : 0);
     }
 
     JSValue ScRide::numLiftHills_get(JSContext* ctx, JSValue thisVal)
     {
         auto ride = GetRide(thisVal);
-        return JS_NewUint32(ctx, ride != nullptr ? ride->numPoweredLifts : 0);
+        return JS_NewUint32(ctx, ride != nullptr ? ride->getDisplayNumPoweredLifts() : 0);
     }
 
     JSValue ScRide::highestDropHeight_get(JSContext* ctx, JSValue thisVal)
     {
         auto ride = GetRide(thisVal);
-        return JS_NewFloat64(ctx, ride != nullptr ? ride->highestDropHeight : 0);
+        return JS_NewFloat64(ctx, ride != nullptr ? ride->getDisplayHighestDropHeight() : 0);
     }
 
     JSValue ScRide::breakdown_get(JSContext* ctx, JSValue thisVal)

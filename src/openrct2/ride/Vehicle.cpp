@@ -72,7 +72,6 @@ using namespace OpenRCT2::RideVehicle;
 
 constexpr int16_t kVehicleMaxSpinSpeedForStopping = 700;
 constexpr int16_t kVehicleStoppingSpinSpeed = 600;
-constexpr int32_t kRideRatingAccumulatorSpeedFloor = 1;
 
 static int32_t GetRealRideLengthDelta(int32_t velocity, int32_t acceleration)
 {
@@ -102,11 +101,16 @@ static void RideRatingAccumulateTick(
 {
     const auto& ted = GetTrackElementDescriptor(trackType);
     const int32_t speed = std::abs(velocity) >> 16;
+    constexpr int64_t rawScale = RideRating::kRideRatingAccumulatorRawScale;
+    const auto speedScore = RideRating::ScoreVehicleSpeedForTick(speed);
     const auto gForceScore = RideRating::ScoreGForcesForTick(gForces.verticalG, gForces.lateralG);
+    int64_t trackFeatureExcitement = 0;
+    int64_t trackFeatureIntensity = 0;
+    int64_t trackFeatureNausea = 0;
 
-    int64_t excitement = 1 + (std::max(speed, kRideRatingAccumulatorSpeedFloor) / 5) + gForceScore.excitement;
-    int64_t intensity = (std::max(speed, kRideRatingAccumulatorSpeedFloor) / 4) + gForceScore.intensity;
-    int64_t nausea = (std::max(speed, kRideRatingAccumulatorSpeedFloor) / 8) + gForceScore.nausea;
+    int64_t excitement = speedScore.excitement + gForceScore.excitement;
+    int64_t intensity = speedScore.intensity + gForceScore.intensity;
+    int64_t nausea = speedScore.nausea + gForceScore.nausea;
 
     if (ted.flags.hasAny(TrackElementFlag::turnLeft, TrackElementFlag::turnRight))
     {
@@ -114,66 +118,66 @@ static void RideRatingAccumulateTick(
         if (isBoatHire && !banked)
         {
             const auto boatHireScore = RideRating::ScoreBoatHireFreeRoamForTick(accumulator.ticks);
-            excitement += boatHireScore.excitement;
-            intensity += boatHireScore.intensity;
-            nausea += boatHireScore.nausea;
+            trackFeatureExcitement += boatHireScore.excitement;
+            trackFeatureIntensity += boatHireScore.intensity;
+            trackFeatureNausea += boatHireScore.nausea;
         }
         else
         {
-            excitement += banked ? 3 : 2;
-            intensity += banked ? 2 : 4;
-            nausea += banked ? 2 : 4;
+            trackFeatureExcitement += (banked ? 3 : 2) * rawScale;
+            trackFeatureIntensity += (banked ? 2 : 4) * rawScale;
+            trackFeatureNausea += (banked ? 2 : 4) * rawScale;
         }
     }
     if (ted.flags.has(TrackElementFlag::turnSloped))
     {
-        excitement += 2;
-        nausea += 2;
+        trackFeatureExcitement += 2 * rawScale;
+        trackFeatureNausea += 2 * rawScale;
     }
     if (ted.flags.has(TrackElementFlag::helix))
     {
-        excitement += 5;
-        intensity += 4;
-        nausea += 5;
+        trackFeatureExcitement += 5 * rawScale;
+        trackFeatureIntensity += 4 * rawScale;
+        trackFeatureNausea += 5 * rawScale;
     }
     if (ted.flags.has(TrackElementFlag::normalToInversion))
     {
-        excitement += 8;
-        intensity += 9;
-        nausea += 6;
+        trackFeatureExcitement += 8 * rawScale;
+        trackFeatureIntensity += 9 * rawScale;
+        trackFeatureNausea += 6 * rawScale;
     }
     if (ted.flags.has(TrackElementFlag::down))
     {
-        excitement += 2;
-        intensity += 1;
+        trackFeatureExcitement += 2 * rawScale;
+        trackFeatureIntensity += rawScale;
     }
 
     switch (trackType)
     {
         case TrackElemType::spinningTunnel:
-            excitement += 4;
-            intensity += 3;
-            nausea += 6;
+            trackFeatureExcitement += 4 * rawScale;
+            trackFeatureIntensity += 3 * rawScale;
+            trackFeatureNausea += 6 * rawScale;
             break;
         case TrackElemType::rapids:
         case TrackElemType::waterSplash:
-            excitement += 5;
-            intensity += 3;
-            nausea += 2;
+            trackFeatureExcitement += 5 * rawScale;
+            trackFeatureIntensity += 3 * rawScale;
+            trackFeatureNausea += 2 * rawScale;
             break;
         case TrackElemType::waterfall:
-            excitement += 5;
-            intensity += 2;
+            trackFeatureExcitement += 5 * rawScale;
+            trackFeatureIntensity += 2 * rawScale;
             break;
         case TrackElemType::whirlpool:
-            excitement += 4;
-            intensity += 2;
-            nausea += 3;
+            trackFeatureExcitement += 4 * rawScale;
+            trackFeatureIntensity += 2 * rawScale;
+            trackFeatureNausea += 3 * rawScale;
             break;
         case TrackElemType::logFlumeReverser:
-            excitement += 4;
-            intensity += 5;
-            nausea += 6;
+            trackFeatureExcitement += 4 * rawScale;
+            trackFeatureIntensity += 5 * rawScale;
+            trackFeatureNausea += 6 * rawScale;
             break;
         default:
             break;
@@ -181,17 +185,22 @@ static void RideRatingAccumulateTick(
 
     if (isSheltered)
     {
-        excitement += 2;
-        intensity += 1;
-        nausea += 1;
+        trackFeatureExcitement += 2 * rawScale;
+        trackFeatureIntensity += rawScale;
+        trackFeatureNausea += rawScale;
     }
 
     if (isSynchronised)
     {
-        excitement += 3;
-        intensity += 1;
-        nausea += 1;
+        trackFeatureExcitement += 3 * rawScale;
+        trackFeatureIntensity += rawScale;
+        trackFeatureNausea += rawScale;
     }
+
+    const auto normalisedSpeed = std::max<int64_t>(speed, 0);
+    excitement += (trackFeatureExcitement * normalisedSpeed) / RideRating::kVehicleRatingBaselineSpeed;
+    intensity += (trackFeatureIntensity * normalisedSpeed) / RideRating::kVehicleRatingBaselineSpeed;
+    nausea += (trackFeatureNausea * normalisedSpeed) / RideRating::kVehicleRatingBaselineSpeed;
 
     const auto contextTickScore = RideRating::ScoreLocalContextForVehicleTick(contextScore, speed);
     excitement += contextTickScore.excitement;
@@ -233,15 +242,30 @@ static bool RideRatingTrainHasRiders(const Vehicle& head)
     return false;
 }
 
+static bool RideIsStatsSampleVehicle(const Ride& ride, const Vehicle& vehicle)
+{
+    return ride.flags.has(RideFlag::testInProgress) && ride.currentTestVehicle == vehicle.id;
+}
+
+static bool RideRatingTrainHasRidersOrGhostRider(const Ride& ride, const Vehicle& head)
+{
+    return head.flags.has(VehicleFlag::testing) || RideIsStatsSampleVehicle(ride, head) || RideRatingTrainHasRiders(head);
+}
+
 static bool RideTestingShouldSampleCircuit(const Ride& ride, const Vehicle& vehicle)
 {
-    return vehicle.flags.has(VehicleFlag::testing) && (ride.status == RideStatus::testing || !ride.flags.has(RideFlag::tested));
+    return vehicle.flags.has(VehicleFlag::testing) || RideIsStatsSampleVehicle(ride, vehicle);
 }
 
 static bool RideTestingShouldStartCircuit(const Ride& ride, const Vehicle& vehicle)
 {
+    if (ride.flags.has(RideFlag::noRawStats) && ride.status != RideStatus::testing)
+    {
+        return false;
+    }
+
     return !ride.flags.has(RideFlag::testInProgress) && !vehicle.isGhost()
-        && (ride.status == RideStatus::testing || !ride.flags.has(RideFlag::tested));
+        && (ride.status == RideStatus::testing || ride.status == RideStatus::open || !ride.flags.has(RideFlag::tested));
 }
 
 static bool RideRatingAccumulateVehicleTick(
@@ -267,7 +291,7 @@ static bool RideRatingAccumulateVehicleTick(
     const auto location = CoordsXYZ{ vehicle.x, vehicle.y, vehicle.z };
     RideRatingAccumulateTick(
         accumulator, currentTrackType, gForces, vehicle.velocity, RideRatingTickIsSheltered(location),
-        RideRating::GetLocalContextScore(location, ride.id), isSynchronised,
+        RideRating::GetVehicleLocalContextScore(location, ride.id, currentTrackType, vehicle.GetTrackDirection()), isSynchronised,
         ride.getRideTypeDescriptor().specialType == RtdSpecialType::boatHire);
     return true;
 }
@@ -299,14 +323,14 @@ static bool RideRatingAccumulateTrainTick(
 
 static void RideRatingUpdateLiveTrainSample(Vehicle& vehicle)
 {
-    if (!vehicle.IsHead() || vehicle.flags.has(VehicleFlag::testing) || vehicle.isGhost()
-        || !RideRatingStatusIsLiveSampled(vehicle.status) || !RideRatingTrainHasRiders(vehicle))
+    if (!vehicle.IsHead() || vehicle.isGhost() || !RideRatingStatusIsLiveSampled(vehicle.status))
     {
         return;
     }
 
     auto curRide = vehicle.GetRide();
-    if (curRide == nullptr || curRide->getRideTypeDescriptor().RatingsData.Type != RatingsCalculationType::Normal)
+    if (curRide == nullptr || !RideRatingTrainHasRidersOrGhostRider(*curRide, vehicle)
+        || curRide->getRideTypeDescriptor().RatingsData.Type != RatingsCalculationType::Normal)
     {
         return;
     }
@@ -715,6 +739,7 @@ void Vehicle::UpdateMeasurements()
     {
         curRide->flags.set(RideFlag::tested, RideFlag::noRawStats);
         curRide->flags.unset(RideFlag::testInProgress);
+        curRide->currentTestVehicle = EntityId::GetNull();
         flags.unset(VehicleFlag::testing);
 
         auto* windowMgr = Ui::GetWindowManager();
@@ -780,17 +805,6 @@ void Vehicle::UpdateMeasurements()
             curRide->maxLateralG = std::max(curRide->maxLateralG, static_cast<fixed16_2dp>(gForces.lateralG));
         }
 
-        if (IsHead() && RideTestingShouldSampleCircuit(*curRide, *this)
-            && curRide->getRideTypeDescriptor().RatingsData.Type == RatingsCalculationType::Normal)
-        {
-            auto* accumulator = RideGetOrCreateActiveRatingSample(*curRide, id);
-            if (accumulator != nullptr)
-            {
-                const bool isSynchronised = (curRide->departFlags & RIDE_DEPART_SYNCHRONISE_WITH_ADJACENT_STATIONS)
-                    && RideHasAdjacentStation(*curRide);
-                RideRatingAccumulateTrainTick(*accumulator, *curRide, *this, isSynchronised, &gForces);
-            }
-        }
     }
 
     // If we have already evaluated this track piece skip to next section
@@ -1054,14 +1068,11 @@ void Vehicle::Update()
     if (curRide->type >= RIDE_TYPE_COUNT)
         return;
 
-    if (flags.has(VehicleFlag::testing))
+    if (RideTestingShouldSampleCircuit(*curRide, *this))
     {
         UpdateMeasurements();
     }
-    else
-    {
-        RideRatingUpdateLiveTrainSample(*this);
-    }
+    RideRatingUpdateLiveTrainSample(*this);
 
     _vehicleBreakdown = Breakdown::none;
     if (curRide->flags.hasAny(RideFlag::breakdownPending, RideFlag::brokenDown))
@@ -1202,6 +1213,7 @@ static void test_finish(Ride& ride)
 {
     ride.flags.unset(RideFlag::testInProgress);
     ride.flags.set(RideFlag::tested);
+    ride.currentTestVehicle = EntityId::GetNull();
     ride.windowInvalidateFlags.set(RideInvalidateFlag::ratings);
 
     auto rideStations = ride.getStations();
@@ -1227,6 +1239,7 @@ static void test_finish(Ride& ride)
 
     totalTime = std::max(totalTime, 1u);
     ride.averageSpeed = ride.averageSpeed / totalTime;
+    ride.publishCurrentStatsAsStable();
 
     auto* windowMgr = Ui::GetWindowManager();
     windowMgr->InvalidateByNumber(WindowClass::ride, ride.id.ToUnderlying());
@@ -1246,8 +1259,14 @@ void Vehicle::UpdateTestFinish()
  *
  *  rct2: 0x006D6BE7
  */
-static void test_reset(Ride& ride, StationIndex curStation, bool preserveRecentSamples)
+static void test_reset(
+    Ride& ride, StationIndex curStation, EntityId currentTestVehicle, bool preserveRecentSamples, bool clearActiveRatingSamples)
 {
+    if (preserveRecentSamples && ride.flags.has(RideFlag::tested) && !ride.hasStableStats())
+    {
+        ride.publishCurrentStatsAsStable();
+    }
+
     ride.flags.set(RideFlag::testInProgress);
     ride.flags.unset(RideFlag::noRawStats);
     ride.maxSpeed = 0;
@@ -1257,8 +1276,9 @@ static void test_reset(Ride& ride, StationIndex curStation, bool preserveRecentS
     ride.maxPositiveVerticalG = MakeFixed16_2dp(1, 0);
     ride.maxNegativeVerticalG = MakeFixed16_2dp(1, 0);
     ride.maxLateralG = 0;
-    ride.previousVerticalG = 0;
+    ride.previousVerticalG = MakeFixed16_2dp(1, 0);
     ride.previousLateralG = 0;
+    ride.measurement = {};
     ride.testingFlags.clearAll();
     ride.curTestTrackLocation.SetNull();
     ride.turnCountDefault = 0;
@@ -1271,16 +1291,16 @@ static void test_reset(Ride& ride, StationIndex curStation, bool preserveRecentS
     ride.numPoweredLifts = 0;
     ride.shelteredLength = 0;
     ride.ratingAccumulator.clear();
-    if (preserveRecentSamples)
+    if (!preserveRecentSamples)
+    {
+        RideClearRiderRatingSamples(ride);
+    }
+    else if (clearActiveRatingSamples)
     {
         for (auto& sample : ride.activeRatingSamples)
         {
             sample.clear();
         }
-    }
-    else
-    {
-        RideClearRiderRatingSamples(ride);
     }
     ride.var11C = 0;
     ride.numShelteredSections = 0;
@@ -1294,18 +1314,26 @@ static void test_reset(Ride& ride, StationIndex curStation, bool preserveRecentS
     }
     ride.totalAirTime = 0;
     ride.currentTestStation = curStation;
+    ride.currentTestVehicle = currentTestVehicle;
 
     auto* windowMgr = Ui::GetWindowManager();
     windowMgr->InvalidateByNumber(WindowClass::ride, ride.id.ToUnderlying());
 }
 
-void Vehicle::TestReset(bool preserveRecentSamples)
+void Vehicle::TestReset(bool preserveRecentSamples, bool preserveActiveSamples, bool markVehicleAsTesting)
 {
-    flags.set(VehicleFlag::testing);
+    flags.set(VehicleFlag::testing, markVehicleAsTesting);
     auto curRide = GetRide();
     if (curRide == nullptr)
         return;
-    test_reset(*curRide, current_station, preserveRecentSamples);
+    test_reset(*curRide, current_station, id, preserveRecentSamples, !preserveActiveSamples);
+    if (preserveActiveSamples)
+    {
+        if (auto* sample = RideGetOrCreateActiveRatingSample(*curRide, id); sample != nullptr)
+        {
+            sample->clear();
+        }
+    }
 }
 
 // The result of this function is used to decide whether a vehicle on a tower ride should go further up or not.
@@ -1405,7 +1433,8 @@ void Vehicle::UpdateTravellingCableLift()
         }
         else if (RideTestingShouldStartCircuit(*curRide, *this))
         {
-            TestReset(curRide->flags.has(RideFlag::tested));
+            const bool continuousOpenResample = curRide->status == RideStatus::open && curRide->flags.has(RideFlag::tested);
+            TestReset(curRide->flags.has(RideFlag::tested), continuousOpenResample, !continuousOpenResample);
         }
     }
 

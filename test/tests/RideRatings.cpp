@@ -72,6 +72,26 @@ protected:
         MapInvalidateTileFull(tile.ToCoordsXY());
     }
 
+    TileCoordsXY OffsetTile(const TileCoordsXY& tile, Direction direction, int32_t steps = 1)
+    {
+        auto coords = tile.ToCoordsXY();
+        for (int32_t i = 0; i < steps; i++)
+        {
+            coords += CoordsDirectionDelta[direction];
+        }
+        return TileCoordsXY{ coords };
+    }
+
+    uint8_t PathEdgeMask(Direction direction)
+    {
+        return 1 << direction;
+    }
+
+    uint8_t PathEdgeMask(Direction first, Direction second)
+    {
+        return PathEdgeMask(first) | PathEdgeMask(second);
+    }
+
     void PlaceSmallScenery(const TileCoordsXY& tile, int32_t baseZ, int32_t clearanceZ)
     {
         auto* sceneryElement = TileElementInsert<SmallSceneryElement>({ tile.ToCoordsXY(), baseZ }, 0);
@@ -93,25 +113,169 @@ protected:
         MapInvalidateTileFull(tile.ToCoordsXY());
     }
 
-    void PlaceFlatTrack(const TileCoordsXY& tile, int32_t baseZ, int32_t clearanceZ, RideId rideId)
+    void PlaceFlatTrack(
+        const TileCoordsXY& tile, int32_t baseZ, int32_t clearanceZ, RideId rideId,
+        TrackElemType trackType = TrackElemType::flatTrack1x4A, Direction direction = 0)
     {
         auto* trackElement = TileElementInsert<TrackElement>({ tile.ToCoordsXY(), baseZ }, 0);
         ASSERT_NE(trackElement, nullptr);
 
         trackElement->setClearanceZ(clearanceZ);
-        trackElement->SetTrackType(TrackElemType::flatTrack1x4A);
+        trackElement->SetTrackType(trackType);
+        trackElement->setDirection(direction);
         trackElement->SetRideType(RIDE_TYPE_MINIATURE_RAILWAY);
         trackElement->SetRideIndex(rideId);
         MapInvalidateTileFull(tile.ToCoordsXY());
     }
 
-    void PlacePath(const TileCoordsXY& tile, int32_t baseZ, int32_t clearanceZ)
+    void PlacePath(const TileCoordsXY& tile, int32_t baseZ, int32_t clearanceZ, uint8_t edges = 0)
     {
         auto* pathElement = TileElementInsert<PathElement>({ tile.ToCoordsXY(), baseZ }, 0);
         ASSERT_NE(pathElement, nullptr);
 
         pathElement->setClearanceZ(clearanceZ);
+        pathElement->SetEdges(edges);
         MapInvalidateTileFull(tile.ToCoordsXY());
+    }
+
+    void PlaceBridgeLine(const TileCoordsXY& centreTile, int32_t baseZ, int32_t clearanceZ, Direction axis)
+    {
+        const auto reverseAxis = DirectionReverse(axis);
+        PlacePath(centreTile, baseZ, clearanceZ, PathEdgeMask(axis, reverseAxis));
+        PlacePath(OffsetTile(centreTile, axis), baseZ, clearanceZ, PathEdgeMask(reverseAxis));
+        PlacePath(OffsetTile(centreTile, reverseAxis), baseZ, clearanceZ, PathEdgeMask(axis));
+    }
+
+    void PlaceTwoWideBridgeLine(const TileCoordsXY& centreTile, int32_t baseZ, int32_t clearanceZ, Direction axis)
+    {
+        PlaceBridgeLine(centreTile, baseZ, clearanceZ, axis);
+        PlaceBridgeLine(OffsetTile(centreTile, static_cast<Direction>((axis + 1) & 3)), baseZ, clearanceZ, axis);
+    }
+
+    void PlacePathPlaza(const TileCoordsXY& centreTile, int32_t baseZ, int32_t clearanceZ)
+    {
+        PlacePath(centreTile, baseZ, clearanceZ, 0b1111);
+        for (Direction direction : kAllDirections)
+        {
+            PlacePath(OffsetTile(centreTile, direction), baseZ, clearanceZ, PathEdgeMask(DirectionReverse(direction)));
+        }
+    }
+
+    void SetVehicleSideSurfaces(const TileCoordsXY& tile, Direction trackDirection, int32_t firstSideZ, int32_t secondSideZ)
+    {
+        SetSurfaceZ(OffsetTile(tile, static_cast<Direction>((trackDirection + 1) & 3)), firstSideZ);
+        SetSurfaceZ(OffsetTile(tile, static_cast<Direction>((trackDirection - 1) & 3)), secondSideZ);
+    }
+
+    bool IsAggregateSummaryStatGate(RatingsModifierType type)
+    {
+        switch (type)
+        {
+            case RatingsModifierType::RequirementLength:
+            case RatingsModifierType::RequirementDropHeight:
+            case RatingsModifierType::RequirementMaxSpeed:
+            case RatingsModifierType::RequirementNumDrops:
+            case RatingsModifierType::RequirementNegativeGs:
+            case RatingsModifierType::RequirementLateralGs:
+            case RatingsModifierType::RequirementInversions:
+            case RatingsModifierType::RequirementUnsheltered:
+            case RatingsModifierType::RequirementReversals:
+            case RatingsModifierType::RequirementHoles:
+            case RatingsModifierType::RequirementStations:
+            case RatingsModifierType::RequirementSplashdown:
+            case RatingsModifierType::PenaltyLateralGs:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    bool RideHasAggregateSummaryStatGate(const Ride& ride)
+    {
+        for (const auto& modifier : ride.getRideTypeDescriptor().RatingsData.Modifiers)
+        {
+            if (IsAggregateSummaryStatGate(modifier.type))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    Ride* FindNormalAggregateRideWithSummaryStatGate()
+    {
+        auto& gameState = getGameState();
+        for (auto& ride : RideManager(gameState))
+        {
+            const auto& rtd = ride.getRideTypeDescriptor();
+            if (rtd.RatingsData.Type == RatingsCalculationType::Normal && RideHasAggregateSummaryStatGate(ride))
+            {
+                return &ride;
+            }
+        }
+        return nullptr;
+    }
+
+    Ride* FindMazeRide()
+    {
+        auto& gameState = getGameState();
+        for (auto& ride : RideManager(gameState))
+        {
+            if (ride.type == RIDE_TYPE_MAZE)
+            {
+                return &ride;
+            }
+        }
+        return nullptr;
+    }
+
+    void AddStableRecentRatingSample(Ride& ride)
+    {
+        RideClearRiderRatingSamples(ride);
+        ride.ratingAccumulator.clear();
+
+        RideRatingAccumulator sample{};
+        sample.excitement = 100000 * RideRating::kRideRatingAccumulatorRawScale;
+        sample.intensity = 90000 * RideRating::kRideRatingAccumulatorRawScale;
+        sample.nausea = 80000 * RideRating::kRideRatingAccumulatorRawScale;
+        sample.ticks = 100;
+        RideAddRecentRatingSample(ride, sample);
+    }
+
+    void SetLegacySummaryStatsPoor(Ride& ride)
+    {
+        ride.getStation().SegmentLength = 0;
+        ride.highestDropHeight = 0;
+        ride.maxSpeed = 0;
+        ride.numDrops = 0;
+        ride.maxNegativeVerticalG = MakeFixed16_2dp(0, 00);
+        ride.maxLateralG = MakeFixed16_2dp(4, 00);
+        ride.numInversions = 0;
+        ride.numHoles = 0;
+        ride.shelteredLength = std::numeric_limits<int32_t>::max();
+        ride.specialTrackElements.clearAll();
+    }
+
+    void SetLegacySummaryStatsStrong(Ride& ride)
+    {
+        ride.getStation().SegmentLength = std::numeric_limits<int32_t>::max() / 4;
+        ride.highestDropHeight = std::numeric_limits<uint8_t>::max();
+        ride.maxSpeed = std::numeric_limits<int32_t>::max() / 4;
+        ride.numDrops = std::numeric_limits<uint8_t>::max();
+        ride.maxNegativeVerticalG = MakeFixed16_2dp(-4, 00);
+        ride.maxLateralG = MakeFixed16_2dp(1, 00);
+        ride.numInversions = std::numeric_limits<uint8_t>::max();
+        ride.numHoles = std::numeric_limits<uint8_t>::max();
+        ride.shelteredLength = 0;
+        ride.specialTrackElements.set(SpecialElement::splash);
+    }
+
+    void PrepareAggregateRideWithStableSample(Ride& ride)
+    {
+        ride.status = RideStatus::open;
+        ride.flags.set(RideFlag::tested);
+        ride.flags.unset(RideFlag::testInProgress);
+        AddStableRecentRatingSample(ride);
     }
 
     void CalculateRatingsForAllRides()
@@ -294,6 +458,30 @@ TEST_F(RideRatings, ChainLiftSpeedKeepsOriginalRealWorldScale)
     EXPECT_EQ(MphToKmph(ToHumanReadableSpeed(chainLiftRawSpeed)), 11);
 }
 
+TEST_F(RideRatings, InProgressAverageSpeedDisplaysPartialAverage)
+{
+    Ride ride{};
+    ride.numStations = 1;
+    ride.averageSpeed = 30 << 16;
+    ride.getStation().SegmentTime = 2;
+    ride.flags.set(RideFlag::testInProgress);
+
+    EXPECT_EQ(ride.getDisplayAverageSpeed(), 15 << 16);
+
+    ride.flags.unset(RideFlag::testInProgress);
+    EXPECT_EQ(ride.getDisplayAverageSpeed(), 30 << 16);
+}
+
+TEST_F(RideRatings, InProgressAverageSpeedDisplaysZeroBeforeFirstSample)
+{
+    Ride ride{};
+    ride.numStations = 1;
+    ride.averageSpeed = 30 << 16;
+    ride.flags.set(RideFlag::testInProgress);
+
+    EXPECT_EQ(ride.getDisplayAverageSpeed(), 0);
+}
+
 TEST_F(RideRatings, RunningCostPerHourScalesHalfMonthPaymentsToRealHour)
 {
     Ride ride{};
@@ -426,12 +614,15 @@ TEST_F(RideRatings, RecentAccumulatorAveragesLastTwentySamples)
 TEST_F(RideRatings, GForceTickScoringTreatsAirtimeAsExciting)
 {
     const auto neutral = RideRating::ScoreGForcesForTick(100, 0);
+    const auto partialAirtime = RideRating::ScoreGForcesForTick(50, 0);
     const auto airtime = RideRating::ScoreGForcesForTick(0, 0);
 
     EXPECT_EQ(neutral.excitement, 0);
     EXPECT_EQ(neutral.intensity, 0);
     EXPECT_EQ(neutral.nausea, 0);
-    EXPECT_GT(airtime.excitement, 30);
+    EXPECT_GT(partialAirtime.excitement, 30000);
+    EXPECT_GT(airtime.excitement, 110000);
+    EXPECT_GT(airtime.excitement, partialAirtime.excitement * 3);
     EXPECT_GT(airtime.excitement, airtime.intensity);
     EXPECT_GT(airtime.intensity, airtime.nausea);
 }
@@ -442,19 +633,23 @@ TEST_F(RideRatings, GForceTickScoringMakesNegativeVerticalGNastierThanAirtime)
     const auto negative = RideRating::ScoreGForcesForTick(-100, 0);
 
     EXPECT_GT(negative.excitement, airtime.excitement);
-    EXPECT_GT(negative.intensity, airtime.intensity * 3);
-    EXPECT_GT(negative.nausea, airtime.nausea * 5);
+    EXPECT_GT(negative.excitement, airtime.excitement + 75000);
+    EXPECT_GT(negative.intensity, airtime.intensity * 5);
     EXPECT_GT(negative.intensity, negative.excitement);
 }
 
-TEST_F(RideRatings, GForceTickScoringWeightsPositiveVerticalGMostlyAsIntensity)
+TEST_F(RideRatings, GForceTickScoringRewardsNormalPositiveVerticalGAndPunishesExcess)
 {
     const auto mild = RideRating::ScoreGForcesForTick(200, 0);
     const auto strong = RideRating::ScoreGForcesForTick(300, 0);
+    const auto excessive = RideRating::ScoreGForcesForTick(450, 0);
 
-    EXPECT_GT(strong.intensity, mild.intensity * 2);
-    EXPECT_GT(strong.intensity, strong.excitement);
-    EXPECT_GT(strong.nausea, strong.excitement);
+    EXPECT_GT(mild.excitement, 60000);
+    EXPECT_GT(mild.excitement, mild.intensity);
+    EXPECT_GT(strong.excitement, mild.excitement * 3);
+    EXPECT_GT(strong.intensity, mild.intensity * 3);
+    EXPECT_GT(strong.excitement, strong.intensity);
+    EXPECT_GT(excessive.intensity, excessive.excitement * 3);
 }
 
 TEST_F(RideRatings, GForceTickScoringMakesLateralGSuperlinear)
@@ -463,11 +658,32 @@ TEST_F(RideRatings, GForceTickScoringMakesLateralGSuperlinear)
     const auto twoG = RideRating::ScoreGForcesForTick(100, 200);
     const auto severe = RideRating::ScoreGForcesForTick(100, 310);
 
-    EXPECT_GT(twoG.intensity, oneG.intensity * 3);
-    EXPECT_GT(twoG.nausea, oneG.nausea * 3);
-    EXPECT_GT(severe.intensity, twoG.intensity * 3);
-    EXPECT_GT(severe.nausea, twoG.nausea * 3);
+    EXPECT_GT(twoG.excitement, oneG.excitement * 3);
+    EXPECT_GT(twoG.intensity, oneG.intensity * 4);
+    EXPECT_GT(twoG.excitement, twoG.intensity);
+    EXPECT_GT(severe.intensity, twoG.intensity * 5);
     EXPECT_LT(severe.excitement, twoG.excitement);
+}
+
+TEST_F(RideRatings, VehicleSpeedTickScoringUsesSmoothSquaredSpeed)
+{
+    const auto stopped = RideRating::ScoreVehicleSpeedForTick(0);
+    const auto lowSpeed = RideRating::ScoreVehicleSpeedForTick(8);
+    const auto moderateSpeed = RideRating::ScoreVehicleSpeedForTick(37);
+    const auto normalSpeed = RideRating::ScoreVehicleSpeedForTick(RideRating::kVehicleRatingBaselineSpeed);
+    const auto expectedScore = [](int64_t speed) {
+        return (speed * speed * RideRating::kRideRatingAccumulatorRawScale) / RideRating::kVehicleRatingBaselineSpeed;
+    };
+
+    EXPECT_EQ(stopped.excitement, 0);
+    EXPECT_EQ(stopped.intensity, 0);
+    EXPECT_EQ(stopped.nausea, 0);
+    EXPECT_EQ(lowSpeed.excitement, expectedScore(8));
+    EXPECT_EQ(lowSpeed.intensity, expectedScore(8));
+    EXPECT_EQ(lowSpeed.nausea, expectedScore(8));
+    EXPECT_GT(lowSpeed.excitement, 0);
+    EXPECT_EQ(moderateSpeed.excitement, expectedScore(37));
+    EXPECT_EQ(normalSpeed.excitement, expectedScore(RideRating::kVehicleRatingBaselineSpeed));
 }
 
 TEST_F(RideRatings, RideEntryMultipliersApplyToRawAggregateBeforeGeometricFinalRating)
@@ -515,21 +731,62 @@ TEST_F(RideRatings, SceneryVisibilityMultiplierUsesRideTypePolicy)
 TEST_F(RideRatings, LocalContextSceneryScalesWithVehicleSpeed)
 {
     const RideRating::LocalContextScore contextScore = {
-        .excitement = 46,
-        .intensity = 7,
-        .nausea = 3,
+        .excitement = 77,
+        .intensity = 16,
+        .nausea = 4,
         .scenery = 18,
+        .pathBridge = 6,
+        .pathNearMiss = 4,
+        .pathLoop = 3,
+        .trackVerticalInteraction = 2,
+        .ownTrackVerticalInteraction = 2,
+        .trackHeightExposure = 4,
     };
 
-    const auto fullSpeed = RideRating::ScoreLocalContextForVehicleTick(contextScore, 90);
-    const auto halfSpeed = RideRating::ScoreLocalContextForVehicleTick(contextScore, 45);
-    const auto thirdSpeed = RideRating::ScoreLocalContextForVehicleTick(contextScore, 30);
+    const auto normalSpeed = RideRating::ScoreLocalContextForVehicleTick(
+        contextScore, RideRating::kVehicleRatingBaselineSpeed);
+    const auto slowerSpeed = RideRating::ScoreLocalContextForVehicleTick(
+        contextScore, 41);
+    const auto slowestSpeed = RideRating::ScoreLocalContextForVehicleTick(
+        contextScore, 17);
 
-    EXPECT_EQ(fullSpeed.excitement, 46);
-    EXPECT_EQ(halfSpeed.excitement, 28);
-    EXPECT_EQ(thirdSpeed.excitement, 22);
-    EXPECT_EQ(halfSpeed.intensity, contextScore.intensity);
-    EXPECT_EQ(halfSpeed.nausea, contextScore.nausea);
+    EXPECT_EQ(normalSpeed.excitement, contextScore.excitement * RideRating::kRideRatingAccumulatorRawScale);
+    EXPECT_EQ(normalSpeed.intensity, contextScore.intensity * RideRating::kRideRatingAccumulatorRawScale);
+    EXPECT_EQ(normalSpeed.nausea, 5000);
+    EXPECT_EQ(slowerSpeed.excitement, 35077);
+    EXPECT_EQ(slowestSpeed.excitement, 14544);
+    EXPECT_EQ(slowerSpeed.intensity, 7288);
+    EXPECT_EQ(slowerSpeed.nausea, 2277);
+}
+
+TEST_F(RideRatings, LocalContextVehicleTickScoringSpeedNormalizesPathProximity)
+{
+    const RideRating::LocalContextScore contextScore = {
+        .excitement = 5,
+        .pathProximity = 5,
+    };
+
+    const auto stopped = RideRating::ScoreLocalContextForVehicleTick(contextScore, 0);
+    const auto moving = RideRating::ScoreLocalContextForVehicleTick(contextScore, 37);
+
+    EXPECT_EQ(stopped.excitement, 0);
+    EXPECT_EQ(moving.excitement, (5 * RideRating::kRideRatingAccumulatorRawScale * 37) / RideRating::kVehicleRatingBaselineSpeed);
+}
+
+TEST_F(RideRatings, LocalContextVehicleTickScoringPreservesFractionalRawNausea)
+{
+    const RideRating::LocalContextScore contextScore = {
+        .excitement = 2,
+        .intensity = 1,
+        .nausea = 0,
+        .pathNearMiss = 1,
+    };
+
+    const auto score = RideRating::ScoreLocalContextForVehicleTick(contextScore, RideRating::kVehicleRatingBaselineSpeed);
+
+    EXPECT_EQ(score.excitement, 2 * RideRating::kRideRatingAccumulatorRawScale);
+    EXPECT_EQ(score.intensity, RideRating::kRideRatingAccumulatorRawScale);
+    EXPECT_EQ(score.nausea, RideRating::kRideRatingAccumulatorRawScale / 3);
 }
 
 TEST_F(RideRatings, BoatHireFreeRoamAddsGuidedTurnStatDistribution)
@@ -537,9 +794,9 @@ TEST_F(RideRatings, BoatHireFreeRoamAddsGuidedTurnStatDistribution)
     const auto firstTick = RideRating::ScoreBoatHireFreeRoamForTick(0);
     const auto secondTick = RideRating::ScoreBoatHireFreeRoamForTick(1);
 
-    EXPECT_EQ(firstTick.excitement + secondTick.excitement, 1);
-    EXPECT_EQ(firstTick.intensity + secondTick.intensity, 2);
-    EXPECT_EQ(firstTick.nausea + secondTick.nausea, 2);
+    EXPECT_EQ(firstTick.excitement + secondTick.excitement, RideRating::kRideRatingAccumulatorRawScale);
+    EXPECT_EQ(firstTick.intensity + secondTick.intensity, 2 * RideRating::kRideRatingAccumulatorRawScale);
+    EXPECT_EQ(firstTick.nausea + secondTick.nausea, 2 * RideRating::kRideRatingAccumulatorRawScale);
 }
 
 TEST_F(RideRatings, LocalContextHeightExtendsSceneryRange)
@@ -716,6 +973,118 @@ TEST_F(RideRatings, LocalContextInvalidatesWhenMapTileChanges)
     EXPECT_GT(after.excitement, before.excitement);
 }
 
+TEST_F(RideRatings, LocalContextFlatVehicleOnLevelSidesAddsNoHeightExposure)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    MapInit({ 30, 30 });
+
+    const auto originTile = TileCoordsXY{ 10, 10 };
+    const auto rideId = RideId::FromUnderlying(1);
+    constexpr Direction trackDirection = 0;
+    constexpr int32_t trackZ = 20 * kCoordsZStep;
+    const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), trackZ };
+
+    SetSurfaceZ(originTile, trackZ);
+    SetVehicleSideSurfaces(originTile, trackDirection, trackZ, trackZ);
+    PlaceFlatTrack(originTile, trackZ, trackZ + (2 * kCoordsZStep), rideId, TrackElemType::flatTrack1x4A, trackDirection);
+
+    const auto score = RideRating::GetVehicleLocalContextScore(origin, rideId, TrackElemType::flatTrack1x4A, trackDirection);
+    EXPECT_EQ(score.trackHeightExposure, 0);
+    EXPECT_EQ(score.verticalInteraction, 0);
+    EXPECT_EQ(score.excitement, 0);
+    EXPECT_EQ(score.intensity, 0);
+    EXPECT_EQ(score.nausea, 0);
+}
+
+TEST_F(RideRatings, LocalContextHighVehicleAboveTwoSideSurfacesAddsHeightExposure)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    MapInit({ 30, 30 });
+
+    const auto originTile = TileCoordsXY{ 10, 10 };
+    const auto rideId = RideId::FromUnderlying(1);
+    constexpr Direction trackDirection = 0;
+    constexpr int32_t lowGroundZ = 14 * kCoordsZStep;
+    constexpr int32_t trackZ = 26 * kCoordsZStep;
+    const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), trackZ };
+
+    SetSurfaceZ(originTile, trackZ);
+    SetVehicleSideSurfaces(originTile, trackDirection, lowGroundZ, lowGroundZ);
+    PlaceFlatTrack(originTile, trackZ, trackZ + (2 * kCoordsZStep), rideId, TrackElemType::flatTrack1x4A, trackDirection);
+
+    const auto score = RideRating::GetVehicleLocalContextScore(origin, rideId, TrackElemType::flatTrack1x4A, trackDirection);
+    EXPECT_EQ(score.trackHeightExposure, 3);
+    EXPECT_EQ(score.verticalInteraction, score.trackHeightExposure);
+    EXPECT_EQ(score.excitement, 3);
+    EXPECT_EQ(score.intensity, 3);
+    EXPECT_EQ(score.nausea, 1);
+}
+
+TEST_F(RideRatings, LocalContextOneExposedSideScoresLessThanTwo)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    MapInit({ 30, 30 });
+
+    const auto twoSideTile = TileCoordsXY{ 10, 10 };
+    const auto oneSideTile = TileCoordsXY{ 16, 10 };
+    const auto rideId = RideId::FromUnderlying(1);
+    constexpr Direction trackDirection = 0;
+    constexpr int32_t lowGroundZ = 14 * kCoordsZStep;
+    constexpr int32_t trackZ = 26 * kCoordsZStep;
+
+    SetSurfaceZ(twoSideTile, trackZ);
+    SetVehicleSideSurfaces(twoSideTile, trackDirection, lowGroundZ, lowGroundZ);
+    PlaceFlatTrack(twoSideTile, trackZ, trackZ + (2 * kCoordsZStep), rideId, TrackElemType::flatTrack1x4A, trackDirection);
+
+    SetSurfaceZ(oneSideTile, trackZ);
+    SetVehicleSideSurfaces(oneSideTile, trackDirection, lowGroundZ, trackZ);
+    PlaceFlatTrack(oneSideTile, trackZ, trackZ + (2 * kCoordsZStep), rideId, TrackElemType::flatTrack1x4A, trackDirection);
+
+    const auto twoSideScore = RideRating::GetVehicleLocalContextScore(
+        { twoSideTile.ToCoordsXY().ToTileCentre(), trackZ }, rideId, TrackElemType::flatTrack1x4A, trackDirection);
+    const auto oneSideScore = RideRating::GetVehicleLocalContextScore(
+        { oneSideTile.ToCoordsXY().ToTileCentre(), trackZ }, rideId, TrackElemType::flatTrack1x4A, trackDirection);
+
+    EXPECT_GT(oneSideScore.trackHeightExposure, 0);
+    EXPECT_LT(oneSideScore.trackHeightExposure, twoSideScore.trackHeightExposure);
+}
+
+TEST_F(RideRatings, LocalContextHeightExposureCapsAtSix)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    MapInit({ 30, 30 });
+
+    const auto originTile = TileCoordsXY{ 10, 10 };
+    const auto rideId = RideId::FromUnderlying(1);
+    constexpr Direction trackDirection = 0;
+    constexpr int32_t lowGroundZ = 14 * kCoordsZStep;
+    constexpr int32_t trackZ = 40 * kCoordsZStep;
+    const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), trackZ };
+
+    SetSurfaceZ(originTile, trackZ);
+    SetVehicleSideSurfaces(originTile, trackDirection, lowGroundZ, lowGroundZ);
+    PlaceFlatTrack(originTile, trackZ, trackZ + (2 * kCoordsZStep), rideId, TrackElemType::flatTrack1x4A, trackDirection);
+
+    const auto score = RideRating::GetVehicleLocalContextScore(origin, rideId, TrackElemType::flatTrack1x4A, trackDirection);
+    EXPECT_EQ(score.trackHeightExposure, 6);
+}
+
 TEST_F(RideRatings, LocalContextScoresSameTileVerticalInteractionsStrongly)
 {
     gOpenRCT2Headless = true;
@@ -730,16 +1099,299 @@ TEST_F(RideRatings, LocalContextScoresSameTileVerticalInteractionsStrongly)
     const auto foreignRideId = RideId::FromUnderlying(2);
     const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), 14 * kCoordsZStep };
 
+    SetSurfaceZ(originTile, origin.z);
+    SetVehicleSideSurfaces(originTile, 0, origin.z, origin.z);
     auto* foreignTrack = TileElementInsert<TrackElement>({ originTile.ToCoordsXY(), 18 * kCoordsZStep }, 0);
     ASSERT_NE(foreignTrack, nullptr);
     foreignTrack->SetRideIndex(foreignRideId);
     foreignTrack->setClearanceZ(20 * kCoordsZStep);
     MapInvalidateTileFull(originTile.ToCoordsXY());
 
-    const auto score = RideRating::GetLocalContextScore(origin, rideId);
-    EXPECT_GT(score.verticalInteraction, score.foreignTrackProximity);
+    const auto score = RideRating::GetVehicleLocalContextScore(origin, rideId, TrackElemType::flatTrack1x4A, 0);
+    EXPECT_GT(score.trackVerticalInteraction, score.foreignTrackProximity);
+    EXPECT_EQ(score.ownTrackVerticalInteraction, 0);
+    EXPECT_EQ(score.trackHeightExposure, 0);
+    EXPECT_EQ(score.verticalInteraction, score.trackVerticalInteraction);
     EXPECT_GT(score.excitement, 0);
     EXPECT_GT(score.intensity, 0);
+
+    const auto normalSpeed = RideRating::ScoreLocalContextForVehicleTick(score, RideRating::kVehicleRatingBaselineSpeed);
+    const auto slowerSpeed = RideRating::ScoreLocalContextForVehicleTick(score, 41);
+    EXPECT_LT(slowerSpeed.excitement, normalSpeed.excitement);
+    EXPECT_LT(slowerSpeed.intensity, normalSpeed.intensity);
+    EXPECT_LT(slowerSpeed.nausea, normalSpeed.nausea);
+}
+
+TEST_F(RideRatings, LocalContextSameRideVerticalTrackScoresBelowForeignTrack)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    MapInit({ 30, 30 });
+
+    const auto foreignTile = TileCoordsXY{ 10, 10 };
+    const auto ownTile = TileCoordsXY{ 16, 10 };
+    const auto rideId = RideId::FromUnderlying(1);
+    const auto foreignRideId = RideId::FromUnderlying(2);
+    constexpr Direction trackDirection = 0;
+    constexpr int32_t trackZ = 18 * kCoordsZStep;
+    constexpr int32_t upperTrackZ = trackZ + (4 * kCoordsZStep);
+
+    SetSurfaceZ(foreignTile, trackZ);
+    SetVehicleSideSurfaces(foreignTile, trackDirection, trackZ, trackZ);
+    PlaceFlatTrack(foreignTile, trackZ, trackZ + (2 * kCoordsZStep), rideId, TrackElemType::flatTrack1x4A, trackDirection);
+    PlaceFlatTrack(
+        foreignTile, upperTrackZ, upperTrackZ + (2 * kCoordsZStep), foreignRideId, TrackElemType::flatTrack1x4A,
+        trackDirection);
+
+    SetSurfaceZ(ownTile, trackZ);
+    SetVehicleSideSurfaces(ownTile, trackDirection, trackZ, trackZ);
+    PlaceFlatTrack(ownTile, trackZ, trackZ + (2 * kCoordsZStep), rideId, TrackElemType::flatTrack1x4A, trackDirection);
+    PlaceFlatTrack(
+        ownTile, upperTrackZ, upperTrackZ + (2 * kCoordsZStep), rideId, TrackElemType::flatTrack1x4A, trackDirection);
+
+    const auto foreignScore = RideRating::GetVehicleLocalContextScore(
+        { foreignTile.ToCoordsXY().ToTileCentre(), trackZ }, rideId, TrackElemType::flatTrack1x4A, trackDirection);
+    const auto ownScore = RideRating::GetVehicleLocalContextScore(
+        { ownTile.ToCoordsXY().ToTileCentre(), trackZ }, rideId, TrackElemType::flatTrack1x4A, trackDirection);
+
+    EXPECT_GT(foreignScore.trackVerticalInteraction, ownScore.ownTrackVerticalInteraction);
+    EXPECT_EQ(foreignScore.ownTrackVerticalInteraction, 0);
+    EXPECT_GT(ownScore.ownTrackVerticalInteraction, 0);
+    EXPECT_EQ(ownScore.trackVerticalInteraction, 0);
+    EXPECT_GT(ownScore.excitement, 0);
+    EXPECT_GT(ownScore.intensity, 0);
+    EXPECT_GT(ownScore.nausea, 0);
+}
+
+TEST_F(RideRatings, LocalContextSameRideSameHeightTrackAddsNoVerticalBonus)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    MapInit({ 30, 30 });
+
+    const auto originTile = TileCoordsXY{ 10, 10 };
+    const auto rideId = RideId::FromUnderlying(1);
+    constexpr Direction trackDirection = 0;
+    constexpr int32_t trackZ = 18 * kCoordsZStep;
+    const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), trackZ };
+
+    SetSurfaceZ(originTile, trackZ);
+    SetVehicleSideSurfaces(originTile, trackDirection, trackZ, trackZ);
+    PlaceFlatTrack(originTile, trackZ, trackZ + (2 * kCoordsZStep), rideId, TrackElemType::flatTrack1x4A, trackDirection);
+
+    const auto score = RideRating::GetVehicleLocalContextScore(origin, rideId, TrackElemType::flatTrack1x4A, trackDirection);
+    EXPECT_EQ(score.trackVerticalInteraction, 0);
+    EXPECT_EQ(score.ownTrackVerticalInteraction, 0);
+    EXPECT_EQ(score.trackHeightExposure, 0);
+    EXPECT_EQ(score.verticalInteraction, 0);
+    EXPECT_EQ(score.excitement, 0);
+}
+
+TEST_F(RideRatings, LocalContextLonePathAboveFlatVehicleAddsNoBridgeBonus)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    MapInit({ 30, 30 });
+
+    const auto originTile = TileCoordsXY{ 10, 10 };
+    const auto rideId = RideId::FromUnderlying(1);
+    constexpr int32_t trackZ = 14 * kCoordsZStep;
+    const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), trackZ };
+
+    PlaceFlatTrack(originTile, trackZ, trackZ + (2 * kCoordsZStep), rideId);
+    PlacePath(originTile, trackZ + (4 * kCoordsZStep), trackZ + (5 * kCoordsZStep));
+
+    const auto score = RideRating::GetVehicleLocalContextScore(origin, rideId, TrackElemType::flatTrack1x4A, 0);
+    EXPECT_EQ(score.pathBridge, 0);
+    EXPECT_EQ(score.pathNearMiss, 0);
+    EXPECT_EQ(score.pathLoop, 0);
+    EXPECT_EQ(score.excitement, 0);
+}
+
+TEST_F(RideRatings, LocalContextPathPlazaAboveFlatVehicleAddsNoBridgeBonus)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    MapInit({ 30, 30 });
+
+    const auto originTile = TileCoordsXY{ 10, 10 };
+    const auto plazaTile = TileCoordsXY{ 10, 11 };
+    const auto rideId = RideId::FromUnderlying(1);
+    constexpr int32_t trackZ = 14 * kCoordsZStep;
+    const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), trackZ };
+
+    PlaceFlatTrack(originTile, trackZ, trackZ + (2 * kCoordsZStep), rideId);
+    PlacePathPlaza(plazaTile, trackZ + (4 * kCoordsZStep), trackZ + (5 * kCoordsZStep));
+
+    const auto score = RideRating::GetVehicleLocalContextScore(origin, rideId, TrackElemType::flatTrack1x4A, 0);
+    EXPECT_EQ(score.pathBridge, 0);
+    EXPECT_EQ(score.pathNearMiss, 0);
+    EXPECT_EQ(score.pathLoop, 0);
+}
+
+TEST_F(RideRatings, LocalContextOneWideBridgeAdjacentToFlatVehicleAddsExcitementOnly)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    MapInit({ 30, 30 });
+
+    const auto originTile = TileCoordsXY{ 10, 10 };
+    const auto bridgeTile = TileCoordsXY{ 10, 11 };
+    const auto rideId = RideId::FromUnderlying(1);
+    constexpr int32_t trackZ = 14 * kCoordsZStep;
+    const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), trackZ };
+
+    PlaceFlatTrack(originTile, trackZ, trackZ + (2 * kCoordsZStep), rideId, TrackElemType::flatTrack1x4A, 1);
+    PlaceBridgeLine(bridgeTile, trackZ + (4 * kCoordsZStep), trackZ + (5 * kCoordsZStep), 0);
+
+    const auto score = RideRating::GetVehicleLocalContextScore(origin, rideId, TrackElemType::flatTrack1x4A, 1);
+    EXPECT_GT(score.pathBridge, 0);
+    EXPECT_EQ(score.pathNearMiss, 0);
+    EXPECT_EQ(score.pathLoop, 0);
+    EXPECT_EQ(score.trackVerticalInteraction, 0);
+    EXPECT_EQ(score.excitement, score.pathBridge);
+    EXPECT_EQ(score.intensity, 0);
+    EXPECT_EQ(score.nausea, 0);
+}
+
+TEST_F(RideRatings, LocalContextTwoWideBridgeAdjacentToFlatVehicleAddsExcitementOnly)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    MapInit({ 30, 30 });
+
+    const auto originTile = TileCoordsXY{ 10, 10 };
+    const auto bridgeTile = TileCoordsXY{ 10, 11 };
+    const auto rideId = RideId::FromUnderlying(1);
+    constexpr int32_t trackZ = 14 * kCoordsZStep;
+    const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), trackZ };
+
+    PlaceFlatTrack(originTile, trackZ, trackZ + (2 * kCoordsZStep), rideId, TrackElemType::flatTrack1x4A, 1);
+    PlaceTwoWideBridgeLine(bridgeTile, trackZ + (4 * kCoordsZStep), trackZ + (5 * kCoordsZStep), 0);
+
+    const auto score = RideRating::GetVehicleLocalContextScore(origin, rideId, TrackElemType::flatTrack1x4A, 1);
+    EXPECT_GT(score.pathBridge, 0);
+    EXPECT_EQ(score.intensity, 0);
+    EXPECT_EQ(score.nausea, 0);
+}
+
+TEST_F(RideRatings, LocalContextDirectlyUnderBridgeGetsNoNormalBridgeBonus)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    MapInit({ 30, 30 });
+
+    const auto originTile = TileCoordsXY{ 10, 10 };
+    const auto rideId = RideId::FromUnderlying(1);
+    constexpr int32_t trackZ = 14 * kCoordsZStep;
+    const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), trackZ };
+
+    PlaceFlatTrack(originTile, trackZ, trackZ + (2 * kCoordsZStep), rideId, TrackElemType::flatTrack1x4A, 0);
+    PlaceBridgeLine(originTile, trackZ + (4 * kCoordsZStep), trackZ + (5 * kCoordsZStep), 1);
+
+    const auto score = RideRating::GetVehicleLocalContextScore(origin, rideId, TrackElemType::flatTrack1x4A, 0);
+    EXPECT_EQ(score.pathBridge, 0);
+    EXPECT_EQ(score.pathNearMiss, 0);
+    EXPECT_EQ(score.pathLoop, 0);
+}
+
+TEST_F(RideRatings, LocalContextBridgeAboveGradientVehicleAddsNearMissThrill)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    MapInit({ 30, 30 });
+
+    const auto originTile = TileCoordsXY{ 10, 10 };
+    const auto rideId = RideId::FromUnderlying(1);
+    constexpr int32_t trackZ = 14 * kCoordsZStep;
+    const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), trackZ };
+
+    PlaceFlatTrack(originTile, trackZ, trackZ + (2 * kCoordsZStep), rideId, TrackElemType::flatToUp25, 0);
+    PlaceBridgeLine(originTile, trackZ + (4 * kCoordsZStep), trackZ + (5 * kCoordsZStep), 1);
+
+    const auto score = RideRating::GetVehicleLocalContextScore(origin, rideId, TrackElemType::flatToUp25, 0);
+    EXPECT_EQ(score.pathBridge, 0);
+    EXPECT_GT(score.pathNearMiss, 0);
+    EXPECT_EQ(score.pathLoop, 0);
+    EXPECT_GT(score.intensity, 0);
+    EXPECT_GT(score.nausea, 0);
+}
+
+TEST_F(RideRatings, LocalContextPathBelowFlatVehicleAddsNoBonus)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    MapInit({ 30, 30 });
+
+    const auto originTile = TileCoordsXY{ 10, 10 };
+    const auto rideId = RideId::FromUnderlying(1);
+    constexpr int32_t trackZ = 18 * kCoordsZStep;
+    const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), trackZ };
+
+    SetSurfaceZ(originTile, trackZ);
+    SetVehicleSideSurfaces(originTile, 0, trackZ, trackZ);
+    PlaceFlatTrack(originTile, trackZ, trackZ + (2 * kCoordsZStep), rideId, TrackElemType::flatTrack1x4A, 0);
+    PlacePath(originTile, trackZ - (3 * kCoordsZStep), trackZ - (2 * kCoordsZStep));
+
+    const auto score = RideRating::GetVehicleLocalContextScore(origin, rideId, TrackElemType::flatTrack1x4A, 0);
+    EXPECT_EQ(score.pathBridge, 0);
+    EXPECT_EQ(score.pathNearMiss, 0);
+    EXPECT_EQ(score.pathLoop, 0);
+    EXPECT_EQ(score.excitement, 0);
+}
+
+TEST_F(RideRatings, LocalContextPathBelowVerticalLoopAddsLoopThrill)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    MapInit({ 30, 30 });
+
+    const auto originTile = TileCoordsXY{ 10, 10 };
+    const auto rideId = RideId::FromUnderlying(1);
+    constexpr int32_t trackZ = 18 * kCoordsZStep;
+    const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), trackZ };
+
+    SetSurfaceZ(originTile, trackZ);
+    SetVehicleSideSurfaces(originTile, 0, trackZ, trackZ);
+    PlaceFlatTrack(originTile, trackZ, trackZ + (2 * kCoordsZStep), rideId, TrackElemType::leftVerticalLoop, 0);
+    PlacePath(originTile, trackZ - (3 * kCoordsZStep), trackZ - (2 * kCoordsZStep));
+
+    const auto score = RideRating::GetVehicleLocalContextScore(origin, rideId, TrackElemType::leftVerticalLoop, 0);
+    EXPECT_EQ(score.pathBridge, 0);
+    EXPECT_EQ(score.pathNearMiss, 0);
+    EXPECT_GT(score.pathLoop, 0);
+    EXPECT_GT(score.intensity, 0);
+    EXPECT_GT(score.nausea, 0);
 }
 
 TEST_F(RideRatings, FixedRideContextOriginUsesRideSpecificEyeHeight)
@@ -943,6 +1595,87 @@ TEST_F(RideRatings, LocalContextSeesElevatedForeignTrackOverMazeTrack)
     EXPECT_GT(score.foreignTrackProximity, 0);
 }
 
+TEST_F(RideRatings, LocalContextLonePathAboveMazeAddsNoBonus)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    MapInit({ 30, 30 });
+
+    const auto originTile = TileCoordsXY{ 9, 10 };
+    const auto pathTile = TileCoordsXY{ 10, 10 };
+    const auto rideId = RideId::FromUnderlying(1);
+    constexpr int32_t groundZ = 14 * kCoordsZStep;
+    const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), groundZ + kCoordsZStep };
+
+    PlaceMazeTrack(originTile, groundZ, groundZ + (3 * kCoordsZStep), rideId);
+    PlacePath(pathTile, groundZ + (6 * kCoordsZStep), groundZ + (7 * kCoordsZStep));
+
+    const auto score = RideRating::GetMazeLocalContextScore(origin, rideId);
+    EXPECT_EQ(score.pathBridge, 0);
+    EXPECT_EQ(score.pathProximity, 0);
+    EXPECT_EQ(score.excitement, 0);
+}
+
+TEST_F(RideRatings, LocalContextPathPlazaAboveMazeAddsNoBonus)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    MapInit({ 30, 30 });
+
+    const auto originTile = TileCoordsXY{ 9, 10 };
+    const auto plazaTile = TileCoordsXY{ 10, 10 };
+    const auto rideId = RideId::FromUnderlying(1);
+    constexpr int32_t groundZ = 14 * kCoordsZStep;
+    const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), groundZ + kCoordsZStep };
+
+    PlaceMazeTrack(originTile, groundZ, groundZ + (3 * kCoordsZStep), rideId);
+    PlacePathPlaza(plazaTile, groundZ + (6 * kCoordsZStep), groundZ + (7 * kCoordsZStep));
+
+    const auto score = RideRating::GetMazeLocalContextScore(origin, rideId);
+    EXPECT_EQ(score.pathBridge, 0);
+    EXPECT_EQ(score.pathProximity, 0);
+}
+
+TEST_F(RideRatings, LocalContextBridgeAboveMazeAddsExcitementToAdjacentTilesOnly)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    MapInit({ 30, 30 });
+
+    const auto bridgeTile = TileCoordsXY{ 10, 10 };
+    const auto adjacentMazeTile = TileCoordsXY{ 9, 10 };
+    const auto underBridgeTile = TileCoordsXY{ 10, 10 };
+    const auto rideId = RideId::FromUnderlying(1);
+    constexpr int32_t groundZ = 14 * kCoordsZStep;
+    constexpr int32_t mazeTopZ = groundZ + (3 * kCoordsZStep);
+    const auto adjacentOrigin = CoordsXYZ{ adjacentMazeTile.ToCoordsXY().ToTileCentre(), groundZ + kCoordsZStep };
+    const auto underBridgeOrigin = CoordsXYZ{ underBridgeTile.ToCoordsXY().ToTileCentre(), groundZ + kCoordsZStep };
+
+    PlaceMazeTrack(adjacentMazeTile, groundZ, mazeTopZ, rideId);
+    PlaceMazeTrack(underBridgeTile, groundZ, mazeTopZ, rideId);
+    PlaceBridgeLine(bridgeTile, groundZ + (6 * kCoordsZStep), groundZ + (7 * kCoordsZStep), 1);
+
+    const auto adjacentScore = RideRating::GetMazeLocalContextScore(adjacentOrigin, rideId);
+    EXPECT_GT(adjacentScore.pathBridge, 0);
+    EXPECT_EQ(adjacentScore.excitement, adjacentScore.pathBridge);
+    EXPECT_EQ(adjacentScore.intensity, 0);
+    EXPECT_EQ(adjacentScore.nausea, 0);
+
+    const auto underBridgeScore = RideRating::GetMazeLocalContextScore(underBridgeOrigin, rideId);
+    EXPECT_EQ(underBridgeScore.pathBridge, 0);
+    EXPECT_EQ(underBridgeScore.pathNearMiss, 0);
+    EXPECT_EQ(underBridgeScore.pathLoop, 0);
+}
+
 TEST_F(RideRatings, LocalContextOriginMazeTileBlocksLowSceneryButSeesOverWalls)
 {
     gOpenRCT2Headless = true;
@@ -972,12 +1705,14 @@ TEST_F(RideRatings, LocalContextOriginMazeTileBlocksLowSceneryButSeesOverWalls)
     EXPECT_EQ(gardenOnly.scenery, 0);
 
     PlaceSmallScenery(tallTreeTile, groundZ, groundZ + (8 * kCoordsZStep));
-    PlacePath(elevatedPathTile, groundZ + (6 * kCoordsZStep), groundZ + (7 * kCoordsZStep));
+    PlaceBridgeLine(elevatedPathTile, groundZ + (6 * kCoordsZStep), groundZ + (7 * kCoordsZStep), 0);
     RideRating::ClearLocalContextCache();
 
-    const auto overWall = RideRating::GetLocalContextScore(origin, rideId);
+    const auto overWall = RideRating::GetMazeLocalContextScore(origin, rideId);
     EXPECT_GT(overWall.scenery, 0);
-    EXPECT_GT(overWall.pathProximity, 0);
+    EXPECT_GT(overWall.pathBridge, 0);
+    EXPECT_EQ(overWall.intensity, 0);
+    EXPECT_EQ(overWall.nausea, 0);
 }
 
 TEST_F(RideRatings, AggregateRatingsPreserveLoadedRatingUntilSamplesExist)
@@ -1057,6 +1792,54 @@ TEST_F(RideRatings, AggregateRatingsIgnoreInProgressTestAccumulator)
     RideRating::UpdateRide(*target);
 
     EXPECT_EQ(target->ratings, savedRatings);
+}
+
+TEST_F(RideRatings, AggregateVehicleRatingsIgnoreLegacySummaryStatGates)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    GetContext()->LoadParkFromFile(TestData::GetParkPath("bpb.sv6"));
+
+    auto* target = FindNormalAggregateRideWithSummaryStatGate();
+    ASSERT_NE(target, nullptr);
+    PrepareAggregateRideWithStableSample(*target);
+
+    SetLegacySummaryStatsPoor(*target);
+    RideRating::UpdateRide(*target);
+    const auto poorStatsRatings = target->ratings;
+
+    SetLegacySummaryStatsStrong(*target);
+    RideRating::UpdateRide(*target);
+    const auto strongStatsRatings = target->ratings;
+
+    EXPECT_EQ(strongStatsRatings, poorStatsRatings);
+}
+
+TEST_F(RideRatings, AggregateMazeRatingsIgnoreLegacySummaryStatGates)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    GetContext()->LoadParkFromFile(TestData::GetParkPath("EverythingPark.park"));
+
+    auto* target = FindMazeRide();
+    ASSERT_NE(target, nullptr);
+    PrepareAggregateRideWithStableSample(*target);
+
+    SetLegacySummaryStatsPoor(*target);
+    RideRating::UpdateRide(*target);
+    const auto poorStatsRatings = target->ratings;
+
+    SetLegacySummaryStatsStrong(*target);
+    RideRating::UpdateRide(*target);
+    const auto strongStatsRatings = target->ratings;
+
+    EXPECT_EQ(strongStatsRatings, poorStatsRatings);
 }
 
 TEST_F(RideRatings, EverythingPark)

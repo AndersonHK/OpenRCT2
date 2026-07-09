@@ -44,26 +44,55 @@ static SynchronisedVehicle _synchronisedVehicles[SYNCHRONISED_VEHICLE_COUNT] = {
 
 static SynchronisedVehicle* _lastSynchronisedVehicle = nullptr;
 
+static bool RideIsStatsSampleVehicle(const Ride& ride, const Vehicle& vehicle)
+{
+    return ride.flags.has(RideFlag::testInProgress) && ride.currentTestVehicle == vehicle.id;
+}
+
 static bool RideTestingShouldSampleCircuit(const Ride& ride, const Vehicle& vehicle)
 {
-    return vehicle.flags.has(VehicleFlag::testing) && (ride.status == RideStatus::testing || !ride.flags.has(RideFlag::tested));
+    return vehicle.flags.has(VehicleFlag::testing) || RideIsStatsSampleVehicle(ride, vehicle);
 }
 
 static bool RideTestingShouldStartCircuit(const Ride& ride, const Vehicle& vehicle)
 {
+    if (ride.flags.has(RideFlag::noRawStats) && ride.status != RideStatus::testing)
+    {
+        return false;
+    }
+
     return !ride.flags.has(RideFlag::testInProgress) && !vehicle.isGhost()
-        && (ride.status == RideStatus::testing || !ride.flags.has(RideFlag::tested));
+        && (ride.status == RideStatus::testing || ride.status == RideStatus::open || !ride.flags.has(RideFlag::tested));
+}
+
+static bool RideRatingTrainHasRidersOrGhostRider(const Ride& ride, const Vehicle& head)
+{
+    if (head.flags.has(VehicleFlag::testing) || RideIsStatsSampleVehicle(ride, head))
+    {
+        return true;
+    }
+
+    for (const Vehicle* vehicle = &head; vehicle != nullptr;
+         vehicle = getGameState().entities.GetEntity<Vehicle>(vehicle->next_vehicle_on_train))
+    {
+        if (vehicle->num_peeps != 0)
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 static void RideRatingPublishTrainSample(Vehicle& vehicle)
 {
-    if (!vehicle.IsHead() || vehicle.flags.has(VehicleFlag::testing) || vehicle.isGhost())
+    auto* ride = vehicle.GetRide();
+    if (!vehicle.IsHead() || vehicle.isGhost() || ride == nullptr || !RideRatingTrainHasRidersOrGhostRider(*ride, vehicle))
     {
         return;
     }
 
-    auto* ride = vehicle.GetRide();
-    if (ride == nullptr || ride->getRideTypeDescriptor().RatingsData.Type != RatingsCalculationType::Normal)
+    if (ride->getRideTypeDescriptor().RatingsData.Type != RatingsCalculationType::Normal)
     {
         return;
     }
@@ -937,7 +966,14 @@ void Vehicle::UpdateWaitingToDepart()
  */
 void Vehicle::UpdateUnloadingPassengers()
 {
-    RideRatingPublishTrainSample(*this);
+    const auto* curRide = GetRide();
+    if (curRide == nullptr)
+        return;
+
+    if (!flags.has(VehicleFlag::testing) && !RideIsStatsSampleVehicle(*curRide, *this))
+    {
+        RideRatingPublishTrainSample(*this);
+    }
 
     if (sub_state == 0)
     {
@@ -946,10 +982,6 @@ void Vehicle::UpdateUnloadingPassengers()
             sub_state = 1;
         }
     }
-
-    const auto* curRide = GetRide();
-    if (curRide == nullptr)
-        return;
 
     const auto& currentStation = curRide->getStation(current_station);
 
@@ -1094,7 +1126,8 @@ void Vehicle::UpdateDeparting()
         }
         else if (RideTestingShouldStartCircuit(*curRide, *this))
         {
-            TestReset(curRide->flags.has(RideFlag::tested));
+            const bool continuousOpenResample = curRide->status == RideStatus::open && curRide->flags.has(RideFlag::tested);
+            TestReset(curRide->flags.has(RideFlag::tested), continuousOpenResample, !continuousOpenResample);
         }
     }
 

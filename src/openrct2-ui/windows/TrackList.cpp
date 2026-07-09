@@ -599,19 +599,19 @@ namespace OpenRCT2::Ui::Windows
                 {
                     // Maximum positive vertical Gs
                     ft = Formatter();
-                    ft.Add<int32_t>(_loadedTrackDesign->statistics.maxPositiveVerticalG);
+                    ft.Add<int32_t>(static_cast<int32_t>(_loadedTrackDesign->statistics.maxPositiveVerticalG));
                     drawText(rt, screenPos, STR_MAX_POSITIVE_VERTICAL_G, ft);
                     screenPos.y += kListRowHeight;
 
                     // Maximum negative vertical Gs
                     ft = Formatter();
-                    ft.Add<int32_t>(_loadedTrackDesign->statistics.maxNegativeVerticalG);
+                    ft.Add<int32_t>(static_cast<int32_t>(_loadedTrackDesign->statistics.maxNegativeVerticalG));
                     drawText(rt, screenPos, STR_MAX_NEGATIVE_VERTICAL_G, ft);
                     screenPos.y += kListRowHeight;
 
                     // Maximum lateral Gs
                     ft = Formatter();
-                    ft.Add<int32_t>(_loadedTrackDesign->statistics.maxLateralG);
+                    ft.Add<int32_t>(static_cast<int32_t>(_loadedTrackDesign->statistics.maxLateralG));
                     drawText(rt, screenPos, STR_MAX_LATERAL_G, ft);
                     screenPos.y += kListRowHeight;
 

@@ -218,6 +218,13 @@ namespace OpenRCT2
             cs.readWrite(accumulator.sampleComplete);
         }
 
+        static void ScaleLegacyRideRatingAccumulator(RideRatingAccumulator& accumulator)
+        {
+            accumulator.excitement *= RideRating::kRideRatingAccumulatorRawScale;
+            accumulator.intensity *= RideRating::kRideRatingAccumulatorRawScale;
+            accumulator.nausea *= RideRating::kRideRatingAccumulatorRawScale;
+        }
+
         static void ReadWriteRideRatingSamples(OrcaStream::ChunkStream& cs, Ride& ride, uint32_t version)
         {
             if (version < kRideRatingSamplesVersion)
@@ -241,6 +248,59 @@ namespace OpenRCT2
             });
             cs.readWrite(ride.recentRatingSampleCount);
             cs.readWrite(ride.recentRatingSampleNext);
+
+            if (cs.getMode() == OrcaStream::Mode::reading && version < kRideRatingSampleScaleVersion)
+            {
+                ScaleLegacyRideRatingAccumulator(ride.ratingAccumulator);
+                for (auto& sample : ride.activeRatingSamples)
+                {
+                    ScaleLegacyRideRatingAccumulator(sample);
+                }
+                for (auto& sample : ride.recentRatingSamples)
+                {
+                    ScaleLegacyRideRatingAccumulator(sample);
+                }
+            }
+        }
+
+        static void ReadWriteRideStableStats(OrcaStream::ChunkStream& cs, Ride& ride, uint32_t version)
+        {
+            if (version < kRideStableStatsVersion)
+            {
+                if (cs.getMode() == OrcaStream::Mode::reading)
+                {
+                    ride.stableStats = {};
+                    if (ride.flags.has(RideFlag::tested) && !ride.flags.has(RideFlag::testInProgress))
+                    {
+                        ride.publishCurrentStatsAsStable();
+                    }
+                }
+                return;
+            }
+
+            uint8_t valid = ride.stableStats.valid ? 1 : 0;
+            cs.readWrite(valid);
+            if (cs.getMode() == OrcaStream::Mode::reading)
+            {
+                ride.stableStats.valid = valid != 0;
+            }
+
+            cs.readWrite(ride.stableStats.maxSpeed);
+            cs.readWrite(ride.stableStats.averageSpeed);
+            cs.readWrite(ride.stableStats.maxPositiveVerticalG);
+            cs.readWrite(ride.stableStats.maxNegativeVerticalG);
+            cs.readWrite(ride.stableStats.maxLateralG);
+            cs.readWrite(ride.stableStats.numDrops);
+            cs.readWrite(ride.stableStats.numPoweredLifts);
+            cs.readWrite(ride.stableStats.numInversions);
+            cs.readWrite(ride.stableStats.numHoles);
+            cs.readWrite(ride.stableStats.highestDropHeight);
+            cs.readWrite(ride.stableStats.totalAirTime);
+            cs.readWriteArray(ride.stableStats.stations, [&cs](RideStableStationStats& station) {
+                cs.readWrite(station.SegmentLength);
+                cs.readWrite(station.SegmentTime);
+                return true;
+            });
         }
 
     public:
@@ -1803,6 +1863,7 @@ namespace OpenRCT2
                     cs.readWrite(ride.ratings.intensity);
                     cs.readWrite(ride.ratings.nausea);
                     ReadWriteRideRatingSamples(cs, ride, version);
+                    ReadWriteRideStableStats(cs, ride, version);
 
                     if (version <= 18)
                     {

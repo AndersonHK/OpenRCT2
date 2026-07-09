@@ -385,7 +385,7 @@ private:
     int32_t UpdateTrackMotionPoweredRideAcceleration(const CarEntry* carEntry, uint32_t totalMass, int32_t curAcceleration);
     int32_t NumPeepsUntilTrainTail() const;
     void InvalidateWindow();
-    void TestReset(bool preserveRecentSamples = false);
+    void TestReset(bool preserveRecentSamples = false, bool preserveActiveSamples = false, bool markVehicleAsTesting = true);
     void UpdateTestFinish();
     void PeepEasterEggHereWeAre() const;
     bool CanDepartSynchronised() const;

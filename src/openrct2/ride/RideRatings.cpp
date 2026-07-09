@@ -20,6 +20,7 @@
 #include "../scripting/ScriptEngine.h"
 #include "../ui/WindowManager.h"
 #include "../world/Map.h"
+#include "../world/MapLimits.h"
 #include "../world/Scenery.h"
 #include "../world/tile_element/PathElement.h"
 #include "../world/tile_element/SurfaceElement.h"
@@ -32,6 +33,7 @@
 #include "Track.h"
 #include "TrackData.h"
 #include "TrackIteration.h"
+#include "ted/TrackElementDescriptor.h"
 
 #include <algorithm>
 #include <cmath>
@@ -110,10 +112,31 @@ static constexpr int32_t kRideRatingContextTowerRideMinEyeHeight = 4 * kCoordsZS
 static constexpr int32_t kRideRatingContextTowerRideMaxEyeHeight = 14 * kCoordsZStep;
 static constexpr int32_t kRideRatingContextSceneryFormerCap = 18;
 static constexpr int32_t kRideRatingContextSceneryRawAtFormerCap = 1200;
-static constexpr int32_t kRideRatingDecorationSpeedBaseline = 90;
 static constexpr int32_t kRideRatingContextWeightScale = 256;
+static constexpr int32_t kRideRatingPathBridgeRaw = 120;
+static constexpr int32_t kRideRatingPathNearMissRaw = 180;
+static constexpr int32_t kRideRatingPathLoopRaw = 260;
+static constexpr int32_t kRideRatingForeignTrackVerticalRaw = 220;
+static constexpr int32_t kRideRatingOwnTrackVerticalRaw = 160;
+static constexpr int32_t kRideRatingBridgeNearMissMaxGap = 6 * kCoordsZStep;
+static constexpr int32_t kRideRatingTrackHeightExposureMax = 6;
 static constexpr std::array<int32_t, kRideRatingContextMaxRadius + 1> kRideRatingContextDistanceWeights = {
     256, 218, 154, 90, 46, 28, 18, 12
+};
+
+enum class RideRatingLocalContextSampleKind : uint8_t
+{
+    generic,
+    vehicle,
+    maze,
+};
+
+struct RideRatingLocalContextQuery
+{
+    RideId rideId{};
+    RideRatingLocalContextSampleKind sampleKind = RideRatingLocalContextSampleKind::generic;
+    TrackElemType trackType = TrackElemType::none;
+    Direction trackDirection = kInvalidDirection;
 };
 
 struct RideRatingLocalContextKey
@@ -122,6 +145,9 @@ struct RideRatingLocalContextKey
     int16_t y{};
     int16_t z{};
     uint16_t rideId{};
+    uint16_t trackType{};
+    uint8_t trackDirection{};
+    RideRatingLocalContextSampleKind sampleKind{};
 
     bool operator==(const RideRatingLocalContextKey& rhs) const = default;
 };
@@ -134,6 +160,9 @@ struct RideRatingLocalContextKeyHash
         hash = (hash << 16) ^ static_cast<uint16_t>(key.y);
         hash = (hash << 10) ^ static_cast<uint16_t>(key.z);
         hash = (hash << 16) ^ key.rideId;
+        hash = (hash << 16) ^ key.trackType;
+        hash = (hash << 8) ^ key.trackDirection;
+        hash = (hash << 8) ^ static_cast<uint8_t>(key.sampleKind);
         return hash;
     }
 };
@@ -146,7 +175,13 @@ struct RideRatingLocalContextRaw
     int32_t scenery{};
     int32_t pathProximity{};
     int32_t foreignTrackProximity{};
-    int32_t verticalInteraction{};
+    int32_t pathBridge{};
+    int32_t pathNearMiss{};
+    int32_t pathLoop{};
+    int32_t trackVerticalInteraction{};
+    int32_t ownTrackVerticalInteraction{};
+    int32_t trackHeightExposure{};
+    bool hasSameTilePathBridge{};
 };
 
 struct RideRatingLocalContextVisibilityTarget
@@ -171,6 +206,9 @@ struct RawRideRating
     int64_t intensity{};
     int64_t nausea{};
 };
+static_assert(std::is_same_v<decltype(RawRideRating::excitement), int64_t>);
+static_assert(std::is_same_v<decltype(RawRideRating::intensity), int64_t>);
+static_assert(std::is_same_v<decltype(RawRideRating::nausea), int64_t>);
 
 static int64_t RideRatingCurveScore(int32_t hundredthsOfG, double coefficient, double exponent)
 {
@@ -185,7 +223,7 @@ static int64_t RideRatingCurveScore(int32_t hundredthsOfG, double coefficient, d
     {
         return 0;
     }
-    return static_cast<int64_t>(std::llround(score));
+    return static_cast<int64_t>(std::llround(score * RideRating::kRideRatingAccumulatorRawScale));
 }
 
 static void RideRatingAddTickScore(RideRating::TickScore& total, const RideRating::TickScore& value)
@@ -203,6 +241,125 @@ static int32_t RideRatingDiminishLocalContext(int32_t raw, int32_t cap, int32_t 
     }
 
     return std::max(1, (cap * raw) / (raw + divisor));
+}
+
+static RideRatingLocalContextQuery RideRatingNormaliseLocalContextQuery(RideRatingLocalContextQuery query)
+{
+    if (query.sampleKind != RideRatingLocalContextSampleKind::vehicle)
+    {
+        query.trackType = TrackElemType::none;
+        query.trackDirection = kInvalidDirection;
+    }
+    else if (!DirectionValid(query.trackDirection))
+    {
+        query.trackDirection = kInvalidDirection;
+    }
+
+    return query;
+}
+
+static bool RideRatingTrackTypeIsVerticalLoop(TrackElemType trackType)
+{
+    return trackType == TrackElemType::leftVerticalLoop || trackType == TrackElemType::rightVerticalLoop;
+}
+
+static bool RideRatingTrackTypeCanPathNearMiss(TrackElemType trackType)
+{
+    if (trackType == TrackElemType::none)
+    {
+        return false;
+    }
+
+    const auto& descriptor = GetTrackElementDescriptor(trackType);
+    return descriptor.flags.hasAny(
+        TrackElementFlag::up, TrackElementFlag::down, TrackElementFlag::turnSloped, TrackElementFlag::normalToInversion,
+        TrackElementFlag::inversionToNormal);
+}
+
+static int32_t RideRatingGetPathEdgeZ(const PathElement& pathElement, Direction direction)
+{
+    if (pathElement.IsSloped() && pathElement.GetSlopeDirection() == direction)
+    {
+        return pathElement.getBaseZ() + kLandHeightStep;
+    }
+
+    return pathElement.getBaseZ();
+}
+
+static bool RideRatingPathConnects(const TileCoordsXY& tile, const PathElement& pathElement, Direction direction)
+{
+    if (!DirectionValid(direction) || (pathElement.GetEdges() & (1 << direction)) == 0)
+    {
+        return false;
+    }
+
+    const auto adjacentCoords = tile.ToCoordsXY() + CoordsDirectionDelta[direction];
+    if (!MapIsLocationValid(adjacentCoords))
+    {
+        return false;
+    }
+
+    const auto edgeZ = RideRatingGetPathEdgeZ(pathElement, direction);
+    const auto reverseDirection = DirectionReverse(direction);
+    auto* tileElement = MapGetFirstElementAt(TileCoordsXY{ adjacentCoords });
+    if (tileElement == nullptr)
+    {
+        return false;
+    }
+
+    do
+    {
+        if (tileElement->isGhost() || tileElement->getType() != TileElementType::Path)
+        {
+            continue;
+        }
+
+        const auto* adjacentPath = tileElement->asPath();
+        if (adjacentPath == nullptr || (adjacentPath->GetEdges() & (1 << reverseDirection)) == 0)
+        {
+            continue;
+        }
+
+        if (RideRatingGetPathEdgeZ(*adjacentPath, reverseDirection) == edgeZ)
+        {
+            return true;
+        }
+    } while (!(tileElement++)->isLastForTile());
+
+    return false;
+}
+
+static bool RideRatingPathAxisQualifiesAsBridge(const TileCoordsXY& tile, const PathElement& pathElement, Direction axis)
+{
+    if (!DirectionValid(axis))
+    {
+        return false;
+    }
+
+    const auto reverseAxis = DirectionReverse(axis);
+    const auto connectsForward = RideRatingPathConnects(tile, pathElement, axis);
+    const auto connectsBack = RideRatingPathConnects(tile, pathElement, reverseAxis);
+    if (!connectsForward && !connectsBack)
+    {
+        return false;
+    }
+
+    const auto perpendicular = static_cast<Direction>((axis + 1) & 3);
+    const auto reversePerpendicular = DirectionReverse(perpendicular);
+    return !(RideRatingPathConnects(tile, pathElement, perpendicular)
+             && RideRatingPathConnects(tile, pathElement, reversePerpendicular));
+}
+
+static bool RideRatingPathQualifiesAsBridge(
+    const TileCoordsXY& tile, const PathElement& pathElement, const RideRatingLocalContextQuery& query)
+{
+    if (query.sampleKind == RideRatingLocalContextSampleKind::vehicle && DirectionValid(query.trackDirection))
+    {
+        return RideRatingPathAxisQualifiesAsBridge(tile, pathElement, static_cast<Direction>((query.trackDirection + 1) & 3));
+    }
+
+    return RideRatingPathAxisQualifiesAsBridge(tile, pathElement, 0)
+        || RideRatingPathAxisQualifiesAsBridge(tile, pathElement, 1);
 }
 
 int32_t RideRating::ScoreSceneryForLocalContext(int32_t rawScenery)
@@ -249,14 +406,27 @@ static int32_t RideRatingApplySceneryVisibilityMultiplier(int32_t scenery, const
 
 RideRating::TickScore RideRating::ScoreLocalContextForVehicleTick(const LocalContextScore& contextScore, int32_t speed)
 {
-    const auto sceneryExcitement = static_cast<int64_t>(contextScore.scenery) * 2;
-    const auto nonSceneryExcitement = static_cast<int64_t>(contextScore.excitement) - sceneryExcitement;
-    const auto scaledSceneryExcitement = (sceneryExcitement * std::max(speed, 0)) / kRideRatingDecorationSpeedBaseline;
+    constexpr int64_t rawScale = kRideRatingAccumulatorRawScale;
+    const auto verticalIntensity = static_cast<int64_t>(contextScore.pathNearMiss) + contextScore.pathLoop
+        + contextScore.trackVerticalInteraction + contextScore.ownTrackVerticalInteraction;
+    const auto heightExposureIntensity = static_cast<int64_t>(contextScore.trackHeightExposure);
+    const auto foreignTrackProximityIntensity = static_cast<int64_t>(contextScore.foreignTrackProximity) / 2;
+    const auto nonForeignTrackProximityIntensity = static_cast<int64_t>(contextScore.intensity) - verticalIntensity
+        - heightExposureIntensity - foreignTrackProximityIntensity;
+    const auto verticalNausea = verticalIntensity / 3;
+    const auto heightExposureNausea = heightExposureIntensity / 3;
+    const auto nonVerticalNausea = static_cast<int64_t>(contextScore.nausea) - verticalNausea - heightExposureNausea;
+    const auto excitementRaw = static_cast<int64_t>(contextScore.excitement) * rawScale;
+    const auto foreignTrackProximityIntensityRaw = (static_cast<int64_t>(contextScore.foreignTrackProximity) * rawScale) / 2;
+    const auto intensityRaw = (nonForeignTrackProximityIntensity * rawScale) + foreignTrackProximityIntensityRaw
+        + ((verticalIntensity + heightExposureIntensity) * rawScale);
+    const auto nauseaRaw = (nonVerticalNausea * rawScale) + (((verticalIntensity + heightExposureIntensity) * rawScale) / 3);
+    const auto normalisedSpeed = std::max<int64_t>(speed, 0);
 
     return {
-        .excitement = nonSceneryExcitement + scaledSceneryExcitement,
-        .intensity = contextScore.intensity,
-        .nausea = contextScore.nausea,
+        .excitement = (excitementRaw * normalisedSpeed) / kVehicleRatingBaselineSpeed,
+        .intensity = (intensityRaw * normalisedSpeed) / kVehicleRatingBaselineSpeed,
+        .nausea = (nauseaRaw * normalisedSpeed) / kVehicleRatingBaselineSpeed,
     };
 }
 
@@ -264,9 +434,9 @@ RideRating::TickScore RideRating::ScoreBoatHireFreeRoamForTick(uint32_t tickInde
 {
     // Boat Hire should feel gently eventful without the coaster-style unbanked turn weight.
     return {
-        .excitement = (tickIndex % 2) == 0 ? 1 : 0,
-        .intensity = 1,
-        .nausea = 1,
+        .excitement = (tickIndex % 2) == 0 ? kRideRatingAccumulatorRawScale : 0,
+        .intensity = kRideRatingAccumulatorRawScale,
+        .nausea = kRideRatingAccumulatorRawScale,
     };
 }
 
@@ -274,6 +444,48 @@ static int32_t RideRatingGetLocalContextGroundZ(const TileCoordsXY& tileLocation
 {
     const auto* surfaceElement = MapGetSurfaceElementAt(tileLocation);
     return surfaceElement != nullptr ? surfaceElement->getBaseZ() : 0;
+}
+
+static int32_t RideRatingGetVehicleHeightExposure(
+    const TileCoordsXY& originTile, int32_t originZ, Direction trackDirection)
+{
+    if (!DirectionValid(trackDirection))
+    {
+        return 0;
+    }
+
+    int32_t totalBands = 0;
+    int32_t validSides = 0;
+    const std::array<Direction, 2> sideDirections = {
+        static_cast<Direction>((trackDirection + 1) & 3),
+        static_cast<Direction>((trackDirection - 1) & 3),
+    };
+
+    for (const auto sideDirection : sideDirections)
+    {
+        const auto sideCoords = originTile.ToCoordsXY() + CoordsDirectionDelta[sideDirection];
+        if (!MapIsLocationValid(sideCoords))
+        {
+            continue;
+        }
+
+        const auto* sideSurface = MapGetSurfaceElementAt(TileCoordsXY{ sideCoords });
+        if (sideSurface == nullptr)
+        {
+            continue;
+        }
+
+        validSides++;
+        totalBands += std::max(0, (originZ - sideSurface->getBaseZ()) / kRideRatingContextHeightBandStep);
+    }
+
+    if (validSides == 0)
+    {
+        return 0;
+    }
+
+    const auto averageBands = totalBands / validSides;
+    return std::clamp((averageBands + 1) / 2, 0, kRideRatingTrackHeightExposureMax);
 }
 
 static int32_t RideRatingGetLocalContextSightZ(const CoordsXYZ& origin, int32_t distance)
@@ -473,7 +685,7 @@ static int32_t RideRatingGetLocalContextWeightedValue(
 
 static void RideRatingAccumulateLocalContextElement(
     RideRatingLocalContextRaw& raw, const CoordsXYZ& origin, const TileCoordsXY& originTile, const TileCoordsXY& candidateTile,
-    const TileElement& tileElement, RideId rideId)
+    const TileElement& tileElement, const RideRatingLocalContextQuery& query)
 {
     if (tileElement.isGhost())
     {
@@ -482,6 +694,7 @@ static void RideRatingAccumulateLocalContextElement(
 
     const auto distance = std::max(std::abs(candidateTile.x - originTile.x), std::abs(candidateTile.y - originTile.y));
     const auto isSameTile = distance == 0;
+    const auto isOrthogonallyAdjacent = distance == 1 && (candidateTile.x == originTile.x || candidateTile.y == originTile.y);
     const auto visibilityTarget = RideRatingBuildLocalContextVisibilityTarget(candidateTile, tileElement);
     if (!isSameTile && !RideRatingLocalContextTileIsInRange(origin, distance, visibilityTarget.rangeBaseZ))
     {
@@ -493,29 +706,94 @@ static void RideRatingAccumulateLocalContextElement(
     switch (tileElement.getType())
     {
         case TileElementType::Path:
-            if (isSameTile && std::abs(tileElement.getBaseZ() - origin.z) >= kCoordsZStep)
+        {
+            const auto* pathElement = tileElement.asPath();
+            if (pathElement == nullptr)
             {
-                raw.verticalInteraction += 150;
+                break;
             }
-            else if (hasLineOfSight)
+
+            const auto isPathAboveOrigin = tileElement.getBaseZ() > origin.z;
+            const auto isPathBelowOrigin = tileElement.getClearanceZ() <= origin.z;
+            const auto isVerticalPath = isPathAboveOrigin || isPathBelowOrigin;
+            const auto isBridge = isPathAboveOrigin && RideRatingPathQualifiesAsBridge(candidateTile, *pathElement, query);
+            if (isSameTile && isBridge)
+            {
+                raw.hasSameTilePathBridge = true;
+            }
+            if (query.sampleKind == RideRatingLocalContextSampleKind::vehicle)
+            {
+                if (isSameTile && isBridge
+                    && tileElement.getBaseZ() - origin.z <= kRideRatingBridgeNearMissMaxGap
+                    && RideRatingTrackTypeCanPathNearMiss(query.trackType))
+                {
+                    raw.pathNearMiss += kRideRatingPathNearMissRaw;
+                }
+                else if (isSameTile && isPathBelowOrigin && RideRatingTrackTypeIsVerticalLoop(query.trackType))
+                {
+                    raw.pathLoop += kRideRatingPathLoopRaw;
+                }
+                else if (isOrthogonallyAdjacent && isBridge)
+                {
+                    raw.pathBridge += (kRideRatingPathBridgeRaw
+                                       * RideRatingGetLocalContextWeightedValue(origin, tileElement, distance, false))
+                        / kRideRatingContextWeightScale;
+                }
+                else if (!isVerticalPath && hasLineOfSight)
+                {
+                    raw.pathProximity += (45 * RideRatingGetLocalContextWeightedValue(origin, tileElement, distance, false))
+                        / kRideRatingContextWeightScale;
+                }
+                break;
+            }
+
+            if (query.sampleKind == RideRatingLocalContextSampleKind::maze)
+            {
+                if (isOrthogonallyAdjacent && isBridge)
+                {
+                    raw.pathBridge += (kRideRatingPathBridgeRaw
+                                       * RideRatingGetLocalContextWeightedValue(origin, tileElement, distance, false))
+                        / kRideRatingContextWeightScale;
+                }
+                else if (!isVerticalPath && hasLineOfSight)
+                {
+                    raw.pathProximity += (45 * RideRatingGetLocalContextWeightedValue(origin, tileElement, distance, false))
+                        / kRideRatingContextWeightScale;
+                }
+                break;
+            }
+
+            if (!isVerticalPath && hasLineOfSight)
             {
                 raw.pathProximity += (45 * RideRatingGetLocalContextWeightedValue(origin, tileElement, distance, false))
                     / kRideRatingContextWeightScale;
             }
             break;
+        }
         case TileElementType::Track:
         {
             const auto* trackElement = tileElement.asTrack();
-            if (trackElement == nullptr || trackElement->GetRideIndex() == rideId)
+            if (trackElement == nullptr)
             {
                 break;
             }
 
+            const auto isSameRide = trackElement->GetRideIndex() == query.rideId;
             if (isSameTile && std::abs(tileElement.getBaseZ() - origin.z) >= kCoordsZStep)
             {
-                raw.verticalInteraction += 220;
+                if (isSameRide)
+                {
+                    if (query.sampleKind == RideRatingLocalContextSampleKind::vehicle)
+                    {
+                        raw.ownTrackVerticalInteraction += kRideRatingOwnTrackVerticalRaw;
+                    }
+                }
+                else
+                {
+                    raw.trackVerticalInteraction += kRideRatingForeignTrackVerticalRaw;
+                }
             }
-            else if (hasLineOfSight)
+            else if (!isSameRide && hasLineOfSight)
             {
                 raw.foreignTrackProximity += (75 * RideRatingGetLocalContextWeightedValue(origin, tileElement, distance, false))
                     / kRideRatingContextWeightScale;
@@ -542,7 +820,8 @@ static void RideRatingAccumulateLocalContextElement(
     }
 }
 
-static RideRating::LocalContextScore RideRatingBuildLocalContextScore(const CoordsXYZ& origin, RideId rideId)
+static RideRating::LocalContextScore RideRatingBuildLocalContextScore(
+    const CoordsXYZ& origin, const RideRatingLocalContextQuery& query)
 {
     RideRatingLocalContextRaw raw{};
     const auto originTile = TileCoordsXY{ CoordsXY{ origin.x, origin.y } };
@@ -563,40 +842,61 @@ static RideRating::LocalContextScore RideRatingBuildLocalContextScore(const Coor
 
             do
             {
-                RideRatingAccumulateLocalContextElement(raw, origin, originTile, candidateTile, *tileElement, rideId);
+                RideRatingAccumulateLocalContextElement(raw, origin, originTile, candidateTile, *tileElement, query);
             } while (!(tileElement++)->isLastForTile());
         }
+    }
+    if (query.sampleKind == RideRatingLocalContextSampleKind::vehicle)
+    {
+        raw.trackHeightExposure = RideRatingGetVehicleHeightExposure(originTile, origin.z, query.trackDirection);
     }
 
     RideRating::LocalContextScore result{};
     result.scenery = RideRating::ScoreSceneryForLocalContext(raw.scenery);
-    if (auto* ride = GetRide(rideId); ride != nullptr)
+    if (auto* ride = GetRide(query.rideId); ride != nullptr)
     {
         result.scenery = RideRatingApplySceneryVisibilityMultiplier(result.scenery, *ride);
     }
     result.pathProximity = RideRatingDiminishLocalContext(raw.pathProximity, 10, 220);
     result.foreignTrackProximity = RideRatingDiminishLocalContext(raw.foreignTrackProximity, 14, 220);
-    result.verticalInteraction = RideRatingDiminishLocalContext(raw.verticalInteraction, 16, 180);
+    result.pathBridge = RideRatingDiminishLocalContext(raw.hasSameTilePathBridge ? 0 : raw.pathBridge, 10, 180);
+    result.pathNearMiss = RideRatingDiminishLocalContext(raw.pathNearMiss, 14, 160);
+    result.pathLoop = RideRatingDiminishLocalContext(raw.pathLoop, 16, 160);
+    result.trackVerticalInteraction = RideRatingDiminishLocalContext(raw.trackVerticalInteraction, 16, 180);
+    result.ownTrackVerticalInteraction = RideRatingDiminishLocalContext(raw.ownTrackVerticalInteraction, 16, 180);
+    result.trackHeightExposure = raw.trackHeightExposure;
+    result.verticalInteraction = result.pathNearMiss + result.pathLoop + result.trackVerticalInteraction
+        + result.ownTrackVerticalInteraction + result.trackHeightExposure;
     result.excitement = (result.scenery * 2) + result.pathProximity + (result.foreignTrackProximity * 2)
-        + (result.verticalInteraction * 2);
-    result.intensity = (result.foreignTrackProximity / 2) + result.verticalInteraction;
-    result.nausea = result.verticalInteraction / 3;
+        + result.pathBridge + (result.pathNearMiss * 2) + (result.pathLoop * 2) + (result.trackVerticalInteraction * 2)
+        + (result.ownTrackVerticalInteraction * 2) + result.trackHeightExposure;
+    result.intensity = (result.foreignTrackProximity / 2) + result.pathNearMiss + result.pathLoop
+        + result.trackVerticalInteraction + result.ownTrackVerticalInteraction + result.trackHeightExposure;
+    result.nausea = ((result.pathNearMiss + result.pathLoop + result.trackVerticalInteraction
+                      + result.ownTrackVerticalInteraction)
+                     / 3)
+        + (result.trackHeightExposure / 3);
     return result;
 }
 
-RideRating::LocalContextScore RideRating::GetLocalContextScore(const CoordsXYZ& origin, RideId rideId)
+static RideRating::LocalContextScore RideRatingGetLocalContextScore(
+    const CoordsXYZ& origin, RideRatingLocalContextQuery query)
 {
     if (origin.x == kLocationNull)
     {
         return {};
     }
 
+    query = RideRatingNormaliseLocalContextQuery(query);
     const auto originTile = TileCoordsXYZ{ origin };
     const auto key = RideRatingLocalContextKey{
         static_cast<int16_t>(originTile.x),
         static_cast<int16_t>(originTile.y),
         static_cast<int16_t>(originTile.z),
-        rideId.ToUnderlying(),
+        query.rideId.ToUnderlying(),
+        static_cast<uint16_t>(query.trackType),
+        query.trackDirection,
+        query.sampleKind,
     };
 
     auto it = _rideRatingLocalContextCache.find(key);
@@ -606,9 +906,42 @@ RideRating::LocalContextScore RideRating::GetLocalContextScore(const CoordsXYZ& 
     }
 
     const auto centredOrigin = CoordsXYZ{ origin.ToTileCentre(), origin.z };
-    auto result = RideRatingBuildLocalContextScore(centredOrigin, rideId);
+    auto result = RideRatingBuildLocalContextScore(centredOrigin, query);
     _rideRatingLocalContextCache.emplace(key, result);
     return result;
+}
+
+RideRating::LocalContextScore RideRating::GetLocalContextScore(const CoordsXYZ& origin, RideId rideId)
+{
+    return RideRatingGetLocalContextScore(
+        origin,
+        {
+            .rideId = rideId,
+            .sampleKind = RideRatingLocalContextSampleKind::generic,
+        });
+}
+
+RideRating::LocalContextScore RideRating::GetVehicleLocalContextScore(
+    const CoordsXYZ& origin, RideId rideId, TrackElemType trackType, uint8_t trackDirection)
+{
+    return RideRatingGetLocalContextScore(
+        origin,
+        {
+            .rideId = rideId,
+            .sampleKind = RideRatingLocalContextSampleKind::vehicle,
+            .trackType = trackType,
+            .trackDirection = trackDirection,
+        });
+}
+
+RideRating::LocalContextScore RideRating::GetMazeLocalContextScore(const CoordsXYZ& origin, RideId rideId)
+{
+    return RideRatingGetLocalContextScore(
+        origin,
+        {
+            .rideId = rideId,
+            .sampleKind = RideRatingLocalContextSampleKind::maze,
+        });
 }
 
 static int32_t RideRatingGetFixedRideDescriptorEyeHeight(const RideTypeDescriptor& rtd)
@@ -773,29 +1106,32 @@ RideRating::TickScore RideRating::ScoreAirtimeGForTick(int32_t verticalG)
 {
     const auto airtimeG = std::clamp(100 - verticalG, 0, 100);
     return {
-        .excitement = RideRatingCurveScore(airtimeG, 45.0, 1.25),
-        .intensity = RideRatingCurveScore(airtimeG, 18.0, 1.35),
-        .nausea = RideRatingCurveScore(airtimeG, 8.0, 1.35),
+        .excitement = RideRatingCurveScore(airtimeG, 115.0, 1.85),
+        .intensity = RideRatingCurveScore(airtimeG, 32.0, 1.95),
+        .nausea = RideRatingCurveScore(airtimeG, 9.0, 1.60),
     };
 }
 
 RideRating::TickScore RideRating::ScoreNegativeVerticalGForTick(int32_t verticalG)
 {
     const auto negativeG = std::max(-verticalG, 0);
+    const auto excessiveNegativeG = std::max(negativeG - 150, 0);
     return {
-        .excitement = RideRatingCurveScore(negativeG, 22.0, 1.50),
-        .intensity = RideRatingCurveScore(negativeG, 58.0, 1.70),
-        .nausea = RideRatingCurveScore(negativeG, 34.0, 1.70),
+        .excitement = RideRatingCurveScore(negativeG, 80.0, 2.00),
+        .intensity = RideRatingCurveScore(negativeG, 180.0, 2.35) + RideRatingCurveScore(excessiveNegativeG, 450.0, 2.70),
+        .nausea = RideRatingCurveScore(negativeG, 50.0, 2.05),
     };
 }
 
 RideRating::TickScore RideRating::ScorePositiveVerticalGForTick(int32_t verticalG)
 {
     const auto positiveG = std::max(verticalG - 100, 0);
+    const auto normalPositiveG = std::min(positiveG, 200);
+    const auto excessivePositiveG = std::max(positiveG - 200, 0);
     return {
-        .excitement = RideRatingCurveScore(positiveG, 14.0, 1.35),
-        .intensity = RideRatingCurveScore(positiveG, 40.0, 1.55),
-        .nausea = RideRatingCurveScore(positiveG, 18.0, 1.55),
+        .excitement = RideRatingCurveScore(normalPositiveG, 62.0, 1.75) + RideRatingCurveScore(excessivePositiveG, 22.0, 2.25),
+        .intensity = RideRatingCurveScore(normalPositiveG, 48.0, 1.90) + RideRatingCurveScore(excessivePositiveG, 240.0, 2.65),
+        .nausea = RideRatingCurveScore(positiveG, 20.0, 1.90),
     };
 }
 
@@ -803,7 +1139,7 @@ RideRating::TickScore RideRating::ScoreLateralGForTick(int32_t lateralG)
 {
     const auto sidewaysG = std::abs(lateralG);
     const auto excitementG = std::min(sidewaysG, 200);
-    auto excitement = RideRatingCurveScore(excitementG, 12.0, 1.35);
+    auto excitement = RideRatingCurveScore(excitementG, 32.0, 1.80);
 
     // The old code had hard penalties around 2.8G and 3.1G. Smoothly taper fun before those landmarks
     // while continuing to compound intensity and nausea.
@@ -817,8 +1153,8 @@ RideRating::TickScore RideRating::ScoreLateralGForTick(int32_t lateralG)
     const auto severeSidewaysG = std::max(sidewaysG - 200, 0);
     return {
         .excitement = excitement,
-        .intensity = RideRatingCurveScore(sidewaysG, 35.0, 2.00) + RideRatingCurveScore(severeSidewaysG, 160.0, 2.20),
-        .nausea = RideRatingCurveScore(sidewaysG, 24.0, 2.00) + RideRatingCurveScore(severeSidewaysG, 90.0, 2.20),
+        .intensity = RideRatingCurveScore(sidewaysG, 22.0, 2.05) + RideRatingCurveScore(severeSidewaysG, 320.0, 2.80),
+        .nausea = RideRatingCurveScore(sidewaysG, 25.0, 2.25) + RideRatingCurveScore(severeSidewaysG, 95.0, 2.45),
     };
 }
 
@@ -830,6 +1166,17 @@ RideRating::TickScore RideRating::ScoreGForcesForTick(int32_t verticalG, int32_t
     RideRatingAddTickScore(result, ScorePositiveVerticalGForTick(verticalG));
     RideRatingAddTickScore(result, ScoreLateralGForTick(lateralG));
     return result;
+}
+
+RideRating::TickScore RideRating::ScoreVehicleSpeedForTick(int32_t speed)
+{
+    const auto normalisedSpeed = std::max<int64_t>(speed, 0);
+    const auto score = (normalisedSpeed * normalisedSpeed * kRideRatingAccumulatorRawScale) / kVehicleRatingBaselineSpeed;
+    return {
+        .excitement = score,
+        .intensity = score,
+        .nausea = score,
+    };
 }
 
 RideRating::TickScore RideRating::ApplyRideEntryMultipliers(TickScore score, const RideObjectEntry& rideEntry)
@@ -852,9 +1199,7 @@ static void RideRatingsCalculate(RideRating::UpdateState& state, Ride& ride);
 static void RideRatingsCalculateValue(Ride& ride);
 static void ride_ratings_score_close_proximity(RideRating::UpdateState& state, TileElement* inputTileElement);
 static void RideRatingsAdd(RideRating::Tuple& ratings, int32_t excitement, int32_t intensity, int32_t nausea);
-static RideRating::Tuple RideRatingsCalculateAggregated(
-    RideRating::UpdateState& state, const Ride& ride, const RideRatingsDescriptor& descriptor, uint8_t shelteredEighths,
-    const RideRatingAccumulator& accumulator);
+static RideRating::Tuple RideRatingsCalculateAggregated(const Ride& ride, const RideRatingAccumulator& accumulator);
 
 static ShelteredEights GetNumOfShelteredEighths(const Ride& ride);
 static money64 RideComputeUpkeep(RideRating::UpdateState& state, const Ride& ride);
@@ -1375,11 +1720,25 @@ static void ride_ratings_score_close_proximity_in_direction(
                 }
                 break;
             case TileElementType::Path:
-                if (abs(inputTileElement->getBaseZ() - tileElement->getBaseZ()) <= 2 * kCoordsZStep)
+            {
+                const auto* pathElement = tileElement->asPath();
+                const RideRatingLocalContextQuery query{
+                    .rideId = inputTileElement->asTrack()->GetRideIndex(),
+                    .sampleKind = RideRatingLocalContextSampleKind::vehicle,
+                    .trackType = inputTileElement->asTrack()->GetTrackType(),
+                    .trackDirection = inputTileElement->getDirection(),
+                };
+                if (pathElement != nullptr && tileElement->getBaseZ() >= inputTileElement->getClearanceZ()
+                    && RideRatingPathQualifiesAsBridge(TileCoordsXY{ scorePos }, *pathElement, query))
+                {
+                    proximity_score_increment(state, PROXIMITY_PATH_TOUCH_ABOVE);
+                }
+                else if (abs(inputTileElement->getBaseZ() - tileElement->getBaseZ()) <= 2 * kCoordsZStep)
                 {
                     proximity_score_increment(state, PROXIMITY_PATH_SIDE_CLOSE);
                 }
                 break;
+            }
             case TileElementType::Track:
                 if (inputTileElement->asTrack()->GetRideIndex() != tileElement->asTrack()->GetRideIndex())
                 {
@@ -1521,32 +1880,6 @@ static void ride_ratings_score_close_proximity(RideRating::UpdateState& state, T
                 }
                 break;
             case TileElementType::Path:
-                if (!tileElement->asPath()->IsQueue())
-                {
-                    if (tileElement->getClearanceZ() == inputTileElement->getBaseZ())
-                    {
-                        proximity_score_increment(state, PROXIMITY_PATH_TOUCH_ABOVE);
-                    }
-                    if (tileElement->getBaseZ() == inputTileElement->getClearanceZ())
-                    {
-                        proximity_score_increment(state, PROXIMITY_PATH_TOUCH_UNDER);
-                    }
-                }
-                else
-                {
-                    if (tileElement->getClearanceZ() <= inputTileElement->getBaseZ())
-                    {
-                        proximity_score_increment(state, PROXIMITY_QUEUE_PATH_OVER);
-                    }
-                    if (tileElement->getClearanceZ() == inputTileElement->getBaseZ())
-                    {
-                        proximity_score_increment(state, PROXIMITY_QUEUE_PATH_TOUCH_ABOVE);
-                    }
-                    if (tileElement->getBaseZ() == inputTileElement->getClearanceZ())
-                    {
-                        proximity_score_increment(state, PROXIMITY_QUEUE_PATH_TOUCH_UNDER);
-                    }
-                }
                 break;
             case TileElementType::Track:
             {
@@ -1690,8 +2023,7 @@ static void RideRatingsCalculate(RideRating::UpdateState& state, Ride& ride)
     const bool aggregateRatingType = rrd.Type == RatingsCalculationType::Normal || rtd.specialType == RtdSpecialType::maze;
     if (aggregateRatingType && aggregateAccumulator != nullptr)
     {
-        ratings = RideRatingsCalculateAggregated(
-            state, ride, rrd, shelteredEighths.TrackShelteredEighths, *aggregateAccumulator);
+        ratings = RideRatingsCalculateAggregated(ride, *aggregateAccumulator);
     }
     else if (aggregateRatingType)
     {
@@ -2596,24 +2928,9 @@ static RideRating_t RideRatingsRawToRating(int64_t raw)
         return 0;
     }
 
-    const double value = std::sqrt(static_cast<double>(raw) / static_cast<double>(kAggregatedRideRatingDivisor)) * 100.0;
+    const auto unscaledRaw = static_cast<double>(raw) / static_cast<double>(RideRating::kRideRatingAccumulatorRawScale);
+    const double value = std::sqrt(unscaledRaw / static_cast<double>(kAggregatedRideRatingDivisor)) * 100.0;
     return static_cast<RideRating_t>(std::clamp<int64_t>(static_cast<int64_t>(std::llround(value)), 0, INT16_MAX));
-}
-
-static void RideRatingsRawDivide(RawRideRating& raw, RatingsModifier modifier)
-{
-    if (modifier.excitement > 1)
-    {
-        raw.excitement /= modifier.excitement;
-    }
-    if (modifier.intensity > 1)
-    {
-        raw.intensity /= modifier.intensity;
-    }
-    if (modifier.nausea > 1)
-    {
-        raw.nausea /= modifier.nausea;
-    }
 }
 
 static void RideRatingsRawApplyRideEntryMultipliers(RawRideRating& raw, const Ride& ride)
@@ -2643,117 +2960,41 @@ static void RideRatingsRawApplyMazeCapacityMode(RawRideRating& raw, const Ride& 
     raw.nausea = (raw.nausea * numerator) / denominator;
 }
 
-static void RideRatingsRawApplyRequirement(
-    RawRideRating& raw, const Ride& ride, RideRating::UpdateState& state, uint8_t shelteredEighths, RatingsModifier modifier)
+static bool RideRatingsModifierIsAggregateSummaryStatGate(RatingsModifierType type)
 {
-    switch (modifier.type)
+    switch (type)
     {
         case RatingsModifierType::RequirementLength:
-            // Minimum circuit length now gates the raw stat mass instead of dividing already-final ratings.
-            if (ride.getStation().SegmentLength < modifier.threshold)
-            {
-                RideRatingsRawDivide(raw, modifier);
-            }
-            break;
         case RatingsModifierType::RequirementDropHeight:
-            // Minimum drop height gates raw momentum/distance stats before geometric scaling.
-            if (ride.highestDropHeight < modifier.threshold)
-            {
-                RideRatingsRawDivide(raw, modifier);
-            }
-            break;
         case RatingsModifierType::RequirementMaxSpeed:
-            // Minimum speed gates the raw result because speed is sampled per tick.
-            if (ride.maxSpeed < modifier.threshold)
-            {
-                RideRatingsRawDivide(raw, modifier);
-            }
-            break;
         case RatingsModifierType::RequirementNumDrops:
-            // Drop count remains a track-piece gate over the per-tick drop contributions.
-            if (ride.numDrops < modifier.threshold)
-            {
-                RideRatingsRawDivide(raw, modifier);
-            }
-            break;
         case RatingsModifierType::RequirementNegativeGs:
-            // Negative-G requirement gates airtime-derived raw stats.
-            if (ride.maxNegativeVerticalG >= modifier.threshold)
-            {
-                RideRatingsRawDivide(raw, modifier);
-            }
-            break;
         case RatingsModifierType::RequirementLateralGs:
-            // Lateral-G requirement gates raw cornering stats.
-            if (ride.maxLateralG < modifier.threshold)
-            {
-                RideRatingsRawDivide(raw, modifier);
-            }
-            break;
         case RatingsModifierType::RequirementInversions:
-            // Inversion requirements now gate raw inversion ticks.
-            if (ride.numInversions < modifier.threshold)
-            {
-                RideRatingsRawDivide(raw, modifier);
-            }
-            break;
         case RatingsModifierType::RequirementUnsheltered:
-            // Too much shelter reduces raw track-context value before the diminishing-return curve.
-            if (shelteredEighths >= modifier.threshold)
-            {
-                RideRatingsRawDivide(raw, modifier);
-            }
-            break;
         case RatingsModifierType::RequirementReversals:
-            // Reverser requirements gate raw special-track value.
-            if (state.AmountOfReversers < modifier.threshold)
-            {
-                RideRatingsRawDivide(raw, modifier);
-            }
-            break;
         case RatingsModifierType::RequirementHoles:
-            // Mini-golf holes are discrete track pieces, so missing holes gate raw stats.
-            if (ride.numHoles < modifier.threshold)
-            {
-                RideRatingsRawDivide(raw, modifier);
-            }
-            break;
         case RatingsModifierType::RequirementStations:
-            // Station count requirements can still remove excitement, but now at raw level.
-            if (ride.numStations <= modifier.threshold)
-            {
-                raw.excitement = 0;
-                if (modifier.intensity > 1)
-                {
-                    raw.intensity /= modifier.intensity;
-                }
-                if (modifier.nausea > 1)
-                {
-                    raw.nausea /= modifier.nausea;
-                }
-            }
-            break;
         case RatingsModifierType::RequirementSplashdown:
-            // Splashdown requirements gate water-track raw effects.
-            if (!ride.specialTrackElements.has(SpecialElement::splash))
-            {
-                RideRatingsRawDivide(raw, modifier);
-            }
-            break;
+        case RatingsModifierType::PenaltyLateralGs:
+            return true;
         default:
-            break;
+            return false;
     }
 }
 
-static void RideRatingsRawApplyModifiers(
-    RawRideRating& raw, RideRating::UpdateState& state, const Ride& ride, const RideRatingsDescriptor& descriptor,
-    uint8_t shelteredEighths)
+static void RideRatingsRawApplyModifiers(RawRideRating& raw, const Ride& ride)
 {
+    const auto& descriptor = ride.getRideTypeDescriptor().RatingsData;
     for (const auto& modifier : descriptor.Modifiers)
     {
-        // Aggregate ratings must start from sampled ticks only. Additive legacy bonuses are skipped here because applying
-        // them after sampling would reintroduce fixed post-hoc stats. Positional effects are sampled in Vehicle.cpp, while
-        // requirements below can only reduce or gate the accumulated raw totals.
+        // Aggregate ratings must start from sampled ticks only. Legacy summary-stat gates are skipped here because sampled
+        // momentum, track context, and maze movement now own those effects directly.
+        if (RideRatingsModifierIsAggregateSummaryStatGate(modifier.type))
+        {
+            continue;
+        }
+
         switch (modifier.type)
         {
             case RatingsModifierType::BonusReversedTrains:
@@ -2764,30 +3005,13 @@ static void RideRatingsRawApplyModifiers(
                     raw.nausea += (raw.nausea * modifier.nausea) >> 7;
                 }
                 break;
-            case RatingsModifierType::PenaltyLateralGs:
-                if (ride.maxLateralG > MakeFixed16_2dp(3, 10))
-                {
-                    raw.excitement /= 2;
-                }
-                break;
             default:
                 break;
-        }
-
-        const bool mayApplyRelaxedRequirement = ride.numInversions == 0 || !descriptor.RelaxRequirementsIfInversions;
-        if (mayApplyRelaxedRequirement
-            || (modifier.type != RatingsModifierType::RequirementDropHeight
-                && modifier.type != RatingsModifierType::RequirementNumDrops
-                && modifier.type != RatingsModifierType::RequirementNegativeGs))
-        {
-            RideRatingsRawApplyRequirement(raw, ride, state, shelteredEighths, modifier);
         }
     }
 }
 
-static RideRating::Tuple RideRatingsCalculateAggregated(
-    RideRating::UpdateState& state, const Ride& ride, const RideRatingsDescriptor& descriptor, uint8_t shelteredEighths,
-    const RideRatingAccumulator& accumulator)
+static RideRating::Tuple RideRatingsCalculateAggregated(const Ride& ride, const RideRatingAccumulator& accumulator)
 {
     RawRideRating raw = {
         .excitement = accumulator.excitement,
@@ -2796,7 +3020,7 @@ static RideRating::Tuple RideRatingsCalculateAggregated(
     };
 
     RideRatingsRawApplyMazeCapacityMode(raw, ride);
-    RideRatingsRawApplyModifiers(raw, state, ride, descriptor, shelteredEighths);
+    RideRatingsRawApplyModifiers(raw, ride);
     RideRatingsRawApplyRideEntryMultipliers(raw, ride);
 
     return {

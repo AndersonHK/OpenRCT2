@@ -771,6 +771,136 @@ int32_t Ride::getTotalTime() const
     return totalTime;
 }
 
+bool Ride::hasStableStats() const
+{
+    return stableStats.valid;
+}
+
+int32_t Ride::getDisplayMaxSpeed() const
+{
+    return hasStableStats() ? stableStats.maxSpeed : maxSpeed;
+}
+
+int32_t Ride::getDisplayTotalLength() const
+{
+    if (!hasStableStats())
+    {
+        return getTotalLength();
+    }
+
+    int32_t totalLength = 0;
+    for (int32_t i = 0; i < numStations; i++)
+    {
+        totalLength += stableStats.stations[i].SegmentLength;
+    }
+    return totalLength;
+}
+
+int32_t Ride::getDisplayTotalTime() const
+{
+    if (!hasStableStats())
+    {
+        return getTotalTime();
+    }
+
+    int32_t totalTime = 0;
+    for (int32_t i = 0; i < numStations; i++)
+    {
+        totalTime += stableStats.stations[i].SegmentTime;
+    }
+    return totalTime;
+}
+
+int32_t Ride::getDisplayStationSegmentLength(StationIndex stationIndex) const
+{
+    const auto index = stationIndex.ToUnderlying();
+    return hasStableStats() ? stableStats.stations[index].SegmentLength : stations[index].SegmentLength;
+}
+
+uint16_t Ride::getDisplayStationSegmentTime(StationIndex stationIndex) const
+{
+    const auto index = stationIndex.ToUnderlying();
+    return hasStableStats() ? stableStats.stations[index].SegmentTime : stations[index].SegmentTime;
+}
+
+int32_t Ride::getDisplayAverageSpeed() const
+{
+    if (hasStableStats() || !flags.has(RideFlag::testInProgress))
+    {
+        return hasStableStats() ? stableStats.averageSpeed : averageSpeed;
+    }
+
+    const auto totalTime = getTotalTime();
+    return totalTime <= 0 ? 0 : averageSpeed / totalTime;
+}
+
+fixed16_2dp Ride::getDisplayMaxPositiveVerticalG() const
+{
+    return hasStableStats() ? stableStats.maxPositiveVerticalG : maxPositiveVerticalG;
+}
+
+fixed16_2dp Ride::getDisplayMaxNegativeVerticalG() const
+{
+    return hasStableStats() ? stableStats.maxNegativeVerticalG : maxNegativeVerticalG;
+}
+
+fixed16_2dp Ride::getDisplayMaxLateralG() const
+{
+    return hasStableStats() ? stableStats.maxLateralG : maxLateralG;
+}
+
+uint16_t Ride::getDisplayTotalAirTime() const
+{
+    return hasStableStats() ? stableStats.totalAirTime : totalAirTime;
+}
+
+uint8_t Ride::getDisplayNumDrops() const
+{
+    return hasStableStats() ? stableStats.numDrops : numDrops;
+}
+
+uint8_t Ride::getDisplayNumPoweredLifts() const
+{
+    return hasStableStats() ? stableStats.numPoweredLifts : numPoweredLifts;
+}
+
+uint8_t Ride::getDisplayNumInversions() const
+{
+    return hasStableStats() ? stableStats.numInversions : numInversions;
+}
+
+uint8_t Ride::getDisplayNumHoles() const
+{
+    return hasStableStats() ? stableStats.numHoles : numHoles;
+}
+
+uint8_t Ride::getDisplayHighestDropHeight() const
+{
+    return hasStableStats() ? stableStats.highestDropHeight : highestDropHeight;
+}
+
+void Ride::publishCurrentStatsAsStable()
+{
+    stableStats.valid = true;
+    stableStats.maxSpeed = maxSpeed;
+    stableStats.averageSpeed = averageSpeed;
+    stableStats.maxPositiveVerticalG = maxPositiveVerticalG;
+    stableStats.maxNegativeVerticalG = maxNegativeVerticalG;
+    stableStats.maxLateralG = maxLateralG;
+    stableStats.numDrops = numDrops;
+    stableStats.numPoweredLifts = numPoweredLifts;
+    stableStats.numInversions = numInversions;
+    stableStats.numHoles = numHoles;
+    stableStats.highestDropHeight = highestDropHeight;
+    stableStats.totalAirTime = totalAirTime;
+
+    for (size_t i = 0; i < stableStats.stations.size(); i++)
+    {
+        stableStats.stations[i].SegmentLength = stations[i].SegmentLength;
+        stableStats.stations[i].SegmentTime = stations[i].SegmentTime;
+    }
+}
+
 bool Ride::canHaveMultipleCircuits() const
 {
     if (!getRideTypeDescriptor().flags.has(RtdFlag::allowMultipleCircuits))
@@ -4574,6 +4704,7 @@ void InvalidateTestResults(Ride& ride)
     ride.ratingAccumulator.clear();
     RideClearRiderRatingSamples(ride);
     ride.flags.unset(RideFlag::tested, RideFlag::testInProgress);
+    ride.currentTestVehicle = EntityId::GetNull();
     if (ride.flags.has(RideFlag::onTrack))
     {
         for (int32_t i = 0; i < ride.numTrains; i++)

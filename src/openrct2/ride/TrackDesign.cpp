@@ -162,7 +162,7 @@ ResultWithMessage TrackDesign::CreateTrackDesign(TrackDesignState& tds, const Ri
 
     appearance.stationObjectIdentifier = TrackDesignGetStationObjectIdentifier(ride);
     statistics.maxSpeed = static_cast<int8_t>(ride.maxSpeed / 65536);
-    statistics.averageSpeed = static_cast<int8_t>(ride.averageSpeed / 65536);
+    statistics.averageSpeed = static_cast<int8_t>(ride.getDisplayAverageSpeed() / 65536);
     statistics.rideLength = ToHumanReadableRideLength(ride.getTotalLength());
     statistics.maxPositiveVerticalG = ride.maxPositiveVerticalG;
     statistics.maxNegativeVerticalG = ride.maxNegativeVerticalG;

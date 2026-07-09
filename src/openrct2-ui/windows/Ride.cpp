@@ -5885,7 +5885,7 @@ namespace OpenRCT2::Ui::Windows
                         {
                             // Holes
                             ft = Formatter();
-                            ft.Add<uint16_t>(ride->numHoles);
+                            ft.Add<uint16_t>(ride->getDisplayNumHoles());
                             drawText(rt, screenCoords, STR_HOLES, ft);
                             screenCoords.y += kListRowHeight;
                         }
@@ -5893,13 +5893,13 @@ namespace OpenRCT2::Ui::Windows
                         {
                             // Max speed
                             ft = Formatter();
-                            ft.Add<int32_t>(ToHumanReadableSpeed(ride->maxSpeed));
+                            ft.Add<int32_t>(ToHumanReadableSpeed(ride->getDisplayMaxSpeed()));
                             drawText(rt, screenCoords, STR_MAX_SPEED, ft);
                             screenCoords.y += kListRowHeight;
 
                             // Average speed
                             ft = Formatter();
-                            ft.Add<int32_t>(ToHumanReadableSpeed(ride->averageSpeed));
+                            ft.Add<int32_t>(ToHumanReadableSpeed(ride->getDisplayAverageSpeed()));
                             drawText(rt, screenCoords, STR_AVERAGE_SPEED, ft);
                             screenCoords.y += kListRowHeight;
 
@@ -5912,7 +5912,7 @@ namespace OpenRCT2::Ui::Windows
                             for (int32_t i = 0; i < std::min<int32_t>(ride->numStations, 4); i++)
                             {
                                 StationIndex stationIndex = StationIndex::FromUnderlying(numTimes);
-                                auto time = ride->getStation(stationIndex).SegmentTime;
+                                auto time = ride->getDisplayStationSegmentTime(stationIndex);
                                 if (time != 0)
                                 {
                                     ft.Add<uint16_t>(STR_RIDE_TIME_ENTRY_WITH_SEPARATOR);
@@ -5951,7 +5951,7 @@ namespace OpenRCT2::Ui::Windows
                         for (int32_t i = 0; i < std::min<int32_t>(ride->numStations, 4); i++)
                         {
                             StationIndex stationIndex = StationIndex::FromUnderlying(i);
-                            auto length = ride->getStation(stationIndex).SegmentLength;
+                            auto length = ride->getDisplayStationSegmentLength(stationIndex);
                             if (length != 0)
                             {
                                 length = ToHumanReadableRideLength(length);
@@ -5990,29 +5990,31 @@ namespace OpenRCT2::Ui::Windows
                             stringId = STR_MAX_POSITIVE_VERTICAL_G;
 
                             ft = Formatter();
-                            ft.Add<fixed16_2dp>(ride->maxPositiveVerticalG);
+                            ft.Add<int32_t>(static_cast<int32_t>(ride->getDisplayMaxPositiveVerticalG()));
                             drawText(rt, screenCoords, stringId, ft);
                             screenCoords.y += kListRowHeight;
 
                             // Max. negative vertical G's
-                            stringId = ride->maxNegativeVerticalG <= kRideGForcesRedNegVertical
+                            const auto maxNegativeVerticalG = ride->getDisplayMaxNegativeVerticalG();
+                            stringId = maxNegativeVerticalG <= kRideGForcesRedNegVertical
                                 ? STR_MAX_NEGATIVE_VERTICAL_G_RED
                                 : STR_MAX_NEGATIVE_VERTICAL_G;
                             ft = Formatter();
-                            ft.Add<int32_t>(ride->maxNegativeVerticalG);
+                            ft.Add<int32_t>(static_cast<int32_t>(maxNegativeVerticalG));
                             drawText(rt, screenCoords, stringId, ft);
                             screenCoords.y += kListRowHeight;
 
                             // Max lateral G's
-                            stringId = ride->maxLateralG > kRideGForcesRedLateral ? STR_MAX_LATERAL_G_RED : STR_MAX_LATERAL_G;
+                            const auto maxLateralG = ride->getDisplayMaxLateralG();
+                            stringId = maxLateralG > kRideGForcesRedLateral ? STR_MAX_LATERAL_G_RED : STR_MAX_LATERAL_G;
                             ft = Formatter();
-                            ft.Add<fixed16_2dp>(ride->maxLateralG);
+                            ft.Add<int32_t>(static_cast<int32_t>(maxLateralG));
                             drawText(rt, screenCoords, stringId, ft);
                             screenCoords.y += kListRowHeight;
 
                             // Total 'air' time
                             ft = Formatter();
-                            ft.Add<fixed32_2dp>(ToHumanReadableAirTime(ride->totalAirTime));
+                            ft.Add<fixed32_2dp>(ToHumanReadableAirTime(ride->getDisplayTotalAirTime()));
                             drawText(rt, screenCoords, STR_TOTAL_AIR_TIME, ft);
                             screenCoords.y += kListRowHeight;
                         }
@@ -6020,12 +6022,12 @@ namespace OpenRCT2::Ui::Windows
                         if (ride->getRideTypeDescriptor().flags.has(RtdFlag::hasDrops))
                         {
                             ft = Formatter();
-                            ft.Add<uint16_t>(ride->numDrops);
+                            ft.Add<uint16_t>(ride->getDisplayNumDrops());
                             drawText(rt, screenCoords, STR_DROPS, ft);
                             screenCoords.y += kListRowHeight;
 
                             // Highest drop height
-                            auto highestDropHeight = (ride->highestDropHeight * 3) / 4;
+                            auto highestDropHeight = (ride->getDisplayHighestDropHeight() * 3) / 4;
                             ft = Formatter();
                             ft.Add<int32_t>(highestDropHeight);
                             drawText(rt, screenCoords, STR_HIGHEST_DROP_HEIGHT, ft);
@@ -6035,10 +6037,11 @@ namespace OpenRCT2::Ui::Windows
                         if (ride->getRideTypeDescriptor().specialType != RtdSpecialType::miniGolf)
                         {
                             // Inversions
-                            if (ride->numInversions != 0)
+                            const auto numInversions = ride->getDisplayNumInversions();
+                            if (numInversions != 0)
                             {
                                 ft = Formatter();
-                                ft.Add<uint16_t>(ride->numInversions);
+                                ft.Add<uint16_t>(numInversions);
                                 drawText(rt, screenCoords, STR_INVERSIONS, ft);
                                 screenCoords.y += kListRowHeight;
                             }

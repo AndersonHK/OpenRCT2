@@ -278,7 +278,7 @@ namespace OpenRCT2::Ui::Windows
             {
                 // Maximum positive vertical Gs
                 {
-                    int32_t gForces = td.statistics.maxPositiveVerticalG;
+                    int32_t gForces = static_cast<int32_t>(td.statistics.maxPositiveVerticalG);
                     auto ft = Formatter();
                     ft.Add<int32_t>(gForces);
                     drawText(rt, screenPos, STR_MAX_POSITIVE_VERTICAL_G, ft);
@@ -286,7 +286,7 @@ namespace OpenRCT2::Ui::Windows
                 }
                 // Maximum negative vertical Gs
                 {
-                    int32_t gForces = td.statistics.maxNegativeVerticalG;
+                    int32_t gForces = static_cast<int32_t>(td.statistics.maxNegativeVerticalG);
                     auto ft = Formatter();
                     ft.Add<int32_t>(gForces);
                     drawText(rt, screenPos, STR_MAX_NEGATIVE_VERTICAL_G, ft);
@@ -294,7 +294,7 @@ namespace OpenRCT2::Ui::Windows
                 }
                 // Maximum lateral Gs
                 {
-                    int32_t gForces = td.statistics.maxLateralG;
+                    int32_t gForces = static_cast<int32_t>(td.statistics.maxLateralG);
                     auto ft = Formatter();
                     ft.Add<int32_t>(gForces);
                     drawText(rt, screenPos, STR_MAX_LATERAL_G, ft);

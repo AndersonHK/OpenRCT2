@@ -15,6 +15,7 @@
 
 #include <array>
 #include <cstdint>
+#include <type_traits>
 #include <utility>
 
 struct Ride;
@@ -35,6 +36,8 @@ namespace OpenRCT2
         }
 
         constexpr RideRating_t kUndefined = 0xFFFFu;
+        constexpr int32_t kVehicleRatingBaselineSpeed = 90;
+        constexpr int64_t kRideRatingAccumulatorRawScale = 1000;
 
 #pragma pack(push, 1)
 
@@ -60,6 +63,9 @@ namespace OpenRCT2
             int64_t intensity{};
             int64_t nausea{};
         };
+        static_assert(std::is_same_v<decltype(TickScore::excitement), int64_t>);
+        static_assert(std::is_same_v<decltype(TickScore::intensity), int64_t>);
+        static_assert(std::is_same_v<decltype(TickScore::nausea), int64_t>);
 
         struct LocalContextScore
         {
@@ -70,6 +76,12 @@ namespace OpenRCT2
             int32_t pathProximity{};
             int32_t foreignTrackProximity{};
             int32_t verticalInteraction{};
+            int32_t pathBridge{};
+            int32_t pathNearMiss{};
+            int32_t pathLoop{};
+            int32_t trackVerticalInteraction{};
+            int32_t ownTrackVerticalInteraction{};
+            int32_t trackHeightExposure{};
         };
 
         struct UpdateState
@@ -96,12 +108,16 @@ namespace OpenRCT2
         TickScore ScorePositiveVerticalGForTick(int32_t verticalG);
         TickScore ScoreLateralGForTick(int32_t lateralG);
         TickScore ScoreGForcesForTick(int32_t verticalG, int32_t lateralG);
+        TickScore ScoreVehicleSpeedForTick(int32_t speed);
         TickScore ScoreLocalContextForVehicleTick(const LocalContextScore& contextScore, int32_t speed);
         TickScore ScoreBoatHireFreeRoamForTick(uint32_t tickIndex);
         TickScore ApplyRideEntryMultipliers(TickScore score, const RideObjectEntry& rideEntry);
         int32_t ScoreSceneryForLocalContext(int32_t rawScenery);
         std::pair<int32_t, int32_t> GetSceneryVisibilityMultiplier(const Ride& ride);
         LocalContextScore GetLocalContextScore(const CoordsXYZ& origin, RideId rideId);
+        LocalContextScore GetVehicleLocalContextScore(
+            const CoordsXYZ& origin, RideId rideId, TrackElemType trackType, uint8_t trackDirection);
+        LocalContextScore GetMazeLocalContextScore(const CoordsXYZ& origin, RideId rideId);
         CoordsXYZ GetFixedRideLocalContextOrigin(const Ride& ride);
         void InvalidateLocalContextCacheAround(const CoordsXY& location);
         void ClearLocalContextCache();

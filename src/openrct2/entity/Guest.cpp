@@ -5087,10 +5087,11 @@ namespace OpenRCT2
             return;
         }
 
-        const auto contextScore = RideRating::GetLocalContextScore(location, ride.id);
-        accumulator->excitement += 20 + (openCount * 12) + contextScore.excitement + (isExitStep ? 90 : 0);
-        accumulator->intensity += 4 + (openCount <= 1 ? 5 : 0) + contextScore.intensity + (isExitStep ? 4 : 0);
-        accumulator->nausea += contextScore.nausea;
+        const auto contextScore = RideRating::GetMazeLocalContextScore(location, ride.id);
+        constexpr int64_t rawScale = RideRating::kRideRatingAccumulatorRawScale;
+        accumulator->excitement += (20 + (openCount * 12) + contextScore.excitement + (isExitStep ? 90 : 0)) * rawScale;
+        accumulator->intensity += (4 + (openCount <= 1 ? 5 : 0) + contextScore.intensity + (isExitStep ? 4 : 0)) * rawScale;
+        accumulator->nausea += contextScore.nausea * rawScale;
         accumulator->ticks++;
         if (isExitStep)
         {

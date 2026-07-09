@@ -27,6 +27,7 @@
 #include <memory>
 #include <span>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 
 struct IObjectManager;
@@ -279,9 +280,35 @@ struct RideRatingAccumulator
         return ticks != 0;
     }
 };
+static_assert(std::is_same_v<decltype(RideRatingAccumulator::excitement), int64_t>);
+static_assert(std::is_same_v<decltype(RideRatingAccumulator::intensity), int64_t>);
+static_assert(std::is_same_v<decltype(RideRatingAccumulator::nausea), int64_t>);
 
 constexpr size_t kRideRatingRecentSampleCount = 20;
 constexpr size_t kRideRatingActiveSampleCount = 8;
+
+struct RideStableStationStats
+{
+    int32_t SegmentLength{};
+    uint16_t SegmentTime{};
+};
+
+struct RideStableStats
+{
+    bool valid{};
+    int32_t maxSpeed{};
+    int32_t averageSpeed{};
+    fixed16_2dp maxPositiveVerticalG{};
+    fixed16_2dp maxNegativeVerticalG{};
+    fixed16_2dp maxLateralG{};
+    uint8_t numDrops{};
+    uint8_t numPoweredLifts{};
+    uint8_t numInversions{};
+    uint8_t numHoles{};
+    uint8_t highestDropHeight{};
+    uint16_t totalAirTime{};
+    std::array<RideStableStationStats, OpenRCT2::Limits::kMaxStationsPerRide> stations{};
+};
 
 /**
  * Ride structure.
@@ -354,6 +381,7 @@ struct Ride
     uint8_t startDropHeight{};
     uint8_t highestDropHeight{};
     int32_t shelteredLength{};
+    RideStableStats stableStats{};
     RideRatingAccumulator ratingAccumulator{};
     std::array<RideRatingAccumulator, kRideRatingActiveSampleCount> activeRatingSamples{};
     std::array<RideRatingAccumulator, kRideRatingRecentSampleCount> recentRatingSamples{};
@@ -448,6 +476,7 @@ struct Ride
     RideFlags flags{};
     uint16_t totalAirTime{};
     StationIndex currentTestStation{ StationIndex::GetNull() };
+    EntityId currentTestVehicle{ EntityId::GetNull() };
     uint8_t numCircuits{};
     CoordsXYZ cableLiftLoc{};
     EntityId cableLift{ EntityId::GetNull() };
@@ -589,6 +618,23 @@ public:
 
     int32_t getTotalLength() const;
     int32_t getTotalTime() const;
+    int32_t getDisplayMaxSpeed() const;
+    int32_t getDisplayAverageSpeed() const;
+    int32_t getDisplayTotalLength() const;
+    int32_t getDisplayTotalTime() const;
+    int32_t getDisplayStationSegmentLength(StationIndex stationIndex) const;
+    uint16_t getDisplayStationSegmentTime(StationIndex stationIndex) const;
+    fixed16_2dp getDisplayMaxPositiveVerticalG() const;
+    fixed16_2dp getDisplayMaxNegativeVerticalG() const;
+    fixed16_2dp getDisplayMaxLateralG() const;
+    uint16_t getDisplayTotalAirTime() const;
+    uint8_t getDisplayNumDrops() const;
+    uint8_t getDisplayNumPoweredLifts() const;
+    uint8_t getDisplayNumInversions() const;
+    uint8_t getDisplayNumHoles() const;
+    uint8_t getDisplayHighestDropHeight() const;
+    bool hasStableStats() const;
+    void publishCurrentStatsAsStable();
 
     const OpenRCT2::StationObject* getStationObject() const;
     const OpenRCT2::MusicObject* getMusicObject() const;
