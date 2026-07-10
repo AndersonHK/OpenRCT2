@@ -56,6 +56,8 @@ namespace OpenRCT2
     private:
         Entity_t entities[kMaxEntities]{};
         std::array<std::list<EntityId>, EnumValue(EntityType::count)> gEntityLists;
+        std::vector<EntityId> _vehicleHeadEntityList;
+        bool _vehicleHeadEntityListDirty{ true };
         std::vector<EntityId> _freeIdList;
 
         bool _entityFlashingList[kMaxEntities];
@@ -126,6 +128,7 @@ namespace OpenRCT2
         }
 
         const std::list<EntityId>& GetEntityList(EntityType id);
+        const std::vector<EntityId>& GetVehicleHeadEntityList();
         uint16_t GetMiscEntityCount();
 
         void ResetAllEntities();

@@ -11,7 +11,7 @@
 #include "../Identifiers.h"
 
 #include <cstdint>
-#include <list>
+#include <vector>
 
 struct Vehicle;
 
@@ -21,17 +21,17 @@ namespace OpenRCT2::TrainManager
     class View
     {
     private:
-        const std::list<EntityId>* vec;
+        const std::vector<EntityId>* vec;
 
         class Iterator
         {
         private:
-            std::list<EntityId>::const_iterator iter;
-            std::list<EntityId>::const_iterator end;
+            std::vector<EntityId>::const_iterator iter;
+            std::vector<EntityId>::const_iterator end;
             Vehicle* Entity = nullptr;
 
         public:
-            Iterator(std::list<EntityId>::const_iterator _iter, std::list<EntityId>::const_iterator _end)
+            Iterator(std::vector<EntityId>::const_iterator _iter, std::vector<EntityId>::const_iterator _end)
                 : iter(_iter)
                 , end(_end)
             {

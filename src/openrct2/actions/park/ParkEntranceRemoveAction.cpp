@@ -15,6 +15,7 @@
 #include "../../management/Finance.h"
 #include "../../world/Entrance.h"
 #include "../../world/Map.h"
+#include "../../world/MapTopology.h"
 #include "../../world/Park.h"
 #include "../../world/tile_element/EntranceElement.h"
 
@@ -106,6 +107,10 @@ namespace OpenRCT2::GameActions
         }
 
         MapInvalidateTile({ loc, entranceElement->getBaseZ(), entranceElement->getClearanceZ() });
+        if (!entranceElement->isGhost())
+        {
+            MapTopology::InvalidateTileAndNeighbours(loc);
+        }
         entranceElement->remove();
         Park::UpdateFences({ loc.x, loc.y });
     }

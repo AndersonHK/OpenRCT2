@@ -9,6 +9,7 @@
 
 #include "Painter.h"
 
+#include "../Game.h"
 #include "../GameState.h"
 #include "../OpenRCT2.h"
 #include "../ReplayManager.h"
@@ -28,6 +29,8 @@
 #include "../ui/WindowManager.h"
 #include "../world/MapSelection.h"
 #include "../world/TileInspector.h"
+
+#include <cmath>
 
 using namespace OpenRCT2;
 using namespace OpenRCT2::Drawing;
@@ -119,7 +122,9 @@ void Painter::PaintFPS(RenderTarget& rt)
     MeasureFPS();
 
     char buffer[64]{};
-    FormatStringToBuffer(buffer, sizeof(buffer), "{OUTLINE}{WHITE}{INT32}", _currentFPS);
+    FormatStringToBuffer(
+        buffer, sizeof(buffer), "{OUTLINE}{WHITE}FPS {INT32}  TPS {INT32}", _currentFPS,
+        static_cast<int32_t>(std::lround(gActualSimulationTPS)));
     const int32_t stringWidth = getStringWidth(buffer, FontStyle::medium);
 
     // Figure out where counter should be rendered

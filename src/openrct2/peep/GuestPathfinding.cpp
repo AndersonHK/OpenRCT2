@@ -12,16 +12,22 @@
 #include "../Diagnostic.h"
 #include "../GameState.h"
 #include "../core/Guard.hpp"
+#include "../core/UnitConversion.h"
 #include "../entity/Guest.h"
 #include "../entity/Staff.h"
 #include "../profiling/Profiling.h"
 #include "../ride/RideData.h"
 #include "../ride/Station.h"
 #include "../scenario/Scenario.h"
+#include "../util/Util.h"
 #include "../world/Entrance.h"
 #include "../world/Footpath.h"
 #include "../world/Map.h"
+#include "../world/MapPathTopology.h"
+#include "../world/MapTopology.h"
+#include "../world/Park.h"
 #include "../world/Wall.h"
+#include "../world/Weather.h"
 #include "../world/tile_element/BannerElement.h"
 #include "../world/tile_element/EntranceElement.h"
 #include "../world/tile_element/PathElement.h"
@@ -34,6 +40,7 @@
 #include <bitset>
 #include <cassert>
 #include <cstring>
+#include <vector>
 
 namespace OpenRCT2::PathFinding
 {
@@ -45,9 +52,8 @@ namespace OpenRCT2::PathFinding
     static constexpr uint8_t kMaxJunctionsGuestLeavingParkLost = 8;
 
     // Maximum amount of junctions.
-    static constexpr uint8_t kMaxJunctions = std::max(
-        { kMaxJunctionsStaff, kMaxJunctionsGuest, kMaxJunctionsGuestWithMap, kMaxJunctionsGuestLeavingPark,
-          kMaxJunctionsGuestLeavingParkLost });
+    static constexpr uint8_t kMaxJunctions = std::max({ kMaxJunctionsStaff, kMaxJunctionsGuest, kMaxJunctionsGuestWithMap,
+                                                        kMaxJunctionsGuestLeavingPark, kMaxJunctionsGuestLeavingParkLost });
 
     struct PathFindingState
     {
@@ -66,6 +72,10 @@ namespace OpenRCT2::PathFinding
     };
 
     static int32_t GuestSurfacePathFinding(Peep& peep);
+    static void GetRideQueueEnd(TileCoordsXYZ& loc);
+    static std::optional<int32_t> GuestPathFindTransportRide(Guest& peep);
+    static int32_t GuestPathFindToDestination(
+        Peep& peep, const TileCoordsXYZ& goal, RideId queueRideIndex, uint8_t fallbackEdges);
 
     static constexpr uint8_t kGuestSurfacePathRejoinSearchRadius = 3;
 
@@ -193,8 +203,46 @@ namespace OpenRCT2::PathFinding
     /**
      * Gets the connected edges of a path that are permitted (i.e. no 'no entry' signs)
      */
-    static int32_t PathGetPermittedEdges(bool ignoreBanners, const PathElement* pathElement)
+    static bool PathHasUnsupportedGhostBannerChain(const PathElement* pathElement)
     {
+        auto* tileElement = reinterpret_cast<const TileElement*>(pathElement);
+        while (!tileElement->isLastForTile())
+        {
+            tileElement++;
+            if (tileElement->getType() == TileElementType::Path)
+                return tileElement->isGhost();
+            if (tileElement->getType() == TileElementType::Banner && tileElement->isGhost())
+                return true;
+        }
+        return false;
+    }
+
+    static const MapPathTopology::PathNode* GetExactCachedPath(const TileCoordsXYZ& loc, const PathElement* pathElement)
+    {
+        const auto view = MapPathTopology::GetChunk(TileCoordsXY{ loc });
+        if (!view.isExact)
+            return nullptr;
+
+        const auto* node = MapPathTopology::FindPath(view, { loc.x, loc.y, pathElement->baseHeight });
+        if (node == nullptr || node->edges != pathElement->GetEdges()
+            || node->HasFlag(MapPathTopology::PathNodeFlag::sloped) != pathElement->IsSloped()
+            || (pathElement->IsSloped() && node->slopeDirection != pathElement->GetSlopeDirection()))
+        {
+            return nullptr;
+        }
+        return node;
+    }
+
+    static int32_t PathGetPermittedEdges(bool ignoreBanners, const TileCoordsXYZ& loc, const PathElement* pathElement)
+    {
+        if (ignoreBanners)
+            return pathElement->GetEdges();
+
+        if (!PathHasUnsupportedGhostBannerChain(pathElement))
+        {
+            if (const auto* node = GetExactCachedPath(loc, pathElement); node != nullptr)
+                return node->permittedEdges;
+        }
         return BannerClearPathEdges(ignoreBanners, pathElement, pathElement->GetEdgesAndCorners()) & 0x0F;
     }
 
@@ -317,11 +365,7 @@ namespace OpenRCT2::PathFinding
             return false;
 
         nextNode = SurfacePathSearchNode{
-            loc,
-            surfaceElement->getBaseZ(),
-            walkZ,
-            firstDirection,
-            static_cast<uint8_t>(previousNode.distance + 1),
+            loc, surfaceElement->getBaseZ(), walkZ, firstDirection, static_cast<uint8_t>(previousNode.distance + 1),
         };
         return true;
     }
@@ -344,11 +388,7 @@ namespace OpenRCT2::PathFinding
         size_t tail = 1;
 
         nodes[0] = SurfacePathSearchNode{
-            CoordsXY{ peep.NextLoc }.ToTileStart(),
-            peep.NextLoc.z,
-            peep.z,
-            kInvalidDirection,
-            0,
+            CoordsXY{ peep.NextLoc }.ToTileStart(), peep.NextLoc.z, peep.z, kInvalidDirection, 0,
         };
 
         while (head < tail)
@@ -486,6 +526,29 @@ namespace OpenRCT2::PathFinding
     static PathSearchResult FootpathElementNextInDirection(
         TileCoordsXYZ loc, PathElement* pathElement, Direction chosenDirection)
     {
+        if (const auto* source = GetExactCachedPath(loc, pathElement);
+            source != nullptr && (source->edges & (1 << chosenDirection)))
+        {
+            const auto& connection = source->connections[chosenDirection];
+            if (!connection.IsConnected())
+                return PathSearchResult::Failed;
+
+            const auto targetTile = TileCoordsXY{ loc } + TileDirectionDelta[chosenDirection];
+            const auto targetView = MapPathTopology::GetChunk(targetTile);
+            if (targetView.isExact)
+            {
+                const auto* target = MapPathTopology::FindPath(targetView, { targetTile, connection.targetBaseZ });
+                if (target != nullptr)
+                {
+                    if (target->HasFlag(MapPathTopology::PathNodeFlag::wide))
+                        return PathSearchResult::Wide;
+                    if (target->HasFlag(MapPathTopology::PathNodeFlag::queue) && !target->queueRide.IsNull())
+                        return PathSearchResult::RideQueue;
+                    return PathSearchResult::Other;
+                }
+            }
+        }
+
         if (pathElement->IsSloped())
         {
             if (pathElement->GetSlopeDirection() == chosenDirection)
@@ -605,7 +668,8 @@ namespace OpenRCT2::PathFinding
                     if (tileElement->asPath()->IsWide())
                         return PathSearchResult::Wide;
 
-                    uint8_t edges = PathGetPermittedEdges(ignoreBanners, pathElement);
+                    uint8_t edges = PathGetPermittedEdges(
+                        ignoreBanners, { loc.x, loc.y, tileElement->baseHeight }, pathElement);
                     edges &= ~(1 << DirectionReverse(chosenDirection));
                     loc.z = tileElement->baseHeight;
 
@@ -784,6 +848,268 @@ namespace OpenRCT2::PathFinding
             yDelta >>= 4;
 
         return xDelta + yDelta + zDelta;
+    }
+
+    using TravelTimeMilliseconds = int64_t;
+
+    static int64_t GetWalkingSpeedMillimetresPerSecond(const Peep& peep)
+    {
+        constexpr int64_t kNormalWalkingSpeedMillimetresPerSecond = 1341; // 3 mph
+        constexpr int64_t kNormalWalkingEnergy = 96;
+
+        auto walkingSpeed = kNormalWalkingSpeedMillimetresPerSecond
+            * std::clamp<int64_t>(peep.Energy, kPeepMinEnergy, kPeepMaxEnergy) / kNormalWalkingEnergy;
+        if (peep.PeepFlags & PEEP_FLAGS_SLOW_WALK)
+        {
+            walkingSpeed /= 2;
+        }
+        return std::max<int64_t>(walkingSpeed, 1);
+    }
+
+    int32_t CalculateTransportCandidateRadiusTiles(int64_t walkingSpeedMillimetresPerSecond, int64_t maximumWalkingTimeMs)
+    {
+        constexpr int64_t kMillisecondsAndMillimetresPerTile = 4'000'000;
+        const auto speed = std::max<int64_t>(walkingSpeedMillimetresPerSecond, 1);
+        const auto time = std::max<int64_t>(maximumWalkingTimeMs, 0);
+        const auto adjustedTime = AddClamp<int64_t>(time, 1);
+        if (adjustedTime > std::numeric_limits<int64_t>::max() / speed)
+        {
+            return kMaximumMapSizeTechnical;
+        }
+        const auto distanceNumerator = adjustedTime * speed;
+        return static_cast<int32_t>(
+            std::clamp<int64_t>(distanceNumerator / kMillisecondsAndMillimetresPerTile + 1, 1, kMaximumMapSizeTechnical));
+    }
+
+    static TravelTimeMilliseconds EstimateWalkingTravelTime(
+        const Peep& peep, const TileCoordsXYZ& start, const TileCoordsXYZ& destination)
+    {
+        constexpr int64_t kHeuristicUnitsPerPathTile = 32;
+        constexpr int64_t kMillimetresPerPathTile = 4000;
+
+        const auto distanceScore = CalculateHeuristicPathingScore(start, destination);
+        const auto distanceMillimetres = static_cast<int64_t>(distanceScore) * kMillimetresPerPathTile
+            / kHeuristicUnitsPerPathTile;
+        return (distanceMillimetres * 1000) / GetWalkingSpeedMillimetresPerSecond(peep);
+    }
+
+    bool PlanTransportRoute(Guest& peep, const TileCoordsXYZ& finalGoal, bool hasWalkingAlternative)
+    {
+        PROFILED_FUNCTION();
+
+        if (peep.hasTransportRoute() || peep.outsideOfPark)
+        {
+            return false;
+        }
+
+        const auto currentLocation = TileCoordsXYZ{ peep.NextLoc };
+        const auto directWalkTime = EstimateWalkingTravelTime(peep, currentLocation, finalGoal);
+        if (directWalkTime <= 0)
+        {
+            return false;
+        }
+
+        const auto& gameState = getGameState();
+        const bool isPrecipitating = Weather::isPrecipitating();
+        struct TransportCandidate
+        {
+            TravelTimeMilliseconds rankingTime{ std::numeric_limits<TravelTimeMilliseconds>::max() };
+            RideId ride{ RideId::GetNull() };
+            StationIndex boardingStation{ StationIndex::GetNull() };
+            StationIndex destinationStation{ StationIndex::GetNull() };
+
+            bool isValid() const
+            {
+                return !ride.IsNull();
+            }
+        };
+        TransportCandidate bestNonExtortive;
+        TransportCandidate bestExtortive;
+
+        static thread_local std::vector<TransportRideServiceStationRef> boardingStations;
+        static thread_local std::vector<TransportRideServiceStationRef> destinationStations;
+        const bool canNarrowSpatially = hasWalkingAlternative && !gameState.cheats.ignorePrice;
+        if (canNarrowSpatially)
+        {
+            // Every eligible paid/free route is bounded by the most permissive
+            // free-transport tie. Since all route components are non-negative,
+            // each walking leg must fit inside this same bound. The extra tile in
+            // CalculateTransportCandidateRadiusTiles covers integer truncation.
+            const auto maximumTieTolerance = isPrecipitating ? std::max<TravelTimeMilliseconds>(30'000, directWalkTime / 5)
+                                                             : std::max<TravelTimeMilliseconds>(15'000, directWalkTime / 10);
+            const auto maximumRouteTime = AddClamp<TravelTimeMilliseconds>(directWalkTime, maximumTieTolerance);
+            const auto radius = CalculateTransportCandidateRadiusTiles(
+                GetWalkingSpeedMillimetresPerSecond(peep), maximumRouteTime);
+            const auto currentTile = TileCoordsXY{ currentLocation };
+            const auto goalTile = TileCoordsXY{ finalGoal };
+            const auto radiusOffset = TileCoordsXY{ radius, radius };
+            auto currentMinimum = currentTile;
+            auto goalMinimum = goalTile;
+            currentMinimum -= radiusOffset;
+            goalMinimum -= radiusOffset;
+            RideQueryTransportServiceStationsInBounds(
+                TransportRideServiceEndpoint::boardingEntrance, currentMinimum, currentTile + radiusOffset, boardingStations);
+            RideQueryTransportServiceStationsInBounds(
+                TransportRideServiceEndpoint::destinationExit, goalMinimum, goalTile + radiusOffset, destinationStations);
+        }
+        else
+        {
+            // Guests without a walking alternative, extortive-only searches, and
+            // ignore-price searches are intentionally unbounded. Retaining the
+            // complete service fallback here is required for disconnected parks.
+            RideCollectAllTransportServiceStations(TransportRideServiceEndpoint::boardingEntrance, boardingStations);
+            RideCollectAllTransportServiceStations(TransportRideServiceEndpoint::destinationExit, destinationStations);
+        }
+
+        RideId evaluatedRideId{ RideId::GetNull() };
+        const Ride* ride = nullptr;
+        TransportRideServiceView service{};
+        bool paysForRide = false;
+        RidePriceTarget effectivePriceTarget = RidePriceTarget::free;
+        std::bitset<Limits::kMaxStationsPerRide> destinationCandidateMask;
+        for (const auto& boardingRef : boardingStations)
+        {
+            if (boardingRef.ride != evaluatedRideId)
+            {
+                evaluatedRideId = boardingRef.ride;
+                destinationCandidateMask.reset();
+                auto destinationIterator = std::lower_bound(
+                    destinationStations.begin(), destinationStations.end(),
+                    TransportRideServiceStationRef{ .ride = evaluatedRideId, .station = StationIndex::FromUnderlying(0) });
+                while (destinationIterator != destinationStations.end() && destinationIterator->ride == evaluatedRideId)
+                {
+                    destinationCandidateMask.set(destinationIterator->station.ToUnderlying());
+                    destinationIterator++;
+                }
+                ride = GetRide(evaluatedRideId);
+                service = RideGetTransportService(evaluatedRideId);
+                if (ride == nullptr || !service.isAvailable() || evaluatedRideId == peep.guestHeadingToRideId
+                    || evaluatedRideId == peep.previousRide)
+                {
+                    ride = nullptr;
+                }
+                else
+                {
+                    paysForRide = !peep.hasFreeRideVoucherFor(*ride) && !(gameState.park.flags & PARK_FLAGS_NO_MONEY)
+                        && Park::RidePricesUnlocked(gameState.park);
+                    effectivePriceTarget = paysForRide ? ride->priceTarget : RidePriceTarget::free;
+                }
+            }
+            if (ride == nullptr)
+            {
+                continue;
+            }
+
+            const auto boardingStation = boardingRef.station;
+            const auto boardingIndex = static_cast<size_t>(boardingStation.ToUnderlying());
+            if (boardingIndex >= service.stations.size() || RideIsTransportStationOvercrowded(*ride, boardingStation))
+            {
+                continue;
+            }
+
+            const auto boardingLocation = TileCoordsXYZ{ service.stations[boardingIndex].entrance };
+            const auto walkToBoard = EstimateWalkingTravelTime(peep, currentLocation, boardingLocation);
+            constexpr TravelTimeMilliseconds kBoardingTime = 8'000;
+            constexpr TravelTimeMilliseconds kMillisecondsPerMinute = 60'000;
+            const auto waitingTime = kBoardingTime
+                + (static_cast<TravelTimeMilliseconds>(ride->getStation(boardingStation).QueueTime) * kMillisecondsPerMinute);
+
+            const auto stationCount = service.stations.size();
+            for (size_t destinationOffset = 1; destinationOffset < stationCount; destinationOffset++)
+            {
+                const auto destinationIndex = (boardingIndex + destinationOffset) % stationCount;
+                const auto destinationStation = StationIndex::FromUnderlying(
+                    static_cast<StationIndex::UnderlyingType>(destinationIndex));
+                if (!destinationCandidateMask[destinationIndex])
+                {
+                    continue;
+                }
+
+                const auto* serviceJourney = service.getJourney(boardingStation, destinationStation);
+                if (serviceJourney == nullptr)
+                {
+                    continue;
+                }
+                const auto& journey = serviceJourney->journey;
+                const auto fare = paysForRide ? RideGetTransportFare(*ride, journey) : 0.00_GBP;
+                if (paysForRide && fare > peep.cashInPocket)
+                {
+                    continue;
+                }
+
+                const auto exitLocation = TileCoordsXYZ{ service.stations[destinationIndex].exit };
+                const auto walkAfterRide = EstimateWalkingTravelTime(peep, exitLocation, finalGoal);
+                const auto routeTime = walkToBoard + waitingTime + journey.travelTimeMilliseconds + walkAfterRide;
+
+                bool isEligible = !hasWalkingAlternative;
+                TravelTimeMilliseconds preferenceBonus = 0;
+                switch (effectivePriceTarget)
+                {
+                    case RidePriceTarget::free:
+                    {
+                        const auto tieTolerance = isPrecipitating
+                            ? std::max<TravelTimeMilliseconds>(30'000, directWalkTime / 5)
+                            : std::max<TravelTimeMilliseconds>(15'000, directWalkTime / 10);
+                        isEligible = isEligible || routeTime <= directWalkTime + tieTolerance;
+                        preferenceBonus = tieTolerance;
+                        break;
+                    }
+                    case RidePriceTarget::goodValue:
+                    {
+                        const auto requiredSaving = isPrecipitating
+                            ? TravelTimeMilliseconds{ 1 }
+                            : std::max<TravelTimeMilliseconds>(5'000, directWalkTime / 10);
+                        isEligible = isEligible || directWalkTime - routeTime >= requiredSaving;
+                        preferenceBonus = 3'000;
+                        break;
+                    }
+                    case RidePriceTarget::neutral:
+                    {
+                        const auto requiredSaving = isPrecipitating
+                            ? TravelTimeMilliseconds{ 1 }
+                            : std::max<TravelTimeMilliseconds>(10'000, directWalkTime / 5);
+                        isEligible = isEligible || directWalkTime - routeTime >= requiredSaving;
+                        break;
+                    }
+                    case RidePriceTarget::badValue:
+                        isEligible = !hasWalkingAlternative;
+                        break;
+                }
+                if (effectivePriceTarget == RidePriceTarget::badValue && hasWalkingAlternative)
+                {
+                    continue;
+                }
+                if (!isEligible && !gameState.cheats.ignorePrice)
+                {
+                    continue;
+                }
+
+                auto rankingTime = routeTime - preferenceBonus;
+                if (isPrecipitating)
+                {
+                    const auto onboardTimeWeight = 850 - (std::min<int32_t>(ride->shelteredEighths, 8) * 25);
+                    rankingTime -= (journey.travelTimeMilliseconds * (1000 - onboardTimeWeight)) / 1000;
+                }
+
+                auto& best = effectivePriceTarget == RidePriceTarget::badValue ? bestExtortive : bestNonExtortive;
+                if (rankingTime < best.rankingTime)
+                {
+                    best.rankingTime = rankingTime;
+                    best.ride = evaluatedRideId;
+                    best.boardingStation = boardingStation;
+                    best.destinationStation = destinationStation;
+                }
+            }
+        }
+
+        const auto& best = bestNonExtortive.isValid() ? bestNonExtortive : bestExtortive;
+        if (!best.isValid())
+        {
+            return false;
+        }
+
+        peep.setTransportRoute(best.ride, best.boardingStation, best.destinationStation, !bestNonExtortive.isValid());
+        return true;
     }
 
     /**
@@ -1140,7 +1466,7 @@ namespace OpenRCT2::PathFinding
 
             /* Get all the permitted_edges of the map element. */
             Guard::Assert(tileElement->asPath() != nullptr);
-            uint32_t edges = PathGetPermittedEdges(staff != nullptr, tileElement->asPath());
+            uint32_t edges = PathGetPermittedEdges(staff != nullptr, loc, tileElement->asPath());
 
             LogPathfinding(
                 &peep, "Path element at %d,%d,%d; Steps: %u; Edges (0123):%d%d%d%d; Reverse: %d", loc.x >> 5, loc.y >> 5, loc.z,
@@ -1436,7 +1762,7 @@ namespace OpenRCT2::PathFinding
             isThin = isThin || PathIsThinJunction(destTileElement->asPath(), loc);
 
             // Collect the permitted edges of ALL matching path elements at this location.
-            permittedEdges |= PathGetPermittedEdges(peep.is<Staff>(), destTileElement->asPath());
+            permittedEdges |= PathGetPermittedEdges(peep.is<Staff>(), loc, destTileElement->asPath());
         } while (!(destTileElement++)->isLastForTile());
         // Peep is not on a path.
         if (!found)
@@ -1741,12 +2067,7 @@ namespace OpenRCT2::PathFinding
             return GuestPathfindAimless(peep, edges);
 
         const auto goalPos = TileCoordsXYZ(chosenEntrance.value());
-        Direction chosenDirection = ChooseDirection(TileCoordsXYZ{ peep.NextLoc }, goalPos, peep, true, RideId::GetNull());
-
-        if (chosenDirection == kInvalidDirection)
-            return GuestPathfindAimless(peep, edges);
-
-        return PeepMoveOneTile(chosenDirection, peep);
+        return GuestPathFindToDestination(peep, goalPos, RideId::GetNull(), edges);
     }
 
     /**
@@ -1795,11 +2116,7 @@ namespace OpenRCT2::PathFinding
         }
 
         const auto goalPos = TileCoordsXYZ(peepSpawnLoc);
-        direction = ChooseDirection(TileCoordsXYZ{ peep.NextLoc }, goalPos, peep, true, RideId::GetNull());
-        if (direction == kInvalidDirection)
-            return GuestPathfindAimless(peep, edges);
-
-        return PeepMoveOneTile(direction, peep);
+        return GuestPathFindToDestination(peep, goalPos, RideId::GetNull(), edges);
     }
 
     /**
@@ -1831,11 +2148,7 @@ namespace OpenRCT2::PathFinding
             entranceGoal = TileCoordsXYZ(*chosenEntrance);
         }
 
-        Direction chosenDirection = ChooseDirection(TileCoordsXYZ{ peep.NextLoc }, entranceGoal, peep, true, RideId::GetNull());
-        if (chosenDirection == kInvalidDirection)
-            return GuestPathfindAimless(peep, edges);
-
-        return PeepMoveOneTile(chosenDirection, peep);
+        return GuestPathFindToDestination(peep, entranceGoal, RideId::GetNull(), edges);
     }
 
     /**
@@ -1981,6 +2294,79 @@ namespace OpenRCT2::PathFinding
         loc.z = tileElement->baseHeight;
     }
 
+    static std::optional<int32_t> GuestPathFindTransportRide(Guest& peep)
+    {
+        auto* ride = GetRide(peep.previousRide);
+        if (ride == nullptr || ride->status != RideStatus::open || ride->flags.has(RideFlag::brokenDown)
+            || peep.CurrentRideStation.IsNull() || peep.CurrentRideStation.ToUnderlying() >= ride->numStations)
+        {
+            peep.clearTransportRoute();
+            return std::nullopt;
+        }
+
+        auto entrance = ride->getStation(peep.CurrentRideStation).Entrance;
+        if (entrance.IsNull())
+        {
+            peep.clearTransportRoute();
+            return std::nullopt;
+        }
+
+        TileCoordsXYZ goal{ entrance };
+        GetRideQueueEnd(goal);
+        const auto direction = ChooseDirection(TileCoordsXYZ{ peep.NextLoc }, goal, peep, true, ride->id);
+        if (direction == kInvalidDirection)
+        {
+            peep.clearTransportRoute();
+            return std::nullopt;
+        }
+
+        return PeepMoveOneTile(direction, peep);
+    }
+
+    static int32_t GuestPathFindToDestination(
+        Peep& peep, const TileCoordsXYZ& goal, RideId queueRideIndex, uint8_t fallbackEdges)
+    {
+        std::optional<int32_t> walkingDirection;
+        if (auto* guest = peep.as<Guest>(); guest != nullptr)
+        {
+            if (guest->hasTransportRoute() && guest->transportRouteTopologyEpoch != MapTopology::GetEpoch())
+            {
+                guest->clearTransportRoute();
+                guest->transportRoutePlanningInitialised = false;
+            }
+            const bool isPrecipitating = Weather::isPrecipitating();
+            const bool destinationChanged = !DirectionValid(peep.PathfindGoal.direction)
+                || TileCoordsXYZ{ peep.PathfindGoal } != goal;
+            const bool transportConditionsChanged = guest->transportRoutePlannedInPrecipitation != isPrecipitating;
+            if (!guest->hasTransportRoute() && !guest->outsideOfPark
+                && (!guest->transportRoutePlanningInitialised || destinationChanged || transportConditionsChanged))
+            {
+                walkingDirection = ChooseDirection(TileCoordsXYZ{ peep.NextLoc }, goal, peep, true, queueRideIndex);
+                PlanTransportRoute(*guest, goal, *walkingDirection != kInvalidDirection);
+                guest->transportRoutePlannedInPrecipitation = isPrecipitating;
+                guest->transportRoutePlanningInitialised = true;
+            }
+
+            if (guest->hasTransportRoute())
+            {
+                if (const auto routeDirection = GuestPathFindTransportRide(*guest); routeDirection.has_value())
+                {
+                    return *routeDirection;
+                }
+            }
+        }
+
+        const auto direction = walkingDirection.value_or(
+            ChooseDirection(TileCoordsXYZ{ peep.NextLoc }, goal, peep, true, queueRideIndex));
+        if (direction == kInvalidDirection)
+        {
+            peep.ResetPathfindGoal();
+            return GuestPathfindAimless(peep, fallbackEdges);
+        }
+
+        return PeepMoveOneTile(direction, peep);
+    }
+
     /*
      * If a ride has multiple entrance stations and is set to sync with
      * adjacent stations, cycle through the entrance stations (based on
@@ -2041,7 +2427,7 @@ namespace OpenRCT2::PathFinding
         }
 
         // Because this function is called for guests only, never ignore banners.
-        uint32_t edges = PathGetPermittedEdges(false, pathElement);
+        uint32_t edges = PathGetPermittedEdges(false, loc, pathElement);
 
         if (edges == 0)
         {
@@ -2175,6 +2561,10 @@ namespace OpenRCT2::PathFinding
 
         if (peep.guestHeadingToRideId.IsNull())
         {
+            if (peep.hasTransportRoute())
+            {
+                peep.clearTransportRoute();
+            }
             LogPathfinding(&peep, "Completed CalculateNextDestination - peep is aimless.");
 
             return GuestPathfindAimless(peep, edges);
@@ -2185,6 +2575,10 @@ namespace OpenRCT2::PathFinding
         auto ride = GetRide(rideIndex);
         if (ride == nullptr || ride->status != RideStatus::open)
         {
+            if (peep.hasTransportRoute())
+            {
+                peep.clearTransportRoute();
+            }
             LogPathfinding(&peep, "Completed CalculateNextDestination - peep is heading to closed ride == aimless.");
 
             return GuestPathfindAimless(peep, edges);
@@ -2247,26 +2641,7 @@ namespace OpenRCT2::PathFinding
 
         GetRideQueueEnd(loc);
 
-        direction = ChooseDirection(TileCoordsXYZ{ peep.NextLoc }, loc, peep, true, rideIndex);
-
-        if (direction == kInvalidDirection)
-        {
-            /* Heuristic search failed for all directions.
-             * Reset the PathfindGoal - this means that the PathfindHistory
-             * will be reset in the next call to ChooseDirection().
-             * This lets the heuristic search "try again" in case the player has
-             * edited the path layout or the mechanic was already stuck in the
-             * save game (e.g. with a worse version of the pathfinding). */
-            peep.ResetPathfindGoal();
-
-            LogPathfinding(&peep, "Completed CalculateNextDestination - failed to choose a direction == aimless.");
-
-            return GuestPathfindAimless(peep, edges);
-        }
-
-        LogPathfinding(&peep, "Completed CalculateNextDestination - direction chosen: %d.", direction);
-
-        return PeepMoveOneTile(direction, peep);
+        return GuestPathFindToDestination(peep, loc, rideIndex, edges);
     }
 
 } // namespace OpenRCT2::PathFinding

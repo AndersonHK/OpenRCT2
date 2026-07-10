@@ -7,8 +7,8 @@
  * OpenRCT2 is licensed under the GNU General Public License version 3.
  *****************************************************************************/
 
-#include <cassert>
 #include <array>
+#include <cassert>
 #include <cmath>
 #include <iterator>
 #include <limits>
@@ -99,6 +99,13 @@ namespace OpenRCT2::Ui::Windows
         RidePriceTarget::badValue,
     };
 
+    static constexpr std::array<RidePriceTarget, 4> kTransportRidePriceTargets = {
+        RidePriceTarget::free,
+        RidePriceTarget::goodValue,
+        RidePriceTarget::neutral,
+        RidePriceTarget::badValue,
+    };
+
     static constexpr std::array<StringId, 3> kMazeCapacityModeNames = {
         STR_MAZE_CAPACITY_SPARSE,
         STR_MAZE_CAPACITY_NORMAL,
@@ -107,20 +114,26 @@ namespace OpenRCT2::Ui::Windows
 
     static StringId GetMazeCapacityModeName(MazeCapacityMode mode)
     {
-        return kMazeCapacityModeNames[std::clamp<size_t>(
-            static_cast<size_t>(mode), 0, kMazeCapacityModeNames.size() - 1)];
+        return kMazeCapacityModeNames[std::clamp<size_t>(static_cast<size_t>(mode), 0, kMazeCapacityModeNames.size() - 1)];
     }
 
-    static const char* GetRidePriceTargetName(RidePriceTarget target)
+    static bool IsTransportRide(const Ride& ride)
+    {
+        return ride.getRideTypeDescriptor().flags.has(RtdFlag::isTransportRide);
+    }
+
+    static const char* GetRidePriceTargetName(const Ride& ride, RidePriceTarget target)
     {
         switch (target)
         {
+            case RidePriceTarget::free:
+                return "Free";
             case RidePriceTarget::goodValue:
                 return "Discount";
             case RidePriceTarget::neutral:
                 return "Fair price";
             case RidePriceTarget::badValue:
-                return "Expensive";
+                return IsTransportRide(ride) ? "Extortive" : "Expensive";
         }
         return "Fair price";
     }
@@ -132,9 +145,30 @@ namespace OpenRCT2::Ui::Windows
 
     static u8string FormatRidePriceTargetCaption(const Ride& ride, RidePriceTarget target, money64 price)
     {
-        u8string caption = GetRidePriceTargetName(target);
+        u8string caption = GetRidePriceTargetName(ride, target);
         caption += " (";
-        caption += ride.value == kRideValueUndefined ? "waiting for rating" : FormatIncomePrice(price);
+        if (IsTransportRide(ride))
+        {
+            switch (target)
+            {
+                case RidePriceTarget::free:
+                    caption += "no fare";
+                    break;
+                case RidePriceTarget::goodValue:
+                    caption += "50% of journey value";
+                    break;
+                case RidePriceTarget::neutral:
+                    caption += "100% of journey value";
+                    break;
+                case RidePriceTarget::badValue:
+                    caption += "200% of journey value";
+                    break;
+            }
+        }
+        else
+        {
+            caption += ride.value == kRideValueUndefined ? "waiting for rating" : FormatIncomePrice(price);
+        }
         caption += ")";
         return caption;
     }
@@ -5816,6 +5850,53 @@ namespace OpenRCT2::Ui::Windows
             WindowAlignTabs(this, WIDX_TAB_1, WIDX_TAB_10);
         }
 
+        void DrawTransportMeasurements(RenderTarget& rt, const Ride& ride, ScreenCoordsXY screenCoords)
+        {
+            drawText(rt, screenCoords, STR_TRANSPORT_SERVICE_QUALITY);
+            screenCoords.y += 2 * kListRowHeight;
+
+            const auto quality = RideGetTransportQuality(ride);
+            auto ft = Formatter();
+            ft.Add<int32_t>((quality.comfortPermille + 5) / 10);
+            drawText(rt, screenCoords, quality.hasMeasurements ? STR_TRANSPORT_COMFORT : STR_TRANSPORT_COMFORT_ESTIMATED, ft);
+            screenCoords.y += kListRowHeight;
+
+            ft = Formatter();
+            ft.Add<int32_t>((quality.decorationPermille - 1000 + 5) / 10);
+            drawText(
+                rt, screenCoords,
+                quality.hasMeasurements ? STR_TRANSPORT_DECORATION_BONUS : STR_TRANSPORT_DECORATION_BONUS_ESTIMATED, ft);
+            screenCoords.y += kListRowHeight;
+
+            ft = Formatter();
+            ft.Add<int32_t>(ToHumanReadableSpeed(ride.getDisplayAverageSpeed()));
+            drawText(rt, screenCoords, STR_AVERAGE_SPEED, ft);
+            screenCoords.y += 2 * kListRowHeight;
+
+            Rectangle::fillInset(
+                rt, { screenCoords - ScreenCoordsXY{ 0, 6 }, screenCoords + ScreenCoordsXY{ 303, -5 } }, colours[1],
+                Rectangle::BorderStyle::inset);
+
+            for (StationIndex::UnderlyingType i = 0; i < std::min<int32_t>(ride.numStations, 4); i++)
+            {
+                const auto boardingStation = StationIndex::FromUnderlying(i);
+                const auto segment = RideGetTransportSegment(ride, boardingStation, quality);
+                if (segment.destinationStation.IsNull())
+                {
+                    continue;
+                }
+
+                ft = Formatter();
+                ft.Add<uint16_t>(static_cast<uint16_t>(i + 1));
+                ft.Add<uint16_t>(static_cast<uint16_t>(segment.destinationStation.ToUnderlying() + 1));
+                ft.Add<int32_t>(static_cast<int32_t>((segment.travelTimeMilliseconds + 500) / 1000));
+                ft.Add<int32_t>(segment.distanceMetres);
+                ft.Add<money64>(segment.fareValue);
+                drawTextEllipsised(rt, screenCoords, 308, STR_TRANSPORT_SEGMENT_STATS, ft);
+                screenCoords.y += kListRowHeight;
+            }
+        }
+
         void MeasurementsOnDraw(RenderTarget& rt)
         {
             drawWidgets(rt);
@@ -5842,7 +5923,11 @@ namespace OpenRCT2::Ui::Windows
                 auto screenCoords = windowPos
                     + ScreenCoordsXY{ widgets[WIDX_PAGE_BACKGROUND].left + 4, widgets[WIDX_PAGE_BACKGROUND].top + 4 };
 
-                if (ride->flags.has(RideFlag::tested))
+                if (ride->getRideTypeDescriptor().flags.has(RtdFlag::isTransportRide))
+                {
+                    DrawTransportMeasurements(rt, *ride, screenCoords);
+                }
+                else if (ride->flags.has(RideFlag::tested))
                 {
                     // Excitement
                     StringId ratingName = GetRatingName(ride->ratings.excitement);
@@ -6000,9 +6085,8 @@ namespace OpenRCT2::Ui::Windows
 
                             // Max. negative vertical G's
                             const auto maxNegativeVerticalG = ride->getDisplayMaxNegativeVerticalG();
-                            stringId = maxNegativeVerticalG <= kRideGForcesRedNegVertical
-                                ? STR_MAX_NEGATIVE_VERTICAL_G_RED
-                                : STR_MAX_NEGATIVE_VERTICAL_G;
+                            stringId = maxNegativeVerticalG <= kRideGForcesRedNegVertical ? STR_MAX_NEGATIVE_VERTICAL_G_RED
+                                                                                          : STR_MAX_NEGATIVE_VERTICAL_G;
                             ft = Formatter();
                             ft.Add<int32_t>(static_cast<int32_t>(maxNegativeVerticalG));
                             drawText(rt, screenCoords, stringId, ft);
@@ -6235,8 +6319,7 @@ namespace OpenRCT2::Ui::Windows
             // Set pressed graph button type
             widgetSetPressedExclusive(
                 *this,
-                { WIDX_GRAPH_VELOCITY, WIDX_GRAPH_ALTITUDE, WIDX_GRAPH_VERTICAL, WIDX_GRAPH_LATERAL,
-                  WIDX_GRAPH_LONGITUDINAL },
+                { WIDX_GRAPH_VELOCITY, WIDX_GRAPH_ALTITUDE, WIDX_GRAPH_VERTICAL, WIDX_GRAPH_LATERAL, WIDX_GRAPH_LONGITUDINAL },
                 WIDX_GRAPH_VELOCITY + listInformationType);
 
             // Hide graph buttons that are not applicable
@@ -6261,11 +6344,7 @@ namespace OpenRCT2::Ui::Windows
             widgets[WIDX_GRAPH].bottom = y;
             y += 3;
             constexpr std::array graphWidgets = {
-                WIDX_GRAPH_VELOCITY,
-                WIDX_GRAPH_ALTITUDE,
-                WIDX_GRAPH_VERTICAL,
-                WIDX_GRAPH_LATERAL,
-                WIDX_GRAPH_LONGITUDINAL,
+                WIDX_GRAPH_VELOCITY, WIDX_GRAPH_ALTITUDE, WIDX_GRAPH_VERTICAL, WIDX_GRAPH_LATERAL, WIDX_GRAPH_LONGITUDINAL,
             };
             const auto graphButtonWidth = (width - 6) / static_cast<int32_t>(graphWidgets.size());
             auto graphButtonLeft = 3;
@@ -6571,24 +6650,36 @@ namespace OpenRCT2::Ui::Windows
             if (ride == nullptr || !RideUsesTargetPricing(*ride) || !IncomeCanModifyPrimaryPrice())
                 return;
 
-            auto& dropdownWidget = widgets[WIDX_PRIMARY_PRICE];
-            auto dropdownWidth = widgets[WIDX_PRIMARY_PRICE_INCREASE].right - dropdownWidget.left;
-            WindowDropdownShowTextCustomWidth(
-                { windowPos.x + dropdownWidget.left, windowPos.y + dropdownWidget.top }, dropdownWidget.height(), colours[1],
-                0, 0, kIncomeRidePriceTargets.size(), dropdownWidth);
+            const auto populateDropdown =
+                [this, ride]<size_t TTargetCount>(const std::array<RidePriceTarget, TTargetCount>& priceTargets) {
+                    auto& dropdownWidget = widgets[WIDX_PRIMARY_PRICE];
+                    auto dropdownWidth = widgets[WIDX_PRIMARY_PRICE_INCREASE].right - dropdownWidget.left;
+                    WindowDropdownShowTextCustomWidth(
+                        { windowPos.x + dropdownWidget.left, windowPos.y + dropdownWidget.top }, dropdownWidget.height(),
+                        colours[1], 0, 0, priceTargets.size(), dropdownWidth);
 
-            for (size_t i = 0; i < kIncomeRidePriceTargets.size(); i++)
+                    for (size_t i = 0; i < priceTargets.size(); i++)
+                    {
+                        const auto target = priceTargets[i];
+                        const auto price = IsTransportRide(*ride) ? 0.00_GBP : RideGetTargetPrice(*ride, target);
+                        gDropdown.items[i] = Dropdown::MenuLabel(FormatRidePriceTargetCaption(*ride, target, price));
+                        gDropdown.items[i].value = static_cast<uint32_t>(target);
+                        if (ride->priceTarget == target)
+                        {
+                            gDropdown.items[i].setChecked(true);
+                            gDropdown.highlightedIndex = static_cast<int32_t>(i);
+                            gDropdown.defaultIndex = static_cast<int32_t>(i);
+                        }
+                    }
+                };
+
+            if (IsTransportRide(*ride))
             {
-                const auto target = kIncomeRidePriceTargets[i];
-                const auto price = RideGetTargetPrice(*ride, target);
-                gDropdown.items[i] = Dropdown::MenuLabel(FormatRidePriceTargetCaption(*ride, target, price));
-                gDropdown.items[i].value = static_cast<uint32_t>(target);
-                if (ride->priceTarget == target)
-                {
-                    gDropdown.items[i].setChecked(true);
-                    gDropdown.highlightedIndex = static_cast<int32_t>(i);
-                    gDropdown.defaultIndex = static_cast<int32_t>(i);
-                }
+                populateDropdown(kTransportRidePriceTargets);
+            }
+            else
+            {
+                populateDropdown(kIncomeRidePriceTargets);
             }
         }
 
@@ -6865,7 +6956,7 @@ namespace OpenRCT2::Ui::Windows
             widgets[WIDX_SECONDARY_PRICE_LABEL].text = STR_SHOP_ITEM_PRICE_LABEL_ON_RIDE_PHOTO;
             widgets[WIDX_PRIMARY_PRICE_SAME_THROUGHOUT_PARK].type = WidgetType::empty;
 
-            auto ridePrimaryPrice = RideGetPrice(*ride);
+            auto ridePrimaryPrice = primaryUsesTargetPricing && IsTransportRide(*ride) ? 0.00_GBP : RideGetPrice(*ride);
             if (primaryUsesTargetPricing)
             {
                 _spinnerCaption0 = FormatRidePriceTargetCaption(*ride, ride->priceTarget, ridePrimaryPrice);

@@ -9,6 +9,8 @@
 
 #include "Profiling.h"
 
+#include "../Context.h"
+#include "../core/JobPool.h"
 #include "../core/Json.hpp"
 
 #include <algorithm>
@@ -17,6 +19,7 @@
 #include <chrono>
 #include <fstream>
 #include <iomanip>
+#include <unordered_map>
 
 namespace OpenRCT2::Profiling
 {
@@ -165,7 +168,7 @@ namespace OpenRCT2::Profiling
 
     const std::vector<Function*>& getData()
     {
-        // eturns reference to static vector. Safe because functions are only registered during static initialization.
+        // Returns a reference to static storage. Functions are registered during static initialization.
         return Detail::getRegistry();
     }
 
@@ -199,6 +202,58 @@ namespace OpenRCT2::Profiling
 
     namespace
     {
+        struct FunctionSnapshot
+        {
+            const Function* Identity{};
+            std::string Name;
+            uint64_t CallCount{};
+            double MinTime{};
+            double MaxTime{};
+            double AverageTime{};
+            double TotalTime{};
+            std::vector<Function*> Parents;
+            std::vector<Function*> Children;
+        };
+
+        std::vector<FunctionSnapshot> captureData()
+        {
+            std::vector<Function*> registry;
+            {
+                std::scoped_lock lock(Detail::getRegistryMutex());
+                registry = Detail::getRegistry();
+            }
+
+            std::vector<FunctionSnapshot> snapshots(registry.size());
+            const auto capture = [&](size_t index) {
+                const auto* func = registry[index];
+                auto& snapshot = snapshots[index];
+                snapshot.Identity = func;
+                snapshot.Name = func->getName();
+                snapshot.CallCount = func->getCallCount();
+                snapshot.MinTime = func->getMinTime();
+                snapshot.MaxTime = func->getMaxTime();
+                snapshot.TotalTime = func->getTotalTime();
+                snapshot.AverageTime = snapshot.CallCount > 0 ? snapshot.TotalTime / static_cast<double>(snapshot.CallCount)
+                                                              : 0.0;
+                snapshot.Parents = func->getParents();
+                snapshot.Children = func->getChildren();
+            };
+
+            constexpr size_t parallelSnapshotThreshold = 32;
+            if (auto* context = GetContext(); context != nullptr && registry.size() >= parallelSnapshotThreshold)
+            {
+                context->GetJobPool().ParallelFor(registry.size(), capture, 8);
+            }
+            else
+            {
+                for (size_t i = 0; i < registry.size(); i++)
+                {
+                    capture(i);
+                }
+            }
+            return snapshots;
+        }
+
         bool writeCSV(const std::string& filePath)
         {
             std::ofstream out(filePath);
@@ -208,16 +263,14 @@ namespace OpenRCT2::Profiling
             out << std::setprecision(12);
             out << "function_name,calls,min_microseconds,max_microseconds,average_microseconds,total_microseconds\n";
 
-            std::scoped_lock lock(Detail::getRegistryMutex());
-
-            for (const auto* func : Detail::getRegistry())
+            for (const auto& func : captureData())
             {
-                out << "\"" << func->getName() << "\",";
-                out << func->getCallCount() << ",";
-                out << func->getMinTime() << ",";
-                out << func->getMaxTime() << ",";
-                out << func->getAverageTime() << ",";
-                out << func->getTotalTime() << "\n";
+                out << "\"" << func.Name << "\",";
+                out << func.CallCount << ",";
+                out << func.MinTime << ",";
+                out << func.MaxTime << ",";
+                out << func.AverageTime << ",";
+                out << func.TotalTime << "\n";
             }
 
             return true;
@@ -225,42 +278,42 @@ namespace OpenRCT2::Profiling
 
         bool writeJSON(const std::string& filePath)
         {
-            std::scoped_lock lock(Detail::getRegistryMutex());
-            const auto& registry = Detail::getRegistry();
+            const auto snapshots = captureData();
+            std::unordered_map<const Function*, size_t> indices;
+            indices.reserve(snapshots.size());
+            for (size_t i = 0; i < snapshots.size(); i++)
+            {
+                indices.emplace(snapshots[i].Identity, i);
+            }
 
             json_t functions = json_t::array();
 
-            for (size_t i = 0; i < registry.size(); ++i)
+            for (const auto& func : snapshots)
             {
-                const auto* func = registry[i];
-
                 json_t parentIndices = json_t::array();
-                for (const auto* parent : func->getParents())
+                for (const auto* parent : func.Parents)
                 {
-                    auto it = std::find(registry.begin(), registry.end(), parent);
-                    if (it != registry.end())
-                        parentIndices.push_back(std::distance(registry.begin(), it));
+                    if (const auto it = indices.find(parent); it != indices.end())
+                        parentIndices.push_back(it->second);
                 }
 
                 json_t childIndices = json_t::array();
-                for (const auto* child : func->getChildren())
+                for (const auto* child : func.Children)
                 {
-                    auto it = std::find(registry.begin(), registry.end(), child);
-                    if (it != registry.end())
-                        childIndices.push_back(std::distance(registry.begin(), it));
+                    if (const auto it = indices.find(child); it != indices.end())
+                        childIndices.push_back(it->second);
                 }
 
-                functions.push_back(
-                    {
-                        { "name", func->getName() },
-                        { "callCount", func->getCallCount() },
-                        { "minTime", func->getMinTime() },
-                        { "maxTime", func->getMaxTime() },
-                        { "avgTime", func->getAverageTime() },
-                        { "totalTime", func->getTotalTime() },
-                        { "parents", parentIndices },
-                        { "children", childIndices },
-                    });
+                functions.push_back({
+                    { "name", func.Name },
+                    { "callCount", func.CallCount },
+                    { "minTime", func.MinTime },
+                    { "maxTime", func.MaxTime },
+                    { "avgTime", func.AverageTime },
+                    { "totalTime", func.TotalTime },
+                    { "parents", parentIndices },
+                    { "children", childIndices },
+                });
             }
 
             json_t root = { { "functions", functions } };

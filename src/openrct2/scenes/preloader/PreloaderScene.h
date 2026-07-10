@@ -26,6 +26,10 @@ namespace OpenRCT2
         {
             _jobs.AddTask(fn);
         }
+        void WaitForJobs()
+        {
+            _jobs.Join();
+        }
 
     private:
         JobPool _jobs;

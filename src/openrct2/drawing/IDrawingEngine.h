@@ -21,6 +21,10 @@ enum class DrawingEngine : int32_t
     None = -1,
     SoftwareWithHardwareDisplay,
     OpenGL,
+    // Reserved at the end to avoid renumbering existing configuration values.
+    // It is deliberately absent from configuration/UI tables until the
+    // indexed command executor reaches visual parity.
+    Vulkan,
     Count,
 };
 

@@ -20,8 +20,9 @@
 #include "Numerics.hpp"
 #include "Path.hpp"
 
+#include <atomic>
 #include <chrono>
-#include <list>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -180,28 +181,33 @@ private:
         const size_t totalCount = scanResult.Files.size();
         if (totalCount > 0)
         {
-            JobPool jobPool;
-            std::mutex mtx;
+            // Workers only parse their assigned file into an indexed result slot. The main-thread compaction below preserves
+            // scan order, making the generated index independent of worker completion order.
+            std::vector<std::optional<TItem>> itemResults(totalCount);
             std::atomic<size_t> processed{ 0 };
 
-            for (size_t i = 0; i < totalCount; i++)
-            {
-                jobPool.AddTask([&, index = i]() {
+            auto& jobPool = OpenRCT2::GetContext()->GetJobPool();
+            jobPool.ParallelFor(
+                totalCount,
+                [&](size_t index) {
                     const auto& filePath = scanResult.Files.at(index);
-
-                    if (auto item = Create(language, filePath); item.has_value())
-                    {
-                        std::lock_guard lock(mtx);
-                        allItems.push_back(std::move(item.value()));
-                    }
-
-                    processed++;
+                    itemResults[index] = Create(language, filePath);
+                    processed.fetch_add(1, std::memory_order_relaxed);
+                },
+                8,
+                [&]() {
+                    OpenRCT2::GetContext()->SetProgress(
+                        static_cast<uint32_t>(processed.load(std::memory_order_relaxed)), static_cast<uint32_t>(totalCount));
                 });
-            }
 
-            jobPool.Join([&]() {
-                OpenRCT2::GetContext()->SetProgress(static_cast<uint32_t>(processed.load()), static_cast<uint32_t>(totalCount));
-            });
+            allItems.reserve(totalCount);
+            for (auto& item : itemResults)
+            {
+                if (item.has_value())
+                {
+                    allItems.push_back(std::move(item.value()));
+                }
+            }
         }
 
         WriteIndexFile(language, scanResult.Stats, allItems);

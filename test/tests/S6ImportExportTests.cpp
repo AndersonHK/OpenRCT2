@@ -25,6 +25,7 @@
 #include <openrct2/drawing/Drawing.h>
 #include <openrct2/entity/EntityRegistry.h>
 #include <openrct2/entity/EntityTweener.h>
+#include <openrct2/entity/Guest.h>
 #include <openrct2/object/ObjectManager.h>
 #include <openrct2/park/ParkFile.h>
 #include <openrct2/rct2/RCT2.h>
@@ -410,6 +411,77 @@ TEST(ParkFileMigration, LongitudinalGStatsRoundTripAndDefaultForPreviousVersion)
         EXPECT_FALSE(ride->measurement->hasPreviousVelocity);
         EXPECT_EQ(ride->measurement->longitudinal[0], 0);
         EXPECT_EQ(ride->measurement->longitudinal[1], 0);
+    }
+}
+
+TEST(ParkFileMigration, TransportDestinationRoundTripsAndIsRemovedFromOlderTargets)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    MemoryStream currentVersionPark;
+    MemoryStream previousVersionPark;
+    EntityId guestId = EntityId::GetNull();
+    RideId transportRide = RideId::GetNull();
+
+    {
+        std::unique_ptr<IContext> context = CreateContext();
+        ASSERT_NE(context, nullptr);
+        ASSERT_TRUE(context->Initialise());
+
+        MemoryStream importBuffer;
+        const std::string testParkPath = TestData::GetParkPath("BigMapTest.sv6");
+        ASSERT_TRUE(LoadFileToBuffer(importBuffer, testParkPath));
+        ASSERT_TRUE(ImportS6(importBuffer, context, false));
+
+        auto* ride = GetFirstRide();
+        ASSERT_NE(ride, nullptr);
+        ride->type = RIDE_TYPE_MONORAIL;
+        ride->priceTarget = RidePriceTarget::free;
+        transportRide = ride->id;
+        auto* guest = Guest::generate({ 0, 0, 0 });
+        ASSERT_NE(guest, nullptr);
+        guestId = guest->id;
+        guest->setTransportRoute(transportRide, StationIndex::FromUnderlying(0), StationIndex::FromUnderlying(2), true);
+
+        ASSERT_TRUE(ExportSave(currentVersionPark, context));
+        ASSERT_TRUE(ExportSave(previousVersionPark, context, kTransportRideStatsVersion));
+    }
+
+    {
+        std::unique_ptr<IContext> context = CreateContext();
+        ASSERT_NE(context, nullptr);
+        ASSERT_TRUE(context->Initialise());
+        ASSERT_TRUE(ImportPark(currentVersionPark, context, true));
+
+        const auto* ride = GetFirstRide();
+        ASSERT_NE(ride, nullptr);
+        EXPECT_EQ(ride->priceTarget, RidePriceTarget::free);
+        const auto* guest = getGameState().entities.GetEntity<Guest>(guestId);
+        ASSERT_NE(guest, nullptr);
+        EXPECT_TRUE(guest->hasTransportRoute());
+        EXPECT_EQ(guest->previousRide, transportRide);
+        EXPECT_EQ(guest->CurrentRideStation, StationIndex::FromUnderlying(0));
+        EXPECT_EQ(guest->transportDestinationStation, StationIndex::FromUnderlying(2));
+        EXPECT_TRUE(guest->transportRouteWasExtortive);
+    }
+
+    {
+        std::unique_ptr<IContext> context = CreateContext();
+        ASSERT_NE(context, nullptr);
+        ASSERT_TRUE(context->Initialise());
+        ASSERT_TRUE(ImportPark(previousVersionPark, context, true));
+
+        const auto* ride = GetFirstRide();
+        ASSERT_NE(ride, nullptr);
+        EXPECT_EQ(ride->priceTarget, RidePriceTarget::neutral);
+        const auto* guest = getGameState().entities.GetEntity<Guest>(guestId);
+        ASSERT_NE(guest, nullptr);
+        EXPECT_FALSE(guest->hasTransportRoute());
+        EXPECT_EQ(guest->previousRide, transportRide);
+        EXPECT_EQ(guest->previousRideTimeOut, 0);
+        EXPECT_TRUE(guest->transportDestinationStation.IsNull());
+        EXPECT_FALSE(guest->transportRouteWasExtortive);
     }
 }
 

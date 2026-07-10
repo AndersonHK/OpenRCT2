@@ -2386,7 +2386,7 @@ namespace OpenRCT2
         else
         {
             if (guest->guestHeadingToRideId == rideIndex)
-                guest->guestHeadingToRideId = RideId::GetNull();
+                guest->setPathfindingTargetRide(RideId::GetNull());
             guest->AnimationImageIdOffset = _backupAnimationImageIdOffset;
             guest->SetState(PeepState::buying);
             guest->CurrentRide = rideIndex;

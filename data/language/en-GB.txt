@@ -1017,6 +1017,7 @@ STR_1647    :“{STRINGID} isn’t worth the money”
 STR_1648    :“Help! Put me down!”
 STR_1649    :“I’m running out of cash!”
 STR_1650    :“Wow! A new ride being built!”
+STR_1651    :“Nice ride! But not as good as the Phoenix…”
 STR_1653    :“…and here we are on {STRINGID}!”
 STR_1654    :{WINDOW_COLOUR_2}Recent thoughts:
 STR_1655    :Construct footpath on land
@@ -3838,3 +3839,10 @@ STR_7038    :{WINDOW_COLOUR_2}Max. positive longitudinal Gs: {BLACK}{COMMA2DP32}
 STR_7039    :{WINDOW_COLOUR_2}Max. negative longitudinal Gs: {BLACK}{COMMA2DP32}g
 STR_7040    :{WINDOW_COLOUR_2}Long. Gs
 STR_7041    :Show graph of longitudinal acceleration against time
+STR_7042    :{WINDOW_COLOUR_2}Transport service quality
+STR_7043    :{WINDOW_COLOUR_2}Comfort: {BLACK}{COMMA32}%
+STR_7044    :{WINDOW_COLOUR_2}Comfort: {BLACK}{COMMA32}% (estimated)
+STR_7045    :{WINDOW_COLOUR_2}Decoration bonus: {BLACK}+{COMMA32}%
+STR_7046    :{WINDOW_COLOUR_2}Decoration bonus: {BLACK}+{COMMA32}% (estimated)
+STR_7047    :{WINDOW_COLOUR_2}Segment {BLACK}{COMMA16} to {COMMA16}: {COMMA32} s, {COMMA32} m, value {CURRENCY2DP}
+STR_7048    :“The fare for {STRINGID} was extortionate!”

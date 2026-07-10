@@ -9,6 +9,7 @@
 
 #include "TestData.h"
 
+#include <array>
 #include <gtest/gtest.h>
 #include <openrct2/Context.h>
 #include <openrct2/GameState.h>
@@ -18,6 +19,8 @@
 #include <openrct2/entity/EntityRegistry.h>
 #include <openrct2/entity/Guest.h>
 #include <openrct2/object/ObjectManager.h>
+#include <openrct2/ride/Vehicle.Station.h>
+#include <openrct2/ride/Vehicle.h>
 #include <openrct2/world/MapAnimation.h>
 
 using namespace OpenRCT2;
@@ -58,6 +61,131 @@ TEST_F(EntityImportTests, CreateEntityAtDuplicateIndexReturnsNull)
     // Try to create another entity at the same index, which should return nullptr
     auto* entity2 = gameState.entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(100));
     EXPECT_EQ(entity2, nullptr);
+}
+
+TEST_F(EntityImportTests, VehicleHeadEntityListTracksAddsRemovalsAndReset)
+{
+    auto& entities = getGameState().entities;
+    entities.ResetAllEntities();
+
+    auto* tail = entities.CreateEntityAt<Vehicle>(EntityId::FromUnderlying(10));
+    auto* secondHead = entities.CreateEntityAt<Vehicle>(EntityId::FromUnderlying(40));
+    auto* firstHead = entities.CreateEntityAt<Vehicle>(EntityId::FromUnderlying(20));
+    ASSERT_NE(tail, nullptr);
+    ASSERT_NE(firstHead, nullptr);
+    ASSERT_NE(secondHead, nullptr);
+    tail->SubType = Vehicle::Type::tail;
+    firstHead->SubType = Vehicle::Type::head;
+    secondHead->SubType = Vehicle::Type::head;
+
+    const auto& initialHeads = entities.GetVehicleHeadEntityList();
+    ASSERT_EQ(initialHeads.size(), 2u);
+    EXPECT_EQ(initialHeads[0].ToUnderlying(), 20u);
+    EXPECT_EQ(initialHeads[1].ToUnderlying(), 40u);
+
+    auto* middleHead = entities.CreateEntityAt<Vehicle>(EntityId::FromUnderlying(30));
+    ASSERT_NE(middleHead, nullptr);
+    middleHead->SubType = Vehicle::Type::head;
+
+    const auto& headsAfterAdd = entities.GetVehicleHeadEntityList();
+    ASSERT_EQ(headsAfterAdd.size(), 3u);
+    EXPECT_EQ(headsAfterAdd[0].ToUnderlying(), 20u);
+    EXPECT_EQ(headsAfterAdd[1].ToUnderlying(), 30u);
+    EXPECT_EQ(headsAfterAdd[2].ToUnderlying(), 40u);
+
+    entities.EntityRemove(firstHead);
+
+    const auto& headsAfterRemove = entities.GetVehicleHeadEntityList();
+    ASSERT_EQ(headsAfterRemove.size(), 2u);
+    EXPECT_EQ(headsAfterRemove[0].ToUnderlying(), 30u);
+    EXPECT_EQ(headsAfterRemove[1].ToUnderlying(), 40u);
+
+    entities.ResetAllEntities();
+    EXPECT_TRUE(entities.GetVehicleHeadEntityList().empty());
+}
+
+TEST_F(EntityImportTests, PassengerUnloadPlanPreservesThroughRidersAndOrdinaryUnloadRemovesEveryone)
+{
+    constexpr uint8_t passengerCount = 5;
+    constexpr std::array<bool, passengerCount> shouldAlight{ false, true, false, true, false };
+    constexpr std::array<uint8_t, passengerCount> expectedSourceIndices{ 0, 2, 4, 1, 3 };
+
+    auto& entities = getGameState().entities;
+    entities.ResetAllEntities();
+
+    Vehicle vehicle{};
+    vehicle.num_peeps = passengerCount;
+    vehicle.next_free_seat = passengerCount;
+
+    std::array<Guest*, passengerCount> passengers{};
+    std::array<EntityId, passengerCount> passengerIds{};
+    std::array<Drawing::Colour, passengerCount> passengerColours{};
+    for (size_t index = 0; index < passengerCount; index++)
+    {
+        const auto entityId = EntityId::FromUnderlying(static_cast<uint16_t>(100 + index));
+        auto* guest = entities.CreateEntityAt<Guest>(entityId);
+        ASSERT_NE(guest, nullptr);
+        guest->State = PeepState::walking;
+        guest->RideSubState = PeepRideSubState::onRide;
+        guest->CurrentSeat = static_cast<uint8_t>(index);
+
+        const auto colour = static_cast<Drawing::Colour>(index);
+        passengers[index] = guest;
+        passengerIds[index] = entityId;
+        passengerColours[index] = colour;
+        vehicle.peep[index] = entityId;
+        vehicle.peep_tshirt_colours[index] = colour;
+    }
+
+    const auto plan = RideVehicle::StationDetail::BuildPassengerUnloadPlan(shouldAlight);
+    EXPECT_EQ(plan.passengerCount, passengerCount);
+    EXPECT_EQ(plan.continuingCount, 3u);
+    for (size_t index = 0; index < passengerCount; index++)
+    {
+        EXPECT_EQ(plan.sourceIndices[index], expectedSourceIndices[index]);
+    }
+
+    RideVehicle::StationDetail::ApplyTransportPassengerUnload(vehicle, passengers, plan);
+
+    EXPECT_EQ(vehicle.next_free_seat, 3u);
+    for (size_t destinationIndex = 0; destinationIndex < passengerCount; destinationIndex++)
+    {
+        const auto sourceIndex = expectedSourceIndices[destinationIndex];
+        EXPECT_EQ(vehicle.peep[destinationIndex], passengerIds[sourceIndex]);
+        EXPECT_EQ(vehicle.peep_tshirt_colours[destinationIndex], passengerColours[sourceIndex]);
+        EXPECT_EQ(passengers[sourceIndex]->CurrentSeat, destinationIndex);
+    }
+    for (const auto throughRiderIndex : { 0u, 2u, 4u })
+    {
+        EXPECT_EQ(passengers[throughRiderIndex]->State, PeepState::walking);
+        EXPECT_EQ(passengers[throughRiderIndex]->RideSubState, PeepRideSubState::onRide);
+    }
+    for (const auto alightingIndex : { 1u, 3u })
+    {
+        EXPECT_EQ(passengers[alightingIndex]->State, PeepState::leavingRide);
+        EXPECT_EQ(passengers[alightingIndex]->RideSubState, PeepRideSubState::leaveVehicle);
+    }
+
+    for (size_t index = 0; index < passengerCount; index++)
+    {
+        passengers[index]->State = PeepState::walking;
+        passengers[index]->RideSubState = PeepRideSubState::onRide;
+        passengers[index]->CurrentSeat = static_cast<uint8_t>(index);
+        vehicle.peep[index] = passengerIds[index];
+        vehicle.peep_tshirt_colours[index] = passengerColours[index];
+    }
+    vehicle.next_free_seat = passengerCount;
+
+    RideVehicle::StationDetail::ApplyOrdinaryPassengerUnload(vehicle, entities);
+
+    EXPECT_EQ(vehicle.next_free_seat, 0u);
+    for (size_t index = 0; index < passengerCount; index++)
+    {
+        EXPECT_EQ(vehicle.peep[index], passengerIds[index]);
+        EXPECT_EQ(vehicle.peep_tshirt_colours[index], passengerColours[index]);
+        EXPECT_EQ(passengers[index]->State, PeepState::leavingRide);
+        EXPECT_EQ(passengers[index]->RideSubState, PeepRideSubState::leaveVehicle);
+    }
 }
 
 // This test verifies that corrupted S6 files with duplicate EntityIndex values can be loaded without crashing.

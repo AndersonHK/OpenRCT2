@@ -50,6 +50,10 @@ enum
 };
 
 extern uint32_t gCurrentRealTimeTicks;
+// Monotonic process-local count of completed logical simulation ticks, used only for performance telemetry.
+extern uint64_t gTotalSimulationTicks;
+// Measured logical simulation ticks per wall-clock second. This is independent from render FPS.
+extern float gActualSimulationTPS;
 
 extern uint16_t gCurrentDeltaTime;
 extern uint8_t gGamePaused;

@@ -1,0 +1,828 @@
+/*****************************************************************************
+ * Copyright (c) 2014-2026 OpenRCT2 developers
+ *
+ * For a complete list of all authors, please refer to contributors.md
+ * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
+ *
+ * OpenRCT2 is licensed under the GNU General Public License version 3.
+ *****************************************************************************/
+
+#ifdef ENABLE_VULKAN
+
+    #include "VulkanDevice.h"
+
+    #include <SDL.h>
+    #include <algorithm>
+    #include <array>
+    #include <cstring>
+    #include <limits>
+    #include <openrct2/core/Console.hpp>
+    #include <set>
+    #include <stdexcept>
+    #include <string>
+
+namespace OpenRCT2::Ui::Vulkan
+{
+    namespace
+    {
+        constexpr std::array<const char*, 1> kRequiredDeviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+        constexpr const char* kPortabilitySubsetExtension = "VK_KHR_portability_subset";
+
+        [[noreturn]] void ThrowVk(const char* operation, VkResult result)
+        {
+            throw std::runtime_error(std::string(operation) + " failed with Vulkan result " + std::to_string(result));
+        }
+
+        void CheckVk(VkResult result, const char* operation)
+        {
+            if (result != VK_SUCCESS)
+            {
+                ThrowVk(operation, result);
+            }
+        }
+
+        bool HasExtension(std::span<const VkExtensionProperties> extensions, const char* name)
+        {
+            return std::any_of(extensions.begin(), extensions.end(), [name](const auto& extension) {
+                return std::strcmp(extension.extensionName, name) == 0;
+            });
+        }
+
+        VkDeviceSize AlignUp(VkDeviceSize value, VkDeviceSize alignment)
+        {
+            if (alignment <= 1)
+            {
+                return value;
+            }
+            return (value + alignment - 1) & ~(alignment - 1);
+        }
+
+        uint32_t FindMemoryType(
+            VkPhysicalDevice physicalDevice, uint32_t typeBits, VkMemoryPropertyFlags requiredProperties)
+        {
+            VkPhysicalDeviceMemoryProperties properties{};
+            vkGetPhysicalDeviceMemoryProperties(physicalDevice, &properties);
+            for (uint32_t i = 0; i < properties.memoryTypeCount; i++)
+            {
+                if ((typeBits & (1u << i)) != 0
+                    && (properties.memoryTypes[i].propertyFlags & requiredProperties) == requiredProperties)
+                {
+                    return i;
+                }
+            }
+            throw std::runtime_error("No Vulkan memory type satisfies the upload-ring requirements");
+        }
+    } // namespace
+
+    UploadRing::~UploadRing()
+    {
+        Dispose();
+    }
+
+    void UploadRing::Initialise(VkPhysicalDevice physicalDevice, VkDevice device, VkDeviceSize capacity)
+    {
+        Dispose();
+        _physicalDevice = physicalDevice;
+        _device = device;
+        _capacity = capacity;
+
+        const VkBufferCreateInfo bufferInfo = {
+            .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+            .size = capacity,
+            .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
+                | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+        };
+        CheckVk(vkCreateBuffer(_device, &bufferInfo, nullptr, &_buffer), "vkCreateBuffer(upload ring)");
+
+        VkMemoryRequirements requirements{};
+        vkGetBufferMemoryRequirements(_device, _buffer, &requirements);
+        const VkMemoryAllocateInfo allocationInfo = {
+            .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+            .allocationSize = requirements.size,
+            .memoryTypeIndex = FindMemoryType(
+                _physicalDevice, requirements.memoryTypeBits,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT),
+        };
+        CheckVk(vkAllocateMemory(_device, &allocationInfo, nullptr, &_memory), "vkAllocateMemory(upload ring)");
+        CheckVk(vkBindBufferMemory(_device, _buffer, _memory, 0), "vkBindBufferMemory(upload ring)");
+
+        void* mapped = nullptr;
+        CheckVk(vkMapMemory(_device, _memory, 0, capacity, 0, &mapped), "vkMapMemory(upload ring)");
+        _mapped = static_cast<std::byte*>(mapped);
+    }
+
+    void UploadRing::Dispose()
+    {
+        if (_device != VK_NULL_HANDLE)
+        {
+            if (_mapped != nullptr)
+            {
+                vkUnmapMemory(_device, _memory);
+            }
+            if (_buffer != VK_NULL_HANDLE)
+            {
+                vkDestroyBuffer(_device, _buffer, nullptr);
+            }
+            if (_memory != VK_NULL_HANDLE)
+            {
+                vkFreeMemory(_device, _memory, nullptr);
+            }
+        }
+
+        _physicalDevice = VK_NULL_HANDLE;
+        _device = VK_NULL_HANDLE;
+        _buffer = VK_NULL_HANDLE;
+        _memory = VK_NULL_HANDLE;
+        _mapped = nullptr;
+        _capacity = 0;
+        _cursor = 0;
+    }
+
+    void UploadRing::Reset() noexcept
+    {
+        _cursor = 0;
+    }
+
+    UploadAllocation UploadRing::Allocate(VkDeviceSize size, VkDeviceSize alignment)
+    {
+        const VkDeviceSize offset = AlignUp(_cursor, alignment);
+        if (offset > _capacity || size > _capacity - offset)
+        {
+            return {};
+        }
+
+        _cursor = offset + size;
+        return { _buffer, offset, size, _mapped + offset };
+    }
+
+    Device::~Device()
+    {
+        Dispose();
+    }
+
+    void Device::Initialise(SDL_Window* window, bool vsync, VkDeviceSize uploadRingCapacity)
+    {
+        if (_instance != VK_NULL_HANDLE)
+        {
+            throw std::logic_error("Vulkan device is already initialised");
+        }
+
+        _window = window;
+        _vsync = vsync;
+        _uploadRingCapacity = std::max<VkDeviceSize>(uploadRingCapacity, 1024 * 1024);
+        if (SDL_Vulkan_LoadLibrary(nullptr) != 0)
+        {
+            throw std::runtime_error(std::string("SDL could not load Vulkan: ") + SDL_GetError());
+        }
+        _loaderLoaded = true;
+
+        try
+        {
+            CreateInstance();
+            CreateSurface();
+            SelectPhysicalDevice();
+            CreateLogicalDevice();
+            CreateCommandResources();
+            CreateSwapchain();
+        }
+        catch (...)
+        {
+            Dispose();
+            throw;
+        }
+    }
+
+    void Device::Dispose()
+    {
+        if (_device != VK_NULL_HANDLE)
+        {
+            vkDeviceWaitIdle(_device);
+        }
+
+        DestroySwapchain();
+        if (_device != VK_NULL_HANDLE)
+        {
+            for (auto& frame : _frames)
+            {
+                frame.upload.Dispose();
+                if (frame.imageAvailable != VK_NULL_HANDLE)
+                {
+                    vkDestroySemaphore(_device, frame.imageAvailable, nullptr);
+                }
+                if (frame.renderFinished != VK_NULL_HANDLE)
+                {
+                    vkDestroySemaphore(_device, frame.renderFinished, nullptr);
+                }
+                if (frame.available != VK_NULL_HANDLE)
+                {
+                    vkDestroyFence(_device, frame.available, nullptr);
+                }
+                frame.commandBuffer = VK_NULL_HANDLE;
+                frame.imageAvailable = VK_NULL_HANDLE;
+                frame.renderFinished = VK_NULL_HANDLE;
+                frame.available = VK_NULL_HANDLE;
+            }
+            if (_commandPool != VK_NULL_HANDLE)
+            {
+                vkDestroyCommandPool(_device, _commandPool, nullptr);
+            }
+            if (_pipelineCache != VK_NULL_HANDLE)
+            {
+                vkDestroyPipelineCache(_device, _pipelineCache, nullptr);
+            }
+            vkDestroyDevice(_device, nullptr);
+        }
+        if (_surface != VK_NULL_HANDLE && _instance != VK_NULL_HANDLE)
+        {
+            vkDestroySurfaceKHR(_instance, _surface, nullptr);
+        }
+        if (_instance != VK_NULL_HANDLE)
+        {
+            vkDestroyInstance(_instance, nullptr);
+        }
+        if (_loaderLoaded)
+        {
+            SDL_Vulkan_UnloadLibrary();
+        }
+
+        _window = nullptr;
+        _loaderLoaded = false;
+        _instance = VK_NULL_HANDLE;
+        _surface = VK_NULL_HANDLE;
+        _physicalDevice = VK_NULL_HANDLE;
+        _device = VK_NULL_HANDLE;
+        _graphicsQueue = VK_NULL_HANDLE;
+        _presentQueue = VK_NULL_HANDLE;
+        _pipelineCache = VK_NULL_HANDLE;
+        _queueFamilies = {};
+        _commandPool = VK_NULL_HANDLE;
+        _currentFrame = 0;
+        _swapchainGeneration = 0;
+        _swapchainInvalid = false;
+        _uploadRingCapacity = kDefaultUploadRingSize;
+    }
+
+    void Device::WaitIdle() const
+    {
+        if (_device != VK_NULL_HANDLE)
+        {
+            CheckVk(vkDeviceWaitIdle(_device), "vkDeviceWaitIdle");
+        }
+    }
+
+    void Device::SetVSync(bool enabled)
+    {
+        if (_vsync != enabled)
+        {
+            _vsync = enabled;
+            RequestSwapchainRecreate();
+        }
+    }
+
+    void Device::RequestSwapchainRecreate() noexcept
+    {
+        _swapchainInvalid = true;
+    }
+
+    std::optional<FrameToken> Device::BeginFrame()
+    {
+        if (_swapchainInvalid && !RecreateSwapchain())
+        {
+            return std::nullopt;
+        }
+
+        auto& frame = _frames[_currentFrame];
+        CheckVk(vkWaitForFences(_device, 1, &frame.available, VK_TRUE, UINT64_MAX), "vkWaitForFences(frame)");
+
+        uint32_t imageIndex = 0;
+        const auto acquireResult =
+            vkAcquireNextImageKHR(_device, _swapchain, UINT64_MAX, frame.imageAvailable, VK_NULL_HANDLE, &imageIndex);
+        if (acquireResult == VK_ERROR_OUT_OF_DATE_KHR)
+        {
+            _swapchainInvalid = true;
+            RecreateSwapchain();
+            return std::nullopt;
+        }
+        if (acquireResult != VK_SUCCESS && acquireResult != VK_SUBOPTIMAL_KHR)
+        {
+            ThrowVk("vkAcquireNextImageKHR", acquireResult);
+        }
+        if (acquireResult == VK_SUBOPTIMAL_KHR)
+        {
+            _swapchainInvalid = true;
+        }
+
+        CheckVk(vkResetFences(_device, 1, &frame.available), "vkResetFences(frame)");
+        CheckVk(vkResetCommandBuffer(frame.commandBuffer, 0), "vkResetCommandBuffer(frame)");
+        frame.upload.Reset();
+
+        const VkCommandBufferBeginInfo beginInfo = {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+        };
+        CheckVk(vkBeginCommandBuffer(frame.commandBuffer, &beginInfo), "vkBeginCommandBuffer(frame)");
+
+        return FrameToken{
+            .commandBuffer = frame.commandBuffer,
+            .image = _swapchainImages[imageIndex],
+            .imageView = _swapchainImageViews[imageIndex],
+            .extent = _swapchainExtent,
+            .format = _swapchainFormat,
+            .imageIndex = imageIndex,
+            .frameIndex = _currentFrame,
+            .upload = &frame.upload,
+        };
+    }
+
+    void Device::EndFrame(const FrameToken& token)
+    {
+        if (token.frameIndex != _currentFrame)
+        {
+            throw std::logic_error("Vulkan frame token does not belong to the active frame");
+        }
+
+        auto& frame = _frames[_currentFrame];
+        CheckVk(vkEndCommandBuffer(frame.commandBuffer), "vkEndCommandBuffer(frame)");
+
+        // The command executor may first touch the swapchain image in a
+        // transfer, compute, or colour-attachment pass.
+        constexpr VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+        const VkSubmitInfo submitInfo = {
+            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            .waitSemaphoreCount = 1,
+            .pWaitSemaphores = &frame.imageAvailable,
+            .pWaitDstStageMask = &waitStage,
+            .commandBufferCount = 1,
+            .pCommandBuffers = &frame.commandBuffer,
+            .signalSemaphoreCount = 1,
+            .pSignalSemaphores = &frame.renderFinished,
+        };
+        CheckVk(vkQueueSubmit(_graphicsQueue, 1, &submitInfo, frame.available), "vkQueueSubmit(frame)");
+
+        const VkPresentInfoKHR presentInfo = {
+            .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+            .waitSemaphoreCount = 1,
+            .pWaitSemaphores = &frame.renderFinished,
+            .swapchainCount = 1,
+            .pSwapchains = &_swapchain,
+            .pImageIndices = &token.imageIndex,
+        };
+        const auto presentResult = vkQueuePresentKHR(_presentQueue, &presentInfo);
+        if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR)
+        {
+            _swapchainInvalid = true;
+        }
+        else if (presentResult != VK_SUCCESS)
+        {
+            ThrowVk("vkQueuePresentKHR", presentResult);
+        }
+
+        _currentFrame = (_currentFrame + 1) % kFramesInFlight;
+    }
+
+    void Device::CreateInstance()
+    {
+        auto extensions = GetInstanceExtensions();
+        VkInstanceCreateFlags flags = 0;
+
+        uint32_t extensionCount = 0;
+        CheckVk(vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr), "enumerate instance extensions");
+        std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+        CheckVk(
+            vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, availableExtensions.data()),
+            "enumerate instance extensions");
+
+    #ifdef VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME
+        if (HasExtension(availableExtensions, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME))
+        {
+            extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+            flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+        }
+    #endif
+
+        const VkApplicationInfo applicationInfo = {
+            .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+            .pApplicationName = "OpenRCT2",
+            .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
+            .pEngineName = "OpenRCT2 GPU renderer",
+            .engineVersion = VK_MAKE_VERSION(1, 0, 0),
+            .apiVersion = VK_API_VERSION_1_1,
+        };
+        const VkInstanceCreateInfo instanceInfo = {
+            .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+            .flags = flags,
+            .pApplicationInfo = &applicationInfo,
+            .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
+            .ppEnabledExtensionNames = extensions.data(),
+        };
+        CheckVk(vkCreateInstance(&instanceInfo, nullptr, &_instance), "vkCreateInstance");
+    }
+
+    void Device::CreateSurface()
+    {
+        if (SDL_Vulkan_CreateSurface(_window, _instance, &_surface) != SDL_TRUE)
+        {
+            throw std::runtime_error(std::string("SDL could not create Vulkan surface: ") + SDL_GetError());
+        }
+    }
+
+    void Device::SelectPhysicalDevice()
+    {
+        uint32_t deviceCount = 0;
+        CheckVk(vkEnumeratePhysicalDevices(_instance, &deviceCount, nullptr), "vkEnumeratePhysicalDevices(count)");
+        if (deviceCount == 0)
+        {
+            throw std::runtime_error("No Vulkan physical devices are available");
+        }
+
+        std::vector<VkPhysicalDevice> devices(deviceCount);
+        CheckVk(vkEnumeratePhysicalDevices(_instance, &deviceCount, devices.data()), "vkEnumeratePhysicalDevices");
+
+        int32_t bestScore = -1;
+        for (const auto device : devices)
+        {
+            const int32_t score = ScorePhysicalDevice(device);
+            if (score > bestScore)
+            {
+                bestScore = score;
+                _physicalDevice = device;
+            }
+        }
+        if (_physicalDevice == VK_NULL_HANDLE)
+        {
+            throw std::runtime_error("No Vulkan device supports graphics and presentation for this window");
+        }
+        _queueFamilies = FindQueueFamilies(_physicalDevice);
+    }
+
+    void Device::CreateLogicalDevice()
+    {
+        const std::set<uint32_t> uniqueFamilies = { _queueFamilies.graphics.value(), _queueFamilies.present.value() };
+        constexpr float priority = 1.0f;
+        std::vector<VkDeviceQueueCreateInfo> queueInfos;
+        queueInfos.reserve(uniqueFamilies.size());
+        for (const auto family : uniqueFamilies)
+        {
+            queueInfos.push_back({
+                .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+                .queueFamilyIndex = family,
+                .queueCount = 1,
+                .pQueuePriorities = &priority,
+            });
+        }
+
+        const auto extensions = GetDeviceExtensions(_physicalDevice);
+        const VkPhysicalDeviceFeatures features{};
+        const VkDeviceCreateInfo deviceInfo = {
+            .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+            .queueCreateInfoCount = static_cast<uint32_t>(queueInfos.size()),
+            .pQueueCreateInfos = queueInfos.data(),
+            .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
+            .ppEnabledExtensionNames = extensions.data(),
+            .pEnabledFeatures = &features,
+        };
+        CheckVk(vkCreateDevice(_physicalDevice, &deviceInfo, nullptr, &_device), "vkCreateDevice");
+        vkGetDeviceQueue(_device, _queueFamilies.graphics.value(), 0, &_graphicsQueue);
+        vkGetDeviceQueue(_device, _queueFamilies.present.value(), 0, &_presentQueue);
+
+        const VkPipelineCacheCreateInfo pipelineCacheInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO };
+        CheckVk(vkCreatePipelineCache(_device, &pipelineCacheInfo, nullptr, &_pipelineCache), "vkCreatePipelineCache");
+    }
+
+    void Device::CreateCommandResources()
+    {
+        const VkCommandPoolCreateInfo poolInfo = {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+            .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+            .queueFamilyIndex = _queueFamilies.graphics.value(),
+        };
+        CheckVk(vkCreateCommandPool(_device, &poolInfo, nullptr, &_commandPool), "vkCreateCommandPool");
+
+        std::array<VkCommandBuffer, kFramesInFlight> commandBuffers{};
+        const VkCommandBufferAllocateInfo commandInfo = {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+            .commandPool = _commandPool,
+            .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            .commandBufferCount = kFramesInFlight,
+        };
+        CheckVk(vkAllocateCommandBuffers(_device, &commandInfo, commandBuffers.data()), "vkAllocateCommandBuffers");
+
+        const VkSemaphoreCreateInfo semaphoreInfo = { .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+        const VkFenceCreateInfo fenceInfo = {
+            .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+            .flags = VK_FENCE_CREATE_SIGNALED_BIT,
+        };
+        for (uint32_t i = 0; i < kFramesInFlight; i++)
+        {
+            auto& frame = _frames[i];
+            frame.commandBuffer = commandBuffers[i];
+            CheckVk(vkCreateSemaphore(_device, &semaphoreInfo, nullptr, &frame.imageAvailable), "create image semaphore");
+            CheckVk(vkCreateSemaphore(_device, &semaphoreInfo, nullptr, &frame.renderFinished), "create render semaphore");
+            CheckVk(vkCreateFence(_device, &fenceInfo, nullptr, &frame.available), "create frame fence");
+            frame.upload.Initialise(_physicalDevice, _device, _uploadRingCapacity);
+        }
+    }
+
+    void Device::CreateSwapchain()
+    {
+        const auto support = QuerySwapchainSupport(_physicalDevice);
+        const auto surfaceFormat = ChooseSurfaceFormat(support.formats);
+        const auto presentMode = ChoosePresentMode(support.presentModes);
+        const auto extent = ChooseExtent(support.capabilities);
+
+        VkImageUsageFlags imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+        if ((support.capabilities.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT) != 0)
+        {
+            imageUsage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        }
+
+        VkCompositeAlphaFlagBitsKHR compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+        constexpr std::array compositeAlphaModes = {
+            VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+            VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR,
+            VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
+            VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR,
+        };
+        for (const auto mode : compositeAlphaModes)
+        {
+            if ((support.capabilities.supportedCompositeAlpha & mode) != 0)
+            {
+                compositeAlpha = mode;
+                break;
+            }
+        }
+
+        uint32_t imageCount = support.capabilities.minImageCount + 1;
+        if (support.capabilities.maxImageCount > 0)
+        {
+            imageCount = std::min(imageCount, support.capabilities.maxImageCount);
+        }
+
+        const std::array queueFamilyIndices = { _queueFamilies.graphics.value(), _queueFamilies.present.value() };
+        VkSwapchainCreateInfoKHR swapchainInfo = {
+            .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+            .surface = _surface,
+            .minImageCount = imageCount,
+            .imageFormat = surfaceFormat.format,
+            .imageColorSpace = surfaceFormat.colorSpace,
+            .imageExtent = extent,
+            .imageArrayLayers = 1,
+            .imageUsage = imageUsage,
+            .preTransform = support.capabilities.currentTransform,
+            .compositeAlpha = compositeAlpha,
+            .presentMode = presentMode,
+            .clipped = VK_TRUE,
+        };
+        if (_queueFamilies.graphics != _queueFamilies.present)
+        {
+            swapchainInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+            swapchainInfo.queueFamilyIndexCount = static_cast<uint32_t>(queueFamilyIndices.size());
+            swapchainInfo.pQueueFamilyIndices = queueFamilyIndices.data();
+        }
+        else
+        {
+            swapchainInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        }
+
+        CheckVk(vkCreateSwapchainKHR(_device, &swapchainInfo, nullptr, &_swapchain), "vkCreateSwapchainKHR");
+        _swapchainFormat = surfaceFormat.format;
+        _swapchainExtent = extent;
+
+        CheckVk(vkGetSwapchainImagesKHR(_device, _swapchain, &imageCount, nullptr), "get swapchain image count");
+        _swapchainImages.resize(imageCount);
+        CheckVk(vkGetSwapchainImagesKHR(_device, _swapchain, &imageCount, _swapchainImages.data()), "get swapchain images");
+
+        _swapchainImageViews.resize(imageCount);
+        for (size_t i = 0; i < _swapchainImages.size(); i++)
+        {
+            const VkImageViewCreateInfo viewInfo = {
+                .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+                .image = _swapchainImages[i],
+                .viewType = VK_IMAGE_VIEW_TYPE_2D,
+                .format = _swapchainFormat,
+                .components = {
+                    VK_COMPONENT_SWIZZLE_IDENTITY,
+                    VK_COMPONENT_SWIZZLE_IDENTITY,
+                    VK_COMPONENT_SWIZZLE_IDENTITY,
+                    VK_COMPONENT_SWIZZLE_IDENTITY,
+                },
+                .subresourceRange = {
+                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                    .baseMipLevel = 0,
+                    .levelCount = 1,
+                    .baseArrayLayer = 0,
+                    .layerCount = 1,
+                },
+            };
+            CheckVk(vkCreateImageView(_device, &viewInfo, nullptr, &_swapchainImageViews[i]), "create swapchain view");
+        }
+        _swapchainGeneration++;
+        _swapchainInvalid = false;
+    }
+
+    void Device::DestroySwapchain()
+    {
+        if (_device != VK_NULL_HANDLE)
+        {
+            for (const auto imageView : _swapchainImageViews)
+            {
+                vkDestroyImageView(_device, imageView, nullptr);
+            }
+            if (_swapchain != VK_NULL_HANDLE)
+            {
+                vkDestroySwapchainKHR(_device, _swapchain, nullptr);
+            }
+        }
+        _swapchainImageViews.clear();
+        _swapchainImages.clear();
+        _swapchain = VK_NULL_HANDLE;
+        _swapchainFormat = VK_FORMAT_UNDEFINED;
+        _swapchainExtent = {};
+    }
+
+    bool Device::RecreateSwapchain()
+    {
+        int32_t width = 0;
+        int32_t height = 0;
+        SDL_Vulkan_GetDrawableSize(_window, &width, &height);
+        if (width <= 0 || height <= 0)
+        {
+            return false;
+        }
+
+        WaitIdle();
+        DestroySwapchain();
+        CreateSwapchain();
+        return true;
+    }
+
+    Device::QueueFamilies Device::FindQueueFamilies(VkPhysicalDevice device) const
+    {
+        uint32_t count = 0;
+        vkGetPhysicalDeviceQueueFamilyProperties(device, &count, nullptr);
+        std::vector<VkQueueFamilyProperties> properties(count);
+        vkGetPhysicalDeviceQueueFamilyProperties(device, &count, properties.data());
+
+        QueueFamilies result;
+        for (uint32_t i = 0; i < count; i++)
+        {
+            if ((properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0)
+            {
+                result.graphics = i;
+            }
+            VkBool32 supportsPresent = VK_FALSE;
+            CheckVk(vkGetPhysicalDeviceSurfaceSupportKHR(device, i, _surface, &supportsPresent), "query present support");
+            if (supportsPresent == VK_TRUE)
+            {
+                result.present = i;
+            }
+            if (result.IsComplete())
+            {
+                break;
+            }
+        }
+        return result;
+    }
+
+    Device::SwapchainSupport Device::QuerySwapchainSupport(VkPhysicalDevice device) const
+    {
+        SwapchainSupport result;
+        CheckVk(
+            vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, _surface, &result.capabilities),
+            "query surface capabilities");
+
+        uint32_t formatCount = 0;
+        CheckVk(vkGetPhysicalDeviceSurfaceFormatsKHR(device, _surface, &formatCount, nullptr), "query surface formats");
+        result.formats.resize(formatCount);
+        if (formatCount > 0)
+        {
+            CheckVk(
+                vkGetPhysicalDeviceSurfaceFormatsKHR(device, _surface, &formatCount, result.formats.data()),
+                "query surface formats");
+        }
+
+        uint32_t modeCount = 0;
+        CheckVk(vkGetPhysicalDeviceSurfacePresentModesKHR(device, _surface, &modeCount, nullptr), "query present modes");
+        result.presentModes.resize(modeCount);
+        if (modeCount > 0)
+        {
+            CheckVk(
+                vkGetPhysicalDeviceSurfacePresentModesKHR(device, _surface, &modeCount, result.presentModes.data()),
+                "query present modes");
+        }
+        return result;
+    }
+
+    bool Device::SupportsDeviceExtensions(VkPhysicalDevice device) const
+    {
+        uint32_t count = 0;
+        CheckVk(vkEnumerateDeviceExtensionProperties(device, nullptr, &count, nullptr), "enumerate device extensions");
+        std::vector<VkExtensionProperties> available(count);
+        CheckVk(
+            vkEnumerateDeviceExtensionProperties(device, nullptr, &count, available.data()), "enumerate device extensions");
+        return std::all_of(kRequiredDeviceExtensions.begin(), kRequiredDeviceExtensions.end(), [&](const char* required) {
+            return HasExtension(available, required);
+        });
+    }
+
+    int32_t Device::ScorePhysicalDevice(VkPhysicalDevice device) const
+    {
+        const auto families = FindQueueFamilies(device);
+        if (!families.IsComplete() || !SupportsDeviceExtensions(device) || !QuerySwapchainSupport(device).IsUsable())
+        {
+            return -1;
+        }
+
+        VkPhysicalDeviceProperties properties{};
+        vkGetPhysicalDeviceProperties(device, &properties);
+        int32_t score = static_cast<int32_t>(properties.limits.maxImageDimension2D);
+        if (properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+        {
+            score += 100000;
+        }
+        else if (properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
+        {
+            score += 50000;
+        }
+        return score;
+    }
+
+    std::vector<const char*> Device::GetInstanceExtensions() const
+    {
+        uint32_t count = 0;
+        if (SDL_Vulkan_GetInstanceExtensions(_window, &count, nullptr) != SDL_TRUE)
+        {
+            throw std::runtime_error(std::string("SDL could not query Vulkan extensions: ") + SDL_GetError());
+        }
+        std::vector<const char*> result(count);
+        if (SDL_Vulkan_GetInstanceExtensions(_window, &count, result.data()) != SDL_TRUE)
+        {
+            throw std::runtime_error(std::string("SDL could not query Vulkan extensions: ") + SDL_GetError());
+        }
+        return result;
+    }
+
+    std::vector<const char*> Device::GetDeviceExtensions(VkPhysicalDevice device) const
+    {
+        std::vector<const char*> result(kRequiredDeviceExtensions.begin(), kRequiredDeviceExtensions.end());
+
+        uint32_t count = 0;
+        CheckVk(vkEnumerateDeviceExtensionProperties(device, nullptr, &count, nullptr), "enumerate portability extensions");
+        std::vector<VkExtensionProperties> available(count);
+        CheckVk(
+            vkEnumerateDeviceExtensionProperties(device, nullptr, &count, available.data()),
+            "enumerate portability extensions");
+        if (HasExtension(available, kPortabilitySubsetExtension))
+        {
+            result.push_back(kPortabilitySubsetExtension);
+        }
+
+        return result;
+    }
+
+    VkSurfaceFormatKHR Device::ChooseSurfaceFormat(std::span<const VkSurfaceFormatKHR> formats) const
+    {
+        const auto preferred = std::find_if(formats.begin(), formats.end(), [](const auto& format) {
+            return format.format == VK_FORMAT_B8G8R8A8_SRGB && format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+        });
+        return preferred != formats.end() ? *preferred : formats.front();
+    }
+
+    VkPresentModeKHR Device::ChoosePresentMode(std::span<const VkPresentModeKHR> modes) const
+    {
+        if (_vsync)
+        {
+            return VK_PRESENT_MODE_FIFO_KHR;
+        }
+        if (std::find(modes.begin(), modes.end(), VK_PRESENT_MODE_MAILBOX_KHR) != modes.end())
+        {
+            return VK_PRESENT_MODE_MAILBOX_KHR;
+        }
+        if (std::find(modes.begin(), modes.end(), VK_PRESENT_MODE_IMMEDIATE_KHR) != modes.end())
+        {
+            return VK_PRESENT_MODE_IMMEDIATE_KHR;
+        }
+        return VK_PRESENT_MODE_FIFO_KHR;
+    }
+
+    VkExtent2D Device::ChooseExtent(const VkSurfaceCapabilitiesKHR& capabilities) const
+    {
+        if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
+        {
+            return capabilities.currentExtent;
+        }
+
+        int32_t width = 0;
+        int32_t height = 0;
+        SDL_Vulkan_GetDrawableSize(_window, &width, &height);
+        return {
+            std::clamp(static_cast<uint32_t>(std::max(width, 1)), capabilities.minImageExtent.width, capabilities.maxImageExtent.width),
+            std::clamp(
+                static_cast<uint32_t>(std::max(height, 1)), capabilities.minImageExtent.height,
+                capabilities.maxImageExtent.height),
+        };
+    }
+} // namespace OpenRCT2::Ui::Vulkan
+
+#endif // ENABLE_VULKAN

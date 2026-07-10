@@ -21,6 +21,9 @@ namespace OpenRCT2::Ui
 #ifndef DISABLE_OPENGL
     [[nodiscard]] std::unique_ptr<Drawing::IDrawingEngine> CreateOpenGLDrawingEngine(IUiContext& uiContext);
 #endif
+#if defined(ENABLE_VULKAN) && defined(ENABLE_VULKAN_DRAWING_ENGINE)
+    [[nodiscard]] std::unique_ptr<Drawing::IDrawingEngine> CreateVulkanDrawingEngine(IUiContext& uiContext);
+#endif
 
     class DrawingEngineFactory final : public Drawing::IDrawingEngineFactory
     {
@@ -34,6 +37,10 @@ namespace OpenRCT2::Ui
 #ifndef DISABLE_OPENGL
                 case DrawingEngine::OpenGL:
                     return CreateOpenGLDrawingEngine(uiContext);
+#endif
+#if defined(ENABLE_VULKAN) && defined(ENABLE_VULKAN_DRAWING_ENGINE)
+                case DrawingEngine::Vulkan:
+                    return CreateVulkanDrawingEngine(uiContext);
 #endif
                 default:
                     Guard::Fail("Unknown renderer: %u", static_cast<uint32_t>(type));

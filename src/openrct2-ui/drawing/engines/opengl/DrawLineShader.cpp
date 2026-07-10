@@ -17,6 +17,8 @@ using namespace OpenRCT2::Ui;
 
 namespace
 {
+    constexpr size_t kInitialInstanceCapacity = 4096;
+
     struct VDStruct
     {
         GLfloat mat[4][2];
@@ -30,6 +32,7 @@ constexpr VDStruct kVertexData[2] = {
 
 DrawLineShader::DrawLineShader()
     : OpenGLShaderProgram("drawline")
+    , _instanceCapacity(kInitialInstanceCapacity)
 {
     GetLocations();
 
@@ -54,6 +57,7 @@ DrawLineShader::DrawLineShader()
         reinterpret_cast<void*>(offsetof(VDStruct, mat[3])));
 
     glCall(glBindBuffer, GL_ARRAY_BUFFER, _vboInstances);
+    glCall(glBufferData, GL_ARRAY_BUFFER, sizeof(DrawLineCommand) * _instanceCapacity, nullptr, GL_STREAM_DRAW);
     glCall(
         glVertexAttribIPointer, vBounds, 4, GL_INT, glSizeOf<DrawLineCommand>(),
         reinterpret_cast<void*>(offsetof(DrawLineCommand, bounds)));
@@ -83,6 +87,7 @@ DrawLineShader::DrawLineShader()
 DrawLineShader::~DrawLineShader()
 {
     glCall(glDeleteBuffers, 1, &_vbo);
+    glCall(glDeleteBuffers, 1, &_vboInstances);
     glCall(glDeleteVertexArrays, 1, &_vao);
 }
 
@@ -107,7 +112,12 @@ void DrawLineShader::DrawInstances(const LineCommandBatch& instances)
     glCall(glBindVertexArray, _vao);
 
     glCall(glBindBuffer, GL_ARRAY_BUFFER, _vboInstances);
-    glCall(glBufferData, GL_ARRAY_BUFFER, sizeof(DrawLineCommand) * instances.size(), instances.data(), GL_STREAM_DRAW);
+    while (instances.size() > _instanceCapacity)
+    {
+        _instanceCapacity *= 2;
+    }
+    glCall(glBufferData, GL_ARRAY_BUFFER, sizeof(DrawLineCommand) * _instanceCapacity, nullptr, GL_STREAM_DRAW);
+    glCall(glBufferSubData, GL_ARRAY_BUFFER, 0, sizeof(DrawLineCommand) * instances.size(), instances.data());
 
     glCall(glDrawArraysInstanced, GL_LINES, 0, 2, static_cast<GLsizei>(instances.size()));
 }

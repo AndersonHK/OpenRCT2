@@ -89,10 +89,14 @@
     <ClCompile Include="Endianness.cpp" />
     <ClCompile Include="EnumMapTest.cpp" />
     <ClCompile Include="FormattingTests.cpp" />
+    <ClCompile Include="GpuFoundationTests.cpp" />
     <ClCompile Include="LanguagePackTest.cpp" />
     <ClCompile Include="ImageImporterTests.cpp" />
     <ClCompile Include="IniReaderTest.cpp" />
     <ClCompile Include="IniWriterTest.cpp" />
+    <ClCompile Include="JobPoolTests.cpp" />
+    <ClCompile Include="MapPathTopologyTests.cpp" />
+    <ClCompile Include="MapTopologyTests.cpp" />
     <ClCompile Include="LocalisationTest.cpp" />
     <ClCompile Include="MoneyTests.cpp" />
     <ClCompile Include="MultiLaunch.cpp" />

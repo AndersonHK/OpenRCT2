@@ -18,6 +18,7 @@
     #include "../../../object/LargeSceneryEntry.h"
     #include "../../../world/Footpath.h"
     #include "../../../world/Map.h"
+    #include "../../../world/MapTopology.h"
     #include "../../../world/Scenery.h"
     #include "../../../world/tile_element/LargeSceneryElement.h"
     #include "../../ScriptEngine.h"
@@ -127,6 +128,11 @@ namespace OpenRCT2::Scripting
                 }
             }
             MapInvalidateTileFull(coords);
+            if (numElements != 0)
+            {
+                // Raw tile bytes may replace any combination of paths, entrances, and blocking banners.
+                MapTopology::InvalidateTileAndNeighbours(coords);
+            }
         }
         return JS_UNDEFINED;
     }
@@ -200,6 +206,9 @@ namespace OpenRCT2::Scripting
         if (index < GetNumElements(first))
         {
             auto element = &first[index];
+            const bool changesTopology = !element->isGhost()
+                && (element->getType() == TileElementType::Path || element->getType() == TileElementType::Entrance
+                    || element->getType() == TileElementType::Banner);
             if (element->getType() != TileElementType::LargeScenery
                 || element->asLargeScenery()->GetEntry()->scrolling_mode == kScrollingModeNone
                 || ScTileElement::GetOtherLargeSceneryElement(coords, element->asLargeScenery()) == nullptr)
@@ -208,6 +217,10 @@ namespace OpenRCT2::Scripting
             }
             TileElementRemove(&first[index]);
             MapInvalidateTileFull(coords);
+            if (changesTopology)
+            {
+                MapTopology::InvalidateTileAndNeighbours(coords);
+            }
         }
         return JS_UNDEFINED;
     }

@@ -191,15 +191,14 @@ void DrawRectShader::SetInstances(const RectCommandBatch& instances)
 
     glCall(glBindBuffer, GL_ARRAY_BUFFER, _vboInstances);
 
-    if (instances.size() > _maxInstancesBufferSize)
+    while (instances.size() > _maxInstancesBufferSize)
     {
-        glCall(glBufferData, GL_ARRAY_BUFFER, sizeof(DrawRectCommand) * instances.size(), instances.data(), GL_STREAM_DRAW);
-        _maxInstancesBufferSize = instances.size();
+        _maxInstancesBufferSize *= 2;
     }
-    else
-    {
-        glCall(glBufferSubData, GL_ARRAY_BUFFER, 0, sizeof(DrawRectCommand) * instances.size(), instances.data());
-    }
+    // Orphan the previous storage before uploading. This prevents a CPU/GPU
+    // synchronisation point when the prior frame still consumes the buffer.
+    glCall(glBufferData, GL_ARRAY_BUFFER, sizeof(DrawRectCommand) * _maxInstancesBufferSize, nullptr, GL_STREAM_DRAW);
+    glCall(glBufferSubData, GL_ARRAY_BUFFER, 0, sizeof(DrawRectCommand) * instances.size(), instances.data());
 
     _instanceCount = static_cast<GLsizei>(instances.size());
 }

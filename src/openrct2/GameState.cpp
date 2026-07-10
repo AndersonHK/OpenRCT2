@@ -357,6 +357,7 @@ namespace OpenRCT2
         Network::Flush();
 
         gameState.currentTicks++;
+        gTotalSimulationTicks++;
 
 #ifdef ENABLE_SCRIPTING
         auto& hookEngine = GetContext()->GetScriptEngine().GetHookEngine();

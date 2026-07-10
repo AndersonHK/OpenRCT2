@@ -1,6 +1,8 @@
 #include "TestData.h"
 
+#include <algorithm>
 #include <gtest/gtest.h>
+#include <limits>
 #include <memory>
 #include <openrct2/Context.h>
 #include <openrct2/Game.h>
@@ -15,6 +17,7 @@
 #include <openrct2/world/Footpath.h>
 #include <openrct2/world/Map.h>
 #include <openrct2/world/Wall.h>
+#include <openrct2/world/Weather.h>
 #include <openrct2/world/tile_element/SurfaceElement.h>
 #include <openrct2/world/tile_element/TileElement.h>
 #include <string>
@@ -317,6 +320,379 @@ TEST_F(PathfindingTestBase, SurfaceGuestsStepTowardAdjacentPath)
     EXPECT_EQ(peep->PeepDirection, candidate.pathDirection);
 
     PeepEntityRemove(peep);
+}
+
+TEST_F(PathfindingTestBase, TransportCandidateRadiusConservativelyCoversWalkingTime)
+{
+    EXPECT_EQ(PathFinding::CalculateTransportCandidateRadiusTiles(1341, 0), 1);
+    EXPECT_EQ(PathFinding::CalculateTransportCandidateRadiusTiles(1341, 60'000), 21);
+    EXPECT_EQ(PathFinding::CalculateTransportCandidateRadiusTiles(670, 60'000), 11);
+    EXPECT_EQ(
+        PathFinding::CalculateTransportCandidateRadiusTiles(
+            std::numeric_limits<int64_t>::max(), std::numeric_limits<int64_t>::max()),
+        kMaximumMapSizeTechnical);
+}
+
+TEST_F(PathfindingTestBase, ReasonableMonorailIsChosenOverLongWalk)
+{
+    const auto rideId = GetNextFreeRideId();
+    ASSERT_FALSE(rideId.IsNull());
+    auto* monorail = RideAllocateAtIndex(rideId);
+    ASSERT_NE(monorail, nullptr);
+    monorail->type = RIDE_TYPE_MONORAIL;
+    monorail->status = RideStatus::open;
+    monorail->numStations = 3;
+    monorail->stableStats.valid = true;
+    monorail->stableStats.averageSpeed = 22 * 29127;
+    monorail->stableStats.maxSpeed = monorail->stableStats.averageSpeed;
+    monorail->stableStats.stations[0].SegmentLength = 600 << 16;
+    monorail->stableStats.stations[1].SegmentLength = 600 << 16;
+    for (auto& station : monorail->getStations())
+    {
+        station.Start.SetNull();
+        station.Entrance.SetNull();
+        station.Exit.SetNull();
+    }
+    monorail->getStation(StationIndex::FromUnderlying(0)).Entrance = { 1, 0, 0, 0 };
+    monorail->getStation(StationIndex::FromUnderlying(2)).Exit = { 299, 0, 0, 0 };
+    monorail->priceTarget = RidePriceTarget::neutral;
+
+    auto& gameState = getGameState();
+    const auto originalParkFlags = gameState.park.flags;
+    gameState.park.flags &= ~PARK_FLAGS_NO_MONEY;
+    gameState.park.flags |= PARK_FLAGS_UNLOCK_ALL_PRICES;
+
+    Guest guest{};
+    guest.NextLoc = { 0, 0, 0 };
+    guest.Energy = 96;
+    guest.outsideOfPark = false;
+    guest.guestHeadingToRideId = RideId::GetNull();
+    guest.previousRide = RideId::GetNull();
+    guest.cashInPocket = 100.00_GBP;
+    guest.clearTransportRoute();
+
+    EXPECT_TRUE(PathFinding::PlanTransportRoute(guest, { 300, 0, 0 }));
+    EXPECT_EQ(guest.previousRide, monorail->id);
+    EXPECT_EQ(guest.CurrentRideStation, StationIndex::FromUnderlying(0));
+    EXPECT_EQ(guest.transportDestinationStation, StationIndex::FromUnderlying(2));
+
+    guest.clearTransportRoute();
+    guest.previousRide = RideId::GetNull();
+    const auto journey = RideGetTransportJourney(*monorail, StationIndex::FromUnderlying(0), StationIndex::FromUnderlying(2));
+    guest.cashInPocket = RideGetTransportFare(*monorail, journey) - 0.01_GBP;
+    EXPECT_FALSE(PathFinding::PlanTransportRoute(guest, { 300, 0, 0 }));
+
+    guest.giveItem(ShopItem::voucher);
+    guest.voucherType = VOUCHER_TYPE_RIDE_FREE;
+    guest.voucherRideId = monorail->id;
+    EXPECT_TRUE(PathFinding::PlanTransportRoute(guest, { 300, 0, 0 }));
+
+    guest.clearTransportRoute();
+    gameState.park.flags = originalParkFlags;
+    RideDelete(rideId);
+}
+
+TEST_F(PathfindingTestBase, RainRelaxesTheTransportTimeSavingThreshold)
+{
+    const auto rideId = GetNextFreeRideId();
+    ASSERT_FALSE(rideId.IsNull());
+    auto* monorail = RideAllocateAtIndex(rideId);
+    ASSERT_NE(monorail, nullptr);
+    monorail->type = RIDE_TYPE_MONORAIL;
+    monorail->status = RideStatus::open;
+    monorail->numStations = 2;
+    monorail->stableStats.valid = true;
+    monorail->stableStats.averageSpeed = 18 * 29127;
+    monorail->stableStats.maxSpeed = monorail->stableStats.averageSpeed;
+    monorail->stableStats.stations[0].SegmentLength = 1950 << 16;
+    for (auto& station : monorail->getStations())
+    {
+        station.Start.SetNull();
+        station.Entrance.SetNull();
+        station.Exit.SetNull();
+    }
+    monorail->getStation(StationIndex::FromUnderlying(0)).Entrance = { 1, 0, 0, 0 };
+    monorail->getStation(StationIndex::FromUnderlying(1)).Exit = { 99, 0, 0, 0 };
+    monorail->price[0] = 0.00_GBP;
+
+    auto& gameState = getGameState();
+    const auto originalParkFlags = gameState.park.flags;
+    gameState.park.flags &= ~PARK_FLAGS_NO_MONEY;
+    gameState.park.flags |= PARK_FLAGS_UNLOCK_ALL_PRICES;
+    monorail->priceTarget = RidePriceTarget::neutral;
+    const auto originalWeatherCurrent = gameState.weatherCurrent;
+    const auto originalWeatherNext = gameState.weatherNext;
+    const auto originalWeatherUpdateTimer = gameState.weatherUpdateTimer;
+
+    Guest guest{};
+    guest.NextLoc = { 0, 0, 0 };
+    guest.Energy = 96;
+    guest.cashInPocket = 100.00_GBP;
+    guest.outsideOfPark = false;
+    guest.guestHeadingToRideId = RideId::GetNull();
+    guest.previousRide = RideId::GetNull();
+    guest.clearTransportRoute();
+
+    Weather::forceWeather(Weather::Type::Sunny);
+    EXPECT_FALSE(PathFinding::PlanTransportRoute(guest, { 100, 0, 0 }));
+
+    Weather::forceWeather(Weather::Type::Rain);
+    EXPECT_TRUE(PathFinding::PlanTransportRoute(guest, { 100, 0, 0 }));
+
+    gameState.weatherCurrent = originalWeatherCurrent;
+    gameState.weatherNext = originalWeatherNext;
+    gameState.weatherUpdateTimer = originalWeatherUpdateTimer;
+    gameState.park.flags = originalParkFlags;
+    RideDelete(rideId);
+}
+
+TEST_F(PathfindingTestBase, FreeTransportMayWinAReasonableTimeTie)
+{
+    const auto rideId = GetNextFreeRideId();
+    ASSERT_FALSE(rideId.IsNull());
+    auto* monorail = RideAllocateAtIndex(rideId);
+    ASSERT_NE(monorail, nullptr);
+    monorail->type = RIDE_TYPE_MONORAIL;
+    monorail->status = RideStatus::open;
+    monorail->numStations = 2;
+    monorail->stableStats.valid = true;
+    monorail->stableStats.averageSpeed = 18 * 29127;
+    monorail->stableStats.maxSpeed = monorail->stableStats.averageSpeed;
+    monorail->stableStats.stations[0].SegmentLength = 2200 << 16;
+    monorail->stableStats.stations[0].SegmentTime = 305;
+    for (auto& station : monorail->getStations())
+    {
+        station.Start.SetNull();
+        station.Entrance.SetNull();
+        station.Exit.SetNull();
+    }
+    monorail->getStation(StationIndex::FromUnderlying(0)).Entrance = { 1, 0, 0, 0 };
+    monorail->getStation(StationIndex::FromUnderlying(1)).Exit = { 99, 0, 0, 0 };
+
+    auto& gameState = getGameState();
+    const auto originalParkFlags = gameState.park.flags;
+    gameState.park.flags &= ~PARK_FLAGS_NO_MONEY;
+    gameState.park.flags |= PARK_FLAGS_UNLOCK_ALL_PRICES;
+
+    Guest guest{};
+    guest.NextLoc = { 0, 0, 0 };
+    guest.Energy = 96;
+    guest.outsideOfPark = false;
+    guest.guestHeadingToRideId = RideId::GetNull();
+    guest.previousRide = RideId::GetNull();
+    guest.cashInPocket = 100.00_GBP;
+
+    monorail->priceTarget = RidePriceTarget::free;
+    EXPECT_TRUE(PathFinding::PlanTransportRoute(guest, { 100, 0, 0 }));
+
+    guest.clearTransportRoute();
+    guest.previousRide = RideId::GetNull();
+    monorail->priceTarget = RidePriceTarget::goodValue;
+    EXPECT_FALSE(PathFinding::PlanTransportRoute(guest, { 100, 0, 0 }));
+
+    gameState.park.flags = originalParkFlags;
+    RideDelete(rideId);
+}
+
+TEST_F(PathfindingTestBase, ExtortiveTransportRequiresNoWalkingOrNonExtortiveAlternative)
+{
+    const auto extortiveRideId = GetNextFreeRideId();
+    ASSERT_FALSE(extortiveRideId.IsNull());
+    auto* extortive = RideAllocateAtIndex(extortiveRideId);
+    ASSERT_NE(extortive, nullptr);
+    extortive->type = RIDE_TYPE_MONORAIL;
+    extortive->status = RideStatus::open;
+    extortive->numStations = 2;
+    extortive->priceTarget = RidePriceTarget::badValue;
+    extortive->stableStats.valid = true;
+    extortive->stableStats.averageSpeed = 22 * 29127;
+    extortive->stableStats.maxSpeed = extortive->stableStats.averageSpeed;
+    extortive->stableStats.stations[0].SegmentLength = 1200 << 16;
+    extortive->getStation(StationIndex::FromUnderlying(0)).Entrance = { 1, 0, 0, 0 };
+    extortive->getStation(StationIndex::FromUnderlying(1)).Exit = { 299, 0, 0, 0 };
+
+    auto& gameState = getGameState();
+    const auto originalParkFlags = gameState.park.flags;
+    gameState.park.flags &= ~PARK_FLAGS_NO_MONEY;
+    gameState.park.flags |= PARK_FLAGS_UNLOCK_ALL_PRICES;
+
+    Guest guest{};
+    guest.NextLoc = { 0, 0, 0 };
+    guest.Energy = 96;
+    guest.outsideOfPark = false;
+    guest.guestHeadingToRideId = RideId::GetNull();
+    guest.previousRide = RideId::GetNull();
+    guest.cashInPocket = 100.00_GBP;
+
+    EXPECT_FALSE(PathFinding::PlanTransportRoute(guest, { 300, 0, 0 }, true));
+    EXPECT_TRUE(PathFinding::PlanTransportRoute(guest, { 300, 0, 0 }, false));
+    EXPECT_EQ(guest.previousRide, extortiveRideId);
+    EXPECT_TRUE(guest.transportRouteWasExtortive);
+
+    guest.clearTransportRoute();
+    guest.previousRide = RideId::GetNull();
+    const auto discountRideId = GetNextFreeRideId();
+    ASSERT_FALSE(discountRideId.IsNull());
+    auto* discount = RideAllocateAtIndex(discountRideId);
+    ASSERT_NE(discount, nullptr);
+    discount->type = RIDE_TYPE_MONORAIL;
+    discount->status = RideStatus::open;
+    discount->numStations = 2;
+    discount->priceTarget = RidePriceTarget::goodValue;
+    discount->stableStats.valid = true;
+    discount->stableStats.averageSpeed = extortive->stableStats.averageSpeed;
+    discount->stableStats.maxSpeed = extortive->stableStats.maxSpeed;
+    discount->stableStats.stations[0].SegmentLength = extortive->stableStats.stations[0].SegmentLength;
+    discount->getStation(StationIndex::FromUnderlying(0)).Entrance = { 1, 0, 0, 0 };
+    discount->getStation(StationIndex::FromUnderlying(1)).Exit = { 299, 0, 0, 0 };
+
+    EXPECT_TRUE(PathFinding::PlanTransportRoute(guest, { 300, 0, 0 }, false));
+    EXPECT_EQ(guest.previousRide, discountRideId);
+    EXPECT_FALSE(guest.transportRouteWasExtortive);
+
+    guest.clearTransportRoute();
+    gameState.park.flags = originalParkFlags;
+    RideDelete(discountRideId);
+    RideDelete(extortiveRideId);
+}
+
+TEST_F(PathfindingTestBase, DisconnectedTransportSearchRetainsFullSpatialFallback)
+{
+    const auto rideId = GetNextFreeRideId();
+    ASSERT_FALSE(rideId.IsNull());
+    auto* monorail = RideAllocateAtIndex(rideId);
+    ASSERT_NE(monorail, nullptr);
+    monorail->type = RIDE_TYPE_MONORAIL;
+    monorail->status = RideStatus::open;
+    monorail->numStations = 2;
+    monorail->priceTarget = RidePriceTarget::badValue;
+    monorail->stableStats.valid = true;
+    monorail->stableStats.averageSpeed = 18 * 29127;
+    monorail->stableStats.maxSpeed = monorail->stableStats.averageSpeed;
+    monorail->stableStats.stations[0].SegmentLength = 400 << 16;
+    for (auto& station : monorail->getStations())
+    {
+        station.Start.SetNull();
+        station.Entrance.SetNull();
+        station.Exit.SetNull();
+    }
+    monorail->getStation(StationIndex::FromUnderlying(0)).Entrance = { 200, 200, 0, 0 };
+    monorail->getStation(StationIndex::FromUnderlying(1)).Exit = { 100, 200, 0, 0 };
+
+    auto& gameState = getGameState();
+    const auto originalParkFlags = gameState.park.flags;
+    gameState.park.flags &= ~PARK_FLAGS_NO_MONEY;
+    gameState.park.flags |= PARK_FLAGS_UNLOCK_ALL_PRICES;
+
+    Guest guest{};
+    guest.NextLoc = { 0, 0, 0 };
+    guest.Energy = 96;
+    guest.cashInPocket = 100.00_GBP;
+    guest.outsideOfPark = false;
+    guest.guestHeadingToRideId = RideId::GetNull();
+    guest.previousRide = RideId::GetNull();
+
+    EXPECT_TRUE(PathFinding::PlanTransportRoute(guest, { 300, 0, 0 }, false));
+    EXPECT_EQ(guest.previousRide, rideId);
+    EXPECT_TRUE(guest.transportRouteWasExtortive);
+
+    gameState.park.flags = originalParkFlags;
+    RideDelete(rideId);
+}
+
+TEST_F(PathfindingTestBase, TransportIsBoardedOnlyAsAPlannedRouteLeg)
+{
+    Ride monorail{};
+    monorail.id = RideId::FromUnderlying(100);
+    monorail.type = RIDE_TYPE_MONORAIL;
+    monorail.status = RideStatus::open;
+    monorail.numStations = 2;
+    monorail.stableStats.valid = true;
+    monorail.stableStats.averageSpeed = 18 * 29127;
+    monorail.stableStats.maxSpeed = monorail.stableStats.averageSpeed;
+    monorail.stableStats.stations[0].SegmentLength = 400 << 16;
+
+    auto& gameState = getGameState();
+    const auto originalParkFlags = gameState.park.flags;
+    gameState.park.flags &= ~PARK_FLAGS_NO_MONEY;
+    gameState.park.flags |= PARK_FLAGS_UNLOCK_ALL_PRICES;
+    monorail.price[0] = RideGetTransportSegment(monorail, StationIndex::FromUnderlying(0)).fareValue;
+
+    Guest guest{};
+    guest.cashInPocket = 100.00_GBP;
+    guest.happiness = 200;
+    guest.guestHeadingToRideId = RideId::GetNull();
+    guest.clearTransportRoute();
+
+    EXPECT_FALSE(guest.shouldGoOnRide(monorail, StationIndex::FromUnderlying(0), false, true));
+
+    guest.setTransportRoute(monorail.id, StationIndex::FromUnderlying(0), StationIndex::FromUnderlying(1));
+    monorail.priceTarget = RidePriceTarget::badValue;
+    EXPECT_FALSE(guest.shouldGoOnRide(monorail, StationIndex::FromUnderlying(0), false, true));
+    EXPECT_FALSE(guest.hasTransportRoute());
+
+    monorail.priceTarget = RidePriceTarget::neutral;
+    guest.setTransportRoute(monorail.id, StationIndex::FromUnderlying(0), StationIndex::FromUnderlying(1));
+    guest.PeepFlags |= PEEP_FLAGS_LEAVING_PARK;
+    EXPECT_TRUE(guest.shouldGoOnRide(monorail, StationIndex::FromUnderlying(0), false, true));
+
+    const auto happinessBefore = guest.happiness;
+    guest.onEnterRide(monorail);
+    EXPECT_EQ(guest.guestNumRides, 0);
+    EXPECT_EQ(guest.happiness, happinessBefore);
+
+    guest.onExitRide(monorail);
+    EXPECT_FALSE(guest.hasTransportRoute());
+
+    gameState.park.flags = originalParkFlags;
+}
+
+TEST_F(PathfindingTestBase, PayingExtortiveTransportReducesHappinessAndCreatesThought)
+{
+    Guest guest{};
+    for (auto& thought : guest.thoughts)
+    {
+        thought.type = PeepThoughtType::none;
+    }
+    guest.happiness = 200;
+    guest.happinessTarget = 200;
+
+    GuestApplyPaidExtortiveTransportPenalty(guest, RideId::FromUnderlying(100));
+
+    EXPECT_EQ(guest.happiness, 176);
+    EXPECT_EQ(guest.happinessTarget, 176);
+    EXPECT_TRUE(std::any_of(guest.thoughts.begin(), guest.thoughts.end(), [](const PeepThought& thought) {
+        return thought.type == PeepThoughtType::extortiveTransport;
+    }));
+}
+
+TEST_F(PathfindingTestBase, PlannedTransportRouteIsIndependentOfRideInteractionState)
+{
+    Guest guest{};
+    const auto transportRide = RideId::FromUnderlying(10);
+    guest.setTransportRoute(transportRide, StationIndex::FromUnderlying(0), StationIndex::FromUnderlying(1));
+
+    guest.InteractionRideIndex = RideId::FromUnderlying(12);
+
+    EXPECT_TRUE(guest.hasTransportRoute());
+    EXPECT_EQ(guest.previousRide, transportRide);
+    EXPECT_EQ(guest.CurrentRideStation, StationIndex::FromUnderlying(0));
+}
+
+TEST_F(PathfindingTestBase, ChangingConcreteTargetInvalidatesPlannedTransportLeg)
+{
+    Guest guest{};
+    const auto transportRide = RideId::FromUnderlying(10);
+    guest.setTransportRoute(transportRide, StationIndex::FromUnderlying(0), StationIndex::FromUnderlying(1));
+
+    const auto firstAid = RideId::FromUnderlying(11);
+    guest.setPathfindingTargetRide(firstAid);
+
+    EXPECT_EQ(guest.guestHeadingToRideId, firstAid);
+    EXPECT_FALSE(guest.hasTransportRoute());
+    EXPECT_EQ(guest.previousRide, transportRide);
+    EXPECT_EQ(guest.previousRideTimeOut, 0);
+    EXPECT_FALSE(DirectionValid(guest.PathfindGoal.direction));
 }
 
 INSTANTIATE_TEST_SUITE_P(

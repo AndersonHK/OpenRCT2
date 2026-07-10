@@ -62,6 +62,7 @@
 #include "../world/Footpath.h"
 #include "../world/Location.hpp"
 #include "../world/Map.h"
+#include "../world/MapTopology.h"
 #include "../world/Park.h"
 #include "../world/Scenery.h"
 #include "../world/TileElementsView.h"
@@ -265,7 +266,7 @@ namespace OpenRCT2
     };
 
     /** rct2: 0x00981DB0 */
-    static struct
+    static constexpr struct
     {
         PeepActionType action;
         PeepThoughtToActionFlag flags;
@@ -444,7 +445,10 @@ namespace OpenRCT2
         { PeepActionType::walking, PEEP_THOUGHT_ACTION_NO_FLAGS },
         { PeepActionType::joy, PEEP_THOUGHT_ACTION_NO_FLAGS },
         { PeepActionType::walking, PEEP_THOUGHT_ACTION_FLAG_RIDE },
+        { PeepActionType::shakeHead, PEEP_THOUGHT_ACTION_FLAG_RIDE },
+        { PeepActionType::shakeHead, PEEP_THOUGHT_ACTION_FLAG_RIDE },
     };
+    static_assert(std::size(PeepThoughtToActionMap) == std::size(kPeepThoughtIds));
 
     // These arrays contain the base minimum and maximum nausea ratings for peeps, based on their nausea tolerance level.
     static constexpr RideRating_t kNauseaMinimumThresholds[] = {
@@ -454,10 +458,9 @@ namespace OpenRCT2
         400,
     };
 
-    static bool GuestHasVoucherForFreeRide(Guest& guest, const Ride& ride);
     static void GuestRideIsTooIntense(Guest& guest, Ride& ride, bool peepAtRide);
     static void GuestResetRideHeading(Guest& guest);
-    static void GuestTriedToEnterFullQueue(Guest& guest, Ride& ride);
+    static void GuestTriedToEnterFullQueue(Guest& guest, Ride& ride, StationIndex stationIndex);
     static int16_t GuestCalculateRideSatisfaction(Guest& guest, const Ride& ride);
     static void GuestUpdateFavouriteRide(Guest& guest, const Ride& ride, uint8_t satisfaction);
     static int16_t GuestCalculateRideValueSatisfaction(Guest& guest, const Ride& ride);
@@ -466,8 +469,11 @@ namespace OpenRCT2
     static bool GuestShouldGoOnRideAgain(Guest& guest, const Ride& ride);
     static bool GuestShouldPreferredIntensityIncrease(Guest& guest);
     static bool GuestReallyLikedRide(Guest& guest, const Ride& ride);
+    static bool GuestHasFreshThoughtForRide(const Guest& guest, RideId rideId);
     static money64 GuestGetRideValueForPricePerception(const Guest& guest, const Ride& ride);
     static money64 GuestGetExpensiveRideThoughtThreshold(money64 value);
+    static TransportRideJourney GuestGetPlannedTransportJourney(const Guest& guest, const Ride& ride);
+    static money64 GuestGetAdmissionPrice(const Guest& guest, const Ride& ride);
     static PeepThoughtType GuestAssessSurroundings(int16_t centre_x, int16_t centre_y, int16_t centre_z);
     static void GuestUpdateHunger(Guest& guest);
     static void GuestDecideWhetherToLeavePark(Guest& guest);
@@ -1471,7 +1477,7 @@ namespace OpenRCT2
         if (guestIsLostCountdown != 0)
             return;
 
-        guestHeadingToRideId = RideId::GetNull();
+        setPathfindingTargetRide(RideId::GetNull());
 
         auto* windowMgr = Ui::GetWindowManager();
         WindowBase* w = windowMgr->FindByNumber(WindowClass::peep, id);
@@ -1629,8 +1635,7 @@ namespace OpenRCT2
                         if (guest.happiness >= 180)
                             itemValue /= 2;
                     }
-                    if (itemValue > ToMoney64(static_cast<money32>(ScenarioRand() & 0x07))
-                        && !(gameState.cheats.ignorePrice))
+                    if (itemValue > ToMoney64(static_cast<money32>(ScenarioRand() & 0x07)) && !(gameState.cheats.ignorePrice))
                     {
                         // "I'm not paying that much for x"
                         guest.insertNewThought(shopItemDescriptor.TooMuchThought, ride.id);
@@ -1782,6 +1787,14 @@ namespace OpenRCT2
      */
     void Guest::onEnterRide(Ride& ride)
     {
+        // A planned transport leg is a mobility service, not an attraction visit.
+        // Admission and customer throughput are handled by the normal station code,
+        // but transport must not alter ride history, favourites, happiness or nausea.
+        if (isUsingTransportRide(ride))
+        {
+            return;
+        }
+
         // Calculate how satisfying the ride is for the peep. Can range from -140 to +105.
         int16_t satisfaction = GuestCalculateRideSatisfaction(*this, ride);
 
@@ -1812,6 +1825,16 @@ namespace OpenRCT2
      */
     void Guest::onExitRide(Ride& ride)
     {
+        if (isUsingTransportRide(ride))
+        {
+            clearTransportRoute();
+            if (PeepFlags & PEEP_FLAGS_LEAVING_PARK)
+            {
+                PeepFlags &= ~(PEEP_FLAGS_PARK_ENTRANCE_CHOSEN);
+            }
+            return;
+        }
+
         if (PeepFlags & PEEP_FLAGS_RIDE_SHOULD_BE_MARKED_AS_FAVOURITE)
         {
             PeepFlags &= ~PEEP_FLAGS_RIDE_SHOULD_BE_MARKED_AS_FAVOURITE;
@@ -1828,10 +1851,8 @@ namespace OpenRCT2
 
         if (GuestShouldGoOnRideAgain(*this, ride))
         {
-            guestHeadingToRideId = ride.id;
+            setPathfindingTargetRide(ride.id);
             guestIsLostCountdown = 200;
-            ResetPathfindGoal();
-            WindowInvalidateFlags |= PEEP_INVALIDATE_PEEP_ACTION;
         }
 
         if (GuestShouldPreferredIntensityIncrease(*this))
@@ -1855,6 +1876,15 @@ namespace OpenRCT2
             if (laughType < 3)
             {
                 Audio::Play3D(laughs[laughType], getLocation());
+            }
+        }
+        else
+        {
+            // Rare fallback for a removed RCT2 developer in-joke.
+            constexpr uint32_t kNiceRideEasterEggChance = 2048;
+            if (!GuestHasFreshThoughtForRide(*this, ride.id) && ScenarioRandMax(kNiceRideEasterEggChance) == 0)
+            {
+                insertNewThought(PeepThoughtType::niceRideDeprecated);
             }
         }
 
@@ -1883,10 +1913,8 @@ namespace OpenRCT2
         if (ride != nullptr)
         {
             // Head to that ride
-            guest.guestHeadingToRideId = ride->id;
+            guest.setPathfindingTargetRide(ride->id);
             guest.guestIsLostCountdown = 200;
-            guest.ResetPathfindGoal();
-            guest.WindowInvalidateFlags |= PEEP_INVALIDATE_PEEP_ACTION;
 
             // Make peep look at their map if they have one
             if (guest.hasItem(ShopItem::map))
@@ -1988,6 +2016,106 @@ namespace OpenRCT2
      * ride/shop, or they may just be thinking about it.
      *  rct2: 0x006960AB
      */
+    static TransportRideJourney GuestGetPlannedTransportJourney(const Guest& guest, const Ride& ride)
+    {
+        auto destination = guest.transportDestinationStation;
+        if (destination.IsNull() && ride.numStations >= 2 && !guest.CurrentRideStation.IsNull())
+        {
+            destination = StationIndex::FromUnderlying((guest.CurrentRideStation.ToUnderlying() + 1) % ride.numStations);
+        }
+        return RideGetTransportJourney(ride, guest.CurrentRideStation, destination);
+    }
+
+    static money64 GuestGetAdmissionPrice(const Guest& guest, const Ride& ride)
+    {
+        const auto& park = getGameState().park;
+        if ((park.flags & PARK_FLAGS_NO_MONEY) || (ride.isRide() && !Park::RidePricesUnlocked(park)))
+        {
+            return 0.00_GBP;
+        }
+        if (guest.isUsingTransportRide(ride))
+        {
+            return RideGetTransportFare(ride, GuestGetPlannedTransportJourney(guest, ride));
+        }
+        return RideGetPrice(ride);
+    }
+
+    static bool GuestShouldUseTransportRide(Guest& guest, Ride& ride, StationIndex entranceNum, bool peepAtRide)
+    {
+        auto& gameState = getGameState();
+        if (RideIsTransportStationOvercrowded(ride, entranceNum))
+        {
+            if (peepAtRide)
+            {
+                guest.insertNewThought(PeepThoughtType::crowded);
+            }
+            guest.choseNotToGoOnRide(ride, peepAtRide, true);
+            return false;
+        }
+
+        const auto journey = GuestGetPlannedTransportJourney(guest, ride);
+        if (journey.destinationStation.IsNull())
+        {
+            guest.choseNotToGoOnRide(ride, peepAtRide, true);
+            return false;
+        }
+
+        const auto ridePrice = GuestGetAdmissionPrice(guest, ride);
+        const bool paysForRide = !guest.hasFreeRideVoucherFor(ride) && !(gameState.park.flags & PARK_FLAGS_NO_MONEY)
+            && Park::RidePricesUnlocked(gameState.park);
+
+        // A fare policy changed to Extortive after route selection is not permission
+        // to charge a guest whose walking connectivity was never tested for that policy.
+        if (paysForRide && ride.priceTarget == RidePriceTarget::badValue
+            && (!guest.transportRouteWasExtortive || guest.transportRouteTopologyEpoch != MapTopology::GetEpoch()))
+        {
+            guest.choseNotToGoOnRide(ride, peepAtRide, true);
+            return false;
+        }
+
+        if (paysForRide && ridePrice > guest.cashInPocket)
+        {
+            if (peepAtRide)
+            {
+                guest.insertNewThought(
+                    guest.cashInPocket <= 0 ? PeepThoughtType::spentMoney : PeepThoughtType::cantAffordRide, ride.id);
+            }
+            guest.choseNotToGoOnRide(ride, peepAtRide, true);
+            return false;
+        }
+
+        if (ride.lastCrashType != RIDE_CRASH_TYPE_NONE && guest.happiness < 225)
+        {
+            if (peepAtRide)
+            {
+                guest.insertNewThought(PeepThoughtType::notSafe, ride.id);
+                ride.updatePopularity(0);
+            }
+            guest.choseNotToGoOnRide(ride, peepAtRide, true);
+            return false;
+        }
+
+        if (peepAtRide)
+        {
+            if (paysForRide)
+            {
+                if (ride.priceTarget == RidePriceTarget::goodValue)
+                {
+                    guest.insertNewThought(PeepThoughtType::goodValue, ride.id);
+                }
+                else if (ride.priceTarget == RidePriceTarget::free && !(guest.PeepFlags & PEEP_FLAGS_HAS_PAID_FOR_PARK_ENTRY))
+                {
+                    guest.insertNewThought(PeepThoughtType::goodValue, ride.id);
+                }
+            }
+            ride.updatePopularity(1);
+        }
+
+        ride.flags.unset(RideFlag::queueFull);
+        ride.getStation(entranceNum).QueueFull = false;
+        return true;
+    }
+
     bool Guest::shouldGoOnRide(Ride& ride, StationIndex entranceNum, bool atQueue, bool thinking)
     {
         // Indicates whether a peep is physically at the ride, or is just thinking about going on the ride.
@@ -1995,16 +2123,22 @@ namespace OpenRCT2
 
         if (ride.status == RideStatus::open && !ride.flags.has(RideFlag::brokenDown))
         {
-            // Peeps that are leaving the park will refuse to go on any rides, with the exception of free transport rides.
             assert(ride.type < std::size(kRideTypeDescriptors));
-            if (!ride.getRideTypeDescriptor().flags.has(RtdFlag::isTransportRide) || ride.value == kRideValueUndefined
-                || RideGetPrice(ride) != 0)
+            const bool isTransportRide = ride.getRideTypeDescriptor().flags.has(RtdFlag::isTransportRide);
+            const bool isPlannedTransport = isUsingTransportRide(ride) && CurrentRideStation == entranceNum;
+
+            // Transport rides are only boarded as a planned route leg. They are no
+            // longer selected opportunistically as ordinary attractions.
+            if (isTransportRide && !isPlannedTransport)
             {
-                if (PeepFlags & PEEP_FLAGS_LEAVING_PARK)
-                {
-                    choseNotToGoOnRide(ride, peepAtRide, false);
-                    return false;
-                }
+                choseNotToGoOnRide(ride, peepAtRide, false);
+                return false;
+            }
+
+            if ((PeepFlags & PEEP_FLAGS_LEAVING_PARK) && !isPlannedTransport)
+            {
+                choseNotToGoOnRide(ride, peepAtRide, false);
+                return false;
             }
 
             if (ride.getRideTypeDescriptor().flags.has(RtdFlag::isShopOrFacility))
@@ -2023,7 +2157,7 @@ namespace OpenRCT2
                 {
                     if (!station.LastPeepInQueue.IsNull())
                     {
-                        GuestTriedToEnterFullQueue(*this, ride);
+                        GuestTriedToEnterFullQueue(*this, ride, entranceNum);
                         return false;
                     }
                 }
@@ -2041,26 +2175,27 @@ namespace OpenRCT2
                         // This check enforces a minimum distance between peeps entering the queue.
                         if (maxD < 8)
                         {
-                            GuestTriedToEnterFullQueue(*this, ride);
+                            GuestTriedToEnterFullQueue(*this, ride, entranceNum);
                             return false;
                         }
 
                         // This checks if there's a peep standing still at the very end of the queue.
                         if (maxD <= 13 && lastPeepInQueue->timeInQueue > 10)
                         {
-                            GuestTriedToEnterFullQueue(*this, ride);
+                            GuestTriedToEnterFullQueue(*this, ride, entranceNum);
                             return false;
                         }
                     }
                 }
             }
 
-            // Assuming the queue conditions are met, peeps will always go on free transport rides.
-            // Ride ratings, recent crashes and weather will all be ignored.
-            auto ridePrice = RideGetPrice(ride);
-            if (!ride.getRideTypeDescriptor().flags.has(RtdFlag::isTransportRide) || ride.value == kRideValueUndefined
-                || ridePrice != 0)
+            if (isPlannedTransport)
             {
+                return GuestShouldUseTransportRide(*this, ride, entranceNum, peepAtRide);
+            }
+
+            {
+                auto ridePrice = RideGetPrice(ride);
                 if (previousRide == ride.id)
                 {
                     choseNotToGoOnRide(ride, peepAtRide, false);
@@ -2069,7 +2204,7 @@ namespace OpenRCT2
 
                 auto& gameState = getGameState();
                 // Basic price checks
-                if (ridePrice != 0 && !GuestHasVoucherForFreeRide(*this, ride) && !(gameState.park.flags & PARK_FLAGS_NO_MONEY))
+                if (ridePrice != 0 && !hasFreeRideVoucherFor(ride) && !(gameState.park.flags & PARK_FLAGS_NO_MONEY))
                 {
                     if (ridePrice > cashInPocket)
                     {
@@ -2218,7 +2353,7 @@ namespace OpenRCT2
                 money64 value = GuestGetRideValueForPricePerception(*this, ride);
 
                 // If the value of the ride hasn't yet been calculated, peeps will be willing to pay any amount for the ride.
-                if (value != kRideValueUndefined && !GuestHasVoucherForFreeRide(*this, ride)
+                if (value != kRideValueUndefined && !hasFreeRideVoucherFor(ride)
                     && !(gameState.park.flags & PARK_FLAGS_NO_MONEY))
                 {
                     // Peeps won't pay more than twice the value of the ride.
@@ -2238,8 +2373,7 @@ namespace OpenRCT2
                         return false;
                     }
 
-                    if (ridePrice > GuestGetExpensiveRideThoughtThreshold(value) && ridePrice <= (value * 2)
-                        && peepAtRide)
+                    if (ridePrice > GuestGetExpensiveRideThoughtThreshold(value) && ridePrice <= (value * 2) && peepAtRide)
                     {
                         insertNewThought(PeepThoughtType::expensiveRide, ride.id);
                     }
@@ -2406,6 +2540,64 @@ namespace OpenRCT2
         return RideUse::GetTypeHistory().Contains(id, rideType);
     }
 
+    bool Guest::hasTransportRoute() const
+    {
+        return !previousRide.IsNull() && (previousRideTimeOut & kTransportRouteTimeoutFlag) != 0;
+    }
+
+    bool Guest::isUsingTransportRide(const Ride& ride) const
+    {
+        return hasTransportRoute() && previousRide == ride.id
+            && ride.getRideTypeDescriptor().flags.has(RtdFlag::isTransportRide);
+    }
+
+    bool Guest::shouldExitTransportAt(StationIndex stationIndex) const
+    {
+        return hasTransportRoute() && !transportDestinationStation.IsNull() && transportDestinationStation == stationIndex;
+    }
+
+    void Guest::setTransportRoute(
+        RideId rideId, StationIndex boardingStation, StationIndex destinationStation, bool isExtortive)
+    {
+        previousRide = rideId;
+        previousRideTimeOut = kTransportRouteTimeoutFlag;
+        CurrentRideStation = boardingStation;
+        transportDestinationStation = destinationStation;
+        transportRoutePlanningInitialised = true;
+        transportRouteWasExtortive = isExtortive;
+        transportRouteTopologyEpoch = MapTopology::GetEpoch();
+        ResetPathfindGoal();
+        WindowInvalidateFlags |= PEEP_INVALIDATE_PEEP_ACTION;
+    }
+
+    void Guest::clearTransportRoute()
+    {
+        if (hasTransportRoute())
+        {
+            previousRideTimeOut = 0;
+        }
+        transportDestinationStation = StationIndex::GetNull();
+        transportRouteWasExtortive = false;
+        transportRouteTopologyEpoch = 0;
+        ResetPathfindGoal();
+        WindowInvalidateFlags |= PEEP_INVALIDATE_PEEP_ACTION;
+    }
+
+    void Guest::setPathfindingTargetRide(RideId rideId)
+    {
+        if (hasTransportRoute())
+        {
+            clearTransportRoute();
+        }
+        else
+        {
+            ResetPathfindGoal();
+        }
+        guestHeadingToRideId = rideId;
+        transportRoutePlanningInitialised = false;
+        WindowInvalidateFlags |= PEEP_INVALIDATE_PEEP_ACTION;
+    }
+
     void Guest::setParkEntryTime(int32_t entryTime)
     {
         parkEntryTime = entryTime;
@@ -2437,6 +2629,7 @@ namespace OpenRCT2
 
     void Guest::choseNotToGoOnRide(const Ride& ride, bool peepAtRide, bool updateLastRide)
     {
+        const bool cancelTransportRoute = isUsingTransportRide(ride);
         if (peepAtRide && updateLastRide)
         {
             previousRide = ride.id;
@@ -2446,6 +2639,10 @@ namespace OpenRCT2
         if (ride.id == guestHeadingToRideId)
         {
             GuestResetRideHeading(*this);
+        }
+        else if (cancelTransportRoute)
+        {
+            clearTransportRoute();
         }
     }
 
@@ -2460,10 +2657,9 @@ namespace OpenRCT2
         }
     }
 
-    static bool GuestHasVoucherForFreeRide(Guest& guest, const Ride& ride)
+    bool Guest::hasFreeRideVoucherFor(const Ride& ride) const
     {
-        return guest.hasItem(ShopItem::voucher) && guest.voucherType == VOUCHER_TYPE_RIDE_FREE
-            && guest.voucherRideId == ride.id;
+        return hasItem(ShopItem::voucher) && voucherType == VOUCHER_TYPE_RIDE_FREE && voucherRideId == ride.id;
     }
 
     static money64 GuestGetRideValueForPricePerception(const Guest& guest, const Ride& ride)
@@ -2493,9 +2689,14 @@ namespace OpenRCT2
      * Does not effect peeps that walk up to the queue entrance.
      * This flag is reset the next time a peep successfully joins the queue.
      */
-    static void GuestTriedToEnterFullQueue(Guest& guest, Ride& ride)
+    static void GuestTriedToEnterFullQueue(Guest& guest, Ride& ride, StationIndex stationIndex)
     {
+        const bool cancelTransportRoute = guest.isUsingTransportRide(ride);
         ride.flags.set(RideFlag::queueFull);
+        if (!stationIndex.IsNull() && stationIndex.ToUnderlying() < ride.numStations)
+        {
+            ride.getStation(stationIndex).QueueFull = true;
+        }
         guest.previousRide = ride.id;
         guest.previousRideTimeOut = 0;
         // Change status "Heading to" to "Walking" if queue is full
@@ -2503,12 +2704,15 @@ namespace OpenRCT2
         {
             GuestResetRideHeading(guest);
         }
+        else if (cancelTransportRoute)
+        {
+            guest.clearTransportRoute();
+        }
     }
 
     static void GuestResetRideHeading(Guest& guest)
     {
-        guest.guestHeadingToRideId = RideId::GetNull();
-        guest.WindowInvalidateFlags |= PEEP_INVALIDATE_PEEP_ACTION;
+        guest.setPathfindingTargetRide(RideId::GetNull());
     }
 
     static void GuestRideIsTooIntense(Guest& guest, Ride& ride, bool peepAtRide)
@@ -2692,6 +2896,11 @@ namespace OpenRCT2
 
     static void PeepUpdateRideAtEntranceTryLeave(Guest& guest)
     {
+        if (guest.hasTransportRoute())
+        {
+            guest.clearTransportRoute();
+        }
+
         // Destination Tolerance is zero when peep has completely
         // entered entrance
         if (guest.DestinationTolerance == 0)
@@ -2703,8 +2912,7 @@ namespace OpenRCT2
 
     static bool PeepCheckRidePriceAtEntrance(Guest& guest, const Ride& ride, money64 ridePrice)
     {
-        if ((guest.hasItem(ShopItem::voucher)) && guest.voucherType == VOUCHER_TYPE_RIDE_FREE
-            && guest.voucherRideId == guest.CurrentRide)
+        if (guest.hasFreeRideVoucherFor(ride))
             return true;
 
         if (guest.cashInPocket <= 0 && !(getGameState().park.flags & PARK_FLAGS_NO_MONEY))
@@ -2725,6 +2933,16 @@ namespace OpenRCT2
             }
             PeepUpdateRideAtEntranceTryLeave(guest);
             return false;
+        }
+
+        if (guest.isUsingTransportRide(ride))
+        {
+            if (GuestGetPlannedTransportJourney(guest, ride).destinationStation.IsNull())
+            {
+                PeepUpdateRideAtEntranceTryLeave(guest);
+                return false;
+            }
+            return true;
         }
 
         auto value = ride.value;
@@ -3002,6 +3220,28 @@ namespace OpenRCT2
         return true;
     }
 
+    static bool GuestHasFreshThoughtForRide(const Guest& guest, RideId rideId)
+    {
+        for (const auto& thought : guest.thoughts)
+        {
+            if (thought.type == PeepThoughtType::none)
+            {
+                break;
+            }
+            if (thought.freshness > 1)
+            {
+                continue;
+            }
+
+            const auto thoughtType = EnumValue(thought.type);
+            if ((PeepThoughtToActionMap[thoughtType].flags & PEEP_THOUGHT_ACTION_FLAG_RIDE) && thought.rideId == rideId)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      *
      *  rct2: 0x0069BC9A
@@ -3200,7 +3440,6 @@ namespace OpenRCT2
      */
     static void GuestLeavePark(Guest& guest)
     {
-        guest.guestHeadingToRideId = RideId::GetNull();
         if (guest.PeepFlags & PEEP_FLAGS_LEAVING_PARK)
         {
             if (guest.guestIsLostCountdown < 60)
@@ -3210,6 +3449,7 @@ namespace OpenRCT2
         }
         else
         {
+            guest.setPathfindingTargetRide(RideId::GetNull());
             guest.guestIsLostCountdown = 254;
             guest.PeepFlags |= PEEP_FLAGS_LEAVING_PARK;
             guest.PeepFlags &= ~PEEP_FLAGS_PARK_ENTRANCE_CHOSEN;
@@ -3326,10 +3566,8 @@ namespace OpenRCT2
         if (closestRide != nullptr)
         {
             // Head to that ride
-            guest.guestHeadingToRideId = closestRide->id;
+            guest.setPathfindingTargetRide(closestRide->id);
             guest.guestIsLostCountdown = 200;
-            guest.ResetPathfindGoal();
-            guest.WindowInvalidateFlags |= PEEP_INVALIDATE_PEEP_ACTION;
             guest.timeLost = 0;
         }
     }
@@ -3407,10 +3645,8 @@ namespace OpenRCT2
 
         if (closestRide != nullptr)
         {
-            guest.guestHeadingToRideId = closestRide->id;
+            guest.setPathfindingTargetRide(closestRide->id);
             guest.guestIsLostCountdown = 200;
-            guest.ResetPathfindGoal();
-            guest.WindowInvalidateFlags |= PEEP_INVALIDATE_PEEP_ACTION;
             guest.timeLost = 0;
         }
     }
@@ -3689,7 +3925,7 @@ namespace OpenRCT2
         if (ride->flags.has(RideFlag::brokenDown))
             return;
 
-        auto ridePrice = RideGetPrice(*ride);
+        auto ridePrice = GuestGetAdmissionPrice(*this, *ride);
         if (ridePrice != 0)
         {
             if (!PeepCheckRidePriceAtEntrance(*this, *ride, ridePrice))
@@ -4032,13 +4268,23 @@ namespace OpenRCT2
         guest.RideSubState = PeepRideSubState::approachExit;
     }
 
+    void GuestApplyPaidExtortiveTransportPenalty(Guest& guest, RideId rideId)
+    {
+        constexpr uint8_t kHappinessPenalty = 24;
+        guest.happinessTarget = guest.happinessTarget > kHappinessPenalty ? guest.happinessTarget - kHappinessPenalty : 0;
+        guest.happiness = std::min(guest.happiness, guest.happinessTarget);
+        guest.insertNewThought(PeepThoughtType::extortiveTransport, rideId);
+        guest.WindowInvalidateFlags |= PEEP_INVALIDATE_PEEP_2;
+    }
+
     /**
      *
      *  rct2: 0x006920B4
      */
     void Guest::updateRideFreeVehicleEnterRide(Ride& ride)
     {
-        auto ridePrice = RideGetPrice(ride);
+        auto ridePrice = GuestGetAdmissionPrice(*this, ride);
+        bool paidExtortiveTransport = false;
         if (ridePrice != 0)
         {
             if ((hasItem(ShopItem::voucher)) && (voucherType == VOUCHER_TYPE_RIDE_FREE) && (voucherRideId == CurrentRide))
@@ -4051,7 +4297,14 @@ namespace OpenRCT2
                 ride.totalProfit = AddClamp<money64>(ride.totalProfit, ridePrice);
                 ride.windowInvalidateFlags.set(RideInvalidateFlag::income);
                 spendMoney(paidOnRides, ridePrice, ExpenditureType::parkRideTickets);
+                paidExtortiveTransport = isUsingTransportRide(ride) && transportRouteWasExtortive
+                    && ride.priceTarget == RidePriceTarget::badValue;
             }
+        }
+
+        if (paidExtortiveTransport)
+        {
+            GuestApplyPaidExtortiveTransportPenalty(*this, ride.id);
         }
 
         RideSubState = PeepRideSubState::leaveEntrance;
@@ -5484,7 +5737,7 @@ namespace OpenRCT2
             PeepFlags &= ~PEEP_FLAGS_ANIMATION_FROZEN;
         }
 
-        if (!previousRide.IsNull())
+        if (!previousRide.IsNull() && !hasTransportRoute())
         {
             if (++previousRideTimeOut >= 720)
             {
@@ -7438,6 +7691,11 @@ namespace OpenRCT2
         peep->PathCheckOptimisation = 0;
         peep->InteractionRideIndex = RideId::GetNull();
         peep->previousRide = RideId::GetNull();
+        peep->transportDestinationStation = StationIndex::GetNull();
+        peep->transportRoutePlannedInPrecipitation = false;
+        peep->transportRoutePlanningInitialised = false;
+        peep->transportRouteWasExtortive = false;
+        peep->transportRouteTopologyEpoch = 0;
         std::get<0>(peep->thoughts).type = PeepThoughtType::none;
         peep->WindowInvalidateFlags = 0;
 
@@ -7910,7 +8168,11 @@ namespace OpenRCT2
 
         if (guestHeadingToRideId == rideId)
         {
-            guestHeadingToRideId = RideId::GetNull();
+            setPathfindingTargetRide(RideId::GetNull());
+        }
+        if (hasTransportRoute() && previousRide == rideId)
+        {
+            clearTransportRoute();
         }
         if (favouriteRide == rideId)
         {
@@ -8004,6 +8266,11 @@ namespace OpenRCT2
         stream << rejoinQueueTimeout;
         stream << previousRide;
         stream << previousRideTimeOut;
+        stream << transportDestinationStation;
+        stream << transportRoutePlannedInPrecipitation;
+        stream << transportRoutePlanningInitialised;
+        stream << transportRouteWasExtortive;
+        stream << transportRouteTopologyEpoch;
         stream << thoughts;
         stream << litterCount;
         stream << disgustingCount;

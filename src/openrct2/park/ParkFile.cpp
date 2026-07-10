@@ -49,6 +49,7 @@
 #include "../peep/RideUseSystem.h"
 #include "../rct2/RCT2.h"
 #include "../ride/Ride.h"
+#include "../ride/RideData.h"
 #include "../ride/RideManager.hpp"
 #include "../ride/ShopItem.h"
 #include "../ride/Track.h"
@@ -198,7 +199,7 @@ namespace OpenRCT2
             if (cs.getMode() == OrcaStream::Mode::reading)
             {
                 value = legacyValue == kCompanyValueOnFailedObjective ? kCompanyValueOnFailedObjective
-                                                                       : ReadLegacyParkMoney64(legacyValue);
+                                                                      : ReadLegacyParkMoney64(legacyValue);
             }
         }
 
@@ -216,6 +217,18 @@ namespace OpenRCT2
             cs.readWrite(accumulator.excitement);
             cs.readWrite(accumulator.intensity);
             cs.readWrite(accumulator.nausea);
+            if (version >= kTransportRideStatsVersion)
+            {
+                cs.readWrite(accumulator.transportComfort);
+                cs.readWrite(accumulator.transportDecoration);
+                cs.readWrite(accumulator.transportDistance);
+            }
+            else if (cs.getMode() == OrcaStream::Mode::reading)
+            {
+                accumulator.transportComfort = 0;
+                accumulator.transportDecoration = 0;
+                accumulator.transportDistance = 0;
+            }
             cs.readWrite(accumulator.ticks);
             cs.readWrite(accumulator.sampleEntity);
             cs.readWrite(accumulator.sampleComplete);
@@ -433,33 +446,34 @@ namespace OpenRCT2
         {
             ScenarioIndexEntry entry{};
             auto& os = *_os;
-            os.readWriteChunk(ParkFileChunkType::scenario, [&entry, version = os.getHeader().targetVersion](OrcaStream::ChunkStream& cs) {
-                entry.Category = cs.read<Scenario::Category>();
+            os.readWriteChunk(
+                ParkFileChunkType::scenario, [&entry, version = os.getHeader().targetVersion](OrcaStream::ChunkStream& cs) {
+                    entry.Category = cs.read<Scenario::Category>();
 
-                std::string name;
-                ReadWriteStringTable(cs, name, "en-GB");
-                entry.Name = name;
-                entry.InternalName = name;
+                    std::string name;
+                    ReadWriteStringTable(cs, name, "en-GB");
+                    entry.Name = name;
+                    entry.InternalName = name;
 
-                std::string parkName;
-                ReadWriteStringTable(cs, parkName, "en-GB");
+                    std::string parkName;
+                    ReadWriteStringTable(cs, parkName, "en-GB");
 
-                std::string scenarioDetails;
-                ReadWriteStringTable(cs, scenarioDetails, "en-GB");
-                entry.Details = scenarioDetails;
+                    std::string scenarioDetails;
+                    ReadWriteStringTable(cs, scenarioDetails, "en-GB");
+                    entry.Details = scenarioDetails;
 
-                // wrong order is intentional here due to ReadWriteScenarioChunk writing guests first
-                entry.ObjectiveType = cs.read<Scenario::ObjectiveType>();
-                entry.ObjectiveArg1 = cs.read<uint8_t>();
-                entry.ObjectiveArg3 = cs.read<uint16_t>();
-                money64 objectiveCurrency{};
-                cs.readWrite(objectiveCurrency);
-                entry.ObjectiveArg2 = version < kCentMoneyVersion
-                    ? ReadLegacyScenarioObjectiveCurrency(entry.ObjectiveType, objectiveCurrency)
-                    : objectiveCurrency;
+                    // wrong order is intentional here due to ReadWriteScenarioChunk writing guests first
+                    entry.ObjectiveType = cs.read<Scenario::ObjectiveType>();
+                    entry.ObjectiveArg1 = cs.read<uint8_t>();
+                    entry.ObjectiveArg3 = cs.read<uint16_t>();
+                    money64 objectiveCurrency{};
+                    cs.readWrite(objectiveCurrency);
+                    entry.ObjectiveArg2 = version < kCentMoneyVersion
+                        ? ReadLegacyScenarioObjectiveCurrency(entry.ObjectiveType, objectiveCurrency)
+                        : objectiveCurrency;
 
-                entry.SourceGame = ScenarioSource::Other;
-            });
+                    entry.SourceGame = ScenarioSource::Other;
+                });
             return entry;
         }
 
@@ -469,26 +483,26 @@ namespace OpenRCT2
             auto& os = *_os;
             os.readWriteChunk(
                 ParkFileChunkType::preview, [&preview, version = os.getHeader().targetVersion](OrcaStream::ChunkStream& cs) {
-                cs.readWrite(preview.parkName);
-                cs.readWrite(preview.parkRating);
-                cs.readWrite(preview.year);
-                cs.readWrite(preview.month);
-                cs.readWrite(preview.day);
-                cs.readWrite(preview.parkUsesMoney);
-                ReadWriteParkMoney64(cs, preview.cash, version);
-                cs.readWrite(preview.numRides);
-                cs.readWrite(preview.numGuests);
+                    cs.readWrite(preview.parkName);
+                    cs.readWrite(preview.parkRating);
+                    cs.readWrite(preview.year);
+                    cs.readWrite(preview.month);
+                    cs.readWrite(preview.day);
+                    cs.readWrite(preview.parkUsesMoney);
+                    ReadWriteParkMoney64(cs, preview.cash, version);
+                    cs.readWrite(preview.numRides);
+                    cs.readWrite(preview.numGuests);
 
-                cs.readWriteVector(preview.images, [&cs](PreviewImage& image) {
-                    cs.readWrite(image.type);
-                    cs.readWrite(image.width);
-                    cs.readWrite(image.height);
-                    cs.readWriteArray(image.pixels, [&cs](Drawing::PaletteIndex& pixel) {
-                        cs.readWrite(pixel);
-                        return true;
+                    cs.readWriteVector(preview.images, [&cs](PreviewImage& image) {
+                        cs.readWrite(image.type);
+                        cs.readWrite(image.width);
+                        cs.readWrite(image.height);
+                        cs.readWriteArray(image.pixels, [&cs](Drawing::PaletteIndex& pixel) {
+                            cs.readWrite(pixel);
+                            return true;
+                        });
                     });
                 });
-            });
             return preview;
         }
 
@@ -750,29 +764,30 @@ namespace OpenRCT2
 
         void ReadWritePreviewChunk(GameState_t& gameState, OrcaStream& os)
         {
-            os.readWriteChunk(ParkFileChunkType::preview, [&gameState, version = os.getHeader().targetVersion](OrcaStream::ChunkStream& cs) {
-                auto preview = generatePreviewFromGameState(gameState);
+            os.readWriteChunk(
+                ParkFileChunkType::preview, [&gameState, version = os.getHeader().targetVersion](OrcaStream::ChunkStream& cs) {
+                    auto preview = generatePreviewFromGameState(gameState);
 
-                cs.readWrite(preview.parkName);
-                cs.readWrite(preview.parkRating);
-                cs.readWrite(preview.year);
-                cs.readWrite(preview.month);
-                cs.readWrite(preview.day);
-                cs.readWrite(preview.parkUsesMoney);
-                ReadWriteParkMoney64(cs, preview.cash, version);
-                cs.readWrite(preview.numRides);
-                cs.readWrite(preview.numGuests);
+                    cs.readWrite(preview.parkName);
+                    cs.readWrite(preview.parkRating);
+                    cs.readWrite(preview.year);
+                    cs.readWrite(preview.month);
+                    cs.readWrite(preview.day);
+                    cs.readWrite(preview.parkUsesMoney);
+                    ReadWriteParkMoney64(cs, preview.cash, version);
+                    cs.readWrite(preview.numRides);
+                    cs.readWrite(preview.numGuests);
 
-                cs.readWriteVector(preview.images, [&cs](PreviewImage& image) {
-                    cs.readWrite(image.type);
-                    cs.readWrite(image.width);
-                    cs.readWrite(image.height);
-                    cs.readWriteArray(image.pixels, [&cs](Drawing::PaletteIndex& pixel) {
-                        cs.readWrite(pixel);
-                        return true;
+                    cs.readWriteVector(preview.images, [&cs](PreviewImage& image) {
+                        cs.readWrite(image.type);
+                        cs.readWrite(image.width);
+                        cs.readWrite(image.height);
+                        cs.readWriteArray(image.pixels, [&cs](Drawing::PaletteIndex& pixel) {
+                            cs.readWrite(pixel);
+                            return true;
+                        });
                     });
                 });
-            });
         }
 
         void ReadWriteGeneralChunk(GameState_t& gameState, OrcaStream& os)
@@ -1692,11 +1707,19 @@ namespace OpenRCT2
                         cs.readWrite(priceTarget);
                         if (cs.getMode() == OrcaStream::Mode::reading)
                         {
-                            if (priceTarget > static_cast<uint8_t>(RidePriceTarget::badValue))
+                            const auto maximumPriceTarget = version >= kTransportJourneyRoutingVersion
+                                ? RidePriceTarget::free
+                                : RidePriceTarget::badValue;
+                            if (priceTarget > static_cast<uint8_t>(maximumPriceTarget))
                             {
                                 priceTarget = static_cast<uint8_t>(RidePriceTarget::neutral);
                             }
                             ride.priceTarget = static_cast<RidePriceTarget>(priceTarget);
+                            if (ride.priceTarget == RidePriceTarget::free
+                                && !ride.getRideTypeDescriptor().flags.has(RtdFlag::isTransportRide))
+                            {
+                                ride.priceTarget = RidePriceTarget::neutral;
+                            }
                         }
                     }
                     else
@@ -2044,8 +2067,7 @@ namespace OpenRCT2
             });
         }
 
-        static void ReadWriteRideMeasurement(
-            OrcaStream::ChunkStream& cs, RideMeasurement& measurement, uint32_t version)
+        static void ReadWriteRideMeasurement(OrcaStream::ChunkStream& cs, RideMeasurement& measurement, uint32_t version)
         {
             cs.readWrite(measurement.flags.holder);
             cs.readWrite(measurement.last_use_tick);
@@ -2780,7 +2802,31 @@ namespace OpenRCT2
         cs.readWrite(guest.photo4RideRef);
         cs.readWrite(guest.rejoinQueueTimeout);
         cs.readWrite(guest.previousRide);
-        cs.readWrite(guest.previousRideTimeOut);
+        if (version >= kTransportJourneyRoutingVersion)
+        {
+            cs.readWrite(guest.previousRideTimeOut);
+        }
+        else if (cs.getMode() == OrcaStream::Mode::reading)
+        {
+            cs.readWrite(guest.previousRideTimeOut);
+            guest.previousRideTimeOut &= static_cast<uint16_t>(~kTransportRouteTimeoutFlag);
+        }
+        else
+        {
+            auto legacyPreviousRideTimeout = static_cast<uint16_t>(
+                guest.previousRideTimeOut & static_cast<uint16_t>(~kTransportRouteTimeoutFlag));
+            cs.readWrite(legacyPreviousRideTimeout);
+        }
+        if (version >= kTransportJourneyRoutingVersion)
+        {
+            cs.readWrite(guest.transportDestinationStation);
+            cs.readWrite(guest.transportRouteWasExtortive);
+        }
+        else if (cs.getMode() == OrcaStream::Mode::reading)
+        {
+            guest.transportDestinationStation = StationIndex::GetNull();
+            guest.transportRouteWasExtortive = false;
+        }
         cs.readWriteArray(guest.thoughts, [version = os.getHeader().targetVersion, &cs](PeepThought& thought) {
             cs.readWrite(thought.type);
             if (version <= 2)

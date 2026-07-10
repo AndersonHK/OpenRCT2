@@ -42,6 +42,14 @@ Current balancing uses a square-root finalizer, roughly `sqrt(raw / 1000) * 100`
 
 More detail: [Ride rating aggregate rationale](docs/ride-rating-aggregate-rationale.md).
 
+### Transport rides are part of guest routing
+
+Guests now consider railways, monorails, chairlifts, and lifts as complete station-to-station journeys when travelling to a ride, shop, facility, or park exit. They can remain aboard through intermediate stations, no longer board a transport merely because it is free, and do not count completing transport as an ordinary attraction visit.
+
+Route choice compares milliseconds of walking with walking to a station, expected queue and all onboard segment times, and the remaining walk. Free, Discount, and Fair pricing use progressively stricter time thresholds; rain triggers a new comparison and increasingly favours sheltered transport. Extortive service is a last-resort connection only when neither walking nor non-extortive transport works. Park exits and all ride/facility entrance targets share this destination-routing path. Journey value is led by segment distance, then modified by actual average speed, distance-weighted G-force comfort, and sampled decoration quality; the measurements tab displays those service stats and the income tab exposes the four proportional fare policies.
+
+More detail: [Transport ride routing rationale](docs/transport-ride-routing-rationale.md).
+
 ### Guest growth is regulated by happiness instead of a soft cap
 
 Normal guest generation no longer directly slows down just because the park has passed a suggested guest maximum. Park rating is now calculated smoothly from the average of guest happiness and guest happiness target, so long queues, crowded paths, bad pricing, litter, nausea, and similar problems reduce future demand through guest experience.

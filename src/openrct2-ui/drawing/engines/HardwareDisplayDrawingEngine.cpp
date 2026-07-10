@@ -10,18 +10,21 @@
 #include "DrawingEngineFactory.hpp"
 
 #include <SDL.h>
+#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <openrct2/Diagnostic.h>
 #include <openrct2/Game.h>
 #include <openrct2/config/Config.h>
 #include <openrct2/core/Guard.hpp>
+#include <openrct2/drawing/Drawing.h>
 #include <openrct2/drawing/IDrawingEngine.h>
 #include <openrct2/drawing/LightFX.h>
 #include <openrct2/drawing/X8DrawingEngine.h>
 #include <openrct2/interface/Window.h>
 #include <openrct2/paint/Paint.h>
 #include <openrct2/ui/UiContext.h>
+#include <openrct2/world/Weather.h>
 #include <vector>
 
 using namespace OpenRCT2;
@@ -42,6 +45,10 @@ private:
     SDL_PixelFormat* _screenTextureFormat = nullptr;
     uint32_t _paletteHWMapped[256] = { 0 };
     uint32_t _lightPaletteHWMapped[256] = { 0 };
+    std::vector<uint8_t> _convertedPixels;
+    std::vector<SDL_Rect> _dirtyRegions;
+    uint8_t _textureBytesPerPixel = 0;
+    bool _fullUploadRequired = true;
 
     bool _useVsync = true;
 
@@ -62,10 +69,12 @@ public:
         if (_screenTexture != nullptr)
         {
             SDL_DestroyTexture(_screenTexture);
+            _screenTexture = nullptr;
         }
         if (_scaledScreenTexture != nullptr)
         {
             SDL_DestroyTexture(_scaledScreenTexture);
+            _scaledScreenTexture = nullptr;
         }
         SDL_FreeFormat(_screenTextureFormat);
         SDL_DestroyRenderer(_sdlRenderer);
@@ -103,8 +112,15 @@ public:
         if (_screenTexture != nullptr)
         {
             SDL_DestroyTexture(_screenTexture);
+            _screenTexture = nullptr;
+        }
+        if (_scaledScreenTexture != nullptr)
+        {
+            SDL_DestroyTexture(_scaledScreenTexture);
+            _scaledScreenTexture = nullptr;
         }
         SDL_FreeFormat(_screenTextureFormat);
+        _screenTextureFormat = nullptr;
 
         SDL_RendererInfo rendererInfo = {};
         int32_t result = SDL_GetRendererInfo(_sdlRenderer, &rendererInfo);
@@ -114,15 +130,34 @@ public:
             return;
         }
         uint32_t pixelFormat = SDL_PIXELFORMAT_UNKNOWN;
+        uint32_t fallbackPixelFormat = SDL_PIXELFORMAT_UNKNOWN;
         for (uint32_t i = 0; i < rendererInfo.num_texture_formats; i++)
         {
             uint32_t format = rendererInfo.texture_formats[i];
-            if (!SDL_ISPIXELFORMAT_FOURCC(format) && !SDL_ISPIXELFORMAT_INDEXED(format)
-                && (pixelFormat == SDL_PIXELFORMAT_UNKNOWN || SDL_BYTESPERPIXEL(format) < SDL_BYTESPERPIXEL(pixelFormat)))
+            if (SDL_ISPIXELFORMAT_FOURCC(format) || SDL_ISPIXELFORMAT_INDEXED(format))
+            {
+                continue;
+            }
+
+            if (fallbackPixelFormat == SDL_PIXELFORMAT_UNKNOWN)
+            {
+                fallbackPixelFormat = format;
+            }
+            if (format == SDL_PIXELFORMAT_ARGB8888)
+            {
+                pixelFormat = format;
+                break;
+            }
+            if (pixelFormat == SDL_PIXELFORMAT_UNKNOWN && SDL_BYTESPERPIXEL(format) == 4)
             {
                 pixelFormat = format;
             }
         }
+        if (pixelFormat == SDL_PIXELFORMAT_UNKNOWN)
+        {
+            pixelFormat = fallbackPixelFormat;
+        }
+        Guard::Assert(pixelFormat != SDL_PIXELFORMAT_UNKNOWN, "SDL renderer exposes no usable RGB texture format");
 
         ScaleQuality scaleQuality = GetContext()->GetUiContext().GetScaleQuality();
         if (scaleQuality == ScaleQuality::smoothNearestNeighbour)
@@ -137,11 +172,6 @@ public:
 
         if (smoothNN)
         {
-            if (_scaledScreenTexture != nullptr)
-            {
-                SDL_DestroyTexture(_scaledScreenTexture);
-            }
-
             char scaleQualityBuffer[4];
             snprintf(scaleQualityBuffer, sizeof(scaleQualityBuffer), "%d", static_cast<int32_t>(scaleQuality));
             SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
@@ -173,6 +203,11 @@ public:
         uint32_t format;
         SDL_QueryTexture(_screenTexture, &format, nullptr, nullptr, nullptr);
         _screenTextureFormat = SDL_AllocFormat(format);
+        Guard::Assert(_screenTextureFormat != nullptr, "Failed to allocate SDL screen texture format: %s", SDL_GetError());
+        _textureBytesPerPixel = _screenTextureFormat->BytesPerPixel;
+        _convertedPixels.resize(static_cast<size_t>(width) * height * _textureBytesPerPixel);
+        _dirtyRegions.clear();
+        _fullUploadRequired = true;
 
         X8DrawingEngine::Resize(width, height);
     }
@@ -196,11 +231,19 @@ public:
                 }
             }
         }
+        _fullUploadRequired = true;
     }
 
     void BeginDraw() override
     {
+        _dirtyRegions.clear();
         X8DrawingEngine::BeginDraw();
+    }
+
+    void CopyRect(int32_t x, int32_t y, int32_t width, int32_t height, int32_t dx, int32_t dy) override
+    {
+        X8DrawingEngine::CopyRect(x, y, width, height, dx, dy);
+        AddDirtyRegion(x, y, x + width, y + height);
     }
 
     void EndDraw() override
@@ -213,6 +256,8 @@ public:
 protected:
     void OnDrawDirtyBlock(int32_t left, int32_t top, int32_t right, int32_t bottom) override
     {
+        AddDirtyRegion(left, top, right, bottom);
+
         if (gShowDirtyVisuals)
         {
             const auto columns = ((right - left) + (_invalidationGrid.getBlockWidth() - 1)) / _invalidationGrid.getBlockWidth();
@@ -248,9 +293,17 @@ private:
         }
         else
         {
-            CopyBitsToTexture(
-                _screenTexture, _bits, static_cast<int32_t>(_width), static_cast<int32_t>(_height), _paletteHWMapped);
+            const bool weatherTouchesUntrackedPixels = Weather::hasWeatherEffect();
+            if (_fullUploadRequired || gPaintForceRedraw || weatherTouchesUntrackedPixels)
+            {
+                UploadFullTexture();
+            }
+            else
+            {
+                UploadDirtyRegions();
+            }
         }
+        _fullUploadRequired = false;
         if (smoothNN)
         {
             SDL_SetRenderTarget(_sdlRenderer, _scaledScreenTexture);
@@ -272,51 +325,141 @@ private:
         SDL_RenderPresent(_sdlRenderer);
     }
 
-    void CopyBitsToTexture(SDL_Texture* texture, PaletteIndex* src, int32_t width, int32_t height, const uint32_t* palette)
+    void AddDirtyRegion(int32_t left, int32_t top, int32_t right, int32_t bottom)
     {
-        void* pixels;
-        int32_t pitch;
-        if (SDL_LockTexture(texture, nullptr, &pixels, &pitch) == 0)
+        left = std::clamp(left, 0, static_cast<int32_t>(_width));
+        right = std::clamp(right, 0, static_cast<int32_t>(_width));
+        top = std::clamp(top, 0, static_cast<int32_t>(_height));
+        bottom = std::clamp(bottom, 0, static_cast<int32_t>(_height));
+        if (left >= right || top >= bottom)
         {
-            int32_t padding = pitch - (width * 4);
-            if (pitch == width * 4)
+            return;
+        }
+
+        SDL_Rect merged = { left, top, right - left, bottom - top };
+        for (size_t i = 0; i < _dirtyRegions.size();)
+        {
+            const auto& current = _dirtyRegions[i];
+            const bool separated = merged.x + merged.w < current.x || current.x + current.w < merged.x
+                || merged.y + merged.h < current.y || current.y + current.h < merged.y;
+            if (separated)
             {
-                uint32_t* dst = static_cast<uint32_t*>(pixels);
-                for (int32_t i = width * height; i > 0; i--)
-                {
-                    *dst++ = palette[EnumValue(*src++)];
-                }
+                i++;
+                continue;
             }
-            else
+
+            const int32_t mergedRight = std::max(merged.x + merged.w, current.x + current.w);
+            const int32_t mergedBottom = std::max(merged.y + merged.h, current.y + current.h);
+            merged.x = std::min(merged.x, current.x);
+            merged.y = std::min(merged.y, current.y);
+            merged.w = mergedRight - merged.x;
+            merged.h = mergedBottom - merged.y;
+            _dirtyRegions.erase(_dirtyRegions.begin() + i);
+            i = 0;
+        }
+        _dirtyRegions.push_back(merged);
+    }
+
+    void ConvertRegion(const SDL_Rect& region)
+    {
+        const size_t destinationPitch = static_cast<size_t>(_width) * _textureBytesPerPixel;
+        switch (_textureBytesPerPixel)
+        {
+            case 4:
             {
-                if (pitch == (width * 2) + padding)
+                for (int32_t y = region.y; y < region.y + region.h; y++)
                 {
-                    uint16_t* dst = static_cast<uint16_t*>(pixels);
-                    for (int32_t y = height; y > 0; y--)
+                    const PaletteIndex* src = _bits + static_cast<size_t>(y) * _pitch + region.x;
+                    auto* dst = reinterpret_cast<uint32_t*>(
+                        _convertedPixels.data() + static_cast<size_t>(y) * destinationPitch
+                        + static_cast<size_t>(region.x) * 4);
+                    for (int32_t x = 0; x < region.w; x++)
                     {
-                        for (int32_t x = width; x > 0; x--)
-                        {
-                            const uint8_t lower = *reinterpret_cast<const uint8_t*>(&palette[EnumValue(*src++)]);
-                            const uint8_t upper = *reinterpret_cast<const uint8_t*>(&palette[EnumValue(*src++)]);
-                            *dst++ = (lower << 8) | upper;
-                        }
-                        dst = reinterpret_cast<uint16_t*>(reinterpret_cast<uint8_t*>(dst) + padding);
+                        *dst++ = _paletteHWMapped[EnumValue(*src++)];
                     }
                 }
-                else if (pitch == width + padding)
+                break;
+            }
+            case 3:
+            {
+                for (int32_t y = region.y; y < region.y + region.h; y++)
                 {
-                    uint8_t* dst = static_cast<uint8_t*>(pixels);
-                    for (int32_t y = height; y > 0; y--)
+                    const PaletteIndex* src = _bits + static_cast<size_t>(y) * _pitch + region.x;
+                    uint8_t* dst = _convertedPixels.data() + static_cast<size_t>(y) * destinationPitch
+                        + static_cast<size_t>(region.x) * 3;
+                    for (int32_t x = 0; x < region.w; x++)
                     {
-                        for (int32_t x = width; x > 0; x--)
-                        {
-                            *dst++ = *reinterpret_cast<const uint8_t*>(&palette[EnumValue(*src++)]);
-                        }
-                        dst += padding;
+                        const uint32_t mapped = _paletteHWMapped[EnumValue(*src++)];
+#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+                        *dst++ = static_cast<uint8_t>(mapped >> 16);
+                        *dst++ = static_cast<uint8_t>(mapped >> 8);
+                        *dst++ = static_cast<uint8_t>(mapped);
+#else
+                        *dst++ = static_cast<uint8_t>(mapped);
+                        *dst++ = static_cast<uint8_t>(mapped >> 8);
+                        *dst++ = static_cast<uint8_t>(mapped >> 16);
+#endif
                     }
                 }
+                break;
             }
-            SDL_UnlockTexture(texture);
+            case 2:
+            {
+                for (int32_t y = region.y; y < region.y + region.h; y++)
+                {
+                    const PaletteIndex* src = _bits + static_cast<size_t>(y) * _pitch + region.x;
+                    auto* dst = reinterpret_cast<uint16_t*>(
+                        _convertedPixels.data() + static_cast<size_t>(y) * destinationPitch
+                        + static_cast<size_t>(region.x) * 2);
+                    for (int32_t x = 0; x < region.w; x++)
+                    {
+                        *dst++ = static_cast<uint16_t>(_paletteHWMapped[EnumValue(*src++)]);
+                    }
+                }
+                break;
+            }
+            case 1:
+            {
+                for (int32_t y = region.y; y < region.y + region.h; y++)
+                {
+                    const PaletteIndex* src = _bits + static_cast<size_t>(y) * _pitch + region.x;
+                    uint8_t* dst = _convertedPixels.data() + static_cast<size_t>(y) * destinationPitch + region.x;
+                    for (int32_t x = 0; x < region.w; x++)
+                    {
+                        *dst++ = static_cast<uint8_t>(_paletteHWMapped[EnumValue(*src++)]);
+                    }
+                }
+                break;
+            }
+            default:
+                Guard::Fail("Unsupported SDL texture pixel size: %u", _textureBytesPerPixel);
+                break;
+        }
+    }
+
+    void UploadRegion(const SDL_Rect& region)
+    {
+        ConvertRegion(region);
+        const size_t pitch = static_cast<size_t>(_width) * _textureBytesPerPixel;
+        const uint8_t* pixels = _convertedPixels.data()
+            + (static_cast<size_t>(region.y) * _width + region.x) * _textureBytesPerPixel;
+        if (SDL_UpdateTexture(_screenTexture, &region, pixels, static_cast<int32_t>(pitch)) < 0)
+        {
+            LOG_WARNING("HWDisplayDrawingEngine texture upload failed: %s", SDL_GetError());
+        }
+    }
+
+    void UploadFullTexture()
+    {
+        const SDL_Rect screen = { 0, 0, static_cast<int32_t>(_width), static_cast<int32_t>(_height) };
+        UploadRegion(screen);
+    }
+
+    void UploadDirtyRegions()
+    {
+        for (const auto& region : _dirtyRegions)
+        {
+            UploadRegion(region);
         }
     }
 

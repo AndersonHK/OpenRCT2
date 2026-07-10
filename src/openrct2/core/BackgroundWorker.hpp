@@ -192,9 +192,26 @@ namespace OpenRCT2
 
         ~BackgroundWorker()
         {
+            shutdown();
+        }
+
+        // Cancels queued work, lets the currently executing jobs observe their stop token, and joins every worker. Calling
+        // this explicitly before context services are destroyed prevents background readers from outliving repositories.
+        void shutdown()
+        {
+            bool expected = false;
+            if (!_shouldStop.compare_exchange_strong(expected, true))
+            {
+                return;
+            }
+
             {
                 std::lock_guard lock(_mtx);
-                _shouldStop = true;
+                for (const auto& job : _jobs)
+                {
+                    job->cancel();
+                }
+                _pending.clear();
             }
             _cv.notify_all();
             for (auto& thread : _workThreads)
@@ -204,6 +221,9 @@ namespace OpenRCT2
                     thread.join();
                 }
             }
+
+            std::lock_guard lock(_mtx);
+            _jobs.clear();
         }
 
         template<typename WorkFunc, typename CompletionFunc>
@@ -241,6 +261,11 @@ namespace OpenRCT2
 
             {
                 std::lock_guard lock(_mtx);
+                if (_shouldStop.load())
+                {
+                    job->cancel();
+                    return Job{};
+                }
                 _jobs.push_back(job);
                 _pending.push_back(job);
             }

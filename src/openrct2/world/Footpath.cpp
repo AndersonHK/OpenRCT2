@@ -37,6 +37,7 @@
 #include "Location.hpp"
 #include "Map.h"
 #include "MapAnimation.h"
+#include "MapTopology.h"
 #include "Wall.h"
 #include "tile_element/BannerElement.h"
 #include "tile_element/EntranceElement.h"
@@ -45,6 +46,8 @@
 #include "tile_element/SurfaceElement.h"
 #include "tile_element/TrackElement.h"
 
+#include <algorithm>
+#include <array>
 #include <bit>
 #include <iterator>
 
@@ -785,6 +788,11 @@ namespace OpenRCT2
         {
             FootpathConnectCorners(footpathPos, tileElement->asPath());
         }
+
+        if (!flags.has(CommandFlag::ghost) && !tileElement->isGhost())
+        {
+            MapTopology::InvalidateTileAndNeighbours(footpathPos);
+        }
     }
 
     /**
@@ -888,6 +896,10 @@ namespace OpenRCT2
 
                 curQueuePos = targetQueuePos;
                 MapInvalidateElement(targetQueuePos, tileElement);
+                if (!tileElement->isGhost())
+                {
+                    MapTopology::InvalidateTileAndNeighbours(targetQueuePos);
+                }
 
                 if (lastQueuePathElement == nullptr)
                 {
@@ -916,6 +928,10 @@ namespace OpenRCT2
                 lastPathElement->asPath()->SetQueueBannerDirection(lastPathDirection); // set the ride sign direction
 
                 MapAnimations::MarkTileForInvalidation(TileCoordsXY(lastPath));
+                if (!lastPathElement->isGhost())
+                {
+                    MapTopology::InvalidateTileAndNeighbours(lastPath);
+                }
             }
         }
     }
@@ -1295,6 +1311,42 @@ namespace OpenRCT2
      *  clears the wide footpath flag for all footpaths
      *  at location
      */
+    struct FootpathWideFlagSnapshot
+    {
+        std::array<bool, 16> flags{};
+        uint8_t count{};
+        bool overflow{};
+    };
+
+    static FootpathWideFlagSnapshot FootpathGetWideFlagSnapshot(const CoordsXY& footpathPos)
+    {
+        FootpathWideFlagSnapshot result{};
+        const TileElement* tileElement = MapGetFirstElementAt(footpathPos);
+        if (tileElement == nullptr)
+            return result;
+
+        do
+        {
+            if (tileElement->getType() != TileElementType::Path || tileElement->isGhost())
+                continue;
+            if (result.count >= result.flags.size())
+            {
+                result.overflow = true;
+                continue;
+            }
+            result.flags[result.count++] = tileElement->asPath()->IsWide();
+        } while (!(tileElement++)->isLastForTile());
+        return result;
+    }
+
+    static bool FootpathWideFlagsChanged(const CoordsXY& footpathPos, const FootpathWideFlagSnapshot& previous)
+    {
+        const auto current = FootpathGetWideFlagSnapshot(footpathPos);
+        if (previous.overflow || current.overflow || previous.count != current.count)
+            return true;
+        return !std::equal(previous.flags.begin(), previous.flags.begin() + previous.count, current.flags.begin());
+    }
+
     static void FootpathClearWide(const CoordsXY& footpathPos)
     {
         TileElement* tileElement = MapGetFirstElementAt(footpathPos);
@@ -1344,6 +1396,7 @@ namespace OpenRCT2
         if (MapIsEdge(footpathPos))
             return;
 
+        const auto previousWideFlags = FootpathGetWideFlagSnapshot(footpathPos);
         FootpathClearWide(footpathPos);
         /* Rather than clearing the wide flag of the following tiles and
          * checking the state of them later, leave them intact and assume
@@ -1366,7 +1419,11 @@ namespace OpenRCT2
         // Only consider approx. 1/8 of tiles for wide path status
         // (NB: the other 7/8 do get cleared above!)
         if (!(footpathPos.x & 0xE0) || (!(footpathPos.y & 0xE0)))
+        {
+            if (FootpathWideFlagsChanged(footpathPos, previousWideFlags))
+                MapTopology::InvalidateTileAndNeighbours(footpathPos);
             return;
+        }
 
         TileElement* tileElement = MapGetFirstElementAt(footpathPos);
         if (tileElement == nullptr)
@@ -1541,6 +1598,9 @@ namespace OpenRCT2
                     tileElement->asPath()->SetWide(true);
             }
         } while (!(tileElement++)->isLastForTile());
+
+        if (FootpathWideFlagsChanged(footpathPos, previousWideFlags))
+            MapTopology::InvalidateTileAndNeighbours(footpathPos);
     }
 
     bool FootpathIsBlockedByVehicle(const TileCoordsXYZ& position)
@@ -1760,6 +1820,8 @@ namespace OpenRCT2
      */
     void FootpathRemoveEdgesAt(const CoordsXY& footpathPos, TileElement* tileElement)
     {
+        const bool isGhost = tileElement->isGhost();
+
         if (tileElement->getType() == TileElementType::Track)
         {
             auto rideIndex = tileElement->asTrack()->GetRideIndex();
@@ -1805,6 +1867,11 @@ namespace OpenRCT2
 
         if (tileElement->getType() == TileElementType::Path)
             tileElement->asPath()->SetEdgesAndCorners(0);
+
+        if (!isGhost)
+        {
+            MapTopology::InvalidateTileAndNeighbours(footpathPos);
+        }
     }
 
     const FootpathObject* GetLegacyFootpathEntry(ObjectEntryIndex entryIndex)

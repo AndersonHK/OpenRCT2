@@ -127,6 +127,8 @@ namespace OpenRCT2
         {
             list.clear();
         }
+        _vehicleHeadEntityList.clear();
+        _vehicleHeadEntityListDirty = true;
     }
 
     void EntityRegistry::ResetFreeIds()
@@ -145,6 +147,28 @@ namespace OpenRCT2
     const std::list<EntityId>& EntityRegistry::GetEntityList(const EntityType id)
     {
         return gEntityLists[EnumValue(id)];
+    }
+
+    const std::vector<EntityId>& EntityRegistry::GetVehicleHeadEntityList()
+    {
+        if (!_vehicleHeadEntityListDirty)
+        {
+            return _vehicleHeadEntityList;
+        }
+
+        const auto& vehicles = gEntityLists[EnumValue(EntityType::vehicle)];
+        _vehicleHeadEntityList.clear();
+        _vehicleHeadEntityList.reserve(vehicles.size());
+        for (const auto entityId : vehicles)
+        {
+            const auto* vehicle = GetEntity<Vehicle>(entityId);
+            if (vehicle != nullptr && vehicle->IsHead())
+            {
+                _vehicleHeadEntityList.push_back(entityId);
+            }
+        }
+        _vehicleHeadEntityListDirty = false;
+        return _vehicleHeadEntityList;
     }
 
     /**
@@ -243,6 +267,10 @@ namespace OpenRCT2
 
         // Entity list is sorted by id to prevent desyncs.
         Algorithm::sortedInsert(list, entity.id);
+        if (entity.type == EntityType::vehicle)
+        {
+            _vehicleHeadEntityListDirty = true;
+        }
     }
 
     void EntityRegistry::AddToFreeList(EntityId index)
@@ -258,6 +286,10 @@ namespace OpenRCT2
         if (ptr != std::end(list))
         {
             list.erase(ptr);
+            if (entity.type == EntityType::vehicle)
+            {
+                _vehicleHeadEntityListDirty = true;
+            }
         }
     }
 

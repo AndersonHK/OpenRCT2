@@ -34,6 +34,7 @@
 #include <openrct2/ride/RideData.h>
 #include <openrct2/ride/RideManager.hpp>
 #include <openrct2/ride/TrackDesign.h>
+#include <openrct2/scenario/Scenario.h>
 #include <openrct2/world/MapAnimation.h>
 #include <openrct2/world/Park.h>
 #include <string>
@@ -565,4 +566,43 @@ TEST_F(PlayTests, GuestRideValueThresholdsUseIncomeDebuff)
     ASSERT_EQ(result.error, GameActions::Status::ok);
     EXPECT_TRUE(goodValueGuest->shouldGoOnRide(*ferrisWheel, StationIndex::FromUnderlying(0), false, false));
     EXPECT_TRUE(GuestHasRideThought(*goodValueGuest, PeepThoughtType::goodValue, ferrisWheel->id));
+}
+
+TEST_F(PlayTests, NiceRidePhoenixThoughtIsARareFallback)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+
+    Ride ride{};
+    ride.id = RideId::FromUnderlying(5);
+    ride.type = RIDE_TYPE_SPIRAL_ROLLER_COASTER;
+
+    Guest guest{};
+    guest.happiness = 100;
+    guest.happinessTarget = 100;
+    guest.Energy = 0;
+    for (auto& thought : guest.thoughts)
+    {
+        thought.type = PeepThoughtType::none;
+    }
+
+    // A zero first RNG result hits the 1-in-2048 branch.
+    ScenarioRandSeed(0, 0);
+    guest.onExitRide(ride);
+    EXPECT_EQ(guest.thoughts[0].type, PeepThoughtType::niceRideDeprecated);
+
+    for (auto& thought : guest.thoughts)
+    {
+        thought.type = PeepThoughtType::none;
+    }
+    ScenarioRandSeed(8, 0);
+    guest.onExitRide(ride);
+    EXPECT_EQ(guest.thoughts[0].type, PeepThoughtType::none);
+
+    guest.insertNewThought(PeepThoughtType::badValue, ride.id);
+    ScenarioRandSeed(0, 0);
+    guest.onExitRide(ride);
+    EXPECT_EQ(guest.thoughts[0].type, PeepThoughtType::badValue);
 }

@@ -9,7 +9,34 @@
 
 #include "JobPool.h"
 
+#include <algorithm>
 #include <cassert>
+#include <stdexcept>
+
+thread_local JobPool* JobPool::_currentPool = nullptr;
+
+namespace
+{
+    class CurrentPoolScope
+    {
+    public:
+        CurrentPoolScope(JobPool*& slot, JobPool* pool)
+            : _slot(slot)
+            , _previous(slot)
+        {
+            _slot = pool;
+        }
+
+        ~CurrentPoolScope()
+        {
+            _slot = _previous;
+        }
+
+    private:
+        JobPool*& _slot;
+        JobPool* _previous;
+    };
+} // namespace
 
 JobPool::TaskData::TaskData(std::function<void()> workFn, std::function<void()> completionFn)
     : WorkFn(std::move(workFn))
@@ -19,7 +46,10 @@ JobPool::TaskData::TaskData(std::function<void()> workFn, std::function<void()> 
 
 JobPool::JobPool(size_t maxThreads)
 {
-    maxThreads = std::min<size_t>(maxThreads, std::max(1u, std::thread::hardware_concurrency()));
+    const auto hardwareThreads = std::max(1u, std::thread::hardware_concurrency());
+    // ParallelFor also uses its calling thread, so leave one hardware thread available to that caller.
+    const auto availableWorkers = hardwareThreads > 1 ? hardwareThreads - 1 : 1;
+    maxThreads = std::min<size_t>(maxThreads, availableWorkers);
     for (size_t n = 0; n < maxThreads; n++)
     {
         _threads.emplace_back(&JobPool::ProcessQueue, this);
@@ -28,6 +58,17 @@ JobPool::JobPool(size_t maxThreads)
 
 JobPool::~JobPool()
 {
+    // Context-owned pools normally reach destruction behind an explicit barrier. Joining here makes other owners safe when
+    // their lifetime ends while work is still in flight.
+    try
+    {
+        Join();
+    }
+    catch (...)
+    {
+        // Destructors cannot surface worker exceptions. Normal barriers rethrow them on the submitting thread.
+    }
+
     {
         std::lock_guard lock(_mutex);
         _shouldStop = true;
@@ -43,16 +84,51 @@ JobPool::~JobPool()
 
 void JobPool::AddTask(std::function<void()> workFn, std::function<void()> completionFn)
 {
+    // Work spawned by this pool is already covered by the active outer barrier.
+    if (_currentPool == this)
+    {
+        EnqueueTask(std::move(workFn), std::move(completionFn));
+        return;
+    }
+
+    std::scoped_lock batchLock(_batchMutex);
+    if (_usageMode == UsageMode::parallelBatches)
+    {
+        throw std::logic_error("External queued tasks cannot be mixed with ParallelFor batches on one JobPool");
+    }
+    _usageMode = UsageMode::queuedTasks;
+    EnqueueTask(std::move(workFn), std::move(completionFn));
+}
+
+void JobPool::EnqueueTask(std::function<void()> workFn, std::function<void()> completionFn)
+{
     {
         std::lock_guard lock(_mutex);
-        _pending.emplace_back(workFn, completionFn);
+        if (_shouldStop)
+        {
+            throw std::logic_error("Cannot submit work to a stopped JobPool");
+        }
+        _pending.emplace_back(std::move(workFn), std::move(completionFn));
     }
     _condPending.notify_one();
 }
 
 void JobPool::Join(std::function<void()> reportFn)
 {
+    if (_currentPool == this)
+    {
+        throw std::logic_error("A JobPool worker or callback cannot wait on its own outer task");
+    }
+
+    std::scoped_lock batchLock(_batchMutex);
+    CurrentPoolScope currentPool(_currentPool, this);
+    JoinInternal(std::move(reportFn));
+}
+
+void JobPool::JoinInternal(std::function<void()> reportFn)
+{
     std::unique_lock lock(_mutex);
+    std::exception_ptr firstError;
     while (true)
     {
         // Wait for the queue to become empty or having completed tasks.
@@ -64,11 +140,28 @@ void JobPool::Join(std::function<void()> reportFn)
             auto taskData = std::move(_completed.front());
             _completed.pop_front();
 
-            if (taskData.CompletionFn)
+            if (taskData.Error != nullptr)
+            {
+                if (firstError == nullptr)
+                {
+                    firstError = taskData.Error;
+                }
+            }
+            else if (taskData.CompletionFn)
             {
                 lock.unlock();
 
-                taskData.CompletionFn();
+                try
+                {
+                    taskData.CompletionFn();
+                }
+                catch (...)
+                {
+                    if (firstError == nullptr)
+                    {
+                        firstError = std::current_exception();
+                    }
+                }
 
                 lock.lock();
             }
@@ -78,7 +171,17 @@ void JobPool::Join(std::function<void()> reportFn)
         {
             lock.unlock();
 
-            reportFn();
+            try
+            {
+                reportFn();
+            }
+            catch (...)
+            {
+                if (firstError == nullptr)
+                {
+                    firstError = std::current_exception();
+                }
+            }
 
             lock.lock();
         }
@@ -88,6 +191,92 @@ void JobPool::Join(std::function<void()> reportFn)
         {
             break;
         }
+    }
+
+    lock.unlock();
+    if (firstError != nullptr)
+    {
+        std::rethrow_exception(firstError);
+    }
+}
+
+void JobPool::ParallelFor(
+    size_t count, const std::function<void(size_t)>& workFn, size_t grainSize, std::function<void()> reportFn)
+{
+    if (count == 0)
+        return;
+
+    // A worker cannot wait for its own outer task to leave _processing. Execute nested work serially on that worker instead.
+    if (_currentPool == this)
+    {
+        for (size_t i = 0; i < count; i++)
+        {
+            workFn(i);
+        }
+        if (reportFn)
+        {
+            reportFn();
+        }
+        return;
+    }
+
+    std::scoped_lock batchLock(_batchMutex);
+    if (_usageMode == UsageMode::queuedTasks)
+    {
+        throw std::logic_error("ParallelFor batches cannot be mixed with external queued tasks on one JobPool");
+    }
+    _usageMode = UsageMode::parallelBatches;
+    CurrentPoolScope currentPool(_currentPool, this);
+    grainSize = std::max<size_t>(grainSize, 1);
+    std::atomic_size_t nextIndex{ 0 };
+    const auto processNext = [&]() {
+        while (true)
+        {
+            const auto first = nextIndex.fetch_add(grainSize, std::memory_order_relaxed);
+            if (first >= count)
+                return;
+            const auto last = first + std::min(grainSize, count - first);
+            for (auto index = first; index < last; index++)
+            {
+                workFn(index);
+            }
+        }
+    };
+
+    const auto batchCount = 1 + ((count - 1) / grainSize);
+    const auto workerTasks = std::min(batchCount, _threads.size());
+    for (size_t i = 0; i < workerTasks; i++)
+    {
+        EnqueueTask(processNext, nullptr);
+    }
+
+    // The submitting thread participates instead of blocking while workers consume the queue. Both paths still reach the
+    // barrier after an exception so worker lambdas never outlive references captured from this stack frame.
+    std::exception_ptr firstError;
+    try
+    {
+        processNext();
+    }
+    catch (...)
+    {
+        firstError = std::current_exception();
+    }
+
+    try
+    {
+        JoinInternal(std::move(reportFn));
+    }
+    catch (...)
+    {
+        if (firstError == nullptr)
+        {
+            firstError = std::current_exception();
+        }
+    }
+
+    if (firstError != nullptr)
+    {
+        std::rethrow_exception(firstError);
     }
 }
 
@@ -99,6 +288,7 @@ bool JobPool::IsBusy()
 
 void JobPool::ProcessQueue()
 {
+    CurrentPoolScope currentPool(_currentPool, this);
     std::unique_lock lock(_mutex);
     do
     {
@@ -114,7 +304,14 @@ void JobPool::ProcessQueue()
 
             lock.unlock();
 
-            taskData.WorkFn();
+            try
+            {
+                taskData.WorkFn();
+            }
+            catch (...)
+            {
+                taskData.Error = std::current_exception();
+            }
 
             lock.lock();
 

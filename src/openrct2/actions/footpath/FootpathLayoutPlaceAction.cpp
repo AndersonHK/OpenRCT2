@@ -20,6 +20,7 @@
 #include "../../world/Footpath.h"
 #include "../../world/Location.hpp"
 #include "../../world/Map.h"
+#include "../../world/MapTopology.h"
 #include "../../world/QuarterTile.h"
 #include "../../world/tile_element/EntranceElement.h"
 #include "../../world/tile_element/PathElement.h"
@@ -286,6 +287,10 @@ namespace OpenRCT2::GameActions
             pathElement->setGhost(GetFlags().has(CommandFlag::ghost));
 
             MapInvalidateTileFull(_loc);
+            if (!pathElement->isGhost())
+            {
+                MapTopology::InvalidateTileAndNeighbours(_loc);
+            }
         }
 
         // Prevent the place sound from being spammed

@@ -35,6 +35,7 @@
 #include "core/FileStream.h"
 #include "core/Guard.hpp"
 #include "core/Http.h"
+#include "core/JobPool.h"
 #include "core/MemoryStream.h"
 #include "core/Path.hpp"
 #include "core/String.hpp"
@@ -82,7 +83,6 @@
 #include <chrono>
 #include <cmath>
 #include <exception>
-#include <future>
 #include <iterator>
 #include <memory>
 #include <string>
@@ -99,6 +99,9 @@ namespace OpenRCT2
         using namespace std::chrono_literals;
 
         static constexpr auto kForcedUpdateInterval = 25ms;
+        static constexpr uint8_t kTurboGameSpeed = 4;
+        static constexpr float kTurboRenderInterval = 1.0f / 15.0f;
+        static constexpr float kActualTpsMeasurementInterval = 0.5f;
     } // namespace
 
     class Context final : public IContext
@@ -141,12 +144,17 @@ namespace OpenRCT2
         float _realtimeAccumulator = 0.0f;
         float _timeScale = 1.0f;
         bool _variableFrame = false;
+        float _fastForwardDrawAccumulator = kTurboRenderInterval;
+        float _actualTpsTimeAccumulator = 0.0f;
+        uint64_t _actualTpsTickAccumulator = 0;
+        uint64_t _lastTotalSimulationTicks = gTotalSimulationTicks;
 
         // If set, will end the OpenRCT2 game loop. Intentionally private to this module so that the flag can not be set back to
         // false.
         bool _finished = false;
 
-        std::future<void> _versionCheckFuture;
+        BackgroundWorker::Job _versionCheckJob;
+        bool _versionCheckStarted = false;
         NewVersionInfo _newVersionInfo;
         bool _hasNewVersionInfo = false;
 
@@ -154,6 +162,9 @@ namespace OpenRCT2
         std::thread::id _mainThreadId{};
         Timer _forcedUpdateTimer;
 
+        // Synchronous compute work uses one persistent pool. BackgroundWorker remains a separate cancellable I/O queue so a
+        // background coordinator may safely wait on a compute barrier without occupying one of the compute workers.
+        JobPool _jobPool;
         BackgroundWorker _backgroundWorker;
 
     public:
@@ -191,6 +202,30 @@ namespace OpenRCT2
         {
             // NOTE: We must shutdown all systems here before Instance is set back to null.
             //       If objects use GetContext() in their destructor things won't go well.
+
+            _backgroundWorker.shutdown();
+            if (_sceneManager != nullptr)
+            {
+                try
+                {
+                    static_cast<PreloaderScene*>(_sceneManager->getPreloaderScene())->WaitForJobs();
+                }
+                catch (const std::exception& e)
+                {
+                    LOG_ERROR("Preloader worker failed during context shutdown: %s", e.what());
+                }
+            }
+
+            // Every normal compute submission owns an explicit barrier. This final barrier protects shutdown when the context
+            // is closed during loading or another exceptional path.
+            try
+            {
+                _jobPool.Join();
+            }
+            catch (const std::exception& e)
+            {
+                LOG_ERROR("Compute worker failed during context shutdown: %s", e.what());
+            }
 
 #ifdef ENABLE_SCRIPTING
             _scriptEngine.StopUnloadRegisterAllPlugins();
@@ -608,7 +643,7 @@ namespace OpenRCT2
                 else
                 {
                     // If the drawing engine creation failed, try to create a software engine.
-                    if (drawingEngineType == DrawingEngine::OpenGL)
+                    if (drawingEngineType != DrawingEngine::SoftwareWithHardwareDisplay)
                     {
                         drawingEngineType = DrawingEngine::SoftwareWithHardwareDisplay;
                         LOG_ERROR("Trying fallback back to software...");
@@ -1164,15 +1199,18 @@ namespace OpenRCT2
          */
         void Launch()
         {
-            if (!_versionCheckFuture.valid())
+            if (!_versionCheckStarted)
             {
-                _versionCheckFuture = std::async(std::launch::async, [this] {
-                    _newVersionInfo = GetLatestVersion();
-                    if (!String::startsWith(gVersionInfoTag, _newVersionInfo.tag))
-                    {
-                        _hasNewVersionInfo = true;
-                    }
-                });
+                _versionCheckStarted = true;
+                _versionCheckJob = _backgroundWorker.addJob(
+                    []() { return GetLatestVersion(); },
+                    [this](NewVersionInfo versionInfo) {
+                        _newVersionInfo = std::move(versionInfo);
+                        if (!String::startsWith(gVersionInfoTag, _newVersionInfo.tag))
+                        {
+                            _hasNewVersionInfo = true;
+                        }
+                    });
             }
 
             if (!gOpenRCT2Headless)
@@ -1215,9 +1253,49 @@ namespace OpenRCT2
                 return false;
             if (!Config::Get().general.uncapFPS)
                 return false;
-            if (gGameSpeed > 4)
+            // Fast-forward benefits from spending its frame budget on simulation rather than entity tween snapshots.
+            if (gGameSpeed >= kTurboGameSpeed)
                 return false;
             return true;
+        }
+
+        bool IsOfflineFastForward() const
+        {
+            return gGameSpeed >= kTurboGameSpeed && GameIsNotPaused() && Network::GetMode() == Network::Mode::none;
+        }
+
+        bool ShouldDrawFrame(float deltaTime)
+        {
+            if (!ShouldDraw())
+                return false;
+
+            if (!IsOfflineFastForward())
+            {
+                _fastForwardDrawAccumulator = kTurboRenderInterval;
+                return true;
+            }
+
+            _fastForwardDrawAccumulator = std::min(_fastForwardDrawAccumulator + deltaTime, kTurboRenderInterval);
+            if (_fastForwardDrawAccumulator < kTurboRenderInterval)
+                return false;
+
+            _fastForwardDrawAccumulator -= kTurboRenderInterval;
+            return true;
+        }
+
+        void UpdateActualSimulationRate(float deltaTime)
+        {
+            const auto completedTicks = gTotalSimulationTicks - _lastTotalSimulationTicks;
+            _lastTotalSimulationTicks = gTotalSimulationTicks;
+            _actualTpsTickAccumulator += completedTicks;
+            _actualTpsTimeAccumulator += deltaTime;
+
+            if (_actualTpsTimeAccumulator >= kActualTpsMeasurementInterval)
+            {
+                gActualSimulationTPS = static_cast<float>(_actualTpsTickAccumulator) / _actualTpsTimeAccumulator;
+                _actualTpsTickAccumulator = 0;
+                _actualTpsTimeAccumulator = 0.0f;
+            }
         }
 
         /**
@@ -1245,6 +1323,7 @@ namespace OpenRCT2
             PROFILED_FUNCTION();
 
             const auto deltaTime = _timer.GetElapsedTimeAndRestart().count();
+            UpdateActualSimulationRate(deltaTime);
 
             // Make sure we catch the state change and reset it.
             bool useVariableFrame = ShouldRunVariableFrame();
@@ -1263,13 +1342,14 @@ namespace OpenRCT2
 
             Network::Update();
 
+            const bool shouldDraw = ShouldDrawFrame(deltaTime);
             if (useVariableFrame)
             {
-                RunVariableFrame(deltaTime);
+                RunVariableFrame(deltaTime, shouldDraw);
             }
             else
             {
-                RunFixedFrame(deltaTime);
+                RunFixedFrame(deltaTime, shouldDraw);
             }
 
             Network::Flush();
@@ -1290,7 +1370,7 @@ namespace OpenRCT2
             }
         }
 
-        void RunFixedFrame(float deltaTime)
+        void RunFixedFrame(float deltaTime, bool shouldDraw)
         {
             PROFILED_FUNCTION();
 
@@ -1300,6 +1380,13 @@ namespace OpenRCT2
             {
                 const auto sleepTimeSec = std::min(kNetworkUpdateTimeMS, kGameUpdateTimeMS - _ticksAccumulator);
                 Platform::Sleep(static_cast<uint32_t>(sleepTimeSec * 1000.f));
+                if (shouldDraw && IsOfflineFastForward())
+                {
+                    _backgroundWorker.dispatchCompleted();
+                    ContextHandleInput();
+                    WindowUpdateAll();
+                    Draw();
+                }
                 return;
             }
 
@@ -1308,6 +1395,11 @@ namespace OpenRCT2
                 Tick();
 
                 _ticksAccumulator -= kGameUpdateTimeMS;
+
+                // Return to message and input processing between fast-forward batches. Turbo uses eight logical ticks per
+                // batch.
+                if (IsOfflineFastForward())
+                    break;
             }
 
             _backgroundWorker.dispatchCompleted();
@@ -1315,17 +1407,16 @@ namespace OpenRCT2
             ContextHandleInput();
             WindowUpdateAll();
 
-            if (ShouldDraw())
+            if (shouldDraw)
             {
                 Draw();
             }
         }
 
-        void RunVariableFrame(float deltaTime)
+        void RunVariableFrame(float deltaTime, bool shouldDraw)
         {
             PROFILED_FUNCTION();
 
-            const bool shouldDraw = ShouldDraw();
             auto& tweener = EntityTweener::Get();
 
             _uiContext->ProcessMessages();
@@ -1530,6 +1621,11 @@ namespace OpenRCT2
         float GetTimeScale() const override
         {
             return _timeScale;
+        }
+
+        JobPool& GetJobPool() override
+        {
+            return _jobPool;
         }
 
         BackgroundWorker& GetBackgroundWorker() override

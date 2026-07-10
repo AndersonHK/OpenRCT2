@@ -2,6 +2,64 @@
 
 ## 2026-07-10
 
+### Transport rides as route services
+
+Decision: guests now use transport rides as planned station-to-station journeys toward a concrete ride, shop, facility, or park-exit goal. A railway, monorail, chairlift, or lift is no longer selected opportunistically as an ordinary attraction, and the legacy rule that made free transports automatically acceptable is removed.
+
+Routing: compare direct walking with walking to a station, expected queue/boarding time, every onboard segment through the selected alighting station, and the remaining walk, with every term expressed in milliseconds. Walking time uses a three-mph baseline adjusted by guest energy and slow-walk state; segment time uses measured seconds or a distance/speed fallback. Free, Discount, and Fair services have progressively stricter time thresholds. Precipitation triggers a fresh comparison, accepts any positive saving for paid non-extortive service, and favours sheltered onboard time. The direct walking direction and reachability result are reused when transport loses, avoiding a duplicate bounded search.
+
+Performance: a transient ride-service cache validates once per tick, computes quality once per changed transport, precomputes every directed forward journey in quadratic station count, and exposes constant-time station-pair lookup. Queue delay, platform crowding, guest cash and vouchers remain live overlays rather than invalidating shared geometry and timing.
+
+Integration: park exits and resolved entrances for attractions, advertised rides, first aid, toilets, cash machines, shops, and other facilities now converge on one destination-routing helper. Outside-park entry and spawn travel use the same helper without considering in-park transport.
+
+Economy: transport value is led by segment distance, then multiplied by speed, comfort, and decoration. Comfort starts from a per-tick baseline and is reduced by vertical deviation, lateral G, and realised longitudinal G; comfort and decoration are accumulated proportional to distance. Journey-specific fares use four operator policies: Free at zero, Discount at half value, Fair at full value, and Extortive at twice value. The planner and entrance use the same journey calculator. Extortive service is considered only when walking is unreachable and no non-extortive service is usable; paying it reduces happiness and creates a dedicated thought.
+
+Guest behavior: transport vehicles retain through-passengers across intermediate stations and unload them only at the selected destination. Completing a journey does not increment ordinary ride count or history and does not change favourite selection, satisfaction, or nausea. Planned transport remains available to leaving guests.
+
+Capacity: transport station platforms hold two waiting or alighting guests per station tile. This is strictly gated to transport rides; coaster and ordinary ride stations are unchanged. Station-specific queue-full state and vehicle-derived platform occupancy avoid park-wide guest scans and are transient rather than saved.
+
+Interface: the measurements tab now gives transport rides a service-quality panel instead of attraction ratings. It displays measured or estimated comfort, decoration bonus, average speed, and each station segment's time, distance, and fare value from the same shared transport metrics used by routing. The income tab shows the four proportional journey policies instead of a misleading single ride-wide ticket price.
+
+Compatibility: private park version `60012` stores distance-weighted transport quality totals. Version `60013` adds the selected alighting station and the appended Free policy. Exports targeting an older version clear the private route marker, and older saves load with a null destination, Fair pricing, and empty transient crowding.
+
+Details: [Transport ride routing rationale](transport-ride-routing-rationale.md)
+
+Verification:
+
+- `PathfindingTestBase.ReasonableMonorailIsChosenOverLongWalk`
+- `PathfindingTestBase.RainRelaxesTheTransportTimeSavingThreshold`
+- `PathfindingTestBase.FreeTransportMayWinAReasonableTimeTie`
+- `PathfindingTestBase.ExtortiveTransportRequiresNoWalkingOrNonExtortiveAlternative`
+- `PathfindingTestBase.TransportIsBoardedOnlyAsAPlannedRouteLeg`
+- `PathfindingTestBase.PayingExtortiveTransportReducesHappinessAndCreatesThought`
+- `PathfindingTestBase.PlannedTransportRouteIsIndependentOfRideInteractionState`
+- `PathfindingTestBase.ChangingConcreteTargetInvalidatesPlannedTransportLeg`
+- `RideRatings.TransportQualityIsDistanceWeightedAndGForcesReduceComfort`
+- `RideRatings.TransportFareValueIsLedByDistanceAndModifiedByQuality`
+- `RideRatings.TransportJourneyAccumulatesSegmentsAndUsesExactFareBuckets`
+- `RideRatings.PlatformCapacityIsTransportOnlyAndScalesWithStationTiles`
+- `ParkFileMigration.TransportDestinationRoundTripsAndIsRemovedFromOlderTargets`
+
+### Vulkan-first renderer foundation
+
+Direction: OpenGL is now a visual-parity bridge rather than the target renderer. The new cross-platform path uses native Vulkan on Windows and Linux and Vulkan portability through MoltenVK on macOS. Obsolete hardware support is not a constraint; GPU-resident indexed assets, command streams, palette work, effects, clipping, culling, and composition are the intended ownership boundary.
+
+Foundation: add backend-neutral GPU command and atlas structures plus a Vulkan device layer for SDL surface creation, portability enumeration, device and queue selection, swapchain negotiation, frames in flight, and reusable mapped upload rings. The backend remains behind a non-selectable gate until indexed-canvas and palette presentation can produce a correct frame, so the current change does not claim Vulkan visual parity prematurely.
+
+Migration: retain the OpenGL weather and upload reductions as an interim reference, then delete OpenGL and CPU palette-conversion paths after Vulkan gameplay, screenshot, resize, transparency, weather, and macOS portability gates pass. The staged implementation and deletion criteria are documented in [Vulkan renderer migration](vulkan-renderer-migration.md).
+
+### Normal ride speed adjustment
+
+The standalone excitement contribution from vehicle speed now follows `speed^1.5`, normalized so the established speed-90 baseline is unchanged. The formula is `90 * pow(speed / 90, 1.5) * rawScale / 5`; the hot path evaluates its equivalent `speed * sqrt(speed / 90)` to avoid a general-purpose `pow()` call per sampled vehicle tick. Intensity and nausea remain linear. This adds progressively more excitement above the baseline without disturbing the existing G-force curves or their distance-sensitive tick aggregation.
+
+Verification: `RideRatings.VehicleSpeedTickScoringUsesPowerOnePointFiveForExcitement` covers zero, half, baseline, and double speed.
+
+### Phoenix thought Easter egg
+
+Addition: revive the removed “Nice ride! But not as good as the Phoenix…” guest thought as a rare fallback after an ordinary ride. It is considered only when the guest did not produce the existing “was great” response and has no other fresh thought about that ride, then succeeds on a deterministic 1-in-2048 scenario-RNG roll. Planned transport legs remain excluded.
+
+Verification: `PlayTests.NiceRidePhoenixThoughtIsARareFallback` covers the winning roll, an ordinary losing roll, and suppression by another fresh ride-specific thought.
+
 ### World-space spatial audio and 7.1 mixing
 
 Decision: replace viewport-bound, zoom-attenuated sound with a shared world-space listener model. One-shot effects, vehicles, and ride music now use continuous three-dimensional distance from an elevated virtual camera and remain eligible at every zoom level instead of disappearing at a screen rectangle or fixed tile boundary.

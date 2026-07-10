@@ -16,6 +16,7 @@
 #include "../../ui/WindowManager.h"
 #include "../../windows/Intent.h"
 #include "../../world/Map.h"
+#include "../../world/MapTopology.h"
 #include "../../world/Park.h"
 
 namespace OpenRCT2::GameActions
@@ -58,6 +59,8 @@ namespace OpenRCT2::GameActions
 
     Result MapChangeSizeAction::Execute(GameState_t& gameState, Park::ParkData& park) const
     {
+        const auto initialMapSize = gameState.mapSize;
+
         // Expand map
         while (_targetSize.x > gameState.mapSize.x)
         {
@@ -78,6 +81,11 @@ namespace OpenRCT2::GameActions
         {
             gameState.mapSize = _targetSize;
             MapRemoveOutOfRangeElements();
+        }
+
+        if (gameState.mapSize != initialMapSize)
+        {
+            MapTopology::Reset();
         }
 
         auto* ctx = GetContext();

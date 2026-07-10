@@ -23,6 +23,7 @@
 #include "Location.hpp"
 #include "Map.h"
 #include "MapAnimation.h"
+#include "MapTopology.h"
 #include "Park.h"
 #include "Scenery.h"
 #include "tile_element/BannerElement.h"
@@ -45,6 +46,13 @@ using namespace OpenRCT2::TrackMetadata;
 
 namespace OpenRCT2::TileInspector
 {
+    static bool IsRoutingTopologyElement(const TileElement& element)
+    {
+        return !element.isGhost()
+            && (element.getType() == TileElementType::Path || element.getType() == TileElementType::Entrance
+                || element.getType() == TileElementType::Banner);
+    }
+
     static GameActions::Result SwapTileElements(const CoordsXY& loc, int16_t first, int16_t second)
     {
         TileElement* const firstElement = MapGetNthElementAt(loc, first);
@@ -150,6 +158,7 @@ namespace OpenRCT2::TileInspector
 
         if (isExecuting)
         {
+            const bool changesTopology = IsRoutingTopologyElement(*tileElement);
             // Forcefully remove the element
             auto largeScenery = tileElement->asLargeScenery();
             if (largeScenery != nullptr)
@@ -167,6 +176,10 @@ namespace OpenRCT2::TileInspector
             }
 
             TileElementRemove(tileElement);
+            if (changesTopology)
+            {
+                MapTopology::InvalidateTileAndNeighbours(loc);
+            }
 
             if (IsTileSelected(loc))
             {
@@ -280,6 +293,11 @@ namespace OpenRCT2::TileInspector
                 case TileElementType::LargeScenery:
                     break;
             }
+
+            if (IsRoutingTopologyElement(*tileElement))
+            {
+                MapTopology::InvalidateTileAndNeighbours(loc);
+            }
         }
 
         return GameActions::Result();
@@ -350,6 +368,11 @@ namespace OpenRCT2::TileInspector
             bool lastForTile = pastedElement->isLastForTile();
             *pastedElement = element;
             pastedElement->setLastForTile(lastForTile);
+
+            if (IsRoutingTopologyElement(*pastedElement))
+            {
+                MapTopology::InvalidateTileAndNeighbours(loc);
+            }
 
             MapAnimations::MarkTileForUpdate(tileLoc);
 
@@ -487,6 +510,10 @@ namespace OpenRCT2::TileInspector
 
             tileElement->baseHeight += heightOffset;
             tileElement->clearanceHeight += heightOffset;
+            if (IsRoutingTopologyElement(*tileElement))
+            {
+                MapTopology::InvalidateTileAndNeighbours(loc);
+            }
         }
 
         return GameActions::Result();
@@ -587,6 +614,10 @@ namespace OpenRCT2::TileInspector
         if (isExecuting)
         {
             pathElement->asPath()->SetSloped(sloped);
+            if (!pathElement->isGhost())
+            {
+                MapTopology::InvalidateTileAndNeighbours(loc);
+            }
         }
 
         return GameActions::Result();
@@ -634,6 +665,10 @@ namespace OpenRCT2::TileInspector
         {
             uint8_t newEdges = pathElement->asPath()->GetEdgesAndCorners() ^ (1 << edgeIndex);
             pathElement->asPath()->SetEdgesAndCorners(newEdges);
+            if (!pathElement->isGhost())
+            {
+                MapTopology::InvalidateTileAndNeighbours(loc);
+            }
         }
 
         return GameActions::Result();
@@ -664,6 +699,11 @@ namespace OpenRCT2::TileInspector
                 case ENTRANCE_TYPE_RIDE_EXIT:
                     station.Exit = { loc, entranceElement->baseHeight, entranceElement->getDirection() };
                     break;
+            }
+
+            if (!entranceElement->isGhost())
+            {
+                MapTopology::InvalidateTileAndNeighbours(loc);
             }
         }
 
@@ -944,6 +984,10 @@ namespace OpenRCT2::TileInspector
             uint8_t edges = bannerElement->asBanner()->GetAllowedEdges();
             edges ^= (1 << edgeIndex);
             bannerElement->asBanner()->SetAllowedEdges(edges);
+            if (!bannerElement->isGhost())
+            {
+                MapTopology::InvalidateTileAndNeighbours(loc);
+            }
         }
 
         return GameActions::Result();

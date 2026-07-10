@@ -34,7 +34,7 @@ namespace OpenRCT2::GameActions
         }
 
         const auto rawTarget = (-price) - 1;
-        if (rawTarget < 0 || rawTarget > static_cast<money64>(static_cast<uint8_t>(RidePriceTarget::badValue)))
+        if (rawTarget < 0 || rawTarget > static_cast<money64>(static_cast<uint8_t>(RidePriceTarget::free)))
         {
             return false;
         }
@@ -95,7 +95,8 @@ namespace OpenRCT2::GameActions
         RidePriceTarget priceTarget{};
         if (_primaryPrice && DecodePriceTarget(_price, priceTarget))
         {
-            if (!RideUsesTargetPricing(*ride))
+            const bool isTransportRide = ride->getRideTypeDescriptor().flags.has(RtdFlag::isTransportRide);
+            if (!RideUsesTargetPricing(*ride) || (priceTarget == RidePriceTarget::free && !isTransportRide))
             {
                 return Result(Status::invalidParameters, STR_ERR_INVALID_PARAMETER, kStringIdEmpty);
             }
@@ -148,7 +149,8 @@ namespace OpenRCT2::GameActions
 
         if (setsPriceTarget)
         {
-            if (!RideUsesTargetPricing(*ride))
+            const bool isTransportRide = ride->getRideTypeDescriptor().flags.has(RtdFlag::isTransportRide);
+            if (!RideUsesTargetPricing(*ride) || (priceTarget == RidePriceTarget::free && !isTransportRide))
             {
                 return Result(Status::invalidParameters, STR_ERR_INVALID_PARAMETER, kStringIdEmpty);
             }

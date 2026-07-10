@@ -34,7 +34,7 @@ Per-tick G-force scoring now treats different accelerations as different ride se
 - lateral G uses the steepest curve. Mild sideways force is tolerable, but the curve rises quickly enough that a faster vehicle through the same curve can score higher even if it spends fewer ticks in that curve.
 - longitudinal G is the signed change between consecutive realised head-train speed magnitudes. Acceleration is weighted toward excitement, while braking is less exciting and more uncomfortable. Direct launch, brake, and chain-speed assignments are observed even when they bypass the vehicle's `acceleration` field; constant-speed curves still produce no longitudinal G.
 
-All G channels are speed-normalized at the `90` baseline, then receive a smooth speed/G coupling factor. Standalone speed is linear, so equal track distance does not gain extra raw score merely because it was sampled in fewer ticks; the additional high-speed thrill belongs to force experienced at speed.
+All G channels are speed-normalized at the `90` baseline, then receive a smooth speed/G coupling factor. Standalone excitement uses `90 * pow(speed / 90, 1.5)`, so speed `90` retains its previous value; standalone intensity and nausea remain linear. The superlinear excitement curve gives genuinely fast travel a modest additional thrill while the stronger physical consequences still belong to the force channels.
 
 ## Sampled ride profiles
 

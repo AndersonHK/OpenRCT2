@@ -372,10 +372,10 @@ private:
     void UpdateShowingFilm();
     void UpdateDoingCircusShow();
     void UpdateCrossings() const;
-    void UpdateSound();
+    void UpdateSound(const Ride& curRide, const RideObjectEntry& rideEntry);
     void GetLiftHillSound(const Ride& curRide, SoundIdVolume& curSound);
-    OpenRCT2::Audio::SoundId UpdateScreamSound();
-    OpenRCT2::Audio::SoundId ProduceScreamSound(int32_t totalNumPeeps);
+    OpenRCT2::Audio::SoundId UpdateScreamSound(const RideObjectEntry& rideEntry);
+    OpenRCT2::Audio::SoundId ProduceScreamSound(int32_t totalNumPeeps, const RideObjectEntry& rideEntry);
     void UpdateCrashSetup();
     void UpdateCollisionSetup();
     int32_t UpdateMotionDodgems();

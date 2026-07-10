@@ -21,11 +21,14 @@
     #include "SwapFramebuffer.h"
     #include "TextureCache.h"
     #include "TransparencyDepth.h"
+    #include "WeatherShader.h"
 
     #include <SDL.h>
     #include <algorithm>
+    #include <array>
     #include <cassert>
     #include <cmath>
+    #include <cstdint>
     #include <openrct2-ui/interface/Window.h>
     #include <openrct2/config/Config.h>
     #include <openrct2/core/Console.hpp>
@@ -38,7 +41,6 @@
     #include <openrct2/drawing/WeatherDrawer.h>
     #include <openrct2/interface/Screenshot.h>
     #include <openrct2/ui/UiContext.h>
-    #include <openrct2/world/Weather.h>
 
 using namespace OpenRCT2;
 using namespace OpenRCT2::Drawing;
@@ -79,12 +81,19 @@ private:
 
     bool _inDraw = false;
 
-    struct
+    Gpu::FrameCommandStream _commandBuffers;
+
+    struct ClippingCacheEntry
     {
-        LineCommandBatch lines;
-        RectCommandBatch rects;
-        RectCommandBatch transparent;
-    } _commandBuffers;
+        const PaletteIndex* bits = nullptr;
+        int32_t width = 0;
+        int32_t height = 0;
+        int32_t stride = 0;
+        ScreenRect clip{ 0, 0, 0, 0 };
+    };
+
+    static constexpr size_t kClippingCacheSize = 16;
+    mutable std::array<ClippingCacheEntry, kClippingCacheSize> _clippingCache{};
 
     static uint8_t ComputeOutCode(ScreenCoordsXY, ScreenCoordsXY, ScreenCoordsXY);
     static bool CohenSutherlandLineClip(ScreenLine&, const RenderTarget&);
@@ -141,56 +150,33 @@ private:
     void FlushLines();
     void FlushRectangles();
     void HandleTransparency();
+    void ResetClippingCache();
 };
 
 class OpenGLWeatherDrawer final : public IWeatherDrawer
 {
-    OpenGLDrawingContext* _drawingContext;
+    WeatherCommandBatch* _commands;
 
 public:
-    explicit OpenGLWeatherDrawer(OpenGLDrawingContext* drawingContext)
-        : _drawingContext(drawingContext)
+    explicit OpenGLWeatherDrawer(WeatherCommandBatch* commands)
+        : _commands(commands)
     {
     }
 
-    virtual void Draw(
-        RenderTarget& rt, int32_t x, int32_t y, int32_t width, int32_t height, int32_t xStart, int32_t yStart,
+    void Draw(
+        RenderTarget&, int32_t x, int32_t y, int32_t width, int32_t height, int32_t xStart, int32_t yStart,
         const uint8_t* weatherpattern) override
     {
-        const uint8_t* pattern = weatherpattern;
-        auto patternXSpace = *pattern++;
-        auto patternYSpace = *pattern++;
-
-        uint8_t patternStartXOffset = xStart % patternXSpace;
-        uint8_t patternStartYOffset = yStart % patternYSpace;
-
-        uint32_t pixelOffset = rt.LineStride() * y + x;
-        uint8_t patternYPos = patternStartYOffset % patternYSpace;
-
-        for (; height != 0; height--)
+        if (width <= 0 || height <= 0)
         {
-            auto patternX = pattern[patternYPos * 2];
-            if (patternX != 0xFF)
-            {
-                uint32_t finalPixelOffset = width + pixelOffset;
-
-                uint32_t xPixelOffset = pixelOffset;
-                xPixelOffset += (static_cast<uint8_t>(patternX - patternStartXOffset)) % patternXSpace;
-
-                auto patternPixel = static_cast<PaletteIndex>(pattern[patternYPos * 2 + 1]);
-                for (; xPixelOffset < finalPixelOffset; xPixelOffset += patternXSpace)
-                {
-                    int32_t pixelX = xPixelOffset % rt.width;
-                    int32_t pixelY = (xPixelOffset / rt.width) % rt.height;
-
-                    _drawingContext->DrawLine(rt, patternPixel, { { pixelX, pixelY }, { pixelX + 1, pixelY + 1 } });
-                }
-            }
-
-            pixelOffset += rt.LineStride();
-            patternYPos++;
-            patternYPos %= patternYSpace;
+            return;
         }
+
+        auto& command = _commands->allocate();
+        command.bounds = { x, y, x + width, y + height };
+        command.offset = { xStart, yStart };
+        // Rain starts with palette index 12, snow with palette index 32.
+        command.pattern = weatherpattern[3] == 32 ? 1 : 0;
     }
 };
 
@@ -213,11 +199,15 @@ private:
 
     std::unique_ptr<ApplyPaletteShader> _applyPaletteShader;
     std::unique_ptr<CopyRectShader> _copyRectShader;
+    std::unique_ptr<WeatherShader> _weatherShader;
 
     std::unique_ptr<OpenGLFramebuffer> _screenFramebuffer;
     std::unique_ptr<OpenGLFramebuffer> _scaleFramebuffer;
     std::unique_ptr<OpenGLFramebuffer> _smoothScaleFramebuffer;
     std::unique_ptr<OpenGLFramebuffer> _tempFramebuffer;
+    std::unique_ptr<OpenGLFramebuffer> _weatherFramebuffer;
+    WeatherCommandBatch _weatherCommands;
+    bool _weatherPresented = false;
     OpenGLWeatherDrawer _weatherDrawer;
     InvalidationGrid _invalidationGrid;
 
@@ -228,7 +218,7 @@ public:
     explicit OpenGLDrawingEngine(IUiContext& uiContext)
         : _uiContext(uiContext)
         , _drawingContext(std::make_unique<OpenGLDrawingContext>(*this))
-        , _weatherDrawer(_drawingContext.get())
+        , _weatherDrawer(&_weatherCommands)
     {
         _window = static_cast<SDL_Window*>(_uiContext.GetWindow());
         _mainRT.DrawingEngine = this;
@@ -237,7 +227,25 @@ public:
 
     ~OpenGLDrawingEngine() override
     {
+        if (_context != nullptr)
+        {
+            SDL_GL_MakeCurrent(_window, _context);
+        }
+
+        // All GL-backed objects must be released while their context is still
+        // current. Member destruction happens after this destructor body.
+        _weatherFramebuffer.reset();
+        _tempFramebuffer.reset();
+        _smoothScaleFramebuffer.reset();
+        _scaleFramebuffer.reset();
+        _screenFramebuffer.reset();
+        _weatherShader.reset();
+        _copyRectShader.reset();
+        _applyPaletteShader.reset();
+        _drawingContext.reset();
+
         SDL_GL_DeleteContext(_context);
+        _context = nullptr;
     }
 
     void Initialise() override
@@ -265,6 +273,7 @@ public:
 
         _applyPaletteShader = std::make_unique<ApplyPaletteShader>();
         _copyRectShader = std::make_unique<CopyRectShader>();
+        _weatherShader = std::make_unique<WeatherShader>();
     }
 
     void Resize(uint32_t width, uint32_t height) override
@@ -275,6 +284,8 @@ public:
 
         _drawingContext->Resize(width, height);
         _tempFramebuffer = std::make_unique<OpenGLFramebuffer>(width, height);
+        _weatherFramebuffer = std::make_unique<OpenGLFramebuffer>(width, height, false, true, false);
+        _weatherShader->SetScreenSize(width, height);
 
         _drawingContext->StartNewDraw();
         _drawingContext->Clear(_mainRT, PaletteIndex::pi10);
@@ -328,6 +339,8 @@ public:
     {
         assert(_screenFramebuffer != nullptr);
 
+        _weatherCommands.clear();
+        _weatherPresented = false;
         _drawingContext->StartNewDraw();
     }
 
@@ -336,6 +349,17 @@ public:
         _drawingContext->FlushCommandBuffers();
 
         glDisable(GL_DEPTH_TEST);
+        glDisable(GL_BLEND);
+
+        const OpenGLFramebuffer* indexedFramebuffer = &_drawingContext->GetFinalFramebuffer();
+        if (!_weatherCommands.empty())
+        {
+            _weatherFramebuffer->Copy(_drawingContext->GetFinalFramebuffer(), GL_NEAREST);
+            _weatherShader->DrawInstances(_weatherCommands);
+            indexedFramebuffer = _weatherFramebuffer.get();
+            _weatherPresented = true;
+        }
+
         if (_scaleFramebuffer != nullptr)
         {
             // Render to intermediary RGB buffer for GL_LINEAR
@@ -347,7 +371,7 @@ public:
         }
 
         _applyPaletteShader->Use();
-        _applyPaletteShader->SetTexture(_drawingContext->GetFinalFramebuffer().GetTexture());
+        _applyPaletteShader->SetTexture(indexedFramebuffer->GetTexture());
         _applyPaletteShader->Draw();
 
         if (_smoothScaleFramebuffer != nullptr)
@@ -369,11 +393,9 @@ public:
 
     void PaintWindows() override
     {
-        if (Weather::hasWeatherEffect() || gPaintForceRedraw)
+        if (gPaintForceRedraw)
         {
             WindowUpdateAllViewports();
-            // OpenGL doesn't support restoring pixels, always redraw.
-            // TODO: Render the weather to a texture and use that instead.
             WindowDrawAll(_mainRT, 0, 0, static_cast<int32_t>(_width), static_cast<int32_t>(_height));
         }
         else
@@ -407,7 +429,8 @@ public:
 
     std::string Screenshot() override
     {
-        const OpenGLFramebuffer& framebuffer = _drawingContext->GetFinalFramebuffer();
+        const OpenGLFramebuffer& framebuffer = _weatherPresented ? *_weatherFramebuffer
+                                                                 : _drawingContext->GetFinalFramebuffer();
         framebuffer.Bind();
         framebuffer.GetPixels(_mainRT);
         std::string result = ScreenshotDumpPNG(_mainRT);
@@ -630,6 +653,7 @@ std::unique_ptr<IDrawingEngine> Ui::CreateOpenGLDrawingEngine(IUiContext& uiCont
 OpenGLDrawingContext::OpenGLDrawingContext(OpenGLDrawingEngine& engine)
     : _engine(engine)
 {
+    _commandBuffers.reserveForParkView();
 }
 
 OpenGLDrawingContext::~OpenGLDrawingContext()
@@ -647,7 +671,9 @@ void OpenGLDrawingContext::Initialise()
 void OpenGLDrawingContext::Resize(int32_t width, int32_t height)
 {
     _commandBuffers.lines.clear();
-    _commandBuffers.rects.clear();
+    _commandBuffers.opaqueRects.clear();
+    _commandBuffers.transparentRects.clear();
+    ResetClippingCache();
 
     _drawRectShader->Use();
     _drawRectShader->SetScreenSize(width, height);
@@ -698,7 +724,7 @@ void OpenGLDrawingContext::FillRect(
     right += clip.GetLeft() - rt.x;
     bottom += clip.GetTop() - rt.y;
 
-    DrawRectCommand& command = _commandBuffers.rects.allocate();
+    DrawRectCommand& command = _commandBuffers.opaqueRects.allocate();
 
     command.clip = { clip.GetLeft(), clip.GetTop(), clip.GetRight(), clip.GetBottom() };
     command.texColourAtlas = 0;
@@ -731,7 +757,7 @@ void OpenGLDrawingContext::FilterRect(
     right += clip.GetLeft() - rt.x;
     bottom += clip.GetTop() - rt.y;
 
-    DrawRectCommand& command = _commandBuffers.transparent.allocate();
+    DrawRectCommand& command = _commandBuffers.transparentRects.allocate();
 
     command.clip = { clip.GetLeft(), clip.GetTop(), clip.GetRight(), clip.GetBottom() };
     command.texColourAtlas = 0;
@@ -961,7 +987,7 @@ void OpenGLDrawingContext::DrawSprite(RenderTarget& rt, const ImageId imageId, c
 
     if (special || imageId.IsBlended())
     {
-        DrawRectCommand& command = _commandBuffers.transparent.allocate();
+        DrawRectCommand& command = _commandBuffers.transparentRects.allocate();
 
         command.clip = { clip.GetLeft(), clip.GetTop(), clip.GetRight(), clip.GetBottom() };
         command.texColourAtlas = texture.index;
@@ -977,7 +1003,7 @@ void OpenGLDrawingContext::DrawSprite(RenderTarget& rt, const ImageId imageId, c
     }
     else
     {
-        DrawRectCommand& command = _commandBuffers.rects.allocate();
+        DrawRectCommand& command = _commandBuffers.opaqueRects.allocate();
 
         command.clip = { clip.GetLeft(), clip.GetTop(), clip.GetRight(), clip.GetBottom() };
         command.texColourAtlas = texture.index;
@@ -1041,7 +1067,7 @@ void OpenGLDrawingContext::DrawSpriteRawMasked(
     const float zoom = rt.zoom_level >= ZoomLevel{ 0 } ? static_cast<float>(rt.zoom_level.ApplyTo(1))
                                                        : 1.0f / static_cast<float>(rt.zoom_level.ApplyInversedTo(1));
 
-    DrawRectCommand& command = _commandBuffers.rects.allocate();
+    DrawRectCommand& command = _commandBuffers.opaqueRects.allocate();
 
     command.clip = { clip.GetLeft(), clip.GetTop(), clip.GetRight(), clip.GetBottom() };
     command.texColourAtlas = textureColour.index;
@@ -1093,7 +1119,7 @@ void OpenGLDrawingContext::DrawSpriteSolid(RenderTarget& rt, const ImageId image
     right += clip.GetLeft() - rt.x;
     bottom += clip.GetTop() - rt.y;
 
-    DrawRectCommand& command = _commandBuffers.rects.allocate();
+    DrawRectCommand& command = _commandBuffers.opaqueRects.allocate();
 
     command.clip = { clip.GetLeft(), clip.GetTop(), clip.GetRight(), clip.GetBottom() };
     command.texColourAtlas = 0;
@@ -1148,7 +1174,7 @@ void OpenGLDrawingContext::DrawGlyph(RenderTarget& rt, const ImageId image, int3
     const float zoom = rt.zoom_level >= ZoomLevel{ 0 } ? static_cast<float>(rt.zoom_level.ApplyTo(1))
                                                        : 1.0f / static_cast<float>(rt.zoom_level.ApplyInversedTo(1));
 
-    DrawRectCommand& command = _commandBuffers.rects.allocate();
+    DrawRectCommand& command = _commandBuffers.opaqueRects.allocate();
 
     command.clip = { clip.GetLeft(), clip.GetTop(), clip.GetRight(), clip.GetBottom() };
     command.texColourAtlas = texture.index;
@@ -1214,7 +1240,7 @@ void OpenGLDrawingContext::DrawTTFBitmap(
         } };
         for (auto b : boundsArr)
         {
-            DrawRectCommand& command = _commandBuffers.rects.allocate();
+            DrawRectCommand& command = _commandBuffers.opaqueRects.allocate();
             command.clip = { clip.GetLeft(), clip.GetTop(), clip.GetRight(), clip.GetBottom() };
             command.texColourAtlas = texture.index;
             command.texColourBounds = texture.coords;
@@ -1230,7 +1256,7 @@ void OpenGLDrawingContext::DrawTTFBitmap(
     }
     if (info.colourFlags.has(ColourFlag::inset))
     {
-        DrawRectCommand& command = _commandBuffers.rects.allocate();
+        DrawRectCommand& command = _commandBuffers.opaqueRects.allocate();
         command.clip = { clip.GetLeft(), clip.GetTop(), clip.GetRight(), clip.GetBottom() };
         command.texColourAtlas = texture.index;
         command.texColourBounds = texture.coords;
@@ -1243,7 +1269,7 @@ void OpenGLDrawingContext::DrawTTFBitmap(
         command.depth = _drawCount++;
         command.zoom = 1.0f;
     }
-    auto& cmdBuf = hintingThreshold > 0 ? _commandBuffers.transparent : _commandBuffers.rects;
+    auto& cmdBuf = hintingThreshold > 0 ? _commandBuffers.transparentRects : _commandBuffers.opaqueRects;
     DrawRectCommand& command = cmdBuf.allocate();
     command.clip = { clip.GetLeft(), clip.GetTop(), clip.GetRight(), clip.GetBottom() };
     command.texColourAtlas = texture.index;
@@ -1289,30 +1315,30 @@ void OpenGLDrawingContext::FlushLines()
 
 void OpenGLDrawingContext::FlushRectangles()
 {
-    if (_commandBuffers.rects.empty())
+    if (_commandBuffers.opaqueRects.empty())
         return;
 
     OpenGLAPI::SetTexture(0, GL_TEXTURE_2D_ARRAY, _textureCache->GetAtlasesTexture());
     OpenGLAPI::SetTexture(1, GL_TEXTURE_2D, _textureCache->GetPaletteTexture());
 
     _drawRectShader->Use();
-    _drawRectShader->SetInstances(_commandBuffers.rects);
+    _drawRectShader->SetInstances(_commandBuffers.opaqueRects);
     _drawRectShader->DrawInstances();
 
-    _commandBuffers.rects.clear();
+    _commandBuffers.opaqueRects.clear();
 }
 
 void OpenGLDrawingContext::HandleTransparency()
 {
-    if (_commandBuffers.transparent.empty())
+    if (_commandBuffers.transparentRects.empty())
     {
         return;
     }
 
     _drawRectShader->Use();
-    _drawRectShader->SetInstances(_commandBuffers.transparent);
+    _drawRectShader->SetInstances(_commandBuffers.transparentRects);
 
-    int32_t max_depth = MaxTransparencyDepth(_commandBuffers.transparent);
+    int32_t max_depth = MaxTransparencyDepth(_commandBuffers.transparentRects);
     for (int32_t i = 0; i < max_depth; ++i)
     {
         _swapFramebuffer->BindTransparent();
@@ -1335,15 +1361,21 @@ void OpenGLDrawingContext::HandleTransparency()
             *_applyTransparencyShader, _textureCache->GetPaletteTexture(), _textureCache->GetBlendPaletteTexture());
     }
 
-    _commandBuffers.transparent.clear();
+    _commandBuffers.transparentRects.clear();
 }
 
 ScreenRect OpenGLDrawingContext::CalculateClipping(const RenderTarget& rt) const
 {
-    // mber: Calculating the screen coordinates by dividing the difference between pointers like this is a dirty hack.
-    //       It's also quite slow. In future the drawing code needs to be refactored to avoid this somehow.
     const RenderTarget* mainRT = _engine.getRT();
     const int32_t bytesPerRow = mainRT->LineStride();
+    const auto key = (reinterpret_cast<uintptr_t>(rt.bits) >> 4) ^ static_cast<uintptr_t>(rt.width)
+        ^ (static_cast<uintptr_t>(rt.height) << 8);
+    auto& cached = _clippingCache[key & (kClippingCacheSize - 1)];
+    if (cached.bits == rt.bits && cached.width == rt.width && cached.height == rt.height && cached.stride == bytesPerRow)
+    {
+        return cached.clip;
+    }
+
     const int32_t bitsOffset = static_cast<int32_t>(rt.bits - mainRT->bits);
     #ifndef NDEBUG
     const ptrdiff_t bitsSize = static_cast<ptrdiff_t>(mainRT->height) * static_cast<ptrdiff_t>(bytesPerRow);
@@ -1355,7 +1387,20 @@ ScreenRect OpenGLDrawingContext::CalculateClipping(const RenderTarget& rt) const
     const int32_t right = left + rt.width;
     const int32_t bottom = top + rt.height;
 
-    return { { left, top }, { right, bottom } };
+    cached.bits = rt.bits;
+    cached.width = rt.width;
+    cached.height = rt.height;
+    cached.stride = bytesPerRow;
+    cached.clip = { { left, top }, { right, bottom } };
+    return cached.clip;
+}
+
+void OpenGLDrawingContext::ResetClippingCache()
+{
+    for (auto& entry : _clippingCache)
+    {
+        entry.bits = nullptr;
+    }
 }
 
 #endif /* DISABLE_OPENGL */

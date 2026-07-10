@@ -11,10 +11,12 @@
 
 #include "../Identifiers.h"
 
+#include <cstdint>
+
 struct Ride;
 struct TileCoordsXYZD;
 
-void RideUpdateStation(Ride& ride, StationIndex stationIndex);
+void RideUpdateStation(Ride& ride, StationIndex stationIndex, uint32_t currentTicks, bool wholeSecondTick);
 StationIndex RideGetFirstValidStationExit(const Ride& ride);
 StationIndex RideGetFirstValidStationStart(const Ride& ride);
 StationIndex RideGetFirstEmptyStationStart(const Ride& ride);

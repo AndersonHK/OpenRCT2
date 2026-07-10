@@ -20,11 +20,11 @@ functions in `src/openrct2/ride/RideRatings.cpp`.
 
 ### Vehicle speed
 
-Standalone vehicle speed is linear for every sampled vehicle ride, including Boat Hire:
+Standalone vehicle speed uses a power `1.5` excitement curve for every sampled vehicle ride, including Boat Hire. The curve is normalized at speed `90`, so the established baseline remains unchanged while faster vehicles gain progressively more excitement. Intensity and nausea remain linear:
 
 | Rating | Coefficient |
 | --- | ---: |
-| Excitement | `speed * rawScale / 5` |
+| Excitement | `90 * pow(speed / 90, 1.5) * rawScale / 5` |
 | Intensity | `speed * rawScale / 4` |
 | Nausea | `speed * rawScale / 8` |
 
@@ -116,11 +116,11 @@ Each explicit step coefficient is halved directly.
 
 ## Boat Hire manifest
 
-Boat Hire now shares the linear vehicle speed source. Its bespoke free-roam turn source and local-context conversion remain separate tuning knobs.
+Boat Hire shares the vehicle speed source. Its bespoke free-roam turn source and local-context conversion remain separate tuning knobs.
 
 | Source | Previous coefficient | Tuned coefficient | Direction |
 | --- | ---: | ---: | --- |
-| Boat Hire speed score | `speed^2 * rawScale / 90` | shared linear speed source | reworked |
+| Boat Hire speed score | `speed^2 * rawScale / 90` | shared normalized `speed^1.5` source | reworked |
 | Boat Hire local-context excitement point | `1000` | unchanged | preserve |
 | Boat Hire local-context intensity point | `1000`, foreign side track `500` | unchanged | preserve |
 | Boat Hire vertical-context nausea point | `1000 / 3` | unchanged | preserve |

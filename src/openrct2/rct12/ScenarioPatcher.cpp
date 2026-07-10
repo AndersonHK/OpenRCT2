@@ -28,6 +28,7 @@
 #include "../world/Footpath.h"
 #include "../world/Location.hpp"
 #include "../world/Map.h"
+#include "../world/MapTopology.h"
 #include "../world/tile_element/EntranceElement.h"
 #include "../world/tile_element/PathElement.h"
 #include "../world/tile_element/Slope.h"
@@ -527,6 +528,7 @@ static void SwapRideEntranceAndExit(RideId rideId)
         entranceElement->SetEntranceType(ENTRANCE_TYPE_RIDE_ENTRANCE);
         auto exitElement = MapGetRideEntranceElementAt(exitCoords.ToCoordsXYZD(), false);
         exitElement->SetEntranceType(ENTRANCE_TYPE_RIDE_EXIT);
+        MapTopology::InvalidateTileAndNeighbours(exitCoords.ToCoordsXY());
 
         // Trigger footpath update
         FootpathQueueChainReset();

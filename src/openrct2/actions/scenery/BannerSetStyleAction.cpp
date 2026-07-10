@@ -18,6 +18,7 @@
 #include "../../windows/Intent.h"
 #include "../../world/Banner.h"
 #include "../../world/Map.h"
+#include "../../world/MapTopology.h"
 #include "../../world/tile_element/BannerElement.h"
 
 namespace OpenRCT2::GameActions
@@ -167,6 +168,10 @@ namespace OpenRCT2::GameActions
                     allowedEdges &= ~(1 << bannerElement->GetPosition());
                 }
                 bannerElement->SetAllowedEdges(allowedEdges);
+                if (!bannerElement->isGhost())
+                {
+                    MapTopology::InvalidateTileAndNeighbours(banner->position);
+                }
                 break;
             }
             default:

@@ -125,9 +125,13 @@ static constexpr int32_t kRideRatingForeignTrackVerticalRaw = 220;
 static constexpr int32_t kRideRatingOwnTrackVerticalRaw = 160;
 static constexpr int32_t kRideRatingBridgeNearMissMaxGap = 6 * kCoordsZStep;
 static constexpr int32_t kRideRatingTrackHeightExposureMax = 6;
-static constexpr std::array<int32_t, kRideRatingContextMaxRadius + 1> kRideRatingContextDistanceWeights = {
-    256, 218, 154, 90, 46, 28, 18, 12
-};
+static constexpr int32_t kRideRatingContextGenerationChunkSize = 8;
+static constexpr size_t kRideRatingContextInitialCacheCapacity = 16384;
+static constexpr size_t kRideRatingContextGenerationChunksPerAxis = (kMaximumMapSizeTechnical
+                                                                     + kRideRatingContextGenerationChunkSize - 1)
+    / kRideRatingContextGenerationChunkSize;
+static constexpr std::array<int32_t, kRideRatingContextMaxRadius + 1> kRideRatingContextDistanceWeights = { 256, 218, 154, 90,
+                                                                                                            46,  28,  18,  12 };
 
 enum class RideRatingLocalContextSampleKind : uint8_t
 {
@@ -172,8 +176,23 @@ struct RideRatingLocalContextKeyHash
     }
 };
 
-static std::unordered_map<RideRatingLocalContextKey, RideRating::LocalContextScore, RideRatingLocalContextKeyHash>
-    _rideRatingLocalContextCache;
+struct RideRatingLocalContextCacheEntry
+{
+    RideRating::VehicleRatingEnvironment environment{};
+    uint64_t spatialGeneration{};
+};
+
+using RideRatingLocalContextCache = std::unordered_map<
+    RideRatingLocalContextKey, RideRatingLocalContextCacheEntry, RideRatingLocalContextKeyHash>;
+
+static RideRatingLocalContextCache _rideRatingLocalContextCache = []() {
+    RideRatingLocalContextCache result;
+    result.reserve(kRideRatingContextInitialCacheCapacity);
+    return result;
+}();
+static std::array<uint64_t, kRideRatingContextGenerationChunksPerAxis * kRideRatingContextGenerationChunksPerAxis>
+    _rideRatingLocalContextGenerations{};
+static uint64_t _rideRatingLocalContextInvalidationGeneration{};
 
 struct RideRatingLocalContextRaw
 {
@@ -247,23 +266,21 @@ static RideRating::TickScore RideRatingScaleTickScore(RideRating::TickScore scor
     return score;
 }
 
-static RideRating::TickScore RideRatingApplySpeedGCoupling(
-    RideRating::TickScore score, int32_t speed, int32_t coupling)
+static RideRating::TickScore RideRatingApplySpeedGCoupling(RideRating::TickScore score, int32_t speed, int32_t coupling)
 {
     const auto normalisedSpeed = static_cast<int64_t>(std::max(speed, 0));
     const auto normalisedCoupling = static_cast<int64_t>(std::max(coupling, 0));
     const auto couplingDenominator = static_cast<int64_t>(RideRating::kVehicleRatingBaselineSpeed)
         * kSampledRideRatingProfileScale;
     const auto couplingNumerator = std::max<int64_t>(
-        0, couplingDenominator
-            + normalisedCoupling * (normalisedSpeed - RideRating::kVehicleRatingBaselineSpeed));
+        0, couplingDenominator + normalisedCoupling * (normalisedSpeed - RideRating::kVehicleRatingBaselineSpeed));
 
-    score.excitement = ((score.excitement * normalisedSpeed) / RideRating::kVehicleRatingBaselineSpeed)
-        * couplingNumerator / couplingDenominator;
-    score.intensity = ((score.intensity * normalisedSpeed) / RideRating::kVehicleRatingBaselineSpeed)
-        * couplingNumerator / couplingDenominator;
-    score.nausea = ((score.nausea * normalisedSpeed) / RideRating::kVehicleRatingBaselineSpeed)
-        * couplingNumerator / couplingDenominator;
+    score.excitement = ((score.excitement * normalisedSpeed) / RideRating::kVehicleRatingBaselineSpeed) * couplingNumerator
+        / couplingDenominator;
+    score.intensity = ((score.intensity * normalisedSpeed) / RideRating::kVehicleRatingBaselineSpeed) * couplingNumerator
+        / couplingDenominator;
+    score.nausea = ((score.nausea * normalisedSpeed) / RideRating::kVehicleRatingBaselineSpeed) * couplingNumerator
+        / couplingDenominator;
     return score;
 }
 
@@ -380,8 +397,9 @@ static bool RideRatingPathAxisQualifiesAsBridge(const TileCoordsXY& tile, const 
 
     const auto perpendicular = static_cast<Direction>((axis + 1) & 3);
     const auto reversePerpendicular = DirectionReverse(perpendicular);
-    return !(RideRatingPathConnects(tile, pathElement, perpendicular)
-             && RideRatingPathConnects(tile, pathElement, reversePerpendicular));
+    return !(
+        RideRatingPathConnects(tile, pathElement, perpendicular)
+        && RideRatingPathConnects(tile, pathElement, reversePerpendicular));
 }
 
 static bool RideRatingPathQualifiesAsBridge(
@@ -451,8 +469,7 @@ RideRating::TickScore RideRating::ScoreLocalContextForVehicleTick(
     const auto heightExposureNausea = heightExposureIntensity / 3;
     const auto nonVerticalNausea = static_cast<int64_t>(contextScore.nausea) - verticalNausea - heightExposureNausea;
     const auto verticalExcitement = (static_cast<int64_t>(contextScore.pathNearMiss) * 2)
-        + (static_cast<int64_t>(contextScore.pathLoop) * 2)
-        + (static_cast<int64_t>(contextScore.trackVerticalInteraction) * 2)
+        + (static_cast<int64_t>(contextScore.pathLoop) * 2) + (static_cast<int64_t>(contextScore.trackVerticalInteraction) * 2)
         + (static_cast<int64_t>(contextScore.ownTrackVerticalInteraction) * 2) + heightExposureIntensity;
     const auto nonVerticalExcitement = static_cast<int64_t>(contextScore.excitement) - verticalExcitement;
     const auto excitementRaw = (nonVerticalExcitement * kTrackedRideRawPerLocalContextPoint)
@@ -468,11 +485,13 @@ RideRating::TickScore RideRating::ScoreLocalContextForVehicleTick(
            / kTrackedRideVerticalContextNauseaDenominator);
     const auto normalisedSpeed = std::max<int64_t>(speed, 0);
 
-    auto score = RideRatingScaleTickScore({
-        .excitement = excitementRaw,
-        .intensity = intensityRaw,
-        .nausea = nauseaRaw,
-    }, std::clamp(coefficient, 0, kSampledRideRatingProfileScale));
+    auto score = RideRatingScaleTickScore(
+        {
+            .excitement = excitementRaw,
+            .intensity = intensityRaw,
+            .nausea = nauseaRaw,
+        },
+        std::clamp(coefficient, 0, kSampledRideRatingProfileScale));
     score.excitement = (score.excitement * normalisedSpeed) / kVehicleRatingBaselineSpeed;
     score.intensity = (score.intensity * normalisedSpeed) / kVehicleRatingBaselineSpeed;
     score.nausea = (score.nausea * normalisedSpeed) / kVehicleRatingBaselineSpeed;
@@ -499,11 +518,13 @@ RideRating::TickScore RideRating::ScoreBoatHireLocalContextForVehicleTick(
     const auto nauseaRaw = (nonVerticalNausea * rawScale) + (((verticalIntensity + heightExposureIntensity) * rawScale) / 3);
     const auto normalisedSpeed = std::max<int64_t>(speed, 0);
 
-    auto score = RideRatingScaleTickScore({
-        .excitement = excitementRaw,
-        .intensity = intensityRaw,
-        .nausea = nauseaRaw,
-    }, std::clamp(coefficient, 0, kSampledRideRatingProfileScale));
+    auto score = RideRatingScaleTickScore(
+        {
+            .excitement = excitementRaw,
+            .intensity = intensityRaw,
+            .nausea = nauseaRaw,
+        },
+        std::clamp(coefficient, 0, kSampledRideRatingProfileScale));
     score.excitement = (score.excitement * normalisedSpeed) / kVehicleRatingBaselineSpeed;
     score.intensity = (score.intensity * normalisedSpeed) / kVehicleRatingBaselineSpeed;
     score.nausea = (score.nausea * normalisedSpeed) / kVehicleRatingBaselineSpeed;
@@ -526,8 +547,7 @@ static int32_t RideRatingGetLocalContextGroundZ(const TileCoordsXY& tileLocation
     return surfaceElement != nullptr ? surfaceElement->getBaseZ() : 0;
 }
 
-static int32_t RideRatingGetVehicleHeightExposure(
-    const TileCoordsXY& originTile, int32_t originZ, Direction trackDirection)
+static int32_t RideRatingGetVehicleHeightExposure(const TileCoordsXY& originTile, int32_t originZ, Direction trackDirection)
 {
     if (!DirectionValid(trackDirection))
     {
@@ -615,13 +635,13 @@ static bool RideRatingContextElementIsSolidOccluder(const TileElement& tileEleme
 }
 
 static RideRatingLocalContextVisibilityTarget RideRatingBuildLocalContextVisibilityTarget(
-    const TileCoordsXY& tileLocation, const TileElement& tileElement)
+    const TileCoordsXY& tileLocation, const TileElement& tileElement, int32_t rangeBaseZ)
 {
     const auto lowerVisibleZ = tileElement.getBaseZ();
     const auto upperVisibleZ = std::max(lowerVisibleZ, static_cast<int32_t>(tileElement.getClearanceZ()));
     return {
         .tileLocation = tileLocation,
-        .rangeBaseZ = RideRatingGetLocalContextGroundZ(tileLocation),
+        .rangeBaseZ = rangeBaseZ,
         .lowerVisibleZ = lowerVisibleZ,
         .upperVisibleZ = upperVisibleZ,
     };
@@ -758,14 +778,15 @@ static int32_t RideRatingGetLocalContextWeightedValue(
     auto weight = RideRatingGetLocalContextDistanceWeight(distance);
     if (applyHeightPenalty)
     {
-        weight = (weight * RideRatingGetLocalContextHeightWeight(origin, tileElement.getClearanceZ())) / kRideRatingContextWeightScale;
+        weight = (weight * RideRatingGetLocalContextHeightWeight(origin, tileElement.getClearanceZ()))
+            / kRideRatingContextWeightScale;
     }
     return weight;
 }
 
 static void RideRatingAccumulateLocalContextElement(
     RideRatingLocalContextRaw& raw, const CoordsXYZ& origin, const TileCoordsXY& originTile, const TileCoordsXY& candidateTile,
-    const TileElement& tileElement, const RideRatingLocalContextQuery& query)
+    int32_t candidateGroundZ, const TileElement& tileElement, const RideRatingLocalContextQuery& query)
 {
     if (tileElement.isGhost())
     {
@@ -775,13 +796,22 @@ static void RideRatingAccumulateLocalContextElement(
     const auto distance = std::max(std::abs(candidateTile.x - originTile.x), std::abs(candidateTile.y - originTile.y));
     const auto isSameTile = distance == 0;
     const auto isOrthogonallyAdjacent = distance == 1 && (candidateTile.x == originTile.x || candidateTile.y == originTile.y);
-    const auto visibilityTarget = RideRatingBuildLocalContextVisibilityTarget(candidateTile, tileElement);
+    const auto visibilityTarget = RideRatingBuildLocalContextVisibilityTarget(candidateTile, tileElement, candidateGroundZ);
     if (!isSameTile && !RideRatingLocalContextTileIsInRange(origin, distance, visibilityTarget.rangeBaseZ))
     {
         return;
     }
 
-    const auto hasLineOfSight = isSameTile || RideRatingContextHasLineOfSight(origin, originTile, visibilityTarget);
+    bool lineOfSightCalculated = isSameTile;
+    bool lineOfSight = isSameTile;
+    const auto hasLineOfSight = [&]() {
+        if (!lineOfSightCalculated)
+        {
+            lineOfSight = RideRatingContextHasLineOfSight(origin, originTile, visibilityTarget);
+            lineOfSightCalculated = true;
+        }
+        return lineOfSight;
+    };
 
     switch (tileElement.getType())
     {
@@ -803,8 +833,7 @@ static void RideRatingAccumulateLocalContextElement(
             }
             if (query.sampleKind == RideRatingLocalContextSampleKind::vehicle)
             {
-                if (isSameTile && isBridge
-                    && tileElement.getBaseZ() - origin.z <= kRideRatingBridgeNearMissMaxGap
+                if (isSameTile && isBridge && tileElement.getBaseZ() - origin.z <= kRideRatingBridgeNearMissMaxGap
                     && RideRatingTrackTypeCanPathNearMiss(query.trackType))
                 {
                     raw.pathNearMiss += kRideRatingPathNearMissRaw;
@@ -819,7 +848,7 @@ static void RideRatingAccumulateLocalContextElement(
                                        * RideRatingGetLocalContextWeightedValue(origin, tileElement, distance, false))
                         / kRideRatingContextWeightScale;
                 }
-                else if (!isVerticalPath && hasLineOfSight)
+                else if (!isVerticalPath && hasLineOfSight())
                 {
                     raw.pathProximity += (45 * RideRatingGetLocalContextWeightedValue(origin, tileElement, distance, false))
                         / kRideRatingContextWeightScale;
@@ -835,7 +864,7 @@ static void RideRatingAccumulateLocalContextElement(
                                        * RideRatingGetLocalContextWeightedValue(origin, tileElement, distance, false))
                         / kRideRatingContextWeightScale;
                 }
-                else if (!isVerticalPath && hasLineOfSight)
+                else if (!isVerticalPath && hasLineOfSight())
                 {
                     raw.pathProximity += (45 * RideRatingGetLocalContextWeightedValue(origin, tileElement, distance, false))
                         / kRideRatingContextWeightScale;
@@ -843,7 +872,7 @@ static void RideRatingAccumulateLocalContextElement(
                 break;
             }
 
-            if (!isVerticalPath && hasLineOfSight)
+            if (!isVerticalPath && hasLineOfSight())
             {
                 raw.pathProximity += (45 * RideRatingGetLocalContextWeightedValue(origin, tileElement, distance, false))
                     / kRideRatingContextWeightScale;
@@ -873,7 +902,7 @@ static void RideRatingAccumulateLocalContextElement(
                     raw.trackVerticalInteraction += kRideRatingForeignTrackVerticalRaw;
                 }
             }
-            else if (!isSameRide && hasLineOfSight)
+            else if (!isSameRide && hasLineOfSight())
             {
                 raw.foreignTrackProximity += (75 * RideRatingGetLocalContextWeightedValue(origin, tileElement, distance, false))
                     / kRideRatingContextWeightScale;
@@ -881,7 +910,7 @@ static void RideRatingAccumulateLocalContextElement(
             break;
         }
         case TileElementType::Wall:
-            if (hasLineOfSight)
+            if (hasLineOfSight())
             {
                 raw.pathProximity += (24 * RideRatingGetLocalContextWeightedValue(origin, tileElement, distance, false))
                     / kRideRatingContextWeightScale;
@@ -890,7 +919,7 @@ static void RideRatingAccumulateLocalContextElement(
         default:
         {
             const auto decorationScore = TileElementGetDecorationScore(tileElement);
-            if (decorationScore > 0 && hasLineOfSight)
+            if (decorationScore > 0 && hasLineOfSight())
             {
                 raw.scenery += (decorationScore * RideRatingGetLocalContextWeightedValue(origin, tileElement, distance, true))
                     / kRideRatingContextWeightScale;
@@ -903,6 +932,8 @@ static void RideRatingAccumulateLocalContextElement(
 static RideRating::LocalContextScore RideRatingBuildLocalContextScore(
     const CoordsXYZ& origin, const RideRatingLocalContextQuery& query)
 {
+    PROFILED_FUNCTION();
+
     RideRatingLocalContextRaw raw{};
     const auto originTile = TileCoordsXY{ CoordsXY{ origin.x, origin.y } };
     auto& gameState = getGameState();
@@ -920,9 +951,11 @@ static RideRating::LocalContextScore RideRatingBuildLocalContextScore(
                 continue;
             }
 
+            const auto candidateGroundZ = RideRatingGetLocalContextGroundZ(candidateTile);
             do
             {
-                RideRatingAccumulateLocalContextElement(raw, origin, originTile, candidateTile, *tileElement, query);
+                RideRatingAccumulateLocalContextElement(
+                    raw, origin, originTile, candidateTile, candidateGroundZ, *tileElement, query);
             } while (!(tileElement++)->isLastForTile());
         }
     }
@@ -947,8 +980,8 @@ static RideRating::LocalContextScore RideRatingBuildLocalContextScore(
     result.trackHeightExposure = raw.trackHeightExposure;
     result.verticalInteraction = result.pathNearMiss + result.pathLoop + result.trackVerticalInteraction
         + result.ownTrackVerticalInteraction + result.trackHeightExposure;
-    result.excitement = (result.scenery * 2) + result.pathProximity + (result.foreignTrackProximity * 2)
-        + result.pathBridge + (result.pathNearMiss * 2) + (result.pathLoop * 2) + (result.trackVerticalInteraction * 2)
+    result.excitement = (result.scenery * 2) + result.pathProximity + (result.foreignTrackProximity * 2) + result.pathBridge
+        + (result.pathNearMiss * 2) + (result.pathLoop * 2) + (result.trackVerticalInteraction * 2)
         + (result.ownTrackVerticalInteraction * 2) + result.trackHeightExposure;
     result.intensity = (result.foreignTrackProximity / 2) + result.pathNearMiss + result.pathLoop
         + result.trackVerticalInteraction + result.ownTrackVerticalInteraction + result.trackHeightExposure;
@@ -959,8 +992,68 @@ static RideRating::LocalContextScore RideRatingBuildLocalContextScore(
     return result;
 }
 
-static RideRating::LocalContextScore RideRatingGetLocalContextScore(
-    const CoordsXYZ& origin, RideRatingLocalContextQuery query)
+static size_t RideRatingGetLocalContextGenerationIndex(int32_t chunkX, int32_t chunkY)
+{
+    return static_cast<size_t>(chunkY) * kRideRatingContextGenerationChunksPerAxis + static_cast<size_t>(chunkX);
+}
+
+static uint64_t RideRatingGetLocalContextSpatialGeneration(const TileCoordsXY& originTile)
+{
+    const auto minTileX = std::max(originTile.x - kRideRatingContextMaxRadius, 0);
+    const auto minTileY = std::max(originTile.y - kRideRatingContextMaxRadius, 0);
+    const auto maxTileX = std::min(originTile.x + kRideRatingContextMaxRadius, kMaximumMapSizeTechnical - 1);
+    const auto maxTileY = std::min(originTile.y + kRideRatingContextMaxRadius, kMaximumMapSizeTechnical - 1);
+    const auto minChunkX = minTileX / kRideRatingContextGenerationChunkSize;
+    const auto minChunkY = minTileY / kRideRatingContextGenerationChunkSize;
+    const auto maxChunkX = maxTileX / kRideRatingContextGenerationChunkSize;
+    const auto maxChunkY = maxTileY / kRideRatingContextGenerationChunkSize;
+
+    uint64_t result = 0;
+    for (auto chunkY = minChunkY; chunkY <= maxChunkY; chunkY++)
+    {
+        for (auto chunkX = minChunkX; chunkX <= maxChunkX; chunkX++)
+        {
+            result = std::max(
+                result, _rideRatingLocalContextGenerations[RideRatingGetLocalContextGenerationIndex(chunkX, chunkY)]);
+        }
+    }
+    return result;
+}
+
+static bool RideRatingLocalContextTickIsSheltered(const CoordsXYZ& location)
+{
+    auto* surfaceElement = MapGetSurfaceElementAt(CoordsXY{ location.x, location.y });
+    if (surfaceElement != nullptr && surfaceElement->getBaseZ() <= location.z)
+    {
+        return TrackGetIsSheltered(location);
+    }
+    return true;
+}
+
+static bool RideRatingRuntimeContextCacheMatches(
+    const RideRating::VehicleLocalContextCache& runtimeCache, const RideRatingLocalContextKey& key)
+{
+    return runtimeCache.valid && runtimeCache.originTile.x == key.x && runtimeCache.originTile.y == key.y
+        && runtimeCache.originTile.z == key.z && runtimeCache.rideId.ToUnderlying() == key.rideId
+        && static_cast<uint16_t>(runtimeCache.trackType) == key.trackType && runtimeCache.trackDirection == key.trackDirection;
+}
+
+static void RideRatingUpdateRuntimeContextCache(
+    RideRating::VehicleLocalContextCache& runtimeCache, const RideRatingLocalContextKey& key,
+    const RideRatingLocalContextCacheEntry& entry)
+{
+    runtimeCache.originTile = TileCoordsXYZ{ key.x, key.y, key.z };
+    runtimeCache.rideId = RideId::FromUnderlying(key.rideId);
+    runtimeCache.trackType = static_cast<TrackElemType>(key.trackType);
+    runtimeCache.trackDirection = key.trackDirection;
+    runtimeCache.spatialGeneration = entry.spatialGeneration;
+    runtimeCache.observedInvalidationGeneration = _rideRatingLocalContextInvalidationGeneration;
+    runtimeCache.environment = entry.environment;
+    runtimeCache.valid = true;
+}
+
+static RideRating::VehicleRatingEnvironment RideRatingGetLocalContextEnvironment(
+    const CoordsXYZ& origin, RideRatingLocalContextQuery query, RideRating::VehicleLocalContextCache* runtimeCache = nullptr)
 {
     if (origin.x == kLocationNull)
     {
@@ -979,49 +1072,115 @@ static RideRating::LocalContextScore RideRatingGetLocalContextScore(
         query.sampleKind,
     };
 
-    auto it = _rideRatingLocalContextCache.find(key);
-    if (it != _rideRatingLocalContextCache.end())
+    uint64_t spatialGeneration = 0;
+    bool hasSpatialGeneration = false;
+    const auto getSpatialGeneration = [&]() {
+        if (!hasSpatialGeneration)
+        {
+            spatialGeneration = RideRatingGetLocalContextSpatialGeneration(originTile);
+            hasSpatialGeneration = true;
+        }
+        return spatialGeneration;
+    };
+
+    if (runtimeCache != nullptr && RideRatingRuntimeContextCacheMatches(*runtimeCache, key))
     {
-        return it->second;
+        if (runtimeCache->observedInvalidationGeneration == _rideRatingLocalContextInvalidationGeneration)
+        {
+            return runtimeCache->environment;
+        }
+
+        if (runtimeCache->spatialGeneration == getSpatialGeneration())
+        {
+            runtimeCache->observedInvalidationGeneration = _rideRatingLocalContextInvalidationGeneration;
+            return runtimeCache->environment;
+        }
+    }
+
+    spatialGeneration = getSpatialGeneration();
+    auto it = _rideRatingLocalContextCache.find(key);
+    if (it != _rideRatingLocalContextCache.end() && it->second.spatialGeneration == spatialGeneration)
+    {
+        if (runtimeCache != nullptr)
+        {
+            RideRatingUpdateRuntimeContextCache(*runtimeCache, key, it->second);
+        }
+        return it->second.environment;
     }
 
     const auto centredOrigin = CoordsXYZ{ origin.ToTileCentre(), origin.z };
-    auto result = RideRatingBuildLocalContextScore(centredOrigin, query);
-    _rideRatingLocalContextCache.emplace(key, result);
-    return result;
+    RideRatingLocalContextCacheEntry entry{
+        .environment = {
+            .context = RideRatingBuildLocalContextScore(centredOrigin, query),
+            .isSheltered = query.sampleKind == RideRatingLocalContextSampleKind::vehicle
+                && RideRatingLocalContextTickIsSheltered(centredOrigin),
+        },
+        .spatialGeneration = spatialGeneration,
+    };
+    if (it == _rideRatingLocalContextCache.end())
+    {
+        it = _rideRatingLocalContextCache.emplace(key, entry).first;
+    }
+    else
+    {
+        it->second = entry;
+    }
+    if (runtimeCache != nullptr)
+    {
+        RideRatingUpdateRuntimeContextCache(*runtimeCache, key, it->second);
+    }
+    return entry.environment;
 }
 
 RideRating::LocalContextScore RideRating::GetLocalContextScore(const CoordsXYZ& origin, RideId rideId)
 {
-    return RideRatingGetLocalContextScore(
-        origin,
-        {
-            .rideId = rideId,
-            .sampleKind = RideRatingLocalContextSampleKind::generic,
-        });
+    return RideRatingGetLocalContextEnvironment(
+               origin,
+               {
+                   .rideId = rideId,
+                   .sampleKind = RideRatingLocalContextSampleKind::generic,
+               })
+        .context;
 }
 
 RideRating::LocalContextScore RideRating::GetVehicleLocalContextScore(
     const CoordsXYZ& origin, RideId rideId, TrackElemType trackType, uint8_t trackDirection)
 {
-    return RideRatingGetLocalContextScore(
+    return RideRatingGetLocalContextEnvironment(
+               origin,
+               {
+                   .rideId = rideId,
+                   .sampleKind = RideRatingLocalContextSampleKind::vehicle,
+                   .trackType = trackType,
+                   .trackDirection = trackDirection,
+               })
+        .context;
+}
+
+RideRating::VehicleRatingEnvironment RideRating::GetVehicleRatingEnvironment(
+    const CoordsXYZ& origin, RideId rideId, TrackElemType trackType, uint8_t trackDirection,
+    VehicleLocalContextCache& runtimeCache)
+{
+    return RideRatingGetLocalContextEnvironment(
         origin,
         {
             .rideId = rideId,
             .sampleKind = RideRatingLocalContextSampleKind::vehicle,
             .trackType = trackType,
             .trackDirection = trackDirection,
-        });
+        },
+        &runtimeCache);
 }
 
 RideRating::LocalContextScore RideRating::GetMazeLocalContextScore(const CoordsXYZ& origin, RideId rideId)
 {
-    return RideRatingGetLocalContextScore(
-        origin,
-        {
-            .rideId = rideId,
-            .sampleKind = RideRatingLocalContextSampleKind::maze,
-        });
+    return RideRatingGetLocalContextEnvironment(
+               origin,
+               {
+                   .rideId = rideId,
+                   .sampleKind = RideRatingLocalContextSampleKind::maze,
+               })
+        .context;
 }
 
 static int32_t RideRatingGetFixedRideDescriptorEyeHeight(const RideTypeDescriptor& rtd)
@@ -1157,29 +1316,28 @@ CoordsXYZ RideRating::GetFixedRideLocalContextOrigin(const Ride& ride)
 
 void RideRating::InvalidateLocalContextCacheAround(const CoordsXY& location)
 {
-    if (_rideRatingLocalContextCache.empty() || location.x == kLocationNull)
+    if (location.x == kLocationNull)
     {
         return;
     }
 
     const auto tileLocation = TileCoordsXY{ location };
-    for (auto it = _rideRatingLocalContextCache.begin(); it != _rideRatingLocalContextCache.end();)
+    if (tileLocation.x < 0 || tileLocation.y < 0 || tileLocation.x >= kMaximumMapSizeTechnical
+        || tileLocation.y >= kMaximumMapSizeTechnical)
     {
-        if (std::abs(static_cast<int32_t>(it->first.x) - tileLocation.x) <= kRideRatingContextMaxRadius
-            && std::abs(static_cast<int32_t>(it->first.y) - tileLocation.y) <= kRideRatingContextMaxRadius)
-        {
-            it = _rideRatingLocalContextCache.erase(it);
-        }
-        else
-        {
-            ++it;
-        }
+        return;
     }
+
+    const auto chunkX = tileLocation.x / kRideRatingContextGenerationChunkSize;
+    const auto chunkY = tileLocation.y / kRideRatingContextGenerationChunkSize;
+    _rideRatingLocalContextGenerations[RideRatingGetLocalContextGenerationIndex(chunkX, chunkY)]
+        = ++_rideRatingLocalContextInvalidationGeneration;
 }
 
 void RideRating::ClearLocalContextCache()
 {
     _rideRatingLocalContextCache.clear();
+    _rideRatingLocalContextGenerations.fill(++_rideRatingLocalContextInvalidationGeneration);
 }
 
 RideRating::TickScore RideRating::ScoreAirtimeGForTick(int32_t verticalG)
@@ -1269,8 +1427,7 @@ RideRating::TickScore RideRating::ScoreGForcesForTick(int32_t verticalG, int32_t
 }
 
 RideRating::TickScore RideRating::ScoreGForcesForVehicleTick(
-    int32_t verticalG, int32_t lateralG, int32_t longitudinalG, int32_t speed,
-    const SampledRideRatingProfile& profile)
+    int32_t verticalG, int32_t lateralG, int32_t longitudinalG, int32_t speed, const SampledRideRatingProfile& profile)
 {
     TickScore result{};
 
@@ -1279,8 +1436,7 @@ RideRating::TickScore RideRating::ScoreGForcesForVehicleTick(
     RideRatingAddTickScore(result, RideRatingScaleTickScore(verticalScore, profile.VerticalG));
     RideRatingAddTickScore(result, RideRatingScaleTickScore(ScoreAirtimeGForTick(verticalG), profile.Airtime));
     RideRatingAddTickScore(result, RideRatingScaleTickScore(ScoreLateralGForTick(lateralG), profile.LateralG));
-    RideRatingAddTickScore(
-        result, RideRatingScaleTickScore(ScoreLongitudinalGForTick(longitudinalG), profile.LongitudinalG));
+    RideRatingAddTickScore(result, RideRatingScaleTickScore(ScoreLongitudinalGForTick(longitudinalG), profile.LongitudinalG));
 
     return RideRatingApplySpeedGCoupling(result, speed, profile.SpeedGCoupling);
 }
@@ -1288,11 +1444,31 @@ RideRating::TickScore RideRating::ScoreGForcesForVehicleTick(
 RideRating::TickScore RideRating::ScoreVehicleSpeedForTick(int32_t speed, int32_t coefficient)
 {
     const auto normalisedSpeed = std::max<int64_t>(speed, 0);
-    return RideRatingScaleTickScore({
-        .excitement = (normalisedSpeed * kRideRatingAccumulatorRawScale) / 5,
-        .intensity = (normalisedSpeed * kRideRatingAccumulatorRawScale) / 4,
-        .nausea = (normalisedSpeed * kRideRatingAccumulatorRawScale) / 8,
-    }, coefficient);
+    const auto speedRatio = static_cast<double>(normalisedSpeed) / kVehicleRatingBaselineSpeed;
+    const auto excitementSpeed = static_cast<int64_t>(std::llround(normalisedSpeed * std::sqrt(speedRatio)));
+    return RideRatingScaleTickScore(
+        {
+            .excitement = (excitementSpeed * kRideRatingAccumulatorRawScale) / 5,
+            .intensity = (normalisedSpeed * kRideRatingAccumulatorRawScale) / 4,
+            .nausea = (normalisedSpeed * kRideRatingAccumulatorRawScale) / 8,
+        },
+        coefficient);
+}
+
+RideRating::TransportQualityScore RideRating::ScoreTransportQualityForVehicleTick(
+    int32_t verticalG, int32_t lateralG, int32_t longitudinalG, int32_t speed, const LocalContextScore& contextScore)
+{
+    const auto distance = std::max<int64_t>(speed, 0);
+    const auto verticalDeviation = std::abs(verticalG - 100);
+    const auto forcePenalty = (verticalDeviation * 2) + (std::abs(lateralG) * 3) + (std::abs(longitudinalG) * 3);
+    const auto comfortFactor = std::clamp<int64_t>(1000 - forcePenalty, 100, 1000);
+    const auto decorationFactor = 1000 + std::clamp<int64_t>(static_cast<int64_t>(contextScore.scenery) * 5, 0, 500);
+
+    return {
+        .comfort = distance * comfortFactor,
+        .decoration = distance * decorationFactor,
+        .distance = distance,
+    };
 }
 
 RideRating::TickScore RideRating::ApplyRideEntryMultipliers(TickScore score, const RideObjectEntry& rideEntry)

@@ -104,6 +104,8 @@ bool gIsAutosaveLoaded = false;
 bool gLoadKeepWindowsOpen = false;
 
 uint32_t gCurrentRealTimeTicks;
+uint64_t gTotalSimulationTicks;
+float gActualSimulationTPS;
 
 #ifdef ENABLE_SCRIPTING
 static bool _mapChangedExpected;

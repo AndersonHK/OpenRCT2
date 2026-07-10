@@ -23,6 +23,7 @@ struct Ride;
 struct RideObjectEntry;
 struct RideRatingAccumulator;
 struct SampledRideRatingProfile;
+struct Vehicle;
 
 namespace OpenRCT2
 {
@@ -69,6 +70,13 @@ namespace OpenRCT2
         static_assert(std::is_same_v<decltype(TickScore::intensity), int64_t>);
         static_assert(std::is_same_v<decltype(TickScore::nausea), int64_t>);
 
+        struct TransportQualityScore
+        {
+            int64_t comfort{};
+            int64_t decoration{};
+            int64_t distance{};
+        };
+
         struct LocalContextScore
         {
             int32_t excitement{};
@@ -84,6 +92,31 @@ namespace OpenRCT2
             int32_t trackVerticalInteraction{};
             int32_t ownTrackVerticalInteraction{};
             int32_t trackHeightExposure{};
+        };
+
+        struct VehicleRatingEnvironment
+        {
+            LocalContextScore context{};
+            bool isSheltered{};
+        };
+
+        // Runtime-only cache owned by an active vehicle rating sample. Park files serialise
+        // the accumulator's rating totals explicitly, so this avoids changing the save format.
+        struct VehicleLocalContextCache
+        {
+            TileCoordsXYZ originTile{};
+            RideId rideId{ RideId::GetNull() };
+            TrackElemType trackType{};
+            uint8_t trackDirection{};
+            uint64_t spatialGeneration{};
+            uint64_t observedInvalidationGeneration{};
+            VehicleRatingEnvironment environment{};
+            bool valid{};
+
+            void clear()
+            {
+                valid = false;
+            }
         };
 
         struct UpdateState
@@ -112,9 +145,10 @@ namespace OpenRCT2
         TickScore ScoreLongitudinalGForTick(int32_t longitudinalG);
         TickScore ScoreGForcesForTick(int32_t verticalG, int32_t lateralG, int32_t longitudinalG = 0);
         TickScore ScoreGForcesForVehicleTick(
-            int32_t verticalG, int32_t lateralG, int32_t longitudinalG, int32_t speed,
-            const SampledRideRatingProfile& profile);
+            int32_t verticalG, int32_t lateralG, int32_t longitudinalG, int32_t speed, const SampledRideRatingProfile& profile);
         TickScore ScoreVehicleSpeedForTick(int32_t speed, int32_t coefficient = 1000);
+        TransportQualityScore ScoreTransportQualityForVehicleTick(
+            int32_t verticalG, int32_t lateralG, int32_t longitudinalG, int32_t speed, const LocalContextScore& contextScore);
         TickScore ScoreLocalContextForVehicleTick(
             const LocalContextScore& contextScore, int32_t speed, int32_t coefficient = 1000);
         TickScore ScoreBoatHireLocalContextForVehicleTick(
@@ -126,6 +160,9 @@ namespace OpenRCT2
         LocalContextScore GetLocalContextScore(const CoordsXYZ& origin, RideId rideId);
         LocalContextScore GetVehicleLocalContextScore(
             const CoordsXYZ& origin, RideId rideId, TrackElemType trackType, uint8_t trackDirection);
+        VehicleRatingEnvironment GetVehicleRatingEnvironment(
+            const CoordsXYZ& origin, RideId rideId, TrackElemType trackType, uint8_t trackDirection,
+            VehicleLocalContextCache& runtimeCache);
         LocalContextScore GetMazeLocalContextScore(const CoordsXYZ& origin, RideId rideId);
         CoordsXYZ GetFixedRideLocalContextOrigin(const Ride& ride);
         void InvalidateLocalContextCacheAround(const CoordsXY& location);
@@ -136,6 +173,9 @@ namespace OpenRCT2
         void RecordRiderSample(Ride& ride, const RideRatingAccumulator& sample);
         bool RecordActiveRiderSample(Ride& ride, EntityId sampleEntity);
         bool RecordActiveRiderSamples(Ride& ride, std::span<const EntityId> sampleEntities);
+        bool ShouldSampleCircuit(const Ride& ride, const Vehicle& vehicle);
+        bool ShouldStartCircuit(const Ride& ride, const Vehicle& vehicle);
+        void PublishTrainSample(Ride& ride, const Vehicle& head);
         void UpdateAll();
     } // namespace RideRating
 } // namespace OpenRCT2

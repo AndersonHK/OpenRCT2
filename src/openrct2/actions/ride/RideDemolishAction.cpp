@@ -23,6 +23,7 @@
 #include "../../ui/WindowManager.h"
 #include "../../world/Banner.h"
 #include "../../world/Map.h"
+#include "../../world/MapTopology.h"
 #include "../../world/Park.h"
 #include "../../world/tile_element/TrackElement.h"
 #include "../GameActionRunner.h"
@@ -230,6 +231,10 @@ namespace OpenRCT2::GameActions
                         auto removeRes = ExecuteNested(&trackRemoveAction, gameState);
                         if (removeRes.error != Status::ok)
                         {
+                            if (!tileElement->isGhost())
+                            {
+                                MapTopology::InvalidateTileAndNeighbours(tilePos);
+                            }
                             TileElementRemove(tileElement);
                         }
                         else

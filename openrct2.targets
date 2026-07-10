@@ -16,6 +16,8 @@
     <DataLanguagePath Condition="'$(DataLanguagePath)' == ''">$(SolutionDir)data\language\</DataLanguagePath>
     <DataShadersPath Condition="'$(DataShadersPath)' == ''">$(SolutionDir)data\shaders\</DataShadersPath>
     <DataScenarioPath Condition="'$(DataScenarioPath)' == ''">$(SolutionDir)data\scenario_patches\</DataScenarioPath>
+    <VulkanGlslcPath Condition="'$(VulkanGlslcPath)' == '' and '$(VULKAN_SDK)' != ''">$(VULKAN_SDK)\Bin\glslc.exe</VulkanGlslcPath>
+    <EnableVulkan Condition="'$(EnableVulkan)' == '' and '$(VULKAN_SDK)' != '' and (Exists('$(VulkanGlslcPath)') or (Exists('$(DataShadersPath)vulkan\indexed_palette.vert.spv') and Exists('$(DataShadersPath)vulkan\indexed_palette.frag.spv') and Exists('$(DataShadersPath)vulkan\indexed_line.vert.spv') and Exists('$(DataShadersPath)vulkan\indexed_line.frag.spv'))) and ('$(Platform)' == 'Win32' or '$(Platform)' == 'x64')">true</EnableVulkan>
     <ResourcesPath Condition="'$(ResourcesPath)' == ''">$(SolutionDir)resources\</ResourcesPath>
     <G2InputFile Condition="'$(G2InputFile)' == ''">$(ResourcesPath)g2\sprites.json</G2InputFile>
     <FontsInputFile Condition="'$(FontsInputFile)' == ''">$(ResourcesPath)fonts\sprites.json</FontsInputFile>
@@ -38,6 +40,8 @@
     <ShaderFiles Include="$(DataShadersPath)**\*"
                  Exclude="$(DataShadersPath)*.bak;
                            $(DataShadersPath)*.tmp" />
+
+    <VulkanShaderSource Include="$(DataShadersPath)vulkan\indexed_palette.vert;$(DataShadersPath)vulkan\indexed_palette.frag;$(DataShadersPath)vulkan\indexed_line.vert;$(DataShadersPath)vulkan\indexed_line.frag" />
     
     <ScenarioPatchFiles Include="$(DataScenarioPath)**\*"
                         Exclude="$(DataScenarioPath)*.bak;
@@ -63,6 +67,27 @@
     <Message Text="Copied language file: %(CopiedLangFiles.RecursiveDir)%(CopiedLangFiles.Filename)%(CopiedLangFiles.Extension)"
              Importance="high"
              Condition="'@(CopiedLangFiles)' != ''" />
+  </Target>
+
+  <!-- Vulkan consumes SPIR-V, never GLSL source at runtime. Normal developer
+       builds compile it with the SDK's glslc. A distribution may instead
+       provide matching checked-in .spv files beside the GLSL sources. -->
+  <Target Name="CompileVulkanShaders"
+          AfterTargets="Build"
+          BeforeTargets="CopyShaders"
+          Inputs="@(VulkanShaderSource)"
+          Outputs="@(VulkanShaderSource->'$(DataOutputPath)shaders\vulkan\%(Filename)%(Extension).spv')"
+          Condition="'$(EnableVulkan)' == 'true'">
+    <MakeDir Directories="$(DataOutputPath)shaders\vulkan" />
+    <Exec Command="&quot;$(VulkanGlslcPath)&quot; &quot;%(VulkanShaderSource.FullPath)&quot; -o &quot;$(DataOutputPath)shaders\vulkan\%(VulkanShaderSource.Filename)%(VulkanShaderSource.Extension).spv&quot;"
+          Condition="Exists('$(VulkanGlslcPath)')"
+          IgnoreExitCode="false" />
+    <Copy SourceFiles="@(VulkanShaderSource->'%(FullPath).spv')"
+          DestinationFiles="@(VulkanShaderSource->'$(DataOutputPath)shaders\vulkan\%(Filename)%(Extension).spv')"
+          SkipUnchangedFiles="true"
+          Condition="!Exists('$(VulkanGlslcPath)') and Exists('%(VulkanShaderSource.FullPath).spv')" />
+    <Error Text="Vulkan is enabled but glslc and precompiled SPIR-V shaders are unavailable. Install the Vulkan SDK or provide data\shaders\vulkan\*.spv."
+           Condition="!Exists('$(VulkanGlslcPath)') and !Exists('%(VulkanShaderSource.FullPath).spv')" />
   </Target>
 
   <Target Name="CopyShaders"

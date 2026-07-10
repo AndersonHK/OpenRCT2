@@ -66,7 +66,6 @@ namespace OpenRCT2
     static std::list<Viewport> _viewports;
     Viewport* gMusicTrackingViewport;
 
-    static std::unique_ptr<JobPool> _paintJobs;
     static std::vector<PaintSession*> _paintColumns;
 
     InteractionInfo::InteractionInfo(const PaintStruct* ps)
@@ -907,15 +906,6 @@ namespace OpenRCT2
         _paintColumns.clear();
 
         bool useMultithreading = Config::Get().general.multiThreading;
-        if (useMultithreading && _paintJobs == nullptr)
-        {
-            _paintJobs = std::make_unique<JobPool>();
-        }
-        else if (useMultithreading == false && _paintJobs != nullptr)
-        {
-            _paintJobs.reset();
-        }
-
         bool useParallelDrawing = false;
         if (useMultithreading && rt.DrawingEngine->GetFlags().has(DrawingEngineFlag::parallelDrawing))
         {
@@ -960,11 +950,7 @@ namespace OpenRCT2
             columnRT.cullingWidth = columnWidth;
             columnRT.cullingHeight = cullingY * 2;
 
-            if (useMultithreading)
-            {
-                _paintJobs->AddTask([session]() -> void { ViewportFillColumn(*session); });
-            }
-            else
+            if (!useMultithreading)
             {
                 ViewportFillColumn(*session);
             }
@@ -972,24 +958,22 @@ namespace OpenRCT2
 
         if (useMultithreading)
         {
-            _paintJobs->Join();
+            auto& jobs = GetContext()->GetJobPool();
+            jobs.ParallelFor(_paintColumns.size(), [](size_t index) { ViewportFillColumn(*_paintColumns[index]); });
         }
 
-        // Paint columns.
-        for (auto* session : _paintColumns)
+        // Paint columns. Only engines which explicitly advertise disjoint parallel writes may use the compute pool here.
+        if (useParallelDrawing)
         {
-            if (useParallelDrawing)
-            {
-                _paintJobs->AddTask([session]() -> void { ViewportPaintColumn(*session); });
-            }
-            else
+            auto& jobs = GetContext()->GetJobPool();
+            jobs.ParallelFor(_paintColumns.size(), [](size_t index) { ViewportPaintColumn(*_paintColumns[index]); });
+        }
+        else
+        {
+            for (auto* session : _paintColumns)
             {
                 ViewportPaintColumn(*session);
             }
-        }
-        if (useParallelDrawing)
-        {
-            _paintJobs->Join();
         }
 
         // Release resources.

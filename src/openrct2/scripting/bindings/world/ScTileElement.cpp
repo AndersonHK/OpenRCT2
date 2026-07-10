@@ -21,6 +21,7 @@
     #include "../../../ride/RideData.h"
     #include "../../../world/Footpath.h"
     #include "../../../world/Map.h"
+    #include "../../../world/MapTopology.h"
     #include "../../../world/Scenery.h"
     #include "../../../world/tile_element/BannerElement.h"
     #include "../../../world/tile_element/EntranceElement.h"
@@ -74,6 +75,21 @@ namespace OpenRCT2::Scripting
         MapInvalidateTileFull(data->coords);
     }
 
+    static bool IsRoutingTopologyElement(const TileElement& element)
+    {
+        return !element.isGhost()
+            && (element.getType() == TileElementType::Path || element.getType() == TileElementType::Entrance
+                || element.getType() == TileElementType::Banner);
+    }
+
+    static void InvalidateRoutingTopology(OpaqueTileElementData* data)
+    {
+        if (IsRoutingTopologyElement(*data->element))
+        {
+            MapTopology::InvalidateTileAndNeighbours(data->coords);
+        }
+    }
+
     JSValue ScTileElement::type_get(JSContext* ctx, JSValue thisValue)
     {
         auto data = gScTileElement.GetOpaque<OpaqueTileElementData*>(thisValue);
@@ -87,6 +103,7 @@ namespace OpenRCT2::Scripting
         JS_UNPACK_STR(value, ctx, jsValue);
         auto data = gScTileElement.GetOpaque<OpaqueTileElementData*>(thisValue);
         auto element = data->element;
+        const bool wasRoutingTopology = IsRoutingTopologyElement(*element);
         RemoveBannerEntryIfNeeded(element, data->coords);
         if (value == "surface")
             element->setType(TileElementType::Surface);
@@ -112,6 +129,10 @@ namespace OpenRCT2::Scripting
         }
         CreateBannerEntryIfNeeded(element, data->coords);
         Invalidate(data);
+        if (wasRoutingTopology || IsRoutingTopologyElement(*element))
+        {
+            MapTopology::InvalidateTileAndNeighbours(data->coords);
+        }
         return JS_UNDEFINED;
     }
 
@@ -128,6 +149,7 @@ namespace OpenRCT2::Scripting
         auto data = gScTileElement.GetOpaque<OpaqueTileElementData*>(thisValue);
         data->element->baseHeight = newBaseHeight;
         Invalidate(data);
+        InvalidateRoutingTopology(data);
         return JS_UNDEFINED;
     }
 
@@ -144,6 +166,7 @@ namespace OpenRCT2::Scripting
         auto data = gScTileElement.GetOpaque<OpaqueTileElementData*>(thisValue);
         data->element->setBaseZ(value);
         Invalidate(data);
+        InvalidateRoutingTopology(data);
         return JS_UNDEFINED;
     }
 
@@ -574,9 +597,8 @@ namespace OpenRCT2::Scripting
             default:
             {
                 auto& scriptEngine = GetContext()->GetScriptEngine();
-                scriptEngine.LogPluginInfo(
-                    "Cannot read 'sequence' property, tile element is not a TrackElement, "
-                    "LargeSceneryElement, or EntranceElement.");
+                scriptEngine.LogPluginInfo("Cannot read 'sequence' property, tile element is not a TrackElement, "
+                                           "LargeSceneryElement, or EntranceElement.");
                 return JS_NULL;
             }
         }
@@ -629,12 +651,12 @@ namespace OpenRCT2::Scripting
             default:
             {
                 auto& scriptEngine = GetContext()->GetScriptEngine();
-                scriptEngine.LogPluginInfo(
-                    "Cannot read 'sequence' property, tile element is not a TrackElement, "
-                    "LargeSceneryElement, or EntranceElement.");
+                scriptEngine.LogPluginInfo("Cannot read 'sequence' property, tile element is not a TrackElement, "
+                                           "LargeSceneryElement, or EntranceElement.");
                 break;
             }
         }
+        InvalidateRoutingTopology(data);
         return JS_UNDEFINED;
     }
 
@@ -752,6 +774,7 @@ namespace OpenRCT2::Scripting
                 break;
             }
         }
+        InvalidateRoutingTopology(data);
         return JS_UNDEFINED;
     }
 
@@ -871,6 +894,7 @@ namespace OpenRCT2::Scripting
             default:
                 break;
         }
+        InvalidateRoutingTopology(data);
         return JS_UNDEFINED;
     }
 
@@ -1360,6 +1384,7 @@ namespace OpenRCT2::Scripting
                 auto* el = element->asEntrance();
                 el->SetEntranceType(index);
                 Invalidate(data);
+                InvalidateRoutingTopology(data);
                 break;
             }
             case TileElementType::Banner:
@@ -1463,8 +1488,13 @@ namespace OpenRCT2::Scripting
         JS_UNPACK_BOOL(value, ctx, jsValue);
         JS_THROW_IF_GAME_STATE_NOT_MUTABLE();
         auto data = gScTileElement.GetOpaque<OpaqueTileElementData*>(thisValue);
+        const bool wasRoutingTopology = IsRoutingTopologyElement(*data->element);
         data->element->setGhost(value);
         Invalidate(data);
+        if (wasRoutingTopology || IsRoutingTopologyElement(*data->element))
+        {
+            MapTopology::InvalidateTileAndNeighbours(data->coords);
+        }
         return JS_UNDEFINED;
     }
 
@@ -1751,6 +1781,7 @@ namespace OpenRCT2::Scripting
         {
             el->SetEdgesAndCorners(value);
             Invalidate(data);
+            InvalidateRoutingTopology(data);
         }
         return JS_UNDEFINED;
     }
@@ -1774,6 +1805,7 @@ namespace OpenRCT2::Scripting
         {
             el->SetEdges(value);
             Invalidate(data);
+            InvalidateRoutingTopology(data);
         }
         return JS_UNDEFINED;
     }
@@ -1829,6 +1861,7 @@ namespace OpenRCT2::Scripting
                 el->SetSlopeDirection(0);
             }
             Invalidate(data);
+            InvalidateRoutingTopology(data);
         }
         return JS_UNDEFINED;
     }
@@ -1852,6 +1885,7 @@ namespace OpenRCT2::Scripting
         {
             el->SetIsQueue(value);
             Invalidate(data);
+            InvalidateRoutingTopology(data);
         }
         return JS_UNDEFINED;
     }
@@ -1884,6 +1918,7 @@ namespace OpenRCT2::Scripting
                 el->SetQueueBannerDirection(0);
             }
             Invalidate(data);
+            InvalidateRoutingTopology(data);
         }
         return JS_UNDEFINED;
     }
@@ -1930,6 +1965,7 @@ namespace OpenRCT2::Scripting
         {
             el->SetWide(value);
             Invalidate(data);
+            InvalidateRoutingTopology(data);
         }
         return JS_UNDEFINED;
     }
@@ -2214,6 +2250,7 @@ namespace OpenRCT2::Scripting
                 auto* el = element->asBanner();
                 el->SetPosition(value);
                 Invalidate(data);
+                InvalidateRoutingTopology(data);
                 break;
             }
             case TileElementType::Path:
@@ -2225,6 +2262,10 @@ namespace OpenRCT2::Scripting
             {
                 element->setDirection(value);
                 Invalidate(data);
+                if (element->getType() == TileElementType::Entrance)
+                {
+                    InvalidateRoutingTopology(data);
+                }
             }
         }
         return JS_UNDEFINED;
@@ -2282,6 +2323,7 @@ namespace OpenRCT2::Scripting
         {
             el->GetBanner()->flags.set(BannerFlag::noEntry, value);
             Invalidate(data);
+            InvalidateRoutingTopology(data);
         }
         return JS_UNDEFINED;
     }

@@ -52,6 +52,7 @@
 #include "Entrance.h"
 #include "Footpath.h"
 #include "MapAnimation.h"
+#include "MapTopology.h"
 #include "Park.h"
 #include "Scenery.h"
 #include "TileElementsView.h"
@@ -112,6 +113,7 @@ namespace OpenRCT2
         _tileElementsStash = std::move(gameState.tileElements);
         _mapSizeStash = gameState.mapSize;
         _tileElementsInUseStash = _tileElementsInUse;
+        MapTopology::Reset();
     }
 
     void UnstashMap()
@@ -121,6 +123,7 @@ namespace OpenRCT2
         gameState.tileElements = std::move(_tileElementsStash);
         gameState.mapSize = _mapSizeStash;
         _tileElementsInUse = _tileElementsInUseStash;
+        MapTopology::Reset();
     }
 
     CoordsXY GetMapSizeUnits()
@@ -144,13 +147,22 @@ namespace OpenRCT2
         return getGameState().tileElements;
     }
 
-    void SetTileElements(GameState_t& gameState, std::vector<TileElement>&& tileElements)
+    static void SetTileElementsInternal(GameState_t& gameState, std::vector<TileElement>&& tileElements, bool topologyChanged)
     {
         gameState.tileElements = std::move(tileElements);
         _tileIndex = TilePointerIndex<TileElement>(
             kMaximumMapSizeTechnical, gameState.tileElements.data(), gameState.tileElements.size());
         _tileElementsInUse = gameState.tileElements.size();
         RideRating::ClearLocalContextCache();
+        if (topologyChanged)
+        {
+            MapTopology::Reset();
+        }
+    }
+
+    void SetTileElements(GameState_t& gameState, std::vector<TileElement>&& tileElements)
+    {
+        SetTileElementsInternal(gameState, std::move(tileElements), true);
     }
 
     static TileElement GetDefaultSurfaceElement()
@@ -233,7 +245,8 @@ namespace OpenRCT2
             }
         }
 
-        SetTileElements(gameState, std::move(newElements));
+        // Reorganisation only relocates storage; topology is byte-for-byte unchanged.
+        SetTileElementsInternal(gameState, std::move(newElements), false);
     }
 
     static void ReorganiseTileElements(size_t capacity)
@@ -410,6 +423,7 @@ namespace OpenRCT2
             return;
         }
         _tileIndex.SetTile(tilePos, elements);
+        MapTopology::InvalidateTileAndNeighbours(tilePos);
     }
 
     SurfaceElement* MapGetSurfaceElementAt(const TileCoordsXY& coords)
@@ -1035,6 +1049,10 @@ namespace OpenRCT2
                     {
                         it.element->asPath()->SetHasQueueBanner(false);
                         it.element->asPath()->SetRideIndex(RideId::GetNull());
+                        if (!it.element->isGhost())
+                        {
+                            MapTopology::InvalidateTileAndNeighbours(TileCoordsXY{ it.x, it.y });
+                        }
                     }
                     break;
                 case TileElementType::Entrance:
@@ -1390,7 +1408,7 @@ namespace OpenRCT2
      * Clears the provided element properly from a certain tile, and updates
      * the pointer (when needed) passed to this function to point to the next element.
      */
-    void ClearElementAt(const CoordsXY& loc, TileElement** elementPtr)
+    static void ClearElementAtInternal(const CoordsXY& loc, TileElement** elementPtr, bool invalidateTopology)
     {
         auto& gameState = getGameState();
 
@@ -1430,6 +1448,10 @@ namespace OpenRCT2
                 // If asking nicely did not work, forcibly remove this to avoid an infinite loop.
                 if (result.error != GameActions::Status::ok)
                 {
+                    if (invalidateTopology && !element->isGhost())
+                    {
+                        MapTopology::InvalidateTileAndNeighbours(loc);
+                    }
                     TileElementRemove(element);
                 }
                 break;
@@ -1467,14 +1489,27 @@ namespace OpenRCT2
                 // If asking nicely did not work, forcibly remove this to avoid an infinite loop.
                 if (result.error != GameActions::Status::ok)
                 {
+                    if (invalidateTopology && !element->isGhost())
+                    {
+                        MapTopology::InvalidateTileAndNeighbours(loc);
+                    }
                     TileElementRemove(element);
                 }
                 break;
             }
             default:
+                if (invalidateTopology && element->getType() == TileElementType::Path && !element->isGhost())
+                {
+                    MapTopology::InvalidateTileAndNeighbours(loc);
+                }
                 TileElementRemove(element);
                 break;
         }
+    }
+
+    void ClearElementAt(const CoordsXY& loc, TileElement** elementPtr)
+    {
+        ClearElementAtInternal(loc, elementPtr, true);
     }
 
     /**
@@ -1497,10 +1532,10 @@ namespace OpenRCT2
 
         // Remove all elements except the last one
         while (!tileElement->isLastForTile())
-            ClearElementAt(loc, &tileElement);
+            ClearElementAtInternal(loc, &tileElement, false);
 
         // Remove the last element
-        ClearElementAt(loc, &tileElement);
+        ClearElementAtInternal(loc, &tileElement, false);
     }
 
     int32_t MapGetHighestZ(const CoordsXY& loc)
@@ -1847,6 +1882,7 @@ namespace OpenRCT2
                 ClearElementsAt({ x, y });
             }
         }
+        MapTopology::Reset();
     }
 
     /**

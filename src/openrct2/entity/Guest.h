@@ -19,6 +19,8 @@ struct CarEntry;
 
 namespace OpenRCT2
 {
+    constexpr uint16_t kTransportRouteTimeoutFlag = 1U << 15;
+
     constexpr int8_t kPeepMaxThoughts = 5;
 
     constexpr int8_t kPeepHungerWarningThreshold = 25;
@@ -178,6 +180,7 @@ namespace OpenRCT2
         excitedDeprecated = 172,  // "I'm so excited - It's an Intamin ride!"
         hereWeAre = 173,          // "...and here we are on X!"
         expensiveRide = 174,      // "X is expensive for its stats"
+        extortiveTransport = 175, // "The fare for X was extortionate!"
 
         none = 255
     };
@@ -298,6 +301,11 @@ namespace OpenRCT2
         int8_t rejoinQueueTimeout; // whilst waiting for a free vehicle (or pair) in the entrance
         RideId previousRide;
         uint16_t previousRideTimeOut;
+        StationIndex transportDestinationStation{ StationIndex::GetNull() };
+        bool transportRoutePlannedInPrecipitation{};
+        bool transportRoutePlanningInitialised{};
+        bool transportRouteWasExtortive{};
+        uint64_t transportRouteTopologyEpoch{};
         std::array<PeepThought, kPeepMaxThoughts> thoughts;
         // 0x3F Litter Count split into lots of 3 with time, 0xC0 Time since last recalc
         uint8_t litterCount;
@@ -341,6 +349,14 @@ namespace OpenRCT2
         bool hasRidden(const Ride& ride) const;
         void setHasRiddenRideType(ride_type_t rideType);
         bool hasRiddenRideType(ride_type_t rideType) const;
+        bool hasFreeRideVoucherFor(const Ride& ride) const;
+        bool hasTransportRoute() const;
+        bool isUsingTransportRide(const Ride& ride) const;
+        bool shouldExitTransportAt(StationIndex stationIndex) const;
+        void setTransportRoute(
+            RideId rideId, StationIndex boardingStation, StationIndex destinationStation, bool isExtortive = false);
+        void clearTransportRoute();
+        void setPathfindingTargetRide(RideId rideId);
         void setParkEntryTime(int32_t entryTime);
         int32_t getParkEntryTime() const;
         void checkIfLost();
@@ -461,6 +477,8 @@ namespace OpenRCT2
     void IncrementGuestsHeadingForPark();
     void DecrementGuestsInPark();
     void DecrementGuestsHeadingForPark();
+
+    void GuestApplyPaidExtortiveTransportPenalty(Guest& guest, RideId rideId);
 
     void PeepUpdateRideLeaveEntranceMaze(Guest& peep, Ride& ride, CoordsXYZD& entrance_loc);
     void PeepUpdateRideLeaveEntranceSpiralSlide(Guest& peep, Ride& ride, CoordsXYZD& entrance_loc);

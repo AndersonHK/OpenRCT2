@@ -26,8 +26,11 @@
 #include "RideData.h"
 #include "RideRatings.h"
 #include "TrackIteration.h"
+#include "Vehicle.Station.h"
 
-#include <vector>
+#include <algorithm>
+#include <array>
+#include <cassert>
 
 using namespace OpenRCT2;
 using namespace OpenRCT2::Audio;
@@ -46,72 +49,76 @@ static SynchronisedVehicle _synchronisedVehicles[SYNCHRONISED_VEHICLE_COUNT] = {
 
 static SynchronisedVehicle* _lastSynchronisedVehicle = nullptr;
 
-static bool RideIsStatsSampleVehicle(const Ride& ride, const Vehicle& vehicle)
+namespace OpenRCT2::RideVehicle::StationDetail
 {
-    return ride.flags.has(RideFlag::testInProgress) && ride.currentTestVehicle == vehicle.id;
-}
-
-static bool RideTestingShouldSampleCircuit(const Ride& ride, const Vehicle& vehicle)
-{
-    return vehicle.flags.has(VehicleFlag::testing) || RideIsStatsSampleVehicle(ride, vehicle);
-}
-
-static bool RideTestingShouldStartCircuit(const Ride& ride, const Vehicle& vehicle)
-{
-    if (ride.flags.has(RideFlag::noRawStats) && ride.status != RideStatus::testing)
+    PassengerUnloadPlan BuildPassengerUnloadPlan(std::span<const bool> shouldAlight)
     {
-        return false;
-    }
+        assert(shouldAlight.size() <= kMaxPassengerCount);
 
-    return !ride.flags.has(RideFlag::testInProgress) && !vehicle.isGhost()
-        && (ride.status == RideStatus::testing || ride.status == RideStatus::open || !ride.flags.has(RideFlag::tested));
-}
-
-static bool RideRatingTrainHasRidersOrGhostRider(const Ride& ride, const Vehicle& head)
-{
-    if (head.flags.has(VehicleFlag::testing) || RideIsStatsSampleVehicle(ride, head))
-    {
-        return true;
-    }
-
-    for (const Vehicle* vehicle = &head; vehicle != nullptr;
-         vehicle = getGameState().entities.GetEntity<Vehicle>(vehicle->next_vehicle_on_train))
-    {
-        if (vehicle->num_peeps != 0)
+        PassengerUnloadPlan result{};
+        result.passengerCount = static_cast<uint8_t>(shouldAlight.size());
+        result.continuingCount = static_cast<uint8_t>(std::count(shouldAlight.begin(), shouldAlight.end(), false));
+        uint8_t continuingIndex = 0;
+        uint8_t alightingIndex = result.continuingCount;
+        for (uint8_t sourceIndex = 0; sourceIndex < result.passengerCount; sourceIndex++)
         {
-            return true;
+            const auto destinationIndex = shouldAlight[sourceIndex] ? alightingIndex++ : continuingIndex++;
+            result.sourceIndices[destinationIndex] = sourceIndex;
+        }
+        return result;
+    }
+
+    void ApplyTransportPassengerUnload(
+        Vehicle& vehicle, std::span<Guest* const> originalPassengers, const PassengerUnloadPlan& plan)
+    {
+        assert(originalPassengers.size() >= plan.passengerCount);
+
+        std::array<EntityId, kMaxPassengerCount> passengerIds{};
+        std::array<Drawing::Colour, kMaxPassengerCount> passengerColours{};
+        for (uint8_t destinationIndex = 0; destinationIndex < plan.passengerCount; destinationIndex++)
+        {
+            const auto sourceIndex = plan.sourceIndices[destinationIndex];
+            passengerIds[destinationIndex] = vehicle.peep[sourceIndex];
+            passengerColours[destinationIndex] = vehicle.peep_tshirt_colours[sourceIndex];
+        }
+
+        for (uint8_t destinationIndex = 0; destinationIndex < plan.passengerCount; destinationIndex++)
+        {
+            vehicle.peep[destinationIndex] = passengerIds[destinationIndex];
+            vehicle.peep_tshirt_colours[destinationIndex] = passengerColours[destinationIndex];
+            auto* guest = originalPassengers[plan.sourceIndices[destinationIndex]];
+            if (guest != nullptr)
+            {
+                guest->CurrentSeat = destinationIndex;
+                if (destinationIndex >= plan.continuingCount)
+                {
+                    guest->SetState(PeepState::leavingRide);
+                    guest->RideSubState = PeepRideSubState::leaveVehicle;
+                }
+            }
+        }
+        vehicle.next_free_seat = plan.continuingCount;
+    }
+
+    void ApplyOrdinaryPassengerUnload(Vehicle& vehicle, EntityRegistry& entities)
+    {
+        vehicle.next_free_seat = 0;
+        for (uint8_t peepIndex = 0; peepIndex < vehicle.num_peeps; peepIndex++)
+        {
+            auto* guest = entities.GetEntity<Guest>(vehicle.peep[peepIndex]);
+            if (guest != nullptr)
+            {
+                guest->SetState(PeepState::leavingRide);
+                guest->RideSubState = PeepRideSubState::leaveVehicle;
+            }
         }
     }
-
-    return false;
-}
-
-static void RideRatingPublishTrainSample(Vehicle& vehicle)
-{
-    auto* ride = vehicle.GetRide();
-    if (!vehicle.IsHead() || vehicle.isGhost() || ride == nullptr || !RideRatingTrainHasRidersOrGhostRider(*ride, vehicle))
-    {
-        return;
-    }
-
-    if (ride->getRideTypeDescriptor().RatingsData.Type != RatingsCalculationType::Normal)
-    {
-        return;
-    }
-
-    std::vector<EntityId> sampleEntities;
-    for (const Vehicle* trainVehicle = &vehicle; trainVehicle != nullptr;
-         trainVehicle = getGameState().entities.GetEntity<Vehicle>(trainVehicle->next_vehicle_on_train))
-    {
-        sampleEntities.push_back(trainVehicle->id);
-    }
-    RideRating::RecordActiveRiderSamples(*ride, sampleEntities);
-}
+} // namespace OpenRCT2::RideVehicle::StationDetail
 
 /**
  * Checks if a map position contains a synchronised ride station and adds the vehicle
- * to synchronise to the vehicle synchronisation list.
- *  rct2: 0x006DE1A4
+ * to synchronise to the vehicle
+ * synchronisation list. rct2: 0x006DE1A4
  */
 static bool try_add_synchronised_station(const CoordsXYZ& coords)
 {
@@ -977,14 +984,15 @@ void Vehicle::UpdateUnloadingPassengers()
     auto* curRide = GetRide();
     if (curRide == nullptr)
         return;
+    auto& entities = getGameState().entities;
 
-    if (RideTestingShouldSampleCircuit(*curRide, *this) && curRide->currentTestSegment + 1 >= curRide->numStations)
+    if (RideRating::ShouldSampleCircuit(*curRide, *this) && curRide->currentTestSegment + 1 >= curRide->numStations)
     {
         UpdateTestFinish();
     }
     else if (!flags.has(VehicleFlag::testing))
     {
-        RideRatingPublishTrainSample(*this);
+        RideRating::PublishTrainSample(*curRide, *this);
     }
 
     if (sub_state == 0)
@@ -1004,7 +1012,7 @@ void Vehicle::UpdateUnloadingPassengers()
         {
             next_free_seat -= 2;
 
-            auto firstGuest = getGameState().entities.GetEntity<Guest>(peep[seat * 2]);
+            auto firstGuest = entities.GetEntity<Guest>(peep[seat * 2]);
             peep[seat * 2] = EntityId::GetNull();
 
             if (firstGuest != nullptr)
@@ -1013,7 +1021,7 @@ void Vehicle::UpdateUnloadingPassengers()
                 firstGuest->RideSubState = PeepRideSubState::leaveVehicle;
             }
 
-            auto secondGuest = getGameState().entities.GetEntity<Guest>(peep[seat * 2 + 1]);
+            auto secondGuest = entities.GetEntity<Guest>(peep[seat * 2 + 1]);
             peep[seat * 2 + 1] = EntityId::GetNull();
 
             if (secondGuest != nullptr)
@@ -1030,7 +1038,7 @@ void Vehicle::UpdateUnloadingPassengers()
             if (sub_state != 1)
                 return;
 
-            if (RideTestingShouldSampleCircuit(*curRide, *this) && curRide->currentTestSegment + 1 >= curRide->numStations)
+            if (RideRating::ShouldSampleCircuit(*curRide, *this) && curRide->currentTestSegment + 1 >= curRide->numStations)
             {
                 UpdateTestFinish();
             }
@@ -1038,8 +1046,9 @@ void Vehicle::UpdateUnloadingPassengers()
             return;
         }
 
-        for (Vehicle* train = getGameState().entities.GetEntity<Vehicle>(id); train != nullptr;
-             train = getGameState().entities.GetEntity<Vehicle>(train->next_vehicle_on_train))
+        const bool isTransportRide = curRide->getRideTypeDescriptor().flags.has(RtdFlag::isTransportRide);
+        for (Vehicle* train = entities.GetEntity<Vehicle>(id); train != nullptr;
+             train = entities.GetEntity<Vehicle>(train->next_vehicle_on_train))
         {
             if (train->restraints_position != 255)
                 continue;
@@ -1047,30 +1056,44 @@ void Vehicle::UpdateUnloadingPassengers()
             if (train->next_free_seat == 0)
                 continue;
 
-            train->next_free_seat = 0;
-            for (uint8_t peepIndex = 0; peepIndex < train->num_peeps; peepIndex++)
+            if (isTransportRide)
             {
-                Peep* curPeep = getGameState().entities.GetEntity<Guest>(train->peep[peepIndex]);
-                if (curPeep != nullptr)
+                // Guests may travel through several stations. Keep continuing riders at the
+                // front of the compact passenger array and put alighting riders at the end;
+                // leaveVehicle removes passengers from the end of that array.
+                std::array<Guest*, RideVehicle::StationDetail::kMaxPassengerCount> originalPassengers{};
+                std::array<bool, RideVehicle::StationDetail::kMaxPassengerCount> shouldAlight{};
+
+                for (uint8_t peepIndex = 0; peepIndex < train->num_peeps; peepIndex++)
                 {
-                    curPeep->SetState(PeepState::leavingRide);
-                    curPeep->RideSubState = PeepRideSubState::leaveVehicle;
+                    auto* guest = entities.GetEntity<Guest>(train->peep[peepIndex]);
+                    originalPassengers[peepIndex] = guest;
+                    shouldAlight[peepIndex] = guest == nullptr || !guest->isUsingTransportRide(*curRide)
+                        || guest->shouldExitTransportAt(current_station);
                 }
+
+                const auto unloadPlan = RideVehicle::StationDetail::BuildPassengerUnloadPlan(
+                    std::span<const bool>{ shouldAlight.data(), train->num_peeps });
+                RideVehicle::StationDetail::ApplyTransportPassengerUnload(
+                    *train, std::span<Guest* const>{ originalPassengers.data(), train->num_peeps }, unloadPlan);
+                continue;
             }
+
+            RideVehicle::StationDetail::ApplyOrdinaryPassengerUnload(*train, entities);
         }
     }
 
     if (sub_state != 1)
         return;
 
-    for (Vehicle* train = getGameState().entities.GetEntity<Vehicle>(id); train != nullptr;
-         train = getGameState().entities.GetEntity<Vehicle>(train->next_vehicle_on_train))
+    for (Vehicle* train = entities.GetEntity<Vehicle>(id); train != nullptr;
+         train = entities.GetEntity<Vehicle>(train->next_vehicle_on_train))
     {
         if (train->num_peeps != train->next_free_seat)
             return;
     }
 
-    if (RideTestingShouldSampleCircuit(*curRide, *this) && curRide->currentTestSegment + 1 >= curRide->numStations)
+    if (RideRating::ShouldSampleCircuit(*curRide, *this) && curRide->currentTestSegment + 1 >= curRide->numStations)
     {
         UpdateTestFinish();
     }
@@ -1124,7 +1147,7 @@ void Vehicle::UpdateDeparting()
             Play3D(SoundId::rideLaunch2, getLocation());
         }
 
-        if (RideTestingShouldSampleCircuit(*curRide, *this))
+        if (RideRating::ShouldSampleCircuit(*curRide, *this))
         {
             if (curRide->currentTestSegment + 1 < curRide->numStations)
             {
@@ -1136,7 +1159,7 @@ void Vehicle::UpdateDeparting()
                 UpdateTestFinish();
             }
         }
-        else if (RideTestingShouldStartCircuit(*curRide, *this))
+        else if (RideRating::ShouldStartCircuit(*curRide, *this))
         {
             const bool continuousOpenResample = curRide->status == RideStatus::open && curRide->flags.has(RideFlag::tested);
             TestReset(curRide->flags.has(RideFlag::tested), continuousOpenResample, !continuousOpenResample);

@@ -28,6 +28,12 @@ namespace OpenRCT2::PathFinding
 
     int32_t CalculateNextDestination(Guest& peep);
 
+    // Evaluates complete station-to-station transport journeys in milliseconds
+    // for a guest's resolved destination. Called only when the cached goal changes.
+    bool PlanTransportRoute(Guest& peep, const TileCoordsXYZ& finalGoal, bool hasWalkingAlternative = true);
+    int32_t CalculateTransportCandidateRadiusTiles(
+        int64_t walkingSpeedMillimetresPerSecond, int64_t maximumWalkingTimeMs);
+
     int32_t GuestPathFindParkEntranceEntering(Peep& peep, uint8_t edges);
 
     int32_t GuestPathFindPeepSpawn(Peep& peep, uint8_t edges);

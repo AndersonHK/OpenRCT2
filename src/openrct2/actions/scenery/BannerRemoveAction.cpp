@@ -15,6 +15,7 @@
 #include "../../object/ObjectEntryManager.h"
 #include "../../world/Banner.h"
 #include "../../world/Map.h"
+#include "../../world/MapTopology.h"
 #include "../../world/TileElementsView.h"
 #include "../../world/tile_element/BannerElement.h"
 #include "../GameAction.hpp"
@@ -131,6 +132,10 @@ namespace OpenRCT2::GameActions
 
         reinterpret_cast<TileElement*>(bannerElement)->RemoveBannerEntry();
         MapInvalidateTileZoom1({ _loc, _loc.z, _loc.z + 32 });
+        if (!bannerElement->isGhost())
+        {
+            MapTopology::InvalidateTileAndNeighbours(_loc);
+        }
         bannerElement->remove();
 
         return res;

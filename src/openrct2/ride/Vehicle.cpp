@@ -62,9 +62,10 @@
 #include "VehicleSubpositionData.h"
 #include "ted/TrackElementDescriptor.h"
 
+#include <array>
 #include <cassert>
 #include <iterator>
-#include <vector>
+#include <span>
 
 using namespace OpenRCT2;
 using namespace OpenRCT2::Audio;
@@ -78,22 +79,6 @@ static int32_t GetRealRideLengthDelta(int32_t velocity, int32_t acceleration)
 {
     const auto legacyDistance = ((static_cast<int64_t>(velocity) + acceleration) >> 10) * 42;
     return ScaleLegacyRideLengthToReal(legacyDistance);
-}
-
-static bool RideRatingTickIsSheltered(const CoordsXYZ& location)
-{
-    if (location.x == kLocationNull)
-    {
-        return false;
-    }
-
-    auto surfaceElement = MapGetSurfaceElementAt(CoordsXY{ location.x, location.y });
-    if (surfaceElement != nullptr && surfaceElement->getBaseZ() <= location.z)
-    {
-        return TrackGetIsSheltered(location);
-    }
-
-    return true;
 }
 
 static constexpr int64_t RideRatingRawTenths(int32_t tenths)
@@ -237,36 +222,17 @@ static bool RideRatingStatusIsLiveSampled(Vehicle::Status status)
     }
 }
 
-static bool RideRatingTrainHasRiders(const Vehicle& head)
-{
-    for (const Vehicle* vehicle = &head; vehicle != nullptr;
-         vehicle = getGameState().entities.GetEntity<Vehicle>(vehicle->next_vehicle_on_train))
-    {
-        if (vehicle->num_peeps != 0)
-        {
-            return true;
-        }
-    }
-
-    return false;
-}
-
 static bool RideIsStatsSampleVehicle(const Ride& ride, const Vehicle& vehicle)
 {
     return ride.flags.has(RideFlag::testInProgress) && ride.currentTestVehicle == vehicle.id;
 }
 
-static bool RideRatingTrainHasRidersOrGhostRider(const Ride& ride, const Vehicle& head)
-{
-    return head.flags.has(VehicleFlag::testing) || RideIsStatsSampleVehicle(ride, head) || RideRatingTrainHasRiders(head);
-}
-
-static bool RideTestingShouldSampleCircuit(const Ride& ride, const Vehicle& vehicle)
+bool RideRating::ShouldSampleCircuit(const Ride& ride, const Vehicle& vehicle)
 {
     return vehicle.flags.has(VehicleFlag::testing) || RideIsStatsSampleVehicle(ride, vehicle);
 }
 
-static bool RideTestingShouldStartCircuit(const Ride& ride, const Vehicle& vehicle)
+bool RideRating::ShouldStartCircuit(const Ride& ride, const Vehicle& vehicle)
 {
     if (ride.flags.has(RideFlag::noRawStats) && ride.status != RideStatus::testing)
     {
@@ -277,14 +243,14 @@ static bool RideTestingShouldStartCircuit(const Ride& ride, const Vehicle& vehic
         && (ride.status == RideStatus::testing || ride.status == RideStatus::open || !ride.flags.has(RideFlag::tested));
 }
 
-static bool RideRatingAccumulateVehicleTick(
-    RideRatingAccumulator& accumulator, const Ride& ride, const Vehicle& vehicle, int32_t trainVelocity,
-    bool isSynchronised)
+static void RideRatingAccumulateVehicleTick(
+    RideRatingAccumulator& accumulator, const Ride& ride, const RideTypeDescriptor& rtd, const Vehicle& vehicle,
+    int32_t trainVelocity, bool isSynchronised)
 {
     auto currentTrackType = vehicle.GetTrackType();
     if (currentTrackType == TrackElemType::none)
     {
-        return false;
+        return;
     }
 
     auto gForces = vehicle.GetGForces(trainVelocity);
@@ -295,22 +261,28 @@ static bool RideRatingAccumulateVehicleTick(
     accumulator.previousTrainVelocity = trainVelocity;
     accumulator.hasPreviousTrainVelocity = true;
 
-    const auto& rtd = ride.getRideTypeDescriptor();
     const auto location = CoordsXYZ{ vehicle.x, vehicle.y, vehicle.z };
+    const auto environment = RideRating::GetVehicleRatingEnvironment(
+        location, ride.id, currentTrackType, vehicle.GetTrackDirection(), accumulator.localContextCache);
     RideRatingAccumulateTick(
-        accumulator, currentTrackType, gForces, trainVelocity, RideRatingTickIsSheltered(location),
-        RideRating::GetVehicleLocalContextScore(location, ride.id, currentTrackType, vehicle.GetTrackDirection()), isSynchronised,
+        accumulator, currentTrackType, gForces, trainVelocity, environment.isSheltered, environment.context, isSynchronised,
         rtd.specialType == RtdSpecialType::boatHire, rtd.SampledRatings);
-    return true;
+    if (rtd.flags.has(RtdFlag::isTransportRide))
+    {
+        const auto speed = std::abs(trainVelocity) >> 16;
+        const auto quality = RideRating::ScoreTransportQualityForVehicleTick(
+            gForces.verticalG, gForces.lateralG, gForces.longitudinalG, speed, environment.context);
+        accumulator.transportComfort += quality.comfort;
+        accumulator.transportDecoration += quality.decoration;
+        accumulator.transportDistance += quality.distance;
+    }
 }
 
-static bool RideRatingAccumulateTrainTick(
-    Ride& ride, const Vehicle& head, bool isSynchronised)
+static void RideRatingAccumulateTrainTick(
+    Ride& ride, const RideTypeDescriptor& rtd, std::span<const Vehicle*> trainVehicles, int32_t trainVelocity,
+    bool isSynchronised)
 {
-    bool accumulated = false;
-    const int32_t trainVelocity = head.velocity;
-    for (const Vehicle* vehicle = &head; vehicle != nullptr;
-         vehicle = getGameState().entities.GetEntity<Vehicle>(vehicle->next_vehicle_on_train))
+    for (const auto* vehicle : trainVehicles)
     {
         auto* accumulator = RideGetOrCreateActiveRatingSample(ride, vehicle->id);
         if (accumulator == nullptr)
@@ -318,58 +290,91 @@ static bool RideRatingAccumulateTrainTick(
             continue;
         }
 
-        accumulated |= RideRatingAccumulateVehicleTick(
-            *accumulator, ride, *vehicle, trainVelocity, isSynchronised);
+        RideRatingAccumulateVehicleTick(*accumulator, ride, rtd, *vehicle, trainVelocity, isSynchronised);
     }
-
-    return accumulated;
 }
 
-static std::vector<EntityId> RideRatingCollectTrainVehicleIds(const Vehicle& head)
+static size_t RideRatingCollectTrainVehicleIds(
+    const Vehicle& head, std::span<EntityId> sampleEntities, bool* hasRiders = nullptr)
 {
-    std::vector<EntityId> sampleEntities;
+    size_t count = 0;
     for (const Vehicle* vehicle = &head; vehicle != nullptr;
          vehicle = getGameState().entities.GetEntity<Vehicle>(vehicle->next_vehicle_on_train))
     {
-        sampleEntities.push_back(vehicle->id);
+        if (count >= sampleEntities.size())
+        {
+            break;
+        }
+        sampleEntities[count++] = vehicle->id;
+        if (hasRiders != nullptr)
+        {
+            *hasRiders |= vehicle->num_peeps != 0;
+        }
     }
-    return sampleEntities;
+    return count;
 }
 
 static void RideRatingClearTrainActiveSamples(Ride& ride, const Vehicle& head)
 {
-    for (const auto sampleEntity : RideRatingCollectTrainVehicleIds(head))
+    for (const Vehicle* vehicle = &head; vehicle != nullptr;
+         vehicle = getGameState().entities.GetEntity<Vehicle>(vehicle->next_vehicle_on_train))
     {
-        if (auto* accumulator = RideGetOrCreateActiveRatingSample(ride, sampleEntity); accumulator != nullptr)
+        if (auto* accumulator = RideFindActiveRatingSample(ride, vehicle->id); accumulator != nullptr)
         {
             accumulator->clear();
         }
     }
 }
 
-static bool RideRatingRecordTrainSamples(Ride& ride, const Vehicle& head)
+static void RideRatingRecordTrainSamples(Ride& ride, const Vehicle& head)
 {
-    const auto sampleEntities = RideRatingCollectTrainVehicleIds(head);
-    return RideRating::RecordActiveRiderSamples(ride, sampleEntities);
+    std::array<EntityId, OpenRCT2::Limits::kMaxCarsPerTrain> sampleEntities{};
+    const auto count = RideRatingCollectTrainVehicleIds(head, sampleEntities);
+    RideRating::RecordActiveRiderSamples(ride, std::span<EntityId>{ sampleEntities.data(), count });
 }
 
-static void RideRatingUpdateLiveTrainSample(Vehicle& vehicle)
+void RideRating::PublishTrainSample(Ride& ride, const Vehicle& head)
 {
-    if (!vehicle.IsHead() || vehicle.isGhost() || !RideRatingStatusIsLiveSampled(vehicle.status))
+    if (!head.IsHead() || head.isGhost() || ride.getRideTypeDescriptor().RatingsData.Type != RatingsCalculationType::Normal)
     {
         return;
     }
 
-    auto curRide = vehicle.GetRide();
-    if (curRide == nullptr || !RideRatingTrainHasRidersOrGhostRider(*curRide, vehicle)
-        || curRide->getRideTypeDescriptor().RatingsData.Type != RatingsCalculationType::Normal)
+    std::array<EntityId, OpenRCT2::Limits::kMaxCarsPerTrain> sampleEntities{};
+    bool hasRiders = head.flags.has(VehicleFlag::testing) || RideIsStatsSampleVehicle(ride, head);
+    const auto count = RideRatingCollectTrainVehicleIds(head, sampleEntities, &hasRiders);
+    if (hasRiders)
+    {
+        RecordActiveRiderSamples(ride, std::span<EntityId>{ sampleEntities.data(), count });
+    }
+}
+
+static void RideRatingUpdateLiveTrainSample(Ride& ride, Vehicle& head, const RideTypeDescriptor& rtd)
+{
+    if (!head.IsHead() || head.isGhost() || !RideRatingStatusIsLiveSampled(head.status)
+        || rtd.RatingsData.Type != RatingsCalculationType::Normal)
     {
         return;
     }
 
-    const bool isSynchronised = (curRide->departFlags & RIDE_DEPART_SYNCHRONISE_WITH_ADJACENT_STATIONS)
-        && RideHasAdjacentStation(*curRide);
-    RideRatingAccumulateTrainTick(*curRide, vehicle, isSynchronised);
+    std::array<const Vehicle*, OpenRCT2::Limits::kMaxCarsPerTrain> trainVehicles{};
+    size_t count = 0;
+    bool hasRiders = head.flags.has(VehicleFlag::testing) || RideIsStatsSampleVehicle(ride, head);
+    for (const Vehicle* vehicle = &head; vehicle != nullptr && count < trainVehicles.size();
+         vehicle = getGameState().entities.GetEntity<Vehicle>(vehicle->next_vehicle_on_train))
+    {
+        trainVehicles[count++] = vehicle;
+        hasRiders |= vehicle->num_peeps != 0;
+    }
+    if (!hasRiders)
+    {
+        return;
+    }
+
+    const bool isSynchronised = (ride.departFlags & RIDE_DEPART_SYNCHRONISE_WITH_ADJACENT_STATIONS)
+        && RideHasAdjacentStation(ride);
+    RideRatingAccumulateTrainTick(
+        ride, rtd, std::span<const Vehicle*>{ trainVehicles.data(), count }, head.velocity, isSynchronised);
 }
 
 Vehicle* gCurrentVehicle;
@@ -813,8 +818,7 @@ void Vehicle::UpdateMeasurements()
             gForces = GetGForces(trainVelocity);
             if (curRide->hasPreviousLongitudinalVelocity)
             {
-                gForces.longitudinalG = CalculateLongitudinalG(
-                    curRide->previousLongitudinalVelocity, trainVelocity);
+                gForces.longitudinalG = CalculateLongitudinalG(curRide->previousLongitudinalVelocity, trainVelocity);
             }
             curRide->previousLongitudinalVelocity = trainVelocity;
             curRide->hasPreviousLongitudinalVelocity = true;
@@ -847,7 +851,6 @@ void Vehicle::UpdateMeasurements()
             curRide->maxNegativeLongitudinalG = std::min(
                 curRide->maxNegativeLongitudinalG, static_cast<fixed16_2dp>(gForces.longitudinalG));
         }
-
     }
 
     // If we have already evaluated this track piece skip to next section
@@ -1111,11 +1114,12 @@ void Vehicle::Update()
     if (curRide->type >= RIDE_TYPE_COUNT)
         return;
 
-    if (RideTestingShouldSampleCircuit(*curRide, *this))
+    const auto& rtd = curRide->getRideTypeDescriptor();
+    if (RideRating::ShouldSampleCircuit(*curRide, *this))
     {
         UpdateMeasurements();
     }
-    RideRatingUpdateLiveTrainSample(*this);
+    RideRatingUpdateLiveTrainSample(*curRide, *this, rtd);
 
     _vehicleBreakdown = Breakdown::none;
     if (curRide->flags.hasAny(RideFlag::breakdownPending, RideFlag::brokenDown))
@@ -1204,7 +1208,7 @@ void Vehicle::Update()
             break;
     }
 
-    UpdateSound();
+    UpdateSound(*curRide, *rideEntry);
 }
 
 std::optional<uint32_t> ride_get_train_index_from_vehicle(const Ride& ride, EntityId spriteIndex)
@@ -1461,7 +1465,7 @@ void Vehicle::UpdateTravellingCableLift()
 
         sub_state = 1;
         PeepEasterEggHereWeAre();
-        if (RideTestingShouldSampleCircuit(*curRide, *this))
+        if (RideRating::ShouldSampleCircuit(*curRide, *this))
         {
             if (curRide->currentTestSegment + 1 < curRide->numStations)
             {
@@ -1473,7 +1477,7 @@ void Vehicle::UpdateTravellingCableLift()
                 UpdateTestFinish();
             }
         }
-        else if (RideTestingShouldStartCircuit(*curRide, *this))
+        else if (RideRating::ShouldStartCircuit(*curRide, *this))
         {
             const bool continuousOpenResample = curRide->status == RideStatus::open && curRide->flags.has(RideFlag::tested);
             TestReset(curRide->flags.has(RideFlag::tested), continuousOpenResample, !continuousOpenResample);
@@ -1565,9 +1569,9 @@ int32_t CalculateLongitudinalG(int32_t previousVelocity, int32_t currentVelocity
     const auto previousSpeed = std::abs(static_cast<int64_t>(previousVelocity));
     const auto currentSpeed = std::abs(static_cast<int64_t>(currentVelocity));
     const auto scaledLongitudinalG = (currentSpeed - previousSpeed) * 100;
-    return static_cast<int32_t>(scaledLongitudinalG >= 0
-            ? (scaledLongitudinalG + (kVehicleAccelerationForOneG / 2)) / kVehicleAccelerationForOneG
-            : -((-scaledLongitudinalG + (kVehicleAccelerationForOneG / 2)) / kVehicleAccelerationForOneG));
+    return static_cast<int32_t>(
+        scaledLongitudinalG >= 0 ? (scaledLongitudinalG + (kVehicleAccelerationForOneG / 2)) / kVehicleAccelerationForOneG
+                                 : -((-scaledLongitudinalG + (kVehicleAccelerationForOneG / 2)) / kVehicleAccelerationForOneG));
 }
 
 GForces Vehicle::GetGForces() const

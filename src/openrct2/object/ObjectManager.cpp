@@ -36,8 +36,6 @@
 #include <array>
 #include <atomic>
 #include <memory>
-#include <mutex>
-#include <thread>
 #include <unordered_set>
 
 namespace OpenRCT2
@@ -619,45 +617,47 @@ namespace OpenRCT2
             objectsToLoad.erase(std::unique(objectsToLoad.begin(), objectsToLoad.end()), objectsToLoad.end());
 
             // Prepare for loading objects multi-threaded
-            std::atomic<int> numProcessed = 0;
-            auto numRequired = objectsToLoad.size();
-            std::mutex commonMutex;
-            auto loadSingleObject = [&](const ObjectRepositoryItem* requiredObject) {
-                // Object requires to be loaded, if the object successfully loads it will register it
-                // as a loaded object otherwise placed into the badObjects list.
-                auto newObject = _objectRepository.LoadObject(requiredObject);
+            const auto numRequired = objectsToLoad.size();
+            if (numRequired > 0)
+            {
+                std::vector<std::unique_ptr<Object>> loadResults(numRequired);
+                std::atomic_size_t numProcessed{ 0 };
+                size_t lastReported = 0;
 
-                std::lock_guard<std::mutex> guard(commonMutex);
-                if (newObject == nullptr)
+                // Parsing is independent per object. Repository mutation and error reporting are deliberately committed on
+                // the submitting thread after the barrier, in stable de-duplicated order.
+                auto& jobs = GetContext()->GetJobPool();
+                jobs.ParallelFor(
+                    numRequired,
+                    [&](size_t index) {
+                        loadResults[index] = _objectRepository.LoadObject(objectsToLoad[index]);
+                        numProcessed.fetch_add(1, std::memory_order_relaxed);
+                    },
+                    8,
+                    [&]() {
+                        const auto processed = numProcessed.load(std::memory_order_relaxed);
+                        if (reportProgress && (processed == numRequired || processed >= lastReported + 100))
+                        {
+                            ReportProgress(processed, numRequired);
+                            lastReported = processed;
+                        }
+                    });
+
+                for (size_t index = 0; index < numRequired; index++)
                 {
-                    badObjects.push_back(ObjectEntryDescriptor(requiredObject->ObjectEntry));
-                    ReportObjectLoadProblem(&requiredObject->ObjectEntry);
-                }
-                else
-                {
+                    const auto* requiredObject = objectsToLoad[index];
+                    auto& newObject = loadResults[index];
+                    if (newObject == nullptr)
+                    {
+                        badObjects.push_back(ObjectEntryDescriptor(requiredObject->ObjectEntry));
+                        ReportObjectLoadProblem(&requiredObject->ObjectEntry);
+                        continue;
+                    }
+
                     newLoadedObjects.push_back(newObject.get());
-                    // Connect the ori to the registered object
                     _objectRepository.RegisterLoadedObject(requiredObject, std::move(newObject));
                 }
-
-                numProcessed.fetch_add(1);
-            };
-
-            auto completionFn = [&]() {
-                auto processed = numProcessed.load();
-                if (reportProgress && (processed % 100) == 0)
-                    ReportProgress(processed, numRequired);
-            };
-
-            // Dispatch loading the objects
-            JobPool jobs{};
-            for (auto* object : objectsToLoad)
-            {
-                jobs.AddTask([object, &loadSingleObject]() { loadSingleObject(object); }, completionFn);
             }
-
-            // Wait until all jobs are fully completed
-            jobs.Join();
 
             // Assign the loaded objects to the required objects
             for (auto& requiredObject : requiredObjects)

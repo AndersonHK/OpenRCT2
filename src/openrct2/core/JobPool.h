@@ -9,8 +9,12 @@
 
 #pragma once
 
+#include <atomic>
 #include <condition_variable>
+#include <cstddef>
+#include <cstdint>
 #include <deque>
+#include <exception>
 #include <functional>
 #include <mutex>
 #include <thread>
@@ -23,11 +27,19 @@ private:
     {
         const std::function<void()> WorkFn;
         const std::function<void()> CompletionFn;
+        std::exception_ptr Error;
 
         TaskData(std::function<void()> workFn, std::function<void()> completionFn);
     };
 
     bool _shouldStop = false;
+    enum class UsageMode : uint8_t
+    {
+        unset,
+        queuedTasks,
+        parallelBatches,
+    };
+    UsageMode _usageMode = UsageMode::unset;
     size_t _processing = 0;
     std::vector<std::thread> _threads;
     std::deque<TaskData> _pending;
@@ -35,6 +47,10 @@ private:
     std::condition_variable _condPending;
     std::condition_variable _condComplete;
     std::mutex _mutex;
+    // ParallelFor is an exclusive submit-and-barrier batch. This prevents one caller from dispatching another caller's
+    // completion functions or returning while jobs which reference its stack are still queued.
+    std::mutex _batchMutex;
+    static thread_local JobPool* _currentPool;
 
 public:
     JobPool(size_t maxThreads = 255);
@@ -42,8 +58,13 @@ public:
 
     void AddTask(std::function<void()> workFn, std::function<void()> completionFn = nullptr);
     void Join(std::function<void()> reportFn = nullptr);
+    void ParallelFor(
+        size_t count, const std::function<void(size_t)>& workFn, size_t grainSize = 1,
+        std::function<void()> reportFn = nullptr);
     bool IsBusy();
 
 private:
+    void EnqueueTask(std::function<void()> workFn, std::function<void()> completionFn);
+    void JoinInternal(std::function<void()> reportFn);
     void ProcessQueue();
 };

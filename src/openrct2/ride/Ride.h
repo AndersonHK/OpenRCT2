@@ -67,6 +67,7 @@ enum class RidePriceTarget : uint8_t
     goodValue,
     neutral,
     badValue,
+    free,
 };
 
 enum class MazeCapacityMode : uint8_t
@@ -167,17 +168,16 @@ enum class Breakdown : uint8_t
 
     none = 255,
 };
-constexpr auto kAllBreakdownTypes = std::to_array(
-    {
-        Breakdown::safetyCutOut,
-        Breakdown::restraintsStuckClosed,
-        Breakdown::restraintsStuckOpen,
-        Breakdown::doorsStuckClosed,
-        Breakdown::doorsStuckOpen,
-        Breakdown::vehicleMalfunction,
-        Breakdown::brakesFailure,
-        Breakdown::controlFailure,
-    });
+constexpr auto kAllBreakdownTypes = std::to_array({
+    Breakdown::safetyCutOut,
+    Breakdown::restraintsStuckClosed,
+    Breakdown::restraintsStuckOpen,
+    Breakdown::doorsStuckClosed,
+    Breakdown::doorsStuckOpen,
+    Breakdown::vehicleMalfunction,
+    Breakdown::brakesFailure,
+    Breakdown::controlFailure,
+});
 constexpr auto kBreakdownCount = kAllBreakdownTypes.size();
 
 struct RideStation
@@ -196,6 +196,9 @@ struct RideStation
     uint8_t QueueTime{};
     uint16_t QueueLength{};
     EntityId LastPeepInQueue{ EntityId::GetNull() };
+    // Transient station-specific signal. It is rebuilt by live queue admission
+    // rather than saved; RideFlag::queueFull remains the legacy ride-wide hint.
+    bool QueueFull{};
 
     int32_t GetBaseZ() const;
     void SetBaseZ(int32_t newZ);
@@ -265,22 +268,32 @@ struct RideRatingAccumulator
     int64_t excitement{};
     int64_t intensity{};
     int64_t nausea{};
+    // Distance-weighted transport quality totals. Dividing comfort or decoration by
+    // transportDistance yields a per-mille factor for guest fare perception.
+    int64_t transportComfort{};
+    int64_t transportDecoration{};
+    int64_t transportDistance{};
     uint32_t ticks{};
     EntityId sampleEntity{ EntityId::GetNull() };
     bool sampleComplete{};
     int32_t previousTrainVelocity{};
     bool hasPreviousTrainVelocity{};
+    OpenRCT2::RideRating::VehicleLocalContextCache localContextCache{};
 
     void clear()
     {
         excitement = 0;
         intensity = 0;
         nausea = 0;
+        transportComfort = 0;
+        transportDecoration = 0;
+        transportDistance = 0;
         ticks = 0;
         sampleEntity = EntityId::GetNull();
         sampleComplete = false;
         previousTrainVelocity = 0;
         hasPreviousTrainVelocity = false;
+        localContextCache.clear();
     }
 
     bool hasSamples() const
@@ -318,6 +331,86 @@ struct RideStableStats
     uint8_t highestDropHeight{};
     uint16_t totalAirTime{};
     std::array<RideStableStationStats, OpenRCT2::Limits::kMaxStationsPerRide> stations{};
+};
+
+struct TransportRideQuality
+{
+    int32_t comfortPermille{ 900 };
+    int32_t decorationPermille{ 1000 };
+    bool hasMeasurements{};
+};
+
+struct TransportRideSegment
+{
+    StationIndex destinationStation{ StationIndex::GetNull() };
+    int32_t distanceMetres{};
+    int64_t travelTimeMilliseconds{};
+    money64 fareValue{};
+};
+
+struct TransportRideJourney
+{
+    StationIndex destinationStation{ StationIndex::GetNull() };
+    uint8_t segmentCount{};
+    int32_t distanceMetres{};
+    int64_t travelTimeMilliseconds{};
+    money64 fareValue{};
+};
+
+struct TransportRideServiceStation
+{
+    TileCoordsXYZD entrance;
+    TileCoordsXYZD exit;
+};
+
+struct TransportRideServiceJourney
+{
+    StationIndex boardingStation{ StationIndex::GetNull() };
+    TransportRideJourney journey;
+};
+
+// Transient read-only view of one available transport service. Journey fareValue
+// is the quality-adjusted base value; target pricing, park rules, guest fares,
+// queue time, and platform crowding remain live overlays. The spans remain valid
+// until the cache is refreshed on a later simulation tick or the ride lifecycle
+// changes.
+struct TransportRideServiceView
+{
+    RideId ride{ RideId::GetNull() };
+    uint64_t freshnessSignature{};
+    TransportRideQuality quality;
+    std::span<const TransportRideServiceStation> stations;
+    std::span<const TransportRideServiceJourney> journeys;
+
+    bool isAvailable() const;
+    const TransportRideServiceJourney* getJourney(StationIndex boardingStation, StationIndex destinationStation) const;
+};
+
+enum class TransportRideServiceEndpoint : uint8_t
+{
+    boardingEntrance,
+    destinationExit,
+};
+
+enum class TransportRideServiceQueryFallback : uint8_t
+{
+    none,
+    allServicesWhenEmpty,
+};
+
+struct TransportRideServiceStationRef
+{
+    RideId ride{ RideId::GetNull() };
+    StationIndex station{ StationIndex::GetNull() };
+
+    bool operator==(const TransportRideServiceStationRef& other) const;
+    bool operator<(const TransportRideServiceStationRef& other) const;
+};
+
+struct TransportRideServiceStationQuery
+{
+    std::span<const TransportRideServiceStationRef> stations;
+    bool usedAllServicesFallback{};
 };
 
 /**
@@ -527,7 +620,7 @@ public:
     money64 calculateIncomePerHour() const;
 
 private:
-    void update();
+    void update(uint32_t currentTicks, bool wholeSecondTick, bool breakdownTick, bool inspectionTick);
     void updateQueueLength(StationIndex stationIndex);
     ResultWithMessage createVehicles(const CoordsXYE& element, bool isApplying, bool isSimulating);
     void moveTrainsToBlockBrakes(const CoordsXYZ& firstBlockPosition, OpenRCT2::TrackElement& firstBlock);
@@ -1007,6 +1100,36 @@ money64 RideGetUpkeepCostPerHour(const Ride& ride);
 Vehicle* RideGetBrokenVehicle(const Ride& ride);
 
 money64 RideGetPrice(const Ride& ride);
+money64 RideGetTransportFare(const Ride& ride, const TransportRideJourney& journey);
+TransportRideQuality RideGetTransportQuality(const Ride& ride);
+TransportRideSegment RideGetTransportSegment(const Ride& ride, StationIndex boardingStation);
+TransportRideSegment RideGetTransportSegment(
+    const Ride& ride, StationIndex boardingStation, const TransportRideQuality& quality);
+TransportRideJourney RideGetTransportJourney(const Ride& ride, StationIndex boardingStation, StationIndex destinationStation);
+TransportRideJourney RideGetTransportJourney(
+    const Ride& ride, StationIndex boardingStation, StationIndex destinationStation, const TransportRideQuality& quality);
+std::span<const RideId> RideGetTransportServiceRideIds();
+TransportRideServiceView RideGetTransportService(RideId rideId);
+// Candidate results are copied into caller-owned reusable storage and remain
+// memory-safe across cache refreshes. Resolve each value against the current
+// service view before use. A warmed buffer reserves for all current endpoints,
+// making later queries allocation-free. If local candidates produce no viable
+// route (including disconnected or extortive cases), callers should retry with
+// RideCollectAllTransportServiceStations.
+TransportRideServiceStationQuery RideQueryTransportServiceStationsInBounds(
+    TransportRideServiceEndpoint endpoint, const TileCoordsXY& minimum, const TileCoordsXY& maximum,
+    std::vector<TransportRideServiceStationRef>& reusableBuffer,
+    TransportRideServiceQueryFallback fallback = TransportRideServiceQueryFallback::none);
+TransportRideServiceStationQuery RideQueryTransportServiceStationsInRadius(
+    TransportRideServiceEndpoint endpoint, const TileCoordsXY& centre, int32_t radiusTiles,
+    std::vector<TransportRideServiceStationRef>& reusableBuffer,
+    TransportRideServiceQueryFallback fallback = TransportRideServiceQueryFallback::none);
+TransportRideServiceStationQuery RideCollectAllTransportServiceStations(
+    TransportRideServiceEndpoint endpoint, std::vector<TransportRideServiceStationRef>& reusableBuffer);
+void RideInvalidateTransportServiceCache(RideId rideId);
+uint16_t RideGetTransportStationPlatformCapacity(const Ride& ride, StationIndex stationIndex);
+uint16_t RideGetTransportStationPlatformOccupancy(const Ride& ride, StationIndex stationIndex);
+bool RideIsTransportStationOvercrowded(const Ride& ride, StationIndex stationIndex);
 money64 RideGetTargetPrice(const Ride& ride, RidePriceTarget target);
 bool RideUsesTargetPricing(const Ride& ride);
 void RideUpdateTargetPrice(Ride& ride);

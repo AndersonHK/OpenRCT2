@@ -87,24 +87,16 @@ void Vehicle::GetLiftHillSound(const Ride& curRide, SoundIdVolume& curSound)
  *
  *  rct2: 0x006D7888
  */
-void Vehicle::UpdateSound()
+void Vehicle::UpdateSound(const Ride& curRide, const RideObjectEntry& rideEntry)
 {
     // frictionVolume (bl) should be set before hand
     SoundIdVolume frictionSound = { SoundId::null, 255 };
     // bh screamVolume should be set before hand
     SoundIdVolume screamSound = { SoundId::null, 255 };
 
-    auto curRide = GetRide();
-    if (curRide == nullptr)
-        return;
-
-    auto rideEntry = GetRideEntry();
-    if (rideEntry == nullptr)
-        return;
-
     // Always use the head car's sound data (Some of the other vehicle subtypes have improperly set data)
-    auto soundCarIndex = (rideEntry->FrontCar == 0xff) ? rideEntry->DefaultCar : rideEntry->FrontCar;
-    const auto& carEntry = rideEntry->Cars[soundCarIndex];
+    auto soundCarIndex = (rideEntry.FrontCar == 0xff) ? rideEntry.DefaultCar : rideEntry.FrontCar;
+    const auto& carEntry = rideEntry.Cars[soundCarIndex];
 
     int32_t ecx = abs(velocity) - 1.0_mph;
     if (ecx >= 0)
@@ -123,7 +115,7 @@ void Vehicle::UpdateSound()
             {
                 if (velocity < 4.0_mph || scream_sound_id != SoundId::null)
                 {
-                    GetLiftHillSound(*curRide, screamSound);
+                    GetLiftHillSound(curRide, screamSound);
                     break;
                 }
 
@@ -145,7 +137,7 @@ void Vehicle::UpdateSound()
             {
                 if (velocity < 4.0_mph || scream_sound_id != SoundId::null)
                 {
-                    GetLiftHillSound(*curRide, screamSound);
+                    GetLiftHillSound(curRide, screamSound);
                     break;
                 }
 
@@ -164,7 +156,7 @@ void Vehicle::UpdateSound()
         default:
             if (carEntry.flags.has(CarEntryFlag::hasScreamingRiders))
             {
-                screamSound.id = UpdateScreamSound();
+                screamSound.id = UpdateScreamSound(rideEntry);
                 if (screamSound.id == SoundId::noScream)
                 {
                     screamSound.id = SoundId::null;
@@ -175,7 +167,7 @@ void Vehicle::UpdateSound()
                     break;
                 }
             }
-            GetLiftHillSound(*curRide, screamSound);
+            GetLiftHillSound(curRide, screamSound);
     }
 
     // Friction sound
@@ -200,63 +192,55 @@ void Vehicle::UpdateSound()
  *
  *  rct2: 0x006D796B
  */
-SoundId Vehicle::UpdateScreamSound()
+static bool VehiclePitchTriggersScream(VehiclePitch pitch, bool travellingBackwards)
 {
-    int32_t totalNumPeeps = NumPeepsUntilTrainTail();
-    if (totalNumPeeps == 0)
-        return SoundId::null;
-
-    if (velocity < 0)
+    if (travellingBackwards)
     {
-        if (velocity > -2.75_mph)
-            return SoundId::null;
+        if (pitch < VehiclePitch::up12)
+            return false;
+        if (pitch <= VehiclePitch::up60)
+            return true;
+        if (pitch < VehiclePitch::up75)
+            return false;
+        if (pitch <= VehiclePitch::up165)
+            return true;
+        return pitch == VehiclePitch::up50;
+    }
 
-        for (Vehicle* vehicle2 = getGameState().entities.GetEntity<Vehicle>(id); vehicle2 != nullptr;
-             vehicle2 = getGameState().entities.GetEntity<Vehicle>(vehicle2->next_vehicle_on_train))
-        {
-            if (vehicle2->pitch < VehiclePitch::up12)
-                continue;
-            if (vehicle2->pitch <= VehiclePitch::up60)
-                return ProduceScreamSound(totalNumPeeps);
-            if (vehicle2->pitch < VehiclePitch::up75)
-                continue;
-            if (vehicle2->pitch <= VehiclePitch::up165)
-                return ProduceScreamSound(totalNumPeeps);
-            // up50 occurs on diagonal steep hills
-            // up8 and up16 occur on diagonal gentle hills
-            if (vehicle2->pitch == VehiclePitch::up50)
-                return ProduceScreamSound(totalNumPeeps);
-        }
+    if (pitch < VehiclePitch::down12)
+        return false;
+    if (pitch <= VehiclePitch::down60)
+        return true;
+    if (pitch <= VehiclePitch::inverted)
+        return false;
+    if (pitch <= VehiclePitch::down165)
+        return true;
+    return pitch == VehiclePitch::down50;
+}
+
+SoundId Vehicle::UpdateScreamSound(const RideObjectEntry& rideEntry)
+{
+    const bool travellingBackwards = velocity < 0;
+    if ((travellingBackwards && velocity > -2.75_mph) || (!travellingBackwards && velocity < 2.75_mph))
+    {
         return SoundId::null;
     }
 
-    if (velocity < 2.75_mph)
-        return SoundId::null;
-
+    int32_t totalNumPeeps = 0;
+    bool hasScreamPitch = false;
     for (Vehicle* vehicle2 = getGameState().entities.GetEntity<Vehicle>(id); vehicle2 != nullptr;
          vehicle2 = getGameState().entities.GetEntity<Vehicle>(vehicle2->next_vehicle_on_train))
     {
-        if (vehicle2->pitch < VehiclePitch::down12)
-            continue;
-        if (vehicle2->pitch <= VehiclePitch::down60)
-            return ProduceScreamSound(totalNumPeeps);
-        if (vehicle2->pitch <= VehiclePitch::inverted)
-            continue;
-        if (vehicle2->pitch <= VehiclePitch::down165)
-            return ProduceScreamSound(totalNumPeeps);
-        // down50 occurs on diagonal steep drops
-        // down8 and down16 occur on diagonal gentle drops
-        if (vehicle2->pitch == VehiclePitch::down50)
-            return ProduceScreamSound(totalNumPeeps);
+        totalNumPeeps += vehicle2->num_peeps;
+        hasScreamPitch |= VehiclePitchTriggersScream(vehicle2->pitch, travellingBackwards);
     }
-    return SoundId::null;
+
+    return totalNumPeeps != 0 && hasScreamPitch ? ProduceScreamSound(totalNumPeeps, rideEntry) : SoundId::null;
 }
 
-SoundId Vehicle::ProduceScreamSound(const int32_t totalNumPeeps)
+SoundId Vehicle::ProduceScreamSound(const int32_t totalNumPeeps, const RideObjectEntry& rideEntry)
 {
-    const auto* rideEntry = GetRideEntry();
-
-    const auto& carEntry = rideEntry->Cars[vehicle_type];
+    const auto& carEntry = rideEntry.Cars[vehicle_type];
 
     if (scream_sound_id == SoundId::null)
     {

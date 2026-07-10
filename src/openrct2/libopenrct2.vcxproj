@@ -696,6 +696,8 @@
     <ClInclude Include="world\LargeScenery.h" />
     <ClInclude Include="world\Location.hpp" />
     <ClInclude Include="world\Map.h" />
+    <ClInclude Include="world\MapPathTopology.h" />
+    <ClInclude Include="world\MapTopology.h" />
     <ClInclude Include="world\MapAnimation.h" />
     <ClInclude Include="world\MapLimits.h" />
     <ClInclude Include="world\MapRangeView.hpp" />
@@ -1267,6 +1269,8 @@
     <ClCompile Include="world\Entrance.cpp" />
     <ClCompile Include="world\Footpath.cpp" />
     <ClCompile Include="world\Map.cpp" />
+    <ClCompile Include="world\MapPathTopology.cpp" />
+    <ClCompile Include="world\MapTopology.cpp" />
     <ClCompile Include="world\MapAnimation.cpp" />
     <ClCompile Include="world\MapRangeView.cpp" />
     <ClCompile Include="world\MapSelection.cpp" />

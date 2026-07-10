@@ -48,6 +48,39 @@ elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|i.86")
     set_source_files_properties(${CMAKE_CURRENT_LIST_DIR}/audio/AudioMixer.AVX2.cpp PROPERTIES COMPILE_FLAGS -mavx2)
 endif ()
 
+set(OPENRCT2_VULKAN_ENABLED OFF)
+if (ENABLE_VULKAN AND NOT EMSCRIPTEN)
+    find_package(Vulkan QUIET)
+    if (Vulkan_FOUND)
+        if (NOT Vulkan_GLSLC_EXECUTABLE)
+            find_program(Vulkan_GLSLC_EXECUTABLE NAMES glslc HINTS "$ENV{VULKAN_SDK}/Bin")
+        endif ()
+
+        set(VULKAN_SHADER_SOURCE_DIR "${ROOT_DIR}/data/shaders/vulkan")
+        set(VULKAN_SHADER_SOURCES
+            "${VULKAN_SHADER_SOURCE_DIR}/indexed_palette.vert"
+            "${VULKAN_SHADER_SOURCE_DIR}/indexed_palette.frag"
+            "${VULKAN_SHADER_SOURCE_DIR}/indexed_line.vert"
+            "${VULKAN_SHADER_SOURCE_DIR}/indexed_line.frag")
+        if (Vulkan_GLSLC_EXECUTABLE)
+            set(OPENRCT2_VULKAN_SHADER_MODE "compile")
+            set(OPENRCT2_VULKAN_ENABLED ON)
+            message(STATUS "Vulkan renderer foundation enabled with ${Vulkan_GLSLC_EXECUTABLE}")
+        elseif (EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_palette.vert.spv"
+                AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_palette.frag.spv"
+                AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_line.vert.spv"
+                AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_line.frag.spv")
+            set(OPENRCT2_VULKAN_SHADER_MODE "precompiled")
+            set(OPENRCT2_VULKAN_ENABLED ON)
+            message(STATUS "Vulkan renderer foundation enabled with checked-in SPIR-V shaders")
+        else ()
+            message(STATUS "Vulkan SDK was found without glslc or the complete checked-in SPIR-V set; Vulkan renderer foundation disabled")
+        endif ()
+    else ()
+        message(STATUS "Vulkan SDK or MoltenVK not found; Vulkan renderer foundation disabled")
+    endif ()
+endif ()
+
 if (APPLE)
     file(GLOB_RECURSE OPENRCT2_UI_MM_SOURCES "${CMAKE_CURRENT_LIST_DIR}/*.mm")
     set_source_files_properties(${OPENRCT2_UI_MM_SOURCES} PROPERTIES COMPILE_FLAGS "-x objective-c++ -fmodules")
@@ -56,6 +89,38 @@ endif ()
 # Outputs
 add_executable(openrct2 ${OPENRCT2_UI_SOURCES} ${OPENRCT2_UI_MM_SOURCES})
 add_executable(OpenRCT2::openrct2 ALIAS openrct2)
+
+if (OPENRCT2_VULKAN_ENABLED)
+    if (MACOS_BUNDLE)
+        set(VULKAN_SHADER_OUTPUT_DIR "${CMAKE_BINARY_DIR}/OpenRCT2.app/Contents/Resources/shaders/vulkan")
+    else ()
+        set(VULKAN_SHADER_OUTPUT_DIR "${CMAKE_BINARY_DIR}/data/shaders/vulkan")
+    endif ()
+
+    set(VULKAN_SHADER_OUTPUTS)
+    foreach (VULKAN_SHADER_SOURCE IN LISTS VULKAN_SHADER_SOURCES)
+        get_filename_component(VULKAN_SHADER_NAME "${VULKAN_SHADER_SOURCE}" NAME)
+        set(VULKAN_SHADER_OUTPUT "${VULKAN_SHADER_OUTPUT_DIR}/${VULKAN_SHADER_NAME}.spv")
+        list(APPEND VULKAN_SHADER_OUTPUTS "${VULKAN_SHADER_OUTPUT}")
+        if (OPENRCT2_VULKAN_SHADER_MODE STREQUAL "compile")
+            add_custom_command(
+                OUTPUT "${VULKAN_SHADER_OUTPUT}"
+                COMMAND ${CMAKE_COMMAND} -E make_directory "${VULKAN_SHADER_OUTPUT_DIR}"
+                COMMAND "${Vulkan_GLSLC_EXECUTABLE}" "${VULKAN_SHADER_SOURCE}" -o "${VULKAN_SHADER_OUTPUT}"
+                DEPENDS "${VULKAN_SHADER_SOURCE}"
+                VERBATIM)
+        else ()
+            add_custom_command(
+                OUTPUT "${VULKAN_SHADER_OUTPUT}"
+                COMMAND ${CMAKE_COMMAND} -E make_directory "${VULKAN_SHADER_OUTPUT_DIR}"
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different "${VULKAN_SHADER_SOURCE}.spv" "${VULKAN_SHADER_OUTPUT}"
+                DEPENDS "${VULKAN_SHADER_SOURCE}.spv"
+                VERBATIM)
+        endif ()
+    endforeach ()
+    add_custom_target(openrct2-vulkan-shaders DEPENDS ${VULKAN_SHADER_OUTPUTS})
+    add_dependencies(openrct2 openrct2-vulkan-shaders)
+endif ()
 
 SET_CHECK_CXX_FLAGS(openrct2)
 ipo_set_target_properties(openrct2)
@@ -98,6 +163,11 @@ if (NOT DISABLE_OPENGL)
     else ()
         target_link_libraries(openrct2 ${GL_LIBRARIES})
     endif ()
+endif ()
+
+if (OPENRCT2_VULKAN_ENABLED)
+    target_link_libraries(openrct2 Vulkan::Vulkan)
+    target_compile_definitions(openrct2 PRIVATE ENABLE_VULKAN)
 endif ()
 
 # Includes

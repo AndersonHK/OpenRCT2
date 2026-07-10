@@ -25,20 +25,18 @@ using namespace OpenRCT2;
 
 static void RideUpdateStationBlockSection(Ride& ride, StationIndex stationIndex);
 static void RideUpdateStationDodgems(Ride& ride, StationIndex stationIndex);
-static void RideUpdateStationNormal(Ride& ride, StationIndex stationIndex);
+static void RideUpdateStationNormal(Ride& ride, StationIndex stationIndex, uint32_t currentTicks, bool wholeSecondTick);
 static void RideUpdateStationRace(Ride& ride, StationIndex stationIndex);
 static void RideRaceInitVehicleSpeeds(const Ride& ride);
-static void RideInvalidateStationStart(Ride& ride, StationIndex stationIndex, bool greenLight);
+static void RideInvalidateStationStart(
+    Ride& ride, StationIndex stationIndex, bool greenLight, TileElement* stationElement = nullptr);
 
 /**
  *
  *  rct2: 0x006ABFFB
  */
-void RideUpdateStation(Ride& ride, StationIndex stationIndex)
+void RideUpdateStation(Ride& ride, StationIndex stationIndex, uint32_t currentTicks, bool wholeSecondTick)
 {
-    if (ride.getStation(stationIndex).Start.IsNull())
-        return;
-
     switch (ride.mode)
     {
         case RideMode::race:
@@ -52,7 +50,7 @@ void RideUpdateStation(Ride& ride, StationIndex stationIndex)
             RideUpdateStationBlockSection(ride, stationIndex);
             break;
         default:
-            RideUpdateStationNormal(ride, stationIndex);
+            RideUpdateStationNormal(ride, stationIndex, currentTicks, wholeSecondTick);
             break;
     }
 }
@@ -71,19 +69,17 @@ static void RideUpdateStationBlockSection(Ride& ride, StationIndex stationIndex)
     {
         station.Depart &= ~kStationDepartFlag;
 
-        if ((station.Depart & kStationDepartFlag) || (tileElement != nullptr && tileElement->asTrack()->HasGreenLight()))
-            RideInvalidateStationStart(ride, stationIndex, false);
+        if (tileElement != nullptr && tileElement->asTrack()->HasGreenLight())
+        {
+            RideInvalidateStationStart(ride, stationIndex, false, tileElement);
+        }
     }
     else
     {
         if (!(station.Depart & kStationDepartFlag))
         {
             station.Depart |= kStationDepartFlag;
-            RideInvalidateStationStart(ride, stationIndex, true);
-        }
-        else if (tileElement != nullptr && tileElement->asTrack()->HasGreenLight())
-        {
-            RideInvalidateStationStart(ride, stationIndex, true);
+            RideInvalidateStationStart(ride, stationIndex, true, tileElement);
         }
     }
 }
@@ -153,11 +149,11 @@ static void RideUpdateStationDodgems(Ride& ride, StationIndex stationIndex)
  *
  *  rct2: 0x006AC02C
  */
-static void RideUpdateStationNormal(Ride& ride, StationIndex stationIndex)
+static void RideUpdateStationNormal(Ride& ride, StationIndex stationIndex, uint32_t currentTicks, bool wholeSecondTick)
 {
     auto& station = ride.getStation(stationIndex);
+    const bool wasGreen = (station.Depart & kStationDepartFlag) != 0;
     int32_t time = station.Depart & kStationDepartMask;
-    const auto currentTicks = getGameState().currentTicks;
     if (ride.flags.hasAny(RideFlag::brokenDown, RideFlag::crashed)
         || (ride.status == RideStatus::closed && ride.numRiders == 0))
     {
@@ -165,22 +161,31 @@ static void RideUpdateStationNormal(Ride& ride, StationIndex stationIndex)
             time--;
 
         station.Depart = time;
-        RideInvalidateStationStart(ride, stationIndex, false);
+        if (wasGreen)
+        {
+            RideInvalidateStationStart(ride, stationIndex, false);
+        }
     }
     else
     {
         if (time == 0)
         {
             station.Depart |= kStationDepartFlag;
-            RideInvalidateStationStart(ride, stationIndex, true);
+            if (!wasGreen)
+            {
+                RideInvalidateStationStart(ride, stationIndex, true);
+            }
         }
         else
         {
-            if (time != 127 && GameTime::IsWholeSecondTick(currentTicks))
+            if (time != 127 && wholeSecondTick)
                 time--;
 
             station.Depart = time;
-            RideInvalidateStationStart(ride, stationIndex, false);
+            if (wasGreen)
+            {
+                RideInvalidateStationStart(ride, stationIndex, false);
+            }
         }
     }
 }
@@ -325,10 +330,10 @@ static void RideRaceInitVehicleSpeeds(const Ride& ride)
  *
  *  rct2: 0x006AC2C7
  */
-static void RideInvalidateStationStart(Ride& ride, StationIndex stationIndex, bool greenLight)
+static void RideInvalidateStationStart(Ride& ride, StationIndex stationIndex, bool greenLight, TileElement* stationElement)
 {
     auto startPos = ride.getStation(stationIndex).Start;
-    TileElement* tileElement = RideGetStationStartTrackElement(ride, stationIndex);
+    TileElement* tileElement = stationElement != nullptr ? stationElement : RideGetStationStartTrackElement(ride, stationIndex);
 
     // If no station track found return
     if (tileElement == nullptr)

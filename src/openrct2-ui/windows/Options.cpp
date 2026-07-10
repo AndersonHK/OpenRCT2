@@ -488,6 +488,9 @@ namespace OpenRCT2::Ui::Windows
 #ifndef DISABLE_OPENGL
         STR_DRAWING_ENGINE_OPENGL,
 #endif
+#if defined(ENABLE_VULKAN) && defined(ENABLE_VULKAN_DRAWING_ENGINE)
+        STR_DRAWING_ENGINE_VULKAN,
+#endif
     };
 
 #pragma endregion

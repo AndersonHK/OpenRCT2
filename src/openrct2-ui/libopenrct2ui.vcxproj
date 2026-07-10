@@ -2,6 +2,8 @@
 <Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <SolutionDir Condition="'$(SolutionDir)'==''">..\..\</SolutionDir>
+    <VulkanGlslcPath Condition="'$(VulkanGlslcPath)'=='' and '$(VULKAN_SDK)'!=''">$(VULKAN_SDK)\Bin\glslc.exe</VulkanGlslcPath>
+    <EnableVulkan Condition="'$(EnableVulkan)'=='' and '$(VULKAN_SDK)'!='' and (Exists('$(VulkanGlslcPath)') or (Exists('$(SolutionDir)data\shaders\vulkan\indexed_palette.vert.spv') and Exists('$(SolutionDir)data\shaders\vulkan\indexed_palette.frag.spv') and Exists('$(SolutionDir)data\shaders\vulkan\indexed_line.vert.spv') and Exists('$(SolutionDir)data\shaders\vulkan\indexed_line.frag.spv'))) and ('$(Platform)'=='Win32' or '$(Platform)'=='x64')">true</EnableVulkan>
   </PropertyGroup>
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -51,6 +53,9 @@
     <ClInclude Include="CursorRepository.h" />
     <ClInclude Include="drawing\BitmapReader.h" />
     <ClInclude Include="drawing\engines\DrawingEngineFactory.hpp" />
+    <ClInclude Include="drawing\engines\gpu\GpuBackend.h" />
+    <ClInclude Include="drawing\engines\gpu\GpuAtlas.h" />
+    <ClInclude Include="drawing\engines\gpu\GpuCommandStream.h" />
     <ClInclude Include="drawing\engines\opengl\ApplyPaletteShader.h" />
     <ClInclude Include="drawing\engines\opengl\ApplyTransparencyShader.h" />
     <ClInclude Include="drawing\engines\opengl\CopyRectShader.h" />
@@ -65,6 +70,13 @@
     <ClInclude Include="drawing\engines\opengl\SwapFramebuffer.h" />
     <ClInclude Include="drawing\engines\opengl\TextureCache.h" />
     <ClInclude Include="drawing\engines\opengl\TransparencyDepth.h" />
+    <ClInclude Include="drawing\engines\opengl\WeatherShader.h" />
+    <ClInclude Include="drawing\engines\vulkan\VulkanDevice.h" />
+    <ClInclude Include="drawing\engines\vulkan\VulkanBackend.h" />
+    <ClInclude Include="drawing\engines\vulkan\VulkanLinePipeline.h" />
+    <ClInclude Include="drawing\engines\vulkan\VulkanPalettePipeline.h" />
+    <ClInclude Include="drawing\engines\vulkan\VulkanResources.h" />
+    <ClInclude Include="drawing\engines\vulkan\VulkanShader.h" />
     <ClInclude Include="input\InputManager.h" />
     <ClInclude Include="input\MouseInput.h" />
     <ClInclude Include="input\ShortcutIds.h" />
@@ -124,6 +136,7 @@
     <ClCompile Include="CursorRepository.cpp" />
     <ClCompile Include="drawing\BitmapReader.cpp" />
     <ClCompile Include="drawing\engines\HardwareDisplayDrawingEngine.cpp" />
+    <ClCompile Include="drawing\engines\gpu\GpuBackend.cpp" />
     <ClCompile Include="drawing\engines\opengl\ApplyPaletteShader.cpp" />
     <ClCompile Include="drawing\engines\opengl\ApplyTransparencyShader.cpp" />
     <ClCompile Include="drawing\engines\opengl\CopyRectShader.cpp" />
@@ -136,6 +149,13 @@
     <ClCompile Include="drawing\engines\opengl\SwapFramebuffer.cpp" />
     <ClCompile Include="drawing\engines\opengl\TextureCache.cpp" />
     <ClCompile Include="drawing\engines\opengl\TransparencyDepth.cpp" />
+    <ClCompile Include="drawing\engines\opengl\WeatherShader.cpp" />
+    <ClCompile Include="drawing\engines\vulkan\VulkanDevice.cpp" />
+    <ClCompile Include="drawing\engines\vulkan\VulkanBackend.cpp" />
+    <ClCompile Include="drawing\engines\vulkan\VulkanLinePipeline.cpp" />
+    <ClCompile Include="drawing\engines\vulkan\VulkanPalettePipeline.cpp" />
+    <ClCompile Include="drawing\engines\vulkan\VulkanResources.cpp" />
+    <ClCompile Include="drawing\engines\vulkan\VulkanShader.cpp" />
     <ClCompile Include="input\InputManager.cpp" />
     <ClCompile Include="input\Shortcuts.cpp" />
     <ClCompile Include="input\MouseInput.cpp" />
@@ -265,6 +285,8 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <PreprocessorDefinitions Condition="'$(Breakpad)'=='true' and ('$(Platform)'=='Win32' or '$(Platform)'=='x64')">USE_BREAKPAD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(EnableVulkan)'=='true'">ENABLE_VULKAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories Condition="'$(EnableVulkan)'=='true'">$(VULKAN_SDK)\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeader Condition="'$(UsePCH)'=='true'">Use</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(UsePCH)'=='true'">openrct2ui_pch.h</PrecompiledHeaderFile>
       <ForcedIncludeFiles Condition="'$(UsePCH)'=='true'">openrct2ui_pch.h</ForcedIncludeFiles>
