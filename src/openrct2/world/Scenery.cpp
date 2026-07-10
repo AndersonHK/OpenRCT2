@@ -81,10 +81,10 @@ int32_t TileElementGetDecorationScore(const TileElement& tileElement)
 
     switch (tileElement.getType())
     {
-        case TileElementType::SmallScenery:
-        case TileElementType::LargeScenery:
+        case TileElementType::smallScenery:
+        case TileElementType::largeScenery:
             return 90;
-        case TileElementType::Surface:
+        case TileElementType::surface:
         {
             const auto* surfaceElement = tileElement.asSurface();
             if (surfaceElement == nullptr)

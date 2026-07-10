@@ -78,8 +78,8 @@ namespace OpenRCT2::Scripting
     static bool IsRoutingTopologyElement(const TileElement& element)
     {
         return !element.isGhost()
-            && (element.getType() == TileElementType::Path || element.getType() == TileElementType::Entrance
-                || element.getType() == TileElementType::Banner);
+            && (element.getType() == TileElementType::path || element.getType() == TileElementType::entrance
+                || element.getType() == TileElementType::banner);
     }
 
     static void InvalidateRoutingTopology(OpaqueTileElementData* data)
@@ -2262,7 +2262,7 @@ namespace OpenRCT2::Scripting
             {
                 element->setDirection(value);
                 Invalidate(data);
-                if (element->getType() == TileElementType::Entrance)
+                if (element->getType() == TileElementType::entrance)
                 {
                     InvalidateRoutingTopology(data);
                 }

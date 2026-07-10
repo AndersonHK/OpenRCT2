@@ -91,7 +91,7 @@ protected:
         for (;;)
         {
             if (baseZ <= tileElement->baseHeight && topZ >= tileElement->baseHeight && !tileElement->isGhost()
-                && tileElement->getType() == TileElementType::Path)
+                && tileElement->getType() == TileElementType::path)
             {
                 return true;
             }

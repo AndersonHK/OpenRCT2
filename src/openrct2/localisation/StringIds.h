@@ -1767,11 +1767,11 @@ enum : StringId
 
     STR_CHEAT_DISABLE_GRASS_GROWING = 7031,
 
-    STR_PEEP_THOUGHT_TYPE_EXTORTIVE_TRANSPORT = 7048,
-    STR_WALKING_TO_PLATFORM_FOR = 7049,
-    STR_WAITING_ON_PLATFORM_FOR = 7050,
-    STR_QUEUE_AND_PLATFORM_STATUS = 7051,
-    STR_DRAWING_ENGINE_VULKAN = 7052,
+    STR_PEEP_THOUGHT_TYPE_EXTORTIVE_TRANSPORT = 7054,
+    STR_WALKING_TO_PLATFORM_FOR = 7055,
+    STR_WAITING_ON_PLATFORM_FOR = 7056,
+    STR_QUEUE_AND_PLATFORM_STATUS = 7057,
+    STR_DRAWING_ENGINE_VULKAN = 7058,
 
     // Have to include resource strings (from scenarios and objects) for the time being now that language is partially working
     /* MAX_STR_COUNT = 32768 */ // MAX_STR_COUNT - upper limit for number of strings, not the current count strings

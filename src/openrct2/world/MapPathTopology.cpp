@@ -100,7 +100,7 @@ namespace OpenRCT2::MapPathTopology
             PathConnection result{};
             do
             {
-                if (tileElement->isGhost() || tileElement->getType() != TileElementType::Path)
+                if (tileElement->isGhost() || tileElement->getType() != TileElementType::path)
                     continue;
 
                 const auto* path = tileElement->asPath();
@@ -136,13 +136,13 @@ namespace OpenRCT2::MapPathTopology
             do
             {
                 tileElement++;
-                if (tileElement->getType() == TileElementType::Path)
+                if (tileElement->getType() == TileElementType::path)
                 {
                     if (!tileElement->isGhost())
                         break;
                     continue;
                 }
-                if (tileElement->getType() != TileElementType::Banner)
+                if (tileElement->getType() != TileElementType::banner)
                     continue;
 
                 // Stable topology behaves as if construction previews are absent. Existing live pathfinding has a ghost-banner
@@ -209,7 +209,7 @@ namespace OpenRCT2::MapPathTopology
                             if (tileElement->isGhost())
                                 continue;
 
-                            if (tileElement->getType() == TileElementType::Path)
+                            if (tileElement->getType() == TileElementType::path)
                             {
                                 const auto* path = tileElement->asPath();
                                 const auto duplicate = std::find_if(
@@ -270,7 +270,7 @@ namespace OpenRCT2::MapPathTopology
                                     node.flags |= static_cast<uint8_t>(PathNodeFlag::thinJunction);
                                 cache.paths.push_back(node);
                             }
-                            else if (tileElement->getType() == TileElementType::Entrance)
+                            else if (tileElement->getType() == TileElementType::entrance)
                             {
                                 const auto* entrance = tileElement->asEntrance();
                                 auto node = EntranceNode{};

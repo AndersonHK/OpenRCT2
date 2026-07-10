@@ -2,6 +2,27 @@
 
 ## 2026-07-10
 
+### Upstream develop integration and directed-leg UI cleanup
+
+Merge: manually integrate upstream `develop` through `a770ffc04e`. The new editor-scene ownership, ride colour/operations
+layout, lowercase `TileElementType` names, sloped-path puke/litter correction, plugin save binding, networking fixes, graphics
+round-trip work, translations, workflow maintenance, and documentation are retained. Fork routing, sampled ratings, private
+save versions, transport platforms, spatial audio, route caches, and Vulkan sources remain at their intended owners. The
+commit-by-commit decisions and seven conflict resolutions are recorded in the [upstream merge manifest](upstream-merge-manifest.md).
+
+Interface: multi-station measurement pages no longer display the conservative ride-wide E/I/N envelope. That aggregate remains
+an internal ride-list/value compatibility result only. The selected directed leg now uses the normal measurement convention:
+white labels with black values on separate excitement, intensity, nausea, distance, duration, maximum/average speed, every
+applicable G-force extreme, transport comfort, decoration, and fare row. This replaces the three compressed black-text lines
+and makes the selected station pair visually consistent with ride-global construction/test facts.
+
+Localisation: retain upstream English IDs `7033..7038` and move the fork-owned block to the contiguous `7039..7065` range.
+Removed compressed/compatibility-summary strings are not carried forward as dead aliases.
+
+Verification: normal Release source and fully enabled Vulkan/direct Release solution builds pass without compiler or linker
+warnings. Focused merge/rating/routing/formatting coverage passes 204/204 tests and the full suite passes 452/452. Two warmed
+EverythingPark runs reach 261.961 and 263.398 TPS with matching `72638ee2...` checksums and 3.699/3.692 millisecond medians.
+
 ### Transport rides as route services
 
 Decision: guests now use transport rides as planned station-to-station journeys toward a concrete ride, shop, facility, or park-exit goal. A railway, monorail, chairlift, or lift is no longer selected opportunistically as an ordinary attraction, and the legacy rule that made free transports automatically acceptable is removed.

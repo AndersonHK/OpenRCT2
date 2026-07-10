@@ -213,9 +213,9 @@ namespace OpenRCT2::PathFinding
         while (!tileElement->isLastForTile())
         {
             tileElement++;
-            if (tileElement->getType() == TileElementType::Path)
+            if (tileElement->getType() == TileElementType::path)
                 return tileElement->isGhost();
-            if (tileElement->getType() == TileElementType::Banner && tileElement->isGhost())
+            if (tileElement->getType() == TileElementType::banner && tileElement->isGhost())
                 return true;
         }
         return false;
@@ -344,7 +344,7 @@ namespace OpenRCT2::PathFinding
         for (;;)
         {
             if (baseZ <= tileElement->baseHeight && topZ >= tileElement->baseHeight && !tileElement->isGhost()
-                && tileElement->getType() == TileElementType::Path)
+                && tileElement->getType() == TileElementType::path)
             {
                 return true;
             }

@@ -71,10 +71,11 @@ from exact path topology. Fields build in parallel from a main-thread snapshot a
 banners, queue ownership, junction history, transport policy, and other guest-specific decisions still gate each proposed
 step, with the bounded heuristic retained whenever a field is missing, stale, inexact, or unsuitable. Two repeated
 EverythingPark runs at the shared-field checkpoint reached 241.767 and 241.871 TPS. After the station-less facility fast path
-and live-rating eligibility gate, two runs reached 254.297 and 256.592 TPS. The later exact directed-leg/save/cache checkpoint
-measured 251.729 and 251.123 TPS with matching `89b1134c...` checksums and 3.719/3.720 ms medians. The faster run is 51.7%
-above the original 165.895-TPS baseline, although the remaining rating-environment lookup still dominates vehicle time. The
-detailed performance plan records the full latency and profiler breakdown.
+and live-rating eligibility gate, two runs reached 254.297 and 256.592 TPS. The exact directed-leg/save/cache checkpoint
+measured 251.729 and 251.123 TPS. After the reviewed upstream integration and hot-path cleanup, two runs reached 261.961 and
+263.398 TPS with matching `72638ee2...` checksums and 3.699/3.692 ms medians. The faster run is 58.8% above the original
+165.895-TPS baseline, although the remaining rating-environment lookup still dominates vehicle time. The detailed performance
+plan records the full latency and profiler breakdown.
 
 The Vulkan renderer remains gated while it grows toward visual parity. It now executes the complete indexed line, opaque,
 masked, remapped, transparency/blend, and ordered rain/snow command stream before final palette presentation. Swapchain

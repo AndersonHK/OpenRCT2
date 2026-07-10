@@ -121,10 +121,10 @@ travelling/departing/arriving status path; the station-dispatch summary belongs 
 direct entity-id to `(ride, vector index)` reference which is validated before use; only a stale reference takes the linear
 recovery scan. Keeping that existing index avoids pointer lifetime hazards when the active-sample vector grows.
 
-This optimization deliberately leaves ownership at the vehicle accumulator boundary. It adds no ride-wide cached aggregate
-and does not assume that one complete circuit must remain the only publication unit. A later multi-station/Mobius refactor
-can partition the same ordered tick samples by boarding station and publish station-to-next-station leg ratings, matching
-transport journey composition across any number of adjacent legs.
+This optimization deliberately leaves ownership at the vehicle accumulator boundary. It adds no second ride-wide cache and
+does not assume that one complete circuit is the publication unit. Multi-station and Mobius rides partition the ordered ticks
+at physical station arrivals and publish directed station-to-station legs; transport planning composes any required adjacent
+legs into one journey.
 
 Within a sampled train, immutable descriptor inputs are now derived at their narrowest valid lifetime. Boat-hire and
 transport classification are resolved once per train. Each car resolves its track type and descriptor once; that same
@@ -148,10 +148,10 @@ twenty-sample rolling history and a finalized excitement/intensity/nausea tuple.
 station with two physical successors therefore remain independent instead of replacing or blending one another. Single-station rides continue to use only
 the existing ride-wide history, so their rating path and fixtures do not allocate or consult leg state.
 
-The Measurements page shows explicit `Station A to B` rows. Each row owns its finalized ratings plus sampled distance,
-duration, maximum and average speed, and vertical/lateral/longitudinal G extrema. Drops, inversions, airtime totals, holes,
-and other construction/test facts that are not yet captured as unambiguous leg events remain in the existing test fields and
-are labeled ride-global in the UI; they are not copied onto every leg.
+The Measurements page selects an explicit `Station A to B` edge. Its finalized ratings, sampled distance, duration, maximum
+and average speed, and vertical/lateral/longitudinal G extrema use the same white-label/black-value rows as ordinary ride
+measurements. Drops, inversions, airtime totals, holes, and other construction/test facts that are not yet captured as
+unambiguous leg events remain in the existing test fields and are labeled ride-global; they are not copied onto every leg.
 
 The Measurements window provides a deterministic `Station A to B` selector ordered by the directed endpoint pair. Every
 measured leg is selectable, including fifth and later edges on bidirectional shuttles, and the selected leg expands its
@@ -160,11 +160,12 @@ and the exact time, distance, and fare used by route planning. Selection is reta
 not silently switch the displayed physical leg.
 
 Legacy ride lists, value calculation, sorting, scripting, and other consumers still require one tuple. Their compatibility
-summary is deliberately conservative: excitement is the minimum measured directed-edge excitement, while intensity and nausea are
-the maxima across measured edges. It replaces the previous/null ride-wide tuple only after every station has at least one
-measured outbound edge; incomplete coverage cannot make an unmeasured portion disappear. This tuple may not describe one particular leg and is labeled as a ride-wide compatibility
-summary in the detailed UI. Guest admission, satisfaction, and nausea calculations use the selected boarding station's leg
-tuple when it exists, falling back to the compatibility tuple only before that leg has measurements.
+summary is deliberately conservative: excitement is the minimum measured directed-edge excitement, while intensity and nausea
+are the maxima. It replaces the previous/null ride-wide tuple only after every station has at least one measured outbound edge;
+incomplete coverage cannot make an unmeasured portion disappear. Because that tuple may not describe any particular leg, the
+Measurements page does not present it as another experienced trip. Guest admission, satisfaction, and nausea calculations use
+the selected boarding station's leg tuple when it exists and fall back to the compatibility tuple only before that leg has
+measurements.
 
 Park format `60015` stores origin/destination indices on active accumulators and the sparse completed leg histories. Older
 saves load with no leg histories and retain their existing ride-wide tuple until new physical legs are observed. Older-target

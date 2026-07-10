@@ -183,6 +183,12 @@ bookkeeping, so these totals identify relative ownership rather than forecasting
 remaining bottleneck from the 15-by-15 context scan: the next safe slice must reduce cache/key/generation overhead on warm
 environment access without changing spatial invalidation or sample cadence.
 
+The reviewed upstream-integration checkpoint, including removal of always-on spatial counters/sorting and conservative
+single-generation rating-cache validation, reaches 261.961 and 263.398 TPS in two clean 2,000-tick runs. Both finish at
+`72638ee2...`; median ticks are 3.699 and 3.692 milliseconds. The faster run reaches 82.3% of Turbo 320 and is 58.8% above
+the original 165.895-TPS baseline. This checksum differs from the pre-merge checkpoint because upstream changes advance the
+deterministic simulation/network version; equality between the two post-merge repetitions is the acceptance signal.
+
 ## Prong C: scheduler, instrumentation and fast-forward cadence
 
 Owner: durable `benchmark_scheduler` specialist.

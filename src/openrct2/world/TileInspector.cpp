@@ -49,8 +49,8 @@ namespace OpenRCT2::TileInspector
     static bool IsRoutingTopologyElement(const TileElement& element)
     {
         return !element.isGhost()
-            && (element.getType() == TileElementType::Path || element.getType() == TileElementType::Entrance
-                || element.getType() == TileElementType::Banner);
+            && (element.getType() == TileElementType::path || element.getType() == TileElementType::entrance
+                || element.getType() == TileElementType::banner);
     }
 
     static GameActions::Result SwapTileElements(const CoordsXY& loc, int16_t first, int16_t second)

@@ -1498,7 +1498,7 @@ namespace OpenRCT2
                 break;
             }
             default:
-                if (invalidateTopology && element->getType() == TileElementType::Path && !element->isGhost())
+                if (invalidateTopology && element->getType() == TileElementType::path && !element->isGhost())
                 {
                     MapTopology::InvalidateTileAndNeighbours(loc);
                 }
