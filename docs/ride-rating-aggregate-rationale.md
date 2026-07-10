@@ -58,7 +58,7 @@ The old ride-wide G-force code is used as a calibration reference. Its `2.8G` an
 - `RideRatingTickIsSheltered()` and `RideRatingGetLocalContextScore()` move shelter, scenery, path, and nearby-ride effects into the sampled tick path.
 - Every vehicle keeps an independent accumulator for its complete lap. Completed vehicle samples are combined only when the train finishes, so nonlinear speed and G curves are evaluated before cars are averaged.
 - `test_reset()` and `InvalidateTestResults()` clear test and rider samples whenever test data is reset.
-- `RideRating::RecordRiderSample()` in `src/openrct2/ride/RideRatings.cpp` records completed rider/train/test samples and immediately recalculates the displayed rating.
+- `RideRating::RecordRiderSample()` in `src/openrct2/ride/RideRatings.cpp` records completed rider/train/test samples and directly publishes the rolling aggregate rating. It does not synchronously run the testing-only whole-track scan; proximity, shelter, upkeep, and script-hook maintenance stay on the bounded incremental update state machine.
 - `RideRating::RecordActiveRiderSample()` in `src/openrct2/ride/RideRatings.cpp` publishes completed active samples for both live trains and phantom test trains.
 - `RideRatingsCalculate()` in `src/openrct2/ride/RideRatings.cpp` uses aggregate finalization for normal rides and mazes from completed rolling samples only; in-progress formal test accumulators are deliberately not displayed.
 - `RideRatingsCalculateAggregated()` finalizes raw totals through the square-root curve.

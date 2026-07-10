@@ -24,6 +24,11 @@ namespace OpenRCT2::Audio
     struct ISDLAudioChannel : public IAudioChannel
     {
         [[nodiscard]] virtual AudioFormat GetFormat() const = 0;
+        [[nodiscard]] virtual float GetFadeLevel() const = 0;
+        virtual float AdvanceFade(size_t frames, uint32_t sampleRate) = 0;
+        [[nodiscard]] virtual double GetResampleRemainder() const = 0;
+        virtual void SetResampleRemainder(double value) = 0;
+        virtual size_t ReadForResampling(void* dst, size_t framesToConsume, size_t lookaheadFrames) = 0;
     };
 
     namespace AudioChannel

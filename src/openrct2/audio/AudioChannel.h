@@ -48,6 +48,13 @@ namespace OpenRCT2::Audio
         virtual float GetPan() const = 0;
         virtual void SetPan(float pan) = 0;
 
+        virtual bool IsSpatial() const = 0;
+        virtual float GetAzimuth() const = 0;
+        virtual float GetOldAzimuth() const = 0;
+        virtual float GetElevation() const = 0;
+        virtual void SetSpatial(float azimuth, float elevation) = 0;
+        virtual void ClearSpatial() = 0;
+
         virtual bool IsStopping() const = 0;
         virtual void SetStopping(bool value) = 0;
 

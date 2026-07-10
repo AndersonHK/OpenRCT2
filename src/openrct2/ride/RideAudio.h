@@ -30,7 +30,10 @@ namespace OpenRCT2::RideAudio
 
         size_t Offset{};
         int16_t Volume{};
-        int16_t Pan{};
+        float PriorityGain{};
+        float Azimuth{};
+        float Elevation{};
+        float Distance{};
         uint16_t Frequency{};
     };
 
@@ -38,6 +41,8 @@ namespace OpenRCT2::RideAudio
     void StopAllChannels();
     void UpdateMusicChannels();
     void UpdateMusicInstance(Ride& ride, const CoordsXYZ& rideCoords, uint16_t sampleRate);
+    bool IsMusicInstanceHigherPriority(
+        const ViewportRideMusicInstance& lhs, const ViewportRideMusicInstance& rhs);
 
     void DefaultStartRideMusicChannel(const ViewportRideMusicInstance& instance);
     void CircusStartRideMusicChannel(const ViewportRideMusicInstance& instance);

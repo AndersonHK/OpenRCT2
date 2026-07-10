@@ -22,7 +22,8 @@ struct CoordsXYZ;
 
 namespace OpenRCT2::Audio
 {
-    constexpr size_t kMaxVehicleSounds = 14;
+    // A vehicle emitter may own both a track-noise and a secondary-noise channel.
+    constexpr size_t kMaxVehicleSounds = 2048;
     constexpr uint16_t kSoundIdNull = 0xFFFF;
     constexpr int32_t kAudioPlayAtCentre = 0x8000;
 
@@ -51,11 +52,12 @@ namespace OpenRCT2::Audio
     struct VehicleSoundParams
     {
         uint16_t id;
-        int16_t panX;
-        int16_t panY;
         uint16_t frequency;
-        int16_t volume;
-        uint16_t priority;
+        int32_t priority;
+        float spatialGain;
+        float azimuth;
+        float elevation;
+        float dopplerFactor;
     };
 
     enum class SoundId : uint8_t
@@ -147,7 +149,6 @@ namespace OpenRCT2::Audio
     } // namespace AudioObjectIdentifiers
 
     extern bool gGameSoundsOff;
-    extern int32_t gVolumeAdjustZoom;
 
     extern VehicleSound gVehicleSoundList[kMaxVehicleSounds];
 
@@ -236,6 +237,9 @@ namespace OpenRCT2::Audio
      */
     void Play3D(SoundId soundId, const CoordsXYZ& loc);
 
+    /** Updates persistent world-space one-shots as the listener moves. */
+    void UpdateSpatialSounds();
+
     /**
      * Populates the gAudioDevices array with the available audio devices.
      */
@@ -274,6 +278,9 @@ namespace OpenRCT2::Audio
     std::shared_ptr<IAudioChannel> CreateAudioChannel(
         SoundId soundId, bool loop = false, int32_t volume = kMixerVolumeMax, float pan = 0.5f, double rate = 1,
         bool forget = false);
+    std::shared_ptr<IAudioChannel> CreateAudioChannel(
+        SoundId soundId, MixerGroup group, bool loop = false, int32_t volume = kMixerVolumeMax, float pan = 0.5f,
+        double rate = 1, bool forget = false);
     std::shared_ptr<IAudioChannel> CreateAudioChannel(
         IAudioSource* source, MixerGroup group, bool loop = false, int32_t volume = kMixerVolumeMax, float pan = 0.5f,
         double rate = 1, bool forget = false);

@@ -5,21 +5,26 @@
 #include "../windows/Windows.h"
 
 #include <cassert>
+#include <chrono>
+#include <cmath>
+#include <limits>
 #include <numeric>
-#include <openrct2/Context.h>
 #include <openrct2/GameState.h>
 #include <openrct2/OpenRCT2.h>
+#include <openrct2/Diagnostic.h>
 #include <openrct2/audio/Audio.h>
 #include <openrct2/audio/AudioChannel.h>
 #include <openrct2/audio/AudioMixer.h>
+#include <openrct2/audio/SpatialAudio.h>
 #include <openrct2/entity/EntityRegistry.h>
 #include <openrct2/profiling/Profiling.h>
 #include <openrct2/ride/TrainManager.h>
 #include <openrct2/ride/Vehicle.h>
-#include <openrct2/util/Util.h>
 #include <openrct2/world/Map.h>
 #include <openrct2/world/tile_element/SurfaceElement.h>
-#include <sfl/static_vector.hpp>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 namespace OpenRCT2::Audio
 {
@@ -104,7 +109,13 @@ namespace OpenRCT2::Audio
             begin(), end(), 0, [](int32_t totalMass, const Vehicle& vehicle) { return totalMass + vehicle.mass; });
     }
 
-    static bool SoundCanPlay(const Vehicle& vehicle)
+    static std::unordered_map<uint16_t, DopplerMotionState> _vehicleDopplerStates;
+    static std::chrono::steady_clock::time_point _lastVehicleAudioUpdate{};
+    static std::chrono::steady_clock::time_point _lastVehicleAudioReport{};
+    static uint64_t _vehicleChannelStartAttempts{};
+    static uint64_t _vehicleChannelStartFailures{};
+
+    static bool SoundCanPlay(const Vehicle& vehicle, const SpatialAudioParams& spatial)
     {
         if (gLegacyScene == LegacyScene::scenarioEditor)
             return false;
@@ -118,86 +129,64 @@ namespace OpenRCT2::Audio
         if (vehicle.x == kLocationNull)
             return false;
 
-        if (gMusicTrackingViewport == nullptr)
-            return false;
-
-        const auto quarter_w = gMusicTrackingViewport->ViewWidth() / 4;
-        const auto quarter_h = gMusicTrackingViewport->ViewHeight() / 4;
-
-        auto left = gMusicTrackingViewport->viewPos.x;
-        auto bottom = gMusicTrackingViewport->viewPos.y;
-
-        if (Ui::Windows::WindowGetClassification(*gWindowAudioExclusive) == WindowClass::mainWindow)
-        {
-            left -= quarter_w;
-            bottom -= quarter_h;
-        }
-
-        if (left >= vehicle.spriteData.spriteRect.GetRight() || bottom >= vehicle.spriteData.spriteRect.GetBottom())
-            return false;
-
-        auto right = gMusicTrackingViewport->ViewWidth() + left;
-        auto top = gMusicTrackingViewport->ViewHeight() + bottom;
-
-        if (Ui::Windows::WindowGetClassification(*gWindowAudioExclusive) == WindowClass::mainWindow)
-        {
-            right += quarter_w + quarter_w;
-            top += quarter_h + quarter_h;
-        }
-
-        if (right < vehicle.spriteData.spriteRect.GetRight() || top < vehicle.spriteData.spriteRect.GetTop())
-            return false;
-
-        return true;
+        return spatial.Audible;
     }
 
     /**
      *
      *  rct2: 0x006BC2F3
      */
-    static uint16_t GetSoundPriority(const Vehicle& vehicle)
+    static int32_t GetSoundPriority(const Vehicle& vehicle, const SpatialAudioParams& spatial, bool alreadyPlaying)
     {
-        int32_t result = Train(&vehicle).GetMass() + (std::abs(vehicle.velocity) >> 13);
+        const auto sourceLevel = std::max(vehicle.sound1_volume, vehicle.sound2_volume) / 255.0f;
+        const auto massWeight = 1.0f + std::min(1.0f, std::log2(1.0f + Train(&vehicle).GetMass()) / 16.0f);
+        const auto motionWeight = 1.0f + std::min(0.5f, static_cast<float>(std::abs(vehicle.velocity)) / 400000.0f);
+        int32_t result = static_cast<int32_t>(
+            std::lround(spatial.Gain * std::max(0.1f, sourceLevel) * massWeight * motionWeight * 100000.0f));
 
-        for (const auto& vehicleSound : gVehicleSoundList)
+        if (alreadyPlaying)
         {
-            if (vehicleSound.id == vehicle.id.ToUnderlying())
-            {
-                // Vehicle sounds will get higher priority if they are already playing
-                return result + 300;
-            }
+            // A small continuity bonus avoids slot churn between similarly loud boundary candidates.
+            result += 1000;
         }
-
         return result;
     }
 
-    static VehicleSoundParams CreateSoundParam(const Vehicle& vehicle, uint16_t priority)
+    static CoordsXYZ GetClosestTrainSoundPosition(const Vehicle& head, const SpatialAudioListener& listener)
+    {
+        auto closestPosition = CoordsXYZ{ head.x, head.y, head.z };
+        auto closestDistanceSquared = std::numeric_limits<float>::max();
+        size_t visitedCars = 0;
+        for (auto* car = &head; car != nullptr && visitedCars < 256;
+             car = getGameState().entities.GetEntity<Vehicle>(car->next_vehicle_on_train), visitedCars++)
+        {
+            if (car->x == kLocationNull)
+            {
+                continue;
+            }
+            const auto dx = static_cast<float>(car->x - listener.Position.x);
+            const auto dy = static_cast<float>(car->y - listener.Position.y);
+            const auto dz = static_cast<float>(car->z - listener.Position.z);
+            const auto distanceSquared = (dx * dx) + (dy * dy) + (dz * dz);
+            if (distanceSquared < closestDistanceSquared)
+            {
+                closestDistanceSquared = distanceSquared;
+                closestPosition = { car->x, car->y, car->z };
+            }
+        }
+        return closestPosition;
+    }
+
+    static VehicleSoundParams CreateSoundParam(
+        const Vehicle& vehicle, int32_t priority, const SpatialAudioParams& spatial, float elapsedSeconds)
     {
         VehicleSoundParams param;
         param.priority = priority;
-        int32_t panX = (vehicle.spriteData.spriteRect.GetLeft() / 2) + (vehicle.spriteData.spriteRect.GetRight() / 2)
-            - gMusicTrackingViewport->viewPos.x;
-        panX = gMusicTrackingViewport->zoom.ApplyInversedTo(panX);
-        panX += gMusicTrackingViewport->pos.x;
-
-        uint16_t screenWidth = ContextGetWidth();
-        if (screenWidth < 64)
-        {
-            screenWidth = 64;
-        }
-        param.panX = ((((panX * 65536) / screenWidth) - 0x8000) >> 4);
-
-        int32_t panY = (vehicle.spriteData.spriteRect.GetTop() / 2) + (vehicle.spriteData.spriteRect.GetBottom() / 2)
-            - gMusicTrackingViewport->viewPos.y;
-        panY = gMusicTrackingViewport->zoom.ApplyInversedTo(panY);
-        panY += gMusicTrackingViewport->pos.y;
-
-        uint16_t screenHeight = ContextGetHeight();
-        if (screenHeight < 64)
-        {
-            screenHeight = 64;
-        }
-        param.panY = ((((panY * 65536) / screenHeight) - 0x8000) >> 4);
+        param.spatialGain = spatial.Gain;
+        param.azimuth = spatial.Azimuth;
+        param.elevation = spatial.Elevation;
+        param.dopplerFactor = UpdateDopplerMotion(
+            _vehicleDopplerStates[vehicle.id.ToUnderlying()], spatial.Distance, elapsedSeconds);
 
         int32_t frequency = std::abs(vehicle.velocity);
 
@@ -216,21 +205,8 @@ namespace OpenRCT2::Audio
         frequency >>= 14; // /16384
 
         frequency += 11025;
-        frequency += 16 * vehicle.dopplerShift;
         param.frequency = static_cast<uint16_t>(frequency);
         param.id = vehicle.id.ToUnderlying();
-        param.volume = 0;
-
-        if (vehicle.x != kLocationNull)
-        {
-            auto surfaceElement = MapGetSurfaceElementAt(CoordsXY{ vehicle.x, vehicle.y });
-
-            // vehicle underground
-            if (surfaceElement != nullptr && surfaceElement->getBaseZ() > vehicle.z)
-            {
-                param.volume = 0x30;
-            }
-        }
         return param;
     }
 
@@ -239,36 +215,23 @@ namespace OpenRCT2::Audio
      *  rct2: 0x006BB9FF
      */
     static void UpdateSoundParams(
-        const Vehicle& vehicle, sfl::static_vector<VehicleSoundParams, kMaxVehicleSounds>& vehicleSoundParamsList)
+        const Vehicle& vehicle, const SpatialAudioListener& listener, float elapsedSeconds, bool alreadyPlaying,
+        std::vector<VehicleSoundParams>& vehicleSoundParamsList)
     {
-        if (!SoundCanPlay(vehicle))
+        const auto sourcePosition = GetClosestTrainSoundPosition(vehicle, listener);
+        auto occlusion = 1.0f;
+        auto surfaceElement = MapGetSurfaceElementAt(CoordsXY{ sourcePosition.x, sourcePosition.y });
+        if (surfaceElement != nullptr && surfaceElement->getBaseZ() > sourcePosition.z)
+        {
+            occlusion = 0.25f;
+        }
+        const auto spatial = CalculateSpatialAudioParams(
+            listener, sourcePosition, occlusion, SpatialAudioRolloff::vehicle);
+        if (!SoundCanPlay(vehicle, spatial))
             return;
 
-        uint16_t soundPriority = GetSoundPriority(vehicle);
-        // Find a sound param of lower priority to use
-        auto soundParamIter = std::find_if(
-            vehicleSoundParamsList.begin(), vehicleSoundParamsList.end(),
-            [soundPriority](const auto& param) { return soundPriority > param.priority; });
-
-        if (soundParamIter == std::end(vehicleSoundParamsList))
-        {
-            if (vehicleSoundParamsList.size() < kMaxVehicleSounds)
-            {
-                vehicleSoundParamsList.push_back(CreateSoundParam(vehicle, soundPriority));
-            }
-        }
-        else
-        {
-            if (vehicleSoundParamsList.size() < kMaxVehicleSounds)
-            {
-                // Shift all sound params down one if using a free space
-                vehicleSoundParamsList.insert(soundParamIter, CreateSoundParam(vehicle, soundPriority));
-            }
-            else
-            {
-                *soundParamIter = CreateSoundParam(vehicle, soundPriority);
-            }
-        }
+        const auto soundPriority = GetSoundPriority(vehicle, spatial, alreadyPlaying);
+        vehicleSoundParamsList.push_back(CreateSoundParam(vehicle, soundPriority, spatial, elapsedSeconds));
     }
 
     static void VehicleSoundsUpdateWindowSetup()
@@ -289,88 +252,6 @@ namespace OpenRCT2::Audio
 
         gMusicTrackingViewport = viewport;
         gWindowAudioExclusive = window;
-        if (viewport->zoom <= ZoomLevel{ 0 })
-            gVolumeAdjustZoom = 0;
-        else if (viewport->zoom == ZoomLevel{ 1 })
-            gVolumeAdjustZoom = 35;
-        else
-            gVolumeAdjustZoom = 70;
-    }
-
-    static uint8_t VehicleSoundsUpdateGetPanVolume(VehicleSoundParams* sound_params)
-    {
-        uint8_t vol1 = 0xFF;
-        uint8_t vol2 = 0xFF;
-
-        int16_t panY = std::abs(sound_params->panY);
-        panY = std::min(static_cast<int16_t>(0xFFF), panY);
-        panY -= 0x800;
-        if (panY > 0)
-        {
-            panY = (0x400 - panY) / 4;
-            vol1 = LoByte(panY);
-            if (static_cast<int8_t>(HiByte(panY)) != 0)
-            {
-                vol1 = 0xFF;
-                if (static_cast<int8_t>(HiByte(panY)) < 0)
-                {
-                    vol1 = 0;
-                }
-            }
-        }
-
-        int16_t panX = std::abs(sound_params->panX);
-        panX = std::min(static_cast<int16_t>(0xFFF), panX);
-        panX -= 0x800;
-
-        if (panX > 0)
-        {
-            panX = (0x400 - panX) / 4;
-            vol2 = LoByte(panX);
-            if (static_cast<int8_t>(HiByte(panX)) != 0)
-            {
-                vol2 = 0xFF;
-                if (static_cast<int8_t>(HiByte(panX)) < 0)
-                {
-                    vol2 = 0;
-                }
-            }
-        }
-
-        vol1 = std::min(vol1, vol2);
-        return std::max(0, vol1 - gVolumeAdjustZoom);
-    }
-
-    /*  Returns the vehicle sound for a sound_param.
-     *
-     *  If already playing returns sound.
-     *  If not playing allocates a sound slot to sound_param->id.
-     *  If no free slots returns nullptr.
-     */
-    static VehicleSound* VehicleSoundsUpdateGetVehicleSound(VehicleSoundParams* sound_params)
-    {
-        // Search for already playing vehicle sound
-        for (auto& vehicleSound : gVehicleSoundList)
-        {
-            if (vehicleSound.id == sound_params->id)
-                return &vehicleSound;
-        }
-
-        // No sound already playing
-        for (auto& vehicleSound : gVehicleSoundList)
-        {
-            // Use free slot
-            if (vehicleSound.id == kSoundIdNull)
-            {
-                vehicleSound.id = sound_params->id;
-                vehicleSound.trackSound.id = SoundId::null;
-                vehicleSound.otherSound.id = SoundId::null;
-                vehicleSound.volume = 0x30;
-                return &vehicleSound;
-            }
-        }
-
-        return nullptr;
     }
 
     static bool IsLoopingSound(SoundId id)
@@ -399,7 +280,7 @@ namespace OpenRCT2::Audio
         }
     }
 
-    static bool IsFixedFrequencySound(SoundId id)
+    static bool IsRiderScreamSound(SoundId id)
     {
         switch (id)
         {
@@ -411,6 +292,20 @@ namespace OpenRCT2::Audio
             case SoundId::scream6:
             case SoundId::scream7:
             case SoundId::scream8:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    static bool IsFixedFrequencySound(SoundId id)
+    {
+        if (IsRiderScreamSound(id))
+        {
+            return true;
+        }
+        switch (id)
+        {
             case SoundId::trainWhistle:
             case SoundId::trainDeparting:
             case SoundId::tram:
@@ -460,17 +355,25 @@ namespace OpenRCT2::Audio
     }
 
     template<SoundType type>
-    static bool ShouldUpdateChannelRate(const SoundId id)
+    static void UpdateSound(const SoundId id, int32_t volume, VehicleSoundParams* sound_params, Sound& sound)
     {
-        return type == SoundType::TrackNoises || !IsFixedFrequencySound(id);
-    }
-
-    template<SoundType type>
-    static void UpdateSound(const SoundId id, int32_t volume, VehicleSoundParams* sound_params, Sound& sound, uint8_t panVol)
-    {
-        volume *= panVol;
-        volume = volume / 8;
-        volume = std::max(volume - 0x1FFF, -10000);
+        // Vehicle volume is an authored linear-amplitude byte, not a DirectSound decibel value.
+        // Preserve that meaning before applying distance; the legacy arithmetic made 128 about -41 dB.
+        auto authoredGain = std::clamp(static_cast<float>(volume) / 255.0f, 0.0f, 1.0f);
+        if constexpr (type == SoundType::TrackNoises)
+        {
+            // The authored vehicle byte is conservative and the source is spread over a whole train.
+            // A 4.5x calibration keeps wheel, lift, and engine texture present without dominating
+            // the close view; the vehicle-specific rolloff then confines it more tightly in space.
+            authoredGain *= 4.5f;
+        }
+        else
+        {
+            // Screams remain prominent above the diffuse crowd bed but are trimmed slightly from
+            // the previous pass. Other secondary vehicle cues receive a smaller calibration.
+            authoredGain *= IsRiderScreamSound(id) ? 3.5f : 1.75f;
+        }
+        volume = SpatialGainToDSEnvelope(authoredGain * sound_params->spatialGain);
 
         if (sound.channel != nullptr && sound.channel->IsDone() && IsLoopingSound(sound.id))
         {
@@ -491,19 +394,21 @@ namespace OpenRCT2::Audio
         {
             auto frequency = SoundFrequency<type>(id, sound_params->frequency);
             auto looping = IsLoopingSound(id);
-            auto pan = sound_params->panX;
+            _vehicleChannelStartAttempts++;
             auto channel = CreateAudioChannel(
-                id, looping, DStoMixerVolume(volume), DStoMixerPan(pan), DStoMixerRate(frequency), false);
+                id, MixerGroup::Vehicle, looping, DStoMixerVolume(volume), 0.5f,
+                DStoMixerRate(frequency) * sound_params->dopplerFactor, false);
             if (channel != nullptr)
             {
                 sound.id = id;
-                sound.pan = sound_params->panX;
                 sound.volume = volume;
                 sound.frequency = sound_params->frequency;
                 sound.channel = channel;
+                sound.channel->SetSpatial(sound_params->azimuth, sound_params->elevation);
             }
             else
             {
+                _vehicleChannelStartFailures++;
                 sound.id = SoundId::null;
             }
             return;
@@ -513,20 +418,13 @@ namespace OpenRCT2::Audio
             sound.volume = volume;
             sound.channel->SetVolume(DStoMixerVolume(volume));
         }
-        if (sound_params->panX != sound.pan)
-        {
-            sound.pan = sound_params->panX;
-            sound.channel->SetPan(DStoMixerPan(sound_params->panX));
-        }
+        sound.channel->SetSpatial(sound_params->azimuth, sound_params->elevation);
         if (!(getGameState().currentTicks & 3) && sound_params->frequency != sound.frequency)
         {
             sound.frequency = sound_params->frequency;
-            if (ShouldUpdateChannelRate<type>(id))
-            {
-                uint16_t frequency = SoundFrequency<type>(id, sound_params->frequency);
-                sound.channel->SetRate(DStoMixerRate(frequency));
-            }
         }
+        const auto frequency = SoundFrequency<type>(id, sound.frequency);
+        sound.channel->SetRate(DStoMixerRate(frequency) * sound_params->dopplerFactor);
     }
 
     /**
@@ -540,33 +438,61 @@ namespace OpenRCT2::Audio
         if (!IsAvailable())
             return;
 
-        sfl::static_vector<VehicleSoundParams, kMaxVehicleSounds> vehicleSoundParamsList;
+        std::vector<VehicleSoundParams> vehicleSoundParamsList;
+        vehicleSoundParamsList.reserve(kMaxVehicleSounds * 2);
 
         VehicleSoundsUpdateWindowSetup();
+        const auto listener = GetSpatialAudioListener();
+        if (!listener.has_value())
+            return;
+        UpdateSpatialSounds();
 
-        for (auto vehicle : TrainManager::View())
-        {
-            UpdateSoundParams(*vehicle, vehicleSoundParamsList);
-        }
+        const auto now = std::chrono::steady_clock::now();
+        const auto elapsedSeconds = _lastVehicleAudioUpdate == std::chrono::steady_clock::time_point{}
+            ? 0.0f
+            : std::chrono::duration<float>(now - _lastVehicleAudioUpdate).count();
+        _lastVehicleAudioUpdate = now;
 
-        // Stop all playing sounds that no longer have priority to play after vehicle_update_sound_params
-        for (auto& vehicleSound : gVehicleSoundList)
+        std::unordered_set<uint16_t> playingVehicleIds;
+        playingVehicleIds.reserve(kMaxVehicleSounds);
+        for (const auto& vehicleSound : gVehicleSoundList)
         {
             if (vehicleSound.id != kSoundIdNull)
             {
-                bool keepPlaying = false;
-                for (auto vehicleSoundParams : vehicleSoundParamsList)
-                {
-                    if (vehicleSound.id == vehicleSoundParams.id)
-                    {
-                        keepPlaying = true;
-                        break;
-                    }
-                }
+                playingVehicleIds.insert(vehicleSound.id);
+            }
+        }
 
-                if (keepPlaying)
-                    continue;
+        for (auto vehicle : TrainManager::View())
+        {
+            UpdateSoundParams(
+                *vehicle, *listener, elapsedSeconds, playingVehicleIds.contains(vehicle->id.ToUnderlying()),
+                vehicleSoundParamsList);
+        }
+        std::stable_sort(vehicleSoundParamsList.begin(), vehicleSoundParamsList.end(), [](const auto& lhs, const auto& rhs) {
+            return lhs.priority > rhs.priority;
+        });
+        const auto candidateCount = vehicleSoundParamsList.size();
+        if (vehicleSoundParamsList.size() > kMaxVehicleSounds)
+        {
+            vehicleSoundParamsList.resize(kMaxVehicleSounds);
+        }
+        const auto shouldReport = _lastVehicleAudioReport == std::chrono::steady_clock::time_point{}
+            || now - _lastVehicleAudioReport >= std::chrono::seconds(5);
 
+        std::unordered_set<uint16_t> selectedVehicleIds;
+        selectedVehicleIds.reserve(vehicleSoundParamsList.size());
+        for (const auto& params : vehicleSoundParamsList)
+        {
+            selectedVehicleIds.insert(params.id);
+        }
+
+        // Stop all playing sounds that no longer have priority. The selected-id set keeps this linear
+        // when thousands of vehicle slots are active.
+        for (auto& vehicleSound : gVehicleSoundList)
+        {
+            if (vehicleSound.id != kSoundIdNull && !selectedVehicleIds.contains(vehicleSound.id))
+            {
                 if (vehicleSound.trackSound.id != SoundId::null)
                 {
                     vehicleSound.trackSound.channel->Stop();
@@ -579,39 +505,73 @@ namespace OpenRCT2::Audio
             }
         }
 
+        std::unordered_map<uint16_t, VehicleSound*> activeVehicleSounds;
+        std::vector<VehicleSound*> freeVehicleSounds;
+        activeVehicleSounds.reserve(vehicleSoundParamsList.size());
+        freeVehicleSounds.reserve(kMaxVehicleSounds);
+        for (auto& vehicleSound : gVehicleSoundList)
+        {
+            if (vehicleSound.id == kSoundIdNull)
+            {
+                freeVehicleSounds.push_back(&vehicleSound);
+            }
+            else
+            {
+                activeVehicleSounds.emplace(vehicleSound.id, &vehicleSound);
+            }
+        }
+
         for (auto& vehicleSoundParams : vehicleSoundParamsList)
         {
-            uint8_t panVol = VehicleSoundsUpdateGetPanVolume(&vehicleSoundParams);
-
-            auto* vehicleSound = VehicleSoundsUpdateGetVehicleSound(&vehicleSoundParams);
-            // No free vehicle sound slots (RCT2 corrupts the pointer here)
-            if (vehicleSound == nullptr)
-                continue;
-
-            // Move the Sound Volume towards the SoundsParam Volume
-            int32_t tempvolume = vehicleSound->volume;
-            if (tempvolume != vehicleSoundParams.volume)
+            VehicleSound* vehicleSound{};
+            const auto active = activeVehicleSounds.find(vehicleSoundParams.id);
+            if (active != activeVehicleSounds.end())
             {
-                if (tempvolume < vehicleSoundParams.volume)
-                {
-                    tempvolume += 4;
-                }
-                else
-                {
-                    tempvolume -= 4;
-                }
+                vehicleSound = active->second;
             }
-            vehicleSound->volume = tempvolume;
-            panVol = std::max(0, panVol - tempvolume);
+            else if (!freeVehicleSounds.empty())
+            {
+                vehicleSound = freeVehicleSounds.back();
+                freeVehicleSounds.pop_back();
+                vehicleSound->id = vehicleSoundParams.id;
+                vehicleSound->trackSound.id = SoundId::null;
+                vehicleSound->otherSound.id = SoundId::null;
+                vehicleSound->volume = 0x30;
+                activeVehicleSounds.emplace(vehicleSoundParams.id, vehicleSound);
+            }
+            if (vehicleSound == nullptr)
+            {
+                continue;
+            }
 
             Vehicle* vehicle = getGameState().entities.GetEntity<Vehicle>(EntityId::FromUnderlying(vehicleSoundParams.id));
             if (vehicle != nullptr)
             {
                 UpdateSound<SoundType::TrackNoises>(
-                    vehicle->sound1_id, vehicle->sound1_volume, &vehicleSoundParams, vehicleSound->trackSound, panVol);
+                    vehicle->sound1_id, vehicle->sound1_volume, &vehicleSoundParams, vehicleSound->trackSound);
                 UpdateSound<SoundType::OtherNoises>(
-                    vehicle->sound2_id, vehicle->sound2_volume, &vehicleSoundParams, vehicleSound->otherSound, panVol);
+                    vehicle->sound2_id, vehicle->sound2_volume, &vehicleSoundParams, vehicleSound->otherSound);
             }
+        }
+
+        if (shouldReport)
+        {
+            size_t trackChannels = 0;
+            size_t secondaryChannels = 0;
+            for (const auto& vehicleSound : gVehicleSoundList)
+            {
+                trackChannels += vehicleSound.id != kSoundIdNull && vehicleSound.trackSound.id != SoundId::null;
+                secondaryChannels += vehicleSound.id != kSoundIdNull && vehicleSound.otherSound.id != SoundId::null;
+            }
+            LOG_VERBOSE(
+                "Spatial audio selected %zu vehicle emitters from %zu continuous-distance candidates (%zu mechanical, "
+                "%zu secondary channels); starts %llu, failures %llu",
+                vehicleSoundParamsList.size(), candidateCount, trackChannels, secondaryChannels,
+                static_cast<unsigned long long>(_vehicleChannelStartAttempts),
+                static_cast<unsigned long long>(_vehicleChannelStartFailures));
+            _vehicleChannelStartAttempts = 0;
+            _vehicleChannelStartFailures = 0;
+            _lastVehicleAudioReport = now;
         }
     }
 } // namespace OpenRCT2::Audio

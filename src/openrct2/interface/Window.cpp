@@ -814,7 +814,7 @@ static constexpr float kWindowScrollLocations[][2] = {
     }
 
     /**
-     * Update zoom based volume attenuation for ride music and clear music list.
+     * Select the viewport that owns the world-space audio listener and clear the ride music list.
      *  rct2: 0x006BC348
      */
     void WindowUpdateViewportRideMusic()
@@ -832,14 +832,10 @@ static constexpr float kWindowScrollLocations[][2] = {
             gMusicTrackingViewport = viewport;
             gWindowAudioExclusive = w;
 
-            if (viewport->zoom <= ZoomLevel{ 0 })
-                Audio::gVolumeAdjustZoom = 0;
-            else if (viewport->zoom == ZoomLevel{ 1 })
-                Audio::gVolumeAdjustZoom = 30;
-            else
-                Audio::gVolumeAdjustZoom = 60;
             break;
         }
+
+        Audio::UpdateSpatialSounds();
     }
 
     /**

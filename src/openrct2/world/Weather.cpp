@@ -17,6 +17,7 @@
 #include "../audio/Audio.h"
 #include "../audio/AudioChannel.h"
 #include "../audio/AudioMixer.h"
+#include "../audio/SpatialAudio.h"
 #include "../config/Config.h"
 #include "../core/EnumUtils.hpp"
 #include "../core/GameTime.hpp"
@@ -29,6 +30,7 @@
 #include "../windows/Intent.h"
 
 #include <array>
+#include <cmath>
 #include <memory>
 
 namespace OpenRCT2::Weather
@@ -97,6 +99,16 @@ namespace OpenRCT2::Weather
     static void updateLightning();
     static void updateThunder();
     static void playThunder(int32_t instanceIndex, SoundId soundId, int32_t volume, int32_t pan);
+
+    static int32_t getHeightAdjustedRainVolume()
+    {
+        auto mixerVolume = static_cast<float>(DStoMixerVolume(_weatherVolume));
+        if (const auto listener = GetSpatialAudioListener(); listener.has_value())
+        {
+            mixerVolume *= CalculateRainHeightGain(*listener);
+        }
+        return std::clamp(static_cast<int32_t>(std::lround(mixerVolume)), 0, kMixerVolumeMax);
+    }
 
     int32_t celsiusToFahrenheit(int32_t celsius)
     {
@@ -389,7 +401,7 @@ namespace OpenRCT2::Weather
                 _weatherVolume = std::min(-1400, _weatherVolume + 80);
                 if (_weatherSoundChannel != nullptr)
                 {
-                    _weatherSoundChannel->SetVolume(DStoMixerVolume(_weatherVolume));
+                    _weatherSoundChannel->SetVolume(getHeightAdjustedRainVolume());
                 }
             }
         }
@@ -401,7 +413,7 @@ namespace OpenRCT2::Weather
             {
                 if (_weatherSoundChannel != nullptr)
                 {
-                    _weatherSoundChannel->SetVolume(DStoMixerVolume(_weatherVolume));
+                    _weatherSoundChannel->SetVolume(getHeightAdjustedRainVolume());
                 }
             }
             else

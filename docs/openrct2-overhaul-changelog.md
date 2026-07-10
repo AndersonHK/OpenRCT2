@@ -1,5 +1,57 @@
 # OpenRCT2 overhaul changelog
 
+## 2026-07-10
+
+### World-space spatial audio and 7.1 mixing
+
+Decision: replace viewport-bound, zoom-attenuated sound with a shared world-space listener model. One-shot effects, vehicles, and ride music now use continuous three-dimensional distance from an elevated virtual camera and remain eligible at every zoom level instead of disappearing at a screen rectangle or fixed tile boundary.
+
+Correction: derive virtual camera height from the isometric viewport's visible ground footprint. Zooming toward an area lowers the listener, raises focused emitters, and increases their contrast over horizontally remote sources. Object `z` and camera `z` both participate in Euclidean distance and elevation.
+
+Correction: replace the old 16-tile rolloff with a continuous distance curve and, after physical-system listening, compress its exponent to `0.8` (approximately 4.8 dB quieter per distance doubling). Proximity still orders sources generically, while rollercoasters and music remain useful deeper into the park. Vehicle voice priority starts with post-distance loudness rather than allowing raw train mass to dominate far-away sources.
+
+Addition: Doppler pitch now comes from smoothed source-listener radial range rate, covering moving vehicles, a moving or zooming camera, and persistent one-shots. The effect is bounded to avoid fast-forward and teleport spikes; the legacy orientation-based vehicle pitch offset is no longer applied.
+
+Decision: request 48 kHz 7.1 output in SDL's Windows-compatible `FL, FR, FC, LFE, BL, BR, SL, SR` order, with an automatic stereo retry when the selected endpoint refuses eight channels. Positional sources use constant-power speaker interpolation; non-positional stereo remains on the front pair, and LFE remains available for endpoint bass management.
+
+Correction: replace repeated 16-bit `SDL_MixAudioFormat` additions with a floating-point mix bus, 6 dB of headroom, and a 0.95 full-scale peak limiter. The mixer now stores 8,192 channels and can select up to 2,048 vehicle emitters; ride music remains on its separate strongest-64 budget so it cannot consume the ride-vehicle pool.
+
+Performance: replace linked channel storage and repeated vehicle-array scans with contiguous channels plus hashed id/slot lookup. Speaker-planar accumulation, a runtime-dispatched AVX2 positional kernel, direct stereo-to-positional resampling, and a fixed 1,024-frame callback give the already-dedicated SDL audio thread substantially more deadline margin. On EverythingPark, roughly 500-540 channels settled around 5.0 ms average / 7.0 ms worst against a 21.33 ms callback budget.
+
+Tuning: vehicle volume bytes now retain their linear-amplitude meaning instead of sending half-scale track noise to roughly -41 dB. After the louder listening passes, mechanical audio is trimmed from 6x through 5x to 4.5x, rider screams from 4x to 3.5x, and other secondary vehicle cues from 2x to 1.75x.
+
+Tuning: separate source-class rolloff exponents preserve one generic mathematical system without forcing every emitter to behave like the same physical source. Coaster, kart, and rider voices use exponent `1.1` (about 6.6 dB loss per distance doubling), world effects retain `0.8`, and amplified ride music uses `0.6` (about 3.6 dB per doubling). Music source strength rises from 2.5x through 3x and 4x to the final 5x listening calibration, while its camera-driven Doppler depth remains 5%.
+
+Tuning: rain ambience now follows virtual listener height continuously. Its curve is shifted one camera-height step louder so zoom -1 receives the former closest-view strength, zoom -2 is louder still, and rain becomes progressively fainter as the camera rises.
+
+Correction: ride-music culling now ranks on unclipped spatial gain instead of the final 0 dB-clamped playback volume. The 5x source calibration previously made many near and far rides tie, allowing ride iteration order to displace on-screen speakers. Newly selected sources can now start while retired voices finish their short fade, and reselected sources reverse that fade smoothly.
+
+Correction: ride-vehicle audio now uses the closest physical car in each train as the acoustic point instead of always using its head car. This keeps long trains and distributed ride vehicles local when the visible part of the train is nearest the listener, without multiplying the same loop across every car.
+
+Compatibility: 7.1 world effects now use a phantom front centre across FL/FR rather than routing straight-ahead sources solely to FC. This preserves side and rear positioning while avoiding a virtual-headset centre-channel downmix failure that can masquerade as proximity culling on Logitech GHub.
+
+Verification: the Logitech endpoint advertises the standard `0x63F` 7.1 mask and accepted one WASAPI 48 kHz, eight-channel, 1,024-frame stream. EverythingPark selected all 291 vehicle emitters, mixed 337-365 vehicle channels per callback, and reported zero ride-channel or global admission failures. The callback measured 4.6 ms average / 7.6 ms worst against a 21.33 ms deadline. OpenRCT2 software-mixes logical voices into the eight-channel PCM stream before Windows or the headset driver receives it; there is no downstream 256-voice truncation boundary.
+
+Resilience: handle SDL render-target and render-device reset events by rebuilding hardware-display textures, restoring the palette mapping, and invalidating the full frame. This is a best-effort recovery for Windows display-driver resets that previously left the simulation and audio alive behind a permanently black presentation surface.
+
+Correction: replace the single non-positional crowd loop with an eight-sector diffuse surround field. Visible guests contribute to camera-relative directional clusters whose amplitude shares preserve the previous aggregate crowd loudness. The short positional purchase/cash-register cue receives a local 4 dB correction so it is not masked by that sustained ambience.
+
+Correction: source retirement now fades over 350 ms. A crash no longer nulls the active ride-music track on the next game tick; the active track is allowed to finish, while the crash effect plays as an uncropped spatial one-shot.
+
+Details: [Spatial audio overhaul](spatial-audio-overhaul.md)
+
+Verification:
+
+- `msbuild openrct2.proj /m /nr:false /p:Configuration=Release /p:Platform=x64 /p:VCToolsVersion=14.44.35207`
+- From `bin`: `.\tests.exe` (`380` tests passed)
+- Repeated 20-25 second `EverythingPark.park --verbose` runtime passes stayed stable, negotiated `48000 Hz`, `8 channels`, and 1,024-frame callbacks on the Logitech/Windows endpoint, and reported no audio callback errors.
+
+### Main-menu responsiveness
+
+Correction: completed aggregate rider samples now publish their rolling rating directly instead of calling the testing-only synchronous `UpdateRide()` helper. A symbolized live hang capture showed the title/main thread inside a whole-track close-proximity scan triggered when a train unloaded, while the independent audio callback kept playing. Track proximity, shelter, upkeep, and script-hook maintenance remain on the existing bounded incremental rating state machine, preventing ride-heavy title parks from monopolising a rendered frame.
+
+Verification: the pre-fix title-menu monitor entered a sustained non-responsive state within 17-36 seconds and the debugger stack contained `RecordActiveRiderSamples -> UpdateRide -> ride_ratings_score_close_proximity_in_direction`. The corrected Release build stayed responsive for a continuous 50-second title-menu pass with no non-responsive samples; the full 380-test suite also passes.
+
 ## 2026-07-09
 
 ### Guest nausea and first aid behavior

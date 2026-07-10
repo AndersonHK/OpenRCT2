@@ -37,10 +37,16 @@ namespace OpenRCT2::Audio
         float _oldvolume_r = 0.f;
         int32_t _oldvolume = 0;
         float _pan = 0;
+        float _azimuth = 0;
+        float _oldAzimuth = 0;
+        float _elevation = 0;
+        float _fadeLevel = 1.0f;
+        double _resampleRemainder = 0.0;
 
         bool _stopping = false;
         bool _done = true;
         bool _deleteondone = false;
+        bool _spatial = false;
 
     public:
         AudioChannelImpl()
@@ -87,6 +93,7 @@ namespace OpenRCT2::Audio
                 AudioFormat format = _source->GetFormat();
                 int32_t samplesize = format.channels * format.BytesPerSample();
                 _offset = (offset / samplesize) * samplesize;
+                _resampleRemainder = 0.0;
                 return true;
             }
             return false;
@@ -159,6 +166,42 @@ namespace OpenRCT2::Audio
             }
         }
 
+        [[nodiscard]] bool IsSpatial() const override
+        {
+            return _spatial;
+        }
+
+        [[nodiscard]] float GetAzimuth() const override
+        {
+            return _azimuth;
+        }
+
+        [[nodiscard]] float GetElevation() const override
+        {
+            return _elevation;
+        }
+
+        [[nodiscard]] float GetOldAzimuth() const override
+        {
+            return _oldAzimuth;
+        }
+
+        void SetSpatial(float azimuth, float elevation) override
+        {
+            if (!_spatial)
+            {
+                _oldAzimuth = azimuth;
+            }
+            _azimuth = azimuth;
+            _elevation = elevation;
+            _spatial = true;
+        }
+
+        void ClearSpatial() override
+        {
+            _spatial = false;
+        }
+
         [[nodiscard]] bool IsStopping() const override
         {
             return _stopping;
@@ -200,6 +243,9 @@ namespace OpenRCT2::Audio
             _loop = loop;
             _offset = 0;
             _done = false;
+            _stopping = false;
+            _fadeLevel = 1.0f;
+            _resampleRemainder = 0.0;
         }
 
         void Stop() override
@@ -207,11 +253,71 @@ namespace OpenRCT2::Audio
             SetStopping(true);
         }
 
+        [[nodiscard]] float GetFadeLevel() const override
+        {
+            return _fadeLevel;
+        }
+
+        float AdvanceFade(size_t frames, uint32_t sampleRate) override
+        {
+            constexpr float kFadeSeconds = 0.35f;
+            const auto fadeStep = static_cast<float>(frames) / (static_cast<float>(sampleRate) * kFadeSeconds);
+            if (_stopping)
+            {
+                _fadeLevel = std::max(0.0f, _fadeLevel - fadeStep);
+                if (_fadeLevel == 0.0f)
+                {
+                    _done = true;
+                }
+            }
+            else if (_fadeLevel < 1.0f)
+            {
+                // A spatial source can regain priority while its retirement fade is in progress.
+                // Recover smoothly instead of leaving it permanently attenuated or restarting it.
+                _fadeLevel = std::min(1.0f, _fadeLevel + fadeStep);
+            }
+            return _fadeLevel;
+        }
+
+        [[nodiscard]] double GetResampleRemainder() const override
+        {
+            return _resampleRemainder;
+        }
+
+        void SetResampleRemainder(double value) override
+        {
+            _resampleRemainder = std::clamp(value, 0.0, 1.0);
+        }
+
+        size_t ReadForResampling(void* dst, size_t framesToConsume, size_t lookaheadFrames) override
+        {
+            if (_source == nullptr || _done)
+            {
+                return 0;
+            }
+
+            const auto format = _source->GetFormat();
+            const auto frameBytes = static_cast<size_t>(format.channels * format.BytesPerSample());
+            const auto consumeBytes = framesToConsume * frameBytes;
+            const auto consumedBytes = Read(dst, consumeBytes);
+            const auto consumedFrames = consumedBytes / frameBytes;
+            if (consumedFrames != framesToConsume || _done || lookaheadFrames == 0)
+            {
+                return consumedFrames;
+            }
+
+            auto* lookaheadDestination = static_cast<uint8_t*>(dst) + consumedBytes;
+            const auto lookaheadBytes = lookaheadFrames * frameBytes;
+            const auto lookaheadRead = _source->Read(lookaheadDestination, _offset, lookaheadBytes);
+            return consumedFrames + (lookaheadRead / frameBytes);
+        }
+
         void UpdateOldVolume() override
         {
             _oldvolume = _volume;
             _oldvolume_l = _volume_l;
             _oldvolume_r = _volume_r;
+            _oldAzimuth = _azimuth;
         }
 
         [[nodiscard]] AudioFormat GetFormat() const override

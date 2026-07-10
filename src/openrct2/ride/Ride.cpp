@@ -1996,7 +1996,8 @@ void CircusMusicUpdate(Ride& ride)
  */
 void DefaultMusicUpdate(Ride& ride)
 {
-    if (ride.status != RideStatus::open || !ride.flags.has(RideFlag::music))
+    const auto finishCrashTrack = ride.flags.has(RideFlag::crashed) && ride.musicTuneId != kTuneIDNull;
+    if ((ride.status != RideStatus::open && !finishCrashTrack) || !ride.flags.has(RideFlag::music))
     {
         ride.musicTuneId = kTuneIDNull;
         return;

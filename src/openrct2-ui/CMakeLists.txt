@@ -42,6 +42,12 @@ file(GLOB_RECURSE OPENRCT2_UI_HEADERS
     "${CMAKE_CURRENT_LIST_DIR}/*.h"
     "${CMAKE_CURRENT_LIST_DIR}/*.hpp")
 
+if (MSVC AND (CMAKE_SIZEOF_VOID_P EQUAL 8) AND CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64")
+    set_source_files_properties(${CMAKE_CURRENT_LIST_DIR}/audio/AudioMixer.AVX2.cpp PROPERTIES COMPILE_FLAGS /arch:AVX2)
+elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|i.86")
+    set_source_files_properties(${CMAKE_CURRENT_LIST_DIR}/audio/AudioMixer.AVX2.cpp PROPERTIES COMPILE_FLAGS -mavx2)
+endif ()
+
 if (APPLE)
     file(GLOB_RECURSE OPENRCT2_UI_MM_SOURCES "${CMAKE_CURRENT_LIST_DIR}/*.mm")
     set_source_files_properties(${OPENRCT2_UI_MM_SOURCES} PROPERTIES COMPILE_FLAGS "-x objective-c++ -fmodules")

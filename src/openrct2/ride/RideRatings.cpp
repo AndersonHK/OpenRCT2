@@ -1418,8 +1418,26 @@ void RideRating::RecordRiderSample(Ride& ride, const RideRatingAccumulator& samp
     if (RideRatingsUsesAggregateSamples(ride))
     {
         ride.flags.set(RideFlag::tested);
+        const auto recentAccumulator = RideGetRecentRatingAccumulator(ride);
+        if (recentAccumulator.hasSamples())
+        {
+            const auto ratings = RideRatingsCalculateAggregated(ride, recentAccumulator);
+            if (ride.ratings != ratings)
+            {
+                ride.ratings = ratings;
+                ride.windowInvalidateFlags.set(RideInvalidateFlag::ratings);
+            }
+        }
     }
-    UpdateRide(ride);
+    else
+    {
+        // Non-aggregate rating types still depend on the legacy track-wide state.
+        UpdateRide(ride);
+    }
+
+    // Track proximity, shelter, upkeep, and scripting hooks remain on UpdateAll's bounded
+    // incremental state machine. Running an entire track scan synchronously every time a train
+    // unloads can monopolise the title/main thread in ride-heavy parks while audio keeps playing.
     ride.windowInvalidateFlags.set(RideInvalidateFlag::ratings);
 }
 

@@ -21,6 +21,8 @@
 #include "../audio/Audio.h"
 #include "../audio/AudioChannel.h"
 #include "../audio/AudioMixer.h"
+#include "../audio/AudioSource.h"
+#include "../audio/SpatialAudio.h"
 #include "../config/Config.h"
 #include "../core/EnumUtils.hpp"
 #include "../core/Guard.hpp"
@@ -65,11 +67,15 @@
 #include "PatrolArea.h"
 #include "Staff.h"
 
+#include <array>
 #include <cassert>
+#include <cmath>
 #include <iterator>
 #include <limits>
 #include <map>
 #include <memory>
+#include <numbers>
+#include <numeric>
 #include <optional>
 
 namespace OpenRCT2
@@ -80,7 +86,8 @@ namespace OpenRCT2
     static uint8_t _backupAnimationImageIdOffset;
     static TileElement* _peepRideEntranceExitElement;
 
-    static std::shared_ptr<IAudioChannel> _crowdSoundChannel = nullptr;
+    constexpr size_t kCrowdSpatialSectorCount = 8;
+    static std::array<std::shared_ptr<IAudioChannel>, kCrowdSpatialSectorCount> _crowdSoundChannels{};
 
     static void GuestReleaseBalloon(Guest* peep, int16_t spawn_height);
 
@@ -1157,10 +1164,13 @@ namespace OpenRCT2
 
     void PeepStopCrowdNoise()
     {
-        if (_crowdSoundChannel != nullptr)
+        for (auto& channel : _crowdSoundChannels)
         {
-            _crowdSoundChannel->Stop();
-            _crowdSoundChannel = nullptr;
+            if (channel != nullptr)
+            {
+                channel->Stop();
+                channel = nullptr;
+            }
         }
     }
 
@@ -1185,8 +1195,20 @@ namespace OpenRCT2
         if (viewport == nullptr)
             return;
 
-        // Count the number of peeps visible
+        const auto listener = GetSpatialAudioListener();
+        if (!listener.has_value())
+        {
+            PeepStopCrowdNoise();
+            return;
+        }
+
+        // Count visible peeps and distribute them into camera-relative angular sectors. A handful
+        // of independently routed ambience voices produces a diffuse field instead of pinning the
+        // entire crowd bed to the front stereo pair.
         auto visiblePeeps = 0;
+        std::array<float, kCrowdSpatialSectorCount> sectorWeights{};
+        std::array<float, kCrowdSpatialSectorCount> sectorElevationSums{};
+        constexpr auto kSectorAngle = 2.0f * std::numbers::pi_v<float> / kCrowdSpatialSectorCount;
 
         for (auto peep : EntityList<Guest>())
         {
@@ -1201,7 +1223,18 @@ namespace OpenRCT2
             if (viewport->viewPos.y + viewport->ViewHeight() < peep->spriteData.spriteRect.GetTop())
                 continue;
 
-            visiblePeeps += peep->State == PeepState::queuing ? 1 : 2;
+            const auto peepWeight = peep->State == PeepState::queuing ? 1.0f : 2.0f;
+            visiblePeeps += static_cast<int32_t>(peepWeight);
+
+            const auto spatial = CalculateSpatialAudioParams(*listener, peep->getLocation());
+            auto sector = static_cast<int32_t>(std::lround(spatial.Azimuth / kSectorAngle));
+            sector %= static_cast<int32_t>(kCrowdSpatialSectorCount);
+            if (sector < 0)
+            {
+                sector += static_cast<int32_t>(kCrowdSpatialSectorCount);
+            }
+            sectorWeights[sector] += peepWeight;
+            sectorElevationSums[sector] += spatial.Elevation * peepWeight;
         }
 
         // This function doesn't account for the fact that the screen might be so big that 100 peeps could potentially be very
@@ -1213,9 +1246,12 @@ namespace OpenRCT2
         if (visiblePeeps < 0)
         {
             // Mute crowd noise
-            if (_crowdSoundChannel != nullptr)
+            for (auto& channel : _crowdSoundChannels)
             {
-                _crowdSoundChannel->SetVolume(0);
+                if (channel != nullptr)
+                {
+                    channel->SetVolume(0);
+                }
             }
         }
         else
@@ -1226,18 +1262,51 @@ namespace OpenRCT2
             volume = volume * volume * volume * volume;
             volume = (viewport->zoom.ApplyInversedTo(207360000 - volume) - 207360000) / 65536 - 150;
 
-            // Load and play crowd noise if needed and set volume
-            if (_crowdSoundChannel == nullptr || _crowdSoundChannel->IsDone())
+            const auto totalSectorWeight = std::accumulate(sectorWeights.begin(), sectorWeights.end(), 0.0f);
+            for (size_t i = 0; i < kCrowdSpatialSectorCount; i++)
             {
-                _crowdSoundChannel = CreateAudioChannel(SoundId::crowdAmbience, true, 0);
-                if (_crowdSoundChannel != nullptr)
+                const auto sectorWeight = sectorWeights[i];
+                auto& channel = _crowdSoundChannels[i];
+                if (sectorWeight <= 0.0f || totalSectorWeight <= 0.0f)
                 {
-                    _crowdSoundChannel->SetGroup(MixerGroup::Sound);
+                    if (channel != nullptr)
+                    {
+                        channel->SetVolume(0);
+                    }
+                    continue;
                 }
-            }
-            if (_crowdSoundChannel != nullptr)
-            {
-                _crowdSoundChannel->SetVolume(DStoMixerVolume(volume));
+
+                if (channel == nullptr || channel->IsDone())
+                {
+                    channel = CreateAudioChannel(SoundId::crowdAmbience, true, 0);
+                    if (channel != nullptr)
+                    {
+                        channel->SetGroup(MixerGroup::Sound);
+                        const auto* source = channel->GetSource();
+                        if (source != nullptr)
+                        {
+                            // Stagger identical loops so the surround field is decorrelated rather
+                            // than eight coherent copies of the same waveform starting together.
+                            const auto offset = (source->GetLength() / kCrowdSpatialSectorCount) * i;
+                            channel->SetOffset(offset);
+                        }
+                    }
+                }
+                if (channel == nullptr)
+                {
+                    continue;
+                }
+
+                auto azimuth = static_cast<float>(i) * kSectorAngle;
+                if (azimuth > std::numbers::pi_v<float>)
+                {
+                    azimuth -= 2.0f * std::numbers::pi_v<float>;
+                }
+                const auto elevation = sectorElevationSums[i] / sectorWeight;
+                const auto amplitudeShare = sectorWeight / totalSectorWeight;
+                const auto sectorVolume = std::max(-10000, volume + SpatialGainToDSEnvelope(amplitudeShare));
+                channel->SetSpatial(azimuth, elevation);
+                channel->SetVolume(DStoMixerVolume(sectorVolume));
             }
         }
     }

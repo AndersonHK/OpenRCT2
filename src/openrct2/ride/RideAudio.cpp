@@ -10,11 +10,13 @@
 #include "RideAudio.h"
 
 #include "../Context.h"
+#include "../Diagnostic.h"
 #include "../OpenRCT2.h"
 #include "../audio/Audio.h"
 #include "../audio/AudioChannel.h"
 #include "../audio/AudioContext.h"
 #include "../audio/AudioMixer.h"
+#include "../audio/SpatialAudio.h"
 #include "../config/Config.h"
 #include "../interface/Viewport.h"
 #include "../object/AudioObject.h"
@@ -24,6 +26,7 @@
 #include "RideData.h"
 
 #include <algorithm>
+#include <chrono>
 #include <vector>
 
 using namespace OpenRCT2;
@@ -31,7 +34,9 @@ using namespace OpenRCT2::Audio;
 
 namespace OpenRCT2::RideAudio
 {
-    constexpr size_t kMaxRideMusicChannels = 32;
+    constexpr size_t kMaxRideMusicChannels = 64;
+    constexpr float kRideMusicSourceGain = 5.0f;
+    constexpr float kRideMusicDopplerStrength = 0.05f;
 
     /**
      * Represents an audio channel to play a particular ride's music track.
@@ -43,11 +48,15 @@ namespace OpenRCT2::RideAudio
 
         size_t Offset{};
         int16_t Volume{};
-        int16_t Pan{};
+        float Azimuth{};
+        float Elevation{};
         uint16_t Frequency{};
+        DopplerMotionState Doppler{};
+        std::chrono::steady_clock::time_point LastMotionUpdate{};
 
         std::shared_ptr<IAudioChannel> Channel{};
         IAudioSource* Source{};
+        bool Stopping{};
 
         RideMusicChannel(
             const ViewportRideMusicInstance& instance, std::shared_ptr<IAudioChannel> channel, IAudioSource* source)
@@ -57,12 +66,15 @@ namespace OpenRCT2::RideAudio
 
             Offset = std::max<size_t>(0, instance.Offset - 10000);
             Volume = instance.Volume;
-            Pan = instance.Pan;
+            Azimuth = instance.Azimuth;
+            Elevation = instance.Elevation;
             Frequency = instance.Frequency;
+            UpdateDopplerMotion(Doppler, instance.Distance, 0.0f);
+            LastMotionUpdate = std::chrono::steady_clock::now();
 
             channel->SetOffset(Offset);
             channel->SetVolume(DStoMixerVolume(Volume));
-            channel->SetPan(DStoMixerPan(Pan));
+            channel->SetSpatial(Azimuth, Elevation);
             channel->SetRate(DStoMixerRate(Frequency));
             Channel = std::move(channel);
 
@@ -85,11 +97,15 @@ namespace OpenRCT2::RideAudio
 
             Offset = src.Offset;
             Volume = src.Volume;
-            Pan = src.Pan;
+            Azimuth = src.Azimuth;
+            Elevation = src.Elevation;
             Frequency = src.Frequency;
+            Doppler = src.Doppler;
+            LastMotionUpdate = src.LastMotionUpdate;
 
             swap(Channel, src.Channel);
             swap(Source, src.Source);
+            Stopping = src.Stopping;
 
             return *this;
         }
@@ -115,6 +131,24 @@ namespace OpenRCT2::RideAudio
             return false;
         }
 
+        void BeginStop()
+        {
+            if (!Stopping && Channel != nullptr)
+            {
+                Channel->Stop();
+                Stopping = true;
+            }
+        }
+
+        void Resume()
+        {
+            if (Stopping && Channel != nullptr)
+            {
+                Channel->SetStopping(false);
+                Stopping = false;
+            }
+        }
+
         size_t GetOffset() const
         {
             if (Channel != nullptr)
@@ -126,6 +160,12 @@ namespace OpenRCT2::RideAudio
 
         void Update(const ViewportRideMusicInstance& instance)
         {
+            Resume();
+            const auto ride = GetRide(instance.RideId);
+            if (ride != nullptr && ride->flags.has(RideFlag::crashed) && Channel != nullptr)
+            {
+                Channel->SetLoop(kMixerLoopNone);
+            }
             if (Volume != instance.Volume)
             {
                 Volume = instance.Volume;
@@ -134,27 +174,40 @@ namespace OpenRCT2::RideAudio
                     Channel->SetVolume(DStoMixerVolume(Volume));
                 }
             }
-            if (Pan != instance.Pan)
+            if (Azimuth != instance.Azimuth || Elevation != instance.Elevation)
             {
-                Pan = instance.Pan;
+                Azimuth = instance.Azimuth;
+                Elevation = instance.Elevation;
                 if (Channel != nullptr)
                 {
-                    Channel->SetPan(DStoMixerPan(Pan));
+                    Channel->SetSpatial(Azimuth, Elevation);
                 }
             }
+            const auto now = std::chrono::steady_clock::now();
+            const auto elapsed = std::chrono::duration<float>(now - LastMotionUpdate).count();
+            const auto doppler = UpdateDopplerMotion(Doppler, instance.Distance, elapsed);
+            LastMotionUpdate = now;
             if (Frequency != instance.Frequency)
             {
                 Frequency = instance.Frequency;
-                if (Channel != nullptr)
-                {
-                    Channel->SetRate(DStoMixerRate(Frequency));
-                }
+            }
+            if (Channel != nullptr)
+            {
+                const auto musicDoppler = std::lerp(1.0f, doppler, kRideMusicDopplerStrength);
+                Channel->SetRate(DStoMixerRate(Frequency) * musicDoppler);
             }
         }
     };
 
     static std::vector<ViewportRideMusicInstance> _musicInstances;
     static std::vector<RideMusicChannel> _musicChannels;
+    static std::chrono::steady_clock::time_point _lastMusicAudioReport{};
+
+    bool IsMusicInstanceHigherPriority(
+        const ViewportRideMusicInstance& lhs, const ViewportRideMusicInstance& rhs)
+    {
+        return lhs.PriorityGain > rhs.PriorityGain;
+    }
 
     void StopAllChannels()
     {
@@ -173,7 +226,7 @@ namespace OpenRCT2::RideAudio
         auto musicObj = objManager.GetLoadedObject<MusicObject>(ride->music);
         if (musicObj != nullptr)
         {
-            auto shouldLoop = musicObj->GetTrackCount() == 1;
+            auto shouldLoop = musicObj->GetTrackCount() == 1 && !ride->flags.has(RideFlag::crashed);
             auto source = musicObj->GetTrackSample(instance.TrackIndex);
             if (source != nullptr)
             {
@@ -217,11 +270,15 @@ namespace OpenRCT2::RideAudio
         _musicChannels.erase(
             std::remove_if(
                 _musicChannels.begin(), _musicChannels.end(),
-                [](const auto& channel) {
+                [](auto& channel) {
                     auto found = std::any_of(_musicInstances.begin(), _musicInstances.end(), [&channel](const auto& instance) {
                         return instance.RideId == channel.RideId && instance.TrackIndex == channel.TrackIndex;
                     });
-                    if (!found || !channel.IsPlaying())
+                    if (!found)
+                    {
+                        channel.BeginStop();
+                    }
+                    if (!channel.IsPlaying())
                     {
                         return true;
                     }
@@ -231,7 +288,8 @@ namespace OpenRCT2::RideAudio
             _musicChannels.end());
     }
 
-    static void UpdateRideMusicChannelForMusicParams(const ViewportRideMusicInstance& instance)
+    static void UpdateRideMusicChannelForMusicParams(
+        const ViewportRideMusicInstance& instance, size_t& activeChannelCount, size_t channelBudget)
     {
         // Find existing music channel
         auto foundChannel = std::find_if(
@@ -241,11 +299,20 @@ namespace OpenRCT2::RideAudio
 
         if (foundChannel != _musicChannels.end())
         {
+            if (foundChannel->Stopping)
+            {
+                activeChannelCount++;
+            }
             foundChannel->Update(instance);
         }
-        else if (_musicChannels.size() < kMaxRideMusicChannels)
+        else if (activeChannelCount < channelBudget)
         {
+            const auto previousChannelCount = _musicChannels.size();
             StartRideMusicChannel(instance);
+            if (_musicChannels.size() > previousChannelCount)
+            {
+                activeChannelCount++;
+            }
         }
     }
 
@@ -261,10 +328,29 @@ namespace OpenRCT2::RideAudio
         if (gGameSoundsOff || !Config::Get().sound.rideMusicEnabled)
             return;
 
+        constexpr auto channelBudget = kMaxRideMusicChannels;
+        std::stable_sort(_musicInstances.begin(), _musicInstances.end(), IsMusicInstanceHigherPriority);
+        const auto candidateCount = _musicInstances.size();
+        if (_musicInstances.size() > channelBudget)
+        {
+            _musicInstances.resize(channelBudget);
+        }
         StopInactiveRideMusicChannels();
+        auto activeChannelCount = static_cast<size_t>(
+            std::count_if(_musicChannels.begin(), _musicChannels.end(), [](const auto& channel) { return !channel.Stopping; }));
         for (const auto& instance : _musicInstances)
         {
-            UpdateRideMusicChannelForMusicParams(instance);
+            UpdateRideMusicChannelForMusicParams(instance, activeChannelCount, channelBudget);
+        }
+
+        const auto now = std::chrono::steady_clock::now();
+        if (_lastMusicAudioReport == std::chrono::steady_clock::time_point{}
+            || now - _lastMusicAudioReport >= std::chrono::seconds(5))
+        {
+            LOG_VERBOSE(
+                "Spatial audio selected %zu ride-music emitters from %zu candidates with a %zu-voice budget",
+                _musicInstances.size(), candidateCount, channelBudget);
+            _lastMusicAudioReport = now;
         }
     }
 
@@ -310,123 +396,58 @@ namespace OpenRCT2::RideAudio
         }
     }
 
-    static void RideUpdateMusicPosition(
-        Ride& ride, size_t offset, size_t length, int16_t volume, int16_t pan, uint16_t sampleRate)
-    {
-        if (offset < length)
-        {
-            if (_musicInstances.size() < kMaxRideMusicChannels)
-            {
-                auto& instance = _musicInstances.emplace_back();
-                instance.RideId = ride.id;
-                instance.TrackIndex = ride.musicTuneId;
-                instance.Offset = offset;
-                instance.Volume = volume;
-                instance.Pan = pan;
-                instance.Frequency = sampleRate;
-            }
-            ride.musicPosition = static_cast<uint32_t>(offset);
-        }
-        else
-        {
-            ride.musicTuneId = kTuneIDNull;
-            ride.musicPosition = 0;
-        }
-    }
-
-    static void RideUpdateMusicPosition(Ride& ride, int16_t volume, int16_t pan, uint16_t sampleRate)
-    {
-        auto foundChannel = std::find_if(_musicChannels.begin(), _musicChannels.end(), [&ride](const auto& channel) {
-            return channel.RideId == ride.id && channel.TrackIndex == ride.musicTuneId;
-        });
-
-        auto [trackOffset, trackLength] = RideMusicGetTrackOffsetLength(ride);
-        if (foundChannel != _musicChannels.end())
-        {
-            if (foundChannel->IsPlaying())
-            {
-                // Since we have a real music channel, use the offset from that
-                auto newOffset = foundChannel->GetOffset();
-                RideUpdateMusicPosition(ride, newOffset, trackLength, volume, pan, sampleRate);
-            }
-            else
-            {
-                // We had a real music channel, but it isn't playing anymore, so stop the track
-                ride.musicPosition = 0;
-                ride.musicTuneId = kTuneIDNull;
-            }
-        }
-        else
-        {
-            // We do not have a real music channel, so simulate the playing of the music track
-            auto newOffset = ride.musicPosition + trackOffset;
-            RideUpdateMusicPosition(ride, newOffset, trackLength, volume, pan, sampleRate);
-        }
-    }
-
-    static uint8_t CalculateVolume(int32_t pan)
-    {
-        uint8_t result = 255;
-        int32_t v = std::min(std::abs(pan), 6143) - 2048;
-        if (v > 0)
-        {
-            v = -((v / 4) - 1024) / 4;
-            result = static_cast<uint8_t>(std::clamp(v, 0, 255));
-        }
-        return result;
-    }
-
     /**
      * Register an instance of audible ride music for this frame at the given coordinates.
      */
     void UpdateMusicInstance(Ride& ride, const CoordsXYZ& rideCoords, uint16_t sampleRate)
     {
-        if (gLegacyScene != LegacyScene::scenarioEditor && !gGameSoundsOff && gMusicTrackingViewport != nullptr)
+        if (gLegacyScene != LegacyScene::scenarioEditor && !gGameSoundsOff)
         {
-            auto rotatedCoords = Translate3DTo2DWithZ(GetCurrentRotation(), rideCoords);
-            auto viewport = gMusicTrackingViewport;
-            auto viewWidth = viewport->ViewWidth();
-            auto viewWidth2 = viewWidth * 2;
-            auto viewX = viewport->viewPos.x - viewWidth2;
-            auto viewY = viewport->viewPos.y - viewWidth;
-            auto viewX2 = viewWidth2 + viewWidth2 + viewport->ViewWidth() + viewX;
-            auto viewY2 = viewWidth + viewWidth + viewport->ViewHeight() + viewY;
-            if (viewX >= rotatedCoords.x || viewY >= rotatedCoords.y || viewX2 < rotatedCoords.x || viewY2 < rotatedCoords.y)
+            const auto listener = GetSpatialAudioListener();
+            if (!listener.has_value())
             {
                 RideUpdateMusicPosition(ride);
+                return;
+            }
+
+            const auto spatial = CalculateSpatialAudioParams(
+                *listener, rideCoords, 1.0f, SpatialAudioRolloff::rideMusic);
+            // Ride music is emitted by amplified park speakers rather than a point-sized mechanical source.
+            // Its source calibration and compressed continuous rolloff keep a faint long-range bed.
+            const auto musicGain = std::min(1.0f, spatial.Gain * kRideMusicSourceGain);
+            const auto newVolume = static_cast<int16_t>(SpatialGainToDSEnvelope(musicGain));
+            if (spatial.Audible && newVolume > -10000)
+            {
+                auto [trackOffset, trackLength] = RideMusicGetTrackOffsetLength(ride);
+                auto foundChannel = std::find_if(_musicChannels.begin(), _musicChannels.end(), [&ride](const auto& channel) {
+                    return channel.RideId == ride.id && channel.TrackIndex == ride.musicTuneId;
+                });
+                const auto offset = foundChannel != _musicChannels.end() && foundChannel->IsPlaying()
+                    ? foundChannel->GetOffset()
+                    : ride.musicPosition + trackOffset;
+                if (offset < trackLength)
+                {
+                    auto& instance = _musicInstances.emplace_back();
+                    instance.RideId = ride.id;
+                    instance.TrackIndex = ride.musicTuneId;
+                    instance.Offset = offset;
+                    instance.Volume = newVolume;
+                    instance.PriorityGain = spatial.Gain;
+                    instance.Azimuth = spatial.Azimuth;
+                    instance.Elevation = spatial.Elevation;
+                    instance.Distance = spatial.Distance;
+                    instance.Frequency = sampleRate;
+                    ride.musicPosition = static_cast<uint32_t>(offset);
+                }
+                else if (offset >= trackLength)
+                {
+                    ride.musicTuneId = kTuneIDNull;
+                    ride.musicPosition = 0;
+                }
             }
             else
             {
-                auto x2 = (viewport->pos.x + viewport->zoom.ApplyInversedTo(rotatedCoords.x - viewport->viewPos.x)) * 0x10000;
-                auto screenWidth = std::max(ContextGetWidth(), 64);
-                auto panX = ((x2 / screenWidth) - 0x8000) >> 4;
-
-                auto y2 = (viewport->pos.y + viewport->zoom.ApplyInversedTo(rotatedCoords.y - viewport->viewPos.y)) * 0x10000;
-                auto screenHeight = std::max(ContextGetHeight(), 64);
-                auto panY = ((y2 / screenHeight) - 0x8000) >> 4;
-
-                auto volX = CalculateVolume(panX);
-                auto volY = CalculateVolume(panY);
-                auto volXY = std::min(volX, volY);
-                if (volXY < gVolumeAdjustZoom * 3)
-                {
-                    volXY = 0;
-                }
-                else
-                {
-                    volXY = volXY - (gVolumeAdjustZoom * 3);
-                }
-
-                int16_t newVolume = -((static_cast<uint8_t>(-volXY - 1) * static_cast<uint8_t>(-volXY - 1)) / 16) - 700;
-                if (volXY != 0 && newVolume >= -4000)
-                {
-                    auto newPan = std::clamp(panX, -10000, 10000);
-                    RideUpdateMusicPosition(ride, newVolume, newPan, sampleRate);
-                }
-                else
-                {
-                    RideUpdateMusicPosition(ride);
-                }
+                RideUpdateMusicPosition(ride);
             }
         }
     }

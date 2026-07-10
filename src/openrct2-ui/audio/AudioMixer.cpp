@@ -8,13 +8,39 @@
  *****************************************************************************/
 
 #include "AudioMixer.h"
+#include "AudioMixer.SIMD.h"
 
 #include <algorithm>
+#include <cmath>
 #include <iterator>
+#include <limits>
+#include <openrct2/Diagnostic.h>
 #include <openrct2/OpenRCT2.h>
+#include <openrct2/audio/SpatialAudio.h>
 #include <openrct2/config/Config.h>
+#include <openrct2/platform/Platform.h>
 
 using namespace OpenRCT2::Audio;
+
+namespace
+{
+    constexpr size_t kMaxMixedChannels = 8192;
+
+    void MixSpatialSpeakerScalar(
+        float* destination, const int16_t* samples, size_t mixedFrames, size_t interpolationFrames, float oldVolume,
+        float newVolume, float startFade, float endFade, float oldSpeakerGain, float speakerGain)
+    {
+        for (size_t frame = 0; frame < mixedFrames; frame++)
+        {
+            const auto t = interpolationFrames > 1
+                ? static_cast<float>(frame) / static_cast<float>(interpolationFrames - 1)
+                : 1.0f;
+            const auto volume = std::lerp(oldVolume, newVolume, t) * std::lerp(startFade, endFade, t);
+            const auto sample = static_cast<float>(samples[frame]) / 32768.0f;
+            destination[frame] += sample * volume * std::lerp(oldSpeakerGain, speakerGain, t);
+        }
+    }
+}
 
 AudioMixer::~AudioMixer()
 {
@@ -26,10 +52,10 @@ void AudioMixer::Init(const char* device)
     Close();
 
     SDL_AudioSpec want = {};
-    want.freq = 22050;
+    want.freq = 48000;
     want.format = AUDIO_S16SYS;
-    want.channels = 2;
-    want.samples = 2048;
+    want.channels = 8;
+    want.samples = 1024;
     want.callback = [](void* arg, uint8_t* dst, int32_t length) -> void {
         auto* mixer = static_cast<AudioMixer*>(arg);
         mixer->GetNextAudioChunk(dst, static_cast<size_t>(length));
@@ -37,11 +63,42 @@ void AudioMixer::Init(const char* device)
     };
     want.userdata = this;
 
-    SDL_AudioSpec have;
-    _deviceId = SDL_OpenAudioDevice(device, 0, &want, &have, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE | SDL_AUDIO_ALLOW_SAMPLES_CHANGE);
+    SDL_AudioSpec have{};
+    constexpr auto kAllowedChanges = SDL_AUDIO_ALLOW_FREQUENCY_CHANGE;
+    _deviceId = SDL_OpenAudioDevice(device, 0, &want, &have, kAllowedChanges);
+    if (_deviceId == 0)
+    {
+        LOG_WARNING("Unable to open 7.1 audio output, falling back to stereo: %s", SDL_GetError());
+        want.channels = 2;
+        have = {};
+        _deviceId = SDL_OpenAudioDevice(device, 0, &want, &have, kAllowedChanges);
+    }
+    if (_deviceId == 0)
+    {
+        LOG_ERROR("Unable to open audio output: %s", SDL_GetError());
+        return;
+    }
     _outputFormat.format = have.format;
     _outputFormat.channels = have.channels;
     _outputFormat.freq = have.freq;
+    // Keep the legacy 22.05 kHz stereo source representation so saved byte offsets and CSS track lengths remain stable.
+    // The callback converts to the negotiated 48 kHz output format before spatial routing.
+    _sourceFormat = AudioFormat{ 22050, AUDIO_S16SYS, 2 };
+    _limiterGain = 1.0f;
+    _nextChannelReport = 256;
+    _useAVX2 = Platform::AVX2Available();
+    _callbackReportStart = std::chrono::steady_clock::now();
+    _callbackTotalMilliseconds = 0.0;
+    _callbackWorstMilliseconds = 0.0;
+    _callbackCount = 0;
+    _channelAdmissionFailures = 0;
+    _reportedOutputPeaks.fill(0.0f);
+    _channels.reserve(kMaxMixedChannels);
+    LOG_VERBOSE("Audio mixer spatial kernel: %s planar", _useAVX2 ? "AVX2" : "scalar");
+    LOG_INFO(
+        "Opened %s audio output at %d Hz with %d channels and %d-frame callbacks",
+        SDL_GetCurrentAudioDriver() == nullptr ? "unknown" : SDL_GetCurrentAudioDriver(), have.freq, have.channels,
+        have.samples);
 
     SDL_PauseAudioDevice(_deviceId, 0);
 }
@@ -53,7 +110,11 @@ void AudioMixer::Close()
     _channels.clear();
     Unlock();
 
-    SDL_CloseAudioDevice(_deviceId);
+    if (_deviceId != 0)
+    {
+        SDL_CloseAudioDevice(_deviceId);
+        _deviceId = 0;
+    }
 
     // Free buffers
     _channelBuffer.clear();
@@ -62,29 +123,46 @@ void AudioMixer::Close()
     _convertBuffer.shrink_to_fit();
     _effectBuffer.clear();
     _effectBuffer.shrink_to_fit();
+    _mixBuffer.clear();
+    _mixBuffer.shrink_to_fit();
 }
 
 void AudioMixer::Lock()
 {
-    SDL_LockAudioDevice(_deviceId);
+    if (_deviceId != 0)
+    {
+        SDL_LockAudioDevice(_deviceId);
+    }
 }
 
 void AudioMixer::Unlock()
 {
-    SDL_UnlockAudioDevice(_deviceId);
+    if (_deviceId != 0)
+    {
+        SDL_UnlockAudioDevice(_deviceId);
+    }
 }
 
 std::shared_ptr<IAudioChannel> AudioMixer::Play(IAudioSource* source, int32_t loop, bool deleteondone)
 {
-    Lock();
+    std::erase_if(_channels, [](const auto& channel) { return channel->IsDone(); });
+    if (_channels.size() >= kMaxMixedChannels)
+    {
+        _channelAdmissionFailures++;
+        return nullptr;
+    }
     auto channel = std::shared_ptr<ISDLAudioChannel>(AudioChannel::Create());
     if (channel != nullptr)
     {
         channel->Play(source, loop);
         channel->SetDeleteOnDone(deleteondone);
         _channels.push_back(channel);
+        if (_channels.size() >= _nextChannelReport)
+        {
+            LOG_VERBOSE("Audio mixer reached %zu concurrently active channels", _channels.size());
+            _nextChannelReport = std::min(kMaxMixedChannels, _nextChannelReport * 2);
+        }
     }
-    Unlock();
     return channel;
 }
 
@@ -120,39 +198,91 @@ void AudioMixer::RemoveReleasedSources()
 
 const AudioFormat& AudioMixer::GetFormat() const
 {
-    return _outputFormat;
+    return _sourceFormat;
 }
 
-// TODO: investigate replacing this with OpenAL (#26035)
 void AudioMixer::GetNextAudioChunk(uint8_t* dst, size_t length)
 {
+    const auto callbackStart = std::chrono::steady_clock::now();
     UpdateAdjustedSound();
 
-    // Zero the output buffer
-    std::fill_n(dst, length, 0);
+    const auto frameBytes = static_cast<size_t>(_outputFormat.GetByteRate());
+    const auto frames = frameBytes == 0 ? 0 : length / frameBytes;
+    _mixBuffer.assign(frames * static_cast<size_t>(_outputFormat.channels), 0.0f);
 
-    // Mix channels onto output buffer
-    auto it = _channels.begin();
-    while (it != _channels.end())
+    size_t mixedSoundChannels = 0;
+    size_t mixedVehicleChannels = 0;
+    size_t mixedRideMusicChannels = 0;
+    size_t mixedTitleMusicChannels = 0;
+    const auto allocatedChannelCount = _channels.size();
+    for (auto& channel : _channels)
     {
-        auto& channel = *it;
         auto channelSource = channel->GetSource();
         auto channelSourceReleased = channelSource == nullptr || channelSource->IsReleased();
-        if (channelSourceReleased || (channel->IsDone() && channel->DeleteOnDone()) || channel->IsStopping())
+        if (channelSourceReleased || channel->IsDone())
         {
             channel->SetDone(true);
-            it = _channels.erase(it);
         }
         else
         {
             auto group = channel->GetGroup();
-            if ((group != MixerGroup::Sound || Config::Get().sound.soundEnabled) && Config::Get().sound.masterSoundEnabled
+            const auto isSoundEffect = group == MixerGroup::Sound || group == MixerGroup::Vehicle;
+            if ((!isSoundEffect || Config::Get().sound.soundEnabled) && Config::Get().sound.masterSoundEnabled
                 && Config::Get().sound.masterVolume != 0)
             {
-                MixChannel(channel.get(), dst, length);
+                MixChannel(channel.get(), frames);
+                switch (group)
+                {
+                    case MixerGroup::Sound:
+                        mixedSoundChannels++;
+                        break;
+                    case MixerGroup::Vehicle:
+                        mixedVehicleChannels++;
+                        break;
+                    case MixerGroup::RideMusic:
+                        mixedRideMusicChannels++;
+                        break;
+                    case MixerGroup::TitleMusic:
+                        mixedTitleMusicChannels++;
+                        break;
+                }
             }
-            it++;
         }
+    }
+    std::erase_if(_channels, [](const auto& channel) { return channel->IsDone(); });
+
+    WriteOutput(dst, frames);
+    const auto mixedLength = frames * frameBytes;
+    if (mixedLength < length)
+    {
+        std::fill(dst + mixedLength, dst + length, 0);
+    }
+
+    const auto callbackEnd = std::chrono::steady_clock::now();
+    const auto callbackMilliseconds = std::chrono::duration<double, std::milli>(callbackEnd - callbackStart).count();
+    _callbackTotalMilliseconds += callbackMilliseconds;
+    _callbackWorstMilliseconds = std::max(_callbackWorstMilliseconds, callbackMilliseconds);
+    _callbackCount++;
+    if (callbackEnd - _callbackReportStart >= std::chrono::seconds(5))
+    {
+        const auto callbackBudgetMilliseconds = frames * 1000.0 / static_cast<double>(_outputFormat.freq);
+        LOG_VERBOSE(
+            "Audio callback mixed %zu/%zu channels (vehicle %zu, effects %zu, ride music %zu, title %zu) in %.3f ms "
+            "average / %.3f ms worst (%.3f ms budget); output peaks FL %.3f FR %.3f FC %.3f LFE %.3f BL %.3f BR %.3f "
+            "SL %.3f SR %.3f; admission failures %llu",
+            mixedSoundChannels + mixedVehicleChannels + mixedRideMusicChannels + mixedTitleMusicChannels,
+            allocatedChannelCount,
+            mixedVehicleChannels, mixedSoundChannels, mixedRideMusicChannels, mixedTitleMusicChannels,
+            _callbackTotalMilliseconds / static_cast<double>(_callbackCount), _callbackWorstMilliseconds,
+            callbackBudgetMilliseconds, _reportedOutputPeaks[0], _reportedOutputPeaks[1], _reportedOutputPeaks[2],
+            _reportedOutputPeaks[3], _reportedOutputPeaks[4], _reportedOutputPeaks[5], _reportedOutputPeaks[6],
+            _reportedOutputPeaks[7], static_cast<unsigned long long>(_channelAdmissionFailures));
+        _callbackReportStart = callbackEnd;
+        _callbackTotalMilliseconds = 0.0;
+        _callbackWorstMilliseconds = 0.0;
+        _callbackCount = 0;
+        _channelAdmissionFailures = 0;
+        _reportedOutputPeaks.fill(0.0f);
     }
 }
 
@@ -172,163 +302,264 @@ void AudioMixer::UpdateAdjustedSound()
     }
 }
 
-// TODO: investigate replacing this with OpenAL (#26035)
-void AudioMixer::MixChannel(ISDLAudioChannel* channel, uint8_t* data, size_t length)
+void AudioMixer::MixChannel(ISDLAudioChannel* channel, size_t frames)
 {
-    int32_t outputByteRate = _outputFormat.GetByteRate();
-    auto numSamples = static_cast<int32_t>(length / outputByteRate);
-    double rate = 1;
-    if (_outputFormat.format == AUDIO_S16SYS)
+    if (frames == 0 || _outputFormat.format != AUDIO_S16SYS)
     {
-        rate = channel->GetRate();
+        return;
     }
 
-    bool mustConvert = false;
-    SDL_AudioCVT cvt;
-    cvt.len_ratio = 1;
-    AudioFormat streamformat = channel->GetFormat();
-    if (streamformat != _outputFormat)
-    {
-        if (SDL_BuildAudioCVT(
-                &cvt, streamformat.format, streamformat.channels, streamformat.freq, _outputFormat.format,
-                _outputFormat.channels, _outputFormat.freq)
-            == -1)
-        {
-            // Unable to convert channel data
-            return;
-        }
-        mustConvert = true;
-    }
+    const auto rate = channel->GetRate();
+    const auto streamFormat = channel->GetFormat();
+    AudioFormat mixFormat{ _outputFormat.freq, AUDIO_S16SYS, channel->IsSpatial() ? 1 : std::min(streamFormat.channels, 2) };
 
-    // Read raw PCM from channel
-    int32_t readSamples = numSamples * rate;
-    auto readLength = static_cast<size_t>(ceil(readSamples / cvt.len_ratio)) * outputByteRate;
-    _channelBuffer.resize(readLength);
-    size_t bytesRead = channel->Read(_channelBuffer.data(), readLength);
-
-    // Convert data to required format if necessary
-    void* buffer = nullptr;
-    size_t bufferLen = 0;
-    if (mustConvert)
+    const void* buffer = nullptr;
+    size_t availableFrames = 0;
+    const auto canUseDirectSpatialPath = channel->IsSpatial() && streamFormat.format == AUDIO_S16SYS
+        && streamFormat.channels == 2 && streamFormat.freq > 0 && _outputFormat.freq > 0;
+    if (canUseDirectSpatialPath)
     {
-        if (Convert(&cvt, _channelBuffer.data(), bytesRead))
-        {
-            buffer = cvt.buf;
-            bufferLen = cvt.len_cvt;
-        }
-        else
-        {
-            return;
-        }
+        availableFrames = PrepareSpatialSamples(channel, streamFormat, frames, rate);
+        buffer = static_cast<const void*>(_effectBuffer.data());
     }
     else
     {
-        buffer = _channelBuffer.data();
-        bufferLen = bytesRead;
-    }
-
-    // Apply effects
-    if (rate != 1)
-    {
-        auto inRate = static_cast<int32_t>(bufferLen / outputByteRate);
-        int32_t outRate = numSamples;
-        if (bytesRead != readLength)
+        bool mustConvert = false;
+        SDL_AudioCVT cvt{};
+        cvt.len_ratio = 1;
+        if (streamFormat != mixFormat)
         {
-            inRate = _outputFormat.freq;
-            outRate = _outputFormat.freq * (1 / rate);
+            if (SDL_BuildAudioCVT(
+                    &cvt, streamFormat.format, static_cast<uint8_t>(streamFormat.channels), streamFormat.freq, mixFormat.format,
+                    static_cast<uint8_t>(mixFormat.channels), mixFormat.freq)
+                == -1)
+            {
+                return;
+            }
+            mustConvert = true;
         }
-        _effectBuffer.resize(length);
-        bufferLen = ApplyResample(buffer, static_cast<int32_t>(bufferLen / outputByteRate), numSamples, inRate, outRate);
-        buffer = _effectBuffer.data();
+
+        const auto requiredMixFrames = static_cast<size_t>(std::ceil(static_cast<double>(frames) * rate)) + 2;
+        const auto requiredMixBytes = requiredMixFrames * static_cast<size_t>(mixFormat.GetByteRate());
+        const auto sourceFrameBytes = static_cast<size_t>(std::max(1, streamFormat.GetByteRate()));
+        auto readLength = mustConvert ? static_cast<size_t>(std::ceil(static_cast<double>(requiredMixBytes) / cvt.len_ratio))
+                                      : requiredMixBytes;
+        readLength = ((readLength + sourceFrameBytes - 1) / sourceFrameBytes) * sourceFrameBytes;
+        _channelBuffer.resize(readLength);
+        const auto bytesRead = channel->Read(_channelBuffer.data(), readLength);
+
+        size_t bufferLen = 0;
+        if (mustConvert)
+        {
+            if (Convert(&cvt, _channelBuffer.data(), bytesRead))
+            {
+                buffer = static_cast<const void*>(cvt.buf);
+                bufferLen = cvt.len_cvt;
+            }
+            else
+            {
+                return;
+            }
+        }
+        else
+        {
+            buffer = static_cast<const void*>(_channelBuffer.data());
+            bufferLen = bytesRead;
+        }
+
+        availableFrames = bufferLen / static_cast<size_t>(mixFormat.GetByteRate());
+        if (rate != 1)
+        {
+            availableFrames = ApplyResample(buffer, availableFrames, frames, mixFormat.channels, rate);
+            buffer = static_cast<const void*>(_effectBuffer.data());
+        }
     }
 
-    // Apply panning and volume
-    ApplyPan(channel, buffer, bufferLen, outputByteRate);
-    int32_t mixVolume = ApplyVolume(channel, buffer, bufferLen);
+    const auto mixedFrames = std::min(frames, availableFrames);
+    const auto* samples = static_cast<const int16_t*>(buffer);
+    const auto outputChannels = static_cast<size_t>(_outputFormat.channels);
+    const auto volumeAdjust = GetVolumeAdjust(channel) / static_cast<float>(kMixerVolumeMax);
+    const auto oldVolume = static_cast<float>(channel->GetOldVolume()) * volumeAdjust;
+    const auto newVolume = static_cast<float>(channel->GetVolume()) * volumeAdjust;
+    const auto startFade = channel->GetFadeLevel();
+    const auto endFade = channel->AdvanceFade(frames, static_cast<uint32_t>(_outputFormat.freq));
 
-    // Finally mix on to destination buffer
-    size_t dstLength = std::min(length, bufferLen);
-    SDL_MixAudioFormat(
-        data, static_cast<const uint8_t*>(buffer), _outputFormat.format, static_cast<uint32_t>(dstLength), mixVolume);
+    std::array<float, kMaxOutputChannels> speakerGains{};
+    std::array<float, kMaxOutputChannels> oldSpeakerGains{};
+    std::array<size_t, kMaxOutputChannels> activeSpeakerChannels{};
+    size_t activeSpeakerChannelCount = 0;
+    if (channel->IsSpatial())
+    {
+        speakerGains = CalculateSpeakerGains(channel->GetAzimuth(), static_cast<uint8_t>(_outputFormat.channels));
+        oldSpeakerGains = CalculateSpeakerGains(channel->GetOldAzimuth(), static_cast<uint8_t>(_outputFormat.channels));
+        for (size_t outputChannel = 0; outputChannel < outputChannels; outputChannel++)
+        {
+            if (speakerGains[outputChannel] != 0.0f || oldSpeakerGains[outputChannel] != 0.0f)
+            {
+                activeSpeakerChannels[activeSpeakerChannelCount++] = outputChannel;
+            }
+        }
+    }
+
+    if (!channel->IsSpatial())
+    {
+        for (size_t frame = 0; frame < mixedFrames; frame++)
+        {
+            const auto t = frames > 1 ? static_cast<float>(frame) / static_cast<float>(frames - 1) : 1.0f;
+            const auto volume = std::lerp(oldVolume, newVolume, t) * std::lerp(startFade, endFade, t);
+            if (mixFormat.channels == 1)
+            {
+                const auto sample = static_cast<float>(samples[frame]) / 32768.0f;
+                _mixBuffer[frame] += sample * volume * channel->GetVolumeL();
+                if (outputChannels > 1)
+                {
+                    _mixBuffer[frames + frame] += sample * volume * channel->GetVolumeR();
+                }
+            }
+            else
+            {
+                const auto sourceOffset = frame * static_cast<size_t>(mixFormat.channels);
+                _mixBuffer[frame] += static_cast<float>(samples[sourceOffset]) / 32768.0f * volume * channel->GetVolumeL();
+                if (outputChannels > 1)
+                {
+                    _mixBuffer[frames + frame] += static_cast<float>(samples[sourceOffset + 1]) / 32768.0f * volume
+                        * channel->GetVolumeR();
+                }
+            }
+        }
+    }
+
+    if (channel->IsSpatial())
+    {
+        for (size_t activeIndex = 0; activeIndex < activeSpeakerChannelCount; activeIndex++)
+        {
+            const auto outputChannel = activeSpeakerChannels[activeIndex];
+            auto* destination = _mixBuffer.data() + (outputChannel * frames);
+            if (_useAVX2)
+            {
+                MixSpatialSpeakerAVX2(
+                    destination, samples, mixedFrames, frames, oldVolume, newVolume, startFade, endFade,
+                    oldSpeakerGains[outputChannel], speakerGains[outputChannel]);
+            }
+            else
+            {
+                MixSpatialSpeakerScalar(
+                    destination, samples, mixedFrames, frames, oldVolume, newVolume, startFade, endFade,
+                    oldSpeakerGains[outputChannel], speakerGains[outputChannel]);
+            }
+        }
+    }
 
     channel->UpdateOldVolume();
 }
 
-/**
- * Resample the given buffer into _effectBuffer.
- * Assumes that srcBuffer is the same format as _outputFormat.
- *
- * TODO: investigate replacing this with OpenAL (#26035)
- */
-size_t AudioMixer::ApplyResample(const void* srcBuffer, int32_t srcSamples, int32_t dstSamples, int32_t inRate, int32_t outRate)
+void AudioMixer::WriteOutput(uint8_t* dst, size_t frames)
 {
-    // Prevent buffer underread in inner loop
-    if (srcSamples < 2)
+    constexpr float kHeadroom = 0.5f;
+
+    float peak = 0.0f;
+    for (const auto sample : _mixBuffer)
+    {
+        peak = std::max(peak, std::abs(sample * kHeadroom));
+    }
+
+    _limiterGain = CalculateNextLimiterGain(_limiterGain, peak, frames, static_cast<uint32_t>(_outputFormat.freq));
+
+    auto* output = reinterpret_cast<int16_t*>(dst);
+    const auto outputChannels = static_cast<size_t>(_outputFormat.channels);
+    for (size_t frame = 0; frame < frames; frame++)
+    {
+        for (size_t channel = 0; channel < outputChannels; channel++)
+        {
+            const auto sample = std::clamp(
+                _mixBuffer[(channel * frames) + frame] * kHeadroom * _limiterGain, -1.0f, 1.0f);
+            _reportedOutputPeaks[channel] = std::max(_reportedOutputPeaks[channel], std::abs(sample));
+            output[(frame * outputChannels) + channel] = static_cast<int16_t>(
+                std::lround(sample * static_cast<float>(std::numeric_limits<int16_t>::max())));
+        }
+    }
+}
+
+size_t AudioMixer::ApplyResample(const void* srcBuffer, size_t srcFrames, size_t dstFrames, int32_t channels, double rate)
+{
+    if (srcFrames < 2 || channels <= 0)
         return 0;
 
-    const int channels = _outputFormat.channels;
-    const int bytesPerFrame = channels * sizeof(int16_t);
-
     const int16_t* src = static_cast<const int16_t*>(srcBuffer);
+    _effectBuffer.resize(dstFrames * static_cast<size_t>(channels) * sizeof(int16_t));
     int16_t* dst = reinterpret_cast<int16_t*>(_effectBuffer.data());
 
-    double ratio = static_cast<double>(inRate) / static_cast<double>(outRate);
-
-    for (int32_t i = 0; i < dstSamples; ++i)
+    size_t producedFrames = 0;
+    for (; producedFrames < dstFrames; producedFrames++)
     {
-        double srcPos = i * ratio;
-        int32_t index = static_cast<int32_t>(srcPos);
-        double frac = srcPos - index;
-
-        // Clamp to avoid reading past end
-        if (index >= srcSamples - 1)
+        const auto srcPos = static_cast<double>(producedFrames) * rate;
+        const auto index = static_cast<size_t>(srcPos);
+        if (index + 1 >= srcFrames)
         {
-            index = srcSamples - 2;
-            frac = 1.0;
+            break;
         }
+        const auto fraction = srcPos - static_cast<double>(index);
 
         for (int ch = 0; ch < channels; ++ch)
         {
-            int32_t baseIndex = index * channels + ch;
-
-            int16_t s1 = src[baseIndex];
-            int16_t s2 = src[baseIndex + channels];
-
-            // Linear interpolation
-            double sample = (1.0 - frac) * s1 + frac * s2;
-
-            // Clamp to int16 range
-            if (sample > 32767.0)
-                sample = 32767.0;
-            if (sample < -32768.0)
-                sample = -32768.0;
-
-            dst[i * channels + ch] = static_cast<int16_t>(sample);
+            const auto baseIndex = (index * static_cast<size_t>(channels)) + static_cast<size_t>(ch);
+            const auto sample = std::lerp(
+                static_cast<double>(src[baseIndex]), static_cast<double>(src[baseIndex + channels]), fraction);
+            dst[(producedFrames * static_cast<size_t>(channels)) + static_cast<size_t>(ch)] = static_cast<int16_t>(
+                std::clamp(sample, -32768.0, 32767.0));
         }
     }
 
-    return dstSamples * bytesPerFrame;
+    return producedFrames;
 }
 
-// TODO: investigate replacing this with OpenAL (#26035)
-void AudioMixer::ApplyPan(const IAudioChannel* channel, void* buffer, size_t len, size_t sampleSize)
+size_t AudioMixer::PrepareSpatialSamples(
+    ISDLAudioChannel* channel, const AudioFormat& streamFormat, size_t frames, double rate)
 {
-    if (channel->GetPan() != 0.5f && _outputFormat.channels == 2)
+    if (frames == 0 || streamFormat.channels != 2 || streamFormat.BytesPerSample() != sizeof(int16_t))
     {
-        switch (_outputFormat.format)
-        {
-            case AUDIO_S16SYS:
-                EffectPanS16(channel, static_cast<int16_t*>(buffer), static_cast<int32_t>(len / sampleSize));
-                break;
-            case AUDIO_U8:
-                EffectPanU8(channel, static_cast<uint8_t*>(buffer), static_cast<int32_t>(len / sampleSize));
-                break;
-        }
+        return 0;
     }
+
+    const auto sourceStep = rate * static_cast<double>(streamFormat.freq) / static_cast<double>(_outputFormat.freq);
+    const auto oldRemainder = channel->GetResampleRemainder();
+    const auto exactAdvance = oldRemainder + (static_cast<double>(frames) * sourceStep);
+    const auto framesToConsume = static_cast<size_t>(std::floor(exactAdvance));
+    channel->SetResampleRemainder(exactAdvance - static_cast<double>(framesToConsume));
+
+    constexpr size_t kLookaheadFrames = 2;
+    const auto sourceFrameBytes = static_cast<size_t>(streamFormat.GetByteRate());
+    _channelBuffer.resize((framesToConsume + kLookaheadFrames) * sourceFrameBytes);
+    const auto availableSourceFrames = channel->ReadForResampling(
+        _channelBuffer.data(), framesToConsume, kLookaheadFrames);
+    if (availableSourceFrames < 2)
+    {
+        return 0;
+    }
+
+    _effectBuffer.resize(frames * sizeof(int16_t));
+    const auto* source = reinterpret_cast<const int16_t*>(_channelBuffer.data());
+    auto* destination = reinterpret_cast<int16_t*>(_effectBuffer.data());
+    size_t producedFrames = 0;
+    for (; producedFrames < frames; producedFrames++)
+    {
+        const auto sourcePosition = oldRemainder + (static_cast<double>(producedFrames) * sourceStep);
+        const auto sourceIndex = static_cast<size_t>(sourcePosition);
+        if (sourceIndex + 1 >= availableSourceFrames)
+        {
+            break;
+        }
+        const auto fraction = sourcePosition - static_cast<double>(sourceIndex);
+        const auto firstOffset = sourceIndex * 2;
+        const auto secondOffset = firstOffset + 2;
+        const auto first = (static_cast<double>(source[firstOffset]) + static_cast<double>(source[firstOffset + 1])) * 0.5;
+        const auto second = (static_cast<double>(source[secondOffset]) + static_cast<double>(source[secondOffset + 1])) * 0.5;
+        destination[producedFrames] = static_cast<int16_t>(std::clamp(std::lerp(first, second, fraction), -32768.0, 32767.0));
+    }
+    return producedFrames;
 }
 
-// TODO: investigate replacing this with OpenAL (#26035)
-int32_t AudioMixer::ApplyVolume(const IAudioChannel* channel, void* buffer, size_t len)
+float AudioMixer::GetVolumeAdjust(const IAudioChannel* channel) const
 {
     float volumeAdjust = _volume;
     volumeAdjust *= Config::Get().sound.masterSoundEnabled ? (static_cast<float>(Config::Get().sound.masterVolume) / 100.0f)
@@ -337,6 +568,7 @@ int32_t AudioMixer::ApplyVolume(const IAudioChannel* channel, void* buffer, size
     switch (channel->GetGroup())
     {
         case MixerGroup::Sound:
+        case MixerGroup::Vehicle:
             volumeAdjust *= _adjustSoundVolume;
 
             // Cap sound volume on title screen so music is more audible
@@ -350,95 +582,7 @@ int32_t AudioMixer::ApplyVolume(const IAudioChannel* channel, void* buffer, size
             volumeAdjust *= _adjustMusicVolume;
             break;
     }
-
-    int32_t startVolume = channel->GetOldVolume() * volumeAdjust;
-    int32_t endVolume = channel->GetVolume() * volumeAdjust;
-    if (channel->IsStopping())
-    {
-        endVolume = 0;
-    }
-
-    int32_t mixVolume = channel->GetVolume() * volumeAdjust;
-    if (startVolume != endVolume)
-    {
-        // Set to max since we are adjusting the volume ourselves
-        mixVolume = kMixerVolumeMax;
-
-        // Fade between volume levels to smooth out sound and minimize clicks from sudden volume changes
-        int32_t fadeLength = static_cast<int32_t>(len) / _outputFormat.BytesPerSample();
-        switch (_outputFormat.format)
-        {
-            case AUDIO_S16SYS:
-                EffectFadeS16(static_cast<int16_t*>(buffer), fadeLength, startVolume, endVolume);
-                break;
-            case AUDIO_U8:
-                EffectFadeU8(static_cast<uint8_t*>(buffer), fadeLength, startVolume, endVolume);
-                break;
-        }
-    }
-    return mixVolume;
-}
-
-// TODO: investigate replacing this with OpenAL (#26035)
-void AudioMixer::EffectPanS16(const IAudioChannel* channel, int16_t* data, int32_t length)
-{
-    const float dt = 1.0f / static_cast<float>(length * 2.0f);
-    float volumeL = channel->GetOldVolumeL();
-    float volumeR = channel->GetOldVolumeR();
-    const float d_left = dt * (channel->GetVolumeL() - channel->GetOldVolumeL());
-    const float d_right = dt * (channel->GetVolumeR() - channel->GetOldVolumeR());
-
-    for (int32_t i = 0; i < length * 2; i += 2)
-    {
-        data[i + 0] = static_cast<int16_t>(volumeL * static_cast<float>(data[i + 0]));
-        data[i + 1] = static_cast<int16_t>(volumeR * static_cast<float>(data[i + 1]));
-        volumeL += d_left;
-        volumeR += d_right;
-    }
-}
-
-// TODO: investigate replacing this with OpenAL (#26035)
-void AudioMixer::EffectPanU8(const IAudioChannel* channel, uint8_t* data, int32_t length)
-{
-    float volumeL = channel->GetVolumeL();
-    float volumeR = channel->GetVolumeR();
-    float oldVolumeL = channel->GetOldVolumeL();
-    float oldVolumeR = channel->GetOldVolumeR();
-
-    for (int32_t i = 0; i < length * 2; i += 2)
-    {
-        float t = static_cast<float>(i) / static_cast<float>(length * 2.0f);
-        data[i] = static_cast<uint8_t>(data[i] * ((1.0 - t) * oldVolumeL + t * volumeL));
-        data[i + 1] = static_cast<uint8_t>(data[i + 1] * ((1.0 - t) * oldVolumeR + t * volumeR));
-    }
-}
-
-// TODO: investigate replacing this with OpenAL (#26035)
-void AudioMixer::EffectFadeS16(int16_t* data, int32_t length, int32_t startvolume, int32_t endvolume)
-{
-    static_assert(SDL_MIX_MAXVOLUME == kMixerVolumeMax, "Max volume differs between OpenRCT2 and SDL2");
-
-    float startvolume_f = static_cast<float>(startvolume) / SDL_MIX_MAXVOLUME;
-    float endvolume_f = static_cast<float>(endvolume) / SDL_MIX_MAXVOLUME;
-    for (int32_t i = 0; i < length; i++)
-    {
-        float t = static_cast<float>(i) / length;
-        data[i] = static_cast<int16_t>(data[i] * ((1.0f - t) * startvolume_f + t * endvolume_f));
-    }
-}
-
-// TODO: investigate replacing this with OpenAL (#26035)
-void AudioMixer::EffectFadeU8(uint8_t* data, int32_t length, int32_t startvolume, int32_t endvolume)
-{
-    static_assert(SDL_MIX_MAXVOLUME == kMixerVolumeMax, "Max volume differs between OpenRCT2 and SDL2");
-
-    float startvolume_f = static_cast<float>(startvolume) / SDL_MIX_MAXVOLUME;
-    float endvolume_f = static_cast<float>(endvolume) / SDL_MIX_MAXVOLUME;
-    for (int32_t i = 0; i < length; i++)
-    {
-        float t = static_cast<float>(i) / length;
-        data[i] = static_cast<uint8_t>(data[i] * ((1.0f - t) * startvolume_f + t * endvolume_f));
-    }
+    return volumeAdjust;
 }
 
 bool AudioMixer::Convert(SDL_AudioCVT* cvt, const void* src, size_t len)

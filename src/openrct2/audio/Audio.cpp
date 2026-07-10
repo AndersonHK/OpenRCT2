@@ -18,7 +18,6 @@
 #include "../core/FileStream.h"
 #include "../core/String.hpp"
 #include "../entity/Peep.h"
-#include "../interface/Viewport.h"
 #include "../localisation/Language.h"
 #include "../localisation/StringIds.h"
 #include "../object/AudioObject.h"
@@ -34,7 +33,9 @@
 #include "AudioChannel.h"
 #include "AudioContext.h"
 #include "AudioMixer.h"
+#include "SpatialAudio.h"
 
+#include <chrono>
 #include <cmath>
 #include <memory>
 #include <vector>
@@ -43,9 +44,23 @@ namespace OpenRCT2::Audio
 {
     struct AudioParams
     {
-        bool in_range;
+        bool inRange;
         int32_t volume;
-        int32_t pan;
+        float azimuth;
+        float elevation;
+        float distance;
+        float occlusion;
+        int32_t baseVolume;
+    };
+
+    struct ActiveSpatialSound
+    {
+        std::shared_ptr<IAudioChannel> Channel;
+        CoordsXYZ Location;
+        int32_t BaseVolume{};
+        float Occlusion{ 1.0f };
+        DopplerMotionState Doppler{};
+        std::chrono::steady_clock::time_point LastUpdate{};
     };
 
     static std::vector<std::string> _audioDevices;
@@ -53,9 +68,10 @@ namespace OpenRCT2::Audio
     static ObjectEntryIndex _soundsAudioObjectEntryIndex = kObjectEntryIndexNull;
     static ObjectEntryIndex _soundsAdditionalAudioObjectEntryIndex = kObjectEntryIndexNull;
     static ObjectEntryIndex _titleAudioObjectEntryIndex = kObjectEntryIndexNull;
+    static std::vector<ActiveSpatialSound> _activeSpatialSounds;
+    static std::chrono::steady_clock::time_point _lastSpatialSoundUpdate{};
 
     bool gGameSoundsOff = false;
-    int32_t gVolumeAdjustZoom = 0;
 
     static std::shared_ptr<IAudioChannel> _titleMusicChannel = nullptr;
 
@@ -143,44 +159,37 @@ namespace OpenRCT2::Audio
      * @param location The location at which the sound effect is to be played.
      * @return The audio parameters to be used when playing this sound effect.
      */
-    static AudioParams GetParametersFromLocation(AudioObject* obj, uint32_t sampleIndex, const CoordsXYZ& location)
+    static AudioParams GetParametersFromLocation(
+        SoundId soundId, AudioObject* obj, uint32_t sampleIndex, const CoordsXYZ& location)
     {
-        int32_t volumeDown = 0;
-        AudioParams params;
-        params.in_range = true;
-        params.volume = 0;
-        params.pan = 0;
-
+        float occlusion = 1.0f;
         auto element = MapGetSurfaceElementAt(location);
         if (element != nullptr && (element->getBaseZ()) - 5 > location.z)
         {
-            volumeDown = 10;
+            occlusion = 0.25f;
         }
 
-        uint8_t rotation = GetCurrentRotation();
-        auto pos2 = Translate3DTo2DWithZ(rotation, location);
-
-        const auto& activeViewports = GetAllViewports();
-        for (const auto& viewport : activeViewports)
+        const auto listener = GetSpatialAudioListener();
+        if (!listener.has_value())
         {
-            if (viewport.flags & VIEWPORT_FLAG_SOUND_ON)
-            {
-                int16_t vx = pos2.x - viewport.viewPos.x;
-                params.pan = viewport.pos.x + viewport.zoom.ApplyInversedTo(vx);
-
-                auto sampleModifier = obj->GetSampleModifier(sampleIndex);
-                auto viewModifier = ((viewport.zoom.ApplyTo(-1024) - 1) * (1 << volumeDown)) + 1;
-                params.volume = sampleModifier + viewModifier;
-
-                if (!viewport.Contains(pos2) || params.volume < -10000)
-                {
-                    params.in_range = false;
-                    return params;
-                }
-            }
+            return {};
         }
 
-        return params;
+        const auto spatial = CalculateSpatialAudioParams(*listener, location, occlusion);
+        // The purchase/cash-register sample is short and was being masked by sustained park ambience.
+        // Keep the correction local to that cue instead of raising every positional one-shot.
+        constexpr int32_t kPurchaseSourceBoost = 400;
+        const auto baseVolume = obj->GetSampleModifier(sampleIndex)
+            + (soundId == SoundId::purchase ? kPurchaseSourceBoost : 0);
+        return AudioParams{
+            spatial.Audible,
+            std::max(-10000, baseVolume + SpatialGainToDSEnvelope(spatial.Gain)),
+            spatial.Azimuth,
+            spatial.Elevation,
+            spatial.Distance,
+            occlusion,
+            baseVolume,
+        };
     }
 
     static std::tuple<AudioObject*, uint32_t> GetAudioObjectAndSampleIndex(SoundId id)
@@ -213,6 +222,19 @@ namespace OpenRCT2::Audio
         CreateAudioChannel(audioSource, MixerGroup::Sound, false, DStoMixerVolume(volume), DStoMixerPan(mixerPan), 1, true);
     }
 
+    static void PlaySpatial(IAudioSource* audioSource, const AudioParams& params, const CoordsXYZ& location)
+    {
+        auto channel = CreateAudioChannel(audioSource, MixerGroup::Sound, false, DStoMixerVolume(params.volume), 0.5f, 1, true);
+        if (channel != nullptr)
+        {
+            channel->SetSpatial(params.azimuth, params.elevation);
+            ActiveSpatialSound active{ channel, location, params.baseVolume, params.occlusion };
+            UpdateDopplerMotion(active.Doppler, params.distance, 0.0f);
+            active.LastUpdate = std::chrono::steady_clock::now();
+            _activeSpatialSounds.push_back(std::move(active));
+        }
+    }
+
     void Play3D(SoundId soundId, const CoordsXYZ& loc)
     {
         if (!IsAvailable())
@@ -222,16 +244,53 @@ namespace OpenRCT2::Audio
         auto [baseAudioObject, sampleIndex] = GetAudioObjectAndSampleIndex(soundId);
         if (baseAudioObject != nullptr)
         {
-            auto params = GetParametersFromLocation(baseAudioObject, sampleIndex, loc);
-            if (params.in_range)
+            auto params = GetParametersFromLocation(soundId, baseAudioObject, sampleIndex, loc);
+            if (params.inRange)
             {
                 auto source = baseAudioObject->GetSample(sampleIndex);
                 if (source != nullptr)
                 {
-                    Play(source, params.volume, params.pan);
+                    PlaySpatial(source, params, loc);
                 }
             }
         }
+    }
+
+    void UpdateSpatialSounds()
+    {
+        const auto listener = GetSpatialAudioListener();
+        if (!listener.has_value() || _activeSpatialSounds.empty())
+        {
+            return;
+        }
+
+        const auto now = std::chrono::steady_clock::now();
+        if (_lastSpatialSoundUpdate != std::chrono::steady_clock::time_point{}
+            && now - _lastSpatialSoundUpdate < std::chrono::milliseconds(4))
+        {
+            return;
+        }
+        _lastSpatialSoundUpdate = now;
+
+        _activeSpatialSounds.erase(
+            std::remove_if(
+                _activeSpatialSounds.begin(), _activeSpatialSounds.end(), [&](auto& active) {
+                    if (active.Channel == nullptr || !active.Channel->IsPlaying())
+                    {
+                        return true;
+                    }
+
+                    const auto spatial = CalculateSpatialAudioParams(*listener, active.Location, active.Occlusion);
+                    const auto elapsed = std::chrono::duration<float>(now - active.LastUpdate).count();
+                    const auto doppler = UpdateDopplerMotion(active.Doppler, spatial.Distance, elapsed);
+                    active.LastUpdate = now;
+                    active.Channel->SetVolume(
+                        DStoMixerVolume(std::max(-10000, active.BaseVolume + SpatialGainToDSEnvelope(spatial.Gain))));
+                    active.Channel->SetSpatial(spatial.Azimuth, spatial.Elevation);
+                    active.Channel->SetRate(doppler);
+                    return false;
+                }),
+            _activeSpatialSounds.end());
     }
 
     void Play(SoundId soundId, int32_t volume, int32_t pan)
@@ -324,6 +383,14 @@ namespace OpenRCT2::Audio
     void StopSFX()
     {
         StopVehicleSounds();
+        for (auto& active : _activeSpatialSounds)
+        {
+            if (active.Channel != nullptr)
+            {
+                active.Channel->Stop();
+            }
+        }
+        _activeSpatialSounds.clear();
         PeepStopCrowdNoise();
         Weather::stopWeatherSound();
     }
@@ -461,6 +528,12 @@ namespace OpenRCT2::Audio
     std::shared_ptr<IAudioChannel> CreateAudioChannel(
         SoundId id, bool loop, int32_t volume, float pan, double rate, bool forget)
     {
+        return CreateAudioChannel(id, MixerGroup::Sound, loop, volume, pan, rate, forget);
+    }
+
+    std::shared_ptr<IAudioChannel> CreateAudioChannel(
+        SoundId id, MixerGroup group, bool loop, int32_t volume, float pan, double rate, bool forget)
+    {
         // Get sound from base object
         auto [baseAudioObject, sampleIndex] = GetAudioObjectAndSampleIndex(id);
         if (baseAudioObject != nullptr)
@@ -468,7 +541,7 @@ namespace OpenRCT2::Audio
             auto source = baseAudioObject->GetSample(sampleIndex);
             if (source != nullptr)
             {
-                return CreateAudioChannel(source, MixerGroup::Sound, loop, volume, pan, rate, forget);
+                return CreateAudioChannel(source, group, loop, volume, pan, rate, forget);
             }
         }
         return nullptr;

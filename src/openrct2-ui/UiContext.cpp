@@ -394,6 +394,24 @@ public:
                         }
                     }
                     break;
+                case SDL_RENDER_TARGETS_RESET:
+                case SDL_RENDER_DEVICE_RESET:
+                {
+                    // A Windows TDR or display-mode transition can invalidate SDL's hardware-display
+                    // textures while leaving the game loop and audio thread alive. Recreate the display
+                    // resources, restore the indexed palette mapping, and force a complete redraw.
+                    auto* drawingEngine = GetContext()->GetDrawingEngine();
+                    if (drawingEngine != nullptr)
+                    {
+                        LOG_WARNING(
+                            "SDL render %s reset; rebuilding drawing resources",
+                            e.type == SDL_RENDER_DEVICE_RESET ? "device" : "targets");
+                        drawingEngine->Resize(static_cast<uint32_t>(_width), static_cast<uint32_t>(_height));
+                        drawingEngine->SetPalette(gGamePalette);
+                        GfxInvalidateScreen();
+                    }
+                    break;
+                }
                 case SDL_MOUSEMOTION:
                     _cursorState.position = { static_cast<int32_t>(e.motion.x / Config::Get().general.windowScale),
                                               static_cast<int32_t>(e.motion.y / Config::Get().general.windowScale) };

@@ -24,6 +24,14 @@ The rest of this README still includes the upstream OpenRCT2 project information
 
 ## High-level mod changes
 
+### Park audio is world-space and surround-aware
+
+Ride music, vehicle noise, crashes, and other world effects are now positioned from their three-dimensional distance and direction relative to an elevated virtual camera. Its height comes from the isometric viewport's visible ground footprint, so zooming toward an area makes focused sources louder and horizontally remote sources comparatively fainter. Object height matters, and continuous source-class curves replace screen cutoffs and fixed distance rings: coaster and rider sounds remain local, while amplified ride music carries much farther across the park. Visible crowds form a diffuse directional field rather than one global front-channel loop.
+
+Moving vehicles and camera motion also produce a smoothed, bounded Doppler shift from their relative radial movement. The mixer prefers 48 kHz 7.1 output and falls back to stereo when the selected device cannot provide it. It mixes into a floating-point bus with headroom and peak limiting, stores thousands of channels, uses planar AVX2 mixing with scalar fallback, prioritizes up to 2,048 vehicle emitters, and keeps ride music to the strongest 64 sources so distant music remains present without becoming an indistinct wall of songs. Crashed rides can finish the active music track rather than losing it on the next tick.
+
+More detail, including Logitech GHub setup and the exact channel layout: [Spatial audio overhaul](docs/spatial-audio-overhaul.md).
+
 ### Ride stats are sampled from actual rides
 
 Excitement, intensity, and nausea are no longer meant to be mostly post-processed from a ride-wide recipe. For aggregate-rated rides, the mod samples the ride while it is testing and while guests actually ride it, adding raw stat contributions from velocity, G-forces, track pieces, shelter, nearby scenery, paths, nearby rides, and synchronized operation.

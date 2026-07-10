@@ -14,8 +14,9 @@
 #include "SDLAudioSource.h"
 
 #include <SDL.h>
+#include <array>
+#include <chrono>
 #include <cstdint>
-#include <list>
 #include <memory>
 #include <mutex>
 #include <openrct2/Context.h>
@@ -23,6 +24,7 @@
 #include <openrct2/audio/AudioChannel.h>
 #include <openrct2/audio/AudioMixer.h>
 #include <openrct2/audio/AudioSource.h>
+#include <openrct2/audio/SpatialAudio.h>
 #include <vector>
 
 namespace OpenRCT2::Audio
@@ -34,7 +36,8 @@ namespace OpenRCT2::Audio
 
         SDL_AudioDeviceID _deviceId = 0;
         AudioFormat _outputFormat = {};
-        std::list<std::shared_ptr<ISDLAudioChannel>> _channels;
+        AudioFormat _sourceFormat = {};
+        std::vector<std::shared_ptr<ISDLAudioChannel>> _channels;
         float _volume = 1.0f;
         float _adjustSoundVolume = 0.0f;
         float _adjustMusicVolume = 0.0f;
@@ -44,6 +47,16 @@ namespace OpenRCT2::Audio
         std::vector<uint8_t> _channelBuffer;
         std::vector<uint8_t> _convertBuffer;
         std::vector<uint8_t> _effectBuffer;
+        std::vector<float> _mixBuffer;
+        float _limiterGain = 1.0f;
+        size_t _nextChannelReport = 256;
+        bool _useAVX2 = false;
+        std::chrono::steady_clock::time_point _callbackReportStart{};
+        double _callbackTotalMilliseconds = 0.0;
+        double _callbackWorstMilliseconds = 0.0;
+        uint64_t _callbackCount = 0;
+        uint64_t _channelAdmissionFailures = 0;
+        std::array<float, kMaxOutputChannels> _reportedOutputPeaks{};
 
         std::mutex _mutex;
 
@@ -62,20 +75,18 @@ namespace OpenRCT2::Audio
     private:
         void GetNextAudioChunk(uint8_t* dst, size_t length);
         void UpdateAdjustedSound();
-        void MixChannel(ISDLAudioChannel* channel, uint8_t* data, size_t length);
+        void MixChannel(ISDLAudioChannel* channel, size_t frames);
+        void WriteOutput(uint8_t* dst, size_t frames);
         void RemoveReleasedSources();
 
         /**
          * Resample the given buffer into _effectBuffer.
          * Assumes that srcBuffer is the same format as _outputFormat.
          */
-        size_t ApplyResample(const void* srcBuffer, int32_t srcSamples, int32_t dstSamples, int32_t inRate, int32_t outRate);
-        void ApplyPan(const IAudioChannel* channel, void* buffer, size_t len, size_t sampleSize);
-        int32_t ApplyVolume(const IAudioChannel* channel, void* buffer, size_t len);
-        static void EffectPanS16(const IAudioChannel* channel, int16_t* data, int32_t length);
-        static void EffectPanU8(const IAudioChannel* channel, uint8_t* data, int32_t length);
-        static void EffectFadeS16(int16_t* data, int32_t length, int32_t startvolume, int32_t endvolume);
-        static void EffectFadeU8(uint8_t* data, int32_t length, int32_t startvolume, int32_t endvolume);
+        size_t ApplyResample(const void* srcBuffer, size_t srcFrames, size_t dstFrames, int32_t channels, double rate);
+        size_t PrepareSpatialSamples(
+            ISDLAudioChannel* channel, const AudioFormat& streamFormat, size_t frames, double rate);
+        float GetVolumeAdjust(const IAudioChannel* channel) const;
         bool Convert(SDL_AudioCVT* cvt, const void* src, size_t len);
     };
 } // namespace OpenRCT2::Audio

@@ -1975,6 +1975,7 @@ TEST_F(RideRatings, CompletedAggregateSampleMarksRideTestedAndPublishesRatings)
     target->status = RideStatus::open;
     target->flags.unset(RideFlag::tested, RideFlag::testInProgress);
     target->ratings.setNull();
+    target->unreliabilityFactor = 0x5A;
     RideClearRiderRatingSamples(*target);
 
     RideRatingAccumulator sample{};
@@ -1988,6 +1989,7 @@ TEST_F(RideRatings, CompletedAggregateSampleMarksRideTestedAndPublishesRatings)
     EXPECT_TRUE(target->flags.has(RideFlag::tested));
     EXPECT_EQ(target->recentRatingSampleCount, 1);
     EXPECT_FALSE(target->ratings.isNull());
+    EXPECT_EQ(target->unreliabilityFactor, 0x5A);
 }
 
 TEST_F(RideRatings, MazeCompletedSamplesRemainAveragedOverRecentTwenty)
