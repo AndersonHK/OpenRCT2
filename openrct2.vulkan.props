@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- Keep Vulkan activation identical for the core, UI, executable, and data projects. -->
+  <PropertyGroup>
+    <OpenRCT2VulkanPropsImported>true</OpenRCT2VulkanPropsImported>
+    <DataShadersPath Condition="'$(DataShadersPath)'==''">$(SolutionDir)data\shaders\</DataShadersPath>
+    <VulkanGlslcPath Condition="'$(VulkanGlslcPath)'=='' and '$(VULKAN_SDK)'!=''">$(VULKAN_SDK)\Bin\glslc.exe</VulkanGlslcPath>
+    <EnableVulkanDrawingEngine Condition="'$(EnableVulkanDrawingEngine)'==''">false</EnableVulkanDrawingEngine>
+    <EnableVulkanDirectDrawingContext Condition="'$(EnableVulkanDirectDrawingContext)'==''">false</EnableVulkanDirectDrawingContext>
+    <EnableVulkan Condition="'$(EnableVulkan)'=='' and '$(VULKAN_SDK)'!='' and (Exists('$(VulkanGlslcPath)') or (Exists('$(DataShadersPath)vulkan\indexed_palette.vert.spv') and Exists('$(DataShadersPath)vulkan\indexed_palette.frag.spv') and Exists('$(DataShadersPath)vulkan\indexed_line.vert.spv') and Exists('$(DataShadersPath)vulkan\indexed_line.frag.spv') and Exists('$(DataShadersPath)vulkan\indexed_rect.vert.spv') and Exists('$(DataShadersPath)vulkan\indexed_rect.frag.spv') and Exists('$(DataShadersPath)vulkan\indexed_transparent_rect.vert.spv') and Exists('$(DataShadersPath)vulkan\indexed_transparent_rect.frag.spv') and Exists('$(DataShadersPath)vulkan\indexed_transparency_compose.vert.spv') and Exists('$(DataShadersPath)vulkan\indexed_transparency_compose.frag.spv') and Exists('$(DataShadersPath)vulkan\indexed_weather.vert.spv') and Exists('$(DataShadersPath)vulkan\indexed_weather.frag.spv'))) and ('$(Platform)'=='Win32' or '$(Platform)'=='x64')">true</EnableVulkan>
+    <VulkanLibraryDir Condition="'$(EnableVulkan)'=='true' and '$(Platform)'=='Win32'">$(VULKAN_SDK)\Lib32</VulkanLibraryDir>
+    <VulkanLibraryDir Condition="'$(EnableVulkan)'=='true' and '$(Platform)'=='x64'">$(VULKAN_SDK)\Lib</VulkanLibraryDir>
+    <VulkanAdditionalDependencies Condition="'$(EnableVulkan)'=='true'">$(VulkanLibraryDir)\vulkan-1.lib;</VulkanAdditionalDependencies>
+  </PropertyGroup>
+
+  <Target Name="ValidateOpenRCT2VulkanOptions" BeforeTargets="PrepareForBuild"
+          Condition="'$(EnableVulkanDirectDrawingContext)'=='true' and '$(EnableVulkanDrawingEngine)'!='true'">
+    <Error Text="EnableVulkanDirectDrawingContext=true requires EnableVulkanDrawingEngine=true." />
+  </Target>
+</Project>

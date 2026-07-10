@@ -13,6 +13,7 @@
 #include "../audio/Audio.h"
 #include "../core/Speed.hpp"
 #include "../entity/EntityRegistry.h"
+#include "../profiling/Profiling.h"
 #include "../scenario/Scenario.h"
 #include "../ui/WindowManager.h"
 #include "../windows/Intent.h"
@@ -89,6 +90,8 @@ void Vehicle::GetLiftHillSound(const Ride& curRide, SoundIdVolume& curSound)
  */
 void Vehicle::UpdateSound(const Ride& curRide, const RideObjectEntry& rideEntry)
 {
+    PROFILED_FUNCTION();
+
     // frictionVolume (bl) should be set before hand
     SoundIdVolume frictionSound = { SoundId::null, 255 };
     // bh screamVolume should be set before hand

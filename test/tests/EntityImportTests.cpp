@@ -188,6 +188,141 @@ TEST_F(EntityImportTests, PassengerUnloadPlanPreservesThroughRidersAndOrdinaryUn
     }
 }
 
+TEST_F(EntityImportTests, TrainSeatSummaryUsesExactWideCapacityAndReservationCounts)
+{
+    auto& entities = getGameState().entities;
+    entities.ResetAllEntities();
+
+    auto* head = entities.CreateEntityAt<Vehicle>(EntityId::FromUnderlying(200));
+    auto* middle = entities.CreateEntityAt<Vehicle>(EntityId::FromUnderlying(201));
+    auto* tail = entities.CreateEntityAt<Vehicle>(EntityId::FromUnderlying(202));
+    ASSERT_NE(head, nullptr);
+    ASSERT_NE(middle, nullptr);
+    ASSERT_NE(tail, nullptr);
+    head->SubType = Vehicle::Type::head;
+    middle->SubType = Vehicle::Type::tail;
+    tail->SubType = Vehicle::Type::tail;
+    head->next_vehicle_on_train = middle->id;
+    middle->next_vehicle_on_train = tail->id;
+
+    head->num_seats = 127;
+    middle->num_seats = kVehicleSeatPairFlag | 10;
+    tail->num_seats = 127;
+    head->num_peeps = 3;
+    middle->num_peeps = 4;
+    tail->num_peeps = 5;
+    head->next_free_seat = 4;
+    middle->next_free_seat = 6;
+    tail->next_free_seat = 8;
+
+    const Vehicle& constHead = *head;
+    const auto summary = RideVehicle::StationDetail::BuildTrainSeatSummary(constHead);
+    EXPECT_EQ(summary.carCount, 3u);
+    EXPECT_EQ(summary.capacity, 264u);
+    EXPECT_EQ(summary.currentPeeps, 12u);
+    EXPECT_EQ(summary.reservedSeats, 18u);
+    EXPECT_TRUE(summary.HasRiders());
+    EXPECT_EQ(summary.cars[0], head);
+    EXPECT_EQ(summary.cars[1], middle);
+    EXPECT_EQ(summary.cars[2], tail);
+}
+
+TEST_F(EntityImportTests, SpatialIndexDirtyWorklistCoalescesMovesAndPreservesSortedBuckets)
+{
+    auto& entities = getGameState().entities;
+    entities.ResetAllEntities();
+
+    auto* last = entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(40));
+    auto* first = entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(10));
+    auto* middle = entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(30));
+    ASSERT_NE(last, nullptr);
+    ASSERT_NE(first, nullptr);
+    ASSERT_NE(middle, nullptr);
+
+    constexpr CoordsXYZ intermediate{ 5 * kCoordsXYStep, 6 * kCoordsXYStep, 0 };
+    constexpr CoordsXYZ destination{ 10 * kCoordsXYStep, 11 * kCoordsXYStep, 0 };
+    last->setLocation(destination);
+    first->setLocation(destination);
+    middle->setLocation(intermediate);
+    middle->setLocation(destination);
+
+    entities.UpdateEntitiesSpatialIndex();
+
+    EXPECT_TRUE(entities.GetEntityTileList(intermediate).empty());
+    const auto& destinationEntities = entities.GetEntityTileList(destination);
+    ASSERT_EQ(destinationEntities.size(), 3u);
+    EXPECT_EQ(destinationEntities[0].ToUnderlying(), 10u);
+    EXPECT_EQ(destinationEntities[1].ToUnderlying(), 30u);
+    EXPECT_EQ(destinationEntities[2].ToUnderlying(), 40u);
+}
+
+TEST_F(EntityImportTests, SpatialIndexDirtyWorklistCoversImmediateUpdatesAndEntityIdReuse)
+{
+    auto& entities = getGameState().entities;
+    entities.ResetAllEntities();
+
+    constexpr auto immediateId = EntityId::FromUnderlying(20);
+    constexpr auto reusedId = EntityId::FromUnderlying(30);
+    constexpr CoordsXYZ firstLocation{ 12 * kCoordsXYStep, 13 * kCoordsXYStep, 0 };
+    constexpr CoordsXYZ secondLocation{ 14 * kCoordsXYStep, 15 * kCoordsXYStep, 0 };
+    constexpr CoordsXYZ removedLocation{ 16 * kCoordsXYStep, 17 * kCoordsXYStep, 0 };
+    constexpr CoordsXYZ replacementLocation{ 18 * kCoordsXYStep, 19 * kCoordsXYStep, 0 };
+
+    auto* immediate = entities.CreateEntityAt<Guest>(immediateId);
+    ASSERT_NE(immediate, nullptr);
+    immediate->setLocation(firstLocation);
+    entities.UpdateEntitySpatialIndex(*immediate);
+    immediate->setLocation(secondLocation);
+
+    auto* removed = entities.CreateEntityAt<Guest>(reusedId);
+    ASSERT_NE(removed, nullptr);
+    removed->setLocation(removedLocation);
+    entities.EntityRemove(removed);
+
+    auto* replacement = entities.CreateEntityAt<Guest>(reusedId);
+    ASSERT_NE(replacement, nullptr);
+    replacement->setLocation(replacementLocation);
+
+    entities.UpdateEntitiesSpatialIndex();
+
+    EXPECT_TRUE(entities.GetEntityTileList(firstLocation).empty());
+    const auto& immediateEntities = entities.GetEntityTileList(secondLocation);
+    ASSERT_EQ(immediateEntities.size(), 1u);
+    EXPECT_EQ(immediateEntities.front(), immediateId);
+    EXPECT_TRUE(entities.GetEntityTileList(removedLocation).empty());
+    const auto& replacementEntities = entities.GetEntityTileList(replacementLocation);
+    ASSERT_EQ(replacementEntities.size(), 1u);
+    EXPECT_EQ(replacementEntities.front(), reusedId);
+}
+
+TEST_F(EntityImportTests, SpatialIndexResetRebuildsDirectImportCoordinatesAndClearsPendingWork)
+{
+    auto& entities = getGameState().entities;
+    entities.ResetAllEntities();
+
+    constexpr CoordsXYZ queuedLocation{ 18 * kCoordsXYStep, 19 * kCoordsXYStep, 0 };
+    constexpr CoordsXYZ importedLocation{ 20 * kCoordsXYStep, 21 * kCoordsXYStep, 8 };
+
+    auto* queued = entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(60));
+    auto* imported = entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(70));
+    ASSERT_NE(queued, nullptr);
+    ASSERT_NE(imported, nullptr);
+    queued->setLocation(queuedLocation);
+    imported->x = importedLocation.x;
+    imported->y = importedLocation.y;
+    imported->z = importedLocation.z;
+
+    entities.ResetEntitySpatialIndices();
+
+    entities.UpdateEntitiesSpatialIndex();
+    const auto& queuedEntities = entities.GetEntityTileList(queuedLocation);
+    ASSERT_EQ(queuedEntities.size(), 1u);
+    EXPECT_EQ(queuedEntities.front(), queued->id);
+    const auto& importedEntities = entities.GetEntityTileList(importedLocation);
+    ASSERT_EQ(importedEntities.size(), 1u);
+    EXPECT_EQ(importedEntities.front(), imported->id);
+}
+
 // This test verifies that corrupted S6 files with duplicate EntityIndex values can be loaded without crashing.
 TEST_F(EntityImportTests, S6ImportCorruptedDuplicateEntityIndicesDoesNotCrash)
 {

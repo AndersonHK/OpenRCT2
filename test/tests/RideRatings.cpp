@@ -954,10 +954,14 @@ TEST_F(RideRatings, TransportServiceCacheBuildsEveryDirectedJourneyAndRefreshesO
     for (size_t boardingIndex = 0; boardingIndex < ride->numStations; boardingIndex++)
     {
         const auto boarding = StationIndex::FromUnderlying(static_cast<StationIndex::UnderlyingType>(boardingIndex));
-        for (size_t destinationOffset = 1; destinationOffset < ride->numStations; destinationOffset++)
+        for (size_t destinationIndex = 0; destinationIndex < ride->numStations; destinationIndex++)
         {
-            const auto destination = StationIndex::FromUnderlying(
-                static_cast<StationIndex::UnderlyingType>((boardingIndex + destinationOffset) % ride->numStations));
+            if (destinationIndex == boardingIndex)
+            {
+                continue;
+            }
+            const auto destination =
+                StationIndex::FromUnderlying(static_cast<StationIndex::UnderlyingType>(destinationIndex));
             const auto expected = RideGetTransportJourney(*ride, boarding, destination, service.quality);
             const auto& cached = service.journeys[journeyIndex++];
             EXPECT_EQ(cached.boardingStation, boarding);
@@ -1198,16 +1202,401 @@ TEST_F(RideRatings, TransportServiceSpatialQueriesAreStableAcrossBoundariesMoves
     EXPECT_EQ(afterReuse.stations[1].ride, lowRideId);
 }
 
-TEST_F(RideRatings, PlatformCapacityIsTransportOnlyAndScalesWithStationTiles)
+TEST_F(RideRatings, PlatformCapacityUsesActualConsistAndSafeLegacyFallback)
 {
+    auto& entities = getGameState().entities;
+    entities.ResetAllEntities();
+
     Ride ride{};
     ride.type = RIDE_TYPE_MONORAIL;
     ride.numStations = 1;
     ride.getStation().Length = 3;
+    EXPECT_EQ(RideGetTransportStationPlatformCapacity(ride, StationIndex::FromUnderlying(0)), 0);
+
+    auto* head = entities.CreateEntity<Vehicle>();
+    auto* tail = entities.CreateEntity<Vehicle>();
+    ASSERT_NE(head, nullptr);
+    ASSERT_NE(tail, nullptr);
+    head->SubType = Vehicle::Type::head;
+    head->num_seats = 14;
+    head->next_vehicle_on_train = tail->id;
+    tail->SubType = Vehicle::Type::tail;
+    tail->num_seats = 8;
+    tail->next_vehicle_on_train = EntityId::GetNull();
+    ride.numTrains = 1;
+    ride.vehicles[0] = head->id;
+    EXPECT_EQ(RideGetTransportStationPlatformCapacity(ride, StationIndex::FromUnderlying(0)), 22);
+
+    ride.vehicles[0] = EntityId::FromUnderlying(
+        static_cast<EntityId::UnderlyingType>(std::numeric_limits<EntityId::UnderlyingType>::max() - 1));
+    EXPECT_EQ(RideGetTransportStationPlatformCapacity(ride, StationIndex::FromUnderlying(0)), 0);
+
+    ride.type = RIDE_TYPE_CHAIRLIFT;
+    EXPECT_EQ(RideGetTransportStationPlatformCapacity(ride, StationIndex::FromUnderlying(0)), 0);
+    head->next_vehicle_on_train = EntityId::GetNull();
+    head->num_seats = 2;
+    ride.vehicles[0] = head->id;
+    EXPECT_EQ(RideGetTransportStationPlatformCapacity(ride, StationIndex::FromUnderlying(0)), 2);
+
+    ride.type = RIDE_TYPE_LIFT;
     EXPECT_EQ(RideGetTransportStationPlatformCapacity(ride, StationIndex::FromUnderlying(0)), 6);
 
     ride.type = RIDE_TYPE_WOODEN_ROLLER_COASTER;
     EXPECT_EQ(RideGetTransportStationPlatformCapacity(ride, StationIndex::FromUnderlying(0)), 0);
+}
+
+TEST_F(RideRatings, PlatformPreQueueAdaptersOptInChairliftButNotLiftOrCoasters)
+{
+    Ride ride{};
+    ride.type = RIDE_TYPE_CHAIRLIFT;
+    EXPECT_TRUE(RideSupportsStationPlatformPreQueue(ride));
+
+    ride.type = RIDE_TYPE_LIFT;
+    EXPECT_FALSE(RideSupportsStationPlatformPreQueue(ride));
+
+    ride.type = RIDE_TYPE_WOODEN_ROLLER_COASTER;
+    EXPECT_FALSE(RideSupportsStationPlatformPreQueue(ride));
+}
+
+TEST_F(RideRatings, MultiStationSamplesPublishAuthoritativeLegsAndConservativeCompatibility)
+{
+    Ride ride{};
+    ride.type = RIDE_TYPE_WOODEN_ROLLER_COASTER;
+    ride.numStations = 3;
+
+    RideRatingAccumulator first{};
+    first.originStation = StationIndex::FromUnderlying(0);
+    first.destinationStation = StationIndex::FromUnderlying(2);
+    first.excitement = 900'000;
+    first.intensity = 300'000;
+    first.nausea = 200'000;
+    first.ticks = 80;
+    first.sampledDistance = static_cast<int64_t>(2'000) << 16;
+    first.totalSpeed = 80LL * 0x90000;
+    first.maxSpeed = 0xA0000;
+    first.maxPositiveVerticalG = 250;
+    first.maxNegativeVerticalG = -80;
+    first.maxLateralG = 120;
+    ride.ratings = { RideRating::make(4, 00), RideRating::make(5, 00), RideRating::make(3, 00) };
+    const auto priorCompatibility = ride.ratings;
+    RideRating::RecordRiderSample(ride, first);
+
+    const auto* firstLeg = RideGetRatingLeg(ride, first.originStation, first.destinationStation);
+    ASSERT_NE(firstLeg, nullptr);
+    EXPECT_EQ(firstLeg->destinationStation, first.destinationStation);
+    EXPECT_EQ(firstLeg->recentSampleCount, 1);
+    const auto firstRatings = firstLeg->ratings;
+    const auto firstMeasurements = RideGetRatingLegMeasurements(*firstLeg);
+    EXPECT_EQ(firstMeasurements.distanceMetres, ToHumanReadableRideLength(static_cast<int32_t>(first.sampledDistance)));
+    EXPECT_EQ(firstMeasurements.durationTicks, first.ticks);
+    EXPECT_EQ(firstMeasurements.maxSpeed, first.maxSpeed);
+    EXPECT_EQ(firstMeasurements.averageSpeed, 0x90000);
+    EXPECT_EQ(firstMeasurements.maxNegativeVerticalG, -80);
+
+    RideRatingAccumulator second = first;
+    second.originStation = StationIndex::FromUnderlying(2);
+    second.destinationStation = StationIndex::FromUnderlying(1);
+    second.excitement = 300'000;
+    second.intensity = 800'000;
+    second.nausea = 700'000;
+    RideRating::RecordRiderSample(ride, second);
+
+    const auto* secondLeg = RideGetRatingLeg(ride, second.originStation, second.destinationStation);
+    ASSERT_NE(secondLeg, nullptr);
+    EXPECT_EQ(secondLeg->destinationStation, second.destinationStation);
+    const auto secondRatings = secondLeg->ratings;
+    EXPECT_EQ(ride.ratings, priorCompatibility);
+
+    RideRatingAccumulator third = first;
+    third.originStation = StationIndex::FromUnderlying(1);
+    third.destinationStation = StationIndex::FromUnderlying(0);
+    third.excitement = 600'000;
+    third.intensity = 500'000;
+    third.nausea = 400'000;
+    RideRating::RecordRiderSample(ride, third);
+    const auto* thirdLeg = RideGetRatingLeg(ride, third.originStation, third.destinationStation);
+    ASSERT_NE(thirdLeg, nullptr);
+    EXPECT_EQ(
+        ride.ratings.excitement,
+        std::min({ firstRatings.excitement, secondRatings.excitement, thirdLeg->ratings.excitement }));
+    EXPECT_EQ(
+        ride.ratings.intensity,
+        std::max({ firstRatings.intensity, secondRatings.intensity, thirdLeg->ratings.intensity }));
+    EXPECT_EQ(
+        ride.ratings.nausea,
+        std::max({ firstRatings.nausea, secondRatings.nausea, thirdLeg->ratings.nausea }));
+    EXPECT_EQ(RideGetRatingsForStation(ride, first.originStation), firstRatings);
+    EXPECT_EQ(RideGetRatingsForStation(ride, StationIndex::FromUnderlying(1)), thirdLeg->ratings);
+}
+
+TEST_F(RideRatings, SingleStationSamplesRetainRideWideHistoryWithoutLegAllocation)
+{
+    Ride ride{};
+    ride.type = RIDE_TYPE_WOODEN_ROLLER_COASTER;
+    ride.numStations = 1;
+
+    RideRatingAccumulator sample{};
+    sample.excitement = 500'000;
+    sample.intensity = 400'000;
+    sample.nausea = 300'000;
+    sample.ticks = 40;
+    RideRating::RecordRiderSample(ride, sample);
+
+    EXPECT_TRUE(ride.ratingLegs.empty());
+    EXPECT_EQ(ride.recentRatingSampleCount, 1);
+    EXPECT_FALSE(ride.ratings.isNull());
+}
+
+TEST_F(RideRatings, ThroughRiderCarsPublishOneLegThenStartCleanForTheNextLeg)
+{
+    Ride ride{};
+    ride.id = RideId::FromUnderlying(7);
+    ride.type = RIDE_TYPE_WOODEN_ROLLER_COASTER;
+    ride.numStations = 3;
+    const std::array sampleEntities = { EntityId::FromUnderlying(100), EntityId::FromUnderlying(101) };
+
+    for (const auto entity : sampleEntities)
+    {
+        auto* sample = RideGetOrCreateActiveRatingSample(ride, entity);
+        ASSERT_NE(sample, nullptr);
+        sample->originStation = StationIndex::FromUnderlying(0);
+        sample->destinationStation = StationIndex::FromUnderlying(2);
+        sample->excitement = 200'000;
+        sample->intensity = 100'000;
+        sample->nausea = 50'000;
+        sample->ticks = 20;
+    }
+
+    EXPECT_TRUE(RideRating::RecordActiveRiderSamples(ride, sampleEntities));
+    const auto* completedLeg = RideGetRatingLeg(
+        ride, StationIndex::FromUnderlying(0), StationIndex::FromUnderlying(2));
+    ASSERT_NE(completedLeg, nullptr);
+    EXPECT_EQ(completedLeg->destinationStation, StationIndex::FromUnderlying(2));
+    for (const auto& cleared : ride.activeRatingSamples)
+    {
+        EXPECT_FALSE(cleared.hasSamples());
+        EXPECT_TRUE(cleared.originStation.IsNull());
+        EXPECT_TRUE(cleared.destinationStation.IsNull());
+    }
+
+    for (const auto entity : sampleEntities)
+    {
+        auto* nextLeg = RideGetOrCreateActiveRatingSample(ride, entity);
+        ASSERT_NE(nextLeg, nullptr);
+        nextLeg->originStation = StationIndex::FromUnderlying(2);
+        nextLeg->destinationStation = StationIndex::FromUnderlying(1);
+        nextLeg->excitement = 150'000;
+        nextLeg->intensity = 75'000;
+        nextLeg->nausea = 25'000;
+        nextLeg->ticks = 15;
+    }
+    EXPECT_TRUE(RideRating::RecordActiveRiderSamples(ride, sampleEntities));
+    EXPECT_NE(
+        RideGetRatingLeg(ride, StationIndex::FromUnderlying(2), StationIndex::FromUnderlying(1)), nullptr);
+}
+
+TEST_F(RideRatings, DirectedLegStorageAllowsTwoDestinationsFromOneShuttleStation)
+{
+    Ride ride{};
+    ride.type = RIDE_TYPE_WOODEN_ROLLER_COASTER;
+    ride.numStations = 3;
+
+    RideRatingAccumulator towardStart{};
+    towardStart.originStation = StationIndex::FromUnderlying(1);
+    towardStart.destinationStation = StationIndex::FromUnderlying(0);
+    towardStart.excitement = 300'000;
+    towardStart.intensity = 700'000;
+    towardStart.nausea = 600'000;
+    towardStart.ticks = 20;
+    RideRating::RecordRiderSample(ride, towardStart);
+
+    auto towardEnd = towardStart;
+    towardEnd.destinationStation = StationIndex::FromUnderlying(2);
+    towardEnd.excitement = 800'000;
+    towardEnd.intensity = 200'000;
+    towardEnd.nausea = 100'000;
+    RideRating::RecordRiderSample(ride, towardEnd);
+
+    const auto* firstEdge = RideGetRatingLeg(ride, towardStart.originStation, towardStart.destinationStation);
+    const auto* secondEdge = RideGetRatingLeg(ride, towardEnd.originStation, towardEnd.destinationStation);
+    ASSERT_NE(firstEdge, nullptr);
+    ASSERT_NE(secondEdge, nullptr);
+    EXPECT_EQ(ride.ratingLegs.size(), 2);
+    EXPECT_EQ(RideGetUniqueOutboundRatingLeg(ride, towardStart.originStation), nullptr);
+    const auto stationRatings = RideGetRatingsForStation(ride, towardStart.originStation);
+    EXPECT_EQ(stationRatings.excitement, std::min(firstEdge->ratings.excitement, secondEdge->ratings.excitement));
+    EXPECT_EQ(stationRatings.intensity, std::max(firstEdge->ratings.intensity, secondEdge->ratings.intensity));
+    EXPECT_EQ(stationRatings.nausea, std::max(firstEdge->ratings.nausea, secondEdge->ratings.nausea));
+}
+
+TEST_F(RideRatings, RatingLegDisplaySelectionReachesLaterEdgesInStableEndpointOrder)
+{
+    Ride ride{};
+    ride.type = RIDE_TYPE_WOODEN_ROLLER_COASTER;
+    ride.numStations = 3;
+
+    const auto addLeg = [&ride](uint8_t origin, uint8_t destination) {
+        RideRatingAccumulator sample{};
+        sample.originStation = StationIndex::FromUnderlying(origin);
+        sample.destinationStation = StationIndex::FromUnderlying(destination);
+        sample.excitement = 100'000 + origin * 10'000 + destination;
+        sample.intensity = 100'000;
+        sample.nausea = 100'000;
+        sample.ticks = 20;
+        RideRating::RecordRiderSample(ride, sample);
+    };
+    addLeg(2, 1);
+    addLeg(0, 2);
+    addLeg(1, 2);
+    addLeg(0, 1);
+    addLeg(1, 0);
+
+    const std::array expected = {
+        std::pair{ uint8_t{ 0 }, uint8_t{ 1 } },
+        std::pair{ uint8_t{ 0 }, uint8_t{ 2 } },
+        std::pair{ uint8_t{ 1 }, uint8_t{ 0 } },
+        std::pair{ uint8_t{ 1 }, uint8_t{ 2 } },
+        std::pair{ uint8_t{ 2 }, uint8_t{ 1 } },
+    };
+    for (size_t index = 0; index < expected.size(); index++)
+    {
+        const auto* leg = RideGetRatingLegByDisplayIndex(ride, index);
+        ASSERT_NE(leg, nullptr);
+        EXPECT_EQ(leg->originStation.ToUnderlying(), expected[index].first);
+        EXPECT_EQ(leg->destinationStation.ToUnderlying(), expected[index].second);
+    }
+    ASSERT_NE(RideGetRatingLegByDisplayIndex(ride, 4), nullptr);
+    EXPECT_EQ(RideGetRatingLegByDisplayIndex(ride, expected.size()), nullptr);
+
+    // Updating an existing early edge must not move the selected fifth edge.
+    addLeg(0, 1);
+    const auto* fifth = RideGetRatingLegByDisplayIndex(ride, 4);
+    ASSERT_NE(fifth, nullptr);
+    EXPECT_EQ(fifth->originStation, StationIndex::FromUnderlying(2));
+    EXPECT_EQ(fifth->destinationStation, StationIndex::FromUnderlying(1));
+}
+
+TEST_F(RideRatings, IncompleteDirectedCoveragePreservesNullCompatibility)
+{
+    Ride ride{};
+    ride.type = RIDE_TYPE_WOODEN_ROLLER_COASTER;
+    ride.numStations = 3;
+    ride.ratings.setNull();
+    ASSERT_TRUE(ride.ratings.isNull());
+
+    RideRatingAccumulator sample{};
+    sample.originStation = StationIndex::FromUnderlying(0);
+    sample.destinationStation = StationIndex::FromUnderlying(2);
+    sample.excitement = 200'000;
+    sample.intensity = 100'000;
+    sample.nausea = 50'000;
+    sample.ticks = 20;
+    RideRating::RecordRiderSample(ride, sample);
+
+    EXPECT_TRUE(ride.ratings.isNull());
+}
+
+TEST_F(RideRatings, TransportJourneyFollowsAndComposesMeasuredPhysicalLegs)
+{
+    Ride ride{};
+    ride.type = RIDE_TYPE_MONORAIL;
+    ride.numStations = 3;
+    ride.stableStats.valid = true;
+    ride.stableStats.stations[0].SegmentLength = 1'000 << 16;
+    ride.stableStats.stations[2].SegmentLength = 1'500 << 16;
+    ride.stableStats.stations[0].SegmentTime = 20;
+    ride.stableStats.stations[2].SegmentTime = 30;
+
+    const auto addLeg = [&ride](uint8_t origin, uint8_t destination, int32_t distance, uint32_t ticks, int32_t speed) {
+        RideRatingAccumulator sample{};
+        sample.originStation = StationIndex::FromUnderlying(origin);
+        sample.destinationStation = StationIndex::FromUnderlying(destination);
+        sample.excitement = 100'000;
+        sample.intensity = 100'000;
+        sample.nausea = 100'000;
+        sample.transportDistance = 1'000;
+        sample.transportComfort = 900'000;
+        sample.transportDecoration = 1'000'000;
+        sample.sampledDistance = static_cast<int64_t>(distance) << 16;
+        sample.totalSpeed = static_cast<int64_t>(speed) * ticks;
+        sample.maxSpeed = speed + 0x10000;
+        sample.ticks = ticks;
+        RideAddRecentRatingSample(ride, sample);
+    };
+    addLeg(0, 2, 4'000, 40, 0x80000);
+    addLeg(2, 1, 5'000, 60, 0xA0000);
+    addLeg(1, 0, 6'000, 80, 0x70000);
+
+    const TransportRideQuality quality{ .comfortPermille = 900, .decorationPermille = 1000, .hasMeasurements = true };
+    const auto first = RideGetTransportSegment(ride, StationIndex::FromUnderlying(0), quality);
+    const auto second = RideGetTransportSegment(ride, StationIndex::FromUnderlying(2), quality);
+    const auto journey = RideGetTransportJourney(
+        ride, StationIndex::FromUnderlying(0), StationIndex::FromUnderlying(1), quality);
+    EXPECT_EQ(first.destinationStation, StationIndex::FromUnderlying(2));
+    EXPECT_EQ(second.destinationStation, StationIndex::FromUnderlying(1));
+    EXPECT_EQ(first.distanceMetres, 4'000);
+    EXPECT_EQ(second.distanceMetres, 5'000);
+    EXPECT_EQ(first.travelTimeMilliseconds, 1'000);
+    EXPECT_EQ(second.travelTimeMilliseconds, 1'500);
+    EXPECT_EQ(journey.destinationStation, StationIndex::FromUnderlying(1));
+    EXPECT_EQ(journey.segmentCount, 2);
+    EXPECT_EQ(journey.distanceMetres, first.distanceMetres + second.distanceMetres);
+    EXPECT_EQ(journey.travelTimeMilliseconds, first.travelTimeMilliseconds + second.travelTimeMilliseconds);
+    EXPECT_EQ(journey.fareValue, first.fareValue + second.fareValue);
+}
+
+TEST_F(RideRatings, TransportJourneyKeepsBothMeasuredShuttleDepartures)
+{
+    Ride ride{};
+    ride.type = RIDE_TYPE_MONORAIL;
+    ride.numStations = 3;
+
+    const auto addLeg = [&ride](uint8_t origin, uint8_t destination, int32_t distance) {
+        RideRatingAccumulator sample{};
+        sample.originStation = StationIndex::FromUnderlying(origin);
+        sample.destinationStation = StationIndex::FromUnderlying(destination);
+        sample.excitement = 100'000;
+        sample.intensity = 100'000;
+        sample.nausea = 100'000;
+        sample.transportDistance = 1'000;
+        sample.transportComfort = 900'000;
+        sample.transportDecoration = 1'000'000;
+        sample.sampledDistance = static_cast<int64_t>(distance) << 16;
+        sample.totalSpeed = 40LL * 0x80000;
+        sample.maxSpeed = 0x90000;
+        sample.ticks = 40;
+        RideAddRecentRatingSample(ride, sample);
+    };
+    addLeg(1, 0, 2'000);
+    addLeg(1, 2, 3'000);
+    addLeg(0, 1, 2'000);
+    addLeg(2, 1, 3'000);
+
+    const TransportRideQuality quality{ .comfortPermille = 900, .decorationPermille = 1000, .hasMeasurements = true };
+    EXPECT_TRUE(RideGetTransportSegment(ride, StationIndex::FromUnderlying(1), quality).destinationStation.IsNull());
+    const auto towardStart = RideGetTransportSegment(
+        ride, StationIndex::FromUnderlying(1), StationIndex::FromUnderlying(0), quality);
+    const auto towardEnd = RideGetTransportSegment(
+        ride, StationIndex::FromUnderlying(1), StationIndex::FromUnderlying(2), quality);
+    EXPECT_EQ(towardStart.destinationStation, StationIndex::FromUnderlying(0));
+    EXPECT_EQ(towardEnd.destinationStation, StationIndex::FromUnderlying(2));
+    EXPECT_NE(towardStart.distanceMetres, towardEnd.distanceMetres);
+    const auto* measuredStartLeg = RideGetRatingLeg(
+        ride, StationIndex::FromUnderlying(1), StationIndex::FromUnderlying(0));
+    ASSERT_NE(measuredStartLeg, nullptr);
+    const auto measuredStartQuality = RideGetTransportLegQuality(*measuredStartLeg, {});
+    EXPECT_EQ(measuredStartQuality.comfortPermille, 900);
+    EXPECT_EQ(measuredStartQuality.decorationPermille, 1000);
+    EXPECT_TRUE(measuredStartQuality.hasMeasurements);
+
+    const auto startJourney = RideGetTransportJourney(
+        ride, StationIndex::FromUnderlying(1), StationIndex::FromUnderlying(0), quality);
+    const auto endJourney = RideGetTransportJourney(
+        ride, StationIndex::FromUnderlying(1), StationIndex::FromUnderlying(2), quality);
+    EXPECT_EQ(startJourney.segmentCount, 1);
+    EXPECT_EQ(endJourney.segmentCount, 1);
+    EXPECT_EQ(startJourney.distanceMetres, towardStart.distanceMetres);
+    EXPECT_EQ(endJourney.distanceMetres, towardEnd.distanceMetres);
 }
 
 TEST_F(RideRatings, SampledRatingProfilesApplyInitialRideTypeMultipliers)
@@ -1402,8 +1791,10 @@ TEST_F(RideRatings, VehicleLocalContextRuntimeCacheTracksNearbyMapChanges)
     ASSERT_TRUE(context->Initialise());
     MapInit({ 30, 30 });
 
-    const auto originTile = TileCoordsXY{ 10, 10 };
-    const auto sceneryTile = TileCoordsXY{ 11, 10 };
+    // Straddle the local-context generation chunk boundary as well as testing
+    // ordinary nearby invalidation.
+    const auto originTile = TileCoordsXY{ 15, 10 };
+    const auto sceneryTile = TileCoordsXY{ 16, 10 };
     const auto rideId = RideId::FromUnderlying(1);
     constexpr int32_t groundZ = 14 * kCoordsZStep;
     const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), groundZ + kCoordsZStep };

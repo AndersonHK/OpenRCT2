@@ -130,6 +130,8 @@ static constexpr size_t kRideRatingContextInitialCacheCapacity = 16384;
 static constexpr size_t kRideRatingContextGenerationChunksPerAxis = (kMaximumMapSizeTechnical
                                                                      + kRideRatingContextGenerationChunkSize - 1)
     / kRideRatingContextGenerationChunkSize;
+static constexpr int32_t kRideRatingContextGenerationNeighbourRadius =
+    (kRideRatingContextMaxRadius + kRideRatingContextGenerationChunkSize - 1) / kRideRatingContextGenerationChunkSize;
 static constexpr std::array<int32_t, kRideRatingContextMaxRadius + 1> kRideRatingContextDistanceWeights = { 256, 218, 154, 90,
                                                                                                             46,  28,  18,  12 };
 
@@ -191,7 +193,7 @@ static RideRatingLocalContextCache _rideRatingLocalContextCache = []() {
     return result;
 }();
 static std::array<uint64_t, kRideRatingContextGenerationChunksPerAxis * kRideRatingContextGenerationChunksPerAxis>
-    _rideRatingLocalContextGenerations{};
+    _rideRatingLocalContextOriginGenerations{};
 static uint64_t _rideRatingLocalContextInvalidationGeneration{};
 
 struct RideRatingLocalContextRaw
@@ -999,25 +1001,11 @@ static size_t RideRatingGetLocalContextGenerationIndex(int32_t chunkX, int32_t c
 
 static uint64_t RideRatingGetLocalContextSpatialGeneration(const TileCoordsXY& originTile)
 {
-    const auto minTileX = std::max(originTile.x - kRideRatingContextMaxRadius, 0);
-    const auto minTileY = std::max(originTile.y - kRideRatingContextMaxRadius, 0);
-    const auto maxTileX = std::min(originTile.x + kRideRatingContextMaxRadius, kMaximumMapSizeTechnical - 1);
-    const auto maxTileY = std::min(originTile.y + kRideRatingContextMaxRadius, kMaximumMapSizeTechnical - 1);
-    const auto minChunkX = minTileX / kRideRatingContextGenerationChunkSize;
-    const auto minChunkY = minTileY / kRideRatingContextGenerationChunkSize;
-    const auto maxChunkX = maxTileX / kRideRatingContextGenerationChunkSize;
-    const auto maxChunkY = maxTileY / kRideRatingContextGenerationChunkSize;
-
-    uint64_t result = 0;
-    for (auto chunkY = minChunkY; chunkY <= maxChunkY; chunkY++)
-    {
-        for (auto chunkX = minChunkX; chunkX <= maxChunkX; chunkX++)
-        {
-            result = std::max(
-                result, _rideRatingLocalContextGenerations[RideRatingGetLocalContextGenerationIndex(chunkX, chunkY)]);
-        }
-    }
-    return result;
+    const auto chunkX = std::clamp(originTile.x, 0, kMaximumMapSizeTechnical - 1)
+        / kRideRatingContextGenerationChunkSize;
+    const auto chunkY = std::clamp(originTile.y, 0, kMaximumMapSizeTechnical - 1)
+        / kRideRatingContextGenerationChunkSize;
+    return _rideRatingLocalContextOriginGenerations[RideRatingGetLocalContextGenerationIndex(chunkX, chunkY)];
 }
 
 static bool RideRatingLocalContextTickIsSheltered(const CoordsXYZ& location)
@@ -1328,16 +1316,34 @@ void RideRating::InvalidateLocalContextCacheAround(const CoordsXY& location)
         return;
     }
 
-    const auto chunkX = tileLocation.x / kRideRatingContextGenerationChunkSize;
-    const auto chunkY = tileLocation.y / kRideRatingContextGenerationChunkSize;
-    _rideRatingLocalContextGenerations[RideRatingGetLocalContextGenerationIndex(chunkX, chunkY)]
-        = ++_rideRatingLocalContextInvalidationGeneration;
+    const auto invalidatedChunkX = tileLocation.x / kRideRatingContextGenerationChunkSize;
+    const auto invalidatedChunkY = tileLocation.y / kRideRatingContextGenerationChunkSize;
+    const auto minOriginChunkX = std::max(invalidatedChunkX - kRideRatingContextGenerationNeighbourRadius, 0);
+    const auto minOriginChunkY = std::max(invalidatedChunkY - kRideRatingContextGenerationNeighbourRadius, 0);
+    const auto maxOriginChunkX = std::min(
+        invalidatedChunkX + kRideRatingContextGenerationNeighbourRadius,
+        static_cast<int32_t>(kRideRatingContextGenerationChunksPerAxis) - 1);
+    const auto maxOriginChunkY = std::min(
+        invalidatedChunkY + kRideRatingContextGenerationNeighbourRadius,
+        static_cast<int32_t>(kRideRatingContextGenerationChunksPerAxis) - 1);
+    const auto generation = ++_rideRatingLocalContextInvalidationGeneration;
+
+    // Charge the small neighbourhood update to the infrequent invalidation so
+    // the per-vehicle cache-hit path needs only one generation lookup.
+    for (auto originChunkY = minOriginChunkY; originChunkY <= maxOriginChunkY; originChunkY++)
+    {
+        for (auto originChunkX = minOriginChunkX; originChunkX <= maxOriginChunkX; originChunkX++)
+        {
+            _rideRatingLocalContextOriginGenerations[
+                RideRatingGetLocalContextGenerationIndex(originChunkX, originChunkY)] = generation;
+        }
+    }
 }
 
 void RideRating::ClearLocalContextCache()
 {
     _rideRatingLocalContextCache.clear();
-    _rideRatingLocalContextGenerations.fill(++_rideRatingLocalContextInvalidationGeneration);
+    _rideRatingLocalContextOriginGenerations.fill(++_rideRatingLocalContextInvalidationGeneration);
 }
 
 RideRating::TickScore RideRating::ScoreAirtimeGForTick(int32_t verticalG)
@@ -1492,6 +1498,8 @@ static void RideRatingsCalculateValue(Ride& ride);
 static void ride_ratings_score_close_proximity(RideRating::UpdateState& state, TileElement* inputTileElement);
 static void RideRatingsAdd(RideRating::Tuple& ratings, int32_t excitement, int32_t intensity, int32_t nausea);
 static RideRating::Tuple RideRatingsCalculateAggregated(const Ride& ride, const RideRatingAccumulator& accumulator);
+static RideRating::Tuple RideRatingsCalculateLegCompatibility(const Ride& ride);
+static bool RideRatingsHaveCompleteLegCoverage(const Ride& ride);
 
 static ShelteredEights GetNumOfShelteredEighths(const Ride& ride);
 static money64 RideComputeUpkeep(RideRating::UpdateState& state, const Ride& ride);
@@ -1594,14 +1602,42 @@ void RideRating::RecordRiderSample(Ride& ride, const RideRatingAccumulator& samp
     if (RideRatingsUsesAggregateSamples(ride))
     {
         ride.flags.set(RideFlag::tested);
-        const auto recentAccumulator = RideGetRecentRatingAccumulator(ride);
-        if (recentAccumulator.hasSamples())
+        if (ride.numStations > 1)
         {
-            const auto ratings = RideRatingsCalculateAggregated(ride, recentAccumulator);
-            if (ride.ratings != ratings)
+            if (!sample.originStation.IsNull() && !sample.destinationStation.IsNull()
+                && sample.originStation != sample.destinationStation)
             {
-                ride.ratings = ratings;
-                ride.windowInvalidateFlags.set(RideInvalidateFlag::ratings);
+                auto* leg = RideGetRatingLeg(ride, sample.originStation, sample.destinationStation);
+                if (leg != nullptr)
+                {
+                    const auto legAccumulator = RideGetRecentRatingAccumulator(*leg);
+                    if (legAccumulator.hasSamples())
+                    {
+                        leg->ratings = RideRatingsCalculateAggregated(ride, legAccumulator);
+                    }
+                }
+            }
+            if (RideRatingsHaveCompleteLegCoverage(ride))
+            {
+                const auto ratings = RideRatingsCalculateLegCompatibility(ride);
+                if (ride.ratings != ratings)
+                {
+                    ride.ratings = ratings;
+                    ride.windowInvalidateFlags.set(RideInvalidateFlag::ratings);
+                }
+            }
+        }
+        else
+        {
+            const auto recentAccumulator = RideGetRecentRatingAccumulator(ride);
+            if (recentAccumulator.hasSamples())
+            {
+                const auto ratings = RideRatingsCalculateAggregated(ride, recentAccumulator);
+                if (ride.ratings != ratings)
+                {
+                    ride.ratings = ratings;
+                    ride.windowInvalidateFlags.set(RideInvalidateFlag::ratings);
+                }
             }
         }
     }
@@ -1636,9 +1672,34 @@ bool RideRating::RecordActiveRiderSamples(Ride& ride, std::span<const EntityId> 
             continue;
         }
 
+        if (completedSampleCount == 0)
+        {
+            combinedSample.originStation = accumulator->originStation;
+            combinedSample.destinationStation = accumulator->destinationStation;
+        }
+        else if (combinedSample.originStation != accumulator->originStation
+            || combinedSample.destinationStation != accumulator->destinationStation)
+        {
+            continue;
+        }
         combinedSample.excitement += accumulator->excitement;
         combinedSample.intensity += accumulator->intensity;
         combinedSample.nausea += accumulator->nausea;
+        combinedSample.transportComfort += accumulator->transportComfort;
+        combinedSample.transportDecoration += accumulator->transportDecoration;
+        combinedSample.transportDistance += accumulator->transportDistance;
+        combinedSample.sampledDistance += accumulator->sampledDistance;
+        combinedSample.totalSpeed += accumulator->totalSpeed;
+        combinedSample.maxSpeed = std::max(combinedSample.maxSpeed, accumulator->maxSpeed);
+        combinedSample.maxPositiveVerticalG = std::max(
+            combinedSample.maxPositiveVerticalG, accumulator->maxPositiveVerticalG);
+        combinedSample.maxNegativeVerticalG = std::min(
+            combinedSample.maxNegativeVerticalG, accumulator->maxNegativeVerticalG);
+        combinedSample.maxLateralG = std::max(combinedSample.maxLateralG, accumulator->maxLateralG);
+        combinedSample.maxPositiveLongitudinalG = std::max(
+            combinedSample.maxPositiveLongitudinalG, accumulator->maxPositiveLongitudinalG);
+        combinedSample.maxNegativeLongitudinalG = std::min(
+            combinedSample.maxNegativeLongitudinalG, accumulator->maxNegativeLongitudinalG);
         combinedSample.ticks += accumulator->ticks;
         completedSampleCount++;
     }
@@ -1651,6 +1712,11 @@ bool RideRating::RecordActiveRiderSamples(Ride& ride, std::span<const EntityId> 
     combinedSample.excitement /= static_cast<int64_t>(completedSampleCount);
     combinedSample.intensity /= static_cast<int64_t>(completedSampleCount);
     combinedSample.nausea /= static_cast<int64_t>(completedSampleCount);
+    combinedSample.transportComfort /= static_cast<int64_t>(completedSampleCount);
+    combinedSample.transportDecoration /= static_cast<int64_t>(completedSampleCount);
+    combinedSample.transportDistance /= static_cast<int64_t>(completedSampleCount);
+    combinedSample.sampledDistance /= static_cast<int64_t>(completedSampleCount);
+    combinedSample.totalSpeed /= static_cast<int64_t>(completedSampleCount);
     combinedSample.ticks = std::max<uint32_t>(1, combinedSample.ticks / static_cast<uint32_t>(completedSampleCount));
 
     RecordRiderSample(ride, combinedSample);
@@ -2377,7 +2443,11 @@ static void RideRatingsCalculate(RideRating::UpdateState& state, Ride& ride)
     }
 
     const bool aggregateRatingType = RideRatingsUsesAggregateSamples(ride);
-    if (aggregateRatingType && aggregateAccumulator != nullptr)
+    if (aggregateRatingType && ride.numStations > 1)
+    {
+        ratings = RideRatingsHaveCompleteLegCoverage(ride) ? RideRatingsCalculateLegCompatibility(ride) : ride.ratings;
+    }
+    else if (aggregateRatingType && aggregateAccumulator != nullptr)
     {
         ratings = RideRatingsCalculateAggregated(ride, *aggregateAccumulator);
     }
@@ -3384,6 +3454,52 @@ static RideRating::Tuple RideRatingsCalculateAggregated(const Ride& ride, const 
         .intensity = RideRatingsRawToRating(raw.intensity),
         .nausea = RideRatingsRawToRating(raw.nausea),
     };
+}
+
+static RideRating::Tuple RideRatingsCalculateLegCompatibility(const Ride& ride)
+{
+    RideRating::Tuple result{};
+    bool hasRatings = false;
+    for (const auto& leg : ride.ratingLegs)
+    {
+        if (!leg.hasSamples())
+        {
+            continue;
+        }
+        if (!hasRatings)
+        {
+            result = leg.ratings;
+            hasRatings = true;
+            continue;
+        }
+
+        // Legacy/list/value consumers require one tuple. Use the least exciting
+        // measured leg and the worst measured intensity/nausea so that the
+        // compatibility value never advertises a better trip than every leg.
+        result.excitement = std::min(result.excitement, leg.ratings.excitement);
+        result.intensity = std::max(result.intensity, leg.ratings.intensity);
+        result.nausea = std::max(result.nausea, leg.ratings.nausea);
+    }
+    return hasRatings ? result : ride.ratings;
+}
+
+static bool RideRatingsHaveCompleteLegCoverage(const Ride& ride)
+{
+    if (ride.numStations <= 1)
+    {
+        return true;
+    }
+    std::array<bool, Limits::kMaxStationsPerRide> hasOutboundLeg{};
+    for (const auto& leg : ride.ratingLegs)
+    {
+        if (leg.hasSamples() && !leg.originStation.IsNull() && leg.originStation.ToUnderlying() < ride.numStations)
+        {
+            hasOutboundLeg[leg.originStation.ToUnderlying()] = true;
+        }
+    }
+    return std::all_of(hasOutboundLeg.begin(), hasOutboundLeg.begin() + ride.numStations, [](bool covered) {
+        return covered;
+    });
 }
 
 static void RideRatingsApplyBonusLength(RideRating::Tuple& ratings, const Ride& ride, RatingsModifier modifier)

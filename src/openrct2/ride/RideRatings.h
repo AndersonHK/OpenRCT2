@@ -175,7 +175,8 @@ namespace OpenRCT2
         bool RecordActiveRiderSamples(Ride& ride, std::span<const EntityId> sampleEntities);
         bool ShouldSampleCircuit(const Ride& ride, const Vehicle& vehicle);
         bool ShouldStartCircuit(const Ride& ride, const Vehicle& vehicle);
-        void PublishTrainSample(Ride& ride, const Vehicle& head);
+        void InvalidateLiveSynchronisationCache(RideId rideId);
+        void PublishTrainSample(Ride& ride, const Vehicle& head, StationIndex destinationStation);
         void UpdateAll();
     } // namespace RideRating
 } // namespace OpenRCT2

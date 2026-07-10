@@ -11,6 +11,7 @@
 
     #include "VulkanLinePipeline.h"
 
+    #include "VulkanCommandLayouts.h"
     #include "VulkanShader.h"
 
     #include <array>
@@ -32,12 +33,6 @@ namespace OpenRCT2::Ui::Vulkan
                     std::string(operation) + " failed with Vulkan result " + std::to_string(result));
             }
         }
-
-        struct ScreenConstants
-        {
-            int32_t width;
-            int32_t height;
-        };
     } // namespace
 
     LinePipeline::~LinePipeline()
@@ -52,7 +47,11 @@ namespace OpenRCT2::Ui::Vulkan
         _device = device.GetDevice();
         _pipelineCache = device.GetPipelineCache();
         _shaderDirectory = std::move(shaderDirectory);
-        Refresh(resources);
+        const auto canvasExtent = resources.GetIndexedCanvas(0).GetExtent();
+        _extent = { canvasExtent.width, canvasExtent.height };
+        CreateRenderPass();
+        CreatePipeline();
+        CreateFramebuffers(resources);
     }
 
     void LinePipeline::Dispose()
@@ -62,16 +61,6 @@ namespace OpenRCT2::Ui::Vulkan
         _pipelineCache = VK_NULL_HANDLE;
         _shaderDirectory.clear();
         _extent = {};
-    }
-
-    void LinePipeline::Refresh(const IndexedResources& resources)
-    {
-        DestroyCanvasResources();
-        const auto canvasExtent = resources.GetIndexedCanvas(0).GetExtent();
-        _extent = { canvasExtent.width, canvasExtent.height };
-        CreateRenderPass();
-        CreatePipeline();
-        CreateFramebuffers(resources);
     }
 
     void LinePipeline::Record(
@@ -148,7 +137,9 @@ namespace OpenRCT2::Ui::Vulkan
                 .format = VK_FORMAT_D32_SFLOAT,
                 .samples = VK_SAMPLE_COUNT_1_BIT,
                 .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-                .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                // Opaque rectangles execute in a following render pass and
+                // depth-test against lines recorded by this pass.
+                .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
                 .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
                 .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
                 .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
@@ -181,10 +172,13 @@ namespace OpenRCT2::Ui::Vulkan
             VkSubpassDependency{
                 .srcSubpass = 0,
                 .dstSubpass = VK_SUBPASS_EXTERNAL,
-                .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                .dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-                .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+                .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+                    | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+                .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+                    | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+                .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT
+                    | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT,
             },
         };
         const VkRenderPassCreateInfo renderPassInfo = {

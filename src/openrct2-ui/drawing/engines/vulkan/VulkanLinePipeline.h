@@ -43,7 +43,6 @@ namespace OpenRCT2::Ui::Vulkan
         void Initialise(
             const Device& device, const IndexedResources& resources, std::filesystem::path shaderDirectory);
         void Dispose();
-        void Refresh(const IndexedResources& resources);
         void Record(const FrameToken& frame, const Gpu::CommandBatch<Gpu::LineCommand>& commands) const;
 
     private:

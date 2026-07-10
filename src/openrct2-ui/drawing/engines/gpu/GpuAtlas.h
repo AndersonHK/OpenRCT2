@@ -21,6 +21,7 @@ namespace OpenRCT2::Ui::Gpu
 {
     constexpr int32_t kAtlasDimension = 2048;
     constexpr int32_t kSmallestAtlasSlot = 32;
+    constexpr uint32_t kAtlasLayers = 64;
 
     struct TextureBinding
     {

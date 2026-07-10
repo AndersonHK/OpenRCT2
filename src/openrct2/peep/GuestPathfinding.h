@@ -23,6 +23,9 @@ namespace OpenRCT2
 
 namespace OpenRCT2::PathFinding
 {
+    // Rebuilds shared exact-topology route fields only when the map topology epoch changes.
+    void PrepareSharedRouteFields();
+
     Direction ChooseDirection(
         const TileCoordsXYZ& loc, const TileCoordsXYZ& goal, Peep& peep, bool ignoreForeignQueues, RideId queueRideIndex);
 

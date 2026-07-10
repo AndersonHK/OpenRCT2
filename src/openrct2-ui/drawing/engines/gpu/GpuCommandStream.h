@@ -11,7 +11,7 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <span>
+#include <optional>
 #include <type_traits>
 #include <vector>
 
@@ -127,13 +127,26 @@ namespace OpenRCT2::Ui::Gpu
 
     struct TextureUpload
     {
-        uint32_t image;
         uint32_t atlas;
         Int4 bounds;
         uint32_t sourceOffset;
         uint32_t sourcePitch;
     };
+
+    struct CanvasUpload
+    {
+        uint32_t sourceOffset;
+        uint32_t sourcePitch;
+        uint32_t width;
+        uint32_t height;
+    };
 #pragma pack(pop)
+
+    [[nodiscard]] constexpr bool InclusiveRectIntersectsClip(const Int4& bounds, const Int4& clip) noexcept
+    {
+        return bounds.x <= bounds.z && bounds.y <= bounds.w && bounds.z >= clip.x && bounds.w >= clip.y
+            && bounds.x < clip.z && bounds.y < clip.w;
+    }
 
     static_assert(std::is_trivially_copyable_v<LineCommand>);
     static_assert(std::is_trivially_copyable_v<RectCommand>);
@@ -143,7 +156,22 @@ namespace OpenRCT2::Ui::Gpu
     static_assert(offsetof(LineCommand, colour) == 16);
     static_assert(offsetof(LineCommand, depth) == 20);
     static_assert(sizeof(RectCommand) == 100);
+    static_assert(offsetof(RectCommand, clip) == 0);
+    static_assert(offsetof(RectCommand, texColourAtlas) == 16);
+    static_assert(offsetof(RectCommand, texColourBounds) == 20);
+    static_assert(offsetof(RectCommand, texMaskAtlas) == 36);
+    static_assert(offsetof(RectCommand, texMaskBounds) == 40);
+    static_assert(offsetof(RectCommand, palettes) == 56);
+    static_assert(offsetof(RectCommand, flags) == 68);
+    static_assert(offsetof(RectCommand, colour) == 72);
+    static_assert(offsetof(RectCommand, bounds) == 76);
+    static_assert(offsetof(RectCommand, depth) == 92);
+    static_assert(offsetof(RectCommand, zoom) == 96);
     static_assert(sizeof(WeatherCommand) == 28);
+    static_assert(offsetof(WeatherCommand, bounds) == 0);
+    static_assert(offsetof(WeatherCommand, offset) == 16);
+    static_assert(offsetof(WeatherCommand, pattern) == 24);
+    static_assert(sizeof(CanvasUpload) == 16);
 
     template<typename T>
     class CommandBatch
@@ -205,11 +233,6 @@ namespace OpenRCT2::Ui::Gpu
             return _storage.data();
         }
 
-        [[nodiscard]] std::span<const T> view() const noexcept
-        {
-            return { _storage.data(), _size };
-        }
-
         const T& operator[](size_t index) const
         {
             return _storage.at(index);
@@ -243,9 +266,7 @@ namespace OpenRCT2::Ui::Gpu
         CommandBatch<RectCommand> transparentRects;
         CommandBatch<WeatherCommand> weather;
         CommandBatch<TextureUpload> textureUploads;
-
-        uint64_t frameNumber = 0;
-        uint32_t paletteRevision = 0;
+        std::optional<CanvasUpload> canvasUpload;
 
         void clear() noexcept // NOLINT(readability-identifier-naming)
         {
@@ -254,6 +275,7 @@ namespace OpenRCT2::Ui::Gpu
             transparentRects.clear();
             weather.clear();
             textureUploads.clear();
+            canvasUpload.reset();
         }
 
         void reserveForParkView()

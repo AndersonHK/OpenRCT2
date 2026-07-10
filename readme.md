@@ -38,17 +38,61 @@ Excitement, intensity, and nausea are no longer meant to be mostly post-processe
 
 The reason for this change is to make ratings feel more like a property of the trip the guest experienced. A coaster that is twice as long should collect roughly twice as much raw rating material, but the final displayed score should have diminishing returns rather than doubling outright.
 
-Current balancing uses a square-root finalizer, roughly `sqrt(raw / 1000) * 100`. Train ticks average the contribution of every vehicle on the train, then completed rider, train, and test-run samples are kept in a rolling cache of the last twenty samples. The displayed ride rating is based on that average. G-force scoring uses smooth curves informed by the original ride-wide thresholds: 0G airtime is fun, negative G and high positive G become harsher, and lateral G grows the fastest so a brief high-speed unbanked turn can matter more than a longer mild turn. Decoration excitement is scaled by vehicle speed, so slow rides do not inflate their scenery stats simply by lingering near the same objects. Decoration visibility also depends on the ride type: fully enclosed shows receive no outside-decoration bonus, partly visible enclosed rides receive reduced bonuses, and mazes now treat their walls as sight blockers while still allowing tall or elevated objects to be seen over them. Aggregate-rated rides with no samples display zero aggregate stats instead of hidden base ratings. Mazes are handled the same way: they gain stats from the paths guests actually walk, not from a flat maze-size bonus.
+Current balancing uses a square-root finalizer, roughly `sqrt(raw / 1000) * 100`. Train ticks average the contribution of every vehicle on the train, then completed rider, train, and test-run samples are kept in a rolling cache of the last twenty samples. On rides with multiple stations, those samples are published for the physical directed station-to-station leg that was actually travelled; the measurements tab can select every observed origin/destination pair instead of presenting a misleading full-track circuit. The ride-list compatibility value is not replaced until every station has supplied at least one outbound leg. G-force scoring uses smooth curves informed by the original ride-wide thresholds: 0G airtime is fun, negative G and high positive G become harsher, and lateral G grows the fastest so a brief high-speed unbanked turn can matter more than a longer mild turn. Decoration excitement is scaled by vehicle speed, so slow rides do not inflate their scenery stats simply by lingering near the same objects. Decoration visibility also depends on the ride type: fully enclosed shows receive no outside-decoration bonus, partly visible enclosed rides receive reduced bonuses, and mazes now treat their walls as sight blockers while still allowing tall or elevated objects to be seen over them. Aggregate-rated rides with no samples display zero aggregate stats instead of hidden base ratings. Mazes are handled the same way: they gain stats from the paths guests actually walk, not from a flat maze-size bonus.
 
 More detail: [Ride rating aggregate rationale](docs/ride-rating-aggregate-rationale.md).
 
 ### Transport rides are part of guest routing
 
-Guests now consider railways, monorails, chairlifts, and lifts as complete station-to-station journeys when travelling to a ride, shop, facility, or park exit. They can remain aboard through intermediate stations, no longer board a transport merely because it is free, and do not count completing transport as an ordinary attraction visit.
+Guests now consider railways, monorails, chairlifts, and lifts as complete station-to-station journeys when travelling to a ride, shop, facility, or park exit. A journey through a transport with more than two stations composes the exact measured directed legs between adjacent stops, including their time, distance, comfort, decoration, and fare. Guests can remain aboard through intermediate stations, no longer board a transport merely because it is free, and do not count completing transport as an ordinary attraction visit.
 
 Route choice compares milliseconds of walking with walking to a station, expected queue and all onboard segment times, and the remaining walk. Free, Discount, and Fair pricing use progressively stricter time thresholds; rain triggers a new comparison and increasingly favours sheltered transport. Extortive service is a last-resort connection only when neither walking nor non-extortive transport works. Park exits and all ride/facility entrance targets share this destination-routing path. Journey value is led by segment distance, then modified by actual average speed, distance-weighted G-force comfort, and sampled decoration quality; the measurements tab displays those service stats and the income tab exposes the four proportional fare policies.
 
+Rail transport stations also use a visible second-stage queue. After a train physically clears the station, up to one actual
+consist-load of guests leaves the external queue and waits at car/seat-aligned platform positions. They retain FIFO order,
+bind only after an arriving train has unloaded and exposed a real empty seat, and pay only at that point. Through-riders take
+their seats first; excess staged guests remain for the next service. Miniature Railway, Monorail, and Suspended Monorail use
+this system now, and Chairlift uses its native two-seat loading positions with the same visible staging contract. Lift retains
+just-in-time boarding because its waypoint cabin does not expose a trustworthy platform-clear event.
+
 More detail: [Transport ride routing rationale](docs/transport-ride-routing-rationale.md).
+
+### Performance work is measured against EverythingPark
+
+Turbo's `320` simulation ticks per second require a `3.125 ms` tick budget, so this fork now separates actual TPS from
+rendered FPS and includes a warmed CLI benchmark with latency percentiles and profiler export. Guest pathfinding caches stable
+path adjacency and thin-junction classification by edited map chunk; exact ordinary layouts avoid repeated neighbouring-tile
+scans while unusual or preview-affected layouts retain the original live fallback. Vehicle updates reuse matching ride and
+loaded vehicle-object pointers only for the lifetime of one synchronous train-head update, and typed entity iteration avoids
+reacquiring global state for every list element.
+
+Guests walking to park exits and resolved ride or facility entrances also share deterministic reverse route fields built
+from exact path topology. Fields build in parallel from a main-thread snapshot and publish in stable target order. Live
+banners, queue ownership, junction history, transport policy, and other guest-specific decisions still gate each proposed
+step, with the bounded heuristic retained whenever a field is missing, stale, inexact, or unsuitable. Two repeated
+EverythingPark runs at the shared-field checkpoint reached 241.767 and 241.871 TPS. After the station-less facility fast path
+and live-rating eligibility gate, two runs reached 254.297 and 256.592 TPS. The later exact directed-leg/save/cache checkpoint
+measured 251.729 and 251.123 TPS with matching `89b1134c...` checksums and 3.719/3.720 ms medians. The faster run is 51.7%
+above the original 165.895-TPS baseline, although the remaining rating-environment lookup still dominates vehicle time. The
+detailed performance plan records the full latency and profiler breakdown.
+
+The Vulkan renderer remains gated while it grows toward visual parity. It now executes the complete indexed line, opaque,
+masked, remapped, transparency/blend, and ordered rain/snow command stream before final palette presentation. Swapchain
+selection can prefer a 10-bit HDR10 BT.2020/PQ output with an SDR-preserving paper-white mapping and falls back to the
+ordinary SDR path when the display or driver does not expose a compatible format. The direct drawing context records GPU
+commands into a generation-aware persistent atlas without routine full-frame upload or readback; ordered `CopyRect`, the
+synchronous screenshot adapter, deterministic line coverage, device-loss recovery, and visual SDR/HDR parity still block
+normal user selection.
+
+An opt-in Vulkan validation engine now exercises palette, resize, VSync, presentation, and fence-backed asynchronous indexed
+readback across the normal factory/window lifecycle. It temporarily uploads the authoritative X8 canvas once per frame, so
+that bridge is excluded from performance acceptance; only the direct GPU command/atlas path may enter renderer performance
+acceptance after the remaining parity and lifecycle gates pass.
+
+More detail: [EverythingPark 320 TPS refactor plan](docs/performance-320-tps-refactor-plan.md),
+[Path topology cache](docs/path-topology-cache.md), [Shared destination route fields](docs/shared-route-fields.md),
+[Vulkan renderer migration](docs/vulkan-renderer-migration.md), and the reviewed
+[upstream merge manifest](docs/upstream-merge-manifest.md).
 
 ### Guest growth is regulated by happiness instead of a soft cap
 

@@ -14,6 +14,7 @@
 #include "EntityBase.h"
 
 #include <array>
+#include <bitset>
 #include <list>
 #include <string>
 #include <vector>
@@ -54,6 +55,8 @@ namespace OpenRCT2
     class EntityRegistry
     {
     private:
+        friend struct EntityBase;
+
         Entity_t entities[kMaxEntities]{};
         std::array<std::list<EntityId>, EnumValue(EntityType::count)> gEntityLists;
         std::vector<EntityId> _vehicleHeadEntityList;
@@ -63,6 +66,8 @@ namespace OpenRCT2
         bool _entityFlashingList[kMaxEntities];
 
         std::array<std::vector<EntityId>, kSpatialIndexSize> gEntitySpatialIndex;
+        std::vector<EntityId> _spatialIndexDirtyEntities;
+        std::bitset<kMaxEntities> _spatialIndexDirtyQueued;
 
     public:
         uint16_t GetEntityListCount(EntityType type);
@@ -190,6 +195,8 @@ namespace OpenRCT2
         void PrepareNewEntity(EntityBase& base, EntityType type);
         void EntitySpatialInsert(EntityBase& entity, const CoordsXY& newLoc);
         void EntitySpatialRemove(EntityBase& entity);
+        void QueueEntitySpatialIndexUpdate(EntityBase& entity);
+        void ClearSpatialIndexDirtyWorklist() noexcept;
         void FreeEntity(EntityBase& entity);
     };
 

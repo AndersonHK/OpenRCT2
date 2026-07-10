@@ -15,6 +15,7 @@
 #include "../core/Speed.hpp"
 #include "../entity/EntityRegistry.h"
 #include "../entity/EntityTweener.h"
+#include "../profiling/Profiling.h"
 #include "../scenario/Scenario.h"
 #include "../world/Map.h"
 #include "../world/MapAnimation.h"
@@ -1454,6 +1455,8 @@ void Vehicle::UpdateTrackMotionPreUpdate(
  */
 int32_t Vehicle::UpdateTrackMotion(int32_t* outStation)
 {
+    PROFILED_FUNCTION();
+
     auto curRide = GetRide();
     if (curRide == nullptr)
         return 0;

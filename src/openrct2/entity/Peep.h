@@ -102,6 +102,8 @@ namespace OpenRCT2
         approachShop = 19,
         interactShop = 20,
         leaveShop = 21,
+        approachPlatformSlot = 22,
+        waitingOnPlatform = 23,
     };
 
     // Substates for guests that are inside the Spiral Slide. Declared as uint16_t to match DestinationX.

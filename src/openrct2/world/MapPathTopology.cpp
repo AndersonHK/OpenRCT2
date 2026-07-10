@@ -12,6 +12,7 @@
 #include "../GameState.h"
 #include "Footpath.h"
 #include "Map.h"
+#include "MapPathRouteCache.h"
 #include "MapTopology.h"
 #include "tile_element/BannerElement.h"
 #include "tile_element/EntranceElement.h"
@@ -110,6 +111,10 @@ namespace OpenRCT2::MapPathTopology
                 {
                     result.targetBaseZ = tileElement->baseHeight;
                     result.flags = static_cast<uint8_t>(ConnectionFlag::connected);
+                    if (path->IsWide())
+                        result.flags |= static_cast<uint8_t>(ConnectionFlag::targetWide);
+                    if (path->IsQueue() && !path->GetRideIndex().IsNull())
+                        result.flags |= static_cast<uint8_t>(ConnectionFlag::targetRideQueue);
                 }
                 else if (result.targetBaseZ == tileElement->baseHeight)
                 {
@@ -243,6 +248,9 @@ namespace OpenRCT2::MapPathTopology
                                 if (hasBanner)
                                     node.flags |= static_cast<uint8_t>(PathNodeFlag::banner);
 
+                                constexpr auto excludedThinNeighbourFlags = static_cast<uint8_t>(
+                                    ConnectionFlag::targetWide) | static_cast<uint8_t>(ConnectionFlag::targetRideQueue);
+                                uint8_t thinNeighbourCount = 0;
                                 for (Direction direction : kAllDirections)
                                 {
                                     if (node.edges & (1 << direction))
@@ -250,8 +258,16 @@ namespace OpenRCT2::MapPathTopology
                                         node.connections[direction] = FindAdjacentPath(
                                             tile, node.baseZ, path->IsSloped(), path->GetSlopeDirection(), direction,
                                             cache.isExact);
+                                        const auto connectionFlags = node.connections[direction].flags;
+                                        if (node.connections[direction].IsConnected()
+                                            && (connectionFlags & excludedThinNeighbourFlags) == 0)
+                                        {
+                                            thinNeighbourCount++;
+                                        }
                                     }
                                 }
+                                if (thinNeighbourCount > 2)
+                                    node.flags |= static_cast<uint8_t>(PathNodeFlag::thinJunction);
                                 cache.paths.push_back(node);
                             }
                             else if (tileElement->getType() == TileElementType::Entrance)
@@ -316,12 +332,17 @@ namespace OpenRCT2::MapPathTopology
 
     bool PathConnection::IsConnected() const noexcept
     {
-        return (flags & static_cast<uint8_t>(ConnectionFlag::connected)) != 0;
+        return HasFlag(ConnectionFlag::connected);
     }
 
     bool PathConnection::HasAmbiguousTarget() const noexcept
     {
-        return (flags & static_cast<uint8_t>(ConnectionFlag::ambiguousTarget)) != 0;
+        return HasFlag(ConnectionFlag::ambiguousTarget);
+    }
+
+    bool PathConnection::HasFlag(ConnectionFlag flag) const noexcept
+    {
+        return (flags & static_cast<uint8_t>(flag)) != 0;
     }
 
     bool PathNode::HasFlag(PathNodeFlag flag) const noexcept
@@ -416,6 +437,7 @@ namespace OpenRCT2::MapPathTopology
 
     void Reset() noexcept
     {
+        MapPathRouteCache::Reset();
         for (auto& chunk : _chunks)
         {
             std::vector<PathNode>().swap(chunk.paths);

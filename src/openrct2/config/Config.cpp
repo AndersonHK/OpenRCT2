@@ -110,7 +110,7 @@ namespace OpenRCT2::Config
     static const auto Enum_DrawingEngine = ConfigEnum<DrawingEngine>({
         ConfigEnumEntry<DrawingEngine>("SOFTWARE_HWD", DrawingEngine::SoftwareWithHardwareDisplay),
         ConfigEnumEntry<DrawingEngine>("OPENGL", DrawingEngine::OpenGL),
-#ifdef ENABLE_VULKAN_DRAWING_ENGINE
+#if defined(ENABLE_VULKAN) && defined(ENABLE_VULKAN_DRAWING_ENGINE)
         ConfigEnumEntry<DrawingEngine>("VULKAN", DrawingEngine::Vulkan),
 #endif
     });

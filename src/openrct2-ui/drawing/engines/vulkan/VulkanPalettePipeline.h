@@ -29,6 +29,7 @@ namespace OpenRCT2::Ui::Vulkan
     {
     private:
         VkDevice _device = VK_NULL_HANDLE;
+        VkSampler _nearestSampler = VK_NULL_HANDLE;
         VkDescriptorSetLayout _descriptorSetLayout = VK_NULL_HANDLE;
         VkDescriptorPool _descriptorPool = VK_NULL_HANDLE;
         std::array<VkDescriptorSet, kFramesInFlight> _descriptorSets{};
@@ -41,6 +42,8 @@ namespace OpenRCT2::Ui::Vulkan
         VkFormat _swapchainFormat = VK_FORMAT_UNDEFINED;
         VkExtent2D _swapchainExtent{};
         uint64_t _swapchainGeneration = 0;
+        float _paperWhiteNits = 203.0f;
+        int32_t _outputEncoding = 0;
 
     public:
         PalettePipeline() = default;
@@ -49,10 +52,13 @@ namespace OpenRCT2::Ui::Vulkan
         PalettePipeline(const PalettePipeline&) = delete;
         PalettePipeline& operator=(const PalettePipeline&) = delete;
 
-        void Initialise(const Device& device, const IndexedResources& resources, std::filesystem::path shaderDirectory);
+        void Initialise(
+            const Device& device, const IndexedResources& resources, std::filesystem::path shaderDirectory,
+            float paperWhiteNits);
         void Dispose();
         void RefreshSwapchain(const Device& device);
         void RefreshDescriptors(const IndexedResources& resources);
+        void SetCanvasSource(uint32_t frameIndex, const Image& canvas);
         void Record(const FrameToken& frame) const;
 
     private:

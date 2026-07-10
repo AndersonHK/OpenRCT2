@@ -22,6 +22,7 @@
 #include "entity/PatrolArea.h"
 #include "interface/Screenshot.h"
 #include "platform/Platform.h"
+#include "peep/GuestPathfinding.h"
 #include "profiling/Profiling.h"
 #include "ride/Vehicle.h"
 #include "scenario/Scenario.h"
@@ -316,6 +317,7 @@ namespace OpenRCT2
         ContextBroadcastIntent(&removeProvisionalIntent);
 
         MapUpdatePathWideFlags();
+        PathFinding::PrepareSharedRouteFields();
         PeepUpdateAll();
         auto restoreProvisionalIntent = Intent(INTENT_ACTION_RESTORE_PROVISIONAL_ELEMENTS);
         ContextBroadcastIntent(&restoreProvisionalIntent);

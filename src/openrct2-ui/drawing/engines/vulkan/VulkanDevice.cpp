@@ -11,6 +11,8 @@
 
     #include "VulkanDevice.h"
 
+    #include "../gpu/GpuAtlas.h"
+
     #include <SDL.h>
     #include <algorithm>
     #include <array>
@@ -48,6 +50,17 @@ namespace OpenRCT2::Ui::Vulkan
             });
         }
 
+        void AppendExtensionIfMissing(std::vector<const char*>& extensions, const char* name)
+        {
+            const bool present = std::any_of(extensions.begin(), extensions.end(), [name](const char* extension) {
+                return std::strcmp(extension, name) == 0;
+            });
+            if (!present)
+            {
+                extensions.push_back(name);
+            }
+        }
+
         VkDeviceSize AlignUp(VkDeviceSize value, VkDeviceSize alignment)
         {
             if (alignment <= 1)
@@ -57,20 +70,45 @@ namespace OpenRCT2::Ui::Vulkan
             return (value + alignment - 1) & ~(alignment - 1);
         }
 
-        uint32_t FindMemoryType(
-            VkPhysicalDevice physicalDevice, uint32_t typeBits, VkMemoryPropertyFlags requiredProperties)
+        struct MemoryTypeSelection
+        {
+            uint32_t index;
+            VkMemoryPropertyFlags properties;
+        };
+
+        MemoryTypeSelection FindMemoryType(
+            VkPhysicalDevice physicalDevice, uint32_t typeBits, VkMemoryPropertyFlags requiredProperties,
+            VkMemoryPropertyFlags preferredProperties = 0)
         {
             VkPhysicalDeviceMemoryProperties properties{};
             vkGetPhysicalDeviceMemoryProperties(physicalDevice, &properties);
+            std::optional<MemoryTypeSelection> fallback;
             for (uint32_t i = 0; i < properties.memoryTypeCount; i++)
             {
-                if ((typeBits & (1u << i)) != 0
-                    && (properties.memoryTypes[i].propertyFlags & requiredProperties) == requiredProperties)
+                const auto flags = properties.memoryTypes[i].propertyFlags;
+                if ((typeBits & (1u << i)) != 0 && (flags & requiredProperties) == requiredProperties)
                 {
-                    return i;
+                    const MemoryTypeSelection candidate{ i, flags };
+                    if ((flags & preferredProperties) == preferredProperties)
+                    {
+                        return candidate;
+                    }
+                    if (!fallback.has_value())
+                    {
+                        fallback = candidate;
+                    }
                 }
             }
+            if (fallback.has_value())
+            {
+                return *fallback;
+            }
             throw std::runtime_error("No Vulkan memory type satisfies the upload-ring requirements");
+        }
+
+        VkDeviceSize AlignDown(VkDeviceSize value, VkDeviceSize alignment)
+        {
+            return alignment <= 1 ? value : value & ~(alignment - 1);
         }
     } // namespace
 
@@ -82,33 +120,40 @@ namespace OpenRCT2::Ui::Vulkan
     void UploadRing::Initialise(VkPhysicalDevice physicalDevice, VkDevice device, VkDeviceSize capacity)
     {
         Dispose();
-        _physicalDevice = physicalDevice;
         _device = device;
         _capacity = capacity;
+
+        VkPhysicalDeviceProperties deviceProperties{};
+        vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
+        _nonCoherentAtomSize = std::max<VkDeviceSize>(1, deviceProperties.limits.nonCoherentAtomSize);
 
         const VkBufferCreateInfo bufferInfo = {
             .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
             .size = capacity,
             .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
-                | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+                | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
             .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
         };
         CheckVk(vkCreateBuffer(_device, &bufferInfo, nullptr, &_buffer), "vkCreateBuffer(upload ring)");
 
         VkMemoryRequirements requirements{};
         vkGetBufferMemoryRequirements(_device, _buffer, &requirements);
+        const auto memoryType = FindMemoryType(
+            physicalDevice, requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        _hostCoherent = (memoryType.properties & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0;
+        _allocationSize = requirements.size;
         const VkMemoryAllocateInfo allocationInfo = {
             .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-            .allocationSize = requirements.size,
-            .memoryTypeIndex = FindMemoryType(
-                _physicalDevice, requirements.memoryTypeBits,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT),
+            .allocationSize = _allocationSize,
+            .memoryTypeIndex = memoryType.index,
         };
         CheckVk(vkAllocateMemory(_device, &allocationInfo, nullptr, &_memory), "vkAllocateMemory(upload ring)");
         CheckVk(vkBindBufferMemory(_device, _buffer, _memory, 0), "vkBindBufferMemory(upload ring)");
 
         void* mapped = nullptr;
-        CheckVk(vkMapMemory(_device, _memory, 0, capacity, 0, &mapped), "vkMapMemory(upload ring)");
+        CheckVk(vkMapMemory(_device, _memory, 0, _allocationSize, 0, &mapped), "vkMapMemory(upload ring)");
         _mapped = static_cast<std::byte*>(mapped);
     }
 
@@ -130,18 +175,60 @@ namespace OpenRCT2::Ui::Vulkan
             }
         }
 
-        _physicalDevice = VK_NULL_HANDLE;
         _device = VK_NULL_HANDLE;
         _buffer = VK_NULL_HANDLE;
         _memory = VK_NULL_HANDLE;
         _mapped = nullptr;
         _capacity = 0;
+        _allocationSize = 0;
+        _nonCoherentAtomSize = 1;
         _cursor = 0;
+        _hostCoherent = false;
     }
 
     void UploadRing::Reset() noexcept
     {
         _cursor = 0;
+    }
+
+    void UploadRing::FlushWritten()
+    {
+        if (_hostCoherent || _cursor == 0)
+        {
+            return;
+        }
+
+        const VkMappedMemoryRange range = {
+            .sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
+            .memory = _memory,
+            .offset = 0,
+            .size = AlignUp(_cursor, _nonCoherentAtomSize) >= _allocationSize
+                ? VK_WHOLE_SIZE
+                : AlignUp(_cursor, _nonCoherentAtomSize),
+        };
+        CheckVk(vkFlushMappedMemoryRanges(_device, 1, &range), "vkFlushMappedMemoryRanges(upload ring)");
+    }
+
+    void UploadRing::Invalidate(VkDeviceSize offset, VkDeviceSize size)
+    {
+        if (_hostCoherent || size == 0)
+        {
+            return;
+        }
+        if (offset > _capacity || size > _capacity - offset)
+        {
+            throw std::out_of_range("Vulkan upload-ring invalidation is outside the mapped allocation");
+        }
+
+        const auto alignedOffset = AlignDown(offset, _nonCoherentAtomSize);
+        const auto alignedEnd = AlignUp(offset + size, _nonCoherentAtomSize);
+        const VkMappedMemoryRange range = {
+            .sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
+            .memory = _memory,
+            .offset = alignedOffset,
+            .size = alignedEnd >= _allocationSize ? VK_WHOLE_SIZE : alignedEnd - alignedOffset,
+        };
+        CheckVk(vkInvalidateMappedMemoryRanges(_device, 1, &range), "vkInvalidateMappedMemoryRanges(upload ring)");
     }
 
     UploadAllocation UploadRing::Allocate(VkDeviceSize size, VkDeviceSize alignment)
@@ -161,7 +248,7 @@ namespace OpenRCT2::Ui::Vulkan
         Dispose();
     }
 
-    void Device::Initialise(SDL_Window* window, bool vsync, VkDeviceSize uploadRingCapacity)
+    void Device::Initialise(SDL_Window* window, bool vsync, VkDeviceSize uploadRingCapacity, bool preferHdr10)
     {
         if (_instance != VK_NULL_HANDLE)
         {
@@ -170,6 +257,7 @@ namespace OpenRCT2::Ui::Vulkan
 
         _window = window;
         _vsync = vsync;
+        _preferHdr10 = preferHdr10;
         _uploadRingCapacity = std::max<VkDeviceSize>(uploadRingCapacity, 1024 * 1024);
         if (SDL_Vulkan_LoadLibrary(nullptr) != 0)
         {
@@ -261,14 +349,47 @@ namespace OpenRCT2::Ui::Vulkan
         _swapchainGeneration = 0;
         _swapchainInvalid = false;
         _uploadRingCapacity = kDefaultUploadRingSize;
+        _preferHdr10 = false;
+        _hdr10Available = false;
+        _hdr10Active = false;
     }
 
     void Device::WaitIdle() const
     {
+        const std::lock_guard lock(_hostMutex);
         if (_device != VK_NULL_HANDLE)
         {
             CheckVk(vkDeviceWaitIdle(_device), "vkDeviceWaitIdle");
         }
+    }
+
+    bool Device::IsFrameComplete(uint32_t frameIndex) const
+    {
+        const std::lock_guard lock(_hostMutex);
+        if (frameIndex >= kFramesInFlight || _device == VK_NULL_HANDLE)
+        {
+            return false;
+        }
+        const auto result = vkGetFenceStatus(_device, _frames[frameIndex].available);
+        if (result == VK_SUCCESS)
+        {
+            return true;
+        }
+        if (result == VK_NOT_READY)
+        {
+            return false;
+        }
+        ThrowVk("vkGetFenceStatus", result);
+    }
+
+    void Device::WaitForFrame(uint32_t frameIndex) const
+    {
+        const std::lock_guard lock(_hostMutex);
+        if (frameIndex >= kFramesInFlight)
+        {
+            throw std::out_of_range("Vulkan frame index is out of range");
+        }
+        CheckVk(vkWaitForFences(_device, 1, &_frames[frameIndex].available, VK_TRUE, UINT64_MAX), "wait for frame");
     }
 
     void Device::SetVSync(bool enabled)
@@ -287,6 +408,7 @@ namespace OpenRCT2::Ui::Vulkan
 
     std::optional<FrameToken> Device::BeginFrame()
     {
+        const std::lock_guard lock(_hostMutex);
         if (_swapchainInvalid && !RecreateSwapchain())
         {
             return std::nullopt;
@@ -325,10 +447,7 @@ namespace OpenRCT2::Ui::Vulkan
 
         return FrameToken{
             .commandBuffer = frame.commandBuffer,
-            .image = _swapchainImages[imageIndex],
-            .imageView = _swapchainImageViews[imageIndex],
             .extent = _swapchainExtent,
-            .format = _swapchainFormat,
             .imageIndex = imageIndex,
             .frameIndex = _currentFrame,
             .upload = &frame.upload,
@@ -337,6 +456,7 @@ namespace OpenRCT2::Ui::Vulkan
 
     void Device::EndFrame(const FrameToken& token)
     {
+        const std::lock_guard lock(_hostMutex);
         if (token.frameIndex != _currentFrame)
         {
             throw std::logic_error("Vulkan frame token does not belong to the active frame");
@@ -344,6 +464,7 @@ namespace OpenRCT2::Ui::Vulkan
 
         auto& frame = _frames[_currentFrame];
         CheckVk(vkEndCommandBuffer(frame.commandBuffer), "vkEndCommandBuffer(frame)");
+        frame.upload.FlushWritten();
 
         // The command executor may first touch the swapchain image in a
         // transfer, compute, or colour-attachment pass.
@@ -381,6 +502,16 @@ namespace OpenRCT2::Ui::Vulkan
         _currentFrame = (_currentFrame + 1) % kFramesInFlight;
     }
 
+    void Device::InvalidateUpload(uint32_t frameIndex, VkDeviceSize offset, VkDeviceSize size)
+    {
+        const std::lock_guard lock(_hostMutex);
+        if (frameIndex >= kFramesInFlight)
+        {
+            throw std::out_of_range("Vulkan frame index is outside the upload-ring set");
+        }
+        _frames[frameIndex].upload.Invalidate(offset, size);
+    }
+
     void Device::CreateInstance()
     {
         auto extensions = GetInstanceExtensions();
@@ -396,8 +527,14 @@ namespace OpenRCT2::Ui::Vulkan
     #ifdef VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME
         if (HasExtension(availableExtensions, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME))
         {
-            extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+            AppendExtensionIfMissing(extensions, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
             flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+        }
+    #endif
+    #ifdef VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME
+        if (HasExtension(availableExtensions, VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME))
+        {
+            AppendExtensionIfMissing(extensions, VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME);
         }
     #endif
 
@@ -451,7 +588,8 @@ namespace OpenRCT2::Ui::Vulkan
         }
         if (_physicalDevice == VK_NULL_HANDLE)
         {
-            throw std::runtime_error("No Vulkan device supports graphics and presentation for this window");
+            throw std::runtime_error(
+                "No Vulkan 1.1 device satisfies the renderer's queue, surface, format, and atlas requirements");
         }
         _queueFamilies = FindQueueFamilies(_physicalDevice);
     }
@@ -587,18 +725,19 @@ namespace OpenRCT2::Ui::Vulkan
 
         CheckVk(vkCreateSwapchainKHR(_device, &swapchainInfo, nullptr, &_swapchain), "vkCreateSwapchainKHR");
         _swapchainFormat = surfaceFormat.format;
+        _hdr10Active = surfaceFormat.colorSpace == VK_COLOR_SPACE_HDR10_ST2084_EXT;
         _swapchainExtent = extent;
 
         CheckVk(vkGetSwapchainImagesKHR(_device, _swapchain, &imageCount, nullptr), "get swapchain image count");
-        _swapchainImages.resize(imageCount);
-        CheckVk(vkGetSwapchainImagesKHR(_device, _swapchain, &imageCount, _swapchainImages.data()), "get swapchain images");
+        std::vector<VkImage> swapchainImages(imageCount);
+        CheckVk(vkGetSwapchainImagesKHR(_device, _swapchain, &imageCount, swapchainImages.data()), "get swapchain images");
 
         _swapchainImageViews.resize(imageCount);
-        for (size_t i = 0; i < _swapchainImages.size(); i++)
+        for (size_t i = 0; i < swapchainImages.size(); i++)
         {
             const VkImageViewCreateInfo viewInfo = {
                 .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-                .image = _swapchainImages[i],
+                .image = swapchainImages[i],
                 .viewType = VK_IMAGE_VIEW_TYPE_2D,
                 .format = _swapchainFormat,
                 .components = {
@@ -635,9 +774,9 @@ namespace OpenRCT2::Ui::Vulkan
             }
         }
         _swapchainImageViews.clear();
-        _swapchainImages.clear();
         _swapchain = VK_NULL_HANDLE;
         _swapchainFormat = VK_FORMAT_UNDEFINED;
+        _hdr10Active = false;
         _swapchainExtent = {};
     }
 
@@ -729,13 +868,22 @@ namespace OpenRCT2::Ui::Vulkan
     int32_t Device::ScorePhysicalDevice(VkPhysicalDevice device) const
     {
         const auto families = FindQueueFamilies(device);
-        if (!families.IsComplete() || !SupportsDeviceExtensions(device) || !QuerySwapchainSupport(device).IsUsable())
+        const auto swapchain = QuerySwapchainSupport(device);
+        if (!families.IsComplete() || !SupportsDeviceExtensions(device) || !swapchain.IsUsable()
+            || (swapchain.capabilities.supportedUsageFlags & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) == 0
+            || !SupportsRequiredRenderingFormats(device))
         {
             return -1;
         }
 
         VkPhysicalDeviceProperties properties{};
         vkGetPhysicalDeviceProperties(device, &properties);
+        if (properties.apiVersion < VK_API_VERSION_1_1
+            || properties.limits.maxImageDimension2D < static_cast<uint32_t>(Gpu::kAtlasDimension)
+            || properties.limits.maxImageArrayLayers < Gpu::kAtlasLayers)
+        {
+            return -1;
+        }
         int32_t score = static_cast<int32_t>(properties.limits.maxImageDimension2D);
         if (properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
         {
@@ -746,6 +894,27 @@ namespace OpenRCT2::Ui::Vulkan
             score += 50000;
         }
         return score;
+    }
+
+    bool Device::SupportsRequiredRenderingFormats(VkPhysicalDevice device)
+    {
+        const auto supports = [device](VkFormat format, VkFormatFeatureFlags required) {
+            VkFormatProperties2 properties{ .sType = VK_STRUCTURE_TYPE_FORMAT_PROPERTIES_2 };
+            vkGetPhysicalDeviceFormatProperties2(device, format, &properties);
+            return (properties.formatProperties.optimalTilingFeatures & required) == required;
+        };
+
+        constexpr VkFormatFeatureFlags transferAndSampling = VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
+            | VK_FORMAT_FEATURE_TRANSFER_SRC_BIT | VK_FORMAT_FEATURE_TRANSFER_DST_BIT;
+        return supports(VK_FORMAT_R8_UINT, transferAndSampling | VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT)
+            && supports(VK_FORMAT_R16_UINT, VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT | VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT)
+            && supports(
+                VK_FORMAT_D32_SFLOAT,
+                VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
+                    | VK_FORMAT_FEATURE_TRANSFER_DST_BIT)
+            && supports(
+                VK_FORMAT_R8G8B8A8_UNORM,
+                VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT | VK_FORMAT_FEATURE_TRANSFER_DST_BIT);
     }
 
     std::vector<const char*> Device::GetInstanceExtensions() const
@@ -781,12 +950,52 @@ namespace OpenRCT2::Ui::Vulkan
         return result;
     }
 
-    VkSurfaceFormatKHR Device::ChooseSurfaceFormat(std::span<const VkSurfaceFormatKHR> formats) const
+    VkSurfaceFormatKHR Device::ChooseSurfaceFormat(std::span<const VkSurfaceFormatKHR> formats)
     {
+        const auto isHdr10 = [](const auto& format) {
+            const bool tenBit = format.format == VK_FORMAT_A2B10G10R10_UNORM_PACK32
+                || format.format == VK_FORMAT_A2R10G10B10_UNORM_PACK32;
+            return tenBit && format.colorSpace == VK_COLOR_SPACE_HDR10_ST2084_EXT;
+        };
+        _hdr10Available = std::any_of(formats.begin(), formats.end(), isHdr10);
+        if (formats.size() == 1 && formats.front().format == VK_FORMAT_UNDEFINED)
+        {
+            return { VK_FORMAT_B8G8R8A8_UNORM, formats.front().colorSpace };
+        }
+        if (_preferHdr10)
+        {
+            const auto hdr = std::find_if(formats.begin(), formats.end(), isHdr10);
+            if (hdr != formats.end())
+            {
+                return *hdr;
+            }
+        }
+        // A UNORM attachment preserves the palette's established encoded byte
+        // values directly. If a platform exposes only an sRGB attachment, the
+        // palette pass compensates by decoding to linear before the fixed-
+        // function sRGB conversion.
         const auto preferred = std::find_if(formats.begin(), formats.end(), [](const auto& format) {
-            return format.format == VK_FORMAT_B8G8R8A8_SRGB && format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+            return format.format == VK_FORMAT_B8G8R8A8_UNORM
+                && format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
         });
-        return preferred != formats.end() ? *preferred : formats.front();
+        if (preferred != formats.end())
+        {
+            return *preferred;
+        }
+        const auto alternateUnorm = std::find_if(formats.begin(), formats.end(), [](const auto& format) {
+            return format.format == VK_FORMAT_R8G8B8A8_UNORM
+                && format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+        });
+        if (alternateUnorm != formats.end())
+        {
+            return *alternateUnorm;
+        }
+        const auto srgb = std::find_if(formats.begin(), formats.end(), [](const auto& format) {
+            const bool srgbFormat = format.format == VK_FORMAT_B8G8R8A8_SRGB
+                || format.format == VK_FORMAT_R8G8B8A8_SRGB;
+            return srgbFormat && format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+        });
+        return srgb != formats.end() ? *srgb : formats.front();
     }
 
     VkPresentModeKHR Device::ChoosePresentMode(std::span<const VkPresentModeKHR> modes) const

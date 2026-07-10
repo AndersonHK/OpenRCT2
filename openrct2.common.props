@@ -5,6 +5,8 @@
   </PropertyGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <Import Project="$(MSBuildThisFileDirectory)openrct2.vulkan.props"
+          Condition="'$(OpenRCT2VulkanPropsImported)'!='true'" />
   <PropertyGroup>
     <!-- Allow any version of VS and Windows SDK -->
     <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>

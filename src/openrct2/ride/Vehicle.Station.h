@@ -9,6 +9,8 @@
 
 #pragma once
 
+#include "../Limits.h"
+
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -23,6 +25,27 @@ namespace OpenRCT2
 
     namespace RideVehicle::StationDetail
     {
+        struct TrainSeatSummary
+        {
+            std::array<const Vehicle*, Limits::kMaxCarsPerTrain> cars{};
+            uint16_t carCount{};
+            uint32_t capacity{};
+            uint32_t currentPeeps{};
+            uint32_t reservedSeats{};
+
+            bool HasRiders() const
+            {
+                return currentPeeps != 0;
+            }
+
+            std::span<const Vehicle* const> GetCars() const
+            {
+                return { cars.data(), carCount };
+            }
+        };
+
+        TrainSeatSummary BuildTrainSeatSummary(const Vehicle& head);
+
         constexpr size_t kMaxPassengerCount = 32;
 
         struct PassengerUnloadPlan

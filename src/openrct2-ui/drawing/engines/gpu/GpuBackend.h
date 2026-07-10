@@ -29,8 +29,13 @@ namespace OpenRCT2::Ui::Gpu
     enum class PresentMode : uint8_t
     {
         VSync,
-        LowLatency,
         Immediate,
+    };
+
+    enum class OutputColorMode : uint8_t
+    {
+        Sdr,
+        Hdr10IfAvailable,
     };
 
     struct Extent
@@ -47,11 +52,14 @@ namespace OpenRCT2::Ui::Gpu
         uint32_t maxTextureArrayLayers = 0;
         uint64_t deviceLocalMemory = 0;
         uint64_t uploadRingCapacity = 0;
-        bool supportsTimelineSemaphores = false;
-        bool supportsIndirectCount = false;
-        bool supportsDescriptorIndexing = false;
-        bool supportsPortabilitySubset = false;
         bool supportsLineCommands = false;
+        bool supportsOpaqueRectCommands = false;
+        bool supportsTransparencyCommands = false;
+        bool supportsWeatherCommands = false;
+        bool supportsAsyncReadback = false;
+        bool supportsCanvasUpload = false;
+        bool supportsHdr10Output = false;
+        bool hdr10OutputActive = false;
         bool supportsIndexedDrawCommands = false;
     };
 
@@ -60,9 +68,9 @@ namespace OpenRCT2::Ui::Gpu
         void* nativeWindow = nullptr;
         Extent logicalExtent{};
         PresentMode presentMode = PresentMode::VSync;
-        uint32_t desiredFramesInFlight = 3;
+        OutputColorMode outputColorMode = OutputColorMode::Sdr;
+        float hdrPaperWhiteNits = 203.0f;
         uint64_t uploadRingBytesPerFrame = 32 * 1024 * 1024;
-        uint64_t spriteAtlasReserveBytes = 256 * 1024 * 1024;
         std::string shaderDirectory;
     };
 
@@ -130,11 +138,12 @@ namespace OpenRCT2::Ui::Gpu
 
         virtual void Resize(Extent logicalExtent) = 0;
         virtual void SetPresentMode(PresentMode mode) = 0;
-        virtual void InvalidateImage(uint32_t image) = 0;
 
         [[nodiscard]] virtual std::optional<FrameHandle> BeginFrame(uint64_t frameNumber) = 0;
         [[nodiscard]] virtual UploadSlice AllocateUpload(uint64_t size, uint64_t alignment) = 0;
         virtual void SetPalette(std::span<const std::byte> rgba) = 0;
+        virtual void SetRemapPalette(std::span<const std::byte> indices) = 0;
+        virtual void SetBlendPalette(std::span<const std::byte> indices) = 0;
         virtual void Submit(const FrameHandle& frame, const FrameCommandStream& commands) = 0;
         virtual void Present(const FrameHandle& frame) = 0;
 
@@ -143,6 +152,9 @@ namespace OpenRCT2::Ui::Gpu
         // when the backend can measure them without a synchronising readback.
         [[nodiscard]] virtual std::optional<FrameTimings> GetLatestTimings() const = 0;
 
+        // Readback requests are recorded after Submit and before Present. They
+        // complete with the owning frame fence; polling never waits for GPU
+        // work, and backends preserve unread results across frame-slot reuse.
         virtual void RequestReadback(const FrameHandle& frame, ReadbackRequest request) = 0;
         [[nodiscard]] virtual bool TryTakeReadback(uint64_t requestId, std::span<std::byte> destination) = 0;
         virtual void WaitIdle() = 0;

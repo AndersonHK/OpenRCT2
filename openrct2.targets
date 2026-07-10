@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">  
+  <Import Project="$(MSBuildThisFileDirectory)openrct2.vulkan.props"
+          Condition="'$(OpenRCT2VulkanPropsImported)'!='true'" />
   <!-- Property Definitions with Default Values -->
   <PropertyGroup>
     <SolutionDir Condition="'$(SolutionDir)' == ''">$(MSBuildThisFileDirectory)</SolutionDir>
@@ -16,8 +18,6 @@
     <DataLanguagePath Condition="'$(DataLanguagePath)' == ''">$(SolutionDir)data\language\</DataLanguagePath>
     <DataShadersPath Condition="'$(DataShadersPath)' == ''">$(SolutionDir)data\shaders\</DataShadersPath>
     <DataScenarioPath Condition="'$(DataScenarioPath)' == ''">$(SolutionDir)data\scenario_patches\</DataScenarioPath>
-    <VulkanGlslcPath Condition="'$(VulkanGlslcPath)' == '' and '$(VULKAN_SDK)' != ''">$(VULKAN_SDK)\Bin\glslc.exe</VulkanGlslcPath>
-    <EnableVulkan Condition="'$(EnableVulkan)' == '' and '$(VULKAN_SDK)' != '' and (Exists('$(VulkanGlslcPath)') or (Exists('$(DataShadersPath)vulkan\indexed_palette.vert.spv') and Exists('$(DataShadersPath)vulkan\indexed_palette.frag.spv') and Exists('$(DataShadersPath)vulkan\indexed_line.vert.spv') and Exists('$(DataShadersPath)vulkan\indexed_line.frag.spv'))) and ('$(Platform)' == 'Win32' or '$(Platform)' == 'x64')">true</EnableVulkan>
     <ResourcesPath Condition="'$(ResourcesPath)' == ''">$(SolutionDir)resources\</ResourcesPath>
     <G2InputFile Condition="'$(G2InputFile)' == ''">$(ResourcesPath)g2\sprites.json</G2InputFile>
     <FontsInputFile Condition="'$(FontsInputFile)' == ''">$(ResourcesPath)fonts\sprites.json</FontsInputFile>
@@ -41,7 +41,7 @@
                  Exclude="$(DataShadersPath)*.bak;
                            $(DataShadersPath)*.tmp" />
 
-    <VulkanShaderSource Include="$(DataShadersPath)vulkan\indexed_palette.vert;$(DataShadersPath)vulkan\indexed_palette.frag;$(DataShadersPath)vulkan\indexed_line.vert;$(DataShadersPath)vulkan\indexed_line.frag" />
+    <VulkanShaderSource Include="$(DataShadersPath)vulkan\indexed_palette.vert;$(DataShadersPath)vulkan\indexed_palette.frag;$(DataShadersPath)vulkan\indexed_line.vert;$(DataShadersPath)vulkan\indexed_line.frag;$(DataShadersPath)vulkan\indexed_rect.vert;$(DataShadersPath)vulkan\indexed_rect.frag;$(DataShadersPath)vulkan\indexed_transparent_rect.vert;$(DataShadersPath)vulkan\indexed_transparent_rect.frag;$(DataShadersPath)vulkan\indexed_transparency_compose.vert;$(DataShadersPath)vulkan\indexed_transparency_compose.frag;$(DataShadersPath)vulkan\indexed_weather.vert;$(DataShadersPath)vulkan\indexed_weather.frag" />
     
     <ScenarioPatchFiles Include="$(DataScenarioPath)**\*"
                         Exclude="$(DataScenarioPath)*.bak;

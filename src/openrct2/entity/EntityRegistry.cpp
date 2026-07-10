@@ -34,6 +34,7 @@
 #include "MoneyEffect.h"
 #include "Particle.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <iterator>
@@ -216,6 +217,7 @@ namespace OpenRCT2
      */
     void EntityRegistry::ResetEntitySpatialIndices()
     {
+        ClearSpatialIndexDirtyWorklist();
         for (auto& vec : gEntitySpatialIndex)
         {
             vec.clear();
@@ -442,19 +444,58 @@ namespace OpenRCT2
         }
     }
 
+    void EntityRegistry::QueueEntitySpatialIndexUpdate(EntityBase& entity)
+    {
+        const auto entityIndex = entity.id.ToUnderlying();
+        if (entityIndex >= kMaxEntities || entity.type == EntityType::null || TryGetEntity(entity.id) != &entity
+            || _spatialIndexDirtyQueued.test(entityIndex))
+        {
+            return;
+        }
+
+        // Keep the id queued through immediate updates so another move in this tick still reaches the final bucket.
+        _spatialIndexDirtyQueued.set(entityIndex);
+        _spatialIndexDirtyEntities.push_back(entity.id);
+    }
+
     void EntityRegistry::UpdateEntitiesSpatialIndex()
     {
-        for (auto& entityList : gEntityLists)
+        if (_spatialIndexDirtyEntities.empty())
         {
-            for (auto& entityId : entityList)
-            {
-                auto* entity = TryGetEntity(entityId);
-                if (entity != nullptr && entity->type != EntityType::null)
-                {
-                    UpdateEntitySpatialIndex(*entity);
-                }
-            }
+            return;
         }
+
+        PROFILED_FUNCTION();
+
+        // Process detached storage so a defensive full rebuild can safely clear the member worklist.
+        auto pending = std::move(_spatialIndexDirtyEntities);
+        _spatialIndexDirtyEntities.clear();
+
+        for (const auto entityId : pending)
+        {
+            const auto entityIndex = entityId.ToUnderlying();
+            _spatialIndexDirtyQueued.reset(entityIndex);
+
+            auto* entity = TryGetEntity(entityId);
+            if (entity == nullptr || entity->type == EntityType::null || !(entity->spatialIndex & kSpatialIndexDirtyMask))
+            {
+                continue;
+            }
+
+            UpdateEntitySpatialIndex(*entity);
+        }
+
+        pending.clear();
+        if (_spatialIndexDirtyEntities.empty())
+        {
+            _spatialIndexDirtyEntities.swap(pending);
+        }
+    }
+
+    void EntityRegistry::ClearSpatialIndexDirtyWorklist() noexcept
+    {
+        _spatialIndexDirtyEntities.clear();
+        _spatialIndexDirtyQueued.reset();
     }
 
     /**
@@ -569,6 +610,9 @@ void EntityBase::setLocation(const CoordsXYZ& newLocation)
     }
 
     spatialIndex |= kSpatialIndexDirtyMask;
+
+    // Transient entities are ignored by the registry-side identity check.
+    getGameState().entities.QueueEntitySpatialIndexUpdate(*this);
 }
 
 static void EntitySetCoordinates(const CoordsXYZ& entityPos, EntityBase* entity)

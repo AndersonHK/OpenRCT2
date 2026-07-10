@@ -388,6 +388,7 @@ namespace OpenRCT2
         void choseNotToGoOnRide(const Ride& ride, bool peepAtRide, bool updateLastRide);
         void onEnterRide(Ride& ride);
         void onExitRide(Ride& ride);
+        void recoverFromStationPlatform(Ride& ride);
         void throwUp();
 
     private:
@@ -411,6 +412,8 @@ namespace OpenRCT2
         void updateRideFreeVehicleCheck();
         void updateRideFreeVehicleEnterRide(Ride& ride);
         void updateRideApproachVehicle();
+        void updateRideApproachPlatformSlot();
+        void updateRideWaitingOnPlatform();
         void updateRideEnterVehicle();
         void updateRideLeaveVehicle();
         void updateRideApproachExit();

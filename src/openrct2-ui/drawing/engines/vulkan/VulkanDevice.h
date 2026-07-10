@@ -17,6 +17,7 @@
     #include <array>
     #include <cstddef>
     #include <cstdint>
+    #include <mutex>
     #include <optional>
     #include <span>
     #include <vector>
@@ -44,13 +45,15 @@ namespace OpenRCT2::Ui::Vulkan
     class UploadRing final
     {
     private:
-        VkPhysicalDevice _physicalDevice = VK_NULL_HANDLE;
         VkDevice _device = VK_NULL_HANDLE;
         VkBuffer _buffer = VK_NULL_HANDLE;
         VkDeviceMemory _memory = VK_NULL_HANDLE;
         std::byte* _mapped = nullptr;
         VkDeviceSize _capacity = 0;
+        VkDeviceSize _allocationSize = 0;
+        VkDeviceSize _nonCoherentAtomSize = 1;
         VkDeviceSize _cursor = 0;
+        bool _hostCoherent = false;
 
     public:
         UploadRing() = default;
@@ -62,15 +65,13 @@ namespace OpenRCT2::Ui::Vulkan
         void Initialise(VkPhysicalDevice physicalDevice, VkDevice device, VkDeviceSize capacity);
         void Dispose();
         void Reset() noexcept;
+        void FlushWritten();
+        void Invalidate(VkDeviceSize offset, VkDeviceSize size);
 
         [[nodiscard]] UploadAllocation Allocate(VkDeviceSize size, VkDeviceSize alignment);
         [[nodiscard]] VkBuffer GetBuffer() const noexcept
         {
             return _buffer;
-        }
-        [[nodiscard]] VkDeviceSize GetCapacity() const noexcept
-        {
-            return _capacity;
         }
         [[nodiscard]] VkDeviceSize GetUsed() const noexcept
         {
@@ -81,10 +82,7 @@ namespace OpenRCT2::Ui::Vulkan
     struct FrameToken
     {
         VkCommandBuffer commandBuffer = VK_NULL_HANDLE;
-        VkImage image = VK_NULL_HANDLE;
-        VkImageView imageView = VK_NULL_HANDLE;
         VkExtent2D extent{};
-        VkFormat format = VK_FORMAT_UNDEFINED;
         uint32_t imageIndex = 0;
         uint32_t frameIndex = 0;
         UploadRing* upload = nullptr;
@@ -128,6 +126,9 @@ namespace OpenRCT2::Ui::Vulkan
         SDL_Window* _window = nullptr;
         bool _loaderLoaded = false;
         bool _vsync = true;
+        bool _preferHdr10 = false;
+        bool _hdr10Available = false;
+        bool _hdr10Active = false;
         bool _swapchainInvalid = false;
 
         VkInstance _instance = VK_NULL_HANDLE;
@@ -142,7 +143,6 @@ namespace OpenRCT2::Ui::Vulkan
         VkSwapchainKHR _swapchain = VK_NULL_HANDLE;
         VkFormat _swapchainFormat = VK_FORMAT_UNDEFINED;
         VkExtent2D _swapchainExtent{};
-        std::vector<VkImage> _swapchainImages;
         std::vector<VkImageView> _swapchainImageViews;
 
         VkCommandPool _commandPool = VK_NULL_HANDLE;
@@ -150,6 +150,7 @@ namespace OpenRCT2::Ui::Vulkan
         uint32_t _currentFrame = 0;
         uint64_t _swapchainGeneration = 0;
         VkDeviceSize _uploadRingCapacity = kDefaultUploadRingSize;
+        mutable std::recursive_mutex _hostMutex;
 
     public:
         Device() = default;
@@ -159,7 +160,8 @@ namespace OpenRCT2::Ui::Vulkan
         Device& operator=(const Device&) = delete;
 
         void Initialise(
-            SDL_Window* window, bool vsync, VkDeviceSize uploadRingCapacity = kDefaultUploadRingSize);
+            SDL_Window* window, bool vsync, VkDeviceSize uploadRingCapacity = kDefaultUploadRingSize,
+            bool preferHdr10 = false);
         void Dispose();
         void WaitIdle() const;
 
@@ -168,10 +170,6 @@ namespace OpenRCT2::Ui::Vulkan
         [[nodiscard]] std::optional<FrameToken> BeginFrame();
         void EndFrame(const FrameToken& frame);
 
-        [[nodiscard]] VkInstance GetInstance() const noexcept
-        {
-            return _instance;
-        }
         [[nodiscard]] VkPhysicalDevice GetPhysicalDevice() const noexcept
         {
             return _physicalDevice;
@@ -180,21 +178,21 @@ namespace OpenRCT2::Ui::Vulkan
         {
             return _device;
         }
-        [[nodiscard]] VkQueue GetGraphicsQueue() const noexcept
-        {
-            return _graphicsQueue;
-        }
         [[nodiscard]] VkPipelineCache GetPipelineCache() const noexcept
         {
             return _pipelineCache;
         }
-        [[nodiscard]] uint32_t GetGraphicsQueueFamily() const noexcept
-        {
-            return _queueFamilies.graphics.value();
-        }
         [[nodiscard]] VkFormat GetSwapchainFormat() const noexcept
         {
             return _swapchainFormat;
+        }
+        [[nodiscard]] bool IsHdr10Available() const noexcept
+        {
+            return _hdr10Available;
+        }
+        [[nodiscard]] bool IsHdr10Active() const noexcept
+        {
+            return _hdr10Active;
         }
         [[nodiscard]] VkExtent2D GetSwapchainExtent() const noexcept
         {
@@ -208,6 +206,13 @@ namespace OpenRCT2::Ui::Vulkan
         {
             return _swapchainGeneration;
         }
+        [[nodiscard]] uint32_t GetCurrentFrameIndex() const noexcept
+        {
+            return _currentFrame;
+        }
+        [[nodiscard]] bool IsFrameComplete(uint32_t frameIndex) const;
+        void WaitForFrame(uint32_t frameIndex) const;
+        void InvalidateUpload(uint32_t frameIndex, VkDeviceSize offset, VkDeviceSize size);
 
     private:
         void CreateInstance();
@@ -223,10 +228,11 @@ namespace OpenRCT2::Ui::Vulkan
         [[nodiscard]] SwapchainSupport QuerySwapchainSupport(VkPhysicalDevice device) const;
         [[nodiscard]] bool SupportsDeviceExtensions(VkPhysicalDevice device) const;
         [[nodiscard]] int32_t ScorePhysicalDevice(VkPhysicalDevice device) const;
+        [[nodiscard]] static bool SupportsRequiredRenderingFormats(VkPhysicalDevice device);
         [[nodiscard]] std::vector<const char*> GetInstanceExtensions() const;
         [[nodiscard]] std::vector<const char*> GetDeviceExtensions(VkPhysicalDevice device) const;
 
-        [[nodiscard]] VkSurfaceFormatKHR ChooseSurfaceFormat(std::span<const VkSurfaceFormatKHR> formats) const;
+        [[nodiscard]] VkSurfaceFormatKHR ChooseSurfaceFormat(std::span<const VkSurfaceFormatKHR> formats);
         [[nodiscard]] VkPresentModeKHR ChoosePresentMode(std::span<const VkPresentModeKHR> modes) const;
         [[nodiscard]] VkExtent2D ChooseExtent(const VkSurfaceCapabilitiesKHR& capabilities) const;
     };

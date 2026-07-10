@@ -411,7 +411,7 @@ private:
     void SimulateCrash() const;
     void KillAllPassengersInTrain();
     void KillPassengers(const Ride& curRide);
-    void TrainReadyToDepart(uint8_t num_peeps_on_train, uint8_t num_used_seats);
+    void TrainReadyToDepart(uint32_t numPeepsOnTrain, uint32_t numUsedSeats);
     int32_t UpdateTrackMotionMiniGolfCalculateAcceleration(const CarEntry& carEntry);
     int32_t UpdateTrackMotionMiniGolf(int32_t* outStation);
     void UpdateTrackMotionMiniGolfVehicle(const Ride& curRide, const RideObjectEntry& rideEntry, const CarEntry* carEntry);

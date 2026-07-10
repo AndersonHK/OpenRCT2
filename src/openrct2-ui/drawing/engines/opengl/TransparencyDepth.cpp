@@ -7,14 +7,12 @@
  * OpenRCT2 is licensed under the GNU General Public License version 3.
  *****************************************************************************/
 
-#ifndef DISABLE_OPENGL
+#include "TransparencyDepth.h"
 
-    #include "TransparencyDepth.h"
-
-    #include <algorithm>
-    #include <cassert>
-    #include <sfl/small_map.hpp>
-    #include <sfl/small_vector.hpp>
+#include <algorithm>
+#include <cassert>
+#include <sfl/small_map.hpp>
+#include <sfl/small_vector.hpp>
 
 namespace OpenRCT2::Ui
 {
@@ -216,4 +214,3 @@ namespace OpenRCT2::Ui
         return max_depth;
     }
 } // namespace OpenRCT2::Ui
-#endif /* DISABLE_OPENGL */

@@ -22,6 +22,8 @@ namespace OpenRCT2::MapPathTopology
     {
         connected = 1 << 0,
         ambiguousTarget = 1 << 1,
+        targetWide = 1 << 2,
+        targetRideQueue = 1 << 3,
     };
 
     struct PathConnection
@@ -31,6 +33,7 @@ namespace OpenRCT2::MapPathTopology
 
         [[nodiscard]] bool IsConnected() const noexcept;
         [[nodiscard]] bool HasAmbiguousTarget() const noexcept;
+        [[nodiscard]] bool HasFlag(ConnectionFlag flag) const noexcept;
     };
 
     enum class PathNodeFlag : uint8_t
@@ -40,6 +43,7 @@ namespace OpenRCT2::MapPathTopology
         wide = 1 << 2,
         queueBanner = 1 << 3,
         banner = 1 << 4,
+        thinJunction = 1 << 5,
     };
 
     struct PathNode

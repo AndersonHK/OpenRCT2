@@ -155,6 +155,9 @@ namespace OpenRCT2::GameActions
                     }
                 }
 
+                // Completed leg histories remain useful while closed, but an
+                // interrupted train sample must never bridge close/reopen.
+                ride->activeRatingSamples.clear();
                 ride->status = RideStatus::closed;
                 ride->flags.unset(RideFlag::passStationNoStopping);
                 ride->raceWinner = EntityId::GetNull();

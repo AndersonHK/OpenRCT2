@@ -2,11 +2,6 @@
 <Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <SolutionDir Condition="'$(SolutionDir)'==''">..\..\</SolutionDir>
-    <VulkanGlslcPath Condition="'$(VulkanGlslcPath)'=='' and '$(VULKAN_SDK)'!=''">$(VULKAN_SDK)\Bin\glslc.exe</VulkanGlslcPath>
-    <EnableVulkan Condition="'$(EnableVulkan)'=='' and '$(VULKAN_SDK)'!='' and (Exists('$(VulkanGlslcPath)') or (Exists('$(SolutionDir)data\shaders\vulkan\indexed_palette.vert.spv') and Exists('$(SolutionDir)data\shaders\vulkan\indexed_palette.frag.spv') and Exists('$(SolutionDir)data\shaders\vulkan\indexed_line.vert.spv') and Exists('$(SolutionDir)data\shaders\vulkan\indexed_line.frag.spv'))) and ('$(Platform)'=='Win32' or '$(Platform)'=='x64')">true</EnableVulkan>
-    <VulkanLibraryDir Condition="'$(EnableVulkan)'=='true' and '$(Platform)'=='Win32'">$(VULKAN_SDK)\Lib32</VulkanLibraryDir>
-    <VulkanLibraryDir Condition="'$(EnableVulkan)'=='true' and '$(Platform)'=='x64'">$(VULKAN_SDK)\Lib</VulkanLibraryDir>
-    <VulkanAdditionalDependencies Condition="'$(EnableVulkan)'=='true'">vulkan-1.lib;</VulkanAdditionalDependencies>
   </PropertyGroup>
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -64,7 +59,6 @@
       <AdditionalOptions>$(OPENRCT2_CL_ADDITIONALOPTIONS) %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories Condition="'$(EnableVulkan)'=='true'">$(VulkanLibraryDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>$(VulkanAdditionalDependencies)libopenrct2.lib;libopenrct2ui.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ProgramDatabaseFile>$(OutDir)openrct2-win.pdb</ProgramDatabaseFile>
       <SubSystem>Console</SubSystem>

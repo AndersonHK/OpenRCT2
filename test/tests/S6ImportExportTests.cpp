@@ -30,6 +30,7 @@
 #include <openrct2/park/ParkFile.h>
 #include <openrct2/rct2/RCT2.h>
 #include <openrct2/ride/Ride.h>
+#include <openrct2/ride/Vehicle.h>
 #include <openrct2/scenario/Scenario.h>
 #include <openrct2/world/MapAnimation.h>
 #include <string>
@@ -482,6 +483,193 @@ TEST(ParkFileMigration, TransportDestinationRoundTripsAndIsRemovedFromOlderTarge
         EXPECT_EQ(guest->previousRideTimeOut, 0);
         EXPECT_TRUE(guest->transportDestinationStation.IsNull());
         EXPECT_FALSE(guest->transportRouteWasExtortive);
+    }
+}
+
+TEST(ParkFileMigration, RideRatingLegsRoundTripAndOlderTargetKeepsLiveState)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    MemoryStream currentVersionPark;
+    MemoryStream previousVersionPark;
+    MemoryStream legacyActivePark;
+
+    {
+        std::unique_ptr<IContext> context = CreateContext();
+        ASSERT_NE(context, nullptr);
+        ASSERT_TRUE(context->Initialise());
+
+        MemoryStream importBuffer;
+        ASSERT_TRUE(LoadFileToBuffer(importBuffer, TestData::GetParkPath("BigMapTest.sv6")));
+        ASSERT_TRUE(ImportS6(importBuffer, context, false));
+
+        auto* ride = GetFirstRide();
+        ASSERT_NE(ride, nullptr);
+        ride->type = RIDE_TYPE_MONORAIL;
+        ride->numStations = 3;
+        auto* legacyActive = RideGetOrCreateActiveRatingSample(*ride, EntityId::FromUnderlying(321));
+        ASSERT_NE(legacyActive, nullptr);
+        legacyActive->excitement = 99'000;
+        legacyActive->ticks = 10;
+        ASSERT_TRUE(ExportSave(legacyActivePark, context, kStationPlatformPreQueueVersion));
+
+        RideRatingAccumulator sample{};
+        sample.originStation = StationIndex::FromUnderlying(0);
+        sample.destinationStation = StationIndex::FromUnderlying(2);
+        sample.excitement = 123'000;
+        sample.intensity = 234'000;
+        sample.nausea = 345'000;
+        sample.sampledDistance = static_cast<int64_t>(1'234) << 16;
+        sample.totalSpeed = 40LL * 0x80000;
+        sample.maxSpeed = 0x90000;
+        sample.maxPositiveVerticalG = 175;
+        sample.maxNegativeVerticalG = -65;
+        sample.ticks = 40;
+        RideAddRecentRatingSample(*ride, sample);
+        ASSERT_EQ(ride->ratingLegs.size(), 1);
+
+        ASSERT_TRUE(ExportSave(currentVersionPark, context));
+        ASSERT_TRUE(ExportSave(previousVersionPark, context, kStationPlatformPreQueueVersion));
+        ASSERT_EQ(ride->ratingLegs.size(), 1);
+        EXPECT_EQ(ride->ratingLegs[0].destinationStation, sample.destinationStation);
+    }
+
+    {
+        std::unique_ptr<IContext> context = CreateContext();
+        ASSERT_NE(context, nullptr);
+        ASSERT_TRUE(context->Initialise());
+        ASSERT_TRUE(ImportPark(currentVersionPark, context, true));
+
+        const auto* ride = GetFirstRide();
+        ASSERT_NE(ride, nullptr);
+        ASSERT_EQ(ride->ratingLegs.size(), 1);
+        const auto& leg = ride->ratingLegs[0];
+        EXPECT_EQ(leg.originStation, StationIndex::FromUnderlying(0));
+        EXPECT_EQ(leg.destinationStation, StationIndex::FromUnderlying(2));
+        EXPECT_EQ(leg.recentSampleCount, 1);
+        EXPECT_EQ(leg.recentSampleNext, 1);
+        EXPECT_EQ(leg.recentSamples[0].originStation, leg.originStation);
+        EXPECT_EQ(leg.recentSamples[0].destinationStation, leg.destinationStation);
+        EXPECT_TRUE(leg.recentSamples[0].sampleEntity.IsNull());
+        EXPECT_TRUE(leg.recentSamples[0].sampleComplete);
+        const auto sample = RideGetRecentRatingAccumulator(leg);
+        EXPECT_EQ(sample.sampledDistance, static_cast<int64_t>(1'234) << 16);
+        EXPECT_EQ(sample.maxSpeed, 0x90000);
+        EXPECT_EQ(sample.maxPositiveVerticalG, 175);
+        EXPECT_EQ(sample.maxNegativeVerticalG, -65);
+    }
+
+    {
+        std::unique_ptr<IContext> context = CreateContext();
+        ASSERT_NE(context, nullptr);
+        ASSERT_TRUE(context->Initialise());
+        ASSERT_TRUE(ImportPark(previousVersionPark, context, true));
+
+        const auto* ride = GetFirstRide();
+        ASSERT_NE(ride, nullptr);
+        EXPECT_TRUE(ride->ratingLegs.empty());
+        EXPECT_EQ(ride->recentRatingSampleCount, 0);
+    }
+
+    {
+        std::unique_ptr<IContext> context = CreateContext();
+        ASSERT_NE(context, nullptr);
+        ASSERT_TRUE(context->Initialise());
+        ASSERT_TRUE(ImportPark(legacyActivePark, context, true));
+
+        const auto* ride = GetFirstRide();
+        ASSERT_NE(ride, nullptr);
+        EXPECT_TRUE(ride->activeRatingSamples.empty());
+    }
+}
+
+TEST(ParkFileMigration, PlatformGuestRoundTripsAndOlderTargetUsesStationExitRecovery)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    MemoryStream currentVersionPark;
+    MemoryStream previousVersionPark;
+    EntityId guestId = EntityId::GetNull();
+    TileCoordsXYZD exit{};
+
+    {
+        std::unique_ptr<IContext> context = CreateContext();
+        ASSERT_NE(context, nullptr);
+        ASSERT_TRUE(context->Initialise());
+
+        MemoryStream importBuffer;
+        ASSERT_TRUE(LoadFileToBuffer(importBuffer, TestData::GetParkPath("BigMapTest.sv6")));
+        ASSERT_TRUE(ImportS6(importBuffer, context, false));
+
+        auto* ride = GetFirstRide();
+        ASSERT_NE(ride, nullptr);
+        ride->type = RIDE_TYPE_MONORAIL;
+        ride->numStations = std::max<uint8_t>(ride->numStations, 1);
+        auto& station = ride->getStation(StationIndex::FromUnderlying(0));
+        station.Entrance = { 10, 10, 2, 0 };
+        station.Exit = { 12, 10, 2, 2 };
+        exit = station.Exit;
+
+        auto* train = getGameState().entities.CreateEntity<Vehicle>();
+        ASSERT_NE(train, nullptr);
+        train->SubType = Vehicle::Type::head;
+        train->num_seats = 2;
+        train->next_vehicle_on_train = EntityId::GetNull();
+        ride->numTrains = 1;
+        ride->vehicles[0] = train->id;
+
+        auto* guest = Guest::generate({ 10 * kCoordsXYStep, 10 * kCoordsXYStep, station.GetBaseZ() });
+        ASSERT_NE(guest, nullptr);
+        guestId = guest->id;
+        guest->CurrentRide = ride->id;
+        guest->CurrentRideStation = StationIndex::FromUnderlying(0);
+        guest->CurrentTrain = RideStation::kNoTrain;
+        guest->CurrentCar = 0;
+        guest->CurrentSeat = 0;
+        guest->State = PeepState::enteringRide;
+        guest->RideSubState = PeepRideSubState::waitingOnPlatform;
+        guest->SetDestination({ 11 * kCoordsXYStep, 10 * kCoordsXYStep }, 2);
+
+        ASSERT_TRUE(ExportSave(currentVersionPark, context));
+        ASSERT_TRUE(ExportSave(previousVersionPark, context, kTransportJourneyRoutingVersion));
+    }
+
+    {
+        std::unique_ptr<IContext> context = CreateContext();
+        ASSERT_NE(context, nullptr);
+        ASSERT_TRUE(context->Initialise());
+        ASSERT_TRUE(ImportPark(currentVersionPark, context, true));
+
+        const auto* guest = getGameState().entities.GetEntity<Guest>(guestId);
+        ASSERT_NE(guest, nullptr);
+        EXPECT_EQ(guest->State, PeepState::enteringRide);
+        EXPECT_EQ(guest->RideSubState, PeepRideSubState::waitingOnPlatform);
+        EXPECT_EQ(guest->CurrentTrain, RideStation::kNoTrain);
+        const auto* ride = GetRide(guest->CurrentRide);
+        ASSERT_NE(ride, nullptr);
+        EXPECT_TRUE(RideStationPlatformPreQueueIsActive(*ride, guest->CurrentRideStation));
+        EXPECT_EQ(RideGetTransportStationPlatformOccupancy(*ride, guest->CurrentRideStation), 1);
+        EXPECT_EQ(RideGetTransportStationPlatformCapacity(*ride, guest->CurrentRideStation), 2);
+    }
+
+    {
+        std::unique_ptr<IContext> context = CreateContext();
+        ASSERT_NE(context, nullptr);
+        ASSERT_TRUE(context->Initialise());
+        ASSERT_TRUE(ImportPark(previousVersionPark, context, true));
+
+        const auto* guest = getGameState().entities.GetEntity<Guest>(guestId);
+        ASSERT_NE(guest, nullptr);
+        EXPECT_EQ(guest->State, PeepState::leavingRide);
+        EXPECT_EQ(guest->RideSubState, PeepRideSubState::approachExit);
+        EXPECT_EQ(
+            guest->GetDestination().x,
+            exit.x * kCoordsXYStep + kCoordsXYHalfTile - DirectionOffsets[exit.direction].x * 20);
+        EXPECT_EQ(
+            guest->GetDestination().y,
+            exit.y * kCoordsXYStep + kCoordsXYHalfTile - DirectionOffsets[exit.direction].y * 20);
     }
 }
 

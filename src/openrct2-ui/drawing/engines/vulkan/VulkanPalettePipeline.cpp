@@ -13,7 +13,9 @@
 
     #include "VulkanShader.h"
 
+    #include <algorithm>
     #include <array>
+    #include <cmath>
     #include <stdexcept>
     #include <string>
 
@@ -33,6 +35,19 @@ namespace OpenRCT2::Ui::Vulkan
                 ThrowVk(operation, result);
             }
         }
+
+        enum class OutputEncoding : int32_t
+        {
+            LegacyBytes,
+            SrgbAttachment,
+            Hdr10Pq,
+        };
+
+        struct OutputConstants
+        {
+            int32_t encoding;
+            float paperWhiteNits;
+        };
     } // namespace
 
     PalettePipeline::~PalettePipeline()
@@ -41,12 +56,15 @@ namespace OpenRCT2::Ui::Vulkan
     }
 
     void PalettePipeline::Initialise(
-        const Device& device, const IndexedResources& resources, std::filesystem::path shaderDirectory)
+        const Device& device, const IndexedResources& resources, std::filesystem::path shaderDirectory,
+        float paperWhiteNits)
     {
         Dispose();
         _device = device.GetDevice();
+        _nearestSampler = resources.GetNearestSampler();
         _pipelineCache = device.GetPipelineCache();
         _shaderDirectory = std::move(shaderDirectory);
+        _paperWhiteNits = std::isfinite(paperWhiteNits) ? std::clamp(paperWhiteNits, 80.0f, 1000.0f) : 203.0f;
         CreateDescriptorResources(resources);
         RefreshSwapchain(device);
     }
@@ -71,6 +89,7 @@ namespace OpenRCT2::Ui::Vulkan
         }
 
         _device = VK_NULL_HANDLE;
+        _nearestSampler = VK_NULL_HANDLE;
         _descriptorSetLayout = VK_NULL_HANDLE;
         _descriptorPool = VK_NULL_HANDLE;
         _descriptorSets = {};
@@ -80,6 +99,8 @@ namespace OpenRCT2::Ui::Vulkan
         _swapchainFormat = VK_FORMAT_UNDEFINED;
         _swapchainExtent = {};
         _swapchainGeneration = 0;
+        _paperWhiteNits = 203.0f;
+        _outputEncoding = static_cast<int32_t>(OutputEncoding::LegacyBytes);
     }
 
     void PalettePipeline::RefreshSwapchain(const Device& device)
@@ -97,6 +118,18 @@ namespace OpenRCT2::Ui::Vulkan
         _swapchainFormat = device.GetSwapchainFormat();
         _swapchainExtent = device.GetSwapchainExtent();
         _swapchainGeneration = device.GetSwapchainGeneration();
+        if (device.IsHdr10Active())
+        {
+            _outputEncoding = static_cast<int32_t>(OutputEncoding::Hdr10Pq);
+        }
+        else if (_swapchainFormat == VK_FORMAT_B8G8R8A8_SRGB || _swapchainFormat == VK_FORMAT_R8G8B8A8_SRGB)
+        {
+            _outputEncoding = static_cast<int32_t>(OutputEncoding::SrgbAttachment);
+        }
+        else
+        {
+            _outputEncoding = static_cast<int32_t>(OutputEncoding::LegacyBytes);
+        }
         CreateRenderPass();
         CreatePipeline();
         CreateFramebuffers(device.GetSwapchainImageViews());
@@ -139,6 +172,28 @@ namespace OpenRCT2::Ui::Vulkan
         }
     }
 
+    void PalettePipeline::SetCanvasSource(uint32_t frameIndex, const Image& canvas)
+    {
+        if (frameIndex >= kFramesInFlight)
+        {
+            throw std::out_of_range("Vulkan palette canvas frame index is out of range");
+        }
+        const VkDescriptorImageInfo canvasInfo = {
+            .sampler = _nearestSampler,
+            .imageView = canvas.GetView(),
+            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        };
+        const VkWriteDescriptorSet write = {
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstSet = _descriptorSets[frameIndex],
+            .dstBinding = 0,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .pImageInfo = &canvasInfo,
+        };
+        vkUpdateDescriptorSets(_device, 1, &write, 0, nullptr);
+    }
+
     void PalettePipeline::Record(const FrameToken& frame) const
     {
         if (frame.imageIndex >= _framebuffers.size() || frame.frameIndex >= kFramesInFlight)
@@ -172,6 +227,9 @@ namespace OpenRCT2::Ui::Vulkan
         vkCmdBindDescriptorSets(
             frame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineLayout, 0, 1,
             &_descriptorSets[frame.frameIndex], 0, nullptr);
+        const OutputConstants output = { _outputEncoding, _paperWhiteNits };
+        vkCmdPushConstants(
+            frame.commandBuffer, _pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(output), &output);
         vkCmdDraw(frame.commandBuffer, 3, 1, 0, 0);
         vkCmdEndRenderPass(frame.commandBuffer);
     }
@@ -223,10 +281,17 @@ namespace OpenRCT2::Ui::Vulkan
         };
         CheckVk(vkAllocateDescriptorSets(_device, &allocationInfo, _descriptorSets.data()), "vkAllocateDescriptorSets(palette)");
 
+        const VkPushConstantRange outputConstants = {
+            .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+            .offset = 0,
+            .size = sizeof(OutputConstants),
+        };
         const VkPipelineLayoutCreateInfo pipelineLayoutInfo = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
             .setLayoutCount = 1,
             .pSetLayouts = &_descriptorSetLayout,
+            .pushConstantRangeCount = 1,
+            .pPushConstantRanges = &outputConstants,
         };
         CheckVk(
             vkCreatePipelineLayout(_device, &pipelineLayoutInfo, nullptr, &_pipelineLayout),

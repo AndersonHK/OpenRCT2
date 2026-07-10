@@ -47,6 +47,10 @@ static IDrawingEngine* GetDrawingEngine()
 
 bool DrawingEngineRequiresNewWindow(DrawingEngine srcEngine, DrawingEngine dstEngine)
 {
+    if (srcEngine == DrawingEngine::Vulkan || dstEngine == DrawingEngine::Vulkan)
+    {
+        return srcEngine != dstEngine;
+    }
     bool openGL = srcEngine == DrawingEngine::OpenGL || dstEngine == DrawingEngine::OpenGL;
     return Platform::RequireNewWindow(openGL);
 }

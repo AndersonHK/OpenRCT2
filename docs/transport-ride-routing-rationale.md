@@ -27,7 +27,7 @@ The configured fare bucket controls how strong the time advantage must be:
 
 During precipitation, any positive saving is enough for discount and fair service, while free service receives a wider tie tolerance. Rain discounts only the onboard part of candidate ranking by 15%, plus another 2.5% for every sheltered eighth of the ride, so sheltered service wins close comparisons without pretending that the walks to and from the station are covered. Each guest remembers whether the last mode comparison occurred during precipitation, so a weather transition causes one immediate re-evaluation even when the concrete destination did not change.
 
-The scan is performed only when the guest's concrete destination, precipitation state, or map-topology epoch changes, or when its cached path goal is invalid. An active route stores the ride, boarding station, selected destination station, and topology epoch that justified it. Path or entrance edits therefore invalidate a commitment before boarding; an Extortive fare cannot rely on stale “no walking route” evidence. The ride subsystem validates its transient service cache at most once per simulation tick, computes quality once per changed ride, builds every forward journey in quadratic station count, and provides O(1) boarding/destination lookup. Guest-specific walking, queue delay, crowding, vouchers, cash, and fare policy remain live overlays. This keeps normal per-step pathfinding unchanged and makes the extra work proportional to the number of cached directed station pairs, not repeated segment aggregation or park path tiles. The mature bounded footpath search remains the single walking-direction implementation on either side of the transport journey.
+The scan is performed only when the guest's concrete destination, precipitation state, or map-topology epoch changes, or when its cached path goal is invalid. An active route stores the ride, boarding station, selected destination station, and topology epoch that justified it. Path or entrance edits therefore invalidate a commitment before boarding; an Extortive fare cannot rely on stale “no walking route” evidence. The ride subsystem validates its transient service cache at most once per simulation tick, computes quality once per changed ride, and prebuilds the bounded all-pairs journey table over at most the ride station limit. Boarding/destination lookup is a binary search over that tiny ordered table, allowing unreachable pairs to be omitted without corrupting later indices. Guest-specific walking, queue delay, crowding, vouchers, cash, and fare policy remain live overlays. This keeps normal per-step pathfinding unchanged and makes the extra work proportional to the small cached directed station graph, not repeated segment aggregation or park path tiles. The mature bounded footpath search remains the single walking-direction implementation on either side of the transport journey.
 
 Transport trains selectively unload only guests whose stored destination is the current station. Continuing passengers are kept at the front of the vehicle's compact seat array; alighting passengers remain at its tail so the established last-seat-first exit animation and mass bookkeeping stay valid. Non-transport rides retain the original unload-everyone behavior.
 
@@ -67,9 +67,10 @@ The ride measurements tab replaces attraction ratings with a transport-specific 
 | Comfort | Measured percentage, or `90% (estimated)` before a completed sample |
 | Decoration bonus | Measured bonus above neutral, or `+0% (estimated)` before a completed sample |
 | Average speed | Existing measured average-speed display |
-| Segment rows | `Segment A to B: time in seconds, distance in metres, fare value` |
+| Selected-leg quality | That edge's measured comfort and decoration percentages |
+| Selected segment | `Segment A to B: time in seconds, distance in metres, fare value` |
 
-The panel and route planner both consume `RideGetTransportQuality()` and `RideGetTransportSegment()`. This avoids separately rescanning the rolling rating samples for comfort and decoration and keeps displayed segment values identical to the values guests use.
+The station-leg selector exposes every measured directed edge in stable endpoint order. The panel and route planner share `RideGetTransportLegQuality()` and the exact-endpoint `RideGetTransportSegment()` overload, while the heading retains `RideGetTransportQuality()` as the ride-wide overview. This keeps the selected edge's displayed comfort, decoration, and value identical to the factors guests use.
 
 The income tab presents transport policy instead of a misleading representative ticket price. Its dropdown template is:
 
@@ -86,11 +87,36 @@ A guest boards a transport ride only when its ride and entrance match the stored
 
 A completed transport journey does not increment ordinary ride count or ride history and does not alter favourite-ride selection, ride satisfaction, or nausea. Happiness changes only for the explicit extortive-fare penalty. The existing station code still owns queues, ticket payment, revenue, and customer throughput.
 
-Transport platforms have a finite two-guests-per-station-tile capacity. This rule is gated by `RtdFlag::isTransportRide`; coaster and ordinary ride stations are unchanged. A new route avoids a station only when both its queue admission has reported full and the vehicle-derived platform occupancy has reached capacity. Platform occupancy uses reserved/loading seats and actively alighting passengers, avoiding a park-wide guest scan. The station-full signal is transient and rebuilt by live admission, so it is not saved.
+### Real station platform pre-queue
+
+Miniature Railway, Monorail, Suspended Monorail, and Chairlift stations use a real second waiting stage. Immediately before a stopped train or chair departs, the station captures its actual linked cars, masked seat counts, orientation, reversed-car flags, and object-defined loading positions. When that vehicle physically clears the station, the captured template becomes available. The front guests then leave the external queue, walk through the entrance, and wait visibly beside their assigned future car/seat position. Removing them from the linked path queue immediately frees outside queue space. Both shipped Chairlift objects use two scalar loading positions (`4, 0`), no loading waypoints, and the established cardinal boarding path with a 32-coordinate entrance offset. The adapter reuses those semantics, so staged positions match existing boarding geometry rather than applying the rail offset.
+
+The platform capacity is exactly one actual consist, `sum(car.num_seats & 0x7f)`, rather than a station-tile approximation. Before a stopped pose has been captured, supported services derive nominal capacity from their first valid linked train or chair; once captured, the stopped template's slot count is authoritative. Invalid or absent vehicle entities safely report zero instead of consulting a guessed station size. A transient station registry maps those slots to guest entity ids in queue order. The guest's existing ride, station, car, seat, destination, and new platform substate fields remain authoritative; the registry is only a deterministic index and is never saved. Unsupported station styles without platforms and Lift retain the established just-in-time boarding path and its conservative legacy tile estimate. The shipped 16-seat Lift cabin uses per-seat three-point loading waypoints, while shuttle mode treats the complete tower ascent as departing and reaches `FinishDeparting()` only at the tower top. It therefore lacks both the scalar slot geometry and generic physical-clear signal required by this adapter. Other loading-waypoint vehicle objects also retain just-in-time boarding, but their valid consist remains the nominal routing capacity. A supported service with incomplete entrance/exit or stopped-pose geometry does not activate staging, although its real consist remains the nominal capacity.
+
+Platform admission itself is free. The guest repeats current affordability and price eligibility only when it is first in platform order and a real train has finished unloading. Only then does the guest reserve an actual free vehicle seat, pay the current journey fare, publish its complete queue time, and approach the arrived vehicle. If the fare changed beyond its means, it releases the abstract slot and follows the station exit. This avoids refunds and paid-but-never-ridden passengers after closure or consist changes.
+
+Transport unloading still compacts through-riders to the front of each vehicle first. Waiting guests then bind FIFO into the remaining seats; overflow remains on the platform for the next train. Once an actual seat is reserved, the existing `num_peeps == next_free_seat` dispatch invariant keeps the train in the station until the assigned walker boards. Maximum-wait, block-section, leave-when-another-arrives, and synchronized-departure rules therefore retain their established ownership.
+
+The route-planning overcrowding rule remains transport-only: a new route avoids the station only when both the external queue reports full and the real train-load platform is full. Coasters are not opted into transport routing or fare semantics. Station status displays external queue length separately from `platform occupancy / consist capacity`, and guest status distinguishes walking to and waiting on the platform.
+
+Transport measurements use the same authoritative physical-leg boundary as multi-station ride ratings. Once a measured
+origin-to-destination leg exists, its destination replaces the numeric station-order fallback and its own measured distance,
+duration, speed, and distance-weighted comfort/decoration sample price that segment. Directed edges are keyed by both endpoints,
+so a middle shuttle station may retain independently measured departures in both directions. Journey construction runs a small,
+deterministic shortest-time search over those edges and adds each selected leg's time, distance, and fare exactly. Fare breaks an
+equal-time tie. Cycles and unreachable destinations therefore cannot manufacture a partial journey.
+Before a physical leg has been observed, the established numeric successor and ride-wide quality estimate remain the safe
+fallback only for a station with no measured outbound edge. The service cache builds the same directed journeys, including routes
+containing two or more segments and stations with more than one physical departure, rather than assuming that station array order
+is track order. A destination-free request at an ambiguous shuttle departure returns no single segment instead of guessing.
+
+This does not opt coaster stations into the transport platform pre-queue. Multi-station coasters share only the leg-rating
+ownership and Measurements presentation; transport admission, routing, pricing, and platform staging remain gated by the
+transport ride descriptor and the explicit platform adapter allowlist.
 
 ## Save compatibility and tests
 
-Private park version `60012` stores the distance-weighted transport quality accumulators. Version `60013` adds the selected transport destination station and permits the appended Free price-policy value. The previous-ride id, otherwise-unused high timeout bit, and current station retain ride and boarding state without repurposing a peep flag. Older parks load a null transport destination, Fair pricing, empty quality totals, and empty transient crowding state.
+Private park version `60012` stores the distance-weighted transport quality accumulators. Version `60013` adds the selected transport destination station and permits the appended Free price-policy value. Version `60014` recognises the platform approach/wait substates. Version `60015` stores rolling samples and final ratings keyed by the directed station pair. Pre-`60015` loads discard in-progress rating samples because those records have no authoritative departure station; completed legacy ride-wide ratings remain available. Older-target exports write coherent empty sample buffers while preserving the live current-version state. Current saves rebuild the transient platform registry once from guest state after entity import. Occupied slots recover their saved visible destinations; unknown empty slot coordinates remain closed to admission until the next stopped template is captured, so new guests cannot bypass the recovered FIFO cohort. Old saves naturally contain no platform cohort. Exports targeting an older version serialize a platform guest as a normal station-exit approach with an exit-side destination, without mutating the live guest or exposing an unknown substate.
 
 Focused coverage verifies that:
 
@@ -105,5 +131,7 @@ Focused coverage verifies that:
 - G-forces reduce distance-weighted comfort and scenery raises decoration value;
 - the transport measurements panel exposes comfort, decoration, average speed, and per-segment time/distance/value; and
 - two-segment and longer journeys accumulate time, distance, and fare and alight at the stored station;
-- platform capacity is transport-only; and
+- the real rail/Chairlift platform cohort has exact stopped-consist capacity, frees external queue space, waits visibly, and binds FIFO after through-rider compaction, while Lift retains safe JIT boarding;
+- current-version platform state round-trips, while an older target receives a coherent station-exit recovery state;
+- platform capacity and route overcrowding remain transport-only; and
 - segment distance remains the leading fare input.

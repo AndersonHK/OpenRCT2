@@ -307,6 +307,8 @@ namespace OpenRCT2::Ui::Windows
         WIDX_RESET_SELECTION,
         WIDX_SAVE_DESIGN,
         WIDX_CANCEL_DESIGN,
+        WIDX_RATING_LEG,
+        WIDX_RATING_LEG_DROPDOWN,
 
         WIDX_GRAPH = 14,
         WIDX_GRAPH_VELOCITY,
@@ -465,7 +467,9 @@ namespace OpenRCT2::Ui::Windows
         makeWidget({  4, 127}, {154, 14}, WidgetType::button,  WindowColour::secondary, STR_SELECT_NEARBY_SCENERY                       ),
         makeWidget({158, 127}, {154, 14}, WidgetType::button,  WindowColour::secondary, STR_RESET_SELECTION                             ),
         makeWidget({  4, 177}, {154, 14}, WidgetType::button,  WindowColour::secondary, STR_DESIGN_SAVE                                 ),
-        makeWidget({158, 177}, {154, 14}, WidgetType::button,  WindowColour::secondary, STR_DESIGN_CANCEL                               )
+        makeWidget({158, 177}, {154, 14}, WidgetType::button,  WindowColour::secondary, STR_DESIGN_CANCEL                               ),
+        makeWidget({  7,  47}, {302, 14}, WidgetType::dropdownMenu, WindowColour::secondary, kStringIdEmpty, STR_RIDE_RATING_LEG_SELECT_TIP),
+        makeWidget({297,  48}, { 11, 12}, WidgetType::button, WindowColour::secondary, STR_DROPDOWN_GLYPH, STR_RIDE_RATING_LEG_SELECT_TIP)
     );
 
     // 0x009AE710
@@ -730,6 +734,8 @@ namespace OpenRCT2::Ui::Windows
         std::vector<EntranceTypeLabel> _entranceDropdownData;
         bool _autoScrollGraph = true;
         bool _lastAllowArbitraryRideTypeChanges = false;
+        StationIndex _selectedRatingLegOrigin{ StationIndex::GetNull() };
+        StationIndex _selectedRatingLegDestination{ StationIndex::GetNull() };
 
         u8string _windowTitle{};
         // Num trains, Tweak mode, track colour scheme, primary price
@@ -2689,8 +2695,16 @@ namespace OpenRCT2::Ui::Windows
             // Queue length
             if (stringId == kStringIdEmpty)
             {
-                stringId = STR_QUEUE_EMPTY;
                 uint16_t queueLength = ride->getStation(*stationIndex).QueueLength;
+                if (RideStationPlatformPreQueueIsActive(*ride, *stationIndex))
+                {
+                    ft.Add<uint16_t>(queueLength);
+                    ft.Add<uint16_t>(RideGetTransportStationPlatformOccupancy(*ride, *stationIndex));
+                    ft.Add<uint16_t>(RideGetTransportStationPlatformCapacity(*ride, *stationIndex));
+                    return STR_QUEUE_AND_PLATFORM_STATUS;
+                }
+
+                stringId = STR_QUEUE_EMPTY;
                 if (queueLength == 1)
                     stringId = STR_QUEUE_ONE_PERSON;
                 else if (queueLength > 1)
@@ -5576,6 +5590,30 @@ namespace OpenRCT2::Ui::Windows
             return RatingNames[index];
         }
 
+        const RideRatingLeg* GetSelectedRatingLeg(const Ride& ride)
+        {
+            if (!_selectedRatingLegOrigin.IsNull() && !_selectedRatingLegDestination.IsNull())
+            {
+                const auto* selected =
+                    RideGetRatingLeg(ride, _selectedRatingLegOrigin, _selectedRatingLegDestination);
+                if (selected != nullptr && selected->hasSamples())
+                {
+                    return selected;
+                }
+            }
+
+            const auto* first = RideGetRatingLegByDisplayIndex(ride, 0);
+            if (first == nullptr)
+            {
+                _selectedRatingLegOrigin = StationIndex::GetNull();
+                _selectedRatingLegDestination = StationIndex::GetNull();
+                return nullptr;
+            }
+            _selectedRatingLegOrigin = first->originStation;
+            _selectedRatingLegDestination = first->destinationStation;
+            return first;
+        }
+
         void SetupScenerySelection()
         {
             if (gTrackDesignSaveMode)
@@ -5707,12 +5745,54 @@ namespace OpenRCT2::Ui::Windows
 
         void MeasurementsResize()
         {
-            constexpr int32_t measurementsHeight = 234 + (2 * kListRowHeight);
+            int32_t measurementsHeight = 234 + (2 * kListRowHeight);
+            if (const auto* ride = GetRide(rideId); ride != nullptr && ride->numStations > 1)
+            {
+                // Selector, heading, one fully expanded directed leg, optional
+                // transport fare row, and spacing.
+                measurementsHeight += 8 * kListRowHeight;
+            }
             WindowSetResize(*this, { kMinimumWindowWidth, measurementsHeight }, { kMinimumWindowWidth, measurementsHeight });
         }
 
         void MeasurementsOnMouseDown(WidgetIndex widgetIndex)
         {
+            if (widgetIndex == WIDX_RATING_LEG || widgetIndex == WIDX_RATING_LEG_DROPDOWN)
+            {
+                const auto* ride = GetRide(rideId);
+                if (ride == nullptr)
+                {
+                    return;
+                }
+                size_t itemCount = 0;
+                while (itemCount < Dropdown::kItemsMaxSize)
+                {
+                    const auto* leg = RideGetRatingLegByDisplayIndex(*ride, itemCount);
+                    if (leg == nullptr)
+                    {
+                        break;
+                    }
+                    auto ft = Formatter();
+                    ft.Add<uint16_t>(static_cast<uint16_t>(leg->originStation.ToUnderlying() + 1));
+                    ft.Add<uint16_t>(static_cast<uint16_t>(leg->destinationStation.ToUnderlying() + 1));
+                    gDropdown.items[itemCount] = Dropdown::MenuLabel(STR_RIDE_RATING_LEG_OPTION, ft);
+                    if (leg->originStation == _selectedRatingLegOrigin
+                        && leg->destinationStation == _selectedRatingLegDestination)
+                    {
+                        gDropdown.items[itemCount].setChecked(true);
+                        gDropdown.defaultIndex = static_cast<int32_t>(itemCount);
+                    }
+                    itemCount++;
+                }
+                if (itemCount != 0)
+                {
+                    const auto& selector = widgets[WIDX_RATING_LEG];
+                    WindowDropdownShowTextCustomWidth(
+                        { windowPos.x + selector.left, windowPos.y + selector.top }, selector.height(), colours[1], 0,
+                        Dropdown::Flag::StayOpen, itemCount, selector.width());
+                }
+                return;
+            }
             if (widgetIndex != WIDX_SAVE_TRACK_DESIGN)
                 return;
 
@@ -5737,6 +5817,24 @@ namespace OpenRCT2::Ui::Windows
 
         void MeasurementsOnDropdown(WidgetIndex widgetIndex, int32_t dropdownIndex)
         {
+            if (widgetIndex == WIDX_RATING_LEG || widgetIndex == WIDX_RATING_LEG_DROPDOWN)
+            {
+                if (dropdownIndex == -1)
+                {
+                    dropdownIndex = gDropdown.highlightedIndex;
+                }
+                const auto* ride = GetRide(rideId);
+                const auto* leg = ride == nullptr || dropdownIndex < 0
+                    ? nullptr
+                    : RideGetRatingLegByDisplayIndex(*ride, static_cast<size_t>(dropdownIndex));
+                if (leg != nullptr)
+                {
+                    _selectedRatingLegOrigin = leg->originStation;
+                    _selectedRatingLegDestination = leg->destinationStation;
+                    invalidate();
+                }
+                return;
+            }
             if (widgetIndex != WIDX_SAVE_TRACK_DESIGN)
                 return;
 
@@ -5760,6 +5858,7 @@ namespace OpenRCT2::Ui::Windows
             Ride* const ride = GetRide(rideId);
             if (ride && ride->windowInvalidateFlags.has(RideInvalidateFlag::ratings))
             {
+                MeasurementsResize();
                 invalidate();
                 ride->windowInvalidateFlags.unset(RideInvalidateFlag::ratings);
             }
@@ -5824,6 +5923,14 @@ namespace OpenRCT2::Ui::Windows
             if (ride == nullptr)
                 return;
 
+            widgets[WIDX_RATING_LEG].type = WidgetType::empty;
+            widgets[WIDX_RATING_LEG_DROPDOWN].type = WidgetType::empty;
+            if (!gTrackDesignSaveMode && ride->numStations > 1 && GetSelectedRatingLeg(*ride) != nullptr)
+            {
+                widgets[WIDX_RATING_LEG].type = WidgetType::dropdownMenu;
+                widgets[WIDX_RATING_LEG_DROPDOWN].type = WidgetType::button;
+            }
+
             widgets[WIDX_SAVE_TRACK_DESIGN].tooltip = STR_SAVE_TRACK_DESIGN_NOT_POSSIBLE;
             widgets[WIDX_SAVE_TRACK_DESIGN].type = WidgetType::empty;
             if (gTrackDesignSaveMode && gTrackDesignSaveRideIndex == rideId)
@@ -5850,7 +5957,7 @@ namespace OpenRCT2::Ui::Windows
             WindowAlignTabs(this, WIDX_TAB_1, WIDX_TAB_10);
         }
 
-        void DrawTransportMeasurements(RenderTarget& rt, const Ride& ride, ScreenCoordsXY screenCoords)
+        ScreenCoordsXY DrawTransportMeasurements(RenderTarget& rt, const Ride& ride, ScreenCoordsXY screenCoords)
         {
             drawText(rt, screenCoords, STR_TRANSPORT_SERVICE_QUALITY);
             screenCoords.y += 2 * kListRowHeight;
@@ -5872,35 +5979,102 @@ namespace OpenRCT2::Ui::Windows
             ft.Add<int32_t>(ToHumanReadableSpeed(ride.getDisplayAverageSpeed()));
             drawText(rt, screenCoords, STR_AVERAGE_SPEED, ft);
             screenCoords.y += 2 * kListRowHeight;
+            return screenCoords;
+        }
 
-            Rectangle::fillInset(
-                rt, { screenCoords - ScreenCoordsXY{ 0, 6 }, screenCoords + ScreenCoordsXY{ 303, -5 } }, colours[1],
-                Rectangle::BorderStyle::inset);
-
-            for (StationIndex::UnderlyingType i = 0; i < std::min<int32_t>(ride.numStations, 4); i++)
+        ScreenCoordsXY DrawRatingLegMeasurements(RenderTarget& rt, const Ride& ride, ScreenCoordsXY screenCoords)
+        {
+            if (ride.numStations <= 1)
             {
-                const auto boardingStation = StationIndex::FromUnderlying(i);
-                const auto segment = RideGetTransportSegment(ride, boardingStation, quality);
-                if (segment.destinationStation.IsNull())
-                {
-                    continue;
-                }
-
-                ft = Formatter();
-                ft.Add<uint16_t>(static_cast<uint16_t>(i + 1));
-                ft.Add<uint16_t>(static_cast<uint16_t>(segment.destinationStation.ToUnderlying() + 1));
-                ft.Add<int32_t>(static_cast<int32_t>((segment.travelTimeMilliseconds + 500) / 1000));
-                ft.Add<int32_t>(segment.distanceMetres);
-                ft.Add<money64>(segment.fareValue);
-                drawTextEllipsised(rt, screenCoords, 308, STR_TRANSPORT_SEGMENT_STATS, ft);
-                screenCoords.y += kListRowHeight;
+                return screenCoords;
             }
+
+            drawText(rt, screenCoords, STR_RIDE_RATING_LEGS);
+            screenCoords.y += kListRowHeight;
+            if (ride.ratingLegs.empty())
+            {
+                drawText(rt, screenCoords, STR_RIDE_RATING_LEGS_NOT_YET_AVAILABLE);
+                screenCoords.y += 2 * kListRowHeight;
+                return screenCoords;
+            }
+            const auto* leg = GetSelectedRatingLeg(ride);
+            if (leg == nullptr)
+            {
+                return screenCoords;
+            }
+            auto ft = Formatter();
+            ft.Add<uint16_t>(static_cast<uint16_t>(leg->originStation.ToUnderlying() + 1));
+            ft.Add<uint16_t>(static_cast<uint16_t>(leg->destinationStation.ToUnderlying() + 1));
+            ft.Add<uint32_t>(leg->ratings.excitement);
+            ft.Add<uint32_t>(leg->ratings.intensity);
+            ft.Add<uint32_t>(leg->ratings.nausea);
+            drawTextEllipsised(rt, screenCoords, 308, STR_RIDE_RATING_LEG_STATS, ft);
+            screenCoords.y += kListRowHeight;
+
+            const auto measurements = RideGetRatingLegMeasurements(*leg);
+            ft = Formatter();
+            ft.Add<int32_t>(measurements.distanceMetres);
+            ft.Add<int32_t>(static_cast<int32_t>((measurements.durationTicks + 20) / 40));
+            ft.Add<int32_t>(ToHumanReadableSpeed(measurements.maxSpeed));
+            ft.Add<int32_t>(ToHumanReadableSpeed(measurements.averageSpeed));
+            drawTextEllipsised(rt, screenCoords, 308, STR_RIDE_RATING_LEG_MEASUREMENTS, ft);
+            screenCoords.y += kListRowHeight;
+
+            ft = Formatter();
+            ft.Add<int32_t>(measurements.maxPositiveVerticalG);
+            ft.Add<int32_t>(measurements.maxNegativeVerticalG);
+            ft.Add<int32_t>(measurements.maxLateralG);
+            ft.Add<int32_t>(measurements.maxPositiveLongitudinalG);
+            ft.Add<int32_t>(measurements.maxNegativeLongitudinalG);
+            drawTextEllipsised(rt, screenCoords, 308, STR_RIDE_RATING_LEG_G_FORCES, ft);
+            screenCoords.y += kListRowHeight;
+            if (ride.getRideTypeDescriptor().flags.has(RtdFlag::isTransportRide))
+            {
+                const auto legQuality = RideGetTransportLegQuality(*leg, RideGetTransportQuality(ride));
+                ft = Formatter();
+                ft.Add<int32_t>((legQuality.comfortPermille + 5) / 10);
+                ft.Add<int32_t>((legQuality.decorationPermille - 1000 + 5) / 10);
+                drawTextEllipsised(rt, screenCoords, 308, STR_TRANSPORT_LEG_QUALITY, ft);
+                screenCoords.y += kListRowHeight;
+
+                const auto segment = RideGetTransportSegment(
+                    ride, leg->originStation, leg->destinationStation, RideGetTransportQuality(ride));
+                if (!segment.destinationStation.IsNull())
+                {
+                    ft = Formatter();
+                    ft.Add<uint16_t>(static_cast<uint16_t>(leg->originStation.ToUnderlying() + 1));
+                    ft.Add<uint16_t>(static_cast<uint16_t>(leg->destinationStation.ToUnderlying() + 1));
+                    ft.Add<int32_t>(static_cast<int32_t>((segment.travelTimeMilliseconds + 500) / 1000));
+                    ft.Add<int32_t>(segment.distanceMetres);
+                    ft.Add<money64>(segment.fareValue);
+                    drawTextEllipsised(rt, screenCoords, 308, STR_TRANSPORT_SEGMENT_STATS, ft);
+                    screenCoords.y += kListRowHeight;
+                }
+            }
+            screenCoords.y += kListRowHeight;
+            return screenCoords;
         }
 
         void MeasurementsOnDraw(RenderTarget& rt)
         {
             drawWidgets(rt);
             drawTabImages(rt);
+
+            if (widgets[WIDX_RATING_LEG].type != WidgetType::empty)
+            {
+                const auto* ride = GetRide(rideId);
+                const auto* leg = ride == nullptr ? nullptr : GetSelectedRatingLeg(*ride);
+                if (leg != nullptr)
+                {
+                    auto ft = Formatter();
+                    ft.Add<uint16_t>(static_cast<uint16_t>(leg->originStation.ToUnderlying() + 1));
+                    ft.Add<uint16_t>(static_cast<uint16_t>(leg->destinationStation.ToUnderlying() + 1));
+                    const auto& selector = widgets[WIDX_RATING_LEG];
+                    drawTextEllipsised(
+                        rt, windowPos + ScreenCoordsXY{ selector.left + 3, selector.top + 1 }, selector.width() - 16,
+                        STR_RIDE_RATING_LEG_OPTION, ft);
+                }
+            }
 
             if (widgets[WIDX_SAVE_DESIGN].type == WidgetType::button)
             {
@@ -5922,13 +6096,25 @@ namespace OpenRCT2::Ui::Windows
 
                 auto screenCoords = windowPos
                     + ScreenCoordsXY{ widgets[WIDX_PAGE_BACKGROUND].left + 4, widgets[WIDX_PAGE_BACKGROUND].top + 4 };
+                if (widgets[WIDX_RATING_LEG].type != WidgetType::empty)
+                {
+                    screenCoords.y = windowPos.y + widgets[WIDX_RATING_LEG].bottom + 4;
+                }
 
                 if (ride->getRideTypeDescriptor().flags.has(RtdFlag::isTransportRide))
                 {
-                    DrawTransportMeasurements(rt, *ride, screenCoords);
+                    screenCoords = DrawTransportMeasurements(rt, *ride, screenCoords);
+                    DrawRatingLegMeasurements(rt, *ride, screenCoords);
                 }
                 else if (ride->flags.has(RideFlag::tested))
                 {
+                    screenCoords = DrawRatingLegMeasurements(rt, *ride, screenCoords);
+                    if (ride->numStations > 1)
+                    {
+                        drawText(rt, screenCoords, STR_RIDE_RATING_COMPATIBILITY_SUMMARY);
+                        screenCoords.y += kListRowHeight;
+                    }
+
                     // Excitement
                     StringId ratingName = GetRatingName(ride->ratings.excitement);
                     auto ft = Formatter();
@@ -5970,6 +6156,11 @@ namespace OpenRCT2::Ui::Windows
 
                     if (!ride->flags.has(RideFlag::noRawStats))
                     {
+                        if (ride->numStations > 1)
+                        {
+                            drawText(rt, screenCoords, STR_RIDE_GLOBAL_MEASUREMENTS);
+                            screenCoords.y += kListRowHeight;
+                        }
                         if (ride->getRideTypeDescriptor().specialType == RtdSpecialType::miniGolf)
                         {
                             // Holes

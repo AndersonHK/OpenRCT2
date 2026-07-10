@@ -61,7 +61,15 @@ if (ENABLE_VULKAN AND NOT EMSCRIPTEN)
             "${VULKAN_SHADER_SOURCE_DIR}/indexed_palette.vert"
             "${VULKAN_SHADER_SOURCE_DIR}/indexed_palette.frag"
             "${VULKAN_SHADER_SOURCE_DIR}/indexed_line.vert"
-            "${VULKAN_SHADER_SOURCE_DIR}/indexed_line.frag")
+            "${VULKAN_SHADER_SOURCE_DIR}/indexed_line.frag"
+            "${VULKAN_SHADER_SOURCE_DIR}/indexed_rect.vert"
+            "${VULKAN_SHADER_SOURCE_DIR}/indexed_rect.frag"
+            "${VULKAN_SHADER_SOURCE_DIR}/indexed_transparent_rect.vert"
+            "${VULKAN_SHADER_SOURCE_DIR}/indexed_transparent_rect.frag"
+            "${VULKAN_SHADER_SOURCE_DIR}/indexed_transparency_compose.vert"
+            "${VULKAN_SHADER_SOURCE_DIR}/indexed_transparency_compose.frag"
+            "${VULKAN_SHADER_SOURCE_DIR}/indexed_weather.vert"
+            "${VULKAN_SHADER_SOURCE_DIR}/indexed_weather.frag")
         if (Vulkan_GLSLC_EXECUTABLE)
             set(OPENRCT2_VULKAN_SHADER_MODE "compile")
             set(OPENRCT2_VULKAN_ENABLED ON)
@@ -69,7 +77,15 @@ if (ENABLE_VULKAN AND NOT EMSCRIPTEN)
         elseif (EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_palette.vert.spv"
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_palette.frag.spv"
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_line.vert.spv"
-                AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_line.frag.spv")
+                AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_line.frag.spv"
+                AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_rect.vert.spv"
+                AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_rect.frag.spv"
+                AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_transparent_rect.vert.spv"
+                AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_transparent_rect.frag.spv"
+                AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_transparency_compose.vert.spv"
+                AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_transparency_compose.frag.spv"
+                AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_weather.vert.spv"
+                AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_weather.frag.spv")
             set(OPENRCT2_VULKAN_SHADER_MODE "precompiled")
             set(OPENRCT2_VULKAN_ENABLED ON)
             message(STATUS "Vulkan renderer foundation enabled with checked-in SPIR-V shaders")
@@ -168,6 +184,14 @@ endif ()
 if (OPENRCT2_VULKAN_ENABLED)
     target_link_libraries(openrct2 Vulkan::Vulkan)
     target_compile_definitions(openrct2 PRIVATE ENABLE_VULKAN)
+    if (ENABLE_VULKAN_DRAWING_ENGINE)
+        target_compile_definitions(openrct2 PRIVATE ENABLE_VULKAN_DRAWING_ENGINE)
+        target_compile_definitions(libopenrct2 PUBLIC ENABLE_VULKAN ENABLE_VULKAN_DRAWING_ENGINE)
+        if (ENABLE_VULKAN_DIRECT_DRAWING_CONTEXT)
+            target_compile_definitions(openrct2 PRIVATE ENABLE_VULKAN_DIRECT_DRAWING_CONTEXT)
+            target_compile_definitions(libopenrct2 PUBLIC ENABLE_VULKAN_DIRECT_DRAWING_CONTEXT)
+        endif ()
+    endif ()
 endif ()
 
 # Includes

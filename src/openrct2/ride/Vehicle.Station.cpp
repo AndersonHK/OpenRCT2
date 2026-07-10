@@ -19,6 +19,7 @@
 #include "../entity/Peep.h"
 #include "../localisation/Formatter.h"
 #include "../management/NewsItem.h"
+#include "../profiling/Profiling.h"
 #include "../world/Map.h"
 #include "../world/tile_element/TileElement.h"
 #include "../world/tile_element/TrackElement.h"
@@ -51,6 +52,22 @@ static SynchronisedVehicle* _lastSynchronisedVehicle = nullptr;
 
 namespace OpenRCT2::RideVehicle::StationDetail
 {
+    TrainSeatSummary BuildTrainSeatSummary(const Vehicle& head)
+    {
+        PROFILED_FUNCTION();
+
+        TrainSeatSummary result;
+        for (const auto* car = &head; car != nullptr && result.carCount < result.cars.size();
+             car = getGameState().entities.GetEntity<Vehicle>(car->next_vehicle_on_train))
+        {
+            result.cars[result.carCount++] = car;
+            result.capacity += car->num_seats & kVehicleSeatNumMask;
+            result.currentPeeps += car->num_peeps;
+            result.reservedSeats += car->next_free_seat;
+        }
+        return result;
+    }
+
     PassengerUnloadPlan BuildPassengerUnloadPlan(std::span<const bool> shouldAlight)
     {
         assert(shouldAlight.size() <= kMaxPassengerCount);
@@ -419,6 +436,8 @@ bool Vehicle::CanDepartSynchronised() const
  */
 void Vehicle::UpdateMovingToEndOfStation()
 {
+    PROFILED_FUNCTION();
+
     auto curRide = GetRide();
     if (curRide == nullptr)
         return;
@@ -528,9 +547,9 @@ void Vehicle::UpdateMovingToEndOfStation()
  *
  *  rct2: 0x006D7FB4
  */
-void Vehicle::TrainReadyToDepart(uint8_t num_peeps_on_train, uint8_t num_used_seats)
+void Vehicle::TrainReadyToDepart(uint32_t numPeepsOnTrain, uint32_t numUsedSeats)
 {
-    if (num_peeps_on_train != num_used_seats)
+    if (numPeepsOnTrain != numUsedSeats)
         return;
 
     auto curRide = GetRide();
@@ -574,7 +593,7 @@ void Vehicle::TrainReadyToDepart(uint8_t num_peeps_on_train, uint8_t num_used_se
         return;
     }
 
-    if (num_peeps_on_train == 0)
+    if (numPeepsOnTrain == 0)
         return;
 
     curRide->getStation(current_station).TrainAtStation = RideStation::kNoTrain;
@@ -587,6 +606,8 @@ void Vehicle::TrainReadyToDepart(uint8_t num_peeps_on_train, uint8_t num_used_se
  */
 void Vehicle::UpdateWaitingForPassengers()
 {
+    PROFILED_FUNCTION();
+
     velocity = 0;
 
     auto curRide = GetRide();
@@ -630,17 +651,10 @@ void Vehicle::UpdateWaitingForPassengers()
         flags.unset(VehicleFlag::readyToDepart);
 
         // 0xF64E31, 0xF64E32, 0xF64E33
-        uint8_t num_peeps_on_train = 0, num_used_seats_on_train = 0, num_seats_on_train = 0;
-
-        for (const Vehicle* trainCar = getGameState().entities.GetEntity<Vehicle>(id); trainCar != nullptr;
-             trainCar = getGameState().entities.GetEntity<Vehicle>(trainCar->next_vehicle_on_train))
-        {
-            num_peeps_on_train += trainCar->num_peeps;
-            num_used_seats_on_train += trainCar->next_free_seat;
-            num_seats_on_train += trainCar->num_seats;
-        }
-
-        num_seats_on_train &= 0x7F;
+        const auto train = RideVehicle::StationDetail::BuildTrainSeatSummary(*this);
+        const auto num_peeps_on_train = train.currentPeeps;
+        const auto num_used_seats_on_train = train.reservedSeats;
+        const auto num_seats_on_train = train.capacity;
 
         if (curRide->supportsStatus(RideStatus::testing))
         {
@@ -687,13 +701,14 @@ void Vehicle::UpdateWaitingForPassengers()
                 if (train_id == id)
                     continue;
 
-                Vehicle* train = getGameState().entities.GetEntity<Vehicle>(train_id);
-                if (train == nullptr)
+                Vehicle* otherTrain = getGameState().entities.GetEntity<Vehicle>(train_id);
+                if (otherTrain == nullptr)
                     continue;
 
-                if (train->status == Status::unloadingPassengers || train->status == Status::movingToEndOfStation)
+                if (otherTrain->status == Status::unloadingPassengers
+                    || otherTrain->status == Status::movingToEndOfStation)
                 {
-                    if (train->current_station == current_station)
+                    if (otherTrain->current_station == current_station)
                     {
                         flags.set(VehicleFlag::readyToDepart);
                         TrainReadyToDepart(num_peeps_on_train, num_used_seats_on_train);
@@ -719,7 +734,7 @@ void Vehicle::UpdateWaitingForPassengers()
             // We want to wait for ceiling((load+1)/4 * num_seats_on_train) peeps, the +3 below is used instead of
             // ceil() to prevent issues on different cpus/platforms with floats. Note that vanilla RCT1/2 rounded
             // down here; our change reflects the expected behaviour for waiting for a minimum load target (see #9987)
-            uint8_t peepTarget = ((load + 1) * num_seats_on_train + 3) / 4;
+            uint32_t peepTarget = ((load + 1) * num_seats_on_train + 3) / 4;
 
             if (load == 4) // take care of "any load" special case
                 peepTarget = 1;
@@ -756,6 +771,8 @@ void Vehicle::UpdateWaitingForPassengers()
  */
 void Vehicle::UpdateWaitingToDepart()
 {
+    PROFILED_FUNCTION();
+
     auto* curRide = GetRide();
     if (curRide == nullptr)
         return;
@@ -981,6 +998,8 @@ void Vehicle::UpdateWaitingToDepart()
  */
 void Vehicle::UpdateUnloadingPassengers()
 {
+    PROFILED_FUNCTION();
+
     auto* curRide = GetRide();
     if (curRide == nullptr)
         return;
@@ -989,10 +1008,6 @@ void Vehicle::UpdateUnloadingPassengers()
     if (RideRating::ShouldSampleCircuit(*curRide, *this) && curRide->currentTestSegment + 1 >= curRide->numStations)
     {
         UpdateTestFinish();
-    }
-    else if (!flags.has(VehicleFlag::testing))
-    {
-        RideRating::PublishTrainSample(*curRide, *this);
     }
 
     if (sub_state == 0)
@@ -1106,6 +1121,8 @@ void Vehicle::UpdateUnloadingPassengers()
  */
 void Vehicle::UpdateDeparting()
 {
+    PROFILED_FUNCTION();
+
     auto curRide = GetRide();
     if (curRide == nullptr)
         return;
@@ -1133,6 +1150,7 @@ void Vehicle::UpdateDeparting()
             return;
         }
 
+        RideCaptureStationPlatformTemplate(*curRide, current_station, *this);
         sub_state = 1;
         PeepEasterEggHereWeAre();
 
@@ -1373,6 +1391,7 @@ void Vehicle::FinishDeparting()
         currentStation.Depart |= waitingTime;
     }
     lost_time_out = 0;
+    RideActivateStationPlatformPreQueue(*curRide, current_station);
     SetState(Status::travelling, 1);
     if (velocity < 0)
         sub_state = 0;
@@ -1433,6 +1452,8 @@ void Vehicle::CheckIfMissing()
  */
 void Vehicle::UpdateTravelling()
 {
+    PROFILED_FUNCTION();
+
     CheckIfMissing();
 
     auto curRide = GetRide();
@@ -1695,6 +1716,8 @@ void Vehicle::UpdateArrivingPassThroughStation(const Ride& curRide, const CarEnt
  */
 void Vehicle::UpdateArriving()
 {
+    PROFILED_FUNCTION();
+
     auto curRide = GetRide();
     if (curRide == nullptr)
         return;
@@ -1722,6 +1745,7 @@ void Vehicle::UpdateArriving()
             flags.unset(VehicleFlag::reverseInclineCompletedLap);
             velocity = 0;
             acceleration = 0;
+            RideRating::PublishTrainSample(*curRide, *this, current_station);
             SetState(Status::unloadingPassengers);
             return;
         default:
@@ -1747,6 +1771,13 @@ void Vehicle::UpdateArriving()
 
     if (curFlags & VEHICLE_UPDATE_MOTION_TRACK_FLAG_VEHICLE_AT_STATION && !stationBrakesWork)
     {
+        const auto* trackElement = MapGetTrackElementAt(TrackLocation);
+        if (trackElement == nullptr)
+        {
+            return;
+        }
+        current_station = trackElement->GetStationIndex();
+        RideRating::PublishTrainSample(*curRide, *this, current_station);
         SetState(Status::departing, 1);
         return;
     }
@@ -1774,6 +1805,7 @@ void Vehicle::UpdateArriving()
     }
 
     current_station = trackElement->GetStationIndex();
+    RideRating::PublishTrainSample(*curRide, *this, current_station);
     NumLaps++;
 
     if (sub_state != 0)

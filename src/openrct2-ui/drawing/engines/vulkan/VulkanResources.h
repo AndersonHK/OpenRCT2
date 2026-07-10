@@ -20,8 +20,6 @@
 
 namespace OpenRCT2::Ui::Vulkan
 {
-    constexpr uint32_t kSpriteAtlasLayers = 64;
-
     class Image final
     {
     private:
@@ -76,11 +74,18 @@ namespace OpenRCT2::Ui::Vulkan
         VkDevice _device = VK_NULL_HANDLE;
         Image _spriteAtlas;
         Image _palette;
+        Image _remapPalette;
+        Image _blendPalette;
         VkSampler _nearestSampler = VK_NULL_HANDLE;
         std::array<Image, kFramesInFlight> _indexedCanvases;
         std::array<Image, kFramesInFlight> _depthCanvases;
+        std::array<Image, kFramesInFlight> _compositeCanvases;
+        std::array<Image, kFramesInFlight> _transparentCanvases;
+        std::array<std::array<Image, 2>, kFramesInFlight> _transparentDepthCanvases;
         bool _atlasHasShaderLayout = false;
         bool _paletteHasShaderLayout = false;
+        bool _remapPaletteHasShaderLayout = false;
+        bool _blendPaletteHasShaderLayout = false;
         std::array<bool, kFramesInFlight> _canvasHasShaderLayout{};
 
     public:
@@ -100,7 +105,13 @@ namespace OpenRCT2::Ui::Vulkan
             const Gpu::Int4& destinationBounds, uint32_t sourcePitchPixels);
         void EndAtlasUploads(VkCommandBuffer commandBuffer);
         void RecordPaletteUpload(VkCommandBuffer commandBuffer, const UploadAllocation& allocation);
+        void RecordRemapPaletteUpload(VkCommandBuffer commandBuffer, const UploadAllocation& allocation);
+        void RecordBlendPaletteUpload(VkCommandBuffer commandBuffer, const UploadAllocation& allocation);
         void RecordCanvasClear(VkCommandBuffer commandBuffer, uint32_t frameIndex, uint8_t paletteIndex);
+        void RecordCanvasUpload(
+            VkCommandBuffer commandBuffer, uint32_t frameIndex, const UploadAllocation& allocation,
+            const Gpu::CanvasUpload& upload);
+        void RecordCanvasAndDepthClear(VkCommandBuffer commandBuffer, uint32_t frameIndex, uint8_t paletteIndex);
 
         [[nodiscard]] const Image& GetSpriteAtlas() const noexcept
         {
@@ -114,9 +125,29 @@ namespace OpenRCT2::Ui::Vulkan
         {
             return _depthCanvases.at(frameIndex);
         }
+        [[nodiscard]] const Image& GetCompositeCanvas(uint32_t frameIndex) const
+        {
+            return _compositeCanvases.at(frameIndex);
+        }
+        [[nodiscard]] const Image& GetTransparentCanvas(uint32_t frameIndex) const
+        {
+            return _transparentCanvases.at(frameIndex);
+        }
+        [[nodiscard]] const Image& GetTransparentDepthCanvas(uint32_t frameIndex, uint32_t index) const
+        {
+            return _transparentDepthCanvases.at(frameIndex).at(index);
+        }
         [[nodiscard]] const Image& GetPalette() const noexcept
         {
             return _palette;
+        }
+        [[nodiscard]] const Image& GetRemapPalette() const noexcept
+        {
+            return _remapPalette;
+        }
+        [[nodiscard]] const Image& GetBlendPalette() const noexcept
+        {
+            return _blendPalette;
         }
         [[nodiscard]] VkSampler GetNearestSampler() const noexcept
         {
@@ -126,6 +157,9 @@ namespace OpenRCT2::Ui::Vulkan
     private:
         void CreateCanvases(Gpu::Extent logicalExtent);
         void DestroyCanvases();
+        void RecordIndexTableUpload(
+            VkCommandBuffer commandBuffer, const UploadAllocation& allocation, Image& image, bool& hasShaderLayout,
+            const char* description);
     };
 
     void RecordImageBarrier(

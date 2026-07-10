@@ -16,11 +16,43 @@ Economy: transport value is led by segment distance, then multiplied by speed, c
 
 Guest behavior: transport vehicles retain through-passengers across intermediate stations and unload them only at the selected destination. Completing a journey does not increment ordinary ride count or history and does not change favourite selection, satisfaction, or nausea. Planned transport remains available to leaving guests.
 
-Capacity: transport station platforms hold two waiting or alighting guests per station tile. This is strictly gated to transport rides; coaster and ordinary ride stations are unchanged. Station-specific queue-full state and vehicle-derived platform occupancy avoid park-wide guest scans and are transient rather than saved.
+Capacity: Miniature Railway, Monorail, and Suspended Monorail stations now expose a real second-stage platform queue. When a
+train physically clears the station, the next cohort leaves the external queue and walks to deterministic positions aligned
+with that stopped consist's cars and seats. Capacity is the actual linked-consist seat total, not a station-tile estimate;
+through-riders compact first, and staged guests bind FIFO only to real empty seats after arrival. Fare eligibility is rechecked
+and payment is committed at that binding point. Closing or invalid stations recover staged guests through the exit, then the
+entrance/requeue path, with falling reserved for missing geometry. Chairlift now stages against its native two-seat scalar
+loading positions and physical station-clear transition. Lift remains just-in-time because its waypoint cabin reaches generic
+departure completion only at the tower top; no-platform styles, other waypoint-loading vehicles, and coasters also remain
+outside the adapter until their geometry and lifecycle provide an exact boundary.
 
 Interface: the measurements tab now gives transport rides a service-quality panel instead of attraction ratings. It displays measured or estimated comfort, decoration bonus, average speed, and each station segment's time, distance, and fare value from the same shared transport metrics used by routing. The income tab shows the four proportional journey policies instead of a misleading single ride-wide ticket price.
 
-Compatibility: private park version `60012` stores distance-weighted transport quality totals. Version `60013` adds the selected alighting station and the appended Free policy. Exports targeting an older version clear the private route marker, and older saves load with a null destination, Fair pricing, and empty transient crowding.
+Compatibility: private park version `60012` stores distance-weighted transport quality totals. Version `60013` adds the
+selected alighting station and appended Free policy. Version `60014` adds platform guest substates; current saves reconstruct
+the transient FIFO registry, while older-target exports serialize staged guests into a coherent station-exit approach. Exports
+targeting older transport versions still clear the private route marker, and older saves load with a null destination, Fair
+pricing, and no staged cohort.
+
+### Directed station-leg measurements
+
+Ratings: rides with multiple stations now publish rolling samples for the physical directed leg between the station just left
+and the station actually reached. Excitement, intensity, nausea, duration, distance, speed, every G-force extreme, comfort,
+decoration, and fare data therefore describe the journey a guest could experience rather than an artificial full-track Mobius
+circuit. Multiple destinations from the same origin remain distinct endpoint pairs.
+
+Interface: the measurements tab selects every observed `Station A -> Station B` pair by endpoint identity and displays that
+leg's complete measurements. It is not limited to the first four stations or to an origin-only key. The legacy ride-list/value
+rating remains a conservative compatibility envelope—minimum excitement and maximum intensity/nausea—and is refreshed only
+after every station has at least one measured outbound leg, so a partially sampled Mobius ride is not presented as complete.
+
+Transport composition: journeys through three or more stations use the directed measured service graph and sum the exact
+adjacent-leg time, distance, and fare along the shortest-time route, with fare as the tie-break. The old station-wide estimate
+is used only while a leg has no measurement.
+
+Compatibility: private park version `60015` stores the directed endpoint histories and active leg accumulator state. Older
+saves clear active samples on import so pre-leg partial circuits cannot contaminate the first new measurement; export to an
+older target is non-mutating.
 
 Details: [Transport ride routing rationale](transport-ride-routing-rationale.md)
 
@@ -37,7 +69,7 @@ Verification:
 - `RideRatings.TransportQualityIsDistanceWeightedAndGForcesReduceComfort`
 - `RideRatings.TransportFareValueIsLedByDistanceAndModifiedByQuality`
 - `RideRatings.TransportJourneyAccumulatesSegmentsAndUsesExactFareBuckets`
-- `RideRatings.PlatformCapacityIsTransportOnlyAndScalesWithStationTiles`
+- `RideRatings.PlatformCapacityUsesActualConsistAndSafeLegacyFallback`
 - `ParkFileMigration.TransportDestinationRoundTripsAndIsRemovedFromOlderTargets`
 
 ### Vulkan-first renderer foundation
@@ -47,6 +79,74 @@ Direction: OpenGL is now a visual-parity bridge rather than the target renderer.
 Foundation: add backend-neutral GPU command and atlas structures plus a Vulkan device layer for SDL surface creation, portability enumeration, device and queue selection, swapchain negotiation, frames in flight, and reusable mapped upload rings. The backend remains behind a non-selectable gate until indexed-canvas and palette presentation can produce a correct frame, so the current change does not claim Vulkan visual parity prematurely.
 
 Migration: retain the OpenGL weather and upload reductions as an interim reference, then delete OpenGL and CPU palette-conversion paths after Vulkan gameplay, screenshot, resize, transparency, weather, and macOS portability gates pass. The staged implementation and deletion criteria are documented in [Vulkan renderer migration](vulkan-renderer-migration.md).
+
+Progress: the gated Vulkan command path now executes indexed lines; opaque solid, textured, masked, crosshatched, TTF, and
+one-to-three-remap rectangles; deterministic depth-peeled transparency/blend composition; and ordered indexed rain/snow.
+Remap and blend tables remain GPU-resident, depth and indexed colour survive every pass, and final palette presentation
+selects a correct SDR format or a compatible 10-bit HDR10 BT.2020/PQ pair. HDR maps unchanged SDR sprite appearance to a
+configurable paper-white level rather than making legacy art intrinsically brighter. The direct GPU drawing-context/atlas
+path and visual SDR/HDR parity remain activation gates. Details:
+[Vulkan renderer migration](vulkan-renderer-migration.md).
+
+Integration: add fence-backed asynchronous indexed readback using persistent mapped frame rings, plus a disabled-by-default
+Vulkan validation engine wired through configuration, drawing-engine factory selection, and window recreation. The validation
+engine exercises palette, VSync, resize, presentation, and screenshot lifecycle by uploading the authoritative X8 canvas once
+per frame. That full-canvas bridge is explicitly not the performance renderer; direct GPU command recording and atlas
+residency must replace it before Vulkan TPS claims or default/UI activation.
+
+Build quality: link the Vulkan loader import library by its full SDK path instead of adding the entire SDK library directory
+ahead of project dependencies. This prevents the SDK's unrelated dynamic-CRT `SDL2-static.lib` from shadowing OpenRCT2's
+static-CRT SDL library and removes the resulting Windows `LNK4098` warning without suppressing it.
+
+### Measured pathfinding and vehicle hot loops
+
+Performance: the warmed EverythingPark profiler identified guest direction searches and vehicle updates as the dominant CPU
+work. Exact path-topology nodes now precompute thin-junction and adjacent wide/owned-queue classification, and one synchronous
+`ChooseDirection` search reuses its current exact chunk view. Inexact, unmatched, shop/entrance-sensitive, or ghost-affected
+layouts retain live tile-element behavior. Details: [Path topology cache](path-topology-cache.md).
+
+Pathfinding: stable park exits and resolved ride/facility entrances now receive epoch-invalidated reverse distance fields.
+The main thread freezes exact directed topology, the process-lifetime worker pool builds independent target fields, and the
+main thread generation-checks and publishes them in deterministic order. Live permitted edges, queue ownership, guest
+junction history, and the bounded heuristic fallback remain authoritative. Details:
+[Shared destination route fields](shared-route-fields.md).
+
+Verification: the clean 2,000-tick EverythingPark comparison improved from 165.895 to 184.352 TPS and from 5.919 to
+5.054 milliseconds median tick time with an unchanged final checksum. The profiled comparison cut `ChooseDirection` time by
+52%, cut `PeepUpdateAll` by 33.8%, and recorded no live thin-junction fallbacks in that park.
+
+Verification: after shared reverse fields and visible transport-platform staging, two clean 2,000-tick runs measured
+241.767 and 241.871 TPS with matching `2fc90d5f...` checksums and 3.868/3.851 millisecond median tick times. This is 31.2%
+faster than the 184.352-TPS checkpoint and 45.8% faster than the 165.895-TPS baseline. The profiled run reduced
+`ChooseDirection` to 201,038 microseconds and `PeepUpdateAll` to 880,203 microseconds; live ride-rating sampling is now the
+largest isolated remaining vehicle cost. Details: [Shared destination route fields](shared-route-fields.md) and
+[EverythingPark 320 TPS refactor plan](performance-320-tps-refactor-plan.md).
+
+Verification: the station-less facility target/index and live-rating eligibility follow-up reached 254.297 and 256.592 TPS
+in two clean 2,000-tick runs, with matching `182e7448...` checksums and 3.834/3.794 millisecond medians. The new profile cut
+`ChooseDirection` to 81,798 microseconds but still attributed 1,189,440 microseconds to 280,975 eligible live-rating calls;
+that measured inner sampler, not route selection, remains the next CPU target.
+
+Verification: the exact directed-leg, route-cache ownership, spatial-index worklist, and save-migration checkpoint passes all
+452 tests. Two clean 2,000-tick EverythingPark runs measured 251.729 and 251.123 TPS with matching `89b1134c...` checksums
+and 3.719/3.720 millisecond medians. The faster run is 51.7% above the original 165.895-TPS baseline. A bounded 500-tick
+profile attributes 1,358,188 microseconds to live rating sampling, including 1,082,148 microseconds in vehicle-environment
+resolution; cold local-context construction is only 159,625 microseconds. Profiler scopes add clock, atomic, and stack
+bookkeeping, so these totals identify relative ownership rather than predicting unprofiled TPS; environment-cache access is
+still the next measured optimization target rather than guest routing.
+
+Performance: a train-head update now reuses matching owning-ride and loaded vehicle-object pointers inside a scoped transient
+context. Mismatched access and calls outside that update retain the original lookup, update order is unchanged, and nested
+profiler scopes separate rating, measurement, station, motion, and sound costs. Typed entity iterators likewise retain their
+registry reference and directly validate concrete type tags without replacing the mutation-safe entity lists. Details:
+[EverythingPark 320 TPS refactor plan](performance-320-tps-refactor-plan.md) and
+[Ride rating aggregate rationale](ride-rating-aggregate-rationale.md).
+
+Performance: live ride-rating eligibility is now checked at the original vehicle-update sample point before non-head, ghost,
+inactive-status, or non-normal-rating vehicles enter the sampler. Each eligible head traverses its consist once through the
+shared deterministic seat summary, and synchronized-station adjacency is cached only for the same ride, tick, topology
+generation, status, and departure flags. This follows the measured 1,081,990-microsecond/485,000-call hotspot; no throughput
+gain is claimed until the checksum-matched EverythingPark rerun.
 
 ### Normal ride speed adjustment
 

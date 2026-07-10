@@ -43,6 +43,7 @@
 #include "../windows/Intent.h"
 #include "../world/Map.h"
 #include "../world/MapAnimation.h"
+#include "../world/MapTopology.h"
 #include "../world/Scenery.h"
 #include "../world/tile_element/LargeSceneryElement.h"
 #include "../world/tile_element/PathElement.h"
@@ -58,6 +59,7 @@
 #include "TrackIteration.h"
 #include "TrainManager.h"
 #include "VehicleData.h"
+#include "Vehicle.Station.h"
 #include "VehicleGeometry.h"
 #include "VehicleSubpositionData.h"
 #include "ted/TrackElementDescriptor.h"
@@ -65,6 +67,7 @@
 #include <array>
 #include <cassert>
 #include <iterator>
+#include <limits>
 #include <span>
 
 using namespace OpenRCT2;
@@ -86,13 +89,15 @@ static constexpr int64_t RideRatingRawTenths(int32_t tenths)
     return (static_cast<int64_t>(tenths) * RideRating::kRideRatingAccumulatorRawScale) / 10;
 }
 
+static GForces VehicleGetGForces(
+    const Vehicle& vehicle, int32_t trainVelocity, const TrackElementDescriptor& trackDescriptor);
+
 static void RideRatingAccumulateTick(
-    RideRatingAccumulator& accumulator, TrackElemType trackType, const GForces& gForces, int32_t velocity, bool isSheltered,
-    const RideRating::LocalContextScore& contextScore, bool isSynchronised, bool isBoatHire,
+    RideRatingAccumulator& accumulator, TrackElemType trackType, const TrackElementDescriptor& trackDescriptor,
+    const GForces& gForces, int32_t speed, bool isSheltered, const RideRating::LocalContextScore& contextScore,
+    bool isSynchronised, bool isBoatHire,
     const SampledRideRatingProfile& profile)
 {
-    const auto& ted = GetTrackElementDescriptor(trackType);
-    const int32_t speed = std::abs(velocity) >> 16;
     const auto speedScore = RideRating::ScoreVehicleSpeedForTick(speed, profile.Speed);
     const auto gForceScore = RideRating::ScoreGForcesForVehicleTick(
         gForces.verticalG, gForces.lateralG, gForces.longitudinalG, speed, profile);
@@ -104,9 +109,9 @@ static void RideRatingAccumulateTick(
     int64_t intensity = speedScore.intensity + gForceScore.intensity;
     int64_t nausea = speedScore.nausea + gForceScore.nausea;
 
-    if (ted.flags.hasAny(TrackElementFlag::turnLeft, TrackElementFlag::turnRight))
+    if (trackDescriptor.flags.hasAny(TrackElementFlag::turnLeft, TrackElementFlag::turnRight))
     {
-        const bool banked = ted.flags.has(TrackElementFlag::turnBanked);
+        const bool banked = trackDescriptor.flags.has(TrackElementFlag::turnBanked);
         if (isBoatHire && !banked)
         {
             const auto boatHireScore = RideRating::ScoreBoatHireFreeRoamForTick(accumulator.ticks);
@@ -121,24 +126,24 @@ static void RideRatingAccumulateTick(
             trackFeatureNausea += banked ? RideRatingRawTenths(8) : RideRatingRawTenths(16);
         }
     }
-    if (ted.flags.has(TrackElementFlag::turnSloped))
+    if (trackDescriptor.flags.has(TrackElementFlag::turnSloped))
     {
         trackFeatureExcitement += RideRatingRawTenths(12);
         trackFeatureNausea += RideRatingRawTenths(12);
     }
-    if (ted.flags.has(TrackElementFlag::helix))
+    if (trackDescriptor.flags.has(TrackElementFlag::helix))
     {
         trackFeatureExcitement += RideRatingRawTenths(40);
         trackFeatureIntensity += RideRatingRawTenths(32);
         trackFeatureNausea += RideRatingRawTenths(40);
     }
-    if (ted.flags.has(TrackElementFlag::normalToInversion))
+    if (trackDescriptor.flags.has(TrackElementFlag::normalToInversion))
     {
         trackFeatureExcitement += RideRatingRawTenths(64);
         trackFeatureIntensity += RideRatingRawTenths(72);
         trackFeatureNausea += RideRatingRawTenths(48);
     }
-    if (ted.flags.has(TrackElementFlag::down))
+    if (trackDescriptor.flags.has(TrackElementFlag::down))
     {
         trackFeatureExcitement += RideRatingRawTenths(20);
         trackFeatureIntensity += RideRatingRawTenths(12);
@@ -243,33 +248,44 @@ bool RideRating::ShouldStartCircuit(const Ride& ride, const Vehicle& vehicle)
         && (ride.status == RideStatus::testing || ride.status == RideStatus::open || !ride.flags.has(RideFlag::tested));
 }
 
-static void RideRatingAccumulateVehicleTick(
-    RideRatingAccumulator& accumulator, const Ride& ride, const RideTypeDescriptor& rtd, const Vehicle& vehicle,
-    int32_t trainVelocity, bool isSynchronised)
+static RideRatingAccumulator* RideRatingResolveActiveVehicleSample(Ride& ride, EntityId vehicleId)
 {
-    auto currentTrackType = vehicle.GetTrackType();
-    if (currentTrackType == TrackElemType::none)
-    {
-        return;
-    }
+    PROFILED_FUNCTION();
 
-    auto gForces = vehicle.GetGForces(trainVelocity);
-    if (accumulator.hasPreviousTrainVelocity)
-    {
-        gForces.longitudinalG = CalculateLongitudinalG(accumulator.previousTrainVelocity, trainVelocity);
-    }
-    accumulator.previousTrainVelocity = trainVelocity;
-    accumulator.hasPreviousTrainVelocity = true;
+    return RideGetOrCreateActiveRatingSample(ride, vehicleId);
+}
 
-    const auto location = CoordsXYZ{ vehicle.x, vehicle.y, vehicle.z };
-    const auto environment = RideRating::GetVehicleRatingEnvironment(
-        location, ride.id, currentTrackType, vehicle.GetTrackDirection(), accumulator.localContextCache);
+static GForces RideRatingCalculateVehicleGForces(
+    const Vehicle& vehicle, int32_t trainVelocity, const TrackElementDescriptor& trackDescriptor)
+{
+    PROFILED_FUNCTION();
+
+    return VehicleGetGForces(vehicle, trainVelocity, trackDescriptor);
+}
+
+static RideRating::VehicleRatingEnvironment RideRatingResolveVehicleEnvironment(
+    const Vehicle& vehicle, const Ride& ride, TrackElemType trackType, RideRatingAccumulator& accumulator)
+{
+    PROFILED_FUNCTION();
+
+    return RideRating::GetVehicleRatingEnvironment(
+        { vehicle.x, vehicle.y, vehicle.z }, ride.id, trackType, vehicle.GetTrackDirection(),
+        accumulator.localContextCache);
+}
+
+static void RideRatingApplyVehicleTick(
+    RideRatingAccumulator& accumulator, const RideTypeDescriptor& rtd, TrackElemType trackType,
+    const TrackElementDescriptor& trackDescriptor, const GForces& gForces, int32_t speed,
+    const RideRating::VehicleRatingEnvironment& environment, bool isSynchronised, bool isBoatHire,
+    bool isTransportRide)
+{
+    PROFILED_FUNCTION();
+
     RideRatingAccumulateTick(
-        accumulator, currentTrackType, gForces, trainVelocity, environment.isSheltered, environment.context, isSynchronised,
-        rtd.specialType == RtdSpecialType::boatHire, rtd.SampledRatings);
-    if (rtd.flags.has(RtdFlag::isTransportRide))
+        accumulator, trackType, trackDescriptor, gForces, speed, environment.isSheltered, environment.context,
+        isSynchronised, isBoatHire, rtd.SampledRatings);
+    if (isTransportRide)
     {
-        const auto speed = std::abs(trainVelocity) >> 16;
         const auto quality = RideRating::ScoreTransportQualityForVehicleTick(
             gForces.verticalG, gForces.lateralG, gForces.longitudinalG, speed, environment.context);
         accumulator.transportComfort += quality.comfort;
@@ -278,46 +294,80 @@ static void RideRatingAccumulateVehicleTick(
     }
 }
 
-static void RideRatingAccumulateTrainTick(
-    Ride& ride, const RideTypeDescriptor& rtd, std::span<const Vehicle*> trainVehicles, int32_t trainVelocity,
-    bool isSynchronised)
+static void RideRatingAccumulateVehicleTick(
+    RideRatingAccumulator& accumulator, const Ride& ride, const RideTypeDescriptor& rtd, const Vehicle& vehicle,
+    int32_t trainVelocity, bool isSynchronised, bool isBoatHire, bool isTransportRide)
 {
+    PROFILED_FUNCTION();
+
+    const auto currentTrackType = vehicle.GetTrackType();
+    if (currentTrackType == TrackElemType::none)
+    {
+        return;
+    }
+
+    const auto& trackDescriptor = GetTrackElementDescriptor(currentTrackType);
+    auto gForces = RideRatingCalculateVehicleGForces(vehicle, trainVelocity, trackDescriptor);
+    if (accumulator.hasPreviousTrainVelocity)
+    {
+        gForces.longitudinalG = CalculateLongitudinalG(accumulator.previousTrainVelocity, trainVelocity);
+    }
+    accumulator.previousTrainVelocity = trainVelocity;
+    accumulator.hasPreviousTrainVelocity = true;
+
+    if (ride.numStations > 1)
+    {
+        const auto absoluteVelocity = static_cast<int32_t>(
+            std::min<int64_t>(std::abs(static_cast<int64_t>(trainVelocity)), std::numeric_limits<int32_t>::max()));
+        accumulator.sampledDistance += std::max<int32_t>(0, GetRealRideLengthDelta(trainVelocity, vehicle.acceleration));
+        accumulator.totalSpeed += absoluteVelocity;
+        accumulator.maxSpeed = std::max(accumulator.maxSpeed, absoluteVelocity);
+        const auto verticalG = static_cast<fixed16_2dp>(gForces.verticalG);
+        const auto lateralG = static_cast<fixed16_2dp>(std::abs(gForces.lateralG));
+        const auto longitudinalG = static_cast<fixed16_2dp>(gForces.longitudinalG);
+        accumulator.maxPositiveVerticalG = std::max(accumulator.maxPositiveVerticalG, verticalG);
+        accumulator.maxNegativeVerticalG = std::min(accumulator.maxNegativeVerticalG, verticalG);
+        accumulator.maxLateralG = std::max(accumulator.maxLateralG, lateralG);
+        accumulator.maxPositiveLongitudinalG = std::max(accumulator.maxPositiveLongitudinalG, longitudinalG);
+        accumulator.maxNegativeLongitudinalG = std::min(accumulator.maxNegativeLongitudinalG, longitudinalG);
+    }
+
+    const auto environment = RideRatingResolveVehicleEnvironment(vehicle, ride, currentTrackType, accumulator);
+    const auto speed = std::abs(trainVelocity) >> 16;
+    RideRatingApplyVehicleTick(
+        accumulator, rtd, currentTrackType, trackDescriptor, gForces, speed, environment, isSynchronised, isBoatHire,
+        isTransportRide);
+}
+
+static void RideRatingAccumulateTrainTick(
+    Ride& ride, const RideTypeDescriptor& rtd, std::span<const Vehicle* const> trainVehicles, int32_t trainVelocity,
+    bool isSynchronised, StationIndex originStation)
+{
+    PROFILED_FUNCTION();
+
+    const bool isBoatHire = rtd.specialType == RtdSpecialType::boatHire;
+    const bool isTransportRide = rtd.flags.has(RtdFlag::isTransportRide);
     for (const auto* vehicle : trainVehicles)
     {
-        auto* accumulator = RideGetOrCreateActiveRatingSample(ride, vehicle->id);
+        auto* accumulator = RideRatingResolveActiveVehicleSample(ride, vehicle->id);
         if (accumulator == nullptr)
         {
             continue;
         }
-
-        RideRatingAccumulateVehicleTick(*accumulator, ride, rtd, *vehicle, trainVelocity, isSynchronised);
-    }
-}
-
-static size_t RideRatingCollectTrainVehicleIds(
-    const Vehicle& head, std::span<EntityId> sampleEntities, bool* hasRiders = nullptr)
-{
-    size_t count = 0;
-    for (const Vehicle* vehicle = &head; vehicle != nullptr;
-         vehicle = getGameState().entities.GetEntity<Vehicle>(vehicle->next_vehicle_on_train))
-    {
-        if (count >= sampleEntities.size())
+        if (ride.numStations > 1 && accumulator->originStation.IsNull())
         {
-            break;
+            accumulator->originStation = originStation;
         }
-        sampleEntities[count++] = vehicle->id;
-        if (hasRiders != nullptr)
-        {
-            *hasRiders |= vehicle->num_peeps != 0;
-        }
+
+        RideRatingAccumulateVehicleTick(
+            *accumulator, ride, rtd, *vehicle, trainVelocity, isSynchronised, isBoatHire, isTransportRide);
     }
-    return count;
 }
 
 static void RideRatingClearTrainActiveSamples(Ride& ride, const Vehicle& head)
 {
-    for (const Vehicle* vehicle = &head; vehicle != nullptr;
-         vehicle = getGameState().entities.GetEntity<Vehicle>(vehicle->next_vehicle_on_train))
+    const auto train = RideVehicle::StationDetail::BuildTrainSeatSummary(head);
+    for (const auto* vehicle : train.GetCars())
     {
         if (auto* accumulator = RideFindActiveRatingSample(ride, vehicle->id); accumulator != nullptr)
         {
@@ -328,56 +378,152 @@ static void RideRatingClearTrainActiveSamples(Ride& ride, const Vehicle& head)
 
 static void RideRatingRecordTrainSamples(Ride& ride, const Vehicle& head)
 {
+    const auto train = RideVehicle::StationDetail::BuildTrainSeatSummary(head);
     std::array<EntityId, OpenRCT2::Limits::kMaxCarsPerTrain> sampleEntities{};
-    const auto count = RideRatingCollectTrainVehicleIds(head, sampleEntities);
-    RideRating::RecordActiveRiderSamples(ride, std::span<EntityId>{ sampleEntities.data(), count });
+    for (uint16_t index = 0; index < train.carCount; index++)
+    {
+        sampleEntities[index] = train.cars[index]->id;
+    }
+    RideRating::RecordActiveRiderSamples(ride, std::span<EntityId>{ sampleEntities.data(), train.carCount });
 }
 
-void RideRating::PublishTrainSample(Ride& ride, const Vehicle& head)
+void RideRating::PublishTrainSample(Ride& ride, const Vehicle& head, StationIndex destinationStation)
 {
     if (!head.IsHead() || head.isGhost() || ride.getRideTypeDescriptor().RatingsData.Type != RatingsCalculationType::Normal)
     {
         return;
     }
 
-    std::array<EntityId, OpenRCT2::Limits::kMaxCarsPerTrain> sampleEntities{};
-    bool hasRiders = head.flags.has(VehicleFlag::testing) || RideIsStatsSampleVehicle(ride, head);
-    const auto count = RideRatingCollectTrainVehicleIds(head, sampleEntities, &hasRiders);
-    if (hasRiders)
+    const auto train = RideVehicle::StationDetail::BuildTrainSeatSummary(head);
+    if (head.flags.has(VehicleFlag::testing) || RideIsStatsSampleVehicle(ride, head) || train.HasRiders())
     {
-        RecordActiveRiderSamples(ride, std::span<EntityId>{ sampleEntities.data(), count });
+        std::array<EntityId, OpenRCT2::Limits::kMaxCarsPerTrain> sampleEntities{};
+        for (uint16_t index = 0; index < train.carCount; index++)
+        {
+            sampleEntities[index] = train.cars[index]->id;
+            if (ride.numStations > 1)
+            {
+                if (auto* accumulator = RideFindActiveRatingSample(ride, sampleEntities[index]); accumulator != nullptr)
+                {
+                    accumulator->destinationStation = destinationStation;
+                }
+            }
+        }
+        RecordActiveRiderSamples(ride, std::span<EntityId>{ sampleEntities.data(), train.carCount });
     }
 }
 
-static void RideRatingUpdateLiveTrainSample(Ride& ride, Vehicle& head, const RideTypeDescriptor& rtd)
+struct LiveRatingSynchronisationCacheEntry
 {
-    if (!head.IsHead() || head.isGhost() || !RideRatingStatusIsLiveSampled(head.status)
-        || rtd.RatingsData.Type != RatingsCalculationType::Normal)
+    uint32_t tick{ std::numeric_limits<uint32_t>::max() };
+    MapTopology::Generation topologyGeneration{};
+    RideStatus status{};
+    uint8_t departFlags{};
+    bool hasAdjacentStation{};
+};
+
+static std::array<LiveRatingSynchronisationCacheEntry, OpenRCT2::Limits::kMaxRidesInPark>
+    _liveRatingSynchronisationCache;
+
+void RideRating::InvalidateLiveSynchronisationCache(RideId rideId)
+{
+    if (!rideId.IsNull() && rideId.ToUnderlying() < _liveRatingSynchronisationCache.size())
+    {
+        _liveRatingSynchronisationCache[rideId.ToUnderlying()] = {};
+    }
+}
+
+static bool RideRatingTrainIsSynchronised(const Ride& ride)
+{
+    PROFILED_FUNCTION();
+
+    if (!(ride.departFlags & RIDE_DEPART_SYNCHRONISE_WITH_ADJACENT_STATIONS))
+    {
+        return false;
+    }
+
+    if (ride.id.IsNull())
+    {
+        return RideHasAdjacentStation(ride);
+    }
+    const auto rideIndex = ride.id.ToUnderlying();
+    if (rideIndex >= _liveRatingSynchronisationCache.size())
+    {
+        return RideHasAdjacentStation(ride);
+    }
+
+    const auto tick = getGameState().currentTicks;
+    const auto topologyGeneration = MapTopology::GetEpoch();
+    auto& cache = _liveRatingSynchronisationCache[rideIndex];
+    if (cache.tick != tick || cache.topologyGeneration != topologyGeneration || cache.status != ride.status
+        || cache.departFlags != ride.departFlags)
+    {
+        cache.tick = tick;
+        cache.topologyGeneration = topologyGeneration;
+        cache.status = ride.status;
+        cache.departFlags = ride.departFlags;
+        cache.hasAdjacentStation = RideHasAdjacentStation(ride);
+    }
+    return cache.hasAdjacentStation;
+}
+
+static bool RideRatingTrainHasSampledRiders(
+    const Ride& ride, const Vehicle& head, const RideVehicle::StationDetail::TrainSeatSummary& train)
+{
+    PROFILED_FUNCTION();
+
+    return head.flags.has(VehicleFlag::testing) || RideIsStatsSampleVehicle(ride, head) || train.HasRiders();
+}
+
+static void RideRatingUpdateLiveTrainSample(Ride& ride, const Vehicle& head, const RideTypeDescriptor& rtd)
+{
+    PROFILED_FUNCTION();
+
+    const auto train = RideVehicle::StationDetail::BuildTrainSeatSummary(head);
+    if (!RideRatingTrainHasSampledRiders(ride, head, train))
     {
         return;
     }
 
-    std::array<const Vehicle*, OpenRCT2::Limits::kMaxCarsPerTrain> trainVehicles{};
-    size_t count = 0;
-    bool hasRiders = head.flags.has(VehicleFlag::testing) || RideIsStatsSampleVehicle(ride, head);
-    for (const Vehicle* vehicle = &head; vehicle != nullptr && count < trainVehicles.size();
-         vehicle = getGameState().entities.GetEntity<Vehicle>(vehicle->next_vehicle_on_train))
-    {
-        trainVehicles[count++] = vehicle;
-        hasRiders |= vehicle->num_peeps != 0;
-    }
-    if (!hasRiders)
-    {
-        return;
-    }
-
-    const bool isSynchronised = (ride.departFlags & RIDE_DEPART_SYNCHRONISE_WITH_ADJACENT_STATIONS)
-        && RideHasAdjacentStation(ride);
-    RideRatingAccumulateTrainTick(
-        ride, rtd, std::span<const Vehicle*>{ trainVehicles.data(), count }, head.velocity, isSynchronised);
+    const bool isSynchronised = RideRatingTrainIsSynchronised(ride);
+    RideRatingAccumulateTrainTick(ride, rtd, train.GetCars(), head.velocity, isSynchronised, head.current_station);
 }
 
 Vehicle* gCurrentVehicle;
+
+namespace
+{
+    struct VehicleUpdateLookupCache
+    {
+        RideId rideId{};
+        ObjectEntryIndex rideSubtype{};
+        Ride* ride{};
+        const RideObjectEntry* rideEntry{};
+    };
+
+    thread_local VehicleUpdateLookupCache _vehicleUpdateLookupCache;
+
+    class VehicleUpdateLookupScope
+    {
+    public:
+        VehicleUpdateLookupScope(const Vehicle& vehicle, Ride* ride, const RideObjectEntry* rideEntry)
+            : _previous(_vehicleUpdateLookupCache)
+        {
+            _vehicleUpdateLookupCache = { vehicle.ride, vehicle.ride_subtype, ride, rideEntry };
+        }
+
+        ~VehicleUpdateLookupScope()
+        {
+            _vehicleUpdateLookupCache = _previous;
+        }
+
+        VehicleUpdateLookupScope(const VehicleUpdateLookupScope&) = delete;
+        VehicleUpdateLookupScope& operator=(const VehicleUpdateLookupScope&) = delete;
+
+    private:
+        VehicleUpdateLookupCache _previous;
+    };
+} // namespace
 
 Breakdown _vehicleBreakdown;
 StationIndex _vehicleStationIndex;
@@ -762,6 +908,8 @@ void RideUpdateMeasurementsSpecialElements_WaterCoaster(Ride& ride, const TrackE
  */
 void Vehicle::UpdateMeasurements()
 {
+    PROFILED_FUNCTION();
+
     auto curRide = GetRide();
     if (curRide == nullptr)
         return;
@@ -1097,8 +1245,12 @@ void Vehicle::UpdateMeasurements()
  */
 void Vehicle::Update()
 {
+    PROFILED_FUNCTION();
+
     if (IsCableLift())
     {
+        auto curRide = GetRide();
+        VehicleUpdateLookupScope lookupScope(*this, curRide, nullptr);
         CableLiftUpdate();
         return;
     }
@@ -1111,6 +1263,12 @@ void Vehicle::Update()
     if (curRide == nullptr)
         return;
 
+    // Vehicle state and motion helpers repeatedly ask for the owning ride and
+    // object entry. Both remain stable while this train head is updated, so
+    // keep the resolved pointers for the duration of this call. The accessors
+    // still validate the ids and fall back for vehicles from another ride.
+    VehicleUpdateLookupScope lookupScope(*this, curRide, rideEntry);
+
     if (curRide->type >= RIDE_TYPE_COUNT)
         return;
 
@@ -1119,7 +1277,11 @@ void Vehicle::Update()
     {
         UpdateMeasurements();
     }
-    RideRatingUpdateLiveTrainSample(*curRide, *this, rtd);
+    if (IsHead() && !isGhost() && RideRatingStatusIsLiveSampled(status)
+        && rtd.RatingsData.Type == RatingsCalculationType::Normal)
+    {
+        RideRatingUpdateLiveTrainSample(*curRide, *this, rtd);
+    }
 
     _vehicleBreakdown = Breakdown::none;
     if (curRide->flags.hasAny(RideFlag::breakdownPending, RideFlag::brokenDown))
@@ -1528,25 +1690,26 @@ void Vehicle::UpdateTravellingCableLift()
  * dx: lateralG
  * esi: vehicle
  */
-GForces Vehicle::GetGForces(int32_t trainVelocity) const
+static GForces VehicleGetGForces(
+    const Vehicle& vehicle, int32_t trainVelocity, const TrackElementDescriptor& trackDescriptor)
 {
-    int32_t gForceVert = ((static_cast<int64_t>(0x280000)) * Geometry::getPitchVector32(pitch).x) >> 32;
-    gForceVert = ((static_cast<int64_t>(gForceVert)) * Geometry::getRollHorizontalComponent(roll)) >> 32;
+    int32_t gForceVert = ((static_cast<int64_t>(0x280000)) * Geometry::getPitchVector32(vehicle.pitch).x) >> 32;
+    gForceVert = ((static_cast<int64_t>(gForceVert)) * Geometry::getRollHorizontalComponent(vehicle.roll)) >> 32;
 
-    const auto& ted = GetTrackElementDescriptor(GetTrackType());
-    const int32_t vertFactor = ted.verticalFactor(track_progress);
-    const int32_t lateralFactor = ted.lateralFactor(track_progress);
+    const int32_t vertFactor = trackDescriptor.verticalFactor(vehicle.track_progress);
+    const int32_t lateralFactor = trackDescriptor.lateralFactor(vehicle.track_progress);
+    const auto absoluteVelocity = abs(trainVelocity);
 
     int32_t gForceLateral = 0;
 
     if (vertFactor != 0)
     {
-        gForceVert += abs(trainVelocity) * 98 / vertFactor;
+        gForceVert += absoluteVelocity * 98 / vertFactor;
     }
 
     if (lateralFactor != 0)
     {
-        gForceLateral += abs(trainVelocity) * 98 / lateralFactor;
+        gForceLateral += absoluteVelocity * 98 / lateralFactor;
     }
 
     gForceVert *= 10;
@@ -1559,6 +1722,11 @@ GForces Vehicle::GetGForces(int32_t trainVelocity) const
         static_cast<int16_t>(gForceLateral & 0xFFFF),
         0,
     };
+}
+
+GForces Vehicle::GetGForces(int32_t trainVelocity) const
+{
+    return VehicleGetGForces(*this, trainVelocity, GetTrackElementDescriptor(GetTrackType()));
 }
 
 int32_t CalculateLongitudinalG(int32_t previousVelocity, int32_t currentVelocity)
@@ -1656,6 +1824,10 @@ bool Vehicle::IsCableLift() const
 
 const RideObjectEntry* Vehicle::GetRideEntry() const
 {
+    if (_vehicleUpdateLookupCache.rideEntry != nullptr && _vehicleUpdateLookupCache.rideSubtype == ride_subtype)
+    {
+        return _vehicleUpdateLookupCache.rideEntry;
+    }
     return GetRideEntryByIndex(ride_subtype);
 }
 
@@ -1671,6 +1843,10 @@ const CarEntry* Vehicle::Entry() const
 
 Ride* Vehicle::GetRide() const
 {
+    if (_vehicleUpdateLookupCache.ride != nullptr && _vehicleUpdateLookupCache.rideId == ride)
+    {
+        return _vehicleUpdateLookupCache.ride;
+    }
     return ::GetRide(ride);
 }
 

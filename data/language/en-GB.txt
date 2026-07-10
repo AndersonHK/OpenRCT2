@@ -3846,3 +3846,17 @@ STR_7045    :{WINDOW_COLOUR_2}Decoration bonus: {BLACK}+{COMMA32}%
 STR_7046    :{WINDOW_COLOUR_2}Decoration bonus: {BLACK}+{COMMA32}% (estimated)
 STR_7047    :{WINDOW_COLOUR_2}Segment {BLACK}{COMMA16} to {COMMA16}: {COMMA32} s, {COMMA32} m, value {CURRENCY2DP}
 STR_7048    :“The fare for {STRINGID} was extortionate!”
+STR_7049    :Walking to the platform for {STRINGID}
+STR_7050    :Waiting on the platform for {STRINGID}
+STR_7051    :{BLACK}Queue: {COMMA16}; platform: {COMMA16}/{COMMA16}
+STR_7052    :Vulkan (validation)
+STR_7053    :{WINDOW_COLOUR_2}Station-to-station ratings
+STR_7054    :{BLACK}Station {COMMA16} to {COMMA16}: E {COMMA2DP32}, I {COMMA2DP32}, N {COMMA2DP32}
+STR_7055    :{WINDOW_COLOUR_2}Conservative ride-wide summary
+STR_7056    :{BLACK}{COMMA32} m, {COMMA32} s; max {VELOCITY}, avg {VELOCITY}
+STR_7057    :{BLACK}Gs: +V {COMMA2DP32}, -V {COMMA2DP32}, lat {COMMA2DP32}, +long {COMMA2DP32}, -long {COMMA2DP32}
+STR_7058    :{WINDOW_COLOUR_2}Ride-global construction and test facts
+STR_7059    :Station {COMMA16} to {COMMA16}
+STR_7060    :{BLACK}No station-to-station samples yet; the summary below is legacy ride-wide data
+STR_7061    :Select station-to-station measurements
+STR_7062    :{BLACK}Comfort {COMMA32}%; decoration +{COMMA32}%

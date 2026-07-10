@@ -35,9 +35,11 @@ namespace OpenRCT2
     constexpr uint16_t kRealisedLongitudinalGVersion = kOpenRCT2ModParkFileVersionBase + 11;
     constexpr uint16_t kTransportRideStatsVersion = kOpenRCT2ModParkFileVersionBase + 12;
     constexpr uint16_t kTransportJourneyRoutingVersion = kOpenRCT2ModParkFileVersionBase + 13;
+    constexpr uint16_t kStationPlatformPreQueueVersion = kOpenRCT2ModParkFileVersionBase + 14;
+    constexpr uint16_t kRideRatingLegsVersion = kOpenRCT2ModParkFileVersionBase + 15;
 
     // Current version that is saved.
-    constexpr uint32_t kParkFileCurrentVersion = kTransportJourneyRoutingVersion;
+    constexpr uint32_t kParkFileCurrentVersion = kRideRatingLegsVersion;
 
     // The minimum version that is forwards compatible with the current version.
     constexpr uint32_t kParkFileMinVersion = 57;

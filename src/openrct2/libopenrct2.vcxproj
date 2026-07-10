@@ -57,6 +57,7 @@
       <PreprocessorDefinitions>__ENABLE_DISCORD__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Breakpad)'=='true' and ('$(Platform)'=='Win32' or '$(Platform)'=='x64')">USE_BREAKPAD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Platform)'=='Win32' or '$(Platform)'=='x64'">USE_FRIBIDI;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(EnableVulkan)'=='true' and '$(EnableVulkanDrawingEngine)'=='true'">ENABLE_VULKAN;ENABLE_VULKAN_DRAWING_ENGINE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeader Condition="'$(UsePCH)'=='true'">Use</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(UsePCH)'=='true'">openrct2_pch.h</PrecompiledHeaderFile>
       <ForcedIncludeFiles Condition="'$(UsePCH)'=='true'">openrct2_pch.h</ForcedIncludeFiles>
@@ -697,6 +698,7 @@
     <ClInclude Include="world\Location.hpp" />
     <ClInclude Include="world\Map.h" />
     <ClInclude Include="world\MapPathTopology.h" />
+    <ClInclude Include="world\MapPathRouteCache.h" />
     <ClInclude Include="world\MapTopology.h" />
     <ClInclude Include="world\MapAnimation.h" />
     <ClInclude Include="world\MapLimits.h" />
@@ -1270,6 +1272,7 @@
     <ClCompile Include="world\Footpath.cpp" />
     <ClCompile Include="world\Map.cpp" />
     <ClCompile Include="world\MapPathTopology.cpp" />
+    <ClCompile Include="world\MapPathRouteCache.cpp" />
     <ClCompile Include="world\MapTopology.cpp" />
     <ClCompile Include="world\MapAnimation.cpp" />
     <ClCompile Include="world\MapRangeView.cpp" />

@@ -70,6 +70,7 @@
 #include "Legacy.h"
 #include "ParkPreview.h"
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cstdint>
@@ -77,6 +78,7 @@
 #include <numeric>
 #include <optional>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 using namespace OpenRCT2;
@@ -229,8 +231,40 @@ namespace OpenRCT2
                 accumulator.transportDecoration = 0;
                 accumulator.transportDistance = 0;
             }
+            if (version >= kRideRatingLegsVersion)
+            {
+                cs.readWrite(accumulator.sampledDistance);
+                cs.readWrite(accumulator.totalSpeed);
+                cs.readWrite(accumulator.maxSpeed);
+                cs.readWrite(accumulator.maxPositiveVerticalG);
+                cs.readWrite(accumulator.maxNegativeVerticalG);
+                cs.readWrite(accumulator.maxLateralG);
+                cs.readWrite(accumulator.maxPositiveLongitudinalG);
+                cs.readWrite(accumulator.maxNegativeLongitudinalG);
+            }
+            else if (cs.getMode() == OrcaStream::Mode::reading)
+            {
+                accumulator.sampledDistance = 0;
+                accumulator.totalSpeed = 0;
+                accumulator.maxSpeed = 0;
+                accumulator.maxPositiveVerticalG = 0;
+                accumulator.maxNegativeVerticalG = 0;
+                accumulator.maxLateralG = 0;
+                accumulator.maxPositiveLongitudinalG = 0;
+                accumulator.maxNegativeLongitudinalG = 0;
+            }
             cs.readWrite(accumulator.ticks);
             cs.readWrite(accumulator.sampleEntity);
+            if (version >= kRideRatingLegsVersion)
+            {
+                cs.readWrite(accumulator.originStation);
+                cs.readWrite(accumulator.destinationStation);
+            }
+            else if (cs.getMode() == OrcaStream::Mode::reading)
+            {
+                accumulator.originStation = StationIndex::GetNull();
+                accumulator.destinationStation = StationIndex::GetNull();
+            }
             cs.readWrite(accumulator.sampleComplete);
             if (version >= kRealisedLongitudinalGVersion)
             {
@@ -263,6 +297,8 @@ namespace OpenRCT2
                 return;
             }
 
+            const bool omitLegSamplesForOlderTarget = cs.getMode() == OrcaStream::Mode::writing
+                && version < kRideRatingLegsVersion && !ride.ratingLegs.empty();
             ReadWriteRideRatingAccumulator(cs, ride.ratingAccumulator, version);
             if (version < kRideRatingActiveSampleVectorVersion)
             {
@@ -278,16 +314,114 @@ namespace OpenRCT2
             }
             else
             {
-                cs.readWriteVector(ride.activeRatingSamples, [&cs, version](RideRatingAccumulator& sample) {
-                    ReadWriteRideRatingAccumulator(cs, sample, version);
-                });
+                if (omitLegSamplesForOlderTarget)
+                {
+                    std::vector<RideRatingAccumulator> emptySamples;
+                    cs.readWriteVector(emptySamples, [&cs, version](RideRatingAccumulator& sample) {
+                        ReadWriteRideRatingAccumulator(cs, sample, version);
+                    });
+                }
+                else
+                {
+                    cs.readWriteVector(ride.activeRatingSamples, [&cs, version](RideRatingAccumulator& sample) {
+                        ReadWriteRideRatingAccumulator(cs, sample, version);
+                    });
+                }
             }
-            cs.readWriteArray(ride.recentRatingSamples, [&cs, version](RideRatingAccumulator& sample) {
-                ReadWriteRideRatingAccumulator(cs, sample, version);
-                return true;
-            });
-            cs.readWrite(ride.recentRatingSampleCount);
-            cs.readWrite(ride.recentRatingSampleNext);
+            if (omitLegSamplesForOlderTarget)
+            {
+                std::array<RideRatingAccumulator, kRideRatingRecentSampleCount> emptySamples{};
+                cs.readWriteArray(emptySamples, [&cs, version](RideRatingAccumulator& sample) {
+                    ReadWriteRideRatingAccumulator(cs, sample, version);
+                    return true;
+                });
+                uint8_t sampleCount = 0;
+                uint8_t sampleNext = 0;
+                cs.readWrite(sampleCount);
+                cs.readWrite(sampleNext);
+            }
+            else
+            {
+                cs.readWriteArray(ride.recentRatingSamples, [&cs, version](RideRatingAccumulator& sample) {
+                    ReadWriteRideRatingAccumulator(cs, sample, version);
+                    return true;
+                });
+                cs.readWrite(ride.recentRatingSampleCount);
+                cs.readWrite(ride.recentRatingSampleNext);
+            }
+
+            if (version >= kRideRatingLegsVersion)
+            {
+                cs.readWriteVector(ride.ratingLegs, [&cs, version](RideRatingLeg& leg) {
+                    cs.readWrite(leg.originStation);
+                    cs.readWrite(leg.destinationStation);
+                    cs.readWriteArray(leg.recentSamples, [&cs, version](RideRatingAccumulator& sample) {
+                        ReadWriteRideRatingAccumulator(cs, sample, version);
+                        return true;
+                    });
+                    cs.readWrite(leg.recentSampleCount);
+                    cs.readWrite(leg.recentSampleNext);
+                    cs.readWrite(leg.ratings.excitement);
+                    cs.readWrite(leg.ratings.intensity);
+                    cs.readWrite(leg.ratings.nausea);
+                });
+                if (cs.getMode() == OrcaStream::Mode::reading)
+                {
+                    std::erase_if(ride.ratingLegs, [&ride](const RideRatingLeg& leg) {
+                        const auto invalidRingState = leg.recentSampleCount > leg.recentSamples.size()
+                            || leg.recentSampleNext >= leg.recentSamples.size()
+                            || (leg.recentSampleCount < leg.recentSamples.size()
+                                && leg.recentSampleNext != leg.recentSampleCount);
+                        const auto containsEmptySample = !invalidRingState
+                            && std::any_of(
+                                leg.recentSamples.begin(), leg.recentSamples.begin() + leg.recentSampleCount,
+                                [](const auto& sample) { return !sample.hasSamples(); });
+                        return leg.originStation.IsNull() || leg.destinationStation.IsNull()
+                            || leg.originStation == leg.destinationStation
+                            || leg.originStation.ToUnderlying() >= ride.numStations
+                            || leg.destinationStation.ToUnderlying() >= ride.numStations
+                            || leg.recentSampleCount == 0 || invalidRingState || containsEmptySample;
+                    });
+                    std::sort(ride.ratingLegs.begin(), ride.ratingLegs.end(), [](const auto& left, const auto& right) {
+                        return std::pair{ left.originStation.ToUnderlying(), left.destinationStation.ToUnderlying() }
+                            < std::pair{ right.originStation.ToUnderlying(), right.destinationStation.ToUnderlying() };
+                    });
+                    const auto uniqueEnd = std::unique(
+                        ride.ratingLegs.begin(), ride.ratingLegs.end(), [](const auto& left, const auto& right) {
+                            return left.originStation == right.originStation
+                                && left.destinationStation == right.destinationStation;
+                        });
+                    ride.ratingLegs.erase(uniqueEnd, ride.ratingLegs.end());
+                    constexpr size_t kMaxDirectedStationLegs =
+                        Limits::kMaxStationsPerRide * (Limits::kMaxStationsPerRide - 1);
+                    if (ride.ratingLegs.size() > kMaxDirectedStationLegs)
+                    {
+                        ride.ratingLegs.resize(kMaxDirectedStationLegs);
+                    }
+                    for (auto& leg : ride.ratingLegs)
+                    {
+                        for (auto& sample : leg.recentSamples)
+                        {
+                            if (!sample.hasSamples())
+                            {
+                                continue;
+                            }
+                            sample.originStation = leg.originStation;
+                            sample.destinationStation = leg.destinationStation;
+                            sample.sampleEntity = EntityId::GetNull();
+                            sample.sampleComplete = true;
+                        }
+                    }
+                }
+            }
+            else if (cs.getMode() == OrcaStream::Mode::reading)
+            {
+                // An old active sample has no authoritative departure station.
+                // Keeping its ticks would attach pre-load track to whichever
+                // directed edge the vehicle reaches next.
+                ride.activeRatingSamples.clear();
+                ride.ratingLegs.clear();
+            }
 
             if (cs.getMode() == OrcaStream::Mode::reading && version < kRideRatingSampleScaleVersion)
             {
@@ -2176,8 +2310,35 @@ namespace OpenRCT2
                 }
             }
 
-            cs.readWrite(entity.State);
-            cs.readWrite(entity.SubState);
+            auto state = entity.State;
+            auto subState = entity.SubState;
+            const Ride* platformRide = nullptr;
+            if (cs.getMode() == OrcaStream::Mode::writing && guest != nullptr)
+            {
+                platformRide = GetRide(guest->CurrentRide);
+            }
+            const bool exportPlatformGuest = cs.getMode() == OrcaStream::Mode::writing
+                && version < kStationPlatformPreQueueVersion && guest != nullptr
+                && guest->State == PeepState::enteringRide
+                && (guest->RideSubState == PeepRideSubState::approachPlatformSlot
+                    || guest->RideSubState == PeepRideSubState::waitingOnPlatform
+                    || (guest->RideSubState == PeepRideSubState::inEntrance && guest->CurrentTrain == RideStation::kNoTrain
+                        && platformRide != nullptr && RideSupportsStationPlatformPreQueue(*platformRide)));
+            if (exportPlatformGuest)
+            {
+                // Older builds do not understand the platform substates or their transient
+                // reservation registry. Export a normal exit approach instead, preserving
+                // a coherent visible route off the station without mutating the live guest.
+                state = PeepState::leavingRide;
+                subState = EnumValue(PeepRideSubState::approachExit);
+            }
+            cs.readWrite(state);
+            cs.readWrite(subState);
+            if (cs.getMode() == OrcaStream::Mode::reading)
+            {
+                entity.State = state;
+                entity.SubState = subState;
+            }
 
             if (version >= kPeepAnimationObjectsVersion)
                 cs.readWrite(entity.AnimationObjectIndex);
@@ -2200,9 +2361,34 @@ namespace OpenRCT2
 
             cs.readWrite(entity.TshirtColour);
             cs.readWrite(entity.TrousersColour);
-            cs.readWrite(entity.DestinationX);
-            cs.readWrite(entity.DestinationY);
-            cs.readWrite(entity.DestinationTolerance);
+            auto destinationX = entity.DestinationX;
+            auto destinationY = entity.DestinationY;
+            auto destinationTolerance = entity.DestinationTolerance;
+            if (exportPlatformGuest)
+            {
+                if (const auto* ride = GetRide(guest->CurrentRide); ride != nullptr
+                    && guest->CurrentRideStation.ToUnderlying() < ride->numStations)
+                {
+                    const auto exit = ride->getStation(guest->CurrentRideStation).Exit;
+                    if (!exit.IsNull() && exit.direction < kNumOrthogonalDirections)
+                    {
+                        destinationX = static_cast<uint16_t>(
+                            exit.x * kCoordsXYStep + kCoordsXYHalfTile - DirectionOffsets[exit.direction].x * 20);
+                        destinationY = static_cast<uint16_t>(
+                            exit.y * kCoordsXYStep + kCoordsXYHalfTile - DirectionOffsets[exit.direction].y * 20);
+                        destinationTolerance = 2;
+                    }
+                }
+            }
+            cs.readWrite(destinationX);
+            cs.readWrite(destinationY);
+            cs.readWrite(destinationTolerance);
+            if (cs.getMode() == OrcaStream::Mode::reading)
+            {
+                entity.DestinationX = destinationX;
+                entity.DestinationY = destinationY;
+                entity.DestinationTolerance = destinationTolerance;
+            }
             cs.readWrite(entity.Var37);
             cs.readWrite(entity.Energy);
             cs.readWrite(entity.EnergyTarget);
@@ -3229,6 +3415,7 @@ public:
         _parkFile->Import(gameState);
         ResearchDetermineFirstOfType();
         GameFixSaveVars();
+        RideRebuildStationPlatformPreQueues();
     }
 
     bool PopulateIndexEntry(ScenarioIndexEntry* dst) override

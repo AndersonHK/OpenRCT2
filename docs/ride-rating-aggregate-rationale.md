@@ -52,7 +52,7 @@ The old ride-wide G-force code is used as a calibration reference. Its `2.8G` an
 - `Vehicle::UpdateMeasurements()` in `src/openrct2/ride/Vehicle.cpp` samples the train's current per-car track pieces and G forces during test runs.
 - formal vehicle tests use the head vehicle id as a phantom rider sample in the same active sample cache used by live rider trains.
 - `test_finish()` in `src/openrct2/ride/Vehicle.cpp` marks the test complete, then publishes the completed phantom train sample into the rolling sample cache.
-- `RideRatingUpdateLiveTrainSample()` in `src/openrct2/ride/Vehicle.cpp` samples normal passenger trains during live operation.
+- `RideRatingUpdateLiveTrainSample()` in `src/openrct2/ride/Vehicle.cpp` samples normal passenger trains during live operation. Its caller rejects non-head, ghost, inactive-status, and non-normal-rating vehicles before entering the profiled path.
 - `RideRatingPublishTrainSample()` in `src/openrct2/ride/Vehicle.Station.cpp` publishes a train sample when the train unloads.
 - `RideRatingAccumulateTick()` converts that tick state into raw excitement, intensity, and nausea.
 - `RideRatingTickIsSheltered()` and `RideRatingGetLocalContextScore()` move shelter, scenery, path, and nearby-ride effects into the sampled tick path.
@@ -62,6 +62,117 @@ The old ride-wide G-force code is used as a calibration reference. Its `2.8G` an
 - `RideRating::RecordActiveRiderSample()` in `src/openrct2/ride/RideRatings.cpp` publishes completed active samples for both live trains and phantom test trains.
 - `RideRatingsCalculate()` in `src/openrct2/ride/RideRatings.cpp` uses aggregate finalization for normal rides and mazes from completed rolling samples only; in-progress formal test accumulators are deliberately not displayed.
 - `RideRatingsCalculateAggregated()` finalizes raw totals through the square-root curve.
+
+### Vehicle-update lookup lifetime
+
+Live and test sampling run inside the ordinary head-vehicle update and share its owning ride and loaded vehicle object.
+`Vehicle::Update()` resolves those two objects once and installs a transient scoped lookup context. Rating, station,
+motion, and sound helpers retain their normal accessor calls, but matching ride ids and object subtypes reuse the resolved
+pointers instead of repeatedly entering the game-state ride vector and object manager. A helper querying a different ride
+or subtype follows the original lookup path.
+
+The live-rating gate is evaluated at the update site, before the profiled sampler call. The previous placement invoked the
+sampler for every vehicle and rejected almost all 485,000 calls inside it. Eligible heads now build one const
+`TrainSeatSummary`, which supplies stable linked-car order and rider presence to the per-car accumulator loop. Train test
+publication and active-sample clearing use the same summary traversal instead of maintaining separate linked-car walkers.
+For synchronized operation, adjacent-station discovery is cached per ride for the current simulation tick and map-topology
+generation; ordinary rides still short-circuit without consulting that cache. The cache is transient, affects no saved state,
+and recomputes after either the tick or topology generation changes. Ride service/status invalidation also clears it explicitly,
+while status and departure flags are part of the cache key, so a close/reopen or operating-setting edit cannot reuse an earlier
+eligibility result within the same tick.
+
+This is deliberately not a persistent rating cache. The context is restored when the head update returns, is never
+serialized, and carries no independent invalidation generation. Correctness depends only on the pre-existing vehicle-tick
+rule that its owning ride and loaded ride object remain alive for the duration of that synchronous update. Rating sample
+order, per-car force calculation, accumulator totals, rolling publication order, and train mutation order are unchanged.
+Nested profiler scopes cover eligible `RideRatingUpdateLiveTrainSample()` calls and `Vehicle::UpdateMeasurements()` so
+actual rating work can be separated from station, track-motion, and sound time without charging a profiler scope to every
+non-head vehicle in the EverythingPark benchmark.
+
+The first checksum-matched rerun reduced sampler entries from `485,000` to `280,975` over 500 measured ticks, but eligible
+sampling still used `1,189,440` microseconds. Local-context construction accounted for `154,018` microseconds, so it is not
+the dominant explanation for the remaining `4.23` microseconds per eligible call. The next pass therefore profiles and
+optimizes consist traversal, active-sample lookup, and per-car force/environment work without reducing tick cadence or
+changing accumulator order.
+
+A later 500-tick profile isolated `RideRatingResolveVehicleEnvironment` at `999,433` microseconds across `582,586` calls,
+while the `18,647` cold local-context builds accounted for only `149,584` microseconds. The cache-hit path was rescanning up
+to nine spatial-generation chunks after any unrelated map invalidation. Invalidation now propagates one generation to the
+small set of origin chunks whose seven-tile context can overlap the changed chunk. A vehicle cache hit consequently reads
+one origin-chunk generation instead. This moves bounded work from the per-vehicle path to map mutation and is conservative:
+it can rebuild an unaffected origin near a chunk edge, but it cannot preserve context affected by the changed tile.
+
+After that change, the final instrumented run reported `1,082,148` microseconds for the same `582,586` environment calls and
+`159,625` microseconds for `19,627` cold builds. That wall-time variation is not treated as a regression claim: every enabled
+`PROFILED_FUNCTION` scope performs clock reads, atomic sample updates, and thread-local stack bookkeeping, and nested totals
+include that instrumentation. The clean profiler-disabled runs are the acceptance measure; the child scopes are used only to
+identify relative ownership.
+
+The child signature is intentionally hierarchical. `BuildTrainSeatSummary` and `RideRatingTrainHasSampledRiders` run once
+for every eligible sampler entry. `RideRatingAccumulateTrainTick` and `RideRatingTrainIsSynchronised` run only for trains
+that actually carry riders or the formal test sample. `RideRatingResolveActiveVehicleSample` and
+`RideRatingAccumulateVehicleTick` run in stable linked-car order, with force calculation, local-environment resolution, and
+score application exposed below each car. The differences between those call counts identify empty-train rejection and
+trackless-car exits without adding simulation counters or saved state.
+
+The audit did not add a second consist or accumulator cache. Live sampling already builds the consist only once in the
+travelling/departing/arriving status path; the station-dispatch summary belongs to the mutually exclusive
+`waitingForPassengers` path, so a head-update cache would have no live-rating hit to reuse. Active samples already have a
+direct entity-id to `(ride, vector index)` reference which is validated before use; only a stale reference takes the linear
+recovery scan. Keeping that existing index avoids pointer lifetime hazards when the active-sample vector grows.
+
+This optimization deliberately leaves ownership at the vehicle accumulator boundary. It adds no ride-wide cached aggregate
+and does not assume that one complete circuit must remain the only publication unit. A later multi-station/Mobius refactor
+can partition the same ordered tick samples by boarding station and publish station-to-next-station leg ratings, matching
+transport journey composition across any number of adjacent legs.
+
+Within a sampled train, immutable descriptor inputs are now derived at their narrowest valid lifetime. Boat-hire and
+transport classification are resolved once per train. Each car resolves its track type and descriptor once; that same
+descriptor feeds G-force curvature and sampled track-feature scoring. Normalized train speed is also computed once per car
+and reused by normal and transport scoring. This removes repeated lookup/arithmetic only: the same ticks are sampled, cars
+are visited in the same order, longitudinal G still uses each accumulator's immediately previous sampled train velocity,
+the local-context cache remains accumulator-owned, and all integer score formulas and publication order are unchanged.
+
+## Multi-station leg ownership
+
+For a ride with more than one station, a completed sampled unit is the physical departure station to the physical arrival
+station, not a numerically inferred `station n -> station n + 1` range and not necessarily a complete circuit. Each active
+car accumulator records the head vehicle's `current_station` when its first tick is sampled. `UpdateArriving()` supplies the
+station index read from the actual arrival track element when braking/arrival completes. The failed-station-brakes branch
+also resolves and assigns that track element before publication rather than reusing the departure station. Pass-through
+trains publish at the same boundary and immediately begin a fresh accumulator on their next departing tick, so through-riders contribute one
+complete sample to every leg they traverse without being averaged into a fictitious full-track trip.
+
+Completed histories are sparse and sorted by the ordered `(origin, destination)` edge. Each directed edge stores a
+twenty-sample rolling history and a finalized excitement/intensity/nausea tuple. Opposite shuttle directions and a middle
+station with two physical successors therefore remain independent instead of replacing or blending one another. Single-station rides continue to use only
+the existing ride-wide history, so their rating path and fixtures do not allocate or consult leg state.
+
+The Measurements page shows explicit `Station A to B` rows. Each row owns its finalized ratings plus sampled distance,
+duration, maximum and average speed, and vertical/lateral/longitudinal G extrema. Drops, inversions, airtime totals, holes,
+and other construction/test facts that are not yet captured as unambiguous leg events remain in the existing test fields and
+are labeled ride-global in the UI; they are not copied onto every leg.
+
+The Measurements window provides a deterministic `Station A to B` selector ordered by the directed endpoint pair. Every
+measured leg is selectable, including fifth and later edges on bidirectional shuttles, and the selected leg expands its
+E/I/N, distance, duration, maximum/average speed, and G extrema. Transport legs also show their measured comfort/decoration
+and the exact time, distance, and fare used by route planning. Selection is retained by endpoint identity, so inserting or refreshing an earlier sorted edge does
+not silently switch the displayed physical leg.
+
+Legacy ride lists, value calculation, sorting, scripting, and other consumers still require one tuple. Their compatibility
+summary is deliberately conservative: excitement is the minimum measured directed-edge excitement, while intensity and nausea are
+the maxima across measured edges. It replaces the previous/null ride-wide tuple only after every station has at least one
+measured outbound edge; incomplete coverage cannot make an unmeasured portion disappear. This tuple may not describe one particular leg and is labeled as a ride-wide compatibility
+summary in the detailed UI. Guest admission, satisfaction, and nausea calculations use the selected boarding station's leg
+tuple when it exists, falling back to the compatibility tuple only before that leg has measurements.
+
+Park format `60015` stores origin/destination indices on active accumulators and the sparse completed leg histories. Older
+saves load with no leg histories and retain their existing ride-wide tuple until new physical legs are observed. Older-target
+exports omit the new fields and histories directly in the serializer; no live accumulator or history is cleared or rewritten
+to create the export. Because an older reader cannot distinguish adjacent legs, that export writes empty active/recent sample
+buffers and preserves the already serialized conservative tuple instead of allowing the old full-circuit aggregator to blend
+leg samples later. Construction/test invalidation clears all leg histories, while an ordinary close preserves completed
+history but clears interrupted active samples so a close/reopen cannot join two journeys.
 
 ## Maze handling
 

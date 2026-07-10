@@ -172,11 +172,17 @@ namespace OpenRCT2::Ui::Vulkan
         _device = device.GetDevice();
 
         _spriteAtlas.Initialise(
-            _physicalDevice, _device, { Gpu::kAtlasDimension, Gpu::kAtlasDimension, 1 }, kSpriteAtlasLayers,
+            _physicalDevice, _device, { Gpu::kAtlasDimension, Gpu::kAtlasDimension, 1 }, Gpu::kAtlasLayers,
             VK_FORMAT_R8_UINT, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
             VK_IMAGE_ASPECT_COLOR_BIT);
         _palette.Initialise(
             _physicalDevice, _device, { 256, 1, 1 }, 1, VK_FORMAT_R8G8B8A8_UNORM,
+            VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+        _remapPalette.Initialise(
+            _physicalDevice, _device, { 256, 256, 1 }, 1, VK_FORMAT_R8_UINT,
+            VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+        _blendPalette.Initialise(
+            _physicalDevice, _device, { 256, 256, 1 }, 1, VK_FORMAT_R8_UINT,
             VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
 
         const VkSamplerCreateInfo samplerInfo = {
@@ -209,12 +215,16 @@ namespace OpenRCT2::Ui::Vulkan
             vkDestroySampler(_device, _nearestSampler, nullptr);
         }
         _nearestSampler = VK_NULL_HANDLE;
+        _blendPalette.Dispose();
+        _remapPalette.Dispose();
         _palette.Dispose();
         _spriteAtlas.Dispose();
         _physicalDevice = VK_NULL_HANDLE;
         _device = VK_NULL_HANDLE;
         _atlasHasShaderLayout = false;
         _paletteHasShaderLayout = false;
+        _remapPaletteHasShaderLayout = false;
+        _blendPaletteHasShaderLayout = false;
         _canvasHasShaderLayout.fill(false);
     }
 
@@ -224,7 +234,6 @@ namespace OpenRCT2::Ui::Vulkan
         {
             return;
         }
-        CheckVk(vkDeviceWaitIdle(_device), "vkDeviceWaitIdle(indexed resize)");
         DestroyCanvases();
         CreateCanvases(logicalExtent);
     }
@@ -236,7 +245,7 @@ namespace OpenRCT2::Ui::Vulkan
             .baseMipLevel = 0,
             .levelCount = 1,
             .baseArrayLayer = 0,
-            .layerCount = kSpriteAtlasLayers,
+            .layerCount = Gpu::kAtlasLayers,
         };
         RecordImageBarrier(
             commandBuffer, _spriteAtlas.GetImage(),
@@ -251,7 +260,7 @@ namespace OpenRCT2::Ui::Vulkan
         VkCommandBuffer commandBuffer, const UploadAllocation& allocation, uint32_t atlasLayer,
         const Gpu::Int4& destinationBounds, uint32_t sourcePitchPixels)
     {
-        if (atlasLayer >= kSpriteAtlasLayers || destinationBounds.x < 0 || destinationBounds.y < 0
+        if (atlasLayer >= Gpu::kAtlasLayers || destinationBounds.x < 0 || destinationBounds.y < 0
             || destinationBounds.z <= destinationBounds.x || destinationBounds.w <= destinationBounds.y)
         {
             throw std::invalid_argument("Invalid Vulkan sprite-atlas upload destination");
@@ -293,7 +302,7 @@ namespace OpenRCT2::Ui::Vulkan
             .baseMipLevel = 0,
             .levelCount = 1,
             .baseArrayLayer = 0,
-            .layerCount = kSpriteAtlasLayers,
+            .layerCount = Gpu::kAtlasLayers,
         };
         RecordImageBarrier(
             commandBuffer, _spriteAtlas.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -348,6 +357,65 @@ namespace OpenRCT2::Ui::Vulkan
         _paletteHasShaderLayout = true;
     }
 
+    void IndexedResources::RecordRemapPaletteUpload(VkCommandBuffer commandBuffer, const UploadAllocation& allocation)
+    {
+        RecordIndexTableUpload(
+            commandBuffer, allocation, _remapPalette, _remapPaletteHasShaderLayout, "remap-palette");
+    }
+
+    void IndexedResources::RecordBlendPaletteUpload(VkCommandBuffer commandBuffer, const UploadAllocation& allocation)
+    {
+        RecordIndexTableUpload(
+            commandBuffer, allocation, _blendPalette, _blendPaletteHasShaderLayout, "blend-palette");
+    }
+
+    void IndexedResources::RecordIndexTableUpload(
+        VkCommandBuffer commandBuffer, const UploadAllocation& allocation, Image& image, bool& hasShaderLayout,
+        const char* description)
+    {
+        constexpr VkDeviceSize kIndexTableBytes = 256 * 256;
+        if (allocation.size < kIndexTableBytes)
+        {
+            throw std::invalid_argument(std::string("Vulkan ") + description + " upload allocation is too small");
+        }
+
+        const VkImageSubresourceRange range = {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1,
+        };
+        RecordImageBarrier(
+            commandBuffer, image.GetImage(),
+            hasShaderLayout ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, range,
+            hasShaderLayout ? VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT : VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+            VK_PIPELINE_STAGE_TRANSFER_BIT, hasShaderLayout ? VK_ACCESS_SHADER_READ_BIT : 0,
+            VK_ACCESS_TRANSFER_WRITE_BIT);
+
+        const VkBufferImageCopy copy = {
+            .bufferOffset = allocation.offset,
+            .bufferRowLength = 256,
+            .bufferImageHeight = 256,
+            .imageSubresource = {
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .mipLevel = 0,
+                .baseArrayLayer = 0,
+                .layerCount = 1,
+            },
+            .imageOffset = { 0, 0, 0 },
+            .imageExtent = { 256, 256, 1 },
+        };
+        vkCmdCopyBufferToImage(
+            commandBuffer, allocation.buffer, image.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
+        RecordImageBarrier(
+            commandBuffer, image.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, range, VK_PIPELINE_STAGE_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+        hasShaderLayout = true;
+    }
+
     void IndexedResources::RecordCanvasClear(
         VkCommandBuffer commandBuffer, uint32_t frameIndex, uint8_t paletteIndex)
     {
@@ -383,6 +451,84 @@ namespace OpenRCT2::Ui::Vulkan
         _canvasHasShaderLayout[frameIndex] = true;
     }
 
+    void IndexedResources::RecordCanvasUpload(
+        VkCommandBuffer commandBuffer, uint32_t frameIndex, const UploadAllocation& allocation,
+        const Gpu::CanvasUpload& upload)
+    {
+        if (frameIndex >= kFramesInFlight || upload.width == 0 || upload.height == 0
+            || upload.sourcePitch < upload.width)
+        {
+            throw std::invalid_argument("Invalid Vulkan indexed-canvas upload");
+        }
+        auto& canvas = _indexedCanvases[frameIndex];
+        const auto extent = canvas.GetExtent();
+        const uint64_t requiredBytes = static_cast<uint64_t>(upload.sourcePitch) * upload.height;
+        if (upload.width > extent.width || upload.height > extent.height || requiredBytes > allocation.size)
+        {
+            throw std::invalid_argument("Vulkan indexed-canvas upload exceeds its source or destination");
+        }
+        const VkImageSubresourceRange range = {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1,
+        };
+        RecordImageBarrier(
+            commandBuffer, canvas.GetImage(),
+            _canvasHasShaderLayout[frameIndex] ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, range,
+            _canvasHasShaderLayout[frameIndex] ? VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT : VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+            VK_PIPELINE_STAGE_TRANSFER_BIT, _canvasHasShaderLayout[frameIndex] ? VK_ACCESS_SHADER_READ_BIT : 0,
+            VK_ACCESS_TRANSFER_WRITE_BIT);
+        const VkBufferImageCopy copy = {
+            .bufferOffset = allocation.offset,
+            .bufferRowLength = upload.sourcePitch,
+            .bufferImageHeight = upload.height,
+            .imageSubresource = {
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .mipLevel = 0,
+                .baseArrayLayer = 0,
+                .layerCount = 1,
+            },
+            .imageOffset = { 0, 0, 0 },
+            .imageExtent = { upload.width, upload.height, 1 },
+        };
+        vkCmdCopyBufferToImage(
+            commandBuffer, allocation.buffer, canvas.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
+        RecordImageBarrier(
+            commandBuffer, canvas.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, range, VK_PIPELINE_STAGE_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+        _canvasHasShaderLayout[frameIndex] = true;
+    }
+
+    void IndexedResources::RecordCanvasAndDepthClear(
+        VkCommandBuffer commandBuffer, uint32_t frameIndex, uint8_t paletteIndex)
+    {
+        RecordCanvasClear(commandBuffer, frameIndex, paletteIndex);
+
+        auto& depth = _depthCanvases.at(frameIndex);
+        const VkImageSubresourceRange range = {
+            .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1,
+        };
+        RecordImageBarrier(
+            commandBuffer, depth.GetImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, range,
+            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, VK_ACCESS_TRANSFER_WRITE_BIT);
+        constexpr VkClearDepthStencilValue clear = { 1.0f, 0 };
+        vkCmdClearDepthStencilImage(
+            commandBuffer, depth.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear, 1, &range);
+        RecordImageBarrier(
+            commandBuffer, depth.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, range, VK_PIPELINE_STAGE_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
+            VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT);
+    }
+
     void IndexedResources::CreateCanvases(Gpu::Extent logicalExtent)
     {
         _canvasHasShaderLayout.fill(false);
@@ -395,8 +541,24 @@ namespace OpenRCT2::Ui::Vulkan
                     | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
                 VK_IMAGE_ASPECT_COLOR_BIT);
             _depthCanvases[i].Initialise(
-                _physicalDevice, _device, extent, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                _physicalDevice, _device, extent, 1, VK_FORMAT_D32_SFLOAT,
+                VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT
+                    | VK_IMAGE_USAGE_SAMPLED_BIT,
                 VK_IMAGE_ASPECT_DEPTH_BIT);
+            _compositeCanvases[i].Initialise(
+                _physicalDevice, _device, extent, 1, VK_FORMAT_R8_UINT,
+                VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+                VK_IMAGE_ASPECT_COLOR_BIT);
+            _transparentCanvases[i].Initialise(
+                _physicalDevice, _device, extent, 1, VK_FORMAT_R16_UINT,
+                VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+            for (auto& depth : _transparentDepthCanvases[i])
+            {
+                depth.Initialise(
+                    _physicalDevice, _device, extent, 1, VK_FORMAT_D32_SFLOAT,
+                    VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                    VK_IMAGE_ASPECT_DEPTH_BIT);
+            }
         }
     }
 
@@ -410,6 +572,21 @@ namespace OpenRCT2::Ui::Vulkan
         for (auto& image : _depthCanvases)
         {
             image.Dispose();
+        }
+        for (auto& image : _compositeCanvases)
+        {
+            image.Dispose();
+        }
+        for (auto& image : _transparentCanvases)
+        {
+            image.Dispose();
+        }
+        for (auto& frame : _transparentDepthCanvases)
+        {
+            for (auto& image : frame)
+            {
+                image.Dispose();
+            }
         }
     }
 

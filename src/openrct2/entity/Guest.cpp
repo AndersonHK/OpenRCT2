@@ -2019,10 +2019,10 @@ namespace OpenRCT2
     static TransportRideJourney GuestGetPlannedTransportJourney(const Guest& guest, const Ride& ride)
     {
         auto destination = guest.transportDestinationStation;
-        if (destination.IsNull() && ride.numStations >= 2 && !guest.CurrentRideStation.IsNull())
-        {
-            destination = StationIndex::FromUnderlying((guest.CurrentRideStation.ToUnderlying() + 1) % ride.numStations);
-        }
+            if (destination.IsNull() && ride.numStations >= 2 && !guest.CurrentRideStation.IsNull())
+            {
+                destination = RideGetTransportSegment(ride, guest.CurrentRideStation).destinationStation;
+            }
         return RideGetTransportJourney(ride, guest.CurrentRideStation, destination);
     }
 
@@ -2126,6 +2126,7 @@ namespace OpenRCT2
             assert(ride.type < std::size(kRideTypeDescriptors));
             const bool isTransportRide = ride.getRideTypeDescriptor().flags.has(RtdFlag::isTransportRide);
             const bool isPlannedTransport = isUsingTransportRide(ride) && CurrentRideStation == entranceNum;
+            const auto stationRatings = RideGetRatingsForStation(ride, entranceNum);
 
             // Transport rides are only boarded as a planned route leg. They are no
             // longer selected opportunistically as ordinary attractions.
@@ -2246,7 +2247,7 @@ namespace OpenRCT2
                     // excitement check and will only do a basic intensity check when they arrive at the ride itself.
                     if (ride.id == guestHeadingToRideId)
                     {
-                        if (ride.ratings.intensity > RideRating::make(10, 00) && !gameState.cheats.ignoreRideIntensity)
+                        if (stationRatings.intensity > RideRating::make(10, 00) && !gameState.cheats.ignoreRideIntensity)
                         {
                             GuestRideIsTooIntense(*this, ride, peepAtRide);
                             return false;
@@ -2280,7 +2281,7 @@ namespace OpenRCT2
                                 // intensity and decrease the min intensity by about 2.5.
                                 RideRating_t maxIntensity = std::min(intensity.GetMaximum() * 100, 1000) + happiness;
                                 RideRating_t minIntensity = (intensity.GetMinimum() * 100) - happiness;
-                                if (ride.ratings.intensity < minIntensity)
+                                if (stationRatings.intensity < minIntensity)
                                 {
                                     if (peepAtRide)
                                     {
@@ -2294,7 +2295,7 @@ namespace OpenRCT2
                                     choseNotToGoOnRide(ride, peepAtRide, true);
                                     return false;
                                 }
-                                if (ride.ratings.intensity > maxIntensity)
+                                if (stationRatings.intensity > maxIntensity)
                                 {
                                     GuestRideIsTooIntense(*this, ride, peepAtRide);
                                     return false;
@@ -2303,7 +2304,7 @@ namespace OpenRCT2
                                 // nausea calculations.
                                 RideRating_t maxNausea = NauseaMaximumThresholds[(EnumValue(nauseaTolerance) & 3)] + happiness;
 
-                                if (ride.ratings.nausea > maxNausea)
+                                if (stationRatings.nausea > maxNausea)
                                 {
                                     if (peepAtRide)
                                     {
@@ -2319,7 +2320,7 @@ namespace OpenRCT2
                                 }
 
                                 // Very nauseous peeps will only go on very gentle rides.
-                                if (ride.ratings.nausea >= RideRating::make(1, 40) && nausea > 160)
+                                if (stationRatings.nausea >= RideRating::make(1, 40) && nausea > 160)
                                 {
                                     choseNotToGoOnRide(ride, peepAtRide, false);
                                     return false;
@@ -2894,6 +2895,8 @@ namespace OpenRCT2
         return !car_array.empty();
     }
 
+    static void GuestCommitRideAdmission(Guest& guest, Ride& ride);
+
     static void PeepUpdateRideAtEntranceTryLeave(Guest& guest)
     {
         if (guest.hasTransportRoute())
@@ -3062,23 +3065,24 @@ namespace OpenRCT2
             return 70;
         }
 
+        const auto ratings = RideGetRatingsForStation(ride, guest.CurrentRideStation);
         uint8_t intensitySatisfaction = 3;
         uint8_t nauseaSatisfaction = 3;
         RideRating_t maxIntensity = guest.intensity.GetMaximum() * 100;
         RideRating_t minIntensity = guest.intensity.GetMinimum() * 100;
-        if (minIntensity <= ride.ratings.intensity && maxIntensity >= ride.ratings.intensity)
+        if (minIntensity <= ratings.intensity && maxIntensity >= ratings.intensity)
         {
             intensitySatisfaction--;
         }
         minIntensity -= guest.happiness * 2;
         maxIntensity += guest.happiness;
-        if (minIntensity <= ride.ratings.intensity && maxIntensity >= ride.ratings.intensity)
+        if (minIntensity <= ratings.intensity && maxIntensity >= ratings.intensity)
         {
             intensitySatisfaction--;
         }
         minIntensity -= guest.happiness * 2;
         maxIntensity += guest.happiness;
-        if (minIntensity <= ride.ratings.intensity && maxIntensity >= ride.ratings.intensity)
+        if (minIntensity <= ratings.intensity && maxIntensity >= ratings.intensity)
         {
             intensitySatisfaction--;
         }
@@ -3087,19 +3091,19 @@ namespace OpenRCT2
         // has a minimum preferred nausea value. (For peeps with None or Low, this is set to zero.)
         RideRating_t minNausea = kNauseaMinimumThresholds[(EnumValue(guest.nauseaTolerance) & 3)];
         RideRating_t maxNausea = NauseaMaximumThresholds[(EnumValue(guest.nauseaTolerance) & 3)];
-        if (minNausea <= ride.ratings.nausea && maxNausea >= ride.ratings.nausea)
+        if (minNausea <= ratings.nausea && maxNausea >= ratings.nausea)
         {
             nauseaSatisfaction--;
         }
         minNausea -= guest.happiness * 2;
         maxNausea += guest.happiness;
-        if (minNausea <= ride.ratings.nausea && maxNausea >= ride.ratings.nausea)
+        if (minNausea <= ratings.nausea && maxNausea >= ratings.nausea)
         {
             nauseaSatisfaction--;
         }
         minNausea -= guest.happiness * 2;
         maxNausea += guest.happiness;
-        if (minNausea <= ride.ratings.nausea && maxNausea >= ride.ratings.nausea)
+        if (minNausea <= ratings.nausea && maxNausea >= ratings.nausea)
         {
             nauseaSatisfaction--;
         }
@@ -3158,7 +3162,8 @@ namespace OpenRCT2
     static void GuestUpdateRideNauseaGrowth(Guest& guest, const Ride& ride)
     {
         const auto nauseaMultiplier = std::clamp(256 - guest.happinessTarget, 64, 200);
-        const auto rideGeneratedNausea = (ride.ratings.nausea * nauseaMultiplier) / 512;
+        const auto ratings = RideGetRatingsForStation(ride, guest.CurrentRideStation);
+        const auto rideGeneratedNausea = (ratings.nausea * nauseaMultiplier) / 512;
         const auto hungerAdjustedNausea = (rideGeneratedNausea * (255 + static_cast<int32_t>(guest.hunger) * 3)) / 255;
         const auto nauseaGrowthRateChange = hungerAdjustedNausea >> (EnumValue(guest.nauseaTolerance) & 3);
         guest.nauseaTarget = static_cast<uint8_t>(std::min<int32_t>(guest.nauseaTarget + nauseaGrowthRateChange, 255));
@@ -3905,6 +3910,36 @@ namespace OpenRCT2
 
         sfl::static_vector<uint8_t, Limits::kMaxTrainsPerRide> carArray;
 
+        if (RideStationPlatformPreQueueIsActive(*ride, CurrentRideStation))
+        {
+            if (ride->status != RideStatus::open || ride->vehicleChangeTimeout != 0)
+            {
+                PeepUpdateRideAtEntranceTryLeave(*this);
+                return;
+            }
+            if (ride->flags.has(RideFlag::brokenDown))
+            {
+                return;
+            }
+
+            const auto ridePrice = GuestGetAdmissionPrice(*this, *ride);
+            if (ridePrice != 0 && !PeepCheckRidePriceAtEntrance(*this, *ride, ridePrice))
+            {
+                return;
+            }
+
+            const auto reservation = RideReserveStationPlatformSlot(*ride, CurrentRideStation, id);
+            if (!reservation.has_value())
+            {
+                return;
+            }
+            CurrentTrain = RideStation::kNoTrain;
+            CurrentCar = reservation->carIndex;
+            CurrentSeat = reservation->seatIndex;
+            goToRideEntrance(*ride);
+            return;
+        }
+
         if (ride->getRideTypeDescriptor().flags.has(RtdFlag::noVehicles))
         {
             if (ride->numRiders >= ride->getEffectiveOperationOption())
@@ -4111,7 +4146,16 @@ namespace OpenRCT2
 
             if (RideSubState == PeepRideSubState::inEntrance && xy_distance < distanceThreshold)
             {
-                RideSubState = PeepRideSubState::freeVehicleCheck;
+                const auto reservation = RideGetStationPlatformReservation(*ride, CurrentRideStation, id);
+                if (reservation.has_value())
+                {
+                    SetDestination(reservation->waitPosition, 2);
+                    RideSubState = PeepRideSubState::approachPlatformSlot;
+                }
+                else
+                {
+                    RideSubState = PeepRideSubState::freeVehicleCheck;
+                }
             }
 
             actionZ = ride->getStation(CurrentRideStation).GetBaseZ();
@@ -4128,7 +4172,16 @@ namespace OpenRCT2
 
         if (RideSubState == PeepRideSubState::inEntrance)
         {
-            RideSubState = PeepRideSubState::freeVehicleCheck;
+            const auto reservation = RideGetStationPlatformReservation(*ride, CurrentRideStation, id);
+            if (reservation.has_value())
+            {
+                SetDestination(reservation->waitPosition, 2);
+                RideSubState = PeepRideSubState::approachPlatformSlot;
+            }
+            else
+            {
+                RideSubState = PeepRideSubState::freeVehicleCheck;
+            }
             return;
         }
 
@@ -4281,47 +4334,47 @@ namespace OpenRCT2
      *
      *  rct2: 0x006920B4
      */
-    void Guest::updateRideFreeVehicleEnterRide(Ride& ride)
+    static void GuestCommitRideAdmission(Guest& guest, Ride& ride)
     {
-        auto ridePrice = GuestGetAdmissionPrice(*this, ride);
+        auto ridePrice = GuestGetAdmissionPrice(guest, ride);
         bool paidExtortiveTransport = false;
         if (ridePrice != 0)
         {
-            if ((hasItem(ShopItem::voucher)) && (voucherType == VOUCHER_TYPE_RIDE_FREE) && (voucherRideId == CurrentRide))
+            if (guest.hasItem(ShopItem::voucher) && guest.voucherType == VOUCHER_TYPE_RIDE_FREE
+                && guest.voucherRideId == guest.CurrentRide)
             {
-                removeItem(ShopItem::voucher);
-                WindowInvalidateFlags |= PEEP_INVALIDATE_PEEP_INVENTORY;
+                guest.removeItem(ShopItem::voucher);
+                guest.WindowInvalidateFlags |= PEEP_INVALIDATE_PEEP_INVENTORY;
             }
             else
             {
                 ride.totalProfit = AddClamp<money64>(ride.totalProfit, ridePrice);
                 ride.windowInvalidateFlags.set(RideInvalidateFlag::income);
-                spendMoney(paidOnRides, ridePrice, ExpenditureType::parkRideTickets);
-                paidExtortiveTransport = isUsingTransportRide(ride) && transportRouteWasExtortive
+                guest.spendMoney(guest.paidOnRides, ridePrice, ExpenditureType::parkRideTickets);
+                paidExtortiveTransport = guest.isUsingTransportRide(ride) && guest.transportRouteWasExtortive
                     && ride.priceTarget == RidePriceTarget::badValue;
             }
         }
 
         if (paidExtortiveTransport)
         {
-            GuestApplyPaidExtortiveTransportPenalty(*this, ride.id);
+            GuestApplyPaidExtortiveTransportPenalty(guest, ride.id);
         }
 
-        RideSubState = PeepRideSubState::leaveEntrance;
         uint8_t queueTime = static_cast<uint8_t>(
-            std::min<uint32_t>(GameTime::TicksToMinutes(timeInQueue), std::numeric_limits<uint8_t>::max()));
-        auto& station = ride.getStation(CurrentRideStation);
+            std::min<uint32_t>(GameTime::TicksToMinutes(guest.timeInQueue), std::numeric_limits<uint8_t>::max()));
+        auto& station = ride.getStation(guest.CurrentRideStation);
         if (queueTime != station.QueueTime)
         {
             station.QueueTime = queueTime;
             auto* windowMgr = Ui::GetWindowManager();
-            windowMgr->InvalidateByNumber(WindowClass::ride, CurrentRide.ToUnderlying());
+            windowMgr->InvalidateByNumber(WindowClass::ride, guest.CurrentRide.ToUnderlying());
         }
 
-        if (PeepFlags & PEEP_FLAGS_TRACKING)
+        if (guest.PeepFlags & PEEP_FLAGS_TRACKING)
         {
             auto ft = Formatter();
-            FormatNameTo(ft);
+            guest.FormatNameTo(ft);
             ride.formatNameTo(ft);
 
             StringId msg_string;
@@ -4332,16 +4385,21 @@ namespace OpenRCT2
 
             if (Config::Get().notifications.guestOnRide)
             {
-                News::AddItemToQueue(News::ItemType::peepOnRide, msg_string, id, ft);
+                News::AddItemToQueue(News::ItemType::peepOnRide, msg_string, guest.id, ft);
             }
         }
 
         const auto& rtd = ride.getRideTypeDescriptor();
         if (rtd.specialType == RtdSpecialType::spiralSlide)
         {
-            SwitchToSpecialSprite(1);
+            guest.SwitchToSpecialSprite(1);
         }
+    }
 
+    void Guest::updateRideFreeVehicleEnterRide(Ride& ride)
+    {
+        GuestCommitRideAdmission(*this, ride);
+        RideSubState = PeepRideSubState::leaveEntrance;
         updateRideAdvanceThroughEntrance();
     }
 
@@ -4366,6 +4424,103 @@ namespace OpenRCT2
         guest.RideSubState = PeepRideSubState::atEntrance;
 
         ride.queueInsertGuestAtFront(guest.CurrentRideStation, &guest);
+    }
+
+    void Guest::recoverFromStationPlatform(Ride& ride)
+    {
+        RideReleaseStationPlatformSlot(ride, CurrentRideStation, id);
+        CurrentTrain = RideStation::kNoTrain;
+
+        if (CurrentRideStation.ToUnderlying() < ride.numStations)
+        {
+            const auto& station = ride.getStation(CurrentRideStation);
+            if (!station.Exit.IsNull() && station.Exit.direction < kNumOrthogonalDirections)
+            {
+                SetState(PeepState::leavingRide);
+                PeepGoToRideExit(*this, ride, x, y, station.GetBaseZ(), station.Exit.direction);
+                return;
+            }
+            if (!station.Entrance.IsNull() && station.Entrance.direction < kNumOrthogonalDirections)
+            {
+                PeepUpdateRideNoFreeVehicleRejoinQueue(*this, ride);
+                return;
+            }
+        }
+
+        SetState(PeepState::falling);
+    }
+
+    void Guest::updateRideApproachPlatformSlot()
+    {
+        auto* ride = GetRide(CurrentRide);
+        if (ride == nullptr)
+        {
+            SetState(PeepState::falling);
+            return;
+        }
+        const auto reservation = RideGetStationPlatformReservation(*ride, CurrentRideStation, id);
+        if (!reservation.has_value())
+        {
+            recoverFromStationPlatform(*ride);
+            return;
+        }
+
+        if (auto loc = UpdateAction(); loc.has_value())
+        {
+            moveTo({ loc.value(), reservation->waitPosition.z });
+            return;
+        }
+        RideSubState = PeepRideSubState::waitingOnPlatform;
+    }
+
+    void Guest::updateRideWaitingOnPlatform()
+    {
+        timeInQueue = AddClamp<uint16_t>(timeInQueue, 1);
+
+        auto* ride = GetRide(CurrentRide);
+        if (ride == nullptr)
+        {
+            SetState(PeepState::falling);
+            return;
+        }
+        if (!RideGetStationPlatformReservation(*ride, CurrentRideStation, id).has_value())
+        {
+            recoverFromStationPlatform(*ride);
+            return;
+        }
+        if (ride->status != RideStatus::open || ride->vehicleChangeTimeout != 0
+            || ride->flags.has(RideFlag::brokenDown))
+        {
+            recoverFromStationPlatform(*ride);
+            return;
+        }
+        if (!RideStationPlatformGuestIsFirst(*ride, CurrentRideStation, id))
+        {
+            return;
+        }
+
+        sfl::static_vector<uint8_t, Limits::kMaxTrainsPerRide> carArray;
+        if (!FindVehicleToEnter(*this, *ride, carArray))
+        {
+            return;
+        }
+        const auto ridePrice = GuestGetAdmissionPrice(*this, *ride);
+        if (ridePrice != 0 && !PeepCheckRidePriceAtEntrance(*this, *ride, ridePrice))
+        {
+            recoverFromStationPlatform(*ride);
+            return;
+        }
+        auto* vehicle = PeepChooseCarFromRide(*this, *ride, carArray);
+        if (vehicle == nullptr)
+        {
+            CurrentTrain = RideStation::kNoTrain;
+            return;
+        }
+        PeepChooseSeatFromCar(this, *ride, vehicle);
+        RideReleaseStationPlatformSlot(*ride, CurrentRideStation, id);
+        GuestCommitRideAdmission(*this, *ride);
+        RideSubState = PeepRideSubState::leaveEntrance;
+        updateRideAdvanceThroughEntrance();
     }
 
     /**
@@ -5838,6 +5993,12 @@ namespace OpenRCT2
                 break;
             case PeepRideSubState::approachVehicle:
                 updateRideApproachVehicle();
+                break;
+            case PeepRideSubState::approachPlatformSlot:
+                updateRideApproachPlatformSlot();
+                break;
+            case PeepRideSubState::waitingOnPlatform:
+                updateRideWaitingOnPlatform();
                 break;
             case PeepRideSubState::enterVehicle:
                 updateRideEnterVehicle();

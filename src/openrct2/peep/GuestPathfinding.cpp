@@ -11,12 +11,14 @@
 
 #include "../Diagnostic.h"
 #include "../GameState.h"
+#include "../OpenRCT2.h"
 #include "../core/Guard.hpp"
 #include "../core/UnitConversion.h"
 #include "../entity/Guest.h"
 #include "../entity/Staff.h"
 #include "../profiling/Profiling.h"
 #include "../ride/RideData.h"
+#include "../ride/RideManager.hpp"
 #include "../ride/Station.h"
 #include "../scenario/Scenario.h"
 #include "../util/Util.h"
@@ -24,6 +26,7 @@
 #include "../world/Footpath.h"
 #include "../world/Map.h"
 #include "../world/MapPathTopology.h"
+#include "../world/MapPathRouteCache.h"
 #include "../world/MapTopology.h"
 #include "../world/Park.h"
 #include "../world/Wall.h"
@@ -60,6 +63,7 @@ namespace OpenRCT2::PathFinding
         int8_t junctionCount;
         int8_t maxJunctions;
         int32_t countTilesChecked;
+        MapPathTopology::ChunkView topologyChunk;
         // TODO: Move them, those are query parameters not really state, but for now its easier to pass it down.
         bool ignoreForeignQueues;
         RideId queueRideIndex;
@@ -217,9 +221,22 @@ namespace OpenRCT2::PathFinding
         return false;
     }
 
-    static const MapPathTopology::PathNode* GetExactCachedPath(const TileCoordsXYZ& loc, const PathElement* pathElement)
+    static const MapPathTopology::PathNode* GetExactCachedPath(
+        const TileCoordsXYZ& loc, const PathElement* pathElement, MapPathTopology::ChunkView* reusableView = nullptr)
     {
-        const auto view = MapPathTopology::GetChunk(TileCoordsXY{ loc });
+        auto view = MapPathTopology::ChunkView{};
+        if (reusableView != nullptr && *reusableView && loc.x >= reusableView->origin.x && loc.y >= reusableView->origin.y
+            && loc.x < reusableView->origin.x + MapTopology::kChunkSize
+            && loc.y < reusableView->origin.y + MapTopology::kChunkSize)
+        {
+            view = *reusableView;
+        }
+        else
+        {
+            view = MapPathTopology::GetChunk(TileCoordsXY{ loc });
+            if (reusableView != nullptr)
+                *reusableView = view;
+        }
         if (!view.isExact)
             return nullptr;
 
@@ -233,15 +250,19 @@ namespace OpenRCT2::PathFinding
         return node;
     }
 
-    static int32_t PathGetPermittedEdges(bool ignoreBanners, const TileCoordsXYZ& loc, const PathElement* pathElement)
+    static int32_t PathGetPermittedEdges(
+        bool ignoreBanners, const TileCoordsXYZ& loc, const PathElement* pathElement,
+        const MapPathTopology::PathNode* cachedPath = nullptr)
     {
         if (ignoreBanners)
             return pathElement->GetEdges();
 
         if (!PathHasUnsupportedGhostBannerChain(pathElement))
         {
-            if (const auto* node = GetExactCachedPath(loc, pathElement); node != nullptr)
-                return node->permittedEdges;
+            if (cachedPath == nullptr)
+                cachedPath = GetExactCachedPath(loc, pathElement);
+            if (cachedPath != nullptr)
+                return cachedPath->permittedEdges;
         }
         return BannerClearPathEdges(ignoreBanners, pathElement, pathElement->GetEdgesAndCorners()) & 0x0F;
     }
@@ -523,32 +544,9 @@ namespace OpenRCT2::PathFinding
      * Returns the type of the next footpath tile a peep can get to from x,y,z /
      * inputTileElement in the given direction.
      */
-    static PathSearchResult FootpathElementNextInDirection(
+    static PathSearchResult FootpathElementNextInDirectionLive(
         TileCoordsXYZ loc, PathElement* pathElement, Direction chosenDirection)
     {
-        if (const auto* source = GetExactCachedPath(loc, pathElement);
-            source != nullptr && (source->edges & (1 << chosenDirection)))
-        {
-            const auto& connection = source->connections[chosenDirection];
-            if (!connection.IsConnected())
-                return PathSearchResult::Failed;
-
-            const auto targetTile = TileCoordsXY{ loc } + TileDirectionDelta[chosenDirection];
-            const auto targetView = MapPathTopology::GetChunk(targetTile);
-            if (targetView.isExact)
-            {
-                const auto* target = MapPathTopology::FindPath(targetView, { targetTile, connection.targetBaseZ });
-                if (target != nullptr)
-                {
-                    if (target->HasFlag(MapPathTopology::PathNodeFlag::wide))
-                        return PathSearchResult::Wide;
-                    if (target->HasFlag(MapPathTopology::PathNodeFlag::queue) && !target->queueRide.IsNull())
-                        return PathSearchResult::RideQueue;
-                    return PathSearchResult::Other;
-                }
-            }
-        }
-
         if (pathElement->IsSloped())
         {
             if (pathElement->GetSlopeDirection() == chosenDirection)
@@ -580,6 +578,26 @@ namespace OpenRCT2::PathFinding
         } while (!(nextTileElement++)->isLastForTile());
 
         return PathSearchResult::Failed;
+    }
+
+    static PathSearchResult FootpathElementNextInDirection(
+        TileCoordsXYZ loc, PathElement* pathElement, Direction chosenDirection,
+        const MapPathTopology::PathNode* cachedSource = nullptr)
+    {
+        if (cachedSource == nullptr)
+            cachedSource = GetExactCachedPath(loc, pathElement);
+        if (cachedSource != nullptr && (cachedSource->edges & (1 << chosenDirection)))
+        {
+            const auto& connection = cachedSource->connections[chosenDirection];
+            if (!connection.IsConnected())
+                return PathSearchResult::Failed;
+            if (connection.HasFlag(MapPathTopology::ConnectionFlag::targetWide))
+                return PathSearchResult::Wide;
+            if (connection.HasFlag(MapPathTopology::ConnectionFlag::targetRideQueue))
+                return PathSearchResult::RideQueue;
+            return PathSearchResult::Other;
+        }
+        return FootpathElementNextInDirectionLive(loc, pathElement, chosenDirection);
     }
 
     /**
@@ -801,7 +819,7 @@ namespace OpenRCT2::PathFinding
      * since entrances and ride queues coming off a path should not result in
      * the path being considered a junction.
      */
-    static bool PathIsThinJunction(PathElement* path, const TileCoordsXYZ& loc)
+    static bool PathIsThinJunctionLive(PathElement* path, const TileCoordsXYZ& loc)
     {
         PROFILED_FUNCTION();
 
@@ -815,7 +833,7 @@ namespace OpenRCT2::PathFinding
         int32_t thinCount = 0;
         do
         {
-            auto nextFootpathResult = FootpathElementNextInDirection(loc, path, testEdge);
+            auto nextFootpathResult = FootpathElementNextInDirectionLive(loc, path, testEdge);
 
             /* Ignore non-paths (e.g. ride entrances, shops), wide paths
              * and ride queues (per ignoreQueues) when counting
@@ -834,6 +852,16 @@ namespace OpenRCT2::PathFinding
             edges &= ~(1 << testEdge);
         } while ((testEdge = Numerics::bitScanForward(edges)) != -1);
         return isThinJunction;
+    }
+
+    static bool PathIsThinJunction(
+        PathElement* path, const TileCoordsXYZ& loc, const MapPathTopology::PathNode* cachedPath = nullptr)
+    {
+        if (cachedPath == nullptr)
+            cachedPath = GetExactCachedPath(loc, path);
+        if (cachedPath != nullptr)
+            return cachedPath->HasFlag(MapPathTopology::PathNodeFlag::thinJunction);
+        return PathIsThinJunctionLive(path, loc);
     }
 
     static int32_t CalculateHeuristicPathingScore(const TileCoordsXYZ& loc1, const TileCoordsXYZ& loc2)
@@ -1466,7 +1494,8 @@ namespace OpenRCT2::PathFinding
 
             /* Get all the permitted_edges of the map element. */
             Guard::Assert(tileElement->asPath() != nullptr);
-            uint32_t edges = PathGetPermittedEdges(staff != nullptr, loc, tileElement->asPath());
+            const auto* cachedPath = GetExactCachedPath(loc, tileElement->asPath(), &state.topologyChunk);
+            uint32_t edges = PathGetPermittedEdges(staff != nullptr, loc, tileElement->asPath(), cachedPath);
 
             LogPathfinding(
                 &peep, "Path element at %d,%d,%d; Steps: %u; Edges (0123):%d%d%d%d; Reverse: %d", loc.x >> 5, loc.y >> 5, loc.z,
@@ -1524,7 +1553,7 @@ namespace OpenRCT2::PathFinding
             {
                 /* Check if this is a thin junction. And perform additional
                  * necessary checks. */
-                isThinJunction = PathIsThinJunction(tileElement->asPath(), loc);
+                isThinJunction = PathIsThinJunction(tileElement->asPath(), loc, cachedPath);
 
                 if (isThinJunction)
                 {
@@ -1759,10 +1788,11 @@ namespace OpenRCT2::PathFinding
              * check if the combination is 'thin'!
              * The junction is considered 'thin' simply if any of the
              * overlaid path elements there is a 'thin junction'. */
-            isThin = isThin || PathIsThinJunction(destTileElement->asPath(), loc);
+            const auto* cachedPath = GetExactCachedPath(loc, destTileElement->asPath(), &state.topologyChunk);
+            isThin = isThin || PathIsThinJunction(destTileElement->asPath(), loc, cachedPath);
 
             // Collect the permitted edges of ALL matching path elements at this location.
-            permittedEdges |= PathGetPermittedEdges(peep.is<Staff>(), loc, destTileElement->asPath());
+            permittedEdges |= PathGetPermittedEdges(peep.is<Staff>(), loc, destTileElement->asPath(), cachedPath);
         } while (!(destTileElement++)->isLastForTile());
         // Peep is not on a path.
         if (!found)
@@ -1845,6 +1875,18 @@ namespace OpenRCT2::PathFinding
             return kInvalidDirection;
 
         int32_t chosenEdge = Numerics::bitScanForward(edges);
+
+        // Shared fields contain only exact, stable path topology. The proposed edge must still survive this guest's live
+        // banner and path-history mask above; unsupported targets and stale/inexact topology simply retain the heuristic.
+        if (ignoreForeignQueues && peep.is<Guest>())
+        {
+            const auto routeStep = MapPathRouteCache::GetNextStep({ goal, queueRideIndex }, loc);
+            if (routeStep.has_value() && (edges & (1 << routeStep->direction)))
+            {
+                chosenEdge = routeStep->direction;
+                edges = 1 << chosenEdge;
+            }
+        }
 
         // Peep has multiple edges still to try.
         if (edges & ~(1 << chosenEdge))
@@ -2294,6 +2336,49 @@ namespace OpenRCT2::PathFinding
         loc.z = tileElement->baseHeight;
     }
 
+    void PrepareSharedRouteFields()
+    {
+        if (isInEditorMode() || MapPathRouteCache::IsPreparedForCurrentTopology())
+            return;
+
+        const auto& gameState = getGameState();
+        std::vector<MapPathRouteCache::RouteTarget> targets;
+        for (const auto& entrance : gameState.park.entrances)
+        {
+            targets.push_back({ TileCoordsXYZ{ entrance }, RideId::GetNull() });
+        }
+
+        for (const auto& ride : RideManager(gameState))
+        {
+            bool hasEntrance = false;
+            for (const auto& station : ride.getStations())
+            {
+                if (station.Entrance.IsNull())
+                    continue;
+                hasEntrance = true;
+                auto goal = TileCoordsXYZ{ station.Entrance };
+                GetRideQueueEnd(goal);
+                targets.push_back({ goal, ride.id });
+            }
+
+            if (!hasEntrance && ride.getRideTypeDescriptor().flags.has(RtdFlag::isShopOrFacility))
+            {
+                const auto& station = ride.getStation(StationIndex::FromUnderlying(0));
+                if (!station.Start.IsNull())
+                {
+                    const auto stationStart = station.GetStart();
+                    if (MapGetTrackElementAtFromRide(stationStart, ride.id) != nullptr)
+                    {
+                        targets.push_back(
+                            { TileCoordsXYZ{ stationStart }, ride.id,
+                              MapPathRouteCache::RouteTargetKind::shopOrFacilityTrack });
+                    }
+                }
+            }
+        }
+        MapPathRouteCache::Prepare(targets);
+    }
+
     static std::optional<int32_t> GuestPathFindTransportRide(Guest& peep)
     {
         auto* ride = GetRide(peep.previousRide);
@@ -2427,7 +2512,8 @@ namespace OpenRCT2::PathFinding
         }
 
         // Because this function is called for guests only, never ignore banners.
-        uint32_t edges = PathGetPermittedEdges(false, loc, pathElement);
+        const auto* cachedPath = GetExactCachedPath(loc, pathElement);
+        uint32_t edges = PathGetPermittedEdges(false, loc, pathElement, cachedPath);
 
         if (edges == 0)
         {
@@ -2447,7 +2533,7 @@ namespace OpenRCT2::PathFinding
 
                 /* If there is a wide path in that direction,
                     remove that edge and try another */
-                if (FootpathElementNextInDirection(loc, pathElement, chosenDirection) == PathSearchResult::Wide)
+                if (FootpathElementNextInDirection(loc, pathElement, chosenDirection, cachedPath) == PathSearchResult::Wide)
                 {
                     adjustedEdges &= ~(1 << chosenDirection);
                 }
@@ -2582,6 +2668,11 @@ namespace OpenRCT2::PathFinding
             LogPathfinding(&peep, "Completed CalculateNextDestination - peep is heading to closed ride == aimless.");
 
             return GuestPathfindAimless(peep, edges);
+        }
+
+        if (const auto sharedTarget = MapPathRouteCache::GetSingleTargetForRide(rideIndex); sharedTarget.has_value())
+        {
+            return GuestPathFindToDestination(peep, sharedTarget->location, rideIndex, edges);
         }
 
         /* Find the ride's closest entrance station to the peep.

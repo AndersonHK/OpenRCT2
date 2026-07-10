@@ -1372,8 +1372,19 @@ namespace OpenRCT2
                 auto ride = GetRide(CurrentRide);
                 if (ride != nullptr)
                 {
-                    ft.Add<StringId>(
-                        ride->getRideTypeDescriptor().flags.has(RtdFlag::describeAsInside) ? STR_IN_RIDE : STR_ON_RIDE);
+                    if (State == PeepState::enteringRide && RideSubState == PeepRideSubState::approachPlatformSlot)
+                    {
+                        ft.Add<StringId>(STR_WALKING_TO_PLATFORM_FOR);
+                    }
+                    else if (State == PeepState::enteringRide && RideSubState == PeepRideSubState::waitingOnPlatform)
+                    {
+                        ft.Add<StringId>(STR_WAITING_ON_PLATFORM_FOR);
+                    }
+                    else
+                    {
+                        ft.Add<StringId>(
+                            ride->getRideTypeDescriptor().flags.has(RtdFlag::describeAsInside) ? STR_IN_RIDE : STR_ON_RIDE);
+                    }
                     ride->formatNameTo(ft);
                 }
                 else

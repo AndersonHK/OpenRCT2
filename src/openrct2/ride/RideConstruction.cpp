@@ -517,6 +517,7 @@ void Ride::removePeeps()
             peep->WindowInvalidateFlags |= PEEP_INVALIDATE_PEEP_STATS;
         }
     }
+    RideClearStationPlatformPreQueue(*this);
     // Place all the staff at exit
     for (auto peep : EntityList<Staff>())
     {

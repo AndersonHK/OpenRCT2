@@ -25,6 +25,7 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <span>
 #include <string_view>
 #include <type_traits>
@@ -205,6 +206,14 @@ struct RideStation
     CoordsXYZ GetStart() const;
 };
 
+struct RideStationPlatformReservation
+{
+    uint16_t slotIndex{};
+    uint8_t carIndex{};
+    uint8_t seatIndex{};
+    CoordsXYZ waitPosition{};
+};
+
 struct RideMeasurement
 {
     static constexpr size_t kMaxItems = 4800;
@@ -273,8 +282,18 @@ struct RideRatingAccumulator
     int64_t transportComfort{};
     int64_t transportDecoration{};
     int64_t transportDistance{};
+    int64_t sampledDistance{};
+    int64_t totalSpeed{};
+    int32_t maxSpeed{};
+    fixed16_2dp maxPositiveVerticalG{};
+    fixed16_2dp maxNegativeVerticalG{};
+    fixed16_2dp maxLateralG{};
+    fixed16_2dp maxPositiveLongitudinalG{};
+    fixed16_2dp maxNegativeLongitudinalG{};
     uint32_t ticks{};
     EntityId sampleEntity{ EntityId::GetNull() };
+    StationIndex originStation{ StationIndex::GetNull() };
+    StationIndex destinationStation{ StationIndex::GetNull() };
     bool sampleComplete{};
     int32_t previousTrainVelocity{};
     bool hasPreviousTrainVelocity{};
@@ -288,8 +307,18 @@ struct RideRatingAccumulator
         transportComfort = 0;
         transportDecoration = 0;
         transportDistance = 0;
+        sampledDistance = 0;
+        totalSpeed = 0;
+        maxSpeed = 0;
+        maxPositiveVerticalG = 0;
+        maxNegativeVerticalG = 0;
+        maxLateralG = 0;
+        maxPositiveLongitudinalG = 0;
+        maxNegativeLongitudinalG = 0;
         ticks = 0;
         sampleEntity = EntityId::GetNull();
+        originStation = StationIndex::GetNull();
+        destinationStation = StationIndex::GetNull();
         sampleComplete = false;
         previousTrainVelocity = 0;
         hasPreviousTrainVelocity = false;
@@ -307,6 +336,34 @@ static_assert(std::is_same_v<decltype(RideRatingAccumulator::nausea), int64_t>);
 
 constexpr size_t kRideRatingRecentSampleCount = 20;
 constexpr size_t kRideRatingLegacyActiveSampleCount = 8;
+
+struct RideRatingLeg
+{
+    StationIndex originStation{ StationIndex::GetNull() };
+    StationIndex destinationStation{ StationIndex::GetNull() };
+    std::array<RideRatingAccumulator, kRideRatingRecentSampleCount> recentSamples{};
+    uint8_t recentSampleCount{};
+    uint8_t recentSampleNext{};
+    OpenRCT2::RideRating::Tuple ratings{};
+
+    bool hasSamples() const
+    {
+        return recentSampleCount != 0;
+    }
+};
+
+struct RideRatingLegMeasurements
+{
+    int32_t distanceMetres{};
+    uint32_t durationTicks{};
+    int32_t maxSpeed{};
+    int32_t averageSpeed{};
+    fixed16_2dp maxPositiveVerticalG{};
+    fixed16_2dp maxNegativeVerticalG{};
+    fixed16_2dp maxLateralG{};
+    fixed16_2dp maxPositiveLongitudinalG{};
+    fixed16_2dp maxNegativeLongitudinalG{};
+};
 
 struct RideStableStationStats
 {
@@ -495,6 +552,9 @@ struct Ride
     std::array<RideRatingAccumulator, kRideRatingRecentSampleCount> recentRatingSamples{};
     uint8_t recentRatingSampleCount{};
     uint8_t recentRatingSampleNext{};
+    // Sparse, origin-sorted adjacent-leg histories. Single-station rides retain
+    // the legacy ride-wide rolling history above without allocating leg state.
+    std::vector<RideRatingLeg> ratingLegs{};
     // Unused always 0? Should affect nausea
     uint16_t var11C{};
     uint8_t numShelteredSections{}; // (?abY YYYY)
@@ -1102,9 +1162,14 @@ Vehicle* RideGetBrokenVehicle(const Ride& ride);
 money64 RideGetPrice(const Ride& ride);
 money64 RideGetTransportFare(const Ride& ride, const TransportRideJourney& journey);
 TransportRideQuality RideGetTransportQuality(const Ride& ride);
+TransportRideQuality RideGetTransportLegQuality(
+    const RideRatingLeg& leg, const TransportRideQuality& fallback);
 TransportRideSegment RideGetTransportSegment(const Ride& ride, StationIndex boardingStation);
 TransportRideSegment RideGetTransportSegment(
     const Ride& ride, StationIndex boardingStation, const TransportRideQuality& quality);
+TransportRideSegment RideGetTransportSegment(
+    const Ride& ride, StationIndex boardingStation, StationIndex destinationStation,
+    const TransportRideQuality& quality);
 TransportRideJourney RideGetTransportJourney(const Ride& ride, StationIndex boardingStation, StationIndex destinationStation);
 TransportRideJourney RideGetTransportJourney(
     const Ride& ride, StationIndex boardingStation, StationIndex destinationStation, const TransportRideQuality& quality);
@@ -1130,6 +1195,19 @@ void RideInvalidateTransportServiceCache(RideId rideId);
 uint16_t RideGetTransportStationPlatformCapacity(const Ride& ride, StationIndex stationIndex);
 uint16_t RideGetTransportStationPlatformOccupancy(const Ride& ride, StationIndex stationIndex);
 bool RideIsTransportStationOvercrowded(const Ride& ride, StationIndex stationIndex);
+bool RideSupportsStationPlatformPreQueue(const Ride& ride);
+bool RideCaptureStationPlatformTemplate(Ride& ride, StationIndex stationIndex, const Vehicle& trainHead);
+void RideActivateStationPlatformPreQueue(const Ride& ride, StationIndex stationIndex);
+bool RideStationPlatformPreQueueIsActive(const Ride& ride, StationIndex stationIndex);
+std::optional<RideStationPlatformReservation> RideReserveStationPlatformSlot(
+    const Ride& ride, StationIndex stationIndex, EntityId guestId);
+std::optional<RideStationPlatformReservation> RideGetStationPlatformReservation(
+    const Ride& ride, StationIndex stationIndex, EntityId guestId);
+bool RideStationPlatformGuestIsFirst(const Ride& ride, StationIndex stationIndex, EntityId guestId);
+void RideReleaseStationPlatformSlot(const Ride& ride, StationIndex stationIndex, EntityId guestId);
+void RideClearStationPlatformPreQueue(const Ride& ride);
+void RideClearAllStationPlatformPreQueues();
+void RideRebuildStationPlatformPreQueues();
 money64 RideGetTargetPrice(const Ride& ride, RidePriceTarget target);
 bool RideUsesTargetPricing(const Ride& ride);
 void RideUpdateTargetPrice(Ride& ride);
@@ -1150,6 +1228,14 @@ void RideClearLeftoverEntrances(const Ride& ride);
 RideRatingAccumulator* RideGetOrCreateActiveRatingSample(Ride& ride, EntityId sampleEntity);
 RideRatingAccumulator* RideFindActiveRatingSample(Ride& ride, EntityId sampleEntity);
 RideRatingAccumulator RideGetRecentRatingAccumulator(const Ride& ride);
+RideRatingAccumulator RideGetRecentRatingAccumulator(const RideRatingLeg& leg);
+RideRatingLeg* RideGetRatingLeg(Ride& ride, StationIndex originStation, StationIndex destinationStation);
+const RideRatingLeg* RideGetRatingLeg(
+    const Ride& ride, StationIndex originStation, StationIndex destinationStation);
+const RideRatingLeg* RideGetUniqueOutboundRatingLeg(const Ride& ride, StationIndex originStation);
+const RideRatingLeg* RideGetRatingLegByDisplayIndex(const Ride& ride, size_t displayIndex);
+RideRatingLegMeasurements RideGetRatingLegMeasurements(const RideRatingLeg& leg);
+OpenRCT2::RideRating::Tuple RideGetRatingsForStation(const Ride& ride, StationIndex originStation);
 void RideAddRecentRatingSample(Ride& ride, const RideRatingAccumulator& sample);
 void RideClearRiderRatingSamples(Ride& ride);
 
