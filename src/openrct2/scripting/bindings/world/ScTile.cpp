@@ -107,7 +107,7 @@ namespace OpenRCT2::Scripting
                     auto numToInsert = numElements - currentNumElements;
                     for (size_t i = 0; i < numToInsert; i++)
                     {
-                        TileElementInsert(pos, 0, TileElementType::Surface);
+                        TileElementInsert(pos, 0, TileElementType::surface);
                     }
 
                     // Copy data to element span
@@ -161,7 +161,7 @@ namespace OpenRCT2::Scripting
             std::vector<TileElement> data(first, first + origNumElements);
 
             auto pos = TileCoordsXYZ(TileCoordsXY(coords), 0).ToCoordsXYZ();
-            auto newElement = TileElementInsert(pos, 0, TileElementType::Surface);
+            auto newElement = TileElementInsert(pos, 0, TileElementType::surface);
             if (newElement == nullptr)
             {
                 JS_ThrowPlainError(ctx, "Unable to allocate element.");
@@ -207,9 +207,9 @@ namespace OpenRCT2::Scripting
         {
             auto element = &first[index];
             const bool changesTopology = !element->isGhost()
-                && (element->getType() == TileElementType::Path || element->getType() == TileElementType::Entrance
-                    || element->getType() == TileElementType::Banner);
-            if (element->getType() != TileElementType::LargeScenery
+                && (element->getType() == TileElementType::path || element->getType() == TileElementType::entrance
+                    || element->getType() == TileElementType::banner);
+            if (element->getType() != TileElementType::largeScenery
                 || element->asLargeScenery()->GetEntry()->scrolling_mode == kScrollingModeNone
                 || ScTileElement::GetOtherLargeSceneryElement(coords, element->asLargeScenery()) == nullptr)
             {

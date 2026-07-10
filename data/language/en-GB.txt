@@ -3283,7 +3283,7 @@ STR_6271    :Terrain Edges
 STR_6272    :Stations
 STR_6273    :Music
 STR_6274    :Can’t set colour scheme…
-STR_6275    :{WINDOW_COLOUR_2}Station style:
+STR_6275    :Station style
 STR_6276    :{RED}{STRINGID} has guests getting stuck, possibly due to invalid ride type or operating mode.
 STR_6277    :Station index: {BLACK}{STRINGID}
 STR_6278    :Autosave amount
@@ -3830,33 +3830,36 @@ STR_7029    :Quarter Helix down
 STR_7030    :{WINDOW_COLOUR_2}Guests entertained: {BLACK}{COMMA32}
 STR_7031    :Disable grass growing
 STR_7032    :Disable grass ageing so that it doesn't grow.
-STR_7033    :Maze capacity
-STR_7034    :Select sparse, normal, or overcrowding capacity policy for this maze
-STR_7035    :Sparse
-STR_7036    :Normal
-STR_7037    :Overcrowding
-STR_7038    :{WINDOW_COLOUR_2}Max. positive longitudinal Gs: {BLACK}{COMMA2DP32}g
-STR_7039    :{WINDOW_COLOUR_2}Max. negative longitudinal Gs: {BLACK}{COMMA2DP32}g
-STR_7040    :{WINDOW_COLOUR_2}Long. Gs
-STR_7041    :Show graph of longitudinal acceleration against time
-STR_7042    :{WINDOW_COLOUR_2}Transport service quality
-STR_7043    :{WINDOW_COLOUR_2}Comfort: {BLACK}{COMMA32}%
-STR_7044    :{WINDOW_COLOUR_2}Comfort: {BLACK}{COMMA32}% (estimated)
-STR_7045    :{WINDOW_COLOUR_2}Decoration bonus: {BLACK}+{COMMA32}%
-STR_7046    :{WINDOW_COLOUR_2}Decoration bonus: {BLACK}+{COMMA32}% (estimated)
-STR_7047    :{WINDOW_COLOUR_2}Segment {BLACK}{COMMA16} to {COMMA16}: {COMMA32} s, {COMMA32} m, value {CURRENCY2DP}
-STR_7048    :“The fare for {STRINGID} was extortionate!”
-STR_7049    :Walking to the platform for {STRINGID}
-STR_7050    :Waiting on the platform for {STRINGID}
-STR_7051    :{BLACK}Queue: {COMMA16}; platform: {COMMA16}/{COMMA16}
-STR_7052    :Vulkan (validation)
-STR_7053    :{WINDOW_COLOUR_2}Station-to-station ratings
-STR_7054    :{BLACK}Station {COMMA16} to {COMMA16}: E {COMMA2DP32}, I {COMMA2DP32}, N {COMMA2DP32}
-STR_7055    :{WINDOW_COLOUR_2}Conservative ride-wide summary
-STR_7056    :{BLACK}{COMMA32} m, {COMMA32} s; max {VELOCITY}, avg {VELOCITY}
-STR_7057    :{BLACK}Gs: +V {COMMA2DP32}, -V {COMMA2DP32}, lat {COMMA2DP32}, +long {COMMA2DP32}, -long {COMMA2DP32}
-STR_7058    :{WINDOW_COLOUR_2}Ride-global construction and test facts
-STR_7059    :Station {COMMA16} to {COMMA16}
-STR_7060    :{BLACK}No station-to-station samples yet; the summary below is legacy ride-wide data
-STR_7061    :Select station-to-station measurements
-STR_7062    :{BLACK}Comfort {COMMA32}%; decoration +{COMMA32}%
+STR_7033    :Track style
+STR_7034    :Maze style
+STR_7035    :Shop style
+STR_7036    :Vehicle style
+STR_7037    :Operating mode
+STR_7038    :Wait and load
+STR_7039    :Maze capacity
+STR_7040    :Select sparse, normal, or overcrowding capacity policy for this maze
+STR_7041    :Sparse
+STR_7042    :Normal
+STR_7043    :Overcrowding
+STR_7044    :{WINDOW_COLOUR_2}Max. positive longitudinal Gs: {BLACK}{COMMA2DP32}g
+STR_7045    :{WINDOW_COLOUR_2}Max. negative longitudinal Gs: {BLACK}{COMMA2DP32}g
+STR_7046    :{WINDOW_COLOUR_2}Long. Gs
+STR_7047    :Show graph of longitudinal acceleration against time
+STR_7048    :{WINDOW_COLOUR_2}Transport service quality
+STR_7049    :{WINDOW_COLOUR_2}Comfort: {BLACK}{COMMA32}%
+STR_7050    :{WINDOW_COLOUR_2}Comfort: {BLACK}{COMMA32}% (estimated)
+STR_7051    :{WINDOW_COLOUR_2}Decoration bonus: {BLACK}+{COMMA32}%
+STR_7052    :{WINDOW_COLOUR_2}Decoration bonus: {BLACK}+{COMMA32}% (estimated)
+STR_7053    :{WINDOW_COLOUR_2}Fare value: {BLACK}{CURRENCY2DP}
+STR_7054    :“The fare for {STRINGID} was extortionate!”
+STR_7055    :Walking to the platform for {STRINGID}
+STR_7056    :Waiting on the platform for {STRINGID}
+STR_7057    :{BLACK}Queue: {COMMA16}; platform: {COMMA16}/{COMMA16}
+STR_7058    :Vulkan (validation)
+STR_7059    :{WINDOW_COLOUR_2}Station-to-station ratings
+STR_7060    :{WINDOW_COLOUR_2}Ride length: {BLACK}{COMMA32} m
+STR_7061    :{WINDOW_COLOUR_2}Ride time: {BLACK}{COMMA32} secs
+STR_7062    :{WINDOW_COLOUR_2}Ride-global construction and test facts
+STR_7063    :Station {COMMA16} to {COMMA16}
+STR_7064    :{BLACK}No station-to-station samples yet
+STR_7065    :Select station-to-station measurements

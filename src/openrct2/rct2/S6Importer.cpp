@@ -1056,7 +1056,7 @@ namespace OpenRCT2::RCT2
 
                         do
                         {
-                            if (tileElement->getType() != TileElementType::Wall || tileElement->baseHeight != tileCoords.z)
+                            if (tileElement->getType() != TileElementType::wall || tileElement->baseHeight != tileCoords.z)
                             {
                                 continue;
                             }
@@ -1317,7 +1317,7 @@ namespace OpenRCT2::RCT2
                     {
                         // Add a default surface element, we always need at least one element per tile
                         auto& dstElement = tileElements.emplace_back();
-                        dstElement.ClearAs(TileElementType::Surface);
+                        dstElement.ClearAs(TileElementType::surface);
                         dstElement.setLastForTile(true);
                     }
 

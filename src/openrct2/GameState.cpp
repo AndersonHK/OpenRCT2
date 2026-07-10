@@ -9,7 +9,6 @@
 
 #include "GameState.h"
 
-#include "Editor.h"
 #include "Game.h"
 #include "GameStateSnapshots.h"
 #include "Input.h"
@@ -26,6 +25,7 @@
 #include "profiling/Profiling.h"
 #include "ride/Vehicle.h"
 #include "scenario/Scenario.h"
+#include "scenes/editor/EditorScene.h"
 #include "scenes/title/TitleScene.h"
 #include "scenes/title/TitleSequencePlayer.h"
 #include "scripting/ScriptEngine.h"
@@ -340,7 +340,8 @@ namespace OpenRCT2
         VehicleSoundsUpdate();
         PeepUpdateCrowdNoise();
         Weather::updateSound();
-        Editor::OpenWindowsForCurrentStep();
+
+        EditorScene::OpenWindowsForCurrentStep();
 
         // Update windows
         // WindowDispatchUpdateAll();

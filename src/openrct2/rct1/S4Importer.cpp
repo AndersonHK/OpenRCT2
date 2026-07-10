@@ -10,7 +10,6 @@
 #include "../Cheats.h"
 #include "../Context.h"
 #include "../Diagnostic.h"
-#include "../Editor.h"
 #include "../Game.h"
 #include "../GameState.h"
 #include "../ParkImporter.h"
@@ -1631,7 +1630,7 @@ namespace OpenRCT2::RCT1
                     {
                         // Add a default surface element, we always need at least one element per tile
                         auto& dstElement = tileElements.emplace_back();
-                        dstElement.ClearAs(TileElementType::Surface);
+                        dstElement.ClearAs(TileElementType::surface);
                         dstElement.setLastForTile(true);
                     }
 
@@ -1666,7 +1665,7 @@ namespace OpenRCT2::RCT1
 
             switch (tileElementType)
             {
-                case TileElementType::Surface:
+                case TileElementType::surface:
                 {
                     auto dst2 = dst->asSurface();
                     auto src2 = src->asSurface();
@@ -1685,7 +1684,7 @@ namespace OpenRCT2::RCT1
 
                     return 1;
                 }
-                case TileElementType::Path:
+                case TileElementType::path:
                 {
                     auto dst2 = dst->asPath();
                     auto src2 = src->asPath();
@@ -1740,7 +1739,7 @@ namespace OpenRCT2::RCT1
                     }
                     return 1;
                 }
-                case TileElementType::Track:
+                case TileElementType::track:
                 {
                     auto dst2 = dst->asTrack();
                     auto src2 = src->asTrack();
@@ -1795,7 +1794,7 @@ namespace OpenRCT2::RCT1
 
                     return 1;
                 }
-                case TileElementType::SmallScenery:
+                case TileElementType::smallScenery:
                 {
                     auto dst2 = dst->asSmallScenery();
                     auto src2 = src->asSmallScenery();
@@ -1830,7 +1829,7 @@ namespace OpenRCT2::RCT1
 
                     return 1;
                 }
-                case TileElementType::Entrance:
+                case TileElementType::entrance:
                 {
                     auto dst2 = dst->asEntrance();
                     auto src2 = src->asEntrance();
@@ -1853,7 +1852,7 @@ namespace OpenRCT2::RCT1
 
                     return 1;
                 }
-                case TileElementType::Wall:
+                case TileElementType::wall:
                 {
                     auto src2 = src->asWall();
                     auto slope = src2->GetRCT1Slope();
@@ -1885,7 +1884,7 @@ namespace OpenRCT2::RCT1
                             clearanceZ += kLandHeightStep;
                         }
 
-                        dst->setType(TileElementType::Wall);
+                        dst->setType(TileElementType::wall);
                         dst->setDirection(edge);
                         dst->setBaseZ(baseZ);
                         dst->setClearanceZ(clearanceZ);
@@ -1908,7 +1907,7 @@ namespace OpenRCT2::RCT1
 
                     return numAddedElements;
                 }
-                case TileElementType::LargeScenery:
+                case TileElementType::largeScenery:
                 {
                     auto dst2 = dst->asLargeScenery();
                     auto src2 = src->asLargeScenery();
@@ -1921,7 +1920,7 @@ namespace OpenRCT2::RCT1
 
                     return 1;
                 }
-                case TileElementType::Banner:
+                case TileElementType::banner:
                 {
                     auto dst2 = dst->asBanner();
                     auto src2 = src->asBanner();
@@ -2550,7 +2549,7 @@ namespace OpenRCT2::RCT1
             {
                 TileElement* element = it.element;
 
-                if (element->getType() != TileElementType::Entrance)
+                if (element->getType() != TileElementType::entrance)
                     continue;
                 if (element->asEntrance()->GetEntranceType() != ENTRANCE_TYPE_PARK_ENTRANCE)
                     continue;
@@ -2568,7 +2567,7 @@ namespace OpenRCT2::RCT1
             TileElementIteratorBegin(&it);
             while (TileElementIteratorNext(&it))
             {
-                if (it.element->getType() != TileElementType::Path)
+                if (it.element->getType() != TileElementType::path)
                     continue;
 
                 auto* pathElement = it.element->asPath();
@@ -2678,7 +2677,7 @@ namespace OpenRCT2::RCT1
                         continue;
                     do
                     {
-                        if (tileElement->getType() == TileElementType::Track)
+                        if (tileElement->getType() == TileElementType::track)
                         {
                             // Lift hill tops are the only pieces present in RCT1 that can count as a block brake.
                             if (!tileElement->asTrack()->HasChain())

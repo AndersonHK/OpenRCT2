@@ -314,10 +314,10 @@ namespace OpenRCT2
 
         TileElement* tile_element = MapGetFirstElementAt(NextLoc);
 
-        auto mapType = TileElementType::Path;
+        auto mapType = TileElementType::path;
         if (GetNextIsSurface())
         {
-            mapType = TileElementType::Surface;
+            mapType = TileElementType::surface;
         }
 
         do
@@ -818,7 +818,7 @@ namespace OpenRCT2
             do
             {
                 // If a path check if we are on it
-                if (tile_element->getType() == TileElementType::Path)
+                if (tile_element->getType() == TileElementType::path)
                 {
                     int32_t height = MapHeightFromSlope(
                                          { x, y }, tile_element->asPath()->GetSlopeDirection(),
@@ -832,7 +832,7 @@ namespace OpenRCT2
                     saved_map = tile_element;
                     break;
                 } // If a surface get the height and see if we are on it
-                else if (tile_element->getType() == TileElementType::Surface)
+                else if (tile_element->getType() == TileElementType::surface)
                 {
                     // If the surface is water check to see if we could be drowning
                     if (tile_element->asSurface()->GetWaterHeight() > 0)
@@ -886,7 +886,7 @@ namespace OpenRCT2
 
         NextLoc = { CoordsXY{ x, y }.ToTileStart(), saved_map->getBaseZ() };
 
-        if (saved_map->getType() != TileElementType::Path)
+        if (saved_map->getType() != TileElementType::path)
         {
             SetNextFlags(0, false, true);
         }
@@ -1919,7 +1919,7 @@ namespace OpenRCT2
                 {
                     if (nextTileElement == nullptr)
                         break;
-                    if (nextTileElement->getType() != TileElementType::Path)
+                    if (nextTileElement->getType() != TileElementType::path)
                         continue;
 
                     if (nextTileElement->asPath()->IsQueue())
@@ -2488,7 +2488,7 @@ namespace OpenRCT2
             if (tileElement->isGhost())
                 continue;
 
-            if (tileElement->getType() == TileElementType::Path)
+            if (tileElement->getType() == TileElementType::path)
             {
                 PeepInteractWithPath(this, { newLoc, tileElement });
                 tileResult = tileElement;
@@ -2496,7 +2496,7 @@ namespace OpenRCT2
                 return { pathingResult, tileResult };
             }
 
-            if (tileElement->getType() == TileElementType::Track)
+            if (tileElement->getType() == TileElementType::track)
             {
                 if (PeepInteractWithShop(this, { newLoc, tileElement }))
                 {
@@ -2504,7 +2504,7 @@ namespace OpenRCT2
                     return { pathingResult, tileResult };
                 }
             }
-            else if (tileElement->getType() == TileElementType::Entrance)
+            else if (tileElement->getType() == TileElementType::entrance)
             {
                 if (PeepInteractWithEntrance(this, { newLoc, tileElement }, pathingResult))
                 {

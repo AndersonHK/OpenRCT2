@@ -48,7 +48,7 @@
 // It is used for making sure only compatible builds get connected, even within
 // single OpenRCT2 version.
 
-constexpr uint8_t kStreamVersion = 0;
+constexpr uint8_t kStreamVersion = 1;
 
 const std::string kStreamID = std::string(kOpenRCT2Version) + "-" + std::to_string(kStreamVersion);
 
@@ -2824,7 +2824,7 @@ namespace OpenRCT2::Network
         auto ms = MemoryStream(packet.data.data(), packet.data.size());
         if (LoadMap(&ms))
         {
-            GameLoadInit();
+            GameLoadInit(); // NB: calls `setActiveScene`
             GameLoadScripts();
             GameNotifyMapChanged();
 

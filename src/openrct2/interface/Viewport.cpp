@@ -1291,7 +1291,7 @@ namespace OpenRCT2
     {
         switch (tileElement->getType())
         {
-            case TileElementType::SmallScenery:
+            case TileElementType::smallScenery:
             {
                 auto sceneryItem = tileElement->asSmallScenery();
                 auto sceneryEntry = sceneryItem->GetEntry();
@@ -1302,7 +1302,7 @@ namespace OpenRCT2
                 }
                 break;
             }
-            case TileElementType::LargeScenery:
+            case TileElementType::largeScenery:
             {
                 auto sceneryItem = tileElement->asLargeScenery();
                 auto sceneryEntry = sceneryItem->GetEntry();
@@ -1312,7 +1312,7 @@ namespace OpenRCT2
                 }
                 break;
             }
-            case TileElementType::Wall:
+            case TileElementType::wall:
             {
                 auto sceneryItem = tileElement->asWall();
                 auto sceneryEntry = sceneryItem->GetEntry();
