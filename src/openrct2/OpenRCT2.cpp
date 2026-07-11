@@ -32,6 +32,7 @@ uint32_t gScreenAge;
 PromptMode gSavePromptMode;
 
 bool gSilentReplays = false;
+IntegratedBenchmarkConfig gIntegratedBenchmark;
 
 bool isInEditorMode()
 {

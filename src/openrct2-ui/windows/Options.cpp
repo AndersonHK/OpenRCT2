@@ -123,6 +123,7 @@ namespace OpenRCT2::Ui::Windows
         WIDX_FRAME_RATE_LIMIT_DROPDOWN,
         WIDX_SHOW_FPS_CHECKBOX,
         WIDX_MULTITHREADING_CHECKBOX,
+        WIDX_HDR10_OUTPUT_CHECKBOX,
 
         WIDX_BEHAVIOUR_GROUP,
         WIDX_MINIMIZE_FOCUS_LOSS,
@@ -291,7 +292,7 @@ namespace OpenRCT2::Ui::Windows
         makeWidget        ({ 10, 102}, {145,  12}, WidgetType::label,        WindowColour::secondary, STR_UI_SCALING_DESC,                   STR_WINDOW_SCALE_TIP                     ), // Scale
         makeSpinnerWidgets({155, 102}, {145,  14}, WidgetType::spinner,      WindowColour::secondary, kStringIdNone,                         STR_WINDOW_SCALE_TIP                     ), // Scale spinner (3 widgets)
 
-        makeWidget        ({  5, 129}, {300,  68}, WidgetType::groupbox,     WindowColour::secondary, STR_GROUP_RENDERING                                                             ), // Rendering group
+        makeWidget        ({  5, 129}, {300,  83}, WidgetType::groupbox,     WindowColour::secondary, STR_GROUP_RENDERING                                                             ), // Rendering group
         makeWidget        ({ 10, 146}, {145,  12}, WidgetType::label,        WindowColour::secondary, STR_DRAWING_ENGINE,                    STR_DRAWING_ENGINE_TIP                   ), // Drawing engine (label)
         makeWidget        ({155, 145}, {145,  14}, WidgetType::dropdownMenu, WindowColour::secondary                                                                                  ), // Drawing engine (dropdown label)
         makeWidget        ({288, 146}, { 11,  12}, WidgetType::button,       WindowColour::secondary, STR_DROPDOWN_GLYPH,                    STR_DRAWING_ENGINE_TIP                   ), // Drawing engine (chevron)
@@ -300,10 +301,11 @@ namespace OpenRCT2::Ui::Windows
         makeWidget        ({288, 161}, { 11,  12}, WidgetType::button,       WindowColour::secondary, STR_DROPDOWN_GLYPH                                                              ), // Frame rate limit (chevron)
         makeWidget        ({ 11, 178}, {136,  12}, WidgetType::checkbox,     WindowColour::secondary, STR_SHOW_FPS,                          STR_SHOW_FPS_TIP                         ), // Show fps
         makeWidget        ({155, 178}, {136,  12}, WidgetType::checkbox,     WindowColour::secondary, STR_MULTITHREADING,                    STR_MULTITHREADING_TIP                   ), // Multithreading
+        makeWidget        ({ 11, 193}, {280,  12}, WidgetType::checkbox,     WindowColour::secondary, STR_ENABLE_HDR10_OUTPUT,                STR_ENABLE_HDR10_OUTPUT_TIP               ), // HDR10 output
 
-        makeWidget        ({  5, 200}, {300,  49}, WidgetType::groupbox,     WindowColour::secondary, STR_GROUP_BEHAVIOUR                                                             ), // Behaviour group
-        makeWidget        ({ 11, 215}, {280,  12}, WidgetType::checkbox,     WindowColour::secondary, STR_MINIMISE_FULLSCREEN_ON_FOCUS_LOSS, STR_MINIMISE_FULLSCREEN_ON_FOCUS_LOSS_TIP), // Minimise fullscreen focus loss
-        makeWidget        ({ 11, 230}, {280,  12}, WidgetType::checkbox,     WindowColour::secondary, STR_DISABLE_SCREENSAVER,               STR_DISABLE_SCREENSAVER_TIP              )  // Disable screensaver
+        makeWidget        ({  5, 215}, {300,  49}, WidgetType::groupbox,     WindowColour::secondary, STR_GROUP_BEHAVIOUR                                                             ), // Behaviour group
+        makeWidget        ({ 11, 230}, {280,  12}, WidgetType::checkbox,     WindowColour::secondary, STR_MINIMISE_FULLSCREEN_ON_FOCUS_LOSS, STR_MINIMISE_FULLSCREEN_ON_FOCUS_LOSS_TIP), // Minimise fullscreen focus loss
+        makeWidget        ({ 11, 245}, {280,  12}, WidgetType::checkbox,     WindowColour::secondary, STR_DISABLE_SCREENSAVER,               STR_DISABLE_SCREENSAVER_TIP              )  // Disable screensaver
     );
 
     constexpr int32_t kFrameRenderingStart = 53;
@@ -483,15 +485,33 @@ namespace OpenRCT2::Ui::Windows
     };
     // clang-format on
 
-    static constexpr StringId kDrawingEngineStringIds[] = {
-        STR_DRAWING_ENGINE_SOFTWARE,
+    struct DrawingEngineOption
+    {
+        DrawingEngine engine;
+        StringId stringId;
+    };
+
+    static constexpr DrawingEngineOption kDrawingEngineOptions[] = {
+        { DrawingEngine::SoftwareWithHardwareDisplay, STR_DRAWING_ENGINE_SOFTWARE },
 #ifndef DISABLE_OPENGL
-        STR_DRAWING_ENGINE_OPENGL,
+        { DrawingEngine::OpenGL, STR_DRAWING_ENGINE_OPENGL },
 #endif
 #if defined(ENABLE_VULKAN) && defined(ENABLE_VULKAN_DRAWING_ENGINE)
-        STR_DRAWING_ENGINE_VULKAN,
+        { DrawingEngine::Vulkan, STR_DRAWING_ENGINE_VULKAN },
 #endif
     };
+
+    static constexpr size_t GetDrawingEngineOptionIndex(DrawingEngine engine)
+    {
+        for (size_t i = 0; i < std::size(kDrawingEngineOptions); i++)
+        {
+            if (kDrawingEngineOptions[i].engine == engine)
+            {
+                return i;
+            }
+        }
+        return 0;
+    }
 
 #pragma endregion
 
@@ -808,6 +828,12 @@ namespace OpenRCT2::Ui::Windows
                     Config::Save();
                     invalidate();
                     break;
+                case WIDX_HDR10_OUTPUT_CHECKBOX:
+                    Config::Get().general.enableHdr10Output ^= 1;
+                    Config::Save();
+                    RefreshVideo();
+                    invalidate();
+                    break;
                 case WIDX_MINIMIZE_FOCUS_LOSS:
                     Config::Get().general.minimizeFullscreenFocusLoss ^= 1;
                     Config::Save();
@@ -869,13 +895,13 @@ namespace OpenRCT2::Ui::Windows
                     break;
                 case WIDX_DRAWING_ENGINE_DROPDOWN:
                 {
-                    const auto numItems = static_cast<int32_t>(std::size(kDrawingEngineStringIds));
+                    const auto numItems = static_cast<int32_t>(std::size(kDrawingEngineOptions));
                     for (int32_t i = 0; i < numItems; i++)
                     {
-                        gDropdown.items[i] = Dropdown::MenuLabel(kDrawingEngineStringIds[i]);
+                        gDropdown.items[i] = Dropdown::MenuLabel(kDrawingEngineOptions[i].stringId);
                     }
                     ShowDropdown(widget, numItems);
-                    gDropdown.items[EnumValue(Config::Get().general.drawingEngine)].setChecked(true);
+                    gDropdown.items[GetDrawingEngineOptionIndex(Config::Get().general.drawingEngine)].setChecked(true);
                     break;
                 }
                 case WIDX_SCALE_UP:
@@ -948,10 +974,9 @@ namespace OpenRCT2::Ui::Windows
                     }
                     break;
                 case WIDX_DRAWING_ENGINE_DROPDOWN:
-                    if (dropdownIndex != EnumValue(Config::Get().general.drawingEngine))
+                    if (const auto dstEngine = kDrawingEngineOptions[dropdownIndex].engine;
+                        dstEngine != Config::Get().general.drawingEngine)
                     {
-                        DrawingEngine dstEngine = static_cast<DrawingEngine>(dropdownIndex);
-
                         Config::Get().general.drawingEngine = dstEngine;
                         RefreshVideo();
                         Config::Save();
@@ -1001,12 +1026,20 @@ namespace OpenRCT2::Ui::Windows
 
             setCheckboxValue(WIDX_SHOW_FPS_CHECKBOX, Config::Get().general.showFPS);
             setCheckboxValue(WIDX_MULTITHREADING_CHECKBOX, Config::Get().general.multiThreading);
+            setCheckboxValue(WIDX_HDR10_OUTPUT_CHECKBOX, Config::Get().general.enableHdr10Output);
+#if defined(ENABLE_VULKAN) && defined(ENABLE_VULKAN_DRAWING_ENGINE)
+            setWidgetDisabled(
+                WIDX_HDR10_OUTPUT_CHECKBOX, Config::Get().general.drawingEngine != DrawingEngine::Vulkan);
+#else
+            setWidgetDisabled(WIDX_HDR10_OUTPUT_CHECKBOX, true);
+#endif
             setCheckboxValue(WIDX_MINIMIZE_FOCUS_LOSS, Config::Get().general.minimizeFullscreenFocusLoss);
             setCheckboxValue(WIDX_DISABLE_SCREENSAVER_LOCK, Config::Get().general.disableScreensaver);
 
             // Dropdown captions for straightforward strings.
             widgets[WIDX_FULLSCREEN].text = FullscreenModeNames[Config::Get().general.fullscreenMode];
-            widgets[WIDX_DRAWING_ENGINE].text = kDrawingEngineStringIds[EnumValue(Config::Get().general.drawingEngine)];
+            widgets[WIDX_DRAWING_ENGINE].text =
+                kDrawingEngineOptions[GetDrawingEngineOptionIndex(Config::Get().general.drawingEngine)].stringId;
 
             static constexpr StringId kFrameRateLimitStringIds[] = {
                 STR_FRAME_RATE_LIMIT_DEFAULT,
@@ -1150,8 +1183,12 @@ namespace OpenRCT2::Ui::Windows
             widgets[WIDX_VIRTUAL_FLOOR].text = _virtualFloorStyleStrings[EnumValue(Config::Get().general.virtualFloorStyle)];
 
             setCheckboxValue(WIDX_ENABLE_LIGHT_FX_CHECKBOX, Config::Get().general.enableLightFx);
-            const bool lightFxEnabled = Config::Get().general.dayNightCycle
-                && Config::Get().general.drawingEngine == DrawingEngine::SoftwareWithHardwareDisplay;
+            bool rendererSupportsLightFx =
+                Config::Get().general.drawingEngine == DrawingEngine::SoftwareWithHardwareDisplay;
+#if defined(ENABLE_VULKAN) && defined(ENABLE_VULKAN_DRAWING_ENGINE) && defined(ENABLE_VULKAN_DIRECT_DRAWING_CONTEXT)
+            rendererSupportsLightFx |= Config::Get().general.drawingEngine == DrawingEngine::Vulkan;
+#endif
+            const bool lightFxEnabled = Config::Get().general.dayNightCycle && rendererSupportsLightFx;
             setWidgetDisabled(WIDX_ENABLE_LIGHT_FX_CHECKBOX, !lightFxEnabled);
             if (!lightFxEnabled)
                 Config::Get().general.enableLightFx = false;

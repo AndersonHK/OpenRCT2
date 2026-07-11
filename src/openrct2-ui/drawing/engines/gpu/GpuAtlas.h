@@ -29,12 +29,31 @@ namespace OpenRCT2::Ui::Gpu
         Float4 coords{};
     };
 
+    /**
+     * Identity of one particular use of an atlas slot. The serial prevents a
+     * queued frame from confusing a recycled slot with its former contents.
+     */
+    struct AtlasAllocationId
+    {
+        uint32_t atlas = 0;
+        uint32_t slot = 0;
+        uint64_t serial = 0;
+
+        bool operator==(const AtlasAllocationId&) const = default;
+    };
+
     struct TextureLocation : TextureBinding
     {
         uint32_t slot = 0;
         Int4 bounds{};
         uint32_t image = 0;
         uint32_t generation = 0;
+        uint64_t allocationSerial = 0;
+
+        [[nodiscard]] AtlasAllocationId GetAllocationId() const noexcept
+        {
+            return { index, slot, allocationSerial };
+        }
     };
 
     /**

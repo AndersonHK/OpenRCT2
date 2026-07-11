@@ -75,6 +75,7 @@ namespace OpenRCT2::MapPathRouteCache
         {
             RouteTarget target{};
             std::vector<uint8_t> directions;
+            std::vector<uint32_t> distances;
         };
 
         struct SingleRideTarget
@@ -83,10 +84,11 @@ namespace OpenRCT2::MapPathRouteCache
             RouteTarget target{};
         };
 
-        std::vector<std::pair<uint64_t, NodeIndex>> _nodeIndex;
-        std::vector<RouteField> _fields;
-        std::vector<SingleRideTarget> _singleRideTargets;
-        MapTopology::Generation _preparedEpoch{};
+        struct RideTargetFieldRef
+        {
+            RideId ride{ RideId::GetNull() };
+            size_t fieldIndex{};
+        };
 
         [[nodiscard]] uint64_t GetLocationKey(const TileCoordsXYZ& location) noexcept
         {
@@ -94,6 +96,102 @@ namespace OpenRCT2::MapPathRouteCache
                 | (static_cast<uint64_t>(static_cast<uint16_t>(location.y)) << 16)
                 | static_cast<uint16_t>(location.x);
         }
+
+        [[nodiscard]] size_t HashLocationKey(uint64_t key) noexcept
+        {
+            key ^= key >> 30;
+            key *= 0xBF58476D1CE4E5B9ULL;
+            key ^= key >> 27;
+            key *= 0x94D049BB133111EBULL;
+            key ^= key >> 31;
+            return static_cast<size_t>(key);
+        }
+
+        class PublishedNodeIndex
+        {
+        public:
+            void Build(std::span<const std::pair<uint64_t, NodeIndex>> sortedNodes)
+            {
+                if (sortedNodes.empty())
+                {
+                    Reset();
+                    return;
+                }
+
+                size_t capacity = 1;
+                while (capacity < sortedNodes.size() * 2)
+                {
+                    capacity <<= 1;
+                }
+                _entries.assign(capacity, Entry{});
+                _count = 0;
+                const auto mask = capacity - 1;
+                for (const auto& [key, node] : sortedNodes)
+                {
+                    auto index = HashLocationKey(key) & mask;
+                    while (_entries[index].node != kInvalidNodeIndex && _entries[index].key != key)
+                    {
+                        index = (index + 1) & mask;
+                    }
+                    if (_entries[index].node == kInvalidNodeIndex)
+                    {
+                        _entries[index] = { key, node };
+                        _count++;
+                    }
+                }
+            }
+
+            [[nodiscard]] NodeIndex Find(const TileCoordsXYZ& location) const noexcept
+            {
+                if (_entries.empty())
+                {
+                    return kInvalidNodeIndex;
+                }
+
+                const auto key = GetLocationKey(location);
+                const auto mask = _entries.size() - 1;
+                auto index = HashLocationKey(key) & mask;
+                while (_entries[index].node != kInvalidNodeIndex)
+                {
+                    if (_entries[index].key == key)
+                    {
+                        return _entries[index].node;
+                    }
+                    index = (index + 1) & mask;
+                }
+                return kInvalidNodeIndex;
+            }
+
+            [[nodiscard]] size_t size() const noexcept
+            {
+                return _count;
+            }
+
+            void Reset() noexcept
+            {
+                std::vector<Entry>().swap(_entries);
+                _count = 0;
+            }
+
+        private:
+            struct Entry
+            {
+                uint64_t key{};
+                NodeIndex node{ kInvalidNodeIndex };
+            };
+            static_assert(sizeof(Entry) <= 16);
+
+            std::vector<Entry> _entries;
+            size_t _count{};
+        };
+
+        PublishedNodeIndex _nodeIndex;
+        std::vector<RouteField> _fields;
+        std::vector<SingleRideTarget> _singleRideTargets;
+        std::vector<RideTargetFieldRef> _rideTargetFields;
+        std::vector<FrozenEntrance> _entrances;
+        std::vector<std::pair<uint64_t, NodeIndex>> _entranceIndex;
+        MapTopology::Generation _preparedEpoch{};
 
         [[nodiscard]] bool TargetLess(const RouteTarget& lhs, const RouteTarget& rhs) noexcept
         {
@@ -111,6 +209,25 @@ namespace OpenRCT2::MapPathRouteCache
         [[nodiscard]] bool IsSameDestination(const RouteTarget& lhs, const RouteTarget& rhs) noexcept
         {
             return lhs.location == rhs.location && lhs.queueRide == rhs.queueRide;
+        }
+
+        [[nodiscard]] const RouteField* FindField(const RouteTarget& target) noexcept
+        {
+            auto firstTargetKind = target;
+            firstTargetKind.kind = RouteTargetKind::pathOrEntrance;
+            const auto fieldIterator = std::lower_bound(
+                _fields.begin(), _fields.end(), firstTargetKind,
+                [](const RouteField& field, const RouteTarget& value) { return TargetLess(field.target, value); });
+            return fieldIterator == _fields.end() || !IsSameDestination(fieldIterator->target, target) ? nullptr
+                                                                                                       : &*fieldIterator;
+        }
+
+        [[nodiscard]] std::optional<uint32_t> GetFieldDistance(const RouteField& field, NodeIndex sourceNode) noexcept
+        {
+            if (sourceNode == kInvalidNodeIndex || sourceNode >= field.distances.size())
+                return std::nullopt;
+            const auto distance = field.distances[sourceNode];
+            return distance == kUnreachableDistance ? std::nullopt : std::optional<uint32_t>{ distance };
         }
 
         [[nodiscard]] NodeIndex FindNode(
@@ -135,7 +252,7 @@ namespace OpenRCT2::MapPathRouteCache
             PROFILED_FUNCTION();
 
             FrozenGraph graph{};
-            graph.epoch = MapTopology::GetEpoch();
+            graph.epoch = MapTopology::GetPathConnectivityEpoch();
 
             const auto& mapSize = getGameState().mapSize;
             const auto chunkCountX = (mapSize.x + MapTopology::kChunkSize - 1) / MapTopology::kChunkSize;
@@ -403,6 +520,7 @@ namespace OpenRCT2::MapPathRouteCache
                     }
                 }
             }
+            field.distances = std::move(distances);
             return field;
         }
 
@@ -443,6 +561,23 @@ namespace OpenRCT2::MapPathRouteCache
             }
             return result;
         }
+
+        [[nodiscard]] std::vector<RideTargetFieldRef> BuildRideTargetFieldRefs(const std::vector<RouteField>& fields)
+        {
+            std::vector<RideTargetFieldRef> result;
+            result.reserve(fields.size());
+            for (size_t fieldIndex = 0; fieldIndex < fields.size(); fieldIndex++)
+            {
+                if (!fields[fieldIndex].target.queueRide.IsNull())
+                    result.push_back({ fields[fieldIndex].target.queueRide, fieldIndex });
+            }
+            std::sort(result.begin(), result.end(), [](const auto& lhs, const auto& rhs) {
+                if (lhs.ride != rhs.ride)
+                    return lhs.ride.ToUnderlying() < rhs.ride.ToUnderlying();
+                return lhs.fieldIndex < rhs.fieldIndex;
+            });
+            return result;
+        }
     } // namespace
 
     bool RouteTarget::operator==(const RouteTarget& other) const noexcept
@@ -452,14 +587,14 @@ namespace OpenRCT2::MapPathRouteCache
 
     bool IsPreparedForCurrentTopology() noexcept
     {
-        return _preparedEpoch != 0 && _preparedEpoch == MapTopology::GetEpoch();
+        return _preparedEpoch != 0 && _preparedEpoch == MapTopology::GetPathConnectivityEpoch();
     }
 
     void Prepare(std::span<const RouteTarget> targets)
     {
         PROFILED_FUNCTION();
 
-        const auto epoch = MapTopology::GetEpoch();
+        const auto epoch = MapTopology::GetPathConnectivityEpoch();
         std::vector<RouteTarget> sortedTargets(targets.begin(), targets.end());
         std::sort(sortedTargets.begin(), sortedTargets.end(), TargetLess);
         sortedTargets.erase(std::unique(sortedTargets.begin(), sortedTargets.end()), sortedTargets.end());
@@ -501,12 +636,18 @@ namespace OpenRCT2::MapPathRouteCache
             }
         }
 
-        if (MapTopology::GetEpoch() != graph->epoch)
+        if (MapTopology::GetPathConnectivityEpoch() != graph->epoch)
             return;
         auto singleRideTargets = BuildSingleRideTargets(fields);
-        _nodeIndex = std::move(graph->nodeIndex);
+        auto rideTargetFields = BuildRideTargetFieldRefs(fields);
+        PublishedNodeIndex nodeIndex;
+        nodeIndex.Build(graph->nodeIndex);
+        _nodeIndex = std::move(nodeIndex);
         _fields = std::move(fields);
         _singleRideTargets = std::move(singleRideTargets);
+        _rideTargetFields = std::move(rideTargetFields);
+        _entrances = std::move(graph->entrances);
+        _entranceIndex = std::move(graph->entranceIndex);
         _preparedEpoch = graph->epoch;
     }
 
@@ -514,21 +655,124 @@ namespace OpenRCT2::MapPathRouteCache
     {
         if (!IsPreparedForCurrentTopology())
             return std::nullopt;
-        auto firstTargetKind = target;
-        firstTargetKind.kind = RouteTargetKind::pathOrEntrance;
-        const auto fieldIterator = std::lower_bound(
-            _fields.begin(), _fields.end(), firstTargetKind,
-            [](const RouteField& field, const RouteTarget& value) { return TargetLess(field.target, value); });
-        if (fieldIterator == _fields.end() || !IsSameDestination(fieldIterator->target, target))
+        const auto* field = FindField(target);
+        if (field == nullptr)
             return std::nullopt;
 
-        const auto sourceNode = FindNode(_nodeIndex, source);
-        if (sourceNode == kInvalidNodeIndex || sourceNode >= fieldIterator->directions.size())
+        const auto sourceNode = _nodeIndex.Find(source);
+        if (sourceNode == kInvalidNodeIndex || sourceNode >= field->directions.size())
             return std::nullopt;
-        const auto direction = fieldIterator->directions[sourceNode];
+        const auto direction = field->directions[sourceNode];
         if (!DirectionValid(direction))
             return std::nullopt;
         return RouteStep{ direction };
+    }
+
+    RouteDistance QueryDistanceToTarget(const RouteTarget& target, const TileCoordsXYZ& source) noexcept
+    {
+        if (!IsPreparedForCurrentTopology())
+            return {};
+        const auto* field = FindField(target);
+        if (field == nullptr || field->distances.empty())
+            return {};
+
+        const auto sourceNode = _nodeIndex.Find(source);
+        if (sourceNode == kInvalidNodeIndex)
+            return {};
+        return { GetFieldDistance(*field, sourceNode), true };
+    }
+
+    RouteDistance QueryDistanceFromRideExitToTarget(
+        const RouteTarget& target, const TileCoordsXYZ& sourceExit, RideId sourceRide) noexcept
+    {
+        if (!IsPreparedForCurrentTopology() || sourceRide.IsNull())
+            return {};
+        const auto* field = FindField(target);
+        if (field == nullptr || field->distances.empty())
+            return {};
+
+        const auto key = GetLocationKey(sourceExit);
+        auto entranceIterator = std::lower_bound(
+            _entranceIndex.begin(), _entranceIndex.end(), key,
+            [](const auto& entry, uint64_t value) { return entry.first < value; });
+        auto bestDistance = kUnreachableDistance;
+        bool foundExit = false;
+        for (; entranceIterator != _entranceIndex.end() && entranceIterator->first == key; entranceIterator++)
+        {
+            const auto& entrance = _entrances[entranceIterator->second];
+            if (entrance.entranceType != ENTRANCE_TYPE_RIDE_EXIT || entrance.ride != sourceRide)
+                continue;
+            foundExit = true;
+            for (const auto pathNode : entrance.connections)
+            {
+                const auto distance = GetFieldDistance(*field, pathNode);
+                if (distance.has_value())
+                    bestDistance = std::min(bestDistance, *distance);
+            }
+        }
+        if (!foundExit)
+            return {};
+        return { bestDistance == kUnreachableDistance ? std::nullopt : std::optional<uint32_t>{ bestDistance }, true };
+    }
+
+    std::optional<size_t> GetClosestReachableTargetIndex(
+        std::span<const RouteTarget> candidates, const TileCoordsXYZ& source) noexcept
+    {
+        if (!IsPreparedForCurrentTopology() || candidates.empty())
+            return std::nullopt;
+
+        const auto sourceNode = _nodeIndex.Find(source);
+        if (sourceNode == kInvalidNodeIndex)
+            return std::nullopt;
+
+        std::optional<size_t> result;
+        auto shortestDistance = kUnreachableDistance;
+        for (size_t index = 0; index < candidates.size(); index++)
+        {
+            const auto* field = FindField(candidates[index]);
+            if (field == nullptr)
+                continue;
+            const auto distance = GetFieldDistance(*field, sourceNode);
+            if (distance.has_value() && *distance < shortestDistance)
+            {
+                shortestDistance = *distance;
+                result = index;
+            }
+        }
+        return result;
+    }
+
+    ReachableRideTargetResult GetClosestReachableRideTarget(
+        std::span<const RideId> candidates, const TileCoordsXYZ& source) noexcept
+    {
+        if (!IsPreparedForCurrentTopology() || candidates.empty())
+            return {};
+        const auto sourceNode = _nodeIndex.Find(source);
+        if (sourceNode == kInvalidNodeIndex)
+            return {};
+
+        ReachableRideTargetResult result{ .isExact = true };
+        auto shortestDistance = kUnreachableDistance;
+        for (size_t candidateIndex = 0; candidateIndex < candidates.size(); candidateIndex++)
+        {
+            const auto ride = candidates[candidateIndex];
+            auto fieldRef = std::lower_bound(
+                _rideTargetFields.begin(), _rideTargetFields.end(), ride,
+                [](const RideTargetFieldRef& entry, RideId value) {
+                    return entry.ride.ToUnderlying() < value.ToUnderlying();
+                });
+            for (; fieldRef != _rideTargetFields.end() && fieldRef->ride == ride; fieldRef++)
+            {
+                const auto& field = _fields[fieldRef->fieldIndex];
+                const auto distance = GetFieldDistance(field, sourceNode);
+                if (distance.has_value() && *distance < shortestDistance)
+                {
+                    shortestDistance = *distance;
+                    result.selection = ReachableRideTarget{ candidateIndex, field.target, *distance };
+                }
+            }
+        }
+        return result;
     }
 
     std::optional<RouteTarget> GetSingleTargetForRide(RideId ride) noexcept
@@ -545,11 +789,33 @@ namespace OpenRCT2::MapPathRouteCache
         return iterator->target;
     }
 
+    Statistics GetStatistics() noexcept
+    {
+        size_t directionEntryCount = 0;
+        size_t distanceEntryCount = 0;
+        for (const auto& field : _fields)
+        {
+            directionEntryCount += field.directions.size();
+            distanceEntryCount += field.distances.size();
+        }
+        return {
+            .nodeCount = _nodeIndex.size(),
+            .targetCount = _fields.size(),
+            .directionEntryCount = directionEntryCount,
+            .distanceEntryCount = distanceEntryCount,
+            .singleRideTargetCount = _singleRideTargets.size(),
+            .preparedForCurrentTopology = IsPreparedForCurrentTopology(),
+        };
+    }
+
     void Reset() noexcept
     {
-        std::vector<std::pair<uint64_t, NodeIndex>>().swap(_nodeIndex);
+        _nodeIndex.Reset();
         std::vector<RouteField>().swap(_fields);
         std::vector<SingleRideTarget>().swap(_singleRideTargets);
+        std::vector<RideTargetFieldRef>().swap(_rideTargetFields);
+        std::vector<FrozenEntrance>().swap(_entrances);
+        std::vector<std::pair<uint64_t, NodeIndex>>().swap(_entranceIndex);
         _preparedEpoch = 0;
     }
 } // namespace OpenRCT2::MapPathRouteCache

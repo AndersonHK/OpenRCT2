@@ -11,7 +11,11 @@
 
 #include "ColourPalette.h"
 
+#include <cstddef>
 #include <cstdint>
+#include <limits>
+#include <span>
+#include <vector>
 
 struct CoordsXY;
 struct Vehicle;
@@ -31,6 +35,38 @@ namespace OpenRCT2::Drawing
 
 namespace OpenRCT2::Drawing::LightFx
 {
+    /**
+     * Immutable output of the legacy viewport/light resolver. Render backends
+     * may retain this after paint traversal without reading LightFX globals or
+     * live map/entity state.
+     */
+    struct FrameSnapshot
+    {
+        struct ResolvedLight
+        {
+            int32_t destinationX = 0;
+            int32_t destinationY = 0;
+            uint32_t width = 0;
+            uint32_t height = 0;
+            uint32_t sourceOffset = 0;
+            uint32_t sourceStride = 0;
+            uint32_t type = 0;
+            uint32_t intensity = 0;
+        };
+
+        uint32_t width = 0;
+        uint32_t height = 0;
+        GamePalette lightPalette{};
+        std::vector<std::byte> intensities;
+        std::vector<ResolvedLight> lights;
+
+        [[nodiscard]] bool IsValid() const noexcept
+        {
+            return width != 0 && height != 0 && width <= std::numeric_limits<size_t>::max() / height
+                && (intensities.empty() || intensities.size() == static_cast<size_t>(width) * height);
+        }
+    };
+
     enum class LightType : uint8_t
     {
         none = 0,
@@ -46,14 +82,24 @@ namespace OpenRCT2::Drawing::LightFx
         spot3 = 11,
     };
 
+    [[nodiscard]] bool ResolveLightCommandForCanvas(
+        int32_t centreX, int32_t centreY, uint32_t canvasWidth, uint32_t canvasHeight, LightType type,
+        uint8_t intensity, FrameSnapshot::ResolvedLight& resolved) noexcept;
+    [[nodiscard]] bool RasterizeResolvedLightCommands(
+        uint32_t canvasWidth, uint32_t canvasHeight, std::span<const FrameSnapshot::ResolvedLight> lights,
+        std::span<uint8_t> intensities) noexcept;
+
     void SetAvailable(bool available);
     bool IsAvailable();
     bool ForVehiclesIsAvailable();
 
     void Init();
+    [[nodiscard]] std::vector<std::byte> CaptureBakedFalloffs();
 
     void UpdateBuffers(RenderTarget&);
     const GamePalette& GetPalette();
+    [[nodiscard]] bool CaptureFrameSnapshot(
+        const Viewport& vp, uint32_t width, uint32_t height, FrameSnapshot& snapshot, bool includeCpuIntensity);
 
     void Add3DLight(const EntityBase& entity, uint8_t id, const CoordsXYZ& loc, LightType lightType);
 

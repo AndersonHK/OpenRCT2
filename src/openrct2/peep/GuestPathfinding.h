@@ -33,7 +33,10 @@ namespace OpenRCT2::PathFinding
 
     // Evaluates complete station-to-station transport journeys in milliseconds
     // for a guest's resolved destination. Called only when the cached goal changes.
-    bool PlanTransportRoute(Guest& peep, const TileCoordsXYZ& finalGoal, bool hasWalkingAlternative = true);
+    bool PlanTransportRoute(
+        Guest& peep, const TileCoordsXYZ& finalGoal, bool hasWalkingAlternative = true,
+        RideId finalQueueRide = RideId::GetNull());
+    bool RevalidateTransportRouteForServiceConditions(Guest& peep);
     int32_t CalculateTransportCandidateRadiusTiles(
         int64_t walkingSpeedMillimetresPerSecond, int64_t maximumWalkingTimeMs);
 

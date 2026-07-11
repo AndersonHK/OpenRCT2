@@ -10,18 +10,22 @@
 #ifdef ENABLE_VULKAN
 
     #include "VulkanDevice.h"
+    #include "VulkanPlatform.h"
+    #include "VulkanSurfaceFormat.h"
 
     #include "../gpu/GpuAtlas.h"
 
-    #include <SDL.h>
     #include <algorithm>
     #include <array>
+    #include <chrono>
+    #include <cmath>
     #include <cstring>
     #include <limits>
     #include <openrct2/core/Console.hpp>
     #include <set>
     #include <stdexcept>
     #include <string>
+    #include <utility>
 
 namespace OpenRCT2::Ui::Vulkan
 {
@@ -248,21 +252,26 @@ namespace OpenRCT2::Ui::Vulkan
         Dispose();
     }
 
-    void Device::Initialise(SDL_Window* window, bool vsync, VkDeviceSize uploadRingCapacity, bool preferHdr10)
+    void Device::Initialise(
+        SDL_Window* window, VkExtent2D drawableExtent, bool vsync, VkDeviceSize uploadRingCapacity, bool preferHdr10,
+        float hdrPaperWhiteNits)
     {
         if (_instance != VK_NULL_HANDLE)
         {
             throw std::logic_error("Vulkan device is already initialised");
         }
+        if (drawableExtent.width == 0 || drawableExtent.height == 0)
+        {
+            throw std::invalid_argument("Vulkan device requires a non-zero initial drawable extent");
+        }
 
         _window = window;
+        _drawableExtent = drawableExtent;
         _vsync = vsync;
         _preferHdr10 = preferHdr10;
+        _hdrPaperWhiteNits = std::isfinite(hdrPaperWhiteNits) ? std::clamp(hdrPaperWhiteNits, 80.0f, 1000.0f) : 203.0f;
         _uploadRingCapacity = std::max<VkDeviceSize>(uploadRingCapacity, 1024 * 1024);
-        if (SDL_Vulkan_LoadLibrary(nullptr) != 0)
-        {
-            throw std::runtime_error(std::string("SDL could not load Vulkan: ") + SDL_GetError());
-        }
+        Platform::LoadVulkanLibrary();
         _loaderLoaded = true;
 
         try
@@ -272,7 +281,10 @@ namespace OpenRCT2::Ui::Vulkan
             SelectPhysicalDevice();
             CreateLogicalDevice();
             CreateCommandResources();
-            CreateSwapchain();
+            if (!CreateSwapchain())
+            {
+                throw std::runtime_error("Vulkan surface has no drawable extent during initialisation");
+            }
         }
         catch (...)
         {
@@ -294,6 +306,10 @@ namespace OpenRCT2::Ui::Vulkan
             for (auto& frame : _frames)
             {
                 frame.upload.Dispose();
+                if (frame.timestampQueryPool != VK_NULL_HANDLE)
+                {
+                    vkDestroyQueryPool(_device, frame.timestampQueryPool, nullptr);
+                }
                 if (frame.imageAvailable != VK_NULL_HANDLE)
                 {
                     vkDestroySemaphore(_device, frame.imageAvailable, nullptr);
@@ -310,6 +326,9 @@ namespace OpenRCT2::Ui::Vulkan
                 frame.imageAvailable = VK_NULL_HANDLE;
                 frame.renderFinished = VK_NULL_HANDLE;
                 frame.available = VK_NULL_HANDLE;
+                frame.timestampQueryPool = VK_NULL_HANDLE;
+                frame.timestampPending = false;
+                frame.completedGpuTimings.reset();
             }
             if (_commandPool != VK_NULL_HANDLE)
             {
@@ -331,7 +350,7 @@ namespace OpenRCT2::Ui::Vulkan
         }
         if (_loaderLoaded)
         {
-            SDL_Vulkan_UnloadLibrary();
+            Platform::UnloadVulkanLibrary();
         }
 
         _window = nullptr;
@@ -348,10 +367,19 @@ namespace OpenRCT2::Ui::Vulkan
         _currentFrame = 0;
         _swapchainGeneration = 0;
         _swapchainInvalid = false;
+        _drawableExtent = {};
         _uploadRingCapacity = kDefaultUploadRingSize;
+        _timestampValidBits = 0;
+        _timestampPeriodNanoseconds = 0.0;
+        _gpuTimestampsSupported = false;
         _preferHdr10 = false;
+        _hdrPaperWhiteNits = 203.0f;
         _hdr10Available = false;
         _hdr10Active = false;
+        _hdrMetadataAvailable = false;
+#ifdef VK_EXT_HDR_METADATA_EXTENSION_NAME
+        _setHdrMetadata = nullptr;
+#endif
     }
 
     void Device::WaitIdle() const
@@ -401,29 +429,55 @@ namespace OpenRCT2::Ui::Vulkan
         }
     }
 
+    void Device::SetDrawableExtent(VkExtent2D drawableExtent) noexcept
+    {
+        if (_drawableExtent.width != drawableExtent.width || _drawableExtent.height != drawableExtent.height)
+        {
+            _drawableExtent = drawableExtent;
+            RequestSwapchainRecreate();
+        }
+    }
+
     void Device::RequestSwapchainRecreate() noexcept
     {
         _swapchainInvalid = true;
     }
 
-    std::optional<FrameToken> Device::BeginFrame()
+    std::optional<FrameToken> Device::BeginFrame(bool waitForAvailability)
     {
         const std::lock_guard lock(_hostMutex);
-        if (_swapchainInvalid && !RecreateSwapchain())
+        if (_swapchainInvalid)
         {
             return std::nullopt;
         }
 
         auto& frame = _frames[_currentFrame];
-        CheckVk(vkWaitForFences(_device, 1, &frame.available, VK_TRUE, UINT64_MAX), "vkWaitForFences(frame)");
+        if (waitForAvailability)
+        {
+            CheckVk(vkWaitForFences(_device, 1, &frame.available, VK_TRUE, UINT64_MAX), "vkWaitForFences(frame)");
+        }
+        else
+        {
+            const auto fenceStatus = vkGetFenceStatus(_device, frame.available);
+            if (fenceStatus == VK_NOT_READY)
+            {
+                return std::nullopt;
+            }
+            CheckVk(fenceStatus, "vkGetFenceStatus(frame)");
+        }
+        HarvestGpuTimestamps(frame);
 
         uint32_t imageIndex = 0;
+        const auto timeout = waitForAvailability ? UINT64_MAX : uint64_t{ 0 };
         const auto acquireResult =
-            vkAcquireNextImageKHR(_device, _swapchain, UINT64_MAX, frame.imageAvailable, VK_NULL_HANDLE, &imageIndex);
+            vkAcquireNextImageKHR(_device, _swapchain, timeout, frame.imageAvailable, VK_NULL_HANDLE, &imageIndex);
+        if (acquireResult == VK_NOT_READY || acquireResult == VK_TIMEOUT)
+        {
+            return std::nullopt;
+        }
         if (acquireResult == VK_ERROR_OUT_OF_DATE_KHR)
         {
             _swapchainInvalid = true;
-            RecreateSwapchain();
             return std::nullopt;
         }
         if (acquireResult != VK_SUCCESS && acquireResult != VK_SUBOPTIMAL_KHR)
@@ -444,6 +498,14 @@ namespace OpenRCT2::Ui::Vulkan
             .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
         };
         CheckVk(vkBeginCommandBuffer(frame.commandBuffer, &beginInfo), "vkBeginCommandBuffer(frame)");
+        if (frame.timestampQueryPool != VK_NULL_HANDLE)
+        {
+            vkCmdResetQueryPool(
+                frame.commandBuffer, frame.timestampQueryPool, 0, static_cast<uint32_t>(kGpuTimestampCount));
+            vkCmdWriteTimestamp(
+                frame.commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, frame.timestampQueryPool,
+                static_cast<uint32_t>(GpuTimestampPoint::frameStart));
+        }
 
         return FrameToken{
             .commandBuffer = frame.commandBuffer,
@@ -454,7 +516,7 @@ namespace OpenRCT2::Ui::Vulkan
         };
     }
 
-    void Device::EndFrame(const FrameToken& token)
+    double Device::EndFrame(const FrameToken& token)
     {
         const std::lock_guard lock(_hostMutex);
         if (token.frameIndex != _currentFrame)
@@ -463,6 +525,12 @@ namespace OpenRCT2::Ui::Vulkan
         }
 
         auto& frame = _frames[_currentFrame];
+        if (frame.timestampQueryPool != VK_NULL_HANDLE)
+        {
+            vkCmdWriteTimestamp(
+                frame.commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, frame.timestampQueryPool,
+                static_cast<uint32_t>(GpuTimestampPoint::frameComplete));
+        }
         CheckVk(vkEndCommandBuffer(frame.commandBuffer), "vkEndCommandBuffer(frame)");
         frame.upload.FlushWritten();
 
@@ -480,6 +548,7 @@ namespace OpenRCT2::Ui::Vulkan
             .pSignalSemaphores = &frame.renderFinished,
         };
         CheckVk(vkQueueSubmit(_graphicsQueue, 1, &submitInfo, frame.available), "vkQueueSubmit(frame)");
+        frame.timestampPending = frame.timestampQueryPool != VK_NULL_HANDLE;
 
         const VkPresentInfoKHR presentInfo = {
             .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
@@ -489,7 +558,10 @@ namespace OpenRCT2::Ui::Vulkan
             .pSwapchains = &_swapchain,
             .pImageIndices = &token.imageIndex,
         };
+        const auto presentStart = std::chrono::steady_clock::now();
         const auto presentResult = vkQueuePresentKHR(_presentQueue, &presentInfo);
+        const auto presentCallMicroseconds =
+            std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - presentStart).count();
         if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR)
         {
             _swapchainInvalid = true;
@@ -500,6 +572,75 @@ namespace OpenRCT2::Ui::Vulkan
         }
 
         _currentFrame = (_currentFrame + 1) % kFramesInFlight;
+        return presentCallMicroseconds;
+    }
+
+    void Device::AbandonFrame(const FrameToken& token)
+    {
+        const std::lock_guard lock(_hostMutex);
+        if (token.frameIndex != _currentFrame)
+        {
+            throw std::logic_error("Vulkan frame token does not belong to the active frame");
+        }
+
+        auto& frame = _frames[_currentFrame];
+        CheckVk(vkResetCommandBuffer(frame.commandBuffer, 0), "vkResetCommandBuffer(abandoned frame)");
+        frame.timestampPending = false;
+
+        // Acquiring a swapchain image signals this binary semaphore. Consume
+        // it before the frame slot can be reused, but do not present an image
+        // whose command buffer may be incomplete. Swapchain recreation below
+        // releases the acquired image.
+        constexpr VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        const VkSubmitInfo submitInfo = {
+            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            .waitSemaphoreCount = 1,
+            .pWaitSemaphores = &frame.imageAvailable,
+            .pWaitDstStageMask = &waitStage,
+        };
+        CheckVk(vkQueueSubmit(_graphicsQueue, 1, &submitInfo, frame.available), "vkQueueSubmit(abandoned frame)");
+
+        _swapchainInvalid = true;
+        _currentFrame = (_currentFrame + 1) % kFramesInFlight;
+    }
+
+    void Device::RecordGpuTimestamp(const FrameToken& token, GpuTimestampPoint point) const
+    {
+        const std::lock_guard lock(_hostMutex);
+        if (token.frameIndex != _currentFrame || point == GpuTimestampPoint::frameStart
+            || point == GpuTimestampPoint::frameComplete || point == GpuTimestampPoint::count)
+        {
+            throw std::logic_error("Invalid Vulkan GPU timestamp point for the active frame");
+        }
+        const auto queryPool = _frames[token.frameIndex].timestampQueryPool;
+        if (queryPool != VK_NULL_HANDLE)
+        {
+            vkCmdWriteTimestamp(
+                token.commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, static_cast<uint32_t>(point));
+        }
+    }
+
+    std::optional<GpuTimestampDurations> Device::TakeCompletedGpuTimings(uint32_t frameIndex)
+    {
+        const std::lock_guard lock(_hostMutex);
+        if (frameIndex >= kFramesInFlight)
+        {
+            throw std::out_of_range("Vulkan frame index is out of range");
+        }
+        auto& frame = _frames[frameIndex];
+        if (frame.timestampPending)
+        {
+            const auto fenceStatus = vkGetFenceStatus(_device, frame.available);
+            if (fenceStatus == VK_SUCCESS)
+            {
+                HarvestGpuTimestamps(frame);
+            }
+            else if (fenceStatus != VK_NOT_READY)
+            {
+                ThrowVk("vkGetFenceStatus(frame timestamps)", fenceStatus);
+            }
+        }
+        return std::exchange(frame.completedGpuTimings, std::nullopt);
     }
 
     void Device::InvalidateUpload(uint32_t frameIndex, VkDeviceSize offset, VkDeviceSize size)
@@ -510,6 +651,114 @@ namespace OpenRCT2::Ui::Vulkan
             throw std::out_of_range("Vulkan frame index is outside the upload-ring set");
         }
         _frames[frameIndex].upload.Invalidate(offset, size);
+    }
+
+    void Device::ReadbackImage(
+        uint32_t frameIndex, VkImage image, VkImageLayout layout, VkExtent2D extent,
+        std::span<std::byte> destination)
+    {
+        const std::lock_guard lock(_hostMutex);
+        if (frameIndex >= kFramesInFlight || image == VK_NULL_HANDLE || extent.width == 0 || extent.height == 0)
+        {
+            throw std::invalid_argument("Invalid Vulkan synchronous readback source");
+        }
+        const uint64_t byteSize64 = static_cast<uint64_t>(extent.width) * extent.height;
+        if (byteSize64 > destination.size())
+        {
+            throw std::invalid_argument("Vulkan synchronous readback destination is too small");
+        }
+
+        auto& frame = _frames[frameIndex];
+        CheckVk(vkWaitForFences(_device, 1, &frame.available, VK_TRUE, UINT64_MAX), "wait for readback frame");
+        CheckVk(vkResetCommandBuffer(frame.commandBuffer, 0), "reset readback command buffer");
+        frame.upload.Reset();
+        const auto allocation = frame.upload.Allocate(byteSize64, alignof(uint32_t));
+        if (!allocation)
+        {
+            throw std::runtime_error("Vulkan upload ring has no room for synchronous indexed readback");
+        }
+
+        const VkCommandBufferBeginInfo beginInfo = {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+        };
+        CheckVk(vkBeginCommandBuffer(frame.commandBuffer, &beginInfo), "begin readback command buffer");
+
+        const VkImageSubresourceRange range = {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1,
+        };
+        const VkImageMemoryBarrier toTransfer = {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+            .srcAccessMask = VK_ACCESS_SHADER_READ_BIT,
+            .dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
+            .oldLayout = layout,
+            .newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .image = image,
+            .subresourceRange = range,
+        };
+        vkCmdPipelineBarrier(
+            frame.commandBuffer, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0,
+            nullptr, 1, &toTransfer);
+
+        const VkBufferImageCopy copy = {
+            .bufferOffset = allocation.offset,
+            .bufferRowLength = 0,
+            .bufferImageHeight = 0,
+            .imageSubresource = {
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .mipLevel = 0,
+                .baseArrayLayer = 0,
+                .layerCount = 1,
+            },
+            .imageOffset = { 0, 0, 0 },
+            .imageExtent = { extent.width, extent.height, 1 },
+        };
+        vkCmdCopyImageToBuffer(
+            frame.commandBuffer, image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, allocation.buffer, 1, &copy);
+
+        const VkBufferMemoryBarrier hostBarrier = {
+            .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+            .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+            .dstAccessMask = VK_ACCESS_HOST_READ_BIT,
+            .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .buffer = allocation.buffer,
+            .offset = allocation.offset,
+            .size = byteSize64,
+        };
+        const VkImageMemoryBarrier restoreLayout = {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+            .srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
+            .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+            .oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            .newLayout = layout,
+            .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .image = image,
+            .subresourceRange = range,
+        };
+        vkCmdPipelineBarrier(
+            frame.commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_HOST_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 1, &hostBarrier, 1,
+            &restoreLayout);
+        CheckVk(vkEndCommandBuffer(frame.commandBuffer), "end readback command buffer");
+
+        CheckVk(vkResetFences(_device, 1, &frame.available), "reset readback fence");
+        const VkSubmitInfo submitInfo = {
+            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            .commandBufferCount = 1,
+            .pCommandBuffers = &frame.commandBuffer,
+        };
+        CheckVk(vkQueueSubmit(_graphicsQueue, 1, &submitInfo, frame.available), "submit readback command buffer");
+        CheckVk(vkWaitForFences(_device, 1, &frame.available, VK_TRUE, UINT64_MAX), "wait for synchronous readback");
+        frame.upload.Invalidate(allocation.offset, byteSize64);
+        std::memcpy(destination.data(), allocation.data, static_cast<size_t>(byteSize64));
     }
 
     void Device::CreateInstance()
@@ -558,10 +807,7 @@ namespace OpenRCT2::Ui::Vulkan
 
     void Device::CreateSurface()
     {
-        if (SDL_Vulkan_CreateSurface(_window, _instance, &_surface) != SDL_TRUE)
-        {
-            throw std::runtime_error(std::string("SDL could not create Vulkan surface: ") + SDL_GetError());
-        }
+        _surface = Platform::CreateSurface(_window, _instance);
     }
 
     void Device::SelectPhysicalDevice()
@@ -621,6 +867,17 @@ namespace OpenRCT2::Ui::Vulkan
             .pEnabledFeatures = &features,
         };
         CheckVk(vkCreateDevice(_physicalDevice, &deviceInfo, nullptr, &_device), "vkCreateDevice");
+#ifdef VK_EXT_HDR_METADATA_EXTENSION_NAME
+        const bool enabledHdrMetadata = std::any_of(extensions.begin(), extensions.end(), [](const char* extension) {
+            return std::strcmp(extension, VK_EXT_HDR_METADATA_EXTENSION_NAME) == 0;
+        });
+        if (enabledHdrMetadata)
+        {
+            _setHdrMetadata = reinterpret_cast<PFN_vkSetHdrMetadataEXT>(
+                vkGetDeviceProcAddr(_device, "vkSetHdrMetadataEXT"));
+            _hdrMetadataAvailable = _setHdrMetadata != nullptr;
+        }
+#endif
         vkGetDeviceQueue(_device, _queueFamilies.graphics.value(), 0, &_graphicsQueue);
         vkGetDeviceQueue(_device, _queueFamilies.present.value(), 0, &_presentQueue);
 
@@ -660,35 +917,109 @@ namespace OpenRCT2::Ui::Vulkan
             CheckVk(vkCreateFence(_device, &fenceInfo, nullptr, &frame.available), "create frame fence");
             frame.upload.Initialise(_physicalDevice, _device, _uploadRingCapacity);
         }
+
+        uint32_t queueFamilyCount = 0;
+        vkGetPhysicalDeviceQueueFamilyProperties(_physicalDevice, &queueFamilyCount, nullptr);
+        std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+        vkGetPhysicalDeviceQueueFamilyProperties(_physicalDevice, &queueFamilyCount, queueFamilies.data());
+        VkPhysicalDeviceProperties deviceProperties{};
+        vkGetPhysicalDeviceProperties(_physicalDevice, &deviceProperties);
+        _timestampValidBits = queueFamilies[_queueFamilies.graphics.value()].timestampValidBits;
+        _timestampPeriodNanoseconds = deviceProperties.limits.timestampPeriod;
+        _gpuTimestampsSupported = _timestampValidBits != 0 && _timestampPeriodNanoseconds > 0.0;
+        if (_gpuTimestampsSupported)
+        {
+            const VkQueryPoolCreateInfo queryPoolInfo = {
+                .sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
+                .queryType = VK_QUERY_TYPE_TIMESTAMP,
+                .queryCount = static_cast<uint32_t>(kGpuTimestampCount),
+            };
+            for (auto& frame : _frames)
+            {
+                const auto result = vkCreateQueryPool(_device, &queryPoolInfo, nullptr, &frame.timestampQueryPool);
+                if (result != VK_SUCCESS)
+                {
+                    _gpuTimestampsSupported = false;
+                    break;
+                }
+            }
+            if (!_gpuTimestampsSupported)
+            {
+                for (auto& frame : _frames)
+                {
+                    if (frame.timestampQueryPool != VK_NULL_HANDLE)
+                    {
+                        vkDestroyQueryPool(_device, frame.timestampQueryPool, nullptr);
+                        frame.timestampQueryPool = VK_NULL_HANDLE;
+                    }
+                }
+            }
+        }
     }
 
-    void Device::CreateSwapchain()
+    void Device::HarvestGpuTimestamps(FrameResources& frame)
+    {
+        if (!frame.timestampPending || frame.timestampQueryPool == VK_NULL_HANDLE)
+        {
+            return;
+        }
+
+        struct TimestampQueryResult
+        {
+            uint64_t value;
+            uint64_t available;
+        };
+        std::array<TimestampQueryResult, kGpuTimestampCount> results{};
+        const auto result = vkGetQueryPoolResults(
+            _device, frame.timestampQueryPool, 0, static_cast<uint32_t>(results.size()), sizeof(results),
+            results.data(), sizeof(TimestampQueryResult),
+            VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WITH_AVAILABILITY_BIT);
+        frame.timestampPending = false;
+        if (result == VK_NOT_READY)
+        {
+            return;
+        }
+        CheckVk(result, "vkGetQueryPoolResults(frame timestamps)");
+        if (!std::all_of(results.begin(), results.end(), [](const auto& query) { return query.available != 0; }))
+        {
+            return;
+        }
+        std::array<uint64_t, kGpuTimestampCount> timestamps{};
+        std::transform(
+            results.begin(), results.end(), timestamps.begin(), [](const auto& query) { return query.value; });
+        frame.completedGpuTimings =
+            CalculateGpuTimestampDurations(timestamps, _timestampValidBits, _timestampPeriodNanoseconds);
+    }
+
+    bool Device::CreateSwapchain()
     {
         const auto support = QuerySwapchainSupport(_physicalDevice);
-        const auto surfaceFormat = ChooseSurfaceFormat(support.formats);
+        const auto surfaceFormatSelection = SelectSurfaceFormat(support.formats, _preferHdr10);
+        const auto surfaceFormat = surfaceFormatSelection.surfaceFormat;
+        if (!IsSupportedOutputSurfaceFormat(surfaceFormatSelection))
+        {
+            throw std::runtime_error(
+                "Vulkan surface exposes neither a supported SDR format nor an active exact HDR10 format");
+        }
+        _hdr10Available = surfaceFormatSelection.hdr10Available;
         const auto presentMode = ChoosePresentMode(support.presentModes);
         const auto extent = ChooseExtent(support.capabilities);
+        if (extent.width == 0 || extent.height == 0)
+        {
+            return false;
+        }
+        const auto compositeAlpha = SelectStraightAlphaCompositeMode(support.capabilities.supportedCompositeAlpha);
+        if (!compositeAlpha.has_value())
+        {
+            throw std::runtime_error("Vulkan surface has no composite-alpha mode compatible with straight-alpha output");
+        }
+
+        DestroySwapchain();
 
         VkImageUsageFlags imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
         if ((support.capabilities.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT) != 0)
         {
             imageUsage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-        }
-
-        VkCompositeAlphaFlagBitsKHR compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-        constexpr std::array compositeAlphaModes = {
-            VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
-            VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR,
-            VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
-            VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR,
-        };
-        for (const auto mode : compositeAlphaModes)
-        {
-            if ((support.capabilities.supportedCompositeAlpha & mode) != 0)
-            {
-                compositeAlpha = mode;
-                break;
-            }
         }
 
         uint32_t imageCount = support.capabilities.minImageCount + 1;
@@ -708,7 +1039,7 @@ namespace OpenRCT2::Ui::Vulkan
             .imageArrayLayers = 1,
             .imageUsage = imageUsage,
             .preTransform = support.capabilities.currentTransform,
-            .compositeAlpha = compositeAlpha,
+            .compositeAlpha = *compositeAlpha,
             .presentMode = presentMode,
             .clipped = VK_TRUE,
         };
@@ -725,7 +1056,7 @@ namespace OpenRCT2::Ui::Vulkan
 
         CheckVk(vkCreateSwapchainKHR(_device, &swapchainInfo, nullptr, &_swapchain), "vkCreateSwapchainKHR");
         _swapchainFormat = surfaceFormat.format;
-        _hdr10Active = surfaceFormat.colorSpace == VK_COLOR_SPACE_HDR10_ST2084_EXT;
+        _hdr10Active = surfaceFormatSelection.hdr10Active;
         _swapchainExtent = extent;
 
         CheckVk(vkGetSwapchainImagesKHR(_device, _swapchain, &imageCount, nullptr), "get swapchain image count");
@@ -756,8 +1087,10 @@ namespace OpenRCT2::Ui::Vulkan
             };
             CheckVk(vkCreateImageView(_device, &viewInfo, nullptr, &_swapchainImageViews[i]), "create swapchain view");
         }
+        PublishHdrMetadata();
         _swapchainGeneration++;
         _swapchainInvalid = false;
+        return true;
     }
 
     void Device::DestroySwapchain()
@@ -780,20 +1113,40 @@ namespace OpenRCT2::Ui::Vulkan
         _swapchainExtent = {};
     }
 
+    void Device::PublishHdrMetadata() const noexcept
+    {
+#ifdef VK_EXT_HDR_METADATA_EXTENSION_NAME
+        if (!_hdr10Active || !_hdrMetadataAvailable || _setHdrMetadata == nullptr || _swapchain == VK_NULL_HANDLE)
+        {
+            return;
+        }
+
+        // The HDR palette pass maps the brightest indexed colour to paper white and emits no separate highlight range yet.
+        // Describe that content truthfully; the display remains responsible for adapting it to its own peak capability.
+        const VkHdrMetadataEXT metadata = {
+            .sType = VK_STRUCTURE_TYPE_HDR_METADATA_EXT,
+            .displayPrimaryRed = { 0.708f, 0.292f },
+            .displayPrimaryGreen = { 0.170f, 0.797f },
+            .displayPrimaryBlue = { 0.131f, 0.046f },
+            .whitePoint = { 0.3127f, 0.3290f },
+            .maxLuminance = _hdrPaperWhiteNits,
+            .minLuminance = 0.0f,
+            .maxContentLightLevel = _hdrPaperWhiteNits,
+            .maxFrameAverageLightLevel = _hdrPaperWhiteNits,
+        };
+        _setHdrMetadata(_device, 1, &_swapchain, &metadata);
+#endif
+    }
+
     bool Device::RecreateSwapchain()
     {
-        int32_t width = 0;
-        int32_t height = 0;
-        SDL_Vulkan_GetDrawableSize(_window, &width, &height);
-        if (width <= 0 || height <= 0)
+        if (_drawableExtent.width == 0 || _drawableExtent.height == 0)
         {
             return false;
         }
 
         WaitIdle();
-        DestroySwapchain();
-        CreateSwapchain();
-        return true;
+        return CreateSwapchain();
     }
 
     Device::QueueFamilies Device::FindQueueFamilies(VkPhysicalDevice device) const
@@ -919,17 +1272,7 @@ namespace OpenRCT2::Ui::Vulkan
 
     std::vector<const char*> Device::GetInstanceExtensions() const
     {
-        uint32_t count = 0;
-        if (SDL_Vulkan_GetInstanceExtensions(_window, &count, nullptr) != SDL_TRUE)
-        {
-            throw std::runtime_error(std::string("SDL could not query Vulkan extensions: ") + SDL_GetError());
-        }
-        std::vector<const char*> result(count);
-        if (SDL_Vulkan_GetInstanceExtensions(_window, &count, result.data()) != SDL_TRUE)
-        {
-            throw std::runtime_error(std::string("SDL could not query Vulkan extensions: ") + SDL_GetError());
-        }
-        return result;
+        return Platform::GetInstanceExtensions(_window);
     }
 
     std::vector<const char*> Device::GetDeviceExtensions(VkPhysicalDevice device) const
@@ -946,56 +1289,14 @@ namespace OpenRCT2::Ui::Vulkan
         {
             result.push_back(kPortabilitySubsetExtension);
         }
+#ifdef VK_EXT_HDR_METADATA_EXTENSION_NAME
+        if (HasExtension(available, VK_EXT_HDR_METADATA_EXTENSION_NAME))
+        {
+            result.push_back(VK_EXT_HDR_METADATA_EXTENSION_NAME);
+        }
+#endif
 
         return result;
-    }
-
-    VkSurfaceFormatKHR Device::ChooseSurfaceFormat(std::span<const VkSurfaceFormatKHR> formats)
-    {
-        const auto isHdr10 = [](const auto& format) {
-            const bool tenBit = format.format == VK_FORMAT_A2B10G10R10_UNORM_PACK32
-                || format.format == VK_FORMAT_A2R10G10B10_UNORM_PACK32;
-            return tenBit && format.colorSpace == VK_COLOR_SPACE_HDR10_ST2084_EXT;
-        };
-        _hdr10Available = std::any_of(formats.begin(), formats.end(), isHdr10);
-        if (formats.size() == 1 && formats.front().format == VK_FORMAT_UNDEFINED)
-        {
-            return { VK_FORMAT_B8G8R8A8_UNORM, formats.front().colorSpace };
-        }
-        if (_preferHdr10)
-        {
-            const auto hdr = std::find_if(formats.begin(), formats.end(), isHdr10);
-            if (hdr != formats.end())
-            {
-                return *hdr;
-            }
-        }
-        // A UNORM attachment preserves the palette's established encoded byte
-        // values directly. If a platform exposes only an sRGB attachment, the
-        // palette pass compensates by decoding to linear before the fixed-
-        // function sRGB conversion.
-        const auto preferred = std::find_if(formats.begin(), formats.end(), [](const auto& format) {
-            return format.format == VK_FORMAT_B8G8R8A8_UNORM
-                && format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-        });
-        if (preferred != formats.end())
-        {
-            return *preferred;
-        }
-        const auto alternateUnorm = std::find_if(formats.begin(), formats.end(), [](const auto& format) {
-            return format.format == VK_FORMAT_R8G8B8A8_UNORM
-                && format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-        });
-        if (alternateUnorm != formats.end())
-        {
-            return *alternateUnorm;
-        }
-        const auto srgb = std::find_if(formats.begin(), formats.end(), [](const auto& format) {
-            const bool srgbFormat = format.format == VK_FORMAT_B8G8R8A8_SRGB
-                || format.format == VK_FORMAT_R8G8B8A8_SRGB;
-            return srgbFormat && format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-        });
-        return srgb != formats.end() ? *srgb : formats.front();
     }
 
     VkPresentModeKHR Device::ChoosePresentMode(std::span<const VkPresentModeKHR> modes) const
@@ -1022,14 +1323,10 @@ namespace OpenRCT2::Ui::Vulkan
             return capabilities.currentExtent;
         }
 
-        int32_t width = 0;
-        int32_t height = 0;
-        SDL_Vulkan_GetDrawableSize(_window, &width, &height);
         return {
-            std::clamp(static_cast<uint32_t>(std::max(width, 1)), capabilities.minImageExtent.width, capabilities.maxImageExtent.width),
+            std::clamp(_drawableExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width),
             std::clamp(
-                static_cast<uint32_t>(std::max(height, 1)), capabilities.minImageExtent.height,
-                capabilities.maxImageExtent.height),
+                _drawableExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height),
         };
     }
 } // namespace OpenRCT2::Ui::Vulkan

@@ -266,7 +266,7 @@ namespace OpenRCT2::Ui::Gpu
     {
         assert(_inDraw);
         const auto* element = GfxGetG1Element(imageId);
-        if (element == nullptr)
+        if (element == nullptr || element->width <= 0 || element->height <= 0)
             return;
 
         if (rt.zoom_level > ZoomLevel{ 0 })
@@ -337,14 +337,9 @@ namespace OpenRCT2::Ui::Gpu
         assert(_inDraw);
         const auto* maskElement = GfxGetG1Element(maskImage);
         const auto* colourElement = GfxGetG1Element(colourImage);
-        if (maskElement == nullptr || colourElement == nullptr)
+        if (maskElement == nullptr || colourElement == nullptr || maskElement->width <= 0 || maskElement->height <= 0
+            || colourElement->width <= 0 || colourElement->height <= 0)
             return;
-        if (maskElement->flags.has(G1Flag::hasRLECompression)
-            || colourElement->flags.has(G1Flag::hasRLECompression))
-        {
-            DrawSprite(rt, colourImage, x, y);
-            return;
-        }
 
         const auto mask = _textureCache.GetOrLoadImageTexture(maskImage);
         const auto colour = _textureCache.GetOrLoadImageTexture(colourImage);
@@ -387,7 +382,7 @@ namespace OpenRCT2::Ui::Gpu
     {
         assert(_inDraw);
         const auto* element = GfxGetG1Element(image);
-        if (element == nullptr)
+        if (element == nullptr || element->width <= 0 || element->height <= 0)
             return;
 
         if (rt.zoom_level > ZoomLevel{ 0 })
@@ -432,7 +427,7 @@ namespace OpenRCT2::Ui::Gpu
     {
         assert(_inDraw);
         const auto* element = GfxGetG1Element(image);
-        if (element == nullptr)
+        if (element == nullptr || element->width <= 0 || element->height <= 0)
             return;
 
         if (rt.zoom_level > ZoomLevel{ 0 })

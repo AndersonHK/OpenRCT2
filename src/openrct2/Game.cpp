@@ -71,6 +71,7 @@
 #include "world/Footpath.h"
 #include "world/Map.h"
 #include "world/MapAnimation.h"
+#include "world/MapPathRouteCache.h"
 #include "world/Park.h"
 #include "world/Scenery.h"
 #include "world/Weather.h"
@@ -112,6 +113,50 @@ static bool _mapChangedExpected;
 #endif
 
 using namespace OpenRCT2;
+
+BenchmarkStateSnapshot OpenRCT2::CaptureBenchmarkStateSnapshot()
+{
+    auto& gameState = getGameState();
+    const auto routeCache = MapPathRouteCache::GetStatistics();
+
+    BenchmarkStateSnapshot result;
+    result.simulationTick = gameState.currentTicks;
+    result.staff = gameState.entities.GetEntityListCount(EntityType::staff);
+    result.vehicles = gameState.entities.GetEntityListCount(EntityType::vehicle);
+    result.routeNodes = routeCache.nodeCount;
+    result.routeTargets = routeCache.targetCount;
+    result.routeDirectionEntries = routeCache.directionEntryCount;
+    result.routeDistanceEntries = routeCache.distanceEntryCount;
+    result.singleRideTargets = routeCache.singleRideTargetCount;
+    result.routeCacheCurrent = routeCache.preparedForCurrentTopology;
+
+    for (const auto* guest : EntityList<Guest>())
+    {
+        if (guest->outsideOfPark)
+            result.guestsOutsidePark++;
+        else
+            result.guestsInsidePark++;
+
+        switch (guest->State)
+        {
+            case PeepState::walking:
+                result.guestsWalking++;
+                break;
+            case PeepState::queuing:
+            case PeepState::queuingFront:
+                result.guestsQueuing++;
+                break;
+            case PeepState::onRide:
+                result.guestsOnRide++;
+                break;
+            default:
+                break;
+        }
+        if (guest->hasTransportRoute())
+            result.activeTransportRoutes++;
+    }
+    return result;
+}
 
 void GameResetSpeed()
 {

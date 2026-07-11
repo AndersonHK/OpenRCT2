@@ -104,18 +104,27 @@ namespace OpenRCT2
 
     void EntityTweener::PostTick()
     {
-        for (auto* ent : Entities)
+        PostPos.reserve(Entities.size());
+        size_t writeIndex = 0;
+        for (size_t readIndex = 0; readIndex < Entities.size(); readIndex++)
         {
+            auto* ent = Entities[readIndex];
             if (ent == nullptr)
-            {
-                // Sprite was removed, add a dummy position to keep the index aligned.
-                PostPos.emplace_back(0, 0, 0);
-            }
-            else
-            {
-                PostPos.emplace_back(ent->getLocation());
-            }
+                continue;
+
+            const auto postPos = ent->getLocation();
+            if (PrePos[readIndex] == postPos)
+                continue;
+
+            // Tween and transition restore only need entities which moved during this tick. Compacting the parallel arrays
+            // here avoids rescanning every visible but stationary peep and vehicle for each rendered frame.
+            Entities[writeIndex] = ent;
+            PrePos[writeIndex] = PrePos[readIndex];
+            PostPos.push_back(postPos);
+            writeIndex++;
         }
+        Entities.resize(writeIndex);
+        PrePos.resize(writeIndex);
     }
 
     static bool CanTweenEntity(EntityBase* ent)
@@ -150,10 +159,7 @@ namespace OpenRCT2
             auto& posA = PrePos[i];
             auto& posB = PostPos[i];
 
-            if (posA == posB)
-                continue;
-
-            ent->moveTo(
+            ent->moveToForTween(
                 { static_cast<int32_t>(std::round(posB.x * alpha + posA.x * inv)),
                   static_cast<int32_t>(std::round(posB.y * alpha + posA.y * inv)),
                   static_cast<int32_t>(std::round(posB.z * alpha + posA.z * inv)) });
@@ -165,10 +171,10 @@ namespace OpenRCT2
         for (size_t i = 0; i < Entities.size(); ++i)
         {
             auto* ent = Entities[i];
-            if (ent == nullptr || PrePos[i] == PostPos[i])
+            if (ent == nullptr)
                 continue;
 
-            ent->moveTo(PostPos[i]);
+            ent->moveToForTween(PostPos[i]);
         }
     }
 

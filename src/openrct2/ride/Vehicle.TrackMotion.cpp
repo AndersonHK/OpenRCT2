@@ -312,7 +312,7 @@ static void BlockBrakesOpenPreviousSection(const Ride& ride, const CoordsXYZ& ve
         return;
 
     SetBrakeClosedMultiTile(*trackElement, location, false);
-    MapInvalidateElement(location, reinterpret_cast<TileElement*>(trackElement));
+    MapInvalidateTileForRendering({ location, trackElement->getBaseZ(), trackElement->getClearanceZ() });
 
     auto trackType = trackElement->GetTrackType();
     if (trackType == TrackElemType::endStation)
@@ -593,7 +593,7 @@ bool Vehicle::UpdateTrackMotionForwardsGetNewTrack(
                     Play3D(SoundId::blockBrakeRelease, TrackLocation);
                 }
             }
-            MapInvalidateElement(TrackLocation, tileElement);
+            MapInvalidateTileForRendering({ TrackLocation, tileElement->getBaseZ(), tileElement->getClearanceZ() });
             BlockBrakesOpenPreviousSection(curRide, TrackLocation, tileElement);
             if (trackTypeIsBlockBrakes(trackType))
             {

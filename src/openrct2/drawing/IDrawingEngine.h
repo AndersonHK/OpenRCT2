@@ -13,8 +13,11 @@
 #include "ColourPalette.h"
 #include "WeatherDrawer.h"
 
+#include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
+#include <vector>
 
 enum class DrawingEngine : int32_t
 {
@@ -49,6 +52,22 @@ namespace OpenRCT2::Ui
 
 namespace OpenRCT2::Drawing
 {
+    struct FrameTimings
+    {
+        uint64_t frameNumber = 0;
+        double cpuSubmitMicroseconds = 0.0;
+        double cpuPresentMicroseconds = 0.0;
+        double gpuMicroseconds = 0.0;
+        double gpuUploadMicroseconds = 0.0;
+        double gpuDrawMicroseconds = 0.0;
+        double gpuLightFxMicroseconds = 0.0;
+        double gpuCompositeMicroseconds = 0.0;
+        double presentCallMicroseconds = 0.0;
+        bool hasGpuTimestamp = false;
+        bool hasGpuPassTimestamps = false;
+        bool hasPresentCallMeasurement = false;
+    };
+
     struct IDrawingContext;
     struct RenderTarget;
 
@@ -60,6 +79,10 @@ namespace OpenRCT2::Drawing
 
         virtual void Initialise() = 0;
         virtual void Resize(uint32_t width, uint32_t height) = 0;
+        // Display identity changed independently of the logical canvas size.
+        virtual void NotifyDisplayChanged()
+        {
+        }
         virtual void SetPalette(const GamePalette& colours) = 0;
 
         virtual void SetVSync(bool vsync) = 0;
@@ -76,6 +99,28 @@ namespace OpenRCT2::Drawing
         virtual RenderTarget* getRT() = 0;
 
         virtual DrawingEngineFlags GetFlags() = 0;
+
+        // Renderers publish only fence-complete samples. Unsupported backends
+        // retain the default unavailable result.
+        [[nodiscard]] virtual std::optional<FrameTimings> GetLatestFrameTimings() const
+        {
+            return std::nullopt;
+        }
+
+        // Non-blocking consumption of every completed renderer sample since
+        // the previous call. Unsupported renderers retain the empty default.
+        virtual void TakeCompletedFrameTimings(std::vector<FrameTimings>& samples)
+        {
+            samples.clear();
+        }
+
+        // Explicit benchmark boundary. Implementations may wait for already
+        // submitted rendering work, then return every remaining completed
+        // sample. This is never called from the routine frame hot path.
+        virtual void DrainFrameTimings(std::vector<FrameTimings>& samples)
+        {
+            TakeCompletedFrameTimings(samples);
+        }
 
         virtual void InvalidateImage(uint32_t image) = 0;
     };

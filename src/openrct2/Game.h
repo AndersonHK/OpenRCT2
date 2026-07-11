@@ -11,6 +11,8 @@
 
 #include "core/StringTypes.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 
 namespace OpenRCT2
@@ -33,6 +35,69 @@ namespace OpenRCT2
 
     constexpr float kGameMinTimeScale = 0.1f;
     constexpr float kGameMaxTimeScale = 5.0f;
+
+    struct BenchmarkStateSnapshot
+    {
+        uint32_t simulationTick{};
+        size_t guestsInsidePark{};
+        size_t guestsOutsidePark{};
+        size_t guestsWalking{};
+        size_t guestsQueuing{};
+        size_t guestsOnRide{};
+        size_t activeTransportRoutes{};
+        size_t staff{};
+        size_t vehicles{};
+        size_t routeNodes{};
+        size_t routeTargets{};
+        size_t routeDirectionEntries{};
+        size_t routeDistanceEntries{};
+        size_t singleRideTargets{};
+        bool routeCacheCurrent{};
+    };
+
+    struct IntegratedBenchmarkTotals
+    {
+        double elapsedSeconds{};
+        uint64_t logicalTicks{};
+        uint64_t draws{};
+        double simulationSeconds{};
+        double drawSeconds{};
+    };
+
+    struct IntegratedBenchmarkMetrics
+    {
+        double logicalTicksPerSecond{};
+        double framesPerSecond{};
+        double simulationUtilisationPercent{};
+        double drawUtilisationPercent{};
+        double meanSimulationMicrosecondsPerLogicalTick{};
+        double meanDrawMicroseconds{};
+    };
+
+    [[nodiscard]] constexpr IntegratedBenchmarkMetrics CalculateIntegratedBenchmarkMetrics(
+        const IntegratedBenchmarkTotals& totals) noexcept
+    {
+        IntegratedBenchmarkMetrics result;
+        if (totals.elapsedSeconds > 0.0)
+        {
+            result.logicalTicksPerSecond = static_cast<double>(totals.logicalTicks) / totals.elapsedSeconds;
+            result.framesPerSecond = static_cast<double>(totals.draws) / totals.elapsedSeconds;
+            result.simulationUtilisationPercent = totals.simulationSeconds * 100.0 / totals.elapsedSeconds;
+            result.drawUtilisationPercent = totals.drawSeconds * 100.0 / totals.elapsedSeconds;
+        }
+        if (totals.logicalTicks != 0)
+        {
+            result.meanSimulationMicrosecondsPerLogicalTick =
+                totals.simulationSeconds * 1'000'000.0 / static_cast<double>(totals.logicalTicks);
+        }
+        if (totals.draws != 0)
+        {
+            result.meanDrawMicroseconds = totals.drawSeconds * 1'000'000.0 / static_cast<double>(totals.draws);
+        }
+        return result;
+    }
+
+    [[nodiscard]] BenchmarkStateSnapshot CaptureBenchmarkStateSnapshot();
 } // namespace OpenRCT2
 
 enum

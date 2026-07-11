@@ -6,6 +6,8 @@ not build a path field or change guest pathfinding.
 ## Reader contract
 
 - `GetEpoch()` returns the global topology epoch.
+- `GetPathConnectivityEpoch()` returns the narrower epoch for changes that can alter path nodes, connections, permitted
+  banner edges, slopes, queue ownership, or entrances.
 - `GetChunkGeneration(tile)` returns the generation for the tile's 16-by-16 routing chunk without allocating or locking.
 - A derived cache records the generations of every chunk it reads. It remains valid only while those generations match.
 - Derived caches must store values or stable identifiers, not tile-element pointers; storage reorganisation intentionally does
@@ -19,6 +21,11 @@ epoch once and store that generation in the edited chunk. If an edited tile is o
 chunk is advanced too because a path edge can cross that boundary. Diagonal chunks are not advanced because routing edges are
 cardinal.
 
+The incremental wide-path pass is the only narrower writer. A changed wide flag advances the general epoch and affected
+chunk generations because `MapPathTopology` caches wide and thin-junction classifications. It does not advance the path
+connectivity epoch: wide flags do not add or remove a connection, change its height or direction, admit a queue, or change a
+banner. Connectivity-only consumers can therefore survive the rolling 128-tile maintenance pass without becoming stale.
+
 `Reset()` advances all chunks together. Map replacement, load/import through `SetTileElements`, resize, shift, clear, and
 stash swaps use this broad reset.
 
@@ -27,7 +34,8 @@ stash swaps use this broad reset.
 The following mutation bottlenecks invalidate routing topology:
 
 - ordinary footpath and queue placement, replacement, edge connection, edge removal, and queue-chain relinking;
-- changes to the derived wide-path flag, including its incremental map update and scripting edits;
+- changes to the derived wide-path flag, including its incremental map update; these use the narrow non-connectivity
+  invalidation path, while scripting edits use the conservative full invalidation path;
 - track-design path layout placement, whose supplied edges bypass ordinary edge connection;
 - ride and park entrance placement/removal, including scenario entrance/exit repair;
 - blocking-banner placement, removal, no-entry changes, and rotation/edge edits;
@@ -49,4 +57,5 @@ signal. Mixing those values into topology generations would invalidate shared fi
 invalidate a chunk themselves. New callers that bypass the covered actions, footpath routines, tile inspector, scripting
 bindings, or bulk-map setters must explicitly call `MapTopology::InvalidateTileAndNeighbours`. Importers are covered when
 their finished element array is installed by `SetTileElements`; mutating an already-installed imported map requires a local
-invalidation.
+invalidation. `InvalidatePathWideTileAndNeighbours` is reserved for the derived wide-flag updater; ordinary callers must not
+use it for an edit that can affect connectivity.

@@ -910,7 +910,7 @@ namespace OpenRCT2::PathFinding
     }
 
     static TravelTimeMilliseconds EstimateWalkingTravelTime(
-        const Peep& peep, const TileCoordsXYZ& start, const TileCoordsXYZ& destination)
+        int64_t walkingSpeedMillimetresPerSecond, const TileCoordsXYZ& start, const TileCoordsXYZ& destination)
     {
         constexpr int64_t kHeuristicUnitsPerPathTile = 32;
         constexpr int64_t kMillimetresPerPathTile = 4000;
@@ -918,10 +918,32 @@ namespace OpenRCT2::PathFinding
         const auto distanceScore = CalculateHeuristicPathingScore(start, destination);
         const auto distanceMillimetres = static_cast<int64_t>(distanceScore) * kMillimetresPerPathTile
             / kHeuristicUnitsPerPathTile;
-        return (distanceMillimetres * 1000) / GetWalkingSpeedMillimetresPerSecond(peep);
+        return (distanceMillimetres * 1000) / walkingSpeedMillimetresPerSecond;
     }
 
-    bool PlanTransportRoute(Guest& peep, const TileCoordsXYZ& finalGoal, bool hasWalkingAlternative)
+    static TravelTimeMilliseconds ConvertPathTilesToWalkingTime(
+        int64_t walkingSpeedMillimetresPerSecond, uint32_t pathTiles)
+    {
+        constexpr int64_t kMillimetresPerPathTile = 4000;
+        return (static_cast<int64_t>(pathTiles) * kMillimetresPerPathTile * 1000)
+            / walkingSpeedMillimetresPerSecond;
+    }
+
+    static std::optional<TravelTimeMilliseconds> EstimateWalkingTravelTime(
+        int64_t walkingSpeedMillimetresPerSecond, const TileCoordsXYZ& start, const TileCoordsXYZ& destination,
+        const MapPathRouteCache::RouteDistance& exactDistance)
+    {
+        if (exactDistance.isExact)
+        {
+            if (!exactDistance.pathTiles.has_value())
+                return std::nullopt;
+            return ConvertPathTilesToWalkingTime(walkingSpeedMillimetresPerSecond, *exactDistance.pathTiles);
+        }
+        return EstimateWalkingTravelTime(walkingSpeedMillimetresPerSecond, start, destination);
+    }
+
+    bool PlanTransportRoute(
+        Guest& peep, const TileCoordsXYZ& finalGoal, bool hasWalkingAlternative, RideId finalQueueRide)
     {
         PROFILED_FUNCTION();
 
@@ -931,7 +953,18 @@ namespace OpenRCT2::PathFinding
         }
 
         const auto currentLocation = TileCoordsXYZ{ peep.NextLoc };
-        const auto directWalkTime = EstimateWalkingTravelTime(peep, currentLocation, finalGoal);
+        const auto walkingSpeed = GetWalkingSpeedMillimetresPerSecond(peep);
+        const auto finalTarget = MapPathRouteCache::RouteTarget{ finalGoal, finalQueueRide };
+        const auto exactDirectDistance = MapPathRouteCache::QueryDistanceToTarget(finalTarget, currentLocation);
+        const bool walkingAlternativeAvailable = exactDirectDistance.isExact ? exactDirectDistance.pathTiles.has_value()
+                                                                             : hasWalkingAlternative;
+        const auto exactDirectWalkTime = EstimateWalkingTravelTime(
+            walkingSpeed, currentLocation, finalGoal, exactDirectDistance);
+        // value_or would eagerly compute this heuristic even on the usual exact-field hit. Keep the fallback lazy; an exact
+        // unreachable result still needs the estimate as the comparison scale for connectivity-only transport searches.
+        const auto directWalkTime = exactDirectWalkTime.has_value()
+            ? *exactDirectWalkTime
+            : EstimateWalkingTravelTime(walkingSpeed, currentLocation, finalGoal);
         if (directWalkTime <= 0)
         {
             return false;
@@ -956,7 +989,7 @@ namespace OpenRCT2::PathFinding
 
         static thread_local std::vector<TransportRideServiceStationRef> boardingStations;
         static thread_local std::vector<TransportRideServiceStationRef> destinationStations;
-        const bool canNarrowSpatially = hasWalkingAlternative && !gameState.cheats.ignorePrice;
+        const bool canNarrowSpatially = walkingAlternativeAvailable && !gameState.cheats.ignorePrice;
         if (canNarrowSpatially)
         {
             // Every eligible paid/free route is bounded by the most permissive
@@ -966,8 +999,7 @@ namespace OpenRCT2::PathFinding
             const auto maximumTieTolerance = isPrecipitating ? std::max<TravelTimeMilliseconds>(30'000, directWalkTime / 5)
                                                              : std::max<TravelTimeMilliseconds>(15'000, directWalkTime / 10);
             const auto maximumRouteTime = AddClamp<TravelTimeMilliseconds>(directWalkTime, maximumTieTolerance);
-            const auto radius = CalculateTransportCandidateRadiusTiles(
-                GetWalkingSpeedMillimetresPerSecond(peep), maximumRouteTime);
+            const auto radius = CalculateTransportCandidateRadiusTiles(walkingSpeed, maximumRouteTime);
             const auto currentTile = TileCoordsXY{ currentLocation };
             const auto goalTile = TileCoordsXY{ finalGoal };
             const auto radiusOffset = TileCoordsXY{ radius, radius };
@@ -1035,8 +1067,14 @@ namespace OpenRCT2::PathFinding
                 continue;
             }
 
-            const auto boardingLocation = TileCoordsXYZ{ service.stations[boardingIndex].entrance };
-            const auto walkToBoard = EstimateWalkingTravelTime(peep, currentLocation, boardingLocation);
+            auto boardingLocation = TileCoordsXYZ{ service.stations[boardingIndex].entrance };
+            GetRideQueueEnd(boardingLocation);
+            const auto boardingTarget = MapPathRouteCache::RouteTarget{ boardingLocation, evaluatedRideId };
+            const auto walkToBoard = EstimateWalkingTravelTime(
+                walkingSpeed, currentLocation, boardingLocation,
+                MapPathRouteCache::QueryDistanceToTarget(boardingTarget, currentLocation));
+            if (!walkToBoard.has_value())
+                continue;
             constexpr TravelTimeMilliseconds kBoardingTime = 8'000;
             constexpr TravelTimeMilliseconds kMillisecondsPerMinute = 60'000;
             const auto waitingTime = kBoardingTime
@@ -1066,10 +1104,14 @@ namespace OpenRCT2::PathFinding
                 }
 
                 const auto exitLocation = TileCoordsXYZ{ service.stations[destinationIndex].exit };
-                const auto walkAfterRide = EstimateWalkingTravelTime(peep, exitLocation, finalGoal);
-                const auto routeTime = walkToBoard + waitingTime + journey.travelTimeMilliseconds + walkAfterRide;
+                const auto walkAfterRide = EstimateWalkingTravelTime(
+                    walkingSpeed, exitLocation, finalGoal,
+                    MapPathRouteCache::QueryDistanceFromRideExitToTarget(finalTarget, exitLocation, evaluatedRideId));
+                if (!walkAfterRide.has_value())
+                    continue;
+                const auto routeTime = *walkToBoard + waitingTime + journey.travelTimeMilliseconds + *walkAfterRide;
 
-                bool isEligible = !hasWalkingAlternative;
+                bool isEligible = !walkingAlternativeAvailable;
                 TravelTimeMilliseconds preferenceBonus = 0;
                 switch (effectivePriceTarget)
                 {
@@ -1100,10 +1142,10 @@ namespace OpenRCT2::PathFinding
                         break;
                     }
                     case RidePriceTarget::badValue:
-                        isEligible = !hasWalkingAlternative;
+                        isEligible = !walkingAlternativeAvailable;
                         break;
                 }
-                if (effectivePriceTarget == RidePriceTarget::badValue && hasWalkingAlternative)
+                if (effectivePriceTarget == RidePriceTarget::badValue && walkingAlternativeAvailable)
                 {
                     continue;
                 }
@@ -1115,8 +1157,11 @@ namespace OpenRCT2::PathFinding
                 auto rankingTime = routeTime - preferenceBonus;
                 if (isPrecipitating)
                 {
-                    const auto onboardTimeWeight = 850 - (std::min<int32_t>(ride->shelteredEighths, 8) * 25);
-                    rankingTime -= (journey.travelTimeMilliseconds * (1000 - onboardTimeWeight)) / 1000;
+                    // Rain gives every vehicle leg a modest preference over walking, then rewards only the
+                    // measured sheltered portion of the selected directed journey. This keeps elapsed time as
+                    // the primary cost and avoids applying a ride-wide shelter proxy to an exposed leg.
+                    rankingTime -= (journey.travelTimeMilliseconds * 150) / 1000;
+                    rankingTime -= (journey.shelteredTravelTimeMilliseconds * 200) / 1000;
                 }
 
                 auto& best = effectivePriceTarget == RidePriceTarget::badValue ? bestExtortive : bestNonExtortive;
@@ -1137,6 +1182,33 @@ namespace OpenRCT2::PathFinding
         }
 
         peep.setTransportRoute(best.ride, best.boardingStation, best.destinationStation, !bestNonExtortive.isValid());
+        return true;
+    }
+
+    bool RevalidateTransportRouteForServiceConditions(Guest& peep)
+    {
+        const auto currentGeneration = RideGetTransportServiceCrowdingGeneration();
+        if (peep.transportRouteCrowdingGeneration == currentGeneration)
+        {
+            return false;
+        }
+
+        if (peep.hasTransportRoute())
+        {
+            const auto* selectedRide = GetRide(peep.previousRide);
+            const bool selectedBoardingIsOvercrowded = selectedRide != nullptr
+                && !peep.CurrentRideStation.IsNull()
+                && peep.CurrentRideStation.ToUnderlying() < selectedRide->numStations
+                && RideIsTransportStationOvercrowded(*selectedRide, peep.CurrentRideStation);
+            peep.transportRouteCrowdingGeneration = currentGeneration;
+            if (!selectedBoardingIsOvercrowded)
+            {
+                return false;
+            }
+            peep.clearTransportRoute();
+        }
+        peep.transportRoutePlanningInitialised = false;
+        peep.transportRouteCrowdingGeneration = currentGeneration;
         return true;
     }
 
@@ -2073,26 +2145,29 @@ namespace OpenRCT2::PathFinding
         return chosenEdge;
     }
 
-    /**
-     * Gets the nearest park entrance relative to point, by using Manhattan distance.
-     * @param x x coordinate of location
-     * @param y y coordinate of location
-     * @return Index of gParkEntrance (or 0xFF if no park entrances exist).
-     */
-    static std::optional<CoordsXYZ> GetNearestParkEntrance(const CoordsXY& loc)
+    // Selects the closest reachable entrance by shared path distance. Geometric distance remains the fallback when the source
+    // or one of the targets is not represented by the exact topology cache.
+    static std::optional<CoordsXYZ> GetBestParkEntrance(const TileCoordsXYZ& source)
     {
-        std::optional<CoordsXYZ> chosenEntrance = std::nullopt;
-        uint16_t nearestDist = 0xFFFF;
+        std::optional<CoordsXYZ> nearestEntrance;
+        static thread_local std::vector<MapPathRouteCache::RouteTarget> entranceTargets;
+        entranceTargets.clear();
+        uint16_t nearestGeometricDistance = 0xFFFF;
         for (const auto& parkEntrance : getGameState().park.entrances)
         {
-            auto dist = abs(parkEntrance.x - loc.x) + abs(parkEntrance.y - loc.y);
-            if (dist < nearestDist)
+            const auto geometricDistance = abs(parkEntrance.x - source.x) + abs(parkEntrance.y - source.y);
+            if (geometricDistance < nearestGeometricDistance)
             {
-                nearestDist = dist;
-                chosenEntrance = parkEntrance;
+                nearestGeometricDistance = geometricDistance;
+                nearestEntrance = parkEntrance;
             }
+
+            entranceTargets.push_back({ TileCoordsXYZ{ parkEntrance }, RideId::GetNull() });
         }
-        return chosenEntrance;
+        const auto closestReachable = MapPathRouteCache::GetClosestReachableTargetIndex(entranceTargets, source);
+        return closestReachable.has_value()
+            ? std::optional<CoordsXYZ>{ entranceTargets[*closestReachable].location.ToCoordsXYZ() }
+                                             : nearestEntrance;
     }
 
     /**
@@ -2101,8 +2176,8 @@ namespace OpenRCT2::PathFinding
      */
     int32_t GuestPathFindParkEntranceEntering(Peep& peep, uint8_t edges)
     {
-        // Send peeps to the nearest park entrance.
-        auto chosenEntrance = GetNearestParkEntrance(peep.NextLoc);
+        // Prefer the shortest reachable park entrance.
+        auto chosenEntrance = GetBestParkEntrance(TileCoordsXYZ{ peep.NextLoc });
 
         // If no defined park entrances are found, walk aimlessly.
         if (!chosenEntrance.has_value())
@@ -2181,7 +2256,7 @@ namespace OpenRCT2::PathFinding
 
         if (!(peep.PeepFlags & PEEP_FLAGS_PARK_ENTRANCE_CHOSEN))
         {
-            auto chosenEntrance = GetNearestParkEntrance(peep.NextLoc);
+            auto chosenEntrance = GetBestParkEntrance(TileCoordsXYZ{ peep.NextLoc });
 
             if (!chosenEntrance.has_value())
                 return GuestPathfindAimless(peep, edges);
@@ -2389,15 +2464,29 @@ namespace OpenRCT2::PathFinding
             return std::nullopt;
         }
 
-        auto entrance = ride->getStation(peep.CurrentRideStation).Entrance;
-        if (entrance.IsNull())
+        TileCoordsXYZ goal{};
+        const bool canReuseBoardingGoal = peep.hasTransportRoute()
+            && peep.transportRouteTopologyEpoch == MapTopology::GetPathConnectivityEpoch()
+            && DirectionValid(peep.PathfindGoal.direction);
+        if (canReuseBoardingGoal)
         {
-            peep.clearTransportRoute();
-            return std::nullopt;
+            // setTransportRoute clears the previous final-destination goal. The first station-bound search stores the
+            // resolved queue end here, and the route epoch guarantees that no path or queue edit has made it stale.
+            goal = TileCoordsXYZ{ peep.PathfindGoal };
+        }
+        else
+        {
+            const auto entrance = ride->getStation(peep.CurrentRideStation).Entrance;
+            if (entrance.IsNull())
+            {
+                peep.clearTransportRoute();
+                return std::nullopt;
+            }
+
+            goal = TileCoordsXYZ{ entrance };
+            GetRideQueueEnd(goal);
         }
 
-        TileCoordsXYZ goal{ entrance };
-        GetRideQueueEnd(goal);
         const auto direction = ChooseDirection(TileCoordsXYZ{ peep.NextLoc }, goal, peep, true, ride->id);
         if (direction == kInvalidDirection)
         {
@@ -2414,7 +2503,9 @@ namespace OpenRCT2::PathFinding
         std::optional<int32_t> walkingDirection;
         if (auto* guest = peep.as<Guest>(); guest != nullptr)
         {
-            if (guest->hasTransportRoute() && guest->transportRouteTopologyEpoch != MapTopology::GetEpoch())
+            RevalidateTransportRouteForServiceConditions(*guest);
+            if (guest->hasTransportRoute()
+                && guest->transportRouteTopologyEpoch != MapTopology::GetPathConnectivityEpoch())
             {
                 guest->clearTransportRoute();
                 guest->transportRoutePlanningInitialised = false;
@@ -2427,7 +2518,7 @@ namespace OpenRCT2::PathFinding
                 && (!guest->transportRoutePlanningInitialised || destinationChanged || transportConditionsChanged))
             {
                 walkingDirection = ChooseDirection(TileCoordsXYZ{ peep.NextLoc }, goal, peep, true, queueRideIndex);
-                PlanTransportRoute(*guest, goal, *walkingDirection != kInvalidDirection);
+                PlanTransportRoute(*guest, goal, *walkingDirection != kInvalidDirection, queueRideIndex);
                 guest->transportRoutePlannedInPrecipitation = isPrecipitating;
                 guest->transportRoutePlanningInitialised = true;
             }
@@ -2441,8 +2532,11 @@ namespace OpenRCT2::PathFinding
             }
         }
 
-        const auto direction = walkingDirection.value_or(
-            ChooseDirection(TileCoordsXYZ{ peep.NextLoc }, goal, peep, true, queueRideIndex));
+        // optional::value_or evaluates its fallback eagerly. Keep this branch explicit so transport planning's direct-walk
+        // search is also the walking step instead of running and discarding a second ChooseDirection search.
+        const auto direction = walkingDirection.has_value()
+            ? *walkingDirection
+            : ChooseDirection(TileCoordsXYZ{ peep.NextLoc }, goal, peep, true, queueRideIndex);
         if (direction == kInvalidDirection)
         {
             peep.ResetPathfindGoal();
@@ -2711,6 +2805,29 @@ namespace OpenRCT2::PathFinding
         if (numEntranceStations > 1 && (ride->departFlags & RIDE_DEPART_SYNCHRONISE_WITH_ADJACENT_STATIONS))
         {
             closestStationNum = GuestPathfindingSelectRandomStation(peep, numEntranceStations, entranceStations);
+        }
+        else if (numEntranceStations > 1)
+        {
+            static thread_local std::vector<MapPathRouteCache::RouteTarget> entranceTargets;
+            static thread_local std::vector<StationIndex> entranceTargetStations;
+            entranceTargets.clear();
+            entranceTargetStations.clear();
+            for (const auto& station : ride->getStations())
+            {
+                if (station.Entrance.IsNull())
+                    continue;
+
+                auto targetLocation = TileCoordsXYZ{ station.Entrance };
+                GetRideQueueEnd(targetLocation);
+                entranceTargets.push_back({ targetLocation, rideIndex });
+                entranceTargetStations.push_back(ride->getStationIndex(&station));
+            }
+            const auto closestReachable = MapPathRouteCache::GetClosestReachableTargetIndex(
+                entranceTargets, TileCoordsXYZ{ peep.NextLoc });
+            if (closestReachable.has_value())
+            {
+                closestStationNum = entranceTargetStations[*closestReachable];
+            }
         }
 
         if (numEntranceStations == 0)

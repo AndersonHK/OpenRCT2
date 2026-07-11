@@ -70,6 +70,31 @@ namespace OpenRCT2
         static_assert(std::is_same_v<decltype(TickScore::intensity), int64_t>);
         static_assert(std::is_same_v<decltype(TickScore::nausea), int64_t>);
 
+        struct VehicleGForceSpeedContext
+        {
+            // Prepared once for every sampled train; force curves remain car-specific.
+            int64_t normalisedSpeed{};
+            int64_t couplingNumerator{};
+        };
+
+        class VehicleGForceScoreMemo
+        {
+        public:
+            VehicleGForceScoreMemo(
+                const SampledRideRatingProfile& profile, const VehicleGForceSpeedContext& speedContext);
+
+            TickScore Get(int32_t verticalG, int32_t lateralG, int32_t longitudinalG);
+
+        private:
+            const SampledRideRatingProfile* const _profile;
+            const VehicleGForceSpeedContext _speedContext;
+            TickScore _score{};
+            int32_t _verticalG{};
+            int32_t _lateralG{};
+            int32_t _longitudinalG{};
+            bool _valid{};
+        };
+
         struct TransportQualityScore
         {
             int64_t comfort{};
@@ -92,6 +117,8 @@ namespace OpenRCT2
             int32_t trackVerticalInteraction{};
             int32_t ownTrackVerticalInteraction{};
             int32_t trackHeightExposure{};
+
+            bool operator==(const LocalContextScore& rhs) const = default;
         };
 
         struct VehicleRatingEnvironment
@@ -112,10 +139,15 @@ namespace OpenRCT2
             uint64_t observedInvalidationGeneration{};
             VehicleRatingEnvironment environment{};
             bool valid{};
+            bool preparedForBoatHire{};
+            bool preparedScoreValid{};
+            int32_t preparedCoefficient{};
+            TickScore preparedScore{};
 
             void clear()
             {
                 valid = false;
+                preparedScoreValid = false;
             }
         };
 
@@ -144,8 +176,12 @@ namespace OpenRCT2
         TickScore ScoreLateralGForTick(int32_t lateralG);
         TickScore ScoreLongitudinalGForTick(int32_t longitudinalG);
         TickScore ScoreGForcesForTick(int32_t verticalG, int32_t lateralG, int32_t longitudinalG = 0);
+        VehicleGForceSpeedContext PrepareVehicleGForceSpeedContext(int32_t speed, int32_t coupling);
         TickScore ScoreGForcesForVehicleTick(
             int32_t verticalG, int32_t lateralG, int32_t longitudinalG, int32_t speed, const SampledRideRatingProfile& profile);
+        TickScore ScoreGForcesForVehicleTick(
+            int32_t verticalG, int32_t lateralG, int32_t longitudinalG, const SampledRideRatingProfile& profile,
+            const VehicleGForceSpeedContext& speedContext);
         TickScore ScoreVehicleSpeedForTick(int32_t speed, int32_t coefficient = 1000);
         TransportQualityScore ScoreTransportQualityForVehicleTick(
             int32_t verticalG, int32_t lateralG, int32_t longitudinalG, int32_t speed, const LocalContextScore& contextScore);
@@ -153,6 +189,8 @@ namespace OpenRCT2
             const LocalContextScore& contextScore, int32_t speed, int32_t coefficient = 1000);
         TickScore ScoreBoatHireLocalContextForVehicleTick(
             const LocalContextScore& contextScore, int32_t speed, int32_t coefficient = 1000);
+        TickScore ScoreCachedLocalContextForVehicleTick(
+            VehicleLocalContextCache& runtimeCache, int64_t normalisedSpeed, int32_t coefficient, bool isBoatHire);
         TickScore ScoreBoatHireFreeRoamForTick(uint32_t tickIndex);
         TickScore ApplyRideEntryMultipliers(TickScore score, const RideObjectEntry& rideEntry);
         int32_t ScoreSceneryForLocalContext(int32_t rawScenery);

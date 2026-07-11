@@ -3863,3 +3863,5 @@ STR_7062    :{WINDOW_COLOUR_2}Ride-global construction and test facts
 STR_7063    :Station {COMMA16} to {COMMA16}
 STR_7064    :{BLACK}No station-to-station samples yet
 STR_7065    :Select station-to-station measurements
+STR_7066    :Enable HDR10 output (Vulkan)
+STR_7067    :Use a 10-bit BT.2020/PQ swapchain when the current display and Vulkan driver support it; otherwise use SDR

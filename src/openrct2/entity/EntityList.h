@@ -15,7 +15,7 @@
 #include "EntityBase.h"
 #include "EntityRegistry.h"
 
-#include <list>
+#include <cassert>
 #include <type_traits>
 #include <vector>
 
@@ -120,64 +120,41 @@ namespace OpenRCT2
     {
     private:
         EntityRegistry* registry;
-        std::list<EntityId>::const_iterator iter;
-        std::list<EntityId>::const_iterator end;
-        T* Entity = nullptr;
+        EntityIdList::const_iterator iter;
 
     public:
-        EntityListIterator(
-            EntityRegistry& _registry, std::list<EntityId>::const_iterator _iter, std::list<EntityId>::const_iterator _end)
+        EntityListIterator(EntityRegistry& _registry, EntityIdList::const_iterator _iter) noexcept
             : registry(&_registry)
             , iter(_iter)
-            , end(_end)
         {
-            ++(*this);
         }
-        EntityListIterator& operator++()
+        EntityListIterator& operator++() noexcept
         {
-            Entity = nullptr;
-
-            while (iter != end && Entity == nullptr)
-            {
-                auto* entity = registry->TryGetEntity(*iter++);
-                if constexpr (std::is_same_v<T, EntityBase>)
-                {
-                    Entity = entity;
-                }
-                else if constexpr (requires { T::cEntityType; })
-                {
-                    if (entity != nullptr && entity->type == T::cEntityType)
-                    {
-                        // The typed entity lists already guarantee the concrete type.
-                        // Avoid repeating EntityBase::is<T>() for every hot-list step.
-                        Entity = entity->cast<T>();
-                    }
-                }
-                else if (entity != nullptr)
-                {
-                    Entity = entity->as<T>();
-                }
-            }
+            ++iter;
             return *this;
         }
 
-        EntityListIterator operator++(int)
+        EntityListIterator operator++(int) noexcept
         {
             EntityListIterator retval = *this;
             ++(*this);
             return retval;
         }
-        bool operator==(EntityListIterator other) const
+        bool operator==(const EntityListIterator& other) const noexcept
         {
-            return Entity == other.Entity;
+            return iter == other.iter;
         }
-        bool operator!=(EntityListIterator other) const
+        bool operator!=(const EntityListIterator& other) const noexcept
         {
             return !(*this == other);
         }
-        T* operator*()
+        T* operator*() const noexcept
         {
-            return Entity;
+            const auto id = (*iter).ToUnderlying();
+            assert(id < kMaxEntities);
+            auto& entity = registry->entities[id].base;
+            assert(entity.type == T::cEntityType);
+            return entity.cast<T>();
         }
         // iterator traits
         using difference_type = std::ptrdiff_t;
@@ -193,22 +170,22 @@ namespace OpenRCT2
     private:
         using EntityListIterator_t = EntityListIterator<T>;
         EntityRegistry& registry;
-        const std::list<EntityId>& vec;
+        const EntityIdList& list;
 
     public:
         EntityList()
             : registry(getGameState().entities)
-            , vec(registry.GetEntityList(T::cEntityType))
+            , list(registry.GetEntityList(T::cEntityType))
         {
         }
 
-        EntityListIterator_t begin() const
+        EntityListIterator_t begin() const noexcept
         {
-            return EntityListIterator_t(registry, std::cbegin(vec), std::cend(vec));
+            return EntityListIterator_t(registry, list.begin());
         }
-        EntityListIterator_t end() const
+        EntityListIterator_t end() const noexcept
         {
-            return EntityListIterator_t(registry, std::cend(vec), std::cend(vec));
+            return EntityListIterator_t(registry, list.end());
         }
     };
 } // namespace OpenRCT2

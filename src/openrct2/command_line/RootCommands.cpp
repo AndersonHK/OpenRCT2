@@ -17,6 +17,7 @@
 #include "../core/Guard.hpp"
 #include "../core/Path.hpp"
 #include "../core/String.hpp"
+#include "../drawing/IDrawingEngine.h"
 #include "../localisation/Language.h"
 #include "../network/Network.h"
 #include "../object/ObjectRepository.h"
@@ -64,6 +65,11 @@ namespace OpenRCT2
     static u8string _rct1DataPath = {};
     static u8string _rct2DataPath = {};
     static bool _silentBreakpad = false;
+    static bool _benchmarkUi = false;
+    static int32_t _benchmarkWarmupSeconds = 5;
+    static int32_t _benchmarkDurationSeconds = 30;
+    static u8string _benchmarkRenderer;
+    static int32_t _benchmarkVSync = -1;
 
     // clang-format off
     static constexpr CommandLineOptionDefinition kStandardOptions[]
@@ -85,6 +91,11 @@ namespace OpenRCT2
         { CMDLINE_TYPE_STRING,  &_openrct2DataPath, kNAC, "openrct2-data-path", "path to the OpenRCT2 data directory (containing languages)" },
         { CMDLINE_TYPE_STRING,  &_rct1DataPath,     kNAC, "rct1-data-path",     "path to the RollerCoaster Tycoon 1 data directory (containing data/csg1.dat)" },
         { CMDLINE_TYPE_STRING,  &_rct2DataPath,     kNAC, "rct2-data-path",     "path to the RollerCoaster Tycoon 2 data directory (containing data/g1.dat)" },
+        { CMDLINE_TYPE_SWITCH,  &_benchmarkUi,      kNAC, "benchmark-ui",        "run a hidden integrated UI benchmark and exit"                 },
+        { CMDLINE_TYPE_INTEGER, &_benchmarkWarmupSeconds, kNAC, "benchmark-warmup", "unmeasured integrated benchmark warm-up in seconds"       },
+        { CMDLINE_TYPE_INTEGER, &_benchmarkDurationSeconds, kNAC, "benchmark-duration", "integrated benchmark measurement in seconds"          },
+        { CMDLINE_TYPE_STRING,  &_benchmarkRenderer, kNAC, "benchmark-renderer", "renderer override: software, opengl, or vulkan"                },
+        { CMDLINE_TYPE_INTEGER, &_benchmarkVSync,   kNAC, "benchmark-vsync",     "VSync override: -1 configured, 0 disabled, or 1 enabled"       },
     #ifdef USE_BREAKPAD
         { CMDLINE_TYPE_SWITCH,  &_silentBreakpad,  kNAC, "silent-breakpad",   "make breakpad crash reporting silent"                       },
     #endif // USE_BREAKPAD
@@ -249,6 +260,53 @@ namespace OpenRCT2
         {
             String::set(gOpenRCT2StartupActionPath, sizeof(gOpenRCT2StartupActionPath), parkUri);
             gOpenRCT2StartupAction = StartupAction::open;
+        }
+
+        if (_benchmarkUi)
+        {
+            if (gOpenRCT2Headless)
+            {
+                Console::Error::WriteLine("--benchmark-ui requires the full UI executable and cannot be combined with --headless.");
+                return ExitCode::fail;
+            }
+            if (gOpenRCT2StartupAction != StartupAction::open || gOpenRCT2StartupActionPath[0] == '\0')
+            {
+                Console::Error::WriteLine("--benchmark-ui requires a park path or URL.");
+                return ExitCode::fail;
+            }
+            if (_benchmarkWarmupSeconds < 0 || _benchmarkDurationSeconds <= 0)
+            {
+                Console::Error::WriteLine("Benchmark warm-up must be non-negative and duration must be greater than zero.");
+                return ExitCode::fail;
+            }
+            if (_benchmarkVSync < -1 || _benchmarkVSync > 1)
+            {
+                Console::Error::WriteLine("--benchmark-vsync must be -1, 0, or 1.");
+                return ExitCode::fail;
+            }
+
+            std::optional<DrawingEngine> drawingEngine;
+            if (!_benchmarkRenderer.empty())
+            {
+                if (_benchmarkRenderer == "software")
+                    drawingEngine = DrawingEngine::SoftwareWithHardwareDisplay;
+                else if (_benchmarkRenderer == "opengl")
+                    drawingEngine = DrawingEngine::OpenGL;
+                else if (_benchmarkRenderer == "vulkan")
+                    drawingEngine = DrawingEngine::Vulkan;
+                else
+                {
+                    Console::Error::WriteLine("--benchmark-renderer must be software, opengl, or vulkan.");
+                    return ExitCode::fail;
+                }
+            }
+
+            gIntegratedBenchmark.enabled = true;
+            gIntegratedBenchmark.warmupSeconds = _benchmarkWarmupSeconds;
+            gIntegratedBenchmark.measurementSeconds = _benchmarkDurationSeconds;
+            gIntegratedBenchmark.drawingEngine = drawingEngine;
+            if (_benchmarkVSync != -1)
+                gIntegratedBenchmark.useVSync = _benchmarkVSync != 0;
         }
 
         return ExitCode::launch;

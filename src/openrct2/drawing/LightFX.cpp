@@ -26,7 +26,11 @@
 #include "Drawing.h"
 
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
+#include <limits>
+#include <new>
+#include <stdexcept>
 
 namespace OpenRCT2::Drawing::LightFx
 {
@@ -43,6 +47,8 @@ namespace OpenRCT2::Drawing::LightFx
 
     static void* _light_rendered_buffer_back = nullptr;
     static void* _light_rendered_buffer_front = nullptr;
+    static size_t _lightRenderedBufferCapacity = 0;
+    static std::vector<FrameSnapshot::ResolvedLight> _resolvedLightScratch;
 
     static uint32_t _lightPolution_back = 0;
     static uint32_t _lightPolution_front = 0;
@@ -191,10 +197,52 @@ namespace OpenRCT2::Drawing::LightFx
         CalcRescaleLightHalf(_bakedLightTexture_spot_0, _bakedLightTexture_spot_1, 32, 32);
     }
 
+    std::vector<std::byte> CaptureBakedFalloffs()
+    {
+        constexpr size_t layerSize = 256 * 256;
+        std::vector<std::byte> result(8 * layerSize);
+        const auto copyLayer = [&](size_t layer, const uint8_t* source, uint32_t size) {
+            auto* destination = result.data() + layer * layerSize;
+            for (uint32_t y = 0; y < size; y++)
+            {
+                std::memcpy(destination + y * 256, source + y * size, size);
+            }
+        };
+        copyLayer(0, _bakedLightTexture_lantern_0, 32);
+        copyLayer(1, _bakedLightTexture_lantern_1, 64);
+        copyLayer(2, _bakedLightTexture_lantern_2, 128);
+        copyLayer(3, _bakedLightTexture_lantern_3, 256);
+        copyLayer(4, _bakedLightTexture_spot_0, 32);
+        copyLayer(5, _bakedLightTexture_spot_1, 64);
+        copyLayer(6, _bakedLightTexture_spot_2, 128);
+        copyLayer(7, _bakedLightTexture_spot_3, 256);
+        return result;
+    }
+
     void UpdateBuffers(RenderTarget& info)
     {
-        _light_rendered_buffer_front = realloc(_light_rendered_buffer_front, info.width * info.height);
-        _light_rendered_buffer_back = realloc(_light_rendered_buffer_back, info.width * info.height);
+        if (info.width < 0 || info.height < 0
+            || (info.height != 0
+                && static_cast<size_t>(info.width)
+                    > std::numeric_limits<size_t>::max() / static_cast<size_t>(info.height)))
+        {
+            throw std::overflow_error("LightFX buffer dimensions overflow address space");
+        }
+        const size_t size = static_cast<size_t>(info.width) * info.height;
+        _lightRenderedBufferCapacity = 0;
+        auto* front = std::realloc(_light_rendered_buffer_front, size);
+        if (front == nullptr && size != 0)
+        {
+            throw std::bad_alloc();
+        }
+        _light_rendered_buffer_front = front;
+        auto* back = std::realloc(_light_rendered_buffer_back, size);
+        if (back == nullptr && size != 0)
+        {
+            throw std::bad_alloc();
+        }
+        _light_rendered_buffer_back = back;
+        _lightRenderedBufferCapacity = size;
         _pixelInfo = info;
     }
 
@@ -448,28 +496,160 @@ namespace OpenRCT2::Drawing::LightFx
         _current_view_zoom_back = vp.zoom;
     }
 
-    static void RenderLightsToFrontBuffer()
+    static const uint8_t* GetBakedLightTexture(LightType type) noexcept
     {
-        if (_light_rendered_buffer_front == nullptr)
+        switch (type)
+        {
+            case LightType::lantern0:
+                return _bakedLightTexture_lantern_0;
+            case LightType::lantern1:
+                return _bakedLightTexture_lantern_1;
+            case LightType::lantern2:
+                return _bakedLightTexture_lantern_2;
+            case LightType::lantern3:
+                return _bakedLightTexture_lantern_3;
+            case LightType::spot0:
+                return _bakedLightTexture_spot_0;
+            case LightType::spot1:
+                return _bakedLightTexture_spot_1;
+            case LightType::spot2:
+                return _bakedLightTexture_spot_2;
+            case LightType::spot3:
+                return _bakedLightTexture_spot_3;
+            default:
+                return nullptr;
+        }
+    }
+
+    static uint32_t GetBakedLightTextureSize(LightType type) noexcept
+    {
+        const auto value = static_cast<uint32_t>(type);
+        return value >= static_cast<uint32_t>(LightType::lantern0)
+                && value <= static_cast<uint32_t>(LightType::spot3)
+            ? 32u << ((value - static_cast<uint32_t>(LightType::lantern0)) & 3u)
+            : 0;
+    }
+
+    bool ResolveLightCommandForCanvas(
+        int32_t centreX, int32_t centreY, uint32_t canvasWidth, uint32_t canvasHeight, LightType type,
+        uint8_t intensity, FrameSnapshot::ResolvedLight& resolved) noexcept
+    {
+        resolved = {};
+        const uint32_t textureSize = GetBakedLightTextureSize(type);
+        if (textureSize == 0 || canvasWidth == 0 || canvasHeight == 0
+            || canvasWidth > static_cast<uint32_t>(std::numeric_limits<int32_t>::max())
+            || canvasHeight > static_cast<uint32_t>(std::numeric_limits<int32_t>::max()))
+        {
+            return false;
+        }
+
+        const uint32_t sourceWidth = std::min(canvasWidth, textureSize);
+        const uint32_t sourceHeight = std::min(canvasHeight, textureSize);
+        const int64_t destinationLeft = static_cast<int64_t>(centreX) - sourceWidth / 2;
+        const int64_t destinationTop = static_cast<int64_t>(centreY) - sourceHeight / 2;
+        const int64_t visibleLeft = std::max<int64_t>(destinationLeft, 0);
+        const int64_t visibleTop = std::max<int64_t>(destinationTop, 0);
+        const int64_t visibleRight = std::min<int64_t>(destinationLeft + sourceWidth, canvasWidth);
+        const int64_t visibleBottom = std::min<int64_t>(destinationTop + sourceHeight, canvasHeight);
+        if (visibleLeft >= visibleRight || visibleTop >= visibleBottom)
+            return false;
+
+        const uint64_t sourceX = static_cast<uint64_t>(visibleLeft - destinationLeft);
+        const uint64_t sourceY = static_cast<uint64_t>(visibleTop - destinationTop);
+        const uint64_t sourceOffset = sourceY * sourceWidth + sourceX;
+        if (sourceOffset > std::numeric_limits<uint32_t>::max())
+            return false;
+
+        resolved = {
+            .destinationX = static_cast<int32_t>(visibleLeft),
+            .destinationY = static_cast<int32_t>(visibleTop),
+            .width = static_cast<uint32_t>(visibleRight - visibleLeft),
+            .height = static_cast<uint32_t>(visibleBottom - visibleTop),
+            .sourceOffset = static_cast<uint32_t>(sourceOffset),
+            .sourceStride = sourceWidth,
+            .type = static_cast<uint32_t>(type),
+            .intensity = intensity,
+        };
+        return true;
+    }
+
+    bool RasterizeResolvedLightCommands(
+        uint32_t canvasWidth, uint32_t canvasHeight, std::span<const FrameSnapshot::ResolvedLight> lights,
+        std::span<uint8_t> intensities) noexcept
+    {
+        const uint64_t requiredSize = static_cast<uint64_t>(canvasWidth) * canvasHeight;
+        if (canvasWidth == 0 || canvasHeight == 0 || requiredSize != intensities.size())
+            return false;
+
+        std::fill(intensities.begin(), intensities.end(), 0);
+        for (const auto& light : lights)
+        {
+            const auto type = static_cast<LightType>(light.type);
+            const uint32_t textureSize = GetBakedLightTextureSize(type);
+            const uint8_t* sourceTexture = GetBakedLightTexture(type);
+            if (sourceTexture == nullptr || light.intensity > 255 || light.destinationX < 0 || light.destinationY < 0
+                || light.width == 0 || light.height == 0 || light.sourceStride < light.width)
+            {
+                return false;
+            }
+
+            const uint32_t destinationX = static_cast<uint32_t>(light.destinationX);
+            const uint32_t destinationY = static_cast<uint32_t>(light.destinationY);
+            if (destinationX > canvasWidth || light.width > canvasWidth - destinationX || destinationY > canvasHeight
+                || light.height > canvasHeight - destinationY)
+            {
+                return false;
+            }
+            const uint64_t finalSource = static_cast<uint64_t>(light.sourceOffset)
+                + static_cast<uint64_t>(light.height - 1) * light.sourceStride + light.width;
+            if (finalSource > static_cast<uint64_t>(textureSize) * textureSize)
+                return false;
+
+            const uint8_t* source = sourceTexture + light.sourceOffset;
+            uint8_t* destination = intensities.data() + static_cast<size_t>(destinationY) * canvasWidth + destinationX;
+            const uint32_t sourceSkip = light.sourceStride - light.width;
+            const uint32_t destinationSkip = canvasWidth - light.width;
+            for (uint32_t y = 0; y < light.height; y++)
+            {
+                for (uint32_t x = 0; x < light.width; x++)
+                {
+                    const uint32_t contribution = light.intensity == 255
+                        ? *source
+                        : ((*source) * (1 + light.intensity)) >> 8;
+                    *destination = static_cast<uint8_t>(
+                        std::min<uint32_t>(255, static_cast<uint32_t>(*destination) + contribution));
+                    destination++;
+                    source++;
+                }
+                destination += destinationSkip;
+                source += sourceSkip;
+            }
+        }
+        return true;
+    }
+
+    static void RenderLightsToFrontBuffer(
+        std::vector<FrameSnapshot::ResolvedLight>* resolvedLights = nullptr, bool rasterizeIntensity = true)
+    {
+        if (rasterizeIntensity && _light_rendered_buffer_front == nullptr)
         {
             return;
         }
 
-        std::memset(_light_rendered_buffer_front, 0, _pixelInfo.width * _pixelInfo.height);
-
         _lightPolution_back = 0;
+        auto* commandSink = resolvedLights;
+        if (commandSink == nullptr && rasterizeIntensity)
+        {
+            _resolvedLightScratch.clear();
+            _resolvedLightScratch.reserve(LightListCurrentCountFront);
+            commandSink = &_resolvedLightScratch;
+        }
+        const size_t firstResolvedLight = commandSink == nullptr ? 0 : commandSink->size();
 
         //  LOG_WARNING("%i lights", LightListCurrentCountFront);
 
         for (uint32_t light = 0; light < LightListCurrentCountFront; light++)
         {
-            const uint8_t* bufReadBase = nullptr;
-            uint8_t* bufWriteBase = static_cast<uint8_t*>(_light_rendered_buffer_front);
-            uint32_t bufReadWidth, bufReadHeight;
-            int32_t bufWriteX, bufWriteY;
-            int32_t bufWriteWidth, bufWriteHeight;
-            uint32_t bufReadSkip, bufWriteSkip;
-
             LightListEntry& entry = _LightListFront[light];
 
             int32_t inRectCentreX = entry.viewCoords.x;
@@ -483,139 +663,32 @@ namespace OpenRCT2::Drawing::LightFx
                 inRectCentreY = _current_view_zoom_front.ApplyInversedTo(inRectCentreY);
             }
 
-            switch (entry.type)
+            FrameSnapshot::ResolvedLight resolved;
+            if (!ResolveLightCommandForCanvas(
+                    inRectCentreX, inRectCentreY, static_cast<uint32_t>(_pixelInfo.width),
+                    static_cast<uint32_t>(_pixelInfo.height), entry.type, entry.lightIntensity, resolved))
             {
-                case LightType::lantern0:
-                    bufReadWidth = 32;
-                    bufReadHeight = 32;
-                    bufReadBase = _bakedLightTexture_lantern_0;
-                    break;
-                case LightType::lantern1:
-                    bufReadWidth = 64;
-                    bufReadHeight = 64;
-                    bufReadBase = _bakedLightTexture_lantern_1;
-                    break;
-                case LightType::lantern2:
-                    bufReadWidth = 128;
-                    bufReadHeight = 128;
-                    bufReadBase = _bakedLightTexture_lantern_2;
-                    break;
-                case LightType::lantern3:
-                    bufReadWidth = 256;
-                    bufReadHeight = 256;
-                    bufReadBase = _bakedLightTexture_lantern_3;
-                    break;
-                case LightType::spot0:
-                    bufReadWidth = 32;
-                    bufReadHeight = 32;
-                    bufReadBase = _bakedLightTexture_spot_0;
-                    break;
-                case LightType::spot1:
-                    bufReadWidth = 64;
-                    bufReadHeight = 64;
-                    bufReadBase = _bakedLightTexture_spot_1;
-                    break;
-                case LightType::spot2:
-                    bufReadWidth = 128;
-                    bufReadHeight = 128;
-                    bufReadBase = _bakedLightTexture_spot_2;
-                    break;
-                case LightType::spot3:
-                    bufReadWidth = 256;
-                    bufReadHeight = 256;
-                    bufReadBase = _bakedLightTexture_spot_3;
-                    break;
-                default:
-                    continue;
-            }
-
-            // Clamp the reads to be no larger than the buffer size
-            bufReadHeight = std::min<uint32_t>(_pixelInfo.height, bufReadHeight);
-            bufReadWidth = std::min<uint32_t>(_pixelInfo.width, bufReadWidth);
-
-            bufWriteX = inRectCentreX - bufReadWidth / 2;
-            bufWriteY = inRectCentreY - bufReadHeight / 2;
-
-            bufWriteWidth = bufReadWidth;
-            bufWriteHeight = bufReadHeight;
-
-            if (bufWriteX < 0)
-            {
-                bufReadBase += -bufWriteX;
-                bufWriteWidth += bufWriteX;
-            }
-            else
-            {
-                bufWriteBase += bufWriteX;
-            }
-
-            if (bufWriteWidth <= 0)
                 continue;
-
-            if (bufWriteY < 0)
-            {
-                bufReadBase += -bufWriteY * bufReadWidth;
-                bufWriteHeight += bufWriteY;
             }
-            else
+            _lightPolution_back += (resolved.width * resolved.height) / 256;
+            if (commandSink != nullptr)
+                commandSink->push_back(resolved);
+        }
+
+        if (rasterizeIntensity)
+        {
+            const std::span<const FrameSnapshot::ResolvedLight> allCommands{
+                commandSink->data(), commandSink->size()
+            };
+            const auto commands = allCommands.subspan(firstResolvedLight);
+            const auto intensities = std::span<uint8_t>(
+                static_cast<uint8_t*>(_light_rendered_buffer_front),
+                static_cast<size_t>(_pixelInfo.width) * _pixelInfo.height);
+            if (!RasterizeResolvedLightCommands(
+                    static_cast<uint32_t>(_pixelInfo.width), static_cast<uint32_t>(_pixelInfo.height), commands,
+                    intensities))
             {
-                bufWriteBase += bufWriteY * _pixelInfo.width;
-            }
-
-            if (bufWriteHeight <= 0)
-                continue;
-
-            int32_t rightEdge = bufWriteX + bufWriteWidth;
-            int32_t bottomEdge = bufWriteY + bufWriteHeight;
-
-            if (rightEdge > _pixelInfo.width)
-            {
-                bufWriteWidth -= rightEdge - _pixelInfo.width;
-            }
-            if (bottomEdge > _pixelInfo.height)
-            {
-                bufWriteHeight -= bottomEdge - _pixelInfo.height;
-            }
-
-            if (bufWriteWidth <= 0)
-                continue;
-            if (bufWriteHeight <= 0)
-                continue;
-
-            _lightPolution_back += (bufWriteWidth * bufWriteHeight) / 256;
-
-            bufReadSkip = bufReadWidth - bufWriteWidth;
-            bufWriteSkip = _pixelInfo.width - bufWriteWidth;
-
-            if (entry.lightIntensity == 0xFF)
-            {
-                for (int32_t y = 0; y < bufWriteHeight; y++)
-                {
-                    for (int32_t x = 0; x < bufWriteWidth; x++)
-                    {
-                        *bufWriteBase = std::min(0xFF, *bufWriteBase + *bufReadBase);
-                        bufWriteBase++;
-                        bufReadBase++;
-                    }
-
-                    bufWriteBase += bufWriteSkip;
-                    bufReadBase += bufReadSkip;
-                }
-            }
-            else
-            {
-                for (int32_t y = 0; y < bufWriteHeight; y++)
-                {
-                    for (int32_t x = 0; x < bufWriteWidth; x++)
-                    {
-                        *bufWriteBase = std::min(0xFF, *bufWriteBase + (((*bufReadBase) * (1 + entry.lightIntensity)) >> 8));
-                        bufWriteBase++;
-                        bufReadBase++;
-                    }
-
-                    bufWriteBase += bufWriteSkip;
-                    bufReadBase += bufReadSkip;
-                }
+                std::fill(intensities.begin(), intensities.end(), 0);
             }
         }
     }
@@ -625,9 +698,70 @@ namespace OpenRCT2::Drawing::LightFx
         return _light_rendered_buffer_front;
     }
 
+    static const uint8_t* ResolveLightFrame(
+        const Viewport& vp, std::vector<FrameSnapshot::ResolvedLight>* resolvedLights = nullptr,
+        bool rasterizeIntensity = true)
+    {
+        UpdateViewportSettings(vp);
+        SwapBuffers();
+        PrepareLightList(vp);
+        RenderLightsToFrontBuffer(resolvedLights, rasterizeIntensity);
+        return rasterizeIntensity ? static_cast<const uint8_t*>(GetFrontBuffer()) : nullptr;
+    }
+
     const GamePalette& GetPalette()
     {
         return gPalette_light;
+    }
+
+    bool CaptureFrameSnapshot(
+        const Viewport& vp, uint32_t width, uint32_t height, FrameSnapshot& snapshot, bool includeCpuIntensity)
+    {
+        snapshot.width = 0;
+        snapshot.height = 0;
+        snapshot.intensities.clear();
+        snapshot.lights.clear();
+        if (!IsAvailable() || width == 0 || height == 0
+            || width > static_cast<uint32_t>(std::numeric_limits<int32_t>::max())
+            || height > static_cast<uint32_t>(std::numeric_limits<int32_t>::max())
+            || static_cast<size_t>(width) > std::numeric_limits<size_t>::max() / height)
+        {
+            return false;
+        }
+
+        const size_t requiredPixels = static_cast<size_t>(width) * height;
+        if (includeCpuIntensity
+            && (_pixelInfo.width != static_cast<int32_t>(width) || _pixelInfo.height != static_cast<int32_t>(height)
+                || _light_rendered_buffer_front == nullptr || _light_rendered_buffer_back == nullptr
+                || _lightRenderedBufferCapacity < requiredPixels))
+        {
+            RenderTarget target{};
+            target.width = static_cast<int32_t>(width);
+            target.height = static_cast<int32_t>(height);
+            UpdateBuffers(target);
+        }
+        else if (!includeCpuIntensity)
+        {
+            // Command-only capture still uses the logical dimensions for
+            // culling and clipping, but does not require a CPU lightmap.
+            _pixelInfo.width = static_cast<int32_t>(width);
+            _pixelInfo.height = static_cast<int32_t>(height);
+        }
+
+        const auto* lightBits = ResolveLightFrame(vp, &snapshot.lights, includeCpuIntensity);
+        if (includeCpuIntensity && lightBits == nullptr)
+        {
+            return false;
+        }
+        snapshot.width = width;
+        snapshot.height = height;
+        snapshot.lightPalette = gPalette_light;
+        if (includeCpuIntensity)
+        {
+            const auto* bytes = reinterpret_cast<const std::byte*>(lightBits);
+            snapshot.intensities.assign(bytes, bytes + requiredPixels);
+        }
+        return true;
     }
 
     static void Add3DLight(
@@ -1028,12 +1162,7 @@ namespace OpenRCT2::Drawing::LightFx
         const Viewport& vp, void* dstPixels, uint32_t dstPitch, PaletteIndex* bits, uint32_t width, uint32_t height,
         const uint32_t* palette, const uint32_t* lightPalette)
     {
-        UpdateViewportSettings(vp);
-        SwapBuffers();
-        PrepareLightList(vp);
-        RenderLightsToFrontBuffer();
-
-        uint8_t* lightBits = static_cast<uint8_t*>(GetFrontBuffer());
+        const uint8_t* lightBits = ResolveLightFrame(vp);
         if (lightBits == nullptr)
         {
             return;

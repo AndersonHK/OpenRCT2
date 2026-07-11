@@ -219,6 +219,7 @@ namespace OpenRCT2::Config
                 "drawing_engine", DrawingEngine::SoftwareWithHardwareDisplay, Enum_DrawingEngine);
             model->uncapFPS = reader->GetBoolean("uncap_fps", false);
             model->useVSync = reader->GetBoolean("use_vsync", true);
+            model->enableHdr10Output = reader->GetBoolean("enable_hdr10_output", false);
             model->virtualFloorStyle = reader->GetEnum<VirtualFloorStyles>(
                 "virtual_floor_style", VirtualFloorStyles::glassy, Enum_VirtualFloorStyle);
             model->dateFormat = reader->GetEnum<int32_t>("date_format", Platform::GetLocaleDateFormat(), Enum_DateFormat);
@@ -235,7 +236,10 @@ namespace OpenRCT2::Config
 
             // Default config setting is false until the games canvas can be separated from the effect
             model->dayNightCycle = reader->GetBoolean("day_night_cycle", false);
-            const bool supportsLightFx = model->drawingEngine == DrawingEngine::SoftwareWithHardwareDisplay;
+            bool supportsLightFx = model->drawingEngine == DrawingEngine::SoftwareWithHardwareDisplay;
+#if defined(ENABLE_VULKAN) && defined(ENABLE_VULKAN_DRAWING_ENGINE)
+            supportsLightFx |= model->drawingEngine == DrawingEngine::Vulkan;
+#endif
             model->enableLightFx = supportsLightFx && reader->GetBoolean("enable_light_fx", false);
             model->enableLightFxForVehicles = supportsLightFx && reader->GetBoolean("enable_light_fx_for_vehicles", false);
             model->upperCaseBanners = reader->GetBoolean("upper_case_banners", false);
@@ -327,6 +331,7 @@ namespace OpenRCT2::Config
         writer->WriteEnum<DrawingEngine>("drawing_engine", model->drawingEngine, Enum_DrawingEngine);
         writer->WriteBoolean("uncap_fps", model->uncapFPS);
         writer->WriteBoolean("use_vsync", model->useVSync);
+        writer->WriteBoolean("enable_hdr10_output", model->enableHdr10Output);
         writer->WriteEnum<int32_t>("date_format", model->dateFormat, Enum_DateFormat);
         writer->WriteBoolean("auto_staff", model->autoStaffPlacement);
         writer->WriteBoolean("handymen_mow_default", model->handymenMowByDefault);

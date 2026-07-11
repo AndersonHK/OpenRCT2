@@ -193,6 +193,8 @@ namespace OpenRCT2::Network
     private: // Common Data
         using CommandHandler = void (NetworkBase::*)(Connection& connection, Packet& packet);
 
+        void ResetTickClock() noexcept;
+
         std::ofstream _chat_log_fs;
         uint32_t _lastUpdateTime = 0;
         uint32_t _currentDeltaTime = 0;

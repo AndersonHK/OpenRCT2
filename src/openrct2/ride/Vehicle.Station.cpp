@@ -32,6 +32,7 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <iterator>
 
 using namespace OpenRCT2;
 using namespace OpenRCT2::Audio;
@@ -52,18 +53,59 @@ static SynchronisedVehicle* _lastSynchronisedVehicle = nullptr;
 
 namespace OpenRCT2::RideVehicle::StationDetail
 {
-    TrainSeatSummary BuildTrainSeatSummary(const Vehicle& head)
+    template<typename TSummary, typename TAccumulate>
+    static TSummary BuildTrainSummary(const Vehicle& head, TAccumulate&& accumulate)
     {
-        PROFILED_FUNCTION();
-
-        TrainSeatSummary result;
+        TSummary result;
         for (const auto* car = &head; car != nullptr && result.carCount < result.cars.size();
              car = getGameState().entities.GetEntity<Vehicle>(car->next_vehicle_on_train))
         {
             result.cars[result.carCount++] = car;
-            result.capacity += car->num_seats & kVehicleSeatNumMask;
-            result.currentPeeps += car->num_peeps;
-            result.reservedSeats += car->next_free_seat;
+            result.hasRiders = result.hasRiders || car->num_peeps != 0;
+            accumulate(result, *car);
+        }
+        return result;
+    }
+
+    TrainCarSummary BuildTrainCarSummary(const Vehicle& head)
+    {
+        return BuildTrainSummary<TrainCarSummary>(head, [](TrainCarSummary&, const Vehicle&) {});
+    }
+
+    TrainSeatSummary BuildTrainSeatSummary(const Vehicle& head)
+    {
+        return BuildTrainSummary<TrainSeatSummary>(head, [](TrainSeatSummary& result, const Vehicle& car) {
+            result.capacity += car.num_seats & kVehicleSeatNumMask;
+            result.currentPeeps += car.num_peeps;
+            result.reservedSeats += car.next_free_seat;
+        });
+    }
+
+    PlatformBoardingSeatRange GetPlatformBoardingSeatRange(const Vehicle& vehicle)
+    {
+        const auto physicalSeatCount = static_cast<uint8_t>(
+            std::min<size_t>(vehicle.num_seats & kVehicleSeatNumMask, std::size(vehicle.peep)));
+        // Alighting guests leave stale ids outside the active prefix. num_peeps covers guests still exiting, while
+        // next_free_seat also includes seats already reserved by guests walking in from the platform.
+        const auto activeSeatCount = std::max(vehicle.num_peeps, vehicle.next_free_seat);
+        const auto firstSeat = std::min(activeSeatCount, physicalSeatCount);
+        return { firstSeat, static_cast<uint8_t>(physicalSeatCount - firstSeat) };
+    }
+
+    TrainBoardingSeatPlan BuildTrainBoardingSeatPlan(const TrainCarSummary& train)
+    {
+        TrainBoardingSeatPlan result{};
+        uint32_t slotOffset = 0;
+        for (uint8_t carIndex = 0; carIndex < train.carCount; carIndex++)
+        {
+            const auto* car = train.cars[carIndex];
+            const auto range = GetPlatformBoardingSeatRange(*car);
+            for (uint8_t seatOffset = 0; seatOffset < range.seatCount; seatOffset++)
+            {
+                const auto seatIndex = static_cast<uint8_t>(range.firstSeat + seatOffset);
+                result.seats[result.seatCount++] = { slotOffset + seatIndex, carIndex, seatIndex };
+            }
+            slotOffset += car->num_seats & kVehicleSeatNumMask;
         }
         return result;
     }
@@ -83,6 +125,21 @@ namespace OpenRCT2::RideVehicle::StationDetail
             result.sourceIndices[destinationIndex] = sourceIndex;
         }
         return result;
+    }
+
+    PassengerUnloadPlan BuildTransportPassengerUnloadPlan(
+        const Ride& ride, StationIndex stationIndex, std::span<Guest* const> passengers)
+    {
+        assert(passengers.size() <= kMaxPassengerCount);
+
+        std::array<bool, kMaxPassengerCount> shouldAlight{};
+        for (size_t passengerIndex = 0; passengerIndex < passengers.size(); passengerIndex++)
+        {
+            const auto* guest = passengers[passengerIndex];
+            shouldAlight[passengerIndex] = guest == nullptr || !guest->isUsingTransportRide(ride)
+                || guest->shouldExitTransportAt(stationIndex);
+        }
+        return BuildPassengerUnloadPlan({ shouldAlight.data(), passengers.size() });
     }
 
     void ApplyTransportPassengerUnload(
@@ -129,6 +186,28 @@ namespace OpenRCT2::RideVehicle::StationDetail
                 guest->RideSubState = PeepRideSubState::leaveVehicle;
             }
         }
+    }
+
+    PlatformSeatBindingResult BindPlatformGuestToSeat(Guest& guest, Vehicle& vehicle, uint8_t seatIndex)
+    {
+        const auto seatCount = vehicle.num_seats & kVehicleSeatNumMask;
+        if (seatIndex >= seatCount || seatIndex >= std::size(vehicle.peep))
+        {
+            return PlatformSeatBindingResult::consistMismatch;
+        }
+        const auto availableSeats = GetPlatformBoardingSeatRange(vehicle);
+        const auto activePassengerEnd = std::begin(vehicle.peep) + availableSeats.firstSeat;
+        if (availableSeats.seatCount == 0 || availableSeats.firstSeat != seatIndex
+            || std::find(std::begin(vehicle.peep), activePassengerEnd, guest.id) != activePassengerEnd)
+        {
+            return PlatformSeatBindingResult::seatUnavailable;
+        }
+
+        guest.CurrentSeat = seatIndex;
+        vehicle.next_free_seat++;
+        vehicle.peep[seatIndex] = guest.id;
+        vehicle.peep_tshirt_colours[seatIndex] = guest.TshirtColour;
+        return PlatformSeatBindingResult::success;
     }
 } // namespace OpenRCT2::RideVehicle::StationDetail
 
@@ -1077,20 +1156,17 @@ void Vehicle::UpdateUnloadingPassengers()
                 // front of the compact passenger array and put alighting riders at the end;
                 // leaveVehicle removes passengers from the end of that array.
                 std::array<Guest*, RideVehicle::StationDetail::kMaxPassengerCount> originalPassengers{};
-                std::array<bool, RideVehicle::StationDetail::kMaxPassengerCount> shouldAlight{};
 
                 for (uint8_t peepIndex = 0; peepIndex < train->num_peeps; peepIndex++)
                 {
-                    auto* guest = entities.GetEntity<Guest>(train->peep[peepIndex]);
-                    originalPassengers[peepIndex] = guest;
-                    shouldAlight[peepIndex] = guest == nullptr || !guest->isUsingTransportRide(*curRide)
-                        || guest->shouldExitTransportAt(current_station);
+                    originalPassengers[peepIndex] = entities.GetEntity<Guest>(train->peep[peepIndex]);
                 }
 
-                const auto unloadPlan = RideVehicle::StationDetail::BuildPassengerUnloadPlan(
-                    std::span<const bool>{ shouldAlight.data(), train->num_peeps });
+                const auto passengers = std::span<Guest* const>{ originalPassengers.data(), train->num_peeps };
+                const auto unloadPlan = RideVehicle::StationDetail::BuildTransportPassengerUnloadPlan(
+                    *curRide, current_station, passengers);
                 RideVehicle::StationDetail::ApplyTransportPassengerUnload(
-                    *train, std::span<Guest* const>{ originalPassengers.data(), train->num_peeps }, unloadPlan);
+                    *train, passengers, unloadPlan);
                 continue;
             }
 
@@ -1112,6 +1188,7 @@ void Vehicle::UpdateUnloadingPassengers()
     {
         UpdateTestFinish();
     }
+    RidePrepareStationPlatformBoarding(*curRide, current_station, *this);
     SetState(Status::movingToEndOfStation);
 }
 

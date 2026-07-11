@@ -214,6 +214,14 @@ struct RideStationPlatformReservation
     CoordsXYZ waitPosition{};
 };
 
+enum class RideStationPlatformSeatBindingResult : uint8_t
+{
+    success,
+    reservationMissing,
+    consistMismatch,
+    seatUnavailable,
+};
+
 struct RideMeasurement
 {
     static constexpr size_t kMaxItems = 4800;
@@ -282,6 +290,7 @@ struct RideRatingAccumulator
     int64_t transportComfort{};
     int64_t transportDecoration{};
     int64_t transportDistance{};
+    int64_t transportShelteredDistance{};
     int64_t sampledDistance{};
     int64_t totalSpeed{};
     int32_t maxSpeed{};
@@ -307,6 +316,7 @@ struct RideRatingAccumulator
         transportComfort = 0;
         transportDecoration = 0;
         transportDistance = 0;
+        transportShelteredDistance = 0;
         sampledDistance = 0;
         totalSpeed = 0;
         maxSpeed = 0;
@@ -402,6 +412,7 @@ struct TransportRideSegment
     StationIndex destinationStation{ StationIndex::GetNull() };
     int32_t distanceMetres{};
     int64_t travelTimeMilliseconds{};
+    int32_t shelteredPermille{};
     money64 fareValue{};
 };
 
@@ -411,6 +422,7 @@ struct TransportRideJourney
     uint8_t segmentCount{};
     int32_t distanceMetres{};
     int64_t travelTimeMilliseconds{};
+    int64_t shelteredTravelTimeMilliseconds{};
     money64 fareValue{};
 };
 
@@ -449,12 +461,6 @@ enum class TransportRideServiceEndpoint : uint8_t
     destinationExit,
 };
 
-enum class TransportRideServiceQueryFallback : uint8_t
-{
-    none,
-    allServicesWhenEmpty,
-};
-
 struct TransportRideServiceStationRef
 {
     RideId ride{ RideId::GetNull() };
@@ -462,12 +468,6 @@ struct TransportRideServiceStationRef
 
     bool operator==(const TransportRideServiceStationRef& other) const;
     bool operator<(const TransportRideServiceStationRef& other) const;
-};
-
-struct TransportRideServiceStationQuery
-{
-    std::span<const TransportRideServiceStationRef> stations;
-    bool usedAllServicesFallback{};
 };
 
 /**
@@ -1177,23 +1177,16 @@ TransportRideSegment RideGetTransportSegment(
 TransportRideJourney RideGetTransportJourney(const Ride& ride, StationIndex boardingStation, StationIndex destinationStation);
 TransportRideJourney RideGetTransportJourney(
     const Ride& ride, StationIndex boardingStation, StationIndex destinationStation, const TransportRideQuality& quality);
-std::span<const RideId> RideGetTransportServiceRideIds();
 TransportRideServiceView RideGetTransportService(RideId rideId);
+uint64_t RideGetTransportServiceCrowdingGeneration();
 // Candidate results are copied into caller-owned reusable storage and remain
 // memory-safe across cache refreshes. Resolve each value against the current
 // service view before use. A warmed buffer reserves for all current endpoints,
-// making later queries allocation-free. If local candidates produce no viable
-// route (including disconnected or extortive cases), callers should retry with
-// RideCollectAllTransportServiceStations.
-TransportRideServiceStationQuery RideQueryTransportServiceStationsInBounds(
+// making later queries allocation-free.
+void RideQueryTransportServiceStationsInBounds(
     TransportRideServiceEndpoint endpoint, const TileCoordsXY& minimum, const TileCoordsXY& maximum,
-    std::vector<TransportRideServiceStationRef>& reusableBuffer,
-    TransportRideServiceQueryFallback fallback = TransportRideServiceQueryFallback::none);
-TransportRideServiceStationQuery RideQueryTransportServiceStationsInRadius(
-    TransportRideServiceEndpoint endpoint, const TileCoordsXY& centre, int32_t radiusTiles,
-    std::vector<TransportRideServiceStationRef>& reusableBuffer,
-    TransportRideServiceQueryFallback fallback = TransportRideServiceQueryFallback::none);
-TransportRideServiceStationQuery RideCollectAllTransportServiceStations(
+    std::vector<TransportRideServiceStationRef>& reusableBuffer);
+void RideCollectAllTransportServiceStations(
     TransportRideServiceEndpoint endpoint, std::vector<TransportRideServiceStationRef>& reusableBuffer);
 void RideInvalidateTransportServiceCache(RideId rideId);
 uint16_t RideGetTransportStationPlatformCapacity(const Ride& ride, StationIndex stationIndex);
@@ -1202,12 +1195,15 @@ bool RideIsTransportStationOvercrowded(const Ride& ride, StationIndex stationInd
 bool RideSupportsStationPlatformPreQueue(const Ride& ride);
 bool RideCaptureStationPlatformTemplate(Ride& ride, StationIndex stationIndex, const Vehicle& trainHead);
 void RideActivateStationPlatformPreQueue(const Ride& ride, StationIndex stationIndex);
+bool RidePrepareStationPlatformBoarding(const Ride& ride, StationIndex stationIndex, const Vehicle& trainHead);
 bool RideStationPlatformPreQueueIsActive(const Ride& ride, StationIndex stationIndex);
 std::optional<RideStationPlatformReservation> RideReserveStationPlatformSlot(
     const Ride& ride, StationIndex stationIndex, EntityId guestId);
 std::optional<RideStationPlatformReservation> RideGetStationPlatformReservation(
     const Ride& ride, StationIndex stationIndex, EntityId guestId);
 bool RideStationPlatformGuestIsFirst(const Ride& ride, StationIndex stationIndex, EntityId guestId);
+RideStationPlatformSeatBindingResult RideBindStationPlatformGuestToSeat(
+    const Ride& ride, StationIndex stationIndex, uint8_t trainIndex, OpenRCT2::Guest& guest);
 void RideReleaseStationPlatformSlot(const Ride& ride, StationIndex stationIndex, EntityId guestId);
 void RideClearStationPlatformPreQueue(const Ride& ride);
 void RideClearAllStationPlatformPreQueues();

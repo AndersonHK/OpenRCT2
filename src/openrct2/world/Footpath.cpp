@@ -1421,7 +1421,7 @@ namespace OpenRCT2
         if (!(footpathPos.x & 0xE0) || (!(footpathPos.y & 0xE0)))
         {
             if (FootpathWideFlagsChanged(footpathPos, previousWideFlags))
-                MapTopology::InvalidateTileAndNeighbours(footpathPos);
+                MapTopology::InvalidatePathWideTileAndNeighbours(footpathPos);
             return;
         }
 
@@ -1600,7 +1600,7 @@ namespace OpenRCT2
         } while (!(tileElement++)->isLastForTile());
 
         if (FootpathWideFlagsChanged(footpathPos, previousWideFlags))
-            MapTopology::InvalidateTileAndNeighbours(footpathPos);
+            MapTopology::InvalidatePathWideTileAndNeighbours(footpathPos);
     }
 
     bool FootpathIsBlockedByVehicle(const TileCoordsXYZ& position)

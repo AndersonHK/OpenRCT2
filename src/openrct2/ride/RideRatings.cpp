@@ -36,11 +36,12 @@
 #include "ted/TrackElementDescriptor.h"
 
 #include <algorithm>
+#include <array>
+#include <bit>
 #include <cmath>
 #include <cstdint>
 #include <iterator>
 #include <limits>
-#include <unordered_map>
 
 using namespace OpenRCT2;
 using namespace OpenRCT2::Scripting;
@@ -126,7 +127,11 @@ static constexpr int32_t kRideRatingOwnTrackVerticalRaw = 160;
 static constexpr int32_t kRideRatingBridgeNearMissMaxGap = 6 * kCoordsZStep;
 static constexpr int32_t kRideRatingTrackHeightExposureMax = 6;
 static constexpr int32_t kRideRatingContextGenerationChunkSize = 8;
-static constexpr size_t kRideRatingContextInitialCacheCapacity = 16384;
+static constexpr size_t kRideRatingContextCacheSetCount = 65536;
+static constexpr size_t kRideRatingContextCacheWays = 4;
+static_assert(std::has_single_bit(kRideRatingContextCacheSetCount));
+static constexpr int64_t kVehicleGForceSpeedCouplingDenominator =
+    static_cast<int64_t>(RideRating::kVehicleRatingBaselineSpeed) * kSampledRideRatingProfileScale;
 static constexpr size_t kRideRatingContextGenerationChunksPerAxis = (kMaximumMapSizeTechnical
                                                                      + kRideRatingContextGenerationChunkSize - 1)
     / kRideRatingContextGenerationChunkSize;
@@ -163,38 +168,108 @@ struct RideRatingLocalContextKey
     bool operator==(const RideRatingLocalContextKey& rhs) const = default;
 };
 
-struct RideRatingLocalContextKeyHash
+static size_t RideRatingHashLocalContextKey(const RideRatingLocalContextKey& key) noexcept
 {
-    size_t operator()(const RideRatingLocalContextKey& key) const noexcept
+    uint64_t hash = 14695981039346656037ULL;
+    const auto mix = [&hash](uint64_t value) {
+        // Mix before adding the next field. Concatenating every field with
+        // shifts eventually discarded both tile coordinates on 64-bit builds.
+        hash ^= value;
+        hash *= 1099511628211ULL;
+    };
+    mix(static_cast<uint16_t>(key.x));
+    mix(static_cast<uint16_t>(key.y));
+    mix(static_cast<uint16_t>(key.z));
+    mix(key.rideId);
+    mix(key.trackType);
+    mix(key.trackDirection);
+    mix(static_cast<uint8_t>(key.sampleKind));
+    return static_cast<size_t>(hash);
+}
+
+struct RideRatingLocalContextCacheSet
+{
+    uint8_t validMask{};
+    uint8_t nextReplacement{};
+    std::array<RideRatingLocalContextKey, kRideRatingContextCacheWays> keys{};
+    std::array<uint64_t, kRideRatingContextCacheWays> spatialGenerations{};
+    struct Environment
     {
-        auto hash = static_cast<size_t>(static_cast<uint16_t>(key.x));
-        hash = (hash << 16) ^ static_cast<uint16_t>(key.y);
-        hash = (hash << 10) ^ static_cast<uint16_t>(key.z);
-        hash = (hash << 16) ^ key.rideId;
-        hash = (hash << 16) ^ key.trackType;
-        hash = (hash << 8) ^ key.trackDirection;
-        hash = (hash << 8) ^ static_cast<uint8_t>(key.sampleKind);
-        return hash;
-    }
-};
+        int32_t scenery{};
+        int32_t pathProximity{};
+        int32_t foreignTrackProximity{};
+        int32_t pathBridge{};
+        int32_t pathNearMiss{};
+        int32_t pathLoop{};
+        int32_t trackVerticalInteraction{};
+        int32_t ownTrackVerticalInteraction{};
+        int32_t trackHeightExposure{};
+        bool isSheltered{};
+    };
 
-struct RideRatingLocalContextCacheEntry
+    std::array<Environment, kRideRatingContextCacheWays> environments{};
+};
+static_assert(kRideRatingContextCacheWays <= std::numeric_limits<uint8_t>::digits);
+static_assert(sizeof(RideRatingLocalContextCacheSet::Environment) <= 40, "Keep shared rating-cache payload compact");
+static_assert(sizeof(RideRatingLocalContextCacheSet) <= 248, "Keep shared rating-cache metadata compact");
+
+struct RideRatingLocalContextCacheProbe
 {
-    RideRating::VehicleRatingEnvironment environment{};
-    uint64_t spatialGeneration{};
+    size_t matchingIndex = kRideRatingContextCacheWays;
+    size_t firstInvalidIndex = kRideRatingContextCacheWays;
 };
 
-using RideRatingLocalContextCache = std::unordered_map<
-    RideRatingLocalContextKey, RideRatingLocalContextCacheEntry, RideRatingLocalContextKeyHash>;
-
-static RideRatingLocalContextCache _rideRatingLocalContextCache = []() {
-    RideRatingLocalContextCache result;
-    result.reserve(kRideRatingContextInitialCacheCapacity);
-    return result;
-}();
+static std::array<RideRatingLocalContextCacheSet, kRideRatingContextCacheSetCount> _rideRatingLocalContextCache{};
 static std::array<uint64_t, kRideRatingContextGenerationChunksPerAxis * kRideRatingContextGenerationChunksPerAxis>
     _rideRatingLocalContextOriginGenerations{};
 static uint64_t _rideRatingLocalContextInvalidationGeneration{};
+
+static RideRatingLocalContextCacheSet& RideRatingGetLocalContextCacheSet(const RideRatingLocalContextKey& key)
+{
+    const auto index = RideRatingHashLocalContextKey(key) & (kRideRatingContextCacheSetCount - 1);
+    return _rideRatingLocalContextCache[index];
+}
+
+static RideRatingLocalContextCacheProbe RideRatingProbeLocalContextCacheSet(
+    const RideRatingLocalContextCacheSet& cacheSet, const RideRatingLocalContextKey& key)
+{
+    RideRatingLocalContextCacheProbe result{};
+    for (size_t index = 0; index < cacheSet.keys.size(); index++)
+    {
+        const auto slotMask = static_cast<uint8_t>(1U << index);
+        if ((cacheSet.validMask & slotMask) == 0)
+        {
+            if (result.firstInvalidIndex == kRideRatingContextCacheWays)
+            {
+                result.firstInvalidIndex = index;
+            }
+            continue;
+        }
+        if (cacheSet.keys[index] == key)
+        {
+            result.matchingIndex = index;
+            break;
+        }
+    }
+    return result;
+}
+
+static size_t RideRatingGetLocalContextCacheIndexForStore(
+    RideRatingLocalContextCacheSet& cacheSet, const RideRatingLocalContextCacheProbe& probe)
+{
+    if (probe.matchingIndex != kRideRatingContextCacheWays)
+    {
+        return probe.matchingIndex;
+    }
+    if (probe.firstInvalidIndex != kRideRatingContextCacheWays)
+    {
+        return probe.firstInvalidIndex;
+    }
+
+    const auto result = cacheSet.nextReplacement;
+    cacheSet.nextReplacement = static_cast<uint8_t>((cacheSet.nextReplacement + 1) % cacheSet.keys.size());
+    return result;
+}
 
 struct RideRatingLocalContextRaw
 {
@@ -268,21 +343,15 @@ static RideRating::TickScore RideRatingScaleTickScore(RideRating::TickScore scor
     return score;
 }
 
-static RideRating::TickScore RideRatingApplySpeedGCoupling(RideRating::TickScore score, int32_t speed, int32_t coupling)
+static RideRating::TickScore RideRatingApplySpeedGCoupling(
+    RideRating::TickScore score, const RideRating::VehicleGForceSpeedContext& speedContext)
 {
-    const auto normalisedSpeed = static_cast<int64_t>(std::max(speed, 0));
-    const auto normalisedCoupling = static_cast<int64_t>(std::max(coupling, 0));
-    const auto couplingDenominator = static_cast<int64_t>(RideRating::kVehicleRatingBaselineSpeed)
-        * kSampledRideRatingProfileScale;
-    const auto couplingNumerator = std::max<int64_t>(
-        0, couplingDenominator + normalisedCoupling * (normalisedSpeed - RideRating::kVehicleRatingBaselineSpeed));
-
-    score.excitement = ((score.excitement * normalisedSpeed) / RideRating::kVehicleRatingBaselineSpeed) * couplingNumerator
-        / couplingDenominator;
-    score.intensity = ((score.intensity * normalisedSpeed) / RideRating::kVehicleRatingBaselineSpeed) * couplingNumerator
-        / couplingDenominator;
-    score.nausea = ((score.nausea * normalisedSpeed) / RideRating::kVehicleRatingBaselineSpeed) * couplingNumerator
-        / couplingDenominator;
+    score.excitement = ((score.excitement * speedContext.normalisedSpeed) / RideRating::kVehicleRatingBaselineSpeed)
+        * speedContext.couplingNumerator / kVehicleGForceSpeedCouplingDenominator;
+    score.intensity = ((score.intensity * speedContext.normalisedSpeed) / RideRating::kVehicleRatingBaselineSpeed)
+        * speedContext.couplingNumerator / kVehicleGForceSpeedCouplingDenominator;
+    score.nausea = ((score.nausea * speedContext.normalisedSpeed) / RideRating::kVehicleRatingBaselineSpeed)
+        * speedContext.couplingNumerator / kVehicleGForceSpeedCouplingDenominator;
     return score;
 }
 
@@ -458,79 +527,117 @@ static int32_t RideRatingApplySceneryVisibilityMultiplier(int32_t scenery, const
     return (scenery * multiplier.first) / multiplier.second;
 }
 
-RideRating::TickScore RideRating::ScoreLocalContextForVehicleTick(
-    const LocalContextScore& contextScore, int32_t speed, int32_t coefficient)
+static RideRating::TickScore RideRatingApplyLocalContextSpeed(RideRating::TickScore score, int64_t speed)
+{
+    const auto normalisedSpeed = std::max<int64_t>(speed, 0);
+    score.excitement = (score.excitement * normalisedSpeed) / RideRating::kVehicleRatingBaselineSpeed;
+    score.intensity = (score.intensity * normalisedSpeed) / RideRating::kVehicleRatingBaselineSpeed;
+    score.nausea = (score.nausea * normalisedSpeed) / RideRating::kVehicleRatingBaselineSpeed;
+    return score;
+}
+
+struct RideRatingLocalContextDecomposition
+{
+    int64_t verticalIntensity{};
+    int64_t heightExposureIntensity{};
+    int64_t nonForeignTrackProximityIntensity{};
+    int64_t nonVerticalNausea{};
+};
+
+static RideRatingLocalContextDecomposition RideRatingDecomposeLocalContext(
+    const RideRating::LocalContextScore& contextScore)
 {
     const auto verticalIntensity = static_cast<int64_t>(contextScore.pathNearMiss) + contextScore.pathLoop
         + contextScore.trackVerticalInteraction + contextScore.ownTrackVerticalInteraction;
     const auto heightExposureIntensity = static_cast<int64_t>(contextScore.trackHeightExposure);
     const auto foreignTrackProximityIntensity = static_cast<int64_t>(contextScore.foreignTrackProximity) / 2;
-    const auto nonForeignTrackProximityIntensity = static_cast<int64_t>(contextScore.intensity) - verticalIntensity
-        - heightExposureIntensity - foreignTrackProximityIntensity;
-    const auto verticalNausea = verticalIntensity / 3;
-    const auto heightExposureNausea = heightExposureIntensity / 3;
-    const auto nonVerticalNausea = static_cast<int64_t>(contextScore.nausea) - verticalNausea - heightExposureNausea;
+    return {
+        .verticalIntensity = verticalIntensity,
+        .heightExposureIntensity = heightExposureIntensity,
+        .nonForeignTrackProximityIntensity = static_cast<int64_t>(contextScore.intensity) - verticalIntensity
+            - heightExposureIntensity - foreignTrackProximityIntensity,
+        .nonVerticalNausea = static_cast<int64_t>(contextScore.nausea) - (verticalIntensity / 3)
+            - (heightExposureIntensity / 3),
+    };
+}
+
+static RideRating::TickScore RideRatingPrepareTrackedLocalContextScore(
+    const RideRating::LocalContextScore& contextScore, int32_t coefficient)
+{
+    const auto decomposition = RideRatingDecomposeLocalContext(contextScore);
     const auto verticalExcitement = (static_cast<int64_t>(contextScore.pathNearMiss) * 2)
         + (static_cast<int64_t>(contextScore.pathLoop) * 2) + (static_cast<int64_t>(contextScore.trackVerticalInteraction) * 2)
-        + (static_cast<int64_t>(contextScore.ownTrackVerticalInteraction) * 2) + heightExposureIntensity;
+        + (static_cast<int64_t>(contextScore.ownTrackVerticalInteraction) * 2) + decomposition.heightExposureIntensity;
     const auto nonVerticalExcitement = static_cast<int64_t>(contextScore.excitement) - verticalExcitement;
     const auto excitementRaw = (nonVerticalExcitement * kTrackedRideRawPerLocalContextPoint)
         + (verticalExcitement * kTrackedRideRawPerVerticalContextPoint);
     const auto foreignTrackProximityIntensityRaw = static_cast<int64_t>(contextScore.foreignTrackProximity)
         * kTrackedRideRawPerForeignTrackIntensityPoint;
-    const auto intensityRaw = (nonForeignTrackProximityIntensity * kTrackedRideRawPerLocalContextPoint)
+    const auto intensityRaw = (decomposition.nonForeignTrackProximityIntensity * kTrackedRideRawPerLocalContextPoint)
         + foreignTrackProximityIntensityRaw
-        + ((verticalIntensity + heightExposureIntensity) * kTrackedRideRawPerVerticalContextPoint);
-    const auto nauseaRaw = (nonVerticalNausea * kTrackedRideRawPerLocalContextPoint)
-        + (((verticalIntensity + heightExposureIntensity) * kRideRatingAccumulatorRawScale
+        + ((decomposition.verticalIntensity + decomposition.heightExposureIntensity)
+           * kTrackedRideRawPerVerticalContextPoint);
+    const auto nauseaRaw = (decomposition.nonVerticalNausea * kTrackedRideRawPerLocalContextPoint)
+        + (((decomposition.verticalIntensity + decomposition.heightExposureIntensity)
+            * RideRating::kRideRatingAccumulatorRawScale
             * kTrackedRideVerticalContextNauseaNumerator)
            / kTrackedRideVerticalContextNauseaDenominator);
-    const auto normalisedSpeed = std::max<int64_t>(speed, 0);
-
-    auto score = RideRatingScaleTickScore(
+    return RideRatingScaleTickScore(
         {
             .excitement = excitementRaw,
             .intensity = intensityRaw,
             .nausea = nauseaRaw,
         },
         std::clamp(coefficient, 0, kSampledRideRatingProfileScale));
-    score.excitement = (score.excitement * normalisedSpeed) / kVehicleRatingBaselineSpeed;
-    score.intensity = (score.intensity * normalisedSpeed) / kVehicleRatingBaselineSpeed;
-    score.nausea = (score.nausea * normalisedSpeed) / kVehicleRatingBaselineSpeed;
-    return score;
+}
+
+static RideRating::TickScore RideRatingPrepareBoatHireLocalContextScore(
+    const RideRating::LocalContextScore& contextScore, int32_t coefficient)
+{
+    constexpr int64_t rawScale = RideRating::kRideRatingAccumulatorRawScale;
+    const auto decomposition = RideRatingDecomposeLocalContext(contextScore);
+    const auto excitementRaw = static_cast<int64_t>(contextScore.excitement) * rawScale;
+    const auto foreignTrackProximityIntensityRaw = (static_cast<int64_t>(contextScore.foreignTrackProximity) * rawScale) / 2;
+    const auto intensityRaw = (decomposition.nonForeignTrackProximityIntensity * rawScale)
+        + foreignTrackProximityIntensityRaw
+        + ((decomposition.verticalIntensity + decomposition.heightExposureIntensity) * rawScale);
+    const auto nauseaRaw = (decomposition.nonVerticalNausea * rawScale)
+        + (((decomposition.verticalIntensity + decomposition.heightExposureIntensity) * rawScale) / 3);
+    return RideRatingScaleTickScore(
+        {
+            .excitement = excitementRaw,
+            .intensity = intensityRaw,
+            .nausea = nauseaRaw,
+        },
+        std::clamp(coefficient, 0, kSampledRideRatingProfileScale));
+}
+
+RideRating::TickScore RideRating::ScoreLocalContextForVehicleTick(
+    const LocalContextScore& contextScore, int32_t speed, int32_t coefficient)
+{
+    return RideRatingApplyLocalContextSpeed(RideRatingPrepareTrackedLocalContextScore(contextScore, coefficient), speed);
 }
 
 RideRating::TickScore RideRating::ScoreBoatHireLocalContextForVehicleTick(
     const LocalContextScore& contextScore, int32_t speed, int32_t coefficient)
 {
-    constexpr int64_t rawScale = kRideRatingAccumulatorRawScale;
-    const auto verticalIntensity = static_cast<int64_t>(contextScore.pathNearMiss) + contextScore.pathLoop
-        + contextScore.trackVerticalInteraction + contextScore.ownTrackVerticalInteraction;
-    const auto heightExposureIntensity = static_cast<int64_t>(contextScore.trackHeightExposure);
-    const auto foreignTrackProximityIntensity = static_cast<int64_t>(contextScore.foreignTrackProximity) / 2;
-    const auto nonForeignTrackProximityIntensity = static_cast<int64_t>(contextScore.intensity) - verticalIntensity
-        - heightExposureIntensity - foreignTrackProximityIntensity;
-    const auto verticalNausea = verticalIntensity / 3;
-    const auto heightExposureNausea = heightExposureIntensity / 3;
-    const auto nonVerticalNausea = static_cast<int64_t>(contextScore.nausea) - verticalNausea - heightExposureNausea;
-    const auto excitementRaw = static_cast<int64_t>(contextScore.excitement) * rawScale;
-    const auto foreignTrackProximityIntensityRaw = (static_cast<int64_t>(contextScore.foreignTrackProximity) * rawScale) / 2;
-    const auto intensityRaw = (nonForeignTrackProximityIntensity * rawScale) + foreignTrackProximityIntensityRaw
-        + ((verticalIntensity + heightExposureIntensity) * rawScale);
-    const auto nauseaRaw = (nonVerticalNausea * rawScale) + (((verticalIntensity + heightExposureIntensity) * rawScale) / 3);
-    const auto normalisedSpeed = std::max<int64_t>(speed, 0);
+    return RideRatingApplyLocalContextSpeed(RideRatingPrepareBoatHireLocalContextScore(contextScore, coefficient), speed);
+}
 
-    auto score = RideRatingScaleTickScore(
-        {
-            .excitement = excitementRaw,
-            .intensity = intensityRaw,
-            .nausea = nauseaRaw,
-        },
-        std::clamp(coefficient, 0, kSampledRideRatingProfileScale));
-    score.excitement = (score.excitement * normalisedSpeed) / kVehicleRatingBaselineSpeed;
-    score.intensity = (score.intensity * normalisedSpeed) / kVehicleRatingBaselineSpeed;
-    score.nausea = (score.nausea * normalisedSpeed) / kVehicleRatingBaselineSpeed;
-    return score;
+RideRating::TickScore RideRating::ScoreCachedLocalContextForVehicleTick(
+    VehicleLocalContextCache& runtimeCache, int64_t normalisedSpeed, int32_t coefficient, bool isBoatHire)
+{
+    if (!runtimeCache.preparedScoreValid || runtimeCache.preparedCoefficient != coefficient
+        || runtimeCache.preparedForBoatHire != isBoatHire)
+    {
+        runtimeCache.preparedScore = isBoatHire
+            ? RideRatingPrepareBoatHireLocalContextScore(runtimeCache.environment.context, coefficient)
+            : RideRatingPrepareTrackedLocalContextScore(runtimeCache.environment.context, coefficient);
+        runtimeCache.preparedCoefficient = coefficient;
+        runtimeCache.preparedForBoatHire = isBoatHire;
+        runtimeCache.preparedScoreValid = true;
+    }
+    return RideRatingApplyLocalContextSpeed(runtimeCache.preparedScore, normalisedSpeed);
 }
 
 RideRating::TickScore RideRating::ScoreBoatHireFreeRoamForTick(uint32_t tickIndex)
@@ -931,6 +1038,21 @@ static void RideRatingAccumulateLocalContextElement(
     }
 }
 
+static void RideRatingFinalizeLocalContextScore(RideRating::LocalContextScore& result)
+{
+    result.verticalInteraction = result.pathNearMiss + result.pathLoop + result.trackVerticalInteraction
+        + result.ownTrackVerticalInteraction + result.trackHeightExposure;
+    result.excitement = (result.scenery * 2) + result.pathProximity + (result.foreignTrackProximity * 2) + result.pathBridge
+        + (result.pathNearMiss * 2) + (result.pathLoop * 2) + (result.trackVerticalInteraction * 2)
+        + (result.ownTrackVerticalInteraction * 2) + result.trackHeightExposure;
+    result.intensity = (result.foreignTrackProximity / 2) + result.pathNearMiss + result.pathLoop
+        + result.trackVerticalInteraction + result.ownTrackVerticalInteraction + result.trackHeightExposure;
+    result.nausea = ((result.pathNearMiss + result.pathLoop + result.trackVerticalInteraction
+                       + result.ownTrackVerticalInteraction)
+                      / 3)
+        + (result.trackHeightExposure / 3);
+}
+
 static RideRating::LocalContextScore RideRatingBuildLocalContextScore(
     const CoordsXYZ& origin, const RideRatingLocalContextQuery& query)
 {
@@ -980,17 +1102,46 @@ static RideRating::LocalContextScore RideRatingBuildLocalContextScore(
     result.trackVerticalInteraction = RideRatingDiminishLocalContext(raw.trackVerticalInteraction, 16, 180);
     result.ownTrackVerticalInteraction = RideRatingDiminishLocalContext(raw.ownTrackVerticalInteraction, 16, 180);
     result.trackHeightExposure = raw.trackHeightExposure;
-    result.verticalInteraction = result.pathNearMiss + result.pathLoop + result.trackVerticalInteraction
-        + result.ownTrackVerticalInteraction + result.trackHeightExposure;
-    result.excitement = (result.scenery * 2) + result.pathProximity + (result.foreignTrackProximity * 2) + result.pathBridge
-        + (result.pathNearMiss * 2) + (result.pathLoop * 2) + (result.trackVerticalInteraction * 2)
-        + (result.ownTrackVerticalInteraction * 2) + result.trackHeightExposure;
-    result.intensity = (result.foreignTrackProximity / 2) + result.pathNearMiss + result.pathLoop
-        + result.trackVerticalInteraction + result.ownTrackVerticalInteraction + result.trackHeightExposure;
-    result.nausea = ((result.pathNearMiss + result.pathLoop + result.trackVerticalInteraction
-                      + result.ownTrackVerticalInteraction)
-                     / 3)
-        + (result.trackHeightExposure / 3);
+    RideRatingFinalizeLocalContextScore(result);
+    return result;
+}
+
+static RideRatingLocalContextCacheSet::Environment RideRatingCompactLocalContextEnvironment(
+    const RideRating::VehicleRatingEnvironment& environment)
+{
+    const auto& context = environment.context;
+    return {
+        .scenery = context.scenery,
+        .pathProximity = context.pathProximity,
+        .foreignTrackProximity = context.foreignTrackProximity,
+        .pathBridge = context.pathBridge,
+        .pathNearMiss = context.pathNearMiss,
+        .pathLoop = context.pathLoop,
+        .trackVerticalInteraction = context.trackVerticalInteraction,
+        .ownTrackVerticalInteraction = context.ownTrackVerticalInteraction,
+        .trackHeightExposure = context.trackHeightExposure,
+        .isSheltered = environment.isSheltered,
+    };
+}
+
+static RideRating::VehicleRatingEnvironment RideRatingExpandLocalContextEnvironment(
+    const RideRatingLocalContextCacheSet::Environment& environment)
+{
+    RideRating::VehicleRatingEnvironment result{
+        .context = {
+            .scenery = environment.scenery,
+            .pathProximity = environment.pathProximity,
+            .foreignTrackProximity = environment.foreignTrackProximity,
+            .pathBridge = environment.pathBridge,
+            .pathNearMiss = environment.pathNearMiss,
+            .pathLoop = environment.pathLoop,
+            .trackVerticalInteraction = environment.trackVerticalInteraction,
+            .ownTrackVerticalInteraction = environment.ownTrackVerticalInteraction,
+            .trackHeightExposure = environment.trackHeightExposure,
+        },
+        .isSheltered = environment.isSheltered,
+    };
+    RideRatingFinalizeLocalContextScore(result.context);
     return result;
 }
 
@@ -1028,15 +1179,16 @@ static bool RideRatingRuntimeContextCacheMatches(
 
 static void RideRatingUpdateRuntimeContextCache(
     RideRating::VehicleLocalContextCache& runtimeCache, const RideRatingLocalContextKey& key,
-    const RideRatingLocalContextCacheEntry& entry)
+    const RideRating::VehicleRatingEnvironment& environment, uint64_t spatialGeneration)
 {
     runtimeCache.originTile = TileCoordsXYZ{ key.x, key.y, key.z };
     runtimeCache.rideId = RideId::FromUnderlying(key.rideId);
     runtimeCache.trackType = static_cast<TrackElemType>(key.trackType);
     runtimeCache.trackDirection = key.trackDirection;
-    runtimeCache.spatialGeneration = entry.spatialGeneration;
+    runtimeCache.spatialGeneration = spatialGeneration;
     runtimeCache.observedInvalidationGeneration = _rideRatingLocalContextInvalidationGeneration;
-    runtimeCache.environment = entry.environment;
+    runtimeCache.environment = environment;
+    runtimeCache.preparedScoreValid = false;
     runtimeCache.valid = true;
 }
 
@@ -1045,6 +1197,11 @@ static RideRating::VehicleRatingEnvironment RideRatingGetLocalContextEnvironment
 {
     if (origin.x == kLocationNull)
     {
+        if (runtimeCache != nullptr)
+        {
+            runtimeCache->clear();
+            runtimeCache->environment = {};
+        }
         return {};
     }
 
@@ -1086,38 +1243,36 @@ static RideRating::VehicleRatingEnvironment RideRatingGetLocalContextEnvironment
     }
 
     spatialGeneration = getSpatialGeneration();
-    auto it = _rideRatingLocalContextCache.find(key);
-    if (it != _rideRatingLocalContextCache.end() && it->second.spatialGeneration == spatialGeneration)
+    auto& cacheSet = RideRatingGetLocalContextCacheSet(key);
+    const auto cacheProbe = RideRatingProbeLocalContextCacheSet(cacheSet, key);
+    if (cacheProbe.matchingIndex != kRideRatingContextCacheWays
+        && cacheSet.spatialGenerations[cacheProbe.matchingIndex] == spatialGeneration)
     {
+        const auto environment = RideRatingExpandLocalContextEnvironment(
+            cacheSet.environments[cacheProbe.matchingIndex]);
         if (runtimeCache != nullptr)
         {
-            RideRatingUpdateRuntimeContextCache(*runtimeCache, key, it->second);
+            RideRatingUpdateRuntimeContextCache(*runtimeCache, key, environment, spatialGeneration);
         }
-        return it->second.environment;
+        return environment;
     }
 
     const auto centredOrigin = CoordsXYZ{ origin.ToTileCentre(), origin.z };
-    RideRatingLocalContextCacheEntry entry{
-        .environment = {
-            .context = RideRatingBuildLocalContextScore(centredOrigin, query),
-            .isSheltered = query.sampleKind == RideRatingLocalContextSampleKind::vehicle
-                && RideRatingLocalContextTickIsSheltered(centredOrigin),
-        },
-        .spatialGeneration = spatialGeneration,
+    RideRating::VehicleRatingEnvironment environment{
+        .context = RideRatingBuildLocalContextScore(centredOrigin, query),
+        .isSheltered = query.sampleKind == RideRatingLocalContextSampleKind::vehicle
+            && RideRatingLocalContextTickIsSheltered(centredOrigin),
     };
-    if (it == _rideRatingLocalContextCache.end())
-    {
-        it = _rideRatingLocalContextCache.emplace(key, entry).first;
-    }
-    else
-    {
-        it->second = entry;
-    }
+    const auto cacheIndex = RideRatingGetLocalContextCacheIndexForStore(cacheSet, cacheProbe);
+    cacheSet.keys[cacheIndex] = key;
+    cacheSet.spatialGenerations[cacheIndex] = spatialGeneration;
+    cacheSet.environments[cacheIndex] = RideRatingCompactLocalContextEnvironment(environment);
+    cacheSet.validMask |= static_cast<uint8_t>(1U << cacheIndex);
     if (runtimeCache != nullptr)
     {
-        RideRatingUpdateRuntimeContextCache(*runtimeCache, key, it->second);
+        RideRatingUpdateRuntimeContextCache(*runtimeCache, key, environment, spatialGeneration);
     }
-    return entry.environment;
+    return environment;
 }
 
 RideRating::LocalContextScore RideRating::GetLocalContextScore(const CoordsXYZ& origin, RideId rideId)
@@ -1342,7 +1497,11 @@ void RideRating::InvalidateLocalContextCacheAround(const CoordsXY& location)
 
 void RideRating::ClearLocalContextCache()
 {
-    _rideRatingLocalContextCache.clear();
+    for (auto& cacheSet : _rideRatingLocalContextCache)
+    {
+        cacheSet.validMask = 0;
+        cacheSet.nextReplacement = 0;
+    }
     _rideRatingLocalContextOriginGenerations.fill(++_rideRatingLocalContextInvalidationGeneration);
 }
 
@@ -1432,8 +1591,53 @@ RideRating::TickScore RideRating::ScoreGForcesForTick(int32_t verticalG, int32_t
     return result;
 }
 
+RideRating::VehicleGForceSpeedContext RideRating::PrepareVehicleGForceSpeedContext(int32_t speed, int32_t coupling)
+{
+    const auto normalisedSpeed = static_cast<int64_t>(std::max(speed, 0));
+    const auto normalisedCoupling = static_cast<int64_t>(std::max(coupling, 0));
+    return {
+        .normalisedSpeed = normalisedSpeed,
+        .couplingNumerator = std::max<int64_t>(
+            0,
+            kVehicleGForceSpeedCouplingDenominator
+                + normalisedCoupling * (normalisedSpeed - kVehicleRatingBaselineSpeed)),
+    };
+}
+
+RideRating::VehicleGForceScoreMemo::VehicleGForceScoreMemo(
+    const SampledRideRatingProfile& profile, const VehicleGForceSpeedContext& speedContext)
+    : _profile(&profile)
+    , _speedContext(speedContext)
+{
+}
+
+RideRating::TickScore RideRating::VehicleGForceScoreMemo::Get(
+    int32_t verticalG, int32_t lateralG, int32_t longitudinalG)
+{
+    if (_valid && _verticalG == verticalG && _lateralG == lateralG && _longitudinalG == longitudinalG)
+    {
+        return _score;
+    }
+
+    const auto score = ScoreGForcesForVehicleTick(verticalG, lateralG, longitudinalG, *_profile, _speedContext);
+    _verticalG = verticalG;
+    _lateralG = lateralG;
+    _longitudinalG = longitudinalG;
+    _score = score;
+    _valid = true;
+    return _score;
+}
+
 RideRating::TickScore RideRating::ScoreGForcesForVehicleTick(
     int32_t verticalG, int32_t lateralG, int32_t longitudinalG, int32_t speed, const SampledRideRatingProfile& profile)
+{
+    return ScoreGForcesForVehicleTick(
+        verticalG, lateralG, longitudinalG, profile, PrepareVehicleGForceSpeedContext(speed, profile.SpeedGCoupling));
+}
+
+RideRating::TickScore RideRating::ScoreGForcesForVehicleTick(
+    int32_t verticalG, int32_t lateralG, int32_t longitudinalG, const SampledRideRatingProfile& profile,
+    const VehicleGForceSpeedContext& speedContext)
 {
     TickScore result{};
 
@@ -1444,7 +1648,7 @@ RideRating::TickScore RideRating::ScoreGForcesForVehicleTick(
     RideRatingAddTickScore(result, RideRatingScaleTickScore(ScoreLateralGForTick(lateralG), profile.LateralG));
     RideRatingAddTickScore(result, RideRatingScaleTickScore(ScoreLongitudinalGForTick(longitudinalG), profile.LongitudinalG));
 
-    return RideRatingApplySpeedGCoupling(result, speed, profile.SpeedGCoupling);
+    return RideRatingApplySpeedGCoupling(result, speedContext);
 }
 
 RideRating::TickScore RideRating::ScoreVehicleSpeedForTick(int32_t speed, int32_t coefficient)
@@ -1688,6 +1892,7 @@ bool RideRating::RecordActiveRiderSamples(Ride& ride, std::span<const EntityId> 
         combinedSample.transportComfort += accumulator->transportComfort;
         combinedSample.transportDecoration += accumulator->transportDecoration;
         combinedSample.transportDistance += accumulator->transportDistance;
+        combinedSample.transportShelteredDistance += accumulator->transportShelteredDistance;
         combinedSample.sampledDistance += accumulator->sampledDistance;
         combinedSample.totalSpeed += accumulator->totalSpeed;
         combinedSample.maxSpeed = std::max(combinedSample.maxSpeed, accumulator->maxSpeed);
@@ -1715,6 +1920,7 @@ bool RideRating::RecordActiveRiderSamples(Ride& ride, std::span<const EntityId> 
     combinedSample.transportComfort /= static_cast<int64_t>(completedSampleCount);
     combinedSample.transportDecoration /= static_cast<int64_t>(completedSampleCount);
     combinedSample.transportDistance /= static_cast<int64_t>(completedSampleCount);
+    combinedSample.transportShelteredDistance /= static_cast<int64_t>(completedSampleCount);
     combinedSample.sampledDistance /= static_cast<int64_t>(completedSampleCount);
     combinedSample.totalSpeed /= static_cast<int64_t>(completedSampleCount);
     combinedSample.ticks = std::max<uint32_t>(1, combinedSample.ticks / static_cast<uint32_t>(completedSampleCount));

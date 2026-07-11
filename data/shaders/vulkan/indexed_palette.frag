@@ -2,11 +2,14 @@
 
 layout(set = 0, binding = 0) uniform usampler2D uIndexedCanvas;
 layout(set = 0, binding = 1) uniform sampler2D uPalette;
+layout(set = 0, binding = 2) uniform usampler2D uLightMap;
+layout(set = 0, binding = 3) uniform sampler2D uLightPalette;
 
 layout(push_constant) uniform OutputConstants
 {
     int encoding;
     float paperWhiteNits;
+    int lightFxEnabled;
 } uOutput;
 
 layout(location = 0) in vec2 fTextureCoordinate;
@@ -44,6 +47,17 @@ void main()
 {
     uint paletteIndex = texture(uIndexedCanvas, fTextureCoordinate).r;
     vec4 colour = texelFetch(uPalette, ivec2(int(paletteIndex), 0), 0);
+    if (uOutput.lightFxEnabled != 0)
+    {
+        uint intensity = min(texture(uLightMap, fTextureCoordinate).r, 255u);
+        if (intensity != 0)
+        {
+            uvec4 darkBytes = uvec4(round(colour * 255.0));
+            uvec4 lightBytes = uvec4(round(texelFetch(uLightPalette, ivec2(int(paletteIndex), 0), 0) * 255.0));
+            uvec4 mixedBytes = min(uvec4(255), darkBytes + (lightBytes * (intensity * 6u)) / 256u);
+            colour = vec4(mixedBytes) / 255.0;
+        }
+    }
     if (uOutput.encoding == 1)
     {
         // sRGB attachments encode shader-linear values. Decode the palette

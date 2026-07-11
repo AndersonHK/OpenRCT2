@@ -386,7 +386,8 @@ namespace OpenRCT2
         std::optional<CoordsXY> UpdateAction(int16_t& xy_distance);
         std::optional<CoordsXY> UpdateAction();
         bool UpdateActionAnimation();
-        std::optional<CoordsXY> UpdateWalkingAction(const CoordsXY& differenceLoc, int16_t& xy_distance);
+        std::optional<CoordsXY> UpdateWalkingAction(
+            const CoordsXY& differenceLoc, int16_t& xy_distance, int32_t xDelta, int32_t yDelta);
         void UpdateWalkingAnimation();
         void SetState(PeepState new_state);
         void Remove();
@@ -438,7 +439,26 @@ namespace OpenRCT2
         void UpdateFalling();
         void Update1();
         void UpdatePicked();
-        uint32_t GetStepsToTake() const;
+        uint32_t GetStepsToTake() const
+        {
+            uint32_t stepsToTake = Energy;
+            if (stepsToTake < 95 && State == PeepState::queuing)
+                stepsToTake = 95;
+            if ((PeepFlags & PEEP_FLAGS_SLOW_WALK) && State != PeepState::queuing)
+                stepsToTake /= 2;
+            if (IsActionWalking() && GetNextIsSloped())
+            {
+                stepsToTake /= 2;
+                if (State == PeepState::queuing)
+                    stepsToTake += stepsToTake / 2;
+            }
+            // Ensure guests make it across a level crossing in time.
+            constexpr auto minStepsForCrossing = 55;
+            if (stepsToTake < minStepsForCrossing && IsOnPathBlockedByVehicle())
+                stepsToTake = minStepsForCrossing;
+
+            return stepsToTake;
+        }
     };
 
     enum

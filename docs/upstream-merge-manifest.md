@@ -75,6 +75,8 @@ The `Fork treatment` column records what the live merge worktree retained or cha
 | `1be4d6d94b` | Converts `TileElementType` and related code to current style. | Adopted lowercase enum names, including 19 fork-only references missed by the automatic merge, while retaining topology invalidation and rating semantics. | The broad mechanical change overlapped fork path/rating code and required semantic review. |
 | `3f7eca60f2` | Reworks the ride operations tab. | Used upstream layout and effective settings as the base; restored maze capacity, transport status/policies, and directed-leg UI, then normalized its measurement rows. | Both sides intentionally redesigned the same window. |
 | `a770ffc04e` | Merges updated Spanish and Dutch localisation into upstream. | Retained both translation files unchanged. | The English collision came from the ride UI commits, not these translations. |
+| `609a8cb46a` | Bot integration of Localisation/master: updates station-style label formatting and ride-window group labels in 22 non-English language files. | Copied all 22 file blobs exactly from `upstream/develop`; retained the fork-owned English strings and runtime behavior separately. | The translated IDs `7033..7038` describe the already-adopted upstream ride UI, while the fork range `7039..7067`, English text, and code are untouched. |
+| `6903d5310e` | Prevents guests from watching rides while underground, adds a shared underground-location query, records the change, and advances replay assets to `v0.0.97`. | Applied the gameplay guard and shared map helper at their current fork owners; copied `assets.json` and the upstream distribution changelog exactly. | The helper is independent of transport routing and topology caches, while the guest guard belongs in the established watch-ride decision path. |
 
 ## Resolved conflict clusters
 
@@ -115,3 +117,70 @@ the post-resolution enum, string-ID, editor-owner, build-file, UI-documentation,
 - full tests: **452/452 pass**;
 - EverythingPark checksum/TPS comparison: **261.961/263.398 TPS, 3.699/3.692 ms median, matching `72638ee2...`**;
 - deployment: **pending**.
+
+## Follow-up upstream localisation checkpoint
+
+After the merge above, `upstream/develop` advanced by one commit to
+`609a8cb46a4f182f2f818f8463f2526e5c722900` (`Merge Localisation/master into OpenRCT2/develop`). Its parent is the previously
+integrated `a770ffc04eecd4b0156db43627660e5516d498b7`; despite the subject, this is a one-parent bot integration commit. It changes
+22 non-English files with 55 insertions and 23 deletions:
+
+- `ca-ES`, `cs-CZ`, `da-DK`, `de-DE`, `eo-ZZ`, `es-ES`, `fi-FI`, `fr-FR`, `gl-ES`, `hu-HU`, `it-IT`, `ja-JP`, `ko-KR`,
+  `nb-NO`, `nl-NL`, `pl-PL`, `pt-BR`, `ru-RU`, `sv-SE`, `uk-UA`, `vi-VN`, and `zh-TW`;
+- the substantive changes remove embedded colour/colon formatting from translated station-style label `STR_6275` and add or
+  complete the upstream ride-window group labels `STR_7033..STR_7038` (track style, maze style, shop style, vehicle style,
+  operating mode, and wait and load); a few files contain only a subset of those updates or trailing-newline normalization.
+
+All 22 worktree files hash to the exact blobs at `609a8cb46a`. The upstream commit does not contain `en-GB.txt`, C++ source,
+generated tables, project files, save-format changes, or tests. It therefore has no semantic conflict with the fork's English
+`STR_7039..STR_7067` range or its transport, rating, routing, UI, and persistence behavior. This checkpoint deliberately adopts
+the translation files verbatim rather than introducing per-language fork divergence.
+
+The current ancestry report is `23 1` from `git rev-list --left-right --count HEAD...upstream/develop`. The exact blob comparison
+establishes content equivalence for these 22 files, but it does **not** establish merged ancestry. The build, test, and
+EverythingPark results in the preceding final merge record belong to the earlier checkpoint and do not validate the current
+uncommitted worktree. No build, test, simulation run, deployment, staging, or commit was performed for this documentation pass.
+
+After the user reviews and commits the intended current worktree as a checkpoint, complete the ancestry integration in this
+order:
+
+```powershell
+git merge --no-ff --no-edit upstream/develop
+git rev-list --left-right --count HEAD...upstream/develop
+git status --short
+```
+
+The expectation above was superseded when `upstream/develop` advanced again before the checkpoint was committed. The next
+section records that additional review.
+
+## Underground ride-watching follow-up checkpoint
+
+`upstream/develop` now points to `6903d5310e305b4902338b2151454aec67838278`, whose parent is the already reviewed
+localisation checkpoint `609a8cb46a4f182f2f818f8463f2526e5c722900`. The new commit contains five bounded changes:
+
+- `Guest.cpp` rejects the optional watch-ride diversion when the guest's next path location is below the surface;
+- `Map.cpp` and `Map.h` add `MapIsLocationUnderground(const CoordsXYZ&)`, defined by surface clearance Z exceeding location Z;
+- `distribution/changelog.txt` records upstream issue `#26638`; and
+- `assets.json` advances replay fixtures from `v0.0.96` to `v0.0.97` with the upstream URL and SHA-256 digest.
+
+The worktree applies the upstream gameplay guard after the same path-tile resolution used by the source commit. The shared map
+helper is placed beside the existing map ownership queries and does not duplicate the fork's topology or path-height helpers.
+The asset manifest and distribution changelog hash to the exact blobs at `6903d5310e`; all 22 localisation files continue to
+hash to the exact blobs at `609a8cb46a`. Existing fork changes in `Guest.cpp`, `Map.cpp`, and `Map.h` remain otherwise intact.
+
+Validation of this uncommitted checkpoint compiled the changed core sources and linked both `tests.exe` and the Release
+`openrct2.exe`. All 19 locally available replay tests pass, and the full suite passes 520/520. The sandbox could not download
+the new `v0.0.97` replay archive, so those newly published fixture bytes remain an explicit post-merge dependency check; the
+tests above used the previously installed replay set. `git diff --check` reports no whitespace errors.
+
+The current ancestry report is `23 2` from `git rev-list --left-right --count HEAD...upstream/develop`. Content equivalence does
+not establish ancestry. After the user commits this reviewed checkpoint, complete the merge and verify it with:
+
+```powershell
+git merge --no-ff --no-edit upstream/develop
+git rev-list --left-right --count HEAD...upstream/develop
+git status --short
+```
+
+With the currently fetched references, the expected divergence after that checkpoint and merge commit is `25 0`. Re-fetch and
+review again if `upstream/develop` advances before the merge.

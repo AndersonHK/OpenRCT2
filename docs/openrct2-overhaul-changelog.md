@@ -1,6 +1,150 @@
 # OpenRCT2 overhaul changelog
 
+## 2026-07-11
+
+### Upstream synchronization
+
+Manually integrated upstream `develop` through `6903d5310e`: all 22 localisation files from `609a8cb46a` remain byte-identical,
+and the newer gameplay commit prevents underground guests from choosing the watch-ride diversion through a shared map-height
+query. Its replay `v0.0.97` asset manifest and distribution changelog are retained exactly. The ancestry merge remains for the
+user after this dirty-worktree checkpoint is committed; the detailed review and expected Git state are recorded in the
+[upstream merge manifest](upstream-merge-manifest.md).
+
+### Station platform boarding regression
+
+Fixed transport and roller-coaster guests leaving or rejoining the queue when an arriving train required the platform
+boarding plan to remap their reserved seat. Guest updates select the train before the lazy plan refresh; the refresh now
+recognises that exact train as a valid staged assignment while continuing to reject unrelated trains. The initial correction
+still allowed arrival to restart the guest's walk to a remapped platform marker. Because guests update before vehicles, a short
+empty-train dwell could then expire before the guest returned to the waiting substate. Both platform approach and platform wait
+now share one seat-binding handshake: as soon as the stopped train is published, the guest reserves the real seat and the
+existing reserved-seat count holds the train until physical boarding completes. A temporarily unavailable seat leaves the guest
+staged for the next train instead of ejecting them to the external queue.
+
+The remaining empty-train regression came from treating every non-null entry in the fixed vehicle passenger array as an occupied
+seat. Established unloading deliberately leaves departed guest ids beyond the active `num_peeps`/`next_free_seat` prefix: ordinary
+rides drain that prefix from the end, while transports compact continuing riders ahead of alighting riders. Platform planning now
+uses the same authoritative prefix as legacy boarding, overwrites inactive tail entries, and checks duplicate ownership only among
+active or reserved passengers. This fixes both first-time boarding after an unload and a returning guest whose old id remains in
+an inactive seat without changing the established exit animation or passenger-array representation.
+
+Roller-coaster platform staging is now station-local and requires the entrance and exit to occupy the two opposite lateral
+platform edges. Same-side layouts retain ordinary external-queue boarding, as do malformed longitudinal-end layouts that happen
+to use opposite compass directions. The comparison is normalized against each station's own track orientation, so rotated and
+multi-station rides are evaluated correctly. Transportation rides deliberately bypass this coaster-only geometry gate.
+
+The portable whole-simulation regression loads EverythingPark and selects a deterministic one-train coaster. The real train
+departs, activates its platform, completes its circuit, returns, stops, overwrites a deliberately persisted inactive seat entry,
+and boards the first staged guest before departing. A focused seat-binding test separately covers through-rider prefixes, stale
+tail ids, returning guests, exact FIFO seats, and active duplicate rejection.
+
+### Vulkan cold-start and exclusive-fullscreen errors
+
+Vulkan surface and swapchain creation now happens only after the configured window mode has been applied and the real drawable
+size is known. Exclusive fullscreen no longer discards the display mode's format and refresh rate: SDL selects the closest full
+mode and installs it explicitly before entering exclusive fullscreen. The requested mode remains strict; failures do not switch
+silently to borderless, windowed, or another renderer.
+
+The former `LOG_FATAL` plus `exit(1)` path has been replaced by an exception carrying the rejected resolution, refresh rate, and
+SDL/Windows error. The application boundary logs that error, shows it in a native message box when a UI exists, returns failure,
+and lets the renderer worker, Vulkan device, and SDL window destruct normally. Drawable-size inference also handles Vulkan
+without assuming an SDL renderer exists. The first strict cold EverythingPark launch then exposed a zero-sized fallback sprite
+that software rendering treats as a no-op but the GPU cache tried to allocate. GPU command recording and cache enqueue now skip
+zero-area G1 elements while preserving explicit errors for genuinely oversized images. A clean isolated run completed five
+seconds of Vulkan rendering, 1,448 logical ticks, and 62 presentations before orderly exit. The gated Release build completes
+with zero warnings and the full test suite passes 520/520.
+
 ## 2026-07-10
+
+### Turbo 320 locality, routing, scheduler, and Vulkan checkpoint
+
+Performance: corrected a ride-context cache hash that discarded tile X and Y after cumulative 64-bit shifts. The cache is now
+a bounded 65,536-set, four-way exact table with deterministic FIFO replacement, full key/generation validation, and no node
+allocation or rehash growth. The accepted 262,144-entry size preserves the hot set; 65,536 entries churned and 524,288 entries
+hurt late working-set locality, so both rejected sizes and their measurements remain documented. Viewport-only map selection,
+virtual-floor, patrol-overlay, and block-brake redraws no longer invalidate ride-rating context entries; content-changing map
+operations retain the local generation invalidation.
+
+Scheduler and routing: Turbo batches update presentation audio only after the final logical tick while retaining simulation-side
+sound/RNG cadence. Offline games skip empty network facade work, with the network tick clock reset on successful client/server
+startup and reconnect. The 1-in-128 peep maintenance traversal avoids a mask operation per entity. Wide-path maintenance no
+longer invalidates connectivity-only reverse fields or committed transport routes. Transport comparison reuses its already
+computed walking direction and committed boarding queue-end goal, and computes guest walking speed once per planning pass.
+The station query API retains only the planner's bounded-box and explicit all-service operations; unused radius/fallback
+wrappers and their per-candidate branch are removed, and callers consume their reusable buffers directly.
+When an offline queued speed action changes cadence during a logical batch, the old-speed batch now ends after that update so
+input and the newly selected speed take effect without up to seven ordinary-Turbo or 127 debug-speed updates of transition latency.
+Delayed variable frames build interpolation endpoints only around their final drawable tick instead of rescanning all visible
+entities around every catch-up tick. If that tick changes into fixed-frame Turbo, its unused pre-tick snapshot is discarded at the
+already-authoritative post-tick positions, avoiding a post-tick visible-entity scan and redundant restore. Exact multi-entrance
+route selection resolves the guest's source path node once for the ordered candidate set, retains station order for ties, and
+preserves the geometric fallback when a field is stale or unreachable.
+Leaving Turbo on a throttled non-draw frame now defers presentation to the immediately following unthrottled variable frame instead
+of forcing a full fixed-frame paint and then painting again on the next outer iteration. Tick, action, input, window-update, and
+audio ordering are unchanged.
+
+Ratings: nonlinear speed scoring is computed once per sampled train instead of once per car. Transport service samples dirty
+journey costs in place without removing unchanged station endpoints from spatial indexes. Leaf profiler scopes used for the
+diagnostic pass were removed from the production per-car loop. Train-wide speed, nonlinear speed score, G-force coupling
+numerator, and repeated longitudinal-G inputs are now prepared or memoized once while car-specific force curves and exact
+integer rounding remain unchanged. The accumulator retains its exact post-profile/pre-speed local score, so an unchanged
+environment does not repeat context decomposition and coefficient division, and each dirty directed leg averages its rolling
+sample ring once for both measurements and quality. A ride's first sampled linked train reserves its exact current car count,
+avoiding one-at-a-time cold vector growth without retaining capacity for configured trains that never become sampled.
+
+Presentation and stations: entity interpolation retains only visible entities that actually moved, so entering Turbo restores
+moving coordinates instead of every visible candidate; the empty fixed-to-variable restore is skipped. Supported ordinary
+roller-coaster stations now reuse the exact stopped-consist platform pre-queue, while transport routing, fares, and crowding
+remain transport-only. Typed entity iteration dereferences registry slots from its membership invariant and advances to an
+already selected live id without repeating the bitset search; removal-ahead still takes the mutation-safe fallback. Temporary
+tween/restore positions no longer dirty the authoritative spatial index, removing a redundant cross-tile remove/reinsert pass
+when changing between variable presentation and fixed-frame Turbo.
+
+Vulkan: gated renderers can skip a busy frame instead of blocking the simulation/UI caller. Acquired frames have a safe
+abandonment path, swapchain resources are destroyed in dependency order, and direct first-use texture bytes are owned by the
+sealed command stream. Stable allocation serials and cache-owned residency leases defer atlas-slot reuse until presentation or
+failure retirement. The gated direct renderer now has a bounded newest-frame mailbox, recyclable command arena, worker-owned
+backend submission, and complete failure/shutdown lease retirement. Logical and physical extents travel separately; SDL drawable
+size is sampled only by the UI thread, zero/minimized surfaces retain their old swapchain, and the worker gate is ownership-safe
+but remains off by default pending interactive renderer validation. LightFX composition consumes immutable frame-owned palette
+data and compact 32-byte clipped light commands. The fully gated direct path clears and atomically accumulates those commands
+in an `R32_UINT` Vulkan image; unsupported format, extent, or compute limits retain the CPU-intensity fallback. Barriers cover
+zero-light frames, untouched pixels, and atomic read-modify-write visibility, while command-only capture no longer allocates a
+full-screen CPU lightmap. HDR10 is an opt-in Vulkan setting; compatible swapchains use BT.2020/PQ and publish D65/paper-white
+mastering metadata through `VK_EXT_hdr_metadata` when the extension is present, while unsupported displays remain in SDR.
+The bundled Windows SDL lacks its compiled Vulkan video-driver hooks, so the platform boundary now obtains the SDL-owned HWND,
+creates `VK_KHR_win32_surface` directly, and uses the DPI-aware client rectangle for drawable pixels. Linux and macOS retain
+their SDL Vulkan WSI path. Optional per-frame-slot timestamp pools measure uploads, indexed drawing, LightFX, final composition,
+and total GPU time. Results are converted with the device timestamp period and published only after the owning frame fence is
+complete, so integrated benchmark sampling never adds a hot-path query wait. A fixed 256-record completion ring and caller-owned
+reusable collection buffer avoid allocator churn; per-draw benchmark consumption retains every
+measurement frame until collection, while explicit render-worker timing boundaries drain and discard warm-up work before the
+measured interval and harvest its in-flight tail afterward. The CPU report names the isolated `vkQueuePresentKHR` wall time as
+present-call time rather than implying it is exclusively a display wait.
+Graphics-derived remap, blend, and LightFX lookup tables are no longer captured during Vulkan device initialisation, which runs
+before base graphics are loaded. Their one-time capture is deferred until the first draw and versioned through the worker packet;
+the readiness flag is published only after capture succeeds so an exception remains retryable.
+
+Verification: Release core, normal Vulkan UI, explicitly gated direct/render-thread Vulkan UI, CLI, game, and tests compile
+with warnings treated as errors. The final renderer/timing/boundary slice passes 46/46 focused checks, the earlier broad
+GPU/topology/network/pathfinding/station/entity/rating selection remains 204/204, and the full suite passes 517/517. The
+hidden Win32 Vulkan lifecycle/readback fixture passes on an RTX 5070 Ti with the
+Khronos validation layer enabled. Two independent 2,000-warm-up/500-measurement EverythingPark windows reach 590.596 and
+588.405 TPS with the same `6088da79...` checksum. Two independent 8,000-warm-up population-pressure windows reach 382.847
+and 403.916 TPS with the same `405ee291...` checksum, 2.468/2.406 millisecond medians, and identical state snapshots. Both
+deep runs clear the Turbo 320 budget by more than 19%. The shared route footprint is 6,663
+nodes, 543 targets, 3,611,346 direction entries,
+the same number of retained distance entries, and 517 single-ride targets. A profiled repeat keeps the checksum and reaches
+363.146 TPS despite instrumentation; its largest scopes are peep updates (912.247 ms/500 ticks), vehicle updates (406.739 ms),
+live rating samples (188.307 ms), and direction selection (35.733 ms).
+
+The final clean-binary revalidation remains deterministic while the workstation is under a different background load:
+2,000-warm-up runs reach 567.108 and 546.548 TPS with matching `6088da79...` checksums; 8,000-warm-up runs reach 385.418
+and 373.469 TPS with matching `405ee291...` checksums. All four remain above Turbo 320. The new hidden full-UI matrix reaches
+median logical rates of 318.324 TPS for software, 318.323 for OpenGL, and 318.400 for Vulkan at about 13.4 presented FPS.
+Vulkan needs a median 1.797 ms complete CPU draw but only 139.091 us of GPU time per presented frame; its median GPU pass
+split is 17.154 us upload, 116.354 us indexed drawing, 0.596 us LightFX, and 5.142 us composition. With VSync enabled it
+reaches 316.830 TPS. The benchmark leaves the user's configuration hash and timestamp unchanged.
 
 ### Upstream develop integration and directed-leg UI cleanup
 
@@ -34,11 +178,13 @@ millisecond medians.
 
 Decision: guests now use transport rides as planned station-to-station journeys toward a concrete ride, shop, facility, or park-exit goal. A railway, monorail, chairlift, or lift is no longer selected opportunistically as an ordinary attraction, and the legacy rule that made free transports automatically acceptable is removed.
 
-Routing: compare direct walking with walking to a station, expected queue/boarding time, every onboard segment through the selected alighting station, and the remaining walk, with every term expressed in milliseconds. Walking time uses a three-mph baseline adjusted by guest energy and slow-walk state; segment time uses measured seconds or a distance/speed fallback. Free, Discount, and Fair services have progressively stricter time thresholds. Precipitation triggers a fresh comparison, accepts any positive saving for paid non-extortive service, and favours sheltered onboard time. The direct walking direction and reachability result are reused when transport loses, avoiding a duplicate bounded search.
+Routing: compare direct walking with walking to a station, expected queue/boarding time, every onboard segment through the selected alighting station, and the remaining walk, with every term expressed in milliseconds. Current shared route fields now supply exact path distance for the final walk, the resolved boarding queue end, and station-exit egress; unavailable/inexact fields retain the geometric estimate, while an exact unreachable access or egress leg rejects that candidate. Walking time uses a three-mph baseline adjusted by guest energy and slow-walk state; segment time uses measured seconds or a distance/speed fallback. Free, Discount, and Fair services have progressively stricter time thresholds. Precipitation triggers a fresh comparison, accepts any positive saving for paid non-extortive service, and favours the measured sheltered time of the selected directed journey rather than a ride-wide shelter fraction. The direct walking direction and reachability result are reused when transport loses, avoiding a duplicate bounded search.
 
-Performance: a transient ride-service cache validates once per tick, computes quality once per changed transport, precomputes every directed forward journey in quadratic station count, and exposes constant-time station-pair lookup. Queue delay, platform crowding, guest cash and vouchers remain live overlays rather than invalidating shared geometry and timing.
+Performance: a transient ride-service cache validates once per tick, computes quality once per changed transport, precomputes every directed forward journey in quadratic station count, and exposes constant-time station-pair lookup. Shared destination fields retain four additional bytes of distance per exact path-node/target pair plus a compact entrance-source index, trading bounded RAM for constant-time walking-cost probes without new per-guest path searches. At the recorded 3,611,346-entry EverythingPark footprint, the distance payload is about 13.8 MiB before vector overhead. This slice has no independent TPS claim pending the warmed EverythingPark benchmark and memory report. Queue delay, platform crowding, guest cash and vouchers remain live overlays rather than invalidating shared geometry and timing.
 
-Integration: park exits and resolved entrances for attractions, advertised rides, first aid, toilets, cash machines, shops, and other facilities now converge on one destination-routing helper. Outside-park entry and spawn travel use the same helper without considering in-park transport.
+Integration: park exits and resolved entrances for attractions, advertised rides, first aid, toilets, cash machines, shops, and other facilities now converge on one destination-routing helper. Ordinary ride/facility and first-aid target choice prefer the shortest reachable exact field instead of Manhattan distance; an advertisement retains its specified ride, and synchronized-station selection keeps its established tie rule. Outside-park entry and spawn travel use the same helper without considering in-park transport.
+
+Advertising: ride-specific advertising and free-ride voucher campaigns now exclude transport services from the attraction picker and authoritative campaign action. Legacy or imported campaigns that name a transport no longer assign it as an attraction target or grant a ride voucher; advertisements for ordinary attractions retain their exact target and may still route through transport to reach it.
 
 Economy: transport value is led by segment distance, then multiplied by speed, comfort, and decoration. Comfort starts from a per-tick baseline and is reduced by vertical deviation, lateral G, and realised longitudinal G; comfort and decoration are accumulated proportional to distance. Journey-specific fares use four operator policies: Free at zero, Discount at half value, Fair at full value, and Extortive at twice value. The planner and entrance use the same journey calculator. Extortive service is considered only when walking is unreachable and no non-extortive service is usable; paying it reduces happiness and creates a dedicated thought.
 
@@ -47,12 +193,17 @@ Guest behavior: transport vehicles retain through-passengers across intermediate
 Capacity: Miniature Railway, Monorail, and Suspended Monorail stations now expose a real second-stage platform queue. When a
 train physically clears the station, the next cohort leaves the external queue and walks to deterministic positions aligned
 with that stopped consist's cars and seats. Capacity is the actual linked-consist seat total, not a station-tile estimate;
-through-riders compact first, and staged guests bind FIFO only to real empty seats after arrival. Fare eligibility is rechecked
-and payment is committed at that binding point. Closing or invalid stations recover staged guests through the exit, then the
-entrance/requeue path, with falling reserved for missing geometry. Chairlift now stages against its native two-seat scalar
+through-riders compact first, and staged guests bind FIFO to the exact visible car/seat they reserved rather than running the
+ordinary random car and next-seat selection again. The arriving car sequence and capacity must still match the captured consist,
+and each reserved seat must be the next contiguous empty seat after through-rider compaction. A changed consist, occupied seat,
+or overflow releases the abstract slot and safely requeues the guest without duplicate seat ownership. Fare eligibility is
+rechecked and payment is committed only after successful physical binding. Closing or invalid stations recover staged guests
+through the exit, then the entrance/requeue path, with falling reserved for missing geometry. Chairlift stages against its native two-seat scalar
 loading positions and physical station-clear transition. Lift remains just-in-time because its waypoint cabin reaches generic
-departure completion only at the tower top; no-platform styles, other waypoint-loading vehicles, and coasters also remain
-outside the adapter until their geometry and lifecycle provide an exact boundary.
+departure completion only at the tower top; no-platform styles and other waypoint-loading vehicles remain outside the adapter.
+Ordinary roller-coaster stations now share the same physical staging contract when they expose a visible platform and scalar
+car loading positions. Their capacity is exactly the captured stopped train, using the existing consist and seat layout rather
+than a station-tile estimate. This does not opt coasters into transport routing, fares, or overcrowding policy.
 
 Interface: the measurements tab now gives transport rides a service-quality panel instead of attraction ratings. It displays measured or estimated comfort, decoration bonus, average speed, and each station segment's time, distance, and fare value from the same shared transport metrics used by routing. The income tab shows the four proportional journey policies instead of a misleading single ride-wide ticket price.
 
@@ -75,12 +226,16 @@ rating remains a conservative compatibility envelope—minimum excitement and ma
 after every station has at least one measured outbound leg, so a partially sampled Mobius ride is not presented as complete.
 
 Transport composition: journeys through three or more stations use the directed measured service graph and sum the exact
-adjacent-leg time, distance, and fare along the shortest-time route, with fare as the tie-break. The old station-wide estimate
+adjacent-leg time, sheltered time, distance, and fare along the shortest-time route, with fare and then greater shelter as tie-breaks. The old station-wide estimate
 is used only while a leg has no measurement.
 
 Compatibility: private park version `60015` stores the directed endpoint histories and active leg accumulator state. Older
 saves clear active samples on import so pre-leg partial circuits cannot contaminate the first new measurement; export to an
 older target is non-mutating.
+
+Shelter and capacity: private park version `60016` adds distance-weighted sheltered exposure to rating samples. Route planning
+uses a once-per-tick generation of the strict full-queue-and-full-platform predicate: uncommitted walkers reconsider service
+availability, while committed guests directly retain any selected boarding station that remains usable.
 
 Details: [Transport ride routing rationale](transport-ride-routing-rationale.md)
 

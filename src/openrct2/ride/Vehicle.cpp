@@ -93,13 +93,11 @@ static GForces VehicleGetGForces(
 
 static void RideRatingAccumulateTick(
     RideRatingAccumulator& accumulator, TrackElemType trackType, const TrackElementDescriptor& trackDescriptor,
-    const GForces& gForces, int32_t speed, bool isSheltered, const RideRating::LocalContextScore& contextScore,
-    bool isSynchronised, bool isBoatHire,
-    const SampledRideRatingProfile& profile)
+    const GForces& gForces, const RideRating::TickScore& speedScore, bool isSheltered,
+    const RideRating::VehicleGForceSpeedContext& gForceSpeedContext, RideRating::VehicleGForceScoreMemo& gForceScoreMemo,
+    bool isSynchronised, bool isBoatHire, const SampledRideRatingProfile& profile)
 {
-    const auto speedScore = RideRating::ScoreVehicleSpeedForTick(speed, profile.Speed);
-    const auto gForceScore = RideRating::ScoreGForcesForVehicleTick(
-        gForces.verticalG, gForces.lateralG, gForces.longitudinalG, speed, profile);
+    const auto gForceScore = gForceScoreMemo.Get(gForces.verticalG, gForces.lateralG, gForces.longitudinalG);
     int64_t trackFeatureExcitement = 0;
     int64_t trackFeatureIntensity = 0;
     int64_t trackFeatureNausea = 0;
@@ -193,14 +191,13 @@ static void RideRatingAccumulateTick(
         trackFeatureNausea += RideRatingRawTenths(4);
     }
 
-    const auto normalisedSpeed = std::max<int64_t>(speed, 0);
+    const auto normalisedSpeed = gForceSpeedContext.normalisedSpeed;
     excitement += (trackFeatureExcitement * normalisedSpeed) / RideRating::kVehicleRatingBaselineSpeed;
     intensity += (trackFeatureIntensity * normalisedSpeed) / RideRating::kVehicleRatingBaselineSpeed;
     nausea += (trackFeatureNausea * normalisedSpeed) / RideRating::kVehicleRatingBaselineSpeed;
 
-    const auto contextTickScore = isBoatHire
-        ? RideRating::ScoreBoatHireLocalContextForVehicleTick(contextScore, speed, profile.LocalContext)
-        : RideRating::ScoreLocalContextForVehicleTick(contextScore, speed, profile.LocalContext);
+    const auto contextTickScore = RideRating::ScoreCachedLocalContextForVehicleTick(
+        accumulator.localContextCache, normalisedSpeed, profile.LocalContext, isBoatHire);
     excitement += contextTickScore.excitement;
     intensity += contextTickScore.intensity;
     nausea += contextTickScore.nausea;
@@ -247,42 +244,16 @@ bool RideRating::ShouldStartCircuit(const Ride& ride, const Vehicle& vehicle)
         && (ride.status == RideStatus::testing || ride.status == RideStatus::open || !ride.flags.has(RideFlag::tested));
 }
 
-static RideRatingAccumulator* RideRatingResolveActiveVehicleSample(Ride& ride, EntityId vehicleId)
-{
-    PROFILED_FUNCTION();
-
-    return RideGetOrCreateActiveRatingSample(ride, vehicleId);
-}
-
-static GForces RideRatingCalculateVehicleGForces(
-    const Vehicle& vehicle, int32_t trainVelocity, const TrackElementDescriptor& trackDescriptor)
-{
-    PROFILED_FUNCTION();
-
-    return VehicleGetGForces(vehicle, trainVelocity, trackDescriptor);
-}
-
-static RideRating::VehicleRatingEnvironment RideRatingResolveVehicleEnvironment(
-    const Vehicle& vehicle, const Ride& ride, TrackElemType trackType, RideRatingAccumulator& accumulator)
-{
-    PROFILED_FUNCTION();
-
-    return RideRating::GetVehicleRatingEnvironment(
-        { vehicle.x, vehicle.y, vehicle.z }, ride.id, trackType, vehicle.GetTrackDirection(),
-        accumulator.localContextCache);
-}
-
 static void RideRatingApplyVehicleTick(
     RideRatingAccumulator& accumulator, const RideTypeDescriptor& rtd, TrackElemType trackType,
     const TrackElementDescriptor& trackDescriptor, const GForces& gForces, int32_t speed,
-    const RideRating::VehicleRatingEnvironment& environment, bool isSynchronised, bool isBoatHire,
-    bool isTransportRide)
+    const RideRating::TickScore& speedScore, const RideRating::VehicleGForceSpeedContext& gForceSpeedContext,
+    RideRating::VehicleGForceScoreMemo& gForceScoreMemo, const RideRating::VehicleRatingEnvironment& environment,
+    bool isSynchronised, bool isBoatHire, bool isTransportRide)
 {
-    PROFILED_FUNCTION();
-
     RideRatingAccumulateTick(
-        accumulator, trackType, trackDescriptor, gForces, speed, environment.isSheltered, environment.context,
-        isSynchronised, isBoatHire, rtd.SampledRatings);
+        accumulator, trackType, trackDescriptor, gForces, speedScore, environment.isSheltered, gForceSpeedContext,
+        gForceScoreMemo, isSynchronised, isBoatHire, rtd.SampledRatings);
     if (isTransportRide)
     {
         const auto quality = RideRating::ScoreTransportQualityForVehicleTick(
@@ -290,15 +261,45 @@ static void RideRatingApplyVehicleTick(
         accumulator.transportComfort += quality.comfort;
         accumulator.transportDecoration += quality.decoration;
         accumulator.transportDistance += quality.distance;
+        if (environment.isSheltered)
+        {
+            accumulator.transportShelteredDistance += quality.distance;
+        }
     }
 }
 
+struct RideRatingTrainLongitudinalGCache
+{
+    explicit RideRatingTrainLongitudinalGCache(int32_t currentVelocity)
+        : currentTrainVelocity(currentVelocity)
+    {
+    }
+
+    int32_t GetForPreviousVelocity(int32_t previousVelocity)
+    {
+        if (!valid || previousTrainVelocity != previousVelocity)
+        {
+            previousTrainVelocity = previousVelocity;
+            longitudinalG = CalculateLongitudinalG(previousVelocity, currentTrainVelocity);
+            valid = true;
+        }
+        return longitudinalG;
+    }
+
+private:
+    const int32_t currentTrainVelocity;
+    int32_t previousTrainVelocity{};
+    int32_t longitudinalG{};
+    bool valid{};
+};
+
 static void RideRatingAccumulateVehicleTick(
     RideRatingAccumulator& accumulator, const Ride& ride, const RideTypeDescriptor& rtd, const Vehicle& vehicle,
-    int32_t trainVelocity, bool isSynchronised, bool isBoatHire, bool isTransportRide)
+    int32_t trainVelocity, int32_t absoluteTrainVelocity, int32_t speed, const RideRating::TickScore& speedScore,
+    const RideRating::VehicleGForceSpeedContext& gForceSpeedContext,
+    RideRating::VehicleGForceScoreMemo& gForceScoreMemo, RideRatingTrainLongitudinalGCache& longitudinalGCache,
+    bool isSynchronised, bool isBoatHire, bool isTransportRide)
 {
-    PROFILED_FUNCTION();
-
     const auto currentTrackType = vehicle.GetTrackType();
     if (currentTrackType == TrackElemType::none)
     {
@@ -306,21 +307,19 @@ static void RideRatingAccumulateVehicleTick(
     }
 
     const auto& trackDescriptor = GetTrackElementDescriptor(currentTrackType);
-    auto gForces = RideRatingCalculateVehicleGForces(vehicle, trainVelocity, trackDescriptor);
+    auto gForces = VehicleGetGForces(vehicle, trainVelocity, trackDescriptor);
     if (accumulator.hasPreviousTrainVelocity)
     {
-        gForces.longitudinalG = CalculateLongitudinalG(accumulator.previousTrainVelocity, trainVelocity);
+        gForces.longitudinalG = longitudinalGCache.GetForPreviousVelocity(accumulator.previousTrainVelocity);
     }
     accumulator.previousTrainVelocity = trainVelocity;
     accumulator.hasPreviousTrainVelocity = true;
 
     if (ride.numStations > 1)
     {
-        const auto absoluteVelocity = static_cast<int32_t>(
-            std::min<int64_t>(std::abs(static_cast<int64_t>(trainVelocity)), std::numeric_limits<int32_t>::max()));
         accumulator.sampledDistance += std::max<int32_t>(0, GetRealRideLengthDelta(trainVelocity, vehicle.acceleration));
-        accumulator.totalSpeed += absoluteVelocity;
-        accumulator.maxSpeed = std::max(accumulator.maxSpeed, absoluteVelocity);
+        accumulator.totalSpeed += absoluteTrainVelocity;
+        accumulator.maxSpeed = std::max(accumulator.maxSpeed, absoluteTrainVelocity);
         const auto verticalG = static_cast<fixed16_2dp>(gForces.verticalG);
         const auto lateralG = static_cast<fixed16_2dp>(std::abs(gForces.lateralG));
         const auto longitudinalG = static_cast<fixed16_2dp>(gForces.longitudinalG);
@@ -331,11 +330,12 @@ static void RideRatingAccumulateVehicleTick(
         accumulator.maxNegativeLongitudinalG = std::min(accumulator.maxNegativeLongitudinalG, longitudinalG);
     }
 
-    const auto environment = RideRatingResolveVehicleEnvironment(vehicle, ride, currentTrackType, accumulator);
-    const auto speed = std::abs(trainVelocity) >> 16;
+    const auto environment = RideRating::GetVehicleRatingEnvironment(
+        { vehicle.x, vehicle.y, vehicle.z }, ride.id, currentTrackType, vehicle.GetTrackDirection(),
+        accumulator.localContextCache);
     RideRatingApplyVehicleTick(
-        accumulator, rtd, currentTrackType, trackDescriptor, gForces, speed, environment, isSynchronised, isBoatHire,
-        isTransportRide);
+        accumulator, rtd, currentTrackType, trackDescriptor, gForces, speed, speedScore, gForceSpeedContext, gForceScoreMemo,
+        environment, isSynchronised, isBoatHire, isTransportRide);
 }
 
 static void RideRatingAccumulateTrainTick(
@@ -346,9 +346,23 @@ static void RideRatingAccumulateTrainTick(
 
     const bool isBoatHire = rtd.specialType == RtdSpecialType::boatHire;
     const bool isTransportRide = rtd.flags.has(RtdFlag::isTransportRide);
+    const auto absoluteTrainVelocity = static_cast<int32_t>(
+        std::min<int64_t>(std::abs(static_cast<int64_t>(trainVelocity)), std::numeric_limits<int32_t>::max()));
+    const auto speed = absoluteTrainVelocity >> 16;
+    const auto speedScore = RideRating::ScoreVehicleSpeedForTick(speed, rtd.SampledRatings.Speed);
+    const auto gForceSpeedContext = RideRating::PrepareVehicleGForceSpeedContext(
+        speed, rtd.SampledRatings.SpeedGCoupling);
+    RideRating::VehicleGForceScoreMemo gForceScoreMemo{ rtd.SampledRatings, gForceSpeedContext };
+    RideRatingTrainLongitudinalGCache longitudinalGCache{ trainVelocity };
+    if (ride.activeRatingSamples.empty() && ride.activeRatingSamples.capacity() < trainVehicles.size())
+    {
+        // The current linked-train span is an exact, bounded cold-start demand. Reserve only that train rather than
+        // multiplying configured trains and cars, which could retain memory for vehicles that never become sampled.
+        ride.activeRatingSamples.reserve(trainVehicles.size());
+    }
     for (const auto* vehicle : trainVehicles)
     {
-        auto* accumulator = RideRatingResolveActiveVehicleSample(ride, vehicle->id);
+        auto* accumulator = RideGetOrCreateActiveRatingSample(ride, vehicle->id);
         if (accumulator == nullptr)
         {
             continue;
@@ -359,7 +373,8 @@ static void RideRatingAccumulateTrainTick(
         }
 
         RideRatingAccumulateVehicleTick(
-            *accumulator, ride, rtd, *vehicle, trainVelocity, isSynchronised, isBoatHire, isTransportRide);
+            *accumulator, ride, rtd, *vehicle, trainVelocity, absoluteTrainVelocity, speed, speedScore, gForceSpeedContext,
+            gForceScoreMemo, longitudinalGCache, isSynchronised, isBoatHire, isTransportRide);
     }
 }
 
@@ -434,8 +449,6 @@ void RideRating::InvalidateLiveSynchronisationCache(RideId rideId)
 
 static bool RideRatingTrainIsSynchronised(const Ride& ride)
 {
-    PROFILED_FUNCTION();
-
     if (!(ride.departFlags & RIDE_DEPART_SYNCHRONISE_WITH_ADJACENT_STATIONS))
     {
         return false;
@@ -466,20 +479,12 @@ static bool RideRatingTrainIsSynchronised(const Ride& ride)
     return cache.hasAdjacentStation;
 }
 
-static bool RideRatingTrainHasSampledRiders(
-    const Ride& ride, const Vehicle& head, const RideVehicle::StationDetail::TrainSeatSummary& train)
-{
-    PROFILED_FUNCTION();
-
-    return head.flags.has(VehicleFlag::testing) || RideIsStatsSampleVehicle(ride, head) || train.HasRiders();
-}
-
 static void RideRatingUpdateLiveTrainSample(Ride& ride, const Vehicle& head, const RideTypeDescriptor& rtd)
 {
     PROFILED_FUNCTION();
 
-    const auto train = RideVehicle::StationDetail::BuildTrainSeatSummary(head);
-    if (!RideRatingTrainHasSampledRiders(ride, head, train))
+    const auto train = RideVehicle::StationDetail::BuildTrainCarSummary(head);
+    if (!(head.flags.has(VehicleFlag::testing) || RideIsStatsSampleVehicle(ride, head) || train.HasRiders()))
     {
         return;
     }

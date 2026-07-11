@@ -33,6 +33,7 @@
 #include <openrct2/ride/Vehicle.h>
 #include <openrct2/scenario/Scenario.h>
 #include <openrct2/world/MapAnimation.h>
+#include <limits>
 #include <string>
 
 using namespace OpenRCT2;
@@ -492,6 +493,7 @@ TEST(ParkFileMigration, RideRatingLegsRoundTripAndOlderTargetKeepsLiveState)
     gOpenRCT2NoGraphics = true;
 
     MemoryStream currentVersionPark;
+    MemoryStream previousShelterVersionPark;
     MemoryStream previousVersionPark;
     MemoryStream legacyActivePark;
 
@@ -520,6 +522,10 @@ TEST(ParkFileMigration, RideRatingLegsRoundTripAndOlderTargetKeepsLiveState)
         sample.excitement = 123'000;
         sample.intensity = 234'000;
         sample.nausea = 345'000;
+        sample.transportDistance = 1'000;
+        sample.transportComfort = 900'000;
+        sample.transportDecoration = 1'000'000;
+        sample.transportShelteredDistance = 625;
         sample.sampledDistance = static_cast<int64_t>(1'234) << 16;
         sample.totalSpeed = 40LL * 0x80000;
         sample.maxSpeed = 0x90000;
@@ -530,6 +536,7 @@ TEST(ParkFileMigration, RideRatingLegsRoundTripAndOlderTargetKeepsLiveState)
         ASSERT_EQ(ride->ratingLegs.size(), 1);
 
         ASSERT_TRUE(ExportSave(currentVersionPark, context));
+        ASSERT_TRUE(ExportSave(previousShelterVersionPark, context, kRideRatingLegsVersion));
         ASSERT_TRUE(ExportSave(previousVersionPark, context, kStationPlatformPreQueueVersion));
         ASSERT_EQ(ride->ratingLegs.size(), 1);
         EXPECT_EQ(ride->ratingLegs[0].destinationStation, sample.destinationStation);
@@ -558,6 +565,19 @@ TEST(ParkFileMigration, RideRatingLegsRoundTripAndOlderTargetKeepsLiveState)
         EXPECT_EQ(sample.maxSpeed, 0x90000);
         EXPECT_EQ(sample.maxPositiveVerticalG, 175);
         EXPECT_EQ(sample.maxNegativeVerticalG, -65);
+        EXPECT_EQ(sample.transportShelteredDistance, 625);
+    }
+
+    {
+        std::unique_ptr<IContext> context = CreateContext();
+        ASSERT_NE(context, nullptr);
+        ASSERT_TRUE(context->Initialise());
+        ASSERT_TRUE(ImportPark(previousShelterVersionPark, context, true));
+
+        const auto* ride = GetFirstRide();
+        ASSERT_NE(ride, nullptr);
+        ASSERT_EQ(ride->ratingLegs.size(), 1);
+        EXPECT_EQ(RideGetRecentRatingAccumulator(ride->ratingLegs[0]).transportShelteredDistance, 0);
     }
 
     {
@@ -642,16 +662,41 @@ TEST(ParkFileMigration, PlatformGuestRoundTripsAndOlderTargetUsesStationExitReco
         ASSERT_TRUE(context->Initialise());
         ASSERT_TRUE(ImportPark(currentVersionPark, context, true));
 
-        const auto* guest = getGameState().entities.GetEntity<Guest>(guestId);
+        auto* guest = getGameState().entities.GetEntity<Guest>(guestId);
         ASSERT_NE(guest, nullptr);
         EXPECT_EQ(guest->State, PeepState::enteringRide);
         EXPECT_EQ(guest->RideSubState, PeepRideSubState::waitingOnPlatform);
         EXPECT_EQ(guest->CurrentTrain, RideStation::kNoTrain);
-        const auto* ride = GetRide(guest->CurrentRide);
+        auto* ride = GetRide(guest->CurrentRide);
         ASSERT_NE(ride, nullptr);
         EXPECT_TRUE(RideStationPlatformPreQueueIsActive(*ride, guest->CurrentRideStation));
         EXPECT_EQ(RideGetTransportStationPlatformOccupancy(*ride, guest->CurrentRideStation), 1);
         EXPECT_EQ(RideGetTransportStationPlatformCapacity(*ride, guest->CurrentRideStation), 2);
+
+        auto* train = getGameState().entities.GetEntity<Vehicle>(ride->vehicles[0]);
+        ASSERT_NE(train, nullptr);
+        train->num_peeps = 1;
+        train->next_free_seat = 1;
+        train->peep[0] = EntityId::FromUnderlying(900);
+        train->peep[1] = EntityId::GetNull();
+        // Keep the rebuilt reservation on its stale seat. Guest::Update selects
+        // the arriving train before the lazy boarding plan moves the guest past
+        // the through-rider in seat 0.
+        EXPECT_EQ(guest->CurrentCar, 0u);
+        EXPECT_EQ(guest->CurrentSeat, 0u);
+        ride->status = RideStatus::open;
+        ride->getStation(guest->CurrentRideStation).TrainAtStation = 0;
+        train->status = Vehicle::Status::waitingForPassengers;
+        guest->StepProgress = std::numeric_limits<uint8_t>::max();
+        guest->update();
+
+        EXPECT_EQ(guest->State, PeepState::enteringRide);
+        EXPECT_EQ(guest->RideSubState, PeepRideSubState::leaveEntrance);
+        EXPECT_EQ(guest->CurrentTrain, 0u);
+        EXPECT_EQ(guest->CurrentCar, 0u);
+        EXPECT_EQ(guest->CurrentSeat, 1u);
+        EXPECT_EQ(train->peep[0], EntityId::FromUnderlying(900));
+        EXPECT_EQ(train->peep[1], guest->id);
     }
 
     {

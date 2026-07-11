@@ -309,6 +309,12 @@ TEST_F(MapPathTopologyTest, SharedRouteFieldsRespectDirectedEdgesInvalidateAndIg
     ASSERT_TRUE(singleTarget.has_value());
     EXPECT_EQ(singleTarget->location, target.location);
 
+    MapTopology::InvalidatePathWideTileAndNeighbours(start.ToCoordsXY());
+    EXPECT_TRUE(MapPathRouteCache::IsPreparedForCurrentTopology());
+    const auto afterWidePathChange = MapPathRouteCache::GetNextStep(target, { start, 10 });
+    ASSERT_TRUE(afterWidePathChange.has_value());
+    EXPECT_EQ(afterWidePathChange->direction, first->direction);
+
     MapPathRouteCache::Reset();
     MapPathRouteCache::Prepare(std::array{ target, unreachable });
     const auto reordered = MapPathRouteCache::GetNextStep(target, { start, 10 });
@@ -324,6 +330,41 @@ TEST_F(MapPathTopologyTest, SharedRouteFieldsRespectDirectedEdgesInvalidateAndIg
     const auto changed = MapPathRouteCache::GetNextStep(target, { start, 10 });
     ASSERT_TRUE(changed.has_value());
     EXPECT_EQ(changed->direction, south);
+}
+
+TEST_F(MapPathTopologyTest, PublishedRouteNodeIndexFindsEveryExactSourceAndResets)
+{
+    constexpr Direction east = 2;
+    constexpr Direction west = 0;
+    constexpr uint8_t baseZ = 10;
+    constexpr int32_t pathCount = 60;
+    const auto firstTile = TileCoordsXY{ 5, 10 };
+    for (int32_t offset = 0; offset < pathCount; offset++)
+    {
+        uint8_t edges = 0;
+        if (offset != 0)
+            edges |= 1 << west;
+        if (offset + 1 != pathCount)
+            edges |= 1 << east;
+        ASSERT_NE(AddPath(firstTile + TileCoordsXY{ offset, 0 }, baseZ, edges), nullptr);
+    }
+
+    const auto targetLocation = TileCoordsXYZ{ firstTile + TileCoordsXY{ pathCount - 1, 0 }, baseZ };
+    const auto target = MapPathRouteCache::RouteTarget{ targetLocation, RideId::FromUnderlying(42) };
+    MapPathRouteCache::Prepare(std::array{ target });
+    EXPECT_EQ(MapPathRouteCache::GetStatistics().nodeCount, pathCount);
+    EXPECT_EQ(MapPathRouteCache::GetStatistics().distanceEntryCount, pathCount);
+    for (int32_t offset = 0; offset + 1 < pathCount; offset++)
+    {
+        const auto step = MapPathRouteCache::GetNextStep(
+            target, TileCoordsXYZ{ firstTile + TileCoordsXY{ offset, 0 }, baseZ });
+        ASSERT_TRUE(step.has_value());
+        EXPECT_EQ(step->direction, east);
+    }
+
+    MapPathRouteCache::Reset();
+    EXPECT_EQ(MapPathRouteCache::GetStatistics().nodeCount, 0u);
+    EXPECT_FALSE(MapPathRouteCache::GetNextStep(target, { firstTile, baseZ }).has_value());
 }
 
 TEST_F(MapPathTopologyTest, SharedRouteFieldsFallBackGloballyWhenAnIntermediateChunkIsInexact)
@@ -510,6 +551,218 @@ TEST_F(MapPathTopologyTest, SingleRideTargetIndexRejectsMultipleDistinctDestinat
     const auto unseeded = MapPathRouteCache::RouteTarget{ { 30, 30, 10 }, unseededRide };
     MapPathRouteCache::Prepare(std::array{ unseeded });
     EXPECT_FALSE(MapPathRouteCache::GetSingleTargetForRide(unseededRide).has_value());
+}
+
+TEST_F(MapPathTopologyTest, MultiTargetFieldsPublishExactDistanceAndReachability)
+{
+    constexpr Direction north = 3;
+    constexpr Direction east = 2;
+    constexpr Direction south = 1;
+    constexpr Direction west = 0;
+    constexpr uint8_t baseZ = 10;
+    const auto source = TileCoordsXY{ 10, 10 };
+    const auto eastPath = source + TileDirectionDelta[east];
+    const auto eastTargetTile = eastPath + TileDirectionDelta[east];
+    const auto southPath = source + TileDirectionDelta[south];
+    const auto southPath2 = southPath + TileDirectionDelta[south];
+    const auto southTargetTile = southPath2 + TileDirectionDelta[south];
+    const auto disconnectedTargetTile = TileCoordsXY{ 30, 30 };
+
+    ASSERT_NE(AddPath(source, baseZ, (1 << east) | (1 << south)), nullptr);
+    ASSERT_NE(AddPath(eastPath, baseZ, (1 << west) | (1 << east)), nullptr);
+    ASSERT_NE(AddPath(eastTargetTile, baseZ, 1 << west), nullptr);
+    ASSERT_NE(AddPath(southPath, baseZ, (1 << north) | (1 << south)), nullptr);
+    ASSERT_NE(AddPath(southPath2, baseZ, (1 << north) | (1 << south)), nullptr);
+    ASSERT_NE(AddPath(southTargetTile, baseZ, 1 << north), nullptr);
+    ASSERT_NE(AddPath(disconnectedTargetTile, baseZ, 0), nullptr);
+
+    const auto ride = RideId::FromUnderlying(42);
+    const auto eastTarget = MapPathRouteCache::RouteTarget{ { eastTargetTile, baseZ }, ride };
+    const auto southTarget = MapPathRouteCache::RouteTarget{ { southTargetTile, baseZ }, ride };
+    const auto disconnectedTarget = MapPathRouteCache::RouteTarget{ { disconnectedTargetTile, baseZ }, ride };
+    MapPathRouteCache::Prepare(std::array{ disconnectedTarget, southTarget, eastTarget });
+
+    const auto queryDistance = [&](const auto& target) {
+        return MapPathRouteCache::QueryDistanceToTarget(target, { source, baseZ }).pathTiles;
+    };
+    const auto eastDistance = queryDistance(eastTarget);
+    const auto southDistance = queryDistance(southTarget);
+    ASSERT_TRUE(eastDistance.has_value());
+    ASSERT_TRUE(southDistance.has_value());
+    EXPECT_EQ(*eastDistance, 2u);
+    EXPECT_EQ(*southDistance, 3u);
+    EXPECT_FALSE(queryDistance(disconnectedTarget).has_value());
+    EXPECT_FALSE(MapPathRouteCache::GetSingleTargetForRide(ride).has_value());
+    const std::array orderedCandidates{ disconnectedTarget, southTarget, eastTarget };
+    const auto closestOrderedCandidate = MapPathRouteCache::GetClosestReachableTargetIndex(
+        orderedCandidates, { source, baseZ });
+    ASSERT_TRUE(closestOrderedCandidate.has_value());
+    EXPECT_EQ(*closestOrderedCandidate, 2u);
+    const std::array duplicateTieCandidates{ eastTarget, eastTarget, southTarget };
+    const auto closestTieCandidate = MapPathRouteCache::GetClosestReachableTargetIndex(
+        duplicateTieCandidates, { source, baseZ });
+    ASSERT_TRUE(closestTieCandidate.has_value());
+    EXPECT_EQ(*closestTieCandidate, 0u);
+
+    const auto eastParkTarget = MapPathRouteCache::RouteTarget{ { eastTargetTile, baseZ }, RideId::GetNull() };
+    const auto southParkTarget = MapPathRouteCache::RouteTarget{ { southTargetTile, baseZ }, RideId::GetNull() };
+    MapPathRouteCache::Prepare(std::array{ southParkTarget, eastParkTarget });
+    const auto eastParkDistance = queryDistance(eastParkTarget);
+    const auto southParkDistance = queryDistance(southParkTarget);
+    ASSERT_TRUE(eastParkDistance.has_value());
+    ASSERT_TRUE(southParkDistance.has_value());
+    EXPECT_EQ(*eastParkDistance, 2u);
+    EXPECT_EQ(*southParkDistance, 3u);
+
+    MapPathRouteCache::Prepare(std::array{ eastTarget });
+    const auto singleDistance = queryDistance(eastTarget);
+    ASSERT_TRUE(singleDistance.has_value());
+    EXPECT_EQ(*singleDistance, 2u);
+    const auto singleClosest = MapPathRouteCache::GetClosestReachableTargetIndex(
+        std::array{ eastTarget }, { source, baseZ });
+    ASSERT_TRUE(singleClosest.has_value());
+    EXPECT_EQ(*singleClosest, 0u);
+    EXPECT_TRUE(MapPathRouteCache::GetSingleTargetForRide(ride).has_value());
+}
+
+TEST_F(MapPathTopologyTest, ParkExitWalkUsesExactDistanceFromTransportExit)
+{
+    constexpr Direction east = 2;
+    constexpr Direction west = 0;
+    constexpr uint8_t baseZ = 10;
+    const auto sourceExitTile = TileCoordsXY{ 10, 10 };
+    const auto targetExitTile = TileCoordsXY{ 15, 10 };
+    const auto transportRide = RideId::FromUnderlying(41);
+
+    for (int32_t x = sourceExitTile.x - 1; x < targetExitTile.x; x++)
+    {
+        uint8_t edges = 0;
+        if (x > sourceExitTile.x - 1)
+            edges |= 1 << west;
+        edges |= 1 << east;
+        ASSERT_NE(AddPath({ x, sourceExitTile.y }, baseZ, edges), nullptr);
+    }
+    ASSERT_NE(
+        AddEntrance(
+            sourceExitTile, baseZ, ENTRANCE_TYPE_RIDE_EXIT, east, transportRide, StationIndex::FromUnderlying(0)),
+        nullptr);
+    ASSERT_NE(
+        AddEntrance(
+            targetExitTile, baseZ, ENTRANCE_TYPE_PARK_ENTRANCE, east, RideId::GetNull(), StationIndex::FromUnderlying(0)),
+        nullptr);
+
+    const auto parkExit = MapPathRouteCache::RouteTarget{ { targetExitTile, baseZ }, RideId::GetNull() };
+    MapPathRouteCache::Prepare(std::array{ parkExit });
+    const auto distance = MapPathRouteCache::QueryDistanceFromRideExitToTarget(
+        parkExit, { sourceExitTile, baseZ }, transportRide);
+    ASSERT_TRUE(distance.isExact);
+    ASSERT_TRUE(distance.pathTiles.has_value());
+    EXPECT_EQ(*distance.pathTiles, 5u);
+
+    MapTopology::InvalidateTileAndNeighbours(TileCoordsXY{ sourceExitTile.x - 1, sourceExitTile.y });
+    const auto staleDistance = MapPathRouteCache::QueryDistanceFromRideExitToTarget(
+        parkExit, { sourceExitTile, baseZ }, transportRide);
+    EXPECT_FALSE(staleDistance.isExact);
+    EXPECT_FALSE(staleDistance.pathTiles.has_value());
+}
+
+TEST_F(MapPathTopologyTest, OrdinaryRideTargetSelectionUsesShortestReachablePath)
+{
+    constexpr Direction north = 3;
+    constexpr Direction east = 2;
+    constexpr Direction south = 1;
+    constexpr Direction west = 0;
+    constexpr uint8_t baseZ = 10;
+    const auto source = TileCoordsXY{ 10, 10 };
+    const auto shortPath = source + TileDirectionDelta[east];
+    const auto shortEntrance = shortPath + TileDirectionDelta[east];
+    const auto longPath1 = source + TileDirectionDelta[south];
+    const auto longPath2 = longPath1 + TileDirectionDelta[south];
+    const auto longEntrance = longPath2 + TileDirectionDelta[south];
+    const auto longRide = RideId::FromUnderlying(50);
+    const auto shortRide = RideId::FromUnderlying(51);
+
+    ASSERT_NE(AddPath(source, baseZ, (1 << east) | (1 << south)), nullptr);
+    ASSERT_NE(AddPath(shortPath, baseZ, (1 << west) | (1 << east)), nullptr);
+    ASSERT_NE(AddPath(longPath1, baseZ, (1 << north) | (1 << south)), nullptr);
+    ASSERT_NE(AddPath(longPath2, baseZ, (1 << north) | (1 << south)), nullptr);
+    ASSERT_NE(
+        AddEntrance(shortEntrance, baseZ, ENTRANCE_TYPE_RIDE_ENTRANCE, east, shortRide, StationIndex::FromUnderlying(0)),
+        nullptr);
+    ASSERT_NE(
+        AddEntrance(longEntrance, baseZ, ENTRANCE_TYPE_RIDE_ENTRANCE, south, longRide, StationIndex::FromUnderlying(0)),
+        nullptr);
+
+    const auto longTarget = MapPathRouteCache::RouteTarget{ { longEntrance, baseZ }, longRide };
+    const auto shortTarget = MapPathRouteCache::RouteTarget{ { shortEntrance, baseZ }, shortRide };
+    MapPathRouteCache::Prepare(std::array{ longTarget, shortTarget });
+    const std::array candidates{ longRide, shortRide };
+    const auto selected = MapPathRouteCache::GetClosestReachableRideTarget(candidates, { source, baseZ });
+    ASSERT_TRUE(selected.isExact);
+    ASSERT_TRUE(selected.selection.has_value());
+    EXPECT_EQ(selected.selection->candidateIndex, 1u);
+    EXPECT_EQ(selected.selection->target.queueRide, shortRide);
+    EXPECT_EQ(selected.selection->pathTiles, 1u);
+}
+
+TEST_F(MapPathTopologyTest, FirstAidTargetSelectionRejectsCloserDisconnectedFacility)
+{
+    constexpr Direction east = 2;
+    constexpr Direction west = 0;
+    constexpr uint8_t baseZ = 10;
+    const auto source = TileCoordsXY{ 10, 10 };
+    const auto reachablePath = source + TileDirectionDelta[east];
+    const auto reachableTrack = reachablePath + TileDirectionDelta[east];
+    const auto disconnectedPath = TileCoordsXY{ 10, 8 };
+    const auto disconnectedTrack = disconnectedPath + TileDirectionDelta[east];
+    const auto disconnectedFirstAid = RideId::FromUnderlying(60);
+    const auto reachableFirstAid = RideId::FromUnderlying(61);
+
+    ASSERT_NE(AddPath(source, baseZ, 1 << east), nullptr);
+    ASSERT_NE(AddPath(reachablePath, baseZ, (1 << west) | (1 << east)), nullptr);
+    ASSERT_NE(AddPath(disconnectedPath, baseZ, 1 << east), nullptr);
+    const auto disconnectedTarget = MapPathRouteCache::RouteTarget{
+        { disconnectedTrack, baseZ }, disconnectedFirstAid, MapPathRouteCache::RouteTargetKind::shopOrFacilityTrack
+    };
+    const auto reachableTarget = MapPathRouteCache::RouteTarget{
+        { reachableTrack, baseZ }, reachableFirstAid, MapPathRouteCache::RouteTargetKind::shopOrFacilityTrack
+    };
+    MapPathRouteCache::Prepare(std::array{ disconnectedTarget, reachableTarget });
+
+    const std::array candidates{ disconnectedFirstAid, reachableFirstAid };
+    const auto selected = MapPathRouteCache::GetClosestReachableRideTarget(candidates, { source, baseZ });
+    ASSERT_TRUE(selected.isExact);
+    ASSERT_TRUE(selected.selection.has_value());
+    EXPECT_EQ(selected.selection->candidateIndex, 1u);
+    EXPECT_EQ(selected.selection->target.queueRide, reachableFirstAid);
+}
+
+TEST_F(MapPathTopologyTest, AdvertisedRideKeepsItsSpecifiedTargetWithExactRouting)
+{
+    constexpr Direction east = 2;
+    constexpr Direction west = 0;
+    constexpr uint8_t baseZ = 10;
+    const auto source = TileCoordsXY{ 10, 10 };
+    const auto path = source + TileDirectionDelta[east];
+    const auto entranceTile = path + TileDirectionDelta[east];
+    const auto advertisedRide = RideId::FromUnderlying(70);
+
+    ASSERT_NE(AddPath(source, baseZ, 1 << east), nullptr);
+    ASSERT_NE(AddPath(path, baseZ, (1 << west) | (1 << east)), nullptr);
+    ASSERT_NE(
+        AddEntrance(
+            entranceTile, baseZ, ENTRANCE_TYPE_RIDE_ENTRANCE, east, advertisedRide, StationIndex::FromUnderlying(0)),
+        nullptr);
+    const auto advertisedTarget = MapPathRouteCache::RouteTarget{ { entranceTile, baseZ }, advertisedRide };
+    MapPathRouteCache::Prepare(std::array{ advertisedTarget });
+
+    Guest guest{};
+    guest.setPathfindingTargetRide(advertisedRide);
+    const auto distance = MapPathRouteCache::QueryDistanceToTarget(advertisedTarget, { source, baseZ });
+    ASSERT_TRUE(distance.isExact);
+    ASSERT_TRUE(distance.pathTiles.has_value());
+    EXPECT_EQ(*distance.pathTiles, 1u);
+    EXPECT_EQ(guest.guestHeadingToRideId, advertisedRide);
 }
 
 TEST_F(MapPathTopologyTest, UnchangedChunksReuseStorageAndMapResetDropsWarmData)

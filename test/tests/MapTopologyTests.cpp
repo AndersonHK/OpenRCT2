@@ -82,3 +82,17 @@ TEST(MapTopologyTest, InvalidTileDoesNotAdvanceTheEpoch)
     EXPECT_EQ(MapTopology::GetChunkGeneration(TileCoordsXY{ -1, 0 }), epoch);
     EXPECT_EQ(MapTopology::GetChunkGeneration(CoordsXY{ -1, 0 }), epoch);
 }
+
+TEST(MapTopologyTest, WidePathChangeInvalidatesChunksButPreservesConnectivityEpoch)
+{
+    MapTopology::Reset();
+    const auto oldEpoch = MapTopology::GetEpoch();
+    const auto connectivityEpoch = MapTopology::GetPathConnectivityEpoch();
+
+    MapTopology::InvalidatePathWideTileAndNeighbours(CoordsXY{ 32, 32 });
+
+    const auto newEpoch = MapTopology::GetEpoch();
+    EXPECT_GT(newEpoch, oldEpoch);
+    EXPECT_EQ(MapTopology::GetChunkGeneration(CoordsXY{ 32, 32 }), newEpoch);
+    EXPECT_EQ(MapTopology::GetPathConnectivityEpoch(), connectivityEpoch);
+}

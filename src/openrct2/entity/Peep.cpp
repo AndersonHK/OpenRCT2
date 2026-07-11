@@ -211,16 +211,19 @@ namespace OpenRCT2
 
         const auto currentTicks = getGameState().currentTicks;
 
-        constexpr auto kTicks128Mask = 128u - 1u;
+        constexpr auto kTicks128Period = 128u;
+        constexpr auto kTicks128Mask = kTicks128Period - 1u;
         const auto currentTicksMasked = currentTicks & kTicks128Mask;
 
         uint32_t index = 0;
+        uint32_t nextTick128UpdateIndex = currentTicksMasked;
 
         for (auto peep : EntityList<Guest>())
         {
-            if ((index & kTicks128Mask) == currentTicksMasked)
+            if (index == nextTick128UpdateIndex)
             {
                 peep->tick128UpdateGuest(index);
+                nextTick128UpdateIndex += kTicks128Period;
             }
 
             peep->update();
@@ -230,9 +233,10 @@ namespace OpenRCT2
 
         for (auto staff : EntityList<Staff>())
         {
-            if ((index & kTicks128Mask) == currentTicksMasked)
+            if (index == nextTick128UpdateIndex)
             {
                 staff->tick128UpdateStaff();
+                nextTick128UpdateIndex += kTicks128Period;
             }
 
             staff->Update();
@@ -301,8 +305,6 @@ namespace OpenRCT2
      */
     bool Peep::CheckForPath()
     {
-        PROFILED_FUNCTION();
-
         PathCheckOptimisation++;
         if ((PathCheckOptimisation & 0xF) != (id.ToUnderlying() & 0xF))
         {
@@ -466,8 +468,6 @@ namespace OpenRCT2
      */
     std::optional<CoordsXY> Peep::UpdateAction(int16_t& xy_distance)
     {
-        PROFILED_FUNCTION();
-
         _backupAnimationImageIdOffset = AnimationImageIdOffset;
         if (Action == PeepActionType::idle)
         {
@@ -485,7 +485,7 @@ namespace OpenRCT2
         // We're taking an easier route if we're just walking
         if (IsActionWalking())
         {
-            return UpdateWalkingAction(differenceLoc, xy_distance);
+            return UpdateWalkingAction(differenceLoc, xy_distance, x_delta, y_delta);
         }
 
         if (!UpdateActionAnimation())
@@ -526,23 +526,16 @@ namespace OpenRCT2
         return true;
     }
 
-    std::optional<CoordsXY> Peep::UpdateWalkingAction(const CoordsXY& differenceLoc, int16_t& xy_distance)
+    std::optional<CoordsXY> Peep::UpdateWalkingAction(
+        const CoordsXY& differenceLoc, int16_t& xy_distance, int32_t xDelta, int32_t yDelta)
     {
-        if (!IsActionWalking())
-        {
-            return std::nullopt;
-        }
-
         if (xy_distance <= DestinationTolerance)
         {
             return std::nullopt;
         }
 
-        int32_t x_delta = abs(differenceLoc.x);
-        int32_t y_delta = abs(differenceLoc.y);
-
         int32_t nextDirection = 0;
-        if (x_delta < y_delta)
+        if (xDelta < yDelta)
         {
             nextDirection = 1;
             if (differenceLoc.y >= 0)
@@ -940,27 +933,6 @@ namespace OpenRCT2
         {
             guest->insertNewThought(PeepThoughtType::help);
         }
-    }
-
-    uint32_t Peep::GetStepsToTake() const
-    {
-        uint32_t stepsToTake = Energy;
-        if (stepsToTake < 95 && State == PeepState::queuing)
-            stepsToTake = 95;
-        if ((PeepFlags & PEEP_FLAGS_SLOW_WALK) && State != PeepState::queuing)
-            stepsToTake /= 2;
-        if (IsActionWalking() && GetNextIsSloped())
-        {
-            stepsToTake /= 2;
-            if (State == PeepState::queuing)
-                stepsToTake += stepsToTake / 2;
-        }
-        // Ensure guests make it across a level crossing in time
-        constexpr auto minStepsForCrossing = 55;
-        if (stepsToTake < minStepsForCrossing && IsOnPathBlockedByVehicle())
-            stepsToTake = minStepsForCrossing;
-
-        return stepsToTake;
     }
 
     /**

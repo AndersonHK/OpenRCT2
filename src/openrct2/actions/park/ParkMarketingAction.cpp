@@ -13,6 +13,7 @@
 #include "../../localisation/StringIds.h"
 #include "../../management/Finance.h"
 #include "../../management/Marketing.h"
+#include "../../ride/Ride.h"
 #include "../../ui/WindowManager.h"
 #include "../../windows/Intent.h"
 #include "../../world/ParkData.h"
@@ -58,6 +59,22 @@ namespace OpenRCT2::GameActions
         {
             return Result(
                 Status::disallowed, STR_CANT_START_MARKETING_CAMPAIGN, STR_MARKETING_CAMPAIGNS_FORBIDDEN_BY_LOCAL_AUTHORITY);
+        }
+        if (_type == ADVERTISING_CAMPAIGN_RIDE_FREE || _type == ADVERTISING_CAMPAIGN_RIDE)
+        {
+            if (_item < 0 || static_cast<uint64_t>(_item) > std::numeric_limits<RideId::UnderlyingType>::max())
+            {
+                return Result(Status::invalidParameters, STR_CANT_START_MARKETING_CAMPAIGN, STR_ERR_RIDE_NOT_FOUND);
+            }
+            const auto* ride = GetRide(RideId::FromUnderlying(static_cast<RideId::UnderlyingType>(_item)));
+            if (ride == nullptr)
+            {
+                return Result(Status::invalidParameters, STR_CANT_START_MARKETING_CAMPAIGN, STR_ERR_RIDE_NOT_FOUND);
+            }
+            if (!MarketingIsRideCampaignEligible(*ride))
+            {
+                return Result(Status::invalidParameters, STR_CANT_START_MARKETING_CAMPAIGN, STR_INVALID_RIDE_TYPE);
+            }
         }
 
         return CreateResult();

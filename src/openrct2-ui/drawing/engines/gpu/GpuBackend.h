@@ -13,10 +13,12 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <openrct2/drawing/IDrawingEngine.h>
 #include <optional>
 #include <span>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace OpenRCT2::Ui::Gpu
 {
@@ -32,6 +34,12 @@ namespace OpenRCT2::Ui::Gpu
         Immediate,
     };
 
+    enum class FrameAcquireMode : uint8_t
+    {
+        Wait,
+        SkipIfBusy,
+    };
+
     enum class OutputColorMode : uint8_t
     {
         Sdr,
@@ -42,6 +50,8 @@ namespace OpenRCT2::Ui::Gpu
     {
         uint32_t width = 0;
         uint32_t height = 0;
+
+        bool operator==(const Extent&) const = default;
     };
 
     struct BackendCapabilities
@@ -52,12 +62,17 @@ namespace OpenRCT2::Ui::Gpu
         uint32_t maxTextureArrayLayers = 0;
         uint64_t deviceLocalMemory = 0;
         uint64_t uploadRingCapacity = 0;
+        bool supportsNonBlockingFrameAcquire = false;
         bool supportsLineCommands = false;
         bool supportsOpaqueRectCommands = false;
         bool supportsTransparencyCommands = false;
         bool supportsWeatherCommands = false;
+        bool supportsLightFxComposition = false;
+        bool supportsGpuLightFxRasterization = false;
         bool supportsAsyncReadback = false;
         bool supportsCanvasUpload = false;
+        bool supportsGpuTimestamps = false;
+        bool supportsHdrMetadata = false;
         bool supportsHdr10Output = false;
         bool hdr10OutputActive = false;
         bool supportsIndexedDrawCommands = false;
@@ -67,7 +82,9 @@ namespace OpenRCT2::Ui::Gpu
     {
         void* nativeWindow = nullptr;
         Extent logicalExtent{};
+        Extent drawableExtent{};
         PresentMode presentMode = PresentMode::VSync;
+        FrameAcquireMode frameAcquireMode = FrameAcquireMode::Wait;
         OutputColorMode outputColorMode = OutputColorMode::Sdr;
         float hdrPaperWhiteNits = 203.0f;
         uint64_t uploadRingBytesPerFrame = 32 * 1024 * 1024;
@@ -100,23 +117,8 @@ namespace OpenRCT2::Ui::Gpu
         bool indexed = true;
     };
 
-    // One extensible record for the integrated EverythingPark benchmark.
-    // The scheduler fills simulation/paint, while the backend fills command
-    // submission, GPU and presentation fields it can measure independently.
-    struct FrameTimings
-    {
-        uint64_t frameNumber = 0;
-        double simulationMicroseconds = 0.0;
-        double paintMicroseconds = 0.0;
-        double cpuSubmitMicroseconds = 0.0;
-        double cpuPresentMicroseconds = 0.0;
-        double gpuMicroseconds = 0.0;
-        double presentWaitMicroseconds = 0.0;
-        bool hasSimulationMeasurement = false;
-        bool hasPaintMeasurement = false;
-        bool hasGpuTimestamp = false;
-        bool hasPresentWaitMeasurement = false;
-    };
+    // The backend and drawing-engine benchmark surfaces share one record.
+    using FrameTimings = Drawing::FrameTimings;
 
     /**
      * API-neutral contract between OpenRCT2's deterministic paint recorder and
@@ -136,7 +138,12 @@ namespace OpenRCT2::Ui::Gpu
         virtual void Dispose() = 0;
         [[nodiscard]] virtual const BackendCapabilities& GetCapabilities() const noexcept = 0;
 
-        virtual void Resize(Extent logicalExtent) = 0;
+        // Logical extent sizes indexed render targets. Drawable extent is the
+        // physical surface size sampled by the UI thread; zero means the
+        // surface is minimized or temporarily unavailable.
+        virtual void Resize(Extent logicalExtent, Extent drawableExtent) = 0;
+        // Re-query presentation formats at the next normal frame boundary.
+        virtual void RequestSurfaceFormatRefresh() = 0;
         virtual void SetPresentMode(PresentMode mode) = 0;
 
         [[nodiscard]] virtual std::optional<FrameHandle> BeginFrame(uint64_t frameNumber) = 0;
@@ -144,19 +151,30 @@ namespace OpenRCT2::Ui::Gpu
         virtual void SetPalette(std::span<const std::byte> rgba) = 0;
         virtual void SetRemapPalette(std::span<const std::byte> indices) = 0;
         virtual void SetBlendPalette(std::span<const std::byte> indices) = 0;
+        virtual void SetLightFxFalloffs(std::span<const std::byte> layers) = 0;
         virtual void Submit(const FrameHandle& frame, const FrameCommandStream& commands) = 0;
         virtual void Present(const FrameHandle& frame) = 0;
+        // Releases an acquired frame after recording or upload failure. The
+        // backend must restore semaphore, frame-slot and swapchain invariants.
+        virtual void AbandonFrame(const FrameHandle& frame) = 0;
 
-        // CPU submission and presentation timings are available during bring-up.
-        // GPU timestamps and an isolated presentation wait are reported only
-        // when the backend can measure them without a synchronising readback.
+        // CPU submission, presentation, and isolated presentation-call timings
+        // are available during bring-up. GPU timestamps are reported only when
+        // the backend can measure them without a synchronising readback.
         [[nodiscard]] virtual std::optional<FrameTimings> GetLatestTimings() const = 0;
+        // Completed samples are copied into caller-owned reusable storage
+        // without touching the graphics API; WaitIdle is reserved for explicit
+        // benchmark phase boundaries.
+        virtual void TakeCompletedTimings(std::vector<FrameTimings>& samples) = 0;
 
         // Readback requests are recorded after Submit and before Present. They
         // complete with the owning frame fence; polling never waits for GPU
         // work, and backends preserve unread results across frame-slot reuse.
         virtual void RequestReadback(const FrameHandle& frame, ReadbackRequest request) = 0;
         [[nodiscard]] virtual bool TryTakeReadback(uint64_t requestId, std::span<std::byte> destination) = 0;
+        // Explicit blocking capture of the latest presented indexed canvas.
+        // This is reserved for synchronous consumers such as screenshots.
+        [[nodiscard]] virtual bool ReadbackLatestIndexedCanvas(Extent extent, std::span<std::byte> destination) = 0;
         virtual void WaitIdle() = 0;
     };
 

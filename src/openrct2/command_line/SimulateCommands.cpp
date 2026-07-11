@@ -50,6 +50,8 @@ namespace OpenRCT2
             double p95Microseconds{};
             double p99Microseconds{};
             double maxMicroseconds{};
+            double firstQuarterMeanMicroseconds{};
+            double lastQuarterMeanMicroseconds{};
         };
 
         double GetPercentileNanoseconds(const std::vector<int64_t>& sortedSamples, double percentile)
@@ -62,12 +64,27 @@ namespace OpenRCT2
                 + (static_cast<double>(sortedSamples[upperIndex] - sortedSamples[lowerIndex]) * fraction);
         }
 
+        double GetMeanNanoseconds(const std::vector<int64_t>& samples, size_t first, size_t count)
+        {
+            long double total = 0;
+            for (size_t i = first; i < first + count; i++)
+            {
+                total += samples[i];
+            }
+            return static_cast<double>(total / count);
+        }
+
         BenchmarkStats GetBenchmarkStats(
             std::vector<int64_t> tickDurationsNanoseconds, BenchmarkClock::duration measurementDuration)
         {
+            const auto trendSampleCount = std::max<size_t>(1, tickDurationsNanoseconds.size() / 4);
+            const auto lastTrendSample = tickDurationsNanoseconds.size() - trendSampleCount;
+            constexpr double nanosecondsPerMicrosecond = 1000.0;
+            const auto firstQuarterMeanNanoseconds = GetMeanNanoseconds(tickDurationsNanoseconds, 0, trendSampleCount);
+            const auto lastQuarterMeanNanoseconds = GetMeanNanoseconds(
+                tickDurationsNanoseconds, lastTrendSample, trendSampleCount);
             std::sort(tickDurationsNanoseconds.begin(), tickDurationsNanoseconds.end());
 
-            constexpr double nanosecondsPerMicrosecond = 1000.0;
             const auto elapsedSeconds = std::chrono::duration<double>(measurementDuration).count();
             const auto tickCount = static_cast<double>(tickDurationsNanoseconds.size());
 
@@ -80,12 +97,17 @@ namespace OpenRCT2
             result.p95Microseconds = GetPercentileNanoseconds(tickDurationsNanoseconds, 0.95) / nanosecondsPerMicrosecond;
             result.p99Microseconds = GetPercentileNanoseconds(tickDurationsNanoseconds, 0.99) / nanosecondsPerMicrosecond;
             result.maxMicroseconds = static_cast<double>(tickDurationsNanoseconds.back()) / nanosecondsPerMicrosecond;
+            result.firstQuarterMeanMicroseconds = firstQuarterMeanNanoseconds / nanosecondsPerMicrosecond;
+            result.lastQuarterMeanMicroseconds = lastQuarterMeanNanoseconds / nanosecondsPerMicrosecond;
             return result;
         }
 
         void PrintBenchmarkStats(const BenchmarkStats& stats, int32_t ticks)
         {
             constexpr double turboTickBudgetMicroseconds = 1'000'000.0 / kTurboTargetTicksPerSecond;
+            const auto trendPercent = stats.firstQuarterMeanMicroseconds > 0.0
+                ? ((stats.lastQuarterMeanMicroseconds / stats.firstQuarterMeanMicroseconds) - 1.0) * 100.0
+                : 0.0;
             Console::WriteLine("Benchmark measurement:");
             Console::WriteLine("  ticks:             %d", ticks);
             Console::WriteLine("  elapsed:           %.6f s", stats.elapsedSeconds);
@@ -99,7 +121,29 @@ namespace OpenRCT2
             Console::WriteLine("  tick p95:          %.3f us", stats.p95Microseconds);
             Console::WriteLine("  tick p99:          %.3f us", stats.p99Microseconds);
             Console::WriteLine("  tick maximum:      %.3f us", stats.maxMicroseconds);
+            Console::WriteLine(
+                "  tick trend:        %.3f -> %.3f us first/last quarter (%+.1f%%)", stats.firstQuarterMeanMicroseconds,
+                stats.lastQuarterMeanMicroseconds, trendPercent);
             Console::WriteLine("  Turbo tick budget: %.3f us", turboTickBudgetMicroseconds);
+        }
+
+        void PrintBenchmarkStateSnapshot(const utf8* label, const BenchmarkStateSnapshot& snapshot)
+        {
+            const auto guestCount = snapshot.guestsInsidePark + snapshot.guestsOutsidePark;
+            Console::WriteLine("%s simulation state:", label);
+            Console::WriteLine("  simulation tick:    %u", snapshot.simulationTick);
+            Console::WriteLine(
+                "  guests:             %zu (%zu inside, %zu outside)", guestCount, snapshot.guestsInsidePark,
+                snapshot.guestsOutsidePark);
+            Console::WriteLine(
+                "  guest states:       %zu walking, %zu queued, %zu on ride", snapshot.guestsWalking,
+                snapshot.guestsQueuing, snapshot.guestsOnRide);
+            Console::WriteLine("  transport routes:   %zu active", snapshot.activeTransportRoutes);
+            Console::WriteLine("  staff / vehicles:   %zu / %zu", snapshot.staff, snapshot.vehicles);
+            Console::WriteLine(
+                "  shared route cache: %zu nodes, %zu targets, %zu direction / %zu distance entries, %zu single-ride targets (%s)",
+                snapshot.routeNodes, snapshot.routeTargets, snapshot.routeDirectionEntries, snapshot.routeDistanceEntries,
+                snapshot.singleRideTargets, snapshot.routeCacheCurrent ? "current" : "fallback or stale");
         }
     } // namespace
 
@@ -201,6 +245,11 @@ namespace OpenRCT2
             }
 
             Console::WriteLine("Running %d measured ticks...", ticks);
+            BenchmarkStateSnapshot initialState;
+            if (runBenchmark)
+            {
+                initialState = CaptureBenchmarkStateSnapshot();
+            }
             std::vector<int64_t> tickDurationsNanoseconds;
             if (runBenchmark)
             {
@@ -238,6 +287,8 @@ namespace OpenRCT2
             if (runBenchmark)
             {
                 PrintBenchmarkStats(GetBenchmarkStats(std::move(tickDurationsNanoseconds), measurementDuration), ticks);
+                PrintBenchmarkStateSnapshot("Initial", initialState);
+                PrintBenchmarkStateSnapshot("Final", CaptureBenchmarkStateSnapshot());
             }
             Console::WriteLine("Completed: %s", getGameState().entities.GetAllEntitiesChecksum().ToString().c_str());
         }

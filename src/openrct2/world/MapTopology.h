@@ -24,6 +24,9 @@ namespace OpenRCT2::MapTopology
     constexpr int32_t kChunkCount = (kMaximumMapSizeTechnical + kChunkSize - 1) / kChunkSize;
 
     [[nodiscard]] Generation GetEpoch() noexcept;
+    // Advances only when path connectivity can change. Dynamic wide-path maintenance still advances the general epoch so
+    // thin-junction chunk data remains current, but it must not discard connectivity-only reverse route fields.
+    [[nodiscard]] Generation GetPathConnectivityEpoch() noexcept;
     [[nodiscard]] Generation GetChunkGeneration(const TileCoordsXY& tile) noexcept;
     [[nodiscard]] Generation GetChunkGeneration(const CoordsXY& coords) noexcept;
 
@@ -32,4 +35,7 @@ namespace OpenRCT2::MapTopology
     // Invalidates the edited tile's chunk and any cardinally adjacent chunk whose connectivity can cross a chunk boundary.
     void InvalidateTileAndNeighbours(const TileCoordsXY& tile) noexcept;
     void InvalidateTileAndNeighbours(const CoordsXY& coords) noexcept;
+    // Wide flags affect thin-junction classification, but not path connectivity. Keep the local topology chunks current
+    // without invalidating connectivity-only consumers such as shared reverse route fields.
+    void InvalidatePathWideTileAndNeighbours(const CoordsXY& coords) noexcept;
 } // namespace OpenRCT2::MapTopology

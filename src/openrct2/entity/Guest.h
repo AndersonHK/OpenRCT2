@@ -306,6 +306,7 @@ namespace OpenRCT2
         bool transportRoutePlanningInitialised{};
         bool transportRouteWasExtortive{};
         uint64_t transportRouteTopologyEpoch{};
+        uint64_t transportRouteCrowdingGeneration{};
         std::array<PeepThought, kPeepMaxThoughts> thoughts;
         // 0x3F Litter Count split into lots of 3 with time, 0xC0 Time since last recalc
         uint8_t litterCount;
@@ -414,6 +415,8 @@ namespace OpenRCT2
         void updateRideApproachVehicle();
         void updateRideApproachPlatformSlot();
         void updateRideWaitingOnPlatform();
+        bool tryBoardStationPlatformTrain(Ride& ride);
+        void requeueFromStationPlatform(Ride& ride);
         void updateRideEnterVehicle();
         void updateRideLeaveVehicle();
         void updateRideApproachExit();

@@ -149,18 +149,8 @@ namespace OpenRCT2::Ui::Windows
             const auto& gameState = getGameState();
             for (const auto& curRide : RideManager(gameState))
             {
-                if (curRide.status == RideStatus::open)
+                if (MarketingIsRideCampaignEligible(curRide))
                 {
-                    const auto& rtd = curRide.getRideTypeDescriptor();
-                    if (rtd.flags.has(RtdFlag::isShopOrFacility))
-                        continue;
-                    if (rtd.flags.has(RtdFlag::sellsFood))
-                        continue;
-                    if (rtd.flags.has(RtdFlag::sellsDrinks))
-                        continue;
-                    if (rtd.specialType == RtdSpecialType::toilet)
-                        continue;
-
                     RideList.push_back(curRide.id);
                 }
             }

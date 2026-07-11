@@ -101,12 +101,6 @@ namespace OpenRCT2
         return String::StringFromHex(raw);
     }
 
-    EntityBase* EntityRegistry::TryGetEntity(EntityId entityIndex)
-    {
-        const auto idx = entityIndex.ToUnderlying();
-        return idx >= kMaxEntities ? nullptr : &entities[idx].base;
-    }
-
     EntityBase* EntityRegistry::GetEntity(EntityId entityIndex)
     {
         if (entityIndex.IsNull())
@@ -145,7 +139,7 @@ namespace OpenRCT2
         });
     }
 
-    const std::list<EntityId>& EntityRegistry::GetEntityList(const EntityType id)
+    const EntityIdList& EntityRegistry::GetEntityList(const EntityType id)
     {
         return gEntityLists[EnumValue(id)];
     }
@@ -178,29 +172,23 @@ namespace OpenRCT2
      */
     void EntityRegistry::ResetAllEntities()
     {
-        // Free all associated Entity pointers prior to zeroing memory
-        for (int32_t i = 0; i < kMaxEntities; ++i)
+        // Free live entities before zeroing storage. The typed membership is complete, so avoid scanning every empty slot.
+        for (const auto& list : gEntityLists)
         {
-            auto* spr = GetEntity(EntityId::FromUnderlying(i));
-            if (spr == nullptr)
+            for (const auto entityId : list)
             {
-                continue;
+                FreeEntity(entities[entityId.ToUnderlying()].base);
             }
-            FreeEntity(*spr);
         }
 
         std::fill(std::begin(entities), std::end(entities), Entity_t());
         RideUse::GetHistory().Clear();
         RideUse::GetTypeHistory().Clear();
-        for (int32_t i = 0; i < kMaxEntities; ++i)
+        for (uint32_t i = 0; i < kMaxEntities; ++i)
         {
-            auto* spr = GetEntity(EntityId::FromUnderlying(i));
-            if (spr == nullptr)
-            {
-                continue;
-            }
-            spr->type = EntityType::null;
-            spr->id = EntityId::FromUnderlying(i);
+            auto& entity = entities[i].base;
+            entity.type = EntityType::null;
+            entity.id = EntityId::FromUnderlying(static_cast<EntityId::UnderlyingType>(i));
 
             _entityFlashingList[i] = false;
         }
@@ -222,12 +210,14 @@ namespace OpenRCT2
         {
             vec.clear();
         }
-        for (EntityId::UnderlyingType i = 0; i < kMaxEntities; i++)
+        // Membership is rebuilt alongside entity creation/import. Iterate live ids rather than rescanning every registry
+        // slot, which is especially wasteful immediately after ResetAllEntities() has cleared every list.
+        for (const auto& list : gEntityLists)
         {
-            auto* entity = GetEntity(EntityId::FromUnderlying(i));
-            if (entity != nullptr && entity->type != EntityType::null)
+            for (const auto entityId : list)
             {
-                EntitySpatialInsert(*entity, { entity->x, entity->y });
+                auto& entity = entities[entityId.ToUnderlying()].base;
+                EntitySpatialInsert(entity, { entity.x, entity.y });
             }
         }
     }
@@ -252,7 +242,7 @@ namespace OpenRCT2
 
     void EntityRegistry::EntityReset(EntityBase& entity)
     {
-        // Need to retain how the sprite is linked in lists
+        // Retain the registry slot id while resetting entity storage.
         auto entityIndex = entity.id;
         _entityFlashingList[entityIndex.ToUnderlying()] = false;
 
@@ -267,8 +257,8 @@ namespace OpenRCT2
     {
         auto& list = gEntityLists[EnumValue(entity.type)];
 
-        // Entity list is sorted by id to prevent desyncs.
-        Algorithm::sortedInsert(list, entity.id);
+        // Membership iteration is intrinsically sorted by id to prevent desyncs.
+        Guard::Assert(list.insert(entity.id), "Entity %u is already in its typed list", entity.id.ToUnderlying());
         if (entity.type == EntityType::vehicle)
         {
             _vehicleHeadEntityListDirty = true;
@@ -284,10 +274,8 @@ namespace OpenRCT2
     void EntityRegistry::RemoveFromEntityList(EntityBase& entity)
     {
         auto& list = gEntityLists[EnumValue(entity.type)];
-        auto ptr = Algorithm::binaryFind(std::begin(list), std::end(list), entity.id);
-        if (ptr != std::end(list))
+        if (list.erase(entity.id))
         {
-            list.erase(ptr);
             if (entity.type == EntityType::vehicle)
             {
                 _vehicleHeadEntityListDirty = true;
@@ -615,22 +603,36 @@ void EntityBase::setLocation(const CoordsXYZ& newLocation)
     getGameState().entities.QueueEntitySpatialIndexUpdate(*this);
 }
 
-static void EntitySetCoordinates(const CoordsXYZ& entityPos, EntityBase* entity)
+static void EntitySetLocation(EntityBase& entity, const CoordsXYZ& location, bool updateSpatialIndex)
+{
+    if (updateSpatialIndex)
+    {
+        entity.setLocation(location);
+    }
+    else
+    {
+        entity.x = location.x;
+        entity.y = location.y;
+        entity.z = location.z;
+    }
+}
+
+static void EntitySetCoordinates(const CoordsXYZ& entityPos, EntityBase* entity, bool updateSpatialIndex)
 {
     auto screenCoords = Translate3DTo2DWithZ(GetCurrentRotation(), entityPos);
 
     entity->spriteData.spriteRect = ScreenRect(
         screenCoords - ScreenCoordsXY{ entity->spriteData.width, entity->spriteData.heightMin },
         screenCoords + ScreenCoordsXY{ entity->spriteData.width, entity->spriteData.heightMax });
-    entity->setLocation(entityPos);
+    EntitySetLocation(*entity, entityPos, updateSpatialIndex);
 }
 
-void EntityBase::moveTo(const CoordsXYZ& newLocation)
+static void EntityMoveTo(EntityBase& entity, const CoordsXYZ& newLocation, bool updateSpatialIndex)
 {
-    if (x != kLocationNull)
+    if (entity.x != kLocationNull)
     {
         // Invalidate old position.
-        invalidate();
+        entity.invalidate();
     }
 
     auto loc = newLocation;
@@ -641,13 +643,23 @@ void EntityBase::moveTo(const CoordsXYZ& newLocation)
 
     if (loc.x == kLocationNull)
     {
-        setLocation(loc);
+        EntitySetLocation(entity, loc, updateSpatialIndex);
     }
     else
     {
-        EntitySetCoordinates(loc, this);
-        invalidate(); // Invalidate new position.
+        EntitySetCoordinates(loc, &entity, updateSpatialIndex);
+        entity.invalidate(); // Invalidate new position.
     }
+}
+
+void EntityBase::moveTo(const CoordsXYZ& newLocation)
+{
+    EntityMoveTo(*this, newLocation, true);
+}
+
+void EntityBase::moveToForTween(const CoordsXYZ& newLocation)
+{
+    EntityMoveTo(*this, newLocation, false);
 }
 
 void EntityBase::moveToAndUpdateSpatialIndex(const CoordsXYZ& newLocation)

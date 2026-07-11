@@ -12,7 +12,10 @@
 #include "command_line/ExitCode.h"
 #include "core/StringTypes.h"
 
+#include <optional>
+
 enum class PromptMode : uint8_t;
+enum class DrawingEngine : int32_t;
 
 enum class StartupAction
 {
@@ -34,6 +37,15 @@ enum class LegacyScene : uint8_t
     trackDesignsManager,
 };
 
+struct IntegratedBenchmarkConfig
+{
+    bool enabled{};
+    int32_t warmupSeconds{ 5 };
+    int32_t measurementSeconds{ 30 };
+    std::optional<DrawingEngine> drawingEngine;
+    std::optional<bool> useVSync;
+};
+
 bool isInEditorMode();
 bool isInTrackDesignerOrManager();
 
@@ -50,6 +62,7 @@ extern bool gOpenRCT2ShowChangelog;
 extern bool gOpenRCT2SilentBreakpad;
 extern u8string gSilentRecordingName;
 extern bool gSilentReplays;
+extern IntegratedBenchmarkConfig gIntegratedBenchmark;
 
 #ifndef DISABLE_NETWORK
 namespace OpenRCT2::Network

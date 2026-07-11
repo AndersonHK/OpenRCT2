@@ -9,8 +9,11 @@
 
 #pragma once
 
+#include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <type_traits>
 #include <vector>
@@ -125,14 +128,6 @@ namespace OpenRCT2::Ui::Gpu
         };
     };
 
-    struct TextureUpload
-    {
-        uint32_t atlas;
-        Int4 bounds;
-        uint32_t sourceOffset;
-        uint32_t sourcePitch;
-    };
-
     struct CanvasUpload
     {
         uint32_t sourceOffset;
@@ -141,6 +136,131 @@ namespace OpenRCT2::Ui::Gpu
         uint32_t height;
     };
 #pragma pack(pop)
+
+    // Unlike native draw commands, first-use atlas pixels must survive the
+    // recorder/backend handoff. Keeping them in the frame stream lets a future
+    // render thread allocate its own staging slice without retaining caller or
+    // Vulkan upload-ring memory.
+    struct TextureUpload
+    {
+        uint32_t atlas = 0;
+        Int4 bounds{};
+        uint32_t sourcePitch = 0;
+        std::vector<std::byte> pixels;
+    };
+
+    /** Owned, viewport-resolved LightFX data for one visual frame. */
+    struct LightFxCommand
+    {
+        int32_t destinationX = 0;
+        int32_t destinationY = 0;
+        uint32_t width = 0;
+        uint32_t height = 0;
+        uint32_t sourceOffset = 0;
+        uint32_t sourceStride = 0;
+        uint32_t type = 0;
+        uint32_t intensity = 0;
+    };
+
+    static_assert(std::is_trivially_copyable_v<LightFxCommand>);
+    static_assert(sizeof(LightFxCommand) == 32);
+    static_assert(offsetof(LightFxCommand, destinationX) == 0);
+    static_assert(offsetof(LightFxCommand, destinationY) == 4);
+    static_assert(offsetof(LightFxCommand, width) == 8);
+    static_assert(offsetof(LightFxCommand, height) == 12);
+    static_assert(offsetof(LightFxCommand, sourceOffset) == 16);
+    static_assert(offsetof(LightFxCommand, sourceStride) == 20);
+    static_assert(offsetof(LightFxCommand, type) == 24);
+    static_assert(offsetof(LightFxCommand, intensity) == 28);
+
+    template<typename ResolvedLight>
+    [[nodiscard]] constexpr LightFxCommand MakeLightFxCommand(const ResolvedLight& light) noexcept
+    {
+        return {
+            .destinationX = light.destinationX,
+            .destinationY = light.destinationY,
+            .width = light.width,
+            .height = light.height,
+            .sourceOffset = light.sourceOffset,
+            .sourceStride = light.sourceStride,
+            .type = light.type,
+            .intensity = light.intensity,
+        };
+    }
+
+    // Keep the local sizes synchronized with lightfx_accumulate.comp.
+    constexpr uint32_t kLightFxComputeLocalSizeX = 16;
+    constexpr uint32_t kLightFxComputeLocalSizeY = 16;
+    constexpr uint32_t kMaximumLightFxCommandCount = 15999;
+
+    [[nodiscard]] constexpr bool AreLightFxComputeLimitsSufficient(
+        uint32_t maxInvocations, uint32_t maxSizeX, uint32_t maxSizeY, uint32_t maxGroupCountZ) noexcept
+    {
+        return maxInvocations >= kLightFxComputeLocalSizeX * kLightFxComputeLocalSizeY
+            && maxSizeX >= kLightFxComputeLocalSizeX && maxSizeY >= kLightFxComputeLocalSizeY
+            && maxGroupCountZ >= kMaximumLightFxCommandCount;
+    }
+
+    [[nodiscard]] constexpr uint32_t GetLightFxTextureSize(uint32_t type) noexcept
+    {
+        if (type < 4 || type > 11)
+        {
+            return 0;
+        }
+        return 32u << ((type - 4u) & 3u);
+    }
+
+    [[nodiscard]] constexpr uint32_t GetLightFxContribution(uint32_t falloff, uint32_t intensity) noexcept
+    {
+        return intensity == 255 ? falloff : (falloff * (1 + intensity)) >> 8;
+    }
+
+    [[nodiscard]] constexpr bool IsValidLightFxCommand(
+        const LightFxCommand& command, uint32_t canvasWidth, uint32_t canvasHeight) noexcept
+    {
+        const uint32_t textureSize = GetLightFxTextureSize(command.type);
+        if (textureSize == 0 || command.intensity > 255 || command.destinationX < 0 || command.destinationY < 0
+            || command.width == 0 || command.height == 0 || command.sourceStride < command.width)
+        {
+            return false;
+        }
+        const auto destinationX = static_cast<uint32_t>(command.destinationX);
+        const auto destinationY = static_cast<uint32_t>(command.destinationY);
+        if (destinationX > canvasWidth || command.width > canvasWidth - destinationX || destinationY > canvasHeight
+            || command.height > canvasHeight - destinationY)
+        {
+            return false;
+        }
+        const uint64_t finalSource = static_cast<uint64_t>(command.sourceOffset)
+            + static_cast<uint64_t>(command.height - 1) * command.sourceStride + command.width;
+        return finalSource <= static_cast<uint64_t>(textureSize) * textureSize;
+    }
+
+    struct LightFxFrameSnapshot
+    {
+        uint32_t width = 0;
+        uint32_t height = 0;
+        std::array<std::byte, 256 * 4> lightPalette{};
+        std::vector<std::byte> intensities;
+        std::vector<LightFxCommand> lights;
+
+        [[nodiscard]] bool IsValid() const noexcept
+        {
+            if (width == 0 || height == 0 || width > std::numeric_limits<size_t>::max() / height
+                || (!intensities.empty() && intensities.size() != static_cast<size_t>(width) * height))
+            {
+                return false;
+            }
+            return std::all_of(lights.begin(), lights.end(), [this](const auto& light) {
+                return IsValidLightFxCommand(light, width, height);
+            });
+        }
+
+        [[nodiscard]] bool HasCpuIntensity() const noexcept
+        {
+            return !intensities.empty();
+        }
+    };
 
     [[nodiscard]] constexpr bool InclusiveRectIntersectsClip(const Int4& bounds, const Int4& clip) noexcept
     {
@@ -265,8 +385,9 @@ namespace OpenRCT2::Ui::Gpu
         CommandBatch<RectCommand> opaqueRects;
         CommandBatch<RectCommand> transparentRects;
         CommandBatch<WeatherCommand> weather;
-        CommandBatch<TextureUpload> textureUploads;
+        std::vector<TextureUpload> textureUploads;
         std::optional<CanvasUpload> canvasUpload;
+        std::optional<LightFxFrameSnapshot> lightFx;
 
         void clear() noexcept // NOLINT(readability-identifier-naming)
         {
@@ -276,6 +397,13 @@ namespace OpenRCT2::Ui::Gpu
             weather.clear();
             textureUploads.clear();
             canvasUpload.reset();
+            if (lightFx.has_value())
+            {
+                lightFx->width = 0;
+                lightFx->height = 0;
+                lightFx->intensities.clear();
+                lightFx->lights.clear();
+            }
         }
 
         void reserveForParkView()

@@ -230,6 +230,14 @@ namespace OpenRCT2
                 accumulator.transportDecoration = 0;
                 accumulator.transportDistance = 0;
             }
+            if (version >= kTransportShelterExposureVersion)
+            {
+                cs.readWrite(accumulator.transportShelteredDistance);
+            }
+            else if (cs.getMode() == OrcaStream::Mode::reading)
+            {
+                accumulator.transportShelteredDistance = 0;
+            }
             if (version >= kRideRatingLegsVersion)
             {
                 cs.readWrite(accumulator.sampledDistance);

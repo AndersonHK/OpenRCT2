@@ -12,7 +12,6 @@
 #ifdef ENABLE_VULKAN
 
     #include <vulkan/vulkan.h>
-    #include <SDL_vulkan.h>
 
     #include <array>
     #include <cstddef>
@@ -28,6 +27,65 @@ namespace OpenRCT2::Ui::Vulkan
 {
     constexpr uint32_t kFramesInFlight = 3;
     constexpr VkDeviceSize kDefaultUploadRingSize = 32 * 1024 * 1024;
+
+    enum class GpuTimestampPoint : uint32_t
+    {
+        frameStart,
+        uploadsComplete,
+        indexedDrawComplete,
+        lightFxComplete,
+        frameComplete,
+        count,
+    };
+
+    constexpr size_t kGpuTimestampCount = static_cast<size_t>(GpuTimestampPoint::count);
+
+    struct GpuTimestampDurations
+    {
+        double totalMicroseconds = 0.0;
+        double uploadMicroseconds = 0.0;
+        double drawMicroseconds = 0.0;
+        double lightFxMicroseconds = 0.0;
+        double compositeMicroseconds = 0.0;
+    };
+
+    [[nodiscard]] constexpr uint64_t CalculateGpuTimestampDelta(
+        uint64_t start, uint64_t end, uint32_t validBits) noexcept
+    {
+        if (validBits == 0)
+        {
+            return 0;
+        }
+        if (validBits >= 64)
+        {
+            return end - start;
+        }
+        return (end - start) & ((uint64_t{ 1 } << validBits) - 1);
+    }
+
+    [[nodiscard]] inline std::optional<GpuTimestampDurations> CalculateGpuTimestampDurations(
+        const std::array<uint64_t, kGpuTimestampCount>& timestamps, uint32_t validBits,
+        double timestampPeriodNanoseconds) noexcept
+    {
+        if (validBits == 0 || !(timestampPeriodNanoseconds > 0.0))
+        {
+            return std::nullopt;
+        }
+        const auto duration = [&](GpuTimestampPoint start, GpuTimestampPoint end) {
+            const auto startIndex = static_cast<size_t>(start);
+            const auto endIndex = static_cast<size_t>(end);
+            return static_cast<double>(CalculateGpuTimestampDelta(
+                       timestamps[startIndex], timestamps[endIndex], validBits))
+                * timestampPeriodNanoseconds / 1000.0;
+        };
+        return GpuTimestampDurations{
+            .totalMicroseconds = duration(GpuTimestampPoint::frameStart, GpuTimestampPoint::frameComplete),
+            .uploadMicroseconds = duration(GpuTimestampPoint::frameStart, GpuTimestampPoint::uploadsComplete),
+            .drawMicroseconds = duration(GpuTimestampPoint::uploadsComplete, GpuTimestampPoint::indexedDrawComplete),
+            .lightFxMicroseconds = duration(GpuTimestampPoint::indexedDrawComplete, GpuTimestampPoint::lightFxComplete),
+            .compositeMicroseconds = duration(GpuTimestampPoint::lightFxComplete, GpuTimestampPoint::frameComplete),
+        };
+    }
 
     struct UploadAllocation
     {
@@ -120,6 +178,9 @@ namespace OpenRCT2::Ui::Vulkan
             VkSemaphore imageAvailable = VK_NULL_HANDLE;
             VkSemaphore renderFinished = VK_NULL_HANDLE;
             VkFence available = VK_NULL_HANDLE;
+            VkQueryPool timestampQueryPool = VK_NULL_HANDLE;
+            bool timestampPending = false;
+            std::optional<GpuTimestampDurations> completedGpuTimings;
             UploadRing upload;
         };
 
@@ -127,9 +188,15 @@ namespace OpenRCT2::Ui::Vulkan
         bool _loaderLoaded = false;
         bool _vsync = true;
         bool _preferHdr10 = false;
+        float _hdrPaperWhiteNits = 203.0f;
         bool _hdr10Available = false;
         bool _hdr10Active = false;
+        bool _hdrMetadataAvailable = false;
         bool _swapchainInvalid = false;
+        VkExtent2D _drawableExtent{};
+#ifdef VK_EXT_HDR_METADATA_EXTENSION_NAME
+        PFN_vkSetHdrMetadataEXT _setHdrMetadata = nullptr;
+#endif
 
         VkInstance _instance = VK_NULL_HANDLE;
         VkSurfaceKHR _surface = VK_NULL_HANDLE;
@@ -150,6 +217,9 @@ namespace OpenRCT2::Ui::Vulkan
         uint32_t _currentFrame = 0;
         uint64_t _swapchainGeneration = 0;
         VkDeviceSize _uploadRingCapacity = kDefaultUploadRingSize;
+        uint32_t _timestampValidBits = 0;
+        double _timestampPeriodNanoseconds = 0.0;
+        bool _gpuTimestampsSupported = false;
         mutable std::recursive_mutex _hostMutex;
 
     public:
@@ -160,15 +230,28 @@ namespace OpenRCT2::Ui::Vulkan
         Device& operator=(const Device&) = delete;
 
         void Initialise(
-            SDL_Window* window, bool vsync, VkDeviceSize uploadRingCapacity = kDefaultUploadRingSize,
-            bool preferHdr10 = false);
+            SDL_Window* window, VkExtent2D drawableExtent, bool vsync, VkDeviceSize uploadRingCapacity = kDefaultUploadRingSize,
+            bool preferHdr10 = false, float hdrPaperWhiteNits = 203.0f);
         void Dispose();
         void WaitIdle() const;
 
         void SetVSync(bool enabled);
+        void SetDrawableExtent(VkExtent2D drawableExtent) noexcept;
         void RequestSwapchainRecreate() noexcept;
-        [[nodiscard]] std::optional<FrameToken> BeginFrame();
-        void EndFrame(const FrameToken& frame);
+        [[nodiscard]] bool IsSwapchainInvalid() const noexcept
+        {
+            return _swapchainInvalid;
+        }
+        bool RecreateSwapchain();
+        [[nodiscard]] std::optional<FrameToken> BeginFrame(bool waitForAvailability);
+        [[nodiscard]] double EndFrame(const FrameToken& frame);
+        void AbandonFrame(const FrameToken& frame);
+        void RecordGpuTimestamp(const FrameToken& frame, GpuTimestampPoint point) const;
+        [[nodiscard]] std::optional<GpuTimestampDurations> TakeCompletedGpuTimings(uint32_t frameIndex);
+        [[nodiscard]] bool SupportsGpuTimestamps() const noexcept
+        {
+            return _gpuTimestampsSupported;
+        }
 
         [[nodiscard]] VkPhysicalDevice GetPhysicalDevice() const noexcept
         {
@@ -194,6 +277,10 @@ namespace OpenRCT2::Ui::Vulkan
         {
             return _hdr10Active;
         }
+        [[nodiscard]] bool IsHdrMetadataAvailable() const noexcept
+        {
+            return _hdrMetadataAvailable;
+        }
         [[nodiscard]] VkExtent2D GetSwapchainExtent() const noexcept
         {
             return _swapchainExtent;
@@ -213,6 +300,9 @@ namespace OpenRCT2::Ui::Vulkan
         [[nodiscard]] bool IsFrameComplete(uint32_t frameIndex) const;
         void WaitForFrame(uint32_t frameIndex) const;
         void InvalidateUpload(uint32_t frameIndex, VkDeviceSize offset, VkDeviceSize size);
+        void ReadbackImage(
+            uint32_t frameIndex, VkImage image, VkImageLayout layout, VkExtent2D extent,
+            std::span<std::byte> destination);
 
     private:
         void CreateInstance();
@@ -220,9 +310,10 @@ namespace OpenRCT2::Ui::Vulkan
         void SelectPhysicalDevice();
         void CreateLogicalDevice();
         void CreateCommandResources();
-        void CreateSwapchain();
+        [[nodiscard]] bool CreateSwapchain();
         void DestroySwapchain();
-        bool RecreateSwapchain();
+        void PublishHdrMetadata() const noexcept;
+        void HarvestGpuTimestamps(FrameResources& frame);
 
         [[nodiscard]] QueueFamilies FindQueueFamilies(VkPhysicalDevice device) const;
         [[nodiscard]] SwapchainSupport QuerySwapchainSupport(VkPhysicalDevice device) const;
@@ -232,7 +323,6 @@ namespace OpenRCT2::Ui::Vulkan
         [[nodiscard]] std::vector<const char*> GetInstanceExtensions() const;
         [[nodiscard]] std::vector<const char*> GetDeviceExtensions(VkPhysicalDevice device) const;
 
-        [[nodiscard]] VkSurfaceFormatKHR ChooseSurfaceFormat(std::span<const VkSurfaceFormatKHR> formats);
         [[nodiscard]] VkPresentModeKHR ChoosePresentMode(std::span<const VkPresentModeKHR> modes) const;
         [[nodiscard]] VkExtent2D ChooseExtent(const VkSurfaceCapabilitiesKHR& capabilities) const;
     };

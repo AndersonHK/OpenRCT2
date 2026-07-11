@@ -148,6 +148,15 @@ void MarketingSetGuestCampaign(Guest* peep, int32_t campaignType)
     if (campaign == nullptr)
         return;
 
+    if (campaign->type == ADVERTISING_CAMPAIGN_RIDE_FREE || campaign->type == ADVERTISING_CAMPAIGN_RIDE)
+    {
+        const auto* ride = GetRide(campaign->rideId);
+        if (ride == nullptr || !MarketingIsRideCampaignEligible(*ride))
+        {
+            return;
+        }
+    }
+
     switch (campaign->type)
     {
         case ADVERTISING_CAMPAIGN_PARK_ENTRY_FREE:
@@ -179,6 +188,19 @@ void MarketingSetGuestCampaign(Guest* peep, int32_t campaignType)
     }
 }
 
+bool MarketingIsRideCampaignEligible(const Ride& ride)
+{
+    if (!ride.isRide() || ride.status != RideStatus::open)
+    {
+        return false;
+    }
+
+    const auto& rtd = ride.getRideTypeDescriptor();
+    return !rtd.flags.hasAny(
+               RtdFlag::isTransportRide, RtdFlag::isShopOrFacility, RtdFlag::sellsFood, RtdFlag::sellsDrinks)
+        && rtd.specialType != RtdSpecialType::toilet;
+}
+
 bool MarketingIsCampaignTypeApplicable(int32_t campaignType)
 {
     auto& gameState = getGameState();
@@ -201,7 +223,7 @@ bool MarketingIsCampaignTypeApplicable(int32_t campaignType)
             // Check if any rides exist and are open
             for (auto& ride : RideManager(gameState))
             {
-                if (ride.isRide() && ride.status == RideStatus::open)
+                if (MarketingIsRideCampaignEligible(ride))
                 {
                     return true;
                 }

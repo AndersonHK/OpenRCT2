@@ -24,6 +24,7 @@ namespace OpenRCT2::MapTopology
         struct TopologyGenerationState
         {
             std::atomic<Generation> epoch{ 1 };
+            std::atomic<Generation> pathConnectivityEpoch{ 1 };
             std::array<std::atomic<Generation>, kTotalChunks> chunks{};
 
             TopologyGenerationState() noexcept
@@ -70,11 +71,43 @@ namespace OpenRCT2::MapTopology
             }
             return generation;
         }
+
+        void InvalidateTileAndNeighbours(const TileCoordsXY& tile, bool affectsPathConnectivity) noexcept
+        {
+            if (!IsValidTile(tile))
+                return;
+
+            const auto generation = NextGeneration();
+            if (affectsPathConnectivity)
+            {
+                _state.pathConnectivityEpoch.store(generation, std::memory_order_release);
+            }
+
+            const auto chunkX = tile.x / kChunkSize;
+            const auto chunkY = tile.y / kChunkSize;
+            StoreChunk(chunkX, chunkY, generation);
+
+            const auto localX = tile.x % kChunkSize;
+            const auto localY = tile.y % kChunkSize;
+            if (localX == 0)
+                StoreChunk(chunkX - 1, chunkY, generation);
+            if (localX == kChunkSize - 1)
+                StoreChunk(chunkX + 1, chunkY, generation);
+            if (localY == 0)
+                StoreChunk(chunkX, chunkY - 1, generation);
+            if (localY == kChunkSize - 1)
+                StoreChunk(chunkX, chunkY + 1, generation);
+        }
     } // namespace
 
     Generation GetEpoch() noexcept
     {
         return _state.epoch.load(std::memory_order_acquire);
+    }
+
+    Generation GetPathConnectivityEpoch() noexcept
+    {
+        return _state.pathConnectivityEpoch.load(std::memory_order_acquire);
     }
 
     Generation GetChunkGeneration(const TileCoordsXY& tile) noexcept
@@ -98,6 +131,7 @@ namespace OpenRCT2::MapTopology
     void Reset() noexcept
     {
         const auto generation = NextGeneration();
+        _state.pathConnectivityEpoch.store(generation, std::memory_order_release);
         for (auto& chunk : _state.chunks)
         {
             chunk.store(generation, std::memory_order_release);
@@ -107,24 +141,7 @@ namespace OpenRCT2::MapTopology
 
     void InvalidateTileAndNeighbours(const TileCoordsXY& tile) noexcept
     {
-        if (!IsValidTile(tile))
-            return;
-
-        const auto generation = NextGeneration();
-        const auto chunkX = tile.x / kChunkSize;
-        const auto chunkY = tile.y / kChunkSize;
-        StoreChunk(chunkX, chunkY, generation);
-
-        const auto localX = tile.x % kChunkSize;
-        const auto localY = tile.y % kChunkSize;
-        if (localX == 0)
-            StoreChunk(chunkX - 1, chunkY, generation);
-        if (localX == kChunkSize - 1)
-            StoreChunk(chunkX + 1, chunkY, generation);
-        if (localY == 0)
-            StoreChunk(chunkX, chunkY - 1, generation);
-        if (localY == kChunkSize - 1)
-            StoreChunk(chunkX, chunkY + 1, generation);
+        InvalidateTileAndNeighbours(tile, true);
     }
 
     void InvalidateTileAndNeighbours(const CoordsXY& coords) noexcept
@@ -133,5 +150,13 @@ namespace OpenRCT2::MapTopology
             return;
 
         InvalidateTileAndNeighbours(TileCoordsXY(coords));
+    }
+
+    void InvalidatePathWideTileAndNeighbours(const CoordsXY& coords) noexcept
+    {
+        if (!IsValidCoords(coords))
+            return;
+
+        InvalidateTileAndNeighbours(TileCoordsXY(coords), false);
     }
 } // namespace OpenRCT2::MapTopology

@@ -47,7 +47,9 @@ namespace OpenRCT2::Ui::Vulkan
         {
             int32_t encoding;
             float paperWhiteNits;
+            int32_t lightFxEnabled;
         };
+        static_assert(sizeof(OutputConstants) == 12);
     } // namespace
 
     PalettePipeline::~PalettePipeline()
@@ -135,19 +137,33 @@ namespace OpenRCT2::Ui::Vulkan
         CreateFramebuffers(device.GetSwapchainImageViews());
     }
 
+    void PalettePipeline::ReleaseSwapchainResources()
+    {
+        DestroySwapchainResources();
+    }
+
     void PalettePipeline::RefreshDescriptors(const IndexedResources& resources)
     {
-        const VkDescriptorImageInfo paletteInfo = {
-            .sampler = resources.GetNearestSampler(),
-            .imageView = resources.GetPalette().GetView(),
-            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        };
-
         for (uint32_t i = 0; i < kFramesInFlight; i++)
         {
+            const VkDescriptorImageInfo paletteInfo = {
+                .sampler = resources.GetNearestSampler(),
+                .imageView = resources.GetPalette(i).GetView(),
+                .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            };
             const VkDescriptorImageInfo canvasInfo = {
                 .sampler = resources.GetNearestSampler(),
                 .imageView = resources.GetIndexedCanvas(i).GetView(),
+                .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            };
+            const VkDescriptorImageInfo lightMapInfo = {
+                .sampler = resources.GetNearestSampler(),
+                .imageView = resources.GetLightMap(i).GetView(),
+                .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            };
+            const VkDescriptorImageInfo lightPaletteInfo = {
+                .sampler = resources.GetNearestSampler(),
+                .imageView = resources.GetLightPalette(i).GetView(),
                 .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
             };
             const std::array writes = {
@@ -166,6 +182,22 @@ namespace OpenRCT2::Ui::Vulkan
                     .descriptorCount = 1,
                     .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                     .pImageInfo = &paletteInfo,
+                },
+                VkWriteDescriptorSet{
+                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                    .dstSet = _descriptorSets[i],
+                    .dstBinding = 2,
+                    .descriptorCount = 1,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                    .pImageInfo = &lightMapInfo,
+                },
+                VkWriteDescriptorSet{
+                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                    .dstSet = _descriptorSets[i],
+                    .dstBinding = 3,
+                    .descriptorCount = 1,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                    .pImageInfo = &lightPaletteInfo,
                 },
             };
             vkUpdateDescriptorSets(_device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
@@ -194,7 +226,22 @@ namespace OpenRCT2::Ui::Vulkan
         vkUpdateDescriptorSets(_device, 1, &write, 0, nullptr);
     }
 
-    void PalettePipeline::Record(const FrameToken& frame) const
+    void PalettePipeline::SetLightMapSource(uint32_t frameIndex, const Image& lightMap)
+    {
+        if (frameIndex >= kFramesInFlight) throw std::out_of_range("Vulkan LightFX frame index is out of range");
+        const VkDescriptorImageInfo info = { _nearestSampler, lightMap.GetView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
+        const VkWriteDescriptorSet write = {
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstSet = _descriptorSets[frameIndex],
+            .dstBinding = 2,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .pImageInfo = &info,
+        };
+        vkUpdateDescriptorSets(_device, 1, &write, 0, nullptr);
+    }
+
+    void PalettePipeline::Record(const FrameToken& frame, bool lightFxEnabled) const
     {
         if (frame.imageIndex >= _framebuffers.size() || frame.frameIndex >= kFramesInFlight)
         {
@@ -227,7 +274,7 @@ namespace OpenRCT2::Ui::Vulkan
         vkCmdBindDescriptorSets(
             frame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineLayout, 0, 1,
             &_descriptorSets[frame.frameIndex], 0, nullptr);
-        const OutputConstants output = { _outputEncoding, _paperWhiteNits };
+        const OutputConstants output = { _outputEncoding, _paperWhiteNits, lightFxEnabled ? 1 : 0 };
         vkCmdPushConstants(
             frame.commandBuffer, _pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(output), &output);
         vkCmdDraw(frame.commandBuffer, 3, 1, 0, 0);
@@ -249,6 +296,18 @@ namespace OpenRCT2::Ui::Vulkan
                 .descriptorCount = 1,
                 .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
             },
+            VkDescriptorSetLayoutBinding{
+                .binding = 2,
+                .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                .descriptorCount = 1,
+                .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+            },
+            VkDescriptorSetLayoutBinding{
+                .binding = 3,
+                .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                .descriptorCount = 1,
+                .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+            },
         };
         const VkDescriptorSetLayoutCreateInfo layoutInfo = {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
@@ -261,7 +320,7 @@ namespace OpenRCT2::Ui::Vulkan
 
         const VkDescriptorPoolSize poolSize = {
             .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-            .descriptorCount = kFramesInFlight * 2,
+            .descriptorCount = kFramesInFlight * 4,
         };
         const VkDescriptorPoolCreateInfo poolInfo = {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,

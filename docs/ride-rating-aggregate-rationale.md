@@ -102,18 +102,48 @@ small set of origin chunks whose seven-tile context can overlap the changed chun
 one origin-chunk generation instead. This moves bounded work from the per-vehicle path to map mutation and is conservative:
 it can rebuild an unaffected origin near a chunk edge, but it cannot preserve context affected by the changed tile.
 
+The shared exact-key cache also requires map position to influence bucket selection. Its original shift-concatenation hash
+shifted X and Y out of the final 64-bit word, creating progressively longer same-ride/same-height collision chains as new
+track tiles were sampled. Field-by-field multiplication now mixes both coordinates and the remaining key fields without
+changing key equality or the spatial generation stored with each value. A hash collision can still only cause an equality
+check; it cannot return another tile's environment or bypass invalidation.
+
+The shared cache is bounded independently of saved samples. The validated 65,536-set, four-way candidate holds at most
+262,144 environments and measured `412.822` TPS after a 2,000-tick warmup and `314.538` TPS after a 4,000-tick warmup. An
+earlier 16,384-set candidate was rejected because its 65,536-entry limit caused enough replacement churn to regress the hot
+window without improving the late one.
+
+The accepted table therefore remains 65,536 sets and 262,144 maximum entries. Empty ways fill first; a full set uses deterministic
+FIFO replacement. Hits do not alter replacement order. A replaced or generation-stale slot is rebuilt through the same
+local-context scan, while each active accumulator retains its current one-entry environment cache. This caps shared context
+memory and removes node-map rehashing without changing rating results, tick order, or park serialization. A final 131,072-set,
+524,288-entry trial was rejected: it improved the 2,000-warmup result slightly to `415.031` TPS but reduced the 4,000-warmup
+result to `289.782` TPS with matching checksums, showing that its larger fixed footprint harmed late working-set locality.
+
+Capacity is unchanged, but set storage is now structure-of-arrays: a validity mask and FIFO cursor precede four contiguous keys,
+four spatial generations, and four environment payloads. The expected 64-bit set size falls from 360 to 312 bytes, reducing the
+fixed table from about 22.5 MiB to 19.5 MiB; a size guard rejects later layout growth beyond that bound. One four-way probe records
+both an exact-key match and the first invalid way. Store therefore reuses that result instead of scanning the keys again and then
+scanning for an empty slot. At the recorded 19,627 cold builds per 500 ticks, a full-set miss previously visited up to twelve slots
+and can now visit four, avoiding up to 157,016 slot visits. A matching stale-generation way is still overwritten in place, an
+invalid way still fills before replacement, a full miss still advances deterministic FIFO, and a hit still leaves FIFO unchanged.
+Clearing the table invalidates the masks and resets the cursors; inaccessible old keys and payloads have no semantic effect.
+A focused public-behavior test changes nearby scenery without issuing spatial invalidation, confirms the stored value remains in
+use, clears the cache, and then observes the rebuilt value. This covers mask-based clearing without exposing replacement internals.
+
 After that change, the final instrumented run reported `1,082,148` microseconds for the same `582,586` environment calls and
 `159,625` microseconds for `19,627` cold builds. That wall-time variation is not treated as a regression claim: every enabled
 `PROFILED_FUNCTION` scope performs clock reads, atomic sample updates, and thread-local stack bookkeeping, and nested totals
 include that instrumentation. The clean profiler-disabled runs are the acceptance measure; the child scopes are used only to
 identify relative ownership.
 
-The child signature is intentionally hierarchical. `BuildTrainSeatSummary` and `RideRatingTrainHasSampledRiders` run once
-for every eligible sampler entry. `RideRatingAccumulateTrainTick` and `RideRatingTrainIsSynchronised` run only for trains
-that actually carry riders or the formal test sample. `RideRatingResolveActiveVehicleSample` and
-`RideRatingAccumulateVehicleTick` run in stable linked-car order, with force calculation, local-environment resolution, and
-score application exposed below each car. The differences between those call counts identify empty-train rejection and
-trackless-car exits without adding simulation counters or saved state.
+The attribution profile used a deliberately hierarchical child signature: consist/rider checks ran once per eligible head,
+and accumulator lookup, force, environment, and score helpers ran in stable linked-car order. Those counters established the
+empty-train, sampled-train, and per-car call ratios without adding simulation state. After that ratio and environment
+ownership were recorded, the leaf helper scopes were removed from the production hot loop. `PROFILED_FUNCTION` performs an
+acquire load even while disabled and clock, atomic, sample-ring, and thread-local stack work while enabled. The outer live
+sampler and sampled-train scopes remain available; another leaf investigation should use a bounded diagnostic branch rather
+than permanently taxing every rating car and station consist traversal.
 
 The audit did not add a second consist or accumulator cache. Live sampling already builds the consist only once in the
 travelling/departing/arriving status path; the station-dispatch summary belongs to the mutually exclusive
@@ -128,10 +158,49 @@ legs into one journey.
 
 Within a sampled train, immutable descriptor inputs are now derived at their narrowest valid lifetime. Boat-hire and
 transport classification are resolved once per train. Each car resolves its track type and descriptor once; that same
-descriptor feeds G-force curvature and sampled track-feature scoring. Normalized train speed is also computed once per car
-and reused by normal and transport scoring. This removes repeated lookup/arithmetic only: the same ticks are sampled, cars
+descriptor feeds G-force curvature and sampled track-feature scoring. Normalized train speed and the standalone speed tuple
+are computed once per train and reused by every car. This removes repeated square roots and lookup/arithmetic only: the same ticks are sampled, cars
 are visited in the same order, longitudinal G still uses each accumulator's immediately previous sampled train velocity,
 the local-context cache remains accumulator-owned, and all integer score formulas and publication order are unchanged.
+
+Longitudinal G now also has a one-train-call memo for the pure calculation. Its key is the exact previous train velocity read
+from the current car's accumulator; the current velocity is fixed by the enclosing train sample. Cars with the same history
+reuse the value, while a first-history car still skips the calculation and a divergent history recomputes it before that car's
+accumulator is updated exactly where it was before. The recorded 582,586 car accumulations and at most 279,531 train-head calls
+put the fully warm duplicate opportunity at roughly 303,055 or more calculations per 500 ticks, subject to first-history and
+divergent samples. Independent per-car history, force totals, car order, and publication semantics remain unchanged.
+
+Speed-dependent G-force coupling is prepared at the same train lifetime. A fresh deep-window profile contains 191,241 sampled-
+train accumulations inside 248,335 live-sample calls; the per-car leaf count is intentionally unavailable because those diagnostic
+scopes were removed. The older attribution capture's 582,586 per-car calls is not combined arithmetically with the fresh count.
+Normalized speed and the coupling numerator use only the shared train speed and immutable sampled-rating profile, so they are
+computed once and passed through stable car order. Raw force scores remain per car, and the prepared application retains the
+original component-by-component multiply/divide order. The direct pure API delegates through the same preparation path; tests pin
+the numerator at half, baseline, double, stopped, and clamped inputs and compare prepared and direct score tuples.
+
+Each sampled train also owns one transient G-force score memo. Because its profile and speed context are fixed at construction,
+the lookup compares only the car's finalized vertical, lateral, and longitudinal integers. The longitudinal value is read after
+the independent accumulator-history correction, so differently signed or divergent histories cannot alias. Exact hits reuse the
+pure `TickScore`; misses execute the established curve, coefficient, and coupling operations and replace the entry. This state is
+stack-local, consumes no RNG, and never crosses a train call or publication boundary. Tests compare repeated neutral hits, positive
+and negative longitudinal misses, a severe-force edge, and return to the evicted neutral tuple against direct scoring.
+
+Each accumulator's one-entry environment cache also prepares its local-context score through the profile-coefficient division once
+per exact environment, scoring mode, and profile. The prepared tuple is stored immediately before speed scaling: every sampled tick
+still multiplies and divides each component by that tick's normalized speed in the original order. Consequently a speed-only change
+reuses the base without moving an integer-rounding boundary. Installing a different cold-built or shared-cache environment invalidates
+the base; unchanged spatial generation preserves it. Tracked and boat-hire scoring cannot alias, and the original profile coefficient
+is the key even though the scorer clamps it. Explicit accumulator clear invalidates both layers. This is transient runtime state only;
+saved totals, transport-quality accumulation, car order, and sample publication are unchanged. Focused tests compare cached and direct
+tuples across speed, mode, coefficient, clear, shared expansion, and nearby-map invalidation.
+
+The shared table also omits four redundant `LocalContextScore` aggregates from its payload. Excitement, intensity, nausea, and
+`verticalInteraction` are finalized from scenery, path, foreign-track, bridge, near-miss, loop, vertical-track, own-track, and
+height-exposure components. Cold construction and shared-hit expansion call the same finalizer, while accumulator-owned runtime
+caches retain the complete public environment. This changes the expected payload from 56 to 40 bytes and a four-way set from
+312 to 248 bytes, reducing the accepted-capacity table from 19.5 MiB to 15.5 MiB. Capacity, FNV bucket choice, full-key equality,
+origin generation, validity masks, and deterministic FIFO are untouched. A second independent runtime cache in the focused test
+forces shared expansion and compares the complete reconstructed score plus shelter with the cold result.
 
 ## Multi-station leg ownership
 
@@ -147,6 +216,12 @@ Completed histories are sparse and sorted by the ordered `(origin, destination)`
 twenty-sample rolling history and a finalized excitement/intensity/nausea tuple. Opposite shuttle directions and a middle
 station with two physical successors therefore remain independent instead of replacing or blending one another. Single-station rides continue to use only
 the existing ride-wide history, so their rating path and fixtures do not allocate or consult leg state.
+
+Materializing a measured transport edge now averages that edge's rolling history once and derives distance/time/speed,
+distance-weighted sheltered exposure, and comfort/decoration from the same immutable accumulator. Previously those consumers each traversed the same twenty-sample
+ring, so transport-service freshness validation and a following dirty-service rebuild repeated the aggregation twice per edge.
+All measurement conversions, distance-weighted quality divisions, clamping, fare rounding, fallback behavior, directed-edge
+order, and journey composition remain unchanged. This adds no stored cache or invalidation lifetime and does not affect park files.
 
 The Measurements page selects an explicit `Station A to B` edge. Its finalized ratings, maximum and average speed, and
 vertical/lateral/longitudinal G extrema use the same white-label/black-value rows as ordinary ride measurements. Ride length
@@ -183,7 +258,8 @@ Measurements page does not present it as another experienced trip. Guest admissi
 the selected boarding station's leg tuple when it exists and fall back to the compatibility tuple only before that leg has
 measurements.
 
-Park format `60015` stores origin/destination indices on active accumulators and the sparse completed leg histories. Older
+Park format `60015` stores origin/destination indices on active accumulators and the sparse completed leg histories. Format
+`60016` adds distance-weighted sheltered exposure so rain routing can rank the selected journey rather than a ride-wide proxy. Older
 saves load with no leg histories and retain their existing ride-wide tuple until new physical legs are observed. Older-target
 exports omit the new fields and histories directly in the serializer; no live accumulator or history is cleared or rewritten
 to create the export. Because an older reader cannot distinguish adjacent legs, that export writes empty active/recent sample

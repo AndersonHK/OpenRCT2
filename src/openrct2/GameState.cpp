@@ -124,9 +124,15 @@ namespace OpenRCT2
             }
         }
 
-        Network::Update();
+        auto networkMode = Network::GetMode();
+        const bool isNetworked = networkMode != Network::Mode::none;
+        if (isNetworked)
+        {
+            Network::Update();
+            networkMode = Network::GetMode();
+        }
 
-        if (Network::GetMode() == Network::Mode::client && Network::GetStatus() == Network::Status::connected
+        if (networkMode == Network::Mode::client && Network::GetStatus() == Network::Status::connected
             && Network::GetAuthstatus() == Network::Auth::ok)
         {
             numUpdates = std::clamp<uint32_t>(Network::GetServerTick() - getGameState().currentTicks, 0, 10);
@@ -137,24 +143,24 @@ namespace OpenRCT2
             if (gGameSpeed > 1)
             {
                 // Update more often if game speed is above normal.
-                numUpdates = 1 << (gGameSpeed - 1);
+                numUpdates = 1u << (gGameSpeed - 1);
             }
         }
 
         bool isPaused = GameIsPaused();
-        if (Network::GetMode() == Network::Mode::server && Config::Get().network.pauseServerIfNoClients)
+        if (networkMode == Network::Mode::server && Config::Get().network.pauseServerIfNoClients)
         {
             // If we are headless we always have 1 player (host), pause if no one else is around.
             if (gOpenRCT2Headless && Network::GetNumPlayers() == 1)
             {
-                isPaused |= true;
+                isPaused = true;
             }
         }
 
         bool didRunSingleFrame = false;
         if (isPaused)
         {
-            if (gDoSingleUpdate && Network::GetMode() == Network::Mode::none)
+            if (gDoSingleUpdate && networkMode == Network::Mode::none)
             {
                 didRunSingleFrame = true;
                 PauseToggle();
@@ -166,7 +172,7 @@ namespace OpenRCT2
                 // If the game is paused it will not call UpdateLogic at all.
                 numUpdates = 0;
 
-                if (Network::GetMode() == Network::Mode::server)
+                if (networkMode == Network::Mode::server)
                 {
                     // Make sure the client always knows about what tick the host is on.
                     Network::SendTick();
@@ -177,7 +183,10 @@ namespace OpenRCT2
                 gameState.entities.UpdateMoneyEffect();
 
                 // Post-tick network update
-                Network::PostTick();
+                if (isNetworked)
+                {
+                    Network::PostTick();
+                }
 
                 // Post-tick game actions.
                 GameActions::ProcessQueue(gameState);
@@ -185,16 +194,27 @@ namespace OpenRCT2
             }
         }
 
-        // Network has to always tick.
-        if (numUpdates == 0)
+        // A connected network has to tick even when simulation updates are paused.
+        if (isNetworked && numUpdates == 0)
         {
             Network::Tick();
         }
 
-        // Update the game one or more times
+        // Update the game one or more times. Audio is wall-clock presentation work, so a fast-forward batch samples only its
+        // final logical state instead of rescanning vehicles and visible guests after every intermediate state.
+        const auto batchStartSpeed = gGameSpeed;
+        bool didUpdatePresentationAudio = false;
         for (uint32_t i = 0; i < numUpdates; i++)
         {
-            gameStateUpdateLogic();
+            const bool updatePresentationAudio = i + 1 == numUpdates;
+            gameStateUpdateLogic(updatePresentationAudio);
+            didUpdatePresentationAudio |= updatePresentationAudio;
+            // Speed actions execute from the end-of-tick action queue. Do not finish a batch sized for the previous speed;
+            // return to the outer loop so messages, input, and the new cadence take effect immediately.
+            if (!isNetworked && gGameSpeed != batchStartSpeed)
+            {
+                break;
+            }
             if (gGameSpeed == 1)
             {
                 if (InputGetState() == InputState::reset || InputGetState() == InputState::normal)
@@ -216,7 +236,18 @@ namespace OpenRCT2
                 break;
         }
 
-        Network::Flush();
+        // Input, a pause action, or an offline speed change can end a batch before its planned final update.
+        if (numUpdates != 0 && !didUpdatePresentationAudio)
+        {
+            VehicleSoundsUpdate();
+            PeepUpdateCrowdNoise();
+            Weather::updateSound();
+        }
+
+        if (isNetworked)
+        {
+            Network::Flush();
+        }
 
         if (!gOpenRCT2Headless)
         {
@@ -249,7 +280,7 @@ namespace OpenRCT2
         snapshots->LinkSnapshot(snapshot, getGameState().currentTicks, ScenarioRandState().s0);
     }
 
-    void gameStateUpdateLogic()
+    void gameStateUpdateLogic(bool updatePresentationAudio)
     {
         PROFILED_FUNCTION();
 
@@ -261,11 +292,16 @@ namespace OpenRCT2
 
         GetContext()->GetReplayManager()->Update();
 
-        Network::Tick();
+        const bool isNetworked = Network::GetMode() != Network::Mode::none;
+        if (isNetworked)
+        {
+            Network::Tick();
+        }
 
         auto& gameState = getGameState();
 
-        if (Network::GetMode() == Network::Mode::server)
+        const auto networkMode = isNetworked ? Network::GetMode() : Network::Mode::none;
+        if (networkMode == Network::Mode::server)
         {
             if (Network::GamestateSnapshotsEnabled())
             {
@@ -275,7 +311,7 @@ namespace OpenRCT2
             // Send current tick out.
             Network::SendTick();
         }
-        else if (Network::GetMode() == Network::Mode::client)
+        else if (networkMode == Network::Mode::client)
         {
             // Don't run past the server, this condition can happen during map changes.
             if (Network::GetServerTick() == gameState.currentTicks)
@@ -337,10 +373,12 @@ namespace OpenRCT2
         News::UpdateCurrentItem();
 
         MapAnimations::InvalidateAndUpdateAll();
-        VehicleSoundsUpdate();
-        PeepUpdateCrowdNoise();
-        Weather::updateSound();
-
+        if (updatePresentationAudio)
+        {
+            VehicleSoundsUpdate();
+            PeepUpdateCrowdNoise();
+            Weather::updateSound();
+        }
         EditorScene::OpenWindowsForCurrentStep();
 
         // Update windows
@@ -356,8 +394,11 @@ namespace OpenRCT2
 
         GameActions::ProcessQueue(gameState);
 
-        Network::PostTick();
-        Network::Flush();
+        if (isNetworked)
+        {
+            Network::PostTick();
+            Network::Flush();
+        }
 
         gameState.currentTicks++;
         gTotalSimulationTicks++;

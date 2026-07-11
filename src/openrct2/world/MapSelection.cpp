@@ -52,7 +52,7 @@ namespace OpenRCT2::MapSelection
     {
         for (const CoordsXY& coords : _mapSelectionTiles)
         {
-            MapInvalidateTileFull(coords);
+            MapInvalidateTileForRendering({ coords, 0, 2080 });
         }
         _mapSelectionTiles.clear();
         _mapSelectionTilesInvalidate = false;
@@ -93,20 +93,20 @@ namespace OpenRCT2::MapSelection
 
         if (!_previousMapSelectFlags.has(MapSelectFlag::enableArrow) && gMapSelectFlags.has(MapSelectFlag::enableArrow))
         {
-            MapInvalidateTile({ gMapSelectArrowPosition, gMapSelectArrowPosition.z });
+            MapInvalidateTileForRendering({ gMapSelectArrowPosition, gMapSelectArrowPosition.z });
         }
         else if (_previousMapSelectFlags.has(MapSelectFlag::enableArrow) && !gMapSelectFlags.has(MapSelectFlag::enableArrow))
         {
-            MapInvalidateTile({ _previousMapSelectArrowPosition, _previousMapSelectArrowPosition.z });
+            MapInvalidateTileForRendering({ _previousMapSelectArrowPosition, _previousMapSelectArrowPosition.z });
         }
         else if (gMapSelectFlags.has(MapSelectFlag::enableArrow) && _previousMapSelectArrowPosition != gMapSelectArrowPosition)
         {
-            MapInvalidateTile({ _previousMapSelectArrowPosition, _previousMapSelectArrowPosition.z });
-            MapInvalidateTile({ gMapSelectArrowPosition, gMapSelectArrowPosition.z });
+            MapInvalidateTileForRendering({ _previousMapSelectArrowPosition, _previousMapSelectArrowPosition.z });
+            MapInvalidateTileForRendering({ gMapSelectArrowPosition, gMapSelectArrowPosition.z });
         }
         else if (_previousMapSelectArrowDirection != gMapSelectArrowDirection)
         {
-            MapInvalidateTile({ gMapSelectArrowPosition, gMapSelectArrowPosition.z });
+            MapInvalidateTileForRendering({ gMapSelectArrowPosition, gMapSelectArrowPosition.z });
         }
 
         if (_previousMapSelectFlags.has(MapSelectFlag::enableConstruct) != gMapSelectFlags.has(MapSelectFlag::enableConstruct)
@@ -114,7 +114,7 @@ namespace OpenRCT2::MapSelection
         {
             for (const CoordsXY& coords : _mapSelectionTiles)
             {
-                MapInvalidateTileFull(coords);
+                MapInvalidateTileForRendering({ coords, 0, 2080 });
             }
             _mapSelectionTilesInvalidate = false;
         }

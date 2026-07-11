@@ -13,6 +13,7 @@
 
     #include "VulkanDevice.h"
     #include "VulkanLinePipeline.h"
+    #include "VulkanLightFxPipeline.h"
     #include "VulkanPalettePipeline.h"
     #include "VulkanRectPipeline.h"
     #include "VulkanResources.h"
@@ -22,6 +23,7 @@
     #include "../gpu/GpuBackend.h"
 
     #include <array>
+    #include <cstddef>
     #include <memory>
     #include <mutex>
     #include <optional>
@@ -47,19 +49,32 @@ namespace OpenRCT2::Ui::Vulkan
         RectPipeline _rectPipeline;
         TransparencyPipeline _transparencyPipeline;
         WeatherPipeline _weatherPipeline;
+        LightFxPipeline _lightFxPipeline;
         PalettePipeline _palettePipeline;
         std::optional<FrameToken> _activeToken;
         std::optional<Gpu::FrameHandle> _activeFrame;
         std::optional<Gpu::FrameTimings> _latestTimings;
+        static constexpr size_t kCompletedTimingCapacity = 256;
+        std::array<Gpu::FrameTimings, kCompletedTimingCapacity> _completedTimings{};
+        size_t _completedTimingStart = 0;
+        size_t _completedTimingCount = 0;
+        std::array<std::optional<Gpu::FrameTimings>, kFramesInFlight> _frameTimings;
+        mutable std::mutex _timingsMutex;
         std::array<std::byte, 256 * 4> _pendingPalette{};
         std::array<std::byte, 256 * 256> _pendingRemapPalette{};
         std::array<std::byte, 256 * 256> _pendingBlendPalette{};
-        bool _paletteDirty = true;
+        std::vector<std::byte> _pendingLightFalloffs;
+        uint64_t _paletteVersion = 1;
+        std::array<uint64_t, kFramesInFlight> _framePaletteVersions{};
         bool _remapPaletteDirty = true;
         bool _blendPaletteDirty = true;
+        bool _lightFalloffsDirty = false;
+        bool _lightFalloffsRecorded = false;
         bool _submitted = false;
         bool _finalCanvasComposite = false;
         bool _ready = false;
+        std::optional<uint32_t> _lastPresentedFrameIndex;
+        bool _lastPresentedCanvasComposite = false;
 
         struct PendingReadback
         {
@@ -80,7 +95,8 @@ namespace OpenRCT2::Ui::Vulkan
         void Dispose() override;
         [[nodiscard]] const Gpu::BackendCapabilities& GetCapabilities() const noexcept override;
 
-        void Resize(Gpu::Extent logicalExtent) override;
+        void Resize(Gpu::Extent logicalExtent, Gpu::Extent drawableExtent) override;
+        void RequestSurfaceFormatRefresh() override;
         void SetPresentMode(Gpu::PresentMode mode) override;
 
         [[nodiscard]] std::optional<Gpu::FrameHandle> BeginFrame(uint64_t frameNumber) override;
@@ -88,12 +104,17 @@ namespace OpenRCT2::Ui::Vulkan
         void SetPalette(std::span<const std::byte> rgba) override;
         void SetRemapPalette(std::span<const std::byte> indices) override;
         void SetBlendPalette(std::span<const std::byte> indices) override;
+        void SetLightFxFalloffs(std::span<const std::byte> layers) override;
         void Submit(const Gpu::FrameHandle& frame, const Gpu::FrameCommandStream& commands) override;
         void Present(const Gpu::FrameHandle& frame) override;
+        void AbandonFrame(const Gpu::FrameHandle& frame) override;
         [[nodiscard]] std::optional<Gpu::FrameTimings> GetLatestTimings() const override;
+        void TakeCompletedTimings(std::vector<Gpu::FrameTimings>& samples) override;
 
         void RequestReadback(const Gpu::FrameHandle& frame, Gpu::ReadbackRequest request) override;
         [[nodiscard]] bool TryTakeReadback(uint64_t requestId, std::span<std::byte> destination) override;
+        [[nodiscard]] bool ReadbackLatestIndexedCanvas(
+            Gpu::Extent extent, std::span<std::byte> destination) override;
         void WaitIdle() override;
 
     private:
@@ -101,9 +122,13 @@ namespace OpenRCT2::Ui::Vulkan
         void RecordPendingPalette();
         void RecordPendingRemapPalette();
         void RecordPendingBlendPalette();
+        void RecordPendingLightFalloffs();
         void RecordTextureUploads(const Gpu::FrameCommandStream& commands);
+        [[nodiscard]] bool RecordLightFx(const Gpu::FrameCommandStream& commands);
         void PopulateCapabilities();
         void HarvestReadbacksForFrame(uint32_t frameIndex, bool wait);
+        void HarvestGpuTimingsForFrame(uint32_t frameIndex);
+        void PublishTimings(const Gpu::FrameTimings& timings);
     };
 
     [[nodiscard]] std::unique_ptr<Gpu::Backend> CreateBackend();

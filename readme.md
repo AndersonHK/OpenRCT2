@@ -46,14 +46,22 @@ More detail: [Ride rating aggregate rationale](docs/ride-rating-aggregate-ration
 
 Guests now consider railways, monorails, chairlifts, and lifts as complete station-to-station journeys when travelling to a ride, shop, facility, or park exit. A journey through a transport with more than two stations composes the exact measured directed legs between adjacent stops, including their time, distance, comfort, decoration, and fare. Guests can remain aboard through intermediate stations, no longer board a transport merely because it is free, and do not count completing transport as an ordinary attraction visit.
 
-Route choice compares milliseconds of walking with walking to a station, expected queue and all onboard segment times, and the remaining walk. Free, Discount, and Fair pricing use progressively stricter time thresholds; rain triggers a new comparison and increasingly favours sheltered transport. Extortive service is a last-resort connection only when neither walking nor non-extortive transport works. Park exits and all ride/facility entrance targets share this destination-routing path. Journey value is led by segment distance, then modified by actual average speed, distance-weighted G-force comfort, and sampled decoration quality; the measurements tab displays those service stats and the income tab exposes the four proportional fare policies.
+Route choice compares milliseconds of walking with walking to a station, expected queue and all onboard segment times, and the remaining walk. Free, Discount, and Fair pricing use progressively stricter time thresholds; rain triggers a new comparison and favours the measured sheltered portion of the selected station-to-station journey. Extortive service is a last-resort connection only when neither walking nor non-extortive transport works. Park exits and all ride/facility entrance targets share this destination-routing path. Journey value is led by segment distance, then modified by actual average speed, distance-weighted G-force comfort, and sampled decoration quality; the measurements tab displays those service stats and the income tab exposes the four proportional fare policies.
 
 Rail transport stations also use a visible second-stage queue. After a train physically clears the station, up to one actual
 consist-load of guests leaves the external queue and waits at car/seat-aligned platform positions. They retain FIFO order,
 bind only after an arriving train has unloaded and exposed a real empty seat, and pay only at that point. Through-riders take
 their seats first; excess staged guests remain for the next service. Miniature Railway, Monorail, and Suspended Monorail use
 this system now, and Chairlift uses its native two-seat loading positions with the same visible staging contract. Lift retains
-just-in-time boarding because its waypoint cabin does not expose a trustworthy platform-clear event.
+just-in-time boarding because its waypoint cabin does not expose a trustworthy platform-clear event. Roller-coaster stations
+with visible platforms, scalar car loading positions, and entrance/exit openings on opposite lateral sides also stage exactly
+one stopped train's capacity, reusing the same consist sizing and seat positions. Same-side coaster stations retain ordinary
+queue boarding; transportation rides are unaffected. Transport route choice, pricing, and crowding rules remain transport-only. Arrival-time
+seat-plan refreshes recognise the train already selected by a staged guest, so through-rider remapping cannot incorrectly send
+transport or coaster guests back out of the station. Arrival-time remapping also shares the same seat-binding handshake from the
+platform approach and wait states, so an empty train cannot finish its dwell while its assigned guest walks back to a shifted
+marker. Seat availability follows the vehicle's active passenger/reservation count rather than stale ids intentionally retained
+outside that prefix during unloading, so both coasters and transports can refill normally after their first trip.
 
 More detail: [Transport ride routing rationale](docs/transport-ride-routing-rationale.md).
 
@@ -73,22 +81,61 @@ step, with the bounded heuristic retained whenever a field is missing, stale, in
 EverythingPark runs at the shared-field checkpoint reached 241.767 and 241.871 TPS. After the station-less facility fast path
 and live-rating eligibility gate, two runs reached 254.297 and 256.592 TPS. The exact directed-leg/save/cache checkpoint
 measured 251.729 and 251.123 TPS. After the reviewed upstream integration and hot-path cleanup, two runs reached 261.961 and
-263.398 TPS with matching `72638ee2...` checksums and 3.699/3.692 ms medians. The faster run is 58.8% above the original
-165.895-TPS baseline, although the remaining rating-environment lookup still dominates vehicle time. The detailed performance
-plan records the full latency and profiler breakdown.
+263.398 TPS with matching `72638ee2...` checksums. The next locality pass found that the ride-context hash had shifted both
+tile coordinates out of its final value, turning the shared cache into progressively longer collision chains. A corrected hash
+and a bounded 262,144-entry four-way cache, together with route-field invalidation separation and smaller scheduler/routing
+amortizations, raise the standard 2,000-warmup/2,000-measurement window to 418.561 and 412.871 TPS with matching
+`0ed4276c...` checksums and 2.197/2.212 ms medians. That is about 2.5 times the original 165.895-TPS baseline and clears the
+320-TPS budget by roughly 30%. The later train-boundary/locality checkpoint raised two standard 500-tick measurements to
+493.690 and 494.169 TPS. After compacting the exact shared rating-cache payload and removing disabled profiler guards from
+the hottest guest helpers, the first validation reached 506.430 TPS after the standard 2,000-tick warm-up and 324.470 TPS
+after 4,000 ticks. Replacing allocator-scattered typed entity lists with compact membership bitsets and adding an exact
+train-local G-force score memo raises the current windows to 508.030 and 351.296 TPS. Two repeated 8,000-warm-up
+population-pressure windows with 16,104 starting guests reach 326.643 and 324.363 TPS with the same deterministic checksum.
+The final exact-distance, crowding, rating, and scheduler integration pass is followed by the platform-seat,
+visual-invalidation, and speed-transition cleanup. Two repeated 2,000-warm-up windows reach 590.596 and 588.405 TPS with the
+same `6088da79...` checksum. Two repeated 8,000-warm-up windows reach 382.847 and 403.916 TPS with the same `405ee291...`
+checksum and identical state snapshots, clearing the Turbo 320 target by more than 19% in the late live-park state. The
+benchmark prints population, route-cache footprint, and first/last-quarter tick means, so the later live-park cost is visible
+instead of being hidden by the headline result. The detailed performance plan records full latency, checksums, rejected cache
+sizes, and profiler breakdown.
 
 The Vulkan renderer remains gated while it grows toward visual parity. It now executes the complete indexed line, opaque,
 masked, remapped, transparency/blend, and ordered rain/snow command stream before final palette presentation. Swapchain
 selection can prefer a 10-bit HDR10 BT.2020/PQ output with an SDR-preserving paper-white mapping and falls back to the
-ordinary SDR path when the display or driver does not expose a compatible format. The direct drawing context records GPU
-commands into a generation-aware persistent atlas without routine full-frame upload or readback; ordered `CopyRect`, the
-synchronous screenshot adapter, deterministic line coverage, device-loss recovery, and visual SDR/HDR parity still block
-normal user selection.
+ordinary SDR path when the display or driver does not expose a compatible format. HDR10 is explicitly opt-in in the Vulkan
+display options, and compatible drivers receive D65/paper-white mastering metadata when `VK_EXT_hdr_metadata` is available.
+The direct drawing context records GPU commands into a generation-aware persistent atlas without routine full-frame upload or
+readback. It deliberately performs complete redraws instead of advertising the legacy dirty-region `CopyRect` optimisation, and
+its synchronous indexed screenshot adapter is implemented. Deterministic line coverage, device-loss recovery, and interactive
+visual SDR/HDR parity still block normal user selection.
 
 An opt-in Vulkan validation engine now exercises palette, resize, VSync, presentation, and fence-backed asynchronous indexed
-readback across the normal factory/window lifecycle. It temporarily uploads the authoritative X8 canvas once per frame, so
-that bridge is excluded from performance acceptance; only the direct GPU command/atlas path may enter renderer performance
-acceptance after the remaining parity and lifecycle gates pass.
+readback across the normal factory/window lifecycle. The direct path uses non-blocking frame acquisition, safely abandons
+incomplete swapchain frames, and moves first-use pixels through self-contained command streams rather than caller-owned upload
+ring offsets. Stable allocation identities and residency leases prevent an atlas slot from being recycled while a sealed frame
+still references it. LightFX carries immutable palette/intensity snapshots and compact clipped-light commands, with the exact
+legacy mix performed before SDR/HDR encoding. The fully gated direct path now performs the intensity raster in a capability-
+checked Vulkan atomic compute pass; unsupported devices retain the CPU intensity path, and interactive GPU/CPU visual parity
+remains a release gate. The validation bridge still uploads the authoritative X8 canvas once per frame and
+therefore remains excluded from performance acceptance; the direct path already submits through a newest-frame worker mailbox.
+Per-frame-slot Vulkan timestamp pools now report fence-complete total GPU time plus upload, indexed-draw, LightFX, and final
+composition segments to the integrated benchmark without waiting or reading query data on the hot rendering caller. Explicit
+start/end boundaries drain the render-worker mailbox and GPU outside the measured interval, preventing warm-up and in-flight tail
+samples from crossing phases; present-call time is reported separately from total CPU submission/presentation work.
+On Windows, the renderer creates its Win32 Vulkan surface from the SDL-owned native window because the bundled static SDL lacks
+Vulkan WSI hooks; Linux and macOS continue through SDL Vulkan. The hidden Win32 lifecycle fixture passes on the real GPU with
+the Khronos validation layer enabled. Cold startup applies and verifies a complete exclusive display mode before Vulkan surface
+creation, then initialises the swapchain from the actual window size. Exclusive mode remains strict: a rejected mode is logged and
+shown as an error, with orderly shutdown, rather than silently changing to borderless, windowed, or another renderer. Zero-area
+fallback sprites retain the software renderer's no-op semantics instead of becoming invalid GPU-atlas allocations during the
+first park draw.
+
+The full hidden EverythingPark benchmark now measures the real paint/presentation path instead of inferring renderer cost from
+the headless simulation. Three-run medians at ordinary Turbo and VSync off are 318.324 TPS for software, 318.323 for OpenGL,
+and 318.400 for Vulkan, all at about 13.4 presented FPS. Vulkan spends only 139.091 us on the GPU per frame and keeps 318.400
+TPS with the render worker active; a VSync-enabled check reaches 316.830 TPS. Renderer and VSync overrides are process-local,
+the benchmark is silent and hidden, and its startup/finish drains keep warm-up GPU work out of the measured interval.
 
 More detail: [EverythingPark 320 TPS refactor plan](docs/performance-320-tps-refactor-plan.md),
 [Path topology cache](docs/path-topology-cache.md), [Shared destination route fields](docs/shared-route-fields.md),

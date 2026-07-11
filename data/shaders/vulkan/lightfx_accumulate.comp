@@ -1,0 +1,27 @@
+#version 450
+
+// Keep X/Y synchronized with GpuCommandStream.h capability gating.
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+layout(set = 0, binding = 0, r32ui) uniform uimage2D uAccumulator;
+layout(set = 0, binding = 1) uniform usampler2DArray uFalloffs;
+layout(std430, set = 0, binding = 2) readonly buffer CommandWords { uint words[]; } uCommands;
+layout(push_constant) uniform Constants { uint wordOffset; } uConstants;
+
+void main()
+{
+    uint commandBase = uConstants.wordOffset + gl_WorkGroupID.z * 8u;
+    ivec2 destination = ivec2(uCommands.words[commandBase], uCommands.words[commandBase + 1u]);
+    uvec2 extent = uvec2(uCommands.words[commandBase + 2u], uCommands.words[commandBase + 3u]);
+    uvec2 local = gl_GlobalInvocationID.xy;
+    if (any(greaterThanEqual(local, extent))) return;
+    uint sourceOffset = uCommands.words[commandBase + 4u];
+    uint sourceStride = uCommands.words[commandBase + 5u];
+    uint type = uCommands.words[commandBase + 6u];
+    uint intensity = uCommands.words[commandBase + 7u];
+    uint nativeSize = 32u << ((type - 4u) & 3u);
+    uint linearSource = sourceOffset + local.y * sourceStride + local.x;
+    ivec3 source = ivec3(int(linearSource % nativeSize), int(linearSource / nativeSize), int(type - 4u));
+    uint falloff = texelFetch(uFalloffs, source, 0).r;
+    uint contribution = intensity == 255u ? falloff : (falloff * (1u + intensity)) / 256u;
+    imageAtomicAdd(uAccumulator, destination + ivec2(local), contribution);
+}

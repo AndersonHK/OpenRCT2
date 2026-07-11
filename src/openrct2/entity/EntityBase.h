@@ -58,6 +58,11 @@ namespace OpenRCT2
          */
         void moveTo(const CoordsXYZ& newLocation);
 
+        /**
+         * Moves a sprite for presentation-only interpolation without changing its spatial-index membership.
+         */
+        void moveToForTween(const CoordsXYZ& newLocation);
+
         void moveToAndUpdateSpatialIndex(const CoordsXYZ& newLocation);
 
         /**

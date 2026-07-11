@@ -59,12 +59,15 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <PreprocessorDefinitions>GTEST_LANG_CXX11;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(EnableVulkan)'=='true'">ENABLE_VULKAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories Condition="'$(EnableVulkan)'=='true'">$(VULKAN_SDK)\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeader Condition="'$(UsePCH)'=='true'">Use</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(UsePCH)'=='true'">tests_pch.h</PrecompiledHeaderFile>
       <ForcedIncludeFiles Condition="'$(UsePCH)'=='true'">tests_pch.h</ForcedIncludeFiles>
     </ClCompile>
     <Link>
       <AdditionalDependencies>libopenrct2.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies Condition="'$(EnableVulkan)'=='true'">$(VulkanAdditionalDependencies)libopenrct2ui.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalDependencies Condition="'$(Configuration)'=='Debug'">gtest.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalDependencies Condition="'$(Configuration)'!='Debug'">gtest.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Console</SubSystem>
@@ -82,6 +85,7 @@
     <ClInclude Include="tests_pch.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\src\openrct2-ui\drawing\engines\gpu\GpuTextureCache.cpp" />
     <ClCompile Include="BitSetTests.cpp" />
     <ClCompile Include="CircularBuffer.cpp" />
     <ClCompile Include="CLITests.cpp" />
@@ -90,6 +94,7 @@
     <ClCompile Include="EnumMapTest.cpp" />
     <ClCompile Include="FormattingTests.cpp" />
     <ClCompile Include="GpuFoundationTests.cpp" />
+    <ClCompile Include="VulkanRuntimeIntegrationTests.cpp" />
     <ClCompile Include="LanguagePackTest.cpp" />
     <ClCompile Include="ImageImporterTests.cpp" />
     <ClCompile Include="IniReaderTest.cpp" />
@@ -133,6 +138,9 @@
     </ProjectReference>
     <ProjectReference Include="..\..\src\openrct2\libopenrct2.vcxproj">
       <Project>{d24d94f6-2a74-480c-b512-629c306ce92f}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\src\openrct2-ui\libopenrct2ui.vcxproj" Condition="'$(EnableVulkan)'=='true'">
+      <Project>{8DD8AB7D-2EA6-44E3-8265-BAF08E832951}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

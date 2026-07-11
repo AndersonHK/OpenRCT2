@@ -180,6 +180,12 @@ namespace OpenRCT2::Network
         BeginClient(_host, _port);
     }
 
+    void NetworkBase::ResetTickClock() noexcept
+    {
+        _lastUpdateTime = Platform::GetTicks();
+        _currentDeltaTime = 1;
+    }
+
     void NetworkBase::Close()
     {
         if (status != Status::none)
@@ -344,9 +350,14 @@ namespace OpenRCT2::Network
 
             // Don't store private key in memory when it's not in use.
             _key.Unload();
+            if (ok)
+            {
+                ResetTickClock();
+            }
             return ok;
         }
 
+        ResetTickClock();
         return true;
     }
 
@@ -414,6 +425,7 @@ namespace OpenRCT2::Network
         GameLoadScripts();
         GameNotifyMapChanged();
 
+        ResetTickClock();
         return true;
     }
 

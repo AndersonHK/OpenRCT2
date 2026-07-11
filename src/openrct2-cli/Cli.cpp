@@ -10,6 +10,7 @@
 #include <openrct2/Context.h>
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/command_line/CommandLine.hpp>
+#include <openrct2/core/Console.hpp>
 
 using namespace OpenRCT2;
 using namespace OpenRCT2::CommandLine;
@@ -23,6 +24,11 @@ int main(int argc, const char** argv)
     auto runGame = CommandLineRun(argv, argc);
     if (runGame == ExitCode::launch)
     {
+        if (gIntegratedBenchmark.enabled)
+        {
+            Console::Error::WriteLine("--benchmark-ui is available only from the full OpenRCT2 UI executable.");
+            return EXIT_FAILURE;
+        }
         gOpenRCT2Headless = true;
         gOpenRCT2NoGraphics = true;
 

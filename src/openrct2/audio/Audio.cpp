@@ -443,12 +443,7 @@ namespace OpenRCT2::Audio
         }
     }
 
-    void InitRideSoundsAndInfo()
-    {
-        InitRideSounds(0);
-    }
-
-    void InitRideSounds(int32_t device)
+    static void ResetRideSounds(int32_t device)
     {
         Close();
         for (auto& vehicleSound : gVehicleSoundList)
@@ -457,6 +452,20 @@ namespace OpenRCT2::Audio
         }
 
         _currentAudioDevice = device;
+    }
+
+    void InitRideSoundsAndInfo(bool persistDeviceSelection)
+    {
+        ResetRideSounds(0);
+        if (persistDeviceSelection)
+        {
+            Config::Save();
+        }
+    }
+
+    void InitRideSounds(int32_t device)
+    {
+        ResetRideSounds(device);
         Config::Save();
     }
 

@@ -62,6 +62,7 @@
 #include "../world/Footpath.h"
 #include "../world/Location.hpp"
 #include "../world/Map.h"
+#include "../world/MapPathRouteCache.h"
 #include "../world/MapTopology.h"
 #include "../world/Park.h"
 #include "../world/Scenery.h"
@@ -2019,10 +2020,10 @@ namespace OpenRCT2
     static TransportRideJourney GuestGetPlannedTransportJourney(const Guest& guest, const Ride& ride)
     {
         auto destination = guest.transportDestinationStation;
-            if (destination.IsNull() && ride.numStations >= 2 && !guest.CurrentRideStation.IsNull())
-            {
-                destination = RideGetTransportSegment(ride, guest.CurrentRideStation).destinationStation;
-            }
+        if (destination.IsNull() && ride.numStations >= 2 && !guest.CurrentRideStation.IsNull())
+        {
+            destination = RideGetTransportSegment(ride, guest.CurrentRideStation).destinationStation;
+        }
         return RideGetTransportJourney(ride, guest.CurrentRideStation, destination);
     }
 
@@ -2067,7 +2068,8 @@ namespace OpenRCT2
         // A fare policy changed to Extortive after route selection is not permission
         // to charge a guest whose walking connectivity was never tested for that policy.
         if (paysForRide && ride.priceTarget == RidePriceTarget::badValue
-            && (!guest.transportRouteWasExtortive || guest.transportRouteTopologyEpoch != MapTopology::GetEpoch()))
+            && (!guest.transportRouteWasExtortive
+                || guest.transportRouteTopologyEpoch != MapTopology::GetPathConnectivityEpoch()))
         {
             guest.choseNotToGoOnRide(ride, peepAtRide, true);
             return false;
@@ -2566,7 +2568,8 @@ namespace OpenRCT2
         transportDestinationStation = destinationStation;
         transportRoutePlanningInitialised = true;
         transportRouteWasExtortive = isExtortive;
-        transportRouteTopologyEpoch = MapTopology::GetEpoch();
+        transportRouteTopologyEpoch = MapTopology::GetPathConnectivityEpoch();
+        transportRouteCrowdingGeneration = RideGetTransportServiceCrowdingGeneration();
         ResetPathfindGoal();
         WindowInvalidateFlags |= PEEP_INVALIDATE_PEEP_ACTION;
     }
@@ -2580,6 +2583,7 @@ namespace OpenRCT2
         transportDestinationStation = StationIndex::GetNull();
         transportRouteWasExtortive = false;
         transportRouteTopologyEpoch = 0;
+        transportRouteCrowdingGeneration = 0;
         ResetPathfindGoal();
         WindowInvalidateFlags |= PEEP_INVALIDATE_PEEP_ACTION;
     }
@@ -3469,6 +3473,43 @@ namespace OpenRCT2
         windowMgr->InvalidateByNumber(WindowClass::peep, guest.id);
     }
 
+    static Ride* SelectClosestRideByRouteOrGeometry(
+        const Guest& guest, std::span<const RideId> candidates,
+        std::optional<int32_t> maximumWalkingDistance = std::nullopt)
+    {
+        const auto exact = MapPathRouteCache::GetClosestReachableRideTarget(candidates, TileCoordsXYZ{ guest.NextLoc });
+        if (exact.isExact)
+        {
+            if (!exact.selection.has_value())
+                return nullptr;
+            if (maximumWalkingDistance.has_value()
+                && static_cast<int64_t>(exact.selection->pathTiles) * kCoordsXYStep > *maximumWalkingDistance)
+            {
+                return nullptr;
+            }
+            return GetRide(candidates[exact.selection->candidateIndex]);
+        }
+
+        Ride* closestRide{};
+        auto closestRideDistance = std::numeric_limits<int32_t>::max();
+        for (const auto rideId : candidates)
+        {
+            auto* ride = GetRide(rideId);
+            if (ride == nullptr)
+                continue;
+            const auto rideLocation = ride->getStation().Start;
+            const auto distance = abs(rideLocation.x - guest.x) + abs(rideLocation.y - guest.y);
+            if (distance >= closestRideDistance
+                || (maximumWalkingDistance.has_value() && distance > *maximumWalkingDistance))
+            {
+                continue;
+            }
+            closestRide = ride;
+            closestRideDistance = distance;
+        }
+        return closestRide;
+    }
+
     template<typename T>
     static void PeepHeadForNearestRide(Guest& guest, bool considerOnlyCloseRides, T predicate)
     {
@@ -3551,23 +3592,8 @@ namespace OpenRCT2
             }
         }
 
-        // Pick the closest ride
-        Ride* closestRide{};
-        auto closestRideDistance = std::numeric_limits<int32_t>::max();
-        for (size_t i = 0; i < numPotentialRides; i++)
-        {
-            auto ride = GetRide(potentialRides[i]);
-            if (ride != nullptr)
-            {
-                auto rideLocation = ride->getStation().Start;
-                int32_t distance = abs(rideLocation.x - guest.x) + abs(rideLocation.y - guest.y);
-                if (distance < closestRideDistance)
-                {
-                    closestRide = ride;
-                    closestRideDistance = distance;
-                }
-            }
-        }
+        const auto closestRide = SelectClosestRideByRouteOrGeometry(
+            guest, std::span<const RideId>{ potentialRides, numPotentialRides });
         if (closestRide != nullptr)
         {
             // Head to that ride
@@ -3618,8 +3644,8 @@ namespace OpenRCT2
             return;
         }
 
-        Ride* closestRide{};
-        auto closestRideDistance = std::numeric_limits<int32_t>::max();
+        RideId potentialRides[Limits::kMaxRidesInPark];
+        size_t numPotentialRides = 0;
 
         auto& gameState = getGameState();
         for (auto& ride : RideManager(gameState))
@@ -3632,22 +3658,22 @@ namespace OpenRCT2
             {
                 continue;
             }
-
-            auto rideLocation = ride.getStation().Start;
-            int32_t distance = abs(rideLocation.x - guest.x) + abs(rideLocation.y - guest.y);
-            if (distance > searchRadius || distance >= closestRideDistance)
+            const auto rideLocation = ride.getStation().Start;
+            const auto geometricLowerBound = abs(rideLocation.x - guest.x) + abs(rideLocation.y - guest.y);
+            if (geometricLowerBound > searchRadius)
             {
                 continue;
             }
+
             if (!guest.shouldGoOnRide(ride, StationIndex::FromUnderlying(0), false, true))
             {
                 continue;
             }
-
-            closestRide = &ride;
-            closestRideDistance = distance;
+            potentialRides[numPotentialRides++] = ride.id;
         }
 
+        const auto closestRide = SelectClosestRideByRouteOrGeometry(
+            guest, std::span<const RideId>{ potentialRides, numPotentialRides }, searchRadius);
         if (closestRide != nullptr)
         {
             guest.setPathfindingTargetRide(closestRide->id);
@@ -4450,6 +4476,22 @@ namespace OpenRCT2
         SetState(PeepState::falling);
     }
 
+    void Guest::requeueFromStationPlatform(Ride& ride)
+    {
+        RideReleaseStationPlatformSlot(ride, CurrentRideStation, id);
+        CurrentTrain = RideStation::kNoTrain;
+        if (CurrentRideStation.ToUnderlying() < ride.numStations)
+        {
+            const auto& station = ride.getStation(CurrentRideStation);
+            if (!station.Entrance.IsNull() && station.Entrance.direction < kNumOrthogonalDirections)
+            {
+                PeepUpdateRideNoFreeVehicleRejoinQueue(*this, ride);
+                return;
+            }
+        }
+        recoverFromStationPlatform(ride);
+    }
+
     void Guest::updateRideApproachPlatformSlot()
     {
         auto* ride = GetRide(CurrentRide);
@@ -4465,12 +4507,72 @@ namespace OpenRCT2
             return;
         }
 
+        // Vehicle updates follow guest updates. An arriving train may therefore remap this guest to a free seat and
+        // restart the short platform walk one tick before publishing itself at the station. Reserve the seat as soon as
+        // it is published; otherwise a short empty-train dwell can expire while the guest walks to the remapped marker.
+        if (tryBoardStationPlatformTrain(*ride))
+        {
+            return;
+        }
+
         if (auto loc = UpdateAction(); loc.has_value())
         {
             moveTo({ loc.value(), reservation->waitPosition.z });
             return;
         }
         RideSubState = PeepRideSubState::waitingOnPlatform;
+    }
+
+    bool Guest::tryBoardStationPlatformTrain(Ride& ride)
+    {
+        if (!RideGetStationPlatformReservation(ride, CurrentRideStation, id).has_value())
+        {
+            recoverFromStationPlatform(ride);
+            return true;
+        }
+        if (ride.status != RideStatus::open || ride.vehicleChangeTimeout != 0
+            || ride.flags.has(RideFlag::brokenDown))
+        {
+            recoverFromStationPlatform(ride);
+            return true;
+        }
+        if (!RideStationPlatformGuestIsFirst(ride, CurrentRideStation, id))
+        {
+            return false;
+        }
+
+        sfl::static_vector<uint8_t, Limits::kMaxTrainsPerRide> carArray;
+        if (!FindVehicleToEnter(*this, ride, carArray))
+        {
+            CurrentTrain = RideStation::kNoTrain;
+            return false;
+        }
+        const auto ridePrice = GuestGetAdmissionPrice(*this, ride);
+        if (ridePrice != 0 && !PeepCheckRidePriceAtEntrance(*this, ride, ridePrice))
+        {
+            recoverFromStationPlatform(ride);
+            return true;
+        }
+
+        const auto binding = RideBindStationPlatformGuestToSeat(ride, CurrentRideStation, CurrentTrain, *this);
+        if (binding == RideStationPlatformSeatBindingResult::seatUnavailable)
+        {
+            // Another guest claimed this train first. Remain staged for the next available seat instead of leaving the
+            // platform and consuming the external queue again.
+            CurrentTrain = RideStation::kNoTrain;
+            return false;
+        }
+        if (binding != RideStationPlatformSeatBindingResult::success)
+        {
+            requeueFromStationPlatform(ride);
+            return true;
+        }
+
+        RideReleaseStationPlatformSlot(ride, CurrentRideStation, id);
+        GuestCommitRideAdmission(*this, ride);
+        RideSubState = PeepRideSubState::leaveEntrance;
+        updateRideAdvanceThroughEntrance();
+        return true;
     }
 
     void Guest::updateRideWaitingOnPlatform()
@@ -4483,44 +4585,7 @@ namespace OpenRCT2
             SetState(PeepState::falling);
             return;
         }
-        if (!RideGetStationPlatformReservation(*ride, CurrentRideStation, id).has_value())
-        {
-            recoverFromStationPlatform(*ride);
-            return;
-        }
-        if (ride->status != RideStatus::open || ride->vehicleChangeTimeout != 0
-            || ride->flags.has(RideFlag::brokenDown))
-        {
-            recoverFromStationPlatform(*ride);
-            return;
-        }
-        if (!RideStationPlatformGuestIsFirst(*ride, CurrentRideStation, id))
-        {
-            return;
-        }
-
-        sfl::static_vector<uint8_t, Limits::kMaxTrainsPerRide> carArray;
-        if (!FindVehicleToEnter(*this, *ride, carArray))
-        {
-            return;
-        }
-        const auto ridePrice = GuestGetAdmissionPrice(*this, *ride);
-        if (ridePrice != 0 && !PeepCheckRidePriceAtEntrance(*this, *ride, ridePrice))
-        {
-            recoverFromStationPlatform(*ride);
-            return;
-        }
-        auto* vehicle = PeepChooseCarFromRide(*this, *ride, carArray);
-        if (vehicle == nullptr)
-        {
-            CurrentTrain = RideStation::kNoTrain;
-            return;
-        }
-        PeepChooseSeatFromCar(this, *ride, vehicle);
-        RideReleaseStationPlatformSlot(*ride, CurrentRideStation, id);
-        GuestCommitRideAdmission(*this, *ride);
-        RideSubState = PeepRideSubState::leaveEntrance;
-        updateRideAdvanceThroughEntrance();
+        tryBoardStationPlatformTrain(*ride);
     }
 
     /**
@@ -5900,7 +5965,10 @@ namespace OpenRCT2
             }
         }
 
-        GuestUpdatethoughts(*this);
+        if (thoughts[0].type != PeepThoughtType::none)
+        {
+            GuestUpdatethoughts(*this);
+        }
 
         // Walking speed logic
         const auto stepsToTake = GetStepsToTake();
@@ -5909,7 +5977,12 @@ namespace OpenRCT2
 
         if (carryCheck <= 255)
         {
-            updateEasterEggInteractions();
+            constexpr auto kInteractionFlags = PEEP_FLAGS_PURPLE | PEEP_FLAGS_PIZZA | PEEP_FLAGS_CONTAGIOUS
+                | PEEP_FLAGS_ICE_CREAM | PEEP_FLAGS_JOY;
+            if (PeepFlags & kInteractionFlags)
+            {
+                updateEasterEggInteractions();
+            }
         }
         else
         {
@@ -6211,6 +6284,10 @@ namespace OpenRCT2
                 return;
             }
         }
+
+        // Only watch rides if the guest is not underground
+        if (MapIsLocationUnderground(NextLoc))
+            return;
 
         int32_t positions_free = 15;
 
@@ -7857,6 +7934,7 @@ namespace OpenRCT2
         peep->transportRoutePlanningInitialised = false;
         peep->transportRouteWasExtortive = false;
         peep->transportRouteTopologyEpoch = 0;
+        peep->transportRouteCrowdingGeneration = 0;
         std::get<0>(peep->thoughts).type = PeepThoughtType::none;
         peep->WindowInvalidateFlags = 0;
 
@@ -8432,6 +8510,7 @@ namespace OpenRCT2
         stream << transportRoutePlanningInitialised;
         stream << transportRouteWasExtortive;
         stream << transportRouteTopologyEpoch;
+        stream << transportRouteCrowdingGeneration;
         stream << thoughts;
         stream << litterCount;
         stream << disgustingCount;

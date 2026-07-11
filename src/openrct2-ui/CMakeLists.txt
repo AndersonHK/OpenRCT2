@@ -41,6 +41,10 @@ file(GLOB_RECURSE OPENRCT2_UI_SOURCES
 file(GLOB_RECURSE OPENRCT2_UI_HEADERS
     "${CMAKE_CURRENT_LIST_DIR}/*.h"
     "${CMAKE_CURRENT_LIST_DIR}/*.hpp")
+file(GLOB OPENRCT2_VULKAN_BACKEND_SOURCES
+    "${CMAKE_CURRENT_LIST_DIR}/drawing/engines/vulkan/Vulkan*.cpp")
+list(REMOVE_ITEM OPENRCT2_VULKAN_BACKEND_SOURCES
+    "${CMAKE_CURRENT_LIST_DIR}/drawing/engines/vulkan/VulkanDrawingEngine.cpp")
 
 if (MSVC AND (CMAKE_SIZEOF_VOID_P EQUAL 8) AND CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64")
     set_source_files_properties(${CMAKE_CURRENT_LIST_DIR}/audio/AudioMixer.AVX2.cpp PROPERTIES COMPILE_FLAGS /arch:AVX2)
@@ -69,7 +73,8 @@ if (ENABLE_VULKAN AND NOT EMSCRIPTEN)
             "${VULKAN_SHADER_SOURCE_DIR}/indexed_transparency_compose.vert"
             "${VULKAN_SHADER_SOURCE_DIR}/indexed_transparency_compose.frag"
             "${VULKAN_SHADER_SOURCE_DIR}/indexed_weather.vert"
-            "${VULKAN_SHADER_SOURCE_DIR}/indexed_weather.frag")
+            "${VULKAN_SHADER_SOURCE_DIR}/indexed_weather.frag"
+            "${VULKAN_SHADER_SOURCE_DIR}/lightfx_accumulate.comp")
         if (Vulkan_GLSLC_EXECUTABLE)
             set(OPENRCT2_VULKAN_SHADER_MODE "compile")
             set(OPENRCT2_VULKAN_ENABLED ON)
@@ -85,7 +90,8 @@ if (ENABLE_VULKAN AND NOT EMSCRIPTEN)
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_transparency_compose.vert.spv"
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_transparency_compose.frag.spv"
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_weather.vert.spv"
-                AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_weather.frag.spv")
+                AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_weather.frag.spv"
+                AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/lightfx_accumulate.comp.spv")
             set(OPENRCT2_VULKAN_SHADER_MODE "precompiled")
             set(OPENRCT2_VULKAN_ENABLED ON)
             message(STATUS "Vulkan renderer foundation enabled with checked-in SPIR-V shaders")
@@ -189,6 +195,9 @@ if (OPENRCT2_VULKAN_ENABLED)
         target_compile_definitions(libopenrct2 PUBLIC ENABLE_VULKAN ENABLE_VULKAN_DRAWING_ENGINE)
         if (ENABLE_VULKAN_DIRECT_DRAWING_CONTEXT)
             target_compile_definitions(openrct2 PRIVATE ENABLE_VULKAN_DIRECT_DRAWING_CONTEXT)
+            if (ENABLE_VULKAN_RENDER_THREAD)
+                target_compile_definitions(openrct2 PRIVATE ENABLE_VULKAN_RENDER_THREAD)
+            endif ()
         endif ()
     endif ()
 endif ()

@@ -73,20 +73,29 @@ namespace OpenRCT2::Ui::Vulkan
         VkPhysicalDevice _physicalDevice = VK_NULL_HANDLE;
         VkDevice _device = VK_NULL_HANDLE;
         Image _spriteAtlas;
-        Image _palette;
+        std::array<Image, kFramesInFlight> _palettes;
+        std::array<Image, kFramesInFlight> _lightPalettes;
         Image _remapPalette;
         Image _blendPalette;
+        Image _lightFalloffs;
         VkSampler _nearestSampler = VK_NULL_HANDLE;
         std::array<Image, kFramesInFlight> _indexedCanvases;
         std::array<Image, kFramesInFlight> _depthCanvases;
         std::array<Image, kFramesInFlight> _compositeCanvases;
         std::array<Image, kFramesInFlight> _transparentCanvases;
+        std::array<Image, kFramesInFlight> _lightMaps;
+        std::array<Image, kFramesInFlight> _lightAccumulators;
         std::array<std::array<Image, 2>, kFramesInFlight> _transparentDepthCanvases;
         bool _atlasHasShaderLayout = false;
-        bool _paletteHasShaderLayout = false;
+        std::array<bool, kFramesInFlight> _paletteHasShaderLayout{};
+        std::array<bool, kFramesInFlight> _lightPaletteHasShaderLayout{};
         bool _remapPaletteHasShaderLayout = false;
         bool _blendPaletteHasShaderLayout = false;
+        bool _lightFalloffsHaveShaderLayout = false;
         std::array<bool, kFramesInFlight> _canvasHasShaderLayout{};
+        std::array<bool, kFramesInFlight> _lightMapHasShaderLayout{};
+        std::array<bool, kFramesInFlight> _lightAccumulatorHasShaderLayout{};
+        bool _hasLightAccumulators = false;
 
     public:
         IndexedResources() = default;
@@ -95,18 +104,30 @@ namespace OpenRCT2::Ui::Vulkan
         IndexedResources(const IndexedResources&) = delete;
         IndexedResources& operator=(const IndexedResources&) = delete;
 
-        void Initialise(const Device& device, Gpu::Extent logicalExtent);
+        void Initialise(const Device& device, Gpu::Extent logicalExtent, bool createLightAccumulators);
         void Dispose();
-        void Resize(Gpu::Extent logicalExtent);
+        void Resize(Gpu::Extent logicalExtent, bool createLightAccumulators);
+        void DiscardFrameLayouts(uint32_t frameIndex);
 
         void BeginAtlasUploads(VkCommandBuffer commandBuffer);
         void RecordAtlasUpload(
             VkCommandBuffer commandBuffer, const UploadAllocation& allocation, uint32_t atlasLayer,
             const Gpu::Int4& destinationBounds, uint32_t sourcePitchPixels);
         void EndAtlasUploads(VkCommandBuffer commandBuffer);
-        void RecordPaletteUpload(VkCommandBuffer commandBuffer, const UploadAllocation& allocation);
+        void RecordPaletteUpload(
+            VkCommandBuffer commandBuffer, uint32_t frameIndex, const UploadAllocation& allocation);
         void RecordRemapPaletteUpload(VkCommandBuffer commandBuffer, const UploadAllocation& allocation);
         void RecordBlendPaletteUpload(VkCommandBuffer commandBuffer, const UploadAllocation& allocation);
+        void RecordLightFxUpload(
+            VkCommandBuffer commandBuffer, uint32_t frameIndex, const UploadAllocation& intensityAllocation,
+            const UploadAllocation& paletteAllocation, uint32_t width, uint32_t height);
+        void RecordLightPaletteUpload(
+            VkCommandBuffer commandBuffer, uint32_t frameIndex, const UploadAllocation& paletteAllocation);
+        void EnsureLightFxShaderLayouts(VkCommandBuffer commandBuffer, uint32_t frameIndex);
+        void RecordLightFalloffUpload(VkCommandBuffer commandBuffer, const UploadAllocation& allocation);
+        void PrepareLightAccumulator(VkCommandBuffer commandBuffer, uint32_t frameIndex, bool prepareForCompute);
+        void FinishLightAccumulator(VkCommandBuffer commandBuffer, uint32_t frameIndex);
+        void DiscardLightFalloffLayout() noexcept;
         void RecordCanvasClear(VkCommandBuffer commandBuffer, uint32_t frameIndex, uint8_t paletteIndex);
         void RecordCanvasUpload(
             VkCommandBuffer commandBuffer, uint32_t frameIndex, const UploadAllocation& allocation,
@@ -137,9 +158,29 @@ namespace OpenRCT2::Ui::Vulkan
         {
             return _transparentDepthCanvases.at(frameIndex).at(index);
         }
-        [[nodiscard]] const Image& GetPalette() const noexcept
+        [[nodiscard]] const Image& GetPalette(uint32_t frameIndex) const
         {
-            return _palette;
+            return _palettes.at(frameIndex);
+        }
+        [[nodiscard]] const Image& GetLightPalette(uint32_t frameIndex) const
+        {
+            return _lightPalettes.at(frameIndex);
+        }
+        [[nodiscard]] const Image& GetLightMap(uint32_t frameIndex) const
+        {
+            return _lightMaps.at(frameIndex);
+        }
+        [[nodiscard]] const Image& GetLightAccumulator(uint32_t frameIndex) const
+        {
+            return _lightAccumulators.at(frameIndex);
+        }
+        [[nodiscard]] bool HasLightAccumulators() const noexcept
+        {
+            return _hasLightAccumulators;
+        }
+        [[nodiscard]] const Image& GetLightFalloffs() const noexcept
+        {
+            return _lightFalloffs;
         }
         [[nodiscard]] const Image& GetRemapPalette() const noexcept
         {
@@ -158,6 +199,9 @@ namespace OpenRCT2::Ui::Vulkan
         void CreateCanvases(Gpu::Extent logicalExtent);
         void DestroyCanvases();
         void RecordIndexTableUpload(
+            VkCommandBuffer commandBuffer, const UploadAllocation& allocation, Image& image, bool& hasShaderLayout,
+            const char* description);
+        void RecordRgbaPaletteUpload(
             VkCommandBuffer commandBuffer, const UploadAllocation& allocation, Image& image, bool& hasShaderLayout,
             const char* description);
     };

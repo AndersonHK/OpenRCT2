@@ -15,6 +15,7 @@
 #include "drawing/BitmapReader.h"
 
 #include <memory>
+#include <string>
 #include <openrct2/Context.h>
 #include <openrct2/Diagnostic.h>
 #include <openrct2/OpenRCT2.h>
@@ -60,29 +61,74 @@ int main(int argc, const char** argv)
     if (runGame == OpenRCT2::CommandLine::ExitCode::launch)
     {
         std::unique_ptr<IContext> context;
-        if (gOpenRCT2Headless)
+        try
         {
-            // Run OpenRCT2 with a plain context
-            context = CreateContext();
+            if (gOpenRCT2Headless)
+            {
+                // Run OpenRCT2 with a plain context
+                context = CreateContext();
+            }
+            else
+            {
+                // Run OpenRCT2 with a UI context
+                auto env = CreatePlatformEnvironment();
+                std::unique_ptr<IAudioContext> audioContext;
+                if (gIntegratedBenchmark.enabled)
+                {
+                    // The integrated benchmark exercises the full renderer without producing meeting-disrupting park audio.
+                    audioContext = CreateDummyAudioContext();
+                }
+                else
+                {
+                    try
+                    {
+                        audioContext = CreateAudioContext();
+                    }
+                    catch (const SDLException& e)
+                    {
+                        LOG_WARNING(
+                            "Failed to create audio context. Using dummy audio context. Error message was: %s", e.what());
+                        audioContext = CreateDummyAudioContext();
+                    }
+                }
+                auto uiContext = CreateUiContext(*env);
+                context = CreateContext(std::move(env), std::move(audioContext), std::move(uiContext));
+            }
+            rc = context->RunOpenRCT2(argc, argv);
         }
-        else
+        catch (const std::exception& e)
         {
-            // Run OpenRCT2 with a UI context
-            auto env = CreatePlatformEnvironment();
-            std::unique_ptr<IAudioContext> audioContext;
-            try
+            const std::string message = std::string("OpenRCT2 could not continue:\n\n") + e.what();
+            LOG_ERROR("Unhandled startup or runtime error: %s", e.what());
+            if (context != nullptr && !gOpenRCT2Headless && !gIntegratedBenchmark.enabled)
             {
-                audioContext = CreateAudioContext();
+                try
+                {
+                    context->GetUiContext().ShowMessageBox(message);
+                }
+                catch (...)
+                {
+                    LOG_ERROR("Unable to display the startup error message box.");
+                }
             }
-            catch (const SDLException& e)
-            {
-                LOG_WARNING("Failed to create audio context. Using dummy audio context. Error message was: %s", e.what());
-                audioContext = CreateDummyAudioContext();
-            }
-            auto uiContext = CreateUiContext(*env);
-            context = CreateContext(std::move(env), std::move(audioContext), std::move(uiContext));
+            rc = EXIT_FAILURE;
         }
-        rc = context->RunOpenRCT2(argc, argv);
+        catch (...)
+        {
+            LOG_ERROR("Unhandled non-standard startup or runtime error.");
+            if (context != nullptr && !gOpenRCT2Headless && !gIntegratedBenchmark.enabled)
+            {
+                try
+                {
+                    context->GetUiContext().ShowMessageBox("OpenRCT2 could not continue because of an unknown error.");
+                }
+                catch (...)
+                {
+                    LOG_ERROR("Unable to display the startup error message box.");
+                }
+            }
+            rc = EXIT_FAILURE;
+        }
     }
     else if (runGame == OpenRCT2::CommandLine::ExitCode::fail)
     {

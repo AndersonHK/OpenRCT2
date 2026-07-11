@@ -15,6 +15,8 @@
 #include "../ride/RideTypes.h"
 #include "../ride/ShopItem.h"
 
+struct Ride;
+
 enum
 {
     ADVERTISING_CAMPAIGN_PARK_ENTRY_FREE,
@@ -72,6 +74,7 @@ uint16_t MarketingGetCampaignGuestGenerationProbability(int32_t campaign);
 void MarketingUpdate();
 void MarketingSetGuestCampaign(OpenRCT2::Guest* peep, int32_t campaign);
 bool MarketingIsCampaignTypeApplicable(int32_t campaignType);
+bool MarketingIsRideCampaignEligible(const Ride& ride);
 MarketingCampaign* MarketingGetCampaign(int32_t campaignType);
 void MarketingNewCampaign(const MarketingCampaign& campaign);
 void MarketingCancelCampaignsForRide(RideId rideId);

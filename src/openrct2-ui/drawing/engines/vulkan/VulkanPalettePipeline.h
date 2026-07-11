@@ -56,10 +56,12 @@ namespace OpenRCT2::Ui::Vulkan
             const Device& device, const IndexedResources& resources, std::filesystem::path shaderDirectory,
             float paperWhiteNits);
         void Dispose();
+        void ReleaseSwapchainResources();
         void RefreshSwapchain(const Device& device);
         void RefreshDescriptors(const IndexedResources& resources);
         void SetCanvasSource(uint32_t frameIndex, const Image& canvas);
-        void Record(const FrameToken& frame) const;
+        void SetLightMapSource(uint32_t frameIndex, const Image& lightMap);
+        void Record(const FrameToken& frame, bool lightFxEnabled) const;
 
     private:
         void CreateDescriptorResources(const IndexedResources& resources);
