@@ -716,6 +716,7 @@ void Vehicle::UpdateWaitingForPassengers()
             return;
 
         station.TrainAtStation = trainIndex.value();
+        RidePrepareStationPlatformBoarding(*curRide, current_station, *this);
         sub_state = 1;
         time_waiting = 0;
 
@@ -734,6 +735,34 @@ void Vehicle::UpdateWaitingForPassengers()
         const auto num_peeps_on_train = train.currentPeeps;
         const auto num_used_seats_on_train = train.reservedSeats;
         const auto num_seats_on_train = train.capacity;
+
+        if (curRide->departFlags & RIDE_DEPART_LEAVE_WHEN_ANOTHER_ARRIVES)
+        {
+            for (auto train_id : curRide->vehicles)
+            {
+                if (train_id == id)
+                    continue;
+
+                Vehicle* otherTrain = getGameState().entities.GetEntity<Vehicle>(train_id);
+                if (otherTrain == nullptr)
+                    continue;
+
+                if ((otherTrain->status == Status::unloadingPassengers
+                        || otherTrain->status == Status::movingToEndOfStation)
+                    && otherTrain->current_station == current_station)
+                {
+                    // "Leave when another arrives" overrides the ordinary station dwell timer, but never a block-section
+                    // signal. Keep the normal synchronisation and track-safety gates in UpdateWaitingToDepart.
+                    if (!curRide->isBlockSectioned())
+                    {
+                        curRide->getStation(current_station).Depart = kStationDepartFlag;
+                    }
+                    flags.set(VehicleFlag::readyToDepart);
+                    TrainReadyToDepart(num_peeps_on_train, num_used_seats_on_train);
+                    return;
+                }
+            }
+        }
 
         if (curRide->supportsStatus(RideStatus::testing))
         {
@@ -769,30 +798,6 @@ void Vehicle::UpdateWaitingForPassengers()
                     flags.set(VehicleFlag::readyToDepart);
                     TrainReadyToDepart(num_peeps_on_train, num_used_seats_on_train);
                     return;
-                }
-            }
-        }
-
-        if (curRide->departFlags & RIDE_DEPART_LEAVE_WHEN_ANOTHER_ARRIVES)
-        {
-            for (auto train_id : curRide->vehicles)
-            {
-                if (train_id == id)
-                    continue;
-
-                Vehicle* otherTrain = getGameState().entities.GetEntity<Vehicle>(train_id);
-                if (otherTrain == nullptr)
-                    continue;
-
-                if (otherTrain->status == Status::unloadingPassengers
-                    || otherTrain->status == Status::movingToEndOfStation)
-                {
-                    if (otherTrain->current_station == current_station)
-                    {
-                        flags.set(VehicleFlag::readyToDepart);
-                        TrainReadyToDepart(num_peeps_on_train, num_used_seats_on_train);
-                        return;
-                    }
                 }
             }
         }
@@ -1188,7 +1193,6 @@ void Vehicle::UpdateUnloadingPassengers()
     {
         UpdateTestFinish();
     }
-    RidePrepareStationPlatformBoarding(*curRide, current_station, *this);
     SetState(Status::movingToEndOfStation);
 }
 

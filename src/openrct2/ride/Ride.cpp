@@ -7556,7 +7556,12 @@ void RideActivateStationPlatformPreQueue(const Ride& ride, StationIndex stationI
 bool RidePrepareStationPlatformBoarding(const Ride& ride, StationIndex stationIndex, const Vehicle& trainHead)
 {
     auto* state = GetStationPlatformState(ride, stationIndex);
-    if (state == nullptr)
+    if (state == nullptr || stationIndex.IsNull() || stationIndex.ToUnderlying() >= ride.numStations)
+    {
+        return false;
+    }
+    const auto trainIndex = ride.getStation(stationIndex).TrainAtStation;
+    if (trainIndex < ride.numTrains && ride.vehicles[trainIndex] != trainHead.id)
     {
         return false;
     }
@@ -7578,14 +7583,58 @@ std::optional<RideStationPlatformReservation> RideReserveStationPlatformSlot(
     {
         return std::nullopt;
     }
+
+    const auto claimSlot = [state, guestId](StationPlatformSlot& slot) {
+        slot.guestId = guestId;
+        slot.queueSequence = ++state->nextQueueSequence;
+        return slot.reservation;
+    };
+
+    Vehicle* boardingTrain = nullptr;
+    if (!stationIndex.IsNull() && stationIndex.ToUnderlying() < ride.numStations)
+    {
+        const auto trainIndex = ride.getStation(stationIndex).TrainAtStation;
+        if (trainIndex < ride.numTrains)
+        {
+            boardingTrain = getGameState().entities.GetEntity<Vehicle>(ride.vehicles[trainIndex]);
+        }
+    }
+    bool hasCurrentBoardingPlan = false;
+    if (boardingTrain != nullptr)
+    {
+        const auto train = RideVehicle::StationDetail::BuildTrainSeatSummary(*boardingTrain);
+        hasCurrentBoardingPlan = StationPlatformConsistMatches(*state, train)
+            && (state->boardingPlanTrain == boardingTrain->id
+                || PrepareStationPlatformBoarding(*state, ride, stationIndex, *boardingTrain, train, true));
+        if (hasCurrentBoardingPlan)
+        {
+            const auto boardingPlan = RideVehicle::StationDetail::BuildTrainBoardingSeatPlan(train);
+            for (uint16_t seatPlanIndex = 0; seatPlanIndex < boardingPlan.seatCount; seatPlanIndex++)
+            {
+                const auto slotIndex = boardingPlan.seats[seatPlanIndex].slotIndex;
+                if (slotIndex >= state->slots.size())
+                {
+                    hasCurrentBoardingPlan = false;
+                    break;
+                }
+                auto& slot = state->slots[slotIndex];
+                if (slot.guestId.IsNull() && slot.hasWaitPosition)
+                {
+                    return claimSlot(slot);
+                }
+            }
+        }
+    }
+
+    if (!hasCurrentBoardingPlan)
+    {
+        state->boardingPlanTrain = EntityId::GetNull();
+    }
     for (auto& slot : state->slots)
     {
         if (slot.guestId.IsNull() && slot.hasWaitPosition)
         {
-            slot.guestId = guestId;
-            slot.queueSequence = ++state->nextQueueSequence;
-            state->boardingPlanTrain = EntityId::GetNull();
-            return slot.reservation;
+            return claimSlot(slot);
         }
     }
     return std::nullopt;
@@ -7639,11 +7688,20 @@ RideStationPlatformSeatBindingResult RideBindStationPlatformGuestToSeat(
     {
         return RideStationPlatformSeatBindingResult::consistMismatch;
     }
+    if (stationIndex.IsNull() || stationIndex.ToUnderlying() >= ride.numStations
+        || ride.getStation(stationIndex).TrainAtStation != trainIndex)
+    {
+        return RideStationPlatformSeatBindingResult::seatUnavailable;
+    }
 
     auto* head = getGameState().entities.GetEntity<Vehicle>(ride.vehicles[trainIndex]);
     if (head == nullptr)
     {
         return RideStationPlatformSeatBindingResult::consistMismatch;
+    }
+    if (head->flags.has(VehicleFlag::readyToDepart))
+    {
+        return RideStationPlatformSeatBindingResult::seatUnavailable;
     }
     const auto train = RideVehicle::StationDetail::BuildTrainSeatSummary(*head);
     if (!StationPlatformConsistMatches(*state, train))

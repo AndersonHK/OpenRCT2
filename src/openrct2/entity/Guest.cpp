@@ -3963,6 +3963,7 @@ namespace OpenRCT2
             CurrentCar = reservation->carIndex;
             CurrentSeat = reservation->seatIndex;
             goToRideEntrance(*ride);
+            tryBoardStationPlatformTrain(*ride);
             return;
         }
 
@@ -4153,6 +4154,13 @@ namespace OpenRCT2
         if (ride == nullptr)
             return;
 
+        if (RideSubState == PeepRideSubState::inEntrance
+            && RideGetStationPlatformReservation(*ride, CurrentRideStation, id).has_value()
+            && tryBoardStationPlatformTrain(*ride))
+        {
+            return;
+        }
+
         int16_t actionZ, xy_distance;
 
         const auto* rideEntry = ride->getRideEntry();
@@ -4172,13 +4180,9 @@ namespace OpenRCT2
 
             if (RideSubState == PeepRideSubState::inEntrance && xy_distance < distanceThreshold)
             {
-                const auto reservation = RideGetStationPlatformReservation(*ride, CurrentRideStation, id);
-                if (reservation.has_value())
-                {
-                    SetDestination(reservation->waitPosition, 2);
-                    RideSubState = PeepRideSubState::approachPlatformSlot;
-                }
-                else
+                // A staged guest must finish crossing the entrance before turning along the platform. The
+                // destination-reached branch below then selects the car-aligned wait marker.
+                if (!RideGetStationPlatformReservation(*ride, CurrentRideStation, id).has_value())
                 {
                     RideSubState = PeepRideSubState::freeVehicleCheck;
                 }
@@ -4736,12 +4740,12 @@ namespace OpenRCT2
 
                 if (vehicle->IsUsedInPairs())
                 {
-                    auto* seatedGuest = gameState.entities.GetEntity<Guest>(vehicle->peep[CurrentSeat ^ 1]);
-                    if (seatedGuest != nullptr)
+                    const auto pairedSeat = CurrentSeat ^ 1;
+                    auto* seatedGuest = pairedSeat < vehicle->next_free_seat
+                        ? gameState.entities.GetEntity<Guest>(vehicle->peep[pairedSeat])
+                        : nullptr;
+                    if (seatedGuest != nullptr && seatedGuest->RideSubState == PeepRideSubState::enterVehicle)
                     {
-                        if (seatedGuest->RideSubState != PeepRideSubState::enterVehicle)
-                            return;
-
                         vehicle->num_peeps++;
                         ride->curNumCustomers++;
 
@@ -4751,6 +4755,10 @@ namespace OpenRCT2
                         seatedGuest->guestTimeOnRide = 0;
                         seatedGuest->RideSubState = PeepRideSubState::onRide;
                         seatedGuest->onEnterRide(*ride);
+                    }
+                    else if (seatedGuest != nullptr && seatedGuest->RideSubState != PeepRideSubState::onRide)
+                    {
+                        return;
                     }
                 }
 

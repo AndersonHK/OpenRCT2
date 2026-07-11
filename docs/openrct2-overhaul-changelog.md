@@ -38,6 +38,27 @@ departs, activates its platform, completes its circuit, returns, stops, overwrit
 and boards the first staged guest before departing. A focused seat-binding test separately covers through-rider prefixes, stale
 tail ids, returning guests, exact FIFO seats, and active duplicate rejection.
 
+Multi-train stations now transfer platform boarding ownership only when the next train successfully becomes the station's
+published loading train. An arriving train that is still unloading or moving behind an under-filled train can no longer remap
+waiting guests toward its own cars. Late arrivals continue to claim the published train's next physical empty seat; during the
+brief ownerless handoff they remain staged, then remap FIFO when the next train publishes itself. This closes the interaction
+between minimum-load waiting and `leave when another train arrives` while retaining physical completion of reserved seats as the
+hard departure-safety condition.
+
+The remaining overlap deadlock involved the transition from boarding to departure rather than plan ownership. A follower that is
+collision-stopped behind the platform correctly remains in `movingToEndOfStation`; that status now takes priority over the front
+train's empty/minimum-load waits and makes it ready to leave. Once ready, the front train accepts no additional platform seat
+bindings, while guests already bound to it finish boarding so `num_peeps` catches `next_free_seat`. Paired-car entry now consults
+only the active passenger prefix and permits the second half to enter after its partner is already seated, so stale ids left in an
+inactive seat cannot hold the train forever. Later staged guests retain their platform reservations for the following train. On
+ordinary circuits the arrival also completes the station dwell signal immediately; block-section signals and synchronized
+departure safety remain authoritative.
+
+Platform-bound guests now finish the established inward entrance waypoint before turning toward their reserved car position.
+The first leg therefore crosses the entrance building perpendicularly, and the second follows the existing loading-position line
+inside the station platform. Guests no longer turn early from the middle of the entrance tile, cut diagonally through its walls,
+walk outside the platform fence, and phase back through it.
+
 ### Vulkan cold-start and exclusive-fullscreen errors
 
 Vulkan surface and swapchain creation now happens only after the configured window mode has been applied and the real drawable

@@ -568,6 +568,295 @@ TEST_F(PlayTests, StoppedTrainBoardsGuestWaitingOnStationPlatformBeforeDeparting
     EXPECT_EQ(targetTrain->peep[guest->CurrentSeat], guest->id) << trace.str();
 }
 
+TEST_F(PlayTests, ArrivingTrainCannotStealStationPlatformBeforePublishedHandoff)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+
+    auto context = CreateContext();
+    ASSERT_NE(context, nullptr);
+    ASSERT_TRUE(context->Initialise());
+    GetContext()->LoadParkFromFile(TestData::GetParkPath("EverythingPark.park"));
+
+    auto& gameState = getGameState();
+    RideClearAllStationPlatformPreQueues();
+
+    Ride* targetRide = nullptr;
+    Vehicle* firstTrain = nullptr;
+    Vehicle* arrivingTrain = nullptr;
+    StationIndex targetStation = StationIndex::GetNull();
+    for (auto& ride : RideManager(gameState))
+    {
+        if (!RideSupportsStationPlatformPreQueue(ride) || ride.numTrains < 2
+            || !ride.getRideTypeDescriptor().flags.has(RtdFlag::hasLoadOptions))
+            continue;
+
+        auto* candidateFirstTrain = gameState.entities.GetEntity<Vehicle>(ride.vehicles[0]);
+        auto* candidateArrivingTrain = gameState.entities.GetEntity<Vehicle>(ride.vehicles[1]);
+        if (candidateFirstTrain == nullptr || candidateArrivingTrain == nullptr || !candidateFirstTrain->IsUsedInPairs()
+            || RideVehicle::StationDetail::BuildTrainSeatSummary(*candidateFirstTrain).capacity < 4)
+        {
+            continue;
+        }
+
+        for (uint8_t stationIndex = 0; stationIndex < ride.numStations; stationIndex++)
+        {
+            const auto candidateStation = StationIndex::FromUnderlying(stationIndex);
+            auto& station = ride.getStation(candidateStation);
+            if (station.Entrance.IsNull() || station.Exit.IsNull())
+                continue;
+
+            if (ride.getRideTypeDescriptor().Category == RideCategory::rollerCoaster)
+            {
+                const auto* origin = ride.getOriginElement(candidateStation);
+                if (origin == nullptr)
+                    continue;
+                const auto direction = origin->getDirection();
+                station.Entrance.direction = (direction + 1) & kTileElementDirectionMask;
+                station.Exit.direction = (direction + 3) & kTileElementDirectionMask;
+            }
+            if (!RideCaptureStationPlatformTemplate(ride, candidateStation, *candidateFirstTrain))
+                continue;
+
+            targetRide = &ride;
+            firstTrain = candidateFirstTrain;
+            arrivingTrain = candidateArrivingTrain;
+            targetStation = candidateStation;
+            break;
+        }
+        if (targetRide != nullptr)
+            break;
+    }
+
+    ASSERT_NE(targetRide, nullptr);
+    ASSERT_NE(firstTrain, nullptr);
+    ASSERT_NE(arrivingTrain, nullptr);
+    ASSERT_FALSE(targetStation.IsNull());
+
+    const auto clearTrain = [&gameState](Vehicle& head) {
+        for (auto* car = &head; car != nullptr; car = gameState.entities.GetEntity<Vehicle>(car->next_vehicle_on_train))
+        {
+            car->num_peeps = 0;
+            car->next_free_seat = 0;
+            car->restraints_position = 255;
+            std::fill(std::begin(car->peep), std::end(car->peep), EntityId::GetNull());
+        }
+    };
+    clearTrain(*firstTrain);
+    clearTrain(*arrivingTrain);
+    firstTrain->flags.unset(VehicleFlag::readyToDepart);
+    arrivingTrain->flags.unset(VehicleFlag::readyToDepart);
+
+    targetRide->status = RideStatus::open;
+    targetRide->flags.unset(RideFlag::brokenDown, RideFlag::breakdownPending);
+    targetRide->vehicleChangeTimeout = 0;
+
+    firstTrain->num_peeps = 1;
+    firstTrain->next_free_seat = 1;
+    firstTrain->peep[0] = EntityId::FromUnderlying(65000);
+    firstTrain->current_station = targetStation;
+    arrivingTrain->current_station = targetStation;
+
+    auto& station = targetRide->getStation(targetStation);
+    station.TrainAtStation = 0;
+    RideActivateStationPlatformPreQueue(*targetRide, targetStation);
+    ASSERT_TRUE(RidePrepareStationPlatformBoarding(*targetRide, targetStation, *firstTrain));
+
+    auto* firstGuest = Guest::generate(station.Entrance.ToCoordsXYZ());
+    ASSERT_NE(firstGuest, nullptr);
+    const auto firstReservation = RideReserveStationPlatformSlot(*targetRide, targetStation, firstGuest->id);
+    ASSERT_TRUE(firstReservation.has_value());
+    EXPECT_NE(firstReservation->seatIndex, 0);
+    firstGuest->CurrentRide = targetRide->id;
+    firstGuest->CurrentRideStation = targetStation;
+    firstGuest->CurrentTrain = RideStation::kNoTrain;
+    firstGuest->CurrentCar = firstReservation->carIndex;
+    firstGuest->CurrentSeat = firstReservation->seatIndex;
+    firstGuest->State = PeepState::enteringRide;
+    firstGuest->RideSubState = PeepRideSubState::inEntrance;
+
+    const auto* firstRideEntry = firstTrain->GetRideEntry();
+    ASSERT_NE(firstRideEntry, nullptr);
+    const auto& firstCarEntry = firstRideEntry->Cars[firstTrain->vehicle_type];
+    const auto entranceOffset = firstCarEntry.flags.hasAny(
+                                    CarEntryFlag::isMiniGolf, CarEntryFlag::isChairlift, CarEntryFlag::isGoKart)
+        ? 32
+        : 21;
+    auto entranceWaypoint = station.Entrance.ToCoordsXYZD().ToTileCentre();
+    const auto entranceDirection = station.Entrance.direction;
+    ASSERT_LT(entranceDirection, kNumOrthogonalDirections);
+    const auto entranceNormal = DirectionOffsets[entranceDirection];
+    entranceWaypoint.x += entranceNormal.x * entranceOffset;
+    entranceWaypoint.y += entranceNormal.y * entranceOffset;
+
+    firstGuest->moveTo(
+        { entranceWaypoint.x - entranceNormal.x * 8, entranceWaypoint.y - entranceNormal.y * 8, station.GetBaseZ() });
+    firstGuest->SetDestination(entranceWaypoint, 2);
+    firstGuest->Action = PeepActionType::walking;
+    firstGuest->StepProgress = std::numeric_limits<uint8_t>::max();
+    station.TrainAtStation = RideStation::kNoTrain;
+
+    firstGuest->update();
+    EXPECT_EQ(firstGuest->RideSubState, PeepRideSubState::inEntrance);
+    EXPECT_EQ(firstGuest->GetDestination().x, entranceWaypoint.x);
+    EXPECT_EQ(firstGuest->GetDestination().y, entranceWaypoint.y);
+    for (int32_t tick = 0; tick < 32 && firstGuest->RideSubState == PeepRideSubState::inEntrance; tick++)
+    {
+        firstGuest->StepProgress = std::numeric_limits<uint8_t>::max();
+        firstGuest->update();
+    }
+    ASSERT_EQ(firstGuest->RideSubState, PeepRideSubState::approachPlatformSlot);
+    EXPECT_LE(std::abs(firstGuest->x - entranceWaypoint.x) + std::abs(firstGuest->y - entranceWaypoint.y), 2);
+    EXPECT_EQ(firstGuest->GetDestination().x, firstReservation->waitPosition.x);
+    EXPECT_EQ(firstGuest->GetDestination().y, firstReservation->waitPosition.y);
+    if (entranceNormal.x != 0)
+    {
+        EXPECT_EQ(firstReservation->waitPosition.x, entranceWaypoint.x);
+    }
+    else
+    {
+        EXPECT_EQ(firstReservation->waitPosition.y, entranceWaypoint.y);
+    }
+
+    station.TrainAtStation = 0;
+
+    arrivingTrain->status = Vehicle::Status::movingToEndOfStation;
+    EXPECT_FALSE(RidePrepareStationPlatformBoarding(*targetRide, targetStation, *arrivingTrain));
+    const auto unchangedReservation = RideGetStationPlatformReservation(*targetRide, targetStation, firstGuest->id);
+    ASSERT_TRUE(unchangedReservation.has_value());
+    EXPECT_EQ(unchangedReservation->slotIndex, firstReservation->slotIndex);
+    EXPECT_EQ(unchangedReservation->carIndex, firstReservation->carIndex);
+    EXPECT_EQ(unchangedReservation->seatIndex, firstReservation->seatIndex);
+    EXPECT_EQ(
+        RideBindStationPlatformGuestToSeat(*targetRide, targetStation, 0, *firstGuest),
+        RideStationPlatformSeatBindingResult::success);
+    RideReleaseStationPlatformSlot(*targetRide, targetStation, firstGuest->id);
+
+    auto* handoffGuest = Guest::generate(station.Entrance.ToCoordsXYZ());
+    ASSERT_NE(handoffGuest, nullptr);
+    const auto oldReservation = RideReserveStationPlatformSlot(*targetRide, targetStation, handoffGuest->id);
+    ASSERT_TRUE(oldReservation.has_value());
+    handoffGuest->CurrentRide = targetRide->id;
+    handoffGuest->CurrentRideStation = targetStation;
+    handoffGuest->CurrentTrain = RideStation::kNoTrain;
+    handoffGuest->CurrentCar = oldReservation->carIndex;
+    handoffGuest->CurrentSeat = oldReservation->seatIndex;
+    handoffGuest->State = PeepState::enteringRide;
+    handoffGuest->RideSubState = PeepRideSubState::waitingOnPlatform;
+
+    station.TrainAtStation = RideStation::kNoTrain;
+    EXPECT_EQ(
+        RideBindStationPlatformGuestToSeat(*targetRide, targetStation, 0, *handoffGuest),
+        RideStationPlatformSeatBindingResult::seatUnavailable);
+
+    station.TrainAtStation = 1;
+    ASSERT_TRUE(RidePrepareStationPlatformBoarding(*targetRide, targetStation, *arrivingTrain));
+
+    const auto newReservation = RideGetStationPlatformReservation(*targetRide, targetStation, handoffGuest->id);
+    ASSERT_TRUE(newReservation.has_value());
+    EXPECT_EQ(newReservation->seatIndex, 0);
+    EXPECT_EQ(
+        RideBindStationPlatformGuestToSeat(*targetRide, targetStation, 1, *handoffGuest),
+        RideStationPlatformSeatBindingResult::success);
+    EXPECT_EQ(handoffGuest->CurrentTrain, 1);
+
+    // Recreate the reported overlap through the production guest and vehicle updates. A lone guest reserves the first
+    // half of a paired car while the front train waits below half load. The blocked follower remains moving-to-end; its
+    // arrival must make the front train ready, stop later platform bindings, let the already bound guest finish boarding,
+    // and release the station instead of leaving num_peeps and next_free_seat permanently mismatched.
+    RideClearAllStationPlatformPreQueues();
+    clearTrain(*firstTrain);
+    clearTrain(*arrivingTrain);
+    firstTrain->peep[1] = handoffGuest->id;
+    ASSERT_TRUE(RideCaptureStationPlatformTemplate(*targetRide, targetStation, *firstTrain));
+    RideActivateStationPlatformPreQueue(*targetRide, targetStation);
+
+    targetRide->departFlags = static_cast<uint8_t>(
+                                  RIDE_DEPART_WAIT_FOR_LOAD | RIDE_DEPART_LEAVE_WHEN_ANOTHER_ARRIVES
+                                  | RIDE_DEPART_WAIT_FOR_MINIMUM_LENGTH)
+        | static_cast<uint8_t>(WAIT_FOR_LOAD_HALF);
+    targetRide->minWaitingTime = 10;
+    firstTrain->current_station = targetStation;
+    firstTrain->status = Vehicle::Status::waitingForPassengers;
+    firstTrain->sub_state = 1;
+    firstTrain->time_waiting = 0;
+    firstTrain->flags.unset(VehicleFlag::readyToDepart, VehicleFlag::waitingOnAdjacentStation);
+    arrivingTrain->current_station = targetStation;
+    arrivingTrain->status = Vehicle::Status::movingToEndOfStation;
+    arrivingTrain->velocity = 0;
+    station.TrainAtStation = 0;
+    station.Depart = targetRide->minWaitingTime;
+    ASSERT_TRUE(RidePrepareStationPlatformBoarding(*targetRide, targetStation, *firstTrain));
+
+    auto* unmatchedGuest = Guest::generate(station.Entrance.ToCoordsXYZ());
+    ASSERT_NE(unmatchedGuest, nullptr);
+    const auto unmatchedReservation = RideReserveStationPlatformSlot(*targetRide, targetStation, unmatchedGuest->id);
+    ASSERT_TRUE(unmatchedReservation.has_value());
+    ASSERT_EQ(unmatchedReservation->seatIndex, 0);
+    unmatchedGuest->moveTo(unmatchedReservation->waitPosition);
+    unmatchedGuest->SetDestination(unmatchedReservation->waitPosition, 2);
+    unmatchedGuest->CurrentRide = targetRide->id;
+    unmatchedGuest->CurrentRideStation = targetStation;
+    unmatchedGuest->CurrentTrain = RideStation::kNoTrain;
+    unmatchedGuest->CurrentCar = unmatchedReservation->carIndex;
+    unmatchedGuest->CurrentSeat = unmatchedReservation->seatIndex;
+    unmatchedGuest->State = PeepState::enteringRide;
+    ASSERT_EQ(
+        RideBindStationPlatformGuestToSeat(*targetRide, targetStation, 0, *unmatchedGuest),
+        RideStationPlatformSeatBindingResult::success);
+    RideReleaseStationPlatformSlot(*targetRide, targetStation, unmatchedGuest->id);
+    unmatchedGuest->RideSubState = PeepRideSubState::approachVehicle;
+
+    ASSERT_EQ(unmatchedGuest->CurrentTrain, 0);
+    ASSERT_EQ(unmatchedGuest->RideSubState, PeepRideSubState::approachVehicle);
+    ASSERT_EQ(firstTrain->num_peeps, 0);
+    ASSERT_EQ(firstTrain->next_free_seat, 1);
+    ASSERT_FALSE(RideGetStationPlatformReservation(*targetRide, targetStation, unmatchedGuest->id).has_value());
+
+    firstTrain->Update();
+    ASSERT_TRUE(firstTrain->flags.has(VehicleFlag::readyToDepart));
+    ASSERT_EQ(station.TrainAtStation, 0);
+
+    auto* followingGuest = Guest::generate(station.Entrance.ToCoordsXYZ());
+    ASSERT_NE(followingGuest, nullptr);
+    const auto followingReservation = RideReserveStationPlatformSlot(*targetRide, targetStation, followingGuest->id);
+    ASSERT_TRUE(followingReservation.has_value());
+    followingGuest->moveTo(followingReservation->waitPosition);
+    followingGuest->SetDestination(followingReservation->waitPosition, 2);
+    followingGuest->CurrentRide = targetRide->id;
+    followingGuest->CurrentRideStation = targetStation;
+    followingGuest->CurrentTrain = RideStation::kNoTrain;
+    followingGuest->CurrentCar = followingReservation->carIndex;
+    followingGuest->CurrentSeat = followingReservation->seatIndex;
+    followingGuest->State = PeepState::enteringRide;
+    followingGuest->RideSubState = PeepRideSubState::waitingOnPlatform;
+    EXPECT_EQ(
+        RideBindStationPlatformGuestToSeat(*targetRide, targetStation, 0, *followingGuest),
+        RideStationPlatformSeatBindingResult::seatUnavailable);
+    EXPECT_EQ(followingGuest->CurrentTrain, RideStation::kNoTrain);
+    EXPECT_EQ(firstTrain->next_free_seat, 1);
+    EXPECT_TRUE(RideGetStationPlatformReservation(*targetRide, targetStation, followingGuest->id).has_value());
+
+    for (int32_t tick = 0; tick < 64 && unmatchedGuest->State != PeepState::onRide; tick++)
+    {
+        unmatchedGuest->StepProgress = std::numeric_limits<uint8_t>::max();
+        unmatchedGuest->update();
+    }
+    ASSERT_EQ(unmatchedGuest->State, PeepState::onRide);
+    ASSERT_EQ(firstTrain->num_peeps, firstTrain->next_free_seat);
+
+    firstTrain->Update();
+    ASSERT_EQ(station.TrainAtStation, RideStation::kNoTrain);
+    ASSERT_EQ(firstTrain->status, Vehicle::Status::waitingForPassengers);
+    ASSERT_EQ(firstTrain->sub_state, 2);
+
+    for (int32_t tick = 0; tick < 32 && firstTrain->status != Vehicle::Status::departing; tick++)
+    {
+        firstTrain->Update();
+    }
+    EXPECT_EQ(firstTrain->status, Vehicle::Status::departing);
+}
+
 TEST_F(PlayTests, NaturallyArrivingTrainBoardsAnAlreadyStagedGuest)
 {
     gOpenRCT2Headless = true;

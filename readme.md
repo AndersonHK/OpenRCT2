@@ -56,7 +56,12 @@ this system now, and Chairlift uses its native two-seat loading positions with t
 just-in-time boarding because its waypoint cabin does not expose a trustworthy platform-clear event. Roller-coaster stations
 with visible platforms, scalar car loading positions, and entrance/exit openings on opposite lateral sides also stage exactly
 one stopped train's capacity, reusing the same consist sizing and seat positions. Same-side coaster stations retain ordinary
-queue boarding; transportation rides are unaffected. Transport route choice, pricing, and crowding rules remain transport-only. Arrival-time
+queue boarding; transportation rides are unaffected. On multi-train circuits, only the train currently published at the station
+owns and remaps the platform queue; an arriving follower takes ownership only after the previous train releases the station.
+Staged guests cross the entrance opening first and then follow the car-aligned loading line inside the platform fence.
+When a follower arrives, the front train stops accepting new seat bindings, finishes guests already walking to it, and departs;
+inactive paired-seat ids from prior riders cannot trap either train at the station.
+Transport route choice, pricing, and crowding rules remain transport-only. Arrival-time
 seat-plan refreshes recognise the train already selected by a staged guest, so through-rider remapping cannot incorrectly send
 transport or coaster guests back out of the station. Arrival-time remapping also shares the same seat-binding handshake from the
 platform approach and wait states, so an empty train cannot finish its dwell while its assigned guest walks back to a shifted

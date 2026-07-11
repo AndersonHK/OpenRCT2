@@ -144,10 +144,36 @@ transport stations do not use this gate: their established same-side and opposit
 
 Platform admission itself is free. The guest repeats current affordability and price eligibility only when it is first in platform order and a real train has finished unloading. Only then does the guest reserve an actual free vehicle seat, pay the current journey fare, publish its complete queue time, and approach the arrived vehicle. If the fare changed beyond its means, it releases the abstract slot and follows the station exit. This avoids refunds and paid-but-never-ridden passengers after closure or consist changes.
 
-Guests update before vehicles in each simulation tick, so a waiting guest can select the arrived train before a lazily invalidated
-boarding plan is rebuilt. That rebuild treats either an unassigned staged guest or a guest assigned to that exact train as valid
-for car/seat remapping. Assignments to any other train remain rejected. This preserves FIFO when through-riders shift the free-seat
-suffix and prevents a stale reservation from being mistaken for a consist mismatch that would send the guest out of the station.
+The train stored in `RideStation::TrainAtStation` is the exclusive owner of the platform boarding plan. Finishing unload does not
+grant ownership: on a busy multi-train circuit, an arriving train may still be behind an under-filled train that owns and is
+loading at the same station. Plan preparation is therefore part of the successful station-publication handoff. An unpublished
+arrival cannot remap staged guests, and a train that has relinquished the station cannot accept a late seat binding. Ownerless
+guests remain in generic platform slots until the next train publishes itself and rebuilds the FIFO seat mapping.
+
+An arriving follower may be physically stationary behind the loading train while still correctly reporting
+`movingToEndOfStation`: vehicle spacing has stopped it before it reaches the station-end state transition. The front train treats
+that status as an arrival before applying empty, minimum-time, or minimum-load waits. If guests are already irrevocably bound,
+their reserved seats continue to hold the train until they physically sit down, but the ready train refuses new platform
+bindings. Its reserved-minus-seated count can therefore only decrease. Unbound staged guests remain FIFO for the follower.
+For a non-block-sectioned circuit, the arrival completes the ordinary dwell timer so the front train moves as soon as its already
+bound guests and restraints are ready. Block-section clearance and adjacent-station synchronization are not bypassed.
+
+Pair-loaded cars use only the active `next_free_seat` prefix when resolving the adjacent passenger. Inactive array entries may
+still contain ids from prior riders after unloading and are not current partners. A lone bound guest can enter without consulting
+that stale tail, and a later second guest can enter normally when the first partner is already on the ride. This preserves the
+established passenger-array representation without allowing an inactive id to deadlock departure.
+
+The visible walk uses the established two-part station boarding geometry. A staged guest first completes the normal inward
+entrance target at the station-facing edge of the entrance tile (`21` coordinate units, or the existing special full-tile
+offset). Only after reaching that opening does the guest turn toward the car-aligned marker derived from the vehicle loading
+position. Because the marker preserves the entrance's perpendicular platform coordinate, this produces two straight legs through
+the opening and along the inside of the platform rather than a diagonal shortcut across the entrance walls and station fence.
+
+Guests update before vehicles in each simulation tick, so a waiting guest can select the published train before a lazily
+invalidated boarding plan is rebuilt. That rebuild treats either an unassigned staged guest or a guest assigned to that exact
+train as valid for car/seat remapping. Assignments to any other train remain rejected. This preserves FIFO when through-riders
+shift the free-seat suffix and prevents a stale reservation from being mistaken for a consist mismatch that would send the guest
+out of the station.
 Arrival may also move a guest who was already waiting back into the short platform-approach animation. The approach and wait
 substates therefore call the same binding handshake. On the tick after the vehicle publishes itself at the station, the oldest
 staged guest reserves its remapped real seat immediately instead of waiting to finish walking back to the marker. That reservation
