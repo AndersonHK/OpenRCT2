@@ -122,11 +122,14 @@ namespace OpenRCT2::Scripting
         return JS_NULL;
     }
 
-    JSValue ScRide::type_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        return JS_NewInt32(ctx, ride != nullptr ? ride->type : 0);
-    }
+    #define DEFINE_RIDE_NUMBER_GETTER(name, constructor, expression)                                                           \
+        JSValue ScRide::name(JSContext* ctx, JSValue thisVal)                                                                  \
+        {                                                                                                                      \
+            const auto* ride = GetRide(thisVal);                                                                               \
+            return constructor(ctx, ride != nullptr ? (expression) : 0);                                                       \
+        }
+
+    DEFINE_RIDE_NUMBER_GETTER(type_get, JS_NewInt32, ride->type)
 
     JSValue ScRide::classification_get(JSContext* ctx, JSValue thisVal)
     {
@@ -198,11 +201,7 @@ namespace OpenRCT2::Scripting
         return JSFromStdString(ctx, str);
     }
 
-    JSValue ScRide::flags_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        return JS_NewUint32(ctx, ride != nullptr ? ride->flags.holder : 0);
-    }
+    DEFINE_RIDE_NUMBER_GETTER(flags_get, JS_NewUint32, ride->flags.holder)
 
     JSValue ScRide::flags_set(JSContext* ctx, JSValue thisVal, JSValue value)
     {
@@ -217,11 +216,7 @@ namespace OpenRCT2::Scripting
         return JS_UNDEFINED;
     }
 
-    JSValue ScRide::mode_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        return JS_NewUint32(ctx, ride != nullptr ? static_cast<uint8_t>(ride->mode) : 0);
-    }
+    DEFINE_RIDE_NUMBER_GETTER(mode_get, JS_NewUint32, static_cast<uint8_t>(ride->mode))
 
     JSValue ScRide::mode_set(JSContext* ctx, JSValue thisVal, JSValue value)
     {
@@ -236,11 +231,7 @@ namespace OpenRCT2::Scripting
         return JS_UNDEFINED;
     }
 
-    JSValue ScRide::departFlags_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        return JS_NewUint32(ctx, ride != nullptr ? ride->departFlags : 0);
-    }
+    DEFINE_RIDE_NUMBER_GETTER(departFlags_get, JS_NewUint32, ride->departFlags)
 
     JSValue ScRide::departFlags_set(JSContext* ctx, JSValue thisVal, JSValue value)
     {
@@ -255,11 +246,7 @@ namespace OpenRCT2::Scripting
         return JS_UNDEFINED;
     }
 
-    JSValue ScRide::minimumWaitingTime_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        return JS_NewUint32(ctx, ride != nullptr ? ride->minWaitingTime : 0);
-    }
+    DEFINE_RIDE_NUMBER_GETTER(minimumWaitingTime_get, JS_NewUint32, ride->minWaitingTime)
 
     JSValue ScRide::minimumWaitingTime_set(JSContext* ctx, JSValue thisVal, JSValue value)
     {
@@ -274,11 +261,7 @@ namespace OpenRCT2::Scripting
         return JS_UNDEFINED;
     }
 
-    JSValue ScRide::maximumWaitingTime_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        return JS_NewUint32(ctx, ride != nullptr ? ride->maxWaitingTime : 0);
-    }
+    DEFINE_RIDE_NUMBER_GETTER(maximumWaitingTime_get, JS_NewUint32, ride->maxWaitingTime)
 
     JSValue ScRide::maximumWaitingTime_set(JSContext* ctx, JSValue thisVal, JSValue value)
     {
@@ -379,11 +362,7 @@ namespace OpenRCT2::Scripting
         return JS_UNDEFINED;
     }
 
-    JSValue ScRide::stationStyle_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        return JS_NewUint32(ctx, ride != nullptr ? ride->entranceStyle : 0);
-    }
+    DEFINE_RIDE_NUMBER_GETTER(stationStyle_get, JS_NewUint32, ride->entranceStyle)
 
     JSValue ScRide::stationStyle_set(JSContext* ctx, JSValue thisVal, JSValue value)
     {
@@ -398,11 +377,7 @@ namespace OpenRCT2::Scripting
         return JS_UNDEFINED;
     }
 
-    JSValue ScRide::music_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        return JS_NewUint32(ctx, ride != nullptr ? ride->music : 0);
-    }
+    DEFINE_RIDE_NUMBER_GETTER(music_get, JS_NewUint32, ride->music)
 
     JSValue ScRide::music_set(JSContext* ctx, JSValue thisVal, JSValue value)
     {
@@ -468,11 +443,7 @@ namespace OpenRCT2::Scripting
         return JS_UNDEFINED;
     }
 
-    JSValue ScRide::excitement_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        return JS_NewInt32(ctx, ride != nullptr ? ride->ratings.excitement : 0);
-    }
+    DEFINE_RIDE_NUMBER_GETTER(excitement_get, JS_NewInt32, ride->ratings.excitement)
 
     JSValue ScRide::excitement_set(JSContext* ctx, JSValue thisVal, JSValue value)
     {
@@ -487,11 +458,7 @@ namespace OpenRCT2::Scripting
         return JS_UNDEFINED;
     }
 
-    JSValue ScRide::intensity_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        return JS_NewInt32(ctx, ride != nullptr ? ride->ratings.intensity : 0);
-    }
+    DEFINE_RIDE_NUMBER_GETTER(intensity_get, JS_NewInt32, ride->ratings.intensity)
 
     JSValue ScRide::intensity_set(JSContext* ctx, JSValue thisVal, JSValue value)
     {
@@ -506,11 +473,7 @@ namespace OpenRCT2::Scripting
         return JS_UNDEFINED;
     }
 
-    JSValue ScRide::nausea_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        return JS_NewInt32(ctx, ride != nullptr ? ride->ratings.nausea : 0);
-    }
+    DEFINE_RIDE_NUMBER_GETTER(nausea_get, JS_NewInt32, ride->ratings.nausea)
 
     JSValue ScRide::nausea_set(JSContext* ctx, JSValue thisVal, JSValue value)
     {
@@ -525,11 +488,7 @@ namespace OpenRCT2::Scripting
         return JS_UNDEFINED;
     }
 
-    JSValue ScRide::totalCustomers_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        return JS_NewInt32(ctx, ride != nullptr ? ride->totalCustomers : 0);
-    }
+    DEFINE_RIDE_NUMBER_GETTER(totalCustomers_get, JS_NewInt32, ride->totalCustomers)
 
     JSValue ScRide::totalCustomers_set(JSContext* ctx, JSValue thisVal, JSValue value)
     {
@@ -544,11 +503,7 @@ namespace OpenRCT2::Scripting
         return JS_UNDEFINED;
     }
 
-    JSValue ScRide::buildDate_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        return JS_NewInt32(ctx, ride != nullptr ? ride->buildDate : 0);
-    }
+    DEFINE_RIDE_NUMBER_GETTER(buildDate_get, JS_NewInt32, ride->buildDate)
 
     JSValue ScRide::buildDate_set(JSContext* ctx, JSValue thisVal, JSValue value)
     {
@@ -563,17 +518,9 @@ namespace OpenRCT2::Scripting
         return JS_UNDEFINED;
     }
 
-    JSValue ScRide::age_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        return JS_NewInt32(ctx, ride != nullptr ? ride->getAge() : 0);
-    }
+    DEFINE_RIDE_NUMBER_GETTER(age_get, JS_NewInt32, ride->getAge())
 
-    JSValue ScRide::runningCost_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        return JS_NewInt64(ctx, ride != nullptr ? ride->upkeepCost : 0);
-    }
+    DEFINE_RIDE_NUMBER_GETTER(runningCost_get, JS_NewInt64, ride->upkeepCost)
 
     JSValue ScRide::runningCost_set(JSContext* ctx, JSValue thisVal, JSValue value)
     {
@@ -588,11 +535,7 @@ namespace OpenRCT2::Scripting
         return JS_UNDEFINED;
     }
 
-    JSValue ScRide::totalProfit_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        return JS_NewInt32(ctx, ride != nullptr ? ride->totalProfit : 0);
-    }
+    DEFINE_RIDE_NUMBER_GETTER(totalProfit_get, JS_NewInt32, ride->totalProfit)
 
     JSValue ScRide::totalProfit_set(JSContext* ctx, JSValue thisVal, JSValue value)
     {
@@ -607,11 +550,7 @@ namespace OpenRCT2::Scripting
         return JS_UNDEFINED;
     }
 
-    JSValue ScRide::inspectionInterval_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        return JS_NewUint32(ctx, ride != nullptr ? EnumValue(ride->inspectionInterval) : 0);
-    }
+    DEFINE_RIDE_NUMBER_GETTER(inspectionInterval_get, JS_NewUint32, EnumValue(ride->inspectionInterval))
 
     JSValue ScRide::inspectionInterval_set(JSContext* ctx, JSValue thisVal, JSValue value)
     {
@@ -658,17 +597,9 @@ namespace OpenRCT2::Scripting
         return JS_UNDEFINED;
     }
 
-    JSValue ScRide::downtime_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        return JS_NewUint32(ctx, ride != nullptr ? ride->downtime : 0);
-    }
+    DEFINE_RIDE_NUMBER_GETTER(downtime_get, JS_NewUint32, ride->downtime)
 
-    JSValue ScRide::liftHillSpeed_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        return JS_NewUint32(ctx, ride != nullptr ? ride->liftHillSpeed : 0);
-    }
+    DEFINE_RIDE_NUMBER_GETTER(liftHillSpeed_get, JS_NewUint32, ride->liftHillSpeed)
 
     JSValue ScRide::liftHillSpeed_set(JSContext* ctx, JSValue thisVal, JSValue value)
     {
@@ -683,103 +614,39 @@ namespace OpenRCT2::Scripting
         return JS_UNDEFINED;
     }
 
-    JSValue ScRide::maxLiftHillSpeed_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        auto maximum = ride != nullptr ? ride->getRideTypeDescriptor().LiftData.maximum_speed : 0;
-        return JS_NewUint32(ctx, maximum);
-    }
+    DEFINE_RIDE_NUMBER_GETTER(maxLiftHillSpeed_get, JS_NewUint32, ride->getRideTypeDescriptor().LiftData.maximum_speed)
 
-    JSValue ScRide::minLiftHillSpeed_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        auto minimum = ride != nullptr ? ride->getRideTypeDescriptor().LiftData.minimum_speed : 0;
-        return JS_NewUint32(ctx, minimum);
-    }
+    DEFINE_RIDE_NUMBER_GETTER(minLiftHillSpeed_get, JS_NewUint32, ride->getRideTypeDescriptor().LiftData.minimum_speed)
 
-    JSValue ScRide::satisfaction_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        return JS_NewUint32(ctx, ride != nullptr ? ride->satisfaction * 5 : 0);
-    }
+    DEFINE_RIDE_NUMBER_GETTER(satisfaction_get, JS_NewUint32, ride->satisfaction * 5)
 
-    JSValue ScRide::maxSpeed_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        return JS_NewFloat64(ctx, ride != nullptr ? ToHumanReadableSpeed(ride->getDisplayMaxSpeed()) : 0);
-    }
+    DEFINE_RIDE_NUMBER_GETTER(maxSpeed_get, JS_NewFloat64, ToHumanReadableSpeed(ride->getDisplayMaxSpeed()))
 
-    JSValue ScRide::averageSpeed_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        return JS_NewFloat64(ctx, ride != nullptr ? ToHumanReadableSpeed(ride->getDisplayAverageSpeed()) : 0);
-    }
+    DEFINE_RIDE_NUMBER_GETTER(averageSpeed_get, JS_NewFloat64, ToHumanReadableSpeed(ride->getDisplayAverageSpeed()))
 
-    JSValue ScRide::rideTime_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        return JS_NewInt32(ctx, ride != nullptr ? ride->getDisplayTotalTime() : 0);
-    }
+    DEFINE_RIDE_NUMBER_GETTER(rideTime_get, JS_NewInt32, ride->getDisplayTotalTime())
 
-    JSValue ScRide::rideLength_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        return JS_NewFloat64(ctx, ride != nullptr ? ToHumanReadableRideLength(ride->getDisplayTotalLength()) : 0);
-    }
+    DEFINE_RIDE_NUMBER_GETTER(rideLength_get, JS_NewFloat64, ToHumanReadableRideLength(ride->getDisplayTotalLength()))
 
-    JSValue ScRide::maxPositiveVerticalGs_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        return JS_NewFloat64(ctx, ride != nullptr ? ride->getDisplayMaxPositiveVerticalG() / 100.0 : 0);
-    }
+    DEFINE_RIDE_NUMBER_GETTER(maxPositiveVerticalGs_get, JS_NewFloat64, ride->getDisplayMaxPositiveVerticalG() / 100.0)
 
-    JSValue ScRide::maxNegativeVerticalGs_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        return JS_NewFloat64(ctx, ride != nullptr ? ride->getDisplayMaxNegativeVerticalG() / 100.0 : 0);
-    }
+    DEFINE_RIDE_NUMBER_GETTER(maxNegativeVerticalGs_get, JS_NewFloat64, ride->getDisplayMaxNegativeVerticalG() / 100.0)
 
-    JSValue ScRide::maxLateralGs_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        return JS_NewFloat64(ctx, ride != nullptr ? ride->getDisplayMaxLateralG() / 100.0 : 0);
-    }
+    DEFINE_RIDE_NUMBER_GETTER(maxLateralGs_get, JS_NewFloat64, ride->getDisplayMaxLateralG() / 100.0)
 
-    JSValue ScRide::maxPositiveLongitudinalGs_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        return JS_NewFloat64(ctx, ride != nullptr ? ride->getDisplayMaxPositiveLongitudinalG() / 100.0 : 0);
-    }
+    DEFINE_RIDE_NUMBER_GETTER(maxPositiveLongitudinalGs_get, JS_NewFloat64, ride->getDisplayMaxPositiveLongitudinalG() / 100.0)
 
-    JSValue ScRide::maxNegativeLongitudinalGs_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        return JS_NewFloat64(ctx, ride != nullptr ? ride->getDisplayMaxNegativeLongitudinalG() / 100.0 : 0);
-    }
+    DEFINE_RIDE_NUMBER_GETTER(maxNegativeLongitudinalGs_get, JS_NewFloat64, ride->getDisplayMaxNegativeLongitudinalG() / 100.0)
 
-    JSValue ScRide::totalAirTime_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        return JS_NewFloat64(ctx, ride != nullptr ? ToHumanReadableAirTime(ride->getDisplayTotalAirTime()) / 100.0 : 0);
-    }
+    DEFINE_RIDE_NUMBER_GETTER(totalAirTime_get, JS_NewFloat64, ToHumanReadableAirTime(ride->getDisplayTotalAirTime()) / 100.0)
 
-    JSValue ScRide::numDrops_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        return JS_NewUint32(ctx, ride != nullptr ? ride->getDisplayNumDrops() : 0);
-    }
+    DEFINE_RIDE_NUMBER_GETTER(numDrops_get, JS_NewUint32, ride->getDisplayNumDrops())
 
-    JSValue ScRide::numLiftHills_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        return JS_NewUint32(ctx, ride != nullptr ? ride->getDisplayNumPoweredLifts() : 0);
-    }
+    DEFINE_RIDE_NUMBER_GETTER(numLiftHills_get, JS_NewUint32, ride->getDisplayNumPoweredLifts())
 
-    JSValue ScRide::highestDropHeight_get(JSContext* ctx, JSValue thisVal)
-    {
-        auto ride = GetRide(thisVal);
-        return JS_NewFloat64(ctx, ride != nullptr ? ride->getDisplayHighestDropHeight() : 0);
-    }
+    DEFINE_RIDE_NUMBER_GETTER(highestDropHeight_get, JS_NewFloat64, ride->getDisplayHighestDropHeight())
+
+    #undef DEFINE_RIDE_NUMBER_GETTER
 
     JSValue ScRide::breakdown_get(JSContext* ctx, JSValue thisVal)
     {

@@ -18,24 +18,10 @@
     #include <cstddef>
     #include <cstring>
     #include <stdexcept>
-    #include <string>
     #include <utility>
 
 namespace OpenRCT2::Ui::Vulkan
 {
-    namespace
-    {
-        void CheckVk(VkResult result, const char* operation)
-        {
-            if (result != VK_SUCCESS)
-            {
-                throw std::runtime_error(
-                    std::string(operation) + " failed with Vulkan result " + std::to_string(result));
-            }
-        }
-
-    } // namespace
-
     RectPipeline::~RectPipeline()
     {
         Dispose();
@@ -60,34 +46,15 @@ namespace OpenRCT2::Ui::Vulkan
     {
         if (_device != VK_NULL_HANDLE)
         {
-            for (auto& framebuffer : _framebuffers)
+            for (const auto framebuffer : _framebuffers)
             {
-                if (framebuffer != VK_NULL_HANDLE)
-                {
-                    vkDestroyFramebuffer(_device, framebuffer, nullptr);
-                    framebuffer = VK_NULL_HANDLE;
-                }
+                vkDestroyFramebuffer(_device, framebuffer, nullptr);
             }
-            if (_pipeline != VK_NULL_HANDLE)
-            {
-                vkDestroyPipeline(_device, _pipeline, nullptr);
-            }
-            if (_renderPass != VK_NULL_HANDLE)
-            {
-                vkDestroyRenderPass(_device, _renderPass, nullptr);
-            }
-            if (_pipelineLayout != VK_NULL_HANDLE)
-            {
-                vkDestroyPipelineLayout(_device, _pipelineLayout, nullptr);
-            }
-            if (_descriptorPool != VK_NULL_HANDLE)
-            {
-                vkDestroyDescriptorPool(_device, _descriptorPool, nullptr);
-            }
-            if (_descriptorSetLayout != VK_NULL_HANDLE)
-            {
-                vkDestroyDescriptorSetLayout(_device, _descriptorSetLayout, nullptr);
-            }
+            vkDestroyPipeline(_device, _pipeline, nullptr);
+            vkDestroyRenderPass(_device, _renderPass, nullptr);
+            vkDestroyPipelineLayout(_device, _pipelineLayout, nullptr);
+            vkDestroyDescriptorPool(_device, _descriptorPool, nullptr);
+            vkDestroyDescriptorSetLayout(_device, _descriptorSetLayout, nullptr);
         }
         _device = VK_NULL_HANDLE;
         _pipelineCache = VK_NULL_HANDLE;
@@ -97,12 +64,12 @@ namespace OpenRCT2::Ui::Vulkan
         _pipelineLayout = VK_NULL_HANDLE;
         _renderPass = VK_NULL_HANDLE;
         _pipeline = VK_NULL_HANDLE;
+        _framebuffers = {};
         _extent = {};
         _shaderDirectory.clear();
     }
 
-    void RectPipeline::Record(
-        const FrameToken& frame, const Gpu::CommandBatch<Gpu::RectCommand>& commands) const
+    void RectPipeline::Record(const FrameToken& frame, const Gpu::CommandBatch<Gpu::RectCommand>& commands) const
     {
         if (commands.empty())
         {
@@ -137,17 +104,14 @@ namespace OpenRCT2::Ui::Vulkan
             .maxDepth = 1.0f,
         };
         const VkRect2D scissor = { .offset = { 0, 0 }, .extent = _extent };
-        const ScreenConstants screen = {
-            static_cast<int32_t>(_extent.width), static_cast<int32_t>(_extent.height)
-        };
+        const ScreenConstants screen = { static_cast<int32_t>(_extent.width), static_cast<int32_t>(_extent.height) };
         const VkDeviceSize vertexOffset = allocation.offset;
         vkCmdSetViewport(frame.commandBuffer, 0, 1, &viewport);
         vkCmdSetScissor(frame.commandBuffer, 0, 1, &scissor);
         vkCmdBindPipeline(frame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline);
         vkCmdBindDescriptorSets(
             frame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineLayout, 0, 1, &_descriptorSet, 0, nullptr);
-        vkCmdPushConstants(
-            frame.commandBuffer, _pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(screen), &screen);
+        vkCmdPushConstants(frame.commandBuffer, _pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(screen), &screen);
         vkCmdBindVertexBuffers(frame.commandBuffer, 0, 1, &allocation.buffer, &vertexOffset);
         vkCmdDraw(frame.commandBuffer, 4, static_cast<uint32_t>(commands.size()), 0, 0);
         vkCmdEndRenderPass(frame.commandBuffer);
@@ -187,18 +151,14 @@ namespace OpenRCT2::Ui::Vulkan
             .poolSizeCount = 1,
             .pPoolSizes = &poolSize,
         };
-        CheckVk(
-            vkCreateDescriptorPool(_device, &poolInfo, nullptr, &_descriptorPool),
-            "vkCreateDescriptorPool(rects)");
+        CheckVk(vkCreateDescriptorPool(_device, &poolInfo, nullptr, &_descriptorPool), "vkCreateDescriptorPool(rects)");
         const VkDescriptorSetAllocateInfo allocateInfo = {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
             .descriptorPool = _descriptorPool,
             .descriptorSetCount = 1,
             .pSetLayouts = &_descriptorSetLayout,
         };
-        CheckVk(
-            vkAllocateDescriptorSets(_device, &allocateInfo, &_descriptorSet),
-            "vkAllocateDescriptorSets(rects)");
+        CheckVk(vkAllocateDescriptorSets(_device, &allocateInfo, &_descriptorSet), "vkAllocateDescriptorSets(rects)");
         const VkDescriptorImageInfo atlasInfo = {
             .sampler = resources.GetNearestSampler(),
             .imageView = resources.GetSpriteAtlas().GetView(),
@@ -315,123 +275,35 @@ namespace OpenRCT2::Ui::Vulkan
             .pushConstantRangeCount = 1,
             .pPushConstantRanges = &push,
         };
-        CheckVk(
-            vkCreatePipelineLayout(_device, &layoutInfo, nullptr, &_pipelineLayout),
-            "vkCreatePipelineLayout(rects)");
-
-        VkShaderModule vertex = VK_NULL_HANDLE;
-        VkShaderModule fragment = VK_NULL_HANDLE;
-        try
-        {
-            vertex = LoadShaderModule(_device, _shaderDirectory / "indexed_rect.vert.spv");
-            fragment = LoadShaderModule(_device, _shaderDirectory / "indexed_rect.frag.spv");
-            const std::array stages = {
-                VkPipelineShaderStageCreateInfo{
-                    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                    .stage = VK_SHADER_STAGE_VERTEX_BIT,
-                    .module = vertex,
-                    .pName = "main",
-                },
-                VkPipelineShaderStageCreateInfo{
-                    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                    .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
-                    .module = fragment,
-                    .pName = "main",
-                },
-            };
-            const VkPipelineVertexInputStateCreateInfo vertexInput = {
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-                .vertexBindingDescriptionCount = 1,
-                .pVertexBindingDescriptions = &kRectCommandBinding,
-                .vertexAttributeDescriptionCount = static_cast<uint32_t>(kRectCommandAttributes.size()),
-                .pVertexAttributeDescriptions = kRectCommandAttributes.data(),
-            };
-            constexpr VkPipelineInputAssemblyStateCreateInfo assembly = {
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+        CheckVk(vkCreatePipelineLayout(_device, &layoutInfo, nullptr, &_pipelineLayout), "vkCreatePipelineLayout(rects)");
+        constexpr VkPipelineDepthStencilStateCreateInfo depthState = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+            .depthTestEnable = VK_TRUE,
+            .depthWriteEnable = VK_TRUE,
+            .depthCompareOp = VK_COMPARE_OP_LESS,
+            .minDepthBounds = 0.0f,
+            .maxDepthBounds = 1.0f,
+        };
+        _pipeline = CreateGraphicsPipeline(
+            _device, _pipelineCache,
+            {
+                .vertexShader = _shaderDirectory / "indexed_rect.vert.spv",
+                .fragmentShader = _shaderDirectory / "indexed_rect.frag.spv",
+                .vertexBindings = std::span{ &kRectCommandBinding, 1 },
+                .vertexAttributes = kRectCommandAttributes,
                 .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
-            };
-            constexpr VkPipelineViewportStateCreateInfo viewport = {
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
-                .viewportCount = 1,
-                .scissorCount = 1,
-            };
-            constexpr VkPipelineRasterizationStateCreateInfo raster = {
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
-                .polygonMode = VK_POLYGON_MODE_FILL,
-                .cullMode = VK_CULL_MODE_NONE,
-                .frontFace = VK_FRONT_FACE_CLOCKWISE,
-                .lineWidth = 1.0f,
-            };
-            constexpr VkPipelineMultisampleStateCreateInfo multisample = {
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-                .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
-            };
-            constexpr VkPipelineDepthStencilStateCreateInfo depthState = {
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
-                .depthTestEnable = VK_TRUE,
-                .depthWriteEnable = VK_TRUE,
-                .depthCompareOp = VK_COMPARE_OP_LESS,
-                .minDepthBounds = 0.0f,
-                .maxDepthBounds = 1.0f,
-            };
-            constexpr VkPipelineColorBlendAttachmentState blendAttachment = {
-                .blendEnable = VK_FALSE,
-                .colorWriteMask = VK_COLOR_COMPONENT_R_BIT,
-            };
-            const VkPipelineColorBlendStateCreateInfo blend = {
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
-                .attachmentCount = 1,
-                .pAttachments = &blendAttachment,
-            };
-            constexpr std::array dynamicStates = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
-            const VkPipelineDynamicStateCreateInfo dynamic = {
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-                .dynamicStateCount = static_cast<uint32_t>(dynamicStates.size()),
-                .pDynamicStates = dynamicStates.data(),
-            };
-            const VkGraphicsPipelineCreateInfo info = {
-                .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-                .stageCount = static_cast<uint32_t>(stages.size()),
-                .pStages = stages.data(),
-                .pVertexInputState = &vertexInput,
-                .pInputAssemblyState = &assembly,
-                .pViewportState = &viewport,
-                .pRasterizationState = &raster,
-                .pMultisampleState = &multisample,
-                .pDepthStencilState = &depthState,
-                .pColorBlendState = &blend,
-                .pDynamicState = &dynamic,
+                .depthStencil = &depthState,
                 .layout = _pipelineLayout,
                 .renderPass = _renderPass,
-                .subpass = 0,
-            };
-            CheckVk(
-                vkCreateGraphicsPipelines(_device, _pipelineCache, 1, &info, nullptr, &_pipeline),
-                "vkCreateGraphicsPipelines(rects)");
-        }
-        catch (...)
-        {
-            if (vertex != VK_NULL_HANDLE)
-            {
-                vkDestroyShaderModule(_device, vertex, nullptr);
-            }
-            if (fragment != VK_NULL_HANDLE)
-            {
-                vkDestroyShaderModule(_device, fragment, nullptr);
-            }
-            throw;
-        }
-        vkDestroyShaderModule(_device, vertex, nullptr);
-        vkDestroyShaderModule(_device, fragment, nullptr);
+            },
+            "vkCreateGraphicsPipelines(rects)");
     }
 
     void RectPipeline::CreateFramebuffers(const IndexedResources& resources)
     {
         for (uint32_t i = 0; i < kFramesInFlight; i++)
         {
-            const std::array attachments = {
-                resources.GetIndexedCanvas(i).GetView(), resources.GetDepthCanvas(i).GetView()
-            };
+            const std::array attachments = { resources.GetIndexedCanvas(i).GetView(), resources.GetDepthCanvas(i).GetView() };
             const VkFramebufferCreateInfo info = {
                 .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
                 .renderPass = _renderPass,
@@ -441,9 +313,7 @@ namespace OpenRCT2::Ui::Vulkan
                 .height = _extent.height,
                 .layers = 1,
             };
-            CheckVk(
-                vkCreateFramebuffer(_device, &info, nullptr, &_framebuffers[i]),
-                "vkCreateFramebuffer(rects)");
+            CheckVk(vkCreateFramebuffer(_device, &info, nullptr, &_framebuffers[i]), "vkCreateFramebuffer(rects)");
         }
     }
 } // namespace OpenRCT2::Ui::Vulkan

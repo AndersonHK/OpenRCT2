@@ -926,8 +926,6 @@ namespace OpenRCT2::RCT2
             dst->popularityTimeout = src->popularityTimeOut;
             dst->popularityNext = src->popularityNext;
 
-            ImportNumRiders(dst, rideIndex);
-
             dst->musicTuneId = src->musicTuneId;
             dst->slideInUse = src->slideInUse;
             // Includes mazeTiles
@@ -1236,26 +1234,6 @@ namespace OpenRCT2::RCT2
                     gameState.peepSpawns.push_back(spawn);
                 }
             }
-        }
-
-        void ImportNumRiders(::Ride* dst, const RideId rideIndex)
-        {
-            // The number of riders might have overflown or underflown. Re-calculate the value.
-            uint16_t numRiders = 0;
-            for (int32_t i = 0; i < GetMaxEntities(); i++)
-            {
-                const auto& entity = _s6.Entities[i];
-                if (entity.Unknown.EntityIdentifier == RCT12EntityIdentifier::peep)
-                {
-                    if (entity.Peep.CurrentRide == static_cast<RCT12RideId>(rideIndex.ToUnderlying())
-                        && (static_cast<PeepState>(entity.Peep.State) == PeepState::onRide
-                            || static_cast<PeepState>(entity.Peep.State) == PeepState::enteringRide))
-                    {
-                        numRiders++;
-                    }
-                }
-            }
-            dst->numRiders = numRiders;
         }
 
         void ImportTileElements(GameState_t& gameState)

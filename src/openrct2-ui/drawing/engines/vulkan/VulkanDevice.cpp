@@ -10,10 +10,11 @@
 #ifdef ENABLE_VULKAN
 
     #include "VulkanDevice.h"
-    #include "VulkanPlatform.h"
-    #include "VulkanSurfaceFormat.h"
 
     #include "../gpu/GpuAtlas.h"
+    #include "VulkanPlatform.h"
+    #include "VulkanShader.h"
+    #include "VulkanSurfaceFormat.h"
 
     #include <algorithm>
     #include <array>
@@ -33,19 +34,6 @@ namespace OpenRCT2::Ui::Vulkan
     {
         constexpr std::array<const char*, 1> kRequiredDeviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
         constexpr const char* kPortabilitySubsetExtension = "VK_KHR_portability_subset";
-
-        [[noreturn]] void ThrowVk(const char* operation, VkResult result)
-        {
-            throw std::runtime_error(std::string(operation) + " failed with Vulkan result " + std::to_string(result));
-        }
-
-        void CheckVk(VkResult result, const char* operation)
-        {
-            if (result != VK_SUCCESS)
-            {
-                ThrowVk(operation, result);
-            }
-        }
 
         bool HasExtension(std::span<const VkExtensionProperties> extensions, const char* name)
         {
@@ -134,9 +122,8 @@ namespace OpenRCT2::Ui::Vulkan
         const VkBufferCreateInfo bufferInfo = {
             .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
             .size = capacity,
-            .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
-                | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-                | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+            .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT
+                | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
             .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
         };
         CheckVk(vkCreateBuffer(_device, &bufferInfo, nullptr, &_buffer), "vkCreateBuffer(upload ring)");
@@ -169,14 +156,8 @@ namespace OpenRCT2::Ui::Vulkan
             {
                 vkUnmapMemory(_device, _memory);
             }
-            if (_buffer != VK_NULL_HANDLE)
-            {
-                vkDestroyBuffer(_device, _buffer, nullptr);
-            }
-            if (_memory != VK_NULL_HANDLE)
-            {
-                vkFreeMemory(_device, _memory, nullptr);
-            }
+            vkDestroyBuffer(_device, _buffer, nullptr);
+            vkFreeMemory(_device, _memory, nullptr);
         }
 
         _device = VK_NULL_HANDLE;
@@ -206,9 +187,8 @@ namespace OpenRCT2::Ui::Vulkan
             .sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
             .memory = _memory,
             .offset = 0,
-            .size = AlignUp(_cursor, _nonCoherentAtomSize) >= _allocationSize
-                ? VK_WHOLE_SIZE
-                : AlignUp(_cursor, _nonCoherentAtomSize),
+            .size = AlignUp(_cursor, _nonCoherentAtomSize) >= _allocationSize ? VK_WHOLE_SIZE
+                                                                              : AlignUp(_cursor, _nonCoherentAtomSize),
         };
         CheckVk(vkFlushMappedMemoryRanges(_device, 1, &range), "vkFlushMappedMemoryRanges(upload ring)");
     }
@@ -306,22 +286,10 @@ namespace OpenRCT2::Ui::Vulkan
             for (auto& frame : _frames)
             {
                 frame.upload.Dispose();
-                if (frame.timestampQueryPool != VK_NULL_HANDLE)
-                {
-                    vkDestroyQueryPool(_device, frame.timestampQueryPool, nullptr);
-                }
-                if (frame.imageAvailable != VK_NULL_HANDLE)
-                {
-                    vkDestroySemaphore(_device, frame.imageAvailable, nullptr);
-                }
-                if (frame.renderFinished != VK_NULL_HANDLE)
-                {
-                    vkDestroySemaphore(_device, frame.renderFinished, nullptr);
-                }
-                if (frame.available != VK_NULL_HANDLE)
-                {
-                    vkDestroyFence(_device, frame.available, nullptr);
-                }
+                vkDestroyQueryPool(_device, frame.timestampQueryPool, nullptr);
+                vkDestroySemaphore(_device, frame.imageAvailable, nullptr);
+                vkDestroySemaphore(_device, frame.renderFinished, nullptr);
+                vkDestroyFence(_device, frame.available, nullptr);
                 frame.commandBuffer = VK_NULL_HANDLE;
                 frame.imageAvailable = VK_NULL_HANDLE;
                 frame.renderFinished = VK_NULL_HANDLE;
@@ -330,22 +298,13 @@ namespace OpenRCT2::Ui::Vulkan
                 frame.timestampPending = false;
                 frame.completedGpuTimings.reset();
             }
-            if (_commandPool != VK_NULL_HANDLE)
-            {
-                vkDestroyCommandPool(_device, _commandPool, nullptr);
-            }
-            if (_pipelineCache != VK_NULL_HANDLE)
-            {
-                vkDestroyPipelineCache(_device, _pipelineCache, nullptr);
-            }
+            vkDestroyCommandPool(_device, _commandPool, nullptr);
+            vkDestroyPipelineCache(_device, _pipelineCache, nullptr);
             vkDestroyDevice(_device, nullptr);
-        }
-        if (_surface != VK_NULL_HANDLE && _instance != VK_NULL_HANDLE)
-        {
-            vkDestroySurfaceKHR(_instance, _surface, nullptr);
         }
         if (_instance != VK_NULL_HANDLE)
         {
+            vkDestroySurfaceKHR(_instance, _surface, nullptr);
             vkDestroyInstance(_instance, nullptr);
         }
         if (_loaderLoaded)
@@ -377,9 +336,9 @@ namespace OpenRCT2::Ui::Vulkan
         _hdr10Available = false;
         _hdr10Active = false;
         _hdrMetadataAvailable = false;
-#ifdef VK_EXT_HDR_METADATA_EXTENSION_NAME
+    #ifdef VK_EXT_HDR_METADATA_EXTENSION_NAME
         _setHdrMetadata = nullptr;
-#endif
+    #endif
     }
 
     void Device::WaitIdle() const
@@ -469,8 +428,8 @@ namespace OpenRCT2::Ui::Vulkan
 
         uint32_t imageIndex = 0;
         const auto timeout = waitForAvailability ? UINT64_MAX : uint64_t{ 0 };
-        const auto acquireResult =
-            vkAcquireNextImageKHR(_device, _swapchain, timeout, frame.imageAvailable, VK_NULL_HANDLE, &imageIndex);
+        const auto acquireResult = vkAcquireNextImageKHR(
+            _device, _swapchain, timeout, frame.imageAvailable, VK_NULL_HANDLE, &imageIndex);
         if (acquireResult == VK_NOT_READY || acquireResult == VK_TIMEOUT)
         {
             return std::nullopt;
@@ -500,8 +459,7 @@ namespace OpenRCT2::Ui::Vulkan
         CheckVk(vkBeginCommandBuffer(frame.commandBuffer, &beginInfo), "vkBeginCommandBuffer(frame)");
         if (frame.timestampQueryPool != VK_NULL_HANDLE)
         {
-            vkCmdResetQueryPool(
-                frame.commandBuffer, frame.timestampQueryPool, 0, static_cast<uint32_t>(kGpuTimestampCount));
+            vkCmdResetQueryPool(frame.commandBuffer, frame.timestampQueryPool, 0, static_cast<uint32_t>(kGpuTimestampCount));
             vkCmdWriteTimestamp(
                 frame.commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, frame.timestampQueryPool,
                 static_cast<uint32_t>(GpuTimestampPoint::frameStart));
@@ -560,8 +518,9 @@ namespace OpenRCT2::Ui::Vulkan
         };
         const auto presentStart = std::chrono::steady_clock::now();
         const auto presentResult = vkQueuePresentKHR(_presentQueue, &presentInfo);
-        const auto presentCallMicroseconds =
-            std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - presentStart).count();
+        const auto presentCallMicroseconds = std::chrono::duration<double, std::micro>(
+                                                 std::chrono::steady_clock::now() - presentStart)
+                                                 .count();
         if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR)
         {
             _swapchainInvalid = true;
@@ -654,8 +613,7 @@ namespace OpenRCT2::Ui::Vulkan
     }
 
     void Device::ReadbackImage(
-        uint32_t frameIndex, VkImage image, VkImageLayout layout, VkExtent2D extent,
-        std::span<std::byte> destination)
+        uint32_t frameIndex, VkImage image, VkImageLayout layout, VkExtent2D extent, std::span<std::byte> destination)
     {
         const std::lock_guard lock(_hostMutex);
         if (frameIndex >= kFramesInFlight || image == VK_NULL_HANDLE || extent.width == 0 || extent.height == 0)
@@ -719,8 +677,7 @@ namespace OpenRCT2::Ui::Vulkan
             .imageOffset = { 0, 0, 0 },
             .imageExtent = { extent.width, extent.height, 1 },
         };
-        vkCmdCopyImageToBuffer(
-            frame.commandBuffer, image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, allocation.buffer, 1, &copy);
+        vkCmdCopyImageToBuffer(frame.commandBuffer, image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, allocation.buffer, 1, &copy);
 
         const VkBufferMemoryBarrier hostBarrier = {
             .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
@@ -867,17 +824,16 @@ namespace OpenRCT2::Ui::Vulkan
             .pEnabledFeatures = &features,
         };
         CheckVk(vkCreateDevice(_physicalDevice, &deviceInfo, nullptr, &_device), "vkCreateDevice");
-#ifdef VK_EXT_HDR_METADATA_EXTENSION_NAME
+    #ifdef VK_EXT_HDR_METADATA_EXTENSION_NAME
         const bool enabledHdrMetadata = std::any_of(extensions.begin(), extensions.end(), [](const char* extension) {
             return std::strcmp(extension, VK_EXT_HDR_METADATA_EXTENSION_NAME) == 0;
         });
         if (enabledHdrMetadata)
         {
-            _setHdrMetadata = reinterpret_cast<PFN_vkSetHdrMetadataEXT>(
-                vkGetDeviceProcAddr(_device, "vkSetHdrMetadataEXT"));
+            _setHdrMetadata = reinterpret_cast<PFN_vkSetHdrMetadataEXT>(vkGetDeviceProcAddr(_device, "vkSetHdrMetadataEXT"));
             _hdrMetadataAvailable = _setHdrMetadata != nullptr;
         }
-#endif
+    #endif
         vkGetDeviceQueue(_device, _queueFamilies.graphics.value(), 0, &_graphicsQueue);
         vkGetDeviceQueue(_device, _queueFamilies.present.value(), 0, &_presentQueue);
 
@@ -971,9 +927,8 @@ namespace OpenRCT2::Ui::Vulkan
         };
         std::array<TimestampQueryResult, kGpuTimestampCount> results{};
         const auto result = vkGetQueryPoolResults(
-            _device, frame.timestampQueryPool, 0, static_cast<uint32_t>(results.size()), sizeof(results),
-            results.data(), sizeof(TimestampQueryResult),
-            VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WITH_AVAILABILITY_BIT);
+            _device, frame.timestampQueryPool, 0, static_cast<uint32_t>(results.size()), sizeof(results), results.data(),
+            sizeof(TimestampQueryResult), VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WITH_AVAILABILITY_BIT);
         frame.timestampPending = false;
         if (result == VK_NOT_READY)
         {
@@ -985,10 +940,9 @@ namespace OpenRCT2::Ui::Vulkan
             return;
         }
         std::array<uint64_t, kGpuTimestampCount> timestamps{};
-        std::transform(
-            results.begin(), results.end(), timestamps.begin(), [](const auto& query) { return query.value; });
-        frame.completedGpuTimings =
-            CalculateGpuTimestampDurations(timestamps, _timestampValidBits, _timestampPeriodNanoseconds);
+        std::transform(results.begin(), results.end(), timestamps.begin(), [](const auto& query) { return query.value; });
+        frame.completedGpuTimings = CalculateGpuTimestampDurations(
+            timestamps, _timestampValidBits, _timestampPeriodNanoseconds);
     }
 
     bool Device::CreateSwapchain()
@@ -998,8 +952,7 @@ namespace OpenRCT2::Ui::Vulkan
         const auto surfaceFormat = surfaceFormatSelection.surfaceFormat;
         if (!IsSupportedOutputSurfaceFormat(surfaceFormatSelection))
         {
-            throw std::runtime_error(
-                "Vulkan surface exposes neither a supported SDR format nor an active exact HDR10 format");
+            throw std::runtime_error("Vulkan surface exposes neither a supported SDR format nor an active exact HDR10 format");
         }
         _hdr10Available = surfaceFormatSelection.hdr10Available;
         const auto presentMode = ChoosePresentMode(support.presentModes);
@@ -1101,10 +1054,7 @@ namespace OpenRCT2::Ui::Vulkan
             {
                 vkDestroyImageView(_device, imageView, nullptr);
             }
-            if (_swapchain != VK_NULL_HANDLE)
-            {
-                vkDestroySwapchainKHR(_device, _swapchain, nullptr);
-            }
+            vkDestroySwapchainKHR(_device, _swapchain, nullptr);
         }
         _swapchainImageViews.clear();
         _swapchain = VK_NULL_HANDLE;
@@ -1115,7 +1065,7 @@ namespace OpenRCT2::Ui::Vulkan
 
     void Device::PublishHdrMetadata() const noexcept
     {
-#ifdef VK_EXT_HDR_METADATA_EXTENSION_NAME
+    #ifdef VK_EXT_HDR_METADATA_EXTENSION_NAME
         if (!_hdr10Active || !_hdrMetadataAvailable || _setHdrMetadata == nullptr || _swapchain == VK_NULL_HANDLE)
         {
             return;
@@ -1135,7 +1085,7 @@ namespace OpenRCT2::Ui::Vulkan
             .maxFrameAverageLightLevel = _hdrPaperWhiteNits,
         };
         _setHdrMetadata(_device, 1, &_swapchain, &metadata);
-#endif
+    #endif
     }
 
     bool Device::RecreateSwapchain()
@@ -1181,8 +1131,7 @@ namespace OpenRCT2::Ui::Vulkan
     {
         SwapchainSupport result;
         CheckVk(
-            vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, _surface, &result.capabilities),
-            "query surface capabilities");
+            vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, _surface, &result.capabilities), "query surface capabilities");
 
         uint32_t formatCount = 0;
         CheckVk(vkGetPhysicalDeviceSurfaceFormatsKHR(device, _surface, &formatCount, nullptr), "query surface formats");
@@ -1211,8 +1160,7 @@ namespace OpenRCT2::Ui::Vulkan
         uint32_t count = 0;
         CheckVk(vkEnumerateDeviceExtensionProperties(device, nullptr, &count, nullptr), "enumerate device extensions");
         std::vector<VkExtensionProperties> available(count);
-        CheckVk(
-            vkEnumerateDeviceExtensionProperties(device, nullptr, &count, available.data()), "enumerate device extensions");
+        CheckVk(vkEnumerateDeviceExtensionProperties(device, nullptr, &count, available.data()), "enumerate device extensions");
         return std::all_of(kRequiredDeviceExtensions.begin(), kRequiredDeviceExtensions.end(), [&](const char* required) {
             return HasExtension(available, required);
         });
@@ -1262,12 +1210,10 @@ namespace OpenRCT2::Ui::Vulkan
         return supports(VK_FORMAT_R8_UINT, transferAndSampling | VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT)
             && supports(VK_FORMAT_R16_UINT, VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT | VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT)
             && supports(
-                VK_FORMAT_D32_SFLOAT,
-                VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                    | VK_FORMAT_FEATURE_TRANSFER_DST_BIT)
-            && supports(
-                VK_FORMAT_R8G8B8A8_UNORM,
-                VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT | VK_FORMAT_FEATURE_TRANSFER_DST_BIT);
+                   VK_FORMAT_D32_SFLOAT,
+                   VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
+                       | VK_FORMAT_FEATURE_TRANSFER_DST_BIT)
+            && supports(VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT | VK_FORMAT_FEATURE_TRANSFER_DST_BIT);
     }
 
     std::vector<const char*> Device::GetInstanceExtensions() const
@@ -1289,31 +1235,19 @@ namespace OpenRCT2::Ui::Vulkan
         {
             result.push_back(kPortabilitySubsetExtension);
         }
-#ifdef VK_EXT_HDR_METADATA_EXTENSION_NAME
+    #ifdef VK_EXT_HDR_METADATA_EXTENSION_NAME
         if (HasExtension(available, VK_EXT_HDR_METADATA_EXTENSION_NAME))
         {
             result.push_back(VK_EXT_HDR_METADATA_EXTENSION_NAME);
         }
-#endif
+    #endif
 
         return result;
     }
 
     VkPresentModeKHR Device::ChoosePresentMode(std::span<const VkPresentModeKHR> modes) const
     {
-        if (_vsync)
-        {
-            return VK_PRESENT_MODE_FIFO_KHR;
-        }
-        if (std::find(modes.begin(), modes.end(), VK_PRESENT_MODE_MAILBOX_KHR) != modes.end())
-        {
-            return VK_PRESENT_MODE_MAILBOX_KHR;
-        }
-        if (std::find(modes.begin(), modes.end(), VK_PRESENT_MODE_IMMEDIATE_KHR) != modes.end())
-        {
-            return VK_PRESENT_MODE_IMMEDIATE_KHR;
-        }
-        return VK_PRESENT_MODE_FIFO_KHR;
+        return SelectPresentMode(modes, _vsync);
     }
 
     VkExtent2D Device::ChooseExtent(const VkSurfaceCapabilitiesKHR& capabilities) const
@@ -1325,8 +1259,7 @@ namespace OpenRCT2::Ui::Vulkan
 
         return {
             std::clamp(_drawableExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width),
-            std::clamp(
-                _drawableExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height),
+            std::clamp(_drawableExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height),
         };
     }
 } // namespace OpenRCT2::Ui::Vulkan

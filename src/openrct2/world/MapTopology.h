@@ -18,14 +18,12 @@ namespace OpenRCT2::MapTopology
 {
     using Generation = uint64_t;
 
-    // Sixteen tiles keeps the complete technical map generation table near 32 KiB while limiting a local edit to one or two
-    // cache lines in the common case.
+    // Keeps the generation table near 32 KiB while local edits touch few cache lines.
     constexpr int32_t kChunkSize = 16;
     constexpr int32_t kChunkCount = (kMaximumMapSizeTechnical + kChunkSize - 1) / kChunkSize;
 
     [[nodiscard]] Generation GetEpoch() noexcept;
-    // Advances only when path connectivity can change. Dynamic wide-path maintenance still advances the general epoch so
-    // thin-junction chunk data remains current, but it must not discard connectivity-only reverse route fields.
+    // Excludes dynamic wide-path changes that do not affect connectivity.
     [[nodiscard]] Generation GetPathConnectivityEpoch() noexcept;
     [[nodiscard]] Generation GetChunkGeneration(const TileCoordsXY& tile) noexcept;
     [[nodiscard]] Generation GetChunkGeneration(const CoordsXY& coords) noexcept;

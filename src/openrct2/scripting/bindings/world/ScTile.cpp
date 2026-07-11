@@ -128,11 +128,8 @@ namespace OpenRCT2::Scripting
                 }
             }
             MapInvalidateTileFull(coords);
-            if (numElements != 0)
-            {
-                // Raw tile bytes may replace any combination of paths, entrances, and blocking banners.
-                MapTopology::InvalidateTileAndNeighbours(coords);
-            }
+            // Raw tile bytes may replace or remove any combination of routing elements.
+            MapTopology::InvalidateTileAndNeighbours(coords);
         }
         return JS_UNDEFINED;
     }

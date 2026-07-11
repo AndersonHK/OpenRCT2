@@ -11,11 +11,11 @@
 
 #include "AudioContext.h"
 #include "AudioFormat.h"
+#include "AudioMixer.SIMD.h"
 #include "SDLAudioSource.h"
 
 #include <SDL.h>
 #include <array>
-#include <chrono>
 #include <cstdint>
 #include <memory>
 #include <mutex>
@@ -49,14 +49,7 @@ namespace OpenRCT2::Audio
         std::vector<uint8_t> _effectBuffer;
         std::vector<float> _mixBuffer;
         float _limiterGain = 1.0f;
-        size_t _nextChannelReport = 256;
-        bool _useAVX2 = false;
-        std::chrono::steady_clock::time_point _callbackReportStart{};
-        double _callbackTotalMilliseconds = 0.0;
-        double _callbackWorstMilliseconds = 0.0;
-        uint64_t _callbackCount = 0;
-        uint64_t _channelAdmissionFailures = 0;
-        std::array<float, kMaxOutputChannels> _reportedOutputPeaks{};
+        MixSpatialSpeakerFunc _mixSpatialSpeaker = nullptr;
 
         std::mutex _mutex;
 

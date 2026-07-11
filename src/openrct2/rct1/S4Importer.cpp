@@ -1102,8 +1102,6 @@ namespace OpenRCT2::RCT1
             dst->popularityNext = src->popularityNext;
             dst->popularityTimeout = src->popularityTimeOut;
 
-            dst->numRiders = src->numRiders;
-
             dst->musicTuneId = kTuneIDNull;
         }
 
@@ -1331,12 +1329,6 @@ namespace OpenRCT2::RCT1
             {
                 dst->colours.Tertiary = colourSchemeCopyDescriptor.colour3;
             }
-        }
-
-        void FixImportStaff()
-        {
-            // Only the individual patrol areas have been converted, so generate the combined patrol areas of each staff type
-            UpdateConsolidatedPatrolAreas();
         }
 
         void ImportPeep(::Peep* dst, const Peep* src)

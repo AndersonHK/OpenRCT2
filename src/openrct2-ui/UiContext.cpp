@@ -83,6 +83,7 @@ private:
     int32_t _width = 0;
     int32_t _height = 0;
     int32_t _displayIndex = -1;
+    uint32_t _refreshRate = 60;
     ScaleQuality _scaleQuality = ScaleQuality::nearestNeighbour;
 
     std::vector<Resolution> _fsResolutions;
@@ -177,6 +178,11 @@ public:
     int32_t GetHeight() override
     {
         return _height;
+    }
+
+    uint32_t GetRefreshRate() const override
+    {
+        return _refreshRate;
     }
 
     ScaleQuality GetScaleQuality() override
@@ -373,16 +379,13 @@ public:
                     // A Windows TDR or display-mode transition can invalidate SDL's hardware-display
                     // textures while leaving the game loop and audio thread alive. Recreate the display
                     // resources, restore the indexed palette mapping, and force a complete redraw.
+                    LOG_WARNING(
+                        "SDL render %s reset; rebuilding drawing resources",
+                        e.type == SDL_RENDER_DEVICE_RESET ? "device" : "targets");
                     auto* drawingEngine = GetContext()->GetDrawingEngine();
-                    if (drawingEngine != nullptr)
-                    {
-                        LOG_WARNING(
-                            "SDL render %s reset; rebuilding drawing resources",
-                            e.type == SDL_RENDER_DEVICE_RESET ? "device" : "targets");
-                        drawingEngine->Resize(static_cast<uint32_t>(_width), static_cast<uint32_t>(_height));
-                        drawingEngine->SetPalette(gGamePalette);
-                        GfxInvalidateScreen();
-                    }
+                    drawingEngine->Resize(static_cast<uint32_t>(_width), static_cast<uint32_t>(_height));
+                    drawingEngine->SetPalette(gGamePalette);
+                    GfxInvalidateScreen();
                     break;
                 }
                 case SDL_MOUSEMOTION:
@@ -751,37 +754,22 @@ public:
     }
 
 private:
-    [[noreturn]] void ThrowFullscreenError(const std::string& operation) const
+    static void CheckSdlResult(int32_t result, const char* operation)
     {
-        const auto* sdlError = SDL_GetError();
-        throw SDLException(operation + " failed: " + (sdlError != nullptr ? sdlError : "unknown SDL error"));
-    }
-
-    void LeaveFullscreen()
-    {
-        if (SDL_SetWindowFullscreen(_window, 0) != 0)
+        if (result != 0)
         {
-            ThrowFullscreenError("SDL_SetWindowFullscreen(windowed)");
-        }
-    }
-
-    void ClearFullscreenDisplayMode()
-    {
-        if (SDL_SetWindowDisplayMode(_window, nullptr) != 0)
-        {
-            ThrowFullscreenError("SDL_SetWindowDisplayMode(default)");
+            SDLException::Throw(operation);
         }
     }
 
     void ApplyFullscreenMode(FullscreenMode mode)
     {
-        LeaveFullscreen();
+        CheckSdlResult(SDL_SetWindowFullscreen(_window, 0), "SDL_SetWindowFullscreen(windowed)");
 
-        uint32_t expectedFlags = 0;
         switch (mode)
         {
             case FullscreenMode::windowed:
-                ClearFullscreenDisplayMode();
+                CheckSdlResult(SDL_SetWindowDisplayMode(_window, nullptr), "SDL_SetWindowDisplayMode(default)");
                 SDL_SetWindowSize(_window, Config::Get().general.windowWidth, Config::Get().general.windowHeight);
                 break;
 
@@ -790,59 +778,32 @@ private:
                 const int32_t displayIndex = SDL_GetWindowDisplayIndex(_window);
                 if (displayIndex < 0)
                 {
-                    ThrowFullscreenError("SDL_GetWindowDisplayIndex");
+                    SDLException::Throw("SDL_GetWindowDisplayIndex");
                 }
 
                 SDL_DisplayMode requestedMode{};
-                if (SDL_GetCurrentDisplayMode(displayIndex, &requestedMode) != 0)
-                {
-                    ThrowFullscreenError(String::stdFormat("SDL_GetCurrentDisplayMode(display %d)", displayIndex));
-                }
+                CheckSdlResult(
+                    SDL_GetCurrentDisplayMode(displayIndex, &requestedMode), "SDL_GetCurrentDisplayMode");
                 requestedMode.w = Config::Get().general.fullscreenWidth;
                 requestedMode.h = Config::Get().general.fullscreenHeight;
                 SDL_DisplayMode closestMode{};
                 if (SDL_GetClosestDisplayMode(displayIndex, &requestedMode, &closestMode) == nullptr)
                 {
-                    ThrowFullscreenError(
-                        String::stdFormat(
-                            "SDL_GetClosestDisplayMode(display %d, %dx%d)", displayIndex, requestedMode.w,
-                            requestedMode.h));
+                    SDLException::Throw("SDL_GetClosestDisplayMode");
                 }
-                if (SDL_SetWindowDisplayMode(_window, &closestMode) != 0)
-                {
-                    ThrowFullscreenError(
-                        String::stdFormat(
-                            "SDL_SetWindowDisplayMode(display %d, %dx%d@%d)", displayIndex, closestMode.w,
-                            closestMode.h, closestMode.refresh_rate));
-                }
-                if (SDL_SetWindowFullscreen(_window, SDL_WINDOW_FULLSCREEN) != 0)
-                {
-                    ThrowFullscreenError(
-                        String::stdFormat(
-                            "SDL_SetWindowFullscreen(exclusive %dx%d@%d)", closestMode.w, closestMode.h,
-                            closestMode.refresh_rate));
-                }
-                expectedFlags = SDL_WINDOW_FULLSCREEN;
+                CheckSdlResult(
+                    SDL_SetWindowDisplayMode(_window, &closestMode), "SDL_SetWindowDisplayMode");
+                CheckSdlResult(
+                    SDL_SetWindowFullscreen(_window, SDL_WINDOW_FULLSCREEN), "SDL_SetWindowFullscreen(exclusive)");
                 break;
             }
 
             case FullscreenMode::fullscreenDesktop:
-                ClearFullscreenDisplayMode();
-                if (SDL_SetWindowFullscreen(_window, SDL_WINDOW_FULLSCREEN_DESKTOP) != 0)
-                {
-                    ThrowFullscreenError("SDL_SetWindowFullscreen(borderless)");
-                }
-                expectedFlags = SDL_WINDOW_FULLSCREEN_DESKTOP;
+                CheckSdlResult(SDL_SetWindowDisplayMode(_window, nullptr), "SDL_SetWindowDisplayMode(default)");
+                CheckSdlResult(
+                    SDL_SetWindowFullscreen(_window, SDL_WINDOW_FULLSCREEN_DESKTOP),
+                    "SDL_SetWindowFullscreen(borderless)");
                 break;
-        }
-
-        const auto actualFlags = SDL_GetWindowFlags(_window) & SDL_WINDOW_FULLSCREEN_DESKTOP;
-        if (actualFlags != expectedFlags)
-        {
-            throw SDLException(
-                String::stdFormat(
-                    "SDL reported fullscreen flags 0x%X after mode %u requested flags 0x%X", actualFlags,
-                    EnumValue(mode), expectedFlags));
         }
     }
 
@@ -856,10 +817,19 @@ private:
     void UpdateWindowDisplayIndex()
     {
         const int32_t displayIndex = SDL_GetWindowDisplayIndex(_window);
-        if (displayIndex < 0 || displayIndex == _displayIndex)
+        if (displayIndex < 0)
         {
             return;
         }
+
+        SDL_DisplayMode displayMode{};
+        if (SDL_GetCurrentDisplayMode(displayIndex, &displayMode) == 0 && displayMode.refresh_rate > 0)
+        {
+            _refreshRate = static_cast<uint32_t>(displayMode.refresh_rate);
+        }
+
+        if (displayIndex == _displayIndex)
+            return;
 
         const bool changedDisplay = _displayIndex >= 0;
         _displayIndex = displayIndex;
@@ -870,10 +840,7 @@ private:
         }
         if (changedDisplay)
         {
-            if (auto* drawingEngine = GetContext()->GetDrawingEngine(); drawingEngine != nullptr)
-            {
-                drawingEngine->NotifyDisplayChanged();
-            }
+            GetContext()->GetDrawingEngine()->NotifyDisplayChanged();
         }
     }
 
@@ -891,10 +858,10 @@ private:
 
         int32_t rWidth = 0;
         int32_t rHeight = 0;
-        bool hasDrawableSize = false;
         if (auto* renderer = SDL_GetRenderer(_window); renderer != nullptr)
         {
-            hasDrawableSize = SDL_GetRendererOutputSize(renderer, &rWidth, &rHeight) == 0;
+            if (SDL_GetRendererOutputSize(renderer, &rWidth, &rHeight) != 0)
+                return;
         }
 #if defined(ENABLE_VULKAN) && defined(ENABLE_VULKAN_DRAWING_ENGINE)
         else if (Config::Get().general.drawingEngine == DrawingEngine::Vulkan)
@@ -902,21 +869,18 @@ private:
             const auto extent = Vulkan::Platform::GetDrawableExtent(_window);
             rWidth = static_cast<int32_t>(extent.width);
             rHeight = static_cast<int32_t>(extent.height);
-            hasDrawableSize = rWidth > 0 && rHeight > 0;
         }
 #endif
         else if (Config::Get().general.drawingEngine == DrawingEngine::OpenGL)
         {
             SDL_GL_GetDrawableSize(_window, &rWidth, &rHeight);
-            hasDrawableSize = rWidth > 0 && rHeight > 0;
         }
 
-        if (hasDrawableSize && wWidth > 0 && wHeight > 0)
-        {
-            config.windowScale = static_cast<float>(rWidth) / wWidth;
-            config.inferDisplayDPI = false;
-            Config::Save();
-        }
+        if (rWidth <= 0 || rHeight <= 0 || wWidth <= 0 || wHeight <= 0)
+            return;
+        config.windowScale = static_cast<float>(rWidth) / wWidth;
+        config.inferDisplayDPI = false;
+        Config::Save();
     }
 
     void CreateWindow(const ScreenCoordsXY& windowPos)
@@ -943,7 +907,7 @@ private:
 
         // Create window in window first rather than fullscreen so we have the display the window is on first
         uint32_t flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
-        if (gIntegratedBenchmark.enabled)
+        if (gIntegratedBenchmark.enabled && !gIntegratedBenchmark.visible)
         {
             flags |= SDL_WINDOW_HIDDEN;
         }
@@ -962,11 +926,7 @@ private:
         _window = SDL_CreateWindow(OPENRCT2_NAME, windowPos.x, windowPos.y, width, height, flags);
         if (_window == nullptr)
         {
-            const char* error = SDL_GetError();
-            std::string errorMessage = String::stdFormat(
-                "SDL_CreateWindow(" OPENRCT2_NAME ", %d, %d, %d, %d, %d) failed: %s", windowPos.x, windowPos.y, width, height,
-                flags, error);
-            SDLException::Throw(errorMessage.c_str());
+            SDLException::Throw("SDL_CreateWindow");
         }
         UpdateWindowDisplayIndex();
 
@@ -1019,14 +979,12 @@ private:
 #endif
             SDL_WINDOW_MINIMIZED | SDL_WINDOW_FULLSCREEN | SDL_WINDOW_FULLSCREEN_DESKTOP;
 
-        if (!gIntegratedBenchmark.enabled && !(flags & nonWindowFlags))
+        if (!gIntegratedBenchmark.enabled && !(flags & nonWindowFlags)
+            && (width != Config::Get().general.windowWidth || height != Config::Get().general.windowHeight))
         {
-            if (width != Config::Get().general.windowWidth || height != Config::Get().general.windowHeight)
-            {
-                Config::Get().general.windowWidth = width;
-                Config::Get().general.windowHeight = height;
-                Config::Save();
-            }
+            Config::Get().general.windowWidth = width;
+            Config::Get().general.windowHeight = height;
+            Config::Save();
         }
     }
 

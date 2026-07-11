@@ -75,7 +75,8 @@ namespace OpenRCT2::Ui::Gpu
     private:
         static uint8_t ComputeOutCode(ScreenCoordsXY point, ScreenCoordsXY topLeft, ScreenCoordsXY bottomRight);
         static bool CohenSutherlandLineClip(ScreenLine& line, const Drawing::RenderTarget& rt);
+        RectCommand& AppendRect(
+            CommandBatch<RectCommand>& batch, const ScreenRect& clip, Int4 bounds, float zoom = 1.0f);
         [[nodiscard]] ScreenRect CalculateClipping(const Drawing::RenderTarget& rt) const;
-        void ResetClippingCache();
     };
 } // namespace OpenRCT2::Ui::Gpu

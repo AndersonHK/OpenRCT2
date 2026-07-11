@@ -33,8 +33,8 @@ Vulkan reaches parity.
   enumeration and the portability-subset device extension are enabled when advertised. Activation requires Vulkan 1.1, a
   colour-attachment-capable surface, the exact sampled/attachment/transfer features used by `R8_UINT`, `R16_UINT`,
   `D32_SFLOAT`, and `R8G8B8A8_UNORM`, and limits sufficient for the 2048-pixel, 64-layer atlas.
-- Swapchain presentation supports FIFO VSync and mailbox/immediate uncapped modes, high-DPI drawable extents, minimisation, and
-  deferred recreation.
+- Swapchain presentation prefers MAILBOX for tear-free newest-frame VSync, falls back to mandatory FIFO, and uses Immediate for
+  uncapped mode. It also supports high-DPI drawable extents, minimisation, and deferred recreation.
 - `vulkan/VulkanResources.*`, `VulkanPalettePipeline.*`, and `VulkanBackend.*` own the indexed atlas/canvases, palette and remap
   uploads, final palette pass, API-neutral frame/upload surface, and explicit capability gate. `VulkanLinePipeline.*` and
   `VulkanRectPipeline.*` consume the shared packed command ABI directly from the per-frame upload ring. Lines clear the indexed
@@ -129,6 +129,24 @@ This is not yet the complete asynchronous contract: paint traversal and direct c
 semantic visual snapshot and stable worker-range concatenation must still land before paint preparation itself can leave that
 thread. Skipping GPU acquisition prevents presentation back-pressure, but it does not by itself remove CPU paint preparation for
 a frame that is ultimately skipped.
+
+### Refresh-paced scheduler integration
+
+Turbo no longer feeds the renderer from a 15 FPS throttle after an indivisible eight-update scene batch. The scheduler yields
+only between completed deterministic logical updates, checks an anchored deadline derived from SDL's current display refresh
+rate, and pumps window input and UI work before recording a due frame. This caps the CPU producer to the monitor's long-run
+cadence. The one-pending `LatestFrameMailbox` replaces stale CPU packets, while MAILBOX present mode applies the same
+newest-frame policy to the swapchain queue. The render worker remains the exclusive owner of Vulkan submission and any
+driver-side `vkQueuePresentKHR` blocking.
+
+On the 144 Hz validation display, two warmed EverythingPark/VSync runs produced 144.018 frames per second with one completed
+renderer timing sample per produced frame. GPU work averaged 702.754/704.099 us and complete caller-side paint/presentation
+averaged about 1.74 ms. Logical throughput was 264.897/265.265 TPS because the new policy deliberately spends about 25% of wall
+time producing 721-722 frames instead of 67. The hidden benchmark cannot certify visible compositor behavior, and a logical
+compositor row is therefore available through `--benchmark-visible`. A logical tick longer than 6.94 ms remains non-preemptible.
+A hard UI guarantee across such a tick requires an immutable visual snapshot
+between a simulation producer and the UI/command-recording consumer; that is the next architectural boundary, not a reason to
+mutate live game state concurrently.
 
 ## Current CPU/GPU ownership audit
 

@@ -13,6 +13,7 @@
 
     #include <vulkan/vulkan.h>
 
+    #include <algorithm>
     #include <array>
     #include <cstddef>
     #include <cstdint>
@@ -27,6 +28,29 @@ namespace OpenRCT2::Ui::Vulkan
 {
     constexpr uint32_t kFramesInFlight = 3;
     constexpr VkDeviceSize kDefaultUploadRingSize = 32 * 1024 * 1024;
+
+    /**
+     * Selects the presentation policy that best matches the renderer's
+     * newest-frame handoff. MAILBOX remains synchronized to the display, but
+     * replaces an older queued image when the producer gets ahead. FIFO is
+     * the universally-supported synchronized fallback.
+     */
+    [[nodiscard]] inline VkPresentModeKHR SelectPresentMode(
+        std::span<const VkPresentModeKHR> modes, bool vsync) noexcept
+    {
+        const auto supports = [modes](VkPresentModeKHR mode) {
+            return std::find(modes.begin(), modes.end(), mode) != modes.end();
+        };
+        if (!vsync && supports(VK_PRESENT_MODE_IMMEDIATE_KHR))
+        {
+            return VK_PRESENT_MODE_IMMEDIATE_KHR;
+        }
+        if (supports(VK_PRESENT_MODE_MAILBOX_KHR))
+        {
+            return VK_PRESENT_MODE_MAILBOX_KHR;
+        }
+        return VK_PRESENT_MODE_FIFO_KHR;
+    }
 
     enum class GpuTimestampPoint : uint32_t
     {

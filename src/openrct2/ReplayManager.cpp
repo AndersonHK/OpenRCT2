@@ -47,6 +47,7 @@
 #include "scenario/Scenario.h"
 #include "world/Park.h"
 
+#include <array>
 #include <chrono>
 #include <exception>
 #include <memory>
@@ -196,52 +197,34 @@ namespace OpenRCT2
                 return getGameState().entities.GetAllEntitiesChecksum();
             }
 
+            static constexpr std::array guestMoneyFields{
+                &Guest::paidToEnter,     &Guest::paidOnRides, &Guest::paidOnFood, &Guest::paidOnDrink,
+                &Guest::paidOnSouvenirs, &Guest::cashInPocket, &Guest::cashSpent,
+            };
             struct GuestMoneyBackup
             {
-                Guest* guest{};
-                money64 paidToEnter{};
-                money64 paidOnRides{};
-                money64 paidOnFood{};
-                money64 paidOnDrink{};
-                money64 paidOnSouvenirs{};
-                money64 cashInPocket{};
-                money64 cashSpent{};
+                Guest* guest;
+                std::array<money64, guestMoneyFields.size()> values;
             };
 
             std::vector<GuestMoneyBackup> backups;
             for (auto* guest : EntityList<Guest>())
             {
-                backups.push_back(GuestMoneyBackup{
-                    guest,
-                    guest->paidToEnter,
-                    guest->paidOnRides,
-                    guest->paidOnFood,
-                    guest->paidOnDrink,
-                    guest->paidOnSouvenirs,
-                    guest->cashInPocket,
-                    guest->cashSpent,
-                });
-
-                guest->paidToEnter = ToLegacyReplayMoney(guest->paidToEnter);
-                guest->paidOnRides = ToLegacyReplayMoney(guest->paidOnRides);
-                guest->paidOnFood = ToLegacyReplayMoney(guest->paidOnFood);
-                guest->paidOnDrink = ToLegacyReplayMoney(guest->paidOnDrink);
-                guest->paidOnSouvenirs = ToLegacyReplayMoney(guest->paidOnSouvenirs);
-                guest->cashInPocket = ToLegacyReplayMoney(guest->cashInPocket);
-                guest->cashSpent = ToLegacyReplayMoney(guest->cashSpent);
+                auto& backup = backups.emplace_back(GuestMoneyBackup{ .guest = guest });
+                for (size_t i = 0; i < guestMoneyFields.size(); i++)
+                {
+                    auto& value = guest->*guestMoneyFields[i];
+                    backup.values[i] = value;
+                    value = ToLegacyReplayMoney(value);
+                }
             }
 
             auto checksum = getGameState().entities.GetAllEntitiesChecksum();
 
             for (const auto& backup : backups)
             {
-                backup.guest->paidToEnter = backup.paidToEnter;
-                backup.guest->paidOnRides = backup.paidOnRides;
-                backup.guest->paidOnFood = backup.paidOnFood;
-                backup.guest->paidOnDrink = backup.paidOnDrink;
-                backup.guest->paidOnSouvenirs = backup.paidOnSouvenirs;
-                backup.guest->cashInPocket = backup.cashInPocket;
-                backup.guest->cashSpent = backup.cashSpent;
+                for (size_t i = 0; i < guestMoneyFields.size(); i++)
+                    backup.guest->*guestMoneyFields[i] = backup.values[i];
             }
 
             return checksum;

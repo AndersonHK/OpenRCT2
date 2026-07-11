@@ -114,6 +114,7 @@ namespace OpenRCT2
             virtual void* GetWindow() = 0;
             virtual int32_t GetWidth() = 0;
             virtual int32_t GetHeight() = 0;
+            virtual uint32_t GetRefreshRate() const = 0;
             virtual ScaleQuality GetScaleQuality() = 0;
             virtual void SetFullscreenMode(FullscreenMode mode) = 0;
             virtual const std::vector<Resolution>& GetFullscreenResolutions() = 0;

@@ -15,6 +15,7 @@
 #include "../../management/Finance.h"
 #include "../../scenario/Scenario.h"
 #include "../../ui/WindowManager.h"
+#include "../../world/Park.h"
 
 namespace OpenRCT2::GameActions
 {
@@ -111,6 +112,8 @@ namespace OpenRCT2::GameActions
                 break;
             case ScenarioSetSetting::averageCashPerGuest:
                 gameState.scenarioOptions.guestInitialCash = std::clamp<money64>(_value, 0.00_GBP, 1000.00_GBP);
+                Park::UpdateEntranceFee(park);
+                windowMgr->InvalidateByClass(WindowClass::parkInformation);
                 break;
             case ScenarioSetSetting::guestInitialHappiness:
                 gameState.scenarioOptions.guestInitialHappiness = std::clamp<uint8_t>(_value, 40, 250);

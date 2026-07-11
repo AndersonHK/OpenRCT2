@@ -55,6 +55,10 @@ namespace OpenRCT2::Ui
         {
             return 0;
         }
+        uint32_t GetRefreshRate() const override
+        {
+            return 60;
+        }
         ScaleQuality GetScaleQuality() override
         {
             return ScaleQuality::nearestNeighbour;

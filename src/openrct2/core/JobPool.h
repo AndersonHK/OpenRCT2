@@ -12,7 +12,6 @@
 #include <atomic>
 #include <condition_variable>
 #include <cstddef>
-#include <cstdint>
 #include <deque>
 #include <exception>
 #include <functional>
@@ -27,19 +26,10 @@ private:
     {
         const std::function<void()> WorkFn;
         const std::function<void()> CompletionFn;
-        std::exception_ptr Error;
-
-        TaskData(std::function<void()> workFn, std::function<void()> completionFn);
+        std::exception_ptr Error{};
     };
 
     bool _shouldStop = false;
-    enum class UsageMode : uint8_t
-    {
-        unset,
-        queuedTasks,
-        parallelBatches,
-    };
-    UsageMode _usageMode = UsageMode::unset;
     size_t _processing = 0;
     std::vector<std::thread> _threads;
     std::deque<TaskData> _pending;

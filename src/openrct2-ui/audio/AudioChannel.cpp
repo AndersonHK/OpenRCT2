@@ -291,11 +291,6 @@ namespace OpenRCT2::Audio
 
         size_t ReadForResampling(void* dst, size_t framesToConsume, size_t lookaheadFrames) override
         {
-            if (_source == nullptr || _done)
-            {
-                return 0;
-            }
-
             const auto format = _source->GetFormat();
             const auto frameBytes = static_cast<size_t>(format.channels * format.BytesPerSample());
             const auto consumeBytes = framesToConsume * frameBytes;
@@ -367,6 +362,6 @@ namespace OpenRCT2::Audio
 
     ISDLAudioChannel* AudioChannel::Create()
     {
-        return new (std::nothrow) AudioChannelImpl();
+        return new AudioChannelImpl();
     }
 } // namespace OpenRCT2::Audio

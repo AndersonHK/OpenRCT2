@@ -66,6 +66,7 @@ namespace OpenRCT2
     static u8string _rct2DataPath = {};
     static bool _silentBreakpad = false;
     static bool _benchmarkUi = false;
+    static bool _benchmarkVisible = false;
     static int32_t _benchmarkWarmupSeconds = 5;
     static int32_t _benchmarkDurationSeconds = 30;
     static u8string _benchmarkRenderer;
@@ -92,6 +93,7 @@ namespace OpenRCT2
         { CMDLINE_TYPE_STRING,  &_rct1DataPath,     kNAC, "rct1-data-path",     "path to the RollerCoaster Tycoon 1 data directory (containing data/csg1.dat)" },
         { CMDLINE_TYPE_STRING,  &_rct2DataPath,     kNAC, "rct2-data-path",     "path to the RollerCoaster Tycoon 2 data directory (containing data/g1.dat)" },
         { CMDLINE_TYPE_SWITCH,  &_benchmarkUi,      kNAC, "benchmark-ui",        "run a hidden integrated UI benchmark and exit"                 },
+        { CMDLINE_TYPE_SWITCH,  &_benchmarkVisible, kNAC, "benchmark-visible",   "show the integrated benchmark window for compositor testing"   },
         { CMDLINE_TYPE_INTEGER, &_benchmarkWarmupSeconds, kNAC, "benchmark-warmup", "unmeasured integrated benchmark warm-up in seconds"       },
         { CMDLINE_TYPE_INTEGER, &_benchmarkDurationSeconds, kNAC, "benchmark-duration", "integrated benchmark measurement in seconds"          },
         { CMDLINE_TYPE_STRING,  &_benchmarkRenderer, kNAC, "benchmark-renderer", "renderer override: software, opengl, or vulkan"                },
@@ -262,6 +264,12 @@ namespace OpenRCT2
             gOpenRCT2StartupAction = StartupAction::open;
         }
 
+        if (_benchmarkVisible && !_benchmarkUi)
+        {
+            Console::Error::WriteLine("--benchmark-visible requires --benchmark-ui.");
+            return ExitCode::fail;
+        }
+
         if (_benchmarkUi)
         {
             if (gOpenRCT2Headless)
@@ -302,6 +310,7 @@ namespace OpenRCT2
             }
 
             gIntegratedBenchmark.enabled = true;
+            gIntegratedBenchmark.visible = _benchmarkVisible;
             gIntegratedBenchmark.warmupSeconds = _benchmarkWarmupSeconds;
             gIntegratedBenchmark.measurementSeconds = _benchmarkDurationSeconds;
             gIntegratedBenchmark.drawingEngine = drawingEngine;

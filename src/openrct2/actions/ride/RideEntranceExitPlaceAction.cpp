@@ -223,6 +223,7 @@ namespace OpenRCT2::GameActions
 
             MapAnimations::MarkTileForInvalidation(TileCoordsXY(_loc));
         }
+        RideInvalidateTransportServiceCache(ride->id);
 
         FootpathQueueChainReset();
 

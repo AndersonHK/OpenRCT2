@@ -85,7 +85,6 @@
 #include <iterator>
 #include <limits>
 #include <optional>
-#include <unordered_map>
 
 using namespace OpenRCT2;
 using namespace OpenRCT2::TrackMetadata;
@@ -194,11 +193,6 @@ static int64_t DecodeBuildDateFraction(int32_t buildDate)
     return static_cast<int64_t>(buildDate) * kBuildDateFractionsPerMonth;
 }
 
-static money64 ScaleMoneyByRatio(money64 amount, uint32_t numerator, uint32_t denominator)
-{
-    return (amount * numerator + (denominator / 2)) / denominator;
-}
-
 static uint32_t SumRecentCounts(const uint16_t (&history)[OpenRCT2::Limits::kCustomerHistorySize])
 {
     uint32_t sum = 0;
@@ -221,7 +215,8 @@ money64 RideGetUpkeepCostPerHour(const Ride& ride)
         return kMoney64Undefined;
     }
 
-    return ScaleMoneyByRatio(ride.upkeepCost, GameTime::kTicksPerHour, GameTime::kGameTicksPerCalendarHalfMonth);
+    return (ride.upkeepCost * GameTime::kTicksPerHour + (GameTime::kGameTicksPerCalendarHalfMonth / 2))
+        / GameTime::kGameTicksPerCalendarHalfMonth;
 }
 
 // A special instance of Ride that is used to draw previews such as the track designs.
@@ -382,7 +377,7 @@ int32_t RideGetCount()
     return static_cast<int32_t>(RideManager(gameState).size());
 }
 
-RideRatingAccumulator* RideFindActiveRatingSample(Ride& ride, EntityId sampleEntity)
+static RideRatingAccumulator* RideGetActiveRatingSample(Ride& ride, EntityId sampleEntity, bool create)
 {
     if (sampleEntity.IsNull())
     {
@@ -399,6 +394,8 @@ RideRatingAccumulator* RideFindActiveRatingSample(Ride& ride, EntityId sampleEnt
         }
     }
 
+    RideRatingAccumulator* reusable = nullptr;
+    size_t reusableIndex = 0;
     for (size_t i = 0; i < ride.activeRatingSamples.size(); i++)
     {
         auto& sample = ride.activeRatingSamples[i];
@@ -407,38 +404,35 @@ RideRatingAccumulator* RideFindActiveRatingSample(Ride& ride, EntityId sampleEnt
             RideCacheActiveRatingSampleReference(ride, sampleEntity, i);
             return &sample;
         }
+        if (create && reusable == nullptr && sample.sampleEntity.IsNull() && !sample.hasSamples())
+        {
+            reusable = &sample;
+            reusableIndex = i;
+        }
     }
 
-    return nullptr;
+    if (!create)
+    {
+        return nullptr;
+    }
+    if (reusable == nullptr)
+    {
+        reusable = &ride.activeRatingSamples.emplace_back();
+        reusableIndex = ride.activeRatingSamples.size() - 1;
+    }
+    reusable->sampleEntity = sampleEntity;
+    RideCacheActiveRatingSampleReference(ride, sampleEntity, reusableIndex);
+    return reusable;
+}
+
+RideRatingAccumulator* RideFindActiveRatingSample(Ride& ride, EntityId sampleEntity)
+{
+    return RideGetActiveRatingSample(ride, sampleEntity, false);
 }
 
 RideRatingAccumulator* RideGetOrCreateActiveRatingSample(Ride& ride, EntityId sampleEntity)
 {
-    if (sampleEntity.IsNull())
-    {
-        return nullptr;
-    }
-
-    if (auto* existingSample = RideFindActiveRatingSample(ride, sampleEntity); existingSample != nullptr)
-    {
-        return existingSample;
-    }
-
-    for (size_t i = 0; i < ride.activeRatingSamples.size(); i++)
-    {
-        auto& sample = ride.activeRatingSamples[i];
-        if (sample.sampleEntity.IsNull() && !sample.hasSamples())
-        {
-            sample.sampleEntity = sampleEntity;
-            RideCacheActiveRatingSampleReference(ride, sampleEntity, i);
-            return &sample;
-        }
-    }
-
-    auto& sample = ride.activeRatingSamples.emplace_back();
-    sample.sampleEntity = sampleEntity;
-    RideCacheActiveRatingSampleReference(ride, sampleEntity, ride.activeRatingSamples.size() - 1);
-    return &sample;
+    return RideGetActiveRatingSample(ride, sampleEntity, true);
 }
 
 static RideRatingAccumulator RideAverageRecentRatingSamples(
@@ -662,10 +656,7 @@ void RideAddRecentRatingSample(Ride& ride, const RideRatingAccumulator& sample)
 void RideClearRiderRatingSamples(Ride& ride)
 {
     ride.activeRatingSamples.clear();
-    for (auto& sample : ride.recentRatingSamples)
-    {
-        sample.clear();
-    }
+    ride.recentRatingSamples = {};
     ride.recentRatingSampleCount = 0;
     ride.recentRatingSampleNext = 0;
     ride.ratingLegs.clear();
@@ -1895,8 +1886,10 @@ void RidePrepareBreakdown(Ride& ride, Breakdown breakdownReason)
  *
  *  rct2: 0x006B74FA
  */
-void RideBreakdownAddNewsItem(const Ride& ride)
+void RideMarkBrokenDown(Ride& ride)
 {
+    ride.flags.set(RideFlag::brokenDown);
+    RideInvalidateTransportServiceCache(ride.id);
     if (Config::Get().notifications.rideBrokenDown)
     {
         Formatter ft;
@@ -1951,11 +1944,9 @@ static void RideMechanicStatusUpdate(Ride& ride, MechanicStatus mechanicStatus)
         if (breakdownReason == Breakdown::safetyCutOut || breakdownReason == Breakdown::brakesFailure
             || breakdownReason == Breakdown::controlFailure)
         {
-            ride.flags.set(RideFlag::brokenDown);
-            RideInvalidateTransportServiceCache(ride.id);
+            RideMarkBrokenDown(ride);
             ride.windowInvalidateFlags.set(RideInvalidateFlag::maintenance, RideInvalidateFlag::list, RideInvalidateFlag::main);
             ride.breakdownReason = breakdownReason;
-            RideBreakdownAddNewsItem(ride);
         }
     }
     switch (mechanicStatus)
@@ -4781,7 +4772,8 @@ void Ride::stopGuestsQueuing()
             peep->removeFromQueue();
             peep->SetState(PeepState::falling);
         }
-        else if (RideGetStationPlatformReservation(*this, peep->CurrentRideStation, peep->id).has_value())
+        else if (!peep->CurrentRideStation.IsNull() && peep->CurrentRideStation.ToUnderlying() < numStations
+            && RideGetStationPlatformReservation(*this, peep->CurrentRideStation, peep->id).has_value())
         {
             peep->recoverFromStationPlatform(*this);
         }
@@ -5622,30 +5614,9 @@ static int32_t RideGetTrackLength(const Ride& ride)
     return result;
 }
 
-uint8_t Ride::getMazeMaximumCapacity() const
-{
-    if (type != RIDE_TYPE_MAZE)
-        return 0;
-
-    return getMazeCapacityForMode(MazeCapacityMode::overcrowded);
-}
-
-MazeCapacityMode RideNormaliseMazeCapacityMode(uint8_t operationOption)
-{
-    switch (static_cast<MazeCapacityMode>(operationOption))
-    {
-        case MazeCapacityMode::sparse:
-        case MazeCapacityMode::normal:
-        case MazeCapacityMode::overcrowded:
-            return static_cast<MazeCapacityMode>(operationOption);
-    }
-
-    return MazeCapacityMode::normal;
-}
-
 uint8_t Ride::getMazeCapacityForMode(MazeCapacityMode capacityMode) const
 {
-    if (type != RIDE_TYPE_MAZE || mazeTiles == 0)
+    if (mazeTiles == 0)
         return 0;
 
     uint32_t capacity = mazeTiles;
@@ -5666,15 +5637,19 @@ uint8_t Ride::getMazeCapacityForMode(MazeCapacityMode capacityMode) const
 
 MazeCapacityMode Ride::getMazeCapacityMode() const
 {
-    if (type != RIDE_TYPE_MAZE)
-        return MazeCapacityMode::normal;
-
-    return RideNormaliseMazeCapacityMode(operationOption);
+    switch (static_cast<MazeCapacityMode>(operationOption))
+    {
+        case MazeCapacityMode::sparse:
+        case MazeCapacityMode::normal:
+        case MazeCapacityMode::overcrowded:
+            return static_cast<MazeCapacityMode>(operationOption);
+    }
+    return MazeCapacityMode::normal;
 }
 
 MazeCapacityMode Ride::getClosestMazeCapacityModeForCapacity(uint8_t capacity) const
 {
-    if (type != RIDE_TYPE_MAZE || mazeTiles == 0)
+    if (mazeTiles == 0)
         return MazeCapacityMode::normal;
 
     auto capacityDifference = [this, capacity](MazeCapacityMode mode) {
@@ -5767,15 +5742,12 @@ void Ride::normaliseMazeCapacityMode()
     if (type != RIDE_TYPE_MAZE)
         return;
 
-    operationOption = getStoredOperationOption();
+    operationOption = static_cast<uint8_t>(getMazeCapacityMode());
 }
 
 void Ride::updateMazeCapacityForConstruction()
 {
     normaliseMazeCapacityMode();
-    if (type != RIDE_TYPE_MAZE)
-        return;
-
     windowInvalidateFlags.set(RideInvalidateFlag::operatingSettings);
 }
 
@@ -6512,18 +6484,11 @@ TransportRideJourney RideGetTransportJourney(
 
 namespace
 {
-    struct TransportRideServiceFreshness
-    {
-        uint64_t signature{};
-        TransportRideQuality quality;
-    };
-
     struct CachedTransportRideService
     {
-        RideId ride{ RideId::GetNull() };
         bool available{};
-        bool refreshRequired{};
-        uint64_t freshnessSignature{};
+        bool dirty{ true };
+        uint64_t revision{};
         TransportRideQuality quality;
         std::vector<TransportRideServiceStation> stations;
         std::vector<TransportRideServiceJourney> journeys;
@@ -6531,8 +6496,7 @@ namespace
 
     struct TransportRideServiceSpatialBucket
     {
-        std::vector<TransportRideServiceStationRef> boardingEntrances;
-        std::vector<TransportRideServiceStationRef> destinationExits;
+        std::array<std::vector<TransportRideServiceStationRef>, 2> endpoints;
     };
 
     constexpr size_t kTransportServiceSpatialBucketCount = static_cast<size_t>(MapTopology::kChunkCount)
@@ -6541,22 +6505,20 @@ namespace
     struct TransportRideServiceSpatialIndex
     {
         std::array<TransportRideServiceSpatialBucket, kTransportServiceSpatialBucketCount> buckets;
-        std::vector<TransportRideServiceStationRef> allBoardingEntrances;
-        std::vector<TransportRideServiceStationRef> allDestinationExits;
+        std::array<std::vector<TransportRideServiceStationRef>, 2> allEndpoints;
     };
 
     struct TransportRideServiceCache
     {
         std::array<CachedTransportRideService, OpenRCT2::Limits::kMaxRidesInPark> rides;
-        std::vector<RideId> availableRideIds;
         TransportRideServiceSpatialIndex spatialIndex;
-        uint32_t lastValidationTick{};
         size_t lastRideRange{};
         uint64_t crowdingSignature{};
         uint64_t crowdingGeneration{ 1 };
-        bool hasValidatedTick{};
+        uint32_t crowdingTick{ std::numeric_limits<uint32_t>::max() };
+        uint64_t nextRevision{ 1 };
+        bool anyDirty{ true };
         bool hasCrowdingSignature{};
-        bool validationForced{};
     };
 
     TransportRideServiceCache _transportRideServiceCache;
@@ -6572,38 +6534,9 @@ namespace
         hash *= kTransportServiceHashPrime;
     }
 
-    void TransportServiceHashAppendLocation(uint64_t& hash, const TileCoordsXYZD& location)
+    constexpr size_t TransportServiceEndpointIndex(TransportRideServiceEndpoint endpoint)
     {
-        TransportServiceHashAppend(hash, static_cast<uint64_t>(static_cast<int64_t>(location.x)));
-        TransportServiceHashAppend(hash, static_cast<uint64_t>(static_cast<int64_t>(location.y)));
-        TransportServiceHashAppend(hash, static_cast<uint64_t>(static_cast<int64_t>(location.z)));
-        TransportServiceHashAppend(hash, location.direction);
-    }
-
-    std::vector<TransportRideServiceStationRef>& TransportServiceGetEndpointRefs(
-        TransportRideServiceSpatialBucket& bucket, TransportRideServiceEndpoint endpoint)
-    {
-        return endpoint == TransportRideServiceEndpoint::boardingEntrance ? bucket.boardingEntrances : bucket.destinationExits;
-    }
-
-    const std::vector<TransportRideServiceStationRef>& TransportServiceGetEndpointRefs(
-        const TransportRideServiceSpatialBucket& bucket, TransportRideServiceEndpoint endpoint)
-    {
-        return endpoint == TransportRideServiceEndpoint::boardingEntrance ? bucket.boardingEntrances : bucket.destinationExits;
-    }
-
-    std::vector<TransportRideServiceStationRef>& TransportServiceGetAllEndpointRefs(
-        TransportRideServiceSpatialIndex& spatialIndex, TransportRideServiceEndpoint endpoint)
-    {
-        return endpoint == TransportRideServiceEndpoint::boardingEntrance ? spatialIndex.allBoardingEntrances
-                                                                          : spatialIndex.allDestinationExits;
-    }
-
-    const std::vector<TransportRideServiceStationRef>& TransportServiceGetAllEndpointRefs(
-        const TransportRideServiceSpatialIndex& spatialIndex, TransportRideServiceEndpoint endpoint)
-    {
-        return endpoint == TransportRideServiceEndpoint::boardingEntrance ? spatialIndex.allBoardingEntrances
-                                                                          : spatialIndex.allDestinationExits;
+        return static_cast<size_t>(endpoint);
     }
 
     bool TransportServiceTryGetSpatialBucket(const TileCoordsXYZD& location, size_t& bucketIndex)
@@ -6620,69 +6553,50 @@ namespace
         return true;
     }
 
-    const TileCoordsXYZD* TransportServiceGetEndpointLocation(
+    const TileCoordsXYZD& TransportServiceGetEndpointLocation(
         const CachedTransportRideService& cached, StationIndex station, TransportRideServiceEndpoint endpoint)
     {
-        if (station.IsNull() || station.ToUnderlying() >= cached.stations.size())
-        {
-            return nullptr;
-        }
+        Guard::Assert(!station.IsNull() && station.ToUnderlying() < cached.stations.size());
         const auto& serviceStation = cached.stations[station.ToUnderlying()];
-        return endpoint == TransportRideServiceEndpoint::boardingEntrance ? &serviceStation.entrance : &serviceStation.exit;
+        return endpoint == TransportRideServiceEndpoint::boardingEntrance ? serviceStation.entrance : serviceStation.exit;
     }
 
-    void TransportServiceInsertRef(std::vector<TransportRideServiceStationRef>& refs, const TransportRideServiceStationRef& ref)
+    void TransportServiceUpdateRef(
+        std::vector<TransportRideServiceStationRef>& refs, const TransportRideServiceStationRef& ref, bool insert)
     {
         const auto iterator = std::lower_bound(refs.begin(), refs.end(), ref);
-        if (iterator == refs.end() || !(*iterator == ref))
+        const bool found = iterator != refs.end() && *iterator == ref;
+        if (insert && !found)
         {
             refs.insert(iterator, ref);
         }
-    }
-
-    void TransportServiceEraseRef(std::vector<TransportRideServiceStationRef>& refs, const TransportRideServiceStationRef& ref)
-    {
-        const auto iterator = std::lower_bound(refs.begin(), refs.end(), ref);
-        if (iterator != refs.end() && *iterator == ref)
+        else if (!insert && found)
         {
             refs.erase(iterator);
         }
     }
 
-    void RideUpdateTransportServiceSpatialIndex(const CachedTransportRideService& cached, bool insert)
+    void RideUpdateTransportServiceSpatialIndex(
+        RideId rideId, const CachedTransportRideService& cached, bool insert)
     {
-        if (cached.ride.IsNull())
-        {
-            return;
-        }
-
         auto& spatialIndex = _transportRideServiceCache.spatialIndex;
         for (size_t stationIndex = 0; stationIndex < cached.stations.size(); stationIndex++)
         {
             const auto station = StationIndex::FromUnderlying(static_cast<StationIndex::UnderlyingType>(stationIndex));
-            const TransportRideServiceStationRef ref{ .ride = cached.ride, .station = station };
+            const TransportRideServiceStationRef ref{ .ride = rideId, .station = station };
             for (const auto endpoint :
                  { TransportRideServiceEndpoint::boardingEntrance, TransportRideServiceEndpoint::destinationExit })
             {
-                const auto* location = TransportServiceGetEndpointLocation(cached, station, endpoint);
+                const auto& location = TransportServiceGetEndpointLocation(cached, station, endpoint);
                 size_t bucketIndex = 0;
-                if (location == nullptr || !TransportServiceTryGetSpatialBucket(*location, bucketIndex))
+                if (!TransportServiceTryGetSpatialBucket(location, bucketIndex))
                 {
                     continue;
                 }
 
-                auto& bucketRefs = TransportServiceGetEndpointRefs(spatialIndex.buckets[bucketIndex], endpoint);
-                auto& allRefs = TransportServiceGetAllEndpointRefs(spatialIndex, endpoint);
-                if (insert)
-                {
-                    TransportServiceInsertRef(bucketRefs, ref);
-                    TransportServiceInsertRef(allRefs, ref);
-                }
-                else
-                {
-                    TransportServiceEraseRef(bucketRefs, ref);
-                    TransportServiceEraseRef(allRefs, ref);
-                }
+                const auto endpointIndex = TransportServiceEndpointIndex(endpoint);
+                TransportServiceUpdateRef(spatialIndex.buckets[bucketIndex].endpoints[endpointIndex], ref, insert);
+                TransportServiceUpdateRef(spatialIndex.allEndpoints[endpointIndex], ref, insert);
             }
         }
     }
@@ -6695,7 +6609,7 @@ namespace
 
     bool RideTransportServiceEndpointsMatch(const CachedTransportRideService& cached, const Ride& ride)
     {
-        if (cached.ride != ride.id || cached.stations.size() != ride.numStations)
+        if (cached.stations.size() != ride.numStations)
         {
             return false;
         }
@@ -6717,70 +6631,17 @@ namespace
         return true;
     }
 
-    TransportRideServiceFreshness RideGetTransportServiceFreshness(const Ride& ride)
-    {
-        TransportRideServiceFreshness result{ .signature = kTransportServiceHashOffset };
-        result.quality = RideGetTransportQuality(ride);
-
-        TransportServiceHashAppend(result.signature, ride.id.ToUnderlying());
-        TransportServiceHashAppend(result.signature, ride.type);
-        TransportServiceHashAppend(result.signature, static_cast<uint64_t>(ride.status));
-        TransportServiceHashAppend(result.signature, ride.flags.has(RideFlag::brokenDown));
-        TransportServiceHashAppend(result.signature, ride.numStations);
-        TransportServiceHashAppend(
-            result.signature, static_cast<uint64_t>(static_cast<int64_t>(ride.getDisplayAverageSpeed())));
-        TransportServiceHashAppend(result.signature, static_cast<uint64_t>(static_cast<int64_t>(ride.getDisplayMaxSpeed())));
-        TransportServiceHashAppend(
-            result.signature, static_cast<uint64_t>(static_cast<int64_t>(result.quality.comfortPermille)));
-        TransportServiceHashAppend(
-            result.signature, static_cast<uint64_t>(static_cast<int64_t>(result.quality.decorationPermille)));
-        TransportServiceHashAppend(result.signature, result.quality.hasMeasurements);
-
-        for (size_t stationIndex = 0; stationIndex < ride.numStations; stationIndex++)
-        {
-            const auto index = StationIndex::FromUnderlying(static_cast<StationIndex::UnderlyingType>(stationIndex));
-            const auto& station = ride.getStation(index);
-            TransportServiceHashAppend(result.signature, static_cast<uint64_t>(static_cast<int64_t>(station.Start.x)));
-            TransportServiceHashAppend(result.signature, static_cast<uint64_t>(static_cast<int64_t>(station.Start.y)));
-            TransportServiceHashAppendLocation(result.signature, station.Entrance);
-            TransportServiceHashAppendLocation(result.signature, station.Exit);
-            TransportServiceHashAppend(
-                result.signature, static_cast<uint64_t>(static_cast<int64_t>(ride.getDisplayStationSegmentLength(index))));
-            TransportServiceHashAppend(result.signature, ride.getDisplayStationSegmentTime(index));
-        }
-        TransportServiceHashAppend(result.signature, ride.ratingLegs.size());
-        for (const auto& leg : ride.ratingLegs)
-        {
-            if (!leg.hasSamples())
-            {
-                continue;
-            }
-            const auto segment = RideGetTransportSegmentForEdge(ride, leg.originStation, &leg, result.quality);
-            TransportServiceHashAppend(result.signature, leg.originStation.ToUnderlying());
-            TransportServiceHashAppend(result.signature, leg.destinationStation.ToUnderlying());
-            TransportServiceHashAppend(result.signature, leg.recentSampleCount);
-            TransportServiceHashAppend(
-                result.signature, static_cast<uint64_t>(static_cast<int64_t>(segment.distanceMetres)));
-            TransportServiceHashAppend(
-                result.signature, static_cast<uint64_t>(segment.travelTimeMilliseconds));
-            TransportServiceHashAppend(
-                result.signature, static_cast<uint64_t>(static_cast<int64_t>(segment.shelteredPermille)));
-            TransportServiceHashAppend(result.signature, static_cast<uint64_t>(segment.fareValue));
-        }
-        return result;
-    }
-
-    void RideBuildTransportService(
-        CachedTransportRideService& cached, const Ride& ride, const TransportRideServiceFreshness& freshness)
+    void RideBuildTransportService(CachedTransportRideService& cached, const Ride& ride)
     {
         const bool endpointsMatch = cached.available && RideTransportServiceEndpointsMatch(cached, ride);
         if (cached.available && !endpointsMatch)
         {
-            RideUpdateTransportServiceSpatialIndex(cached, false);
+            RideUpdateTransportServiceSpatialIndex(ride.id, cached, false);
         }
 
         const auto stationCount = static_cast<size_t>(ride.numStations);
-        const auto segmentGraph = RideBuildTransportSegmentGraph(ride, freshness.quality);
+        const auto quality = RideGetTransportQuality(ride);
+        const auto segmentGraph = RideBuildTransportSegmentGraph(ride, quality);
 
         cached.stations.resize(stationCount);
         for (size_t stationIndex = 0; stationIndex < stationCount; stationIndex++)
@@ -6812,65 +6673,77 @@ namespace
             }
         }
 
-        cached.ride = ride.id;
         cached.available = true;
-        cached.refreshRequired = false;
-        cached.freshnessSignature = freshness.signature;
-        cached.quality = freshness.quality;
+        cached.dirty = false;
+        cached.revision = _transportRideServiceCache.nextRevision++;
+        cached.quality = quality;
         if (!endpointsMatch)
         {
-            RideUpdateTransportServiceSpatialIndex(cached, true);
+            RideUpdateTransportServiceSpatialIndex(ride.id, cached, true);
         }
     }
 
-    void RideDeactivateTransportService(CachedTransportRideService& cached)
+    void RideDeactivateTransportService(RideId rideId, CachedTransportRideService& cached)
     {
         if (cached.available)
         {
-            RideUpdateTransportServiceSpatialIndex(cached, false);
+            RideUpdateTransportServiceSpatialIndex(rideId, cached, false);
         }
-        cached.ride = RideId::GetNull();
-        cached.available = false;
-        cached.refreshRequired = false;
-        cached.freshnessSignature = 0;
-        cached.quality = {};
-        cached.stations.clear();
-        cached.journeys.clear();
+        cached = {};
+        cached.dirty = false;
     }
 
-    void RideRebuildAvailableTransportServiceIds(size_t rideRange)
+    void RideRefreshTransportServiceCache()
     {
         auto& cache = _transportRideServiceCache;
-        cache.availableRideIds.clear();
-        for (size_t rideIndex = 0; rideIndex < rideRange; rideIndex++)
+        if (!cache.anyDirty)
         {
-            if (cache.rides[rideIndex].available)
-            {
-                cache.availableRideIds.push_back(RideId::FromUnderlying(static_cast<RideId::UnderlyingType>(rideIndex)));
-            }
+            return;
         }
+
+        const auto& gameState = getGameState();
+        const auto rideRange = gameState.ridesEndOfUsedRange;
+        const auto refreshRange = std::max(rideRange, cache.lastRideRange);
+        for (size_t rideIndex = 0; rideIndex < refreshRange; rideIndex++)
+        {
+            auto& cached = cache.rides[rideIndex];
+            if (!cached.dirty)
+            {
+                continue;
+            }
+            const auto rideId = RideId::FromUnderlying(static_cast<RideId::UnderlyingType>(rideIndex));
+            const Ride* ride = rideIndex < rideRange ? &gameState.rides[rideIndex] : nullptr;
+            if (ride == nullptr || ride->id.IsNull() || !RideIsAvailableTransportService(*ride))
+            {
+                RideDeactivateTransportService(rideId, cached);
+                continue;
+            }
+            RideBuildTransportService(cached, *ride);
+        }
+        cache.lastRideRange = rideRange;
+        cache.anyDirty = false;
     }
 
     void RideRefreshTransportServiceCrowdingGeneration()
     {
+        RideRefreshTransportServiceCache();
         auto& cache = _transportRideServiceCache;
-        uint64_t signature = kTransportServiceHashOffset;
-        for (const auto rideId : cache.availableRideIds)
+        if (cache.crowdingTick == getGameState().currentTicks)
         {
-            const auto* ride = GetRide(rideId);
-            if (ride == nullptr)
-            {
-                continue;
-            }
-            TransportServiceHashAppend(signature, rideId.ToUnderlying());
-            TransportServiceHashAppend(signature, ride->numStations);
-            for (StationIndex::UnderlyingType station = 0; station < ride->numStations; station++)
-            {
-                const auto stationIndex = StationIndex::FromUnderlying(station);
-                TransportServiceHashAppend(signature, RideIsTransportStationOvercrowded(*ride, stationIndex));
-            }
+            return;
         }
+        cache.crowdingTick = getGameState().currentTicks;
 
+        uint64_t signature = kTransportServiceHashOffset;
+        for (const auto& ref : cache.spatialIndex.allEndpoints[TransportServiceEndpointIndex(
+                 TransportRideServiceEndpoint::boardingEntrance)])
+        {
+            const auto* ride = GetRide(ref.ride);
+            Guard::Assert(ride != nullptr);
+            TransportServiceHashAppend(signature, ref.ride.ToUnderlying());
+            TransportServiceHashAppend(signature, ref.station.ToUnderlying());
+            TransportServiceHashAppend(signature, RideIsTransportStationOvercrowded(*ride, ref.station));
+        }
         if (!cache.hasCrowdingSignature)
         {
             cache.crowdingSignature = signature;
@@ -6880,58 +6753,8 @@ namespace
         {
             cache.crowdingSignature = signature;
             cache.crowdingGeneration++;
-            if (cache.crowdingGeneration == 0)
-            {
-                cache.crowdingGeneration = 1;
-            }
+            Guard::Assert(cache.crowdingGeneration != 0);
         }
-    }
-
-    void RideValidateTransportServiceCache()
-    {
-        auto& cache = _transportRideServiceCache;
-        const auto& gameState = getGameState();
-        if (!cache.validationForced && cache.hasValidatedTick && cache.lastValidationTick == gameState.currentTicks)
-        {
-            return;
-        }
-
-        cache.validationForced = false;
-        cache.hasValidatedTick = true;
-        cache.lastValidationTick = gameState.currentTicks;
-        const auto rideRange = gameState.ridesEndOfUsedRange;
-        const auto validationRange = std::max(rideRange, cache.lastRideRange);
-        bool availableRidesChanged = false;
-
-        for (size_t rideIndex = 0; rideIndex < validationRange; rideIndex++)
-        {
-            auto& cached = cache.rides[rideIndex];
-            const Ride* ride = rideIndex < rideRange ? &gameState.rides[rideIndex] : nullptr;
-            const bool available = ride != nullptr && !ride->id.IsNull() && RideIsAvailableTransportService(*ride);
-            if (!available)
-            {
-                if (cached.available)
-                {
-                    RideDeactivateTransportService(cached);
-                    availableRidesChanged = true;
-                }
-                continue;
-            }
-
-            const auto freshness = RideGetTransportServiceFreshness(*ride);
-            if (!cached.available || cached.refreshRequired || cached.freshnessSignature != freshness.signature)
-            {
-                availableRidesChanged = availableRidesChanged || !cached.available;
-                RideBuildTransportService(cached, *ride, freshness);
-            }
-        }
-
-        cache.lastRideRange = rideRange;
-        if (availableRidesChanged)
-        {
-            RideRebuildAvailableTransportServiceIds(rideRange);
-        }
-        RideRefreshTransportServiceCrowdingGeneration();
     }
 
     bool TransportServiceClampQueryBounds(
@@ -6955,9 +6778,10 @@ namespace
         TransportRideServiceEndpoint endpoint, int64_t rawMinimumX, int64_t rawMinimumY, int64_t rawMaximumX,
         int64_t rawMaximumY, std::vector<TransportRideServiceStationRef>& reusableBuffer)
     {
-        RideValidateTransportServiceCache();
+        RideRefreshTransportServiceCache();
         const auto& spatialIndex = _transportRideServiceCache.spatialIndex;
-        const auto& allRefs = TransportServiceGetAllEndpointRefs(spatialIndex, endpoint);
+        const auto endpointIndex = TransportServiceEndpointIndex(endpoint);
+        const auto& allRefs = spatialIndex.allEndpoints[endpointIndex];
         reusableBuffer.clear();
         if (reusableBuffer.capacity() < allRefs.size())
         {
@@ -6981,13 +6805,13 @@ namespace
                 for (auto chunkX = minimumChunkX; chunkX <= maximumChunkX; chunkX++)
                 {
                     const auto bucketIndex = static_cast<size_t>(chunkY) * MapTopology::kChunkCount + chunkX;
-                    const auto& refs = TransportServiceGetEndpointRefs(spatialIndex.buckets[bucketIndex], endpoint);
+                    const auto& refs = spatialIndex.buckets[bucketIndex].endpoints[endpointIndex];
                     for (const auto& ref : refs)
                     {
                         const auto& cached = _transportRideServiceCache.rides[ref.ride.ToUnderlying()];
-                        const auto* location = TransportServiceGetEndpointLocation(cached, ref.station, endpoint);
-                        if (location != nullptr && location->x >= minimumX && location->y >= minimumY
-                            && location->x <= maximumX && location->y <= maximumY)
+                        const auto& location = TransportServiceGetEndpointLocation(cached, ref.station, endpoint);
+                        if (location.x >= minimumX && location.y >= minimumY && location.x <= maximumX
+                            && location.y <= maximumY)
                         {
                             reusableBuffer.push_back(ref);
                         }
@@ -7002,64 +6826,20 @@ namespace
 
 static void RideTransportServiceCacheReset()
 {
-    auto& cache = _transportRideServiceCache;
-    for (auto& cached : cache.rides)
-    {
-        cached.ride = RideId::GetNull();
-        cached.available = false;
-        cached.refreshRequired = false;
-        cached.freshnessSignature = 0;
-        cached.quality = {};
-        cached.stations.clear();
-        cached.journeys.clear();
-    }
-    for (auto& bucket : cache.spatialIndex.buckets)
-    {
-        bucket.boardingEntrances.clear();
-        bucket.destinationExits.clear();
-    }
-    cache.spatialIndex.allBoardingEntrances.clear();
-    cache.spatialIndex.allDestinationExits.clear();
-    cache.availableRideIds.clear();
-    cache.lastValidationTick = 0;
-    cache.lastRideRange = 0;
-    cache.crowdingSignature = 0;
-    cache.crowdingGeneration = 1;
-    cache.hasValidatedTick = false;
-    cache.hasCrowdingSignature = false;
-    cache.validationForced = false;
+    _transportRideServiceCache = {};
 }
 
 void RideInvalidateTransportServiceCache(RideId rideId)
 {
     RideRating::InvalidateLiveSynchronisationCache(rideId);
-    if (rideId.IsNull() || rideId.ToUnderlying() >= _transportRideServiceCache.rides.size())
+    if (rideId.IsNull())
     {
-        return;
+        return; // Preview rides deliberately have no slot in the live service cache.
     }
-
-    auto& cached = _transportRideServiceCache.rides[rideId.ToUnderlying()];
-    const auto* ride = GetRide(rideId);
-    if (ride != nullptr && ride->type != kRideTypeNull
-        && ride->getRideTypeDescriptor().flags.has(RtdFlag::isTransportRide))
-    {
-        cached.refreshRequired = true;
-        _transportRideServiceCache.validationForced = true;
-        return;
-    }
-    if (!cached.available && ride != nullptr && ride->type != kRideTypeNull
-        && !ride->getRideTypeDescriptor().flags.has(RtdFlag::isTransportRide))
-    {
-        return;
-    }
-    RideDeactivateTransportService(cached);
-    const auto iterator = std::lower_bound(
-        _transportRideServiceCache.availableRideIds.begin(), _transportRideServiceCache.availableRideIds.end(), rideId);
-    if (iterator != _transportRideServiceCache.availableRideIds.end() && *iterator == rideId)
-    {
-        _transportRideServiceCache.availableRideIds.erase(iterator);
-    }
-    _transportRideServiceCache.validationForced = true;
+    Guard::Assert(rideId.ToUnderlying() < _transportRideServiceCache.rides.size());
+    _transportRideServiceCache.rides[rideId.ToUnderlying()].dirty = true;
+    _transportRideServiceCache.anyDirty = true;
+    _transportRideServiceCache.crowdingTick = std::numeric_limits<uint32_t>::max();
 }
 
 bool TransportRideServiceView::isAvailable() const
@@ -7108,12 +6888,8 @@ const TransportRideServiceJourney* TransportRideServiceView::getJourney(
 
 TransportRideServiceView RideGetTransportService(RideId rideId)
 {
-    RideValidateTransportServiceCache();
-    if (rideId.IsNull() || rideId.ToUnderlying() >= _transportRideServiceCache.rides.size())
-    {
-        return {};
-    }
-
+    RideRefreshTransportServiceCache();
+    Guard::Assert(!rideId.IsNull() && rideId.ToUnderlying() < _transportRideServiceCache.rides.size());
     const auto& cached = _transportRideServiceCache.rides[rideId.ToUnderlying()];
     if (!cached.available)
     {
@@ -7121,7 +6897,7 @@ TransportRideServiceView RideGetTransportService(RideId rideId)
     }
     return {
         .ride = rideId,
-        .freshnessSignature = cached.freshnessSignature,
+        .freshnessSignature = cached.revision,
         .quality = cached.quality,
         .stations = cached.stations,
         .journeys = cached.journeys,
@@ -7130,7 +6906,7 @@ TransportRideServiceView RideGetTransportService(RideId rideId)
 
 uint64_t RideGetTransportServiceCrowdingGeneration()
 {
-    RideValidateTransportServiceCache();
+    RideRefreshTransportServiceCrowdingGeneration();
     return _transportRideServiceCache.crowdingGeneration;
 }
 
@@ -7146,8 +6922,8 @@ void RideQueryTransportServiceStationsInBounds(
 void RideCollectAllTransportServiceStations(
     TransportRideServiceEndpoint endpoint, std::vector<TransportRideServiceStationRef>& reusableBuffer)
 {
-    RideValidateTransportServiceCache();
-    const auto& refs = TransportServiceGetAllEndpointRefs(_transportRideServiceCache.spatialIndex, endpoint);
+    RideRefreshTransportServiceCache();
+    const auto& refs = _transportRideServiceCache.spatialIndex.allEndpoints[TransportServiceEndpointIndex(endpoint)];
     if (reusableBuffer.capacity() < refs.size())
     {
         reusableBuffer.reserve(refs.size());
@@ -7161,65 +6937,37 @@ namespace
     {
         RideStationPlatformReservation reservation;
         EntityId guestId{ EntityId::GetNull() };
-        uint64_t queueSequence{};
-        bool hasWaitPosition{};
-    };
-
-    struct StationPlatformCarTemplate
-    {
-        ObjectEntryIndex rideSubtype{ kObjectEntryIndexNull };
-        uint8_t vehicleType{};
-        uint8_t seatCount{};
-        bool reversed{};
-
-        bool operator==(const StationPlatformCarTemplate&) const = default;
     };
 
     struct StationPlatformState
     {
         std::vector<StationPlatformSlot> slots;
-        std::vector<StationPlatformCarTemplate> cars;
+        std::vector<uint16_t> queue;
         bool active{};
-        uint64_t nextQueueSequence{};
+        // Save restoration knows each occupied seat but cannot derive empty wait
+        // positions until a train next traverses the station.
+        bool hasGeometry{};
         EntityId boardingPlanTrain{ EntityId::GetNull() };
-        EntityId boundGuest{ EntityId::GetNull() };
     };
 
     struct StationPlatformOccupant
     {
         EntityId guestId{ EntityId::GetNull() };
-        uint64_t queueSequence{};
-        size_t originalSlot{};
-        CoordsXYZ waitPosition{};
-        bool hasWaitPosition{};
+        uint16_t originalSlot{};
     };
 
-    std::unordered_map<uint32_t, StationPlatformState> _stationPlatformStates;
+    using RideStationPlatformStates = std::array<StationPlatformState, OpenRCT2::Limits::kMaxStationsPerRide>;
+    std::array<RideStationPlatformStates, OpenRCT2::Limits::kMaxRidesInPark> _stationPlatformStates;
 
-    uint32_t GetStationPlatformKey(const Ride& ride, StationIndex stationIndex)
+    StationPlatformState& GetStationPlatformState(
+        const Ride& ride, StationIndex stationIndex, const std::source_location& caller = std::source_location::current())
     {
-        return (static_cast<uint32_t>(ride.id.ToUnderlying()) << 8) | stationIndex.ToUnderlying();
-    }
-
-    StationPlatformState* GetStationPlatformState(const Ride& ride, StationIndex stationIndex)
-    {
-        const auto it = _stationPlatformStates.find(GetStationPlatformKey(ride, stationIndex));
-        return it == _stationPlatformStates.end() ? nullptr : &it->second;
-    }
-
-    const StationPlatformState* GetStationPlatformStateConst(const Ride& ride, StationIndex stationIndex)
-    {
-        const auto it = _stationPlatformStates.find(GetStationPlatformKey(ride, stationIndex));
-        return it == _stationPlatformStates.end() ? nullptr : &it->second;
-    }
-
-    bool IsSupportedStationPlatformType(const Ride& ride)
-    {
-        // Lift is intentionally absent: its cabin uses loading waypoints and its
-        // departing state lasts until the cabin reaches the tower top.
-        const bool supportedTransport = ride.type == RIDE_TYPE_MINIATURE_RAILWAY || ride.type == RIDE_TYPE_MONORAIL
-            || ride.type == RIDE_TYPE_SUSPENDED_MONORAIL || ride.type == RIDE_TYPE_CHAIRLIFT;
-        return supportedTransport || ride.getRideTypeDescriptor().Category == RideCategory::rollerCoaster;
+        Guard::Assert(!ride.id.IsNull() && ride.id.ToUnderlying() < _stationPlatformStates.size());
+        Guard::Assert(
+            !stationIndex.IsNull() && stationIndex.ToUnderlying() < ride.numStations,
+            "Invalid platform station %u for ride %u with %u stations requested by %s:%u", stationIndex.ToUnderlying(),
+            ride.id.ToUnderlying(), ride.numStations, caller.function_name(), caller.line());
+        return _stationPlatformStates[ride.id.ToUnderlying()][stationIndex.ToUnderlying()];
     }
 
     bool StationSupportsPlatformPreQueue(const Ride& ride, StationIndex stationIndex)
@@ -7255,18 +7003,15 @@ namespace
         const Ride& ride, StationIndex stationIndex, const Vehicle& car, const CarEntry& carEntry, uint8_t seatIndex)
     {
         const auto& station = ride.getStation(stationIndex);
-        if (station.Entrance.IsNull() || station.Exit.IsNull() || station.Exit.direction >= kNumOrthogonalDirections
-            || car.orientation / 8 >= kNumOrthogonalDirections)
+        if (station.Entrance.IsNull() || station.Exit.IsNull() || !DirectionValid(station.Entrance.direction)
+            || !DirectionValid(station.Exit.direction))
         {
             return std::nullopt;
         }
+        Guard::Assert(car.orientation / 8 < kNumOrthogonalDirections);
 
         auto position = station.Entrance.ToCoordsXYZD().ToTileCentre();
         const auto entranceDirection = station.Entrance.direction;
-        if (entranceDirection >= kNumOrthogonalDirections)
-        {
-            return std::nullopt;
-        }
         const int32_t entranceOffset = carEntry.flags.has(CarEntryFlag::isChairlift) ? 32 : 21;
         position.x += DirectionOffsets[entranceDirection].x * entranceOffset;
         position.y += DirectionOffsets[entranceDirection].y * entranceOffset;
@@ -7301,71 +7046,23 @@ namespace
         return position;
     }
 
-    bool TrainSupportsStationPlatformTemplate(const RideVehicle::StationDetail::TrainSeatSummary& train)
-    {
-        for (const auto* car : train.GetCars())
-        {
-            const auto* rideEntry = car->GetRideEntry();
-            if (rideEntry == nullptr || car->vehicle_type >= std::size(rideEntry->Cars)
-                || rideEntry->Cars[car->vehicle_type].flags.has(CarEntryFlag::loadingWaypoints))
-            {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    StationPlatformCarTemplate GetStationPlatformCarTemplate(const Vehicle& car)
-    {
-        return {
-            car.ride_subtype,
-            car.vehicle_type,
-            static_cast<uint8_t>(car.num_seats & kVehicleSeatNumMask),
-            car.flags.has(VehicleFlag::carIsReversed),
-        };
-    }
-
-    bool StationPlatformConsistMatches(
-        const StationPlatformState& state, const RideVehicle::StationDetail::TrainSeatSummary& train)
-    {
-        if (state.slots.size() != train.capacity || state.cars.size() != train.carCount)
-        {
-            return false;
-        }
-        for (size_t carIndex = 0; carIndex < train.carCount; carIndex++)
-        {
-            if (state.cars[carIndex] != GetStationPlatformCarTemplate(*train.cars[carIndex]))
-            {
-                return false;
-            }
-        }
-        return true;
-    }
-
     bool PrepareStationPlatformBoarding(
         StationPlatformState& state, const Ride& ride, StationIndex stationIndex, const Vehicle& trainHead,
         const RideVehicle::StationDetail::TrainSeatSummary& train, bool repositionGuests)
     {
-        if (!state.active || state.slots.empty() || !StationPlatformConsistMatches(state, train))
+        if (!state.active || state.slots.empty())
         {
             return false;
         }
+        Guard::Assert(state.slots.size() == train.capacity);
 
         std::vector<StationPlatformOccupant> occupants;
-        occupants.reserve(state.slots.size());
-        for (size_t slotIndex = 0; slotIndex < state.slots.size(); slotIndex++)
+        occupants.reserve(state.queue.size());
+        for (const auto slotIndex : state.queue)
         {
             const auto& slot = state.slots[slotIndex];
-            if (!slot.guestId.IsNull())
-            {
-                occupants.push_back(
-                    { slot.guestId, slot.queueSequence, slotIndex, slot.reservation.waitPosition, slot.hasWaitPosition });
-            }
+            occupants.push_back({ slot.guestId, slotIndex });
         }
-        std::sort(occupants.begin(), occupants.end(), [](const auto& left, const auto& right) {
-            return left.queueSequence != right.queueSequence ? left.queueSequence < right.queueSequence
-                                                             : left.guestId < right.guestId;
-        });
 
         // Through-riders are compacted at the front of each car. Reassign the oldest staged guests to the resulting
         // contiguous free-seat suffixes, then leave overflow guests staged for the next train.
@@ -7376,15 +7073,6 @@ namespace
         for (size_t occupantIndex = 0; occupantIndex < boardingCount; occupantIndex++)
         {
             const auto& seat = boardingPlan.seats[occupantIndex];
-            if (seat.slotIndex >= state.slots.size())
-            {
-                return false;
-            }
-            const auto& reservation = state.slots[seat.slotIndex].reservation;
-            if (reservation.carIndex != seat.carIndex || reservation.seatIndex != seat.seatIndex)
-            {
-                return false;
-            }
             targetSlots[occupantIndex] = seat.slotIndex;
             assignedSlots[seat.slotIndex] = true;
         }
@@ -7403,10 +7091,6 @@ namespace
             {
                 nextUnassignedSlot++;
             }
-            if (nextUnassignedSlot >= assignedSlots.size())
-            {
-                return false;
-            }
             targetSlots[occupantIndex] = nextUnassignedSlot;
             assignedSlots[nextUnassignedSlot] = true;
         }
@@ -7414,39 +7098,29 @@ namespace
         for (auto& slot : state.slots)
         {
             slot.guestId = EntityId::GetNull();
-            slot.queueSequence = 0;
         }
+        state.queue.clear();
+        state.queue.reserve(occupants.size());
         for (size_t occupantIndex = 0; occupantIndex < occupants.size(); occupantIndex++)
         {
             const auto& occupant = occupants[occupantIndex];
-            auto& slot = state.slots[targetSlots[occupantIndex]];
-            if (!slot.hasWaitPosition && occupant.hasWaitPosition)
-            {
-                slot.reservation.waitPosition = occupant.waitPosition;
-                slot.hasWaitPosition = true;
-            }
+            const auto targetSlot = static_cast<uint16_t>(targetSlots[occupantIndex]);
+            auto& slot = state.slots[targetSlot];
             slot.guestId = occupant.guestId;
-            slot.queueSequence = occupant.queueSequence;
+            state.queue.push_back(targetSlot);
 
-            if (targetSlots[occupantIndex] == occupant.originalSlot)
+            if (targetSlot == occupant.originalSlot)
             {
                 continue;
             }
             auto* guest = getGameState().entities.GetEntity<Guest>(occupant.guestId);
-            if (guest == nullptr)
-            {
-                continue;
-            }
-            const bool isWaitingForThisTrain = guest->CurrentTrain == RideStation::kNoTrain
-                || (guest->CurrentTrain < ride.numTrains && ride.vehicles[guest->CurrentTrain] == trainHead.id);
-            if (guest->State != PeepState::enteringRide || guest->CurrentRide != ride.id
-                || guest->CurrentRideStation != stationIndex || !isWaitingForThisTrain)
-            {
-                continue;
-            }
+            Guard::Assert(guest != nullptr && guest->State == PeepState::enteringRide && guest->CurrentRide == ride.id
+                && guest->CurrentRideStation == stationIndex);
+            Guard::Assert(guest->CurrentTrain == RideStation::kNoTrain
+                || (guest->CurrentTrain < ride.numTrains && ride.vehicles[guest->CurrentTrain] == trainHead.id));
             guest->CurrentCar = slot.reservation.carIndex;
             guest->CurrentSeat = slot.reservation.seatIndex;
-            if (repositionGuests && slot.hasWaitPosition
+            if (repositionGuests && state.hasGeometry
                 && (guest->RideSubState == PeepRideSubState::approachPlatformSlot
                     || guest->RideSubState == PeepRideSubState::waitingOnPlatform))
             {
@@ -7455,14 +7129,17 @@ namespace
             }
         }
         state.boardingPlanTrain = trainHead.id;
-        state.boundGuest = EntityId::GetNull();
         return true;
     }
 } // namespace
 
 bool RideSupportsStationPlatformPreQueue(const Ride& ride)
 {
-    if (!IsSupportedStationPlatformType(ride))
+    // Lift is intentionally absent: its cabin uses loading waypoints and its
+    // departing state lasts until the cabin reaches the tower top.
+    const bool supportedTransport = ride.type == RIDE_TYPE_MINIATURE_RAILWAY || ride.type == RIDE_TYPE_MONORAIL
+        || ride.type == RIDE_TYPE_SUSPENDED_MONORAIL || ride.type == RIDE_TYPE_CHAIRLIFT;
+    if (!supportedTransport && ride.getRideTypeDescriptor().Category != RideCategory::rollerCoaster)
     {
         return false;
     }
@@ -7486,22 +7163,18 @@ bool RideCaptureStationPlatformTemplate(Ride& ride, StationIndex stationIndex, c
     }
 
     const auto train = RideVehicle::StationDetail::BuildTrainSeatSummary(trainHead);
-    if (train.capacity == 0 || train.capacity > std::numeric_limits<uint16_t>::max())
+    if (train.capacity == 0)
     {
         return false;
     }
     StationPlatformState replacement;
     replacement.slots.reserve(train.capacity);
-    replacement.cars.reserve(train.carCount);
+    replacement.hasGeometry = true;
     uint16_t slotIndex = 0;
     uint8_t carIndex = 0;
     for (const auto* car : train.GetCars())
     {
         const auto* rideEntry = car->GetRideEntry();
-        if (rideEntry == nullptr || car->vehicle_type >= std::size(rideEntry->Cars))
-        {
-            return false;
-        }
         const auto& carEntry = rideEntry->Cars[car->vehicle_type];
         if (carEntry.flags.has(CarEntryFlag::loadingWaypoints))
         {
@@ -7509,7 +7182,6 @@ bool RideCaptureStationPlatformTemplate(Ride& ride, StationIndex stationIndex, c
         }
 
         const auto seatCount = car->num_seats & kVehicleSeatNumMask;
-        replacement.cars.push_back(GetStationPlatformCarTemplate(*car));
         for (uint8_t seatIndex = 0; seatIndex < seatCount; seatIndex++)
         {
             const auto waitPosition = GetPlatformWaitPosition(ride, stationIndex, *car, carEntry, seatIndex);
@@ -7518,123 +7190,95 @@ bool RideCaptureStationPlatformTemplate(Ride& ride, StationIndex stationIndex, c
                 return false;
             }
             replacement.slots.push_back(
-                { { slotIndex++, carIndex, seatIndex, waitPosition.value() }, EntityId::GetNull(), 0, true });
+                { { slotIndex++, carIndex, seatIndex, waitPosition.value() }, EntityId::GetNull() });
         }
         carIndex++;
     }
 
-    auto& state = _stationPlatformStates[GetStationPlatformKey(ride, stationIndex)];
-    const auto hasOccupants = std::any_of(state.slots.begin(), state.slots.end(), [](const auto& slot) {
-        return !slot.guestId.IsNull();
-    });
-    if (hasOccupants)
+    auto& state = GetStationPlatformState(ride, stationIndex);
+    if (!state.queue.empty())
     {
-        if (state.slots.size() != replacement.slots.size() || state.cars != replacement.cars)
-        {
-            return false;
-        }
+        Guard::Assert(state.slots.size() == replacement.slots.size());
         for (size_t i = 0; i < state.slots.size(); i++)
         {
             replacement.slots[i].guestId = state.slots[i].guestId;
-            replacement.slots[i].queueSequence = state.slots[i].queueSequence;
         }
-        replacement.active = state.active;
-        replacement.nextQueueSequence = state.nextQueueSequence;
+        replacement.queue = state.queue;
     }
+    replacement.active = state.active;
     state = std::move(replacement);
     return true;
 }
 
 void RideActivateStationPlatformPreQueue(const Ride& ride, StationIndex stationIndex)
 {
-    if (auto* state = GetStationPlatformState(ride, stationIndex); state != nullptr && !state->slots.empty())
-    {
-        state->active = true;
-    }
+    auto& state = GetStationPlatformState(ride, stationIndex);
+    state.active = !state.slots.empty();
 }
 
 bool RidePrepareStationPlatformBoarding(const Ride& ride, StationIndex stationIndex, const Vehicle& trainHead)
 {
-    auto* state = GetStationPlatformState(ride, stationIndex);
-    if (state == nullptr || stationIndex.IsNull() || stationIndex.ToUnderlying() >= ride.numStations)
-    {
-        return false;
-    }
+    auto& state = GetStationPlatformState(ride, stationIndex);
     const auto trainIndex = ride.getStation(stationIndex).TrainAtStation;
     if (trainIndex < ride.numTrains && ride.vehicles[trainIndex] != trainHead.id)
     {
         return false;
     }
     const auto train = RideVehicle::StationDetail::BuildTrainSeatSummary(trainHead);
-    return PrepareStationPlatformBoarding(*state, ride, stationIndex, trainHead, train, true);
+    return PrepareStationPlatformBoarding(state, ride, stationIndex, trainHead, train, true);
 }
 
 bool RideStationPlatformPreQueueIsActive(const Ride& ride, StationIndex stationIndex)
 {
-    const auto* state = GetStationPlatformStateConst(ride, stationIndex);
-    return state != nullptr && state->active;
+    return GetStationPlatformState(ride, stationIndex).active;
 }
 
 std::optional<RideStationPlatformReservation> RideReserveStationPlatformSlot(
     const Ride& ride, StationIndex stationIndex, EntityId guestId)
 {
-    auto* state = GetStationPlatformState(ride, stationIndex);
-    if (state == nullptr || !state->active)
+    auto& state = GetStationPlatformState(ride, stationIndex);
+    if (!state.active || !state.hasGeometry)
     {
         return std::nullopt;
     }
 
-    const auto claimSlot = [state, guestId](StationPlatformSlot& slot) {
+    const auto claimSlot = [&state, guestId](uint16_t slotIndex) {
+        auto& slot = state.slots[slotIndex];
         slot.guestId = guestId;
-        slot.queueSequence = ++state->nextQueueSequence;
+        state.queue.push_back(slotIndex);
         return slot.reservation;
     };
 
-    Vehicle* boardingTrain = nullptr;
-    if (!stationIndex.IsNull() && stationIndex.ToUnderlying() < ride.numStations)
+    const auto trainIndex = ride.getStation(stationIndex).TrainAtStation;
+    if (trainIndex < ride.numTrains)
     {
-        const auto trainIndex = ride.getStation(stationIndex).TrainAtStation;
-        if (trainIndex < ride.numTrains)
-        {
-            boardingTrain = getGameState().entities.GetEntity<Vehicle>(ride.vehicles[trainIndex]);
-        }
-    }
-    bool hasCurrentBoardingPlan = false;
-    if (boardingTrain != nullptr)
-    {
+        auto* boardingTrain = getGameState().entities.GetEntity<Vehicle>(ride.vehicles[trainIndex]);
+        Guard::Assert(boardingTrain != nullptr);
         const auto train = RideVehicle::StationDetail::BuildTrainSeatSummary(*boardingTrain);
-        hasCurrentBoardingPlan = StationPlatformConsistMatches(*state, train)
-            && (state->boardingPlanTrain == boardingTrain->id
-                || PrepareStationPlatformBoarding(*state, ride, stationIndex, *boardingTrain, train, true));
-        if (hasCurrentBoardingPlan)
+        if (state.boardingPlanTrain != boardingTrain->id)
         {
-            const auto boardingPlan = RideVehicle::StationDetail::BuildTrainBoardingSeatPlan(train);
-            for (uint16_t seatPlanIndex = 0; seatPlanIndex < boardingPlan.seatCount; seatPlanIndex++)
+            PrepareStationPlatformBoarding(state, ride, stationIndex, *boardingTrain, train, true);
+        }
+        const auto boardingPlan = RideVehicle::StationDetail::BuildTrainBoardingSeatPlan(train);
+        for (uint16_t seatPlanIndex = 0; seatPlanIndex < boardingPlan.seatCount; seatPlanIndex++)
+        {
+            const auto slotIndex = boardingPlan.seats[seatPlanIndex].slotIndex;
+            auto& slot = state.slots[slotIndex];
+            if (slot.guestId.IsNull())
             {
-                const auto slotIndex = boardingPlan.seats[seatPlanIndex].slotIndex;
-                if (slotIndex >= state->slots.size())
-                {
-                    hasCurrentBoardingPlan = false;
-                    break;
-                }
-                auto& slot = state->slots[slotIndex];
-                if (slot.guestId.IsNull() && slot.hasWaitPosition)
-                {
-                    return claimSlot(slot);
-                }
+                return claimSlot(slotIndex);
             }
         }
+        return std::nullopt;
     }
 
-    if (!hasCurrentBoardingPlan)
+    state.boardingPlanTrain = EntityId::GetNull();
+    for (size_t slotIndex = 0; slotIndex < state.slots.size(); slotIndex++)
     {
-        state->boardingPlanTrain = EntityId::GetNull();
-    }
-    for (auto& slot : state->slots)
-    {
-        if (slot.guestId.IsNull() && slot.hasWaitPosition)
+        const auto& slot = state.slots[slotIndex];
+        if (slot.guestId.IsNull())
         {
-            return claimSlot(slot);
+            return claimSlot(static_cast<uint16_t>(slotIndex));
         }
     }
     return std::nullopt;
@@ -7643,12 +7287,7 @@ std::optional<RideStationPlatformReservation> RideReserveStationPlatformSlot(
 std::optional<RideStationPlatformReservation> RideGetStationPlatformReservation(
     const Ride& ride, StationIndex stationIndex, EntityId guestId)
 {
-    const auto* state = GetStationPlatformStateConst(ride, stationIndex);
-    if (state == nullptr)
-    {
-        return std::nullopt;
-    }
-    for (const auto& slot : state->slots)
+    for (const auto& slot : GetStationPlatformState(ride, stationIndex).slots)
     {
         if (slot.guestId == guestId)
         {
@@ -7660,114 +7299,70 @@ std::optional<RideStationPlatformReservation> RideGetStationPlatformReservation(
 
 bool RideStationPlatformGuestIsFirst(const Ride& ride, StationIndex stationIndex, EntityId guestId)
 {
-    const auto* state = GetStationPlatformStateConst(ride, stationIndex);
-    if (state == nullptr)
-    {
-        return false;
-    }
-    const StationPlatformSlot* first = nullptr;
-    for (const auto& slot : state->slots)
-    {
-        if (!slot.guestId.IsNull() && (first == nullptr || slot.queueSequence < first->queueSequence))
-        {
-            first = &slot;
-        }
-    }
-    return first != nullptr && first->guestId == guestId;
+    const auto& state = GetStationPlatformState(ride, stationIndex);
+    return !state.queue.empty() && state.slots[state.queue.front()].guestId == guestId;
 }
 
 RideStationPlatformSeatBindingResult RideBindStationPlatformGuestToSeat(
     const Ride& ride, StationIndex stationIndex, uint8_t trainIndex, Guest& guest)
 {
-    auto* state = GetStationPlatformState(ride, stationIndex);
-    if (state == nullptr || !state->active)
+    auto& state = GetStationPlatformState(ride, stationIndex);
+    if (!state.active)
     {
         return RideStationPlatformSeatBindingResult::reservationMissing;
     }
-    if (trainIndex >= ride.numTrains)
-    {
-        return RideStationPlatformSeatBindingResult::consistMismatch;
-    }
-    if (stationIndex.IsNull() || stationIndex.ToUnderlying() >= ride.numStations
-        || ride.getStation(stationIndex).TrainAtStation != trainIndex)
+    Guard::Assert(trainIndex < ride.numTrains);
+    if (ride.getStation(stationIndex).TrainAtStation != trainIndex)
     {
         return RideStationPlatformSeatBindingResult::seatUnavailable;
     }
 
     auto* head = getGameState().entities.GetEntity<Vehicle>(ride.vehicles[trainIndex]);
-    if (head == nullptr)
-    {
-        return RideStationPlatformSeatBindingResult::consistMismatch;
-    }
+    Guard::Assert(head != nullptr);
     if (head->flags.has(VehicleFlag::readyToDepart))
     {
         return RideStationPlatformSeatBindingResult::seatUnavailable;
     }
     const auto train = RideVehicle::StationDetail::BuildTrainSeatSummary(*head);
-    if (!StationPlatformConsistMatches(*state, train))
-    {
-        return RideStationPlatformSeatBindingResult::consistMismatch;
-    }
 
-    if (state->boardingPlanTrain != head->id
-        && !PrepareStationPlatformBoarding(*state, ride, stationIndex, *head, train, false))
+    if (state.boardingPlanTrain != head->id)
     {
-        return RideStationPlatformSeatBindingResult::consistMismatch;
+        PrepareStationPlatformBoarding(state, ride, stationIndex, *head, train, false);
     }
-    const auto slot = std::find_if(state->slots.begin(), state->slots.end(), [&guest](const auto& candidate) {
+    const auto slot = std::find_if(state.slots.begin(), state.slots.end(), [&guest](const auto& candidate) {
         return candidate.guestId == guest.id;
     });
-    if (slot == state->slots.end())
+    if (slot == state.slots.end())
     {
         return RideStationPlatformSeatBindingResult::reservationMissing;
     }
-    if (slot->reservation.carIndex != guest.CurrentCar || slot->reservation.seatIndex != guest.CurrentSeat
-        || slot->reservation.carIndex >= train.carCount)
-    {
-        return RideStationPlatformSeatBindingResult::consistMismatch;
-    }
+    Guard::Assert(slot->reservation.carIndex == guest.CurrentCar && slot->reservation.seatIndex == guest.CurrentSeat);
 
     auto* vehicle = head->GetCar(slot->reservation.carIndex);
-    if (vehicle == nullptr)
+    if (!RideVehicle::StationDetail::BindPlatformGuestToSeat(guest, *vehicle, slot->reservation.seatIndex))
     {
-        return RideStationPlatformSeatBindingResult::consistMismatch;
+        return RideStationPlatformSeatBindingResult::seatUnavailable;
     }
-    const auto result = RideVehicle::StationDetail::BindPlatformGuestToSeat(guest, *vehicle, slot->reservation.seatIndex);
-    switch (result)
-    {
-        case RideVehicle::StationDetail::PlatformSeatBindingResult::success:
-            guest.CurrentTrain = trainIndex;
-            guest.CurrentCar = slot->reservation.carIndex;
-            state->boundGuest = guest.id;
-            return RideStationPlatformSeatBindingResult::success;
-        case RideVehicle::StationDetail::PlatformSeatBindingResult::consistMismatch:
-            return RideStationPlatformSeatBindingResult::consistMismatch;
-        case RideVehicle::StationDetail::PlatformSeatBindingResult::seatUnavailable:
-            return RideStationPlatformSeatBindingResult::seatUnavailable;
-    }
-    return RideStationPlatformSeatBindingResult::consistMismatch;
+    guest.CurrentTrain = trainIndex;
+    guest.CurrentCar = slot->reservation.carIndex;
+    return RideStationPlatformSeatBindingResult::success;
 }
 
-void RideReleaseStationPlatformSlot(const Ride& ride, StationIndex stationIndex, EntityId guestId)
+void RideReleaseStationPlatformSlot(const Ride& ride, StationIndex stationIndex, EntityId guestId, bool seatBound)
 {
-    auto* state = GetStationPlatformState(ride, stationIndex);
-    if (state == nullptr)
+    auto& state = GetStationPlatformState(ride, stationIndex);
+    for (size_t slotIndex = 0; slotIndex < state.slots.size(); slotIndex++)
     {
-        return;
-    }
-    for (auto& slot : state->slots)
-    {
+        auto& slot = state.slots[slotIndex];
         if (slot.guestId == guestId)
         {
             slot.guestId = EntityId::GetNull();
-            slot.queueSequence = 0;
-            if (state->boundGuest == guestId)
+            const auto queueEntry = std::find(state.queue.begin(), state.queue.end(), static_cast<uint16_t>(slotIndex));
+            Guard::Assert(queueEntry != state.queue.end());
+            state.queue.erase(queueEntry);
+            if (!seatBound)
             {
-                state->boundGuest = EntityId::GetNull();
-            }
-            else
-            {
-                state->boardingPlanTrain = EntityId::GetNull();
+                state.boardingPlanTrain = EntityId::GetNull();
             }
             return;
         }
@@ -7776,22 +7371,19 @@ void RideReleaseStationPlatformSlot(const Ride& ride, StationIndex stationIndex,
 
 void RideClearStationPlatformPreQueue(const Ride& ride)
 {
-    for (auto it = _stationPlatformStates.begin(); it != _stationPlatformStates.end();)
-    {
-        if ((it->first >> 8) == ride.id.ToUnderlying())
-        {
-            it = _stationPlatformStates.erase(it);
-        }
-        else
-        {
-            ++it;
-        }
-    }
+    Guard::Assert(!ride.id.IsNull() && ride.id.ToUnderlying() < _stationPlatformStates.size());
+    _stationPlatformStates[ride.id.ToUnderlying()] = {};
 }
 
 void RideClearAllStationPlatformPreQueues()
 {
-    _stationPlatformStates.clear();
+    for (auto& rideStates : _stationPlatformStates)
+    {
+        for (auto& state : rideStates)
+        {
+            state = {};
+        }
+    }
 }
 
 void RideRebuildStationPlatformPreQueues()
@@ -7812,9 +7404,13 @@ void RideRebuildStationPlatformPreQueues()
             guest->SetState(PeepState::falling);
             continue;
         }
+        if (guest->CurrentRideStation.IsNull() || guest->CurrentRideStation.ToUnderlying() >= ride->numStations)
+        {
+            guest->SetState(PeepState::falling);
+            continue;
+        }
         if (!RideSupportsStationPlatformPreQueue(*ride)
-            || !StationSupportsPlatformPreQueue(*ride, guest->CurrentRideStation)
-            || ride->numTrains == 0)
+            || !StationSupportsPlatformPreQueue(*ride, guest->CurrentRideStation) || ride->numTrains == 0)
         {
             guest->recoverFromStationPlatform(*ride);
             continue;
@@ -7826,7 +7422,15 @@ void RideRebuildStationPlatformPreQueues()
             continue;
         }
         const auto train = RideVehicle::StationDetail::BuildTrainSeatSummary(*head);
-        if (!TrainSupportsStationPlatformTemplate(train) || guest->CurrentCar >= train.carCount)
+        if (guest->CurrentCar >= train.carCount)
+        {
+            guest->recoverFromStationPlatform(*ride);
+            continue;
+        }
+        const auto* car = train.cars[guest->CurrentCar];
+        const auto* rideEntry = car->GetRideEntry();
+        if (rideEntry == nullptr || car->vehicle_type >= std::size(rideEntry->Cars)
+            || rideEntry->Cars[car->vehicle_type].flags.has(CarEntryFlag::loadingWaypoints))
         {
             guest->recoverFromStationPlatform(*ride);
             continue;
@@ -7837,23 +7441,21 @@ void RideRebuildStationPlatformPreQueues()
         {
             slotIndex += train.cars[carIndex]->num_seats & kVehicleSeatNumMask;
         }
-        if (slotIndex >= train.capacity || train.capacity > std::numeric_limits<uint16_t>::max())
+        if (slotIndex >= train.capacity)
         {
             guest->recoverFromStationPlatform(*ride);
             continue;
         }
 
-        auto& state = _stationPlatformStates[GetStationPlatformKey(*ride, guest->CurrentRideStation)];
+        auto& state = GetStationPlatformState(*ride, guest->CurrentRideStation);
         if (state.slots.empty())
         {
             state.slots.resize(train.capacity);
-            state.cars.reserve(train.carCount);
             uint16_t currentSlot = 0;
             uint8_t currentCar = 0;
-            for (const auto* car : train.GetCars())
+            for (const auto* trainCar : train.GetCars())
             {
-                state.cars.push_back(GetStationPlatformCarTemplate(*car));
-                const auto seatCount = car->num_seats & kVehicleSeatNumMask;
+                const auto seatCount = trainCar->num_seats & kVehicleSeatNumMask;
                 for (uint8_t seatIndex = 0; seatIndex < seatCount; seatIndex++)
                 {
                     state.slots[currentSlot].reservation = { currentSlot, currentCar, seatIndex, {} };
@@ -7871,10 +7473,14 @@ void RideRebuildStationPlatformPreQueues()
         const auto destination = guest->GetDestination();
         slot.reservation.waitPosition = { destination, guest->z };
         slot.guestId = guest->id;
-        slot.hasWaitPosition = true;
-        slot.queueSequence = (static_cast<uint64_t>(std::numeric_limits<uint16_t>::max() - guest->timeInQueue) << 16)
-            | guest->id.ToUnderlying();
-        state.nextQueueSequence = std::max(state.nextQueueSequence, slot.queueSequence);
+        const auto queueEntry = std::lower_bound(
+            state.queue.begin(), state.queue.end(), guest, [&state](uint16_t queuedSlot, const Guest* candidate) {
+                const auto* queuedGuest = getGameState().entities.GetEntity<Guest>(state.slots[queuedSlot].guestId);
+                return queuedGuest->timeInQueue != candidate->timeInQueue
+                    ? queuedGuest->timeInQueue > candidate->timeInQueue
+                    : queuedGuest->id < candidate->id;
+            });
+        state.queue.insert(queueEntry, static_cast<uint16_t>(slotIndex));
         state.active = true;
     }
 }
@@ -7887,27 +7493,27 @@ uint16_t RideGetTransportStationPlatformCapacity(const Ride& ride, StationIndex 
         return 0;
     }
 
-    if (const auto* state = GetStationPlatformStateConst(ride, stationIndex); state != nullptr && !state->slots.empty())
+    if (!ride.id.IsNull())
     {
-        return static_cast<uint16_t>(state->slots.size());
+        const auto& state = GetStationPlatformState(ride, stationIndex);
+        if (!state.slots.empty())
+        {
+            return static_cast<uint16_t>(state.slots.size());
+        }
     }
 
     if (RideSupportsStationPlatformPreQueue(ride))
     {
-        for (uint8_t trainIndex = 0; trainIndex < ride.numTrains; trainIndex++)
+        if (ride.numTrains == 0 || ride.vehicles[0].IsNull())
         {
-            auto* head = getGameState().entities.TryGetEntity<Vehicle>(ride.vehicles[trainIndex]);
-            if (head == nullptr)
-            {
-                continue;
-            }
-            const auto train = RideVehicle::StationDetail::BuildTrainSeatSummary(*head);
-            if (train.capacity != 0 && train.capacity <= std::numeric_limits<uint16_t>::max())
-            {
-                return static_cast<uint16_t>(train.capacity);
-            }
+            return 0;
         }
-        return 0;
+        const auto* head = getGameState().entities.TryGetEntity<Vehicle>(ride.vehicles[0]);
+        if (head == nullptr)
+        {
+            return 0;
+        }
+        return static_cast<uint16_t>(RideVehicle::StationDetail::BuildTrainSeatSummary(*head).capacity);
     }
 
     // Transport types without a platform adapter retain the conservative legacy estimate.
@@ -7923,11 +7529,13 @@ static uint16_t RideGetTransportStationPlatformOccupancyWithCapacity(
         return 0;
     }
 
-    if (const auto* state = GetStationPlatformStateConst(ride, stationIndex); state != nullptr && state->active)
+    if (!ride.id.IsNull())
     {
-        return static_cast<uint16_t>(std::count_if(state->slots.begin(), state->slots.end(), [](const auto& slot) {
-            return !slot.guestId.IsNull();
-        }));
+        const auto& state = GetStationPlatformState(ride, stationIndex);
+        if (state.active)
+        {
+            return static_cast<uint16_t>(state.queue.size());
+        }
     }
 
     const auto trainIndex = ride.getStation(stationIndex).TrainAtStation;

@@ -20,7 +20,9 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <limits>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -78,12 +80,6 @@ namespace OpenRCT2::MapPathRouteCache
             std::vector<uint32_t> distances;
         };
 
-        struct SingleRideTarget
-        {
-            RideId ride{ RideId::GetNull() };
-            RouteTarget target{};
-        };
-
         struct RideTargetFieldRef
         {
             RideId ride{ RideId::GetNull() };
@@ -118,35 +114,23 @@ namespace OpenRCT2::MapPathRouteCache
                     return;
                 }
 
-                size_t capacity = 1;
-                while (capacity < sortedNodes.size() * 2)
-                {
-                    capacity <<= 1;
-                }
+                const auto capacity = std::bit_ceil(sortedNodes.size() * 2);
                 _entries.assign(capacity, Entry{});
-                _count = 0;
+                _count = sortedNodes.size();
                 const auto mask = capacity - 1;
                 for (const auto& [key, node] : sortedNodes)
                 {
                     auto index = HashLocationKey(key) & mask;
-                    while (_entries[index].node != kInvalidNodeIndex && _entries[index].key != key)
-                    {
+                    while (_entries[index].node != kInvalidNodeIndex)
                         index = (index + 1) & mask;
-                    }
-                    if (_entries[index].node == kInvalidNodeIndex)
-                    {
-                        _entries[index] = { key, node };
-                        _count++;
-                    }
+                    _entries[index] = { key, node };
                 }
             }
 
             [[nodiscard]] NodeIndex Find(const TileCoordsXYZ& location) const noexcept
             {
                 if (_entries.empty())
-                {
                     return kInvalidNodeIndex;
-                }
 
                 const auto key = GetLocationKey(location);
                 const auto mask = _entries.size() - 1;
@@ -154,9 +138,7 @@ namespace OpenRCT2::MapPathRouteCache
                 while (_entries[index].node != kInvalidNodeIndex)
                 {
                     if (_entries[index].key == key)
-                    {
                         return _entries[index].node;
-                    }
                     index = (index + 1) & mask;
                 }
                 return kInvalidNodeIndex;
@@ -169,8 +151,7 @@ namespace OpenRCT2::MapPathRouteCache
 
             void Reset() noexcept
             {
-                std::vector<Entry>().swap(_entries);
-                _count = 0;
+                *this = {};
             }
 
         private:
@@ -187,7 +168,6 @@ namespace OpenRCT2::MapPathRouteCache
 
         PublishedNodeIndex _nodeIndex;
         std::vector<RouteField> _fields;
-        std::vector<SingleRideTarget> _singleRideTargets;
         std::vector<RideTargetFieldRef> _rideTargetFields;
         std::vector<FrozenEntrance> _entrances;
         std::vector<std::pair<uint64_t, NodeIndex>> _entranceIndex;
@@ -195,15 +175,8 @@ namespace OpenRCT2::MapPathRouteCache
 
         [[nodiscard]] bool TargetLess(const RouteTarget& lhs, const RouteTarget& rhs) noexcept
         {
-            if (lhs.location.x != rhs.location.x)
-                return lhs.location.x < rhs.location.x;
-            if (lhs.location.y != rhs.location.y)
-                return lhs.location.y < rhs.location.y;
-            if (lhs.location.z != rhs.location.z)
-                return lhs.location.z < rhs.location.z;
-            if (lhs.queueRide != rhs.queueRide)
-                return lhs.queueRide.ToUnderlying() < rhs.queueRide.ToUnderlying();
-            return static_cast<uint8_t>(lhs.kind) < static_cast<uint8_t>(rhs.kind);
+            return std::tuple{ lhs.location.x, lhs.location.y, lhs.location.z, lhs.queueRide.ToUnderlying(), lhs.kind }
+                < std::tuple{ rhs.location.x, rhs.location.y, rhs.location.z, rhs.queueRide.ToUnderlying(), rhs.kind };
         }
 
         [[nodiscard]] bool IsSameDestination(const RouteTarget& lhs, const RouteTarget& rhs) noexcept
@@ -213,6 +186,8 @@ namespace OpenRCT2::MapPathRouteCache
 
         [[nodiscard]] const RouteField* FindField(const RouteTarget& target) noexcept
         {
+            if (_preparedEpoch == 0 || _preparedEpoch != MapTopology::GetPathConnectivityEpoch())
+                return nullptr;
             auto firstTargetKind = target;
             firstTargetKind.kind = RouteTargetKind::pathOrEntrance;
             const auto fieldIterator = std::lower_bound(
@@ -237,9 +212,7 @@ namespace OpenRCT2::MapPathRouteCache
             const auto iterator = std::lower_bound(
                 nodeIndex.begin(), nodeIndex.end(), key,
                 [](const auto& entry, uint64_t value) { return entry.first < value; });
-            if (iterator == nodeIndex.end() || iterator->first != key)
-                return kInvalidNodeIndex;
-            return iterator->second;
+            return iterator == nodeIndex.end() || iterator->first != key ? kInvalidNodeIndex : iterator->second;
         }
 
         [[nodiscard]] bool NodeIsAllowed(const FrozenNode& node, RideId targetQueueRide) noexcept
@@ -320,30 +293,21 @@ namespace OpenRCT2::MapPathRouteCache
             }
             std::sort(graph.entranceIndex.begin(), graph.entranceIndex.end());
 
+            const auto resolveConnections = [&](auto& entry, uint8_t edges) {
+                for (Direction direction : kAllDirections)
+                {
+                    if (edges & (1 << direction))
+                    {
+                        const auto targetTile = TileCoordsXY{ entry.location } + TileDirectionDelta[direction];
+                        entry.connections[direction] = FindNode(
+                            graph.nodeIndex, TileCoordsXYZ{ targetTile, entry.targetBaseZ[direction] });
+                    }
+                }
+            };
             for (auto& node : graph.nodes)
-            {
-                for (Direction direction : kAllDirections)
-                {
-                    if ((node.permittedEdges & node.connectionEdges) & (1 << direction))
-                    {
-                        const auto targetTile = TileCoordsXY{ node.location } + TileDirectionDelta[direction];
-                        node.connections[direction] = FindNode(
-                            graph.nodeIndex, TileCoordsXYZ{ targetTile, node.targetBaseZ[direction] });
-                    }
-                }
-            }
+                resolveConnections(node, node.permittedEdges & node.connectionEdges);
             for (auto& entrance : graph.entrances)
-            {
-                for (Direction direction : kAllDirections)
-                {
-                    if (entrance.connectionEdges & (1 << direction))
-                    {
-                        const auto targetTile = TileCoordsXY{ entrance.location } + TileDirectionDelta[direction];
-                        entrance.connections[direction] = FindNode(
-                            graph.nodeIndex, TileCoordsXYZ{ targetTile, entrance.targetBaseZ[direction] });
-                    }
-                }
-            }
+                resolveConnections(entrance, entrance.connectionEdges);
 
             graph.incomingOffsets.assign(graph.nodes.size() + 1, 0);
             for (const auto& node : graph.nodes)
@@ -524,44 +488,6 @@ namespace OpenRCT2::MapPathRouteCache
             return field;
         }
 
-        [[nodiscard]] std::vector<SingleRideTarget> BuildSingleRideTargets(const std::vector<RouteField>& fields)
-        {
-            std::vector<RouteTarget> rideTargets;
-            rideTargets.reserve(fields.size());
-            for (const auto& field : fields)
-            {
-                if (!field.target.queueRide.IsNull())
-                    rideTargets.push_back(field.target);
-            }
-            std::sort(rideTargets.begin(), rideTargets.end(), [](const RouteTarget& lhs, const RouteTarget& rhs) {
-                if (lhs.queueRide != rhs.queueRide)
-                    return lhs.queueRide.ToUnderlying() < rhs.queueRide.ToUnderlying();
-                return TargetLess(lhs, rhs);
-            });
-
-            std::vector<SingleRideTarget> result;
-            for (size_t first = 0; first < rideTargets.size();)
-            {
-                auto last = first + 1;
-                while (last < rideTargets.size() && rideTargets[last].queueRide == rideTargets[first].queueRide)
-                {
-                    last++;
-                }
-                if (last == first + 1)
-                {
-                    const auto field = std::lower_bound(
-                        fields.begin(), fields.end(), rideTargets[first],
-                        [](const RouteField& entry, const RouteTarget& target) {
-                            return TargetLess(entry.target, target);
-                        });
-                    if (field != fields.end() && field->target == rideTargets[first] && !field->directions.empty())
-                        result.push_back({ rideTargets[first].queueRide, rideTargets[first] });
-                }
-                first = last;
-            }
-            return result;
-        }
-
         [[nodiscard]] std::vector<RideTargetFieldRef> BuildRideTargetFieldRefs(const std::vector<RouteField>& fields)
         {
             std::vector<RideTargetFieldRef> result;
@@ -579,11 +505,6 @@ namespace OpenRCT2::MapPathRouteCache
             return result;
         }
     } // namespace
-
-    bool RouteTarget::operator==(const RouteTarget& other) const noexcept
-    {
-        return location == other.location && queueRide == other.queueRide && kind == other.kind;
-    }
 
     bool IsPreparedForCurrentTopology() noexcept
     {
@@ -638,13 +559,11 @@ namespace OpenRCT2::MapPathRouteCache
 
         if (MapTopology::GetPathConnectivityEpoch() != graph->epoch)
             return;
-        auto singleRideTargets = BuildSingleRideTargets(fields);
         auto rideTargetFields = BuildRideTargetFieldRefs(fields);
         PublishedNodeIndex nodeIndex;
         nodeIndex.Build(graph->nodeIndex);
         _nodeIndex = std::move(nodeIndex);
         _fields = std::move(fields);
-        _singleRideTargets = std::move(singleRideTargets);
         _rideTargetFields = std::move(rideTargetFields);
         _entrances = std::move(graph->entrances);
         _entranceIndex = std::move(graph->entranceIndex);
@@ -653,8 +572,6 @@ namespace OpenRCT2::MapPathRouteCache
 
     std::optional<RouteStep> GetNextStep(const RouteTarget& target, const TileCoordsXYZ& source) noexcept
     {
-        if (!IsPreparedForCurrentTopology())
-            return std::nullopt;
         const auto* field = FindField(target);
         if (field == nullptr)
             return std::nullopt;
@@ -670,8 +587,6 @@ namespace OpenRCT2::MapPathRouteCache
 
     RouteDistance QueryDistanceToTarget(const RouteTarget& target, const TileCoordsXYZ& source) noexcept
     {
-        if (!IsPreparedForCurrentTopology())
-            return {};
         const auto* field = FindField(target);
         if (field == nullptr || field->distances.empty())
             return {};
@@ -685,7 +600,7 @@ namespace OpenRCT2::MapPathRouteCache
     RouteDistance QueryDistanceFromRideExitToTarget(
         const RouteTarget& target, const TileCoordsXYZ& sourceExit, RideId sourceRide) noexcept
     {
-        if (!IsPreparedForCurrentTopology() || sourceRide.IsNull())
+        if (sourceRide.IsNull())
             return {};
         const auto* field = FindField(target);
         if (field == nullptr || field->distances.empty())
@@ -718,9 +633,6 @@ namespace OpenRCT2::MapPathRouteCache
     std::optional<size_t> GetClosestReachableTargetIndex(
         std::span<const RouteTarget> candidates, const TileCoordsXYZ& source) noexcept
     {
-        if (!IsPreparedForCurrentTopology() || candidates.empty())
-            return std::nullopt;
-
         const auto sourceNode = _nodeIndex.Find(source);
         if (sourceNode == kInvalidNodeIndex)
             return std::nullopt;
@@ -779,14 +691,16 @@ namespace OpenRCT2::MapPathRouteCache
     {
         if (ride.IsNull() || !IsPreparedForCurrentTopology())
             return std::nullopt;
-        const auto iterator = std::lower_bound(
-            _singleRideTargets.begin(), _singleRideTargets.end(), ride,
-            [](const SingleRideTarget& entry, RideId value) {
+        const auto first = std::lower_bound(
+            _rideTargetFields.begin(), _rideTargetFields.end(), ride,
+            [](const RideTargetFieldRef& entry, RideId value) {
                 return entry.ride.ToUnderlying() < value.ToUnderlying();
             });
-        if (iterator == _singleRideTargets.end() || iterator->ride != ride)
+        if (first == _rideTargetFields.end() || first->ride != ride
+            || (first + 1 != _rideTargetFields.end() && (first + 1)->ride == ride))
             return std::nullopt;
-        return iterator->target;
+        const auto& field = _fields[first->fieldIndex];
+        return field.directions.empty() ? std::nullopt : std::optional<RouteTarget>{ field.target };
     }
 
     Statistics GetStatistics() noexcept
@@ -798,12 +712,21 @@ namespace OpenRCT2::MapPathRouteCache
             directionEntryCount += field.directions.size();
             distanceEntryCount += field.distances.size();
         }
+        size_t singleRideTargetCount = 0;
+        for (size_t first = 0; first < _rideTargetFields.size();)
+        {
+            auto last = first + 1;
+            while (last < _rideTargetFields.size() && _rideTargetFields[last].ride == _rideTargetFields[first].ride)
+                last++;
+            singleRideTargetCount += last == first + 1 && !_fields[_rideTargetFields[first].fieldIndex].directions.empty();
+            first = last;
+        }
         return {
             .nodeCount = _nodeIndex.size(),
             .targetCount = _fields.size(),
             .directionEntryCount = directionEntryCount,
             .distanceEntryCount = distanceEntryCount,
-            .singleRideTargetCount = _singleRideTargets.size(),
+            .singleRideTargetCount = singleRideTargetCount,
             .preparedForCurrentTopology = IsPreparedForCurrentTopology(),
         };
     }
@@ -812,7 +735,6 @@ namespace OpenRCT2::MapPathRouteCache
     {
         _nodeIndex.Reset();
         std::vector<RouteField>().swap(_fields);
-        std::vector<SingleRideTarget>().swap(_singleRideTargets);
         std::vector<RideTargetFieldRef>().swap(_rideTargetFields);
         std::vector<FrozenEntrance>().swap(_entrances);
         std::vector<std::pair<uint64_t, NodeIndex>>().swap(_entranceIndex);

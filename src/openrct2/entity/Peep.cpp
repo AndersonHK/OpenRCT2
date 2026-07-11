@@ -2727,9 +2727,21 @@ namespace OpenRCT2
     void Peep::RemoveFromRide()
     {
         auto* guest = as<Guest>();
-        if (guest != nullptr && State == PeepState::queuing)
+        if (guest != nullptr)
         {
-            guest->removeFromQueue();
+            if (State == PeepState::queuing)
+            {
+                guest->removeFromQueue();
+            }
+            else if (State == PeepState::enteringRide)
+            {
+                const auto* ride = GetRide(guest->CurrentRide);
+                if (ride != nullptr && !guest->CurrentRideStation.IsNull()
+                    && guest->CurrentRideStation.ToUnderlying() < ride->numStations)
+                {
+                    RideReleaseStationPlatformSlot(*ride, guest->CurrentRideStation, guest->id);
+                }
+            }
         }
         StateReset();
     }

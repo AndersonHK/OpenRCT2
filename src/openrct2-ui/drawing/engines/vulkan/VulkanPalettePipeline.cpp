@@ -17,25 +17,11 @@
     #include <array>
     #include <cmath>
     #include <stdexcept>
-    #include <string>
 
 namespace OpenRCT2::Ui::Vulkan
 {
     namespace
     {
-        [[noreturn]] void ThrowVk(const char* operation, VkResult result)
-        {
-            throw std::runtime_error(std::string(operation) + " failed with Vulkan result " + std::to_string(result));
-        }
-
-        void CheckVk(VkResult result, const char* operation)
-        {
-            if (result != VK_SUCCESS)
-            {
-                ThrowVk(operation, result);
-            }
-        }
-
         enum class OutputEncoding : int32_t
         {
             LegacyBytes,
@@ -58,8 +44,7 @@ namespace OpenRCT2::Ui::Vulkan
     }
 
     void PalettePipeline::Initialise(
-        const Device& device, const IndexedResources& resources, std::filesystem::path shaderDirectory,
-        float paperWhiteNits)
+        const Device& device, const IndexedResources& resources, std::filesystem::path shaderDirectory, float paperWhiteNits)
     {
         Dispose();
         _device = device.GetDevice();
@@ -76,18 +61,9 @@ namespace OpenRCT2::Ui::Vulkan
         if (_device != VK_NULL_HANDLE)
         {
             DestroySwapchainResources();
-            if (_pipelineLayout != VK_NULL_HANDLE)
-            {
-                vkDestroyPipelineLayout(_device, _pipelineLayout, nullptr);
-            }
-            if (_descriptorPool != VK_NULL_HANDLE)
-            {
-                vkDestroyDescriptorPool(_device, _descriptorPool, nullptr);
-            }
-            if (_descriptorSetLayout != VK_NULL_HANDLE)
-            {
-                vkDestroyDescriptorSetLayout(_device, _descriptorSetLayout, nullptr);
-            }
+            vkDestroyPipelineLayout(_device, _pipelineLayout, nullptr);
+            vkDestroyDescriptorPool(_device, _descriptorPool, nullptr);
+            vkDestroyDescriptorSetLayout(_device, _descriptorSetLayout, nullptr);
         }
 
         _device = VK_NULL_HANDLE;
@@ -228,7 +204,8 @@ namespace OpenRCT2::Ui::Vulkan
 
     void PalettePipeline::SetLightMapSource(uint32_t frameIndex, const Image& lightMap)
     {
-        if (frameIndex >= kFramesInFlight) throw std::out_of_range("Vulkan LightFX frame index is out of range");
+        if (frameIndex >= kFramesInFlight)
+            throw std::out_of_range("Vulkan LightFX frame index is out of range");
         const VkDescriptorImageInfo info = { _nearestSampler, lightMap.GetView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
         const VkWriteDescriptorSet write = {
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -272,11 +249,10 @@ namespace OpenRCT2::Ui::Vulkan
         vkCmdSetScissor(frame.commandBuffer, 0, 1, &scissor);
         vkCmdBindPipeline(frame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline);
         vkCmdBindDescriptorSets(
-            frame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineLayout, 0, 1,
-            &_descriptorSets[frame.frameIndex], 0, nullptr);
+            frame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineLayout, 0, 1, &_descriptorSets[frame.frameIndex], 0,
+            nullptr);
         const OutputConstants output = { _outputEncoding, _paperWhiteNits, lightFxEnabled ? 1 : 0 };
-        vkCmdPushConstants(
-            frame.commandBuffer, _pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(output), &output);
+        vkCmdPushConstants(frame.commandBuffer, _pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(output), &output);
         vkCmdDraw(frame.commandBuffer, 3, 1, 0, 0);
         vkCmdEndRenderPass(frame.commandBuffer);
     }
@@ -338,7 +314,8 @@ namespace OpenRCT2::Ui::Vulkan
             .descriptorSetCount = kFramesInFlight,
             .pSetLayouts = layouts.data(),
         };
-        CheckVk(vkAllocateDescriptorSets(_device, &allocationInfo, _descriptorSets.data()), "vkAllocateDescriptorSets(palette)");
+        CheckVk(
+            vkAllocateDescriptorSets(_device, &allocationInfo, _descriptorSets.data()), "vkAllocateDescriptorSets(palette)");
 
         const VkPushConstantRange outputConstants = {
             .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
@@ -353,8 +330,7 @@ namespace OpenRCT2::Ui::Vulkan
             .pPushConstantRanges = &outputConstants,
         };
         CheckVk(
-            vkCreatePipelineLayout(_device, &pipelineLayoutInfo, nullptr, &_pipelineLayout),
-            "vkCreatePipelineLayout(palette)");
+            vkCreatePipelineLayout(_device, &pipelineLayoutInfo, nullptr, &_pipelineLayout), "vkCreatePipelineLayout(palette)");
         RefreshDescriptors(resources);
     }
 
@@ -400,98 +376,17 @@ namespace OpenRCT2::Ui::Vulkan
 
     void PalettePipeline::CreatePipeline()
     {
-        VkShaderModule vertexShader = VK_NULL_HANDLE;
-        VkShaderModule fragmentShader = VK_NULL_HANDLE;
-        try
-        {
-            vertexShader = LoadShaderModule(_device, _shaderDirectory / "indexed_palette.vert.spv");
-            fragmentShader = LoadShaderModule(_device, _shaderDirectory / "indexed_palette.frag.spv");
-            const std::array stages = {
-                VkPipelineShaderStageCreateInfo{
-                    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                    .stage = VK_SHADER_STAGE_VERTEX_BIT,
-                    .module = vertexShader,
-                    .pName = "main",
-                },
-                VkPipelineShaderStageCreateInfo{
-                    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                    .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
-                    .module = fragmentShader,
-                    .pName = "main",
-                },
-            };
-            const VkPipelineVertexInputStateCreateInfo vertexInput = {
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-            };
-            const VkPipelineInputAssemblyStateCreateInfo inputAssembly = {
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
-                .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
-            };
-            const VkPipelineViewportStateCreateInfo viewportState = {
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
-                .viewportCount = 1,
-                .scissorCount = 1,
-            };
-            const VkPipelineRasterizationStateCreateInfo rasterisation = {
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
-                .polygonMode = VK_POLYGON_MODE_FILL,
-                .cullMode = VK_CULL_MODE_NONE,
-                .frontFace = VK_FRONT_FACE_CLOCKWISE,
-                .lineWidth = 1.0f,
-            };
-            const VkPipelineMultisampleStateCreateInfo multisampling = {
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-                .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
-            };
-            const VkPipelineColorBlendAttachmentState blendAttachment = {
-                .blendEnable = VK_FALSE,
+        _pipeline = CreateGraphicsPipeline(
+            _device, _pipelineCache,
+            {
+                .vertexShader = _shaderDirectory / "indexed_palette.vert.spv",
+                .fragmentShader = _shaderDirectory / "indexed_palette.frag.spv",
                 .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT
                     | VK_COLOR_COMPONENT_A_BIT,
-            };
-            const VkPipelineColorBlendStateCreateInfo blending = {
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
-                .attachmentCount = 1,
-                .pAttachments = &blendAttachment,
-            };
-            constexpr std::array dynamicStates = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
-            const VkPipelineDynamicStateCreateInfo dynamicState = {
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-                .dynamicStateCount = static_cast<uint32_t>(dynamicStates.size()),
-                .pDynamicStates = dynamicStates.data(),
-            };
-            const VkGraphicsPipelineCreateInfo pipelineInfo = {
-                .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-                .stageCount = static_cast<uint32_t>(stages.size()),
-                .pStages = stages.data(),
-                .pVertexInputState = &vertexInput,
-                .pInputAssemblyState = &inputAssembly,
-                .pViewportState = &viewportState,
-                .pRasterizationState = &rasterisation,
-                .pMultisampleState = &multisampling,
-                .pColorBlendState = &blending,
-                .pDynamicState = &dynamicState,
                 .layout = _pipelineLayout,
                 .renderPass = _renderPass,
-                .subpass = 0,
-            };
-            CheckVk(
-                vkCreateGraphicsPipelines(_device, _pipelineCache, 1, &pipelineInfo, nullptr, &_pipeline),
-                "vkCreateGraphicsPipelines(palette)");
-        }
-        catch (...)
-        {
-            if (vertexShader != VK_NULL_HANDLE)
-            {
-                vkDestroyShaderModule(_device, vertexShader, nullptr);
-            }
-            if (fragmentShader != VK_NULL_HANDLE)
-            {
-                vkDestroyShaderModule(_device, fragmentShader, nullptr);
-            }
-            throw;
-        }
-        vkDestroyShaderModule(_device, vertexShader, nullptr);
-        vkDestroyShaderModule(_device, fragmentShader, nullptr);
+            },
+            "vkCreateGraphicsPipelines(palette)");
     }
 
     void PalettePipeline::CreateFramebuffers(std::span<const VkImageView> imageViews)
@@ -519,16 +414,10 @@ namespace OpenRCT2::Ui::Vulkan
             vkDestroyFramebuffer(_device, framebuffer, nullptr);
         }
         _framebuffers.clear();
-        if (_pipeline != VK_NULL_HANDLE)
-        {
-            vkDestroyPipeline(_device, _pipeline, nullptr);
-            _pipeline = VK_NULL_HANDLE;
-        }
-        if (_renderPass != VK_NULL_HANDLE)
-        {
-            vkDestroyRenderPass(_device, _renderPass, nullptr);
-            _renderPass = VK_NULL_HANDLE;
-        }
+        vkDestroyPipeline(_device, _pipeline, nullptr);
+        vkDestroyRenderPass(_device, _renderPass, nullptr);
+        _pipeline = VK_NULL_HANDLE;
+        _renderPass = VK_NULL_HANDLE;
     }
 
 } // namespace OpenRCT2::Ui::Vulkan

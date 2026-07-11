@@ -14,6 +14,7 @@
 #include <cstdlib>
 #include <gtest/gtest.h>
 #include <limits>
+#include <memory>
 #include <openrct2/Context.h>
 #include <openrct2/Date.h>
 #include <openrct2/Game.h>
@@ -39,12 +40,43 @@
 #include <openrct2/world/tile_element/TrackElement.h>
 #include <string>
 #include <string_view>
+#include <utility>
 
 using namespace OpenRCT2;
 
 class RideRatings : public testing::Test
 {
 protected:
+    const TileCoordsXY originTile{ 10, 10 };
+    const RideId rideId = RideId::FromUnderlying(1);
+
+    std::unique_ptr<IContext> InitialiseContext()
+    {
+        gOpenRCT2Headless = true;
+        gOpenRCT2NoGraphics = true;
+        auto context = CreateContext();
+        EXPECT_TRUE(context->Initialise());
+        return context;
+    }
+
+    std::unique_ptr<IContext> InitialiseMap()
+    {
+        auto context = InitialiseContext();
+        MapInit({ 30, 30 });
+        return context;
+    }
+
+    std::unique_ptr<IContext> LoadPark(std::string name, bool initialiseGame = false)
+    {
+        auto context = InitialiseContext();
+        GetContext()->LoadParkFromFile(TestData::GetParkPath(std::move(name)));
+        if (initialiseGame)
+        {
+            GameLoadInit();
+        }
+        return context;
+    }
+
     TileCoordsXY FindGrassSurfaceTile(int32_t minX, int32_t minY)
     {
         const auto& gameState = getGameState();
@@ -103,7 +135,7 @@ protected:
         MapInvalidateTileFull(tile.ToCoordsXY());
     }
 
-    void PlaceMazeTrack(const TileCoordsXY& tile, int32_t baseZ, int32_t clearanceZ, RideId rideId)
+    void PlaceMazeTrack(const TileCoordsXY& tile, int32_t baseZ, int32_t clearanceZ, RideId trackRideId)
     {
         auto* mazeElement = TileElementInsert<TrackElement>({ tile.ToCoordsXY(), baseZ }, 0);
         ASSERT_NE(mazeElement, nullptr);
@@ -111,12 +143,12 @@ protected:
         mazeElement->setClearanceZ(clearanceZ);
         mazeElement->SetTrackType(TrackElemType::maze);
         mazeElement->SetRideType(RIDE_TYPE_MAZE);
-        mazeElement->SetRideIndex(rideId);
+        mazeElement->SetRideIndex(trackRideId);
         MapInvalidateTileFull(tile.ToCoordsXY());
     }
 
     void PlaceFlatTrack(
-        const TileCoordsXY& tile, int32_t baseZ, int32_t clearanceZ, RideId rideId,
+        const TileCoordsXY& tile, int32_t baseZ, int32_t clearanceZ, RideId trackRideId,
         TrackElemType trackType = TrackElemType::flatTrack1x4A, Direction direction = 0)
     {
         auto* trackElement = TileElementInsert<TrackElement>({ tile.ToCoordsXY(), baseZ }, 0);
@@ -126,7 +158,7 @@ protected:
         trackElement->SetTrackType(trackType);
         trackElement->setDirection(direction);
         trackElement->SetRideType(RIDE_TYPE_MINIATURE_RAILWAY);
-        trackElement->SetRideIndex(rideId);
+        trackElement->SetRideIndex(trackRideId);
         MapInvalidateTileFull(tile.ToCoordsXY());
     }
 
@@ -398,13 +430,7 @@ TEST_F(RideRatings, BigMap)
 
 TEST_F(RideRatings, NewRideValueBonusUsesMultiplier)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
-
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-
-    GetContext()->LoadParkFromFile(TestData::GetParkPath("small_park_with_ferris_wheel.sv6"));
+    auto context = LoadPark("small_park_with_ferris_wheel.sv6");
 
     auto& gameState = getGameState();
     auto rideManager = RideManager(gameState);
@@ -494,13 +520,7 @@ TEST_F(RideRatings, RunningCostPerHourScalesHalfMonthPaymentsToRealHour)
 
 TEST_F(RideRatings, OnRidePhotoIncomeKeepsAdmissionRevenue)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
-
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-
-    GetContext()->LoadParkFromFile(TestData::GetParkPath("small_park_with_ferris_wheel.sv6"));
+    auto context = LoadPark("small_park_with_ferris_wheel.sv6");
 
     auto& gameState = getGameState();
     gameState.park.flags |= PARK_FLAGS_UNLOCK_ALL_PRICES;
@@ -532,13 +552,7 @@ TEST_F(RideRatings, OnRidePhotoIncomeKeepsAdmissionRevenue)
 
 TEST_F(RideRatings, DualItemStallIncomeUsesRecentItemSales)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
-
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-
-    GetContext()->LoadParkFromFile(TestData::GetParkPath("EverythingPark.park"));
+    auto context = LoadPark("EverythingPark.park");
 
     auto& gameState = getGameState();
     auto rideManager = RideManager(gameState);
@@ -569,11 +583,7 @@ TEST_F(RideRatings, DualItemStallIncomeUsesRecentItemSales)
 
 TEST_F(RideRatings, PreciseNewRideAgeWaitsForFullMonth)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
-
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
+    auto context = InitialiseContext();
 
     GetDate() = Date::FromYMD(1, MONTH_MARCH, 29);
 
@@ -904,17 +914,14 @@ TEST_F(RideRatings, TransportJourneyAccumulatesSegmentsAndUsesExactFareBuckets)
 
 TEST_F(RideRatings, TransportServiceCacheBuildsEveryDirectedJourneyAndRefreshesOncePerTick)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
+    auto context = InitialiseContext();
 
     auto& gameState = getGameState();
     RideInitAll();
     gameState.currentTicks = 100;
 
-    const auto rideId = RideId::FromUnderlying(10);
-    auto* ride = RideAllocateAtIndex(rideId);
+    const auto transportRideId = RideId::FromUnderlying(10);
+    auto* ride = RideAllocateAtIndex(transportRideId);
     ASSERT_NE(ride, nullptr);
     ride->type = RIDE_TYPE_MONORAIL;
     ride->status = RideStatus::open;
@@ -943,7 +950,7 @@ TEST_F(RideRatings, TransportServiceCacheBuildsEveryDirectedJourneyAndRefreshesO
     qualitySample.transportDecoration = 1100 * qualitySample.transportDistance;
     RideAddRecentRatingSample(*ride, qualitySample);
 
-    const auto service = RideGetTransportService(rideId);
+    const auto service = RideGetTransportService(transportRideId);
     ASSERT_TRUE(service.isAvailable());
     ASSERT_EQ(service.stations.size(), 3u);
     ASSERT_EQ(service.journeys.size(), 6u);
@@ -984,18 +991,18 @@ TEST_F(RideRatings, TransportServiceCacheBuildsEveryDirectedJourneyAndRefreshesO
     ride->priceTarget = RidePriceTarget::badValue;
     gameState.currentTicks++;
 
-    const auto afterLiveOverlays = RideGetTransportService(rideId);
+    const auto afterLiveOverlays = RideGetTransportService(transportRideId);
     EXPECT_EQ(afterLiveOverlays.freshnessSignature, initialSignature);
     EXPECT_EQ(afterLiveOverlays.journeys.data(), initialJourneyStorage);
 
     ride->stableStats.stations[0].SegmentTime = 90;
     ride->getStation().Entrance = { 50, 60, 3, 1 };
-    const auto unchangedWithinTick = RideGetTransportService(rideId);
+    const auto unchangedWithinTick = RideGetTransportService(transportRideId);
     EXPECT_EQ(unchangedWithinTick.freshnessSignature, initialSignature);
     EXPECT_EQ(unchangedWithinTick.stations[0].entrance, service.stations[0].entrance);
 
-    RideInvalidateTransportServiceCache(rideId);
-    const auto afterMeasuredStats = RideGetTransportService(rideId);
+    RideInvalidateTransportServiceCache(transportRideId);
+    const auto afterMeasuredStats = RideGetTransportService(transportRideId);
     EXPECT_NE(afterMeasuredStats.freshnessSignature, initialSignature);
     EXPECT_EQ(afterMeasuredStats.stations[0].entrance, ride->getStation().Entrance);
     ASSERT_NE(afterMeasuredStats.getJourney(StationIndex::FromUnderlying(0), StationIndex::FromUnderlying(1)), nullptr);
@@ -1006,9 +1013,10 @@ TEST_F(RideRatings, TransportServiceCacheBuildsEveryDirectedJourneyAndRefreshesO
 
     const auto measuredStatsSignature = afterMeasuredStats.freshnessSignature;
     const auto measuredStatsValue = afterMeasuredStats.journeys.front().journey.fareValue;
-    ride->recentRatingSamples[0].transportComfort = 500 * ride->recentRatingSamples[0].transportDistance;
-    gameState.currentTicks++;
-    const auto afterQuality = RideGetTransportService(rideId);
+    RideClearRiderRatingSamples(*ride);
+    qualitySample.transportComfort = 500 * qualitySample.transportDistance;
+    RideAddRecentRatingSample(*ride, qualitySample);
+    const auto afterQuality = RideGetTransportService(transportRideId);
     EXPECT_NE(afterQuality.freshnessSignature, measuredStatsSignature);
     EXPECT_EQ(afterQuality.quality.comfortPermille, 500);
     EXPECT_LT(afterQuality.journeys.front().journey.fareValue, measuredStatsValue);
@@ -1016,18 +1024,15 @@ TEST_F(RideRatings, TransportServiceCacheBuildsEveryDirectedJourneyAndRefreshesO
 
 TEST_F(RideRatings, TransportServiceCacheTracksAvailabilityDeletionReuseAndReset)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
+    auto context = InitialiseContext();
 
     auto& gameState = getGameState();
     RideInitAll();
     gameState.currentTicks = 200;
 
-    const auto rideId = RideId::FromUnderlying(7);
+    const auto transportRideId = RideId::FromUnderlying(7);
     auto initialiseRide = [&](int32_t entranceX) {
-        auto* ride = RideAllocateAtIndex(rideId);
+        auto* ride = RideAllocateAtIndex(transportRideId);
         EXPECT_NE(ride, nullptr);
         if (ride == nullptr)
         {
@@ -1050,51 +1055,48 @@ TEST_F(RideRatings, TransportServiceCacheTracksAvailabilityDeletionReuseAndReset
 
     auto* ride = initialiseRide(10);
     ASSERT_NE(ride, nullptr);
-    ASSERT_TRUE(RideGetTransportService(rideId).isAvailable());
+    ASSERT_TRUE(RideGetTransportService(transportRideId).isAvailable());
 
     ride->flags.set(RideFlag::brokenDown);
-    RideInvalidateTransportServiceCache(rideId);
-    EXPECT_FALSE(RideGetTransportService(rideId).isAvailable());
+    RideInvalidateTransportServiceCache(transportRideId);
+    EXPECT_FALSE(RideGetTransportService(transportRideId).isAvailable());
 
     ride->flags.unset(RideFlag::brokenDown);
-    RideInvalidateTransportServiceCache(rideId);
-    EXPECT_TRUE(RideGetTransportService(rideId).isAvailable());
+    RideInvalidateTransportServiceCache(transportRideId);
+    EXPECT_TRUE(RideGetTransportService(transportRideId).isAvailable());
 
     ride->status = RideStatus::closed;
-    RideInvalidateTransportServiceCache(rideId);
-    EXPECT_FALSE(RideGetTransportService(rideId).isAvailable());
+    RideInvalidateTransportServiceCache(transportRideId);
+    EXPECT_FALSE(RideGetTransportService(transportRideId).isAvailable());
 
     ride->status = RideStatus::open;
-    RideInvalidateTransportServiceCache(rideId);
-    const auto beforeDeletion = RideGetTransportService(rideId);
+    RideInvalidateTransportServiceCache(transportRideId);
+    const auto beforeDeletion = RideGetTransportService(transportRideId);
     ASSERT_TRUE(beforeDeletion.isAvailable());
 
-    RideDelete(rideId);
-    EXPECT_FALSE(RideGetTransportService(rideId).isAvailable());
+    RideDelete(transportRideId);
+    EXPECT_FALSE(RideGetTransportService(transportRideId).isAvailable());
 
     auto* replacement = initialiseRide(70);
     ASSERT_NE(replacement, nullptr);
-    const auto afterReuse = RideGetTransportService(rideId);
+    const auto afterReuse = RideGetTransportService(transportRideId);
     ASSERT_TRUE(afterReuse.isAvailable());
     EXPECT_EQ(afterReuse.stations[0].entrance, replacement->getStation().Entrance);
 
     RideInitAll();
-    EXPECT_FALSE(RideGetTransportService(rideId).isAvailable());
+    EXPECT_FALSE(RideGetTransportService(transportRideId).isAvailable());
 }
 
 TEST_F(RideRatings, TransportServiceSpatialQueriesAreStableAcrossBoundariesMovesAndReuse)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
+    auto context = InitialiseContext();
 
     auto& gameState = getGameState();
     RideInitAll();
     gameState.currentTicks = 300;
 
-    auto initialiseRide = [](RideId rideId, const TileCoordsXY& firstEntrance, const TileCoordsXY& secondEntrance) {
-        auto* ride = RideAllocateAtIndex(rideId);
+    auto initialiseRide = [](RideId transportRideId, const TileCoordsXY& firstEntrance, const TileCoordsXY& secondEntrance) {
+        auto* ride = RideAllocateAtIndex(transportRideId);
         EXPECT_NE(ride, nullptr);
         if (ride == nullptr)
         {
@@ -1964,23 +1966,17 @@ TEST_F(RideRatings, VehicleLocalContextPreparedScoreMatchesDirectAcrossSpeedMode
 
 TEST_F(RideRatings, VehicleLocalContextRuntimeCacheTracksNearbyMapChanges)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
-
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    MapInit({ 30, 30 });
+    auto context = InitialiseMap();
 
     // Straddle the local-context generation chunk boundary as well as testing
     // ordinary nearby invalidation.
-    const auto originTile = TileCoordsXY{ 15, 10 };
+    const auto cacheOriginTile = TileCoordsXY{ 15, 10 };
     const auto sceneryTile = TileCoordsXY{ 16, 10 };
-    const auto rideId = RideId::FromUnderlying(1);
     constexpr int32_t groundZ = 14 * kCoordsZStep;
-    const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), groundZ + kCoordsZStep };
+    const auto origin = CoordsXYZ{ cacheOriginTile.ToCoordsXY().ToTileCentre(), groundZ + kCoordsZStep };
     RideRating::VehicleLocalContextCache runtimeCache{};
 
-    SetSurfaceZ(originTile, groundZ);
+    SetSurfaceZ(cacheOriginTile, groundZ);
     SetSurfaceZ(sceneryTile, groundZ);
     const auto before = RideRating::GetVehicleRatingEnvironment(origin, rideId, TrackElemType::flatTrack1x4A, 0, runtimeCache);
     EXPECT_FALSE(before.isSheltered);
@@ -2011,7 +2007,7 @@ TEST_F(RideRatings, VehicleLocalContextRuntimeCacheTracksNearbyMapChanges)
     EXPECT_EQ(decoratedScore.nausea, expectedDecoratedScore.nausea);
     EXPECT_NE(decoratedScore.excitement, beforeScore.excitement);
 
-    PlacePath(originTile, groundZ + (4 * kCoordsZStep), groundZ + (5 * kCoordsZStep));
+    PlacePath(cacheOriginTile, groundZ + (4 * kCoordsZStep), groundZ + (5 * kCoordsZStep));
     const auto sheltered = RideRating::GetVehicleRatingEnvironment(
         origin, rideId, TrackElemType::flatTrack1x4A, 0, runtimeCache);
     EXPECT_TRUE(sheltered.isSheltered);
@@ -2029,14 +2025,8 @@ TEST_F(RideRatings, BoatHireFreeRoamAddsGuidedTurnStatDistribution)
 
 TEST_F(RideRatings, LocalContextHeightExtendsSceneryRange)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
+    auto context = InitialiseMap();
 
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    MapInit({ 30, 30 });
-
-    const auto originTile = TileCoordsXY{ 10, 10 };
     const auto sceneryTile = TileCoordsXY{ 14, 10 };
     auto* sceneryElement = TileElementInsert<SmallSceneryElement>({ sceneryTile.ToCoordsXY(), 14 * kCoordsZStep }, 0);
     ASSERT_NE(sceneryElement, nullptr);
@@ -2055,15 +2045,9 @@ TEST_F(RideRatings, LocalContextHeightExtendsSceneryRange)
 
 TEST_F(RideRatings, LocalContextRangeUsesHeightAboveLocalGround)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
-
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    MapInit({ 30, 30 });
+    auto context = InitialiseMap();
 
     constexpr int32_t plateauZ = 24 * kCoordsZStep;
-    const auto originTile = TileCoordsXY{ 10, 10 };
     const auto sceneryTile = TileCoordsXY{ 14, 10 };
 
     auto* originSurface = MapGetSurfaceElementAt(originTile);
@@ -2092,16 +2076,10 @@ TEST_F(RideRatings, LocalContextRangeUsesHeightAboveLocalGround)
 
 TEST_F(RideRatings, LocalContextRangeCountsTerrainHeightBelowOrigin)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
-
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    MapInit({ 30, 30 });
+    auto context = InitialiseMap();
 
     constexpr int32_t lowGroundZ = 14 * kCoordsZStep;
     constexpr int32_t hillGroundZ = lowGroundZ + (6 * kCoordsZStep);
-    const auto originTile = TileCoordsXY{ 10, 10 };
     const auto sceneryTile = TileCoordsXY{ 15, 10 };
 
     SetSurfaceZ(originTile, hillGroundZ);
@@ -2117,16 +2095,10 @@ TEST_F(RideRatings, LocalContextRangeCountsTerrainHeightBelowOrigin)
 
 TEST_F(RideRatings, LocalContextRangeCountsTerrainHeightAboveOrigin)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
-
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    MapInit({ 30, 30 });
+    auto context = InitialiseMap();
 
     constexpr int32_t pitGroundZ = 14 * kCoordsZStep;
     constexpr int32_t surroundingGroundZ = pitGroundZ + (9 * kCoordsZStep);
-    const auto originTile = TileCoordsXY{ 10, 10 };
     const auto sceneryTile = TileCoordsXY{ 15, 10 };
 
     for (int32_t x = originTile.x + 1; x <= sceneryTile.x; x++)
@@ -2145,16 +2117,10 @@ TEST_F(RideRatings, LocalContextRangeCountsTerrainHeightAboveOrigin)
 
 TEST_F(RideRatings, LocalContextDoesNotSeeSceneryOnCliffAboveOrigin)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
-
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    MapInit({ 30, 30 });
+    auto context = InitialiseMap();
 
     constexpr int32_t groundZ = 14 * kCoordsZStep;
     constexpr int32_t cliffZ = groundZ + (21 * kCoordsZStep);
-    const auto originTile = TileCoordsXY{ 10, 10 };
     const auto sceneryTile = TileCoordsXY{ 12, 10 };
 
     SetSurfaceZ(originTile, groundZ);
@@ -2170,21 +2136,14 @@ TEST_F(RideRatings, LocalContextDoesNotSeeSceneryOnCliffAboveOrigin)
 
 TEST_F(RideRatings, LocalContextInvalidatesWhenMapTileChanges)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
-
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    GetContext()->LoadParkFromFile(TestData::GetParkPath("tile-element-tests.sv6"));
-    GameLoadInit();
+    auto context = LoadPark("tile-element-tests.sv6", true);
 
     const auto sceneryTile = FindGrassSurfaceTile(8, 8);
     ASSERT_GE(sceneryTile.x, 1);
-    const auto originTile = TileCoordsXY{ sceneryTile.x - 1, sceneryTile.y };
-    const auto* originSurface = MapGetSurfaceElementAt(originTile);
+    const auto contextOriginTile = TileCoordsXY{ sceneryTile.x - 1, sceneryTile.y };
+    const auto* originSurface = MapGetSurfaceElementAt(contextOriginTile);
     ASSERT_NE(originSurface, nullptr);
-    const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), originSurface->getBaseZ() };
-    const auto rideId = RideId::FromUnderlying(1);
+    const auto origin = CoordsXYZ{ contextOriginTile.ToCoordsXY().ToTileCentre(), originSurface->getBaseZ() };
 
     auto* scenerySurface = MapGetSurfaceElementAt(sceneryTile);
     ASSERT_NE(scenerySurface, nullptr);
@@ -2203,21 +2162,14 @@ TEST_F(RideRatings, LocalContextInvalidatesWhenMapTileChanges)
 
 TEST_F(RideRatings, ClearLocalContextCacheMakesStoredPayloadsUnreachable)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
-
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    GetContext()->LoadParkFromFile(TestData::GetParkPath("tile-element-tests.sv6"));
-    GameLoadInit();
+    auto context = LoadPark("tile-element-tests.sv6", true);
 
     const auto sceneryTile = FindGrassSurfaceTile(8, 8);
     ASSERT_GE(sceneryTile.x, 1);
-    const auto originTile = TileCoordsXY{ sceneryTile.x - 1, sceneryTile.y };
-    const auto* originSurface = MapGetSurfaceElementAt(originTile);
+    const auto contextOriginTile = TileCoordsXY{ sceneryTile.x - 1, sceneryTile.y };
+    const auto* originSurface = MapGetSurfaceElementAt(contextOriginTile);
     ASSERT_NE(originSurface, nullptr);
-    const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), originSurface->getBaseZ() };
-    const auto rideId = RideId::FromUnderlying(1);
+    const auto origin = CoordsXYZ{ contextOriginTile.ToCoordsXY().ToTileCentre(), originSurface->getBaseZ() };
 
     auto* scenerySurface = MapGetSurfaceElementAt(sceneryTile);
     ASSERT_NE(scenerySurface, nullptr);
@@ -2240,21 +2192,14 @@ TEST_F(RideRatings, ClearLocalContextCacheMakesStoredPayloadsUnreachable)
 
 TEST_F(RideRatings, ViewportOnlyInvalidationKeepsStoredLocalContextPayloads)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
-
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    GetContext()->LoadParkFromFile(TestData::GetParkPath("tile-element-tests.sv6"));
-    GameLoadInit();
+    auto context = LoadPark("tile-element-tests.sv6", true);
 
     const auto sceneryTile = FindGrassSurfaceTile(8, 8);
     ASSERT_GE(sceneryTile.x, 1);
-    const auto originTile = TileCoordsXY{ sceneryTile.x - 1, sceneryTile.y };
-    const auto* originSurface = MapGetSurfaceElementAt(originTile);
+    const auto contextOriginTile = TileCoordsXY{ sceneryTile.x - 1, sceneryTile.y };
+    const auto* originSurface = MapGetSurfaceElementAt(contextOriginTile);
     ASSERT_NE(originSurface, nullptr);
-    const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), originSurface->getBaseZ() };
-    const auto rideId = RideId::FromUnderlying(1);
+    const auto origin = CoordsXYZ{ contextOriginTile.ToCoordsXY().ToTileCentre(), originSurface->getBaseZ() };
 
     auto* scenerySurface = MapGetSurfaceElementAt(sceneryTile);
     ASSERT_NE(scenerySurface, nullptr);
@@ -2277,15 +2222,8 @@ TEST_F(RideRatings, ViewportOnlyInvalidationKeepsStoredLocalContextPayloads)
 
 TEST_F(RideRatings, LocalContextFlatVehicleOnLevelSidesAddsNoHeightExposure)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
+    auto context = InitialiseMap();
 
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    MapInit({ 30, 30 });
-
-    const auto originTile = TileCoordsXY{ 10, 10 };
-    const auto rideId = RideId::FromUnderlying(1);
     constexpr Direction trackDirection = 0;
     constexpr int32_t trackZ = 20 * kCoordsZStep;
     const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), trackZ };
@@ -2304,15 +2242,8 @@ TEST_F(RideRatings, LocalContextFlatVehicleOnLevelSidesAddsNoHeightExposure)
 
 TEST_F(RideRatings, LocalContextHighVehicleAboveTwoSideSurfacesAddsHeightExposure)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
+    auto context = InitialiseMap();
 
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    MapInit({ 30, 30 });
-
-    const auto originTile = TileCoordsXY{ 10, 10 };
-    const auto rideId = RideId::FromUnderlying(1);
     constexpr Direction trackDirection = 0;
     constexpr int32_t lowGroundZ = 14 * kCoordsZStep;
     constexpr int32_t trackZ = 26 * kCoordsZStep;
@@ -2332,16 +2263,10 @@ TEST_F(RideRatings, LocalContextHighVehicleAboveTwoSideSurfacesAddsHeightExposur
 
 TEST_F(RideRatings, LocalContextOneExposedSideScoresLessThanTwo)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
-
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    MapInit({ 30, 30 });
+    auto context = InitialiseMap();
 
     const auto twoSideTile = TileCoordsXY{ 10, 10 };
     const auto oneSideTile = TileCoordsXY{ 16, 10 };
-    const auto rideId = RideId::FromUnderlying(1);
     constexpr Direction trackDirection = 0;
     constexpr int32_t lowGroundZ = 14 * kCoordsZStep;
     constexpr int32_t trackZ = 26 * kCoordsZStep;
@@ -2365,15 +2290,8 @@ TEST_F(RideRatings, LocalContextOneExposedSideScoresLessThanTwo)
 
 TEST_F(RideRatings, LocalContextHeightExposureCapsAtSix)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
+    auto context = InitialiseMap();
 
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    MapInit({ 30, 30 });
-
-    const auto originTile = TileCoordsXY{ 10, 10 };
-    const auto rideId = RideId::FromUnderlying(1);
     constexpr Direction trackDirection = 0;
     constexpr int32_t lowGroundZ = 14 * kCoordsZStep;
     constexpr int32_t trackZ = 40 * kCoordsZStep;
@@ -2389,15 +2307,8 @@ TEST_F(RideRatings, LocalContextHeightExposureCapsAtSix)
 
 TEST_F(RideRatings, LocalContextScoresSameTileVerticalInteractionsStrongly)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
+    auto context = InitialiseMap();
 
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    MapInit({ 30, 30 });
-
-    const auto originTile = TileCoordsXY{ 10, 10 };
-    const auto rideId = RideId::FromUnderlying(1);
     const auto foreignRideId = RideId::FromUnderlying(2);
     const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), 14 * kCoordsZStep };
 
@@ -2426,16 +2337,10 @@ TEST_F(RideRatings, LocalContextScoresSameTileVerticalInteractionsStrongly)
 
 TEST_F(RideRatings, LocalContextSameRideVerticalTrackScoresBelowForeignTrack)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
-
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    MapInit({ 30, 30 });
+    auto context = InitialiseMap();
 
     const auto foreignTile = TileCoordsXY{ 10, 10 };
     const auto ownTile = TileCoordsXY{ 16, 10 };
-    const auto rideId = RideId::FromUnderlying(1);
     const auto foreignRideId = RideId::FromUnderlying(2);
     constexpr Direction trackDirection = 0;
     constexpr int32_t trackZ = 18 * kCoordsZStep;
@@ -2470,15 +2375,8 @@ TEST_F(RideRatings, LocalContextSameRideVerticalTrackScoresBelowForeignTrack)
 
 TEST_F(RideRatings, LocalContextSameRideSameHeightTrackAddsNoVerticalBonus)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
+    auto context = InitialiseMap();
 
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    MapInit({ 30, 30 });
-
-    const auto originTile = TileCoordsXY{ 10, 10 };
-    const auto rideId = RideId::FromUnderlying(1);
     constexpr Direction trackDirection = 0;
     constexpr int32_t trackZ = 18 * kCoordsZStep;
     const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), trackZ };
@@ -2497,15 +2395,8 @@ TEST_F(RideRatings, LocalContextSameRideSameHeightTrackAddsNoVerticalBonus)
 
 TEST_F(RideRatings, LocalContextLonePathAboveFlatVehicleAddsNoBridgeBonus)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
+    auto context = InitialiseMap();
 
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    MapInit({ 30, 30 });
-
-    const auto originTile = TileCoordsXY{ 10, 10 };
-    const auto rideId = RideId::FromUnderlying(1);
     constexpr int32_t trackZ = 14 * kCoordsZStep;
     const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), trackZ };
 
@@ -2521,16 +2412,9 @@ TEST_F(RideRatings, LocalContextLonePathAboveFlatVehicleAddsNoBridgeBonus)
 
 TEST_F(RideRatings, LocalContextPathPlazaAboveFlatVehicleAddsNoBridgeBonus)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
+    auto context = InitialiseMap();
 
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    MapInit({ 30, 30 });
-
-    const auto originTile = TileCoordsXY{ 10, 10 };
     const auto plazaTile = TileCoordsXY{ 10, 11 };
-    const auto rideId = RideId::FromUnderlying(1);
     constexpr int32_t trackZ = 14 * kCoordsZStep;
     const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), trackZ };
 
@@ -2545,16 +2429,9 @@ TEST_F(RideRatings, LocalContextPathPlazaAboveFlatVehicleAddsNoBridgeBonus)
 
 TEST_F(RideRatings, LocalContextOneWideBridgeAdjacentToFlatVehicleAddsExcitementOnly)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
+    auto context = InitialiseMap();
 
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    MapInit({ 30, 30 });
-
-    const auto originTile = TileCoordsXY{ 10, 10 };
     const auto bridgeTile = TileCoordsXY{ 10, 11 };
-    const auto rideId = RideId::FromUnderlying(1);
     constexpr int32_t trackZ = 14 * kCoordsZStep;
     const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), trackZ };
 
@@ -2573,16 +2450,9 @@ TEST_F(RideRatings, LocalContextOneWideBridgeAdjacentToFlatVehicleAddsExcitement
 
 TEST_F(RideRatings, LocalContextTwoWideBridgeAdjacentToFlatVehicleAddsExcitementOnly)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
+    auto context = InitialiseMap();
 
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    MapInit({ 30, 30 });
-
-    const auto originTile = TileCoordsXY{ 10, 10 };
     const auto bridgeTile = TileCoordsXY{ 10, 11 };
-    const auto rideId = RideId::FromUnderlying(1);
     constexpr int32_t trackZ = 14 * kCoordsZStep;
     const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), trackZ };
 
@@ -2597,15 +2467,8 @@ TEST_F(RideRatings, LocalContextTwoWideBridgeAdjacentToFlatVehicleAddsExcitement
 
 TEST_F(RideRatings, LocalContextDirectlyUnderBridgeGetsNoNormalBridgeBonus)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
+    auto context = InitialiseMap();
 
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    MapInit({ 30, 30 });
-
-    const auto originTile = TileCoordsXY{ 10, 10 };
-    const auto rideId = RideId::FromUnderlying(1);
     constexpr int32_t trackZ = 14 * kCoordsZStep;
     const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), trackZ };
 
@@ -2620,15 +2483,8 @@ TEST_F(RideRatings, LocalContextDirectlyUnderBridgeGetsNoNormalBridgeBonus)
 
 TEST_F(RideRatings, LocalContextBridgeAboveGradientVehicleAddsNearMissThrill)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
+    auto context = InitialiseMap();
 
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    MapInit({ 30, 30 });
-
-    const auto originTile = TileCoordsXY{ 10, 10 };
-    const auto rideId = RideId::FromUnderlying(1);
     constexpr int32_t trackZ = 14 * kCoordsZStep;
     const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), trackZ };
 
@@ -2645,15 +2501,8 @@ TEST_F(RideRatings, LocalContextBridgeAboveGradientVehicleAddsNearMissThrill)
 
 TEST_F(RideRatings, LocalContextPathBelowFlatVehicleAddsNoBonus)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
+    auto context = InitialiseMap();
 
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    MapInit({ 30, 30 });
-
-    const auto originTile = TileCoordsXY{ 10, 10 };
-    const auto rideId = RideId::FromUnderlying(1);
     constexpr int32_t trackZ = 18 * kCoordsZStep;
     const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), trackZ };
 
@@ -2671,15 +2520,8 @@ TEST_F(RideRatings, LocalContextPathBelowFlatVehicleAddsNoBonus)
 
 TEST_F(RideRatings, LocalContextPathBelowVerticalLoopAddsLoopThrill)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
+    auto context = InitialiseMap();
 
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    MapInit({ 30, 30 });
-
-    const auto originTile = TileCoordsXY{ 10, 10 };
-    const auto rideId = RideId::FromUnderlying(1);
     constexpr int32_t trackZ = 18 * kCoordsZStep;
     const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), trackZ };
 
@@ -2774,17 +2616,10 @@ TEST_F(RideRatings, FixedRideContextOriginUsesDescriptorFootprintCentre)
 
 TEST_F(RideRatings, LocalContextMazeTrackBlocksLineOfSight)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
+    auto context = InitialiseMap();
 
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    MapInit({ 30, 30 });
-
-    const auto originTile = TileCoordsXY{ 10, 10 };
     const auto blockerTile = TileCoordsXY{ 12, 10 };
     const auto sceneryTile = TileCoordsXY{ 14, 10 };
-    const auto rideId = RideId::FromUnderlying(1);
     constexpr int32_t groundZ = 14 * kCoordsZStep;
     constexpr int32_t originZ = groundZ + (4 * kCoordsZStep);
     const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), originZ };
@@ -2812,17 +2647,10 @@ TEST_F(RideRatings, LocalContextMazeTrackBlocksLineOfSight)
 
 TEST_F(RideRatings, LocalContextOwnMazeTrackBlocksLineOfSightToSameHeightForeignMazeTrack)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
+    auto context = InitialiseMap();
 
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    MapInit({ 30, 30 });
-
-    const auto originTile = TileCoordsXY{ 10, 10 };
     const auto blockerTile = TileCoordsXY{ 11, 10 };
     const auto foreignMazeTile = TileCoordsXY{ 12, 10 };
-    const auto rideId = RideId::FromUnderlying(1);
     const auto foreignRideId = RideId::FromUnderlying(2);
     constexpr int32_t groundZ = 14 * kCoordsZStep;
     constexpr int32_t clearanceZ = groundZ + (3 * kCoordsZStep);
@@ -2845,17 +2673,10 @@ TEST_F(RideRatings, LocalContextOwnMazeTrackBlocksLineOfSightToSameHeightForeign
 
 TEST_F(RideRatings, LocalContextSeesTallSceneryOverMazeTrack)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
+    auto context = InitialiseMap();
 
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    MapInit({ 30, 30 });
-
-    const auto originTile = TileCoordsXY{ 10, 10 };
     const auto blockerTile = TileCoordsXY{ 12, 10 };
     const auto sceneryTile = TileCoordsXY{ 14, 10 };
-    const auto rideId = RideId::FromUnderlying(1);
     constexpr int32_t groundZ = 14 * kCoordsZStep;
     constexpr int32_t mazeTopZ = groundZ + (3 * kCoordsZStep);
     const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), groundZ + (4 * kCoordsZStep) };
@@ -2872,17 +2693,10 @@ TEST_F(RideRatings, LocalContextSeesTallSceneryOverMazeTrack)
 
 TEST_F(RideRatings, LocalContextSeesElevatedForeignTrackOverMazeTrack)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
+    auto context = InitialiseMap();
 
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    MapInit({ 30, 30 });
-
-    const auto originTile = TileCoordsXY{ 10, 10 };
     const auto blockerTile = TileCoordsXY{ 11, 10 };
     const auto foreignTrackTile = TileCoordsXY{ 12, 10 };
-    const auto rideId = RideId::FromUnderlying(1);
     const auto foreignRideId = RideId::FromUnderlying(2);
     constexpr int32_t groundZ = 14 * kCoordsZStep;
     const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), groundZ + kCoordsZStep };
@@ -2899,20 +2713,14 @@ TEST_F(RideRatings, LocalContextSeesElevatedForeignTrackOverMazeTrack)
 
 TEST_F(RideRatings, LocalContextLonePathAboveMazeAddsNoBonus)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
+    auto context = InitialiseMap();
 
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    MapInit({ 30, 30 });
-
-    const auto originTile = TileCoordsXY{ 9, 10 };
+    const auto mazeOriginTile = TileCoordsXY{ 9, 10 };
     const auto pathTile = TileCoordsXY{ 10, 10 };
-    const auto rideId = RideId::FromUnderlying(1);
     constexpr int32_t groundZ = 14 * kCoordsZStep;
-    const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), groundZ + kCoordsZStep };
+    const auto origin = CoordsXYZ{ mazeOriginTile.ToCoordsXY().ToTileCentre(), groundZ + kCoordsZStep };
 
-    PlaceMazeTrack(originTile, groundZ, groundZ + (3 * kCoordsZStep), rideId);
+    PlaceMazeTrack(mazeOriginTile, groundZ, groundZ + (3 * kCoordsZStep), rideId);
     PlacePath(pathTile, groundZ + (6 * kCoordsZStep), groundZ + (7 * kCoordsZStep));
 
     const auto score = RideRating::GetMazeLocalContextScore(origin, rideId);
@@ -2923,20 +2731,14 @@ TEST_F(RideRatings, LocalContextLonePathAboveMazeAddsNoBonus)
 
 TEST_F(RideRatings, LocalContextPathPlazaAboveMazeAddsNoBonus)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
+    auto context = InitialiseMap();
 
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    MapInit({ 30, 30 });
-
-    const auto originTile = TileCoordsXY{ 9, 10 };
+    const auto mazeOriginTile = TileCoordsXY{ 9, 10 };
     const auto plazaTile = TileCoordsXY{ 10, 10 };
-    const auto rideId = RideId::FromUnderlying(1);
     constexpr int32_t groundZ = 14 * kCoordsZStep;
-    const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), groundZ + kCoordsZStep };
+    const auto origin = CoordsXYZ{ mazeOriginTile.ToCoordsXY().ToTileCentre(), groundZ + kCoordsZStep };
 
-    PlaceMazeTrack(originTile, groundZ, groundZ + (3 * kCoordsZStep), rideId);
+    PlaceMazeTrack(mazeOriginTile, groundZ, groundZ + (3 * kCoordsZStep), rideId);
     PlacePathPlaza(plazaTile, groundZ + (6 * kCoordsZStep), groundZ + (7 * kCoordsZStep));
 
     const auto score = RideRating::GetMazeLocalContextScore(origin, rideId);
@@ -2946,17 +2748,11 @@ TEST_F(RideRatings, LocalContextPathPlazaAboveMazeAddsNoBonus)
 
 TEST_F(RideRatings, LocalContextBridgeAboveMazeAddsExcitementToAdjacentTilesOnly)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
-
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    MapInit({ 30, 30 });
+    auto context = InitialiseMap();
 
     const auto bridgeTile = TileCoordsXY{ 10, 10 };
     const auto adjacentMazeTile = TileCoordsXY{ 9, 10 };
     const auto underBridgeTile = TileCoordsXY{ 10, 10 };
-    const auto rideId = RideId::FromUnderlying(1);
     constexpr int32_t groundZ = 14 * kCoordsZStep;
     constexpr int32_t mazeTopZ = groundZ + (3 * kCoordsZStep);
     const auto adjacentOrigin = CoordsXYZ{ adjacentMazeTile.ToCoordsXY().ToTileCentre(), groundZ + kCoordsZStep };
@@ -2980,18 +2776,11 @@ TEST_F(RideRatings, LocalContextBridgeAboveMazeAddsExcitementToAdjacentTilesOnly
 
 TEST_F(RideRatings, LocalContextOriginMazeTileBlocksLowSceneryButSeesOverWalls)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
+    auto context = InitialiseMap();
 
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    MapInit({ 30, 30 });
-
-    const auto originTile = TileCoordsXY{ 10, 10 };
     const auto gardenTile = TileCoordsXY{ 11, 10 };
     const auto tallTreeTile = TileCoordsXY{ 9, 10 };
     const auto elevatedPathTile = TileCoordsXY{ 10, 11 };
-    const auto rideId = RideId::FromUnderlying(1);
     constexpr int32_t groundZ = 14 * kCoordsZStep;
     constexpr int32_t mazeTopZ = groundZ + (3 * kCoordsZStep);
     const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), groundZ + kCoordsZStep };
@@ -3019,12 +2808,7 @@ TEST_F(RideRatings, LocalContextOriginMazeTileBlocksLowSceneryButSeesOverWalls)
 
 TEST_F(RideRatings, AggregateRatingsPreserveLoadedRatingUntilSamplesExist)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
-
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    GetContext()->LoadParkFromFile(TestData::GetParkPath("bpb.sv6"));
+    auto context = LoadPark("bpb.sv6");
 
     Ride* target = nullptr;
     auto& gameState = getGameState();
@@ -3057,12 +2841,7 @@ TEST_F(RideRatings, AggregateRatingsPreserveLoadedRatingUntilSamplesExist)
 
 TEST_F(RideRatings, CompletedAggregateSampleMarksRideTestedAndPublishesRatings)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
-
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    GetContext()->LoadParkFromFile(TestData::GetParkPath("bpb.sv6"));
+    auto context = LoadPark("bpb.sv6");
 
     auto* target = FindNormalAggregateRideWithSummaryStatGate();
     ASSERT_NE(target, nullptr);
@@ -3089,12 +2868,7 @@ TEST_F(RideRatings, CompletedAggregateSampleMarksRideTestedAndPublishesRatings)
 
 TEST_F(RideRatings, MazeCompletedSamplesRemainAveragedOverRecentTwenty)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
-
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    GetContext()->LoadParkFromFile(TestData::GetParkPath("EverythingPark.park"));
+    auto context = LoadPark("EverythingPark.park");
 
     auto* target = FindMazeRide();
     ASSERT_NE(target, nullptr);
@@ -3129,12 +2903,7 @@ TEST_F(RideRatings, MazeCompletedSamplesRemainAveragedOverRecentTwenty)
 
 TEST_F(RideRatings, AggregateRatingsIgnoreInProgressTestAccumulator)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
-
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    GetContext()->LoadParkFromFile(TestData::GetParkPath("bpb.sv6"));
+    auto context = LoadPark("bpb.sv6");
 
     Ride* target = nullptr;
     auto& gameState = getGameState();
@@ -3170,12 +2939,7 @@ TEST_F(RideRatings, AggregateRatingsIgnoreInProgressTestAccumulator)
 
 TEST_F(RideRatings, AggregateVehicleRatingsIgnoreLegacySummaryStatGates)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
-
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    GetContext()->LoadParkFromFile(TestData::GetParkPath("bpb.sv6"));
+    auto context = LoadPark("bpb.sv6");
 
     auto* target = FindNormalAggregateRideWithSummaryStatGate();
     ASSERT_NE(target, nullptr);
@@ -3194,12 +2958,7 @@ TEST_F(RideRatings, AggregateVehicleRatingsIgnoreLegacySummaryStatGates)
 
 TEST_F(RideRatings, AggregateMazeRatingsIgnoreLegacySummaryStatGates)
 {
-    gOpenRCT2Headless = true;
-    gOpenRCT2NoGraphics = true;
-
-    auto context = CreateContext();
-    ASSERT_TRUE(context->Initialise());
-    GetContext()->LoadParkFromFile(TestData::GetParkPath("EverythingPark.park"));
+    auto context = LoadPark("EverythingPark.park");
 
     auto* target = FindMazeRide();
     ASSERT_NE(target, nullptr);

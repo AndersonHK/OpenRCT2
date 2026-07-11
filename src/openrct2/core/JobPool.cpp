@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cassert>
 #include <stdexcept>
+#include <utility>
 
 thread_local JobPool* JobPool::_currentPool = nullptr;
 
@@ -22,9 +23,8 @@ namespace
     public:
         CurrentPoolScope(JobPool*& slot, JobPool* pool)
             : _slot(slot)
-            , _previous(slot)
+            , _previous(std::exchange(slot, pool))
         {
-            _slot = pool;
         }
 
         ~CurrentPoolScope()
@@ -37,12 +37,6 @@ namespace
         JobPool* _previous;
     };
 } // namespace
-
-JobPool::TaskData::TaskData(std::function<void()> workFn, std::function<void()> completionFn)
-    : WorkFn(std::move(workFn))
-    , CompletionFn(std::move(completionFn))
-{
-}
 
 JobPool::JobPool(size_t maxThreads)
 {
@@ -92,11 +86,6 @@ void JobPool::AddTask(std::function<void()> workFn, std::function<void()> comple
     }
 
     std::scoped_lock batchLock(_batchMutex);
-    if (_usageMode == UsageMode::parallelBatches)
-    {
-        throw std::logic_error("External queued tasks cannot be mixed with ParallelFor batches on one JobPool");
-    }
-    _usageMode = UsageMode::queuedTasks;
     EnqueueTask(std::move(workFn), std::move(completionFn));
 }
 
@@ -108,7 +97,7 @@ void JobPool::EnqueueTask(std::function<void()> workFn, std::function<void()> co
         {
             throw std::logic_error("Cannot submit work to a stopped JobPool");
         }
-        _pending.emplace_back(std::move(workFn), std::move(completionFn));
+        _pending.push_back({ std::move(workFn), std::move(completionFn) });
     }
     _condPending.notify_one();
 }
@@ -129,6 +118,21 @@ void JobPool::JoinInternal(std::function<void()> reportFn)
 {
     std::unique_lock lock(_mutex);
     std::exception_ptr firstError;
+    const auto invoke = [&](const auto& callback) {
+        if (!callback)
+            return;
+        lock.unlock();
+        try
+        {
+            callback();
+        }
+        catch (...)
+        {
+            if (firstError == nullptr)
+                firstError = std::current_exception();
+        }
+        lock.lock();
+    };
     while (true)
     {
         // Wait for the queue to become empty or having completed tasks.
@@ -143,61 +147,22 @@ void JobPool::JoinInternal(std::function<void()> reportFn)
             if (taskData.Error != nullptr)
             {
                 if (firstError == nullptr)
-                {
                     firstError = taskData.Error;
-                }
             }
-            else if (taskData.CompletionFn)
-            {
-                lock.unlock();
-
-                try
-                {
-                    taskData.CompletionFn();
-                }
-                catch (...)
-                {
-                    if (firstError == nullptr)
-                    {
-                        firstError = std::current_exception();
-                    }
-                }
-
-                lock.lock();
-            }
+            else
+                invoke(taskData.CompletionFn);
         }
 
-        if (reportFn)
-        {
-            lock.unlock();
-
-            try
-            {
-                reportFn();
-            }
-            catch (...)
-            {
-                if (firstError == nullptr)
-                {
-                    firstError = std::current_exception();
-                }
-            }
-
-            lock.lock();
-        }
+        invoke(reportFn);
 
         // If everything is empty and no more work has to be done we can stop waiting.
         if (_completed.empty() && _pending.empty() && _processing == 0)
-        {
             break;
-        }
     }
 
     lock.unlock();
     if (firstError != nullptr)
-    {
         std::rethrow_exception(firstError);
-    }
 }
 
 void JobPool::ParallelFor(
@@ -221,11 +186,6 @@ void JobPool::ParallelFor(
     }
 
     std::scoped_lock batchLock(_batchMutex);
-    if (_usageMode == UsageMode::queuedTasks)
-    {
-        throw std::logic_error("ParallelFor batches cannot be mixed with external queued tasks on one JobPool");
-    }
-    _usageMode = UsageMode::parallelBatches;
     CurrentPoolScope currentPool(_currentPool, this);
     grainSize = std::max<size_t>(grainSize, 1);
     std::atomic_size_t nextIndex{ 0 };
@@ -269,15 +229,11 @@ void JobPool::ParallelFor(
     catch (...)
     {
         if (firstError == nullptr)
-        {
             firstError = std::current_exception();
-        }
     }
 
     if (firstError != nullptr)
-    {
         std::rethrow_exception(firstError);
-    }
 }
 
 bool JobPool::IsBusy()

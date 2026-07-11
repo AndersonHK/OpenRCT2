@@ -23,20 +23,20 @@
     #include <exception>
     #include <limits>
     #include <mutex>
+    #include <openrct2-ui/interface/Window.h>
     #include <openrct2/Context.h>
     #include <openrct2/PlatformEnvironment.h>
-    #include <openrct2/core/Path.hpp>
     #include <openrct2/config/Config.h>
-    #include <openrct2/drawing/LightFX.h>
+    #include <openrct2/core/Path.hpp>
     #include <openrct2/drawing/BlendColourMap.h>
     #include <openrct2/drawing/Drawing.h>
+    #include <openrct2/drawing/LightFX.h>
     #include <openrct2/drawing/WeatherDrawer.h>
-    #include <openrct2/interface/Screenshot.h>
     #include <openrct2/drawing/X8DrawingEngine.h>
-    #include <openrct2-ui/interface/Window.h>
+    #include <openrct2/interface/Screenshot.h>
     #include <openrct2/ui/UiContext.h>
-    #include <stdexcept>
     #include <span>
+    #include <stdexcept>
     #include <thread>
     #include <vector>
 
@@ -46,13 +46,27 @@ namespace OpenRCT2::Ui
     {
         [[nodiscard]] Gpu::Extent QueryDrawableExtentOnUiThread(IUiContext& uiContext)
         {
-            const auto extent = Vulkan::Platform::GetDrawableExtent(
-                static_cast<SDL_Window*>(uiContext.GetWindow()));
+            const auto extent = Vulkan::Platform::GetDrawableExtent(static_cast<SDL_Window*>(uiContext.GetWindow()));
             return { extent.width, extent.height };
         }
 
-        [[nodiscard]] std::string WriteIndexedScreenshot(
-            std::span<std::byte> pixels, uint32_t width, uint32_t height)
+        [[nodiscard]] Gpu::BackendConfig BuildBackendConfig(
+            IUiContext& uiContext, Gpu::Extent logicalExtent, Gpu::Extent drawableExtent, bool vsync,
+            std::string shaderDirectory)
+        {
+            return {
+                .nativeWindow = uiContext.GetWindow(),
+                .logicalExtent = logicalExtent,
+                .drawableExtent = drawableExtent,
+                .presentMode = vsync ? Gpu::PresentMode::VSync : Gpu::PresentMode::Immediate,
+                .frameAcquireMode = Gpu::FrameAcquireMode::SkipIfBusy,
+                .outputColorMode = Config::Get().general.enableHdr10Output ? Gpu::OutputColorMode::Hdr10IfAvailable
+                                                                           : Gpu::OutputColorMode::Sdr,
+                .shaderDirectory = std::move(shaderDirectory),
+            };
+        }
+
+        [[nodiscard]] std::string WriteIndexedScreenshot(std::span<std::byte> pixels, uint32_t width, uint32_t height)
         {
             Drawing::RenderTarget target{};
             target.bits = reinterpret_cast<Drawing::PaletteIndex*>(pixels.data());
@@ -64,7 +78,7 @@ namespace OpenRCT2::Ui
         }
     } // namespace
 
-#if defined(ENABLE_VULKAN_DIRECT_DRAWING_CONTEXT)
+    #if defined(ENABLE_VULKAN_DIRECT_DRAWING_CONTEXT)
     namespace
     {
         class VulkanWeatherDrawer final : public Drawing::IWeatherDrawer
@@ -79,8 +93,8 @@ namespace OpenRCT2::Ui
             }
 
             void Draw(
-                Drawing::RenderTarget&, int32_t x, int32_t y, int32_t width, int32_t height, int32_t xStart,
-                int32_t yStart, const uint8_t* weatherPattern) override
+                Drawing::RenderTarget&, int32_t x, int32_t y, int32_t width, int32_t height, int32_t xStart, int32_t yStart,
+                const uint8_t* weatherPattern) override
             {
                 if (_commands == nullptr || width <= 0 || height <= 0)
                     return;
@@ -135,7 +149,7 @@ namespace OpenRCT2::Ui
         Drawing::RenderTarget _mainTarget{};
         Gpu::CommandDrawingContext _drawingContext;
         VulkanWeatherDrawer _weatherDrawer;
-#if defined(ENABLE_VULKAN_RENDER_THREAD)
+        #if defined(ENABLE_VULKAN_RENDER_THREAD)
         Gpu::LatestFrameMailbox _frameMailbox;
         std::unique_ptr<Gpu::RecordedFramePacket> _recordingPacket;
         std::thread _renderWorker;
@@ -145,23 +159,23 @@ namespace OpenRCT2::Ui
         uint64_t _surfaceFormatVersion = 0;
         uint64_t _presentModeVersion = 0;
         uint64_t _paletteVersion = 0;
-#else
+        #else
         Gpu::FrameCommandStream _commands;
         std::optional<Gpu::FrameHandle> _frame;
-#endif
+        #endif
         std::vector<Drawing::PaletteIndex> _addressSpace;
         std::array<std::byte, 256 * 4> _paletteRgba{};
         Gpu::Extent _drawableExtent{};
         uint32_t _width = 0;
         uint32_t _height = 0;
         uint64_t _frameNumber = 0;
-#if defined(ENABLE_VULKAN_RENDER_THREAD)
+        #if defined(ENABLE_VULKAN_RENDER_THREAD)
         uint64_t _graphicsLookupTablesVersion = 0;
         std::vector<std::byte> _lightFalloffs;
         std::array<std::byte, 256 * 256> _remapPalette{};
         std::array<std::byte, 256 * 256> _blendPalette{};
         bool _hasBlendPalette = false;
-#endif
+        #endif
         bool _initialised = false;
         bool _graphicsLookupTablesReady = false;
         bool _hasPalette = false;
@@ -175,19 +189,19 @@ namespace OpenRCT2::Ui
             , _drawingContext(_mainTarget, _textureCache)
         {
             _mainTarget.DrawingEngine = this;
-#if defined(ENABLE_VULKAN_RENDER_THREAD)
+        #if defined(ENABLE_VULKAN_RENDER_THREAD)
             _recordingPacket = CreateRecordingPacket();
-#else
+        #else
             _commands.reserveForParkView();
-#endif
+        #endif
             Drawing::LightFx::SetAvailable(true);
         }
 
         ~VulkanDirectDrawingEngine() override
         {
-#if defined(ENABLE_VULKAN_RENDER_THREAD)
+        #if defined(ENABLE_VULKAN_RENDER_THREAD)
             StopRenderWorker();
-#endif
+        #endif
         }
 
         void Initialise() override
@@ -198,24 +212,15 @@ namespace OpenRCT2::Ui
             const uint32_t width = static_cast<uint32_t>(std::max(1, _uiContext.GetWidth()));
             const uint32_t height = static_cast<uint32_t>(std::max(1, _uiContext.GetHeight()));
             _drawableExtent = QueryDrawableExtentOnUiThread(_uiContext);
-            _backend->Initialise({
-                .nativeWindow = _uiContext.GetWindow(),
-                .logicalExtent = { width, height },
-                .drawableExtent = _drawableExtent,
-                .presentMode = _vsync ? Gpu::PresentMode::VSync : Gpu::PresentMode::Immediate,
-                .frameAcquireMode = Gpu::FrameAcquireMode::SkipIfBusy,
-                .outputColorMode = Config::Get().general.enableHdr10Output ? Gpu::OutputColorMode::Hdr10IfAvailable
-                                                                          : Gpu::OutputColorMode::Sdr,
-                .shaderDirectory = shaderDirectory,
-            });
+            _backend->Initialise(BuildBackendConfig(_uiContext, { width, height }, _drawableExtent, _vsync, shaderDirectory));
             _initialised = true;
             _gpuLightFxRasterization.store(
                 _backend->GetCapabilities().supportsGpuLightFxRasterization, std::memory_order_relaxed);
             if (_hasPalette)
                 _backend->SetPalette(_paletteRgba);
-#if defined(ENABLE_VULKAN_RENDER_THREAD)
+        #if defined(ENABLE_VULKAN_RENDER_THREAD)
             _renderWorker = std::thread(&VulkanDirectDrawingEngine::RenderWorkerMain, this);
-#endif
+        #endif
         }
 
         void Resize(uint32_t width, uint32_t height) override
@@ -242,7 +247,7 @@ namespace OpenRCT2::Ui
             _drawingContext.Resize();
             _drawableExtent = QueryDrawableExtentOnUiThread(_uiContext);
             if (_initialised)
-#if defined(ENABLE_VULKAN_RENDER_THREAD)
+        #if defined(ENABLE_VULKAN_RENDER_THREAD)
             {
                 // Until the render worker has recreated extent-dependent
                 // resources, publish a CPU intensity fallback with the resize
@@ -250,13 +255,13 @@ namespace OpenRCT2::Ui
                 _gpuLightFxRasterization.store(false, std::memory_order_relaxed);
                 _resizeVersion++;
             }
-#else
+        #else
             {
                 _backend->Resize({ width, height }, _drawableExtent);
                 _gpuLightFxRasterization.store(
                     _backend->GetCapabilities().supportsGpuLightFxRasterization, std::memory_order_relaxed);
             }
-#endif
+        #endif
         }
 
         void NotifyDisplayChanged() override
@@ -265,11 +270,11 @@ namespace OpenRCT2::Ui
             {
                 return;
             }
-#if defined(ENABLE_VULKAN_RENDER_THREAD)
+        #if defined(ENABLE_VULKAN_RENDER_THREAD)
             _surfaceFormatVersion++;
-#else
+        #else
             _backend->RequestSurfaceFormatRefresh();
-#endif
+        #endif
         }
 
         void SetPalette(const Drawing::GamePalette& palette) override
@@ -283,22 +288,22 @@ namespace OpenRCT2::Ui
             }
             _hasPalette = true;
             if (_initialised)
-#if defined(ENABLE_VULKAN_RENDER_THREAD)
+        #if defined(ENABLE_VULKAN_RENDER_THREAD)
                 _paletteVersion++;
-#else
+        #else
                 _backend->SetPalette(_paletteRgba);
-#endif
+        #endif
         }
 
         void SetVSync(bool vsync) override
         {
             _vsync = vsync;
             if (_initialised)
-#if defined(ENABLE_VULKAN_RENDER_THREAD)
+        #if defined(ENABLE_VULKAN_RENDER_THREAD)
                 _presentModeVersion++;
-#else
+        #else
                 _backend->SetPresentMode(vsync ? Gpu::PresentMode::VSync : Gpu::PresentMode::Immediate);
-#endif
+        #endif
         }
 
         void Invalidate(int32_t, int32_t, int32_t, int32_t) override
@@ -309,28 +314,27 @@ namespace OpenRCT2::Ui
         void BeginDraw() override
         {
             EnsureGraphicsLookupTablesReady();
-#if defined(ENABLE_VULKAN_RENDER_THREAD)
+        #if defined(ENABLE_VULKAN_RENDER_THREAD)
             BeginDrawQueued();
-#else
+        #else
             RefreshDrawableExtent();
             _commands.clear();
-            _frame = _initialised && _width != 0 && _height != 0 && _drawableExtent.width != 0
-                    && _drawableExtent.height != 0
+            _frame = _initialised && _width != 0 && _height != 0 && _drawableExtent.width != 0 && _drawableExtent.height != 0
                 ? _backend->BeginFrame(_frameNumber++)
                 : std::nullopt;
             _weatherDrawer.SetCommands(_commands.weather);
             _textureCache.BeginFrame();
             _drawingContext.Begin(_commands);
-#endif
+        #endif
         }
 
         void EndDraw() override
         {
-#if defined(ENABLE_VULKAN_RENDER_THREAD)
+        #if defined(ENABLE_VULKAN_RENDER_THREAD)
             EndDrawQueued();
-#else
+        #else
             EndDrawSynchronous();
-#endif
+        #endif
         }
 
     private:
@@ -355,7 +359,7 @@ namespace OpenRCT2::Ui
                 hasBlendPalette = true;
             }
 
-#if defined(ENABLE_VULKAN_RENDER_THREAD)
+        #if defined(ENABLE_VULKAN_RENDER_THREAD)
             _lightFalloffs = std::move(lightFalloffs);
             _remapPalette = std::move(remapPalette);
             _blendPalette = std::move(blendPalette);
@@ -365,14 +369,14 @@ namespace OpenRCT2::Ui
             {
                 _graphicsLookupTablesVersion = 1;
             }
-#else
+        #else
             _backend->SetLightFxFalloffs(lightFalloffs);
             _backend->SetRemapPalette(remapPalette);
             if (hasBlendPalette)
             {
                 _backend->SetBlendPalette(blendPalette);
             }
-#endif
+        #endif
             _graphicsLookupTablesReady = true;
         }
 
@@ -388,11 +392,11 @@ namespace OpenRCT2::Ui
             {
                 return;
             }
-#if defined(ENABLE_VULKAN_RENDER_THREAD)
+        #if defined(ENABLE_VULKAN_RENDER_THREAD)
             _resizeVersion++;
-#else
+        #else
             _backend->Resize({ _width, _height }, _drawableExtent);
-#endif
+        #endif
         }
 
         void CaptureLightFx(Gpu::FrameCommandStream& commands)
@@ -418,8 +422,7 @@ namespace OpenRCT2::Ui
                 recycledLights = std::move(commands.lightFx->lights);
             }
             if (!Drawing::LightFx::CaptureFrameSnapshot(
-                    *viewport, _width, _height, resolved,
-                    !_gpuLightFxRasterization.load(std::memory_order_relaxed))
+                    *viewport, _width, _height, resolved, !_gpuLightFxRasterization.load(std::memory_order_relaxed))
                 || !resolved.IsValid())
             {
                 commands.lightFx.reset();
@@ -447,7 +450,7 @@ namespace OpenRCT2::Ui
             commands.lightFx = std::move(snapshot);
         }
 
-#if !defined(ENABLE_VULKAN_RENDER_THREAD)
+        #if !defined(ENABLE_VULKAN_RENDER_THREAD)
         void EndDrawSynchronous()
         {
             _drawingContext.End();
@@ -503,7 +506,7 @@ namespace OpenRCT2::Ui
                 throw;
             }
         }
-#else
+        #else
         [[nodiscard]] static std::unique_ptr<Gpu::RecordedFramePacket> CreateRecordingPacket()
         {
             auto packet = std::make_unique<Gpu::RecordedFramePacket>();
@@ -561,8 +564,7 @@ namespace OpenRCT2::Ui
                 if (result.released != nullptr)
                 {
                     RetirePacket(
-                        *result.released,
-                        result.accepted ? Gpu::FrameRetirement::Superseded : Gpu::FrameRetirement::Shutdown);
+                        *result.released, result.accepted ? Gpu::FrameRetirement::Superseded : Gpu::FrameRetirement::Shutdown);
                     result.released->commands.clear();
                     _recordingPacket = std::move(result.released);
                 }
@@ -623,8 +625,7 @@ namespace OpenRCT2::Ui
                             {
                                 _backend->Resize(presentation.logicalExtent, presentation.drawableExtent);
                                 _gpuLightFxRasterization.store(
-                                    _backend->GetCapabilities().supportsGpuLightFxRasterization,
-                                    std::memory_order_relaxed);
+                                    _backend->GetCapabilities().supportsGpuLightFxRasterization, std::memory_order_relaxed);
                             }
                             appliedResizeVersion = presentation.resizeVersion;
                         }
@@ -736,9 +737,8 @@ namespace OpenRCT2::Ui
             if (packet.readback != nullptr && retirement != Gpu::FrameRetirement::Presented)
             {
                 packet.readback->Fail(std::make_exception_ptr(std::runtime_error(
-                    retirement == Gpu::FrameRetirement::Superseded
-                        ? "Vulkan screenshot request was superseded"
-                        : "Vulkan screenshot request retired before readback")));
+                    retirement == Gpu::FrameRetirement::Superseded ? "Vulkan screenshot request was superseded"
+                                                                   : "Vulkan screenshot request retired before readback")));
             }
             if (packet.residency)
             {
@@ -862,10 +862,9 @@ namespace OpenRCT2::Ui
             }
             (void)_frameMailbox.TakeRecycled();
         }
-#endif
+        #endif
 
     public:
-
         void PaintWindows() override
         {
             WindowUpdateAllViewports();
@@ -889,7 +888,7 @@ namespace OpenRCT2::Ui
                 return {};
             }
 
-#if defined(ENABLE_VULKAN_RENDER_THREAD)
+        #if defined(ENABLE_VULKAN_RENDER_THREAD)
             auto readback = std::make_shared<Gpu::SynchronousReadback>(Gpu::Extent{ _width, _height });
             auto result = _frameMailbox.PublishReadback(readback);
             if (result.released != nullptr)
@@ -915,14 +914,14 @@ namespace OpenRCT2::Ui
                 return {};
             }
             return WriteIndexedScreenshot(readback->GetPixels(), _width, _height);
-#else
+        #else
             std::vector<std::byte> pixels(static_cast<size_t>(_width) * _height);
             if (!_backend->ReadbackLatestIndexedCanvas({ _width, _height }, pixels))
             {
                 return {};
             }
             return WriteIndexedScreenshot(pixels, _width, _height);
-#endif
+        #endif
         }
 
         Drawing::IDrawingContext* GetDrawingContext() override
@@ -952,13 +951,12 @@ namespace OpenRCT2::Ui
 
         void DrainFrameTimings(std::vector<Drawing::FrameTimings>& samples) override
         {
-#if defined(ENABLE_VULKAN_RENDER_THREAD)
+        #if defined(ENABLE_VULKAN_RENDER_THREAD)
             auto boundary = std::make_shared<Gpu::SynchronousFrameBoundary>();
             auto result = _frameMailbox.PublishTimingBoundary(boundary);
             if (result.released != nullptr)
             {
-                result.released->Fail(std::make_exception_ptr(
-                    std::runtime_error("Vulkan timing boundary was superseded")));
+                result.released->Fail(std::make_exception_ptr(std::runtime_error("Vulkan timing boundary was superseded")));
             }
             if (!result.accepted)
             {
@@ -967,9 +965,9 @@ namespace OpenRCT2::Ui
             }
             boundary->Wait();
             RethrowWorkerError();
-#else
+        #else
             _backend->WaitIdle();
-#endif
+        #endif
             _backend->TakeCompletedTimings(samples);
         }
 
@@ -978,7 +976,7 @@ namespace OpenRCT2::Ui
             _textureCache.InvalidateImage(image);
         }
     };
-#endif // ENABLE_VULKAN_DIRECT_DRAWING_CONTEXT
+    #endif // ENABLE_VULKAN_DIRECT_DRAWING_CONTEXT
 
     /**
      * Opt-in integration bridge for exercising the Vulkan frame lifecycle.
@@ -1018,17 +1016,9 @@ namespace OpenRCT2::Ui
             const auto initialHeight = static_cast<uint32_t>(std::max(1, _uiContext.GetHeight()));
             _drawableExtent = QueryDrawableExtentOnUiThread(_uiContext);
             const uint64_t canvasBytes = static_cast<uint64_t>(initialWidth) * initialHeight;
-            const Gpu::BackendConfig config = {
-                .nativeWindow = _uiContext.GetWindow(),
-                .logicalExtent = { initialWidth, initialHeight },
-                .drawableExtent = _drawableExtent,
-                .presentMode = _vsync ? Gpu::PresentMode::VSync : Gpu::PresentMode::Immediate,
-                .frameAcquireMode = Gpu::FrameAcquireMode::SkipIfBusy,
-                .outputColorMode = Config::Get().general.enableHdr10Output ? Gpu::OutputColorMode::Hdr10IfAvailable
-                                                                          : Gpu::OutputColorMode::Sdr,
-                .uploadRingBytesPerFrame = std::max<uint64_t>(64 * 1024 * 1024, canvasBytes + 1024 * 1024),
-                .shaderDirectory = shaderDirectory,
-            };
+            auto config = BuildBackendConfig(
+                _uiContext, { initialWidth, initialHeight }, _drawableExtent, _vsync, shaderDirectory);
+            config.uploadRingBytesPerFrame = std::max<uint64_t>(64 * 1024 * 1024, canvasBytes + 1024 * 1024);
             _backend->Initialise(config);
             _initialised = true;
             if (_hasPalette)
@@ -1085,8 +1075,7 @@ namespace OpenRCT2::Ui
         {
             X8DrawingEngine::EndDraw();
             RefreshDrawableExtent();
-            if (!_initialised || _width == 0 || _height == 0 || _drawableExtent.width == 0
-                || _drawableExtent.height == 0)
+            if (!_initialised || _width == 0 || _height == 0 || _drawableExtent.width == 0 || _drawableExtent.height == 0)
             {
                 return;
             }
@@ -1113,9 +1102,7 @@ namespace OpenRCT2::Ui
                 }
                 std::memcpy(upload.bytes.data(), _bits, static_cast<size_t>(byteSize));
                 Gpu::FrameCommandStream commands;
-                commands.canvasUpload = Gpu::CanvasUpload{
-                    static_cast<uint32_t>(upload.offset), _pitch, _width, _height
-                };
+                commands.canvasUpload = Gpu::CanvasUpload{ static_cast<uint32_t>(upload.offset), _pitch, _width, _height };
                 _backend->Submit(*frame, commands);
                 _backend->Present(*frame);
             }
@@ -1167,11 +1154,11 @@ namespace OpenRCT2::Ui
 
     std::unique_ptr<Drawing::IDrawingEngine> CreateVulkanDrawingEngine(IUiContext& uiContext)
     {
-#if defined(ENABLE_VULKAN_DIRECT_DRAWING_CONTEXT)
+    #if defined(ENABLE_VULKAN_DIRECT_DRAWING_CONTEXT)
         return std::make_unique<VulkanDirectDrawingEngine>(uiContext);
-#else
+    #else
         return std::make_unique<VulkanDrawingEngine>(uiContext);
-#endif
+    #endif
     }
 } // namespace OpenRCT2::Ui
 

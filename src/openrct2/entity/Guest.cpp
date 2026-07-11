@@ -3511,7 +3511,9 @@ namespace OpenRCT2
     }
 
     template<typename T>
-    static void PeepHeadForNearestRide(Guest& guest, bool considerOnlyCloseRides, T predicate)
+    static void PeepHeadForNearestRide(
+        Guest& guest, bool considerOnlyCloseRides, T predicate,
+        std::optional<int32_t> maximumWalkingDistance = std::nullopt)
     {
         if (guest.State != PeepState::sitting && guest.State != PeepState::watching && guest.State != PeepState::walking)
         {
@@ -3531,7 +3533,19 @@ namespace OpenRCT2
         }
 
         OpenRCT2::BitSet<Limits::kMaxRidesInPark> rideConsideration;
-        if (!considerOnlyCloseRides && (guest.hasItem(ShopItem::map)))
+        if (maximumWalkingDistance.has_value())
+        {
+            for (const auto& ride : RideManager(getGameState()))
+            {
+                const auto location = ride.getStation().Start;
+                const auto distance = abs(location.x - guest.x) + abs(location.y - guest.y);
+                if (predicate(ride) && distance <= *maximumWalkingDistance)
+                {
+                    rideConsideration[ride.id.ToUnderlying()] = true;
+                }
+            }
+        }
+        else if (!considerOnlyCloseRides && (guest.hasItem(ShopItem::map)))
         {
             // Consider all rides in the park
             auto& gameState = getGameState();
@@ -3593,7 +3607,7 @@ namespace OpenRCT2
         }
 
         const auto closestRide = SelectClosestRideByRouteOrGeometry(
-            guest, std::span<const RideId>{ potentialRides, numPotentialRides });
+            guest, std::span<const RideId>{ potentialRides, numPotentialRides }, maximumWalkingDistance);
         if (closestRide != nullptr)
         {
             // Head to that ride
@@ -3603,83 +3617,17 @@ namespace OpenRCT2
         }
     }
 
-    static bool GuestIsHeadingForSpecialRideType(const Guest& guest, RtdSpecialType specialType)
-    {
-        if (guest.guestHeadingToRideId.IsNull())
-        {
-            return false;
-        }
-
-        auto ride = GetRide(guest.guestHeadingToRideId);
-        return ride != nullptr && ride->getRideTypeDescriptor().specialType == specialType;
-    }
-
-    static int32_t GuestGetFirstAidSearchRadius(const Guest& guest)
+    static void GuestHeadForNearestFirstAid(Guest& guest)
     {
         if (guest.nausea < kGuestSickNauseaThreshold)
         {
-            return 0;
-        }
-
-        const auto radiusTiles = 1 + (guest.nausea - kGuestSickNauseaThreshold);
-        return radiusTiles * kCoordsXYStep;
-    }
-
-    static void GuestHeadForNearestFirstAid(Guest& guest)
-    {
-        if (guest.State != PeepState::sitting && guest.State != PeepState::watching && guest.State != PeepState::walking)
-        {
             return;
         }
-        if (guest.PeepFlags & PEEP_FLAGS_LEAVING_PARK)
-            return;
-        if (guest.x == kLocationNull)
-            return;
-        if (GuestIsHeadingForSpecialRideType(guest, RtdSpecialType::firstAid))
-            return;
-
-        const auto searchRadius = GuestGetFirstAidSearchRadius(guest);
-        if (searchRadius <= 0)
-        {
-            return;
-        }
-
-        RideId potentialRides[Limits::kMaxRidesInPark];
-        size_t numPotentialRides = 0;
-
-        auto& gameState = getGameState();
-        for (auto& ride : RideManager(gameState))
-        {
-            if (ride.getRideTypeDescriptor().specialType != RtdSpecialType::firstAid)
-            {
-                continue;
-            }
-            if (ride.flags.has(RideFlag::queueFull))
-            {
-                continue;
-            }
-            const auto rideLocation = ride.getStation().Start;
-            const auto geometricLowerBound = abs(rideLocation.x - guest.x) + abs(rideLocation.y - guest.y);
-            if (geometricLowerBound > searchRadius)
-            {
-                continue;
-            }
-
-            if (!guest.shouldGoOnRide(ride, StationIndex::FromUnderlying(0), false, true))
-            {
-                continue;
-            }
-            potentialRides[numPotentialRides++] = ride.id;
-        }
-
-        const auto closestRide = SelectClosestRideByRouteOrGeometry(
-            guest, std::span<const RideId>{ potentialRides, numPotentialRides }, searchRadius);
-        if (closestRide != nullptr)
-        {
-            guest.setPathfindingTargetRide(closestRide->id);
-            guest.guestIsLostCountdown = 200;
-            guest.timeLost = 0;
-        }
+        const auto searchRadius = (1 + guest.nausea - kGuestSickNauseaThreshold) * kCoordsXYStep;
+        PeepHeadForNearestRide(
+            guest, false,
+            [](const Ride& ride) { return ride.getRideTypeDescriptor().specialType == RtdSpecialType::firstAid; },
+            searchRadius);
     }
 
     static void GuestHeadForNearestRideWithFlag(Guest& guest, bool considerOnlyCloseRides, RtdFlag rtdFlag)
@@ -3936,7 +3884,8 @@ namespace OpenRCT2
 
         sfl::static_vector<uint8_t, Limits::kMaxTrainsPerRide> carArray;
 
-        if (RideStationPlatformPreQueueIsActive(*ride, CurrentRideStation))
+        if (RideSupportsStationPlatformPreQueue(*ride)
+            && RideStationPlatformPreQueueIsActive(*ride, CurrentRideStation))
         {
             if (ride->status != RideStatus::open || ride->vehicleChangeTimeout != 0)
             {
@@ -4154,8 +4103,8 @@ namespace OpenRCT2
         if (ride == nullptr)
             return;
 
-        if (RideSubState == PeepRideSubState::inEntrance
-            && RideGetStationPlatformReservation(*ride, CurrentRideStation, id).has_value()
+        const bool supportsPlatformPreQueue = RideSupportsStationPlatformPreQueue(*ride);
+        if (RideSubState == PeepRideSubState::inEntrance && supportsPlatformPreQueue
             && tryBoardStationPlatformTrain(*ride))
         {
             return;
@@ -4182,7 +4131,8 @@ namespace OpenRCT2
             {
                 // A staged guest must finish crossing the entrance before turning along the platform. The
                 // destination-reached branch below then selects the car-aligned wait marker.
-                if (!RideGetStationPlatformReservation(*ride, CurrentRideStation, id).has_value())
+                if (!supportsPlatformPreQueue
+                    || !RideGetStationPlatformReservation(*ride, CurrentRideStation, id).has_value())
                 {
                     RideSubState = PeepRideSubState::freeVehicleCheck;
                 }
@@ -4202,7 +4152,9 @@ namespace OpenRCT2
 
         if (RideSubState == PeepRideSubState::inEntrance)
         {
-            const auto reservation = RideGetStationPlatformReservation(*ride, CurrentRideStation, id);
+            const auto reservation = supportsPlatformPreQueue
+                ? RideGetStationPlatformReservation(*ride, CurrentRideStation, id)
+                : std::nullopt;
             if (reservation.has_value())
             {
                 SetDestination(reservation->waitPosition, 2);
@@ -4351,15 +4303,6 @@ namespace OpenRCT2
         guest.RideSubState = PeepRideSubState::approachExit;
     }
 
-    void GuestApplyPaidExtortiveTransportPenalty(Guest& guest, RideId rideId)
-    {
-        constexpr uint8_t kHappinessPenalty = 24;
-        guest.happinessTarget = guest.happinessTarget > kHappinessPenalty ? guest.happinessTarget - kHappinessPenalty : 0;
-        guest.happiness = std::min(guest.happiness, guest.happinessTarget);
-        guest.insertNewThought(PeepThoughtType::extortiveTransport, rideId);
-        guest.WindowInvalidateFlags |= PEEP_INVALIDATE_PEEP_2;
-    }
-
     /**
      *
      *  rct2: 0x006920B4
@@ -4388,7 +4331,11 @@ namespace OpenRCT2
 
         if (paidExtortiveTransport)
         {
-            GuestApplyPaidExtortiveTransportPenalty(guest, ride.id);
+            constexpr uint8_t kHappinessPenalty = 24;
+            guest.happinessTarget = guest.happinessTarget > kHappinessPenalty ? guest.happinessTarget - kHappinessPenalty : 0;
+            guest.happiness = std::min(guest.happiness, guest.happinessTarget);
+            guest.insertNewThought(PeepThoughtType::extortiveTransport, ride.id);
+            guest.WindowInvalidateFlags |= PEEP_INVALIDATE_PEEP_2;
         }
 
         uint8_t queueTime = static_cast<uint8_t>(
@@ -4456,7 +4403,7 @@ namespace OpenRCT2
         ride.queueInsertGuestAtFront(guest.CurrentRideStation, &guest);
     }
 
-    void Guest::recoverFromStationPlatform(Ride& ride)
+    void Guest::recoverFromStationPlatform(Ride& ride, bool preferQueue)
     {
         RideReleaseStationPlatformSlot(ride, CurrentRideStation, id);
         CurrentTrain = RideStation::kNoTrain;
@@ -4464,6 +4411,11 @@ namespace OpenRCT2
         if (CurrentRideStation.ToUnderlying() < ride.numStations)
         {
             const auto& station = ride.getStation(CurrentRideStation);
+            if (preferQueue && !station.Entrance.IsNull() && station.Entrance.direction < kNumOrthogonalDirections)
+            {
+                PeepUpdateRideNoFreeVehicleRejoinQueue(*this, ride);
+                return;
+            }
             if (!station.Exit.IsNull() && station.Exit.direction < kNumOrthogonalDirections)
             {
                 SetState(PeepState::leavingRide);
@@ -4478,22 +4430,6 @@ namespace OpenRCT2
         }
 
         SetState(PeepState::falling);
-    }
-
-    void Guest::requeueFromStationPlatform(Ride& ride)
-    {
-        RideReleaseStationPlatformSlot(ride, CurrentRideStation, id);
-        CurrentTrain = RideStation::kNoTrain;
-        if (CurrentRideStation.ToUnderlying() < ride.numStations)
-        {
-            const auto& station = ride.getStation(CurrentRideStation);
-            if (!station.Entrance.IsNull() && station.Entrance.direction < kNumOrthogonalDirections)
-            {
-                PeepUpdateRideNoFreeVehicleRejoinQueue(*this, ride);
-                return;
-            }
-        }
-        recoverFromStationPlatform(ride);
     }
 
     void Guest::updateRideApproachPlatformSlot()
@@ -4568,11 +4504,11 @@ namespace OpenRCT2
         }
         if (binding != RideStationPlatformSeatBindingResult::success)
         {
-            requeueFromStationPlatform(ride);
+            recoverFromStationPlatform(ride, true);
             return true;
         }
 
-        RideReleaseStationPlatformSlot(ride, CurrentRideStation, id);
+        RideReleaseStationPlatformSlot(ride, CurrentRideStation, id, true);
         GuestCommitRideAdmission(*this, ride);
         RideSubState = PeepRideSubState::leaveEntrance;
         updateRideAdvanceThroughEntrance();
@@ -6773,7 +6709,8 @@ namespace OpenRCT2
         {
             return false;
         }
-        if (GuestIsHeadingForSpecialRideType(*this, RtdSpecialType::firstAid))
+        const auto* destinationRide = GetRide(guestHeadingToRideId);
+        if (destinationRide != nullptr && destinationRide->getRideTypeDescriptor().specialType == RtdSpecialType::firstAid)
         {
             return false;
         }

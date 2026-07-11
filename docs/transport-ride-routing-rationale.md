@@ -182,15 +182,21 @@ physically boards.
 
 Transport unloading still compacts through-riders to the front of each vehicle first. A staged guest then binds only to the exact
 car and seat shown by its platform reservation; platform boarding no longer calls the ordinary random car chooser or substitutes
-the next seat. Before claiming that seat, the arrival is compared with the captured car sequence (object subtype, vehicle type,
-masked seat count, and reversed orientation), and the reserved seat must be the vehicle's next contiguous empty seat after the
-through-rider prefix. The check mutates neither guest nor vehicle on failure. A changed consist or invalid reservation returns
-the guest to the entrance queue without creating duplicate seat ownership; a seat claimed by another guest leaves the valid
-reservation staged for the next train instead of consuming the outside queue again. A
+the next seat. Ride vehicle configuration is the sole owner of consist shape, while platform capture stores only the resulting
+seat identities and wait geometry. Changing vehicle type or train length clears the transient platform state through the ride
+construction lifecycle; normal boarding therefore treats a different capacity, invalid car index, missing train entity, or
+impossible seat identity as engine corruption rather than maintaining a second consist signature and a parallel recovery path.
+The reserved seat must still be the vehicle's next contiguous empty seat after the through-rider prefix. A seat claimed by another
+guest leaves the valid reservation staged for the next train instead of consuming the outside queue again. A
 closure, breakdown, fare rejection, or invalid station retains exit-first recovery. Successful guests therefore bind FIFO to
 their visible positions, while the existing `num_peeps == next_free_seat` dispatch invariant keeps the train in the station until
 each assigned walker boards. Maximum-wait, block-section, leave-when-another-arrives, and synchronized-departure rules retain
 their established ownership.
+
+The platform queue is one FIFO of reservation-slot indices. Cancelling a reservation invalidates the current boarding plan so
+remaining guests compact onto the train's real free-seat prefix; consuming a reservation into a real seat preserves that plan.
+Guest pickup and deletion release reservations through the common ride-removal lifecycle, and scripted station edits clear the
+transient platform geometry before invalidating the ride's transport service.
 
 The fixed vehicle passenger array is not itself an occupancy bitmap. Ordinary alighting decrements `num_peeps` from the end
 without clearing the vacated entry, and transport alighting leaves the compacted through-rider prefix ahead of an inactive tail.

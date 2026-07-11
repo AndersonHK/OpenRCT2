@@ -68,6 +68,11 @@ platform approach and wait states, so an empty train cannot finish its dwell whi
 marker. Seat availability follows the vehicle's active passenger/reservation count rather than stale ids intentionally retained
 outside that prefix during unloading, so both coasters and transports can refill normally after their first trip.
 
+The transport service and platform implementation has also been tightened around explicit ownership. Ride mutation points mark
+cached services dirty instead of every route query re-hashing all rides and measured legs. Vehicle configuration owns consist
+shape, platform capture owns wait geometry, and save loading is the validation boundary; normal boarding trusts those invariants
+instead of maintaining a duplicate consist description and many silent recovery branches.
+
 More detail: [Transport ride routing rationale](docs/transport-ride-routing-rationale.md).
 
 ### Performance work is measured against EverythingPark
@@ -136,11 +141,19 @@ shown as an error, with orderly shutdown, rather than silently changing to borde
 fallback sprites retain the software renderer's no-op semantics instead of becoming invalid GPU-atlas allocations during the
 first park draw.
 
-The full hidden EverythingPark benchmark now measures the real paint/presentation path instead of inferring renderer cost from
-the headless simulation. Three-run medians at ordinary Turbo and VSync off are 318.324 TPS for software, 318.323 for OpenGL,
-and 318.400 for Vulkan, all at about 13.4 presented FPS. Vulkan spends only 139.091 us on the GPU per frame and keeps 318.400
-TPS with the render worker active; a VSync-enabled check reaches 316.830 TPS. Renderer and VSync overrides are process-local,
-the benchmark is silent and hidden, and its startup/finish drains keep warm-up GPU work out of the measured interval.
+The full hidden EverythingPark benchmark measures the real paint/presentation path instead of inferring renderer cost from the
+headless simulation. Its first throughput-oriented matrix deliberately limited Turbo to about 13.4 FPS and reached 318.324 TPS
+for software, 318.323 for OpenGL, and 318.400 for Vulkan; the equivalent Vulkan/VSync row was 316.830 TPS at 13.334 FPS. That
+throttle is gone. Turbo now yields between completed logical ticks, follows SDL's current display refresh rate on an anchored
+deadline, and keeps messages, mouse/window input, UI updates, painting, and Vulkan presentation moving independently of the
+eight-update 40 Hz simulation batch. Vulkan VSync prefers MAILBOX presentation so stale queued images are replaced rather than
+shown later. Two warmed 144 Hz EverythingPark runs both produced 144.018 FPS, with 264.897/265.265 logical TPS, 156-159 message
+pumps per second, roughly 7.1 ms median frame intervals, and maxima below 11.4 ms. The lower TPS is the explicit cost of spending
+about a quarter of wall time on smooth presentation instead of only 67 paints in five seconds. The benchmark now reports cadence
+percentiles and longest UI-bounded simulation slices as well as average TPS/FPS; it defaults to a hidden window and provides
+the optional `--benchmark-visible` compositor/playability row. Renderer and VSync overrides are
+process-local, and startup/finish drains keep warm-up
+GPU work out of the measured interval.
 
 More detail: [EverythingPark 320 TPS refactor plan](docs/performance-320-tps-refactor-plan.md),
 [Path topology cache](docs/path-topology-cache.md), [Shared destination route fields](docs/shared-route-fields.md),

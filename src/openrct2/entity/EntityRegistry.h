@@ -37,9 +37,7 @@ namespace OpenRCT2
 
     class EntityRegistry;
 
-    // Ascending entity-id membership with no per-entity allocation. Iterators preselect the next numeric id before exposing
-    // the current entity, matching the former list cursor: removing the current entity is safe, removals ahead are skipped,
-    // and insertions before the preselected next id are not newly visited.
+    // Allocation-free ascending membership with the former list iterator's mutation semantics.
     class EntityIdList
     {
     private:
@@ -57,57 +55,43 @@ namespace OpenRCT2
             if (start >= kMaxEntities)
                 return kEndIndex;
 
-            auto wordIndex = static_cast<size_t>(start / kBitsPerWord);
-            auto word = _membership[wordIndex] & (~uint64_t{ 0 } << (start % kBitsPerWord));
-            for (;;)
+            const auto firstWord = static_cast<size_t>(start / kBitsPerWord);
+            for (auto wordIndex = firstWord; wordIndex < kWordCount; wordIndex++)
             {
+                auto word = _membership[wordIndex];
+                if (wordIndex == firstWord)
+                    word &= ~uint64_t{ 0 } << (start % kBitsPerWord);
                 if (word != 0)
                 {
                     const auto index = static_cast<uint32_t>(
                         (wordIndex * kBitsPerWord) + static_cast<size_t>(std::countr_zero(word)));
                     return index < kMaxEntities ? index : kEndIndex;
                 }
-                wordIndex++;
-                if (wordIndex >= kWordCount)
-                    return kEndIndex;
-                word = _membership[wordIndex];
             }
+            return kEndIndex;
         }
 
         [[nodiscard]] bool Contains(uint32_t index) const noexcept
         {
-            if (index >= kMaxEntities)
-                return false;
             return (_membership[index / kBitsPerWord] & (uint64_t{ 1 } << (index % kBitsPerWord))) != 0;
         }
 
-        bool insert(EntityId id) noexcept
+        bool SetMembership(EntityId id, bool present) noexcept
         {
             const auto index = id.ToUnderlying();
             if (index >= kMaxEntities)
                 return false;
             const auto mask = uint64_t{ 1 } << (index % kBitsPerWord);
             auto& word = _membership[index / kBitsPerWord];
-            if (word & mask)
+            if (((word & mask) != 0) == present)
                 return false;
-            word |= mask;
-            _size++;
+            word ^= mask;
+            _size = present ? _size + 1 : _size - 1;
             return true;
         }
 
-        bool erase(EntityId id) noexcept
-        {
-            const auto index = id.ToUnderlying();
-            if (index >= kMaxEntities)
-                return false;
-            const auto mask = uint64_t{ 1 } << (index % kBitsPerWord);
-            auto& word = _membership[index / kBitsPerWord];
-            if (!(word & mask))
-                return false;
-            word &= ~mask;
-            _size--;
-            return true;
-        }
+        bool insert(EntityId id) noexcept { return SetMembership(id, true); }
+        bool erase(EntityId id) noexcept { return SetMembership(id, false); }
 
         void clear() noexcept
         {
@@ -148,10 +132,7 @@ namespace OpenRCT2
 
             const_iterator& operator++() noexcept
             {
-                // The next live id was already selected before the caller saw
-                // the current entity. Re-search only if it was removed in the
-                // meantime; this preserves mutation visibility without paying
-                // a second bit scan for every ordinary element.
+                // Preserve the old list iterator's mutation semantics: current removal is safe and removed lookahead is skipped.
                 _index = _nextIndex;
                 if (_index < kEndIndex && !_list->Contains(_index))
                     _index = _list->FindNext(_index + 1);
@@ -168,8 +149,6 @@ namespace OpenRCT2
 
             bool operator==(const const_iterator& other) const noexcept
             {
-                // Lookahead is an iteration detail and may legitimately differ after mutation. Iterator identity is the
-                // owning range and current position only.
                 return _list == other._list && _index == other._index;
             }
         };
@@ -184,15 +163,8 @@ namespace OpenRCT2
             return const_iterator(*this, kEndIndex);
         }
 
-        [[nodiscard]] size_t size() const noexcept
-        {
-            return _size;
-        }
-
-        [[nodiscard]] bool empty() const noexcept
-        {
-            return _size == 0;
-        }
+        [[nodiscard]] size_t size() const noexcept { return _size; }
+        [[nodiscard]] bool empty() const noexcept { return _size == 0; }
     };
 
     union Entity_t
@@ -238,6 +210,17 @@ namespace OpenRCT2
         std::vector<EntityId> _spatialIndexDirtyEntities;
         std::bitset<kMaxEntities> _spatialIndexDirtyQueued;
 
+        template<typename T>
+        static T* CastEntity(EntityBase* entity)
+        {
+            if constexpr (std::is_same_v<T, EntityBase>)
+                return entity;
+            else if constexpr (requires { T::cEntityType; })
+                return entity != nullptr && entity->type == T::cEntityType ? entity->cast<T>() : nullptr;
+            else
+                return entity == nullptr ? nullptr : entity->as<T>();
+        }
+
     public:
         uint16_t GetEntityListCount(EntityType type);
         uint16_t GetNumFreeEntities();
@@ -249,20 +232,7 @@ namespace OpenRCT2
         {
             if (entityId.IsNull())
                 return nullptr;
-
-            auto* ent = &entities[entityId.ToUnderlying()].base;
-            if constexpr (std::is_same_v<T, EntityBase>)
-            {
-                return ent;
-            }
-            else if constexpr (requires { T::cEntityType; })
-            {
-                return ent->type == T::cEntityType ? ent->cast<T>() : nullptr;
-            }
-            else
-            {
-                return ent->as<T>();
-            }
+            return CastEntity<T>(&entities[entityId.ToUnderlying()].base);
         }
 
         EntityBase* TryGetEntity(EntityId entityId)
@@ -274,23 +244,7 @@ namespace OpenRCT2
         template<typename T>
         T* TryGetEntity(EntityId entityId)
         {
-            auto* ent = TryGetEntity(entityId);
-            if (ent == nullptr)
-            {
-                return nullptr;
-            }
-            if constexpr (std::is_same_v<T, EntityBase>)
-            {
-                return ent;
-            }
-            else if constexpr (requires { T::cEntityType; })
-            {
-                return ent->type == T::cEntityType ? ent->cast<T>() : nullptr;
-            }
-            else
-            {
-                return ent->as<T>();
-            }
+            return CastEntity<T>(TryGetEntity(entityId));
         }
 
         const std::vector<EntityId>& GetEntityTileList(const CoordsXY& spritePos);

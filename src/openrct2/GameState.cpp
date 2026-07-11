@@ -125,12 +125,12 @@ namespace OpenRCT2
         }
 
         auto networkMode = Network::GetMode();
-        const bool isNetworked = networkMode != Network::Mode::none;
-        if (isNetworked)
+        if (networkMode != Network::Mode::none)
         {
             Network::Update();
             networkMode = Network::GetMode();
         }
+        const bool isNetworked = networkMode != Network::Mode::none;
 
         if (networkMode == Network::Mode::client && Network::GetStatus() == Network::Status::connected
             && Network::GetAuthstatus() == Network::Auth::ok)
@@ -209,6 +209,13 @@ namespace OpenRCT2
             const bool updatePresentationAudio = i + 1 == numUpdates;
             gameStateUpdateLogic(updatePresentationAudio);
             didUpdatePresentationAudio |= updatePresentationAudio;
+
+            // The logical update is the deterministic unit. Turbo may yield presentation between those complete units so an
+            // eight-update base batch does not monopolise the main thread for multiple display refreshes.
+            if (!isNetworked && i + 1 < numUpdates)
+            {
+                GetContext()->YieldToUi();
+            }
             // Speed actions execute from the end-of-tick action queue. Do not finish a batch sized for the previous speed;
             // return to the outer loop so messages, input, and the new cadence take effect immediately.
             if (!isNetworked && gGameSpeed != batchStartSpeed)

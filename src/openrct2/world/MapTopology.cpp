@@ -62,14 +62,7 @@ namespace OpenRCT2::MapTopology
 
         [[nodiscard]] Generation NextGeneration() noexcept
         {
-            auto generation = _state.epoch.fetch_add(1, std::memory_order_acq_rel) + 1;
-            if (generation == 0)
-            {
-                // Practically unreachable, but never expose zero because it is reserved as an invalid generation.
-                generation = 1;
-                _state.epoch.store(generation, std::memory_order_release);
-            }
-            return generation;
+            return _state.epoch.fetch_add(1, std::memory_order_acq_rel) + 1;
         }
 
         void InvalidateTileAndNeighbours(const TileCoordsXY& tile, bool affectsPathConnectivity) noexcept

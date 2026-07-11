@@ -11,6 +11,8 @@
 
     #include "VulkanResources.h"
 
+    #include "VulkanShader.h"
+
     #include <algorithm>
     #include <stdexcept>
     #include <string>
@@ -20,19 +22,6 @@ namespace OpenRCT2::Ui::Vulkan
 {
     namespace
     {
-        [[noreturn]] void ThrowVk(const char* operation, VkResult result)
-        {
-            throw std::runtime_error(std::string(operation) + " failed with Vulkan result " + std::to_string(result));
-        }
-
-        void CheckVk(VkResult result, const char* operation)
-        {
-            if (result != VK_SUCCESS)
-            {
-                ThrowVk(operation, result);
-            }
-        }
-
         uint32_t FindDeviceMemoryType(
             VkPhysicalDevice physicalDevice, uint32_t typeBits, VkMemoryPropertyFlags requiredProperties)
         {
@@ -138,18 +127,9 @@ namespace OpenRCT2::Ui::Vulkan
     {
         if (_device != VK_NULL_HANDLE)
         {
-            if (_view != VK_NULL_HANDLE)
-            {
-                vkDestroyImageView(_device, _view, nullptr);
-            }
-            if (_image != VK_NULL_HANDLE)
-            {
-                vkDestroyImage(_device, _image, nullptr);
-            }
-            if (_memory != VK_NULL_HANDLE)
-            {
-                vkFreeMemory(_device, _memory, nullptr);
-            }
+            vkDestroyImageView(_device, _view, nullptr);
+            vkDestroyImage(_device, _image, nullptr);
+            vkFreeMemory(_device, _memory, nullptr);
         }
         _device = VK_NULL_HANDLE;
         _image = VK_NULL_HANDLE;
@@ -173,8 +153,8 @@ namespace OpenRCT2::Ui::Vulkan
         _hasLightAccumulators = createLightAccumulators;
 
         _spriteAtlas.Initialise(
-            _physicalDevice, _device, { Gpu::kAtlasDimension, Gpu::kAtlasDimension, 1 }, Gpu::kAtlasLayers,
-            VK_FORMAT_R8_UINT, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+            _physicalDevice, _device, { Gpu::kAtlasDimension, Gpu::kAtlasDimension, 1 }, Gpu::kAtlasLayers, VK_FORMAT_R8_UINT,
+            VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
             VK_IMAGE_ASPECT_COLOR_BIT);
         for (auto& palette : _palettes)
         {
@@ -223,7 +203,7 @@ namespace OpenRCT2::Ui::Vulkan
     void IndexedResources::Dispose()
     {
         DestroyCanvases();
-        if (_nearestSampler != VK_NULL_HANDLE && _device != VK_NULL_HANDLE)
+        if (_device != VK_NULL_HANDLE)
         {
             vkDestroySampler(_device, _nearestSampler, nullptr);
         }
@@ -391,8 +371,7 @@ namespace OpenRCT2::Ui::Vulkan
             hasShaderLayout ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED,
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, range,
             hasShaderLayout ? VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT : VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-            VK_PIPELINE_STAGE_TRANSFER_BIT, hasShaderLayout ? VK_ACCESS_SHADER_READ_BIT : 0,
-            VK_ACCESS_TRANSFER_WRITE_BIT);
+            VK_PIPELINE_STAGE_TRANSFER_BIT, hasShaderLayout ? VK_ACCESS_SHADER_READ_BIT : 0, VK_ACCESS_TRANSFER_WRITE_BIT);
 
         const VkBufferImageCopy copy = {
             .bufferOffset = allocation.offset,
@@ -411,9 +390,9 @@ namespace OpenRCT2::Ui::Vulkan
             commandBuffer, allocation.buffer, image.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
 
         RecordImageBarrier(
-            commandBuffer, image.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, range, VK_PIPELINE_STAGE_TRANSFER_BIT,
-            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+            commandBuffer, image.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            range, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
+            VK_ACCESS_SHADER_READ_BIT);
         hasShaderLayout = true;
     }
 
@@ -444,8 +423,7 @@ namespace OpenRCT2::Ui::Vulkan
             commandBuffer, lightMap.GetImage(),
             _lightMapHasShaderLayout[frameIndex] ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED,
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, range,
-            _lightMapHasShaderLayout[frameIndex] ? VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
-                                                 : VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+            _lightMapHasShaderLayout[frameIndex] ? VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT : VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
             VK_PIPELINE_STAGE_TRANSFER_BIT, _lightMapHasShaderLayout[frameIndex] ? VK_ACCESS_SHADER_READ_BIT : 0,
             VK_ACCESS_TRANSFER_WRITE_BIT);
         const VkBufferImageCopy copy = {
@@ -462,12 +440,11 @@ namespace OpenRCT2::Ui::Vulkan
             .imageExtent = { width, height, 1 },
         };
         vkCmdCopyBufferToImage(
-            commandBuffer, intensityAllocation.buffer, lightMap.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
-            &copy);
+            commandBuffer, intensityAllocation.buffer, lightMap.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
         RecordImageBarrier(
-            commandBuffer, lightMap.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, range, VK_PIPELINE_STAGE_TRANSFER_BIT,
-            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+            commandBuffer, lightMap.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            range, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
+            VK_ACCESS_SHADER_READ_BIT);
         _lightMapHasShaderLayout[frameIndex] = true;
 
         RecordRgbaPaletteUpload(
@@ -478,7 +455,8 @@ namespace OpenRCT2::Ui::Vulkan
     void IndexedResources::RecordLightPaletteUpload(
         VkCommandBuffer commandBuffer, uint32_t frameIndex, const UploadAllocation& paletteAllocation)
     {
-        if (frameIndex >= kFramesInFlight) throw std::out_of_range("Vulkan LightFX palette frame index is out of range");
+        if (frameIndex >= kFramesInFlight)
+            throw std::out_of_range("Vulkan LightFX palette frame index is out of range");
         RecordRgbaPaletteUpload(
             commandBuffer, paletteAllocation, _lightPalettes[frameIndex], _lightPaletteHasShaderLayout[frameIndex],
             "LightFX palette");
@@ -501,9 +479,8 @@ namespace OpenRCT2::Ui::Vulkan
             if (!hasShaderLayout)
             {
                 RecordImageBarrier(
-                    commandBuffer, image.GetImage(), VK_IMAGE_LAYOUT_UNDEFINED,
-                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, range, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, VK_ACCESS_SHADER_READ_BIT);
+                    commandBuffer, image.GetImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, range,
+                    VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, VK_ACCESS_SHADER_READ_BIT);
                 hasShaderLayout = true;
             }
         };
@@ -511,8 +488,7 @@ namespace OpenRCT2::Ui::Vulkan
         ensureLayout(_lightPalettes[frameIndex], _lightPaletteHasShaderLayout[frameIndex]);
     }
 
-    void IndexedResources::RecordLightFalloffUpload(
-        VkCommandBuffer commandBuffer, const UploadAllocation& allocation)
+    void IndexedResources::RecordLightFalloffUpload(VkCommandBuffer commandBuffer, const UploadAllocation& allocation)
     {
         constexpr VkDeviceSize byteSize = 8 * 256 * 256;
         if (allocation.size < byteSize)
@@ -548,20 +524,17 @@ namespace OpenRCT2::Ui::Vulkan
         _lightFalloffsHaveShaderLayout = true;
     }
 
-    void IndexedResources::PrepareLightAccumulator(
-        VkCommandBuffer commandBuffer, uint32_t frameIndex, bool prepareForCompute)
+    void IndexedResources::PrepareLightAccumulator(VkCommandBuffer commandBuffer, uint32_t frameIndex, bool prepareForCompute)
     {
         auto& image = _lightAccumulators.at(frameIndex);
         const VkImageSubresourceRange range = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
         RecordImageBarrier(
             commandBuffer, image.GetImage(),
-            _lightAccumulatorHasShaderLayout[frameIndex] ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-                                                         : VK_IMAGE_LAYOUT_UNDEFINED,
+            _lightAccumulatorHasShaderLayout[frameIndex] ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED,
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, range,
             _lightAccumulatorHasShaderLayout[frameIndex] ? VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
                                                          : VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-            VK_PIPELINE_STAGE_TRANSFER_BIT,
-            _lightAccumulatorHasShaderLayout[frameIndex] ? VK_ACCESS_SHADER_READ_BIT : 0,
+            VK_PIPELINE_STAGE_TRANSFER_BIT, _lightAccumulatorHasShaderLayout[frameIndex] ? VK_ACCESS_SHADER_READ_BIT : 0,
             VK_ACCESS_TRANSFER_WRITE_BIT);
         const VkClearColorValue clear = { .uint32 = { 0, 0, 0, 0 } };
         vkCmdClearColorImage(commandBuffer, image.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear, 1, &range);
@@ -576,9 +549,9 @@ namespace OpenRCT2::Ui::Vulkan
         else
         {
             RecordImageBarrier(
-                commandBuffer, image.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, range, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+                commandBuffer, image.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                range, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
+                VK_ACCESS_SHADER_READ_BIT);
             _lightAccumulatorHasShaderLayout[frameIndex] = true;
         }
     }
@@ -589,22 +562,19 @@ namespace OpenRCT2::Ui::Vulkan
         const VkImageSubresourceRange range = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
         RecordImageBarrier(
             commandBuffer, image.GetImage(), VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, range,
-            VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT | VK_ACCESS_SHADER_WRITE_BIT,
-            VK_ACCESS_SHADER_READ_BIT);
+            VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            VK_ACCESS_TRANSFER_WRITE_BIT | VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
         _lightAccumulatorHasShaderLayout[frameIndex] = true;
     }
 
     void IndexedResources::RecordRemapPaletteUpload(VkCommandBuffer commandBuffer, const UploadAllocation& allocation)
     {
-        RecordIndexTableUpload(
-            commandBuffer, allocation, _remapPalette, _remapPaletteHasShaderLayout, "remap-palette");
+        RecordIndexTableUpload(commandBuffer, allocation, _remapPalette, _remapPaletteHasShaderLayout, "remap-palette");
     }
 
     void IndexedResources::RecordBlendPaletteUpload(VkCommandBuffer commandBuffer, const UploadAllocation& allocation)
     {
-        RecordIndexTableUpload(
-            commandBuffer, allocation, _blendPalette, _blendPaletteHasShaderLayout, "blend-palette");
+        RecordIndexTableUpload(commandBuffer, allocation, _blendPalette, _blendPaletteHasShaderLayout, "blend-palette");
     }
 
     void IndexedResources::RecordIndexTableUpload(
@@ -629,8 +599,7 @@ namespace OpenRCT2::Ui::Vulkan
             hasShaderLayout ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED,
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, range,
             hasShaderLayout ? VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT : VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-            VK_PIPELINE_STAGE_TRANSFER_BIT, hasShaderLayout ? VK_ACCESS_SHADER_READ_BIT : 0,
-            VK_ACCESS_TRANSFER_WRITE_BIT);
+            VK_PIPELINE_STAGE_TRANSFER_BIT, hasShaderLayout ? VK_ACCESS_SHADER_READ_BIT : 0, VK_ACCESS_TRANSFER_WRITE_BIT);
 
         const VkBufferImageCopy copy = {
             .bufferOffset = allocation.offset,
@@ -648,14 +617,13 @@ namespace OpenRCT2::Ui::Vulkan
         vkCmdCopyBufferToImage(
             commandBuffer, allocation.buffer, image.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
         RecordImageBarrier(
-            commandBuffer, image.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, range, VK_PIPELINE_STAGE_TRANSFER_BIT,
-            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+            commandBuffer, image.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            range, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
+            VK_ACCESS_SHADER_READ_BIT);
         hasShaderLayout = true;
     }
 
-    void IndexedResources::RecordCanvasClear(
-        VkCommandBuffer commandBuffer, uint32_t frameIndex, uint8_t paletteIndex)
+    void IndexedResources::RecordCanvasClear(VkCommandBuffer commandBuffer, uint32_t frameIndex, uint8_t paletteIndex)
     {
         if (frameIndex >= kFramesInFlight)
         {
@@ -679,22 +647,19 @@ namespace OpenRCT2::Ui::Vulkan
             VK_ACCESS_TRANSFER_WRITE_BIT);
 
         const VkClearColorValue clear = { .uint32 = { paletteIndex, 0, 0, 0 } };
-        vkCmdClearColorImage(
-            commandBuffer, canvas.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear, 1, &range);
+        vkCmdClearColorImage(commandBuffer, canvas.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear, 1, &range);
 
         RecordImageBarrier(
-            commandBuffer, canvas.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, range, VK_PIPELINE_STAGE_TRANSFER_BIT,
-            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+            commandBuffer, canvas.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            range, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
+            VK_ACCESS_SHADER_READ_BIT);
         _canvasHasShaderLayout[frameIndex] = true;
     }
 
     void IndexedResources::RecordCanvasUpload(
-        VkCommandBuffer commandBuffer, uint32_t frameIndex, const UploadAllocation& allocation,
-        const Gpu::CanvasUpload& upload)
+        VkCommandBuffer commandBuffer, uint32_t frameIndex, const UploadAllocation& allocation, const Gpu::CanvasUpload& upload)
     {
-        if (frameIndex >= kFramesInFlight || upload.width == 0 || upload.height == 0
-            || upload.sourcePitch < upload.width)
+        if (frameIndex >= kFramesInFlight || upload.width == 0 || upload.height == 0 || upload.sourcePitch < upload.width)
         {
             throw std::invalid_argument("Invalid Vulkan indexed-canvas upload");
         }
@@ -735,14 +700,13 @@ namespace OpenRCT2::Ui::Vulkan
         vkCmdCopyBufferToImage(
             commandBuffer, allocation.buffer, canvas.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
         RecordImageBarrier(
-            commandBuffer, canvas.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, range, VK_PIPELINE_STAGE_TRANSFER_BIT,
-            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+            commandBuffer, canvas.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            range, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
+            VK_ACCESS_SHADER_READ_BIT);
         _canvasHasShaderLayout[frameIndex] = true;
     }
 
-    void IndexedResources::RecordCanvasAndDepthClear(
-        VkCommandBuffer commandBuffer, uint32_t frameIndex, uint8_t paletteIndex)
+    void IndexedResources::RecordCanvasAndDepthClear(VkCommandBuffer commandBuffer, uint32_t frameIndex, uint8_t paletteIndex)
     {
         RecordCanvasClear(commandBuffer, frameIndex, paletteIndex);
 
@@ -758,8 +722,7 @@ namespace OpenRCT2::Ui::Vulkan
             commandBuffer, depth.GetImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, range,
             VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, VK_ACCESS_TRANSFER_WRITE_BIT);
         constexpr VkClearDepthStencilValue clear = { 1.0f, 0 };
-        vkCmdClearDepthStencilImage(
-            commandBuffer, depth.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear, 1, &range);
+        vkCmdClearDepthStencilImage(commandBuffer, depth.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear, 1, &range);
         RecordImageBarrier(
             commandBuffer, depth.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, range, VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -782,8 +745,7 @@ namespace OpenRCT2::Ui::Vulkan
                 VK_IMAGE_ASPECT_COLOR_BIT);
             _depthCanvases[i].Initialise(
                 _physicalDevice, _device, extent, 1, VK_FORMAT_D32_SFLOAT,
-                VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT
-                    | VK_IMAGE_USAGE_SAMPLED_BIT,
+                VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
                 VK_IMAGE_ASPECT_DEPTH_BIT);
             _compositeCanvases[i].Initialise(
                 _physicalDevice, _device, extent, 1, VK_FORMAT_R8_UINT,
@@ -806,8 +768,7 @@ namespace OpenRCT2::Ui::Vulkan
             {
                 depth.Initialise(
                     _physicalDevice, _device, extent, 1, VK_FORMAT_D32_SFLOAT,
-                    VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-                    VK_IMAGE_ASPECT_DEPTH_BIT);
+                    VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
             }
         }
     }
@@ -866,8 +827,7 @@ namespace OpenRCT2::Ui::Vulkan
             .image = image,
             .subresourceRange = range,
         };
-        vkCmdPipelineBarrier(
-            commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+        vkCmdPipelineBarrier(commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
     }
 } // namespace OpenRCT2::Ui::Vulkan
 

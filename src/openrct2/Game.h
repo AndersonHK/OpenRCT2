@@ -36,6 +36,18 @@ namespace OpenRCT2
     constexpr float kGameMinTimeScale = 0.1f;
     constexpr float kGameMaxTimeScale = 5.0f;
 
+    constexpr uint32_t kDefaultDisplayRefreshRate = 60;
+
+    [[nodiscard]] constexpr uint32_t NormaliseDisplayRefreshRate(uint32_t refreshRate) noexcept
+    {
+        return refreshRate >= 30 && refreshRate <= 1000 ? refreshRate : kDefaultDisplayRefreshRate;
+    }
+
+    [[nodiscard]] constexpr double GetDisplayRefreshIntervalSeconds(uint32_t refreshRate) noexcept
+    {
+        return 1.0 / static_cast<double>(NormaliseDisplayRefreshRate(refreshRate));
+    }
+
     struct BenchmarkStateSnapshot
     {
         uint32_t simulationTick{};
@@ -59,9 +71,12 @@ namespace OpenRCT2
     {
         double elapsedSeconds{};
         uint64_t logicalTicks{};
+        uint64_t simulationBatches{};
         uint64_t draws{};
         double simulationSeconds{};
         double drawSeconds{};
+        double longestSimulationBatchSeconds{};
+        double longestSimulationSliceSeconds{};
     };
 
     struct IntegratedBenchmarkMetrics
@@ -71,30 +86,29 @@ namespace OpenRCT2
         double simulationUtilisationPercent{};
         double drawUtilisationPercent{};
         double meanSimulationMicrosecondsPerLogicalTick{};
+        double meanSimulationMicrosecondsPerBatch{};
         double meanDrawMicroseconds{};
+        double longestSimulationBatchMilliseconds{};
+        double longestSimulationSliceMilliseconds{};
     };
 
     [[nodiscard]] constexpr IntegratedBenchmarkMetrics CalculateIntegratedBenchmarkMetrics(
         const IntegratedBenchmarkTotals& totals) noexcept
     {
-        IntegratedBenchmarkMetrics result;
-        if (totals.elapsedSeconds > 0.0)
-        {
-            result.logicalTicksPerSecond = static_cast<double>(totals.logicalTicks) / totals.elapsedSeconds;
-            result.framesPerSecond = static_cast<double>(totals.draws) / totals.elapsedSeconds;
-            result.simulationUtilisationPercent = totals.simulationSeconds * 100.0 / totals.elapsedSeconds;
-            result.drawUtilisationPercent = totals.drawSeconds * 100.0 / totals.elapsedSeconds;
-        }
-        if (totals.logicalTicks != 0)
-        {
-            result.meanSimulationMicrosecondsPerLogicalTick =
-                totals.simulationSeconds * 1'000'000.0 / static_cast<double>(totals.logicalTicks);
-        }
-        if (totals.draws != 0)
-        {
-            result.meanDrawMicroseconds = totals.drawSeconds * 1'000'000.0 / static_cast<double>(totals.draws);
-        }
-        return result;
+        const auto ratio = [](double value, double divisor) { return divisor > 0.0 ? value / divisor : 0.0; };
+        return {
+            .logicalTicksPerSecond = ratio(static_cast<double>(totals.logicalTicks), totals.elapsedSeconds),
+            .framesPerSecond = ratio(static_cast<double>(totals.draws), totals.elapsedSeconds),
+            .simulationUtilisationPercent = ratio(totals.simulationSeconds * 100.0, totals.elapsedSeconds),
+            .drawUtilisationPercent = ratio(totals.drawSeconds * 100.0, totals.elapsedSeconds),
+            .meanSimulationMicrosecondsPerLogicalTick =
+                ratio(totals.simulationSeconds * 1'000'000.0, static_cast<double>(totals.logicalTicks)),
+            .meanSimulationMicrosecondsPerBatch =
+                ratio(totals.simulationSeconds * 1'000'000.0, static_cast<double>(totals.simulationBatches)),
+            .meanDrawMicroseconds = ratio(totals.drawSeconds * 1'000'000.0, static_cast<double>(totals.draws)),
+            .longestSimulationBatchMilliseconds = totals.longestSimulationBatchSeconds * 1'000.0,
+            .longestSimulationSliceMilliseconds = totals.longestSimulationSliceSeconds * 1'000.0,
+        };
     }
 
     [[nodiscard]] BenchmarkStateSnapshot CaptureBenchmarkStateSnapshot();

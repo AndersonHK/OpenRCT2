@@ -128,14 +128,15 @@ namespace OpenRCT2::Ui::Gpu
 
     private:
         [[nodiscard]] TextureLocation AllocateImage(uint32_t image, int32_t width, int32_t height);
-        [[nodiscard]] std::optional<TextureLocation> QueueImage(ImageId imageId);
-        [[nodiscard]] std::optional<TextureLocation> QueueGlyph(
-            ImageId imageId, const Drawing::PaletteMap& palette);
+        [[nodiscard]] std::optional<TextureLocation> QueueRasterizedImage(
+            ImageId imageId, const Drawing::PaletteMap* palette);
+        void QueueUpload(
+            const TextureLocation& location, const void* pixels, size_t size, uint32_t pitch, bool transient);
         [[nodiscard]] TextureBinding BindForRecording(const TextureLocation& location);
+        void EndRecordingFrame();
         void ApplyInvalidation(uint32_t image);
         void RetireAllocation(const TextureLocation& location);
         void FreeIfUnpinned(uint64_t allocationSerial);
-        void RemovePending(uint32_t image, uint32_t generation);
         void RemovePending(AtlasAllocationId allocation);
     };
 } // namespace OpenRCT2::Ui::Gpu

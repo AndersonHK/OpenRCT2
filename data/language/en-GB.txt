@@ -3865,3 +3865,11 @@ STR_7064    :{BLACK}No station-to-station samples yet
 STR_7065    :Select station-to-station measurements
 STR_7066    :Enable HDR10 output (Vulkan)
 STR_7067    :Use a 10-bit BT.2020/PQ swapchain when the current display and Vulkan driver support it; otherwise use SDR
+STR_7068    :Discount ({STRING})
+STR_7069    :Fair price ({STRING})
+STR_7070    :Expensive ({STRING})
+STR_7071    :Free (no fare)
+STR_7072    :Discount (50% of journey value)
+STR_7073    :Fair price (100% of journey value)
+STR_7074    :Extortive (200% of journey value)
+STR_7075    :waiting for rating

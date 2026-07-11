@@ -31,7 +31,7 @@ namespace OpenRCT2::MapPathRouteCache
         RideId queueRide{ RideId::GetNull() };
         RouteTargetKind kind{ RouteTargetKind::pathOrEntrance };
 
-        [[nodiscard]] bool operator==(const RouteTarget& other) const noexcept;
+        [[nodiscard]] bool operator==(const RouteTarget& other) const noexcept = default;
     };
 
     struct RouteStep
@@ -72,40 +72,32 @@ namespace OpenRCT2::MapPathRouteCache
 
     [[nodiscard]] bool IsPreparedForCurrentTopology() noexcept;
 
-    // Freezes exact MapPathTopology data on the calling thread, builds one private reverse field per sorted target, and
-    // publishes only if the path-connectivity epoch is unchanged after the worker barrier. Dynamic wide-path flags do not
-    // affect these fields and therefore do not invalidate them.
+    // Builds reverse fields from an exact topology snapshot and publishes them if connectivity stays unchanged.
     void Prepare(std::span<const RouteTarget> targets);
 
     [[nodiscard]] std::optional<RouteStep> GetNextStep(
         const RouteTarget& target, const TileCoordsXYZ& source) noexcept;
 
-    // Every current field retains exact path-tile distance. The richer query distinguishes an unavailable field from an
-    // exact-but-unreachable route so callers only use geometric fallback when exact data is unavailable.
+    // Distinguishes an unavailable field from an exact but unreachable route.
     [[nodiscard]] RouteDistance QueryDistanceToTarget(
         const RouteTarget& target, const TileCoordsXYZ& source) noexcept;
 
-    // Ride exits are entrance elements rather than path nodes. This resolves the exact adjacent path connection captured
-    // in the same topology snapshot and measures the remaining walk without a live map search.
+    // Measures from the path adjacent to a ride exit in the same topology snapshot.
     [[nodiscard]] RouteDistance QueryDistanceFromRideExitToTarget(
         const RouteTarget& target, const TileCoordsXYZ& sourceExit, RideId sourceRide) noexcept;
 
-    // Resolves the source node once, then returns the first candidate with the shortest retained exact distance. Candidate
-    // order is the deterministic tie-break. The result is unavailable after topology invalidation or when none is reachable.
+    // Candidate order breaks equal-distance ties.
     [[nodiscard]] std::optional<size_t> GetClosestReachableTargetIndex(
         std::span<const RouteTarget> candidates, const TileCoordsXYZ& source) noexcept;
 
-    // Resolves the source node once and compares every prepared concrete target owned by each candidate ride. Candidate
-    // order and then prepared target order are stable tie-breaks. An exact empty result means none is reachable.
+    // Compares every prepared target owned by each ride; candidate and target order break ties.
     [[nodiscard]] ReachableRideTargetResult GetClosestReachableRideTarget(
         std::span<const RideId> candidates, const TileCoordsXYZ& source) noexcept;
 
-    // Returns a topology-validated concrete target only when this ride has exactly one distinct prepared destination.
-    // Multi-target rides use GetClosestReachableTargetIndex for reachable entrance selection.
+    // Returns a target only when the ride has one distinct prepared destination.
     [[nodiscard]] std::optional<RouteTarget> GetSingleTargetForRide(RideId ride) noexcept;
 
-    // Intended for out-of-band benchmark reporting. Computing this traverses the target fields, so it must not be sampled
-    // from the simulation hot path.
+    // Traverses target fields; keep this out of the simulation hot path.
     [[nodiscard]] Statistics GetStatistics() noexcept;
 
     void Reset() noexcept;

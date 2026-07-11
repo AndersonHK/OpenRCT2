@@ -39,7 +39,6 @@ namespace OpenRCT2::MapPathTopology
             std::array<MapTopology::Generation, kDependencyCount> dependencies{};
             uint64_t buildSerial{};
             bool isExact{};
-            bool isInitialised{};
         };
 
         std::array<CachedChunk, kTotalChunks> _chunks;
@@ -314,7 +313,6 @@ namespace OpenRCT2::MapPathTopology
                 cache.pathTileOffsets[tileIndex] = static_cast<uint32_t>(pathIndex);
             }
             cache.buildSerial = ++_nextBuildSerial;
-            cache.isInitialised = true;
         }
 
         [[nodiscard]] ChunkView MakeView(const CachedChunk& cache, int32_t chunkX, int32_t chunkY) noexcept
@@ -330,41 +328,6 @@ namespace OpenRCT2::MapPathTopology
         }
     } // namespace
 
-    bool PathConnection::IsConnected() const noexcept
-    {
-        return HasFlag(ConnectionFlag::connected);
-    }
-
-    bool PathConnection::HasAmbiguousTarget() const noexcept
-    {
-        return HasFlag(ConnectionFlag::ambiguousTarget);
-    }
-
-    bool PathConnection::HasFlag(ConnectionFlag flag) const noexcept
-    {
-        return (flags & static_cast<uint8_t>(flag)) != 0;
-    }
-
-    bool PathNode::HasFlag(PathNodeFlag flag) const noexcept
-    {
-        return (flags & static_cast<uint8_t>(flag)) != 0;
-    }
-
-    TileCoordsXYZ PathNode::GetLocation(const TileCoordsXY& chunkOrigin) const noexcept
-    {
-        return { chunkOrigin.x + localX, chunkOrigin.y + localY, baseZ };
-    }
-
-    TileCoordsXYZ EntranceNode::GetLocation(const TileCoordsXY& chunkOrigin) const noexcept
-    {
-        return { chunkOrigin.x + localX, chunkOrigin.y + localY, baseZ };
-    }
-
-    ChunkView::operator bool() const noexcept
-    {
-        return buildSerial != 0;
-    }
-
     ChunkView GetChunk(const TileCoordsXY& tile)
     {
         if (!IsValidTile(tile))
@@ -374,7 +337,7 @@ namespace OpenRCT2::MapPathTopology
         const auto chunkY = tile.y / MapTopology::kChunkSize;
         auto& cache = _chunks[GetChunkIndex(chunkX, chunkY)];
         const auto dependencies = GetDependencies(chunkX, chunkY);
-        if (!cache.isInitialised || cache.dependencies != dependencies)
+        if (cache.buildSerial == 0 || cache.dependencies != dependencies)
         {
             BuildChunk(cache, chunkX, chunkY);
         }
@@ -407,11 +370,8 @@ namespace OpenRCT2::MapPathTopology
         for (auto index = first; index < last; index++)
         {
             const auto& path = view.paths[index];
-            if (path.localX == location.x - view.origin.x && path.localY == location.y - view.origin.y
-                && path.baseZ == location.z)
-            {
+            if (path.baseZ == location.z)
                 return &path;
-            }
         }
         return nullptr;
     }
@@ -439,14 +399,6 @@ namespace OpenRCT2::MapPathTopology
     {
         MapPathRouteCache::Reset();
         for (auto& chunk : _chunks)
-        {
-            std::vector<PathNode>().swap(chunk.paths);
-            std::vector<EntranceNode>().swap(chunk.entrances);
-            std::vector<uint32_t>().swap(chunk.pathTileOffsets);
-            chunk.dependencies = {};
-            chunk.buildSerial = 0;
-            chunk.isExact = false;
-            chunk.isInitialised = false;
-        }
+            chunk = {};
     }
 } // namespace OpenRCT2::MapPathTopology

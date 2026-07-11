@@ -43,11 +43,6 @@ namespace OpenRCT2::Ui::Gpu
             }
         };
 
-        [[nodiscard]] TextureBinding ToBinding(const TextureLocation& location)
-        {
-            return { location.index, location.coords };
-        }
-
         [[nodiscard]] bool AllocationLess(const AtlasAllocationId& lhs, const AtlasAllocationId& rhs) noexcept
         {
             if (lhs.atlas != rhs.atlas)
@@ -88,8 +83,25 @@ namespace OpenRCT2::Ui::Gpu
         {
             return BindForRecording(it->second);
         }
-        const auto location = QueueImage(imageId);
-        return location.has_value() ? BindForRecording(*location) : TextureBinding{};
+        const auto location = QueueRasterizedImage(imageId, nullptr);
+        if (!location.has_value())
+        {
+            return {};
+        }
+        try
+        {
+            if (!_images.emplace(image, *location).second)
+            {
+                throw std::logic_error("GPU image was inserted into the texture cache twice");
+            }
+        }
+        catch (...)
+        {
+            RemovePending(location->GetAllocationId());
+            RetireAllocation(*location);
+            throw;
+        }
+        return BindForRecording(*location);
     }
 
     TextureBinding TextureCache::GetOrLoadGlyphTexture(ImageId imageId, const PaletteMap& palette)
@@ -117,7 +129,7 @@ namespace OpenRCT2::Ui::Gpu
             return BindForRecording(it->second);
         }
 
-        const auto location = QueueGlyph(imageId, palette);
+        const auto location = QueueRasterizedImage(imageId, &palette);
         if (!location.has_value())
         {
             return {};
@@ -162,10 +174,7 @@ namespace OpenRCT2::Ui::Gpu
         auto location = AllocateImage(kTransientImage, static_cast<int32_t>(width), static_cast<int32_t>(height));
         try
         {
-            PendingUpload pending{ location, static_cast<uint32_t>(width), {}, true };
-            pending.pixels.resize(width * height);
-            std::memcpy(pending.pixels.data(), pixels, pending.pixels.size());
-            _pendingUploads.push_back(std::move(pending));
+            QueueUpload(location, pixels, width * height, static_cast<uint32_t>(width), true);
             _frameTransientLocations.push_back(location);
             return BindForRecording(location);
         }
@@ -261,20 +270,7 @@ namespace OpenRCT2::Ui::Gpu
         }
 
         commands.textureUploads = std::move(uploads);
-        std::erase_if(_pendingUploads, [](const PendingUpload& pending) { return pending.transient; });
-        for (const auto& location : _frameTransientLocations)
-        {
-            RetireAllocation(location);
-        }
-
-        _recordingFrame = false;
-        _frameAllocations.clear();
-        _frameTransientLocations.clear();
-        for (const auto image : _deferredInvalidations)
-        {
-            ApplyInvalidation(image);
-        }
-        _deferredInvalidations.clear();
+        EndRecordingFrame();
         return token;
     }
 
@@ -320,19 +316,7 @@ namespace OpenRCT2::Ui::Gpu
             throw std::logic_error("GPU texture cache has no active frame");
         }
 
-        std::erase_if(_pendingUploads, [](const PendingUpload& pending) { return pending.transient; });
-        for (const auto& location : _frameTransientLocations)
-        {
-            RetireAllocation(location);
-        }
-        _recordingFrame = false;
-        _frameAllocations.clear();
-        _frameTransientLocations.clear();
-        for (const auto image : _deferredInvalidations)
-        {
-            ApplyInvalidation(image);
-        }
-        _deferredInvalidations.clear();
+        EndRecordingFrame();
     }
 
     void TextureCache::InvalidateImage(uint32_t image)
@@ -354,7 +338,9 @@ namespace OpenRCT2::Ui::Gpu
     void TextureCache::ApplyInvalidation(uint32_t image)
     {
         const uint32_t oldGeneration = _generations[image]++;
-        RemovePending(image, oldGeneration);
+        std::erase_if(_pendingUploads, [image, oldGeneration](const PendingUpload& pending) {
+            return pending.location.image == image && pending.location.generation == oldGeneration;
+        });
 
         if (const auto it = _images.find(image); it != _images.end())
         {
@@ -395,43 +381,29 @@ namespace OpenRCT2::Ui::Gpu
         }
         const auto generation = _generations[image];
 
+        AtlasPage* target = nullptr;
         for (auto& atlas : _atlases)
         {
             if (atlas.GetFreeSlots() > 0 && atlas.IsImageSuitable(width, height))
             {
-                auto location = atlas.Allocate(width, height);
-                location.image = image;
-                location.generation = generation;
-                location.allocationSerial = _nextAllocationSerial;
-                try
-                {
-                    const auto insertion = _allocations.emplace(
-                        location.allocationSerial, AllocationState{ .location = location });
-                    if (!insertion.second)
-                    {
-                        throw std::logic_error("GPU atlas allocation identity collision");
-                    }
-                }
-                catch (...)
-                {
-                    atlas.Free(location);
-                    throw;
-                }
-                _nextAllocationSerial++;
-                return location;
+                target = &atlas;
+                break;
             }
         }
 
-        if (_atlases.size() >= _maxAtlasLayers)
+        if (target == nullptr)
         {
-            throw std::runtime_error("GPU sprite atlas layer limit reached");
+            if (_atlases.size() >= _maxAtlasLayers)
+            {
+                throw std::runtime_error("GPU sprite atlas layer limit reached");
+            }
+            const int32_t order = AtlasPage::CalculateImageSizeOrder(width, height);
+            _atlases.emplace_back(static_cast<uint32_t>(_atlases.size()), 1 << order);
+            target = &_atlases.back();
+            target->Initialise(kResidentAtlasDimension, kResidentAtlasDimension);
         }
-        const int32_t order = AtlasPage::CalculateImageSizeOrder(width, height);
-        const int32_t slotSize = 1 << order;
-        _atlases.emplace_back(static_cast<uint32_t>(_atlases.size()), slotSize);
-        _atlases.back().Initialise(kResidentAtlasDimension, kResidentAtlasDimension);
 
-        auto location = _atlases.back().Allocate(width, height);
+        auto location = target->Allocate(width, height);
         location.image = image;
         location.generation = generation;
         location.allocationSerial = _nextAllocationSerial;
@@ -446,14 +418,15 @@ namespace OpenRCT2::Ui::Gpu
         }
         catch (...)
         {
-            _atlases.back().Free(location);
+            target->Free(location);
             throw;
         }
         _nextAllocationSerial++;
         return location;
     }
 
-    std::optional<TextureLocation> TextureCache::QueueImage(ImageId imageId)
+    std::optional<TextureLocation> TextureCache::QueueRasterizedImage(
+        ImageId imageId, const PaletteMap* palette)
     {
         const auto* element = GfxGetG1Element(imageId);
         if (element == nullptr || element->width <= 0 || element->height <= 0)
@@ -462,19 +435,22 @@ namespace OpenRCT2::Ui::Gpu
         }
 
         OwnedRenderTarget raster(element->width, element->height);
-        GfxDrawSpriteSoftware(raster.target, ImageId(imageId.GetIndex()), { -element->xOffset, -element->yOffset });
+        if (palette == nullptr)
+        {
+            GfxDrawSpriteSoftware(
+                raster.target, ImageId(imageId.GetIndex()), { -element->xOffset, -element->yOffset });
+        }
+        else
+        {
+            GfxDrawSpritePaletteSetSoftware(
+                raster.target, imageId, { -element->xOffset, -element->yOffset }, *palette);
+        }
         auto location = AllocateImage(imageId.GetIndex(), raster.target.width, raster.target.height);
         try
         {
-            _pendingUploads.push_back({ location, static_cast<uint32_t>(raster.target.width), {}, false });
-            auto& upload = _pendingUploads.back();
-            upload.pixels.resize(raster.pixels.size() * sizeof(PaletteIndex));
-            std::memcpy(upload.pixels.data(), raster.pixels.data(), upload.pixels.size());
-            const auto insertion = _images.emplace(imageId.GetIndex(), location);
-            if (!insertion.second)
-            {
-                throw std::logic_error("GPU image was inserted into the texture cache twice");
-            }
+            QueueUpload(
+                location, raster.pixels.data(), raster.pixels.size() * sizeof(PaletteIndex),
+                static_cast<uint32_t>(raster.target.width), false);
             return location;
         }
         catch (...)
@@ -485,46 +461,40 @@ namespace OpenRCT2::Ui::Gpu
         }
     }
 
-    std::optional<TextureLocation> TextureCache::QueueGlyph(ImageId imageId, const PaletteMap& palette)
+    void TextureCache::QueueUpload(
+        const TextureLocation& location, const void* pixels, size_t size, uint32_t pitch, bool transient)
     {
-        const auto* element = GfxGetG1Element(imageId);
-        if (element == nullptr || element->width <= 0 || element->height <= 0)
-        {
-            return std::nullopt;
-        }
-
-        OwnedRenderTarget raster(element->width, element->height);
-        GfxDrawSpritePaletteSetSoftware(
-            raster.target, imageId, { -element->xOffset, -element->yOffset }, palette);
-        auto location = AllocateImage(imageId.GetIndex(), raster.target.width, raster.target.height);
-        try
-        {
-            _pendingUploads.push_back({ location, static_cast<uint32_t>(raster.target.width), {}, false });
-            auto& upload = _pendingUploads.back();
-            upload.pixels.resize(raster.pixels.size() * sizeof(PaletteIndex));
-            std::memcpy(upload.pixels.data(), raster.pixels.data(), upload.pixels.size());
-            return location;
-        }
-        catch (...)
-        {
-            RemovePending(location.GetAllocationId());
-            RetireAllocation(location);
-            throw;
-        }
+        PendingUpload pending{ location, pitch, {}, transient };
+        pending.pixels.resize(size);
+        std::memcpy(pending.pixels.data(), pixels, size);
+        _pendingUploads.push_back(std::move(pending));
     }
 
     TextureBinding TextureCache::BindForRecording(const TextureLocation& location)
     {
-        if (!_recordingFrame)
-        {
-            throw std::logic_error("GPU atlas textures can only be resolved while recording a frame");
-        }
         if (location.allocationSerial == 0)
         {
             throw std::logic_error("GPU atlas texture has no allocation identity");
         }
         _frameAllocations.push_back(location.GetAllocationId());
-        return ToBinding(location);
+        return { location.index, location.coords };
+    }
+
+    void TextureCache::EndRecordingFrame()
+    {
+        std::erase_if(_pendingUploads, [](const PendingUpload& pending) { return pending.transient; });
+        for (const auto& location : _frameTransientLocations)
+        {
+            RetireAllocation(location);
+        }
+        _recordingFrame = false;
+        _frameAllocations.clear();
+        _frameTransientLocations.clear();
+        for (const auto image : _deferredInvalidations)
+        {
+            ApplyInvalidation(image);
+        }
+        _deferredInvalidations.clear();
     }
 
     void TextureCache::RetireAllocation(const TextureLocation& location)
@@ -551,13 +521,6 @@ namespace OpenRCT2::Ui::Gpu
             _atlases[location.index].Free(location);
         }
         _allocations.erase(stateIt);
-    }
-
-    void TextureCache::RemovePending(uint32_t image, uint32_t generation)
-    {
-        std::erase_if(_pendingUploads, [image, generation](const PendingUpload& pending) {
-            return pending.location.image == image && pending.location.generation == generation;
-        });
     }
 
     void TextureCache::RemovePending(AtlasAllocationId allocation)

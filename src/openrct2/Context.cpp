@@ -80,6 +80,7 @@
 #include "world/MapAnimation.h"
 #include "world/MapSelection.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <exception>
@@ -101,7 +102,6 @@ namespace OpenRCT2
 
         static constexpr auto kForcedUpdateInterval = 25ms;
         static constexpr uint8_t kTurboGameSpeed = 4;
-        static constexpr float kTurboRenderInterval = 1.0f / 15.0f;
         static constexpr float kActualTpsMeasurementInterval = 0.5f;
         static constexpr auto kIntegratedBenchmarkStartupTimeout = 60s;
 
@@ -181,7 +181,9 @@ namespace OpenRCT2
         float _realtimeAccumulator = 0.0f;
         float _timeScale = 1.0f;
         bool _variableFrame = false;
-        float _fastForwardDrawAccumulator = kTurboRenderInterval;
+        IntegratedBenchmarkClock::time_point _nextDrawDeadline{};
+        double _simulationYieldSeconds{};
+        IntegratedBenchmarkClock::time_point _simulationSliceStart{};
         float _actualTpsTimeAccumulator = 0.0f;
         uint64_t _actualTpsTickAccumulator = 0;
         uint64_t _lastTotalSimulationTicks = gTotalSimulationTicks;
@@ -196,6 +198,7 @@ namespace OpenRCT2
 
         IntegratedBenchmarkPhase _benchmarkPhase = IntegratedBenchmarkPhase::waitingForPark;
         IntegratedBenchmarkClock::time_point _benchmarkPhaseStart{};
+        IntegratedBenchmarkClock::time_point _benchmarkPreviousDrawStart{};
         IntegratedBenchmarkTotals _benchmarkTotals{};
         BenchmarkStateSnapshot _benchmarkInitialState{};
         uint64_t _benchmarkInitialLogicalTicks{};
@@ -203,6 +206,8 @@ namespace OpenRCT2
         uint64_t _benchmarkGpuSamples{};
         uint64_t _benchmarkGpuPassSamples{};
         uint64_t _benchmarkPresentCallSamples{};
+        uint64_t _benchmarkMessagePumps{};
+        uint64_t _benchmarkUiFrames{};
         double _benchmarkSubmitMicroseconds{};
         double _benchmarkPresentMicroseconds{};
         double _benchmarkGpuMicroseconds{};
@@ -211,6 +216,7 @@ namespace OpenRCT2
         double _benchmarkGpuLightFxMicroseconds{};
         double _benchmarkGpuCompositeMicroseconds{};
         double _benchmarkPresentCallMicroseconds{};
+        std::vector<double> _benchmarkFrameIntervalsMilliseconds;
         std::vector<Drawing::FrameTimings> _benchmarkRendererTimingScratch;
         bool _benchmarkFailed{};
 
@@ -684,81 +690,15 @@ namespace OpenRCT2
         void InitialiseDrawingEngine() final override
         {
             assert(_drawingEngine == nullptr);
-
-            const auto initializeEngine = [&](DrawingEngine engine) -> std::unique_ptr<Drawing::IDrawingEngine> {
-                try
-                {
-                    auto drawingEngineFactory = _uiContext->GetDrawingEngineFactory();
-                    auto drawingEngine = drawingEngineFactory->Create(engine, *_uiContext);
-                    if (drawingEngine == nullptr)
-                    {
-                        LOG_FATAL("Unable to create a drawing engine.");
-                        return nullptr;
-                    }
-
-                    drawingEngine->Initialise();
-                    drawingEngine->SetVSync(gIntegratedBenchmark.useVSync.value_or(Config::Get().general.useVSync));
-
-                    return drawingEngine;
-                }
-                catch (std::exception& ex)
-                {
-                    LOG_ERROR(ex.what());
-                    LOG_ERROR("Unable to initialise drawing engine.");
-                }
-                return nullptr;
-            };
-
-            auto drawingEngineType = gIntegratedBenchmark.drawingEngine.value_or(Config::Get().general.drawingEngine);
-
-            // Attempt to create drawing engine of the type specified in the config.
-            {
-                auto drawingEngine = initializeEngine(drawingEngineType);
-                if (drawingEngine != nullptr)
-                {
-                    _drawingEngine = std::move(drawingEngine);
-                }
-                else
-                {
-                    if (gIntegratedBenchmark.enabled && gIntegratedBenchmark.drawingEngine)
-                    {
-                        throw std::runtime_error(
-                            String::stdFormat(
-                                "Integrated UI benchmark could not initialise requested renderer '%s'.",
-                                GetDrawingEngineName(*gIntegratedBenchmark.drawingEngine)));
-                    }
-                    // If the drawing engine creation failed, try to create a software engine.
-                    if (drawingEngineType != DrawingEngine::SoftwareWithHardwareDisplay)
-                    {
-                        drawingEngineType = DrawingEngine::SoftwareWithHardwareDisplay;
-                        LOG_ERROR("Trying fallback back to software...");
-
-                        drawingEngine = initializeEngine(drawingEngineType);
-                        if (drawingEngine != nullptr)
-                        {
-                            _drawingEngine = std::move(drawingEngine);
-                        }
-                        else
-                        {
-                            throw std::runtime_error("Unable to create any renderer.");
-                        }
-                    }
-                }
-            }
-
+            _drawingEngineType = gIntegratedBenchmark.drawingEngine.value_or(Config::Get().general.drawingEngine);
+            _drawingEngine = _uiContext->GetDrawingEngineFactory()->Create(_drawingEngineType, *_uiContext);
             if (_drawingEngine == nullptr)
             {
-                throw std::runtime_error("Unable to create the software renderer.");
+                throw std::runtime_error(
+                    String::stdFormat("Unable to create requested renderer '%s'.", GetDrawingEngineName(_drawingEngineType)));
             }
-
-            _drawingEngineType = drawingEngineType;
-
-            if (!gIntegratedBenchmark.enabled)
-            {
-                Config::Get().general.drawingEngine = drawingEngineType;
-                Config::Save();
-            }
-
+            _drawingEngine->Initialise();
+            _drawingEngine->SetVSync(gIntegratedBenchmark.useVSync.value_or(Config::Get().general.useVSync));
             WindowCheckAllValidZoom();
         }
 
@@ -1380,23 +1320,18 @@ namespace OpenRCT2
             return gGameSpeed >= kTurboGameSpeed && GameIsNotPaused() && Network::GetMode() == Network::Mode::none;
         }
 
-        bool ShouldDrawFrame(float deltaTime)
+        bool ShouldDrawFrame()
         {
             if (!ShouldDraw())
                 return false;
 
             if (!IsOfflineFastForward())
-            {
-                _fastForwardDrawAccumulator = kTurboRenderInterval;
                 return true;
-            }
 
-            _fastForwardDrawAccumulator = std::min(_fastForwardDrawAccumulator + deltaTime, kTurboRenderInterval);
-            if (_fastForwardDrawAccumulator < kTurboRenderInterval)
-                return false;
+            if (_nextDrawDeadline == IntegratedBenchmarkClock::time_point{})
+                return true;
 
-            _fastForwardDrawAccumulator -= kTurboRenderInterval;
-            return true;
+            return IntegratedBenchmarkClock::now() >= _nextDrawDeadline;
         }
 
         void UpdateActualSimulationRate(float deltaTime)
@@ -1451,6 +1386,8 @@ namespace OpenRCT2
             _benchmarkGpuSamples = 0;
             _benchmarkGpuPassSamples = 0;
             _benchmarkPresentCallSamples = 0;
+            _benchmarkMessagePumps = 0;
+            _benchmarkUiFrames = 0;
             _benchmarkSubmitMicroseconds = 0.0;
             _benchmarkPresentMicroseconds = 0.0;
             _benchmarkGpuMicroseconds = 0.0;
@@ -1459,6 +1396,8 @@ namespace OpenRCT2
             _benchmarkGpuLightFxMicroseconds = 0.0;
             _benchmarkGpuCompositeMicroseconds = 0.0;
             _benchmarkPresentCallMicroseconds = 0.0;
+            _benchmarkPreviousDrawStart = {};
+            _benchmarkFrameIntervalsMilliseconds.clear();
             // Complete and discard every warm-up frame so delayed fence samples cannot cross the measurement boundary.
             try
             {
@@ -1474,7 +1413,7 @@ namespace OpenRCT2
             }
             // Do not carry warm-up scheduler debt or snapshot time into the measured interval.
             _ticksAccumulator = 0.0f;
-            _fastForwardDrawAccumulator = kTurboRenderInterval;
+            _nextDrawDeadline = {};
             _timer.Restart();
             _benchmarkPhaseStart = IntegratedBenchmarkClock::now();
             _benchmarkPhase = IntegratedBenchmarkPhase::measurement;
@@ -1504,6 +1443,8 @@ namespace OpenRCT2
             const auto finalState = CaptureBenchmarkStateSnapshot();
             const auto checksum = getGameState().entities.GetAllEntitiesChecksum().ToString();
 
+            std::sort(_benchmarkFrameIntervalsMilliseconds.begin(), _benchmarkFrameIntervalsMilliseconds.end());
+
             Console::WriteLine("Integrated UI benchmark:");
             Console::WriteLine("  renderer:           %s", GetDrawingEngineName(_drawingEngineType));
             Console::WriteLine(
@@ -1513,8 +1454,28 @@ namespace OpenRCT2
             Console::WriteLine("  actual logical TPS: %.3f", metrics.logicalTicksPerSecond);
             Console::WriteLine("  draws / FPS:        %llu / %.3f", static_cast<unsigned long long>(_benchmarkTotals.draws), metrics.framesPerSecond);
             Console::WriteLine(
+                "  message / window:  %llu pumps / %llu updates (%.3f / %.3f Hz)",
+                static_cast<unsigned long long>(_benchmarkMessagePumps), static_cast<unsigned long long>(_benchmarkUiFrames),
+                _benchmarkMessagePumps / _benchmarkTotals.elapsedSeconds, _benchmarkUiFrames / _benchmarkTotals.elapsedSeconds);
+            if (!_benchmarkFrameIntervalsMilliseconds.empty())
+            {
+                const auto percentile = [this](double fraction) {
+                    const auto count = _benchmarkFrameIntervalsMilliseconds.size();
+                    const auto index = std::min(static_cast<size_t>(std::ceil(fraction * count)) - 1, count - 1);
+                    return _benchmarkFrameIntervalsMilliseconds[index];
+                };
+                Console::WriteLine(
+                    "  frame intervals:    %.3f ms p50, %.3f ms p95, %.3f ms p99, %.3f ms max", percentile(0.50),
+                    percentile(0.95), percentile(0.99), _benchmarkFrameIntervalsMilliseconds.back());
+            }
+            Console::WriteLine(
                 "  simulation time:    %.6f s (%.1f%%, %.3f us/logical tick)", _benchmarkTotals.simulationSeconds,
                 metrics.simulationUtilisationPercent, metrics.meanSimulationMicrosecondsPerLogicalTick);
+            Console::WriteLine(
+                "  simulation batches: %llu (%.3f us mean, %.3f ms longest; %.3f ms longest UI-bounded slice)",
+                static_cast<unsigned long long>(_benchmarkTotals.simulationBatches),
+                metrics.meanSimulationMicrosecondsPerBatch, metrics.longestSimulationBatchMilliseconds,
+                metrics.longestSimulationSliceMilliseconds);
             Console::WriteLine(
                 "  draw time:          %.6f s (%.1f%%, %.3f us/draw; includes presentation)", _benchmarkTotals.drawSeconds,
                 metrics.drawUtilisationPercent, metrics.meanDrawMicroseconds);
@@ -1599,9 +1560,10 @@ namespace OpenRCT2
                     // This is process-local benchmark setup, not an in-game command or replay event.
                     gGameSpeed = kTurboGameSpeed;
                     Console::WriteLine(
-                        "Integrated UI benchmark ready: renderer=%s, VSync=%s, hidden window, ordinary Turbo.",
+                        "Integrated UI benchmark ready: renderer=%s, VSync=%s, %s window, ordinary Turbo.",
                         GetDrawingEngineName(_drawingEngineType),
-                        gIntegratedBenchmark.useVSync.value_or(Config::Get().general.useVSync) ? "enabled" : "disabled");
+                        gIntegratedBenchmark.useVSync.value_or(Config::Get().general.useVSync) ? "enabled" : "disabled",
+                        gIntegratedBenchmark.visible ? "visible" : "hidden");
                     if (gIntegratedBenchmark.warmupSeconds == 0)
                     {
                         BeginIntegratedBenchmarkMeasurement();
@@ -1683,7 +1645,7 @@ namespace OpenRCT2
 
             Network::Update();
 
-            const bool shouldDraw = ShouldDrawFrame(deltaTime);
+            const bool shouldDraw = ShouldDrawFrame();
             if (useVariableFrame)
             {
                 RunVariableFrame(shouldDraw);
@@ -1717,6 +1679,16 @@ namespace OpenRCT2
             PROFILED_FUNCTION();
 
             _uiContext->ProcessMessages();
+            if (_benchmarkPhase == IntegratedBenchmarkPhase::measurement)
+                _benchmarkMessagePumps++;
+
+            // A draw that became due while the previous Turbo batch was running must not wait behind another batch. Present
+            // the completed state first; the scene batch remains the minimum non-preemptible simulation slice.
+            if (shouldDraw && IsOfflineFastForward())
+            {
+                Draw();
+                shouldDraw = false;
+            }
 
             if (_ticksAccumulator < kGameUpdateTimeMS)
             {
@@ -1728,9 +1700,9 @@ namespace OpenRCT2
                     ContextHandleInput();
                     UpdateVariableFrameMode();
                     WindowUpdateAll();
+                    if (_benchmarkPhase == IntegratedBenchmarkPhase::measurement)
+                        _benchmarkUiFrames++;
                     Draw();
-                    if (IsOfflineFastForward())
-                        _fastForwardDrawAccumulator = 0.0f;
                 }
                 return;
             }
@@ -1741,9 +1713,10 @@ namespace OpenRCT2
 
                 _ticksAccumulator -= kGameUpdateTimeMS;
 
-                // Return to message and input processing between fast-forward batches. Turbo uses eight logical ticks per
-                // batch.
-                if (IsOfflineFastForward() || ShouldRunVariableFrame())
+                // A visible loop gets at most one 40 Hz scene batch before returning to event and presentation work. Headless
+                // catch-up can still consume the bounded accumulator in one pass. Turbo's scene batch contains eight logical
+                // ticks and remains deterministic; overdue presentation now happens before the following batch.
+                if (ShouldDraw() || IsOfflineFastForward() || ShouldRunVariableFrame())
                     break;
             }
 
@@ -1752,14 +1725,14 @@ namespace OpenRCT2
             ContextHandleInput();
             UpdateVariableFrameMode();
             WindowUpdateAll();
+            if (_benchmarkPhase == IntegratedBenchmarkPhase::measurement)
+                _benchmarkUiFrames++;
 
             // Leaving Turbo on a throttled non-draw frame does not need an immediate full paint. The next outer iteration
             // runs variable mode, whose unthrottled cadence presents the authoritative state with current interpolation.
             if (shouldDraw)
             {
                 Draw();
-                if (IsOfflineFastForward())
-                    _fastForwardDrawAccumulator = 0.0f;
             }
         }
 
@@ -1770,6 +1743,8 @@ namespace OpenRCT2
             auto& tweener = EntityTweener::Get();
 
             _uiContext->ProcessMessages();
+            if (_benchmarkPhase == IntegratedBenchmarkPhase::measurement)
+                _benchmarkMessagePumps++;
 
             bool restoredTweenState = false;
             while (_ticksAccumulator >= kGameUpdateTimeMS)
@@ -1825,6 +1800,8 @@ namespace OpenRCT2
             ContextHandleInput();
             const bool useVariableFrame = UpdateVariableFrameMode();
             WindowUpdateAll();
+            if (_benchmarkPhase == IntegratedBenchmarkPhase::measurement)
+                _benchmarkUiFrames++;
 
             if (shouldDraw)
             {
@@ -1835,14 +1812,34 @@ namespace OpenRCT2
                 }
 
                 Draw();
-                if (IsOfflineFastForward())
-                    _fastForwardDrawAccumulator = 0.0f;
             }
         }
 
         void Draw()
         {
             PROFILED_FUNCTION();
+
+            const auto drawStart = IntegratedBenchmarkClock::now();
+            if (IsOfflineFastForward())
+            {
+                const auto interval = std::chrono::duration_cast<IntegratedBenchmarkClock::duration>(
+                    std::chrono::duration<double>(GetDisplayRefreshIntervalSeconds(_uiContext->GetRefreshRate())));
+                if (_nextDrawDeadline == IntegratedBenchmarkClock::time_point{})
+                {
+                    _nextDrawDeadline = drawStart + interval;
+                }
+                else
+                {
+                    do
+                    {
+                        _nextDrawDeadline += interval;
+                    } while (_nextDrawDeadline <= drawStart);
+                }
+            }
+            else
+            {
+                _nextDrawDeadline = {};
+            }
 
             if (_benchmarkPhase != IntegratedBenchmarkPhase::measurement)
             {
@@ -1852,7 +1849,13 @@ namespace OpenRCT2
                 return;
             }
 
-            const auto benchmarkStart = IntegratedBenchmarkClock::now();
+            const auto benchmarkStart = drawStart;
+            if (_benchmarkPreviousDrawStart != IntegratedBenchmarkClock::time_point{})
+            {
+                _benchmarkFrameIntervalsMilliseconds.push_back(
+                    std::chrono::duration<double, std::milli>(benchmarkStart - _benchmarkPreviousDrawStart).count());
+            }
+            _benchmarkPreviousDrawStart = benchmarkStart;
 
             _drawingEngine->BeginDraw();
             _painter->Paint(*_drawingEngine);
@@ -1885,9 +1888,20 @@ namespace OpenRCT2
                 if (_benchmarkPhase == IntegratedBenchmarkPhase::measurement)
                 {
                     const auto benchmarkStart = IntegratedBenchmarkClock::now();
+                    _simulationYieldSeconds = 0.0;
+                    _simulationSliceStart = benchmarkStart;
                     activeScene->Tick();
-                    _benchmarkTotals.simulationSeconds +=
-                        std::chrono::duration<double>(IntegratedBenchmarkClock::now() - benchmarkStart).count();
+                    const auto benchmarkEnd = IntegratedBenchmarkClock::now();
+                    _benchmarkTotals.longestSimulationSliceSeconds = std::max(
+                        _benchmarkTotals.longestSimulationSliceSeconds,
+                        std::chrono::duration<double>(benchmarkEnd - _simulationSliceStart).count());
+                    _simulationSliceStart = {};
+                    const auto simulationSeconds = std::max(
+                        0.0, std::chrono::duration<double>(benchmarkEnd - benchmarkStart).count() - _simulationYieldSeconds);
+                    _benchmarkTotals.simulationSeconds += simulationSeconds;
+                    _benchmarkTotals.simulationBatches++;
+                    _benchmarkTotals.longestSimulationBatchSeconds =
+                        std::max(_benchmarkTotals.longestSimulationBatchSeconds, simulationSeconds);
                 }
                 else
                 {
@@ -2039,6 +2053,42 @@ namespace OpenRCT2
         float GetTimeScale() const override
         {
             return _timeScale;
+        }
+
+        void YieldToUi() override
+        {
+            if (!IsOfflineFastForward() || !ShouldDraw())
+                return;
+
+            if (!ShouldDrawFrame())
+                return;
+
+            const auto yieldStart = IntegratedBenchmarkClock::now();
+
+            if (_benchmarkPhase == IntegratedBenchmarkPhase::measurement
+                && _simulationSliceStart != IntegratedBenchmarkClock::time_point{})
+            {
+                _benchmarkTotals.longestSimulationSliceSeconds = std::max(
+                    _benchmarkTotals.longestSimulationSliceSeconds,
+                    std::chrono::duration<double>(yieldStart - _simulationSliceStart).count());
+            }
+
+            _uiContext->ProcessMessages();
+            if (_benchmarkPhase == IntegratedBenchmarkPhase::measurement)
+                _benchmarkMessagePumps++;
+            _backgroundWorker.dispatchCompleted();
+            ContextHandleInput();
+            WindowUpdateAll();
+            if (_benchmarkPhase == IntegratedBenchmarkPhase::measurement)
+                _benchmarkUiFrames++;
+            Draw();
+
+            if (_benchmarkPhase == IntegratedBenchmarkPhase::measurement)
+            {
+                const auto yieldEnd = IntegratedBenchmarkClock::now();
+                _simulationYieldSeconds += std::chrono::duration<double>(yieldEnd - yieldStart).count();
+                _simulationSliceStart = yieldEnd;
+            }
         }
 
         JobPool& GetJobPool() override

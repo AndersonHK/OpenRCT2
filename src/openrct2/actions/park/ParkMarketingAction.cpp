@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <iterator>
 #include <limits>
+#include <utility>
 
 namespace OpenRCT2::GameActions
 {
@@ -62,7 +63,7 @@ namespace OpenRCT2::GameActions
         }
         if (_type == ADVERTISING_CAMPAIGN_RIDE_FREE || _type == ADVERTISING_CAMPAIGN_RIDE)
         {
-            if (_item < 0 || static_cast<uint64_t>(_item) > std::numeric_limits<RideId::UnderlyingType>::max())
+            if (!std::in_range<RideId::UnderlyingType>(_item))
             {
                 return Result(Status::invalidParameters, STR_CANT_START_MARKETING_CAMPAIGN, STR_ERR_RIDE_NOT_FOUND);
             }

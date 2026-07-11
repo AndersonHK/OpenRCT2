@@ -966,12 +966,13 @@ namespace OpenRCT2::PathFinding
             ? *exactDirectWalkTime
             : EstimateWalkingTravelTime(walkingSpeed, currentLocation, finalGoal);
         if (directWalkTime <= 0)
-        {
             return false;
-        }
 
         const auto& gameState = getGameState();
         const bool isPrecipitating = Weather::isPrecipitating();
+        const auto freeRideTieTolerance = isPrecipitating
+            ? std::max<TravelTimeMilliseconds>(30'000, directWalkTime / 5)
+            : std::max<TravelTimeMilliseconds>(15'000, directWalkTime / 10);
         struct TransportCandidate
         {
             TravelTimeMilliseconds rankingTime{ std::numeric_limits<TravelTimeMilliseconds>::max() };
@@ -996,9 +997,7 @@ namespace OpenRCT2::PathFinding
             // free-transport tie. Since all route components are non-negative,
             // each walking leg must fit inside this same bound. The extra tile in
             // CalculateTransportCandidateRadiusTiles covers integer truncation.
-            const auto maximumTieTolerance = isPrecipitating ? std::max<TravelTimeMilliseconds>(30'000, directWalkTime / 5)
-                                                             : std::max<TravelTimeMilliseconds>(15'000, directWalkTime / 10);
-            const auto maximumRouteTime = AddClamp<TravelTimeMilliseconds>(directWalkTime, maximumTieTolerance);
+            const auto maximumRouteTime = AddClamp<TravelTimeMilliseconds>(directWalkTime, freeRideTieTolerance);
             const auto radius = CalculateTransportCandidateRadiusTiles(walkingSpeed, maximumRouteTime);
             const auto currentTile = TileCoordsXY{ currentLocation };
             const auto goalTile = TileCoordsXY{ finalGoal };
@@ -1117,11 +1116,8 @@ namespace OpenRCT2::PathFinding
                 {
                     case RidePriceTarget::free:
                     {
-                        const auto tieTolerance = isPrecipitating
-                            ? std::max<TravelTimeMilliseconds>(30'000, directWalkTime / 5)
-                            : std::max<TravelTimeMilliseconds>(15'000, directWalkTime / 10);
-                        isEligible = isEligible || routeTime <= directWalkTime + tieTolerance;
-                        preferenceBonus = tieTolerance;
+                        isEligible = isEligible || routeTime <= directWalkTime + freeRideTieTolerance;
+                        preferenceBonus = freeRideTieTolerance;
                         break;
                     }
                     case RidePriceTarget::goodValue:
@@ -1146,13 +1142,9 @@ namespace OpenRCT2::PathFinding
                         break;
                 }
                 if (effectivePriceTarget == RidePriceTarget::badValue && walkingAlternativeAvailable)
-                {
                     continue;
-                }
                 if (!isEligible && !gameState.cheats.ignorePrice)
-                {
                     continue;
-                }
 
                 auto rankingTime = routeTime - preferenceBonus;
                 if (isPrecipitating)
@@ -1177,9 +1169,7 @@ namespace OpenRCT2::PathFinding
 
         const auto& best = bestNonExtortive.isValid() ? bestNonExtortive : bestExtortive;
         if (!best.isValid())
-        {
             return false;
-        }
 
         peep.setTransportRoute(best.ride, best.boardingStation, best.destinationStation, !bestNonExtortive.isValid());
         return true;
@@ -1189,9 +1179,7 @@ namespace OpenRCT2::PathFinding
     {
         const auto currentGeneration = RideGetTransportServiceCrowdingGeneration();
         if (peep.transportRouteCrowdingGeneration == currentGeneration)
-        {
             return false;
-        }
 
         if (peep.hasTransportRoute())
         {
@@ -1202,9 +1190,7 @@ namespace OpenRCT2::PathFinding
                 && RideIsTransportStationOvercrowded(*selectedRide, peep.CurrentRideStation);
             peep.transportRouteCrowdingGeneration = currentGeneration;
             if (!selectedBoardingIsOvercrowded)
-            {
                 return false;
-            }
             peep.clearTransportRoute();
         }
         peep.transportRoutePlanningInitialised = false;

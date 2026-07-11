@@ -62,12 +62,7 @@ namespace OpenRCT2::Audio
 
         void SetOutputDevice(const std::string& deviceName) override
         {
-            const char* szDeviceName = nullptr;
-            if (!deviceName.empty())
-            {
-                szDeviceName = deviceName.c_str();
-            }
-            _audioMixer->Init(szDeviceName);
+            _audioMixer->Init(deviceName.empty() ? nullptr : deviceName.c_str());
         }
 
         IAudioSource* CreateStreamFromCSS(std::unique_ptr<IStream> stream, uint32_t index) override
@@ -99,7 +94,7 @@ namespace OpenRCT2::Audio
             auto& targetFormat = _audioMixer->GetFormat();
             source = source->ToMemory(targetFormat);
 
-            return AddSource(std::move(source));
+            return _audioMixer->AddSource(std::move(source));
         }
 
         IAudioSource* CreateStreamFromWAV(std::unique_ptr<IStream> stream) override
@@ -122,7 +117,7 @@ namespace OpenRCT2::Audio
                     source = source->ToMemory(targetFormat);
                 }
 
-                return AddSource(std::move(source));
+                return _audioMixer->AddSource(std::move(source));
             }
             catch (const std::exception& e)
             {
@@ -163,11 +158,6 @@ namespace OpenRCT2::Audio
         }
 
     private:
-        IAudioSource* AddSource(std::unique_ptr<SDLAudioSource> source)
-        {
-            return _audioMixer->AddSource(std::move(source));
-        }
-
         static SDL_RWops* StreamToSDL2(std::unique_ptr<IStream> stream)
         {
             auto* rw = SDL_AllocRW();

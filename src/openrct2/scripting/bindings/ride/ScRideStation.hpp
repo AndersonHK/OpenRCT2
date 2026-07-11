@@ -37,6 +37,7 @@ namespace OpenRCT2::Scripting
         static void Finalize(JSRuntime* rt, JSValue thisVal);
         static RideStationData* GetRideStationData(JSValue thisVal);
         static RideStation* GetRideStation(JSValue thisVal);
+        static void StationChanged(JSValue thisVal);
 
         static JSValue start_get(JSContext* ctx, JSValue thisVal);
         static JSValue start_set(JSContext* ctx, JSValue thisVal, JSValue value);

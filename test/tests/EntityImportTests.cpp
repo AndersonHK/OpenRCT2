@@ -246,7 +246,6 @@ TEST_F(EntityImportTests, PassengerUnloadPlanPreservesThroughRidersAndOrdinaryUn
     }
 
     const auto plan = RideVehicle::StationDetail::BuildPassengerUnloadPlan(shouldAlight);
-    EXPECT_EQ(plan.passengerCount, passengerCount);
     EXPECT_EQ(plan.continuingCount, 3u);
     for (size_t index = 0; index < passengerCount; index++)
     {
@@ -364,9 +363,8 @@ TEST_F(EntityImportTests, PlatformSeatBindingPreservesThroughRidersAndBindsFifoT
     second.TshirtColour = Drawing::Colour::brightGreen;
 
     using RideVehicle::StationDetail::BindPlatformGuestToSeat;
-    using RideVehicle::StationDetail::PlatformSeatBindingResult;
-    EXPECT_EQ(BindPlatformGuestToSeat(first, vehicle, 1), PlatformSeatBindingResult::success);
-    EXPECT_EQ(BindPlatformGuestToSeat(second, vehicle, 2), PlatformSeatBindingResult::success);
+    EXPECT_TRUE(BindPlatformGuestToSeat(first, vehicle, 1));
+    EXPECT_TRUE(BindPlatformGuestToSeat(second, vehicle, 2));
 
     EXPECT_EQ(vehicle.next_free_seat, 3u);
     EXPECT_EQ(vehicle.peep[0], throughRider);
@@ -391,21 +389,19 @@ TEST_F(EntityImportTests, PlatformSeatBindingUsesReservedCountAndRejectsActiveDu
     guest.CurrentSeat = 7;
 
     using RideVehicle::StationDetail::BindPlatformGuestToSeat;
-    using RideVehicle::StationDetail::PlatformSeatBindingResult;
-    EXPECT_EQ(BindPlatformGuestToSeat(guest, vehicle, 0), PlatformSeatBindingResult::seatUnavailable);
-    EXPECT_EQ(BindPlatformGuestToSeat(guest, vehicle, 2), PlatformSeatBindingResult::consistMismatch);
+    EXPECT_FALSE(BindPlatformGuestToSeat(guest, vehicle, 0));
 
     // Guests leave from the end of the active passenger range. The fixed seat array deliberately retains their ids after
     // next_free_seat is reduced, so an inactive value must not make an otherwise empty seat unavailable.
     vehicle.peep[1] = guest.id;
-    EXPECT_EQ(BindPlatformGuestToSeat(guest, vehicle, 1), PlatformSeatBindingResult::success);
+    EXPECT_TRUE(BindPlatformGuestToSeat(guest, vehicle, 1));
     EXPECT_EQ(vehicle.next_free_seat, 2u);
     EXPECT_EQ(guest.CurrentSeat, 1u);
 
     vehicle.next_free_seat = 1;
     vehicle.peep[0] = guest.id;
     vehicle.peep[1] = EntityId::GetNull();
-    EXPECT_EQ(BindPlatformGuestToSeat(guest, vehicle, 1), PlatformSeatBindingResult::seatUnavailable);
+    EXPECT_FALSE(BindPlatformGuestToSeat(guest, vehicle, 1));
     EXPECT_EQ(vehicle.next_free_seat, 1u);
     EXPECT_EQ(std::count(std::begin(vehicle.peep), std::end(vehicle.peep), guest.id), 1);
 }
@@ -475,13 +471,7 @@ TEST_F(EntityImportTests, TrainSeatSummaryUsesExactWideCapacityAndReservationCou
     tail->next_free_seat = 8;
 
     const Vehicle& constHead = *head;
-    const auto cars = RideVehicle::StationDetail::BuildTrainCarSummary(constHead);
     const auto summary = RideVehicle::StationDetail::BuildTrainSeatSummary(constHead);
-    EXPECT_EQ(cars.carCount, 3u);
-    EXPECT_TRUE(cars.HasRiders());
-    EXPECT_EQ(cars.cars[0], head);
-    EXPECT_EQ(cars.cars[1], middle);
-    EXPECT_EQ(cars.cars[2], tail);
     EXPECT_EQ(summary.carCount, 3u);
     EXPECT_EQ(summary.capacity, 264u);
     EXPECT_EQ(summary.currentPeeps, 12u);
@@ -494,7 +484,6 @@ TEST_F(EntityImportTests, TrainSeatSummaryUsesExactWideCapacityAndReservationCou
     head->num_peeps = 0;
     middle->num_peeps = 0;
     tail->num_peeps = 0;
-    EXPECT_FALSE(RideVehicle::StationDetail::BuildTrainCarSummary(constHead).HasRiders());
     EXPECT_FALSE(RideVehicle::StationDetail::BuildTrainSeatSummary(constHead).HasRiders());
 }
 

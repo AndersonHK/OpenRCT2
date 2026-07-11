@@ -12,12 +12,25 @@
 #ifdef _MSC_VER
 
     #include <gtest/gtest.h>
+    #include <openrct2/OpenRCT2.h>
     #include <openrct2/core/Guard.hpp>
+    #include <openrct2/core/Path.hpp>
+
+    #include <cstdlib>
 
 int main(int argc, char** argv)
 {
     // Abort on an assertions so the tests do not hang
     OpenRCT2::Guard::SetAssertBehaviour(AssertBehaviour::abort);
+    if (const auto* path = std::getenv("OPENRCT2_TEST_USER_DATA_PATH"))
+    {
+        gCustomUserDataPath = OpenRCT2::Path::GetAbsolute(path);
+        OpenRCT2::Path::CreateDirectory(gCustomUserDataPath);
+    }
+    if (const auto* path = std::getenv("OPENRCT2_TEST_RCT2_PATH"))
+    {
+        gCustomRCT2DataPath = path;
+    }
 
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

@@ -19,12 +19,9 @@
 #include "../profiling/Profiling.h"
 #include "CommandLine.hpp"
 
-#include <algorithm>
 #include <chrono>
 #include <cstdlib>
 #include <memory>
-#include <utility>
-#include <vector>
 
 using namespace OpenRCT2::CommandLine;
 
@@ -40,90 +37,28 @@ namespace OpenRCT2
         bool _benchmark = false;
         u8string _profilePath;
 
-        struct BenchmarkStats
+        BenchmarkClock::duration RunSimulationTicks(int32_t ticks)
         {
-            double elapsedSeconds{};
-            double ticksPerSecond{};
-            double meanMicroseconds{};
-            double minMicroseconds{};
-            double medianMicroseconds{};
-            double p95Microseconds{};
-            double p99Microseconds{};
-            double maxMicroseconds{};
-            double firstQuarterMeanMicroseconds{};
-            double lastQuarterMeanMicroseconds{};
-        };
-
-        double GetPercentileNanoseconds(const std::vector<int64_t>& sortedSamples, double percentile)
-        {
-            const auto rank = percentile * static_cast<double>(sortedSamples.size() - 1);
-            const auto lowerIndex = static_cast<size_t>(rank);
-            const auto upperIndex = std::min(lowerIndex + 1, sortedSamples.size() - 1);
-            const auto fraction = rank - static_cast<double>(lowerIndex);
-            return static_cast<double>(sortedSamples[lowerIndex])
-                + (static_cast<double>(sortedSamples[upperIndex] - sortedSamples[lowerIndex]) * fraction);
-        }
-
-        double GetMeanNanoseconds(const std::vector<int64_t>& samples, size_t first, size_t count)
-        {
-            long double total = 0;
-            for (size_t i = first; i < first + count; i++)
+            const auto start = BenchmarkClock::now();
+            for (int32_t i = 0; i < ticks; i++)
             {
-                total += samples[i];
+                gameStateUpdateLogic();
             }
-            return static_cast<double>(total / count);
+            return BenchmarkClock::now() - start;
         }
 
-        BenchmarkStats GetBenchmarkStats(
-            std::vector<int64_t> tickDurationsNanoseconds, BenchmarkClock::duration measurementDuration)
+        void PrintBenchmarkStats(BenchmarkClock::duration duration, int32_t ticks)
         {
-            const auto trendSampleCount = std::max<size_t>(1, tickDurationsNanoseconds.size() / 4);
-            const auto lastTrendSample = tickDurationsNanoseconds.size() - trendSampleCount;
-            constexpr double nanosecondsPerMicrosecond = 1000.0;
-            const auto firstQuarterMeanNanoseconds = GetMeanNanoseconds(tickDurationsNanoseconds, 0, trendSampleCount);
-            const auto lastQuarterMeanNanoseconds = GetMeanNanoseconds(
-                tickDurationsNanoseconds, lastTrendSample, trendSampleCount);
-            std::sort(tickDurationsNanoseconds.begin(), tickDurationsNanoseconds.end());
-
-            const auto elapsedSeconds = std::chrono::duration<double>(measurementDuration).count();
-            const auto tickCount = static_cast<double>(tickDurationsNanoseconds.size());
-
-            BenchmarkStats result;
-            result.elapsedSeconds = elapsedSeconds;
-            result.ticksPerSecond = tickCount / elapsedSeconds;
-            result.meanMicroseconds = (elapsedSeconds * 1'000'000.0) / tickCount;
-            result.minMicroseconds = static_cast<double>(tickDurationsNanoseconds.front()) / nanosecondsPerMicrosecond;
-            result.medianMicroseconds = GetPercentileNanoseconds(tickDurationsNanoseconds, 0.50) / nanosecondsPerMicrosecond;
-            result.p95Microseconds = GetPercentileNanoseconds(tickDurationsNanoseconds, 0.95) / nanosecondsPerMicrosecond;
-            result.p99Microseconds = GetPercentileNanoseconds(tickDurationsNanoseconds, 0.99) / nanosecondsPerMicrosecond;
-            result.maxMicroseconds = static_cast<double>(tickDurationsNanoseconds.back()) / nanosecondsPerMicrosecond;
-            result.firstQuarterMeanMicroseconds = firstQuarterMeanNanoseconds / nanosecondsPerMicrosecond;
-            result.lastQuarterMeanMicroseconds = lastQuarterMeanNanoseconds / nanosecondsPerMicrosecond;
-            return result;
-        }
-
-        void PrintBenchmarkStats(const BenchmarkStats& stats, int32_t ticks)
-        {
+            const auto elapsedSeconds = std::chrono::duration<double>(duration).count();
+            const auto ticksPerSecond = static_cast<double>(ticks) / elapsedSeconds;
             constexpr double turboTickBudgetMicroseconds = 1'000'000.0 / kTurboTargetTicksPerSecond;
-            const auto trendPercent = stats.firstQuarterMeanMicroseconds > 0.0
-                ? ((stats.lastQuarterMeanMicroseconds / stats.firstQuarterMeanMicroseconds) - 1.0) * 100.0
-                : 0.0;
-            Console::WriteLine("Benchmark measurement:");
+            Console::WriteLine("Benchmark measurement (headless, offline, uncapped logical ticks):");
             Console::WriteLine("  ticks:             %d", ticks);
-            Console::WriteLine("  elapsed:           %.6f s", stats.elapsedSeconds);
-            Console::WriteLine("  actual TPS:        %.3f", stats.ticksPerSecond);
+            Console::WriteLine("  elapsed:           %.6f s", elapsedSeconds);
+            Console::WriteLine("  actual TPS:        %.3f", ticksPerSecond);
             Console::WriteLine(
-                "  Turbo 320 target:  %.1f%% (%.3f TPS remaining)", (stats.ticksPerSecond / kTurboTargetTicksPerSecond) * 100.0,
-                std::max(0.0, kTurboTargetTicksPerSecond - stats.ticksPerSecond));
-            Console::WriteLine("  tick mean:         %.3f us", stats.meanMicroseconds);
-            Console::WriteLine("  tick minimum:      %.3f us", stats.minMicroseconds);
-            Console::WriteLine("  tick median:       %.3f us", stats.medianMicroseconds);
-            Console::WriteLine("  tick p95:          %.3f us", stats.p95Microseconds);
-            Console::WriteLine("  tick p99:          %.3f us", stats.p99Microseconds);
-            Console::WriteLine("  tick maximum:      %.3f us", stats.maxMicroseconds);
-            Console::WriteLine(
-                "  tick trend:        %.3f -> %.3f us first/last quarter (%+.1f%%)", stats.firstQuarterMeanMicroseconds,
-                stats.lastQuarterMeanMicroseconds, trendPercent);
+                "  Turbo 320 target:  %.1f%%", (ticksPerSecond / kTurboTargetTicksPerSecond) * 100.0);
+            Console::WriteLine("  tick mean:         %.3f us", elapsedSeconds * 1'000'000.0 / ticks);
             Console::WriteLine("  Turbo tick budget: %.3f us", turboTickBudgetMicroseconds);
         }
 
@@ -151,7 +86,7 @@ namespace OpenRCT2
     static constexpr CommandLineOptionDefinition kSimulateOptions[]
     {
         { CMDLINE_TYPE_INTEGER, &_warmupTicks, kNAC, "warmup",   "number of unmeasured warm-up ticks (benchmark default: 2000)" },
-        { CMDLINE_TYPE_SWITCH,  &_benchmark,   kNAC, "benchmark", "measure tick throughput and latency distribution" },
+        { CMDLINE_TYPE_SWITCH,  &_benchmark,   kNAC, "benchmark", "measure logical simulation tick throughput" },
         { CMDLINE_TYPE_STRING,  &_profilePath, kNAC, "profile",   "profile measured ticks and export to a .csv or .json file" },
         kOptionTableEnd
     };
@@ -197,36 +132,24 @@ namespace OpenRCT2
         gOpenRCT2Headless = true;
 
 #ifndef DISABLE_NETWORK
-        gNetworkStart = Network::Mode::server;
+        if (!runBenchmark)
+        {
+            gNetworkStart = Network::Mode::server;
+        }
 #endif
 
-        const auto initialiseStart = BenchmarkClock::now();
         std::unique_ptr<IContext> context(CreateContext());
         if (context->Initialise())
         {
-            const auto initialiseDuration = BenchmarkClock::now() - initialiseStart;
-            const auto loadStart = BenchmarkClock::now();
             if (!context->LoadParkFromFile(inputPath))
             {
                 return ExitCode::fail;
-            }
-            const auto loadDuration = BenchmarkClock::now() - loadStart;
-
-            if (runBenchmark)
-            {
-                Console::WriteLine("Context initialisation: %.6f s", std::chrono::duration<double>(initialiseDuration).count());
-                Console::WriteLine("Park load:              %.6f s", std::chrono::duration<double>(loadDuration).count());
             }
 
             if (warmupTicks > 0)
             {
                 Console::WriteLine("Warming up for %d ticks...", warmupTicks);
-                const auto warmupStart = BenchmarkClock::now();
-                for (int32_t i = 0; i < warmupTicks; i++)
-                {
-                    gameStateUpdateLogic();
-                }
-                const auto warmupDuration = BenchmarkClock::now() - warmupStart;
+                const auto warmupDuration = RunSimulationTicks(warmupTicks);
                 if (runBenchmark)
                 {
                     const auto warmupSeconds = std::chrono::duration<double>(warmupDuration).count();
@@ -250,28 +173,7 @@ namespace OpenRCT2
             {
                 initialState = CaptureBenchmarkStateSnapshot();
             }
-            std::vector<int64_t> tickDurationsNanoseconds;
-            if (runBenchmark)
-            {
-                tickDurationsNanoseconds.reserve(ticks);
-            }
-
-            const auto measurementStart = BenchmarkClock::now();
-            for (int32_t i = 0; i < ticks; i++)
-            {
-                if (runBenchmark)
-                {
-                    const auto tickStart = BenchmarkClock::now();
-                    gameStateUpdateLogic();
-                    tickDurationsNanoseconds.push_back(
-                        std::chrono::duration_cast<std::chrono::nanoseconds>(BenchmarkClock::now() - tickStart).count());
-                }
-                else
-                {
-                    gameStateUpdateLogic();
-                }
-            }
-            const auto measurementDuration = BenchmarkClock::now() - measurementStart;
+            const auto measurementDuration = RunSimulationTicks(ticks);
 
             if (!_profilePath.empty())
             {
@@ -286,7 +188,7 @@ namespace OpenRCT2
 
             if (runBenchmark)
             {
-                PrintBenchmarkStats(GetBenchmarkStats(std::move(tickDurationsNanoseconds), measurementDuration), ticks);
+                PrintBenchmarkStats(measurementDuration, ticks);
                 PrintBenchmarkStateSnapshot("Initial", initialState);
                 PrintBenchmarkStateSnapshot("Final", CaptureBenchmarkStateSnapshot());
             }

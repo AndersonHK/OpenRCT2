@@ -17,22 +17,12 @@
     #include <array>
     #include <cstring>
     #include <stdexcept>
-    #include <string>
     #include <utility>
 
 namespace OpenRCT2::Ui::Vulkan
 {
     namespace
     {
-        void CheckVk(VkResult result, const char* operation)
-        {
-            if (result != VK_SUCCESS)
-            {
-                throw std::runtime_error(
-                    std::string(operation) + " failed with Vulkan result " + std::to_string(result));
-            }
-        }
-
         VkDescriptorSet AllocateSet(VkDevice device, VkDescriptorPool pool, VkDescriptorSetLayout layout)
         {
             VkDescriptorSet result = VK_NULL_HANDLE;
@@ -81,58 +71,25 @@ namespace OpenRCT2::Ui::Vulkan
             {
                 for (auto& framebuffer : frame)
                 {
-                    if (framebuffer != VK_NULL_HANDLE)
-                    {
-                        vkDestroyFramebuffer(_device, framebuffer, nullptr);
-                    }
+                    vkDestroyFramebuffer(_device, framebuffer, nullptr);
                 }
             }
             for (auto& frame : _composeFramebuffers)
             {
                 for (auto& framebuffer : frame)
                 {
-                    if (framebuffer != VK_NULL_HANDLE)
-                    {
-                        vkDestroyFramebuffer(_device, framebuffer, nullptr);
-                    }
+                    vkDestroyFramebuffer(_device, framebuffer, nullptr);
                 }
             }
-            if (_peelPipeline != VK_NULL_HANDLE)
-            {
-                vkDestroyPipeline(_device, _peelPipeline, nullptr);
-            }
-            if (_composePipeline != VK_NULL_HANDLE)
-            {
-                vkDestroyPipeline(_device, _composePipeline, nullptr);
-            }
-            if (_peelRenderPass != VK_NULL_HANDLE)
-            {
-                vkDestroyRenderPass(_device, _peelRenderPass, nullptr);
-            }
-            if (_composeRenderPass != VK_NULL_HANDLE)
-            {
-                vkDestroyRenderPass(_device, _composeRenderPass, nullptr);
-            }
-            if (_peelPipelineLayout != VK_NULL_HANDLE)
-            {
-                vkDestroyPipelineLayout(_device, _peelPipelineLayout, nullptr);
-            }
-            if (_composePipelineLayout != VK_NULL_HANDLE)
-            {
-                vkDestroyPipelineLayout(_device, _composePipelineLayout, nullptr);
-            }
-            if (_descriptorPool != VK_NULL_HANDLE)
-            {
-                vkDestroyDescriptorPool(_device, _descriptorPool, nullptr);
-            }
-            if (_peelSetLayout != VK_NULL_HANDLE)
-            {
-                vkDestroyDescriptorSetLayout(_device, _peelSetLayout, nullptr);
-            }
-            if (_composeSetLayout != VK_NULL_HANDLE)
-            {
-                vkDestroyDescriptorSetLayout(_device, _composeSetLayout, nullptr);
-            }
+            vkDestroyPipeline(_device, _peelPipeline, nullptr);
+            vkDestroyPipeline(_device, _composePipeline, nullptr);
+            vkDestroyRenderPass(_device, _peelRenderPass, nullptr);
+            vkDestroyRenderPass(_device, _composeRenderPass, nullptr);
+            vkDestroyPipelineLayout(_device, _peelPipelineLayout, nullptr);
+            vkDestroyPipelineLayout(_device, _composePipelineLayout, nullptr);
+            vkDestroyDescriptorPool(_device, _descriptorPool, nullptr);
+            vkDestroyDescriptorSetLayout(_device, _peelSetLayout, nullptr);
+            vkDestroyDescriptorSetLayout(_device, _composeSetLayout, nullptr);
         }
         _device = VK_NULL_HANDLE;
         _resources = nullptr;
@@ -186,24 +143,21 @@ namespace OpenRCT2::Ui::Vulkan
         RecordImageBarrier(
             frame.commandBuffer, _resources->GetTransparentDepthCanvas(frame.frameIndex, 1).GetImage(),
             VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, depthRange,
-            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
-            VK_ACCESS_SHADER_READ_BIT);
+            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, VK_ACCESS_SHADER_READ_BIT);
         RecordImageBarrier(
             frame.commandBuffer, _resources->GetDepthCanvas(frame.frameIndex).GetImage(),
-            VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
-            depthRange, VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT
+            VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, depthRange,
+            VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT
                 | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
-            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-            VK_ACCESS_TRANSFER_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
             VK_ACCESS_SHADER_READ_BIT);
 
         bool inputComposite = false;
         uint32_t previousDepth = 1;
         uint32_t currentDepth = 0;
         const VkDeviceSize vertexOffset = allocation.offset;
-        const VkViewport viewport = {
-            0.0f, 0.0f, static_cast<float>(_extent.width), static_cast<float>(_extent.height), 0.0f, 1.0f
-        };
+        const VkViewport viewport = { 0.0f, 0.0f, static_cast<float>(_extent.width), static_cast<float>(_extent.height),
+                                      0.0f, 1.0f };
         const VkRect2D scissor = { { 0, 0 }, _extent };
 
         for (uint32_t layer = 0; layer < layerCount; layer++)
@@ -226,12 +180,11 @@ namespace OpenRCT2::Ui::Vulkan
             vkCmdBindDescriptorSets(
                 frame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _peelPipelineLayout, 0, 1,
                 &_peelSets[frame.frameIndex][previousDepth], 0, nullptr);
-            const TransparencyConstants constants = {
-                static_cast<int32_t>(_extent.width), static_cast<int32_t>(_extent.height), layer == 0 ? 0 : 1
-            };
+            const TransparencyConstants constants = { static_cast<int32_t>(_extent.width), static_cast<int32_t>(_extent.height),
+                                                      layer == 0 ? 0 : 1 };
             vkCmdPushConstants(
-                frame.commandBuffer, _peelPipelineLayout,
-                VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(constants), &constants);
+                frame.commandBuffer, _peelPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+                sizeof(constants), &constants);
             vkCmdBindVertexBuffers(frame.commandBuffer, 0, 1, &allocation.buffer, &vertexOffset);
             vkCmdDraw(frame.commandBuffer, 4, static_cast<uint32_t>(commands.size()), 0, 0);
             vkCmdEndRenderPass(frame.commandBuffer);
@@ -267,10 +220,9 @@ namespace OpenRCT2::Ui::Vulkan
         {
             peelBindings[i] = { i, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr };
         }
-        const VkDescriptorSetLayoutCreateInfo peelLayoutInfo = {
-            VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, nullptr, 0,
-            static_cast<uint32_t>(peelBindings.size()), peelBindings.data()
-        };
+        const VkDescriptorSetLayoutCreateInfo peelLayoutInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, nullptr,
+                                                                 0, static_cast<uint32_t>(peelBindings.size()),
+                                                                 peelBindings.data() };
         CheckVk(vkCreateDescriptorSetLayout(_device, &peelLayoutInfo, nullptr, &_peelSetLayout), "create peel layout");
 
         std::array<VkDescriptorSetLayoutBinding, 6> composeBindings{};
@@ -278,10 +230,9 @@ namespace OpenRCT2::Ui::Vulkan
         {
             composeBindings[i] = { i, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr };
         }
-        const VkDescriptorSetLayoutCreateInfo composeLayoutInfo = {
-            VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, nullptr, 0,
-            static_cast<uint32_t>(composeBindings.size()), composeBindings.data()
-        };
+        const VkDescriptorSetLayoutCreateInfo composeLayoutInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+                                                                    nullptr, 0, static_cast<uint32_t>(composeBindings.size()),
+                                                                    composeBindings.data() };
         CheckVk(
             vkCreateDescriptorSetLayout(_device, &composeLayoutInfo, nullptr, &_composeSetLayout),
             "create transparency compose layout");
@@ -307,8 +258,16 @@ namespace OpenRCT2::Ui::Vulkan
                 std::array<VkWriteDescriptorSet, 3> writes{};
                 for (uint32_t i = 0; i < writes.size(); i++)
                 {
-                    writes[i] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _peelSets[frame][depth], i, 0, 1,
-                                  VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &infos[i], nullptr, nullptr };
+                    writes[i] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                                  nullptr,
+                                  _peelSets[frame][depth],
+                                  i,
+                                  0,
+                                  1,
+                                  VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                  &infos[i],
+                                  nullptr,
+                                  nullptr };
                 }
                 vkUpdateDescriptorSets(_device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
             }
@@ -333,7 +292,7 @@ namespace OpenRCT2::Ui::Vulkan
                     std::array<VkWriteDescriptorSet, 6> writes{};
                     for (uint32_t i = 0; i < writes.size(); i++)
                     {
-                        writes[i] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, set, i, 0, 1,
+                        writes[i] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,    nullptr,   set,     i,      0, 1,
                                       VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &infos[i], nullptr, nullptr };
                     }
                     vkUpdateDescriptorSets(_device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
@@ -368,21 +327,28 @@ namespace OpenRCT2::Ui::Vulkan
                                  VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
                                  VK_ACCESS_SHADER_READ_BIT },
         };
-        const VkRenderPassCreateInfo peelInfo = { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO, nullptr, 0,
-                                                   static_cast<uint32_t>(peelAttachments.size()), peelAttachments.data(), 1,
-                                                   &subpass, static_cast<uint32_t>(dependencies.size()), dependencies.data() };
+        const VkRenderPassCreateInfo peelInfo = { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+                                                  nullptr,
+                                                  0,
+                                                  static_cast<uint32_t>(peelAttachments.size()),
+                                                  peelAttachments.data(),
+                                                  1,
+                                                  &subpass,
+                                                  static_cast<uint32_t>(dependencies.size()),
+                                                  dependencies.data() };
         CheckVk(vkCreateRenderPass(_device, &peelInfo, nullptr, &_peelRenderPass), "create transparency peel pass");
 
-        const VkAttachmentDescription composeAttachment = { 0, VK_FORMAT_R8_UINT, VK_SAMPLE_COUNT_1_BIT,
-                                                              VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-                                                              VK_ATTACHMENT_STORE_OP_STORE,
-                                                              VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-                                                              VK_ATTACHMENT_STORE_OP_DONT_CARE,
-                                                              VK_IMAGE_LAYOUT_UNDEFINED,
-                                                              VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
+        const VkAttachmentDescription composeAttachment = { 0,
+                                                            VK_FORMAT_R8_UINT,
+                                                            VK_SAMPLE_COUNT_1_BIT,
+                                                            VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+                                                            VK_ATTACHMENT_STORE_OP_STORE,
+                                                            VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+                                                            VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                                                            VK_IMAGE_LAYOUT_UNDEFINED,
+                                                            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
         const VkAttachmentReference composeColour = { 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL };
-        const VkSubpassDescription composeSubpass = { 0, VK_PIPELINE_BIND_POINT_GRAPHICS, 0, nullptr, 1,
-                                                       &composeColour };
+        const VkSubpassDescription composeSubpass = { 0, VK_PIPELINE_BIND_POINT_GRAPHICS, 0, nullptr, 1, &composeColour };
         const std::array composeDependencies = {
             VkSubpassDependency{ VK_SUBPASS_EXTERNAL, 0, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                  VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_SHADER_READ_BIT,
@@ -391,10 +357,15 @@ namespace OpenRCT2::Ui::Vulkan
                                  VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                  VK_ACCESS_SHADER_READ_BIT },
         };
-        const VkRenderPassCreateInfo composeInfo = { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO, nullptr, 0, 1,
-                                                      &composeAttachment, 1, &composeSubpass,
-                                                      static_cast<uint32_t>(composeDependencies.size()),
-                                                      composeDependencies.data() };
+        const VkRenderPassCreateInfo composeInfo = { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+                                                     nullptr,
+                                                     0,
+                                                     1,
+                                                     &composeAttachment,
+                                                     1,
+                                                     &composeSubpass,
+                                                     static_cast<uint32_t>(composeDependencies.size()),
+                                                     composeDependencies.data() };
         CheckVk(vkCreateRenderPass(_device, &composeInfo, nullptr, &_composeRenderPass), "create transparency compose pass");
     }
 
@@ -402,85 +373,45 @@ namespace OpenRCT2::Ui::Vulkan
     {
         const VkPushConstantRange push = { VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
                                            sizeof(TransparencyConstants) };
-        const VkPipelineLayoutCreateInfo peelLayout = { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO, nullptr, 0, 1,
-                                                         &_peelSetLayout, 1, &push };
+        const VkPipelineLayoutCreateInfo peelLayout = {
+            VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO, nullptr, 0, 1, &_peelSetLayout, 1, &push
+        };
         CheckVk(vkCreatePipelineLayout(_device, &peelLayout, nullptr, &_peelPipelineLayout), "create peel pipeline layout");
         const VkPipelineLayoutCreateInfo composeLayout = { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO, nullptr, 0, 1,
-                                                            &_composeSetLayout };
+                                                           &_composeSetLayout };
         CheckVk(
             vkCreatePipelineLayout(_device, &composeLayout, nullptr, &_composePipelineLayout),
             "create compose pipeline layout");
 
+        constexpr VkPipelineDepthStencilStateCreateInfo depthState = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+            .depthTestEnable = VK_TRUE,
+            .depthWriteEnable = VK_TRUE,
+            .depthCompareOp = VK_COMPARE_OP_GREATER,
+        };
         const auto create = [&](const char* vertexName, const char* fragmentName, VkPipelineLayout layout,
                                 VkRenderPass renderPass, bool rectangles) {
-            const auto vertex = LoadShaderModule(_device, _shaderDirectory / vertexName);
-            VkShaderModule fragment = VK_NULL_HANDLE;
-            try
+            GraphicsPipelineConfig config{
+                .vertexShader = _shaderDirectory / vertexName,
+                .fragmentShader = _shaderDirectory / fragmentName,
+                .topology = rectangles ? VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP : VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+                .depthStencil = rectangles ? &depthState : nullptr,
+                .layout = layout,
+                .renderPass = renderPass,
+            };
+            if (rectangles)
             {
-                fragment = LoadShaderModule(_device, _shaderDirectory / fragmentName);
+                config.vertexBindings = std::span{ &kRectCommandBinding, 1 };
+                config.vertexAttributes = kRectCommandAttributes;
             }
-            catch (...)
-            {
-                vkDestroyShaderModule(_device, vertex, nullptr);
-                throw;
-            }
-            const std::array stages = {
-                VkPipelineShaderStageCreateInfo{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0,
-                                                 VK_SHADER_STAGE_VERTEX_BIT, vertex, "main" },
-                VkPipelineShaderStageCreateInfo{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0,
-                                                 VK_SHADER_STAGE_FRAGMENT_BIT, fragment, "main" },
-            };
-            const VkPipelineVertexInputStateCreateInfo vertexInput = {
-                VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO, nullptr, 0,
-                rectangles ? 1u : 0u, rectangles ? &kRectCommandBinding : nullptr,
-                rectangles ? static_cast<uint32_t>(kRectCommandAttributes.size()) : 0u,
-                rectangles ? kRectCommandAttributes.data() : nullptr
-            };
-            const VkPipelineInputAssemblyStateCreateInfo assembly = {
-                VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO, nullptr, 0,
-                rectangles ? VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP : VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
-            };
-            const VkPipelineViewportStateCreateInfo viewport = { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
-                                                                  nullptr, 0, 1, nullptr, 1, nullptr };
-            const VkPipelineRasterizationStateCreateInfo raster = { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
-                                                                    nullptr, 0, VK_FALSE, VK_FALSE,
-                                                                    VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE,
-                                                                    VK_FRONT_FACE_CLOCKWISE, VK_FALSE, 0, 0, 0, 1.0f };
-            const VkPipelineMultisampleStateCreateInfo multisample = { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-                                                                       nullptr, 0, VK_SAMPLE_COUNT_1_BIT };
-            const VkPipelineDepthStencilStateCreateInfo depthState = {
-                VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO, nullptr, 0,
-                rectangles ? VK_TRUE : VK_FALSE, rectangles ? VK_TRUE : VK_FALSE, VK_COMPARE_OP_GREATER
-            };
-            const VkPipelineColorBlendAttachmentState attachment = { VK_FALSE, VK_BLEND_FACTOR_ONE,
-                                                                      VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD,
-                                                                      VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO,
-                                                                      VK_BLEND_OP_ADD, VK_COLOR_COMPONENT_R_BIT };
-            const VkPipelineColorBlendStateCreateInfo blend = { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
-                                                                 nullptr, 0, VK_FALSE, VK_LOGIC_OP_COPY, 1, &attachment };
-            constexpr std::array dynamicStates = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
-            const VkPipelineDynamicStateCreateInfo dynamic = { VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-                                                                nullptr, 0,
-                                                                static_cast<uint32_t>(dynamicStates.size()),
-                                                                dynamicStates.data() };
-            const VkGraphicsPipelineCreateInfo info = { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO, nullptr, 0,
-                                                         static_cast<uint32_t>(stages.size()), stages.data(), &vertexInput,
-                                                         &assembly, nullptr, &viewport, &raster, &multisample,
-                                                         rectangles ? &depthState : nullptr, &blend, &dynamic, layout,
-                                                         renderPass, 0 };
-            VkPipeline result = VK_NULL_HANDLE;
-            const auto status = vkCreateGraphicsPipelines(_device, _pipelineCache, 1, &info, nullptr, &result);
-            vkDestroyShaderModule(_device, vertex, nullptr);
-            vkDestroyShaderModule(_device, fragment, nullptr);
-            CheckVk(status, "create transparency pipeline");
-            return result;
+            return CreateGraphicsPipeline(_device, _pipelineCache, config, "create transparency pipeline");
         };
         _peelPipeline = create(
-            "indexed_transparent_rect.vert.spv", "indexed_transparent_rect.frag.spv", _peelPipelineLayout,
-            _peelRenderPass, true);
+            "indexed_transparent_rect.vert.spv", "indexed_transparent_rect.frag.spv", _peelPipelineLayout, _peelRenderPass,
+            true);
         _composePipeline = create(
-            "indexed_transparency_compose.vert.spv", "indexed_transparency_compose.frag.spv",
-            _composePipelineLayout, _composeRenderPass, false);
+            "indexed_transparency_compose.vert.spv", "indexed_transparency_compose.frag.spv", _composePipelineLayout,
+            _composeRenderPass, false);
     }
 
     void TransparencyPipeline::CreateFramebuffers(const IndexedResources& resources)
@@ -491,9 +422,15 @@ namespace OpenRCT2::Ui::Vulkan
             {
                 const std::array attachments = { resources.GetTransparentCanvas(frame).GetView(),
                                                  resources.GetTransparentDepthCanvas(frame, depth).GetView() };
-                const VkFramebufferCreateInfo info = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO, nullptr, 0,
-                                                        _peelRenderPass, static_cast<uint32_t>(attachments.size()),
-                                                        attachments.data(), _extent.width, _extent.height, 1 };
+                const VkFramebufferCreateInfo info = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+                                                       nullptr,
+                                                       0,
+                                                       _peelRenderPass,
+                                                       static_cast<uint32_t>(attachments.size()),
+                                                       attachments.data(),
+                                                       _extent.width,
+                                                       _extent.height,
+                                                       1 };
                 CheckVk(
                     vkCreateFramebuffer(_device, &info, nullptr, &_peelFramebuffers[frame][depth]),
                     "create transparency peel framebuffer");
@@ -502,9 +439,15 @@ namespace OpenRCT2::Ui::Vulkan
                                          resources.GetCompositeCanvas(frame).GetView() };
             for (uint32_t output = 0; output < outputs.size(); output++)
             {
-                const VkFramebufferCreateInfo info = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO, nullptr, 0,
-                                                        _composeRenderPass, 1, &outputs[output], _extent.width,
-                                                        _extent.height, 1 };
+                const VkFramebufferCreateInfo info = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+                                                       nullptr,
+                                                       0,
+                                                       _composeRenderPass,
+                                                       1,
+                                                       &outputs[output],
+                                                       _extent.width,
+                                                       _extent.height,
+                                                       1 };
                 CheckVk(
                     vkCreateFramebuffer(_device, &info, nullptr, &_composeFramebuffers[frame][output]),
                     "create transparency compose framebuffer");

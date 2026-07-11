@@ -134,30 +134,61 @@ namespace OpenRCT2
             }
         }
 
-        static money64 ReadLegacyParkMoney64(money64 value)
+        static money64 ReadLegacyParkMoney64(money64 value) { return value == kMoney64Undefined ? value : value * 10; }
+        static money64 WriteLegacyParkMoney64(money64 value) { return value == kMoney64Undefined ? value : value / 10; }
+
+        template<typename... T>
+        static void ReadWriteFields(OrcaStream::ChunkStream& cs, T&... values)
         {
-            return value == kMoney64Undefined ? kMoney64Undefined : value * 10;
+            (cs.readWrite(values), ...);
         }
 
-        static money64 WriteLegacyParkMoney64(money64 value)
+        static auto ReadWriteFieldVisitor(OrcaStream::ChunkStream& cs)
         {
-            return value == kMoney64Undefined ? kMoney64Undefined : value / 10;
+            return [&cs](auto& value) {
+                cs.readWrite(value);
+                return true;
+            };
         }
 
-        static void ReadWriteParkMoney64(OrcaStream::ChunkStream& cs, money64& value, uint32_t version)
+        template<typename T>
+        static void WriteVectorOrEmpty(OrcaStream::ChunkStream& cs, std::vector<T>* values)
+        {
+            std::vector<T> empty;
+            cs.readWriteVector(values == nullptr ? empty : *values, ReadWriteFieldVisitor(cs));
+        }
+
+        template<typename T, typename Encode, typename Decode>
+        static void ReadWriteLegacyValue(
+            OrcaStream::ChunkStream& cs, T& value, uint32_t version, Encode&& encode, Decode&& decode)
         {
             if (version >= kCentMoneyVersion)
             {
                 cs.readWrite(value);
                 return;
             }
-
-            money64 legacyValue = WriteLegacyParkMoney64(value);
+            auto legacyValue = encode(value);
             cs.readWrite(legacyValue);
             if (cs.getMode() == OrcaStream::Mode::reading)
+                value = decode(legacyValue);
+        }
+
+        template<typename... T>
+        static void ReadWriteVersionedFields(
+            OrcaStream::ChunkStream& cs, uint32_t version, uint32_t introduced, T&... values)
+        {
+            if (version >= introduced)
             {
-                value = ReadLegacyParkMoney64(legacyValue);
+                ReadWriteFields(cs, values...);
+                return;
             }
+            if (cs.getMode() == OrcaStream::Mode::reading)
+                ((values = T{}), ...);
+        }
+
+        static void ReadWriteParkMoney64(OrcaStream::ChunkStream& cs, money64& value, uint32_t version)
+        {
+            ReadWriteLegacyValue(cs, value, version, WriteLegacyParkMoney64, ReadLegacyParkMoney64);
         }
 
         static money64 ReadLegacyScenarioObjectiveCurrency(Scenario::ObjectiveType type, money64 value)
@@ -165,43 +196,28 @@ namespace OpenRCT2
             return Scenario::ObjectiveNeedsMoney(type) ? ReadLegacyParkMoney64(value) : value;
         }
 
-        static money64 WriteLegacyScenarioObjectiveCurrency(Scenario::ObjectiveType type, money64 value)
-        {
-            return Scenario::ObjectiveNeedsMoney(type) ? WriteLegacyParkMoney64(value) : value;
-        }
-
         static void ReadWriteScenarioObjectiveCurrency(
             OrcaStream::ChunkStream& cs, Scenario::Objective& objective, uint32_t version)
         {
-            if (version >= kCentMoneyVersion)
-            {
-                cs.readWrite(objective.Currency);
-                return;
-            }
-
-            money64 legacyValue = WriteLegacyScenarioObjectiveCurrency(objective.Type, objective.Currency);
-            cs.readWrite(legacyValue);
-            if (cs.getMode() == OrcaStream::Mode::reading)
-            {
-                objective.Currency = ReadLegacyScenarioObjectiveCurrency(objective.Type, legacyValue);
-            }
+            const auto type = objective.Type;
+            ReadWriteLegacyValue(
+                cs, objective.Currency, version,
+                [type](money64 value) {
+                    return Scenario::ObjectiveNeedsMoney(type) ? WriteLegacyParkMoney64(value) : value;
+                },
+                [type](money64 value) { return ReadLegacyScenarioObjectiveCurrency(type, value); });
         }
 
         static void ReadWriteScenarioCompanyValue(OrcaStream::ChunkStream& cs, money64& value, uint32_t version)
         {
-            if (version >= kCentMoneyVersion)
-            {
-                cs.readWrite(value);
-                return;
-            }
-
-            money64 legacyValue = value == kCompanyValueOnFailedObjective ? value : WriteLegacyParkMoney64(value);
-            cs.readWrite(legacyValue);
-            if (cs.getMode() == OrcaStream::Mode::reading)
-            {
-                value = legacyValue == kCompanyValueOnFailedObjective ? kCompanyValueOnFailedObjective
-                                                                      : ReadLegacyParkMoney64(legacyValue);
-            }
+            ReadWriteLegacyValue(
+                cs, value, version,
+                [](money64 current) {
+                    return current == kCompanyValueOnFailedObjective ? current : WriteLegacyParkMoney64(current);
+                },
+                [](money64 stored) {
+                    return stored == kCompanyValueOnFailedObjective ? stored : ReadLegacyParkMoney64(stored);
+                });
         }
 
         static void MigrateLegacyRideLength(OrcaStream::ChunkStream& cs, int32_t& length, uint32_t version)
@@ -215,53 +231,17 @@ namespace OpenRCT2
         static void ReadWriteRideRatingAccumulator(
             OrcaStream::ChunkStream& cs, RideRatingAccumulator& accumulator, uint32_t version)
         {
-            cs.readWrite(accumulator.excitement);
-            cs.readWrite(accumulator.intensity);
-            cs.readWrite(accumulator.nausea);
-            if (version >= kTransportRideStatsVersion)
-            {
-                cs.readWrite(accumulator.transportComfort);
-                cs.readWrite(accumulator.transportDecoration);
-                cs.readWrite(accumulator.transportDistance);
-            }
-            else if (cs.getMode() == OrcaStream::Mode::reading)
-            {
-                accumulator.transportComfort = 0;
-                accumulator.transportDecoration = 0;
-                accumulator.transportDistance = 0;
-            }
-            if (version >= kTransportShelterExposureVersion)
-            {
-                cs.readWrite(accumulator.transportShelteredDistance);
-            }
-            else if (cs.getMode() == OrcaStream::Mode::reading)
-            {
-                accumulator.transportShelteredDistance = 0;
-            }
-            if (version >= kRideRatingLegsVersion)
-            {
-                cs.readWrite(accumulator.sampledDistance);
-                cs.readWrite(accumulator.totalSpeed);
-                cs.readWrite(accumulator.maxSpeed);
-                cs.readWrite(accumulator.maxPositiveVerticalG);
-                cs.readWrite(accumulator.maxNegativeVerticalG);
-                cs.readWrite(accumulator.maxLateralG);
-                cs.readWrite(accumulator.maxPositiveLongitudinalG);
-                cs.readWrite(accumulator.maxNegativeLongitudinalG);
-            }
-            else if (cs.getMode() == OrcaStream::Mode::reading)
-            {
-                accumulator.sampledDistance = 0;
-                accumulator.totalSpeed = 0;
-                accumulator.maxSpeed = 0;
-                accumulator.maxPositiveVerticalG = 0;
-                accumulator.maxNegativeVerticalG = 0;
-                accumulator.maxLateralG = 0;
-                accumulator.maxPositiveLongitudinalG = 0;
-                accumulator.maxNegativeLongitudinalG = 0;
-            }
-            cs.readWrite(accumulator.ticks);
-            cs.readWrite(accumulator.sampleEntity);
+            ReadWriteFields(cs, accumulator.excitement, accumulator.intensity, accumulator.nausea);
+            ReadWriteVersionedFields(
+                cs, version, kTransportRideStatsVersion, accumulator.transportComfort,
+                accumulator.transportDecoration, accumulator.transportDistance);
+            ReadWriteVersionedFields(
+                cs, version, kTransportShelterExposureVersion, accumulator.transportShelteredDistance);
+            ReadWriteVersionedFields(
+                cs, version, kRideRatingLegsVersion, accumulator.sampledDistance, accumulator.totalSpeed,
+                accumulator.maxSpeed, accumulator.maxPositiveVerticalG, accumulator.maxNegativeVerticalG,
+                accumulator.maxLateralG, accumulator.maxPositiveLongitudinalG, accumulator.maxNegativeLongitudinalG);
+            ReadWriteFields(cs, accumulator.ticks, accumulator.sampleEntity);
             if (version >= kRideRatingLegsVersion)
             {
                 cs.readWrite(accumulator.originStation);
@@ -273,16 +253,9 @@ namespace OpenRCT2
                 accumulator.destinationStation = StationIndex::GetNull();
             }
             cs.readWrite(accumulator.sampleComplete);
-            if (version >= kRealisedLongitudinalGVersion)
-            {
-                cs.readWrite(accumulator.previousTrainVelocity);
-                cs.readWrite(accumulator.hasPreviousTrainVelocity);
-            }
-            else if (cs.getMode() == OrcaStream::Mode::reading)
-            {
-                accumulator.previousTrainVelocity = 0;
-                accumulator.hasPreviousTrainVelocity = false;
-            }
+            ReadWriteVersionedFields(
+                cs, version, kRealisedLongitudinalGVersion, accumulator.previousTrainVelocity,
+                accumulator.hasPreviousTrainVelocity);
         }
 
         static void ScaleLegacyRideRatingAccumulator(RideRatingAccumulator& accumulator)
@@ -306,71 +279,45 @@ namespace OpenRCT2
 
             const bool omitLegSamplesForOlderTarget = cs.getMode() == OrcaStream::Mode::writing
                 && version < kRideRatingLegsVersion && !ride.ratingLegs.empty();
+            const auto readWriteAccumulator = [&cs, version](RideRatingAccumulator& sample) {
+                ReadWriteRideRatingAccumulator(cs, sample, version);
+                return true;
+            };
             ReadWriteRideRatingAccumulator(cs, ride.ratingAccumulator, version);
             if (version < kRideRatingActiveSampleVectorVersion)
             {
                 std::array<RideRatingAccumulator, kRideRatingLegacyActiveSampleCount> legacyActiveSamples{};
-                cs.readWriteArray(legacyActiveSamples, [&cs, version](RideRatingAccumulator& sample) {
-                    ReadWriteRideRatingAccumulator(cs, sample, version);
-                    return true;
-                });
+                cs.readWriteArray(legacyActiveSamples, readWriteAccumulator);
                 if (cs.getMode() == OrcaStream::Mode::reading)
-                {
                     ride.activeRatingSamples.assign(legacyActiveSamples.begin(), legacyActiveSamples.end());
-                }
             }
             else
             {
-                if (omitLegSamplesForOlderTarget)
-                {
-                    std::vector<RideRatingAccumulator> emptySamples;
-                    cs.readWriteVector(emptySamples, [&cs, version](RideRatingAccumulator& sample) {
-                        ReadWriteRideRatingAccumulator(cs, sample, version);
-                    });
-                }
-                else
-                {
-                    cs.readWriteVector(ride.activeRatingSamples, [&cs, version](RideRatingAccumulator& sample) {
-                        ReadWriteRideRatingAccumulator(cs, sample, version);
-                    });
-                }
+                std::vector<RideRatingAccumulator> emptySamples;
+                auto& samples = omitLegSamplesForOlderTarget ? emptySamples : ride.activeRatingSamples;
+                cs.readWriteVector(samples, readWriteAccumulator);
             }
-            if (omitLegSamplesForOlderTarget)
-            {
-                std::array<RideRatingAccumulator, kRideRatingRecentSampleCount> emptySamples{};
-                cs.readWriteArray(emptySamples, [&cs, version](RideRatingAccumulator& sample) {
-                    ReadWriteRideRatingAccumulator(cs, sample, version);
-                    return true;
-                });
-                uint8_t sampleCount = 0;
-                uint8_t sampleNext = 0;
-                cs.readWrite(sampleCount);
-                cs.readWrite(sampleNext);
-            }
-            else
-            {
-                cs.readWriteArray(ride.recentRatingSamples, [&cs, version](RideRatingAccumulator& sample) {
-                    ReadWriteRideRatingAccumulator(cs, sample, version);
-                    return true;
-                });
-                cs.readWrite(ride.recentRatingSampleCount);
-                cs.readWrite(ride.recentRatingSampleNext);
-            }
+
+            std::array<RideRatingAccumulator, kRideRatingRecentSampleCount> emptyRecentSamples{};
+            uint8_t emptyRecentSampleCount = 0;
+            uint8_t emptyRecentSampleNext = 0;
+            auto& recentSamples = omitLegSamplesForOlderTarget ? emptyRecentSamples : ride.recentRatingSamples;
+            auto& recentSampleCount = omitLegSamplesForOlderTarget ? emptyRecentSampleCount : ride.recentRatingSampleCount;
+            auto& recentSampleNext = omitLegSamplesForOlderTarget ? emptyRecentSampleNext : ride.recentRatingSampleNext;
+            cs.readWriteArray(recentSamples, readWriteAccumulator);
+            ReadWriteFields(cs, recentSampleCount, recentSampleNext);
 
             if (version >= kRideRatingLegsVersion)
             {
                 cs.readWriteVector(ride.ratingLegs, [&cs, version](RideRatingLeg& leg) {
-                    cs.readWrite(leg.originStation);
-                    cs.readWrite(leg.destinationStation);
+                    ReadWriteFields(cs, leg.originStation, leg.destinationStation);
                     cs.readWriteArray(leg.recentSamples, [&cs, version](RideRatingAccumulator& sample) {
                         ReadWriteRideRatingAccumulator(cs, sample, version);
                         return true;
                     });
-                    cs.readWrite(leg.recentSampleCount);
-                    cs.readWrite(leg.recentSampleNext);
-                    cs.readWrite(leg.ratings.excitement);
-                    cs.readWrite(leg.ratings.intensity);
-                    cs.readWrite(leg.ratings.nausea);
+                    ReadWriteFields(
+                        cs, leg.recentSampleCount, leg.recentSampleNext, leg.ratings.excitement,
+                        leg.ratings.intensity, leg.ratings.nausea);
                 });
                 if (cs.getMode() == OrcaStream::Mode::reading)
                 {
@@ -466,30 +413,18 @@ namespace OpenRCT2
                 ride.stableStats.valid = valid != 0;
             }
 
-            cs.readWrite(ride.stableStats.maxSpeed);
-            cs.readWrite(ride.stableStats.averageSpeed);
-            cs.readWrite(ride.stableStats.maxPositiveVerticalG);
-            cs.readWrite(ride.stableStats.maxNegativeVerticalG);
-            cs.readWrite(ride.stableStats.maxLateralG);
-            if (version >= kLongitudinalGStatsVersion)
-            {
-                cs.readWrite(ride.stableStats.maxPositiveLongitudinalG);
-                cs.readWrite(ride.stableStats.maxNegativeLongitudinalG);
-            }
-            else if (cs.getMode() == OrcaStream::Mode::reading)
-            {
-                ride.stableStats.maxPositiveLongitudinalG = 0;
-                ride.stableStats.maxNegativeLongitudinalG = 0;
-            }
-            cs.readWrite(ride.stableStats.numDrops);
-            cs.readWrite(ride.stableStats.numPoweredLifts);
-            cs.readWrite(ride.stableStats.numInversions);
-            cs.readWrite(ride.stableStats.numHoles);
-            cs.readWrite(ride.stableStats.highestDropHeight);
-            cs.readWrite(ride.stableStats.totalAirTime);
+            ReadWriteFields(
+                cs, ride.stableStats.maxSpeed, ride.stableStats.averageSpeed,
+                ride.stableStats.maxPositiveVerticalG, ride.stableStats.maxNegativeVerticalG,
+                ride.stableStats.maxLateralG);
+            ReadWriteVersionedFields(
+                cs, version, kLongitudinalGStatsVersion, ride.stableStats.maxPositiveLongitudinalG,
+                ride.stableStats.maxNegativeLongitudinalG);
+            ReadWriteFields(
+                cs, ride.stableStats.numDrops, ride.stableStats.numPoweredLifts, ride.stableStats.numInversions,
+                ride.stableStats.numHoles, ride.stableStats.highestDropHeight, ride.stableStats.totalAirTime);
             cs.readWriteArray(ride.stableStats.stations, [&cs](RideStableStationStats& station) {
-                cs.readWrite(station.SegmentLength);
-                cs.readWrite(station.SegmentTime);
+                ReadWriteFields(cs, station.SegmentLength, station.SegmentTime);
                 return true;
             });
         }
@@ -638,10 +573,7 @@ namespace OpenRCT2
                         cs.readWrite(image.type);
                         cs.readWrite(image.width);
                         cs.readWrite(image.height);
-                        cs.readWriteArray(image.pixels, [&cs](Drawing::PaletteIndex& pixel) {
-                            cs.readWrite(pixel);
-                            return true;
-                        });
+                        cs.readWriteArray(image.pixels, ReadWriteFieldVisitor(cs));
                     });
                 });
             return preview;
@@ -923,10 +855,7 @@ namespace OpenRCT2
                         cs.readWrite(image.type);
                         cs.readWrite(image.width);
                         cs.readWrite(image.height);
-                        cs.readWriteArray(image.pixels, [&cs](Drawing::PaletteIndex& pixel) {
-                            cs.readWrite(pixel);
-                            return true;
-                        });
+                        cs.readWriteArray(image.pixels, ReadWriteFieldVisitor(cs));
                     });
                 });
         }
@@ -1058,10 +987,7 @@ namespace OpenRCT2
             cs.readWrite(calcData.ProximityTrackType);
             cs.readWrite(calcData.ProximityBaseHeight);
             cs.readWrite(calcData.ProximityTotal);
-            cs.readWriteArray(calcData.ProximityScores, [&cs](uint16_t& value) {
-                cs.readWrite(value);
-                return true;
-            });
+            cs.readWriteArray(calcData.ProximityScores, ReadWriteFieldVisitor(cs));
             cs.readWrite(calcData.AmountOfBrakes);
             cs.readWrite(calcData.AmountOfReversers);
             cs.readWrite(calcData.StationFlags);
@@ -1403,20 +1329,14 @@ namespace OpenRCT2
                     cs.readWrite(park.guestGenerationProbability);
                     cs.readWrite(park.suggestedGuestMaximum);
 
-                    cs.readWriteArray(park.peepWarningThrottle, [&cs](uint8_t& value) {
-                        cs.readWrite(value);
-                        return true;
-                    });
+                    cs.readWriteArray(park.peepWarningThrottle, ReadWriteFieldVisitor(cs));
 
                     if (version < k16BitParkHistoryVersion)
                     {
                         if (cs.getMode() == OrcaStream::Mode::reading)
                         {
                             uint8_t smallHistory[kParkRatingHistorySize];
-                            cs.readWriteArray(smallHistory, [&cs](uint8_t& value) {
-                                cs.readWrite(value);
-                                return true;
-                            });
+                            cs.readWriteArray(smallHistory, ReadWriteFieldVisitor(cs));
                             for (int i = 0; i < kParkRatingHistorySize; i++)
                             {
                                 if (smallHistory[i] == kRCT12ParkHistoryUndefined)
@@ -1441,24 +1361,15 @@ namespace OpenRCT2
                                         park.ratingHistory[i] / kRCT12ParkRatingHistoryFactor);
                                 }
                             }
-                            cs.readWriteArray(smallHistory, [&cs](uint8_t& value) {
-                                cs.readWrite(value);
-                                return true;
-                            });
+                            cs.readWriteArray(smallHistory, ReadWriteFieldVisitor(cs));
                         }
                     }
                     else
                     {
-                        cs.readWriteArray(park.ratingHistory, [&cs](uint16_t& value) {
-                            cs.readWrite(value);
-                            return true;
-                        });
+                        cs.readWriteArray(park.ratingHistory, ReadWriteFieldVisitor(cs));
                     }
 
-                    cs.readWriteArray(park.guestsInParkHistory, [&cs](uint32_t& value) {
-                        cs.readWrite(value);
-                        return true;
-                    });
+                    cs.readWriteArray(park.guestsInParkHistory, ReadWriteFieldVisitor(cs));
 
                     cs.readWriteArray(park.cashHistory, [&cs, version](money64& value) {
                         ReadWriteParkMoney64(cs, value, version);
@@ -1828,10 +1739,7 @@ namespace OpenRCT2
                     if (version <= 18)
                     {
                         money16 prices[2] = {};
-                        cs.readWriteArray(prices, [&cs](money16& price) {
-                            cs.readWrite(price);
-                            return true;
-                        });
+                        cs.readWriteArray(prices, ReadWriteFieldVisitor(cs));
                         ride.price[0] = ToMoney64(prices[0]);
                         ride.price[1] = ToMoney64(prices[1]);
                     }
@@ -1928,10 +1836,7 @@ namespace OpenRCT2
 
                     cs.readWrite(ride.minWaitingTime);
                     cs.readWrite(ride.maxWaitingTime);
-                    cs.readWriteArray(ride.vehicles, [&cs](EntityId& v) {
-                        cs.readWrite(v);
-                        return true;
-                    });
+                    cs.readWriteArray(ride.vehicles, ReadWriteFieldVisitor(cs));
 
                     // Operation
                     if (cs.getMode() == OrcaStream::Mode::reading)
@@ -2014,35 +1919,16 @@ namespace OpenRCT2
                     cs.readWrite(ride.maxLateralG);
                     cs.readWrite(ride.previousVerticalG);
                     cs.readWrite(ride.previousLateralG);
-                    if (version >= kLongitudinalGStatsVersion)
-                    {
-                        cs.readWrite(ride.maxPositiveLongitudinalG);
-                        cs.readWrite(ride.maxNegativeLongitudinalG);
-                        cs.readWrite(ride.previousLongitudinalG);
-                    }
-                    else if (cs.getMode() == OrcaStream::Mode::reading)
-                    {
-                        ride.maxPositiveLongitudinalG = 0;
-                        ride.maxNegativeLongitudinalG = 0;
-                        ride.previousLongitudinalG = 0;
-                    }
-                    if (version >= kRealisedLongitudinalGVersion)
-                    {
-                        cs.readWrite(ride.previousLongitudinalVelocity);
-                        cs.readWrite(ride.hasPreviousLongitudinalVelocity);
-                    }
-                    else if (cs.getMode() == OrcaStream::Mode::reading)
-                    {
-                        ride.previousLongitudinalVelocity = 0;
-                        ride.hasPreviousLongitudinalVelocity = false;
-                    }
+                    ReadWriteVersionedFields(
+                        cs, version, kLongitudinalGStatsVersion, ride.maxPositiveLongitudinalG,
+                        ride.maxNegativeLongitudinalG, ride.previousLongitudinalG);
+                    ReadWriteVersionedFields(
+                        cs, version, kRealisedLongitudinalGVersion, ride.previousLongitudinalVelocity,
+                        ride.hasPreviousLongitudinalVelocity);
 
-                    cs.readWrite(ride.testingFlags.holder);
-                    cs.readWrite(ride.curTestTrackLocation);
-
-                    cs.readWrite(ride.turnCountDefault);
-                    cs.readWrite(ride.turnCountBanked);
-                    cs.readWrite(ride.turnCountSloped);
+                    ReadWriteFields(
+                        cs, ride.testingFlags.holder, ride.curTestTrackLocation, ride.turnCountDefault,
+                        ride.turnCountBanked, ride.turnCountSloped);
 
                     if (version < kHigherInversionsHolesHelicesStatsVersion)
                     {
@@ -2055,16 +1941,11 @@ namespace OpenRCT2
                     }
                     else
                     {
-                        cs.readWrite(ride.numInversions);
-                        cs.readWrite(ride.numDrops);
-                        cs.readWrite(ride.numPoweredLifts);
+                        ReadWriteFields(cs, ride.numInversions, ride.numDrops, ride.numPoweredLifts);
                     }
-                    cs.readWrite(ride.startDropHeight);
-                    cs.readWrite(ride.highestDropHeight);
-                    cs.readWrite(ride.shelteredLength);
+                    ReadWriteFields(cs, ride.startDropHeight, ride.highestDropHeight, ride.shelteredLength);
                     MigrateLegacyRideLength(cs, ride.shelteredLength, version);
-                    cs.readWrite(ride.var11C);
-                    cs.readWrite(ride.numShelteredSections);
+                    ReadWriteFields(cs, ride.var11C, ride.numShelteredSections);
                     if (version >= kInversionsHolesShelteredEightsSplit)
                     {
                         cs.readWrite(ride.shelteredEighths);
@@ -2078,13 +1959,9 @@ namespace OpenRCT2
                             cs.readWrite(ride.numHoles);
                         }
                     }
-                    cs.readWrite(ride.currentTestStation);
-                    cs.readWrite(ride.numBlockBrakes);
-                    cs.readWrite(ride.totalAirTime);
-
-                    cs.readWrite(ride.ratings.excitement);
-                    cs.readWrite(ride.ratings.intensity);
-                    cs.readWrite(ride.ratings.nausea);
+                    ReadWriteFields(
+                        cs, ride.currentTestStation, ride.numBlockBrakes, ride.totalAirTime, ride.ratings.excitement,
+                        ride.ratings.intensity, ride.ratings.nausea);
                     ReadWriteRideRatingSamples(cs, ride, version);
                     ReadWriteRideStableStats(cs, ride, version);
 
@@ -2119,8 +1996,7 @@ namespace OpenRCT2
                         ReadWriteParkMoney64(cs, ride.value, version);
                     }
 
-                    cs.readWrite(ride.numRiders);
-                    cs.readWrite(ride.buildDate);
+                    ReadWriteFields(cs, ride.numRiders, ride.buildDate);
 
                     if (version <= 18)
                     {
@@ -2133,76 +2009,41 @@ namespace OpenRCT2
                         ReadWriteParkMoney64(cs, ride.upkeepCost, version);
                     }
 
-                    cs.readWrite(ride.curNumCustomers);
-                    cs.readWrite(ride.numCustomersTimeout);
+                    ReadWriteFields(cs, ride.curNumCustomers, ride.numCustomersTimeout);
 
-                    cs.readWriteArray(ride.numCustomers, [&cs](uint16_t& v) {
-                        cs.readWrite(v);
-                        return true;
-                    });
+                    cs.readWriteArray(ride.numCustomers, ReadWriteFieldVisitor(cs));
 
                     if (version >= kRideItemSalesHistoryVersion)
                     {
-                        cs.readWrite(ride.curNumPrimaryItemsSold);
-                        cs.readWrite(ride.curNumSecondaryItemsSold);
-                        cs.readWriteArray(ride.numPrimaryItemsSoldHistory, [&cs](uint16_t& v) {
-                            cs.readWrite(v);
-                            return true;
-                        });
-                        cs.readWriteArray(ride.numSecondaryItemsSoldHistory, [&cs](uint16_t& v) {
-                            cs.readWrite(v);
-                            return true;
-                        });
+                        ReadWriteFields(cs, ride.curNumPrimaryItemsSold, ride.curNumSecondaryItemsSold);
+                        cs.readWriteArray(ride.numPrimaryItemsSoldHistory, ReadWriteFieldVisitor(cs));
+                        cs.readWriteArray(ride.numSecondaryItemsSoldHistory, ReadWriteFieldVisitor(cs));
                     }
 
                     cs.readWrite(ride.totalCustomers);
                     ReadWriteParkMoney64(cs, ride.totalProfit, version);
-                    cs.readWrite(ride.popularity);
-                    cs.readWrite(ride.popularityTimeout);
-                    cs.readWrite(ride.popularityNext);
-                    cs.readWrite(ride.guestsFavourite);
-                    cs.readWrite(ride.numPrimaryItemsSold);
-                    cs.readWrite(ride.numSecondaryItemsSold);
+                    ReadWriteFields(
+                        cs, ride.popularity, ride.popularityTimeout, ride.popularityNext, ride.guestsFavourite,
+                        ride.numPrimaryItemsSold, ride.numSecondaryItemsSold);
                     ReadWriteParkMoney64(cs, ride.incomePerHour, version);
                     ReadWriteParkMoney64(cs, ride.profit, version);
-                    cs.readWrite(ride.satisfaction);
-                    cs.readWrite(ride.satisfactionTimeout);
-                    cs.readWrite(ride.satisfactionNext);
+                    ReadWriteFields(cs, ride.satisfaction, ride.satisfactionTimeout, ride.satisfactionNext);
 
                     // Breakdown
-                    cs.readWrite(ride.breakdownReasonPending);
-                    cs.readWrite(ride.mechanicStatus);
-                    cs.readWrite(ride.mechanic);
-                    cs.readWrite(ride.inspectionStation);
-                    cs.readWrite(ride.brokenTrain);
-                    cs.readWrite(ride.brokenCar);
-                    cs.readWrite(ride.breakdownReason);
-                    cs.readWrite(ride.reliabilitySubvalue);
-                    cs.readWrite(ride.reliabilityPercentage);
-                    cs.readWrite(ride.unreliabilityFactor);
-                    cs.readWrite(ride.downtime);
-                    cs.readWrite(ride.inspectionInterval);
-                    cs.readWrite(ride.lastInspection);
+                    ReadWriteFields(
+                        cs, ride.breakdownReasonPending, ride.mechanicStatus, ride.mechanic, ride.inspectionStation,
+                        ride.brokenTrain, ride.brokenCar, ride.breakdownReason, ride.reliabilitySubvalue,
+                        ride.reliabilityPercentage, ride.unreliabilityFactor, ride.downtime, ride.inspectionInterval,
+                        ride.lastInspection);
 
-                    cs.readWriteArray(ride.downtimeHistory, [&cs](uint8_t& v) {
-                        cs.readWrite(v);
-                        return true;
-                    });
+                    cs.readWriteArray(ride.downtimeHistory, ReadWriteFieldVisitor(cs));
 
-                    cs.readWrite(ride.breakdownSoundModifier);
-                    cs.readWrite(ride.notFixedTimeout);
-                    cs.readWrite(ride.lastCrashType);
-                    cs.readWrite(ride.connectedMessageThrottle);
-
-                    cs.readWrite(ride.vehicleChangeTimeout);
-
-                    cs.readWrite(ride.currentIssues);
-                    cs.readWrite(ride.lastIssueTime);
+                    ReadWriteFields(
+                        cs, ride.breakdownSoundModifier, ride.notFixedTimeout, ride.lastCrashType,
+                        ride.connectedMessageThrottle, ride.vehicleChangeTimeout, ride.currentIssues, ride.lastIssueTime);
 
                     // Music
-                    cs.readWrite(ride.music);
-                    cs.readWrite(ride.musicTuneId);
-                    cs.readWrite(ride.musicPosition);
+                    ReadWriteFields(cs, ride.music, ride.musicTuneId, ride.musicPosition);
                     return true;
                 });
             });
@@ -2210,22 +2051,12 @@ namespace OpenRCT2
 
         static void ReadWriteRideMeasurement(OrcaStream::ChunkStream& cs, RideMeasurement& measurement, uint32_t version)
         {
-            cs.readWrite(measurement.flags.holder);
-            cs.readWrite(measurement.last_use_tick);
-            cs.readWrite(measurement.num_items);
-            cs.readWrite(measurement.current_item);
-            cs.readWrite(measurement.vehicle_index);
-            cs.readWrite(measurement.current_station);
-            if (version >= kRealisedLongitudinalGVersion)
-            {
-                cs.readWrite(measurement.previousVelocity);
-                cs.readWrite(measurement.hasPreviousVelocity);
-            }
-            else if (cs.getMode() == OrcaStream::Mode::reading)
-            {
-                measurement.previousVelocity = 0;
-                measurement.hasPreviousVelocity = false;
-            }
+            ReadWriteFields(
+                cs, measurement.flags.holder, measurement.last_use_tick, measurement.num_items,
+                measurement.current_item, measurement.vehicle_index, measurement.current_station);
+            ReadWriteVersionedFields(
+                cs, version, kRealisedLongitudinalGVersion, measurement.previousVelocity,
+                measurement.hasPreviousVelocity);
             for (size_t i = 0; i < measurement.num_items; i++)
             {
                 cs.readWrite(measurement.vertical[i]);
@@ -2248,14 +2079,9 @@ namespace OpenRCT2
 
         static void ReadWriteEntityCommon(OrcaStream::ChunkStream& cs, EntityBase& entity)
         {
-            cs.readWrite(entity.id);
-            cs.readWrite(entity.spriteData.heightMin);
-            cs.readWrite(entity.x);
-            cs.readWrite(entity.y);
-            cs.readWrite(entity.z);
-            cs.readWrite(entity.spriteData.width);
-            cs.readWrite(entity.spriteData.heightMax);
-            cs.readWrite(entity.orientation);
+            ReadWriteFields(
+                cs, entity.id, entity.spriteData.heightMin, entity.x, entity.y, entity.z, entity.spriteData.width,
+                entity.spriteData.heightMax, entity.orientation);
         }
 
         static std::vector<ObjectEntryIndex> LegacyGetRideTypesBeenOn(const std::array<uint8_t, 16>& srcArray)
@@ -2339,8 +2165,7 @@ namespace OpenRCT2
                 state = PeepState::leavingRide;
                 subState = EnumValue(PeepRideSubState::approachExit);
             }
-            cs.readWrite(state);
-            cs.readWrite(subState);
+            ReadWriteFields(cs, state, subState);
             if (cs.getMode() == OrcaStream::Mode::reading)
             {
                 entity.State = state;
@@ -2366,8 +2191,7 @@ namespace OpenRCT2
                 }
             }
 
-            cs.readWrite(entity.TshirtColour);
-            cs.readWrite(entity.TrousersColour);
+            ReadWriteFields(cs, entity.TshirtColour, entity.TrousersColour);
             auto destinationX = entity.DestinationX;
             auto destinationY = entity.DestinationY;
             auto destinationTolerance = entity.DestinationTolerance;
@@ -2387,30 +2211,22 @@ namespace OpenRCT2
                     }
                 }
             }
-            cs.readWrite(destinationX);
-            cs.readWrite(destinationY);
-            cs.readWrite(destinationTolerance);
+            ReadWriteFields(cs, destinationX, destinationY, destinationTolerance);
             if (cs.getMode() == OrcaStream::Mode::reading)
             {
                 entity.DestinationX = destinationX;
                 entity.DestinationY = destinationY;
                 entity.DestinationTolerance = destinationTolerance;
             }
-            cs.readWrite(entity.Var37);
-            cs.readWrite(entity.Energy);
-            cs.readWrite(entity.EnergyTarget);
+            ReadWriteFields(cs, entity.Var37, entity.Energy, entity.EnergyTarget);
 
             if (version <= 1)
             {
                 if (guest != nullptr)
                 {
-                    cs.readWrite(guest->happiness);
-                    cs.readWrite(guest->happinessTarget);
-                    cs.readWrite(guest->nausea);
-                    cs.readWrite(guest->nauseaTarget);
-                    cs.readWrite(guest->hunger);
-                    cs.readWrite(guest->thirst);
-                    cs.readWrite(guest->toilet);
+                    ReadWriteFields(
+                        cs, guest->happiness, guest->happinessTarget, guest->nausea, guest->nauseaTarget,
+                        guest->hunger, guest->thirst, guest->toilet);
                 }
                 else
                 {
@@ -2470,25 +2286,17 @@ namespace OpenRCT2
                     cs.readWrite(tempPaidOnDrink);
                     guest->paidOnDrink = ToMoney64(tempPaidOnDrink);
                     std::array<uint8_t, 16> rideTypeBeenOn;
-                    cs.readWriteArray(rideTypeBeenOn, [&cs](uint8_t& rideType) {
-                        cs.readWrite(rideType);
-                        return true;
-                    });
+                    cs.readWriteArray(rideTypeBeenOn, ReadWriteFieldVisitor(cs));
                     RideUse::GetTypeHistory().Set(guest->id, LegacyGetRideTypesBeenOn(rideTypeBeenOn));
-                    cs.readWrite(guest->itemFlags);
-                    cs.readWrite(guest->photo2RideRef);
-                    cs.readWrite(guest->photo3RideRef);
-                    cs.readWrite(guest->photo4RideRef);
+                    ReadWriteFields(
+                        cs, guest->itemFlags, guest->photo2RideRef, guest->photo3RideRef, guest->photo4RideRef);
                 }
                 else
                 {
                     cs.ignore<money16>();
 
                     std::vector<uint8_t> temp;
-                    cs.readWriteVector(temp, [&cs](uint8_t& rideType) {
-                        cs.readWrite(rideType);
-                        return true;
-                    });
+                    cs.readWriteVector(temp, ReadWriteFieldVisitor(cs));
                     cs.ignore<uint64_t>();
                     cs.ignore<RideId>();
                     cs.ignore<RideId>();
@@ -2529,10 +2337,7 @@ namespace OpenRCT2
                 {
                     cs.readWrite(guest->timeInQueue);
                     std::array<uint8_t, 32> ridesBeenOn;
-                    cs.readWriteArray(ridesBeenOn, [&cs](uint8_t& rideType) {
-                        cs.readWrite(rideType);
-                        return true;
-                    });
+                    cs.readWriteArray(ridesBeenOn, ReadWriteFieldVisitor(cs));
                     RideUse::GetHistory().Set(guest->id, LegacyGetRidesBeenOn(ridesBeenOn));
                 }
                 else
@@ -2540,10 +2345,7 @@ namespace OpenRCT2
                     cs.ignore<uint16_t>();
 
                     std::vector<uint8_t> ridesBeenOn;
-                    cs.readWriteVector(ridesBeenOn, [&cs](uint8_t& rideId) {
-                        cs.readWrite(rideId);
-                        return true;
-                    });
+                    cs.readWriteVector(ridesBeenOn, ReadWriteFieldVisitor(cs));
                 }
             }
 
@@ -2621,17 +2423,13 @@ namespace OpenRCT2
                 }
             }
 
-            cs.readWrite(entity.PeepFlags);
-            cs.readWrite(entity.PathfindGoal.x);
-            cs.readWrite(entity.PathfindGoal.y);
-            cs.readWrite(entity.PathfindGoal.z);
-            cs.readWrite(entity.PathfindGoal.direction);
+            ReadWriteFields(
+                cs, entity.PeepFlags, entity.PathfindGoal.x, entity.PathfindGoal.y, entity.PathfindGoal.z,
+                entity.PathfindGoal.direction);
             for (size_t i = 0; i < std::size(entity.PathfindHistory); i++)
             {
-                cs.readWrite(entity.PathfindHistory[i].x);
-                cs.readWrite(entity.PathfindHistory[i].y);
-                cs.readWrite(entity.PathfindHistory[i].z);
-                cs.readWrite(entity.PathfindHistory[i].direction);
+                auto& entry = entity.PathfindHistory[i];
+                ReadWriteFields(cs, entry.x, entry.y, entry.z, entry.direction);
             }
             cs.readWrite(entity.WalkingAnimationFrameNum);
 
@@ -2653,21 +2451,12 @@ namespace OpenRCT2
                     guest->paidOnFood = ToMoney64(expenditures[2]);
                     guest->paidOnSouvenirs = ToMoney64(expenditures[3]);
 
-                    cs.readWrite(guest->amountOfFood);
-                    cs.readWrite(guest->amountOfDrinks);
-                    cs.readWrite(guest->amountOfSouvenirs);
-                    cs.readWrite(guest->vandalismSeen);
-                    cs.readWrite(guest->voucherType);
-                    cs.readWrite(guest->voucherRideId);
-                    cs.readWrite(guest->surroundingsThoughtTimeout);
-                    cs.readWrite(guest->angriness);
-                    cs.readWrite(guest->timeLost);
-                    cs.readWrite(guest->daysInQueue);
-                    cs.readWrite(guest->balloonColour);
-                    cs.readWrite(guest->umbrellaColour);
-                    cs.readWrite(guest->hatColour);
-                    cs.readWrite(guest->favouriteRide);
-                    cs.readWrite(guest->favouriteRideRating);
+                    ReadWriteFields(
+                        cs, guest->amountOfFood, guest->amountOfDrinks, guest->amountOfSouvenirs,
+                        guest->vandalismSeen, guest->voucherType, guest->voucherRideId,
+                        guest->surroundingsThoughtTimeout, guest->angriness, guest->timeLost, guest->daysInQueue,
+                        guest->balloonColour, guest->umbrellaColour, guest->hatColour, guest->favouriteRide,
+                        guest->favouriteRideRating);
                 }
                 else
                 {
@@ -2900,15 +2689,9 @@ namespace OpenRCT2
             ReadWriteParkMoney64(cs, guest.paidOnSouvenirs, version);
         }
 
-        cs.readWrite(guest.outsideOfPark);
-        cs.readWrite(guest.happiness);
-        cs.readWrite(guest.happinessTarget);
-        cs.readWrite(guest.nausea);
-        cs.readWrite(guest.nauseaTarget);
-        cs.readWrite(guest.hunger);
-        cs.readWrite(guest.thirst);
-        cs.readWrite(guest.toilet);
-        cs.readWrite(guest.timeToConsume);
+        ReadWriteFields(
+            cs, guest.outsideOfPark, guest.happiness, guest.happinessTarget, guest.nausea, guest.nauseaTarget,
+            guest.hunger, guest.thirst, guest.toilet, guest.timeToConsume);
         if (cs.getMode() == OrcaStream::Mode::reading)
         {
             guest.intensity = IntensityRange(cs.read<uint8_t>());
@@ -2922,10 +2705,7 @@ namespace OpenRCT2
         if (os.getHeader().targetVersion < 3)
         {
             std::array<uint8_t, 16> rideTypeBeenOn;
-            cs.readWriteArray(rideTypeBeenOn, [&cs](uint8_t& rideType) {
-                cs.readWrite(rideType);
-                return true;
-            });
+            cs.readWriteArray(rideTypeBeenOn, ReadWriteFieldVisitor(cs));
             RideUse::GetTypeHistory().Set(guest.id, LegacyGetRideTypesBeenOn(rideTypeBeenOn));
         }
 
@@ -2933,10 +2713,7 @@ namespace OpenRCT2
         if (os.getHeader().targetVersion < 3)
         {
             std::array<uint8_t, 32> ridesBeenOn;
-            cs.readWriteArray(ridesBeenOn, [&cs](uint8_t& rideType) {
-                cs.readWrite(rideType);
-                return true;
-            });
+            cs.readWriteArray(ridesBeenOn, ReadWriteFieldVisitor(cs));
             RideUse::GetHistory().Set(guest.id, LegacyGetRidesBeenOn(ridesBeenOn));
         }
         else
@@ -2952,26 +2729,8 @@ namespace OpenRCT2
             }
             else
             {
-                auto* rideUse = RideUse::GetHistory().GetAll(guest.id);
-                if (rideUse == nullptr)
-                {
-                    std::vector<RideId> empty;
-                    cs.readWriteVector(empty, [&cs](RideId& rideId) { cs.readWrite(rideId); });
-                }
-                else
-                {
-                    cs.readWriteVector(*rideUse, [&cs](RideId& rideId) { cs.readWrite(rideId); });
-                }
-                auto* rideTypeUse = RideUse::GetTypeHistory().GetAll(guest.id);
-                if (rideTypeUse == nullptr)
-                {
-                    std::vector<ObjectEntryIndex> empty;
-                    cs.readWriteVector(empty, [&cs](ObjectEntryIndex& rideId) { cs.readWrite(rideId); });
-                }
-                else
-                {
-                    cs.readWriteVector(*rideTypeUse, [&cs](ObjectEntryIndex& rideId) { cs.readWrite(rideId); });
-                }
+                WriteVectorOrEmpty(cs, RideUse::GetHistory().GetAll(guest.id));
+                WriteVectorOrEmpty(cs, RideUse::GetTypeHistory().GetAll(guest.id));
             }
         }
         if (version <= 18)
@@ -2989,12 +2748,9 @@ namespace OpenRCT2
             ReadWriteParkMoney64(cs, guest.cashSpent, version);
         }
 
-        cs.readWrite(guest.photo1RideRef);
-        cs.readWrite(guest.photo2RideRef);
-        cs.readWrite(guest.photo3RideRef);
-        cs.readWrite(guest.photo4RideRef);
-        cs.readWrite(guest.rejoinQueueTimeout);
-        cs.readWrite(guest.previousRide);
+        ReadWriteFields(
+            cs, guest.photo1RideRef, guest.photo2RideRef, guest.photo3RideRef, guest.photo4RideRef,
+            guest.rejoinQueueTimeout, guest.previousRide);
         if (version >= kTransportJourneyRoutingVersion)
         {
             cs.readWrite(guest.previousRideTimeOut);
@@ -3036,24 +2792,12 @@ namespace OpenRCT2
             cs.readWrite(thought.fresh_timeout);
             return true;
         });
-        cs.readWrite(guest.litterCount);
-        cs.readWrite(guest.disgustingCount);
-        cs.readWrite(guest.amountOfFood);
-        cs.readWrite(guest.amountOfDrinks);
-        cs.readWrite(guest.amountOfSouvenirs);
-        cs.readWrite(guest.vandalismSeen);
-        cs.readWrite(guest.voucherType);
-        cs.readWrite(guest.voucherRideId);
-        cs.readWrite(guest.surroundingsThoughtTimeout);
-        cs.readWrite(guest.angriness);
-        cs.readWrite(guest.timeLost);
-        cs.readWrite(guest.daysInQueue);
-        cs.readWrite(guest.balloonColour);
-        cs.readWrite(guest.umbrellaColour);
-        cs.readWrite(guest.hatColour);
-        cs.readWrite(guest.favouriteRide);
-        cs.readWrite(guest.favouriteRideRating);
-        cs.readWrite(guest.itemFlags);
+        ReadWriteFields(
+            cs, guest.litterCount, guest.disgustingCount, guest.amountOfFood, guest.amountOfDrinks,
+            guest.amountOfSouvenirs, guest.vandalismSeen, guest.voucherType, guest.voucherRideId,
+            guest.surroundingsThoughtTimeout, guest.angriness, guest.timeLost, guest.daysInQueue,
+            guest.balloonColour, guest.umbrellaColour, guest.hatColour, guest.favouriteRide,
+            guest.favouriteRideRating, guest.itemFlags);
     }
 
     template<>
@@ -3088,57 +2832,42 @@ namespace OpenRCT2
             return;
         }
 
-        cs.readWrite(entity.assignedStaffType);
-        cs.readWrite(entity.mechanicTimeSinceCall);
-        cs.readWrite(entity.hireDate);
+        ReadWriteFields(cs, entity.assignedStaffType, entity.mechanicTimeSinceCall, entity.hireDate);
         if (os.getHeader().targetVersion <= 4)
         {
             cs.ignore<uint8_t>();
         }
-        cs.readWrite(entity.staffOrders);
-        cs.readWrite(entity.staffMowingTimeout);
-        cs.readWrite(entity.staffLawnsMown);
-        cs.readWrite(entity.staffGardensWatered);
-        cs.readWrite(entity.staffLitterSwept);
-        cs.readWrite(entity.staffBinsEmptied);
+        ReadWriteFields(
+            cs, entity.staffOrders, entity.staffMowingTimeout, entity.staffLawnsMown,
+            entity.staffGardensWatered, entity.staffLitterSwept, entity.staffBinsEmptied);
     }
 
     template<>
     void ParkFile::ReadWriteEntity(OrcaStream& os, OrcaStream::ChunkStream& cs, SteamParticle& steamParticle)
     {
         ReadWriteEntityCommon(cs, steamParticle);
-        cs.readWrite(steamParticle.time_to_move);
-        cs.readWrite(steamParticle.frame);
+        ReadWriteFields(cs, steamParticle.time_to_move, steamParticle.frame);
     }
 
     template<>
     void ParkFile::ReadWriteEntity(OrcaStream& os, OrcaStream::ChunkStream& cs, MoneyEffect& moneyEffect)
     {
         ReadWriteEntityCommon(cs, moneyEffect);
-        cs.readWrite(moneyEffect.moveDelay);
-        cs.readWrite(moneyEffect.numMovements);
-        cs.readWrite(moneyEffect.guestPurchase);
+        ReadWriteFields(cs, moneyEffect.moveDelay, moneyEffect.numMovements, moneyEffect.guestPurchase);
         ReadWriteParkMoney64(cs, moneyEffect.value, os.getHeader().targetVersion);
-        cs.readWrite(moneyEffect.offsetX);
-        cs.readWrite(moneyEffect.wiggle);
+        ReadWriteFields(cs, moneyEffect.offsetX, moneyEffect.wiggle);
     }
 
     template<>
     void ParkFile::ReadWriteEntity(OrcaStream& os, OrcaStream::ChunkStream& cs, VehicleCrashParticle& vehicleCrashParticle)
     {
         ReadWriteEntityCommon(cs, vehicleCrashParticle);
-        cs.readWrite(vehicleCrashParticle.frame);
-        cs.readWrite(vehicleCrashParticle.time_to_live);
-        cs.readWrite(vehicleCrashParticle.frame);
-        cs.readWrite(vehicleCrashParticle.colour[0]);
-        cs.readWrite(vehicleCrashParticle.colour[1]);
-        cs.readWrite(vehicleCrashParticle.crashed_sprite_base);
-        cs.readWrite(vehicleCrashParticle.velocity_x);
-        cs.readWrite(vehicleCrashParticle.velocity_y);
-        cs.readWrite(vehicleCrashParticle.velocity_z);
-        cs.readWrite(vehicleCrashParticle.acceleration_x);
-        cs.readWrite(vehicleCrashParticle.acceleration_y);
-        cs.readWrite(vehicleCrashParticle.acceleration_z);
+        ReadWriteFields(
+            cs, vehicleCrashParticle.frame, vehicleCrashParticle.time_to_live, vehicleCrashParticle.frame,
+            vehicleCrashParticle.colour[0], vehicleCrashParticle.colour[1], vehicleCrashParticle.crashed_sprite_base,
+            vehicleCrashParticle.velocity_x, vehicleCrashParticle.velocity_y, vehicleCrashParticle.velocity_z,
+            vehicleCrashParticle.acceleration_x, vehicleCrashParticle.acceleration_y,
+            vehicleCrashParticle.acceleration_z);
     }
 
     template<>
@@ -3166,41 +2895,30 @@ namespace OpenRCT2
     void ParkFile::ReadWriteEntity(OrcaStream& os, OrcaStream::ChunkStream& cs, JumpingFountain& fountain)
     {
         ReadWriteEntityCommon(cs, fountain);
-        cs.readWrite(fountain.NumTicksAlive);
-        cs.readWrite(fountain.frame);
-        cs.readWrite(fountain.fountainFlags.holder);
-        cs.readWrite(fountain.TargetX);
-        cs.readWrite(fountain.TargetY);
-        cs.readWrite(fountain.TargetY);
-        cs.readWrite(fountain.Iteration);
+        ReadWriteFields(
+            cs, fountain.NumTicksAlive, fountain.frame, fountain.fountainFlags.holder, fountain.TargetX,
+            fountain.TargetY, fountain.TargetY, fountain.Iteration);
     }
 
     template<>
     void ParkFile::ReadWriteEntity(OrcaStream& os, OrcaStream::ChunkStream& cs, Balloon& balloon)
     {
         ReadWriteEntityCommon(cs, balloon);
-        cs.readWrite(balloon.popped);
-        cs.readWrite(balloon.time_to_move);
-        cs.readWrite(balloon.frame);
-        cs.readWrite(balloon.colour);
+        ReadWriteFields(cs, balloon.popped, balloon.time_to_move, balloon.frame, balloon.colour);
     }
 
     template<>
     void ParkFile::ReadWriteEntity(OrcaStream& os, OrcaStream::ChunkStream& cs, Duck& duck)
     {
         ReadWriteEntityCommon(cs, duck);
-        cs.readWrite(duck.frame);
-        cs.readWrite(duck.target_x);
-        cs.readWrite(duck.target_y);
-        cs.readWrite(duck.state);
+        ReadWriteFields(cs, duck.frame, duck.target_x, duck.target_y, duck.state);
     }
 
     template<>
     void ParkFile::ReadWriteEntity(OrcaStream& os, OrcaStream::ChunkStream& cs, Litter& entity)
     {
         ReadWriteEntityCommon(cs, entity);
-        cs.readWrite(entity.subType);
-        cs.readWrite(entity.creationTick);
+        ReadWriteFields(cs, entity.subType, entity.creationTick);
     }
 
     template<typename T>

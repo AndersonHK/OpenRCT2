@@ -427,6 +427,7 @@ void RideClearForConstruction(Ride& ride)
     ride.measurement = {};
 
     ride.flags.unset(RideFlag::breakdownPending, RideFlag::brokenDown);
+    RideInvalidateTransportServiceCache(ride.id);
     ride.windowInvalidateFlags.set(RideInvalidateFlag::main, RideInvalidateFlag::list);
 
     // Open circuit rides will go directly into building mode (creating ghosts) where it would normally clear the stats,

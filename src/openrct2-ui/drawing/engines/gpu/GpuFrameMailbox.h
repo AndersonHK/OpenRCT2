@@ -27,10 +27,11 @@
 
 namespace OpenRCT2::Ui::Gpu
 {
-    class SynchronousFrameBoundary final
+    template<typename T>
+    class SynchronousResult
     {
-    public:
-        void Complete()
+    protected:
+        void Complete(T result)
         {
             {
                 std::scoped_lock lock(_mutex);
@@ -38,6 +39,7 @@ namespace OpenRCT2::Ui::Gpu
                 {
                     return;
                 }
+                _result = std::move(result);
                 _complete = true;
             }
             _completed.notify_all();
@@ -57,7 +59,7 @@ namespace OpenRCT2::Ui::Gpu
             _completed.notify_all();
         }
 
-        void Wait()
+        [[nodiscard]] T Wait()
         {
             std::unique_lock lock(_mutex);
             _completed.wait(lock, [this] { return _complete; });
@@ -65,18 +67,40 @@ namespace OpenRCT2::Ui::Gpu
             {
                 std::rethrow_exception(_error);
             }
+            return std::move(_result);
         }
 
     private:
         std::mutex _mutex;
         std::condition_variable _completed;
         std::exception_ptr _error;
+        T _result{};
         bool _complete = false;
     };
 
-    class SynchronousReadback final
+    class SynchronousFrameBoundary final : private SynchronousResult<bool>
     {
     public:
+        using SynchronousResult::Fail;
+
+        void Complete()
+        {
+            SynchronousResult::Complete(true);
+        }
+
+        void Wait()
+        {
+            static_cast<void>(SynchronousResult::Wait());
+        }
+    };
+
+    class SynchronousReadback final : private SynchronousResult<bool>
+    {
+    public:
+        using SynchronousResult::Complete;
+        using SynchronousResult::Fail;
+        using SynchronousResult::Wait;
+
         explicit SynchronousReadback(Extent extent)
             : _extent(extent)
         {
@@ -98,53 +122,9 @@ namespace OpenRCT2::Ui::Gpu
             return _pixels;
         }
 
-        void Complete(bool available)
-        {
-            {
-                std::scoped_lock lock(_mutex);
-                if (_complete)
-                {
-                    return;
-                }
-                _available = available;
-                _complete = true;
-            }
-            _completed.notify_all();
-        }
-
-        void Fail(std::exception_ptr error)
-        {
-            {
-                std::scoped_lock lock(_mutex);
-                if (_complete)
-                {
-                    return;
-                }
-                _error = std::move(error);
-                _complete = true;
-            }
-            _completed.notify_all();
-        }
-
-        [[nodiscard]] bool Wait()
-        {
-            std::unique_lock lock(_mutex);
-            _completed.wait(lock, [this] { return _complete; });
-            if (_error)
-            {
-                std::rethrow_exception(_error);
-            }
-            return _available;
-        }
-
     private:
         Extent _extent{};
         std::vector<std::byte> _pixels;
-        std::mutex _mutex;
-        std::condition_variable _completed;
-        std::exception_ptr _error;
-        bool _complete = false;
-        bool _available = false;
     };
 
     struct FramePresentationSnapshot
@@ -186,17 +166,15 @@ namespace OpenRCT2::Ui::Gpu
             std::unique_ptr<RecordedFramePacket> released;
         };
 
-        struct ReadbackPublishResult
+        template<typename Request>
+        struct ControlPublishResult
         {
             bool accepted = false;
-            std::shared_ptr<SynchronousReadback> released;
+            std::shared_ptr<Request> released;
         };
 
-        struct BoundaryPublishResult
-        {
-            bool accepted = false;
-            std::shared_ptr<SynchronousFrameBoundary> released;
-        };
+        using ReadbackPublishResult = ControlPublishResult<SynchronousReadback>;
+        using BoundaryPublishResult = ControlPublishResult<SynchronousFrameBoundary>;
 
         [[nodiscard]] PublishResult Publish(std::unique_ptr<RecordedFramePacket> packet)
         {
@@ -239,28 +217,9 @@ namespace OpenRCT2::Ui::Gpu
          */
         [[nodiscard]] ReadbackPublishResult PublishReadback(std::shared_ptr<SynchronousReadback> readback)
         {
-            if (readback == nullptr)
-            {
-                throw std::invalid_argument("Cannot publish a null GPU readback request");
-            }
-
-            ReadbackPublishResult result;
-            {
-                std::scoped_lock lock(_mutex);
-                if (_stopping)
-                {
-                    result.released = std::move(readback);
-                    return result;
-                }
-                if (_newest == nullptr)
-                {
-                    _newest = std::make_unique<RecordedFramePacket>();
-                }
-                result.accepted = true;
-                result.released = std::exchange(_newest->readback, std::move(readback));
-            }
-            _available.notify_one();
-            return result;
+            return PublishControl(
+                std::move(readback), &RecordedFramePacket::readback,
+                "Cannot publish a null GPU readback request");
         }
 
         /**
@@ -270,28 +229,9 @@ namespace OpenRCT2::Ui::Gpu
         [[nodiscard]] BoundaryPublishResult PublishTimingBoundary(
             std::shared_ptr<SynchronousFrameBoundary> boundary)
         {
-            if (boundary == nullptr)
-            {
-                throw std::invalid_argument("Cannot publish a null GPU timing boundary");
-            }
-
-            BoundaryPublishResult result;
-            {
-                std::scoped_lock lock(_mutex);
-                if (_stopping)
-                {
-                    result.released = std::move(boundary);
-                    return result;
-                }
-                if (_newest == nullptr)
-                {
-                    _newest = std::make_unique<RecordedFramePacket>();
-                }
-                result.accepted = true;
-                result.released = std::exchange(_newest->timingBoundary, std::move(boundary));
-            }
-            _available.notify_one();
-            return result;
+            return PublishControl(
+                std::move(boundary), &RecordedFramePacket::timingBoundary,
+                "Cannot publish a null GPU timing boundary");
         }
 
         [[nodiscard]] std::unique_ptr<RecordedFramePacket> WaitTakeNewest()
@@ -332,13 +272,36 @@ namespace OpenRCT2::Ui::Gpu
             return std::move(_recycled);
         }
 
-        [[nodiscard]] bool IsStopping() const
+    private:
+        template<typename Request>
+        [[nodiscard]] ControlPublishResult<Request> PublishControl(
+            std::shared_ptr<Request> request, std::shared_ptr<Request> RecordedFramePacket::* destination,
+            const char* nullError)
         {
-            std::scoped_lock lock(_mutex);
-            return _stopping;
+            if (request == nullptr)
+            {
+                throw std::invalid_argument(nullError);
+            }
+
+            ControlPublishResult<Request> result;
+            {
+                std::scoped_lock lock(_mutex);
+                if (_stopping)
+                {
+                    result.released = std::move(request);
+                    return result;
+                }
+                if (_newest == nullptr)
+                {
+                    _newest = std::make_unique<RecordedFramePacket>();
+                }
+                result.accepted = true;
+                result.released = std::exchange(_newest.get()->*destination, std::move(request));
+            }
+            _available.notify_one();
+            return result;
         }
 
-    private:
         mutable std::mutex _mutex;
         std::condition_variable _available;
         std::unique_ptr<RecordedFramePacket> _newest;

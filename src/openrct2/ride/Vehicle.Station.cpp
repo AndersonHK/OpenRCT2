@@ -13,6 +13,7 @@
 #include "../audio/Audio.h"
 #include "../config/Config.h"
 #include "../core/GameTime.hpp"
+#include "../core/Guard.hpp"
 #include "../core/Speed.hpp"
 #include "../entity/EntityRegistry.h"
 #include "../entity/Guest.h"
@@ -53,32 +54,18 @@ static SynchronisedVehicle* _lastSynchronisedVehicle = nullptr;
 
 namespace OpenRCT2::RideVehicle::StationDetail
 {
-    template<typename TSummary, typename TAccumulate>
-    static TSummary BuildTrainSummary(const Vehicle& head, TAccumulate&& accumulate)
+    TrainSeatSummary BuildTrainSeatSummary(const Vehicle& head)
     {
-        TSummary result;
+        TrainSeatSummary result;
         for (const auto* car = &head; car != nullptr && result.carCount < result.cars.size();
              car = getGameState().entities.GetEntity<Vehicle>(car->next_vehicle_on_train))
         {
             result.cars[result.carCount++] = car;
-            result.hasRiders = result.hasRiders || car->num_peeps != 0;
-            accumulate(result, *car);
+            result.capacity += car->num_seats & kVehicleSeatNumMask;
+            result.currentPeeps += car->num_peeps;
+            result.reservedSeats += car->next_free_seat;
         }
         return result;
-    }
-
-    TrainCarSummary BuildTrainCarSummary(const Vehicle& head)
-    {
-        return BuildTrainSummary<TrainCarSummary>(head, [](TrainCarSummary&, const Vehicle&) {});
-    }
-
-    TrainSeatSummary BuildTrainSeatSummary(const Vehicle& head)
-    {
-        return BuildTrainSummary<TrainSeatSummary>(head, [](TrainSeatSummary& result, const Vehicle& car) {
-            result.capacity += car.num_seats & kVehicleSeatNumMask;
-            result.currentPeeps += car.num_peeps;
-            result.reservedSeats += car.next_free_seat;
-        });
     }
 
     PlatformBoardingSeatRange GetPlatformBoardingSeatRange(const Vehicle& vehicle)
@@ -92,7 +79,7 @@ namespace OpenRCT2::RideVehicle::StationDetail
         return { firstSeat, static_cast<uint8_t>(physicalSeatCount - firstSeat) };
     }
 
-    TrainBoardingSeatPlan BuildTrainBoardingSeatPlan(const TrainCarSummary& train)
+    TrainBoardingSeatPlan BuildTrainBoardingSeatPlan(const TrainSeatSummary& train)
     {
         TrainBoardingSeatPlan result{};
         uint32_t slotOffset = 0;
@@ -115,11 +102,10 @@ namespace OpenRCT2::RideVehicle::StationDetail
         assert(shouldAlight.size() <= kMaxPassengerCount);
 
         PassengerUnloadPlan result{};
-        result.passengerCount = static_cast<uint8_t>(shouldAlight.size());
         result.continuingCount = static_cast<uint8_t>(std::count(shouldAlight.begin(), shouldAlight.end(), false));
         uint8_t continuingIndex = 0;
         uint8_t alightingIndex = result.continuingCount;
-        for (uint8_t sourceIndex = 0; sourceIndex < result.passengerCount; sourceIndex++)
+        for (uint8_t sourceIndex = 0; sourceIndex < shouldAlight.size(); sourceIndex++)
         {
             const auto destinationIndex = shouldAlight[sourceIndex] ? alightingIndex++ : continuingIndex++;
             result.sourceIndices[destinationIndex] = sourceIndex;
@@ -145,22 +131,15 @@ namespace OpenRCT2::RideVehicle::StationDetail
     void ApplyTransportPassengerUnload(
         Vehicle& vehicle, std::span<Guest* const> originalPassengers, const PassengerUnloadPlan& plan)
     {
-        assert(originalPassengers.size() >= plan.passengerCount);
+        const auto passengerIds = std::to_array(vehicle.peep);
+        const auto passengerColours = std::to_array(vehicle.peep_tshirt_colours);
 
-        std::array<EntityId, kMaxPassengerCount> passengerIds{};
-        std::array<Drawing::Colour, kMaxPassengerCount> passengerColours{};
-        for (uint8_t destinationIndex = 0; destinationIndex < plan.passengerCount; destinationIndex++)
+        for (uint8_t destinationIndex = 0; destinationIndex < originalPassengers.size(); destinationIndex++)
         {
             const auto sourceIndex = plan.sourceIndices[destinationIndex];
-            passengerIds[destinationIndex] = vehicle.peep[sourceIndex];
-            passengerColours[destinationIndex] = vehicle.peep_tshirt_colours[sourceIndex];
-        }
-
-        for (uint8_t destinationIndex = 0; destinationIndex < plan.passengerCount; destinationIndex++)
-        {
-            vehicle.peep[destinationIndex] = passengerIds[destinationIndex];
-            vehicle.peep_tshirt_colours[destinationIndex] = passengerColours[destinationIndex];
-            auto* guest = originalPassengers[plan.sourceIndices[destinationIndex]];
+            vehicle.peep[destinationIndex] = passengerIds[sourceIndex];
+            vehicle.peep_tshirt_colours[destinationIndex] = passengerColours[sourceIndex];
+            auto* guest = originalPassengers[sourceIndex];
             if (guest != nullptr)
             {
                 guest->CurrentSeat = destinationIndex;
@@ -188,26 +167,23 @@ namespace OpenRCT2::RideVehicle::StationDetail
         }
     }
 
-    PlatformSeatBindingResult BindPlatformGuestToSeat(Guest& guest, Vehicle& vehicle, uint8_t seatIndex)
+    bool BindPlatformGuestToSeat(Guest& guest, Vehicle& vehicle, uint8_t seatIndex)
     {
         const auto seatCount = vehicle.num_seats & kVehicleSeatNumMask;
-        if (seatIndex >= seatCount || seatIndex >= std::size(vehicle.peep))
-        {
-            return PlatformSeatBindingResult::consistMismatch;
-        }
+        Guard::Assert(seatIndex < seatCount && seatIndex < std::size(vehicle.peep));
         const auto availableSeats = GetPlatformBoardingSeatRange(vehicle);
         const auto activePassengerEnd = std::begin(vehicle.peep) + availableSeats.firstSeat;
-        if (availableSeats.seatCount == 0 || availableSeats.firstSeat != seatIndex
+        if (availableSeats.firstSeat != seatIndex
             || std::find(std::begin(vehicle.peep), activePassengerEnd, guest.id) != activePassengerEnd)
         {
-            return PlatformSeatBindingResult::seatUnavailable;
+            return false;
         }
 
         guest.CurrentSeat = seatIndex;
         vehicle.next_free_seat++;
         vehicle.peep[seatIndex] = guest.id;
         vehicle.peep_tshirt_colours[seatIndex] = guest.TshirtColour;
-        return PlatformSeatBindingResult::success;
+        return true;
     }
 } // namespace OpenRCT2::RideVehicle::StationDetail
 
@@ -743,67 +719,48 @@ void Vehicle::UpdateWaitingForPassengers()
                 if (train_id == id)
                     continue;
 
-                Vehicle* otherTrain = getGameState().entities.GetEntity<Vehicle>(train_id);
-                if (otherTrain == nullptr)
+                const auto* otherTrain = getGameState().entities.GetEntity<Vehicle>(train_id);
+                if (otherTrain == nullptr || otherTrain->current_station != current_station
+                    || (otherTrain->status != Status::unloadingPassengers
+                        && otherTrain->status != Status::movingToEndOfStation))
+                {
                     continue;
-
-                if ((otherTrain->status == Status::unloadingPassengers
-                        || otherTrain->status == Status::movingToEndOfStation)
-                    && otherTrain->current_station == current_station)
-                {
-                    // "Leave when another arrives" overrides the ordinary station dwell timer, but never a block-section
-                    // signal. Keep the normal synchronisation and track-safety gates in UpdateWaitingToDepart.
-                    if (!curRide->isBlockSectioned())
-                    {
-                        curRide->getStation(current_station).Depart = kStationDepartFlag;
-                    }
-                    flags.set(VehicleFlag::readyToDepart);
-                    TrainReadyToDepart(num_peeps_on_train, num_used_seats_on_train);
-                    return;
                 }
-            }
-        }
-
-        if (curRide->supportsStatus(RideStatus::testing))
-        {
-            if (time_waiting < 20)
-            {
-                TrainReadyToDepart(num_peeps_on_train, num_used_seats_on_train);
-                return;
-            }
-        }
-        else
-        {
-            if (num_peeps_on_train == 0)
-            {
+                // "Leave when another arrives" overrides the ordinary station dwell timer, but never a block-section
+                // signal. Keep the normal synchronisation and track-safety gates in UpdateWaitingToDepart.
+                if (!curRide->isBlockSectioned())
+                {
+                    curRide->getStation(current_station).Depart = kStationDepartFlag;
+                }
+                flags.set(VehicleFlag::readyToDepart);
                 TrainReadyToDepart(num_peeps_on_train, num_used_seats_on_train);
                 return;
             }
         }
 
-        if (curRide->getRideTypeDescriptor().flags.has(RtdFlag::hasLoadOptions))
+        const bool supportsTesting = curRide->supportsStatus(RideStatus::testing);
+        if ((supportsTesting && time_waiting < 20) || (!supportsTesting && num_peeps_on_train == 0))
         {
-            if (curRide->departFlags & RIDE_DEPART_WAIT_FOR_MINIMUM_LENGTH)
-            {
-                if (GameTime::SecondsToTicks(curRide->minWaitingTime) > time_waiting)
-                {
-                    TrainReadyToDepart(num_peeps_on_train, num_used_seats_on_train);
-                    return;
-                }
-            }
-            if (curRide->departFlags & RIDE_DEPART_WAIT_FOR_MAXIMUM_LENGTH)
-            {
-                if (GameTime::SecondsToTicks(curRide->maxWaitingTime) < time_waiting)
-                {
-                    flags.set(VehicleFlag::readyToDepart);
-                    TrainReadyToDepart(num_peeps_on_train, num_used_seats_on_train);
-                    return;
-                }
-            }
+            TrainReadyToDepart(num_peeps_on_train, num_used_seats_on_train);
+            return;
         }
 
-        if (curRide->getRideTypeDescriptor().flags.has(RtdFlag::hasLoadOptions)
-            && curRide->departFlags & RIDE_DEPART_WAIT_FOR_LOAD)
+        const bool hasLoadOptions = curRide->getRideTypeDescriptor().flags.has(RtdFlag::hasLoadOptions);
+        if (hasLoadOptions && (curRide->departFlags & RIDE_DEPART_WAIT_FOR_MINIMUM_LENGTH)
+            && GameTime::SecondsToTicks(curRide->minWaitingTime) > time_waiting)
+        {
+            TrainReadyToDepart(num_peeps_on_train, num_used_seats_on_train);
+            return;
+        }
+        if (hasLoadOptions && (curRide->departFlags & RIDE_DEPART_WAIT_FOR_MAXIMUM_LENGTH)
+            && GameTime::SecondsToTicks(curRide->maxWaitingTime) < time_waiting)
+        {
+            flags.set(VehicleFlag::readyToDepart);
+            TrainReadyToDepart(num_peeps_on_train, num_used_seats_on_train);
+            return;
+        }
+
+        if (hasLoadOptions && (curRide->departFlags & RIDE_DEPART_WAIT_FOR_LOAD))
         {
             if (num_peeps_on_train == num_seats_on_train)
             {
@@ -813,15 +770,12 @@ void Vehicle::UpdateWaitingForPassengers()
             }
 
             // any load: load=4 , full: load=3 , 3/4s: load=2 , half: load=1 , quarter: load=0
-            uint8_t load = curRide->departFlags & RIDE_DEPART_WAIT_FOR_LOAD_MASK;
+            const uint8_t load = curRide->departFlags & RIDE_DEPART_WAIT_FOR_LOAD_MASK;
 
             // We want to wait for ceiling((load+1)/4 * num_seats_on_train) peeps, the +3 below is used instead of
             // ceil() to prevent issues on different cpus/platforms with floats. Note that vanilla RCT1/2 rounded
             // down here; our change reflects the expected behaviour for waiting for a minimum load target (see #9987)
-            uint32_t peepTarget = ((load + 1) * num_seats_on_train + 3) / 4;
-
-            if (load == 4) // take care of "any load" special case
-                peepTarget = 1;
+            const uint32_t peepTarget = load == 4 ? 1 : ((load + 1) * num_seats_on_train + 3) / 4;
 
             if (num_peeps_on_train >= peepTarget)
                 flags.set(VehicleFlag::readyToDepart);
@@ -1137,10 +1091,6 @@ void Vehicle::UpdateUnloadingPassengers()
             if (sub_state != 1)
                 return;
 
-            if (RideRating::ShouldSampleCircuit(*curRide, *this) && curRide->currentTestSegment + 1 >= curRide->numStations)
-            {
-                UpdateTestFinish();
-            }
             SetState(Status::movingToEndOfStation);
             return;
         }
@@ -1189,10 +1139,6 @@ void Vehicle::UpdateUnloadingPassengers()
             return;
     }
 
-    if (RideRating::ShouldSampleCircuit(*curRide, *this) && curRide->currentTestSegment + 1 >= curRide->numStations)
-    {
-        UpdateTestFinish();
-    }
     SetState(Status::movingToEndOfStation);
 }
 
@@ -1219,8 +1165,7 @@ void Vehicle::UpdateDeparting()
             if (curRide->flags.has(RideFlag::brokenDown))
                 return;
 
-            curRide->flags.set(RideFlag::brokenDown);
-            RideBreakdownAddNewsItem(*curRide);
+            RideMarkBrokenDown(*curRide);
 
             curRide->windowInvalidateFlags.set(
                 RideInvalidateFlag::main, RideInvalidateFlag::list, RideInvalidateFlag::maintenance);

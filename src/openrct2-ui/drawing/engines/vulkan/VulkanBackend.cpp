@@ -63,8 +63,7 @@ namespace OpenRCT2::Ui::Vulkan
         auto* window = static_cast<SDL_Window*>(config.nativeWindow);
         _device.Initialise(
             window, { config.drawableExtent.width, config.drawableExtent.height },
-            config.presentMode == Gpu::PresentMode::VSync,
-            static_cast<VkDeviceSize>(config.uploadRingBytesPerFrame),
+            config.presentMode == Gpu::PresentMode::VSync, static_cast<VkDeviceSize>(config.uploadRingBytesPerFrame),
             config.outputColorMode == Gpu::OutputColorMode::Hdr10IfAvailable, config.hdrPaperWhiteNits);
         try
         {
@@ -198,8 +197,7 @@ namespace OpenRCT2::Ui::Vulkan
             _rectPipeline.Initialise(_device, _resources, _config.shaderDirectory);
             _transparencyPipeline.Initialise(_device, _resources, _config.shaderDirectory);
             _weatherPipeline.Initialise(_device, _resources, _config.shaderDirectory);
-            _lightFxPipeline.Initialise(
-                _device, _resources, _config.shaderDirectory, gpuLightFxSupported);
+            _lightFxPipeline.Initialise(_device, _resources, _config.shaderDirectory, gpuLightFxSupported);
             _palettePipeline.RefreshDescriptors(_resources);
             _device.RequestSwapchainRecreate();
             PopulateCapabilities();
@@ -339,7 +337,8 @@ namespace OpenRCT2::Ui::Vulkan
     void Backend::SetLightFxFalloffs(std::span<const std::byte> layers)
     {
         constexpr size_t expected = 8 * 256 * 256;
-        if (layers.size() != expected) throw std::invalid_argument("GPU LightFX falloffs have an invalid size");
+        if (layers.size() != expected)
+            throw std::invalid_argument("GPU LightFX falloffs have an invalid size");
         _pendingLightFalloffs.assign(layers.begin(), layers.end());
         _lightFalloffsDirty = true;
     }
@@ -366,11 +365,8 @@ namespace OpenRCT2::Ui::Vulkan
             {
                 throw std::out_of_range("Vulkan canvas upload references bytes outside the current upload ring");
             }
-            const UploadAllocation allocation = {
-                _activeToken->upload->GetBuffer(), upload.sourceOffset, size, nullptr
-            };
-            _resources.RecordCanvasUpload(
-                _activeToken->commandBuffer, _activeToken->frameIndex, allocation, upload);
+            const UploadAllocation allocation = { _activeToken->upload->GetBuffer(), upload.sourceOffset, size, nullptr };
+            _resources.RecordCanvasUpload(_activeToken->commandBuffer, _activeToken->frameIndex, allocation, upload);
         }
         _device.RecordGpuTimestamp(*_activeToken, GpuTimestampPoint::uploadsComplete);
         const bool requiresDepth = !commands.opaqueRects.empty() || !commands.transparentRects.empty();
@@ -403,9 +399,8 @@ namespace OpenRCT2::Ui::Vulkan
         _device.RecordGpuTimestamp(*_activeToken, GpuTimestampPoint::indexedDrawComplete);
         const bool lightFxEnabled = RecordLightFx(commands);
         _device.RecordGpuTimestamp(*_activeToken, GpuTimestampPoint::lightFxComplete);
-        const auto& finalCanvas = finalComposite
-            ? _resources.GetCompositeCanvas(_activeToken->frameIndex)
-            : _resources.GetIndexedCanvas(_activeToken->frameIndex);
+        const auto& finalCanvas = finalComposite ? _resources.GetCompositeCanvas(_activeToken->frameIndex)
+                                                 : _resources.GetIndexedCanvas(_activeToken->frameIndex);
         _palettePipeline.SetCanvasSource(_activeToken->frameIndex, finalCanvas);
         _palettePipeline.Record(*_activeToken, lightFxEnabled);
         _finalCanvasComposite = finalComposite;
@@ -522,9 +517,8 @@ namespace OpenRCT2::Ui::Vulkan
         {
             throw std::invalid_argument("Vulkan readback currently exposes the indexed canvas only");
         }
-        const auto& source = _finalCanvasComposite
-            ? _resources.GetCompositeCanvas(_activeToken->frameIndex)
-            : _resources.GetIndexedCanvas(_activeToken->frameIndex);
+        const auto& source = _finalCanvasComposite ? _resources.GetCompositeCanvas(_activeToken->frameIndex)
+                                                   : _resources.GetIndexedCanvas(_activeToken->frameIndex);
         const auto sourceExtent = source.GetExtent();
         if (request.extent.width == 0 || request.extent.height == 0 || request.extent.width > sourceExtent.width
             || request.extent.height > sourceExtent.height)
@@ -549,8 +543,7 @@ namespace OpenRCT2::Ui::Vulkan
                 throw std::invalid_argument("Vulkan readback id is already pending");
             }
             _readbacks.emplace(
-                request.id,
-                PendingReadback{ _activeToken->frameIndex, allocation.offset, allocation.data, byteSize, {} });
+                request.id, PendingReadback{ _activeToken->frameIndex, allocation.offset, allocation.data, byteSize, {} });
         }
 
         const VkImageSubresourceRange range = {
@@ -562,8 +555,8 @@ namespace OpenRCT2::Ui::Vulkan
         };
         RecordImageBarrier(
             _activeToken->commandBuffer, source.GetImage(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, range, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-            VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_TRANSFER_READ_BIT);
+            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, range, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+            VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_TRANSFER_READ_BIT);
         const VkBufferImageCopy copy = {
             .bufferOffset = allocation.offset,
             .bufferRowLength = 0,
@@ -578,8 +571,7 @@ namespace OpenRCT2::Ui::Vulkan
             .imageExtent = { request.extent.width, request.extent.height, 1 },
         };
         vkCmdCopyImageToBuffer(
-            _activeToken->commandBuffer, source.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, allocation.buffer, 1,
-            &copy);
+            _activeToken->commandBuffer, source.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, allocation.buffer, 1, &copy);
         const VkBufferMemoryBarrier hostBarrier = {
             .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
             .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
@@ -642,10 +634,9 @@ namespace OpenRCT2::Ui::Vulkan
 
         const auto frameIndex = *_lastPresentedFrameIndex;
         const auto& source = _lastPresentedCanvasComposite ? _resources.GetCompositeCanvas(frameIndex)
-                                                          : _resources.GetIndexedCanvas(frameIndex);
+                                                           : _resources.GetIndexedCanvas(frameIndex);
         const auto sourceExtent = source.GetExtent();
-        if (extent.width == 0 || extent.height == 0 || extent.width > sourceExtent.width
-            || extent.height > sourceExtent.height)
+        if (extent.width == 0 || extent.height == 0 || extent.width > sourceExtent.width || extent.height > sourceExtent.height)
         {
             throw std::invalid_argument("Vulkan screenshot extent exceeds the latest indexed canvas");
         }
@@ -711,6 +702,17 @@ namespace OpenRCT2::Ui::Vulkan
         }
     }
 
+    UploadAllocation Backend::StageUpload(std::span<const std::byte> source, const char* errorMessage)
+    {
+        auto allocation = _activeToken->upload->Allocate(source.size(), alignof(uint32_t));
+        if (!allocation)
+        {
+            throw std::runtime_error(errorMessage);
+        }
+        std::memcpy(allocation.data, source.data(), source.size());
+        return allocation;
+    }
+
     void Backend::RecordPendingPalette()
     {
         const auto frameIndex = _activeToken->frameIndex;
@@ -718,12 +720,7 @@ namespace OpenRCT2::Ui::Vulkan
         {
             return;
         }
-        auto allocation = _activeToken->upload->Allocate(_pendingPalette.size(), alignof(uint32_t));
-        if (!allocation)
-        {
-            throw std::runtime_error("Vulkan upload ring has no room for the palette");
-        }
-        std::memcpy(allocation.data, _pendingPalette.data(), _pendingPalette.size());
+        const auto allocation = StageUpload(_pendingPalette, "Vulkan upload ring has no room for the palette");
         _resources.RecordPaletteUpload(_activeToken->commandBuffer, frameIndex, allocation);
         _framePaletteVersions[frameIndex] = _paletteVersion;
     }
@@ -734,12 +731,7 @@ namespace OpenRCT2::Ui::Vulkan
         {
             return;
         }
-        auto allocation = _activeToken->upload->Allocate(_pendingRemapPalette.size(), alignof(uint32_t));
-        if (!allocation)
-        {
-            throw std::runtime_error("Vulkan upload ring has no room for the remap palette");
-        }
-        std::memcpy(allocation.data, _pendingRemapPalette.data(), _pendingRemapPalette.size());
+        const auto allocation = StageUpload(_pendingRemapPalette, "Vulkan upload ring has no room for the remap palette");
         _resources.RecordRemapPaletteUpload(_activeToken->commandBuffer, allocation);
         _remapPaletteDirty = false;
     }
@@ -750,12 +742,7 @@ namespace OpenRCT2::Ui::Vulkan
         {
             return;
         }
-        auto allocation = _activeToken->upload->Allocate(_pendingBlendPalette.size(), alignof(uint32_t));
-        if (!allocation)
-        {
-            throw std::runtime_error("Vulkan upload ring has no room for the blend palette");
-        }
-        std::memcpy(allocation.data, _pendingBlendPalette.data(), _pendingBlendPalette.size());
+        const auto allocation = StageUpload(_pendingBlendPalette, "Vulkan upload ring has no room for the blend palette");
         _resources.RecordBlendPaletteUpload(_activeToken->commandBuffer, allocation);
         _blendPaletteDirty = false;
     }
@@ -774,9 +761,7 @@ namespace OpenRCT2::Ui::Vulkan
             throw std::invalid_argument("Vulkan LightFX snapshot does not match the logical canvas");
         }
 
-        auto palette = _activeToken->upload->Allocate(snapshot.lightPalette.size(), alignof(uint32_t));
-        if (!palette) throw std::runtime_error("Vulkan upload ring has no room for the LightFX palette");
-        std::memcpy(palette.data, snapshot.lightPalette.data(), snapshot.lightPalette.size());
+        const auto palette = StageUpload(snapshot.lightPalette, "Vulkan upload ring has no room for the LightFX palette");
         if (_lightFxPipeline.IsAvailable() && !_pendingLightFalloffs.empty() && !_lightFalloffsDirty)
         {
             _resources.RecordLightPaletteUpload(_activeToken->commandBuffer, _activeToken->frameIndex, palette);
@@ -791,24 +776,19 @@ namespace OpenRCT2::Ui::Vulkan
         {
             throw std::runtime_error("Vulkan LightFX compute path could not consume a command-only snapshot");
         }
-        auto intensities = _activeToken->upload->Allocate(snapshot.intensities.size(), alignof(uint32_t));
-        if (!intensities) throw std::runtime_error("Vulkan upload ring has no room for the LightFX snapshot");
-        std::memcpy(intensities.data, snapshot.intensities.data(), snapshot.intensities.size());
+        const auto intensities = StageUpload(snapshot.intensities, "Vulkan upload ring has no room for the LightFX snapshot");
         _resources.RecordLightFxUpload(
-            _activeToken->commandBuffer, _activeToken->frameIndex, intensities, palette, snapshot.width,
-            snapshot.height);
-        _palettePipeline.SetLightMapSource(
-            _activeToken->frameIndex, _resources.GetLightMap(_activeToken->frameIndex));
+            _activeToken->commandBuffer, _activeToken->frameIndex, intensities, palette, snapshot.width, snapshot.height);
+        _palettePipeline.SetLightMapSource(_activeToken->frameIndex, _resources.GetLightMap(_activeToken->frameIndex));
         return true;
     }
 
     void Backend::RecordPendingLightFalloffs()
     {
         _lightFalloffsRecorded = false;
-        if (!_lightFxPipeline.IsAvailable() || !_lightFalloffsDirty || _pendingLightFalloffs.empty()) return;
-        auto allocation = _activeToken->upload->Allocate(_pendingLightFalloffs.size(), alignof(uint32_t));
-        if (!allocation) throw std::runtime_error("Vulkan upload ring has no room for LightFX falloffs");
-        std::memcpy(allocation.data, _pendingLightFalloffs.data(), _pendingLightFalloffs.size());
+        if (!_lightFxPipeline.IsAvailable() || !_lightFalloffsDirty || _pendingLightFalloffs.empty())
+            return;
+        const auto allocation = StageUpload(_pendingLightFalloffs, "Vulkan upload ring has no room for LightFX falloffs");
         _resources.RecordLightFalloffUpload(_activeToken->commandBuffer, allocation);
         _lightFalloffsDirty = false;
         _lightFalloffsRecorded = true;
@@ -831,12 +811,7 @@ namespace OpenRCT2::Ui::Vulkan
             {
                 throw std::invalid_argument("Vulkan texture upload payload does not match its bounds and pitch");
             }
-            auto allocation = _activeToken->upload->Allocate(size, alignof(uint32_t));
-            if (!allocation)
-            {
-                throw std::runtime_error("Vulkan upload ring has no room for a sprite atlas upload");
-            }
-            std::memcpy(allocation.data, upload.pixels.data(), upload.pixels.size());
+            const auto allocation = StageUpload(upload.pixels, "Vulkan upload ring has no room for a sprite atlas upload");
             allocations.push_back(allocation);
         }
 

@@ -79,6 +79,7 @@
 #include <openrct2/world/tile_element/EntranceElement.h>
 #include <openrct2/world/tile_element/TrackElement.h>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -93,17 +94,24 @@ namespace OpenRCT2::Ui::Windows
     static constexpr StringId kWindowTitle = STR_RIDE_WINDOW_TITLE;
     static constexpr ScreenSize kWindowSize = { kMinimumWindowWidth, 207 };
 
-    static constexpr std::array<RidePriceTarget, 3> kIncomeRidePriceTargets = {
+    static constexpr std::array kRidePriceTargets = {
+        RidePriceTarget::free,
         RidePriceTarget::goodValue,
         RidePriceTarget::neutral,
         RidePriceTarget::badValue,
     };
 
-    static constexpr std::array<RidePriceTarget, 4> kTransportRidePriceTargets = {
-        RidePriceTarget::free,
-        RidePriceTarget::goodValue,
-        RidePriceTarget::neutral,
-        RidePriceTarget::badValue,
+    static constexpr std::array kIncomeRidePriceTargetCaptions = {
+        STR_RIDE_PRICE_TARGET_DISCOUNT,
+        STR_RIDE_PRICE_TARGET_FAIR,
+        STR_RIDE_PRICE_TARGET_EXPENSIVE,
+    };
+
+    static constexpr std::array kTransportRidePriceTargetCaptions = {
+        STR_TRANSPORT_PRICE_TARGET_DISCOUNT,
+        STR_TRANSPORT_PRICE_TARGET_FAIR,
+        STR_TRANSPORT_PRICE_TARGET_EXTORTIVE,
+        STR_TRANSPORT_PRICE_TARGET_FREE,
     };
 
     static constexpr std::array<StringId, 3> kMazeCapacityModeNames = {
@@ -112,65 +120,22 @@ namespace OpenRCT2::Ui::Windows
         STR_MAZE_CAPACITY_OVERCROWDING,
     };
 
-    static StringId GetMazeCapacityModeName(MazeCapacityMode mode)
-    {
-        return kMazeCapacityModeNames[std::clamp<size_t>(static_cast<size_t>(mode), 0, kMazeCapacityModeNames.size() - 1)];
-    }
-
     static bool IsTransportRide(const Ride& ride)
     {
         return ride.getRideTypeDescriptor().flags.has(RtdFlag::isTransportRide);
     }
 
-    static const char* GetRidePriceTargetName(const Ride& ride, RidePriceTarget target)
-    {
-        switch (target)
-        {
-            case RidePriceTarget::free:
-                return "Free";
-            case RidePriceTarget::goodValue:
-                return "Discount";
-            case RidePriceTarget::neutral:
-                return "Fair price";
-            case RidePriceTarget::badValue:
-                return IsTransportRide(ride) ? "Extortive" : "Expensive";
-        }
-        return "Fair price";
-    }
-
-    static u8string FormatIncomePrice(money64 price)
-    {
-        return price == 0.00_GBP ? FormatStringID(STR_FREE) : FormatStringID(STR_BOTTOM_TOOLBAR_CASH, price);
-    }
-
     static u8string FormatRidePriceTargetCaption(const Ride& ride, RidePriceTarget target, money64 price)
     {
-        u8string caption = GetRidePriceTargetName(ride, target);
-        caption += " (";
+        const auto targetIndex = static_cast<size_t>(target);
         if (IsTransportRide(ride))
         {
-            switch (target)
-            {
-                case RidePriceTarget::free:
-                    caption += "no fare";
-                    break;
-                case RidePriceTarget::goodValue:
-                    caption += "50% of journey value";
-                    break;
-                case RidePriceTarget::neutral:
-                    caption += "100% of journey value";
-                    break;
-                case RidePriceTarget::badValue:
-                    caption += "200% of journey value";
-                    break;
-            }
+            return FormatStringID(kTransportRidePriceTargetCaptions[targetIndex]);
         }
-        else
-        {
-            caption += ride.value == kRideValueUndefined ? "waiting for rating" : FormatIncomePrice(price);
-        }
-        caption += ")";
-        return caption;
+        const auto detail = ride.value == kRideValueUndefined
+            ? FormatStringID(STR_RIDE_PRICE_TARGET_WAITING_FOR_RATING)
+            : price == 0.00_GBP ? FormatStringID(STR_FREE) : FormatStringID(STR_BOTTOM_TOOLBAR_CASH, price);
+        return FormatStringID(kIncomeRidePriceTargetCaptions[targetIndex], detail.c_str());
     }
 
     enum
@@ -3736,7 +3701,9 @@ namespace OpenRCT2::Ui::Windows
                 default:
                     if (ride->type == RIDE_TYPE_MAZE)
                     {
-                        tweakValue = GetMazeCapacityModeName(ride->getMazeCapacityMode());
+                        const auto mazeMode = std::clamp<size_t>(
+                            static_cast<size_t>(ride->getMazeCapacityMode()), 0, kMazeCapacityModeNames.size() - 1);
+                        tweakValue = kMazeCapacityModeNames[mazeMode];
                         format = STR_STRINGID;
                         caption = STR_MAZE_CAPACITY_MODE;
                         tooltip = STR_MAZE_CAPACITY_MODE_TIP;
@@ -6087,50 +6054,46 @@ namespace OpenRCT2::Ui::Windows
             WindowAlignTabs(this, WIDX_TAB_1, WIDX_TAB_10);
         }
 
-        ScreenCoordsXY DrawTransportMeasurements(RenderTarget& rt, const Ride& ride, ScreenCoordsXY screenCoords)
+        void DrawTransportMeasurements(RenderTarget& rt, const Ride& ride, ScreenCoordsXY& screenCoords)
         {
             drawText(rt, screenCoords, STR_TRANSPORT_SERVICE_QUALITY);
             screenCoords.y += 2 * kListRowHeight;
 
             const auto quality = RideGetTransportQuality(ride);
-            auto ft = Formatter();
-            ft.Add<int32_t>((quality.comfortPermille + 5) / 10);
-            drawText(rt, screenCoords, quality.hasMeasurements ? STR_TRANSPORT_COMFORT : STR_TRANSPORT_COMFORT_ESTIMATED, ft);
-            screenCoords.y += kListRowHeight;
-
-            ft = Formatter();
-            ft.Add<int32_t>((quality.decorationPermille - 1000 + 5) / 10);
-            drawText(
+            DrawMeasurementRow(
+                rt, screenCoords, quality.hasMeasurements ? STR_TRANSPORT_COMFORT : STR_TRANSPORT_COMFORT_ESTIMATED,
+                (quality.comfortPermille + 5) / 10);
+            DrawMeasurementRow(
                 rt, screenCoords,
-                quality.hasMeasurements ? STR_TRANSPORT_DECORATION_BONUS : STR_TRANSPORT_DECORATION_BONUS_ESTIMATED, ft);
-            screenCoords.y += kListRowHeight;
+                quality.hasMeasurements ? STR_TRANSPORT_DECORATION_BONUS : STR_TRANSPORT_DECORATION_BONUS_ESTIMATED,
+                (quality.decorationPermille - 1000 + 5) / 10);
 
             if (ride.numStations <= 1)
             {
-                ft = Formatter();
-                ft.Add<int32_t>(ToHumanReadableSpeed(ride.getDisplayAverageSpeed()));
-                drawText(rt, screenCoords, STR_AVERAGE_SPEED, ft);
-                screenCoords.y += kListRowHeight;
+                DrawMeasurementRow(rt, screenCoords, STR_AVERAGE_SPEED, ToHumanReadableSpeed(ride.getDisplayAverageSpeed()));
             }
             screenCoords.y += kListRowHeight;
-            return screenCoords;
         }
 
-        void DrawRideRatingRow(
-            RenderTarget& rt, ScreenCoordsXY& screenCoords, RideRating_t rating, StringId stringId)
+        template<typename... Args>
+        void DrawMeasurementRow(RenderTarget& rt, ScreenCoordsXY& screenCoords, StringId stringId, Args... values)
         {
             auto ft = Formatter();
-            ft.Add<uint32_t>(rating);
-            ft.Add<StringId>(GetRatingName(rating));
+            (ft.Add<Args>(values), ...);
             drawText(rt, screenCoords, stringId, ft);
             screenCoords.y += kListRowHeight;
         }
 
-        ScreenCoordsXY DrawRatingLegMeasurements(RenderTarget& rt, const Ride& ride, ScreenCoordsXY screenCoords)
+        void DrawRideRatingRow(RenderTarget& rt, ScreenCoordsXY& screenCoords, RideRating_t rating, StringId stringId)
+        {
+            DrawMeasurementRow(rt, screenCoords, stringId, static_cast<uint32_t>(rating), GetRatingName(rating));
+        }
+
+        void DrawRatingLegMeasurements(RenderTarget& rt, const Ride& ride, ScreenCoordsXY& screenCoords)
         {
             if (ride.numStations <= 1)
             {
-                return screenCoords;
+                return;
             }
 
             drawText(rt, screenCoords, STR_RIDE_RATING_LEGS);
@@ -6139,12 +6102,12 @@ namespace OpenRCT2::Ui::Windows
             {
                 drawText(rt, screenCoords, STR_RIDE_RATING_LEGS_NOT_YET_AVAILABLE);
                 screenCoords.y += 2 * kListRowHeight;
-                return screenCoords;
+                return;
             }
             const auto* leg = GetSelectedRatingLeg(ride);
             if (leg == nullptr)
             {
-                return screenCoords;
+                return;
             }
 
             DrawRideRatingRow(rt, screenCoords, leg->ratings.excitement, STR_EXCITEMENT_RATING);
@@ -6154,88 +6117,48 @@ namespace OpenRCT2::Ui::Windows
             DrawRideRatingRow(rt, screenCoords, leg->ratings.nausea, STR_NAUSEA_RATING);
 
             const auto measurements = RideGetRatingLegMeasurements(*leg);
-            auto ft = Formatter();
             if (ride.getRideTypeDescriptor().flags.has(RtdFlag::isTransportRide))
             {
-                ft.Add<int32_t>(measurements.distanceMetres);
-                drawText(rt, screenCoords, STR_RIDE_RATING_LEG_DISTANCE, ft);
-                screenCoords.y += kListRowHeight;
-
-                ft = Formatter();
-                ft.Add<int32_t>(static_cast<int32_t>((measurements.durationTicks + 20) / 40));
-                drawText(rt, screenCoords, STR_RIDE_RATING_LEG_DURATION, ft);
-                screenCoords.y += kListRowHeight;
+                DrawMeasurementRow(rt, screenCoords, STR_RIDE_RATING_LEG_DISTANCE, measurements.distanceMetres);
+                DrawMeasurementRow(
+                    rt, screenCoords, STR_RIDE_RATING_LEG_DURATION,
+                    static_cast<int32_t>((measurements.durationTicks + 20) / 40));
             }
 
-            ft = Formatter();
-            ft.Add<int32_t>(ToHumanReadableSpeed(measurements.maxSpeed));
-            drawText(rt, screenCoords, STR_MAX_SPEED, ft);
-            screenCoords.y += kListRowHeight;
-
-            ft = Formatter();
-            ft.Add<int32_t>(ToHumanReadableSpeed(measurements.averageSpeed));
-            drawText(rt, screenCoords, STR_AVERAGE_SPEED, ft);
-            screenCoords.y += kListRowHeight;
+            DrawMeasurementRow(rt, screenCoords, STR_MAX_SPEED, ToHumanReadableSpeed(measurements.maxSpeed));
+            DrawMeasurementRow(rt, screenCoords, STR_AVERAGE_SPEED, ToHumanReadableSpeed(measurements.averageSpeed));
 
             if (ride.getRideTypeDescriptor().flags.has(RtdFlag::hasGForces))
             {
-                ft = Formatter();
-                ft.Add<int32_t>(measurements.maxPositiveVerticalG);
-                drawText(rt, screenCoords, STR_MAX_POSITIVE_VERTICAL_G, ft);
-                screenCoords.y += kListRowHeight;
-
-                ft = Formatter();
-                ft.Add<int32_t>(measurements.maxNegativeVerticalG);
-                drawText(
+                DrawMeasurementRow(rt, screenCoords, STR_MAX_POSITIVE_VERTICAL_G, measurements.maxPositiveVerticalG);
+                DrawMeasurementRow(
                     rt, screenCoords,
                     measurements.maxNegativeVerticalG <= kRideGForcesRedNegVertical ? STR_MAX_NEGATIVE_VERTICAL_G_RED
-                                                                                     : STR_MAX_NEGATIVE_VERTICAL_G,
-                    ft);
-                screenCoords.y += kListRowHeight;
-
-                ft = Formatter();
-                ft.Add<int32_t>(measurements.maxLateralG);
-                drawText(
+                                                                                    : STR_MAX_NEGATIVE_VERTICAL_G,
+                    measurements.maxNegativeVerticalG);
+                DrawMeasurementRow(
                     rt, screenCoords,
-                    measurements.maxLateralG > kRideGForcesRedLateral ? STR_MAX_LATERAL_G_RED : STR_MAX_LATERAL_G, ft);
-                screenCoords.y += kListRowHeight;
-
-                ft = Formatter();
-                ft.Add<int32_t>(measurements.maxPositiveLongitudinalG);
-                drawText(rt, screenCoords, STR_MAX_POSITIVE_LONGITUDINAL_G, ft);
-                screenCoords.y += kListRowHeight;
-
-                ft = Formatter();
-                ft.Add<int32_t>(measurements.maxNegativeLongitudinalG);
-                drawText(rt, screenCoords, STR_MAX_NEGATIVE_LONGITUDINAL_G, ft);
-                screenCoords.y += kListRowHeight;
+                    measurements.maxLateralG > kRideGForcesRedLateral ? STR_MAX_LATERAL_G_RED : STR_MAX_LATERAL_G,
+                    measurements.maxLateralG);
+                DrawMeasurementRow(rt, screenCoords, STR_MAX_POSITIVE_LONGITUDINAL_G, measurements.maxPositiveLongitudinalG);
+                DrawMeasurementRow(rt, screenCoords, STR_MAX_NEGATIVE_LONGITUDINAL_G, measurements.maxNegativeLongitudinalG);
             }
 
             if (ride.getRideTypeDescriptor().flags.has(RtdFlag::isTransportRide))
             {
-                const auto legQuality = RideGetTransportLegQuality(*leg, RideGetTransportQuality(ride));
-                ft = Formatter();
-                ft.Add<int32_t>((legQuality.comfortPermille + 5) / 10);
-                drawText(rt, screenCoords, STR_TRANSPORT_COMFORT, ft);
-                screenCoords.y += kListRowHeight;
+                const auto quality = RideGetTransportQuality(ride);
+                const auto legQuality = RideGetTransportLegQuality(*leg, quality);
+                DrawMeasurementRow(rt, screenCoords, STR_TRANSPORT_COMFORT, (legQuality.comfortPermille + 5) / 10);
+                DrawMeasurementRow(
+                    rt, screenCoords, STR_TRANSPORT_DECORATION_BONUS, (legQuality.decorationPermille - 1000 + 5) / 10);
 
-                ft = Formatter();
-                ft.Add<int32_t>((legQuality.decorationPermille - 1000 + 5) / 10);
-                drawText(rt, screenCoords, STR_TRANSPORT_DECORATION_BONUS, ft);
-                screenCoords.y += kListRowHeight;
-
-                const auto segment = RideGetTransportSegment(
-                    ride, leg->originStation, leg->destinationStation, RideGetTransportQuality(ride));
+                const auto segment = RideGetTransportSegment(ride, leg->originStation, leg->destinationStation, quality);
                 if (!segment.destinationStation.IsNull())
                 {
-                    ft = Formatter();
-                    ft.Add<money64>(segment.fareValue);
-                    drawText(rt, screenCoords, STR_TRANSPORT_SEGMENT_FARE, ft);
-                    screenCoords.y += kListRowHeight;
+                    DrawMeasurementRow(rt, screenCoords, STR_TRANSPORT_SEGMENT_FARE, segment.fareValue);
                 }
             }
             screenCoords.y += kListRowHeight;
-            return screenCoords;
         }
 
         void MeasurementsOnDraw(RenderTarget& rt)
@@ -6286,12 +6209,12 @@ namespace OpenRCT2::Ui::Windows
 
                 if (ride->getRideTypeDescriptor().flags.has(RtdFlag::isTransportRide))
                 {
-                    screenCoords = DrawTransportMeasurements(rt, *ride, screenCoords);
+                    DrawTransportMeasurements(rt, *ride, screenCoords);
                     DrawRatingLegMeasurements(rt, *ride, screenCoords);
                 }
                 else if (ride->flags.has(RideFlag::tested))
                 {
-                    screenCoords = DrawRatingLegMeasurements(rt, *ride, screenCoords);
+                    DrawRatingLegMeasurements(rt, *ride, screenCoords);
                     if (ride->numStations <= 1)
                     {
                         const auto hasRatings = RideHasRatings(*ride);
@@ -6320,35 +6243,24 @@ namespace OpenRCT2::Ui::Windows
                     if (!ride->flags.has(RideFlag::noRawStats))
                     {
                         auto ft = Formatter();
-                        StringId stringId;
                         if (ride->numStations > 1)
                         {
-                            drawText(rt, screenCoords, STR_RIDE_GLOBAL_MEASUREMENTS);
-                            screenCoords.y += kListRowHeight;
+                            DrawMeasurementRow(rt, screenCoords, STR_RIDE_GLOBAL_MEASUREMENTS);
                         }
                         if (ride->getRideTypeDescriptor().specialType == RtdSpecialType::miniGolf)
                         {
-                            // Holes
-                            ft = Formatter();
-                            ft.Add<uint16_t>(ride->getDisplayNumHoles());
-                            drawText(rt, screenCoords, STR_HOLES, ft);
-                            screenCoords.y += kListRowHeight;
+                            DrawMeasurementRow(
+                                rt, screenCoords, STR_HOLES, static_cast<uint16_t>(ride->getDisplayNumHoles()));
                         }
                         else
                         {
                             if (ride->numStations <= 1)
                             {
-                                // Max speed
-                                ft = Formatter();
-                                ft.Add<int32_t>(ToHumanReadableSpeed(ride->getDisplayMaxSpeed()));
-                                drawText(rt, screenCoords, STR_MAX_SPEED, ft);
-                                screenCoords.y += kListRowHeight;
-
-                                // Average speed
-                                ft = Formatter();
-                                ft.Add<int32_t>(ToHumanReadableSpeed(ride->getDisplayAverageSpeed()));
-                                drawText(rt, screenCoords, STR_AVERAGE_SPEED, ft);
-                                screenCoords.y += kListRowHeight;
+                                DrawMeasurementRow(
+                                    rt, screenCoords, STR_MAX_SPEED, ToHumanReadableSpeed(ride->getDisplayMaxSpeed()));
+                                DrawMeasurementRow(
+                                    rt, screenCoords, STR_AVERAGE_SPEED,
+                                    ToHumanReadableSpeed(ride->getDisplayAverageSpeed()));
                             }
 
                             // Ride time
@@ -6435,64 +6347,42 @@ namespace OpenRCT2::Ui::Windows
                         const bool hasGForces = ride->getRideTypeDescriptor().flags.has(RtdFlag::hasGForces);
                         if (hasGForces && ride->numStations <= 1)
                         {
-                            // Max. positive vertical G's
-                            stringId = STR_MAX_POSITIVE_VERTICAL_G;
-
-                            ft = Formatter();
-                            ft.Add<int32_t>(static_cast<int32_t>(ride->getDisplayMaxPositiveVerticalG()));
-                            drawText(rt, screenCoords, stringId, ft);
-                            screenCoords.y += kListRowHeight;
-
-                            // Max. negative vertical G's
                             const auto maxNegativeVerticalG = ride->getDisplayMaxNegativeVerticalG();
-                            stringId = maxNegativeVerticalG <= kRideGForcesRedNegVertical ? STR_MAX_NEGATIVE_VERTICAL_G_RED
-                                                                                          : STR_MAX_NEGATIVE_VERTICAL_G;
-                            ft = Formatter();
-                            ft.Add<int32_t>(static_cast<int32_t>(maxNegativeVerticalG));
-                            drawText(rt, screenCoords, stringId, ft);
-                            screenCoords.y += kListRowHeight;
-
-                            // Max lateral G's
                             const auto maxLateralG = ride->getDisplayMaxLateralG();
-                            stringId = maxLateralG > kRideGForcesRedLateral ? STR_MAX_LATERAL_G_RED : STR_MAX_LATERAL_G;
-                            ft = Formatter();
-                            ft.Add<int32_t>(static_cast<int32_t>(maxLateralG));
-                            drawText(rt, screenCoords, stringId, ft);
-                            screenCoords.y += kListRowHeight;
-
-                            ft = Formatter();
-                            ft.Add<int32_t>(static_cast<int32_t>(ride->getDisplayMaxPositiveLongitudinalG()));
-                            drawText(rt, screenCoords, STR_MAX_POSITIVE_LONGITUDINAL_G, ft);
-                            screenCoords.y += kListRowHeight;
-
-                            ft = Formatter();
-                            ft.Add<int32_t>(static_cast<int32_t>(ride->getDisplayMaxNegativeLongitudinalG()));
-                            drawText(rt, screenCoords, STR_MAX_NEGATIVE_LONGITUDINAL_G, ft);
-                            screenCoords.y += kListRowHeight;
+                            DrawMeasurementRow(
+                                rt, screenCoords, STR_MAX_POSITIVE_VERTICAL_G,
+                                static_cast<int32_t>(ride->getDisplayMaxPositiveVerticalG()));
+                            DrawMeasurementRow(
+                                rt, screenCoords,
+                                maxNegativeVerticalG <= kRideGForcesRedNegVertical ? STR_MAX_NEGATIVE_VERTICAL_G_RED
+                                                                                   : STR_MAX_NEGATIVE_VERTICAL_G,
+                                static_cast<int32_t>(maxNegativeVerticalG));
+                            DrawMeasurementRow(
+                                rt, screenCoords,
+                                maxLateralG > kRideGForcesRedLateral ? STR_MAX_LATERAL_G_RED : STR_MAX_LATERAL_G,
+                                static_cast<int32_t>(maxLateralG));
+                            DrawMeasurementRow(
+                                rt, screenCoords, STR_MAX_POSITIVE_LONGITUDINAL_G,
+                                static_cast<int32_t>(ride->getDisplayMaxPositiveLongitudinalG()));
+                            DrawMeasurementRow(
+                                rt, screenCoords, STR_MAX_NEGATIVE_LONGITUDINAL_G,
+                                static_cast<int32_t>(ride->getDisplayMaxNegativeLongitudinalG()));
                         }
 
                         if (hasGForces)
                         {
-                            // Total 'air' time
-                            ft = Formatter();
-                            ft.Add<fixed32_2dp>(ToHumanReadableAirTime(ride->getDisplayTotalAirTime()));
-                            drawText(rt, screenCoords, STR_TOTAL_AIR_TIME, ft);
-                            screenCoords.y += kListRowHeight;
+                            DrawMeasurementRow(
+                                rt, screenCoords, STR_TOTAL_AIR_TIME,
+                                ToHumanReadableAirTime(ride->getDisplayTotalAirTime()));
                         }
 
                         if (ride->getRideTypeDescriptor().flags.has(RtdFlag::hasDrops))
                         {
-                            ft = Formatter();
-                            ft.Add<uint16_t>(ride->getDisplayNumDrops());
-                            drawText(rt, screenCoords, STR_DROPS, ft);
-                            screenCoords.y += kListRowHeight;
-
-                            // Highest drop height
-                            auto highestDropHeight = (ride->getDisplayHighestDropHeight() * 3) / 4;
-                            ft = Formatter();
-                            ft.Add<int32_t>(highestDropHeight);
-                            drawText(rt, screenCoords, STR_HIGHEST_DROP_HEIGHT, ft);
-                            screenCoords.y += kListRowHeight;
+                            DrawMeasurementRow(
+                                rt, screenCoords, STR_DROPS, static_cast<uint16_t>(ride->getDisplayNumDrops()));
+                            DrawMeasurementRow(
+                                rt, screenCoords, STR_HIGHEST_DROP_HEIGHT,
+                                static_cast<int32_t>((ride->getDisplayHighestDropHeight() * 3) / 4));
                         }
 
                         if (ride->getRideTypeDescriptor().specialType != RtdSpecialType::miniGolf)
@@ -6501,10 +6391,7 @@ namespace OpenRCT2::Ui::Windows
                             const auto numInversions = ride->getDisplayNumInversions();
                             if (numInversions != 0)
                             {
-                                ft = Formatter();
-                                ft.Add<uint16_t>(numInversions);
-                                drawText(rt, screenCoords, STR_INVERSIONS, ft);
-                                screenCoords.y += kListRowHeight;
+                                DrawMeasurementRow(rt, screenCoords, STR_INVERSIONS, static_cast<uint16_t>(numInversions));
                             }
                         }
                     }
@@ -7001,48 +6888,33 @@ namespace OpenRCT2::Ui::Windows
             return ride != nullptr && RideUsesTargetPricing(*ride);
         }
 
-        void IncomeSetPrimaryPriceTarget(RidePriceTarget target)
-        {
-            auto rideSetPriceAction = GameActions::RideSetPriceAction(rideId, target);
-            GameActions::Execute(&rideSetPriceAction, getGameState());
-        }
-
         void IncomeShowPrimaryPriceTargetDropdown()
         {
             auto ride = GetRide(rideId);
             if (ride == nullptr || !RideUsesTargetPricing(*ride) || !IncomeCanModifyPrimaryPrice())
                 return;
 
-            const auto populateDropdown =
-                [this, ride]<size_t TTargetCount>(const std::array<RidePriceTarget, TTargetCount>& priceTargets) {
-                    auto& dropdownWidget = widgets[WIDX_PRIMARY_PRICE];
-                    auto dropdownWidth = widgets[WIDX_PRIMARY_PRICE_INCREASE].right - dropdownWidget.left;
-                    WindowDropdownShowTextCustomWidth(
-                        { windowPos.x + dropdownWidget.left, windowPos.y + dropdownWidget.top }, dropdownWidget.height(),
-                        colours[1], 0, 0, priceTargets.size(), dropdownWidth);
+            const bool isTransport = IsTransportRide(*ride);
+            const std::span priceTargets = isTransport ? std::span{ kRidePriceTargets }
+                                                       : std::span{ kRidePriceTargets }.subspan(1);
+            auto& dropdownWidget = widgets[WIDX_PRIMARY_PRICE];
+            const auto dropdownWidth = widgets[WIDX_PRIMARY_PRICE_INCREASE].right - dropdownWidget.left;
+            WindowDropdownShowTextCustomWidth(
+                { windowPos.x + dropdownWidget.left, windowPos.y + dropdownWidget.top }, dropdownWidget.height(), colours[1],
+                0, 0, priceTargets.size(), dropdownWidth);
 
-                    for (size_t i = 0; i < priceTargets.size(); i++)
-                    {
-                        const auto target = priceTargets[i];
-                        const auto price = IsTransportRide(*ride) ? 0.00_GBP : RideGetTargetPrice(*ride, target);
-                        gDropdown.items[i] = Dropdown::MenuLabel(FormatRidePriceTargetCaption(*ride, target, price));
-                        gDropdown.items[i].value = static_cast<uint32_t>(target);
-                        if (ride->priceTarget == target)
-                        {
-                            gDropdown.items[i].setChecked(true);
-                            gDropdown.highlightedIndex = static_cast<int32_t>(i);
-                            gDropdown.defaultIndex = static_cast<int32_t>(i);
-                        }
-                    }
-                };
-
-            if (IsTransportRide(*ride))
+            for (size_t i = 0; i < priceTargets.size(); i++)
             {
-                populateDropdown(kTransportRidePriceTargets);
-            }
-            else
-            {
-                populateDropdown(kIncomeRidePriceTargets);
+                const auto target = priceTargets[i];
+                const auto price = isTransport ? 0.00_GBP : RideGetTargetPrice(*ride, target);
+                gDropdown.items[i] = Dropdown::MenuLabel(FormatRidePriceTargetCaption(*ride, target, price));
+                gDropdown.items[i].value = static_cast<uint32_t>(target);
+                if (ride->priceTarget == target)
+                {
+                    gDropdown.items[i].setChecked(true);
+                    gDropdown.highlightedIndex = static_cast<int32_t>(i);
+                    gDropdown.defaultIndex = static_cast<int32_t>(i);
+                }
             }
         }
 
@@ -7230,7 +7102,8 @@ namespace OpenRCT2::Ui::Windows
                 return;
 
             const auto priceTarget = static_cast<RidePriceTarget>(gDropdown.items[dropdownIndex].value);
-            IncomeSetPrimaryPriceTarget(priceTarget);
+            auto action = GameActions::RideSetPriceAction(rideId, priceTarget);
+            GameActions::Execute(&action, getGameState());
         }
 
         void IncomeUpdate()

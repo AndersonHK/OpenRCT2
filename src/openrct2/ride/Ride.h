@@ -78,8 +78,6 @@ enum class MazeCapacityMode : uint8_t
     overcrowded,
 };
 
-MazeCapacityMode RideNormaliseMazeCapacityMode(uint8_t operationOption);
-
 extern const StringId kRideInspectionIntervalNames[];
 
 enum class RideInspection : uint8_t
@@ -218,7 +216,6 @@ enum class RideStationPlatformSeatBindingResult : uint8_t
 {
     success,
     reservationMissing,
-    consistMismatch,
     seatUnavailable,
 };
 
@@ -310,29 +307,7 @@ struct RideRatingAccumulator
 
     void clear()
     {
-        excitement = 0;
-        intensity = 0;
-        nausea = 0;
-        transportComfort = 0;
-        transportDecoration = 0;
-        transportDistance = 0;
-        transportShelteredDistance = 0;
-        sampledDistance = 0;
-        totalSpeed = 0;
-        maxSpeed = 0;
-        maxPositiveVerticalG = 0;
-        maxNegativeVerticalG = 0;
-        maxLateralG = 0;
-        maxPositiveLongitudinalG = 0;
-        maxNegativeLongitudinalG = 0;
-        ticks = 0;
-        sampleEntity = EntityId::GetNull();
-        originStation = StationIndex::GetNull();
-        destinationStation = StationIndex::GetNull();
-        sampleComplete = false;
-        previousTrainVelocity = 0;
-        hasPreviousTrainVelocity = false;
-        localContextCache.clear();
+        *this = {};
     }
 
     bool hasSamples() const
@@ -706,7 +681,6 @@ public:
     void setReversedTrains(bool reversedTrains);
     void updateMaxVehicles();
     void updateNumberOfCircuits();
-    uint8_t getMazeMaximumCapacity() const;
     uint8_t getMazeCapacityForMode(MazeCapacityMode mode) const;
     MazeCapacityMode getMazeCapacityMode() const;
     MazeCapacityMode getClosestMazeCapacityModeForCapacity(uint8_t capacity) const;
@@ -1116,7 +1090,7 @@ VehicleColour RideGetVehicleColour(const Ride& ride, int32_t vehicleIndex);
 int32_t RideGetUnusedPresetVehicleColour(OpenRCT2::ObjectEntryIndex subType, uint32_t randomValue);
 void RideSetVehicleColoursToRandomPreset(Ride& ride, uint8_t preset_index);
 void RideMeasurementsUpdate();
-void RideBreakdownAddNewsItem(const Ride& ride);
+void RideMarkBrokenDown(Ride& ride);
 OpenRCT2::Staff* RideFindClosestMechanic(const Ride& ride, int32_t forInspection);
 int32_t RideInitialiseConstructionWindow(Ride& ride);
 void RideSetMapTooltip(const OpenRCT2::TileElement& tileElement);
@@ -1204,7 +1178,8 @@ std::optional<RideStationPlatformReservation> RideGetStationPlatformReservation(
 bool RideStationPlatformGuestIsFirst(const Ride& ride, StationIndex stationIndex, EntityId guestId);
 RideStationPlatformSeatBindingResult RideBindStationPlatformGuestToSeat(
     const Ride& ride, StationIndex stationIndex, uint8_t trainIndex, OpenRCT2::Guest& guest);
-void RideReleaseStationPlatformSlot(const Ride& ride, StationIndex stationIndex, EntityId guestId);
+void RideReleaseStationPlatformSlot(
+    const Ride& ride, StationIndex stationIndex, EntityId guestId, bool seatBound = false);
 void RideClearStationPlatformPreQueue(const Ride& ride);
 void RideClearAllStationPlatformPreQueues();
 void RideRebuildStationPlatformPreQueues();

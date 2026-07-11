@@ -137,6 +137,9 @@ namespace OpenRCT2
         virtual void SetTimeScale(float newScale) = 0;
         virtual float GetTimeScale() const = 0;
 
+        // Gives presentation work a deterministic boundary between completed logical simulation ticks.
+        virtual void YieldToUi() = 0;
+
         // Process-lifetime compute pool for synchronous, barriered work with disjoint outputs.
         virtual JobPool& GetJobPool() = 0;
         virtual BackgroundWorker& GetBackgroundWorker() = 0;

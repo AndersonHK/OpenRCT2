@@ -10,8 +10,10 @@
 #pragma once
 
 #include <openrct2/world/Location.hpp>
+#include <memory>
 #include <queue>
 #include <string_view>
+#include <vector>
 
 typedef struct _SDL_GameController SDL_GameController;
 typedef union SDL_Event SDL_Event;
@@ -57,8 +59,14 @@ namespace OpenRCT2::Ui
     class InputManager
     {
     private:
+        struct GameControllerDeleter
+        {
+            void operator()(SDL_GameController* controller) const;
+        };
+        using GameControllerPtr = std::unique_ptr<SDL_GameController, GameControllerDeleter>;
+
         uint32_t _lastJoystickCheck{};
-        std::vector<SDL_GameController*> _gameControllers;
+        std::vector<GameControllerPtr> _gameControllers;
         std::queue<InputEvent> _events;
         ScreenCoordsXY _viewScroll;
         ScreenCoordsXY _analogueScroll;     // analogue stick scroll values

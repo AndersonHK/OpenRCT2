@@ -19,28 +19,24 @@
 #include "../../ui/WindowManager.h"
 #include "../../world/Map.h"
 
+#include <optional>
+
 namespace OpenRCT2::GameActions
 {
-    static money64 EncodePriceTarget(RidePriceTarget priceTarget)
+    static std::optional<RidePriceTarget> DecodePriceTarget(money64 price)
     {
-        return -1 - static_cast<money64>(static_cast<uint8_t>(priceTarget));
-    }
-
-    static bool DecodePriceTarget(money64 price, RidePriceTarget& priceTarget)
-    {
-        if (price >= kRideMinPrice)
-        {
-            return false;
-        }
-
         const auto rawTarget = (-price) - 1;
         if (rawTarget < 0 || rawTarget > static_cast<money64>(static_cast<uint8_t>(RidePriceTarget::free)))
         {
-            return false;
+            return std::nullopt;
         }
+        return static_cast<RidePriceTarget>(static_cast<uint8_t>(rawTarget));
+    }
 
-        priceTarget = static_cast<RidePriceTarget>(static_cast<uint8_t>(rawTarget));
-        return true;
+    static bool RideCanUsePriceTarget(const Ride& ride, RidePriceTarget target)
+    {
+        return RideUsesTargetPricing(ride)
+            && (target != RidePriceTarget::free || ride.getRideTypeDescriptor().flags.has(RtdFlag::isTransportRide));
     }
 
     RideSetPriceAction::RideSetPriceAction(RideId rideIndex, money64 price, bool primaryPrice)
@@ -52,7 +48,7 @@ namespace OpenRCT2::GameActions
 
     RideSetPriceAction::RideSetPriceAction(RideId rideIndex, RidePriceTarget priceTarget)
         : _rideIndex(rideIndex)
-        , _price(EncodePriceTarget(priceTarget))
+        , _price(-1 - static_cast<money64>(static_cast<uint8_t>(priceTarget)))
         , _primaryPrice(true)
     {
     }
@@ -92,11 +88,10 @@ namespace OpenRCT2::GameActions
             return Result(Status::invalidParameters, STR_ERR_INVALID_PARAMETER, STR_ERR_RIDE_OBJECT_ENTRY_NOT_FOUND);
         }
 
-        RidePriceTarget priceTarget{};
-        if (_primaryPrice && DecodePriceTarget(_price, priceTarget))
+        const auto priceTarget = _primaryPrice ? DecodePriceTarget(_price) : std::nullopt;
+        if (priceTarget)
         {
-            const bool isTransportRide = ride->getRideTypeDescriptor().flags.has(RtdFlag::isTransportRide);
-            if (!RideUsesTargetPricing(*ride) || (priceTarget == RidePriceTarget::free && !isTransportRide))
+            if (!RideCanUsePriceTarget(*ride, *priceTarget))
             {
                 return Result(Status::invalidParameters, STR_ERR_INVALID_PARAMETER, kStringIdEmpty);
             }
@@ -131,9 +126,8 @@ namespace OpenRCT2::GameActions
             return Result(Status::invalidParameters, STR_ERR_INVALID_PARAMETER, STR_ERR_RIDE_OBJECT_ENTRY_NOT_FOUND);
         }
 
-        RidePriceTarget priceTarget{};
-        const bool setsPriceTarget = _primaryPrice && DecodePriceTarget(_price, priceTarget);
-        if (!setsPriceTarget && (_price < kRideMinPrice || _price > kRideMaxPrice))
+        const auto priceTarget = _primaryPrice ? DecodePriceTarget(_price) : std::nullopt;
+        if (!priceTarget && (_price < kRideMinPrice || _price > kRideMaxPrice))
         {
             LOG_ERROR("Attempting to set an invalid price for rideIndex %u", _rideIndex.ToUnderlying());
             return Result(Status::invalidParameters, STR_ERR_INVALID_PARAMETER, kStringIdEmpty);
@@ -147,15 +141,14 @@ namespace OpenRCT2::GameActions
 
         auto* windowMgr = Ui::GetWindowManager();
 
-        if (setsPriceTarget)
+        if (priceTarget)
         {
-            const bool isTransportRide = ride->getRideTypeDescriptor().flags.has(RtdFlag::isTransportRide);
-            if (!RideUsesTargetPricing(*ride) || (priceTarget == RidePriceTarget::free && !isTransportRide))
+            if (!RideCanUsePriceTarget(*ride, *priceTarget))
             {
                 return Result(Status::invalidParameters, STR_ERR_INVALID_PARAMETER, kStringIdEmpty);
             }
 
-            ride->priceTarget = priceTarget;
+            ride->priceTarget = *priceTarget;
             RideUpdateTargetPrice(*ride);
             windowMgr->InvalidateByClass(WindowClass::ride);
             return res;

@@ -389,7 +389,7 @@ namespace OpenRCT2
         void choseNotToGoOnRide(const Ride& ride, bool peepAtRide, bool updateLastRide);
         void onEnterRide(Ride& ride);
         void onExitRide(Ride& ride);
-        void recoverFromStationPlatform(Ride& ride);
+        void recoverFromStationPlatform(Ride& ride, bool preferQueue = false);
         void throwUp();
 
     private:
@@ -416,7 +416,6 @@ namespace OpenRCT2
         void updateRideApproachPlatformSlot();
         void updateRideWaitingOnPlatform();
         bool tryBoardStationPlatformTrain(Ride& ride);
-        void requeueFromStationPlatform(Ride& ride);
         void updateRideEnterVehicle();
         void updateRideLeaveVehicle();
         void updateRideApproachExit();
@@ -483,8 +482,6 @@ namespace OpenRCT2
     void IncrementGuestsHeadingForPark();
     void DecrementGuestsInPark();
     void DecrementGuestsHeadingForPark();
-
-    void GuestApplyPaidExtortiveTransportPenalty(Guest& guest, RideId rideId);
 
     void PeepUpdateRideLeaveEntranceMaze(Guest& peep, Ride& ride, CoordsXYZD& entrance_loc);
     void PeepUpdateRideLeaveEntranceSpiralSlide(Guest& peep, Ride& ride, CoordsXYZD& entrance_loc);

@@ -151,7 +151,6 @@ TEST(GpuFoundationTest, StoppedFrameMailboxReturnsAndRejectsUnconsumedPackets)
     const auto stopped = mailbox.Stop();
     ASSERT_NE(stopped, nullptr);
     EXPECT_EQ(stopped->frameNumber, 20u);
-    EXPECT_TRUE(mailbox.IsStopping());
     EXPECT_EQ(mailbox.WaitTakeNewest(), nullptr);
 
     auto rejected = std::make_unique<RecordedFramePacket>();
@@ -371,6 +370,31 @@ TEST(GpuFoundationTest, OutputDefaultsPreserveLegacySdrPresentation)
 }
 
 #ifdef ENABLE_VULKAN
+TEST(GpuFoundationTest, VulkanVSyncPrefersNewestFrameMailboxPresentation)
+{
+    using OpenRCT2::Ui::Vulkan::SelectPresentMode;
+    constexpr std::array modes = {
+        VK_PRESENT_MODE_FIFO_KHR,
+        VK_PRESENT_MODE_MAILBOX_KHR,
+        VK_PRESENT_MODE_IMMEDIATE_KHR,
+    };
+
+    EXPECT_EQ(SelectPresentMode(modes, true), VK_PRESENT_MODE_MAILBOX_KHR);
+    EXPECT_EQ(SelectPresentMode(modes, false), VK_PRESENT_MODE_IMMEDIATE_KHR);
+}
+
+TEST(GpuFoundationTest, VulkanVSyncFallsBackToRequiredFifoPresentation)
+{
+    using OpenRCT2::Ui::Vulkan::SelectPresentMode;
+    constexpr std::array modes = {
+        VK_PRESENT_MODE_FIFO_KHR,
+        VK_PRESENT_MODE_IMMEDIATE_KHR,
+    };
+
+    EXPECT_EQ(SelectPresentMode(modes, true), VK_PRESENT_MODE_FIFO_KHR);
+    EXPECT_EQ(SelectPresentMode(modes, false), VK_PRESENT_MODE_IMMEDIATE_KHR);
+}
+
 TEST(GpuFoundationTest, VulkanHdr10ClassificationRequiresAnApprovedExactPair)
 {
     using OpenRCT2::Ui::Vulkan::IsHdr10SurfaceFormat;

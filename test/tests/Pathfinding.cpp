@@ -941,25 +941,6 @@ TEST_F(PathfindingTestBase, TransportCannotBecomeAnOrdinaryAttractionThroughRide
     RideDelete(transportId);
 }
 
-TEST_F(PathfindingTestBase, PayingExtortiveTransportReducesHappinessAndCreatesThought)
-{
-    Guest guest{};
-    for (auto& thought : guest.thoughts)
-    {
-        thought.type = PeepThoughtType::none;
-    }
-    guest.happiness = 200;
-    guest.happinessTarget = 200;
-
-    GuestApplyPaidExtortiveTransportPenalty(guest, RideId::FromUnderlying(100));
-
-    EXPECT_EQ(guest.happiness, 176);
-    EXPECT_EQ(guest.happinessTarget, 176);
-    EXPECT_TRUE(std::any_of(guest.thoughts.begin(), guest.thoughts.end(), [](const PeepThought& thought) {
-        return thought.type == PeepThoughtType::extortiveTransport;
-    }));
-}
-
 TEST_F(PathfindingTestBase, PlannedTransportRouteIsIndependentOfRideInteractionState)
 {
     Guest guest{};

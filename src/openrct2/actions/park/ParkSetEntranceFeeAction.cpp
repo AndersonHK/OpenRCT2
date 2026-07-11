@@ -15,28 +15,18 @@
 #include "../../world/Park.h"
 #include "../../world/ParkData.h"
 
+#include <optional>
+
 namespace OpenRCT2::GameActions
 {
-    static money64 EncodeEntranceFeeTarget(Park::ParkEntranceFeeTarget target)
+    static std::optional<Park::ParkEntranceFeeTarget> DecodeEntranceFeeTarget(money64 fee)
     {
-        return -1 - static_cast<money64>(static_cast<uint8_t>(target));
-    }
-
-    static bool DecodeEntranceFeeTarget(money64 fee, Park::ParkEntranceFeeTarget& target)
-    {
-        if (fee >= 0.00_GBP)
-        {
-            return false;
-        }
-
         const auto rawTarget = (-fee) - 1;
         if (rawTarget < 0 || rawTarget > static_cast<money64>(static_cast<uint8_t>(Park::ParkEntranceFeeTarget::affordable)))
         {
-            return false;
+            return std::nullopt;
         }
-
-        target = static_cast<Park::ParkEntranceFeeTarget>(static_cast<uint8_t>(rawTarget));
-        return true;
+        return static_cast<Park::ParkEntranceFeeTarget>(static_cast<uint8_t>(rawTarget));
     }
 
     ParkSetEntranceFeeAction::ParkSetEntranceFeeAction(money64 fee)
@@ -45,7 +35,7 @@ namespace OpenRCT2::GameActions
     }
 
     ParkSetEntranceFeeAction::ParkSetEntranceFeeAction(Park::ParkEntranceFeeTarget target)
-        : _fee(EncodeEntranceFeeTarget(target))
+        : _fee(-1 - static_cast<money64>(static_cast<uint8_t>(target)))
     {
     }
 
@@ -68,18 +58,12 @@ namespace OpenRCT2::GameActions
 
     Result ParkSetEntranceFeeAction::Query(GameState_t& gameState, Park::ParkData& park) const
     {
-        if ((park.flags & PARK_FLAGS_NO_MONEY) != 0)
-        {
-            LOG_ERROR("Can't set park entrance fee because the park has no money");
-            return Result(Status::disallowed, STR_ERR_CANT_CHANGE_PARK_ENTRANCE_FEE, kStringIdNone);
-        }
-        else if (!Park::EntranceFeeUnlocked(park))
+        if ((park.flags & PARK_FLAGS_NO_MONEY) || !Park::EntranceFeeUnlocked(park))
         {
             LOG_ERROR("Park entrance fee is locked");
             return Result(Status::disallowed, STR_ERR_CANT_CHANGE_PARK_ENTRANCE_FEE, kStringIdNone);
         }
-        Park::ParkEntranceFeeTarget target{};
-        if (DecodeEntranceFeeTarget(_fee, target))
+        if (DecodeEntranceFeeTarget(_fee))
         {
             return Result();
         }
@@ -95,10 +79,9 @@ namespace OpenRCT2::GameActions
 
     Result ParkSetEntranceFeeAction::Execute(GameState_t& gameState, Park::ParkData& park) const
     {
-        Park::ParkEntranceFeeTarget target{};
-        if (DecodeEntranceFeeTarget(_fee, target))
+        if (const auto target = DecodeEntranceFeeTarget(_fee))
         {
-            park.entranceFeeTarget = target;
+            park.entranceFeeTarget = *target;
             Park::UpdateEntranceFee(park);
         }
         else

@@ -29,15 +29,17 @@ namespace OpenRCT2
     {
         constexpr size_t kMaxPassengerCount = 32;
 
-        struct TrainCarSummary
+        struct TrainSeatSummary
         {
             std::array<const Vehicle*, Limits::kMaxCarsPerTrain> cars{};
             uint16_t carCount{};
-            bool hasRiders{};
+            uint32_t capacity{};
+            uint32_t currentPeeps{};
+            uint32_t reservedSeats{};
 
             bool HasRiders() const
             {
-                return hasRiders;
+                return currentPeeps != 0;
             }
 
             std::span<const Vehicle* const> GetCars() const
@@ -46,14 +48,6 @@ namespace OpenRCT2
             }
         };
 
-        struct TrainSeatSummary : TrainCarSummary
-        {
-            uint32_t capacity{};
-            uint32_t currentPeeps{};
-            uint32_t reservedSeats{};
-        };
-
-        TrainCarSummary BuildTrainCarSummary(const Vehicle& head);
         TrainSeatSummary BuildTrainSeatSummary(const Vehicle& head);
 
         struct PlatformBoardingSeatRange
@@ -76,12 +70,11 @@ namespace OpenRCT2
         };
 
         PlatformBoardingSeatRange GetPlatformBoardingSeatRange(const Vehicle& vehicle);
-        TrainBoardingSeatPlan BuildTrainBoardingSeatPlan(const TrainCarSummary& train);
+        TrainBoardingSeatPlan BuildTrainBoardingSeatPlan(const TrainSeatSummary& train);
 
         struct PassengerUnloadPlan
         {
             std::array<uint8_t, kMaxPassengerCount> sourceIndices{};
-            uint8_t passengerCount{};
             uint8_t continuingCount{};
         };
 
@@ -92,13 +85,6 @@ namespace OpenRCT2
             Vehicle& vehicle, std::span<Guest* const> originalPassengers, const PassengerUnloadPlan& plan);
         void ApplyOrdinaryPassengerUnload(Vehicle& vehicle, EntityRegistry& entities);
 
-        enum class PlatformSeatBindingResult : uint8_t
-        {
-            success,
-            consistMismatch,
-            seatUnavailable,
-        };
-
-        PlatformSeatBindingResult BindPlatformGuestToSeat(Guest& guest, Vehicle& vehicle, uint8_t seatIndex);
+        bool BindPlatformGuestToSeat(Guest& guest, Vehicle& vehicle, uint8_t seatIndex);
     } // namespace RideVehicle::StationDetail
 } // namespace OpenRCT2

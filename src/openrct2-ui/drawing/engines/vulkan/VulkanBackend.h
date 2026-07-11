@@ -11,16 +11,15 @@
 
 #ifdef ENABLE_VULKAN
 
+    #include "../gpu/GpuBackend.h"
     #include "VulkanDevice.h"
-    #include "VulkanLinePipeline.h"
     #include "VulkanLightFxPipeline.h"
+    #include "VulkanLinePipeline.h"
     #include "VulkanPalettePipeline.h"
     #include "VulkanRectPipeline.h"
     #include "VulkanResources.h"
     #include "VulkanTransparencyPipeline.h"
     #include "VulkanWeatherPipeline.h"
-
-    #include "../gpu/GpuBackend.h"
 
     #include <array>
     #include <cstddef>
@@ -113,12 +112,12 @@ namespace OpenRCT2::Ui::Vulkan
 
         void RequestReadback(const Gpu::FrameHandle& frame, Gpu::ReadbackRequest request) override;
         [[nodiscard]] bool TryTakeReadback(uint64_t requestId, std::span<std::byte> destination) override;
-        [[nodiscard]] bool ReadbackLatestIndexedCanvas(
-            Gpu::Extent extent, std::span<std::byte> destination) override;
+        [[nodiscard]] bool ReadbackLatestIndexedCanvas(Gpu::Extent extent, std::span<std::byte> destination) override;
         void WaitIdle() override;
 
     private:
         void ValidateActiveFrame(const Gpu::FrameHandle& frame) const;
+        [[nodiscard]] UploadAllocation StageUpload(std::span<const std::byte> source, const char* errorMessage);
         void RecordPendingPalette();
         void RecordPendingRemapPalette();
         void RecordPendingBlendPalette();

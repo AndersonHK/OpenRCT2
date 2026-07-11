@@ -341,13 +341,6 @@ namespace OpenRCT2::Ui::Gpu
             return _storage[_size++];
         }
 
-        T& insert(const T& value) // NOLINT(readability-identifier-naming)
-        {
-            auto& result = allocate();
-            result = value;
-            return result;
-        }
-
         [[nodiscard]] const T* data() const noexcept // NOLINT(readability-identifier-naming)
         {
             return _storage.data();

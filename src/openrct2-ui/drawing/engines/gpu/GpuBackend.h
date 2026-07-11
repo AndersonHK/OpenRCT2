@@ -17,7 +17,6 @@
 #include <optional>
 #include <span>
 #include <string>
-#include <string_view>
 #include <vector>
 
 namespace OpenRCT2::Ui::Gpu
@@ -178,17 +177,4 @@ namespace OpenRCT2::Ui::Gpu
         virtual void WaitIdle() = 0;
     };
 
-    [[nodiscard]] constexpr std::string_view GetBackendName(BackendApi api) noexcept
-    {
-        switch (api)
-        {
-            case BackendApi::Vulkan:
-                return "Vulkan";
-            case BackendApi::OpenGLLegacy:
-                return "OpenGL (legacy)";
-        }
-        return "Unknown";
-    }
-
-    [[nodiscard]] uint32_t GetRequiredSdlWindowFlags(BackendApi api) noexcept;
 } // namespace OpenRCT2::Ui::Gpu

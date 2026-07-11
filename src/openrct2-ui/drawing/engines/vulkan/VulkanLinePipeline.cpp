@@ -18,23 +18,10 @@
     #include <cstddef>
     #include <cstring>
     #include <stdexcept>
-    #include <string>
     #include <utility>
 
 namespace OpenRCT2::Ui::Vulkan
 {
-    namespace
-    {
-        void CheckVk(VkResult result, const char* operation)
-        {
-            if (result != VK_SUCCESS)
-            {
-                throw std::runtime_error(
-                    std::string(operation) + " failed with Vulkan result " + std::to_string(result));
-            }
-        }
-    } // namespace
-
     LinePipeline::~LinePipeline()
     {
         Dispose();
@@ -63,8 +50,7 @@ namespace OpenRCT2::Ui::Vulkan
         _extent = {};
     }
 
-    void LinePipeline::Record(
-        const FrameToken& frame, const Gpu::CommandBatch<Gpu::LineCommand>& commands) const
+    void LinePipeline::Record(const FrameToken& frame, const Gpu::CommandBatch<Gpu::LineCommand>& commands) const
     {
         if (commands.empty())
         {
@@ -105,16 +91,13 @@ namespace OpenRCT2::Ui::Vulkan
             .maxDepth = 1.0f,
         };
         const VkRect2D scissor = { .offset = { 0, 0 }, .extent = _extent };
-        const ScreenConstants screen = {
-            static_cast<int32_t>(_extent.width), static_cast<int32_t>(_extent.height)
-        };
+        const ScreenConstants screen = { static_cast<int32_t>(_extent.width), static_cast<int32_t>(_extent.height) };
         const VkDeviceSize vertexOffset = allocation.offset;
 
         vkCmdSetViewport(frame.commandBuffer, 0, 1, &viewport);
         vkCmdSetScissor(frame.commandBuffer, 0, 1, &scissor);
         vkCmdBindPipeline(frame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline);
-        vkCmdPushConstants(
-            frame.commandBuffer, _pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(screen), &screen);
+        vkCmdPushConstants(frame.commandBuffer, _pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(screen), &screen);
         vkCmdBindVertexBuffers(frame.commandBuffer, 0, 1, &allocation.buffer, &vertexOffset);
         vkCmdDraw(frame.commandBuffer, 2, static_cast<uint32_t>(commands.size()), 0, 0);
         vkCmdEndRenderPass(frame.commandBuffer);
@@ -172,10 +155,9 @@ namespace OpenRCT2::Ui::Vulkan
             VkSubpassDependency{
                 .srcSubpass = 0,
                 .dstSubpass = VK_SUBPASS_EXTERNAL,
-                .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
-                    | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
-                .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
-                    | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+                .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT
+                    | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                 .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
                 .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT
                     | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT,
@@ -207,144 +189,44 @@ namespace OpenRCT2::Ui::Vulkan
         };
         CheckVk(vkCreatePipelineLayout(_device, &layoutInfo, nullptr, &_pipelineLayout), "vkCreatePipelineLayout(lines)");
 
-        VkShaderModule vertexShader = VK_NULL_HANDLE;
-        VkShaderModule fragmentShader = VK_NULL_HANDLE;
-        try
-        {
-            vertexShader = LoadShaderModule(_device, _shaderDirectory / "indexed_line.vert.spv");
-            fragmentShader = LoadShaderModule(_device, _shaderDirectory / "indexed_line.frag.spv");
-            const std::array stages = {
-                VkPipelineShaderStageCreateInfo{
-                    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                    .stage = VK_SHADER_STAGE_VERTEX_BIT,
-                    .module = vertexShader,
-                    .pName = "main",
-                },
-                VkPipelineShaderStageCreateInfo{
-                    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                    .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
-                    .module = fragmentShader,
-                    .pName = "main",
-                },
-            };
-            constexpr VkVertexInputBindingDescription binding = {
-                .binding = 0,
-                .stride = sizeof(Gpu::LineCommand),
-                .inputRate = VK_VERTEX_INPUT_RATE_INSTANCE,
-            };
-            constexpr std::array attributes = {
-                VkVertexInputAttributeDescription{
-                    .location = 0,
-                    .binding = 0,
-                    .format = VK_FORMAT_R32G32B32A32_SINT,
-                    .offset = offsetof(Gpu::LineCommand, bounds),
-                },
-                VkVertexInputAttributeDescription{
-                    .location = 1,
-                    .binding = 0,
-                    .format = VK_FORMAT_R32_UINT,
-                    .offset = offsetof(Gpu::LineCommand, colour),
-                },
-                VkVertexInputAttributeDescription{
-                    .location = 2,
-                    .binding = 0,
-                    .format = VK_FORMAT_R32_SINT,
-                    .offset = offsetof(Gpu::LineCommand, depth),
-                },
-            };
-            const VkPipelineVertexInputStateCreateInfo vertexInput = {
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-                .vertexBindingDescriptionCount = 1,
-                .pVertexBindingDescriptions = &binding,
-                .vertexAttributeDescriptionCount = static_cast<uint32_t>(attributes.size()),
-                .pVertexAttributeDescriptions = attributes.data(),
-            };
-            constexpr VkPipelineInputAssemblyStateCreateInfo inputAssembly = {
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+        constexpr VkVertexInputBindingDescription binding = {
+            .binding = 0,
+            .stride = sizeof(Gpu::LineCommand),
+            .inputRate = VK_VERTEX_INPUT_RATE_INSTANCE,
+        };
+        constexpr std::array attributes = {
+            VkVertexInputAttributeDescription{ 0, 0, VK_FORMAT_R32G32B32A32_SINT, offsetof(Gpu::LineCommand, bounds) },
+            VkVertexInputAttributeDescription{ 1, 0, VK_FORMAT_R32_UINT, offsetof(Gpu::LineCommand, colour) },
+            VkVertexInputAttributeDescription{ 2, 0, VK_FORMAT_R32_SINT, offsetof(Gpu::LineCommand, depth) },
+        };
+        constexpr VkPipelineDepthStencilStateCreateInfo depth = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+            .depthTestEnable = VK_TRUE,
+            .depthWriteEnable = VK_TRUE,
+            .depthCompareOp = VK_COMPARE_OP_LESS,
+            .minDepthBounds = 0.0f,
+            .maxDepthBounds = 1.0f,
+        };
+        _pipeline = CreateGraphicsPipeline(
+            _device, _pipelineCache,
+            {
+                .vertexShader = _shaderDirectory / "indexed_line.vert.spv",
+                .fragmentShader = _shaderDirectory / "indexed_line.frag.spv",
+                .vertexBindings = std::span{ &binding, 1 },
+                .vertexAttributes = attributes,
                 .topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST,
-            };
-            constexpr VkPipelineViewportStateCreateInfo viewportState = {
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
-                .viewportCount = 1,
-                .scissorCount = 1,
-            };
-            constexpr VkPipelineRasterizationStateCreateInfo rasterisation = {
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
-                .polygonMode = VK_POLYGON_MODE_FILL,
-                .cullMode = VK_CULL_MODE_NONE,
-                .frontFace = VK_FRONT_FACE_CLOCKWISE,
-                .lineWidth = 1.0f,
-            };
-            constexpr VkPipelineMultisampleStateCreateInfo multisampling = {
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-                .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
-            };
-            constexpr VkPipelineDepthStencilStateCreateInfo depth = {
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
-                .depthTestEnable = VK_TRUE,
-                .depthWriteEnable = VK_TRUE,
-                .depthCompareOp = VK_COMPARE_OP_LESS,
-                .minDepthBounds = 0.0f,
-                .maxDepthBounds = 1.0f,
-            };
-            constexpr VkPipelineColorBlendAttachmentState blendAttachment = {
-                .blendEnable = VK_FALSE,
-                .colorWriteMask = VK_COLOR_COMPONENT_R_BIT,
-            };
-            const VkPipelineColorBlendStateCreateInfo blending = {
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
-                .attachmentCount = 1,
-                .pAttachments = &blendAttachment,
-            };
-            constexpr std::array dynamicStates = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
-            const VkPipelineDynamicStateCreateInfo dynamicState = {
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-                .dynamicStateCount = static_cast<uint32_t>(dynamicStates.size()),
-                .pDynamicStates = dynamicStates.data(),
-            };
-            const VkGraphicsPipelineCreateInfo pipelineInfo = {
-                .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-                .stageCount = static_cast<uint32_t>(stages.size()),
-                .pStages = stages.data(),
-                .pVertexInputState = &vertexInput,
-                .pInputAssemblyState = &inputAssembly,
-                .pViewportState = &viewportState,
-                .pRasterizationState = &rasterisation,
-                .pMultisampleState = &multisampling,
-                .pDepthStencilState = &depth,
-                .pColorBlendState = &blending,
-                .pDynamicState = &dynamicState,
+                .depthStencil = &depth,
                 .layout = _pipelineLayout,
                 .renderPass = _renderPass,
-                .subpass = 0,
-            };
-            CheckVk(
-                vkCreateGraphicsPipelines(_device, _pipelineCache, 1, &pipelineInfo, nullptr, &_pipeline),
-                "vkCreateGraphicsPipelines(lines)");
-        }
-        catch (...)
-        {
-            if (vertexShader != VK_NULL_HANDLE)
-            {
-                vkDestroyShaderModule(_device, vertexShader, nullptr);
-            }
-            if (fragmentShader != VK_NULL_HANDLE)
-            {
-                vkDestroyShaderModule(_device, fragmentShader, nullptr);
-            }
-            throw;
-        }
-        vkDestroyShaderModule(_device, vertexShader, nullptr);
-        vkDestroyShaderModule(_device, fragmentShader, nullptr);
+            },
+            "vkCreateGraphicsPipelines(lines)");
     }
 
     void LinePipeline::CreateFramebuffers(const IndexedResources& resources)
     {
         for (uint32_t i = 0; i < kFramesInFlight; i++)
         {
-            const std::array attachments = {
-                resources.GetIndexedCanvas(i).GetView(), resources.GetDepthCanvas(i).GetView()
-            };
+            const std::array attachments = { resources.GetIndexedCanvas(i).GetView(), resources.GetDepthCanvas(i).GetView() };
             const VkFramebufferCreateInfo framebufferInfo = {
                 .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
                 .renderPass = _renderPass,
@@ -364,29 +246,17 @@ namespace OpenRCT2::Ui::Vulkan
         {
             return;
         }
-        for (auto& framebuffer : _framebuffers)
+        for (const auto framebuffer : _framebuffers)
         {
-            if (framebuffer != VK_NULL_HANDLE)
-            {
-                vkDestroyFramebuffer(_device, framebuffer, nullptr);
-                framebuffer = VK_NULL_HANDLE;
-            }
+            vkDestroyFramebuffer(_device, framebuffer, nullptr);
         }
-        if (_pipeline != VK_NULL_HANDLE)
-        {
-            vkDestroyPipeline(_device, _pipeline, nullptr);
-            _pipeline = VK_NULL_HANDLE;
-        }
-        if (_pipelineLayout != VK_NULL_HANDLE)
-        {
-            vkDestroyPipelineLayout(_device, _pipelineLayout, nullptr);
-            _pipelineLayout = VK_NULL_HANDLE;
-        }
-        if (_renderPass != VK_NULL_HANDLE)
-        {
-            vkDestroyRenderPass(_device, _renderPass, nullptr);
-            _renderPass = VK_NULL_HANDLE;
-        }
+        vkDestroyPipeline(_device, _pipeline, nullptr);
+        vkDestroyPipelineLayout(_device, _pipelineLayout, nullptr);
+        vkDestroyRenderPass(_device, _renderPass, nullptr);
+        _framebuffers = {};
+        _pipeline = VK_NULL_HANDLE;
+        _pipelineLayout = VK_NULL_HANDLE;
+        _renderPass = VK_NULL_HANDLE;
     }
 } // namespace OpenRCT2::Ui::Vulkan
 

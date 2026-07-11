@@ -97,7 +97,8 @@ namespace OpenRCT2::Ui::Gpu
 
     void CommandDrawingContext::Resize()
     {
-        ResetClippingCache();
+        for (auto& entry : _clippingCache)
+            entry.bits = nullptr;
     }
 
     bool CommandDrawingContext::IsActive() const noexcept
@@ -128,18 +129,10 @@ namespace OpenRCT2::Ui::Gpu
         if (!InclusiveRectIntersectsClip(bounds, clipBounds))
             return;
 
-        auto& command = _commands->opaqueRects.allocate();
-        command.clip = { clip.GetLeft(), clip.GetTop(), clip.GetRight(), clip.GetBottom() };
-        command.texColourAtlas = 0;
-        command.texColourBounds = {};
-        command.texMaskAtlas = 0;
-        command.texMaskBounds = {};
-        command.palettes = {};
+        auto& command = AppendRect(
+            _commands->opaqueRects, clip, { bounds.x, bounds.y, bounds.z + 1, bounds.w + 1 });
         command.colour = EnumValue(paletteIndex);
-        command.bounds = { bounds.x, bounds.y, bounds.z + 1, bounds.w + 1 };
         command.flags = RectCommand::FLAG_NO_TEXTURE | (crossHatch ? RectCommand::FLAG_CROSS_HATCH : 0);
-        command.depth = _drawCount++;
-        command.zoom = 1.0f;
     }
 
     void CommandDrawingContext::FilterRect(
@@ -158,18 +151,10 @@ namespace OpenRCT2::Ui::Gpu
         if (!InclusiveRectIntersectsClip(bounds, clipBounds))
             return;
 
-        auto& command = _commands->transparentRects.allocate();
-        command.clip = { clip.GetLeft(), clip.GetTop(), clip.GetRight(), clip.GetBottom() };
-        command.texColourAtlas = 0;
-        command.texColourBounds = {};
-        command.texMaskAtlas = 0;
-        command.texMaskBounds = {};
-        command.palettes = {};
+        auto& command = AppendRect(
+            _commands->transparentRects, clip, { bounds.x, bounds.y, bounds.z + 1, bounds.w + 1 });
         command.colour = TextureCache::PaletteToY(palette);
-        command.bounds = { bounds.x, bounds.y, bounds.z + 1, bounds.w + 1 };
         command.flags = RectCommand::FLAG_NO_TEXTURE;
-        command.depth = _drawCount++;
-        command.zoom = 1.0f;
     }
 
     uint8_t CommandDrawingContext::ComputeOutCode(
@@ -313,8 +298,7 @@ namespace OpenRCT2::Ui::Gpu
         }
 
         auto& batch = (water || imageId.IsBlended()) ? _commands->transparentRects : _commands->opaqueRects;
-        auto& command = batch.allocate();
-        command.clip = { clip.GetLeft(), clip.GetTop(), clip.GetRight(), clip.GetBottom() };
+        auto& command = AppendRect(batch, clip, geometry.bounds, geometry.zoom);
         command.texColourAtlas = geometry.texture.index;
         command.texColourBounds = geometry.texture.coords;
         command.texMaskAtlas = (water || imageId.IsBlended()) ? geometry.texture.index : 0;
@@ -323,12 +307,9 @@ namespace OpenRCT2::Ui::Gpu
             : Float4{ 0, 0, geometry.texture.coords.z, geometry.texture.coords.w };
         command.palettes = palettes;
         command.colour = (water || imageId.IsBlended()) ? palettes.x - (water ? 1 : 0) : 0;
-        command.bounds = geometry.bounds;
         command.flags = water ? 0
                               : (imageId.IsBlended() ? RectCommand::FLAG_NO_TEXTURE | RectCommand::FLAG_MASK
                                                      : paletteCount);
-        command.depth = _drawCount++;
-        command.zoom = geometry.zoom;
     }
 
     void CommandDrawingContext::DrawSpriteRawMasked(
@@ -362,19 +343,14 @@ namespace OpenRCT2::Ui::Gpu
         right += clip.GetLeft() - rt.x;
         bottom += clip.GetTop() - rt.y;
 
-        auto& command = _commands->opaqueRects.allocate();
-        command.clip = { clip.GetLeft(), clip.GetTop(), clip.GetRight(), clip.GetBottom() };
+        const float zoom = rt.zoom_level >= ZoomLevel{ 0 } ? static_cast<float>(rt.zoom_level.ApplyTo(1))
+                                                           : 1.0f / rt.zoom_level.ApplyInversedTo(1);
+        auto& command = AppendRect(_commands->opaqueRects, clip, { left, top, right, bottom }, zoom);
         command.texColourAtlas = colour.index;
         command.texColourBounds = colour.coords;
         command.texMaskAtlas = mask.index;
         command.texMaskBounds = mask.coords;
-        command.palettes = {};
         command.flags = RectCommand::FLAG_MASK;
-        command.colour = 0;
-        command.bounds = { left, top, right, bottom };
-        command.depth = _drawCount++;
-        command.zoom = rt.zoom_level >= ZoomLevel{ 0 } ? static_cast<float>(rt.zoom_level.ApplyTo(1))
-                                                       : 1.0f / rt.zoom_level.ApplyInversedTo(1);
     }
 
     void CommandDrawingContext::DrawSpriteSolid(
@@ -408,18 +384,11 @@ namespace OpenRCT2::Ui::Gpu
         geometry.bounds.z += clip.GetLeft() - rt.x;
         geometry.bounds.w += clip.GetTop() - rt.y;
 
-        auto& command = _commands->opaqueRects.allocate();
-        command.clip = { clip.GetLeft(), clip.GetTop(), clip.GetRight(), clip.GetBottom() };
-        command.texColourAtlas = 0;
-        command.texColourBounds = {};
+        auto& command = AppendRect(_commands->opaqueRects, clip, geometry.bounds, geometry.zoom);
         command.texMaskAtlas = geometry.texture.index;
         command.texMaskBounds = geometry.texture.coords;
-        command.palettes = {};
         command.flags = RectCommand::FLAG_NO_TEXTURE | RectCommand::FLAG_MASK;
         command.colour = EnumValue(colour);
-        command.bounds = geometry.bounds;
-        command.depth = _drawCount++;
-        command.zoom = geometry.zoom;
     }
 
     void CommandDrawingContext::DrawGlyph(
@@ -453,18 +422,9 @@ namespace OpenRCT2::Ui::Gpu
         geometry.bounds.z += clip.GetLeft() - rt.x;
         geometry.bounds.w += clip.GetTop() - rt.y;
 
-        auto& command = _commands->opaqueRects.allocate();
-        command.clip = { clip.GetLeft(), clip.GetTop(), clip.GetRight(), clip.GetBottom() };
+        auto& command = AppendRect(_commands->opaqueRects, clip, geometry.bounds, geometry.zoom);
         command.texColourAtlas = geometry.texture.index;
         command.texColourBounds = geometry.texture.coords;
-        command.texMaskAtlas = 0;
-        command.texMaskBounds = {};
-        command.palettes = {};
-        command.flags = 0;
-        command.colour = 0;
-        command.bounds = geometry.bounds;
-        command.depth = _drawCount++;
-        command.zoom = geometry.zoom;
     }
 
     void CommandDrawingContext::DrawTTFBitmap(
@@ -486,18 +446,11 @@ namespace OpenRCT2::Ui::Gpu
         bottom += clip.GetTop() - rt.y;
 
         const auto appendText = [&](CommandBatch<RectCommand>& batch, Int4 bounds, PaletteIndex colour, uint32_t flags) {
-            auto& command = batch.allocate();
-            command.clip = { clip.GetLeft(), clip.GetTop(), clip.GetRight(), clip.GetBottom() };
+            auto& command = AppendRect(batch, clip, bounds);
             command.texColourAtlas = texture.index;
             command.texColourBounds = texture.coords;
-            command.texMaskAtlas = 0;
-            command.texMaskBounds = {};
-            command.palettes = {};
             command.flags = flags;
             command.colour = EnumValue(colour);
-            command.bounds = bounds;
-            command.depth = _drawCount++;
-            command.zoom = 1.0f;
         };
 
         if (info.colourFlags.has(ColourFlag::withOutline))
@@ -535,6 +488,19 @@ namespace OpenRCT2::Ui::Gpu
 #endif
     }
 
+    RectCommand& CommandDrawingContext::AppendRect(
+        CommandBatch<RectCommand>& batch, const ScreenRect& clip, Int4 bounds, float zoom)
+    {
+        auto& command = batch.allocate();
+        command = {
+            .clip = { clip.GetLeft(), clip.GetTop(), clip.GetRight(), clip.GetBottom() },
+            .bounds = bounds,
+            .depth = _drawCount++,
+            .zoom = zoom,
+        };
+        return command;
+    }
+
     ScreenRect CommandDrawingContext::CalculateClipping(const RenderTarget& rt) const
     {
         const int32_t stride = _mainTarget.LineStride();
@@ -557,11 +523,5 @@ namespace OpenRCT2::Ui::Gpu
         cached.stride = stride;
         cached.clip = { { left, top }, { left + rt.width, top + rt.height } };
         return cached.clip;
-    }
-
-    void CommandDrawingContext::ResetClippingCache()
-    {
-        for (auto& entry : _clippingCache)
-            entry.bits = nullptr;
     }
 } // namespace OpenRCT2::Ui::Gpu

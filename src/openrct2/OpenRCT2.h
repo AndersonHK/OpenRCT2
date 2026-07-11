@@ -40,6 +40,7 @@ enum class LegacyScene : uint8_t
 struct IntegratedBenchmarkConfig
 {
     bool enabled{};
+    bool visible{};
     int32_t warmupSeconds{ 5 };
     int32_t measurementSeconds{ 30 };
     std::optional<DrawingEngine> drawingEngine;

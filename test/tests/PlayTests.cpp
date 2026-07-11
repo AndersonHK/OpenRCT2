@@ -55,9 +55,12 @@ TEST_F(PlayTests, CalculatesIntegratedBenchmarkMetricsFromIndependentCounters)
     const IntegratedBenchmarkTotals totals{
         .elapsedSeconds = 2.0,
         .logicalTicks = 640,
+        .simulationBatches = 80,
         .draws = 30,
         .simulationSeconds = 1.6,
         .drawSeconds = 0.2,
+        .longestSimulationBatchSeconds = 0.04,
+        .longestSimulationSliceSeconds = 0.006,
     };
 
     const auto metrics = CalculateIntegratedBenchmarkMetrics(totals);
@@ -66,7 +69,10 @@ TEST_F(PlayTests, CalculatesIntegratedBenchmarkMetricsFromIndependentCounters)
     EXPECT_DOUBLE_EQ(metrics.simulationUtilisationPercent, 80.0);
     EXPECT_DOUBLE_EQ(metrics.drawUtilisationPercent, 10.0);
     EXPECT_DOUBLE_EQ(metrics.meanSimulationMicrosecondsPerLogicalTick, 2500.0);
+    EXPECT_DOUBLE_EQ(metrics.meanSimulationMicrosecondsPerBatch, 20000.0);
     EXPECT_NEAR(metrics.meanDrawMicroseconds, 6666.6666667, 0.0001);
+    EXPECT_DOUBLE_EQ(metrics.longestSimulationBatchMilliseconds, 40.0);
+    EXPECT_DOUBLE_EQ(metrics.longestSimulationSliceMilliseconds, 6.0);
 }
 
 TEST_F(PlayTests, IntegratedBenchmarkMetricsHandleEmptyMeasurement)
@@ -75,7 +81,18 @@ TEST_F(PlayTests, IntegratedBenchmarkMetricsHandleEmptyMeasurement)
     EXPECT_DOUBLE_EQ(metrics.logicalTicksPerSecond, 0.0);
     EXPECT_DOUBLE_EQ(metrics.framesPerSecond, 0.0);
     EXPECT_DOUBLE_EQ(metrics.meanSimulationMicrosecondsPerLogicalTick, 0.0);
+    EXPECT_DOUBLE_EQ(metrics.meanSimulationMicrosecondsPerBatch, 0.0);
     EXPECT_DOUBLE_EQ(metrics.meanDrawMicroseconds, 0.0);
+    EXPECT_DOUBLE_EQ(metrics.longestSimulationBatchMilliseconds, 0.0);
+    EXPECT_DOUBLE_EQ(metrics.longestSimulationSliceMilliseconds, 0.0);
+}
+
+TEST_F(PlayTests, DisplayRefreshIntervalUsesReportedRateAndSaneFallback)
+{
+    EXPECT_EQ(NormaliseDisplayRefreshRate(144), 144u);
+    EXPECT_DOUBLE_EQ(GetDisplayRefreshIntervalSeconds(144), 1.0 / 144.0);
+    EXPECT_EQ(NormaliseDisplayRefreshRate(0), kDefaultDisplayRefreshRate);
+    EXPECT_EQ(NormaliseDisplayRefreshRate(10'000), kDefaultDisplayRefreshRate);
 }
 
 static std::unique_ptr<IContext> localStartGame(const std::string& parkPath)
@@ -730,7 +747,7 @@ TEST_F(PlayTests, ArrivingTrainCannotStealStationPlatformBeforePublishedHandoff)
     EXPECT_EQ(
         RideBindStationPlatformGuestToSeat(*targetRide, targetStation, 0, *firstGuest),
         RideStationPlatformSeatBindingResult::success);
-    RideReleaseStationPlatformSlot(*targetRide, targetStation, firstGuest->id);
+    RideReleaseStationPlatformSlot(*targetRide, targetStation, firstGuest->id, true);
 
     auto* handoffGuest = Guest::generate(station.Entrance.ToCoordsXYZ());
     ASSERT_NE(handoffGuest, nullptr);
@@ -804,7 +821,7 @@ TEST_F(PlayTests, ArrivingTrainCannotStealStationPlatformBeforePublishedHandoff)
     ASSERT_EQ(
         RideBindStationPlatformGuestToSeat(*targetRide, targetStation, 0, *unmatchedGuest),
         RideStationPlatformSeatBindingResult::success);
-    RideReleaseStationPlatformSlot(*targetRide, targetStation, unmatchedGuest->id);
+    RideReleaseStationPlatformSlot(*targetRide, targetStation, unmatchedGuest->id, true);
     unmatchedGuest->RideSubState = PeepRideSubState::approachVehicle;
 
     ASSERT_EQ(unmatchedGuest->CurrentTrain, 0);
@@ -1081,7 +1098,7 @@ TEST_F(PlayTests, MazeCapacityModesDeriveCapacityFromTileCount)
     Ride maze{};
     maze.type = RIDE_TYPE_MAZE;
 
-    EXPECT_EQ(maze.getMazeMaximumCapacity(), 0);
+    EXPECT_EQ(maze.getMazeCapacityForMode(MazeCapacityMode::overcrowded), 0);
     EXPECT_EQ(maze.getOperationOptionMinimum(false), 0);
     EXPECT_EQ(maze.getOperationOptionMaximum(false), 2);
     EXPECT_EQ(maze.getDefaultOperationOption(), static_cast<uint8_t>(MazeCapacityMode::normal));
@@ -1093,7 +1110,7 @@ TEST_F(PlayTests, MazeCapacityModesDeriveCapacityFromTileCount)
     EXPECT_EQ(maze.getMazeCapacityForMode(MazeCapacityMode::sparse), 2);
     EXPECT_EQ(maze.getMazeCapacityForMode(MazeCapacityMode::normal), 5);
     EXPECT_EQ(maze.getMazeCapacityForMode(MazeCapacityMode::overcrowded), 10);
-    EXPECT_EQ(maze.getMazeMaximumCapacity(), 10);
+    EXPECT_EQ(maze.getMazeCapacityForMode(MazeCapacityMode::overcrowded), 10);
     EXPECT_EQ(maze.getStoredOperationOption(), static_cast<uint8_t>(MazeCapacityMode::normal));
     EXPECT_EQ(maze.getEffectiveOperationOption(), 5);
 
@@ -1115,7 +1132,7 @@ TEST_F(PlayTests, MazeCapacityModesDeriveCapacityFromTileCount)
     EXPECT_EQ(maze.getMazeRatingAccumulatorScale(), std::make_pair(1, 2));
 
     maze.mazeTiles = 300;
-    EXPECT_EQ(maze.getMazeMaximumCapacity(), Limits::kCheatsMaxOperatingLimit);
+    EXPECT_EQ(maze.getMazeCapacityForMode(MazeCapacityMode::overcrowded), Limits::kCheatsMaxOperatingLimit);
 }
 
 TEST_F(PlayTests, LegacyMazeCapacityMapsToClosestCapacityMode)

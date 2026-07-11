@@ -157,10 +157,8 @@ namespace OpenRCT2
         for (const auto entityId : vehicles)
         {
             const auto* vehicle = GetEntity<Vehicle>(entityId);
-            if (vehicle != nullptr && vehicle->IsHead())
-            {
+            if (vehicle->IsHead())
                 _vehicleHeadEntityList.push_back(entityId);
-            }
         }
         _vehicleHeadEntityListDirty = false;
         return _vehicleHeadEntityList;
@@ -465,10 +463,8 @@ namespace OpenRCT2
             _spatialIndexDirtyQueued.reset(entityIndex);
 
             auto* entity = TryGetEntity(entityId);
-            if (entity == nullptr || entity->type == EntityType::null || !(entity->spatialIndex & kSpatialIndexDirtyMask))
-            {
+            if (entity->type == EntityType::null || !(entity->spatialIndex & kSpatialIndexDirtyMask))
                 continue;
-            }
 
             UpdateEntitySpatialIndex(*entity);
         }

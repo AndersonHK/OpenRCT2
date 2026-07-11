@@ -14,6 +14,10 @@
 
 namespace OpenRCT2::Audio
 {
+    using MixSpatialSpeakerFunc = void (*)(
+        float* destination, const int16_t* samples, size_t mixedFrames, size_t interpolationFrames, float oldVolume,
+        float newVolume, float startFade, float endFade, float oldSpeakerGain, float speakerGain);
+
     void MixSpatialSpeakerAVX2(
         float* destination, const int16_t* samples, size_t mixedFrames, size_t interpolationFrames, float oldVolume,
         float newVolume, float startFade, float endFade, float oldSpeakerGain, float speakerGain);

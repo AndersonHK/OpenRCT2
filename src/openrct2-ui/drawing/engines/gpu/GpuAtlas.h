@@ -96,7 +96,14 @@ namespace OpenRCT2::Ui::Gpu
             assert(!_freeSlots.empty());
             const uint32_t slot = _freeSlots.back();
             _freeSlots.pop_back();
-            const auto bounds = GetSlotCoordinates(slot, actualWidth, actualHeight);
+            const int32_t row = static_cast<int32_t>(slot) / _columns;
+            const int32_t column = static_cast<int32_t>(slot) % _columns;
+            const Int4 bounds = {
+                _imageSize * column,
+                _imageSize * row,
+                _imageSize * column + actualWidth,
+                _imageSize * row + actualHeight,
+            };
 
             TextureLocation result{};
             result.index = _index;
@@ -131,19 +138,6 @@ namespace OpenRCT2::Ui::Gpu
         {
             const auto actualSize = static_cast<uint32_t>(std::max(kSmallestAtlasSlot, std::max(actualWidth, actualHeight)));
             return static_cast<int32_t>(std::bit_width(actualSize - 1));
-        }
-
-    private:
-        [[nodiscard]] Int4 GetSlotCoordinates(uint32_t slot, int32_t actualWidth, int32_t actualHeight) const
-        {
-            const int32_t row = static_cast<int32_t>(slot) / _columns;
-            const int32_t column = static_cast<int32_t>(slot) % _columns;
-            return {
-                _imageSize * column,
-                _imageSize * row,
-                _imageSize * column + actualWidth,
-                _imageSize * row + actualHeight,
-            };
         }
     };
 } // namespace OpenRCT2::Ui::Gpu

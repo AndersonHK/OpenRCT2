@@ -31,9 +31,11 @@ namespace OpenRCT2::MapPathTopology
         uint8_t targetBaseZ{};
         uint8_t flags{};
 
-        [[nodiscard]] bool IsConnected() const noexcept;
-        [[nodiscard]] bool HasAmbiguousTarget() const noexcept;
-        [[nodiscard]] bool HasFlag(ConnectionFlag flag) const noexcept;
+        [[nodiscard]] bool HasFlag(ConnectionFlag flag) const noexcept
+        {
+            return (flags & static_cast<uint8_t>(flag)) != 0;
+        }
+        [[nodiscard]] bool IsConnected() const noexcept { return HasFlag(ConnectionFlag::connected); }
     };
 
     enum class PathNodeFlag : uint8_t
@@ -60,8 +62,14 @@ namespace OpenRCT2::MapPathTopology
         uint8_t flags{};
         StationIndex queueStation{ StationIndex::GetNull() };
 
-        [[nodiscard]] bool HasFlag(PathNodeFlag flag) const noexcept;
-        [[nodiscard]] TileCoordsXYZ GetLocation(const TileCoordsXY& chunkOrigin) const noexcept;
+        [[nodiscard]] bool HasFlag(PathNodeFlag flag) const noexcept
+        {
+            return (flags & static_cast<uint8_t>(flag)) != 0;
+        }
+        [[nodiscard]] TileCoordsXYZ GetLocation(const TileCoordsXY& origin) const noexcept
+        {
+            return { origin.x + localX, origin.y + localY, baseZ };
+        }
     };
 
     struct EntranceNode
@@ -77,7 +85,10 @@ namespace OpenRCT2::MapPathTopology
         uint8_t connectionEdges{};
         StationIndex station{ StationIndex::GetNull() };
 
-        [[nodiscard]] TileCoordsXYZ GetLocation(const TileCoordsXY& chunkOrigin) const noexcept;
+        [[nodiscard]] TileCoordsXYZ GetLocation(const TileCoordsXY& origin) const noexcept
+        {
+            return { origin.x + localX, origin.y + localY, baseZ };
+        }
     };
 
     static_assert(sizeof(PathNode) <= 24);
@@ -92,7 +103,7 @@ namespace OpenRCT2::MapPathTopology
         uint64_t buildSerial{};
         bool isExact{};
 
-        [[nodiscard]] explicit operator bool() const noexcept;
+        [[nodiscard]] explicit operator bool() const noexcept { return buildSerial != 0; }
     };
 
     // Lazily rebuilds the requested chunk if its own or a cardinal neighbour's topology generation changed.

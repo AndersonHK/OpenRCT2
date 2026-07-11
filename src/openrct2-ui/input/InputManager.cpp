@@ -14,6 +14,7 @@
 #include <SDL.h>
 #include <SDL_gamecontroller.h>
 #include <cmath>
+#include <utility>
 #include <openrct2-ui/UiContext.h>
 #include <openrct2-ui/input/MouseInput.h>
 #include <openrct2-ui/input/ShortcutManager.h>
@@ -35,6 +36,11 @@ using namespace OpenRCT2::Ui;
 InputManager::InputManager()
 {
     _modifierKeyState = EnumValue(ModifierKey::none);
+}
+
+void InputManager::GameControllerDeleter::operator()(SDL_GameController* controller) const
+{
+    SDL_GameControllerClose(controller);
 }
 
 void InputManager::queueInputEvent(const SDL_Event& e)
@@ -127,10 +133,10 @@ void InputManager::checkJoysticks()
         {
             if (SDL_IsGameController(i))
             {
-                auto gameController = SDL_GameControllerOpen(i);
+                GameControllerPtr gameController{ SDL_GameControllerOpen(i) };
                 if (gameController != nullptr)
                 {
-                    _gameControllers.push_back(gameController);
+                    _gameControllers.push_back(std::move(gameController));
                 }
             }
         }
@@ -145,8 +151,9 @@ void InputManager::processAnalogueInput()
     const int32_t deadzone = Config::Get().general.gamepadDeadzone;
     const float sensitivity = Config::Get().general.gamepadSensitivity;
 
-    for (auto* gameController : _gameControllers)
+    for (const auto& controller : _gameControllers)
     {
+        auto* gameController = controller.get();
         if (gameController != nullptr)
         {
             int32_t stickX = SDL_GameControllerGetAxis(gameController, SDL_CONTROLLER_AXIS_LEFTX);
@@ -527,10 +534,10 @@ bool InputManager::getState(const ShortcutInput& shortcut) const
             }
             case InputDeviceKind::joyButton:
             {
-                for (auto* gameController : _gameControllers)
+                for (const auto& controller : _gameControllers)
                 {
                     // Get the underlying joystick to maintain compatibility with raw button numbers
-                    auto* joystick = SDL_GameControllerGetJoystick(gameController);
+                    auto* joystick = SDL_GameControllerGetJoystick(controller.get());
                     if (joystick && SDL_JoystickGetButton(joystick, shortcut.button))
                     {
                         return true;
@@ -540,10 +547,10 @@ bool InputManager::getState(const ShortcutInput& shortcut) const
             }
             case InputDeviceKind::joyHat:
             {
-                for (auto* gameController : _gameControllers)
+                for (const auto& controller : _gameControllers)
                 {
                     // Get the underlying joystick to maintain compatibility with hat functionality
-                    auto* joystick = SDL_GameControllerGetJoystick(gameController);
+                    auto* joystick = SDL_GameControllerGetJoystick(controller.get());
                     if (joystick)
                     {
                         auto numHats = SDL_JoystickNumHats(joystick);

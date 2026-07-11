@@ -49,8 +49,11 @@ cannot isolate a VSync wait. The controlled matrix is:
 | Camera | fixed position, rotation, zoom and viewport size |
 | Speed | Turbo; debug Hyper only as a saturation diagnostic |
 
-Turbo may render less often than it simulates, but input/event pumping must remain responsive. A 15-30 FPS presentation
-cadence is acceptable during Turbo if it materially raises TPS. Normal speed keeps smooth variable-frame interpolation.
+Turbo presentation follows the current SDL display refresh rate while VSync is enabled. Simulation throughput is no longer
+allowed to buy TPS by deliberately reducing Turbo to 15-30 FPS: message pumping, window input, command generation and
+presentation must continue at the display cadence whenever complete logical-tick slices fit within that budget. Normal speed
+keeps variable-frame entity interpolation. A single logical update remains the deterministic, non-preemptible unit, so a tick
+whose own wall time exceeds one refresh interval is reported as a latency miss rather than hidden by an average FPS value.
 
 Each result is a warmed median of repeated runs, accompanied by the simulation checksum. Process-startup time is never
 divided by the measured tick count.
@@ -61,6 +64,10 @@ The full executable now provides an opt-in, non-interactive form of this benchma
 openrct2 EverythingPark.park --benchmark-ui --benchmark-warmup=5 --benchmark-duration=30 \
     --benchmark-renderer=vulkan --benchmark-vsync=0
 ```
+
+Add `--benchmark-visible` to retain the benchmark's ordinary window for compositor and hands-on playability checks. It remains
+non-interactive in duration and exits automatically; fullscreen, cursor trapping, configuration persistence, and park audio stay
+disabled so the visible and hidden rows differ only at the window/compositor boundary.
 
 It creates the renderer's normal SDL window and surface with `SDL_WINDOW_HIDDEN`, waits for the requested park to become the
 active game scene, selects ordinary Turbo, warms by steady-clock time, measures, prints the result, and exits. A failed park
@@ -107,6 +114,42 @@ The run also exposed and closed an initialization-order defect before acceptance
 and baked-light tables while the drawing engine was created, before base graphics and LightFX were loaded, producing exactly
 192 invalid `palettes.dat` requests. Capture now occurs once at the first real draw and is versioned through the render-worker
 packet. Repeated Vulkan runs report zero palette warnings.
+
+### Refresh-paced Turbo checkpoint
+
+The former Turbo scheduler explicitly limited presentation to one frame every `1 / 15` seconds and then ran all eight logical
+updates in a 40 Hz scene batch before returning to SDL. That policy explains the measured 13.334 FPS: it was intentional
+throttling, not a Vulkan or GPU ceiling. Turbo now yields only between completed logical updates. At that safe boundary it can
+pump SDL, dispatch completed background work, process window input, update the UI, and paint when the monitor-derived refresh
+deadline is due. Forty-Hz scene housekeeping and the eight-logical-update Turbo batch remain unchanged.
+
+Frame deadlines advance on an anchored refresh timeline rather than being reset from a late frame. Small scheduling overruns
+therefore do not become permanent drift: later one-tick presentation intervals repay the debt, while the long-run production
+rate remains capped at the reported display rate. SDL display changes refresh the cached rate; invalid or unavailable rates use
+a 60 Hz fallback. Vulkan VSync prefers `VK_PRESENT_MODE_MAILBOX_KHR`, when available, so both the CPU frame mailbox and the
+swapchain keep the newest completed image instead of rebuilding a stale FIFO queue. FIFO remains the mandatory tear-free
+fallback, and Immediate remains the non-VSync choice.
+
+Two independent two-second-warm-up/five-second EverythingPark runs on the 144 Hz display produced:
+
+| Run | Logical TPS | Draw FPS | Message pumps | Window updates | p50 / p95 / max interval | GPU frame |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Refresh paced 1 | 264.897 | 144.018 | 156.784 Hz | 156.186 Hz | 7.100 / 8.341 / 9.553 ms | 702.754 us |
+| Refresh paced 2 | 265.265 | 144.018 | 158.600 Hz | 158.000 Hz | 7.111 / 8.184 / 11.363 ms | 704.099 us |
+
+This deliberately spends about 25% of the wall interval on 722/721 complete paints instead of 67 paints, so integrated TPS
+falls from the old 316.830 throughput-oriented VSync row to about 265. The headless simulation ceiling remains above 600 TPS;
+the new result expresses the chosen playability priority rather than a simulation regression. The benchmark now also reports
+message-pump and window-update rates, frame-interval p50/p95/p99/max, mean and longest 40 Hz scene batches, and the longest
+UI-bounded logical slice. Renderer timing samples equal the produced-frame counts in both accepted runs.
+
+The default benchmark still creates a hidden SDL window for repeatability; `--benchmark-visible` exposes the same timed run for
+the compositor/playability row because a compositor may treat a hidden surface differently. Hitting 144 produced frames also
+does not yet prove a hard guarantee when one future logical tick itself takes
+longer than 6.94 ms. That stronger guarantee requires moving simulation behind an immutable/double-buffered visual snapshot so
+the UI thread can present and accept input while the next state is being computed. The next renderer slice should likewise
+promote the direct command path only after visual soak; the validation X8 bridge still copies and uploads a complete indexed
+canvas every frame.
 
 ## Prong A: Vulkan renderer, GPU-owned composition and bus traffic
 
@@ -872,6 +915,24 @@ peep/vehicle loops still require deterministic staged-mutation architecture befo
 
 Expected result: destination-aware guests share expensive topology work, while dynamic transport and crowding costs remain
 cheap overlays.
+
+## Fork-wide consolidation checkpoint
+
+The post-feature quality pass removes 2,877 net lines of C++ and replaces defensive polling with mutation-owned
+state. Transport services no longer recompute a freshness hash over every ride, station, and directed rating leg once per tick.
+Ride construction, entrance/exit placement, rating publication, status changes, and breakdown transitions mark the indexed
+service dirty; the next reader rebuilds it once. Dynamic queue time, pricing, weather, and crowding remain live inputs and are not
+folded into the service graph.
+
+The platform registry is now a fixed ride/station index with one explicit FIFO, route targets use one sorted index, and topology
+publication uses one connection resolver. EntityRegistry uses one typed membership path. Vulkan pipelines share result handling, shader lifetime,
+fixed-state construction, and upload staging. The real-time audio callback no longer gathers unused five-second telemetry or
+selects AVX2 versus scalar code per speaker. These changes target both instruction count and maintainability.
+
+The combined Release build is warning-clean and all 520 tests pass. Two independent headless runs, each with 2,000 warm-up ticks
+and 2,000 measured ticks, completed at 623.109 and 616.715 TPS with the identical final checksum
+`93d0bf66ac3305c3000000000000000000000000`. The 320 TPS pure-simulation budget is therefore met at this checkpoint; the
+integrated Vulkan benchmark remains a separate renderer/presentation measurement.
 
 ## Integration sequence and gates
 

@@ -2,6 +2,28 @@
 
 ## 2026-07-11
 
+### Refresh-paced Turbo presentation
+
+Removed Turbo's explicit 15 FPS presentation throttle. The scheduler now yields between completed logical simulation updates,
+uses SDL's current display refresh rate as an anchored frame deadline, and services messages, mouse/window input, completed
+background work, UI state, and painting before returning to the next deterministic update. The eight-update Turbo batch and
+40 Hz scene housekeeping are unchanged. Anchoring deadlines prevents a slightly late frame from permanently shifting every
+later frame; missed time is repaid by a later shorter interval without uncapping long-run frame production.
+
+Vulkan VSync now prefers MAILBOX presentation when the device exposes it, matching the render worker's one-pending newest-frame
+mailbox and preventing a second stale FIFO from forming in the swapchain. FIFO remains the required synchronized fallback.
+The integrated benchmark now reports message/window cadence, frame-interval p50/p95/p99/max, scene-batch duration, and the
+longest UI-bounded simulation slice. Two warmed five-second EverythingPark runs on a 144 Hz display both produced 144.018 FPS,
+with 264.897/265.265 logical TPS, 156-159 message pumps per second, 7.100/7.111 ms median frame intervals, and sub-11.4 ms maxima.
+This is an intentional shift from the former 316.830 TPS at 13.334 FPS toward smooth input and presentation.
+`--benchmark-visible` runs the same timed benchmark in an ordinary visible window and exits automatically, providing the missing
+compositor/playability row without changing the user's renderer, VSync, fullscreen, cursor, audio, or configuration settings.
+
+SDL controller handles now use RAII ownership. The periodic/hotplug rescan closes old handles before replacing them, and
+shutdown closes the remaining devices instead of leaking references and repeatedly reopening them every five seconds.
+The fully enabled Release x64 Vulkan/direct-context/render-thread build is warning-clean, all 523 tests pass, and focused
+refresh-normalization and Vulkan present-mode tests cover the new policies.
+
 ### Upstream synchronization
 
 Manually integrated upstream `develop` through `6903d5310e`: all 22 localisation files from `609a8cb46a` remain byte-identical,
@@ -58,6 +80,39 @@ Platform-bound guests now finish the established inward entrance waypoint before
 The first leg therefore crosses the entrance building perpendicularly, and the second follows the existing loading-position line
 inside the station platform. Guests no longer turn early from the middle of the entrance tile, cut diagonally through its walls,
 walk outside the platform fence, and phase back through it.
+
+### Fork-wide invariant and code-quality consolidation
+
+Refactored the fork additions around explicit mutation boundaries and removed 2,877 net lines of C++ while
+retaining the implemented gameplay. Transport-service construction is now invalidation-owned: ride construction, entrance/exit
+placement, rating publication, status changes, and the single broken-down transition mark a service dirty. Readers rebuild only
+dirty services instead of hashing every transport ride and every measured leg once per simulation tick. The station spatial index
+is authoritative between those transitions, while queue time, fare policy, weather, and crowding remain live overlays. Scripted
+station mutations use the same invalidation boundary and clear staged platform geometry before changing station coordinates.
+
+Station platforms now use one ride/station-indexed transient state rather than an unordered map plus a second copy of the train
+consist. Ride vehicle configuration owns consist shape; platform capture owns seat geometry; and save import is the explicit
+boundary that validates and reconstructs staged guests. Normal boarding no longer carries branches for a changed consist,
+missing live train entity, invalid car index, or impossible seat identity. Those conditions are engine corruption and fail through
+runtime assertions instead of silently sending guests through another recovery path. Platform recovery and requeueing share one
+cleanup method, and the former partial/full train-summary pair is one complete consist traversal.
+
+Platform FIFO order is stored directly as slot indices instead of a second sequence number, repeated minimum scans, and an
+arrival-time sort. Guest teardown and pickup release platform ownership through the existing `RemoveFromRide` lifecycle boundary;
+normal deletion, scripting deletion, cheats, and pickup therefore cannot leave stale guest ids behind. A cancelled reservation
+invalidates the current seat plan, while a reservation consumed by a real seat deliberately keeps it, so the next waiting guest
+can still board the same train.
+
+The same pass consolidated Vulkan result handling, graphics-pipeline construction, upload staging, and backend configuration;
+removed callback-side audio telemetry; selected scalar/AVX2 spatial mixing once during mixer initialisation; collapsed route-cache
+indexes and topology publication helpers; and removed duplicate ride-rating scans and measurements-row formatting. Explicit
+Vulkan startup errors, strict fullscreen behavior, SDL device negotiation, save corruption checks, and unsupported station/object
+boundaries remain deliberate guards.
+
+The warning-clean Release x64 build and all 520 tests pass. Two independent 2,000-tick warm-up plus 2,000-tick EverythingPark
+simulation runs produced the same `93d0bf66ac3305c3000000000000000000000000` checksum at 623.109 and 616.715 TPS,
+comfortably above the 320 TPS pure-simulation target. This headless number is the CPU simulation ceiling, not an integrated
+Vulkan presentation result.
 
 ### Vulkan cold-start and exclusive-fullscreen errors
 

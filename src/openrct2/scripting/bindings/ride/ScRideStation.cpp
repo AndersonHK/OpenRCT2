@@ -59,6 +59,13 @@ namespace OpenRCT2::Scripting
         return nullptr;
     }
 
+    void ScRideStation::StationChanged(JSValue thisVal)
+    {
+        const auto rideId = GetRideStationData(thisVal)->_rideId;
+        RideClearStationPlatformPreQueue(*::GetRide(rideId));
+        RideInvalidateTransportServiceCache(rideId);
+    }
+
     JSValue ScRideStation::start_get(JSContext* ctx, JSValue thisVal)
     {
         auto station = GetRideStation(thisVal);
@@ -80,6 +87,7 @@ namespace OpenRCT2::Scripting
             auto start = JSToCoordsXYZ(ctx, value);
             station->Start = { start.x, start.y };
             station->SetBaseZ(start.z);
+            StationChanged(thisVal);
         }
         return JS_UNDEFINED;
     }
@@ -99,6 +107,7 @@ namespace OpenRCT2::Scripting
         if (station != nullptr)
         {
             station->Length = valueInt;
+            StationChanged(thisVal);
         }
         return JS_UNDEFINED;
     }
@@ -121,6 +130,7 @@ namespace OpenRCT2::Scripting
         if (station != nullptr)
         {
             station->Entrance = JSToCoordsXYZD(ctx, value);
+            StationChanged(thisVal);
         }
         return JS_UNDEFINED;
     }
@@ -143,6 +153,7 @@ namespace OpenRCT2::Scripting
         if (station != nullptr)
         {
             station->Exit = JSToCoordsXYZD(ctx, value);
+            StationChanged(thisVal);
         }
         return JS_UNDEFINED;
     }
