@@ -819,6 +819,10 @@ public:
 void updateSpiralSlide(Ride& ride);
 void updateChairlift(Ride& ride);
 
+[[nodiscard]] std::vector<StationIndex> RideBuildTrainStationAssignments(
+    std::span<const StationIndex> stationOrder, std::span<const uint8_t> stationLengths, int32_t trainLength,
+    uint8_t carsPerTrain, int32_t numberOfTrains);
+
 enum
 {
     RIDE_TYPE_SPIRAL_ROLLER_COASTER = 0,

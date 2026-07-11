@@ -482,7 +482,7 @@ namespace OpenRCT2::Ui::Windows
     // 0x009AE5DC
     static constexpr auto _measurementWidgets = makeWidgets(
         kMainRideWidgets,
-        makeWidget({288, 194}, { 24, 24}, WidgetType::flatBtn, WindowColour::secondary, ImageId(SPR_FLOPPY),       STR_SAVE_TRACK_DESIGN),
+        makeWidget({288, 218}, { 24, 24}, WidgetType::flatBtn, WindowColour::secondary, ImageId(SPR_FLOPPY),       STR_SAVE_TRACK_DESIGN),
         makeWidget({  4, 127}, {154, 14}, WidgetType::button,  WindowColour::secondary, STR_SELECT_NEARBY_SCENERY                       ),
         makeWidget({158, 127}, {154, 14}, WidgetType::button,  WindowColour::secondary, STR_RESET_SELECTION                             ),
         makeWidget({  4, 177}, {154, 14}, WidgetType::button,  WindowColour::secondary, STR_DESIGN_SAVE                                 ),
@@ -5881,13 +5881,7 @@ namespace OpenRCT2::Ui::Windows
 
         void MeasurementsResize()
         {
-            int32_t measurementsHeight = 234 + (2 * kListRowHeight);
-            if (const auto* ride = GetRide(rideId); ride != nullptr && ride->numStations > 1)
-            {
-                // Selector, heading, one fully expanded directed leg, optional
-                // transport fare row, and spacing.
-                measurementsHeight += 8 * kListRowHeight;
-            }
+            constexpr int32_t measurementsHeight = 234 + (6 * kListRowHeight);
             WindowSetResize(*this, { kMinimumWindowWidth, measurementsHeight }, { kMinimumWindowWidth, measurementsHeight });
         }
 
@@ -6111,10 +6105,14 @@ namespace OpenRCT2::Ui::Windows
                 quality.hasMeasurements ? STR_TRANSPORT_DECORATION_BONUS : STR_TRANSPORT_DECORATION_BONUS_ESTIMATED, ft);
             screenCoords.y += kListRowHeight;
 
-            ft = Formatter();
-            ft.Add<int32_t>(ToHumanReadableSpeed(ride.getDisplayAverageSpeed()));
-            drawText(rt, screenCoords, STR_AVERAGE_SPEED, ft);
-            screenCoords.y += 2 * kListRowHeight;
+            if (ride.numStations <= 1)
+            {
+                ft = Formatter();
+                ft.Add<int32_t>(ToHumanReadableSpeed(ride.getDisplayAverageSpeed()));
+                drawText(rt, screenCoords, STR_AVERAGE_SPEED, ft);
+                screenCoords.y += kListRowHeight;
+            }
+            screenCoords.y += kListRowHeight;
             return screenCoords;
         }
 
@@ -6157,14 +6155,17 @@ namespace OpenRCT2::Ui::Windows
 
             const auto measurements = RideGetRatingLegMeasurements(*leg);
             auto ft = Formatter();
-            ft.Add<int32_t>(measurements.distanceMetres);
-            drawText(rt, screenCoords, STR_RIDE_RATING_LEG_DISTANCE, ft);
-            screenCoords.y += kListRowHeight;
+            if (ride.getRideTypeDescriptor().flags.has(RtdFlag::isTransportRide))
+            {
+                ft.Add<int32_t>(measurements.distanceMetres);
+                drawText(rt, screenCoords, STR_RIDE_RATING_LEG_DISTANCE, ft);
+                screenCoords.y += kListRowHeight;
 
-            ft = Formatter();
-            ft.Add<int32_t>(static_cast<int32_t>((measurements.durationTicks + 20) / 40));
-            drawText(rt, screenCoords, STR_RIDE_RATING_LEG_DURATION, ft);
-            screenCoords.y += kListRowHeight;
+                ft = Formatter();
+                ft.Add<int32_t>(static_cast<int32_t>((measurements.durationTicks + 20) / 40));
+                drawText(rt, screenCoords, STR_RIDE_RATING_LEG_DURATION, ft);
+                screenCoords.y += kListRowHeight;
+            }
 
             ft = Formatter();
             ft.Add<int32_t>(ToHumanReadableSpeed(measurements.maxSpeed));
@@ -6335,17 +6336,20 @@ namespace OpenRCT2::Ui::Windows
                         }
                         else
                         {
-                            // Max speed
-                            ft = Formatter();
-                            ft.Add<int32_t>(ToHumanReadableSpeed(ride->getDisplayMaxSpeed()));
-                            drawText(rt, screenCoords, STR_MAX_SPEED, ft);
-                            screenCoords.y += kListRowHeight;
+                            if (ride->numStations <= 1)
+                            {
+                                // Max speed
+                                ft = Formatter();
+                                ft.Add<int32_t>(ToHumanReadableSpeed(ride->getDisplayMaxSpeed()));
+                                drawText(rt, screenCoords, STR_MAX_SPEED, ft);
+                                screenCoords.y += kListRowHeight;
 
-                            // Average speed
-                            ft = Formatter();
-                            ft.Add<int32_t>(ToHumanReadableSpeed(ride->getDisplayAverageSpeed()));
-                            drawText(rt, screenCoords, STR_AVERAGE_SPEED, ft);
-                            screenCoords.y += kListRowHeight;
+                                // Average speed
+                                ft = Formatter();
+                                ft.Add<int32_t>(ToHumanReadableSpeed(ride->getDisplayAverageSpeed()));
+                                drawText(rt, screenCoords, STR_AVERAGE_SPEED, ft);
+                                screenCoords.y += kListRowHeight;
+                            }
 
                             // Ride time
                             ft = Formatter();
@@ -6428,7 +6432,8 @@ namespace OpenRCT2::Ui::Windows
 
                         screenCoords.y += kListRowHeight;
 
-                        if (ride->getRideTypeDescriptor().flags.has(RtdFlag::hasGForces))
+                        const bool hasGForces = ride->getRideTypeDescriptor().flags.has(RtdFlag::hasGForces);
+                        if (hasGForces && ride->numStations <= 1)
                         {
                             // Max. positive vertical G's
                             stringId = STR_MAX_POSITIVE_VERTICAL_G;
@@ -6464,7 +6469,10 @@ namespace OpenRCT2::Ui::Windows
                             ft.Add<int32_t>(static_cast<int32_t>(ride->getDisplayMaxNegativeLongitudinalG()));
                             drawText(rt, screenCoords, STR_MAX_NEGATIVE_LONGITUDINAL_G, ft);
                             screenCoords.y += kListRowHeight;
+                        }
 
+                        if (hasGForces)
+                        {
                             // Total 'air' time
                             ft = Formatter();
                             ft.Add<fixed32_2dp>(ToHumanReadableAirTime(ride->getDisplayTotalAirTime()));

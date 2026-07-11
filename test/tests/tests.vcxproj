@@ -105,6 +105,7 @@
     <ClCompile Include="PlayTests.cpp" />
     <ClCompile Include="Pathfinding.cpp" />
     <ClCompile Include="RideRatings.cpp" />
+    <ClCompile Include="RideVehicleCreation.cpp" />
     <ClCompile Include="EntityImportTests.cpp" />
     <ClCompile Include="S6ImportExportTests.cpp" />
     <ClCompile Include="SawyerCodingTest.cpp" />

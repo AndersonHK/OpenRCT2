@@ -148,16 +148,32 @@ twenty-sample rolling history and a finalized excitement/intensity/nausea tuple.
 station with two physical successors therefore remain independent instead of replacing or blending one another. Single-station rides continue to use only
 the existing ride-wide history, so their rating path and fixtures do not allocate or consult leg state.
 
-The Measurements page selects an explicit `Station A to B` edge. Its finalized ratings, sampled distance, duration, maximum
-and average speed, and vertical/lateral/longitudinal G extrema use the same white-label/black-value rows as ordinary ride
-measurements. Drops, inversions, airtime totals, holes, and other construction/test facts that are not yet captured as
-unambiguous leg events remain in the existing test fields and are labeled ride-global; they are not copied onto every leg.
+The Measurements page selects an explicit `Station A to B` edge. Its finalized ratings, maximum and average speed, and
+vertical/lateral/longitudinal G extrema use the same white-label/black-value rows as ordinary ride measurements. Ride length
+and time remain global for non-transport rides and are not repeated on every leg. Transport retains measured leg distance and
+duration because its service page intentionally has no ride-global construction summary. Drops, inversions, airtime totals,
+holes, and other construction/test facts that are not yet captured as unambiguous leg events remain in the existing test
+fields and are labeled ride-global; they are not copied onto every leg.
 
 The Measurements window provides a deterministic `Station A to B` selector ordered by the directed endpoint pair. Every
-measured leg is selectable, including fifth and later edges on bidirectional shuttles, and the selected leg expands its
-E/I/N, distance, duration, maximum/average speed, and G extrema. Transport legs also show their measured comfort/decoration
-and the exact time, distance, and fare used by route planning. Selection is retained by endpoint identity, so inserting or refreshing an earlier sorted edge does
+measured leg is selectable, including fifth and later edges on bidirectional shuttles, and the selected leg expands its E/I/N,
+maximum/average speed, and G extrema. Transport legs additionally show their measured comfort/decoration and the exact time,
+distance, and fare used by route planning. Selection is retained by endpoint identity, so inserting or refreshing an earlier sorted edge does
 not silently switch the displayed physical leg.
+
+### Multi-station initial train placement
+
+Vehicle creation for an ordinary non-block continuous circuit first resolves every station origin by ride, station index,
+height, and track-origin sequence. It walks the completed circuit to recover physical station order rather than assuming that
+station-array order matches the track. The canonical start remains first and the remaining stations are ordered backward around
+the circuit, matching the `prev_vehicle_on_ride` / `next_vehicle_on_ride` ring used by collision detection.
+
+The number of consists that fit each platform comes from the same `RideGetMaxTrainsPerStation()` calculation used by
+`Ride::updateMaxVehicles()` to limit the ride's train count. Allocation gives each station one consist before using a second
+slot, then groups all trains assigned to a station so its shared remaining-distance chain and physical collision neighbours stay
+contiguous. If the full requested allocation or every exact station anchor cannot be resolved, creation falls back to the
+established first-station path. Block sections, cable lifts, station-to-station/chairlift, shuttle, launch, race, dodgem, and
+other special placement modes remain on their existing dedicated paths.
 
 Legacy ride lists, value calculation, sorting, scripting, and other consumers still require one tuple. Their compatibility
 summary is deliberately conservative: excitement is the minimum measured directed-edge excitement, while intensity and nausea

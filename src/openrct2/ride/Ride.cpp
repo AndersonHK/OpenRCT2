@@ -3508,6 +3508,9 @@ static constexpr CoordsXY word_9A3AB4[4] = {
     { -96, 0 },
 };
 
+static constexpr int32_t kStationLengthPerTile = 0x44180;
+static constexpr int32_t kStationLengthEndAllowance = 0x16B2A;
+
 // clang-format off
 static constexpr CoordsXY word_9A2A60[] = {
     { 0, 16 },
@@ -3618,7 +3621,10 @@ static Vehicle* VehicleCreateCar(
             numAttempts++;
             // This can happen when trying to spawn dozens of cars in a tiny area.
             if (numAttempts > 10000)
+            {
+                getGameState().entities.EntityRemove(vehicle);
                 return nullptr;
+            }
 
             vehicle->orientation = ScenarioRand() & 0x1E;
             chosenLoc.y = dodgemPos.y + (ScenarioRand() & 0xFF);
@@ -3748,7 +3754,16 @@ static TrainReference VehicleCreateTrain(
         auto vehicle = RideEntryGetVehicleAtPosition(ride.subtype, ride.numCarsPerTrain, carSpawnIndex);
         auto car = VehicleCreateCar(ride, vehicle, carSpawnIndex, vehicleIndex, trainPos, remainingDistance, trackElement);
         if (car == nullptr)
-            break;
+        {
+            auto* createdCar = train.head;
+            while (createdCar != nullptr)
+            {
+                const auto nextCar = createdCar->next_vehicle_on_train;
+                getGameState().entities.EntityRemove(createdCar);
+                createdCar = getGameState().entities.GetEntity<Vehicle>(nextCar);
+            }
+            return {};
+        }
 
         if (carIndex == 0)
         {
@@ -3767,24 +3782,239 @@ static TrainReference VehicleCreateTrain(
     return train;
 }
 
-static bool VehicleCreateTrains(Ride& ride, const CoordsXYZ& trainsPos, TrackElement* trackElement, int16_t numberOfTrains)
+static int32_t RideGetMaxTrainsPerStation(uint8_t stationTiles, int32_t trainLength, uint8_t carsPerTrain)
 {
+    if (stationTiles == 0 || trainLength <= 0 || carsPerTrain == 0)
+    {
+        return 0;
+    }
+
+    const int64_t stationLength = (static_cast<int64_t>(stationTiles) * kStationLengthPerTile)
+        - kStationLengthEndAllowance;
+    int64_t occupiedLength = trainLength / 2;
+    if (carsPerTrain != 1)
+    {
+        occupiedLength /= 2;
+    }
+
+    int32_t capacity = 0;
+    do
+    {
+        capacity++;
+        occupiedLength += trainLength;
+    } while (occupiedLength <= stationLength);
+    return capacity;
+}
+
+std::vector<StationIndex> RideBuildTrainStationAssignments(
+    std::span<const StationIndex> stationOrder, std::span<const uint8_t> stationLengths, int32_t trainLength,
+    uint8_t carsPerTrain, int32_t numberOfTrains)
+{
+    std::vector<StationIndex> result;
+    if (trainLength <= 0 || carsPerTrain == 0 || numberOfTrains <= 0)
+    {
+        return result;
+    }
+
+    result.reserve(static_cast<size_t>(numberOfTrains));
+    std::array<int32_t, OpenRCT2::Limits::kMaxStationsPerRide> remainingCapacity{};
+    std::array<bool, OpenRCT2::Limits::kMaxStationsPerRide> stationIncluded{};
+    const auto stationCount = std::min({ stationOrder.size(), stationLengths.size(), remainingCapacity.size() });
+    for (size_t orderIndex = 0; orderIndex < stationCount; orderIndex++)
+    {
+        const auto stationIndex = stationOrder[orderIndex].ToUnderlying();
+        if (stationIndex >= remainingCapacity.size() || stationIncluded[stationIndex])
+        {
+            continue;
+        }
+        stationIncluded[stationIndex] = true;
+        remainingCapacity[stationIndex] = RideGetMaxTrainsPerStation(
+            stationLengths[orderIndex], trainLength, carsPerTrain);
+    }
+
+    std::array<int32_t, OpenRCT2::Limits::kMaxStationsPerRide> assignedCounts{};
+    int32_t assignedTrains = 0;
+    while (assignedTrains < numberOfTrains)
+    {
+        bool assignedTrain = false;
+        std::array<bool, OpenRCT2::Limits::kMaxStationsPerRide> stationVisited{};
+        for (size_t orderIndex = 0; orderIndex < stationCount; orderIndex++)
+        {
+            const auto station = stationOrder[orderIndex];
+            const auto stationIndex = station.ToUnderlying();
+            if (stationIndex >= remainingCapacity.size() || stationVisited[stationIndex])
+            {
+                continue;
+            }
+            stationVisited[stationIndex] = true;
+            if (remainingCapacity[stationIndex] == 0)
+            {
+                continue;
+            }
+
+            assignedCounts[stationIndex]++;
+            remainingCapacity[stationIndex]--;
+            assignedTrains++;
+            assignedTrain = true;
+            if (assignedTrains == numberOfTrains)
+            {
+                break;
+            }
+        }
+        if (!assignedTrain)
+        {
+            break;
+        }
+    }
+
+    // Choose counts round-robin, then keep each station's trains contiguous in physical ring order. This matches the
+    // per-station remaining-distance chain used during creation and keeps collision neighbours physically adjacent.
+    std::array<bool, OpenRCT2::Limits::kMaxStationsPerRide> stationEmitted{};
+    for (size_t orderIndex = 0; orderIndex < stationCount; orderIndex++)
+    {
+        const auto station = stationOrder[orderIndex];
+        if (station.ToUnderlying() >= assignedCounts.size() || stationEmitted[station.ToUnderlying()])
+        {
+            continue;
+        }
+        stationEmitted[station.ToUnderlying()] = true;
+        for (int32_t count = assignedCounts[station.ToUnderlying()]; count > 0; count--)
+        {
+            result.push_back(station);
+        }
+    }
+    return result;
+}
+
+static bool VehicleCreateTrains(
+    Ride& ride, const CoordsXYZ& trainsPos, TrackElement* trackElement, int16_t numberOfTrains,
+    bool allowStationDistribution)
+{
+    struct StationSpawn
+    {
+        CoordsXYZ position{};
+        TrackElement* trackElement{};
+        int32_t remainingDistance{};
+    };
+
     TrainReference firstTrain = {};
     TrainReference lastTrain = {};
     int32_t remainingDistance = 0;
-    bool allTrainsCreated = true;
+
+    std::array<StationSpawn, OpenRCT2::Limits::kMaxStationsPerRide> stationSpawns{};
+    std::vector<StationIndex> stationAssignments;
+    if (allowStationDistribution && numberOfTrains > 1 && ride.numStations > 1
+        && ride.mode == RideMode::continuousCircuit
+        && !ride.isBlockSectioned() && !ride.flags.has(RideFlag::cableLiftHillComponentUsed))
+    {
+        size_t stationAnchorCount = 0;
+        for (size_t stationIndex = 0; stationIndex < stationSpawns.size(); stationIndex++)
+        {
+            const auto index = StationIndex::FromUnderlying(static_cast<StationIndex::UnderlyingType>(stationIndex));
+            const auto& station = ride.getStation(index);
+            if (station.Start.IsNull() || station.Length == 0)
+            {
+                continue;
+            }
+
+            auto* originElement = ride.getOriginElement(index);
+            if (originElement == nullptr)
+            {
+                continue;
+            }
+
+            const auto start = station.GetStart();
+            stationSpawns[stationIndex].position = { start.x, start.y, originElement->getBaseZ() };
+            stationSpawns[stationIndex].trackElement = originElement;
+            stationAnchorCount++;
+        }
+
+        std::vector<StationIndex> stationOrder;
+        stationOrder.reserve(stationAnchorCount);
+        std::array<bool, OpenRCT2::Limits::kMaxStationsPerRide> stationSeen{};
+        auto appendStation = [&](TrackElement* candidate) {
+            if (candidate == nullptr)
+            {
+                return;
+            }
+            const auto stationIndex = candidate->GetStationIndex().ToUnderlying();
+            if (stationIndex >= stationSpawns.size() || stationSeen[stationIndex]
+                || stationSpawns[stationIndex].trackElement != candidate)
+            {
+                return;
+            }
+            stationSeen[stationIndex] = true;
+            stationOrder.push_back(StationIndex::FromUnderlying(stationIndex));
+        };
+
+        appendStation(trackElement);
+        TrackCircuitIterator iterator;
+        trackCircuitIteratorBegin(
+            &iterator, { trainsPos.x, trainsPos.y, reinterpret_cast<TileElement*>(trackElement) });
+        while (trackCircuitIteratorNext(&iterator))
+        {
+            appendStation(iterator.current.element->asTrack());
+        }
+
+        if (stationOrder.size() > 1)
+        {
+            std::reverse(stationOrder.begin() + 1, stationOrder.end());
+        }
+
+        // Keep the canonical start first, followed by the other stations in backward circuit order. This is the ordering
+        // expected by prev/next_vehicle_on_ride and collision detection.
+        if (stationOrder.size() == stationAnchorCount)
+        {
+            std::vector<uint8_t> stationLengths;
+            stationLengths.reserve(stationOrder.size());
+            for (const auto stationIndex : stationOrder)
+            {
+                stationLengths.push_back(ride.getStation(stationIndex).Length);
+            }
+
+            int32_t trainLength = 0;
+            const auto* rideEntry = ride.getRideEntry();
+            if (rideEntry != nullptr)
+            {
+                for (int32_t carIndex = 0; carIndex < ride.numCarsPerTrain; carIndex++)
+                {
+                    const auto vehicleIndex = RideEntryGetVehicleAtPosition(ride.subtype, ride.numCarsPerTrain, carIndex);
+                    trainLength += rideEntry->Cars[vehicleIndex].spacing;
+                }
+            }
+
+            auto assignments = RideBuildTrainStationAssignments(
+                stationOrder, stationLengths, trainLength, ride.numCarsPerTrain, numberOfTrains);
+            if (assignments.size() == static_cast<size_t>(numberOfTrains))
+            {
+                stationAssignments = std::move(assignments);
+            }
+        }
+    }
 
     for (int32_t vehicleIndex = 0; vehicleIndex < numberOfTrains; vehicleIndex++)
     {
+        auto trainPosition = trainsPos;
+        auto* trainTrackElement = trackElement;
+        auto* trainRemainingDistance = &remainingDistance;
+        if (!stationAssignments.empty())
+        {
+            const auto stationIndex = stationAssignments[vehicleIndex].ToUnderlying();
+            auto& stationSpawn = stationSpawns[stationIndex];
+            trainPosition = stationSpawn.position;
+            trainTrackElement = stationSpawn.trackElement;
+            trainRemainingDistance = &stationSpawn.remainingDistance;
+        }
+
         if (ride.isBlockSectioned())
         {
-            remainingDistance = 0;
+            *trainRemainingDistance = 0;
         }
-        TrainReference train = VehicleCreateTrain(ride, trainsPos, vehicleIndex, &remainingDistance, trackElement);
+        TrainReference train = VehicleCreateTrain(
+            ride, trainPosition, vehicleIndex, trainRemainingDistance, trainTrackElement);
         if (train.head == nullptr || train.tail == nullptr)
         {
-            allTrainsCreated = false;
-            continue;
+            return false;
         }
 
         if (vehicleIndex == 0)
@@ -3815,7 +4045,7 @@ static bool VehicleCreateTrains(Ride& ride, const CoordsXYZ& trainsPos, TrackEle
     if (firstTrain.head != nullptr)
         lastTrain.tail->next_vehicle_on_ride = firstTrain.head->id;
 
-    return allTrainsCreated;
+    return true;
 }
 
 /**
@@ -3933,7 +4163,7 @@ ResultWithMessage Ride::createVehicles(const CoordsXYE& element, bool isApplying
         vehiclePos.z = trackElement->getBaseZ();
     }
 
-    if (!VehicleCreateTrains(*this, vehiclePos, trackElement, numberOfTrains))
+    if (!VehicleCreateTrains(*this, vehiclePos, trackElement, numberOfTrains, !isSimulating))
     {
         // This flag is needed for Ride::removeVehicles()
         flags.set(RideFlag::onTrack);
@@ -4323,7 +4553,8 @@ static void RideScrollToTrackError(const CoordsXYE& trackElement)
  */
 TrackElement* Ride::getOriginElement(StationIndex stationIndex) const
 {
-    auto stationLoc = getStation(stationIndex).Start;
+    const auto& station = getStation(stationIndex);
+    const auto stationLoc = station.Start;
     TileElement* tileElement = MapGetFirstElementAt(stationLoc);
     if (tileElement == nullptr)
         return nullptr;
@@ -4333,6 +4564,9 @@ TrackElement* Ride::getOriginElement(StationIndex stationIndex) const
             continue;
 
         auto* trackElement = tileElement->asTrack();
+        if (tileElement->getBaseZ() != station.GetBaseZ() || trackElement->GetStationIndex() != stationIndex)
+            continue;
+
         const auto& ted = GetTrackElementDescriptor(trackElement->GetTrackType());
         if (!ted.sequenceData.sequences[0].flags.has(SequenceFlag::trackOrigin))
             continue;
@@ -5569,7 +5803,7 @@ void Ride::updateMaxVehicles()
         if (!stationNumTiles.has_value())
             return;
 
-        auto stationLength = (stationNumTiles.value() * 0x44180) - 0x16B2A;
+        auto stationLength = (stationNumTiles.value() * kStationLengthPerTile) - kStationLengthEndAllowance;
         int32_t maxMass = rtd.MaxMass << 8;
         int32_t newMaxCarsPerTrain = 1;
         for (int32_t numCars = rideEntry->max_cars_in_train; numCars > 0; numCars--)
@@ -5620,16 +5854,8 @@ void Ride::updateMaxVehicles()
                     trainLength += carEntry.spacing;
                 }
 
-                int32_t totalLength = trainLength / 2;
-                if (newCarsPerTrain != 1)
-                    totalLength /= 2;
-
-                maxNumTrains = 0;
-                do
-                {
-                    maxNumTrains++;
-                    totalLength += trainLength;
-                } while (totalLength <= stationLength);
+                maxNumTrains = RideGetMaxTrainsPerStation(
+                    static_cast<uint8_t>(stationNumTiles.value()), trainLength, newCarsPerTrain);
 
                 if ((mode != RideMode::stationToStation && mode != RideMode::continuousCircuit)
                     || !rtd.flags.has(RtdFlag::allowMoreVehiclesThanStationFits))
