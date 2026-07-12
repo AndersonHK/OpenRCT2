@@ -45,7 +45,8 @@ namespace OpenRCT2::Ui::Gpu
         };
 
         [[nodiscard]] SpriteGeometry CalculatePaletteSpriteGeometry(
-            const RenderTarget& rt, const G1Element& element, int32_t x, int32_t y, TextureBinding texture)
+            const RenderTarget& rt, const G1Element& element, int32_t x, int32_t y, TextureBinding texture,
+            const ScreenRect& clip)
         {
             int32_t left = x + element.xOffset;
             int32_t top = y + element.yOffset;
@@ -70,7 +71,9 @@ namespace OpenRCT2::Ui::Gpu
             const int32_t bottom = top + rt.zoom_level.ApplyInversedTo(element.height + yModifier);
             const float zoom = rt.zoom_level >= ZoomLevel{ 0 } ? static_cast<float>(rt.zoom_level.ApplyTo(1))
                                                                : 1.0f / rt.zoom_level.ApplyInversedTo(1);
-            return { texture, { left, top, right, bottom }, zoom };
+            const int32_t clipX = clip.GetLeft() - rt.x;
+            const int32_t clipY = clip.GetTop() - rt.y;
+            return { texture, { left + clipX, top + clipY, right + clipX, bottom + clipY }, zoom };
         }
     } // namespace
 
@@ -267,13 +270,9 @@ namespace OpenRCT2::Ui::Gpu
                 return;
         }
 
-        auto geometry = CalculatePaletteSpriteGeometry(
-            rt, *element, x, y, _textureCache.GetOrLoadImageTexture(imageId));
         const ScreenRect clip = CalculateClipping(rt);
-        geometry.bounds.x += clip.GetLeft() - rt.x;
-        geometry.bounds.y += clip.GetTop() - rt.y;
-        geometry.bounds.z += clip.GetLeft() - rt.x;
-        geometry.bounds.w += clip.GetTop() - rt.y;
+        auto geometry = CalculatePaletteSpriteGeometry(
+            rt, *element, x, y, _textureCache.GetOrLoadImageTexture(imageId), clip);
 
         int32_t paletteCount = 0;
         Int3 palettes{};
@@ -328,11 +327,6 @@ namespace OpenRCT2::Ui::Gpu
         int32_t top = y + maskElement->yOffset;
         int32_t right = left + std::min(maskElement->width, colourElement->width);
         int32_t bottom = top + std::min(maskElement->height, colourElement->height);
-        if (left > right)
-            std::swap(left, right);
-        if (top > bottom)
-            std::swap(top, bottom);
-
         left = rt.zoom_level.ApplyInversedTo(left);
         top = rt.zoom_level.ApplyInversedTo(top);
         right = rt.zoom_level.ApplyInversedTo(right);
@@ -375,14 +369,9 @@ namespace OpenRCT2::Ui::Gpu
                 return;
         }
 
-        auto geometry = CalculatePaletteSpriteGeometry(
-            rt, *element, x, y, _textureCache.GetOrLoadImageTexture(image));
-
         const ScreenRect clip = CalculateClipping(rt);
-        geometry.bounds.x += clip.GetLeft() - rt.x;
-        geometry.bounds.y += clip.GetTop() - rt.y;
-        geometry.bounds.z += clip.GetLeft() - rt.x;
-        geometry.bounds.w += clip.GetTop() - rt.y;
+        auto geometry = CalculatePaletteSpriteGeometry(
+            rt, *element, x, y, _textureCache.GetOrLoadImageTexture(image), clip);
 
         auto& command = AppendRect(_commands->opaqueRects, clip, geometry.bounds, geometry.zoom);
         command.texMaskAtlas = geometry.texture.index;
@@ -413,14 +402,9 @@ namespace OpenRCT2::Ui::Gpu
                 return;
         }
 
-        auto geometry = CalculatePaletteSpriteGeometry(
-            rt, *element, x, y, _textureCache.GetOrLoadGlyphTexture(image, palette));
-
         const ScreenRect clip = CalculateClipping(rt);
-        geometry.bounds.x += clip.GetLeft() - rt.x;
-        geometry.bounds.y += clip.GetTop() - rt.y;
-        geometry.bounds.z += clip.GetLeft() - rt.x;
-        geometry.bounds.w += clip.GetTop() - rt.y;
+        auto geometry = CalculatePaletteSpriteGeometry(
+            rt, *element, x, y, _textureCache.GetOrLoadGlyphTexture(image, palette), clip);
 
         auto& command = AppendRect(_commands->opaqueRects, clip, geometry.bounds, geometry.zoom);
         command.texColourAtlas = geometry.texture.index;
@@ -433,7 +417,7 @@ namespace OpenRCT2::Ui::Gpu
     {
         assert(_inDraw);
 #ifndef DISABLE_TTF
-        const auto texture = _textureCache.LoadTransientBitmapTexture(surface->pixels, surface->w, surface->h);
+        const auto texture = _textureCache.GetOrLoadTTFTexture(*surface);
 
         int32_t left = x;
         int32_t top = y;

@@ -11,6 +11,7 @@
 
 #include "Font.h"
 
+#include <cstdint>
 #include <string_view>
 
 bool TTFInitialise();
@@ -24,6 +25,9 @@ struct TTFSurface
     const void* pixels;
     int32_t w;
     int32_t h;
+    // Stable for the lifetime of a cached raster. GPU backends use this to
+    // retain the immutable bitmap without depending on allocator addresses.
+    uint64_t cacheId{};
 };
 
 TTFFontDescriptor* TTFGetFontFromSpriteBase(FontStyle fontStyle);

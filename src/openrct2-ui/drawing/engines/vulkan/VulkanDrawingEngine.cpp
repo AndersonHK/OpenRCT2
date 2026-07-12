@@ -76,6 +76,20 @@ namespace OpenRCT2::Ui
             target.zoom_level = ZoomLevel{ 0 };
             return ScreenshotDumpPNG(target);
         }
+
+        [[nodiscard]] std::array<std::byte, 256 * 4> ConvertPalette(const Drawing::GamePalette& palette)
+        {
+            std::array<std::byte, 256 * 4> result{};
+            for (size_t i = 0; i < 256; i++)
+            {
+                const auto& colour = palette[i];
+                result[i * 4] = static_cast<std::byte>(colour.red);
+                result[i * 4 + 1] = static_cast<std::byte>(colour.green);
+                result[i * 4 + 2] = static_cast<std::byte>(colour.blue);
+                result[i * 4 + 3] = i == 0 ? std::byte{ 0 } : std::byte{ 0xff };
+            }
+            return result;
+        }
     } // namespace
 
     #if defined(ENABLE_VULKAN_DIRECT_DRAWING_CONTEXT)
@@ -215,7 +229,7 @@ namespace OpenRCT2::Ui
             _backend->Initialise(BuildBackendConfig(_uiContext, { width, height }, _drawableExtent, _vsync, shaderDirectory));
             _initialised = true;
             _gpuLightFxRasterization.store(
-                _backend->GetCapabilities().supportsGpuLightFxRasterization, std::memory_order_relaxed);
+                _backend->SupportsGpuLightFxRasterization(), std::memory_order_relaxed);
             if (_hasPalette)
                 _backend->SetPalette(_paletteRgba);
         #if defined(ENABLE_VULKAN_RENDER_THREAD)
@@ -259,7 +273,7 @@ namespace OpenRCT2::Ui
             {
                 _backend->Resize({ width, height }, _drawableExtent);
                 _gpuLightFxRasterization.store(
-                    _backend->GetCapabilities().supportsGpuLightFxRasterization, std::memory_order_relaxed);
+                    _backend->SupportsGpuLightFxRasterization(), std::memory_order_relaxed);
             }
         #endif
         }
@@ -279,13 +293,7 @@ namespace OpenRCT2::Ui
 
         void SetPalette(const Drawing::GamePalette& palette) override
         {
-            for (size_t i = 0; i < 256; i++)
-            {
-                _paletteRgba[i * 4] = static_cast<std::byte>(palette[i].red);
-                _paletteRgba[i * 4 + 1] = static_cast<std::byte>(palette[i].green);
-                _paletteRgba[i * 4 + 2] = static_cast<std::byte>(palette[i].blue);
-                _paletteRgba[i * 4 + 3] = i == 0 ? std::byte{ 0 } : std::byte{ 0xff };
-            }
+            _paletteRgba = ConvertPalette(palette);
             _hasPalette = true;
             if (_initialised)
         #if defined(ENABLE_VULKAN_RENDER_THREAD)
@@ -365,10 +373,6 @@ namespace OpenRCT2::Ui
             _blendPalette = std::move(blendPalette);
             _hasBlendPalette = hasBlendPalette;
             _graphicsLookupTablesVersion++;
-            if (_graphicsLookupTablesVersion == 0)
-            {
-                _graphicsLookupTablesVersion = 1;
-            }
         #else
             _backend->SetLightFxFalloffs(lightFalloffs);
             _backend->SetRemapPalette(remapPalette);
@@ -625,7 +629,7 @@ namespace OpenRCT2::Ui
                             {
                                 _backend->Resize(presentation.logicalExtent, presentation.drawableExtent);
                                 _gpuLightFxRasterization.store(
-                                    _backend->GetCapabilities().supportsGpuLightFxRasterization, std::memory_order_relaxed);
+                                    _backend->SupportsGpuLightFxRasterization(), std::memory_order_relaxed);
                             }
                             appliedResizeVersion = presentation.resizeVersion;
                         }
@@ -655,27 +659,26 @@ namespace OpenRCT2::Ui
                             appliedGraphicsLookupTablesVersion = presentation.graphicsLookupTablesVersion;
                         }
 
-                        if (presentation.logicalExtent.width == 0 || presentation.logicalExtent.height == 0
-                            || presentation.drawableExtent.width == 0 || presentation.drawableExtent.height == 0)
+                        if (presentation.logicalExtent.width != 0 && presentation.logicalExtent.height != 0
+                            && presentation.drawableExtent.width != 0 && presentation.drawableExtent.height != 0)
                         {
-                            CompleteReadbackUnavailable(*packet);
-                            RetirePacket(*packet, Gpu::FrameRetirement::Busy);
-                            CompleteTimingBoundary(*packet);
-                            RecyclePacket(std::move(packet));
-                            continue;
+                            if (packet->readback != nullptr)
+                            {
+                                // Screenshot capture is an explicit boundary at
+                                // which blocking for current visual state is
+                                // permitted. Routine visual packets never wait.
+                                _backend->WaitIdle();
+                            }
+                            frame = _backend->BeginFrame(packet->frameNumber);
                         }
-
-                        if (packet->readback != nullptr)
-                        {
-                            // Screenshot capture is an explicit boundary at
-                            // which blocking for current visual state is
-                            // permitted. Routine visual packets never wait.
-                            _backend->WaitIdle();
-                        }
-                        frame = _backend->BeginFrame(packet->frameNumber);
                         if (!frame.has_value())
                         {
-                            CompleteReadbackUnavailable(*packet);
+                            if (packet->readback != nullptr)
+                            {
+                                // Never capture an older frame when the visual
+                                // attached to this request was not presented.
+                                packet->readback->Complete(false);
+                            }
                             RetirePacket(*packet, Gpu::FrameRetirement::Busy);
                             CompleteTimingBoundary(*packet);
                             RecyclePacket(std::move(packet));
@@ -777,17 +780,6 @@ namespace OpenRCT2::Ui
             }
             _backend->WaitIdle();
             packet.timingBoundary->Complete();
-        }
-
-        static void CompleteReadbackUnavailable(Gpu::RecordedFramePacket& packet)
-        {
-            if (packet.readback != nullptr)
-            {
-                // Do not silently capture an older presented frame when the
-                // visual packet explicitly attached to this request could
-                // not be presented.
-                packet.readback->Complete(false);
-            }
         }
 
         void RetireStoppedPacket(std::unique_ptr<Gpu::RecordedFramePacket> packet) noexcept
@@ -1048,13 +1040,7 @@ namespace OpenRCT2::Ui
         void SetPalette(const Drawing::GamePalette& palette) override
         {
             X8DrawingEngine::SetPalette(palette);
-            for (size_t i = 0; i < 256; i++)
-            {
-                _paletteRgba[i * 4] = static_cast<std::byte>(palette[i].red);
-                _paletteRgba[i * 4 + 1] = static_cast<std::byte>(palette[i].green);
-                _paletteRgba[i * 4 + 2] = static_cast<std::byte>(palette[i].blue);
-                _paletteRgba[i * 4 + 3] = i == 0 ? std::byte{ 0 } : std::byte{ 0xff };
-            }
+            _paletteRgba = ConvertPalette(palette);
             _hasPalette = true;
             if (_initialised)
             {

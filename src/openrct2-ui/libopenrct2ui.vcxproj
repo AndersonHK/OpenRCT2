@@ -144,7 +144,6 @@
     <ClCompile Include="CursorRepository.cpp" />
     <ClCompile Include="drawing\BitmapReader.cpp" />
     <ClCompile Include="drawing\engines\HardwareDisplayDrawingEngine.cpp" />
-    <ClCompile Include="drawing\engines\gpu\GpuBackend.cpp" />
     <ClCompile Include="drawing\engines\gpu\GpuCommandDrawingContext.cpp" />
     <ClCompile Include="drawing\engines\gpu\GpuTextureCache.cpp" />
     <ClCompile Include="drawing\engines\opengl\ApplyPaletteShader.cpp" />

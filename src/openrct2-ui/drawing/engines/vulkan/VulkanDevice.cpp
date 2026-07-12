@@ -23,7 +23,6 @@
     #include <cstring>
     #include <limits>
     #include <openrct2/core/Console.hpp>
-    #include <set>
     #include <stdexcept>
     #include <string>
     #include <utility>
@@ -250,7 +249,7 @@ namespace OpenRCT2::Ui::Vulkan
         _vsync = vsync;
         _preferHdr10 = preferHdr10;
         _hdrPaperWhiteNits = std::isfinite(hdrPaperWhiteNits) ? std::clamp(hdrPaperWhiteNits, 80.0f, 1000.0f) : 203.0f;
-        _uploadRingCapacity = std::max<VkDeviceSize>(uploadRingCapacity, 1024 * 1024);
+        uploadRingCapacity = std::max<VkDeviceSize>(uploadRingCapacity, 1024 * 1024);
         Platform::LoadVulkanLibrary();
         _loaderLoaded = true;
 
@@ -260,7 +259,7 @@ namespace OpenRCT2::Ui::Vulkan
             CreateSurface();
             SelectPhysicalDevice();
             CreateLogicalDevice();
-            CreateCommandResources();
+            CreateCommandResources(uploadRingCapacity);
             if (!CreateSwapchain())
             {
                 throw std::runtime_error("Vulkan surface has no drawable extent during initialisation");
@@ -327,13 +326,11 @@ namespace OpenRCT2::Ui::Vulkan
         _swapchainGeneration = 0;
         _swapchainInvalid = false;
         _drawableExtent = {};
-        _uploadRingCapacity = kDefaultUploadRingSize;
         _timestampValidBits = 0;
         _timestampPeriodNanoseconds = 0.0;
         _gpuTimestampsSupported = false;
         _preferHdr10 = false;
         _hdrPaperWhiteNits = 203.0f;
-        _hdr10Available = false;
         _hdr10Active = false;
         _hdrMetadataAvailable = false;
     #ifdef VK_EXT_HDR_METADATA_EXTENSION_NAME
@@ -348,35 +345,6 @@ namespace OpenRCT2::Ui::Vulkan
         {
             CheckVk(vkDeviceWaitIdle(_device), "vkDeviceWaitIdle");
         }
-    }
-
-    bool Device::IsFrameComplete(uint32_t frameIndex) const
-    {
-        const std::lock_guard lock(_hostMutex);
-        if (frameIndex >= kFramesInFlight || _device == VK_NULL_HANDLE)
-        {
-            return false;
-        }
-        const auto result = vkGetFenceStatus(_device, _frames[frameIndex].available);
-        if (result == VK_SUCCESS)
-        {
-            return true;
-        }
-        if (result == VK_NOT_READY)
-        {
-            return false;
-        }
-        ThrowVk("vkGetFenceStatus", result);
-    }
-
-    void Device::WaitForFrame(uint32_t frameIndex) const
-    {
-        const std::lock_guard lock(_hostMutex);
-        if (frameIndex >= kFramesInFlight)
-        {
-            throw std::out_of_range("Vulkan frame index is out of range");
-        }
-        CheckVk(vkWaitForFences(_device, 1, &_frames[frameIndex].available, VK_TRUE, UINT64_MAX), "wait for frame");
     }
 
     void Device::SetVSync(bool enabled)
@@ -565,7 +533,6 @@ namespace OpenRCT2::Ui::Vulkan
 
     void Device::RecordGpuTimestamp(const FrameToken& token, GpuTimestampPoint point) const
     {
-        const std::lock_guard lock(_hostMutex);
         if (token.frameIndex != _currentFrame || point == GpuTimestampPoint::frameStart
             || point == GpuTimestampPoint::frameComplete || point == GpuTimestampPoint::count)
         {
@@ -581,7 +548,6 @@ namespace OpenRCT2::Ui::Vulkan
 
     std::optional<GpuTimestampDurations> Device::TakeCompletedGpuTimings(uint32_t frameIndex)
     {
-        const std::lock_guard lock(_hostMutex);
         if (frameIndex >= kFramesInFlight)
         {
             throw std::out_of_range("Vulkan frame index is out of range");
@@ -600,16 +566,6 @@ namespace OpenRCT2::Ui::Vulkan
             }
         }
         return std::exchange(frame.completedGpuTimings, std::nullopt);
-    }
-
-    void Device::InvalidateUpload(uint32_t frameIndex, VkDeviceSize offset, VkDeviceSize size)
-    {
-        const std::lock_guard lock(_hostMutex);
-        if (frameIndex >= kFramesInFlight)
-        {
-            throw std::out_of_range("Vulkan frame index is outside the upload-ring set");
-        }
-        _frames[frameIndex].upload.Invalidate(offset, size);
     }
 
     void Device::ReadbackImage(
@@ -720,7 +676,7 @@ namespace OpenRCT2::Ui::Vulkan
 
     void Device::CreateInstance()
     {
-        auto extensions = GetInstanceExtensions();
+        auto extensions = Platform::GetInstanceExtensions(_window);
         VkInstanceCreateFlags flags = 0;
 
         uint32_t extensionCount = 0;
@@ -799,25 +755,25 @@ namespace OpenRCT2::Ui::Vulkan
 
     void Device::CreateLogicalDevice()
     {
-        const std::set<uint32_t> uniqueFamilies = { _queueFamilies.graphics.value(), _queueFamilies.present.value() };
         constexpr float priority = 1.0f;
-        std::vector<VkDeviceQueueCreateInfo> queueInfos;
-        queueInfos.reserve(uniqueFamilies.size());
-        for (const auto family : uniqueFamilies)
+        const std::array families = { _queueFamilies.graphics.value(), _queueFamilies.present.value() };
+        std::array<VkDeviceQueueCreateInfo, families.size()> queueInfos{};
+        for (size_t i = 0; i < queueInfos.size(); i++)
         {
-            queueInfos.push_back({
+            queueInfos[i] = {
                 .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-                .queueFamilyIndex = family,
+                .queueFamilyIndex = families[i],
                 .queueCount = 1,
                 .pQueuePriorities = &priority,
-            });
+            };
         }
+        const uint32_t queueCount = families[0] == families[1] ? 1 : 2;
 
         const auto extensions = GetDeviceExtensions(_physicalDevice);
         const VkPhysicalDeviceFeatures features{};
         const VkDeviceCreateInfo deviceInfo = {
             .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-            .queueCreateInfoCount = static_cast<uint32_t>(queueInfos.size()),
+            .queueCreateInfoCount = queueCount,
             .pQueueCreateInfos = queueInfos.data(),
             .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
             .ppEnabledExtensionNames = extensions.data(),
@@ -841,7 +797,7 @@ namespace OpenRCT2::Ui::Vulkan
         CheckVk(vkCreatePipelineCache(_device, &pipelineCacheInfo, nullptr, &_pipelineCache), "vkCreatePipelineCache");
     }
 
-    void Device::CreateCommandResources()
+    void Device::CreateCommandResources(VkDeviceSize uploadRingCapacity)
     {
         const VkCommandPoolCreateInfo poolInfo = {
             .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -871,7 +827,7 @@ namespace OpenRCT2::Ui::Vulkan
             CheckVk(vkCreateSemaphore(_device, &semaphoreInfo, nullptr, &frame.imageAvailable), "create image semaphore");
             CheckVk(vkCreateSemaphore(_device, &semaphoreInfo, nullptr, &frame.renderFinished), "create render semaphore");
             CheckVk(vkCreateFence(_device, &fenceInfo, nullptr, &frame.available), "create frame fence");
-            frame.upload.Initialise(_physicalDevice, _device, _uploadRingCapacity);
+            frame.upload.Initialise(_physicalDevice, _device, uploadRingCapacity);
         }
 
         uint32_t queueFamilyCount = 0;
@@ -954,8 +910,7 @@ namespace OpenRCT2::Ui::Vulkan
         {
             throw std::runtime_error("Vulkan surface exposes neither a supported SDR format nor an active exact HDR10 format");
         }
-        _hdr10Available = surfaceFormatSelection.hdr10Available;
-        const auto presentMode = ChoosePresentMode(support.presentModes);
+        const auto presentMode = SelectPresentMode(support.presentModes, _vsync);
         const auto extent = ChooseExtent(support.capabilities);
         if (extent.width == 0 || extent.height == 0)
         {
@@ -1216,11 +1171,6 @@ namespace OpenRCT2::Ui::Vulkan
             && supports(VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT | VK_FORMAT_FEATURE_TRANSFER_DST_BIT);
     }
 
-    std::vector<const char*> Device::GetInstanceExtensions() const
-    {
-        return Platform::GetInstanceExtensions(_window);
-    }
-
     std::vector<const char*> Device::GetDeviceExtensions(VkPhysicalDevice device) const
     {
         std::vector<const char*> result(kRequiredDeviceExtensions.begin(), kRequiredDeviceExtensions.end());
@@ -1243,11 +1193,6 @@ namespace OpenRCT2::Ui::Vulkan
     #endif
 
         return result;
-    }
-
-    VkPresentModeKHR Device::ChoosePresentMode(std::span<const VkPresentModeKHR> modes) const
-    {
-        return SelectPresentMode(modes, _vsync);
     }
 
     VkExtent2D Device::ChooseExtent(const VkSurfaceCapabilitiesKHR& capabilities) const

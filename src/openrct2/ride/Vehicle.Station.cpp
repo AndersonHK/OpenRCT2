@@ -60,8 +60,11 @@ namespace OpenRCT2::RideVehicle::StationDetail
         for (const auto* car = &head; car != nullptr && result.carCount < result.cars.size();
              car = getGameState().entities.GetEntity<Vehicle>(car->next_vehicle_on_train))
         {
+            const auto capacity = car->num_seats & kVehicleSeatNumMask;
+            // Unloading deliberately clears the reservation prefix before all seated guests have alighted.
+            Guard::Assert(car->num_peeps <= capacity && car->next_free_seat <= capacity);
             result.cars[result.carCount++] = car;
-            result.capacity += car->num_seats & kVehicleSeatNumMask;
+            result.capacity += capacity;
             result.currentPeeps += car->num_peeps;
             result.reservedSeats += car->next_free_seat;
         }
@@ -77,24 +80,6 @@ namespace OpenRCT2::RideVehicle::StationDetail
         const auto activeSeatCount = std::max(vehicle.num_peeps, vehicle.next_free_seat);
         const auto firstSeat = std::min(activeSeatCount, physicalSeatCount);
         return { firstSeat, static_cast<uint8_t>(physicalSeatCount - firstSeat) };
-    }
-
-    TrainBoardingSeatPlan BuildTrainBoardingSeatPlan(const TrainSeatSummary& train)
-    {
-        TrainBoardingSeatPlan result{};
-        uint32_t slotOffset = 0;
-        for (uint8_t carIndex = 0; carIndex < train.carCount; carIndex++)
-        {
-            const auto* car = train.cars[carIndex];
-            const auto range = GetPlatformBoardingSeatRange(*car);
-            for (uint8_t seatOffset = 0; seatOffset < range.seatCount; seatOffset++)
-            {
-                const auto seatIndex = static_cast<uint8_t>(range.firstSeat + seatOffset);
-                result.seats[result.seatCount++] = { slotOffset + seatIndex, carIndex, seatIndex };
-            }
-            slotOffset += car->num_seats & kVehicleSeatNumMask;
-        }
-        return result;
     }
 
     PassengerUnloadPlan BuildPassengerUnloadPlan(std::span<const bool> shouldAlight)
@@ -692,7 +677,6 @@ void Vehicle::UpdateWaitingForPassengers()
             return;
 
         station.TrainAtStation = trainIndex.value();
-        RidePrepareStationPlatformBoarding(*curRide, current_station, *this);
         sub_state = 1;
         time_waiting = 0;
 
@@ -712,6 +696,7 @@ void Vehicle::UpdateWaitingForPassengers()
         const auto num_used_seats_on_train = train.reservedSeats;
         const auto num_seats_on_train = train.capacity;
 
+        bool incomingTrain = false;
         if (curRide->departFlags & RIDE_DEPART_LEAVE_WHEN_ANOTHER_ARRIVES)
         {
             for (auto train_id : curRide->vehicles)
@@ -732,59 +717,41 @@ void Vehicle::UpdateWaitingForPassengers()
                 {
                     curRide->getStation(current_station).Depart = kStationDepartFlag;
                 }
-                flags.set(VehicleFlag::readyToDepart);
-                TrainReadyToDepart(num_peeps_on_train, num_used_seats_on_train);
-                return;
+                incomingTrain = true;
+                break;
             }
         }
 
         const bool supportsTesting = curRide->supportsStatus(RideStatus::testing);
-        if ((supportsTesting && time_waiting < 20) || (!supportsTesting && num_peeps_on_train == 0))
-        {
-            TrainReadyToDepart(num_peeps_on_train, num_used_seats_on_train);
-            return;
-        }
-
         const bool hasLoadOptions = curRide->getRideTypeDescriptor().flags.has(RtdFlag::hasLoadOptions);
-        if (hasLoadOptions && (curRide->departFlags & RIDE_DEPART_WAIT_FOR_MINIMUM_LENGTH)
-            && GameTime::SecondsToTicks(curRide->minWaitingTime) > time_waiting)
+        const bool waitForLoad = hasLoadOptions && (curRide->departFlags & RIDE_DEPART_WAIT_FOR_LOAD);
+        uint32_t loadTarget = 0;
+        if (waitForLoad)
         {
-            TrainReadyToDepart(num_peeps_on_train, num_used_seats_on_train);
-            return;
-        }
-        if (hasLoadOptions && (curRide->departFlags & RIDE_DEPART_WAIT_FOR_MAXIMUM_LENGTH)
-            && GameTime::SecondsToTicks(curRide->maxWaitingTime) < time_waiting)
-        {
-            flags.set(VehicleFlag::readyToDepart);
-            TrainReadyToDepart(num_peeps_on_train, num_used_seats_on_train);
-            return;
-        }
-
-        if (hasLoadOptions && (curRide->departFlags & RIDE_DEPART_WAIT_FOR_LOAD))
-        {
-            if (num_peeps_on_train == num_seats_on_train)
-            {
-                flags.set(VehicleFlag::readyToDepart);
-                TrainReadyToDepart(num_peeps_on_train, num_used_seats_on_train);
-                return;
-            }
-
             // any load: load=4 , full: load=3 , 3/4s: load=2 , half: load=1 , quarter: load=0
             const uint8_t load = curRide->departFlags & RIDE_DEPART_WAIT_FOR_LOAD_MASK;
 
             // We want to wait for ceiling((load+1)/4 * num_seats_on_train) peeps, the +3 below is used instead of
             // ceil() to prevent issues on different cpus/platforms with floats. Note that vanilla RCT1/2 rounded
             // down here; our change reflects the expected behaviour for waiting for a minimum load target (see #9987)
-            const uint32_t peepTarget = load == 4 ? 1 : ((load + 1) * num_seats_on_train + 3) / 4;
-
-            if (num_peeps_on_train >= peepTarget)
-                flags.set(VehicleFlag::readyToDepart);
-
-            TrainReadyToDepart(num_peeps_on_train, num_used_seats_on_train);
-            return;
+            loadTarget = load == 4 ? 1 : ((load + 1) * num_seats_on_train + 3) / 4;
         }
 
-        flags.set(VehicleFlag::readyToDepart);
+        const RideVehicle::StationDetail::StationLoadingPolicy loadingPolicy{
+            .incomingTrain = incomingTrain,
+            .initialDwellPending = supportsTesting && time_waiting < 20,
+            .emptyTrainMustWait = !supportsTesting && num_peeps_on_train == 0,
+            .minimumWaitPending = hasLoadOptions && (curRide->departFlags & RIDE_DEPART_WAIT_FOR_MINIMUM_LENGTH)
+                && time_waiting < GameTime::SecondsToTicks(curRide->minWaitingTime),
+            .maximumWaitElapsed = hasLoadOptions && (curRide->departFlags & RIDE_DEPART_WAIT_FOR_MAXIMUM_LENGTH)
+                && time_waiting >= GameTime::SecondsToTicks(curRide->maxWaitingTime),
+            .waitForLoad = waitForLoad,
+            .loadTarget = loadTarget,
+        };
+        if (RideVehicle::StationDetail::ShouldStopBoarding(train, loadingPolicy))
+        {
+            flags.set(VehicleFlag::readyToDepart);
+        }
         TrainReadyToDepart(num_peeps_on_train, num_used_seats_on_train);
         return;
     }
@@ -1057,8 +1024,10 @@ void Vehicle::UpdateUnloadingPassengers()
     }
 
     const auto& currentStation = curRide->getStation(current_station);
+    bool allPassengersSettled = true;
+    const bool isRotatingRide = curRide->mode == RideMode::forwardRotation || curRide->mode == RideMode::backwardRotation;
 
-    if (curRide->mode == RideMode::forwardRotation || curRide->mode == RideMode::backwardRotation)
+    if (isRotatingRide)
     {
         uint8_t seat = ((-flatRideAnimationFrame) >> 3) & 0xF;
         if (restraints_position == 255 && !peep[seat * 2].IsNull())
@@ -1103,7 +1072,10 @@ void Vehicle::UpdateUnloadingPassengers()
                 continue;
 
             if (train->next_free_seat == 0)
+            {
+                allPassengersSettled &= train->num_peeps == 0;
                 continue;
+            }
 
             if (isTransportRide)
             {
@@ -1122,22 +1094,27 @@ void Vehicle::UpdateUnloadingPassengers()
                     *curRide, current_station, passengers);
                 RideVehicle::StationDetail::ApplyTransportPassengerUnload(
                     *train, passengers, unloadPlan);
-                continue;
             }
-
-            RideVehicle::StationDetail::ApplyOrdinaryPassengerUnload(*train, entities);
+            else
+                RideVehicle::StationDetail::ApplyOrdinaryPassengerUnload(*train, entities);
+            allPassengersSettled &= train->num_peeps == train->next_free_seat;
         }
     }
 
     if (sub_state != 1)
         return;
 
-    for (Vehicle* train = entities.GetEntity<Vehicle>(id); train != nullptr;
-         train = entities.GetEntity<Vehicle>(train->next_vehicle_on_train))
+    if (isRotatingRide)
     {
-        if (train->num_peeps != train->next_free_seat)
-            return;
+        for (Vehicle* train = entities.GetEntity<Vehicle>(id); train != nullptr;
+             train = entities.GetEntity<Vehicle>(train->next_vehicle_on_train))
+        {
+            if (train->num_peeps != train->next_free_seat)
+                return;
+        }
     }
+    else if (!allPassengersSettled)
+        return;
 
     SetState(Status::movingToEndOfStation);
 }

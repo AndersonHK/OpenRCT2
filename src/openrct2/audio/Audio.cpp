@@ -219,12 +219,12 @@ namespace OpenRCT2::Audio
             mixerPan = ((x2 / screenWidth) - 0x8000) >> 4;
         }
 
-        CreateAudioChannel(audioSource, MixerGroup::Sound, false, DStoMixerVolume(volume), DStoMixerPan(mixerPan), 1, true);
+        CreateAudioChannel(audioSource, MixerGroup::Sound, false, DStoMixerVolume(volume), DStoMixerPan(mixerPan));
     }
 
     static void PlaySpatial(IAudioSource* audioSource, const AudioParams& params, const CoordsXYZ& location)
     {
-        auto channel = CreateAudioChannel(audioSource, MixerGroup::Sound, false, DStoMixerVolume(params.volume), 0.5f, 1, true);
+        auto channel = CreateAudioChannel(audioSource, MixerGroup::Sound, false, DStoMixerVolume(params.volume));
         if (channel != nullptr)
         {
             channel->SetSpatial(params.azimuth, params.elevation);
@@ -535,13 +535,13 @@ namespace OpenRCT2::Audio
     }
 
     std::shared_ptr<IAudioChannel> CreateAudioChannel(
-        SoundId id, bool loop, int32_t volume, float pan, double rate, bool forget)
+        SoundId id, bool loop, int32_t volume, float pan, double rate)
     {
-        return CreateAudioChannel(id, MixerGroup::Sound, loop, volume, pan, rate, forget);
+        return CreateAudioChannel(id, MixerGroup::Sound, loop, volume, pan, rate);
     }
 
     std::shared_ptr<IAudioChannel> CreateAudioChannel(
-        SoundId id, MixerGroup group, bool loop, int32_t volume, float pan, double rate, bool forget)
+        SoundId id, MixerGroup group, bool loop, int32_t volume, float pan, double rate)
     {
         // Get sound from base object
         auto [baseAudioObject, sampleIndex] = GetAudioObjectAndSampleIndex(id);
@@ -550,14 +550,14 @@ namespace OpenRCT2::Audio
             auto source = baseAudioObject->GetSample(sampleIndex);
             if (source != nullptr)
             {
-                return CreateAudioChannel(source, group, loop, volume, pan, rate, forget);
+                return CreateAudioChannel(source, group, loop, volume, pan, rate);
             }
         }
         return nullptr;
     }
 
     std::shared_ptr<IAudioChannel> CreateAudioChannel(
-        IAudioSource* source, MixerGroup group, bool loop, int32_t volume, float pan, double rate, bool forget)
+        IAudioSource* source, MixerGroup group, bool loop, int32_t volume, float pan, double rate)
     {
         auto* mixer = GetMixer();
         if (mixer == nullptr)
@@ -566,7 +566,7 @@ namespace OpenRCT2::Audio
         }
 
         mixer->Lock();
-        auto channel = mixer->Play(source, loop ? kMixerLoopInfinite : kMixerLoopNone, forget);
+        auto channel = mixer->Play(source, loop ? kMixerLoopInfinite : kMixerLoopNone);
         if (channel != nullptr)
         {
             channel->SetGroup(group);

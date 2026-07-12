@@ -676,31 +676,6 @@ namespace OpenRCT2::Park
             0.00_GBP, (park.totalRideValueForMoney * kParkEntranceValueNumerator) / kParkEntranceValueDenominator);
     }
 
-    static money64 GetProfitMaximisingEntranceFee(const ParkData& park)
-    {
-        const auto parkEntranceValue = GetDebuffedParkEntranceValue(park);
-        const auto maximumFee = ClampEntranceFee(parkEntranceValue);
-        const auto cashSamples = GetGuestSpawnCashSamples(park);
-
-        money64 bestPrice = 0.00_GBP;
-        money64 bestRevenue = 0.00_GBP;
-        // Cash samples are ordered, preserving the lower-price tie break from the original sorted candidate list.
-        for (const auto cash : cashSamples)
-        {
-            const auto candidate = std::min(cash, maximumFee);
-            const auto affordableGuests = static_cast<money64>(
-                std::count_if(cashSamples.begin(), cashSamples.end(), [candidate](money64 cash) { return cash >= candidate; }));
-            const auto revenue = candidate * affordableGuests;
-            if (revenue > bestRevenue)
-            {
-                bestPrice = candidate;
-                bestRevenue = revenue;
-            }
-        }
-
-        return bestPrice;
-    }
-
     money64 GetEntranceFeeForTarget(const ParkData& park, ParkEntranceFeeTarget target)
     {
         switch (target)
@@ -708,7 +683,27 @@ namespace OpenRCT2::Park
             case ParkEntranceFeeTarget::custom:
                 return ClampEntranceFee(park.entranceFee);
             case ParkEntranceFeeTarget::profit:
-                return GetProfitMaximisingEntranceFee(park);
+            {
+                const auto maximumFee = ClampEntranceFee(GetDebuffedParkEntranceValue(park));
+                const auto cashSamples = GetGuestSpawnCashSamples(park);
+                money64 bestPrice = 0.00_GBP;
+                money64 bestRevenue = 0.00_GBP;
+
+                // Samples are ordered, preserving the lower-price tie break from the original candidate list.
+                for (const auto cash : cashSamples)
+                {
+                    const auto candidate = std::min(cash, maximumFee);
+                    const auto affordableGuests = static_cast<money64>(std::count_if(
+                        cashSamples.begin(), cashSamples.end(), [candidate](money64 value) { return value >= candidate; }));
+                    const auto revenue = candidate * affordableGuests;
+                    if (revenue > bestRevenue)
+                    {
+                        bestPrice = candidate;
+                        bestRevenue = revenue;
+                    }
+                }
+                return bestPrice;
+            }
             case ParkEntranceFeeTarget::incomePerGuest:
             case ParkEntranceFeeTarget::affordable:
                 break;

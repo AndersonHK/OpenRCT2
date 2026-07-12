@@ -20,6 +20,8 @@
 #include <unordered_map>
 #include <vector>
 
+struct TTFSurface;
+
 namespace OpenRCT2::Drawing
 {
     enum class FilterPaletteID : int32_t;
@@ -78,7 +80,6 @@ namespace OpenRCT2::Ui::Gpu
             TextureLocation location{};
             uint32_t pitch = 0;
             std::vector<std::byte> pixels;
-            bool transient = false;
         };
 
         struct AllocationState
@@ -86,6 +87,12 @@ namespace OpenRCT2::Ui::Gpu
             TextureLocation location{};
             uint32_t pinCount = 0;
             bool retireWhenUnpinned = false;
+        };
+
+        struct TTFSurfaceEntry
+        {
+            TextureLocation location{};
+            uint64_t lastUseFrame = 0;
         };
 
         struct ResidencyLease
@@ -98,15 +105,16 @@ namespace OpenRCT2::Ui::Gpu
         std::vector<AtlasPage> _atlases;
         std::unordered_map<uint32_t, TextureLocation> _images;
         std::unordered_map<GlyphKey, TextureLocation, GlyphKeyHash> _glyphs;
+        std::unordered_map<uint64_t, TTFSurfaceEntry> _ttfSurfaces;
         std::unordered_map<uint32_t, uint32_t> _generations;
         std::unordered_map<uint64_t, AllocationState> _allocations;
         std::unordered_map<uint64_t, ResidencyLease> _residencyLeases;
         std::vector<PendingUpload> _pendingUploads;
-        std::vector<TextureLocation> _frameTransientLocations;
         std::vector<AtlasAllocationId> _frameAllocations;
         std::vector<uint32_t> _deferredInvalidations;
         uint64_t _nextAllocationSerial = 1;
         uint64_t _nextResidencyToken = 1;
+        uint64_t _recordingFrameSerial = 0;
         bool _recordingFrame = false;
         mutable std::mutex _mutex;
 
@@ -115,9 +123,9 @@ namespace OpenRCT2::Ui::Gpu
 
         [[nodiscard]] TextureBinding GetOrLoadImageTexture(ImageId imageId);
         [[nodiscard]] TextureBinding GetOrLoadGlyphTexture(ImageId imageId, const Drawing::PaletteMap& palette);
-        [[nodiscard]] TextureBinding LoadTransientBitmapTexture(
-            const void* pixels, size_t width, size_t height);
-
+#ifndef DISABLE_TTF
+        [[nodiscard]] TextureBinding GetOrLoadTTFTexture(const TTFSurface& surface);
+#endif
         void BeginFrame();
         [[nodiscard]] AtlasResidencyToken SealFrame(FrameCommandStream& commands);
         void RetireFrame(AtlasResidencyToken token, FrameRetirement retirement);
@@ -130,13 +138,13 @@ namespace OpenRCT2::Ui::Gpu
         [[nodiscard]] TextureLocation AllocateImage(uint32_t image, int32_t width, int32_t height);
         [[nodiscard]] std::optional<TextureLocation> QueueRasterizedImage(
             ImageId imageId, const Drawing::PaletteMap* palette);
-        void QueueUpload(
-            const TextureLocation& location, const void* pixels, size_t size, uint32_t pitch, bool transient);
+        void QueueUpload(const TextureLocation& location, const void* pixels, size_t size, uint32_t pitch);
         [[nodiscard]] TextureBinding BindForRecording(const TextureLocation& location);
         void EndRecordingFrame();
         void ApplyInvalidation(uint32_t image);
         void RetireAllocation(const TextureLocation& location);
         void FreeIfUnpinned(uint64_t allocationSerial);
         void RemovePending(AtlasAllocationId allocation);
+        void TrimTTFSurfaceCache(size_t targetSize);
     };
 } // namespace OpenRCT2::Ui::Gpu

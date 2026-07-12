@@ -93,7 +93,7 @@ namespace OpenRCT2
     // TODO: make part of EntityList unit?
     uint16_t EntityRegistry::GetNumFreeEntities()
     {
-        return static_cast<uint16_t>(_freeIdList.size());
+        return static_cast<uint16_t>(_freeIds.size());
     }
 
     std::string EntitiesChecksum::ToString() const
@@ -114,29 +114,6 @@ namespace OpenRCT2
     const std::vector<EntityId>& EntityRegistry::GetEntityTileList(const CoordsXY& spritePos)
     {
         return gEntitySpatialIndex[ComputeSpatialIndex(spritePos)];
-    }
-
-    void EntityRegistry::ResetEntityLists()
-    {
-        for (auto& list : gEntityLists)
-        {
-            list.clear();
-        }
-        _vehicleHeadEntityList.clear();
-        _vehicleHeadEntityListDirty = true;
-    }
-
-    void EntityRegistry::ResetFreeIds()
-    {
-        _freeIdList.clear();
-        _freeIdList.resize(kMaxEntities);
-
-        // List needs to be back to front to simplify removing
-        auto nextId = 0;
-        std::for_each(std::rbegin(_freeIdList), std::rend(_freeIdList), [&](auto& elem) {
-            elem = EntityId::FromUnderlying(nextId);
-            nextId++;
-        });
     }
 
     const EntityIdList& EntityRegistry::GetEntityList(const EntityType id)
@@ -190,8 +167,11 @@ namespace OpenRCT2
 
             _entityFlashingList[i] = false;
         }
-        ResetEntityLists();
-        ResetFreeIds();
+        for (auto& list : gEntityLists)
+            list.clear();
+        _vehicleHeadEntityList.clear();
+        _vehicleHeadEntityListDirty = true;
+        _freeIds.fill();
         ResetEntitySpatialIndices();
     }
 
@@ -251,36 +231,6 @@ namespace OpenRCT2
         entity.type = EntityType::null;
     }
 
-    void EntityRegistry::AddToEntityList(EntityBase& entity)
-    {
-        auto& list = gEntityLists[EnumValue(entity.type)];
-
-        // Membership iteration is intrinsically sorted by id to prevent desyncs.
-        Guard::Assert(list.insert(entity.id), "Entity %u is already in its typed list", entity.id.ToUnderlying());
-        if (entity.type == EntityType::vehicle)
-        {
-            _vehicleHeadEntityListDirty = true;
-        }
-    }
-
-    void EntityRegistry::AddToFreeList(EntityId index)
-    {
-        // Free list must be in reverse sprite_index order to prevent desync issues
-        _freeIdList.insert(std::upper_bound(std::rbegin(_freeIdList), std::rend(_freeIdList), index).base(), index);
-    }
-
-    void EntityRegistry::RemoveFromEntityList(EntityBase& entity)
-    {
-        auto& list = gEntityLists[EnumValue(entity.type)];
-        if (list.erase(entity.id))
-        {
-            if (entity.type == EntityType::vehicle)
-            {
-                _vehicleHeadEntityListDirty = true;
-            }
-        }
-    }
-
     uint16_t EntityRegistry::GetMiscEntityCount()
     {
         uint16_t count = 0;
@@ -300,7 +250,10 @@ namespace OpenRCT2
         EntityReset(base);
 
         base.type = type;
-        AddToEntityList(base);
+        auto& list = gEntityLists[EnumValue(type)];
+        Guard::Assert(list.insert(base.id), "Entity %u is already in its typed list", base.id.ToUnderlying());
+        if (type == EntityType::vehicle)
+            _vehicleHeadEntityListDirty = true;
 
         base.x = kLocationNull;
         base.y = kLocationNull;
@@ -316,7 +269,7 @@ namespace OpenRCT2
 
     EntityBase* EntityRegistry::CreateEntity(EntityType type)
     {
-        if (_freeIdList.empty())
+        if (_freeIds.empty())
         {
             // No free sprites.
             return nullptr;
@@ -331,42 +284,29 @@ namespace OpenRCT2
             }
 
             // If there are less than kMaxMiscEntities free slots, ensure other entities can be created.
-            if (_freeIdList.size() < kMaxMiscEntities)
+            if (_freeIds.size() < kMaxMiscEntities)
             {
                 return nullptr;
             }
         }
 
-        auto* entity = GetEntity(_freeIdList.back());
-        if (entity == nullptr)
-        {
-            return nullptr;
-        }
-        _freeIdList.pop_back();
-
-        PrepareNewEntity(*entity, type);
-
-        return entity;
+        const auto entityId = *_freeIds.begin();
+        Guard::Assert(_freeIds.erase(entityId), "Entity %u was not free", entityId.ToUnderlying());
+        auto& entity = entities[entityId.ToUnderlying()].base;
+        PrepareNewEntity(entity, type);
+        return &entity;
     }
 
     EntityBase* EntityRegistry::CreateEntityAt(const EntityId index, const EntityType type)
     {
-        auto id = Algorithm::binaryFind(std::rbegin(_freeIdList), std::rend(_freeIdList), index);
-        if (id == std::rend(_freeIdList))
+        if (!_freeIds.erase(index))
         {
             return nullptr;
         }
 
-        auto* entity = GetEntity(index);
-        if (entity == nullptr)
-        {
-            return nullptr;
-        }
-
-        _freeIdList.erase(std::next(id).base());
-
-        PrepareNewEntity(*entity, type);
-        return entity;
+        auto& entity = entities[index.ToUnderlying()].base;
+        PrepareNewEntity(entity, type);
+        return &entity;
     }
 
     /**
@@ -487,14 +427,12 @@ namespace OpenRCT2
      */
     void EntityRegistry::FreeEntity(EntityBase& entity)
     {
-        auto* guest = entity.as<Guest>();
-        auto* staff = entity.as<Staff>();
-        if (staff != nullptr)
+        if (auto* staff = entity.as<Staff>(); staff != nullptr)
         {
             staff->SetName({});
             staff->clearPatrolArea();
         }
-        else if (guest != nullptr)
+        else if (auto* guest = entity.as<Guest>(); guest != nullptr)
         {
             guest->SetName({});
             guest->guestNextInQueue = EntityId::GetNull();
@@ -513,8 +451,11 @@ namespace OpenRCT2
         FreeEntity(*entity);
 
         EntityTweener::Get().RemoveEntity(entity);
-        RemoveFromEntityList(*entity); // remove from existing list
-        AddToFreeList(entity->id);
+        auto& list = gEntityLists[EnumValue(entity->type)];
+        Guard::Assert(list.erase(entity->id), "Entity %u was not in its typed list", entity->id.ToUnderlying());
+        Guard::Assert(_freeIds.insert(entity->id), "Entity %u is already free", entity->id.ToUnderlying());
+        if (entity->type == EntityType::vehicle)
+            _vehicleHeadEntityListDirty = true;
 
         EntitySpatialRemove(*entity);
         EntityReset(*entity);

@@ -23,9 +23,11 @@ Vulkan reaches parity.
   remaps, indexed transparency, glyphs, TTF layers and stable depth sequence. Its render-target allocation preserves legacy
   sub-target pointer offsets only; those bytes are never rasterised or uploaded as a canvas.
 - `gpu/GpuTextureCache.*` owns persistent power-of-two atlas slots, image generations and queued first-use uploads. Normal
-  sprites and palette-rendered glyphs upload only on first use or invalidation. Invalidations requested during recording are
-  applied after that frame's command and upload streams are sealed. Every resolved normal sprite, mask, glyph, and transient TTF
-  bitmap records the allocation in a cache-owned residency lease. Invalidated and transient slots become reusable only after all
+  sprites, palette-rendered glyphs, and cached TTF surfaces upload only on first use or invalidation. TTF atlas residency is
+  keyed by an allocation-independent surface identity and bounded to the CPU TTF cache's 256-entry working set. Invalidations
+  requested during recording are
+  applied after that frame's command and upload streams are sealed. Every resolved normal sprite, mask, glyph, and TTF bitmap
+  records the allocation in a cache-owned residency lease. Invalidated and retired slots become reusable only after all
   leases referencing their allocation serial retire, so a recycled atlas coordinate cannot change beneath a sealed frame.
 - `vulkan/VulkanDevice.*` owns platform Vulkan-loader discovery, the instance and surface, physical-device selection, graphics and
   presentation queues, swapchain negotiation, three frames in flight, and per-frame persistently mapped upload rings.
@@ -81,11 +83,6 @@ Vulkan reaches parity.
   `268807` (`0x0`) without widening the persistent atlas or hiding malformed oversized assets.
 - `DrawingEngine::Vulkan` is reserved after the existing enum values, so future activation does not renumber old configuration.
   `ENABLE_VULKAN_DRAWING_ENGINE` now exposes an explicit validation-only factory/configuration path. Normal builds keep it off.
-- Indexed readback copies the final post-transparency/weather canvas into the current persistently mapped frame ring. Consumers
-  poll by request id without waiting; unread results are harvested before their fenced frame slot is reused. Host-visible
-  coherent memory is preferred but not required: non-coherent rings use atom-aligned flushes before queue submission and
-  invalidation only after the owning frame fence completes. Host access to frame fences is serialised for
-  render-thread/consumer safety. Presentation itself still has blocking waits described below.
 - GPU timing uses one optional timestamp-query pool per frame slot. Five timestamp points divide uploads, indexed drawing,
   LightFX, and final palette composition while also reporting total GPU frame time. Results retain their frame-slot ownership,
   handle queue-counter wrapping through `timestampValidBits`, and convert ticks with the physical device's `timestampPeriod`.
@@ -111,19 +108,25 @@ Vulkan reaches parity.
   The direct path redraws a complete command list and deliberately does not advertise dirty-region `CopyRect` support. Existing
   viewport scrolling calls `CopyRect` only when the engine advertises dirty optimisations, so this is not an activation blocker
   for the full-redraw command path.
-- Resize rejects an active frame, waits once for the device, harvests completed readbacks, then rebuilds canvas-dependent
+- Resize rejects an active frame, waits once for the device, then rebuilds canvas-dependent
   pipelines and descriptors as one lifecycle. A failed rebuild leaves the backend explicitly not ready instead of allowing a
   partially rebuilt frame to begin.
 
 The compile-time gates are still required. Frame acquisition now has explicit blocking and `SkipIfBusy` policies, and both gated
 drawing engines select the latter. A busy frame-slot fence or swapchain image therefore skips presentation instead of waiting on
 the simulation/UI caller. An explicit abandonment path drains the acquired image semaphore, invalidates the swapchain, and keeps
-persistent atlas uploads pending for retry when recording fails. Resize, shutdown, recovery and requested readback remain the
+persistent atlas uploads pending for retry when recording fails. Resize, shutdown, recovery and explicit screenshots remain the
 intentional blocking boundaries.
 
 Swapchain recreation is now coordinated by the backend rather than destroying image views inside frame acquisition. After queued
 work completes, the palette pass releases its framebuffers and render-pass objects first; only then does the device replace the
 old views. This ordering applies equally to resize, VSync changes, out-of-date surfaces, HDR/SDR transitions and abandonment.
+
+Atlas uploads are now staged and recorded in one traversal. The backend no longer allocates a temporary new-texture vector or
+walks every upload twice per frame, and palette, LightFX, index-table, and canvas transfers share one synchronization/copy path.
+Logical-device setup uses its fixed two-family queue array directly, backend-owned timestamp operations avoid recursive locking,
+and the remaining device lock is a normal mutex. These changes keep upload ownership explicit while reducing CPU preparation for
+the command stream; atlas pixels remain in GPU-local memory after their first successful upload.
 
 This is not yet the complete asynchronous contract: paint traversal and direct command recording still run on the caller. A
 semantic visual snapshot and stable worker-range concatenation must still land before paint preparation itself can leave that
@@ -148,6 +151,12 @@ A hard UI guarantee across such a tick requires an immutable visual snapshot
 between a simulation producer and the UI/command-recording consumer; that is the next architectural boundary, not a reason to
 mutate live game state concurrently.
 
+The July 11 consolidation checkpoint retains that presentation contract: a five-second hidden Vulkan/VSync run produced 720
+draws at 143.746 FPS and 249.159 logical TPS. Frame intervals were 7.296 ms p50, 8.552 ms p95, 9.518 ms p99, and 11.995 ms
+maximum. GPU work averaged 122.139 us per frame; renderer submission and presentation averaged 134.889 and 223.967 us,
+respectively. Simulation still consumed 73.6% of wall time, so the dominant remaining smooth-Turbo opportunity is a safe visual
+snapshot boundary and further simulation-side parallelism rather than present-call tuning.
+
 ## Current CPU/GPU ownership audit
 
 The validation bridge is intentionally not a performance renderer: X8 performs the full software raster, `EndDraw` copies the
@@ -155,8 +164,8 @@ whole indexed canvas into the upload ring, and Vulkan performs only the final tr
 removes that routine canvas upload and keeps the sprite atlas, indexed canvases, depth, remap/blend tables, transparency layers,
 weather output and palette conversion resident on the GPU.
 
-The remaining direct-path CPU costs are paint traversal and clipping, command allocation, first-use sprite and palette-glyph
-rasterisation in `GpuTextureCache`, transient TTF bitmap copies, the transparency overlap-depth estimate, and initial remap-table
+The remaining direct-path CPU costs are paint traversal and clipping, command allocation, first-use sprite, palette-glyph, and
+TTF rasterisation/upload in `GpuTextureCache`, the transparency overlap-depth estimate, and initial remap-table
 construction. These are presentation-only and do not alter deterministic simulation, but they remain on the simulation/UI
 caller while the experimental render-worker gate is off; command publication removes only the backend work, not this traversal.
 Weather is already a compact command plus GPU pass and does not require CPU pixel storage. LightFX now has an explicit immutable
@@ -170,6 +179,13 @@ readback. CPU light-list and occlusion resolution remain, while Vulkan now repla
 fully gated direct path. When compute capability is active, direct packets are command-only and do not allocate or fill a
 logical-screen-sized CPU intensity vector. The legacy resolver materialises that vector explicitly for the X8 display path,
 unsupported-device fallback, resize handoff, and focused parity validation.
+
+TrueType text remains rasterised once by the existing FreeType cache, but its immutable one-byte coverage surface now stays in
+the Vulkan indexed atlas across frames. A repeated `w` by `h` cached string therefore moves `w*h` bytes to VRAM once instead of
+once per draw. Each avoided repeat also removes two intermediate owned-vector copies plus the mapped-ring copy, so steady-state
+CPU copy work falls by `3*w*h` bytes per draw. The GPU cache uses the TTF cache's monotonic surface identity rather than a raw
+allocator address and retains at most 256 inactive entries; frame-residency leases still prevent an evicted slot from being
+reused beneath a sealed or in-flight packet.
 
 The snapshot now also carries that compact resolved-light stream without changing the authoritative CPU intensity result. Each
 32-byte command contains the clipped destination origin and extent, the exact offset and row stride into one of the eight legacy
@@ -261,8 +277,8 @@ validation layer enabled.
 
 ### 1. Indexed composition and presentation
 
-The backend, validation factory path, direct `IDrawingContext` recorder, persistent atlas cache, asynchronous indexed readback,
-and explicit synchronous screenshot adapter are present behind compile-time gates. The validation bridge retains its full-canvas
+The backend, validation factory path, direct `IDrawingContext` recorder, persistent atlas cache, and explicit synchronous
+screenshot adapter are present behind compile-time gates. The validation bridge retains its full-canvas
 upload as an independent lifecycle and comparison fallback; the direct gate does not invoke it. Direct screenshots capture the
 last successfully presented post-transparency/weather indexed canvas, then use the legacy indexed PNG path and palette. With the
 render-worker gate enabled, screenshot capture attaches to pending visual work or publishes a control packet when none exists;

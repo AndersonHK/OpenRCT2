@@ -240,16 +240,17 @@ void RCT2StringToUTF8Self(char* buffer, size_t length)
     }
 }
 
-static void FixGuestsHeadingToParkCount()
+static void FixGuestCounts()
 {
     uint32_t guestsHeadingToPark = 0;
+    uint32_t guestsInPark = 0;
 
-    for (auto* peep : EntityList<Guest>())
+    for (const auto* guest : EntityList<Guest>())
     {
-        if (peep->outsideOfPark && peep->State != PeepState::leavingPark)
-        {
+        if (!guest->outsideOfPark)
+            guestsInPark++;
+        else if (guest->State != PeepState::leavingPark)
             guestsHeadingToPark++;
-        }
     }
 
     auto& park = getGameState().park;
@@ -260,28 +261,11 @@ static void FixGuestsHeadingToParkCount()
     }
 
     park.numGuestsHeadingForPark = guestsHeadingToPark;
-}
-
-static void FixGuestCount()
-{
-    // Recalculates peep count after loading a save to fix corrupted files
-    uint32_t guestCount = 0;
-
-    for (auto guest : EntityList<Guest>())
+    if (park.numGuestsInPark != guestsInPark)
     {
-        if (!guest->outsideOfPark)
-        {
-            guestCount++;
-        }
+        LOG_VERBOSE("Corrected bad amount of guests in park: %u -> %u", park.numGuestsInPark, guestsInPark);
     }
-
-    auto& park = getGameState().park;
-    if (park.numGuestsInPark != guestCount)
-    {
-        LOG_VERBOSE("Corrected bad amount of guests in park: %u -> %u", park.numGuestsInPark, guestCount);
-    }
-
-    park.numGuestsInPark = guestCount;
+    park.numGuestsInPark = guestsInPark;
 }
 
 static void FixPeepsWithInvalidRideReference()
@@ -399,9 +383,7 @@ void GameFixRideNumRiders()
 // For example recalculate guest count by looking at all the guests instead of trusting the value in the file.
 void GameFixSaveVars()
 {
-    FixGuestsHeadingToParkCount();
-
-    FixGuestCount();
+    FixGuestCounts();
 
     FixPeepsWithInvalidRideReference();
 

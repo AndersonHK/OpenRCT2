@@ -202,20 +202,23 @@ namespace OpenRCT2
         IntegratedBenchmarkTotals _benchmarkTotals{};
         BenchmarkStateSnapshot _benchmarkInitialState{};
         uint64_t _benchmarkInitialLogicalTicks{};
-        uint64_t _benchmarkRendererSamples{};
-        uint64_t _benchmarkGpuSamples{};
-        uint64_t _benchmarkGpuPassSamples{};
-        uint64_t _benchmarkPresentCallSamples{};
         uint64_t _benchmarkMessagePumps{};
         uint64_t _benchmarkUiFrames{};
-        double _benchmarkSubmitMicroseconds{};
-        double _benchmarkPresentMicroseconds{};
-        double _benchmarkGpuMicroseconds{};
-        double _benchmarkGpuUploadMicroseconds{};
-        double _benchmarkGpuDrawMicroseconds{};
-        double _benchmarkGpuLightFxMicroseconds{};
-        double _benchmarkGpuCompositeMicroseconds{};
-        double _benchmarkPresentCallMicroseconds{};
+        struct
+        {
+            uint64_t rendererSamples{};
+            uint64_t gpuSamples{};
+            uint64_t gpuPassSamples{};
+            uint64_t presentCallSamples{};
+            double submitMicroseconds{};
+            double presentMicroseconds{};
+            double gpuMicroseconds{};
+            double gpuUploadMicroseconds{};
+            double gpuDrawMicroseconds{};
+            double gpuLightFxMicroseconds{};
+            double gpuCompositeMicroseconds{};
+            double presentCallMicroseconds{};
+        } _benchmarkRenderer{};
         std::vector<double> _benchmarkFrameIntervalsMilliseconds;
         std::vector<Drawing::FrameTimings> _benchmarkRendererTimingScratch;
         bool _benchmarkFailed{};
@@ -1277,25 +1280,13 @@ namespace OpenRCT2
 
         bool ShouldDraw()
         {
-            if (gOpenRCT2Headless)
-                return false;
-            if (gIntegratedBenchmark.enabled)
-                return true;
-            if (_uiContext->IsMinimised())
-                return false;
-            return true;
+            return !gOpenRCT2Headless && (gIntegratedBenchmark.enabled || !_uiContext->IsMinimised());
         }
 
         bool ShouldRunVariableFrame()
         {
-            if (!ShouldDraw())
-                return false;
-            if (!Config::Get().general.uncapFPS)
-                return false;
             // Fast-forward benefits from spending its frame budget on simulation rather than entity tween snapshots.
-            if (gGameSpeed >= kTurboGameSpeed)
-                return false;
-            return true;
+            return ShouldDraw() && Config::Get().general.uncapFPS && gGameSpeed < kTurboGameSpeed;
         }
 
         bool UpdateVariableFrameMode()
@@ -1322,16 +1313,9 @@ namespace OpenRCT2
 
         bool ShouldDrawFrame()
         {
-            if (!ShouldDraw())
-                return false;
-
-            if (!IsOfflineFastForward())
-                return true;
-
-            if (_nextDrawDeadline == IntegratedBenchmarkClock::time_point{})
-                return true;
-
-            return IntegratedBenchmarkClock::now() >= _nextDrawDeadline;
+            return ShouldDraw()
+                && (!IsOfflineFastForward() || _nextDrawDeadline == IntegratedBenchmarkClock::time_point{}
+                    || IntegratedBenchmarkClock::now() >= _nextDrawDeadline);
         }
 
         void UpdateActualSimulationRate(float deltaTime)
@@ -1353,26 +1337,26 @@ namespace OpenRCT2
         {
             for (const auto& timings : samples)
             {
-                _benchmarkRendererSamples++;
-                _benchmarkSubmitMicroseconds += timings.cpuSubmitMicroseconds;
-                _benchmarkPresentMicroseconds += timings.cpuPresentMicroseconds;
+                _benchmarkRenderer.rendererSamples++;
+                _benchmarkRenderer.submitMicroseconds += timings.cpuSubmitMicroseconds;
+                _benchmarkRenderer.presentMicroseconds += timings.cpuPresentMicroseconds;
                 if (timings.hasGpuTimestamp)
                 {
-                    _benchmarkGpuSamples++;
-                    _benchmarkGpuMicroseconds += timings.gpuMicroseconds;
+                    _benchmarkRenderer.gpuSamples++;
+                    _benchmarkRenderer.gpuMicroseconds += timings.gpuMicroseconds;
                 }
                 if (timings.hasGpuPassTimestamps)
                 {
-                    _benchmarkGpuPassSamples++;
-                    _benchmarkGpuUploadMicroseconds += timings.gpuUploadMicroseconds;
-                    _benchmarkGpuDrawMicroseconds += timings.gpuDrawMicroseconds;
-                    _benchmarkGpuLightFxMicroseconds += timings.gpuLightFxMicroseconds;
-                    _benchmarkGpuCompositeMicroseconds += timings.gpuCompositeMicroseconds;
+                    _benchmarkRenderer.gpuPassSamples++;
+                    _benchmarkRenderer.gpuUploadMicroseconds += timings.gpuUploadMicroseconds;
+                    _benchmarkRenderer.gpuDrawMicroseconds += timings.gpuDrawMicroseconds;
+                    _benchmarkRenderer.gpuLightFxMicroseconds += timings.gpuLightFxMicroseconds;
+                    _benchmarkRenderer.gpuCompositeMicroseconds += timings.gpuCompositeMicroseconds;
                 }
                 if (timings.hasPresentCallMeasurement)
                 {
-                    _benchmarkPresentCallSamples++;
-                    _benchmarkPresentCallMicroseconds += timings.presentCallMicroseconds;
+                    _benchmarkRenderer.presentCallSamples++;
+                    _benchmarkRenderer.presentCallMicroseconds += timings.presentCallMicroseconds;
                 }
             }
         }
@@ -1382,20 +1366,9 @@ namespace OpenRCT2
             _benchmarkInitialState = CaptureBenchmarkStateSnapshot();
             _benchmarkTotals = {};
             _benchmarkInitialLogicalTicks = gTotalSimulationTicks;
-            _benchmarkRendererSamples = 0;
-            _benchmarkGpuSamples = 0;
-            _benchmarkGpuPassSamples = 0;
-            _benchmarkPresentCallSamples = 0;
+            _benchmarkRenderer = {};
             _benchmarkMessagePumps = 0;
             _benchmarkUiFrames = 0;
-            _benchmarkSubmitMicroseconds = 0.0;
-            _benchmarkPresentMicroseconds = 0.0;
-            _benchmarkGpuMicroseconds = 0.0;
-            _benchmarkGpuUploadMicroseconds = 0.0;
-            _benchmarkGpuDrawMicroseconds = 0.0;
-            _benchmarkGpuLightFxMicroseconds = 0.0;
-            _benchmarkGpuCompositeMicroseconds = 0.0;
-            _benchmarkPresentCallMicroseconds = 0.0;
             _benchmarkPreviousDrawStart = {};
             _benchmarkFrameIntervalsMilliseconds.clear();
             // Complete and discard every warm-up frame so delayed fence samples cannot cross the measurement boundary.
@@ -1479,47 +1452,48 @@ namespace OpenRCT2
             Console::WriteLine(
                 "  draw time:          %.6f s (%.1f%%, %.3f us/draw; includes presentation)", _benchmarkTotals.drawSeconds,
                 metrics.drawUtilisationPercent, metrics.meanDrawMicroseconds);
-            if (_benchmarkRendererSamples != 0)
+            if (_benchmarkRenderer.rendererSamples != 0)
             {
                 Console::WriteLine(
                     "  renderer CPU:       %.3f us submit, %.3f us present mean (%llu fence-complete samples)",
-                    _benchmarkSubmitMicroseconds / _benchmarkRendererSamples,
-                    _benchmarkPresentMicroseconds / _benchmarkRendererSamples,
-                    static_cast<unsigned long long>(_benchmarkRendererSamples));
+                    _benchmarkRenderer.submitMicroseconds / _benchmarkRenderer.rendererSamples,
+                    _benchmarkRenderer.presentMicroseconds / _benchmarkRenderer.rendererSamples,
+                    static_cast<unsigned long long>(_benchmarkRenderer.rendererSamples));
             }
             else
             {
                 Console::WriteLine("  renderer CPU:       unavailable");
             }
-            if (_benchmarkPresentCallSamples != 0)
+            if (_benchmarkRenderer.presentCallSamples != 0)
             {
                 Console::WriteLine(
                     "  present API call:   %.3f us mean (%llu samples)",
-                    _benchmarkPresentCallMicroseconds / _benchmarkPresentCallSamples,
-                    static_cast<unsigned long long>(_benchmarkPresentCallSamples));
+                    _benchmarkRenderer.presentCallMicroseconds / _benchmarkRenderer.presentCallSamples,
+                    static_cast<unsigned long long>(_benchmarkRenderer.presentCallSamples));
             }
             else
             {
                 Console::WriteLine("  present API call:   unavailable");
             }
-            if (_benchmarkGpuSamples != 0)
+            if (_benchmarkRenderer.gpuSamples != 0)
             {
                 Console::WriteLine(
-                    "  GPU frame:          %.3f us mean (%llu samples)", _benchmarkGpuMicroseconds / _benchmarkGpuSamples,
-                    static_cast<unsigned long long>(_benchmarkGpuSamples));
+                    "  GPU frame:          %.3f us mean (%llu samples)",
+                    _benchmarkRenderer.gpuMicroseconds / _benchmarkRenderer.gpuSamples,
+                    static_cast<unsigned long long>(_benchmarkRenderer.gpuSamples));
             }
             else
             {
                 Console::WriteLine("  GPU frame:          unavailable");
             }
-            if (_benchmarkGpuPassSamples != 0)
+            if (_benchmarkRenderer.gpuPassSamples != 0)
             {
                 Console::WriteLine(
                     "  GPU passes:         %.3f upload, %.3f draw, %.3f LightFX, %.3f composite us mean",
-                    _benchmarkGpuUploadMicroseconds / _benchmarkGpuPassSamples,
-                    _benchmarkGpuDrawMicroseconds / _benchmarkGpuPassSamples,
-                    _benchmarkGpuLightFxMicroseconds / _benchmarkGpuPassSamples,
-                    _benchmarkGpuCompositeMicroseconds / _benchmarkGpuPassSamples);
+                    _benchmarkRenderer.gpuUploadMicroseconds / _benchmarkRenderer.gpuPassSamples,
+                    _benchmarkRenderer.gpuDrawMicroseconds / _benchmarkRenderer.gpuPassSamples,
+                    _benchmarkRenderer.gpuLightFxMicroseconds / _benchmarkRenderer.gpuPassSamples,
+                    _benchmarkRenderer.gpuCompositeMicroseconds / _benchmarkRenderer.gpuPassSamples);
             }
             else
             {
@@ -1674,13 +1648,29 @@ namespace OpenRCT2
             }
         }
 
+        void ProcessMessages()
+        {
+            _uiContext->ProcessMessages();
+            if (_benchmarkPhase == IntegratedBenchmarkPhase::measurement)
+                _benchmarkMessagePumps++;
+        }
+
+        bool UpdateUi()
+        {
+            _backgroundWorker.dispatchCompleted();
+            ContextHandleInput();
+            const bool useVariableFrame = UpdateVariableFrameMode();
+            WindowUpdateAll();
+            if (_benchmarkPhase == IntegratedBenchmarkPhase::measurement)
+                _benchmarkUiFrames++;
+            return useVariableFrame;
+        }
+
         void RunFixedFrame(bool shouldDraw)
         {
             PROFILED_FUNCTION();
 
-            _uiContext->ProcessMessages();
-            if (_benchmarkPhase == IntegratedBenchmarkPhase::measurement)
-                _benchmarkMessagePumps++;
+            ProcessMessages();
 
             // A draw that became due while the previous Turbo batch was running must not wait behind another batch. Present
             // the completed state first; the scene batch remains the minimum non-preemptible simulation slice.
@@ -1696,12 +1686,7 @@ namespace OpenRCT2
                 Platform::Sleep(static_cast<uint32_t>(sleepTimeSec * 1000.f));
                 if (shouldDraw && IsOfflineFastForward())
                 {
-                    _backgroundWorker.dispatchCompleted();
-                    ContextHandleInput();
-                    UpdateVariableFrameMode();
-                    WindowUpdateAll();
-                    if (_benchmarkPhase == IntegratedBenchmarkPhase::measurement)
-                        _benchmarkUiFrames++;
+                    UpdateUi();
                     Draw();
                 }
                 return;
@@ -1720,13 +1705,7 @@ namespace OpenRCT2
                     break;
             }
 
-            _backgroundWorker.dispatchCompleted();
-
-            ContextHandleInput();
-            UpdateVariableFrameMode();
-            WindowUpdateAll();
-            if (_benchmarkPhase == IntegratedBenchmarkPhase::measurement)
-                _benchmarkUiFrames++;
+            UpdateUi();
 
             // Leaving Turbo on a throttled non-draw frame does not need an immediate full paint. The next outer iteration
             // runs variable mode, whose unthrottled cadence presents the authoritative state with current interpolation.
@@ -1742,9 +1721,7 @@ namespace OpenRCT2
 
             auto& tweener = EntityTweener::Get();
 
-            _uiContext->ProcessMessages();
-            if (_benchmarkPhase == IntegratedBenchmarkPhase::measurement)
-                _benchmarkMessagePumps++;
+            ProcessMessages();
 
             bool restoredTweenState = false;
             while (_ticksAccumulator >= kGameUpdateTimeMS)
@@ -1795,13 +1772,7 @@ namespace OpenRCT2
                 }
             }
 
-            _backgroundWorker.dispatchCompleted();
-
-            ContextHandleInput();
-            const bool useVariableFrame = UpdateVariableFrameMode();
-            WindowUpdateAll();
-            if (_benchmarkPhase == IntegratedBenchmarkPhase::measurement)
-                _benchmarkUiFrames++;
+            const bool useVariableFrame = UpdateUi();
 
             if (shouldDraw)
             {
@@ -1841,28 +1812,24 @@ namespace OpenRCT2
                 _nextDrawDeadline = {};
             }
 
-            if (_benchmarkPhase != IntegratedBenchmarkPhase::measurement)
-            {
-                _drawingEngine->BeginDraw();
-                _painter->Paint(*_drawingEngine);
-                _drawingEngine->EndDraw();
-                return;
-            }
-
-            const auto benchmarkStart = drawStart;
-            if (_benchmarkPreviousDrawStart != IntegratedBenchmarkClock::time_point{})
+            const bool measuring = _benchmarkPhase == IntegratedBenchmarkPhase::measurement;
+            if (measuring && _benchmarkPreviousDrawStart != IntegratedBenchmarkClock::time_point{})
             {
                 _benchmarkFrameIntervalsMilliseconds.push_back(
-                    std::chrono::duration<double, std::milli>(benchmarkStart - _benchmarkPreviousDrawStart).count());
+                    std::chrono::duration<double, std::milli>(drawStart - _benchmarkPreviousDrawStart).count());
             }
-            _benchmarkPreviousDrawStart = benchmarkStart;
+            if (measuring)
+                _benchmarkPreviousDrawStart = drawStart;
 
             _drawingEngine->BeginDraw();
             _painter->Paint(*_drawingEngine);
             _drawingEngine->EndDraw();
+            if (!measuring)
+                return;
+
             _benchmarkTotals.draws++;
             _benchmarkTotals.drawSeconds +=
-                std::chrono::duration<double>(IntegratedBenchmarkClock::now() - benchmarkStart).count();
+                std::chrono::duration<double>(IntegratedBenchmarkClock::now() - drawStart).count();
             _drawingEngine->TakeCompletedFrameTimings(_benchmarkRendererTimingScratch);
             AddIntegratedBenchmarkRendererTimings(_benchmarkRendererTimingScratch);
             _benchmarkRendererTimingScratch.clear();
@@ -2073,9 +2040,7 @@ namespace OpenRCT2
                     std::chrono::duration<double>(yieldStart - _simulationSliceStart).count());
             }
 
-            _uiContext->ProcessMessages();
-            if (_benchmarkPhase == IntegratedBenchmarkPhase::measurement)
-                _benchmarkMessagePumps++;
+            ProcessMessages();
             _backgroundWorker.dispatchCompleted();
             ContextHandleInput();
             WindowUpdateAll();

@@ -191,35 +191,6 @@ namespace OpenRCT2
             ReadWriteLegacyValue(cs, value, version, WriteLegacyParkMoney64, ReadLegacyParkMoney64);
         }
 
-        static money64 ReadLegacyScenarioObjectiveCurrency(Scenario::ObjectiveType type, money64 value)
-        {
-            return Scenario::ObjectiveNeedsMoney(type) ? ReadLegacyParkMoney64(value) : value;
-        }
-
-        static void ReadWriteScenarioObjectiveCurrency(
-            OrcaStream::ChunkStream& cs, Scenario::Objective& objective, uint32_t version)
-        {
-            const auto type = objective.Type;
-            ReadWriteLegacyValue(
-                cs, objective.Currency, version,
-                [type](money64 value) {
-                    return Scenario::ObjectiveNeedsMoney(type) ? WriteLegacyParkMoney64(value) : value;
-                },
-                [type](money64 value) { return ReadLegacyScenarioObjectiveCurrency(type, value); });
-        }
-
-        static void ReadWriteScenarioCompanyValue(OrcaStream::ChunkStream& cs, money64& value, uint32_t version)
-        {
-            ReadWriteLegacyValue(
-                cs, value, version,
-                [](money64 current) {
-                    return current == kCompanyValueOnFailedObjective ? current : WriteLegacyParkMoney64(current);
-                },
-                [](money64 stored) {
-                    return stored == kCompanyValueOnFailedObjective ? stored : ReadLegacyParkMoney64(stored);
-                });
-        }
-
         static void MigrateLegacyRideLength(OrcaStream::ChunkStream& cs, int32_t& length, uint32_t version)
         {
             if (cs.getMode() == OrcaStream::Mode::reading && version < kRideLengthScaleVersion)
@@ -545,7 +516,8 @@ namespace OpenRCT2
                     money64 objectiveCurrency{};
                     cs.readWrite(objectiveCurrency);
                     entry.ObjectiveArg2 = version < kCentMoneyVersion
-                        ? ReadLegacyScenarioObjectiveCurrency(entry.ObjectiveType, objectiveCurrency)
+                        && Scenario::ObjectiveNeedsMoney(entry.ObjectiveType)
+                        ? ReadLegacyParkMoney64(objectiveCurrency)
                         : objectiveCurrency;
 
                     entry.SourceGame = ScenarioSource::Other;
@@ -800,11 +772,26 @@ namespace OpenRCT2
                 cs.readWrite(gameState.scenarioOptions.objective.Type);
                 cs.readWrite(gameState.scenarioOptions.objective.Year);
                 cs.readWrite(gameState.scenarioOptions.objective.NumGuests);
-                ReadWriteScenarioObjectiveCurrency(cs, gameState.scenarioOptions.objective, os.getHeader().targetVersion);
+                const auto objectiveType = gameState.scenarioOptions.objective.Type;
+                ReadWriteLegacyValue(
+                    cs, gameState.scenarioOptions.objective.Currency, os.getHeader().targetVersion,
+                    [objectiveType](money64 value) {
+                        return Scenario::ObjectiveNeedsMoney(objectiveType) ? WriteLegacyParkMoney64(value) : value;
+                    },
+                    [objectiveType](money64 value) {
+                        return Scenario::ObjectiveNeedsMoney(objectiveType) ? ReadLegacyParkMoney64(value) : value;
+                    });
 
                 cs.readWrite(gameState.scenarioParkRatingWarningDays);
 
-                ReadWriteScenarioCompanyValue(cs, gameState.scenarioCompletedCompanyValue, os.getHeader().targetVersion);
+                ReadWriteLegacyValue(
+                    cs, gameState.scenarioCompletedCompanyValue, os.getHeader().targetVersion,
+                    [](money64 value) {
+                        return value == kCompanyValueOnFailedObjective ? value : WriteLegacyParkMoney64(value);
+                    },
+                    [](money64 value) {
+                        return value == kCompanyValueOnFailedObjective ? value : ReadLegacyParkMoney64(value);
+                    });
                 if (gameState.scenarioCompletedCompanyValue == kMoney64Undefined
                     || gameState.scenarioCompletedCompanyValue == kCompanyValueOnFailedObjective)
                 {

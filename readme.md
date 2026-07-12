@@ -16,6 +16,8 @@
 
 This repository is a fork built for my personal use. It is not the official OpenRCT2 project, and it intentionally changes some core gameplay and economy behaviour.
 
+> **Save compatibility warning:** Saves created or resaved with this fork are not backward compatible with the main OpenRCT2 executable. Keep separate backup copies before opening a park in this fork.
+
 If you are looking for normal OpenRCT2, the correct upstream repository is [OpenRCT2/OpenRCT2](https://github.com/OpenRCT2/OpenRCT2), and the official downloads are at [openrct2.io](https://openrct2.io). You should use those unless you are specifically after this personal mod fork.
 
 Although this fork is built for my own use, I hope parts of it may prove useful to other modders, or even as ideas that can be adapted back into core OpenRCT2. The original OpenRCT2 licence still applies; see [licence.txt](licence.txt).
@@ -26,237 +28,83 @@ The rest of this README still includes the upstream OpenRCT2 project information
 
 ### Park audio is world-space and surround-aware
 
-Ride music, vehicle noise, crashes, and other world effects are now positioned from their three-dimensional distance and direction relative to an elevated virtual camera. Its height comes from the isometric viewport's visible ground footprint, so zooming toward an area makes focused sources louder and horizontally remote sources comparatively fainter. Object height matters, and continuous source-class curves replace screen cutoffs and fixed distance rings: coaster and rider sounds remain local, while amplified ride music carries much farther across the park. Visible crowds form a diffuse directional field rather than one global front-channel loop.
-
-Moving vehicles and camera motion also produce a smoothed, bounded Doppler shift from their relative radial movement. The mixer prefers 48 kHz 7.1 output and falls back to stereo when the selected device cannot provide it. It mixes into a floating-point bus with headroom and peak limiting, stores thousands of channels, uses planar AVX2 mixing with scalar fallback, prioritizes up to 2,048 vehicle emitters, and keeps ride music to the strongest 64 sources so distant music remains present without becoming an indistinct wall of songs. Crashed rides can finish the active music track rather than losing it on the next tick.
+Ride music, vehicles, crashes, and crowds are heard from their position in the park. Distance, direction, height, zoom, and movement shape the mix, so nearby coaster sounds stay local while amplified music carries farther. Surround output and Doppler effects make busy parks easier to read by ear without turning every sound into one undifferentiated wall of noise.
 
 More detail, including Logitech GHub setup and the exact channel layout: [Spatial audio overhaul](docs/spatial-audio-overhaul.md).
 
 ### Ride stats are sampled from actual rides
 
-Excitement, intensity, and nausea are no longer meant to be mostly post-processed from a ride-wide recipe. For aggregate-rated rides, the mod samples the ride while it is testing and while guests actually ride it, adding raw stat contributions from velocity, G-forces, track pieces, shelter, nearby scenery, paths, nearby rides, and synchronized operation.
-
-The reason for this change is to make ratings feel more like a property of the trip the guest experienced. A coaster that is twice as long should collect roughly twice as much raw rating material, but the final displayed score should have diminishing returns rather than doubling outright.
-
-Current balancing uses a square-root finalizer, roughly `sqrt(raw / 1000) * 100`. Train ticks average the contribution of every vehicle on the train, then completed rider, train, and test-run samples are kept in a rolling cache of the last twenty samples. On rides with multiple stations, those samples are published for the physical directed station-to-station leg that was actually travelled; the measurements tab can select every observed origin/destination pair instead of presenting a misleading full-track circuit. Speed and the five G-force extrema belong to the selected leg, while ride time and length remain global instead of being duplicated in both sections. Transport legs retain their time and distance because transport rides do not show the global construction summary. The ride-list compatibility value is not replaced until every station has supplied at least one outbound leg. G-force scoring uses smooth curves informed by the original ride-wide thresholds: 0G airtime is fun, negative G and high positive G become harsher, and lateral G grows the fastest so a brief high-speed unbanked turn can matter more than a longer mild turn. Decoration excitement is scaled by vehicle speed, so slow rides do not inflate their scenery stats simply by lingering near the same objects. Decoration visibility also depends on the ride type: fully enclosed shows receive no outside-decoration bonus, partly visible enclosed rides receive reduced bonuses, and mazes now treat their walls as sight blockers while still allowing tall or elevated objects to be seen over them. Aggregate-rated rides with no samples display zero aggregate stats instead of hidden base ratings. Mazes are handled the same way: they gain stats from the paths guests actually walk, not from a flat maze-size bonus.
+Excitement, intensity, and nausea are built from what vehicles and guests actually experience: speed, G-forces, track, shelter, scenery, nearby paths and rides, and synchronized operation. Longer experiences gather more rating material with diminishing returns, while harsh forces and poor decoration remain meaningful. Multi-station rides show measurements for each station-to-station journey instead of pretending every guest rode the full circuit.
 
 More detail: [Ride rating aggregate rationale](docs/ride-rating-aggregate-rationale.md).
 
 ### Transport rides are part of guest routing
 
-Guests now consider railways, monorails, chairlifts, and lifts as complete station-to-station journeys when travelling to a ride, shop, facility, or park exit. A journey through a transport with more than two stations composes the exact measured directed legs between adjacent stops, including their time, distance, comfort, decoration, and fare. Guests can remain aboard through intermediate stations, no longer board a transport merely because it is free, and do not count completing transport as an ordinary attraction visit.
+Guests use railways, monorails, chairlifts, and lifts as part of a journey to rides, shops, facilities, or the park exit. They compare the complete travel time and fare against walking, can remain aboard through intermediate stations, and value transport by distance, speed, comfort, and decoration. Rain makes a useful sheltered journey more attractive.
 
-Route choice compares milliseconds of walking with walking to a station, expected queue and all onboard segment times, and the remaining walk. Free, Discount, and Fair pricing use progressively stricter time thresholds; rain triggers a new comparison and favours the measured sheltered portion of the selected station-to-station journey. Extortive service is a last-resort connection only when neither walking nor non-extortive transport works. Park exits and all ride/facility entrance targets share this destination-routing path. Journey value is led by segment distance, then modified by actual average speed, distance-weighted G-force comfort, and sampled decoration quality; the measurements tab displays those service stats and the income tab exposes the four proportional fare policies.
-
-Rail transport stations also use a visible second-stage queue. After a train physically clears the station, up to one actual
-consist-load of guests leaves the external queue and waits at car/seat-aligned platform positions. They retain FIFO order,
-bind only after an arriving train has unloaded and exposed a real empty seat, and pay only at that point. Through-riders take
-their seats first; excess staged guests remain for the next service. Miniature Railway, Monorail, and Suspended Monorail use
-this system now, and Chairlift uses its native two-seat loading positions with the same visible staging contract. Lift retains
-just-in-time boarding because its waypoint cabin does not expose a trustworthy platform-clear event. Roller-coaster stations
-with visible platforms, scalar car loading positions, and entrance/exit openings on opposite lateral sides also stage exactly
-one stopped train's capacity, reusing the same consist sizing and seat positions. Same-side coaster stations retain ordinary
-queue boarding; transportation rides are unaffected. On multi-train circuits, only the train currently published at the station
-owns and remaps the platform queue; an arriving follower takes ownership only after the previous train releases the station.
-Staged guests cross the entrance opening first and then follow the car-aligned loading line inside the platform fence.
-When a follower arrives, the front train stops accepting new seat bindings, finishes guests already walking to it, and departs;
-inactive paired-seat ids from prior riders cannot trap either train at the station.
-Transport route choice, pricing, and crowding rules remain transport-only. Arrival-time
-seat-plan refreshes recognise the train already selected by a staged guest, so through-rider remapping cannot incorrectly send
-transport or coaster guests back out of the station. Arrival-time remapping also shares the same seat-binding handshake from the
-platform approach and wait states, so an empty train cannot finish its dwell while its assigned guest walks back to a shifted
-marker. Seat availability follows the vehicle's active passenger/reservation count rather than stale ids intentionally retained
-outside that prefix during unloading, so both coasters and transports can refill normally after their first trip.
-
-The transport service and platform implementation has also been tightened around explicit ownership. Ride mutation points mark
-cached services dirty instead of every route query re-hashing all rides and measured legs. Vehicle configuration owns consist
-shape, platform capture owns wait geometry, and save loading is the validation boundary; normal boarding trusts those invariants
-instead of maintaining a duplicate consist description and many silent recovery branches.
+Transport stations visibly stage the next trainload of guests along the platform instead of hiding everyone in the entrance queue. Supported coaster stations can do the same when their entrance and exit geometry gives guests a sensible route across the platform.
 
 More detail: [Transport ride routing rationale](docs/transport-ride-routing-rationale.md).
 
-### Performance work is measured against EverythingPark
+### Turbo mode stays smooth and responsive
 
-Turbo's `320` simulation ticks per second require a `3.125 ms` tick budget, so this fork now separates actual TPS from
-rendered FPS and includes a warmed CLI benchmark with latency percentiles and profiler export. Guest pathfinding caches stable
-path adjacency and thin-junction classification by edited map chunk; exact ordinary layouts avoid repeated neighbouring-tile
-scans while unusual or preview-affected layouts retain the original live fallback. Vehicle updates reuse matching ride and
-loaded vehicle-object pointers only for the lifetime of one synchronous train-head update, and typed entity iteration avoids
-reacquiring global state for every list element.
+Fast simulation no longer makes presentation and input wait behind long batches of game updates. The park, mouse, windows, and controls remain responsive at Turbo speed, while Vulkan is the preferred accelerated renderer for this fork.
 
-Guests walking to park exits and resolved ride or facility entrances also share deterministic reverse route fields built
-from exact path topology. Fields build in parallel from a main-thread snapshot and publish in stable target order. Live
-banners, queue ownership, junction history, transport policy, and other guest-specific decisions still gate each proposed
-step, with the bounded heuristic retained whenever a field is missing, stale, inexact, or unsuitable. Two repeated
-EverythingPark runs at the shared-field checkpoint reached 241.767 and 241.871 TPS. After the station-less facility fast path
-and live-rating eligibility gate, two runs reached 254.297 and 256.592 TPS. The exact directed-leg/save/cache checkpoint
-measured 251.729 and 251.123 TPS. After the reviewed upstream integration and hot-path cleanup, two runs reached 261.961 and
-263.398 TPS with matching `72638ee2...` checksums. The next locality pass found that the ride-context hash had shifted both
-tile coordinates out of its final value, turning the shared cache into progressively longer collision chains. A corrected hash
-and a bounded 262,144-entry four-way cache, together with route-field invalidation separation and smaller scheduler/routing
-amortizations, raise the standard 2,000-warmup/2,000-measurement window to 418.561 and 412.871 TPS with matching
-`0ed4276c...` checksums and 2.197/2.212 ms medians. That is about 2.5 times the original 165.895-TPS baseline and clears the
-320-TPS budget by roughly 30%. The later train-boundary/locality checkpoint raised two standard 500-tick measurements to
-493.690 and 494.169 TPS. After compacting the exact shared rating-cache payload and removing disabled profiler guards from
-the hottest guest helpers, the first validation reached 506.430 TPS after the standard 2,000-tick warm-up and 324.470 TPS
-after 4,000 ticks. Replacing allocator-scattered typed entity lists with compact membership bitsets and adding an exact
-train-local G-force score memo raises the current windows to 508.030 and 351.296 TPS. Two repeated 8,000-warm-up
-population-pressure windows with 16,104 starting guests reach 326.643 and 324.363 TPS with the same deterministic checksum.
-The final exact-distance, crowding, rating, and scheduler integration pass is followed by the platform-seat,
-visual-invalidation, and speed-transition cleanup. Two repeated 2,000-warm-up windows reach 590.596 and 588.405 TPS with the
-same `6088da79...` checksum. Two repeated 8,000-warm-up windows reach 382.847 and 403.916 TPS with the same `405ee291...`
-checksum and identical state snapshots, clearing the Turbo 320 target by more than 19% in the late live-park state. The
-benchmark prints population, route-cache footprint, and first/last-quarter tick means, so the later live-park cost is visible
-instead of being hidden by the headline result. The detailed performance plan records full latency, checksums, rejected cache
-sizes, and profiler breakdown.
-
-The Vulkan renderer remains gated while it grows toward visual parity. It now executes the complete indexed line, opaque,
-masked, remapped, transparency/blend, and ordered rain/snow command stream before final palette presentation. Swapchain
-selection can prefer a 10-bit HDR10 BT.2020/PQ output with an SDR-preserving paper-white mapping and falls back to the
-ordinary SDR path when the display or driver does not expose a compatible format. HDR10 is explicitly opt-in in the Vulkan
-display options, and compatible drivers receive D65/paper-white mastering metadata when `VK_EXT_hdr_metadata` is available.
-The direct drawing context records GPU commands into a generation-aware persistent atlas without routine full-frame upload or
-readback. It deliberately performs complete redraws instead of advertising the legacy dirty-region `CopyRect` optimisation, and
-its synchronous indexed screenshot adapter is implemented. Deterministic line coverage, device-loss recovery, and interactive
-visual SDR/HDR parity still block normal user selection.
-
-An opt-in Vulkan validation engine now exercises palette, resize, VSync, presentation, and fence-backed asynchronous indexed
-readback across the normal factory/window lifecycle. The direct path uses non-blocking frame acquisition, safely abandons
-incomplete swapchain frames, and moves first-use pixels through self-contained command streams rather than caller-owned upload
-ring offsets. Stable allocation identities and residency leases prevent an atlas slot from being recycled while a sealed frame
-still references it. LightFX carries immutable palette/intensity snapshots and compact clipped-light commands, with the exact
-legacy mix performed before SDR/HDR encoding. The fully gated direct path now performs the intensity raster in a capability-
-checked Vulkan atomic compute pass; unsupported devices retain the CPU intensity path, and interactive GPU/CPU visual parity
-remains a release gate. The validation bridge still uploads the authoritative X8 canvas once per frame and
-therefore remains excluded from performance acceptance; the direct path already submits through a newest-frame worker mailbox.
-Per-frame-slot Vulkan timestamp pools now report fence-complete total GPU time plus upload, indexed-draw, LightFX, and final
-composition segments to the integrated benchmark without waiting or reading query data on the hot rendering caller. Explicit
-start/end boundaries drain the render-worker mailbox and GPU outside the measured interval, preventing warm-up and in-flight tail
-samples from crossing phases; present-call time is reported separately from total CPU submission/presentation work.
-On Windows, the renderer creates its Win32 Vulkan surface from the SDL-owned native window because the bundled static SDL lacks
-Vulkan WSI hooks; Linux and macOS continue through SDL Vulkan. The hidden Win32 lifecycle fixture passes on the real GPU with
-the Khronos validation layer enabled. Cold startup applies and verifies a complete exclusive display mode before Vulkan surface
-creation, then initialises the swapchain from the actual window size. Exclusive mode remains strict: a rejected mode is logged and
-shown as an error, with orderly shutdown, rather than silently changing to borderless, windowed, or another renderer. Zero-area
-fallback sprites retain the software renderer's no-op semantics instead of becoming invalid GPU-atlas allocations during the
-first park draw.
-
-The full hidden EverythingPark benchmark measures the real paint/presentation path instead of inferring renderer cost from the
-headless simulation. Its first throughput-oriented matrix deliberately limited Turbo to about 13.4 FPS and reached 318.324 TPS
-for software, 318.323 for OpenGL, and 318.400 for Vulkan; the equivalent Vulkan/VSync row was 316.830 TPS at 13.334 FPS. That
-throttle is gone. Turbo now yields between completed logical ticks, follows SDL's current display refresh rate on an anchored
-deadline, and keeps messages, mouse/window input, UI updates, painting, and Vulkan presentation moving independently of the
-eight-update 40 Hz simulation batch. Vulkan VSync prefers MAILBOX presentation so stale queued images are replaced rather than
-shown later. Two warmed 144 Hz EverythingPark runs both produced 144.018 FPS, with 264.897/265.265 logical TPS, 156-159 message
-pumps per second, roughly 7.1 ms median frame intervals, and maxima below 11.4 ms. The lower TPS is the explicit cost of spending
-about a quarter of wall time on smooth presentation instead of only 67 paints in five seconds. The benchmark now reports cadence
-percentiles and longest UI-bounded simulation slices as well as average TPS/FPS; it defaults to a hidden window and provides
-the optional `--benchmark-visible` compositor/playability row. Renderer and VSync overrides are
-process-local, and startup/finish drains keep warm-up
-GPU work out of the measured interval.
-
-More detail: [EverythingPark 320 TPS refactor plan](docs/performance-320-tps-refactor-plan.md),
-[Path topology cache](docs/path-topology-cache.md), [Shared destination route fields](docs/shared-route-fields.md),
-[Vulkan renderer migration](docs/vulkan-renderer-migration.md), and the reviewed
-[upstream merge manifest](docs/upstream-merge-manifest.md).
+More detail: [Performance and rendering plan](docs/performance-320-tps-refactor-plan.md) and [Vulkan renderer migration](docs/vulkan-renderer-migration.md).
 
 ### Guest growth is regulated by happiness instead of a soft cap
 
-Normal guest generation no longer directly slows down just because the park has passed a suggested guest maximum. Park rating is now calculated smoothly from the average of guest happiness and guest happiness target, so long queues, crowded paths, bad pricing, litter, nausea, and similar problems reduce future demand through guest experience.
-
-The reason for this change is to make park population pressure emerge from the simulation. A successful park should attract more guests, but if the park cannot absorb them, the resulting crowding and unhappiness should naturally pull the rating and arrival rate down.
-
-Current balancing treats park rating `700` as the healthy baseline, doubles or halves guest generation for roughly every 100 rating points above or below that, then scales arrivals by `sqrt(parkValue / 40000)`. That means high-rating parks can accelerate hard, low-rating parks crater, and larger parks still attract more guests with diminishing returns. Small parks with any positive value keep a tiny non-zero generation chance instead of rounding down to nothing.
+Guest arrivals respond to park value and the happiness the park actually sustains instead of slowing down at an arbitrary population limit. Successful parks can grow quickly, while crowding, long queues, litter, poor pricing, and unmet needs naturally reduce demand.
 
 More detail: [Guest generation and park rating rationale](docs/guest-generation-rating-rationale.md).
 
 ### Nausea is treated as an active guest need
 
-Guest nausea is no longer only a hidden post-ride value that occasionally produces vomiting or a thought. Sick guests begin responding earlier, with first-aid interest starting at the sick threshold and the visible sick face/animation following one point later.
-
-The reason for this change is to make nausea legible as a condition the park can manage. Very full guests now gain more ride nausea across the whole hunger bar, sick guests will commute farther to first aid as their nausea gets worse, and guests already heading to first aid will not abandon that intent just because they are briefly calm enough to sit down.
-
-Current balancing starts first-aid interest at nausea `128`, scales first-aid search from one tile at that threshold to 128 tiles at maximum nausea, and keeps first-aid use valid once a guest has committed to the clinic.
+Nausea is a condition the park can actively manage. Full guests are more vulnerable to sickening rides, increasingly ill guests will travel farther for first aid, and guests already seeking treatment remain committed to reaching it.
 
 More detail: [OpenRCT2 overhaul changelog](docs/openrct2-overhaul-changelog.md).
 
 ### Guests try to recover onto nearby paths
 
-Guests that end up off a footpath no longer rely purely on random grass wandering. When standing on a surface tile, they first look for a reachable footpath within three tiles and step toward the nearest one they can access.
-
-The reason for this change is to make off-path behavior look less broken. If a guest is only a tile or two away from the path network, they should usually try to rejoin it instead of meandering deeper into the park lawn.
-
-Current balancing keeps this intentionally local: the search radius is three tiles, it respects walls, blocked surfaces, water, ownership, and height differences, and the original random wandering remains the fallback when no nearby path is reachable.
+Guests who end up off a footpath try to rejoin a nearby reachable path before wandering at random. Walls, water, ownership, blocked surfaces, and height still constrain where they can recover.
 
 More detail: [Guest surface path rejoin rationale](docs/guest-surface-path-rejoin-rationale.md).
 
 ### Mowed grass matters as decoration
 
-Mowed grass now counts as nearby decoration for ride scenery checks, per-tick ride context, maze path samples, and guest scenery impressions.
-
-The reason for this change is to give groundskeeper mowing a real gameplay purpose. A tidy lawn beside a ride or path should make the area feel more cared for, rather than being purely visual.
-
-Current balancing treats each growable mowed-grass tile as one lightweight decoration item. Grass that is merely short, growing, clumped, underwater, non-grass terrain, or ghosted does not count.
+Mowed grass counts as light decoration for rides, mazes, and guest scenery impressions. Groundskeeper mowing therefore has a real gameplay purpose: a tidy lawn beside a ride or path makes the area feel more cared for.
 
 More detail: [Mowed grass decoration rationale](docs/mowed-grass-decoration-rationale.md).
 
 ### Money uses cent precision
 
-Runtime money now uses `$0.01` precision instead of the old `$0.10` precision. This affects ride prices, guest cash, park finances, scenario money, save data, replay compatibility paths, and money formatting.
-
-The reason for this change is partly practical and partly balance-related. The pricing changes need smaller increments than ten cents, and the game had several legacy tables and import paths that would become ten times too small if their old tenth-based values were treated as cents without conversion.
-
-Current balancing keeps legacy authored values compatible by converting old tenth-based money at runtime boundaries. Ride price buttons still step by `$0.10` for convenience, but typed prices and commands can use exact cent values. Target-pricing margins currently use `$0.05` minimums.
+Money uses one-cent precision, allowing finer prices and more exact economic balancing. Ordinary price buttons still use convenient ten-cent steps, while typed values can use exact cents.
 
 More detail: [Money cent precision rationale](docs/money-cent-precision-rationale.md).
 
 ### Time measurements use real 40 TPS conversions
 
-Real-time displays and real-time gameplay settings now use `40` game ticks per second as the canonical clock. Seconds, minutes, hours, and bought advertising weeks are no longer allowed to silently use legacy `32` TPS shortcuts, `2048`-tick pseudo-minutes, calendar-day queue approximations, unrelated "per hour" denominators, or the old inflated ride-length scale.
-
-The reason for this change is to make the same time word mean the same thing across ride duration, station waiting time, queue time, customer and income rates, air time, inspection time, running costs, loan interest, marketing weeks, guest time in park, and speed-versus-length reporting.
-
-Current balancing keeps the existing RCT operating calendar for months and monthly finance periods, but real-time conversions go through explicit helpers. A week is seven calendar days when a feature is actually sold or graphed as weeks. Ride length is now corrected at the stored stat level to match the horizontal scale implied by park area and vehicle speed, while height-scale inconsistencies are documented as future work.
+Seconds, minutes, hours, and weeks use consistent real-time conversions across ride duration, queue time, station waits, inspections, marketing, finances, and guest statistics. Ride length also matches the scale implied by park distance and vehicle speed.
 
 More detail: [Time measurement fix ledger](docs/time-measurement-fix-ledger.md).
 
 ### Ride admission is target-based and globally toned down
 
-Normal ride admission pricing is no longer just a direct price field. Rides can target one of three value bands: discount, fair price, or expensive. Prices are recalculated from the ride's current value after ratings update.
-
-The reason for this change is to make ride pricing easier to manage while making money less automatic. In vanilla-style play it is easy to push strong rides to the `$20.00` cap; this fork tries to keep profitable pricing possible while lowering the ceiling on effortless income.
-
-Current balancing applies a 70% global scale to automatic ride prices before the normal cap. The guest-side discount, expensive, and refusal thresholds use the same 70% scale, so pricing targets and guest reactions stay aligned. A `$10.00` guest-facing ride value is treated as `$7.00` for those thresholds.
+Rides can target discount, fair, or expensive admission bands and automatically follow their changing value. Guest reactions use the same value scale, making pricing easier to manage while reducing effortless high-margin income.
 
 More detail: [Ride pricing target rationale](docs/ride-pricing-target-rationale.md).
 
 ### New ride ticket-price bonus is proportional again
 
-New rides once again get their early ticket-price value bonus as a multiplier instead of a flat amount. Rides under five months old receive a `1.5x` value multiplier, and rides under thirteen months old receive a `1.2x` value multiplier before normal age decay and same-type competition penalties apply.
+New rides receive a proportional early-life value bonus rather than a flat addition. The freshness bonus therefore remains meaningful for both modest and high-value rides without disproportionately rewarding weak attractions.
 
-The reason for this change is to keep the new-ride bonus proportional to the ride itself. A flat bonus over-rewards weak low-value rides and barely matters for strong high-value rides, while the multiplier keeps the bonus readable across the full ride-value range.
-
-Current balancing restores the older OpenRCT2 multiplier behaviour after upstream reverted the table to vanilla-style `+30` and `+10` flat bonuses in September 2025. The restored behaviour is covered by `RideRatings.NewRideValueBonusUsesMultiplier`.
+More detail: [Ride pricing target rationale](docs/ride-pricing-target-rationale.md).
 
 ### Park entrance pricing is policy-based
 
-Park entrance admission now has three visible policies. `Richest guest` charges up to the richest guest spawn-cash amount and maximizes income per admitted guest. `Max profit` searches the scenario's guest cash distribution for the fee that maximizes total admission revenue after unaffordable guests leave. `All guests` stays affordable to the poorest spawning guest and is the default.
-
-The reason for this change is to make the entrance fee a clear strategic choice rather than a single magic number. A park can chase high margin, high total gate income, or universal affordability.
-
-Current balancing applies the same 70% value debuff used by ride admission pricing before entrance caps are applied. That means a park needs more ride value before it can justify the same gate fee, and high-value parks hit the maximum entrance fee later.
+Park entrance admission has three clear policies: maximize income per admitted guest, maximize total gate profit, or remain affordable to every arriving guest. This turns the entrance fee into a visible strategic choice rather than a single magic number.
 
 More detail: [Park entrance pricing target rationale](docs/park-entrance-pricing-target-rationale.md).
-
-### Save compatibility is intentionally fork-private
-
-This fork uses a private `.park` save-version band starting at `60000` for its custom fields, rather than taking upstream OpenRCT2's latest save version and adding one.
-
-The reason for this change is future-proofing. Upstream OpenRCT2 will keep advancing its own save format, and I may want to fetch those changes later. Using a private high-numbered band reduces the chance that an upstream save-version bump is mistaken for this fork's custom ride pricing, cent-money, or park entrance data.
-
-Current compatibility should be treated as mod-specific. Saves from this fork may not load correctly in official OpenRCT2, and official future saves may need merge work if upstream changes the same systems.
-
-More detail: [OpenRCT2 overhaul changelog](docs/openrct2-overhaul-changelog.md).
 
 ---
 

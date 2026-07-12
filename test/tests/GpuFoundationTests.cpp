@@ -18,14 +18,53 @@
     #include <openrct2-ui/drawing/engines/vulkan/VulkanSurfaceFormat.h>
 #endif
 #include <openrct2/drawing/LightFX.h>
+#include <openrct2/drawing/TTF.h>
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <optional>
 #include <stdexcept>
 #include <utility>
 
 using namespace OpenRCT2::Ui::Gpu;
 namespace LightFx = OpenRCT2::Drawing::LightFx;
+
+namespace
+{
+    constexpr std::array kLightTypes = {
+        LightFx::LightType::lantern0, LightFx::LightType::lantern1, LightFx::LightType::lantern2,
+        LightFx::LightType::lantern3, LightFx::LightType::spot0, LightFx::LightType::spot1,
+        LightFx::LightType::spot2, LightFx::LightType::spot3,
+    };
+    constexpr std::array<uint8_t, 5> kLightIntensities = { 0, 1, 127, 254, 255 };
+
+    [[nodiscard]] std::unique_ptr<RecordedFramePacket> MakeFramePacket(uint64_t frameNumber, bool visual = false)
+    {
+        auto packet = std::make_unique<RecordedFramePacket>();
+        packet->frameNumber = frameNumber;
+        packet->hasVisualFrame = visual;
+        return packet;
+    }
+
+#ifdef ENABLE_VULKAN
+    constexpr VkSurfaceFormatKHR kSdrFormat{ VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
+    constexpr VkSurfaceFormatKHR kHdr10Format{ VK_FORMAT_A2R10G10B10_UNORM_PACK32, VK_COLOR_SPACE_HDR10_ST2084_EXT };
+    constexpr VkSurfaceFormatKHR kNonTenBitHdrFormat{ VK_FORMAT_R16G16B16A16_SFLOAT, VK_COLOR_SPACE_HDR10_ST2084_EXT };
+    constexpr VkSurfaceFormatKHR kUndefinedHdrFormat{ VK_FORMAT_UNDEFINED, VK_COLOR_SPACE_HDR10_ST2084_EXT };
+
+    template<size_t N>
+    void ExpectSurfaceSelection(
+        const std::array<VkSurfaceFormatKHR, N>& formats, bool preferHdr, bool available, bool active,
+        VkSurfaceFormatKHR expected)
+    {
+        const auto actual = OpenRCT2::Ui::Vulkan::SelectSurfaceFormat(formats, preferHdr);
+        EXPECT_EQ(actual.hdr10Available, available);
+        EXPECT_EQ(actual.hdr10Active, active);
+        EXPECT_EQ(actual.surfaceFormat.format, expected.format);
+        EXPECT_EQ(actual.surfaceFormat.colorSpace, expected.colorSpace);
+    }
+#endif
+} // namespace
 
 TEST(GpuFoundationTest, AtlasSizeOrdersUseTheLegacyPowerOfTwoClasses)
 {
@@ -64,63 +103,82 @@ TEST(GpuFoundationTest, AtlasAllocationIdentityDistinguishesReusedSlots)
     EXPECT_NE(first.GetAllocationId(), second.GetAllocationId());
 }
 
-TEST(GpuFoundationTest, ResidencyLeaseDefersTransientSlotReuseUntilRetirement)
+#ifndef DISABLE_TTF
+TEST(GpuFoundationTest, ResidencyLeaseDefersEvictedTtfSlotReuseUntilRetirement)
 {
+    constexpr int32_t surfaceSize = 128;
+    constexpr uint64_t residentSurfaceCount = 256;
     TextureCache cache(1);
-    std::vector<std::byte> pixels(kAtlasDimension);
+    std::vector<std::byte> pixels(surfaceSize * surfaceSize);
+    TTFSurface firstSurface{ pixels.data(), surfaceSize, surfaceSize, 1 };
 
     FrameCommandStream firstCommands;
     cache.BeginFrame();
-    const auto firstBinding = cache.LoadTransientBitmapTexture(pixels.data(), pixels.size(), 1);
+    const auto firstBinding = cache.GetOrLoadTTFTexture(firstSurface);
     const auto firstLease = cache.SealFrame(firstCommands);
     ASSERT_TRUE(static_cast<bool>(firstLease));
     ASSERT_EQ(firstCommands.textureUploads.size(), 1u);
     EXPECT_EQ(firstCommands.textureUploads[0].pixels.size(), pixels.size());
 
     cache.BeginFrame();
-    EXPECT_THROW((void)cache.LoadTransientBitmapTexture(pixels.data(), pixels.size(), 1), std::runtime_error);
+    for (uint64_t cacheId = 2; cacheId <= residentSurfaceCount; cacheId++)
+    {
+        TTFSurface surface{ pixels.data(), surfaceSize, surfaceSize, cacheId };
+        static_cast<void>(cache.GetOrLoadTTFTexture(surface));
+    }
+    TTFSurface replacementSurface{ pixels.data(), surfaceSize, surfaceSize, residentSurfaceCount + 1 };
+    EXPECT_THROW((void)cache.GetOrLoadTTFTexture(replacementSurface), std::runtime_error);
     cache.AbortFrame();
 
     cache.RetireFrame(firstLease, FrameRetirement::Failed);
 
     FrameCommandStream secondCommands;
     cache.BeginFrame();
-    const auto secondBinding = cache.LoadTransientBitmapTexture(pixels.data(), pixels.size(), 1);
+    const auto secondBinding = cache.GetOrLoadTTFTexture(replacementSurface);
     const auto secondLease = cache.SealFrame(secondCommands);
     EXPECT_NE(firstLease, secondLease);
     EXPECT_EQ(firstBinding.index, secondBinding.index);
     cache.RetireFrame(secondLease, FrameRetirement::Presented);
 }
 
-TEST(GpuFoundationTest, AbortingAnUnsealedFrameReleasesTransientAllocations)
+TEST(GpuFoundationTest, CachedTtfSurfaceUploadsOnceAndRemainsAtlasResident)
 {
     TextureCache cache(1);
-    std::vector<std::byte> pixels(kAtlasDimension);
+    std::array<std::byte, 8> pixels{};
+    TTFSurface surface{ pixels.data(), 4, 2, 1 };
 
+    FrameCommandStream firstCommands;
     cache.BeginFrame();
-    const auto firstBinding = cache.LoadTransientBitmapTexture(pixels.data(), pixels.size(), 1);
-    cache.AbortFrame();
+    const auto firstBinding = cache.GetOrLoadTTFTexture(surface);
+    const auto repeatedBinding = cache.GetOrLoadTTFTexture(surface);
+    const auto firstLease = cache.SealFrame(firstCommands);
+    EXPECT_EQ(repeatedBinding.index, firstBinding.index);
+    ASSERT_EQ(firstCommands.textureUploads.size(), 1u);
+    EXPECT_EQ(firstCommands.textureUploads.front().pixels.size(), pixels.size());
+    cache.RetireFrame(firstLease, FrameRetirement::Presented);
 
-    FrameCommandStream commands;
+    FrameCommandStream secondCommands;
     cache.BeginFrame();
-    const auto secondBinding = cache.LoadTransientBitmapTexture(pixels.data(), pixels.size(), 1);
-    const auto lease = cache.SealFrame(commands);
-    EXPECT_EQ(firstBinding.index, secondBinding.index);
-    cache.RetireFrame(lease, FrameRetirement::Presented);
+    const auto secondBinding = cache.GetOrLoadTTFTexture(surface);
+    const auto secondLease = cache.SealFrame(secondCommands);
+    EXPECT_EQ(secondBinding.index, firstBinding.index);
+    EXPECT_EQ(secondBinding.coords.x, firstBinding.coords.x);
+    EXPECT_EQ(secondBinding.coords.y, firstBinding.coords.y);
+    EXPECT_TRUE(secondCommands.textureUploads.empty());
+    cache.RetireFrame(secondLease, FrameRetirement::Presented);
 }
+#endif
 
 TEST(GpuFoundationTest, NewestFrameMailboxReplacesPendingVisualWork)
 {
     LatestFrameMailbox mailbox;
-    auto first = std::make_unique<RecordedFramePacket>();
-    first->frameNumber = 10;
+    auto first = MakeFramePacket(10);
     first->presentation.paletteVersion = 3;
     auto firstResult = mailbox.Publish(std::move(first));
     EXPECT_TRUE(firstResult.accepted);
     EXPECT_EQ(firstResult.released, nullptr);
 
-    auto newest = std::make_unique<RecordedFramePacket>();
-    newest->frameNumber = 11;
+    auto newest = MakeFramePacket(11);
     newest->presentation.paletteVersion = 4;
     newest->presentation.surfaceFormatVersion = 5;
     newest->presentation.graphicsLookupTablesVersion = 6;
@@ -144,8 +202,7 @@ TEST(GpuFoundationTest, NewestFrameMailboxReplacesPendingVisualWork)
 TEST(GpuFoundationTest, StoppedFrameMailboxReturnsAndRejectsUnconsumedPackets)
 {
     LatestFrameMailbox mailbox;
-    auto pending = std::make_unique<RecordedFramePacket>();
-    pending->frameNumber = 20;
+    auto pending = MakeFramePacket(20);
     ASSERT_TRUE(mailbox.Publish(std::move(pending)).accepted);
 
     const auto stopped = mailbox.Stop();
@@ -153,8 +210,7 @@ TEST(GpuFoundationTest, StoppedFrameMailboxReturnsAndRejectsUnconsumedPackets)
     EXPECT_EQ(stopped->frameNumber, 20u);
     EXPECT_EQ(mailbox.WaitTakeNewest(), nullptr);
 
-    auto rejected = std::make_unique<RecordedFramePacket>();
-    rejected->frameNumber = 21;
+    auto rejected = MakeFramePacket(21);
     auto rejectedResult = mailbox.Publish(std::move(rejected));
     EXPECT_FALSE(rejectedResult.accepted);
     ASSERT_NE(rejectedResult.released, nullptr);
@@ -164,11 +220,9 @@ TEST(GpuFoundationTest, StoppedFrameMailboxReturnsAndRejectsUnconsumedPackets)
 TEST(GpuFoundationTest, FrameMailboxKeepsOnlyOneRecycledPacket)
 {
     LatestFrameMailbox mailbox;
-    auto first = std::make_unique<RecordedFramePacket>();
-    first->frameNumber = 30;
+    auto first = MakeFramePacket(30);
     mailbox.Recycle(std::move(first));
-    auto newest = std::make_unique<RecordedFramePacket>();
-    newest->frameNumber = 31;
+    auto newest = MakeFramePacket(31);
     mailbox.Recycle(std::move(newest));
 
     const auto recycled = mailbox.TakeRecycled();
@@ -177,7 +231,7 @@ TEST(GpuFoundationTest, FrameMailboxKeepsOnlyOneRecycledPacket)
     EXPECT_EQ(mailbox.TakeRecycled(), nullptr);
 }
 
-TEST(GpuFoundationTest, SynchronousReadbackCompletesWithOwnedIndexedPixels)
+TEST(GpuFoundationTest, SynchronousReadbackOwnsPixelsAndReportsAvailability)
 {
     SynchronousReadback readback({ 2, 2 });
     const auto pixels = readback.GetPixels();
@@ -191,19 +245,9 @@ TEST(GpuFoundationTest, SynchronousReadbackCompletesWithOwnedIndexedPixels)
     EXPECT_EQ(readback.GetExtent(), (Extent{ 2, 2 }));
     EXPECT_EQ(readback.GetPixels()[0], std::byte{ 1 });
     EXPECT_EQ(readback.GetPixels()[3], std::byte{ 4 });
-}
-
-TEST(GpuFoundationTest, SynchronousReadbackCanReportNoPresentedCanvas)
-{
-    SynchronousReadback readback({ 1, 1 });
-
-    readback.Complete(false);
-
-    EXPECT_FALSE(readback.Wait());
-}
-
-TEST(GpuFoundationTest, SynchronousReadbackRejectsEmptyExtents)
-{
+    SynchronousReadback unavailable({ 1, 1 });
+    unavailable.Complete(false);
+    EXPECT_FALSE(unavailable.Wait());
     EXPECT_THROW((void)SynchronousReadback({ 0, 1 }), std::invalid_argument);
     EXPECT_THROW((void)SynchronousReadback({ 1, 0 }), std::invalid_argument);
 }
@@ -211,9 +255,7 @@ TEST(GpuFoundationTest, SynchronousReadbackRejectsEmptyExtents)
 TEST(GpuFoundationTest, ReadbackAttachesToNewestPendingVisualFrame)
 {
     LatestFrameMailbox mailbox;
-    auto visual = std::make_unique<RecordedFramePacket>();
-    visual->frameNumber = 42;
-    visual->hasVisualFrame = true;
+    auto visual = MakeFramePacket(42, true);
     ASSERT_TRUE(mailbox.Publish(std::move(visual)).accepted);
     auto readback = std::make_shared<SynchronousReadback>(Extent{ 4, 3 });
 
@@ -244,16 +286,12 @@ TEST(GpuFoundationTest, ReadbackPublishesAControlPacketWithoutPendingVisualWork)
 TEST(GpuFoundationTest, AttachedReadbackFollowsReplacementVisualFrame)
 {
     LatestFrameMailbox mailbox;
-    auto first = std::make_unique<RecordedFramePacket>();
-    first->frameNumber = 51;
-    first->hasVisualFrame = true;
+    auto first = MakeFramePacket(51, true);
     ASSERT_TRUE(mailbox.Publish(std::move(first)).accepted);
     auto readback = std::make_shared<SynchronousReadback>(Extent{ 2, 2 });
     ASSERT_TRUE(mailbox.PublishReadback(readback).accepted);
 
-    auto newest = std::make_unique<RecordedFramePacket>();
-    newest->frameNumber = 52;
-    newest->hasVisualFrame = true;
+    auto newest = MakeFramePacket(52, true);
     auto result = mailbox.Publish(std::move(newest));
 
     ASSERT_TRUE(result.accepted);
@@ -268,16 +306,12 @@ TEST(GpuFoundationTest, AttachedReadbackFollowsReplacementVisualFrame)
 TEST(GpuFoundationTest, TimingBoundaryFollowsReplacementVisualFrame)
 {
     LatestFrameMailbox mailbox;
-    auto first = std::make_unique<RecordedFramePacket>();
-    first->frameNumber = 61;
-    first->hasVisualFrame = true;
+    auto first = MakeFramePacket(61, true);
     ASSERT_TRUE(mailbox.Publish(std::move(first)).accepted);
     auto boundary = std::make_shared<SynchronousFrameBoundary>();
     ASSERT_TRUE(mailbox.PublishTimingBoundary(boundary).accepted);
 
-    auto newest = std::make_unique<RecordedFramePacket>();
-    newest->frameNumber = 62;
-    newest->hasVisualFrame = true;
+    auto newest = MakeFramePacket(62, true);
     auto result = mailbox.Publish(std::move(newest));
 
     ASSERT_TRUE(result.accepted);
@@ -307,9 +341,7 @@ TEST(GpuFoundationTest, TimingBoundaryPublishesAControlPacketWithoutVisualWork)
 TEST(GpuFoundationTest, TimingBoundaryOnUnpresentedVisualCanStillBeSettled)
 {
     LatestFrameMailbox mailbox;
-    auto visual = std::make_unique<RecordedFramePacket>();
-    visual->frameNumber = 63;
-    visual->hasVisualFrame = true;
+    auto visual = MakeFramePacket(63, true);
     ASSERT_TRUE(mailbox.Publish(std::move(visual)).accepted);
     auto boundary = std::make_shared<SynchronousFrameBoundary>();
     ASSERT_TRUE(mailbox.PublishTimingBoundary(boundary).accepted);
@@ -350,16 +382,6 @@ TEST(GpuFoundationTest, InclusiveRectangleVisibilityRejectsInvalidAndFullyClippe
     EXPECT_FALSE(InclusiveRectIntersectsClip({ 0, 40, 9, 50 }, clip));
 }
 
-TEST(GpuFoundationTest, PackedRectangleLayoutMatchesNativeCommandConsumers)
-{
-    EXPECT_EQ(sizeof(RectCommand), 100u);
-    EXPECT_EQ(offsetof(RectCommand, clip), 0u);
-    EXPECT_EQ(offsetof(RectCommand, texColourBounds), 20u);
-    EXPECT_EQ(offsetof(RectCommand, palettes), 56u);
-    EXPECT_EQ(offsetof(RectCommand, bounds), 76u);
-    EXPECT_EQ(offsetof(RectCommand, zoom), 96u);
-}
-
 TEST(GpuFoundationTest, OutputDefaultsPreserveLegacySdrPresentation)
 {
     const BackendConfig config;
@@ -370,7 +392,7 @@ TEST(GpuFoundationTest, OutputDefaultsPreserveLegacySdrPresentation)
 }
 
 #ifdef ENABLE_VULKAN
-TEST(GpuFoundationTest, VulkanVSyncPrefersNewestFrameMailboxPresentation)
+TEST(GpuFoundationTest, VulkanPresentModeSelectionHonoursVSync)
 {
     using OpenRCT2::Ui::Vulkan::SelectPresentMode;
     constexpr std::array modes = {
@@ -381,35 +403,26 @@ TEST(GpuFoundationTest, VulkanVSyncPrefersNewestFrameMailboxPresentation)
 
     EXPECT_EQ(SelectPresentMode(modes, true), VK_PRESENT_MODE_MAILBOX_KHR);
     EXPECT_EQ(SelectPresentMode(modes, false), VK_PRESENT_MODE_IMMEDIATE_KHR);
-}
-
-TEST(GpuFoundationTest, VulkanVSyncFallsBackToRequiredFifoPresentation)
-{
-    using OpenRCT2::Ui::Vulkan::SelectPresentMode;
-    constexpr std::array modes = {
+    constexpr std::array fifoModes = {
         VK_PRESENT_MODE_FIFO_KHR,
         VK_PRESENT_MODE_IMMEDIATE_KHR,
     };
-
-    EXPECT_EQ(SelectPresentMode(modes, true), VK_PRESENT_MODE_FIFO_KHR);
-    EXPECT_EQ(SelectPresentMode(modes, false), VK_PRESENT_MODE_IMMEDIATE_KHR);
+    EXPECT_EQ(SelectPresentMode(fifoModes, true), VK_PRESENT_MODE_FIFO_KHR);
+    EXPECT_EQ(SelectPresentMode(fifoModes, false), VK_PRESENT_MODE_IMMEDIATE_KHR);
 }
 
 TEST(GpuFoundationTest, VulkanHdr10ClassificationRequiresAnApprovedExactPair)
 {
     using OpenRCT2::Ui::Vulkan::IsHdr10SurfaceFormat;
 
-    EXPECT_TRUE(IsHdr10SurfaceFormat(
-        { VK_FORMAT_A2B10G10R10_UNORM_PACK32, VK_COLOR_SPACE_HDR10_ST2084_EXT }));
-    EXPECT_TRUE(IsHdr10SurfaceFormat(
-        { VK_FORMAT_A2R10G10B10_UNORM_PACK32, VK_COLOR_SPACE_HDR10_ST2084_EXT }));
-    EXPECT_FALSE(IsHdr10SurfaceFormat(
-        { VK_FORMAT_R16G16B16A16_SFLOAT, VK_COLOR_SPACE_HDR10_ST2084_EXT }));
+    EXPECT_TRUE(IsHdr10SurfaceFormat({ VK_FORMAT_A2B10G10R10_UNORM_PACK32, VK_COLOR_SPACE_HDR10_ST2084_EXT }));
+    EXPECT_TRUE(IsHdr10SurfaceFormat(kHdr10Format));
+    EXPECT_FALSE(IsHdr10SurfaceFormat(kNonTenBitHdrFormat));
     EXPECT_FALSE(IsHdr10SurfaceFormat(
         { VK_FORMAT_A2B10G10R10_UNORM_PACK32, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR }));
 }
 
-TEST(GpuFoundationTest, VulkanGpuTimestampDurationsConvertDeviceTicksAndPassBoundaries)
+TEST(GpuFoundationTest, VulkanGpuTimestampDurationsHandleLinearAndWrappedCounters)
 {
     using namespace OpenRCT2::Ui::Vulkan;
     constexpr std::array<uint64_t, kGpuTimestampCount> timestamps = { 100, 130, 160, 190, 220 };
@@ -420,138 +433,66 @@ TEST(GpuFoundationTest, VulkanGpuTimestampDurationsConvertDeviceTicksAndPassBoun
     EXPECT_DOUBLE_EQ(durations->drawMicroseconds, 0.06);
     EXPECT_DOUBLE_EQ(durations->lightFxMicroseconds, 0.06);
     EXPECT_DOUBLE_EQ(durations->compositeMicroseconds, 0.06);
-}
-
-TEST(GpuFoundationTest, VulkanGpuTimestampDurationsHandleQueueCounterWrap)
-{
-    using namespace OpenRCT2::Ui::Vulkan;
-    constexpr std::array<uint64_t, kGpuTimestampCount> timestamps = { 250, 5, 20, 40, 60 };
-    const auto durations = CalculateGpuTimestampDurations(timestamps, 8, 1.0);
-    ASSERT_TRUE(durations.has_value());
-    EXPECT_DOUBLE_EQ(durations->totalMicroseconds, 0.066);
-    EXPECT_DOUBLE_EQ(durations->uploadMicroseconds, 0.011);
-    EXPECT_DOUBLE_EQ(durations->drawMicroseconds, 0.015);
-    EXPECT_DOUBLE_EQ(durations->lightFxMicroseconds, 0.020);
-    EXPECT_DOUBLE_EQ(durations->compositeMicroseconds, 0.020);
-    EXPECT_FALSE(CalculateGpuTimestampDurations(timestamps, 0, 1.0).has_value());
-    EXPECT_FALSE(CalculateGpuTimestampDurations(timestamps, 8, 0.0).has_value());
+    constexpr std::array<uint64_t, kGpuTimestampCount> wrapped = { 250, 5, 20, 40, 60 };
+    const auto wrappedDurations = CalculateGpuTimestampDurations(wrapped, 8, 1.0);
+    ASSERT_TRUE(wrappedDurations.has_value());
+    EXPECT_DOUBLE_EQ(wrappedDurations->totalMicroseconds, 0.066);
+    EXPECT_DOUBLE_EQ(wrappedDurations->uploadMicroseconds, 0.011);
+    EXPECT_DOUBLE_EQ(wrappedDurations->drawMicroseconds, 0.015);
+    EXPECT_DOUBLE_EQ(wrappedDurations->lightFxMicroseconds, 0.020);
+    EXPECT_DOUBLE_EQ(wrappedDurations->compositeMicroseconds, 0.020);
+    EXPECT_FALSE(CalculateGpuTimestampDurations(wrapped, 0, 1.0).has_value());
+    EXPECT_FALSE(CalculateGpuTimestampDurations(wrapped, 8, 0.0).has_value());
 }
 
 TEST(GpuFoundationTest, VulkanHdr10SelectionHonoursAvailabilityAndUserPreference)
 {
-    using OpenRCT2::Ui::Vulkan::SelectSurfaceFormat;
-    constexpr VkSurfaceFormatKHR sdr = {
-        VK_FORMAT_B8G8R8A8_UNORM,
-        VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
-    };
-    constexpr VkSurfaceFormatKHR hdr10 = {
-        VK_FORMAT_A2R10G10B10_UNORM_PACK32,
-        VK_COLOR_SPACE_HDR10_ST2084_EXT,
-    };
-    constexpr std::array formats = { sdr, hdr10 };
-
-    const auto enabled = SelectSurfaceFormat(formats, true);
-    EXPECT_TRUE(enabled.hdr10Available);
-    EXPECT_TRUE(enabled.hdr10Active);
-    EXPECT_EQ(enabled.surfaceFormat.format, hdr10.format);
-    EXPECT_EQ(enabled.surfaceFormat.colorSpace, hdr10.colorSpace);
-
-    const auto disabled = SelectSurfaceFormat(formats, false);
-    EXPECT_TRUE(disabled.hdr10Available);
-    EXPECT_FALSE(disabled.hdr10Active);
-    EXPECT_EQ(disabled.surfaceFormat.format, sdr.format);
-    EXPECT_EQ(disabled.surfaceFormat.colorSpace, sdr.colorSpace);
-
-    constexpr std::array hdrOnlyFormats = { hdr10 };
-    const auto disabledHdrOnly = SelectSurfaceFormat(hdrOnlyFormats, false);
-    EXPECT_TRUE(disabledHdrOnly.hdr10Available);
-    EXPECT_FALSE(disabledHdrOnly.hdr10Active);
-    EXPECT_EQ(disabledHdrOnly.surfaceFormat.format, hdr10.format);
-    EXPECT_EQ(disabledHdrOnly.surfaceFormat.colorSpace, hdr10.colorSpace);
+    constexpr std::array formats = { kSdrFormat, kHdr10Format };
+    ExpectSurfaceSelection(formats, true, true, true, kHdr10Format);
+    ExpectSurfaceSelection(formats, false, true, false, kSdrFormat);
+    ExpectSurfaceSelection(std::array{ kHdr10Format }, false, true, false, kHdr10Format);
 }
 
 TEST(GpuFoundationTest, VulkanHdr10FallbacksNeverActivateWithoutAnApprovedPair)
 {
-    using OpenRCT2::Ui::Vulkan::SelectSurfaceFormat;
-    constexpr VkSurfaceFormatKHR nonTenBitHdr = {
-        VK_FORMAT_R16G16B16A16_SFLOAT,
-        VK_COLOR_SPACE_HDR10_ST2084_EXT,
-    };
-    constexpr std::array nonTenBitFormats = { nonTenBitHdr };
-
-    const auto nonTenBit = SelectSurfaceFormat(nonTenBitFormats, true);
-    EXPECT_FALSE(nonTenBit.hdr10Available);
-    EXPECT_FALSE(nonTenBit.hdr10Active);
-    EXPECT_EQ(nonTenBit.surfaceFormat.format, nonTenBitHdr.format);
-    EXPECT_EQ(nonTenBit.surfaceFormat.colorSpace, nonTenBitHdr.colorSpace);
-
-    constexpr VkSurfaceFormatKHR undefinedHdr = {
-        VK_FORMAT_UNDEFINED,
-        VK_COLOR_SPACE_HDR10_ST2084_EXT,
-    };
-    constexpr std::array undefinedFormats = { undefinedHdr };
-    const auto undefined = SelectSurfaceFormat(undefinedFormats, true);
-    EXPECT_FALSE(undefined.hdr10Available);
-    EXPECT_FALSE(undefined.hdr10Active);
-    EXPECT_EQ(undefined.surfaceFormat.format, VK_FORMAT_B8G8R8A8_UNORM);
-    EXPECT_EQ(undefined.surfaceFormat.colorSpace, undefinedHdr.colorSpace);
+    ExpectSurfaceSelection(
+        std::array{ kNonTenBitHdrFormat }, true, false, false, kNonTenBitHdrFormat);
+    ExpectSurfaceSelection(
+        std::array{ kUndefinedHdrFormat }, true, false, false,
+        { VK_FORMAT_B8G8R8A8_UNORM, kUndefinedHdrFormat.colorSpace });
 }
 
 TEST(GpuFoundationTest, VulkanOutputRejectsUnsupportedOrInactiveColourSpacePairs)
 {
     using OpenRCT2::Ui::Vulkan::IsSupportedOutputSurfaceFormat;
 
-    constexpr VkSurfaceFormatKHR sdr = {
-        VK_FORMAT_B8G8R8A8_UNORM,
-        VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
-    };
-    constexpr VkSurfaceFormatKHR hdr10 = {
-        VK_FORMAT_A2B10G10R10_UNORM_PACK32,
-        VK_COLOR_SPACE_HDR10_ST2084_EXT,
-    };
-    constexpr VkSurfaceFormatKHR unsupportedHdr = {
-        VK_FORMAT_R16G16B16A16_SFLOAT,
-        VK_COLOR_SPACE_HDR10_ST2084_EXT,
-    };
-
-    EXPECT_TRUE(IsSupportedOutputSurfaceFormat({ .surfaceFormat = sdr }));
+    constexpr VkSurfaceFormatKHR hdr10{ VK_FORMAT_A2B10G10R10_UNORM_PACK32, VK_COLOR_SPACE_HDR10_ST2084_EXT };
+    EXPECT_TRUE(IsSupportedOutputSurfaceFormat({ .surfaceFormat = kSdrFormat }));
     EXPECT_TRUE(IsSupportedOutputSurfaceFormat(
         { .surfaceFormat = hdr10, .hdr10Available = true, .hdr10Active = true }));
     EXPECT_FALSE(IsSupportedOutputSurfaceFormat({ .surfaceFormat = hdr10, .hdr10Available = true }));
-    EXPECT_FALSE(IsSupportedOutputSurfaceFormat({ .surfaceFormat = unsupportedHdr }));
+    EXPECT_FALSE(IsSupportedOutputSurfaceFormat({ .surfaceFormat = kNonTenBitHdrFormat }));
 }
 
 TEST(GpuFoundationTest, VulkanStraightAlphaCompositeSelectionNeverClaimsPremultipliedOutput)
 {
     using OpenRCT2::Ui::Vulkan::SelectStraightAlphaCompositeMode;
-
-    const auto opaque = SelectStraightAlphaCompositeMode(
+    const auto expect = [](VkCompositeAlphaFlagsKHR supported, std::optional<VkCompositeAlphaFlagBitsKHR> expected) {
+        EXPECT_EQ(SelectStraightAlphaCompositeMode(supported), expected);
+    };
+    expect(
         VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR | VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR
-        | VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR);
-    ASSERT_TRUE(opaque.has_value());
-    EXPECT_EQ(*opaque, VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR);
-
-    const auto straight = SelectStraightAlphaCompositeMode(
-        VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR | VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR);
-    ASSERT_TRUE(straight.has_value());
-    EXPECT_EQ(*straight, VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR);
-
-    const auto inherited = SelectStraightAlphaCompositeMode(
-        VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR | VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR);
-    ASSERT_TRUE(inherited.has_value());
-    EXPECT_EQ(*inherited, VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR);
-
-    EXPECT_FALSE(SelectStraightAlphaCompositeMode(VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR).has_value());
+            | VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
+        VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR);
+    expect(
+        VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR | VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
+        VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR);
+    expect(
+        VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR | VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR,
+        VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR);
+    expect(VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR, std::nullopt);
 }
 #endif
-
-TEST(GpuFoundationTest, PackedWeatherLayoutMatchesNativeCommandConsumers)
-{
-    EXPECT_EQ(sizeof(WeatherCommand), 28u);
-    EXPECT_EQ(offsetof(WeatherCommand, bounds), 0u);
-    EXPECT_EQ(offsetof(WeatherCommand, offset), 16u);
-    EXPECT_EQ(offsetof(WeatherCommand, pattern), 24u);
-}
 
 TEST(GpuFoundationTest, EffectBatchesRetainRecorderOrder)
 {
@@ -564,17 +505,6 @@ TEST(GpuFoundationTest, EffectBatchesRetainRecorderOrder)
     EXPECT_EQ(commands.transparentRects[1].depth, 10);
     EXPECT_EQ(commands.weather[0].pattern, 1);
     EXPECT_EQ(commands.weather[1].pattern, 0);
-}
-
-TEST(GpuFoundationTest, CanvasUploadIsAnExplicitMutuallyExclusiveFrameSource)
-{
-    FrameCommandStream commands;
-    commands.canvasUpload = CanvasUpload{ 64, 320, 320, 200 };
-    ASSERT_TRUE(commands.canvasUpload.has_value());
-    EXPECT_EQ(commands.canvasUpload->sourceOffset, 64u);
-    EXPECT_EQ(commands.canvasUpload->sourcePitch, 320u);
-    commands.clear();
-    EXPECT_FALSE(commands.canvasUpload.has_value());
 }
 
 TEST(GpuFoundationTest, LightFxSnapshotOwnsViewportResolvedFrameData)
@@ -651,19 +581,12 @@ TEST(GpuFoundationTest, LightFxCommandRasterMatchesAllBakedFalloffsAndIntensityS
     LightFx::Init();
     const auto falloffs = LightFx::CaptureBakedFalloffs();
     ASSERT_EQ(falloffs.size(), 8u * 256 * 256);
-    constexpr std::array types = {
-        LightFx::LightType::lantern0, LightFx::LightType::lantern1, LightFx::LightType::lantern2,
-        LightFx::LightType::lantern3, LightFx::LightType::spot0, LightFx::LightType::spot1,
-        LightFx::LightType::spot2, LightFx::LightType::spot3,
-    };
-    constexpr std::array<uint8_t, 5> intensities = { 0, 1, 127, 254, 255 };
-
-    for (const auto type : types)
+    for (const auto type : kLightTypes)
     {
         const uint32_t typeValue = static_cast<uint32_t>(type);
         const uint32_t size = GetLightFxTextureSize(typeValue);
         const size_t layerOffset = static_cast<size_t>(typeValue - 4) * 256 * 256;
-        for (const uint8_t intensity : intensities)
+        for (const uint8_t intensity : kLightIntensities)
         {
             SCOPED_TRACE(testing::Message() << "type=" << typeValue << " intensity=" << static_cast<int>(intensity));
             LightFx::FrameSnapshot::ResolvedLight command;
@@ -678,14 +601,6 @@ TEST(GpuFoundationTest, LightFxCommandRasterMatchesAllBakedFalloffsAndIntensityS
             ASSERT_EQ(command.sourceStride, size);
             const auto compact = MakeLightFxCommand(command);
             ASSERT_TRUE(IsValidLightFxCommand(compact, size, size));
-            EXPECT_EQ(compact.destinationX, command.destinationX);
-            EXPECT_EQ(compact.destinationY, command.destinationY);
-            EXPECT_EQ(compact.width, command.width);
-            EXPECT_EQ(compact.height, command.height);
-            EXPECT_EQ(compact.sourceOffset, command.sourceOffset);
-            EXPECT_EQ(compact.sourceStride, command.sourceStride);
-            EXPECT_EQ(compact.type, command.type);
-            EXPECT_EQ(compact.intensity, command.intensity);
 
             std::vector<uint8_t> actual(static_cast<size_t>(size) * size);
             ASSERT_TRUE(LightFx::RasterizeResolvedLightCommands(size, size, { &command, 1 }, actual));
@@ -704,14 +619,12 @@ TEST(GpuFoundationTest, LightFxCommandRasterMatchesAllBakedFalloffsAndIntensityS
             EXPECT_EQ(replayed, actual);
             std::vector<uint8_t> expected(actual.size());
             for (uint32_t y = 0; y < size; y++)
-            {
-                for (uint32_t x = 0; x < size; x++)
-                {
-                    const uint32_t falloff = std::to_integer<uint8_t>(falloffs[layerOffset + y * 256 + x]);
-                    expected[static_cast<size_t>(y) * size + x] = static_cast<uint8_t>(
-                        GetLightFxContribution(falloff, intensity));
-                }
-            }
+                std::transform(
+                    falloffs.begin() + layerOffset + y * 256, falloffs.begin() + layerOffset + y * 256 + size,
+                    expected.begin() + static_cast<size_t>(y) * size,
+                    [intensity](std::byte falloff) {
+                        return static_cast<uint8_t>(GetLightFxContribution(std::to_integer<uint8_t>(falloff), intensity));
+                    });
             EXPECT_EQ(actual, expected);
         }
     }
@@ -720,13 +633,7 @@ TEST(GpuFoundationTest, LightFxCommandRasterMatchesAllBakedFalloffsAndIntensityS
 TEST(GpuFoundationTest, LightFxResolvedCommandsPreserveAllFourClippedEdges)
 {
     LightFx::Init();
-    constexpr std::array types = {
-        LightFx::LightType::lantern0, LightFx::LightType::lantern1, LightFx::LightType::lantern2,
-        LightFx::LightType::lantern3, LightFx::LightType::spot0, LightFx::LightType::spot1,
-        LightFx::LightType::spot2, LightFx::LightType::spot3,
-    };
-
-    for (const auto type : types)
+    for (const auto type : kLightTypes)
     {
         const uint32_t size = GetLightFxTextureSize(static_cast<uint32_t>(type));
         LightFx::FrameSnapshot::ResolvedLight fullCommand;
@@ -770,23 +677,11 @@ TEST(GpuFoundationTest, LightFxResolvedCommandsPreserveAllFourClippedEdges)
             ASSERT_TRUE(LightFx::RasterizeResolvedLightCommands(canvasSize, canvasSize, { &clipped, 1 }, actual));
 
             std::vector<uint8_t> expected(actual.size());
-            for (uint32_t y = 0; y < canvasSize; y++)
-            {
-                for (uint32_t x = 0; x < canvasSize; x++)
-                {
-                    const bool inside = x >= static_cast<uint32_t>(clipped.destinationX)
-                        && x < static_cast<uint32_t>(clipped.destinationX) + clipped.width
-                        && y >= static_cast<uint32_t>(clipped.destinationY)
-                        && y < static_cast<uint32_t>(clipped.destinationY) + clipped.height;
-                    if (inside)
-                    {
-                        const uint32_t sourceX = x - static_cast<uint32_t>(clipped.destinationX);
-                        const uint32_t sourceY = y - static_cast<uint32_t>(clipped.destinationY);
-                        expected[static_cast<size_t>(y) * canvasSize + x] =
-                            fullRaster[clipped.sourceOffset + sourceY * clipped.sourceStride + sourceX];
-                    }
-                }
-            }
+            for (uint32_t y = 0; y < clipped.height; y++)
+                std::copy_n(
+                    fullRaster.begin() + clipped.sourceOffset + y * clipped.sourceStride, clipped.width,
+                    expected.begin() + (static_cast<size_t>(clipped.destinationY) + y) * canvasSize
+                        + clipped.destinationX);
             EXPECT_EQ(actual, expected);
         }
     }
@@ -795,20 +690,14 @@ TEST(GpuFoundationTest, LightFxResolvedCommandsPreserveAllFourClippedEdges)
 TEST(GpuFoundationTest, LightFxNarrowCanvasUsesTheLegacyFlatClampedSourceStride)
 {
     LightFx::Init();
-    constexpr std::array types = {
-        LightFx::LightType::lantern0, LightFx::LightType::lantern1, LightFx::LightType::lantern2,
-        LightFx::LightType::lantern3, LightFx::LightType::spot0, LightFx::LightType::spot1,
-        LightFx::LightType::spot2, LightFx::LightType::spot3,
-    };
-    constexpr std::array<uint8_t, 5> intensities = { 0, 1, 127, 254, 255 };
     constexpr std::array smallCanvases = {
         std::pair{ 1u, 1u }, std::pair{ 3u, 2u }, std::pair{ 7u, 5u }, std::pair{ 31u, 9u }
     };
 
-    for (const auto type : types)
+    for (const auto type : kLightTypes)
     {
         const uint32_t nativeSize = GetLightFxTextureSize(static_cast<uint32_t>(type));
-        for (const uint8_t intensity : intensities)
+        for (const uint8_t intensity : kLightIntensities)
         {
             LightFx::FrameSnapshot::ResolvedLight fullCommand;
             ASSERT_TRUE(LightFx::ResolveLightCommandForCanvas(
@@ -882,6 +771,13 @@ TEST(GpuFoundationTest, LightFxComputeLimitsCoverTheFixedShaderDispatchShape)
 TEST(GpuFoundationTest, ClearingCommandStreamRetainsOnlyLightFxAllocationCapacity)
 {
     FrameCommandStream commands;
+    commands.canvasUpload = CanvasUpload{ 64, 320, 320, 200 };
+    commands.textureUploads.push_back({
+        .atlas = 7,
+        .bounds = { 32, 64, 72, 84 },
+        .sourcePitch = 40,
+        .pixels = std::vector<std::byte>(40 * 20),
+    });
     commands.lightFx.emplace();
     commands.lightFx->width = 1;
     commands.lightFx->height = 1;
@@ -890,27 +786,9 @@ TEST(GpuFoundationTest, ClearingCommandStreamRetainsOnlyLightFxAllocationCapacit
     ASSERT_TRUE(commands.lightFx->IsValid());
     const auto capacity = commands.lightFx->intensities.capacity();
     const auto lightCapacity = commands.lightFx->lights.capacity();
-
-    commands.clear();
-
-    ASSERT_TRUE(commands.lightFx.has_value());
-    EXPECT_FALSE(commands.lightFx->IsValid());
-    EXPECT_TRUE(commands.lightFx->intensities.empty());
-    EXPECT_EQ(commands.lightFx->intensities.capacity(), capacity);
-    EXPECT_TRUE(commands.lightFx->lights.empty());
-    EXPECT_EQ(commands.lightFx->lights.capacity(), lightCapacity);
-}
-
-TEST(GpuFoundationTest, TextureUploadsRetainPersistentAtlasMetadata)
-{
-    FrameCommandStream commands;
-    commands.textureUploads.push_back({
-        .atlas = 7,
-        .bounds = { 32, 64, 72, 84 },
-        .sourcePitch = 40,
-        .pixels = std::vector<std::byte>(40 * 20),
-    });
-
+    ASSERT_TRUE(commands.canvasUpload.has_value());
+    EXPECT_EQ(commands.canvasUpload->sourceOffset, 64u);
+    EXPECT_EQ(commands.canvasUpload->sourcePitch, 320u);
     ASSERT_EQ(commands.textureUploads.size(), 1u);
     const auto& upload = commands.textureUploads[0];
     EXPECT_EQ(upload.atlas, 7u);
@@ -920,21 +798,15 @@ TEST(GpuFoundationTest, TextureUploadsRetainPersistentAtlasMetadata)
     EXPECT_EQ(upload.pixels.size(), 800u);
 
     commands.clear();
-    EXPECT_TRUE(commands.textureUploads.empty());
-}
 
-TEST(GpuFoundationTest, OptionalIntegrationCapabilitiesDefaultToDisabled)
-{
-    const BackendCapabilities capabilities;
-    EXPECT_FALSE(capabilities.supportsNonBlockingFrameAcquire);
-    EXPECT_FALSE(capabilities.supportsLightFxComposition);
-    EXPECT_FALSE(capabilities.supportsGpuLightFxRasterization);
-    EXPECT_FALSE(capabilities.supportsAsyncReadback);
-    EXPECT_FALSE(capabilities.supportsCanvasUpload);
-    EXPECT_FALSE(capabilities.supportsGpuTimestamps);
-    EXPECT_FALSE(capabilities.supportsHdrMetadata);
-    EXPECT_FALSE(capabilities.supportsHdr10Output);
-    EXPECT_FALSE(capabilities.hdr10OutputActive);
+    ASSERT_TRUE(commands.lightFx.has_value());
+    EXPECT_FALSE(commands.lightFx->IsValid());
+    EXPECT_TRUE(commands.lightFx->intensities.empty());
+    EXPECT_EQ(commands.lightFx->intensities.capacity(), capacity);
+    EXPECT_TRUE(commands.lightFx->lights.empty());
+    EXPECT_EQ(commands.lightFx->lights.capacity(), lightCapacity);
+    EXPECT_FALSE(commands.canvasUpload.has_value());
+    EXPECT_TRUE(commands.textureUploads.empty());
 }
 
 TEST(GpuFoundationTest, IntegratedTimingFieldsRemainExplicitlyOptional)

@@ -62,6 +62,13 @@ During precipitation, any positive saving is enough for discount and fair servic
 
 The scan is performed only when the guest's concrete destination, precipitation state, path-connectivity epoch, or material transport-crowding generation changes, or when its cached path goal is invalid. The service cache derives that generation once per simulation tick from the actual full-queue-and-full-platform predicate, so ordinary occupancy churn does not start a park-wide guest scan. An uncommitted walker reconsiders when a service becomes available. A committed route checks its own selected boarding station directly and is discarded only if that station is now overcrowded; unrelated station churn cannot make every active transport user change plans. An active route also stores the ride, boarding station, selected destination station, and connectivity epoch that justified it. Path, banner, queue, or entrance edits therefore invalidate a commitment before boarding; derived wide-path maintenance does not, because it cannot create or remove a walking route. An Extortive fare cannot rely on stale “no walking route” evidence. The ride subsystem validates its transient service cache at most once per simulation tick, computes quality once per changed ride, and prebuilds the bounded all-pairs journey table over at most the ride station limit. Boarding/destination lookup is a binary search over that tiny ordered table, allowing unreachable pairs to be omitted without corrupting later indices. Guest-specific walking, queue delay, crowding, vouchers, cash, and fare policy remain live overlays. This keeps normal per-step pathfinding unchanged and makes the extra work proportional to the small cached directed station graph, not repeated segment aggregation or park path tiles. The mature bounded footpath search remains the single walking-direction implementation on either side of the transport journey.
 
+The quality pass tightens those same ownership boundaries. A multi-target lookup reads its topology epoch once, a rebuilt path
+reads slope metadata once, and shop/facility fields avoid an unnecessary node-index search. Station-exit distance is resolved once
+per ride/destination instead of once per boarding/destination pair, and multi-entrance ride selection uses one station traversal.
+Transport journey composition uses fixed scratch arrays sized to the engine station limit, so no heap allocation is needed while
+solving the bounded directed graph. These are cache and traversal changes only; route ordering and deterministic tie behavior are
+unchanged.
+
 Completed physical-leg samples change time, sheltered exposure, quality, and fare inputs, so they dirty the owning service and force validation
 before the next cache view. A dirty measured service remains indexed while its bounded journey table is refreshed. Station
 endpoint references are removed and reinserted only when station count, entrance, exit, direction, ride identity, or
@@ -142,61 +149,60 @@ station, so one station on a multi-station coaster may stage while another does 
 gate and recovers a formerly staged guest through the station exit when the saved coaster layout is ineligible. Supported
 transport stations do not use this gate: their established same-side and opposite-side layouts continue to stage identically.
 
-Platform admission itself is free. The guest repeats current affordability and price eligibility only when it is first in platform order and a real train has finished unloading. Only then does the guest reserve an actual free vehicle seat, pay the current journey fare, publish its complete queue time, and approach the arrived vehicle. If the fare changed beyond its means, it releases the abstract slot and follows the station exit. This avoids refunds and paid-but-never-ridden passengers after closure or consist changes.
+The entrance transition follows the guest's actual platform assignment, not the ride category alone. A same-side coaster guest
+therefore remains on the ordinary train/car/seat reservation path; it cannot enter platform recovery and abandon a live vehicle
+reservation merely because another station or the ride type supports staging.
 
-The train stored in `RideStation::TrainAtStation` is the exclusive owner of the platform boarding plan. Finishing unload does not
-grant ownership: on a busy multi-train circuit, an arriving train may still be behind an under-filled train that owns and is
-loading at the same station. Plan preparation is therefore part of the successful station-publication handoff. An unpublished
-arrival cannot remap staged guests, and a train that has relinquished the station cannot accept a late seat binding. Ownerless
-guests remain in generic platform slots until the next train publishes itself and rebuilds the FIFO seat mapping.
+Platform admission itself is free. Affordability and current price eligibility are checked when a fully unloaded
+train has published itself and the guest is ready to bind. Payment and queue-time publication remain on the established
+successful-entry path. Fare rejection releases the platform assignment and routes the guest through the station exit, avoiding
+refunds and paid-but-never-ridden passengers after closure or configuration changes.
 
-An arriving follower may be physically stationary behind the loading train while still correctly reporting
-`movingToEndOfStation`: vehicle spacing has stopped it before it reaches the station-end state transition. The front train treats
-that status as an arrival before applying empty, minimum-time, or minimum-load waits. If guests are already irrevocably bound,
-their reserved seats continue to hold the train until they physically sit down, but the ready train refuses new platform
-bindings. Its reserved-minus-seated count can therefore only decrease. Unbound staged guests remain FIFO for the follower.
-For a non-block-sectioned circuit, the arrival completes the ordinary dwell timer so the front train moves as soon as its already
-bound guests and restraints are ready. Block-section clearance and adjacent-station synchronization are not bypassed.
+The station assignment is immutable during normal operation. Departure capture creates an ordered set of exact
+`(carIndex, seatIndex, waitPosition)` slots from the stopped consist. Pair-loaded cars contribute one complete pair per pass
+across all cars before any car contributes its next pair; scalar cars contribute one seat per pass. Guests claim those slots in
+that stored order, which spreads a partial cohort along the full train while preserving visible pairs.
+
+`RideStation::TrainAtStation` identifies the only train that may accept those assignments, but publication never rewrites them.
+Finishing unload, arriving behind another train, and changing from platform approach to platform wait cannot alter a staged
+guest's car, seat, or destination. Boarding transfers the exact captured seat to the vehicle and erases that one assignment only
+after binding succeeds.
+
+Transport unloading still compacts through-riders into each car's active prefix. If a continuing rider occupies a staged
+guest's exact seat, that guest remains at the same platform marker for the next train; later guests whose own exact seats are
+available may board. There is deliberately no arrival-time compaction, FIFO remap, second available-seat plan, or parallel
+consumption ledger.
+
+An arriving follower may be physically stationary behind the loading train while still reporting `movingToEndOfStation`.
+Vehicle spacing has stopped it before the station-end transition. The front train treats this as an arrival before applying
+empty, minimum-time, or minimum-load waits. Once ready, it rejects new platform bindings while already bound walkers retain their
+vehicle reservations until seated. For ordinary circuits the arrival completes the dwell signal; block-section clearance,
+adjacent-station synchronization, and restraint safety remain authoritative.
 
 Pair-loaded cars use only the active `next_free_seat` prefix when resolving the adjacent passenger. Inactive array entries may
-still contain ids from prior riders after unloading and are not current partners. A lone bound guest can enter without consulting
-that stale tail, and a later second guest can enter normally when the first partner is already on the ride. This preserves the
-established passenger-array representation without allowing an inactive id to deadlock departure.
+retain ids from previous riders and are not current partners. A lone bound guest can therefore enter without consulting a stale
+tail, and the matching guest can enter normally when the first partner is already seated. A lone tail reservation still unwinds
+when departure closes boarding, allowing `num_peeps` and `next_free_seat` to converge.
 
-The visible walk uses the established two-part station boarding geometry. A staged guest first completes the normal inward
-entrance target at the station-facing edge of the entrance tile (`21` coordinate units, or the existing special full-tile
-offset). Only after reaching that opening does the guest turn toward the car-aligned marker derived from the vehicle loading
-position. Because the marker preserves the entrance's perpendicular platform coordinate, this produces two straight legs through
-the opening and along the inside of the platform rather than a diagonal shortcut across the entrance walls and station fence.
+The visible walk uses the established two-part station geometry. A staged guest first completes the inward entrance target at
+the station-facing edge of the entrance tile, then turns along the car-aligned loading-position line. This keeps the route inside
+the entrance opening and platform fence. Both approach and waiting substates attempt the same exact-seat binding without moving
+the guest back to a different marker.
 
-Guests update before vehicles in each simulation tick, so a waiting guest can select the published train before a lazily
-invalidated boarding plan is rebuilt. That rebuild treats either an unassigned staged guest or a guest assigned to that exact
-train as valid for car/seat remapping. Assignments to any other train remain rejected. This preserves FIFO when through-riders
-shift the free-seat suffix and prevents a stale reservation from being mistaken for a consist mismatch that would send the guest
-out of the station.
-Arrival may also move a guest who was already waiting back into the short platform-approach animation. The approach and wait
-substates therefore call the same binding handshake. On the tick after the vehicle publishes itself at the station, the oldest
-staged guest reserves its remapped real seat immediately instead of waiting to finish walking back to the marker. That reservation
-increments the train's used-seat count, so the established dispatch invariant holds even an otherwise empty train until the guest
-physically boards.
+Ride vehicle configuration remains the sole owner of consist shape. Construction and scripted station or vehicle changes clear
+transient platform state through the existing invalidation lifecycle. Save loading rebuilds each assignment by matching its saved
+car and seat identity against freshly captured geometry, rather than assuming a car-major slot number. Invalid configuration
+recovers through the exit-first path; normal arrival is not an invalidation boundary.
 
-Transport unloading still compacts through-riders to the front of each vehicle first. A staged guest then binds only to the exact
-car and seat shown by its platform reservation; platform boarding no longer calls the ordinary random car chooser or substitutes
-the next seat. Ride vehicle configuration is the sole owner of consist shape, while platform capture stores only the resulting
-seat identities and wait geometry. Changing vehicle type or train length clears the transient platform state through the ride
-construction lifecycle; normal boarding therefore treats a different capacity, invalid car index, missing train entity, or
-impossible seat identity as engine corruption rather than maintaining a second consist signature and a parallel recovery path.
-The reserved seat must still be the vehicle's next contiguous empty seat after the through-rider prefix. A seat claimed by another
-guest leaves the valid reservation staged for the next train instead of consuming the outside queue again. A
-closure, breakdown, fare rejection, or invalid station retains exit-first recovery. Successful guests therefore bind FIFO to
-their visible positions, while the existing `num_peeps == next_free_seat` dispatch invariant keeps the train in the station until
-each assigned walker boards. Maximum-wait, block-section, leave-when-another-arrives, and synchronized-departure rules retain
-their established ownership.
+Successful exact-seat binding increments the vehicle reservation prefix before the guest walks into the car, so the established
+`num_peeps == next_free_seat` dispatch invariant holds the train until every bound walker is seated. All departure settings feed
+one priority decision: incoming train, initial dwell, empty/minimum waits, maximum wait, target load, then ordinary departure.
+Closing boarding prevents new bindings without abandoning existing ones.
 
-The platform queue is one FIFO of reservation-slot indices. Cancelling a reservation invalidates the current boarding plan so
-remaining guests compact onto the train's real free-seat prefix; consuming a reservation into a real seat preserves that plan.
-Guest pickup and deletion release reservations through the common ride-removal lifecycle, and scripted station edits clear the
-transient platform geometry before invalidating the ride's transport service.
+The platform queue is the FIFO collection of assignment objects itself; a guest id and slot index cannot exist in a separate
+occupancy map. Cancelling removes that assignment, while consuming it atomically transfers ownership to the vehicle passenger
+array. Guest pickup and deletion use the same idempotent release method, and scripted station edits clear the transient platform
+geometry before invalidating the ride's transport service.
 
 The fixed vehicle passenger array is not itself an occupancy bitmap. Ordinary alighting decrements `num_peeps` from the end
 without clearing the vacated entry, and transport alighting leaves the compacted through-rider prefix ahead of an inactive tail.
@@ -204,6 +210,11 @@ At platform preparation and boarding, the clamped maximum of `num_peeps` and `ne
 occupied-or-reserved prefix; every later physical seat is reusable even when it contains a persisted old guest id. Availability
 and duplicate checks share that boundary. This preserves the legacy unload representation while preventing an empty post-unload
 train from appearing full or rejecting a returning guest as a duplicate of its inactive prior-trip entry.
+
+Unload completion applies the same invariant per car. Setting `next_free_seat` to zero starts ordinary alighting; it does not mean
+that the car is empty. A train remains in `unloadingPassengers` until each car's `num_peeps` has fallen to its continuing or
+reserved prefix. Only then may it move to the station end and publish itself for boarding. This prevents platform assignments from
+being calculated against seats whose previous occupants are still walking out.
 
 The route-planning overcrowding rule remains transport-only: a new route avoids the station only when both the external queue reports full and the real train-load platform is full. Coasters are not opted into transport routing or fare semantics. Eligible opposite-side roller-coaster stations do use the same physical pre-queue when their station object has a visible platform and their stopped cars expose scalar loading positions. Capacity is therefore exactly one captured train, and same-side stations or unsupported waypoint-loading cars retain just-in-time boarding. Station status displays external queue length separately from `platform occupancy / consist capacity`, and guest status distinguishes walking to and waiting on the platform.
 
@@ -245,9 +256,9 @@ Focused coverage verifies that:
   never overcrowded and unsupported platform adapters retain their conservative capacity fallback; route-level coverage also
   excludes an overcrowded service, retains single-component-full services, refreshes a stale selected route, and ignores unrelated churn;
 - the real rail/Chairlift platform cohort has exact stopped-consist capacity, frees external queue space, waits visibly, and binds
-  each FIFO reservation to its exact car/seat after through-rider compaction, while mismatches requeue without duplicate seat
-  ownership and Lift retains safe JIT boarding; a whole-simulation arrival test additionally proves that a remapped platform guest
-  reserves a stopped train, boards, and prevents that train from departing empty;
+  each fixed reservation to its exact car/seat after through-rider compaction, while an occupied exact seat waits for the next
+  train and Lift retains safe JIT boarding; a whole-simulation arrival test proves that staged assignments remain unchanged through
+  unload, publication, exact-seat binding, and physical boarding;
 - current-version platform state round-trips, while an older target receives a coherent station-exit recovery state;
 - route-planning overcrowding remains transport-only while supported coaster staging is capped to one exact train; and
 - segment distance remains the leading fare input.

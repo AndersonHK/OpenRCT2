@@ -42,6 +42,7 @@ protected:
         context = CreateContext();
         ASSERT_NE(context, nullptr);
         ASSERT_TRUE(context->Initialise());
+        getGameState().entities.ResetAllEntities();
     }
 
     void TearDown() override
@@ -56,7 +57,6 @@ protected:
 TEST_F(EntityImportTests, CreateEntityAtDuplicateIndexReturnsNull)
 {
     auto& gameState = getGameState();
-    gameState.entities.ResetAllEntities();
 
     // Create an entity at index 100
     auto* entity1 = gameState.entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(100));
@@ -68,10 +68,49 @@ TEST_F(EntityImportTests, CreateEntityAtDuplicateIndexReturnsNull)
     EXPECT_EQ(entity2, nullptr);
 }
 
+TEST_F(EntityImportTests, FreeEntityIdsPreserveLowestIdAllocationAndExactClaims)
+{
+    auto& entities = getGameState().entities;
+    EXPECT_EQ(entities.GetNumFreeEntities(), kMaxEntities);
+
+    constexpr auto exactId = EntityId::FromUnderlying(100);
+    auto* exact = entities.CreateEntityAt<Guest>(exactId);
+    auto* first = entities.CreateEntity<Guest>();
+    auto* second = entities.CreateEntity<Guest>();
+    ASSERT_NE(exact, nullptr);
+    ASSERT_NE(first, nullptr);
+    ASSERT_NE(second, nullptr);
+    EXPECT_EQ(first->id.ToUnderlying(), 0u);
+    EXPECT_EQ(second->id.ToUnderlying(), 1u);
+    EXPECT_EQ(entities.GetNumFreeEntities(), kMaxEntities - 3);
+
+    entities.EntityRemove(first);
+    auto* reusedLowest = entities.CreateEntity<Guest>();
+    ASSERT_NE(reusedLowest, nullptr);
+    EXPECT_EQ(reusedLowest->id.ToUnderlying(), 0u);
+
+    entities.EntityRemove(exact);
+    EXPECT_NE(entities.CreateEntityAt<Guest>(exactId), nullptr);
+    EXPECT_EQ(entities.GetNumFreeEntities(), kMaxEntities - 3);
+}
+
+TEST_F(EntityImportTests, TypedEntityIterationSkipsSparseWordRangesInIdOrder)
+{
+    auto& entities = getGameState().entities;
+
+    constexpr std::array ids{ 0u, 4096u, static_cast<uint32_t>(kMaxEntities - 1) };
+    for (const auto id : ids)
+        ASSERT_NE(entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(static_cast<uint16_t>(id))), nullptr);
+
+    std::vector<uint32_t> iteratedIds;
+    for (const auto* guest : EntityList<Guest>())
+        iteratedIds.push_back(guest->id.ToUnderlying());
+    EXPECT_EQ(iteratedIds, std::vector<uint32_t>(ids.begin(), ids.end()));
+}
+
 TEST_F(EntityImportTests, VehicleHeadEntityListTracksAddsRemovalsAndReset)
 {
     auto& entities = getGameState().entities;
-    entities.ResetAllEntities();
 
     auto* tail = entities.CreateEntityAt<Vehicle>(EntityId::FromUnderlying(10));
     auto* secondHead = entities.CreateEntityAt<Vehicle>(EntityId::FromUnderlying(40));
@@ -112,7 +151,6 @@ TEST_F(EntityImportTests, VehicleHeadEntityListTracksAddsRemovalsAndReset)
 TEST_F(EntityImportTests, TypedEntityIterationPreservesOrderAndMutationVisibility)
 {
     auto& entities = getGameState().entities;
-    entities.ResetAllEntities();
 
     ASSERT_NE(entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(50)), nullptr);
     ASSERT_NE(entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(10)), nullptr);
@@ -157,7 +195,6 @@ TEST_F(EntityImportTests, TypedEntityIterationPreservesOrderAndMutationVisibilit
 TEST_F(EntityImportTests, TypedEntityIteratorEqualityIgnoresMutationLookahead)
 {
     auto& entities = getGameState().entities;
-    entities.ResetAllEntities();
 
     ASSERT_NE(entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(10)), nullptr);
     ASSERT_NE(entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(30)), nullptr);
@@ -180,7 +217,6 @@ TEST_F(EntityImportTests, TypedEntityIteratorEqualityIgnoresMutationLookahead)
 TEST_F(EntityImportTests, TypedEntityMembershipClearsAndRebuildsAtBoundaryIds)
 {
     auto& entities = getGameState().entities;
-    entities.ResetAllEntities();
 
     constexpr auto firstId = EntityId::FromUnderlying(0);
     constexpr auto middleId = EntityId::FromUnderlying(123);
@@ -219,7 +255,6 @@ TEST_F(EntityImportTests, PassengerUnloadPlanPreservesThroughRidersAndOrdinaryUn
     constexpr std::array<uint8_t, passengerCount> expectedSourceIndices{ 0, 2, 4, 1, 3 };
 
     auto& entities = getGameState().entities;
-    entities.ResetAllEntities();
 
     Vehicle vehicle{};
     vehicle.num_peeps = passengerCount;
@@ -406,47 +441,9 @@ TEST_F(EntityImportTests, PlatformSeatBindingUsesReservedCountAndRejectsActiveDu
     EXPECT_EQ(std::count(std::begin(vehicle.peep), std::end(vehicle.peep), guest.id), 1);
 }
 
-TEST_F(EntityImportTests, TrainBoardingPlanUsesContiguousFreeSeatsAfterThroughRidersInCarOrder)
-{
-    auto& entities = getGameState().entities;
-    entities.ResetAllEntities();
-
-    auto* head = entities.CreateEntityAt<Vehicle>(EntityId::FromUnderlying(150));
-    auto* tail = entities.CreateEntityAt<Vehicle>(EntityId::FromUnderlying(151));
-    ASSERT_NE(head, nullptr);
-    ASSERT_NE(tail, nullptr);
-    std::fill(std::begin(head->peep), std::end(head->peep), EntityId::GetNull());
-    std::fill(std::begin(tail->peep), std::end(tail->peep), EntityId::GetNull());
-    head->next_vehicle_on_train = tail->id;
-    head->num_seats = 3;
-    head->num_peeps = 2;
-    head->next_free_seat = 2;
-    head->peep[0] = EntityId::FromUnderlying(100);
-    head->peep[1] = EntityId::FromUnderlying(101);
-    tail->num_seats = 4;
-    tail->num_peeps = 1;
-    tail->next_free_seat = 1;
-    tail->peep[0] = EntityId::FromUnderlying(102);
-
-    const auto train = RideVehicle::StationDetail::BuildTrainSeatSummary(*head);
-    const auto plan = RideVehicle::StationDetail::BuildTrainBoardingSeatPlan(train);
-    ASSERT_EQ(plan.seatCount, 4u);
-    EXPECT_EQ(plan.seats[0].slotIndex, 2u);
-    EXPECT_EQ(plan.seats[0].carIndex, 0u);
-    EXPECT_EQ(plan.seats[0].seatIndex, 2u);
-    EXPECT_EQ(plan.seats[1].slotIndex, 4u);
-    EXPECT_EQ(plan.seats[1].carIndex, 1u);
-    EXPECT_EQ(plan.seats[1].seatIndex, 1u);
-    EXPECT_EQ(plan.seats[2].slotIndex, 5u);
-    EXPECT_EQ(plan.seats[2].seatIndex, 2u);
-    EXPECT_EQ(plan.seats[3].slotIndex, 6u);
-    EXPECT_EQ(plan.seats[3].seatIndex, 3u);
-}
-
 TEST_F(EntityImportTests, TrainSeatSummaryUsesExactWideCapacityAndReservationCounts)
 {
     auto& entities = getGameState().entities;
-    entities.ResetAllEntities();
 
     auto* head = entities.CreateEntityAt<Vehicle>(EntityId::FromUnderlying(200));
     auto* middle = entities.CreateEntityAt<Vehicle>(EntityId::FromUnderlying(201));
@@ -476,7 +473,7 @@ TEST_F(EntityImportTests, TrainSeatSummaryUsesExactWideCapacityAndReservationCou
     EXPECT_EQ(summary.capacity, 264u);
     EXPECT_EQ(summary.currentPeeps, 12u);
     EXPECT_EQ(summary.reservedSeats, 18u);
-    EXPECT_TRUE(summary.HasRiders());
+    EXPECT_NE(summary.currentPeeps, 0u);
     EXPECT_EQ(summary.cars[0], head);
     EXPECT_EQ(summary.cars[1], middle);
     EXPECT_EQ(summary.cars[2], tail);
@@ -484,13 +481,12 @@ TEST_F(EntityImportTests, TrainSeatSummaryUsesExactWideCapacityAndReservationCou
     head->num_peeps = 0;
     middle->num_peeps = 0;
     tail->num_peeps = 0;
-    EXPECT_FALSE(RideVehicle::StationDetail::BuildTrainSeatSummary(constHead).HasRiders());
+    EXPECT_EQ(RideVehicle::StationDetail::BuildTrainSeatSummary(constHead).currentPeeps, 0u);
 }
 
 TEST_F(EntityImportTests, SpatialIndexDirtyWorklistCoalescesMovesAndPreservesSortedBuckets)
 {
     auto& entities = getGameState().entities;
-    entities.ResetAllEntities();
 
     auto* last = entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(40));
     auto* first = entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(10));
@@ -519,7 +515,6 @@ TEST_F(EntityImportTests, SpatialIndexDirtyWorklistCoalescesMovesAndPreservesSor
 TEST_F(EntityImportTests, TweenMovementPreservesAuthoritativeSpatialIndex)
 {
     auto& entities = getGameState().entities;
-    entities.ResetAllEntities();
 
     constexpr CoordsXYZ authoritativeLocation{ 10 * kCoordsXYStep, 11 * kCoordsXYStep, 0 };
     constexpr CoordsXYZ tweenLocation{ 5 * kCoordsXYStep, 6 * kCoordsXYStep, 0 };
@@ -547,7 +542,6 @@ TEST_F(EntityImportTests, TweenMovementPreservesAuthoritativeSpatialIndex)
 TEST_F(EntityImportTests, SpatialIndexDirtyWorklistCoversImmediateUpdatesAndEntityIdReuse)
 {
     auto& entities = getGameState().entities;
-    entities.ResetAllEntities();
 
     constexpr auto immediateId = EntityId::FromUnderlying(20);
     constexpr auto reusedId = EntityId::FromUnderlying(30);
@@ -586,7 +580,6 @@ TEST_F(EntityImportTests, SpatialIndexDirtyWorklistCoversImmediateUpdatesAndEnti
 TEST_F(EntityImportTests, SpatialIndexResetRebuildsDirectImportCoordinatesAndClearsPendingWork)
 {
     auto& entities = getGameState().entities;
-    entities.ResetAllEntities();
 
     constexpr CoordsXYZ queuedLocation{ 18 * kCoordsXYStep, 19 * kCoordsXYStep, 0 };
     constexpr CoordsXYZ importedLocation{ 20 * kCoordsXYStep, 21 * kCoordsXYStep, 8 };

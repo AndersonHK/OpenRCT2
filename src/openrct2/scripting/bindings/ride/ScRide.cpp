@@ -535,7 +535,7 @@ namespace OpenRCT2::Scripting
         return JS_UNDEFINED;
     }
 
-    DEFINE_RIDE_NUMBER_GETTER(totalProfit_get, JS_NewInt32, ride->totalProfit)
+    DEFINE_RIDE_NUMBER_GETTER(totalProfit_get, JS_NewInt64, ride->totalProfit)
 
     JSValue ScRide::totalProfit_set(JSContext* ctx, JSValue thisVal, JSValue value)
     {
@@ -572,7 +572,7 @@ namespace OpenRCT2::Scripting
         auto ride = GetRide(thisVal);
         if (ride != nullptr && ride->value != kRideValueUndefined)
         {
-            return JS_NewInt32(ctx, ride->value);
+            return JS_NewInt64(ctx, ride->value);
         }
         return JS_NULL;
     }

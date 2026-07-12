@@ -1026,12 +1026,15 @@ namespace OpenRCT2::PathFinding
         bool paysForRide = false;
         RidePriceTarget effectivePriceTarget = RidePriceTarget::free;
         std::bitset<Limits::kMaxStationsPerRide> destinationCandidateMask;
+        std::bitset<Limits::kMaxStationsPerRide> walkAfterRideComputed;
+        std::array<std::optional<TravelTimeMilliseconds>, Limits::kMaxStationsPerRide> walkAfterRideByStation;
         for (const auto& boardingRef : boardingStations)
         {
             if (boardingRef.ride != evaluatedRideId)
             {
                 evaluatedRideId = boardingRef.ride;
                 destinationCandidateMask.reset();
+                walkAfterRideComputed.reset();
                 auto destinationIterator = std::lower_bound(
                     destinationStations.begin(), destinationStations.end(),
                     TransportRideServiceStationRef{ .ride = evaluatedRideId, .station = StationIndex::FromUnderlying(0) });
@@ -1102,10 +1105,15 @@ namespace OpenRCT2::PathFinding
                     continue;
                 }
 
-                const auto exitLocation = TileCoordsXYZ{ service.stations[destinationIndex].exit };
-                const auto walkAfterRide = EstimateWalkingTravelTime(
-                    walkingSpeed, exitLocation, finalGoal,
-                    MapPathRouteCache::QueryDistanceFromRideExitToTarget(finalTarget, exitLocation, evaluatedRideId));
+                if (!walkAfterRideComputed[destinationIndex])
+                {
+                    const auto exitLocation = TileCoordsXYZ{ service.stations[destinationIndex].exit };
+                    walkAfterRideByStation[destinationIndex] = EstimateWalkingTravelTime(
+                        walkingSpeed, exitLocation, finalGoal,
+                        MapPathRouteCache::QueryDistanceFromRideExitToTarget(finalTarget, exitLocation, evaluatedRideId));
+                    walkAfterRideComputed.set(destinationIndex);
+                }
+                const auto& walkAfterRide = walkAfterRideByStation[destinationIndex];
                 if (!walkAfterRide.has_value())
                     continue;
                 const auto routeTime = *walkToBoard + waitingTime + journey.travelTimeMilliseconds + *walkAfterRide;
@@ -2763,6 +2771,8 @@ namespace OpenRCT2::PathFinding
 
         int32_t numEntranceStations = 0;
         BitSet<Limits::kMaxStationsPerRide> entranceStations = {};
+        std::array<MapPathRouteCache::RouteTarget, Limits::kMaxStationsPerRide> entranceTargets{};
+        std::array<StationIndex, Limits::kMaxStationsPerRide> entranceTargetStations{};
 
         for (const auto& station : ride->getStations())
         {
@@ -2772,8 +2782,10 @@ namespace OpenRCT2::PathFinding
 
             const auto stationIndex = ride->getStationIndex(&station);
 
-            numEntranceStations++;
+            const auto entranceIndex = static_cast<size_t>(numEntranceStations++);
             entranceStations[stationIndex.ToUnderlying()] = true;
+            entranceTargets[entranceIndex] = { TileCoordsXYZ{ station.Entrance }, rideIndex };
+            entranceTargetStations[entranceIndex] = stationIndex;
 
             TileCoordsXYZD entranceLocation = station.Entrance;
             auto score = CalculateHeuristicPathingScore(entranceLocation, TileCoordsXYZ{ peep.NextLoc });
@@ -2794,22 +2806,12 @@ namespace OpenRCT2::PathFinding
         }
         else if (numEntranceStations > 1)
         {
-            static thread_local std::vector<MapPathRouteCache::RouteTarget> entranceTargets;
-            static thread_local std::vector<StationIndex> entranceTargetStations;
-            entranceTargets.clear();
-            entranceTargetStations.clear();
-            for (const auto& station : ride->getStations())
+            for (int32_t index = 0; index < numEntranceStations; index++)
             {
-                if (station.Entrance.IsNull())
-                    continue;
-
-                auto targetLocation = TileCoordsXYZ{ station.Entrance };
-                GetRideQueueEnd(targetLocation);
-                entranceTargets.push_back({ targetLocation, rideIndex });
-                entranceTargetStations.push_back(ride->getStationIndex(&station));
+                GetRideQueueEnd(entranceTargets[index].location);
             }
             const auto closestReachable = MapPathRouteCache::GetClosestReachableTargetIndex(
-                entranceTargets, TileCoordsXYZ{ peep.NextLoc });
+                std::span{ entranceTargets }.first(numEntranceStations), TileCoordsXYZ{ peep.NextLoc });
             if (closestReachable.has_value())
             {
                 closestStationNum = entranceTargetStations[*closestReachable];

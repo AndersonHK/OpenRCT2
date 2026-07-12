@@ -1,5 +1,10 @@
 # OpenRCT2 overhaul changelog
 
+This is the chronological engineering record for the personal fork. It records behavior changes, compatibility decisions,
+important implementation corrections, and the evidence available at each checkpoint. The concise player-facing overview lives
+in the [README](../readme.md); exact mechanics, architecture, benchmark methods, and build procedures live in the linked topic
+documents. The upstream project's release history remains in [distribution/changelog.txt](../distribution/changelog.txt).
+
 ## 2026-07-11
 
 ### Refresh-paced Turbo presentation
@@ -21,7 +26,7 @@ compositor/playability row without changing the user's renderer, VSync, fullscre
 
 SDL controller handles now use RAII ownership. The periodic/hotplug rescan closes old handles before replacing them, and
 shutdown closes the remaining devices instead of leaking references and repeatedly reopening them every five seconds.
-The fully enabled Release x64 Vulkan/direct-context/render-thread build is warning-clean, all 523 tests pass, and focused
+The fully enabled Release x64 Vulkan/direct-context/render-thread build is warning-clean, all 517 tests pass, and focused
 refresh-normalization and Vulkan present-mode tests cover the new policies.
 
 ### Upstream synchronization
@@ -34,52 +39,40 @@ user after this dirty-worktree checkpoint is committed; the detailed review and 
 
 ### Station platform boarding regression
 
-Fixed transport and roller-coaster guests leaving or rejoining the queue when an arriving train required the platform
-boarding plan to remap their reserved seat. Guest updates select the train before the lazy plan refresh; the refresh now
-recognises that exact train as a valid staged assignment while continuing to reject unrelated trains. The initial correction
-still allowed arrival to restart the guest's walk to a remapped platform marker. Because guests update before vehicles, a short
-empty-train dwell could then expire before the guest returned to the waiting substate. Both platform approach and platform wait
-now share one seat-binding handshake: as soon as the stopped train is published, the guest reserves the real seat and the
-existing reserved-seat count holds the train until physical boarding completes. A temporarily unavailable seat leaves the guest
-staged for the next train instead of ejecting them to the external queue.
+Reworked transport and eligible roller-coaster station staging around immutable platform assignments. When a train departs, its
+stopped consist supplies one deterministic car/seat marker for every seat. Pair-loaded cars contribute one complete pair per
+pass across the consist, so partial cohorts spread along the full train. A guest keeps that same car, seat, destination, and
+platform position until boarding succeeds or the assignment is explicitly released.
 
-The remaining empty-train regression came from treating every non-null entry in the fixed vehicle passenger array as an occupied
-seat. Established unloading deliberately leaves departed guest ids beyond the active `num_peeps`/`next_free_seat` prefix: ordinary
-rides drain that prefix from the end, while transports compact continuing riders ahead of alighting riders. Platform planning now
-uses the same authoritative prefix as legacy boarding, overwrites inactive tail entries, and checks duplicate ownership only among
-active or reserved passengers. This fixes both first-time boarding after an unload and a returning guest whose old id remains in
-an inactive seat without changing the established exit animation or passenger-array representation.
+Arrival no longer prepares a boarding plan, compacts assignments, or restarts platform walks. A train first finishes unloading
+and then publishes itself through `RideStation::TrainAtStation`. Each staged guest can bind only the exact vehicle seat already
+shown by the platform marker. Successful binding consumes the single station assignment; failure leaves it intact for the next
+train. A continuing transport rider occupying that exact seat therefore delays only that guest without reshuffling the platform.
 
-Roller-coaster platform staging is now station-local and requires the entrance and exit to occupy the two opposite lateral
-platform edges. Same-side layouts retain ordinary external-queue boarding, as do malformed longitudinal-end layouts that happen
-to use opposite compass directions. The comparison is normalized against each station's own track orientation, so rotated and
-multi-station rides are evaluated correctly. Transportation rides deliberately bypass this coaster-only geometry gate.
+The fixed vehicle passenger array still uses `num_peeps` and `next_free_seat` as its authoritative active/reserved prefix.
+Inactive tail ids left by established unloading are reusable and do not count as duplicate ownership. Every car must finish
+unloading before the train can publish for boarding, including the zero-prefix case.
 
-The portable whole-simulation regression loads EverythingPark and selects a deterministic one-train coaster. The real train
-departs, activates its platform, completes its circuit, returns, stops, overwrites a deliberately persisted inactive seat entry,
-and boards the first staged guest before departing. A focused seat-binding test separately covers through-rider prefixes, stale
-tail ids, returning guests, exact FIFO seats, and active duplicate rejection.
+Roller-coaster staging remains station-local and requires entrance and exit on the two opposite lateral platform edges. Same-side
+and malformed longitudinal layouts retain ordinary queue boarding; transport stations deliberately bypass this coaster-only
+geometry gate. Platform guests complete the inward entrance waypoint before walking along the established car loading line, so
+they stay inside the entrance opening and platform fence.
 
-Multi-train stations now transfer platform boarding ownership only when the next train successfully becomes the station's
-published loading train. An arriving train that is still unloading or moving behind an under-filled train can no longer remap
-waiting guests toward its own cars. Late arrivals continue to claim the published train's next physical empty seat; during the
-brief ownerless handoff they remain staged, then remap FIFO when the next train publishes itself. This closes the interaction
-between minimum-load waiting and `leave when another train arrives` while retaining physical completion of reserved seats as the
-hard departure-safety condition.
+An incoming follower closes new bindings on the front train before empty, minimum-time, or minimum-load waits are evaluated.
+Guests already bound finish their walk, while unbound staged guests retain their exact positions for the follower. Paired-seat
+rollback and departure continue to use the vehicle's authoritative reservation prefix, so maximum-wait and
+`leave when another train arrives` cannot strand a half pair or abandon a bound walker.
 
-The remaining overlap deadlock involved the transition from boarding to departure rather than plan ownership. A follower that is
-collision-stopped behind the platform correctly remains in `movingToEndOfStation`; that status now takes priority over the front
-train's empty/minimum-load waits and makes it ready to leave. Once ready, the front train accepts no additional platform seat
-bindings, while guests already bound to it finish boarding so `num_peeps` catches `next_free_seat`. Paired-car entry now consults
-only the active passenger prefix and permits the second half to enter after its partner is already seated, so stale ids left in an
-inactive seat cannot hold the train forever. Later staged guests retain their platform reservations for the following train. On
-ordinary circuits the arrival also completes the station dwell signal immediately; block-section signals and synchronized
-departure safety remain authoritative.
+Save reconstruction now restores a platform assignment by its saved car/seat identity instead of deriving a car-major slot
+number. Current-version saves therefore preserve the pair-balanced platform order. Older targets still receive the established
+station-exit recovery state because they cannot represent the new platform substates.
 
-Platform-bound guests now finish the established inward entrance waypoint before turning toward their reserved car position.
-The first leg therefore crosses the entrance building perpendicularly, and the second follows the existing loading-position line
-inside the station platform. Guests no longer turn early from the middle of the entrance tile, cut diagonally through its walls,
-walk outside the platform fence, and phase back through it.
+The runtime regression drives a real continuous-circuit coaster through natural departure, return, unloading, station
+publication, exact-seat binding, approach, and final boarding. On every simulation tick it asserts that all staged car, seat,
+slot, and destination fields remain unchanged, then verifies the vehicle passenger entries and final `onRide` states. The full
+Release x64 suite contains 517 passing tests.
+
+
 
 ### Fork-wide invariant and code-quality consolidation
 
@@ -100,8 +93,7 @@ cleanup method, and the former partial/full train-summary pair is one complete c
 Platform FIFO order is stored directly as slot indices instead of a second sequence number, repeated minimum scans, and an
 arrival-time sort. Guest teardown and pickup release platform ownership through the existing `RemoveFromRide` lifecycle boundary;
 normal deletion, scripting deletion, cheats, and pickup therefore cannot leave stale guest ids behind. A cancelled reservation
-invalidates the current seat plan, while a reservation consumed by a real seat deliberately keeps it, so the next waiting guest
-can still board the same train.
+frees its fixed platform slot, while a successful binding atomically transfers that assignment to the vehicle passenger array.
 
 The same pass consolidated Vulkan result handling, graphics-pipeline construction, upload staging, and backend configuration;
 removed callback-side audio telemetry; selected scalar/AVX2 spatial mixing once during mixer initialisation; collapsed route-cache
@@ -109,10 +101,27 @@ indexes and topology publication helpers; and removed duplicate ride-rating scan
 Vulkan startup errors, strict fullscreen behavior, SDL device negotiation, save corruption checks, and unsupported station/object
 boundaries remain deliberate guards.
 
-The warning-clean Release x64 build and all 520 tests pass. Two independent 2,000-tick warm-up plus 2,000-tick EverythingPark
-simulation runs produced the same `93d0bf66ac3305c3000000000000000000000000` checksum at 623.109 and 616.715 TPS,
-comfortably above the 320 TPS pure-simulation target. This headless number is the CPU simulation ceiling, not an integrated
-Vulkan presentation result.
+A completed second function-by-function audit removes another 1,911 net C++ lines, taking the fork delta from 31,911 to 30,000. One-call
+entity/tween/rating/audio/pricing wrappers are either inlined or replaced by their owning state, repeated UI-frame and platform
+test setup is shared, and station save reconstruction reuses the live platform geometry builder. The audit also removes one guest
+traversal from save repair, one consist traversal from every ordinary unloading tick, repeated topology-generation reads,
+per-candidate topology validation, repeated transport-exit distance searches, and the Vulkan backend's unused asynchronous
+readback bookkeeping. Transport journey scratch storage is fixed to the engine's station limit, platform boarding uses one
+station-owned FIFO assignment relationship, and ride-stat UI plus regression fixtures share their established row and
+geometry builders. The 30,000-line gate is met without deleting distinct regression coverage or compressing code mechanically.
+
+Vulkan now keeps the CPU FreeType cache's immutable coverage surfaces in a bounded persistent atlas. Repeated cached text emits
+no upload, allocation, or retirement work; the obsolete transient-bitmap path is removed. The entity registry's existing ordered
+membership bitmap now also owns free ids, with a 16-word non-empty summary replacing sorted-vector insertion and erasure. A
+representative 20,000-cycle allocator churn benchmark was 2.02-2.06 times faster with the same allocation checksum and reduced
+allocator storage from 131,070 to 8,328 bytes. Audio channel completion now has one lifetime state, and the real-time callback
+mixes and removes completed channels in one traversal.
+
+The combined Vulkan-enabled Release x64 build is warning-clean and all 520 tests pass. Two independent 2,000-tick warm-up plus
+2,000-tick EverythingPark runs produced the same `93d0bf66ac3305c3000000000000000000000000` checksum at 633.359 and
+630.453 TPS. A hidden five-second Vulkan/VSync run sustained 143.746 FPS, with 7.296 ms median and 11.995 ms maximum frame
+intervals; its roughly 14,000-guest state reached 249.159 logical TPS while presentation consumed 25.8% of wall time. The
+headless result remains the CPU simulation ceiling; the integrated result is the relevant smooth-Turbo measurement.
 
 ### Vulkan cold-start and exclusive-fullscreen errors
 
@@ -271,8 +280,9 @@ train physically clears the station, the next cohort leaves the external queue a
 with that stopped consist's cars and seats. Capacity is the actual linked-consist seat total, not a station-tile estimate;
 through-riders compact first, and staged guests bind FIFO to the exact visible car/seat they reserved rather than running the
 ordinary random car and next-seat selection again. The arriving car sequence and capacity must still match the captured consist,
-and each reserved seat must be the next contiguous empty seat after through-rider compaction. A changed consist, occupied seat,
-or overflow releases the abstract slot and safely requeues the guest without duplicate seat ownership. Fare eligibility is
+and each reserved seat must be the next contiguous empty seat after through-rider compaction. An occupied exact seat leaves the
+guest at that marker for the next train, while vehicle/configuration changes clear staging through the existing lifecycle. Fare
+eligibility is
 rechecked and payment is committed only after successful physical binding. Closing or invalid stations recover staged guests
 through the exit, then the entrance/requeue path, with falling reserved for missing geometry. Chairlift stages against its native two-seat scalar
 loading positions and physical station-clear transition. Lift remains just-in-time because its waypoint cabin reaches generic
@@ -315,21 +325,9 @@ availability, while committed guests directly retain any selected boarding stati
 
 Details: [Transport ride routing rationale](transport-ride-routing-rationale.md)
 
-Verification:
-
-- `PathfindingTestBase.ReasonableMonorailIsChosenOverLongWalk`
-- `PathfindingTestBase.RainRelaxesTheTransportTimeSavingThreshold`
-- `PathfindingTestBase.FreeTransportMayWinAReasonableTimeTie`
-- `PathfindingTestBase.ExtortiveTransportRequiresNoWalkingOrNonExtortiveAlternative`
-- `PathfindingTestBase.TransportIsBoardedOnlyAsAPlannedRouteLeg`
-- `PathfindingTestBase.PayingExtortiveTransportReducesHappinessAndCreatesThought`
-- `PathfindingTestBase.PlannedTransportRouteIsIndependentOfRideInteractionState`
-- `PathfindingTestBase.ChangingConcreteTargetInvalidatesPlannedTransportLeg`
-- `RideRatings.TransportQualityIsDistanceWeightedAndGForcesReduceComfort`
-- `RideRatings.TransportFareValueIsLedByDistanceAndModifiedByQuality`
-- `RideRatings.TransportJourneyAccumulatesSegmentsAndUsesExactFareBuckets`
-- `RideRatings.PlatformCapacityUsesActualConsistAndSafeLegacyFallback`
-- `ParkFileMigration.TransportDestinationRoundTripsAndIsRemovedFromOlderTargets`
+Verification: focused pathfinding, ride-rating, and save-migration tests cover reasonable time savings, rain, fare bands,
+committed routes, destination changes, distance-weighted comfort, journey composition, consist-sized platform capacity,
+proportional transport value, and compatibility round trips.
 
 ### Vulkan-first renderer foundation
 
@@ -347,7 +345,7 @@ configurable paper-white level rather than making legacy art intrinsically brigh
 path and visual SDR/HDR parity remain activation gates. Details:
 [Vulkan renderer migration](vulkan-renderer-migration.md).
 
-Integration: add fence-backed asynchronous indexed readback using persistent mapped frame rings, plus a disabled-by-default
+Integration: add explicit synchronous indexed screenshot readback through a fenced mapped frame ring, plus a disabled-by-default
 Vulkan validation engine wired through configuration, drawing-engine factory selection, and window recreation. The validation
 engine exercises palette, VSync, resize, presentation, and screenshot lifecycle by uploading the authoritative X8 canvas once
 per frame. That full-canvas bridge is explicitly not the performance renderer; direct GPU command recording and atlas
@@ -457,11 +455,8 @@ Correction: source retirement now fades over 350 ms. A crash no longer nulls the
 
 Details: [Spatial audio overhaul](spatial-audio-overhaul.md)
 
-Verification:
-
-- `msbuild openrct2.proj /m /nr:false /p:Configuration=Release /p:Platform=x64 /p:VCToolsVersion=14.44.35207`
-- From `bin`: `.\tests.exe` (`380` tests passed)
-- Repeated 20-25 second `EverythingPark.park --verbose` runtime passes stayed stable, negotiated `48000 Hz`, `8 channels`, and 1,024-frame callbacks on the Logitech/Windows endpoint, and reported no audio callback errors.
+Verification: the Release build and all 380 tests passed. Repeated EverythingPark runtime checks remained stable with 48 kHz,
+eight-channel output and no callback errors on the Logitech/Windows endpoint.
 
 ### Main-menu responsiveness
 
@@ -483,11 +478,7 @@ Correction: guests who have already committed to a first-aid clinic do not try t
 
 Maintenance: the sick, very sick, and very-very-sick nausea tiers are now named constants, with display-start checks written as `threshold + 1`. The very sick thought remains intentionally separate from the face/animation tier and starts at the very-very-sick visual tier.
 
-Verification:
-
-- `msbuild openrct2.proj /m /nr:false /p:Configuration=Release /p:Platform=x64 /p:VCToolsVersion=14.44.35207`
-- From `bin`: `.\tests.exe --gtest_filter=PlayTests.*`
-- `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\deploy-local.ps1 -Configuration Release -Platform x64 -VCToolsVersion 14.44.35207`
+Verification: the Release build, focused gameplay tests, and local deployment completed successfully.
 
 ## 2026-07-07
 
@@ -563,11 +554,7 @@ Reasoning: the added helper and steering override duplicated existing ride behav
 
 Details: [Boat hire return rationale](boat-hire-return-rationale.md)
 
-Verification:
-
-- Removed the regression test that asserted the deleted intervention.
-- `msbuild test\tests\tests.vcxproj /m /nr:false /p:Configuration=Release /p:Platform=x64 /p:VCToolsVersion=14.44.35207`
-- From `bin`: `.\tests.exe --gtest_filter=PlayTests.*`
+Verification: the obsolete regression expectation was removed, the test target built, and the gameplay suite passed.
 
 ## 2026-07-04
 
@@ -579,13 +566,8 @@ Reasoning: guests that get pushed or dropped just off the path network should vi
 
 Details: [Guest surface path rejoin rationale](guest-surface-path-rejoin-rationale.md)
 
-Verification:
-
-- `msbuild test\tests\tests.vcxproj /m /nr:false /p:Configuration=Release /p:Platform=x64 /p:VCToolsVersion=14.44.35207`
-- `msbuild openrct2.proj /m /nr:false /p:Configuration=Release /p:Platform=x64 /p:VCToolsVersion=14.44.35207`
-- From `bin`: `.\tests.exe --gtest_filter=PathfindingTestBase.SurfaceGuestsStepTowardAdjacentPath`
-- From `bin`: `.\tests.exe --gtest_filter=*Pathfinding*`
-- From `bin`: `.\tests.exe`
+Verification: the Release game and test targets built, the focused off-path recovery case passed, and the complete pathfinding
+and full test suites passed.
 
 ### Mowed grass decoration
 
@@ -595,23 +577,16 @@ Reasoning: groundskeeper mowing should have a visible gameplay payoff instead of
 
 Details: [Mowed grass decoration rationale](mowed-grass-decoration-rationale.md)
 
-Verification:
-
-- `msbuild test\tests\tests.vcxproj /m /nr:false /p:Configuration=Release /p:Platform=x64 /p:VCToolsVersion=14.44.35207`
-- `msbuild openrct2.proj /m /nr:false /p:Configuration=Release /p:Platform=x64 /p:VCToolsVersion=14.44.35207`
-- From `bin`: `.\tests.exe --gtest_filter=TileElementWantsFootpathConnection.MowedGrassCountsAsDecoration`
-- From `bin`: `.\tests.exe --gtest_filter=TileElementWantsFootpathConnection.*`
-- From `bin`: `.\tests.exe --gtest_filter=RideRatings.*`
+Verification: the Release game and test targets built, and the focused decoration, footpath-connection, and ride-rating suites
+passed.
 
 ## 2026-07-02
 
-### Windows build setup
+### Windows build and deployment
 
-Decision: use `openrct2.proj` through MSBuild as the local build entry point and pin MSVC `14.44.35207`, because the older default MSVC `14.38.33130` links poorly against the downloaded dependency libraries on this machine.
-
-Correction: default the local build helper to Release for playable builds. The earlier Debug default can explain severe lag in an empty park because it produces a much larger, unoptimized executable with debug artifacts.
-
-Decision: add a local deployment helper for `D:\Games\Independent\OpenRCT2Mod` that builds Release and mirrors this fork's built `bin\data` assets instead of mixing the develop executable with the vanilla main-branch deployment's `data` directory.
+Established a reproducible Release build and local deployment workflow for the fork. Fork binaries and data are deployed
+together so a playable build cannot accidentally mix these changes with assets from a different branch. Machine-specific
+toolchain selection, commands, and deployment paths remain in the dedicated setup document.
 
 Details: [Windows local build setup](windows-local-build.md)
 
@@ -697,13 +672,5 @@ Details: [Park entrance pricing target rationale](park-entrance-pricing-target-r
 
 ### Verification
 
-Decision: verify the work against the local Windows compiler and the existing ride-rating fixture suite.
-
-Completed checks:
-
-- `msbuild openrct2.proj /m /nr:false /p:Configuration=Release /p:Platform=x64 /p:VCToolsVersion=14.44.35207`
-- From `bin`: `.\tests.exe --gtest_filter=RideRatings.*:S6ImportExportBasic.*:S6ImportExportAdvanceTicks.*:*RideSetPriceAction*`
-- From `bin`: `.\tests.exe --gtest_filter=PlayTests.*:FormattingTests.*:EntityImportTests.*:S6ImportExportBasic.*:S6ImportExportAdvanceTicks.*`
-- From `bin`: `.\tests.exe --gtest_filter=Replay/ReplayTests.*`
-
-The build succeeds with one existing non-fatal Roslyn `System.Memory` binding warning from `openrct2.proj`.
+The Windows build completed successfully. Ride-rating, price-action, gameplay, formatting, entity-import, S6 import/export,
+advance-tick, and replay suites passed. The build retained one pre-existing non-fatal Roslyn `System.Memory` binding warning.

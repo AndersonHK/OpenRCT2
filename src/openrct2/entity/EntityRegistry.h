@@ -45,30 +45,51 @@ namespace OpenRCT2
 
         static constexpr size_t kBitsPerWord = 64;
         static constexpr size_t kWordCount = (kMaxEntities + kBitsPerWord - 1) / kBitsPerWord;
+        static constexpr size_t kSummaryWordCount = (kWordCount + kBitsPerWord - 1) / kBitsPerWord;
         static constexpr uint32_t kEndIndex = kMaxEntities;
 
         std::array<uint64_t, kWordCount> _membership{};
+        std::array<uint64_t, kSummaryWordCount> _nonEmptyWords{};
         uint32_t _size{};
+
+        [[nodiscard]] size_t FindNextNonEmptyWord(size_t start) const noexcept
+        {
+            if (start >= kWordCount)
+                return kWordCount;
+
+            const auto firstSummaryWord = start / kBitsPerWord;
+            for (auto summaryIndex = firstSummaryWord; summaryIndex < kSummaryWordCount; summaryIndex++)
+            {
+                auto summary = _nonEmptyWords[summaryIndex];
+                if (summaryIndex == firstSummaryWord)
+                    summary &= ~uint64_t{ 0 } << (start % kBitsPerWord);
+                if (summary != 0)
+                {
+                    const auto wordIndex =
+                        (summaryIndex * kBitsPerWord) + static_cast<size_t>(std::countr_zero(summary));
+                    return wordIndex;
+                }
+            }
+            return kWordCount;
+        }
 
         [[nodiscard]] uint32_t FindNext(uint32_t start) const noexcept
         {
             if (start >= kMaxEntities)
                 return kEndIndex;
 
-            const auto firstWord = static_cast<size_t>(start / kBitsPerWord);
-            for (auto wordIndex = firstWord; wordIndex < kWordCount; wordIndex++)
+            auto wordIndex = static_cast<size_t>(start / kBitsPerWord);
+            auto word = _membership[wordIndex] & (~uint64_t{ 0 } << (start % kBitsPerWord));
+            if (word == 0)
             {
-                auto word = _membership[wordIndex];
-                if (wordIndex == firstWord)
-                    word &= ~uint64_t{ 0 } << (start % kBitsPerWord);
-                if (word != 0)
-                {
-                    const auto index = static_cast<uint32_t>(
-                        (wordIndex * kBitsPerWord) + static_cast<size_t>(std::countr_zero(word)));
-                    return index < kMaxEntities ? index : kEndIndex;
-                }
+                wordIndex = FindNextNonEmptyWord(wordIndex + 1);
+                if (wordIndex == kWordCount)
+                    return kEndIndex;
+                word = _membership[wordIndex];
             }
-            return kEndIndex;
+            const auto index = static_cast<uint32_t>(
+                (wordIndex * kBitsPerWord) + static_cast<size_t>(std::countr_zero(word)));
+            return index < kMaxEntities ? index : kEndIndex;
         }
 
         [[nodiscard]] bool Contains(uint32_t index) const noexcept
@@ -82,10 +103,17 @@ namespace OpenRCT2
             if (index >= kMaxEntities)
                 return false;
             const auto mask = uint64_t{ 1 } << (index % kBitsPerWord);
-            auto& word = _membership[index / kBitsPerWord];
+            const auto wordIndex = index / kBitsPerWord;
+            auto& word = _membership[wordIndex];
             if (((word & mask) != 0) == present)
                 return false;
+            const bool wordWasEmpty = word == 0;
             word ^= mask;
+            if (wordWasEmpty != (word == 0))
+            {
+                const auto summaryMask = uint64_t{ 1 } << (wordIndex % kBitsPerWord);
+                _nonEmptyWords[wordIndex / kBitsPerWord] ^= summaryMask;
+            }
             _size = present ? _size + 1 : _size - 1;
             return true;
         }
@@ -96,7 +124,21 @@ namespace OpenRCT2
         void clear() noexcept
         {
             _membership.fill(0);
+            _nonEmptyWords.fill(0);
             _size = 0;
+        }
+
+        void fill() noexcept
+        {
+            _membership.fill(~uint64_t{ 0 });
+            constexpr auto validBitsInLastWord = kMaxEntities % kBitsPerWord;
+            if constexpr (validBitsInLastWord != 0)
+                _membership.back() &= (uint64_t{ 1 } << validBitsInLastWord) - 1;
+            _nonEmptyWords.fill(~uint64_t{ 0 });
+            constexpr auto validWordsInLastSummary = kWordCount % kBitsPerWord;
+            if constexpr (validWordsInLastSummary != 0)
+                _nonEmptyWords.back() &= (uint64_t{ 1 } << validWordsInLastSummary) - 1;
+            _size = kMaxEntities;
         }
 
     public:
@@ -167,6 +209,8 @@ namespace OpenRCT2
         [[nodiscard]] bool empty() const noexcept { return _size == 0; }
     };
 
+    static_assert(sizeof(EntityIdList) <= 9 * 1024, "Entity id membership should remain cache compact");
+
     union Entity_t
     {
         uint8_t Pad00[0x200];
@@ -202,7 +246,7 @@ namespace OpenRCT2
         std::array<EntityIdList, EnumValue(EntityType::count)> gEntityLists;
         std::vector<EntityId> _vehicleHeadEntityList;
         bool _vehicleHeadEntityListDirty{ true };
-        std::vector<EntityId> _freeIdList;
+        EntityIdList _freeIds;
 
         bool _entityFlashingList[kMaxEntities];
 
@@ -320,12 +364,7 @@ namespace OpenRCT2
         bool EntityGetFlashing(EntityBase* entity);
 
     private:
-        void ResetEntityLists();
-        void ResetFreeIds();
         void EntityReset(EntityBase& entity);
-        void AddToEntityList(EntityBase& entity);
-        void AddToFreeList(EntityId index);
-        void RemoveFromEntityList(EntityBase& entity);
         void PrepareNewEntity(EntityBase& base, EntityType type);
         void EntitySpatialInsert(EntityBase& entity, const CoordsXY& newLoc);
         void EntitySpatialRemove(EntityBase& entity);

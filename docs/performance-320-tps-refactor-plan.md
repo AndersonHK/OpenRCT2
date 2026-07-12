@@ -609,6 +609,19 @@ the same id a second time. Only removal-ahead falls back to the next-word search
 branch to every increment and regressed the measured guest loop, so it was rejected; the accepted form keeps the common path to
 one membership test and one registry-slot dereference.
 
+The same ordered bitmap now owns free entity ids instead of mirroring availability in a reverse-sorted vector. A 16-word summary
+identifies non-empty 64-id blocks, so lowest-id allocation and sparse typed iteration skip empty ranges without vector search,
+insertion, or erasure. Exact-id imports and mutation-visible ascending iteration preserve their established deterministic order.
+A representative 20,000-cycle, 256-removal churn benchmark retained the same allocation checksum across five runs, ran
+2.02-2.06 times faster, and reduced allocator storage from 131,070 to 8,328 bytes. This is a focused allocator result, not a TPS
+claim; EverythingPark remains the integrated acceptance benchmark.
+
+The integrated checkpoint after entity allocation, persistent Vulkan TTF residency, and audio lifecycle cleanup reached
+631.114 TPS over 2,000 measured EverythingPark ticks after a 2,000-tick warm-up, with checksum
+`93d0bf66ac3305c3000000000000000000000000`. A separate hidden five-second Vulkan/VSync run produced 142.727 FPS, a 7.279 ms
+median frame interval, and a 10.808 ms maximum while the later live-park population lowered logical throughput to 224.228 TPS.
+The two measurements preserve the distinction between the simulation ceiling and refresh-paced presentation cost.
+
 The 1-in-128 guest/staff maintenance schedule now tracks the next matching ordinal while traversing those same stable lists.
 This replaces a mask-and-compare on every peep with an equality check and one addition only when a scheduled ordinal is
 reached. The selected ordinal sequence is still `currentTicks & 127`, then every 128th combined guest/staff index; periodic
@@ -918,7 +931,7 @@ cheap overlays.
 
 ## Fork-wide consolidation checkpoint
 
-The post-feature quality pass removes 2,877 net lines of C++ and replaces defensive polling with mutation-owned
+The first post-feature quality pass removes 2,877 net lines of C++ and replaces defensive polling with mutation-owned
 state. Transport services no longer recompute a freshness hash over every ride, station, and directed rating leg once per tick.
 Ride construction, entrance/exit placement, rating publication, status changes, and breakdown transitions mark the indexed
 service dirty; the next reader rebuilds it once. Dynamic queue time, pricing, weather, and crowding remain live inputs and are not
@@ -927,12 +940,20 @@ folded into the service graph.
 The platform registry is now a fixed ride/station index with one explicit FIFO, route targets use one sorted index, and topology
 publication uses one connection resolver. EntityRegistry uses one typed membership path. Vulkan pipelines share result handling, shader lifetime,
 fixed-state construction, and upload staging. The real-time audio callback no longer gathers unused five-second telemetry or
-selects AVX2 versus scalar code per speaker. These changes target both instruction count and maintainability.
+selects AVX2 versus scalar code per speaker. Its channel-completion path now also removes the unused secondary ownership flag and
+combines mixing with completed-channel removal in one traversal. These changes target both instruction count and maintainability.
+
+The completed follow-up function audit reduces the live fork delta from 31,911 to 30,000 net C++ lines. It removes duplicate save-repair
+and unloading traversals, redundant topology and transport-exit queries, one-use state wrappers, per-frame Vulkan readback
+bookkeeping, repeated audio configuration reads, and duplicated test setup while preserving distinct regression cases. Transport
+journey searches use fixed station-limit scratch arrays, platform reservations use one FIFO guest-to-slot relationship,
+and routing fixtures preserve their 49 cases through shared lifecycle-owned setup. The 30,000-line target is met.
 
 The combined Release build is warning-clean and all 520 tests pass. Two independent headless runs, each with 2,000 warm-up ticks
-and 2,000 measured ticks, completed at 623.109 and 616.715 TPS with the identical final checksum
-`93d0bf66ac3305c3000000000000000000000000`. The 320 TPS pure-simulation budget is therefore met at this checkpoint; the
-integrated Vulkan benchmark remains a separate renderer/presentation measurement.
+and 2,000 measured ticks, completed at 633.359 and 630.453 TPS with the identical final checksum
+`93d0bf66ac3305c3000000000000000000000000`. The hidden five-second Vulkan/VSync run reaches 143.746 FPS and 249.159 logical
+TPS with 7.296 ms median and 11.995 ms maximum frame intervals. The pure-simulation and integrated presentation measurements
+therefore both retain their separate gates.
 
 ## Integration sequence and gates
 

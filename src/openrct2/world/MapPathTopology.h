@@ -109,7 +109,6 @@ namespace OpenRCT2::MapPathTopology
     // Lazily rebuilds the requested chunk if its own or a cardinal neighbour's topology generation changed.
     // Warm hits perform no allocation. Returned spans remain valid until that chunk is rebuilt or Reset() is called.
     [[nodiscard]] ChunkView GetChunk(const TileCoordsXY& tile);
-    [[nodiscard]] ChunkView GetChunk(const CoordsXY& coords);
 
     [[nodiscard]] const PathNode* FindPath(const ChunkView& view, const TileCoordsXYZ& location) noexcept;
     [[nodiscard]] const EntranceNode* FindEntrance(

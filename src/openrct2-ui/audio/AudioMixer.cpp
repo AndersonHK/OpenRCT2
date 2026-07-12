@@ -131,7 +131,7 @@ void AudioMixer::Unlock()
     }
 }
 
-std::shared_ptr<IAudioChannel> AudioMixer::Play(IAudioSource* source, int32_t loop, bool deleteondone)
+std::shared_ptr<IAudioChannel> AudioMixer::Play(IAudioSource* source, int32_t loop)
 {
     std::erase_if(_channels, [](const auto& channel) { return channel->IsDone(); });
     if (_channels.size() >= kMaxMixedChannels)
@@ -140,7 +140,6 @@ std::shared_ptr<IAudioChannel> AudioMixer::Play(IAudioSource* source, int32_t lo
     }
     auto channel = std::shared_ptr<ISDLAudioChannel>(AudioChannel::Create());
     channel->Play(source, loop);
-    channel->SetDeleteOnDone(deleteondone);
     _channels.push_back(channel);
     return channel;
 }
@@ -170,30 +169,38 @@ const AudioFormat& AudioMixer::GetFormat() const
 
 void AudioMixer::GetNextAudioChunk(uint8_t* dst, size_t length)
 {
-    UpdateAdjustedSound();
+    const auto& soundConfig = Config::Get().sound;
+    const auto updateVolume = [](uint8_t configured, uint8_t& cached, float& adjusted) {
+        if (cached != configured)
+        {
+            cached = configured;
+            adjusted = std::pow(static_cast<float>(configured) / 100.0f, 10.0f / 6.0f);
+        }
+    };
+    updateVolume(soundConfig.soundVolume, _settingSoundVolume, _adjustSoundVolume);
+    updateVolume(soundConfig.rideMusicVolume, _settingMusicVolume, _adjustMusicVolume);
 
     const auto frameBytes = static_cast<size_t>(_outputFormat.GetByteRate());
     const auto frames = length / frameBytes;
     _mixBuffer.assign(frames * static_cast<size_t>(_outputFormat.channels), 0.0f);
 
-    for (auto& channel : _channels)
-    {
+    const auto masterGain = soundConfig.masterSoundEnabled ? static_cast<float>(soundConfig.masterVolume) / 100.0f : 0.0f;
+    std::erase_if(_channels, [&](const auto& channel) {
         const auto* source = channel->GetSource();
         if (source == nullptr || source->IsReleased() || channel->IsDone())
         {
             channel->SetDone(true);
-            continue;
+            return true;
         }
 
         const auto group = channel->GetGroup();
         const auto isSoundEffect = group == MixerGroup::Sound || group == MixerGroup::Vehicle;
-        if ((!isSoundEffect || Config::Get().sound.soundEnabled) && Config::Get().sound.masterSoundEnabled
-            && Config::Get().sound.masterVolume != 0)
+        if ((!isSoundEffect || soundConfig.soundEnabled) && masterGain > 0.0f)
         {
-            MixChannel(channel.get(), frames);
+            MixChannel(channel.get(), frames, masterGain);
         }
-    }
-    std::erase_if(_channels, [](const auto& channel) { return channel->IsDone(); });
+        return channel->IsDone();
+    });
 
     WriteOutput(dst, frames);
     const auto mixedLength = frames * frameBytes;
@@ -205,20 +212,7 @@ void AudioMixer::GetNextAudioChunk(uint8_t* dst, size_t length)
 }
 
 // TODO: investigate replacing this with OpenAL (#26035)
-void AudioMixer::UpdateAdjustedSound()
-{
-    const auto update = [](uint8_t configured, uint8_t& cached, float& adjusted) {
-        if (cached != configured)
-        {
-            cached = configured;
-            adjusted = std::pow(static_cast<float>(configured) / 100.0f, 10.0f / 6.0f);
-        }
-    };
-    update(Config::Get().sound.soundVolume, _settingSoundVolume, _adjustSoundVolume);
-    update(Config::Get().sound.rideMusicVolume, _settingMusicVolume, _adjustMusicVolume);
-}
-
-void AudioMixer::MixChannel(ISDLAudioChannel* channel, size_t frames)
+void AudioMixer::MixChannel(ISDLAudioChannel* channel, size_t frames, float masterGain)
 {
     const auto rate = channel->GetRate();
     const auto streamFormat = channel->GetFormat();
@@ -289,7 +283,7 @@ void AudioMixer::MixChannel(ISDLAudioChannel* channel, size_t frames)
     const auto mixedFrames = std::min(frames, availableFrames);
     const auto* samples = static_cast<const int16_t*>(buffer);
     const auto outputChannels = static_cast<size_t>(_outputFormat.channels);
-    const auto volumeAdjust = GetVolumeAdjust(channel) / static_cast<float>(kMixerVolumeMax);
+    const auto volumeAdjust = GetVolumeAdjust(channel, masterGain) / static_cast<float>(kMixerVolumeMax);
     const auto oldVolume = static_cast<float>(channel->GetOldVolume()) * volumeAdjust;
     const auto newVolume = static_cast<float>(channel->GetVolume()) * volumeAdjust;
     const auto startFade = channel->GetFadeLevel();
@@ -432,11 +426,9 @@ size_t AudioMixer::PrepareSpatialSamples(
     return producedFrames;
 }
 
-float AudioMixer::GetVolumeAdjust(const IAudioChannel* channel) const
+float AudioMixer::GetVolumeAdjust(const IAudioChannel* channel, float masterGain) const
 {
-    float volumeAdjust = _volume;
-    volumeAdjust *= Config::Get().sound.masterSoundEnabled ? (static_cast<float>(Config::Get().sound.masterVolume) / 100.0f)
-                                                           : 0.0f;
+    float volumeAdjust = _volume * masterGain;
 
     switch (channel->GetGroup())
     {

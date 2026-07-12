@@ -397,7 +397,7 @@ namespace OpenRCT2::Audio
             _vehicleChannelStartAttempts++;
             auto channel = CreateAudioChannel(
                 id, MixerGroup::Vehicle, looping, DStoMixerVolume(volume), 0.5f,
-                DStoMixerRate(frequency) * sound_params->dopplerFactor, false);
+                DStoMixerRate(frequency) * sound_params->dopplerFactor);
             if (channel != nullptr)
             {
                 sound.id = id;

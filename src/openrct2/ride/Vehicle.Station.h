@@ -37,16 +37,32 @@ namespace OpenRCT2
             uint32_t currentPeeps{};
             uint32_t reservedSeats{};
 
-            bool HasRiders() const
-            {
-                return currentPeeps != 0;
-            }
-
             std::span<const Vehicle* const> GetCars() const
             {
                 return { cars.data(), carCount };
             }
         };
+
+        struct StationLoadingPolicy
+        {
+            bool incomingTrain{};
+            bool initialDwellPending{};
+            bool emptyTrainMustWait{};
+            bool minimumWaitPending{};
+            bool maximumWaitElapsed{};
+            bool waitForLoad{};
+            uint32_t loadTarget{};
+        };
+
+        [[nodiscard]] constexpr bool ShouldStopBoarding(
+            const TrainSeatSummary& train, const StationLoadingPolicy& policy) noexcept
+        {
+            if (policy.incomingTrain)
+                return true;
+            if (policy.initialDwellPending || policy.emptyTrainMustWait || policy.minimumWaitPending)
+                return false;
+            return policy.maximumWaitElapsed || !policy.waitForLoad || train.currentPeeps >= policy.loadTarget;
+        }
 
         TrainSeatSummary BuildTrainSeatSummary(const Vehicle& head);
 
@@ -56,21 +72,7 @@ namespace OpenRCT2
             uint8_t seatCount{};
         };
 
-        struct TrainBoardingSeat
-        {
-            uint32_t slotIndex{};
-            uint8_t carIndex{};
-            uint8_t seatIndex{};
-        };
-
-        struct TrainBoardingSeatPlan
-        {
-            std::array<TrainBoardingSeat, Limits::kMaxCarsPerTrain * kMaxPassengerCount> seats{};
-            uint16_t seatCount{};
-        };
-
         PlatformBoardingSeatRange GetPlatformBoardingSeatRange(const Vehicle& vehicle);
-        TrainBoardingSeatPlan BuildTrainBoardingSeatPlan(const TrainSeatSummary& train);
 
         struct PassengerUnloadPlan
         {

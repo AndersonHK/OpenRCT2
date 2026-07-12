@@ -37,6 +37,24 @@ namespace OpenRCT2::Ui::Vulkan
             }
             throw std::runtime_error("No device-local Vulkan memory type is available");
         }
+
+        constexpr VkImageSubresourceRange ImageRange(
+            VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT, uint32_t layers = 1) noexcept
+        {
+            return { aspect, 0, 1, 0, layers };
+        }
+
+        template<typename Range>
+        void DisposeImages(Range& images)
+        {
+            for (auto& image : images)
+            {
+                if constexpr (requires { image.Dispose(); })
+                    image.Dispose();
+                else
+                    DisposeImages(image);
+            }
+        }
     } // namespace
 
     Image::~Image()
@@ -58,9 +76,7 @@ namespace OpenRCT2::Ui::Vulkan
             _image = std::exchange(other._image, VK_NULL_HANDLE);
             _memory = std::exchange(other._memory, VK_NULL_HANDLE);
             _view = std::exchange(other._view, VK_NULL_HANDLE);
-            _format = std::exchange(other._format, VK_FORMAT_UNDEFINED);
             _extent = std::exchange(other._extent, VkExtent3D{});
-            _layers = std::exchange(other._layers, 0);
         }
         return *this;
     }
@@ -71,9 +87,7 @@ namespace OpenRCT2::Ui::Vulkan
     {
         Dispose();
         _device = device;
-        _format = format;
         _extent = extent;
-        _layers = layers;
 
         const VkImageCreateInfo imageInfo = {
             .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
@@ -106,12 +120,7 @@ namespace OpenRCT2::Ui::Vulkan
             .image = _image,
             .viewType = layers > 1 ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D,
             .format = format,
-            .components = {
-                VK_COMPONENT_SWIZZLE_IDENTITY,
-                VK_COMPONENT_SWIZZLE_IDENTITY,
-                VK_COMPONENT_SWIZZLE_IDENTITY,
-                VK_COMPONENT_SWIZZLE_IDENTITY,
-            },
+            .components = {},
             .subresourceRange = {
                 .aspectMask = aspect,
                 .baseMipLevel = 0,
@@ -135,9 +144,7 @@ namespace OpenRCT2::Ui::Vulkan
         _image = VK_NULL_HANDLE;
         _memory = VK_NULL_HANDLE;
         _view = VK_NULL_HANDLE;
-        _format = VK_FORMAT_UNDEFINED;
         _extent = {};
-        _layers = 0;
     }
 
     IndexedResources::~IndexedResources()
@@ -152,31 +159,34 @@ namespace OpenRCT2::Ui::Vulkan
         _device = device.GetDevice();
         _hasLightAccumulators = createLightAccumulators;
 
-        _spriteAtlas.Initialise(
-            _physicalDevice, _device, { Gpu::kAtlasDimension, Gpu::kAtlasDimension, 1 }, Gpu::kAtlasLayers, VK_FORMAT_R8_UINT,
-            VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-            VK_IMAGE_ASPECT_COLOR_BIT);
+        const auto initialise = [&](Image& image, VkExtent3D extent, uint32_t layers, VkFormat format,
+                                    VkImageUsageFlags usage) {
+            image.Initialise(_physicalDevice, _device, extent, layers, format, usage, VK_IMAGE_ASPECT_COLOR_BIT);
+        };
+        initialise(
+            _spriteAtlas, { Gpu::kAtlasDimension, Gpu::kAtlasDimension, 1 }, Gpu::kAtlasLayers, VK_FORMAT_R8_UINT,
+            VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
         for (auto& palette : _palettes)
         {
-            palette.Initialise(
-                _physicalDevice, _device, { 256, 1, 1 }, 1, VK_FORMAT_R8G8B8A8_UNORM,
-                VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+            initialise(
+                palette, { 256, 1, 1 }, 1, VK_FORMAT_R8G8B8A8_UNORM,
+                VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
         }
         for (auto& lightPalette : _lightPalettes)
         {
-            lightPalette.Initialise(
-                _physicalDevice, _device, { 256, 1, 1 }, 1, VK_FORMAT_R8G8B8A8_UNORM,
-                VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+            initialise(
+                lightPalette, { 256, 1, 1 }, 1, VK_FORMAT_R8G8B8A8_UNORM,
+                VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
         }
-        _remapPalette.Initialise(
-            _physicalDevice, _device, { 256, 256, 1 }, 1, VK_FORMAT_R8_UINT,
-            VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
-        _blendPalette.Initialise(
-            _physicalDevice, _device, { 256, 256, 1 }, 1, VK_FORMAT_R8_UINT,
-            VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
-        _lightFalloffs.Initialise(
-            _physicalDevice, _device, { 256, 256, 1 }, 8, VK_FORMAT_R8_UINT,
-            VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+        initialise(
+            _remapPalette, { 256, 256, 1 }, 1, VK_FORMAT_R8_UINT,
+            VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+        initialise(
+            _blendPalette, { 256, 256, 1 }, 1, VK_FORMAT_R8_UINT,
+            VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+        initialise(
+            _lightFalloffs, { 256, 256, 1 }, 8, VK_FORMAT_R8_UINT,
+            VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 
         const VkSamplerCreateInfo samplerInfo = {
             .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
@@ -211,14 +221,8 @@ namespace OpenRCT2::Ui::Vulkan
         _blendPalette.Dispose();
         _lightFalloffs.Dispose();
         _remapPalette.Dispose();
-        for (auto& lightPalette : _lightPalettes)
-        {
-            lightPalette.Dispose();
-        }
-        for (auto& palette : _palettes)
-        {
-            palette.Dispose();
-        }
+        DisposeImages(_lightPalettes);
+        DisposeImages(_palettes);
         _spriteAtlas.Dispose();
         _physicalDevice = VK_NULL_HANDLE;
         _device = VK_NULL_HANDLE;
@@ -229,9 +233,6 @@ namespace OpenRCT2::Ui::Vulkan
         _remapPaletteHasShaderLayout = false;
         _blendPaletteHasShaderLayout = false;
         _lightFalloffsHaveShaderLayout = false;
-        _canvasHasShaderLayout.fill(false);
-        _lightMapHasShaderLayout.fill(false);
-        _lightAccumulatorHasShaderLayout.fill(false);
     }
 
     void IndexedResources::Resize(Gpu::Extent logicalExtent, bool createLightAccumulators)
@@ -268,13 +269,7 @@ namespace OpenRCT2::Ui::Vulkan
 
     void IndexedResources::BeginAtlasUploads(VkCommandBuffer commandBuffer)
     {
-        const VkImageSubresourceRange range = {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-            .baseMipLevel = 0,
-            .levelCount = 1,
-            .baseArrayLayer = 0,
-            .layerCount = Gpu::kAtlasLayers,
-        };
+        constexpr auto range = ImageRange(VK_IMAGE_ASPECT_COLOR_BIT, Gpu::kAtlasLayers);
         RecordImageBarrier(
             commandBuffer, _spriteAtlas.GetImage(),
             _atlasHasShaderLayout ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED,
@@ -325,13 +320,7 @@ namespace OpenRCT2::Ui::Vulkan
 
     void IndexedResources::EndAtlasUploads(VkCommandBuffer commandBuffer)
     {
-        const VkImageSubresourceRange range = {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-            .baseMipLevel = 0,
-            .levelCount = 1,
-            .baseArrayLayer = 0,
-            .layerCount = Gpu::kAtlasLayers,
-        };
+        constexpr auto range = ImageRange(VK_IMAGE_ASPECT_COLOR_BIT, Gpu::kAtlasLayers);
         RecordImageBarrier(
             commandBuffer, _spriteAtlas.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, range, VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -359,20 +348,6 @@ namespace OpenRCT2::Ui::Vulkan
         {
             throw std::invalid_argument(std::string("Vulkan ") + description + " upload allocation is too small");
         }
-        const VkImageSubresourceRange range = {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-            .baseMipLevel = 0,
-            .levelCount = 1,
-            .baseArrayLayer = 0,
-            .layerCount = 1,
-        };
-        RecordImageBarrier(
-            commandBuffer, image.GetImage(),
-            hasShaderLayout ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, range,
-            hasShaderLayout ? VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT : VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-            VK_PIPELINE_STAGE_TRANSFER_BIT, hasShaderLayout ? VK_ACCESS_SHADER_READ_BIT : 0, VK_ACCESS_TRANSFER_WRITE_BIT);
-
         const VkBufferImageCopy copy = {
             .bufferOffset = allocation.offset,
             .bufferRowLength = 256,
@@ -386,9 +361,28 @@ namespace OpenRCT2::Ui::Vulkan
             .imageOffset = { 0, 0, 0 },
             .imageExtent = { 256, 1, 1 },
         };
+        RecordImageUpload(commandBuffer, allocation, image, hasShaderLayout, copy);
+    }
+
+    void IndexedResources::RecordImageUpload(
+        VkCommandBuffer commandBuffer, const UploadAllocation& allocation, Image& image, bool& hasShaderLayout,
+        const VkBufferImageCopy& copy)
+    {
+        const VkImageSubresourceRange range = {
+            .aspectMask = copy.imageSubresource.aspectMask,
+            .baseMipLevel = copy.imageSubresource.mipLevel,
+            .levelCount = 1,
+            .baseArrayLayer = copy.imageSubresource.baseArrayLayer,
+            .layerCount = copy.imageSubresource.layerCount,
+        };
+        RecordImageBarrier(
+            commandBuffer, image.GetImage(),
+            hasShaderLayout ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, range,
+            hasShaderLayout ? VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT : VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+            VK_PIPELINE_STAGE_TRANSFER_BIT, hasShaderLayout ? VK_ACCESS_SHADER_READ_BIT : 0, VK_ACCESS_TRANSFER_WRITE_BIT);
         vkCmdCopyBufferToImage(
             commandBuffer, allocation.buffer, image.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
-
         RecordImageBarrier(
             commandBuffer, image.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
             range, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
@@ -412,20 +406,6 @@ namespace OpenRCT2::Ui::Vulkan
             throw std::invalid_argument("Vulkan LightFX intensity upload exceeds its source or destination");
         }
 
-        const VkImageSubresourceRange range = {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-            .baseMipLevel = 0,
-            .levelCount = 1,
-            .baseArrayLayer = 0,
-            .layerCount = 1,
-        };
-        RecordImageBarrier(
-            commandBuffer, lightMap.GetImage(),
-            _lightMapHasShaderLayout[frameIndex] ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, range,
-            _lightMapHasShaderLayout[frameIndex] ? VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT : VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-            VK_PIPELINE_STAGE_TRANSFER_BIT, _lightMapHasShaderLayout[frameIndex] ? VK_ACCESS_SHADER_READ_BIT : 0,
-            VK_ACCESS_TRANSFER_WRITE_BIT);
         const VkBufferImageCopy copy = {
             .bufferOffset = intensityAllocation.offset,
             .bufferRowLength = width,
@@ -439,13 +419,8 @@ namespace OpenRCT2::Ui::Vulkan
             .imageOffset = { 0, 0, 0 },
             .imageExtent = { width, height, 1 },
         };
-        vkCmdCopyBufferToImage(
-            commandBuffer, intensityAllocation.buffer, lightMap.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
-        RecordImageBarrier(
-            commandBuffer, lightMap.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            range, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
-            VK_ACCESS_SHADER_READ_BIT);
-        _lightMapHasShaderLayout[frameIndex] = true;
+        RecordImageUpload(
+            commandBuffer, intensityAllocation, lightMap, _lightMapHasShaderLayout[frameIndex], copy);
 
         RecordRgbaPaletteUpload(
             commandBuffer, paletteAllocation, _lightPalettes[frameIndex], _lightPaletteHasShaderLayout[frameIndex],
@@ -468,13 +443,7 @@ namespace OpenRCT2::Ui::Vulkan
         {
             throw std::out_of_range("Vulkan LightFX frame index is out of range");
         }
-        const VkImageSubresourceRange range = {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-            .baseMipLevel = 0,
-            .levelCount = 1,
-            .baseArrayLayer = 0,
-            .layerCount = 1,
-        };
+        constexpr auto range = ImageRange();
         const auto ensureLayout = [&](Image& image, bool& hasShaderLayout) {
             if (!hasShaderLayout)
             {
@@ -567,39 +536,19 @@ namespace OpenRCT2::Ui::Vulkan
         _lightAccumulatorHasShaderLayout[frameIndex] = true;
     }
 
-    void IndexedResources::RecordRemapPaletteUpload(VkCommandBuffer commandBuffer, const UploadAllocation& allocation)
-    {
-        RecordIndexTableUpload(commandBuffer, allocation, _remapPalette, _remapPaletteHasShaderLayout, "remap-palette");
-    }
-
-    void IndexedResources::RecordBlendPaletteUpload(VkCommandBuffer commandBuffer, const UploadAllocation& allocation)
-    {
-        RecordIndexTableUpload(commandBuffer, allocation, _blendPalette, _blendPaletteHasShaderLayout, "blend-palette");
-    }
-
     void IndexedResources::RecordIndexTableUpload(
-        VkCommandBuffer commandBuffer, const UploadAllocation& allocation, Image& image, bool& hasShaderLayout,
-        const char* description)
+        VkCommandBuffer commandBuffer, const UploadAllocation& allocation, bool blend)
     {
         constexpr VkDeviceSize kIndexTableBytes = 256 * 256;
         if (allocation.size < kIndexTableBytes)
         {
-            throw std::invalid_argument(std::string("Vulkan ") + description + " upload allocation is too small");
+            throw std::invalid_argument(
+                blend ? "Vulkan blend-palette upload allocation is too small"
+                      : "Vulkan remap-palette upload allocation is too small");
         }
 
-        const VkImageSubresourceRange range = {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-            .baseMipLevel = 0,
-            .levelCount = 1,
-            .baseArrayLayer = 0,
-            .layerCount = 1,
-        };
-        RecordImageBarrier(
-            commandBuffer, image.GetImage(),
-            hasShaderLayout ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, range,
-            hasShaderLayout ? VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT : VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-            VK_PIPELINE_STAGE_TRANSFER_BIT, hasShaderLayout ? VK_ACCESS_SHADER_READ_BIT : 0, VK_ACCESS_TRANSFER_WRITE_BIT);
+        auto& image = blend ? _blendPalette : _remapPalette;
+        auto& hasShaderLayout = blend ? _blendPaletteHasShaderLayout : _remapPaletteHasShaderLayout;
 
         const VkBufferImageCopy copy = {
             .bufferOffset = allocation.offset,
@@ -614,13 +563,7 @@ namespace OpenRCT2::Ui::Vulkan
             .imageOffset = { 0, 0, 0 },
             .imageExtent = { 256, 256, 1 },
         };
-        vkCmdCopyBufferToImage(
-            commandBuffer, allocation.buffer, image.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
-        RecordImageBarrier(
-            commandBuffer, image.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            range, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
-            VK_ACCESS_SHADER_READ_BIT);
-        hasShaderLayout = true;
+        RecordImageUpload(commandBuffer, allocation, image, hasShaderLayout, copy);
     }
 
     void IndexedResources::RecordCanvasClear(VkCommandBuffer commandBuffer, uint32_t frameIndex, uint8_t paletteIndex)
@@ -631,13 +574,7 @@ namespace OpenRCT2::Ui::Vulkan
         }
 
         auto& canvas = _indexedCanvases[frameIndex];
-        const VkImageSubresourceRange range = {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-            .baseMipLevel = 0,
-            .levelCount = 1,
-            .baseArrayLayer = 0,
-            .layerCount = 1,
-        };
+        constexpr auto range = ImageRange();
         RecordImageBarrier(
             commandBuffer, canvas.GetImage(),
             _canvasHasShaderLayout[frameIndex] ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED,
@@ -670,20 +607,6 @@ namespace OpenRCT2::Ui::Vulkan
         {
             throw std::invalid_argument("Vulkan indexed-canvas upload exceeds its source or destination");
         }
-        const VkImageSubresourceRange range = {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-            .baseMipLevel = 0,
-            .levelCount = 1,
-            .baseArrayLayer = 0,
-            .layerCount = 1,
-        };
-        RecordImageBarrier(
-            commandBuffer, canvas.GetImage(),
-            _canvasHasShaderLayout[frameIndex] ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, range,
-            _canvasHasShaderLayout[frameIndex] ? VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT : VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-            VK_PIPELINE_STAGE_TRANSFER_BIT, _canvasHasShaderLayout[frameIndex] ? VK_ACCESS_SHADER_READ_BIT : 0,
-            VK_ACCESS_TRANSFER_WRITE_BIT);
         const VkBufferImageCopy copy = {
             .bufferOffset = allocation.offset,
             .bufferRowLength = upload.sourcePitch,
@@ -697,13 +620,7 @@ namespace OpenRCT2::Ui::Vulkan
             .imageOffset = { 0, 0, 0 },
             .imageExtent = { upload.width, upload.height, 1 },
         };
-        vkCmdCopyBufferToImage(
-            commandBuffer, allocation.buffer, canvas.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
-        RecordImageBarrier(
-            commandBuffer, canvas.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            range, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
-            VK_ACCESS_SHADER_READ_BIT);
-        _canvasHasShaderLayout[frameIndex] = true;
+        RecordImageUpload(commandBuffer, allocation, canvas, _canvasHasShaderLayout[frameIndex], copy);
     }
 
     void IndexedResources::RecordCanvasAndDepthClear(VkCommandBuffer commandBuffer, uint32_t frameIndex, uint8_t paletteIndex)
@@ -711,13 +628,7 @@ namespace OpenRCT2::Ui::Vulkan
         RecordCanvasClear(commandBuffer, frameIndex, paletteIndex);
 
         auto& depth = _depthCanvases.at(frameIndex);
-        const VkImageSubresourceRange range = {
-            .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
-            .baseMipLevel = 0,
-            .levelCount = 1,
-            .baseArrayLayer = 0,
-            .layerCount = 1,
-        };
+        constexpr auto range = ImageRange(VK_IMAGE_ASPECT_DEPTH_BIT);
         RecordImageBarrier(
             commandBuffer, depth.GetImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, range,
             VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, VK_ACCESS_TRANSFER_WRITE_BIT);
@@ -736,38 +647,37 @@ namespace OpenRCT2::Ui::Vulkan
         _lightMapHasShaderLayout.fill(false);
         _lightAccumulatorHasShaderLayout.fill(false);
         const VkExtent3D extent = { std::max(logicalExtent.width, 1u), std::max(logicalExtent.height, 1u), 1 };
+        const auto initialise = [&](Image& image, VkFormat format, VkImageUsageFlags usage,
+                                    VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT) {
+            image.Initialise(_physicalDevice, _device, extent, 1, format, usage, aspect);
+        };
         for (uint32_t i = 0; i < kFramesInFlight; i++)
         {
-            _indexedCanvases[i].Initialise(
-                _physicalDevice, _device, extent, 1, VK_FORMAT_R8_UINT,
+            initialise(
+                _indexedCanvases[i], VK_FORMAT_R8_UINT,
                 VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
-                    | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-                VK_IMAGE_ASPECT_COLOR_BIT);
-            _depthCanvases[i].Initialise(
-                _physicalDevice, _device, extent, 1, VK_FORMAT_D32_SFLOAT,
+                    | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+            initialise(
+                _depthCanvases[i], VK_FORMAT_D32_SFLOAT,
                 VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
                 VK_IMAGE_ASPECT_DEPTH_BIT);
-            _compositeCanvases[i].Initialise(
-                _physicalDevice, _device, extent, 1, VK_FORMAT_R8_UINT,
-                VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-                VK_IMAGE_ASPECT_COLOR_BIT);
-            _transparentCanvases[i].Initialise(
-                _physicalDevice, _device, extent, 1, VK_FORMAT_R16_UINT,
-                VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
-            _lightMaps[i].Initialise(
-                _physicalDevice, _device, extent, 1, VK_FORMAT_R8_UINT,
-                VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+            initialise(
+                _compositeCanvases[i], VK_FORMAT_R8_UINT,
+                VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+            initialise(
+                _transparentCanvases[i], VK_FORMAT_R16_UINT,
+                VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+            initialise(_lightMaps[i], VK_FORMAT_R8_UINT, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
             if (_hasLightAccumulators)
             {
-                _lightAccumulators[i].Initialise(
-                    _physicalDevice, _device, extent, 1, VK_FORMAT_R32_UINT,
-                    VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-                    VK_IMAGE_ASPECT_COLOR_BIT);
+                initialise(
+                    _lightAccumulators[i], VK_FORMAT_R32_UINT,
+                    VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
             }
             for (auto& depth : _transparentDepthCanvases[i])
             {
-                depth.Initialise(
-                    _physicalDevice, _device, extent, 1, VK_FORMAT_D32_SFLOAT,
+                initialise(
+                    depth, VK_FORMAT_D32_SFLOAT,
                     VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
             }
         }
@@ -778,37 +688,13 @@ namespace OpenRCT2::Ui::Vulkan
         _canvasHasShaderLayout.fill(false);
         _lightMapHasShaderLayout.fill(false);
         _lightAccumulatorHasShaderLayout.fill(false);
-        for (auto& image : _indexedCanvases)
-        {
-            image.Dispose();
-        }
-        for (auto& image : _depthCanvases)
-        {
-            image.Dispose();
-        }
-        for (auto& image : _compositeCanvases)
-        {
-            image.Dispose();
-        }
-        for (auto& image : _transparentCanvases)
-        {
-            image.Dispose();
-        }
-        for (auto& image : _lightMaps)
-        {
-            image.Dispose();
-        }
-        for (auto& image : _lightAccumulators)
-        {
-            image.Dispose();
-        }
-        for (auto& frame : _transparentDepthCanvases)
-        {
-            for (auto& image : frame)
-            {
-                image.Dispose();
-            }
-        }
+        DisposeImages(_indexedCanvases);
+        DisposeImages(_depthCanvases);
+        DisposeImages(_compositeCanvases);
+        DisposeImages(_transparentCanvases);
+        DisposeImages(_lightMaps);
+        DisposeImages(_lightAccumulators);
+        DisposeImages(_transparentDepthCanvases);
     }
 
     void RecordImageBarrier(

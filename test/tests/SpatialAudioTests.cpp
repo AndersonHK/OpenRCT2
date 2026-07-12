@@ -7,14 +7,56 @@
  * OpenRCT2 is licensed under the GNU General Public License version 3.
  *****************************************************************************/
 
+#include <algorithm>
+#include <array>
 #include <cmath>
+#include <cstring>
 #include <gtest/gtest.h>
 #include <numbers>
 #include <numeric>
+#include <memory>
+#include <openrct2-ui/audio/AudioContext.h>
+#include <openrct2-ui/audio/AudioFormat.h>
+#include <openrct2-ui/audio/SDLAudioSource.h>
 #include <openrct2/audio/SpatialAudio.h>
 #include <openrct2/ride/RideAudio.h>
 
 using namespace OpenRCT2::Audio;
+
+namespace
+{
+    class TestAudioSource final : public SDLAudioSource
+    {
+    public:
+        AudioFormat GetFormat() const override { return { 22050, AUDIO_S16SYS, 1 }; }
+        uint64_t GetLength() const override { return _samples.size() * sizeof(int16_t); }
+
+        size_t Read(void* destination, uint64_t offset, size_t length) override
+        {
+            const auto available = GetLength() - std::min(offset, GetLength());
+            const auto readLength = std::min<uint64_t>(length, available);
+            std::memcpy(destination, reinterpret_cast<const uint8_t*>(_samples.data()) + offset, readLength);
+            return readLength;
+        }
+
+    protected:
+        void Unload() override {}
+
+    private:
+        std::array<int16_t, 4> _samples{ 1, 2, 3, 4 };
+    };
+}
+
+TEST(AudioChannel, NonLoopingSourceCompletionOwnsChannelLifetimeState)
+{
+    TestAudioSource source;
+    std::unique_ptr<ISDLAudioChannel> channel(AudioChannel::Create());
+    channel->Play(&source, kMixerLoopNone);
+
+    std::array<int16_t, 4> output{};
+    EXPECT_EQ(channel->Read(output.data(), sizeof(output)), sizeof(output));
+    EXPECT_TRUE(channel->IsDone());
+}
 
 TEST(SpatialAudio, DistanceAttenuationIsContinuousAndLongRange)
 {

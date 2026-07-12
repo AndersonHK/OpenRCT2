@@ -126,6 +126,24 @@ static bool ExportSave(
     return true;
 }
 
+static std::unique_ptr<IContext> ImportBigMap()
+{
+    auto context = CreateContext();
+    MemoryStream stream;
+    if (!context->Initialise()
+        || !LoadFileToBuffer(stream, TestData::GetParkPath("BigMapTest.sv6")) || !ImportS6(stream, context, false))
+        context.reset();
+    return context;
+}
+
+static std::unique_ptr<IContext> ImportParkVersion(MemoryStream& stream)
+{
+    auto context = CreateContext();
+    if (!context->Initialise() || !ImportPark(stream, context, true))
+        context.reset();
+    return context;
+}
+
 static Ride* GetFirstRide()
 {
     for (auto& ride : getGameState().rides)
@@ -230,13 +248,8 @@ TEST(S6ImportExportBasic, all)
 
     // Import the exported version.
     {
-        std::unique_ptr<IContext> context = CreateContext();
+        auto context = ImportParkVersion(exportBuffer);
         EXPECT_NE(context, nullptr);
-
-        bool initialised = context->Initialise();
-        ASSERT_TRUE(initialised);
-
-        ASSERT_TRUE(ImportPark(exportBuffer, context, true));
 
         RecordGameStateSnapshot(context, snapshotStream);
     }
@@ -256,14 +269,8 @@ TEST(ParkFileMigration, LegacyRideLengthsScaleOnce)
     MemoryStream currentVersionPark;
 
     {
-        std::unique_ptr<IContext> context = CreateContext();
+        auto context = ImportBigMap();
         ASSERT_NE(context, nullptr);
-        ASSERT_TRUE(context->Initialise());
-
-        MemoryStream importBuffer;
-        std::string testParkPath = TestData::GetParkPath("BigMapTest.sv6");
-        ASSERT_TRUE(LoadFileToBuffer(importBuffer, testParkPath));
-        ASSERT_TRUE(ImportS6(importBuffer, context, false));
 
         auto* ride = GetFirstRide();
         ASSERT_NE(ride, nullptr);
@@ -274,10 +281,8 @@ TEST(ParkFileMigration, LegacyRideLengthsScaleOnce)
     }
 
     {
-        std::unique_ptr<IContext> context = CreateContext();
+        auto context = ImportParkVersion(oldVersionPark);
         ASSERT_NE(context, nullptr);
-        ASSERT_TRUE(context->Initialise());
-        ASSERT_TRUE(ImportPark(oldVersionPark, context, true));
 
         auto* ride = GetFirstRide();
         ASSERT_NE(ride, nullptr);
@@ -288,10 +293,8 @@ TEST(ParkFileMigration, LegacyRideLengthsScaleOnce)
     }
 
     {
-        std::unique_ptr<IContext> context = CreateContext();
+        auto context = ImportParkVersion(currentVersionPark);
         ASSERT_NE(context, nullptr);
-        ASSERT_TRUE(context->Initialise());
-        ASSERT_TRUE(ImportPark(currentVersionPark, context, true));
 
         auto* ride = GetFirstRide();
         ASSERT_NE(ride, nullptr);
@@ -310,14 +313,8 @@ TEST(ParkFileMigration, LongitudinalGStatsRoundTripAndDefaultForPreviousVersion)
     MemoryStream previousVersionPark;
 
     {
-        std::unique_ptr<IContext> context = CreateContext();
+        auto context = ImportBigMap();
         ASSERT_NE(context, nullptr);
-        ASSERT_TRUE(context->Initialise());
-
-        MemoryStream importBuffer;
-        const std::string testParkPath = TestData::GetParkPath("BigMapTest.sv6");
-        ASSERT_TRUE(LoadFileToBuffer(importBuffer, testParkPath));
-        ASSERT_TRUE(ImportS6(importBuffer, context, false));
 
         auto* ride = GetFirstRide();
         ASSERT_NE(ride, nullptr);
@@ -344,10 +341,8 @@ TEST(ParkFileMigration, LongitudinalGStatsRoundTripAndDefaultForPreviousVersion)
     }
 
     {
-        std::unique_ptr<IContext> context = CreateContext();
+        auto context = ImportParkVersion(currentVersionPark);
         ASSERT_NE(context, nullptr);
-        ASSERT_TRUE(context->Initialise());
-        ASSERT_TRUE(ImportPark(currentVersionPark, context, true));
 
         const auto* ride = GetFirstRide();
         ASSERT_NE(ride, nullptr);
@@ -368,10 +363,8 @@ TEST(ParkFileMigration, LongitudinalGStatsRoundTripAndDefaultForPreviousVersion)
     }
 
     {
-        std::unique_ptr<IContext> context = CreateContext();
+        auto context = ImportParkVersion(longitudinalStatsVersionPark);
         ASSERT_NE(context, nullptr);
-        ASSERT_TRUE(context->Initialise());
-        ASSERT_TRUE(ImportPark(longitudinalStatsVersionPark, context, true));
 
         const auto* ride = GetFirstRide();
         ASSERT_NE(ride, nullptr);
@@ -392,10 +385,8 @@ TEST(ParkFileMigration, LongitudinalGStatsRoundTripAndDefaultForPreviousVersion)
     }
 
     {
-        std::unique_ptr<IContext> context = CreateContext();
+        auto context = ImportParkVersion(previousVersionPark);
         ASSERT_NE(context, nullptr);
-        ASSERT_TRUE(context->Initialise());
-        ASSERT_TRUE(ImportPark(previousVersionPark, context, true));
 
         const auto* ride = GetFirstRide();
         ASSERT_NE(ride, nullptr);
@@ -427,14 +418,8 @@ TEST(ParkFileMigration, TransportDestinationRoundTripsAndIsRemovedFromOlderTarge
     RideId transportRide = RideId::GetNull();
 
     {
-        std::unique_ptr<IContext> context = CreateContext();
+        auto context = ImportBigMap();
         ASSERT_NE(context, nullptr);
-        ASSERT_TRUE(context->Initialise());
-
-        MemoryStream importBuffer;
-        const std::string testParkPath = TestData::GetParkPath("BigMapTest.sv6");
-        ASSERT_TRUE(LoadFileToBuffer(importBuffer, testParkPath));
-        ASSERT_TRUE(ImportS6(importBuffer, context, false));
 
         auto* ride = GetFirstRide();
         ASSERT_NE(ride, nullptr);
@@ -451,10 +436,8 @@ TEST(ParkFileMigration, TransportDestinationRoundTripsAndIsRemovedFromOlderTarge
     }
 
     {
-        std::unique_ptr<IContext> context = CreateContext();
+        auto context = ImportParkVersion(currentVersionPark);
         ASSERT_NE(context, nullptr);
-        ASSERT_TRUE(context->Initialise());
-        ASSERT_TRUE(ImportPark(currentVersionPark, context, true));
 
         const auto* ride = GetFirstRide();
         ASSERT_NE(ride, nullptr);
@@ -469,10 +452,8 @@ TEST(ParkFileMigration, TransportDestinationRoundTripsAndIsRemovedFromOlderTarge
     }
 
     {
-        std::unique_ptr<IContext> context = CreateContext();
+        auto context = ImportParkVersion(previousVersionPark);
         ASSERT_NE(context, nullptr);
-        ASSERT_TRUE(context->Initialise());
-        ASSERT_TRUE(ImportPark(previousVersionPark, context, true));
 
         const auto* ride = GetFirstRide();
         ASSERT_NE(ride, nullptr);
@@ -498,13 +479,8 @@ TEST(ParkFileMigration, RideRatingLegsRoundTripAndOlderTargetKeepsLiveState)
     MemoryStream legacyActivePark;
 
     {
-        std::unique_ptr<IContext> context = CreateContext();
+        auto context = ImportBigMap();
         ASSERT_NE(context, nullptr);
-        ASSERT_TRUE(context->Initialise());
-
-        MemoryStream importBuffer;
-        ASSERT_TRUE(LoadFileToBuffer(importBuffer, TestData::GetParkPath("BigMapTest.sv6")));
-        ASSERT_TRUE(ImportS6(importBuffer, context, false));
 
         auto* ride = GetFirstRide();
         ASSERT_NE(ride, nullptr);
@@ -543,10 +519,8 @@ TEST(ParkFileMigration, RideRatingLegsRoundTripAndOlderTargetKeepsLiveState)
     }
 
     {
-        std::unique_ptr<IContext> context = CreateContext();
+        auto context = ImportParkVersion(currentVersionPark);
         ASSERT_NE(context, nullptr);
-        ASSERT_TRUE(context->Initialise());
-        ASSERT_TRUE(ImportPark(currentVersionPark, context, true));
 
         const auto* ride = GetFirstRide();
         ASSERT_NE(ride, nullptr);
@@ -569,10 +543,8 @@ TEST(ParkFileMigration, RideRatingLegsRoundTripAndOlderTargetKeepsLiveState)
     }
 
     {
-        std::unique_ptr<IContext> context = CreateContext();
+        auto context = ImportParkVersion(previousShelterVersionPark);
         ASSERT_NE(context, nullptr);
-        ASSERT_TRUE(context->Initialise());
-        ASSERT_TRUE(ImportPark(previousShelterVersionPark, context, true));
 
         const auto* ride = GetFirstRide();
         ASSERT_NE(ride, nullptr);
@@ -581,10 +553,8 @@ TEST(ParkFileMigration, RideRatingLegsRoundTripAndOlderTargetKeepsLiveState)
     }
 
     {
-        std::unique_ptr<IContext> context = CreateContext();
+        auto context = ImportParkVersion(previousVersionPark);
         ASSERT_NE(context, nullptr);
-        ASSERT_TRUE(context->Initialise());
-        ASSERT_TRUE(ImportPark(previousVersionPark, context, true));
 
         const auto* ride = GetFirstRide();
         ASSERT_NE(ride, nullptr);
@@ -593,10 +563,8 @@ TEST(ParkFileMigration, RideRatingLegsRoundTripAndOlderTargetKeepsLiveState)
     }
 
     {
-        std::unique_ptr<IContext> context = CreateContext();
+        auto context = ImportParkVersion(legacyActivePark);
         ASSERT_NE(context, nullptr);
-        ASSERT_TRUE(context->Initialise());
-        ASSERT_TRUE(ImportPark(legacyActivePark, context, true));
 
         const auto* ride = GetFirstRide();
         ASSERT_NE(ride, nullptr);
@@ -615,13 +583,8 @@ TEST(ParkFileMigration, PlatformGuestRoundTripsAndOlderTargetUsesStationExitReco
     TileCoordsXYZD exit{};
 
     {
-        std::unique_ptr<IContext> context = CreateContext();
+        auto context = ImportBigMap();
         ASSERT_NE(context, nullptr);
-        ASSERT_TRUE(context->Initialise());
-
-        MemoryStream importBuffer;
-        ASSERT_TRUE(LoadFileToBuffer(importBuffer, TestData::GetParkPath("BigMapTest.sv6")));
-        ASSERT_TRUE(ImportS6(importBuffer, context, false));
 
         auto* ride = GetFirstRide();
         ASSERT_NE(ride, nullptr);
@@ -657,10 +620,8 @@ TEST(ParkFileMigration, PlatformGuestRoundTripsAndOlderTargetUsesStationExitReco
     }
 
     {
-        std::unique_ptr<IContext> context = CreateContext();
+        auto context = ImportParkVersion(currentVersionPark);
         ASSERT_NE(context, nullptr);
-        ASSERT_TRUE(context->Initialise());
-        ASSERT_TRUE(ImportPark(currentVersionPark, context, true));
 
         auto* guest = getGameState().entities.GetEntity<Guest>(guestId);
         ASSERT_NE(guest, nullptr);
@@ -679,9 +640,8 @@ TEST(ParkFileMigration, PlatformGuestRoundTripsAndOlderTargetUsesStationExitReco
         train->next_free_seat = 1;
         train->peep[0] = EntityId::FromUnderlying(900);
         train->peep[1] = EntityId::GetNull();
-        // Keep the rebuilt reservation on its stale seat. Guest::Update selects
-        // the arriving train before the lazy boarding plan moves the guest past
-        // the through-rider in seat 0.
+        // A through-rider still occupies the guest's exact platform seat. The
+        // saved assignment must remain unchanged for the next train.
         EXPECT_EQ(guest->CurrentCar, 0u);
         EXPECT_EQ(guest->CurrentSeat, 0u);
         ride->status = RideStatus::open;
@@ -691,19 +651,17 @@ TEST(ParkFileMigration, PlatformGuestRoundTripsAndOlderTargetUsesStationExitReco
         guest->update();
 
         EXPECT_EQ(guest->State, PeepState::enteringRide);
-        EXPECT_EQ(guest->RideSubState, PeepRideSubState::leaveEntrance);
-        EXPECT_EQ(guest->CurrentTrain, 0u);
+        EXPECT_EQ(guest->RideSubState, PeepRideSubState::waitingOnPlatform);
+        EXPECT_EQ(guest->CurrentTrain, RideStation::kNoTrain);
         EXPECT_EQ(guest->CurrentCar, 0u);
-        EXPECT_EQ(guest->CurrentSeat, 1u);
+        EXPECT_EQ(guest->CurrentSeat, 0u);
         EXPECT_EQ(train->peep[0], EntityId::FromUnderlying(900));
-        EXPECT_EQ(train->peep[1], guest->id);
+        EXPECT_TRUE(train->peep[1].IsNull());
     }
 
     {
-        std::unique_ptr<IContext> context = CreateContext();
+        auto context = ImportParkVersion(previousVersionPark);
         ASSERT_NE(context, nullptr);
-        ASSERT_TRUE(context->Initialise());
-        ASSERT_TRUE(ImportPark(previousVersionPark, context, true));
 
         const auto* guest = getGameState().entities.GetEntity<Guest>(guestId);
         ASSERT_NE(guest, nullptr);
@@ -746,13 +704,8 @@ TEST(S6ImportExportAdvanceTicks, all)
 
     // Import the exported version.
     {
-        std::unique_ptr<IContext> context = CreateContext();
+        auto context = ImportParkVersion(exportBuffer);
         EXPECT_NE(context, nullptr);
-
-        bool initialised = context->Initialise();
-        ASSERT_TRUE(initialised);
-
-        ASSERT_TRUE(ImportPark(exportBuffer, context, true));
 
         RecordGameStateSnapshot(context, snapshotStream);
     }

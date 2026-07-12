@@ -90,7 +90,7 @@ namespace OpenRCT2::Scripting
     }
     JSValue ScPark::bankLoan_set(JSContext* ctx, JSValue thisVal, JSValue value)
     {
-        JS_UNPACK_INT64(valueInt, ctx, value);
+        JS_UNPACK_MONEY64(valueInt, ctx, value);
         JS_THROW_IF_GAME_STATE_NOT_MUTABLE();
 
         auto& gameState = getGameState();
@@ -110,7 +110,7 @@ namespace OpenRCT2::Scripting
     }
     JSValue ScPark::maxBankLoan_set(JSContext* ctx, JSValue thisVal, JSValue value)
     {
-        JS_UNPACK_INT64(valueInt, ctx, value);
+        JS_UNPACK_MONEY64(valueInt, ctx, value);
         JS_THROW_IF_GAME_STATE_NOT_MUTABLE()
 
         auto& gameState = getGameState();
@@ -129,11 +129,12 @@ namespace OpenRCT2::Scripting
     }
     JSValue ScPark::entranceFee_set(JSContext* ctx, JSValue thisVal, JSValue value)
     {
-        JS_UNPACK_INT64(valueInt, ctx, value);
+        JS_UNPACK_MONEY64(valueInt, ctx, value);
         JS_THROW_IF_GAME_STATE_NOT_MUTABLE();
 
         auto& gameState = getGameState();
-        if (gameState.park.entranceFee != valueInt)
+        if (gameState.park.entranceFeeTarget != Park::ParkEntranceFeeTarget::custom
+            || gameState.park.entranceFee != valueInt)
         {
             gameState.park.entranceFeeTarget = Park::ParkEntranceFeeTarget::custom;
             gameState.park.entranceFee = valueInt;

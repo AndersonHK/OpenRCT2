@@ -40,6 +40,18 @@ namespace OpenRCT2::Ui::Vulkan
         {
             return { resources.GetNearestSampler(), image.GetView(), layout };
         }
+
+        template<size_t N>
+        void UpdateImageDescriptors(VkDevice device, VkDescriptorSet set, const std::array<VkDescriptorImageInfo, N>& infos)
+        {
+            std::array<VkWriteDescriptorSet, N> writes{};
+            for (uint32_t binding = 0; binding < writes.size(); binding++)
+            {
+                writes[binding] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,    nullptr, set, binding, 0, 1,
+                                    VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &infos[binding], nullptr, nullptr };
+            }
+            vkUpdateDescriptorSets(device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
+        }
     } // namespace
 
     TransparencyPipeline::~TransparencyPipeline()
@@ -255,21 +267,7 @@ namespace OpenRCT2::Ui::Vulkan
                         resources, resources.GetTransparentDepthCanvas(frame, depth),
                         VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL),
                 };
-                std::array<VkWriteDescriptorSet, 3> writes{};
-                for (uint32_t i = 0; i < writes.size(); i++)
-                {
-                    writes[i] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                                  nullptr,
-                                  _peelSets[frame][depth],
-                                  i,
-                                  0,
-                                  1,
-                                  VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                                  &infos[i],
-                                  nullptr,
-                                  nullptr };
-                }
-                vkUpdateDescriptorSets(_device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
+                UpdateImageDescriptors(_device, _peelSets[frame][depth], infos);
             }
 
             for (uint32_t input = 0; input < 2; input++)
@@ -289,13 +287,7 @@ namespace OpenRCT2::Ui::Vulkan
                         ImageInfo(resources, resources.GetRemapPalette(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL),
                         ImageInfo(resources, resources.GetBlendPalette(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL),
                     };
-                    std::array<VkWriteDescriptorSet, 6> writes{};
-                    for (uint32_t i = 0; i < writes.size(); i++)
-                    {
-                        writes[i] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,    nullptr,   set,     i,      0, 1,
-                                      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &infos[i], nullptr, nullptr };
-                    }
-                    vkUpdateDescriptorSets(_device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
+                    UpdateImageDescriptors(_device, set, infos);
                 }
             }
         }

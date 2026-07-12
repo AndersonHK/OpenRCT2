@@ -59,7 +59,7 @@ namespace OpenRCT2::Audio
         void Close() override;
         void Lock() override;
         void Unlock() override;
-        std::shared_ptr<IAudioChannel> Play(IAudioSource* source, int32_t loop, bool deleteondone) override;
+        std::shared_ptr<IAudioChannel> Play(IAudioSource* source, int32_t loop) override;
         void SetVolume(float volume) override;
         SDLAudioSource* AddSource(std::unique_ptr<SDLAudioSource> source);
 
@@ -67,8 +67,7 @@ namespace OpenRCT2::Audio
 
     private:
         void GetNextAudioChunk(uint8_t* dst, size_t length);
-        void UpdateAdjustedSound();
-        void MixChannel(ISDLAudioChannel* channel, size_t frames);
+        void MixChannel(ISDLAudioChannel* channel, size_t frames, float masterGain);
         void WriteOutput(uint8_t* dst, size_t frames);
         void RemoveReleasedSources();
 
@@ -79,7 +78,7 @@ namespace OpenRCT2::Audio
         size_t ApplyResample(const void* srcBuffer, size_t srcFrames, size_t dstFrames, int32_t channels, double rate);
         size_t PrepareSpatialSamples(
             ISDLAudioChannel* channel, const AudioFormat& streamFormat, size_t frames, double rate);
-        float GetVolumeAdjust(const IAudioChannel* channel) const;
+        float GetVolumeAdjust(const IAudioChannel* channel, float masterGain) const;
         bool Convert(SDL_AudioCVT* cvt, const void* src, size_t len);
     };
 } // namespace OpenRCT2::Audio

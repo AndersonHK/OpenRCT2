@@ -57,32 +57,23 @@ namespace OpenRCT2::Ui::Windows
         Park::ParkEntranceFeeTarget::affordable,
     };
 
-    static const char* GetEntranceFeeTargetName(Park::ParkEntranceFeeTarget target)
-    {
-        switch (target)
-        {
-            case Park::ParkEntranceFeeTarget::incomePerGuest:
-                return "Richest guest";
-            case Park::ParkEntranceFeeTarget::profit:
-                return "Max profit";
-            case Park::ParkEntranceFeeTarget::affordable:
-                return "All guests";
-            case Park::ParkEntranceFeeTarget::custom:
-                return "Custom";
-        }
-        return "All guests";
-    }
-
-    static u8string FormatEntranceFee(money64 price)
-    {
-        return price == 0.00_GBP ? FormatStringID(STR_FREE) : FormatStringID(STR_BOTTOM_TOOLBAR_CASH, price);
-    }
+    static constexpr std::array<const char*, 4> kEntranceFeeTargetNames = {
+        "Richest guest",
+        "Max profit",
+        "All guests",
+        "Custom",
+    };
 
     static u8string FormatEntranceFeeTargetCaption(const ParkData& park, Park::ParkEntranceFeeTarget target)
     {
-        u8string caption = GetEntranceFeeTargetName(target);
+        const auto targetIndex = static_cast<size_t>(target);
+        const auto* targetName = targetIndex < kEntranceFeeTargetNames.size()
+            ? kEntranceFeeTargetNames[targetIndex]
+            : kEntranceFeeTargetNames[static_cast<size_t>(Park::ParkEntranceFeeTarget::affordable)];
+        const auto price = Park::GetEntranceFeeForTarget(park, target);
+        u8string caption = targetName;
         caption += " (";
-        caption += FormatEntranceFee(Park::GetEntranceFeeForTarget(park, target));
+        caption += price == 0.00_GBP ? FormatStringID(STR_FREE) : FormatStringID(STR_BOTTOM_TOOLBAR_CASH, price);
         caption += ")";
         return caption;
     }

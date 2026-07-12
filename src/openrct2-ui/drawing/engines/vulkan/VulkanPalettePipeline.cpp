@@ -120,62 +120,29 @@ namespace OpenRCT2::Ui::Vulkan
 
     void PalettePipeline::RefreshDescriptors(const IndexedResources& resources)
     {
+        const auto imageInfo = [sampler = resources.GetNearestSampler()](const Image& image) {
+            return VkDescriptorImageInfo{ sampler, image.GetView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
+        };
         for (uint32_t i = 0; i < kFramesInFlight; i++)
         {
-            const VkDescriptorImageInfo paletteInfo = {
-                .sampler = resources.GetNearestSampler(),
-                .imageView = resources.GetPalette(i).GetView(),
-                .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            const std::array infos = {
+                imageInfo(resources.GetIndexedCanvas(i)),
+                imageInfo(resources.GetPalette(i)),
+                imageInfo(resources.GetLightMap(i)),
+                imageInfo(resources.GetLightPalette(i)),
             };
-            const VkDescriptorImageInfo canvasInfo = {
-                .sampler = resources.GetNearestSampler(),
-                .imageView = resources.GetIndexedCanvas(i).GetView(),
-                .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            };
-            const VkDescriptorImageInfo lightMapInfo = {
-                .sampler = resources.GetNearestSampler(),
-                .imageView = resources.GetLightMap(i).GetView(),
-                .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            };
-            const VkDescriptorImageInfo lightPaletteInfo = {
-                .sampler = resources.GetNearestSampler(),
-                .imageView = resources.GetLightPalette(i).GetView(),
-                .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            };
-            const std::array writes = {
-                VkWriteDescriptorSet{
+            std::array<VkWriteDescriptorSet, infos.size()> writes{};
+            for (uint32_t binding = 0; binding < writes.size(); binding++)
+            {
+                writes[binding] = {
                     .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                     .dstSet = _descriptorSets[i],
-                    .dstBinding = 0,
+                    .dstBinding = binding,
                     .descriptorCount = 1,
                     .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                    .pImageInfo = &canvasInfo,
-                },
-                VkWriteDescriptorSet{
-                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                    .dstSet = _descriptorSets[i],
-                    .dstBinding = 1,
-                    .descriptorCount = 1,
-                    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                    .pImageInfo = &paletteInfo,
-                },
-                VkWriteDescriptorSet{
-                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                    .dstSet = _descriptorSets[i],
-                    .dstBinding = 2,
-                    .descriptorCount = 1,
-                    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                    .pImageInfo = &lightMapInfo,
-                },
-                VkWriteDescriptorSet{
-                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                    .dstSet = _descriptorSets[i],
-                    .dstBinding = 3,
-                    .descriptorCount = 1,
-                    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                    .pImageInfo = &lightPaletteInfo,
-                },
-            };
+                    .pImageInfo = &infos[binding],
+                };
+            }
             vkUpdateDescriptorSets(_device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
         }
     }
@@ -259,32 +226,16 @@ namespace OpenRCT2::Ui::Vulkan
 
     void PalettePipeline::CreateDescriptorResources(const IndexedResources& resources)
     {
-        const std::array bindings = {
-            VkDescriptorSetLayoutBinding{
-                .binding = 0,
+        std::array<VkDescriptorSetLayoutBinding, 4> bindings{};
+        for (uint32_t binding = 0; binding < bindings.size(); binding++)
+        {
+            bindings[binding] = {
+                .binding = binding,
                 .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                 .descriptorCount = 1,
                 .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-            },
-            VkDescriptorSetLayoutBinding{
-                .binding = 1,
-                .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                .descriptorCount = 1,
-                .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-            },
-            VkDescriptorSetLayoutBinding{
-                .binding = 2,
-                .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                .descriptorCount = 1,
-                .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-            },
-            VkDescriptorSetLayoutBinding{
-                .binding = 3,
-                .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                .descriptorCount = 1,
-                .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-            },
-        };
+            };
+        }
         const VkDescriptorSetLayoutCreateInfo layoutInfo = {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
             .bindingCount = static_cast<uint32_t>(bindings.size()),

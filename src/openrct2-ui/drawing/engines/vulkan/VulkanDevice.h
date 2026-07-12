@@ -213,7 +213,6 @@ namespace OpenRCT2::Ui::Vulkan
         bool _vsync = true;
         bool _preferHdr10 = false;
         float _hdrPaperWhiteNits = 203.0f;
-        bool _hdr10Available = false;
         bool _hdr10Active = false;
         bool _hdrMetadataAvailable = false;
         bool _swapchainInvalid = false;
@@ -240,11 +239,10 @@ namespace OpenRCT2::Ui::Vulkan
         std::array<FrameResources, kFramesInFlight> _frames;
         uint32_t _currentFrame = 0;
         uint64_t _swapchainGeneration = 0;
-        VkDeviceSize _uploadRingCapacity = kDefaultUploadRingSize;
         uint32_t _timestampValidBits = 0;
         double _timestampPeriodNanoseconds = 0.0;
         bool _gpuTimestampsSupported = false;
-        mutable std::recursive_mutex _hostMutex;
+        mutable std::mutex _hostMutex;
 
     public:
         Device() = default;
@@ -293,17 +291,9 @@ namespace OpenRCT2::Ui::Vulkan
         {
             return _swapchainFormat;
         }
-        [[nodiscard]] bool IsHdr10Available() const noexcept
-        {
-            return _hdr10Available;
-        }
         [[nodiscard]] bool IsHdr10Active() const noexcept
         {
             return _hdr10Active;
-        }
-        [[nodiscard]] bool IsHdrMetadataAvailable() const noexcept
-        {
-            return _hdrMetadataAvailable;
         }
         [[nodiscard]] VkExtent2D GetSwapchainExtent() const noexcept
         {
@@ -321,9 +311,6 @@ namespace OpenRCT2::Ui::Vulkan
         {
             return _currentFrame;
         }
-        [[nodiscard]] bool IsFrameComplete(uint32_t frameIndex) const;
-        void WaitForFrame(uint32_t frameIndex) const;
-        void InvalidateUpload(uint32_t frameIndex, VkDeviceSize offset, VkDeviceSize size);
         void ReadbackImage(
             uint32_t frameIndex, VkImage image, VkImageLayout layout, VkExtent2D extent,
             std::span<std::byte> destination);
@@ -333,7 +320,7 @@ namespace OpenRCT2::Ui::Vulkan
         void CreateSurface();
         void SelectPhysicalDevice();
         void CreateLogicalDevice();
-        void CreateCommandResources();
+        void CreateCommandResources(VkDeviceSize uploadRingCapacity);
         [[nodiscard]] bool CreateSwapchain();
         void DestroySwapchain();
         void PublishHdrMetadata() const noexcept;
@@ -344,10 +331,8 @@ namespace OpenRCT2::Ui::Vulkan
         [[nodiscard]] bool SupportsDeviceExtensions(VkPhysicalDevice device) const;
         [[nodiscard]] int32_t ScorePhysicalDevice(VkPhysicalDevice device) const;
         [[nodiscard]] static bool SupportsRequiredRenderingFormats(VkPhysicalDevice device);
-        [[nodiscard]] std::vector<const char*> GetInstanceExtensions() const;
         [[nodiscard]] std::vector<const char*> GetDeviceExtensions(VkPhysicalDevice device) const;
 
-        [[nodiscard]] VkPresentModeKHR ChoosePresentMode(std::span<const VkPresentModeKHR> modes) const;
         [[nodiscard]] VkExtent2D ChooseExtent(const VkSurfaceCapabilitiesKHR& capabilities) const;
     };
 } // namespace OpenRCT2::Ui::Vulkan

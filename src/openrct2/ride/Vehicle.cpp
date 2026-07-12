@@ -365,7 +365,7 @@ void RideRating::PublishTrainSample(Ride& ride, const Vehicle& head, StationInde
     }
 
     const auto train = RideVehicle::StationDetail::BuildTrainSeatSummary(head);
-    if (head.flags.has(VehicleFlag::testing) || RideIsStatsSampleVehicle(ride, head) || train.HasRiders())
+    if (head.flags.has(VehicleFlag::testing) || RideIsStatsSampleVehicle(ride, head) || train.currentPeeps != 0)
     {
         std::array<EntityId, OpenRCT2::Limits::kMaxCarsPerTrain> sampleEntities{};
         for (uint16_t index = 0; index < train.carCount; index++)
@@ -1210,11 +1210,11 @@ void Vehicle::Update()
         && rtd.RatingsData.Type == RatingsCalculationType::Normal)
     {
         const auto train = RideVehicle::StationDetail::BuildTrainSeatSummary(*this);
-        if (flags.has(VehicleFlag::testing) || RideIsStatsSampleVehicle(*curRide, *this) || train.HasRiders())
+        if (flags.has(VehicleFlag::testing) || RideIsStatsSampleVehicle(*curRide, *this) || train.currentPeeps != 0)
         {
             const bool isSynchronised = RideRatingTrainIsSynchronised(*curRide);
             RideRatingAccumulateTrainTick(
-                *curRide, rtd, train.GetCars(), velocity, isSynchronised, current_station);
+                *curRide, rtd, std::span{ train.cars }.first(train.carCount), velocity, isSynchronised, current_station);
         }
     }
 
@@ -1482,7 +1482,7 @@ void Vehicle::TestReset(bool preserveRecentSamples, bool preserveActiveSamples, 
     if (preserveActiveSamples)
     {
         const auto train = RideVehicle::StationDetail::BuildTrainSeatSummary(*this);
-        for (const auto* vehicle : train.GetCars())
+        for (const auto* vehicle : std::span{ train.cars }.first(train.carCount))
         {
             if (auto* accumulator = RideFindActiveRatingSample(*curRide, vehicle->id); accumulator != nullptr)
             {

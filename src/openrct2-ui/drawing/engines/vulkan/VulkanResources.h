@@ -27,9 +27,7 @@ namespace OpenRCT2::Ui::Vulkan
         VkImage _image = VK_NULL_HANDLE;
         VkDeviceMemory _memory = VK_NULL_HANDLE;
         VkImageView _view = VK_NULL_HANDLE;
-        VkFormat _format = VK_FORMAT_UNDEFINED;
         VkExtent3D _extent{};
-        uint32_t _layers = 0;
 
     public:
         Image() = default;
@@ -53,17 +51,9 @@ namespace OpenRCT2::Ui::Vulkan
         {
             return _view;
         }
-        [[nodiscard]] VkFormat GetFormat() const noexcept
-        {
-            return _format;
-        }
         [[nodiscard]] VkExtent3D GetExtent() const noexcept
         {
             return _extent;
-        }
-        [[nodiscard]] uint32_t GetLayers() const noexcept
-        {
-            return _layers;
         }
     };
 
@@ -116,8 +106,8 @@ namespace OpenRCT2::Ui::Vulkan
         void EndAtlasUploads(VkCommandBuffer commandBuffer);
         void RecordPaletteUpload(
             VkCommandBuffer commandBuffer, uint32_t frameIndex, const UploadAllocation& allocation);
-        void RecordRemapPaletteUpload(VkCommandBuffer commandBuffer, const UploadAllocation& allocation);
-        void RecordBlendPaletteUpload(VkCommandBuffer commandBuffer, const UploadAllocation& allocation);
+        void RecordIndexTableUpload(
+            VkCommandBuffer commandBuffer, const UploadAllocation& allocation, bool blend);
         void RecordLightFxUpload(
             VkCommandBuffer commandBuffer, uint32_t frameIndex, const UploadAllocation& intensityAllocation,
             const UploadAllocation& paletteAllocation, uint32_t width, uint32_t height);
@@ -198,12 +188,12 @@ namespace OpenRCT2::Ui::Vulkan
     private:
         void CreateCanvases(Gpu::Extent logicalExtent);
         void DestroyCanvases();
-        void RecordIndexTableUpload(
-            VkCommandBuffer commandBuffer, const UploadAllocation& allocation, Image& image, bool& hasShaderLayout,
-            const char* description);
         void RecordRgbaPaletteUpload(
             VkCommandBuffer commandBuffer, const UploadAllocation& allocation, Image& image, bool& hasShaderLayout,
             const char* description);
+        void RecordImageUpload(
+            VkCommandBuffer commandBuffer, const UploadAllocation& allocation, Image& image, bool& hasShaderLayout,
+            const VkBufferImageCopy& copy);
     };
 
     void RecordImageBarrier(

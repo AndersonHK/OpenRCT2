@@ -42,7 +42,7 @@ namespace OpenRCT2::Audio
         virtual void Close() = 0;
         virtual void Lock() = 0;
         virtual void Unlock() = 0;
-        virtual std::shared_ptr<IAudioChannel> Play(IAudioSource* source, int32_t loop, bool deleteondone) = 0;
+        virtual std::shared_ptr<IAudioChannel> Play(IAudioSource* source, int32_t loop) = 0;
         virtual void SetVolume(float volume) = 0;
     };
 } // namespace OpenRCT2::Audio

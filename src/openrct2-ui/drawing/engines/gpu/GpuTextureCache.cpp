@@ -16,6 +16,7 @@
 #include <openrct2/core/EnumUtils.hpp>
 #include <openrct2/drawing/Drawing.h>
 #include <openrct2/drawing/PaletteMap.h>
+#include <openrct2/drawing/TTF.h>
 #include <stdexcept>
 
 namespace OpenRCT2::Ui::Gpu
@@ -25,6 +26,8 @@ namespace OpenRCT2::Ui::Gpu
     namespace
     {
         constexpr int32_t kResidentAtlasDimension = Gpu::kAtlasDimension;
+        constexpr size_t kMaxResidentTTFSurfaces = 256;
+        constexpr uint32_t kResidentTTFImage = std::numeric_limits<uint32_t>::max() - 1;
         static_assert(sizeof(PaletteIndex) == 1, "GPU sprite uploads require byte-sized palette indices");
 
         struct OwnedRenderTarget
@@ -151,43 +154,53 @@ namespace OpenRCT2::Ui::Gpu
         return BindForRecording(*location);
     }
 
-    TextureBinding TextureCache::LoadTransientBitmapTexture(
-        const void* pixels, size_t width, size_t height)
+#ifndef DISABLE_TTF
+    TextureBinding TextureCache::GetOrLoadTTFTexture(const TTFSurface& surface)
     {
         std::scoped_lock lock(_mutex);
         if (!_recordingFrame)
         {
-            throw std::logic_error("Transient GPU bitmaps require an active recording frame");
+            throw std::logic_error("GPU TTF textures require an active recording frame");
         }
-        if (pixels == nullptr || width == 0 || height == 0
-            || width > static_cast<size_t>(std::numeric_limits<int32_t>::max())
-            || height > static_cast<size_t>(std::numeric_limits<int32_t>::max()))
+        if (surface.cacheId == 0 || surface.pixels == nullptr || surface.w <= 0 || surface.h <= 0)
         {
-            throw std::invalid_argument("Invalid transient GPU bitmap upload");
+            throw std::invalid_argument("Invalid cached TTF bitmap upload");
         }
-        if (height > std::numeric_limits<size_t>::max() / width)
+        if (const auto it = _ttfSurfaces.find(surface.cacheId); it != _ttfSurfaces.end())
         {
-            throw std::overflow_error("Transient GPU bitmap upload size overflow");
+            it->second.lastUseFrame = _recordingFrameSerial;
+            return BindForRecording(it->second.location);
         }
 
-        constexpr uint32_t kTransientImage = std::numeric_limits<uint32_t>::max();
-        auto location = AllocateImage(kTransientImage, static_cast<int32_t>(width), static_cast<int32_t>(height));
+        TrimTTFSurfaceCache(kMaxResidentTTFSurfaces - 1);
+        const auto width = static_cast<size_t>(surface.w);
+        const auto height = static_cast<size_t>(surface.h);
+        if (height > std::numeric_limits<size_t>::max() / width)
+        {
+            throw std::overflow_error("Cached TTF bitmap upload size overflow");
+        }
+
+        auto location = AllocateImage(kResidentTTFImage, surface.w, surface.h);
         try
         {
-            QueueUpload(location, pixels, width * height, static_cast<uint32_t>(width), true);
-            _frameTransientLocations.push_back(location);
-            return BindForRecording(location);
+            QueueUpload(location, surface.pixels, width * height, static_cast<uint32_t>(surface.w));
+            const auto [it, inserted] = _ttfSurfaces.emplace(
+                surface.cacheId, TTFSurfaceEntry{ location, _recordingFrameSerial });
+            if (!inserted)
+            {
+                throw std::logic_error("GPU TTF surface was inserted into the texture cache twice");
+            }
+            return BindForRecording(it->second.location);
         }
         catch (...)
         {
+            _ttfSurfaces.erase(surface.cacheId);
             RemovePending(location.GetAllocationId());
-            std::erase_if(_frameTransientLocations, [&location](const TextureLocation& candidate) {
-                return candidate.GetAllocationId() == location.GetAllocationId();
-            });
             RetireAllocation(location);
             throw;
         }
     }
+#endif
 
     void TextureCache::BeginFrame()
     {
@@ -196,9 +209,10 @@ namespace OpenRCT2::Ui::Gpu
         {
             throw std::logic_error("GPU texture cache frame is already active");
         }
+        ++_recordingFrameSerial;
+        TrimTTFSurfaceCache(kMaxResidentTTFSurfaces);
         _recordingFrame = true;
         _frameAllocations.clear();
-        _frameTransientLocations.clear();
     }
 
     AtlasResidencyToken TextureCache::SealFrame(FrameCommandStream& commands)
@@ -225,8 +239,7 @@ namespace OpenRCT2::Ui::Gpu
                 continue;
             }
             const auto generationIt = _generations.find(pending.location.image);
-            if (!pending.transient
-                && (generationIt == _generations.end() || generationIt->second != pending.location.generation))
+            if (generationIt == _generations.end() || generationIt->second != pending.location.generation)
             {
                 continue;
             }
@@ -236,10 +249,7 @@ namespace OpenRCT2::Ui::Gpu
                 .sourcePitch = pending.pitch,
                 .pixels = pending.pixels,
             });
-            if (!pending.transient)
-            {
-                persistentUploads.push_back(allocation);
-            }
+            persistentUploads.push_back(allocation);
         }
 
         if (_nextResidencyToken == 0)
@@ -450,7 +460,7 @@ namespace OpenRCT2::Ui::Gpu
         {
             QueueUpload(
                 location, raster.pixels.data(), raster.pixels.size() * sizeof(PaletteIndex),
-                static_cast<uint32_t>(raster.target.width), false);
+                static_cast<uint32_t>(raster.target.width));
             return location;
         }
         catch (...)
@@ -461,10 +471,9 @@ namespace OpenRCT2::Ui::Gpu
         }
     }
 
-    void TextureCache::QueueUpload(
-        const TextureLocation& location, const void* pixels, size_t size, uint32_t pitch, bool transient)
+    void TextureCache::QueueUpload(const TextureLocation& location, const void* pixels, size_t size, uint32_t pitch)
     {
-        PendingUpload pending{ location, pitch, {}, transient };
+        PendingUpload pending{ location, pitch, {} };
         pending.pixels.resize(size);
         std::memcpy(pending.pixels.data(), pixels, size);
         _pendingUploads.push_back(std::move(pending));
@@ -482,14 +491,8 @@ namespace OpenRCT2::Ui::Gpu
 
     void TextureCache::EndRecordingFrame()
     {
-        std::erase_if(_pendingUploads, [](const PendingUpload& pending) { return pending.transient; });
-        for (const auto& location : _frameTransientLocations)
-        {
-            RetireAllocation(location);
-        }
         _recordingFrame = false;
         _frameAllocations.clear();
-        _frameTransientLocations.clear();
         for (const auto image : _deferredInvalidations)
         {
             ApplyInvalidation(image);
@@ -528,5 +531,32 @@ namespace OpenRCT2::Ui::Gpu
         std::erase_if(_pendingUploads, [allocation](const PendingUpload& pending) {
             return pending.location.GetAllocationId() == allocation;
         });
+    }
+
+    void TextureCache::TrimTTFSurfaceCache(size_t targetSize)
+    {
+        while (_ttfSurfaces.size() > targetSize)
+        {
+            auto oldest = _ttfSurfaces.end();
+            for (auto it = _ttfSurfaces.begin(); it != _ttfSurfaces.end(); ++it)
+            {
+                if (it->second.lastUseFrame == _recordingFrameSerial)
+                {
+                    continue;
+                }
+                if (oldest == _ttfSurfaces.end() || it->second.lastUseFrame < oldest->second.lastUseFrame
+                    || (it->second.lastUseFrame == oldest->second.lastUseFrame && it->first < oldest->first))
+                {
+                    oldest = it;
+                }
+            }
+            if (oldest == _ttfSurfaces.end())
+            {
+                return;
+            }
+            RemovePending(oldest->second.location.GetAllocationId());
+            RetireAllocation(oldest->second.location);
+            _ttfSurfaces.erase(oldest);
+        }
     }
 } // namespace OpenRCT2::Ui::Gpu

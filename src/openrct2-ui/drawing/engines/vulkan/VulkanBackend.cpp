@@ -32,6 +32,14 @@ namespace OpenRCT2::Ui::Vulkan
             return std::chrono::duration<double, std::micro>(duration).count();
         }
 
+        template<size_t N>
+        void CopyExact(std::span<const std::byte> source, std::array<std::byte, N>& destination, const char* error)
+        {
+            if (source.size() != destination.size())
+                throw std::invalid_argument(error);
+            std::copy(source.begin(), source.end(), destination.begin());
+        }
+
     } // namespace
 
     Backend::~Backend()
@@ -69,11 +77,7 @@ namespace OpenRCT2::Ui::Vulkan
         {
             const bool gpuLightFxSupported = LightFxPipeline::IsSupported(_device, config.logicalExtent);
             _resources.Initialise(_device, config.logicalExtent, gpuLightFxSupported);
-            _linePipeline.Initialise(_device, _resources, config.shaderDirectory);
-            _rectPipeline.Initialise(_device, _resources, config.shaderDirectory);
-            _transparencyPipeline.Initialise(_device, _resources, config.shaderDirectory);
-            _weatherPipeline.Initialise(_device, _resources, config.shaderDirectory);
-            _lightFxPipeline.Initialise(_device, _resources, config.shaderDirectory, gpuLightFxSupported);
+            InitialiseDrawingPipelines(gpuLightFxSupported);
             _palettePipeline.Initialise(_device, _resources, config.shaderDirectory, config.hdrPaperWhiteNits);
         }
         catch (...)
@@ -86,16 +90,13 @@ namespace OpenRCT2::Ui::Vulkan
         for (size_t i = 0; i < 256; i++)
         {
             _pendingPalette[i * 4 + 3] = i == 0 ? std::byte{ 0 } : std::byte{ 0xff };
-            for (size_t row = 0; row < 256; row++)
-            {
-                _pendingRemapPalette[row * 256 + i] = static_cast<std::byte>(i);
-                _pendingBlendPalette[row * 256 + i] = static_cast<std::byte>(i);
-            }
         }
+        for (size_t i = 0; i < _pendingRemapPalette.size(); i++)
+            _pendingRemapPalette[i] = static_cast<std::byte>(i & 0xff);
+        _pendingBlendPalette = _pendingRemapPalette;
         _framePaletteVersions.fill(0);
         _remapPaletteDirty = true;
         _blendPaletteDirty = true;
-        PopulateCapabilities();
         _ready = true;
     }
 
@@ -108,17 +109,11 @@ namespace OpenRCT2::Ui::Vulkan
             (void)vkDeviceWaitIdle(_device.GetDevice());
         }
         _palettePipeline.Dispose();
-        _lightFxPipeline.Dispose();
-        _weatherPipeline.Dispose();
-        _transparencyPipeline.Dispose();
-        _rectPipeline.Dispose();
-        _linePipeline.Dispose();
+        DisposeDrawingPipelines();
         _resources.Dispose();
         _device.Dispose();
         _config = {};
-        _capabilities = {};
-        _activeToken.reset();
-        _activeFrame.reset();
+        ClearActiveFrame();
         _frameTimings.fill(std::nullopt);
         {
             const std::lock_guard lock(_timingsMutex);
@@ -133,20 +128,14 @@ namespace OpenRCT2::Ui::Vulkan
         _pendingLightFalloffs.clear();
         _lightFalloffsDirty = false;
         _lightFalloffsRecorded = false;
-        _submitted = false;
-        _finalCanvasComposite = false;
         _lastPresentedFrameIndex.reset();
         _lastPresentedCanvasComposite = false;
         _ready = false;
-        {
-            const std::lock_guard lock(_readbackMutex);
-            _readbacks.clear();
-        }
     }
 
-    const Gpu::BackendCapabilities& Backend::GetCapabilities() const noexcept
+    bool Backend::SupportsGpuLightFxRasterization() const noexcept
     {
-        return _capabilities;
+        return _lightFxPipeline.IsAvailable();
     }
 
     void Backend::Resize(Gpu::Extent logicalExtent, Gpu::Extent drawableExtent)
@@ -175,41 +164,23 @@ namespace OpenRCT2::Ui::Vulkan
         }
 
         _device.WaitIdle();
-        for (uint32_t frameIndex = 0; frameIndex < kFramesInFlight; frameIndex++)
-        {
-            HarvestReadbacksForFrame(frameIndex, false);
-        }
-
         _config.logicalExtent = logicalExtent;
         _lastPresentedFrameIndex.reset();
         _lastPresentedCanvasComposite = false;
         _ready = false;
-        _weatherPipeline.Dispose();
-        _lightFxPipeline.Dispose();
-        _transparencyPipeline.Dispose();
-        _rectPipeline.Dispose();
-        _linePipeline.Dispose();
+        DisposeDrawingPipelines();
         try
         {
             const bool gpuLightFxSupported = LightFxPipeline::IsSupported(_device, logicalExtent);
             _resources.Resize(logicalExtent, gpuLightFxSupported);
-            _linePipeline.Initialise(_device, _resources, _config.shaderDirectory);
-            _rectPipeline.Initialise(_device, _resources, _config.shaderDirectory);
-            _transparencyPipeline.Initialise(_device, _resources, _config.shaderDirectory);
-            _weatherPipeline.Initialise(_device, _resources, _config.shaderDirectory);
-            _lightFxPipeline.Initialise(_device, _resources, _config.shaderDirectory, gpuLightFxSupported);
+            InitialiseDrawingPipelines(gpuLightFxSupported);
             _palettePipeline.RefreshDescriptors(_resources);
             _device.RequestSwapchainRecreate();
-            PopulateCapabilities();
             _ready = true;
         }
         catch (...)
         {
-            _lightFxPipeline.Dispose();
-            _weatherPipeline.Dispose();
-            _transparencyPipeline.Dispose();
-            _rectPipeline.Dispose();
-            _linePipeline.Dispose();
+            DisposeDrawingPipelines();
             throw;
         }
     }
@@ -254,11 +225,7 @@ namespace OpenRCT2::Ui::Vulkan
         }
 
         const bool waitForAvailability = _config.frameAcquireMode == Gpu::FrameAcquireMode::Wait;
-        // Explicit readback is one of the few consumers allowed to wait. Its
-        // bytes live in this frame slot's upload ring and must be harvested
-        // before a successful BeginFrame resets that ring.
         const auto frameIndex = _device.GetCurrentFrameIndex();
-        HarvestReadbacksForFrame(frameIndex, true);
         _activeToken = _device.BeginFrame(waitForAvailability);
         HarvestGpuTimingsForFrame(frameIndex);
         if (!_activeToken.has_value())
@@ -266,9 +233,6 @@ namespace OpenRCT2::Ui::Vulkan
             return std::nullopt;
         }
         _palettePipeline.RefreshSwapchain(_device);
-        _capabilities.supportsHdrMetadata = _device.IsHdrMetadataAvailable();
-        _capabilities.supportsHdr10Output = _device.IsHdr10Available();
-        _capabilities.hdr10OutputActive = _device.IsHdr10Active();
 
         _activeFrame = Gpu::FrameHandle{
             .frameNumber = frameNumber,
@@ -301,43 +265,25 @@ namespace OpenRCT2::Ui::Vulkan
 
     void Backend::SetPalette(std::span<const std::byte> rgba)
     {
-        if (rgba.size() != _pendingPalette.size())
-        {
-            throw std::invalid_argument("GPU palettes must contain exactly 256 RGBA8 entries");
-        }
-        std::copy(rgba.begin(), rgba.end(), _pendingPalette.begin());
+        CopyExact(rgba, _pendingPalette, "GPU palettes must contain exactly 256 RGBA8 entries");
         _paletteVersion++;
-        if (_paletteVersion == 0)
-        {
-            _paletteVersion = 1;
-            _framePaletteVersions.fill(0);
-        }
     }
 
     void Backend::SetRemapPalette(std::span<const std::byte> indices)
     {
-        if (indices.size() != _pendingRemapPalette.size())
-        {
-            throw std::invalid_argument("GPU remap palettes must contain exactly 256 by 256 indices");
-        }
-        std::copy(indices.begin(), indices.end(), _pendingRemapPalette.begin());
+        CopyExact(indices, _pendingRemapPalette, "GPU remap palettes must contain exactly 256 by 256 indices");
         _remapPaletteDirty = true;
     }
 
     void Backend::SetBlendPalette(std::span<const std::byte> indices)
     {
-        if (indices.size() != _pendingBlendPalette.size())
-        {
-            throw std::invalid_argument("GPU blend palettes must contain exactly 256 by 256 indices");
-        }
-        std::copy(indices.begin(), indices.end(), _pendingBlendPalette.begin());
+        CopyExact(indices, _pendingBlendPalette, "GPU blend palettes must contain exactly 256 by 256 indices");
         _blendPaletteDirty = true;
     }
 
     void Backend::SetLightFxFalloffs(std::span<const std::byte> layers)
     {
-        constexpr size_t expected = 8 * 256 * 256;
-        if (layers.size() != expected)
+        if (layers.size() != 8 * 256 * 256)
             throw std::invalid_argument("GPU LightFX falloffs have an invalid size");
         _pendingLightFalloffs.assign(layers.begin(), layers.end());
         _lightFalloffsDirty = true;
@@ -348,8 +294,8 @@ namespace OpenRCT2::Ui::Vulkan
         ValidateActiveFrame(frame);
         const auto start = Clock::now();
         RecordPendingPalette();
-        RecordPendingRemapPalette();
-        RecordPendingBlendPalette();
+        RecordPendingIndexTable(_pendingRemapPalette, _remapPaletteDirty, false);
+        RecordPendingIndexTable(_pendingBlendPalette, _blendPaletteDirty, true);
         RecordPendingLightFalloffs();
         RecordTextureUploads(commands);
         if (commands.canvasUpload.has_value())
@@ -429,10 +375,7 @@ namespace OpenRCT2::Ui::Vulkan
             // reset that command buffer through AbandonFrame; disable this
             // backend instance and let renderer recovery rebuild it.
             _ready = false;
-            _activeToken.reset();
-            _activeFrame.reset();
-            _submitted = false;
-            _finalCanvasComposite = false;
+            ClearActiveFrame();
             throw;
         }
         auto& timings = _frameTimings[frame.frameSlot];
@@ -444,9 +387,7 @@ namespace OpenRCT2::Ui::Vulkan
         _lastPresentedFrameIndex = _activeToken->frameIndex;
         _lastPresentedCanvasComposite = _finalCanvasComposite;
         _lightFalloffsRecorded = false;
-        _activeToken.reset();
-        _activeFrame.reset();
-        _submitted = false;
+        ClearActiveFrame();
     }
 
     void Backend::AbandonFrame(const Gpu::FrameHandle& frame)
@@ -464,10 +405,7 @@ namespace OpenRCT2::Ui::Vulkan
             failure = std::current_exception();
         }
 
-        _activeToken.reset();
-        _activeFrame.reset();
-        _submitted = false;
-        _finalCanvasComposite = false;
+        ClearActiveFrame();
         _frameTimings[frame.frameSlot].reset();
         // Upload commands recorded into an abandoned command buffer never
         // reached the GPU. Queue all small lookup resources again next frame.
@@ -506,121 +444,6 @@ namespace OpenRCT2::Ui::Vulkan
         _completedTimingCount = 0;
     }
 
-    void Backend::RequestReadback(const Gpu::FrameHandle& frame, Gpu::ReadbackRequest request)
-    {
-        ValidateActiveFrame(frame);
-        if (!_submitted)
-        {
-            throw std::logic_error("Vulkan readback requires a submitted frame");
-        }
-        if (!request.indexed)
-        {
-            throw std::invalid_argument("Vulkan readback currently exposes the indexed canvas only");
-        }
-        const auto& source = _finalCanvasComposite ? _resources.GetCompositeCanvas(_activeToken->frameIndex)
-                                                   : _resources.GetIndexedCanvas(_activeToken->frameIndex);
-        const auto sourceExtent = source.GetExtent();
-        if (request.extent.width == 0 || request.extent.height == 0 || request.extent.width > sourceExtent.width
-            || request.extent.height > sourceExtent.height)
-        {
-            throw std::invalid_argument("Vulkan readback extent exceeds the indexed canvas");
-        }
-        const uint64_t byteSize64 = static_cast<uint64_t>(request.extent.width) * request.extent.height;
-        if (byteSize64 > std::numeric_limits<size_t>::max())
-        {
-            throw std::overflow_error("Vulkan readback size exceeds addressable memory");
-        }
-        const auto byteSize = static_cast<size_t>(byteSize64);
-        const auto allocation = _activeToken->upload->Allocate(byteSize, alignof(uint32_t));
-        if (!allocation)
-        {
-            throw std::runtime_error("Vulkan upload ring has no room for indexed readback");
-        }
-        {
-            const std::lock_guard lock(_readbackMutex);
-            if (_readbacks.contains(request.id))
-            {
-                throw std::invalid_argument("Vulkan readback id is already pending");
-            }
-            _readbacks.emplace(
-                request.id, PendingReadback{ _activeToken->frameIndex, allocation.offset, allocation.data, byteSize, {} });
-        }
-
-        const VkImageSubresourceRange range = {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-            .baseMipLevel = 0,
-            .levelCount = 1,
-            .baseArrayLayer = 0,
-            .layerCount = 1,
-        };
-        RecordImageBarrier(
-            _activeToken->commandBuffer, source.GetImage(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, range, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-            VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_TRANSFER_READ_BIT);
-        const VkBufferImageCopy copy = {
-            .bufferOffset = allocation.offset,
-            .bufferRowLength = 0,
-            .bufferImageHeight = 0,
-            .imageSubresource = {
-                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                .mipLevel = 0,
-                .baseArrayLayer = 0,
-                .layerCount = 1,
-            },
-            .imageOffset = { 0, 0, 0 },
-            .imageExtent = { request.extent.width, request.extent.height, 1 },
-        };
-        vkCmdCopyImageToBuffer(
-            _activeToken->commandBuffer, source.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, allocation.buffer, 1, &copy);
-        const VkBufferMemoryBarrier hostBarrier = {
-            .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-            .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
-            .dstAccessMask = VK_ACCESS_HOST_READ_BIT,
-            .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-            .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-            .buffer = allocation.buffer,
-            .offset = allocation.offset,
-            .size = byteSize,
-        };
-        vkCmdPipelineBarrier(
-            _activeToken->commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0, 0, nullptr, 1,
-            &hostBarrier, 0, nullptr);
-        RecordImageBarrier(
-            _activeToken->commandBuffer, source.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, range, VK_PIPELINE_STAGE_TRANSFER_BIT,
-            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_SHADER_READ_BIT);
-    }
-
-    bool Backend::TryTakeReadback(uint64_t requestId, std::span<std::byte> destination)
-    {
-        const std::lock_guard lock(_readbackMutex);
-        const auto it = _readbacks.find(requestId);
-        if (it == _readbacks.end())
-        {
-            return false;
-        }
-        auto& readback = it->second;
-        if (destination.size() < readback.size)
-        {
-            throw std::invalid_argument("Vulkan readback destination is too small");
-        }
-        if (readback.readyData.empty())
-        {
-            if (!_device.IsFrameComplete(readback.frameIndex))
-            {
-                return false;
-            }
-            _device.InvalidateUpload(readback.frameIndex, readback.offset, readback.size);
-            std::memcpy(destination.data(), readback.mappedData, readback.size);
-        }
-        else
-        {
-            std::memcpy(destination.data(), readback.readyData.data(), readback.size);
-        }
-        _readbacks.erase(it);
-        return true;
-    }
-
     bool Backend::ReadbackLatestIndexedCanvas(Gpu::Extent extent, std::span<std::byte> destination)
     {
         if (_activeToken.has_value())
@@ -646,7 +469,6 @@ namespace OpenRCT2::Ui::Vulkan
             throw std::invalid_argument("Vulkan screenshot destination is too small");
         }
 
-        HarvestReadbacksForFrame(frameIndex, true);
         _device.ReadbackImage(
             frameIndex, source.GetImage(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { extent.width, extent.height },
             destination.first(static_cast<size_t>(byteSize)));
@@ -658,38 +480,7 @@ namespace OpenRCT2::Ui::Vulkan
         _device.WaitIdle();
         for (uint32_t frameIndex = 0; frameIndex < kFramesInFlight; frameIndex++)
         {
-            HarvestReadbacksForFrame(frameIndex, false);
             HarvestGpuTimingsForFrame(frameIndex);
-        }
-    }
-
-    void Backend::HarvestReadbacksForFrame(uint32_t frameIndex, bool wait)
-    {
-        const std::lock_guard lock(_readbackMutex);
-        const bool hasPending = std::any_of(_readbacks.begin(), _readbacks.end(), [frameIndex](const auto& item) {
-            return item.second.frameIndex == frameIndex && item.second.readyData.empty();
-        });
-        if (!hasPending)
-        {
-            return;
-        }
-        if (wait)
-        {
-            _device.WaitForFrame(frameIndex);
-        }
-        else if (!_device.IsFrameComplete(frameIndex))
-        {
-            return;
-        }
-        for (auto& item : _readbacks)
-        {
-            auto& readback = item.second;
-            if (readback.frameIndex == frameIndex && readback.readyData.empty())
-            {
-                _device.InvalidateUpload(readback.frameIndex, readback.offset, readback.size);
-                readback.readyData.assign(readback.mappedData, readback.mappedData + readback.size);
-                readback.mappedData = nullptr;
-            }
         }
     }
 
@@ -700,6 +491,32 @@ namespace OpenRCT2::Ui::Vulkan
         {
             throw std::logic_error("GPU frame handle does not match the active Vulkan frame");
         }
+    }
+
+    void Backend::InitialiseDrawingPipelines(bool gpuLightFxSupported)
+    {
+        _linePipeline.Initialise(_device, _resources, _config.shaderDirectory);
+        _rectPipeline.Initialise(_device, _resources, _config.shaderDirectory);
+        _transparencyPipeline.Initialise(_device, _resources, _config.shaderDirectory);
+        _weatherPipeline.Initialise(_device, _resources, _config.shaderDirectory);
+        _lightFxPipeline.Initialise(_device, _resources, _config.shaderDirectory, gpuLightFxSupported);
+    }
+
+    void Backend::DisposeDrawingPipelines()
+    {
+        _lightFxPipeline.Dispose();
+        _weatherPipeline.Dispose();
+        _transparencyPipeline.Dispose();
+        _rectPipeline.Dispose();
+        _linePipeline.Dispose();
+    }
+
+    void Backend::ClearActiveFrame() noexcept
+    {
+        _activeToken.reset();
+        _activeFrame.reset();
+        _submitted = false;
+        _finalCanvasComposite = false;
     }
 
     UploadAllocation Backend::StageUpload(std::span<const std::byte> source, const char* errorMessage)
@@ -725,26 +542,17 @@ namespace OpenRCT2::Ui::Vulkan
         _framePaletteVersions[frameIndex] = _paletteVersion;
     }
 
-    void Backend::RecordPendingRemapPalette()
+    void Backend::RecordPendingIndexTable(std::span<const std::byte> indices, bool& dirty, bool blend)
     {
-        if (!_remapPaletteDirty)
+        if (!dirty)
         {
             return;
         }
-        const auto allocation = StageUpload(_pendingRemapPalette, "Vulkan upload ring has no room for the remap palette");
-        _resources.RecordRemapPaletteUpload(_activeToken->commandBuffer, allocation);
-        _remapPaletteDirty = false;
-    }
-
-    void Backend::RecordPendingBlendPalette()
-    {
-        if (!_blendPaletteDirty)
-        {
-            return;
-        }
-        const auto allocation = StageUpload(_pendingBlendPalette, "Vulkan upload ring has no room for the blend palette");
-        _resources.RecordBlendPaletteUpload(_activeToken->commandBuffer, allocation);
-        _blendPaletteDirty = false;
+        const auto allocation = StageUpload(
+            indices, blend ? "Vulkan upload ring has no room for the blend palette"
+                           : "Vulkan upload ring has no room for the remap palette");
+        _resources.RecordIndexTableUpload(_activeToken->commandBuffer, allocation, blend);
+        dirty = false;
     }
 
     bool Backend::RecordLightFx(const Gpu::FrameCommandStream& commands)
@@ -785,7 +593,6 @@ namespace OpenRCT2::Ui::Vulkan
 
     void Backend::RecordPendingLightFalloffs()
     {
-        _lightFalloffsRecorded = false;
         if (!_lightFxPipeline.IsAvailable() || !_lightFalloffsDirty || _pendingLightFalloffs.empty())
             return;
         const auto allocation = StageUpload(_pendingLightFalloffs, "Vulkan upload ring has no room for LightFX falloffs");
@@ -801,8 +608,7 @@ namespace OpenRCT2::Ui::Vulkan
             return;
         }
 
-        std::vector<UploadAllocation> allocations;
-        allocations.reserve(commands.textureUploads.size());
+        _resources.BeginAtlasUploads(_activeToken->commandBuffer);
         for (const auto& upload : commands.textureUploads)
         {
             const auto height = static_cast<uint32_t>(std::max(0, upload.bounds.w - upload.bounds.y));
@@ -812,60 +618,10 @@ namespace OpenRCT2::Ui::Vulkan
                 throw std::invalid_argument("Vulkan texture upload payload does not match its bounds and pitch");
             }
             const auto allocation = StageUpload(upload.pixels, "Vulkan upload ring has no room for a sprite atlas upload");
-            allocations.push_back(allocation);
-        }
-
-        _resources.BeginAtlasUploads(_activeToken->commandBuffer);
-        for (size_t i = 0; i < commands.textureUploads.size(); i++)
-        {
-            const auto& upload = commands.textureUploads[i];
-            const auto height = static_cast<uint32_t>(std::max(0, upload.bounds.w - upload.bounds.y));
-            const auto size = static_cast<VkDeviceSize>(upload.sourcePitch) * height;
-            const auto& staged = allocations[i];
-            const UploadAllocation allocation = { staged.buffer, staged.offset, size, nullptr };
             _resources.RecordAtlasUpload(
                 _activeToken->commandBuffer, allocation, upload.atlas, upload.bounds, upload.sourcePitch);
         }
         _resources.EndAtlasUploads(_activeToken->commandBuffer);
-    }
-
-    void Backend::PopulateCapabilities()
-    {
-        VkPhysicalDeviceProperties properties{};
-        vkGetPhysicalDeviceProperties(_device.GetPhysicalDevice(), &properties);
-        VkPhysicalDeviceMemoryProperties memory{};
-        vkGetPhysicalDeviceMemoryProperties(_device.GetPhysicalDevice(), &memory);
-        uint64_t deviceLocalMemory = 0;
-        for (uint32_t i = 0; i < memory.memoryHeapCount; i++)
-        {
-            if ((memory.memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) != 0)
-            {
-                deviceLocalMemory += memory.memoryHeaps[i].size;
-            }
-        }
-
-        _capabilities = {
-            .api = Gpu::BackendApi::Vulkan,
-            .framesInFlight = kFramesInFlight,
-            .maxTextureDimension = properties.limits.maxImageDimension2D,
-            .maxTextureArrayLayers = properties.limits.maxImageArrayLayers,
-            .deviceLocalMemory = deviceLocalMemory,
-            .uploadRingCapacity = std::max<uint64_t>(_config.uploadRingBytesPerFrame, 1024 * 1024),
-            .supportsNonBlockingFrameAcquire = true,
-            .supportsLineCommands = true,
-            .supportsOpaqueRectCommands = true,
-            .supportsTransparencyCommands = true,
-            .supportsWeatherCommands = true,
-            .supportsLightFxComposition = true,
-            .supportsGpuLightFxRasterization = _lightFxPipeline.IsAvailable(),
-            .supportsAsyncReadback = true,
-            .supportsCanvasUpload = true,
-            .supportsGpuTimestamps = _device.SupportsGpuTimestamps(),
-            .supportsHdrMetadata = _device.IsHdrMetadataAvailable(),
-            .supportsHdr10Output = _device.IsHdr10Available(),
-            .hdr10OutputActive = _device.IsHdr10Active(),
-            .supportsIndexedDrawCommands = true,
-        };
     }
 
     void Backend::HarvestGpuTimingsForFrame(uint32_t frameIndex)

@@ -75,11 +75,6 @@ namespace OpenRCT2::RCT2
 {
 #define DECRYPT_MONEY(money) (static_cast<money32>(Numerics::rol32((money) ^ 0xF4EC9621, 13)))
 
-    static money64 ImportScenarioObjectiveCurrency(Scenario::ObjectiveType type, money32 value)
-    {
-        return Scenario::ObjectiveNeedsMoney(type) ? ToMoney64(value) : value;
-    }
-
     /**
      * Class to import RollerCoaster Tycoon 2 scenarios (*.SC6) and saved games (*.SV6).
      */
@@ -249,7 +244,9 @@ namespace OpenRCT2::RCT2
             dst->Category = _s6.Info.Category;
             dst->ObjectiveType = _s6.Info.ObjectiveType;
             dst->ObjectiveArg1 = _s6.Info.ObjectiveArg1;
-            dst->ObjectiveArg2 = ImportScenarioObjectiveCurrency(_s6.Info.ObjectiveType, _s6.Info.ObjectiveArg2);
+            dst->ObjectiveArg2 = Scenario::ObjectiveNeedsMoney(_s6.Info.ObjectiveType)
+                ? ToMoney64(_s6.Info.ObjectiveArg2)
+                : _s6.Info.ObjectiveArg2;
             dst->ObjectiveArg3 = _s6.Info.ObjectiveArg3;
             dst->Highscore = nullptr;
 
@@ -472,7 +469,9 @@ namespace OpenRCT2::RCT2
             gameState.scenarioOptions.objective.Type = _s6.ObjectiveType;
             gameState.scenarioOptions.objective.Year = _s6.ObjectiveYear;
             // Pad013580FA
-            gameState.scenarioOptions.objective.Currency = ImportScenarioObjectiveCurrency(_s6.ObjectiveType, _s6.ObjectiveCurrency);
+            gameState.scenarioOptions.objective.Currency = Scenario::ObjectiveNeedsMoney(_s6.ObjectiveType)
+                ? ToMoney64(_s6.ObjectiveCurrency)
+                : _s6.ObjectiveCurrency;
             // In RCT2, the ride string IDs start at index STR_0002 and are directly mappable.
             // This is not always the case in OpenRCT2, so we use the actual ride ID.
             if (gameState.scenarioOptions.objective.Type == Scenario::ObjectiveType::buildTheBest)

@@ -55,6 +55,7 @@ static ttf_cache_entry _ttfSurfaceCache[kTTFSurfaceCacheSize] = {};
 static int32_t _ttfSurfaceCacheCount = 0;
 static int32_t _ttfSurfaceCacheHitCount = 0;
 static int32_t _ttfSurfaceCacheMissCount = 0;
+static uint64_t _nextTTFSurfaceCacheId = 1;
 
 static ttf_getwidth_cache_entry _ttfGetWidthCache[kTTFGetWidthCacheSize] = {};
 static int32_t _ttfGetWidthCacheCount = 0;
@@ -245,6 +246,7 @@ TTFSurface* TTFSurfaceCacheGetOrAdd(TTF_Font* font, std::string_view text)
     {
         return nullptr;
     }
+    surface->cacheId = _nextTTFSurfaceCacheId++;
 
     _ttfSurfaceCacheMissCount++;
     // printf("CACHE HITS: %d   MISSES: %d)\n", _ttfSurfaceCacheHitCount, _ttfSurfaceCacheMissCount);

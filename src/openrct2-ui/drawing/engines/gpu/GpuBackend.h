@@ -21,12 +21,6 @@
 
 namespace OpenRCT2::Ui::Gpu
 {
-    enum class BackendApi : uint8_t
-    {
-        Vulkan,
-        OpenGLLegacy,
-    };
-
     enum class PresentMode : uint8_t
     {
         VSync,
@@ -51,30 +45,6 @@ namespace OpenRCT2::Ui::Gpu
         uint32_t height = 0;
 
         bool operator==(const Extent&) const = default;
-    };
-
-    struct BackendCapabilities
-    {
-        BackendApi api = BackendApi::Vulkan;
-        uint32_t framesInFlight = 1;
-        uint32_t maxTextureDimension = 0;
-        uint32_t maxTextureArrayLayers = 0;
-        uint64_t deviceLocalMemory = 0;
-        uint64_t uploadRingCapacity = 0;
-        bool supportsNonBlockingFrameAcquire = false;
-        bool supportsLineCommands = false;
-        bool supportsOpaqueRectCommands = false;
-        bool supportsTransparencyCommands = false;
-        bool supportsWeatherCommands = false;
-        bool supportsLightFxComposition = false;
-        bool supportsGpuLightFxRasterization = false;
-        bool supportsAsyncReadback = false;
-        bool supportsCanvasUpload = false;
-        bool supportsGpuTimestamps = false;
-        bool supportsHdrMetadata = false;
-        bool supportsHdr10Output = false;
-        bool hdr10OutputActive = false;
-        bool supportsIndexedDrawCommands = false;
     };
 
     struct BackendConfig
@@ -109,13 +79,6 @@ namespace OpenRCT2::Ui::Gpu
         }
     };
 
-    struct ReadbackRequest
-    {
-        uint64_t id = 0;
-        Extent extent{};
-        bool indexed = true;
-    };
-
     // The backend and drawing-engine benchmark surfaces share one record.
     using FrameTimings = Drawing::FrameTimings;
 
@@ -135,7 +98,7 @@ namespace OpenRCT2::Ui::Gpu
 
         virtual void Initialise(const BackendConfig& config) = 0;
         virtual void Dispose() = 0;
-        [[nodiscard]] virtual const BackendCapabilities& GetCapabilities() const noexcept = 0;
+        [[nodiscard]] virtual bool SupportsGpuLightFxRasterization() const noexcept = 0;
 
         // Logical extent sizes indexed render targets. Drawable extent is the
         // physical surface size sampled by the UI thread; zero means the
@@ -166,11 +129,6 @@ namespace OpenRCT2::Ui::Gpu
         // benchmark phase boundaries.
         virtual void TakeCompletedTimings(std::vector<FrameTimings>& samples) = 0;
 
-        // Readback requests are recorded after Submit and before Present. They
-        // complete with the owning frame fence; polling never waits for GPU
-        // work, and backends preserve unread results across frame-slot reuse.
-        virtual void RequestReadback(const FrameHandle& frame, ReadbackRequest request) = 0;
-        [[nodiscard]] virtual bool TryTakeReadback(uint64_t requestId, std::span<std::byte> destination) = 0;
         // Explicit blocking capture of the latest presented indexed canvas.
         // This is reserved for synchronous consumers such as screenshots.
         [[nodiscard]] virtual bool ReadbackLatestIndexedCanvas(Extent extent, std::span<std::byte> destination) = 0;

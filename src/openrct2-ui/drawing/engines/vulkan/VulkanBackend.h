@@ -26,7 +26,6 @@
     #include <memory>
     #include <mutex>
     #include <optional>
-    #include <unordered_map>
     #include <vector>
 
 namespace OpenRCT2::Ui::Vulkan
@@ -41,7 +40,6 @@ namespace OpenRCT2::Ui::Vulkan
     {
     private:
         Gpu::BackendConfig _config;
-        Gpu::BackendCapabilities _capabilities;
         Device _device;
         IndexedResources _resources;
         LinePipeline _linePipeline;
@@ -75,24 +73,13 @@ namespace OpenRCT2::Ui::Vulkan
         std::optional<uint32_t> _lastPresentedFrameIndex;
         bool _lastPresentedCanvasComposite = false;
 
-        struct PendingReadback
-        {
-            uint32_t frameIndex = 0;
-            VkDeviceSize offset = 0;
-            std::byte* mappedData = nullptr;
-            size_t size = 0;
-            std::vector<std::byte> readyData;
-        };
-        mutable std::mutex _readbackMutex;
-        std::unordered_map<uint64_t, PendingReadback> _readbacks;
-
     public:
         Backend() = default;
         ~Backend() override;
 
         void Initialise(const Gpu::BackendConfig& config) override;
         void Dispose() override;
-        [[nodiscard]] const Gpu::BackendCapabilities& GetCapabilities() const noexcept override;
+        [[nodiscard]] bool SupportsGpuLightFxRasterization() const noexcept override;
 
         void Resize(Gpu::Extent logicalExtent, Gpu::Extent drawableExtent) override;
         void RequestSurfaceFormatRefresh() override;
@@ -110,22 +97,20 @@ namespace OpenRCT2::Ui::Vulkan
         [[nodiscard]] std::optional<Gpu::FrameTimings> GetLatestTimings() const override;
         void TakeCompletedTimings(std::vector<Gpu::FrameTimings>& samples) override;
 
-        void RequestReadback(const Gpu::FrameHandle& frame, Gpu::ReadbackRequest request) override;
-        [[nodiscard]] bool TryTakeReadback(uint64_t requestId, std::span<std::byte> destination) override;
         [[nodiscard]] bool ReadbackLatestIndexedCanvas(Gpu::Extent extent, std::span<std::byte> destination) override;
         void WaitIdle() override;
 
     private:
         void ValidateActiveFrame(const Gpu::FrameHandle& frame) const;
+        void InitialiseDrawingPipelines(bool gpuLightFxSupported);
+        void DisposeDrawingPipelines();
+        void ClearActiveFrame() noexcept;
         [[nodiscard]] UploadAllocation StageUpload(std::span<const std::byte> source, const char* errorMessage);
         void RecordPendingPalette();
-        void RecordPendingRemapPalette();
-        void RecordPendingBlendPalette();
+        void RecordPendingIndexTable(std::span<const std::byte> indices, bool& dirty, bool blend);
         void RecordPendingLightFalloffs();
         void RecordTextureUploads(const Gpu::FrameCommandStream& commands);
         [[nodiscard]] bool RecordLightFx(const Gpu::FrameCommandStream& commands);
-        void PopulateCapabilities();
-        void HarvestReadbacksForFrame(uint32_t frameIndex, bool wait);
         void HarvestGpuTimingsForFrame(uint32_t frameIndex);
         void PublishTimings(const Gpu::FrameTimings& timings);
     };

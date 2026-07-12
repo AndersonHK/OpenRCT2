@@ -21,78 +21,48 @@
 
 namespace OpenRCT2
 {
-    static inline ViewportList GetUnzoomedViewports() noexcept
+    static ViewportList GetUnzoomedViewports() noexcept
     {
         ViewportList viewports;
         WindowVisitEach([&](WindowBase* w) {
-            if (auto* vp = WindowGetViewport(w); vp != nullptr)
-            {
-                if (!vp->isVisible)
-                {
-                    // Ignore viewports that are not visible.
-                    return;
-                }
-                if (vp->zoom > ZoomLevel{ 0 })
-                {
-                    // Ignore viewports that are zoomed out, interpolation wouldn't have much of an effect
-                    // due to the loss of detail.
-                    return;
-                }
+            if (auto* vp = WindowGetViewport(w); vp != nullptr && vp->isVisible && vp->zoom <= ZoomLevel{ 0 })
                 viewports.push_back(vp);
-            }
         });
         return viewports;
     }
 
-    static inline bool IsEntityVisible(const ViewportList& vpList, const EntityBase* entity) noexcept
+    static bool IsEntityVisible(const ViewportList& vpList, const CoordsXYZ& worldLoc) noexcept
     {
-        const auto worldLoc = entity->getLocation();
-
         for (const auto* vp : vpList)
         {
             const auto screenPos = Translate3DTo2DWithZ(vp->rotation, worldLoc);
             if (vp->Contains(screenPos))
-            {
-                // Entity is visible in at least one viewport, tween.
                 return true;
-            }
         }
-
         return false;
-    }
-
-    void EntityTweener::AddEntity(const ViewportList& vpList, EntityBase* entity)
-    {
-        if (!IsEntityVisible(vpList, entity))
-        {
-            return;
-        }
-
-        Entities.push_back(entity);
-        PrePos.emplace_back(entity->getLocation());
     }
 
     void EntityTweener::PopulateEntities()
     {
         const auto vpList = GetUnzoomedViewports();
         if (vpList.empty())
-        {
-            // No viewports that fit the criteria, bail.
             return;
-        }
+
+        const auto addEntity = [&](EntityBase* entity) {
+            const auto location = entity->getLocation();
+            if (IsEntityVisible(vpList, location))
+            {
+                Entities.push_back(entity);
+                PrePos.push_back(location);
+            }
+        };
 
         for (auto ent : EntityList<Guest>())
-        {
-            AddEntity(vpList, ent);
-        }
+            addEntity(ent);
         for (auto ent : EntityList<Staff>())
-        {
-            AddEntity(vpList, ent);
-        }
+            addEntity(ent);
         for (auto ent : EntityList<Vehicle>())
-        {
-            AddEntity(vpList, ent);
-        }
+            addEntity(ent);
     }
 
     void EntityTweener::PreTick()
@@ -127,20 +97,10 @@ namespace OpenRCT2
         PrePos.resize(writeIndex);
     }
 
-    static bool CanTweenEntity(EntityBase* ent)
-    {
-        if (ent->is<Guest>() || ent->is<Staff>() || ent->is<Vehicle>())
-            return true;
-        return false;
-    }
-
     void EntityTweener::RemoveEntity(EntityBase* entity)
     {
-        if (!CanTweenEntity(entity))
-        {
-            // Only peeps and vehicles are tweened, bail if type is incorrect.
+        if (entity->type != EntityType::guest && entity->type != EntityType::staff && entity->type != EntityType::vehicle)
             return;
-        }
 
         auto it = std::find(Entities.begin(), Entities.end(), entity);
         if (it != Entities.end())

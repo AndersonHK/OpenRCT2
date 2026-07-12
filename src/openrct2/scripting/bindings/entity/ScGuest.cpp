@@ -484,16 +484,16 @@ namespace OpenRCT2::Scripting
     JSValue ScGuest::cash_get(JSContext* ctx, JSValue thisVal)
     {
         auto peep = GetGuest(thisVal);
-        return JS_NewInt32(ctx, peep != nullptr ? peep->cashInPocket : 0);
+        return JS_NewInt64(ctx, peep != nullptr ? peep->cashInPocket : 0);
     }
     JSValue ScGuest::cash_set(JSContext* ctx, JSValue thisVal, JSValue jsValue)
     {
-        JS_UNPACK_INT32(value, ctx, jsValue);
+        JS_UNPACK_MONEY64(value, ctx, jsValue);
         JS_THROW_IF_GAME_STATE_NOT_MUTABLE();
         auto peep = GetGuest(thisVal);
         if (peep != nullptr)
         {
-            peep->cashInPocket = std::max(0, value);
+            peep->cashInPocket = std::max(0.00_GBP, value);
         }
         return JS_UNDEFINED;
     }

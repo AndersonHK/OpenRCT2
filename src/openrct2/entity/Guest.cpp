@@ -4103,8 +4103,10 @@ namespace OpenRCT2
         if (ride == nullptr)
             return;
 
-        const bool supportsPlatformPreQueue = RideSupportsStationPlatformPreQueue(*ride);
-        if (RideSubState == PeepRideSubState::inEntrance && supportsPlatformPreQueue
+        const auto platformReservation = RideSupportsStationPlatformPreQueue(*ride)
+            ? RideGetStationPlatformReservation(*ride, CurrentRideStation, id)
+            : std::nullopt;
+        if (RideSubState == PeepRideSubState::inEntrance && platformReservation.has_value()
             && tryBoardStationPlatformTrain(*ride))
         {
             return;
@@ -4131,8 +4133,7 @@ namespace OpenRCT2
             {
                 // A staged guest must finish crossing the entrance before turning along the platform. The
                 // destination-reached branch below then selects the car-aligned wait marker.
-                if (!supportsPlatformPreQueue
-                    || !RideGetStationPlatformReservation(*ride, CurrentRideStation, id).has_value())
+                if (!platformReservation.has_value())
                 {
                     RideSubState = PeepRideSubState::freeVehicleCheck;
                 }
@@ -4152,12 +4153,9 @@ namespace OpenRCT2
 
         if (RideSubState == PeepRideSubState::inEntrance)
         {
-            const auto reservation = supportsPlatformPreQueue
-                ? RideGetStationPlatformReservation(*ride, CurrentRideStation, id)
-                : std::nullopt;
-            if (reservation.has_value())
+            if (platformReservation.has_value())
             {
-                SetDestination(reservation->waitPosition, 2);
+                SetDestination(platformReservation->waitPosition, 2);
                 RideSubState = PeepRideSubState::approachPlatformSlot;
             }
             else
@@ -4447,9 +4445,8 @@ namespace OpenRCT2
             return;
         }
 
-        // Vehicle updates follow guest updates. An arriving train may therefore remap this guest to a free seat and
-        // restart the short platform walk one tick before publishing itself at the station. Reserve the seat as soon as
-        // it is published; otherwise a short empty-train dwell can expire while the guest walks to the remapped marker.
+        // Vehicle updates follow guest updates. Reserve this guest's fixed car and seat as soon as the fully unloaded
+        // train publishes itself; the platform position remains unchanged throughout the arrival.
         if (tryBoardStationPlatformTrain(*ride))
         {
             return;
@@ -4476,17 +4473,13 @@ namespace OpenRCT2
             recoverFromStationPlatform(ride);
             return true;
         }
-        if (!RideStationPlatformGuestIsFirst(ride, CurrentRideStation, id))
-        {
-            return false;
-        }
-
-        sfl::static_vector<uint8_t, Limits::kMaxTrainsPerRide> carArray;
-        if (!FindVehicleToEnter(*this, ride, carArray))
+        const auto trainIndex = ride.getStation(CurrentRideStation).TrainAtStation;
+        if (trainIndex >= ride.numTrains)
         {
             CurrentTrain = RideStation::kNoTrain;
             return false;
         }
+        CurrentTrain = trainIndex;
         const auto ridePrice = GuestGetAdmissionPrice(*this, ride);
         if (ridePrice != 0 && !PeepCheckRidePriceAtEntrance(*this, ride, ridePrice))
         {
@@ -4494,11 +4487,11 @@ namespace OpenRCT2
             return true;
         }
 
-        const auto binding = RideBindStationPlatformGuestToSeat(ride, CurrentRideStation, CurrentTrain, *this);
+        const auto binding = RideBoardStationPlatformGuest(ride, CurrentRideStation, CurrentTrain, *this);
         if (binding == RideStationPlatformSeatBindingResult::seatUnavailable)
         {
-            // Another guest claimed this train first. Remain staged for the next available seat instead of leaving the
-            // platform and consuming the external queue again.
+            // The captured seat can still contain a through-rider on transport rides. Keep this exact platform position
+            // for the next train instead of reshuffling the guest or consuming the external queue again.
             CurrentTrain = RideStation::kNoTrain;
             return false;
         }
@@ -4508,10 +4501,10 @@ namespace OpenRCT2
             return true;
         }
 
-        RideReleaseStationPlatformSlot(ride, CurrentRideStation, id, true);
-        GuestCommitRideAdmission(*this, ride);
-        RideSubState = PeepRideSubState::leaveEntrance;
-        updateRideAdvanceThroughEntrance();
+        // Platform reservations use the same paired-seat and ready-to-depart rollback state as ordinary queue boarding.
+        // Bypassing this state left an unmatched half-pair permanently reserved after maximum wait elapsed.
+        RideSubState = PeepRideSubState::freeVehicleCheck;
+        updateRideFreeVehicleCheck();
         return true;
     }
 

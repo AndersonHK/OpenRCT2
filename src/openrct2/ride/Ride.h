@@ -421,12 +421,11 @@ struct TransportRideServiceJourney
 struct TransportRideServiceView
 {
     RideId ride{ RideId::GetNull() };
-    uint64_t freshnessSignature{};
     TransportRideQuality quality;
     std::span<const TransportRideServiceStation> stations;
     std::span<const TransportRideServiceJourney> journeys;
 
-    bool isAvailable() const;
+    bool isAvailable() const { return !ride.IsNull(); }
     const TransportRideServiceJourney* getJourney(StationIndex boardingStation, StationIndex destinationStation) const;
 };
 
@@ -441,8 +440,12 @@ struct TransportRideServiceStationRef
     RideId ride{ RideId::GetNull() };
     StationIndex station{ StationIndex::GetNull() };
 
-    bool operator==(const TransportRideServiceStationRef& other) const;
-    bool operator<(const TransportRideServiceStationRef& other) const;
+    bool operator==(const TransportRideServiceStationRef& other) const = default;
+    bool operator<(const TransportRideServiceStationRef& other) const
+    {
+        return ride == other.ride ? station.ToUnderlying() < other.station.ToUnderlying()
+                                  : ride.ToUnderlying() < other.ride.ToUnderlying();
+    }
 };
 
 /**
@@ -760,24 +763,50 @@ public:
 
     int32_t getTotalLength() const;
     int32_t getTotalTime() const;
-    int32_t getDisplayMaxSpeed() const;
+    int32_t getDisplayMaxSpeed() const { return hasStableStats() ? stableStats.maxSpeed : maxSpeed; }
     int32_t getDisplayAverageSpeed() const;
     int32_t getDisplayTotalLength() const;
     int32_t getDisplayTotalTime() const;
-    int32_t getDisplayStationSegmentLength(StationIndex stationIndex) const;
-    uint16_t getDisplayStationSegmentTime(StationIndex stationIndex) const;
-    fixed16_2dp getDisplayMaxPositiveVerticalG() const;
-    fixed16_2dp getDisplayMaxNegativeVerticalG() const;
-    fixed16_2dp getDisplayMaxLateralG() const;
-    fixed16_2dp getDisplayMaxPositiveLongitudinalG() const;
-    fixed16_2dp getDisplayMaxNegativeLongitudinalG() const;
-    uint16_t getDisplayTotalAirTime() const;
-    uint8_t getDisplayNumDrops() const;
-    uint8_t getDisplayNumPoweredLifts() const;
-    uint8_t getDisplayNumInversions() const;
-    uint8_t getDisplayNumHoles() const;
-    uint8_t getDisplayHighestDropHeight() const;
-    bool hasStableStats() const;
+    int32_t getDisplayStationSegmentLength(StationIndex stationIndex) const
+    {
+        const auto index = stationIndex.ToUnderlying();
+        return hasStableStats() ? stableStats.stations[index].SegmentLength : stations[index].SegmentLength;
+    }
+    uint16_t getDisplayStationSegmentTime(StationIndex stationIndex) const
+    {
+        const auto index = stationIndex.ToUnderlying();
+        return hasStableStats() ? stableStats.stations[index].SegmentTime : stations[index].SegmentTime;
+    }
+    fixed16_2dp getDisplayMaxPositiveVerticalG() const
+    {
+        return hasStableStats() ? stableStats.maxPositiveVerticalG : maxPositiveVerticalG;
+    }
+    fixed16_2dp getDisplayMaxNegativeVerticalG() const
+    {
+        return hasStableStats() ? stableStats.maxNegativeVerticalG : maxNegativeVerticalG;
+    }
+    fixed16_2dp getDisplayMaxLateralG() const { return hasStableStats() ? stableStats.maxLateralG : maxLateralG; }
+    fixed16_2dp getDisplayMaxPositiveLongitudinalG() const
+    {
+        return hasStableStats() ? stableStats.maxPositiveLongitudinalG : maxPositiveLongitudinalG;
+    }
+    fixed16_2dp getDisplayMaxNegativeLongitudinalG() const
+    {
+        return hasStableStats() ? stableStats.maxNegativeLongitudinalG : maxNegativeLongitudinalG;
+    }
+    uint16_t getDisplayTotalAirTime() const { return hasStableStats() ? stableStats.totalAirTime : totalAirTime; }
+    uint8_t getDisplayNumDrops() const { return hasStableStats() ? stableStats.numDrops : numDrops; }
+    uint8_t getDisplayNumPoweredLifts() const
+    {
+        return hasStableStats() ? stableStats.numPoweredLifts : numPoweredLifts;
+    }
+    uint8_t getDisplayNumInversions() const { return hasStableStats() ? stableStats.numInversions : numInversions; }
+    uint8_t getDisplayNumHoles() const { return hasStableStats() ? stableStats.numHoles : numHoles; }
+    uint8_t getDisplayHighestDropHeight() const
+    {
+        return hasStableStats() ? stableStats.highestDropHeight : highestDropHeight;
+    }
+    bool hasStableStats() const { return stableStats.valid; }
     void publishCurrentStatsAsStable();
 
     const OpenRCT2::StationObject* getStationObject() const;
@@ -1169,17 +1198,14 @@ bool RideIsTransportStationOvercrowded(const Ride& ride, StationIndex stationInd
 bool RideSupportsStationPlatformPreQueue(const Ride& ride);
 bool RideCaptureStationPlatformTemplate(Ride& ride, StationIndex stationIndex, const Vehicle& trainHead);
 void RideActivateStationPlatformPreQueue(const Ride& ride, StationIndex stationIndex);
-bool RidePrepareStationPlatformBoarding(const Ride& ride, StationIndex stationIndex, const Vehicle& trainHead);
 bool RideStationPlatformPreQueueIsActive(const Ride& ride, StationIndex stationIndex);
 std::optional<RideStationPlatformReservation> RideReserveStationPlatformSlot(
     const Ride& ride, StationIndex stationIndex, EntityId guestId);
 std::optional<RideStationPlatformReservation> RideGetStationPlatformReservation(
     const Ride& ride, StationIndex stationIndex, EntityId guestId);
-bool RideStationPlatformGuestIsFirst(const Ride& ride, StationIndex stationIndex, EntityId guestId);
-RideStationPlatformSeatBindingResult RideBindStationPlatformGuestToSeat(
+RideStationPlatformSeatBindingResult RideBoardStationPlatformGuest(
     const Ride& ride, StationIndex stationIndex, uint8_t trainIndex, OpenRCT2::Guest& guest);
-void RideReleaseStationPlatformSlot(
-    const Ride& ride, StationIndex stationIndex, EntityId guestId, bool seatBound = false);
+void RideReleaseStationPlatformSlot(const Ride& ride, StationIndex stationIndex, EntityId guestId);
 void RideClearStationPlatformPreQueue(const Ride& ride);
 void RideClearAllStationPlatformPreQueues();
 void RideRebuildStationPlatformPreQueues();

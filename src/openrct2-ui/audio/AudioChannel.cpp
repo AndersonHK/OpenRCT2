@@ -45,7 +45,6 @@ namespace OpenRCT2::Audio
 
         bool _stopping = false;
         bool _done = true;
-        bool _deleteondone = false;
         bool _spatial = false;
 
     public:
@@ -220,16 +219,6 @@ namespace OpenRCT2::Audio
         void SetDone(bool value) override
         {
             _done = value;
-        }
-
-        [[nodiscard]] bool DeleteOnDone() const override
-        {
-            return _deleteondone;
-        }
-
-        void SetDeleteOnDone(bool value) override
-        {
-            _deleteondone = value;
         }
 
         [[nodiscard]] bool IsPlaying() const override

@@ -68,16 +68,6 @@ namespace OpenRCT2::MapPathTopology
                 TileCoordsXY{ chunkX * MapTopology::kChunkSize, chunkY * MapTopology::kChunkSize });
         }
 
-        [[nodiscard]] std::array<MapTopology::Generation, kDependencyCount> GetDependencies(
-            int32_t chunkX, int32_t chunkY) noexcept
-        {
-            return {
-                GetChunkGeneration(chunkX, chunkY),     GetChunkGeneration(chunkX - 1, chunkY),
-                GetChunkGeneration(chunkX, chunkY - 1), GetChunkGeneration(chunkX + 1, chunkY),
-                GetChunkGeneration(chunkX, chunkY + 1),
-            };
-        }
-
         [[nodiscard]] PathConnection FindAdjacentPath(
             const TileCoordsXY& sourceTile, uint8_t sourceBaseZ, bool isSloped, Direction slopeDirection, Direction direction,
             bool& isExact)
@@ -180,7 +170,9 @@ namespace OpenRCT2::MapPathTopology
             return result;
         }
 
-        void BuildChunk(CachedChunk& cache, int32_t chunkX, int32_t chunkY)
+        void BuildChunk(
+            CachedChunk& cache, int32_t chunkX, int32_t chunkY,
+            const std::array<MapTopology::Generation, kDependencyCount>& dependencies)
         {
             cache.paths.clear();
             cache.entrances.clear();
@@ -226,7 +218,8 @@ namespace OpenRCT2::MapPathTopology
                                 node.baseZ = tileElement->baseHeight;
                                 node.edges = path->GetEdges();
                                 node.permittedEdges = GetPermittedEdges(*path, hasBanner);
-                                if (path->IsSloped())
+                                const bool isSloped = path->IsSloped();
+                                if (isSloped)
                                 {
                                     node.flags |= static_cast<uint8_t>(PathNodeFlag::sloped);
                                     node.slopeDirection = path->GetSlopeDirection();
@@ -255,8 +248,7 @@ namespace OpenRCT2::MapPathTopology
                                     if (node.edges & (1 << direction))
                                     {
                                         node.connections[direction] = FindAdjacentPath(
-                                            tile, node.baseZ, path->IsSloped(), path->GetSlopeDirection(), direction,
-                                            cache.isExact);
+                                            tile, node.baseZ, isSloped, node.slopeDirection, direction, cache.isExact);
                                         const auto connectionFlags = node.connections[direction].flags;
                                         if (node.connections[direction].IsConnected()
                                             && (connectionFlags & excludedThinNeighbourFlags) == 0)
@@ -297,7 +289,7 @@ namespace OpenRCT2::MapPathTopology
                 }
             }
 
-            cache.dependencies = GetDependencies(chunkX, chunkY);
+            cache.dependencies = dependencies;
             cache.pathTileOffsets.resize((MapTopology::kChunkSize * MapTopology::kChunkSize) + 1);
             std::size_t pathIndex = 0;
             for (std::size_t tileIndex = 0; tileIndex < cache.pathTileOffsets.size(); tileIndex++)
@@ -315,17 +307,6 @@ namespace OpenRCT2::MapPathTopology
             cache.buildSerial = ++_nextBuildSerial;
         }
 
-        [[nodiscard]] ChunkView MakeView(const CachedChunk& cache, int32_t chunkX, int32_t chunkY) noexcept
-        {
-            return {
-                TileCoordsXY{ chunkX * MapTopology::kChunkSize, chunkY * MapTopology::kChunkSize },
-                std::span<const PathNode>{ cache.paths },
-                std::span<const EntranceNode>{ cache.entrances },
-                std::span<const uint32_t>{ cache.pathTileOffsets },
-                cache.buildSerial,
-                cache.isExact,
-            };
-        }
     } // namespace
 
     ChunkView GetChunk(const TileCoordsXY& tile)
@@ -336,19 +317,23 @@ namespace OpenRCT2::MapPathTopology
         const auto chunkX = tile.x / MapTopology::kChunkSize;
         const auto chunkY = tile.y / MapTopology::kChunkSize;
         auto& cache = _chunks[GetChunkIndex(chunkX, chunkY)];
-        const auto dependencies = GetDependencies(chunkX, chunkY);
+        const std::array<MapTopology::Generation, kDependencyCount> dependencies = {
+            GetChunkGeneration(chunkX, chunkY),     GetChunkGeneration(chunkX - 1, chunkY),
+            GetChunkGeneration(chunkX, chunkY - 1), GetChunkGeneration(chunkX + 1, chunkY),
+            GetChunkGeneration(chunkX, chunkY + 1),
+        };
         if (cache.buildSerial == 0 || cache.dependencies != dependencies)
         {
-            BuildChunk(cache, chunkX, chunkY);
+            BuildChunk(cache, chunkX, chunkY, dependencies);
         }
-        return MakeView(cache, chunkX, chunkY);
-    }
-
-    ChunkView GetChunk(const CoordsXY& coords)
-    {
-        if (coords.x < 0 || coords.y < 0 || coords.x >= kMaximumMapSizeBig || coords.y >= kMaximumMapSizeBig)
-            return {};
-        return GetChunk(TileCoordsXY{ coords });
+        return {
+            TileCoordsXY{ chunkX * MapTopology::kChunkSize, chunkY * MapTopology::kChunkSize },
+            cache.paths,
+            cache.entrances,
+            cache.pathTileOffsets,
+            cache.buildSerial,
+            cache.isExact,
+        };
     }
 
     const PathNode* FindPath(const ChunkView& view, const TileCoordsXYZ& location) noexcept

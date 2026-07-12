@@ -30,7 +30,6 @@ namespace OpenRCT2
 
     private:
         void PopulateEntities();
-        void AddEntity(const ViewportList& vp, EntityBase* entity);
 
     public:
         static EntityTweener& Get();

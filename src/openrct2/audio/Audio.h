@@ -276,14 +276,13 @@ namespace OpenRCT2::Audio
     void Resume();
 
     std::shared_ptr<IAudioChannel> CreateAudioChannel(
-        SoundId soundId, bool loop = false, int32_t volume = kMixerVolumeMax, float pan = 0.5f, double rate = 1,
-        bool forget = false);
+        SoundId soundId, bool loop = false, int32_t volume = kMixerVolumeMax, float pan = 0.5f, double rate = 1);
     std::shared_ptr<IAudioChannel> CreateAudioChannel(
         SoundId soundId, MixerGroup group, bool loop = false, int32_t volume = kMixerVolumeMax, float pan = 0.5f,
-        double rate = 1, bool forget = false);
+        double rate = 1);
     std::shared_ptr<IAudioChannel> CreateAudioChannel(
         IAudioSource* source, MixerGroup group, bool loop = false, int32_t volume = kMixerVolumeMax, float pan = 0.5f,
-        double rate = 1, bool forget = false);
+        double rate = 1);
 
     int32_t DStoMixerVolume(int32_t volume);
     float DStoMixerPan(int32_t pan);
