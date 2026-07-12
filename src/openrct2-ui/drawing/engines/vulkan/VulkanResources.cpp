@@ -57,6 +57,59 @@ namespace OpenRCT2::Ui::Vulkan
         }
     } // namespace
 
+    Buffer::~Buffer()
+    {
+        Dispose();
+    }
+
+    void Buffer::Initialise(
+        VkPhysicalDevice physicalDevice, VkDevice device, VkDeviceSize size, VkBufferUsageFlags usage)
+    {
+        Dispose();
+        if (size == 0)
+            throw std::invalid_argument("Vulkan device buffer requires a non-zero size");
+        _device = device;
+        _size = size;
+        const VkBufferCreateInfo bufferInfo = {
+            .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+            .size = size,
+            .usage = usage,
+            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+        };
+        CheckVk(vkCreateBuffer(_device, &bufferInfo, nullptr, &_buffer), "vkCreateBuffer(device-local)");
+        VkMemoryRequirements requirements{};
+        vkGetBufferMemoryRequirements(_device, _buffer, &requirements);
+        const VkMemoryAllocateInfo memoryInfo = {
+            .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+            .allocationSize = requirements.size,
+            .memoryTypeIndex = FindDeviceMemoryType(
+                physicalDevice, requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
+        };
+        try
+        {
+            CheckVk(vkAllocateMemory(_device, &memoryInfo, nullptr, &_memory), "vkAllocateMemory(device-local buffer)");
+            CheckVk(vkBindBufferMemory(_device, _buffer, _memory, 0), "vkBindBufferMemory(device-local)");
+        }
+        catch (...)
+        {
+            Dispose();
+            throw;
+        }
+    }
+
+    void Buffer::Dispose()
+    {
+        if (_device != VK_NULL_HANDLE)
+        {
+            vkDestroyBuffer(_device, _buffer, nullptr);
+            vkFreeMemory(_device, _memory, nullptr);
+        }
+        _device = VK_NULL_HANDLE;
+        _buffer = VK_NULL_HANDLE;
+        _memory = VK_NULL_HANDLE;
+        _size = 0;
+    }
+
     Image::~Image()
     {
         Dispose();
@@ -166,6 +219,10 @@ namespace OpenRCT2::Ui::Vulkan
         initialise(
             _spriteAtlas, { Gpu::kAtlasDimension, Gpu::kAtlasDimension, 1 }, Gpu::kAtlasLayers, VK_FORMAT_R8_UINT,
             VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+        _spriteDescriptors.Initialise(
+            _physicalDevice, _device,
+            static_cast<VkDeviceSize>(Gpu::kSpriteAssetDescriptorCount) * sizeof(Gpu::SpriteAssetDescriptor),
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
         for (auto& palette : _palettes)
         {
             initialise(
@@ -224,6 +281,7 @@ namespace OpenRCT2::Ui::Vulkan
         DisposeImages(_lightPalettes);
         DisposeImages(_palettes);
         _spriteAtlas.Dispose();
+        _spriteDescriptors.Dispose();
         _physicalDevice = VK_NULL_HANDLE;
         _device = VK_NULL_HANDLE;
         _hasLightAccumulators = false;
@@ -318,6 +376,22 @@ namespace OpenRCT2::Ui::Vulkan
             commandBuffer, allocation.buffer, _spriteAtlas.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
     }
 
+    void IndexedResources::RecordSpriteDescriptorUpload(
+        VkCommandBuffer commandBuffer, const UploadAllocation& allocation, uint32_t descriptorIndex)
+    {
+        if (descriptorIndex >= Gpu::kSpriteAssetDescriptorCount
+            || allocation.size < sizeof(Gpu::SpriteAssetDescriptor))
+        {
+            throw std::invalid_argument("Invalid Vulkan sprite descriptor upload");
+        }
+        const VkBufferCopy copy = {
+            .srcOffset = allocation.offset,
+            .dstOffset = static_cast<VkDeviceSize>(descriptorIndex) * sizeof(Gpu::SpriteAssetDescriptor),
+            .size = sizeof(Gpu::SpriteAssetDescriptor),
+        };
+        vkCmdCopyBuffer(commandBuffer, allocation.buffer, _spriteDescriptors.GetBuffer(), 1, &copy);
+    }
+
     void IndexedResources::EndAtlasUploads(VkCommandBuffer commandBuffer)
     {
         constexpr auto range = ImageRange(VK_IMAGE_ASPECT_COLOR_BIT, Gpu::kAtlasLayers);
@@ -325,6 +399,19 @@ namespace OpenRCT2::Ui::Vulkan
             commandBuffer, _spriteAtlas.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, range, VK_PIPELINE_STAGE_TRANSFER_BIT,
             VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+        const VkBufferMemoryBarrier descriptorBarrier = {
+            .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+            .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+            .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+            .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .buffer = _spriteDescriptors.GetBuffer(),
+            .offset = 0,
+            .size = VK_WHOLE_SIZE,
+        };
+        vkCmdPipelineBarrier(
+            commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, 0, 0, nullptr, 1,
+            &descriptorBarrier, 0, nullptr);
         _atlasHasShaderLayout = true;
     }
 
@@ -591,36 +678,6 @@ namespace OpenRCT2::Ui::Vulkan
             range, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
             VK_ACCESS_SHADER_READ_BIT);
         _canvasHasShaderLayout[frameIndex] = true;
-    }
-
-    void IndexedResources::RecordCanvasUpload(
-        VkCommandBuffer commandBuffer, uint32_t frameIndex, const UploadAllocation& allocation, const Gpu::CanvasUpload& upload)
-    {
-        if (frameIndex >= kFramesInFlight || upload.width == 0 || upload.height == 0 || upload.sourcePitch < upload.width)
-        {
-            throw std::invalid_argument("Invalid Vulkan indexed-canvas upload");
-        }
-        auto& canvas = _indexedCanvases[frameIndex];
-        const auto extent = canvas.GetExtent();
-        const uint64_t requiredBytes = static_cast<uint64_t>(upload.sourcePitch) * upload.height;
-        if (upload.width > extent.width || upload.height > extent.height || requiredBytes > allocation.size)
-        {
-            throw std::invalid_argument("Vulkan indexed-canvas upload exceeds its source or destination");
-        }
-        const VkBufferImageCopy copy = {
-            .bufferOffset = allocation.offset,
-            .bufferRowLength = upload.sourcePitch,
-            .bufferImageHeight = upload.height,
-            .imageSubresource = {
-                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                .mipLevel = 0,
-                .baseArrayLayer = 0,
-                .layerCount = 1,
-            },
-            .imageOffset = { 0, 0, 0 },
-            .imageExtent = { upload.width, upload.height, 1 },
-        };
-        RecordImageUpload(commandBuffer, allocation, canvas, _canvasHasShaderLayout[frameIndex], copy);
     }
 
     void IndexedResources::RecordCanvasAndDepthClear(VkCommandBuffer commandBuffer, uint32_t frameIndex, uint8_t paletteIndex)

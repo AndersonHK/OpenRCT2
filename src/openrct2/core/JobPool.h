@@ -24,8 +24,8 @@ class JobPool
 private:
     struct TaskData
     {
-        const std::function<void()> WorkFn;
-        const std::function<void()> CompletionFn;
+        std::function<void()> WorkFn;
+        std::function<void()> CompletionFn;
         std::exception_ptr Error{};
     };
 
@@ -43,11 +43,14 @@ private:
     static thread_local JobPool* _currentPool;
 
 public:
-    JobPool(size_t maxThreads = 255);
+    explicit JobPool(size_t maxThreads = 255);
     ~JobPool();
 
+    // Completion callbacks run synchronously on the thread that calls Join, never on a worker.
     void AddTask(std::function<void()> workFn, std::function<void()> completionFn = nullptr);
+    // Join is the ownership barrier for queued captures and must not be called by this pool's worker or completion callback.
     void Join(std::function<void()> reportFn = nullptr);
+    // ParallelFor is one exclusive submit/barrier operation. Nested calls execute serially to avoid waiting on their own worker.
     void ParallelFor(
         size_t count, const std::function<void(size_t)>& workFn, size_t grainSize = 1,
         std::function<void()> reportFn = nullptr);

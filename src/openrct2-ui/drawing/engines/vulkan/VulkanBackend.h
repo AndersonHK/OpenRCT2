@@ -86,7 +86,6 @@ namespace OpenRCT2::Ui::Vulkan
         void SetPresentMode(Gpu::PresentMode mode) override;
 
         [[nodiscard]] std::optional<Gpu::FrameHandle> BeginFrame(uint64_t frameNumber) override;
-        [[nodiscard]] Gpu::UploadSlice AllocateUpload(uint64_t size, uint64_t alignment) override;
         void SetPalette(std::span<const std::byte> rgba) override;
         void SetRemapPalette(std::span<const std::byte> indices) override;
         void SetBlendPalette(std::span<const std::byte> indices) override;

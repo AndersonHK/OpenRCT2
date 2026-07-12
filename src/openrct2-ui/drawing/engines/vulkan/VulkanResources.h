@@ -20,6 +20,35 @@
 
 namespace OpenRCT2::Ui::Vulkan
 {
+    class Buffer final
+    {
+    private:
+        VkDevice _device = VK_NULL_HANDLE;
+        VkBuffer _buffer = VK_NULL_HANDLE;
+        VkDeviceMemory _memory = VK_NULL_HANDLE;
+        VkDeviceSize _size = 0;
+
+    public:
+        Buffer() = default;
+        ~Buffer();
+
+        Buffer(const Buffer&) = delete;
+        Buffer& operator=(const Buffer&) = delete;
+
+        void Initialise(
+            VkPhysicalDevice physicalDevice, VkDevice device, VkDeviceSize size, VkBufferUsageFlags usage);
+        void Dispose();
+
+        [[nodiscard]] VkBuffer GetBuffer() const noexcept
+        {
+            return _buffer;
+        }
+        [[nodiscard]] VkDeviceSize GetSize() const noexcept
+        {
+            return _size;
+        }
+    };
+
     class Image final
     {
     private:
@@ -63,6 +92,7 @@ namespace OpenRCT2::Ui::Vulkan
         VkPhysicalDevice _physicalDevice = VK_NULL_HANDLE;
         VkDevice _device = VK_NULL_HANDLE;
         Image _spriteAtlas;
+        Buffer _spriteDescriptors;
         std::array<Image, kFramesInFlight> _palettes;
         std::array<Image, kFramesInFlight> _lightPalettes;
         Image _remapPalette;
@@ -103,6 +133,8 @@ namespace OpenRCT2::Ui::Vulkan
         void RecordAtlasUpload(
             VkCommandBuffer commandBuffer, const UploadAllocation& allocation, uint32_t atlasLayer,
             const Gpu::Int4& destinationBounds, uint32_t sourcePitchPixels);
+        void RecordSpriteDescriptorUpload(
+            VkCommandBuffer commandBuffer, const UploadAllocation& allocation, uint32_t descriptorIndex);
         void EndAtlasUploads(VkCommandBuffer commandBuffer);
         void RecordPaletteUpload(
             VkCommandBuffer commandBuffer, uint32_t frameIndex, const UploadAllocation& allocation);
@@ -119,14 +151,15 @@ namespace OpenRCT2::Ui::Vulkan
         void FinishLightAccumulator(VkCommandBuffer commandBuffer, uint32_t frameIndex);
         void DiscardLightFalloffLayout() noexcept;
         void RecordCanvasClear(VkCommandBuffer commandBuffer, uint32_t frameIndex, uint8_t paletteIndex);
-        void RecordCanvasUpload(
-            VkCommandBuffer commandBuffer, uint32_t frameIndex, const UploadAllocation& allocation,
-            const Gpu::CanvasUpload& upload);
         void RecordCanvasAndDepthClear(VkCommandBuffer commandBuffer, uint32_t frameIndex, uint8_t paletteIndex);
 
         [[nodiscard]] const Image& GetSpriteAtlas() const noexcept
         {
             return _spriteAtlas;
+        }
+        [[nodiscard]] const Buffer& GetSpriteDescriptors() const noexcept
+        {
+            return _spriteDescriptors;
         }
         [[nodiscard]] const Image& GetIndexedCanvas(uint32_t frameIndex) const
         {

@@ -2,8 +2,8 @@
 
 ## Target
 
-The renderer must stop competing with the 320-TPS simulation target. Turbo asks the simulation for one logical tick every
-3.125 ms, so presentation must be asynchronous, bounded, and disposable: when the GPU has not consumed an old visual frame,
+The renderer must stop competing with the 360-TPS simulation target. Presentation must be asynchronous, bounded, and
+disposable: when the GPU has not consumed an old visual frame,
 the renderer should drop or replace that visual work instead of delaying simulation.
 
 The end state is a Vulkan renderer on Windows and Linux, with the same Vulkan command path running through MoltenVK on macOS.
@@ -11,8 +11,8 @@ SDL2 owns the native window. Linux and macOS use SDL's Vulkan WSI bridge; Window
 because the repository's current static SDL dependency has no Windows Vulkan video-driver hooks. This keeps one renderer and
 one window owner while preserving SDL's portability mechanisms on Apple platforms.
 
-OpenGL remains a compatibility and visual-reference backend during migration. It is not the architecture to extend after
-Vulkan reaches parity.
+The duplicate OpenGL backend has been retired. Old `OPENGL` configurations migrate to the SDL hardware-presented software
+renderer, while Vulkan retains explicit numeric value 2 to avoid renumbering existing configurations.
 
 ## Foundation now present
 
@@ -41,13 +41,13 @@ Vulkan reaches parity.
   uploads, final palette pass, API-neutral frame/upload surface, and explicit capability gate. `VulkanLinePipeline.*` and
   `VulkanRectPipeline.*` consume the shared packed command ABI directly from the per-frame upload ring. Lines clear the indexed
   colour and depth targets; opaque sprite, mask, crosshatch, solid-fill, TTF, and one/two/three-remap rectangles then load those
-  targets and preserve command depth. `VulkanTransparencyPipeline.*` uses the established overlap bound to depth-peel indexed
+  targets and preserve command depth. `VulkanTransparencyPipeline.*` uses an exact coordinate-compressed overlap sweep to depth-peel indexed
   transparent rectangles into `R16_UINT`, applies remap/blend tables into ping-pong `R8_UINT` canvases, and preserves recorder
   order. `VulkanWeatherPipeline.*` then writes the legacy rain/snow pattern directly into the final indexed canvas. Readback and
-  direct drawing-context code are present, while production renderer selection remains gated.
+  direct drawing-context code are present.
 - Direct-renderer device initialisation deliberately does not inspect graphics-derived lookup data. OpenRCT2 creates the drawing
   engine before loading base graphics and initialising LightFX, so remap, blend, and baked-light tables are captured once at the
-  first real `BeginDraw`. With the render-worker gate enabled, a versioned presentation snapshot transfers that one-time upload
+  first real `BeginDraw`. A versioned presentation snapshot transfers that one-time upload
   to the backend-owning worker; capture failures leave readiness false and retry safely on the next draw.
 - SPIR-V loading is shared by all Vulkan pipelines through `VulkanShader.*`; shader file validation and module creation are no
   longer duplicated in each pipeline.
@@ -55,9 +55,9 @@ Vulkan reaches parity.
   the GLSL as a toolchain fallback. There is intentionally no runtime GLSL compiler: a Vulkan-capable build without either
   `glslc` or the complete precompiled shader set disables the foundation instead of failing later during renderer
   initialisation.
-- MSBuild derives `EnableVulkan`, both drawing-context gates, shader discovery, and Vulkan link paths once in
-  `openrct2.vulkan.props`, shared by the core, UI, executable, and data projects. Requesting the direct context without the
-  Vulkan drawing engine is a build error. Native Windows Vulkan is currently enabled only for Win32 and x64; Windows ARM64
+- MSBuild derives `EnableVulkan`, renderer and worker activation, shader discovery, and Vulkan link paths once in
+  `openrct2.vulkan.props`, shared by the core, UI, executable, and data projects. A usable Vulkan build enables the renderer and
+  worker by default; explicitly requesting them without the SDK is a build error. Native Windows Vulkan is currently enabled only for Win32 and x64; Windows ARM64
   remains intentionally outside this activation boundary until its SDK library and runtime path are validated.
 - On Windows, `openrct2-win` links `$(VulkanLibraryDir)\vulkan-1.lib` explicitly. The Vulkan SDK's whole `Lib` directory must
   not be prepended to general library search paths: that can select the SDK's `/MD` SDL2 ahead of the repository's
@@ -75,14 +75,14 @@ Vulkan reaches parity.
   `SDL_SetWindowDisplayMode`, and verified after `SDL_SetWindowFullscreen`. Failure is an explicit startup error; it does not
   silently substitute desktop fullscreen, windowed mode, or another renderer. A top-level application boundary logs and displays
   the exact exception while preserving normal renderer-worker, device, and window destruction instead of calling `exit(1)`.
-- DPI inference no longer assumes every renderer owns an SDL renderer. Vulkan queries its platform drawable extent, OpenGL uses
-  its drawable size, and the one-shot setting is cleared only after a valid physical/logical size ratio was obtained.
+- DPI inference no longer assumes every renderer owns an SDL renderer. Vulkan queries its platform drawable extent, and the
+  one-shot setting is cleared only after a valid physical/logical size ratio was obtained.
 - Zero-area G1 elements are valid no-op placeholders in the software renderer. The direct GPU recorder now rejects them before
   emitting a rectangle command, and the texture cache repeats that guard before rasterisation/allocation. It still fails loudly
   for positive-sized images larger than the atlas. This distinction removed the first-draw failure on EverythingPark image
   `268807` (`0x0`) without widening the persistent atlas or hiding malformed oversized assets.
-- `DrawingEngine::Vulkan` is reserved after the existing enum values, so future activation does not renumber old configuration.
-  `ENABLE_VULKAN_DRAWING_ENGINE` now exposes an explicit validation-only factory/configuration path. Normal builds keep it off.
+- `DrawingEngine::Vulkan` remains after the existing enum values, so activation does not renumber old configuration. A build
+  with usable Vulkan dependencies exposes the factory path by default.
 - GPU timing uses one optional timestamp-query pool per frame slot. Five timestamp points divide uploads, indexed drawing,
   LightFX, and final palette composition while also reporting total GPU frame time. Results retain their frame-slot ownership,
   handle queue-counter wrapping through `timestampValidBits`, and convert ticks with the physical device's `timestampPeriod`.
@@ -100,20 +100,17 @@ Vulkan reaches parity.
   established indexed PNG writer. This preserves the established SDR palette image even when the presentation swapchain uses
   HDR10. As with the X8 screenshot contract, the indexed capture precedes display-only per-pixel LightFX composition. It does not
   add a routine framebuffer readback or make presentation itself synchronous.
-- The validation drawing-engine bridge currently uses the established X8 indexed context and uploads its canvas through the
-  current frame's staging ring.
-  This exercises Vulkan window creation, resize, palette, swapchain, presentation and screenshot lifecycle without changing the
-  default renderer. It remains the fallback when `ENABLE_VULKAN_DIRECT_DRAWING_CONTEXT` is off. Enabling that second gate, which
-  is also off by default, selects the direct recorder and persistent atlas path with no routine framebuffer upload or readback.
-  The direct path redraws a complete command list and deliberately does not advertise dirty-region `CopyRect` support. Existing
+- The Vulkan drawing engine always uses the direct recorder and persistent atlas path; the former X8 canvas-upload bridge and
+  its full-frame CPU-to-GPU transfer contract have been deleted. The direct path redraws a complete command list and deliberately
+  does not advertise dirty-region `CopyRect` support. Existing
   viewport scrolling calls `CopyRect` only when the engine advertises dirty optimisations, so this is not an activation blocker
   for the full-redraw command path.
 - Resize rejects an active frame, waits once for the device, then rebuilds canvas-dependent
   pipelines and descriptors as one lifecycle. A failed rebuild leaves the backend explicitly not ready instead of allowing a
   partially rebuilt frame to begin.
 
-The compile-time gates are still required. Frame acquisition now has explicit blocking and `SkipIfBusy` policies, and both gated
-drawing engines select the latter. A busy frame-slot fence or swapchain image therefore skips presentation instead of waiting on
+The dependency gate remains required. Frame acquisition has explicit blocking and `SkipIfBusy` policies, and the drawing engine
+selects the latter. A busy frame-slot fence or swapchain image therefore skips presentation instead of waiting on
 the simulation/UI caller. An explicit abandonment path drains the acquired image semaphore, invalidates the swapchain, and keeps
 persistent atlas uploads pending for retry when recording fails. Resize, shutdown, recovery and explicit screenshots remain the
 intentional blocking boundaries.
@@ -123,7 +120,7 @@ work completes, the palette pass releases its framebuffers and render-pass objec
 old views. This ordering applies equally to resize, VSync changes, out-of-date surfaces, HDR/SDR transitions and abandonment.
 
 Atlas uploads are now staged and recorded in one traversal. The backend no longer allocates a temporary new-texture vector or
-walks every upload twice per frame, and palette, LightFX, index-table, and canvas transfers share one synchronization/copy path.
+walks every upload twice per frame, and palette, LightFX, and index-table transfers share one synchronization/copy path.
 Logical-device setup uses its fixed two-family queue array directly, backend-owned timestamp operations avoid recursive locking,
 and the remaining device lock is a normal mutex. These changes keep upload ownership explicit while reducing CPU preparation for
 the command stream; atlas pixels remain in GPU-local memory after their first successful upload.
@@ -132,6 +129,20 @@ This is not yet the complete asynchronous contract: paint traversal and direct c
 semantic visual snapshot and stable worker-range concatenation must still land before paint preparation itself can leave that
 thread. Skipping GPU acquisition prevents presentation back-pressure, but it does not by itself remove CPU paint preparation for
 a frame that is ultimately skipped.
+
+The retained-scene migration now has two ownership foundations. Ordinary opaque sprite commands reference a persistent GPU
+asset descriptor rather than repeating atlas geometry in every command; the descriptor is uploaded transactionally with the
+atlas allocation and remains valid for the frame-residency lease. Separately, `EntityRegistry` publishes owned, sorted visual
+changes identified by `{ reset epoch, entity id, slot generation }`. Creation, authoritative movement, removal, same-tick ID
+reuse, and whole-park reset therefore coalesce at the registry instead of requiring a renderer to pull every entity or trust an
+immediately reusable ID. Presentation-only tween movement is deliberately excluded. These records do not yet replace world
+paint: entities and terrain share the same painter ordering, so their eventual persistent buffers must enter one unified
+world-space sort rather than an incorrect entity-only overlay.
+
+The next boundary is a frozen main-viewport scene: resolve all live entity/tile visibility while the paint session is owned,
+then publish pointer-free world records to a latest-only worker. That worker may cull, sort, and construct indirect draws while
+simulation continues; a missed deadline reuses the previous completed visual state. Scene reset, object unload, renderer
+switch, screenshot, resize, and shutdown remain explicit drain or generation-discard boundaries.
 
 ### Refresh-paced scheduler integration
 
@@ -159,15 +170,14 @@ snapshot boundary and further simulation-side parallelism rather than present-ca
 
 ## Current CPU/GPU ownership audit
 
-The validation bridge is intentionally not a performance renderer: X8 performs the full software raster, `EndDraw` copies the
-whole indexed canvas into the upload ring, and Vulkan performs only the final transfer/composition/presentation. The direct gate
-removes that routine canvas upload and keeps the sprite atlas, indexed canvases, depth, remap/blend tables, transparency layers,
+The retired validation bridge performed the full X8 software raster and copied the whole indexed canvas into the upload ring.
+The production direct path removes that routine canvas upload and keeps the sprite atlas, indexed canvases, depth, remap/blend tables, transparency layers,
 weather output and palette conversion resident on the GPU.
 
 The remaining direct-path CPU costs are paint traversal and clipping, command allocation, first-use sprite, palette-glyph, and
 TTF rasterisation/upload in `GpuTextureCache`, the transparency overlap-depth estimate, and initial remap-table
 construction. These are presentation-only and do not alter deterministic simulation, but they remain on the simulation/UI
-caller while the experimental render-worker gate is off; command publication removes only the backend work, not this traversal.
+caller; command publication removes only the backend work, not this traversal.
 Weather is already a compact command plus GPU pass and does not require CPU pixel storage. LightFX now has an explicit immutable
 boundary: after paint traversal, the caller resolves viewport lag, live-map occlusion, and the legacy light sprites into compact
 resolved-light commands plus an owned light palette. A one-byte-per-pixel intensity image is materialised only for the CPU
@@ -176,7 +186,7 @@ viewport, or palette state. Vulkan consumes the commands or optional fallback in
 reproduces the legacy integer `MixLight` operation in the final palette shader, and only then applies
 the existing SDR attachment or BT.2020/PQ HDR10 output transform. LightFX therefore adds no RGBA canvas conversion and no
 readback. CPU light-list and occlusion resolution remain, while Vulkan now replaces the per-pixel CPU lightmap raster in the
-fully gated direct path. When compute capability is active, direct packets are command-only and do not allocate or fill a
+direct path. When compute capability is active, packets are command-only and do not allocate or fill a
 logical-screen-sized CPU intensity vector. The legacy resolver materialises that vector explicitly for the X8 display path,
 unsupported-device fallback, resize handoff, and focused parity validation.
 
@@ -229,8 +239,8 @@ is available for the compiled Vulkan drawing engine. HDR activates only when the
 BT.2020, scales the established palette white to the configured paper-white luminance, and applies the ST 2084 transfer function.
 If that exact pair is unavailable, initialisation continues in SDR. The indexed source data is never promoted or rewritten.
 If the surface exposes neither one of the supported 8-bit formats in the normal sRGB colour space nor an opted-in exact HDR10
-pair, Vulkan initialisation is rejected and the established renderer fallback takes over. Legacy SDR bytes are never submitted
-to an HDR-only or otherwise unsupported colour-space pairing.
+pair, Vulkan initialisation fails with an explicit error. It does not silently select software or alter the requested window
+mode. Legacy SDR bytes are never submitted to an HDR-only or otherwise unsupported colour-space pairing.
 
 Windows and Linux use native Vulkan. macOS uses this same Vulkan resource and shader path through MoltenVK; there is no separate
 Metal renderer or Metal-specific colour-composition implementation. HDR availability is therefore a runtime surface capability,
@@ -238,7 +248,7 @@ not an OS assumption.
 
 HDR10 activation follows the existing abstraction rather than adding a second renderer:
 
-1. retain SDR as the default and expose the opt-in only when the gated Vulkan drawing engine is compiled and selected;
+1. retain SDR as the default and expose the opt-in only when Vulkan is compiled and selected;
 2. report both HDR10 surface support and the active swapchain mode after swapchain creation or recreation, including an explicit
    refresh when SDL reports that the window moved to a different display even if its drawable extent did not change;
 3. publish display mastering and content-light metadata through `VK_EXT_hdr_metadata` when the device advertises it, without
@@ -277,11 +287,10 @@ validation layer enabled.
 
 ### 1. Indexed composition and presentation
 
-The backend, validation factory path, direct `IDrawingContext` recorder, persistent atlas cache, and explicit synchronous
-screenshot adapter are present behind compile-time gates. The validation bridge retains its full-canvas
-upload as an independent lifecycle and comparison fallback; the direct gate does not invoke it. Direct screenshots capture the
+The backend, direct `IDrawingContext` recorder, persistent atlas cache, and explicit synchronous screenshot adapter are present.
+Direct screenshots capture the
 last successfully presented post-transparency/weather indexed canvas, then use the legacy indexed PNG path and palette. With the
-render-worker gate enabled, screenshot capture attaches to pending visual work or publishes a control packet when none exists;
+the render worker, screenshot capture attaches to pending visual work or publishes a control packet when none exists;
 the backend-owning worker is allowed to block the caller only for that explicit capture. Normal visual packets remain disposable.
 Immediate parity work is now visual comparison coverage and evidence that full-list command recording is preferable before
 adding GPU damage metadata. Production activation also depends on interactive lifecycle validation of the non-blocking frame
@@ -330,15 +339,15 @@ EverythingPark rather than selected theoretically:
 
 Weather gloom, lightning, palette animation, smooth scaling, and light effects become full-screen compute or fragment passes.
 The LightFX final mix is now part of the palette fragment pass and uses frame-slot-local palette and intensity images, so palette
-animation cannot overwrite resources still sampled by an older in-flight frame. The fully gated direct path uses the bounded
+animation cannot overwrite resources still sampled by an older in-flight frame. The direct path uses the bounded
 integer compute accumulator and immutable baked-falloff resource described above. Unsupported optional compute capabilities use
 the explicitly materialised CPU intensity payload; neither path performs an RGBA canvas conversion or GPU-to-CPU transfer during
 ordinary presentation.
 
 ### 5. Parallel frame preparation
 
-Use one render thread for Vulkan submission and resource retirement. The experimental first stage publishes a finished command
-packet; it does not yet make mutable simulation or UI state available to that worker. A later semantic snapshot can let workers
+One render thread owns Vulkan submission and resource retirement. The UI thread publishes a finished command packet; mutable
+simulation and UI state never cross that boundary. A later semantic snapshot can let workers
 build independent viewport/window ranges in per-thread arenas, followed by stable concatenation. At Turbo, presentation consumes
 the newest available visual packet and discards superseded ones.
 
@@ -350,39 +359,34 @@ request attaches to the newest pending visual packet, follows it if that disposa
 after that frame is presented. If no visual is pending, the mailbox publishes a control-only packet that reads the latest
 successfully presented canvas. This preserves visual-before-capture ordering without adding a general frame queue.
 
-The experimental direct worker consumes those packets and exclusively owns hot backend resize, present-mode, palette,
+The direct worker consumes those packets and exclusively owns hot backend resize, present-mode, palette,
 `BeginFrame`, submit, present, readback, and abandonment calls. Presented, busy, superseded, failed, rejected-at-shutdown, and
 pending-at-shutdown packets all retire their leases explicitly. Worker failure stops publication, retires the one pending packet,
 and is reported on the UI caller at the next recording boundary. An attached screenshot is an explicit permitted blocking
 boundary: the worker drains prior GPU work, presents its packet, and only then reads the indexed canvas. Routine visual packets
-remain non-blocking and disposable. The X8 validation bridge remains synchronous because its `CanvasUpload` is an offset into an
-already acquired backend ring.
+remain non-blocking and disposable.
 
-`ENABLE_VULKAN_RENDER_THREAD` remains off by default pending interactive visual and lifecycle validation, but its SDL ownership
-blocker is removed. The UI thread samples the physical Vulkan drawable extent during initialisation, explicit resize, and a
+The render worker is the sole Vulkan lifecycle path. The UI thread samples the physical Vulkan drawable extent during initialisation, explicit resize, and a
 lightweight per-frame change check. Recorded packets carry that extent separately from the logical indexed canvas. Device
 swapchain creation and recreation consume only the stored value; neither `RecreateSwapchain` nor variable-extent selection calls
 SDL. A zero drawable marks a minimized or unavailable surface, leaves the old swapchain intact, and skips acquisition until a
 later UI sample publishes a non-zero extent. Initial platform loader/extension/surface creation remains on the UI thread;
 Windows uses native WSI while other platforms use SDL Vulkan. Shutdown joins the worker before backend and window destruction.
-CMake uses the option above; pinned Windows MSBuild uses
-`EnableVulkanRenderThread=true` together with all three existing Vulkan, drawing-engine, and direct-context properties. Both
-build systems leave it false by default.
+CMake uses `ENABLE_VULKAN`; pinned Windows MSBuild auto-detects the SDK or accepts `EnableVulkan=true`. There are no separate
+renderer, direct-context, or worker gates.
 
 The simulation must never wait for a presentation fence except during resize, renderer shutdown, screenshot capture, or explicit
 debug validation.
 
 ## Parity and deletion gates
 
-Delete CPU and legacy paths only after Vulkan comparison captures cover normal, rain, snow, night, lightning, transparency,
-multiple viewports, zoom levels, screenshots, and UI scaling.
+Continue deleting CPU legacy paths only after Vulkan comparison captures cover normal, rain, snow, night, lightning,
+transparency, multiple viewports, zoom levels, screenshots, and UI scaling.
 
 After indexed composition parity:
 
 - delete HardwareDisplay palette conversion and its 32-bit shadow buffer;
-- delete OpenGL-only weather composition and shader files;
 - remove the macOS CPU `CopyRect` readback fallback;
-- remove per-frame OpenGL buffer orphaning and GL state wrappers.
 
 After GPU paint preparation parity:
 
@@ -390,8 +394,6 @@ After GPU paint preparation parity:
 - remove synchronous `GetOrLoadImageTexture` calls from draw recording;
 - remove CPU weather-pixel storage and restoration;
 - remove CPU viewport sprite expansion for world layers, retaining only the deterministic paint-record producer;
-- retire OpenGL as a selectable backend once Vulkan/MoltenVK coverage is established on Windows, Linux, Intel Mac, and Apple
-  Silicon.
 
 ## Verification
 

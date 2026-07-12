@@ -29,6 +29,7 @@
 #include "../world/Location.hpp"
 #include "../world/Map.h"
 #include "../world/MapTopology.h"
+#include "../world/TileElementsView.h"
 #include "../world/tile_element/EntranceElement.h"
 #include "../world/tile_element/PathElement.h"
 #include "../world/tile_element/Slope.h"
@@ -342,21 +343,13 @@ static void ApplyTrackTypeFixes(const json_t& trackTilesFixes)
 
         for (const auto& tile : coordinatesVector)
         {
-            auto* tileElement = MapGetFirstElementAt(tile);
-            if (tileElement == nullptr)
-                continue;
-
-            do
+            for (auto* trackElement : TileElementsView<TrackElement>(tile))
             {
-                if (tileElement->getType() != TileElementType::track)
-                    continue;
-
-                auto* trackElement = tileElement->asTrack();
                 if (trackElement->GetTrackType() != fromTrackType)
                     continue;
 
                 trackElement->SetTrackType(destinationTrackType);
-            } while (!(tileElement++)->isLastForTile());
+            }
         }
     }
 }

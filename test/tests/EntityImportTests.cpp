@@ -512,6 +512,93 @@ TEST_F(EntityImportTests, SpatialIndexDirtyWorklistCoalescesMovesAndPreservesSor
     EXPECT_EQ(destinationEntities[2].ToUnderlying(), 40u);
 }
 
+TEST_F(EntityImportTests, VisualLifecycleCoalescesCreationAndMovementIntoSortedOwnedRecords)
+{
+    auto& entities = getGameState().entities;
+    static_cast<void>(entities.ConsumeEntityVisualChanges());
+
+    constexpr auto laterId = EntityId::FromUnderlying(40);
+    constexpr auto earlierId = EntityId::FromUnderlying(10);
+    constexpr CoordsXYZ intermediate{ 5 * kCoordsXYStep, 6 * kCoordsXYStep, 8 };
+    constexpr CoordsXYZ destination{ 7 * kCoordsXYStep, 8 * kCoordsXYStep, 16 };
+    auto* later = entities.CreateEntityAt<Guest>(laterId);
+    auto* earlier = entities.CreateEntityAt<Guest>(earlierId);
+    ASSERT_NE(later, nullptr);
+    ASSERT_NE(earlier, nullptr);
+    later->setLocation(intermediate);
+    later->setLocation(destination);
+
+    const auto batch = entities.ConsumeEntityVisualChanges();
+    EXPECT_FALSE(batch.reset);
+    ASSERT_EQ(batch.changes.size(), 2u);
+    EXPECT_EQ(batch.changes[0].handle.id, earlierId);
+    EXPECT_EQ(batch.changes[1].handle.id, laterId);
+    EXPECT_EQ(batch.changes[1].location, destination);
+    EXPECT_TRUE(batch.changes[1].present);
+    EXPECT_EQ(batch.changes[1].type, EntityType::guest);
+    EXPECT_EQ(batch.changes[1].dirty, EntityVisualDirty::full);
+    EXPECT_TRUE(entities.ConsumeEntityVisualChanges().changes.empty());
+}
+
+TEST_F(EntityImportTests, VisualLifecycleRejectsStaleIdentityAfterRemovalAndReuse)
+{
+    auto& entities = getGameState().entities;
+    static_cast<void>(entities.ConsumeEntityVisualChanges());
+
+    constexpr auto id = EntityId::FromUnderlying(30);
+    auto* guest = entities.CreateEntityAt<Guest>(id);
+    ASSERT_NE(guest, nullptr);
+    const auto original = entities.GetEntityVisualHandle(id);
+    static_cast<void>(entities.ConsumeEntityVisualChanges());
+
+    entities.EntityRemove(guest);
+    const auto removed = entities.ConsumeEntityVisualChanges();
+    ASSERT_EQ(removed.changes.size(), 1u);
+    EXPECT_FALSE(removed.changes.front().present);
+    EXPECT_EQ(removed.changes.front().handle, original);
+
+    auto* replacement = entities.CreateEntityAt<Vehicle>(id);
+    ASSERT_NE(replacement, nullptr);
+    const auto reused = entities.ConsumeEntityVisualChanges();
+    ASSERT_EQ(reused.changes.size(), 1u);
+    EXPECT_TRUE(reused.changes.front().present);
+    EXPECT_EQ(reused.changes.front().type, EntityType::vehicle);
+    EXPECT_EQ(reused.changes.front().handle.id, original.id);
+    EXPECT_EQ(reused.changes.front().handle.epoch, original.epoch);
+    EXPECT_NE(reused.changes.front().handle.generation, original.generation);
+}
+
+TEST_F(EntityImportTests, VisualLifecycleResetChangesEpochAndDiscardsOldWork)
+{
+    auto& entities = getGameState().entities;
+    const auto initial = entities.ConsumeEntityVisualChanges();
+    auto* guest = entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(20));
+    ASSERT_NE(guest, nullptr);
+
+    entities.ResetAllEntities();
+    const auto reset = entities.ConsumeEntityVisualChanges();
+    EXPECT_TRUE(reset.reset);
+    EXPECT_NE(reset.epoch, initial.epoch);
+    EXPECT_TRUE(reset.changes.empty());
+}
+
+TEST_F(EntityImportTests, TweenMovementDoesNotPublishAuthoritativeVisualTransform)
+{
+    auto& entities = getGameState().entities;
+    static_cast<void>(entities.ConsumeEntityVisualChanges());
+
+    auto* guest = entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(10));
+    ASSERT_NE(guest, nullptr);
+    constexpr CoordsXYZ authoritative{ 10 * kCoordsXYStep, 11 * kCoordsXYStep, 0 };
+    constexpr CoordsXYZ tween{ 5 * kCoordsXYStep, 6 * kCoordsXYStep, 0 };
+    guest->setLocation(authoritative);
+    static_cast<void>(entities.ConsumeEntityVisualChanges());
+
+    guest->moveToForTween(tween);
+    EXPECT_TRUE(entities.ConsumeEntityVisualChanges().changes.empty());
+    guest->moveToForTween(authoritative);
+}
+
 TEST_F(EntityImportTests, TweenMovementPreservesAuthoritativeSpatialIndex)
 {
     auto& entities = getGameState().entities;

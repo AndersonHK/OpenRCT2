@@ -5,19 +5,16 @@
     <OpenRCT2VulkanPropsImported>true</OpenRCT2VulkanPropsImported>
     <DataShadersPath Condition="'$(DataShadersPath)'==''">$(SolutionDir)data\shaders\</DataShadersPath>
     <VulkanGlslcPath Condition="'$(VulkanGlslcPath)'=='' and '$(VULKAN_SDK)'!=''">$(VULKAN_SDK)\Bin\glslc.exe</VulkanGlslcPath>
-    <EnableVulkanDrawingEngine Condition="'$(EnableVulkanDrawingEngine)'==''">false</EnableVulkanDrawingEngine>
-    <EnableVulkanDirectDrawingContext Condition="'$(EnableVulkanDirectDrawingContext)'==''">false</EnableVulkanDirectDrawingContext>
-    <EnableVulkanRenderThread Condition="'$(EnableVulkanRenderThread)'==''">false</EnableVulkanRenderThread>
-    <EnableVulkan Condition="'$(EnableVulkan)'=='' and '$(VULKAN_SDK)'!='' and (Exists('$(VulkanGlslcPath)') or (Exists('$(DataShadersPath)vulkan\indexed_palette.vert.spv') and Exists('$(DataShadersPath)vulkan\indexed_palette.frag.spv') and Exists('$(DataShadersPath)vulkan\indexed_line.vert.spv') and Exists('$(DataShadersPath)vulkan\indexed_line.frag.spv') and Exists('$(DataShadersPath)vulkan\indexed_rect.vert.spv') and Exists('$(DataShadersPath)vulkan\indexed_rect.frag.spv') and Exists('$(DataShadersPath)vulkan\indexed_transparent_rect.vert.spv') and Exists('$(DataShadersPath)vulkan\indexed_transparent_rect.frag.spv') and Exists('$(DataShadersPath)vulkan\indexed_transparency_compose.vert.spv') and Exists('$(DataShadersPath)vulkan\indexed_transparency_compose.frag.spv') and Exists('$(DataShadersPath)vulkan\indexed_weather.vert.spv') and Exists('$(DataShadersPath)vulkan\indexed_weather.frag.spv') and Exists('$(DataShadersPath)vulkan\lightfx_accumulate.comp.spv'))) and ('$(Platform)'=='Win32' or '$(Platform)'=='x64')">true</EnableVulkan>
+    <EnableVulkan Condition="'$(EnableVulkan)'=='' and '$(VULKAN_SDK)'!='' and (Exists('$(VulkanGlslcPath)') or (Exists('$(DataShadersPath)vulkan\indexed_palette.vert.spv') and Exists('$(DataShadersPath)vulkan\indexed_palette.frag.spv') and Exists('$(DataShadersPath)vulkan\indexed_line.vert.spv') and Exists('$(DataShadersPath)vulkan\indexed_line.frag.spv') and Exists('$(DataShadersPath)vulkan\indexed_rect.vert.spv') and Exists('$(DataShadersPath)vulkan\indexed_rect.frag.spv') and Exists('$(DataShadersPath)vulkan\indexed_sprite.vert.spv') and Exists('$(DataShadersPath)vulkan\indexed_transparent_rect.vert.spv') and Exists('$(DataShadersPath)vulkan\indexed_transparent_rect.frag.spv') and Exists('$(DataShadersPath)vulkan\indexed_transparency_compose.vert.spv') and Exists('$(DataShadersPath)vulkan\indexed_transparency_compose.frag.spv') and Exists('$(DataShadersPath)vulkan\indexed_weather.vert.spv') and Exists('$(DataShadersPath)vulkan\indexed_weather.frag.spv') and Exists('$(DataShadersPath)vulkan\lightfx_accumulate.comp.spv'))) and ('$(Platform)'=='Win32' or '$(Platform)'=='x64')">true</EnableVulkan>
     <VulkanLibraryDir Condition="'$(EnableVulkan)'=='true' and '$(Platform)'=='Win32'">$(VULKAN_SDK)\Lib32</VulkanLibraryDir>
     <VulkanLibraryDir Condition="'$(EnableVulkan)'=='true' and '$(Platform)'=='x64'">$(VULKAN_SDK)\Lib</VulkanLibraryDir>
     <VulkanAdditionalDependencies Condition="'$(EnableVulkan)'=='true'">$(VulkanLibraryDir)\vulkan-1.lib;</VulkanAdditionalDependencies>
   </PropertyGroup>
 
   <Target Name="ValidateOpenRCT2VulkanOptions" BeforeTargets="PrepareForBuild">
-    <Error Condition="'$(EnableVulkanDirectDrawingContext)'=='true' and '$(EnableVulkanDrawingEngine)'!='true'"
-           Text="EnableVulkanDirectDrawingContext=true requires EnableVulkanDrawingEngine=true." />
-    <Error Condition="'$(EnableVulkanRenderThread)'=='true' and '$(EnableVulkanDirectDrawingContext)'!='true'"
-           Text="EnableVulkanRenderThread=true requires EnableVulkanDirectDrawingContext=true." />
+    <Error Condition="'$(EnableVulkan)'=='true' and '$(VULKAN_SDK)'==''"
+           Text="EnableVulkan=true requires VULKAN_SDK to identify Vulkan headers and libraries." />
+    <Error Condition="'$(EnableVulkan)'=='true' and !Exists('$(VulkanLibraryDir)\vulkan-1.lib')"
+           Text="EnableVulkan=true could not find $(VulkanLibraryDir)\vulkan-1.lib." />
   </Target>
 </Project>

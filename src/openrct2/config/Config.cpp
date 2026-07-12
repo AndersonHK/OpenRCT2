@@ -109,8 +109,9 @@ namespace OpenRCT2::Config
 
     static const auto Enum_DrawingEngine = ConfigEnum<DrawingEngine>({
         ConfigEnumEntry<DrawingEngine>("SOFTWARE_HWD", DrawingEngine::SoftwareWithHardwareDisplay),
-        ConfigEnumEntry<DrawingEngine>("OPENGL", DrawingEngine::OpenGL),
-#if defined(ENABLE_VULKAN) && defined(ENABLE_VULKAN_DRAWING_ENGINE)
+        // Read old configurations without retaining a second graphics backend.
+        ConfigEnumEntry<DrawingEngine>("OPENGL", DrawingEngine::SoftwareWithHardwareDisplay),
+#ifdef ENABLE_VULKAN
         ConfigEnumEntry<DrawingEngine>("VULKAN", DrawingEngine::Vulkan),
 #endif
     });
@@ -237,7 +238,7 @@ namespace OpenRCT2::Config
             // Default config setting is false until the games canvas can be separated from the effect
             model->dayNightCycle = reader->GetBoolean("day_night_cycle", false);
             bool supportsLightFx = model->drawingEngine == DrawingEngine::SoftwareWithHardwareDisplay;
-#if defined(ENABLE_VULKAN) && defined(ENABLE_VULKAN_DRAWING_ENGINE)
+#ifdef ENABLE_VULKAN
             supportsLightFx |= model->drawingEngine == DrawingEngine::Vulkan;
 #endif
             model->enableLightFx = supportsLightFx && reader->GetBoolean("enable_light_fx", false);

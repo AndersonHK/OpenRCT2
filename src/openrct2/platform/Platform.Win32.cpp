@@ -556,13 +556,6 @@ namespace OpenRCT2::Platform
         return result;
     }
 
-    bool RequireNewWindow(bool openGL)
-    {
-        // Windows is apparently able to switch to hardware rendering on the fly although
-        // using the same window in an unaccelerated and accelerated context is unsupported by SDL2
-        return openGL;
-    }
-
     std::string GetUsername()
     {
         std::string result;

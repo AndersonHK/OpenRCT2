@@ -86,6 +86,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\openrct2-ui\drawing\engines\gpu\GpuTextureCache.cpp" />
+    <ClCompile Include="..\..\src\openrct2-ui\drawing\engines\gpu\GpuTransparencyDepth.cpp" />
     <ClCompile Include="BitSetTests.cpp" />
     <ClCompile Include="CircularBuffer.cpp" />
     <ClCompile Include="CLITests.cpp" />

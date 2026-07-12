@@ -43,7 +43,7 @@ namespace OpenRCT2
         scenarios,        // Contains scenarios (SC6).
         screenshots,      // Contains screenshots.
         sequences,        // Contains title sequences.
-        shaders,          // Contains OpenGL shaders.
+        shaders,          // Contains renderer shaders.
         themes,           // Contains interface themes.
         trackDesigns,     // Contains track designs.
         heightmaps,       // Contains heightmap data.

@@ -29,6 +29,7 @@
 #include "../world/MapPathRouteCache.h"
 #include "../world/MapTopology.h"
 #include "../world/Park.h"
+#include "../world/TileElementsView.h"
 #include "../world/Wall.h"
 #include "../world/Weather.h"
 #include "../world/tile_element/BannerElement.h"
@@ -242,7 +243,7 @@ namespace OpenRCT2::PathFinding
 
         const auto* node = MapPathTopology::FindPath(view, { loc.x, loc.y, pathElement->baseHeight });
         if (node == nullptr || node->edges != pathElement->GetEdges()
-            || node->HasFlag(MapPathTopology::PathNodeFlag::sloped) != pathElement->IsSloped()
+            || DirectionValid(node->slopeDirection) != pathElement->IsSloped()
             || (pathElement->IsSloped() && node->slopeDirection != pathElement->GetSlopeDirection()))
         {
             return nullptr;
@@ -621,19 +622,13 @@ namespace OpenRCT2::PathFinding
     static PathSearchResult FootpathElementDestInDir(
         bool ignoreBanners, TileCoordsXYZ loc, Direction chosenDirection, RideId* outRideIndex, int32_t level)
     {
-        TileElement* tileElement;
         Direction direction;
 
         if (level > 25)
             return PathSearchResult::LimitReached;
 
         loc += TileDirectionDelta[chosenDirection];
-        tileElement = MapGetFirstElementAt(loc);
-        if (tileElement == nullptr)
-        {
-            return PathSearchResult::Failed;
-        }
-        do
+        for (auto* tileElement : TileElementsView(loc))
         {
             if (tileElement->isGhost())
                 continue;
@@ -714,7 +709,7 @@ namespace OpenRCT2::PathFinding
                 default:
                     break;
             }
-        } while (!(tileElement++)->isLastForTile());
+        }
 
         return PathSearchResult::Failed;
     }
@@ -860,7 +855,7 @@ namespace OpenRCT2::PathFinding
         if (cachedPath == nullptr)
             cachedPath = GetExactCachedPath(loc, path);
         if (cachedPath != nullptr)
-            return cachedPath->HasFlag(MapPathTopology::PathNodeFlag::thinJunction);
+            return cachedPath->isThinJunction;
         return PathIsThinJunctionLive(path, loc);
     }
 
@@ -921,14 +916,6 @@ namespace OpenRCT2::PathFinding
         return (distanceMillimetres * 1000) / walkingSpeedMillimetresPerSecond;
     }
 
-    static TravelTimeMilliseconds ConvertPathTilesToWalkingTime(
-        int64_t walkingSpeedMillimetresPerSecond, uint32_t pathTiles)
-    {
-        constexpr int64_t kMillimetresPerPathTile = 4000;
-        return (static_cast<int64_t>(pathTiles) * kMillimetresPerPathTile * 1000)
-            / walkingSpeedMillimetresPerSecond;
-    }
-
     static std::optional<TravelTimeMilliseconds> EstimateWalkingTravelTime(
         int64_t walkingSpeedMillimetresPerSecond, const TileCoordsXYZ& start, const TileCoordsXYZ& destination,
         const MapPathRouteCache::RouteDistance& exactDistance)
@@ -937,7 +924,9 @@ namespace OpenRCT2::PathFinding
         {
             if (!exactDistance.pathTiles.has_value())
                 return std::nullopt;
-            return ConvertPathTilesToWalkingTime(walkingSpeedMillimetresPerSecond, *exactDistance.pathTiles);
+            constexpr int64_t kMillimetresPerPathTile = 4000;
+            return (static_cast<int64_t>(*exactDistance.pathTiles) * kMillimetresPerPathTile * 1000)
+                / walkingSpeedMillimetresPerSecond;
         }
         return EstimateWalkingTravelTime(walkingSpeedMillimetresPerSecond, start, destination);
     }
@@ -975,18 +964,13 @@ namespace OpenRCT2::PathFinding
             : std::max<TravelTimeMilliseconds>(15'000, directWalkTime / 10);
         struct TransportCandidate
         {
-            TravelTimeMilliseconds rankingTime{ std::numeric_limits<TravelTimeMilliseconds>::max() };
+            TravelTimeMilliseconds rankingTime{};
             RideId ride{ RideId::GetNull() };
             StationIndex boardingStation{ StationIndex::GetNull() };
             StationIndex destinationStation{ StationIndex::GetNull() };
-
-            bool isValid() const
-            {
-                return !ride.IsNull();
-            }
         };
-        TransportCandidate bestNonExtortive;
-        TransportCandidate bestExtortive;
+        std::optional<TransportCandidate> bestNonExtortive;
+        std::optional<TransportCandidate> bestExtortive;
 
         static thread_local std::vector<TransportRideServiceStationRef> boardingStations;
         static thread_local std::vector<TransportRideServiceStationRef> destinationStations;
@@ -1129,20 +1113,16 @@ namespace OpenRCT2::PathFinding
                         break;
                     }
                     case RidePriceTarget::goodValue:
-                    {
-                        const auto requiredSaving = isPrecipitating
-                            ? TravelTimeMilliseconds{ 1 }
-                            : std::max<TravelTimeMilliseconds>(5'000, directWalkTime / 10);
-                        isEligible = isEligible || directWalkTime - routeTime >= requiredSaving;
-                        preferenceBonus = 3'000;
-                        break;
-                    }
                     case RidePriceTarget::neutral:
                     {
+                        const bool isGoodValue = effectivePriceTarget == RidePriceTarget::goodValue;
+                        const auto minimumSaving = isGoodValue ? 5'000 : 10'000;
+                        const auto savingDivisor = isGoodValue ? 10 : 5;
                         const auto requiredSaving = isPrecipitating
                             ? TravelTimeMilliseconds{ 1 }
-                            : std::max<TravelTimeMilliseconds>(10'000, directWalkTime / 5);
+                            : std::max<TravelTimeMilliseconds>(minimumSaving, directWalkTime / savingDivisor);
                         isEligible = isEligible || directWalkTime - routeTime >= requiredSaving;
+                        preferenceBonus = isGoodValue ? 3'000 : 0;
                         break;
                     }
                     case RidePriceTarget::badValue:
@@ -1165,21 +1145,16 @@ namespace OpenRCT2::PathFinding
                 }
 
                 auto& best = effectivePriceTarget == RidePriceTarget::badValue ? bestExtortive : bestNonExtortive;
-                if (rankingTime < best.rankingTime)
-                {
-                    best.rankingTime = rankingTime;
-                    best.ride = evaluatedRideId;
-                    best.boardingStation = boardingStation;
-                    best.destinationStation = destinationStation;
-                }
+                if (!best.has_value() || rankingTime < best->rankingTime)
+                    best = TransportCandidate{ rankingTime, evaluatedRideId, boardingStation, destinationStation };
             }
         }
 
-        const auto& best = bestNonExtortive.isValid() ? bestNonExtortive : bestExtortive;
-        if (!best.isValid())
+        const auto& best = bestNonExtortive ? bestNonExtortive : bestExtortive;
+        if (!best.has_value())
             return false;
 
-        peep.setTransportRoute(best.ride, best.boardingStation, best.destinationStation, !bestNonExtortive.isValid());
+        peep.setTransportRoute(best->ride, best->boardingStation, best->destinationStation, !bestNonExtortive.has_value());
         return true;
     }
 
@@ -1188,6 +1163,7 @@ namespace OpenRCT2::PathFinding
         const auto currentGeneration = RideGetTransportServiceCrowdingGeneration();
         if (peep.transportRouteCrowdingGeneration == currentGeneration)
             return false;
+        peep.transportRouteCrowdingGeneration = currentGeneration;
 
         if (peep.hasTransportRoute())
         {
@@ -1196,13 +1172,11 @@ namespace OpenRCT2::PathFinding
                 && !peep.CurrentRideStation.IsNull()
                 && peep.CurrentRideStation.ToUnderlying() < selectedRide->numStations
                 && RideIsTransportStationOvercrowded(*selectedRide, peep.CurrentRideStation);
-            peep.transportRouteCrowdingGeneration = currentGeneration;
             if (!selectedBoardingIsOvercrowded)
                 return false;
             peep.clearTransportRoute();
         }
         peep.transportRoutePlanningInitialised = false;
-        peep.transportRouteCrowdingGeneration = currentGeneration;
         return true;
     }
 

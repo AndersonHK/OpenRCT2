@@ -40,7 +40,6 @@ using namespace OpenRCT2::Scripting;
 
 namespace OpenRCT2
 {
-    static constexpr uint8_t kFastForwardYieldSpeed = 4;
     static auto _gameState = std::make_unique<GameState_t>();
 
     GameState_t& getGameState()
@@ -211,9 +210,9 @@ namespace OpenRCT2
             gameStateUpdateLogic(updatePresentationAudio);
             didUpdatePresentationAudio |= updatePresentationAudio;
 
-            // The logical update is the deterministic unit. Turbo may yield presentation between those complete units so an
-            // eight-update base batch does not monopolise the main thread for multiple display refreshes.
-            if (!isNetworked && batchStartSpeed >= kFastForwardYieldSpeed && i + 1 < numUpdates)
+            // The logical update is the deterministic unit. Fast-forward may yield presentation between complete units so a
+            // batch does not monopolise the main thread for multiple display refreshes.
+            if (!isNetworked && batchStartSpeed >= kGameSpeedTurbo && i + 1 < numUpdates)
             {
                 GetContext()->YieldToUi();
             }

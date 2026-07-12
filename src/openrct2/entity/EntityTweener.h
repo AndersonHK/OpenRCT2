@@ -9,26 +9,21 @@
 
 #pragma once
 
-#include "../interface/Window.h"
 #include "EntityBase.h"
 
-#include <sfl/static_vector.hpp>
 #include <vector>
 
 namespace OpenRCT2
 {
-    struct Viewport;
-
-    // TODO: Move this to somewhere else, currently filters also by zoom.
-    using ViewportList = sfl::static_vector<Viewport*, kWindowLimitMax>;
-
+    // Simulation positions remain authoritative. PreTick restores any presentation-only interpolation before capturing the
+    // visible set; PostTick then compacts it to entities that actually moved, which Tween may temporarily reposition.
     class EntityTweener
     {
-        std::vector<EntityBase*> Entities;
-        std::vector<CoordsXYZ> PrePos;
-        std::vector<CoordsXYZ> PostPos;
-
     private:
+        std::vector<EntityBase*> _entities;
+        std::vector<CoordsXYZ> _prePositions;
+        std::vector<CoordsXYZ> _postPositions;
+
         void PopulateEntities();
 
     public:

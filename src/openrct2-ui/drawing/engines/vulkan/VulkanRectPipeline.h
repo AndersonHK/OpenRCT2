@@ -32,6 +32,7 @@ namespace OpenRCT2::Ui::Vulkan
         VkPipelineLayout _pipelineLayout = VK_NULL_HANDLE;
         VkRenderPass _renderPass = VK_NULL_HANDLE;
         VkPipeline _pipeline = VK_NULL_HANDLE;
+        VkPipeline _spritePipeline = VK_NULL_HANDLE;
         std::array<VkFramebuffer, kFramesInFlight> _framebuffers{};
         VkExtent2D _extent{};
         std::filesystem::path _shaderDirectory;
@@ -46,7 +47,9 @@ namespace OpenRCT2::Ui::Vulkan
         void Initialise(
             const Device& device, const IndexedResources& resources, std::filesystem::path shaderDirectory);
         void Dispose();
-        void Record(const FrameToken& frame, const Gpu::CommandBatch<Gpu::RectCommand>& commands) const;
+        void Record(
+            const FrameToken& frame, const Gpu::CommandBatch<Gpu::RectCommand>& commands,
+            const Gpu::CommandBatch<Gpu::SpriteCommand>& sprites) const;
 
     private:
         void CreateDescriptors(const IndexedResources& resources);

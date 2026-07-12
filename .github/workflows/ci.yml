@@ -567,7 +567,7 @@ jobs:
             echo 'Image not pushed'
           fi
   linux-clang:
-    name: Ubuntu Linux (noble, debug, [http, network, flac, vorbis OpenGL] disabled) using clang
+    name: Ubuntu Linux (noble, debug, [http, network, flac, vorbis] disabled) using clang
     runs-on: ubuntu-24.04
     needs: [check-code-formatting, build_variables]
     container: ghcr.io/openrct2/openrct2-build:26-noble
@@ -581,7 +581,7 @@ jobs:
       - name: Install GCC problem matcher
         uses: ammaraskar/gcc-problem-matcher@master
       - name: Build OpenRCT2
-        run: . scripts/setenv && build -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Debug -DDISABLE_NETWORK=ON -DDISABLE_HTTP=ON -DDISABLE_FLAC=ON -DDISABLE_VORBIS=ON -DDISABLE_OPENGL=ON
+        run: . scripts/setenv && build -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Debug -DDISABLE_NETWORK=ON -DDISABLE_HTTP=ON -DDISABLE_FLAC=ON -DDISABLE_VORBIS=ON
   linux-clang-tests:
     name: Ubuntu Linux (debug) using clang, coverage enabled
     runs-on: ubuntu-24.04

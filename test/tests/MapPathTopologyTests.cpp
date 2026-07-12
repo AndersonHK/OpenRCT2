@@ -131,7 +131,6 @@ TEST_F(MapPathTopologyTest, SlopeAndHeightDeterminePathAdjacency)
 
     const auto* source = MapPathTopology::FindPath(view, { sourceTile, 10 });
     ASSERT_NE(source, nullptr);
-    EXPECT_TRUE(source->HasFlag(MapPathTopology::PathNodeFlag::sloped));
     EXPECT_EQ(source->slopeDirection, east);
     EXPECT_TRUE(source->connections[east].IsConnected());
     EXPECT_EQ(source->connections[east].targetBaseZ, 12);
@@ -143,7 +142,7 @@ TEST_F(MapPathTopologyTest, SlopeAndHeightDeterminePathAdjacency)
     EXPECT_EQ(high->connections[west].targetBaseZ, 10);
 }
 
-TEST_F(MapPathTopologyTest, BannerDirectionQueueOwnershipWideFlagAndEntranceConnectionsArePreserved)
+TEST_F(MapPathTopologyTest, PermittedEdgesQueueOwnershipAndEntranceConnectionsArePreserved)
 {
     constexpr Direction east = 2;
     constexpr Direction south = 1;
@@ -154,13 +153,8 @@ TEST_F(MapPathTopologyTest, BannerDirectionQueueOwnershipWideFlagAndEntranceConn
     ASSERT_NE(AddPath(queueTile + TileDirectionDelta[south], 10, 1 << DirectionReverse(south)), nullptr);
 
     const auto queueRide = RideId::FromUnderlying(42);
-    const auto queueStation = StationIndex::FromUnderlying(3);
     queue->SetIsQueue(true);
     queue->SetRideIndex(queueRide);
-    queue->SetStationIndex(queueStation);
-    queue->SetWide(true);
-    queue->SetHasQueueBanner(true);
-    queue->SetQueueBannerDirection(east);
     ASSERT_NE(AddBanner(queueTile, 12, 1 << south), nullptr);
     MapTopology::InvalidateTileAndNeighbours(queueTile);
 
@@ -182,19 +176,14 @@ TEST_F(MapPathTopologyTest, BannerDirectionQueueOwnershipWideFlagAndEntranceConn
     EXPECT_EQ(queueNode->edges, (1 << east) | (1 << south));
     EXPECT_EQ(queueNode->permittedEdges, 1 << south);
     EXPECT_TRUE(queueNode->connections[east].IsConnected());
-    EXPECT_TRUE(queueNode->HasFlag(MapPathTopology::PathNodeFlag::queue));
-    EXPECT_TRUE(queueNode->HasFlag(MapPathTopology::PathNodeFlag::wide));
-    EXPECT_TRUE(queueNode->HasFlag(MapPathTopology::PathNodeFlag::queueBanner));
-    EXPECT_EQ(queueNode->queueBannerDirection, east);
-    EXPECT_TRUE(queueNode->HasFlag(MapPathTopology::PathNodeFlag::banner));
     EXPECT_EQ(queueNode->queueRide, queueRide);
-    EXPECT_EQ(queueNode->queueStation, queueStation);
 
-    const auto* entrance = MapPathTopology::FindEntrance(view, { entranceTile, 10 }, ENTRANCE_TYPE_RIDE_ENTRANCE);
-    ASSERT_NE(entrance, nullptr);
+    const auto entrance = std::find_if(view.entrances.begin(), view.entrances.end(), [&](const auto& candidate) {
+        return candidate.GetLocation(view.origin) == TileCoordsXYZ{ entranceTile, 10 }
+            && candidate.entranceType == ENTRANCE_TYPE_RIDE_ENTRANCE;
+    });
+    ASSERT_NE(entrance, view.entrances.end());
     EXPECT_EQ(entrance->ride, entranceRide);
-    EXPECT_EQ(entrance->station, entranceStation);
-    EXPECT_EQ(entrance->connectionEdges, 1 << entrancePathDirection);
     EXPECT_TRUE(entrance->connections[entrancePathDirection].IsConnected());
     EXPECT_EQ(entrance->connections[entrancePathDirection].targetBaseZ, 10);
 }
@@ -247,7 +236,7 @@ TEST_F(MapPathTopologyTest, ThinJunctionClassificationExcludesWidePathsAndOwnedQ
     auto view = MapPathTopology::GetChunk(centre);
     auto* sourceNode = MapPathTopology::FindPath(view, { centre, 10 });
     ASSERT_NE(sourceNode, nullptr);
-    EXPECT_TRUE(sourceNode->HasFlag(MapPathTopology::PathNodeFlag::thinJunction));
+    EXPECT_TRUE(sourceNode->isThinJunction);
     EXPECT_FALSE(sourceNode->connections[west].HasFlag(MapPathTopology::ConnectionFlag::targetWide));
 
     westPath->SetWide(true);
@@ -255,7 +244,7 @@ TEST_F(MapPathTopologyTest, ThinJunctionClassificationExcludesWidePathsAndOwnedQ
     view = MapPathTopology::GetChunk(centre);
     sourceNode = MapPathTopology::FindPath(view, { centre, 10 });
     ASSERT_NE(sourceNode, nullptr);
-    EXPECT_TRUE(sourceNode->HasFlag(MapPathTopology::PathNodeFlag::thinJunction));
+    EXPECT_TRUE(sourceNode->isThinJunction);
     EXPECT_TRUE(sourceNode->connections[west].HasFlag(MapPathTopology::ConnectionFlag::targetWide));
 
     auto* southPath = MapGetPathElementAt({ centre + TileDirectionDelta[south], 10 });
@@ -266,7 +255,7 @@ TEST_F(MapPathTopologyTest, ThinJunctionClassificationExcludesWidePathsAndOwnedQ
     view = MapPathTopology::GetChunk(centre);
     sourceNode = MapPathTopology::FindPath(view, { centre, 10 });
     ASSERT_NE(sourceNode, nullptr);
-    EXPECT_FALSE(sourceNode->HasFlag(MapPathTopology::PathNodeFlag::thinJunction));
+    EXPECT_FALSE(sourceNode->isThinJunction);
     EXPECT_TRUE(sourceNode->connections[south].HasFlag(MapPathTopology::ConnectionFlag::targetRideQueue));
 
     southPath->SetRideIndex(RideId::GetNull());
@@ -274,7 +263,7 @@ TEST_F(MapPathTopologyTest, ThinJunctionClassificationExcludesWidePathsAndOwnedQ
     view = MapPathTopology::GetChunk(centre);
     sourceNode = MapPathTopology::FindPath(view, { centre, 10 });
     ASSERT_NE(sourceNode, nullptr);
-    EXPECT_TRUE(sourceNode->HasFlag(MapPathTopology::PathNodeFlag::thinJunction));
+    EXPECT_TRUE(sourceNode->isThinJunction);
     EXPECT_FALSE(sourceNode->connections[south].HasFlag(MapPathTopology::ConnectionFlag::targetRideQueue));
 }
 

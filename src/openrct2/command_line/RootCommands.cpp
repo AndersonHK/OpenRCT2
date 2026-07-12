@@ -8,6 +8,7 @@
  *****************************************************************************/
 
 #include "../Context.h"
+#include "../Game.h"
 #include "../OpenRCT2.h"
 #include "../PlatformEnvironment.h"
 #include "../Version.h"
@@ -69,6 +70,9 @@ namespace OpenRCT2
     static bool _benchmarkVisible = false;
     static int32_t _benchmarkWarmupSeconds = 5;
     static int32_t _benchmarkDurationSeconds = 30;
+    static int32_t _benchmarkWarmupTicks = -1;
+    static int32_t _benchmarkTicks = -1;
+    static u8string _benchmarkProfilePath;
     static u8string _benchmarkRenderer;
     static int32_t _benchmarkVSync = -1;
 
@@ -96,7 +100,10 @@ namespace OpenRCT2
         { CMDLINE_TYPE_SWITCH,  &_benchmarkVisible, kNAC, "benchmark-visible",   "show the integrated benchmark window for compositor testing"   },
         { CMDLINE_TYPE_INTEGER, &_benchmarkWarmupSeconds, kNAC, "benchmark-warmup", "unmeasured integrated benchmark warm-up in seconds"       },
         { CMDLINE_TYPE_INTEGER, &_benchmarkDurationSeconds, kNAC, "benchmark-duration", "integrated benchmark measurement in seconds"          },
-        { CMDLINE_TYPE_STRING,  &_benchmarkRenderer, kNAC, "benchmark-renderer", "renderer override: software, opengl, or vulkan"                },
+        { CMDLINE_TYPE_INTEGER, &_benchmarkWarmupTicks, kNAC, "benchmark-warmup-ticks", "fixed unmeasured integrated warm-up ticks (-1 uses seconds)" },
+        { CMDLINE_TYPE_INTEGER, &_benchmarkTicks,       kNAC, "benchmark-ticks", "fixed integrated measurement ticks (-1 uses seconds)"          },
+        { CMDLINE_TYPE_STRING,  &_benchmarkProfilePath, kNAC, "benchmark-profile", "profile the integrated measurement to a .csv or .json file" },
+        { CMDLINE_TYPE_STRING,  &_benchmarkRenderer, kNAC, "benchmark-renderer", "renderer override: software or vulkan"                       },
         { CMDLINE_TYPE_INTEGER, &_benchmarkVSync,   kNAC, "benchmark-vsync",     "VSync override: -1 configured, 0 disabled, or 1 enabled"       },
     #ifdef USE_BREAKPAD
         { CMDLINE_TYPE_SWITCH,  &_silentBreakpad,  kNAC, "silent-breakpad",   "make breakpad crash reporting silent"                       },
@@ -287,6 +294,20 @@ namespace OpenRCT2
                 Console::Error::WriteLine("Benchmark warm-up must be non-negative and duration must be greater than zero.");
                 return ExitCode::fail;
             }
+            if (_benchmarkWarmupTicks < -1 || _benchmarkTicks == 0 || _benchmarkTicks < -1)
+            {
+                Console::Error::WriteLine(
+                    "Benchmark warm-up ticks must be -1 or non-negative; measurement ticks must be -1 or greater than zero.");
+                return ExitCode::fail;
+            }
+            constexpr auto turboBatchTicks = 1u << (kGameSpeedTurbo - 1);
+            if ((_benchmarkWarmupTicks > 0 && (_benchmarkWarmupTicks % turboBatchTicks) != 0)
+                || (_benchmarkTicks > 0 && (_benchmarkTicks % turboBatchTicks) != 0))
+            {
+                Console::Error::WriteLine(
+                    "Fixed integrated benchmark tick counts must be multiples of the %u-tick Turbo batch.", turboBatchTicks);
+                return ExitCode::fail;
+            }
             if (_benchmarkVSync < -1 || _benchmarkVSync > 1)
             {
                 Console::Error::WriteLine("--benchmark-vsync must be -1, 0, or 1.");
@@ -298,13 +319,17 @@ namespace OpenRCT2
             {
                 if (_benchmarkRenderer == "software")
                     drawingEngine = DrawingEngine::SoftwareWithHardwareDisplay;
-                else if (_benchmarkRenderer == "opengl")
-                    drawingEngine = DrawingEngine::OpenGL;
+#ifdef ENABLE_VULKAN
                 else if (_benchmarkRenderer == "vulkan")
                     drawingEngine = DrawingEngine::Vulkan;
+#endif
                 else
                 {
-                    Console::Error::WriteLine("--benchmark-renderer must be software, opengl, or vulkan.");
+#ifdef ENABLE_VULKAN
+                    Console::Error::WriteLine("--benchmark-renderer must be software or vulkan.");
+#else
+                    Console::Error::WriteLine("--benchmark-renderer must be software; this build has no Vulkan renderer.");
+#endif
                     return ExitCode::fail;
                 }
             }
@@ -313,6 +338,9 @@ namespace OpenRCT2
             gIntegratedBenchmark.visible = _benchmarkVisible;
             gIntegratedBenchmark.warmupSeconds = _benchmarkWarmupSeconds;
             gIntegratedBenchmark.measurementSeconds = _benchmarkDurationSeconds;
+            gIntegratedBenchmark.warmupTicks = _benchmarkWarmupTicks;
+            gIntegratedBenchmark.measurementTicks = _benchmarkTicks;
+            gIntegratedBenchmark.profilePath = _benchmarkProfilePath;
             gIntegratedBenchmark.drawingEngine = drawingEngine;
             if (_benchmarkVSync != -1)
                 gIntegratedBenchmark.useVSync = _benchmarkVSync != 0;

@@ -31,8 +31,6 @@ namespace OpenRCT2
     {
         using BenchmarkClock = std::chrono::steady_clock;
 
-        constexpr double kTurboTargetTicksPerSecond = 320.0;
-
         int32_t _warmupTicks = -1;
         bool _benchmark = false;
         u8string _profilePath;
@@ -57,7 +55,8 @@ namespace OpenRCT2
             Console::WriteLine("  elapsed:           %.6f s", elapsedSeconds);
             Console::WriteLine("  actual TPS:        %.3f", ticksPerSecond);
             Console::WriteLine(
-                "  Turbo 320 target:  %.1f%%", (ticksPerSecond / kTurboTargetTicksPerSecond) * 100.0);
+                "  Turbo %u target:  %.1f%%", kTurboTargetTicksPerSecond,
+                (ticksPerSecond / kTurboTargetTicksPerSecond) * 100.0);
             Console::WriteLine("  tick mean:         %.3f us", elapsedSeconds * 1'000'000.0 / ticks);
             Console::WriteLine("  Turbo tick budget: %.3f us", turboTickBudgetMicroseconds);
         }

@@ -101,7 +101,6 @@ namespace OpenRCT2
         using namespace std::chrono_literals;
 
         static constexpr auto kForcedUpdateInterval = 25ms;
-        static constexpr uint8_t kTurboGameSpeed = 4;
         static constexpr float kActualTpsMeasurementInterval = 0.5f;
         static constexpr auto kIntegratedBenchmarkStartupTimeout = 60s;
 
@@ -113,8 +112,6 @@ namespace OpenRCT2
             {
                 case DrawingEngine::SoftwareWithHardwareDisplay:
                     return "software";
-                case DrawingEngine::OpenGL:
-                    return "opengl";
                 case DrawingEngine::Vulkan:
                     return "vulkan";
                 default:
@@ -182,6 +179,7 @@ namespace OpenRCT2
         float _timeScale = 1.0f;
         bool _variableFrame = false;
         IntegratedBenchmarkClock::time_point _nextDrawDeadline{};
+        TurboSimulationPacer<IntegratedBenchmarkClock> _simulationPacer;
         double _simulationYieldSeconds{};
         IntegratedBenchmarkClock::time_point _simulationSliceStart{};
         float _actualTpsTimeAccumulator = 0.0f;
@@ -202,6 +200,7 @@ namespace OpenRCT2
         IntegratedBenchmarkTotals _benchmarkTotals{};
         BenchmarkStateSnapshot _benchmarkInitialState{};
         uint64_t _benchmarkInitialLogicalTicks{};
+        uint64_t _benchmarkPhaseInitialLogicalTicks{};
         uint64_t _benchmarkMessagePumps{};
         uint64_t _benchmarkUiFrames{};
         struct
@@ -1286,7 +1285,7 @@ namespace OpenRCT2
         bool ShouldRunVariableFrame()
         {
             // Fast-forward benefits from spending its frame budget on simulation rather than entity tween snapshots.
-            return ShouldDraw() && Config::Get().general.uncapFPS && gGameSpeed < kTurboGameSpeed;
+            return ShouldDraw() && Config::Get().general.uncapFPS && gGameSpeed < kGameSpeedTurbo;
         }
 
         bool UpdateVariableFrameMode()
@@ -1308,7 +1307,7 @@ namespace OpenRCT2
 
         bool IsOfflineFastForward() const
         {
-            return gGameSpeed >= kTurboGameSpeed && GameIsNotPaused() && Network::GetMode() == Network::Mode::none;
+            return gGameSpeed >= kGameSpeedTurbo && GameIsNotPaused() && Network::GetMode() == Network::Mode::none;
         }
 
         bool ShouldDrawFrame()
@@ -1387,14 +1386,26 @@ namespace OpenRCT2
             // Do not carry warm-up scheduler debt or snapshot time into the measured interval.
             _ticksAccumulator = 0.0f;
             _nextDrawDeadline = {};
+            _simulationPacer.Reset();
             _timer.Restart();
             _benchmarkPhaseStart = IntegratedBenchmarkClock::now();
             _benchmarkPhase = IntegratedBenchmarkPhase::measurement;
-            Console::WriteLine("Measuring integrated UI for %d seconds...", gIntegratedBenchmark.measurementSeconds);
+            if (!gIntegratedBenchmark.profilePath.empty())
+            {
+                Profiling::resetData();
+                Profiling::enable();
+                Console::WriteLine("Integrated profiler enabled; use a clean run for acceptance TPS.");
+            }
+            if (gIntegratedBenchmark.measurementTicks >= 0)
+                Console::WriteLine("Measuring integrated UI for %d logical ticks...", gIntegratedBenchmark.measurementTicks);
+            else
+                Console::WriteLine("Measuring integrated UI for %d seconds...", gIntegratedBenchmark.measurementSeconds);
         }
 
         void FinishIntegratedBenchmarkMeasurement(IntegratedBenchmarkClock::time_point now)
         {
+            if (!gIntegratedBenchmark.profilePath.empty())
+                Profiling::disable();
             _benchmarkPhase = IntegratedBenchmarkPhase::complete;
             _benchmarkTotals.elapsedSeconds = std::chrono::duration<double>(now - _benchmarkPhaseStart).count();
             _benchmarkTotals.logicalTicks = gTotalSimulationTicks - _benchmarkInitialLogicalTicks;
@@ -1502,11 +1513,26 @@ namespace OpenRCT2
             PrintBenchmarkStateSnapshot("Initial", _benchmarkInitialState);
             PrintBenchmarkStateSnapshot("Final", finalState);
             Console::WriteLine("Completed: %s", checksum.c_str());
+            if (!gIntegratedBenchmark.profilePath.empty())
+            {
+                if (!Profiling::exportData(gIntegratedBenchmark.profilePath))
+                {
+                    Console::Error::WriteLine(
+                        "Unable to export integrated profiler data to %s", gIntegratedBenchmark.profilePath.c_str());
+                    _benchmarkFailed = true;
+                }
+                else
+                {
+                    Console::WriteLine("Profiler data:        %s", gIntegratedBenchmark.profilePath.c_str());
+                }
+            }
             _finished = true;
         }
 
         void FailIntegratedBenchmark(const utf8* message)
         {
+            if (!gIntegratedBenchmark.profilePath.empty())
+                Profiling::disable();
             Console::Error::WriteLine("%s", message);
             _benchmarkFailed = true;
             _benchmarkPhase = IntegratedBenchmarkPhase::complete;
@@ -1532,13 +1558,14 @@ namespace OpenRCT2
                         return;
                     }
                     // This is process-local benchmark setup, not an in-game command or replay event.
-                    gGameSpeed = kTurboGameSpeed;
+                    gGameSpeed = kGameSpeedTurbo;
                     Console::WriteLine(
                         "Integrated UI benchmark ready: renderer=%s, VSync=%s, %s window, ordinary Turbo.",
                         GetDrawingEngineName(_drawingEngineType),
                         gIntegratedBenchmark.useVSync.value_or(Config::Get().general.useVSync) ? "enabled" : "disabled",
                         gIntegratedBenchmark.visible ? "visible" : "hidden");
-                    if (gIntegratedBenchmark.warmupSeconds == 0)
+                    if (gIntegratedBenchmark.warmupTicks == 0
+                        || (gIntegratedBenchmark.warmupTicks < 0 && gIntegratedBenchmark.warmupSeconds == 0))
                     {
                         BeginIntegratedBenchmarkMeasurement();
                     }
@@ -1546,7 +1573,13 @@ namespace OpenRCT2
                     {
                         _benchmarkPhase = IntegratedBenchmarkPhase::warmup;
                         _benchmarkPhaseStart = now;
-                        Console::WriteLine("Warming up integrated UI for %d seconds...", gIntegratedBenchmark.warmupSeconds);
+                        _benchmarkPhaseInitialLogicalTicks = gTotalSimulationTicks;
+                        if (gIntegratedBenchmark.warmupTicks >= 0)
+                            Console::WriteLine(
+                                "Warming up integrated UI for %d logical ticks...", gIntegratedBenchmark.warmupTicks);
+                        else
+                            Console::WriteLine(
+                                "Warming up integrated UI for %d seconds...", gIntegratedBenchmark.warmupSeconds);
                     }
                 }
                 else if (activeScene == _sceneManager->getTitleScene())
@@ -1562,20 +1595,27 @@ namespace OpenRCT2
             }
 
             if (_sceneManager->getActiveScene() != _sceneManager->getGameScene() || GameIsPaused()
-                || Network::GetMode() != Network::Mode::none || gGameSpeed != kTurboGameSpeed)
+                || Network::GetMode() != Network::Mode::none || gGameSpeed != kGameSpeedTurbo)
             {
                 FailIntegratedBenchmark(
                     "Integrated UI benchmark requires the game scene, an unpaused offline park, and ordinary Turbo speed.");
                 return;
             }
 
-            if (_benchmarkPhase == IntegratedBenchmarkPhase::warmup
-                && now - _benchmarkPhaseStart >= std::chrono::seconds(gIntegratedBenchmark.warmupSeconds))
+            const bool warmupComplete = gIntegratedBenchmark.warmupTicks >= 0
+                ? gTotalSimulationTicks - _benchmarkPhaseInitialLogicalTicks
+                    >= static_cast<uint64_t>(gIntegratedBenchmark.warmupTicks)
+                : now - _benchmarkPhaseStart >= std::chrono::seconds(gIntegratedBenchmark.warmupSeconds);
+            const bool measurementComplete = gIntegratedBenchmark.measurementTicks >= 0
+                ? gTotalSimulationTicks - _benchmarkInitialLogicalTicks
+                    >= static_cast<uint64_t>(gIntegratedBenchmark.measurementTicks)
+                : now - _benchmarkPhaseStart >= std::chrono::seconds(gIntegratedBenchmark.measurementSeconds);
+
+            if (_benchmarkPhase == IntegratedBenchmarkPhase::warmup && warmupComplete)
             {
                 BeginIntegratedBenchmarkMeasurement();
             }
-            else if (_benchmarkPhase == IntegratedBenchmarkPhase::measurement
-                && now - _benchmarkPhaseStart >= std::chrono::seconds(gIntegratedBenchmark.measurementSeconds))
+            else if (_benchmarkPhase == IntegratedBenchmarkPhase::measurement && measurementComplete)
             {
                 FinishIntegratedBenchmarkMeasurement(now);
             }
@@ -1635,9 +1675,16 @@ namespace OpenRCT2
 
         void UpdateTimeAccumulators(float deltaTime)
         {
-            // Ticks
-            float scaledDeltaTime = deltaTime * _timeScale;
-            _ticksAccumulator = std::min(_ticksAccumulator + scaledDeltaTime, kGameUpdateMaxThreshold);
+            if (IsOfflineFastForward())
+            {
+                // Turbo owns a wall-clock deadline below; accumulator debt belongs only to ordinary/network catch-up.
+                _ticksAccumulator = 0.0f;
+            }
+            else
+            {
+                _ticksAccumulator = std::min(_ticksAccumulator + deltaTime * _timeScale, kGameUpdateMaxThreshold);
+                _simulationPacer.Reset();
+            }
 
             // Real Time.
             _realtimeAccumulator = std::min(_realtimeAccumulator + deltaTime, kGameUpdateMaxThreshold);
@@ -1666,29 +1713,64 @@ namespace OpenRCT2
             return useVariableFrame;
         }
 
+        void RunTurboFrame(bool shouldDraw)
+        {
+            auto now = IntegratedBenchmarkClock::now();
+
+            // Presentation has its own refresh deadline. A delayed frame is serviced before another indivisible batch,
+            // regardless of whether simulation can sustain the selected fast-forward speed.
+            if (shouldDraw)
+            {
+                UpdateUi();
+                Draw();
+                now = IntegratedBenchmarkClock::now();
+                if (!IsOfflineFastForward())
+                    return;
+            }
+
+            const auto timeUntilDue = _simulationPacer.TimeUntilDue(now);
+            if (timeUntilDue > IntegratedBenchmarkClock::duration::zero())
+            {
+                const auto remaining = std::chrono::duration<float>(timeUntilDue).count();
+                Platform::Sleep(static_cast<uint32_t>(std::min(kNetworkUpdateTimeMS, remaining) * 1000.0f));
+                return;
+            }
+
+            const auto interval = std::chrono::duration_cast<IntegratedBenchmarkClock::duration>(
+                std::chrono::duration<float>(kGameUpdateTimeMS / _timeScale));
+            _simulationPacer.BeginBatch(now);
+
+            Tick();
+            const auto batchEnd = IntegratedBenchmarkClock::now();
+            _simulationPacer.CompleteBatch(batchEnd, interval);
+
+            if (ShouldDrawFrame())
+            {
+                UpdateUi();
+                Draw();
+            }
+            else if (!ShouldDraw())
+            {
+                UpdateUi();
+            }
+        }
+
         void RunFixedFrame(bool shouldDraw)
         {
             PROFILED_FUNCTION();
 
             ProcessMessages();
 
-            // A draw that became due while the previous Turbo batch was running must not wait behind another batch. Present
-            // the completed state first; the scene batch remains the minimum non-preemptible simulation slice.
-            if (shouldDraw && IsOfflineFastForward())
+            if (IsOfflineFastForward())
             {
-                Draw();
-                shouldDraw = false;
+                RunTurboFrame(shouldDraw);
+                return;
             }
 
             if (_ticksAccumulator < kGameUpdateTimeMS)
             {
                 const auto sleepTimeSec = std::min(kNetworkUpdateTimeMS, kGameUpdateTimeMS - _ticksAccumulator);
                 Platform::Sleep(static_cast<uint32_t>(sleepTimeSec * 1000.f));
-                if (shouldDraw && IsOfflineFastForward())
-                {
-                    UpdateUi();
-                    Draw();
-                }
                 return;
             }
 
@@ -1699,16 +1781,13 @@ namespace OpenRCT2
                 _ticksAccumulator -= kGameUpdateTimeMS;
 
                 // A visible loop gets at most one 40 Hz scene batch before returning to event and presentation work. Headless
-                // catch-up can still consume the bounded accumulator in one pass. Turbo's scene batch contains eight logical
-                // ticks and remains deterministic; overdue presentation now happens before the following batch.
-                if (ShouldDraw() || IsOfflineFastForward() || ShouldRunVariableFrame())
+                // catch-up can still consume the bounded accumulator in one pass.
+                if (ShouldDraw() || ShouldRunVariableFrame())
                     break;
             }
 
             UpdateUi();
 
-            // Leaving Turbo on a throttled non-draw frame does not need an immediate full paint. The next outer iteration
-            // runs variable mode, whose unthrottled cadence presents the authoritative state with current interpolation.
             if (shouldDraw)
             {
                 Draw();
@@ -2014,7 +2093,12 @@ namespace OpenRCT2
 
         void SetTimeScale(float newScale) override
         {
-            _timeScale = std::clamp(newScale, kGameMinTimeScale, kGameMaxTimeScale);
+            const auto clampedScale = std::clamp(newScale, kGameMinTimeScale, kGameMaxTimeScale);
+            if (_timeScale != clampedScale)
+            {
+                _timeScale = clampedScale;
+                _simulationPacer.Reset();
+            }
         }
 
         float GetTimeScale() const override
@@ -2041,11 +2125,7 @@ namespace OpenRCT2
             }
 
             ProcessMessages();
-            _backgroundWorker.dispatchCompleted();
-            ContextHandleInput();
-            WindowUpdateAll();
-            if (_benchmarkPhase == IntegratedBenchmarkPhase::measurement)
-                _benchmarkUiFrames++;
+            UpdateUi();
             Draw();
 
             if (_benchmarkPhase == IntegratedBenchmarkPhase::measurement)

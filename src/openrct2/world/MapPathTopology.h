@@ -21,7 +21,6 @@ namespace OpenRCT2::MapPathTopology
     enum class ConnectionFlag : uint8_t
     {
         connected = 1 << 0,
-        ambiguousTarget = 1 << 1,
         targetWide = 1 << 2,
         targetRideQueue = 1 << 3,
     };
@@ -38,16 +37,6 @@ namespace OpenRCT2::MapPathTopology
         [[nodiscard]] bool IsConnected() const noexcept { return HasFlag(ConnectionFlag::connected); }
     };
 
-    enum class PathNodeFlag : uint8_t
-    {
-        sloped = 1 << 0,
-        queue = 1 << 1,
-        wide = 1 << 2,
-        queueBanner = 1 << 3,
-        banner = 1 << 4,
-        thinJunction = 1 << 5,
-    };
-
     struct PathNode
     {
         std::array<PathConnection, kNumOrthogonalDirections> connections{};
@@ -57,15 +46,8 @@ namespace OpenRCT2::MapPathTopology
         uint8_t baseZ{};
         uint8_t edges{};
         uint8_t permittedEdges{};
-        uint8_t slopeDirection{};
-        uint8_t queueBannerDirection{};
-        uint8_t flags{};
-        StationIndex queueStation{ StationIndex::GetNull() };
-
-        [[nodiscard]] bool HasFlag(PathNodeFlag flag) const noexcept
-        {
-            return (flags & static_cast<uint8_t>(flag)) != 0;
-        }
+        Direction slopeDirection{ kInvalidDirection };
+        bool isThinJunction{};
         [[nodiscard]] TileCoordsXYZ GetLocation(const TileCoordsXY& origin) const noexcept
         {
             return { origin.x + localX, origin.y + localY, baseZ };
@@ -79,11 +61,7 @@ namespace OpenRCT2::MapPathTopology
         uint8_t localX{};
         uint8_t localY{};
         uint8_t baseZ{};
-        uint8_t direction{};
         uint8_t entranceType{};
-        uint8_t sequence{};
-        uint8_t connectionEdges{};
-        StationIndex station{ StationIndex::GetNull() };
 
         [[nodiscard]] TileCoordsXYZ GetLocation(const TileCoordsXY& origin) const noexcept
         {
@@ -91,8 +69,9 @@ namespace OpenRCT2::MapPathTopology
         }
     };
 
-    static_assert(sizeof(PathNode) <= 24);
-    static_assert(sizeof(EntranceNode) <= 24);
+    // These arrays scale with every warmed path tile; keep diagnostic metadata out of the routing snapshot.
+    static_assert(sizeof(PathNode) <= 20);
+    static_assert(sizeof(EntranceNode) <= 16);
 
     struct ChunkView
     {
@@ -111,8 +90,6 @@ namespace OpenRCT2::MapPathTopology
     [[nodiscard]] ChunkView GetChunk(const TileCoordsXY& tile);
 
     [[nodiscard]] const PathNode* FindPath(const ChunkView& view, const TileCoordsXYZ& location) noexcept;
-    [[nodiscard]] const EntranceNode* FindEntrance(
-        const ChunkView& view, const TileCoordsXYZ& location, uint8_t entranceType) noexcept;
 
     // Releases all warmed chunk storage. MapTopology::Reset invokes this for map replacement, load, resize, and stash swaps.
     void Reset() noexcept;

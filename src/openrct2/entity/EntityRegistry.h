@@ -12,6 +12,7 @@
 #include "../core/EnumUtils.hpp"
 #include "../world/MapLimits.h"
 #include "EntityBase.h"
+#include "EntityVisualLifecycle.h"
 
 #include <array>
 #include <bit>
@@ -254,6 +255,13 @@ namespace OpenRCT2
         std::vector<EntityId> _spatialIndexDirtyEntities;
         std::bitset<kMaxEntities> _spatialIndexDirtyQueued;
 
+        std::array<uint32_t, kMaxEntities> _entityVisualGenerations{};
+        std::array<uint8_t, kMaxEntities> _entityVisualDirtyFlags{};
+        std::vector<EntityId> _entityVisualDirtyEntities;
+        std::bitset<kMaxEntities> _entityVisualDirtyQueued;
+        uint64_t _entityVisualEpoch{ 1 };
+        bool _entityVisualResetPending{ true };
+
         template<typename T>
         static T* CastEntity(EntityBase* entity)
         {
@@ -274,9 +282,7 @@ namespace OpenRCT2
         template<typename T>
         T* GetEntity(EntityId entityId)
         {
-            if (entityId.IsNull())
-                return nullptr;
-            return CastEntity<T>(&entities[entityId.ToUnderlying()].base);
+            return CastEntity<T>(GetEntity(entityId));
         }
 
         EntityBase* TryGetEntity(EntityId entityId)
@@ -316,6 +322,9 @@ namespace OpenRCT2
 
         void ResetAllEntities();
         void ResetEntitySpatialIndices();
+
+        [[nodiscard]] EntityVisualHandle GetEntityVisualHandle(EntityId id) const noexcept;
+        [[nodiscard]] EntityVisualChangeBatch ConsumeEntityVisualChanges();
 
 #ifndef DISABLE_NETWORK
 
@@ -364,12 +373,26 @@ namespace OpenRCT2
         bool EntityGetFlashing(EntityBase* entity);
 
     private:
+        static constexpr std::array kMiscEntityTypes{
+            EntityType::steamParticle, EntityType::moneyEffect, EntityType::crashedVehicleParticle,
+            EntityType::explosionCloud, EntityType::crashSplash, EntityType::explosionFlare,
+            EntityType::jumpingFountain, EntityType::balloon, EntityType::duck,
+        };
+
+        static uint32_t ComputeSpatialIndex(const CoordsXY& location) noexcept;
+        static uint32_t GetSpatialIndex(const EntityBase& entity) noexcept;
+        static bool IsMiscEntity(EntityType type) noexcept;
+
         void EntityReset(EntityBase& entity);
         void PrepareNewEntity(EntityBase& base, EntityType type);
         void EntitySpatialInsert(EntityBase& entity, const CoordsXY& newLoc);
         void EntitySpatialRemove(EntityBase& entity);
         void QueueEntitySpatialIndexUpdate(EntityBase& entity);
+        void CancelEntitySpatialIndexUpdate(EntityBase& entity) noexcept;
         void ClearSpatialIndexDirtyWorklist() noexcept;
+        void QueueEntityVisualChange(EntityId id, EntityVisualDirty dirty) noexcept;
+        void QueueEntityVisualChange(EntityBase& entity, EntityVisualDirty dirty) noexcept;
+        void ResetEntityVisualLifecycle() noexcept;
         void FreeEntity(EntityBase& entity);
     };
 

@@ -1,16 +1,17 @@
-# EverythingPark 320 TPS refactor plan
+# EverythingPark 360 TPS refactor plan
 
 ## Goal and acceptance criteria
 
-The performance target is **320 completed logical simulation ticks per wall-clock second** on
-`test/tests/testdata/parks/EverythingPark.park`, corresponding to the normal Turbo speed setting. A requested game-speed
-multiplier is not evidence of success: the measured `GameState::currentTicks` delta must approach 320 TPS while the game
-remains responsive.
+The performance target is **360 completed logical simulation ticks per wall-clock second while sustaining 144 presented frames
+per second** on `test/tests/testdata/parks/EverythingPark.park`. A requested game-speed multiplier is not evidence of success:
+the measured `GameState::currentTicks` and completed-frame deltas must reach both targets in the same interval while the game
+remains responsive. Ordinary Turbo currently requests eight logical updates per 40 Hz scene batch, or 320 TPS; reaching 360
+therefore also requires an intentional nine-update Turbo definition after the runtime can sustain it.
 
 The work follows these priorities:
 
-1. A Vulkan-first renderer, GPU rasterisation and GPU-resident assets are preferred over moving complete frames across
-   the CPU/GPU bus. OpenGL is a migration reference, not the target architecture.
+1. Vulkan owns accelerated rendering, GPU rasterisation, and GPU-resident assets instead of moving complete frames across
+   the CPU/GPU bus. The software renderer remains a diagnostic baseline; the duplicate OpenGL backend has been retired.
 2. RAM-heavy caches and precomputed indexes are preferred over repeating expensive deterministic calculations.
 3. Coarse, deterministic multithreading is useful where ownership is clear. One process-lifetime worker pool is created at
    startup and reused; no hot path creates ad-hoc threads.
@@ -43,7 +44,7 @@ cannot isolate a VSync wait. The controlled matrix is:
 
 | Variable | Values |
 | --- | --- |
-| Renderer | Vulkan; OpenGL and software-with-hardware-display only as migration baselines |
+| Renderer | Vulkan; software-with-hardware-display only as a diagnostic baseline |
 | Viewport workers | disabled, enabled |
 | VSync | disabled for throughput; enabled for the playability check |
 | Camera | fixed position, rotation, zoom and viewport size |
@@ -64,6 +65,27 @@ The full executable now provides an opt-in, non-interactive form of this benchma
 openrct2 EverythingPark.park --benchmark-ui --benchmark-warmup=5 --benchmark-duration=30 \
     --benchmark-renderer=vulkan --benchmark-vsync=0
 ```
+
+For deterministic comparisons, replace the time-based phase limits with fixed counts:
+
+```text
+openrct2 EverythingPark.park --benchmark-ui --benchmark-warmup-ticks=2000 --benchmark-ticks=2000 \
+    --benchmark-renderer=vulkan --benchmark-vsync=1
+```
+
+Fixed counts must be multiples of the current eight-tick Turbo batch. This keeps the initial/final population, route-cache
+state, and checksum identical across builds instead of allowing a faster build to simulate farther during a time-based warm-up
+and benchmark a different park population.
+
+Add `--benchmark-profile=integrated.csv` (or `.json`) to profile only the fixed measurement phase. Profiling adds timing and
+atomic bookkeeping, so its output locates large subsystems while a separate profiler-disabled run remains the acceptance result.
+
+The first fixed-tick profile established the size of the rendering problem. Across 512 measured logical ticks,
+`ViewportFillColumn` accumulated 18.076 seconds of worker CPU time over 27,300 calls, `TileElementPaintSetup` accumulated
+6.223 seconds over 5,460,000 calls, and `EntityPaintSetup` accumulated 4.456 seconds over 10,920,000 calls. The corresponding
+GPU frame averaged about 0.124 ms. A headless fixed-state run reached 551.972 TPS while the integrated Vulkan/VSync run was in
+the low 200s. Exact small run-to-run differences are ambient noise; the actionable result is that the CPU repeatedly rebuilds
+semantic world graphics that the GPU could retain, cull, sort, and instance.
 
 Add `--benchmark-visible` to retain the benchmark's ordinary window for compositor and hands-on playability checks. It remains
 non-interactive in duration and exits automatically; fullscreen, cursor trapping, configuration persistence, and park audio stay
@@ -94,8 +116,10 @@ measurement frame without adding GPU wait time to the reported wall interval. In
 the entity checksum are collected outside the measured interval. The rate/mean calculation is a pure helper with focused
 zero-input and representative-counter coverage.
 
-The first clean integrated matrix uses three independent two-second-warm-up/five-second-measurement runs per renderer,
-ordinary Turbo, VSync disabled, the same hidden window, and the same EverythingPark input. Medians are:
+The first clean integrated matrix used three independent two-second-warm-up/five-second-measurement runs per renderer before
+OpenGL retirement and the refresh-paced scheduler. These figures are historical throughput baselines, not the current
+playability result. The runs used ordinary Turbo, VSync disabled, the same hidden window, and the same EverythingPark input.
+Medians are:
 
 | Renderer | Logical TPS | Draw FPS | Complete draw | Renderer detail |
 | --- | ---: | ---: | ---: | --- |
@@ -123,12 +147,16 @@ throttling, not a Vulkan or GPU ceiling. Turbo now yields only between completed
 pump SDL, dispatch completed background work, process window input, update the UI, and paint when the monitor-derived refresh
 deadline is due. Forty-Hz scene housekeeping and the eight-logical-update Turbo batch remain unchanged.
 
-Frame deadlines advance on an anchored refresh timeline rather than being reset from a late frame. Small scheduling overruns
-therefore do not become permanent drift: later one-tick presentation intervals repay the debt, while the long-run production
-rate remains capped at the reported display rate. SDL display changes refresh the cached rate; invalid or unavailable rates use
-a 60 Hz fallback. Vulkan VSync prefers `VK_PRESENT_MODE_MAILBOX_KHR`, when available, so both the CPU frame mailbox and the
-swapchain keep the newest completed image instead of rebuilding a stale FIFO queue. FIFO remains the mandatory tear-free
-fallback, and Immediate remains the non-VSync choice.
+Presentation deadlines remain anchored to the current refresh rate. Turbo simulation now owns a separate deadline instead of
+borrowing the ordinary four-frame accumulator. Any lateness observed before a batch is discarded, so rendering, OS scheduling,
+or a long tick cannot manufacture catch-up work and produce a repeating fast/slow oscillation. A batch that itself exceeds its
+25 ms budget resumes immediately at sustainable throughput. Changing speed, time scale, benchmark phase, or leaving offline
+play resets the simulation deadline; network catch-up retains the established bounded accumulator.
+
+SDL display changes refresh the cached presentation rate; invalid or unavailable rates use a 60 Hz fallback. Vulkan VSync
+prefers `VK_PRESENT_MODE_MAILBOX_KHR`, when available, so both the CPU frame mailbox and the swapchain keep the newest completed
+image instead of rebuilding a stale FIFO queue. FIFO remains the mandatory tear-free fallback, and Immediate remains the
+non-VSync choice.
 
 Two independent two-second-warm-up/five-second EverythingPark runs on the 144 Hz display produced:
 
@@ -143,13 +171,18 @@ the new result expresses the chosen playability priority rather than a simulatio
 message-pump and window-update rates, frame-interval p50/p95/p99/max, mean and longest 40 Hz scene batches, and the longest
 UI-bounded logical slice. Renderer timing samples equal the produced-frame counts in both accepted runs.
 
+Those two rows predate the present transport-routing workload. The current three-second-warm-up/ten-second Vulkan/VSync result
+is 250.173 logical TPS and 144.069 FPS. Frame intervals are 7.270/8.456/9.310 ms at p50/p95/p99 with a 10.463 ms maximum. Mean
+GPU work is 124.006 microseconds per frame; simulation averages 3.123 ms per logical tick and remains the limiting workload.
+The 144 Hz presentation target is met without hiding current routing cost behind skipped frames.
+
 The default benchmark still creates a hidden SDL window for repeatability; `--benchmark-visible` exposes the same timed run for
 the compositor/playability row because a compositor may treat a hidden surface differently. Hitting 144 produced frames also
 does not yet prove a hard guarantee when one future logical tick itself takes
 longer than 6.94 ms. That stronger guarantee requires moving simulation behind an immutable/double-buffered visual snapshot so
 the UI thread can present and accept input while the next state is being computed. The next renderer slice should likewise
-promote the direct command path only after visual soak; the validation X8 bridge still copies and uploads a complete indexed
-canvas every frame.
+move paint traversal and command preparation behind that boundary; Vulkan backend submission already consumes immutable newest
+frame packets without a full-canvas upload.
 
 ## Prong A: Vulkan renderer, GPU-owned composition and bus traffic
 
@@ -176,37 +209,50 @@ Owner: durable `gpu_renderer` specialist.
    composition over complicated CPU dirty-pixel maintenance when measurements support it.
 9. Remove framebuffer readbacks from ordinary presentation. Screenshots and diagnostics use explicit asynchronous
    transfer jobs and are the only routine readback path.
-10. Treat the existing OpenGL and software renderers as visual-parity and bring-up references. Once Vulkan covers gameplay,
-    screenshots and headless or test needs on all three desktop platforms, delete duplicate legacy rendering paths rather
-    than carrying permanent abstraction and maintenance cost.
+10. Keep software rendering as an explicit diagnostic and headless/test reference. OpenGL and the full-canvas Vulkan bridge are
+    already deleted; continue removing duplicate CPU presentation paths as Vulkan coverage expands across desktop platforms.
 11. Validate rotations, zooms, transparency, palette animation, remaps, TTF text, weather, screenshots, resize and
     fullscreen, device loss and swapchain recreation on Windows, Linux and macOS.
 
+The retained-data implementation order is:
+
+1. retain immutable sprite asset descriptors beside atlas allocations and send compact per-instance commands;
+2. publish generation-safe, pointer-free entity visual changes from the owning registry;
+3. freeze pointer-free main-viewport world records after visibility resolution and process them on a latest-only worker;
+4. replace per-frame tile/entity pull traversal with dirty paged scene buffers;
+5. move shared world culling, ordering, and indirect draw generation to compute shaders;
+6. remove obsolete CPU knowledge only after the Vulkan path owns the same correctness boundaries.
+
+Entities cannot be migrated as a separate unordered overlay: vehicles, guests, terrain, track, and scenery currently share the
+same painter sort. The retained buffers must therefore converge on one world-space ordering model. Park reset, entity ID reuse,
+object unload, renderer changes, screenshots, and shutdown are generation or drain boundaries, not hot-path reasons to block.
+
+The first retained-descriptor checkpoint uses 60-byte ordinary sprite instances instead of the general 100-byte rectangle
+record. A device-local 4 MiB table owns atlas origins and layers, and the existing render worker transfers descriptor and sprite
+pixels transactionally on first residency. A fixed 2,000-tick validation row produced 248.800 TPS and 144.055 FPS with the same
+`c241cc46...` checksum; mean GPU time was 0.096 ms. This single row is a correctness/stall check, not a claimed TPS improvement:
+it lies inside the established run variance and does not yet remove CPU paint traversal.
+
 Expected result: the CPU emits compact scene commands instead of rasterising pixels; pixels, palette work, effects and
 most composition remain on the GPU. CPU-GPU traffic scales with changed commands and assets rather than display resolution.
-OpenGL cleanup completed during bring-up is retained only where it reduces migration risk and is removed with that backend
-after Vulkan parity.
+The duplicate OpenGL backend and its GL state, upload, shader, and transparency-depth implementations have been removed. Old
+configuration values migrate to the hardware-presented software renderer.
 
 ### Vulkan integration checkpoint
 
-The gated backend now owns indexed line, opaque, transparency/blend, weather, SDR/HDR10 presentation and asynchronous indexed
+The backend owns indexed line, opaque, transparency/blend, weather, SDR/HDR10 presentation and asynchronous indexed
 readback passes. Readback reuses the persistently mapped per-frame ring, is keyed by request id, and is harvested only after the
 owning frame fence signals; ordinary presentation performs no CPU readback or device-idle wait.
 
-An `ENABLE_VULKAN_DRAWING_ENGINE` validation path wires SDL Vulkan window creation, resize, palette updates, presentation and the
-existing synchronous screenshot surface through the engine factory. For bring-up it uploads the authoritative X8 indexed canvas
-as one transfer. This remains an explicitly excluded fallback: no result from it belongs in the Vulkan performance row.
-
-The separate, also-off-by-default `ENABLE_VULKAN_DIRECT_DRAWING_CONTEXT` gate selects direct `IDrawingContext` command recording
-and generation-aware persistent atlas residency. It preserves clipping, sprite remaps, masks, transparency depth order,
+The Vulkan drawing engine uses direct `IDrawingContext` command recording and generation-aware persistent atlas residency. It
+preserves clipping, sprite remaps, masks, transparency depth order,
 glyph/TTF layers and weather commands while performing no routine CPU framebuffer upload or readback. It currently redraws the
-complete command list, leaves dirty-region `CopyRect` disabled, and returns no screenshot until asynchronous readback is adapted
-to the synchronous screenshot consumer. Only this direct gate may enter the EverythingPark renderer matrix, after visual parity
-and screenshot handling pass.
+complete command list and leaves dirty-region `CopyRect` disabled. Screenshot requests are explicit synchronization boundaries:
+the worker presents the attached visual packet, reads the indexed canvas, and returns through the established PNG writer.
 
 ### Vulkan presentation-boundary checkpoint
 
-The backend now exposes an explicit frame-acquisition policy. Both gated Vulkan drawing engines use `SkipIfBusy`: a busy
+The backend now exposes an explicit frame-acquisition policy. The Vulkan drawing engine uses `SkipIfBusy`: a busy
 frame-slot fence or unavailable swapchain image drops that presentation attempt instead of waiting on the simulation/UI thread.
 The default API policy remains blocking so validation tools and any later screenshot adapter must opt into disposal deliberately.
 Resize, shutdown, device recovery, and explicit readback remain allowed synchronization points.
@@ -222,21 +268,18 @@ The same ownership pass corrects swapchain teardown order: queued work completes
 released, and only then are their old image views destroyed. Recreation remains an exceptional blocking boundary, never a normal
 frame-hot-path wait.
 
-This is an enabling synchronization slice, not the final render thread. The X8 validation bridge still rasterises and copies a
-complete indexed canvas on the CPU. The direct path avoids that transfer, but paint traversal, clipping, command generation,
-first-use sprite/glyph rasterisation, and transparency-depth estimation remain CPU work on the caller. A render thread still
-requires immutable visual snapshots and newest-frame replacement; worker-built viewport ranges and GPU culling remain later
-steps. No TPS gain is claimed until the direct path is visually validated and measured in the integrated Turbo matrix.
+The X8 validation bridge has been deleted. The direct path avoids that transfer, but paint traversal, clipping, command generation,
+first-use sprite/glyph rasterisation, and transparency-depth estimation remain CPU work on the caller. Immutable visual packets
+and newest-frame replacement isolate backend submission on the render worker; worker-built viewport ranges and GPU culling remain
+later steps. Performance claims require the integrated Turbo matrix rather than architecture alone.
 
 The next bounded handoff slice removes backend staging addresses from direct first-use texture uploads. Each direct frame now owns
 the indexed upload bytes and atlas metadata it recorded; Vulkan allocates the per-frame staging slice and copies those bytes only
 inside submission. Cache entries remain transactional until successful presentation, so cancellation can retry the payload.
 This makes the direct command stream movable across a thread boundary without retaining caller or mapped-Vulkan pointers. It does
-not start a render thread or claim a TPS gain. Safe activation still requires per-snapshot atlas residency leases plus a serialized
-mailbox for palette updates, resize/present-mode changes and readback. The X8 validation bridge remains synchronous and excluded
-because its full-canvas upload intentionally references the already acquired backend ring.
+use per-snapshot atlas residency leases plus a serialized mailbox for palette updates, resize/present-mode changes and readback.
 
-The fully gated direct path now sends compact resolved LightFX commands to an exact integer Vulkan compute accumulator rather than
+The direct path now sends compact resolved LightFX commands to an exact integer Vulkan compute accumulator rather than
 rasterising a logical-screen intensity map on the CPU. Its fixed dispatch shape, `R32_UINT` atomic/image usage, and requested extent
 are capability-gated; unsupported devices retain the CPU-intensity fallback without failing renderer initialisation. Compute-only
 capture updates clipping dimensions without allocating the legacy full-screen CPU light buffers. These are ownership and traffic
@@ -914,7 +957,7 @@ millisecond medians and the same `405ee291...` checksum. Their initial/final pop
 counts, staff, and vehicles also match, and both deep runs exceed Turbo 320 by more than 19%. All warm-up depths
 retain the same 6,663-node, 543-target, 3,611,346-direction-entry, 3,611,346-distance-entry, 517-single-target route footprint.
 The retained 32-bit distances add about 13.8 MiB before vector/index overhead. Focused coverage passes 204/204 and the full
-suite passes 509/509. Release core, data/shaders, CLI, game, and the fully gated direct/render-thread Vulkan UI build with
+suite passes 509/509. Release core, data/shaders, CLI, game, and the Vulkan UI build with
 warnings treated as errors. The hidden Windows Vulkan lifecycle test also passes on the real device with the Khronos validation
 layer enabled, covering swapchain creation, uploads, compute/CPU LightFX input, presentation, resize, frame rotation, and exact
 indexed readback.
@@ -977,7 +1020,7 @@ determines the next re-task; speculative micro-optimisations do not outrank meas
 
 Completion requires evidence for all of the following:
 
-- actual warmed Turbo TPS is reported against the 320 target;
+- actual warmed Turbo TPS and completed presentation FPS are reported together against the 360/144 target;
 - normal-speed, multiplayer/replay determinism and simulation checksum remain valid;
 - Vulkan performs GPU sprite and effect composition without weather-triggered CPU redraws or routine framebuffer uploads;
 - Windows, Linux and macOS Vulkan-portability builds pass renderer parity checks before legacy backends are removed;

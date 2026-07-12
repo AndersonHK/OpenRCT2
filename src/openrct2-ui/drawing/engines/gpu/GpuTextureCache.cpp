@@ -46,14 +46,6 @@ namespace OpenRCT2::Ui::Gpu
             }
         };
 
-        [[nodiscard]] bool AllocationLess(const AtlasAllocationId& lhs, const AtlasAllocationId& rhs) noexcept
-        {
-            if (lhs.atlas != rhs.atlas)
-                return lhs.atlas < rhs.atlas;
-            if (lhs.slot != rhs.slot)
-                return lhs.slot < rhs.slot;
-            return lhs.serial < rhs.serial;
-        }
     } // namespace
 
     size_t TextureCache::GlyphKeyHash::operator()(const GlyphKey& key) const noexcept
@@ -76,40 +68,61 @@ namespace OpenRCT2::Ui::Gpu
 
     TextureBinding TextureCache::GetOrLoadImageTexture(ImageId imageId)
     {
-        std::scoped_lock lock(_mutex);
         if (!_recordingFrame)
         {
             throw std::logic_error("GPU atlas textures can only be resolved while recording a frame");
         }
-        const auto image = imageId.GetIndex();
-        if (const auto it = _images.find(image); it != _images.end())
+        const auto* resident = GetOrLoadResidentImage(imageId);
+        return resident == nullptr ? TextureBinding{} : BindForRecording(resident->location);
+    }
+
+    std::optional<ResolvedSprite> TextureCache::GetOrLoadImageSprite(ImageId imageId, ZoomLevel zoom)
+    {
+        if (!_recordingFrame)
         {
-            return BindForRecording(it->second);
+            throw std::logic_error("GPU atlas sprites can only be resolved while recording a frame");
         }
-        const auto location = QueueRasterizedImage(imageId, nullptr);
-        if (!location.has_value())
+
+        uint8_t coordinateShift = 0;
+        auto image = imageId.GetIndex();
+        while (zoom > ZoomLevel{ 0 })
         {
-            return {};
-        }
-        try
-        {
-            if (!_images.emplace(image, *location).second)
+            const auto* metadata = GetImageMetadata(image);
+            if (metadata == nullptr || metadata->width <= 0 || metadata->height <= 0)
+                return std::nullopt;
+            const G1Flags flags{ metadata->flags };
+            if (flags.has(G1Flag::hasZoomSprite))
             {
-                throw std::logic_error("GPU image was inserted into the texture cache twice");
+                image -= metadata->zoomedOffset;
+                zoom--;
+                coordinateShift++;
+                continue;
             }
+            if (flags.has(G1Flag::noZoomDraw))
+                return std::nullopt;
+            break;
         }
-        catch (...)
-        {
-            RemovePending(location->GetAllocationId());
-            RetireAllocation(*location);
-            throw;
-        }
-        return BindForRecording(*location);
+
+        auto selected = imageId.WithIndex(image);
+        auto* resident = GetOrLoadResidentImage(selected);
+        if (resident == nullptr)
+            return std::nullopt;
+        static_cast<void>(BindForRecording(resident->location));
+        const auto& metadata = resident->metadata;
+        return ResolvedSprite{
+            .atlasOrigin = { resident->location.bounds.x, resident->location.bounds.y },
+            .descriptorIndex = resident->location.GetDescriptorIndex(),
+            .width = metadata.width,
+            .height = metadata.height,
+            .xOffset = metadata.xOffset,
+            .yOffset = metadata.yOffset,
+            .zoom = zoom,
+            .coordinateShift = coordinateShift,
+        };
     }
 
     TextureBinding TextureCache::GetOrLoadGlyphTexture(ImageId imageId, const PaletteMap& palette)
     {
-        std::scoped_lock lock(_mutex);
         if (!_recordingFrame)
         {
             throw std::logic_error("GPU atlas textures can only be resolved while recording a frame");
@@ -157,7 +170,6 @@ namespace OpenRCT2::Ui::Gpu
 #ifndef DISABLE_TTF
     TextureBinding TextureCache::GetOrLoadTTFTexture(const TTFSurface& surface)
     {
-        std::scoped_lock lock(_mutex);
         if (!_recordingFrame)
         {
             throw std::logic_error("GPU TTF textures require an active recording frame");
@@ -204,11 +216,11 @@ namespace OpenRCT2::Ui::Gpu
 
     void TextureCache::BeginFrame()
     {
-        std::scoped_lock lock(_mutex);
         if (_recordingFrame)
         {
             throw std::logic_error("GPU texture cache frame is already active");
         }
+        DrainFrameRetirements();
         ++_recordingFrameSerial;
         TrimTTFSurfaceCache(kMaxResidentTTFSurfaces);
         _recordingFrame = true;
@@ -217,15 +229,12 @@ namespace OpenRCT2::Ui::Gpu
 
     AtlasResidencyToken TextureCache::SealFrame(FrameCommandStream& commands)
     {
-        std::scoped_lock lock(_mutex);
         if (!_recordingFrame)
         {
             throw std::logic_error("GPU texture cache has no active frame");
         }
 
         auto allocations = _frameAllocations;
-        std::sort(allocations.begin(), allocations.end(), AllocationLess);
-        allocations.erase(std::unique(allocations.begin(), allocations.end()), allocations.end());
 
         std::vector<TextureUpload> uploads;
         std::vector<AtlasAllocationId> persistentUploads;
@@ -234,7 +243,9 @@ namespace OpenRCT2::Ui::Gpu
         for (const auto& pending : _pendingUploads)
         {
             const auto allocation = pending.location.GetAllocationId();
-            if (!std::binary_search(allocations.begin(), allocations.end(), allocation, AllocationLess))
+            const auto state = _allocations.find(allocation.serial);
+            if (state == _allocations.end() || state->second.location.GetAllocationId() != allocation
+                || state->second.lastBoundFrame != _recordingFrameSerial)
             {
                 continue;
             }
@@ -247,6 +258,11 @@ namespace OpenRCT2::Ui::Gpu
                 .atlas = pending.location.index,
                 .bounds = pending.location.bounds,
                 .sourcePitch = pending.pitch,
+                .descriptorIndex = pending.location.GetDescriptorIndex(),
+                .descriptor = {
+                    .atlasOrigin = { pending.location.bounds.x, pending.location.bounds.y },
+                    .atlasLayer = static_cast<int32_t>(pending.location.index),
+                },
                 .pixels = pending.pixels,
             });
             persistentUploads.push_back(allocation);
@@ -286,7 +302,34 @@ namespace OpenRCT2::Ui::Gpu
 
     void TextureCache::RetireFrame(AtlasResidencyToken token, FrameRetirement retirement)
     {
-        std::scoped_lock lock(_mutex);
+        if (!token)
+        {
+            throw std::logic_error("Cannot retire an empty GPU atlas residency token");
+        }
+        std::scoped_lock lock(_retirementMutex);
+        _pendingFrameRetirements.push_back({ token, retirement });
+    }
+
+    void TextureCache::DrainFrameRetirements()
+    {
+        if (_recordingFrame)
+        {
+            throw std::logic_error("GPU atlas retirements require a frame boundary");
+        }
+
+        std::vector<PendingFrameRetirement> pending;
+        {
+            std::scoped_lock lock(_retirementMutex);
+            pending.swap(_pendingFrameRetirements);
+        }
+        for (const auto& item : pending)
+        {
+            ApplyFrameRetirement(item.token, item.retirement);
+        }
+    }
+
+    void TextureCache::ApplyFrameRetirement(AtlasResidencyToken token, FrameRetirement retirement)
+    {
         const auto leaseIt = _residencyLeases.find(token.value);
         if (!token || leaseIt == _residencyLeases.end())
         {
@@ -320,7 +363,6 @@ namespace OpenRCT2::Ui::Gpu
 
     void TextureCache::AbortFrame()
     {
-        std::scoped_lock lock(_mutex);
         if (!_recordingFrame)
         {
             throw std::logic_error("GPU texture cache has no active frame");
@@ -331,7 +373,6 @@ namespace OpenRCT2::Ui::Gpu
 
     void TextureCache::InvalidateImage(uint32_t image)
     {
-        std::scoped_lock lock(_mutex);
         if (_recordingFrame)
         {
             _generations.try_emplace(image, 0);
@@ -352,11 +393,13 @@ namespace OpenRCT2::Ui::Gpu
             return pending.location.image == image && pending.location.generation == oldGeneration;
         });
 
-        if (const auto it = _images.find(image); it != _images.end())
+        if (image < _images.size() && _images[image].has_value())
         {
-            RetireAllocation(it->second);
-            _images.erase(it);
+            RetireAllocation(_images[image]->location);
+            _images[image].reset();
         }
+        if (image < _imageMetadata.size())
+            _imageMetadata[image].reset();
 
         for (auto it = _glyphs.begin(); it != _glyphs.end();)
         {
@@ -375,6 +418,58 @@ namespace OpenRCT2::Ui::Gpu
     int32_t TextureCache::PaletteToY(FilterPaletteID palette)
     {
         return palette > FilterPaletteID::paletteWater ? EnumValue(palette) + 5 : EnumValue(palette) + 1;
+    }
+
+    const TextureCache::SpriteMetadata* TextureCache::GetImageMetadata(uint32_t image)
+    {
+        if (image == kImageIndexUndefined)
+            return nullptr;
+        if (image >= _imageMetadata.size())
+            _imageMetadata.resize(static_cast<size_t>(image) + 1);
+        auto& cached = _imageMetadata[image];
+        if (!cached.has_value())
+        {
+            const auto* element = GfxGetG1Element(image);
+            if (element == nullptr)
+                return nullptr;
+            cached = SpriteMetadata{
+                .width = element->width,
+                .height = element->height,
+                .xOffset = element->xOffset,
+                .yOffset = element->yOffset,
+                .flags = element->flags.holder,
+                .zoomedOffset = element->zoomedOffset,
+            };
+        }
+        return &*cached;
+    }
+
+    TextureCache::ResidentImage* TextureCache::GetOrLoadResidentImage(ImageId imageId)
+    {
+        const auto image = imageId.GetIndex();
+        const auto* metadata = GetImageMetadata(image);
+        if (metadata == nullptr || metadata->width <= 0 || metadata->height <= 0)
+            return nullptr;
+        if (image >= _images.size())
+            _images.resize(static_cast<size_t>(image) + 1);
+        auto& resident = _images[image];
+        if (resident.has_value())
+            return &*resident;
+
+        const auto location = QueueRasterizedImage(imageId, nullptr);
+        if (!location.has_value())
+            return nullptr;
+        try
+        {
+            resident = ResidentImage{ *location, *metadata };
+        }
+        catch (...)
+        {
+            RemovePending(location->GetAllocationId());
+            RetireAllocation(*location);
+            throw;
+        }
+        return &*resident;
     }
 
     TextureLocation TextureCache::AllocateImage(uint32_t image, int32_t width, int32_t height)
@@ -485,7 +580,18 @@ namespace OpenRCT2::Ui::Gpu
         {
             throw std::logic_error("GPU atlas texture has no allocation identity");
         }
-        _frameAllocations.push_back(location.GetAllocationId());
+        // A park view can reference one sprite thousands of times. Recording
+        // residency once here avoids a per-frame sort/unique over every draw.
+        const auto state = _allocations.find(location.allocationSerial);
+        if (state == _allocations.end() || state->second.location.GetAllocationId() != location.GetAllocationId())
+        {
+            throw std::logic_error("GPU atlas texture references an unknown allocation");
+        }
+        if (state->second.lastBoundFrame != _recordingFrameSerial)
+        {
+            state->second.lastBoundFrame = _recordingFrameSerial;
+            _frameAllocations.push_back(location.GetAllocationId());
+        }
         return { location.index, location.coords };
     }
 

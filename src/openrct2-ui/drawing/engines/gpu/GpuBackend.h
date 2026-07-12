@@ -68,17 +68,6 @@ namespace OpenRCT2::Ui::Gpu
         Extent drawableExtent{};
     };
 
-    struct UploadSlice
-    {
-        uint64_t offset = 0;
-        std::span<std::byte> bytes;
-
-        explicit operator bool() const noexcept
-        {
-            return !bytes.empty();
-        }
-    };
-
     // The backend and drawing-engine benchmark surfaces share one record.
     using FrameTimings = Drawing::FrameTimings;
 
@@ -109,7 +98,6 @@ namespace OpenRCT2::Ui::Gpu
         virtual void SetPresentMode(PresentMode mode) = 0;
 
         [[nodiscard]] virtual std::optional<FrameHandle> BeginFrame(uint64_t frameNumber) = 0;
-        [[nodiscard]] virtual UploadSlice AllocateUpload(uint64_t size, uint64_t alignment) = 0;
         virtual void SetPalette(std::span<const std::byte> rgba) = 0;
         virtual void SetRemapPalette(std::span<const std::byte> indices) = 0;
         virtual void SetBlendPalette(std::span<const std::byte> indices) = 0;

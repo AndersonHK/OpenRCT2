@@ -12,19 +12,15 @@
 #include <memory>
 #include <openrct2/core/Guard.hpp>
 #include <openrct2/drawing/IDrawingEngine.h>
+#ifdef ENABLE_VULKAN
+    #include "vulkan/VulkanDrawingEngine.h"
+#endif
 
 namespace OpenRCT2::Ui
 {
     struct IUiContext;
 
     [[nodiscard]] std::unique_ptr<Drawing::IDrawingEngine> CreateHardwareDisplayDrawingEngine(IUiContext& uiContext);
-#ifndef DISABLE_OPENGL
-    [[nodiscard]] std::unique_ptr<Drawing::IDrawingEngine> CreateOpenGLDrawingEngine(IUiContext& uiContext);
-#endif
-#if defined(ENABLE_VULKAN) && defined(ENABLE_VULKAN_DRAWING_ENGINE)
-    [[nodiscard]] std::unique_ptr<Drawing::IDrawingEngine> CreateVulkanDrawingEngine(IUiContext& uiContext);
-#endif
-
     class DrawingEngineFactory final : public Drawing::IDrawingEngineFactory
     {
     public:
@@ -34,11 +30,7 @@ namespace OpenRCT2::Ui
             {
                 case DrawingEngine::SoftwareWithHardwareDisplay:
                     return CreateHardwareDisplayDrawingEngine(uiContext);
-#ifndef DISABLE_OPENGL
-                case DrawingEngine::OpenGL:
-                    return CreateOpenGLDrawingEngine(uiContext);
-#endif
-#if defined(ENABLE_VULKAN) && defined(ENABLE_VULKAN_DRAWING_ENGINE)
+#ifdef ENABLE_VULKAN
                 case DrawingEngine::Vulkan:
                     return CreateVulkanDrawingEngine(uiContext);
 #endif

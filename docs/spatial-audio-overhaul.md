@@ -1,5 +1,7 @@
 # Spatial audio overhaul
 
+The planned next stage for canonical camera geometry, separated source/listener Doppler, direct-path distance EQ, camera-relative pitched surround semantics, and deferred environmental reverb is documented in [spatial-audio-camera-depth-plan.md](spatial-audio-camera-depth-plan.md).
+
 ## Goal
 
 Audio should describe the park around the camera instead of acting like a side effect of what happens to be visible in the current viewport. Leaving a source a few pixels outside the viewport should not silence it, while zooming toward an area should produce a materially stronger near-versus-far sound field.

@@ -66,6 +66,22 @@ protected:
         EXPECT_EQ(actual.nausea, expected.nausea);
     }
 
+    static RideRating::TickScore ScoreLocalContext(
+        const RideRating::LocalContextScore& context, int32_t speed, int32_t coefficient = 1000,
+        bool isBoatHire = false)
+    {
+        RideRating::VehicleLocalContextCache cache{};
+        cache.environment.context = context;
+        return RideRating::ScoreCachedLocalContextForVehicleTick(cache, speed, coefficient, isBoatHire);
+    }
+
+    static RideRating::LocalContextScore GetVehicleLocalContext(
+        const CoordsXYZ& origin, RideId ride, TrackElemType trackType, uint8_t trackDirection)
+    {
+        RideRating::VehicleLocalContextCache cache{};
+        return RideRating::GetVehicleRatingEnvironment(origin, ride, trackType, trackDirection, cache).context;
+    }
+
     static void InitialiseFixedRide(
         Ride& ride, RideId id, ride_type_t type, const TileCoordsXY& stationTile, int32_t baseZ)
     {
@@ -1659,9 +1675,9 @@ TEST_F(RideRatings, SampledRatingProfileScalesEveryNonSpeedChannel)
     EXPECT_EQ(scaledAirtime.excitement, defaultAirtime.excitement * 4);
 
     const RideRating::LocalContextScore contextScore = { .excitement = 10, .intensity = 6, .nausea = 4 };
-    const auto fullContext = RideRating::ScoreLocalContextForVehicleTick(contextScore, 90, 1000);
-    const auto halfContext = RideRating::ScoreLocalContextForVehicleTick(contextScore, 90, 500);
-    const auto clampedContext = RideRating::ScoreLocalContextForVehicleTick(contextScore, 90, 2000);
+    const auto fullContext = ScoreLocalContext(contextScore, 90, 1000);
+    const auto halfContext = ScoreLocalContext(contextScore, 90, 500);
+    const auto clampedContext = ScoreLocalContext(contextScore, 90, 2000);
     EXPECT_EQ(halfContext.excitement * 2, fullContext.excitement);
     EXPECT_EQ(clampedContext.excitement, fullContext.excitement);
 }
@@ -1802,9 +1818,9 @@ TEST_F(RideRatings, LocalContextSceneryScalesWithVehicleSpeed)
         .trackHeightExposure = 4,
     };
 
-    const auto normalSpeed = RideRating::ScoreLocalContextForVehicleTick(contextScore, RideRating::kVehicleRatingBaselineSpeed);
-    const auto slowerSpeed = RideRating::ScoreLocalContextForVehicleTick(contextScore, 41);
-    const auto slowestSpeed = RideRating::ScoreLocalContextForVehicleTick(contextScore, 17);
+    const auto normalSpeed = ScoreLocalContext(contextScore, RideRating::kVehicleRatingBaselineSpeed);
+    const auto slowerSpeed = ScoreLocalContext(contextScore, 41);
+    const auto slowestSpeed = ScoreLocalContext(contextScore, 17);
     EXPECT_EQ(normalSpeed.excitement, 41200);
     EXPECT_EQ(normalSpeed.intensity, 12400);
     EXPECT_EQ(normalSpeed.nausea, 2000);
@@ -1821,8 +1837,8 @@ TEST_F(RideRatings, LocalContextVehicleTickScoringSpeedNormalizesPathProximity)
         .pathProximity = 5,
     };
 
-    const auto stopped = RideRating::ScoreLocalContextForVehicleTick(contextScore, 0);
-    const auto moving = RideRating::ScoreLocalContextForVehicleTick(contextScore, 37);
+    const auto stopped = ScoreLocalContext(contextScore, 0);
+    const auto moving = ScoreLocalContext(contextScore, 37);
 
     EXPECT_EQ(stopped.excitement, 0);
     EXPECT_EQ(
@@ -1839,7 +1855,7 @@ TEST_F(RideRatings, LocalContextVehicleTickScoringPreservesFractionalRawNausea)
         .pathNearMiss = 1,
     };
 
-    const auto score = RideRating::ScoreLocalContextForVehicleTick(contextScore, RideRating::kVehicleRatingBaselineSpeed);
+    const auto score = ScoreLocalContext(contextScore, RideRating::kVehicleRatingBaselineSpeed);
 
     ExpectTickScore(score, { 1600, 800, 133 });
 }
@@ -1866,16 +1882,16 @@ TEST_F(RideRatings, VehicleLocalContextPreparedScoreMatchesDirectAcrossSpeedMode
 
     ExpectTickScore(
         RideRating::ScoreCachedLocalContextForVehicleTick(runtimeCache, 45, 1000, false),
-        RideRating::ScoreLocalContextForVehicleTick(contextScore, 45, 1000));
+        ScoreLocalContext(contextScore, 45, 1000));
     ExpectTickScore(
         RideRating::ScoreCachedLocalContextForVehicleTick(runtimeCache, 90, 1000, false),
-        RideRating::ScoreLocalContextForVehicleTick(contextScore, 90, 1000));
+        ScoreLocalContext(contextScore, 90, 1000));
     ExpectTickScore(
         RideRating::ScoreCachedLocalContextForVehicleTick(runtimeCache, 90, 1000, true),
-        RideRating::ScoreBoatHireLocalContextForVehicleTick(contextScore, 90, 1000));
+        ScoreLocalContext(contextScore, 90, 1000, true));
     ExpectTickScore(
         RideRating::ScoreCachedLocalContextForVehicleTick(runtimeCache, 90, 500, true),
-        RideRating::ScoreBoatHireLocalContextForVehicleTick(contextScore, 90, 500));
+        ScoreLocalContext(contextScore, 90, 500, true));
 
     const RideRating::LocalContextScore replacementContext = {
         .excitement = 7,
@@ -1887,7 +1903,7 @@ TEST_F(RideRatings, VehicleLocalContextPreparedScoreMatchesDirectAcrossSpeedMode
     runtimeCache.environment.context = replacementContext;
     ExpectTickScore(
         RideRating::ScoreCachedLocalContextForVehicleTick(runtimeCache, 37, 1000, false),
-        RideRating::ScoreLocalContextForVehicleTick(replacementContext, 37, 1000));
+        ScoreLocalContext(replacementContext, 37, 1000));
 }
 
 TEST_F(RideRatings, VehicleLocalContextRuntimeCacheTracksNearbyMapChanges)
@@ -1907,7 +1923,7 @@ TEST_F(RideRatings, VehicleLocalContextRuntimeCacheTracksNearbyMapChanges)
     const auto before = RideRating::GetVehicleRatingEnvironment(origin, rideId, TrackElemType::flatTrack1x4A, 0, runtimeCache);
     EXPECT_FALSE(before.isSheltered);
     const auto beforeScore = RideRating::ScoreCachedLocalContextForVehicleTick(runtimeCache, 90, 1000, false);
-    const auto expectedBeforeScore = RideRating::ScoreLocalContextForVehicleTick(before.context, 90, 1000);
+    const auto expectedBeforeScore = ScoreLocalContext(before.context, 90, 1000);
     ExpectTickScore(beforeScore, expectedBeforeScore);
 
     RideRating::VehicleLocalContextCache secondRuntimeCache{};
@@ -1923,7 +1939,7 @@ TEST_F(RideRatings, VehicleLocalContextRuntimeCacheTracksNearbyMapChanges)
         origin, rideId, TrackElemType::flatTrack1x4A, 0, runtimeCache);
     EXPECT_GT(decorated.context.scenery, before.context.scenery);
     const auto decoratedScore = RideRating::ScoreCachedLocalContextForVehicleTick(runtimeCache, 90, 1000, false);
-    const auto expectedDecoratedScore = RideRating::ScoreLocalContextForVehicleTick(decorated.context, 90, 1000);
+    const auto expectedDecoratedScore = ScoreLocalContext(decorated.context, 90, 1000);
     ExpectTickScore(decoratedScore, expectedDecoratedScore);
     EXPECT_NE(decoratedScore.excitement, beforeScore.excitement);
 
@@ -2115,7 +2131,7 @@ TEST_F(RideRatings, LocalContextFlatVehicleOnLevelSidesAddsNoHeightExposure)
     constexpr int32_t trackZ = 20 * kCoordsZStep;
     const auto origin = PlaceVehicleTrackWithTerrain(originTile, trackZ, trackZ, trackZ);
 
-    const auto score = RideRating::GetVehicleLocalContextScore(origin, rideId, TrackElemType::flatTrack1x4A, trackDirection);
+    const auto score = GetVehicleLocalContext(origin, rideId, TrackElemType::flatTrack1x4A, trackDirection);
     EXPECT_EQ(score.trackHeightExposure, 0);
     EXPECT_EQ(score.verticalInteraction, 0);
     ExpectTickScore(score, {});
@@ -2130,7 +2146,7 @@ TEST_F(RideRatings, LocalContextHighVehicleAboveTwoSideSurfacesAddsHeightExposur
     constexpr int32_t trackZ = 26 * kCoordsZStep;
     const auto origin = PlaceVehicleTrackWithTerrain(originTile, trackZ, lowGroundZ, lowGroundZ);
 
-    const auto score = RideRating::GetVehicleLocalContextScore(origin, rideId, TrackElemType::flatTrack1x4A, trackDirection);
+    const auto score = GetVehicleLocalContext(origin, rideId, TrackElemType::flatTrack1x4A, trackDirection);
     EXPECT_EQ(score.trackHeightExposure, 3);
     EXPECT_EQ(score.verticalInteraction, score.trackHeightExposure);
     ExpectTickScore(score, { 3, 3, 1 });
@@ -2149,9 +2165,9 @@ TEST_F(RideRatings, LocalContextOneExposedSideScoresLessThanTwo)
     const auto twoSideOrigin = PlaceVehicleTrackWithTerrain(twoSideTile, trackZ, lowGroundZ, lowGroundZ);
     const auto oneSideOrigin = PlaceVehicleTrackWithTerrain(oneSideTile, trackZ, lowGroundZ, trackZ);
 
-    const auto twoSideScore = RideRating::GetVehicleLocalContextScore(
+    const auto twoSideScore = GetVehicleLocalContext(
         twoSideOrigin, rideId, TrackElemType::flatTrack1x4A, trackDirection);
-    const auto oneSideScore = RideRating::GetVehicleLocalContextScore(
+    const auto oneSideScore = GetVehicleLocalContext(
         oneSideOrigin, rideId, TrackElemType::flatTrack1x4A, trackDirection);
 
     EXPECT_GT(oneSideScore.trackHeightExposure, 0);
@@ -2167,7 +2183,7 @@ TEST_F(RideRatings, LocalContextHeightExposureCapsAtSix)
     constexpr int32_t trackZ = 40 * kCoordsZStep;
     const auto origin = PlaceVehicleTrackWithTerrain(originTile, trackZ, lowGroundZ, lowGroundZ);
 
-    const auto score = RideRating::GetVehicleLocalContextScore(origin, rideId, TrackElemType::flatTrack1x4A, trackDirection);
+    const auto score = GetVehicleLocalContext(origin, rideId, TrackElemType::flatTrack1x4A, trackDirection);
     EXPECT_EQ(score.trackHeightExposure, 6);
 }
 
@@ -2186,7 +2202,7 @@ TEST_F(RideRatings, LocalContextScoresSameTileVerticalInteractionsStrongly)
     foreignTrack->setClearanceZ(20 * kCoordsZStep);
     MapInvalidateTileFull(originTile.ToCoordsXY());
 
-    const auto score = RideRating::GetVehicleLocalContextScore(origin, rideId, TrackElemType::flatTrack1x4A, 0);
+    const auto score = GetVehicleLocalContext(origin, rideId, TrackElemType::flatTrack1x4A, 0);
     EXPECT_GT(score.trackVerticalInteraction, score.foreignTrackProximity);
     EXPECT_EQ(score.ownTrackVerticalInteraction, 0);
     EXPECT_EQ(score.trackHeightExposure, 0);
@@ -2194,8 +2210,8 @@ TEST_F(RideRatings, LocalContextScoresSameTileVerticalInteractionsStrongly)
     EXPECT_GT(score.excitement, 0);
     EXPECT_GT(score.intensity, 0);
 
-    const auto normalSpeed = RideRating::ScoreLocalContextForVehicleTick(score, RideRating::kVehicleRatingBaselineSpeed);
-    const auto slowerSpeed = RideRating::ScoreLocalContextForVehicleTick(score, 41);
+    const auto normalSpeed = ScoreLocalContext(score, RideRating::kVehicleRatingBaselineSpeed);
+    const auto slowerSpeed = ScoreLocalContext(score, 41);
     EXPECT_LT(slowerSpeed.excitement, normalSpeed.excitement);
     EXPECT_LT(slowerSpeed.intensity, normalSpeed.intensity);
     EXPECT_LT(slowerSpeed.nausea, normalSpeed.nausea);
@@ -2221,9 +2237,9 @@ TEST_F(RideRatings, LocalContextSameRideVerticalTrackScoresBelowForeignTrack)
     PlaceFlatTrack(
         ownTile, upperTrackZ, upperTrackZ + (2 * kCoordsZStep), rideId, TrackElemType::flatTrack1x4A, trackDirection);
 
-    const auto foreignScore = RideRating::GetVehicleLocalContextScore(
+    const auto foreignScore = GetVehicleLocalContext(
         foreignOrigin, rideId, TrackElemType::flatTrack1x4A, trackDirection);
-    const auto ownScore = RideRating::GetVehicleLocalContextScore(
+    const auto ownScore = GetVehicleLocalContext(
         ownOrigin, rideId, TrackElemType::flatTrack1x4A, trackDirection);
 
     EXPECT_GT(foreignScore.trackVerticalInteraction, ownScore.ownTrackVerticalInteraction);
@@ -2243,7 +2259,7 @@ TEST_F(RideRatings, LocalContextSameRideSameHeightTrackAddsNoVerticalBonus)
     constexpr int32_t trackZ = 18 * kCoordsZStep;
     const auto origin = PlaceVehicleTrackWithTerrain(originTile, trackZ, trackZ, trackZ);
 
-    const auto score = RideRating::GetVehicleLocalContextScore(origin, rideId, TrackElemType::flatTrack1x4A, trackDirection);
+    const auto score = GetVehicleLocalContext(origin, rideId, TrackElemType::flatTrack1x4A, trackDirection);
     EXPECT_EQ(score.trackVerticalInteraction, 0);
     EXPECT_EQ(score.ownTrackVerticalInteraction, 0);
     EXPECT_EQ(score.trackHeightExposure, 0);
@@ -2259,7 +2275,7 @@ TEST_F(RideRatings, LocalContextLonePathAboveFlatVehicleAddsNoBridgeBonus)
     const auto origin = PlaceVehicleTrack(originTile, trackZ);
     PlacePath(originTile, trackZ + (4 * kCoordsZStep), trackZ + (5 * kCoordsZStep));
 
-    const auto score = RideRating::GetVehicleLocalContextScore(origin, rideId, TrackElemType::flatTrack1x4A, 0);
+    const auto score = GetVehicleLocalContext(origin, rideId, TrackElemType::flatTrack1x4A, 0);
     EXPECT_EQ(score.pathBridge, 0);
     EXPECT_EQ(score.pathNearMiss, 0);
     EXPECT_EQ(score.pathLoop, 0);
@@ -2275,7 +2291,7 @@ TEST_F(RideRatings, LocalContextPathPlazaAboveFlatVehicleAddsNoBridgeBonus)
     const auto origin = PlaceVehicleTrack(originTile, trackZ);
     PlacePathPlaza(plazaTile, trackZ + (4 * kCoordsZStep), trackZ + (5 * kCoordsZStep));
 
-    const auto score = RideRating::GetVehicleLocalContextScore(origin, rideId, TrackElemType::flatTrack1x4A, 0);
+    const auto score = GetVehicleLocalContext(origin, rideId, TrackElemType::flatTrack1x4A, 0);
     EXPECT_EQ(score.pathBridge, 0);
     EXPECT_EQ(score.pathNearMiss, 0);
     EXPECT_EQ(score.pathLoop, 0);
@@ -2290,7 +2306,7 @@ TEST_F(RideRatings, LocalContextOneWideBridgeAdjacentToFlatVehicleAddsExcitement
     const auto origin = PlaceVehicleTrack(originTile, trackZ, TrackElemType::flatTrack1x4A, 1);
     PlaceBridgeLine(bridgeTile, trackZ + (4 * kCoordsZStep), trackZ + (5 * kCoordsZStep), 0);
 
-    const auto score = RideRating::GetVehicleLocalContextScore(origin, rideId, TrackElemType::flatTrack1x4A, 1);
+    const auto score = GetVehicleLocalContext(origin, rideId, TrackElemType::flatTrack1x4A, 1);
     EXPECT_GT(score.pathBridge, 0);
     EXPECT_EQ(score.pathNearMiss, 0);
     EXPECT_EQ(score.pathLoop, 0);
@@ -2307,7 +2323,7 @@ TEST_F(RideRatings, LocalContextTwoWideBridgeAdjacentToFlatVehicleAddsExcitement
     const auto origin = PlaceVehicleTrack(originTile, trackZ, TrackElemType::flatTrack1x4A, 1);
     PlaceTwoWideBridgeLine(bridgeTile, trackZ + (4 * kCoordsZStep), trackZ + (5 * kCoordsZStep), 0);
 
-    const auto score = RideRating::GetVehicleLocalContextScore(origin, rideId, TrackElemType::flatTrack1x4A, 1);
+    const auto score = GetVehicleLocalContext(origin, rideId, TrackElemType::flatTrack1x4A, 1);
     EXPECT_GT(score.pathBridge, 0);
     EXPECT_EQ(score.intensity, 0);
     EXPECT_EQ(score.nausea, 0);
@@ -2321,7 +2337,7 @@ TEST_F(RideRatings, LocalContextDirectlyUnderBridgeGetsNoNormalBridgeBonus)
     const auto origin = PlaceVehicleTrack(originTile, trackZ);
     PlaceBridgeLine(originTile, trackZ + (4 * kCoordsZStep), trackZ + (5 * kCoordsZStep), 1);
 
-    const auto score = RideRating::GetVehicleLocalContextScore(origin, rideId, TrackElemType::flatTrack1x4A, 0);
+    const auto score = GetVehicleLocalContext(origin, rideId, TrackElemType::flatTrack1x4A, 0);
     EXPECT_EQ(score.pathBridge, 0);
     EXPECT_EQ(score.pathNearMiss, 0);
     EXPECT_EQ(score.pathLoop, 0);
@@ -2335,7 +2351,7 @@ TEST_F(RideRatings, LocalContextBridgeAboveGradientVehicleAddsNearMissThrill)
     const auto origin = PlaceVehicleTrack(originTile, trackZ, TrackElemType::flatToUp25);
     PlaceBridgeLine(originTile, trackZ + (4 * kCoordsZStep), trackZ + (5 * kCoordsZStep), 1);
 
-    const auto score = RideRating::GetVehicleLocalContextScore(origin, rideId, TrackElemType::flatToUp25, 0);
+    const auto score = GetVehicleLocalContext(origin, rideId, TrackElemType::flatToUp25, 0);
     EXPECT_EQ(score.pathBridge, 0);
     EXPECT_GT(score.pathNearMiss, 0);
     EXPECT_EQ(score.pathLoop, 0);
@@ -2351,7 +2367,7 @@ TEST_F(RideRatings, LocalContextPathBelowFlatVehicleAddsNoBonus)
     const auto origin = PlaceVehicleTrackWithTerrain(originTile, trackZ, trackZ, trackZ);
     PlacePath(originTile, trackZ - (3 * kCoordsZStep), trackZ - (2 * kCoordsZStep));
 
-    const auto score = RideRating::GetVehicleLocalContextScore(origin, rideId, TrackElemType::flatTrack1x4A, 0);
+    const auto score = GetVehicleLocalContext(origin, rideId, TrackElemType::flatTrack1x4A, 0);
     EXPECT_EQ(score.pathBridge, 0);
     EXPECT_EQ(score.pathNearMiss, 0);
     EXPECT_EQ(score.pathLoop, 0);
@@ -2367,7 +2383,7 @@ TEST_F(RideRatings, LocalContextPathBelowVerticalLoopAddsLoopThrill)
         originTile, trackZ, trackZ, trackZ, TrackElemType::leftVerticalLoop);
     PlacePath(originTile, trackZ - (3 * kCoordsZStep), trackZ - (2 * kCoordsZStep));
 
-    const auto score = RideRating::GetVehicleLocalContextScore(origin, rideId, TrackElemType::leftVerticalLoop, 0);
+    const auto score = GetVehicleLocalContext(origin, rideId, TrackElemType::leftVerticalLoop, 0);
     EXPECT_EQ(score.pathBridge, 0);
     EXPECT_EQ(score.pathNearMiss, 0);
     EXPECT_GT(score.pathLoop, 0);

@@ -41,7 +41,7 @@
                  Exclude="$(DataShadersPath)*.bak;
                            $(DataShadersPath)*.tmp" />
 
-    <VulkanShaderSource Include="$(DataShadersPath)vulkan\indexed_palette.vert;$(DataShadersPath)vulkan\indexed_palette.frag;$(DataShadersPath)vulkan\indexed_line.vert;$(DataShadersPath)vulkan\indexed_line.frag;$(DataShadersPath)vulkan\indexed_rect.vert;$(DataShadersPath)vulkan\indexed_rect.frag;$(DataShadersPath)vulkan\indexed_transparent_rect.vert;$(DataShadersPath)vulkan\indexed_transparent_rect.frag;$(DataShadersPath)vulkan\indexed_transparency_compose.vert;$(DataShadersPath)vulkan\indexed_transparency_compose.frag;$(DataShadersPath)vulkan\indexed_weather.vert;$(DataShadersPath)vulkan\indexed_weather.frag;$(DataShadersPath)vulkan\lightfx_accumulate.comp" />
+    <VulkanShaderSource Include="$(DataShadersPath)vulkan\indexed_palette.vert;$(DataShadersPath)vulkan\indexed_palette.frag;$(DataShadersPath)vulkan\indexed_line.vert;$(DataShadersPath)vulkan\indexed_line.frag;$(DataShadersPath)vulkan\indexed_rect.vert;$(DataShadersPath)vulkan\indexed_rect.frag;$(DataShadersPath)vulkan\indexed_sprite.vert;$(DataShadersPath)vulkan\indexed_transparent_rect.vert;$(DataShadersPath)vulkan\indexed_transparent_rect.frag;$(DataShadersPath)vulkan\indexed_transparency_compose.vert;$(DataShadersPath)vulkan\indexed_transparency_compose.frag;$(DataShadersPath)vulkan\indexed_weather.vert;$(DataShadersPath)vulkan\indexed_weather.frag;$(DataShadersPath)vulkan\lightfx_accumulate.comp" />
     
     <ScenarioPatchFiles Include="$(DataScenarioPath)**\*"
                         Exclude="$(DataScenarioPath)*.bak;

@@ -42,10 +42,7 @@ namespace OpenRCT2::MapPathRouteCache
                                                                          kInvalidNodeIndex, kInvalidNodeIndex };
             RideId queueRide{ RideId::GetNull() };
             uint8_t permittedEdges{};
-            uint8_t connectionEdges{};
-            Direction slopeDirection{};
-            bool isQueue{};
-            bool isSloped{};
+            Direction slopeDirection{ kInvalidDirection };
         };
 
         struct FrozenEntrance
@@ -56,11 +53,10 @@ namespace OpenRCT2::MapPathRouteCache
                                                                          kInvalidNodeIndex, kInvalidNodeIndex };
             RideId ride{ RideId::GetNull() };
             uint8_t entranceType{};
-            uint8_t connectionEdges{};
         };
 
-        static_assert(sizeof(FrozenNode) <= 40);
-        static_assert(sizeof(FrozenEntrance) <= 40);
+        static_assert(sizeof(FrozenNode) <= 36);
+        static_assert(sizeof(FrozenEntrance) <= 36);
 
         struct FrozenGraph
         {
@@ -176,6 +172,8 @@ namespace OpenRCT2::MapPathRouteCache
 
         [[nodiscard]] const RouteField* FindField(const RouteTarget& target) noexcept
         {
+            // Target kind controls seed construction, but published lookups intentionally key fields by location and
+            // queue ownership so callers do not need to retain how that terminal was discovered.
             auto firstTargetKind = target;
             firstTargetKind.kind = RouteTargetKind::pathOrEntrance;
             const auto fieldIterator = std::lower_bound(
@@ -185,6 +183,15 @@ namespace OpenRCT2::MapPathRouteCache
                     || fieldIterator->target.queueRide != target.queueRide
                 ? nullptr
                 : &*fieldIterator;
+        }
+
+        [[nodiscard]] auto FindFirstRideTargetField(RideId ride) noexcept
+        {
+            return std::lower_bound(
+                _rideTargetFields.begin(), _rideTargetFields.end(), ride,
+                [](const RideTargetFieldRef& entry, RideId value) {
+                    return entry.ride.ToUnderlying() < value.ToUnderlying();
+                });
         }
 
         [[nodiscard]] std::optional<uint32_t> GetFieldDistance(const RouteField& field, NodeIndex sourceNode) noexcept
@@ -207,7 +214,7 @@ namespace OpenRCT2::MapPathRouteCache
 
         [[nodiscard]] bool NodeIsAllowed(const FrozenNode& node, RideId targetQueueRide) noexcept
         {
-            return !node.isQueue || node.queueRide.IsNull() || node.queueRide == targetQueueRide;
+            return node.queueRide.IsNull() || node.queueRide == targetQueueRide;
         }
 
         [[nodiscard]] std::optional<FrozenGraph> FreezeGraph()
@@ -236,16 +243,14 @@ namespace OpenRCT2::MapPathRouteCache
                         node.location = path.GetLocation(view.origin);
                         node.queueRide = path.queueRide;
                         node.permittedEdges = path.permittedEdges;
-                        node.isQueue = path.HasFlag(MapPathTopology::PathNodeFlag::queue);
-                        node.isSloped = path.HasFlag(MapPathTopology::PathNodeFlag::sloped);
                         node.slopeDirection = path.slopeDirection;
                         for (Direction direction : kAllDirections)
                         {
                             const auto& connection = path.connections[direction];
-                            if (!connection.IsConnected())
+                            if (!connection.IsConnected() || !(node.permittedEdges & (1 << direction)))
                                 continue;
-                            node.connectionEdges |= 1 << direction;
                             node.targetBaseZ[direction] = connection.targetBaseZ;
+                            node.connections[direction] = 0;
                         }
                         graph.nodes.push_back(node);
                     }
@@ -256,13 +261,13 @@ namespace OpenRCT2::MapPathRouteCache
                         node.location = entrance.GetLocation(view.origin);
                         node.ride = entrance.ride;
                         node.entranceType = entrance.entranceType;
-                        node.connectionEdges = entrance.connectionEdges;
                         for (Direction direction : kAllDirections)
                         {
                             const auto& connection = entrance.connections[direction];
                             if (!connection.IsConnected())
                                 continue;
                             node.targetBaseZ[direction] = connection.targetBaseZ;
+                            node.connections[direction] = 0;
                         }
                         graph.entrances.push_back(node);
                     }
@@ -283,10 +288,12 @@ namespace OpenRCT2::MapPathRouteCache
             }
             std::sort(graph.entranceIndex.begin(), graph.entranceIndex.end());
 
-            const auto resolveConnections = [&](auto& entry, uint8_t edges) {
+            const auto resolveConnections = [&](auto& entry) {
+                // Before publication, a non-sentinel connection is only a presence marker; every marker is replaced by
+                // the immutable node index resolved from the sorted location table below.
                 for (Direction direction : kAllDirections)
                 {
-                    if (edges & (1 << direction))
+                    if (entry.connections[direction] != kInvalidNodeIndex)
                     {
                         const auto targetTile = TileCoordsXY{ entry.location } + TileDirectionDelta[direction];
                         entry.connections[direction] = FindNode(
@@ -295,9 +302,9 @@ namespace OpenRCT2::MapPathRouteCache
                 }
             };
             for (auto& node : graph.nodes)
-                resolveConnections(node, node.permittedEdges & node.connectionEdges);
+                resolveConnections(node);
             for (auto& entrance : graph.entrances)
-                resolveConnections(entrance, entrance.connectionEdges);
+                resolveConnections(entrance);
 
             graph.incomingOffsets.assign(graph.nodes.size() + 1, 0);
             for (const auto& node : graph.nodes)
@@ -398,7 +405,7 @@ namespace OpenRCT2::MapPathRouteCache
                     if (!NodeIsAllowed(path, target.queueRide) || !(path.permittedEdges & (1 << direction)))
                         continue;
                     auto targetZ = path.location.z;
-                    if (path.isSloped && path.slopeDirection == direction)
+                    if (path.slopeDirection == direction)
                         targetZ += 2;
                     if (targetZ != target.location.z)
                         continue;
@@ -594,9 +601,7 @@ namespace OpenRCT2::MapPathRouteCache
     RouteDistance QueryDistanceFromRideExitToTarget(
         const RouteTarget& target, const TileCoordsXYZ& sourceExit, RideId sourceRide) noexcept
     {
-        if (sourceRide.IsNull())
-            return {};
-        if (!IsPreparedForCurrentTopology())
+        if (sourceRide.IsNull() || !IsPreparedForCurrentTopology())
             return {};
         const auto* field = FindField(target);
         if (field == nullptr || field->distances.empty())
@@ -666,11 +671,7 @@ namespace OpenRCT2::MapPathRouteCache
         for (size_t candidateIndex = 0; candidateIndex < candidates.size(); candidateIndex++)
         {
             const auto ride = candidates[candidateIndex];
-            auto fieldRef = std::lower_bound(
-                _rideTargetFields.begin(), _rideTargetFields.end(), ride,
-                [](const RideTargetFieldRef& entry, RideId value) {
-                    return entry.ride.ToUnderlying() < value.ToUnderlying();
-                });
+            auto fieldRef = FindFirstRideTargetField(ride);
             for (; fieldRef != _rideTargetFields.end() && fieldRef->ride == ride; fieldRef++)
             {
                 const auto& field = _fields[fieldRef->fieldIndex];
@@ -689,11 +690,7 @@ namespace OpenRCT2::MapPathRouteCache
     {
         if (ride.IsNull() || !IsPreparedForCurrentTopology())
             return std::nullopt;
-        const auto first = std::lower_bound(
-            _rideTargetFields.begin(), _rideTargetFields.end(), ride,
-            [](const RideTargetFieldRef& entry, RideId value) {
-                return entry.ride.ToUnderlying() < value.ToUnderlying();
-            });
+        const auto first = FindFirstRideTargetField(ride);
         if (first == _rideTargetFields.end() || first->ride != ride
             || (first + 1 != _rideTargetFields.end() && (first + 1)->ride == ride))
             return std::nullopt;

@@ -251,18 +251,25 @@ namespace OpenRCT2::GameActions
     void LandSetHeightAction::SmallSceneryRemoval() const
     {
         TileElement* tileElement = MapGetFirstElementAt(_coords);
-        do
+        while (tileElement != nullptr)
         {
-            if (tileElement == nullptr)
-                break;
-            if (tileElement->getType() != TileElementType::smallScenery)
-                continue;
-            if (_height > tileElement->clearanceHeight)
-                continue;
-            if (_height + 4 < tileElement->baseHeight)
-                continue;
-            TileElementRemove(tileElement--);
-        } while (!(tileElement++)->isLastForTile());
+            const bool wasLast = tileElement->isLastForTile();
+            const bool shouldRemove = tileElement->getType() == TileElementType::smallScenery
+                && _height <= tileElement->clearanceHeight && _height + 4 >= tileElement->baseHeight;
+            if (shouldRemove)
+            {
+                // Removal compacts the tile array. Unless this was the last element, the same address is now the next element.
+                TileElementRemove(tileElement);
+                if (wasLast)
+                    break;
+            }
+            else
+            {
+                if (wasLast)
+                    break;
+                tileElement++;
+            }
+        }
     }
 
     StringId LandSetHeightAction::CheckRideSupports() const

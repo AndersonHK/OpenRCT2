@@ -71,7 +71,7 @@ JobPool::~JobPool()
 
     for (auto& th : _threads)
     {
-        assert(th.joinable() != false);
+        assert(th.joinable());
         th.join();
     }
 }

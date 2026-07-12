@@ -22,6 +22,9 @@ namespace OpenRCT2::Ui::Gpu
     constexpr int32_t kAtlasDimension = 2048;
     constexpr int32_t kSmallestAtlasSlot = 32;
     constexpr uint32_t kAtlasLayers = 64;
+    constexpr uint32_t kAtlasSlotsPerLayer =
+        (kAtlasDimension / kSmallestAtlasSlot) * (kAtlasDimension / kSmallestAtlasSlot);
+    constexpr uint32_t kSpriteAssetDescriptorCount = kAtlasLayers * kAtlasSlotsPerLayer;
 
     struct TextureBinding
     {
@@ -49,17 +52,21 @@ namespace OpenRCT2::Ui::Gpu
         uint32_t image = 0;
         uint32_t generation = 0;
         uint64_t allocationSerial = 0;
-
         [[nodiscard]] AtlasAllocationId GetAllocationId() const noexcept
         {
             return { index, slot, allocationSerial };
+        }
+
+        [[nodiscard]] uint32_t GetDescriptorIndex() const noexcept
+        {
+            return index * kAtlasSlotsPerLayer + slot;
         }
     };
 
     /**
      * One layer of the indexed sprite texture array. Each layer stores one
      * power-of-two slot class so allocation and invalidation remain O(1), and
-     * the same metadata can address OpenGL or Vulkan array images.
+     * the same metadata can address explicit GPU array images.
      */
     class AtlasPage final
     {

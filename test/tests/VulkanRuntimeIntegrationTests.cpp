@@ -85,6 +85,7 @@ namespace
             "indexed_line.frag.spv",
             "indexed_rect.vert.spv",
             "indexed_rect.frag.spv",
+            "indexed_sprite.vert.spv",
             "indexed_transparent_rect.vert.spv",
             "indexed_transparent_rect.frag.spv",
             "indexed_transparency_compose.vert.spv",
@@ -192,24 +193,62 @@ namespace
 
         try
         {
-            auto upload = backend.AllocateUpload(canvas.size(), alignof(uint32_t));
-            if (!upload)
-            {
-                throw std::runtime_error("Vulkan integration test could not allocate its indexed canvas upload");
-            }
-            std::copy(canvas.begin(), canvas.end(), upload.bytes.begin());
-
             Gpu::FrameCommandStream commands;
-            commands.canvasUpload = Gpu::CanvasUpload{
-                .sourceOffset = static_cast<uint32_t>(upload.offset),
-                .sourcePitch = extent.width,
-                .width = extent.width,
-                .height = extent.height,
-            };
+            commands.opaqueRects.reserve(canvas.size());
+            const Gpu::Int4 clip = { 0, 0, static_cast<int32_t>(extent.width), static_cast<int32_t>(extent.height) };
+            for (uint32_t y = 0; y < extent.height; ++y)
+            {
+                for (uint32_t x = 0; x < extent.width; ++x)
+                {
+                    const auto colour = std::to_integer<uint8_t>(canvas[static_cast<size_t>(y) * extent.width + x]);
+                    if (colour == 0)
+                        continue;
+                    auto& command = commands.opaqueRects.allocate();
+                    command.clip = clip;
+                    command.flags = Gpu::RectCommand::FLAG_NO_TEXTURE;
+                    command.colour = colour;
+                    command.bounds = { static_cast<int32_t>(x), static_cast<int32_t>(y), static_cast<int32_t>(x + 1),
+                                       static_cast<int32_t>(y + 1) };
+                    command.depth = 0;
+                    command.zoom = 1.0f;
+                }
+            }
             if (lightFx != nullptr)
             {
                 commands.lightFx = *lightFx;
             }
+            backend.Submit(*frame, commands);
+            backend.Present(*frame);
+        }
+        catch (...)
+        {
+            try
+            {
+                backend.AbandonFrame(*frame);
+            }
+            catch (...)
+            {
+                // Preserve the integration failure that abandoned the frame.
+            }
+            throw;
+        }
+        return frame->frameSlot;
+    }
+
+    [[nodiscard]] std::optional<uint32_t> PresentCommandFrame(
+        Gpu::Backend& backend, uint64_t frameNumber, const Gpu::FrameCommandStream& commands)
+    {
+        auto frame = backend.BeginFrame(frameNumber);
+        if (!frame.has_value())
+        {
+            backend.WaitIdle();
+            frame = backend.BeginFrame(frameNumber);
+            if (!frame.has_value())
+                return std::nullopt;
+        }
+
+        try
+        {
             backend.Submit(*frame, commands);
             backend.Present(*frame);
         }
@@ -383,6 +422,82 @@ TEST(VulkanRuntimeIntegrationTest, HiddenWindowExercisesBackendLifecycleAndIndex
     readback.assign(resizedCanvas.size(), std::byte{ 0 });
     ASSERT_TRUE(backend->ReadbackLatestIndexedCanvas(resizedLogicalExtent, readback));
     EXPECT_EQ(readback, resizedCanvas);
+
+    const Gpu::Int4 fullClip = {
+        0, 0, static_cast<int32_t>(resizedLogicalExtent.width), static_cast<int32_t>(resizedLogicalExtent.height)
+    };
+    constexpr Gpu::Int4 spriteBounds = { 4, 5, 6, 7 };
+    constexpr std::array spritePixels = {
+        std::byte{ 10 }, std::byte{ 20 },
+        std::byte{ 30 }, std::byte{ 40 },
+    };
+
+    Gpu::FrameCommandStream uploadedSprite;
+    uploadedSprite.textureUploads.push_back({
+        .atlas = 0,
+        .bounds = { 0, 0, 2, 2 },
+        .sourcePitch = 2,
+        .descriptorIndex = 0,
+        .descriptor = { .atlasOrigin = { 0, 0 }, .atlasLayer = 0 },
+        .pixels = std::vector<std::byte>(spritePixels.begin(), spritePixels.end()),
+    });
+    uploadedSprite.opaqueRects.allocate() = {
+        .clip = fullClip,
+        .flags = Gpu::RectCommand::FLAG_NO_TEXTURE,
+        .colour = 50,
+        .bounds = spriteBounds,
+        .depth = 0,
+        .zoom = 1.0f,
+    };
+    uploadedSprite.opaqueSprites.allocate() = {
+        .clip = fullClip,
+        .bounds = spriteBounds,
+        .texelOffset = { 0, 0 },
+        .asset = 0,
+        .palettes = Gpu::SpriteCommand::PackPalettes(0, 0, 0, 0),
+        .effects = Gpu::SpriteCommand::PackEffects(0, 0),
+        .depth = 1,
+        .zoom = 1.0f,
+    };
+
+    const uint64_t spriteFrameNumber = resizedFrameNumber + 1;
+    ASSERT_TRUE(PresentCommandFrame(*backend, spriteFrameNumber, uploadedSprite).has_value());
+    readback.assign(resizedCanvas.size(), std::byte{ 0 });
+    ASSERT_TRUE(backend->ReadbackLatestIndexedCanvas(resizedLogicalExtent, readback));
+    const auto pixel = [&](uint32_t x, uint32_t y) {
+        return std::to_integer<uint8_t>(readback[static_cast<size_t>(y) * resizedLogicalExtent.width + x]);
+    };
+    EXPECT_EQ(pixel(4, 5), 10);
+    EXPECT_EQ(pixel(5, 5), 20);
+    EXPECT_EQ(pixel(4, 6), 30);
+    EXPECT_EQ(pixel(5, 6), 40);
+
+    Gpu::FrameCommandStream retainedSprite;
+    retainedSprite.opaqueRects.allocate() = {
+        .clip = fullClip,
+        .flags = Gpu::RectCommand::FLAG_NO_TEXTURE,
+        .colour = 50,
+        .bounds = spriteBounds,
+        .depth = 1,
+        .zoom = 1.0f,
+    };
+    retainedSprite.opaqueSprites.allocate() = {
+        .clip = fullClip,
+        .bounds = spriteBounds,
+        .texelOffset = { 0, 0 },
+        .asset = 0,
+        .palettes = 0,
+        .effects = 0,
+        .depth = 0,
+        .zoom = 1.0f,
+    };
+    ASSERT_TRUE(PresentCommandFrame(*backend, spriteFrameNumber + 1, retainedSprite).has_value());
+    readback.assign(resizedCanvas.size(), std::byte{ 0 });
+    ASSERT_TRUE(backend->ReadbackLatestIndexedCanvas(resizedLogicalExtent, readback));
+    EXPECT_EQ(pixel(4, 5), 50);
+    EXPECT_EQ(pixel(5, 5), 50);
+    EXPECT_EQ(pixel(4, 6), 50);
+    EXPECT_EQ(pixel(5, 6), 50);
 }
 
 #endif // ENABLE_VULKAN

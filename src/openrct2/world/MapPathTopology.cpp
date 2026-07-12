@@ -107,7 +107,7 @@ namespace OpenRCT2::MapPathTopology
                 }
                 else if (result.targetBaseZ == tileElement->baseHeight)
                 {
-                    result.flags |= static_cast<uint8_t>(ConnectionFlag::ambiguousTarget);
+                    // Multiple live elements at the same edge height make the compact snapshot unsafe for exact routing.
                     isExact = false;
                 }
             } while (!(tileElement++)->isLastForTile());
@@ -115,7 +115,7 @@ namespace OpenRCT2::MapPathTopology
             return result;
         }
 
-        [[nodiscard]] uint8_t GetPermittedEdges(const PathElement& path, bool& hasBanner)
+        [[nodiscard]] uint8_t GetPermittedEdges(const PathElement& path)
         {
             auto edges = path.GetEdges();
             const auto* tileElement = reinterpret_cast<const TileElement*>(&path);
@@ -139,7 +139,6 @@ namespace OpenRCT2::MapPathTopology
                 if (tileElement->isGhost())
                     continue;
 
-                hasBanner = true;
                 edges &= tileElement->asBanner()->GetAllowedEdges();
             } while (!tileElement->isLastForTile());
 
@@ -211,34 +210,17 @@ namespace OpenRCT2::MapPathTopology
                                     cache.isExact = false;
                                 }
 
-                                bool hasBanner = false;
                                 auto node = PathNode{};
                                 node.localX = static_cast<uint8_t>(x - origin.x);
                                 node.localY = static_cast<uint8_t>(y - origin.y);
                                 node.baseZ = tileElement->baseHeight;
                                 node.edges = path->GetEdges();
-                                node.permittedEdges = GetPermittedEdges(*path, hasBanner);
+                                node.permittedEdges = GetPermittedEdges(*path);
                                 const bool isSloped = path->IsSloped();
                                 if (isSloped)
-                                {
-                                    node.flags |= static_cast<uint8_t>(PathNodeFlag::sloped);
                                     node.slopeDirection = path->GetSlopeDirection();
-                                }
                                 if (path->IsQueue())
-                                {
-                                    node.flags |= static_cast<uint8_t>(PathNodeFlag::queue);
                                     node.queueRide = path->GetRideIndex();
-                                    node.queueStation = path->GetStationIndex();
-                                }
-                                if (path->IsWide())
-                                    node.flags |= static_cast<uint8_t>(PathNodeFlag::wide);
-                                if (path->HasQueueBanner())
-                                {
-                                    node.flags |= static_cast<uint8_t>(PathNodeFlag::queueBanner);
-                                    node.queueBannerDirection = path->GetQueueBannerDirection();
-                                }
-                                if (hasBanner)
-                                    node.flags |= static_cast<uint8_t>(PathNodeFlag::banner);
 
                                 constexpr auto excludedThinNeighbourFlags = static_cast<uint8_t>(
                                     ConnectionFlag::targetWide) | static_cast<uint8_t>(ConnectionFlag::targetRideQueue);
@@ -257,8 +239,7 @@ namespace OpenRCT2::MapPathTopology
                                         }
                                     }
                                 }
-                                if (thinNeighbourCount > 2)
-                                    node.flags |= static_cast<uint8_t>(PathNodeFlag::thinJunction);
+                                node.isThinJunction = thinNeighbourCount > 2;
                                 cache.paths.push_back(node);
                             }
                             else if (tileElement->getType() == TileElementType::entrance)
@@ -268,15 +249,12 @@ namespace OpenRCT2::MapPathTopology
                                 node.localX = static_cast<uint8_t>(x - origin.x);
                                 node.localY = static_cast<uint8_t>(y - origin.y);
                                 node.baseZ = tileElement->baseHeight;
-                                node.direction = entrance->getDirection();
                                 node.entranceType = entrance->GetEntranceType();
-                                node.sequence = entrance->GetSequenceIndex();
                                 node.ride = entrance->GetRideIndex();
-                                node.station = entrance->GetStationIndex();
-                                node.connectionEdges = GetAbsoluteEntranceEdges(*entrance, cache.isExact);
+                                const auto connectionEdges = GetAbsoluteEntranceEdges(*entrance, cache.isExact);
                                 for (Direction direction : kAllDirections)
                                 {
-                                    if (node.connectionEdges & (1 << direction))
+                                    if (connectionEdges & (1 << direction))
                                     {
                                         node.connections[direction] = FindAdjacentPath(
                                             tile, node.baseZ, false, 0, direction, cache.isExact);
@@ -357,25 +335,6 @@ namespace OpenRCT2::MapPathTopology
             const auto& path = view.paths[index];
             if (path.baseZ == location.z)
                 return &path;
-        }
-        return nullptr;
-    }
-
-    const EntranceNode* FindEntrance(const ChunkView& view, const TileCoordsXYZ& location, uint8_t entranceType) noexcept
-    {
-        if (location.x < view.origin.x || location.y < view.origin.y || location.x >= view.origin.x + MapTopology::kChunkSize
-            || location.y >= view.origin.y + MapTopology::kChunkSize)
-        {
-            return nullptr;
-        }
-
-        for (const auto& entrance : view.entrances)
-        {
-            if (entrance.localX == location.x - view.origin.x && entrance.localY == location.y - view.origin.y
-                && entrance.baseZ == location.z && entrance.entranceType == entranceType)
-            {
-                return &entrance;
-            }
         }
         return nullptr;
     }

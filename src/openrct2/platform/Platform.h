@@ -215,8 +215,6 @@ namespace OpenRCT2::Platform
     bool IsColourTerminalSupported();
     bool HandleSpecialCommandLineArgument(const char* argument);
     u8string StrDecompToPrecomp(u8string_view input);
-    bool RequireNewWindow(bool openGL);
-
     // Returns the bitmask of the GetLogicalDrives function for windows, 0 for other systems
     int32_t GetDrives();
     time_t FileGetModifiedTime(u8string_view path);

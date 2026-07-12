@@ -14,7 +14,6 @@
 #include "../interface/Screenshot.h"
 #include "../localisation/StringIds.h"
 #include "../paint/Painter.h"
-#include "../platform/Platform.h"
 #include "../ui/UiContext.h"
 #include "../world/Location.hpp"
 #include "IDrawingContext.h"
@@ -28,12 +27,6 @@ using namespace OpenRCT2::Drawing;
 using namespace OpenRCT2::Paint;
 using namespace OpenRCT2::Ui;
 
-DrawingEngine drawing_engine_get_type()
-{
-    auto context = GetContext();
-    return context->GetDrawingEngineType();
-}
-
 static IDrawingEngine* GetDrawingEngine()
 {
     IDrawingEngine* result = nullptr;
@@ -43,16 +36,6 @@ static IDrawingEngine* GetDrawingEngine()
         result = context->GetDrawingEngine();
     }
     return result;
-}
-
-bool DrawingEngineRequiresNewWindow(DrawingEngine srcEngine, DrawingEngine dstEngine)
-{
-    if (srcEngine == DrawingEngine::Vulkan || dstEngine == DrawingEngine::Vulkan)
-    {
-        return srcEngine != dstEngine;
-    }
-    bool openGL = srcEngine == DrawingEngine::OpenGL || dstEngine == DrawingEngine::OpenGL;
-    return Platform::RequireNewWindow(openGL);
 }
 
 void DrawingEngineInit()

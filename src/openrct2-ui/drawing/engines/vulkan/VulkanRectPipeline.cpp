@@ -50,6 +50,7 @@ namespace OpenRCT2::Ui::Vulkan
             {
                 vkDestroyFramebuffer(_device, framebuffer, nullptr);
             }
+            vkDestroyPipeline(_device, _spritePipeline, nullptr);
             vkDestroyPipeline(_device, _pipeline, nullptr);
             vkDestroyRenderPass(_device, _renderPass, nullptr);
             vkDestroyPipelineLayout(_device, _pipelineLayout, nullptr);
@@ -64,14 +65,17 @@ namespace OpenRCT2::Ui::Vulkan
         _pipelineLayout = VK_NULL_HANDLE;
         _renderPass = VK_NULL_HANDLE;
         _pipeline = VK_NULL_HANDLE;
+        _spritePipeline = VK_NULL_HANDLE;
         _framebuffers = {};
         _extent = {};
         _shaderDirectory.clear();
     }
 
-    void RectPipeline::Record(const FrameToken& frame, const Gpu::CommandBatch<Gpu::RectCommand>& commands) const
+    void RectPipeline::Record(
+        const FrameToken& frame, const Gpu::CommandBatch<Gpu::RectCommand>& commands,
+        const Gpu::CommandBatch<Gpu::SpriteCommand>& sprites) const
     {
-        if (commands.empty())
+        if (commands.empty() && sprites.empty())
         {
             return;
         }
@@ -80,13 +84,20 @@ namespace OpenRCT2::Ui::Vulkan
             throw std::out_of_range("Vulkan rectangle frame index is out of range");
         }
 
-        const auto byteSize = static_cast<VkDeviceSize>(commands.size() * sizeof(Gpu::RectCommand));
-        const auto allocation = frame.upload->Allocate(byteSize, alignof(uint32_t));
-        if (!allocation)
-        {
-            throw std::runtime_error("Vulkan upload ring has no room for rectangle commands");
-        }
-        std::memcpy(allocation.data, commands.data(), static_cast<size_t>(byteSize));
+        const auto stage = [&](const auto& batch, const char* error) {
+            UploadAllocation allocation;
+            if (!batch.empty())
+            {
+                const auto byteSize = static_cast<VkDeviceSize>(batch.size() * sizeof(batch[0]));
+                allocation = frame.upload->Allocate(byteSize, alignof(uint32_t));
+                if (!allocation)
+                    throw std::runtime_error(error);
+                std::memcpy(allocation.data, batch.data(), static_cast<size_t>(byteSize));
+            }
+            return allocation;
+        };
+        const auto rectAllocation = stage(commands, "Vulkan upload ring has no room for rectangle commands");
+        const auto spriteAllocation = stage(sprites, "Vulkan upload ring has no room for sprite commands");
 
         const VkRenderPassBeginInfo renderPassInfo = {
             .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
@@ -105,15 +116,25 @@ namespace OpenRCT2::Ui::Vulkan
         };
         const VkRect2D scissor = { .offset = { 0, 0 }, .extent = _extent };
         const ScreenConstants screen = { static_cast<int32_t>(_extent.width), static_cast<int32_t>(_extent.height) };
-        const VkDeviceSize vertexOffset = allocation.offset;
         vkCmdSetViewport(frame.commandBuffer, 0, 1, &viewport);
         vkCmdSetScissor(frame.commandBuffer, 0, 1, &scissor);
-        vkCmdBindPipeline(frame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline);
         vkCmdBindDescriptorSets(
             frame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineLayout, 0, 1, &_descriptorSet, 0, nullptr);
         vkCmdPushConstants(frame.commandBuffer, _pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(screen), &screen);
-        vkCmdBindVertexBuffers(frame.commandBuffer, 0, 1, &allocation.buffer, &vertexOffset);
-        vkCmdDraw(frame.commandBuffer, 4, static_cast<uint32_t>(commands.size()), 0, 0);
+        if (!commands.empty())
+        {
+            const VkDeviceSize vertexOffset = rectAllocation.offset;
+            vkCmdBindPipeline(frame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline);
+            vkCmdBindVertexBuffers(frame.commandBuffer, 0, 1, &rectAllocation.buffer, &vertexOffset);
+            vkCmdDraw(frame.commandBuffer, 4, static_cast<uint32_t>(commands.size()), 0, 0);
+        }
+        if (!sprites.empty())
+        {
+            const VkDeviceSize vertexOffset = spriteAllocation.offset;
+            vkCmdBindPipeline(frame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _spritePipeline);
+            vkCmdBindVertexBuffers(frame.commandBuffer, 0, 1, &spriteAllocation.buffer, &vertexOffset);
+            vkCmdDraw(frame.commandBuffer, 4, static_cast<uint32_t>(sprites.size()), 0, 0);
+        }
         vkCmdEndRenderPass(frame.commandBuffer);
     }
 
@@ -125,6 +146,12 @@ namespace OpenRCT2::Ui::Vulkan
                 .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                 .descriptorCount = 1,
                 .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+            },
+            VkDescriptorSetLayoutBinding{
+                .binding = 2,
+                .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                .descriptorCount = 1,
+                .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
             },
             VkDescriptorSetLayoutBinding{
                 .binding = 1,
@@ -141,15 +168,15 @@ namespace OpenRCT2::Ui::Vulkan
         CheckVk(
             vkCreateDescriptorSetLayout(_device, &layoutInfo, nullptr, &_descriptorSetLayout),
             "vkCreateDescriptorSetLayout(rects)");
-        constexpr VkDescriptorPoolSize poolSize = {
-            .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-            .descriptorCount = 2,
+        constexpr std::array poolSizes = {
+            VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2 },
+            VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1 },
         };
         const VkDescriptorPoolCreateInfo poolInfo = {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
             .maxSets = 1,
-            .poolSizeCount = 1,
-            .pPoolSizes = &poolSize,
+            .poolSizeCount = static_cast<uint32_t>(poolSizes.size()),
+            .pPoolSizes = poolSizes.data(),
         };
         CheckVk(vkCreateDescriptorPool(_device, &poolInfo, nullptr, &_descriptorPool), "vkCreateDescriptorPool(rects)");
         const VkDescriptorSetAllocateInfo allocateInfo = {
@@ -169,6 +196,11 @@ namespace OpenRCT2::Ui::Vulkan
             .imageView = resources.GetRemapPalette().GetView(),
             .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         };
+        const VkDescriptorBufferInfo spriteInfo = {
+            .buffer = resources.GetSpriteDescriptors().GetBuffer(),
+            .offset = 0,
+            .range = resources.GetSpriteDescriptors().GetSize(),
+        };
         const std::array writes = {
             VkWriteDescriptorSet{
                 .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -185,6 +217,14 @@ namespace OpenRCT2::Ui::Vulkan
                 .descriptorCount = 1,
                 .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                 .pImageInfo = &remapInfo,
+            },
+            VkWriteDescriptorSet{
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .dstSet = _descriptorSet,
+                .dstBinding = 2,
+                .descriptorCount = 1,
+                .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                .pBufferInfo = &spriteInfo,
             },
         };
         vkUpdateDescriptorSets(_device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
@@ -284,19 +324,24 @@ namespace OpenRCT2::Ui::Vulkan
             .minDepthBounds = 0.0f,
             .maxDepthBounds = 1.0f,
         };
-        _pipeline = CreateGraphicsPipeline(
-            _device, _pipelineCache,
-            {
-                .vertexShader = _shaderDirectory / "indexed_rect.vert.spv",
-                .fragmentShader = _shaderDirectory / "indexed_rect.frag.spv",
-                .vertexBindings = std::span{ &kRectCommandBinding, 1 },
-                .vertexAttributes = kRectCommandAttributes,
-                .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
-                .depthStencil = &depthState,
-                .layout = _pipelineLayout,
-                .renderPass = _renderPass,
-            },
-            "vkCreateGraphicsPipelines(rects)");
+        const auto create = [&](const std::filesystem::path& vertexShader, auto binding, auto attributes) {
+            return CreateGraphicsPipeline(
+                _device, _pipelineCache,
+                {
+                    .vertexShader = vertexShader,
+                    .fragmentShader = _shaderDirectory / "indexed_rect.frag.spv",
+                    .vertexBindings = std::span{ &binding, 1 },
+                    .vertexAttributes = attributes,
+                    .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
+                    .depthStencil = &depthState,
+                    .layout = _pipelineLayout,
+                    .renderPass = _renderPass,
+                },
+                "vkCreateGraphicsPipelines(rects)");
+        };
+        _pipeline = create(_shaderDirectory / "indexed_rect.vert.spv", kRectCommandBinding, kRectCommandAttributes);
+        _spritePipeline = create(
+            _shaderDirectory / "indexed_sprite.vert.spv", kSpriteCommandBinding, kSpriteCommandAttributes);
     }
 
     void RectPipeline::CreateFramebuffers(const IndexedResources& resources)

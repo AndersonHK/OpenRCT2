@@ -18,42 +18,32 @@
 
 #include <algorithm>
 #include <cmath>
+#include <sfl/static_vector.hpp>
 
 namespace OpenRCT2
 {
-    static ViewportList GetUnzoomedViewports() noexcept
-    {
-        ViewportList viewports;
-        WindowVisitEach([&](WindowBase* w) {
-            if (auto* vp = WindowGetViewport(w); vp != nullptr && vp->isVisible && vp->zoom <= ZoomLevel{ 0 })
-                viewports.push_back(vp);
-        });
-        return viewports;
-    }
-
-    static bool IsEntityVisible(const ViewportList& vpList, const CoordsXYZ& worldLoc) noexcept
-    {
-        for (const auto* vp : vpList)
-        {
-            const auto screenPos = Translate3DTo2DWithZ(vp->rotation, worldLoc);
-            if (vp->Contains(screenPos))
-                return true;
-        }
-        return false;
-    }
-
     void EntityTweener::PopulateEntities()
     {
-        const auto vpList = GetUnzoomedViewports();
-        if (vpList.empty())
+        sfl::static_vector<Viewport*, kWindowLimitMax> viewports;
+        WindowVisitEach([&](WindowBase* window) {
+            if (auto* viewport = WindowGetViewport(window);
+                viewport != nullptr && viewport->isVisible && viewport->zoom <= ZoomLevel{ 0 })
+            {
+                viewports.push_back(viewport);
+            }
+        });
+        if (viewports.empty())
             return;
 
         const auto addEntity = [&](EntityBase* entity) {
             const auto location = entity->getLocation();
-            if (IsEntityVisible(vpList, location))
+            const auto visible = std::ranges::any_of(viewports, [&](const auto* viewport) {
+                return viewport->Contains(Translate3DTo2DWithZ(viewport->rotation, location));
+            });
+            if (visible)
             {
-                Entities.push_back(entity);
-                PrePos.push_back(location);
+                _entities.push_back(entity);
+                _prePositions.push_back(location);
             }
         };
 
@@ -74,27 +64,27 @@ namespace OpenRCT2
 
     void EntityTweener::PostTick()
     {
-        PostPos.reserve(Entities.size());
+        _postPositions.reserve(_entities.size());
         size_t writeIndex = 0;
-        for (size_t readIndex = 0; readIndex < Entities.size(); readIndex++)
+        for (size_t readIndex = 0; readIndex < _entities.size(); readIndex++)
         {
-            auto* ent = Entities[readIndex];
+            auto* ent = _entities[readIndex];
             if (ent == nullptr)
                 continue;
 
             const auto postPos = ent->getLocation();
-            if (PrePos[readIndex] == postPos)
+            if (_prePositions[readIndex] == postPos)
                 continue;
 
             // Tween and transition restore only need entities which moved during this tick. Compacting the parallel arrays
             // here avoids rescanning every visible but stationary peep and vehicle for each rendered frame.
-            Entities[writeIndex] = ent;
-            PrePos[writeIndex] = PrePos[readIndex];
-            PostPos.push_back(postPos);
+            _entities[writeIndex] = ent;
+            _prePositions[writeIndex] = _prePositions[readIndex];
+            _postPositions.push_back(postPos);
             writeIndex++;
         }
-        Entities.resize(writeIndex);
-        PrePos.resize(writeIndex);
+        _entities.resize(writeIndex);
+        _prePositions.resize(writeIndex);
     }
 
     void EntityTweener::RemoveEntity(EntityBase* entity)
@@ -102,22 +92,22 @@ namespace OpenRCT2
         if (entity->type != EntityType::guest && entity->type != EntityType::staff && entity->type != EntityType::vehicle)
             return;
 
-        auto it = std::find(Entities.begin(), Entities.end(), entity);
-        if (it != Entities.end())
+        auto it = std::find(_entities.begin(), _entities.end(), entity);
+        if (it != _entities.end())
             *it = nullptr;
     }
 
     void EntityTweener::Tween(float alpha)
     {
         const float inv = (1.0f - alpha);
-        for (size_t i = 0; i < Entities.size(); ++i)
+        for (size_t i = 0; i < _entities.size(); ++i)
         {
-            auto* ent = Entities[i];
+            auto* ent = _entities[i];
             if (ent == nullptr)
                 continue;
 
-            auto& posA = PrePos[i];
-            auto& posB = PostPos[i];
+            auto& posA = _prePositions[i];
+            auto& posB = _postPositions[i];
 
             ent->moveToForTween(
                 { static_cast<int32_t>(std::round(posB.x * alpha + posA.x * inv)),
@@ -128,21 +118,21 @@ namespace OpenRCT2
 
     void EntityTweener::Restore()
     {
-        for (size_t i = 0; i < Entities.size(); ++i)
+        for (size_t i = 0; i < _entities.size(); ++i)
         {
-            auto* ent = Entities[i];
+            auto* ent = _entities[i];
             if (ent == nullptr)
                 continue;
 
-            ent->moveToForTween(PostPos[i]);
+            ent->moveToForTween(_postPositions[i]);
         }
     }
 
     void EntityTweener::Reset()
     {
-        Entities.clear();
-        PrePos.clear();
-        PostPos.clear();
+        _entities.clear();
+        _prePositions.clear();
+        _postPositions.clear();
     }
 
     static EntityTweener tweener;

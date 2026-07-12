@@ -104,5 +104,9 @@ namespace OpenRCT2
         void serialise(class DataSerialiser& stream);
 
         void paint() const;
+
+    private:
+        void setLocationForMove(const CoordsXYZ& location, bool updateSpatialIndex);
+        void moveToImpl(const CoordsXYZ& location, bool updateSpatialIndex);
     };
 } // namespace OpenRCT2

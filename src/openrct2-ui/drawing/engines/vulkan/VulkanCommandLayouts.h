@@ -54,6 +54,23 @@ namespace OpenRCT2::Ui::Vulkan
         VkVertexInputAttributeDescription{ 10, 0, VK_FORMAT_R32_SFLOAT, offsetof(Gpu::RectCommand, zoom) },
     };
 
+    inline constexpr VkVertexInputBindingDescription kSpriteCommandBinding = {
+        .binding = 0,
+        .stride = sizeof(Gpu::SpriteCommand),
+        .inputRate = VK_VERTEX_INPUT_RATE_INSTANCE,
+    };
+
+    inline constexpr std::array kSpriteCommandAttributes = {
+        VkVertexInputAttributeDescription{ 0, 0, VK_FORMAT_R32G32B32A32_SINT, offsetof(Gpu::SpriteCommand, clip) },
+        VkVertexInputAttributeDescription{ 1, 0, VK_FORMAT_R32G32B32A32_SINT, offsetof(Gpu::SpriteCommand, bounds) },
+        VkVertexInputAttributeDescription{ 2, 0, VK_FORMAT_R32G32_SINT, offsetof(Gpu::SpriteCommand, texelOffset) },
+        VkVertexInputAttributeDescription{ 3, 0, VK_FORMAT_R32_UINT, offsetof(Gpu::SpriteCommand, asset) },
+        VkVertexInputAttributeDescription{ 4, 0, VK_FORMAT_R32_UINT, offsetof(Gpu::SpriteCommand, palettes) },
+        VkVertexInputAttributeDescription{ 5, 0, VK_FORMAT_R32_UINT, offsetof(Gpu::SpriteCommand, effects) },
+        VkVertexInputAttributeDescription{ 6, 0, VK_FORMAT_R32_SINT, offsetof(Gpu::SpriteCommand, depth) },
+        VkVertexInputAttributeDescription{ 7, 0, VK_FORMAT_R32_SFLOAT, offsetof(Gpu::SpriteCommand, zoom) },
+    };
+
     inline constexpr VkVertexInputBindingDescription kWeatherCommandBinding = {
         .binding = 0,
         .stride = sizeof(Gpu::WeatherCommand),

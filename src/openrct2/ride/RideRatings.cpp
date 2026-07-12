@@ -287,15 +287,7 @@ struct RideRatingFixedRideLocalContextBase
     TrackElemType trackType = TrackElemType::none;
 };
 
-struct RawRideRating
-{
-    int64_t excitement{};
-    int64_t intensity{};
-    int64_t nausea{};
-};
-static_assert(std::is_same_v<decltype(RawRideRating::excitement), int64_t>);
-static_assert(std::is_same_v<decltype(RawRideRating::intensity), int64_t>);
-static_assert(std::is_same_v<decltype(RawRideRating::nausea), int64_t>);
+using RawRideRating = RideRating::TickScore;
 
 static int64_t RideRatingCurveScore(int32_t hundredthsOfG, double coefficient, double exponent)
 {
@@ -511,67 +503,35 @@ static RideRatingLocalContextDecomposition RideRatingDecomposeLocalContext(
     };
 }
 
-static RideRating::TickScore RideRatingPrepareTrackedLocalContextScore(
-    const RideRating::LocalContextScore& contextScore, int32_t coefficient)
-{
-    const auto decomposition = RideRatingDecomposeLocalContext(contextScore);
-    const auto verticalExcitement = (static_cast<int64_t>(contextScore.pathNearMiss) * 2)
-        + (static_cast<int64_t>(contextScore.pathLoop) * 2) + (static_cast<int64_t>(contextScore.trackVerticalInteraction) * 2)
-        + (static_cast<int64_t>(contextScore.ownTrackVerticalInteraction) * 2) + decomposition.heightExposureIntensity;
-    const auto nonVerticalExcitement = static_cast<int64_t>(contextScore.excitement) - verticalExcitement;
-    const auto excitementRaw = (nonVerticalExcitement * kTrackedRideRawPerLocalContextPoint)
-        + (verticalExcitement * kTrackedRideRawPerVerticalContextPoint);
-    const auto foreignTrackProximityIntensityRaw = static_cast<int64_t>(contextScore.foreignTrackProximity)
-        * kTrackedRideRawPerForeignTrackIntensityPoint;
-    const auto intensityRaw = (decomposition.nonForeignTrackProximityIntensity * kTrackedRideRawPerLocalContextPoint)
-        + foreignTrackProximityIntensityRaw
-        + ((decomposition.verticalIntensity + decomposition.heightExposureIntensity)
-           * kTrackedRideRawPerVerticalContextPoint);
-    const auto nauseaRaw = (decomposition.nonVerticalNausea * kTrackedRideRawPerLocalContextPoint)
-        + (((decomposition.verticalIntensity + decomposition.heightExposureIntensity)
-            * RideRating::kRideRatingAccumulatorRawScale
-            * kTrackedRideVerticalContextNauseaNumerator)
-           / kTrackedRideVerticalContextNauseaDenominator);
-    return RideRatingScaleTickScore(
-        {
-            .excitement = excitementRaw,
-            .intensity = intensityRaw,
-            .nausea = nauseaRaw,
-        },
-        std::clamp(coefficient, 0, kSampledRideRatingProfileScale));
-}
-
-static RideRating::TickScore RideRatingPrepareBoatHireLocalContextScore(
-    const RideRating::LocalContextScore& contextScore, int32_t coefficient)
+static RideRating::TickScore RideRatingPrepareLocalContextScore(
+    const RideRating::LocalContextScore& contextScore, int32_t coefficient, bool isBoatHire)
 {
     constexpr int64_t rawScale = RideRating::kRideRatingAccumulatorRawScale;
     const auto decomposition = RideRatingDecomposeLocalContext(contextScore);
-    const auto excitementRaw = static_cast<int64_t>(contextScore.excitement) * rawScale;
-    const auto foreignTrackProximityIntensityRaw = (static_cast<int64_t>(contextScore.foreignTrackProximity) * rawScale) / 2;
-    const auto intensityRaw = (decomposition.nonForeignTrackProximityIntensity * rawScale)
-        + foreignTrackProximityIntensityRaw
-        + ((decomposition.verticalIntensity + decomposition.heightExposureIntensity) * rawScale);
-    const auto nauseaRaw = (decomposition.nonVerticalNausea * rawScale)
-        + (((decomposition.verticalIntensity + decomposition.heightExposureIntensity) * rawScale) / 3);
+    const auto verticalExcitement = (static_cast<int64_t>(contextScore.pathNearMiss) * 2)
+        + (static_cast<int64_t>(contextScore.pathLoop) * 2)
+        + (static_cast<int64_t>(contextScore.trackVerticalInteraction) * 2)
+        + (static_cast<int64_t>(contextScore.ownTrackVerticalInteraction) * 2) + decomposition.heightExposureIntensity;
+    const auto nonVerticalExcitement = static_cast<int64_t>(contextScore.excitement) - verticalExcitement;
+    // The decomposed channels already contribute to the aggregate context totals. Scaling them separately here preserves
+    // that accounting while allowing tracked rides and Boat Hire to use different vertical/foreign-track weights.
+    const auto localScale = isBoatHire ? rawScale : kTrackedRideRawPerLocalContextPoint;
+    const auto verticalScale = isBoatHire ? rawScale : kTrackedRideRawPerVerticalContextPoint;
+    const auto foreignTrackScale = isBoatHire ? rawScale / 2 : kTrackedRideRawPerForeignTrackIntensityPoint;
+    const auto verticalTotal = decomposition.verticalIntensity + decomposition.heightExposureIntensity;
+    const auto verticalNauseaRaw = isBoatHire
+        ? (verticalTotal * rawScale) / 3
+        : (verticalTotal * rawScale * kTrackedRideVerticalContextNauseaNumerator)
+            / kTrackedRideVerticalContextNauseaDenominator;
     return RideRatingScaleTickScore(
         {
-            .excitement = excitementRaw,
-            .intensity = intensityRaw,
-            .nausea = nauseaRaw,
+            .excitement = (nonVerticalExcitement * localScale) + (verticalExcitement * verticalScale),
+            .intensity = (decomposition.nonForeignTrackProximityIntensity * localScale)
+                + (static_cast<int64_t>(contextScore.foreignTrackProximity) * foreignTrackScale)
+                + (verticalTotal * verticalScale),
+            .nausea = (decomposition.nonVerticalNausea * localScale) + verticalNauseaRaw,
         },
         std::clamp(coefficient, 0, kSampledRideRatingProfileScale));
-}
-
-RideRating::TickScore RideRating::ScoreLocalContextForVehicleTick(
-    const LocalContextScore& contextScore, int32_t speed, int32_t coefficient)
-{
-    return RideRatingApplyLocalContextSpeed(RideRatingPrepareTrackedLocalContextScore(contextScore, coefficient), speed);
-}
-
-RideRating::TickScore RideRating::ScoreBoatHireLocalContextForVehicleTick(
-    const LocalContextScore& contextScore, int32_t speed, int32_t coefficient)
-{
-    return RideRatingApplyLocalContextSpeed(RideRatingPrepareBoatHireLocalContextScore(contextScore, coefficient), speed);
 }
 
 RideRating::TickScore RideRating::ScoreCachedLocalContextForVehicleTick(
@@ -580,9 +540,8 @@ RideRating::TickScore RideRating::ScoreCachedLocalContextForVehicleTick(
     if (!runtimeCache.preparedScoreValid || runtimeCache.preparedCoefficient != coefficient
         || runtimeCache.preparedForBoatHire != isBoatHire)
     {
-        runtimeCache.preparedScore = isBoatHire
-            ? RideRatingPrepareBoatHireLocalContextScore(runtimeCache.environment.context, coefficient)
-            : RideRatingPrepareTrackedLocalContextScore(runtimeCache.environment.context, coefficient);
+        runtimeCache.preparedScore = RideRatingPrepareLocalContextScore(
+            runtimeCache.environment.context, coefficient, isBoatHire);
         runtimeCache.preparedCoefficient = coefficient;
         runtimeCache.preparedForBoatHire = isBoatHire;
         runtimeCache.preparedScoreValid = true;
@@ -1225,20 +1184,6 @@ RideRating::LocalContextScore RideRating::GetLocalContextScore(const CoordsXYZ& 
         .context;
 }
 
-RideRating::LocalContextScore RideRating::GetVehicleLocalContextScore(
-    const CoordsXYZ& origin, RideId rideId, TrackElemType trackType, uint8_t trackDirection)
-{
-    return RideRatingGetLocalContextEnvironment(
-               origin,
-               {
-                   .rideId = rideId,
-                   .sampleKind = RideRatingLocalContextSampleKind::vehicle,
-                   .trackType = trackType,
-                   .trackDirection = trackDirection,
-               })
-        .context;
-}
-
 RideRating::VehicleRatingEnvironment RideRating::GetVehicleRatingEnvironment(
     const CoordsXYZ& origin, RideId rideId, TrackElemType trackType, uint8_t trackDirection,
     VehicleLocalContextCache& runtimeCache)
@@ -1660,7 +1605,6 @@ static void RideRatingsApplyBonusReversedTrains(RideRating::Tuple& ratings, cons
 static void RideRatingsApplyBonusGoKartRace(RideRating::Tuple& ratings, const Ride& ride, RatingsModifier modifier);
 static void RideRatingsApplyBonusTowerRide(RideRating::Tuple& ratings, const Ride& ride, RatingsModifier modifier);
 static void RideRatingsApplyBonusRotoDrop(RideRating::Tuple& ratings, const Ride& ride);
-static void RideRatingsApplyBonusMazeSize(RideRating::Tuple& ratings, const Ride& ride, RatingsModifier modifier);
 static void RideRatingsApplyBonusBoatHireNoCircuit(RideRating::Tuple& ratings, const Ride& ride, RatingsModifier modifier);
 static void RideRatingsApplyBonusSlideUnlimitedRides(RideRating::Tuple& ratings, const Ride& ride, RatingsModifier modifier);
 static void RideRatingsApplyBonusMotionSimulatorMode(RideRating::Tuple& ratings, const Ride& ride, RatingsModifier modifier);
@@ -2656,9 +2600,6 @@ static void RideRatingsCalculate(RideRating::UpdateState& state, Ride& ride)
                 case RatingsModifierType::BonusRotoDrop:
                     RideRatingsApplyBonusRotoDrop(ratings, ride);
                     break;
-                case RatingsModifierType::BonusMazeSize:
-                    RideRatingsApplyBonusMazeSize(ratings, ride, modifier);
-                    break;
                 case RatingsModifierType::BonusBoatHireNoCircuit:
                     RideRatingsApplyBonusBoatHireNoCircuit(ratings, ride, modifier);
                     break;
@@ -3497,33 +3438,6 @@ static RideRating_t RideRatingsRawToRating(int64_t raw)
     return static_cast<RideRating_t>(std::clamp<int64_t>(static_cast<int64_t>(std::llround(value)), 0, INT16_MAX));
 }
 
-static void RideRatingsRawApplyRideEntryMultipliers(RawRideRating& raw, const Ride& ride)
-{
-    const auto* rideEntry = GetRideEntryByIndex(ride.subtype);
-    if (rideEntry == nullptr)
-    {
-        return;
-    }
-
-    const auto score = RideRating::ApplyRideEntryMultipliers({ raw.excitement, raw.intensity, raw.nausea }, *rideEntry);
-    raw.excitement = score.excitement;
-    raw.intensity = score.intensity;
-    raw.nausea = score.nausea;
-}
-
-static void RideRatingsRawApplyMazeCapacityMode(RawRideRating& raw, const Ride& ride)
-{
-    const auto [numerator, denominator] = ride.getMazeRatingAccumulatorScale();
-    if (numerator == denominator)
-    {
-        return;
-    }
-
-    raw.excitement = (raw.excitement * numerator) / denominator;
-    raw.intensity = (raw.intensity * numerator) / denominator;
-    raw.nausea = (raw.nausea * numerator) / denominator;
-}
-
 static bool RideRatingsModifierIsAggregateSummaryStatGate(RatingsModifierType type)
 {
     switch (type)
@@ -3583,9 +3497,18 @@ static RideRating::Tuple RideRatingsCalculateAggregated(const Ride& ride, const 
         .nausea = accumulator.nausea,
     };
 
-    RideRatingsRawApplyMazeCapacityMode(raw, ride);
+    // Sample accumulation happens before maze capacity and object multipliers; retain this order because each integer
+    // division is intentionally lossy and changing it alters published ratings.
+    const auto [numerator, denominator] = ride.getMazeRatingAccumulatorScale();
+    if (numerator != denominator)
+    {
+        raw.excitement = (raw.excitement * numerator) / denominator;
+        raw.intensity = (raw.intensity * numerator) / denominator;
+        raw.nausea = (raw.nausea * numerator) / denominator;
+    }
     RideRatingsRawApplyModifiers(raw, ride);
-    RideRatingsRawApplyRideEntryMultipliers(raw, ride);
+    if (const auto* rideEntry = GetRideEntryByIndex(ride.subtype); rideEntry != nullptr)
+        raw = RideRating::ApplyRideEntryMultipliers(raw, *rideEntry);
 
     return {
         .excitement = RideRatingsRawToRating(raw.excitement),
@@ -3743,12 +3666,6 @@ static void RideRatingsApplyBonusRotoDrop(RideRating::Tuple& ratings, const Ride
 {
     int32_t lengthFactor = (ToHumanReadableRideLength(ride.getTotalLength()) * 209715) >> 16;
     RideRatingsAdd(ratings, lengthFactor, lengthFactor * 2, lengthFactor * 2);
-}
-
-static void RideRatingsApplyBonusMazeSize(RideRating::Tuple& ratings, const Ride& ride, RatingsModifier modifier)
-{
-    int32_t size = std::min<uint16_t>(ride.mazeTiles, modifier.threshold);
-    RideRatingsAdd(ratings, size * modifier.excitement, size * modifier.intensity, size * modifier.nausea);
 }
 
 static void RideRatingsApplyBonusBoatHireNoCircuit(RideRating::Tuple& ratings, const Ride& ride, RatingsModifier modifier)

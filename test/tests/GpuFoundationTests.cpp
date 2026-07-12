@@ -13,6 +13,7 @@
 #include <openrct2-ui/drawing/engines/gpu/GpuCommandStream.h>
 #include <openrct2-ui/drawing/engines/gpu/GpuFrameMailbox.h>
 #include <openrct2-ui/drawing/engines/gpu/GpuTextureCache.h>
+#include <openrct2-ui/drawing/engines/gpu/GpuTransparencyDepth.h>
 #ifdef ENABLE_VULKAN
     #include <openrct2-ui/drawing/engines/vulkan/VulkanDevice.h>
     #include <openrct2-ui/drawing/engines/vulkan/VulkanSurfaceFormat.h>
@@ -103,6 +104,39 @@ TEST(GpuFoundationTest, AtlasAllocationIdentityDistinguishesReusedSlots)
     EXPECT_NE(first.GetAllocationId(), second.GetAllocationId());
 }
 
+TEST(GpuFoundationTest, AtlasDescriptorIdentityTracksLayerAndSlotButNotAllocationSerial)
+{
+    TextureLocation location;
+    location.index = 2;
+    location.slot = 17;
+    location.allocationSerial = 41;
+
+    EXPECT_EQ(location.GetDescriptorIndex(), 2u * kAtlasSlotsPerLayer + 17u);
+
+    auto reused = location;
+    reused.allocationSerial++;
+    EXPECT_EQ(reused.GetDescriptorIndex(), location.GetDescriptorIndex());
+
+    auto nextLayer = location;
+    nextLayer.index++;
+    EXPECT_NE(nextLayer.GetDescriptorIndex(), location.GetDescriptorIndex());
+    EXPECT_LT(nextLayer.GetDescriptorIndex(), kSpriteAssetDescriptorCount);
+}
+
+TEST(GpuFoundationTest, CompactSpritePackingPreservesPalettesAndEffects)
+{
+    constexpr auto palettes = SpriteCommand::PackPalettes(11, 22, 33, 3);
+    EXPECT_EQ(SpriteCommand::GetPalette(palettes, 0), 11);
+    EXPECT_EQ(SpriteCommand::GetPalette(palettes, 1), 22);
+    EXPECT_EQ(SpriteCommand::GetPalette(palettes, 2), 33);
+    EXPECT_EQ(SpriteCommand::GetPaletteCount(palettes), 3);
+
+    constexpr uint32_t flags = RectCommand::FLAG_NO_TEXTURE | RectCommand::FLAG_MASK | 2u;
+    constexpr auto effects = SpriteCommand::PackEffects(flags, 197);
+    EXPECT_EQ(SpriteCommand::GetEffectFlags(effects), flags);
+    EXPECT_EQ(SpriteCommand::GetEffectColour(effects), 197);
+}
+
 #ifndef DISABLE_TTF
 TEST(GpuFoundationTest, ResidencyLeaseDefersEvictedTtfSlotReuseUntilRetirement)
 {
@@ -154,7 +188,12 @@ TEST(GpuFoundationTest, CachedTtfSurfaceUploadsOnceAndRemainsAtlasResident)
     const auto firstLease = cache.SealFrame(firstCommands);
     EXPECT_EQ(repeatedBinding.index, firstBinding.index);
     ASSERT_EQ(firstCommands.textureUploads.size(), 1u);
-    EXPECT_EQ(firstCommands.textureUploads.front().pixels.size(), pixels.size());
+    const auto& upload = firstCommands.textureUploads.front();
+    EXPECT_EQ(upload.pixels.size(), pixels.size());
+    EXPECT_LT(upload.descriptorIndex, kSpriteAssetDescriptorCount);
+    EXPECT_EQ(upload.descriptor.atlasLayer, static_cast<int32_t>(firstBinding.index));
+    EXPECT_EQ(upload.descriptor.atlasOrigin.x, static_cast<int32_t>(firstBinding.coords.x));
+    EXPECT_EQ(upload.descriptor.atlasOrigin.y, static_cast<int32_t>(firstBinding.coords.y));
     cache.RetireFrame(firstLease, FrameRetirement::Presented);
 
     FrameCommandStream secondCommands;
@@ -768,10 +807,9 @@ TEST(GpuFoundationTest, LightFxComputeLimitsCoverTheFixedShaderDispatchShape)
     EXPECT_FALSE(AreLightFxComputeLimitsSufficient(256, 16, 16, kMaximumLightFxCommandCount - 1));
 }
 
-TEST(GpuFoundationTest, ClearingCommandStreamRetainsOnlyLightFxAllocationCapacity)
+TEST(GpuFoundationTest, ClearingCommandStreamRetainsLightFxAllocationCapacity)
 {
     FrameCommandStream commands;
-    commands.canvasUpload = CanvasUpload{ 64, 320, 320, 200 };
     commands.textureUploads.push_back({
         .atlas = 7,
         .bounds = { 32, 64, 72, 84 },
@@ -786,9 +824,6 @@ TEST(GpuFoundationTest, ClearingCommandStreamRetainsOnlyLightFxAllocationCapacit
     ASSERT_TRUE(commands.lightFx->IsValid());
     const auto capacity = commands.lightFx->intensities.capacity();
     const auto lightCapacity = commands.lightFx->lights.capacity();
-    ASSERT_TRUE(commands.canvasUpload.has_value());
-    EXPECT_EQ(commands.canvasUpload->sourceOffset, 64u);
-    EXPECT_EQ(commands.canvasUpload->sourcePitch, 320u);
     ASSERT_EQ(commands.textureUploads.size(), 1u);
     const auto& upload = commands.textureUploads[0];
     EXPECT_EQ(upload.atlas, 7u);
@@ -805,8 +840,27 @@ TEST(GpuFoundationTest, ClearingCommandStreamRetainsOnlyLightFxAllocationCapacit
     EXPECT_EQ(commands.lightFx->intensities.capacity(), capacity);
     EXPECT_TRUE(commands.lightFx->lights.empty());
     EXPECT_EQ(commands.lightFx->lights.capacity(), lightCapacity);
-    EXPECT_FALSE(commands.canvasUpload.has_value());
     EXPECT_TRUE(commands.textureUploads.empty());
+}
+
+TEST(GpuFoundationTest, TransparencyDepthUsesClippedHalfOpenRectangles)
+{
+    CommandBatch<RectCommand> commands;
+    const auto add = [&](Int4 bounds, Int4 clip) {
+        auto& command = commands.allocate();
+        command.bounds = bounds;
+        command.clip = clip;
+    };
+
+    EXPECT_EQ(MaxTransparencyDepth(commands), 1u);
+    add({ 0, 0, 10, 10 }, { 0, 0, 20, 20 });
+    add({ 10, 0, 20, 10 }, { 0, 0, 20, 20 });
+    EXPECT_EQ(MaxTransparencyDepth(commands), 1u);
+    add({ 5, 5, 15, 15 }, { 0, 0, 20, 20 });
+    add({ 4, 4, 16, 16 }, { 6, 6, 14, 14 });
+    EXPECT_EQ(MaxTransparencyDepth(commands), 3u);
+    add({ 0, 0, 20, 20 }, { 2, 2, 2, 10 });
+    EXPECT_EQ(MaxTransparencyDepth(commands), 3u);
 }
 
 TEST(GpuFoundationTest, IntegratedTimingFieldsRemainExplicitlyOptional)

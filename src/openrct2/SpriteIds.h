@@ -22,7 +22,7 @@ enum : ImageIndex
 {
     // Used for on-demand drawing of dynamic memory
     // Each window that uses temporary sprites gets its own slot to avoid conflicts
-    // when multiple windows are open simultaneously (especially in OpenGL mode)
+    // when multiple windows draw simultaneously
     SPR_TEMP_BEGIN = 0x7FFFA,
     SPR_TEMP_MAP = SPR_TEMP_BEGIN + 0,           // Map.cpp minimap
     SPR_TEMP_TRACK_LIST = SPR_TEMP_BEGIN + 1,    // TrackList.cpp track design preview

@@ -57,7 +57,7 @@
       <PreprocessorDefinitions>__ENABLE_DISCORD__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Breakpad)'=='true' and ('$(Platform)'=='Win32' or '$(Platform)'=='x64')">USE_BREAKPAD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Platform)'=='Win32' or '$(Platform)'=='x64'">USE_FRIBIDI;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(EnableVulkan)'=='true' and '$(EnableVulkanDrawingEngine)'=='true'">ENABLE_VULKAN;ENABLE_VULKAN_DRAWING_ENGINE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(EnableVulkan)'=='true'">ENABLE_VULKAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeader Condition="'$(UsePCH)'=='true'">Use</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(UsePCH)'=='true'">openrct2_pch.h</PrecompiledHeaderFile>
       <ForcedIncludeFiles Condition="'$(UsePCH)'=='true'">openrct2_pch.h</ForcedIncludeFiles>
@@ -282,6 +282,7 @@
     <ClInclude Include="entity\EntityBase.h" />
     <ClInclude Include="entity\EntityList.h" />
     <ClInclude Include="entity\EntityRegistry.h" />
+    <ClInclude Include="entity\EntityVisualLifecycle.h" />
     <ClInclude Include="entity\EntityTweener.h" />
     <ClInclude Include="entity\JumpingFountain.h" />
     <ClInclude Include="entity\Guest.h" />

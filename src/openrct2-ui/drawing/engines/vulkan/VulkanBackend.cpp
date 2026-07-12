@@ -11,7 +11,7 @@
 
     #include "VulkanBackend.h"
 
-    #include "../opengl/TransparencyDepth.h"
+    #include "../gpu/GpuTransparencyDepth.h"
 
     #include <SDL.h>
     #include <algorithm>
@@ -246,23 +246,6 @@ namespace OpenRCT2::Ui::Vulkan
         return _activeFrame;
     }
 
-    Gpu::UploadSlice Backend::AllocateUpload(uint64_t size, uint64_t alignment)
-    {
-        if (!_activeToken.has_value())
-        {
-            throw std::logic_error("Vulkan upload allocation requires an active frame");
-        }
-        const auto allocation = _activeToken->upload->Allocate(size, alignment);
-        if (!allocation)
-        {
-            return {};
-        }
-        return {
-            allocation.offset,
-            std::span<std::byte>(allocation.data, static_cast<size_t>(allocation.size)),
-        };
-    }
-
     void Backend::SetPalette(std::span<const std::byte> rgba)
     {
         CopyExact(rgba, _pendingPalette, "GPU palettes must contain exactly 256 RGBA8 entries");
@@ -298,47 +281,29 @@ namespace OpenRCT2::Ui::Vulkan
         RecordPendingIndexTable(_pendingBlendPalette, _blendPaletteDirty, true);
         RecordPendingLightFalloffs();
         RecordTextureUploads(commands);
-        if (commands.canvasUpload.has_value())
-        {
-            if (!commands.lines.empty() || !commands.opaqueRects.empty() || !commands.transparentRects.empty())
-            {
-                throw std::invalid_argument("Indexed canvas upload cannot be mixed with recorded draw commands");
-            }
-            const auto& upload = *commands.canvasUpload;
-            const uint64_t size = static_cast<uint64_t>(upload.sourcePitch) * upload.height;
-            if (upload.sourceOffset > _activeToken->upload->GetUsed()
-                || size > _activeToken->upload->GetUsed() - upload.sourceOffset)
-            {
-                throw std::out_of_range("Vulkan canvas upload references bytes outside the current upload ring");
-            }
-            const UploadAllocation allocation = { _activeToken->upload->GetBuffer(), upload.sourceOffset, size, nullptr };
-            _resources.RecordCanvasUpload(_activeToken->commandBuffer, _activeToken->frameIndex, allocation, upload);
-        }
         _device.RecordGpuTimestamp(*_activeToken, GpuTimestampPoint::uploadsComplete);
-        const bool requiresDepth = !commands.opaqueRects.empty() || !commands.transparentRects.empty();
-        if (!commands.canvasUpload.has_value())
+        const bool requiresDepth = !commands.opaqueRects.empty() || !commands.opaqueSprites.empty()
+            || !commands.transparentRects.empty();
+        if (commands.lines.empty() && !requiresDepth)
         {
-            if (commands.lines.empty() && !requiresDepth)
+            _resources.RecordCanvasClear(_activeToken->commandBuffer, _activeToken->frameIndex, 0);
+        }
+        else
+        {
+            if (commands.lines.empty())
             {
-                _resources.RecordCanvasClear(_activeToken->commandBuffer, _activeToken->frameIndex, 0);
+                _resources.RecordCanvasAndDepthClear(_activeToken->commandBuffer, _activeToken->frameIndex, 0);
             }
             else
             {
-                if (commands.lines.empty())
-                {
-                    _resources.RecordCanvasAndDepthClear(_activeToken->commandBuffer, _activeToken->frameIndex, 0);
-                }
-                else
-                {
-                    _linePipeline.Record(*_activeToken, commands.lines);
-                }
-                _rectPipeline.Record(*_activeToken, commands.opaqueRects);
+                _linePipeline.Record(*_activeToken, commands.lines);
             }
+            _rectPipeline.Record(*_activeToken, commands.opaqueRects, commands.opaqueSprites);
         }
         bool finalComposite = false;
         if (!commands.transparentRects.empty())
         {
-            const auto layers = static_cast<uint32_t>(MaxTransparencyDepth(commands.transparentRects));
+            const auto layers = Gpu::MaxTransparencyDepth(commands.transparentRects);
             finalComposite = _transparencyPipeline.Record(*_activeToken, commands.transparentRects, layers);
         }
         _weatherPipeline.Record(*_activeToken, commands.weather, finalComposite);
@@ -618,8 +583,13 @@ namespace OpenRCT2::Ui::Vulkan
                 throw std::invalid_argument("Vulkan texture upload payload does not match its bounds and pitch");
             }
             const auto allocation = StageUpload(upload.pixels, "Vulkan upload ring has no room for a sprite atlas upload");
+            const std::span<const Gpu::SpriteAssetDescriptor> descriptor{ &upload.descriptor, 1 };
+            const auto descriptorAllocation = StageUpload(
+                std::as_bytes(descriptor), "Vulkan upload ring has no room for a sprite descriptor upload");
             _resources.RecordAtlasUpload(
                 _activeToken->commandBuffer, allocation, upload.atlas, upload.bounds, upload.sourcePitch);
+            _resources.RecordSpriteDescriptorUpload(
+                _activeToken->commandBuffer, descriptorAllocation, upload.descriptorIndex);
         }
         _resources.EndAtlasUploads(_activeToken->commandBuffer);
     }

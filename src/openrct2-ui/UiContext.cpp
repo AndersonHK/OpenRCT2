@@ -15,7 +15,7 @@
 #include "UiStringIds.h"
 #include "WindowManager.h"
 #include "drawing/engines/DrawingEngineFactory.hpp"
-#if defined(ENABLE_VULKAN) && defined(ENABLE_VULKAN_DRAWING_ENGINE)
+#ifdef ENABLE_VULKAN
     #include "drawing/engines/vulkan/VulkanPlatform.h"
 #endif
 #include "input/ShortcutManager.h"
@@ -863,7 +863,7 @@ private:
             if (SDL_GetRendererOutputSize(renderer, &rWidth, &rHeight) != 0)
                 return;
         }
-#if defined(ENABLE_VULKAN) && defined(ENABLE_VULKAN_DRAWING_ENGINE)
+#ifdef ENABLE_VULKAN
         else if (Config::Get().general.drawingEngine == DrawingEngine::Vulkan)
         {
             const auto extent = Vulkan::Platform::GetDrawableExtent(_window);
@@ -871,11 +871,6 @@ private:
             rHeight = static_cast<int32_t>(extent.height);
         }
 #endif
-        else if (Config::Get().general.drawingEngine == DrawingEngine::OpenGL)
-        {
-            SDL_GL_GetDrawableSize(_window, &rWidth, &rHeight);
-        }
-
         if (rWidth <= 0 || rHeight <= 0 || wWidth <= 0 || wHeight <= 0)
             return;
         config.windowScale = static_cast<float>(rWidth) / wWidth;
@@ -912,12 +907,8 @@ private:
             flags |= SDL_WINDOW_HIDDEN;
         }
         const auto drawingEngine = gIntegratedBenchmark.drawingEngine.value_or(Config::Get().general.drawingEngine);
-        if (drawingEngine == DrawingEngine::OpenGL)
-        {
-            flags |= SDL_WINDOW_OPENGL;
-        }
-#if defined(ENABLE_VULKAN) && defined(ENABLE_VULKAN_DRAWING_ENGINE)
-        else if (drawingEngine == DrawingEngine::Vulkan)
+#ifdef ENABLE_VULKAN
+        if (drawingEngine == DrawingEngine::Vulkan)
         {
             flags |= Vulkan::Platform::GetRequiredSdlWindowFlags();
         }

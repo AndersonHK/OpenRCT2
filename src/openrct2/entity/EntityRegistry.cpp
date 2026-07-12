@@ -9,7 +9,6 @@
 
 #include "EntityRegistry.h"
 
-#include "../Diagnostic.h"
 #include "../Game.h"
 #include "../GameState.h"
 #include "../core/Algorithm.hpp"
@@ -45,7 +44,7 @@ namespace OpenRCT2
 {
     using namespace OpenRCT2::Core;
 
-    static constexpr uint32_t ComputeSpatialIndex(const CoordsXY& loc)
+    uint32_t EntityRegistry::ComputeSpatialIndex(const CoordsXY& loc) noexcept
     {
         if (loc.IsNull())
             return kSpatialIndexNullBucket;
@@ -60,28 +59,14 @@ namespace OpenRCT2
         return tileX * kMaximumMapSizeTechnical + tileY;
     }
 
-    static constexpr uint32_t GetSpatialIndex(EntityBase& entity)
+    uint32_t EntityRegistry::GetSpatialIndex(const EntityBase& entity) noexcept
     {
         return entity.spatialIndex & ~kSpatialIndexDirtyMask;
     }
 
-    static constexpr bool EntityTypeIsMiscEntity(const EntityType type)
+    bool EntityRegistry::IsMiscEntity(const EntityType type) noexcept
     {
-        switch (type)
-        {
-            case EntityType::steamParticle:
-            case EntityType::moneyEffect:
-            case EntityType::crashedVehicleParticle:
-            case EntityType::explosionCloud:
-            case EntityType::crashSplash:
-            case EntityType::explosionFlare:
-            case EntityType::jumpingFountain:
-            case EntityType::balloon:
-            case EntityType::duck:
-                return true;
-            default:
-                return false;
-        }
+        return std::ranges::find(kMiscEntityTypes, type) != kMiscEntityTypes.end();
     }
 
     // TODO: make part of EntityList unit?
@@ -104,9 +89,8 @@ namespace OpenRCT2
     EntityBase* EntityRegistry::GetEntity(EntityId entityIndex)
     {
         if (entityIndex.IsNull())
-        {
             return nullptr;
-        }
+
         Guard::Assert(entityIndex.ToUnderlying() < kMaxEntities, "Tried getting entity %u", entityIndex.ToUnderlying());
         return TryGetEntity(entityIndex);
     }
@@ -173,6 +157,7 @@ namespace OpenRCT2
         _vehicleHeadEntityListDirty = true;
         _freeIds.fill();
         ResetEntitySpatialIndices();
+        ResetEntityVisualLifecycle();
     }
 
     /**
@@ -234,9 +219,7 @@ namespace OpenRCT2
     uint16_t EntityRegistry::GetMiscEntityCount()
     {
         uint16_t count = 0;
-        for (auto id : { EntityType::steamParticle, EntityType::moneyEffect, EntityType::crashedVehicleParticle,
-                         EntityType::explosionCloud, EntityType::crashSplash, EntityType::explosionFlare,
-                         EntityType::jumpingFountain, EntityType::balloon, EntityType::duck })
+        for (const auto id : kMiscEntityTypes)
         {
             count += GetEntityListCount(id);
         }
@@ -265,6 +248,11 @@ namespace OpenRCT2
         base.spatialIndex = kInvalidSpatialIndex;
 
         EntitySpatialInsert(base, { kLocationNull, 0 });
+
+        auto& generation = _entityVisualGenerations[base.id.ToUnderlying()];
+        if (++generation == 0)
+            generation = 1;
+        QueueEntityVisualChange(base.id, EntityVisualDirty::full);
     }
 
     EntityBase* EntityRegistry::CreateEntity(EntityType type)
@@ -275,7 +263,7 @@ namespace OpenRCT2
             return nullptr;
         }
 
-        if (EntityTypeIsMiscEntity(type))
+        if (IsMiscEntity(type))
         {
             // Misc sprites are commonly used for effects, give other entity types higher priority.
             if (GetMiscEntityCount() >= kMaxMiscEntities)
@@ -344,16 +332,11 @@ namespace OpenRCT2
         const auto currentIndex = GetSpatialIndex(entity);
 
         auto& spatialVector = gEntitySpatialIndex[currentIndex];
-        auto index = Algorithm::binaryFind(std::begin(spatialVector), std::end(spatialVector), entity.id);
-        if (index != std::end(spatialVector))
-        {
-            spatialVector.erase(index, index + 1);
-        }
-        else
-        {
-            LOG_WARNING("Bad sprite spatial index. Rebuilding the spatial index...");
-            ResetEntitySpatialIndices();
-        }
+        const auto index = Algorithm::binaryFind(std::begin(spatialVector), std::end(spatialVector), entity.id);
+        // Membership is written only by this registry. Repairing a missing id here used to hide the corrupting mutation and
+        // rebuild every spatial bucket in a hot path; fail at the first broken relationship instead.
+        Guard::Assert(index != std::end(spatialVector), "Entity %u is absent from spatial bucket %u", entity.id.ToUnderlying(), currentIndex);
+        spatialVector.erase(index);
 
         entity.spatialIndex = kInvalidSpatialIndex;
     }
@@ -373,15 +356,20 @@ namespace OpenRCT2
     void EntityRegistry::QueueEntitySpatialIndexUpdate(EntityBase& entity)
     {
         const auto entityIndex = entity.id.ToUnderlying();
-        if (entityIndex >= kMaxEntities || entity.type == EntityType::null || TryGetEntity(entity.id) != &entity
-            || _spatialIndexDirtyQueued.test(entityIndex))
-        {
+        // Presentation-only movement must use moveToForTween(). Every authoritative move belongs to a live registry slot.
+        Guard::Assert(
+            entityIndex < kMaxEntities && entity.type != EntityType::null && TryGetEntity(entity.id) == &entity,
+            "Only registered live entities may queue spatial movement");
+        if (_spatialIndexDirtyQueued.test(entityIndex))
             return;
-        }
 
-        // Keep the id queued through immediate updates so another move in this tick still reaches the final bucket.
         _spatialIndexDirtyQueued.set(entityIndex);
         _spatialIndexDirtyEntities.push_back(entity.id);
+    }
+
+    void EntityRegistry::CancelEntitySpatialIndexUpdate(EntityBase& entity) noexcept
+    {
+        _spatialIndexDirtyQueued.reset(entity.id.ToUnderlying());
     }
 
     void EntityRegistry::UpdateEntitiesSpatialIndex()
@@ -393,33 +381,91 @@ namespace OpenRCT2
 
         PROFILED_FUNCTION();
 
-        // Process detached storage so a defensive full rebuild can safely clear the member worklist.
-        auto pending = std::move(_spatialIndexDirtyEntities);
-        _spatialIndexDirtyEntities.clear();
-
-        for (const auto entityId : pending)
+        // Removal cancels membership but leaves its id in this compact worklist. Checking the bit also makes same-tick id reuse
+        // deterministic: exactly one queued occurrence consumes the replacement entity's final position.
+        for (const auto entityId : _spatialIndexDirtyEntities)
         {
             const auto entityIndex = entityId.ToUnderlying();
+            if (!_spatialIndexDirtyQueued.test(entityIndex))
+                continue;
             _spatialIndexDirtyQueued.reset(entityIndex);
 
-            auto* entity = TryGetEntity(entityId);
-            if (entity->type == EntityType::null || !(entity->spatialIndex & kSpatialIndexDirtyMask))
-                continue;
-
-            UpdateEntitySpatialIndex(*entity);
+            auto& entity = entities[entityIndex].base;
+            Guard::Assert(entity.type != EntityType::null, "Queued spatial entity %u is not live", entityIndex);
+            UpdateEntitySpatialIndex(entity);
         }
-
-        pending.clear();
-        if (_spatialIndexDirtyEntities.empty())
-        {
-            _spatialIndexDirtyEntities.swap(pending);
-        }
+        _spatialIndexDirtyEntities.clear();
     }
 
     void EntityRegistry::ClearSpatialIndexDirtyWorklist() noexcept
     {
         _spatialIndexDirtyEntities.clear();
         _spatialIndexDirtyQueued.reset();
+    }
+
+    EntityVisualHandle EntityRegistry::GetEntityVisualHandle(const EntityId id) const noexcept
+    {
+        const auto index = id.ToUnderlying();
+        assert(index < kMaxEntities);
+        return { _entityVisualEpoch, id, _entityVisualGenerations[index] };
+    }
+
+    void EntityRegistry::QueueEntityVisualChange(const EntityId id, const EntityVisualDirty dirty) noexcept
+    {
+        const auto index = id.ToUnderlying();
+        assert(index < kMaxEntities);
+        _entityVisualDirtyFlags[index] |= static_cast<uint8_t>(dirty);
+        if (_entityVisualDirtyQueued.test(index))
+            return;
+
+        _entityVisualDirtyQueued.set(index);
+        _entityVisualDirtyEntities.push_back(id);
+    }
+
+    void EntityRegistry::QueueEntityVisualChange(EntityBase& entity, const EntityVisualDirty dirty) noexcept
+    {
+        const auto index = entity.id.ToUnderlying();
+        if (index < kMaxEntities && TryGetEntity(entity.id) == &entity)
+            QueueEntityVisualChange(entity.id, dirty);
+    }
+
+    void EntityRegistry::ResetEntityVisualLifecycle() noexcept
+    {
+        if (++_entityVisualEpoch == 0)
+            _entityVisualEpoch = 1;
+        _entityVisualGenerations.fill(0);
+        _entityVisualDirtyFlags.fill(0);
+        _entityVisualDirtyEntities.clear();
+        _entityVisualDirtyQueued.reset();
+        _entityVisualResetPending = true;
+    }
+
+    EntityVisualChangeBatch EntityRegistry::ConsumeEntityVisualChanges()
+    {
+        EntityVisualChangeBatch batch{ _entityVisualEpoch, _entityVisualResetPending, {} };
+        _entityVisualResetPending = false;
+        std::ranges::sort(_entityVisualDirtyEntities);
+        batch.changes.reserve(_entityVisualDirtyEntities.size());
+
+        for (const auto id : _entityVisualDirtyEntities)
+        {
+            const auto index = id.ToUnderlying();
+            const auto& entity = entities[index].base;
+            const bool present = entity.type != EntityType::null;
+            batch.changes.push_back({
+                GetEntityVisualHandle(id),
+                entity.type,
+                entity.getLocation(),
+                entity.spriteData,
+                entity.orientation,
+                static_cast<EntityVisualDirty>(_entityVisualDirtyFlags[index]),
+                present,
+            });
+            _entityVisualDirtyFlags[index] = 0;
+            _entityVisualDirtyQueued.reset(index);
+        }
+        _entityVisualDirtyEntities.clear();
+        return batch;
     }
 
     /**
@@ -449,6 +495,7 @@ namespace OpenRCT2
     void EntityRegistry::EntityRemove(EntityBase* entity)
     {
         FreeEntity(*entity);
+        CancelEntitySpatialIndexUpdate(*entity);
 
         EntityTweener::Get().RemoveEntity(entity);
         auto& list = gEntityLists[EnumValue(entity->type)];
@@ -459,6 +506,7 @@ namespace OpenRCT2
 
         EntitySpatialRemove(*entity);
         EntityReset(*entity);
+        QueueEntityVisualChange(entity->id, EntityVisualDirty::presence);
     }
 
     /**
@@ -521,14 +569,16 @@ void EntityBase::setLocation(const CoordsXYZ& newLocation)
     y = newLocation.y;
     z = newLocation.z;
 
+    getGameState().entities.QueueEntityVisualChange(*this, EntityVisualDirty::transform);
+
     if (spatialIndex & kSpatialIndexDirtyMask)
     {
         // Already marked as dirty.
         return;
     }
 
-    const auto newSpatialIndex = ComputeSpatialIndex({ x, y });
-    if (newSpatialIndex == GetSpatialIndex(*this))
+    const auto newSpatialIndex = EntityRegistry::ComputeSpatialIndex({ x, y });
+    if (newSpatialIndex == EntityRegistry::GetSpatialIndex(*this))
     {
         // Avoid marking it dirty when we don't leave the current tile.
         return;
@@ -540,63 +590,49 @@ void EntityBase::setLocation(const CoordsXYZ& newLocation)
     getGameState().entities.QueueEntitySpatialIndexUpdate(*this);
 }
 
-static void EntitySetLocation(EntityBase& entity, const CoordsXYZ& location, bool updateSpatialIndex)
+void EntityBase::setLocationForMove(const CoordsXYZ& location, bool updateSpatialIndex)
 {
     if (updateSpatialIndex)
     {
-        entity.setLocation(location);
+        setLocation(location);
     }
     else
     {
-        entity.x = location.x;
-        entity.y = location.y;
-        entity.z = location.z;
+        x = location.x;
+        y = location.y;
+        z = location.z;
     }
 }
 
-static void EntitySetCoordinates(const CoordsXYZ& entityPos, EntityBase* entity, bool updateSpatialIndex)
+void EntityBase::moveToImpl(const CoordsXYZ& newLocation, bool updateSpatialIndex)
 {
-    auto screenCoords = Translate3DTo2DWithZ(GetCurrentRotation(), entityPos);
-
-    entity->spriteData.spriteRect = ScreenRect(
-        screenCoords - ScreenCoordsXY{ entity->spriteData.width, entity->spriteData.heightMin },
-        screenCoords + ScreenCoordsXY{ entity->spriteData.width, entity->spriteData.heightMax });
-    EntitySetLocation(*entity, entityPos, updateSpatialIndex);
-}
-
-static void EntityMoveTo(EntityBase& entity, const CoordsXYZ& newLocation, bool updateSpatialIndex)
-{
-    if (entity.x != kLocationNull)
-    {
-        // Invalidate old position.
-        entity.invalidate();
-    }
+    if (x != kLocationNull)
+        invalidate();
 
     auto loc = newLocation;
     if (!MapIsLocationValid(loc))
-    {
         loc.x = kLocationNull;
-    }
 
-    if (loc.x == kLocationNull)
+    if (loc.x != kLocationNull)
     {
-        EntitySetLocation(entity, loc, updateSpatialIndex);
+        const auto screenCoords = Translate3DTo2DWithZ(GetCurrentRotation(), loc);
+        spriteData.spriteRect = ScreenRect(
+            screenCoords - ScreenCoordsXY{ spriteData.width, spriteData.heightMin },
+            screenCoords + ScreenCoordsXY{ spriteData.width, spriteData.heightMax });
     }
-    else
-    {
-        EntitySetCoordinates(loc, &entity, updateSpatialIndex);
-        entity.invalidate(); // Invalidate new position.
-    }
+    setLocationForMove(loc, updateSpatialIndex);
+    if (loc.x != kLocationNull)
+        invalidate();
 }
 
 void EntityBase::moveTo(const CoordsXYZ& newLocation)
 {
-    EntityMoveTo(*this, newLocation, true);
+    moveToImpl(newLocation, true);
 }
 
 void EntityBase::moveToForTween(const CoordsXYZ& newLocation)
 {
-    EntityMoveTo(*this, newLocation, false);
+    moveToImpl(newLocation, false);
 }
 
 void EntityBase::moveToAndUpdateSpatialIndex(const CoordsXYZ& newLocation)

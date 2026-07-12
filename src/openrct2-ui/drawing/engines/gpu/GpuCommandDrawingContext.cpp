@@ -44,6 +44,13 @@ namespace OpenRCT2::Ui::Gpu
             float zoom;
         };
 
+        struct CompactSpriteGeometry
+        {
+            Int4 bounds{};
+            Int2 texelOffset{};
+            float zoom = 1.0f;
+        };
+
         [[nodiscard]] SpriteGeometry CalculatePaletteSpriteGeometry(
             const RenderTarget& rt, const G1Element& element, int32_t x, int32_t y, TextureBinding texture,
             const ScreenRect& clip)
@@ -74,6 +81,46 @@ namespace OpenRCT2::Ui::Gpu
             const int32_t clipX = clip.GetLeft() - rt.x;
             const int32_t clipY = clip.GetTop() - rt.y;
             return { texture, { left + clipX, top + clipY, right + clipX, bottom + clipY }, zoom };
+        }
+
+        [[nodiscard]] CompactSpriteGeometry CalculateCompactSpriteGeometry(
+            const RenderTarget& rt, const ResolvedSprite& sprite, int32_t x, int32_t y, const ScreenRect& clip)
+        {
+            for (uint8_t i = 0; i < sprite.coordinateShift; i++)
+            {
+                x /= 2;
+                y /= 2;
+            }
+
+            int32_t left = x + sprite.xOffset;
+            int32_t top = y + sprite.yOffset;
+            int32_t xModifier = 0;
+            int32_t yModifier = 0;
+            int32_t widthModifier = 0;
+            if (sprite.zoom > ZoomLevel{ 0 })
+            {
+                const int32_t interval = sprite.zoom.ApplyTo(1);
+                xModifier = EuclideanRemainder(left, interval);
+                xModifier = xModifier ? interval - xModifier : 0;
+                yModifier = EuclideanRemainder(top, interval);
+                widthModifier = EuclideanRemainder(left + sprite.width, interval);
+                widthModifier = widthModifier ? interval - widthModifier : 0;
+            }
+
+            left = sprite.zoom.ApplyInversedTo(left + xModifier);
+            top = sprite.zoom.ApplyInversedTo(top);
+            const int32_t right = left + sprite.zoom.ApplyInversedTo(sprite.width + widthModifier);
+            const int32_t bottom = top + sprite.zoom.ApplyInversedTo(sprite.height + yModifier);
+            const int32_t clipX = clip.GetLeft() - rt.x;
+            const int32_t clipY = clip.GetTop() - rt.y;
+            const float zoom = sprite.zoom >= ZoomLevel{ 0 } ? static_cast<float>(sprite.zoom.ApplyTo(1))
+                                                             : 1.0f / sprite.zoom.ApplyInversedTo(1);
+            const int32_t texelY = sprite.zoom > ZoomLevel{ 0 } ? sprite.zoom.ApplyTo(1) - 1 - yModifier : 0;
+            return {
+                .bounds = { left + clipX, top + clipY, right + clipX, bottom + clipY },
+                .texelOffset = { xModifier, texelY },
+                .zoom = zoom,
+            };
         }
     } // namespace
 
@@ -253,6 +300,55 @@ namespace OpenRCT2::Ui::Gpu
     void CommandDrawingContext::DrawSprite(RenderTarget& rt, ImageId imageId, int32_t x, int32_t y)
     {
         assert(_inDraw);
+
+        const bool water = imageId.IsRemap()
+            && static_cast<FilterPaletteID>(imageId.GetRemap()) == FilterPaletteID::paletteWater;
+        if (!water && !imageId.IsBlended())
+        {
+            const auto sprite = _textureCache.GetOrLoadImageSprite(imageId, rt.zoom_level);
+            if (!sprite.has_value())
+                return;
+
+            const ScreenRect clip = CalculateClipping(rt);
+            const auto geometry = CalculateCompactSpriteGeometry(rt, *sprite, x, y, clip);
+            int32_t paletteCount = 0;
+            uint8_t primary = 0;
+            uint8_t secondary = 0;
+            uint8_t tertiary = 0;
+            if (imageId.HasSecondary())
+            {
+                primary = static_cast<uint8_t>(TextureCache::PaletteToY(static_cast<FilterPaletteID>(imageId.GetPrimary())));
+                secondary = static_cast<uint8_t>(
+                    TextureCache::PaletteToY(static_cast<FilterPaletteID>(imageId.GetSecondary())));
+                paletteCount = 2;
+                if (imageId.HasTertiary())
+                {
+                    tertiary = static_cast<uint8_t>(
+                        TextureCache::PaletteToY(static_cast<FilterPaletteID>(imageId.GetTertiary())));
+                    paletteCount = 3;
+                }
+            }
+            else if (imageId.IsRemap())
+            {
+                primary = static_cast<uint8_t>(
+                    TextureCache::PaletteToY(static_cast<FilterPaletteID>(imageId.GetRemap())));
+                paletteCount = 1;
+            }
+
+            auto& command = _commands->opaqueSprites.allocate();
+            command = {
+                .clip = { clip.GetLeft(), clip.GetTop(), clip.GetRight(), clip.GetBottom() },
+                .bounds = geometry.bounds,
+                .texelOffset = geometry.texelOffset,
+                .asset = sprite->descriptorIndex,
+                .palettes = SpriteCommand::PackPalettes(primary, secondary, tertiary, paletteCount),
+                .effects = SpriteCommand::PackEffects(static_cast<uint32_t>(paletteCount), 0),
+                .depth = _drawCount++,
+                .zoom = geometry.zoom,
+            };
+            return;
+        }
+
         const auto* element = GfxGetG1Element(imageId);
         if (element == nullptr || element->width <= 0 || element->height <= 0)
             return;
@@ -276,7 +372,7 @@ namespace OpenRCT2::Ui::Gpu
 
         int32_t paletteCount = 0;
         Int3 palettes{};
-        bool water = false;
+        bool legacyWater = false;
         if (imageId.HasSecondary())
         {
             palettes.x = TextureCache::PaletteToY(static_cast<FilterPaletteID>(imageId.GetPrimary()));
@@ -293,20 +389,20 @@ namespace OpenRCT2::Ui::Gpu
             paletteCount = 1;
             const auto palette = static_cast<FilterPaletteID>(imageId.GetRemap());
             palettes.x = TextureCache::PaletteToY(palette);
-            water = palette == FilterPaletteID::paletteWater;
+            legacyWater = palette == FilterPaletteID::paletteWater;
         }
 
-        auto& batch = (water || imageId.IsBlended()) ? _commands->transparentRects : _commands->opaqueRects;
+        auto& batch = (legacyWater || imageId.IsBlended()) ? _commands->transparentRects : _commands->opaqueRects;
         auto& command = AppendRect(batch, clip, geometry.bounds, geometry.zoom);
         command.texColourAtlas = geometry.texture.index;
         command.texColourBounds = geometry.texture.coords;
-        command.texMaskAtlas = (water || imageId.IsBlended()) ? geometry.texture.index : 0;
-        command.texMaskBounds = (water || imageId.IsBlended())
+        command.texMaskAtlas = (legacyWater || imageId.IsBlended()) ? geometry.texture.index : 0;
+        command.texMaskBounds = (legacyWater || imageId.IsBlended())
             ? geometry.texture.coords
             : Float4{ 0, 0, geometry.texture.coords.z, geometry.texture.coords.w };
         command.palettes = palettes;
-        command.colour = (water || imageId.IsBlended()) ? palettes.x - (water ? 1 : 0) : 0;
-        command.flags = water ? 0
+        command.colour = (legacyWater || imageId.IsBlended()) ? palettes.x - (legacyWater ? 1 : 0) : 0;
+        command.flags = legacyWater ? 0
                               : (imageId.IsBlended() ? RectCommand::FLAG_NO_TEXTURE | RectCommand::FLAG_MASK
                                                      : paletteCount);
     }
@@ -351,33 +447,24 @@ namespace OpenRCT2::Ui::Gpu
         RenderTarget& rt, ImageId image, int32_t x, int32_t y, PaletteIndex colour)
     {
         assert(_inDraw);
-        const auto* element = GfxGetG1Element(image);
-        if (element == nullptr || element->width <= 0 || element->height <= 0)
+        const auto sprite = _textureCache.GetOrLoadImageSprite(image, rt.zoom_level);
+        if (!sprite.has_value())
             return;
 
-        if (rt.zoom_level > ZoomLevel{ 0 })
-        {
-            if (element->flags.has(G1Flag::hasZoomSprite))
-            {
-                RenderTarget zoomed = rt;
-                zoomed.zoom_level = rt.zoom_level - 1;
-                DrawSpriteSolid(
-                    zoomed, image.WithIndex(image.GetIndex() - element->zoomedOffset), x / 2, y / 2, colour);
-                return;
-            }
-            if (element->flags.has(G1Flag::noZoomDraw))
-                return;
-        }
-
         const ScreenRect clip = CalculateClipping(rt);
-        auto geometry = CalculatePaletteSpriteGeometry(
-            rt, *element, x, y, _textureCache.GetOrLoadImageTexture(image), clip);
-
-        auto& command = AppendRect(_commands->opaqueRects, clip, geometry.bounds, geometry.zoom);
-        command.texMaskAtlas = geometry.texture.index;
-        command.texMaskBounds = geometry.texture.coords;
-        command.flags = RectCommand::FLAG_NO_TEXTURE | RectCommand::FLAG_MASK;
-        command.colour = EnumValue(colour);
+        const auto geometry = CalculateCompactSpriteGeometry(rt, *sprite, x, y, clip);
+        auto& command = _commands->opaqueSprites.allocate();
+        command = {
+            .clip = { clip.GetLeft(), clip.GetTop(), clip.GetRight(), clip.GetBottom() },
+            .bounds = geometry.bounds,
+            .texelOffset = geometry.texelOffset,
+            .asset = sprite->descriptorIndex,
+            .palettes = 0,
+            .effects = SpriteCommand::PackEffects(
+                RectCommand::FLAG_NO_TEXTURE | RectCommand::FLAG_MASK, static_cast<uint8_t>(EnumValue(colour))),
+            .depth = _drawCount++,
+            .zoom = geometry.zoom,
+        };
     }
 
     void CommandDrawingContext::DrawGlyph(

@@ -184,3 +184,58 @@ git status --short
 
 With the currently fetched references, the expected divergence after that checkpoint and merge commit is `25 0`. Re-fetch and
 review again if `upstream/develop` advances before the merge.
+
+## Tile-view and maze-rating follow-up checkpoint
+
+`upstream/develop` now points to `a85b40b3efe12090652584257ffdca4a9ee52d49`, two commits beyond the previously integrated
+`6903d5310e305b4902338b2151454aec67838278`. Both commits were reviewed and integrated manually into the current fork
+checkpoint; no merge, cherry-pick, staging, or commit was performed in the live repository.
+
+### `4aa32fd978` — migrate tile scans to `TileElementsView`
+
+The typed/range-based scans were adopted in all 18 upstream-touched files. Ten otherwise clean files match the upstream
+blobs exactly: UI `Construction.cpp`, `Banner.cpp`, `Footpath.cpp`, and `TileInspector.cpp`; `ClearAction.cpp`,
+`TrackRemoveAction.cpp`, `Balloon.cpp`, `Screenshot.cpp`, `Chairlift.cpp`, and world `Banner.cpp`. The redundant null check in
+`WallPlaceAction.cpp` was removed because a `TileElementsView` iterator never yields null.
+
+The remaining files retain fork behavior around the migrated scans:
+
+- `Guest.cpp` changes only the maze-station tile scan and leaves platform staging, exact-seat boarding, and sampled maze
+  movement untouched;
+- `ParkFile.cpp`, `S4Importer.cpp`, and `S6Importer.cpp` adopt typed track-element loops while preserving private save versions,
+  transport state, sampled ratings, and import repair;
+- `ScenarioPatcher.cpp` preserves the fork's `MapTopology` invalidation context;
+- `GuestPathfinding.cpp` migrates only `FootpathElementDestInDir`; transport routing, frozen topology, route fields, and exact
+  destination logic remain on their fork owners;
+- `LandSetHeightAction.cpp` deliberately does not use upstream's erase-during-range-for hunk. `TileElementRemove` compacts the
+  tile array, after which the view iterator would increment past the element shifted into the erased address. The fork uses an
+  explicit compaction-aware loop that keeps the same address after removal and therefore removes consecutive scenery correctly.
+
+### `a85b40b3ef` — maze intensity divisor
+
+The network stream version advances from `1` to upstream version `2`, and the upstream distribution changelog entry remains as
+upstream release history. The arithmetic patch and three legacy rating-fixture edits are intentionally superseded rather than
+copied. This fork's `MazeRTD` has no `BonusMazeSize` modifier: maze ratings come from guest movement samples and the aggregate
+capacity scale. The unreachable `BonusMazeSize` enum value, dispatch case, declaration, and helper were deleted instead of
+maintaining a corrected-but-dead formula. Fork rating fixtures remain unchanged because upstream's lower intensity values
+describe the removed post-hoc modifier, not the fork's sampled maze model.
+
+### Verification and ancestry handoff
+
+The Release x64 Vulkan solution rebuilt successfully after sanitising stale generated PCH state, all 519 tests pass, and
+`git diff --check` reports no whitespace errors. No compiler, test, or MSBuild process remains running.
+
+Before ancestry reconciliation, `git rev-list --left-right --count upstream/develop...HEAD` remains `2 28`: content review does
+not create parentage. A normal recursive merge is inappropriate for this checkpoint because it would attempt to reintroduce the
+deleted maze modifier/fixtures and would conflict at the intentionally compaction-safe land-height loop. After committing the
+reviewed worktree, record the two already-integrated commits with an ancestry-only merge:
+
+```powershell
+git merge -s ours --no-ff upstream/develop -m "Merge upstream/develop through a85b40b3ef (manually integrated)"
+git rev-list --left-right --count upstream/develop...HEAD
+git status --short
+```
+
+With the currently fetched references, the expected divergence is `0 30`: zero upstream commits behind, the existing 28 fork
+commits plus the checkpoint and ancestry merge ahead. Re-fetch and review again if `upstream/develop` advances before running
+the merge.

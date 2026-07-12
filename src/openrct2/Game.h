@@ -28,6 +28,51 @@ namespace OpenRCT2
     // The maximum threshold to advance.
     constexpr float kGameUpdateMaxThreshold = kGameUpdateTimeMS * kGameMaxUpdates;
 
+    constexpr uint8_t kGameSpeedTurbo = 4;
+    constexpr uint32_t kTurboTargetTicksPerSecond = kGameUpdateFPS * (1u << (kGameSpeedTurbo - 1));
+
+    // Fixed-rate simulation deadline which deliberately never carries lateness into a later batch.
+    template<typename Clock>
+    class TurboSimulationPacer
+    {
+        using TimePoint = typename Clock::time_point;
+        using Duration = typename Clock::duration;
+
+        TimePoint _deadline{};
+        bool _initialised{};
+
+    public:
+        void Reset() noexcept
+        {
+            _initialised = false;
+        }
+
+        [[nodiscard]] Duration TimeUntilDue(TimePoint now) const noexcept
+        {
+            return !_initialised || now >= _deadline ? Duration::zero() : _deadline - now;
+        }
+
+        void BeginBatch(TimePoint now) noexcept
+        {
+            if (!_initialised || now > _deadline)
+            {
+                // Presentation and OS delays are not simulation work; discard them before starting the next batch.
+                _deadline = now;
+                _initialised = true;
+            }
+        }
+
+        void CompleteBatch(TimePoint completedAt, Duration interval) noexcept
+        {
+            _deadline += interval;
+            if (_deadline < completedAt)
+            {
+                // An over-budget batch remains throughput-limited without manufacturing catch-up debt.
+                _deadline = completedAt;
+            }
+        }
+    };
+
     // The network update runs at a different rate to the game update.
     constexpr uint32_t kNetworkUpdateFPS = 140;
     // The network update interval in milliseconds, (1000 / 140fps) = ~7.14ms

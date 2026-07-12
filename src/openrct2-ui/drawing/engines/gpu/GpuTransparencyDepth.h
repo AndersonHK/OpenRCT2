@@ -9,14 +9,12 @@
 
 #pragma once
 
-#include "DrawCommands.h"
+#include "GpuCommandStream.h"
 
-namespace OpenRCT2::Ui
+#include <cstdint>
+
+namespace OpenRCT2::Ui::Gpu
 {
-    /*
-     * Determines an approximation of the number of depth peeling iterations needed
-     * to render the command batch. It will never underestimate the number of
-     * iterations, but it can overestimate, usually by no more than +2.
-     */
-    int32_t MaxTransparencyDepth(const RectCommandBatch& transparent);
-} // namespace OpenRCT2::Ui
+    /** Exact maximum overlap of clipped, half-open transparent rectangles. */
+    [[nodiscard]] uint32_t MaxTransparencyDepth(const CommandBatch<RectCommand>& commands);
+} // namespace OpenRCT2::Ui::Gpu

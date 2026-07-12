@@ -7,7 +7,8 @@ file(CREATE_LINK "${CMAKE_CURRENT_LIST_DIR}/testdata" "${CMAKE_BINARY_DIR}/testd
 install(CODE "execute_process(COMMAND \"${CMAKE_COMMAND}\" -E create_symlink \"\$ENV{DESTDIR}${CMAKE_INSTALL_FULL_DATADIR}/openrct2\" \"${CMAKE_BINARY_DIR}/data\")")
 
 set(test_files
-   "${CMAKE_CURRENT_SOURCE_DIR}/../../src/openrct2-ui/drawing/engines/gpu/GpuTextureCache.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../src/openrct2-ui/drawing/engines/gpu/GpuTextureCache.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../src/openrct2-ui/drawing/engines/gpu/GpuTransparencyDepth.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/AssertHelpers.hpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/BitSetTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/CircularBuffer.cpp"

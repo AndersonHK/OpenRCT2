@@ -12,8 +12,6 @@
 #include "../ride/RideTypes.h"
 #include "../world/Location.hpp"
 
-#include <memory>
-
 namespace OpenRCT2
 {
     struct Guest;

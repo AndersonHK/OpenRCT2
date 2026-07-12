@@ -9,17 +9,16 @@
 
 #pragma once
 
-#include "../gpu/GpuCommandStream.h"
+#include <memory>
+
+namespace OpenRCT2::Drawing
+{
+    struct IDrawingEngine;
+}
 
 namespace OpenRCT2::Ui
 {
-    // Compatibility aliases while OpenGL and Vulkan converge on the shared
-    // backend-neutral command stream.
-    using DrawLineCommand = Gpu::LineCommand;
-    using DrawRectCommand = Gpu::RectCommand;
-    using DrawWeatherCommand = Gpu::WeatherCommand;
+    struct IUiContext;
 
-    using LineCommandBatch = Gpu::CommandBatch<DrawLineCommand>;
-    using RectCommandBatch = Gpu::CommandBatch<DrawRectCommand>;
-    using WeatherCommandBatch = Gpu::CommandBatch<DrawWeatherCommand>;
+    [[nodiscard]] std::unique_ptr<Drawing::IDrawingEngine> CreateVulkanDrawingEngine(IUiContext& uiContext);
 } // namespace OpenRCT2::Ui

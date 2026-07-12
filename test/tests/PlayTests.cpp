@@ -10,6 +10,7 @@
 #include "TestData.h"
 
 #include <gtest/gtest.h>
+#include <chrono>
 #include <limits>
 #include <memory>
 #include <openrct2/Context.h>
@@ -93,6 +94,38 @@ TEST_F(PlayTests, DisplayRefreshIntervalUsesReportedRateAndSaneFallback)
     EXPECT_DOUBLE_EQ(GetDisplayRefreshIntervalSeconds(144), 1.0 / 144.0);
     EXPECT_EQ(NormaliseDisplayRefreshRate(0), kDefaultDisplayRefreshRate);
     EXPECT_EQ(NormaliseDisplayRefreshRate(10'000), kDefaultDisplayRefreshRate);
+}
+
+TEST_F(PlayTests, TurboSimulationPacerDropsExternalDelayAndRunsOverBudgetBatchesAtThroughput)
+{
+    using Clock = std::chrono::steady_clock;
+    using namespace std::chrono_literals;
+
+    TurboSimulationPacer<Clock> pacer;
+    const Clock::time_point start{};
+    ASSERT_EQ(pacer.TimeUntilDue(start), 0ms);
+
+    pacer.BeginBatch(start);
+    pacer.CompleteBatch(start + 10ms, 25ms);
+    EXPECT_EQ(pacer.TimeUntilDue(start + 10ms), 15ms);
+
+    const auto slightlyLateStart = start + 26ms;
+    pacer.BeginBatch(slightlyLateStart);
+    pacer.CompleteBatch(slightlyLateStart + 10ms, 25ms);
+    EXPECT_EQ(pacer.TimeUntilDue(slightlyLateStart + 10ms), 15ms);
+
+    const auto oneIntervalLateStart = slightlyLateStart + 50ms;
+    pacer.BeginBatch(oneIntervalLateStart);
+    pacer.CompleteBatch(oneIntervalLateStart + 10ms, 25ms);
+    EXPECT_EQ(pacer.TimeUntilDue(oneIntervalLateStart + 10ms), 15ms);
+
+    const auto overBudgetStart = oneIntervalLateStart + 25ms;
+    pacer.BeginBatch(overBudgetStart);
+    pacer.CompleteBatch(overBudgetStart + 30ms, 25ms);
+    EXPECT_EQ(pacer.TimeUntilDue(overBudgetStart + 30ms), 0ms);
+
+    pacer.Reset();
+    EXPECT_EQ(pacer.TimeUntilDue(overBudgetStart), 0ms);
 }
 
 static std::unique_ptr<IContext> localStartGame(const std::string& parkPath)

@@ -26,51 +26,6 @@ namespace OpenRCT2::Audio
         constexpr float kMaxDopplerSampleSeconds = 0.5f;
         constexpr float kMaxDopplerDistanceStep = kSpatialSpeedOfSound * kMaxDopplerSampleSeconds;
 
-        struct Speaker
-        {
-            float Azimuth;
-            uint8_t Channel;
-        };
-
-        float WrapAngle(float angle)
-        {
-            angle = std::fmod(angle, kTwoPi);
-            return angle < 0.0f ? angle + kTwoPi : angle;
-        }
-
-        template<size_t N>
-        std::array<float, kMaxOutputChannels> PanBetweenSpeakers(float azimuth, const std::array<Speaker, N>& speakers)
-        {
-            std::array<float, kMaxOutputChannels> gains{};
-            const auto wrappedAzimuth = WrapAngle(azimuth);
-
-            for (size_t i = 0; i < speakers.size(); i++)
-            {
-                const auto& left = speakers[i];
-                const auto& right = speakers[(i + 1) % speakers.size()];
-                const auto leftAngle = left.Azimuth;
-                auto rightAngle = right.Azimuth;
-                auto sourceAngle = wrappedAzimuth;
-                if (i + 1 == speakers.size())
-                {
-                    rightAngle += kTwoPi;
-                    if (sourceAngle < leftAngle)
-                    {
-                        sourceAngle += kTwoPi;
-                    }
-                }
-
-                if (sourceAngle >= leftAngle && sourceAngle <= rightAngle)
-                {
-                    const auto arc = rightAngle - leftAngle;
-                    const auto blend = arc > 0.0f ? (sourceAngle - leftAngle) / arc : 0.0f;
-                    gains[left.Channel] = std::cos(blend * std::numbers::pi_v<float> / 2.0f);
-                    gains[right.Channel] = std::sin(blend * std::numbers::pi_v<float> / 2.0f);
-                    break;
-                }
-            }
-            return gains;
-        }
     } // namespace
 
     std::optional<SpatialAudioListener> GetSpatialAudioListener()
@@ -223,6 +178,40 @@ namespace OpenRCT2::Audio
     std::array<float, kMaxOutputChannels> CalculateSpeakerGains(float azimuth, uint8_t channelCount)
     {
         using namespace std::numbers;
+        struct Speaker
+        {
+            float azimuth;
+            uint8_t channel;
+        };
+        const auto panBetweenSpeakers = [azimuth]<size_t N>(const std::array<Speaker, N>& speakers) {
+            std::array<float, kMaxOutputChannels> gains{};
+            auto sourceAngle = std::fmod(azimuth, kTwoPi);
+            if (sourceAngle < 0.0f)
+                sourceAngle += kTwoPi;
+
+            for (size_t i = 0; i < speakers.size(); i++)
+            {
+                const auto& left = speakers[i];
+                const auto& right = speakers[(i + 1) % speakers.size()];
+                auto rightAngle = right.azimuth;
+                auto adjustedSource = sourceAngle;
+                if (i + 1 == speakers.size())
+                {
+                    rightAngle += kTwoPi;
+                    if (adjustedSource < left.azimuth)
+                        adjustedSource += kTwoPi;
+                }
+                if (adjustedSource < left.azimuth || adjustedSource > rightAngle)
+                    continue;
+
+                const auto blend = (adjustedSource - left.azimuth) / (rightAngle - left.azimuth);
+                gains[left.channel] = std::cos(blend * pi_v<float> / 2.0f);
+                gains[right.channel] = std::sin(blend * pi_v<float> / 2.0f);
+                break;
+            }
+            return gains;
+        };
+
         switch (channelCount)
         {
             case 1:
@@ -241,23 +230,19 @@ namespace OpenRCT2::Audio
                 return gains;
             }
             case 4:
-                return PanBetweenSpeakers(
-                    azimuth,
+                return panBetweenSpeakers(
                     std::array{ Speaker{ pi_v<float> / 4.0f, 1 }, Speaker{ 3.0f * pi_v<float> / 4.0f, 3 },
                                 Speaker{ 5.0f * pi_v<float> / 4.0f, 2 }, Speaker{ 7.0f * pi_v<float> / 4.0f, 0 } });
             case 5:
-                return PanBetweenSpeakers(
-                    azimuth,
+                return panBetweenSpeakers(
                     std::array{ Speaker{ pi_v<float> / 4.0f, 1 }, Speaker{ 3.0f * pi_v<float> / 4.0f, 4 },
                                 Speaker{ 5.0f * pi_v<float> / 4.0f, 3 }, Speaker{ 7.0f * pi_v<float> / 4.0f, 0 } });
             case 6:
-                return PanBetweenSpeakers(
-                    azimuth,
+                return panBetweenSpeakers(
                     std::array{ Speaker{ 0.0f, 2 }, Speaker{ pi_v<float> / 6.0f, 1 }, Speaker{ 11.0f * pi_v<float> / 18.0f, 5 },
                                 Speaker{ 25.0f * pi_v<float> / 18.0f, 4 }, Speaker{ 11.0f * pi_v<float> / 6.0f, 0 } });
             case 7:
-                return PanBetweenSpeakers(
-                    azimuth,
+                return panBetweenSpeakers(
                     std::array{ Speaker{ 0.0f, 2 }, Speaker{ pi_v<float> / 6.0f, 1 }, Speaker{ pi_v<float> / 2.0f, 6 },
                                 Speaker{ pi_v<float>, 4 }, Speaker{ 3.0f * pi_v<float> / 2.0f, 5 },
                                 Speaker{ 11.0f * pi_v<float> / 6.0f, 0 } });
@@ -266,8 +251,7 @@ namespace OpenRCT2::Audio
                 // management; full-range positional audio is not routed to it without a low-pass filter. World
                 // effects use a phantom front centre across FL/FR rather than relying on a virtual-headset centre
                 // channel, while still retaining distinct side and rear positions.
-                return PanBetweenSpeakers(
-                    azimuth,
+                return panBetweenSpeakers(
                     std::array{ Speaker{ pi_v<float> / 6.0f, 1 }, Speaker{ pi_v<float> / 2.0f, 7 },
                                 Speaker{ 5.0f * pi_v<float> / 6.0f, 5 }, Speaker{ 7.0f * pi_v<float> / 6.0f, 4 },
                                 Speaker{ 3.0f * pi_v<float> / 2.0f, 6 }, Speaker{ 11.0f * pi_v<float> / 6.0f, 0 } });

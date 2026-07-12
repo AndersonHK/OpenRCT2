@@ -16,7 +16,6 @@
 #include <array>
 #include <cstdint>
 #include <span>
-#include <type_traits>
 #include <utility>
 
 struct Ride;
@@ -66,9 +65,6 @@ namespace OpenRCT2
             int64_t intensity{};
             int64_t nausea{};
         };
-        static_assert(std::is_same_v<decltype(TickScore::excitement), int64_t>);
-        static_assert(std::is_same_v<decltype(TickScore::intensity), int64_t>);
-        static_assert(std::is_same_v<decltype(TickScore::nausea), int64_t>);
 
         struct VehicleGForceSpeedContext
         {
@@ -185,10 +181,6 @@ namespace OpenRCT2
         TickScore ScoreVehicleSpeedForTick(int32_t speed, int32_t coefficient = 1000);
         TransportQualityScore ScoreTransportQualityForVehicleTick(
             int32_t verticalG, int32_t lateralG, int32_t longitudinalG, int32_t speed, const LocalContextScore& contextScore);
-        TickScore ScoreLocalContextForVehicleTick(
-            const LocalContextScore& contextScore, int32_t speed, int32_t coefficient = 1000);
-        TickScore ScoreBoatHireLocalContextForVehicleTick(
-            const LocalContextScore& contextScore, int32_t speed, int32_t coefficient = 1000);
         TickScore ScoreCachedLocalContextForVehicleTick(
             VehicleLocalContextCache& runtimeCache, int64_t normalisedSpeed, int32_t coefficient, bool isBoatHire);
         TickScore ScoreBoatHireFreeRoamForTick(uint32_t tickIndex);
@@ -196,8 +188,6 @@ namespace OpenRCT2
         int32_t ScoreSceneryForLocalContext(int32_t rawScenery);
         std::pair<int32_t, int32_t> GetSceneryVisibilityMultiplier(const Ride& ride);
         LocalContextScore GetLocalContextScore(const CoordsXYZ& origin, RideId rideId);
-        LocalContextScore GetVehicleLocalContextScore(
-            const CoordsXYZ& origin, RideId rideId, TrackElemType trackType, uint8_t trackDirection);
         VehicleRatingEnvironment GetVehicleRatingEnvironment(
             const CoordsXYZ& origin, RideId rideId, TrackElemType trackType, uint8_t trackDirection,
             VehicleLocalContextCache& runtimeCache);

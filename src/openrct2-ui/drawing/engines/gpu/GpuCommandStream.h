@@ -128,13 +128,59 @@ namespace OpenRCT2::Ui::Gpu
         };
     };
 
-    struct CanvasUpload
+    // One atlas-slot lookup retained by the backend. Sprite commands reference
+    // this compact table instead of repeating atlas origin and layer per draw.
+    struct SpriteAssetDescriptor
     {
-        uint32_t sourceOffset;
-        uint32_t sourcePitch;
-        uint32_t width;
-        uint32_t height;
+        Int2 atlasOrigin;
+        int32_t atlasLayer;
+        int32_t reserved;
     };
+
+    struct SpriteCommand
+    {
+        Int4 clip;
+        Int4 bounds;
+        Int2 texelOffset;
+        uint32_t asset;
+        uint32_t palettes;
+        uint32_t effects;
+        int32_t depth;
+        float zoom;
+
+        [[nodiscard]] static constexpr uint32_t PackPalettes(
+            uint8_t primary, uint8_t secondary, uint8_t tertiary, uint8_t count) noexcept
+        {
+            return static_cast<uint32_t>(primary) | (static_cast<uint32_t>(secondary) << 8)
+                | (static_cast<uint32_t>(tertiary) << 16) | (static_cast<uint32_t>(count) << 24);
+        }
+
+        [[nodiscard]] static constexpr uint32_t PackEffects(uint32_t flags, uint8_t colour) noexcept
+        {
+            return (flags & 0xffffu) | (static_cast<uint32_t>(colour) << 16);
+        }
+
+        [[nodiscard]] static constexpr uint8_t GetPalette(uint32_t packed, uint32_t index) noexcept
+        {
+            return static_cast<uint8_t>((packed >> (index * 8)) & 0xffu);
+        }
+
+        [[nodiscard]] static constexpr uint8_t GetPaletteCount(uint32_t packed) noexcept
+        {
+            return static_cast<uint8_t>(packed >> 24);
+        }
+
+        [[nodiscard]] static constexpr uint32_t GetEffectFlags(uint32_t packed) noexcept
+        {
+            return packed & 0xffffu;
+        }
+
+        [[nodiscard]] static constexpr uint8_t GetEffectColour(uint32_t packed) noexcept
+        {
+            return static_cast<uint8_t>((packed >> 16) & 0xffu);
+        }
+    };
+
 #pragma pack(pop)
 
     // Unlike native draw commands, first-use atlas pixels must survive the
@@ -146,6 +192,8 @@ namespace OpenRCT2::Ui::Gpu
         uint32_t atlas = 0;
         Int4 bounds{};
         uint32_t sourcePitch = 0;
+        uint32_t descriptorIndex = 0;
+        SpriteAssetDescriptor descriptor{};
         std::vector<std::byte> pixels;
     };
 
@@ -270,6 +318,8 @@ namespace OpenRCT2::Ui::Gpu
 
     static_assert(std::is_trivially_copyable_v<LineCommand>);
     static_assert(std::is_trivially_copyable_v<RectCommand>);
+    static_assert(std::is_trivially_copyable_v<SpriteAssetDescriptor>);
+    static_assert(std::is_trivially_copyable_v<SpriteCommand>);
     static_assert(std::is_trivially_copyable_v<WeatherCommand>);
     static_assert(sizeof(LineCommand) == 24);
     static_assert(offsetof(LineCommand, bounds) == 0);
@@ -287,11 +337,22 @@ namespace OpenRCT2::Ui::Gpu
     static_assert(offsetof(RectCommand, bounds) == 76);
     static_assert(offsetof(RectCommand, depth) == 92);
     static_assert(offsetof(RectCommand, zoom) == 96);
+    static_assert(sizeof(SpriteAssetDescriptor) == 16);
+    static_assert(offsetof(SpriteAssetDescriptor, atlasOrigin) == 0);
+    static_assert(offsetof(SpriteAssetDescriptor, atlasLayer) == 8);
+    static_assert(sizeof(SpriteCommand) == 60);
+    static_assert(offsetof(SpriteCommand, clip) == 0);
+    static_assert(offsetof(SpriteCommand, bounds) == 16);
+    static_assert(offsetof(SpriteCommand, texelOffset) == 32);
+    static_assert(offsetof(SpriteCommand, asset) == 40);
+    static_assert(offsetof(SpriteCommand, palettes) == 44);
+    static_assert(offsetof(SpriteCommand, effects) == 48);
+    static_assert(offsetof(SpriteCommand, depth) == 52);
+    static_assert(offsetof(SpriteCommand, zoom) == 56);
     static_assert(sizeof(WeatherCommand) == 28);
     static_assert(offsetof(WeatherCommand, bounds) == 0);
     static_assert(offsetof(WeatherCommand, offset) == 16);
     static_assert(offsetof(WeatherCommand, pattern) == 24);
-    static_assert(sizeof(CanvasUpload) == 16);
 
     template<typename T>
     class CommandBatch
@@ -376,20 +437,20 @@ namespace OpenRCT2::Ui::Gpu
     {
         CommandBatch<LineCommand> lines;
         CommandBatch<RectCommand> opaqueRects;
+        CommandBatch<SpriteCommand> opaqueSprites;
         CommandBatch<RectCommand> transparentRects;
         CommandBatch<WeatherCommand> weather;
         std::vector<TextureUpload> textureUploads;
-        std::optional<CanvasUpload> canvasUpload;
         std::optional<LightFxFrameSnapshot> lightFx;
 
         void clear() noexcept // NOLINT(readability-identifier-naming)
         {
             lines.clear();
             opaqueRects.clear();
+            opaqueSprites.clear();
             transparentRects.clear();
             weather.clear();
             textureUploads.clear();
-            canvasUpload.reset();
             if (lightFx.has_value())
             {
                 lightFx->width = 0;
@@ -402,7 +463,8 @@ namespace OpenRCT2::Ui::Gpu
         void reserveForParkView()
         {
             lines.reserve(4096);
-            opaqueRects.reserve(32768);
+            opaqueRects.reserve(8192);
+            opaqueSprites.reserve(32768);
             transparentRects.reserve(4096);
             weather.reserve(64);
             textureUploads.reserve(512);

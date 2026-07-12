@@ -493,10 +493,7 @@ namespace OpenRCT2::Ui::Windows
 
     static constexpr DrawingEngineOption kDrawingEngineOptions[] = {
         { DrawingEngine::SoftwareWithHardwareDisplay, STR_DRAWING_ENGINE_SOFTWARE },
-#ifndef DISABLE_OPENGL
-        { DrawingEngine::OpenGL, STR_DRAWING_ENGINE_OPENGL },
-#endif
-#if defined(ENABLE_VULKAN) && defined(ENABLE_VULKAN_DRAWING_ENGINE)
+#ifdef ENABLE_VULKAN
         { DrawingEngine::Vulkan, STR_DRAWING_ENGINE_VULKAN },
 #endif
     };
@@ -1027,7 +1024,7 @@ namespace OpenRCT2::Ui::Windows
             setCheckboxValue(WIDX_SHOW_FPS_CHECKBOX, Config::Get().general.showFPS);
             setCheckboxValue(WIDX_MULTITHREADING_CHECKBOX, Config::Get().general.multiThreading);
             setCheckboxValue(WIDX_HDR10_OUTPUT_CHECKBOX, Config::Get().general.enableHdr10Output);
-#if defined(ENABLE_VULKAN) && defined(ENABLE_VULKAN_DRAWING_ENGINE)
+#ifdef ENABLE_VULKAN
             setWidgetDisabled(
                 WIDX_HDR10_OUTPUT_CHECKBOX, Config::Get().general.drawingEngine != DrawingEngine::Vulkan);
 #else
@@ -1185,7 +1182,7 @@ namespace OpenRCT2::Ui::Windows
             setCheckboxValue(WIDX_ENABLE_LIGHT_FX_CHECKBOX, Config::Get().general.enableLightFx);
             bool rendererSupportsLightFx =
                 Config::Get().general.drawingEngine == DrawingEngine::SoftwareWithHardwareDisplay;
-#if defined(ENABLE_VULKAN) && defined(ENABLE_VULKAN_DRAWING_ENGINE) && defined(ENABLE_VULKAN_DIRECT_DRAWING_CONTEXT)
+#ifdef ENABLE_VULKAN
             rendererSupportsLightFx |= Config::Get().general.drawingEngine == DrawingEngine::Vulkan;
 #endif
             const bool lightFxEnabled = Config::Get().general.dayNightCycle && rendererSupportsLightFx;

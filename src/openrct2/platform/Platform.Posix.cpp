@@ -303,11 +303,6 @@ namespace OpenRCT2::Platform
         return result;
     }
 
-    bool RequireNewWindow(bool openGL)
-    {
-        return true;
-    }
-
     std::string GetUsername()
     {
         std::string result;

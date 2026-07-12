@@ -26,15 +26,6 @@ else ()
     endif ()
 endif ()
 
-if (NOT DISABLE_OPENGL AND NOT EMSCRIPTEN)
-    # GL doesn't work nicely with macOS, while find_package doesn't work with multiarch on Ubuntu.
-    if (APPLE OR HAIKU)
-        find_package(OpenGL REQUIRED)
-    elseif (NOT WIN32)
-        PKG_CHECK_MODULES(GL REQUIRED gl)
-    endif ()
-endif ()
-
 # Sources
 file(GLOB_RECURSE OPENRCT2_UI_SOURCES
     "${CMAKE_CURRENT_LIST_DIR}/*.cpp")
@@ -68,6 +59,7 @@ if (ENABLE_VULKAN AND NOT EMSCRIPTEN)
             "${VULKAN_SHADER_SOURCE_DIR}/indexed_line.frag"
             "${VULKAN_SHADER_SOURCE_DIR}/indexed_rect.vert"
             "${VULKAN_SHADER_SOURCE_DIR}/indexed_rect.frag"
+            "${VULKAN_SHADER_SOURCE_DIR}/indexed_sprite.vert"
             "${VULKAN_SHADER_SOURCE_DIR}/indexed_transparent_rect.vert"
             "${VULKAN_SHADER_SOURCE_DIR}/indexed_transparent_rect.frag"
             "${VULKAN_SHADER_SOURCE_DIR}/indexed_transparency_compose.vert"
@@ -85,6 +77,7 @@ if (ENABLE_VULKAN AND NOT EMSCRIPTEN)
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_line.frag.spv"
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_rect.vert.spv"
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_rect.frag.spv"
+                AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_sprite.vert.spv"
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_transparent_rect.vert.spv"
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_transparent_rect.frag.spv"
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_transparency_compose.vert.spv"
@@ -177,29 +170,10 @@ if (NOT DISABLE_VORBIS)
     endif ()
 endif ()
 
-if (NOT DISABLE_OPENGL)
-    if (WIN32)
-        target_link_libraries(openrct2 opengl32)
-    elseif (APPLE OR HAIKU)
-        target_link_libraries(openrct2 ${OPENGL_LIBRARY})
-    else ()
-        target_link_libraries(openrct2 ${GL_LIBRARIES})
-    endif ()
-endif ()
-
 if (OPENRCT2_VULKAN_ENABLED)
     target_link_libraries(openrct2 Vulkan::Vulkan)
     target_compile_definitions(openrct2 PRIVATE ENABLE_VULKAN)
-    if (ENABLE_VULKAN_DRAWING_ENGINE)
-        target_compile_definitions(openrct2 PRIVATE ENABLE_VULKAN_DRAWING_ENGINE)
-        target_compile_definitions(libopenrct2 PUBLIC ENABLE_VULKAN ENABLE_VULKAN_DRAWING_ENGINE)
-        if (ENABLE_VULKAN_DIRECT_DRAWING_CONTEXT)
-            target_compile_definitions(openrct2 PRIVATE ENABLE_VULKAN_DIRECT_DRAWING_CONTEXT)
-            if (ENABLE_VULKAN_RENDER_THREAD)
-                target_compile_definitions(openrct2 PRIVATE ENABLE_VULKAN_RENDER_THREAD)
-            endif ()
-        endif ()
-    endif ()
+    target_compile_definitions(libopenrct2 PUBLIC ENABLE_VULKAN)
 endif ()
 
 # Includes
@@ -244,9 +218,6 @@ endif ()
 target_compile_definitions(openrct2 PUBLIC
     $<$<BOOL:${DISABLE_FLAC}>:DISABLE_FLAC>
     $<$<BOOL:${DISABLE_VORBIS}>:DISABLE_VORBIS>
-    # If OpenGL is enabled then we want to dynamically look up symbols.
-    # If its disabled and somehow we magically end up linking to OpenGL we don't want look up the OpenGL symbols????
-    $<IF:$<BOOL:${DISABLE_OPENGL}>,DISABLE_OPENGL,OPENGL_NO_LINK>
 )
 
 if (MSVC)
@@ -259,8 +230,6 @@ endif ()
 # - Other compilers status unknown
 if (ENABLE_HEADERS_CHECK AND "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     set(OPENRCT2_HEADERS_CHECK ${OPENRCT2_UI_HEADERS})
-    # OpenGLAPIProc.h is not meant to be included directly.
-    list(REMOVE_ITEM OPENRCT2_HEADERS_CHECK "${CMAKE_CURRENT_LIST_DIR}/drawing/engines/opengl/OpenGLAPIProc.h")
     add_library(openrct2-headers-check OBJECT ${OPENRCT2_HEADERS_CHECK})
     set_target_properties(openrct2-headers-check PROPERTIES LINKER_LANGUAGE CXX)
     set_source_files_properties(${OPENRCT2_HEADERS_CHECK} PROPERTIES LANGUAGE CXX)

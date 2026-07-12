@@ -17,10 +17,6 @@ namespace OpenRCT2::Drawing
     struct RenderTarget;
 }
 
-enum class DrawingEngine : int32_t;
-
-DrawingEngine drawing_engine_get_type();
-bool DrawingEngineRequiresNewWindow(DrawingEngine srcEngine, DrawingEngine dstEngine);
 void DrawingEngineInit();
 void DrawingEngineResize();
 void DrawingEngineSetPalette(const OpenRCT2::Drawing::GamePalette& colours);

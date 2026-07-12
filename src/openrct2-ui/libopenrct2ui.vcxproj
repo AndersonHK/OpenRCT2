@@ -57,22 +57,9 @@
     <ClInclude Include="drawing\engines\gpu\GpuCommandDrawingContext.h" />
     <ClInclude Include="drawing\engines\gpu\GpuFrameMailbox.h" />
     <ClInclude Include="drawing\engines\gpu\GpuTextureCache.h" />
-    <ClInclude Include="drawing\engines\opengl\ApplyPaletteShader.h" />
-    <ClInclude Include="drawing\engines\opengl\ApplyTransparencyShader.h" />
-    <ClInclude Include="drawing\engines\opengl\CopyRectShader.h" />
-    <ClInclude Include="drawing\engines\opengl\DrawCommands.h" />
-    <ClInclude Include="drawing\engines\opengl\DrawLineShader.h" />
-    <ClInclude Include="drawing\engines\opengl\DrawRectShader.h" />
-    <ClInclude Include="drawing\engines\opengl\GLSLTypes.h" />
-    <ClInclude Include="drawing\engines\opengl\OpenGLAPI.h" />
-    <ClInclude Include="drawing\engines\opengl\OpenGLAPIProc.h" />
-    <ClInclude Include="drawing\engines\opengl\OpenGLFramebuffer.h" />
-    <ClInclude Include="drawing\engines\opengl\OpenGLShaderProgram.h" />
-    <ClInclude Include="drawing\engines\opengl\SwapFramebuffer.h" />
-    <ClInclude Include="drawing\engines\opengl\TextureCache.h" />
-    <ClInclude Include="drawing\engines\opengl\TransparencyDepth.h" />
-    <ClInclude Include="drawing\engines\opengl\WeatherShader.h" />
+    <ClInclude Include="drawing\engines\gpu\GpuTransparencyDepth.h" />
     <ClInclude Include="drawing\engines\vulkan\VulkanDevice.h" />
+    <ClInclude Include="drawing\engines\vulkan\VulkanDrawingEngine.h" />
     <ClInclude Include="drawing\engines\vulkan\VulkanPlatform.h" />
     <ClInclude Include="drawing\engines\vulkan\VulkanSurfaceFormat.h" />
     <ClInclude Include="drawing\engines\vulkan\VulkanBackend.h" />
@@ -146,19 +133,7 @@
     <ClCompile Include="drawing\engines\HardwareDisplayDrawingEngine.cpp" />
     <ClCompile Include="drawing\engines\gpu\GpuCommandDrawingContext.cpp" />
     <ClCompile Include="drawing\engines\gpu\GpuTextureCache.cpp" />
-    <ClCompile Include="drawing\engines\opengl\ApplyPaletteShader.cpp" />
-    <ClCompile Include="drawing\engines\opengl\ApplyTransparencyShader.cpp" />
-    <ClCompile Include="drawing\engines\opengl\CopyRectShader.cpp" />
-    <ClCompile Include="drawing\engines\opengl\DrawLineShader.cpp" />
-    <ClCompile Include="drawing\engines\opengl\DrawRectShader.cpp" />
-    <ClCompile Include="drawing\engines\opengl\OpenGLAPI.cpp" />
-    <ClCompile Include="drawing\engines\opengl\OpenGLDrawingEngine.cpp" />
-    <ClCompile Include="drawing\engines\opengl\OpenGLFramebuffer.cpp" />
-    <ClCompile Include="drawing\engines\opengl\OpenGLShaderProgram.cpp" />
-    <ClCompile Include="drawing\engines\opengl\SwapFramebuffer.cpp" />
-    <ClCompile Include="drawing\engines\opengl\TextureCache.cpp" />
-    <ClCompile Include="drawing\engines\opengl\TransparencyDepth.cpp" />
-    <ClCompile Include="drawing\engines\opengl\WeatherShader.cpp" />
+    <ClCompile Include="drawing\engines\gpu\GpuTransparencyDepth.cpp" />
     <ClCompile Include="drawing\engines\vulkan\VulkanDevice.cpp" />
     <ClCompile Include="drawing\engines\vulkan\VulkanPlatform.cpp" />
     <ClCompile Include="drawing\engines\vulkan\VulkanDrawingEngine.cpp" />
@@ -301,9 +276,6 @@
     <ClCompile>
       <PreprocessorDefinitions Condition="'$(Breakpad)'=='true' and ('$(Platform)'=='Win32' or '$(Platform)'=='x64')">USE_BREAKPAD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(EnableVulkan)'=='true'">ENABLE_VULKAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(EnableVulkan)'=='true' and '$(EnableVulkanDrawingEngine)'=='true'">ENABLE_VULKAN_DRAWING_ENGINE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(EnableVulkan)'=='true' and '$(EnableVulkanDrawingEngine)'=='true' and '$(EnableVulkanDirectDrawingContext)'=='true'">ENABLE_VULKAN_DIRECT_DRAWING_CONTEXT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(EnableVulkan)'=='true' and '$(EnableVulkanDrawingEngine)'=='true' and '$(EnableVulkanDirectDrawingContext)'=='true' and '$(EnableVulkanRenderThread)'=='true'">ENABLE_VULKAN_RENDER_THREAD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories Condition="'$(EnableVulkan)'=='true'">$(VULKAN_SDK)\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeader Condition="'$(UsePCH)'=='true'">Use</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(UsePCH)'=='true'">openrct2ui_pch.h</PrecompiledHeaderFile>

@@ -43,6 +43,9 @@ struct IntegratedBenchmarkConfig
     bool visible{};
     int32_t warmupSeconds{ 5 };
     int32_t measurementSeconds{ 30 };
+    int32_t warmupTicks{ -1 };
+    int32_t measurementTicks{ -1 };
+    u8string profilePath;
     std::optional<DrawingEngine> drawingEngine;
     std::optional<bool> useVSync;
 };
