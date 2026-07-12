@@ -82,7 +82,7 @@ namespace OpenRCT2
     {
         atEntrance = 0,
         inEntrance = 1,
-        freeVehicleCheck = 2, // Spend money on ride
+        freeVehicleCheck = 2,
         leaveEntrance = 3,    // Calculate what direction and where to go after committing to entering vehicle
         approachVehicle = 4,
         enterVehicle = 5,
@@ -104,6 +104,7 @@ namespace OpenRCT2
         leaveShop = 21,
         approachPlatformSlot = 22,
         waitingOnPlatform = 23,
+        atEntrancePaid = 24,
     };
 
     // Substates for guests that are inside the Spiral Slide. Declared as uint16_t to match DestinationX.

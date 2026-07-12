@@ -7,6 +7,13 @@ documents. The upstream project's release history remains in [distribution/chang
 
 ## 2026-07-12
 
+### Ride admission payment at the entrance
+
+Guests now pay a ride ticket or transport fare when they cross the ride entrance instead of when their seat is ready to board.
+Platform guests therefore arrive at their assigned station position with admission already settled. A paid entrance substate
+survives paired-seat and platform recovery back to the same queue front, preventing a second cash charge or voucher consumption;
+boarding continues to own queue-time publication and on-ride notifications.
+
 ### Pitched isometric acoustic camera and direct-path depth
 
 The acoustic listener now occupies a canonical 3D pose on the null ray of the legacy orthographic isometric projection. The viewed terrain focus is camera-forward rather than world-down, so screen-centre and upper/lower-centre sources remain semantically in front while elevated track on the same view ray becomes physically closer and louder. All four rotations derive forward, right, and up from the renderer's exact projection basis.

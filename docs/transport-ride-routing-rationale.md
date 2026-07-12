@@ -153,10 +153,11 @@ The entrance transition follows the guest's actual platform assignment, not the 
 therefore remains on the ordinary train/car/seat reservation path; it cannot enter platform recovery and abandon a live vehicle
 reservation merely because another station or the ride type supports staging.
 
-Platform admission itself is free. Affordability and current price eligibility are checked when a fully unloaded
-train has published itself and the guest is ready to bind. Payment and queue-time publication remain on the established
-successful-entry path. Fare rejection releases the platform assignment and routes the guest through the station exit, avoiding
-refunds and paid-but-never-ridden passengers after closure or configuration changes.
+Affordability and current price eligibility are checked before a guest leaves the external queue. The admission or distance fare
+is then paid when the guest crosses the entrance into the station, before walking to a platform assignment; boarding only consumes
+the already-paid admission. A paired-seat or configuration rollback may return that guest to the front of the same queue, so the
+paid entrance substate follows that attempt and prevents a second charge when the guest crosses again. Closing the ride after a
+guest has entered the paid station area does not retroactively refund the ticket.
 
 The station assignment is immutable during normal operation. Departure capture creates an ordered set of exact
 `(carIndex, seatIndex, waitPosition)` slots from the stopped consist. Pair-loaded cars contribute one complete pair per pass

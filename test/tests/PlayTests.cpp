@@ -369,6 +369,61 @@ TEST_F(PlayTests, SecondGuestInQueueShouldNotRideIfNoFunds)
     EXPECT_EQ(poorGuest->cashInPocket, cashBeforeDecision);
 }
 
+TEST_F(PlayTests, GuestPaysAtEntranceBeforeBoarding)
+{
+    auto context = localStartGame(TestData::GetParkPath("small_park_with_ferris_wheel.sv6"));
+    ASSERT_NE(context, nullptr);
+
+    auto& gameState = getGameState();
+    gameState.park.flags &= ~PARK_FLAGS_NO_MONEY;
+    gameState.park.flags |= PARK_FLAGS_UNLOCK_ALL_PRICES;
+    gameState.cheats.ignorePrice = true;
+
+    auto* ride = FindFerrisWheel(gameState);
+    ASSERT_NE(ride, nullptr);
+    constexpr auto stationIndex = StationIndex::FromUnderlying(0);
+    auto& station = ride->getStation(stationIndex);
+    ASSERT_FALSE(station.Entrance.IsNull());
+
+    auto openResult = executeImmediate<GameActions::RideSetStatusAction>(ride->id, RideStatus::open);
+    ASSERT_EQ(openResult.error, GameActions::Status::ok);
+
+    constexpr money64 admission = 1.23_GBP;
+    auto priceResult = executeImmediate<GameActions::RideSetPriceAction>(ride->id, admission, true);
+    ASSERT_EQ(priceResult.error, GameActions::Status::ok);
+    ASSERT_EQ(RideGetPrice(*ride), admission);
+
+    auto* guest = Guest::generate(station.Entrance.ToCoordsXYZ());
+    ASSERT_NE(guest, nullptr);
+    guest->cashInPocket = 10.00_GBP;
+    guest->CurrentRide = ride->id;
+    guest->CurrentRideStation = stationIndex;
+    guest->SetState(PeepState::queuingFront);
+    guest->RideSubState = PeepRideSubState::atEntrance;
+    guest->DestinationTolerance = 0;
+    guest->guestNextInQueue = EntityId::GetNull();
+    station.LastPeepInQueue = guest->id;
+    station.QueueLength = 1;
+
+    const auto profitBefore = ride->totalProfit;
+    const bool paidAtEntrance = updateUntil(10000, [&]() { return guest->paidOnRides != 0.00_GBP; });
+
+    ASSERT_TRUE(paidAtEntrance);
+    const auto paidAdmission = guest->paidOnRides;
+    EXPECT_EQ(guest->cashInPocket, 10.00_GBP - paidAdmission);
+    EXPECT_GE(ride->totalProfit, profitBefore + paidAdmission);
+    EXPECT_EQ(guest->State, PeepState::enteringRide);
+    EXPECT_NE(guest->State, PeepState::onRide);
+
+    // Progressing from the paid station area into a vehicle must not charge admission again.
+    for (int32_t tick = 0; tick < 64; tick++)
+    {
+        gameStateUpdateLogic();
+    }
+    EXPECT_EQ(guest->cashInPocket, 10.00_GBP - paidAdmission);
+    EXPECT_EQ(guest->paidOnRides, paidAdmission);
+}
+
 TEST_F(PlayTests, CarRideWithOneCarOnlyAcceptsTwoGuests)
 {
     // This test verifies that a car ride with one car will accept at most two guests

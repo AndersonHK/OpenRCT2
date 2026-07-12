@@ -440,7 +440,7 @@ namespace OpenRCT2
         void givePassingGuestPizza(Guest& passingPeep);
         void makePassingGuestSick(Guest& passingPeep);
         void givePassingPeepsIceCream(Guest& passingPeep);
-        void goToRideEntrance(const Ride& ride);
+        void goToRideEntrance(Ride& ride);
     };
 
     void updateRideApproachVehicleWaypointsMotionSimulator(Guest&, const CoordsXY&, int16_t&);

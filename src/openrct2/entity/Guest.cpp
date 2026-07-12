@@ -2787,12 +2787,45 @@ namespace OpenRCT2
         vehicle->peep_tshirt_colours[guest->CurrentSeat] = guest->TshirtColour;
     }
 
+    /** Charges the crossing-time fare once; paired-seat retries carry atEntrancePaid back through the same gate. */
+    static void GuestPayRideAdmission(Guest& guest, Ride& ride)
+    {
+        const auto ridePrice = GuestGetAdmissionPrice(guest, ride);
+        bool paidExtortiveTransport = false;
+        if (ridePrice != 0)
+        {
+            if (guest.hasFreeRideVoucherFor(ride))
+            {
+                guest.removeItem(ShopItem::voucher);
+                guest.WindowInvalidateFlags |= PEEP_INVALIDATE_PEEP_INVENTORY;
+            }
+            else
+            {
+                ride.totalProfit = AddClamp<money64>(ride.totalProfit, ridePrice);
+                ride.windowInvalidateFlags.set(RideInvalidateFlag::income);
+                guest.spendMoney(guest.paidOnRides, ridePrice, ExpenditureType::parkRideTickets);
+                paidExtortiveTransport = guest.isUsingTransportRide(ride) && guest.transportRouteWasExtortive
+                    && ride.priceTarget == RidePriceTarget::badValue;
+            }
+        }
+
+        if (paidExtortiveTransport)
+        {
+            constexpr uint8_t kHappinessPenalty = 24;
+            guest.happinessTarget = guest.happinessTarget > kHappinessPenalty ? guest.happinessTarget - kHappinessPenalty : 0;
+            guest.happiness = std::min(guest.happiness, guest.happinessTarget);
+            guest.insertNewThought(PeepThoughtType::extortiveTransport, ride.id);
+            guest.WindowInvalidateFlags |= PEEP_INVALIDATE_PEEP_2;
+        }
+    }
+
     /**
      *
      *  rct2: 0x00691D27
      */
-    void Guest::goToRideEntrance(const Ride& ride)
+    void Guest::goToRideEntrance(Ride& ride)
     {
+        const bool admissionPaid = RideSubState == PeepRideSubState::atEntrancePaid;
         const auto& station = ride.getStation(CurrentRideStation);
         if (station.Entrance.IsNull())
         {
@@ -2821,6 +2854,10 @@ namespace OpenRCT2
         location.x += x_shift;
         location.y += y_shift;
 
+        if (!admissionPaid)
+        {
+            GuestPayRideAdmission(*this, ride);
+        }
         SetDestination(location, 2);
         SetState(PeepState::enteringRide);
         RideSubState = PeepRideSubState::inEntrance;
@@ -2898,8 +2935,6 @@ namespace OpenRCT2
 
         return !car_array.empty();
     }
-
-    static void GuestCommitRideAdmission(Guest& guest, Ride& ride);
 
     static void PeepUpdateRideAtEntranceTryLeave(Guest& guest)
     {
@@ -3898,7 +3933,8 @@ namespace OpenRCT2
             }
 
             const auto ridePrice = GuestGetAdmissionPrice(*this, *ride);
-            if (ridePrice != 0 && !PeepCheckRidePriceAtEntrance(*this, *ride, ridePrice))
+            if (RideSubState != PeepRideSubState::atEntrancePaid && ridePrice != 0
+                && !PeepCheckRidePriceAtEntrance(*this, *ride, ridePrice))
             {
                 return;
             }
@@ -3937,7 +3973,7 @@ namespace OpenRCT2
             return;
 
         auto ridePrice = GuestGetAdmissionPrice(*this, *ride);
-        if (ridePrice != 0)
+        if (RideSubState != PeepRideSubState::atEntrancePaid && ridePrice != 0)
         {
             if (!PeepCheckRidePriceAtEntrance(*this, *ride, ridePrice))
                 return;
@@ -4305,37 +4341,8 @@ namespace OpenRCT2
      *
      *  rct2: 0x006920B4
      */
-    static void GuestCommitRideAdmission(Guest& guest, Ride& ride)
+    static void GuestCommitRideBoarding(Guest& guest, Ride& ride)
     {
-        auto ridePrice = GuestGetAdmissionPrice(guest, ride);
-        bool paidExtortiveTransport = false;
-        if (ridePrice != 0)
-        {
-            if (guest.hasItem(ShopItem::voucher) && guest.voucherType == VOUCHER_TYPE_RIDE_FREE
-                && guest.voucherRideId == guest.CurrentRide)
-            {
-                guest.removeItem(ShopItem::voucher);
-                guest.WindowInvalidateFlags |= PEEP_INVALIDATE_PEEP_INVENTORY;
-            }
-            else
-            {
-                ride.totalProfit = AddClamp<money64>(ride.totalProfit, ridePrice);
-                ride.windowInvalidateFlags.set(RideInvalidateFlag::income);
-                guest.spendMoney(guest.paidOnRides, ridePrice, ExpenditureType::parkRideTickets);
-                paidExtortiveTransport = guest.isUsingTransportRide(ride) && guest.transportRouteWasExtortive
-                    && ride.priceTarget == RidePriceTarget::badValue;
-            }
-        }
-
-        if (paidExtortiveTransport)
-        {
-            constexpr uint8_t kHappinessPenalty = 24;
-            guest.happinessTarget = guest.happinessTarget > kHappinessPenalty ? guest.happinessTarget - kHappinessPenalty : 0;
-            guest.happiness = std::min(guest.happiness, guest.happinessTarget);
-            guest.insertNewThought(PeepThoughtType::extortiveTransport, ride.id);
-            guest.WindowInvalidateFlags |= PEEP_INVALIDATE_PEEP_2;
-        }
-
         uint8_t queueTime = static_cast<uint8_t>(
             std::min<uint32_t>(GameTime::TicksToMinutes(guest.timeInQueue), std::numeric_limits<uint8_t>::max()));
         auto& station = ride.getStation(guest.CurrentRideStation);
@@ -4373,7 +4380,7 @@ namespace OpenRCT2
 
     void Guest::updateRideFreeVehicleEnterRide(Ride& ride)
     {
-        GuestCommitRideAdmission(*this, ride);
+        GuestCommitRideBoarding(*this, ride);
         RideSubState = PeepRideSubState::leaveEntrance;
         updateRideAdvanceThroughEntrance();
     }
@@ -4396,7 +4403,7 @@ namespace OpenRCT2
 
         guest.SetDestination({ x, y }, 2);
         guest.SetState(PeepState::queuingFront);
-        guest.RideSubState = PeepRideSubState::atEntrance;
+        guest.RideSubState = PeepRideSubState::atEntrancePaid;
 
         ride.queueInsertGuestAtFront(guest.CurrentRideStation, &guest);
     }
@@ -4480,13 +4487,6 @@ namespace OpenRCT2
             return false;
         }
         CurrentTrain = trainIndex;
-        const auto ridePrice = GuestGetAdmissionPrice(*this, ride);
-        if (ridePrice != 0 && !PeepCheckRidePriceAtEntrance(*this, ride, ridePrice))
-        {
-            recoverFromStationPlatform(ride);
-            return true;
-        }
-
         const auto binding = RideBoardStationPlatformGuest(ride, CurrentRideStation, CurrentTrain, *this);
         if (binding == RideStationPlatformSeatBindingResult::seatUnavailable)
         {
@@ -5987,6 +5987,7 @@ namespace OpenRCT2
         switch (RideSubState)
         {
             case PeepRideSubState::atEntrance:
+            case PeepRideSubState::atEntrancePaid:
                 updateRideAtEntrance();
                 break;
             case PeepRideSubState::inEntrance:
