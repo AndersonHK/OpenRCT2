@@ -142,8 +142,7 @@ namespace OpenRCT2
             // Determine how many times we need to update the game
             if (gGameSpeed > 1)
             {
-                // Update more often if game speed is above normal.
-                numUpdates = 1u << (gGameSpeed - 1);
+                numUpdates = GetGameSpeedLogicalUpdateCount(gGameSpeed, isNetworked);
             }
         }
 

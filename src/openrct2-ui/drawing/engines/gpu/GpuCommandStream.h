@@ -442,6 +442,9 @@ namespace OpenRCT2::Ui::Gpu
         CommandBatch<WeatherCommand> weather;
         std::vector<TextureUpload> textureUploads;
         std::optional<LightFxFrameSnapshot> lightFx;
+        std::vector<Int4> damageRectangles;
+        uint64_t damageSerial{};
+        bool fullRedraw{};
 
         void clear() noexcept // NOLINT(readability-identifier-naming)
         {
@@ -451,6 +454,9 @@ namespace OpenRCT2::Ui::Gpu
             transparentRects.clear();
             weather.clear();
             textureUploads.clear();
+            damageRectangles.clear();
+            damageSerial = 0;
+            fullRedraw = false;
             if (lightFx.has_value())
             {
                 lightFx->width = 0;
@@ -468,6 +474,7 @@ namespace OpenRCT2::Ui::Gpu
             transparentRects.reserve(4096);
             weather.reserve(64);
             textureUploads.reserve(512);
+            damageRectangles.reserve(64);
         }
     };
 } // namespace OpenRCT2::Ui::Gpu

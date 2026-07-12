@@ -282,30 +282,19 @@ namespace OpenRCT2::Ui::Vulkan
         RecordPendingLightFalloffs();
         RecordTextureUploads(commands);
         _device.RecordGpuTimestamp(*_activeToken, GpuTimestampPoint::uploadsComplete);
-        const bool requiresDepth = !commands.opaqueRects.empty() || !commands.opaqueSprites.empty()
-            || !commands.transparentRects.empty();
-        if (commands.lines.empty() && !requiresDepth)
-        {
-            _resources.RecordCanvasClear(_activeToken->commandBuffer, _activeToken->frameIndex, 0);
-        }
-        else
-        {
-            if (commands.lines.empty())
-            {
-                _resources.RecordCanvasAndDepthClear(_activeToken->commandBuffer, _activeToken->frameIndex, 0);
-            }
-            else
-            {
-                _linePipeline.Record(*_activeToken, commands.lines);
-            }
-            _rectPipeline.Record(*_activeToken, commands.opaqueRects, commands.opaqueSprites);
-        }
+        _resources.RecordRetainedCanvasRestore(
+            _activeToken->commandBuffer, _activeToken->frameIndex, commands.fullRedraw);
+        _rectPipeline.RecordDamageClear(*_activeToken, commands.damageRectangles);
+        _linePipeline.Record(*_activeToken, commands.lines);
+        _rectPipeline.Record(*_activeToken, commands.opaqueRects, commands.opaqueSprites);
         bool finalComposite = false;
         if (!commands.transparentRects.empty())
         {
             const auto layers = Gpu::MaxTransparencyDepth(commands.transparentRects);
             finalComposite = _transparencyPipeline.Record(*_activeToken, commands.transparentRects, layers);
         }
+        _resources.RecordRetainedCanvasStore(
+            _activeToken->commandBuffer, _activeToken->frameIndex, finalComposite);
         _weatherPipeline.Record(*_activeToken, commands.weather, finalComposite);
         _device.RecordGpuTimestamp(*_activeToken, GpuTimestampPoint::indexedDrawComplete);
         const bool lightFxEnabled = RecordLightFx(commands);

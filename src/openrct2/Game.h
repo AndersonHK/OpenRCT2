@@ -29,7 +29,15 @@ namespace OpenRCT2
     constexpr float kGameUpdateMaxThreshold = kGameUpdateTimeMS * kGameMaxUpdates;
 
     constexpr uint8_t kGameSpeedTurbo = 4;
-    constexpr uint32_t kTurboTargetTicksPerSecond = kGameUpdateFPS * (1u << (kGameSpeedTurbo - 1));
+    constexpr uint32_t kTurboBatchLogicalTicks = 9;
+    constexpr uint32_t kTurboTargetTicksPerSecond = kGameUpdateFPS * kTurboBatchLogicalTicks;
+
+    [[nodiscard]] constexpr uint32_t GetGameSpeedLogicalUpdateCount(uint8_t speed, bool isNetworked) noexcept
+    {
+        if (speed <= 1)
+            return 1;
+        return speed == kGameSpeedTurbo && !isNetworked ? kTurboBatchLogicalTicks : 1u << (speed - 1);
+    }
 
     // Fixed-rate simulation deadline which deliberately never carries lateness into a later batch.
     template<typename Clock>

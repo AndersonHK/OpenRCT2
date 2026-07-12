@@ -1731,8 +1731,21 @@ namespace OpenRCT2
             const auto timeUntilDue = _simulationPacer.TimeUntilDue(now);
             if (timeUntilDue > IntegratedBenchmarkClock::duration::zero())
             {
-                const auto remaining = std::chrono::duration<float>(timeUntilDue).count();
-                Platform::Sleep(static_cast<uint32_t>(std::min(kNetworkUpdateTimeMS, remaining) * 1000.0f));
+                auto timeUntilNextWork = timeUntilDue;
+                if (ShouldDraw() && _nextDrawDeadline != IntegratedBenchmarkClock::time_point{})
+                {
+                    // A 140 Hz network sleep is longer than a 144 Hz display interval. Sleeping only for simulation used to
+                    // wake after the earlier presentation deadline on otherwise idle parks, producing about 132 FPS despite
+                    // sub-millisecond draw work. Floor the earlier deadline to whole milliseconds, then poll the short tail.
+                    timeUntilNextWork = std::min(
+                        timeUntilNextWork,
+                        std::max(_nextDrawDeadline - now, IntegratedBenchmarkClock::duration::zero()));
+                }
+                const auto remaining = std::chrono::duration<float>(timeUntilNextWork).count();
+                const auto sleepMilliseconds =
+                    static_cast<uint32_t>(std::min(kNetworkUpdateTimeMS, remaining) * 1000.0f);
+                if (sleepMilliseconds != 0)
+                    Platform::Sleep(sleepMilliseconds);
                 return;
             }
 

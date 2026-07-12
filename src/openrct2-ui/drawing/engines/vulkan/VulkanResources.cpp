@@ -684,6 +684,16 @@ namespace OpenRCT2::Ui::Vulkan
     {
         RecordCanvasClear(commandBuffer, frameIndex, paletteIndex);
 
+        RecordDepthClear(commandBuffer, frameIndex);
+    }
+
+    void IndexedResources::RecordDepthClear(VkCommandBuffer commandBuffer, uint32_t frameIndex)
+    {
+        if (frameIndex >= kFramesInFlight)
+        {
+            throw std::out_of_range("Vulkan depth canvas frame index is out of range");
+        }
+
         auto& depth = _depthCanvases.at(frameIndex);
         constexpr auto range = ImageRange(VK_IMAGE_ASPECT_DEPTH_BIT);
         RecordImageBarrier(
@@ -698,9 +708,94 @@ namespace OpenRCT2::Ui::Vulkan
             VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT);
     }
 
+    void IndexedResources::RecordRetainedCanvasRestore(
+        VkCommandBuffer commandBuffer, uint32_t frameIndex, bool fullRedraw)
+    {
+        if (fullRedraw || !_retainedCanvasHasContent)
+        {
+            RecordCanvasAndDepthClear(commandBuffer, frameIndex, 0);
+            return;
+        }
+        if (frameIndex >= kFramesInFlight)
+        {
+            throw std::out_of_range("Vulkan retained canvas frame index is out of range");
+        }
+
+        auto& canvas = _indexedCanvases[frameIndex];
+        constexpr auto range = ImageRange();
+        RecordImageBarrier(
+            commandBuffer, canvas.GetImage(),
+            _canvasHasShaderLayout[frameIndex] ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, range,
+            _canvasHasShaderLayout[frameIndex] ? VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT : VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+            VK_PIPELINE_STAGE_TRANSFER_BIT, _canvasHasShaderLayout[frameIndex] ? VK_ACCESS_SHADER_READ_BIT : 0,
+            VK_ACCESS_TRANSFER_WRITE_BIT);
+        const auto extent = canvas.GetExtent();
+        const VkImageCopy copy = {
+            .srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+            .srcOffset = { 0, 0, 0 },
+            .dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+            .dstOffset = { 0, 0, 0 },
+            .extent = extent,
+        };
+        vkCmdCopyImage(
+            commandBuffer, _retainedCanvas.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, canvas.GetImage(),
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
+        RecordImageBarrier(
+            commandBuffer, canvas.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            range, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
+            VK_ACCESS_SHADER_READ_BIT);
+        _canvasHasShaderLayout[frameIndex] = true;
+        RecordDepthClear(commandBuffer, frameIndex);
+    }
+
+    void IndexedResources::RecordRetainedCanvasStore(
+        VkCommandBuffer commandBuffer, uint32_t frameIndex, bool sourceComposite)
+    {
+        if (frameIndex >= kFramesInFlight)
+        {
+            throw std::out_of_range("Vulkan retained canvas frame index is out of range");
+        }
+
+        auto& source = sourceComposite ? _compositeCanvases[frameIndex] : _indexedCanvases[frameIndex];
+        constexpr auto range = ImageRange();
+        RecordImageBarrier(
+            commandBuffer, source.GetImage(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            range, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_SHADER_READ_BIT,
+            VK_ACCESS_TRANSFER_READ_BIT);
+        RecordImageBarrier(
+            commandBuffer, _retainedCanvas.GetImage(),
+            _retainedCanvasHasContent ? VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, range,
+            _retainedCanvasHasContent ? VK_PIPELINE_STAGE_TRANSFER_BIT : VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+            VK_PIPELINE_STAGE_TRANSFER_BIT, _retainedCanvasHasContent ? VK_ACCESS_TRANSFER_READ_BIT : 0,
+            VK_ACCESS_TRANSFER_WRITE_BIT);
+        const auto extent = source.GetExtent();
+        const VkImageCopy copy = {
+            .srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+            .srcOffset = { 0, 0, 0 },
+            .dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+            .dstOffset = { 0, 0, 0 },
+            .extent = extent,
+        };
+        vkCmdCopyImage(
+            commandBuffer, source.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, _retainedCanvas.GetImage(),
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
+        RecordImageBarrier(
+            commandBuffer, source.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            range, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_TRANSFER_READ_BIT,
+            VK_ACCESS_SHADER_READ_BIT);
+        RecordImageBarrier(
+            commandBuffer, _retainedCanvas.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, range, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+            VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT);
+        _retainedCanvasHasContent = true;
+    }
+
     void IndexedResources::CreateCanvases(Gpu::Extent logicalExtent)
     {
         _canvasHasShaderLayout.fill(false);
+        _retainedCanvasHasContent = false;
         _lightMapHasShaderLayout.fill(false);
         _lightAccumulatorHasShaderLayout.fill(false);
         const VkExtent3D extent = { std::max(logicalExtent.width, 1u), std::max(logicalExtent.height, 1u), 1 };
@@ -708,6 +803,8 @@ namespace OpenRCT2::Ui::Vulkan
                                     VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT) {
             image.Initialise(_physicalDevice, _device, extent, 1, format, usage, aspect);
         };
+        initialise(
+            _retainedCanvas, VK_FORMAT_R8_UINT, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
         for (uint32_t i = 0; i < kFramesInFlight; i++)
         {
             initialise(
@@ -743,9 +840,11 @@ namespace OpenRCT2::Ui::Vulkan
     void IndexedResources::DestroyCanvases()
     {
         _canvasHasShaderLayout.fill(false);
+        _retainedCanvasHasContent = false;
         _lightMapHasShaderLayout.fill(false);
         _lightAccumulatorHasShaderLayout.fill(false);
         DisposeImages(_indexedCanvases);
+        _retainedCanvas.Dispose();
         DisposeImages(_depthCanvases);
         DisposeImages(_compositeCanvases);
         DisposeImages(_transparentCanvases);

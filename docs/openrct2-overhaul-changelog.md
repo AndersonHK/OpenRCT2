@@ -5,6 +5,30 @@ important implementation corrections, and the evidence available at each checkpo
 in the [README](../readme.md); exact mechanics, architecture, benchmark methods, and build procedures live in the linked topic
 documents. The upstream project's release history remains in [distribution/changelog.txt](../distribution/changelog.txt).
 
+## 2026-07-12
+
+### Independent 144 FPS deadline and 360 TPS Turbo definition
+
+Offline Turbo now performs nine logical updates per 40 Hz batch, making 360 TPS an actual scheduler target rather than an
+unreachable request above the former eight-update ceiling. Network play retains its established eight-update cadence. Turbo
+sleeps until the earlier of its simulation and presentation deadlines; the old simulation-only sleep crossed the 144 Hz frame
+deadline and produced an artificial 132 FPS plateau despite sub-millisecond rendering.
+
+Diamond Heights now sustains 144.021 FPS and 354.877 TPS over 3,600 measured logical ticks. EverythingPark sustains 144.035 FPS
+and 248.336 TPS. Both preserve deterministic fixed-run checksums. The latter remains simulation-bound: 3.193 ms per logical tick
+already exceeds the 2.778 ms budget before its 1.422 ms CPU paint traversal is included, while Vulkan itself averages 0.101 ms.
+
+### Retained Vulkan damage canvas
+
+Vulkan retains the pre-weather indexed scene in device-local memory and rebuilds only acknowledged dirty regions. Damage is
+retired only after presentation, so newest-frame replacement cannot discard an invalidation. Sparse scenes retain their prior
+canvas; dense scenes cross over to one full traversal instead of repeatedly entering the viewport painter for fragmented damage.
+Focused tests cover dropped packets, old acknowledgements, dense crossover, partial-damage readback, and retained pixels outside
+the changed region.
+
+The shared path route-field builder now records reverse-edge source directions during breadth-first traversal, removing the
+second full node-and-edge scan while preserving deterministic lowest-direction ties.
+
 ## 2026-07-11
 
 ### Deterministic 360 TPS / 144 FPS audit

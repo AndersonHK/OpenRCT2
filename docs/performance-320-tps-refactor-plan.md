@@ -5,8 +5,8 @@
 The performance target is **360 completed logical simulation ticks per wall-clock second while sustaining 144 presented frames
 per second** on `test/tests/testdata/parks/EverythingPark.park`. A requested game-speed multiplier is not evidence of success:
 the measured `GameState::currentTicks` and completed-frame deltas must reach both targets in the same interval while the game
-remains responsive. Ordinary Turbo currently requests eight logical updates per 40 Hz scene batch, or 320 TPS; reaching 360
-therefore also requires an intentional nine-update Turbo definition after the runtime can sustain it.
+remains responsive. Ordinary offline Turbo requests nine logical updates per 40 Hz scene batch, or 360 TPS. Network sessions
+retain the established eight-update cadence so the local performance target does not alter protocol pacing.
 
 The work follows these priorities:
 
@@ -69,11 +69,11 @@ openrct2 EverythingPark.park --benchmark-ui --benchmark-warmup=5 --benchmark-dur
 For deterministic comparisons, replace the time-based phase limits with fixed counts:
 
 ```text
-openrct2 EverythingPark.park --benchmark-ui --benchmark-warmup-ticks=2000 --benchmark-ticks=2000 \
+openrct2 EverythingPark.park --benchmark-ui --benchmark-warmup-ticks=1998 --benchmark-ticks=3600 \
     --benchmark-renderer=vulkan --benchmark-vsync=1
 ```
 
-Fixed counts must be multiples of the current eight-tick Turbo batch. This keeps the initial/final population, route-cache
+Fixed counts must be multiples of the current nine-tick offline Turbo batch. This keeps the initial/final population, route-cache
 state, and checksum identical across builds instead of allowing a faster build to simulate farther during a time-based warm-up
 and benchmark a different park population.
 
@@ -141,11 +141,11 @@ packet. Repeated Vulkan runs report zero palette warnings.
 
 ### Refresh-paced Turbo checkpoint
 
-The former Turbo scheduler explicitly limited presentation to one frame every `1 / 15` seconds and then ran all eight logical
+The former Turbo scheduler explicitly limited presentation to one frame every `1 / 15` seconds and then ran eight logical
 updates in a 40 Hz scene batch before returning to SDL. That policy explains the measured 13.334 FPS: it was intentional
 throttling, not a Vulkan or GPU ceiling. Turbo now yields only between completed logical updates. At that safe boundary it can
 pump SDL, dispatch completed background work, process window input, update the UI, and paint when the monitor-derived refresh
-deadline is due. Forty-Hz scene housekeeping and the eight-logical-update Turbo batch remain unchanged.
+deadline is due. Forty-Hz scene housekeeping remains unchanged; offline Turbo now performs nine logical updates per batch.
 
 Presentation deadlines remain anchored to the current refresh rate. Turbo simulation now owns a separate deadline instead of
 borrowing the ordinary four-frame accumulator. Any lateness observed before a batch is discarded, so rendering, OS scheduling,
@@ -183,6 +183,25 @@ longer than 6.94 ms. That stronger guarantee requires moving simulation behind a
 the UI thread can present and accept input while the next state is being computed. The next renderer slice should likewise
 move paint traversal and command preparation behind that boundary; Vulkan backend submission already consumes immutable newest
 frame packets without a full-canvas upload.
+
+### Nine-tick and retained-canvas checkpoint
+
+The Turbo scheduler now treats simulation and presentation as separate deadlines and sleeps only until the earlier one. The
+previous simulation-only sleep could wake after a 144 Hz presentation deadline even when a frame took less than one millisecond,
+which produced the misleading 132 FPS plateau on Diamond Heights. A fixed 3,600-tick run now sustains 144.021 FPS with
+6.946/7.277/7.657 ms p50/p95/p99 frame intervals and 354.877 TPS. CPU frame construction averages 0.170 ms and GPU execution
+0.047 ms, leaving substantial presentation headroom; the small TPS deficit is scheduler and simulation time, not rendering.
+
+Vulkan now retains the pre-weather indexed canvas in device-local memory. Generation-tagged dirty cells remain pending until a
+frame is actually presented, so replacing a stale mailbox packet cannot lose damage. Sparse changes restore the retained canvas,
+clear and redraw only dirty regions, then snapshot the new base before weather. When more than half the damage grid is dirty, the
+renderer deliberately crosses over to one full scene traversal: repeated clipped viewport entry is measurably slower on dense,
+highly animated parks.
+
+On EverythingPark the adaptive crossover sustains 144.035 FPS and 248.336 TPS over the same fixed 3,600 logical ticks. Complete
+CPU-side draw construction averages 1.422 ms while the GPU averages 0.101 ms. Simulation averages 3.193 ms per logical tick, so
+the combined 360 TPS / 144 FPS target is not yet reached. The next large gain requires persistent world records and GPU culling
+or indirect draw generation, plus simulation hot-path work; further present-call tuning cannot recover this gap.
 
 ## Prong A: Vulkan renderer, GPU-owned composition and bus traffic
 

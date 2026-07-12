@@ -96,6 +96,17 @@ TEST_F(PlayTests, DisplayRefreshIntervalUsesReportedRateAndSaneFallback)
     EXPECT_EQ(NormaliseDisplayRefreshRate(10'000), kDefaultDisplayRefreshRate);
 }
 
+TEST_F(PlayTests, TurboRequestsTheExplicit360TickBatchWithoutChangingOtherSpeedSteps)
+{
+    EXPECT_EQ(GetGameSpeedLogicalUpdateCount(1, false), 1u);
+    EXPECT_EQ(GetGameSpeedLogicalUpdateCount(2, false), 2u);
+    EXPECT_EQ(GetGameSpeedLogicalUpdateCount(3, false), 4u);
+    EXPECT_EQ(GetGameSpeedLogicalUpdateCount(kGameSpeedTurbo, false), 9u);
+    EXPECT_EQ(GetGameSpeedLogicalUpdateCount(kGameSpeedTurbo, true), 8u);
+    EXPECT_EQ(GetGameSpeedLogicalUpdateCount(kGameSpeedTurbo + 1, false), 16u);
+    EXPECT_EQ(kTurboTargetTicksPerSecond, 360u);
+}
+
 TEST_F(PlayTests, TurboSimulationPacerDropsExternalDelayAndRunsOverBudgetBatchesAtThroughput)
 {
     using Clock = std::chrono::steady_clock;

@@ -31,8 +31,13 @@ namespace OpenRCT2::MapPathRouteCache
     namespace
     {
         using NodeIndex = uint32_t;
+        using PackedIncomingEdge = uint32_t;
         constexpr auto kInvalidNodeIndex = std::numeric_limits<NodeIndex>::max();
         constexpr auto kUnreachableDistance = std::numeric_limits<uint32_t>::max();
+        constexpr auto kIncomingEdgeDirectionBits = 2;
+
+        static_assert(kNumOrthogonalDirections == (1 << kIncomingEdgeDirectionBits));
+        static_assert(kMaxTileElements < (1u << (32 - kIncomingEdgeDirectionBits)));
 
         struct FrozenNode
         {
@@ -66,7 +71,7 @@ namespace OpenRCT2::MapPathRouteCache
             std::vector<std::pair<uint64_t, NodeIndex>> nodeIndex;
             std::vector<std::pair<uint64_t, NodeIndex>> entranceIndex;
             std::vector<uint32_t> incomingOffsets;
-            std::vector<NodeIndex> incomingEdges;
+            std::vector<PackedIncomingEdge> incomingEdges;
         };
 
         struct RouteField
@@ -329,7 +334,11 @@ namespace OpenRCT2::MapPathRouteCache
                 {
                     const auto target = graph.nodes[source].connections[direction];
                     if (target != kInvalidNodeIndex)
-                        graph.incomingEdges[cursors[target]++] = source;
+                    {
+                        // The low bits carry the source-to-target direction, allowing reverse BFS to publish directions
+                        // without rescanning every node's four outgoing edges after calculating distances.
+                        graph.incomingEdges[cursors[target]++] = (source << kIncomingEdgeDirectionBits) | direction;
+                    }
                 }
             }
             return std::optional<FrozenGraph>{ std::move(graph) };
@@ -452,31 +461,24 @@ namespace OpenRCT2::MapPathRouteCache
                 for (auto edgeIndex = graph.incomingOffsets[current]; edgeIndex < graph.incomingOffsets[current + 1];
                      edgeIndex++)
                 {
-                    const auto source = graph.incomingEdges[edgeIndex];
-                    if (distances[source] != kUnreachableDistance
-                        || !NodeIsAllowed(graph.nodes[source], target.queueRide))
+                    const auto incomingEdge = graph.incomingEdges[edgeIndex];
+                    const auto source = incomingEdge >> kIncomingEdgeDirectionBits;
+                    if (!NodeIsAllowed(graph.nodes[source], target.queueRide))
                     {
                         continue;
                     }
-                    distances[source] = nextDistance;
-                    queue.push_back(source);
-                }
-            }
-
-            for (NodeIndex source = 0; source < graph.nodes.size(); source++)
-            {
-                if (DirectionValid(field.directions[source]) || distances[source] == kUnreachableDistance)
-                    continue;
-
-                auto bestDistance = distances[source];
-                for (Direction direction : kAllDirections)
-                {
-                    const auto targetNode = graph.nodes[source].connections[direction];
-                    if (targetNode == kInvalidNodeIndex || !NodeIsAllowed(graph.nodes[targetNode], target.queueRide))
-                        continue;
-                    if (distances[targetNode] < bestDistance)
+                    const auto direction = static_cast<Direction>(incomingEdge & (kNumOrthogonalDirections - 1));
+                    if (distances[source] == kUnreachableDistance)
                     {
-                        bestDistance = distances[targetNode];
+                        distances[source] = nextDistance;
+                        field.directions[source] = direction;
+                        queue.push_back(source);
+                    }
+                    else if (distances[source] == nextDistance
+                        && (!DirectionValid(field.directions[source]) || direction < field.directions[source]))
+                    {
+                        // The old post-BFS scan visited directions from 0 to 3 and therefore chose the lowest direction
+                        // among equal shortest paths. Preserve that deterministic tie break independent of queue order.
                         field.directions[source] = direction;
                     }
                 }

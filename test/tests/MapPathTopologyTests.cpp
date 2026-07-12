@@ -285,10 +285,15 @@ TEST_F(MapPathTopologyTest, SharedRouteFieldsRespectDirectedEdgesInvalidateAndIg
     const auto ride = RideId::FromUnderlying(42);
     ASSERT_NE(
         AddEntrance(entranceTile, 10, ENTRANCE_TYPE_RIDE_ENTRANCE, east, ride, StationIndex::FromUnderlying(0)), nullptr);
+    const auto target = MapPathRouteCache::RouteTarget{ { entranceTile, 10 }, ride };
+    MapPathRouteCache::Prepare(std::array{ target });
+    const auto equalLengthTie = MapPathRouteCache::GetNextStep(target, { start, 10 });
+    ASSERT_TRUE(equalLengthTie.has_value());
+    EXPECT_EQ(equalLengthTie->direction, south);
+
     auto* banner = AddBanner(start, 12, 1 << east);
     ASSERT_NE(banner, nullptr);
 
-    const auto target = MapPathRouteCache::RouteTarget{ { entranceTile, 10 }, ride };
     const auto unreachable = MapPathRouteCache::RouteTarget{ { 30, 30, 10 }, RideId::GetNull() };
     MapPathRouteCache::Prepare(std::array{ unreachable, target });
     const auto first = MapPathRouteCache::GetNextStep(target, { start, 10 });

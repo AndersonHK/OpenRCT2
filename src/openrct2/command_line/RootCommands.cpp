@@ -300,7 +300,7 @@ namespace OpenRCT2
                     "Benchmark warm-up ticks must be -1 or non-negative; measurement ticks must be -1 or greater than zero.");
                 return ExitCode::fail;
             }
-            constexpr auto turboBatchTicks = 1u << (kGameSpeedTurbo - 1);
+            constexpr auto turboBatchTicks = kTurboBatchLogicalTicks;
             if ((_benchmarkWarmupTicks > 0 && (_benchmarkWarmupTicks % turboBatchTicks) != 0)
                 || (_benchmarkTicks > 0 && (_benchmarkTicks % turboBatchTicks) != 0))
             {

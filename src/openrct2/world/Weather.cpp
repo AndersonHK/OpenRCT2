@@ -22,6 +22,7 @@
 #include "../core/EnumUtils.hpp"
 #include "../core/GameTime.hpp"
 #include "../drawing/Drawing.h"
+#include "../network/Network.h"
 #include "../object/ClimateObject.h"
 #include "../object/ObjectManager.h"
 #include "../profiling/Profiling.h"
@@ -231,7 +232,9 @@ namespace OpenRCT2::Weather
                 return;
             // Create new thunder and lightning. Their amount is scaled inversely proportional
             // to the game speed, otherwise they become annoying at very high speeds
-            if (uint32_t randomNumber = UtilRand(); (randomNumber & 0xFFFF) <= (thunderChance >> (gGameSpeed - 1)))
+            const auto updateCount =
+                GetGameSpeedLogicalUpdateCount(gGameSpeed, Network::GetMode() != Network::Mode::none);
+            if (uint32_t randomNumber = UtilRand(); (randomNumber & 0xFFFF) <= (thunderChance / updateCount))
             {
                 randomNumber >>= 16;
                 _thunderTimer = 43 + (randomNumber % 64);

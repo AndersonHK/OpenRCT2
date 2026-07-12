@@ -146,7 +146,7 @@ switch, screenshot, resize, and shutdown remain explicit drain or generation-dis
 
 ### Refresh-paced scheduler integration
 
-Turbo no longer feeds the renderer from a 15 FPS throttle after an indivisible eight-update scene batch. The scheduler yields
+Turbo no longer feeds the renderer from a 15 FPS throttle after an indivisible offline scene batch. The scheduler yields
 only between completed deterministic logical updates, checks an anchored deadline derived from SDL's current display refresh
 rate, and pumps window input and UI work before recording a due frame. This caps the CPU producer to the monitor's long-run
 cadence. The one-pending `LatestFrameMailbox` replaces stale CPU packets, while MAILBOX present mode applies the same
@@ -167,6 +167,18 @@ draws at 143.746 FPS and 249.159 logical TPS. Frame intervals were 7.296 ms p50,
 maximum. GPU work averaged 122.139 us per frame; renderer submission and presentation averaged 134.889 and 223.967 us,
 respectively. Simulation still consumed 73.6% of wall time, so the dominant remaining smooth-Turbo opportunity is a safe visual
 snapshot boundary and further simulation-side parallelism rather than present-call tuning.
+
+The retained-canvas checkpoint adds a device-local indexed base image containing the scene after opaque/transparent world
+composition and before weather. Presented-frame serials acknowledge damage; superseded or failed latest-frame packets do not.
+Sparse frames restore that base, clear and rebuild dirty regions, save the updated base, and then apply frame-local effects.
+Dense damage crosses over to one complete traversal when more than half the 64-by-64 damage cells are dirty, avoiding repeated
+viewport setup on EverythingPark. Camera copies currently request a complete redraw until an ordered GPU blit is introduced.
+
+The same checkpoint fixes the independent presentation deadline that caused a 132 FPS plateau on otherwise idle 144 Hz runs.
+Diamond Heights now sustains 144.021 FPS and 354.877 TPS with 0.170 ms complete CPU draw time and 0.047 ms GPU time. EverythingPark
+sustains 144.035 FPS and 248.336 TPS; its CPU scene traversal is 1.422 ms while its GPU frame is only 0.101 ms. These figures make
+the remaining ownership boundary explicit: Vulkan raster and presentation already have ample headroom, while the main thread
+still discovers, clips, sorts, and emits most visible world commands every frame.
 
 ## Current CPU/GPU ownership audit
 

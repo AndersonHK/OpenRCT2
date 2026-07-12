@@ -498,6 +498,27 @@ TEST(VulkanRuntimeIntegrationTest, HiddenWindowExercisesBackendLifecycleAndIndex
     EXPECT_EQ(pixel(5, 5), 50);
     EXPECT_EQ(pixel(4, 6), 50);
     EXPECT_EQ(pixel(5, 6), 50);
+
+    const auto retainedOutsidePixel = pixel(0, 0);
+    Gpu::FrameCommandStream damagedSprite;
+    damagedSprite.damageRectangles.push_back(spriteBounds);
+    damagedSprite.damageSerial = 1;
+    damagedSprite.opaqueRects.allocate() = {
+        .clip = fullClip,
+        .flags = Gpu::RectCommand::FLAG_NO_TEXTURE,
+        .colour = 77,
+        .bounds = { 4, 5, 5, 6 },
+        .depth = 0,
+        .zoom = 1.0f,
+    };
+    ASSERT_TRUE(PresentCommandFrame(*backend, spriteFrameNumber + 2, damagedSprite).has_value());
+    readback.assign(resizedCanvas.size(), std::byte{ 0 });
+    ASSERT_TRUE(backend->ReadbackLatestIndexedCanvas(resizedLogicalExtent, readback));
+    EXPECT_EQ(pixel(0, 0), retainedOutsidePixel);
+    EXPECT_EQ(pixel(4, 5), 77);
+    EXPECT_EQ(pixel(5, 5), 0);
+    EXPECT_EQ(pixel(4, 6), 0);
+    EXPECT_EQ(pixel(5, 6), 0);
 }
 
 #endif // ENABLE_VULKAN

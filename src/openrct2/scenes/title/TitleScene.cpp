@@ -150,7 +150,7 @@ void TitleScene::Tick()
         int32_t numUpdates = 1;
         if (gGameSpeed > 1)
         {
-            numUpdates = 1 << (gGameSpeed - 1);
+            numUpdates = static_cast<int32_t>(GetGameSpeedLogicalUpdateCount(gGameSpeed, false));
         }
         for (int32_t i = 0; i < numUpdates; i++)
         {

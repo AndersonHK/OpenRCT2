@@ -11,6 +11,7 @@
 #include <openrct2-ui/drawing/engines/gpu/GpuAtlas.h>
 #include <openrct2-ui/drawing/engines/gpu/GpuBackend.h>
 #include <openrct2-ui/drawing/engines/gpu/GpuCommandStream.h>
+#include <openrct2-ui/drawing/engines/gpu/GpuDamageTracker.h>
 #include <openrct2-ui/drawing/engines/gpu/GpuFrameMailbox.h>
 #include <openrct2-ui/drawing/engines/gpu/GpuTextureCache.h>
 #include <openrct2-ui/drawing/engines/gpu/GpuTransparencyDepth.h>
@@ -73,6 +74,80 @@ TEST(GpuFoundationTest, AtlasSizeOrdersUseTheLegacyPowerOfTwoClasses)
     EXPECT_EQ(AtlasPage::CalculateImageSizeOrder(32, 32), 5);
     EXPECT_EQ(AtlasPage::CalculateImageSizeOrder(33, 1), 6);
     EXPECT_EQ(AtlasPage::CalculateImageSizeOrder(128, 129), 8);
+}
+
+TEST(GpuFoundationTest, DamageRemainsPendingUntilAnAppliedSerialIsAcknowledged)
+{
+    DamageTracker tracker;
+    tracker.Reset(128, 64, 64, 64);
+    auto initial = tracker.Snapshot();
+    ASSERT_TRUE(initial.fullRedraw);
+    ASSERT_EQ(initial.rectangles.size(), 1u);
+    EXPECT_EQ(initial.rectangles[0].x, 0);
+    EXPECT_EQ(initial.rectangles[0].z, 128);
+    tracker.Acknowledge(initial.serial);
+    EXPECT_TRUE(tracker.Snapshot().rectangles.empty());
+
+    tracker.Invalidate(0, 0, 32, 32);
+    const auto discarded = tracker.Snapshot();
+    tracker.Invalidate(96, 0, 128, 32);
+    const auto replacement = tracker.Snapshot();
+    ASSERT_EQ(replacement.rectangles.size(), 1u);
+    EXPECT_EQ(replacement.rectangles[0].x, 0);
+    EXPECT_EQ(replacement.rectangles[0].z, 128);
+
+    tracker.Acknowledge(discarded.serial);
+    const auto afterOldAcknowledgement = tracker.Snapshot();
+    ASSERT_EQ(afterOldAcknowledgement.rectangles.size(), 1u);
+    EXPECT_EQ(afterOldAcknowledgement.rectangles[0].x, 64);
+    EXPECT_EQ(afterOldAcknowledgement.rectangles[0].z, 128);
+}
+
+TEST(GpuFoundationTest, NewDamageSurvivesAnOlderInFlightAcknowledgement)
+{
+    DamageTracker tracker;
+    tracker.Reset(64, 64, 64, 64);
+    const auto initial = tracker.Snapshot();
+    tracker.Acknowledge(initial.serial);
+
+    tracker.Invalidate(0, 0, 1, 1);
+    const auto inFlight = tracker.Snapshot();
+    tracker.Invalidate(1, 1, 2, 2);
+    tracker.Acknowledge(inFlight.serial);
+    EXPECT_FALSE(tracker.Snapshot().rectangles.empty());
+}
+
+TEST(GpuFoundationTest, DroppedFullRedrawRemainsAFullRedraw)
+{
+    DamageTracker tracker;
+    tracker.Reset(96, 96, 32, 32);
+    const auto dropped = tracker.Snapshot();
+    ASSERT_TRUE(dropped.fullRedraw);
+
+    tracker.Invalidate(0, 0, 1, 1);
+    const auto replacement = tracker.Snapshot();
+    EXPECT_TRUE(replacement.fullRedraw);
+    tracker.Acknowledge(replacement.serial);
+    EXPECT_FALSE(tracker.Snapshot().fullRedraw);
+    EXPECT_TRUE(tracker.Snapshot().rectangles.empty());
+}
+
+TEST(GpuFoundationTest, DenseDamageCrossesOverToOneFullRedraw)
+{
+    DamageTracker tracker;
+    tracker.Reset(256, 256, 64, 64);
+    const auto initial = tracker.Snapshot();
+    tracker.Acknowledge(initial.serial);
+
+    tracker.Invalidate(0, 0, 256, 192);
+    const auto damage = tracker.Snapshot();
+
+    ASSERT_TRUE(damage.fullRedraw);
+    ASSERT_EQ(damage.rectangles.size(), 1u);
+    EXPECT_EQ(damage.rectangles[0].x, 0);
+    EXPECT_EQ(damage.rectangles[0].y, 0);
+    EXPECT_EQ(damage.rectangles[0].z, 256);
+    EXPECT_EQ(damage.rectangles[0].w, 256);
 }
 
 TEST(GpuFoundationTest, AtlasAllocationRetainsLayerAndPixelBounds)

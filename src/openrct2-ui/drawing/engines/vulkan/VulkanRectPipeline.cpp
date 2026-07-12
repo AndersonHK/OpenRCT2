@@ -19,6 +19,7 @@
     #include <cstring>
     #include <stdexcept>
     #include <utility>
+    #include <vector>
 
 namespace OpenRCT2::Ui::Vulkan
 {
@@ -134,6 +135,45 @@ namespace OpenRCT2::Ui::Vulkan
             vkCmdBindPipeline(frame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _spritePipeline);
             vkCmdBindVertexBuffers(frame.commandBuffer, 0, 1, &spriteAllocation.buffer, &vertexOffset);
             vkCmdDraw(frame.commandBuffer, 4, static_cast<uint32_t>(sprites.size()), 0, 0);
+        }
+        vkCmdEndRenderPass(frame.commandBuffer);
+    }
+
+    void RectPipeline::RecordDamageClear(const FrameToken& frame, std::span<const Gpu::Int4> rectangles) const
+    {
+        if (rectangles.empty())
+            return;
+
+        const VkRenderPassBeginInfo renderPassInfo = {
+            .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+            .renderPass = _renderPass,
+            .framebuffer = _framebuffers[frame.frameIndex],
+            .renderArea = { .offset = { 0, 0 }, .extent = _extent },
+        };
+        vkCmdBeginRenderPass(frame.commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+        VkClearAttachment attachment{};
+        attachment.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        attachment.colorAttachment = 0;
+        attachment.clearValue.color.uint32[0] = 0;
+        std::vector<VkClearRect> clears;
+        clears.reserve(rectangles.size());
+        for (const auto& rect : rectangles)
+        {
+            if (rect.x >= rect.z || rect.y >= rect.w)
+                continue;
+            clears.push_back({
+                .rect = {
+                    .offset = { rect.x, rect.y },
+                    .extent = { static_cast<uint32_t>(rect.z - rect.x), static_cast<uint32_t>(rect.w - rect.y) },
+                },
+                .baseArrayLayer = 0,
+                .layerCount = 1,
+            });
+        }
+        if (!clears.empty())
+        {
+            vkCmdClearAttachments(frame.commandBuffer, 1, &attachment, static_cast<uint32_t>(clears.size()), clears.data());
         }
         vkCmdEndRenderPass(frame.commandBuffer);
     }

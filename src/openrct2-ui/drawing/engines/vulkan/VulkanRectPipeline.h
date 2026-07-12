@@ -18,6 +18,7 @@
 
     #include <array>
     #include <filesystem>
+    #include <span>
 
 namespace OpenRCT2::Ui::Vulkan
 {
@@ -50,6 +51,7 @@ namespace OpenRCT2::Ui::Vulkan
         void Record(
             const FrameToken& frame, const Gpu::CommandBatch<Gpu::RectCommand>& commands,
             const Gpu::CommandBatch<Gpu::SpriteCommand>& sprites) const;
+        void RecordDamageClear(const FrameToken& frame, std::span<const Gpu::Int4> rectangles) const;
 
     private:
         void CreateDescriptors(const IndexedResources& resources);
