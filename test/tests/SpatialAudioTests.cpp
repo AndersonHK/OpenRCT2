@@ -147,6 +147,71 @@ TEST(SpatialAudio, ObjectAndCameraHeightContributeToDistance)
     EXPECT_LT(ground.Elevation, elevated.Elevation);
 }
 
+TEST(SpatialAudio, IsometricCentreRayIsCameraForwardAtEveryRotation)
+{
+    const CoordsXYZ focus{ 4096, 4096, 64 };
+    for (uint8_t rotation = 0; rotation < 4; rotation++)
+    {
+        const auto listener = CalculateIsometricListener(focus, rotation, 1280, 720);
+        const auto ground = CalculateSpatialAudioParams(listener, focus);
+        const auto rayGround = CoordsXY{ 1, 1 }.Rotate((4 - rotation) & 3);
+        const auto elevation = std::max(1, static_cast<int32_t>(std::lround(listener.Altitude * 0.5f)));
+        const CoordsXYZ elevatedOnRay{
+            focus.x + (rayGround.x * elevation),
+            focus.y + (rayGround.y * elevation),
+            focus.z + elevation,
+        };
+        const auto elevated = CalculateSpatialAudioParams(listener, elevatedOnRay);
+
+        EXPECT_NEAR(ground.Azimuth, 0.0f, 0.0001f);
+        EXPECT_NEAR(ground.Elevation, 0.0f, 0.0001f);
+        EXPECT_NEAR(elevated.Azimuth, 0.0f, 0.0001f);
+        EXPECT_NEAR(elevated.Elevation, 0.0f, 0.0001f);
+        EXPECT_LT(elevated.Distance, ground.Distance);
+        EXPECT_GT(elevated.Gain, ground.Gain);
+    }
+}
+
+TEST(SpatialAudio, IsometricScreenRightMapsToPositiveCameraAzimuth)
+{
+    const CoordsXYZ focus{ 4096, 4096, 64 };
+    for (uint8_t rotation = 0; rotation < 4; rotation++)
+    {
+        const auto listener = CalculateIsometricListener(focus, rotation, 1280, 720);
+        const auto rightGround = CoordsXY{ -1, 1 }.Rotate((4 - rotation) & 3);
+        const CoordsXYZ source{
+            focus.x + (rightGround.x * 128),
+            focus.y + (rightGround.y * 128),
+            focus.z,
+        };
+        EXPECT_GT(CalculateSpatialAudioParams(listener, source).Azimuth, 0.0f);
+    }
+}
+
+TEST(SpatialAudio, ScreenVerticalDisplacementRemainsFrontBiased)
+{
+    const CoordsXYZ focus{ 4096, 4096, 256 };
+    const auto listener = CalculateIsometricListener(focus, 0, 1280, 720);
+    constexpr float displacement = 128.0f;
+    const CoordsXYZ upperCentre{
+        focus.x + static_cast<int32_t>(std::lround(listener.Up.x * displacement)),
+        focus.y + static_cast<int32_t>(std::lround(listener.Up.y * displacement)),
+        focus.z + static_cast<int32_t>(std::lround(listener.Up.z * displacement)),
+    };
+    const CoordsXYZ lowerCentre{
+        focus.x - static_cast<int32_t>(std::lround(listener.Up.x * displacement)),
+        focus.y - static_cast<int32_t>(std::lround(listener.Up.y * displacement)),
+        focus.z - static_cast<int32_t>(std::lround(listener.Up.z * displacement)),
+    };
+
+    const auto upper = CalculateSpatialAudioParams(listener, upperCentre);
+    const auto lower = CalculateSpatialAudioParams(listener, lowerCentre);
+    EXPECT_NEAR(upper.Azimuth, 0.0f, 0.01f);
+    EXPECT_NEAR(lower.Azimuth, 0.0f, 0.01f);
+    EXPECT_GT(upper.Elevation, 0.0f);
+    EXPECT_LT(lower.Elevation, 0.0f);
+}
+
 TEST(SpatialAudio, RainUsesContinuousCameraHeightAttenuation)
 {
     auto listener = CalculateIsometricListener({ 0, 0, 0 }, 0, 1280, 720);
@@ -197,29 +262,82 @@ TEST(SpatialAudio, OcclusionReducesGainWithoutChangingDirection)
 
 TEST(SpatialAudio, ListenerRotationRotatesTheSoundField)
 {
-    const auto unrotated = CalculateSpatialAudioParams({ { 0, 0, 0 }, { 0, 0, 0 }, 0, 0.0f }, { 0, -512, 0 });
-    const auto rotated = CalculateSpatialAudioParams({ { 0, 0, 0 }, { 0, 0, 0 }, 1, 0.0f }, { 0, -512, 0 });
+    const CoordsXYZ focus{ 4096, 4096, 64 };
+    const auto unrotatedListener = CalculateIsometricListener(focus, 0, 1280, 720);
+    const auto rotatedListener = CalculateIsometricListener(focus, 1, 1280, 720);
+    const CoordsXYZ source{ focus.x, focus.y - 512, focus.z };
+    const auto unrotated = CalculateSpatialAudioParams(unrotatedListener, source);
+    const auto rotated = CalculateSpatialAudioParams(rotatedListener, source);
 
-    EXPECT_NEAR(std::abs(rotated.Azimuth - unrotated.Azimuth), std::numbers::pi_v<float> / 2.0f, 0.0001f);
+    // Rotating the view also moves the canonical camera around its focus, so a finite source does
+    // not remain at exactly the same range while its bearing changes. It must still move by roughly
+    // a quadrant rather than remaining pinned to the old speaker direction.
+    const auto bearingChange = std::abs(rotated.Azimuth - unrotated.Azimuth);
+    EXPECT_GT(bearingChange, std::numbers::pi_v<float> * 0.4f);
+    EXPECT_LT(bearingChange, std::numbers::pi_v<float> * 0.6f);
 }
 
-TEST(SpatialAudio, DopplerRaisesApproachingAndLowersRecedingPitch)
+TEST(SpatialAudio, DopplerSeparatesPhysicalSourceAndReducedCameraMotion)
 {
-    EXPECT_GT(CalculateDopplerFactor(-kSpatialSpeedOfSound * 0.2f), 1.0f);
-    EXPECT_FLOAT_EQ(CalculateDopplerFactor(0.0f), 1.0f);
-    EXPECT_LT(CalculateDopplerFactor(kSpatialSpeedOfSound * 0.2f), 1.0f);
-    EXPECT_FLOAT_EQ(CalculateDopplerFactor(-kSpatialSpeedOfSound), kMaxDopplerFactor);
-    EXPECT_FLOAT_EQ(CalculateDopplerFactor(kSpatialSpeedOfSound), kMinDopplerFactor);
+    const auto speed = kSpatialSpeedOfSound * 0.2f;
+    const auto sourceApproaching = CalculateDopplerFactor(-speed, 0.0f);
+    const auto sourceReceding = CalculateDopplerFactor(speed, 0.0f);
+    const auto cameraApproaching = CalculateDopplerFactor(0.0f, speed);
+    const auto fullCameraApproaching = CalculateDopplerFactor(0.0f, speed, 1.0f);
+
+    EXPECT_GT(sourceApproaching, 1.0f);
+    EXPECT_LT(sourceReceding, 1.0f);
+    EXPECT_GT(cameraApproaching, 1.0f);
+    EXPECT_LT(cameraApproaching - 1.0f, fullCameraApproaching - 1.0f);
+    EXPECT_FLOAT_EQ(CalculateDopplerFactor(0.0f, 0.0f), 1.0f);
+    EXPECT_FLOAT_EQ(CalculateDopplerFactor(-kSpatialSpeedOfSound, 0.0f), kMaxDopplerFactor);
+    EXPECT_FLOAT_EQ(CalculateDopplerFactor(kSpatialSpeedOfSound, 0.0f), kMinDopplerFactor);
 }
 
 TEST(SpatialAudio, DopplerMotionIsSmoothedAndRejectsTeleports)
 {
+    SpatialAudioListener listener{};
+    listener.Position = { 0.0f, 0.0f, 0.0f };
+    listener.Discontinuous = false;
     DopplerMotionState state{};
-    EXPECT_FLOAT_EQ(UpdateDopplerMotion(state, 1000.0f, 1.0f / 60.0f), 1.0f);
-    const auto approaching = UpdateDopplerMotion(state, 980.0f, 1.0f / 60.0f);
+    EXPECT_FLOAT_EQ(UpdateDopplerMotion(state, listener, { 1000, 0, 0 }, 1.0f / 60.0f, true), 1.0f);
+    const auto approaching = UpdateDopplerMotion(state, listener, { 980, 0, 0 }, 1.0f / 60.0f, true);
     EXPECT_GT(approaching, 1.0f);
     EXPECT_LT(approaching, kMaxDopplerFactor);
-    EXPECT_FLOAT_EQ(UpdateDopplerMotion(state, 100000.0f, 1.0f / 60.0f), 1.0f);
+    EXPECT_FLOAT_EQ(
+        UpdateDopplerMotion(state, listener, { 100000, 0, 0 }, 1.0f / 60.0f, true), 1.0f);
+}
+
+TEST(SpatialAudio, StaticSourceUsesReducedListenerDoppler)
+{
+    SpatialAudioListener listener{};
+    listener.Position = { 0.0f, 0.0f, 0.0f };
+    listener.Discontinuous = false;
+    const CoordsXYZ source{ 1000, 0, 0 };
+    DopplerMotionState state{};
+    EXPECT_FLOAT_EQ(UpdateDopplerMotion(state, listener, source, 1.0f / 60.0f, false), 1.0f);
+
+    listener.Velocity = { kSpatialSpeedOfSound * 0.2f, 0.0f, 0.0f };
+    const auto cameraOnly = UpdateDopplerMotion(state, listener, source, 1.0f / 60.0f, false);
+    EXPECT_GT(cameraOnly, 1.0f);
+    EXPECT_LT(cameraOnly, CalculateDopplerFactor(0.0f, kSpatialSpeedOfSound * 0.2f, 1.0f));
+}
+
+TEST(SpatialAudio, DistanceAndOcclusionReduceLowPassCutoffContinuously)
+{
+    const auto clearNear = CalculateDistanceLowPassCutoff(kSpatialReferenceDistance, 1.0f);
+    const auto clearFar = CalculateDistanceLowPassCutoff(kSpatialReferenceDistance * 32.0f, 1.0f);
+    const auto occludedNear = CalculateDistanceLowPassCutoff(kSpatialReferenceDistance, 0.25f);
+    const auto vehicleFar = CalculateDistanceLowPassCutoff(
+        kSpatialReferenceDistance * 32.0f, 1.0f, SpatialAudioRolloff::vehicle);
+    const auto musicFar = CalculateDistanceLowPassCutoff(
+        kSpatialReferenceDistance * 32.0f, 1.0f, SpatialAudioRolloff::rideMusic);
+
+    EXPECT_FLOAT_EQ(clearNear, kSpatialFilterBypassCutoff);
+    EXPECT_LT(clearFar, clearNear);
+    EXPECT_LT(occludedNear, clearNear);
+    EXPECT_LT(vehicleFar, clearFar);
+    EXPECT_GT(musicFar, clearFar);
 }
 
 TEST(SpatialAudio, SurroundPanningUsesConstantPower)
@@ -253,6 +371,15 @@ TEST(SpatialAudio, GainConversionMatchesMixerAmplitudeConvention)
     EXPECT_EQ(SpatialGainToDSEnvelope(1.0f), 0);
     EXPECT_NEAR(SpatialGainToDSEnvelope(0.5f), -602, 1);
     EXPECT_EQ(SpatialGainToDSEnvelope(0.0f), -10000);
+}
+
+TEST(AudioChannel, FloatingPointGainPreservesValuesAboveUnity)
+{
+    std::unique_ptr<ISDLAudioChannel> channel(AudioChannel::Create());
+    channel->SetGain(4.5f);
+    EXPECT_FLOAT_EQ(channel->GetGain(), 4.5f);
+    channel->UpdateOldVolume();
+    EXPECT_FLOAT_EQ(channel->GetOldGain(), 4.5f);
 }
 
 TEST(SpatialAudio, LimiterUsesImmediateAttackAndGradualRelease)

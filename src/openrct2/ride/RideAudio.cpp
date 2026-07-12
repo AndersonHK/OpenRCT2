@@ -36,7 +36,6 @@ namespace OpenRCT2::RideAudio
 {
     constexpr size_t kMaxRideMusicChannels = 64;
     constexpr float kRideMusicSourceGain = 5.0f;
-    constexpr float kRideMusicDopplerStrength = 0.05f;
 
     /**
      * Represents an audio channel to play a particular ride's music track.
@@ -48,8 +47,10 @@ namespace OpenRCT2::RideAudio
 
         size_t Offset{};
         int16_t Volume{};
+        float Gain{};
         float Azimuth{};
         float Elevation{};
+        float LowPassCutoff{ kSpatialFilterBypassCutoff };
         uint16_t Frequency{};
         DopplerMotionState Doppler{};
         std::chrono::steady_clock::time_point LastMotionUpdate{};
@@ -66,15 +67,19 @@ namespace OpenRCT2::RideAudio
 
             Offset = std::max<size_t>(0, instance.Offset - 10000);
             Volume = instance.Volume;
+            Gain = instance.Gain;
             Azimuth = instance.Azimuth;
             Elevation = instance.Elevation;
+            LowPassCutoff = instance.LowPassCutoff;
             Frequency = instance.Frequency;
-            UpdateDopplerMotion(Doppler, instance.Distance, 0.0f);
+            UpdateDopplerMotion(Doppler, instance.Listener, instance.SourcePosition, 0.0f, false);
             LastMotionUpdate = std::chrono::steady_clock::now();
 
             channel->SetOffset(Offset);
             channel->SetVolume(DStoMixerVolume(Volume));
+            channel->SetGain(Gain);
             channel->SetSpatial(Azimuth, Elevation);
+            channel->SetLowPassCutoff(LowPassCutoff);
             channel->SetRate(DStoMixerRate(Frequency));
             Channel = std::move(channel);
 
@@ -97,8 +102,10 @@ namespace OpenRCT2::RideAudio
 
             Offset = src.Offset;
             Volume = src.Volume;
+            Gain = src.Gain;
             Azimuth = src.Azimuth;
             Elevation = src.Elevation;
+            LowPassCutoff = src.LowPassCutoff;
             Frequency = src.Frequency;
             Doppler = src.Doppler;
             LastMotionUpdate = src.LastMotionUpdate;
@@ -174,6 +181,14 @@ namespace OpenRCT2::RideAudio
                     Channel->SetVolume(DStoMixerVolume(Volume));
                 }
             }
+            if (Gain != instance.Gain)
+            {
+                Gain = instance.Gain;
+                if (Channel != nullptr)
+                {
+                    Channel->SetGain(Gain);
+                }
+            }
             if (Azimuth != instance.Azimuth || Elevation != instance.Elevation)
             {
                 Azimuth = instance.Azimuth;
@@ -183,9 +198,18 @@ namespace OpenRCT2::RideAudio
                     Channel->SetSpatial(Azimuth, Elevation);
                 }
             }
+            if (LowPassCutoff != instance.LowPassCutoff)
+            {
+                LowPassCutoff = instance.LowPassCutoff;
+                if (Channel != nullptr)
+                {
+                    Channel->SetLowPassCutoff(LowPassCutoff);
+                }
+            }
             const auto now = std::chrono::steady_clock::now();
             const auto elapsed = std::chrono::duration<float>(now - LastMotionUpdate).count();
-            const auto doppler = UpdateDopplerMotion(Doppler, instance.Distance, elapsed);
+            const auto doppler = UpdateDopplerMotion(
+                Doppler, instance.Listener, instance.SourcePosition, elapsed, false);
             LastMotionUpdate = now;
             if (Frequency != instance.Frequency)
             {
@@ -193,8 +217,7 @@ namespace OpenRCT2::RideAudio
             }
             if (Channel != nullptr)
             {
-                const auto musicDoppler = std::lerp(1.0f, doppler, kRideMusicDopplerStrength);
-                Channel->SetRate(DStoMixerRate(Frequency) * musicDoppler);
+                Channel->SetRate(DStoMixerRate(Frequency) * doppler);
             }
         }
     };
@@ -414,9 +437,9 @@ namespace OpenRCT2::RideAudio
                 *listener, rideCoords, 1.0f, SpatialAudioRolloff::rideMusic);
             // Ride music is emitted by amplified park speakers rather than a point-sized mechanical source.
             // Its source calibration and compressed continuous rolloff keep a faint long-range bed.
-            const auto musicGain = std::min(1.0f, spatial.Gain * kRideMusicSourceGain);
-            const auto newVolume = static_cast<int16_t>(SpatialGainToDSEnvelope(musicGain));
-            if (spatial.Audible && newVolume > -10000)
+            const auto musicGain = spatial.Gain * kRideMusicSourceGain;
+            constexpr int16_t newVolume = 0;
+            if (spatial.Audible && musicGain > 0.0f)
             {
                 auto [trackOffset, trackLength] = RideMusicGetTrackOffsetLength(ride);
                 auto foundChannel = std::find_if(_musicChannels.begin(), _musicChannels.end(), [&ride](const auto& channel) {
@@ -432,10 +455,14 @@ namespace OpenRCT2::RideAudio
                     instance.TrackIndex = ride.musicTuneId;
                     instance.Offset = offset;
                     instance.Volume = newVolume;
+                    instance.Gain = musicGain;
                     instance.PriorityGain = spatial.Gain;
                     instance.Azimuth = spatial.Azimuth;
                     instance.Elevation = spatial.Elevation;
                     instance.Distance = spatial.Distance;
+                    instance.LowPassCutoff = spatial.LowPassCutoff;
+                    instance.Listener = *listener;
+                    instance.SourcePosition = rideCoords;
                     instance.Frequency = sampleRate;
                     ride.musicPosition = static_cast<uint32_t>(offset);
                 }

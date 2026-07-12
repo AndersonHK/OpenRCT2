@@ -110,6 +110,7 @@ namespace OpenRCT2::Audio
     }
 
     static std::unordered_map<uint16_t, DopplerMotionState> _vehicleDopplerStates;
+    static std::unordered_map<uint16_t, uint16_t> _vehicleDopplerSourceIds;
     static std::chrono::steady_clock::time_point _lastVehicleAudioUpdate{};
     static std::chrono::steady_clock::time_point _lastVehicleAudioReport{};
     static uint64_t _vehicleChannelStartAttempts{};
@@ -152,9 +153,15 @@ namespace OpenRCT2::Audio
         return result;
     }
 
-    static CoordsXYZ GetClosestTrainSoundPosition(const Vehicle& head, const SpatialAudioListener& listener)
+    struct TrainSoundSource
     {
-        auto closestPosition = CoordsXYZ{ head.x, head.y, head.z };
+        CoordsXYZ Position{};
+        uint16_t VehicleId{};
+    };
+
+    static TrainSoundSource GetClosestTrainSoundPosition(const Vehicle& head, const SpatialAudioListener& listener)
+    {
+        auto closestSource = TrainSoundSource{ { head.x, head.y, head.z }, head.id.ToUnderlying() };
         auto closestDistanceSquared = std::numeric_limits<float>::max();
         size_t visitedCars = 0;
         for (auto* car = &head; car != nullptr && visitedCars < 256;
@@ -171,22 +178,29 @@ namespace OpenRCT2::Audio
             if (distanceSquared < closestDistanceSquared)
             {
                 closestDistanceSquared = distanceSquared;
-                closestPosition = { car->x, car->y, car->z };
+                closestSource = { { car->x, car->y, car->z }, car->id.ToUnderlying() };
             }
         }
-        return closestPosition;
+        return closestSource;
     }
 
     static VehicleSoundParams CreateSoundParam(
-        const Vehicle& vehicle, int32_t priority, const SpatialAudioParams& spatial, float elapsedSeconds)
+        const Vehicle& vehicle, int32_t priority, const SpatialAudioParams& spatial,
+        const SpatialAudioListener& listener, const TrainSoundSource& source, float elapsedSeconds)
     {
         VehicleSoundParams param;
         param.priority = priority;
         param.spatialGain = spatial.Gain;
         param.azimuth = spatial.Azimuth;
         param.elevation = spatial.Elevation;
+        param.lowPassCutoff = spatial.LowPassCutoff;
+        const auto vehicleId = vehicle.id.ToUnderlying();
+        const auto previousSource = _vehicleDopplerSourceIds.find(vehicleId);
+        const auto sourceChanged = previousSource != _vehicleDopplerSourceIds.end()
+            && previousSource->second != source.VehicleId;
         param.dopplerFactor = UpdateDopplerMotion(
-            _vehicleDopplerStates[vehicle.id.ToUnderlying()], spatial.Distance, elapsedSeconds);
+            _vehicleDopplerStates[vehicleId], listener, source.Position, elapsedSeconds, true, sourceChanged);
+        _vehicleDopplerSourceIds[vehicleId] = source.VehicleId;
 
         int32_t frequency = std::abs(vehicle.velocity);
 
@@ -218,7 +232,8 @@ namespace OpenRCT2::Audio
         const Vehicle& vehicle, const SpatialAudioListener& listener, float elapsedSeconds, bool alreadyPlaying,
         std::vector<VehicleSoundParams>& vehicleSoundParamsList)
     {
-        const auto sourcePosition = GetClosestTrainSoundPosition(vehicle, listener);
+        const auto source = GetClosestTrainSoundPosition(vehicle, listener);
+        const auto& sourcePosition = source.Position;
         auto occlusion = 1.0f;
         auto surfaceElement = MapGetSurfaceElementAt(CoordsXY{ sourcePosition.x, sourcePosition.y });
         if (surfaceElement != nullptr && surfaceElement->getBaseZ() > sourcePosition.z)
@@ -231,7 +246,8 @@ namespace OpenRCT2::Audio
             return;
 
         const auto soundPriority = GetSoundPriority(vehicle, spatial, alreadyPlaying);
-        vehicleSoundParamsList.push_back(CreateSoundParam(vehicle, soundPriority, spatial, elapsedSeconds));
+        vehicleSoundParamsList.push_back(CreateSoundParam(
+            vehicle, soundPriority, spatial, listener, source, elapsedSeconds));
     }
 
     static void VehicleSoundsUpdateWindowSetup()
@@ -373,7 +389,7 @@ namespace OpenRCT2::Audio
             // the previous pass. Other secondary vehicle cues receive a smaller calibration.
             authoredGain *= IsRiderScreamSound(id) ? 3.5f : 1.75f;
         }
-        volume = SpatialGainToDSEnvelope(authoredGain * sound_params->spatialGain);
+        const auto playbackGain = authoredGain * sound_params->spatialGain;
 
         if (sound.channel != nullptr && sound.channel->IsDone() && IsLoopingSound(sound.id))
         {
@@ -396,15 +412,17 @@ namespace OpenRCT2::Audio
             auto looping = IsLoopingSound(id);
             _vehicleChannelStartAttempts++;
             auto channel = CreateAudioChannel(
-                id, MixerGroup::Vehicle, looping, DStoMixerVolume(volume), 0.5f,
+                id, MixerGroup::Vehicle, looping, kMixerVolumeMax, 0.5f,
                 DStoMixerRate(frequency) * sound_params->dopplerFactor);
             if (channel != nullptr)
             {
                 sound.id = id;
-                sound.volume = volume;
+                sound.volume = 0;
                 sound.frequency = sound_params->frequency;
                 sound.channel = channel;
+                sound.channel->SetGain(playbackGain);
                 sound.channel->SetSpatial(sound_params->azimuth, sound_params->elevation);
+                sound.channel->SetLowPassCutoff(sound_params->lowPassCutoff);
             }
             else
             {
@@ -413,12 +431,9 @@ namespace OpenRCT2::Audio
             }
             return;
         }
-        if (volume != sound.volume)
-        {
-            sound.volume = volume;
-            sound.channel->SetVolume(DStoMixerVolume(volume));
-        }
+        sound.channel->SetGain(playbackGain);
         sound.channel->SetSpatial(sound_params->azimuth, sound_params->elevation);
+        sound.channel->SetLowPassCutoff(sound_params->lowPassCutoff);
         if (!(getGameState().currentTicks & 3) && sound_params->frequency != sound.frequency)
         {
             sound.frequency = sound_params->frequency;
@@ -486,6 +501,12 @@ namespace OpenRCT2::Audio
         {
             selectedVehicleIds.insert(params.id);
         }
+        std::erase_if(_vehicleDopplerStates, [&](const auto& entry) {
+            return !selectedVehicleIds.contains(entry.first);
+        });
+        std::erase_if(_vehicleDopplerSourceIds, [&](const auto& entry) {
+            return !selectedVehicleIds.contains(entry.first);
+        });
 
         // Stop all playing sounds that no longer have priority. The selected-id set keeps this linear
         // when thousands of vehicle slots are active.

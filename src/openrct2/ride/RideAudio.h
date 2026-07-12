@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include "../audio/SpatialAudio.h"
 #include "../Identifiers.h"
 
 #include <cstdint>
@@ -30,10 +31,14 @@ namespace OpenRCT2::RideAudio
 
         size_t Offset{};
         int16_t Volume{};
+        float Gain{};
         float PriorityGain{};
         float Azimuth{};
         float Elevation{};
         float Distance{};
+        float LowPassCutoff{ OpenRCT2::Audio::kSpatialFilterBypassCutoff };
+        OpenRCT2::Audio::SpatialAudioListener Listener{};
+        CoordsXYZ SourcePosition{};
         uint16_t Frequency{};
     };
 

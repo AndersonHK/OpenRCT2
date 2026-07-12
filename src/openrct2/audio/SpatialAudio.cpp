@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <numbers>
 
@@ -25,6 +26,71 @@ namespace OpenRCT2::Audio
         constexpr float kDopplerFactorSmoothingSeconds = 0.06f;
         constexpr float kMaxDopplerSampleSeconds = 0.5f;
         constexpr float kMaxDopplerDistanceStep = kSpatialSpeedOfSound * kMaxDopplerSampleSeconds;
+        constexpr float kListenerPositionSmoothingSeconds = 0.08f;
+
+        struct ListenerMotionState
+        {
+            const Viewport* ViewportIdentity{};
+            SpatialAudioListener Listener{};
+            std::chrono::steady_clock::time_point LastUpdate{};
+            bool Initialised{};
+        };
+
+        ListenerMotionState _listenerMotion{};
+
+        constexpr SpatialAudioVector operator+(const SpatialAudioVector& lhs, const SpatialAudioVector& rhs)
+        {
+            return { lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z };
+        }
+
+        constexpr SpatialAudioVector operator-(const SpatialAudioVector& lhs, const SpatialAudioVector& rhs)
+        {
+            return { lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z };
+        }
+
+        constexpr SpatialAudioVector operator*(const SpatialAudioVector& value, float scale)
+        {
+            return { value.x * scale, value.y * scale, value.z * scale };
+        }
+
+        constexpr float Dot(const SpatialAudioVector& lhs, const SpatialAudioVector& rhs)
+        {
+            return (lhs.x * rhs.x) + (lhs.y * rhs.y) + (lhs.z * rhs.z);
+        }
+
+        constexpr SpatialAudioVector Cross(const SpatialAudioVector& lhs, const SpatialAudioVector& rhs)
+        {
+            return {
+                (lhs.y * rhs.z) - (lhs.z * rhs.y),
+                (lhs.z * rhs.x) - (lhs.x * rhs.z),
+                (lhs.x * rhs.y) - (lhs.y * rhs.x),
+            };
+        }
+
+        float Length(const SpatialAudioVector& value)
+        {
+            return std::sqrt(Dot(value, value));
+        }
+
+        SpatialAudioVector Normalise(const SpatialAudioVector& value)
+        {
+            const auto length = Length(value);
+            return length > 0.0f ? value * (1.0f / length) : SpatialAudioVector{};
+        }
+
+        SpatialAudioVector ToVector(const CoordsXYZ& value)
+        {
+            return { static_cast<float>(value.x), static_cast<float>(value.y), static_cast<float>(value.z) };
+        }
+
+        SpatialAudioVector Lerp(const SpatialAudioVector& lhs, const SpatialAudioVector& rhs, float amount)
+        {
+            return {
+                std::lerp(lhs.x, rhs.x, amount),
+                std::lerp(lhs.y, rhs.y, amount),
+                std::lerp(lhs.z, rhs.z, amount),
+            };
+        }
 
     } // namespace
 
@@ -51,15 +117,52 @@ namespace OpenRCT2::Audio
         const auto viewCentre = listeningViewport->viewPos
             + ScreenCoordsXY{ listeningViewport->ViewWidth() / 2, listeningViewport->ViewHeight() / 2 };
         const auto focus = ViewportAdjustForMapHeight(viewCentre, listeningViewport->rotation);
-        auto listener = CalculateIsometricListener(
+        auto targetListener = CalculateIsometricListener(
             focus, listeningViewport->rotation, listeningViewport->ViewWidth(), listeningViewport->ViewHeight());
         const auto baseViewWidth = listeningViewport->zoom.ApplyInversedTo(listeningViewport->ViewWidth());
         const auto baseViewHeight = listeningViewport->zoom.ApplyInversedTo(listeningViewport->ViewHeight());
         const auto nearGroundListener = CalculateIsometricListener(
             focus, listeningViewport->rotation, ZoomLevel::min().ApplyTo(baseViewWidth),
             ZoomLevel::min().ApplyTo(baseViewHeight));
-        listener.NearGroundAltitude = nearGroundListener.Altitude;
-        return listener;
+        targetListener.NearGroundAltitude = nearGroundListener.Altitude;
+
+        const auto now = std::chrono::steady_clock::now();
+        const auto elapsed = _listenerMotion.Initialised
+            ? std::chrono::duration<float>(now - _listenerMotion.LastUpdate).count()
+            : 0.0f;
+        const auto displacement = _listenerMotion.Initialised
+            ? Length(targetListener.Position - _listenerMotion.Listener.Position)
+            : 0.0f;
+        const auto discontinuous = !_listenerMotion.Initialised || _listenerMotion.ViewportIdentity != listeningViewport
+            || _listenerMotion.Listener.Rotation != targetListener.Rotation || elapsed <= 0.0f
+            || elapsed > kMaxDopplerSampleSeconds || displacement > kMaxDopplerDistanceStep;
+
+        if (discontinuous)
+        {
+            targetListener.Velocity = {};
+            targetListener.Discontinuous = true;
+            _listenerMotion.Listener = targetListener;
+        }
+        else if (elapsed >= 0.004f)
+        {
+            const auto previousPosition = _listenerMotion.Listener.Position;
+            const auto positionBlend = 1.0f - std::exp(-elapsed / kListenerPositionSmoothingSeconds);
+            targetListener.Position = Lerp(previousPosition, targetListener.Position, positionBlend);
+            const auto rawVelocity = (targetListener.Position - previousPosition) * (1.0f / elapsed);
+            const auto velocityBlend = 1.0f - std::exp(-elapsed / kDopplerVelocitySmoothingSeconds);
+            targetListener.Velocity = Lerp(_listenerMotion.Listener.Velocity, rawVelocity, velocityBlend);
+            targetListener.Discontinuous = false;
+            _listenerMotion.Listener = targetListener;
+        }
+        else
+        {
+            return _listenerMotion.Listener;
+        }
+
+        _listenerMotion.ViewportIdentity = listeningViewport;
+        _listenerMotion.LastUpdate = now;
+        _listenerMotion.Initialised = true;
+        return _listenerMotion.Listener;
     }
 
     SpatialAudioListener CalculateIsometricListener(
@@ -75,22 +178,39 @@ namespace OpenRCT2::Audio
         const auto forwardRadius = std::abs(static_cast<float>(projectedViewHeight))
             / std::numbers::sqrt2_v<float>;
         const auto visibleRadius = std::min(sidewaysRadius, forwardRadius);
-        const auto altitude = visibleRadius / std::tan(kVirtualAcousticHalfFov);
-        const auto offset = static_cast<int32_t>(std::lround(altitude));
+        const auto cameraDistance = visibleRadius / std::tan(kVirtualAcousticHalfFov);
 
-        // Keep the acoustic x/y position on the area being viewed. The real renderer is orthographic,
-        // so there is no unique perspective-camera distance; the visible ground radius provides the
-        // stable height estimate while the focus remains the intuitive closest horizontal point.
-        return SpatialAudioListener{ { focus.x, focus.y, focus.z + offset }, focus, rotation, altitude, altitude };
+        // Translate3DTo2DWithZ has a (1, 1, 1) null direction before view rotation. Positioning the
+        // listener on that ray makes the rendered centre ray and the acoustic forward ray agree.
+        const auto cameraGroundOffset = CoordsXY{ 1, 1 }.Rotate((4 - rotation) & 3);
+        const auto cameraOffset = Normalise(SpatialAudioVector{
+            static_cast<float>(cameraGroundOffset.x), static_cast<float>(cameraGroundOffset.y), 1.0f });
+        const auto forward = cameraOffset * -1.0f;
+        const auto screenRightGround = CoordsXY{ -1, 1 }.Rotate((4 - rotation) & 3);
+        const auto right = Normalise(SpatialAudioVector{
+            static_cast<float>(screenRightGround.x), static_cast<float>(screenRightGround.y), 0.0f });
+        const auto up = Normalise(Cross(right, forward));
+        const auto focusVector = ToVector(focus);
+        const auto position = focusVector + (cameraOffset * cameraDistance);
+        const auto altitude = position.z - static_cast<float>(focus.z);
+
+        SpatialAudioListener result{};
+        result.Position = position;
+        result.FocusPosition = focus;
+        result.Rotation = rotation;
+        result.Altitude = altitude;
+        result.NearGroundAltitude = altitude;
+        result.Forward = forward;
+        result.Right = right;
+        result.Up = up;
+        return result;
     }
 
     SpatialAudioParams CalculateSpatialAudioParams(
         const SpatialAudioListener& listener, const CoordsXYZ& source, float occlusion, SpatialAudioRolloff rolloff)
     {
-        const auto dx = static_cast<float>(source.x - listener.Position.x);
-        const auto dy = static_cast<float>(source.y - listener.Position.y);
-        const auto dz = static_cast<float>(source.z - listener.Position.z);
-        const auto distance = std::sqrt((dx * dx) + (dy * dy) + (dz * dz));
+        const auto relative = ToVector(source) - listener.Position;
+        const auto distance = Length(relative);
 
         SpatialAudioParams result{};
         result.Distance = distance;
@@ -111,47 +231,88 @@ namespace OpenRCT2::Audio
         }
         const auto distanceGain = std::pow(kSpatialReferenceDistance / propagationDistance, rolloffExponent);
         result.Gain = std::clamp(occlusion, 0.0f, 1.0f) * distanceGain;
+        result.LowPassCutoff = CalculateDistanceLowPassCutoff(distance, occlusion, rolloff);
 
-        const auto rotated = CoordsXY{ source.x - listener.Position.x, source.y - listener.Position.y }.Rotate(
-            listener.Rotation);
-        constexpr auto kDiagonalScale = std::numbers::sqrt2_v<float> / 2.0f;
-        const auto right = static_cast<float>(rotated.y - rotated.x) * kDiagonalScale;
-        const auto forward = -static_cast<float>(rotated.x + rotated.y) * kDiagonalScale;
-        const auto horizontalDistance = std::sqrt((right * right) + (forward * forward));
-        result.Azimuth = horizontalDistance > 0.0f ? std::atan2(right, forward) : 0.0f;
-        result.Elevation = std::atan2(dz, horizontalDistance);
+        const auto localRight = Dot(relative, listener.Right);
+        const auto localForward = Dot(relative, listener.Forward);
+        const auto localUp = Dot(relative, listener.Up);
+        const auto forwardPlaneDistance = std::sqrt((localRight * localRight) + (localForward * localForward));
+        result.Azimuth = forwardPlaneDistance > 0.0f ? std::atan2(localRight, localForward) : 0.0f;
+        result.Elevation = std::atan2(localUp, forwardPlaneDistance);
         return result;
     }
 
-    float CalculateDopplerFactor(float relativeRadialVelocity)
+    float CalculateDopplerFactor(float sourceRadialVelocity, float listenerRadialVelocity, float cameraStrength)
     {
-        // Positive range rate means the emitter and listener are separating. Sampling the relative
-        // range makes this work for a moving source, a moving listener, or both.
-        const auto denominator = std::max(kSpatialSpeedOfSound * 0.1f, kSpatialSpeedOfSound + relativeRadialVelocity);
-        return std::clamp(kSpatialSpeedOfSound / denominator, kMinDopplerFactor, kMaxDopplerFactor);
+        const auto numerator = std::max(
+            kSpatialSpeedOfSound * 0.1f,
+            kSpatialSpeedOfSound + (std::clamp(cameraStrength, 0.0f, 1.0f) * listenerRadialVelocity));
+        const auto denominator = std::max(kSpatialSpeedOfSound * 0.1f, kSpatialSpeedOfSound + sourceRadialVelocity);
+        return std::clamp(numerator / denominator, kMinDopplerFactor, kMaxDopplerFactor);
     }
 
-    float UpdateDopplerMotion(DopplerMotionState& state, float distance, float elapsedSeconds)
+    float UpdateDopplerMotion(
+        DopplerMotionState& state, const SpatialAudioListener& listener, const CoordsXYZ& sourcePosition,
+        float elapsedSeconds, bool sourceMoves, bool sourceDiscontinuity)
     {
-        if (!state.Initialised || elapsedSeconds <= 0.0f || elapsedSeconds > kMaxDopplerSampleSeconds
-            || std::abs(distance - state.PreviousDistance) > kMaxDopplerDistanceStep)
+        const auto source = ToVector(sourcePosition);
+        const auto sourceStep = state.Initialised ? Length(source - state.PreviousSourcePosition) : 0.0f;
+        if (!state.Initialised || sourceDiscontinuity || listener.Discontinuous || elapsedSeconds <= 0.0f
+            || elapsedSeconds > kMaxDopplerSampleSeconds || (sourceMoves && sourceStep > kMaxDopplerDistanceStep))
         {
-            state.PreviousDistance = distance;
-            state.SmoothedRadialVelocity = 0.0f;
+            state.PreviousSourcePosition = source;
+            state.SmoothedSourceRadialVelocity = 0.0f;
+            state.SmoothedListenerRadialVelocity = 0.0f;
             state.Factor = 1.0f;
             state.Initialised = true;
             return state.Factor;
         }
 
-        const auto radialVelocity = (distance - state.PreviousDistance) / elapsedSeconds;
+        const auto ray = Normalise(source - listener.Position);
+        const auto sourceVelocity = sourceMoves
+            ? (source - state.PreviousSourcePosition) * (1.0f / elapsedSeconds)
+            : SpatialAudioVector{};
+        const auto sourceRadialVelocity = Dot(sourceVelocity, ray);
+        const auto listenerRadialVelocity = Dot(listener.Velocity, ray);
         const auto velocityBlend = 1.0f - std::exp(-elapsedSeconds / kDopplerVelocitySmoothingSeconds);
-        state.SmoothedRadialVelocity = std::lerp(state.SmoothedRadialVelocity, radialVelocity, velocityBlend);
+        state.SmoothedSourceRadialVelocity = std::lerp(
+            state.SmoothedSourceRadialVelocity, sourceRadialVelocity, velocityBlend);
+        state.SmoothedListenerRadialVelocity = std::lerp(
+            state.SmoothedListenerRadialVelocity, listenerRadialVelocity, velocityBlend);
 
-        const auto targetFactor = CalculateDopplerFactor(state.SmoothedRadialVelocity);
+        const auto targetFactor = CalculateDopplerFactor(
+            state.SmoothedSourceRadialVelocity, state.SmoothedListenerRadialVelocity);
         const auto factorBlend = 1.0f - std::exp(-elapsedSeconds / kDopplerFactorSmoothingSeconds);
         state.Factor = std::lerp(state.Factor, targetFactor, factorBlend);
-        state.PreviousDistance = distance;
+        state.PreviousSourcePosition = source;
         return state.Factor;
+    }
+
+    float CalculateDistanceLowPassCutoff(float distance, float occlusion, SpatialAudioRolloff rolloff)
+    {
+        const auto clampedOcclusion = std::clamp(occlusion, 0.0f, 1.0f);
+        const auto distanceRatio = std::max(1.0f, distance / kSpatialReferenceDistance);
+        if (distanceRatio <= 1.0f && clampedOcclusion >= 1.0f)
+        {
+            return kSpatialFilterBypassCutoff;
+        }
+
+        auto distanceStrength = 1.0f;
+        switch (rolloff)
+        {
+            case SpatialAudioRolloff::vehicle:
+                distanceStrength = 1.1f;
+                break;
+            case SpatialAudioRolloff::rideMusic:
+                distanceStrength = 0.55f;
+                break;
+            case SpatialAudioRolloff::world:
+                break;
+        }
+        const auto distanceOctaves = std::log2(distanceRatio);
+        const auto airCutoff = 20000.0f * std::pow(0.78f, distanceOctaves * distanceStrength);
+        const auto occlusionMultiplier = 0.2f + (0.8f * clampedOcclusion);
+        return std::clamp(airCutoff * occlusionMultiplier, 1200.0f, 20000.0f);
     }
 
     float CalculateRainHeightGain(const SpatialAudioListener& listener)

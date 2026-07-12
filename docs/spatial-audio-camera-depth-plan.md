@@ -2,7 +2,7 @@
 
 ## Status and scope
 
-This document is a planning artifact for the next spatial-audio stage. It does not describe implemented behaviour. The first slice establishes a coherent isometric camera, separates source and camera motion for Doppler, preserves near-field distance differences, adds distance-dependent EQ, and maps surround direction in the pitched camera's coordinate system. Environmental reverb is deliberately deferred to a second, experimental slice.
+The first slice was implemented on 2026-07-12. It establishes a coherent isometric camera, separates source and camera motion for Doppler, preserves near-field distance differences, adds distance-dependent EQ, and maps surround direction in the pitched camera's coordinate system. Environmental reverb remains deliberately deferred to a second, experimental slice.
 
 The existing spatial-audio overhaul remains the baseline. Voice budgets, floating-point bus accumulation, 7.1 endpoint negotiation, source-class distance curves, and final peak limiting remain in place unless measurements show that a change is necessary.
 
@@ -178,4 +178,6 @@ This slice should begin with isolated A/B prototypes and must be removable witho
 
 ## Delivery boundaries
 
-The first slice is complete only when canonical camera geometry, separated Doppler, unsaturated distance ordering, camera-relative surround semantics, and distance EQ pass deterministic tests and a stable build is ready for manual listening. Reverb is not part of that completion criterion. It remains a documented second-slice experiment whose design may change based on the first listening results.
+The first slice implementation now contains canonical camera geometry, separated Doppler, unsaturated distance ordering, camera-relative surround semantics, and distance EQ with deterministic coverage. A stable build and automated validation are required before deployment; perceived filter strength and source calibration still require manual listening. Reverb is not part of this completion criterion. It remains a documented second-slice experiment whose design may change based on the first listening results.
+
+The reference EverythingPark implementation run mixed 487-514 channels with 478-506 active distance filters. Settled windows averaged approximately 5.6-5.7 ms and representative worst callbacks were 9.6-10.2 ms against a 21.33 ms deadline, with no vehicle start failures. This meets the first-slice performance target while keeping the callback filter loop allocation-free and all map work on the control side.

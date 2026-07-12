@@ -7,6 +7,14 @@ documents. The upstream project's release history remains in [distribution/chang
 
 ## 2026-07-12
 
+### Pitched isometric acoustic camera and direct-path depth
+
+The acoustic listener now occupies a canonical 3D pose on the null ray of the legacy orthographic isometric projection. The viewed terrain focus is camera-forward rather than world-down, so screen-centre and upper/lower-centre sources remain semantically in front while elevated track on the same view ray becomes physically closer and louder. All four rotations derive forward, right, and up from the renderer's exact projection basis.
+
+Doppler now separates physical emitter velocity from listener velocity. Coaster, kart, and attached rider motion receives the full bounded source contribution, while camera movement supplies the same reduced 5% term to vehicles, ride music, and static positional effects. Loads, teleports, rotations, long gaps, and closest-car anchor changes reset motion instead of creating pitch impulses.
+
+Positional source calibration and distance remain separate floating-point gains through the mixer, preserving near-field ordering above unity until the existing final limiter. A stateful interpolated low-pass now removes high-frequency detail continuously with 3D distance; vehicle detail responds slightly faster, amplified music more gently, and terrain occlusion lowers the cutoff as well as the direct level. Reverb remains deferred as the second-slice stretch goal.
+
 ### Independent 144 FPS deadline and 360 TPS Turbo definition
 
 Offline Turbo now performs nine logical updates per 40 Hz batch, making 360 TPS an actual scheduler target rather than an

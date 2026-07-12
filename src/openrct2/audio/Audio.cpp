@@ -51,6 +51,8 @@ namespace OpenRCT2::Audio
         float distance;
         float occlusion;
         int32_t baseVolume;
+        float spatialGain;
+        float lowPassCutoff;
     };
 
     struct ActiveSpatialSound
@@ -183,12 +185,14 @@ namespace OpenRCT2::Audio
             + (soundId == SoundId::purchase ? kPurchaseSourceBoost : 0);
         return AudioParams{
             spatial.Audible,
-            std::max(-10000, baseVolume + SpatialGainToDSEnvelope(spatial.Gain)),
+            baseVolume,
             spatial.Azimuth,
             spatial.Elevation,
             spatial.Distance,
             occlusion,
             baseVolume,
+            spatial.Gain,
+            spatial.LowPassCutoff,
         };
     }
 
@@ -228,8 +232,13 @@ namespace OpenRCT2::Audio
         if (channel != nullptr)
         {
             channel->SetSpatial(params.azimuth, params.elevation);
+            channel->SetGain(params.spatialGain);
+            channel->SetLowPassCutoff(params.lowPassCutoff);
             ActiveSpatialSound active{ channel, location, params.baseVolume, params.occlusion };
-            UpdateDopplerMotion(active.Doppler, params.distance, 0.0f);
+            if (const auto listener = GetSpatialAudioListener(); listener.has_value())
+            {
+                UpdateDopplerMotion(active.Doppler, *listener, location, 0.0f, false);
+            }
             active.LastUpdate = std::chrono::steady_clock::now();
             _activeSpatialSounds.push_back(std::move(active));
         }
@@ -282,11 +291,13 @@ namespace OpenRCT2::Audio
 
                     const auto spatial = CalculateSpatialAudioParams(*listener, active.Location, active.Occlusion);
                     const auto elapsed = std::chrono::duration<float>(now - active.LastUpdate).count();
-                    const auto doppler = UpdateDopplerMotion(active.Doppler, spatial.Distance, elapsed);
+                    const auto doppler = UpdateDopplerMotion(
+                        active.Doppler, *listener, active.Location, elapsed, false);
                     active.LastUpdate = now;
-                    active.Channel->SetVolume(
-                        DStoMixerVolume(std::max(-10000, active.BaseVolume + SpatialGainToDSEnvelope(spatial.Gain))));
+                    active.Channel->SetVolume(DStoMixerVolume(active.BaseVolume));
+                    active.Channel->SetGain(spatial.Gain);
                     active.Channel->SetSpatial(spatial.Azimuth, spatial.Elevation);
+                    active.Channel->SetLowPassCutoff(spatial.LowPassCutoff);
                     active.Channel->SetRate(doppler);
                     return false;
                 }),

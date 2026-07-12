@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <cmath>
 #include <openrct2/audio/AudioSource.h>
+#include <openrct2/audio/SpatialAudio.h>
 
 namespace OpenRCT2::Audio
 {
@@ -36,16 +37,22 @@ namespace OpenRCT2::Audio
         float _oldvolume_l = 0.f;
         float _oldvolume_r = 0.f;
         int32_t _oldvolume = 0;
+        float _gain = 1.0f;
+        float _oldGain = 1.0f;
         float _pan = 0;
         float _azimuth = 0;
         float _oldAzimuth = 0;
         float _elevation = 0;
+        float _lowPassCutoff = kSpatialFilterBypassCutoff;
+        float _oldLowPassCutoff = kSpatialFilterBypassCutoff;
+        float _lowPassState = 0.0f;
         float _fadeLevel = 1.0f;
         double _resampleRemainder = 0.0;
 
         bool _stopping = false;
         bool _done = true;
         bool _spatial = false;
+        bool _lowPassInitialised = false;
 
     public:
         AudioChannelImpl()
@@ -143,6 +150,21 @@ namespace OpenRCT2::Audio
             _volume = std::clamp(volume, 0, kMixerVolumeMax);
         }
 
+        [[nodiscard]] float GetGain() const override
+        {
+            return _gain;
+        }
+
+        [[nodiscard]] float GetOldGain() const override
+        {
+            return _oldGain;
+        }
+
+        void SetGain(float gain) override
+        {
+            _gain = std::clamp(gain, 0.0f, 32.0f);
+        }
+
         [[nodiscard]] float GetPan() const override
         {
             return _pan;
@@ -196,6 +218,21 @@ namespace OpenRCT2::Audio
             _spatial = true;
         }
 
+        [[nodiscard]] float GetLowPassCutoff() const override
+        {
+            return _lowPassCutoff;
+        }
+
+        [[nodiscard]] float GetOldLowPassCutoff() const override
+        {
+            return _oldLowPassCutoff;
+        }
+
+        void SetLowPassCutoff(float cutoff) override
+        {
+            _lowPassCutoff = std::clamp(cutoff, 20.0f, kSpatialFilterBypassCutoff);
+        }
+
         void ClearSpatial() override
         {
             _spatial = false;
@@ -235,6 +272,8 @@ namespace OpenRCT2::Audio
             _stopping = false;
             _fadeLevel = 1.0f;
             _resampleRemainder = 0.0;
+            _lowPassState = 0.0f;
+            _lowPassInitialised = false;
         }
 
         void Stop() override
@@ -278,6 +317,26 @@ namespace OpenRCT2::Audio
             _resampleRemainder = std::clamp(value, 0.0, 1.0);
         }
 
+        [[nodiscard]] float GetLowPassState() const override
+        {
+            return _lowPassState;
+        }
+
+        void SetLowPassState(float value) override
+        {
+            _lowPassState = value;
+        }
+
+        [[nodiscard]] bool IsLowPassInitialised() const override
+        {
+            return _lowPassInitialised;
+        }
+
+        void SetLowPassInitialised(bool value) override
+        {
+            _lowPassInitialised = value;
+        }
+
         size_t ReadForResampling(void* dst, size_t framesToConsume, size_t lookaheadFrames) override
         {
             const auto format = _source->GetFormat();
@@ -299,9 +358,11 @@ namespace OpenRCT2::Audio
         void UpdateOldVolume() override
         {
             _oldvolume = _volume;
+            _oldGain = _gain;
             _oldvolume_l = _volume_l;
             _oldvolume_r = _volume_r;
             _oldAzimuth = _azimuth;
+            _oldLowPassCutoff = _lowPassCutoff;
         }
 
         [[nodiscard]] AudioFormat GetFormat() const override

@@ -28,6 +28,10 @@ namespace OpenRCT2::Audio
         virtual float AdvanceFade(size_t frames, uint32_t sampleRate) = 0;
         [[nodiscard]] virtual double GetResampleRemainder() const = 0;
         virtual void SetResampleRemainder(double value) = 0;
+        [[nodiscard]] virtual float GetLowPassState() const = 0;
+        virtual void SetLowPassState(float value) = 0;
+        [[nodiscard]] virtual bool IsLowPassInitialised() const = 0;
+        virtual void SetLowPassInitialised(bool value) = 0;
         virtual size_t ReadForResampling(void* dst, size_t framesToConsume, size_t lookaheadFrames) = 0;
     };
 

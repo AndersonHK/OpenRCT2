@@ -58,6 +58,7 @@ namespace OpenRCT2::Audio
         float azimuth;
         float elevation;
         float dopplerFactor;
+        float lowPassCutoff;
     };
 
     enum class SoundId : uint8_t

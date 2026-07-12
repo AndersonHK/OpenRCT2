@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <numbers>
 #include <openrct2/Diagnostic.h>
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/audio/SpatialAudio.h>
@@ -84,6 +85,10 @@ void AudioMixer::Init(const char* device)
     // The callback converts to the negotiated 48 kHz output format before spatial routing.
     _sourceFormat = AudioFormat{ 22050, AUDIO_S16SYS, 2 };
     _limiterGain = 1.0f;
+    _lastCallbackReport = {};
+    _callbackTotalMilliseconds = 0.0;
+    _callbackWorstMilliseconds = 0.0;
+    _callbackCount = 0;
     _mixSpatialSpeaker = Platform::AVX2Available() ? MixSpatialSpeakerAVX2 : MixSpatialSpeakerScalar;
     _channels.reserve(kMaxMixedChannels);
     LOG_VERBOSE("Audio mixer spatial kernel: %s planar", Platform::AVX2Available() ? "AVX2" : "scalar");
@@ -169,6 +174,7 @@ const AudioFormat& AudioMixer::GetFormat() const
 
 void AudioMixer::GetNextAudioChunk(uint8_t* dst, size_t length)
 {
+    const auto callbackStart = std::chrono::steady_clock::now();
     const auto& soundConfig = Config::Get().sound;
     const auto updateVolume = [](uint8_t configured, uint8_t& cached, float& adjusted) {
         if (cached != configured)
@@ -185,6 +191,8 @@ void AudioMixer::GetNextAudioChunk(uint8_t* dst, size_t length)
     _mixBuffer.assign(frames * static_cast<size_t>(_outputFormat.channels), 0.0f);
 
     const auto masterGain = soundConfig.masterSoundEnabled ? static_cast<float>(soundConfig.masterVolume) / 100.0f : 0.0f;
+    std::array<size_t, 4> mixedGroups{};
+    size_t filteredChannels = 0;
     std::erase_if(_channels, [&](const auto& channel) {
         const auto* source = channel->GetSource();
         if (source == nullptr || source->IsReleased() || channel->IsDone())
@@ -198,6 +206,9 @@ void AudioMixer::GetNextAudioChunk(uint8_t* dst, size_t length)
         if ((!isSoundEffect || soundConfig.soundEnabled) && masterGain > 0.0f)
         {
             MixChannel(channel.get(), frames, masterGain);
+            mixedGroups[static_cast<size_t>(group)]++;
+            filteredChannels += channel->IsSpatial()
+                && channel->GetLowPassCutoff() < kSpatialFilterBypassCutoff;
         }
         return channel->IsDone();
     });
@@ -207,6 +218,31 @@ void AudioMixer::GetNextAudioChunk(uint8_t* dst, size_t length)
     if (mixedLength < length)
     {
         std::fill(dst + mixedLength, dst + length, 0);
+    }
+
+    const auto callbackEnd = std::chrono::steady_clock::now();
+    const auto callbackMilliseconds = std::chrono::duration<double, std::milli>(callbackEnd - callbackStart).count();
+    _callbackTotalMilliseconds += callbackMilliseconds;
+    _callbackWorstMilliseconds = std::max(_callbackWorstMilliseconds, callbackMilliseconds);
+    _callbackCount++;
+    if (_lastCallbackReport == std::chrono::steady_clock::time_point{})
+    {
+        _lastCallbackReport = callbackEnd;
+    }
+    else if (callbackEnd - _lastCallbackReport >= std::chrono::seconds(5))
+    {
+        const auto averageMilliseconds = _callbackTotalMilliseconds / static_cast<double>(_callbackCount);
+        const auto deadlineMilliseconds = 1000.0 * static_cast<double>(frames) / static_cast<double>(_outputFormat.freq);
+        LOG_VERBOSE(
+            "Audio callback mixed %zu channels (%zu effects, %zu vehicles, %zu ride music, %zu title music; "
+            "%zu distance-filtered) in %.3f ms average, %.3f ms worst against %.3f ms deadline; limiter %.3f",
+            mixedGroups[0] + mixedGroups[1] + mixedGroups[2] + mixedGroups[3], mixedGroups[0], mixedGroups[1],
+            mixedGroups[2], mixedGroups[3], filteredChannels, averageMilliseconds, _callbackWorstMilliseconds,
+            deadlineMilliseconds, _limiterGain);
+        _lastCallbackReport = callbackEnd;
+        _callbackTotalMilliseconds = 0.0;
+        _callbackWorstMilliseconds = 0.0;
+        _callbackCount = 0;
     }
 
 }
@@ -284,8 +320,8 @@ void AudioMixer::MixChannel(ISDLAudioChannel* channel, size_t frames, float mast
     const auto* samples = static_cast<const int16_t*>(buffer);
     const auto outputChannels = static_cast<size_t>(_outputFormat.channels);
     const auto volumeAdjust = GetVolumeAdjust(channel, masterGain) / static_cast<float>(kMixerVolumeMax);
-    const auto oldVolume = static_cast<float>(channel->GetOldVolume()) * volumeAdjust;
-    const auto newVolume = static_cast<float>(channel->GetVolume()) * volumeAdjust;
+    const auto oldVolume = static_cast<float>(channel->GetOldVolume()) * channel->GetOldGain() * volumeAdjust;
+    const auto newVolume = static_cast<float>(channel->GetVolume()) * channel->GetGain() * volumeAdjust;
     const auto startFade = channel->GetFadeLevel();
     const auto endFade = channel->AdvanceFade(frames, static_cast<uint32_t>(_outputFormat.freq));
 
@@ -423,6 +459,49 @@ size_t AudioMixer::PrepareSpatialSamples(
         const auto second = (static_cast<double>(source[secondOffset]) + static_cast<double>(source[secondOffset + 1])) * 0.5;
         destination[producedFrames] = static_cast<int16_t>(std::clamp(std::lerp(first, second, fraction), -32768.0, 32767.0));
     }
+
+    if (producedFrames == 0)
+    {
+        return 0;
+    }
+
+    const auto oldCutoff = channel->GetOldLowPassCutoff();
+    const auto newCutoff = channel->GetLowPassCutoff();
+    const auto nyquist = static_cast<float>(_outputFormat.freq) * 0.5f;
+    const auto bypassCutoff = nyquist * 0.9f;
+    if (oldCutoff >= bypassCutoff && newCutoff >= bypassCutoff)
+    {
+        channel->SetLowPassState(static_cast<float>(destination[producedFrames - 1]));
+        channel->SetLowPassInitialised(true);
+        return producedFrames;
+    }
+
+    auto filterState = channel->IsLowPassInitialised() ? channel->GetLowPassState() : static_cast<float>(destination[0]);
+    const auto coefficientForCutoff = [&](float cutoff) {
+        if (cutoff >= bypassCutoff)
+        {
+            return 1.0f;
+        }
+        const auto clampedCutoff = std::clamp(cutoff, 20.0f, bypassCutoff);
+        return 1.0f - std::exp(
+            -2.0f * std::numbers::pi_v<float> * clampedCutoff / static_cast<float>(_outputFormat.freq));
+    };
+    const auto oldCoefficient = coefficientForCutoff(oldCutoff);
+    const auto newCoefficient = coefficientForCutoff(newCutoff);
+    auto coefficient = oldCoefficient;
+    const auto coefficientStep = producedFrames > 1
+        ? (newCoefficient - oldCoefficient) / static_cast<float>(producedFrames - 1)
+        : 0.0f;
+    for (size_t frame = 0; frame < producedFrames; frame++)
+    {
+        filterState += coefficient * (static_cast<float>(destination[frame]) - filterState);
+        // A stable one-pole update remains within the convex hull of its prior state and input,
+        // both of which are valid int16 values. No per-sample rounded clamp is necessary.
+        destination[frame] = static_cast<int16_t>(filterState);
+        coefficient += coefficientStep;
+    }
+    channel->SetLowPassState(filterState);
+    channel->SetLowPassInitialised(true);
     return producedFrames;
 }
 

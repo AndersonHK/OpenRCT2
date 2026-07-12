@@ -16,6 +16,7 @@
 
 #include <SDL.h>
 #include <array>
+#include <chrono>
 #include <cstdint>
 #include <memory>
 #include <mutex>
@@ -50,6 +51,10 @@ namespace OpenRCT2::Audio
         std::vector<float> _mixBuffer;
         float _limiterGain = 1.0f;
         MixSpatialSpeakerFunc _mixSpatialSpeaker = nullptr;
+        std::chrono::steady_clock::time_point _lastCallbackReport{};
+        double _callbackTotalMilliseconds = 0.0;
+        double _callbackWorstMilliseconds = 0.0;
+        uint64_t _callbackCount = 0;
 
         std::mutex _mutex;
 

@@ -44,6 +44,9 @@ namespace OpenRCT2::Audio
         virtual float GetOldVolumeR() const = 0;
         virtual int32_t GetOldVolume() const = 0;
         virtual void SetVolume(int32_t volume) = 0;
+        virtual float GetGain() const = 0;
+        virtual float GetOldGain() const = 0;
+        virtual void SetGain(float gain) = 0;
 
         virtual float GetPan() const = 0;
         virtual void SetPan(float pan) = 0;
@@ -53,6 +56,9 @@ namespace OpenRCT2::Audio
         virtual float GetOldAzimuth() const = 0;
         virtual float GetElevation() const = 0;
         virtual void SetSpatial(float azimuth, float elevation) = 0;
+        virtual float GetLowPassCutoff() const = 0;
+        virtual float GetOldLowPassCutoff() const = 0;
+        virtual void SetLowPassCutoff(float cutoff) = 0;
         virtual void ClearSpatial() = 0;
 
         virtual bool IsStopping() const = 0;
