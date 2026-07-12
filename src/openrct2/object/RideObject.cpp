@@ -763,6 +763,8 @@ namespace OpenRCT2
         car.spinning_inertia = Json::GetNumber<uint8_t>(jCar["spinningInertia"]);
         car.spinning_friction = Json::GetNumber<uint8_t>(jCar["spinningFriction"]);
         car.friction_sound_id = Json::GetEnum<Audio::SoundId>(jCar["frictionSoundId"], Audio::SoundId::null);
+        car.friction_sound_gain = Audio::DecibelsToLinearGain(
+            Json::GetNumber<float>(jCar["frictionSoundGainDb"], 0.0f));
         car.ReversedCarIndex = Json::GetNumber<uint8_t>(jCar["logFlumeReverserVehicleType"]);
         car.soundRange = Json::GetEnum<SoundRange>(jCar["soundRange"], SoundRange::none);
         car.double_sound_frequency = Json::GetNumber<uint8_t>(jCar["doubleSoundFrequency"]);

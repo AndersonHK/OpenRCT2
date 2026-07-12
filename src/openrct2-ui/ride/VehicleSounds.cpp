@@ -194,6 +194,7 @@ namespace OpenRCT2::Audio
         param.azimuth = spatial.Azimuth;
         param.elevation = spatial.Elevation;
         param.lowPassCutoff = spatial.LowPassCutoff;
+        param.frictionSoundGain = 1.0f;
         const auto vehicleId = vehicle.id.ToUnderlying();
         const auto previousSource = _vehicleDopplerSourceIds.find(vehicleId);
         const auto sourceChanged = previousSource != _vehicleDopplerSourceIds.end()
@@ -207,6 +208,11 @@ namespace OpenRCT2::Audio
         const auto* rideType = vehicle.GetRideEntry();
         if (rideType != nullptr)
         {
+            const auto soundCarIndex = rideType->FrontCar == 0xff ? rideType->DefaultCar : rideType->FrontCar;
+            if (const auto* soundCar = rideType->GetCar(soundCarIndex); soundCar != nullptr)
+            {
+                param.frictionSoundGain = soundCar->friction_sound_gain;
+            }
             if (rideType->Cars[vehicle.vehicle_type].double_sound_frequency & 1)
             {
                 frequency *= 2;
@@ -381,7 +387,7 @@ namespace OpenRCT2::Audio
             // The authored vehicle byte is conservative and the source is spread over a whole train.
             // A 4.5x calibration keeps wheel, lift, and engine texture present without dominating
             // the close view; the vehicle-specific rolloff then confines it more tightly in space.
-            authoredGain *= 4.5f;
+            authoredGain *= 4.5f * sound_params->frictionSoundGain;
         }
         else
         {
@@ -411,18 +417,16 @@ namespace OpenRCT2::Audio
             auto frequency = SoundFrequency<type>(id, sound_params->frequency);
             auto looping = IsLoopingSound(id);
             _vehicleChannelStartAttempts++;
-            auto channel = CreateAudioChannel(
-                id, MixerGroup::Vehicle, looping, kMixerVolumeMax, 0.5f,
-                DStoMixerRate(frequency) * sound_params->dopplerFactor);
+            auto channel = CreateSpatialAudioChannel(
+                id, MixerGroup::Vehicle, looping, kMixerVolumeMax,
+                DStoMixerRate(frequency) * sound_params->dopplerFactor, playbackGain, sound_params->azimuth,
+                sound_params->elevation, sound_params->lowPassCutoff);
             if (channel != nullptr)
             {
                 sound.id = id;
                 sound.volume = 0;
                 sound.frequency = sound_params->frequency;
                 sound.channel = channel;
-                sound.channel->SetGain(playbackGain);
-                sound.channel->SetSpatial(sound_params->azimuth, sound_params->elevation);
-                sound.channel->SetLowPassCutoff(sound_params->lowPassCutoff);
             }
             else
             {

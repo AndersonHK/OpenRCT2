@@ -77,10 +77,8 @@ namespace OpenRCT2::RideAudio
 
             channel->SetOffset(Offset);
             channel->SetVolume(DStoMixerVolume(Volume));
-            channel->SetGain(Gain);
-            channel->SetSpatial(Azimuth, Elevation);
-            channel->SetLowPassCutoff(LowPassCutoff);
             channel->SetRate(DStoMixerRate(Frequency));
+            InitialiseSpatialChannel(*channel, Gain, Azimuth, Elevation, LowPassCutoff);
             Channel = std::move(channel);
 
             Source = source;

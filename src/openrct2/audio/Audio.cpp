@@ -228,12 +228,11 @@ namespace OpenRCT2::Audio
 
     static void PlaySpatial(IAudioSource* audioSource, const AudioParams& params, const CoordsXYZ& location)
     {
-        auto channel = CreateAudioChannel(audioSource, MixerGroup::Sound, false, DStoMixerVolume(params.volume));
+        auto channel = CreateSpatialAudioChannel(
+            audioSource, MixerGroup::Sound, false, DStoMixerVolume(params.volume), 1.0, params.spatialGain,
+            params.azimuth, params.elevation, params.lowPassCutoff);
         if (channel != nullptr)
         {
-            channel->SetSpatial(params.azimuth, params.elevation);
-            channel->SetGain(params.spatialGain);
-            channel->SetLowPassCutoff(params.lowPassCutoff);
             ActiveSpatialSound active{ channel, location, params.baseVolume, params.occlusion };
             if (const auto listener = GetSpatialAudioListener(); listener.has_value())
             {
@@ -590,6 +589,47 @@ namespace OpenRCT2::Audio
         return channel;
     }
 
+    std::shared_ptr<IAudioChannel> CreateSpatialAudioChannel(
+        SoundId id, MixerGroup group, bool loop, int32_t volume, double rate, float gain, float azimuth,
+        float elevation, float lowPassCutoff)
+    {
+        auto [baseAudioObject, sampleIndex] = GetAudioObjectAndSampleIndex(id);
+        if (baseAudioObject != nullptr)
+        {
+            auto source = baseAudioObject->GetSample(sampleIndex);
+            if (source != nullptr)
+            {
+                return CreateSpatialAudioChannel(
+                    source, group, loop, volume, rate, gain, azimuth, elevation, lowPassCutoff);
+            }
+        }
+        return nullptr;
+    }
+
+    std::shared_ptr<IAudioChannel> CreateSpatialAudioChannel(
+        IAudioSource* source, MixerGroup group, bool loop, int32_t volume, double rate, float gain, float azimuth,
+        float elevation, float lowPassCutoff)
+    {
+        auto* mixer = GetMixer();
+        if (mixer == nullptr)
+        {
+            return nullptr;
+        }
+
+        mixer->Lock();
+        auto channel = mixer->Play(source, loop ? kMixerLoopInfinite : kMixerLoopNone);
+        if (channel != nullptr)
+        {
+            channel->SetGroup(group);
+            channel->SetVolume(volume);
+            channel->SetPan(0.5f);
+            channel->SetRate(rate);
+            InitialiseSpatialChannel(*channel, gain, azimuth, elevation, lowPassCutoff);
+        }
+        mixer->Unlock();
+        return channel;
+    }
+
     int32_t DStoMixerVolume(int32_t volume)
     {
         return static_cast<int32_t>(kMixerVolumeMax * (std::pow(10.0f, static_cast<float>(volume) / 2000)));
@@ -605,6 +645,22 @@ namespace OpenRCT2::Audio
     double DStoMixerRate(int32_t frequency)
     {
         return static_cast<double>(frequency) / 22050;
+    }
+
+    float DecibelsToLinearGain(float decibels)
+    {
+        return std::pow(10.0f, decibels / 20.0f);
+    }
+
+    void InitialiseSpatialChannel(
+        IAudioChannel& channel, float gain, float azimuth, float elevation, float lowPassCutoff)
+    {
+        channel.SetGain(gain);
+        channel.SetSpatial(azimuth, elevation);
+        channel.SetLowPassCutoff(lowPassCutoff);
+        // A new channel has unity/full-band/front-facing defaults. Seed its interpolation history
+        // from the configured state so its first callback cannot burst at those defaults.
+        channel.UpdateOldVolume();
     }
 
 } // namespace OpenRCT2::Audio

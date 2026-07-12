@@ -1,6 +1,6 @@
 # Spatial audio overhaul
 
-The implemented camera/depth stage and the deferred environmental-reverb stretch goal are documented in [spatial-audio-camera-depth-plan.md](spatial-audio-camera-depth-plan.md).
+The implemented camera/depth stage and the deferred environmental-reverb stretch goal are documented in [spatial-audio-camera-depth-plan.md](spatial-audio-camera-depth-plan.md). Real-world ride comparisons, default CSS1 measurements, and the go-kart loop/lifecycle investigation are documented in [ride-audio-loudness-research.md](ride-audio-loudness-research.md).
 
 ## Goal
 

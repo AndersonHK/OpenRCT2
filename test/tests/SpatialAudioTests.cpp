@@ -18,7 +18,13 @@
 #include <openrct2-ui/audio/AudioContext.h>
 #include <openrct2-ui/audio/AudioFormat.h>
 #include <openrct2-ui/audio/SDLAudioSource.h>
+#include <openrct2/Context.h>
+#include <openrct2/OpenRCT2.h>
+#include <openrct2/audio/Audio.h>
 #include <openrct2/audio/SpatialAudio.h>
+#include <openrct2/object/ObjectManager.h>
+#include <openrct2/object/RideObject.h>
+#include <openrct2/ride/CarEntry.h>
 #include <openrct2/ride/RideAudio.h>
 
 using namespace OpenRCT2::Audio;
@@ -371,6 +377,45 @@ TEST(SpatialAudio, GainConversionMatchesMixerAmplitudeConvention)
     EXPECT_EQ(SpatialGainToDSEnvelope(1.0f), 0);
     EXPECT_NEAR(SpatialGainToDSEnvelope(0.5f), -602, 1);
     EXPECT_EQ(SpatialGainToDSEnvelope(0.0f), -10000);
+}
+
+TEST(SpatialAudio, RideDefinitionDecibelGainUsesAmplitudeConvention)
+{
+    CarEntry legacyCar{};
+    EXPECT_FLOAT_EQ(legacyCar.friction_sound_gain, 1.0f);
+    EXPECT_NEAR(DecibelsToLinearGain(-6.0f), 0.501187f, 0.000001f);
+    EXPECT_FLOAT_EQ(DecibelsToLinearGain(0.0f), 1.0f);
+}
+
+TEST(SpatialAudio, NewSpatialChannelStartsFromConfiguredState)
+{
+    std::unique_ptr<IAudioChannel> channel(AudioChannel::Create());
+    channel->SetVolume(64);
+    InitialiseSpatialChannel(*channel, 0.125f, 1.25f, -0.25f, 3200.0f);
+
+    EXPECT_FLOAT_EQ(channel->GetGain(), 0.125f);
+    EXPECT_FLOAT_EQ(channel->GetOldGain(), 0.125f);
+    EXPECT_FLOAT_EQ(channel->GetAzimuth(), 1.25f);
+    EXPECT_FLOAT_EQ(channel->GetOldAzimuth(), 1.25f);
+    EXPECT_FLOAT_EQ(channel->GetLowPassCutoff(), 3200.0f);
+    EXPECT_FLOAT_EQ(channel->GetOldLowPassCutoff(), 3200.0f);
+    EXPECT_EQ(channel->GetVolume(), 64);
+    EXPECT_EQ(channel->GetOldVolume(), 64);
+}
+
+TEST(SpatialAudio, ShippedKartDefinitionProvidesFrictionSoundGain)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+    auto context = OpenRCT2::CreateContext();
+    ASSERT_NE(context, nullptr);
+    ASSERT_TRUE(context->Initialise());
+
+    auto* object = context->GetObjectManager().LoadObject("rct2.ride.kart1");
+    auto* rideObject = dynamic_cast<OpenRCT2::RideObject*>(object);
+    ASSERT_NE(rideObject, nullptr);
+    EXPECT_NEAR(
+        rideObject->GetEntry().Cars[0].friction_sound_gain, DecibelsToLinearGain(-6.0f), 0.000001f);
 }
 
 TEST(AudioChannel, FloatingPointGainPreservesValuesAboveUnity)

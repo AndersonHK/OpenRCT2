@@ -28,6 +28,16 @@ namespace OpenRCT2
     namespace RideVehicle::StationDetail
     {
         constexpr size_t kMaxPassengerCount = 32;
+        constexpr uint16_t kGoKartRaceStartDelayMinTicks = 1;
+        constexpr uint16_t kGoKartRaceStartDelayMaxTicks = 40;
+
+        [[nodiscard]] constexpr uint16_t CalculateGoKartRaceStartDelay(uint32_t randomValue) noexcept
+        {
+            return kGoKartRaceStartDelayMinTicks
+                + (randomValue % (kGoKartRaceStartDelayMaxTicks - kGoKartRaceStartDelayMinTicks + 1));
+        }
+
+        [[nodiscard]] bool ConsumeGoKartRaceStartDelay(bool raceStartActive, uint16_t& ticksRemaining) noexcept;
 
         struct TrainSeatSummary
         {

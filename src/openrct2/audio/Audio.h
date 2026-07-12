@@ -59,6 +59,7 @@ namespace OpenRCT2::Audio
         float elevation;
         float dopplerFactor;
         float lowPassCutoff;
+        float frictionSoundGain;
     };
 
     enum class SoundId : uint8_t
@@ -284,9 +285,18 @@ namespace OpenRCT2::Audio
     std::shared_ptr<IAudioChannel> CreateAudioChannel(
         IAudioSource* source, MixerGroup group, bool loop = false, int32_t volume = kMixerVolumeMax, float pan = 0.5f,
         double rate = 1);
+    std::shared_ptr<IAudioChannel> CreateSpatialAudioChannel(
+        SoundId soundId, MixerGroup group, bool loop, int32_t volume, double rate, float gain, float azimuth,
+        float elevation, float lowPassCutoff);
+    std::shared_ptr<IAudioChannel> CreateSpatialAudioChannel(
+        IAudioSource* source, MixerGroup group, bool loop, int32_t volume, double rate, float gain, float azimuth,
+        float elevation, float lowPassCutoff);
 
     int32_t DStoMixerVolume(int32_t volume);
     float DStoMixerPan(int32_t pan);
     double DStoMixerRate(int32_t frequency);
+    float DecibelsToLinearGain(float decibels);
+    void InitialiseSpatialChannel(
+        IAudioChannel& channel, float gain, float azimuth, float elevation, float lowPassCutoff);
 
 } // namespace OpenRCT2::Audio

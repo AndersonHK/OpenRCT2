@@ -30,6 +30,34 @@
 
 using namespace OpenRCT2;
 
+TEST(RideVehicleStation, GoKartRaceStartDelaySpansOneThroughFortyTicks)
+{
+    using namespace RideVehicle::StationDetail;
+
+    EXPECT_EQ(CalculateGoKartRaceStartDelay(0), 1);
+    EXPECT_EQ(CalculateGoKartRaceStartDelay(39), 40);
+    EXPECT_EQ(CalculateGoKartRaceStartDelay(40), 1);
+    EXPECT_EQ(CalculateGoKartRaceStartDelay(UINT32_MAX), 16);
+}
+
+TEST(RideVehicleStation, GoKartRaceStartDelayOnlyCountsDownWhileRaceStartIsActive)
+{
+    using namespace RideVehicle::StationDetail;
+
+    uint16_t ticksRemaining = 3;
+    EXPECT_FALSE(ConsumeGoKartRaceStartDelay(false, ticksRemaining));
+    EXPECT_EQ(ticksRemaining, 3);
+
+    EXPECT_TRUE(ConsumeGoKartRaceStartDelay(true, ticksRemaining));
+    EXPECT_EQ(ticksRemaining, 2);
+    EXPECT_TRUE(ConsumeGoKartRaceStartDelay(true, ticksRemaining));
+    EXPECT_EQ(ticksRemaining, 1);
+    EXPECT_TRUE(ConsumeGoKartRaceStartDelay(true, ticksRemaining));
+    EXPECT_EQ(ticksRemaining, 0);
+    EXPECT_FALSE(ConsumeGoKartRaceStartDelay(true, ticksRemaining));
+    EXPECT_EQ(ticksRemaining, 0);
+}
+
 class EntityImportTests : public testing::Test
 {
 protected:

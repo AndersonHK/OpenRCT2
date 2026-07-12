@@ -212,6 +212,9 @@ struct CarEntry
     uint8_t spinning_inertia;
     uint8_t spinning_friction;
     OpenRCT2::Audio::SoundId friction_sound_id; // Only valid for front/default car of train
+    // Linear gain parsed from the optional JSON frictionSoundGainDb property.
+    // Legacy DAT objects and JSON objects without the property retain unity gain.
+    float friction_sound_gain = 1.0f;
     uint8_t ReversedCarIndex; // When the car is reversed (using a turntable or reverser), it will be changed to this car.
     SoundRange soundRange;
     uint8_t double_sound_frequency; // (Doubles the velocity when working out the sound frequency {used on go karts})

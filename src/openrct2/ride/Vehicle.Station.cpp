@@ -54,6 +54,15 @@ static SynchronisedVehicle* _lastSynchronisedVehicle = nullptr;
 
 namespace OpenRCT2::RideVehicle::StationDetail
 {
+    bool ConsumeGoKartRaceStartDelay(bool raceStartActive, uint16_t& ticksRemaining) noexcept
+    {
+        if (!raceStartActive || ticksRemaining == 0)
+            return false;
+
+        ticksRemaining--;
+        return true;
+    }
+
     TrainSeatSummary BuildTrainSeatSummary(const Vehicle& head)
     {
         TrainSeatSummary result;
@@ -1135,6 +1144,17 @@ void Vehicle::UpdateDeparting()
     if (rideEntry == nullptr)
         return;
 
+    const auto& carEntry = rideEntry->Cars[vehicle_type];
+    const bool isGoKartRaceStart = curRide->mode == RideMode::race
+        && curRide->flags.has(RideFlag::passStationNoStopping) && carEntry.flags.has(CarEntryFlag::isGoKart)
+        && NumLaps == 0;
+    if (RideVehicle::StationDetail::ConsumeGoKartRaceStartDelay(isGoKartRaceStart, var_C0))
+    {
+        velocity = 0;
+        acceleration = 0;
+        return;
+    }
+
     if (sub_state == 0)
     {
         if (flags.has(VehicleFlag::trainIsBroken))
@@ -1187,7 +1207,6 @@ void Vehicle::UpdateDeparting()
         }
     }
 
-    const auto& carEntry = rideEntry->Cars[vehicle_type];
     const auto& rtd = curRide->getRideTypeDescriptor();
     switch (curRide->mode)
     {

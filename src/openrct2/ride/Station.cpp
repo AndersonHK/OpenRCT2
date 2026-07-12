@@ -20,6 +20,7 @@
 #include "../world/tile_element/TrackElement.h"
 #include "RideEntry.h"
 #include "Vehicle.h"
+#include "Vehicle.Station.h"
 
 using namespace OpenRCT2;
 
@@ -295,6 +296,10 @@ static void RideRaceInitVehicleSpeeds(const Ride& ride)
         const auto* rideEntry = vehicle->GetRideEntry();
 
         vehicle->speed = (ScenarioRand() & 15) - 8 + rideEntry->Cars[vehicle->vehicle_type].powered_max_speed;
+        const auto& carEntry = rideEntry->Cars[vehicle->vehicle_type];
+        vehicle->var_C0 = carEntry.flags.has(CarEntryFlag::isGoKart)
+            ? RideVehicle::StationDetail::CalculateGoKartRaceStartDelay(ScenarioRand())
+            : 0;
 
         if (vehicle->num_peeps != 0)
         {
