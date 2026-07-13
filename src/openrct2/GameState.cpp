@@ -364,7 +364,7 @@ namespace OpenRCT2
         ContextBroadcastIntent(&restoreProvisionalIntent);
         VehicleUpdateAll();
         gameState.entities.UpdateAllMiscEntities();
-        Ride::updateAll();
+        Ride::updateAll(updatePresentationAudio);
 
         if (!isInEditorMode())
         {

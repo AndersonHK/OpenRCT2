@@ -73,6 +73,7 @@ bool ClipRenderTarget(
     int32_t height);
 void GfxSetDirtyBlocks(const ScreenRect& rect);
 void GfxInvalidateScreen();
+bool DrawingEngineCoalesceViewportInvalidation();
 
 // palette
 void GfxTransposePalette(ImageIndex pal, uint8_t product);

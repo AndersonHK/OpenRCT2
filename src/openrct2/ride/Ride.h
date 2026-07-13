@@ -735,7 +735,7 @@ public:
     void formatNameTo(OpenRCT2::Formatter&) const;
     void formatStatusTo(OpenRCT2::Formatter&) const;
 
-    static void updateAll();
+    static void updateAll(bool updatePresentationAudio = true);
     static bool nameExists(std::string_view name, RideId excludeRideId = RideId::GetNull());
 
     [[nodiscard]] std::unique_ptr<TrackDesign> saveToTrackDesign(TrackDesignState& tds) const;

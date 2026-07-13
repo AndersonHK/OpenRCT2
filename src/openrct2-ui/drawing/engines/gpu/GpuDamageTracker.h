@@ -42,6 +42,7 @@ namespace OpenRCT2::Ui::Gpu
         uint64_t _currentSerial{};
         uint64_t _appliedSerial{};
         uint64_t _fullRedrawSerial{};
+        size_t _dirtyCellCount{};
         std::vector<uint64_t> _cellSerials;
 
     public:
@@ -55,6 +56,7 @@ namespace OpenRCT2::Ui::Gpu
             _columns = width == 0 ? 0 : (width + blockWidth - 1) / blockWidth;
             _rows = height == 0 ? 0 : (height + blockHeight - 1) / blockHeight;
             _cellSerials.assign(static_cast<size_t>(_columns) * _rows, 0);
+            _dirtyCellCount = 0;
             ForceFullRedraw();
         }
 
@@ -74,9 +76,13 @@ namespace OpenRCT2::Ui::Gpu
             const uint32_t lastRow = static_cast<uint32_t>(bottom - 1) / _blockHeight;
             for (uint32_t row = firstRow; row <= lastRow; row++)
             {
-                std::fill(
-                    _cellSerials.begin() + static_cast<size_t>(row) * _columns + firstColumn,
-                    _cellSerials.begin() + static_cast<size_t>(row) * _columns + lastColumn + 1, serial);
+                for (uint32_t column = firstColumn; column <= lastColumn; column++)
+                {
+                    auto& cellSerial = _cellSerials[static_cast<size_t>(row) * _columns + column];
+                    if (cellSerial <= _appliedSerial)
+                        _dirtyCellCount++;
+                    cellSerial = serial;
+                }
             }
         }
 
@@ -84,12 +90,42 @@ namespace OpenRCT2::Ui::Gpu
         {
             const auto serial = NextSerial();
             std::fill(_cellSerials.begin(), _cellSerials.end(), serial);
+            _dirtyCellCount = _cellSerials.size();
             _fullRedrawSerial = serial;
         }
 
         void Acknowledge(uint64_t serial) noexcept
         {
             _appliedSerial = std::max(_appliedSerial, std::min(serial, _currentSerial));
+            if (!IsFullRedrawPending())
+            {
+                _dirtyCellCount = static_cast<size_t>(std::count_if(
+                    _cellSerials.begin(), _cellSerials.end(), [this](uint64_t cellSerial) {
+                        return cellSerial > _appliedSerial;
+                    }));
+            }
+        }
+
+        [[nodiscard]] bool IsFullRedrawPending() const noexcept
+        {
+            return _fullRedrawSerial > _appliedSerial;
+        }
+
+        bool CoalesceFullRedrawInvalidation() noexcept
+        {
+            if (IsFullRedrawPending())
+            {
+                _fullRedrawSerial = NextSerial();
+                return true;
+            }
+            if (_dirtyCellCount * 2 <= _cellSerials.size())
+                return false;
+
+            // A packet may already have snapshotted the prior serial. Advance the full-redraw serial so acknowledging that
+            // packet cannot retire mutations which happened while it was waiting in the render mailbox. Dense sparse damage
+            // is promoted only when this call actually elides a newer rectangle, preserving exact partial acknowledgements.
+            ForceFullRedraw();
+            return true;
         }
 
         [[nodiscard]] DamageSnapshot Snapshot() const
@@ -98,9 +134,7 @@ namespace OpenRCT2::Ui::Gpu
             if (_columns == 0 || _rows == 0)
                 return result;
 
-            const auto damagedCells = static_cast<size_t>(std::count_if(
-                _cellSerials.begin(), _cellSerials.end(), [this](uint64_t serial) { return serial > _appliedSerial; }));
-            if (result.fullRedraw || damagedCells * 2 > _cellSerials.size())
+            if (result.fullRedraw || _dirtyCellCount * 2 > _cellSerials.size())
             {
                 // Re-entering the viewport painter for many dirty islands costs more than rebuilding one dense scene.
                 // Keep sparse invalidation retained, but cross over before fragmented traversal dominates the main thread.

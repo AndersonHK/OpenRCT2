@@ -44,6 +44,24 @@ the changed region.
 The shared path route-field builder now records reverse-edge source directions during breadth-first traversal, removing the
 second full node-and-edge scan while preserving deterministic lowest-direction ties.
 
+### Integrated Turbo presentation batching and deadline stability
+
+Offline fast-forward no longer repeats ride-music listener projection, viewport audio selection, and channel reconciliation for
+every logical tick that precedes the displayed state. Intermediate ticks retain deterministic ride-music cursor advancement;
+normal speed and network play retain their established presentation cadence. Dense Vulkan damage is coalesced before repeated
+viewport projection, with serial-aware acknowledgement preserving later sparse damage. Paint-session cleanup now visits only
+quadrants used by the frame.
+
+Turbo uses one monotonic deadline for the next simulation or 144 Hz presentation event, sleeps the coarse interval, and yields
+through the short tail. Bounded scheduler and batch-completion jitter retains phase; a complete missed interval still discards
+debt. This removes the exposed 15 kHz idle message-pump loop and prevents tiny overruns from accumulating into permanent TPS
+loss.
+
+The fixed 3,600-tick EverythingPark Vulkan/VSync benchmark improves from `262.825` TPS and `144.043` FPS to `360.032` TPS and
+`144.013` FPS with identical checksum `1322b2e30a3c8e84000000000000000000000000` and world-state counts. A 10,800-tick growth
+run holds `144.016` FPS but averages `347.182` TPS as guests increase from 14,084 to 17,231, so sustained 360 TPS under continued
+population growth remains open. All 543 tests pass, including replay, damage-mailbox, pacer, and real Vulkan lifecycle coverage.
+
 ## 2026-07-11
 
 ### Deterministic 360 TPS / 144 FPS audit

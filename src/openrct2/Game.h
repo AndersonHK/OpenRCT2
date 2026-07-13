@@ -47,6 +47,7 @@ namespace OpenRCT2
         using Duration = typename Clock::duration;
 
         TimePoint _deadline{};
+        Duration _interval{};
         bool _initialised{};
 
     public:
@@ -62,20 +63,27 @@ namespace OpenRCT2
 
         void BeginBatch(TimePoint now) noexcept
         {
-            if (!_initialised || now > _deadline)
+            if (!_initialised)
             {
-                // Presentation and OS delays are not simulation work; discard them before starting the next batch.
                 _deadline = now;
                 _initialised = true;
+            }
+            else if (_interval > Duration::zero() && now >= _deadline + _interval)
+            {
+                // Retain phase across ordinary scheduler jitter so sub-millisecond wake-up error does not compound into a
+                // permanent TPS loss. A delay of a complete simulation interval is external debt and is still discarded.
+                _deadline = now;
             }
         }
 
         void CompleteBatch(TimePoint completedAt, Duration interval) noexcept
         {
+            _interval = interval;
             _deadline += interval;
-            if (_deadline < completedAt)
+            if (completedAt >= _deadline + interval)
             {
-                // An over-budget batch remains throughput-limited without manufacturing catch-up debt.
+                // Absorb a bounded overrun so timer and draw jitter do not permanently lower TPS. Once a complete
+                // interval has been missed, discard the debt and remain throughput-limited.
                 _deadline = completedAt;
             }
         }

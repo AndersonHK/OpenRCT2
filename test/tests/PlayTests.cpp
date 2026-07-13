@@ -107,7 +107,7 @@ TEST_F(PlayTests, TurboRequestsTheExplicit360TickBatchWithoutChangingOtherSpeedS
     EXPECT_EQ(kTurboTargetTicksPerSecond, 360u);
 }
 
-TEST_F(PlayTests, TurboSimulationPacerDropsExternalDelayAndRunsOverBudgetBatchesAtThroughput)
+TEST_F(PlayTests, TurboSimulationPacerAbsorbsWakeJitterButDropsFullIntervalDelay)
 {
     using Clock = std::chrono::steady_clock;
     using namespace std::chrono_literals;
@@ -123,17 +123,25 @@ TEST_F(PlayTests, TurboSimulationPacerDropsExternalDelayAndRunsOverBudgetBatches
     const auto slightlyLateStart = start + 26ms;
     pacer.BeginBatch(slightlyLateStart);
     pacer.CompleteBatch(slightlyLateStart + 10ms, 25ms);
-    EXPECT_EQ(pacer.TimeUntilDue(slightlyLateStart + 10ms), 15ms);
+    EXPECT_EQ(pacer.TimeUntilDue(slightlyLateStart + 10ms), 14ms);
 
-    const auto oneIntervalLateStart = slightlyLateStart + 50ms;
+    const auto slightlyOverBudgetStart = start + 50ms;
+    pacer.BeginBatch(slightlyOverBudgetStart);
+    pacer.CompleteBatch(slightlyOverBudgetStart + 26ms, 25ms);
+    EXPECT_EQ(pacer.TimeUntilDue(slightlyOverBudgetStart + 26ms), 0ms);
+    pacer.BeginBatch(slightlyOverBudgetStart + 26ms);
+    pacer.CompleteBatch(slightlyOverBudgetStart + 36ms, 25ms);
+    EXPECT_EQ(pacer.TimeUntilDue(slightlyOverBudgetStart + 36ms), 14ms);
+
+    const auto oneIntervalLateStart = slightlyOverBudgetStart + 75ms;
     pacer.BeginBatch(oneIntervalLateStart);
     pacer.CompleteBatch(oneIntervalLateStart + 10ms, 25ms);
     EXPECT_EQ(pacer.TimeUntilDue(oneIntervalLateStart + 10ms), 15ms);
 
     const auto overBudgetStart = oneIntervalLateStart + 25ms;
     pacer.BeginBatch(overBudgetStart);
-    pacer.CompleteBatch(overBudgetStart + 30ms, 25ms);
-    EXPECT_EQ(pacer.TimeUntilDue(overBudgetStart + 30ms), 0ms);
+    pacer.CompleteBatch(overBudgetStart + 55ms, 25ms);
+    EXPECT_EQ(pacer.TimeUntilDue(overBudgetStart + 55ms), 0ms);
 
     pacer.Reset();
     EXPECT_EQ(pacer.TimeUntilDue(overBudgetStart), 0ms);

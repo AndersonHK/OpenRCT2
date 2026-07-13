@@ -1124,7 +1124,7 @@ void ResetAllRideBuildDates()
  *
  *  rct2: 0x006ABE4C
  */
-void Ride::updateAll()
+void Ride::updateAll(bool updatePresentationAudio)
 {
     PROFILED_FUNCTION();
 
@@ -1155,7 +1155,9 @@ void Ride::updateAll()
         return;
     }
 
-    WindowUpdateViewportRideMusic();
+    RideAudio::SetMusicInstanceCollectionEnabled(updatePresentationAudio);
+    if (updatePresentationAudio)
+        WindowUpdateViewportRideMusic();
 
     // Update rides
     const auto currentTicks = gameState.currentTicks;
@@ -1165,7 +1167,8 @@ void Ride::updateAll()
     for (auto& ride : RideManager(gameState))
         ride.update(currentTicks, wholeSecondTick, breakdownTick, inspectionTick);
 
-    RideAudio::UpdateMusicChannels();
+    if (updatePresentationAudio)
+        RideAudio::UpdateMusicChannels();
 }
 
 std::unique_ptr<TrackDesign> Ride::saveToTrackDesign(TrackDesignState& tds) const

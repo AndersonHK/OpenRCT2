@@ -988,6 +988,23 @@ across 486 calls. Compared with the preceding deep profile, exact shared distanc
 direction-selection cost without moving dynamic fare, crowding, or weather policy into the topology cache. The remaining broad
 peep/vehicle loops still require deterministic staged-mutation architecture before they can safely use the worker pool.
 
+The July 13 integrated follow-up removes presentation work from intermediate logical ticks without changing authoritative tick
+order. Ride-music listener projection and channel selection now run only for the final tick in an offline fast-forward batch;
+intermediate ticks advance the deterministic saved cursor. Vulkan can acknowledge dense viewport damage before the caller pays
+for repeated world-to-screen projection, while serial tracking preserves sparse invalidations submitted after an older frame.
+Paint sessions clear only quadrants that actually received entries. The Turbo pacer retains phase across bounded wake and batch
+overrun jitter, drops debt after a complete missed interval, and waits on one monotonic simulation/presentation deadline rather
+than re-entering the SDL loop at kilohertz rates.
+
+On the fixed 1,998-warm-up/3,600-measurement EverythingPark Vulkan/VSync fixture, the exact source baseline was `262.825` TPS
+at `144.043` FPS. The combined result is `360.032` TPS at `144.013` FPS, a `37.0%` throughput increase, with the identical
+`1322b2e30a3c8e84000000000000000000000000` checksum and exact initial/final guest, state, transport, staff, vehicle, and route
+cache counts. Headless simulation remains above target at `558.302` TPS with checksum
+`0d01d80aa473aa1a000000000000000000000000`. A longer 10,800-tick integrated run is deliberately retained as the next gate:
+it held `144.016` FPS but averaged `347.182` TPS as the park grew from 14,084 to 17,231 guests. The fixed fixture now reaches
+360, but the sustained growing-park requirement is not complete. The next architectural slice remains deterministic staged guest
+and vehicle mutation or an immutable retained visual snapshot; scheduler tuning alone cannot create that remaining headroom.
+
 Expected result: destination-aware guests share expensive topology work, while dynamic transport and crowding costs remain
 cheap overlays.
 

@@ -99,6 +99,8 @@ static void PaintSessionAddPSToQuadrant(PaintSession& session, PaintStruct* ps)
     const uint32_t paintQuadrantIndex = std::clamp(positionHash / kCoordsXYStep, 0, MaxPaintQuadrants - 1);
 
     ps->QuadrantIndex = paintQuadrantIndex;
+    if (session.Quadrants[paintQuadrantIndex] == nullptr)
+        session.ActiveQuadrants.push_back(static_cast<uint16_t>(paintQuadrantIndex));
     ps->NextQuadrantEntry = session.Quadrants[paintQuadrantIndex];
     session.Quadrants[paintQuadrantIndex] = ps;
 

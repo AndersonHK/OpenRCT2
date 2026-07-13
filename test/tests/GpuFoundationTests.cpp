@@ -150,6 +150,28 @@ TEST(GpuFoundationTest, DenseDamageCrossesOverToOneFullRedraw)
     EXPECT_EQ(damage.rectangles[0].w, 256);
 }
 
+TEST(GpuFoundationTest, CoalescedFullRedrawPreservesNewerMailboxDamage)
+{
+    DamageTracker tracker;
+    tracker.Reset(128, 128, 64, 64);
+    const auto initial = tracker.Snapshot();
+    tracker.Acknowledge(initial.serial);
+
+    tracker.ForceFullRedraw();
+    const auto inFlight = tracker.Snapshot();
+    ASSERT_TRUE(inFlight.fullRedraw);
+    EXPECT_TRUE(tracker.CoalesceFullRedrawInvalidation());
+
+    tracker.Acknowledge(inFlight.serial);
+    const auto replacement = tracker.Snapshot();
+    EXPECT_TRUE(replacement.fullRedraw);
+    EXPECT_GT(replacement.serial, inFlight.serial);
+
+    tracker.Acknowledge(replacement.serial);
+    EXPECT_FALSE(tracker.IsFullRedrawPending());
+    EXPECT_TRUE(tracker.Snapshot().rectangles.empty());
+}
+
 TEST(GpuFoundationTest, AtlasAllocationRetainsLayerAndPixelBounds)
 {
     AtlasPage page(7, 64);

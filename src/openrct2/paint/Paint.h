@@ -136,7 +136,7 @@ static constexpr int32_t MaxPaintQuadrants = kMaximumMapSizeTechnical * 2;
 struct PaintSessionCore
 {
     PaintStruct* PaintHead;
-    PaintStruct* Quadrants[MaxPaintQuadrants];
+    PaintStruct* Quadrants[MaxPaintQuadrants]{};
     PaintStruct* LastPS;
     PaintStringStruct* PSStringHead;
     PaintStringStruct* LastPSString;
@@ -200,6 +200,7 @@ struct PaintSession : public PaintSessionCore
 {
     OpenRCT2::Drawing::RenderTarget rt;
     PaintNodeStorage paintEntries;
+    sfl::static_vector<uint16_t, MaxPaintQuadrants> ActiveQuadrants;
 
     PaintStruct* AllocateNormalPaintEntry() noexcept
     {

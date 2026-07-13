@@ -87,6 +87,7 @@
 #include <iterator>
 #include <memory>
 #include <string>
+#include <thread>
 #include <vector>
 
 using namespace OpenRCT2;
@@ -1741,11 +1742,23 @@ namespace OpenRCT2
                         timeUntilNextWork,
                         std::max(_nextDrawDeadline - now, IntegratedBenchmarkClock::duration::zero()));
                 }
-                const auto remaining = std::chrono::duration<float>(timeUntilNextWork).count();
-                const auto sleepMilliseconds =
-                    static_cast<uint32_t>(std::min(kNetworkUpdateTimeMS, remaining) * 1000.0f);
-                if (sleepMilliseconds != 0)
-                    Platform::Sleep(sleepMilliseconds);
+                const auto maximumWait = std::chrono::duration_cast<IntegratedBenchmarkClock::duration>(
+                    std::chrono::duration<float>(kNetworkUpdateTimeMS));
+                const auto waitDuration = std::min(timeUntilNextWork, maximumWait);
+                const auto waitDeadline = now + waitDuration;
+                // Returning for a sub-millisecond tail re-enters the complete frame loop and can pump SDL tens of
+                // thousands of times per second. Sleep the coarse portion, then yield against the same monotonic deadline;
+                // input is still serviced at the earlier of the simulation and presentation cadences.
+                constexpr auto kYieldTail = std::chrono::milliseconds(1);
+                if (waitDuration > kYieldTail)
+                {
+                    const auto coarseWait = std::chrono::duration<float>(waitDuration - kYieldTail).count();
+                    const auto sleepMilliseconds = static_cast<uint32_t>(coarseWait * 1000.0f);
+                    if (sleepMilliseconds != 0)
+                        Platform::Sleep(sleepMilliseconds);
+                }
+                while (IntegratedBenchmarkClock::now() < waitDeadline)
+                    std::this_thread::yield();
                 return;
             }
 

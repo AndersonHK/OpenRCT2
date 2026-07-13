@@ -184,7 +184,7 @@ PaintSession* Painter::CreateSession(RenderTarget& rt, uint32_t viewFlags, uint8
     session->Flags = 0;
     session->CurrentRotation = rotation;
 
-    std::fill(std::begin(session->Quadrants), std::end(session->Quadrants), nullptr);
+    Guard::Assert(session->ActiveQuadrants.empty(), "Reused paint session retained active quadrants");
     session->PaintHead = nullptr;
     session->LastPS = nullptr;
     session->LastAttachedPS = nullptr;
@@ -206,6 +206,9 @@ void Painter::ReleaseSession(PaintSession* session)
 {
     PROFILED_FUNCTION();
 
+    for (const auto quadrant : session->ActiveQuadrants)
+        session->Quadrants[quadrant] = nullptr;
+    session->ActiveQuadrants.clear();
     session->paintEntries.clear();
 
     _freePaintSessions.push_back(session);

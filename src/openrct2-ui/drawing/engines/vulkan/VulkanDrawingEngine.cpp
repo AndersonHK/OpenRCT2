@@ -283,6 +283,11 @@ namespace OpenRCT2::Ui
             _damageTracker.Invalidate(left, top, right, bottom);
         }
 
+        bool CoalesceViewportInvalidation() override
+        {
+            return _damageTracker.CoalesceFullRedrawInvalidation();
+        }
+
         void BeginDraw() override
         {
             EnsureGraphicsLookupTablesReady();

@@ -221,6 +221,9 @@ namespace OpenRCT2
 
     void ViewportsInvalidate(const int32_t x, const int32_t y, const int32_t z0, const int32_t z1, const ZoomLevel maxZoom)
     {
+        if (DrawingEngineCoalesceViewportInvalidation())
+            return;
+
         for (const auto& viewport : _viewports)
         {
             if (viewport.isVisible)
@@ -233,6 +236,9 @@ namespace OpenRCT2
     void ViewportsInvalidate(
         const CoordsXYZ& pos, const int32_t width, const int32_t minHeight, const int32_t maxHeight, const ZoomLevel maxZoom)
     {
+        if (DrawingEngineCoalesceViewportInvalidation())
+            return;
+
         for (auto& vp : _viewports)
         {
             if (vp.isVisible && (maxZoom == ZoomLevel{ -1 } || vp.zoom <= ZoomLevel{ maxZoom }))
@@ -248,6 +254,9 @@ namespace OpenRCT2
 
     void ViewportsInvalidate(const ScreenRect& screenRect, const ZoomLevel maxZoom)
     {
+        if (DrawingEngineCoalesceViewportInvalidation())
+            return;
+
         for (auto& vp : _viewports)
         {
             if (vp.isVisible && (maxZoom == ZoomLevel{ -1 } || vp.zoom <= ZoomLevel{ maxZoom }))

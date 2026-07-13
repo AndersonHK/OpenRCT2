@@ -34,6 +34,7 @@ using namespace OpenRCT2::Audio;
 
 namespace OpenRCT2::RideAudio
 {
+    static bool _musicInstanceCollectionEnabled = true;
     constexpr size_t kMaxRideMusicChannels = 64;
     constexpr float kRideMusicSourceGain = 5.0f;
 
@@ -375,6 +376,11 @@ namespace OpenRCT2::RideAudio
         }
     }
 
+    void SetMusicInstanceCollectionEnabled(bool enabled)
+    {
+        _musicInstanceCollectionEnabled = enabled;
+    }
+
     std::pair<size_t, size_t> RideMusicGetTrackOffsetLength_Circus(const Ride& ride)
     {
         return { 1378, 12427456 };
@@ -424,6 +430,14 @@ namespace OpenRCT2::RideAudio
     {
         if (gLegacyScene != LegacyScene::scenarioEditor && !gGameSoundsOff)
         {
+            if (!_musicInstanceCollectionEnabled)
+            {
+                // Fast-forward presentation samples only the final logical state in a batch. Keep the saved music cursor
+                // moving on intermediate ticks without repeating listener projection, sorting, and channel selection.
+                RideUpdateMusicPosition(ride);
+                return;
+            }
+
             const auto listener = GetSpatialAudioListener();
             if (!listener.has_value())
             {

@@ -141,6 +141,12 @@ void GfxSetDirtyBlocks(const ScreenRect& rect)
     }
 }
 
+bool DrawingEngineCoalesceViewportInvalidation()
+{
+    auto drawingEngine = GetDrawingEngine();
+    return drawingEngine != nullptr && drawingEngine->CoalesceViewportInvalidation();
+}
+
 void GfxClear(RenderTarget& rt, PaletteIndex paletteIndex)
 {
     auto drawingEngine = rt.DrawingEngine;
