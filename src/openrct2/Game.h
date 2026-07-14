@@ -29,65 +29,26 @@ namespace OpenRCT2
     constexpr float kGameUpdateMaxThreshold = kGameUpdateTimeMS * kGameMaxUpdates;
 
     constexpr uint8_t kGameSpeedTurbo = 4;
-    constexpr uint32_t kTurboBatchLogicalTicks = 9;
-    constexpr uint32_t kTurboTargetTicksPerSecond = kGameUpdateFPS * kTurboBatchLogicalTicks;
+    constexpr uint32_t kTurboTargetTicksPerSecond = 360;
 
-    [[nodiscard]] constexpr uint32_t GetGameSpeedLogicalUpdateCount(uint8_t speed, bool isNetworked) noexcept
+    [[nodiscard]] constexpr uint32_t GetGameSpeedMultiplier(uint8_t speed) noexcept
     {
         if (speed <= 1)
             return 1;
-        return speed == kGameSpeedTurbo && !isNetworked ? kTurboBatchLogicalTicks : 1u << (speed - 1);
+        if (speed == kGameSpeedTurbo)
+            return kTurboTargetTicksPerSecond / kGameUpdateFPS;
+        return 1u << (speed - 1);
     }
 
-    // Fixed-rate simulation deadline which deliberately never carries lateness into a later batch.
-    template<typename Clock>
-    class TurboSimulationPacer
+    [[nodiscard]] constexpr uint32_t GetGameSpeedTargetTicksPerSecond(uint8_t speed) noexcept
     {
-        using TimePoint = typename Clock::time_point;
-        using Duration = typename Clock::duration;
+        return kGameUpdateFPS * GetGameSpeedMultiplier(speed);
+    }
 
-        TimePoint _deadline{};
-        Duration _interval{};
-        bool _initialised{};
-
-    public:
-        void Reset() noexcept
-        {
-            _initialised = false;
-        }
-
-        [[nodiscard]] Duration TimeUntilDue(TimePoint now) const noexcept
-        {
-            return !_initialised || now >= _deadline ? Duration::zero() : _deadline - now;
-        }
-
-        void BeginBatch(TimePoint now) noexcept
-        {
-            if (!_initialised)
-            {
-                _deadline = now;
-                _initialised = true;
-            }
-            else if (_interval > Duration::zero() && now >= _deadline + _interval)
-            {
-                // Retain phase across ordinary scheduler jitter so sub-millisecond wake-up error does not compound into a
-                // permanent TPS loss. A delay of a complete simulation interval is external debt and is still discarded.
-                _deadline = now;
-            }
-        }
-
-        void CompleteBatch(TimePoint completedAt, Duration interval) noexcept
-        {
-            _interval = interval;
-            _deadline += interval;
-            if (completedAt >= _deadline + interval)
-            {
-                // Absorb a bounded overrun so timer and draw jitter do not permanently lower TPS. Once a complete
-                // interval has been missed, discard the debt and remain throughput-limited.
-                _deadline = completedAt;
-            }
-        }
-    };
+    [[nodiscard]] constexpr float GetGameSpeedUpdateTime(uint8_t speed) noexcept
+    {
+        return 1.0f / GetGameSpeedTargetTicksPerSecond(speed);
+    }
 
     // The network update runs at a different rate to the game update.
     constexpr uint32_t kNetworkUpdateFPS = 140;
@@ -96,18 +57,6 @@ namespace OpenRCT2
 
     constexpr float kGameMinTimeScale = 0.1f;
     constexpr float kGameMaxTimeScale = 5.0f;
-
-    constexpr uint32_t kDefaultDisplayRefreshRate = 60;
-
-    [[nodiscard]] constexpr uint32_t NormaliseDisplayRefreshRate(uint32_t refreshRate) noexcept
-    {
-        return refreshRate >= 30 && refreshRate <= 1000 ? refreshRate : kDefaultDisplayRefreshRate;
-    }
-
-    [[nodiscard]] constexpr double GetDisplayRefreshIntervalSeconds(uint32_t refreshRate) noexcept
-    {
-        return 1.0 / static_cast<double>(NormaliseDisplayRefreshRate(refreshRate));
-    }
 
     struct BenchmarkStateSnapshot
     {

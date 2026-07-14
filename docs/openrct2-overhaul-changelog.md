@@ -5,6 +5,23 @@ important implementation corrections, and the evidence available at each checkpo
 in the [README](../readme.md); exact mechanics, architecture, benchmark methods, and build procedures live in the linked topic
 documents. The upstream project's release history remains in [distribution/changelog.txt](../distribution/changelog.txt).
 
+## 2026-07-13
+
+### Turbo reduced to an ordinary 360 Hz scheduler rate
+
+The dedicated offline Turbo execution path has been removed. Turbo no longer owns a 25 ms pacer, nine-update batches,
+presentation deadlines, refresh-rate draw throttling, intermediate UI yields, audio sampling rules, or a fixed-batch benchmark
+constraint. All offline speeds now advance one logical update at a time through the same accumulator, entity tweening, input,
+window update, and draw path. Speed changes select only the scheduler interval: 40, 80, 160, 360, or debug 640 TPS. Network
+sessions retain ordered catch-up batches because clients must follow the authoritative server tick.
+
+Two exact 12,000-tick Diamond Heights runs reach `359.938` and `359.881` TPS and share checksum
+`226f6e7b77a535ea000000000000000000000000` and identical final state. With no bespoke Turbo presentation limiter, the ordinary
+uncapped Vulkan path submits roughly 2,600 FPS in both hidden and visible benchmark windows on this setup. The fixed 3,600-tick
+EverythingPark run reaches `282.657` TPS and `90.607` FPS while headless simulation reaches `552.172` TPS. This is intentionally
+recorded as an architectural experiment rather than a performance win: it removes the reported coarse batching shape, but shows
+that repeating the complete ordinary scene/presentation path at 360 Hz consumes the headroom previously recovered by batching.
+
 ## 2026-07-12
 
 ### Ride admission payment at the entrance

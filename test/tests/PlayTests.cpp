@@ -10,7 +10,6 @@
 #include "TestData.h"
 
 #include <gtest/gtest.h>
-#include <chrono>
 #include <limits>
 #include <memory>
 #include <openrct2/Context.h>
@@ -88,63 +87,19 @@ TEST_F(PlayTests, IntegratedBenchmarkMetricsHandleEmptyMeasurement)
     EXPECT_DOUBLE_EQ(metrics.longestSimulationSliceMilliseconds, 0.0);
 }
 
-TEST_F(PlayTests, DisplayRefreshIntervalUsesReportedRateAndSaneFallback)
+TEST_F(PlayTests, GameSpeedsSelectTickRatesWithoutChangingTheLogicalUpdateShape)
 {
-    EXPECT_EQ(NormaliseDisplayRefreshRate(144), 144u);
-    EXPECT_DOUBLE_EQ(GetDisplayRefreshIntervalSeconds(144), 1.0 / 144.0);
-    EXPECT_EQ(NormaliseDisplayRefreshRate(0), kDefaultDisplayRefreshRate);
-    EXPECT_EQ(NormaliseDisplayRefreshRate(10'000), kDefaultDisplayRefreshRate);
-}
-
-TEST_F(PlayTests, TurboRequestsTheExplicit360TickBatchWithoutChangingOtherSpeedSteps)
-{
-    EXPECT_EQ(GetGameSpeedLogicalUpdateCount(1, false), 1u);
-    EXPECT_EQ(GetGameSpeedLogicalUpdateCount(2, false), 2u);
-    EXPECT_EQ(GetGameSpeedLogicalUpdateCount(3, false), 4u);
-    EXPECT_EQ(GetGameSpeedLogicalUpdateCount(kGameSpeedTurbo, false), 9u);
-    EXPECT_EQ(GetGameSpeedLogicalUpdateCount(kGameSpeedTurbo, true), 8u);
-    EXPECT_EQ(GetGameSpeedLogicalUpdateCount(kGameSpeedTurbo + 1, false), 16u);
+    EXPECT_EQ(GetGameSpeedMultiplier(1), 1u);
+    EXPECT_EQ(GetGameSpeedMultiplier(2), 2u);
+    EXPECT_EQ(GetGameSpeedMultiplier(3), 4u);
+    EXPECT_EQ(GetGameSpeedMultiplier(kGameSpeedTurbo), 9u);
+    EXPECT_EQ(GetGameSpeedMultiplier(kGameSpeedTurbo + 1), 16u);
+    EXPECT_EQ(GetGameSpeedTargetTicksPerSecond(1), 40u);
+    EXPECT_EQ(GetGameSpeedTargetTicksPerSecond(2), 80u);
+    EXPECT_EQ(GetGameSpeedTargetTicksPerSecond(3), 160u);
     EXPECT_EQ(kTurboTargetTicksPerSecond, 360u);
-}
-
-TEST_F(PlayTests, TurboSimulationPacerAbsorbsWakeJitterButDropsFullIntervalDelay)
-{
-    using Clock = std::chrono::steady_clock;
-    using namespace std::chrono_literals;
-
-    TurboSimulationPacer<Clock> pacer;
-    const Clock::time_point start{};
-    ASSERT_EQ(pacer.TimeUntilDue(start), 0ms);
-
-    pacer.BeginBatch(start);
-    pacer.CompleteBatch(start + 10ms, 25ms);
-    EXPECT_EQ(pacer.TimeUntilDue(start + 10ms), 15ms);
-
-    const auto slightlyLateStart = start + 26ms;
-    pacer.BeginBatch(slightlyLateStart);
-    pacer.CompleteBatch(slightlyLateStart + 10ms, 25ms);
-    EXPECT_EQ(pacer.TimeUntilDue(slightlyLateStart + 10ms), 14ms);
-
-    const auto slightlyOverBudgetStart = start + 50ms;
-    pacer.BeginBatch(slightlyOverBudgetStart);
-    pacer.CompleteBatch(slightlyOverBudgetStart + 26ms, 25ms);
-    EXPECT_EQ(pacer.TimeUntilDue(slightlyOverBudgetStart + 26ms), 0ms);
-    pacer.BeginBatch(slightlyOverBudgetStart + 26ms);
-    pacer.CompleteBatch(slightlyOverBudgetStart + 36ms, 25ms);
-    EXPECT_EQ(pacer.TimeUntilDue(slightlyOverBudgetStart + 36ms), 14ms);
-
-    const auto oneIntervalLateStart = slightlyOverBudgetStart + 75ms;
-    pacer.BeginBatch(oneIntervalLateStart);
-    pacer.CompleteBatch(oneIntervalLateStart + 10ms, 25ms);
-    EXPECT_EQ(pacer.TimeUntilDue(oneIntervalLateStart + 10ms), 15ms);
-
-    const auto overBudgetStart = oneIntervalLateStart + 25ms;
-    pacer.BeginBatch(overBudgetStart);
-    pacer.CompleteBatch(overBudgetStart + 55ms, 25ms);
-    EXPECT_EQ(pacer.TimeUntilDue(overBudgetStart + 55ms), 0ms);
-
-    pacer.Reset();
-    EXPECT_EQ(pacer.TimeUntilDue(overBudgetStart), 0ms);
+    EXPECT_EQ(GetGameSpeedTargetTicksPerSecond(kGameSpeedTurbo), 360u);
+    EXPECT_FLOAT_EQ(GetGameSpeedUpdateTime(kGameSpeedTurbo), 1.0f / 360.0f);
 }
 
 static std::unique_ptr<IContext> localStartGame(const std::string& parkPath)

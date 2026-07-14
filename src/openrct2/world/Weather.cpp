@@ -232,8 +232,7 @@ namespace OpenRCT2::Weather
                 return;
             // Create new thunder and lightning. Their amount is scaled inversely proportional
             // to the game speed, otherwise they become annoying at very high speeds
-            const auto updateCount =
-                GetGameSpeedLogicalUpdateCount(gGameSpeed, Network::GetMode() != Network::Mode::none);
+            const auto updateCount = GetGameSpeedMultiplier(gGameSpeed);
             if (uint32_t randomNumber = UtilRand(); (randomNumber & 0xFFFF) <= (thunderChance / updateCount))
             {
                 randomNumber >>= 16;

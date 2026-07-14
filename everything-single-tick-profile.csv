@@ -1,0 +1,120 @@
+function_name,calls,min_microseconds,max_microseconds,average_microseconds,total_microseconds
+"void __cdecl OpenRCT2::Context::RunGameLoop(void)",0,0,0,0,0
+"void __cdecl OpenRCT2::Context::RunFrame(void)",782,2.1,22637.1,6444.15805627,5039331.6
+"void __cdecl OpenRCT2::Context::RunFixedFrame(bool,float)",0,0,0,0,0
+"void __cdecl OpenRCT2::Context::RunVariableFrame(bool,float)",782,2,22635.8,6452.42212276,5045794.1
+"void __cdecl OpenRCT2::Context::Draw(void)",782,1,3307.6,1103.12877238,862646.7
+"void __cdecl OpenRCT2::Context::Tick(void)",1200,2926.2,5334,3481.52791667,4177833.5
+"void __cdecl OpenRCT2::PeepUpdateAll(void)",1200,1154.1,2676.5,1498.2215,1797865.8
+"void __cdecl OpenRCT2::PeepUpdateCrowdNoise(void)",1200,192.8,713.3,238.604916667,286325.9
+"void __cdecl OpenRCT2::EntityRegistry::UpdateAllMiscEntities(void)",1200,14.5,50.8,23.5921666667,28310.6
+"void __cdecl OpenRCT2::EntityRegistry::UpdateEntitiesSpatialIndex(void)",1200,20.7,170.8,30.72075,36864.9
+"void __cdecl OpenRCT2::gameStateInitAll(struct OpenRCT2::GameState_t &,const struct TileCoordsXY &)",0,0,0,0,0
+"void __cdecl OpenRCT2::gameStateTick(void)",1200,2923.6,5324.4,3476.849,4172218.8
+"void __cdecl OpenRCT2::gameStateCreateStateSnapshot(void)",0,0,0,0,0
+"void __cdecl OpenRCT2::gameStateUpdateLogic(bool)",1200,2921.9,5320.6,3474.31083333,4169173
+"void __cdecl ScenarioUpdate(struct OpenRCT2::GameState_t &)",1200,0.1,376.4,0.637333333333,764.8
+"void __cdecl OpenRCT2::Paint::Painter::Paint(struct OpenRCT2::Drawing::IDrawingEngine &)",782,0.7,3214.5,1065.91304348,833544
+"struct PaintSession *__cdecl OpenRCT2::Paint::Painter::CreateSession(struct OpenRCT2::Drawing::RenderTarget &,unsigned int,unsigned char)",15704,0.1,1.4,0.0991530820173,1557.1
+"void __cdecl OpenRCT2::Paint::Painter::ReleaseSession(struct PaintSession *)",15704,0.1,0.7,0.0963385124809,1512.9
+"void __cdecl OpenRCT2::Scripting::ScriptEngine::Tick(void)",1200,0.3,8,0.704416666667,845.3
+"void __cdecl OpenRCT2::MapAnimations::InvalidateAndUpdateAll(void)",1200,12.7,105.9,14.5233333333,17428
+"struct OpenRCT2::RideRating::LocalContextScore __cdecl RideRatingBuildLocalContextScore(const struct CoordsXYZ &,const struct RideRatingLocalContextQuery &)",3305,3.5,104.7,10.0953101362,33365
+"void __cdecl OpenRCT2::RideRating::UpdateAll(void)",1200,3.7,46.7,16.1484166667,19378.1
+"void __cdecl RideRatingAccumulateTrainTick(struct Ride &,const struct RideTypeDescriptor &,class std::span<struct Vehicle const * const,-1>,int,bool,class TIdentifier<unsigned char,255,struct StationIndexTag>)",514429,0.1,139,0.489632194141,251881
+"void __cdecl VehicleUpdateAll(void)",1200,539,1101.3,669.978083333,803973.7
+"void __cdecl Vehicle::UpdateMeasurements(void)",192075,0.1,70.1,0.128511258623,24683.8
+"void __cdecl Vehicle::Update(void)",1164000,0.1,181.4,0.65752242268,765356.1
+"void __cdecl Ride::updateAll(bool)",1200,676.5,1206.6,756.533083333,907839.7
+"void __cdecl RideMeasurementsUpdate(void)",1200,1.1,40.2,2.10425,2525.1
+"void __cdecl OpenRCT2::News::UpdateCurrentItem(void)",1200,0,0.3,0.0394166666667,47.3
+"bool __cdecl OpenRCT2::PathFinding::PathIsThinJunctionLive(struct OpenRCT2::PathElement *,const struct TileCoordsXYZ &)",0,0,0,0,0
+"bool __cdecl OpenRCT2::PathFinding::PlanTransportRoute(struct OpenRCT2::Guest &,const struct TileCoordsXYZ &,bool,class TIdentifier<unsigned short,65535,struct RideIdTag>)",1965,0.2,132.8,5.99368956743,11777.6
+"unsigned char __cdecl OpenRCT2::PathFinding::ChooseDirection(const struct TileCoordsXYZ &,const struct TileCoordsXYZ &,struct OpenRCT2::Peep &,bool,class TIdentifier<unsigned short,65535,struct RideIdTag>)",29266,0.1,658.4,3.22535706964,94393.3
+"void __cdecl OpenRCT2::MapUpdatePathWideFlags(void)",1200,0.3,69.8,6.19058333333,7428.7
+"void __cdecl OpenRCT2::MapUpdateTiles(void)",1200,3.9,64.2,6.43541666667,7722.5
+"void __cdecl OpenRCT2::Park::Update(struct OpenRCT2::Park::ParkData &,struct OpenRCT2::GameState_t &)",1200,0.2,104.2,1.24666666667,1496
+"void __cdecl OpenRCT2::ViewportFillColumn(struct PaintSession &)",15704,162.5,1743.1,592.967352267,9311959.3
+"void __cdecl OpenRCT2::ViewportPaintColumn(struct PaintSession &)",15704,10.5,232.7,18.2526999491,286640.4
+"void __cdecl OpenRCT2::ViewportPaint(const struct OpenRCT2::Viewport *,struct OpenRCT2::Drawing::RenderTarget &)",302,2482.9,3170.4,2715.6589404,820129
+"bool __cdecl OpenRCT2::IsSpriteInteractedWithPaletteSet(struct OpenRCT2::Drawing::RenderTarget &,struct ImageId,const struct ScreenCoordsXY &,const struct OpenRCT2::Drawing::PaletteMap &,const unsigned char)",0,0,0,0,0
+"bool __cdecl OpenRCT2::IsSpriteInteractedWith(struct OpenRCT2::Drawing::RenderTarget &,struct ImageId,const struct ScreenCoordsXY &)",0,0,0,0,0
+"struct OpenRCT2::InteractionInfo __cdecl OpenRCT2::SetInteractionInfoFromPaintSession(struct PaintSession *,unsigned int,unsigned short)",0,0,0,0,0
+"void __cdecl OpenRCT2::ViewportInvalidate(const struct OpenRCT2::Viewport *,const struct ScreenRect &)",572,0.1,0.9,0.0255244755245,14.6
+"void __cdecl ResearchUpdate(void)",1200,0.1,0.4,0.0835,100.2
+"void __cdecl FinancePayWages(void)",0,0,0,0,0
+"void __cdecl FinancePayRideUpkeep(void)",0,0,0,0,0
+"void __cdecl FinanceUpdateDailyProfit(void)",2,25.5,35.2,30.35,60.7
+"void __cdecl OpenRCT2::Weather::update(void)",1200,0.1,0.7,0.081,97.2
+"void __cdecl OpenRCT2::Weather::updateSound(void)",1200,0.1,0.8,0.171333333333,205.6
+"void __cdecl Vehicle::UpdateSound(const struct Ride &,const struct RideObjectEntry &)",1164000,0.1,68.5,0.0335426975945,39043.7
+"class std::optional<struct OpenRCT2::MapPathRouteCache::`anonymous namespace'::FrozenGraph> __cdecl OpenRCT2::MapPathRouteCache::`anonymous-namespace'::FreezeGraph(void)",0,0,0,0,0
+"struct OpenRCT2::MapPathRouteCache::`anonymous-namespace'::RouteField __cdecl OpenRCT2::MapPathRouteCache::`anonymous-namespace'::BuildField(const struct OpenRCT2::MapPathRouteCache::`anonymous-namespace'::FrozenGraph &,const struct OpenRCT2::MapPathRouteCache::RouteTarget &)",0,0,0,0,0
+"void __cdecl OpenRCT2::MapPathRouteCache::Prepare(class std::span<struct OpenRCT2::MapPathRouteCache::RouteTarget const ,-1>)",0,0,0,0,0
+"void __cdecl PaintSessionArrange(struct PaintSessionCore &)",15704,6.8,1107.8,16.4785404992,258779
+"void __cdecl PaintDrawStructs(struct PaintSession &)",15704,10.5,232.5,18.1596917983,285179.8
+"void __cdecl AwardUpdateAll(void)",0,0,0,0,0
+"void __cdecl MarketingUpdate(void)",2,0.1,0.2,0.15,0.3
+"void __cdecl VirtualFloorInvalidate(bool)",782,0.1,0.4,0.0516624040921,40.4
+"void __cdecl VirtualFloorPaint(struct PaintSession &)",0,0,0,0,0
+"int __cdecl Vehicle::UpdateTrackMotion(int *)",748953,0.1,145,0.299894786455,224607.1
+"void __cdecl Vehicle::UpdateMovingToEndOfStation(void)",94864,0.1,21.1,0.237888977905,22567.1
+"void __cdecl Vehicle::UpdateWaitingForPassengers(void)",184768,0.1,5,0.0750308494977,13863.3
+"void __cdecl Vehicle::UpdateWaitingToDepart(void)",48174,0,2.7,0.0254431851206,1225.7
+"void __cdecl Vehicle::UpdateUnloadingPassengers(void)",14441,0,4.4,0.142663250467,2060.2
+"void __cdecl Vehicle::UpdateDeparting(void)",35629,0.2,35.9,0.546911224003,19485.9
+"void __cdecl Vehicle::UpdateTravelling(void)",549381,0.1,145.1,0.349511541171,192015
+"void __cdecl Vehicle::UpdateArriving(void)",70194,0.1,81.7,0.416029860102,29202.8
+"void __cdecl PathPaintFencesAndQueueBanners(struct PaintSession &,const struct OpenRCT2::PathElement &,unsigned short,unsigned int,bool,const struct FootpathPaintInfo &,struct ImageId)",0,0,0,0,0
+"void __cdecl PathPaintFencesAdditionsTunnels(struct PaintSession &,const struct OpenRCT2::PathElement &,unsigned short,unsigned short,const struct FootpathPaintInfo &,struct ImageId,struct ImageId,bool)",289316,0,1209.9,0.054784042362,15849.9
+"void __cdecl PaintHeightMarkers(struct PaintSession &,const struct OpenRCT2::PathElement &)",289316,0,1079,0.0527488973994,15261.1
+"void __cdecl PaintPath(struct PaintSession &,unsigned short,const struct OpenRCT2::PathElement &)",289316,0.2,1351.7,0.774263089494,224006.7
+"void __cdecl PathPaintBoxSupport(struct PaintSession &,const struct OpenRCT2::PathElement &,int,const struct FootpathPaintInfo &,bool,struct ImageId,struct ImageId)",50132,0.1,1259,0.379528045959,19026.5
+"void __cdecl PathPaintPoleSupport(struct PaintSession &,const struct OpenRCT2::PathElement &,short,const struct FootpathPaintInfo &,bool,struct ImageId,struct ImageId)",239184,0.2,1210.3,0.310977740986,74380.9
+"void __cdecl TileElementPaintSetup(struct PaintSession &,const struct CoordsXY &,bool)",3140800,0.1,1431.5,0.849797089913,2669042.7
+"void __cdecl PaintTileElementBase(struct PaintSession &,const struct CoordsXY &)",3140800,0.1,1383.7,0.695251814824,2183646.9
+"void __cdecl EntityPaintSetup(struct PaintSession &,const struct CoordsXY &)",6281600,0,1213.8,0.368144772033,2312538.2
+"void __cdecl PaintLampLightEffects(struct PaintSession &,const struct OpenRCT2::PathElement &,unsigned short)",289316,0.1,74.6,0.0623446335495,18037.3
+"void __cdecl ViewportSurfaceSmoothenEdge(struct PaintSession &,const enum edge_t,const struct TileDescriptor &,const struct TileDescriptor &)",0,0,0,0,0
+"void __cdecl ViewportSurfaceDrawTileSideBottom(struct PaintSession &,enum edge_t,unsigned short,const class OpenRCT2::TerrainEdgeObject *,const struct TileDescriptor &,const struct TileDescriptor &,bool)",3070736,0,1246.3,0.0647878554197,198946.4
+"void __cdecl ViewportSurfaceDrawTileSideTop(struct PaintSession &,enum edge_t,unsigned short,const class OpenRCT2::TerrainEdgeObject *,const struct TileDescriptor &,const struct TileDescriptor &,bool)",3070736,0,1318.5,0.059505115386,182724.5
+"void __cdecl PaintSurface(struct PaintSession &,unsigned char,unsigned short,const struct OpenRCT2::SurfaceElement &)",1515436,0.2,1358.9,0.836021580588,1266937.2
+"void __cdecl PaintBannerScrollingText(struct PaintSession &,const struct OpenRCT2::BannerSceneryEntry &,struct Banner &,const struct OpenRCT2::BannerElement &,unsigned char,int,const struct CoordsXYZ &)",0,0,0,0,0
+"void __cdecl PaintBanner(struct PaintSession &,unsigned char,int,const struct OpenRCT2::BannerElement &)",0,0,0,0,0
+"void __cdecl PaintRideEntranceExitScrollingText(struct PaintSession &,const struct OpenRCT2::EntranceElement &,const class OpenRCT2::StationObject &,unsigned char,int)",33220,0.1,1363.7,2.09080373269,69456.5
+"void __cdecl PaintRideEntranceExitLightEffects(struct PaintSession &,int,const struct OpenRCT2::EntranceElement &)",33220,0,6.9,0.0527152317881,1751.2
+"void __cdecl PaintRideEntranceExit(struct PaintSession &,unsigned char,int,const struct OpenRCT2::EntranceElement &)",33220,0.1,1366.9,2.53943708609,84360.1
+"void __cdecl PaintParkEntranceScrollingText(struct PaintSession &,const class OpenRCT2::EntranceObject &,unsigned char,int)",0,0,0,0,0
+"void __cdecl PaintParkEntranceLightEffects(struct PaintSession &)",0,0,0,0,0
+"void __cdecl PaintParkEntrance(struct PaintSession &,unsigned char,int,const struct OpenRCT2::EntranceElement &)",0,0,0,0,0
+"void __cdecl PaintHeightMarkers(struct PaintSession &,const struct OpenRCT2::EntranceElement &,int)",33220,0,3.2,0.0409482239615,1360.3
+"void __cdecl PaintEntrance(struct PaintSession &,unsigned char,int,const struct OpenRCT2::EntranceElement &)",33220,0.2,1367.7,2.76612582781,91890.7
+"void __cdecl PaintLargeScenerySupports(struct PaintSession &,unsigned char,unsigned short,const struct OpenRCT2::LargeSceneryElement &,struct ImageId,const struct OpenRCT2::LargeSceneryTile &)",0,0,0,0,0
+"void __cdecl PaintLargeScenery3DTextLine(struct PaintSession &,const struct OpenRCT2::LargeSceneryEntry &,const struct OpenRCT2::LargeSceneryText &,class std::basic_string_view<char,struct std::char_traits<char> >,struct ImageId,unsigned char,int)",0,0,0,0,0
+"void __cdecl PaintLargeScenery3DText(struct PaintSession &,const struct OpenRCT2::LargeSceneryEntry &,const struct OpenRCT2::LargeSceneryTile &,const struct OpenRCT2::LargeSceneryElement &,unsigned char,unsigned short,bool)",0,0,0,0,0
+"void __cdecl PaintLargeSceneryScrollingText(struct PaintSession &,const struct OpenRCT2::LargeSceneryEntry &,const struct OpenRCT2::LargeSceneryElement &,unsigned char,unsigned short,const struct CoordsXYZ &,bool)",0,0,0,0,0
+"void __cdecl PaintLargeScenery(struct PaintSession &,unsigned char,unsigned short,const struct OpenRCT2::LargeSceneryElement &)",0,0,0,0,0
+"void __cdecl PaintSmallScenerySupports(struct PaintSession &,const struct OpenRCT2::SmallSceneryEntry &,const struct OpenRCT2::SmallSceneryElement &,unsigned char,int,struct ImageId)",0,0,0,0,0
+"void __cdecl PaintSmallSceneryBody(struct PaintSession &,unsigned char,int,const struct OpenRCT2::SmallSceneryElement &,const struct OpenRCT2::SmallSceneryEntry *,struct ImageId)",0,0,0,0,0
+"void __cdecl PaintSmallScenery(struct PaintSession &,unsigned char,int,const struct OpenRCT2::SmallSceneryElement &)",0,0,0,0,0
+"void __cdecl PaintWallDoor(struct PaintSession &,const struct OpenRCT2::WallSceneryEntry &,struct ImageId,struct CoordsXYZ,struct BoundBoxXYZ,struct BoundBoxXYZ,struct BoundBoxXYZ)",0,0,0,0,0
+"void __cdecl PaintWallDoor(struct PaintSession &,const struct OpenRCT2::WallSceneryEntry &,const struct OpenRCT2::WallElement &,struct ImageId,unsigned char,int)",0,0,0,0,0
+"void __cdecl PaintWallWall(struct PaintSession &,const struct OpenRCT2::WallSceneryEntry &,struct ImageId,unsigned int,struct CoordsXYZ,struct BoundBoxXYZ,bool)",15100,0.1,3.2,0.0938675496689,1417.4
+"void __cdecl PaintWallScrollingText(struct PaintSession &,const struct OpenRCT2::WallSceneryEntry &,const struct OpenRCT2::WallElement &,unsigned char,int,const struct CoordsXYZ &,bool)",15100,0.1,0.6,0.0417748344371,630.8
+"void __cdecl PaintWallWall(struct PaintSession &,const struct OpenRCT2::WallSceneryEntry &,const struct OpenRCT2::WallElement &,struct ImageId,unsigned char,int,bool)",15100,0.1,3.6,0.310039735099,4681.6
+"void __cdecl PaintWall(struct PaintSession &,unsigned char,int,const struct OpenRCT2::WallElement &)",15100,0.1,4.5,0.524231788079,7915.9
+"void __cdecl PaintBalloon(struct PaintSession &,const struct OpenRCT2::Balloon &,int)",4020,0.1,3.3,0.118258706468,475.4
+"void __cdecl PaintCrashSplashParticle(struct PaintSession &,const struct OpenRCT2::CrashSplashParticle &)",0,0,0,0,0
+"void __cdecl OpenRCT2::PaintDuck(struct PaintSession &,const struct OpenRCT2::Duck &,int)",0,0,0,0,0
+"void __cdecl PaintExplosionCloud(struct PaintSession &,const struct OpenRCT2::ExplosionCloud &)",0,0,0,0,0
+"void __cdecl PaintExplosionFlare(struct PaintSession &,const struct OpenRCT2::ExplosionFlare &)",0,0,0,0,0
+"void __cdecl PaintGuest(struct PaintSession &,const struct OpenRCT2::Guest &,int)",254335,0.1,1212.8,0.142290679615,36189.5
+"void __cdecl PaintJumpingFountain(struct PaintSession &,const struct OpenRCT2::JumpingFountain &,int)",0,0,0,0,0
+"void __cdecl OpenRCT2::PaintLitter(struct PaintSession &,const struct OpenRCT2::Litter &,int)",438,0.1,0.3,0.0554794520548,24.3
+"void __cdecl PaintMoneyEffect(struct PaintSession &,const struct OpenRCT2::MoneyEffect &)",10952,0,0.9,0.0426771365961,467.4
+"void __cdecl PaintStaff(struct PaintSession &,const struct OpenRCT2::Staff &,int)",58196,0.1,64.2,0.148011890852,8613.7
+"void __cdecl PaintSteamParticle(struct PaintSession &,const struct OpenRCT2::SteamParticle &)",0,0,0,0,0
+"void __cdecl OpenRCT2::PaintVehicleCrashParticle(struct PaintSession &,const struct OpenRCT2::VehicleCrashParticle &)",0,0,0,0,0
+"void __cdecl OpenRCT2::Audio::UpdateVehicleSounds(void)",1200,164.2,550.5,205.293916667,246352.7
+"void __cdecl OpenRCT2::Ui::ProvisionalElementsRemove(void)",1200,0.1,0.6,0.106083333333,127.3
+"void __cdecl OpenRCT2::Ui::ProvisionalElementsRestore(void)",1200,0.1,1.1,0.124833333333,149.8

@@ -41,6 +41,7 @@ using namespace OpenRCT2::Scripting;
 namespace OpenRCT2
 {
     static auto _gameState = std::make_unique<GameState_t>();
+    static bool _presentationAudioPending{};
 
     GameState_t& getGameState()
     {
@@ -61,6 +62,7 @@ namespace OpenRCT2
 
         gInMapInitCode = true;
         gameState.currentTicks = 0;
+        _presentationAudioPending = false;
 
         MapInit(mapSize);
         Park::Initialise(gameState.park, gameState);
@@ -99,16 +101,14 @@ namespace OpenRCT2
     }
 
     /**
-     * Function will be called every kGameUpdateTimeMS.
-     * It has its own loop which might run multiple updates per call such as
-     * when operating as a client it may run multiple updates to catch up with the server tick,
-     * another influence can be the game speed setting.
+     * Runs one logical update per offline scheduler tick. Network sessions retain their
+     * ordered catch-up loop because clients must follow the authoritative server tick.
      */
     void gameStateTick()
     {
         PROFILED_FUNCTION();
 
-        // Normal game play will update only once every kGameUpdateTimeMS
+        // Offline play always updates once. Its speed is selected by the outer scheduler cadence.
         uint32_t numUpdates = 1;
 
         // 0x006E3AEC // screen_game_process_mouse_input();
@@ -139,10 +139,10 @@ namespace OpenRCT2
         }
         else
         {
-            // Determine how many times we need to update the game
-            if (gGameSpeed > 1)
+            // Network sessions retain the legacy per-network-tick speed multiplier.
+            if (isNetworked && gGameSpeed > 1)
             {
-                numUpdates = GetGameSpeedLogicalUpdateCount(gGameSpeed, isNetworked);
+                numUpdates = GetGameSpeedMultiplier(gGameSpeed);
             }
         }
 
@@ -199,9 +199,8 @@ namespace OpenRCT2
             Network::Tick();
         }
 
-        // Update the game one or more times. Audio is wall-clock presentation work, so a fast-forward batch samples only its
-        // final logical state instead of rescanning vehicles and visible guests after every intermediate state.
-        const auto batchStartSpeed = gGameSpeed;
+        // Update the game one or more times. Only network catch-up can contain multiple logical updates; audio samples its
+        // final state instead of rescanning vehicles and visible guests after every intermediate network state.
         bool didUpdatePresentationAudio = false;
         for (uint32_t i = 0; i < numUpdates; i++)
         {
@@ -209,18 +208,6 @@ namespace OpenRCT2
             gameStateUpdateLogic(updatePresentationAudio);
             didUpdatePresentationAudio |= updatePresentationAudio;
 
-            // The logical update is the deterministic unit. Fast-forward may yield presentation between complete units so a
-            // batch does not monopolise the main thread for multiple display refreshes.
-            if (!isNetworked && batchStartSpeed >= kGameSpeedTurbo && i + 1 < numUpdates)
-            {
-                GetContext()->YieldToUi();
-            }
-            // Speed actions execute from the end-of-tick action queue. Do not finish a batch sized for the previous speed;
-            // return to the outer loop so messages, input, and the new cadence take effect immediately.
-            if (!isNetworked && gGameSpeed != batchStartSpeed)
-            {
-                break;
-            }
             if (gGameSpeed == 1)
             {
                 if (InputGetState() == InputState::reset || InputGetState() == InputState::normal)
@@ -241,12 +228,10 @@ namespace OpenRCT2
                 break;
         }
 
-        // Input, a pause action, or an offline speed change can end a batch before its planned final update.
+        // Input or a pause action can end a network catch-up batch before its planned final update.
         if (numUpdates != 0 && !didUpdatePresentationAudio)
         {
-            VehicleSoundsUpdate();
-            PeepUpdateCrowdNoise();
-            Weather::updateSound();
+            _presentationAudioPending = true;
         }
 
         if (isNetworked)
@@ -380,9 +365,9 @@ namespace OpenRCT2
         MapAnimations::InvalidateAndUpdateAll();
         if (updatePresentationAudio)
         {
-            VehicleSoundsUpdate();
-            PeepUpdateCrowdNoise();
-            Weather::updateSound();
+            // These scans only select wall-clock audio emitters. Coalesce them at the ordinary UI/frame boundary when
+            // several authoritative logical ticks complete before one frame can be presented.
+            _presentationAudioPending = true;
         }
         EditorScene::OpenWindowsForCurrentStep();
 
@@ -419,5 +404,18 @@ namespace OpenRCT2
 #endif
 
         gInUpdateCode = false;
+    }
+
+    void gameStateUpdatePresentationAudio()
+    {
+        PROFILED_FUNCTION();
+
+        if (!_presentationAudioPending)
+            return;
+
+        _presentationAudioPending = false;
+        VehicleSoundsUpdate();
+        PeepUpdateCrowdNoise();
+        Weather::updateSound();
     }
 } // namespace OpenRCT2

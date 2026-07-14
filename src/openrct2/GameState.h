@@ -107,5 +107,6 @@ namespace OpenRCT2
     void gameStateInitAll(GameState_t& gameState, const TileCoordsXY& mapSize);
     void gameStateTick();
     void gameStateUpdateLogic(bool updatePresentationAudio = true);
+    void gameStateUpdatePresentationAudio();
 
 } // namespace OpenRCT2

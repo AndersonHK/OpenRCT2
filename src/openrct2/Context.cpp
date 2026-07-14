@@ -179,10 +179,6 @@ namespace OpenRCT2
         float _realtimeAccumulator = 0.0f;
         float _timeScale = 1.0f;
         bool _variableFrame = false;
-        IntegratedBenchmarkClock::time_point _nextDrawDeadline{};
-        TurboSimulationPacer<IntegratedBenchmarkClock> _simulationPacer;
-        double _simulationYieldSeconds{};
-        IntegratedBenchmarkClock::time_point _simulationSliceStart{};
         float _actualTpsTimeAccumulator = 0.0f;
         uint64_t _actualTpsTickAccumulator = 0;
         uint64_t _lastTotalSimulationTicks = gTotalSimulationTicks;
@@ -1285,8 +1281,7 @@ namespace OpenRCT2
 
         bool ShouldRunVariableFrame()
         {
-            // Fast-forward benefits from spending its frame budget on simulation rather than entity tween snapshots.
-            return ShouldDraw() && Config::Get().general.uncapFPS && gGameSpeed < kGameSpeedTurbo;
+            return ShouldDraw() && Config::Get().general.uncapFPS;
         }
 
         bool UpdateVariableFrameMode()
@@ -1306,16 +1301,16 @@ namespace OpenRCT2
             return useVariableFrame;
         }
 
-        bool IsOfflineFastForward() const
+        float GetSimulationUpdateTime() const
         {
-            return gGameSpeed >= kGameSpeedTurbo && GameIsNotPaused() && Network::GetMode() == Network::Mode::none;
+            if (Network::GetMode() != Network::Mode::none)
+                return kGameUpdateTimeMS;
+            return GetGameSpeedUpdateTime(gGameSpeed);
         }
 
         bool ShouldDrawFrame()
         {
-            return ShouldDraw()
-                && (!IsOfflineFastForward() || _nextDrawDeadline == IntegratedBenchmarkClock::time_point{}
-                    || IntegratedBenchmarkClock::now() >= _nextDrawDeadline);
+            return ShouldDraw();
         }
 
         void UpdateActualSimulationRate(float deltaTime)
@@ -1384,10 +1379,8 @@ namespace OpenRCT2
                 FailIntegratedBenchmark(message.c_str());
                 return;
             }
-            // Do not carry warm-up scheduler debt or snapshot time into the measured interval.
+            // Do not carry warm-up scheduler debt into the measured interval.
             _ticksAccumulator = 0.0f;
-            _nextDrawDeadline = {};
-            _simulationPacer.Reset();
             _timer.Restart();
             _benchmarkPhaseStart = IntegratedBenchmarkClock::now();
             _benchmarkPhase = IntegratedBenchmarkPhase::measurement;
@@ -1622,6 +1615,21 @@ namespace OpenRCT2
             }
         }
 
+        bool ReachedIntegratedBenchmarkTickLimit() const
+        {
+            if (_benchmarkPhase == IntegratedBenchmarkPhase::warmup && gIntegratedBenchmark.warmupTicks >= 0)
+            {
+                return gTotalSimulationTicks - _benchmarkPhaseInitialLogicalTicks
+                    >= static_cast<uint64_t>(gIntegratedBenchmark.warmupTicks);
+            }
+            if (_benchmarkPhase == IntegratedBenchmarkPhase::measurement && gIntegratedBenchmark.measurementTicks >= 0)
+            {
+                return gTotalSimulationTicks - _benchmarkInitialLogicalTicks
+                    >= static_cast<uint64_t>(gIntegratedBenchmark.measurementTicks);
+            }
+            return false;
+        }
+
         /**
          * Run the main game loop until the finished flag is set.
          */
@@ -1655,37 +1663,30 @@ namespace OpenRCT2
 
             // Catch mode changes that occurred outside the preceding frame.
             const bool useVariableFrame = UpdateVariableFrameMode();
+            const float updateTime = GetSimulationUpdateTime();
 
-            UpdateTimeAccumulators(deltaTime);
+            UpdateTimeAccumulators(deltaTime, updateTime);
 
             Network::Update();
 
             const bool shouldDraw = ShouldDrawFrame();
             if (useVariableFrame)
             {
-                RunVariableFrame(shouldDraw);
+                RunVariableFrame(shouldDraw, updateTime);
             }
             else
             {
-                RunFixedFrame(shouldDraw);
+                RunFixedFrame(shouldDraw, updateTime);
             }
 
             Network::Flush();
             UpdateIntegratedBenchmark();
         }
 
-        void UpdateTimeAccumulators(float deltaTime)
+        void UpdateTimeAccumulators(float deltaTime, float updateTime)
         {
-            if (IsOfflineFastForward())
-            {
-                // Turbo owns a wall-clock deadline below; accumulator debt belongs only to ordinary/network catch-up.
-                _ticksAccumulator = 0.0f;
-            }
-            else
-            {
-                _ticksAccumulator = std::min(_ticksAccumulator + deltaTime * _timeScale, kGameUpdateMaxThreshold);
-                _simulationPacer.Reset();
-            }
+            const float maximumSimulationDebt = updateTime * kGameMaxUpdates;
+            _ticksAccumulator = std::min(_ticksAccumulator + deltaTime * _timeScale, maximumSimulationDebt);
 
             // Real Time.
             _realtimeAccumulator = std::min(_realtimeAccumulator + deltaTime, kGameUpdateMaxThreshold);
@@ -1709,104 +1710,35 @@ namespace OpenRCT2
             ContextHandleInput();
             const bool useVariableFrame = UpdateVariableFrameMode();
             WindowUpdateAll();
+            gameStateUpdatePresentationAudio();
             if (_benchmarkPhase == IntegratedBenchmarkPhase::measurement)
                 _benchmarkUiFrames++;
             return useVariableFrame;
         }
 
-        void RunTurboFrame(bool shouldDraw)
-        {
-            auto now = IntegratedBenchmarkClock::now();
-
-            // Presentation has its own refresh deadline. A delayed frame is serviced before another indivisible batch,
-            // regardless of whether simulation can sustain the selected fast-forward speed.
-            if (shouldDraw)
-            {
-                UpdateUi();
-                Draw();
-                now = IntegratedBenchmarkClock::now();
-                if (!IsOfflineFastForward())
-                    return;
-            }
-
-            const auto timeUntilDue = _simulationPacer.TimeUntilDue(now);
-            if (timeUntilDue > IntegratedBenchmarkClock::duration::zero())
-            {
-                auto timeUntilNextWork = timeUntilDue;
-                if (ShouldDraw() && _nextDrawDeadline != IntegratedBenchmarkClock::time_point{})
-                {
-                    // A 140 Hz network sleep is longer than a 144 Hz display interval. Sleeping only for simulation used to
-                    // wake after the earlier presentation deadline on otherwise idle parks, producing about 132 FPS despite
-                    // sub-millisecond draw work. Floor the earlier deadline to whole milliseconds, then poll the short tail.
-                    timeUntilNextWork = std::min(
-                        timeUntilNextWork,
-                        std::max(_nextDrawDeadline - now, IntegratedBenchmarkClock::duration::zero()));
-                }
-                const auto maximumWait = std::chrono::duration_cast<IntegratedBenchmarkClock::duration>(
-                    std::chrono::duration<float>(kNetworkUpdateTimeMS));
-                const auto waitDuration = std::min(timeUntilNextWork, maximumWait);
-                const auto waitDeadline = now + waitDuration;
-                // Returning for a sub-millisecond tail re-enters the complete frame loop and can pump SDL tens of
-                // thousands of times per second. Sleep the coarse portion, then yield against the same monotonic deadline;
-                // input is still serviced at the earlier of the simulation and presentation cadences.
-                constexpr auto kYieldTail = std::chrono::milliseconds(1);
-                if (waitDuration > kYieldTail)
-                {
-                    const auto coarseWait = std::chrono::duration<float>(waitDuration - kYieldTail).count();
-                    const auto sleepMilliseconds = static_cast<uint32_t>(coarseWait * 1000.0f);
-                    if (sleepMilliseconds != 0)
-                        Platform::Sleep(sleepMilliseconds);
-                }
-                while (IntegratedBenchmarkClock::now() < waitDeadline)
-                    std::this_thread::yield();
-                return;
-            }
-
-            const auto interval = std::chrono::duration_cast<IntegratedBenchmarkClock::duration>(
-                std::chrono::duration<float>(kGameUpdateTimeMS / _timeScale));
-            _simulationPacer.BeginBatch(now);
-
-            Tick();
-            const auto batchEnd = IntegratedBenchmarkClock::now();
-            _simulationPacer.CompleteBatch(batchEnd, interval);
-
-            if (ShouldDrawFrame())
-            {
-                UpdateUi();
-                Draw();
-            }
-            else if (!ShouldDraw())
-            {
-                UpdateUi();
-            }
-        }
-
-        void RunFixedFrame(bool shouldDraw)
+        void RunFixedFrame(bool shouldDraw, float updateTime)
         {
             PROFILED_FUNCTION();
 
             ProcessMessages();
 
-            if (IsOfflineFastForward())
+            if (_ticksAccumulator < updateTime)
             {
-                RunTurboFrame(shouldDraw);
-                return;
-            }
-
-            if (_ticksAccumulator < kGameUpdateTimeMS)
-            {
-                const auto sleepTimeSec = std::min(kNetworkUpdateTimeMS, kGameUpdateTimeMS - _ticksAccumulator);
+                const auto sleepTimeSec = std::min(kNetworkUpdateTimeMS, updateTime - _ticksAccumulator);
                 Platform::Sleep(static_cast<uint32_t>(sleepTimeSec * 1000.f));
                 return;
             }
 
-            while (_ticksAccumulator >= kGameUpdateTimeMS)
+            while (_ticksAccumulator >= updateTime)
             {
                 Tick();
 
-                _ticksAccumulator -= kGameUpdateTimeMS;
+                _ticksAccumulator -= updateTime;
 
-                // A visible loop gets at most one 40 Hz scene batch before returning to event and presentation work. Headless
+                if (ReachedIntegratedBenchmarkTickLimit())
+                    break;
+
+                // A visible loop gets at most one logical update before returning to event and presentation work. Headless
                 // catch-up can still consume the bounded accumulator in one pass.
                 if (ShouldDraw() || ShouldRunVariableFrame())
                     break;
@@ -1820,7 +1752,7 @@ namespace OpenRCT2
             }
         }
 
-        void RunVariableFrame(bool shouldDraw)
+        void RunVariableFrame(bool shouldDraw, float updateTime)
         {
             PROFILED_FUNCTION();
 
@@ -1829,12 +1761,12 @@ namespace OpenRCT2
             ProcessMessages();
 
             bool restoredTweenState = false;
-            while (_ticksAccumulator >= kGameUpdateTimeMS)
+            while (_ticksAccumulator >= updateTime)
             {
                 // Only the final catch-up tick can contribute interpolation endpoints to this frame. Restore any positions
                 // tweened by the previous frame before the first intermediate tick, but defer the visible-entity scan until
                 // the final tick that will actually be drawn.
-                const bool captureTween = shouldDraw && _ticksAccumulator < (2.0f * kGameUpdateTimeMS);
+                const bool captureTween = shouldDraw && _ticksAccumulator < (2.0f * updateTime);
                 if (captureTween)
                 {
                     tweener.PreTick();
@@ -1848,7 +1780,7 @@ namespace OpenRCT2
 
                 Tick();
 
-                _ticksAccumulator -= kGameUpdateTimeMS;
+                _ticksAccumulator -= updateTime;
 
                 const bool continueVariableFrame = ShouldRunVariableFrame();
                 if (captureTween)
@@ -1875,6 +1807,9 @@ namespace OpenRCT2
                     _variableFrame = false;
                     break;
                 }
+
+                if (ReachedIntegratedBenchmarkTickLimit())
+                    break;
             }
 
             const bool useVariableFrame = UpdateUi();
@@ -1883,7 +1818,7 @@ namespace OpenRCT2
             {
                 if (useVariableFrame)
                 {
-                    const float alpha = std::min(_ticksAccumulator / kGameUpdateTimeMS, 1.0f);
+                    const float alpha = std::min(_ticksAccumulator / updateTime, 1.0f);
                     tweener.Tween(alpha);
                 }
 
@@ -1896,26 +1831,6 @@ namespace OpenRCT2
             PROFILED_FUNCTION();
 
             const auto drawStart = IntegratedBenchmarkClock::now();
-            if (IsOfflineFastForward())
-            {
-                const auto interval = std::chrono::duration_cast<IntegratedBenchmarkClock::duration>(
-                    std::chrono::duration<double>(GetDisplayRefreshIntervalSeconds(_uiContext->GetRefreshRate())));
-                if (_nextDrawDeadline == IntegratedBenchmarkClock::time_point{})
-                {
-                    _nextDrawDeadline = drawStart + interval;
-                }
-                else
-                {
-                    do
-                    {
-                        _nextDrawDeadline += interval;
-                    } while (_nextDrawDeadline <= drawStart);
-                }
-            }
-            else
-            {
-                _nextDrawDeadline = {};
-            }
 
             const bool measuring = _benchmarkPhase == IntegratedBenchmarkPhase::measurement;
             if (measuring && _benchmarkPreviousDrawStart != IntegratedBenchmarkClock::time_point{})
@@ -1960,20 +1875,15 @@ namespace OpenRCT2
                 if (_benchmarkPhase == IntegratedBenchmarkPhase::measurement)
                 {
                     const auto benchmarkStart = IntegratedBenchmarkClock::now();
-                    _simulationYieldSeconds = 0.0;
-                    _simulationSliceStart = benchmarkStart;
                     activeScene->Tick();
                     const auto benchmarkEnd = IntegratedBenchmarkClock::now();
-                    _benchmarkTotals.longestSimulationSliceSeconds = std::max(
-                        _benchmarkTotals.longestSimulationSliceSeconds,
-                        std::chrono::duration<double>(benchmarkEnd - _simulationSliceStart).count());
-                    _simulationSliceStart = {};
-                    const auto simulationSeconds = std::max(
-                        0.0, std::chrono::duration<double>(benchmarkEnd - benchmarkStart).count() - _simulationYieldSeconds);
+                    const auto simulationSeconds = std::chrono::duration<double>(benchmarkEnd - benchmarkStart).count();
                     _benchmarkTotals.simulationSeconds += simulationSeconds;
                     _benchmarkTotals.simulationBatches++;
                     _benchmarkTotals.longestSimulationBatchSeconds =
                         std::max(_benchmarkTotals.longestSimulationBatchSeconds, simulationSeconds);
+                    _benchmarkTotals.longestSimulationSliceSeconds =
+                        std::max(_benchmarkTotals.longestSimulationSliceSeconds, simulationSeconds);
                 }
                 else
                 {
@@ -2123,43 +2033,12 @@ namespace OpenRCT2
             if (_timeScale != clampedScale)
             {
                 _timeScale = clampedScale;
-                _simulationPacer.Reset();
             }
         }
 
         float GetTimeScale() const override
         {
             return _timeScale;
-        }
-
-        void YieldToUi() override
-        {
-            if (!IsOfflineFastForward() || !ShouldDraw())
-                return;
-
-            if (!ShouldDrawFrame())
-                return;
-
-            const auto yieldStart = IntegratedBenchmarkClock::now();
-
-            if (_benchmarkPhase == IntegratedBenchmarkPhase::measurement
-                && _simulationSliceStart != IntegratedBenchmarkClock::time_point{})
-            {
-                _benchmarkTotals.longestSimulationSliceSeconds = std::max(
-                    _benchmarkTotals.longestSimulationSliceSeconds,
-                    std::chrono::duration<double>(yieldStart - _simulationSliceStart).count());
-            }
-
-            ProcessMessages();
-            UpdateUi();
-            Draw();
-
-            if (_benchmarkPhase == IntegratedBenchmarkPhase::measurement)
-            {
-                const auto yieldEnd = IntegratedBenchmarkClock::now();
-                _simulationYieldSeconds += std::chrono::duration<double>(yieldEnd - yieldStart).count();
-                _simulationSliceStart = yieldEnd;
-            }
         }
 
         JobPool& GetJobPool() override

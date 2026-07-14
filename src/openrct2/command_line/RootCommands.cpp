@@ -300,14 +300,6 @@ namespace OpenRCT2
                     "Benchmark warm-up ticks must be -1 or non-negative; measurement ticks must be -1 or greater than zero.");
                 return ExitCode::fail;
             }
-            constexpr auto turboBatchTicks = kTurboBatchLogicalTicks;
-            if ((_benchmarkWarmupTicks > 0 && (_benchmarkWarmupTicks % turboBatchTicks) != 0)
-                || (_benchmarkTicks > 0 && (_benchmarkTicks % turboBatchTicks) != 0))
-            {
-                Console::Error::WriteLine(
-                    "Fixed integrated benchmark tick counts must be multiples of the %u-tick Turbo batch.", turboBatchTicks);
-                return ExitCode::fail;
-            }
             if (_benchmarkVSync < -1 || _benchmarkVSync > 1)
             {
                 Console::Error::WriteLine("--benchmark-vsync must be -1, 0, or 1.");

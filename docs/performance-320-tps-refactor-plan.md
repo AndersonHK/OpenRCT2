@@ -5,8 +5,13 @@
 The performance target is **360 completed logical simulation ticks per wall-clock second while sustaining 144 presented frames
 per second** on `test/tests/testdata/parks/EverythingPark.park`. A requested game-speed multiplier is not evidence of success:
 the measured `GameState::currentTicks` and completed-frame deltas must reach both targets in the same interval while the game
-remains responsive. Ordinary offline Turbo requests nine logical updates per 40 Hz scene batch, or 360 TPS. Network sessions
-retain the established eight-update cadence so the local performance target does not alter protocol pacing.
+remains responsive. Ordinary offline Turbo targets 360 individually scheduled logical ticks per second. Network sessions retain
+ordered catch-up batching because clients must follow the authoritative server tick.
+
+As of the 2026-07-13 scheduler experiment, that batch architecture is superseded. Every offline speed now runs the same
+single-logical-tick scheduler path; only its interval changes. Turbo is a `1 / 360` second interval, not nine updates inside a
+40 Hz scene tick. The older batched measurements below remain historical evidence rather than a description of current control
+flow. Network sessions still use ordered per-network-tick catch-up because client/server tick authority requires it.
 
 The work follows these priorities:
 
@@ -73,9 +78,15 @@ openrct2 EverythingPark.park --benchmark-ui --benchmark-warmup-ticks=1998 --benc
     --benchmark-renderer=vulkan --benchmark-vsync=1
 ```
 
-Fixed counts must be multiples of the current nine-tick offline Turbo batch. This keeps the initial/final population, route-cache
-state, and checksum identical across builds instead of allowing a faster build to simulate farther during a time-based warm-up
-and benchmark a different park population.
+Fixed counts may now be any positive tick count. The ordinary scheduler stops warm-up and measurement at the exact requested
+logical-tick boundary, keeping initial/final population, route-cache state, and checksum comparable without batch alignment.
+
+The first single-tick scheduler measurement used an exact 2,000-tick warm-up and 12,000-tick Diamond Heights interval. Hidden
+and visible Vulkan/VSync runs reached `359.938` and `359.881` TPS with identical checksum
+`226f6e7b77a535ea000000000000000000000000`. Removing Turbo's presentation deadline also exposes the ordinary uncapped draw
+policy: both windows submitted about 2,600 FPS on this machine. EverythingPark reached `282.657` TPS and `90.607` FPS over an
+exact 3,600 ticks, while the separate headless simulation ceiling remained `552.172` TPS. The experiment therefore removes
+coarse Turbo batching but repeats enough ordinary scene and presentation work to lose the prior integrated throughput gain.
 
 Add `--benchmark-profile=integrated.csv` (or `.json`) to profile only the fixed measurement phase. Profiling adds timing and
 atomic bookkeeping, so its output locates large subsystems while a separate profiler-disabled run remains the acceptance result.
