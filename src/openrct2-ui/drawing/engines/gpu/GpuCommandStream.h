@@ -448,26 +448,6 @@ namespace OpenRCT2::Ui::Gpu
             && maxSharedMemory >= kWorldSurfaceComputeBlockWidth * sizeof(uint32_t);
     }
 
-    enum class WorldSurfaceFallbackReason : uint8_t
-    {
-        none,
-        mapInterleaving,
-        entityInterleaving,
-        landscapeSmoothing,
-    };
-
-    [[nodiscard]] constexpr WorldSurfaceFallbackReason GetWorldSurfaceFallbackReason(
-        bool mapInterleaving, bool entityInterleaving, bool landscapeSmoothing) noexcept
-    {
-        if (mapInterleaving)
-            return WorldSurfaceFallbackReason::mapInterleaving;
-        if (entityInterleaving)
-            return WorldSurfaceFallbackReason::entityInterleaving;
-        if (landscapeSmoothing)
-            return WorldSurfaceFallbackReason::landscapeSmoothing;
-        return WorldSurfaceFallbackReason::none;
-    }
-
     [[nodiscard]] constexpr uint32_t GetWorldSurfaceOrderIndex(
         uint32_t width, uint32_t height, uint32_t x, uint32_t y, uint32_t rotation) noexcept
     {
@@ -535,7 +515,6 @@ namespace OpenRCT2::Ui::Gpu
 
     struct WorldSurfaceSceneCommand
     {
-        uint64_t generation{};
         uint64_t worldEpoch{};
         uint32_t width{};
         uint32_t height{};
@@ -637,9 +616,6 @@ namespace OpenRCT2::Ui::Gpu
         std::optional<WorldSurfaceSceneCommand> worldSurfaces;
         std::vector<TextureUpload> textureUploads;
         std::optional<LightFxFrameSnapshot> lightFx;
-        std::vector<Int4> damageRectangles;
-        uint64_t damageSerial{};
-        bool fullRedraw{};
 
         void clear() noexcept // NOLINT(readability-identifier-naming)
         {
@@ -650,9 +626,6 @@ namespace OpenRCT2::Ui::Gpu
             weather.clear();
             worldSurfaces.reset();
             textureUploads.clear();
-            damageRectangles.clear();
-            damageSerial = 0;
-            fullRedraw = false;
             if (lightFx.has_value())
             {
                 lightFx->width = 0;
@@ -670,7 +643,6 @@ namespace OpenRCT2::Ui::Gpu
             transparentRects.reserve(4096);
             weather.reserve(64);
             textureUploads.reserve(512);
-            damageRectangles.reserve(64);
         }
     };
 } // namespace OpenRCT2::Ui::Gpu

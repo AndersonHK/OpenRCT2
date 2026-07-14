@@ -68,8 +68,9 @@
 #include "tile_element/SurfaceElement.h"
 #include "tile_element/TrackElement.h"
 
-#include <iterator>
 #include <bitset>
+#include <cassert>
+#include <iterator>
 #include <memory>
 #include <utility>
 
@@ -170,7 +171,7 @@ namespace OpenRCT2
         return getGameState().tileElements;
     }
 
-    MapPresentationChangeBatch ConsumeMapPresentationChanges(const uint32_t tick)
+    MapPresentationChangeBatch ConsumeMapPresentationChanges()
     {
         PROFILED_FUNCTION();
         const auto& gameState = getGameState();
@@ -178,7 +179,6 @@ namespace OpenRCT2
         const uint32_t surfaceHeight = gameState.mapSize.y;
         MapPresentationChangeBatch batch{
             .epoch = _presentationEpoch,
-            .tick = tick,
             .reset = _presentationResetPending,
             .surfaceWidth = surfaceWidth,
             .surfaceHeight = surfaceHeight,
@@ -196,7 +196,7 @@ namespace OpenRCT2
             {
                 change.elements.push_back(*source);
             } while (!(source++)->isLastForTile());
-            change.surface.adapterRequired = change.elements.size() != 1;
+            change.surface.requiresCategoryInterleaving = change.elements.size() != 1;
 
             const auto surface = std::ranges::find_if(change.elements, [](const TileElement& element) {
                 return element.getType() == TileElementType::surface;
@@ -217,7 +217,8 @@ namespace OpenRCT2
             };
             change.surface.baseZ = static_cast<uint16_t>(surfaceElement.getBaseZ());
             change.surface.valid = 1;
-            change.surface.adapterRequired = change.surface.adapterRequired || surfaceElement.GetSlope() != 0
+            change.surface.requiresCategoryInterleaving = change.surface.requiresCategoryInterleaving
+                || surfaceElement.GetSlope() != 0
                 || surfaceElement.GetWaterHeight() != 0 || surfaceElement.GetParkFences() != 0;
             const auto position = tilePos.ToCoordsXY();
             for (uint8_t rotation = 0; rotation < SurfacePresentationRecord::kRotationCount; rotation++)
@@ -285,7 +286,7 @@ namespace OpenRCT2
             _nextSurfaceRevision = 0;
             _surfaceBaselineZ = 0;
             _surfaceBaselineSet = false;
-            _requiresLegacyPainterInterleave = false;
+            _surfaceBlockingRecordCount = 0;
         }
 
         size_t activeChunkIndex = std::numeric_limits<size_t>::max();
@@ -317,23 +318,27 @@ namespace OpenRCT2
                 activeSurfaceChunk->revision = ++_nextSurfaceRevision;
                 _surfaceChunks[surfaceChunkIndex] = activeSurfaceChunk;
             }
-            if (!change.surface.valid || change.surface.adapterRequired)
+            auto& surfaceRecord = activeSurfaceChunk->records[change.surfaceIndex % kChunkWidth];
+            const auto blocksIndependentBase = [this](const SurfacePresentationRecord& record) {
+                return !record.valid || record.requiresCategoryInterleaving || !_surfaceBaselineSet
+                    || record.baseZ != _surfaceBaselineZ;
+            };
+            if (!surfaceLayoutChanged && blocksIndependentBase(surfaceRecord))
             {
-                _requiresLegacyPainterInterleave = true;
+                assert(_surfaceBlockingRecordCount != 0);
+                _surfaceBlockingRecordCount--;
             }
-            else if (!_surfaceBaselineSet)
+
+            if (change.surface.valid && !change.surface.requiresCategoryInterleaving && !_surfaceBaselineSet)
             {
                 _surfaceBaselineZ = change.surface.baseZ;
                 _surfaceBaselineSet = true;
             }
-            else if (_surfaceBaselineZ != change.surface.baseZ)
-            {
-                _requiresLegacyPainterInterleave = true;
-            }
-            activeSurfaceChunk->records[change.surfaceIndex % kChunkWidth] = change.surface;
+            if (blocksIndependentBase(change.surface))
+                _surfaceBlockingRecordCount++;
+            surfaceRecord = change.surface;
         }
         _epoch = batch.epoch;
-        _tick = batch.tick;
     }
 
     TileElement* MapPresentationSnapshot::GetFirstElementAt(const TileCoordsXY& tilePos) const

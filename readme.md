@@ -50,7 +50,8 @@ More detail: [Transport ride routing rationale](docs/transport-ride-routing-rati
 
 Fast simulation no longer makes presentation and input wait behind long batches of game updates. The park, mouse, windows, and controls remain responsive at Turbo speed, while Vulkan is the preferred accelerated renderer for this fork.
 
-More detail: [Performance and rendering plan](docs/performance-320-tps-refactor-plan.md) and [Vulkan renderer migration](docs/vulkan-renderer-migration.md).
+More detail: [Vulkan renderer architecture](docs/vulkan-renderer-migration.md) and the archived
+[EverythingPark performance history](docs/archive/performance-320-tps-refactor-history.md).
 
 ### Guest growth is regulated by happiness instead of a soft cap
 
@@ -62,7 +63,7 @@ More detail: [Guest generation and park rating rationale](docs/guest-generation-
 
 Nausea is a condition the park can actively manage. Full guests are more vulnerable to sickening rides, increasingly ill guests will travel farther for first aid, and guests already seeking treatment remain committed to reaching it.
 
-More detail: [OpenRCT2 overhaul changelog](docs/openrct2-overhaul-changelog.md).
+Historical detail: [OpenRCT2 overhaul changelog](docs/archive/openrct2-overhaul-changelog.md).
 
 ### Guests try to recover onto nearby paths
 

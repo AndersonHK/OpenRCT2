@@ -11,7 +11,6 @@
 #include <openrct2-ui/drawing/engines/gpu/GpuAtlas.h>
 #include <openrct2-ui/drawing/engines/gpu/GpuBackend.h>
 #include <openrct2-ui/drawing/engines/gpu/GpuCommandStream.h>
-#include <openrct2-ui/drawing/engines/gpu/GpuDamageTracker.h>
 #include <openrct2-ui/drawing/engines/gpu/GpuFrameMailbox.h>
 #include <openrct2-ui/drawing/engines/gpu/GpuTextureCache.h>
 #include <openrct2-ui/drawing/engines/gpu/GpuTransparencyDepth.h>
@@ -74,130 +73,6 @@ TEST(GpuFoundationTest, AtlasSizeOrdersUseTheLegacyPowerOfTwoClasses)
     EXPECT_EQ(AtlasPage::CalculateImageSizeOrder(32, 32), 5);
     EXPECT_EQ(AtlasPage::CalculateImageSizeOrder(33, 1), 6);
     EXPECT_EQ(AtlasPage::CalculateImageSizeOrder(128, 129), 8);
-}
-
-TEST(GpuFoundationTest, DamageRemainsPendingUntilAnAppliedSerialIsAcknowledged)
-{
-    DamageTracker tracker;
-    tracker.Reset(128, 64, 64, 64);
-    auto initial = tracker.Snapshot();
-    ASSERT_TRUE(initial.fullRedraw);
-    ASSERT_EQ(initial.rectangles.size(), 1u);
-    EXPECT_EQ(initial.rectangles[0].x, 0);
-    EXPECT_EQ(initial.rectangles[0].z, 128);
-    tracker.Acknowledge(initial.serial);
-    EXPECT_TRUE(tracker.Snapshot().rectangles.empty());
-
-    tracker.Invalidate(0, 0, 32, 32);
-    const auto discarded = tracker.Snapshot();
-    tracker.Invalidate(96, 0, 128, 32);
-    const auto replacement = tracker.Snapshot();
-    ASSERT_EQ(replacement.rectangles.size(), 1u);
-    EXPECT_EQ(replacement.rectangles[0].x, 0);
-    EXPECT_EQ(replacement.rectangles[0].z, 128);
-
-    tracker.Acknowledge(discarded.serial);
-    const auto afterOldAcknowledgement = tracker.Snapshot();
-    ASSERT_EQ(afterOldAcknowledgement.rectangles.size(), 1u);
-    EXPECT_EQ(afterOldAcknowledgement.rectangles[0].x, 64);
-    EXPECT_EQ(afterOldAcknowledgement.rectangles[0].z, 128);
-}
-
-TEST(GpuFoundationTest, NewDamageSurvivesAnOlderInFlightAcknowledgement)
-{
-    DamageTracker tracker;
-    tracker.Reset(64, 64, 64, 64);
-    const auto initial = tracker.Snapshot();
-    tracker.Acknowledge(initial.serial);
-
-    tracker.Invalidate(0, 0, 1, 1);
-    const auto inFlight = tracker.Snapshot();
-    tracker.Invalidate(1, 1, 2, 2);
-    tracker.Acknowledge(inFlight.serial);
-    EXPECT_FALSE(tracker.Snapshot().rectangles.empty());
-}
-
-TEST(GpuFoundationTest, DroppedFullRedrawRemainsAFullRedraw)
-{
-    DamageTracker tracker;
-    tracker.Reset(96, 96, 32, 32);
-    const auto dropped = tracker.Snapshot();
-    ASSERT_TRUE(dropped.fullRedraw);
-
-    tracker.Invalidate(0, 0, 1, 1);
-    const auto replacement = tracker.Snapshot();
-    EXPECT_TRUE(replacement.fullRedraw);
-    tracker.Acknowledge(replacement.serial);
-    EXPECT_FALSE(tracker.Snapshot().fullRedraw);
-    EXPECT_TRUE(tracker.Snapshot().rectangles.empty());
-}
-
-TEST(GpuFoundationTest, DenseDamageCrossesOverToOneFullRedraw)
-{
-    DamageTracker tracker;
-    tracker.Reset(256, 256, 64, 64);
-    const auto initial = tracker.Snapshot();
-    tracker.Acknowledge(initial.serial);
-
-    tracker.Invalidate(0, 0, 256, 192);
-    const auto damage = tracker.Snapshot();
-
-    ASSERT_TRUE(damage.fullRedraw);
-    ASSERT_EQ(damage.rectangles.size(), 1u);
-    EXPECT_EQ(damage.rectangles[0].x, 0);
-    EXPECT_EQ(damage.rectangles[0].y, 0);
-    EXPECT_EQ(damage.rectangles[0].z, 256);
-    EXPECT_EQ(damage.rectangles[0].w, 256);
-}
-
-TEST(GpuFoundationTest, CoalescedFullRedrawPreservesNewerMailboxDamage)
-{
-    DamageTracker tracker;
-    tracker.Reset(128, 128, 64, 64);
-    const auto initial = tracker.Snapshot();
-    tracker.Acknowledge(initial.serial);
-
-    tracker.ForceFullRedraw();
-    const auto inFlight = tracker.Snapshot();
-    ASSERT_TRUE(inFlight.fullRedraw);
-    EXPECT_TRUE(tracker.CoalesceFullRedrawInvalidation());
-
-    tracker.Acknowledge(inFlight.serial);
-    const auto replacement = tracker.Snapshot();
-    EXPECT_TRUE(replacement.fullRedraw);
-    EXPECT_GT(replacement.serial, inFlight.serial);
-
-    tracker.Acknowledge(replacement.serial);
-    EXPECT_FALSE(tracker.IsFullRedrawPending());
-    EXPECT_TRUE(tracker.Snapshot().rectangles.empty());
-}
-
-TEST(GpuFoundationTest, PresentationGenerationRedrawSurvivesStaleDamageAcknowledgement)
-{
-    DamageTracker tracker;
-    tracker.Reset(192, 128, 64, 64);
-    const auto initial = tracker.Snapshot();
-    tracker.Acknowledge(initial.serial);
-
-    // Simulation damage may be recorded while the retained canvas still shows an older immutable scene.
-    tracker.Invalidate(0, 0, 32, 32);
-    const auto staleSceneDamage = tracker.Snapshot();
-
-    // Publishing the prepared replacement scene is a frame-boundary transaction and must supersede that partial damage.
-    tracker.ForceFullRedraw();
-    tracker.Acknowledge(staleSceneDamage.serial);
-
-    const auto generationTransition = tracker.Snapshot();
-    ASSERT_TRUE(generationTransition.fullRedraw);
-    ASSERT_EQ(generationTransition.rectangles.size(), 1u);
-    EXPECT_EQ(generationTransition.rectangles[0].x, 0);
-    EXPECT_EQ(generationTransition.rectangles[0].y, 0);
-    EXPECT_EQ(generationTransition.rectangles[0].z, 192);
-    EXPECT_EQ(generationTransition.rectangles[0].w, 128);
-    EXPECT_GT(generationTransition.serial, staleSceneDamage.serial);
-
-    tracker.Acknowledge(generationTransition.serial);
-    EXPECT_TRUE(tracker.Snapshot().rectangles.empty());
 }
 
 TEST(GpuFoundationTest, AtlasAllocationRetainsLayerAndPixelBounds)
@@ -311,17 +186,6 @@ TEST(GpuFoundationTest, WorldSurfaceAbiHasStableComputeBlocksAndDepthCapacity)
     EXPECT_TRUE(WorldSurfaceBoundsVisible({ 29, 39, 31, 41 }, clip));
     EXPECT_FALSE(WorldSurfaceBoundsVisible({ 0, 0, 10, 40 }, clip));
     EXPECT_FALSE(WorldSurfaceBoundsVisible({ 30, 20, 40, 40 }, clip));
-}
-
-TEST(GpuFoundationTest, WorldSurfaceFallbackReasonsKeepMixedPainterCategoriesOnAdapter)
-{
-    EXPECT_EQ(GetWorldSurfaceFallbackReason(false, false, false), WorldSurfaceFallbackReason::none);
-    EXPECT_EQ(
-        GetWorldSurfaceFallbackReason(true, false, false), WorldSurfaceFallbackReason::mapInterleaving);
-    EXPECT_EQ(
-        GetWorldSurfaceFallbackReason(false, true, false), WorldSurfaceFallbackReason::entityInterleaving);
-    EXPECT_EQ(
-        GetWorldSurfaceFallbackReason(false, false, true), WorldSurfaceFallbackReason::landscapeSmoothing);
 }
 
 #ifndef DISABLE_TTF

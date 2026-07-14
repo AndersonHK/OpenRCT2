@@ -49,7 +49,7 @@ namespace OpenRCT2::Ui::Gpu
 
         struct PublishedSurfaceChunk
         {
-            std::shared_ptr<const void> source;
+            uint64_t sourceRevision{};
             std::shared_ptr<const WorldSurfaceChunk> gpu;
             std::vector<uint32_t> spriteSets;
         };
@@ -66,7 +66,6 @@ namespace OpenRCT2::Ui::Gpu
         std::vector<SurfaceSpriteCacheEntry> _surfaceSpriteCache;
         std::unordered_map<ImageId, uint32_t, ImageIdHash> _surfaceSpriteLookup;
         std::shared_ptr<const WorldSurfaceSpriteTable> _publishedSurfaceSprites;
-        uint64_t _nextSurfaceChunkRevision{};
         uint64_t _nextSurfaceSpriteRevision{};
         uint64_t _surfaceWorldEpoch{};
         uint32_t _surfaceWidth{};

@@ -12,7 +12,6 @@
     #include "VulkanDrawingEngine.h"
 
     #include "../gpu/GpuCommandDrawingContext.h"
-    #include "../gpu/GpuDamageTracker.h"
     #include "../gpu/GpuFrameMailbox.h"
     #include "VulkanBackend.h"
     #include "VulkanPlatform.h"
@@ -159,7 +158,6 @@ namespace OpenRCT2::Ui
         Gpu::TextureCache _textureCache;
         Drawing::RenderTarget _mainTarget{};
         Gpu::CommandDrawingContext _drawingContext;
-        Gpu::DamageTracker _damageTracker;
         VulkanWeatherDrawer _weatherDrawer;
         Gpu::LatestFrameMailbox _frameMailbox;
         std::unique_ptr<Gpu::RecordedFramePacket> _recordingPacket;
@@ -186,7 +184,6 @@ namespace OpenRCT2::Ui
         bool _hasPalette = false;
         bool _vsync = true;
         std::atomic_bool _gpuLightFxRasterization{ false };
-        std::atomic<uint64_t> _presentedDamageSerial{};
 
     public:
         explicit VulkanDrawingEngine(IUiContext& uiContext)
@@ -243,7 +240,6 @@ namespace OpenRCT2::Ui
             _mainTarget.pitch = 0;
             _mainTarget.zoom_level = ZoomLevel{ 0 };
             _drawingContext.Resize();
-            _damageTracker.Reset(width, height);
             _drawableExtent = QueryDrawableExtentOnUiThread(_uiContext);
             if (_initialised)
             {
@@ -279,9 +275,9 @@ namespace OpenRCT2::Ui
                 _presentModeVersion++;
         }
 
-        void Invalidate(int32_t left, int32_t top, int32_t right, int32_t bottom) override
+        void Invalidate(int32_t, int32_t, int32_t, int32_t) override
         {
-            _damageTracker.Invalidate(left, top, right, bottom);
+            // Vulkan records a complete frame from one presentation generation.
         }
 
         [[nodiscard]] bool CanBeginFrame() override
@@ -289,9 +285,9 @@ namespace OpenRCT2::Ui
             return _frameMailbox.CanPublishVisualFrame();
         }
 
-        bool CoalesceViewportInvalidation() override
+        bool CanSkipViewportInvalidation() const override
         {
-            return _damageTracker.CoalesceFullRedrawInvalidation();
+            return true;
         }
 
         void BeginDraw() override
@@ -411,7 +407,6 @@ namespace OpenRCT2::Ui
         void BeginDrawQueued()
         {
             RethrowWorkerError();
-            _damageTracker.Acknowledge(_presentedDamageSerial.exchange(0, std::memory_order_acq_rel));
             RefreshDrawableExtent();
             if (_recordingPacket == nullptr)
             {
@@ -628,16 +623,6 @@ namespace OpenRCT2::Ui
 
         void RetirePacket(Gpu::RecordedFramePacket& packet, Gpu::FrameRetirement retirement)
         {
-            if (retirement == Gpu::FrameRetirement::Presented)
-            {
-                auto acknowledged = _presentedDamageSerial.load(std::memory_order_relaxed);
-                while (acknowledged < packet.commands.damageSerial
-                       && !_presentedDamageSerial.compare_exchange_weak(
-                           acknowledged, packet.commands.damageSerial, std::memory_order_release,
-                           std::memory_order_relaxed))
-                {
-                }
-            }
             if (packet.readback != nullptr && retirement != Gpu::FrameRetirement::Presented)
             {
                 packet.readback->Fail(std::make_exception_ptr(std::runtime_error(
@@ -756,10 +741,6 @@ namespace OpenRCT2::Ui
         void PaintWindows() override
         {
             auto& commands = _recordingPacket->commands;
-            if (gPaintForceRedraw)
-            {
-                _damageTracker.ForceFullRedraw();
-            }
             const auto commandCount = [&commands] {
                 return commands.lines.size() + commands.opaqueRects.size() + commands.opaqueSprites.size()
                     + commands.transparentRects.size();
@@ -768,28 +749,19 @@ namespace OpenRCT2::Ui
             WindowUpdateAllViewports();
             if (commandCount() != beforeViewportUpdate)
             {
-                // Shift helpers emit provisional strip redraws. Once CopyRect has selected the full-redraw fallback,
-                // retaining those batches would apply transparent sprites twice before the authoritative full scene.
+                // Shift helpers can emit provisional strip redraws. This backend always follows with the authoritative full
+                // scene, so retaining those batches would apply transparent sprites twice.
                 _drawingContext.End();
                 commands.lines.clear();
                 commands.opaqueRects.clear();
                 commands.opaqueSprites.clear();
                 commands.transparentRects.clear();
                 _drawingContext.Begin(commands);
-                _damageTracker.ForceFullRedraw();
             }
-            // Viewport presentation publication may promote the frame to a complete generation. Do that before taking the
-            // damage snapshot: the Vulkan backend clears its canvas unconditionally, so a full-generation invalidation raised
-            // from inside WindowDrawAll would arrive one frame too late and leave this cleared frame only partially rebuilt.
+            // Publish the immutable scene before traversing any window or viewport. The backend clears its indexed and depth
+            // canvases for every admitted packet, and this traversal therefore records one complete replacement frame.
             ViewportBeginPresentationFrame();
-            auto damage = _damageTracker.Snapshot();
-            commands.damageSerial = damage.serial;
-            commands.fullRedraw = damage.fullRedraw;
-            commands.damageRectangles = std::move(damage.rectangles);
-            for (const auto& rect : commands.damageRectangles)
-            {
-                WindowDrawAll(_mainTarget, rect.x, rect.y, rect.z, rect.w);
-            }
+            WindowDrawAll(_mainTarget, 0, 0, static_cast<int32_t>(_width), static_cast<int32_t>(_height));
         }
 
         void PaintWeather() override
@@ -799,9 +771,7 @@ namespace OpenRCT2::Ui
 
         void CopyRect(int32_t, int32_t, int32_t, int32_t, int32_t, int32_t) override
         {
-            // Viewport shifts occur while WindowUpdateAllViewports is collecting this frame's damage. Until an ordered
-            // GPU blit is part of the command stream, rebuilding the retained canvas is the only correct fallback.
-            _damageTracker.ForceFullRedraw();
+            // Viewport shifts need no retained-canvas blit because this backend records a complete replacement frame.
         }
 
         std::string Screenshot() override

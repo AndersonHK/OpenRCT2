@@ -54,7 +54,6 @@
     <ClInclude Include="drawing\engines\gpu\GpuBackend.h" />
     <ClInclude Include="drawing\engines\gpu\GpuAtlas.h" />
     <ClInclude Include="drawing\engines\gpu\GpuCommandStream.h" />
-    <ClInclude Include="drawing\engines\gpu\GpuDamageTracker.h" />
     <ClInclude Include="drawing\engines\gpu\GpuCommandDrawingContext.h" />
     <ClInclude Include="drawing\engines\gpu\GpuFrameMailbox.h" />
     <ClInclude Include="drawing\engines\gpu\GpuTextureCache.h" />

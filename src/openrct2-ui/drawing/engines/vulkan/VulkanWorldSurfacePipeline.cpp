@@ -352,6 +352,14 @@ namespace OpenRCT2::Ui::Vulkan
         vkCmdEndRenderPass(frame.commandBuffer);
     }
 
+    void WorldSurfacePipeline::DiscardPendingUploads() noexcept
+    {
+        // Revisions advance while transfer commands are recorded. An abandoned command buffer never executes those copies,
+        // so the next accepted frame must republish every source buffer rather than trusting the recorded revisions.
+        std::ranges::fill(_uploadedRevisions, 0);
+        _uploadedSpriteRevision = 0;
+    }
+
     void WorldSurfacePipeline::CreateDescriptors(const IndexedResources& resources)
     {
         constexpr std::array bindings = {

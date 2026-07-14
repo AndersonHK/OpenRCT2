@@ -1,9 +1,11 @@
-# OpenRCT2 overhaul changelog
+# Archived: OpenRCT2 overhaul changelog
+
+> Historical implementation journal. Current subsystem contracts live in the focused documents under `docs/`.
 
 This is the chronological engineering record for the personal fork. It records behavior changes, compatibility decisions,
 important implementation corrections, and the evidence available at each checkpoint. The concise player-facing overview lives
-in the [README](../readme.md); exact mechanics, architecture, benchmark methods, and build procedures live in the linked topic
-documents. The upstream project's release history remains in [distribution/changelog.txt](../distribution/changelog.txt).
+in the [README](../../readme.md); exact mechanics, architecture, benchmark methods, and build procedures live in the linked topic
+documents. The upstream project's release history remains in [distribution/changelog.txt](../../distribution/changelog.txt).
 
 ## 2026-07-13
 
@@ -269,14 +271,14 @@ Manually integrated upstream `develop` through `6903d5310e`: all 22 localisation
 and the newer gameplay commit prevents underground guests from choosing the watch-ride diversion through a shared map-height
 query. Its replay `v0.0.97` asset manifest and distribution changelog are retained exactly. The ancestry merge remains for the
 user after this dirty-worktree checkpoint is committed; the detailed review and expected Git state are recorded in the
-[upstream merge manifest](upstream-merge-manifest.md).
+[upstream merge manifest](../upstream-merge-manifest.md).
 
 The next two upstream commits are also integrated manually. Typed `TileElementsView` scans replace legacy tile-pointer loops
 throughout UI, construction, import, pathfinding, and world code while retaining fork routing and persistence owners. Land-height
 scenery removal uses a compaction-aware loop because deleting through the upstream range iterator could skip adjacent scenery.
 Upstream's maze intensity patch targets a legacy modifier absent from this fork; that dead modifier path is removed, sampled
 maze ratings and fixtures remain authoritative, and the network stream advances to version 2. The ancestry-only merge command
-and commit-by-commit dispositions are recorded in the [upstream merge manifest](upstream-merge-manifest.md).
+and commit-by-commit dispositions are recorded in the [upstream merge manifest](../upstream-merge-manifest.md).
 
 ### Station platform boarding regression
 
@@ -483,7 +485,7 @@ Merge: manually integrate upstream `develop` through `a770ffc04e`. The new edito
 layout, lowercase `TileElementType` names, sloped-path puke/litter correction, plugin save binding, networking fixes, graphics
 round-trip work, translations, workflow maintenance, and documentation are retained. Fork routing, sampled ratings, private
 save versions, transport platforms, spatial audio, route caches, and Vulkan sources remain at their intended owners. The
-commit-by-commit decisions and seven conflict resolutions are recorded in the [upstream merge manifest](upstream-merge-manifest.md).
+commit-by-commit decisions and seven conflict resolutions are recorded in the [upstream merge manifest](../upstream-merge-manifest.md).
 
 Interface: multi-station measurement pages no longer display the conservative ride-wide E/I/N envelope. That aggregate remains
 an internal ride-list/value compatibility result only. The selected directed leg now uses the normal measurement convention:
@@ -569,7 +571,7 @@ Shelter and capacity: private park version `60016` adds distance-weighted shelte
 uses a once-per-tick generation of the strict full-queue-and-full-platform predicate: uncommitted walkers reconsider service
 availability, while committed guests directly retain any selected boarding station that remains usable.
 
-Details: [Transport ride routing rationale](transport-ride-routing-rationale.md)
+Details: [Transport ride routing rationale](../transport-ride-routing-rationale.md)
 
 Verification: focused pathfinding, ride-rating, and save-migration tests cover reasonable time savings, rain, fare bands,
 committed routes, destination changes, distance-weighted comfort, journey composition, consist-sized platform capacity,
@@ -581,7 +583,7 @@ Direction: the duplicate OpenGL backend has been retired. The cross-platform pat
 
 Foundation: add backend-neutral GPU command and atlas structures plus a Vulkan device layer for SDL surface creation, portability enumeration, device and queue selection, swapchain negotiation, frames in flight, and reusable mapped upload rings. Vulkan-capable builds expose the direct renderer and render worker by default; builds without the required SDK retain the software renderer.
 
-Migration: Vulkan now always uses direct command recording; the X8 canvas-upload bridge and its routine full-frame CPU transfer have been deleted. The staged implementation and remaining deletion criteria are documented in [Vulkan renderer migration](vulkan-renderer-migration.md).
+Migration: Vulkan now always uses direct command recording; the X8 canvas-upload bridge and its routine full-frame CPU transfer have been deleted. The staged implementation and remaining deletion criteria are documented in [Vulkan renderer migration](../vulkan-renderer-migration.md).
 
 Progress: the Vulkan command path executes indexed lines; opaque solid, textured, masked, crosshatched, TTF, and
 one-to-three-remap rectangles; deterministic depth-peeled transparency/blend composition; and ordered indexed rain/snow.
@@ -589,7 +591,7 @@ Remap and blend tables remain GPU-resident, depth and indexed colour survive eve
 selects a correct SDR format or a compatible 10-bit HDR10 BT.2020/PQ pair. HDR maps unchanged SDR sprite appearance to a
 configurable paper-white level rather than making legacy art intrinsically brighter. Screenshots use an explicit synchronized
 indexed readback boundary; ordinary presentation performs no CPU framebuffer upload or readback. Details:
-[Vulkan renderer migration](vulkan-renderer-migration.md).
+[Vulkan renderer migration](../vulkan-renderer-migration.md).
 
 Build quality: link the Vulkan loader import library by its full SDK path instead of adding the entire SDK library directory
 ahead of project dependencies. This prevents the SDK's unrelated dynamic-CRT `SDL2-static.lib` from shadowing OpenRCT2's
@@ -600,13 +602,13 @@ static-CRT SDL library and removes the resulting Windows `LNK4098` warning witho
 Performance: the warmed EverythingPark profiler identified guest direction searches and vehicle updates as the dominant CPU
 work. Exact path-topology nodes now precompute thin-junction and adjacent wide/owned-queue classification, and one synchronous
 `ChooseDirection` search reuses its current exact chunk view. Inexact, unmatched, shop/entrance-sensitive, or ghost-affected
-layouts retain live tile-element behavior. Details: [Path topology cache](path-topology-cache.md).
+layouts retain live tile-element behavior. Details: [Path topology cache](../path-topology-cache.md).
 
 Pathfinding: stable park exits and resolved ride/facility entrances now receive epoch-invalidated reverse distance fields.
 The main thread freezes exact directed topology, the process-lifetime worker pool builds independent target fields, and the
 main thread generation-checks and publishes them in deterministic order. Live permitted edges, queue ownership, guest
 junction history, and the bounded heuristic fallback remain authoritative. Details:
-[Shared destination route fields](shared-route-fields.md).
+[Shared destination route fields](../shared-route-fields.md).
 
 Verification: the clean 2,000-tick EverythingPark comparison improved from 165.895 to 184.352 TPS and from 5.919 to
 5.054 milliseconds median tick time with an unchanged final checksum. The profiled comparison cut `ChooseDirection` time by
@@ -616,8 +618,8 @@ Verification: after shared reverse fields and visible transport-platform staging
 241.767 and 241.871 TPS with matching `2fc90d5f...` checksums and 3.868/3.851 millisecond median tick times. This is 31.2%
 faster than the 184.352-TPS checkpoint and 45.8% faster than the 165.895-TPS baseline. The profiled run reduced
 `ChooseDirection` to 201,038 microseconds and `PeepUpdateAll` to 880,203 microseconds; live ride-rating sampling is now the
-largest isolated remaining vehicle cost. Details: [Shared destination route fields](shared-route-fields.md) and
-[EverythingPark 320 TPS refactor plan](performance-320-tps-refactor-plan.md).
+largest isolated remaining vehicle cost. Details: [Shared destination route fields](../shared-route-fields.md) and
+[EverythingPark 320 TPS refactor plan](performance-320-tps-refactor-history.md).
 
 Verification: the station-less facility target/index and live-rating eligibility follow-up reached 254.297 and 256.592 TPS
 in two clean 2,000-tick runs, with matching `182e7448...` checksums and 3.834/3.794 millisecond medians. The new profile cut
@@ -636,8 +638,8 @@ Performance: a train-head update now reuses matching owning-ride and loaded vehi
 context. Mismatched access and calls outside that update retain the original lookup, update order is unchanged, and nested
 profiler scopes separate rating, measurement, station, motion, and sound costs. Typed entity iterators likewise retain their
 registry reference and directly validate concrete type tags without replacing the mutation-safe entity lists. Details:
-[EverythingPark 320 TPS refactor plan](performance-320-tps-refactor-plan.md) and
-[Ride rating aggregate rationale](ride-rating-aggregate-rationale.md).
+[EverythingPark 320 TPS refactor plan](performance-320-tps-refactor-history.md) and
+[Ride rating aggregate rationale](../ride-rating-aggregate-rationale.md).
 
 Performance: live ride-rating eligibility is now checked at the original vehicle-update sample point before non-head, ghost,
 inactive-status, or non-normal-rating vehicles enter the sampler. Each eligible head traverses its consist once through the
@@ -693,7 +695,7 @@ Correction: replace the single non-positional crowd loop with an eight-sector di
 
 Correction: source retirement now fades over 350 ms. A crash no longer nulls the active ride-music track on the next game tick; the active track is allowed to finish, while the crash effect plays as an uncropped spatial one-shot.
 
-Details: [Spatial audio overhaul](spatial-audio-overhaul.md)
+Details: [Spatial audio overhaul](../spatial-audio-overhaul.md)
 
 Verification: the Release build and all 380 tests passed. Repeated EverythingPark runtime checks remained stable with 48 kHz,
 eight-channel output and no callback errors on the Logitech/Windows endpoint.
@@ -730,7 +732,7 @@ Reasoning: the local-context system was correctly measuring nearby scenery, but 
 
 Correction: local-context line of sight now traces to both the bottom and top of a candidate object. The existing terrain-relative range gate is preserved, but a tall decoration, elevated path, or elevated foreign track can now count if its upper ray clears maze walls or other solid blockers. Low objects behind same-height maze walls remain blocked.
 
-Details: [Ride rating local context plan](ride-rating-local-context-plan.md)
+Details: [Ride rating local context plan](../ride-rating-local-context-plan.md)
 
 ### Fixed-ride scenery sampling
 
@@ -740,7 +742,7 @@ Reasoning: flat rides such as the Haunted House revealed that the remaining fixe
 
 Current balancing: the local scenery score remains uncapped and square-rooted. `BonusScenery` consumes that same uncapped score; there is no restored legacy cap in the fixed-ride adapter.
 
-Details: [Ride rating local context plan](ride-rating-local-context-plan.md)
+Details: [Ride rating local context plan](../ride-rating-local-context-plan.md)
 
 ## 2026-07-06
 
@@ -752,7 +754,7 @@ Reasoning: decoration was too influential at modest density and then stopped mat
 
 Current balancing: raw scenery `1200` maps to the former 18-point local scenery contribution. Raw scenery `300`, the old scenery divisor, maps to 9 points, and raw scenery above `1200` continues growing by square root.
 
-Details: [Ride rating local context plan](ride-rating-local-context-plan.md)
+Details: [Ride rating local context plan](../ride-rating-local-context-plan.md)
 
 ### Ride and guest tuning
 
@@ -766,7 +768,7 @@ Decision: visible water now counts as a lightweight surface decoration, using th
 
 Tuning: normal guest generation now uses `$50,000` park value as the square-root baseline instead of `$40,000`, reducing arrivals for parks below the new baseline while preserving the same curve shape.
 
-Details: [Ride rating local context plan](ride-rating-local-context-plan.md), [Guest generation and park rating rationale](guest-generation-rating-rationale.md)
+Details: [Ride rating local context plan](../ride-rating-local-context-plan.md), [Guest generation and park rating rationale](../guest-generation-rating-rationale.md)
 
 ## 2026-07-05
 
@@ -778,7 +780,7 @@ Reasoning: decoration and proximity bonuses are now accumulated where riders act
 
 Correction: fixed-ride scenery origins now use ride-specific eye heights for tall non-coaster rides such as observation towers, roto-drop rides, launched freefall rides, lifts, ferris wheels, and chairlifts. Mazes use a lower viewpoint and maze track now blocks line of sight, so maze walls behave as walls for local decoration visibility.
 
-Details: [Ride rating local context plan](ride-rating-local-context-plan.md)
+Details: [Ride rating local context plan](../ride-rating-local-context-plan.md)
 
 ### Ride rating sample save data
 
@@ -792,7 +794,7 @@ Correction: remove the custom Boat Hire intervention that forced a boat to retur
 
 Reasoning: the added helper and steering override duplicated existing ride behavior and could mask the real problem when the station route is physically blocked.
 
-Details: [Boat hire return rationale](boat-hire-return-rationale.md)
+Details: [Boat hire return rationale](../boat-hire-return-rationale.md)
 
 Verification: the obsolete regression expectation was removed, the test target built, and the gameplay suite passed.
 
@@ -804,7 +806,7 @@ Decision: guests walking on surface tiles now do a small local search for a reac
 
 Reasoning: guests that get pushed or dropped just off the path network should visibly try to recover when a nearby path is accessible, while still using the original random surface wandering when no local rejoin route exists.
 
-Details: [Guest surface path rejoin rationale](guest-surface-path-rejoin-rationale.md)
+Details: [Guest surface path rejoin rationale](../guest-surface-path-rejoin-rationale.md)
 
 Verification: the Release game and test targets built, the focused off-path recovery case passed, and the complete pathfinding
 and full test suites passed.
@@ -815,7 +817,7 @@ Decision: mowed grass now counts as lightweight decoration in ride scenery/proxi
 
 Reasoning: groundskeeper mowing should have a visible gameplay payoff instead of being cosmetic and staff-stat-only. Well-kept lawns now help nearby rides and guest scenery impressions through the same local scans that already reward decorations.
 
-Details: [Mowed grass decoration rationale](mowed-grass-decoration-rationale.md)
+Details: [Mowed grass decoration rationale](../mowed-grass-decoration-rationale.md)
 
 Verification: the Release game and test targets built, and the focused decoration, footpath-connection, and ride-rating suites
 passed.
@@ -828,7 +830,7 @@ Established a reproducible Release build and local deployment workflow for the f
 together so a playable build cannot accidentally mix these changes with assets from a different branch. Machine-specific
 toolchain selection, commands, and deployment paths remain in the dedicated setup document.
 
-Details: [Windows local build setup](windows-local-build.md)
+Details: [Windows local build setup](../windows-local-build.md)
 
 ### Ride excitement, intensity, and nausea
 
@@ -854,7 +856,7 @@ Tuning: per-tick G-force scoring now uses smooth curves informed by the old ride
 
 Tuning: the accumulator speed guard now floors speed at `1` instead of capping it at `90`, so speed continues to scale normally while zero-speed samples are guarded. Vehicle-object rating multipliers remain on the raw aggregate before the square-root finalizer, which is equivalent to applying the same ride-entry bonus to each sampled tick while preserving saved raw samples.
 
-Details: [Ride rating aggregate rationale](ride-rating-aggregate-rationale.md)
+Details: [Ride rating aggregate rationale](../ride-rating-aggregate-rationale.md)
 
 ### Guest generation and park rating
 
@@ -870,7 +872,7 @@ Verification: added direct guest-generation probability tests for the `500`/`600
 
 Research: real park calendars support the inherited March-through-October calendar as a temperate seasonal-park abstraction, but not as a universal calendar. Northern parks often close or reduce service outside spring-fall, while warm-climate parks and holiday-event parks may keep operating in winter.
 
-Details: [Guest generation and park rating rationale](guest-generation-rating-rationale.md), [Real park seasonality research](real-park-seasonality-research.md)
+Details: [Guest generation and park rating rationale](../guest-generation-rating-rationale.md), [Real park seasonality research](../real-park-seasonality-research.md)
 
 ### Ride admission pricing
 
@@ -896,7 +898,7 @@ Correction: currency text formatting now pads cent values below `$0.10`, so `$0.
 
 Tuning: target-pricing margins now use `$0.05` minimums for discount, fair-price, and expensive pricing because the runtime money type can represent those values.
 
-Details: [Ride pricing target rationale](ride-pricing-target-rationale.md), [Money cent precision rationale](money-cent-precision-rationale.md)
+Details: [Ride pricing target rationale](../ride-pricing-target-rationale.md), [Money cent precision rationale](../money-cent-precision-rationale.md)
 
 ### Park entrance pricing
 
@@ -908,7 +910,7 @@ Compatibility: direct entrance-fee commands and legacy saves are preserved throu
 
 Save format: fork-owned `.park` changes now use the private `60000+` version band instead of upstream's next sequential version. This prevents future upstream save versions from colliding with this mod's custom ride-pricing, cent-money, and park-entrance fields when upstream development is fetched later.
 
-Details: [Park entrance pricing target rationale](park-entrance-pricing-target-rationale.md)
+Details: [Park entrance pricing target rationale](../park-entrance-pricing-target-rationale.md)
 
 ### Verification
 

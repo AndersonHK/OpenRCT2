@@ -91,9 +91,9 @@ namespace OpenRCT2::Drawing
         }
 
         virtual void Invalidate(int32_t left, int32_t top, int32_t right, int32_t bottom) = 0;
-        // Returns true when a backend has already crossed over to a full redraw and recorded this newer invalidation.
-        // Callers may then skip viewport projection and rectangle construction without losing mailbox-era damage ordering.
-        virtual bool CoalesceViewportInvalidation()
+        // Complete-frame backends do not consume projected dirty rectangles. Callers may skip that invalidation work while
+        // simulation-side presentation records continue to track the actual world changes.
+        virtual bool CanSkipViewportInvalidation() const
         {
             return false;
         }

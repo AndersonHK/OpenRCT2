@@ -23,9 +23,6 @@ namespace OpenRCT2
      */
     struct PresentationGeneration
     {
-        uint64_t id{};
-        uint64_t worldEpoch{};
-        uint32_t tick{};
         std::shared_ptr<const MapPresentationSnapshot> map;
         std::shared_ptr<const EntityPresentationSnapshot> entities;
     };
@@ -42,6 +39,5 @@ namespace OpenRCT2
         int8_t zoom{};
         uint8_t rotation{};
         uint8_t landscapeSmoothing{};
-        uint8_t reserved{};
     };
 } // namespace OpenRCT2

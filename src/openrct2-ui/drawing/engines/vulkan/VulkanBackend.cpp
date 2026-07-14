@@ -282,8 +282,7 @@ namespace OpenRCT2::Ui::Vulkan
         RecordPendingLightFalloffs();
         RecordTextureUploads(commands);
         _device.RecordGpuTimestamp(*_activeToken, GpuTimestampPoint::uploadsComplete);
-        // Presented frames are complete generations. Clearing unconditionally removes retained-pixel/damage acknowledgement
-        // from the production Vulkan lifecycle and makes dropped generations harmless.
+        // Presented frames are complete generations. Clearing indexed colour and depth makes dropped generations harmless.
         _resources.RecordCanvasAndDepthClear(_activeToken->commandBuffer, _activeToken->frameIndex, 0);
         if (commands.worldSurfaces.has_value())
             _worldSurfacePipeline.Record(*_activeToken, *commands.worldSurfaces);
@@ -364,6 +363,7 @@ namespace OpenRCT2::Ui::Vulkan
         // Upload commands recorded into an abandoned command buffer never
         // reached the GPU. Queue all small lookup resources again next frame.
         _resources.DiscardFrameLayouts(frameIndex);
+        _worldSurfacePipeline.DiscardPendingUploads();
         if (_lightFalloffsRecorded)
         {
             _lightFalloffsDirty = true;

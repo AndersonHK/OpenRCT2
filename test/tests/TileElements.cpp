@@ -35,7 +35,7 @@ TEST(MapPresentationSnapshotTest, CopyOnWriteUpdateDoesNotMutatePublishedSnapsho
     first.clearanceHeight = 10;
     first.setLastForTile(true);
 
-    MapPresentationChangeBatch initial{ .epoch = 1, .tick = 100, .reset = true };
+    MapPresentationChangeBatch initial{ .epoch = 1, .reset = true };
     initial.changes.push_back({ 0, { first } });
     MapPresentationSnapshot published;
     published.Apply(initial);
@@ -44,7 +44,7 @@ TEST(MapPresentationSnapshotTest, CopyOnWriteUpdateDoesNotMutatePublishedSnapsho
     auto second = first;
     second.baseHeight = 20;
     second.clearanceHeight = 20;
-    MapPresentationChangeBatch update{ .epoch = 1, .tick = 101, .reset = false };
+    MapPresentationChangeBatch update{ .epoch = 1, .reset = false };
     update.changes.push_back({ 0, { second } });
     next.Apply(update);
 
@@ -52,8 +52,6 @@ TEST(MapPresentationSnapshotTest, CopyOnWriteUpdateDoesNotMutatePublishedSnapsho
     ASSERT_NE(next.GetFirstElementAt({ 0, 0 }), nullptr);
     EXPECT_EQ(published.GetFirstElementAt({ 0, 0 })->baseHeight, 10);
     EXPECT_EQ(next.GetFirstElementAt({ 0, 0 })->baseHeight, 20);
-    EXPECT_EQ(published.GetTick(), 100u);
-    EXPECT_EQ(next.GetTick(), 101u);
 }
 
 TEST(MapPresentationSnapshotTest, StoresTheFinalPartialTechnicalMapChunk)
@@ -65,7 +63,7 @@ TEST(MapPresentationSnapshotTest, StoresTheFinalPartialTechnicalMapChunk)
     element.setLastForTile(true);
 
     constexpr uint32_t finalIndex = kMaximumMapSizeTechnical * kMaximumMapSizeTechnical - 1;
-    MapPresentationChangeBatch batch{ .epoch = 1, .tick = 100, .reset = true };
+    MapPresentationChangeBatch batch{ .epoch = 1, .reset = true };
     batch.changes.push_back({ finalIndex, { element } });
 
     MapPresentationSnapshot snapshot;
@@ -88,7 +86,6 @@ TEST(MapPresentationSnapshotTest, SurfaceChunksAreImmutableAndRevisioned)
 
     MapPresentationChangeBatch initial{
         .epoch = 7,
-        .tick = 10,
         .reset = true,
         .surfaceWidth = 1,
         .surfaceHeight = 1,
@@ -100,7 +97,7 @@ TEST(MapPresentationSnapshotTest, SurfaceChunksAreImmutableAndRevisioned)
     auto next = published;
     surface.baseZ = 64;
     surface.detailedImages[0] = ImageId(5678);
-    MapPresentationChangeBatch update{ .epoch = 7, .tick = 11, .surfaceWidth = 1, .surfaceHeight = 1 };
+    MapPresentationChangeBatch update{ .epoch = 7, .surfaceWidth = 1, .surfaceHeight = 1 };
     update.changes.push_back({ 0, { element }, surface, 0 });
     next.Apply(update);
 
@@ -131,7 +128,6 @@ TEST(MapPresentationSnapshotTest, SurfacePublicationUsesDenseActiveMapIndicesAnd
     constexpr uint32_t denseIndex = width;
     MapPresentationChangeBatch batch{
         .epoch = 9,
-        .tick = 12,
         .reset = true,
         .surfaceWidth = width,
         .surfaceHeight = height,
@@ -150,7 +146,7 @@ TEST(MapPresentationSnapshotTest, SurfacePublicationUsesDenseActiveMapIndicesAnd
     ASSERT_NE(snapshot.GetFirstElementAt({ 0, 1 }), nullptr);
 }
 
-TEST(MapPresentationSnapshotTest, MixedOrNonUniformSurfacePublicationRequiresLegacyPainterInterleaving)
+TEST(MapPresentationSnapshotTest, MixedOrNonUniformSurfacePublicationCannotDrawSurfaceBaseIndependently)
 {
     TileElement element;
     element.ClearAs(TileElementType::surface);
@@ -161,7 +157,6 @@ TEST(MapPresentationSnapshotTest, MixedOrNonUniformSurfacePublicationRequiresLeg
 
     MapPresentationChangeBatch flat{
         .epoch = 11,
-        .tick = 1,
         .reset = true,
         .surfaceWidth = 2,
         .surfaceHeight = 1,
@@ -170,31 +165,38 @@ TEST(MapPresentationSnapshotTest, MixedOrNonUniformSurfacePublicationRequiresLeg
     flat.changes.push_back({ 1, { element }, surface, 1 });
     MapPresentationSnapshot snapshot;
     snapshot.Apply(flat);
-    EXPECT_FALSE(snapshot.RequiresLegacyPainterInterleave());
+    EXPECT_TRUE(snapshot.CanDrawSurfaceBaseIndependently());
 
     surface.baseZ = 64;
     MapPresentationChangeBatch heightChange{
         .epoch = 11,
-        .tick = 2,
         .surfaceWidth = 2,
         .surfaceHeight = 1,
     };
     heightChange.changes.push_back({ 1, { element }, surface, 1 });
     snapshot.Apply(heightChange);
-    EXPECT_TRUE(snapshot.RequiresLegacyPainterInterleave());
+    EXPECT_FALSE(snapshot.CanDrawSurfaceBaseIndependently());
 
     surface.baseZ = 48;
-    surface.adapterRequired = 1;
+    MapPresentationChangeBatch heightRestored{
+        .epoch = 11,
+        .surfaceWidth = 2,
+        .surfaceHeight = 1,
+    };
+    heightRestored.changes.push_back({ 1, { element }, surface, 1 });
+    snapshot.Apply(heightRestored);
+    EXPECT_TRUE(snapshot.CanDrawSurfaceBaseIndependently());
+
+    surface.requiresCategoryInterleaving = 1;
     MapPresentationChangeBatch mixed{
         .epoch = 12,
-        .tick = 3,
         .reset = true,
         .surfaceWidth = 1,
         .surfaceHeight = 1,
     };
     mixed.changes.push_back({ 0, { element }, surface, 0 });
     snapshot.Apply(mixed);
-    EXPECT_TRUE(snapshot.RequiresLegacyPainterInterleave());
+    EXPECT_FALSE(snapshot.CanDrawSurfaceBaseIndependently());
 }
 
 class TileElementWantsFootpathConnection : public testing::Test

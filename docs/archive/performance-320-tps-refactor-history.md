@@ -1,4 +1,7 @@
-# EverythingPark 360 TPS refactor plan
+# Archived: EverythingPark 360 TPS refactor history
+
+> Historical benchmark and implementation journal. It is not the renderer architecture contract. See
+> [Vulkan renderer architecture](../vulkan-renderer-migration.md) for the current design.
 
 ## Goal and acceptance criteria
 
@@ -1026,7 +1029,7 @@ The next slice shares reverse path-tile distance fields for concrete park and re
 topology is frozen on the main thread, independent target fields are built through the synchronous process-lifetime worker
 pool, and epoch validation plus stable target-order publication remain serial. Guest queue/banner/history decisions still
 validate the proposed edge in `ChooseDirection`; unsupported targets retain the bounded heuristic. See
-[Shared destination route fields](shared-route-fields.md).
+[Shared destination route fields](../shared-route-fields.md).
 
 Recorded shared-field outcome: two clean 2,000-tick runs measured `241.767` and `241.871` TPS with matching
 `2fc90d5f...` checksums and median tick times of `3.868` and `3.851` milliseconds. That is `+31.2%` over the preceding

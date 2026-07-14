@@ -53,6 +53,7 @@ namespace OpenRCT2::Ui::Vulkan
         void Initialise(const Device& device, const IndexedResources& resources, std::filesystem::path shaderDirectory);
         void Dispose();
         void Record(const FrameToken& frame, const Gpu::WorldSurfaceSceneCommand& scene);
+        void DiscardPendingUploads() noexcept;
 
     private:
         void CreateDescriptors(const IndexedResources& resources);

@@ -141,10 +141,10 @@ void GfxSetDirtyBlocks(const ScreenRect& rect)
     }
 }
 
-bool DrawingEngineCoalesceViewportInvalidation()
+bool DrawingEngineCanSkipViewportInvalidation()
 {
     auto drawingEngine = GetDrawingEngine();
-    return drawingEngine != nullptr && drawingEngine->CoalesceViewportInvalidation();
+    return drawingEngine != nullptr && drawingEngine->CanSkipViewportInvalidation();
 }
 
 void GfxClear(RenderTarget& rt, PaletteIndex paletteIndex)

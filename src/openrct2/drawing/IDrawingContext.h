@@ -46,8 +46,8 @@ namespace OpenRCT2::Drawing
             = 0;
 
         /**
-         * Submit publication-owned base terrain. Returning true transfers that category away from legacy PaintSurface for
-         * this viewport; software and future fallback contexts retain the default legacy path.
+         * Submit publication-owned base terrain. Returning true transfers that category away from PaintSurface for this
+         * viewport; returning false leaves PaintSurface as its sole owner in the current drawing context.
          */
         virtual bool DrawWorldSurfaceScene(
             RenderTarget& rt, std::shared_ptr<const PresentationGeneration> generation, const OrthographicCamera& camera)

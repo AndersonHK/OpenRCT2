@@ -1019,7 +1019,7 @@ void PaintSurface(PaintSession& session, uint8_t direction, uint16_t height, con
     }
     else
     {
-        if (!(session.Flags & PaintSessionFlags::GpuSurfaceBase))
+        if (!(session.Flags & PaintSessionFlags::SurfaceBaseDrawn))
         {
             const bool showGridlines = (session.ViewFlags & VIEWPORT_FLAG_GRIDLINES);
 

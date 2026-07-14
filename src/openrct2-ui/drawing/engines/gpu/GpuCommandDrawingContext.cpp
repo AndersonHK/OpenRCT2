@@ -643,11 +643,9 @@ namespace OpenRCT2::Ui::Gpu
         assert(_inDraw);
         if (generation == nullptr || generation->map == nullptr || _commands->worldSurfaces.has_value())
             return false;
-        const auto fallbackReason = GetWorldSurfaceFallbackReason(
-            generation->map->RequiresLegacyPainterInterleave(),
-            generation->entities != nullptr && generation->entities->GetCapturedEntityCount() != 0,
-            camera.landscapeSmoothing != 0);
-        if (fallbackReason != WorldSurfaceFallbackReason::none)
+        if (!generation->map->CanDrawSurfaceBaseIndependently()
+            || (generation->entities != nullptr && generation->entities->GetCapturedEntityCount() != 0)
+            || camera.landscapeSmoothing != 0)
             return false;
 
         const ScreenRect clip = CalculateClipping(rt);
@@ -659,8 +657,7 @@ namespace OpenRCT2::Ui::Gpu
         };
         // Claim the slot before atlas resolution: first residency can invalidate and re-enter viewport painting.
         auto& scene = _commands->worldSurfaces.emplace(WorldSurfaceSceneCommand{
-            .generation = generation->id,
-            .worldEpoch = generation->worldEpoch,
+            .worldEpoch = generation->map->GetEpoch(),
             .width = generation->map->GetSurfaceWidth(),
             .height = generation->map->GetSurfaceHeight(),
             .recordCount = generation->map->GetSurfaceRecordCount(),
@@ -690,10 +687,10 @@ namespace OpenRCT2::Ui::Gpu
             if (source == nullptr)
                 continue;
             auto& publishedChunk = _surfaceChunks[chunkIndex];
-            if (publishedChunk.source.get() != source.get() || publishedChunk.gpu == nullptr)
+            if (publishedChunk.sourceRevision != source->revision || publishedChunk.gpu == nullptr)
             {
                 auto converted = std::make_shared<WorldSurfaceChunk>();
-                converted->revision = ++_nextSurfaceChunkRevision;
+                converted->revision = source->revision;
                 publishedChunk.spriteSets.clear();
                 for (size_t localIndex = 0; localIndex < source->records.size(); localIndex++)
                 {
@@ -724,7 +721,7 @@ namespace OpenRCT2::Ui::Gpu
                 publishedChunk.spriteSets.erase(
                     std::unique(publishedChunk.spriteSets.begin(), publishedChunk.spriteSets.end()),
                     publishedChunk.spriteSets.end());
-                publishedChunk.source = source;
+                publishedChunk.sourceRevision = source->revision;
                 publishedChunk.gpu = std::move(converted);
             }
             scene.chunks[chunkIndex] = publishedChunk.gpu;

@@ -26,7 +26,7 @@ namespace OpenRCT2
 
         uint16_t baseZ{};
         uint8_t valid{};
-        uint8_t adapterRequired{};
+        uint8_t requiresCategoryInterleaving{};
         std::array<ImageId, kRotationCount> detailedImages{};
         std::array<ImageId, kRotationCount> distantImages{};
     };
@@ -42,7 +42,6 @@ namespace OpenRCT2
     struct MapPresentationChangeBatch
     {
         uint64_t epoch{};
-        uint32_t tick{};
         bool reset{};
         uint32_t surfaceWidth{};
         uint32_t surfaceHeight{};
@@ -72,20 +71,15 @@ namespace OpenRCT2
         SurfaceChunks _surfaceChunks;
         uint64_t _epoch{};
         uint64_t _nextSurfaceRevision{};
-        uint32_t _tick{};
         uint32_t _surfaceWidth{};
         uint32_t _surfaceHeight{};
         uint16_t _surfaceBaselineZ{};
         bool _surfaceBaselineSet{};
-        bool _requiresLegacyPainterInterleave{};
+        uint32_t _surfaceBlockingRecordCount{};
 
     public:
         void Apply(const MapPresentationChangeBatch& batch);
         [[nodiscard]] TileElement* GetFirstElementAt(const TileCoordsXY& tilePos) const;
-        [[nodiscard]] uint32_t GetTick() const noexcept
-        {
-            return _tick;
-        }
         [[nodiscard]] uint64_t GetEpoch() const noexcept
         {
             return _epoch;
@@ -106,15 +100,15 @@ namespace OpenRCT2
         {
             return _surfaceWidth * _surfaceHeight;
         }
-        [[nodiscard]] bool RequiresLegacyPainterInterleave() const noexcept
+        [[nodiscard]] bool CanDrawSurfaceBaseIndependently() const noexcept
         {
-            return _requiresLegacyPainterInterleave;
+            return GetSurfaceRecordCount() != 0 && _surfaceBaselineSet && _surfaceBlockingRecordCount == 0;
         }
     };
 
     static_assert(std::is_trivially_copyable_v<SurfacePresentationRecord>);
 
-    [[nodiscard]] MapPresentationChangeBatch ConsumeMapPresentationChanges(uint32_t tick);
+    [[nodiscard]] MapPresentationChangeBatch ConsumeMapPresentationChanges();
     [[nodiscard]] uint64_t GetMapPresentationEpoch() noexcept;
 
     /** Installs a snapshot only for map reads made by the current paint worker. */

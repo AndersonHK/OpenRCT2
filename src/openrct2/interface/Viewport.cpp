@@ -22,6 +22,7 @@
 #include "../drawing/IDrawingContext.h"
 #include "../drawing/IDrawingEngine.h"
 #include "../drawing/PresentationGeneration.h"
+#include "../drawing/PresentationScene.h"
 #include "../drawing/Rectangle.h"
 #include "../entity/Guest.h"
 #include "../entity/EntityPresentationSnapshot.h"
@@ -74,170 +75,6 @@ namespace OpenRCT2
 
     static std::list<Viewport> _viewports;
     Viewport* gMusicTrackingViewport;
-
-    class AsyncMapPresentationScene
-    {
-    private:
-        std::shared_ptr<const MapPresentationSnapshot> _front;
-        std::shared_ptr<MapPresentationSnapshot> _pending;
-        std::optional<JobPool::TaskGroup> _pendingGroup;
-        uint32_t _latchedDrawCount = std::numeric_limits<uint32_t>::max();
-        bool _pendingReset{};
-
-    public:
-        void Reset(JobPool& jobs)
-        {
-            if (_pendingGroup.has_value())
-            {
-                jobs.Wait(*_pendingGroup);
-                _pendingGroup.reset();
-            }
-            _front.reset();
-            _pending.reset();
-            _pendingReset = false;
-            _latchedDrawCount = std::numeric_limits<uint32_t>::max();
-        }
-
-        struct AcquireResult
-        {
-            std::shared_ptr<const MapPresentationSnapshot> snapshot;
-            bool sceneReset{};
-        };
-
-        AcquireResult Acquire(JobPool& jobs, const uint32_t tick, const uint32_t drawCount)
-        {
-            bool sceneReset = false;
-            if (_latchedDrawCount != drawCount)
-            {
-                _latchedDrawCount = drawCount;
-                if (_pendingGroup.has_value() && _pendingGroup->IsComplete())
-                {
-                    jobs.Wait(*_pendingGroup);
-                    _front = std::move(_pending);
-                    _pendingGroup.reset();
-                    sceneReset = std::exchange(_pendingReset, false);
-                }
-            }
-
-            if (_front == nullptr)
-            {
-                auto initial = std::make_shared<MapPresentationSnapshot>();
-                initial->Apply(ConsumeMapPresentationChanges(tick));
-                _front = std::move(initial);
-            }
-            return { _front, sceneReset };
-        }
-
-        AcquireResult AcquireSynchronously(JobPool& jobs, const uint32_t tick, const uint32_t drawCount)
-        {
-            bool sceneReset = false;
-            _latchedDrawCount = drawCount;
-            if (_pendingGroup.has_value())
-            {
-                jobs.Wait(*_pendingGroup);
-                _front = std::move(_pending);
-                _pendingGroup.reset();
-                sceneReset = std::exchange(_pendingReset, false);
-            }
-
-            auto changes = ConsumeMapPresentationChanges(tick);
-            sceneReset |= changes.reset;
-            if (_front == nullptr)
-            {
-                auto current = std::make_shared<MapPresentationSnapshot>();
-                current->Apply(changes);
-                _front = std::move(current);
-            }
-            else if (changes.reset || !changes.changes.empty())
-            {
-                auto current = std::make_shared<MapPresentationSnapshot>(*_front);
-                current->Apply(changes);
-                _front = std::move(current);
-            }
-            return { _front, sceneReset };
-        }
-
-        void Schedule(JobPool& jobs, const uint32_t tick)
-        {
-            if (_front != nullptr && !_pendingGroup.has_value())
-            {
-                auto changes = ConsumeMapPresentationChanges(tick);
-                if (changes.reset || !changes.changes.empty())
-                {
-                    _pendingReset = changes.reset;
-                    _pending = std::make_shared<MapPresentationSnapshot>(*_front);
-                    _pendingGroup.emplace(jobs.CreateTaskGroup());
-                    const auto target = _pending;
-                    jobs.AddTask(
-                        *_pendingGroup, [target, changes = std::move(changes)]() { target->Apply(changes); },
-                        JobPool::TaskPriority::background);
-                }
-            }
-        }
-    };
-
-    class AsyncEntityPresentationScene
-    {
-    private:
-        std::shared_ptr<const EntityPresentationSnapshot> _front;
-        std::shared_ptr<EntityPresentationSnapshot> _pending;
-        std::shared_ptr<EntityPresentationSnapshot> _recycle;
-        std::optional<JobPool::TaskGroup> _pendingGroup;
-        uint32_t _latchedDrawCount = std::numeric_limits<uint32_t>::max();
-
-    public:
-        void Reset(JobPool& jobs)
-        {
-            if (_pendingGroup.has_value())
-            {
-                jobs.Wait(*_pendingGroup);
-                _pendingGroup.reset();
-            }
-            _front.reset();
-            _pending.reset();
-            _recycle.reset();
-            _latchedDrawCount = std::numeric_limits<uint32_t>::max();
-        }
-
-        std::shared_ptr<const EntityPresentationSnapshot> Acquire(
-            JobPool& jobs, EntityRegistry& registry, const uint32_t drawCount)
-        {
-            if (_latchedDrawCount != drawCount)
-            {
-                _latchedDrawCount = drawCount;
-                if (_pendingGroup.has_value() && _pendingGroup->IsComplete())
-                {
-                    jobs.Wait(*_pendingGroup);
-                    _recycle = std::const_pointer_cast<EntityPresentationSnapshot>(std::move(_front));
-                    _front = std::move(_pending);
-                    _pendingGroup.reset();
-                }
-            }
-
-            if (_front == nullptr)
-            {
-                auto initial = std::make_shared<EntityPresentationSnapshot>();
-                initial->CaptureStorage(registry);
-                initial->BuildCapturedStorage();
-                _front = std::move(initial);
-            }
-            return _front;
-        }
-
-        void Schedule(JobPool& jobs, EntityRegistry& registry)
-        {
-            if (_front == nullptr || _pendingGroup.has_value())
-                return;
-
-            _pending = _recycle == nullptr ? std::make_shared<EntityPresentationSnapshot>() : std::move(_recycle);
-            _pending->CaptureStorage(registry);
-            _pendingGroup.emplace(jobs.CreateTaskGroup());
-            const auto target = _pending;
-            jobs.AddTask(
-                *_pendingGroup, [target]() { target->BuildCapturedStorage(); },
-                JobPool::TaskPriority::background);
-        }
-    };
 
     InteractionInfo::InteractionInfo(const PaintStruct* ps)
         : Loc(ps->MapPos)
@@ -397,7 +234,7 @@ namespace OpenRCT2
 
     void ViewportsInvalidate(const int32_t x, const int32_t y, const int32_t z0, const int32_t z1, const ZoomLevel maxZoom)
     {
-        if (DrawingEngineCoalesceViewportInvalidation())
+        if (DrawingEngineCanSkipViewportInvalidation())
             return;
 
         for (const auto& viewport : _viewports)
@@ -412,7 +249,7 @@ namespace OpenRCT2
     void ViewportsInvalidate(
         const CoordsXYZ& pos, const int32_t width, const int32_t minHeight, const int32_t maxHeight, const ZoomLevel maxZoom)
     {
-        if (DrawingEngineCoalesceViewportInvalidation())
+        if (DrawingEngineCanSkipViewportInvalidation())
             return;
 
         for (auto& vp : _viewports)
@@ -430,7 +267,7 @@ namespace OpenRCT2
 
     void ViewportsInvalidate(const ScreenRect& screenRect, const ZoomLevel maxZoom)
     {
-        if (DrawingEngineCoalesceViewportInvalidation())
+        if (DrawingEngineCanSkipViewportInvalidation())
             return;
 
         for (auto& vp : _viewports)
@@ -1118,7 +955,7 @@ namespace OpenRCT2
     static std::unique_ptr<PreparedViewportFrame> CreatePreparedViewportFrame(
         const RenderTarget& worldRT, const Viewport& viewport,
         std::shared_ptr<const MapPresentationSnapshot> mapSnapshot,
-        std::shared_ptr<const EntityPresentationSnapshot> entitySnapshot, const bool gpuSurfaceBase)
+        std::shared_ptr<const EntityPresentationSnapshot> entitySnapshot, const bool surfaceBaseDrawn)
     {
         auto frame = std::make_unique<PreparedViewportFrame>();
         frame->columnWidth = worldRT.zoom_level.ApplyInversedTo(kCoordsXYStep);
@@ -1132,8 +969,8 @@ namespace OpenRCT2
         for (int32_t x = alignedX; x < rightBorder; x += frame->columnWidth)
         {
             auto* session = PaintSessionAlloc(sessionRT, viewport.flags, viewport.rotation);
-            if (gpuSurfaceBase)
-                session->Flags |= PaintSessionFlags::GpuSurfaceBase;
+            if (surfaceBaseDrawn)
+                session->Flags |= PaintSessionFlags::SurfaceBaseDrawn;
             session->MapSnapshot = frame->mapSnapshot.get();
             session->EntitySnapshot = frame->entitySnapshot.get();
             RenderTarget columnRT{};
@@ -1148,88 +985,34 @@ namespace OpenRCT2
         return frame;
     }
 
-    struct AsyncPresentationFrameState
+    static PresentationScene& GetPresentationScene()
     {
-        AsyncMapPresentationScene mapScene;
-        AsyncEntityPresentationScene entityScene;
-        std::shared_ptr<const MapPresentationSnapshot> mapSnapshot;
-        std::shared_ptr<const EntityPresentationSnapshot> entitySnapshot;
-        std::shared_ptr<const PresentationGeneration> generation;
-        uint64_t nextGenerationId{};
-        uint32_t drawCount = std::numeric_limits<uint32_t>::max();
-    };
-
-    static AsyncPresentationFrameState& GetAsyncPresentationFrameState()
-    {
-        thread_local AsyncPresentationFrameState state;
-        return state;
+        thread_local PresentationScene scene;
+        return scene;
     }
 
     void ViewportBeginPresentationFrame()
     {
-        auto& state = GetAsyncPresentationFrameState();
-        if (state.drawCount == gCurrentDrawCount)
-            return;
-
-        state.drawCount = gCurrentDrawCount;
         auto& gameState = getGameState();
         auto& jobs = GetContext()->GetJobPool();
 
-        // Construction ghosts and inspector edits are short-lived map mutations. Publish them synchronously at the same
-        // immutable boundary as an ordinary frame instead of dropping the entire viewport onto the live legacy painter.
+        // Construction ghosts and inspector edits are short-lived map mutations. Publish them synchronously through the same
+        // immutable boundary as an ordinary frame; transient state never selects a different renderer or ownership model.
         // The track-design placer clears gMapSelectFlags before creating its provisional ride, so its active tool is an
         // additional explicit transient-state signal.
         const bool requiresSynchronousMapPublication = !gMapSelectFlags.isEmpty()
             || TileInspector::GetSelectedElement() != nullptr || isToolActive(WindowClass::trackDesignPlace);
-
-        const bool worldEpochChanged = state.mapSnapshot != nullptr
-            && state.mapSnapshot->GetEpoch() != GetMapPresentationEpoch();
-        if (worldEpochChanged)
+        if (GetPresentationScene().BeginFrame(
+                jobs, gameState.entities, gCurrentDrawCount, requiresSynchronousMapPublication))
         {
-            // Park loading replaces map, ride, object, and entity registries as one live-world operation. Prepared paint
-            // lists from the outgoing epoch may still own its map snapshot, but their legacy paint callbacks resolve other
-            // domains through the live registries. Cancel that work before it can cross the epoch boundary, then capture the
-            // first coherent incoming scene synchronously. This barrier is rare and correctness-critical; ordinary ticks
-            // continue to publish in the background.
-            state.mapScene.Reset(jobs);
-            state.entityScene.Reset(jobs);
-            state.mapSnapshot.reset();
-            state.entitySnapshot.reset();
+            // Software drawing still consumes dirty blocks. Complete-frame backends explicitly ignore this invalidation.
+            GfxInvalidateScreen();
         }
-
-        const auto mapAcquire = requiresSynchronousMapPublication
-            ? state.mapScene.AcquireSynchronously(jobs, gameState.currentTicks, gCurrentDrawCount)
-            : state.mapScene.Acquire(jobs, gameState.currentTicks, gCurrentDrawCount);
-        if (mapAcquire.sceneReset)
-        {
-            state.entityScene.Reset(jobs);
-        }
-        state.mapSnapshot = mapAcquire.snapshot;
-        state.entitySnapshot = state.entityScene.Acquire(jobs, gameState.entities, gCurrentDrawCount);
-        state.generation = std::make_shared<PresentationGeneration>(PresentationGeneration{
-            .id = ++state.nextGenerationId,
-            .worldEpoch = state.mapSnapshot->GetEpoch(),
-            .tick = state.mapSnapshot->GetTick(),
-            .map = state.mapSnapshot,
-            .entities = state.entitySnapshot,
-        });
-
-        // Every admitted presentation frame is complete. The drawing engine must never preserve pixels or acknowledge damage
-        // from an older snapshot generation; dense animated parks invalidate most of the viewport regardless, and construction
-        // ghosts are transient map mutations that must be rebuilt rather than composited onto a retained prepared scene.
-        GfxInvalidateScreen();
     }
 
     void ViewportDisposePresentation()
     {
-        auto& state = GetAsyncPresentationFrameState();
-        auto& jobs = GetContext()->GetJobPool();
-        state.mapScene.Reset(jobs);
-        state.entityScene.Reset(jobs);
-        state.mapSnapshot.reset();
-        state.entitySnapshot.reset();
-        state.generation.reset();
-        state.drawCount = std::numeric_limits<uint32_t>::max();
+        GetPresentationScene().Reset(GetContext()->GetJobPool());
     }
 
     /**
@@ -1253,13 +1036,12 @@ namespace OpenRCT2
             ViewportBeginPresentationFrame();
         auto& gameState = getGameState();
         auto& sceneJobs = GetContext()->GetJobPool();
-        auto& presentation = GetAsyncPresentationFrameState();
-        auto& mapScene = presentation.mapScene;
-        auto& entityScene = presentation.entityScene;
-        const auto mapSnapshot = usesMainPresentation ? presentation.mapSnapshot
-                                                      : std::shared_ptr<const MapPresentationSnapshot>{};
-        const auto entitySnapshot = usesMainPresentation ? presentation.entitySnapshot
-                                                         : std::shared_ptr<const EntityPresentationSnapshot>{};
+        auto& presentation = GetPresentationScene();
+        const auto generation = usesMainPresentation ? presentation.GetGeneration()
+                                                     : std::shared_ptr<const PresentationGeneration>{};
+        const auto mapSnapshot = generation == nullptr ? std::shared_ptr<const MapPresentationSnapshot>{} : generation->map;
+        const auto entitySnapshot = generation == nullptr ? std::shared_ptr<const EntityPresentationSnapshot>{}
+                                                          : generation->entities;
 
         const int32_t offsetX = rt.x - viewport->pos.x;
         const int32_t offsetY = rt.y - viewport->pos.y;
@@ -1278,14 +1060,14 @@ namespace OpenRCT2
         worldRT.pitch = rt.LineStride() - worldRT.width;
         worldRT.zoom_level = viewport->zoom;
 
-        // The direct surface path is deliberately conservative around presentation overlays that are still attached to the
-        // legacy surface parent. Those states keep the whole base category on the legacy path until their own records migrate.
-        constexpr uint32_t kLegacySurfaceOverlayFlags = VIEWPORT_FLAG_GRIDLINES | VIEWPORT_FLAG_UNDERGROUND_INSIDE
+        // Surface-parent overlays still depend on PaintSurface ordering. Those states leave the whole base category with
+        // PaintSurface until the overlays have independent publication records.
+        constexpr uint32_t kPaintSurfaceOverlayFlags = VIEWPORT_FLAG_GRIDLINES | VIEWPORT_FLAG_UNDERGROUND_INSIDE
             | VIEWPORT_FLAG_HIDE_BASE | VIEWPORT_FLAG_CLIP_VIEW | VIEWPORT_FLAG_LAND_HEIGHTS | VIEWPORT_FLAG_LAND_OWNERSHIP
             | VIEWPORT_FLAG_CONSTRUCTION_RIGHTS;
-        bool gpuSurfaceBase = false;
-        if (usesMainPresentation && viewport == ViewportGetMain() && presentation.generation != nullptr
-            && (viewport->flags & kLegacySurfaceOverlayFlags) == 0 && gMapSelectFlags.isEmpty()
+        bool surfaceBaseDrawn = false;
+        if (usesMainPresentation && viewport == ViewportGetMain() && generation != nullptr
+            && (viewport->flags & kPaintSurfaceOverlayFlags) == 0 && gMapSelectFlags.isEmpty()
             && TileInspector::GetSelectedElement() == nullptr && !isInTrackDesignerOrManager())
         {
             if (auto* drawingContext = rt.DrawingEngine->GetDrawingContext(); drawingContext != nullptr)
@@ -1301,7 +1083,7 @@ namespace OpenRCT2
                     .rotation = viewport->rotation,
                     .landscapeSmoothing = Config::Get().general.landscapeSmoothing,
                 };
-                gpuSurfaceBase = drawingContext->DrawWorldSurfaceScene(worldRT, presentation.generation, camera);
+                surfaceBaseDrawn = drawingContext->DrawWorldSurfaceScene(worldRT, generation, camera);
             }
         }
 
@@ -1312,7 +1094,7 @@ namespace OpenRCT2
             useParallelDrawing = true;
         }
 
-        auto prepared = CreatePreparedViewportFrame(worldRT, *viewport, mapSnapshot, entitySnapshot, gpuSurfaceBase);
+        auto prepared = CreatePreparedViewportFrame(worldRT, *viewport, mapSnapshot, entitySnapshot, surfaceBaseDrawn);
         if (useMultithreading)
         {
             sceneJobs.ParallelFor(
@@ -1344,8 +1126,7 @@ namespace OpenRCT2
         // taking a worker away from this frame's visible columns.
         if (usesMainPresentation)
         {
-            mapScene.Schedule(sceneJobs, gameState.currentTicks);
-            entityScene.Schedule(sceneJobs, gameState.entities);
+            presentation.ScheduleNext(sceneJobs, gameState.entities);
         }
     }
 
