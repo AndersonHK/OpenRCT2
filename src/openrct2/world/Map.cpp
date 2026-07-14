@@ -192,6 +192,11 @@ namespace OpenRCT2
         return batch;
     }
 
+    uint64_t GetMapPresentationEpoch() noexcept
+    {
+        return _presentationEpoch;
+    }
+
     void MapPresentationSnapshot::Apply(const MapPresentationChangeBatch& batch)
     {
         PROFILED_FUNCTION();

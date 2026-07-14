@@ -1103,6 +1103,52 @@ a clone or waits for command generation before replacing synchronous paint.
 Expected result: destination-aware guests share expensive topology work, while dynamic transport and crowding costs remain
 cheap overlays.
 
+### Presentation-generation architecture follow-up
+
+The July 14 renderer regression pass establishes full visible-generation redraw as the correctness baseline. The renderer now
+adopts map and entity snapshots only at a frame boundary, pins those immutable snapshots for the complete draw, and invalidates
+the screen whenever the presented generation changes. A map-load epoch is a hard barrier: outgoing preparation is discarded
+before the incoming world can be painted, so old map geometry can never be resolved through the new park's live ride and object
+registries. Turbo remains honest simulation at 360 TPS; the renderer merely presents the newest completed generation after the
+previous frame, without partial ticks, batching semantics, or interpolation.
+
+This deliberately separates **data freshness** from **screen damage**. The current 64x64 damage grid cannot safely infer damage
+from live 360 TPS invalidations while a 144 Hz renderer is displaying an older immutable world. A fast vehicle can cross several
+positions between presented generations, and acknowledging damage produced by a different generation can otherwise preserve
+square-clipped sprite fragments. The safe rule is therefore that publication of any new visible generation redraws the complete
+viewport. Camera position, zoom, rotation, framebuffer size, and world epoch changes also force a complete redraw.
+
+The City Builder renderer audit reinforces the target ownership model without importing its implementation wholesale. It pins
+one immutable triple-buffered simulation snapshot and one camera transform for an entire frame, lets fast simulation publish
+newer generations without disturbing an in-progress draw, uses chunk revisions only to decide whether retained data is fresh,
+and clears/redraws the visible scene every frame. OpenRCT2 should evolve toward the same explicit contracts:
+
+1. Introduce one immutable `PresentationGeneration` that owns the map, entities, and all ride/object/weather records needed by
+   painting. No presentation job may consult mutation-owned live park registries after publication.
+2. Capture one viewport/camera state at frame admission and use it consistently for culling, projection, command generation,
+   picking, and any eventual damage calculation. Publication may replace only the next frame, never an active frame.
+3. Replace dirty-rectangle-shaped preparation with generation-shaped preparation: build reusable static-map records plus compact
+   dynamic entity and ride records, then admit the newest completed generation through a latest-only mailbox.
+4. Give retained static chunks explicit content revisions. A skipped or hidden chunk remains stale until it is made visible and
+   uploaded; content freshness is not a substitute for framebuffer damage.
+5. Couple the presented GPU packet, generation token, and damage acknowledgement. Only the packet that was actually presented
+   may retire its damage state; cancelled, superseded, or old-epoch work cannot acknowledge anything.
+6. Optimize for clean full-viewport redraws as the permanent common path. A dense, zoomed-out park animates vehicles, guests,
+   rides, water, and scenery across most of the screen, so selective damage bookkeeping is unlikely to save enough work to justify
+   its synchronization cost and correctness risk. Performance should instead come from retained immutable static data, compact
+   dynamic records, batched GPU-friendly commands, resource residency, and eliminating redundant projection and preparation on
+   the main thread. Regional redraw is out of scope unless later profiling demonstrates a substantial real-world win over the
+   optimized full-redraw path; it must never be required for the 360/144 target.
+
+Each presentation slice must pass the fast-coaster Turbo trail test, repeated title-demo park transitions including load stalls,
+the full native test suite, and the fixed EverythingPark gate of 2,000 warm-up plus 12,000 measured ticks. The acceptance floor is
+310 TPS and 130 FPS; the working target remains 360 TPS and 144 FPS. A damage optimization that compromises either visual
+correctness or these sustained performance gates is rejected.
+
+The initial full-generation implementation passed the visual gates without fast-coaster after-images or incomplete redraws during
+title-demo load stalls. Its fixed EverythingPark run completed at `343.822` TPS and `143.975` FPS, with 6.803 ms median,
+8.461 ms p99, and 9.539 ms maximum frame intervals. This is the performance floor for the next presentation-architecture slice.
+
 ## Fork-wide consolidation checkpoint
 
 The first post-feature quality pass removes 2,877 net lines of C++ and replaces defensive polling with mutation-owned

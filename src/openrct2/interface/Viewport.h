@@ -201,6 +201,8 @@ namespace OpenRCT2
     void ViewportRotateSingle(WindowBase* window, int32_t direction);
     void ViewportRotateAll(int32_t direction);
     void ViewportRender(Drawing::RenderTarget& rt, const Viewport* viewport);
+    void ViewportBeginPresentationFrame();
+    void ViewportDisposePresentation();
 
     CoordsXYZ ViewportAdjustForMapHeight(const ScreenCoordsXY& startCoords, uint8_t rotation);
 

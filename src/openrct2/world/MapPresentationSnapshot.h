@@ -50,9 +50,14 @@ namespace OpenRCT2
         {
             return _tick;
         }
+        [[nodiscard]] uint64_t GetEpoch() const noexcept
+        {
+            return _epoch;
+        }
     };
 
     [[nodiscard]] MapPresentationChangeBatch ConsumeMapPresentationChanges(uint32_t tick);
+    [[nodiscard]] uint64_t GetMapPresentationEpoch() noexcept;
 
     /** Installs a snapshot only for map reads made by the current paint worker. */
     class ScopedMapPresentationSnapshot

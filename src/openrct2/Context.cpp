@@ -346,6 +346,9 @@ namespace OpenRCT2
                 }
             }
 
+            // Release prepared presentation frames while the paint allocator and context-owned job pool are still alive.
+            ViewportDisposePresentation();
+
             // Every normal compute submission owns an explicit barrier. This final barrier protects shutdown when the context
             // is closed during loading or another exceptional path.
             try

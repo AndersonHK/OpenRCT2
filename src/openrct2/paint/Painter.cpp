@@ -54,6 +54,8 @@ void Painter::Paint(IDrawingEngine& de)
     }
     else
     {
+        // Publish one immutable presentation generation before the drawing engine snapshots this frame's damage.
+        ViewportBeginPresentationFrame();
         MapSelection::invalidate();
         VirtualFloorInvalidate(false);
 
