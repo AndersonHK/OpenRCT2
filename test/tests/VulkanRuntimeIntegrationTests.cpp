@@ -93,6 +93,8 @@ namespace
             "indexed_weather.vert.spv",
             "indexed_weather.frag.spv",
             "lightfx_accumulate.comp.spv",
+            "world_surface.vert.spv",
+            "world_surface_compact.comp.spv",
         };
         return std::all_of(requiredShaders.begin(), requiredShaders.end(), [&directory](const char* name) {
             std::error_code error;
@@ -519,6 +521,47 @@ TEST(VulkanRuntimeIntegrationTest, HiddenWindowExercisesBackendLifecycleAndIndex
     EXPECT_EQ(pixel(5, 5), 0);
     EXPECT_EQ(pixel(4, 6), 0);
     EXPECT_EQ(pixel(5, 6), 0);
+
+    auto surfaceChunk = std::make_shared<Gpu::WorldSurfaceChunk>();
+    surfaceChunk->revision = 1;
+    surfaceChunk->records[0].baseZ = 0;
+    surfaceChunk->records[0].valid = 1;
+    surfaceChunk->records[0].detailedSprites.fill(0);
+    surfaceChunk->records[0].distantSprites.fill(0);
+
+    auto surfaceSprites = std::make_shared<Gpu::WorldSurfaceSpriteTable>();
+    surfaceSprites->revision = 1;
+    surfaceSprites->records.resize(1);
+    surfaceSprites->records[0].variants[2] = {
+        .spriteSize = { 2, 2 },
+        .spriteOffset = { 0, 0 },
+        .asset = 0,
+        .zoom = 0,
+        .coordinateShift = 0,
+        .valid = 1,
+    };
+
+    Gpu::FrameCommandStream directSurface;
+    directSurface.worldSurfaces.emplace(Gpu::WorldSurfaceSceneCommand{
+        .generation = 1,
+        .worldEpoch = 1,
+        .width = 1,
+        .height = 1,
+        .recordCount = 1,
+        .clip = fullClip,
+        .view = { -10, -10 },
+        .zoom = 0,
+        .rotation = 0,
+        .chunks = { surfaceChunk },
+        .sprites = surfaceSprites,
+    });
+    ASSERT_TRUE(PresentCommandFrame(*backend, spriteFrameNumber + 3, directSurface).has_value());
+    readback.assign(resizedCanvas.size(), std::byte{ 0 });
+    ASSERT_TRUE(backend->ReadbackLatestIndexedCanvas(resizedLogicalExtent, readback));
+    EXPECT_EQ(pixel(10, 10), 10);
+    EXPECT_EQ(pixel(11, 10), 20);
+    EXPECT_EQ(pixel(10, 11), 30);
+    EXPECT_EQ(pixel(11, 11), 40);
 }
 
 #endif // ENABLE_VULKAN

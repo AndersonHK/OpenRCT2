@@ -100,7 +100,6 @@ namespace OpenRCT2::Ui::Vulkan
         Image _lightFalloffs;
         VkSampler _nearestSampler = VK_NULL_HANDLE;
         std::array<Image, kFramesInFlight> _indexedCanvases;
-        Image _retainedCanvas;
         std::array<Image, kFramesInFlight> _depthCanvases;
         std::array<Image, kFramesInFlight> _compositeCanvases;
         std::array<Image, kFramesInFlight> _transparentCanvases;
@@ -114,7 +113,6 @@ namespace OpenRCT2::Ui::Vulkan
         bool _blendPaletteHasShaderLayout = false;
         bool _lightFalloffsHaveShaderLayout = false;
         std::array<bool, kFramesInFlight> _canvasHasShaderLayout{};
-        bool _retainedCanvasHasContent = false;
         std::array<bool, kFramesInFlight> _lightMapHasShaderLayout{};
         std::array<bool, kFramesInFlight> _lightAccumulatorHasShaderLayout{};
         bool _hasLightAccumulators = false;
@@ -154,8 +152,6 @@ namespace OpenRCT2::Ui::Vulkan
         void DiscardLightFalloffLayout() noexcept;
         void RecordCanvasClear(VkCommandBuffer commandBuffer, uint32_t frameIndex, uint8_t paletteIndex);
         void RecordCanvasAndDepthClear(VkCommandBuffer commandBuffer, uint32_t frameIndex, uint8_t paletteIndex);
-        void RecordRetainedCanvasRestore(VkCommandBuffer commandBuffer, uint32_t frameIndex, bool fullRedraw);
-        void RecordRetainedCanvasStore(VkCommandBuffer commandBuffer, uint32_t frameIndex, bool sourceComposite);
 
         [[nodiscard]] const Image& GetSpriteAtlas() const noexcept
         {

@@ -16,9 +16,10 @@ flow. Network sessions still use ordered per-network-tick catch-up because clien
 
 Snapshot cadence is frame-driven, not fixed to a tick count. VSync completion admits the next frame and serves the newest fully
 completed snapshot; how many logical ticks it contains is an emergent TPS/FPS ratio. At a hypothetical 360 TPS and 120 FPS that
-will often be three ticks, but neither invalidation nor publication encodes that number. The latest sustained acceptance run uses
-2,000 warm-up plus 12,000 measured EverythingPark ticks and reaches `354.475` TPS / `144.006` FPS, `1.695` ms/tick,
-`1.421` ms/draw, and checksum `ca1cebcdee9abff4000000000000000000000000` while ending at 17,502 guests.
+will often be three ticks, but neither invalidation nor publication encodes that number. The exact compute-slice binary uses
+2,000 warm-up plus 12,000 measured EverythingPark ticks and reaches `335.156` TPS / `144.005` FPS, `1.778340` ms/tick,
+`1.648175` ms/draw, `0.095495` ms mean GPU time, and checksum `ca1cebcdee9abff4000000000000000000000000`
+while ending at 17,502 guests. This is the current comparison checkpoint; the older retained-canvas rows below remain historical.
 
 The work follows these priorities:
 
@@ -267,6 +268,9 @@ frame packets without a full-canvas upload.
 
 ### Nine-tick and retained-canvas checkpoint
 
+This is a historical measurement checkpoint. The retained-canvas restore/store path described below has since been deleted;
+production Vulkan presents complete generations and clears the indexed/depth targets before their direct passes.
+
 The Turbo scheduler now treats simulation and presentation as separate deadlines and sleeps only until the earlier one. The
 previous simulation-only sleep could wake after a 144 Hz presentation deadline even when a frame took less than one millisecond,
 which produced the misleading 132 FPS plateau on Diamond Heights. A fixed 3,600-tick run now sustains 144.021 FPS with
@@ -322,6 +326,38 @@ The retained-data implementation order is:
 4. replace per-frame tile/entity pull traversal with dirty paged scene buffers;
 5. move shared world culling, ordering, and indirect draw generation to compute shaders;
 6. remove obsolete CPU knowledge only after the Vulkan path owns the same correctness boundaries.
+
+The replacement orthographic renderer starts with dense active-map terrain publication, not a technical-map-sized retained
+canvas. Each immutable presentation generation carries active width, height, record count, and copy-on-write chunks in stable
+row-major order. Reset publication visits only active tiles; incremental publication replaces only changed dense chunks. Vulkan
+keeps maximum-capacity device storage for the 1001-by-1001 technical ceiling, uploads changed active chunks, and draws only the
+generation's active record count. The legacy tile-element snapshot may remain sparse while categories still use paint, but it is
+a category-by-category migration adapter rather than the architecture of the new renderer.
+
+The production end state is one explicit pipeline:
+
+1. simulation owners publish immutable, pointer-free visual records in deterministic generation order;
+2. persistent GPU scene buffers receive only changed ranges and preserve generation/epoch boundaries;
+3. compute shaders apply camera visibility, derive the common terrain/entity/scenery ordering keys, and compact visible records;
+4. GPU sorting/grouping produces pipeline-specific indirect draw ranges without rebuilding a CPU painter list;
+5. instanced orthographic quads consume those ranges and compose the indexed scene, palette effects, transparency, and weather;
+6. the completed indexed image is composed and presented without a retained CPU canvas, routine readback, or per-frame full-world
+   upload.
+
+The next dense-terrain checkpoint removes camera-dependent CPU terrain conversion. Immutable changed chunks contain only base
+height, validity, and deduplicated detailed/distant sprite-set references. Camera state is a small push-constant block. A compute
+workgroup processes each stable 1,024-record painter block, maps rotation order back to dense source indices, selects the requested
+zoom variant, culls against exact sprite bounds, performs a stable shared-memory exclusive scan, compacts visible instances into
+the block's fixed output range, and writes one indirect quad command. One multi-draw-indirect submission consumes at most 979
+commands for the 1001-by-1001 technical ceiling. Camera zoom or rotation therefore changes neither CPU chunks nor persistent
+source residency, and the CPU does not walk active tiles to derive per-frame depth.
+
+This checkpoint does not fake cross-category ordering by reserving a terrain-only depth interval. Until non-migrated scenery,
+rides, entities, water/sides, and smoothing publish the same painter key, explicit eligibility reasons keep those mixed scenes on
+the legacy adapter. Uniform terrain-only generations can use GPU compaction now; EverythingPark remains deliberately on the
+adapter because its entities and map categories interleave with foreground terrain. As each category migrates, the fallback reason
+is removed only with shared-key coverage and focused occlusion tests. This sequencing targets sustained 144 FPS on weaker modern
+Vulkan GPUs while freeing simulation-side CPU budget toward the greater-than-1000-TPS objective.
 
 Entities cannot be migrated as a separate unordered overlay: vehicles, guests, terrain, track, and scenery currently share the
 same painter sort. The retained buffers must therefore converge on one world-space ordering model. Park reset, entity ID reuse,
@@ -1105,49 +1141,62 @@ cheap overlays.
 
 ### Presentation-generation architecture follow-up
 
-The July 14 renderer regression pass establishes full visible-generation redraw as the correctness baseline. The renderer now
-adopts map and entity snapshots only at a frame boundary, pins those immutable snapshots for the complete draw, and invalidates
-the screen whenever the presented generation changes. A map-load epoch is a hard barrier: outgoing preparation is discarded
-before the incoming world can be painted, so old map geometry can never be resolved through the new park's live ride and object
-registries. Turbo remains honest simulation at 360 TPS; the renderer merely presents the newest completed generation after the
-previous frame, without partial ticks, batching semantics, or interpolation.
+The July 14 renderer regression pass establishes full visible-frame redraw as the correctness baseline. The renderer adopts map
+and entity snapshots only at a frame boundary, pins those immutable snapshots for the complete draw, and invalidates the complete
+screen for every admitted frame. No prepared viewport scene or paint list survives into the next frame. A map-load epoch is a hard
+barrier: outgoing snapshot work is discarded before the incoming world can be painted, so old map geometry cannot cross into the
+new park's registries. Turbo remains honest simulation at 360 TPS; the renderer presents complete generations without partial
+ticks, batching semantics, interpolation, or retained dirty-pixel repair.
 
 This deliberately separates **data freshness** from **screen damage**. The current 64x64 damage grid cannot safely infer damage
 from live 360 TPS invalidations while a 144 Hz renderer is displaying an older immutable world. A fast vehicle can cross several
 positions between presented generations, and acknowledging damage produced by a different generation can otherwise preserve
-square-clipped sprite fragments. The safe rule is therefore that publication of any new visible generation redraws the complete
-viewport. Camera position, zoom, rotation, framebuffer size, and world epoch changes also force a complete redraw.
+square-clipped sprite fragments. The safe rule is therefore that every presented frame redraws the complete viewport. Camera
+position, zoom, rotation, framebuffer size, and world epoch changes do not need a separate damage path.
 
-The City Builder renderer audit reinforces the target ownership model without importing its implementation wholesale. It pins
-one immutable triple-buffered simulation snapshot and one camera transform for an entire frame, lets fast simulation publish
-newer generations without disturbing an in-progress draw, uses chunk revisions only to decide whether retained data is fresh,
-and clears/redraws the visible scene every frame. OpenRCT2 should evolve toward the same explicit contracts:
+The City Builder audit reinforces the target ownership model but does not provide a Vulkan implementation to copy. Its running
+renderer remains a single-thread-owned OpenGL loop; its Vulkan code is a migration plan plus format-selection helpers. The useful
+parts are immutable triple-buffered simulation publication, one camera transform per frame, revisioned persistent chunks, and a
+clean visible-scene redraw. OpenRCT2 already owns the stronger low-level foundation: a latest-frame mailbox, dedicated render
+worker, three fence-protected Vulkan frame slots, a persistently mapped upload ring, resident sprite atlases, instanced sprite
+passes, and a compute LightFX pass. The missing boundary is higher-level: the legacy painter still traverses live map, ride,
+object, weather, and pointer-linked paint-session state on the CPU. The next architecture therefore uses these explicit stages:
 
-1. Introduce one immutable `PresentationGeneration` that owns the map, entities, and all ride/object/weather records needed by
-   painting. No presentation job may consult mutation-owned live park registries after publication.
-2. Capture one viewport/camera state at frame admission and use it consistently for culling, projection, command generation,
-   picking, and any eventual damage calculation. Publication may replace only the next frame, never an active frame.
-3. Replace dirty-rectangle-shaped preparation with generation-shaped preparation: build reusable static-map records plus compact
-   dynamic entity and ride records, then admit the newest completed generation through a latest-only mailbox.
-4. Give retained static chunks explicit content revisions. A skipped or hidden chunk remains stale until it is made visible and
-   uploaded; content freshness is not a substitute for framebuffer damage.
-5. Couple the presented GPU packet, generation token, and damage acknowledgement. Only the packet that was actually presented
-   may retire its damage state; cancelled, superseded, or old-epoch work cannot acknowledge anything.
-6. Optimize for clean full-viewport redraws as the permanent common path. A dense, zoomed-out park animates vehicles, guests,
+1. Publish one immutable, pointer-free `PresentationGeneration` containing epoch/generation/tick, copy-on-write map pages,
+   entities, rides, object-derived paint data, weather/global inputs, and a transient construction-ghost page. No background or
+   render job may consult mutation-owned live park registries after publication.
+2. Capture one integer camera/viewport record at frame admission and use it consistently for visibility, projection, ordering,
+   picking, and submission. A newer simulation generation may replace only a future frame, never an active frame.
+3. Convert static map content into revisioned 64-byte `WorldSpriteRecord` pages and dynamic rides/entities/ghosts into compact
+   per-generation pages. Records use stable IDs and an explicit deterministic painter key; no `PaintStruct*`, tile pointer, ride
+   pointer, or callback crosses the publication boundary.
+4. Extend `FrameCommandStream` and `RecordedFramePacket` with a generation lease, changed-page ranges, camera constants, and scene
+   residency. The existing latest-only mailbox continues to supersede obsolete complete frames. Presented, superseded, busy,
+   failed, and shutdown packets all release CPU and atlas leases; device-local buffer reuse waits for the owning frame-slot fence.
+5. Add a `VulkanWorldPipeline`. The render worker uploads only revised static pages and the current compact dynamic page into
+   device-local SSBOs, then dispatches compute visibility and binning. The compute output is a stable visible-index stream plus
+   indirect draw arguments; raw atomic append order is forbidden because transparent isometric ordering must remain deterministic.
+   Start by compacting an already CPU-stable key order, then move prefix/radix binning of `(quadrant, painterKey, stableRecordId)`
+   onto the GPU after pixel parity is proven.
+6. Keep the existing atlas descriptors and fragment sprite composition. Add explicit transfer-to-compute, compute-to-indirect,
+   compute-to-vertex, and atlas-transfer-to-fragment barriers. Fixed buffer capacities publish an overflow flag and fall back to
+   the legacy complete-frame path; records are never silently dropped.
+7. Optimize for clean full-viewport redraws as the permanent common path. A dense, zoomed-out park animates vehicles, guests,
    rides, water, and scenery across most of the screen, so selective damage bookkeeping is unlikely to save enough work to justify
-   its synchronization cost and correctness risk. Performance should instead come from retained immutable static data, compact
-   dynamic records, batched GPU-friendly commands, resource residency, and eliminating redundant projection and preparation on
-   the main thread. Regional redraw is out of scope unless later profiling demonstrates a substantial real-world win over the
-   optimized full-redraw path; it must never be required for the 360/144 target.
+   its synchronization cost and correctness risk. Performance must come from VRAM residency, revision deltas, GPU visibility and
+   ordering, indirect instanced draws, and eliminating legacy paint traversal from the UI thread. Regional redraw is out of scope.
 
 Each presentation slice must pass the fast-coaster Turbo trail test, repeated title-demo park transitions including load stalls,
 the full native test suite, and the fixed EverythingPark gate of 2,000 warm-up plus 12,000 measured ticks. The acceptance floor is
 310 TPS and 130 FPS; the working target remains 360 TPS and 144 FPS. A damage optimization that compromises either visual
 correctness or these sustained performance gates is rejected.
 
-The initial full-generation implementation passed the visual gates without fast-coaster after-images or incomplete redraws during
-title-demo load stalls. Its fixed EverythingPark run completed at `343.822` TPS and `143.975` FPS, with 6.803 ms median,
-8.461 ms p99, and 9.539 ms maximum frame intervals. This is the performance floor for the next presentation-architecture slice.
+The initial generation-change redraw implementation passed the fast-coaster and title-transition visual gates at `343.822` TPS
+and `143.975` FPS, but retained prepared paint lists and subsequently failed construction ghosts. Stage 0 removes that lazy scene
+entirely and rebuilds each visible column from the pinned snapshot every frame. Its fixed gate reaches `306.934` TPS and
+`143.952` FPS: the GPU itself consumes only `0.105` ms/frame, while legacy CPU draw preparation rises to `1.735` ms/frame. Stage 0
+is a correctness fallback, not an accepted performance endpoint. The pointer-free record and compute stages must recover at least
+the 310/130 acceptance floor immediately and then restore the 360/144 target without reintroducing retained-pixel rendering.
 
 ## Fork-wide consolidation checkpoint
 

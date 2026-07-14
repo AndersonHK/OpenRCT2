@@ -12,7 +12,10 @@
 #include "../world/Location.hpp"
 #include "FilterPaletteIds.h"
 #include "PaletteIndex.h"
+#include "PresentationGeneration.h"
 #include "TTF.h"
+
+#include <memory>
 
 namespace OpenRCT2::Drawing
 {
@@ -41,6 +44,19 @@ namespace OpenRCT2::Drawing
         virtual void DrawTTFBitmap(
             RenderTarget& rt, const TextDrawInfo& info, TTFSurface* surface, int32_t x, int32_t y, uint8_t hintingThreshold)
             = 0;
+
+        /**
+         * Submit publication-owned base terrain. Returning true transfers that category away from legacy PaintSurface for
+         * this viewport; software and future fallback contexts retain the default legacy path.
+         */
+        virtual bool DrawWorldSurfaceScene(
+            RenderTarget& rt, std::shared_ptr<const PresentationGeneration> generation, const OrthographicCamera& camera)
+        {
+            static_cast<void>(rt);
+            static_cast<void>(generation);
+            static_cast<void>(camera);
+            return false;
+        }
     };
 
 } // namespace OpenRCT2::Drawing

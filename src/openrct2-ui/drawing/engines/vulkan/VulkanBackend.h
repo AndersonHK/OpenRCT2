@@ -20,6 +20,7 @@
     #include "VulkanResources.h"
     #include "VulkanTransparencyPipeline.h"
     #include "VulkanWeatherPipeline.h"
+    #include "VulkanWorldSurfacePipeline.h"
 
     #include <array>
     #include <cstddef>
@@ -44,6 +45,7 @@ namespace OpenRCT2::Ui::Vulkan
         IndexedResources _resources;
         LinePipeline _linePipeline;
         RectPipeline _rectPipeline;
+        WorldSurfacePipeline _worldSurfacePipeline;
         TransparencyPipeline _transparencyPipeline;
         WeatherPipeline _weatherPipeline;
         LightFxPipeline _lightFxPipeline;

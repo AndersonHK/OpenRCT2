@@ -1,0 +1,237 @@
+#version 450
+
+// One workgroup owns one deterministic painter-order block. Keep these values synchronized with GpuCommandStream.h.
+layout(local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
+
+const uint BLOCK_WIDTH = 1024u;
+
+struct SourceRecord
+{
+    uint baseZ;
+    uint valid;
+    uint detailedSprites[4];
+    uint distantSprites[4];
+};
+
+struct SpriteVariant
+{
+    ivec2 spriteSize;
+    ivec2 spriteOffset;
+    uint asset;
+    int zoom;
+    int coordinateShift;
+    int valid;
+};
+
+struct SpriteSet
+{
+    SpriteVariant variants[6];
+    uint palettes;
+    uint effects;
+};
+
+struct OutputRecord
+{
+    ivec3 world;
+    int valid;
+    ivec2 spriteSize;
+    ivec2 spriteOffset;
+    uint asset;
+    uint palettes;
+    uint effects;
+    int depth;
+    int zoom;
+    int coordinateShift;
+    ivec2 reserved;
+};
+
+struct DrawIndirectCommand
+{
+    uint vertexCount;
+    uint instanceCount;
+    uint firstVertex;
+    uint firstInstance;
+};
+
+layout(std430, set = 0, binding = 3) readonly buffer Sources { SourceRecord records[]; } uSources;
+layout(std430, set = 0, binding = 4) readonly buffer SpriteSets { SpriteSet records[]; } uSpriteSets;
+layout(std430, set = 0, binding = 5) writeonly buffer Outputs { OutputRecord records[]; } uOutputs;
+layout(std430, set = 0, binding = 6) writeonly buffer Commands { DrawIndirectCommand records[]; } uCommands;
+
+layout(push_constant) uniform WorldSurfaceConstants
+{
+    ivec2 screen;
+    ivec2 view;
+    ivec4 clip;
+    uint width;
+    uint height;
+    uint recordCount;
+    int zoom;
+    uint rotation;
+    uint spriteSetCount;
+} uScene;
+
+shared uint sPrefix[BLOCK_WIDTH];
+shared uint sVisibleCount;
+
+int euclideanRemainder(int value, int divisor)
+{
+    int result = value % divisor;
+    return result < 0 ? result + divisor : result;
+}
+
+int inverseZoom(int value, int zoom)
+{
+    return zoom < 0 ? value << -zoom : value >> zoom;
+}
+
+uvec2 tileForOrder(uint orderIndex)
+{
+    if (uScene.rotation == 1u)
+    {
+        uint orderedX = orderIndex % uScene.height;
+        uint orderedY = orderIndex / uScene.height;
+        return uvec2(uScene.width - 1u - orderedY, orderedX);
+    }
+    if (uScene.rotation == 2u)
+    {
+        uint orderedX = orderIndex % uScene.width;
+        uint orderedY = orderIndex / uScene.width;
+        return uvec2(uScene.width - 1u - orderedX, uScene.height - 1u - orderedY);
+    }
+    if (uScene.rotation == 3u)
+    {
+        uint orderedX = orderIndex % uScene.height;
+        uint orderedY = orderIndex / uScene.height;
+        return uvec2(orderedY, uScene.height - 1u - orderedX);
+    }
+    return uvec2(orderIndex % uScene.width, orderIndex / uScene.width);
+}
+
+bool buildRecord(uint orderIndex, out OutputRecord outputRecord)
+{
+    outputRecord = OutputRecord(ivec3(0), 0, ivec2(0), ivec2(0), 0u, 0u, 0u, 0, 0, 0, ivec2(0));
+    if (orderIndex >= uScene.recordCount)
+        return false;
+
+    uvec2 tile = tileForOrder(orderIndex);
+    SourceRecord source = uSources.records[tile.y * uScene.width + tile.x];
+    if (source.valid == 0u)
+        return false;
+    uint spriteSetIndex = uScene.zoom <= 0 ? source.detailedSprites[uScene.rotation]
+                                           : source.distantSprites[uScene.rotation];
+    if (spriteSetIndex >= uScene.spriteSetCount)
+        return false;
+    SpriteSet spriteSet = uSpriteSets.records[spriteSetIndex];
+    uint zoomIndex = uint(clamp(uScene.zoom + 2, 0, 5));
+    SpriteVariant sprite = spriteSet.variants[zoomIndex];
+    if (sprite.valid == 0)
+        return false;
+
+    ivec3 world = ivec3(tile * 32u, source.baseZ);
+    ivec2 adjusted = world.xy;
+    if (uScene.rotation == 1u)
+        adjusted.x += 32;
+    else if (uScene.rotation == 2u)
+        adjusted += ivec2(32);
+    else if (uScene.rotation == 3u)
+        adjusted.y += 32;
+
+    ivec2 rotated = adjusted;
+    if (uScene.rotation == 1u)
+        rotated = ivec2(adjusted.y, -adjusted.x);
+    else if (uScene.rotation == 2u)
+        rotated = -adjusted;
+    else if (uScene.rotation == 3u)
+        rotated = ivec2(-adjusted.y, adjusted.x);
+    ivec2 projected = ivec2(rotated.y - rotated.x, ((rotated.x + rotated.y) >> 1) - world.z);
+    for (int i = 0; i < sprite.coordinateShift; i++)
+        projected /= 2;
+
+    ivec2 topLeft = projected + sprite.spriteOffset;
+    int xModifier = 0;
+    int yModifier = 0;
+    int widthModifier = 0;
+    if (sprite.zoom > 0)
+    {
+        int interval = 1 << sprite.zoom;
+        xModifier = euclideanRemainder(topLeft.x, interval);
+        xModifier = xModifier != 0 ? interval - xModifier : 0;
+        yModifier = euclideanRemainder(topLeft.y, interval);
+        widthModifier = euclideanRemainder(topLeft.x + sprite.spriteSize.x, interval);
+        widthModifier = widthModifier != 0 ? interval - widthModifier : 0;
+    }
+    ivec4 bounds = ivec4(
+        inverseZoom(topLeft.x + xModifier, sprite.zoom), inverseZoom(topLeft.y, sprite.zoom),
+        inverseZoom(topLeft.x + xModifier, sprite.zoom) + inverseZoom(sprite.spriteSize.x + widthModifier, sprite.zoom),
+        inverseZoom(topLeft.y, sprite.zoom) + inverseZoom(sprite.spriteSize.y + yModifier, sprite.zoom));
+    bounds += ivec4(uScene.clip.xy - uScene.view, uScene.clip.xy - uScene.view);
+    if (bounds.x >= uScene.clip.z || bounds.y >= uScene.clip.w || bounds.z <= uScene.clip.x || bounds.w <= uScene.clip.y)
+        return false;
+
+    outputRecord.world = world;
+    outputRecord.valid = 1;
+    outputRecord.spriteSize = sprite.spriteSize;
+    outputRecord.spriteOffset = sprite.spriteOffset;
+    outputRecord.asset = sprite.asset;
+    outputRecord.palettes = spriteSet.palettes;
+    outputRecord.effects = spriteSet.effects;
+    outputRecord.depth = int(orderIndex);
+    outputRecord.zoom = sprite.zoom;
+    outputRecord.coordinateShift = sprite.coordinateShift;
+    return true;
+}
+
+void main()
+{
+    uint lane = gl_LocalInvocationID.x;
+    uint blockBase = gl_WorkGroupID.x * BLOCK_WIDTH;
+    for (uint localIndex = lane; localIndex < BLOCK_WIDTH; localIndex += gl_WorkGroupSize.x)
+    {
+        OutputRecord ignored;
+        sPrefix[localIndex] = buildRecord(blockBase + localIndex, ignored) ? 1u : 0u;
+    }
+    barrier();
+
+    for (uint offset = 1u; offset < BLOCK_WIDTH; offset <<= 1u)
+    {
+        uint nodeCount = BLOCK_WIDTH / (offset << 1u);
+        for (uint node = lane; node < nodeCount; node += gl_WorkGroupSize.x)
+        {
+            uint right = (node + 1u) * (offset << 1u) - 1u;
+            sPrefix[right] += sPrefix[right - offset];
+        }
+        barrier();
+    }
+    if (lane == 0u)
+    {
+        sVisibleCount = sPrefix[BLOCK_WIDTH - 1u];
+        sPrefix[BLOCK_WIDTH - 1u] = 0u;
+    }
+    barrier();
+
+    for (uint offset = BLOCK_WIDTH >> 1u; offset != 0u; offset >>= 1u)
+    {
+        uint nodeCount = BLOCK_WIDTH / (offset << 1u);
+        for (uint node = lane; node < nodeCount; node += gl_WorkGroupSize.x)
+        {
+            uint right = (node + 1u) * (offset << 1u) - 1u;
+            uint leftValue = sPrefix[right - offset];
+            sPrefix[right - offset] = sPrefix[right];
+            sPrefix[right] += leftValue;
+        }
+        barrier();
+    }
+
+    for (uint localIndex = lane; localIndex < BLOCK_WIDTH; localIndex += gl_WorkGroupSize.x)
+    {
+        uint orderIndex = blockBase + localIndex;
+        OutputRecord outputRecord;
+        if (buildRecord(orderIndex, outputRecord))
+            uOutputs.records[blockBase + sPrefix[localIndex]] = outputRecord;
+    }
+    if (lane == 0u)
+    {
+        uCommands.records[gl_WorkGroupID.x] = DrawIndirectCommand(4u, sVisibleCount, 0u, blockBase);
+    }
+}

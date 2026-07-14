@@ -9,11 +9,14 @@
 
 #pragma once
 
+#include <openrct2/world/MapLimits.h>
+
 #include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <memory>
 #include <optional>
 #include <type_traits>
 #include <vector>
@@ -179,6 +182,47 @@ namespace OpenRCT2::Ui::Gpu
         {
             return static_cast<uint8_t>((packed >> 16) & 0xffu);
         }
+    };
+
+    /** Fixed-index, pointer-free terrain ABI consumed directly by the Vulkan world pipeline. */
+    struct WorldSurfaceRecord
+    {
+        Int3 world;
+        int32_t valid;
+        Int2 spriteSize;
+        Int2 spriteOffset;
+        uint32_t asset;
+        uint32_t palettes;
+        uint32_t effects;
+        int32_t depth;
+        int32_t zoom;
+        int32_t coordinateShift;
+        Int2 reserved;
+    };
+
+    struct WorldSurfaceSourceRecord
+    {
+        uint32_t baseZ;
+        uint32_t valid;
+        std::array<uint32_t, 4> detailedSprites;
+        std::array<uint32_t, 4> distantSprites;
+    };
+
+    struct WorldSurfaceSpriteVariant
+    {
+        Int2 spriteSize;
+        Int2 spriteOffset;
+        uint32_t asset;
+        int32_t zoom;
+        int32_t coordinateShift;
+        int32_t valid;
+    };
+
+    struct WorldSurfaceSpriteSet
+    {
+        std::array<WorldSurfaceSpriteVariant, 6> variants;
+        uint32_t palettes;
+        uint32_t effects;
     };
 
 #pragma pack(pop)
@@ -353,6 +397,156 @@ namespace OpenRCT2::Ui::Gpu
     static_assert(offsetof(WeatherCommand, bounds) == 0);
     static_assert(offsetof(WeatherCommand, offset) == 16);
     static_assert(offsetof(WeatherCommand, pattern) == 24);
+    static_assert(std::is_trivially_copyable_v<WorldSurfaceRecord>);
+    static_assert(sizeof(WorldSurfaceRecord) == 64);
+    static_assert(offsetof(WorldSurfaceRecord, world) == 0);
+    static_assert(offsetof(WorldSurfaceRecord, valid) == 12);
+    static_assert(offsetof(WorldSurfaceRecord, spriteSize) == 16);
+    static_assert(offsetof(WorldSurfaceRecord, spriteOffset) == 24);
+    static_assert(offsetof(WorldSurfaceRecord, asset) == 32);
+    static_assert(offsetof(WorldSurfaceRecord, palettes) == 36);
+    static_assert(offsetof(WorldSurfaceRecord, effects) == 40);
+    static_assert(offsetof(WorldSurfaceRecord, depth) == 44);
+    static_assert(offsetof(WorldSurfaceRecord, zoom) == 48);
+    static_assert(offsetof(WorldSurfaceRecord, coordinateShift) == 52);
+    static_assert(std::is_trivially_copyable_v<WorldSurfaceSourceRecord>);
+    static_assert(sizeof(WorldSurfaceSourceRecord) == 40);
+    static_assert(offsetof(WorldSurfaceSourceRecord, baseZ) == 0);
+    static_assert(offsetof(WorldSurfaceSourceRecord, valid) == 4);
+    static_assert(offsetof(WorldSurfaceSourceRecord, detailedSprites) == 8);
+    static_assert(offsetof(WorldSurfaceSourceRecord, distantSprites) == 24);
+    static_assert(std::is_trivially_copyable_v<WorldSurfaceSpriteVariant>);
+    static_assert(sizeof(WorldSurfaceSpriteVariant) == 32);
+    static_assert(offsetof(WorldSurfaceSpriteVariant, asset) == 16);
+    static_assert(offsetof(WorldSurfaceSpriteVariant, valid) == 28);
+    static_assert(std::is_trivially_copyable_v<WorldSurfaceSpriteSet>);
+    static_assert(sizeof(WorldSurfaceSpriteSet) == 200);
+    static_assert(offsetof(WorldSurfaceSpriteSet, palettes) == 192);
+
+    constexpr size_t kWorldSurfaceChunkWidth = 256;
+    constexpr size_t kWorldSurfaceMaximumRecordCount = static_cast<size_t>(kMaximumMapSizeTechnical)
+        * kMaximumMapSizeTechnical;
+    constexpr size_t kWorldSurfaceMaximumChunkCount =
+        (kWorldSurfaceMaximumRecordCount + kWorldSurfaceChunkWidth - 1) / kWorldSurfaceChunkWidth;
+    constexpr int32_t kWorldSurfaceMinimumZoom = -2;
+    constexpr int32_t kWorldSurfaceMaximumZoom = 3;
+    constexpr uint32_t kWorldSurfaceZoomCount = 6;
+    constexpr uint32_t kWorldSurfaceComputeLocalSize = 128;
+    constexpr uint32_t kWorldSurfaceComputeBlockWidth = 1024;
+    constexpr uint32_t kWorldSurfaceMaximumDrawCount = static_cast<uint32_t>(
+        (kWorldSurfaceMaximumRecordCount + kWorldSurfaceComputeBlockWidth - 1) / kWorldSurfaceComputeBlockWidth);
+    constexpr uint32_t kWorldSurfaceMaximumSpriteSetCount = 4096;
+    constexpr int32_t kWorldSurfaceDepthCapacity = 1 << 20;
+    static_assert(kWorldSurfaceMaximumRecordCount < kWorldSurfaceDepthCapacity);
+
+    [[nodiscard]] constexpr bool AreWorldSurfaceComputeLimitsSufficient(
+        uint32_t maxInvocations, uint32_t maxSizeX, uint32_t maxGroupCountX, uint32_t maxSharedMemory,
+        bool multiDrawIndirect) noexcept
+    {
+        return multiDrawIndirect && maxInvocations >= kWorldSurfaceComputeLocalSize
+            && maxSizeX >= kWorldSurfaceComputeLocalSize && maxGroupCountX >= kWorldSurfaceMaximumDrawCount
+            && maxSharedMemory >= kWorldSurfaceComputeBlockWidth * sizeof(uint32_t);
+    }
+
+    enum class WorldSurfaceFallbackReason : uint8_t
+    {
+        none,
+        mapInterleaving,
+        entityInterleaving,
+        landscapeSmoothing,
+    };
+
+    [[nodiscard]] constexpr WorldSurfaceFallbackReason GetWorldSurfaceFallbackReason(
+        bool mapInterleaving, bool entityInterleaving, bool landscapeSmoothing) noexcept
+    {
+        if (mapInterleaving)
+            return WorldSurfaceFallbackReason::mapInterleaving;
+        if (entityInterleaving)
+            return WorldSurfaceFallbackReason::entityInterleaving;
+        if (landscapeSmoothing)
+            return WorldSurfaceFallbackReason::landscapeSmoothing;
+        return WorldSurfaceFallbackReason::none;
+    }
+
+    [[nodiscard]] constexpr uint32_t GetWorldSurfaceOrderIndex(
+        uint32_t width, uint32_t height, uint32_t x, uint32_t y, uint32_t rotation) noexcept
+    {
+        switch (rotation & 3)
+        {
+            case 1:
+                return (width - 1 - x) * height + y;
+            case 2:
+                return (height - 1 - y) * width + (width - 1 - x);
+            case 3:
+                return x * height + (height - 1 - y);
+            default:
+                return y * width + x;
+        }
+    }
+
+    [[nodiscard]] constexpr uint32_t GetWorldSurfaceSourceIndexForOrder(
+        uint32_t width, uint32_t height, uint32_t orderIndex, uint32_t rotation) noexcept
+    {
+        uint32_t x{};
+        uint32_t y{};
+        switch (rotation & 3)
+        {
+            case 1:
+                x = width - 1 - orderIndex / height;
+                y = orderIndex % height;
+                break;
+            case 2:
+                x = width - 1 - orderIndex % width;
+                y = height - 1 - orderIndex / width;
+                break;
+            case 3:
+                x = orderIndex / height;
+                y = height - 1 - orderIndex % height;
+                break;
+            default:
+                x = orderIndex % width;
+                y = orderIndex / width;
+                break;
+        }
+        return y * width + x;
+    }
+
+    [[nodiscard]] constexpr uint32_t GetWorldSurfaceDrawCount(uint32_t recordCount) noexcept
+    {
+        return (recordCount + kWorldSurfaceComputeBlockWidth - 1) / kWorldSurfaceComputeBlockWidth;
+    }
+
+    [[nodiscard]] constexpr bool WorldSurfaceBoundsVisible(const Int4& bounds, const Int4& clip) noexcept
+    {
+        return bounds.x < clip.z && bounds.y < clip.w && bounds.z > clip.x && bounds.w > clip.y;
+    }
+
+    struct WorldSurfaceChunk
+    {
+        uint64_t revision{};
+        std::array<WorldSurfaceSourceRecord, kWorldSurfaceChunkWidth> records{};
+    };
+
+    struct WorldSurfaceSpriteTable
+    {
+        uint64_t revision{};
+        std::vector<WorldSurfaceSpriteSet> records;
+    };
+
+    struct WorldSurfaceSceneCommand
+    {
+        uint64_t generation{};
+        uint64_t worldEpoch{};
+        uint32_t width{};
+        uint32_t height{};
+        uint32_t recordCount{};
+        Int4 clip{};
+        Int2 view{};
+        int32_t zoom{};
+        int32_t rotation{};
+        std::vector<std::shared_ptr<const WorldSurfaceChunk>> chunks;
+        std::shared_ptr<const WorldSurfaceSpriteTable> sprites;
+    };
 
     template<typename T>
     class CommandBatch
@@ -440,6 +634,7 @@ namespace OpenRCT2::Ui::Gpu
         CommandBatch<SpriteCommand> opaqueSprites;
         CommandBatch<RectCommand> transparentRects;
         CommandBatch<WeatherCommand> weather;
+        std::optional<WorldSurfaceSceneCommand> worldSurfaces;
         std::vector<TextureUpload> textureUploads;
         std::optional<LightFxFrameSnapshot> lightFx;
         std::vector<Int4> damageRectangles;
@@ -453,6 +648,7 @@ namespace OpenRCT2::Ui::Gpu
             opaqueSprites.clear();
             transparentRects.clear();
             weather.clear();
+            worldSurfaces.reset();
             textureUploads.clear();
             damageRectangles.clear();
             damageSerial = 0;

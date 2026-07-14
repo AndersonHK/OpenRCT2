@@ -282,9 +282,11 @@ namespace OpenRCT2::Ui::Vulkan
         RecordPendingLightFalloffs();
         RecordTextureUploads(commands);
         _device.RecordGpuTimestamp(*_activeToken, GpuTimestampPoint::uploadsComplete);
-        _resources.RecordRetainedCanvasRestore(
-            _activeToken->commandBuffer, _activeToken->frameIndex, commands.fullRedraw);
-        _rectPipeline.RecordDamageClear(*_activeToken, commands.damageRectangles);
+        // Presented frames are complete generations. Clearing unconditionally removes retained-pixel/damage acknowledgement
+        // from the production Vulkan lifecycle and makes dropped generations harmless.
+        _resources.RecordCanvasAndDepthClear(_activeToken->commandBuffer, _activeToken->frameIndex, 0);
+        if (commands.worldSurfaces.has_value())
+            _worldSurfacePipeline.Record(*_activeToken, *commands.worldSurfaces);
         _linePipeline.Record(*_activeToken, commands.lines);
         _rectPipeline.Record(*_activeToken, commands.opaqueRects, commands.opaqueSprites);
         bool finalComposite = false;
@@ -293,8 +295,6 @@ namespace OpenRCT2::Ui::Vulkan
             const auto layers = Gpu::MaxTransparencyDepth(commands.transparentRects);
             finalComposite = _transparencyPipeline.Record(*_activeToken, commands.transparentRects, layers);
         }
-        _resources.RecordRetainedCanvasStore(
-            _activeToken->commandBuffer, _activeToken->frameIndex, finalComposite);
         _weatherPipeline.Record(*_activeToken, commands.weather, finalComposite);
         _device.RecordGpuTimestamp(*_activeToken, GpuTimestampPoint::indexedDrawComplete);
         const bool lightFxEnabled = RecordLightFx(commands);
@@ -450,6 +450,7 @@ namespace OpenRCT2::Ui::Vulkan
     void Backend::InitialiseDrawingPipelines(bool gpuLightFxSupported)
     {
         _linePipeline.Initialise(_device, _resources, _config.shaderDirectory);
+        _worldSurfacePipeline.Initialise(_device, _resources, _config.shaderDirectory);
         _rectPipeline.Initialise(_device, _resources, _config.shaderDirectory);
         _transparencyPipeline.Initialise(_device, _resources, _config.shaderDirectory);
         _weatherPipeline.Initialise(_device, _resources, _config.shaderDirectory);
@@ -462,6 +463,7 @@ namespace OpenRCT2::Ui::Vulkan
         _weatherPipeline.Dispose();
         _transparencyPipeline.Dispose();
         _rectPipeline.Dispose();
+        _worldSurfacePipeline.Dispose();
         _linePipeline.Dispose();
     }
 

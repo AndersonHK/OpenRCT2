@@ -15,6 +15,8 @@
 #include <array>
 #include <cstddef>
 #include <openrct2/drawing/IDrawingContext.h>
+#include <unordered_map>
+#include <vector>
 
 namespace OpenRCT2::Drawing
 {
@@ -45,6 +47,31 @@ namespace OpenRCT2::Ui::Gpu
         static constexpr size_t kClippingCacheSize = 16;
         mutable std::array<ClippingCacheEntry, kClippingCacheSize> _clippingCache{};
 
+        struct PublishedSurfaceChunk
+        {
+            std::shared_ptr<const void> source;
+            std::shared_ptr<const WorldSurfaceChunk> gpu;
+            std::vector<uint32_t> spriteSets;
+        };
+        struct SurfaceSpriteCacheEntry
+        {
+            ImageId image;
+            WorldSurfaceSpriteSet record{};
+        };
+        struct ImageIdHash
+        {
+            [[nodiscard]] size_t operator()(const ImageId& image) const noexcept;
+        };
+        std::vector<PublishedSurfaceChunk> _surfaceChunks;
+        std::vector<SurfaceSpriteCacheEntry> _surfaceSpriteCache;
+        std::unordered_map<ImageId, uint32_t, ImageIdHash> _surfaceSpriteLookup;
+        std::shared_ptr<const WorldSurfaceSpriteTable> _publishedSurfaceSprites;
+        uint64_t _nextSurfaceChunkRevision{};
+        uint64_t _nextSurfaceSpriteRevision{};
+        uint64_t _surfaceWorldEpoch{};
+        uint32_t _surfaceWidth{};
+        uint32_t _surfaceHeight{};
+
     public:
         CommandDrawingContext(Drawing::RenderTarget& mainTarget, TextureCache& textureCache);
 
@@ -71,10 +98,15 @@ namespace OpenRCT2::Ui::Gpu
         void DrawTTFBitmap(
             Drawing::RenderTarget& rt, const Drawing::TextDrawInfo& info, TTFSurface* surface, int32_t x,
             int32_t y, uint8_t hintingThreshold) override;
+        bool DrawWorldSurfaceScene(
+            Drawing::RenderTarget& rt, std::shared_ptr<const PresentationGeneration> generation,
+            const OrthographicCamera& camera) override;
 
     private:
         static uint8_t ComputeOutCode(ScreenCoordsXY point, ScreenCoordsXY topLeft, ScreenCoordsXY bottomRight);
         static bool CohenSutherlandLineClip(ScreenLine& line, const Drawing::RenderTarget& rt);
+        [[nodiscard]] uint32_t GetOrCreateSurfaceSpriteSet(ImageId image);
+        [[nodiscard]] WorldSurfaceSpriteSet ResolveSurfaceSpriteSet(ImageId image);
         RectCommand& AppendRect(
             CommandBatch<RectCommand>& batch, const ScreenRect& clip, Int4 bounds, float zoom = 1.0f);
         [[nodiscard]] ScreenRect CalculateClipping(const Drawing::RenderTarget& rt) const;

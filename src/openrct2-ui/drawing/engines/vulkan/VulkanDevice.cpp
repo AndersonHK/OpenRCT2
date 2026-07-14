@@ -12,6 +12,7 @@
     #include "VulkanDevice.h"
 
     #include "../gpu/GpuAtlas.h"
+    #include "../gpu/GpuCommandStream.h"
     #include "VulkanPlatform.h"
     #include "VulkanShader.h"
     #include "VulkanSurfaceFormat.h"
@@ -748,7 +749,7 @@ namespace OpenRCT2::Ui::Vulkan
         if (_physicalDevice == VK_NULL_HANDLE)
         {
             throw std::runtime_error(
-                "No Vulkan 1.1 device satisfies the renderer's queue, surface, format, and atlas requirements");
+                "No Vulkan 1.1 device satisfies the renderer's queue, surface, format, atlas, and indirect-compute requirements");
         }
         _queueFamilies = FindQueueFamilies(_physicalDevice);
     }
@@ -770,7 +771,8 @@ namespace OpenRCT2::Ui::Vulkan
         const uint32_t queueCount = families[0] == families[1] ? 1 : 2;
 
         const auto extensions = GetDeviceExtensions(_physicalDevice);
-        const VkPhysicalDeviceFeatures features{};
+        VkPhysicalDeviceFeatures features{};
+        features.multiDrawIndirect = VK_TRUE;
         const VkDeviceCreateInfo deviceInfo = {
             .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
             .queueCreateInfoCount = queueCount,
@@ -1134,9 +1136,15 @@ namespace OpenRCT2::Ui::Vulkan
 
         VkPhysicalDeviceProperties properties{};
         vkGetPhysicalDeviceProperties(device, &properties);
+        VkPhysicalDeviceFeatures features{};
+        vkGetPhysicalDeviceFeatures(device, &features);
         if (properties.apiVersion < VK_API_VERSION_1_1
             || properties.limits.maxImageDimension2D < static_cast<uint32_t>(Gpu::kAtlasDimension)
-            || properties.limits.maxImageArrayLayers < Gpu::kAtlasLayers)
+            || properties.limits.maxImageArrayLayers < Gpu::kAtlasLayers
+            || !Gpu::AreWorldSurfaceComputeLimitsSufficient(
+                properties.limits.maxComputeWorkGroupInvocations, properties.limits.maxComputeWorkGroupSize[0],
+                properties.limits.maxComputeWorkGroupCount[0], properties.limits.maxComputeSharedMemorySize,
+                features.multiDrawIndirect))
         {
             return -1;
         }

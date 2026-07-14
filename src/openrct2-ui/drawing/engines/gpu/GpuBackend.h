@@ -56,7 +56,8 @@ namespace OpenRCT2::Ui::Gpu
         FrameAcquireMode frameAcquireMode = FrameAcquireMode::Wait;
         OutputColorMode outputColorMode = OutputColorMode::Sdr;
         float hdrPaperWhiteNits = 203.0f;
-        uint64_t uploadRingBytesPerFrame = 32 * 1024 * 1024;
+        // A maximum-size dense terrain generation is about 64 MiB and must fit on its first residency upload.
+        uint64_t uploadRingBytesPerFrame = 96 * 1024 * 1024;
         std::string shaderDirectory;
     };
 

@@ -1019,40 +1019,44 @@ void PaintSurface(PaintSession& session, uint8_t direction, uint16_t height, con
     }
     else
     {
-        const bool showGridlines = (session.ViewFlags & VIEWPORT_FLAG_GRIDLINES);
-
-        assert(surfaceShape < std::size(Byte97B444));
-        const uint8_t image_offset = Byte97B444[surfaceShape];
-
-        ImageId imageId;
-        if (isInTrackDesignerOrManager())
+        if (!(session.Flags & PaintSessionFlags::GpuSurfaceBase))
         {
-            imageId = ImageId(SPR_TERRAIN_TRACK_DESIGNER);
-        }
-        else if (surfaceObject != nullptr)
-        {
-            uint8_t grassLength = TerrainSurfaceObject::kNoValue;
-            if (zoomLevel <= ZoomLevel{ 0 })
+            const bool showGridlines = (session.ViewFlags & VIEWPORT_FLAG_GRIDLINES);
+
+            assert(surfaceShape < std::size(Byte97B444));
+            const uint8_t image_offset = Byte97B444[surfaceShape];
+
+            ImageId imageId;
+            if (isInTrackDesignerOrManager())
             {
-                if ((session.ViewFlags & (VIEWPORT_FLAG_HIDE_BASE | VIEWPORT_FLAG_UNDERGROUND_INSIDE)) == 0)
-                {
-                    grassLength = tileElement.GetGrassLength() & 0x7;
-                }
+                imageId = ImageId(SPR_TERRAIN_TRACK_DESIGNER);
             }
-            imageId = surfaceObject->GetImageId(session.MapPosition, grassLength, rotation, image_offset, showGridlines, false);
-        }
-        if (session.ViewFlags & (VIEWPORT_FLAG_UNDERGROUND_INSIDE | VIEWPORT_FLAG_HIDE_BASE))
-        {
-            imageId = imageId.WithTransparency(FilterPaletteID::paletteDarken1);
-        }
+            else if (surfaceObject != nullptr)
+            {
+                uint8_t grassLength = TerrainSurfaceObject::kNoValue;
+                if (zoomLevel <= ZoomLevel{ 0 })
+                {
+                    if ((session.ViewFlags & (VIEWPORT_FLAG_HIDE_BASE | VIEWPORT_FLAG_UNDERGROUND_INSIDE)) == 0)
+                    {
+                        grassLength = tileElement.GetGrassLength() & 0x7;
+                    }
+                }
+                imageId = surfaceObject->GetImageId(
+                    session.MapPosition, grassLength, rotation, image_offset, showGridlines, false);
+            }
+            if (session.ViewFlags & (VIEWPORT_FLAG_UNDERGROUND_INSIDE | VIEWPORT_FLAG_HIDE_BASE))
+            {
+                imageId = imageId.WithTransparency(FilterPaletteID::paletteDarken1);
+            }
 
-        if (session.SelectedElement == elementPtr)
-        {
-            imageId = imageId.WithRemap(FilterPaletteID::paletteGhost);
-        }
+            if (session.SelectedElement == elementPtr)
+            {
+                imageId = imageId.WithRemap(FilterPaletteID::paletteGhost);
+            }
 
-        PaintAddImageAsParent(session, imageId, { 0, 0, height }, { 32, 32, -1 });
-        has_surface = true;
+            PaintAddImageAsParent(session, imageId, { 0, 0, height }, { 32, 32, -1 });
+            has_surface = true;
+        }
     }
 
     PaintPatrolArea(session, tileElement, height, surfaceShape);

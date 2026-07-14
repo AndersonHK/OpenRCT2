@@ -35,6 +35,7 @@
     #include <openrct2/drawing/LightFX.h>
     #include <openrct2/drawing/WeatherDrawer.h>
     #include <openrct2/interface/Screenshot.h>
+    #include <openrct2/interface/Viewport.h>
     #include <openrct2/ui/UiContext.h>
     #include <span>
     #include <stdexcept>
@@ -777,6 +778,10 @@ namespace OpenRCT2::Ui
                 _drawingContext.Begin(commands);
                 _damageTracker.ForceFullRedraw();
             }
+            // Viewport presentation publication may promote the frame to a complete generation. Do that before taking the
+            // damage snapshot: the Vulkan backend clears its canvas unconditionally, so a full-generation invalidation raised
+            // from inside WindowDrawAll would arrive one frame too late and leave this cleared frame only partially rebuilt.
+            ViewportBeginPresentationFrame();
             auto damage = _damageTracker.Snapshot();
             commands.damageSerial = damage.serial;
             commands.fullRedraw = damage.fullRedraw;

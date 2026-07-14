@@ -76,6 +76,127 @@ TEST(MapPresentationSnapshotTest, StoresTheFinalPartialTechnicalMapChunk)
     EXPECT_EQ(snapshot.GetFirstElementAt(finalTile)->baseHeight, 12);
 }
 
+TEST(MapPresentationSnapshotTest, SurfaceChunksAreImmutableAndRevisioned)
+{
+    TileElement element;
+    element.ClearAs(TileElementType::surface);
+    element.setLastForTile(true);
+    SurfacePresentationRecord surface;
+    surface.valid = 1;
+    surface.baseZ = 48;
+    surface.detailedImages[0] = ImageId(1234);
+
+    MapPresentationChangeBatch initial{
+        .epoch = 7,
+        .tick = 10,
+        .reset = true,
+        .surfaceWidth = 1,
+        .surfaceHeight = 1,
+    };
+    initial.changes.push_back({ 0, { element }, surface, 0 });
+    MapPresentationSnapshot published;
+    published.Apply(initial);
+
+    auto next = published;
+    surface.baseZ = 64;
+    surface.detailedImages[0] = ImageId(5678);
+    MapPresentationChangeBatch update{ .epoch = 7, .tick = 11, .surfaceWidth = 1, .surfaceHeight = 1 };
+    update.changes.push_back({ 0, { element }, surface, 0 });
+    next.Apply(update);
+
+    const auto& oldChunk = published.GetSurfaceChunks()[0];
+    const auto& newChunk = next.GetSurfaceChunks()[0];
+    ASSERT_NE(oldChunk, nullptr);
+    ASSERT_NE(newChunk, nullptr);
+    EXPECT_NE(oldChunk, newChunk);
+    EXPECT_NE(oldChunk->revision, newChunk->revision);
+    EXPECT_EQ(oldChunk->records[0].baseZ, 48);
+    EXPECT_EQ(oldChunk->records[0].detailedImages[0].GetIndex(), 1234u);
+    EXPECT_EQ(newChunk->records[0].baseZ, 64);
+    EXPECT_EQ(newChunk->records[0].detailedImages[0].GetIndex(), 5678u);
+}
+
+TEST(MapPresentationSnapshotTest, SurfacePublicationUsesDenseActiveMapIndicesAndDynamicChunks)
+{
+    TileElement element;
+    element.ClearAs(TileElementType::surface);
+    element.setLastForTile(true);
+    SurfacePresentationRecord surface;
+    surface.valid = 1;
+    surface.baseZ = 72;
+
+    constexpr uint32_t width = 257;
+    constexpr uint32_t height = 2;
+    constexpr uint32_t technicalIndex = kMaximumMapSizeTechnical;
+    constexpr uint32_t denseIndex = width;
+    MapPresentationChangeBatch batch{
+        .epoch = 9,
+        .tick = 12,
+        .reset = true,
+        .surfaceWidth = width,
+        .surfaceHeight = height,
+    };
+    batch.changes.push_back({ technicalIndex, { element }, surface, denseIndex });
+
+    MapPresentationSnapshot snapshot;
+    snapshot.Apply(batch);
+
+    EXPECT_EQ(snapshot.GetSurfaceWidth(), width);
+    EXPECT_EQ(snapshot.GetSurfaceHeight(), height);
+    EXPECT_EQ(snapshot.GetSurfaceRecordCount(), width * height);
+    ASSERT_EQ(snapshot.GetSurfaceChunks().size(), 3u);
+    ASSERT_NE(snapshot.GetSurfaceChunks()[1], nullptr);
+    EXPECT_EQ(snapshot.GetSurfaceChunks()[1]->records[1].baseZ, 72);
+    ASSERT_NE(snapshot.GetFirstElementAt({ 0, 1 }), nullptr);
+}
+
+TEST(MapPresentationSnapshotTest, MixedOrNonUniformSurfacePublicationRequiresLegacyPainterInterleaving)
+{
+    TileElement element;
+    element.ClearAs(TileElementType::surface);
+    element.setLastForTile(true);
+    SurfacePresentationRecord surface;
+    surface.valid = 1;
+    surface.baseZ = 48;
+
+    MapPresentationChangeBatch flat{
+        .epoch = 11,
+        .tick = 1,
+        .reset = true,
+        .surfaceWidth = 2,
+        .surfaceHeight = 1,
+    };
+    flat.changes.push_back({ 0, { element }, surface, 0 });
+    flat.changes.push_back({ 1, { element }, surface, 1 });
+    MapPresentationSnapshot snapshot;
+    snapshot.Apply(flat);
+    EXPECT_FALSE(snapshot.RequiresLegacyPainterInterleave());
+
+    surface.baseZ = 64;
+    MapPresentationChangeBatch heightChange{
+        .epoch = 11,
+        .tick = 2,
+        .surfaceWidth = 2,
+        .surfaceHeight = 1,
+    };
+    heightChange.changes.push_back({ 1, { element }, surface, 1 });
+    snapshot.Apply(heightChange);
+    EXPECT_TRUE(snapshot.RequiresLegacyPainterInterleave());
+
+    surface.baseZ = 48;
+    surface.adapterRequired = 1;
+    MapPresentationChangeBatch mixed{
+        .epoch = 12,
+        .tick = 3,
+        .reset = true,
+        .surfaceWidth = 1,
+        .surfaceHeight = 1,
+    };
+    mixed.changes.push_back({ 0, { element }, surface, 0 });
+    snapshot.Apply(mixed);
+    EXPECT_TRUE(snapshot.RequiresLegacyPainterInterleave());
+}
+
 class TileElementWantsFootpathConnection : public testing::Test
 {
 protected:
@@ -111,6 +232,20 @@ private:
 
 std::shared_ptr<IContext> TileElementWantsFootpathConnection::_context;
 LegacyScene TileElementWantsFootpathConnection::_gLegacyScene;
+
+TEST_F(TileElementWantsFootpathConnection, TemporaryMapStashRestoresPresentationEpoch)
+{
+    const auto publishedEpoch = GetMapPresentationEpoch();
+    auto temporaryMap = GetTileElements();
+
+    StashMap();
+    auto& gameState = getGameState();
+    SetTileElements(gameState, std::move(temporaryMap));
+    EXPECT_NE(GetMapPresentationEpoch(), publishedEpoch);
+    UnstashMap();
+
+    EXPECT_EQ(GetMapPresentationEpoch(), publishedEpoch);
+}
 
 TEST_F(TileElementWantsFootpathConnection, FlatPath)
 {

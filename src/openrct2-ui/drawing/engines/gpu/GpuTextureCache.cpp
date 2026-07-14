@@ -375,6 +375,22 @@ namespace OpenRCT2::Ui::Gpu
     {
         if (_recordingFrame)
         {
+            // Dynamic preview images are commonly replaced immediately before their first draw in a frame. If this image has
+            // not been referenced by the current command stream yet, retiring it now is both safe and necessary: deferring the
+            // invalidation would make the following draw resolve the previous frame's resident pixels. Once an allocation has
+            // been bound, however, the recorded commands and residency lease must keep it alive until the frame is sealed.
+            const bool boundThisFrame = std::any_of(
+                _frameAllocations.begin(), _frameAllocations.end(), [this, image](const auto& allocation) {
+                    const auto state = _allocations.find(allocation.serial);
+                    return state != _allocations.end() && state->second.location.GetAllocationId() == allocation
+                        && state->second.location.image == image;
+                });
+            if (!boundThisFrame)
+            {
+                ApplyInvalidation(image);
+                return;
+            }
+
             _generations.try_emplace(image, 0);
             if (std::find(_deferredInvalidations.begin(), _deferredInvalidations.end(), image)
                 == _deferredInvalidations.end())

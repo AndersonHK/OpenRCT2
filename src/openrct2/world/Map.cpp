@@ -108,6 +108,10 @@ namespace OpenRCT2
     static std::vector<uint32_t> _presentationDirtyWorklist;
     static uint64_t _presentationEpoch = 1;
     static bool _presentationResetPending = true;
+    static std::bitset<kMaximumMapSizeTechnical * kMaximumMapSizeTechnical> _presentationDirtyTilesStash;
+    static std::vector<uint32_t> _presentationDirtyWorklistStash;
+    static uint64_t _presentationEpochStash;
+    static bool _presentationResetPendingStash;
     static TilePointerIndex<TileElement> _tileIndexStash;
     static std::vector<TileElement> _tileElementsStash;
     static size_t _tileElementsInUse;
@@ -121,6 +125,13 @@ namespace OpenRCT2
         _tileElementsStash = std::move(gameState.tileElements);
         _mapSizeStash = gameState.mapSize;
         _tileElementsInUseStash = _tileElementsInUse;
+        _presentationDirtyTilesStash = _presentationDirtyTiles;
+        _presentationDirtyWorklistStash = std::move(_presentationDirtyWorklist);
+        _presentationEpochStash = _presentationEpoch;
+        _presentationResetPendingStash = _presentationResetPending;
+        _presentationDirtyTiles.reset();
+        _presentationDirtyWorklist.clear();
+        _presentationResetPending = true;
         MapTopology::Reset();
     }
 
@@ -131,6 +142,10 @@ namespace OpenRCT2
         gameState.tileElements = std::move(_tileElementsStash);
         gameState.mapSize = _mapSizeStash;
         _tileElementsInUse = _tileElementsInUseStash;
+        _presentationDirtyTiles = _presentationDirtyTilesStash;
+        _presentationDirtyWorklist = std::move(_presentationDirtyWorklistStash);
+        _presentationEpoch = _presentationEpochStash;
+        _presentationResetPending = _presentationResetPendingStash;
         MapTopology::Reset();
     }
 
@@ -158,24 +173,75 @@ namespace OpenRCT2
     MapPresentationChangeBatch ConsumeMapPresentationChanges(const uint32_t tick)
     {
         PROFILED_FUNCTION();
-        MapPresentationChangeBatch batch{ _presentationEpoch, tick, _presentationResetPending, {} };
-        const auto copyTile = [&batch](const uint32_t index) {
+        const auto& gameState = getGameState();
+        const uint32_t surfaceWidth = gameState.mapSize.x;
+        const uint32_t surfaceHeight = gameState.mapSize.y;
+        MapPresentationChangeBatch batch{
+            .epoch = _presentationEpoch,
+            .tick = tick,
+            .reset = _presentationResetPending,
+            .surfaceWidth = surfaceWidth,
+            .surfaceHeight = surfaceHeight,
+        };
+        const auto copyTile = [&batch](const uint32_t index, const uint32_t surfaceIndex) {
             const TileCoordsXY tilePos{ static_cast<int32_t>(index % kMaximumMapSizeTechnical),
                                         static_cast<int32_t>(index / kMaximumMapSizeTechnical) };
             auto* source = _tileIndex.GetFirstElementAt(tilePos);
+            if (source == nullptr)
+                return;
             auto& change = batch.changes.emplace_back();
             change.index = index;
+            change.surfaceIndex = surfaceIndex;
             do
             {
                 change.elements.push_back(*source);
             } while (!(source++)->isLastForTile());
+            change.surface.adapterRequired = change.elements.size() != 1;
+
+            const auto surface = std::ranges::find_if(change.elements, [](const TileElement& element) {
+                return element.getType() == TileElementType::surface;
+            });
+            if (surface == change.elements.end() || surface->isInvisible())
+                return;
+
+            const auto& surfaceElement = *surface->asSurface();
+            const auto* surfaceObject = surfaceElement.GetSurfaceObject();
+            if (surfaceObject == nullptr)
+                return;
+
+            // This is deliberately resolved while the live object registry and map mutation owner are coherent. Background
+            // presentation jobs and the render worker only receive the resulting ImageIds.
+            static constexpr std::array<uint8_t, 32> kSurfaceShapeImageOffsets = {
+                0, 2, 1, 3, 8, 10, 9, 11, 4, 6, 5, 7, 12, 14, 13, 15,
+                0, 0, 0, 0, 0, 0, 0, 17, 0, 0, 0, 16, 0, 18, 15, 0,
+            };
+            change.surface.baseZ = static_cast<uint16_t>(surfaceElement.getBaseZ());
+            change.surface.valid = 1;
+            change.surface.adapterRequired = change.surface.adapterRequired || surfaceElement.GetSlope() != 0
+                || surfaceElement.GetWaterHeight() != 0 || surfaceElement.GetParkFences() != 0;
+            const auto position = tilePos.ToCoordsXY();
+            for (uint8_t rotation = 0; rotation < SurfacePresentationRecord::kRotationCount; rotation++)
+            {
+                const uint8_t slope = surfaceElement.GetSlope();
+                uint16_t rotatedCorners = static_cast<uint16_t>((slope & kTileSlopeRaisedCornersMask) << rotation);
+                rotatedCorners = ((rotatedCorners >> 4) | rotatedCorners) & 0x0f;
+                const uint8_t relativeSlope = (slope & kTileSlopeDiagonalFlag) | static_cast<uint8_t>(rotatedCorners);
+                const uint8_t imageOffset = kSurfaceShapeImageOffsets[relativeSlope];
+                change.surface.detailedImages[rotation] = surfaceObject->GetImageId(
+                    position, surfaceElement.GetGrassLength() & 0x7, rotation, imageOffset, false, false);
+                change.surface.distantImages[rotation] = surfaceObject->GetImageId(
+                    position, TerrainSurfaceObject::kNoValue, rotation, imageOffset, false, false);
+            }
         };
         if (_presentationResetPending)
         {
-            batch.changes.reserve(kMaximumMapSizeTechnical * kMaximumMapSizeTechnical);
-            for (uint32_t index = 0; index < kMaximumMapSizeTechnical * kMaximumMapSizeTechnical; index++)
+            batch.changes.reserve(static_cast<size_t>(surfaceWidth) * surfaceHeight);
+            for (uint32_t y = 0; y < surfaceHeight; y++)
             {
-                copyTile(index);
+                for (uint32_t x = 0; x < surfaceWidth; x++)
+                {
+                    copyTile(x + y * kMaximumMapSizeTechnical, x + y * surfaceWidth);
+                }
             }
             _presentationResetPending = false;
         }
@@ -184,7 +250,10 @@ namespace OpenRCT2
             std::ranges::sort(_presentationDirtyWorklist);
             for (const auto index : _presentationDirtyWorklist)
             {
-                copyTile(index);
+                const uint32_t x = index % kMaximumMapSizeTechnical;
+                const uint32_t y = index / kMaximumMapSizeTechnical;
+                if (x < surfaceWidth && y < surfaceHeight)
+                    copyTile(index, x + y * surfaceWidth);
             }
         }
         _presentationDirtyWorklist.clear();
@@ -200,13 +269,29 @@ namespace OpenRCT2
     void MapPresentationSnapshot::Apply(const MapPresentationChangeBatch& batch)
     {
         PROFILED_FUNCTION();
-        if (batch.reset || _epoch != batch.epoch)
+        const bool reset = batch.reset || _epoch != batch.epoch;
+        if (reset)
         {
             _chunks.fill(nullptr);
         }
 
+        const bool surfaceLayoutChanged = reset || _surfaceWidth != batch.surfaceWidth || _surfaceHeight != batch.surfaceHeight;
+        if (surfaceLayoutChanged)
+        {
+            _surfaceWidth = batch.surfaceWidth;
+            _surfaceHeight = batch.surfaceHeight;
+            const size_t recordCount = static_cast<size_t>(_surfaceWidth) * _surfaceHeight;
+            _surfaceChunks.assign((recordCount + kChunkWidth - 1) / kChunkWidth, nullptr);
+            _nextSurfaceRevision = 0;
+            _surfaceBaselineZ = 0;
+            _surfaceBaselineSet = false;
+            _requiresLegacyPainterInterleave = false;
+        }
+
         size_t activeChunkIndex = std::numeric_limits<size_t>::max();
+        size_t activeSurfaceChunkIndex = std::numeric_limits<size_t>::max();
         std::shared_ptr<Chunk> activeChunk;
+        std::shared_ptr<SurfaceChunk> activeSurfaceChunk;
         for (const auto& change : batch.changes)
         {
             const size_t chunkIndex = change.index / kChunkWidth;
@@ -218,6 +303,34 @@ namespace OpenRCT2
                 _chunks[chunkIndex] = activeChunk;
             }
             (*activeChunk)[change.index % kChunkWidth] = change.elements;
+
+            if (change.surfaceIndex == std::numeric_limits<uint32_t>::max()
+                || change.surfaceIndex >= static_cast<size_t>(_surfaceWidth) * _surfaceHeight)
+                continue;
+            const size_t surfaceChunkIndex = change.surfaceIndex / kChunkWidth;
+            if (surfaceChunkIndex != activeSurfaceChunkIndex)
+            {
+                activeSurfaceChunkIndex = surfaceChunkIndex;
+                activeSurfaceChunk = _surfaceChunks[surfaceChunkIndex] == nullptr
+                    ? std::make_shared<SurfaceChunk>()
+                    : std::make_shared<SurfaceChunk>(*_surfaceChunks[surfaceChunkIndex]);
+                activeSurfaceChunk->revision = ++_nextSurfaceRevision;
+                _surfaceChunks[surfaceChunkIndex] = activeSurfaceChunk;
+            }
+            if (!change.surface.valid || change.surface.adapterRequired)
+            {
+                _requiresLegacyPainterInterleave = true;
+            }
+            else if (!_surfaceBaselineSet)
+            {
+                _surfaceBaselineZ = change.surface.baseZ;
+                _surfaceBaselineSet = true;
+            }
+            else if (_surfaceBaselineZ != change.surface.baseZ)
+            {
+                _requiresLegacyPainterInterleave = true;
+            }
+            activeSurfaceChunk->records[change.surfaceIndex % kChunkWidth] = change.surface;
         }
         _epoch = batch.epoch;
         _tick = batch.tick;

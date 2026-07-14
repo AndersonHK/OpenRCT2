@@ -12,11 +12,15 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <cstring>
 #include <openrct2/core/EnumUtils.hpp>
 #include <openrct2/drawing/Drawing.String.h>
 #include <openrct2/drawing/Drawing.h>
 #include <openrct2/drawing/RenderTarget.h>
+#include <openrct2/entity/EntityPresentationSnapshot.h>
 #include <openrct2/world/Location.hpp>
+#include <openrct2/world/MapPresentationSnapshot.h>
+#include <ranges>
 
 namespace OpenRCT2::Ui::Gpu
 {
@@ -134,6 +138,8 @@ namespace OpenRCT2::Ui::Gpu
     {
         assert(!_inDraw);
         _commands = &commands;
+        // Mixed legacy scenes conservatively reject direct terrain until both paths publish one shared painter key.
+        // Eligible terrain-only scenes can therefore use their native deterministic order without a category partition.
         _drawCount = 0;
         _inDraw = true;
     }
@@ -557,6 +563,203 @@ namespace OpenRCT2::Ui::Gpu
         static_cast<void>(y);
         static_cast<void>(hintingThreshold);
 #endif
+    }
+
+    size_t CommandDrawingContext::ImageIdHash::operator()(const ImageId& image) const noexcept
+    {
+        size_t result = image.GetIndex();
+        const auto combine = [&result](const size_t value) {
+            result ^= value + 0x9e3779b9 + (result << 6) + (result >> 2);
+        };
+        combine(static_cast<uint8_t>(image.GetPrimary()));
+        combine(static_cast<uint8_t>(image.GetSecondary()));
+        combine(static_cast<uint8_t>(image.GetTertiary()));
+        combine(image.HasPrimary());
+        combine(image.HasSecondary());
+        combine(image.IsBlended());
+        return result;
+    }
+
+    uint32_t CommandDrawingContext::GetOrCreateSurfaceSpriteSet(const ImageId image)
+    {
+        if (const auto existing = _surfaceSpriteLookup.find(image); existing != _surfaceSpriteLookup.end())
+            return existing->second;
+        if (_surfaceSpriteCache.size() >= kWorldSurfaceMaximumSpriteSetCount)
+            return std::numeric_limits<uint32_t>::max();
+        const auto index = static_cast<uint32_t>(_surfaceSpriteCache.size());
+        _surfaceSpriteCache.push_back({ .image = image });
+        _surfaceSpriteLookup.emplace(image, index);
+        return index;
+    }
+
+    WorldSurfaceSpriteSet CommandDrawingContext::ResolveSurfaceSpriteSet(const ImageId image)
+    {
+        uint8_t primary = 0;
+        uint8_t secondary = 0;
+        uint8_t tertiary = 0;
+        uint8_t count = 0;
+        if (image.HasSecondary())
+        {
+            primary = static_cast<uint8_t>(TextureCache::PaletteToY(static_cast<FilterPaletteID>(image.GetPrimary())));
+            secondary = static_cast<uint8_t>(TextureCache::PaletteToY(static_cast<FilterPaletteID>(image.GetSecondary())));
+            count = 2;
+            if (image.HasTertiary())
+            {
+                tertiary = static_cast<uint8_t>(
+                    TextureCache::PaletteToY(static_cast<FilterPaletteID>(image.GetTertiary())));
+                count = 3;
+            }
+        }
+        else if (image.IsRemap())
+        {
+            primary = static_cast<uint8_t>(TextureCache::PaletteToY(static_cast<FilterPaletteID>(image.GetRemap())));
+            count = 1;
+        }
+
+        WorldSurfaceSpriteSet result{};
+        result.palettes = SpriteCommand::PackPalettes(primary, secondary, tertiary, count);
+        result.effects = SpriteCommand::PackEffects(count, 0);
+        for (int32_t zoom = static_cast<int32_t>(kWorldSurfaceMinimumZoom);
+             zoom <= static_cast<int32_t>(kWorldSurfaceMaximumZoom); zoom++)
+        {
+            const auto resolved = _textureCache.GetOrLoadImageSprite(image, ZoomLevel{ static_cast<int8_t>(zoom) });
+            if (!resolved.has_value())
+                continue;
+            result.variants[zoom - static_cast<int32_t>(kWorldSurfaceMinimumZoom)] = {
+                .spriteSize = { resolved->width, resolved->height },
+                .spriteOffset = { resolved->xOffset, resolved->yOffset },
+                .asset = resolved->descriptorIndex,
+                .zoom = static_cast<int8_t>(resolved->zoom),
+                .coordinateShift = resolved->coordinateShift,
+                .valid = 1,
+            };
+        }
+        return result;
+    }
+
+    bool CommandDrawingContext::DrawWorldSurfaceScene(
+        RenderTarget& rt, std::shared_ptr<const PresentationGeneration> generation, const OrthographicCamera& camera)
+    {
+        assert(_inDraw);
+        if (generation == nullptr || generation->map == nullptr || _commands->worldSurfaces.has_value())
+            return false;
+        const auto fallbackReason = GetWorldSurfaceFallbackReason(
+            generation->map->RequiresLegacyPainterInterleave(),
+            generation->entities != nullptr && generation->entities->GetCapturedEntityCount() != 0,
+            camera.landscapeSmoothing != 0);
+        if (fallbackReason != WorldSurfaceFallbackReason::none)
+            return false;
+
+        const ScreenRect clip = CalculateClipping(rt);
+        const Int4 cameraClip{
+            std::max(clip.GetLeft(), camera.clipLeft),
+            std::max(clip.GetTop(), camera.clipTop),
+            std::min(clip.GetRight(), camera.clipRight),
+            std::min(clip.GetBottom(), camera.clipBottom),
+        };
+        // Claim the slot before atlas resolution: first residency can invalidate and re-enter viewport painting.
+        auto& scene = _commands->worldSurfaces.emplace(WorldSurfaceSceneCommand{
+            .generation = generation->id,
+            .worldEpoch = generation->worldEpoch,
+            .width = generation->map->GetSurfaceWidth(),
+            .height = generation->map->GetSurfaceHeight(),
+            .recordCount = generation->map->GetSurfaceRecordCount(),
+            .clip = cameraClip,
+            .view = { camera.viewX, camera.viewY },
+            .zoom = camera.zoom,
+            .rotation = camera.rotation & 3,
+        });
+
+        if (_surfaceWorldEpoch != scene.worldEpoch || _surfaceWidth != scene.width || _surfaceHeight != scene.height)
+        {
+            _surfaceWorldEpoch = scene.worldEpoch;
+            _surfaceWidth = scene.width;
+            _surfaceHeight = scene.height;
+            _surfaceChunks.clear();
+            _surfaceSpriteCache.clear();
+            _surfaceSpriteLookup.clear();
+            _publishedSurfaceSprites.reset();
+        }
+
+        const auto& sourceChunks = generation->map->GetSurfaceChunks();
+        _surfaceChunks.resize(sourceChunks.size());
+        scene.chunks.resize(sourceChunks.size());
+        for (size_t chunkIndex = 0; chunkIndex < sourceChunks.size(); chunkIndex++)
+        {
+            const auto& source = sourceChunks[chunkIndex];
+            if (source == nullptr)
+                continue;
+            auto& publishedChunk = _surfaceChunks[chunkIndex];
+            if (publishedChunk.source.get() != source.get() || publishedChunk.gpu == nullptr)
+            {
+                auto converted = std::make_shared<WorldSurfaceChunk>();
+                converted->revision = ++_nextSurfaceChunkRevision;
+                publishedChunk.spriteSets.clear();
+                for (size_t localIndex = 0; localIndex < source->records.size(); localIndex++)
+                {
+                    const size_t tileIndex = chunkIndex * kWorldSurfaceChunkWidth + localIndex;
+                    if (tileIndex >= scene.recordCount)
+                        break;
+                    const auto& input = source->records[localIndex];
+                    auto& output = converted->records[localIndex];
+                    output.baseZ = input.baseZ;
+                    output.valid = input.valid;
+                    if (!input.valid)
+                        continue;
+                    for (size_t rotation = 0; rotation < SurfacePresentationRecord::kRotationCount; rotation++)
+                    {
+                        output.detailedSprites[rotation] = GetOrCreateSurfaceSpriteSet(input.detailedImages[rotation]);
+                        output.distantSprites[rotation] = GetOrCreateSurfaceSpriteSet(input.distantImages[rotation]);
+                        if (output.detailedSprites[rotation] == std::numeric_limits<uint32_t>::max()
+                            || output.distantSprites[rotation] == std::numeric_limits<uint32_t>::max())
+                        {
+                            _commands->worldSurfaces.reset();
+                            return false;
+                        }
+                        publishedChunk.spriteSets.push_back(output.detailedSprites[rotation]);
+                        publishedChunk.spriteSets.push_back(output.distantSprites[rotation]);
+                    }
+                }
+                std::ranges::sort(publishedChunk.spriteSets);
+                publishedChunk.spriteSets.erase(
+                    std::unique(publishedChunk.spriteSets.begin(), publishedChunk.spriteSets.end()),
+                    publishedChunk.spriteSets.end());
+                publishedChunk.source = source;
+                publishedChunk.gpu = std::move(converted);
+            }
+            scene.chunks[chunkIndex] = publishedChunk.gpu;
+        }
+
+        std::vector<bool> activeSpriteSets(_surfaceSpriteCache.size());
+        for (const auto& chunk : _surfaceChunks)
+        {
+            for (const auto spriteSet : chunk.spriteSets)
+                activeSpriteSets[spriteSet] = true;
+        }
+        bool spriteTableChanged = _publishedSurfaceSprites == nullptr
+            || _publishedSurfaceSprites->records.size() != _surfaceSpriteCache.size();
+        for (size_t index = 0; index < _surfaceSpriteCache.size(); index++)
+        {
+            if (!activeSpriteSets[index])
+                continue;
+            const auto resolved = ResolveSurfaceSpriteSet(_surfaceSpriteCache[index].image);
+            if (std::memcmp(&resolved, &_surfaceSpriteCache[index].record, sizeof(resolved)) != 0)
+            {
+                _surfaceSpriteCache[index].record = resolved;
+                spriteTableChanged = true;
+            }
+        }
+        if (spriteTableChanged)
+        {
+            auto table = std::make_shared<WorldSurfaceSpriteTable>();
+            table->revision = ++_nextSurfaceSpriteRevision;
+            table->records.reserve(_surfaceSpriteCache.size());
+            for (const auto& entry : _surfaceSpriteCache)
+                table->records.push_back(entry.record);
+            _publishedSurfaceSprites = std::move(table);
+        }
+        scene.sprites = _publishedSurfaceSprites;
+        return scene.sprites != nullptr;
     }
 
     RectCommand& CommandDrawingContext::AppendRect(

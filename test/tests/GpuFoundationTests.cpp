@@ -262,6 +262,68 @@ TEST(GpuFoundationTest, CompactSpritePackingPreservesPalettesAndEffects)
     EXPECT_EQ(SpriteCommand::GetEffectColour(effects), 197);
 }
 
+TEST(GpuFoundationTest, WorldSurfaceAbiHasStableComputeBlocksAndDepthCapacity)
+{
+    EXPECT_EQ(sizeof(WorldSurfaceRecord), 64u);
+    EXPECT_EQ(sizeof(WorldSurfaceSourceRecord), 40u);
+    EXPECT_EQ(sizeof(WorldSurfaceSpriteVariant), 32u);
+    EXPECT_EQ(sizeof(WorldSurfaceSpriteSet), 200u);
+    EXPECT_EQ(kWorldSurfaceChunkWidth, 256u);
+    EXPECT_EQ(kWorldSurfaceMaximumRecordCount, 1002001u);
+    EXPECT_EQ(kWorldSurfaceMaximumChunkCount, 3915u);
+    EXPECT_GE(kWorldSurfaceMaximumChunkCount * kWorldSurfaceChunkWidth, kWorldSurfaceMaximumRecordCount);
+    EXPECT_EQ(kWorldSurfaceDepthCapacity, 1 << 20);
+    EXPECT_GT(kWorldSurfaceDepthCapacity, kWorldSurfaceMaximumRecordCount);
+    EXPECT_EQ(kWorldSurfaceComputeLocalSize, 128u);
+    EXPECT_EQ(kWorldSurfaceComputeBlockWidth, 1024u);
+    EXPECT_EQ(kWorldSurfaceMaximumDrawCount, 979u);
+    EXPECT_EQ(GetWorldSurfaceDrawCount(0), 0u);
+    EXPECT_EQ(GetWorldSurfaceDrawCount(1024), 1u);
+    EXPECT_EQ(GetWorldSurfaceDrawCount(1025), 2u);
+    EXPECT_TRUE(AreWorldSurfaceComputeLimitsSufficient(128, 128, 979, 4096, true));
+    EXPECT_FALSE(AreWorldSurfaceComputeLimitsSufficient(127, 128, 979, 4096, true));
+    EXPECT_FALSE(AreWorldSurfaceComputeLimitsSufficient(128, 128, 978, 4096, true));
+    EXPECT_FALSE(AreWorldSurfaceComputeLimitsSufficient(128, 128, 979, 4096, false));
+
+    WorldSurfaceRecord record{};
+    record.world = { 64, 96, 32 };
+    record.depth = 123;
+    EXPECT_EQ(record.world.x, 64);
+    EXPECT_LT(record.depth, kWorldSurfaceDepthCapacity);
+
+    EXPECT_EQ(GetWorldSurfaceOrderIndex(3, 2, 2, 1, 0), 5u);
+    EXPECT_EQ(GetWorldSurfaceOrderIndex(3, 2, 2, 1, 1), 1u);
+    EXPECT_EQ(GetWorldSurfaceOrderIndex(3, 2, 2, 1, 2), 0u);
+    EXPECT_EQ(GetWorldSurfaceOrderIndex(3, 2, 2, 1, 3), 4u);
+    for (uint32_t rotation = 0; rotation < 4; rotation++)
+    {
+        for (uint32_t sourceIndex = 0; sourceIndex < 6; sourceIndex++)
+        {
+            const uint32_t x = sourceIndex % 3;
+            const uint32_t y = sourceIndex / 3;
+            const auto order = GetWorldSurfaceOrderIndex(3, 2, x, y, rotation);
+            EXPECT_EQ(GetWorldSurfaceSourceIndexForOrder(3, 2, order, rotation), sourceIndex);
+        }
+    }
+
+    constexpr Int4 clip{ 10, 20, 30, 40 };
+    EXPECT_TRUE(WorldSurfaceBoundsVisible({ 9, 19, 31, 41 }, clip));
+    EXPECT_TRUE(WorldSurfaceBoundsVisible({ 29, 39, 31, 41 }, clip));
+    EXPECT_FALSE(WorldSurfaceBoundsVisible({ 0, 0, 10, 40 }, clip));
+    EXPECT_FALSE(WorldSurfaceBoundsVisible({ 30, 20, 40, 40 }, clip));
+}
+
+TEST(GpuFoundationTest, WorldSurfaceFallbackReasonsKeepMixedPainterCategoriesOnAdapter)
+{
+    EXPECT_EQ(GetWorldSurfaceFallbackReason(false, false, false), WorldSurfaceFallbackReason::none);
+    EXPECT_EQ(
+        GetWorldSurfaceFallbackReason(true, false, false), WorldSurfaceFallbackReason::mapInterleaving);
+    EXPECT_EQ(
+        GetWorldSurfaceFallbackReason(false, true, false), WorldSurfaceFallbackReason::entityInterleaving);
+    EXPECT_EQ(
+        GetWorldSurfaceFallbackReason(false, false, true), WorldSurfaceFallbackReason::landscapeSmoothing);
+}
+
 #ifndef DISABLE_TTF
 TEST(GpuFoundationTest, ResidencyLeaseDefersEvictedTtfSlotReuseUntilRetirement)
 {

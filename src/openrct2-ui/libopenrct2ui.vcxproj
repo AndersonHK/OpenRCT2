@@ -70,6 +70,7 @@
     <ClInclude Include="drawing\engines\vulkan\VulkanRectPipeline.h" />
     <ClInclude Include="drawing\engines\vulkan\VulkanTransparencyPipeline.h" />
     <ClInclude Include="drawing\engines\vulkan\VulkanWeatherPipeline.h" />
+    <ClInclude Include="drawing\engines\vulkan\VulkanWorldSurfacePipeline.h" />
     <ClInclude Include="drawing\engines\vulkan\VulkanPalettePipeline.h" />
     <ClInclude Include="drawing\engines\vulkan\VulkanResources.h" />
     <ClInclude Include="drawing\engines\vulkan\VulkanShader.h" />
@@ -144,6 +145,7 @@
     <ClCompile Include="drawing\engines\vulkan\VulkanRectPipeline.cpp" />
     <ClCompile Include="drawing\engines\vulkan\VulkanTransparencyPipeline.cpp" />
     <ClCompile Include="drawing\engines\vulkan\VulkanWeatherPipeline.cpp" />
+    <ClCompile Include="drawing\engines\vulkan\VulkanWorldSurfacePipeline.cpp" />
     <ClCompile Include="drawing\engines\vulkan\VulkanPalettePipeline.cpp" />
     <ClCompile Include="drawing\engines\vulkan\VulkanResources.cpp" />
     <ClCompile Include="drawing\engines\vulkan\VulkanShader.cpp" />

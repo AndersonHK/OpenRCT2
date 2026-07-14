@@ -15,4 +15,6 @@ namespace OpenRCT2::PaintSessionFlags
 {
     constexpr uint8_t PassedSurface = 1u << 0;
     constexpr uint8_t IsTrackPiecePreview = 1u << 1;
+    // The base terrain quad is supplied by an immutable GPU world generation. Surface sides, water, and fences remain here.
+    constexpr uint8_t GpuSurfaceBase = 1u << 2;
 } // namespace OpenRCT2::PaintSessionFlags
