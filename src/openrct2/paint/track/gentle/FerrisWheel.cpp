@@ -51,7 +51,7 @@ static void PaintFerrisWheelRiders(
 {
     for (int32_t i = 0; i < 32; i += 2)
     {
-        auto* peep = getGameState().entities.GetEntity<Guest>(vehicle.peep[i]);
+        auto* peep = GetEntityForPresentation<Guest>(vehicle.peep[i]);
         if (peep == nullptr || peep->State != PeepState::onRide)
             continue;
 
@@ -69,7 +69,7 @@ static void PaintFerrisWheelStructure(
     if (rideEntry == nullptr)
         return;
 
-    auto vehicle = getGameState().entities.GetEntity<Vehicle>(ride.vehicles[0]);
+    auto vehicle = GetEntityForPresentation<Vehicle>(ride.vehicles[0]);
     if (ride.flags.has(RideFlag::onTrack) && vehicle != nullptr)
     {
         session.InteractionType = ViewportInteractionItem::entity;

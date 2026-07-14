@@ -38,7 +38,7 @@ static void PaintHauntedHouseStructure(
     if (rideEntry == nullptr)
         return;
 
-    auto vehicle = getGameState().entities.GetEntity<Vehicle>(ride.vehicles[0]);
+    auto vehicle = GetEntityForPresentation<Vehicle>(ride.vehicles[0]);
     if (ride.flags.has(RideFlag::onTrack) && vehicle != nullptr)
     {
         session.InteractionType = ViewportInteractionItem::entity;

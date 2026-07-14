@@ -76,20 +76,22 @@ JobPool::~JobPool()
     }
 }
 
-void JobPool::AddTask(std::function<void()> workFn, std::function<void()> completionFn)
+void JobPool::AddTask(std::function<void()> workFn, std::function<void()> completionFn, TaskPriority priority)
 {
     // Work spawned by this pool is already covered by the active outer barrier.
     if (_currentPool == this)
     {
-        EnqueueTask(std::move(workFn), std::move(completionFn));
+        EnqueueTask(std::move(workFn), std::move(completionFn), nullptr, priority);
         return;
     }
 
     std::scoped_lock batchLock(_batchMutex);
-    EnqueueTask(std::move(workFn), std::move(completionFn));
+    EnqueueTask(std::move(workFn), std::move(completionFn), nullptr, priority);
 }
 
-void JobPool::EnqueueTask(std::function<void()> workFn, std::function<void()> completionFn)
+void JobPool::EnqueueTask(
+    std::function<void()> workFn, std::function<void()> completionFn, std::shared_ptr<TaskGroupState> group,
+    TaskPriority priority)
 {
     {
         std::lock_guard lock(_mutex);
@@ -97,9 +99,74 @@ void JobPool::EnqueueTask(std::function<void()> workFn, std::function<void()> co
         {
             throw std::logic_error("Cannot submit work to a stopped JobPool");
         }
-        _pending.push_back({ std::move(workFn), std::move(completionFn) });
+        _pending[static_cast<size_t>(priority)].push_back(
+            { std::move(workFn), std::move(completionFn), {}, std::move(group) });
     }
     _condPending.notify_one();
+}
+
+bool JobPool::TaskGroup::IsValid() const noexcept
+{
+    return _owner != nullptr && _state != nullptr;
+}
+
+bool JobPool::TaskGroup::IsComplete() const
+{
+    if (_state == nullptr)
+        return true;
+
+    std::scoped_lock lock(_state->Mutex);
+    return _state->Remaining == 0;
+}
+
+JobPool::TaskGroup JobPool::CreateTaskGroup()
+{
+    return TaskGroup(this, std::make_shared<TaskGroupState>());
+}
+
+void JobPool::AddTask(TaskGroup& group, std::function<void()> workFn, TaskPriority priority)
+{
+    if (group._owner != this || group._state == nullptr)
+    {
+        throw std::invalid_argument("Task group does not belong to this JobPool");
+    }
+
+    {
+        std::scoped_lock groupLock(group._state->Mutex);
+        group._state->Remaining++;
+    }
+    try
+    {
+        EnqueueTask(std::move(workFn), nullptr, group._state, priority);
+    }
+    catch (...)
+    {
+        std::scoped_lock groupLock(group._state->Mutex);
+        group._state->Remaining--;
+        group._state->Complete.notify_all();
+        throw;
+    }
+}
+
+void JobPool::Wait(TaskGroup& group)
+{
+    if (group._owner != this || group._state == nullptr)
+    {
+        throw std::invalid_argument("Task group does not belong to this JobPool");
+    }
+    if (_currentPool == this)
+    {
+        throw std::logic_error("A JobPool worker cannot wait on its own task group");
+    }
+
+    std::unique_lock lock(group._state->Mutex);
+    group._state->Complete.wait(lock, [&group] { return group._state->Remaining == 0; });
+    const auto error = group._state->FirstError;
+    lock.unlock();
+    if (error != nullptr)
+    {
+        std::rethrow_exception(error);
+    }
 }
 
 void JobPool::Join(std::function<void()> reportFn)
@@ -136,7 +203,7 @@ void JobPool::JoinInternal(std::function<void()> reportFn)
     while (true)
     {
         // Wait for the queue to become empty or having completed tasks.
-        _condComplete.wait(lock, [this]() { return (_pending.empty() && _processing == 0) || !_completed.empty(); });
+        _condComplete.wait(lock, [this]() { return (!HasPendingTasks() && _processing == 0) || !_completed.empty(); });
 
         // Dispatch all completion callbacks if there are any.
         while (!_completed.empty())
@@ -156,7 +223,7 @@ void JobPool::JoinInternal(std::function<void()> reportFn)
         invoke(reportFn);
 
         // If everything is empty and no more work has to be done we can stop waiting.
-        if (_completed.empty() && _pending.empty() && _processing == 0)
+        if (_completed.empty() && !HasPendingTasks() && _processing == 0)
             break;
     }
 
@@ -166,7 +233,8 @@ void JobPool::JoinInternal(std::function<void()> reportFn)
 }
 
 void JobPool::ParallelFor(
-    size_t count, const std::function<void(size_t)>& workFn, size_t grainSize, std::function<void()> reportFn)
+    size_t count, const std::function<void(size_t)>& workFn, size_t grainSize, std::function<void()> reportFn,
+    TaskPriority priority)
 {
     if (count == 0)
         return;
@@ -185,8 +253,6 @@ void JobPool::ParallelFor(
         return;
     }
 
-    std::scoped_lock batchLock(_batchMutex);
-    CurrentPoolScope currentPool(_currentPool, this);
     grainSize = std::max<size_t>(grainSize, 1);
     std::atomic_size_t nextIndex{ 0 };
     const auto processNext = [&]() {
@@ -205,9 +271,10 @@ void JobPool::ParallelFor(
 
     const auto batchCount = 1 + ((count - 1) / grainSize);
     const auto workerTasks = std::min(batchCount, _threads.size());
+    auto group = CreateTaskGroup();
     for (size_t i = 0; i < workerTasks; i++)
     {
-        EnqueueTask(processNext, nullptr);
+        AddTask(group, processNext, priority);
     }
 
     // The submitting thread participates instead of blocking while workers consume the queue. Both paths still reach the
@@ -224,12 +291,25 @@ void JobPool::ParallelFor(
 
     try
     {
-        JoinInternal(std::move(reportFn));
+        Wait(group);
     }
     catch (...)
     {
         if (firstError == nullptr)
             firstError = std::current_exception();
+    }
+
+    if (reportFn)
+    {
+        try
+        {
+            reportFn();
+        }
+        catch (...)
+        {
+            if (firstError == nullptr)
+                firstError = std::current_exception();
+        }
     }
 
     if (firstError != nullptr)
@@ -239,7 +319,26 @@ void JobPool::ParallelFor(
 bool JobPool::IsBusy()
 {
     std::lock_guard lock(_mutex);
-    return _processing != 0 || !_pending.empty();
+    return _processing != 0 || HasPendingTasks();
+}
+
+bool JobPool::HasPendingTasks() const noexcept
+{
+    return std::ranges::any_of(_pending, [](const auto& queue) { return !queue.empty(); });
+}
+
+JobPool::TaskData JobPool::TakeNextTask()
+{
+    for (auto& queue : _pending)
+    {
+        if (!queue.empty())
+        {
+            auto task = std::move(queue.front());
+            queue.pop_front();
+            return task;
+        }
+    }
+    throw std::logic_error("No pending JobPool task");
 }
 
 void JobPool::ProcessQueue()
@@ -249,14 +348,13 @@ void JobPool::ProcessQueue()
     do
     {
         // Wait for work or cancellation.
-        _condPending.wait(lock, [this]() { return _shouldStop || !_pending.empty(); });
+        _condPending.wait(lock, [this]() { return _shouldStop || HasPendingTasks(); });
 
-        if (!_pending.empty())
+        if (HasPendingTasks())
         {
             _processing++;
 
-            auto taskData = std::move(_pending.front());
-            _pending.pop_front();
+            auto taskData = TakeNextTask();
 
             lock.unlock();
 
@@ -269,9 +367,30 @@ void JobPool::ProcessQueue()
                 taskData.Error = std::current_exception();
             }
 
+            if (taskData.Group != nullptr)
+            {
+                std::scoped_lock groupLock(taskData.Group->Mutex);
+                if (taskData.Error != nullptr && taskData.Group->FirstError == nullptr)
+                {
+                    taskData.Group->FirstError = taskData.Error;
+                }
+                assert(taskData.Group->Remaining > 0);
+                taskData.Group->Remaining--;
+                if (taskData.Group->Remaining == 0)
+                {
+                    taskData.Group->Complete.notify_all();
+                }
+            }
+
             lock.lock();
 
-            _completed.push_back(std::move(taskData));
+            // Independently waitable groups publish completion directly to their
+            // group state. The legacy completion queue is reserved for AddTask/Join
+            // so one producer cannot consume or rethrow another producer's result.
+            if (taskData.Group == nullptr)
+            {
+                _completed.push_back(std::move(taskData));
+            }
 
             _processing--;
             _condComplete.notify_one();

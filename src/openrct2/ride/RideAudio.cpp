@@ -34,7 +34,6 @@ using namespace OpenRCT2::Audio;
 
 namespace OpenRCT2::RideAudio
 {
-    static bool _musicInstanceCollectionEnabled = true;
     constexpr size_t kMaxRideMusicChannels = 64;
     constexpr float kRideMusicSourceGain = 5.0f;
 
@@ -376,11 +375,6 @@ namespace OpenRCT2::RideAudio
         }
     }
 
-    void SetMusicInstanceCollectionEnabled(bool enabled)
-    {
-        _musicInstanceCollectionEnabled = enabled;
-    }
-
     std::pair<size_t, size_t> RideMusicGetTrackOffsetLength_Circus(const Ride& ride)
     {
         return { 1378, 12427456 };
@@ -423,27 +417,23 @@ namespace OpenRCT2::RideAudio
         }
     }
 
+    void AdvanceMusicPosition(Ride& ride)
+    {
+        if (gLegacyScene != LegacyScene::scenarioEditor && !gGameSoundsOff)
+            RideUpdateMusicPosition(ride);
+    }
+
     /**
-     * Register an instance of audible ride music for this frame at the given coordinates.
+     * Register an instance of audible ride music for this presentation frame. This samples authoritative music state but
+     * never writes it: display cadence and an audio channel's wall-clock cursor cannot affect simulation or multiplayer state.
      */
-    void UpdateMusicInstance(Ride& ride, const CoordsXYZ& rideCoords, uint16_t sampleRate)
+    void CollectMusicInstance(const Ride& ride, const CoordsXYZ& rideCoords, uint16_t sampleRate)
     {
         if (gLegacyScene != LegacyScene::scenarioEditor && !gGameSoundsOff)
         {
-            if (!_musicInstanceCollectionEnabled)
-            {
-                // Fast-forward presentation samples only the final logical state in a batch. Keep the saved music cursor
-                // moving on intermediate ticks without repeating listener projection, sorting, and channel selection.
-                RideUpdateMusicPosition(ride);
-                return;
-            }
-
             const auto listener = GetSpatialAudioListener();
             if (!listener.has_value())
-            {
-                RideUpdateMusicPosition(ride);
                 return;
-            }
 
             const auto spatial = CalculateSpatialAudioParams(
                 *listener, rideCoords, 1.0f, SpatialAudioRolloff::rideMusic);
@@ -476,17 +466,7 @@ namespace OpenRCT2::RideAudio
                     instance.Listener = *listener;
                     instance.SourcePosition = rideCoords;
                     instance.Frequency = sampleRate;
-                    ride.musicPosition = static_cast<uint32_t>(offset);
                 }
-                else if (offset >= trackLength)
-                {
-                    ride.musicTuneId = kTuneIDNull;
-                    ride.musicPosition = 0;
-                }
-            }
-            else
-            {
-                RideUpdateMusicPosition(ride);
             }
         }
     }

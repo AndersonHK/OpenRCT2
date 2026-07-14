@@ -28,11 +28,8 @@ namespace OpenRCT2
         PaintSession& session, int32_t x, int32_t imageDirection, int32_t y, int32_t z, const Vehicle* vehicle,
         const CarEntry* carEntry)
     {
-        // TODO: pass as parameter?
-        auto& entityRegistry = getGameState().entities;
-
-        auto* vehicleToPaint = vehicle->IsHead() ? entityRegistry.GetEntity<Vehicle>(vehicle->next_vehicle_on_ride)
-                                                 : entityRegistry.GetEntity<Vehicle>(vehicle->prev_vehicle_on_ride);
+        auto* vehicleToPaint = vehicle->IsHead() ? GetEntityForPresentation<Vehicle>(vehicle->next_vehicle_on_ride)
+                                                 : GetEntityForPresentation<Vehicle>(vehicle->prev_vehicle_on_ride);
         if (vehicleToPaint == nullptr)
         {
             return;

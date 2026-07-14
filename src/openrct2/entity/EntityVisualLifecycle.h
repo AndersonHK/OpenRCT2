@@ -11,6 +11,7 @@
 
 #include "EntityBase.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 
@@ -53,6 +54,8 @@ namespace OpenRCT2
         uint8_t orientation{};
         EntityVisualDirty dirty{ EntityVisualDirty::none };
         bool present{};
+        uint32_t payloadOffset{};
+        uint16_t payloadSize{};
     };
 
     struct EntityVisualChangeBatch
@@ -60,5 +63,8 @@ namespace OpenRCT2
         uint64_t epoch{};
         bool reset{};
         std::vector<EntityVisualChange> changes;
+        // Exact concrete entity bytes captured at the authoritative tick boundary. All records share one allocation, so a
+        // busy frame copies roughly the concrete guest/vehicle footprint instead of zeroing a 512-byte union per entity.
+        std::vector<std::byte> payload;
     };
 } // namespace OpenRCT2

@@ -76,7 +76,7 @@ static void PaintSwingingInverterShipStructure(
     Vehicle* vehicle = nullptr;
     if (ride.flags.has(RideFlag::onTrack))
     {
-        vehicle = getGameState().entities.GetEntity<Vehicle>(ride.vehicles[0]);
+        vehicle = GetEntityForPresentation<Vehicle>(ride.vehicles[0]);
         if (vehicle != nullptr)
         {
             session.InteractionType = ViewportInteractionItem::entity;

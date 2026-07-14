@@ -272,6 +272,12 @@ namespace OpenRCT2::Ui::Gpu
             return std::move(_recycled);
         }
 
+        [[nodiscard]] bool CanPublishVisualFrame()
+        {
+            std::scoped_lock lock(_mutex);
+            return !_stopping && (_newest == nullptr || !_newest->hasVisualFrame);
+        }
+
     private:
         template<typename Request>
         [[nodiscard]] ControlPublishResult<Request> PublishControl(

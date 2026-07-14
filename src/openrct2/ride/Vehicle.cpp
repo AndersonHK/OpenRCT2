@@ -19,6 +19,7 @@
 #include "../core/EnumUtils.hpp"
 #include "../core/FixedPoint.hpp"
 #include "../core/GameTime.hpp"
+#include "../core/JobPool.h"
 #include "../core/Speed.hpp"
 #include "../core/UnitConversion.h"
 #include "../entity/EntityList.h"
@@ -52,6 +53,7 @@
 #include "../world/tile_element/WallElement.h"
 #include "Ride.h"
 #include "RideData.h"
+#include "RideManager.hpp"
 #include "RideRatings.h"
 #include "Track.h"
 #include "TrackData.h"
@@ -630,6 +632,36 @@ Vehicle* TryGetVehicle(EntityId spriteIndex)
     return getGameState().entities.TryGetEntity<Vehicle>(spriteIndex);
 }
 
+void Vehicle::AccumulateLiveRatings()
+{
+    if (IsCableLift())
+        return;
+
+    auto* rideEntry = GetRideEntry();
+    auto* curRide = GetRide();
+    if (rideEntry == nullptr || curRide == nullptr || curRide->type >= RIDE_TYPE_COUNT)
+        return;
+
+    VehicleUpdateLookupScope lookupScope(*this, curRide, rideEntry);
+    const auto& rtd = curRide->getRideTypeDescriptor();
+    if (!IsHead())
+        return;
+
+    if (RideRating::ShouldSampleCircuit(*curRide, *this))
+        UpdateMeasurements();
+
+    if (isGhost() || !RideRatingStatusIsLiveSampled(status) || rtd.RatingsData.Type != RatingsCalculationType::Normal)
+        return;
+
+    const auto train = RideVehicle::StationDetail::BuildTrainSeatSummary(*this);
+    if (!flags.has(VehicleFlag::testing) && !RideIsStatsSampleVehicle(*curRide, *this) && train.currentPeeps == 0)
+        return;
+
+    const bool isSynchronised = RideRatingTrainIsSynchronised(*curRide);
+    RideRatingAccumulateTrainTick(
+        *curRide, rtd, std::span{ train.cars }.first(train.carCount), velocity, isSynchronised, current_station);
+}
+
 /**
  *
  *  rct2: 0x006D4204
@@ -643,6 +675,44 @@ void VehicleUpdateAll()
 
     if (gLegacyScene == LegacyScene::trackDesigner && getGameState().editorStep != Editor::Step::rollerCoasterDesigner)
         return;
+
+    auto& gameState = getGameState();
+    std::array<Ride*, Limits::kMaxRidesInPark> ratingRides{};
+    size_t ratingRideCount = 0;
+    auto rides = RideManager(gameState);
+    for (auto& ride : rides)
+    {
+        if (ride.numTrains != 0)
+            ratingRides[ratingRideCount++] = &ride;
+    }
+
+    const auto accumulateRide = [&gameState, &ratingRides](const size_t index) {
+        auto& ride = *ratingRides[index];
+        for (uint8_t trainIndex = 0; trainIndex < ride.numTrains; trainIndex++)
+        {
+            auto* vehicle = gameState.entities.GetEntity<Vehicle>(ride.vehicles[trainIndex]);
+            if (vehicle != nullptr)
+                vehicle->AccumulateLiveRatings();
+        }
+    };
+
+    // Rating samples are a deterministic ride-owned phase: every task writes one ride and its train runtime caches. Shared
+    // pure environment memoisation is striped separately, so unrelated rides no longer force serial train traversal.
+    if (Config::Get().general.multiThreading && ratingRideCount > 8)
+    {
+        GetContext()->GetJobPool().ParallelFor(
+            ratingRideCount,
+            [&accumulateRide](const size_t index) {
+                RideRating::ScopedParallelContext parallelContext;
+                accumulateRide(index);
+            },
+            4);
+    }
+    else
+    {
+        for (size_t index = 0; index < ratingRideCount; index++)
+            accumulateRide(index);
+    }
 
     for (auto vehicle : TrainManager::View())
     {
@@ -1201,23 +1271,11 @@ void Vehicle::Update()
     if (curRide->type >= RIDE_TYPE_COUNT)
         return;
 
-    const auto& rtd = curRide->getRideTypeDescriptor();
-    if (RideRating::ShouldSampleCircuit(*curRide, *this))
+    // Train heads complete measurement in the ride-owned rating phase immediately before their sample is accumulated.
+    if (!IsHead() && RideRating::ShouldSampleCircuit(*curRide, *this))
     {
         UpdateMeasurements();
     }
-    if (IsHead() && !isGhost() && RideRatingStatusIsLiveSampled(status)
-        && rtd.RatingsData.Type == RatingsCalculationType::Normal)
-    {
-        const auto train = RideVehicle::StationDetail::BuildTrainSeatSummary(*this);
-        if (flags.has(VehicleFlag::testing) || RideIsStatsSampleVehicle(*curRide, *this) || train.currentPeeps != 0)
-        {
-            const bool isSynchronised = RideRatingTrainIsSynchronised(*curRide);
-            RideRatingAccumulateTrainTick(
-                *curRide, rtd, std::span{ train.cars }.first(train.carCount), velocity, isSynchronised, current_station);
-        }
-    }
-
     _vehicleBreakdown = Breakdown::none;
     if (curRide->flags.hasAny(RideFlag::breakdownPending, RideFlag::brokenDown))
     {

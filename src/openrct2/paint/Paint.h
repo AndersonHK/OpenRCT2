@@ -13,6 +13,7 @@
 #include "../drawing/FilterPaletteIds.h"
 #include "../drawing/ImageId.hpp"
 #include "../drawing/RenderTarget.h"
+#include "../entity/EntityBase.h"
 #include "../localisation/StringIdType.h"
 #include "../world/Location.hpp"
 #include "../world/MapLimits.h"
@@ -29,13 +30,60 @@ enum class ViewportInteractionItem : uint8_t;
 
 namespace OpenRCT2
 {
-    struct EntityBase;
+    class EntityPresentationSnapshot;
+    class MapPresentationSnapshot;
 
     struct TileElement;
     struct SurfaceElement;
 
     enum class RailingEntrySupportType : uint8_t;
 } // namespace OpenRCT2
+
+/** Compact, pointer-free identity and visibility data copied into every entity paint command. */
+struct PaintEntityRef
+{
+    EntityId id{ EntityId::GetNull() };
+    OpenRCT2::EntityType type{ OpenRCT2::EntityType::null };
+    int32_t z{};
+
+    PaintEntityRef() = default;
+
+    PaintEntityRef(EntityId entityId, OpenRCT2::EntityType entityType, int32_t entityZ)
+        : id(entityId)
+        , type(entityType)
+        , z(entityZ)
+    {
+    }
+
+    PaintEntityRef(const OpenRCT2::EntityBase* entity)
+    {
+        *this = entity;
+    }
+
+    PaintEntityRef& operator=(const OpenRCT2::EntityBase* entity)
+    {
+        if (entity == nullptr)
+        {
+            id = EntityId::GetNull();
+            type = OpenRCT2::EntityType::null;
+            z = 0;
+        }
+        else
+        {
+            id = entity->id;
+            type = entity->type;
+            z = entity->z;
+        }
+        return *this;
+    }
+
+    [[nodiscard]] explicit operator bool() const noexcept
+    {
+        return !id.IsNull() && type != OpenRCT2::EntityType::null;
+    }
+};
+
+static_assert(sizeof(PaintEntityRef) == 8, "Paint entity references must remain cache compact");
 
 struct AttachedPaintStruct
 {
@@ -64,7 +112,7 @@ struct PaintStruct
     PaintStruct* Children;
     PaintStruct* NextQuadrantEntry;
     OpenRCT2::TileElement* Element;
-    OpenRCT2::EntityBase* Entity;
+    PaintEntityRef Entity;
     ImageId image_id;
     ScreenCoordsXY ScreenPos;
     CoordsXY MapPos;
@@ -142,7 +190,9 @@ struct PaintSessionCore
     PaintStringStruct* LastPSString;
     AttachedPaintStruct* LastAttachedPS;
     const OpenRCT2::SurfaceElement* Surface;
-    OpenRCT2::EntityBase* CurrentlyDrawnEntity;
+    PaintEntityRef CurrentlyDrawnEntity;
+    const OpenRCT2::EntityPresentationSnapshot* EntitySnapshot;
+    const OpenRCT2::MapPresentationSnapshot* MapSnapshot;
     OpenRCT2::TileElement* CurrentlyDrawnTileElement;
     const OpenRCT2::TileElement* PathElementOnSameHeight;
     const OpenRCT2::TileElement* TrackElementOnSameHeight;
@@ -303,6 +353,7 @@ void PaintFloatingMoneyEffect(
 
 PaintSession* PaintSessionAlloc(OpenRCT2::Drawing::RenderTarget& rt, uint32_t viewFlags, uint8_t rotation);
 void PaintSessionFree(PaintSession* session);
+void PaintSessionInitialise(PaintSession& session, OpenRCT2::Drawing::RenderTarget& rt, uint32_t viewFlags, uint8_t rotation);
 void PaintSessionGenerate(PaintSession& session);
 void PaintSessionArrange(PaintSessionCore& session);
 void PaintDrawStructs(PaintSession& session);

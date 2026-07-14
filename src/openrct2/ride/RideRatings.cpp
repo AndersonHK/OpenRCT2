@@ -42,6 +42,8 @@
 #include <cstdint>
 #include <iterator>
 #include <limits>
+#include <mutex>
+#include <utility>
 
 using namespace OpenRCT2;
 using namespace OpenRCT2::Scripting;
@@ -129,7 +131,9 @@ static constexpr int32_t kRideRatingTrackHeightExposureMax = 6;
 static constexpr int32_t kRideRatingContextGenerationChunkSize = 8;
 static constexpr size_t kRideRatingContextCacheSetCount = 65536;
 static constexpr size_t kRideRatingContextCacheWays = 4;
+static constexpr size_t kRideRatingContextCacheLockCount = 4096;
 static_assert(std::has_single_bit(kRideRatingContextCacheSetCount));
+static_assert(std::has_single_bit(kRideRatingContextCacheLockCount));
 static constexpr int64_t kVehicleGForceSpeedCouplingDenominator =
     static_cast<int64_t>(RideRating::kVehicleRatingBaselineSpeed) * kSampledRideRatingProfileScale;
 static constexpr size_t kRideRatingContextGenerationChunksPerAxis = (kMaximumMapSizeTechnical
@@ -220,14 +224,15 @@ struct RideRatingLocalContextCacheSlot
 };
 
 static std::array<RideRatingLocalContextCacheSet, kRideRatingContextCacheSetCount> _rideRatingLocalContextCache{};
+static std::array<std::mutex, kRideRatingContextCacheLockCount> _rideRatingLocalContextCacheLocks{};
+static thread_local bool _rideRatingParallelContext{};
 static std::array<uint64_t, kRideRatingContextGenerationChunksPerAxis * kRideRatingContextGenerationChunksPerAxis>
     _rideRatingLocalContextOriginGenerations{};
 static uint64_t _rideRatingLocalContextInvalidationGeneration{};
 
-static RideRatingLocalContextCacheSet& RideRatingGetLocalContextCacheSet(const RideRatingLocalContextKey& key)
+static size_t RideRatingGetLocalContextCacheSetIndex(const RideRatingLocalContextKey& key) noexcept
 {
-    const auto index = RideRatingHashLocalContextKey(key) & (kRideRatingContextCacheSetCount - 1);
-    return _rideRatingLocalContextCache[index];
+    return RideRatingHashLocalContextKey(key) & (kRideRatingContextCacheSetCount - 1);
 }
 
 static RideRatingLocalContextCacheSlot RideRatingFindLocalContextCacheSlot(
@@ -1143,17 +1148,29 @@ static RideRating::VehicleRatingEnvironment RideRatingGetLocalContextEnvironment
     }
 
     spatialGeneration = getSpatialGeneration();
-    auto& cacheSet = RideRatingGetLocalContextCacheSet(key);
-    const auto cacheSlot = RideRatingFindLocalContextCacheSlot(cacheSet, key);
+    const auto cacheSetIndex = RideRatingGetLocalContextCacheSetIndex(key);
+    auto& cacheSet = _rideRatingLocalContextCache[cacheSetIndex];
+    std::unique_lock<std::mutex> cacheLock;
+    if (_rideRatingParallelContext)
+    {
+        cacheLock = std::unique_lock(
+            _rideRatingLocalContextCacheLocks[cacheSetIndex & (kRideRatingContextCacheLockCount - 1)]);
+    }
+
+    auto cacheSlot = RideRatingFindLocalContextCacheSlot(cacheSet, key);
     if (cacheSlot.matches && cacheSet.spatialGenerations[cacheSlot.index] == spatialGeneration)
     {
         const auto environment = RideRatingExpandLocalContextEnvironment(cacheSet.environments[cacheSlot.index]);
+        if (cacheLock.owns_lock())
+            cacheLock.unlock();
         if (runtimeCache != nullptr)
         {
             RideRatingUpdateRuntimeContextCache(*runtimeCache, key, environment, spatialGeneration);
         }
         return environment;
     }
+    if (cacheLock.owns_lock())
+        cacheLock.unlock();
 
     const auto centredOrigin = CoordsXYZ{ origin.ToTileCentre(), origin.z };
     RideRating::VehicleRatingEnvironment environment{
@@ -1161,16 +1178,50 @@ static RideRating::VehicleRatingEnvironment RideRatingGetLocalContextEnvironment
         .isSheltered = query.sampleKind == RideRatingLocalContextSampleKind::vehicle
             && RideRatingLocalContextTickIsSheltered(centredOrigin),
     };
-    const auto cacheIndex = cacheSlot.index;
-    cacheSet.keys[cacheIndex] = key;
-    cacheSet.spatialGenerations[cacheIndex] = spatialGeneration;
-    cacheSet.environments[cacheIndex] = RideRatingCompactLocalContextEnvironment(environment);
-    cacheSet.validMask |= static_cast<uint8_t>(1U << cacheIndex);
+
+    // Never hold a cache stripe while scanning the map. Another worker may publish the same pure result in the meantime;
+    // rechecking after the expensive build keeps replacement metadata race-free without serialising scoring itself.
+    if (_rideRatingParallelContext)
+    {
+        cacheLock.lock();
+        cacheSlot = RideRatingFindLocalContextCacheSlot(cacheSet, key);
+        if (cacheSlot.matches && cacheSet.spatialGenerations[cacheSlot.index] == spatialGeneration)
+        {
+            environment = RideRatingExpandLocalContextEnvironment(cacheSet.environments[cacheSlot.index]);
+        }
+        else
+        {
+            const auto cacheIndex = cacheSlot.index;
+            cacheSet.keys[cacheIndex] = key;
+            cacheSet.spatialGenerations[cacheIndex] = spatialGeneration;
+            cacheSet.environments[cacheIndex] = RideRatingCompactLocalContextEnvironment(environment);
+            cacheSet.validMask |= static_cast<uint8_t>(1U << cacheIndex);
+        }
+        cacheLock.unlock();
+    }
+    else
+    {
+        const auto cacheIndex = cacheSlot.index;
+        cacheSet.keys[cacheIndex] = key;
+        cacheSet.spatialGenerations[cacheIndex] = spatialGeneration;
+        cacheSet.environments[cacheIndex] = RideRatingCompactLocalContextEnvironment(environment);
+        cacheSet.validMask |= static_cast<uint8_t>(1U << cacheIndex);
+    }
     if (runtimeCache != nullptr)
     {
         RideRatingUpdateRuntimeContextCache(*runtimeCache, key, environment, spatialGeneration);
     }
     return environment;
+}
+
+RideRating::ScopedParallelContext::ScopedParallelContext() noexcept
+    : _previous(std::exchange(_rideRatingParallelContext, true))
+{
+}
+
+RideRating::ScopedParallelContext::~ScopedParallelContext()
+{
+    _rideRatingParallelContext = _previous;
 }
 
 RideRating::LocalContextScore RideRating::GetLocalContextScore(const CoordsXYZ& origin, RideId rideId)

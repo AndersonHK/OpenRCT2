@@ -44,9 +44,9 @@ namespace OpenRCT2::RideAudio
 
     void ClearAllViewportInstances();
     void StopAllChannels();
-    void SetMusicInstanceCollectionEnabled(bool enabled);
     void UpdateMusicChannels();
-    void UpdateMusicInstance(Ride& ride, const CoordsXYZ& rideCoords, uint16_t sampleRate);
+    void AdvanceMusicPosition(Ride& ride);
+    void CollectMusicInstance(const Ride& ride, const CoordsXYZ& rideCoords, uint16_t sampleRate);
     bool IsMusicInstanceHigherPriority(
         const ViewportRideMusicInstance& lhs, const ViewportRideMusicInstance& rhs);
 

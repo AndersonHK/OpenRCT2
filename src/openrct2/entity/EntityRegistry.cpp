@@ -8,6 +8,7 @@
  *****************************************************************************/
 
 #include "EntityRegistry.h"
+#include "EntityPresentationSnapshot.h"
 
 #include "../Game.h"
 #include "../GameState.h"
@@ -29,13 +30,17 @@
 #include "Balloon.h"
 #include "Duck.h"
 #include "EntityTweener.h"
+#include "Guest.h"
 #include "JumpingFountain.h"
+#include "Litter.h"
 #include "MoneyEffect.h"
 #include "Particle.h"
 
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <cstddef>
+#include <cstring>
 #include <iterator>
 #include <numeric>
 #include <vector>
@@ -43,6 +48,170 @@
 namespace OpenRCT2
 {
     using namespace OpenRCT2::Core;
+
+    class EntityStorage
+    {
+    private:
+        static constexpr size_t kSlotsPerPage = 256;
+
+        struct RawPool
+        {
+            size_t stride{};
+            uint32_t nextSlot{};
+            std::vector<uint32_t> freeSlots;
+            std::vector<std::unique_ptr<std::byte[]>> pages;
+            std::vector<uint64_t> occupiedWords;
+
+            void SetEntitySize(const size_t size)
+            {
+                constexpr auto alignment = alignof(std::max_align_t);
+                stride = (size + alignment - 1) & ~(alignment - 1);
+            }
+
+            std::pair<EntityBase*, uint32_t> Allocate()
+            {
+                uint32_t slot;
+                if (!freeSlots.empty())
+                {
+                    slot = freeSlots.back();
+                    freeSlots.pop_back();
+                }
+                else
+                {
+                    slot = nextSlot++;
+                    const auto pageIndex = slot / kSlotsPerPage;
+                    if (pageIndex == pages.size())
+                        pages.push_back(std::make_unique<std::byte[]>(stride * kSlotsPerPage));
+                }
+
+                auto* storage = pages[slot / kSlotsPerPage].get() + (slot % kSlotsPerPage) * stride;
+                std::memset(storage, 0, stride);
+                const auto word = slot / 64;
+                if (word >= occupiedWords.size())
+                    occupiedWords.resize(word + 1);
+                occupiedWords[word] |= uint64_t{ 1 } << (slot % 64);
+                return { reinterpret_cast<EntityBase*>(storage), slot };
+            }
+
+            void Release(const uint32_t slot)
+            {
+                occupiedWords[slot / 64] &= ~(uint64_t{ 1 } << (slot % 64));
+                freeSlots.push_back(slot);
+            }
+
+            void Clear()
+            {
+                nextSlot = 0;
+                freeSlots.clear();
+                pages.clear();
+                occupiedWords.clear();
+            }
+        };
+
+        std::array<RawPool, EnumValue(EntityType::count)> _pools;
+
+    public:
+        static size_t GetConcreteSize(const EntityType type)
+        {
+            switch (type)
+            {
+                case EntityType::vehicle:
+                    return sizeof(Vehicle);
+                case EntityType::guest:
+                    return sizeof(Guest);
+                case EntityType::staff:
+                    return sizeof(Staff);
+                case EntityType::steamParticle:
+                    return sizeof(SteamParticle);
+                case EntityType::moneyEffect:
+                    return sizeof(MoneyEffect);
+                case EntityType::crashedVehicleParticle:
+                    return sizeof(VehicleCrashParticle);
+                case EntityType::explosionCloud:
+                    return sizeof(ExplosionCloud);
+                case EntityType::crashSplash:
+                    return sizeof(CrashSplashParticle);
+                case EntityType::explosionFlare:
+                    return sizeof(ExplosionFlare);
+                case EntityType::jumpingFountain:
+                    return sizeof(JumpingFountain);
+                case EntityType::balloon:
+                    return sizeof(Balloon);
+                case EntityType::duck:
+                    return sizeof(Duck);
+                case EntityType::litter:
+                    return sizeof(Litter);
+                default:
+                    return sizeof(EntityBase);
+            }
+        }
+
+        EntityStorage()
+        {
+            for (uint8_t value = 0; value < EnumValue(EntityType::count); value++)
+            {
+                const auto type = static_cast<EntityType>(value);
+                _pools[value].SetEntitySize(GetConcreteSize(type));
+            }
+        }
+
+        std::pair<EntityBase*, uint32_t> Allocate(const EntityType type)
+        {
+            return _pools[EnumValue(type)].Allocate();
+        }
+
+        void Release(const EntityType type, const uint32_t slot)
+        {
+            _pools[EnumValue(type)].Release(slot);
+        }
+
+        void Clear()
+        {
+            for (auto& pool : _pools)
+                pool.Clear();
+        }
+
+        void Capture(EntityPresentationSnapshot& snapshot) const
+        {
+            size_t pageCount = 0;
+            for (const auto& pool : _pools)
+                pageCount += pool.pages.size();
+            if (snapshot._bulkPages.size() < pageCount)
+                snapshot._bulkPages.resize(pageCount);
+            size_t outputIndex = 0;
+            for (uint8_t value = 0; value < EnumValue(EntityType::count); value++)
+            {
+                const auto& pool = _pools[value];
+                for (size_t pageIndex = 0; pageIndex < pool.pages.size(); pageIndex++)
+                {
+                    auto& output = snapshot._bulkPages[outputIndex++];
+                    output.type = static_cast<EntityType>(value);
+                    output.stride = pool.stride;
+                    output.firstSlot = static_cast<uint32_t>(pageIndex * kSlotsPerPage);
+                    output.occupied.fill(0);
+                    for (size_t word = 0; word < output.occupied.size(); word++)
+                    {
+                        const auto sourceWord = pageIndex * output.occupied.size() + word;
+                        if (sourceWord < pool.occupiedWords.size())
+                            output.occupied[word] = pool.occupiedWords[sourceWord];
+                    }
+                    const auto byteCount = pool.stride * kSlotsPerPage;
+                    output.storage.resize(byteCount);
+                    std::memcpy(output.storage.data(), pool.pages[pageIndex].get(), byteCount);
+                }
+            }
+            snapshot._bulkPageCount = outputIndex;
+        }
+    };
+
+    EntityRegistry::EntityRegistry()
+        : _storage(std::make_unique<EntityStorage>())
+    {
+        _entityPoolSlots.fill(UINT32_MAX);
+        ResetAllEntities();
+    }
+
+    EntityRegistry::~EntityRegistry() = default;
 
     uint32_t EntityRegistry::ComputeSpatialIndex(const CoordsXY& loc) noexcept
     {
@@ -105,6 +274,11 @@ namespace OpenRCT2
         return gEntityLists[EnumValue(id)];
     }
 
+    const std::vector<EntityBase*>& EntityRegistry::GetEntityExecutionList(const EntityType id) const noexcept
+    {
+        return _entityExecutionLists[EnumValue(id)];
+    }
+
     const std::vector<EntityId>& EntityRegistry::GetVehicleHeadEntityList()
     {
         if (!_vehicleHeadEntityListDirty)
@@ -136,22 +310,19 @@ namespace OpenRCT2
         {
             for (const auto entityId : list)
             {
-                FreeEntity(entities[entityId.ToUnderlying()].base);
+                FreeEntity(*entities[entityId.ToUnderlying()]);
             }
         }
 
-        std::fill(std::begin(entities), std::end(entities), Entity_t());
+        _storage->Clear();
+        entities.fill(nullptr);
+        _entityPoolSlots.fill(UINT32_MAX);
         RideUse::GetHistory().Clear();
         RideUse::GetTypeHistory().Clear();
-        for (uint32_t i = 0; i < kMaxEntities; ++i)
-        {
-            auto& entity = entities[i].base;
-            entity.type = EntityType::null;
-            entity.id = EntityId::FromUnderlying(static_cast<EntityId::UnderlyingType>(i));
-
-            _entityFlashingList[i] = false;
-        }
+        std::fill(std::begin(_entityFlashingList), std::end(_entityFlashingList), false);
         for (auto& list : gEntityLists)
+            list.clear();
+        for (auto& list : _entityExecutionLists)
             list.clear();
         _vehicleHeadEntityList.clear();
         _vehicleHeadEntityListDirty = true;
@@ -179,7 +350,7 @@ namespace OpenRCT2
         {
             for (const auto entityId : list)
             {
-                auto& entity = entities[entityId.ToUnderlying()].base;
+                auto& entity = *entities[entityId.ToUnderlying()];
                 EntitySpatialInsert(entity, { entity.x, entity.y });
             }
         }
@@ -203,19 +374,6 @@ namespace OpenRCT2
     }
 #endif // DISABLE_NETWORK
 
-    void EntityRegistry::EntityReset(EntityBase& entity)
-    {
-        // Retain the registry slot id while resetting entity storage.
-        auto entityIndex = entity.id;
-        _entityFlashingList[entityIndex.ToUnderlying()] = false;
-
-        Entity_t* tempEntity = reinterpret_cast<Entity_t*>(&entity);
-        *tempEntity = Entity_t();
-
-        entity.id = entityIndex;
-        entity.type = EntityType::null;
-    }
-
     uint16_t EntityRegistry::GetMiscEntityCount()
     {
         uint16_t count = 0;
@@ -228,13 +386,13 @@ namespace OpenRCT2
 
     void EntityRegistry::PrepareNewEntity(EntityBase& base, const EntityType type)
     {
-        // Need to reset all sprite data, as the uninitialised values
-        // may contain garbage and cause a desync later on.
-        EntityReset(base);
-
         base.type = type;
         auto& list = gEntityLists[EnumValue(type)];
         Guard::Assert(list.insert(base.id), "Entity %u is already in its typed list", base.id.ToUnderlying());
+        auto& executionList = _entityExecutionLists[EnumValue(type)];
+        const auto executionPosition = std::ranges::lower_bound(
+            executionList, base.id, {}, [](const EntityBase* entity) { return entity->id; });
+        executionList.insert(executionPosition, &base);
         if (type == EntityType::vehicle)
             _vehicleHeadEntityListDirty = true;
 
@@ -280,9 +438,12 @@ namespace OpenRCT2
 
         const auto entityId = *_freeIds.begin();
         Guard::Assert(_freeIds.erase(entityId), "Entity %u was not free", entityId.ToUnderlying());
-        auto& entity = entities[entityId.ToUnderlying()].base;
-        PrepareNewEntity(entity, type);
-        return &entity;
+        auto [entity, poolSlot] = _storage->Allocate(type);
+        entity->id = entityId;
+        entities[entityId.ToUnderlying()] = entity;
+        _entityPoolSlots[entityId.ToUnderlying()] = poolSlot;
+        PrepareNewEntity(*entity, type);
+        return entity;
     }
 
     EntityBase* EntityRegistry::CreateEntityAt(const EntityId index, const EntityType type)
@@ -292,9 +453,12 @@ namespace OpenRCT2
             return nullptr;
         }
 
-        auto& entity = entities[index.ToUnderlying()].base;
-        PrepareNewEntity(entity, type);
-        return &entity;
+        auto [entity, poolSlot] = _storage->Allocate(type);
+        entity->id = index;
+        entities[index.ToUnderlying()] = entity;
+        _entityPoolSlots[index.ToUnderlying()] = poolSlot;
+        PrepareNewEntity(*entity, type);
+        return entity;
     }
 
     /**
@@ -390,9 +554,9 @@ namespace OpenRCT2
                 continue;
             _spatialIndexDirtyQueued.reset(entityIndex);
 
-            auto& entity = entities[entityIndex].base;
-            Guard::Assert(entity.type != EntityType::null, "Queued spatial entity %u is not live", entityIndex);
-            UpdateEntitySpatialIndex(entity);
+            auto* entity = entities[entityIndex];
+            Guard::Assert(entity != nullptr, "Queued spatial entity %u is not live", entityIndex);
+            UpdateEntitySpatialIndex(*entity);
         }
         _spatialIndexDirtyEntities.clear();
     }
@@ -444,28 +608,55 @@ namespace OpenRCT2
     {
         EntityVisualChangeBatch batch{ _entityVisualEpoch, _entityVisualResetPending, {} };
         _entityVisualResetPending = false;
+
         std::ranges::sort(_entityVisualDirtyEntities);
         batch.changes.reserve(_entityVisualDirtyEntities.size());
+        size_t payloadSize = 0;
+        for (const auto id : _entityVisualDirtyEntities)
+        {
+            const auto* entity = entities[id.ToUnderlying()];
+            if (entity != nullptr)
+                payloadSize += EntityStorage::GetConcreteSize(entity->type);
+        }
+        batch.payload.reserve(payloadSize);
 
         for (const auto id : _entityVisualDirtyEntities)
         {
             const auto index = id.ToUnderlying();
-            const auto& entity = entities[index].base;
-            const bool present = entity.type != EntityType::null;
-            batch.changes.push_back({
+            const auto* entity = entities[index];
+            const bool present = entity != nullptr;
+            auto& change = batch.changes.emplace_back(EntityVisualChange{
                 GetEntityVisualHandle(id),
-                entity.type,
-                entity.getLocation(),
-                entity.spriteData,
-                entity.orientation,
+                present ? entity->type : EntityType::null,
+                present ? entity->getLocation() : CoordsXYZ{},
+                present ? entity->spriteData : EntitySpriteData{},
+                present ? entity->orientation : uint8_t{},
                 static_cast<EntityVisualDirty>(_entityVisualDirtyFlags[index]),
                 present,
             });
+            if (present)
+            {
+                const auto entitySize = EntityStorage::GetConcreteSize(entity->type);
+                change.payloadOffset = static_cast<uint32_t>(batch.payload.size());
+                change.payloadSize = static_cast<uint16_t>(entitySize);
+                const auto* first = reinterpret_cast<const std::byte*>(entity);
+                batch.payload.insert(batch.payload.end(), first, first + entitySize);
+            }
             _entityVisualDirtyFlags[index] = 0;
             _entityVisualDirtyQueued.reset(index);
         }
         _entityVisualDirtyEntities.clear();
         return batch;
+    }
+
+    void EntityRegistry::PublishEntityVisualState(EntityBase& entity) noexcept
+    {
+        QueueEntityVisualChange(entity, EntityVisualDirty::full);
+    }
+
+    void EntityRegistry::CaptureEntityPresentationStorage(EntityPresentationSnapshot& snapshot) const
+    {
+        _storage->Capture(snapshot);
     }
 
     /**
@@ -494,19 +685,32 @@ namespace OpenRCT2
      */
     void EntityRegistry::EntityRemove(EntityBase* entity)
     {
+        const auto id = entity->id;
+        const auto type = entity->type;
+        const auto index = id.ToUnderlying();
+        const auto poolSlot = _entityPoolSlots[index];
         FreeEntity(*entity);
         CancelEntitySpatialIndexUpdate(*entity);
 
         EntityTweener::Get().RemoveEntity(entity);
-        auto& list = gEntityLists[EnumValue(entity->type)];
-        Guard::Assert(list.erase(entity->id), "Entity %u was not in its typed list", entity->id.ToUnderlying());
-        Guard::Assert(_freeIds.insert(entity->id), "Entity %u is already free", entity->id.ToUnderlying());
-        if (entity->type == EntityType::vehicle)
+        auto& list = gEntityLists[EnumValue(type)];
+        Guard::Assert(list.erase(id), "Entity %u was not in its typed list", id.ToUnderlying());
+        auto& executionList = _entityExecutionLists[EnumValue(type)];
+        const auto executionPosition = std::ranges::lower_bound(
+            executionList, id, {}, [](const EntityBase* candidate) { return candidate->id; });
+        Guard::Assert(
+            executionPosition != executionList.end() && *executionPosition == entity,
+            "Entity %u was not in its execution list", id.ToUnderlying());
+        executionList.erase(executionPosition);
+        Guard::Assert(_freeIds.insert(id), "Entity %u is already free", id.ToUnderlying());
+        if (type == EntityType::vehicle)
             _vehicleHeadEntityListDirty = true;
 
         EntitySpatialRemove(*entity);
-        EntityReset(*entity);
-        QueueEntityVisualChange(entity->id, EntityVisualDirty::presence);
+        entities[index] = nullptr;
+        _entityPoolSlots[index] = UINT32_MAX;
+        _storage->Release(type, poolSlot);
+        QueueEntityVisualChange(id, EntityVisualDirty::presence);
     }
 
     /**

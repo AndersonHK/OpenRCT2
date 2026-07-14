@@ -20,6 +20,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
+#include <memory>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -37,6 +38,8 @@ namespace OpenRCT2
     constexpr uint32_t kSpatialIndexDirtyMask = 1u << 31;
 
     class EntityRegistry;
+    class EntityPresentationSnapshot;
+    class EntityStorage;
 
     // Allocation-free ascending membership with the former list iterator's mutation semantics.
     class EntityIdList
@@ -239,12 +242,16 @@ namespace OpenRCT2
     class EntityRegistry
     {
     private:
+        friend class EntityPresentationSnapshot;
         friend struct EntityBase;
         template<typename T>
         friend class EntityListIterator;
 
-        Entity_t entities[kMaxEntities]{};
+        std::unique_ptr<EntityStorage> _storage;
+        std::array<EntityBase*, kMaxEntities> entities{};
+        std::array<uint32_t, kMaxEntities> _entityPoolSlots{};
         std::array<EntityIdList, EnumValue(EntityType::count)> gEntityLists;
+        std::array<std::vector<EntityBase*>, EnumValue(EntityType::count)> _entityExecutionLists;
         std::vector<EntityId> _vehicleHeadEntityList;
         bool _vehicleHeadEntityListDirty{ true };
         EntityIdList _freeIds;
@@ -274,6 +281,12 @@ namespace OpenRCT2
         }
 
     public:
+        EntityRegistry();
+        ~EntityRegistry();
+
+        EntityRegistry(const EntityRegistry&) = delete;
+        EntityRegistry& operator=(const EntityRegistry&) = delete;
+
         uint16_t GetEntityListCount(EntityType type);
         uint16_t GetNumFreeEntities();
 
@@ -288,7 +301,7 @@ namespace OpenRCT2
         EntityBase* TryGetEntity(EntityId entityId)
         {
             const auto index = entityId.ToUnderlying();
-            return index < kMaxEntities ? &entities[index].base : nullptr;
+            return index < kMaxEntities ? entities[index] : nullptr;
         }
 
         template<typename T>
@@ -317,6 +330,7 @@ namespace OpenRCT2
         }
 
         const EntityIdList& GetEntityList(EntityType id);
+        const std::vector<EntityBase*>& GetEntityExecutionList(EntityType id) const noexcept;
         const std::vector<EntityId>& GetVehicleHeadEntityList();
         uint16_t GetMiscEntityCount();
 
@@ -325,6 +339,8 @@ namespace OpenRCT2
 
         [[nodiscard]] EntityVisualHandle GetEntityVisualHandle(EntityId id) const noexcept;
         [[nodiscard]] EntityVisualChangeBatch ConsumeEntityVisualChanges();
+        void PublishEntityVisualState(EntityBase& entity) noexcept;
+        void CaptureEntityPresentationStorage(EntityPresentationSnapshot& snapshot) const;
 
 #ifndef DISABLE_NETWORK
 
@@ -383,7 +399,6 @@ namespace OpenRCT2
         static uint32_t GetSpatialIndex(const EntityBase& entity) noexcept;
         static bool IsMiscEntity(EntityType type) noexcept;
 
-        void EntityReset(EntityBase& entity);
         void PrepareNewEntity(EntityBase& base, EntityType type);
         void EntitySpatialInsert(EntityBase& entity, const CoordsXY& newLoc);
         void EntitySpatialRemove(EntityBase& entity);
@@ -395,5 +410,20 @@ namespace OpenRCT2
         void ResetEntityVisualLifecycle() noexcept;
         void FreeEntity(EntityBase& entity);
     };
+
+    // Presentation code resolves through the scoped immutable scene when one is active and through the live registry otherwise.
+    [[nodiscard]] EntityBase* GetEntityForPresentation(EntityId id) noexcept;
+
+    template<typename T>
+    [[nodiscard]] T* GetEntityForPresentation(EntityId id) noexcept
+    {
+        auto* entity = GetEntityForPresentation(id);
+        if constexpr (std::is_same_v<T, EntityBase>)
+            return entity;
+        else if constexpr (requires { T::cEntityType; })
+            return entity != nullptr && entity->type == T::cEntityType ? entity->cast<T>() : nullptr;
+        else
+            return entity == nullptr ? nullptr : entity->as<T>();
+    }
 
 } // namespace OpenRCT2

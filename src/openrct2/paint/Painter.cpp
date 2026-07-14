@@ -177,29 +177,36 @@ PaintSession* Painter::CreateSession(RenderTarget& rt, uint32_t viewFlags, uint8
         session = &_paintSessionPool.emplace_back();
     }
 
-    session->rt = rt;
-    session->ViewFlags = viewFlags;
-    session->QuadrantBackIndex = std::numeric_limits<uint32_t>::max();
-    session->QuadrantFrontIndex = 0;
-    session->Flags = 0;
-    session->CurrentRotation = rotation;
-
-    Guard::Assert(session->ActiveQuadrants.empty(), "Reused paint session retained active quadrants");
-    session->PaintHead = nullptr;
-    session->LastPS = nullptr;
-    session->LastAttachedPS = nullptr;
-    session->PSStringHead = nullptr;
-    session->LastPSString = nullptr;
-    session->WoodenSupportsPrependTo = nullptr;
-    session->CurrentlyDrawnEntity = nullptr;
-    session->CurrentlyDrawnTileElement = nullptr;
-    session->Surface = nullptr;
-    session->SelectedElement = TileInspector::GetSelectedElement();
-    session->InteractionType = ViewportInteractionItem::none;
-    session->PathElementOnSameHeight = nullptr;
-    session->TrackElementOnSameHeight = nullptr;
+    PaintSessionInitialise(*session, rt, viewFlags, rotation);
 
     return session;
+}
+
+void PaintSessionInitialise(PaintSession& session, RenderTarget& rt, uint32_t viewFlags, uint8_t rotation)
+{
+    session.rt = rt;
+    session.ViewFlags = viewFlags;
+    session.QuadrantBackIndex = std::numeric_limits<uint32_t>::max();
+    session.QuadrantFrontIndex = 0;
+    session.Flags = 0;
+    session.CurrentRotation = rotation;
+
+    Guard::Assert(session.ActiveQuadrants.empty(), "Reused paint session retained active quadrants");
+    session.PaintHead = nullptr;
+    session.LastPS = nullptr;
+    session.LastAttachedPS = nullptr;
+    session.PSStringHead = nullptr;
+    session.LastPSString = nullptr;
+    session.WoodenSupportsPrependTo = nullptr;
+    session.CurrentlyDrawnEntity = {};
+    session.EntitySnapshot = nullptr;
+    session.MapSnapshot = nullptr;
+    session.CurrentlyDrawnTileElement = nullptr;
+    session.Surface = nullptr;
+    session.SelectedElement = TileInspector::GetSelectedElement();
+    session.InteractionType = ViewportInteractionItem::none;
+    session.PathElementOnSameHeight = nullptr;
+    session.TrackElementOnSameHeight = nullptr;
 }
 
 void Painter::ReleaseSession(PaintSession* session)

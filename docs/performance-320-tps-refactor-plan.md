@@ -2,8 +2,9 @@
 
 ## Goal and acceptance criteria
 
-The performance target is **360 completed logical simulation ticks per wall-clock second while sustaining 144 presented frames
-per second** on `test/tests/testdata/parks/EverythingPark.park`. A requested game-speed multiplier is not evidence of success:
+The immediate performance gate is **360 completed logical simulation ticks per wall-clock second while sustaining 144 presented
+frames per second** on `test/tests/testdata/parks/EverythingPark.park`; the long-term architecture target is 1,000 honest,
+individually completed TPS on the same workload as parallel simulation phases replace serial entity and ride loops. A requested game-speed multiplier is not evidence of success:
 the measured `GameState::currentTicks` and completed-frame deltas must reach both targets in the same interval while the game
 remains responsive. Ordinary offline Turbo targets 360 individually scheduled logical ticks per second. Network sessions retain
 ordered catch-up batching because clients must follow the authoritative server tick.
@@ -12,6 +13,12 @@ As of the 2026-07-13 scheduler experiment, that batch architecture is superseded
 single-logical-tick scheduler path; only its interval changes. Turbo is a `1 / 360` second interval, not nine updates inside a
 40 Hz scene tick. The older batched measurements below remain historical evidence rather than a description of current control
 flow. Network sessions still use ordered per-network-tick catch-up because client/server tick authority requires it.
+
+Snapshot cadence is frame-driven, not fixed to a tick count. VSync completion admits the next frame and serves the newest fully
+completed snapshot; how many logical ticks it contains is an emergent TPS/FPS ratio. At a hypothetical 360 TPS and 120 FPS that
+will often be three ticks, but neither invalidation nor publication encodes that number. The latest sustained acceptance run uses
+2,000 warm-up plus 12,000 measured EverythingPark ticks and reaches `354.475` TPS / `144.006` FPS, `1.695` ms/tick,
+`1.421` ms/draw, and checksum `ca1cebcdee9abff4000000000000000000000000` while ending at 17,502 guests.
 
 The work follows these priorities:
 
@@ -22,8 +29,10 @@ The work follows these priorities:
    startup and reused; no hot path creates ad-hoc threads.
 4. Single-threaded per-guest, per-vehicle, and per-pixel work is the most expensive resource and must be reduced first.
 
-The target is measured in a Release x64 build with the same park checksum and deterministic simulation result. Visual
-correctness, replay/network determinism, save compatibility, and ordinary 40 TPS timing remain hard constraints.
+The target is measured in a Release x64 build with the same park checksum and deterministic simulation result. Replay/network
+determinism, save compatibility, and ordinary 40 TPS timing remain hard constraints. Presentation may trail the latest
+simulation state by a bounded frame, and small gameplay-order changes are acceptable when they unlock deterministic barriered
+phases rather than timing-dependent results.
 
 ## Benchmark contract
 
@@ -74,7 +83,7 @@ openrct2 EverythingPark.park --benchmark-ui --benchmark-warmup=5 --benchmark-dur
 For deterministic comparisons, replace the time-based phase limits with fixed counts:
 
 ```text
-openrct2 EverythingPark.park --benchmark-ui --benchmark-warmup-ticks=1998 --benchmark-ticks=3600 \
+openrct2 EverythingPark.park --benchmark-ui --benchmark-warmup-ticks=2000 --benchmark-ticks=12000 \
     --benchmark-renderer=vulkan --benchmark-vsync=1
 ```
 
@@ -87,6 +96,67 @@ and visible Vulkan/VSync runs reached `359.938` and `359.881` TPS with identical
 policy: both windows submitted about 2,600 FPS on this machine. EverythingPark reached `282.657` TPS and `90.607` FPS over an
 exact 3,600 ticks, while the separate headless simulation ceiling remained `552.172` TPS. The experiment therefore removes
 coarse Turbo batching but repeats enough ordinary scene and presentation work to lose the prior integrated throughput gain.
+
+The first deep snapshot slice replaces the pool's global submit-and-drain barrier with independently waitable task groups and
+moves map tiles into a retained, chunked copy-on-write presentation scene. Tile mutations are coalesced through the render
+invalidation stream into owned change batches. After current viewport columns finish, a pool task applies the newest batch to a
+private scene while the main thread proceeds; the next frame swaps it in only if complete and otherwise uses the last completed
+tick. No worker reads live tile storage. A deliberately naive full-map-per-redraw prototype was rejected after it fell to
+`139.278` TPS/`36.406` FPS; the retained steady-state update measured about 6 microseconds per redraw before being moved off the
+caller. The accepted 1,998-warm-up/3,600-tick row reaches `315.575` TPS and `135.785` FPS at `2.666` ms/tick and `0.905` ms/draw,
+with unchanged checksum `1322b2e30a3c8e84000000000000000000000000`. The next snapshot category is the dynamic entity scene;
+only after entities, ride presentation records, global paint flags, and texture lookup are owned can complete command recording
+run asynchronously without data races.
+
+Two dynamic-scene prototypes were deliberately removed rather than carried forward. A compact guest/staff copy plus a direct
+262,144-bucket index reached only `295.455` TPS and `110.713` FPS; integrating capture into the peep loop and replacing the
+dense index with sparse radix/hash publication reached `297.101` TPS and `75.101` FPS. Capturing the compact population alone
+cost about 270 microseconds, while rebuilding spatial ownership competed with simulation and viewport workers for the same
+memory bandwidth. The next entity attempt must therefore emit presentation records as an output of an entity-owned update
+phase; it must not add another whole-population pass over the current 512-byte entity AoS storage.
+
+That storage boundary has now moved. The monolithic 65,535-slot, 512-byte entity union is replaced by 256-slot pages owned by
+each concrete entity type. EntityId lookup remains O(1) through a compact pointer table, object addresses are stable for their
+lifetime, freed slots are reused within their type, and only occupied typed pages need participate in future capture. Creation
+and removal also maintain ascending-EntityId execution vectors. Guest and staff simulation traverse these dense pointer views
+directly, eliminating the repeated global bitset and pointer-table walk without adding a per-tick classification pass.
+
+An owned entity presentation scene, compact paint references, and snapshot-aware painter lookups are implemented as dormant
+infrastructure. Live publication is intentionally not enabled yet. Full clones fell near `252` TPS, bounded/compact variants
+near `276`-`279` TPS, incremental payload publication near `281`-`282` TPS, and typed-page bulk capture reached `326.606` TPS
+against live-state runs above `336` TPS. A deferred on-ride guest task queue similarly reached only `323.315` TPS. These paths
+were rejected because they move or schedule more data than the legacy painter saves; the next presentation slice must emit
+small object-owned render records at mutation/update boundaries and consume them as retained GPU-friendly streams.
+
+The accepted exact 500-warm-up/1,000-tick rows span `337.838` to `347.865` TPS, with a final checkpoint at `339.022` TPS and
+checksum `b32817d4309a626f000000000000000000000000`. The stronger capacity result is the 1,998-warm-up/12,000-tick run: it grows
+from 14,084 to 17,502 guests while sustaining `318.874` TPS, records a `6.102` ms longest tick, and completes with checksum
+`7e6d2693dce43420000000000000000000000000`. Typed storage alone measured `305.480` TPS and the pre-storage retained-scene
+checkpoint measured `301.464` TPS. Determinism is exact, but this remains short of the sustained 360 TPS acceptance gate.
+
+The compute pool now has foreground, normal simulation, and background queues in addition to independently waitable groups.
+Viewport column generation/drawing is foreground work, retained scene publication is background work, and deterministic
+simulation phases use normal priority. This prevents a previous frame's snapshot maintenance from occupying workers needed by
+the current frame and establishes the scheduling contract for later asynchronous command recording.
+
+Live train measurement/rating is the first simulation loop moved into a deterministic owned phase. Tasks own complete rides,
+including each ride's active samples and train runtime caches. The 16 MiB cross-ride spatial memo table is protected only at
+its lookup/publication boundary by 4,096 striped locks; expensive map scoring runs outside the lock and double-checks before
+publishing. A first prototype that bypassed the shared memo table was removed after cache misses expanded rating work from about
+0.25 ms/tick to 1.47 ms/tick of aggregate worker CPU. With locality retained, profiled `VehicleUpdateAll` fell from about
+674 to 545 microseconds/tick. A clean serial-gate comparison reached `301.347` TPS at `2.801` ms/tick; two task-phase runs reached
+`307.359` and `309.876` TPS at `2.755` and `2.732` ms/tick, all with checksum
+`1322b2e30a3c8e84000000000000000000000000`.
+
+The longer accepted interval uses the same 1,998-tick warm-up followed by 12,000 individually completed ticks. Population grows
+from 14,084 to 17,502 guests during measurement; the run sustains `301.464` TPS at `2.822` ms/tick, with a `6.292` ms longest
+tick and checksum `7e6d2693dce43420000000000000000000000000`. GPU work remains about `0.100` ms/frame. The growing-population row is the
+honest capacity result: this slice improves one vehicle phase but does not yet achieve 360 TPS under the later, heavier load.
+
+A scheduler-only peep split was also removed. Classifying local updates into pointer queues increased `PeepUpdateAll` from about
+1.44 to 1.63 ms/tick and changed the deterministic state through ordering changes. Peep parallelism therefore remains blocked
+on an entity-storage redesign: state-owned hot arrays, per-phase command buffers, and presentation emission must replace the
+extra classification pass rather than sit on top of it.
 
 Add `--benchmark-profile=integrated.csv` (or `.json`) to profile only the fixed measurement phase. Profiling adds timing and
 atomic bookkeeping, so its output locates large subsystems while a separate profiler-disabled run remains the acceptance result.
@@ -1015,6 +1085,20 @@ cache counts. Headless simulation remains above target at `558.302` TPS with che
 it held `144.016` FPS but averaged `347.182` TPS as the park grew from 14,084 to 17,231 guests. The fixed fixture now reaches
 360, but the sustained growing-park requirement is not complete. The next architectural slice remains deterministic staged guest
 and vehicle mutation or an immutable retained visual snapshot; scheduler tuning alone cannot create that remaining headroom.
+
+The subsequent frame-ahead experiment established a stricter ownership boundary. Copying legacy `GameState_t`-compatible entity
+and ride storage on every invalidated viewport consumed about 3 ms on the main thread before any worker could record commands.
+Even after restricting full entity payload copies to the projected viewport, that shape remained slower than synchronous paint
+and was removed completely. Asynchronous rendering is therefore gated on mutation-owned presentation records, not another
+full-world scan hidden behind a worker task.
+
+The retained Vulkan mailbox admission gate prevents the scheduler from constructing a visual packet when one newer visual packet
+is already queued behind the render worker. On the current 60 Hz display, 500 warm-up plus 1,000 measured EverythingPark ticks
+reach `311.017` TPS hidden and `307.963` TPS visible, both with checksum
+`b32817d4309a626f000000000000000000000000`; admitted CPU draws average about `1.50` ms while GPU frames average about
+`0.109` ms. The next deep rendering implementation is split explicitly into persistent static-map records and compact dynamic
+entity/ride records published directly by their owning update phases. It must demonstrate that the UI thread no longer performs
+a clone or waits for command generation before replacing synchronous paint.
 
 Expected result: destination-aware guests share expensive topology work, while dynamic transport and crowding costs remain
 cheap overlays.

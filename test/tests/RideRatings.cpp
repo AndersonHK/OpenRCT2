@@ -1333,6 +1333,22 @@ TEST_F(RideRatings, PlatformPreQueueAdaptersOptInScalarTransportAndCoasterStatio
     EXPECT_FALSE(RideIsTransportStationOvercrowded(ride, StationIndex::FromUnderlying(0)));
 }
 
+TEST_F(RideRatings, PlatformPreQueueTreatsOutOfRangeStationAsInactive)
+{
+    Ride ride{};
+    ride.id = rideId;
+    InitialiseRide(ride, RIDE_TYPE_MONORAIL, 1);
+    constexpr auto staleStation = StationIndex::FromUnderlying(1);
+    constexpr auto guestId = EntityId::FromUnderlying(123);
+
+    RideActivateStationPlatformPreQueue(ride, staleStation);
+
+    EXPECT_FALSE(RideStationPlatformPreQueueIsActive(ride, staleStation));
+    EXPECT_FALSE(RideReserveStationPlatformSlot(ride, staleStation, guestId).has_value());
+    EXPECT_FALSE(RideGetStationPlatformReservation(ride, staleStation, guestId).has_value());
+    EXPECT_NO_THROW(RideReleaseStationPlatformSlot(ride, staleStation, guestId));
+}
+
 TEST_F(RideRatings, MultiStationSamplesPublishAuthoritativeLegsAndConservativeCompatibility)
 {
     Ride ride{};

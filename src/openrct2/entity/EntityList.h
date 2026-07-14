@@ -13,6 +13,7 @@
 #include "../rct12/RCT12.h"
 #include "../world/Location.hpp"
 #include "EntityBase.h"
+#include "EntityPresentationSnapshot.h"
 #include "EntityRegistry.h"
 
 #include <cassert>
@@ -25,7 +26,8 @@ namespace OpenRCT2
     class EntityTileIterator
     {
     private:
-        EntityRegistry* registry;
+        EntityRegistry* registry{};
+        const EntityPresentationSnapshot* snapshot{};
         std::vector<EntityId>::const_iterator iter;
         std::vector<EntityId>::const_iterator end;
         T* Entity = nullptr;
@@ -39,13 +41,24 @@ namespace OpenRCT2
         {
             ++(*this);
         }
+
+        EntityTileIterator(
+            const EntityPresentationSnapshot& _snapshot, std::vector<EntityId>::const_iterator _iter,
+            std::vector<EntityId>::const_iterator _end)
+            : snapshot(&_snapshot)
+            , iter(_iter)
+            , end(_end)
+        {
+            ++(*this);
+        }
         EntityTileIterator& operator++()
         {
             Entity = nullptr;
 
             while (iter != end && Entity == nullptr)
             {
-                auto* entity = registry->TryGetEntity(*iter++);
+                auto* entity = snapshot == nullptr ? registry->TryGetEntity(*iter++)
+                                                   : const_cast<EntityBase*>(snapshot->TryGetEntity(*iter++));
                 if constexpr (std::is_same_v<T, EntityBase>)
                 {
                     Entity = entity;
@@ -95,23 +108,36 @@ namespace OpenRCT2
     class EntityTileList
     {
     private:
-        EntityRegistry& registry;
-        const std::vector<EntityId>& vec;
+        EntityRegistry* registry{};
+        const EntityPresentationSnapshot* snapshot{};
+        const std::vector<EntityId>* vec{};
 
     public:
         EntityTileList(const CoordsXY& loc)
-            : registry(getGameState().entities)
-            , vec(registry.GetEntityTileList(loc))
         {
+            snapshot = GetCurrentEntityPresentationSnapshot();
+            if (snapshot != nullptr)
+            {
+                vec = &snapshot->GetEntityTileList(loc);
+            }
+            else
+            {
+                registry = &getGameState().entities;
+                vec = &registry->GetEntityTileList(loc);
+            }
         }
 
         EntityTileIterator<T> begin()
         {
-            return EntityTileIterator<T>(registry, std::begin(vec), std::end(vec));
+            if (snapshot != nullptr)
+                return EntityTileIterator<T>(*snapshot, std::begin(*vec), std::end(*vec));
+            return EntityTileIterator<T>(*registry, std::begin(*vec), std::end(*vec));
         }
         EntityTileIterator<T> end()
         {
-            return EntityTileIterator<T>(registry, std::end(vec), std::end(vec));
+            if (snapshot != nullptr)
+                return EntityTileIterator<T>(*snapshot, std::end(*vec), std::end(*vec));
+            return EntityTileIterator<T>(*registry, std::end(*vec), std::end(*vec));
         }
     };
 
@@ -152,9 +178,9 @@ namespace OpenRCT2
         {
             const auto id = (*iter).ToUnderlying();
             assert(id < kMaxEntities);
-            auto& entity = registry->entities[id].base;
-            assert(entity.type == T::cEntityType);
-            return entity.cast<T>();
+            auto* entity = registry->entities[id];
+            assert(entity != nullptr && entity->type == T::cEntityType);
+            return entity->cast<T>();
         }
         // iterator traits
         using difference_type = std::ptrdiff_t;

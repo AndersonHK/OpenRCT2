@@ -7,6 +7,122 @@ documents. The upstream project's release history remains in [distribution/chang
 
 ## 2026-07-13
 
+### Frame-driven 144 Hz presentation and deterministic audio ownership
+
+Presentation is now governed by the display rather than a fixed logical-tick ratio. VSync completion makes the newest fully
+completed world snapshot eligible for the following frame; the number of ticks represented by that snapshot is whatever the
+actual TPS/FPS ratio produced. The scheduler checks frame admission after every indivisible logical tick, so it neither replaces
+a snapshot during rendering nor assumes that a frame always spans three ticks.
+
+On Windows hybrid CPUs, the latency-critical game-loop thread selects the highest-performance CPU-set class while the shared
+render/compute pool remains eligible for all logical processors. This prevents background viewport preparation from displacing
+authoritative simulation onto efficiency cores without reducing worker capacity on symmetric CPUs or other platforms.
+
+Ride music is split at the same ownership boundary. Every tick deterministically advances tune, breakdown, and saved cursor state;
+listener projection, audible-instance selection, sorting, and channel updates sample that state once per UI frame. Audio-device
+wall-clock offsets can no longer write authoritative ride state. The generic retained-time horizon is also fixed at 100 ms for
+every offline speed instead of shrinking to 11.1 ms at 360 TPS, so ordinary scheduler stalls do not silently discard Turbo time.
+All retained debt is still consumed as individually completed ticks with a VSync admission check after each one.
+
+The exact 2,000-warm-up/12,000-tick EverythingPark Vulkan/VSync acceptance run sustains `354.475` TPS and `144.006` FPS while
+population grows from 14,085 to 17,502 guests. Mean simulation is `1.695` ms/tick, complete draw/presentation is `1.421` ms/frame,
+and frame intervals are `7.085` ms p50, `8.333` ms p99, and `9.561` ms maximum. Checksum
+`ca1cebcdee9abff4000000000000000000000000` matches the pre-retune state, and all 552 tests pass.
+
+### Typed paged entities and persistent execution views
+
+The 65,535-entry, 512-byte union-backed entity arena has been replaced by type-owned, 256-slot pages sized for each concrete
+entity class. Entity IDs still provide direct O(1) lookup through a compact pointer table, while concrete objects retain stable
+addresses for their lifetime and freed typed slots are zeroed before reuse. Per-type occupancy words support page-oriented
+snapshot capture without scanning or copying the old 32 MiB monolithic arena.
+
+Entity creation and removal now maintain sorted, stable-pointer execution views for each type. The hot guest and staff update
+loops consume those views directly instead of repeatedly walking the global occupancy bitset and pointer table. Their mutation
+handling preserves ascending EntityId order when an entity removes itself during update. Broader conversions were retained only
+where they preserved the fixed-run state; a miscellaneous-entity conversion that changed ordering was removed.
+
+The presentation layer now has an owned, copy-on-write entity snapshot format and snapshot-aware paint lookups. This is retained
+as the next asynchronous-rendering foundation, but live full-population publication remains disabled: full, visibility-bounded,
+compact, incremental, and typed-page capture variants all cost more memory bandwidth than they saved in the current painter.
+Likewise, a deferred on-ride guest task queue was removed after its scheduling overhead reduced throughput. The active renderer
+continues to use the asynchronous map scene and non-blocking frame admission without paying for a live entity clone.
+
+Exact 500-warm-up/1,000-tick EverythingPark runs now fall in a roughly `338`-`348` TPS band; the final acceptance run reached
+`339.022` TPS with the expected 13,463-to-13,891 guest transition and checksum
+`b32817d4309a626f000000000000000000000000`. More importantly, the 1,998-warm-up/12,000-tick growing-population run sustains
+`318.874` TPS, from 14,084 to 17,502 guests, with a `6.102` ms longest tick and checksum
+`7e6d2693dce43420000000000000000000000000`. The comparable typed-storage-only row was `305.480` TPS and the pre-storage row
+`301.464` TPS. This is a substantial deterministic storage/execution reordering, but sustained 360 TPS remains open.
+
+### Renderer frame admission and rejected monolithic world cloning
+
+The Vulkan mailbox now exposes non-blocking frame admission to the ordinary scheduler. While the render worker already owns a
+newer queued visual packet, the UI continues simulation and input work instead of rebuilding a frame that `LatestFrameMailbox`
+would immediately supersede. Control-only readback and timing-boundary packets do not close admission. This rule is renderer
+capacity based and applies independently of game speed; Turbo remains the same one-tick scheduler at a 360 TPS target.
+
+A full frame-ahead viewport recorder was implemented and then removed after measurement. Although workers generated and sorted
+commands against retained map data, producing an owned compatible `GameState_t` still cost about 3 ms per invalidated viewport:
+roughly 1.5 ms for entity storage and 1.4 ms for 500-plus ride objects in the first profile. Visibility-bounded entity payloads
+and reusable ride storage reduced that cost but still left admitted draws near 3.5 ms and integrated throughput below the
+existing renderer. No monolithic presentation clone or deferred LightFX path remains. The next renderer phase must publish
+object-owned incremental presentation records at mutation boundaries, then build retained static-map and dynamic-entity command
+streams independently.
+
+With the rejected recorder removed, a fixed 500-warm-up/1,000-tick EverythingPark run reaches `311.017` TPS hidden and
+`307.963` TPS visible with matching checksum `b32817d4309a626f000000000000000000000000`. The active display currently reports
+a 60 Hz presentation cadence; the two rows complete at `61.581` and `59.437` FPS rather than constructing hundreds of disposable
+CPU frames per second. Mean admitted draw construction is about `1.50` ms and GPU work about `0.109` ms. This is a bounded
+scheduling gain, not completion of the 360 TPS objective.
+
+### Deterministic ride tasks and priority-aware compute queues
+
+The process-lifetime worker pool now separates foreground viewport work, normal deterministic simulation phases, and background
+snapshot publication. Independent task groups retain their own barriers and errors while workers always service the most
+latency-sensitive queued class first. This is the queueing foundation for later frame-ahead command recording: retained-scene
+maintenance cannot occupy a worker needed by the current viewport, and simulation tasks do not drain unrelated presentation
+work.
+
+Live train measurement and rating accumulation now runs as a ride-owned phase before serial vehicle motion. One task owns all
+trains and active rating samples for a ride. The shared local-context memo table retains its cross-ride locality through striped,
+double-checked publication: workers lock only cache metadata, release it while scanning the immutable map snapshot, then recheck
+before publishing. The rejected cache-bypass prototype made environment scoring several times more expensive; it has no shipped
+code path.
+
+In the controlled EverythingPark comparison, disabling only the ride task gate produced `301.347` TPS and `2.801` ms/tick.
+Two enabled runs produced `307.359`/`309.876` TPS and `2.755`/`2.732` ms/tick. Initial/final populations and checksum
+`1322b2e30a3c8e84000000000000000000000000` remain identical. Focused pool and ride-rating validation passes, including explicit
+foreground-before-background ordering coverage.
+
+The sustained 1,998-warm-up/12,000-tick EverythingPark run reaches `301.464` TPS and `2.822` ms/tick while guest population
+grows from 14,084 to 17,502. Its longest tick is `6.292` ms and checksum is
+`7e6d2693dce43420000000000000000000000000`. This remains below the 360 TPS target at the heavier endpoint; the result is
+recorded as a real phase gain and scheduling foundation, not as completion of the overall performance objective.
+
+Two broader experiments were removed after profiling. A second compact guest/staff render world lost throughput to capture and
+spatial-rebuild memory traffic, and a scheduler-only peep classification phase raised `PeepUpdateAll` from about 1.44 to 1.63
+ms/tick while changing update order. The required next step is an entity-storage redesign that emits simulation commands and
+presentation records from owned state, not another scan layered over the legacy entity array.
+
+### Asynchronous retained tile-scene publication
+
+The process-lifetime compute pool now supports independently waitable task groups. `ParallelFor` barriers wait only for their
+own captures instead of draining unrelated producers, so presentation preparation, viewport work, and future barriered
+simulation phases can coexist in one pool without one caller accidentally joining the entire machine-wide queue.
+
+Map presentation no longer traverses mutable tile storage directly. Render invalidations publish owned per-tile changes into a
+chunked copy-on-write scene; after the current viewport barriers, a worker prepares the next immutable scene while subsequent
+UI and simulation work continues. A frame adopts that scene only when complete and otherwise renders the last valid tick without
+waiting. Full scene capture occurs only after map replacement; ordinary frames clone changed 256-tile chunks and retain all
+unchanged storage. This deliberately permits presentation to trail simulation by a frame while leaving simulation state,
+checksums, saves, replays, and multiplayer ordering untouched.
+
+The fixed 1,998-warm-up/3,600-tick EverythingPark Vulkan/VSync checkpoint reaches `315.575` TPS and `135.785` FPS, with
+`2.666` ms mean simulation ticks, `0.905` ms complete draws, and checksum
+`1322b2e30a3c8e84000000000000000000000000`. The comparable pre-snapshot/audio-coalescing checkpoint was `307.418` TPS and
+`128.176` FPS. This is the first live world category behind an asynchronous snapshot; entities, rides, overlays, UI command
+recording, and texture resolution still prevent the whole painter from leaving the simulation/UI thread.
+
 ### Turbo reduced to an ordinary 360 Hz scheduler rate
 
 The dedicated offline Turbo execution path has been removed. Turbo no longer owns a 25 ms pacer, nine-update batches,

@@ -30,6 +30,20 @@ namespace OpenRCT2
     using RideRating_t = fixed16_2dp;
     namespace RideRating
     {
+        /** Enables synchronised access to shared immutable-result caches from a ride-owned worker task. */
+        class ScopedParallelContext
+        {
+        private:
+            bool _previous{};
+
+        public:
+            ScopedParallelContext() noexcept;
+            ~ScopedParallelContext();
+
+            ScopedParallelContext(const ScopedParallelContext&) = delete;
+            ScopedParallelContext& operator=(const ScopedParallelContext&) = delete;
+        };
+
         // Convenience function for writing ride ratings. The result is a 16 bit signed
         // integer. To create the ride rating 3.65 type MakeRideRating(3, 65).
         constexpr RideRating_t make(int16_t whole, uint8_t fraction)

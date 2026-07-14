@@ -22,6 +22,7 @@
 #include "../drawing/IDrawingEngine.h"
 #include "../drawing/Rectangle.h"
 #include "../entity/Guest.h"
+#include "../entity/EntityPresentationSnapshot.h"
 #include "../entity/Staff.h"
 #include "../interface/Cursors.h"
 #include "../object/LargeSceneryEntry.h"
@@ -35,6 +36,7 @@
 #include "../ride/Vehicle.h"
 #include "../ui/WindowManager.h"
 #include "../world/Map.h"
+#include "../world/MapPresentationSnapshot.h"
 #include "../world/Weather.h"
 #include "../world/tile_element/LargeSceneryElement.h"
 #include "../world/tile_element/SmallSceneryElement.h"
@@ -43,9 +45,12 @@
 #include "Window.h"
 #include "WindowBase.h"
 
+#include <atomic>
 #include <cstring>
 #include <list>
-#include <unordered_map>
+#include <memory>
+#include <optional>
+#include <utility>
 
 namespace OpenRCT2
 {
@@ -66,14 +71,139 @@ namespace OpenRCT2
     static std::list<Viewport> _viewports;
     Viewport* gMusicTrackingViewport;
 
-    static std::vector<PaintSession*> _paintColumns;
+    class AsyncMapPresentationScene
+    {
+    private:
+        std::shared_ptr<const MapPresentationSnapshot> _front;
+        std::shared_ptr<MapPresentationSnapshot> _pending;
+        std::optional<JobPool::TaskGroup> _pendingGroup;
+        uint32_t _latchedDrawCount = std::numeric_limits<uint32_t>::max();
+        bool _pendingReset{};
+
+    public:
+        struct AcquireResult
+        {
+            std::shared_ptr<const MapPresentationSnapshot> snapshot;
+            bool sceneReset{};
+        };
+
+        AcquireResult Acquire(JobPool& jobs, const uint32_t tick, const uint32_t drawCount)
+        {
+            bool sceneReset = false;
+            if (_latchedDrawCount != drawCount)
+            {
+                _latchedDrawCount = drawCount;
+                if (_pendingGroup.has_value() && _pendingGroup->IsComplete())
+                {
+                    jobs.Wait(*_pendingGroup);
+                    _front = std::move(_pending);
+                    _pendingGroup.reset();
+                    sceneReset = std::exchange(_pendingReset, false);
+                }
+            }
+
+            if (_front == nullptr)
+            {
+                auto initial = std::make_shared<MapPresentationSnapshot>();
+                initial->Apply(ConsumeMapPresentationChanges(tick));
+                _front = std::move(initial);
+            }
+            return { _front, sceneReset };
+        }
+
+        void Schedule(JobPool& jobs, const uint32_t tick)
+        {
+            if (_front != nullptr && !_pendingGroup.has_value())
+            {
+                auto changes = ConsumeMapPresentationChanges(tick);
+                if (changes.reset || !changes.changes.empty())
+                {
+                    _pendingReset = changes.reset;
+                    _pending = std::make_shared<MapPresentationSnapshot>(*_front);
+                    _pendingGroup.emplace(jobs.CreateTaskGroup());
+                    const auto target = _pending;
+                    jobs.AddTask(
+                        *_pendingGroup, [target, changes = std::move(changes)]() { target->Apply(changes); },
+                        JobPool::TaskPriority::background);
+                }
+            }
+        }
+    };
+
+    class AsyncEntityPresentationScene
+    {
+    private:
+        std::shared_ptr<const EntityPresentationSnapshot> _front;
+        std::shared_ptr<EntityPresentationSnapshot> _pending;
+        std::shared_ptr<EntityPresentationSnapshot> _recycle;
+        std::optional<JobPool::TaskGroup> _pendingGroup;
+        uint32_t _latchedDrawCount = std::numeric_limits<uint32_t>::max();
+
+    public:
+        void Reset(JobPool& jobs)
+        {
+            if (_pendingGroup.has_value())
+            {
+                jobs.Wait(*_pendingGroup);
+                _pendingGroup.reset();
+            }
+            _front.reset();
+            _pending.reset();
+            _recycle.reset();
+            _latchedDrawCount = std::numeric_limits<uint32_t>::max();
+        }
+
+        std::shared_ptr<const EntityPresentationSnapshot> Acquire(
+            JobPool& jobs, EntityRegistry& registry, const uint32_t drawCount)
+        {
+            if (_latchedDrawCount != drawCount)
+            {
+                _latchedDrawCount = drawCount;
+                if (_pendingGroup.has_value() && _pendingGroup->IsComplete())
+                {
+                    jobs.Wait(*_pendingGroup);
+                    _recycle = std::const_pointer_cast<EntityPresentationSnapshot>(std::move(_front));
+                    _front = std::move(_pending);
+                    _pendingGroup.reset();
+                }
+            }
+
+            if (_front == nullptr)
+            {
+                auto initial = std::make_shared<EntityPresentationSnapshot>();
+                initial->CaptureStorage(registry);
+                initial->BuildCapturedStorage();
+                _front = std::move(initial);
+            }
+            return _front;
+        }
+
+        void Schedule(JobPool& jobs, EntityRegistry& registry)
+        {
+            if (_front == nullptr || _pendingGroup.has_value())
+                return;
+
+            _pending = _recycle == nullptr ? std::make_shared<EntityPresentationSnapshot>() : std::move(_recycle);
+            _pending->CaptureStorage(registry);
+            _pendingGroup.emplace(jobs.CreateTaskGroup());
+            const auto target = _pending;
+            jobs.AddTask(
+                *_pendingGroup, [target]() { target->BuildCapturedStorage(); },
+                JobPool::TaskPriority::background);
+        }
+    };
 
     InteractionInfo::InteractionInfo(const PaintStruct* ps)
         : Loc(ps->MapPos)
         , Element(ps->Element)
-        , Entity(ps->Entity)
         , interactionType(ps->InteractionItem)
     {
+        if (ps->Entity)
+        {
+            auto* entity = getGameState().entities.GetEntity(ps->Entity.id);
+            if (entity != nullptr && entity->type == ps->Entity.type)
+                Entity = entity;
+        }
     }
 
     static void ViewportPaintWeatherGloom(RenderTarget& rt);
@@ -846,8 +976,46 @@ namespace OpenRCT2
     {
         PROFILED_FUNCTION();
 
+        ScopedEntityPresentationSnapshot entitySnapshotScope(session.EntitySnapshot);
+        ScopedMapPresentationSnapshot mapSnapshotScope(session.MapSnapshot);
         PaintSessionGenerate(session);
         PaintSessionArrange(session);
+    }
+
+    static bool ConfigurePaintColumn(
+        RenderTarget& columnRT, const RenderTarget& worldRT, const int32_t x, const int32_t columnWidth)
+    {
+        if (x + columnWidth <= worldRT.x || x >= worldRT.x + worldRT.width)
+            return false;
+
+        columnRT = worldRT;
+        if (x >= columnRT.x)
+        {
+            const int32_t leftPitch = x - columnRT.x;
+            columnRT.width -= leftPitch;
+            if (columnRT.bits != nullptr)
+                columnRT.bits += leftPitch;
+            columnRT.pitch += leftPitch;
+            columnRT.x = x;
+        }
+
+        int32_t paintRight = columnRT.x + columnRT.width;
+        if (paintRight >= x + columnWidth)
+        {
+            const int32_t rightPitch = paintRight - x - columnWidth;
+            paintRight -= rightPitch;
+            columnRT.pitch += rightPitch;
+        }
+        columnRT.width = paintRight - columnRT.x;
+        if (columnRT.width <= 0)
+            return false;
+
+        constexpr int32_t cullingY = ZoomLevel::max().ApplyInversedTo(std::numeric_limits<int32_t>::max()) / 2;
+        columnRT.cullingX = floor2(x, columnWidth);
+        columnRT.cullingY = -cullingY;
+        columnRT.cullingWidth = columnWidth;
+        columnRT.cullingHeight = cullingY * 2;
+        return true;
     }
 
     static void ViewportPaintColumn(PaintSession& session)
@@ -881,6 +1049,187 @@ namespace OpenRCT2
         }
     }
 
+    struct PreparedViewportColumn
+    {
+        int32_t x{};
+        PaintSession* session{};
+    };
+
+    struct PreparedViewportFrame
+    {
+        RenderTarget worldTemplate{};
+        uint32_t viewFlags{};
+        uint8_t rotation{};
+        int32_t columnWidth{};
+        std::shared_ptr<const MapPresentationSnapshot> mapSnapshot;
+        std::shared_ptr<const EntityPresentationSnapshot> entitySnapshot;
+        std::vector<PreparedViewportColumn> columns;
+        std::atomic_size_t nextColumn{};
+
+        ~PreparedViewportFrame()
+        {
+            for (const auto& column : columns)
+                PaintSessionFree(column.session);
+        }
+
+        [[nodiscard]] bool Matches(const RenderTarget& worldRT, const Viewport& viewport) const noexcept
+        {
+            return worldTemplate.DrawingEngine == worldRT.DrawingEngine && worldTemplate.x == worldRT.x
+                && worldTemplate.y == worldRT.y && worldTemplate.width == worldRT.width
+                && worldTemplate.height == worldRT.height && worldTemplate.LineStride() == worldRT.LineStride()
+                && worldTemplate.zoom_level == worldRT.zoom_level && viewFlags == viewport.flags
+                && rotation == viewport.rotation;
+        }
+    };
+
+    static std::unique_ptr<PreparedViewportFrame> CreatePreparedViewportFrame(
+        const RenderTarget& worldRT, const Viewport& viewport,
+        std::shared_ptr<const MapPresentationSnapshot> mapSnapshot,
+        std::shared_ptr<const EntityPresentationSnapshot> entitySnapshot)
+    {
+        auto frame = std::make_unique<PreparedViewportFrame>();
+        frame->worldTemplate = worldRT;
+        frame->worldTemplate.bits = nullptr;
+        frame->viewFlags = viewport.flags;
+        frame->rotation = viewport.rotation;
+        frame->columnWidth = worldRT.zoom_level.ApplyInversedTo(kCoordsXYStep);
+        frame->mapSnapshot = std::move(mapSnapshot);
+        frame->entitySnapshot = std::move(entitySnapshot);
+
+        const int32_t rightBorder = worldRT.x + worldRT.width;
+        const int32_t alignedX = floor2(worldRT.x, frame->columnWidth);
+        frame->columns.reserve(static_cast<size_t>((rightBorder - alignedX + frame->columnWidth - 1) / frame->columnWidth));
+        auto sessionRT = worldRT;
+        for (int32_t x = alignedX; x < rightBorder; x += frame->columnWidth)
+        {
+            auto* session = PaintSessionAlloc(sessionRT, viewport.flags, viewport.rotation);
+            session->MapSnapshot = frame->mapSnapshot.get();
+            session->EntitySnapshot = frame->entitySnapshot.get();
+            RenderTarget columnRT{};
+            if (!ConfigurePaintColumn(columnRT, worldRT, x, frame->columnWidth))
+            {
+                PaintSessionFree(session);
+                continue;
+            }
+            session->rt = columnRT;
+            frame->columns.push_back({ x, session });
+        }
+        return frame;
+    }
+
+    class AsyncViewportPresentation
+    {
+    private:
+        std::unique_ptr<PreparedViewportFrame> _front;
+        std::unique_ptr<PreparedViewportFrame> _pending;
+        std::optional<JobPool::TaskGroup> _pendingGroup;
+
+        void AdoptCompleted(JobPool& jobs)
+        {
+            if (_pendingGroup.has_value() && _pendingGroup->IsComplete())
+            {
+                jobs.Wait(*_pendingGroup);
+                _front = std::move(_pending);
+                _pendingGroup.reset();
+            }
+        }
+
+        void DiscardPending(JobPool& jobs)
+        {
+            if (_pendingGroup.has_value())
+            {
+                jobs.Wait(*_pendingGroup);
+                _pendingGroup.reset();
+                _pending.reset();
+            }
+        }
+
+    public:
+        void Reset(JobPool& jobs)
+        {
+            DiscardPending(jobs);
+            _front.reset();
+        }
+
+        PreparedViewportFrame& Acquire(
+            JobPool& jobs, const RenderTarget& worldRT, const Viewport& viewport,
+            const std::shared_ptr<const MapPresentationSnapshot>& mapSnapshot,
+            const std::shared_ptr<const EntityPresentationSnapshot>& entitySnapshot)
+        {
+            AdoptCompleted(jobs);
+            if (_front == nullptr || !_front->Matches(worldRT, viewport))
+            {
+                DiscardPending(jobs);
+                _front = CreatePreparedViewportFrame(worldRT, viewport, mapSnapshot, entitySnapshot);
+                jobs.ParallelFor(
+                    _front->columns.size(),
+                    [frame = _front.get()](const size_t index) { ViewportFillColumn(*frame->columns[index].session); }, 1,
+                    nullptr, JobPool::TaskPriority::foreground);
+            }
+            return *_front;
+        }
+
+        void Paint(
+            JobPool& jobs, PreparedViewportFrame& frame, const RenderTarget& worldRT, const bool useParallelDrawing)
+        {
+            for (const auto& column : frame.columns)
+            {
+                [[maybe_unused]] const bool configured = ConfigurePaintColumn(
+                    column.session->rt, worldRT, column.x, frame.columnWidth);
+                assert(configured);
+            }
+            if (useParallelDrawing)
+            {
+                jobs.ParallelFor(
+                    frame.columns.size(),
+                    [&frame](const size_t index) { ViewportPaintColumn(*frame.columns[index].session); }, 1, nullptr,
+                    JobPool::TaskPriority::foreground);
+            }
+            else
+            {
+                for (const auto& column : frame.columns)
+                    ViewportPaintColumn(*column.session);
+            }
+        }
+
+        void Schedule(
+            JobPool& jobs, const RenderTarget& worldRT, const Viewport& viewport,
+            const std::shared_ptr<const MapPresentationSnapshot>& mapSnapshot,
+            const std::shared_ptr<const EntityPresentationSnapshot>& entitySnapshot)
+        {
+            AdoptCompleted(jobs);
+            if (_pendingGroup.has_value() || _front == nullptr || !_front->Matches(worldRT, viewport)
+                || (_front->mapSnapshot == mapSnapshot && _front->entitySnapshot == entitySnapshot))
+            {
+                return;
+            }
+
+            _pending = CreatePreparedViewportFrame(worldRT, viewport, mapSnapshot, entitySnapshot);
+            _pendingGroup.emplace(jobs.CreateTaskGroup());
+            _pending->nextColumn.store(0, std::memory_order_relaxed);
+
+            // Paint-list generation is deliberately narrower than the shared compute pool. A frame should be ready before the
+            // next VSync interval without occupying every worker needed by simulation and the currently visible paint pass.
+            constexpr size_t kPreparationWorkers = 6;
+            const auto workerCount = std::min(kPreparationWorkers, _pending->columns.size());
+            for (size_t worker = 0; worker < workerCount; worker++)
+            {
+                jobs.AddTask(
+                    *_pendingGroup,
+                    [frame = _pending.get()]() {
+                        while (true)
+                        {
+                            const auto index = frame->nextColumn.fetch_add(1, std::memory_order_relaxed);
+                            if (index >= frame->columns.size())
+                                break;
+                            ViewportFillColumn(*frame->columns[index].session);
+                        }
+                    },
+                    JobPool::TaskPriority::background);
+            }
+        }
+    };
+
     /**
      *
      *  rct2: 0x00685CBF
@@ -894,6 +1243,23 @@ namespace OpenRCT2
     static void ViewportPaint(const Viewport* viewport, RenderTarget& rt)
     {
         PROFILED_FUNCTION();
+
+        auto& gameState = getGameState();
+        auto& sceneJobs = GetContext()->GetJobPool();
+        thread_local AsyncMapPresentationScene mapScene;
+        thread_local AsyncEntityPresentationScene entityScene;
+        thread_local AsyncViewportPresentation viewportScene;
+        const auto mapAcquire = mapScene.Acquire(sceneJobs, gameState.currentTicks, gCurrentDrawCount);
+        if (mapAcquire.sceneReset)
+        {
+            // A presented frame must use one coherent world generation. Title/save loads can finish the map reset between
+            // dirty rectangles; refresh the dependent scene and prepared paint lists together, then redraw every rectangle.
+            entityScene.Reset(sceneJobs);
+            viewportScene.Reset(sceneJobs);
+            GfxInvalidateScreen();
+        }
+        const auto mapSnapshot = mapAcquire.snapshot;
+        const auto entitySnapshot = entityScene.Acquire(sceneJobs, gameState.entities, gCurrentDrawCount);
 
         const int32_t offsetX = rt.x - viewport->pos.x;
         const int32_t offsetY = rt.y - viewport->pos.y;
@@ -912,8 +1278,6 @@ namespace OpenRCT2
         worldRT.pitch = rt.LineStride() - worldRT.width;
         worldRT.zoom_level = viewport->zoom;
 
-        _paintColumns.clear();
-
         bool useMultithreading = Config::Get().general.multiThreading;
         bool useParallelDrawing = false;
         if (useMultithreading && rt.DrawingEngine->GetFlags().has(DrawingEngineFlag::parallelDrawing))
@@ -921,75 +1285,26 @@ namespace OpenRCT2
             useParallelDrawing = true;
         }
 
-        const int32_t columnWidth = worldRT.zoom_level.ApplyInversedTo(kCoordsXYStep);
-        const int32_t rightBorder = worldRT.x + worldRT.width;
-        const int32_t alignedX = floor2(worldRT.x, columnWidth);
-
-        // Generate and sort columns.
-        for (int32_t x = alignedX; x < rightBorder; x += columnWidth)
-        {
-            PaintSession* session = PaintSessionAlloc(worldRT, viewport->flags, viewport->rotation);
-            _paintColumns.push_back(session);
-
-            RenderTarget& columnRT = session->rt;
-            if (x >= columnRT.x)
-            {
-                const int32_t leftPitch = x - columnRT.x;
-                columnRT.width = columnRT.width - leftPitch;
-                columnRT.bits += leftPitch;
-                columnRT.pitch += leftPitch;
-                columnRT.x = x;
-            }
-
-            int32_t paintRight = columnRT.x + columnRT.width;
-            if (paintRight >= x + columnWidth)
-            {
-                const int32_t rightPitch = paintRight - x - columnWidth;
-                paintRight -= rightPitch;
-                columnRT.pitch += rightPitch;
-            }
-            columnRT.width = paintRight - columnRT.x;
-
-            // culling sprites outside the clipped column causes sorting differences between invalidation blocks
-            // not culling sprites outside the full column width also causes a different kind of glitching
-            constexpr int32_t cullingY = ZoomLevel::max().ApplyInversedTo(std::numeric_limits<int32_t>::max()) / 2;
-
-            columnRT.cullingX = floor2(columnRT.x, columnWidth);
-            columnRT.cullingY = -cullingY;
-            columnRT.cullingWidth = columnWidth;
-            columnRT.cullingHeight = cullingY * 2;
-
-            if (!useMultithreading)
-            {
-                ViewportFillColumn(*session);
-            }
-        }
-
         if (useMultithreading)
         {
-            auto& jobs = GetContext()->GetJobPool();
-            jobs.ParallelFor(_paintColumns.size(), [](size_t index) { ViewportFillColumn(*_paintColumns[index]); });
-        }
-
-        // Paint columns. Only engines which explicitly advertise disjoint parallel writes may use the compute pool here.
-        if (useParallelDrawing)
-        {
-            auto& jobs = GetContext()->GetJobPool();
-            jobs.ParallelFor(_paintColumns.size(), [](size_t index) { ViewportPaintColumn(*_paintColumns[index]); });
+            auto& prepared = viewportScene.Acquire(sceneJobs, worldRT, *viewport, mapSnapshot, entitySnapshot);
+            viewportScene.Paint(sceneJobs, prepared, worldRT, useParallelDrawing);
+            viewportScene.Schedule(sceneJobs, worldRT, *viewport, mapSnapshot, entitySnapshot);
         }
         else
         {
-            for (auto* session : _paintColumns)
-            {
-                ViewportPaintColumn(*session);
-            }
+            auto prepared = CreatePreparedViewportFrame(worldRT, *viewport, mapSnapshot, nullptr);
+            for (const auto& column : prepared->columns)
+                ViewportFillColumn(*column.session);
+            for (const auto& column : prepared->columns)
+                ViewportPaintColumn(*column.session);
         }
 
-        // Release resources.
-        for (auto* session : _paintColumns)
-        {
-            PaintSessionFree(session);
-        }
+        // Snapshot preparation starts only after the current viewport barriers,
+        // allowing it to overlap the following simulation/UI work instead of
+        // taking a worker away from this frame's visible columns.
+        mapScene.Schedule(sceneJobs, gameState.currentTicks);
+        entityScene.Schedule(sceneJobs, gameState.entities);
     }
 
     static void ViewportPaintWeatherGloom(RenderTarget& rt)
@@ -1344,8 +1659,8 @@ namespace OpenRCT2
             && (viewFlags & VIEWPORT_FLAG_CLIP_VIEW_SEE_THROUGH);
 
         // the element is above the cut-off height
-        auto clipped = cutAwayViewWithTransparency && ps->Element == nullptr && ps->Entity != nullptr
-            && ps->Entity->getLocation().z > (gClipHeight * kCoordsZStep);
+        auto clipped = cutAwayViewWithTransparency && ps->Element == nullptr && ps->Entity
+            && ps->Entity.z > (gClipHeight * kCoordsZStep);
 
         // the entity is above the cut-off height
         clipped |= cutAwayViewWithTransparency && ps->Element != nullptr
@@ -1354,9 +1669,9 @@ namespace OpenRCT2
         switch (ps->InteractionItem)
         {
             case ViewportInteractionItem::entity:
-                if (ps->Entity != nullptr)
+                if (ps->Entity)
                 {
-                    switch (ps->Entity->type)
+                    switch (ps->Entity.type)
                     {
                         case EntityType::vehicle:
                         {
@@ -1369,7 +1684,7 @@ namespace OpenRCT2
                             // these should be hidden if 'hide rides' is enabled
                             if (viewFlags & VIEWPORT_FLAG_HIDE_RIDES || clipped)
                             {
-                                auto vehicle = ps->Entity->as<Vehicle>();
+                                auto vehicle = getGameState().entities.GetEntity<Vehicle>(ps->Entity.id);
                                 if (vehicle == nullptr)
                                     break;
 

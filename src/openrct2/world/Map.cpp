@@ -52,6 +52,7 @@
 #include "Entrance.h"
 #include "Footpath.h"
 #include "MapAnimation.h"
+#include "MapPresentationSnapshot.h"
 #include "MapTopology.h"
 #include "Park.h"
 #include "Scenery.h"
@@ -68,7 +69,9 @@
 #include "tile_element/TrackElement.h"
 
 #include <iterator>
+#include <bitset>
 #include <memory>
+#include <utility>
 
 namespace OpenRCT2
 {
@@ -100,6 +103,11 @@ namespace OpenRCT2
     bool gMapLandRightsUpdateSuccess;
 
     static TilePointerIndex<TileElement> _tileIndex;
+    static thread_local const MapPresentationSnapshot* _presentationSnapshot;
+    static std::bitset<kMaximumMapSizeTechnical * kMaximumMapSizeTechnical> _presentationDirtyTiles;
+    static std::vector<uint32_t> _presentationDirtyWorklist;
+    static uint64_t _presentationEpoch = 1;
+    static bool _presentationResetPending = true;
     static TilePointerIndex<TileElement> _tileIndexStash;
     static std::vector<TileElement> _tileElementsStash;
     static size_t _tileElementsInUse;
@@ -147,12 +155,100 @@ namespace OpenRCT2
         return getGameState().tileElements;
     }
 
+    MapPresentationChangeBatch ConsumeMapPresentationChanges(const uint32_t tick)
+    {
+        PROFILED_FUNCTION();
+        MapPresentationChangeBatch batch{ _presentationEpoch, tick, _presentationResetPending, {} };
+        const auto copyTile = [&batch](const uint32_t index) {
+            const TileCoordsXY tilePos{ static_cast<int32_t>(index % kMaximumMapSizeTechnical),
+                                        static_cast<int32_t>(index / kMaximumMapSizeTechnical) };
+            auto* source = _tileIndex.GetFirstElementAt(tilePos);
+            auto& change = batch.changes.emplace_back();
+            change.index = index;
+            do
+            {
+                change.elements.push_back(*source);
+            } while (!(source++)->isLastForTile());
+        };
+        if (_presentationResetPending)
+        {
+            batch.changes.reserve(kMaximumMapSizeTechnical * kMaximumMapSizeTechnical);
+            for (uint32_t index = 0; index < kMaximumMapSizeTechnical * kMaximumMapSizeTechnical; index++)
+            {
+                copyTile(index);
+            }
+            _presentationResetPending = false;
+        }
+        else
+        {
+            std::ranges::sort(_presentationDirtyWorklist);
+            for (const auto index : _presentationDirtyWorklist)
+            {
+                copyTile(index);
+            }
+        }
+        _presentationDirtyWorklist.clear();
+        _presentationDirtyTiles.reset();
+        return batch;
+    }
+
+    void MapPresentationSnapshot::Apply(const MapPresentationChangeBatch& batch)
+    {
+        PROFILED_FUNCTION();
+        if (batch.reset || _epoch != batch.epoch)
+        {
+            _chunks.fill(nullptr);
+        }
+
+        size_t activeChunkIndex = std::numeric_limits<size_t>::max();
+        std::shared_ptr<Chunk> activeChunk;
+        for (const auto& change : batch.changes)
+        {
+            const size_t chunkIndex = change.index / kChunkWidth;
+            if (chunkIndex != activeChunkIndex)
+            {
+                activeChunkIndex = chunkIndex;
+                activeChunk = _chunks[chunkIndex] == nullptr ? std::make_shared<Chunk>()
+                                                             : std::make_shared<Chunk>(*_chunks[chunkIndex]);
+                _chunks[chunkIndex] = activeChunk;
+            }
+            (*activeChunk)[change.index % kChunkWidth] = change.elements;
+        }
+        _epoch = batch.epoch;
+        _tick = batch.tick;
+    }
+
+    TileElement* MapPresentationSnapshot::GetFirstElementAt(const TileCoordsXY& tilePos) const
+    {
+        const auto index = static_cast<size_t>(tilePos.x + tilePos.y * kMaximumMapSizeTechnical);
+        const auto& chunk = _chunks[index / kChunkWidth];
+        if (chunk == nullptr)
+            return nullptr;
+        const auto& tile = (*chunk)[index % kChunkWidth];
+        return tile.empty() ? nullptr : const_cast<TileElement*>(tile.data());
+    }
+
+    ScopedMapPresentationSnapshot::ScopedMapPresentationSnapshot(const MapPresentationSnapshot* snapshot) noexcept
+        : _previous(std::exchange(_presentationSnapshot, snapshot))
+    {
+    }
+
+    ScopedMapPresentationSnapshot::~ScopedMapPresentationSnapshot()
+    {
+        _presentationSnapshot = _previous;
+    }
+
     static void SetTileElementsInternal(GameState_t& gameState, std::vector<TileElement>&& tileElements, bool topologyChanged)
     {
         gameState.tileElements = std::move(tileElements);
         _tileIndex = TilePointerIndex<TileElement>(
             kMaximumMapSizeTechnical, gameState.tileElements.data(), gameState.tileElements.size());
         _tileElementsInUse = gameState.tileElements.size();
+        if (++_presentationEpoch == 0)
+            _presentationEpoch = 1;
+        _presentationResetPending = true;
+        _presentationDirtyWorklist.clear();
+        _presentationDirtyTiles.reset();
         RideRating::ClearLocalContextCache();
         if (topologyChanged)
         {
@@ -364,7 +460,8 @@ namespace OpenRCT2
             LOG_VERBOSE("Trying to access element outside of range");
             return nullptr;
         }
-        return _tileIndex.GetFirstElementAt(tilePos);
+        return _presentationSnapshot == nullptr ? _tileIndex.GetFirstElementAt(tilePos)
+                                                : _presentationSnapshot->GetFirstElementAt(tilePos);
     }
 
     TileElement* MapGetFirstElementAt(const CoordsXY& elementPos)
@@ -423,6 +520,12 @@ namespace OpenRCT2
             return;
         }
         _tileIndex.SetTile(tilePos, elements);
+        const auto presentationIndex = static_cast<size_t>(tilePos.x + tilePos.y * kMaximumMapSizeTechnical);
+        if (!_presentationDirtyTiles.test(presentationIndex))
+        {
+            _presentationDirtyTiles.set(presentationIndex);
+            _presentationDirtyWorklist.push_back(static_cast<uint32_t>(presentationIndex));
+        }
         MapTopology::InvalidateTileAndNeighbours(tilePos);
     }
 
@@ -1768,6 +1871,17 @@ namespace OpenRCT2
 
     void MapInvalidateTileForRendering(const CoordsXYRangedZ& tilePos)
     {
+        const TileCoordsXY tileCoords{ tilePos };
+        if (tileCoords.x >= 0 && tileCoords.y >= 0 && tileCoords.x < kMaximumMapSizeTechnical
+            && tileCoords.y < kMaximumMapSizeTechnical)
+        {
+            const auto index = static_cast<size_t>(tileCoords.x + tileCoords.y * kMaximumMapSizeTechnical);
+            if (!_presentationDirtyTiles.test(index))
+            {
+                _presentationDirtyTiles.set(index);
+                _presentationDirtyWorklist.push_back(static_cast<uint32_t>(index));
+            }
+        }
         MapInvalidateTileUnderZoom(tilePos.x, tilePos.y, tilePos.baseZ, tilePos.clearanceZ, ZoomLevel{ -1 });
     }
 

@@ -239,6 +239,7 @@ static Breakdown RideGetNewBreakdownProblem(const Ride& ride);
 static void RideInspectionUpdate(Ride& ride);
 static void RideMechanicStatusUpdate(Ride& ride, MechanicStatus mechanicStatus);
 static void RideMusicUpdate(Ride& ride, const RideTypeDescriptor& rtd);
+static void RideMusicCollect(const Ride& ride, const RideTypeDescriptor& rtd);
 static void RideShopConnected(const Ride& ride);
 
 RideId GetNextFreeRideId()
@@ -1124,7 +1125,7 @@ void ResetAllRideBuildDates()
  *
  *  rct2: 0x006ABE4C
  */
-void Ride::updateAll(bool updatePresentationAudio)
+void Ride::updateAll()
 {
     PROFILED_FUNCTION();
 
@@ -1155,10 +1156,6 @@ void Ride::updateAll(bool updatePresentationAudio)
         return;
     }
 
-    RideAudio::SetMusicInstanceCollectionEnabled(updatePresentationAudio);
-    if (updatePresentationAudio)
-        WindowUpdateViewportRideMusic();
-
     // Update rides
     const auto currentTicks = gameState.currentTicks;
     const bool wholeSecondTick = GameTime::IsWholeSecondTick(currentTicks);
@@ -1167,8 +1164,14 @@ void Ride::updateAll(bool updatePresentationAudio)
     for (auto& ride : RideManager(gameState))
         ride.update(currentTicks, wholeSecondTick, breakdownTick, inspectionTick);
 
-    if (updatePresentationAudio)
-        RideAudio::UpdateMusicChannels();
+}
+
+void Ride::updatePresentationAudio()
+{
+    WindowUpdateViewportRideMusic();
+    for (const auto& ride : RideManager(getGameState()))
+        RideMusicCollect(ride, ride.getRideTypeDescriptor());
+    RideAudio::UpdateMusicChannels();
 }
 
 std::unique_ptr<TrackDesign> Ride::saveToTrackDesign(TrackDesignState& tds) const
@@ -2129,11 +2132,7 @@ void CircusMusicUpdate(Ride& ride)
         return;
     }
 
-    CoordsXYZ rideCoords = ride.getStation().GetStart().ToTileCentre();
-
-    const auto sampleRate = RideMusicSampleRate(ride);
-
-    RideAudio::UpdateMusicInstance(ride, rideCoords, sampleRate);
+    RideAudio::AdvanceMusicPosition(ride);
 }
 
 /**
@@ -2168,11 +2167,7 @@ void DefaultMusicUpdate(Ride& ride)
         return;
     }
 
-    CoordsXYZ rideCoords = ride.getStation().GetStart().ToTileCentre();
-
-    int32_t sampleRate = RideMusicSampleRate(ride);
-
-    RideAudio::UpdateMusicInstance(ride, rideCoords, sampleRate);
+    RideAudio::AdvanceMusicPosition(ride);
 }
 
 static void RideMusicUpdate(Ride& ride, const RideTypeDescriptor& rtd)
@@ -2180,6 +2175,15 @@ static void RideMusicUpdate(Ride& ride, const RideTypeDescriptor& rtd)
     if (!rtd.flags.hasAny(RtdFlag::hasMusicByDefault, RtdFlag::allowMusic))
         return;
     rtd.MusicUpdateFunction(ride);
+}
+
+static void RideMusicCollect(const Ride& ride, const RideTypeDescriptor& rtd)
+{
+    if (!rtd.flags.hasAny(RtdFlag::hasMusicByDefault, RtdFlag::allowMusic) || ride.musicTuneId == kTuneIDNull)
+        return;
+
+    const auto rideCoords = ride.getStation().GetStart().ToTileCentre();
+    RideAudio::CollectMusicInstance(ride, rideCoords, RideMusicSampleRate(ride));
 }
 
 #pragma endregion
@@ -6850,6 +6854,17 @@ namespace
     using RideStationPlatformStates = std::array<StationPlatformState, OpenRCT2::Limits::kMaxStationsPerRide>;
     std::array<RideStationPlatformStates, OpenRCT2::Limits::kMaxRidesInPark> _stationPlatformStates;
 
+    StationPlatformState* TryGetStationPlatformState(const Ride& ride, StationIndex stationIndex)
+    {
+        if (ride.id.IsNull() || ride.id.ToUnderlying() >= _stationPlatformStates.size() || stationIndex.IsNull()
+            || stationIndex.ToUnderlying() >= ride.numStations
+            || stationIndex.ToUnderlying() >= _stationPlatformStates[ride.id.ToUnderlying()].size())
+        {
+            return nullptr;
+        }
+        return &_stationPlatformStates[ride.id.ToUnderlying()][stationIndex.ToUnderlying()];
+    }
+
     StationPlatformState& GetStationPlatformState(const Ride& ride, StationIndex stationIndex)
     {
         Guard::Assert(!ride.id.IsNull() && ride.id.ToUnderlying() < _stationPlatformStates.size());
@@ -7021,20 +7036,23 @@ bool RideCaptureStationPlatformTemplate(Ride& ride, StationIndex stationIndex, c
 
 void RideActivateStationPlatformPreQueue(const Ride& ride, StationIndex stationIndex)
 {
-    auto& state = GetStationPlatformState(ride, stationIndex);
-    state.active = !state.slots.empty();
+    if (auto* state = TryGetStationPlatformState(ride, stationIndex); state != nullptr)
+    {
+        state->active = !state->slots.empty();
+    }
 }
 
 bool RideStationPlatformPreQueueIsActive(const Ride& ride, StationIndex stationIndex)
 {
-    return GetStationPlatformState(ride, stationIndex).active;
+    const auto* state = TryGetStationPlatformState(ride, stationIndex);
+    return state != nullptr && state->active;
 }
 
 std::optional<RideStationPlatformReservation> RideReserveStationPlatformSlot(
     const Ride& ride, StationIndex stationIndex, EntityId guestId)
 {
-    auto& state = GetStationPlatformState(ride, stationIndex);
-    if (!state.active || state.slots.empty())
+    auto* state = TryGetStationPlatformState(ride, stationIndex);
+    if (state == nullptr || !state->active || state->slots.empty())
     {
         return std::nullopt;
     }
@@ -7042,25 +7060,29 @@ std::optional<RideStationPlatformReservation> RideReserveStationPlatformSlot(
     if (ride.getStation(stationIndex).TrainAtStation < ride.numTrains)
         return std::nullopt;
 
-    if (state.assignments.size() == state.slots.size())
+    if (state->assignments.size() == state->slots.size())
         return std::nullopt;
-    return state.Claim(guestId, FindAvailablePlatformSlot(state));
+    return state->Claim(guestId, FindAvailablePlatformSlot(*state));
 }
 
 std::optional<RideStationPlatformReservation> RideGetStationPlatformReservation(
     const Ride& ride, StationIndex stationIndex, EntityId guestId)
 {
-    auto& state = GetStationPlatformState(ride, stationIndex);
-    const auto assignment = state.FindGuest(guestId);
-    return assignment == state.assignments.end() ? std::nullopt
-                                                 : std::optional{ state.slots[assignment->slotIndex] };
+    auto* state = TryGetStationPlatformState(ride, stationIndex);
+    if (state == nullptr)
+    {
+        return std::nullopt;
+    }
+    const auto assignment = state->FindGuest(guestId);
+    return assignment == state->assignments.end() ? std::nullopt
+                                                  : std::optional{ state->slots[assignment->slotIndex] };
 }
 
 RideStationPlatformSeatBindingResult RideBoardStationPlatformGuest(
     const Ride& ride, StationIndex stationIndex, uint8_t trainIndex, Guest& guest)
 {
-    auto& state = GetStationPlatformState(ride, stationIndex);
-    if (!state.active)
+    auto* state = TryGetStationPlatformState(ride, stationIndex);
+    if (state == nullptr || !state->active)
     {
         return RideStationPlatformSeatBindingResult::reservationMissing;
     }
@@ -7074,12 +7096,12 @@ RideStationPlatformSeatBindingResult RideBoardStationPlatformGuest(
     Guard::Assert(head != nullptr);
     if (head->flags.has(VehicleFlag::readyToDepart))
         return RideStationPlatformSeatBindingResult::seatUnavailable;
-    const auto assignment = state.FindGuest(guest.id);
-    if (assignment == state.assignments.end())
+    const auto assignment = state->FindGuest(guest.id);
+    if (assignment == state->assignments.end())
     {
         return RideStationPlatformSeatBindingResult::reservationMissing;
     }
-    const auto reservation = state.slots[assignment->slotIndex];
+    const auto reservation = state->slots[assignment->slotIndex];
     Guard::Assert(reservation.carIndex == guest.CurrentCar && reservation.seatIndex == guest.CurrentSeat);
 
     auto* vehicle = head->GetCar(reservation.carIndex);
@@ -7089,13 +7111,16 @@ RideStationPlatformSeatBindingResult RideBoardStationPlatformGuest(
     }
     guest.CurrentTrain = trainIndex;
     guest.CurrentCar = reservation.carIndex;
-    state.assignments.erase(assignment);
+    state->assignments.erase(assignment);
     return RideStationPlatformSeatBindingResult::success;
 }
 
 void RideReleaseStationPlatformSlot(const Ride& ride, StationIndex stationIndex, EntityId guestId)
 {
-    GetStationPlatformState(ride, stationIndex).Release(guestId);
+    if (auto* state = TryGetStationPlatformState(ride, stationIndex); state != nullptr)
+    {
+        state->Release(guestId);
+    }
 }
 
 void RideClearStationPlatformPreQueue(const Ride& ride)

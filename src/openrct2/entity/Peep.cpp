@@ -218,8 +218,11 @@ namespace OpenRCT2
         uint32_t index = 0;
         uint32_t nextTick128UpdateIndex = currentTicksMasked;
 
-        for (auto peep : EntityList<Guest>())
+        const auto& guestExecutionList = getGameState().entities.GetEntityExecutionList(EntityType::guest);
+        size_t guestPosition = 0;
+        while (guestPosition < guestExecutionList.size())
         {
+            auto* peep = guestExecutionList[guestPosition]->cast<Guest>();
             if (index == nextTick128UpdateIndex)
             {
                 peep->tick128UpdateGuest(index);
@@ -229,10 +232,17 @@ namespace OpenRCT2
             peep->update();
 
             index++;
+            // A leaving guest may remove itself. Erasure shifts the already selected next guest into this position; retain
+            // the position in that case so the deterministic ID-ordered traversal does not skip it.
+            if (guestPosition < guestExecutionList.size() && guestExecutionList[guestPosition] == peep)
+                guestPosition++;
         }
 
-        for (auto staff : EntityList<Staff>())
+        const auto& staffExecutionList = getGameState().entities.GetEntityExecutionList(EntityType::staff);
+        size_t staffPosition = 0;
+        while (staffPosition < staffExecutionList.size())
         {
+            auto* staff = staffExecutionList[staffPosition]->cast<Staff>();
             if (index == nextTick128UpdateIndex)
             {
                 staff->tick128UpdateStaff();
@@ -242,18 +252,22 @@ namespace OpenRCT2
             staff->Update();
 
             index++;
+            if (staffPosition < staffExecutionList.size() && staffExecutionList[staffPosition] == staff)
+                staffPosition++;
         }
     }
 
     void PeepUpdateAllBoundingBoxes()
     {
-        for (auto* peep : EntityList<Guest>())
+        for (auto* entity : getGameState().entities.GetEntityExecutionList(EntityType::guest))
         {
+            auto* peep = entity->cast<Guest>();
             peep->UpdateSpriteBoundingBox();
         }
 
-        for (auto* peep : EntityList<Staff>())
+        for (auto* entity : getGameState().entities.GetEntityExecutionList(EntityType::staff))
         {
+            auto* peep = entity->cast<Staff>();
             peep->UpdateSpriteBoundingBox();
         }
     }
@@ -952,8 +966,9 @@ namespace OpenRCT2
         int32_t tooLongQueueCounter = 0;
         std::map<RideId, int32_t> queueComplainingGuestsMap;
 
-        for (auto peep : EntityList<Guest>())
+        for (auto* entity : gameState.entities.GetEntityExecutionList(EntityType::guest))
         {
+            auto* peep = entity->cast<Guest>();
             if (peep->outsideOfPark)
                 continue;
 
@@ -1182,8 +1197,9 @@ namespace OpenRCT2
         std::array<float, kCrowdSpatialSectorCount> sectorElevationSums{};
         constexpr auto kSectorAngle = 2.0f * std::numbers::pi_v<float> / kCrowdSpatialSectorCount;
 
-        for (auto peep : EntityList<Guest>())
+        for (auto* entity : getGameState().entities.GetEntityExecutionList(EntityType::guest))
         {
+            auto* peep = entity->cast<Guest>();
             if (peep->x == kLocationNull)
                 continue;
             if (viewport->viewPos.x > peep->spriteData.spriteRect.GetRight())
@@ -1289,8 +1305,9 @@ namespace OpenRCT2
      */
     void PeepApplause()
     {
-        for (auto peep : EntityList<Guest>())
+        for (auto* entity : getGameState().entities.GetEntityExecutionList(EntityType::guest))
         {
+            auto* peep = entity->cast<Guest>();
             if (peep->outsideOfPark || peep->PeepFlags & PEEP_FLAGS_POSITION_FROZEN
                 || peep->PeepFlags & PEEP_FLAGS_ANIMATION_FROZEN)
                 continue;
@@ -1318,8 +1335,9 @@ namespace OpenRCT2
      */
     void PeepUpdateDaysInQueue()
     {
-        for (auto peep : EntityList<Guest>())
+        for (auto* entity : getGameState().entities.GetEntityExecutionList(EntityType::guest))
         {
+            auto* peep = entity->cast<Guest>();
             if (!peep->outsideOfPark && (peep->State == PeepState::queuing))
             {
                 peep->daysInQueue = AddClamp<uint8_t>(peep->daysInQueue, 1);

@@ -335,6 +335,29 @@ TEST(GpuFoundationTest, NewestFrameMailboxReplacesPendingVisualWork)
     EXPECT_EQ(taken->presentation.drawableExtent, (Extent{ 1280, 960 }));
 }
 
+TEST(GpuFoundationTest, FrameMailboxAdmissionRejectsOnlyRedundantQueuedVisualWork)
+{
+    LatestFrameMailbox mailbox;
+    EXPECT_TRUE(mailbox.CanPublishVisualFrame());
+
+    auto boundary = std::make_shared<SynchronousFrameBoundary>();
+    ASSERT_TRUE(mailbox.PublishTimingBoundary(boundary).accepted);
+    EXPECT_TRUE(mailbox.CanPublishVisualFrame());
+
+    auto visual = MakeFramePacket(12, true);
+    ASSERT_TRUE(mailbox.Publish(std::move(visual)).accepted);
+    EXPECT_FALSE(mailbox.CanPublishVisualFrame());
+
+    const auto taken = mailbox.WaitTakeNewest();
+    ASSERT_NE(taken, nullptr);
+    EXPECT_EQ(taken->frameNumber, 12u);
+    EXPECT_EQ(taken->timingBoundary, boundary);
+    EXPECT_TRUE(mailbox.CanPublishVisualFrame());
+
+    static_cast<void>(mailbox.Stop());
+    EXPECT_FALSE(mailbox.CanPublishVisualFrame());
+}
+
 TEST(GpuFoundationTest, StoppedFrameMailboxReturnsAndRejectsUnconsumedPackets)
 {
     LatestFrameMailbox mailbox;
