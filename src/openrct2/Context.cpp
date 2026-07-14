@@ -12,6 +12,13 @@
     #include <emscripten.h>
 #endif // __EMSCRIPTEN__
 
+#ifdef _WIN32
+    #include <Windows.h>
+    // OpenRCT2 exposes a UI method with this name; the Win32 A/W selector macro must not rewrite it.
+    #undef CreateWindow
+    #undef CreateDirectory
+#endif
+
 #include "AssetPackManager.h"
 #include "Context.h"
 #include "FileClassifier.h"
@@ -107,6 +114,58 @@ namespace OpenRCT2
 
         using IntegratedBenchmarkClock = std::chrono::steady_clock;
 
+        void PreferPerformanceCpuSetForCurrentThread()
+        {
+#ifdef _WIN32
+            ULONG bufferSize = 0;
+            if (GetSystemCpuSetInformation(nullptr, 0, &bufferSize, GetCurrentProcess(), 0) || bufferSize == 0)
+                return;
+
+            std::vector<std::byte> buffer(bufferSize);
+            if (!GetSystemCpuSetInformation(
+                    reinterpret_cast<PSYSTEM_CPU_SET_INFORMATION>(buffer.data()), bufferSize, &bufferSize,
+                    GetCurrentProcess(), 0))
+            {
+                return;
+            }
+
+            uint8_t lowestEfficiencyClass = UINT8_MAX;
+            uint8_t highestEfficiencyClass = 0;
+            for (size_t offset = 0; offset < bufferSize;)
+            {
+                const auto* info = reinterpret_cast<const SYSTEM_CPU_SET_INFORMATION*>(buffer.data() + offset);
+                if (info->Size == 0)
+                    return;
+                if (info->Type == CpuSetInformation)
+                {
+                    lowestEfficiencyClass = std::min(lowestEfficiencyClass, info->CpuSet.EfficiencyClass);
+                    highestEfficiencyClass = std::max(highestEfficiencyClass, info->CpuSet.EfficiencyClass);
+                }
+                offset += info->Size;
+            }
+
+            // A single efficiency class is a symmetric CPU. Leaving the thread unselected preserves the platform scheduler's
+            // normal topology choices there. On a hybrid CPU, reserve only the highest-performance class for the latency-
+            // critical simulation/presentation owner; compute and render workers remain eligible for every logical processor.
+            if (lowestEfficiencyClass == UINT8_MAX || lowestEfficiencyClass == highestEfficiencyClass)
+                return;
+
+            std::vector<ULONG> performanceCpuSets;
+            for (size_t offset = 0; offset < bufferSize;)
+            {
+                const auto* info = reinterpret_cast<const SYSTEM_CPU_SET_INFORMATION*>(buffer.data() + offset);
+                if (info->Type == CpuSetInformation && info->CpuSet.EfficiencyClass == highestEfficiencyClass)
+                    performanceCpuSets.push_back(info->CpuSet.Id);
+                offset += info->Size;
+            }
+            if (!performanceCpuSets.empty())
+            {
+                SetThreadSelectedCpuSets(
+                    GetCurrentThread(), performanceCpuSets.data(), static_cast<ULONG>(performanceCpuSets.size()));
+            }
+#endif
+        }
+
         const char* GetDrawingEngineName(DrawingEngine drawingEngine)
         {
             switch (drawingEngine)
@@ -179,6 +238,7 @@ namespace OpenRCT2
         float _realtimeAccumulator = 0.0f;
         float _timeScale = 1.0f;
         bool _variableFrame = false;
+        IntegratedBenchmarkClock::time_point _nextPresentationDeadline{};
         float _actualTpsTimeAccumulator = 0.0f;
         uint64_t _actualTpsTickAccumulator = 0;
         uint64_t _lastTotalSimulationTicks = gTotalSimulationTicks;
@@ -285,6 +345,9 @@ namespace OpenRCT2
                     LOG_ERROR("Preloader worker failed during context shutdown: %s", e.what());
                 }
             }
+
+            // Release prepared presentation frames while the paint allocator and context-owned job pool are still alive.
+            ViewportDisposePresentation();
 
             // Every normal compute submission owns an explicit barrier. This final barrier protects shutdown when the context
             // is closed during loading or another exceptional path.
@@ -1279,6 +1342,44 @@ namespace OpenRCT2
             return !gOpenRCT2Headless && (gIntegratedBenchmark.enabled || !_uiContext->IsMinimised());
         }
 
+        bool IsVSyncPresentationPaced() const
+        {
+            return gIntegratedBenchmark.useVSync.value_or(Config::Get().general.useVSync);
+        }
+
+        IntegratedBenchmarkClock::duration GetPresentationInterval() const
+        {
+            const auto refreshRate = std::max<uint32_t>(_uiContext->GetRefreshRate(), 1);
+            return std::chrono::duration_cast<IntegratedBenchmarkClock::duration>(
+                std::chrono::duration<double>(1.0 / refreshRate));
+        }
+
+        bool IsPresentationDue(const IntegratedBenchmarkClock::time_point now = IntegratedBenchmarkClock::now())
+        {
+            if (!IsVSyncPresentationPaced())
+                return true;
+            if (_nextPresentationDeadline == IntegratedBenchmarkClock::time_point{})
+                _nextPresentationDeadline = now;
+            return now >= _nextPresentationDeadline;
+        }
+
+        void AdvancePresentationDeadline(const IntegratedBenchmarkClock::time_point now)
+        {
+            if (!IsVSyncPresentationPaced())
+            {
+                _nextPresentationDeadline = {};
+                return;
+            }
+
+            const auto interval = GetPresentationInterval();
+            if (_nextPresentationDeadline == IntegratedBenchmarkClock::time_point{})
+                _nextPresentationDeadline = now;
+            do
+            {
+                _nextPresentationDeadline += interval;
+            } while (_nextPresentationDeadline <= now);
+        }
+
         bool ShouldRunVariableFrame()
         {
             return ShouldDraw() && Config::Get().general.uncapFPS;
@@ -1310,7 +1411,7 @@ namespace OpenRCT2
 
         bool ShouldDrawFrame()
         {
-            return ShouldDraw();
+            return ShouldDraw() && IsPresentationDue() && _drawingEngine->CanBeginFrame();
         }
 
         void UpdateActualSimulationRate(float deltaTime)
@@ -1382,6 +1483,7 @@ namespace OpenRCT2
             // Do not carry warm-up scheduler debt into the measured interval.
             _ticksAccumulator = 0.0f;
             _timer.Restart();
+            _nextPresentationDeadline = IntegratedBenchmarkClock::now();
             _benchmarkPhaseStart = IntegratedBenchmarkClock::now();
             _benchmarkPhase = IntegratedBenchmarkPhase::measurement;
             if (!gIntegratedBenchmark.profilePath.empty())
@@ -1638,6 +1740,7 @@ namespace OpenRCT2
         {
             PROFILED_FUNCTION();
 
+            PreferPerformanceCpuSetForCurrentThread();
             LOG_VERBOSE("begin openrct2 loop");
             _finished = false;
 
@@ -1681,12 +1784,31 @@ namespace OpenRCT2
 
             Network::Flush();
             UpdateIntegratedBenchmark();
+
+            if (!shouldDraw && ShouldDraw() && _ticksAccumulator < updateTime)
+            {
+                auto waitDuration = std::chrono::duration_cast<IntegratedBenchmarkClock::duration>(
+                    std::chrono::duration<float>(updateTime - _ticksAccumulator));
+                if (IsVSyncPresentationPaced() && _nextPresentationDeadline != IntegratedBenchmarkClock::time_point{})
+                {
+                    const auto untilPresentation = _nextPresentationDeadline - IntegratedBenchmarkClock::now();
+                    waitDuration = std::min(waitDuration, untilPresentation);
+                }
+                const auto waitMilliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(waitDuration).count();
+                if (waitMilliseconds > 0)
+                    Platform::Sleep(static_cast<uint32_t>(waitMilliseconds));
+                else
+                    std::this_thread::yield();
+            }
         }
 
         void UpdateTimeAccumulators(float deltaTime, float updateTime)
         {
-            const float maximumSimulationDebt = updateTime * kGameMaxUpdates;
-            _ticksAccumulator = std::min(_ticksAccumulator + deltaTime * _timeScale, maximumSimulationDebt);
+            // Preserve the same wall-clock catch-up horizon at every speed. Scaling the cap by the current tick interval made
+            // Turbo silently discard time after any >11 ms scheduler hiccup, which produced honest individual ticks but an
+            // artificially low long-run TPS. The variable-frame loop still checks VSync after every complete tick, so retained
+            // debt cannot become a render-blocking partial-tick batch.
+            _ticksAccumulator = std::min(_ticksAccumulator + deltaTime * _timeScale, kGameUpdateMaxThreshold);
 
             // Real Time.
             _realtimeAccumulator = std::min(_realtimeAccumulator + deltaTime, kGameUpdateMaxThreshold);
@@ -1744,11 +1866,14 @@ namespace OpenRCT2
                     break;
             }
 
-            UpdateUi();
-
             if (shouldDraw)
             {
+                UpdateUi();
                 Draw();
+            }
+            else if (!ShouldDraw())
+            {
+                UpdateUi();
             }
         }
 
@@ -1760,7 +1885,15 @@ namespace OpenRCT2
 
             ProcessMessages();
 
-            bool restoredTweenState = false;
+            bool canTween = true;
+            if (_ticksAccumulator >= updateTime)
+            {
+                // A completed logical tick must never begin from presentation-only interpolated coordinates, including when
+                // VSync has not yet requested another frame.
+                tweener.Restore();
+                tweener.Reset();
+                canTween = false;
+            }
             while (_ticksAccumulator >= updateTime)
             {
                 // Only the final catch-up tick can contribute interpolation endpoints to this frame. Restore any positions
@@ -1770,12 +1903,6 @@ namespace OpenRCT2
                 if (captureTween)
                 {
                     tweener.PreTick();
-                }
-                else if (shouldDraw && !restoredTweenState)
-                {
-                    tweener.Restore();
-                    tweener.Reset();
-                    restoredTweenState = true;
                 }
 
                 Tick();
@@ -1789,6 +1916,7 @@ namespace OpenRCT2
                     {
                         // Get the next position of each sprite only when this frame can consume the endpoints.
                         tweener.PostTick();
+                        canTween = true;
                     }
                     else
                     {
@@ -1796,6 +1924,7 @@ namespace OpenRCT2
                         // captured pre-tick positions, so discard them without rescanning visible entities or restoring
                         // positions which have not been tweened.
                         tweener.Reset();
+                        canTween = false;
                     }
                 }
 
@@ -1810,13 +1939,24 @@ namespace OpenRCT2
 
                 if (ReachedIntegratedBenchmarkTickLimit())
                     break;
+
+                // Presentation is clocked by VSync, not by a fixed number of logical ticks. As soon as the prior frame can
+                // be replaced and the display deadline is due, return to the outer loop with all remaining simulation debt
+                // intact so the renderer receives the newest completed state.
+                if (ShouldDrawFrame())
+                {
+                    shouldDraw = true;
+                    break;
+                }
             }
 
-            const bool useVariableFrame = UpdateUi();
+            bool useVariableFrame = _variableFrame;
+            if (shouldDraw || !ShouldDraw())
+                useVariableFrame = UpdateUi();
 
             if (shouldDraw)
             {
-                if (useVariableFrame)
+                if (useVariableFrame && canTween)
                 {
                     const float alpha = std::min(_ticksAccumulator / updateTime, 1.0f);
                     tweener.Tween(alpha);
@@ -1844,6 +1984,7 @@ namespace OpenRCT2
             _drawingEngine->BeginDraw();
             _painter->Paint(*_drawingEngine);
             _drawingEngine->EndDraw();
+            AdvancePresentationDeadline(IntegratedBenchmarkClock::now());
             if (!measuring)
                 return;
 

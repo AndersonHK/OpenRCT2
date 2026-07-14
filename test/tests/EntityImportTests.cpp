@@ -276,6 +276,86 @@ TEST_F(EntityImportTests, TypedEntityMembershipClearsAndRebuildsAtBoundaryIds)
     EXPECT_EQ((*vehicles.begin())->type, EntityType::vehicle);
 }
 
+TEST_F(EntityImportTests, TypedEntityPagesKeepPointersStableAcrossGrowth)
+{
+    auto& entities = getGameState().entities;
+
+    auto* first = entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(3));
+    auto* boundary = entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(9000));
+    ASSERT_NE(first, nullptr);
+    ASSERT_NE(boundary, nullptr);
+
+    const auto* const firstAddress = first;
+    const auto* const boundaryAddress = boundary;
+    first->happiness = 37;
+    boundary->happiness = 91;
+
+    // Cross several storage pages. Page growth must never relocate an existing entity because vehicle/guest links retain
+    // direct pointers for the duration of an update phase.
+    for (uint16_t id = 100; id < 900; id++)
+        ASSERT_NE(entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(id)), nullptr);
+
+    EXPECT_EQ(entities.GetEntity<Guest>(EntityId::FromUnderlying(3)), firstAddress);
+    EXPECT_EQ(entities.GetEntity<Guest>(EntityId::FromUnderlying(9000)), boundaryAddress);
+    EXPECT_EQ(first->happiness, 37);
+    EXPECT_EQ(boundary->happiness, 91);
+}
+
+TEST_F(EntityImportTests, EntityIdReuseChangesTypedPoolAndClearsRecycledStorage)
+{
+    auto& entities = getGameState().entities;
+    constexpr auto id = EntityId::FromUnderlying(77);
+
+    auto* guest = entities.CreateEntityAt<Guest>(id);
+    ASSERT_NE(guest, nullptr);
+    guest->happiness = 123;
+    const auto* const guestAddress = guest;
+    entities.EntityRemove(guest);
+
+    auto* vehicle = entities.CreateEntityAt<Vehicle>(id);
+    ASSERT_NE(vehicle, nullptr);
+    EXPECT_NE(static_cast<const void*>(vehicle), static_cast<const void*>(guestAddress));
+    EXPECT_EQ(entities.GetEntity<Guest>(id), nullptr);
+    EXPECT_EQ(entities.GetEntity<Vehicle>(id), vehicle);
+    vehicle->velocity = 456;
+    entities.EntityRemove(vehicle);
+
+    auto* recycledGuest = entities.CreateEntityAt<Guest>(id);
+    ASSERT_NE(recycledGuest, nullptr);
+    EXPECT_EQ(recycledGuest, guestAddress);
+    EXPECT_EQ(recycledGuest->happiness, 0);
+    EXPECT_EQ(recycledGuest->id, id);
+    EXPECT_EQ(recycledGuest->type, EntityType::guest);
+}
+
+TEST_F(EntityImportTests, ExecutionListsTrackSortedStablePointersIncrementally)
+{
+    auto& entities = getGameState().entities;
+    auto* last = entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(50));
+    auto* first = entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(10));
+    auto* middle = entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(30));
+    ASSERT_NE(last, nullptr);
+    ASSERT_NE(first, nullptr);
+    ASSERT_NE(middle, nullptr);
+
+    const auto& guests = entities.GetEntityExecutionList(EntityType::guest);
+    ASSERT_EQ(guests.size(), 3u);
+    EXPECT_EQ(guests[0], first);
+    EXPECT_EQ(guests[1], middle);
+    EXPECT_EQ(guests[2], last);
+
+    entities.EntityRemove(middle);
+    auto* inserted = entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(20));
+    ASSERT_NE(inserted, nullptr);
+    ASSERT_EQ(guests.size(), 3u);
+    EXPECT_EQ(guests[0], first);
+    EXPECT_EQ(guests[1], inserted);
+    EXPECT_EQ(guests[2], last);
+
+    entities.ResetAllEntities();
+    EXPECT_TRUE(guests.empty());
+}
+
 TEST_F(EntityImportTests, PassengerUnloadPlanPreservesThroughRidersAndOrdinaryUnloadRemovesEveryone)
 {
     constexpr uint8_t passengerCount = 5;

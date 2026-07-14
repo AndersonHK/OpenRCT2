@@ -47,11 +47,12 @@ namespace OpenRCT2
             }
         };
 
-        for (auto ent : EntityList<Guest>())
+        const auto& registry = getGameState().entities;
+        for (auto* ent : registry.GetEntityExecutionList(EntityType::guest))
             addEntity(ent);
-        for (auto ent : EntityList<Staff>())
+        for (auto* ent : registry.GetEntityExecutionList(EntityType::staff))
             addEntity(ent);
-        for (auto ent : EntityList<Vehicle>())
+        for (auto* ent : registry.GetEntityExecutionList(EntityType::vehicle))
             addEntity(ent);
     }
 

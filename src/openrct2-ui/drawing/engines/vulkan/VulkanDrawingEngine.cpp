@@ -283,6 +283,11 @@ namespace OpenRCT2::Ui
             _damageTracker.Invalidate(left, top, right, bottom);
         }
 
+        [[nodiscard]] bool CanBeginFrame() override
+        {
+            return _frameMailbox.CanPublishVisualFrame();
+        }
+
         bool CoalesceViewportInvalidation() override
         {
             return _damageTracker.CoalesceFullRedrawInvalidation();

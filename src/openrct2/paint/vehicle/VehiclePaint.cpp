@@ -15,6 +15,7 @@
 #include "../../drawing/Drawing.h"
 #include "../../drawing/LightFX.h"
 #include "../../entity/EntityRegistry.h"
+#include "../../entity/EntityPresentationSnapshot.h"
 #include "../../entity/Yaw.hpp"
 #include "../../interface/Viewport.h"
 #include "../../ride/CarEntry.h"
@@ -4607,7 +4608,7 @@ static void vehicle_visual_splash3_effect(PaintSession& session, const int32_t z
  */
 static void vehicle_visual_splash4_effect(PaintSession& session, const int32_t z, const Vehicle* vehicle)
 {
-    Vehicle* vehicle2 = getGameState().entities.GetEntity<Vehicle>(vehicle->prev_vehicle_on_ride);
+    Vehicle* vehicle2 = GetEntityForPresentation<Vehicle>(vehicle->prev_vehicle_on_ride);
     if (vehicle2 == nullptr)
     {
         return;
@@ -4635,7 +4636,7 @@ static void vehicle_visual_splash4_effect(PaintSession& session, const int32_t z
  */
 static void vehicle_visual_splash5_effect(PaintSession& session, const int32_t z, const Vehicle* vehicle)
 {
-    Vehicle* vehicle2 = getGameState().entities.GetEntity<Vehicle>(vehicle->prev_vehicle_on_ride);
+    Vehicle* vehicle2 = GetEntityForPresentation<Vehicle>(vehicle->prev_vehicle_on_ride);
     if (vehicle2 == nullptr)
     {
         return;

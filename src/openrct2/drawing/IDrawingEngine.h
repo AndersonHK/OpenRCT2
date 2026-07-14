@@ -83,6 +83,13 @@ namespace OpenRCT2::Drawing
 
         virtual void SetVSync(bool vsync) = 0;
 
+        // Non-blocking frame admission. Asynchronous backends return false while a newer visual packet is already queued;
+        // callers can keep simulating instead of constructing work that the backend would immediately supersede.
+        [[nodiscard]] virtual bool CanBeginFrame()
+        {
+            return true;
+        }
+
         virtual void Invalidate(int32_t left, int32_t top, int32_t right, int32_t bottom) = 0;
         // Returns true when a backend has already crossed over to a full redraw and recorded this newer invalidation.
         // Callers may then skip viewport projection and rectangle construction without losing mailbox-era damage ordering.

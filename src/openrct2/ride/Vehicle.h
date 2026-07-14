@@ -277,6 +277,7 @@ struct Vehicle : OpenRCT2::EntityBase
         return SubType == Type::head;
     }
     void Update();
+    void AccumulateLiveRatings();
     Vehicle* GetHead();
     const Vehicle* GetHead() const;
     Vehicle* GetCar(size_t carIndex) const;

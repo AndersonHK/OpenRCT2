@@ -109,6 +109,7 @@ namespace OpenRCT2::Ui::Gpu
         {
             TextureLocation location{};
             SpriteMetadata metadata{};
+            uint64_t lastBoundFrame{};
         };
 
         struct AllocationState
@@ -181,6 +182,7 @@ namespace OpenRCT2::Ui::Gpu
         [[nodiscard]] ResidentImage* GetOrLoadResidentImage(ImageId imageId);
         [[nodiscard]] std::optional<TextureLocation> QueueRasterizedImage(ImageId imageId, const Drawing::PaletteMap* palette);
         void QueueUpload(const TextureLocation& location, const void* pixels, size_t size, uint32_t pitch);
+        [[nodiscard]] TextureBinding BindResidentForRecording(ResidentImage& resident);
         [[nodiscard]] TextureBinding BindForRecording(const TextureLocation& location);
         void ApplyFrameRetirement(AtlasResidencyToken token, FrameRetirement retirement);
         void EndRecordingFrame();

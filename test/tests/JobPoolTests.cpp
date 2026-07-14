@@ -13,6 +13,7 @@
 #include <gtest/gtest.h>
 #include <openrct2/core/JobPool.h>
 #include <stdexcept>
+#include <thread>
 #include <vector>
 
 TEST(JobPoolTest, ParallelForVisitsEveryIndexExactlyOnce)
@@ -121,4 +122,75 @@ TEST(JobPoolTest, DestructorDrainsQueuedTasks)
     }
 
     EXPECT_EQ(completed.load(std::memory_order_relaxed), 16u);
+}
+
+TEST(JobPoolTest, IndependentTaskGroupsMayOverlapAndWaitSeparately)
+{
+    JobPool pool(4);
+    auto first = pool.CreateTaskGroup();
+    auto second = pool.CreateTaskGroup();
+    std::atomic_bool releaseFirst{ false };
+    std::atomic_bool secondCompleted{ false };
+
+    pool.AddTask(first, [&]() {
+        while (!releaseFirst.load(std::memory_order_acquire))
+        {
+            std::this_thread::yield();
+        }
+    });
+    pool.AddTask(second, [&]() { secondCompleted.store(true, std::memory_order_release); });
+
+    pool.Wait(second);
+    EXPECT_TRUE(secondCompleted.load(std::memory_order_acquire));
+    EXPECT_FALSE(first.IsComplete());
+
+    releaseFirst.store(true, std::memory_order_release);
+    pool.Wait(first);
+    EXPECT_TRUE(first.IsComplete());
+}
+
+TEST(JobPoolTest, TaskGroupDrainsAllWorkBeforeRethrowing)
+{
+    JobPool pool(4);
+    auto group = pool.CreateTaskGroup();
+    std::atomic_size_t completed{ 0 };
+    for (size_t i = 0; i < 32; i++)
+    {
+        pool.AddTask(group, [&, i]() {
+            if (i == 11)
+                throw std::runtime_error("expected grouped worker failure");
+            completed.fetch_add(1, std::memory_order_relaxed);
+        });
+    }
+
+    EXPECT_THROW(pool.Wait(group), std::runtime_error);
+    EXPECT_EQ(completed.load(std::memory_order_relaxed), 31u);
+}
+
+TEST(JobPoolTest, ForegroundTasksPreemptQueuedBackgroundWork)
+{
+    JobPool pool(1);
+    auto blocker = pool.CreateTaskGroup();
+    auto background = pool.CreateTaskGroup();
+    auto foreground = pool.CreateTaskGroup();
+    std::atomic_bool blockerStarted{ false };
+    std::atomic_bool releaseBlocker{ false };
+    std::vector<int32_t> completionOrder;
+
+    pool.AddTask(blocker, [&]() {
+        blockerStarted.store(true, std::memory_order_release);
+        while (!releaseBlocker.load(std::memory_order_acquire))
+            std::this_thread::yield();
+    });
+    while (!blockerStarted.load(std::memory_order_acquire))
+        std::this_thread::yield();
+
+    pool.AddTask(background, [&]() { completionOrder.push_back(2); }, JobPool::TaskPriority::background);
+    pool.AddTask(foreground, [&]() { completionOrder.push_back(1); }, JobPool::TaskPriority::foreground);
+    releaseBlocker.store(true, std::memory_order_release);
+
+    pool.Wait(blocker);
+    pool.Wait(foreground);
+    pool.Wait(background);
+    EXPECT_EQ(completionOrder, (std::vector<int32_t>{ 1, 2 }));
 }

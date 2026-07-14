@@ -69,7 +69,7 @@ static void PaintCrookedHouseStructure(
 
     if (ride->flags.has(RideFlag::onTrack))
     {
-        auto vehicle = getGameState().entities.GetEntity<Vehicle>(ride->vehicles[0]);
+    auto vehicle = GetEntityForPresentation<Vehicle>(ride->vehicles[0]);
         if (vehicle != nullptr)
         {
             session.InteractionType = ViewportInteractionItem::entity;

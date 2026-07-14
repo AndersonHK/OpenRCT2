@@ -172,6 +172,34 @@ TEST(GpuFoundationTest, CoalescedFullRedrawPreservesNewerMailboxDamage)
     EXPECT_TRUE(tracker.Snapshot().rectangles.empty());
 }
 
+TEST(GpuFoundationTest, PresentationGenerationRedrawSurvivesStaleDamageAcknowledgement)
+{
+    DamageTracker tracker;
+    tracker.Reset(192, 128, 64, 64);
+    const auto initial = tracker.Snapshot();
+    tracker.Acknowledge(initial.serial);
+
+    // Simulation damage may be recorded while the retained canvas still shows an older immutable scene.
+    tracker.Invalidate(0, 0, 32, 32);
+    const auto staleSceneDamage = tracker.Snapshot();
+
+    // Publishing the prepared replacement scene is a frame-boundary transaction and must supersede that partial damage.
+    tracker.ForceFullRedraw();
+    tracker.Acknowledge(staleSceneDamage.serial);
+
+    const auto generationTransition = tracker.Snapshot();
+    ASSERT_TRUE(generationTransition.fullRedraw);
+    ASSERT_EQ(generationTransition.rectangles.size(), 1u);
+    EXPECT_EQ(generationTransition.rectangles[0].x, 0);
+    EXPECT_EQ(generationTransition.rectangles[0].y, 0);
+    EXPECT_EQ(generationTransition.rectangles[0].z, 192);
+    EXPECT_EQ(generationTransition.rectangles[0].w, 128);
+    EXPECT_GT(generationTransition.serial, staleSceneDamage.serial);
+
+    tracker.Acknowledge(generationTransition.serial);
+    EXPECT_TRUE(tracker.Snapshot().rectangles.empty());
+}
+
 TEST(GpuFoundationTest, AtlasAllocationRetainsLayerAndPixelBounds)
 {
     AtlasPage page(7, 64);
@@ -333,6 +361,29 @@ TEST(GpuFoundationTest, NewestFrameMailboxReplacesPendingVisualWork)
     EXPECT_EQ(taken->presentation.graphicsLookupTablesVersion, 6u);
     EXPECT_EQ(taken->presentation.logicalExtent, (Extent{ 640, 480 }));
     EXPECT_EQ(taken->presentation.drawableExtent, (Extent{ 1280, 960 }));
+}
+
+TEST(GpuFoundationTest, FrameMailboxAdmissionRejectsOnlyRedundantQueuedVisualWork)
+{
+    LatestFrameMailbox mailbox;
+    EXPECT_TRUE(mailbox.CanPublishVisualFrame());
+
+    auto boundary = std::make_shared<SynchronousFrameBoundary>();
+    ASSERT_TRUE(mailbox.PublishTimingBoundary(boundary).accepted);
+    EXPECT_TRUE(mailbox.CanPublishVisualFrame());
+
+    auto visual = MakeFramePacket(12, true);
+    ASSERT_TRUE(mailbox.Publish(std::move(visual)).accepted);
+    EXPECT_FALSE(mailbox.CanPublishVisualFrame());
+
+    const auto taken = mailbox.WaitTakeNewest();
+    ASSERT_NE(taken, nullptr);
+    EXPECT_EQ(taken->frameNumber, 12u);
+    EXPECT_EQ(taken->timingBoundary, boundary);
+    EXPECT_TRUE(mailbox.CanPublishVisualFrame());
+
+    static_cast<void>(mailbox.Stop());
+    EXPECT_FALSE(mailbox.CanPublishVisualFrame());
 }
 
 TEST(GpuFoundationTest, StoppedFrameMailboxReturnsAndRejectsUnconsumedPackets)

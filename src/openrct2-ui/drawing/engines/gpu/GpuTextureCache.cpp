@@ -72,8 +72,8 @@ namespace OpenRCT2::Ui::Gpu
         {
             throw std::logic_error("GPU atlas textures can only be resolved while recording a frame");
         }
-        const auto* resident = GetOrLoadResidentImage(imageId);
-        return resident == nullptr ? TextureBinding{} : BindForRecording(resident->location);
+        auto* resident = GetOrLoadResidentImage(imageId);
+        return resident == nullptr ? TextureBinding{} : BindResidentForRecording(*resident);
     }
 
     std::optional<ResolvedSprite> TextureCache::GetOrLoadImageSprite(ImageId imageId, ZoomLevel zoom)
@@ -107,7 +107,7 @@ namespace OpenRCT2::Ui::Gpu
         auto* resident = GetOrLoadResidentImage(selected);
         if (resident == nullptr)
             return std::nullopt;
-        static_cast<void>(BindForRecording(resident->location));
+        static_cast<void>(BindResidentForRecording(*resident));
         const auto& metadata = resident->metadata;
         return ResolvedSprite{
             .atlasOrigin = { resident->location.bounds.x, resident->location.bounds.y },
@@ -461,7 +461,7 @@ namespace OpenRCT2::Ui::Gpu
             return nullptr;
         try
         {
-            resident = ResidentImage{ *location, *metadata };
+            resident = ResidentImage{ *location, *metadata, 0 };
         }
         catch (...)
         {
@@ -572,6 +572,28 @@ namespace OpenRCT2::Ui::Gpu
         pending.pixels.resize(size);
         std::memcpy(pending.pixels.data(), pixels, size);
         _pendingUploads.push_back(std::move(pending));
+    }
+
+    TextureBinding TextureCache::BindResidentForRecording(ResidentImage& resident)
+    {
+        const auto& location = resident.location;
+        if (resident.lastBoundFrame != _recordingFrameSerial)
+        {
+            // Persistent image records remain valid until ApplyInvalidation removes them. Validate the allocation once per
+            // image per frame, then make every repeated sprite reference a serial comparison instead of a hash lookup.
+            const auto state = _allocations.find(location.allocationSerial);
+            if (state == _allocations.end() || state->second.location.GetAllocationId() != location.GetAllocationId())
+            {
+                throw std::logic_error("GPU atlas image references an unknown allocation");
+            }
+            resident.lastBoundFrame = _recordingFrameSerial;
+            if (state->second.lastBoundFrame != _recordingFrameSerial)
+            {
+                state->second.lastBoundFrame = _recordingFrameSerial;
+                _frameAllocations.push_back(location.GetAllocationId());
+            }
+        }
+        return { location.index, location.coords };
     }
 
     TextureBinding TextureCache::BindForRecording(const TextureLocation& location)

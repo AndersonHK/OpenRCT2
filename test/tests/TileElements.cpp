@@ -17,6 +17,7 @@
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/world/Footpath.h>
 #include <openrct2/world/Map.h>
+#include <openrct2/world/MapPresentationSnapshot.h>
 #include <openrct2/world/Scenery.h>
 #include <openrct2/world/tile_element/EntranceElement.h>
 #include <openrct2/world/tile_element/PathElement.h>
@@ -25,6 +26,55 @@
 #include <openrct2/world/tile_element/TrackElement.h>
 
 using namespace OpenRCT2;
+
+TEST(MapPresentationSnapshotTest, CopyOnWriteUpdateDoesNotMutatePublishedSnapshot)
+{
+    TileElement first;
+    first.ClearAs(TileElementType::surface);
+    first.baseHeight = 10;
+    first.clearanceHeight = 10;
+    first.setLastForTile(true);
+
+    MapPresentationChangeBatch initial{ .epoch = 1, .tick = 100, .reset = true };
+    initial.changes.push_back({ 0, { first } });
+    MapPresentationSnapshot published;
+    published.Apply(initial);
+
+    auto next = published;
+    auto second = first;
+    second.baseHeight = 20;
+    second.clearanceHeight = 20;
+    MapPresentationChangeBatch update{ .epoch = 1, .tick = 101, .reset = false };
+    update.changes.push_back({ 0, { second } });
+    next.Apply(update);
+
+    ASSERT_NE(published.GetFirstElementAt({ 0, 0 }), nullptr);
+    ASSERT_NE(next.GetFirstElementAt({ 0, 0 }), nullptr);
+    EXPECT_EQ(published.GetFirstElementAt({ 0, 0 })->baseHeight, 10);
+    EXPECT_EQ(next.GetFirstElementAt({ 0, 0 })->baseHeight, 20);
+    EXPECT_EQ(published.GetTick(), 100u);
+    EXPECT_EQ(next.GetTick(), 101u);
+}
+
+TEST(MapPresentationSnapshotTest, StoresTheFinalPartialTechnicalMapChunk)
+{
+    TileElement element;
+    element.ClearAs(TileElementType::surface);
+    element.baseHeight = 12;
+    element.clearanceHeight = 12;
+    element.setLastForTile(true);
+
+    constexpr uint32_t finalIndex = kMaximumMapSizeTechnical * kMaximumMapSizeTechnical - 1;
+    MapPresentationChangeBatch batch{ .epoch = 1, .tick = 100, .reset = true };
+    batch.changes.push_back({ finalIndex, { element } });
+
+    MapPresentationSnapshot snapshot;
+    snapshot.Apply(batch);
+
+    const TileCoordsXY finalTile{ kMaximumMapSizeTechnical - 1, kMaximumMapSizeTechnical - 1 };
+    ASSERT_NE(snapshot.GetFirstElementAt(finalTile), nullptr);
+    EXPECT_EQ(snapshot.GetFirstElementAt(finalTile)->baseHeight, 12);
+}
 
 class TileElementWantsFootpathConnection : public testing::Test
 {

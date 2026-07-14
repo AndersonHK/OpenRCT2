@@ -52,7 +52,7 @@ static void PaintSpaceRingsStructure(
 
     int32_t frameNum = direction;
     uint32_t baseImageId = rideEntry->Cars[0].base_image_id;
-    auto vehicle = getGameState().entities.GetEntity<Vehicle>(ride.vehicles[vehicleIndex]);
+        auto vehicle = GetEntityForPresentation<Vehicle>(ride.vehicles[vehicleIndex]);
     if (ride.flags.has(RideFlag::onTrack) && vehicle != nullptr)
     {
         session.InteractionType = ViewportInteractionItem::entity;
@@ -75,7 +75,7 @@ static void PaintSpaceRingsStructure(
 
     if (vehicle != nullptr && vehicle->num_peeps > 0)
     {
-        auto* rider = getGameState().entities.GetEntity<Guest>(vehicle->peep[0]);
+            auto* rider = GetEntityForPresentation<Guest>(vehicle->peep[0]);
         if (rider != nullptr)
         {
             stationColour = ImageId(0, rider->TshirtColour, rider->TrousersColour);

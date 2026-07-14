@@ -281,6 +281,7 @@
     <ClInclude Include="entity\Duck.h" />
     <ClInclude Include="entity\EntityBase.h" />
     <ClInclude Include="entity\EntityList.h" />
+    <ClInclude Include="entity\EntityPresentationSnapshot.h" />
     <ClInclude Include="entity\EntityRegistry.h" />
     <ClInclude Include="entity\EntityVisualLifecycle.h" />
     <ClInclude Include="entity\EntityTweener.h" />
@@ -921,6 +922,7 @@
     <ClCompile Include="entity\Balloon.cpp" />
     <ClCompile Include="entity\Duck.cpp" />
     <ClCompile Include="entity\EntityBase.cpp" />
+    <ClCompile Include="entity\EntityPresentationSnapshot.cpp" />
     <ClCompile Include="entity\EntityRegistry.cpp" />
     <ClCompile Include="entity\EntityTweener.cpp" />
     <ClCompile Include="entity\JumpingFountain.cpp" />
