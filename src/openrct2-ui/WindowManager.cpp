@@ -1220,8 +1220,12 @@ public:
         if (widget_index != kWidgetIndexNull)
         {
             const auto& widget = w.widgets[widget_index];
-            if (widget.type == WidgetType::dropdownMenu)
-                widget_index++;
+            const auto dropdownButtonIndex = static_cast<size_t>(widget_index + 1);
+            if (widget.type == WidgetType::dropdownMenu && dropdownButtonIndex < w.widgets.size()
+                && w.widgets[dropdownButtonIndex].type == WidgetType::button)
+            {
+                widget_index = static_cast<WidgetIndex>(dropdownButtonIndex);
+            }
         }
 
         // Return the widget index

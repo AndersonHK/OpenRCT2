@@ -57,21 +57,23 @@ namespace OpenRCT2::Ui::Windows
         Park::ParkEntranceFeeTarget::affordable,
     };
 
-    static constexpr std::array<const char*, 4> kEntranceFeeTargetNames = {
-        "Richest guest",
-        "Max profit",
-        "All guests",
-        "Custom",
+    static constexpr std::array<StringId, 3> kEntranceFeeTargetNames = {
+        STR_ADMISSION_PRICE_TARGET_RICHEST_GUEST,
+        STR_ADMISSION_PRICE_TARGET_MAX_PROFIT,
+        STR_ADMISSION_PRICE_TARGET_ALL_GUESTS,
     };
 
     static u8string FormatEntranceFeeTargetCaption(const ParkData& park, Park::ParkEntranceFeeTarget target)
     {
         const auto targetIndex = static_cast<size_t>(target);
-        const auto* targetName = targetIndex < kEntranceFeeTargetNames.size()
-            ? kEntranceFeeTargetNames[targetIndex]
-            : kEntranceFeeTargetNames[static_cast<size_t>(Park::ParkEntranceFeeTarget::affordable)];
+        if (targetIndex >= kEntranceFeeTargetNames.size())
+        {
+            return FormatStringID(STR_SELECT_ADMISSION_PRICING_POLICY);
+        }
+
+        const auto targetName = kEntranceFeeTargetNames[targetIndex];
         const auto price = Park::GetEntranceFeeForTarget(park, target);
-        u8string caption = targetName;
+        u8string caption = FormatStringID(targetName);
         caption += " (";
         caption += price == 0.00_GBP ? FormatStringID(STR_FREE) : FormatStringID(STR_BOTTOM_TOOLBAR_CASH, price);
         caption += ")";
@@ -115,6 +117,7 @@ namespace OpenRCT2::Ui::Windows
 
         WIDX_PRICE_LABEL = 11,
         WIDX_PRICE,
+        WIDX_PRICE_DROPDOWN_BUTTON,
 
         WIDX_ENTER_NAME = 11
     };
@@ -158,9 +161,11 @@ namespace OpenRCT2::Ui::Windows
 
     static constexpr auto _priceWidgets = makeWidgets(
         makeParkWidgets(316),
-        makeWidget({ 21, 50}, {110, 14}, WidgetType::label,        WindowColour::secondary, STR_ADMISSION_PRICE),
-        makeWidget({135, 50}, {174, 14}, WidgetType::dropdownMenu, WindowColour::secondary                     )
+        makeWidget         ({ 21, 50}, {110, 14}, WidgetType::label,        WindowColour::secondary, STR_ADMISSION_PRICE),
+        makeDropdownWidgets({135, 50}, {174, 14}, WidgetType::dropdownMenu, WindowColour::secondary, kStringIdEmpty, STR_ADMISSION_PRICING_POLICY_TIP)
     );
+    static_assert(_priceWidgets[WIDX_PRICE].type == WidgetType::dropdownMenu);
+    static_assert(_priceWidgets[WIDX_PRICE_DROPDOWN_BUTTON].type == WidgetType::button);
 
     static constexpr auto _statsWidgets = makeWidgets(
         makeParkWidgets(230)
@@ -862,7 +867,7 @@ namespace OpenRCT2::Ui::Windows
 
         void onMouseDownPrice(WidgetIndex widgetIndex)
         {
-            if (widgetIndex == WIDX_PRICE)
+            if (widgetIndex == WIDX_PRICE_DROPDOWN_BUTTON)
             {
                 showEntranceFeeTargetDropdown();
             }
@@ -870,7 +875,7 @@ namespace OpenRCT2::Ui::Windows
 
         void onDropdownPrice(WidgetIndex widgetIndex, int32_t dropdownIndex)
         {
-            if (widgetIndex != WIDX_PRICE || dropdownIndex == -1)
+            if (widgetIndex != WIDX_PRICE_DROPDOWN_BUTTON || dropdownIndex == -1)
             {
                 return;
             }
@@ -891,9 +896,10 @@ namespace OpenRCT2::Ui::Windows
             SetPressedTab();
             PrepareWindowTitleText();
 
-            // Show a tooltip if the park is pay per ride.
+            // Reset the page-specific tooltips before configuring the current pricing state.
             widgets[WIDX_PRICE_LABEL].tooltip = kStringIdNone;
             widgets[WIDX_PRICE].tooltip = kStringIdNone;
+            widgets[WIDX_PRICE_DROPDOWN_BUTTON].tooltip = kStringIdNone;
 
             auto& park = getGameState().park;
 
@@ -907,10 +913,14 @@ namespace OpenRCT2::Ui::Windows
             {
                 widgets[WIDX_PRICE].type = WidgetType::labelCentred;
                 widgets[WIDX_PRICE].setString(STR_FREE);
+                widgets[WIDX_PRICE_DROPDOWN_BUTTON].type = WidgetType::empty;
             }
             else
             {
                 widgets[WIDX_PRICE].type = WidgetType::dropdownMenu;
+                widgets[WIDX_PRICE].tooltip = STR_ADMISSION_PRICING_POLICY_TIP;
+                widgets[WIDX_PRICE_DROPDOWN_BUTTON].type = WidgetType::button;
+                widgets[WIDX_PRICE_DROPDOWN_BUTTON].tooltip = STR_ADMISSION_PRICING_POLICY_TIP;
                 _priceCaption = FormatEntranceFeeTargetCaption(park, park.entranceFeeTarget);
                 widgets[WIDX_PRICE].setString(_priceCaption.c_str());
             }

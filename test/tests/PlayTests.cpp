@@ -832,7 +832,12 @@ TEST_F(PlayTests, ParkEntranceFeeTargetsUseGuestCashAndDebuffedParkValue)
     gameState.scenarioOptions.guestInitialCash = 1000.00_GBP;
     EXPECT_EQ(Park::GetEntranceFeeForTarget(gameState.park, Park::ParkEntranceFeeTarget::incomePerGuest), 70.00_GBP);
 
-    auto result = executeImmediate<GameActions::ParkSetEntranceFeeAction>(Park::ParkEntranceFeeTarget::incomePerGuest);
+    auto result = executeImmediate<GameActions::ParkSetEntranceFeeAction>(1.00_GBP);
+    ASSERT_EQ(result.error, GameActions::Status::ok);
+    EXPECT_EQ(gameState.park.entranceFeeTarget, Park::ParkEntranceFeeTarget::custom);
+    EXPECT_EQ(Park::GetEntranceFee(gameState.park), 1.00_GBP);
+
+    result = executeImmediate<GameActions::ParkSetEntranceFeeAction>(Park::ParkEntranceFeeTarget::incomePerGuest);
     ASSERT_EQ(result.error, GameActions::Status::ok);
     EXPECT_EQ(gameState.park.entranceFeeTarget, Park::ParkEntranceFeeTarget::incomePerGuest);
     EXPECT_EQ(Park::GetEntranceFee(gameState.park), 70.00_GBP);
@@ -904,7 +909,6 @@ TEST_F(PlayTests, MazeCapacityModesDeriveCapacityFromTileCount)
     EXPECT_EQ(maze.getMazeCapacityMode(), MazeCapacityMode::normal);
     EXPECT_EQ(maze.getMazeCapacityForMode(MazeCapacityMode::sparse), 2);
     EXPECT_EQ(maze.getMazeCapacityForMode(MazeCapacityMode::normal), 5);
-    EXPECT_EQ(maze.getMazeCapacityForMode(MazeCapacityMode::overcrowded), 10);
     EXPECT_EQ(maze.getMazeCapacityForMode(MazeCapacityMode::overcrowded), 10);
     EXPECT_EQ(maze.getStoredOperationOption(), static_cast<uint8_t>(MazeCapacityMode::normal));
     EXPECT_EQ(maze.getEffectiveOperationOption(), 5);

@@ -8,7 +8,9 @@
  *****************************************************************************/
 
 #include <gtest/gtest.h>
+#include <array>
 #include <memory>
+#include <openrct2-ui/UiStringIds.h>
 #include <openrct2/Context.h>
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/config/Config.h>
@@ -89,6 +91,50 @@ protected:
 };
 
 std::shared_ptr<IContext> FormattingTests::_context;
+
+TEST_F(FormattingTests, EnglishUsRideWindowStringsFallBackWithoutShiftingIds)
+{
+    constexpr std::array<StringId, 15> rideWindowStringIds = {
+        STR_TRACK_STYLE_GROUP,
+        STR_MAZE_STYLE_GROUP,
+        STR_SHOP_STYLE_GROUP,
+        STR_VEHICLE_STYLE_GROUP,
+        STR_OPERATING_MODE_GROUP,
+        STR_WAIT_AND_LOAD_GROUP,
+        STR_MAZE_CAPACITY_MODE,
+        STR_MAZE_CAPACITY_MODE_TIP,
+        STR_MAZE_CAPACITY_SPARSE,
+        STR_MAZE_CAPACITY_NORMAL,
+        STR_MAZE_CAPACITY_OVERCROWDING,
+        STR_MAX_POSITIVE_LONGITUDINAL_G,
+        STR_MAX_NEGATIVE_LONGITUDINAL_G,
+        STR_RIDE_STATS_LONG_G,
+        STR_SHOW_GRAPH_OF_LONGITUDINAL_ACCELERATION_AGAINST_TIME_TIP,
+    };
+
+    ASSERT_TRUE(LanguageOpen(LANGUAGE_ENGLISH_US));
+    std::array<std::string, rideWindowStringIds.size()> englishUsStrings;
+    for (size_t i = 0; i < rideWindowStringIds.size(); i++)
+    {
+        englishUsStrings[i] = LanguageGetString(rideWindowStringIds[i]);
+    }
+
+    EXPECT_STREQ(LanguageGetString(STR_MAZE_CAPACITY_MODE), "Maze capacity");
+    EXPECT_STREQ(LanguageGetString(STR_MAZE_CAPACITY_SPARSE), "Sparse");
+    EXPECT_STREQ(LanguageGetString(STR_MAZE_CAPACITY_NORMAL), "Normal");
+    EXPECT_STREQ(LanguageGetString(STR_MAZE_CAPACITY_OVERCROWDING), "Overcrowding");
+    EXPECT_EQ(FmtString(LanguageGetString(STR_RIDE_STATS_LONG_G)).WithoutFormatTokens(), "Long. Gs");
+    EXPECT_STREQ(
+        LanguageGetString(STR_SHOW_GRAPH_OF_LONGITUDINAL_ACCELERATION_AGAINST_TIME_TIP),
+        "Show graph of longitudinal acceleration against time");
+
+    ASSERT_TRUE(LanguageOpen(LANGUAGE_ENGLISH_UK));
+    for (size_t i = 0; i < rideWindowStringIds.size(); i++)
+    {
+        EXPECT_EQ(englishUsStrings[i], LanguageGetString(rideWindowStringIds[i]))
+            << "String ID " << rideWindowStringIds[i];
+    }
+}
 
 TEST_F(FormattingTests, no_args)
 {

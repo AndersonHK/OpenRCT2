@@ -3873,3 +3873,8 @@ STR_7072    :Discount (50% of journey value)
 STR_7073    :Fair price (100% of journey value)
 STR_7074    :Extortive (200% of journey value)
 STR_7075    :waiting for rating
+STR_7076    :Richest guest
+STR_7077    :Max profit
+STR_7078    :All guests
+STR_7079    :Select admission policy
+STR_7080    :Select how the park entrance fee is calculated

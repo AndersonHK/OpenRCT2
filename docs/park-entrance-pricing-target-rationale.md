@@ -10,7 +10,7 @@ All three policies are also capped by the park's computed entrance value and by 
 
 The spawn-cash samples mirror `Guest::generate`: scenario cash minus `$10.00`, scenario cash, scenario cash plus `$10.00`, and scenario cash plus `$20.00`, clamped at zero. Scenarios with guest initial cash set to `$0.00` retain the existing special case where guests spawn with `$50.00`.
 
-The park window exposes only the three policy options. A hidden `custom` policy exists to preserve older saves, scenario-editor fixed fees, scripts, and legacy game actions that still send a literal entrance fee. Selecting any visible policy replaces that custom fee with the computed target price.
+The park window exposes only the three policy options. A hidden `custom` policy exists to preserve older saves, scenario-editor fixed fees, scripts, and legacy game actions that still send a literal entrance fee. When such a fixed fee is active, the dropdown prompts the player to select an admission policy instead of exposing `custom` as a fourth option. Selecting any visible policy replaces that custom fee with the computed target price. Merely opening the window does not mutate the park's pricing state.
 
 Functions touched:
 
