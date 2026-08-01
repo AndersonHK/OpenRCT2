@@ -363,32 +363,26 @@ namespace OpenRCT2::GameActions
             }
         }
 
-        auto* wallElement = TileElementInsert<WallElement>(targetLoc, 0b0000);
+        auto* wallElement = InsertTileElement<WallElement>(targetLoc, 0b0000, [&](WallElement& wallElement) {
+            wallElement.clearanceHeight = clearanceHeight;
+            wallElement.setDirection(_edge);
+            wallElement.SetSlope(edgeSlope);
+            wallElement.SetPrimaryColour(_primaryColour);
+            wallElement.SetSecondaryColour(_secondaryColour);
+            wallElement.SetAcrossTrack(wallAcrossTrack);
+            wallElement.SetEntryIndex(_wallType);
+            wallElement.SetBannerIndex(banner != nullptr ? banner->id : BannerIndex::GetNull());
+            if (wallEntry->flags & WALL_SCENERY_HAS_TERTIARY_COLOUR)
+                wallElement.SetTertiaryColour(_tertiaryColour);
+            wallElement.setGhost(GetFlags().has(CommandFlag::ghost));
+        });
         if (wallElement == nullptr)
         {
             return Result(Status::noFreeElements, STR_CANT_POSITION_THIS_HERE, STR_TILE_ELEMENT_LIMIT_REACHED);
         }
 
-        wallElement->clearanceHeight = clearanceHeight;
-        wallElement->setDirection(_edge);
-        wallElement->SetSlope(edgeSlope);
-
-        wallElement->SetPrimaryColour(_primaryColour);
-        wallElement->SetSecondaryColour(_secondaryColour);
-        wallElement->SetAcrossTrack(wallAcrossTrack);
-
-        wallElement->SetEntryIndex(_wallType);
-        wallElement->SetBannerIndex(banner != nullptr ? banner->id : BannerIndex::GetNull());
-
-        if (wallEntry->flags & WALL_SCENERY_HAS_TERTIARY_COLOUR)
-        {
-            wallElement->SetTertiaryColour(_tertiaryColour);
-        }
-
-        wallElement->setGhost(GetFlags().has(CommandFlag::ghost));
-
         MapAnimations::MarkTileForInvalidation(TileCoordsXY(targetLoc));
-        MapInvalidateTileZoom1({ _loc, wallElement->getBaseZ(), wallElement->getBaseZ() + 72 });
+        MapInvalidateTileFull(_loc);
 
         res.cost = wallEntry->price;
 

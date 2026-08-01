@@ -1354,10 +1354,10 @@ void updateChairlift(Ride& ride)
         return;
 
     auto bullwheelLoc = ride.chairliftBullwheelLocation[0].ToCoordsXYZ();
-    MapInvalidateTileZoom1({ bullwheelLoc, bullwheelLoc.z, bullwheelLoc.z + (4 * kCoordsZStep) });
+    MapInvalidateTileFull(bullwheelLoc);
 
     bullwheelLoc = ride.chairliftBullwheelLocation[1].ToCoordsXYZ();
-    MapInvalidateTileZoom1({ bullwheelLoc, bullwheelLoc.z, bullwheelLoc.z + (4 * kCoordsZStep) });
+    MapInvalidateTileFull(bullwheelLoc);
 }
 
 /**
@@ -1468,7 +1468,7 @@ void updateSpiralSlide(Ride& ride)
         int32_t rotation = tileElement->getDirection();
         startLoc += ride_spiral_slide_main_tile_offset[rotation][current_rotation];
 
-        MapInvalidateTileZoom0({ startLoc, tileElement->getBaseZ(), tileElement->getClearanceZ() });
+        MapInvalidateTileFull(startLoc);
     }
 }
 
@@ -7682,7 +7682,7 @@ void RideClearLeftoverEntrances(const Ride& ride)
                 {
                     MapTopology::InvalidateTileAndNeighbours(tilePos);
                 }
-                TileElementRemove(entrance->as<TileElement>());
+                EraseTileElement(tilePos, entrance->as<TileElement>());
             }
         }
     }

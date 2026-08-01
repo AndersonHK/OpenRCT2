@@ -403,7 +403,7 @@ namespace OpenRCT2::GameActions
             {
                 FootpathRemoveEdgesAt(mapLoc, reinterpret_cast<TileElement*>(foundElement));
             }
-            TileElementRemove(reinterpret_cast<TileElement*>(foundElement));
+            EraseTileElement(TileCoordsXY{ mapLoc }, reinterpret_cast<TileElement*>(foundElement));
             ride->validateStations();
             if (!GetFlags().has(CommandFlag::ghost))
             {

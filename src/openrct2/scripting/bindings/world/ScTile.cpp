@@ -91,45 +91,21 @@ namespace OpenRCT2::Scripting
             JS_GetLength(ctx, jsValue, &dataLength);
             auto dataSize = static_cast<size_t>(dataLength);
             auto* array = JS_GetUint8Array(ctx, &dataSize, jsValue);
-            auto numElements = dataLength / sizeof(TileElement);
-            if (numElements == 0)
+            if (dataLength <= 0 || dataLength % sizeof(TileElement) != 0)
             {
-                MapSetTileElement(TileCoordsXY(coords), nullptr);
+                JS_ThrowPlainError(ctx, "Tile data must contain a non-empty whole number of tile elements.");
+                return JS_EXCEPTION;
             }
-            else
-            {
-                auto first = MapGetFirstElementAt(coords);
-                auto currentNumElements = GetNumElements(first);
-                if (numElements > currentNumElements)
-                {
-                    // Allocate space for the extra tile elements (inefficient but works)
-                    auto pos = TileCoordsXYZ(TileCoordsXY(coords), 0).ToCoordsXYZ();
-                    auto numToInsert = numElements - currentNumElements;
-                    for (size_t i = 0; i < numToInsert; i++)
-                    {
-                        TileElementInsert(pos, 0, TileElementType::surface);
-                    }
 
-                    // Copy data to element span
-                    first = MapGetFirstElementAt(coords);
-                    currentNumElements = GetNumElements(first);
-                    if (currentNumElements != 0)
-                    {
-                        std::memcpy(first, array, currentNumElements * sizeof(TileElement));
-                        // Safely force last tile flag for last element to avoid read overrun
-                        first[numElements - 1].setLastForTile(true);
-                    }
-                }
-                else
-                {
-                    std::memcpy(first, array, numElements * sizeof(TileElement));
-                    // Safely force last tile flag for last element to avoid read overrun
-                    first[numElements - 1].setLastForTile(true);
-                }
+            const auto numElements = static_cast<size_t>(dataLength) / sizeof(TileElement);
+            std::vector<TileElement> elements(numElements);
+            std::memcpy(elements.data(), array, numElements * sizeof(TileElement));
+            const auto status = ReplaceTileElementsAt(TileCoordsXY{ coords }, std::move(elements));
+            if (status != TileMutationStatus::ok)
+            {
+                JS_ThrowPlainError(ctx, "Tile data must leave the tile non-empty and contain a surface element.");
+                return JS_EXCEPTION;
             }
-            MapInvalidateTileFull(coords);
-            // Raw tile bytes may replace or remove any combination of routing elements.
-            MapTopology::InvalidateTileAndNeighbours(coords);
         }
         return JS_UNDEFINED;
     }
@@ -157,34 +133,15 @@ namespace OpenRCT2::Scripting
         {
             std::vector<TileElement> data(first, first + origNumElements);
 
-            auto pos = TileCoordsXYZ(TileCoordsXY(coords), 0).ToCoordsXYZ();
-            auto newElement = TileElementInsert(pos, 0, TileElementType::surface);
-            if (newElement == nullptr)
+            TileElement newElement{};
+            newElement.ClearAs(TileElementType::surface);
+            data.insert(data.begin() + index, newElement);
+            if (ReplaceTileElementsAt(TileCoordsXY{ coords }, std::move(data)) != TileMutationStatus::ok)
             {
                 JS_ThrowPlainError(ctx, "Unable to allocate element.");
                 return JS_EXCEPTION;
             }
-
-            // Inefficient, requires a dedicated method in tile element manager
             first = MapGetFirstElementAt(coords);
-            // Copy elements before index
-            if (index > 0)
-            {
-                std::memcpy(first, &data[0], index * sizeof(TileElement));
-            }
-            // Zero new element
-            std::memset(first + index, 0, sizeof(TileElement));
-            // Copy elements after index
-            if (index < origNumElements)
-            {
-                std::memcpy(first + index + 1, &data[index], (origNumElements - index) * sizeof(TileElement));
-            }
-            for (size_t i = 0; i < origNumElements; i++)
-            {
-                first[i].setLastForTile(false);
-            }
-            first[origNumElements].setLastForTile(true);
-            MapInvalidateTileFull(coords);
             return gScTileElement.New(ctx, &first[index], coords);
         }
         else
@@ -202,22 +159,21 @@ namespace OpenRCT2::Scripting
         auto first = MapGetFirstElementAt(coords);
         if (index < GetNumElements(first))
         {
-            auto element = &first[index];
-            const bool changesTopology = !element->isGhost()
-                && (element->getType() == TileElementType::path || element->getType() == TileElementType::entrance
-                    || element->getType() == TileElementType::banner);
-            if (element->getType() != TileElementType::largeScenery
+            auto* element = &first[index];
+            TileElement removedElement = *element;
+            const bool removeBanner = element->getType() != TileElementType::largeScenery
                 || element->asLargeScenery()->GetEntry()->scrolling_mode == kScrollingModeNone
-                || ScTileElement::GetOtherLargeSceneryElement(coords, element->asLargeScenery()) == nullptr)
+                || ScTileElement::GetOtherLargeSceneryElement(coords, element->asLargeScenery()) == nullptr;
+
+            std::vector<TileElement> elements(first, first + GetNumElements(first));
+            elements.erase(elements.begin() + index);
+            if (ReplaceTileElementsAt(TileCoordsXY{ coords }, std::move(elements)) != TileMutationStatus::ok)
             {
-                element->RemoveBannerEntry();
+                JS_ThrowPlainError(ctx, "A tile must remain non-empty and contain a surface element.");
+                return JS_EXCEPTION;
             }
-            TileElementRemove(&first[index]);
-            MapInvalidateTileFull(coords);
-            if (changesTopology)
-            {
-                MapTopology::InvalidateTileAndNeighbours(coords);
-            }
+            if (removeBanner)
+                removedElement.RemoveBannerEntry();
         }
         return JS_UNDEFINED;
     }

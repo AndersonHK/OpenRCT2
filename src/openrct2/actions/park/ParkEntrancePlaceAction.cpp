@@ -154,23 +154,20 @@ namespace OpenRCT2::GameActions
                 }
             }
 
-            auto* entranceElement = TileElementInsert<EntranceElement>(CoordsXYZ{ entranceLoc, zLow }, 0b1111);
+            auto* entranceElement = InsertTileElement<EntranceElement>(
+                CoordsXYZ{ entranceLoc, zLow }, 0b1111, [&](EntranceElement& entranceElement) {
+                    entranceElement.setClearanceZ(zHigh);
+                    entranceElement.setGhost(flags.has(CommandFlag::ghost));
+                    entranceElement.setDirection(_loc.direction);
+                    entranceElement.SetSequenceIndex(index);
+                    entranceElement.SetEntranceType(ENTRANCE_TYPE_PARK_ENTRANCE);
+                    entranceElement.setEntryIndex(_entranceType);
+                    if (!_pathTypeIsLegacy)
+                        entranceElement.SetSurfaceEntryIndex(_pathType);
+                    else
+                        entranceElement.SetLegacyPathEntryIndex(_pathType);
+                });
             Guard::Assert(entranceElement != nullptr);
-
-            entranceElement->setClearanceZ(zHigh);
-            entranceElement->setGhost(flags.has(CommandFlag::ghost));
-            entranceElement->setDirection(_loc.direction);
-            entranceElement->SetSequenceIndex(index);
-            entranceElement->SetEntranceType(ENTRANCE_TYPE_PARK_ENTRANCE);
-            entranceElement->setEntryIndex(_entranceType);
-            if (!_pathTypeIsLegacy)
-            {
-                entranceElement->SetSurfaceEntryIndex(_pathType);
-            }
-            else
-            {
-                entranceElement->SetLegacyPathEntryIndex(_pathType);
-            }
 
             if (!entranceElement->isGhost())
             {

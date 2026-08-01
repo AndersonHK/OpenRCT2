@@ -6680,7 +6680,7 @@ namespace OpenRCT2
                 additionStatus |= spaceLeftInBin << selectedBin;
                 foundElement->SetAdditionStatus(additionStatus);
 
-                MapInvalidateTileZoom0({ NextLoc, foundElement->getBaseZ(), foundElement->getClearanceZ() });
+                MapInvalidateTileFull(NextLoc);
                 StateReset();
                 break;
             }
@@ -6980,7 +6980,7 @@ namespace OpenRCT2
 
         tileElement->SetIsBroken(true);
 
-        MapInvalidateTileZoom1({ guest.NextLoc, tileElement->getBaseZ(), tileElement->getBaseZ() + 32 });
+        MapInvalidateTileFull(guest.NextLoc);
 
         guest.angriness = 16;
     }

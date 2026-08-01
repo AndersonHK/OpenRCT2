@@ -253,19 +253,18 @@ namespace OpenRCT2::GameActions
         TileElement* tileElement = MapGetFirstElementAt(_coords);
         while (tileElement != nullptr)
         {
-            const bool wasLast = tileElement->isLastForTile();
             const bool shouldRemove = tileElement->getType() == TileElementType::smallScenery
                 && _height <= tileElement->clearanceHeight && _height + 4 >= tileElement->baseHeight;
             if (shouldRemove)
             {
-                // Removal compacts the tile array. Unless this was the last element, the same address is now the next element.
-                TileElementRemove(tileElement);
-                if (wasLast)
+                const auto eraseResult = EraseTileElement(TileCoordsXY{ _coords }, tileElement);
+                if (!eraseResult)
                     break;
+                tileElement = eraseResult.next;
             }
             else
             {
-                if (wasLast)
+                if (tileElement->isLastForTile())
                     break;
                 tileElement++;
             }
@@ -351,16 +350,16 @@ namespace OpenRCT2::GameActions
         MapInvalidateTileFull(_coords);
     }
 
-    bool LandSetHeightAction::MapSetLandHeightClearFunc(
+    ClearanceResult LandSetHeightAction::MapSetLandHeightClearFunc(
         TileElement** tile_element, [[maybe_unused]] const CoordsXY& coords, [[maybe_unused]] CommandFlags flags,
         [[maybe_unused]] money64* price)
     {
         if ((*tile_element)->getType() == TileElementType::surface)
-            return true;
+            return ClearanceResult::clear;
 
         if ((*tile_element)->getType() == TileElementType::smallScenery)
-            return true;
+            return ClearanceResult::clear;
 
-        return false;
+        return ClearanceResult::blocked;
     }
 } // namespace OpenRCT2::GameActions

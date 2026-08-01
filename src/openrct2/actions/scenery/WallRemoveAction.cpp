@@ -86,9 +86,7 @@ namespace OpenRCT2::GameActions
         res.position.z = _loc.z;
 
         wallElement->RemoveBannerEntry();
-        RideRating::InvalidateLocalContextCacheAround(_loc);
-        MapInvalidateTileZoom1({ _loc, wallElement->getBaseZ(), (wallElement->getBaseZ()) + 72 });
-        TileElementRemove(wallElement);
+        EraseTileElement(TileCoordsXY{ _loc }, wallElement);
 
         return res;
     }

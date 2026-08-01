@@ -1255,7 +1255,7 @@ namespace OpenRCT2
             if (surfaceElement != nullptr && surfaceElement->CanGrassGrow())
             {
                 surfaceElement->SetGrassLength(GRASS_LENGTH_MOWED);
-                MapInvalidateTileZoom0({ NextLoc, surfaceElement->getBaseZ(), surfaceElement->getBaseZ() + 16 });
+                MapInvalidateTileFull(NextLoc);
             }
             staffLawnsMown = AddClamp(staffLawnsMown, 1u);
             WindowInvalidateFlags |= PEEP_INVALIDATE_STAFF_STATS;
@@ -1315,7 +1315,7 @@ namespace OpenRCT2
                     continue;
 
                 tile_element->asSmallScenery()->SetAge(0);
-                MapInvalidateTileZoom0({ actionLoc, tile_element->getBaseZ(), tile_element->getClearanceZ() });
+                MapInvalidateTileFull(actionLoc);
                 staffGardensWatered = AddClamp(staffGardensWatered, 1u);
                 WindowInvalidateFlags |= PEEP_INVALIDATE_STAFF_STATS;
             } while (!(tile_element++)->isLastForTile());
@@ -1398,7 +1398,7 @@ namespace OpenRCT2
             uint8_t additionStatus = tile_element->asPath()->GetAdditionStatus() | ((3 << Var37) << Var37);
             tile_element->asPath()->SetAdditionStatus(additionStatus);
 
-            MapInvalidateTileZoom0({ NextLoc, tile_element->getBaseZ(), tile_element->getClearanceZ() });
+            MapInvalidateTileFull(NextLoc);
             staffBinsEmptied = AddClamp(staffBinsEmptied, 1u);
             WindowInvalidateFlags |= PEEP_INVALIDATE_STAFF_STATS;
         }

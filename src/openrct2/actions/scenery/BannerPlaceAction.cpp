@@ -145,21 +145,16 @@ namespace OpenRCT2::GameActions
         banner->position = TileCoordsXY(_loc);
 
         res.setData(BannerPlaceActionResult{ banner->id });
-        auto* bannerElement = TileElementInsert<BannerElement>({ _loc, _loc.z + (2 * kCoordsZStep) }, 0b0000);
+        auto* bannerElement = InsertTileElement<BannerElement>(
+            { _loc, _loc.z + (2 * kCoordsZStep) }, 0b0000, [&](BannerElement& bannerElement) {
+                bannerElement.setClearanceZ(_loc.z + kPathClearance);
+                bannerElement.SetPosition(_loc.direction);
+                bannerElement.ResetAllowedEdges();
+                bannerElement.SetIndex(banner->id);
+                bannerElement.setGhost(GetFlags().has(CommandFlag::ghost));
+            });
         Guard::Assert(bannerElement != nullptr);
-
-        bannerElement->setClearanceZ(_loc.z + kPathClearance);
-        bannerElement->SetPosition(_loc.direction);
-        bannerElement->ResetAllowedEdges();
-        bannerElement->SetIndex(banner->id);
-        bannerElement->setGhost(GetFlags().has(CommandFlag::ghost));
-
-        MapInvalidateTileFull(_loc);
         MapAnimations::MarkTileForInvalidation(TileCoordsXY(_loc));
-        if (!bannerElement->isGhost())
-        {
-            MapTopology::InvalidateTileAndNeighbours(_loc);
-        }
 
         res.cost = bannerEntry->price;
         return res;

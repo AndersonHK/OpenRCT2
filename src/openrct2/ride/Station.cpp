@@ -348,7 +348,7 @@ static void RideInvalidateStationStart(Ride& ride, StationIndex stationIndex, bo
     if (trackElement->HasGreenLight() != greenLight)
     {
         trackElement->SetHasGreenLight(greenLight);
-        MapInvalidateTileZoom1({ startPos, tileElement->getBaseZ(), tileElement->getClearanceZ() });
+        MapInvalidateTileFull(startPos);
     }
 }
 

@@ -361,27 +361,29 @@ namespace OpenRCT2
         _presentationSnapshot = _previous;
     }
 
-    static void SetTileElementsInternal(GameState_t& gameState, std::vector<TileElement>&& tileElements, bool topologyChanged)
+    static void RelocateTileElementStorage(GameState_t& gameState, std::vector<TileElement>&& tileElements)
     {
         gameState.tileElements = std::move(tileElements);
         _tileIndex = TilePointerIndex<TileElement>(
             kMaximumMapSizeTechnical, gameState.tileElements.data(), gameState.tileElements.size());
         _tileElementsInUse = gameState.tileElements.size();
+    }
+
+    static void ReplaceTileElementStorage(GameState_t& gameState, std::vector<TileElement>&& tileElements)
+    {
+        RelocateTileElementStorage(gameState, std::move(tileElements));
         if (++_presentationEpoch == 0)
             _presentationEpoch = 1;
         _presentationResetPending = true;
         _presentationDirtyWorklist.clear();
         _presentationDirtyTiles.reset();
         RideRating::ClearLocalContextCache();
-        if (topologyChanged)
-        {
-            MapTopology::Reset();
-        }
+        MapTopology::Reset();
     }
 
     void SetTileElements(GameState_t& gameState, std::vector<TileElement>&& tileElements)
     {
-        SetTileElementsInternal(gameState, std::move(tileElements), true);
+        ReplaceTileElementStorage(gameState, std::move(tileElements));
     }
 
     static TileElement GetDefaultSurfaceElement()
@@ -464,8 +466,8 @@ namespace OpenRCT2
             }
         }
 
-        // Reorganisation only relocates storage; topology is byte-for-byte unchanged.
-        SetTileElementsInternal(gameState, std::move(newElements), false);
+        // Reorganisation only relocates storage; topology and presentation are byte-for-byte unchanged.
+        RelocateTileElementStorage(gameState, std::move(newElements));
     }
 
     static void ReorganiseTileElements(size_t capacity)
@@ -592,6 +594,24 @@ namespace OpenRCT2
         return MapGetFirstElementAt(TileCoordsXY{ elementPos });
     }
 
+    ScopedTileIndexOverride::ScopedTileIndexOverride(std::initializer_list<TileIndexOverride> overrides)
+    {
+        _originals.reserve(overrides.size());
+        for (const auto& item : overrides)
+        {
+            Guard::ArgumentInRange(item.tile.x, 0, kMaximumMapSizeTechnical - 1, "tile.x");
+            Guard::ArgumentInRange(item.tile.y, 0, kMaximumMapSizeTechnical - 1, "tile.y");
+            _originals.push_back({ item.tile, _tileIndex.GetFirstElementAt(item.tile) });
+            _tileIndex.SetTile(item.tile, item.elements);
+        }
+    }
+
+    ScopedTileIndexOverride::~ScopedTileIndexOverride()
+    {
+        for (auto item = _originals.rbegin(); item != _originals.rend(); item++)
+            _tileIndex.SetTile(item->tile, item->elements);
+    }
+
     TileElement* MapGetNthElementAt(const CoordsXY& coords, int32_t n)
     {
         TileElement* tileElement = MapGetFirstElementAt(coords);
@@ -633,23 +653,6 @@ namespace OpenRCT2
         } while (!(tileElement++)->isLastForTile());
 
         return nullptr;
-    }
-
-    void MapSetTileElement(const TileCoordsXY& tilePos, TileElement* elements)
-    {
-        if (!MapIsLocationValid(tilePos.ToCoordsXY()))
-        {
-            LOG_ERROR("Trying to access element outside of range");
-            return;
-        }
-        _tileIndex.SetTile(tilePos, elements);
-        const auto presentationIndex = static_cast<size_t>(tilePos.x + tilePos.y * kMaximumMapSizeTechnical);
-        if (!_presentationDirtyTiles.test(presentationIndex))
-        {
-            _presentationDirtyTiles.set(presentationIndex);
-            _presentationDirtyWorklist.push_back(static_cast<uint32_t>(presentationIndex));
-        }
-        MapTopology::InvalidateTileAndNeighbours(tilePos);
     }
 
     SurfaceElement* MapGetSurfaceElementAt(const TileCoordsXY& coords)
@@ -1242,28 +1245,69 @@ namespace OpenRCT2
      *
      *  rct2: 0x0068B280
      */
-    void TileElementRemove(TileElement* tileElement)
+    static bool IsRoutingTopologyElement(const TileElement& element)
     {
-        // Replace Nth element by (N+1)th element.
-        // This loop will make tileElement point to the old last element position,
-        // after copy it to it's new position
-        if (!tileElement->isLastForTile())
-        {
-            do
-            {
-                *tileElement = *(tileElement + 1);
-            } while (!(++tileElement)->isLastForTile());
-        }
+        if (element.isGhost())
+            return false;
 
-        // Mark the latest element with the last element flag.
-        (tileElement - 1)->setLastForTile(true);
-        tileElement->baseHeight = kMaxTileElementHeight;
+        const auto type = element.getType();
+        return type == TileElementType::path || type == TileElementType::entrance || type == TileElementType::banner;
+    }
+
+    static void PublishTileMutation(
+        const TileCoordsXY& tile, const TileElement& element, const TileMutationMode mode)
+    {
+        if (mode == TileMutationMode::deferred)
+            return;
+
+        MapInvalidateTileFull(tile.ToCoordsXY());
+        if (IsRoutingTopologyElement(element))
+            MapTopology::InvalidateTileAndNeighbours(tile);
+    }
+
+    TileEraseResult EraseTileElement(
+        const TileCoordsXY& tile, TileElement* element, const TileMutationMode mode)
+    {
+        if (!IsTileLocationValid(tile))
+            return { TileMutationStatus::invalidTile };
+        if (element == nullptr)
+            return { TileMutationStatus::invalidElement };
+
+        auto* first = _tileIndex.GetFirstElementAt(tile);
+        if (first == nullptr)
+            return { TileMutationStatus::elementNotOnTile };
+
+        size_t count = 0;
+        size_t surfaceCount = 0;
+        bool found = false;
+        auto* cursor = first;
+        do
+        {
+            count++;
+            surfaceCount += cursor->getType() == TileElementType::surface ? 1 : 0;
+            found = found || cursor == element;
+        } while (!(cursor++)->isLastForTile());
+
+        if (!found)
+            return { TileMutationStatus::elementNotOnTile };
+        if (count == 1 || (element->getType() == TileElementType::surface && surfaceCount == 1))
+            return { TileMutationStatus::wouldViolateSurfaceInvariant };
+
+        const TileElement removed = *element;
+        auto* oldLast = cursor - 1;
+        const bool removedLast = element == oldLast;
+        for (auto* destination = element; destination != oldLast; destination++)
+            *destination = *(destination + 1);
+
+        (oldLast - 1)->setLastForTile(true);
+        oldLast->baseHeight = kMaxTileElementHeight;
         _tileElementsInUse--;
         auto& gameState = getGameState();
-        if (tileElement == &gameState.tileElements.back())
-        {
+        if (oldLast == &gameState.tileElements.back())
             gameState.tileElements.pop_back();
-        }
+
+        PublishTileMutation(tile, removed, mode);
+        return { TileMutationStatus::ok, removedLast ? nullptr : element };
     }
 
     /**
@@ -1297,7 +1341,7 @@ namespace OpenRCT2
                 case TileElementType::track:
                     FootpathQueueChainReset();
                     FootpathRemoveEdgesAt(TileCoordsXY{ it.x, it.y }.ToCoordsXY(), it.element);
-                    TileElementRemove(it.element);
+                    EraseTileElement(TileCoordsXY{ it.x, it.y }, it.element);
                     TileElementIteratorRestartForTile(&it);
                     break;
                 default:
@@ -1365,59 +1409,40 @@ namespace OpenRCT2
      *
      *  rct2: 0x0068B1F6
      */
-    TileElement* TileElementInsert(const CoordsXYZ& loc, int32_t occupiedQuadrants, TileElementType type)
+    TileInsertResult InsertTileElement(
+        const TileCoordsXY& tileLoc, TileElement element, const TileMutationMode mode)
     {
-        const auto& tileLoc = TileCoordsXYZ(loc);
+        if (!IsTileLocationValid(tileLoc) || _tileIndex.GetFirstElementAt(tileLoc) == nullptr)
+            return { TileMutationStatus::invalidTile };
 
-        auto numElementsOnTileOld = CountElementsOnTile(loc);
+        auto numElementsOnTileOld = CountElementsOnTile(tileLoc.ToCoordsXY());
         auto* newTileElement = AllocateTileElements(numElementsOnTileOld, 1);
         auto* originalTileElement = _tileIndex.GetFirstElementAt(tileLoc);
         if (newTileElement == nullptr)
-        {
-            return nullptr;
-        }
+            return { TileMutationStatus::noFreeElements };
 
         // Set tile index pointer to point to new element block
         _tileIndex.SetTile(tileLoc, newTileElement);
 
         bool isLastForTile = false;
-        if (originalTileElement == nullptr)
+        while (element.getBaseZ() >= originalTileElement->getBaseZ())
         {
-            isLastForTile = true;
-        }
-        else
-        {
-            // Copy all elements that are below the insert height
-            while (loc.z >= originalTileElement->getBaseZ())
-            {
-                // Copy over map element
-                *newTileElement = *originalTileElement;
-                originalTileElement->baseHeight = kMaxTileElementHeight;
-                originalTileElement++;
-                newTileElement++;
+            *newTileElement = *originalTileElement;
+            originalTileElement->baseHeight = kMaxTileElementHeight;
+            originalTileElement++;
+            newTileElement++;
 
-                if ((newTileElement - 1)->isLastForTile())
-                {
-                    // No more elements above the insert element
-                    (newTileElement - 1)->setLastForTile(false);
-                    isLastForTile = true;
-                    break;
-                }
+            if ((newTileElement - 1)->isLastForTile())
+            {
+                (newTileElement - 1)->setLastForTile(false);
+                isLastForTile = true;
+                break;
             }
         }
 
-        // Insert new map element
         auto* insertedElement = newTileElement;
-        newTileElement->type = 0;
-        newTileElement->setType(type);
-        newTileElement->setBaseZ(loc.z);
-        newTileElement->flags = 0;
-        newTileElement->setLastForTile(isLastForTile);
-        newTileElement->setOccupiedQuadrants(occupiedQuadrants);
-        newTileElement->setClearanceZ(loc.z);
-        newTileElement->owner = 0;
-        std::memset(&newTileElement->Pad05, 0, sizeof(newTileElement->Pad05));
-        std::memset(&newTileElement->Pad08, 0, sizeof(newTileElement->Pad08));
+        element.setLastForTile(isLastForTile);
+        *newTileElement = element;
         newTileElement++;
 
         // Insert rest of map elements above insert height
@@ -1433,8 +1458,67 @@ namespace OpenRCT2
             } while (!((newTileElement - 1)->isLastForTile()));
         }
 
-        RideRating::InvalidateLocalContextCacheAround(loc);
-        return insertedElement;
+        PublishTileMutation(tileLoc, element, mode);
+        return { TileMutationStatus::ok, insertedElement };
+    }
+
+    TileMutationStatus ReplaceTileElementsAt(
+        const TileCoordsXY& tile, std::vector<TileElement> elements, const TileMutationMode mode)
+    {
+        if (!IsTileLocationValid(tile))
+            return TileMutationStatus::invalidTile;
+        if (elements.empty())
+            return TileMutationStatus::wouldViolateSurfaceInvariant;
+        if (std::ranges::none_of(elements, [](const TileElement& element) {
+                return element.getType() == TileElementType::surface;
+            }))
+        {
+            return TileMutationStatus::wouldViolateSurfaceInvariant;
+        }
+
+        auto* oldFirst = _tileIndex.GetFirstElementAt(tile);
+        if (oldFirst == nullptr)
+            return TileMutationStatus::invalidTile;
+        const size_t oldCount = CountElementsOnTile(tile.ToCoordsXY());
+        const size_t newCount = elements.size();
+        if (_tileElementsInUse - oldCount + newCount > kMaxTileElements)
+            return TileMutationStatus::noFreeElements;
+
+        auto& gameState = getGameState();
+        auto freeElements = gameState.tileElements.capacity() - gameState.tileElements.size();
+        if (freeElements < newCount)
+        {
+            const auto requiredCapacity = std::max(gameState.tileElements.capacity() * 2, _tileElementsInUse + newCount);
+            ReorganiseTileElements(requiredCapacity);
+            freeElements = gameState.tileElements.capacity() - gameState.tileElements.size();
+            if (freeElements < newCount)
+                return TileMutationStatus::noFreeElements;
+        }
+
+        oldFirst = _tileIndex.GetFirstElementAt(tile);
+        auto* oldCursor = oldFirst;
+        do
+        {
+            oldCursor->baseHeight = kMaxTileElementHeight;
+        } while (!(oldCursor++)->isLastForTile());
+
+        for (auto& item : elements)
+            item.setLastForTile(false);
+        elements.back().setLastForTile(true);
+
+        const auto oldStorageSize = gameState.tileElements.size();
+        gameState.tileElements.resize(oldStorageSize + newCount);
+        auto* replacement = &gameState.tileElements[oldStorageSize];
+        std::ranges::copy(elements, replacement);
+        _tileIndex.SetTile(tile, replacement);
+        _tileElementsInUse = _tileElementsInUse - oldCount + newCount;
+
+        if (mode == TileMutationMode::immediate)
+        {
+            MapInvalidateTileFull(tile.ToCoordsXY());
+            MapTopology::InvalidateTileAndNeighbours(tile);
+        }
+        return TileMutationStatus::ok;
     }
 
     /**
@@ -1643,7 +1727,7 @@ namespace OpenRCT2
      * Clears the provided element properly from a certain tile, and updates
      * the pointer (when needed) passed to this function to point to the next element.
      */
-    static void ClearElementAtInternal(const CoordsXY& loc, TileElement** elementPtr, bool invalidateTopology)
+    static void ClearElementAtInternal(const CoordsXY& loc, TileElement** elementPtr)
     {
         auto& gameState = getGameState();
 
@@ -1661,6 +1745,7 @@ namespace OpenRCT2
                 element->asSurface()->SetOwnership(OWNERSHIP_UNOWNED);
                 element->asSurface()->SetParkFences(0);
                 element->asSurface()->SetWaterHeight(0);
+                MapInvalidateTileFull(loc);
                 // Because this element is not completely removed, the pointer must be updated manually
                 // The rest of the elements are removed from the array, so the pointer doesn't need to be updated.
                 (*elementPtr)++;
@@ -1683,11 +1768,7 @@ namespace OpenRCT2
                 // If asking nicely did not work, forcibly remove this to avoid an infinite loop.
                 if (result.error != GameActions::Status::ok)
                 {
-                    if (invalidateTopology && !element->isGhost())
-                    {
-                        MapTopology::InvalidateTileAndNeighbours(loc);
-                    }
-                    TileElementRemove(element);
+                    EraseTileElement(TileCoordsXY{ loc }, element);
                 }
                 break;
             }
@@ -1699,7 +1780,7 @@ namespace OpenRCT2
                 // If asking nicely did not work, forcibly remove this to avoid an infinite loop.
                 if (result.error != GameActions::Status::ok)
                 {
-                    TileElementRemove(element);
+                    EraseTileElement(TileCoordsXY{ loc }, element);
                 }
             }
             break;
@@ -1712,7 +1793,7 @@ namespace OpenRCT2
                 // If asking nicely did not work, forcibly remove this to avoid an infinite loop.
                 if (result.error != GameActions::Status::ok)
                 {
-                    TileElementRemove(element);
+                    EraseTileElement(TileCoordsXY{ loc }, element);
                 }
             }
             break;
@@ -1724,27 +1805,19 @@ namespace OpenRCT2
                 // If asking nicely did not work, forcibly remove this to avoid an infinite loop.
                 if (result.error != GameActions::Status::ok)
                 {
-                    if (invalidateTopology && !element->isGhost())
-                    {
-                        MapTopology::InvalidateTileAndNeighbours(loc);
-                    }
-                    TileElementRemove(element);
+                    EraseTileElement(TileCoordsXY{ loc }, element);
                 }
                 break;
             }
             default:
-                if (invalidateTopology && element->getType() == TileElementType::path && !element->isGhost())
-                {
-                    MapTopology::InvalidateTileAndNeighbours(loc);
-                }
-                TileElementRemove(element);
+                EraseTileElement(TileCoordsXY{ loc }, element);
                 break;
         }
     }
 
     void ClearElementAt(const CoordsXY& loc, TileElement** elementPtr)
     {
-        ClearElementAtInternal(loc, elementPtr, true);
+        ClearElementAtInternal(loc, elementPtr);
     }
 
     /**
@@ -1767,10 +1840,10 @@ namespace OpenRCT2
 
         // Remove all elements except the last one
         while (!tileElement->isLastForTile())
-            ClearElementAtInternal(loc, &tileElement, false);
+            ClearElementAtInternal(loc, &tileElement);
 
         // Remove the last element
-        ClearElementAtInternal(loc, &tileElement, false);
+        ClearElementAtInternal(loc, &tileElement);
     }
 
     int32_t MapGetHighestZ(const CoordsXY& loc)
@@ -1992,9 +2065,9 @@ namespace OpenRCT2
         MapInvalidateTileForRendering(tilePos);
     }
 
-    void MapInvalidateTileForRendering(const CoordsXYRangedZ& tilePos)
+    static void MarkPresentationTileDirty(const CoordsXY& position)
     {
-        const TileCoordsXY tileCoords{ tilePos };
+        const TileCoordsXY tileCoords{ position };
         if (tileCoords.x >= 0 && tileCoords.y >= 0 && tileCoords.x < kMaximumMapSizeTechnical
             && tileCoords.y < kMaximumMapSizeTechnical)
         {
@@ -2005,6 +2078,11 @@ namespace OpenRCT2
                 _presentationDirtyWorklist.push_back(static_cast<uint32_t>(index));
             }
         }
+    }
+
+    void MapInvalidateTileForRendering(const CoordsXYRangedZ& tilePos)
+    {
+        MarkPresentationTileDirty(tilePos);
         MapInvalidateTileUnderZoom(tilePos.x, tilePos.y, tilePos.baseZ, tilePos.clearanceZ, ZoomLevel{ -1 });
     }
 
@@ -2014,6 +2092,7 @@ namespace OpenRCT2
      */
     void MapInvalidateTileZoom1(const CoordsXYRangedZ& tilePos)
     {
+        MarkPresentationTileDirty(tilePos);
         MapInvalidateTileUnderZoom(tilePos.x, tilePos.y, tilePos.baseZ, tilePos.clearanceZ, ZoomLevel{ 1 });
     }
 
@@ -2023,6 +2102,7 @@ namespace OpenRCT2
      */
     void MapInvalidateTileZoom0(const CoordsXYRangedZ& tilePos)
     {
+        MarkPresentationTileDirty(tilePos);
         MapInvalidateTileUnderZoom(tilePos.x, tilePos.y, tilePos.baseZ, tilePos.clearanceZ, ZoomLevel{ 0 });
     }
 

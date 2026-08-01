@@ -311,7 +311,8 @@ static void FixInvalidSurfaces()
             if (surfaceElement == nullptr)
             {
                 LOG_ERROR("Null map element at x = %d and y = %d. Fixing...", x, y);
-                surfaceElement = TileElementInsert<SurfaceElement>(TileCoordsXYZ{ x, y, 14 }.ToCoordsXYZ(), 0b0000);
+                surfaceElement = InsertTileElement<SurfaceElement>(
+                    TileCoordsXYZ{ x, y, 14 }.ToCoordsXYZ(), 0b0000, [](SurfaceElement&) {});
                 if (surfaceElement == nullptr)
                 {
                     LOG_ERROR("Unable to fix: Map element limit reached.");

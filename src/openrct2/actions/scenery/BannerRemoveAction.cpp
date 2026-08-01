@@ -130,13 +130,15 @@ namespace OpenRCT2::GameActions
             res.cost = -((bannerEntry->price * 3) / 4);
         }
 
-        reinterpret_cast<TileElement*>(bannerElement)->RemoveBannerEntry();
-        MapInvalidateTileZoom1({ _loc, _loc.z, _loc.z + 32 });
-        if (!bannerElement->isGhost())
+        TileElement removedElement = *bannerElement->as<TileElement>();
+        const auto eraseResult = EraseTileElement(TileCoordsXY{ _loc }, bannerElement->as<TileElement>());
+        if (!eraseResult)
         {
-            MapTopology::InvalidateTileAndNeighbours(_loc);
+            res.error = Status::invalidParameters;
+            res.errorMessage = STR_INVALID_SELECTION_OF_OBJECTS;
+            return res;
         }
-        bannerElement->remove();
+        removedElement.RemoveBannerEntry();
 
         return res;
     }

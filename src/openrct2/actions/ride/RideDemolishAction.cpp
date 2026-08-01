@@ -235,7 +235,7 @@ namespace OpenRCT2::GameActions
                             {
                                 MapTopology::InvalidateTileAndNeighbours(tilePos);
                             }
-                            TileElementRemove(tileElement);
+                            EraseTileElement(tilePos, tileElement);
                         }
                         else
                         {

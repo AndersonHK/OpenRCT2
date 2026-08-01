@@ -233,15 +233,15 @@ namespace OpenRCT2::GameActions
 
             auto startLoc = _loc.ToTileStart();
 
-            auto* trackElement = TileElementInsert<TrackElement>(_loc, 0b1111);
+            auto* trackElement = InsertTileElement<TrackElement>(_loc, 0b1111, [&](TrackElement& trackElement) {
+                trackElement.setClearanceZ(_loc.z + kMazeClearanceHeight);
+                trackElement.SetTrackType(TrackElemType::maze);
+                trackElement.SetRideType(ride->type);
+                trackElement.SetRideIndex(_rideIndex);
+                trackElement.SetMazeEntry(0xFFFF);
+                trackElement.setGhost(flags.has(CommandFlag::ghost));
+            });
             Guard::Assert(trackElement != nullptr);
-
-            trackElement->setClearanceZ(_loc.z + kMazeClearanceHeight);
-            trackElement->SetTrackType(TrackElemType::maze);
-            trackElement->SetRideType(ride->type);
-            trackElement->SetRideIndex(_rideIndex);
-            trackElement->SetMazeEntry(0xFFFF);
-            trackElement->setGhost(flags.has(CommandFlag::ghost));
 
             tileElement = trackElement->as<TileElement>();
 
@@ -349,7 +349,7 @@ namespace OpenRCT2::GameActions
 
         if ((tileElement->asTrack()->GetMazeEntry() & 0x8888) == 0x8888)
         {
-            TileElementRemove(tileElement);
+            EraseTileElement(TileCoordsXY{ _loc }, tileElement);
             ride->validateStations();
             ride->mazeTiles--;
             ride->updateMazeCapacityForConstruction();

@@ -416,25 +416,23 @@ namespace OpenRCT2::GameActions
         res.expenditure = ExpenditureType::landscaping;
         res.cost = sceneryEntry->price + canBuild.cost;
 
-        auto* sceneryElement = TileElementInsert<SmallSceneryElement>(
-            CoordsXYZ{ _loc, zLow }, quarterTile.GetBaseQuarterOccupied());
+        auto* sceneryElement = InsertTileElement<SmallSceneryElement>(
+            CoordsXYZ{ _loc, zLow }, quarterTile.GetBaseQuarterOccupied(), [&](SmallSceneryElement& sceneryElement) {
+                sceneryElement.setDirection(_loc.direction);
+                sceneryElement.SetSceneryQuadrant(quadrant);
+                sceneryElement.SetEntryIndex(_sceneryType);
+                sceneryElement.SetAge(0);
+                sceneryElement.SetPrimaryColour(_primaryColour);
+                sceneryElement.SetSecondaryColour(_secondaryColour);
+                sceneryElement.SetTertiaryColour(_tertiaryColour);
+                sceneryElement.setClearanceZ(sceneryElement.getBaseZ() + sceneryEntry->height + 7);
+                sceneryElement.setGhost(GetFlags().has(CommandFlag::ghost));
+                if (supportsRequired)
+                    sceneryElement.SetNeedsSupports();
+            });
         if (sceneryElement == nullptr)
         {
             return Result(Status::noFreeElements, STR_CANT_POSITION_THIS_HERE, STR_TILE_ELEMENT_LIMIT_REACHED);
-        }
-
-        sceneryElement->setDirection(_loc.direction);
-        sceneryElement->SetSceneryQuadrant(quadrant);
-        sceneryElement->SetEntryIndex(_sceneryType);
-        sceneryElement->SetAge(0);
-        sceneryElement->SetPrimaryColour(_primaryColour);
-        sceneryElement->SetSecondaryColour(_secondaryColour);
-        sceneryElement->SetTertiaryColour(_tertiaryColour);
-        sceneryElement->setClearanceZ(sceneryElement->getBaseZ() + sceneryEntry->height + 7);
-        sceneryElement->setGhost(GetFlags().has(CommandFlag::ghost));
-        if (supportsRequired)
-        {
-            sceneryElement->SetNeedsSupports();
         }
 
         const auto clearanceData = canBuild.getData<ConstructClearResult>();

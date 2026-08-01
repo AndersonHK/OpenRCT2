@@ -296,19 +296,17 @@ namespace OpenRCT2::GameActions
                 }
             }
 
-            auto* newSceneryElement = TileElementInsert<LargeSceneryElement>(
-                CoordsXYZ{ curTile.x, curTile.y, zLow }, quarterTile.GetBaseQuarterOccupied());
+            auto* newSceneryElement = InsertTileElement<LargeSceneryElement>(
+                CoordsXYZ{ curTile.x, curTile.y, zLow }, quarterTile.GetBaseQuarterOccupied(),
+                [&](LargeSceneryElement& newSceneryElement) {
+                    newSceneryElement.setClearanceZ(zHigh);
+                    SetNewLargeSceneryElement(newSceneryElement, tile.index);
+                    if (banner != nullptr)
+                        newSceneryElement.SetBannerIndex(banner->id);
+                });
             Guard::Assert(newSceneryElement != nullptr);
-            newSceneryElement->setClearanceZ(zHigh);
-
-            SetNewLargeSceneryElement(*newSceneryElement, tile.index);
-            if (banner != nullptr)
-            {
-                newSceneryElement->SetBannerIndex(banner->id);
-            }
 
             MapAnimations::MarkTileForInvalidation(TileCoordsXY(curTile));
-            MapInvalidateTileFull(curTile);
 
             if (tile.index == 0)
             {

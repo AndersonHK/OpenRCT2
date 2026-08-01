@@ -10,7 +10,6 @@
 #include "TileElementBase.h"
 
 #include "../../core/EnumUtils.hpp"
-#include "../Map.h"
 #include "BannerElement.h"
 #include "EntranceElement.h"
 #include "LargeSceneryElement.h"
@@ -91,11 +90,6 @@ namespace OpenRCT2
         {
             this->flags &= ~TILE_ELEMENT_FLAG_GHOST;
         }
-    }
-
-    void TileElementBase::remove()
-    {
-        TileElementRemove(static_cast<TileElement*>(this));
     }
 
     uint8_t TileElementBase::getOccupiedQuadrants() const

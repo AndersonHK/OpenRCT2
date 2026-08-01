@@ -179,8 +179,7 @@ namespace OpenRCT2::GameActions
             }
             else
             {
-                MapInvalidateTileFull(currentTile);
-                TileElementRemove(sceneryElement);
+                EraseTileElement(TileCoordsXY{ currentTile }, sceneryElement);
             }
         }
 

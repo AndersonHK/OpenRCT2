@@ -1543,17 +1543,20 @@ void Ride::validateStations()
         TileElement* tileElement = MapGetFirstElementAt(location);
         if (tileElement == nullptr)
             continue;
-        do
+        while (tileElement != nullptr)
         {
+            auto* nextTileElement = tileElement->isLastForTile() ? nullptr : tileElement + 1;
             if (tileElement->getType() != TileElementType::entrance)
+            {
+                tileElement = nextTileElement;
                 continue;
-            if (tileElement->baseHeight != locationCoords.z)
+            }
+            if (tileElement->baseHeight != locationCoords.z || tileElement->asEntrance()->GetRideIndex() != id
+                || tileElement->asEntrance()->GetEntranceType() > ENTRANCE_TYPE_RIDE_EXIT)
+            {
+                tileElement = nextTileElement;
                 continue;
-            if (tileElement->asEntrance()->GetRideIndex() != id)
-                continue;
-            // if it's a park entrance continue to the next tile element
-            if (tileElement->asEntrance()->GetEntranceType() > ENTRANCE_TYPE_RIDE_EXIT)
-                continue;
+            }
 
             // find the station that's connected to this ride entrance
             CoordsXY nextLocation = location;
@@ -1564,7 +1567,10 @@ void Ride::validateStations()
             bool shouldRemove = true;
             TileElement* trackElement = MapGetFirstElementAt(nextLocation);
             if (trackElement == nullptr)
+            {
+                tileElement = nextTileElement;
                 continue;
+            }
             do
             {
                 if (trackElement->getType() != TileElementType::track)
@@ -1627,11 +1633,14 @@ void Ride::validateStations()
                 MazeEntranceHedgeReplacement({ location, tileElement });
                 FootpathRemoveEdgesAt(location, tileElement);
                 FootpathUpdateQueueChains();
-                MapInvalidateTileFull(location);
-                TileElementRemove(tileElement);
-                tileElement--;
+                const auto eraseResult = EraseTileElement(TileCoordsXY{ location }, tileElement);
+                tileElement = eraseResult ? eraseResult.next : nextTileElement;
             }
-        } while (!(tileElement++)->isLastForTile());
+            else
+            {
+                tileElement = nextTileElement;
+            }
+        }
     }
 }
 

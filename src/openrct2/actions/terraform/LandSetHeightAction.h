@@ -10,6 +10,7 @@
 #pragma once
 
 #include "../GameAction.hpp"
+#include "../../world/ConstructionClearance.h"
 
 namespace OpenRCT2::GameActions
 {
@@ -46,7 +47,7 @@ namespace OpenRCT2::GameActions
          *
          *  rct2: 0x00663CB9
          */
-        static bool MapSetLandHeightClearFunc(
+        static ClearanceResult MapSetLandHeightClearFunc(
             TileElement** tile_element, [[maybe_unused]] const CoordsXY& coords, [[maybe_unused]] CommandFlags flags,
             [[maybe_unused]] money64* price);
     };

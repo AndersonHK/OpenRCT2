@@ -2024,13 +2024,15 @@ namespace OpenRCT2::Ui::Windows
             gMapSelectType = MapSelectType::full;
 
             // If no change in ghost placement
-            if ((gSceneryGhostType & SCENERY_GHOST_FLAG_4) && mapTile == gSceneryGhostPosition && z == gSceneryGhostPosition.z
+            if ((gSceneryGhostType & SCENERY_GHOST_FLAG_4) && mapTile == gSceneryGhostPosition
+                && z + kPathHeightStep == gSceneryGhostPosition.z
                 && direction == gSceneryPlaceRotation)
             {
                 return;
             }
 
-            SceneryRemoveGhostToolPlacement();
+            if (!SceneryRemoveGhostToolPlacement())
+                return;
 
             money64 cost = TryPlaceGhostBanner({ mapTile, z, direction }, selection.EntryIndex);
 
@@ -2093,7 +2095,8 @@ namespace OpenRCT2::Ui::Windows
             CoordsXYZD loc, uint8_t quadrant, ObjectEntryIndex entryIndex, Colour primaryColour, Colour secondaryColour,
             Colour tertiaryColour)
         {
-            SceneryRemoveGhostToolPlacement();
+            if (!SceneryRemoveGhostToolPlacement())
+                return kMoney64Undefined;
 
             // 6e252b
             auto smallSceneryPlaceAction = GameActions::SmallSceneryPlaceAction(
@@ -2128,7 +2131,8 @@ namespace OpenRCT2::Ui::Windows
 
         money64 TryPlaceGhostPathAddition(CoordsXYZ loc, ObjectEntryIndex entryIndex)
         {
-            SceneryRemoveGhostToolPlacement();
+            if (!SceneryRemoveGhostToolPlacement())
+                return kMoney64Undefined;
 
             // 6e265b
             auto footpathAdditionPlaceAction = GameActions::FootpathAdditionPlaceAction(loc, entryIndex);
@@ -2152,7 +2156,8 @@ namespace OpenRCT2::Ui::Windows
             CoordsXYZ loc, uint8_t edge, ObjectEntryIndex entryIndex, Colour primaryColour, Colour secondaryColour,
             Colour tertiaryColour)
         {
-            SceneryRemoveGhostToolPlacement();
+            if (!SceneryRemoveGhostToolPlacement())
+                return kMoney64Undefined;
 
             // 6e26b0
             auto wallPlaceAction = GameActions::WallPlaceAction(
@@ -2179,7 +2184,8 @@ namespace OpenRCT2::Ui::Windows
         money64 TryPlaceGhostLargeScenery(
             CoordsXYZD loc, ObjectEntryIndex entryIndex, Colour primaryColour, Colour secondaryColour, Colour tertiaryColour)
         {
-            SceneryRemoveGhostToolPlacement();
+            if (!SceneryRemoveGhostToolPlacement())
+                return kMoney64Undefined;
 
             // 6e25a7
             auto sceneryPlaceAction = GameActions::LargeSceneryPlaceAction(
@@ -2211,7 +2217,8 @@ namespace OpenRCT2::Ui::Windows
 
         money64 TryPlaceGhostBanner(CoordsXYZD loc, ObjectEntryIndex entryIndex)
         {
-            SceneryRemoveGhostToolPlacement();
+            if (!SceneryRemoveGhostToolPlacement())
+                return kMoney64Undefined;
 
             // 6e2612
             auto primaryColour = _sceneryPrimaryColour;

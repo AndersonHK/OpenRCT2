@@ -25,7 +25,14 @@ struct CoordsXY;
 struct CoordsXYRangedZ;
 class QuarterTile;
 
-using ClearingFunction = bool (&)(
+enum class ClearanceResult : uint8_t
+{
+    blocked,
+    clear,
+    elementErased,
+};
+
+using ClearingFunction = ClearanceResult (&)(
     OpenRCT2::TileElement** tile_element, const CoordsXY& coords, OpenRCT2::GameActions::CommandFlags flags, money64* price);
 
 enum
@@ -45,9 +52,9 @@ enum class CreateCrossingMode
     pathOverTrack,
 };
 
-bool MapPlaceNonSceneryClearFunc(
+ClearanceResult MapPlaceNonSceneryClearFunc(
     OpenRCT2::TileElement** tile_element, const CoordsXY& coords, OpenRCT2::GameActions::CommandFlags flags, money64* price);
-bool MapPlaceSceneryClearFunc(
+ClearanceResult MapPlaceSceneryClearFunc(
     OpenRCT2::TileElement** tile_element, const CoordsXY& coords, OpenRCT2::GameActions::CommandFlags flags, money64* price);
 
 struct ConstructClearResult

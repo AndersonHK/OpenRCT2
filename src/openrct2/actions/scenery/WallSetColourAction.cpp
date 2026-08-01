@@ -151,7 +151,7 @@ namespace OpenRCT2::GameActions
         {
             wallElement->SetTertiaryColour(_tertiaryColour);
         }
-        MapInvalidateTileZoom1({ _loc, _loc.z, _loc.z + 72 });
+        MapInvalidateTileFull(_loc);
 
         return res;
     }

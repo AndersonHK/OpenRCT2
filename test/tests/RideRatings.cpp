@@ -250,38 +250,37 @@ protected:
 
     void PlaceSmallScenery(const TileCoordsXY& tile, int32_t baseZ, int32_t clearanceZ)
     {
-        auto* sceneryElement = TileElementInsert<SmallSceneryElement>({ tile.ToCoordsXY(), baseZ }, 0);
+        auto* sceneryElement = InsertTileElement<SmallSceneryElement>(
+            { tile.ToCoordsXY(), baseZ }, 0,
+            [&](SmallSceneryElement& sceneryElement) { sceneryElement.setClearanceZ(clearanceZ); });
         ASSERT_NE(sceneryElement, nullptr);
-
-        sceneryElement->setClearanceZ(clearanceZ);
-        MapInvalidateTileFull(tile.ToCoordsXY());
     }
 
     void PlaceMazeTrack(const TileCoordsXY& tile, int32_t baseZ, int32_t clearanceZ, RideId trackRideId)
     {
-        auto* mazeElement = TileElementInsert<TrackElement>({ tile.ToCoordsXY(), baseZ }, 0);
+        auto* mazeElement = InsertTileElement<TrackElement>(
+            { tile.ToCoordsXY(), baseZ }, 0, [&](TrackElement& mazeElement) {
+                mazeElement.setClearanceZ(clearanceZ);
+                mazeElement.SetTrackType(TrackElemType::maze);
+                mazeElement.SetRideType(RIDE_TYPE_MAZE);
+                mazeElement.SetRideIndex(trackRideId);
+            });
         ASSERT_NE(mazeElement, nullptr);
-
-        mazeElement->setClearanceZ(clearanceZ);
-        mazeElement->SetTrackType(TrackElemType::maze);
-        mazeElement->SetRideType(RIDE_TYPE_MAZE);
-        mazeElement->SetRideIndex(trackRideId);
-        MapInvalidateTileFull(tile.ToCoordsXY());
     }
 
     void PlaceFlatTrack(
         const TileCoordsXY& tile, int32_t baseZ, int32_t clearanceZ, RideId trackRideId,
         TrackElemType trackType = TrackElemType::flatTrack1x4A, Direction direction = 0)
     {
-        auto* trackElement = TileElementInsert<TrackElement>({ tile.ToCoordsXY(), baseZ }, 0);
+        auto* trackElement = InsertTileElement<TrackElement>(
+            { tile.ToCoordsXY(), baseZ }, 0, [&](TrackElement& trackElement) {
+                trackElement.setClearanceZ(clearanceZ);
+                trackElement.SetTrackType(trackType);
+                trackElement.setDirection(direction);
+                trackElement.SetRideType(RIDE_TYPE_MINIATURE_RAILWAY);
+                trackElement.SetRideIndex(trackRideId);
+            });
         ASSERT_NE(trackElement, nullptr);
-
-        trackElement->setClearanceZ(clearanceZ);
-        trackElement->SetTrackType(trackType);
-        trackElement->setDirection(direction);
-        trackElement->SetRideType(RIDE_TYPE_MINIATURE_RAILWAY);
-        trackElement->SetRideIndex(trackRideId);
-        MapInvalidateTileFull(tile.ToCoordsXY());
     }
 
     CoordsXYZ PlaceVehicleTrack(
@@ -303,12 +302,12 @@ protected:
 
     void PlacePath(const TileCoordsXY& tile, int32_t baseZ, int32_t clearanceZ, uint8_t edges = 0)
     {
-        auto* pathElement = TileElementInsert<PathElement>({ tile.ToCoordsXY(), baseZ }, 0);
+        auto* pathElement = InsertTileElement<PathElement>(
+            { tile.ToCoordsXY(), baseZ }, 0, [&](PathElement& pathElement) {
+                pathElement.setClearanceZ(clearanceZ);
+                pathElement.SetEdges(edges);
+            });
         ASSERT_NE(pathElement, nullptr);
-
-        pathElement->setClearanceZ(clearanceZ);
-        pathElement->SetEdges(edges);
-        MapInvalidateTileFull(tile.ToCoordsXY());
     }
 
     void PlaceBridgeLine(const TileCoordsXY& centreTile, int32_t baseZ, int32_t clearanceZ, Direction axis)
@@ -1980,10 +1979,10 @@ TEST_F(RideRatings, LocalContextHeightExtendsSceneryRange)
     auto context = InitialiseMap();
 
     const auto sceneryTile = TileCoordsXY{ 14, 10 };
-    auto* sceneryElement = TileElementInsert<SmallSceneryElement>({ sceneryTile.ToCoordsXY(), 14 * kCoordsZStep }, 0);
+    auto* sceneryElement = InsertTileElement<SmallSceneryElement>(
+        { sceneryTile.ToCoordsXY(), 14 * kCoordsZStep }, 0,
+        [](SmallSceneryElement& sceneryElement) { sceneryElement.setClearanceZ(18 * kCoordsZStep); });
     ASSERT_NE(sceneryElement, nullptr);
-    sceneryElement->setClearanceZ(18 * kCoordsZStep);
-    MapInvalidateTileFull(sceneryTile.ToCoordsXY());
 
     const auto groundScore = RideRating::GetLocalContextScore(
         { originTile.ToCoordsXY().ToTileCentre(), 14 * kCoordsZStep }, RideId::FromUnderlying(1));
@@ -2012,10 +2011,11 @@ TEST_F(RideRatings, LocalContextRangeUsesHeightAboveLocalGround)
     scenerySurface->setBaseZ(plateauZ);
     scenerySurface->setClearanceZ(plateauZ);
 
-    auto* sceneryElement = TileElementInsert<SmallSceneryElement>({ sceneryTile.ToCoordsXY(), plateauZ }, 0);
+    auto* sceneryElement = InsertTileElement<SmallSceneryElement>(
+        { sceneryTile.ToCoordsXY(), plateauZ }, 0, [=](SmallSceneryElement& sceneryElement) {
+            sceneryElement.setClearanceZ(plateauZ + (4 * kCoordsZStep));
+        });
     ASSERT_NE(sceneryElement, nullptr);
-    sceneryElement->setClearanceZ(plateauZ + (4 * kCoordsZStep));
-    MapInvalidateTileFull(sceneryTile.ToCoordsXY());
 
     const auto plateauScore = RideRating::GetLocalContextScore(
         { originTile.ToCoordsXY().ToTileCentre(), plateauZ }, RideId::FromUnderlying(1));
@@ -2212,11 +2212,12 @@ TEST_F(RideRatings, LocalContextScoresSameTileVerticalInteractionsStrongly)
 
     SetSurfaceZ(originTile, origin.z);
     SetVehicleSideSurfaces(originTile, 0, origin.z, origin.z);
-    auto* foreignTrack = TileElementInsert<TrackElement>({ originTile.ToCoordsXY(), 18 * kCoordsZStep }, 0);
+    auto* foreignTrack = InsertTileElement<TrackElement>(
+        { originTile.ToCoordsXY(), 18 * kCoordsZStep }, 0, [&](TrackElement& foreignTrack) {
+            foreignTrack.SetRideIndex(foreignRideId);
+            foreignTrack.setClearanceZ(20 * kCoordsZStep);
+        });
     ASSERT_NE(foreignTrack, nullptr);
-    foreignTrack->SetRideIndex(foreignRideId);
-    foreignTrack->setClearanceZ(20 * kCoordsZStep);
-    MapInvalidateTileFull(originTile.ToCoordsXY());
 
     const auto score = GetVehicleLocalContext(origin, rideId, TrackElemType::flatTrack1x4A, 0);
     EXPECT_GT(score.trackVerticalInteraction, score.foreignTrackProximity);
@@ -2477,13 +2478,14 @@ TEST_F(RideRatings, LocalContextMazeTrackBlocksLineOfSight)
     const auto before = RideRating::GetLocalContextScore(origin, rideId);
     ASSERT_GT(before.scenery, 0);
 
-    auto* mazeElement = TileElementInsert<TrackElement>({ blockerTile.ToCoordsXY(), groundZ }, 0);
+    auto* mazeElement = InsertTileElement<TrackElement>(
+        { blockerTile.ToCoordsXY(), groundZ }, 0, [&](TrackElement& mazeElement) {
+            mazeElement.setClearanceZ(originZ + kCoordsZStep);
+            mazeElement.SetTrackType(TrackElemType::maze);
+            mazeElement.SetRideType(RIDE_TYPE_MAZE);
+            mazeElement.SetRideIndex(RideId::FromUnderlying(2));
+        });
     ASSERT_NE(mazeElement, nullptr);
-    mazeElement->setClearanceZ(originZ + kCoordsZStep);
-    mazeElement->SetTrackType(TrackElemType::maze);
-    mazeElement->SetRideType(RIDE_TYPE_MAZE);
-    mazeElement->SetRideIndex(RideId::FromUnderlying(2));
-    MapInvalidateTileFull(blockerTile.ToCoordsXY());
     RideRating::ClearLocalContextCache();
 
     const auto after = RideRating::GetLocalContextScore(origin, rideId);

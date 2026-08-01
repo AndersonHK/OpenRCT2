@@ -159,28 +159,22 @@ namespace OpenRCT2::TileInspector
 
         if (isExecuting)
         {
-            const bool changesTopology = IsRoutingTopologyElement(*tileElement);
             // Forcefully remove the element
+            TileElement removedElement = *tileElement;
+            bool removeBanner = true;
             auto largeScenery = tileElement->asLargeScenery();
             if (largeScenery != nullptr)
             {
                 // Only delete the banner entry if there are no other parts of the large scenery to delete
-                if (NumLargeScenerySequences(loc, largeScenery) == 1)
-                {
-                    tileElement->RemoveBannerEntry();
-                }
-            }
-            else
-            {
-                // Removes any potential banners from the entry
-                tileElement->RemoveBannerEntry();
+                removeBanner = NumLargeScenerySequences(loc, largeScenery) == 1;
             }
 
-            TileElementRemove(tileElement);
-            if (changesTopology)
-            {
-                MapTopology::InvalidateTileAndNeighbours(loc);
-            }
+            auto eraseResult = EraseTileElement(TileCoordsXY{ loc }, tileElement);
+            if (!eraseResult)
+                return GameActions::Result(
+                    GameActions::Status::invalidParameters, STR_ERR_INVALID_PARAMETER, STR_ERR_TILE_ELEMENT_NOT_FOUND);
+            if (removeBanner)
+                removedElement.RemoveBannerEntry();
 
             if (IsTileSelected(loc))
             {
@@ -362,18 +356,11 @@ namespace OpenRCT2::TileInspector
                 element.SetBannerIndex(newBanner->id);
             }
 
-            // The occupiedQuadrants will be automatically set when the element is copied over, so it's not necessary to set
-            // them correctly _here_.
-            TileElement* const pastedElement = TileElementInsert({ loc, element.getBaseZ() }, 0b0000, TileElementType::surface);
-
-            bool lastForTile = pastedElement->isLastForTile();
-            *pastedElement = element;
-            pastedElement->setLastForTile(lastForTile);
-
-            if (IsRoutingTopologyElement(*pastedElement))
-            {
-                MapTopology::InvalidateTileAndNeighbours(loc);
-            }
+            auto insertResult = InsertTileElement(TileCoordsXY{ loc }, element);
+            if (!insertResult)
+                return GameActions::Result(
+                    GameActions::Status::noFreeElements, STR_CANT_CHANGE_THIS, STR_TILE_ELEMENT_LIMIT_REACHED);
+            TileElement* const pastedElement = insertResult.element;
 
             MapAnimations::MarkTileForUpdate(tileLoc);
 

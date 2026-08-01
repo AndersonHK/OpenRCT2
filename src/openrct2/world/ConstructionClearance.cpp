@@ -38,14 +38,14 @@ using namespace OpenRCT2;
 using OpenRCT2::GameActions::CommandFlag;
 using OpenRCT2::GameActions::CommandFlags;
 
-static bool MapPlaceClearFunc(
+static ClearanceResult MapPlaceClearFunc(
     TileElement** tile_element, const CoordsXY& coords, CommandFlags flags, money64* price, bool is_scenery)
 {
     if ((*tile_element)->getType() != TileElementType::smallScenery)
-        return false;
+        return ClearanceResult::blocked;
 
     if (is_scenery && !flags.has(CommandFlag::trackDesign))
-        return false;
+        return ClearanceResult::blocked;
 
     auto* scenery = (*tile_element)->asSmallScenery()->GetEntry();
 
@@ -53,31 +53,31 @@ static bool MapPlaceClearFunc(
     if (park.flags & PARK_FLAGS_FORBID_TREE_REMOVAL)
     {
         if (scenery != nullptr && scenery->flags.has(SmallSceneryFlag::isTree))
-            return false;
+            return ClearanceResult::blocked;
     }
 
     if (!(park.flags & PARK_FLAGS_NO_MONEY) && scenery != nullptr)
         *price += scenery->removal_price;
 
     if (flags.has(CommandFlag::ghost))
-        return true;
+        return ClearanceResult::clear;
 
     if (!flags.has(CommandFlag::apply))
-        return true;
+        return ClearanceResult::clear;
 
-    MapInvalidateTile({ coords, (*tile_element)->getBaseZ(), (*tile_element)->getClearanceZ() });
-
-    TileElementRemove(*tile_element);
-
-    (*tile_element)--;
-    return true;
+    const auto eraseResult = EraseTileElement(TileCoordsXY{ coords }, *tile_element);
+    if (!eraseResult)
+        return ClearanceResult::blocked;
+    *tile_element = eraseResult.next;
+    return ClearanceResult::elementErased;
 }
 
 /**
  *
  *  rct2: 0x006E0D6E, 0x006B8D88
  */
-bool MapPlaceSceneryClearFunc(TileElement** tile_element, const CoordsXY& coords, CommandFlags flags, money64* price)
+ClearanceResult MapPlaceSceneryClearFunc(
+    TileElement** tile_element, const CoordsXY& coords, CommandFlags flags, money64* price)
 {
     return MapPlaceClearFunc(tile_element, coords, flags, price, /*is_scenery=*/true);
 }
@@ -86,7 +86,8 @@ bool MapPlaceSceneryClearFunc(TileElement** tile_element, const CoordsXY& coords
  *
  *  rct2: 0x006C5A4F, 0x006CDE57, 0x006A6733, 0x0066637E
  */
-bool MapPlaceNonSceneryClearFunc(TileElement** tile_element, const CoordsXY& coords, CommandFlags flags, money64* price)
+ClearanceResult MapPlaceNonSceneryClearFunc(
+    TileElement** tile_element, const CoordsXY& coords, CommandFlags flags, money64* price)
 {
     return MapPlaceClearFunc(tile_element, coords, flags, price, /*is_scenery=*/false);
 }
@@ -124,14 +125,13 @@ static bool landSlopeFitsUnderPath(int32_t baseZ, uint8_t slope, const PathEleme
     return (slopeCornerHeights <= pathCornerHeights);
 }
 
-static bool MapLoc68BABCShouldContinue(
+static ClearanceResult MapLoc68BABCShouldContinue(
     TileElement** tileElementPtr, const CoordsXYRangedZ& pos, ClearingFunction clearFunc, const CommandFlags flags,
     money64& price, const CreateCrossingMode crossingMode, const bool canBuildCrossing, const uint8_t slope)
 {
-    if (clearFunc(tileElementPtr, pos, flags, &price))
-    {
-        return true;
-    }
+    const auto clearResult = clearFunc(tileElementPtr, pos, flags, &price);
+    if (clearResult != ClearanceResult::blocked)
+        return clearResult;
 
     const TileElement* const tileElement = *tileElementPtr;
 
@@ -139,7 +139,7 @@ static bool MapLoc68BABCShouldContinue(
     {
         if (landSlopeFitsUnderTrack(pos.baseZ, slope, *tileElement->asTrack()))
         {
-            return true;
+            return ClearanceResult::clear;
         }
     }
 
@@ -147,14 +147,14 @@ static bool MapLoc68BABCShouldContinue(
     {
         if (landSlopeFitsUnderPath(pos.baseZ, slope, *tileElement->asPath()))
         {
-            return true;
+            return ClearanceResult::clear;
         }
     }
 
     if (crossingMode == CreateCrossingMode::trackOverPath && canBuildCrossing && tileElement->getType() == TileElementType::path
         && tileElement->getBaseZ() == pos.baseZ && !tileElement->asPath()->IsQueue() && !tileElement->asPath()->IsSloped())
     {
-        return true;
+        return ClearanceResult::clear;
     }
     else if (
         crossingMode == CreateCrossingMode::pathOverTrack && canBuildCrossing
@@ -164,11 +164,11 @@ static bool MapLoc68BABCShouldContinue(
         auto ride = GetRide(tileElement->asTrack()->GetRideIndex());
         if (ride != nullptr && ride->getRideTypeDescriptor().flags.has(RtdFlag::supportsLevelCrossings))
         {
-            return true;
+            return ClearanceResult::clear;
         }
     }
 
-    return false;
+    return ClearanceResult::blocked;
 }
 
 /**
@@ -214,6 +214,7 @@ GameActions::Result MapCanConstructWithClearAt(
 
     do
     {
+    retryTileElement:
         if (tileElement->getType() != TileElementType::surface)
         {
             // Skip track elements belonging to the ride that's being ignored for rides that intersect themselves.
@@ -228,9 +229,16 @@ GameActions::Result MapCanConstructWithClearAt(
             {
                 if (tileElement->getOccupiedQuadrants() & (quarterTile.GetBaseQuarterOccupied()))
                 {
-                    if (MapLoc68BABCShouldContinue(
-                            &tileElement, pos, clearFunc, flags, res.cost, crossingMode, canBuildCrossing, slope))
+                    const auto clearResult = MapLoc68BABCShouldContinue(
+                        &tileElement, pos, clearFunc, flags, res.cost, crossingMode, canBuildCrossing, slope);
+                    if (clearResult != ClearanceResult::blocked)
                     {
+                        if (clearResult == ClearanceResult::elementErased)
+                        {
+                            if (tileElement == nullptr)
+                                break;
+                            goto retryTileElement;
+                        }
                         continue;
                     }
 
@@ -248,11 +256,18 @@ GameActions::Result MapCanConstructWithClearAt(
             groundFlags |= ELEMENT_IS_UNDERWATER;
             if (waterHeight < pos.clearanceZ)
             {
-                if (!clearFunc(&tileElement, pos, flags, &res.cost))
+                const auto clearResult = clearFunc(&tileElement, pos, flags, &res.cost);
+                if (clearResult == ClearanceResult::blocked)
                 {
                     res.error = GameActions::Status::noClearance;
                     res.errorMessage = STR_CANNOT_BUILD_PARTLY_ABOVE_AND_PARTLY_BELOW_WATER;
                     return res;
+                }
+                if (clearResult == ClearanceResult::elementErased)
+                {
+                    if (tileElement == nullptr)
+                        break;
+                    goto retryTileElement;
                 }
             }
         }
@@ -299,9 +314,16 @@ GameActions::Result MapCanConstructWithClearAt(
                     continue;
                 }
 
-                if (MapLoc68BABCShouldContinue(
-                        &tileElement, pos, clearFunc, flags, res.cost, crossingMode, canBuildCrossing, slope))
+                const auto clearResult = MapLoc68BABCShouldContinue(
+                    &tileElement, pos, clearFunc, flags, res.cost, crossingMode, canBuildCrossing, slope);
+                if (clearResult != ClearanceResult::blocked)
                 {
+                    if (clearResult == ClearanceResult::elementErased)
+                    {
+                        if (tileElement == nullptr)
+                            break;
+                        goto retryTileElement;
+                    }
                     continue;
                 }
 
@@ -317,11 +339,11 @@ GameActions::Result MapCanConstructWithClearAt(
     return res;
 }
 
-static bool dummyClearFunc(
+static ClearanceResult dummyClearFunc(
     [[maybe_unused]] TileElement** tile_element, [[maybe_unused]] const CoordsXY& coords, [[maybe_unused]] CommandFlags flags,
     [[maybe_unused]] money64* price)
 {
-    return false;
+    return ClearanceResult::blocked;
 }
 
 GameActions::Result MapCanConstructAt(const CoordsXYRangedZ& pos, QuarterTile bl)

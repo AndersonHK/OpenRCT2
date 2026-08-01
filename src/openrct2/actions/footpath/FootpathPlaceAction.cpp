@@ -421,27 +421,25 @@ namespace OpenRCT2::GameActions
         }
         else
         {
-            auto* pathElement = TileElementInsert<PathElement>(_loc, 0b1111);
+            auto* pathElement = InsertTileElement<PathElement>(_loc, 0b1111, [&](PathElement& pathElement) {
+                pathElement.setClearanceZ(zHigh);
+                if (_constructFlags & PathConstructFlag::IsLegacyPathObject)
+                    pathElement.SetLegacyPathEntryIndex(_type);
+                else
+                {
+                    pathElement.SetSurfaceEntryIndex(_type);
+                    pathElement.SetRailingsEntryIndex(_railingsType);
+                }
+                pathElement.SetSlopeDirection(_slope.direction);
+                pathElement.SetSloped(_slope.type == FootpathSlopeType::sloped);
+                pathElement.SetIsQueue(isQueue);
+                pathElement.SetAddition(0);
+                pathElement.SetRideIndex(RideId::GetNull());
+                pathElement.SetAdditionStatus(255);
+                pathElement.SetIsBroken(false);
+                pathElement.setGhost(GetFlags().has(CommandFlag::ghost));
+            });
             Guard::Assert(pathElement != nullptr);
-
-            pathElement->setClearanceZ(zHigh);
-            if (_constructFlags & PathConstructFlag::IsLegacyPathObject)
-            {
-                pathElement->SetLegacyPathEntryIndex(_type);
-            }
-            else
-            {
-                pathElement->SetSurfaceEntryIndex(_type);
-                pathElement->SetRailingsEntryIndex(_railingsType);
-            }
-            pathElement->SetSlopeDirection(_slope.direction);
-            pathElement->SetSloped(_slope.type == FootpathSlopeType::sloped);
-            pathElement->SetIsQueue(isQueue);
-            pathElement->SetAddition(0);
-            pathElement->SetRideIndex(RideId::GetNull());
-            pathElement->SetAdditionStatus(255);
-            pathElement->SetIsBroken(false);
-            pathElement->setGhost(GetFlags().has(CommandFlag::ghost));
 
             FootpathQueueChainReset();
 

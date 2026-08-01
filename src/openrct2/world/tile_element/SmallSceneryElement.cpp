@@ -76,7 +76,7 @@ namespace OpenRCT2
 
                 if (sceneryEntry->flags.has(SmallSceneryFlag::canWither))
                 {
-                    MapInvalidateTileZoom1({ sceneryPos, getBaseZ(), getClearanceZ() });
+                    MapInvalidateTileFull(sceneryPos);
                 }
             }
         }

@@ -25,9 +25,7 @@ void WallRemoveAt(const CoordsXYRangedZ& wallPos)
     for (auto wallElement = MapGetWallElementAt(wallPos); wallElement != nullptr; wallElement = MapGetWallElementAt(wallPos))
     {
         reinterpret_cast<TileElement*>(wallElement)->RemoveBannerEntry();
-        RideRating::InvalidateLocalContextCacheAround(wallPos);
-        MapInvalidateTileZoom1({ wallPos, wallElement->getBaseZ(), wallElement->getBaseZ() + 72 });
-        TileElementRemove(reinterpret_cast<TileElement*>(wallElement));
+        EraseTileElement(TileCoordsXY{ wallPos }, reinterpret_cast<TileElement*>(wallElement));
     }
 }
 
@@ -49,23 +47,31 @@ void WallRemoveIntersectingWalls(const CoordsXYRangedZ& wallPos, Direction direc
     TileElement* tileElement = MapGetFirstElementAt(wallPos);
     if (tileElement == nullptr)
         return;
-    do
+    while (tileElement != nullptr)
     {
+        auto* next = tileElement->isLastForTile() ? nullptr : tileElement + 1;
         if (tileElement->getType() != TileElementType::wall)
+        {
+            tileElement = next;
             continue;
+        }
 
         if (tileElement->getClearanceZ() <= wallPos.baseZ || tileElement->getBaseZ() >= wallPos.clearanceZ)
+        {
+            tileElement = next;
             continue;
+        }
 
         if (direction != tileElement->getDirection())
+        {
+            tileElement = next;
             continue;
+        }
 
         tileElement->RemoveBannerEntry();
-        RideRating::InvalidateLocalContextCacheAround(wallPos);
-        MapInvalidateTileZoom1({ wallPos, tileElement->getBaseZ(), tileElement->getBaseZ() + 72 });
-        TileElementRemove(tileElement);
-        tileElement--;
-    } while (!(tileElement++)->isLastForTile());
+        const auto eraseResult = EraseTileElement(TileCoordsXY{ wallPos }, tileElement);
+        tileElement = eraseResult ? eraseResult.next : next;
+    }
 }
 
 #pragma region Edge Slopes Table

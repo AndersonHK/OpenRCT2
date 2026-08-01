@@ -72,14 +72,17 @@ namespace OpenRCT2::World::MapGenerator
 
         int32_t surfaceZ = TileElementHeight(loc.ToTileCentre());
 
-        auto* sceneryElement = TileElementInsert<SmallSceneryElement>({ loc, surfaceZ }, 0b1111);
+        auto* sceneryElement = InsertTileElement<SmallSceneryElement>(
+            { loc, surfaceZ }, 0b1111,
+            [&](SmallSceneryElement& sceneryElement) {
+                sceneryElement.setClearanceZ(surfaceZ + sceneryEntry->height);
+                sceneryElement.setDirection(UtilRand() & 3);
+                sceneryElement.SetEntryIndex(type);
+                sceneryElement.SetAge(0);
+                sceneryElement.SetPrimaryColour(Drawing::Colour::yellow);
+            },
+            TileMutationMode::deferred);
         Guard::Assert(sceneryElement != nullptr);
-
-        sceneryElement->setClearanceZ(surfaceZ + sceneryEntry->height);
-        sceneryElement->setDirection(UtilRand() & 3);
-        sceneryElement->SetEntryIndex(type);
-        sceneryElement->SetAge(0);
-        sceneryElement->SetPrimaryColour(Drawing::Colour::yellow);
     }
 
     static bool surfaceTakesGrassTrees(const TerrainSurfaceObject& surface)

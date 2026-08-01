@@ -16,12 +16,14 @@
 #include <openrct2/peep/GuestPathfinding.h>
 #include <openrct2/world/tile_element/TileElement.h>
 #include <openrct2/world/Map.h>
+#include <openrct2/world/MapPresentationSnapshot.h>
 #include <openrct2/world/MapPathTopology.h>
 #include <openrct2/world/MapPathRouteCache.h>
 #include <openrct2/world/MapTopology.h>
 #include <openrct2/world/tile_element/BannerElement.h>
 #include <openrct2/world/tile_element/EntranceElement.h>
 #include <openrct2/world/tile_element/PathElement.h>
+#include <openrct2/world/tile_element/SurfaceElement.h>
 
 using namespace OpenRCT2;
 
@@ -50,59 +52,62 @@ protected:
     static PathElement* AddPath(
         const TileCoordsXY& tile, uint8_t baseZ, uint8_t edges, bool sloped = false, Direction slopeDirection = 0)
     {
-        auto* path = TileElementInsert<PathElement>({ tile.ToCoordsXY(), baseZ * kCoordsZStep }, 0);
+        auto* path = InsertTileElement<PathElement>(
+            { tile.ToCoordsXY(), baseZ * kCoordsZStep }, 0, [&](PathElement& path) {
+                path.setClearanceZ((baseZ + 4) * kCoordsZStep);
+                path.SetEdges(edges);
+                path.SetSloped(sloped);
+                path.SetSlopeDirection(slopeDirection);
+                path.SetIsQueue(false);
+                path.SetWide(false);
+                path.SetHasQueueBanner(false);
+                path.setGhost(false);
+            });
         if (path == nullptr)
         {
             ADD_FAILURE() << "Unable to insert path element";
             return nullptr;
         }
 
-        path->setClearanceZ((baseZ + 4) * kCoordsZStep);
-        path->SetEdges(edges);
-        path->SetSloped(sloped);
-        path->SetSlopeDirection(slopeDirection);
-        path->SetIsQueue(false);
-        path->SetWide(false);
-        path->SetHasQueueBanner(false);
-        path->setGhost(false);
-        MapTopology::InvalidateTileAndNeighbours(tile);
         return path;
     }
 
     static BannerElement* AddBanner(const TileCoordsXY& tile, uint8_t baseZ, uint8_t allowedEdges)
     {
-        auto* banner = TileElementInsert<BannerElement>({ tile.ToCoordsXY(), baseZ * kCoordsZStep }, 0);
+        auto* banner = InsertTileElement<BannerElement>(
+            { tile.ToCoordsXY(), baseZ * kCoordsZStep }, 0, [&](BannerElement& banner) {
+                banner.setClearanceZ((baseZ + 2) * kCoordsZStep);
+                banner.SetAllowedEdges(allowedEdges);
+                banner.setGhost(false);
+            });
         if (banner == nullptr)
         {
             ADD_FAILURE() << "Unable to insert banner element";
             return nullptr;
         }
 
-        banner->setClearanceZ((baseZ + 2) * kCoordsZStep);
-        banner->SetAllowedEdges(allowedEdges);
-        banner->setGhost(false);
-        MapTopology::InvalidateTileAndNeighbours(tile);
         return banner;
     }
 
     static EntranceElement* AddEntrance(
         const TileCoordsXY& tile, uint8_t baseZ, uint8_t entranceType, Direction direction, RideId ride, StationIndex station)
     {
-        auto* entrance = TileElementInsert<EntranceElement>({ tile.ToCoordsXY(), baseZ * kCoordsZStep }, 0);
+        auto* entrance = InsertTileElement<EntranceElement>(
+            { tile.ToCoordsXY(), baseZ * kCoordsZStep }, 0, [&](EntranceElement& entrance) {
+                entrance.setClearanceZ((baseZ + 4) * kCoordsZStep);
+                entrance.SetEntranceType(entranceType);
+                entrance.SetSequenceIndex(EntranceSequence::Centre);
+                entrance.setDirection(direction);
+                entrance.SetRideIndex(ride);
+                entrance.SetStationIndex(station);
+                entrance.setGhost(false);
+            });
         if (entrance == nullptr)
         {
             ADD_FAILURE() << "Unable to insert entrance element";
             return nullptr;
         }
 
-        entrance->setClearanceZ((baseZ + 4) * kCoordsZStep);
-        entrance->SetEntranceType(entranceType);
-        entrance->SetSequenceIndex(EntranceSequence::Centre);
-        entrance->setDirection(direction);
-        entrance->SetRideIndex(ride);
-        entrance->SetStationIndex(station);
-        entrance->setGhost(false);
-        MapTopology::InvalidateTileAndNeighbours(tile);
         return entrance;
     }
 
@@ -111,6 +116,185 @@ private:
 };
 
 std::shared_ptr<IContext> MapPathTopologyTest::_context;
+
+TEST_F(MapPathTopologyTest, CanonicalMutationRejectsInvalidPointersAndPreservesSurfaceInvariant)
+{
+    const TileCoordsXY tile{ 10, 10 };
+    const TileCoordsXY otherTile{ 11, 10 };
+    auto* originalSurface = MapGetFirstElementAt(tile);
+    ASSERT_NE(originalSurface, nullptr);
+
+    const auto soleSurfaceResult = EraseTileElement(tile, originalSurface);
+    EXPECT_EQ(soleSurfaceResult.status, TileMutationStatus::wouldViolateSurfaceInvariant);
+    EXPECT_EQ(MapGetFirstElementAt(tile), originalSurface);
+
+    TileElement duplicateSurface{};
+    duplicateSurface.ClearAs(TileElementType::surface);
+    duplicateSurface.setBaseZ(16 * kCoordsZStep);
+    duplicateSurface.setClearanceZ(16 * kCoordsZStep);
+    const auto insertResult = InsertTileElement(tile, duplicateSurface);
+    ASSERT_TRUE(insertResult);
+
+    auto* first = MapGetFirstElementAt(tile);
+    ASSERT_NE(first, nullptr);
+    EXPECT_EQ(EraseTileElement(otherTile, first).status, TileMutationStatus::elementNotOnTile);
+    EXPECT_TRUE(EraseTileElement(tile, first));
+    ASSERT_NE(MapGetSurfaceElementAt(tile), nullptr);
+}
+
+TEST_F(MapPathTopologyTest, FinalizedInsertionOrdersElementsAndRejectsStalePointers)
+{
+    const TileCoordsXY tile{ 10, 10 };
+    const auto makeElement = [](const int32_t baseZ) {
+        TileElement element{};
+        element.ClearAs(TileElementType::smallScenery);
+        element.setBaseZ(baseZ);
+        element.setClearanceZ(baseZ + kCoordsZStep);
+        return element;
+    };
+
+    ASSERT_TRUE(InsertTileElement(tile, makeElement(10 * kCoordsZStep)));
+    const auto equalResult = InsertTileElement(tile, makeElement(14 * kCoordsZStep));
+    ASSERT_TRUE(equalResult);
+    auto* staleEqualPointer = equalResult.element;
+    ASSERT_TRUE(InsertTileElement(tile, makeElement(20 * kCoordsZStep)));
+    EXPECT_EQ(EraseTileElement(tile, staleEqualPointer).status, TileMutationStatus::elementNotOnTile);
+
+    std::vector<int32_t> heights;
+    auto* element = MapGetFirstElementAt(tile);
+    do
+    {
+        heights.push_back(element->getBaseZ());
+    } while (!(element++)->isLastForTile());
+    EXPECT_EQ(
+        heights,
+        (std::vector<int32_t>{
+            10 * kCoordsZStep, 14 * kCoordsZStep, 14 * kCoordsZStep, 20 * kCoordsZStep }));
+}
+
+TEST_F(MapPathTopologyTest, ErasureReturnsTheMovedSuccessorAndDeduplicatesPublication)
+{
+    const TileCoordsXY tile{ 10, 10 };
+    const auto makeElement = [](const TileElementType type, const int32_t baseZ) {
+        TileElement element{};
+        element.ClearAs(type);
+        element.setBaseZ(baseZ);
+        element.setClearanceZ(baseZ + kCoordsZStep);
+        return element;
+    };
+
+    std::vector<TileElement> elements{
+        makeElement(TileElementType::smallScenery, 10 * kCoordsZStep),
+        *MapGetSurfaceElementAt(tile)->as<TileElement>(),
+        makeElement(TileElementType::wall, 18 * kCoordsZStep),
+        makeElement(TileElementType::banner, 20 * kCoordsZStep),
+    };
+    ASSERT_EQ(ReplaceTileElementsAt(tile, std::move(elements)), TileMutationStatus::ok);
+    static_cast<void>(ConsumeMapPresentationChanges());
+
+    auto* first = MapGetFirstElementAt(tile);
+    auto eraseResult = EraseTileElement(tile, first);
+    ASSERT_TRUE(eraseResult);
+    EXPECT_EQ(eraseResult.next, MapGetFirstElementAt(tile));
+    EXPECT_EQ(eraseResult.next->getType(), TileElementType::surface);
+
+    auto* middle = MapGetFirstElementAt(tile) + 1;
+    ASSERT_EQ(middle->getType(), TileElementType::wall);
+    eraseResult = EraseTileElement(tile, middle);
+    ASSERT_TRUE(eraseResult);
+    EXPECT_EQ(eraseResult.next, middle);
+    EXPECT_EQ(eraseResult.next->getType(), TileElementType::banner);
+
+    eraseResult = EraseTileElement(tile, eraseResult.next);
+    ASSERT_TRUE(eraseResult);
+    EXPECT_EQ(eraseResult.next, nullptr);
+
+    const auto changes = ConsumeMapPresentationChanges();
+    ASSERT_EQ(changes.changes.size(), 1u);
+    EXPECT_EQ(changes.changes.front().index, static_cast<uint32_t>(tile.x + tile.y * kMaximumMapSizeTechnical));
+}
+
+TEST_F(MapPathTopologyTest, RoutingInferenceExcludesGhosts)
+{
+    const TileCoordsXY tile{ 10, 10 };
+    const auto initialGeneration = MapTopology::GetChunkGeneration(tile);
+
+    TileElement ghostBanner{};
+    ghostBanner.ClearAs(TileElementType::banner);
+    ghostBanner.setBaseZ(16 * kCoordsZStep);
+    ghostBanner.setClearanceZ(18 * kCoordsZStep);
+    ghostBanner.setGhost(true);
+    const auto ghostResult = InsertTileElement(tile, ghostBanner);
+    ASSERT_TRUE(ghostResult);
+    EXPECT_EQ(MapTopology::GetChunkGeneration(tile), initialGeneration);
+    ASSERT_TRUE(EraseTileElement(tile, ghostResult.element));
+    EXPECT_EQ(MapTopology::GetChunkGeneration(tile), initialGeneration);
+
+    TileElement path{};
+    path.ClearAs(TileElementType::path);
+    path.setBaseZ(14 * kCoordsZStep);
+    path.setClearanceZ(18 * kCoordsZStep);
+    ASSERT_TRUE(InsertTileElement(tile, path));
+    EXPECT_NE(MapTopology::GetChunkGeneration(tile), initialGeneration);
+}
+
+TEST_F(MapPathTopologyTest, GhostErasureIsPublishedToTheNextSnapshot)
+{
+    const TileCoordsXY tile{ 10, 10 };
+    MapPresentationSnapshot snapshot;
+    snapshot.Apply(ConsumeMapPresentationChanges());
+
+    TileElement ghostBanner{};
+    ghostBanner.ClearAs(TileElementType::banner);
+    ghostBanner.setBaseZ(16 * kCoordsZStep);
+    ghostBanner.setClearanceZ(18 * kCoordsZStep);
+    ghostBanner.setGhost(true);
+    const auto insertResult = InsertTileElement(tile, ghostBanner);
+    ASSERT_TRUE(insertResult);
+    snapshot.Apply(ConsumeMapPresentationChanges());
+
+    auto* published = snapshot.GetFirstElementAt(tile);
+    ASSERT_NE(published, nullptr);
+    bool foundGhost = false;
+    do
+    {
+        foundGhost = foundGhost || published->isGhost();
+    } while (!(published++)->isLastForTile());
+    EXPECT_TRUE(foundGhost);
+
+    ASSERT_TRUE(EraseTileElement(tile, insertResult.element));
+    snapshot.Apply(ConsumeMapPresentationChanges());
+    published = snapshot.GetFirstElementAt(tile);
+    ASSERT_NE(published, nullptr);
+    do
+    {
+        EXPECT_FALSE(published->isGhost());
+    } while (!(published++)->isLastForTile());
+}
+
+TEST_F(MapPathTopologyTest, RawReplacementIsAtomicAndStorageRelocationIsPresentationNeutral)
+{
+    const TileCoordsXY tile{ 10, 10 };
+    static_cast<void>(ConsumeMapPresentationChanges());
+    const auto initialEpoch = GetMapPresentationEpoch();
+    const auto initialSurface = *MapGetSurfaceElementAt(tile)->as<TileElement>();
+
+    EXPECT_EQ(
+        ReplaceTileElementsAt(tile, std::vector<TileElement>{}), TileMutationStatus::wouldViolateSurfaceInvariant);
+    TileElement pathOnly{};
+    pathOnly.ClearAs(TileElementType::path);
+    EXPECT_EQ(
+        ReplaceTileElementsAt(tile, std::vector<TileElement>{ pathOnly }),
+        TileMutationStatus::wouldViolateSurfaceInvariant);
+    EXPECT_EQ(MapGetFirstElementAt(tile)->getType(), initialSurface.getType());
+    EXPECT_EQ(MapGetFirstElementAt(tile)->getBaseZ(), initialSurface.getBaseZ());
+
+    ReorganiseTileElements();
+    EXPECT_EQ(GetMapPresentationEpoch(), initialEpoch);
+    const auto relocationChanges = ConsumeMapPresentationChanges();
+    EXPECT_FALSE(relocationChanges.reset);
+    EXPECT_TRUE(relocationChanges.changes.empty());
+}
 
 TEST_F(MapPathTopologyTest, SlopeAndHeightDeterminePathAdjacency)
 {

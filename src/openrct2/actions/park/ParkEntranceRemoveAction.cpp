@@ -111,7 +111,7 @@ namespace OpenRCT2::GameActions
         {
             MapTopology::InvalidateTileAndNeighbours(loc);
         }
-        entranceElement->remove();
+        EraseTileElement(TileCoordsXY{ _loc }, entranceElement->as<TileElement>());
         Park::UpdateFences({ loc.x, loc.y });
     }
 } // namespace OpenRCT2::GameActions

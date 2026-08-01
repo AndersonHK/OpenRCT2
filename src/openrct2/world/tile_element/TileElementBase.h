@@ -58,8 +58,6 @@ namespace OpenRCT2
         uint8_t clearanceHeight; // 3
         uint8_t owner;           // 4
 
-        void remove();
-
         TileElementType getType() const;
         void setType(TileElementType newType);
 

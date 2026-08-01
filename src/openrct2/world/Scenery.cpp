@@ -37,10 +37,13 @@
 #include "Footpath.h"
 #include "Map.h"
 #include "Park.h"
+#include "tile_element/BannerElement.h"
+#include "tile_element/LargeSceneryElement.h"
 #include "tile_element/PathElement.h"
 #include "tile_element/SmallSceneryElement.h"
 #include "tile_element/SurfaceElement.h"
 #include "tile_element/TileElement.h"
+#include "tile_element/WallElement.h"
 
 uint8_t gSceneryQuadrant;
 
@@ -247,7 +250,7 @@ void SmallSceneryElement::UpdateAge(const CoordsXY& sceneryPos)
             case TileElementType::largeScenery:
             case TileElementType::entrance:
             case TileElementType::path:
-                MapInvalidateTileZoom1({ sceneryPos, tileElementAbove->getBaseZ(), tileElementAbove->getClearanceZ() });
+                MapInvalidateTileFull(sceneryPos);
                 IncreaseAge(sceneryPos);
                 return;
             case TileElementType::smallScenery:
@@ -265,31 +268,39 @@ void SmallSceneryElement::UpdateAge(const CoordsXY& sceneryPos)
 
     // Reset age / water plant
     SetAge(0);
-    MapInvalidateTileZoom1({ sceneryPos, getBaseZ(), getClearanceZ() });
+    MapInvalidateTileFull(sceneryPos);
 }
 
 /**
  *
  *  rct2: 0x006E2712
  */
-void SceneryRemoveGhostToolPlacement()
+bool SceneryRemoveGhostToolPlacement()
 {
     auto& gameState = getGameState();
+    bool allRemoved = true;
 
     if (gSceneryGhostType & SCENERY_GHOST_FLAG_0)
     {
-        gSceneryGhostType &= ~SCENERY_GHOST_FLAG_0;
-
         auto removeSceneryAction = GameActions::SmallSceneryRemoveAction(
             gSceneryGhostPosition, gSceneryQuadrant, gSceneryPlaceObject.EntryIndex);
         removeSceneryAction.SetFlags({ CommandFlag::allowDuringPaused, CommandFlag::noSpend, CommandFlag::ghost });
-        GameActions::Execute(&removeSceneryAction, gameState);
+        const auto result = GameActions::Execute(&removeSceneryAction, gameState);
+        if (result.error == GameActions::Status::ok)
+            gSceneryGhostType &= ~SCENERY_GHOST_FLAG_0;
+        else if (
+            const auto* scenery = MapGetSmallSceneryElementAt(
+                gSceneryGhostPosition, gSceneryPlaceObject.EntryIndex, gSceneryQuadrant);
+            scenery == nullptr || !scenery->isGhost())
+            gSceneryGhostType &= ~SCENERY_GHOST_FLAG_0;
+        else
+            allRemoved = false;
     }
 
     if (gSceneryGhostType & SCENERY_GHOST_FLAG_1)
     {
-        gSceneryGhostType &= ~SCENERY_GHOST_FLAG_1;
         TileElement* tileElement = MapGetFirstElementAt(gSceneryGhostPosition);
+        bool foundGhostAddition = false;
 
         do
         {
@@ -301,41 +312,68 @@ void SceneryRemoveGhostToolPlacement()
 
             if (tileElement->getBaseZ() != gSceneryGhostPosition.z)
                 continue;
+            if (!tileElement->asPath()->HasAddition() || !tileElement->asPath()->AdditionIsGhost())
+                continue;
+
+            foundGhostAddition = true;
 
             auto footpathAdditionRemoveAction = GameActions::FootpathAdditionRemoveAction(gSceneryGhostPosition);
             footpathAdditionRemoveAction.SetFlags({ CommandFlag::allowDuringPaused, CommandFlag::noSpend, CommandFlag::ghost });
-            GameActions::Execute(&footpathAdditionRemoveAction, gameState);
+            const auto result = GameActions::Execute(&footpathAdditionRemoveAction, gameState);
+            if (result.error == GameActions::Status::ok)
+                gSceneryGhostType &= ~SCENERY_GHOST_FLAG_1;
+            else
+                allRemoved = false;
             break;
         } while (!(tileElement++)->isLastForTile());
+        if (!foundGhostAddition)
+            gSceneryGhostType &= ~SCENERY_GHOST_FLAG_1;
     }
 
     if (gSceneryGhostType & SCENERY_GHOST_FLAG_2)
     {
-        gSceneryGhostType &= ~SCENERY_GHOST_FLAG_2;
-
         CoordsXYZD wallLocation = { gSceneryGhostPosition, gSceneryGhostWallRotation };
         auto wallRemoveAction = GameActions::WallRemoveAction(wallLocation);
         wallRemoveAction.SetFlags({ CommandFlag::allowDuringPaused, CommandFlag::noSpend, CommandFlag::ghost });
-        GameActions::Execute(&wallRemoveAction, gameState);
+        const auto result = GameActions::Execute(&wallRemoveAction, gameState);
+        if (result.error == GameActions::Status::ok)
+            gSceneryGhostType &= ~SCENERY_GHOST_FLAG_2;
+        else if (const auto* wall = MapGetWallElementAt(wallLocation); wall == nullptr || !wall->isGhost())
+            gSceneryGhostType &= ~SCENERY_GHOST_FLAG_2;
+        else
+            allRemoved = false;
     }
 
     if (gSceneryGhostType & SCENERY_GHOST_FLAG_3)
     {
-        gSceneryGhostType &= ~SCENERY_GHOST_FLAG_3;
-
         auto removeSceneryAction = GameActions::LargeSceneryRemoveAction({ gSceneryGhostPosition, gSceneryPlaceRotation }, 0);
         removeSceneryAction.SetFlags({ CommandFlag::allowDuringPaused, CommandFlag::noSpend, CommandFlag::ghost });
-        GameActions::Execute(&removeSceneryAction, gameState);
+        const auto result = GameActions::Execute(&removeSceneryAction, gameState);
+        if (result.error == GameActions::Status::ok)
+            gSceneryGhostType &= ~SCENERY_GHOST_FLAG_3;
+        else if (
+            const auto* scenery = MapGetLargeScenerySegment({ gSceneryGhostPosition, gSceneryPlaceRotation }, 0);
+            scenery == nullptr || !scenery->isGhost())
+            gSceneryGhostType &= ~SCENERY_GHOST_FLAG_3;
+        else
+            allRemoved = false;
     }
 
     if (gSceneryGhostType & SCENERY_GHOST_FLAG_4)
     {
-        gSceneryGhostType &= ~SCENERY_GHOST_FLAG_4;
-
         auto removeSceneryAction = GameActions::BannerRemoveAction({ gSceneryGhostPosition, gSceneryPlaceRotation });
         removeSceneryAction.SetFlags({ CommandFlag::allowDuringPaused, CommandFlag::noSpend, CommandFlag::ghost });
-        GameActions::Execute(&removeSceneryAction, gameState);
+        const auto result = GameActions::Execute(&removeSceneryAction, gameState);
+        if (result.error == GameActions::Status::ok)
+            gSceneryGhostType &= ~SCENERY_GHOST_FLAG_4;
+        else if (
+            const auto* banner = MapGetBannerElementAt(gSceneryGhostPosition, gSceneryPlaceRotation);
+            banner == nullptr || !banner->isGhost())
+            gSceneryGhostType &= ~SCENERY_GHOST_FLAG_4;
+        else
+            allRemoved = false;
     }
+    return allRemoved;
 }
 
 bool IsSceneryAvailableToBuild(const ScenerySelection& item)

@@ -98,8 +98,7 @@ namespace OpenRCT2::GameActions
                 res.cost += bannerRes.cost;
             }
             FootpathRemoveEdgesAt(_loc, footpathElement);
-            MapInvalidateTileFull(_loc);
-            TileElementRemove(footpathElement);
+            EraseTileElement(TileCoordsXY{ _loc }, footpathElement);
             FootpathUpdateQueueChains();
 
             // Remove the spawn point (if there is one in the current tile)

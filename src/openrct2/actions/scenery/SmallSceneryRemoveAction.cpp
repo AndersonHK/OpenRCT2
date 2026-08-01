@@ -123,8 +123,7 @@ namespace OpenRCT2::GameActions
             return Result(Status::invalidParameters, STR_CANT_REMOVE_THIS, STR_INVALID_SELECTION_OF_OBJECTS);
         }
 
-        MapInvalidateTileFull(_loc);
-        TileElementRemove(tileElement);
+        EraseTileElement(TileCoordsXY{ _loc }, tileElement);
 
         return res;
     }

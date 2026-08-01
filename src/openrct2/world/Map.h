@@ -11,10 +11,13 @@
 
 #include "../Identifiers.h"
 #include "Location.hpp"
+#include "tile_element/TileElement.h"
 
 #include <array>
+#include <functional>
 #include <initializer_list>
 #include <optional>
+#include <utility>
 #include <vector>
 
 namespace OpenRCT2::Drawing
@@ -30,7 +33,6 @@ namespace OpenRCT2
     struct PathElement;
     struct SmallSceneryElement;
     struct SurfaceElement;
-    struct TileElement;
     struct TrackElement;
     struct WallElement;
 
@@ -38,6 +40,63 @@ namespace OpenRCT2
     enum class TrackElemType : uint16_t;
 
     struct GameState_t;
+
+    enum class TileMutationMode : uint8_t
+    {
+        immediate,
+        deferred,
+    };
+
+    enum class TileMutationStatus : uint8_t
+    {
+        ok,
+        invalidTile,
+        invalidElement,
+        elementNotOnTile,
+        noFreeElements,
+        wouldViolateSurfaceInvariant,
+    };
+
+    struct TileInsertResult
+    {
+        TileMutationStatus status{ TileMutationStatus::invalidElement };
+        TileElement* element{};
+
+        explicit operator bool() const noexcept
+        {
+            return status == TileMutationStatus::ok;
+        }
+    };
+
+    struct TileEraseResult
+    {
+        TileMutationStatus status{ TileMutationStatus::invalidElement };
+        TileElement* next{};
+
+        explicit operator bool() const noexcept
+        {
+            return status == TileMutationStatus::ok;
+        }
+    };
+
+    struct TileIndexOverride
+    {
+        TileCoordsXY tile;
+        TileElement* elements;
+    };
+
+    class ScopedTileIndexOverride final
+    {
+    public:
+        explicit ScopedTileIndexOverride(std::initializer_list<TileIndexOverride> overrides);
+        ~ScopedTileIndexOverride();
+
+        ScopedTileIndexOverride(const ScopedTileIndexOverride&) = delete;
+        ScopedTileIndexOverride& operator=(const ScopedTileIndexOverride&) = delete;
+
+    private:
+        std::vector<TileIndexOverride> _originals;
+    };
 
     constexpr TileCoordsXY kDefaultMapSize = { 150, 150 };
 
@@ -68,7 +127,6 @@ namespace OpenRCT2
     TileElement* MapGetFirstElementAt(const TileCoordsXY& tilePos);
     TileElement* MapGetNthElementAt(const CoordsXY& coords, int32_t n);
     TileElement* MapGetFirstTileElementWithBaseHeightBetween(const TileCoordsXYRangedZ& loc, TileElementType type);
-    void MapSetTileElement(const TileCoordsXY& tilePos, TileElement* elements);
     int32_t MapHeightFromSlope(const CoordsXY& coords, int32_t slopeDirection, bool isSloped);
     BannerElement* MapGetBannerElementAt(const CoordsXYZ& bannerPos, uint8_t position);
     SurfaceElement* MapGetSurfaceElementAt(const TileCoordsXY& coords);
@@ -98,8 +156,13 @@ namespace OpenRCT2
     int16_t TileElementHeight(const CoordsXY& loc);
     int16_t TileElementHeight(const CoordsXYZ& loc, uint8_t slope);
     int16_t TileElementWaterHeight(const CoordsXY& loc);
-    void TileElementRemove(TileElement* tileElement);
-    TileElement* TileElementInsert(const CoordsXYZ& loc, int32_t occupiedQuadrants, TileElementType type);
+    TileInsertResult InsertTileElement(
+        const TileCoordsXY& tile, TileElement element, TileMutationMode mode = TileMutationMode::immediate);
+    TileEraseResult EraseTileElement(
+        const TileCoordsXY& tile, TileElement* element, TileMutationMode mode = TileMutationMode::immediate);
+    TileMutationStatus ReplaceTileElementsAt(
+        const TileCoordsXY& tile, std::vector<TileElement> elements,
+        TileMutationMode mode = TileMutationMode::immediate);
 
     template<typename T = TileElement>
     T* MapGetFirstTileElementWithBaseHeightBetween(const TileCoordsXYRangedZ& loc)
@@ -108,11 +171,19 @@ namespace OpenRCT2
         return element != nullptr ? element->template as<T>() : nullptr;
     }
 
-    template<typename T>
-    T* TileElementInsert(const CoordsXYZ& loc, int32_t occupiedQuadrants)
+    template<typename T, typename Initialiser>
+    T* InsertTileElement(
+        const CoordsXYZ& loc, int32_t occupiedQuadrants, Initialiser&& initialise,
+        TileMutationMode mode = TileMutationMode::immediate)
     {
-        auto* element = TileElementInsert(loc, occupiedQuadrants, T::kElementType);
-        return (element != nullptr) ? element->template as<T>() : nullptr;
+        TileElement element{};
+        element.ClearAs(T::kElementType);
+        element.setBaseZ(loc.z);
+        element.setClearanceZ(loc.z);
+        element.setOccupiedQuadrants(occupiedQuadrants);
+        std::invoke(std::forward<Initialiser>(initialise), *element.template as<T>());
+        auto result = InsertTileElement(TileCoordsXY{ loc }, element, mode);
+        return result.element != nullptr ? result.element->template as<T>() : nullptr;
     }
 
     struct TileElementIterator

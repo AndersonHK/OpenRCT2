@@ -2750,7 +2750,6 @@ namespace OpenRCT2::Ui::Windows
         {
             TileElement tempSideTrackTileElement{ 0x80, 0x8F, 128, 128, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             TileElement tempTrackTileElement{};
-            TileElement* backupTileElementArrays[5]{};
             PaintSession* session = PaintSessionAlloc(rt, 0, GetCurrentRotation());
             trackDirection &= 3;
 
@@ -2800,18 +2799,6 @@ namespace OpenRCT2::Ui::Windows
                 auto northTileCoords = centreTileCoords + TileDirectionDelta[TILE_ELEMENT_DIRECTION_NORTH];
                 auto southTileCoords = centreTileCoords + TileDirectionDelta[TILE_ELEMENT_DIRECTION_SOUTH];
 
-                // Replace map elements with temporary ones containing track
-                backupTileElementArrays[0] = MapGetFirstElementAt(centreTileCoords);
-                backupTileElementArrays[1] = MapGetFirstElementAt(eastTileCoords);
-                backupTileElementArrays[2] = MapGetFirstElementAt(westTileCoords);
-                backupTileElementArrays[3] = MapGetFirstElementAt(northTileCoords);
-                backupTileElementArrays[4] = MapGetFirstElementAt(southTileCoords);
-                MapSetTileElement(centreTileCoords, &tempTrackTileElement);
-                MapSetTileElement(eastTileCoords, &tempSideTrackTileElement);
-                MapSetTileElement(westTileCoords, &tempSideTrackTileElement);
-                MapSetTileElement(northTileCoords, &tempSideTrackTileElement);
-                MapSetTileElement(southTileCoords, &tempSideTrackTileElement);
-
                 // Set the temporary track element
                 tempTrackTileElement.setOccupiedQuadrants(quarterTile.GetBaseQuarterOccupied());
                 tempTrackTileElement.setBaseZ(baseZ);
@@ -2819,14 +2806,14 @@ namespace OpenRCT2::Ui::Windows
                 tempTrackTileElement.asTrack()->SetSequenceIndex(i);
 
                 // Draw this map tile
+                const ScopedTileIndexOverride tileOverride({
+                    { centreTileCoords, &tempTrackTileElement },
+                    { eastTileCoords, &tempSideTrackTileElement },
+                    { westTileCoords, &tempSideTrackTileElement },
+                    { northTileCoords, &tempSideTrackTileElement },
+                    { southTileCoords, &tempSideTrackTileElement },
+                });
                 TileElementPaintSetup(*session, coords, true);
-
-                // Restore map elements
-                MapSetTileElement(centreTileCoords, backupTileElementArrays[0]);
-                MapSetTileElement(eastTileCoords, backupTileElementArrays[1]);
-                MapSetTileElement(westTileCoords, backupTileElementArrays[2]);
-                MapSetTileElement(northTileCoords, backupTileElementArrays[3]);
-                MapSetTileElement(southTileCoords, backupTileElementArrays[4]);
             }
 
             gameState.mapSize = preserveMapSize;

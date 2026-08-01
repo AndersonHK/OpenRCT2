@@ -561,22 +561,23 @@ namespace OpenRCT2::GameActions
                 ride->overallView = mapLoc;
             }
 
-            auto* trackElement = TileElementInsert<TrackElement>(mapLoc, quarterTile.GetBaseQuarterOccupied());
+            auto* trackElement = InsertTileElement<TrackElement>(
+                mapLoc, quarterTile.GetBaseQuarterOccupied(), [&](TrackElement& trackElement) {
+                    trackElement.setClearanceZ(clearanceZ);
+                    trackElement.setDirection(_origin.direction);
+                    trackElement.SetHasChain(_trackPlaceFlags.has(LiftHillAndInverted::liftHill));
+                    trackElement.SetSequenceIndex(blockIndex);
+                    trackElement.SetRideIndex(_rideIndex);
+                    trackElement.SetTrackType(_trackType);
+                    trackElement.SetRideType(_rideType);
+                    trackElement.setGhost(GetFlags().has(CommandFlag::ghost));
+                });
             if (trackElement == nullptr)
             {
                 LOG_ERROR("Cannot create track element for ride = %d", _rideIndex.ToUnderlying());
                 return Result(
                     Status::noFreeElements, STR_RIDE_CONSTRUCTION_CANT_CONSTRUCT_THIS_HERE, STR_TILE_ELEMENT_LIMIT_REACHED);
             }
-
-            trackElement->setClearanceZ(clearanceZ);
-            trackElement->setDirection(_origin.direction);
-            trackElement->SetHasChain(_trackPlaceFlags.has(LiftHillAndInverted::liftHill));
-            trackElement->SetSequenceIndex(blockIndex);
-            trackElement->SetRideIndex(_rideIndex);
-            trackElement->SetTrackType(_trackType);
-            trackElement->SetRideType(_rideType);
-            trackElement->setGhost(GetFlags().has(CommandFlag::ghost));
 
             switch (_trackType)
             {

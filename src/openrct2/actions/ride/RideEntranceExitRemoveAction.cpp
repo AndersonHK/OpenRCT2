@@ -151,7 +151,7 @@ namespace OpenRCT2::GameActions
         MazeEntranceHedgeReplacement({ _loc, entranceElement });
         FootpathRemoveEdgesAt(_loc, entranceElement);
 
-        TileElementRemove(entranceElement);
+        EraseTileElement(TileCoordsXY{ _loc }, entranceElement);
 
         auto& station = ride->getStation(_stationNum);
         if (_isExit)

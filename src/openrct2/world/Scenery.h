@@ -73,7 +73,7 @@ extern int16_t gSceneryCtrlPressZ;
 extern const CoordsXY SceneryQuadrantOffsets[];
 
 void SceneryUpdateTile(const CoordsXY& sceneryPos);
-void SceneryRemoveGhostToolPlacement();
+bool SceneryRemoveGhostToolPlacement();
 
 bool IsSceneryAvailableToBuild(const ScenerySelection& item);
 bool TileElementCountsAsDecoration(const OpenRCT2::TileElement& tileElement);

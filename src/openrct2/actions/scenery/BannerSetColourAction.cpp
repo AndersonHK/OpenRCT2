@@ -103,7 +103,7 @@ namespace OpenRCT2::GameActions
             ContextBroadcastIntent(&intent);
 
             banner->colour = _primaryColour;
-            MapInvalidateTileZoom1({ _loc, _loc.z, _loc.z + 32 });
+            MapInvalidateTileFull(_loc);
         }
 
         return res;
