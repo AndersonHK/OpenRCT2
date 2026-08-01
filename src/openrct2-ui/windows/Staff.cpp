@@ -26,6 +26,7 @@
 #include <openrct2/actions/peep/StaffSetPatrolAreaAction.h>
 #include <openrct2/config/Config.h>
 #include <openrct2/drawing/Drawing.h>
+#include <openrct2/drawing/RenderTarget.h>
 #include <openrct2/drawing/Text.h>
 #include <openrct2/entity/EntityRegistry.h>
 #include <openrct2/entity/PatrolArea.h>
@@ -680,14 +681,20 @@ namespace OpenRCT2::Ui::Windows
                 gMapSelectPositionB = mapCoords;
             }
 
-            gPickupPeepImage = ImageId();
+            gPickupPeep.image = ImageId();
 
             auto info = GetMapCoordinatesFromPos(screenCoords, kViewportInteractionItemAll);
             if (info.interactionType == ViewportInteractionItem::none)
                 return;
 
-            gPickupPeepX = screenCoords.x - 1;
-            gPickupPeepY = screenCoords.y + 16;
+            gPickupPeep.position.x = screenCoords.x - 1;
+            gPickupPeep.position.y = screenCoords.y + 16;
+            gPickupPeep.zoom = ZoomLevel{ 0 };
+            const auto* mainWindow = WindowGetMain();
+            if (mainWindow != nullptr && mainWindow->viewport != nullptr)
+            {
+                gPickupPeep.zoom = std::min(mainWindow->viewport->zoom, ZoomLevel{ 0 });
+            }
 
             auto staff = GetStaff();
             if (staff == nullptr)
@@ -700,7 +707,7 @@ namespace OpenRCT2::Ui::Windows
 
             auto& pickupAnim = animObj->GetPeepAnimation(staff->AnimationGroup, PeepAnimationType::hanging);
             auto baseImageId = pickupAnim.baseImage + pickupAnim.frameOffsets[pickedPeepFrame >> 2];
-            gPickupPeepImage = ImageId(baseImageId, staff->TshirtColour, staff->TrousersColour);
+            gPickupPeep.image = ImageId(baseImageId, staff->TshirtColour, staff->TrousersColour);
         }
 
         void OverviewToolDown(WidgetIndex widgetIndex, const ScreenCoordsXY& screenCoords)
@@ -723,7 +730,7 @@ namespace OpenRCT2::Ui::Windows
                 if (result->error != GameActions::Status::ok)
                     return;
                 ToolCancel();
-                gPickupPeepImage = ImageId();
+                gPickupPeep.image = ImageId();
             });
             GameActions::Execute(&pickupAction, getGameState());
         }

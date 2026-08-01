@@ -12,19 +12,17 @@
 #include "../Context.h"
 #include "../drawing/Drawing.h"
 #include "../interface/Screenshot.h"
-#include "../localisation/StringIds.h"
-#include "../paint/Painter.h"
 #include "../ui/UiContext.h"
 #include "../world/Location.hpp"
 #include "IDrawingContext.h"
 #include "IDrawingEngine.h"
+#include "RenderTarget.h"
 
 #include <cassert>
 #include <cmath>
 
 using namespace OpenRCT2;
 using namespace OpenRCT2::Drawing;
-using namespace OpenRCT2::Paint;
 using namespace OpenRCT2::Ui;
 
 static IDrawingEngine* GetDrawingEngine()

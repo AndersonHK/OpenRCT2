@@ -89,9 +89,15 @@ void AudioMixer::Init(const char* device)
     _callbackTotalMilliseconds = 0.0;
     _callbackWorstMilliseconds = 0.0;
     _callbackCount = 0;
-    _mixSpatialSpeaker = Platform::AVX2Available() ? MixSpatialSpeakerAVX2 : MixSpatialSpeakerScalar;
+#ifdef __AVX2__
+    _mixSpatialSpeaker = MixSpatialSpeakerAVX2;
+    constexpr auto kSpatialKernelName = "AVX2";
+#else
+    _mixSpatialSpeaker = MixSpatialSpeakerScalar;
+    constexpr auto kSpatialKernelName = "scalar";
+#endif
     _channels.reserve(kMaxMixedChannels);
-    LOG_VERBOSE("Audio mixer spatial kernel: %s planar", Platform::AVX2Available() ? "AVX2" : "scalar");
+    LOG_VERBOSE("Audio mixer spatial kernel: %s planar", kSpatialKernelName);
     LOG_INFO(
         "Opened %s audio output at %d Hz with %d channels and %d-frame callbacks",
         SDL_GetCurrentAudioDriver() == nullptr ? "unknown" : SDL_GetCurrentAudioDriver(), have.freq, have.channels,

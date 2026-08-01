@@ -115,7 +115,7 @@ static constexpr auto kRideModeBlockSectionedCounterpart = std::to_array({
     RideMode::normal,                          // RideMode::normal,
     RideMode::continuousCircuitBlockSectioned, // RideMode::continuousCircuit,
     RideMode::reverseInclineLaunchedShuttle,   // RideMode::reverseInclineLaunchedShuttle,
-    RideMode::poweredLaunchBlockSectioned,     // RideMode::poweredLaunchPasstrough,
+    RideMode::poweredLaunchBlockSectioned,     // RideMode::poweredLaunchPassthrough,
     RideMode::shuttle,                         // RideMode::shuttle,
     RideMode::boatHire,                        // RideMode::boatHire,
     RideMode::upwardLaunch,                    // RideMode::upwardLaunch,
@@ -1045,7 +1045,7 @@ bool Ride::canHaveMultipleCircuits() const
 
     // Only allow circuit or launch modes
     if (mode != RideMode::continuousCircuit && mode != RideMode::reverseInclineLaunchedShuttle
-        && mode != RideMode::poweredLaunchPasstrough)
+        && mode != RideMode::poweredLaunchPassthrough)
     {
         return false;
     }
@@ -2789,7 +2789,7 @@ static ResultWithMessage RideModeCheckValidStationNumbers(const Ride& ride)
     switch (ride.mode)
     {
         case RideMode::reverseInclineLaunchedShuttle:
-        case RideMode::poweredLaunchPasstrough:
+        case RideMode::poweredLaunchPassthrough:
         case RideMode::poweredLaunch:
         case RideMode::limPoweredLaunch:
             if (numStations <= 1)
@@ -5077,7 +5077,7 @@ bool Ride::hasWhirlpool() const
 
 bool Ride::isPoweredLaunched() const
 {
-    return mode == RideMode::poweredLaunchPasstrough || mode == RideMode::poweredLaunch
+    return mode == RideMode::poweredLaunchPassthrough || mode == RideMode::poweredLaunch
         || mode == RideMode::poweredLaunchBlockSectioned;
 }
 
@@ -5734,7 +5734,7 @@ void Ride::updateMaxVehicles()
                 maxNumTrains = std::clamp<int32_t>(numStations + numBlockBrakes - 1, 1, Limits::kMaxTrainsPerRide);
                 break;
             case RideMode::reverseInclineLaunchedShuttle:
-            case RideMode::poweredLaunchPasstrough:
+            case RideMode::poweredLaunchPassthrough:
             case RideMode::shuttle:
             case RideMode::limPoweredLaunch:
             case RideMode::poweredLaunch:

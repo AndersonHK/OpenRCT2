@@ -10,13 +10,11 @@
 #include "Finance.h"
 
 #include "../Context.h"
-#include "../Game.h"
 #include "../GameState.h"
 #include "../OpenRCT2.h"
 #include "../core/EnumUtils.hpp"
 #include "../core/GameTime.hpp"
 #include "../entity/EntityList.h"
-#include "../entity/Peep.h"
 #include "../entity/Staff.h"
 #include "../profiling/Profiling.h"
 #include "../ride/Ride.h"
@@ -24,7 +22,6 @@
 #include "../ui/WindowManager.h"
 #include "../util/Util.h"
 #include "../windows/Intent.h"
-#include "../world/Park.h"
 
 #include <numeric>
 

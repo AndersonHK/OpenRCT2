@@ -9,7 +9,6 @@
 
 #pragma once
 
-#include "core/BackgroundWorker.hpp"
 #include "core/StringTypes.h"
 #include "interface/WindowClasses.h"
 #include "localisation/StringIdType.h"
@@ -24,7 +23,6 @@ struct IScenarioRepository;
 struct ITrackDesignRepository;
 class JobPool;
 struct NewVersionInfo;
-struct TTFFontDescriptor;
 
 namespace OpenRCT2
 {
@@ -32,7 +30,7 @@ namespace OpenRCT2
     enum class WindowView : uint8_t;
 
     class AssetPackManager;
-    class Formatter;
+    class BackgroundWorker;
     class Intent;
     class ISceneManager;
 

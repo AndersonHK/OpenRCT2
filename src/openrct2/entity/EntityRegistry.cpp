@@ -10,17 +10,13 @@
 #include "EntityRegistry.h"
 #include "EntityPresentationSnapshot.h"
 
-#include "../Game.h"
 #include "../GameState.h"
 #include "../core/Algorithm.hpp"
 #include "../core/ChecksumStream.h"
-#include "../core/Crypt.h"
 #include "../core/DataSerialiser.h"
 #include "../core/Guard.hpp"
-#include "../core/MemoryStream.h"
 #include "../core/String.hpp"
 #include "../entity/EntityList.h"
-#include "../entity/Peep.h"
 #include "../entity/Staff.h"
 #include "../interface/Viewport.h"
 #include "../peep/RideUseSystem.h"
@@ -38,11 +34,9 @@
 
 #include <algorithm>
 #include <cassert>
-#include <cmath>
 #include <cstddef>
 #include <cstring>
 #include <iterator>
-#include <numeric>
 #include <vector>
 
 namespace OpenRCT2

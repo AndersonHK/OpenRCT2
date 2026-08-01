@@ -256,6 +256,17 @@ elseif(CMAKE_OSX_ARCHITECTURES MATCHES "amd64.*|x86_64.*|AMD64.*")
     set(X86_64 1)
 endif()
 
+# This fork deliberately targets AVX2 across every first-party x86/x64 target. This keeps code generation consistent,
+# exposes vectorisation opportunities outside the hand-written kernels, and makes the CPU requirement explicit.
+if((X86 OR X86_64) AND NOT EMSCRIPTEN)
+    if(MSVC)
+        add_compile_options(/arch:AVX2)
+        add_compile_definitions(__AVX2__ __SSE4_1__)
+    else()
+        add_compile_options(-mavx2)
+    endif()
+endif()
+
 # Check if a flag exists and add it to the list of compiler (so, not linker) options
 function (ADD_CHECK_CXX_COMPILER_FLAG _CXXFLAGS _CACHE_VAR _FLAG)
     CHECK_CXX_COMPILER_FLAG("${_FLAG}" "${_CACHE_VAR}")
@@ -296,10 +307,6 @@ if (MSVC)
 
     add_definitions(-D_CRT_SECURE_NO_WARNINGS)
     add_definitions(-D_SCL_SECURE_NO_WARNINGS)
-    if (CMAKE_SIZEOF_VOID_P EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64")
-        add_definitions(-D__SSE4_1__)
-        add_definitions(-D__AVX2__)
-    endif ()
     add_definitions(-DNOMINMAX)
 else ()
     ADD_CHECK_CXX_COMPILER_FLAG(CMAKE_CXX_FLAGS CXX_WARN_SUGGEST_OVERRIDE -Wsuggest-override)

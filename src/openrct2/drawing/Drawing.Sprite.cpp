@@ -19,10 +19,12 @@
 #include "../core/Guard.hpp"
 #include "../core/MemoryStream.h"
 #include "../core/Path.hpp"
+#include "../interface/ZoomLevel.h"
 #include "../platform/Platform.h"
 #include "../rct1/Csg.h"
 #include "../ui/UiContext.h"
 #include "Drawing.h"
+#include "RenderTarget.h"
 #include "ScrollingText.h"
 
 #include <cassert>
@@ -309,6 +311,17 @@ static void OverrideElementOffsets(size_t index, G1Element& element)
             element.xOffset -= 1; // Steeplechase leftEighthToDiag angle 2
             break;
     }
+}
+
+void MaskFn(
+    int32_t width, int32_t height, const uint8_t* RESTRICT maskSrc, const uint8_t* RESTRICT colourSrc,
+    PaletteIndex* RESTRICT dst, int32_t maskWrap, int32_t colourWrap, int32_t dstWrap)
+{
+#ifdef __AVX2__
+    MaskAvx2(width, height, maskSrc, colourSrc, dst, maskWrap, colourWrap, dstWrap);
+#else
+    MaskScalar(width, height, maskSrc, colourSrc, dst, maskWrap, colourWrap, dstWrap);
+#endif
 }
 
 static void ReadAndConvertGxDat(IStream* stream, size_t count, bool is_rctc, G1Element* elements)

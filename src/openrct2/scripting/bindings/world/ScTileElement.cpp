@@ -2100,6 +2100,16 @@ namespace OpenRCT2::Scripting
         return JS_UNDEFINED;
     }
 
+    JSValue ScTileElement::isAdditionFull_get(JSContext* ctx, JSValue thisValue)
+    {
+        const auto data = gScTileElement.GetOpaque<OpaqueTileElementData*>(thisValue);
+        const auto* path = data->element->asPath();
+        if (path == nullptr || path->IsQueue() || !path->IsBin())
+            return JS_NULL;
+
+        return JS_NewBool(ctx, path->HasFullBinSlot());
+    }
+
     JSValue ScTileElement::isAdditionGhost_get(JSContext* ctx, JSValue thisValue)
     {
         auto data = gScTileElement.GetOpaque<OpaqueTileElementData*>(thisValue);
@@ -2496,6 +2506,7 @@ namespace OpenRCT2::Scripting
             JS_CGETSET_DEF("addition", ScTileElement::addition_get, ScTileElement::addition_set),
             JS_CGETSET_DEF("additionStatus", ScTileElement::additionStatus_get, ScTileElement::additionStatus_set),
             JS_CGETSET_DEF("isAdditionBroken", ScTileElement::isAdditionBroken_get, ScTileElement::isAdditionBroken_set),
+            JS_CGETSET_DEF("isAdditionFull", ScTileElement::isAdditionFull_get, nullptr),
             JS_CGETSET_DEF("isAdditionGhost", ScTileElement::isAdditionGhost_get, ScTileElement::isAdditionGhost_set),
 
             // Track only

@@ -14,9 +14,12 @@
 #include <cmath>
 #include <cstring>
 #include <openrct2/core/EnumUtils.hpp>
+#include <openrct2/drawing/Drawing.Sprite.h>
 #include <openrct2/drawing/Drawing.String.h>
 #include <openrct2/drawing/Drawing.h>
+#include <openrct2/drawing/G1Element.h>
 #include <openrct2/drawing/RenderTarget.h>
+#include <openrct2/drawing/TTF.h>
 #include <openrct2/entity/EntityPresentationSnapshot.h>
 #include <openrct2/world/Location.hpp>
 #include <openrct2/world/MapPresentationSnapshot.h>

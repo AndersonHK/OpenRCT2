@@ -237,8 +237,7 @@ file(GLOB_RECURSE OPENRCT2_GUI_SOURCES
     "${ORCT2_ROOT}/src/openrct2-ui/*.hpp")
 
 if(X86 OR X86_64)
-    set_source_files_properties(${ORCT2_ROOT}/src/openrct2/drawing/SSE41Drawing.cpp PROPERTIES COMPILE_FLAGS -msse4.1)
-    set_source_files_properties(${ORCT2_ROOT}/src/openrct2/drawing/AVX2Drawing.cpp PROPERTIES COMPILE_FLAGS -mavx2)
+    add_compile_options(-mavx2)
 endif()
 
 file(GLOB_RECURSE OPENRCT2_CLI_SOURCES

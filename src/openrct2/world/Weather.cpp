@@ -22,6 +22,7 @@
 #include "../core/EnumUtils.hpp"
 #include "../core/GameTime.hpp"
 #include "../drawing/Drawing.h"
+#include "../drawing/FilterPaletteIds.h"
 #include "../network/Network.h"
 #include "../object/ClimateObject.h"
 #include "../object/ObjectManager.h"

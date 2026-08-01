@@ -224,6 +224,11 @@ declare global {
         readonly mode: GameMode;
 
         /**
+         * Raw game speed used by the gamesetspeed action (1=normal, 2=fast, 3=turbo, 4=super fast; debug speeds 5–8).
+         */
+        readonly gameSpeed: number;
+
+        /**
          * Whether the game is currently paused or not. Readonly in network mode.
          */
         paused: boolean;
@@ -1842,8 +1847,11 @@ declare global {
         station: number | null;
 
         addition: number | null;
+        /** Raw path addition status: one 2-bit slot per edge (3 = empty, 0 = full), 255 = all empty. */
         additionStatus: number | null;
         isAdditionBroken: boolean | null;
+        /** True when a litter bin has a fully filled slot. Null if this element is not a bin. */
+        readonly isAdditionFull: boolean | null;
         isAdditionGhost: boolean | null;
     }
 
@@ -2463,6 +2471,21 @@ declare global {
          */
         readonly downtime: number;
 
+        /** Reliability percentage shown on the Maintenance tab (0–100). */
+        readonly reliability: number;
+
+        /** Number of guests currently on the ride. */
+        readonly guestCount: number;
+
+        /** True when no guests are currently on the ride. */
+        readonly isEmpty: boolean;
+
+        /** Current hourly income shown on the ride Finance tab. */
+        readonly incomePerHour: number;
+
+        /** Current hourly profit shown on the ride Finance tab. */
+        readonly profit: number;
+
         /**
          * The currently set chain lift speed in miles per hour. Use `context.formatString()` to convert speed values to a localised value/unit string. Ex: `formatString('{VELOCITY}', ride.liftHillSpeed)`.
          */
@@ -2584,6 +2607,8 @@ declare global {
         length: number;
         entrance: CoordsXYZD;
         exit: CoordsXYZD;
+        /** Queue wait time in minutes for this station. */
+        readonly queueTime: number;
     }
 
     interface TrackSegment {

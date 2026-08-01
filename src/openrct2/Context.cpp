@@ -21,6 +21,7 @@
 
 #include "AssetPackManager.h"
 #include "Context.h"
+#include "Diagnostic.h"
 #include "FileClassifier.h"
 #include "Game.h"
 #include "GameState.h"
@@ -35,6 +36,7 @@
 #include "audio/Audio.h"
 #include "audio/AudioContext.h"
 #include "config/Config.h"
+#include "core/BackgroundWorker.hpp"
 #include "core/Console.hpp"
 #include "core/File.h"
 #include "core/FileScanner.h"
@@ -47,7 +49,9 @@
 #include "core/String.hpp"
 #include "core/Timer.hpp"
 #include "drawing/ColourMap.h"
+#include "drawing/Drawing.Sprite.h"
 #include "drawing/Drawing.h"
+#include "drawing/Font.h"
 #include "drawing/IDrawingEngine.h"
 #include "drawing/Image.h"
 #include "drawing/LightFX.h"
@@ -57,7 +61,6 @@
 #include "interface/StdInOutConsole.h"
 #include "interface/Viewport.h"
 #include "localisation/Formatter.h"
-#include "localisation/Localisation.Date.h"
 #include "localisation/LocalisationService.h"
 #include "network/DiscordService.h"
 #include "network/Network.h"
@@ -75,12 +78,8 @@
 #include "scenario/ScenarioRepository.h"
 #include "scenes/SceneManager.h"
 #include "scenes/editor/EditorScene.h"
-#include "scenes/game/GameScene.h"
-#include "scenes/intro/IntroScene.h"
 #include "scenes/preloader/PreloaderScene.h"
-#include "scenes/title/TitleScene.h"
 #include "scenes/title/TitleSequenceManager.h"
-#include "scripting/HookEngine.h"
 #include "scripting/ScriptEngine.h"
 #include "ui/UiContext.h"
 #include "ui/WindowManager.h"
@@ -91,7 +90,6 @@
 #include <chrono>
 #include <cmath>
 #include <exception>
-#include <iterator>
 #include <memory>
 #include <string>
 #include <thread>
@@ -702,7 +700,7 @@ namespace OpenRCT2
             gInputFlags.clearAll();
             InputSetState(InputState::reset);
             gPressedWidget.windowClassification = WindowClass::null;
-            gPickupPeepImage = ImageId();
+            gPickupPeep.image = ImageId();
             ResetTooltipNotShown();
             gMapSelectFlags.clearAll();
             ClearPatrolAreaToRender();

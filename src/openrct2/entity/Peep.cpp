@@ -9,21 +9,17 @@
 
 #include "Peep.h"
 
-#include "../Cheats.h"
 #include "../Context.h"
 #include "../Diagnostic.h"
-#include "../Game.h"
 #include "../GameState.h"
-#include "../Input.h"
 #include "../OpenRCT2.h"
-#include "../SpriteIds.h"
-#include "../actions/GameAction.hpp"
 #include "../audio/Audio.h"
 #include "../audio/AudioChannel.h"
 #include "../audio/AudioMixer.h"
 #include "../audio/AudioSource.h"
 #include "../audio/SpatialAudio.h"
 #include "../config/Config.h"
+#include "../core/DataSerialiser.h"
 #include "../core/EnumUtils.hpp"
 #include "../core/Guard.hpp"
 #include "../core/String.hpp"
@@ -39,7 +35,6 @@
 #include "../management/Finance.h"
 #include "../management/Marketing.h"
 #include "../management/NewsItem.h"
-#include "../network/Network.h"
 #include "../object/ObjectManager.h"
 #include "../object/PeepAnimationsObject.h"
 #include "../peep/GuestPathfinding.h"
@@ -47,22 +42,19 @@
 #include "../ride/Ride.h"
 #include "../ride/RideData.h"
 #include "../ride/ShopItem.h"
-#include "../ride/Station.h"
 #include "../scenario/Scenario.h"
 #include "../ui/WindowManager.h"
 #include "../util/Util.h"
 #include "../windows/Intent.h"
 #include "../world/ConstructionClearance.h"
-#include "../world/Entrance.h"
 #include "../world/Footpath.h"
 #include "../world/Map.h"
 #include "../world/Park.h"
 #include "../world/QuarterTile.h"
-#include "../world/Scenery.h"
-#include "../world/Weather.h"
 #include "../world/tile_element/EntranceElement.h"
 #include "../world/tile_element/PathElement.h"
 #include "../world/tile_element/SurfaceElement.h"
+#include "../world/tile_element/TileElement.h"
 #include "../world/tile_element/TrackElement.h"
 #include "PatrolArea.h"
 #include "Staff.h"
@@ -71,7 +63,6 @@
 #include <cassert>
 #include <cmath>
 #include <iterator>
-#include <limits>
 #include <map>
 #include <memory>
 #include <numbers>
@@ -239,6 +230,7 @@ namespace OpenRCT2
         }
 
         const auto& staffExecutionList = getGameState().entities.GetEntityExecutionList(EntityType::staff);
+        PrepareHandymanServiceReservations();
         size_t staffPosition = 0;
         while (staffPosition < staffExecutionList.size())
         {
@@ -669,7 +661,7 @@ namespace OpenRCT2
             PathCheckOptimisation = 0;
         }
 
-        gPickupPeepImage = ImageId();
+        gPickupPeep.image = ImageId();
     }
 
     // Returns GameActions::Status::ok when a peep can be dropped at the given location. When apply is set to true the peep gets

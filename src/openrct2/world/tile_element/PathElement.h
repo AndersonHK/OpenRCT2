@@ -136,6 +136,8 @@ namespace OpenRCT2
 
         uint8_t GetAdditionStatus() const;
         void SetAdditionStatus(uint8_t newStatus);
+        bool IsBin() const;
+        bool HasFullBinSlot() const;
 
         bool ShouldDrawPathOverSupports() const;
         void SetShouldDrawPathOverSupports(bool on);

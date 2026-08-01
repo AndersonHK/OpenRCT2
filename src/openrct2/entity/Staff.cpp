@@ -12,12 +12,11 @@
 #include "../Context.h"
 #include "../Diagnostic.h"
 #include "../GameState.h"
-#include "../actions/peep/StaffSetOrdersAction.h"
 #include "../audio/Audio.h"
 #include "../core/DataSerialiser.h"
+#include "../core/JobPool.h"
 #include "../entity/EntityList.h"
 #include "../entity/EntityRegistry.h"
-#include "../interface/Viewport.h"
 #include "../localisation/StringIds.h"
 #include "../object/ObjectManager.h"
 #include "../object/PathAdditionEntry.h"
@@ -30,7 +29,6 @@
 #include "../ride/Vehicle.h"
 #include "../scenario/Scenario.h"
 #include "../util/Util.h"
-#include "../windows/Intent.h"
 #include "../world/Footpath.h"
 #include "../world/Map.h"
 #include "../world/Scenery.h"
@@ -44,11 +42,216 @@
 #include "PatrolArea.h"
 #include "Peep.h"
 
+#include <algorithm>
+#include <atomic>
+#include <bit>
 #include <cassert>
 #include <iterator>
+#include <memory>
+#include <optional>
+#include <utility>
 
 namespace OpenRCT2
 {
+    namespace
+    {
+        enum class HandymanService : uint32_t
+        {
+            sweeping,
+            mowing,
+            emptyingBin,
+            watering,
+        };
+
+        class HandymanServiceReservations
+        {
+        public:
+            void Reset(size_t staffCount)
+            {
+                const auto requiredCapacity = std::max<size_t>(64, std::bit_ceil(std::max<size_t>(1, staffCount * 4)));
+                if (requiredCapacity > _capacity)
+                {
+                    _entries = std::make_unique<std::atomic<uint64_t>[]>(requiredCapacity);
+                    _capacity = requiredCapacity;
+                    _generation = 1;
+                    Clear();
+                }
+                else if (++_generation == 0)
+                {
+                    _generation = 1;
+                    Clear();
+                }
+            }
+
+            void AddExisting(const CoordsXY& location, HandymanService service, EntityId owner)
+            {
+                const auto key = MakeKey(location, service);
+                if (!key.has_value())
+                    return;
+
+                const auto ownerValue = static_cast<uint32_t>(owner.ToUnderlying()) + 1;
+                const auto desired = Pack(*key, ownerValue);
+                for (size_t probe = 0; probe < _capacity; probe++)
+                {
+                    auto& entry = _entries[ProbeIndex(*key, probe)];
+                    auto observed = entry.load(std::memory_order_relaxed);
+                    if (observed == 0 || UnpackGeneration(observed) != _generation)
+                    {
+                        if (entry.compare_exchange_weak(observed, desired, std::memory_order_relaxed))
+                            return;
+                        probe--;
+                        continue;
+                    }
+                    if (UnpackKey(observed) != *key)
+                        continue;
+
+                    while (UnpackOwner(observed) > ownerValue
+                        && !entry.compare_exchange_weak(observed, desired, std::memory_order_relaxed))
+                    {
+                    }
+                    return;
+                }
+                assert(false && "Handyman service reservation table is full");
+            }
+
+            [[nodiscard]] bool IsReserved(const CoordsXY& location, HandymanService service) const
+            {
+                const auto key = MakeKey(location, service);
+                if (!key.has_value())
+                    return false;
+
+                for (size_t probe = 0; probe < _capacity; probe++)
+                {
+                    const auto observed = _entries[ProbeIndex(*key, probe)].load(std::memory_order_relaxed);
+                    if (observed == 0 || UnpackGeneration(observed) != _generation)
+                        return false;
+                    if (UnpackKey(observed) == *key)
+                        return true;
+                }
+                return false;
+            }
+
+            [[nodiscard]] bool TryReserve(const CoordsXY& location, HandymanService service, EntityId owner)
+            {
+                const auto key = MakeKey(location, service);
+                if (!key.has_value())
+                    return false;
+
+                const auto ownerValue = static_cast<uint32_t>(owner.ToUnderlying()) + 1;
+                const auto desired = Pack(*key, ownerValue);
+                for (size_t probe = 0; probe < _capacity; probe++)
+                {
+                    auto& entry = _entries[ProbeIndex(*key, probe)];
+                    auto observed = entry.load(std::memory_order_relaxed);
+                    if (observed == 0 || UnpackGeneration(observed) != _generation)
+                    {
+                        if (entry.compare_exchange_strong(observed, desired, std::memory_order_relaxed))
+                            return true;
+                        probe--;
+                        continue;
+                    }
+                    if (UnpackKey(observed) == *key)
+                        return UnpackOwner(observed) == ownerValue;
+                }
+                assert(false && "Handyman service reservation table is full");
+                return false;
+            }
+
+        private:
+            static std::optional<uint32_t> MakeKey(const CoordsXY& location, HandymanService service)
+            {
+                const TileCoordsXY tile(location);
+                if (tile.x < 0 || tile.y < 0 || tile.x >= kMaximumMapSizeTechnical
+                    || tile.y >= kMaximumMapSizeTechnical)
+                {
+                    return std::nullopt;
+                }
+
+                const auto tileIndex = static_cast<uint32_t>(tile.x * kMaximumMapSizeTechnical + tile.y);
+                return (tileIndex * 4) + static_cast<uint32_t>(service);
+            }
+
+            [[nodiscard]] size_t ProbeIndex(uint32_t key, size_t probe) const
+            {
+                constexpr uint64_t kHashMultiplier = 11400714819323198485ull;
+                const auto hash = static_cast<size_t>(static_cast<uint64_t>(key) * kHashMultiplier);
+                return (hash + probe) & (_capacity - 1);
+            }
+
+            constexpr uint64_t Pack(uint32_t key, uint32_t owner) const
+            {
+                return (static_cast<uint64_t>(_generation) << 56) | (static_cast<uint64_t>(key + 1) << 32) | owner;
+            }
+
+            static constexpr uint32_t UnpackKey(uint64_t entry)
+            {
+                return (static_cast<uint32_t>(entry >> 32) & 0x00FFFFFFu) - 1;
+            }
+
+            static constexpr uint8_t UnpackGeneration(uint64_t entry)
+            {
+                return static_cast<uint8_t>(entry >> 56);
+            }
+
+            static constexpr uint32_t UnpackOwner(uint64_t entry)
+            {
+                return static_cast<uint32_t>(entry);
+            }
+
+            void Clear()
+            {
+                for (size_t i = 0; i < _capacity; i++)
+                {
+                    _entries[i].store(0, std::memory_order_relaxed);
+                }
+            }
+
+            std::unique_ptr<std::atomic<uint64_t>[]> _entries;
+            size_t _capacity{};
+            uint8_t _generation{};
+        };
+
+        HandymanServiceReservations gHandymanServiceReservations;
+
+        std::optional<std::pair<CoordsXY, HandymanService>> GetActiveHandymanService(const Staff& staff)
+        {
+            switch (staff.State)
+            {
+                case PeepState::sweeping:
+                    return std::pair{ CoordsXY{ staff.x, staff.y }, HandymanService::sweeping };
+                case PeepState::mowing:
+                    return std::pair{ CoordsXY{ staff.x, staff.y }, HandymanService::mowing };
+                case PeepState::emptyingBin:
+                    return std::pair{ CoordsXY{ staff.x, staff.y }, HandymanService::emptyingBin };
+                case PeepState::watering:
+                    return std::pair{
+                        CoordsXY{ staff.NextLoc } + CoordsDirectionDelta[staff.Var37], HandymanService::watering };
+                default:
+                    return std::nullopt;
+            }
+        }
+    } // namespace
+
+    void PrepareHandymanServiceReservations()
+    {
+        const auto& staff = getGameState().entities.GetEntityExecutionList(EntityType::staff);
+        gHandymanServiceReservations.Reset(staff.size());
+        GetContext()->GetJobPool().ParallelFor(
+            staff.size(),
+            [&staff](size_t index) {
+                const auto* candidate = staff[index]->cast<Staff>();
+                if (candidate->assignedStaffType != StaffType::handyman)
+                    return;
+
+                const auto service = GetActiveHandymanService(*candidate);
+                if (service.has_value())
+                {
+                    gHandymanServiceReservations.AddExisting(service->first, service->second, candidate->id);
+                }
+            },
+            16);
+    }
+
     template<>
     bool EntityBase::is<Staff>() const
     {
@@ -433,7 +636,8 @@ namespace OpenRCT2
                 {
                     if (surfaceElement->CanGrassGrow() && (surfaceElement->GetGrassLength() & 0x7) >= GRASS_LENGTH_CLEAR_1)
                     {
-                        return chosenDirection;
+                        if (!gHandymanServiceReservations.IsReserved(chosenTile, HandymanService::mowing))
+                            return chosenDirection;
                     }
                 }
             }
@@ -1507,6 +1711,9 @@ namespace OpenRCT2
                     }
                 }
 
+                if (!gHandymanServiceReservations.TryReserve(chosenLoc, HandymanService::watering, id))
+                    continue;
+
                 SetState(PeepState::watering);
                 Var37 = chosen_position;
 
@@ -1545,23 +1752,18 @@ namespace OpenRCT2
                 return false;
         }
 
-        if (!tileElement->asPath()->HasAddition())
-            return false;
-        auto* pathAddEntry = tileElement->asPath()->GetAdditionEntry();
-        if (pathAddEntry == nullptr)
+        auto* path = tileElement->asPath();
+        if (!path->IsBin())
             return false;
 
-        if (!(pathAddEntry->flags & PATH_ADDITION_FLAG_IS_BIN))
+        if (path->IsBroken())
             return false;
 
-        if (tileElement->asPath()->IsBroken())
+        if (path->AdditionIsGhost())
             return false;
 
-        if (tileElement->asPath()->AdditionIsGhost())
-            return false;
-
-        uint8_t bin_positions = tileElement->asPath()->GetEdges();
-        uint8_t bin_quantity = tileElement->asPath()->GetAdditionStatus();
+        uint8_t bin_positions = path->GetEdges();
+        uint8_t bin_quantity = path->GetAdditionStatus();
         uint8_t chosen_position = 0;
 
         for (; chosen_position < 4; ++chosen_position)
@@ -1573,6 +1775,9 @@ namespace OpenRCT2
         }
 
         if (chosen_position == 4)
+            return false;
+
+        if (!gHandymanServiceReservations.TryReserve(CoordsXY{ NextLoc }, HandymanService::emptyingBin, id))
             return false;
 
         Var37 = chosen_position;
@@ -1602,7 +1807,8 @@ namespace OpenRCT2
         auto surfaceElement = MapGetSurfaceElementAt(NextLoc);
         if (surfaceElement != nullptr && surfaceElement->CanGrassGrow())
         {
-            if ((surfaceElement->GetGrassLength() & 0x7) >= GRASS_LENGTH_CLEAR_1)
+            if ((surfaceElement->GetGrassLength() & 0x7) >= GRASS_LENGTH_CLEAR_1
+                && gHandymanServiceReservations.TryReserve(CoordsXY{ NextLoc }, HandymanService::mowing, id))
             {
                 SetState(PeepState::mowing);
                 Var37 = 0;
@@ -1630,6 +1836,9 @@ namespace OpenRCT2
             uint16_t z_diff = abs(z - litter->z);
 
             if (z_diff >= 16)
+                continue;
+
+            if (!gHandymanServiceReservations.TryReserve(litter->getLocation(), HandymanService::sweeping, id))
                 continue;
 
             SetState(PeepState::sweeping);

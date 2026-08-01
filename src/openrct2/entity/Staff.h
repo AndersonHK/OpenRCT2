@@ -9,12 +9,10 @@
 
 #pragma once
 
-#include "../core/EnumUtils.hpp"
 #include "../core/Money.hpp"
 #include "Peep.h"
 
 #include <cstdint>
-#include <vector>
 
 struct Ride;
 
@@ -161,4 +159,8 @@ namespace OpenRCT2
     money64 GetStaffWage(StaffType type);
 
     const PatrolArea& GetMergedPatrolArea(StaffType type);
+
+    // Builds the immutable part of this tick's service claims in parallel. New claims made while staff are updated are
+    // added to the same table in deterministic entity execution order.
+    void PrepareHandymanServiceReservations();
 } // namespace OpenRCT2

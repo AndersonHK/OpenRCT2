@@ -43,6 +43,7 @@
 #include <openrct2/core/String.hpp>
 #include <openrct2/core/UnitConversion.h>
 #include <openrct2/drawing/ColourMap.h>
+#include <openrct2/drawing/Drawing.Sprite.h>
 #include <openrct2/drawing/Drawing.String.h>
 #include <openrct2/drawing/Drawing.h>
 #include <openrct2/drawing/Rectangle.h>
@@ -701,6 +702,26 @@ namespace OpenRCT2::Ui::Windows
         ObjectEntryIndex EntranceTypeId;
         StringId LabelId;
     };
+
+    struct BlockSectionRowLayout
+    {
+        bool visible;
+        uint16_t gapAfterMode;
+        uint16_t gapAfterModeTweak;
+        int32_t anchorWidget;
+    };
+
+    static BlockSectionRowLayout GetBlockSectionRowLayout(const Ride& ride)
+    {
+        const bool visible = ride.isBlockSectioned();
+        const bool followsModeTweak = ride.mode == RideMode::poweredLaunchBlockSectioned;
+        return {
+            visible,
+            static_cast<uint16_t>(visible && !followsModeTweak ? 17 : 0),
+            static_cast<uint16_t>(visible && followsModeTweak ? 17 : 0),
+            followsModeTweak ? WIDX_MODE_TWEAK : WIDX_MODE,
+        };
+    }
 
     class RideWindow final : public Window
     {
@@ -3458,7 +3479,7 @@ namespace OpenRCT2::Ui::Windows
 
             switch (ride.mode)
             {
-                case RideMode::poweredLaunchPasstrough:
+                case RideMode::poweredLaunchPassthrough:
                 case RideMode::poweredLaunch:
                 case RideMode::upwardLaunch:
                 case RideMode::poweredLaunchBlockSectioned:
@@ -3591,6 +3612,7 @@ namespace OpenRCT2::Ui::Windows
         uint16_t operatingOnPrepareDrawMode(uint16_t startY, const Ride* ride, const RideTypeDescriptor& rtd)
         {
             const auto initStartY = startY;
+            const auto blockSectionLayout = GetBlockSectionRowLayout(*ride);
 
             widgets[WIDX_MODE_GROUP].type = WidgetType::groupbox;
             widgets[WIDX_MODE_GROUP].moveTo({ 3, startY });
@@ -3602,10 +3624,7 @@ namespace OpenRCT2::Ui::Windows
             widgets[WIDX_MODE_DROPDOWN].moveTo({ 297, startY + 1 });
             startY += 17;
 
-            if (ride->isBlockSectioned())
-            {
-                startY += 17;
-            }
+            startY += blockSectionLayout.gapAfterMode;
 
             // Sometimes, only one of the alternatives support lift hill pieces. Make sure to check both.
             bool hasAlternativeType = rtd.flags.has(RtdFlag::hasInvertedVariant);
@@ -3660,7 +3679,7 @@ namespace OpenRCT2::Ui::Windows
             StringId format, caption, tooltip;
             switch (ride->mode)
             {
-                case RideMode::poweredLaunchPasstrough:
+                case RideMode::poweredLaunchPassthrough:
                 case RideMode::poweredLaunch:
                 case RideMode::upwardLaunch:
                 case RideMode::poweredLaunchBlockSectioned:
@@ -3741,6 +3760,8 @@ namespace OpenRCT2::Ui::Windows
                 widgets[WIDX_MODE_TWEAK_INCREASE].type = WidgetType::empty;
                 widgets[WIDX_MODE_TWEAK_DECREASE].type = WidgetType::empty;
             }
+
+            startY += blockSectionLayout.gapAfterModeTweak;
 
             if (startY != initStartY + 15)
             {
@@ -3907,13 +3928,13 @@ namespace OpenRCT2::Ui::Windows
                 return;
 
             // Number of block sections
-            if (ride->isBlockSectioned())
+            const auto blockSectionLayout = GetBlockSectionRowLayout(*ride);
+            if (blockSectionLayout.visible)
             {
                 auto ft = Formatter();
                 ft.Add<uint16_t>(ride->numBlockBrakes + ride->numStations);
 
-                bool poweredLaunch = ride->mode == RideMode::poweredLaunchBlockSectioned;
-                auto& refWidget = widgets[poweredLaunch ? WIDX_MODE_TWEAK : WIDX_MODE];
+                auto& refWidget = widgets[blockSectionLayout.anchorWidget];
                 auto& labelWidget = widgets[WIDX_MODE_TWEAK_LABEL];
                 drawText(
                     rt, windowPos + ScreenCoordsXY{ labelWidget.left + 1, refWidget.bottom + 6 }, STR_BLOCK_SECTIONS, ft,

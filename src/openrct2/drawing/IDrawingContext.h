@@ -11,9 +11,11 @@
 
 #include "../world/Location.hpp"
 #include "FilterPaletteIds.h"
+#include "ImageId.hpp"
 #include "PaletteIndex.h"
 #include "PresentationGeneration.h"
-#include "TTF.h"
+
+struct TTFSurface;
 
 #include <memory>
 

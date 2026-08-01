@@ -1,5 +1,9 @@
 # Upstream merge manifest
 
+> Latest review: the next 23-commit manual-port range through `69872010ae` is inventoried in
+> [Upstream manual-port manifest — 2026-08-01](upstream-port-manifest-2026-08-01.md). That document is a pending review plan;
+> the changes it lists have not been implemented or ancestry-merged.
+
 ## Status and verification boundary
 
 This manifest records the manual integration of `OpenRCT2/OpenRCT2` `develop` into this fork. It is intentionally explicit

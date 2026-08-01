@@ -19,7 +19,7 @@
       <ReplaysSha256          Required="false" ParameterType="System.String" Output="true" />
     </ParameterGroup>
     <Task>
-      <Reference Include="$(RoslynTargetsPath)\System.Memory.dll" />
+      <Reference Include="$(MSBuildToolsPath)\System.Memory.dll" />
       <Reference Include="System.Text.Json" />
       <Using Namespace="System"/>
       <Using Namespace="System.IO"/>

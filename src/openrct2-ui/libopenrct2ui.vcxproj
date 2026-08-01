@@ -120,9 +120,7 @@
     <ClCompile Include="audio\AudioChannel.cpp" />
     <ClCompile Include="audio\AudioContext.cpp" />
     <ClCompile Include="audio\AudioMixer.cpp" />
-    <ClCompile Include="audio\AudioMixer.AVX2.cpp">
-      <AdditionalOptions Condition="'$(Platform)'=='Win32' or '$(Platform)'=='x64'">/arch:AVX2 %(AdditionalOptions)</AdditionalOptions>
-    </ClCompile>
+    <ClCompile Include="audio\AudioMixer.AVX2.cpp" />
     <ClCompile Include="audio\FlacAudioSource.cpp" />
     <ClCompile Include="audio\MemoryAudioSource.cpp" />
     <ClCompile Include="audio\OggAudioSource.cpp" />

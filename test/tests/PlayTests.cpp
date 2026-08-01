@@ -19,6 +19,7 @@
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/ParkImporter.h>
 #include <openrct2/actions/GameActionRunner.h>
+#include <openrct2/actions/park/ParkMarketingAction.h>
 #include <openrct2/actions/park/ParkSetEntranceFeeAction.h>
 #include <openrct2/actions/park/ParkSetParameterAction.h>
 #include <openrct2/actions/ride/RideCreateAction.h>
@@ -162,6 +163,28 @@ static void execute(Args&&... args)
 {
     GA ga(std::forward<Args>(args)...);
     GameActions::Execute(&ga, getGameState());
+}
+
+TEST_F(PlayTests, InvalidMarketingCampaignDurationsAreRejected)
+{
+    auto context = localStartGame(TestData::GetParkPath("small_park_with_ferris_wheel.sv6"));
+    ASSERT_NE(context.get(), nullptr);
+
+    for (const auto duration : { -1, 0, 256 })
+    {
+        GameActions::ParkMarketingAction action(ADVERTISING_CAMPAIGN_PARK, 0, duration);
+        auto& gameState = getGameState();
+        const auto result = action.Query(gameState, gameState.park);
+        EXPECT_EQ(result.error, GameActions::Status::invalidParameters) << "duration=" << duration;
+    }
+
+    for (const auto duration : { 1, 255 })
+    {
+        GameActions::ParkMarketingAction action(ADVERTISING_CAMPAIGN_PARK, 0, duration);
+        auto& gameState = getGameState();
+        const auto result = action.Query(gameState, gameState.park);
+        EXPECT_EQ(result.error, GameActions::Status::ok) << "duration=" << duration;
+    }
 }
 
 template<class GA, class... Args>

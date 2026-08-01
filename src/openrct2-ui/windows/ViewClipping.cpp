@@ -311,8 +311,9 @@ namespace OpenRCT2::Ui::Windows
                     if (Config::Get().general.showHeightAsUnits)
                     {
                         // Height label is Units.
+                        const auto formattedHeight = static_cast<fixed16_1dp>(gClipHeight * 5 - 70);
                         auto ft = Formatter();
-                        ft.Add<fixed16_1dp>((MakeFixed1dp<fixed16_1dp>(gClipHeight, 0) / 2 - MakeFixed1dp<fixed16_1dp>(7, 0)));
+                        ft.Add<fixed16_1dp>(formattedHeight);
                         drawText(
                             rt, screenCoords, STR_UNIT1DP_NO_SUFFIX, ft,
                             { this->colours[0] }); // Printing the value in Height Units.
@@ -326,17 +327,17 @@ namespace OpenRCT2::Ui::Windows
                             case MeasurementFormat::metric:
                             case MeasurementFormat::SI:
                             {
+                                const auto formattedHeight = static_cast<fixed32_2dp>(gClipHeight * 75 - 1050);
                                 auto ft = Formatter();
-                                ft.Add<fixed32_2dp>(
-                                    MakeFixed2dp<fixed32_2dp>(gClipHeight, 0) / 2 * 1.5f - MakeFixed2dp<fixed32_2dp>(10, 50));
+                                ft.Add<fixed32_2dp>(formattedHeight);
                                 drawText(rt, screenCoords, STR_UNIT2DP_SUFFIX_METRES, ft, { this->colours[0] });
                                 break;
                             }
                             case MeasurementFormat::imperial:
                             {
+                                const auto formattedHeight = static_cast<fixed16_1dp>(gClipHeight * 25 - 350);
                                 auto ft = Formatter();
-                                ft.Add<fixed16_1dp>(
-                                    MakeFixed1dp<fixed16_1dp>(gClipHeight, 0) / 2.0f * 5 - MakeFixed1dp<fixed16_1dp>(35, 0));
+                                ft.Add<fixed16_1dp>(formattedHeight);
                                 drawText(rt, screenCoords, STR_UNIT1DP_SUFFIX_FEET, ft, { this->colours[0] });
                                 break;
                             }

@@ -55,6 +55,11 @@ namespace OpenRCT2::Scripting
             JS_CGETSET_DEF("inspectionInterval", ScRide::inspectionInterval_get, ScRide::inspectionInterval_set),
             JS_CGETSET_DEF("value", ScRide::value_get, ScRide::value_set),
             JS_CGETSET_DEF("downtime", ScRide::downtime_get, nullptr),
+            JS_CGETSET_DEF("reliability", ScRide::reliability_get, nullptr),
+            JS_CGETSET_DEF("guestCount", ScRide::guestCount_get, nullptr),
+            JS_CGETSET_DEF("isEmpty", ScRide::isEmpty_get, nullptr),
+            JS_CGETSET_DEF("incomePerHour", ScRide::incomePerHour_get, nullptr),
+            JS_CGETSET_DEF("profit", ScRide::profit_get, nullptr),
             JS_CGETSET_DEF("liftHillSpeed", ScRide::liftHillSpeed_get, ScRide::liftHillSpeed_set),
             JS_CGETSET_DEF("maxLiftHillSpeed", ScRide::maxLiftHillSpeed_get, nullptr),
             JS_CGETSET_DEF("minLiftHillSpeed", ScRide::minLiftHillSpeed_get, nullptr),
@@ -598,6 +603,20 @@ namespace OpenRCT2::Scripting
     }
 
     DEFINE_RIDE_NUMBER_GETTER(downtime_get, JS_NewUint32, ride->downtime)
+
+    DEFINE_RIDE_NUMBER_GETTER(reliability_get, JS_NewUint32, ride->reliabilityPercentage)
+
+    DEFINE_RIDE_NUMBER_GETTER(guestCount_get, JS_NewUint32, ride->numRiders)
+
+    JSValue ScRide::isEmpty_get(JSContext* ctx, JSValue thisVal)
+    {
+        const auto* ride = GetRide(thisVal);
+        return JS_NewBool(ctx, ride == nullptr || ride->numRiders == 0);
+    }
+
+    DEFINE_RIDE_NUMBER_GETTER(incomePerHour_get, JS_NewInt64, ride->incomePerHour)
+
+    DEFINE_RIDE_NUMBER_GETTER(profit_get, JS_NewInt64, ride->profit)
 
     DEFINE_RIDE_NUMBER_GETTER(liftHillSpeed_get, JS_NewUint32, ride->liftHillSpeed)
 

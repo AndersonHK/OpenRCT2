@@ -32,7 +32,6 @@
 #include "../localisation/LocalisationService.h"
 #include "../park/ParkFile.h"
 #include "../platform/Platform.h"
-#include "../sawyer_coding/SawyerCoding.h"
 #include "../scripting/ScriptEngine.h"
 #include "../ui/WindowManager.h"
 #include "../util/Util.h"
@@ -43,14 +42,17 @@
 #include <cassert>
 #include <iterator>
 #include <stdexcept>
+#include <string_view>
 
 // This string specifies which version of network stream current build uses.
 // It is used for making sure only compatible builds get connected, even within
 // single OpenRCT2 version.
 
-constexpr uint8_t kStreamVersion = 2;
+constexpr uint8_t kStreamVersion = 3;
+constexpr std::string_view kNetworkProtocolFlavor = "andersonhk";
 
-const std::string kStreamID = std::string(kOpenRCT2Version) + "-" + std::to_string(kStreamVersion);
+const std::string kStreamID = std::string(kOpenRCT2Version) + "-" + std::string(kNetworkProtocolFlavor) + "-"
+    + std::to_string(kStreamVersion);
 
 static OpenRCT2::Peep* _pickup_peep = nullptr;
 static int32_t _pickup_peep_old_x = kLocationNull;
@@ -65,9 +67,7 @@ static constexpr uint32_t kChunkSize = 1024 * 63;
 // This limit is per connection, the current value was determined by tests with fuzzing.
 static constexpr uint32_t kMaxPacketsPerTick = 100;
 
-    #include "../Cheats.h"
     #include "../ParkImporter.h"
-    #include "../Version.h"
     #include "../actions/GameAction.hpp"
     #include "../config/Config.h"
     #include "../core/Console.hpp"
@@ -77,10 +77,9 @@ static constexpr uint32_t kMaxPacketsPerTick = 100;
     #include "../core/Path.hpp"
     #include "../core/String.hpp"
     #include "../interface/Chat.h"
-    #include "../localisation/Localisation.Date.h"
     #include "../object/ObjectManager.h"
     #include "../object/ObjectRepository.h"
-    #include "../world/Park.h"
+    #include "../scenario/Scenario.h"
     #include "NetworkAction.h"
     #include "NetworkConnection.h"
     #include "NetworkGroup.h"
@@ -92,14 +91,11 @@ static constexpr uint32_t kMaxPacketsPerTick = 100;
     #include "Socket.h"
 
     #include <array>
-    #include <cerrno>
-    #include <cmath>
     #include <fstream>
     #include <functional>
     #include <list>
     #include <map>
     #include <memory>
-    #include <set>
     #include <string>
     #include <vector>
 
@@ -1990,6 +1986,11 @@ namespace OpenRCT2::Network
             {
                 _playerListInvalidated = false;
                 ServerSendPlayerList();
+                if (!gOpenRCT2Headless)
+                {
+                    auto intent = Intent(INTENT_ACTION_REFRESH_PLAYER_LIST);
+                    ContextBroadcastIntent(&intent);
+                }
             }
         }
         else
@@ -1997,6 +1998,7 @@ namespace OpenRCT2::Network
             // As client we have to keep things in order so the update is tick bound.
             // Commands/Actions reference players and so this list needs to be in sync with those.
             auto itPending = _pendingPlayerLists.begin();
+            bool listChanged = false;
             while (itPending != _pendingPlayerLists.end())
             {
                 if (itPending->first > getGameState().currentTicks)
@@ -2065,6 +2067,13 @@ namespace OpenRCT2::Network
 
                 _pendingPlayerLists.erase(itPending);
                 itPending = _pendingPlayerLists.begin();
+                listChanged = true;
+            }
+
+            if (listChanged)
+            {
+                auto intent = Intent(INTENT_ACTION_REFRESH_PLAYER_LIST);
+                ContextBroadcastIntent(&intent);
             }
         }
     }

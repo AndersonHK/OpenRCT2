@@ -1912,6 +1912,29 @@ namespace OpenRCT2
         AdditionStatus = newStatus;
     }
 
+    bool PathElement::IsBin() const
+    {
+        const auto* addition = GetAdditionEntry();
+        return addition != nullptr && (addition->flags & PATH_ADDITION_FLAG_IS_BIN);
+    }
+
+    bool PathElement::HasFullBinSlot() const
+    {
+        if (!IsBin())
+            return false;
+
+        auto edges = GetEdges();
+        auto status = GetAdditionStatus();
+        for (uint8_t edge = 0; edge < 4; edge++)
+        {
+            if (!(edges & 1) && !(status & 3))
+                return true;
+            edges >>= 1;
+            status >>= 2;
+        }
+        return false;
+    }
+
     uint8_t PathElement::GetEdges() const
     {
         return EdgesAndCorners & FOOTPATH_PROPERTIES_EDGES_EDGES_MASK;

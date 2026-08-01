@@ -30,8 +30,11 @@
     #include <openrct2/config/Config.h>
     #include <openrct2/core/Path.hpp>
     #include <openrct2/drawing/BlendColourMap.h>
+    #include <openrct2/drawing/Drawing.Sprite.h>
     #include <openrct2/drawing/Drawing.h>
+    #include <openrct2/drawing/G1Element.h>
     #include <openrct2/drawing/LightFX.h>
+    #include <openrct2/drawing/RenderTarget.h>
     #include <openrct2/drawing/WeatherDrawer.h>
     #include <openrct2/interface/Screenshot.h>
     #include <openrct2/interface/Viewport.h>
