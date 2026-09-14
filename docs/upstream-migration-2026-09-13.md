@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 252 / 361 source commits recorded
+## Progress: 253 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2790,10 +2790,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U252 — `9d502af244` — Merge Localisation/master into OpenRCT2/develop
 
 - **Source:** `9d502af2442facf52d37f11c043d2acdf9a09f92`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `ad8486aed052ca167d2864fe0c99bde071b1a00b`.
 - **Remaining:** 110 → 109.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Apply five Brazilian Portuguese grammar/wording corrections.
 - **Additional decisions / behavior:** Single-parent localization commit despite Merge subject. Preserve format tokens and all fork strings; renderer tooltip wording does not change renderer availability or configuration.
 - **Verification:** Full five-string patch inspected; IDs 1412/3347/5792/5876/6170 only; diff check.
 - **Pending / concerns:** Language UI appearance and standing checks remain.
+
+### U253 — `c8ab334060` — Fix track style buttons overlapping with banking ones (#27006)
+
+- **Source:** `c8ab33406096069c77ed979d9cac236e8e98748a`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 109 → 108.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Position regular/covered track-style controls according to whether flat-roll banking controls are visible.
+- **Additional decisions / behavior:** Adopt layout-only offsets 25/128 with banking and 41/144 without it. Preserve capability checks, track-type selection, covered-piece availability and fork construction semantics.
+- **Verification:** Full source and helper context inspected; only two control x positions plus boolean parameter/call change. Next batch compile pending.
+- **Pending / concerns:** Interactive banking and covered-track transitions/rendering pending; standing limits remain.

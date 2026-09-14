@@ -17739,7 +17739,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "ad8486aed052ca167d2864fe0c99bde071b1a00b"
+      ],
       "verification_evidence": [
         "Full five-string patch inspected; IDs 1412/3347/5792/5876/6170 only; diff check."
       ],
@@ -17778,9 +17780,11 @@
       "note": "Port the final separated banking/speed widget design and overlap fix, including restored genuine widget-type switching.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Full source and helper context inspected; only two control x positions plus boolean parameter/call change. Next batch compile pending."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -17788,7 +17792,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P5"
+      "verification_gate": "P5",
+      "port_commit_locator": "Upstream-Commit: c8ab33406096069c77ed979d9cac236e8e98748a",
+      "implementation_decisions": "Adopt layout-only offsets 25/128 with banking and 41/144 without it. Preserve capability checks, track-type selection, covered-piece availability and fork construction semantics.",
+      "pending_validation": "Interactive banking and covered-track transitions/rendering pending; standing limits remain."
     },
     {
       "sha": "d687a06a2244dfc452dd09f46c58bfd27282033b",
@@ -27553,8 +27560,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 252,
-    "remaining_after_receipt": 109,
+    "accounted_in_this_tree": 253,
+    "remaining_after_receipt": 108,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
