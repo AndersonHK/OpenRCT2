@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 288 / 361 source commits recorded
+## Progress: 289 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3186,10 +3186,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U288 — `db9ab61b28` — Turn CSChar into a strong enum, rename for codestyle
 
 - **Source:** `db9ab61b280a48db047eb18e1ca9eed16564e44a`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `a155413fc32b9bfbfa7b3d3d7d83e299ca7c3e06`.
 - **Remaining:** 74 → 73.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Convert CSChar to uint8_t enum class and typed legacy conversion entries; use explicit values in font arithmetic.
 - **Additional decisions / behavior:** All 34 legacy byte values remain identical and fit uint8_t; preserve 194 font and 32 conversion rows/order. bsearch still compares the same integer key against the enum underlying value; private in-memory converter entries are not serialized.
 - **Verification:** Read all three source deltas; full numeric/table correspondence checks passed. Exact source applied, without replacing fork unrelated code.
 - **Pending / concerns:** Compile and font/localization/import checks at pending encoding checkpoint; U287 conversion narrowing debt remains tracked. No owner decision.
+
+### U289 — `bb870ce4fa` — Turn CodePage into a strong enum
+
+- **Source:** `bb870ce4fad1f1a6d6fd9dead58f6fe918455765`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 73 → 72.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Convert CodePage to a strong enum and adapt Windows, ICU, legacy language, DAT filename and test consumers.
+- **Additional decisions / behavior:** Keep all six numeric encodings, ICU names, language defaults and existing legacy UTF-16 narrowing. No simulation or fork asset policy change; seven touched files match source.
+- **Verification:** B71: full solution 91.38 seconds, zero warnings/errors; all 39 string/codepoint/localisation/language tests pass, 0.113 seconds; clears U287/U288 build debt.
+- **Pending / concerns:** Non-Windows ICU and native rendering remain standing checks.
