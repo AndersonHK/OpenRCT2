@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 73 / 361 source commits recorded
+## Progress: 74 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -821,10 +821,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U073 — `0c4322a982` — Rename members of ResizeDirection
 
 - **Source:** `0c4322a98297de1b4edfaf7343b8651cd418f61f`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `a632f702ce90ce9f688865a8531646b6f732b25b`.
 - **Remaining:** 289 → 288.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename ResizeDirection members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Scope ResizeDirection to MapGen; preserve size bounds, technical-versus-practical size offset of two, linked width/height and generator settings. No map-generation output or random-seed change.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U074 — `c166b42a67` — Rename members of ListItemType
+
+- **Source:** `c166b42a67a58492dbef5d2cfc32ad75c2e61534`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 288 → 287.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename ListItemType members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Preserve scenario/heading values, row heights, hit testing, scenario locks and removal of empty category headings. Scenario progression and fork selection UI behavior are unchanged.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
