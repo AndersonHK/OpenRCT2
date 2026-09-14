@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 181 / 361 source commits recorded
+## Progress: 182 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2009,10 +2009,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U181 — `df06376780` — Move indestructible cheat check to caller
 
 - **Source:** `df06376780f443c3038edbd14438cfcf66e48daf`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `a67e1db0cfd917d653f5de7081cb331312e54fa7`.
 - **Remaining:** 181 → 180.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Make TrackElement.isIndestructible report its stored flag, move the makeAllDestructible check to TrackRemoveAction.Query, remove unused GameState include and add the changelog entry. Add a real placed-track regression and B33 validation.
 - **Additional decisions / behavior:** Adopt corrected Tile Inspector checkbox/toggle semantics while the cheat is active: protected track remains visibly marked and the raw flag can be cleared/restored. All actual getter consumers were checked; removal still rejects exactly stored=true and cheat=false. No fork-only permission gate is lost, and no pricing/physics/routing/save-format change. Network stays9 because action acceptance and execution for an identical payload are unchanged.
 - **Verification:** Reviewed all three source diffs and every isIndestructible consumer. Release x64 MSVC/Vulkan build passed 0 warnings/errors, 14.37 seconds and final fixture rebuild 7.03 seconds. Initial run passed 146/147 in 18.430 seconds; repaired new test passed in 0.357 seconds after using immediate ExecuteNested instead of the queuing UI dispatcher. It checks four query/flag combinations, query non-mutation, raw toggles and actual removal/cost.
 - **Pending / concerns:** Interactive Tile Inspector presentation and native non-Windows remain unverified. B33 compile and focused regression debt is cleared; standing migration debt retained.
+
+### U182 — `3937aaa967` — Merge pull request #26917 from Gymnasiast/refactor/more-enums
+
+- **Source:** `3937aaa967de8c61dccca1ee0b1f999c43d35230`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 180 → 179.
+- **Disposition:** history receipt.
+- **Manual changes:** History receipt for the entrance/private-flag/indestructibility merge. No remerge-resolution delta; second-parent delta consists only of the U171 save/marketing/button-height changes and U172 Dutch string already ported.
+- **Additional decisions / behavior:** No new behavior or decision. Preserve all manually adapted fork implementations and source-by-source dispositions.
+- **Verification:** Reviewed merge parents, empty actual cached remerge diff and the four second-parent delta files. U173-U181 ports and B31-B33 checks cover both constituent branches. Singleton ancestry gate accounts for exactly one source commit.
+- **Pending / concerns:** Existing interactive, non-Windows and multiplayer/replay debt remains; no new integration debt.

@@ -13992,7 +13992,9 @@
       "decisions": [],
       "review_level": "targeted-code-review",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "a67e1db0cfd917d653f5de7081cb331312e54fa7"
+      ],
       "verification_evidence": [
         "Reviewed all three source diffs and every isIndestructible consumer. Release x64 MSVC/Vulkan build passed 0 warnings/errors, 14.37 seconds and final fixture rebuild 7.03 seconds. Initial run passed 146/147 in 18.430 seconds; repaired new test passed in 0.357 seconds after using immediate ExecuteNested instead of the queuing UI dispatcher. It checks four query/flag combinations, query non-mutation, raw toggles and actual removal/cost."
       ],
@@ -14106,9 +14108,11 @@
       "note": "No remerge-resolution delta detected. Account for constituent commits before ancestry reconciliation.",
       "decisions": [],
       "review_level": "remerge-probe",
-      "implementation_status": "not-ported",
+      "implementation_status": "history receipt",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Reviewed merge parents, empty actual cached remerge diff and the four second-parent delta files. U173-U181 ports and B31-B33 checks cover both constituent branches. Singleton ancestry gate accounts for exactly one source commit."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -14137,7 +14141,10 @@
         "src/openrct2/world/TileInspector.cpp",
         "src/openrct2/world/tile_element/PathElement.h"
       ],
-      "verification_gate": "P0"
+      "verification_gate": "P0",
+      "port_commit_locator": "Upstream-Commit: 3937aaa967de8c61dccca1ee0b1f999c43d35230",
+      "implementation_decisions": "No new behavior or decision. Preserve all manually adapted fork implementations and source-by-source dispositions.",
+      "pending_validation": "Existing interactive, non-Windows and multiplayer/replay debt remains; no new integration debt."
     },
     {
       "sha": "95b54aa4f3ad66c2d1e906e64aea5af695e09244",
@@ -27056,8 +27063,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 181,
-    "remaining_after_receipt": 180,
+    "accounted_in_this_tree": 182,
+    "remaining_after_receipt": 179,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
