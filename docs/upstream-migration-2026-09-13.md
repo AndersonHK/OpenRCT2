@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 195 / 361 source commits recorded
+## Progress: 196 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2163,10 +2163,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U195 — `8dab2cce07` — Split off ParkInfoPanel and DateInfoPanel from GameBottomToolbar (#26919)
 
 - **Source:** `8dab2cce07684fd6a3cbd8670bef546d0a86c4de`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `86deabab870645ece1761848051a0578ec1a52d8`.
 - **Remaining:** 167 → 166.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Manually split park and date/weather panels from news toolbar; update window classes, intents, shortcuts, themes, strings, project entries and resize ownership. Add actual UI-context HUD regression.
 - **Additional decisions / behavior:** D07 adopted. Preserve cent-money and 30-second fork forecast, all 42 strings and spatial audio. Correct initial date right-edge gap, null dereference with absent panels, and title-resize early return that skipped centering/redraw. Adopt editor centering. Custom theme conversion awaits its later historical commit be908.
 - **Verification:** B38 first build 87.83s and fixture rebuild 6.56s, zero warnings/errors. Initial 76/77 tests exposed duplicate progress-window fixture; repaired identity/setup, final 77/77 in 7.724s. Source audit confirms panel equivalence with documented adaptations, Game.cpp opens only and unchanged fork spatial audio. Diff check passed.
 - **Pending / concerns:** Legacy theme conversion at later source; interactive HUD/news/hover/title/editor layouts, native non-Windows and standing multiplayer/replay checks remain. No new owner decision.
+
+### U196 — `ab3065fbe1` — Merge Localisation/master into OpenRCT2/develop
+
+- **Source:** `ab3065fbe12a43e80a34c02ea46fb486c91d68c2`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 166 → 165.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Add Russian labels 7040 path additions, 7041 park information panel and 7042 date information panel.
+- **Additional decisions / behavior:** Adopt current source translations in historical order; existing English IDs match and fork IDs 8000-8041 are untouched. No gameplay change.
+- **Verification:** Read entire three-line source delta; resulting diff and blob identity 075c93f39d match source; diff check passed.
+- **Pending / concerns:** No runtime test needed for localized labels; standing validation debt unchanged.

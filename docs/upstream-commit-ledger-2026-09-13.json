@@ -14865,7 +14865,9 @@
       ],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "86deabab870645ece1761848051a0578ec1a52d8"
+      ],
       "verification_evidence": [
         "B38 first build 87.83s and fixture rebuild 6.56s, zero warnings/errors. Initial 76/77 tests exposed duplicate progress-window fixture; repaired identity/setup, final 77/77 in 7.724s. Source audit confirms panel equivalence with documented adaptations, Game.cpp opens only and unchanged fork spatial audio. Diff check passed."
       ],
@@ -14906,9 +14908,11 @@
       "note": "Single-parent localisation update; use final target blobs after English ID reconciliation.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Read entire three-line source delta; resulting diff and blob identity 075c93f39d match source; diff check passed."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -14916,7 +14920,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P1"
+      "verification_gate": "P1",
+      "port_commit_locator": "Upstream-Commit: ab3065fbe12a43e80a34c02ea46fb486c91d68c2",
+      "implementation_decisions": "Adopt current source translations in historical order; existing English IDs match and fork IDs 8000-8041 are untouched. No gameplay change.",
+      "pending_validation": "No runtime test needed for localized labels; standing validation debt unchanged."
     },
     {
       "sha": "b5c1570b782dc1587a475045491f67c9c5dcb0ac",
@@ -27154,8 +27161,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 195,
-    "remaining_after_receipt": 166,
+    "accounted_in_this_tree": 196,
+    "remaining_after_receipt": 165,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
