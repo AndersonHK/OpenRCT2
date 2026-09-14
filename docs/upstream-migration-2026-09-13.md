@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 6 / 361 source commits recorded
+## Progress: 7 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -84,10 +84,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U006 — `9198ff13f4` — Update to objects v1.7.11
 
 - **Source:** `9198ff13f4c9cfb0f5f786f30c6f3f7c502a1c4b`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `a458814859a33b9f4ed3cf3e14c5563bd0946b3c`.
 - **Remaining:** 356 → 355.
 - **Disposition:** manually-ported.
 - **Manual changes:** Update the object archive URL and SHA-256 together to objects v1.7.11.
 - **Additional decisions / behavior:** The reviewed object release source comparison contains translation/typo changes, with no gameplay property change in the returned net patch. Keep local object precedence and all other asset pins. This receipt changes the manifest only, not a deployed installation.
 - **Verification:** Inspected the full manifest patch and existing manifest; URL/hash pair matches this source commit. Earlier source review is captured in obj/upstream-audit/objects-compare.json. Whitespace and singleton ancestry checks run before receipt.
 - **Pending / concerns:** Download and verify the archive hash at the dependency/batch checkpoint; manifest pin is not a claim of downloaded-byte verification.
+
+### U007 — `cd44174f9b` — Merge branch 'develop'
+
+- **Source:** `cd44174f9b04ee909309214fee35656a0d07f871`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 355 → 354.
+- **Disposition:** merge-no-unique-source-change.
+- **Manual changes:** Record the upstream develop-to-master merge; no additional source edits are required.
+- **Additional decisions / behavior:** Both parents are already in fork ancestry. The merge has no unique resolution delta, so its first-parent aggregate diff must not replay already accounted changes or restore legacy fork implementations.
+- **Verification:** Inspected merge parents and successful empty git show --remerge-diff using an isolated scratch object directory. git rev-list HEAD..source returns only this merge. Receipt checks exact one-less ancestry.
+- **Pending / concerns:** No new validation debt; earlier port checks remain pending.

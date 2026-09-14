@@ -245,7 +245,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "manually-ported",
-      "port_commits": [],
+      "port_commits": [
+        "a458814859a33b9f4ed3cf3e14c5563bd0946b3c"
+      ],
       "verification_evidence": [
         "Inspected the full manifest patch and existing manifest; URL/hash pair matches this source commit. Earlier source review is captured in obj/upstream-audit/objects-compare.json. Whitespace and singleton ancestry checks run before receipt."
       ],
@@ -772,9 +774,11 @@
       "note": "No remerge-resolution delta detected. Account for constituent commits before ancestry reconciliation.",
       "decisions": [],
       "review_level": "remerge-probe",
-      "implementation_status": "not-ported",
+      "implementation_status": "merge-no-unique-source-change",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected merge parents and successful empty git show --remerge-diff using an isolated scratch object directory. git rev-list HEAD..source returns only this merge. Receipt checks exact one-less ancestry."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -845,7 +849,10 @@
         "src/openrct2/world/tile_element/PathElement.h",
         "test/tests/PlayTests.cpp"
       ],
-      "verification_gate": "P0"
+      "verification_gate": "P0",
+      "port_commit_locator": "Upstream-Commit: cd44174f9b04ee909309214fee35656a0d07f871",
+      "implementation_decisions": "Both parents are already in fork ancestry. The merge has no unique resolution delta, so its first-parent aggregate diff must not replay already accounted changes or restore legacy fork implementations.",
+      "pending_validation": "No new validation debt; earlier port checks remain pending."
     },
     {
       "sha": "4a7ee146caab8888eb31e56a33c0559db89b17bd",
@@ -25831,8 +25838,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 6,
-    "remaining_after_receipt": 355,
+    "accounted_in_this_tree": 7,
+    "remaining_after_receipt": 354,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
