@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 194 / 361 source commits recorded
+## Progress: 195 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2152,10 +2152,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U194 — `8ebe3965a2` — Re-include unistd.h in Platform.Linux.cpp (#26940)
 
 - **Source:** `8ebe3965a2f1e2540f8882a1d67e7b66f5470195`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `24934aae0dd7a638ce733958b8a00c171507c491`.
 - **Remaining:** 168 → 167.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Restore the direct unistd.h include in the guarded Unix/Haiku platform implementation.
 - **Additional decisions / behavior:** Header-only platform repair; no change to fork build targets, locale paths or gameplay.
 - **Verification:** Actual one-line source diff reviewed and applied exactly; diff/whitespace checks pass. Platform implementation remains excluded on Windows, Android, Apple and Emscripten by its existing guard.
 - **Pending / concerns:** Native Unix/Haiku compilation remains unverified on this Windows host; U193 compile/gameplay batch still pending.
+
+### U195 — `8dab2cce07` — Split off ParkInfoPanel and DateInfoPanel from GameBottomToolbar (#26919)
+
+- **Source:** `8dab2cce07684fd6a3cbd8670bef546d0a86c4de`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 167 → 166.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Manually split park and date/weather panels from news toolbar; update window classes, intents, shortcuts, themes, strings, project entries and resize ownership. Add actual UI-context HUD regression.
+- **Additional decisions / behavior:** D07 adopted. Preserve cent-money and 30-second fork forecast, all 42 strings and spatial audio. Correct initial date right-edge gap, null dereference with absent panels, and title-resize early return that skipped centering/redraw. Adopt editor centering. Custom theme conversion awaits its later historical commit be908.
+- **Verification:** B38 first build 87.83s and fixture rebuild 6.56s, zero warnings/errors. Initial 76/77 tests exposed duplicate progress-window fixture; repaired identity/setup, final 77/77 in 7.724s. Source audit confirms panel equivalence with documented adaptations, Game.cpp opens only and unchanged fork spatial audio. Diff check passed.
+- **Pending / concerns:** Legacy theme conversion at later source; interactive HUD/news/hover/title/editor layouts, native non-Windows and standing multiplayer/replay checks remain. No new owner decision.

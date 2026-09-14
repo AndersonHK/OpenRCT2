@@ -14,7 +14,82 @@
 #include <openrct2/interface/WindowBase.h>
 #include <span>
 
+#ifdef OPENRCT2_TEST_UI_BINDINGS
+    #include <openrct2-ui/UiContext.h>
+    #include <openrct2/Context.h>
+    #include <openrct2/GameState.h>
+    #include <openrct2/OpenRCT2.h>
+    #include <openrct2/PlatformEnvironment.h>
+    #include <openrct2/audio/AudioContext.h>
+    #include <openrct2/interface/Window.h>
+    #include <openrct2/interface/WindowClasses.h>
+    #include <openrct2/ui/UiContext.h>
+    #include <openrct2/ui/WindowManager.h>
+#endif
+
 using namespace OpenRCT2;
+
+#ifdef OPENRCT2_TEST_UI_BINDINGS
+TEST(WidgetStateTest, SplitHudResizesWithEitherInfoPanelAbsentAndPreservesNoMoneyControls)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+    auto env = CreatePlatformEnvironment();
+    auto uiContext = Ui::CreateUiContext(*env);
+    auto context = CreateContext(std::move(env), Audio::CreateDummyAudioContext(), std::move(uiContext));
+    ASSERT_TRUE(context->Initialise());
+    auto* manager = Ui::GetWindowManager();
+    manager->CloseByClass(WindowClass::progressWindow);
+    auto* news = manager->OpenWindow(WindowClass::bottomToolbar);
+    ASSERT_NE(news, nullptr);
+    auto* options = manager->Create<WindowBase>(WindowClass::options, ScreenCoordsXY{}, ScreenSize{ 200, 100 }, {});
+    auto* progress = manager->Create<WindowBase>(WindowClass::progressWindow, ScreenCoordsXY{}, ScreenSize{ 100, 40 }, {});
+    ASSERT_NE(options, nullptr);
+    ASSERT_NE(progress, nullptr);
+    ASSERT_EQ(manager->FindByClass(WindowClass::progressWindow), progress);
+    for (bool havePark : { false, true })
+    {
+        for (bool haveDate : { false, true })
+        {
+            SCOPED_TRACE(havePark);
+            SCOPED_TRACE(haveDate);
+            manager->CloseByClass(WindowClass::parkInfoPanel);
+            manager->CloseByClass(WindowClass::dateInfoPanel);
+            auto* park = havePark ? manager->OpenWindow(WindowClass::parkInfoPanel) : nullptr;
+            auto* date = haveDate ? manager->OpenWindow(WindowClass::dateInfoPanel) : nullptr;
+            ASSERT_EQ(park != nullptr, havePark);
+            ASSERT_EQ(date != nullptr, haveDate);
+            for (const auto size : { ScreenSize{ 640, 480 }, ScreenSize{ 1001, 701 } })
+            {
+                WindowResizeGui(size.width, size.height);
+                EXPECT_EQ(news->windowPos.x, havePark ? 142 : 0);
+                EXPECT_EQ(news->width, size.width - (havePark ? 142 : 0) - (haveDate ? 142 : 0));
+                EXPECT_EQ(news->windowPos.y, size.height - 32);
+                if (park != nullptr)
+                    EXPECT_EQ(park->windowPos.y, size.height - 32);
+                if (date != nullptr)
+                {
+                    EXPECT_EQ(date->windowPos.x, size.width - 142);
+                    EXPECT_EQ(date->windowPos.y, size.height - 32);
+                }
+                EXPECT_EQ(options->windowPos, (ScreenCoordsXY{ (size.width - 200) / 2, (size.height - 100) / 2 }));
+                EXPECT_EQ(progress->windowPos, (ScreenCoordsXY{ (size.width - 100) / 2, (size.height - 40) / 2 }));
+            }
+            if (park != nullptr)
+            {
+                for (bool noMoney : { false, true, false })
+                {
+                    getGameState().park.flags.set(ParkFlag::noMoney, noMoney);
+                    park->onPrepareDraw();
+                    EXPECT_EQ(park->widgets[2].isVisible(), !noMoney);
+                    EXPECT_TRUE(park->widgets[3].isVisible());
+                    EXPECT_TRUE(park->widgets[4].isVisible());
+                }
+            }
+        }
+    }
+}
+#endif
 
 // A hidden control can still change representation (for example, target-price dropdown versus shop spinner).
 TEST(WidgetStateTest, HiddenControlPreservesUpdatedRepresentationAndInteractionState)

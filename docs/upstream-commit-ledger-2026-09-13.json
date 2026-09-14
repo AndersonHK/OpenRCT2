@@ -14800,7 +14800,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "24934aae0dd7a638ce733958b8a00c171507c491"
+      ],
       "verification_evidence": [
         "Actual one-line source diff reviewed and applied exactly; diff/whitespace checks pass. Platform implementation remains excluded on Windows, Android, Apple and Emscripten by its existing guard."
       ],
@@ -14862,9 +14864,11 @@
         "D07"
       ],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "B38 first build 87.83s and fixture rebuild 6.56s, zero warnings/errors. Initial 76/77 tests exposed duplicate progress-window fixture; repaired identity/setup, final 77/77 in 7.724s. Source audit confirms panel equivalence with documented adaptations, Game.cpp opens only and unchanged fork spatial audio. Diff check passed."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -14876,7 +14880,10 @@
         "src/openrct2-ui/windows/GameBottomToolbar.cpp",
         "src/openrct2/Game.cpp"
       ],
-      "verification_gate": "P5"
+      "verification_gate": "P5",
+      "port_commit_locator": "Upstream-Commit: 8dab2cce07684fd6a3cbd8670bef546d0a86c4de",
+      "implementation_decisions": "D07 adopted. Preserve cent-money and 30-second fork forecast, all 42 strings and spatial audio. Correct initial date right-edge gap, null dereference with absent panels, and title-resize early return that skipped centering/redraw. Adopt editor centering. Custom theme conversion awaits its later historical commit be908.",
+      "pending_validation": "Legacy theme conversion at later source; interactive HUD/news/hover/title/editor layouts, native non-Windows and standing multiplayer/replay checks remain. No new owner decision."
     },
     {
       "sha": "ab3065fbe12a43e80a34c02ea46fb486c91d68c2",
@@ -27147,8 +27154,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 194,
-    "remaining_after_receipt": 167,
+    "accounted_in_this_tree": 195,
+    "remaining_after_receipt": 166,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
