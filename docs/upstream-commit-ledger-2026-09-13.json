@@ -943,7 +943,9 @@
       "decisions": [],
       "review_level": "remerge-probe",
       "implementation_status": "merge-no-unique-source-change",
-      "port_commits": [],
+      "port_commits": [
+        "c9f5ebc4990c359142c032c061e9513977693f6e"
+      ],
       "verification_evidence": [
         "Inspected merge parents and successful empty remerge diff in scratch object storage. Singleton ancestry and whitespace checked before receipt."
       ],
@@ -982,9 +984,11 @@
       "note": "Record final release/version state, preserving andersonhk protocol flavor and advancing fork revision for accepted simulation/action changes.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "manually-ported",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected the complete three-line patch and manually inserted the section. Whitespace and singleton ancestry checked before receipt."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -992,7 +996,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P8"
+      "verification_gate": "P8",
+      "port_commit_locator": "Upstream-Commit: f475c5b94923c902580b2237c7ba54c04320dc92",
+      "implementation_decisions": "Version macros remain at the latest released version as upstream intends; this commit adds only a changelog heading.",
+      "pending_validation": "First batch build and targeted tests follow this receipt."
     },
     {
       "sha": "c51e3a3e4000ddd0435304c4f0eb587cd8cc14a6",
@@ -25852,8 +25859,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 9,
-    "remaining_after_receipt": 352,
+    "accounted_in_this_tree": 10,
+    "remaining_after_receipt": 351,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
