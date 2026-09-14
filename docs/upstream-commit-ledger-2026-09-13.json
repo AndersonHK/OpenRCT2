@@ -1174,7 +1174,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "manually-ported",
-      "port_commits": [],
+      "port_commits": [
+        "49fa37546a45c136eccb16ea688455fdda9b11fc"
+      ],
       "verification_evidence": [
         "Inspected all source hunks and existing shop-category dispatch; caller only reaches building previews with a ride entry. Preserved null-image guard. Whitespace and singleton ancestry checked before receipt."
       ],
@@ -1213,9 +1215,11 @@
       "note": "Apply final documentation/changelog/string correction; distinguish upstream release history from features actually ported.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "manually-ported",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected and inserted both changelog lines. Whitespace and singleton ancestry checked before receipt."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -1223,7 +1227,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P1"
+      "verification_gate": "P1",
+      "port_commit_locator": "Upstream-Commit: 89b9f7d64c6c0f0ded7ba99ffae58c937daa647b",
+      "implementation_decisions": "Retain the source release-note wording at this historical step; no additional behavior change.",
+      "pending_validation": "Existing ride-window batch validation only."
     },
     {
       "sha": "7339f6eba68a38574ee4663fe803a90125a455b1",
@@ -25887,8 +25894,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 14,
-    "remaining_after_receipt": 347,
+    "accounted_in_this_tree": 15,
+    "remaining_after_receipt": 346,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
