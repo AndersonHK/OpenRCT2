@@ -19,6 +19,7 @@
 #include "../drawing/Drawing.h"
 #include "../drawing/PickupPeep.h"
 #include "../drawing/IDrawingEngine.h"
+#include "../drawing/NewDrawing.h"
 #include "../drawing/Palette.h"
 #include "../drawing/Text.h"
 #include "../interface/Viewport.h"

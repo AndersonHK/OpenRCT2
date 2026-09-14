@@ -24923,7 +24923,9 @@
       "decisions": [],
       "review_level": "remerge-probe",
       "implementation_status": "history receipt",
-      "port_commits": [],
+      "port_commits": [
+        "c66ffb153aff80c35bca2e775e2d439c73be907c"
+      ],
       "verification_evidence": [
         "Actual git remerge inspection; B84/B85 passed for constituent payload."
       ],
@@ -25050,9 +25052,11 @@
       "note": "Adopt final palette/screen/line header ownership with fork-only GPU consumers; retain immutable presentation state.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "B86: body equivalence, consumer inventory, full solution zero warnings/errors and98 widget/GPU/play/scripting tests passed."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -25075,7 +25079,10 @@
         "src/openrct2/scenes/title/TitleScene.cpp",
         "src/openrct2/world/Weather.cpp"
       ],
-      "verification_gate": "P6"
+      "verification_gate": "P6",
+      "port_commit_locator": "Upstream-Commit: 83cbac90ec522b3b4e28141e600c62080a065534",
+      "implementation_decisions": "Preserve all three moved bodies, viewport-skip implementation and removed legacy renderer APIs. Move fork viewport-skip declaration to NewDrawing.h. Clean four unused includes missed by the U318 deletion adapter across the fork Platform include.",
+      "pending_validation": "Standing native fullscreen/renderer-recreation validation remains."
     },
     {
       "sha": "c90ca119eb740d15313a7bcb3d0a5047129e342a",
@@ -28022,8 +28029,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 319,
-    "remaining_after_receipt": 42,
+    "accounted_in_this_tree": 320,
+    "remaining_after_receipt": 41,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

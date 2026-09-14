@@ -11,6 +11,8 @@
 
 #include "PaletteType.h"
 
+struct ScreenRect;
+
 namespace OpenRCT2::Drawing
 {
     struct RenderTarget;
@@ -26,3 +28,5 @@ OpenRCT2::Drawing::RenderTarget& DrawingEngineGetRT();
 bool DrawingEngineHasDirtyOptimisations();
 void DrawingEngineInvalidateImage(uint32_t image);
 void DrawingEngineSetVSync(bool vsync);
+void GfxSetDirtyBlocks(const ScreenRect& rect);
+bool DrawingEngineCanSkipViewportInvalidation();

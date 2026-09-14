@@ -17,6 +17,7 @@
 #include "../core/Guard.hpp"
 #include "../core/JobPool.h"
 #include "../core/Numerics.hpp"
+#include "../drawing/Drawing.Screen.h"
 #include "../drawing/Drawing.Sprite.h"
 #include "../drawing/Drawing.h"
 #include "../drawing/IDrawingContext.h"
@@ -494,7 +495,7 @@ namespace OpenRCT2
         }
         else
         {
-            GfxInvalidateScreen();
+            Drawing::GfxInvalidateScreen();
         }
     }
 

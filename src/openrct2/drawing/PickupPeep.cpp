@@ -17,6 +17,7 @@
 #include "Drawing.Sprite.h"
 #include "Drawing.h"
 #include "ImageId.hpp"
+#include "NewDrawing.h"
 #include "RenderTarget.h"
 
 #include <algorithm>

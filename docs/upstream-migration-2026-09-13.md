@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 319 / 361 source commits recorded
+## Progress: 320 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3527,10 +3527,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U319 — `ef7707a9df` — Merge pull request #27073 from Gymnasiast/refactor/palette-stuff-2
 
 - **Source:** `ef7707a9df3b3eec12b522090cfc6a585f70aa11`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `c66ffb153aff80c35bca2e775e2d439c73be907c`.
 - **Remaining:** 43 → 42.
 - **Disposition:** history receipt.
 - **Manual changes:** Reconciled the completed water/palette refactor merge.
 - **Additional decisions / behavior:** Actual remerge diff is empty; retain U316-U318 adapted payload and fork presentation ownership.
 - **Verification:** Actual git remerge inspection; B84/B85 passed for constituent payload.
 - **Pending / concerns:** None.
+
+### U320 — `83cbac90ec` — Move stuff that affects the whole screen/viewport out of Drawing.{cpp,h}
+
+- **Source:** `83cbac90ec522b3b4e28141e600c62080a065534`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 42 → 41.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Moved screen-wide drawing functions and their consumers to Drawing.Screen; adapted engine declarations to the fork.
+- **Additional decisions / behavior:** Preserve all three moved bodies, viewport-skip implementation and removed legacy renderer APIs. Move fork viewport-skip declaration to NewDrawing.h. Clean four unused includes missed by the U318 deletion adapter across the fork Platform include.
+- **Verification:** B86: body equivalence, consumer inventory, full solution zero warnings/errors and98 widget/GPU/play/scripting tests passed.
+- **Pending / concerns:** Standing native fullscreen/renderer-recreation validation remains.
