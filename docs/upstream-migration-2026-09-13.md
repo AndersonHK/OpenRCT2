@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 175 / 361 source commits recorded
+## Progress: 176 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1943,10 +1943,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U175 — `4ebed48631` — Create enum class+FlagHolder for EntranceElementFlag
 
 - **Source:** `4ebed48631c32af6ea32387bb5a8e10d38b56eb5`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `7aa3675ceed20ed7532618aea860f7f2fbca1c17`.
 - **Remaining:** 187 → 186.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Replace the private entrance legacy-path flag byte with FlagHolder<uint8_t, EntranceElementFlag>, retaining bit 0 and the existing path-index writes; replace three bit operations with has/set/unset.
 - **Additional decisions / behavior:** Same one-byte storage, offset, packed element size, unknown-bit preservation and legacy/surface path choice. No gameplay, import translation or protocol change.
 - **Verification:** Reviewed complete two-file source and fork diffs and FlagHolder storage/bit operations. Only bit 0 is defined and affected; all other bits remain untouched. Receipt whitespace and exact-one ancestry gates apply.
 - **Pending / concerns:** Compile and import/topology/scripting regressions in B32 tile-flag batch; interactive/non-Windows debt retained.
+
+### U176 — `b854b8d2f6` — Create enum class+FlagHolder for LargeSceneryElementFlag
+
+- **Source:** `b854b8d2f612468239dfaa052ef19e7ad2a8012d`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 186 → 185.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Type the private large-scenery accounted byte as FlagHolder<uint8_t, LargeSceneryElementFlag>; replace bit-0 test and conditional set/clear with has and set(flag,bool).
+- **Additional decisions / behavior:** Preserve bit 0, unknown bits, packed layout and the accounted marker lifecycle. Whole-piece accounting, clear-tool costs and fork traversal/erasure rules do not change.
+- **Verification:** Reviewed both actual source patches, fork deltas and the previously checked FlagHolder bool setter and bit masks. No caller or accounting algorithm is replaced; receipt whitespace/ancestry gates apply.
+- **Pending / concerns:** B32 build and clearance/import/gameplay regressions pending; interactive and non-Windows debt retained.
