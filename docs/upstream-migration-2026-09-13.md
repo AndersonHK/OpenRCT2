@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 60 / 361 source commits recorded
+## Progress: 61 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -678,10 +678,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U060 — `3a36fc1c0a` — Rename members of TitleScript
 
 - **Source:** `3a36fc1c0aa5dc71148e3703ccc2ba51fffa41ea`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `d8df9a70eb8369b55cb83f8887d0f3b57f703f7c`.
 - **Remaining:** 302 → 301.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename TitleScript members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Preserve undefined=0xFF, wait=0 and all command numbers, scripting names, argument validation and integer casts. Title-sequence commands and playback timing are unchanged.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U061 — `959401a3a0` — Rename Guest::MazeType and its members
+
+- **Source:** `959401a3a082177f645f73023ecd58a18544534c`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 301 → 300.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename the local maze_type enum to MazeType and entrance_or_exit to entranceOrExit in Guest maze movement.
+- **Additional decisions / behavior:** Keep fork RideRatingAccumulateMazeStep calls for hedge and exit transitions, all random edge selection, destination updates and maze capacity/rating models. This commit contains no maze traversal repair or gameplay change.
+- **Verification:** Complete upstream parent/child file equals only the two reviewed token replacements. Fork port contains only those replacements, retaining rating accumulation calls. Exact-one ancestry checked. Batch 09 build and 56-test result for the preceding U060 checkpoint recorded, including the corrected fixture working directory.
+- **Pending / concerns:** Compile and maze regressions at the next naming checkpoint.

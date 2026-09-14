@@ -3970,7 +3970,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt naming only",
-      "port_commits": [],
+      "port_commits": [
+        "d8df9a70eb8369b55cb83f8887d0f3b57f703f7c"
+      ],
       "verification_evidence": [
         "Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt."
       ],
@@ -4009,9 +4011,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt naming only",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Complete upstream parent/child file equals only the two reviewed token replacements. Fork port contains only those replacements, retaining rating accumulation calls. Exact-one ancestry checked. Batch 09 build and 56-test result for the preceding U060 checkpoint recorded, including the corrected fixture working directory."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -4021,7 +4025,10 @@
       "merge_conflict_paths": [
         "src/openrct2/entity/Guest.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 959401a3a082177f645f73023ecd58a18544534c",
+      "implementation_decisions": "Keep fork RideRatingAccumulateMazeStep calls for hedge and exit transitions, all random edge selection, destination updates and maze capacity/rating models. This commit contains no maze traversal repair or gameplay change.",
+      "pending_validation": "Compile and maze regressions at the next naming checkpoint."
     },
     {
       "sha": "0d0498a0819134d2a80919f3e3bda5c3dc11891d",
@@ -26209,8 +26216,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 60,
-    "remaining_after_receipt": 301,
+    "accounted_in_this_tree": 61,
+    "remaining_after_receipt": 300,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
