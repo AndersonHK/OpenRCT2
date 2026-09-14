@@ -21086,7 +21086,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "3063b6ae4e3a60781d4ee9a228f7f1bf59ba408e"
+      ],
       "verification_evidence": [
         "B71: full solution 91.38 seconds, zero warnings/errors; all 39 string/codepoint/localisation/language tests pass, 0.113 seconds; clears U287/U288 build debt."
       ],
@@ -21137,9 +21139,11 @@
       "note": "No remerge-resolution delta detected. Account for constituent commits before ancestry reconciliation.",
       "decisions": [],
       "review_level": "remerge-probe",
-      "implementation_status": "not-ported",
+      "implementation_status": "history receipt",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Both parent sources already accounted; B71 covers the merged encoding state with full solution and 39 passing tests."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -21147,7 +21151,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P0"
+      "verification_gate": "P0",
+      "port_commit_locator": "Upstream-Commit: 9279d0659011c8acd42d89c720c46639f3fa53af",
+      "implementation_decisions": "Actual combined and remerge diffs are empty. No additional resolution changes or owner decision.",
+      "pending_validation": "Standing non-Windows/native checks only."
     },
     {
       "sha": "144aebc9df497381fafb4c8643d9a0a3ba6cfe7b",
@@ -27812,8 +27819,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 289,
-    "remaining_after_receipt": 72,
+    "accounted_in_this_tree": 290,
+    "remaining_after_receipt": 71,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

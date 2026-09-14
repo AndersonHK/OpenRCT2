@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 289 / 361 source commits recorded
+## Progress: 290 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3197,10 +3197,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U289 — `bb870ce4fa` — Turn CodePage into a strong enum
 
 - **Source:** `bb870ce4fad1f1a6d6fd9dead58f6fe918455765`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `3063b6ae4e3a60781d4ee9a228f7f1bf59ba408e`.
 - **Remaining:** 73 → 72.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Convert CodePage to a strong enum and adapt Windows, ICU, legacy language, DAT filename and test consumers.
 - **Additional decisions / behavior:** Keep all six numeric encodings, ICU names, language defaults and existing legacy UTF-16 narrowing. No simulation or fork asset policy change; seven touched files match source.
 - **Verification:** B71: full solution 91.38 seconds, zero warnings/errors; all 39 string/codepoint/localisation/language tests pass, 0.113 seconds; clears U287/U288 build debt.
 - **Pending / concerns:** Non-Windows ICU and native rendering remain standing checks.
+
+### U290 — `9279d06590` — Merge pull request #27016 from Gymnasiast/refactor/unicode-char-strong-enum-fix-warning
+
+- **Source:** `9279d0659011c8acd42d89c720c46639f3fa53af`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 72 → 71.
+- **Disposition:** history receipt.
+- **Manual changes:** History receipt for the UnicodeChar, CSChar and CodePage merge; U287-U289 already ported.
+- **Additional decisions / behavior:** Actual combined and remerge diffs are empty. No additional resolution changes or owner decision.
+- **Verification:** Both parent sources already accounted; B71 covers the merged encoding state with full solution and 39 passing tests.
+- **Pending / concerns:** Standing non-Windows/native checks only.
