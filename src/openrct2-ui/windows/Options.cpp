@@ -1810,8 +1810,8 @@ namespace OpenRCT2::Ui::Windows
                     }
 
                     WindowDropdownShowTextCustomWidth(
-                        { windowPos.x + widget->left, windowPos.y + widget->top }, widget->height(), colours[1], 0,
-                        Dropdown::Flag::StayOpen, numItems, widget->width() - 4);
+                        { windowPos.x + widget->left, windowPos.y + widget->top }, widget->height(), colours[1], 0, {},
+                        numItems, widget->width() - 4);
 
                     gDropdown.items[static_cast<int32_t>(ThemeManagerGetAvailableThemeIndex())].setChecked(true);
                     invalidateWidget(WIDX_THEMES_DROPDOWN);
@@ -1923,8 +1923,7 @@ namespace OpenRCT2::Ui::Windows
                     numItems++;
 
                     WindowDropdownShowText(
-                        { windowPos.x + widget->left, windowPos.y + widget->top }, widget->height(), colours[1],
-                        Dropdown::Flag::StayOpen, numItems);
+                        { windowPos.x + widget->left, windowPos.y + widget->top }, widget->height(), colours[1], {}, numItems);
 
                     auto selectedIndex = Config::Get().interface.randomTitleSequence
                         ? numItems - 1
@@ -1940,8 +1939,8 @@ namespace OpenRCT2::Ui::Windows
                     gDropdown.items[1] = Dropdown::MenuLabel(STR_SCENARIO_PREVIEWS_SCREENSHOTS);
 
                     WindowDropdownShowTextCustomWidth(
-                        { windowPos.x + widget->left, windowPos.y + widget->top }, widget->height(), colours[1], 0,
-                        Dropdown::Flag::StayOpen, numItems, widget->width() - 4);
+                        { windowPos.x + widget->left, windowPos.y + widget->top }, widget->height(), colours[1], 0, {},
+                        numItems, widget->width() - 4);
 
                     gDropdown.items[Config::Get().interface.scenarioPreviewScreenshots].setChecked(true);
                     break;
@@ -2302,8 +2301,8 @@ namespace OpenRCT2::Ui::Windows
         {
             // helper function, all dropdown boxes have similar properties
             WindowDropdownShowTextCustomWidth(
-                { windowPos.x + widget->left, windowPos.y + widget->top }, widget->height(), colours[1], 0,
-                Dropdown::Flag::StayOpen, num_items, widget->width() - 4);
+                { windowPos.x + widget->left, windowPos.y + widget->top }, widget->height(), colours[1], 0, {}, num_items,
+                widget->width() - 4);
         }
 
         void DrawTabImages(RenderTarget& rt)

@@ -722,7 +722,8 @@ namespace OpenRCT2::Ui::Windows
             };
 
             WindowDropdownShowText(
-                { windowPos.x + widget.left, windowPos.y + widget.top }, widget.height(), colours[1], 0, dropdownItems);
+                { windowPos.x + widget.left, windowPos.y + widget.top }, widget.height(), colours[1],
+                { Dropdown::Flag::autoClose }, dropdownItems);
             gDropdown.defaultIndex = 0;
         }
 

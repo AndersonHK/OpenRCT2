@@ -480,7 +480,8 @@ namespace OpenRCT2::Ui::Windows
                 gDropdown.items[0] = Dropdown::MenuLabel(STR_CLOSE_PARK);
                 gDropdown.items[1] = Dropdown::MenuLabel(STR_OPEN_PARK);
                 WindowDropdownShowText(
-                    { windowPos.x + widget.left, windowPos.y + widget.top }, widget.height(), colours[1], 0, 2);
+                    { windowPos.x + widget.left, windowPos.y + widget.top }, widget.height(), colours[1],
+                    { Dropdown::Flag::autoClose }, 2);
 
                 if (Park::IsOpen(getGameState().park))
                 {
@@ -840,7 +841,7 @@ namespace OpenRCT2::Ui::Windows
             auto& dropdownWidget = widgets[WIDX_PRICE];
             WindowDropdownShowTextCustomWidth(
                 { windowPos.x + dropdownWidget.left, windowPos.y + dropdownWidget.top }, dropdownWidget.height(), colours[1],
-                0, 0, kEntranceFeeTargets.size(), dropdownWidget.width());
+                0, { Dropdown::Flag::autoClose }, kEntranceFeeTargets.size(), dropdownWidget.width());
             gDropdown.highlightedIndex = -1;
             gDropdown.defaultIndex = -1;
 
