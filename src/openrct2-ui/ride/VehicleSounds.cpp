@@ -351,14 +351,14 @@ namespace OpenRCT2::Audio
 
     enum class SoundType
     {
-        TrackNoises,
-        OtherNoises, // e.g. Screams
+        trackNoises,
+        otherNoises, // e.g. Screams
     };
 
     template<SoundType type>
     static uint16_t SoundFrequency(const SoundId id, uint16_t baseFrequency)
     {
-        if constexpr (type == SoundType::TrackNoises)
+        if constexpr (type == SoundType::trackNoises)
         {
             if (IsSpecialFrequencySound(id))
             {
@@ -382,7 +382,7 @@ namespace OpenRCT2::Audio
         // Vehicle volume is an authored linear-amplitude byte, not a DirectSound decibel value.
         // Preserve that meaning before applying distance; the legacy arithmetic made 128 about -41 dB.
         auto authoredGain = std::clamp(static_cast<float>(volume) / 255.0f, 0.0f, 1.0f);
-        if constexpr (type == SoundType::TrackNoises)
+        if constexpr (type == SoundType::trackNoises)
         {
             // The authored vehicle byte is conservative and the source is spread over a whole train.
             // A 4.5x calibration keeps wheel, lift, and engine texture present without dominating
@@ -572,9 +572,9 @@ namespace OpenRCT2::Audio
             Vehicle* vehicle = getGameState().entities.GetEntity<Vehicle>(EntityId::FromUnderlying(vehicleSoundParams.id));
             if (vehicle != nullptr)
             {
-                UpdateSound<SoundType::TrackNoises>(
+                UpdateSound<SoundType::trackNoises>(
                     vehicle->sound1_id, vehicle->sound1_volume, &vehicleSoundParams, vehicleSound->trackSound);
-                UpdateSound<SoundType::OtherNoises>(
+                UpdateSound<SoundType::otherNoises>(
                     vehicle->sound2_id, vehicle->sound2_volume, &vehicleSoundParams, vehicleSound->otherSound);
             }
         }
