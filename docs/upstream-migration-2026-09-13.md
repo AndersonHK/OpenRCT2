@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 214 / 361 source commits recorded
+## Progress: 215 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2372,10 +2372,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U214 — `2449e06d9c` — Merge pull request #26955 from tupaschoal/future_hang_download_all
 
 - **Source:** `2449e06d9c360e494cf8da9e5cc6cffe9feeea7a`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `ea35d0d96cc5e01db18563153d59e4a6db53b00e`.
 - **Remaining:** 148 → 147.
 - **Disposition:** history receipt.
 - **Manual changes:** History receipt for merge #26955; constituent changes were adapted in U212 and U213.
 - **Additional decisions / behavior:** No additional resolution delta; retain the owned background-job downloader and the documented server-list worker wait.
 - **Verification:** Inspected complete first-parent delta and successful empty remerge diff. U212 runtime checks remain applicable; U213 compile debt carries to the next checkpoint.
 - **Pending / concerns:** U213 compile check; consolidated live HTTP and server-list close-time limitations remain.
+
+### U215 — `d005dda508` — Merge Localisation/master into OpenRCT2/develop
+
+- **Source:** `d005dda5083f28cd3ed7442804241b6c3f3efdb0`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 147 → 146.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Added the three source Spanish and French path-addition / HUD panel translations, IDs 7040–7042.
+- **Additional decisions / behavior:** Current-commit additions only; fork IDs 8000–8041 remain untouched. No gameplay behavior change.
+- **Verification:** Read full source patch; each locale receives exactly three additions and diff whitespace checks pass.
+- **Pending / concerns:** No additional checks required for these text-only additions; existing HUD integration debt remains.

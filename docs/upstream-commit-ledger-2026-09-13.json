@@ -15990,7 +15990,9 @@
       "decisions": [],
       "review_level": "remerge-probe",
       "implementation_status": "history receipt",
-      "port_commits": [],
+      "port_commits": [
+        "ea35d0d96cc5e01db18563153d59e4a6db53b00e"
+      ],
       "verification_evidence": [
         "Inspected complete first-parent delta and successful empty remerge diff. U212 runtime checks remain applicable; U213 compile debt carries to the next checkpoint."
       ],
@@ -16028,9 +16030,11 @@
       "note": "Single-parent localisation update; use final target blobs after English ID reconciliation.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Read full source patch; each locale receives exactly three additions and diff whitespace checks pass."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -16038,7 +16042,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P1"
+      "verification_gate": "P1",
+      "port_commit_locator": "Upstream-Commit: d005dda5083f28cd3ed7442804241b6c3f3efdb0",
+      "implementation_decisions": "Current-commit additions only; fork IDs 8000–8041 remain untouched. No gameplay behavior change.",
+      "pending_validation": "No additional checks required for these text-only additions; existing HUD integration debt remains."
     },
     {
       "sha": "7bf6a4b4fbf0b0b384c7635629be0b1a50b86297",
@@ -27287,8 +27294,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 214,
-    "remaining_after_receipt": 147,
+    "accounted_in_this_tree": 215,
+    "remaining_after_receipt": 146,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
