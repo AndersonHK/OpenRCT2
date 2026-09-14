@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 162 / 361 source commits recorded
+## Progress: 163 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1800,10 +1800,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U162 — `84f1946db8` — Make TrackElement members adhere to code style
 
 - **Source:** `84f1946db82d9022ecd79d9edf878e0e2eb0710a`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `50ab4378af4acb5b25b3a5fb53013f8fa862a887`.
 - **Remaining:** 200 → 199.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Rename 55 TrackElement fields/accessors plus the ride-type setter parameter across 100 fork files; include direct fixture callers while retaining Vehicle accessors.
 - **Additional decisions / behavior:** Keep all union widths, photo/brake/maze storage, flag masks, station/seat rotation/door logic and fork per-car/directed-leg motion and ratings. Rename setter parameter to newRideType to avoid shadowing the renamed member. No gameplay or serialized-value changes.
 - **Verification:** Complete 98-file source token streams verified against 56 reviewed identifier mappings. All 100 fork file token streams pass the same comparison after formatting; remaining uppercase track-type accessors reviewed as Vehicle/legacy types; whitespace check passed.
 - **Pending / concerns:** Compile and regressions pending with following wall naming commit.
+
+### U163 — `631804fd13` — Make WallElement members adhere to code style
+
+- **Source:** `631804fd133aad292a75e1b5514558c1c975a50d`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 199 → 198.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Rename 27 WallElement fields/accessors across 25 fork files, including the clear-tool fixture.
+- **Additional decisions / behavior:** Preserve colour/banner storage, slope and animation bit packing, frame timing, door motion and audio dispatch. Keep U139 separate sound validation and all fork clearance/visibility rules.
+- **Verification:** Complete 24-file source token streams and 25 fork file token streams verified as the 27 reviewed identifier substitutions only; whitespace check passed.
+- **Pending / concerns:** Batch 29 build for U160-U163 running; gameplay/import/topology/audio tests will follow before further C++ changes.

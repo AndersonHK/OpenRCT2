@@ -12484,7 +12484,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "50ab4378af4acb5b25b3a5fb53013f8fa862a887"
+      ],
       "verification_evidence": [
         "Complete 98-file source token streams verified against 56 reviewed identifier mappings. All 100 fork file token streams pass the same comparison after formatting; remaining uppercase track-type accessors reviewed as Vehicle/legacy types; whitespace check passed."
       ],
@@ -12582,9 +12584,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Complete 24-file source token streams and 25 fork file token streams verified as the 27 reviewed identifier substitutions only; whitespace check passed."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -12600,7 +12604,10 @@
         "src/openrct2/world/ConstructionClearance.cpp",
         "src/openrct2/world/TileInspector.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 631804fd133aad292a75e1b5514558c1c975a50d",
+      "implementation_decisions": "Preserve colour/banner storage, slope and animation bit packing, frame timing, door motion and audio dispatch. Keep U139 separate sound validation and all fork clearance/visibility rules.",
+      "pending_validation": "Batch 29 build for U160-U163 running; gameplay/import/topology/audio tests will follow before further C++ changes."
     },
     {
       "sha": "e501376aa3eab0b8c2ec1a6644aea2042e5d5372",
@@ -26923,8 +26930,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 162,
-    "remaining_after_receipt": 199,
+    "accounted_in_this_tree": 163,
+    "remaining_after_receipt": 198,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

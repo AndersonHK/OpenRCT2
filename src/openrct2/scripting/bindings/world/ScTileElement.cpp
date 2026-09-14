@@ -194,7 +194,7 @@ namespace OpenRCT2::Scripting
             case TileElementType::wall:
             {
                 auto* el = element->asWall();
-                return JS_NewUint32(ctx, el->GetSlope());
+                return JS_NewUint32(ctx, el->getSlope());
             }
             default:
             {
@@ -222,7 +222,7 @@ namespace OpenRCT2::Scripting
         else if (type == TileElementType::wall)
         {
             auto* el = element->asWall();
-            el->SetSlope(value);
+            el->setSlope(value);
             Invalidate(data);
         }
         else
@@ -1289,7 +1289,7 @@ namespace OpenRCT2::Scripting
             case TileElementType::wall:
             {
                 auto* el = element->asWall();
-                return JS_NewUint32(ctx, el->GetEntryIndex());
+                return JS_NewUint32(ctx, el->getEntryIndex());
             }
             case TileElementType::entrance:
             {
@@ -1348,7 +1348,7 @@ namespace OpenRCT2::Scripting
                 JS_UNPACK_UINT32(index, ctx, jsValue);
                 RemoveBannerEntryIfNeeded(element, data->coords);
                 auto* el = element->asWall();
-                el->SetEntryIndex(index);
+                el->setEntryIndex(index);
                 CreateBannerEntryIfNeeded(element, data->coords);
                 Invalidate(data);
                 break;
@@ -1487,7 +1487,7 @@ namespace OpenRCT2::Scripting
             case TileElementType::wall:
             {
                 auto* el = element->asWall();
-                return JS_NewUint32(ctx, EnumValue(el->GetPrimaryColour()));
+                return JS_NewUint32(ctx, EnumValue(el->getPrimaryColour()));
             }
             case TileElementType::banner:
             {
@@ -1523,7 +1523,7 @@ namespace OpenRCT2::Scripting
             case TileElementType::wall:
             {
                 auto* el = element->asWall();
-                el->SetPrimaryColour(static_cast<Drawing::Colour>(value));
+                el->setPrimaryColour(static_cast<Drawing::Colour>(value));
                 Invalidate(data);
                 break;
             }
@@ -1559,7 +1559,7 @@ namespace OpenRCT2::Scripting
             case TileElementType::wall:
             {
                 auto* el = element->asWall();
-                return JS_NewUint32(ctx, EnumValue(el->GetSecondaryColour()));
+                return JS_NewUint32(ctx, EnumValue(el->getSecondaryColour()));
             }
             case TileElementType::banner:
             {
@@ -1595,7 +1595,7 @@ namespace OpenRCT2::Scripting
             case TileElementType::wall:
             {
                 auto* el = element->asWall();
-                el->SetSecondaryColour(static_cast<Drawing::Colour>(value));
+                el->setSecondaryColour(static_cast<Drawing::Colour>(value));
                 Invalidate(data);
                 break;
             }
@@ -1631,7 +1631,7 @@ namespace OpenRCT2::Scripting
             case TileElementType::wall:
             {
                 auto* el = element->asWall();
-                return JS_NewUint32(ctx, EnumValue(el->GetTertiaryColour()));
+                return JS_NewUint32(ctx, EnumValue(el->getTertiaryColour()));
             }
             default:
                 return JS_NULL;
@@ -1662,7 +1662,7 @@ namespace OpenRCT2::Scripting
             case TileElementType::wall:
             {
                 auto* el = element->asWall();
-                el->SetTertiaryColour(static_cast<Drawing::Colour>(value));
+                el->setTertiaryColour(static_cast<Drawing::Colour>(value));
                 Invalidate(data);
                 break;
             }
@@ -1707,10 +1707,10 @@ namespace OpenRCT2::Scripting
                 if (JS_IsNumber(jsValue))
                 {
                     JS_UNPACK_UINT32(value, ctx, jsValue);
-                    el->SetBannerIndex(BannerIndex::FromUnderlying(value));
+                    el->setBannerIndex(BannerIndex::FromUnderlying(value));
                 }
                 else
-                    el->SetBannerIndex(BannerIndex::GetNull());
+                    el->setBannerIndex(BannerIndex::GetNull());
                 Invalidate(data);
                 break;
             }
@@ -2362,7 +2362,7 @@ namespace OpenRCT2::Scripting
                 break;
             case TileElementType::wall:
             {
-                auto wallEntry = element->asWall()->GetEntry();
+                auto wallEntry = element->asWall()->getEntry();
                 if (wallEntry == nullptr || wallEntry->scrolling_mode == kScrollingModeNone)
                     return;
                 break;

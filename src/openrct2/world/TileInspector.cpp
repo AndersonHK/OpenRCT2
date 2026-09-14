@@ -704,7 +704,7 @@ namespace OpenRCT2::TileInspector
         if (isExecuting)
         {
             // Set new slope value
-            wallElement->asWall()->SetSlope(slopeValue);
+            wallElement->asWall()->setSlope(slopeValue);
         }
 
         return GameActions::Result();
@@ -720,8 +720,8 @@ namespace OpenRCT2::TileInspector
 
         if (isExecuting)
         {
-            uint8_t animationFrame = wallElement->asWall()->GetAnimationFrame();
-            wallElement->asWall()->SetAnimationFrame(animationFrame + animationFrameOffset);
+            uint8_t animationFrame = wallElement->asWall()->getAnimationFrame();
+            wallElement->asWall()->setAnimationFrame(animationFrame + animationFrameOffset);
         }
 
         return GameActions::Result();
@@ -986,7 +986,7 @@ namespace OpenRCT2::TileInspector
 
         if (isExecuting)
         {
-            wallElement->asWall()->SetAnimationIsBackwards(backwards);
+            wallElement->asWall()->setAnimationIsBackwards(backwards);
         }
 
         return GameActions::Result();
