@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 122 / 361 source commits recorded
+## Progress: 123 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1360,10 +1360,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U122 — `c2c126da9c` — Refactor BTM_TOOLBAR_DIRTY_FLAGS into enum class+FlagHolder
 
 - **Source:** `c2c126da9ce7ada8eedac10549d8fd4f07163669`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `d1dce1682d9bae8be186268d328e1d87e82b68f0`.
 - **Remaining:** 240 → 239.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Convert five bottom-toolbar dirty flags to typed uint8 FlagHolder and update all producers/consumers.
 - **Additional decisions / behavior:** Retain bit positions 0-4, zero initial state, invalidation targets/order and clearing semantics. climate-to-weather and peep-to-guest names do not change simulation or refresh cadence.
 - **Verification:** Actual four-file delta and every gToolbarDirtyFlags reference reviewed; no old identifiers remain; whitespace/ancestry gates.
 - **Pending / concerns:** Build/widget checkpoint after merge receipt.
+
+### U123 — `263cb53047` — Merge pull request #26884 from Gymnasiast/more-enum-refactor
+
+- **Source:** `263cb53047ea432cf6bd80507095f69982065e42`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 239 → 238.
+- **Disposition:** history receipt.
+- **Manual changes:** Record completed flag-refactor branch merge; no additional source delta.
+- **Additional decisions / behavior:** Keep individually ported fork tree; no upstream whole-tree merge.
+- **Verification:** Archived remerge is empty and tree equals second parent; singleton ancestry gate.
+- **Pending / concerns:** Flag-group compile/test checkpoint starting.

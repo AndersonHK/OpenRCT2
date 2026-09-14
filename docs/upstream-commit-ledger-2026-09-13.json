@@ -8634,7 +8634,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "d1dce1682d9bae8be186268d328e1d87e82b68f0"
+      ],
       "verification_evidence": [
         "Actual four-file delta and every gToolbarDirtyFlags reference reviewed; no old identifiers remain; whitespace/ancestry gates."
       ],
@@ -8702,9 +8704,11 @@
       "note": "No remerge-resolution delta detected. Account for constituent commits before ancestry reconciliation.",
       "decisions": [],
       "review_level": "remerge-probe",
-      "implementation_status": "not-ported",
+      "implementation_status": "history receipt",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Archived remerge is empty and tree equals second parent; singleton ancestry gate."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -8716,7 +8720,10 @@
         "src/openrct2/actions/scenery/WallPlaceAction.cpp",
         "src/openrct2/object/WallObject.cpp"
       ],
-      "verification_gate": "P0"
+      "verification_gate": "P0",
+      "port_commit_locator": "Upstream-Commit: 263cb53047ea432cf6bd80507095f69982065e42",
+      "implementation_decisions": "Keep individually ported fork tree; no upstream whole-tree merge.",
+      "pending_validation": "Flag-group compile/test checkpoint starting."
     },
     {
       "sha": "5a814722e136db8fc168f06a4794f29c88ca31b9",
@@ -26643,8 +26650,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 122,
-    "remaining_after_receipt": 239,
+    "accounted_in_this_tree": 123,
+    "remaining_after_receipt": 238,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
