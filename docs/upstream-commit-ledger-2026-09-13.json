@@ -15732,7 +15732,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "48e756b87fa48d1271aec50a8e78d9003cb5eb7e"
+      ],
       "verification_evidence": [
         "Full two-file patch and current price calculation inspected; exact source change; diff check passes."
       ],
@@ -15769,9 +15771,11 @@
       "note": "Apply final documentation/changelog/string correction; distinguish upstream release history from features actually ported.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Full one-file source inspected; exact line move; diff check passes."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -15779,7 +15783,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P1"
+      "verification_gate": "P1",
+      "port_commit_locator": "Upstream-Commit: 911afdbd6e00809c4c6a899d8b6fa906ff3e868e",
+      "implementation_decisions": "Documentation ordering only; retain all migration decisions and gameplay code.",
+      "pending_validation": "None for this documentation-only change; U207-U208 pending batch compilation remains."
     },
     {
       "sha": "c34fee484abbbec39b0efb1b032da3b129a02877",
@@ -27245,8 +27252,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 208,
-    "remaining_after_receipt": 153,
+    "accounted_in_this_tree": 209,
+    "remaining_after_receipt": 152,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
