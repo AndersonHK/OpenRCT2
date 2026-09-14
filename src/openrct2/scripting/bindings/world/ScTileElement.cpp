@@ -12,6 +12,8 @@
     #include "ScTileElement.hpp"
 
     #include "../../../Context.h"
+    #include "../../../drawing/TextColour.h"
+    #include "../../../object/WallSceneryEntry.h"
     #include "../../../ride/Ride.h"
     #include "../../../ride/RideData.h"
     #include "../../../world/Map.h"

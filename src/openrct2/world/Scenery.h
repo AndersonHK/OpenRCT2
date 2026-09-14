@@ -10,11 +10,18 @@
 #pragma once
 
 #include "../core/Money.hpp"
-#include "Location.hpp"
 #include "ScenerySelection.h"
 
 #include <cstdint>
 #include <vector>
+
+struct CoordsXY;
+struct CoordsXYZ;
+
+namespace OpenRCT2
+{
+    enum class ObjectType : uint8_t;
+}
 
 namespace OpenRCT2
 {

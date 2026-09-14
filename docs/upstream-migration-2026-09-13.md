@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 131 / 361 source commits recorded
+## Progress: 132 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1459,10 +1459,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U131 — `3c375c60ba` — Remove openrct2/windows includes
 
 - **Source:** `3c375c60ba4cb354f8672e0aec10e7a585ce789a`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `7823231e25a13abf729d9dbbb8ce4a486926d493`.
 - **Remaining:** 231 → 230.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Remove unused Guard and map includes from Intent implementation/header.
 - **Additional decisions / behavior:** Intent payload, dispatch and fork behavior unchanged.
 - **Verification:** Actual two-file diff reviewed; no Guard/std::map consumers; whitespace/ancestry gates.
 - **Pending / concerns:** Compile checkpoint after header group.
+
+### U132 — `8cd44cc686` — Remove openrct2/world includes
+
+- **Source:** `8cd44cc6861ed74658c7deeec81eaf5513e5f294`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 230 → 229.
+- **Disposition:** adapt world header cleanup.
+- **Manual changes:** Rework 46 world/tile/object consumer includes and forward declarations.
+- **Additional decisions / behavior:** Retain Map.cpp Guard.hpp for mutation bounds assertions and TerrainSurfaceObject.h for snapshot surface rendering. Adapt ScTileElement insertion anchors to fork include set. Preserve all fork clearance erasure results, mutation/presentation ownership, topology, park economics/growth and weather logic; no runtime expression changed. Restore Footpath.cpp PathAdditionEntry.h for fork IsBin helper, identified by two compiler diagnostics.
+- **Verification:** Complete source diff inspected; all 46 fork paths pass include/forward-declaration-only comparison. Whitespace and singleton ancestry checks. Batch 19 in progress. Batch 19 complete rebuild passed 0 warnings/errors; 61 selected tests passed.
+- **Pending / concerns:** Native non-Windows and interactive checks remain; compile debt through U132 cleared.

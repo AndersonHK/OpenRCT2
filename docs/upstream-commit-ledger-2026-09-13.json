@@ -9128,7 +9128,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "7823231e25a13abf729d9dbbb8ce4a486926d493"
+      ],
       "verification_evidence": [
         "Actual two-file diff reviewed; no Guard/std::map consumers; whitespace/ancestry gates."
       ],
@@ -9232,9 +9234,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adapt world header cleanup",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Complete source diff inspected; all 46 fork paths pass include/forward-declaration-only comparison. Whitespace and singleton ancestry checks. Batch 19 in progress. Batch 19 complete rebuild passed 0 warnings/errors; 61 selected tests passed."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -9259,7 +9263,10 @@
         "src/openrct2/world/Weather.cpp",
         "src/openrct2/world/map_generator/TreePlacement.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 8cd44cc6861ed74658c7deeec81eaf5513e5f294",
+      "implementation_decisions": "Retain Map.cpp Guard.hpp for mutation bounds assertions and TerrainSurfaceObject.h for snapshot surface rendering. Adapt ScTileElement insertion anchors to fork include set. Preserve all fork clearance erasure results, mutation/presentation ownership, topology, park economics/growth and weather logic; no runtime expression changed. Restore Footpath.cpp PathAdditionEntry.h for fork IsBin helper, identified by two compiler diagnostics.",
+      "pending_validation": "Native non-Windows and interactive checks remain; compile debt through U132 cleared."
     },
     {
       "sha": "8839956721913ef48e6981477339a01f6f39e4f5",
@@ -26706,8 +26713,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 131,
-    "remaining_after_receipt": 230,
+    "accounted_in_this_tree": 132,
+    "remaining_after_receipt": 229,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

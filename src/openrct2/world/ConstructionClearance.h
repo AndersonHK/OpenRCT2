@@ -21,8 +21,6 @@ namespace OpenRCT2
     struct TileElement;
 }
 
-struct CoordsXY;
-struct CoordsXYRangedZ;
 class QuarterTile;
 
 enum class ClearanceResult : uint8_t
