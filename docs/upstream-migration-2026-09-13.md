@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 41 / 361 source commits recorded
+## Progress: 42 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -469,10 +469,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U041 — `4bf86c6e6c` — Move tile inspector constants to TileInspectorGlobals.h
 
 - **Source:** `4bf86c6e6c96cb7a171bf51f9a6cadcdf3e178a6`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `ea3d283a3c53226f739b0052d77db358f738af0f`.
 - **Remaining:** 321 → 320.
 - **Disposition:** ported.
 - **Manual changes:** Move all 35 tile-inspector widget/page constants and their EnumUtils dependency into TileInspectorGlobals.h.
 - **Additional decisions / behavior:** Keep each numeric index and enum expression byte-for-byte; this changes header ownership only, not inspector editing behavior. Every consumer already directly includes the owner header.
 - **Verification:** Compared all 35 old/new constant lines exactly and searched every fork consumer/include. Source/diff and exact-one ancestry checked.
 - **Pending / concerns:** Compile at UI-header batch checkpoint.
+
+### U042 — `0f620b0714` — Remove Widget.h include from Window.h
+
+- **Source:** `0f620b0714209970908c69d525173e77d2545189`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 320 → 319.
+- **Disposition:** ported.
+- **Manual changes:** Remove transitive Widget.h from Window.h and add explicit type includes/forward declarations in nine affected UI/core files.
+- **Additional decisions / behavior:** Preserve fork core/Guard.hpp and all rendering logic. WidgetIndex remains uint16_t; no layout, flags, ownership lifetime or gameplay changes. WindowBase directly owns its Widget dependency.
+- **Verification:** Reviewed all nine source paths; every source hunk matches unique fork context. Fork Guard.hpp and immutable presentation-frame publication remain present. Source/diff and exact-one ancestry checked.
+- **Pending / concerns:** Compile will identify any fork-only transitive dependencies at UI-header checkpoint.
