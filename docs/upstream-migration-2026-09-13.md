@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 270 / 361 source commits recorded
+## Progress: 271 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2988,10 +2988,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U270 — `e9c7f6667c` — Move currency glyphs to currency folder
 
 - **Source:** `e9c7f6667ccc2d6e44fd8fa5f4bfc2284d7d94ed`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `0a6422494d43758fab94cee86da4e6eaaed30c28`.
 - **Remaining:** 92 → 91.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Move 15 byte-identical currency glyphs to their currency directory and update paths; add loaded glyph mapping regression and B61 validation.
 - **Additional decisions / behavior:** Path reorganization only. Old U+00B5 sprite files retain their legacy euro slot while names now describe U+20AC. Preserve all entry order/metadata and image bytes. Font test fixture initialization/type/header corrections documented B61; no production workarounds.
 - **Verification:** Full manifest delta and all 15 R100 blobs checked; fonts.dat regenerated with 1020 entries, all paths resolve; final registered glyph/language/widget run passed 24 tests in 0.571s. B61 records all earlier fixture failures and final build evidence.
 - **Pending / concerns:** Actual text rendering/TTF/platform/package and standing gameplay/UI/MP/replay checks remain.
+
+### U271 — `9d59ed34dd` — Close #21441: Add sprite font glyph for the Hryvnia (₴)
+
+- **Source:** `9d59ed34dddd927b80b19dd9656f25fa6b36f0f1`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 91 → 90.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Add exact three-style Hryvnia glyphs, manifest/enum/Unicode mapping; extend loaded-font regression to Hryvnia.
+- **Additional decisions / behavior:** Character rendering only; no currency calculations/rates or save change. Normalize patch context for the already-cleaned U269 blank enum line. Keep three-style slot alignment.
+- **Verification:** Complete text and binary file list inspected; exact upstream PNG blobs retained and bold glyph viewed. Existing B61 fixture extended with distinct Hryvnia mapping and loaded positive-width entry checks. B62 build/rebuild pending.
+- **Pending / concerns:** B62 font archive regeneration and extended glyph test pending; standing rendered text/platform checks remain.

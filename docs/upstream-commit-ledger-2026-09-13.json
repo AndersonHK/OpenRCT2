@@ -19251,7 +19251,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "0a6422494d43758fab94cee86da4e6eaaed30c28"
+      ],
       "verification_evidence": [
         "Full manifest delta and all 15 R100 blobs checked; fonts.dat regenerated with 1020 entries, all paths resolve; final registered glyph/language/widget run passed 24 tests in 0.571s. B61 records all earlier fixture failures and final build evidence."
       ],
@@ -19297,9 +19299,11 @@
       "note": "Take final sprite-font glyph definitions/assets and numeric codepoints as one package; check money glyphs with cent formatting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Complete text and binary file list inspected; exact upstream PNG blobs retained and bold glyph viewed. Existing B61 fixture extended with distinct Hryvnia mapping and loaded positive-width entry checks. B62 build/rebuild pending."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -19307,7 +19311,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P1"
+      "verification_gate": "P1",
+      "port_commit_locator": "Upstream-Commit: 9d59ed34dddd927b80b19dd9656f25fa6b36f0f1",
+      "implementation_decisions": "Character rendering only; no currency calculations/rates or save change. Normalize patch context for the already-cleaned U269 blank enum line. Keep three-style slot alignment.",
+      "pending_validation": "B62 font archive regeneration and extended glyph test pending; standing rendered text/platform checks remain."
     },
     {
       "sha": "1ce70b8bf8c5ad282ffc47850501a5ce885154d2",
@@ -27679,8 +27686,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 270,
-    "remaining_after_receipt": 91,
+    "accounted_in_this_tree": 271,
+    "remaining_after_receipt": 90,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

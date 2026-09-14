@@ -25,7 +25,7 @@ class Localisation : public testing::Test
 {
 };
 
-TEST_F(Localisation, SpriteFontsHaveDistinctLowercaseHardSignAndWonInEveryStyle)
+TEST_F(Localisation, SpriteFontsHaveDistinctLowercaseHardSignAndCurrencyGlyphsInEveryStyle)
 {
     gOpenRCT2Headless = true;
     gOpenRCT2NoGraphics = true;
@@ -39,17 +39,21 @@ TEST_F(Localisation, SpriteFontsHaveDistinctLowercaseHardSignAndWonInEveryStyle)
     gOpenRCT2NoGraphics = false;
     GfxLoadG2PalettesFontsTracks();
     FontSpriteInitialiseCharacters();
-    EXPECT_TRUE(FontSupportsStringSprite(u8"ъ₩"));
+    EXPECT_TRUE(FontSupportsStringSprite(u8"ъ₩₴"));
     EXPECT_EQ(FontSpriteGetCodepointOffset(U'ъ'), static_cast<int32_t>(SPR_FONTS_CYRILLIC_HARD_SIGN_LOWER - SPR_FONTS_BEGIN));
     EXPECT_EQ(FontSpriteGetCodepointOffset(U'₩'), static_cast<int32_t>(SPR_FONTS_WON_SIGN - SPR_FONTS_BEGIN));
+    EXPECT_EQ(FontSpriteGetCodepointOffset(U'₴'), static_cast<int32_t>(SPR_FONTS_HRYVNIA_SIGN - SPR_FONTS_BEGIN));
     for (const auto style : kFontStyles)
     {
         const auto lower = FontSpriteGetCodepointSprite(style, U'ъ').GetIndex();
         const auto upper = FontSpriteGetCodepointSprite(style, U'Ъ').GetIndex();
         const auto won = FontSpriteGetCodepointSprite(style, U'₩').GetIndex();
+        const auto hryvnia = FontSpriteGetCodepointSprite(style, U'₴').GetIndex();
         const auto fallback = FontSpriteGetCodepointSprite(style, U'?').GetIndex();
         EXPECT_NE(lower, upper);
         EXPECT_NE(won, fallback);
+        EXPECT_NE(hryvnia, fallback);
+        EXPECT_NE(hryvnia, won);
         EXPECT_GE(lower, SPR_FONTS_BEGIN);
         EXPECT_LT(lower, SPR_FONTS_END);
         EXPECT_GE(won, SPR_FONTS_BEGIN);
@@ -58,6 +62,8 @@ TEST_F(Localisation, SpriteFontsHaveDistinctLowercaseHardSignAndWonInEveryStyle)
         ASSERT_NE(GfxGetG1Element(won), nullptr);
         EXPECT_GT(GfxGetG1Element(lower)->width, 0);
         EXPECT_GT(GfxGetG1Element(won)->width, 0);
+        ASSERT_NE(GfxGetG1Element(hryvnia), nullptr);
+        EXPECT_GT(GfxGetG1Element(hryvnia)->width, 0);
     }
 }
 
