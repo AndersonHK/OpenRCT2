@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 75 / 361 source commits recorded
+## Progress: 76 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -843,10 +843,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U075 — `8ae5221c6b` — Rename members of DisplayType
 
 - **Source:** `8ae5221c6bdf72cad2f22c2c04fe2f25bbd7c14a`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `503dbc5f54e783760010ff86e5dd1d08ed60dd84`.
 - **Remaining:** 287 → 286.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename DisplayType members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Preserve raw-versus-units values, default display units, height formatting and clipping limits. No clipping or Vulkan rendering policy change.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U076 — `6d8c65ba5f` — Rename members of Http::Status
+
+- **Source:** `6d8c65ba5f349de80e04544fd6d6af369c3fbc5d`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 286 → 285.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename Http::Status members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Preserve status values 0/1/200/404, retry/cancellation handling, download success checks and server-list errors. Scope unqualified Status references to HTTP implementation files; no endpoints, network policy or object-source contract changes.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
