@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 38 / 361 source commits recorded
+## Progress: 39 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -436,10 +436,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U038 — `b782a7dcc9` — Merge Localisation/master into OpenRCT2/develop
 
 - **Source:** `b782a7dcc9da6a30b2626724604d380316f09ec3`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `5975998dbe8b34d21ab753db8c79f23d854163fb`.
 - **Remaining:** 324 → 323.
 - **Disposition:** ported; companion-fork dependency correction.
 - **Manual changes:** Add Spanish, Korean and Brazilian Portuguese ride-type labels at reconciled ID 7039. Correct U006 objects provenance: pin AndersonHK companion fork b2a5511cd7ff90646dd40c61f08cb27fa977e8f4 and install tracked assets through shared Python source installer in MSBuild, CMake/macOS and Android; document its separate four-receipt migration.
 - **Additional decisions / behavior:** Localisation changes are text only; fork IDs remain 8000-8041. Owner clarified companion objects source: preserve all four data-owned -6 dB kart gains, remove uncommitted post-download workaround, and require pinned clean tracked source instead of silently downloading upstream assets. Objects migration has its own four-source ledger and does not alter engine source accounting. English typo regression skipped; actual exporter version 2.1.13 adopted. Full traceability, cleanup backup and local-only publication prerequisite are in docs/upstream-objects-migration-2026-09-13.md.
 - **Verification:** Inspected all three actual localisation additions and unique IDs. Batch 06 full Windows build 0 warnings/errors; selected 45 tests passed with source-owned kart calibration and no 419 conflict warnings. Objects exporter compiled; CMake clean install and Windows linked-source install verified. See validation and objects correction docs.
 - **Pending / concerns:** Full Android/macOS/Linux packaging, interactive Appearance cases and exporter pixel-output check remain pending. The pinned objects receipt is local and has not been published. Existing exporter net6/framework compatibility warnings documented.
+
+### U039 — `a3f7b5d3b0` — Restore overriding widget type for construction bank/speed setting (#26863)
+
+- **Source:** `a3f7b5d3b09f470dee3e1b28ba157e40e3ff95c4`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 323 → 322.
+- **Disposition:** ported.
+- **Manual changes:** Restore genuine bank-button versus brake/booster-spinner widget types before revealing shared controls; remove obsolete comment.
+- **Additional decisions / behavior:** The hidden-state refactor does not replace widget type when the same slot serves different controls. Adopt this UI repair without changing banking eligibility, speed values, seat rotation or fork pressed/holdable state logic. Later separated-widget redesign remains for its own source commit.
+- **Verification:** Inspected all three source hunks and both local branches. Six restored type assignments match the shared roles; source/diff and exact-one ancestry checked.
+- **Pending / concerns:** Compile and interactive bank-to-brake/booster transitions at next coherent checkpoint.

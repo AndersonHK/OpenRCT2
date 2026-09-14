@@ -2867,7 +2867,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "ported; companion-fork dependency correction",
-      "port_commits": [],
+      "port_commits": [
+        "5975998dbe8b34d21ab753db8c79f23d854163fb"
+      ],
       "verification_evidence": [
         "Inspected all three actual localisation additions and unique IDs. Batch 06 full Windows build 0 warnings/errors; selected 45 tests passed with source-owned kart calibration and no 419 conflict warnings. Objects exporter compiled; CMake clean install and Windows linked-source install verified. See validation and objects correction docs."
       ],
@@ -2906,9 +2908,11 @@
       "note": "Port the final separated banking/speed widget design and overlap fix, including restored genuine widget-type switching.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "ported",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected all three source hunks and both local branches. Six restored type assignments match the shared roles; source/diff and exact-one ancestry checked."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -2916,7 +2920,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P5"
+      "verification_gate": "P5",
+      "port_commit_locator": "Upstream-Commit: a3f7b5d3b09f470dee3e1b28ba157e40e3ff95c4",
+      "implementation_decisions": "The hidden-state refactor does not replace widget type when the same slot serves different controls. Adopt this UI repair without changing banking eligibility, speed values, seat rotation or fork pressed/holdable state logic. Later separated-widget redesign remains for its own source commit.",
+      "pending_validation": "Compile and interactive bank-to-brake/booster transitions at next coherent checkpoint."
     },
     {
       "sha": "d26b161668e42872287912b0de5e811a66c3f6a5",
@@ -26055,8 +26062,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 38,
-    "remaining_after_receipt": 323,
+    "accounted_in_this_tree": 39,
+    "remaining_after_receipt": 322,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
