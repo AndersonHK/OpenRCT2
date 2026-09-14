@@ -24,6 +24,7 @@
 #include <openrct2/actions/park/ParkSetParameterAction.h>
 #include <openrct2/actions/ride/RideCreateAction.h>
 #include <openrct2/actions/ride/RideSetPriceAction.h>
+#include <openrct2/actions/ride/RideSetSettingAction.h>
 #include <openrct2/actions/ride/RideSetStatusAction.h>
 #include <openrct2/drawing/Drawing.h>
 #include <openrct2/entity/EntityRegistry.h>
@@ -163,6 +164,31 @@ static void execute(Args&&... args)
 {
     GA ga(std::forward<Args>(args)...);
     GameActions::Execute(&ga, getGameState());
+}
+
+TEST_F(PlayTests, ArbitraryRideTypeCheatRejectsOutOfRangeTypes)
+{
+    auto context = localStartGame(TestData::GetParkPath("small_park_with_ferris_wheel.sv6"));
+    ASSERT_NE(context.get(), nullptr);
+
+    auto& gameState = getGameState();
+    auto* ride = GetRide(RideId::FromUnderlying(0));
+    ASSERT_NE(ride, nullptr);
+    const auto originalType = ride->type;
+    gameState.cheats.allowArbitraryRideTypeChanges = true;
+
+    for (const auto value : { static_cast<uint8_t>(RIDE_TYPE_COUNT), uint8_t{ 255 } })
+    {
+        GameActions::RideSetSettingAction action(ride->id, GameActions::RideSetSetting::rideType, value);
+        const auto result = GameActions::ExecuteNested(&action, gameState);
+        EXPECT_EQ(result.error, GameActions::Status::disallowed) << "type=" << value;
+        EXPECT_EQ(ride->type, originalType);
+    }
+
+    GameActions::RideSetSettingAction validAction(ride->id, GameActions::RideSetSetting::rideType, RIDE_TYPE_FERRIS_WHEEL);
+    EXPECT_EQ(validAction.Query(gameState, gameState.park).error, GameActions::Status::ok);
+    gameState.cheats.allowArbitraryRideTypeChanges = false;
+    EXPECT_EQ(validAction.Query(gameState, gameState.park).error, GameActions::Status::disallowed);
 }
 
 TEST_F(PlayTests, InvalidMarketingCampaignDurationsAreRejected)
