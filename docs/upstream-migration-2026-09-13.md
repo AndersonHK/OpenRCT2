@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 71 / 361 source commits recorded
+## Progress: 72 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -799,10 +799,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U071 — `275e6597a7` — Rename members of LandRightsMode
 
 - **Source:** `275e6597a772858ad71294339303a397b884b796`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `dd2128ca15b4617ac5ddfb14256dbefe917c7a6f`.
 - **Remaining:** 291 → 290.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename LandRightsMode members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Preserve seven mode values, ownership visibility table, buy-versus-sandbox mode transitions, action dispatch and ownership bit mappings. Land and construction-rights prices and restrictions are unchanged.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt. Prior U070 checkpoint: full build and 51 selected regressions passed; batch evidence recorded.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U072 — `546cd2dab6` — Rename members of ResizeDirection
+
+- **Source:** `546cd2dab65d44aeadb3fc07a93e4cef7561f77b`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 290 → 289.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename ResizeDirection members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Scope ResizeDirection to the map window only; MapGen has a separate enum handled by U073. Preserve both/x/y values, linked-axis selection, size clamps and MapChangeSizeAction arguments. No map resizing or land-loss policy change.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
