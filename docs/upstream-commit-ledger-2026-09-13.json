@@ -23995,7 +23995,9 @@
       "decisions": [],
       "review_level": "remerge-probe",
       "implementation_status": "history receipt",
-      "port_commits": [],
+      "port_commits": [
+        "8ad7e8bfd0169ffbd0e8bfcdfe5761ae53e9eb8f"
+      ],
       "verification_evidence": [
         "Actual merge parents inspected; empty remerge diff; B77 full609 checkpoint covers merged payload."
       ],
@@ -24034,9 +24036,11 @@
       "note": "Record final release/version state, preserving andersonhk protocol flavor and advancing fork revision for accepted simulation/action changes.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Read exact three-line insertion; no runtime change."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -24044,7 +24048,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P8"
+      "verification_gate": "P8",
+      "port_commit_locator": "Upstream-Commit: ee15855bf32cce8f986fb675371876f9e957ac02",
+      "implementation_decisions": "Header only. Binary/package version remains 0.5.5, protocol0.5.5-andersonhk-11, save60016/API122; do not label this a released 0.5.6 build.",
+      "pending_validation": "None specific to this documentation."
     },
     {
       "sha": "369341a01916a11579a5815caa2f1169b2c94465",
@@ -27917,8 +27924,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 304,
-    "remaining_after_receipt": 57,
+    "accounted_in_this_tree": 305,
+    "remaining_after_receipt": 56,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

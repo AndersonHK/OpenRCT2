@@ -1,3 +1,6 @@
+0.5.6 (in development)
+------------------------------------------------------------------------
+
 0.5.5 (2026-09-06)
 ------------------------------------------------------------------------
 - Feature: [#26423] [Plugin] Add `PathNavigator` and `PathConnection` for exploring the footpath network as a graph.

@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 304 / 361 source commits recorded
+## Progress: 305 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3362,10 +3362,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U304 — `d1ec88619d` — Merge branch 'master' into develop
 
 - **Source:** `d1ec88619d325d123b7eab96550c3e7999cc5aec`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `8ad7e8bfd0169ffbd0e8bfcdfe5761ae53e9eb8f`.
 - **Remaining:** 58 → 57.
 - **Disposition:** history receipt.
 - **Manual changes:** History receipt for master into develop release merge.
 - **Additional decisions / behavior:** No remerge resolution delta. Preserve U303 fork protocol and metadata dispositions.
 - **Verification:** Actual merge parents inspected; empty remerge diff; B77 full609 checkpoint covers merged payload.
 - **Pending / concerns:** Standing native, platform and live multiplayer checks unchanged.
+
+### U305 — `ee15855bf3` — Start v0.5.6
+
+- **Source:** `ee15855bf32cce8f986fb675371876f9e957ac02`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 57 → 56.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Add the upstream 0.5.6 in-development changelog section.
+- **Additional decisions / behavior:** Header only. Binary/package version remains 0.5.5, protocol0.5.5-andersonhk-11, save60016/API122; do not label this a released 0.5.6 build.
+- **Verification:** Read exact three-line insertion; no runtime change.
+- **Pending / concerns:** None specific to this documentation.
