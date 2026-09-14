@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 130 / 361 source commits recorded
+## Progress: 131 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1448,10 +1448,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U130 — `6c5c2079ce` — Remove openrct2/scripting includes
 
 - **Source:** `6c5c2079ce16675a7996a426d707a6f4ccc2cbce`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `4c6cf4bdbeb1b71010e587f0faa3a2029cf081c9`.
 - **Remaining:** 232 → 231.
 - **Disposition:** adapt script header cleanup.
 - **Manual changes:** Remove unused script-binding includes/declarations and tidy prior namespace comment/blank line.
 - **Additional decisions / behavior:** Retain Profiling.h for fork PROFILED_FUNCTION and cassert for live handle assertion. Preserve all fork script bodies, public API strings and entity lifecycle behavior.
 - **Verification:** Thirty fork paths verified include/declaration/comment/whitespace-only; actual source and fork profiling/assert callers inspected; whitespace/ancestry gates.
 - **Pending / concerns:** Build/scripting checkpoint after header group.
+
+### U131 — `3c375c60ba` — Remove openrct2/windows includes
+
+- **Source:** `3c375c60ba4cb354f8672e0aec10e7a585ce789a`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 231 → 230.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Remove unused Guard and map includes from Intent implementation/header.
+- **Additional decisions / behavior:** Intent payload, dispatch and fork behavior unchanged.
+- **Verification:** Actual two-file diff reviewed; no Guard/std::map consumers; whitespace/ancestry gates.
+- **Pending / concerns:** Compile checkpoint after header group.
