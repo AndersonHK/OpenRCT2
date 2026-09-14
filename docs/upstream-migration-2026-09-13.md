@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 83 / 361 source commits recorded
+## Progress: 84 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -931,10 +931,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U083 — `b0e7d321e3` — Rename members of Qualifier
 
 - **Source:** `b0e7d321e34a316a3127242129515cc39fb69573`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `bc14c9f3580cbab0f607b89a3b2292ec5646ff4b`.
 - **Remaining:** 279 → 278.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename Qualifier members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Preserve entity/map light-key qualification, sampling counts, packed coordinates and fork LightFX/Vulkan ownership. Rename only the applicable enum symbols, without restoring upstream lighting code replaced by the fork.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U084 — `a850d78a7d` — Rename members of DuckState
+
+- **Source:** `a850d78a7d5c23355b42e9c290e771c71043dc6c`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 278 → 277.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename DuckState members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Duck naming only: preserve state values 0-4, animations, random draws and seasonal departure probability, including fork entity presentation. Update five stale animation-table comments left upstream. Batch 11 build and all 16 selected sprite/import/scripting/widget tests passed through U083; no gameplay changes.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
