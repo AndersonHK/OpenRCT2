@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 80 / 361 source commits recorded
+## Progress: 81 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -898,10 +898,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U080 — `d0db940bde` — Rename members of ImportMode
 
 - **Source:** `d0db940bdeca52191c1f0bdc81c0652d8c83a4b6`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `6e62cb38cf7466450a7f5ad0f0110e3f55a29a66`.
 - **Remaining:** 282 → 281.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename ImportMode members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Default becomes standard with value 0; closest and dithering retain values 1/2. Preserve CLI mode strings, pixel error diffusion and metadata defaults. Include sprite-build regression call sites without changing expected binary output.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U081 — `1c4daab873` — Rename members of Palette
+
+- **Source:** `1c4daab873f851be55eddd3e074be0bbda917922`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 281 → 280.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename Palette members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Preserve palette mode values, 8-bit keep-indices validation, pixel stride and offset handling, JSON keep token and PNG format selection. No colour remapping, resource regeneration or companion-object changes.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
