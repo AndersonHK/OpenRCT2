@@ -33,9 +33,9 @@ Rollback can restore the previous managed files from the backup and reconcile th
 
 ## Manual acceptance and next work
 
-No merge or push was performed. Owner manual acceptance remains required before merging into develop/main and creating the Vulkan implementation branch. The [Vulkan exclusive migration plan](vulkan-exclusive-migration-plan.md) was revised **after deployment** against this source and its current rendering owners; its implementation/parity gates remain open.
+The owner accepted the deployed version as stable on **2026-09-14** after manual testing and the [engine/rumble audio audit](audio-regression-audit-2026-09-14.md). The catch-up was then merged into **`develop`** (this fork's main branch) by fast-forward from `e874ceb770` to **`f69067effaa97669b7b8d5ba5512dfa1ab346ea1`**. That checkpoint adds documentation and the repeated-sample test, with no production-code changes from the deployed receipt; redeployment was unnecessary. No push was performed. The [Vulkan exclusive migration plan](vulkan-exclusive-migration-plan.md) now records this accepted starting checkpoint; its implementation/parity gates remain open.
 
-Prioritize these manual checks:
+Retain these checks for further regression coverage; owner acceptance does not claim that each case below was individually exercised:
 
 1. Existing parks: proportional age pricing, negative-G warnings, station capacities, sampled ratings and prepaid platform/seat behavior.
 2. HUD/themes: news transitions, hidden/restored toolbars while paused, RCT1 status bar, old custom themes, enlarged/translated text and editor controls.
