@@ -21652,7 +21652,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "025f7faebe8cd105ea4f5e4f89147e60f7f9046e"
+      ],
       "verification_evidence": [
         "Read exact one-line patch; no runtime validation needed."
       ],
@@ -21689,9 +21691,11 @@
       "note": "Single-parent localisation update; use final target blobs after English ID reconciliation.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Read and applied exact one-line addition."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -21699,7 +21703,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P1"
+      "verification_gate": "P1",
+      "port_commit_locator": "Upstream-Commit: 96a6638263408ee2b00110b77f06e7328eaaf211",
+      "implementation_decisions": "Single-parent translation; no formatting parameters, runtime behavior or fork ID changes.",
+      "pending_validation": "Parser at next coherent checkpoint; native display remains untested."
     },
     {
       "sha": "3ae38cf3d758e6e619730761d1eb81ce921e26d7",
@@ -27889,8 +27896,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 300,
-    "remaining_after_receipt": 61,
+    "accounted_in_this_tree": 301,
+    "remaining_after_receipt": 60,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 300 / 361 source commits recorded
+## Progress: 301 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3318,10 +3318,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U300 — `bf1c99fad5` — Small rewording in changelog
 
 - **Source:** `bf1c99fad5c9165294b1958dfa2dc266b437e9bb`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `025f7faebe8cd105ea4f5e4f89147e60f7f9046e`.
 - **Remaining:** 62 → 61.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Clarify Clear Scenery changelog: footpath additions supported and walls separable from small scenery.
 - **Additional decisions / behavior:** Documentation only; reflects already ported approved clear-mask behavior.
 - **Verification:** Read exact one-line patch; no runtime validation needed.
 - **Pending / concerns:** None specific to this wording.
+
+### U301 — `96a6638263` — Merge Localisation/master into OpenRCT2/develop
+
+- **Source:** `96a6638263408ee2b00110b77f06e7328eaaf211`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 61 → 60.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Add Dutch STR_7043 terrain-height rejection title.
+- **Additional decisions / behavior:** Single-parent translation; no formatting parameters, runtime behavior or fork ID changes.
+- **Verification:** Read and applied exact one-line addition.
+- **Pending / concerns:** Parser at next coherent checkpoint; native display remains untested.
