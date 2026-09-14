@@ -1084,7 +1084,9 @@
       ],
       "review_level": "intent-and-path-triage",
       "implementation_status": "manually-ported",
-      "port_commits": [],
+      "port_commits": [
+        "357b09dc4b159203934e2cf22c14c27b472f5f68"
+      ],
       "verification_evidence": [
         "Inspected both upstream hunks and fork mode switch; inserted shop case without replacing default maze logic. Offset remains four. Whitespace and singleton ancestry checked before receipt."
       ],
@@ -1127,9 +1129,11 @@
         "D06"
       ],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "manually-ported",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected all source hunks and current tab/preview logic; manual edits keep the fork's unrelated layout and operation settings. Whitespace and singleton ancestry checked before receipt."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -1139,7 +1143,10 @@
       "merge_conflict_paths": [
         "src/openrct2-ui/windows/Ride.cpp"
       ],
-      "verification_gate": "P5"
+      "verification_gate": "P5",
+      "port_commit_locator": "Upstream-Commit: ea084b982808d9b7e392a19598896a4cc92c3b33",
+      "implementation_decisions": "Approved D06 refinement: visibility follows cheat state, not recolourability. Retain normal tab restrictions when cheats are disabled and preserve fork gameplay controls.",
+      "pending_validation": "Facility preview correction is the next source; batch UI/compile checks at U016."
     },
     {
       "sha": "b9484d7f485d27355b27d0d8e4d16dbfa4585988",
@@ -25873,8 +25880,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 12,
-    "remaining_after_receipt": 349,
+    "accounted_in_this_tree": 13,
+    "remaining_after_receipt": 348,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

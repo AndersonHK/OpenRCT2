@@ -1510,8 +1510,9 @@ namespace OpenRCT2::Ui::Windows
 
             if (getGameState().cheats.allowArbitraryRideTypeChanges)
             {
-                // Keep operations tab visible for ride type cheats
+                // Keep operation and colour tabs visible for ride type cheats
                 setWidgetDisabled(WIDX_TAB_3, false);
+                setWidgetDisabled(WIDX_TAB_5, false);
             }
         }
 
@@ -4880,7 +4881,6 @@ namespace OpenRCT2::Ui::Windows
                 widgets[WIDX_TRACK_COLOUR_SCHEME].type = WidgetType::dropdownMenu;
                 widgets[WIDX_TRACK_COLOUR_SCHEME_DROPDOWN].type = WidgetType::button;
                 widgets[WIDX_PAINT_INDIVIDUAL_AREA].type = WidgetType::flatBtn;
-                widgets[WIDX_VISIBILITY_DROPDOWN].type = rideCheats ? WidgetType::flatBtn : WidgetType::empty;
             }
             else
             {
@@ -4888,8 +4888,10 @@ namespace OpenRCT2::Ui::Windows
                 widgets[WIDX_TRACK_COLOUR_SCHEME].type = WidgetType::empty;
                 widgets[WIDX_TRACK_COLOUR_SCHEME_DROPDOWN].type = WidgetType::empty;
                 widgets[WIDX_PAINT_INDIVIDUAL_AREA].type = WidgetType::empty;
-                widgets[WIDX_VISIBILITY_DROPDOWN].type = WidgetType::empty;
             }
+
+            // Ride cheats on? Show visibility dropdown
+            widgets[WIDX_VISIBILITY_DROPDOWN].type = rideCheats ? WidgetType::flatBtn : WidgetType::empty;
 
             // Set colour scheme caption
             _spinnerCaption0 = LanguageGetString(ColourSchemeNames[colourScheme]);
@@ -4942,7 +4944,8 @@ namespace OpenRCT2::Ui::Windows
 
             // Track preview
             if (!rtd.flags.hasAny(
-                    RtdFlag::hasTrackColourMain, RtdFlag::hasTrackColourAdditional, RtdFlag::hasTrackColourSupports))
+                    RtdFlag::hasTrackColourMain, RtdFlag::hasTrackColourAdditional, RtdFlag::hasTrackColourSupports)
+                && !rideCheats)
             {
                 widgets[WIDX_PRIMARY_PREVIEW].type = WidgetType::empty;
                 return startY;
@@ -5198,8 +5201,9 @@ namespace OpenRCT2::Ui::Windows
 
             GfxClear(clippedRT, PaletteIndex::pi12);
 
-            auto rideEntry = ride->getRideEntry();
-            if (rideEntry == nullptr || rideEntry->shop_item[0] == ShopItem::none)
+            auto* rideEntry = ride->getRideEntry();
+            auto& rtd = ride->getRideTypeDescriptor();
+            if (rideEntry == nullptr || rtd.Category != RideCategory::shop)
             {
                 ColourOnDrawTrackPreview(clippedRT, ride, widget);
             }

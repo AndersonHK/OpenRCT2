@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 12 / 361 source commits recorded
+## Progress: 13 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -150,10 +150,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U012 — `c35f71131f` — Hide operating mode 'tweak' option for shops and stalls
 
 - **Source:** `c35f71131fed435a1f98cb31799d891e901bb5da`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `357b09dc4b159203934e2cf22c14c27b472f5f68`.
 - **Remaining:** 350 → 349.
 - **Disposition:** manually-ported.
 - **Manual changes:** Hide the meaningless operating-mode tweak for shopStall; simplify the shop preview image offset without changing its value.
 - **Additional decisions / behavior:** Hide only the shopStall case; retain the fork maze-capacity branch and operation option limits. No changes to pricing or stall throughput.
 - **Verification:** Inspected both upstream hunks and fork mode switch; inserted shop case without replacing default maze logic. Offset remains four. Whitespace and singleton ancestry checked before receipt.
 - **Pending / concerns:** Ride-window batch compile/UI checks at U016.
+
+### U013 — `ea084b9828` — Keep colour tab visible for shops when ride type cheats are on
+
+- **Source:** `ea084b982808d9b7e392a19598896a4cc92c3b33`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 349 → 348.
+- **Disposition:** manually-ported.
+- **Manual changes:** Keep Operations and Appearance accessible with arbitrary ride type cheats, expose visibility for shops and rides without colour schemes, and select previews by shop category.
+- **Additional decisions / behavior:** Approved D06 refinement: visibility follows cheat state, not recolourability. Retain normal tab restrictions when cheats are disabled and preserve fork gameplay controls.
+- **Verification:** Inspected all source hunks and current tab/preview logic; manual edits keep the fork's unrelated layout and operation settings. Whitespace and singleton ancestry checked before receipt.
+- **Pending / concerns:** Facility preview correction is the next source; batch UI/compile checks at U016.
