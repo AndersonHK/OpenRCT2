@@ -26608,7 +26608,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "55324030459d489017f0ca895e4bbced5e16a834"
+      ],
       "verification_evidence": [
         "Read every source hunk; all 17 source files applied at existing owners; inventory confirms callers use typed filters and no leftover raw mask conversion. Diff check passes."
       ],
@@ -26661,9 +26663,11 @@
       "note": "Split peep action description from display capitalization; preserve platform walking/waiting and transport status semantics.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Full source and fork state switch inspected; all consumers migrated; explicit fixture tests platform/transport labels, named rides and deleted/null ride formatter boundaries. Diff check passes."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -26677,7 +26681,10 @@
         "src/openrct2/entity/Peep.h",
         "src/openrct2/libopenrct2.vcxproj"
       ],
-      "verification_gate": "P5"
+      "verification_gate": "P5",
+      "port_commit_locator": "Upstream-Commit: fe4e93cf0e54736420742c2149185eb5cdd87f44",
+      "implementation_decisions": "Retain fork platform approach/wait labels as appended description types; no serialized Peep state or movement change. Preserve explicit absent ride-name argument for every ride-bearing description, including null/deleted rides. Adopt source display fallbacks: walking staff/default and missing watched ride get meaningful generic descriptions, heading/queue with deleted ride gets unnamed action. Existing ride targeting and transport simulation untouched.",
+      "pending_validation": "Compile and runtime checkpoint with U346 capitalization change; U344 typed-filter debt included."
     },
     {
       "sha": "6e0d62b4039e7b04cff29afa486805ed141f753b",
@@ -28197,8 +28204,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 344,
-    "remaining_after_receipt": 17,
+    "accounted_in_this_tree": 345,
+    "remaining_after_receipt": 16,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

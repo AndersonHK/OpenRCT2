@@ -42,6 +42,9 @@
 #include <openrct2/entity/EntityTweener.h>
 #include <openrct2/entity/Guest.h>
 #include <openrct2/entity/Peep.h>
+#include <openrct2/peep/PeepActionFormat.h>
+#include <openrct2/localisation/Formatter.h>
+#include <openrct2/localisation/StringIds.h>
 #include <openrct2/object/ObjectLimits.h>
 #include <openrct2/object/ObjectManager.h>
 #include <openrct2/object/SmallSceneryObject.h>
@@ -71,6 +74,70 @@ using namespace OpenRCT2;
 class PlayTests : public testing::Test
 {
 };
+
+TEST_F(PlayTests, PeepDescriptionsPreservePlatformStatusAndMissingRideArguments)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    auto& state = getGameState();
+    auto& ride = state.rides[0];
+    ride.id = RideId::FromUnderlying(0);
+    ride.type = RIDE_TYPE_MINIATURE_RAILWAY;
+    ride.customName = "Platform Express";
+    state.ridesEndOfUsedRange = 1;
+    auto* guest = state.entities.createEntity<Guest>();
+    ASSERT_NE(guest, nullptr);
+    guest->currentRide = ride.id;
+    guest->state = PeepState::enteringRide;
+    const auto check = [&](StringId expected, bool haveRide) {
+        uint8_t bytes[64];
+        std::fill(std::begin(bytes), std::end(bytes), 0xA5);
+        Formatter ft(bytes);
+        formatPeepActionTo(*guest, ft);
+        StringId actionString{}, nameString{};
+        std::memcpy(&actionString, bytes, sizeof(StringId));
+        std::memcpy(&nameString, bytes + sizeof(StringId), sizeof(StringId));
+        EXPECT_EQ(actionString, expected);
+        EXPECT_EQ(nameString, haveRide ? STR_STRING : kStringIdNone);
+        if (haveRide)
+        {
+            const char* name{};
+            std::memcpy(&name, bytes + 2 * sizeof(StringId), sizeof(name));
+            EXPECT_STREQ(name, "Platform Express");
+        }
+        else
+        {
+            EXPECT_EQ(ft.NumBytes(), 2 * sizeof(StringId));
+            EXPECT_EQ(bytes[ft.NumBytes()], 0xA5);
+        }
+    };
+    guest->rideSubState = PeepRideSubState::approachPlatformSlot;
+    EXPECT_EQ(guest->getActionDescription().type, PeepActionDescriptionType::walkingToPlatform);
+    check(STR_WALKING_TO_PLATFORM_FOR, true);
+    guest->rideSubState = PeepRideSubState::waitingOnPlatform;
+    EXPECT_EQ(guest->getActionDescription().type, PeepActionDescriptionType::waitingOnPlatform);
+    check(STR_WAITING_ON_PLATFORM_FOR, true);
+    guest->state = PeepState::onRide;
+    check(STR_ON_RIDE, true);
+    ride.type = kRideTypeNull;
+    for (const auto peepState : { PeepState::enteringRide, PeepState::onRide, PeepState::leavingRide })
+    {
+        guest->state = peepState;
+        check(STR_ON_RIDE, false);
+    }
+    guest->state = PeepState::queuing;
+    check(STR_QUEUING_FOR, false);
+    guest->state = PeepState::walking;
+    guest->guestHeadingToRideId = ride.id;
+    check(STR_HEADING_FOR, false);
+    guest->currentRide = RideId::GetNull();
+    guest->state = PeepState::buying;
+    check(STR_AT_RIDE, false);
+    guest->state = PeepState::fixing;
+    check(STR_FIXING_RIDE, false);
+}
 
 TEST_F(PlayTests, CalculatesIntegratedBenchmarkMetricsFromIndependentCounters)
 {

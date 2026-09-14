@@ -306,6 +306,45 @@ namespace OpenRCT2
         PEEP_INVALIDATE_PEEP_ACTION = 1 << 5, // Currently set only when guestHeadingToRideId is changed
     };
 
+    enum class PeepActionDescriptionType : uint8_t
+    {
+        walking,
+        sitting,
+        watchingScenery,
+        drowning,
+        pickedUp,
+        headingFor,
+        watchingRide,
+        watchingRideConstruction,
+        watchingRideConstructionUnspecific,
+        queuingFor,
+        onRide,
+        inRide,
+        atShop,
+        leavingPark,
+        sweepingFootpath,
+        emptyingBin,
+        wateringGardens,
+        mowingGrass,
+        headingToInspectRide,
+        inspectingRide,
+        fixingRide,
+        answeringRadioCall,
+        respondingToBreakdownCall,
+
+        walkingToPlatform,
+        waitingOnPlatform,
+
+        count,
+    };
+    constexpr size_t kNumPeepActionDescriptionTypes = static_cast<size_t>(PeepActionDescriptionType::count);
+
+    struct PeepActionDescription
+    {
+        PeepActionDescriptionType type;
+        RideId rideId = RideId::GetNull();
+    };
+
     struct Guest;
 
     struct Peep : EntityBase
@@ -404,7 +443,7 @@ namespace OpenRCT2
         void pickupAbort(int32_t old_x);
         [[nodiscard]] GameActions::Result place(const TileCoordsXYZ& location, bool apply);
         void removeFromRide();
-        void formatActionTo(Formatter&) const;
+        PeepActionDescription getActionDescription() const;
         void formatNameTo(Formatter&) const;
         [[nodiscard]] std::string getName() const;
         bool setName(std::string_view value);

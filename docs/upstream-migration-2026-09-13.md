@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 344 / 361 source commits recorded
+## Progress: 345 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3802,10 +3802,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U344 — `fdd84f2612` — Refactor ViewportInteractionItems into FlagHolder (#27111)
 
 - **Source:** `fdd84f26125d49df189f24738ee10a5ca20d3e6e`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `55324030459d489017f0ca895e4bbced5e16a834`.
 - **Remaining:** 18 → 17.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Convert viewport picking filters to typed 16-bit flag holders across all consumers.
 - **Additional decisions / behavior:** Every concrete item retains its bit index and listed filter membership. All-filter drops only none/reserved bits; paint filtering still rejects none and label before membership. Complement filter explicitly lists the same selectable non-terrain/non-water items. Plugin filter arrays retain clear/set/default semantics. Fork presentation picking and dual-height patrol selection unchanged.
 - **Verification:** Read every source hunk; all 17 source files applied at existing owners; inventory confirms callers use typed filters and no leftover raw mask conversion. Diff check passes.
 - **Pending / concerns:** Compile and affected UI/scripting/GPU tests at following display checkpoint.
+
+### U345 — `fe4e93cf0e` — Split determining peep action and display
+
+- **Source:** `fe4e93cf0e54736420742c2149185eb5cdd87f44`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 17 → 16.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Separate peep action descriptions from display formatting and migrate all consumers.
+- **Additional decisions / behavior:** Retain fork platform approach/wait labels as appended description types; no serialized Peep state or movement change. Preserve explicit absent ride-name argument for every ride-bearing description, including null/deleted rides. Adopt source display fallbacks: walking staff/default and missing watched ride get meaningful generic descriptions, heading/queue with deleted ride gets unnamed action. Existing ride targeting and transport simulation untouched.
+- **Verification:** Full source and fork state switch inspected; all consumers migrated; explicit fixture tests platform/transport labels, named rides and deleted/null ride formatter boundaries. Diff check passes.
+- **Pending / concerns:** Compile and runtime checkpoint with U346 capitalization change; U344 typed-filter debt included.
