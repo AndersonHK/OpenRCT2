@@ -85,8 +85,8 @@ namespace OpenRCT2::Ui::Gpu
             const int32_t bottom = top + rt.zoom_level.ApplyInversedTo(element.height + yModifier);
             const float zoom = rt.zoom_level >= ZoomLevel{ 0 } ? static_cast<float>(rt.zoom_level.ApplyTo(1))
                                                                : 1.0f / rt.zoom_level.ApplyInversedTo(1);
-            const int32_t clipX = clip.GetLeft() - rt.x;
-            const int32_t clipY = clip.GetTop() - rt.y;
+            const int32_t clipX = clip.getLeft() - rt.x;
+            const int32_t clipY = clip.getTop() - rt.y;
             return { texture, { left + clipX, top + clipY, right + clipX, bottom + clipY }, zoom };
         }
 
@@ -118,8 +118,8 @@ namespace OpenRCT2::Ui::Gpu
             top = sprite.zoom.ApplyInversedTo(top);
             const int32_t right = left + sprite.zoom.ApplyInversedTo(sprite.width + widthModifier);
             const int32_t bottom = top + sprite.zoom.ApplyInversedTo(sprite.height + yModifier);
-            const int32_t clipX = clip.GetLeft() - rt.x;
-            const int32_t clipY = clip.GetTop() - rt.y;
+            const int32_t clipX = clip.getLeft() - rt.x;
+            const int32_t clipY = clip.getTop() - rt.y;
             const float zoom = sprite.zoom >= ZoomLevel{ 0 } ? static_cast<float>(sprite.zoom.ApplyTo(1))
                                                              : 1.0f / sprite.zoom.ApplyInversedTo(1);
             const int32_t texelY = sprite.zoom > ZoomLevel{ 0 } ? sprite.zoom.ApplyTo(1) - 1 - yModifier : 0;
@@ -179,12 +179,12 @@ namespace OpenRCT2::Ui::Gpu
         if (left > right || top > bottom)
             return;
         const ScreenRect clip = CalculateClipping(rt);
-        left += clip.GetLeft() - rt.x;
-        top += clip.GetTop() - rt.y;
-        right += clip.GetLeft() - rt.x;
-        bottom += clip.GetTop() - rt.y;
+        left += clip.getLeft() - rt.x;
+        top += clip.getTop() - rt.y;
+        right += clip.getLeft() - rt.x;
+        bottom += clip.getTop() - rt.y;
         const Int4 bounds{ left, top, right, bottom };
-        const Int4 clipBounds{ clip.GetLeft(), clip.GetTop(), clip.GetRight(), clip.GetBottom() };
+        const Int4 clipBounds{ clip.getLeft(), clip.getTop(), clip.getRight(), clip.getBottom() };
         if (!InclusiveRectIntersectsClip(bounds, clipBounds))
             return;
 
@@ -201,12 +201,12 @@ namespace OpenRCT2::Ui::Gpu
         if (left > right || top > bottom || !GetPaletteMapForColour(palette).has_value())
             return;
         const ScreenRect clip = CalculateClipping(rt);
-        left += clip.GetLeft() - rt.x;
-        top += clip.GetTop() - rt.y;
-        right += clip.GetLeft() - rt.x;
-        bottom += clip.GetTop() - rt.y;
+        left += clip.getLeft() - rt.x;
+        top += clip.getTop() - rt.y;
+        right += clip.getLeft() - rt.x;
+        bottom += clip.getTop() - rt.y;
         const Int4 bounds{ left, top, right, bottom };
-        const Int4 clipBounds{ clip.GetLeft(), clip.GetTop(), clip.GetRight(), clip.GetBottom() };
+        const Int4 clipBounds{ clip.getLeft(), clip.getTop(), clip.getRight(), clip.getBottom() };
         if (!InclusiveRectIntersectsClip(bounds, clipBounds))
             return;
 
@@ -235,8 +235,8 @@ namespace OpenRCT2::Ui::Gpu
     {
         const ScreenCoordsXY topLeft = { rt.x, rt.y };
         const ScreenCoordsXY bottomRight = { rt.x + rt.width - 1, rt.y + rt.height - 1 };
-        uint8_t outcode1 = ComputeOutCode(line.Point1, topLeft, bottomRight);
-        uint8_t outcode2 = ComputeOutCode(line.Point2, topLeft, bottomRight);
+        uint8_t outcode1 = ComputeOutCode(line.point1, topLeft, bottomRight);
+        uint8_t outcode2 = ComputeOutCode(line.point2, topLeft, bottomRight);
 
         while (true)
         {
@@ -249,38 +249,38 @@ namespace OpenRCT2::Ui::Gpu
             ScreenCoordsXY clipped{};
             if (outside & kCSBottom)
             {
-                clipped.x = line.Point1.x + (line.Point2.x - line.Point1.x) * (bottomRight.y - line.Point1.y)
-                    / (line.Point2.y - line.Point1.y);
+                clipped.x = line.point1.x + (line.point2.x - line.point1.x) * (bottomRight.y - line.point1.y)
+                    / (line.point2.y - line.point1.y);
                 clipped.y = bottomRight.y;
             }
             else if (outside & kCSTop)
             {
-                clipped.x = line.Point1.x + (line.Point2.x - line.Point1.x) * (topLeft.y - line.Point1.y)
-                    / (line.Point2.y - line.Point1.y);
+                clipped.x = line.point1.x + (line.point2.x - line.point1.x) * (topLeft.y - line.point1.y)
+                    / (line.point2.y - line.point1.y);
                 clipped.y = topLeft.y;
             }
             else if (outside & kCSRight)
             {
-                clipped.y = line.Point1.y + (line.Point2.y - line.Point1.y) * (bottomRight.x - line.Point1.x)
-                    / (line.Point2.x - line.Point1.x);
+                clipped.y = line.point1.y + (line.point2.y - line.point1.y) * (bottomRight.x - line.point1.x)
+                    / (line.point2.x - line.point1.x);
                 clipped.x = bottomRight.x;
             }
             else
             {
-                clipped.y = line.Point1.y + (line.Point2.y - line.Point1.y) * (topLeft.x - line.Point1.x)
-                    / (line.Point2.x - line.Point1.x);
+                clipped.y = line.point1.y + (line.point2.y - line.point1.y) * (topLeft.x - line.point1.x)
+                    / (line.point2.x - line.point1.x);
                 clipped.x = topLeft.x;
             }
 
             if (outside == outcode1)
             {
-                line.Point1 = clipped;
-                outcode1 = ComputeOutCode(line.Point1, topLeft, bottomRight);
+                line.point1 = clipped;
+                outcode1 = ComputeOutCode(line.point1, topLeft, bottomRight);
             }
             else
             {
-                line.Point2 = clipped;
-                outcode2 = ComputeOutCode(line.Point2, topLeft, bottomRight);
+                line.point2 = clipped;
+                outcode2 = ComputeOutCode(line.point2, topLeft, bottomRight);
             }
         }
     }
@@ -289,18 +289,18 @@ namespace OpenRCT2::Ui::Gpu
     {
         assert(_inDraw);
         const ZoomLevel zoom = rt.zoom_level;
-        ScreenLine trimmed = { { zoom.ApplyInversedTo(line.GetX1()), zoom.ApplyInversedTo(line.GetY1()) },
-                               { zoom.ApplyInversedTo(line.GetX2()), zoom.ApplyInversedTo(line.GetY2()) } };
+        ScreenLine trimmed = { { zoom.ApplyInversedTo(line.getX1()), zoom.ApplyInversedTo(line.getY1()) },
+                               { zoom.ApplyInversedTo(line.getX2()), zoom.ApplyInversedTo(line.getY2()) } };
         if (!CohenSutherlandLineClip(trimmed, rt))
             return;
 
         const ScreenRect clip = CalculateClipping(rt);
         auto& command = _commands->lines.allocate();
         command.bounds = {
-            trimmed.GetX1() - rt.x + clip.GetLeft(),
-            trimmed.GetY1() - rt.y + clip.GetTop(),
-            trimmed.GetX2() - rt.x + clip.GetLeft(),
-            trimmed.GetY2() - rt.y + clip.GetTop(),
+            trimmed.getX1() - rt.x + clip.getLeft(),
+            trimmed.getY1() - rt.y + clip.getTop(),
+            trimmed.getX2() - rt.x + clip.getLeft(),
+            trimmed.getY2() - rt.y + clip.getTop(),
         };
         command.colour = EnumValue(colour);
         command.depth = _drawCount++;
@@ -346,7 +346,7 @@ namespace OpenRCT2::Ui::Gpu
 
             auto& command = _commands->opaqueSprites.allocate();
             command = {
-                .clip = { clip.GetLeft(), clip.GetTop(), clip.GetRight(), clip.GetBottom() },
+                .clip = { clip.getLeft(), clip.getTop(), clip.getRight(), clip.getBottom() },
                 .bounds = geometry.bounds,
                 .texelOffset = geometry.texelOffset,
                 .asset = sprite->descriptorIndex,
@@ -437,10 +437,10 @@ namespace OpenRCT2::Ui::Gpu
         right = rt.zoom_level.ApplyInversedTo(right);
         bottom = rt.zoom_level.ApplyInversedTo(bottom);
         const ScreenRect clip = CalculateClipping(rt);
-        left += clip.GetLeft() - rt.x;
-        top += clip.GetTop() - rt.y;
-        right += clip.GetLeft() - rt.x;
-        bottom += clip.GetTop() - rt.y;
+        left += clip.getLeft() - rt.x;
+        top += clip.getTop() - rt.y;
+        right += clip.getLeft() - rt.x;
+        bottom += clip.getTop() - rt.y;
 
         const float zoom = rt.zoom_level >= ZoomLevel{ 0 } ? static_cast<float>(rt.zoom_level.ApplyTo(1))
                                                            : 1.0f / rt.zoom_level.ApplyInversedTo(1);
@@ -464,7 +464,7 @@ namespace OpenRCT2::Ui::Gpu
         const auto geometry = CalculateCompactSpriteGeometry(rt, *sprite, x, y, clip);
         auto& command = _commands->opaqueSprites.allocate();
         command = {
-            .clip = { clip.GetLeft(), clip.GetTop(), clip.GetRight(), clip.GetBottom() },
+            .clip = { clip.getLeft(), clip.getTop(), clip.getRight(), clip.getBottom() },
             .bounds = geometry.bounds,
             .texelOffset = geometry.texelOffset,
             .asset = sprite->descriptorIndex,
@@ -520,10 +520,10 @@ namespace OpenRCT2::Ui::Gpu
         int32_t right = left + surface->w;
         int32_t bottom = top + surface->h;
         const ScreenRect clip = CalculateClipping(rt);
-        left += clip.GetLeft() - rt.x;
-        top += clip.GetTop() - rt.y;
-        right += clip.GetLeft() - rt.x;
-        bottom += clip.GetTop() - rt.y;
+        left += clip.getLeft() - rt.x;
+        top += clip.getTop() - rt.y;
+        right += clip.getLeft() - rt.x;
+        bottom += clip.getTop() - rt.y;
 
         const auto appendText = [&](CommandBatch<RectCommand>& batch, Int4 bounds, PaletteIndex colour, uint32_t flags) {
             auto& command = AppendRect(batch, clip, bounds);
@@ -653,10 +653,10 @@ namespace OpenRCT2::Ui::Gpu
 
         const ScreenRect clip = CalculateClipping(rt);
         const Int4 cameraClip{
-            std::max(clip.GetLeft(), camera.clipLeft),
-            std::max(clip.GetTop(), camera.clipTop),
-            std::min(clip.GetRight(), camera.clipRight),
-            std::min(clip.GetBottom(), camera.clipBottom),
+            std::max(clip.getLeft(), camera.clipLeft),
+            std::max(clip.getTop(), camera.clipTop),
+            std::min(clip.getRight(), camera.clipRight),
+            std::min(clip.getBottom(), camera.clipBottom),
         };
         // Claim the slot before atlas resolution: first residency can invalidate and re-enter viewport painting.
         auto& scene = _commands->worldSurfaces.emplace(WorldSurfaceSceneCommand{
@@ -767,7 +767,7 @@ namespace OpenRCT2::Ui::Gpu
     {
         auto& command = batch.allocate();
         command = {
-            .clip = { clip.GetLeft(), clip.GetTop(), clip.GetRight(), clip.GetBottom() },
+            .clip = { clip.getLeft(), clip.getTop(), clip.getRight(), clip.getBottom() },
             .bounds = bounds,
             .depth = _drawCount++,
             .zoom = zoom,

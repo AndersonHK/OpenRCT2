@@ -709,7 +709,7 @@ namespace OpenRCT2::Ui::Windows
             const ScreenCoordsXY dynamicPadding{ std::max(maxGraphWidth, kGraphTopLeftPadding.x), kGraphTopLeftPadding.y };
 
             _ratingProps.RecalculateLayout(
-                { _ratingGraphBounds.Point1 + dynamicPadding, _ratingGraphBounds.Point2 - kGraphBottomRightPadding },
+                { _ratingGraphBounds.point1 + dynamicPadding, _ratingGraphBounds.point2 - kGraphBottomRightPadding },
                 kGraphNumYLabels, kParkRatingHistorySize);
         }
 
@@ -733,7 +733,7 @@ namespace OpenRCT2::Ui::Windows
             constexpr ScreenCoordsXY offset{ 1, 1 };
             constexpr ScreenCoordsXY bigOffset{ 5, 5 };
             Rectangle::fillInset(
-                rt, { _ratingGraphBounds.Point2 - bigOffset, _ratingGraphBounds.Point2 - offset }, colours[1],
+                rt, { _ratingGraphBounds.point2 - bigOffset, _ratingGraphBounds.point2 - offset }, colours[1],
                 Rectangle::BorderStyle::none, Rectangle::FillBrightness::light, Rectangle::FillMode::dontLightenWhenInset);
 
             Graph::DrawRatingGraph(rt, _ratingProps);
@@ -789,7 +789,7 @@ namespace OpenRCT2::Ui::Windows
             const ScreenCoordsXY dynamicPadding{ std::max(maxGraphWidth, kGraphTopLeftPadding.x), kGraphTopLeftPadding.y };
 
             _guestProps.RecalculateLayout(
-                { _guestGraphBounds.Point1 + dynamicPadding, _guestGraphBounds.Point2 - kGraphBottomRightPadding },
+                { _guestGraphBounds.point1 + dynamicPadding, _guestGraphBounds.point2 - kGraphBottomRightPadding },
                 kGraphNumYLabels, kGuestsInParkHistorySize);
         }
 
@@ -813,7 +813,7 @@ namespace OpenRCT2::Ui::Windows
             constexpr ScreenCoordsXY offset{ 1, 1 };
             constexpr ScreenCoordsXY bigOffset{ 5, 5 };
             Rectangle::fillInset(
-                rt, { _guestGraphBounds.Point2 - bigOffset, _guestGraphBounds.Point2 - offset }, colours[1],
+                rt, { _guestGraphBounds.point2 - bigOffset, _guestGraphBounds.point2 - offset }, colours[1],
                 Rectangle::BorderStyle::none, Rectangle::FillBrightness::light, Rectangle::FillMode::dontLightenWhenInset);
 
             Graph::DrawGuestGraph(rt, _guestProps);

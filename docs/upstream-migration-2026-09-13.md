@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 342 / 361 source commits recorded
+## Progress: 343 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3780,10 +3780,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U342 — `242b916767` — Fix typo in en-GB
 
 - **Source:** `242b9167679274b6670c80504850867f13dfc7cc`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `4584188d1ea227cb688829e2141e076c559c74ed`.
 - **Remaining:** 20 → 19.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Correct English Track Designer theme label.
 - **Additional decisions / behavior:** Retain U338 corrected mapping of track theme to 7047 and scenario theme to 7048.
 - **Verification:** Inspected single-line source edit and matching string owners.
 - **Pending / concerns:** Native translated labels remain manual.
+
+### U343 — `b1175458bf` — Refactor CoordsRange.hpp/ScreenCoords.hpp members to camelCase (#27112)
+
+- **Source:** `b1175458bfb9481a02e8ac526cdf52c864aa033d`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 19 → 18.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Rename coordinate range members and screen rectangle methods, including fork GPU consumers.
+- **Additional decisions / behavior:** Names only. Preserve clipping/range arithmetic, serializer order, fork spatial audio and removed OpenGL ownership. Separate UiContext/TextLayout/Viewport/collection APIs unchanged.
+- **Verification:** Complete source 571 substitutions/40 files and fork 539/39: all other noncomment tokens, literals and strings identical. Solution clean 81.90s; 133 existing affected tests pass 14.983s; B94.
+- **Pending / concerns:** Native renderer and other standing handoff checks remain.
