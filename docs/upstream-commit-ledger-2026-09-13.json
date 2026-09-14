@@ -2954,7 +2954,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "ported",
-      "port_commits": [],
+      "port_commits": [
+        "a1ea0a886f247d5c16a130745d6331a87889472d"
+      ],
       "verification_evidence": [
         "Reviewed full four-file source delta and every fork reference. Unique-context edits and exact-one ancestry checked."
       ],
@@ -2992,9 +2994,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "ported",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Compared all 35 old/new constant lines exactly and searched every fork consumer/include. Source/diff and exact-one ancestry checked."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -3002,7 +3006,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 4bf86c6e6c96cb7a171bf51f9a6cadcdf3e178a6",
+      "implementation_decisions": "Keep each numeric index and enum expression byte-for-byte; this changes header ownership only, not inspector editing behavior. Every consumer already directly includes the owner header.",
+      "pending_validation": "Compile at UI-header batch checkpoint."
     },
     {
       "sha": "0f620b0714209970908c69d525173e77d2545189",
@@ -26069,8 +26076,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 40,
-    "remaining_after_receipt": 321,
+    "accounted_in_this_tree": 41,
+    "remaining_after_receipt": 320,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

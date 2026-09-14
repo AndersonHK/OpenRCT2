@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 40 / 361 source commits recorded
+## Progress: 41 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -458,10 +458,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U040 — `d26b161668` — Move gCurrentWindowColours to Drawing.String.cpp
 
 - **Source:** `d26b161668e42872287912b0de5e811a66c3f6a5`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `a1ea0a886f247d5c16a130745d6331a87889472d`.
 - **Remaining:** 322 → 321.
 - **Disposition:** ported.
 - **Manual changes:** Move the current three window text colours into Drawing.String ownership and qualify the window draw writes.
 - **Additional decisions / behavior:** Storage duration, three palette indices and draw ordering are unchanged. All fork consumers were searched; no extra Vulkan snapshot or concurrency policy changes are introduced by this ownership move.
 - **Verification:** Reviewed full four-file source delta and every fork reference. Unique-context edits and exact-one ancestry checked.
 - **Pending / concerns:** Compile/link at the UI-header batch checkpoint.
+
+### U041 — `4bf86c6e6c` — Move tile inspector constants to TileInspectorGlobals.h
+
+- **Source:** `4bf86c6e6c96cb7a171bf51f9a6cadcdf3e178a6`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 321 → 320.
+- **Disposition:** ported.
+- **Manual changes:** Move all 35 tile-inspector widget/page constants and their EnumUtils dependency into TileInspectorGlobals.h.
+- **Additional decisions / behavior:** Keep each numeric index and enum expression byte-for-byte; this changes header ownership only, not inspector editing behavior. Every consumer already directly includes the owner header.
+- **Verification:** Compared all 35 old/new constant lines exactly and searched every fork consumer/include. Source/diff and exact-one ancestry checked.
+- **Pending / concerns:** Compile at UI-header batch checkpoint.
