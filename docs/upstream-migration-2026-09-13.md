@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 101 / 361 source commits recorded
+## Progress: 102 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1129,10 +1129,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U101 — `ae5dc4422a` — Rename members of MiniGolfAnimation
 
 - **Source:** `ae5dc4422a3ccb5908c8c5037784ea712c0b35c8`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `5b0d349882d2f32962c11d99dadf1fb527f27a98`.
 - **Remaining:** 261 → 260.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename MiniGolfAnimation members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Mini-golf animation names only, including MINI_GOLF_ANIMATION macro arguments. Preserve nine animation indices, coordinates/frame tables, ball visibility, initial walk state and peep-ID-based handedness.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U102 — `b5a92d9296` — Rename members of BoatHireSubState
+
+- **Source:** `b5a92d92968697a1645327e47d6cb33019cd3e5f`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 260 → 259.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename BoatHireSubState members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Boat substate naming only: Normal becomes rowing=0, return-position state stays 1. Retain collision exemption, movement probabilities and fork vehicle motion.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
