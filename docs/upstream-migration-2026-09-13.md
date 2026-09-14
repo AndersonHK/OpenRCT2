@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 166 / 361 source commits recorded
+## Progress: 167 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1844,10 +1844,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U166 — `2c8891ca8b` — Remove openrct2-ui/ride includes
 
 - **Source:** `2c8891ca8b2513ec9567d54619ffbb1f362ea44a`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `92489d5a36efc4e3103e0ad23712d12f80b7e596`.
 - **Remaining:** 196 → 195.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Port five ride UI/type header cleanups: explicit core Viewport/Track headers, construction forward declarations and direct ride-use identifier dependency; remove unused RideTypes dependencies.
 - **Additional decisions / behavior:** Retain direct AudioMixer.h in fork VehicleSounds.cpp because the spatial playback code uses MixerGroup::vehicle and kMixerVolumeMax, even though Audio.h currently also exposes it. Add direct cstddef/cstdint to Construction.h for its size_t and enum underlying types. Fork spatial gains, Doppler, source selection, routing and construction behavior are unchanged.
 - **Verification:** Reviewed all five source paths and fork definitions/usages. Normalized comparison proves five fork paths have only include/forward-declaration changes. Whitespace and exact-one ancestry gate apply.
 - **Pending / concerns:** Compile and focused UI/audio regressions at the next header batch checkpoint; native non-Windows and interactive validation remain pending.
+
+### U167 — `e75c1dde15` — Remove openrct2-ui/scripting includes
+
+- **Source:** `e75c1dde1519770617b8fb49821cdb7911041c72`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 195 → 194.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Port eight scripting UI header cleanups, direct CustomListView implementation dependencies and forward-declared ScriptEngine/window/render types. ScWindow declares the existing WindowNumber int16_t alias locally.
+- **Additional decisions / behavior:** No behavior or public API change. Script/plugin ownership, custom images, widgets and menu dispatch are unchanged; the WindowNumber alias matches Window.h and WindowTypes.h.
+- **Verification:** Reviewed all source hunks; all eight pre-port fork files matched the source parent. Include/declaration-only proof passes after explicitly allowing the existing WindowNumber alias and namespace closing comments. Formatted changed lines and apply ancestry/whitespace receipt gates.
+- **Pending / concerns:** Compile and scripting/widget/image regressions at the next UI-header batch checkpoint; interactive and non-Windows checks remain pending.

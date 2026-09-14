@@ -13029,7 +13029,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "92489d5a36efc4e3103e0ad23712d12f80b7e596"
+      ],
       "verification_evidence": [
         "Reviewed all five source paths and fork definitions/usages. Normalized comparison proves five fork paths have only include/forward-declaration changes. Whitespace and exact-one ancestry gate apply."
       ],
@@ -13075,9 +13077,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Reviewed all source hunks; all eight pre-port fork files matched the source parent. Include/declaration-only proof passes after explicitly allowing the existing WindowNumber alias and namespace closing comments. Formatted changed lines and apply ancestry/whitespace receipt gates."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -13085,7 +13089,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: e75c1dde1519770617b8fb49821cdb7911041c72",
+      "implementation_decisions": "No behavior or public API change. Script/plugin ownership, custom images, widgets and menu dispatch are unchanged; the WindowNumber alias matches Window.h and WindowTypes.h.",
+      "pending_validation": "Compile and scripting/widget/image regressions at the next UI-header batch checkpoint; interactive and non-Windows checks remain pending."
     },
     {
       "sha": "8a0507708f40f4856dd48e0c8ef6f3a975871a77",
@@ -26951,8 +26958,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 166,
-    "remaining_after_receipt": 195,
+    "accounted_in_this_tree": 167,
+    "remaining_after_receipt": 194,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
