@@ -15944,7 +15944,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "f2a749554e7cea55ede8f6fab22688e76a40aa90"
+      ],
       "verification_evidence": [
         "Full two-file source and three remaining Http::DoAsync call sites inspected, plus server-list async caller and close lifecycle; diff/source review."
       ],
@@ -15987,9 +15989,11 @@
       "note": "No remerge-resolution delta detected. Account for constituent commits before ancestry reconciliation.",
       "decisions": [],
       "review_level": "remerge-probe",
-      "implementation_status": "not-ported",
+      "implementation_status": "history receipt",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected complete first-parent delta and successful empty remerge diff. U212 runtime checks remain applicable; U213 compile debt carries to the next checkpoint."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -15997,7 +16001,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P0"
+      "verification_gate": "P0",
+      "port_commit_locator": "Upstream-Commit: 2449e06d9c360e494cf8da9e5cc6cffe9feeea7a",
+      "implementation_decisions": "No additional resolution delta; retain the owned background-job downloader and the documented server-list worker wait.",
+      "pending_validation": "U213 compile check; consolidated live HTTP and server-list close-time limitations remain."
     },
     {
       "sha": "d005dda5083f28cd3ed7442804241b6c3f3efdb0",
@@ -27280,8 +27287,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 213,
-    "remaining_after_receipt": 148,
+    "accounted_in_this_tree": 214,
+    "remaining_after_receipt": 147,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 213 / 361 source commits recorded
+## Progress: 214 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2361,10 +2361,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U213 — `44b178e30f` — Make all places returning std::async [[nodiscard]]
 
 - **Source:** `44b178e30f6b072ba86ca7a6edacf4a09054858f`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `f2a749554e7cea55ede8f6fab22688e76a40aa90`.
 - **Remaining:** 149 → 148.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Mark HTTP and LAN async results nodiscard, expose LAN annotations in declarations and explicitly ignore the legacy online-request future as source does.
 - **Additional decisions / behavior:** Audit confirms online wait occurs on server-list window outer worker; retain current behavior and concrete comment/tuple include. Advertiser futures retained; downloader uses owned worker. Separate legacy server-list onClose wait and promise/error handling remain unchanged, not claimed fixed. No owner/gameplay choice.
 - **Verification:** Full two-file source and three remaining Http::DoAsync call sites inspected, plus server-list async caller and close lifecycle; diff/source review.
 - **Pending / concerns:** Compile next batch. Live server-list fetch/close/network failure behavior remains unverified; legacy close can wait for in-flight work.
+
+### U214 — `2449e06d9c` — Merge pull request #26955 from tupaschoal/future_hang_download_all
+
+- **Source:** `2449e06d9c360e494cf8da9e5cc6cffe9feeea7a`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 148 → 147.
+- **Disposition:** history receipt.
+- **Manual changes:** History receipt for merge #26955; constituent changes were adapted in U212 and U213.
+- **Additional decisions / behavior:** No additional resolution delta; retain the owned background-job downloader and the documented server-list worker wait.
+- **Verification:** Inspected complete first-parent delta and successful empty remerge diff. U212 runtime checks remain applicable; U213 compile debt carries to the next checkpoint.
+- **Pending / concerns:** U213 compile check; consolidated live HTTP and server-list close-time limitations remain.
