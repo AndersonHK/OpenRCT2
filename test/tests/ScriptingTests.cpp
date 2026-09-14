@@ -714,6 +714,89 @@ TEST_F(ScriptingTests, MapResizeHookObservesCompletedChangesAndAllowsStateUpdate
 }
 
     #ifdef OPENRCT2_TEST_UI_BINDINGS
+TEST_F(ScriptingTests, WidgetWrappersShareTypedPrototypesAcrossGcAndContextRecreation)
+{
+    for (int cycle = 0; cycle < 2; ++cycle)
+    {
+        SCOPED_TRACE(cycle);
+        _context.reset();
+        auto env = CreatePlatformEnvironment();
+        auto uiContext = Ui::CreateUiContext(*env);
+        _context = CreateContext(std::move(env), Audio::CreateDummyAudioContext(), std::move(uiContext));
+        ASSERT_TRUE(_context->Initialise());
+        auto& engine = static_cast<ScriptEngine&>(_context->GetScriptEngine());
+        engine.AddNetworkPlugin(R"(
+            registerPlugin({name:'test-widget-prototypes',version:'1',authors:['openrct2-test'],type:'remote',licence:'MIT',
+                minApiVersion:122,targetApiVersion:122,main:function(){
+                    const specs = [
+                        {type:'button', text:'Button'}, {type:'checkbox',text:'Check'},
+                        {type:'colourpicker',colour:2}, {type:'dropdown',items:['a','b'],selectedIndex:0},
+                        {type:'groupbox',text:'Group'}, {type:'label',text:'Label'},
+                        {type:'listview',columns:[{header:'Column',width:80}],items:[['cell']]},
+                        {type:'spinner',text:'1'}, {type:'textbox',text:'Text',maxLength:40}, {type:'viewport'}
+                    ];
+                    globalThis.widgetWindow = ui.openWindow({classification:'test-widget-prototypes',title:'Widgets',
+                        width:240,height:360,widgets:specs.map((s,i) =>
+                            Object.assign({name:'w'+i,x:10,y:25+30*i,width:190,height:22},s))});
+                    globalThis.wrappers = specs.map((s,i) => widgetWindow.findWidget('w'+i));
+                }});
+        )");
+        engine.LoadTransientPlugins();
+        engine.Tick();
+        auto plugin = std::find_if(engine.GetPlugins().begin(), engine.GetPlugins().end(), [](const auto& candidate) {
+            return candidate->GetMetadata().Name == "test-widget-prototypes";
+        });
+        ASSERT_NE(plugin, engine.GetPlugins().end());
+        ASSERT_TRUE((*plugin)->HasStarted());
+        auto* js = (*plugin)->GetContext();
+        const auto check = [&](const char* code) {
+            auto result = JS_Eval(js, code, strlen(code), "widget-prototype-test", JS_EVAL_TYPE_GLOBAL);
+            if (JS_IsException(result))
+            {
+                auto exception = JS_GetException(js);
+                const char* message = JS_ToCString(js, exception);
+                ADD_FAILURE() << (message == nullptr ? "JS exception" : message);
+                JS_FreeCString(js, message);
+                JS_FreeValue(js, exception);
+            }
+            else
+                EXPECT_EQ(JS_ToBool(js, result), 1);
+            JS_FreeValue(js, result);
+        };
+        check(R"((() => {
+            const properties = ['isPressed','isChecked','colour','selectedIndex','text','textAlign',
+                                'canSelect','text','maxLength','viewport'];
+            const values = [true,true,3,1,'Changed','centred',true,'2',30];
+            const prototypes = wrappers.map(Object.getPrototypeOf);
+            if (new Set(prototypes).size !== 10) throw new Error('Widget types share the wrong prototype');
+            for (let i=0; i<wrappers.length; ++i) {
+                const first = wrappers[i], second = widgetWindow.findWidget('w'+i), property = properties[i];
+                if (first === second || Object.getPrototypeOf(second) !== prototypes[i])
+                    throw new Error('Prototype not shared: '+i);
+                if (first.name !== 'w'+i || first.width !== 190 || !first.isVisible)
+                    throw new Error('Inherited base getter failed: '+i);
+                const descriptor = Object.getOwnPropertyDescriptor(prototypes[i], property);
+                if (!descriptor || typeof descriptor.get !== 'function' || descriptor.enumerable || !descriptor.configurable)
+                    throw new Error('Derived getter descriptor changed: '+i);
+                if (Object.prototype.hasOwnProperty.call(first, property) || Object.keys(first).includes(property))
+                    throw new Error('Derived getter remains on instance: '+i);
+                if (i < values.length) {
+                    first[property] = values[i];
+                    if (second[property] !== values[i]) throw new Error('Inherited setter failed: '+i);
+                } else if (first.viewport === null) throw new Error('Viewport getter failed');
+                first.isDisabled = true;
+                if (!second.isDisabled) throw new Error('Inherited base setter failed: '+i);
+            }
+            return true;
+        })())");
+        JS_RunGC(JS_GetRuntime(js));
+        check("wrappers.length === 10 && wrappers.every((w,i) => w.name === 'w'+i && w.isDisabled)");
+        check("widgetWindow.close(); wrappers[0].isPressed === false && wrappers[8].caret === 0 && wrappers[9].viewport === null");
+        check("wrappers = null; widgetWindow = null; true");
+        JS_RunGC(JS_GetRuntime(js));
+    }
+}
+
 TEST_F(ScriptingTests, TextboxCaretUsesSafeUtf8OffsetsFocusAndBlinkUpdates)
 {
     _context.reset();

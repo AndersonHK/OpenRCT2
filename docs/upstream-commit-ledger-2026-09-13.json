@@ -27539,7 +27539,9 @@
       "decisions": [],
       "review_level": "targeted-code-review",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "4f996081396a1f05d503929f5658fd177afffdbb"
+      ],
       "verification_evidence": [
         "Read full source patch and fork process/polling/HasFocus owners; three source hunks applied exactly. Diff check passes."
       ],
@@ -27579,9 +27581,11 @@
       "note": "Replace AddFuncs registration with final prototype/class setup; retain fork QuickJS /WX count fixes and verify teardown/re-registration.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Complete source patch and fork-parent deltas inspected. Final UiExtensions equals target; ScWidget differs only by retained caret guard. Release x64 MSVC14.44/Vulkan full solution 16.68s zero warnings/errors; all 616 tests/53 suites pass 57.077s, zero failures/errors/disabled. batch-98-build.log and batch-98-full-tests.log/xml. Whitespace checked."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -27591,7 +27595,10 @@
       "merge_conflict_paths": [
         "src/openrct2-ui/scripting/ScWidget.hpp"
       ],
-      "verification_gate": "P7"
+      "verification_gate": "P7",
+      "port_commit_locator": "Upstream-Commit: 15d4b5e933555913d216f4548f673cd55cfb0579",
+      "implementation_decisions": "Normal getter/setter behavior is preserved; derived properties now live on prototypes, changing hasOwnProperty/getOwnPropertyNames reflection as with approved U282. Preserve U284 null-session/null-buffer caret behavior. No gameplay change or new owner decision.",
+      "pending_validation": "Automated debt cleared. Final committed-revision build metadata and handoff follow. Native GPU/UI/input, multiplayer/replay, longer simulation/performance, original S4/placed TD4 and other-platform checks remain documented manual gaps."
     }
   ],
   "fork_files": [
@@ -28309,8 +28316,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 360,
-    "remaining_after_receipt": 1,
+    "accounted_in_this_tree": 361,
+    "remaining_after_receipt": 0,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

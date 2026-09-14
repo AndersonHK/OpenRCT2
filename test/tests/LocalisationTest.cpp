@@ -33,7 +33,8 @@ TEST_F(Localisation, DollarLocaleDefaultsPreserveDedicatedCurrenciesAndInvalidFa
         EXPECT_EQ(Platform::GetCurrencyValue(code), CurrencyType::dollars);
     for (int32_t i = 0; i < EnumValue(CurrencyType::count); ++i)
         EXPECT_EQ(Platform::GetCurrencyValue(CurrencyDescriptors[i].isoCode), static_cast<CurrencyType>(i));
-    for (const char* code : { nullptr, "", "CA", "ZZZ", "cad" })
+    constexpr const char* invalidCodes[] = { nullptr, "", "CA", "ZZZ", "cad" };
+    for (const char* code : invalidCodes)
         EXPECT_EQ(Platform::GetCurrencyValue(code), CurrencyType::pounds);
 }
 

@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 360 / 361 source commits recorded
+## Progress: 361 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3978,10 +3978,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U360 — `75c12dbe7d` — Fix #27070: Gate polled input on window focus (#27078)
 
 - **Source:** `75c12dbe7d091856872da26abb01547cc3a4a0e0`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `4f996081396a1f05d503929f5658fd177afffdbb`.
 - **Remaining:** 2 → 1.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Stop polled gamepad analogue and held scrolling input while the window is unfocused.
 - **Additional decisions / behavior:** Reset per-frame scroll before focus early returns, preserving deadzone, sensitivity, fractional accumulation and focused behavior. Queued event handling and fork simulation timing unchanged; do not broaden into unrelated focus policy.
 - **Verification:** Read full source patch and fork process/polling/HasFocus owners; three source hunks applied exactly. Diff check passes.
 - **Pending / concerns:** Final Windows/UI tests; physical gamepad focus loss/regain remains native manual validation.
+
+### U361 — `15d4b5e933` — Remove AddFuncs calls in ScWidget.hpp (#27044)
+
+- **Source:** `15d4b5e933555913d216f4548f673cd55cfb0579`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 1 → 0.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Registered ten shared derived widget prototypes and selected the correct prototype when wrapping a widget; preserved all property bodies and the fork caret guard. Added a real JS/UI fixture across all types, GC and two context lifetimes. Corrected the U359 test pointer-array declaration.
+- **Additional decisions / behavior:** Normal getter/setter behavior is preserved; derived properties now live on prototypes, changing hasOwnProperty/getOwnPropertyNames reflection as with approved U282. Preserve U284 null-session/null-buffer caret behavior. No gameplay change or new owner decision.
+- **Verification:** Complete source patch and fork-parent deltas inspected. Final UiExtensions equals target; ScWidget differs only by retained caret guard. Release x64 MSVC14.44/Vulkan full solution 16.68s zero warnings/errors; all 616 tests/53 suites pass 57.077s, zero failures/errors/disabled. batch-98-build.log and batch-98-full-tests.log/xml. Whitespace checked.
+- **Pending / concerns:** Automated debt cleared. Final committed-revision build metadata and handoff follow. Native GPU/UI/input, multiplayer/replay, longer simulation/performance, original S4/placed TD4 and other-platform checks remain documented manual gaps.
