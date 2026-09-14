@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 219 / 361 source commits recorded
+## Progress: 220 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2427,10 +2427,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U219 — `3dc5a1a7ef` — Merge pull request #26965 from Gymnasiast/fix/object-load-error-stuff
 
 - **Source:** `3dc5a1a7efb7712d2a43b9bdd01f76c22cb86be3`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `9af1915291b3699bcc7fc036c2885bebf8426092`.
 - **Remaining:** 143 → 142.
 - **Disposition:** history receipt.
 - **Manual changes:** History receipt for #26965, already ported as U217 and U218.
 - **Additional decisions / behavior:** No independent resolution or gameplay delta.
 - **Verification:** Read full first-parent delta; remerge diff empty.
 - **Pending / concerns:** U217–U218 compile debt remains scheduled for next checkpoint.
+
+### U220 — `7cc48f5c14` — Close #25362: Dragged footpaths over hills are disconnected (#25913)
+
+- **Source:** `7cc48f5c142b46d0f8a5ef50e7c9dac969fb530b`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 142 → 141.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Adopt D05 connected terrain-following drag slopes, irregular/Shift placement and stale-preview/modifier fixes; register new core files; add geometry tests.
+- **Additional decisions / behavior:** Preserve fork action/cost/clearance/topology boundaries and Ctrl/Shift bypass. Guard source singleton spike-filter out-of-bounds access; clear unrelated old preview errors. Document axis/slice/spike rules and normalized input contract in B48.
+- **Verification:** Full source inspected; new geometry files source-exact except documented guard/comment. Solution builds passed with zero warnings/errors. Initial 73/74 selected tests passed; corrected normalized-range fixture and all three new geometry tests passed. B48 has exact evidence; U217–U218 compile debt cleared.
+- **Pending / concerns:** Interactive dragging/modifiers/error UI, action-level generated geometry and live MP/replay remain listed in B48; no new owner decision.

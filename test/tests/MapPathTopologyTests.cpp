@@ -16,6 +16,8 @@
 #include <openrct2/peep/GuestPathfinding.h>
 #include <openrct2/world/tile_element/TileElement.h>
 #include <openrct2/world/Map.h>
+#include <openrct2/world/FootpathDragSlope.h>
+#include <openrct2/world/tile_element/Slope.h>
 #include <openrct2/world/MapPresentationSnapshot.h>
 #include <openrct2/world/MapPathTopology.h>
 #include <openrct2/world/MapPathRouteCache.h>
@@ -958,4 +960,81 @@ TEST_F(MapPathTopologyTest, UnchangedChunksReuseStorageAndMapResetDropsWarmData)
     const auto afterReset = MapPathTopology::GetChunk(sourceTile);
     EXPECT_NE(afterReset.buildSerial, initial.buildSerial);
     EXPECT_TRUE(afterReset.paths.empty());
+}
+
+TEST_F(MapPathTopologyTest, DragSlopesConnectHillsInBothAxesAndDragDirectionsWithoutMutatingTopology)
+{
+    for (const bool alongX : { true, false })
+    {
+        const auto forward = alongX ? TILE_ELEMENT_DIRECTION_EAST : TILE_ELEMENT_DIRECTION_NORTH;
+        const uint8_t upSlope = alongX ? kTileSlopeNESideUp : kTileSlopeNWSideUp;
+        const uint8_t downSlope = alongX ? kTileSlopeSWSideUp : kTileSlopeSESideUp;
+        const int32_t bases[] = { 112, 112, 128, 112, 112 };
+        const uint8_t slopes[] = { 0, upSlope, 0, downSlope, 0 };
+        const auto pos = [alongX](int32_t i) { return alongX ? CoordsXY{ 64 + 32 * i, 64 } : CoordsXY{ 64, 64 + 32 * i }; };
+        for (int32_t i = 0; i < 5; i++)
+        {
+            auto* surface = MapGetSurfaceElementAt(pos(i));
+            surface->setBaseZ(bases[i]);
+            surface->setSlope(slopes[i]);
+        }
+        const auto epoch = MapTopology::GetEpoch();
+        const auto connectivity = MapTopology::GetPathConnectivityEpoch();
+        for (const bool reverse : { false, true })
+        {
+            const auto start = pos(reverse ? 4 : 0);
+            const auto end = pos(reverse ? 0 : 4);
+            const auto placements = calculateConnectedPathSlopes(MapRange(start, end).Normalise(), start);
+            ASSERT_EQ(placements.size(), 5u);
+            for (int32_t j = 0; j < 5; j++)
+            {
+                const auto i = reverse ? 4 - j : j;
+                EXPECT_EQ(placements[j].position, CoordsXYZ(pos(i), bases[i]));
+                EXPECT_EQ(placements[j].slope.type, i == 1 || i == 3 ? FootpathSlopeType::sloped : FootpathSlopeType::flat);
+                if (i == 1 || i == 3)
+                    EXPECT_EQ(placements[j].slope.direction, i == 1 ? forward : DirectionReverse(forward));
+            }
+        }
+        EXPECT_EQ(MapTopology::GetEpoch(), epoch);
+        EXPECT_EQ(MapTopology::GetPathConnectivityEpoch(), connectivity);
+        for (int32_t i = 0; i < 5; i++)
+            EXPECT_TRUE(MapGetSurfaceElementAt(pos(i))->isLastForTile());
+    }
+}
+
+TEST_F(MapPathTopologyTest, DragSlopesFilterTallSpikesWithoutChangingTerrainAndHandleSingleSlice)
+{
+    auto* spike = MapGetSurfaceElementAt(CoordsXY{ 96, 64 });
+    spike->setBaseZ(160);
+    const auto placements = calculateConnectedPathSlopes({ { 64, 64 }, { 128, 64 } }, { 64, 64 });
+    ASSERT_EQ(placements.size(), 3u);
+    for (const auto& placement : placements)
+    {
+        EXPECT_EQ(placement.position.z, 112);
+        EXPECT_EQ(placement.slope.type, FootpathSlopeType::flat);
+    }
+    EXPECT_EQ(spike->getBaseZ(), 160); // Clearance remains the placement action's responsibility.
+    const auto singleton = calculateConnectedPathSlopes({ { 96, 64 }, { 96, 64 } }, { 96, 64 });
+    ASSERT_EQ(singleton.size(), 1u);
+    EXPECT_EQ(singleton[0].position, (CoordsXYZ{ 96, 64, 160 }));
+    EXPECT_EQ(singleton[0].slope.type, FootpathSlopeType::flat);
+}
+
+TEST_F(MapPathTopologyTest, DragSlopesUseHighestCrossSectionAndRaiseThreeCornerTerrain)
+{
+    // A wide flat plateau uses the highest terrain across each perpendicular slice.
+    for (int32_t x = 64; x <= 160; x += 32)
+        MapGetSurfaceElementAt(CoordsXY{ x, 96 })->setBaseZ(128);
+    const auto placements = calculateConnectedPathSlopes({ { 64, 64 }, { 160, 96 } }, { 64, 64 });
+    ASSERT_EQ(placements.size(), 8u);
+    for (const auto& placement : placements)
+    {
+        EXPECT_EQ(placement.position.z, 128);
+        EXPECT_EQ(placement.slope.type, FootpathSlopeType::flat);
+    }
+    MapGetSurfaceElementAt(CoordsXY{ 64, 64 })->setSlope(kTileSlopeNCornerDown);
+    const auto raised = calculateConnectedPathSlopes({ { 64, 64 }, { 64, 64 } }, { 64, 64 });
+    ASSERT_EQ(raised.size(), 1u);
+    EXPECT_EQ(raised[0].position.z, 128);
+    EXPECT_EQ(raised[0].slope.type, FootpathSlopeType::flat);
 }

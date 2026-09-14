@@ -16203,7 +16203,9 @@
       "decisions": [],
       "review_level": "remerge-probe",
       "implementation_status": "history receipt",
-      "port_commits": [],
+      "port_commits": [
+        "9af1915291b3699bcc7fc036c2885bebf8426092"
+      ],
       "verification_evidence": [
         "Read full first-parent delta; remerge diff empty."
       ],
@@ -16249,9 +16251,11 @@
         "D05"
       ],
       "review_level": "targeted-code-review",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Full source inspected; new geometry files source-exact except documented guard/comment. Solution builds passed with zero warnings/errors. Initial 73/74 selected tests passed; corrected normalized-range fixture and all three new geometry tests passed. B48 has exact evidence; U217–U218 compile debt cleared."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -16261,7 +16265,10 @@
       "merge_conflict_paths": [
         "src/openrct2/libopenrct2.vcxproj"
       ],
-      "verification_gate": "P3"
+      "verification_gate": "P3",
+      "port_commit_locator": "Upstream-Commit: 7cc48f5c142b46d0f8a5ef50e7c9dac969fb530b",
+      "implementation_decisions": "Preserve fork action/cost/clearance/topology boundaries and Ctrl/Shift bypass. Guard source singleton spike-filter out-of-bounds access; clear unrelated old preview errors. Document axis/slice/spike rules and normalized input contract in B48.",
+      "pending_validation": "Interactive dragging/modifiers/error UI, action-level generated geometry and live MP/replay remain listed in B48; no new owner decision."
     },
     {
       "sha": "f66c0a65f9da330c164cfe2625bcd30fbfd2497b",
@@ -27322,8 +27329,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 219,
-    "remaining_after_receipt": 142,
+    "accounted_in_this_tree": 220,
+    "remaining_after_receipt": 141,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
