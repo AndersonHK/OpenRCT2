@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 202 / 361 source commits recorded
+## Progress: 203 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2240,10 +2240,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U202 — `8de0f10777` — Fix #25496: guest pickup button does not grey out when guest state changes (#26926)
 
 - **Source:** `8de0f107774c4762496f84c2a0c2c544a380b1f1`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `4ab943d26ceb888a63135f5a336454c2a1504fc6`.
 - **Remaining:** 160 → 159.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Move guest DisableWidgets from resize-only path to common prepare-draw; add changelog and actual guest-window state-transition regression.
 - **Additional decisions / behavior:** Preserve all pickup eligibility and fork platform policies; synchronize displayed availability without resize/reopen. Entering-ride platform/boarding remains disabled; walking/ordinary queuing remains enabled. Existing finance/debug tab predicates refreshed too.
 - **Verification:** B41 production compiled; test fixture initially used subclass-only accessor via WindowBase (eight diagnostics). Corrected to public widget flag; final build 6.64s zero warnings/errors, all 49 tests in four suites pass in 7.671s. Actual GuestOpen test covers repeated transitions and three platform/entrance substates with unchanged dimensions.
 - **Pending / concerns:** Rendered appearance and standing interactive/native non-Windows/full disabled-scripting/multiplayer/replay checks remain.
+
+### U203 — `ad578a121d` — Merge Localisation/master into OpenRCT2/develop
+
+- **Source:** `ad578a121d0a6ef633c3d36523626f69949fff5d`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 159 → 158.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Add Brazilian Portuguese labels 7040 path additions, 7041 park info and 7042 date info.
+- **Additional decisions / behavior:** Adopt current source labels in historical order, matching established English IDs. No gameplay change.
+- **Verification:** Read entire three-line patch; final diff/blob d4c1fd5df0 matches source, diff check passes.
+- **Pending / concerns:** No runtime test needed for localized labels; standing debt unchanged.

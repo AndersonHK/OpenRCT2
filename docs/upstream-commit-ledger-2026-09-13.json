@@ -15358,7 +15358,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "4ab943d26ceb888a63135f5a336454c2a1504fc6"
+      ],
       "verification_evidence": [
         "B41 production compiled; test fixture initially used subclass-only accessor via WindowBase (eight diagnostics). Corrected to public widget flag; final build 6.64s zero warnings/errors, all 49 tests in four suites pass in 7.671s. Actual GuestOpen test covers repeated transitions and three platform/entrance substates with unchanged dimensions."
       ],
@@ -15397,9 +15399,11 @@
       "note": "Single-parent localisation update; use final target blobs after English ID reconciliation.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Read entire three-line patch; final diff/blob d4c1fd5df0 matches source, diff check passes."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -15407,7 +15411,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P1"
+      "verification_gate": "P1",
+      "port_commit_locator": "Upstream-Commit: ad578a121d0a6ef633c3d36523626f69949fff5d",
+      "implementation_decisions": "Adopt current source labels in historical order, matching established English IDs. No gameplay change.",
+      "pending_validation": "No runtime test needed for localized labels; standing debt unchanged."
     },
     {
       "sha": "e25c301668db6ac1dd496e30463276f9905d07d5",
@@ -27203,8 +27210,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 202,
-    "remaining_after_receipt": 159,
+    "accounted_in_this_tree": 203,
+    "remaining_after_receipt": 158,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
