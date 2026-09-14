@@ -15270,7 +15270,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "17250edccdfb2b961549e65bfbc763b669a719b9"
+      ],
       "verification_evidence": [
         "All four resulting files exactly match reviewed current source blobs. Checked every changed format-token sequence; only intended Polish STR_1636 differs. No new Polish IDs; three new IDs in each other language. Diff check passed."
       ],
@@ -15312,9 +15314,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Read full four-file delta, applied exact reviewed hunks and checked diff. All four files pass clang C++20 syntax checking with ENABLE_SCRIPTING undefined and no include paths."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -15322,7 +15326,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 840f1c4f9147ad328700377d93d90428a53d197a",
+      "implementation_decisions": "Keep every include in its existing order when scripting is enabled; fork ScRide implementations remain unchanged. Disabled scripting no longer pulls these dependencies. No gameplay or public API change.",
+      "pending_validation": "Enabled-scripting build and runtime checks at next batch; disabled full-project build remains standing debt."
     },
     {
       "sha": "8de0f107774c4762496f84c2a0c2c544a380b1f1",
@@ -27189,8 +27196,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 200,
-    "remaining_after_receipt": 161,
+    "accounted_in_this_tree": 201,
+    "remaining_after_receipt": 160,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

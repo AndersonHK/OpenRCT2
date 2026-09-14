@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 200 / 361 source commits recorded
+## Progress: 201 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2218,10 +2218,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U200 — `bb0215abb0` — Merge Localisation/master into OpenRCT2/develop
 
 - **Source:** `bb0215abb0e4a48cd71e5fc8b105ce664b49d59e`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `17250edccdfb2b961549e65bfbc763b669a719b9`.
 - **Remaining:** 162 → 161.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Add IDs 7040-7042 in Esperanto, Korean and Dutch; apply 32 Polish spelling, grammar and punctuation corrections, including the broken STRINGID placeholder.
 - **Additional decisions / behavior:** Translation-only. Polish STR_1636 fixes RINGID to STRINGID so the ride name formats correctly; other formatting tokens preserved. Correct U199 prose name-map count from 85 to measured 86 without changing its code or audit result.
 - **Verification:** All four resulting files exactly match reviewed current source blobs. Checked every changed format-token sequence; only intended Polish STR_1636 differs. No new Polish IDs; three new IDs in each other language. Diff check passed.
 - **Pending / concerns:** No runtime test required for translation-only delta; standing limitations unchanged.
+
+### U201 — `840f1c4f91` — Move includes in scripting files inside ENABLE_SCRIPTING (#26950)
+
+- **Source:** `840f1c4f9147ad328700377d93d90428a53d197a`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 161 → 160.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Move includes for ScParticle, ScVehicle and ScRide inside ENABLE_SCRIPTING; add ScProfiler spacing.
+- **Additional decisions / behavior:** Keep every include in its existing order when scripting is enabled; fork ScRide implementations remain unchanged. Disabled scripting no longer pulls these dependencies. No gameplay or public API change.
+- **Verification:** Read full four-file delta, applied exact reviewed hunks and checked diff. All four files pass clang C++20 syntax checking with ENABLE_SCRIPTING undefined and no include paths.
+- **Pending / concerns:** Enabled-scripting build and runtime checks at next batch; disabled full-project build remains standing debt.
