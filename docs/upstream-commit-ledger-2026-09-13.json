@@ -13908,7 +13908,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "a7ced1c200cb55e206c22dc97009e55ff9340507"
+      ],
       "verification_evidence": [
         "Read both complete source patches and all flag consumers. Resulting TrackElement header/CPP match this source commit exactly; no old track flag names remain. FlagHolder bit semantics reviewed; receipt whitespace and singleton ancestry gates apply."
       ],
@@ -13945,9 +13947,11 @@
       "note": "Apply MazeConstruction formatting only; preserve fork maze capacity behavior.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Reviewed the full source patch and matched unique fork context. Whole-file normalization confirms only whitespace differences; B32 preceding U174-U179 build passed first attempt 0 warnings/errors in 74.02 seconds and all 240 tests in 16 suites passed in 32.170 seconds. A line-oriented git -w comparison still reports wrapped lines, so whole-file normalization supplies the relevant proof."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -13955,7 +13959,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 1eacb1eec8a512885e4e84d546fe2980fd6b5b58",
+      "implementation_decisions": "Whitespace-only change: callback ordering, errors, audio, tool switching, ride completion and maze behavior remain identical.",
+      "pending_validation": "No runtime change in this receipt. Interactive/non-Windows and multiplayer/replay debt remains as recorded; U174-U179 compile/test debt cleared."
     },
     {
       "sha": "df06376780f443c3038edbd14438cfcf66e48daf",
@@ -27042,8 +27049,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 179,
-    "remaining_after_receipt": 182,
+    "accounted_in_this_tree": 180,
+    "remaining_after_receipt": 181,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

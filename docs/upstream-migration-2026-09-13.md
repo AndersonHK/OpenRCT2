@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 179 / 361 source commits recorded
+## Progress: 180 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1987,10 +1987,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U179 — `5af73fa31b` — Create enum class+FlagHolder for TrackTileElementFlag
 
 - **Source:** `5af73fa31b36391daf3fca281fd978481673b684`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `a7ced1c200cb55e206c22dc97009e55ff9340507`.
 - **Remaining:** 183 → 182.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Replace the private track flags byte with TrackTileElementFlags and has/set operations for seven bits: chain, inverted, cable lift, highlight, green light, brake closed and indestructible. Correct U178 verification wording to acknowledge its retained fork watering redraw.
 - **Additional decisions / behavior:** All seven bit positions 0..6, unknown bit 7, byte storage, packed maze/ride union and setter outcomes remain identical. The makeAllDestructible cheat remains in isIndestructible at this source step. No train physics, brakes, station, ratings or cheat behavior changes. U178 source code needed no repair; its existing MapInvalidateTileFull behavior was preserved, despite the original receipt overstating equality with upstream.
 - **Verification:** Read both complete source patches and all flag consumers. Resulting TrackElement header/CPP match this source commit exactly; no old track flag names remain. FlagHolder bit semantics reviewed; receipt whitespace and singleton ancestry gates apply.
 - **Pending / concerns:** B32 full build and gameplay/import/topology/scripting tests immediately after this receipt; interactive and non-Windows debt retained.
+
+### U180 — `1eacb1eec8` — Fix formatting for MazeConstruction.cpp
+
+- **Source:** `1eacb1eec8a512885e4e84d546fe2980fd6b5b58`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 182 → 181.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Reformat the maze entrance-placement callback exactly as upstream and checkpoint B32 validation.
+- **Additional decisions / behavior:** Whitespace-only change: callback ordering, errors, audio, tool switching, ride completion and maze behavior remain identical.
+- **Verification:** Reviewed the full source patch and matched unique fork context. Whole-file normalization confirms only whitespace differences; B32 preceding U174-U179 build passed first attempt 0 warnings/errors in 74.02 seconds and all 240 tests in 16 suites passed in 32.170 seconds. A line-oriented git -w comparison still reports wrapped lines, so whole-file normalization supplies the relevant proof.
+- **Pending / concerns:** No runtime change in this receipt. Interactive/non-Windows and multiplayer/replay debt remains as recorded; U174-U179 compile/test debt cleared.

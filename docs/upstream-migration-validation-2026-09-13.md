@@ -205,3 +205,13 @@ Behavior decision: adopt upstream's script entrance object clamp after JS uint32
 The new real-plugin test obtains an actual map entrance and writes 0, 1, 2, 3, 255, 256, 257, uint32 max, -1 and 2^32 through the public object property. Each assertion checks getter value, native stored type, direction mask and changed topology generation. Valid UI placement, import values, geometry and ghost policy retain their existing semantics; invalid loaded bytes are not silently rewritten by this refactor. The enum-based UI toggle behaves identically for ride entrance/exit; an invalid internal tool state would now choose entrance rather than XOR an invalid number.
 
 U171's shared face-height effects on the fork graph row, save controls, preview name and marketing spacing are documented in its journal entry. Interactive layouts/entrance tools, multiplayer/replay synchronization and native non-Windows remain unverified.
+
+## Batch 32 — entrance sequence and private tile flags U174–U179
+
+Full Release x64 MSVC/Vulkan build passed first attempt with 0 warnings/errors in 74.02 seconds. All 240 selected tests in 16 suites passed in 32.170 seconds, covering gameplay, ratings, pathfinding, imports, park migration, station assignment, scripting/network, map/path topology, tile elements, clear scenery, widgets and image import. Logs: `obj/upstream-audit/batch-32-build.log` and `batch-32-tests.*`. U174-U179 compile/test debt is cleared.
+
+The expanded real-plugin test retains the ten U173 object cases and adds 15 sequence cases, each checking public/native values, direction mask and topology generation. U174 follows upstream's distinct uint8 narrowing before clamping: 3/7/8/15/16/255 map to 2, 256 to 0, 257 to 1, 258/259 to 2, -1 to 2 and 2^32 to 0. Raw imported low-nibble values remain preserved; the fork guard still rejects sequence >=8 for topology snapshots. Network revision 8 to 9 reflects changed script mutation; API118/save60016 unchanged.
+
+U175-U179 retain uint8 holders and exact positions for entrance legacy-path bit 0, large-scenery accounted bit 0, path bits 0..6, small-scenery support bit 0 and track bits 0..6. Undefined bits remain untouched. No flag layout, normal gameplay, routing, pricing, braking, ghost or erasure-policy change. Track indestructibility still includes the cheat at this checkpoint; the next separate source changes that accessor contract.
+
+U179 corrects U178's original overstatement of exact source equality: its header matches upstream, while its CPP retains the pre-existing fork full-tile watering redraw. No source repair or history rewrite was required. Interactive entrance/layout/rendering, multiplayer/replay synchronization and native non-Windows remain unverified.
