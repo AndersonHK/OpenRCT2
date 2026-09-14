@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 282 / 361 source commits recorded
+## Progress: 283 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3120,10 +3120,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U282 — `9adbdd643b` — Remove AddFuncs calls in ScObject.hpp (#26978)
 
 - **Source:** `9adbdd643bb2cd3413f2f8952c140d002504d59a`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `8013fb81cbf6efaea3fe150a976647e6adf3f404`.
 - **Remaining:** 80 → 79.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Move typed object-wrapper getters to registered shared prototypes with base Object finalization and add real object API/GC regression.
 - **Additional decisions / behavior:** Preserve getter logic and fork asset lookup. Derived properties become inherited: direct access remains, own-property inspection changes; getters remain non-enumerable/configurable so Object.keys/for-in still omit them. Shared prototype mutation affects sibling instances. Record corrected test enumeration assumption in B67.
 - **Verification:** ScObject.hpp matches source exactly. B67 full solution 15.15s zero warnings/errors; final test build 7.92s zero warnings/errors. 22 scripting/path/localization tests passed in 2.392s after fixing only the test expectation; six real fork object types and post-GC access exercised.
 - **Pending / concerns:** External plugin own-property reliance, full heap instrumentation, native rendering/non-Windows/MP/replay remain; no new owner decision.
+
+### U283 — `fae5cf0f9d` — Fix #22854: network connections of plugins pile up when loading another park (#26928)
+
+- **Source:** `fae5cf0f9d7e181c7e769accb5db4560400716ed`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 79 → 78.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Refuse timers and socket connections for stopping plugins while retaining synchronous close handlers; add real shutdown-path regression.
+- **Additional decisions / behavior:** Exact source guards: timer handle 0, socket connect returns same wrapper; existing validation/errors first. Preserve active/ownerless behavior. Inert wrapper creation/registration is unchanged; no claim this fixes all socket-wrapper lifetime issues. See B68.
+- **Verification:** B68 solution 15.16s zero warnings/errors; all 12 ScriptingTests/ObjectDownloaderTest cases passed in 1.940s. Injected disposal fixture exercises actual RemoveNetworkPlugins/EventList shutdown and both timer/connect guards without network traffic.
+- **Pending / concerns:** Live TCP reconnect/server/listener shutdown and exhaustive heap accounting untested; standing native/non-Windows/MP/replay remain. No owner decision.

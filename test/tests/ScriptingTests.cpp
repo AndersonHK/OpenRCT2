@@ -61,6 +61,74 @@ protected:
 
 #ifdef ENABLE_SCRIPTING
 
+    #ifndef DISABLE_NETWORK
+        #include <openrct2/scripting/bindings/network/ScSocket.hpp>
+
+TEST_F(ScriptingTests, StoppingPluginCloseHandlersCannotScheduleTimersOrReconnect)
+{
+    struct ClosingSocket : SocketDataBase
+    {
+        bool ranWhileStopping{};
+        bool checksPassed{};
+
+        void Update() override {}
+        void Dispose() override
+        {
+            if (_disposed)
+                return;
+            _disposed = true;
+            ranWhileStopping = _plugin->IsStopping() && _plugin->HasStarted();
+            _eventList.Raise(SocketData::EVENT_CLOSE, _plugin, { JS_FALSE }, false);
+            auto* js = _plugin->GetContext();
+            const char* check = "runningTimer !== 0 && closeCalls === 1 && stoppedTimeout === 0 && stoppedInterval === 0 && sameSocket";
+            auto result = JS_Eval(js, check, strlen(check), "shutdown-check", JS_EVAL_TYPE_GLOBAL);
+            checksPassed = !JS_IsException(result) && JS_ToBool(js, result) == 1;
+            JS_FreeValue(js, result);
+            _eventList.RemoveAllListeners();
+        }
+    };
+
+    // Even without the stopping guard, this host must fail whitelist validation rather than open a real connection.
+    ASSERT_FALSE(IsOnWhiteList("shutdown-regression.invalid"));
+    auto& engine = static_cast<ScriptEngine&>(_context->GetScriptEngine());
+    engine.AddNetworkPlugin(R"(
+        globalThis.closeCalls = 0;
+        function onShutdownClose() {
+            closeCalls++;
+            globalThis.stoppedTimeout = context.setTimeout(function(){ throw new Error('late timeout'); }, 1);
+            globalThis.stoppedInterval = context.setInterval(function(){ throw new Error('late interval'); }, 1);
+            const socket = network.createSocket();
+            globalThis.sameSocket = socket.connect(1, 'shutdown-regression.invalid') === socket;
+        }
+        registerPlugin({name:'test-shutdown-resources', version:'1', authors:['openrct2-test'],
+            type:'remote', licence:'MIT', minApiVersion:122, targetApiVersion:122,
+            main:function(){ globalThis.runningTimer = context.setTimeout(function(){}, 100000); }});
+    )");
+    engine.LoadTransientPlugins();
+    engine.Tick();
+    auto plugin = std::find_if(engine.GetPlugins().begin(), engine.GetPlugins().end(), [](const auto& candidate) {
+        return candidate->GetMetadata().Name == "test-shutdown-resources";
+    });
+    ASSERT_NE(plugin, engine.GetPlugins().end());
+    ASSERT_TRUE((*plugin)->HasStarted());
+    auto closing = std::make_shared<ClosingSocket>();
+    closing->_plugin = *plugin;
+    auto* js = (*plugin)->GetContext();
+    auto global = JS_GetGlobalObject(js);
+    auto callback = JS_GetPropertyStr(js, global, "onShutdownClose");
+    ASSERT_TRUE(JS_IsFunction(js, callback));
+    closing->_eventList.AddListener(SocketData::EVENT_CLOSE, JSCallback(js, callback));
+    JS_FreeValue(js, callback);
+    JS_FreeValue(js, global);
+    engine.AddSocket(closing);
+    engine.RemoveNetworkPlugins();
+    EXPECT_TRUE(closing->ranWhileStopping);
+    EXPECT_TRUE(closing->checksPassed);
+    EXPECT_TRUE(closing->_disposed);
+    engine.Tick();
+}
+    #endif
+
 class PathNavigatorScriptingTests : public ScriptingTests
 {
 protected:
