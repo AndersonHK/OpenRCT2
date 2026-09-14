@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 24 / 361 source commits recorded
+## Progress: 25 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -282,10 +282,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U024 — `c80a0e168d` — Rename members of FileExtension
 
 - **Source:** `c80a0e168d214a23fffe02a59e84319b1abb1bbe`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `04df30180503c2d3ab5c97e7c8bc7f656c72dc4c`.
 - **Remaining:** 338 → 337.
 - **Disposition:** adopt.
 - **Manual changes:** Rename FileExtension enum members and classifier/converter references without changing extension aliases or enum order.
 - **Additional decisions / behavior:** Keep case-insensitive matching, .pob/.sea/.sv7/.td7 aliases, fork park version and U017 object-packing policy. Naming only.
 - **Verification:** Inspected full source delta; all hunks uniquely matched. No old FileExtension member references remain in src/test. Batch04 UI build and 16 tests passed, details in validation doc.
 - **Pending / concerns:** Next batch compile covers naming changes; custom-object conversion round trips remain pending.
+
+### U025 — `a7881846e1` — Rename members of TunnelGroup
+
+- **Source:** `a7881846e18921dec2e5b1e5109aeb53dd41469e`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 337 → 336.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename TunnelGroup members and all fork references to standard/square/inverted.
+- **Additional decisions / behavior:** Keep numeric group values 0/1/2 and every fork terrain/paint path; apply identifier substitutions rather than replacing track painter bodies. Additional ClassicWoodenTwisterRollerCoaster.cpp and WoodenRollerCoaster.cpp references are included.
+- **Verification:** All complete source parent/child file deltas mechanically verified to contain only the reviewed identifier substitutions (58 files); 60 fork paths updated. Receipt whitespace/singleton checks.
+- **Pending / concerns:** Compile at next naming batch checkpoint; no tunnel sprite/layout changes intended.

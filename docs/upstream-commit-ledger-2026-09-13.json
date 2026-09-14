@@ -1942,7 +1942,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt",
-      "port_commits": [],
+      "port_commits": [
+        "04df30180503c2d3ab5c97e7c8bc7f656c72dc4c"
+      ],
       "verification_evidence": [
         "Inspected full source delta; all hunks uniquely matched. No old FileExtension member references remain in src/test. Batch04 UI build and 16 tests passed, details in validation doc."
       ],
@@ -2036,9 +2038,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt naming only",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "All complete source parent/child file deltas mechanically verified to contain only the reviewed identifier substitutions (58 files); 60 fork paths updated. Receipt whitespace/singleton checks."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -2046,7 +2050,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: a7881846e18921dec2e5b1e5109aeb53dd41469e",
+      "implementation_decisions": "Keep numeric group values 0/1/2 and every fork terrain/paint path; apply identifier substitutions rather than replacing track painter bodies. Additional ClassicWoodenTwisterRollerCoaster.cpp and WoodenRollerCoaster.cpp references are included.",
+      "pending_validation": "Compile at next naming batch checkpoint; no tunnel sprite/layout changes intended."
     },
     {
       "sha": "e80faf5606b59b47b242fec9a5af562baafd64a2",
@@ -25957,8 +25964,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 24,
-    "remaining_after_receipt": 337,
+    "accounted_in_this_tree": 25,
+    "remaining_after_receipt": 336,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
