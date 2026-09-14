@@ -13,6 +13,10 @@
 #include <openrct2/Context.h>
 #include <openrct2/GameState.h>
 #include <openrct2/OpenRCT2.h>
+#include <openrct2/entity/EntityRegistry.h>
+#include <openrct2/ride/Ride.h>
+#include <openrct2/ride/RideData.h>
+#include <openrct2/ride/Vehicle.h>
 #include <openrct2/actions/general/MapChangeSizeAction.h>
 #include <openrct2/scripting/ScriptEngine.h>
 #include <openrct2/world/Map.h>
@@ -802,6 +806,148 @@ TEST_F(ScriptingTests, EntranceObjectAndSequenceWritesClampAndInvalidateTopology
     }
     JS_FreeValue(ctx, element);
     JS_FreeValue(ctx, global);
+}
+
+
+class VehicleSubpositionScriptingTests : public ScriptingTests
+{
+protected:
+    JSContext* _js{};
+    Vehicle* _vehicle{};
+
+    void SetUp() override
+    {
+        ScriptingTests::SetUp();
+        MapInit({ 16, 16 });
+        _vehicle = getGameState().entities.CreateEntity<Vehicle>();
+        ASSERT_NE(_vehicle, nullptr);
+        _vehicle->ride = RideId::GetNull();
+        _vehicle->TrackSubposition = VehicleTrackSubposition::standard;
+        auto& engine = static_cast<ScriptEngine&>(_context->GetScriptEngine());
+        engine.AddNetworkPlugin(R"(
+            registerPlugin({name:'test-subposition',version:'1',authors:['openrct2-test'],
+                type:'remote',licence:'MIT',minApiVersion:122,targetApiVersion:122,main:function(){}});
+        )");
+        engine.LoadTransientPlugins();
+        engine.Tick();
+        for (const auto& plugin : engine.GetPlugins())
+        {
+            if (plugin->GetMetadata().Name == "test-subposition")
+            {
+                ASSERT_TRUE(plugin->HasStarted());
+                _js = plugin->GetContext();
+            }
+        }
+        ASSERT_NE(_js, nullptr);
+        Check("globalThis.vehicle = map.getEntity(" + std::to_string(_vehicle->id.ToUnderlying()) + "); vehicle !== null");
+    }
+
+    void Check(const std::string& code)
+    {
+        SCOPED_TRACE(code);
+        auto result = JS_Eval(_js, code.c_str(), code.size(), "subposition-test", JS_EVAL_TYPE_GLOBAL);
+        if (JS_IsException(result))
+        {
+            auto exception = JS_GetException(_js);
+            const auto* message = JS_ToCString(_js, exception);
+            ADD_FAILURE() << (message ? message : "JS exception");
+            JS_FreeCString(_js, message);
+            JS_FreeValue(_js, exception);
+        }
+        else
+            EXPECT_EQ(JS_ToBool(_js, result), 1);
+        JS_FreeValue(_js, result);
+    }
+};
+
+TEST_F(VehicleSubpositionScriptingTests, BoundsConversionAndMissingMoveInfoPublishOwnedState)
+{
+    auto& entities = getGameState().entities;
+    for (uint32_t value = 0; value < static_cast<uint32_t>(VehicleTrackSubposition::count); value++)
+    {
+        (void)entities.ConsumeEntityVisualChanges();
+        Check("vehicle.subposition = " + std::to_string(value) + "; vehicle.subposition === " + std::to_string(value));
+        EXPECT_EQ(static_cast<uint32_t>(_vehicle->TrackSubposition), value);
+        const auto batch = entities.ConsumeEntityVisualChanges();
+        ASSERT_EQ(batch.changes.size(), 1u);
+        const auto& change = batch.changes.front();
+        EXPECT_EQ(change.handle.id, _vehicle->id);
+        EXPECT_EQ(change.dirty, EntityVisualDirty::full);
+        ASSERT_EQ(change.payloadSize, sizeof(Vehicle));
+        Vehicle captured{};
+        std::memcpy(&captured, batch.payload.data() + change.payloadOffset, sizeof(captured));
+        EXPECT_EQ(static_cast<uint32_t>(captured.TrackSubposition), value);
+    }
+    Check(R"((() => {
+        const before = vehicle.subposition;
+        for (const value of [-1, 17, 255, 4294967295]) {
+            let caught = false;
+            try { vehicle.subposition = value; } catch (e) { caught = e.name === 'RangeError'; }
+            if (!caught || vehicle.subposition !== before) throw new Error('range check: ' + value);
+        }
+        for (const value of ['1', null, true, {}]) {
+            let caught = false;
+            try { vehicle.subposition = value; } catch (e) { caught = e.name === 'TypeError'; }
+            if (!caught || vehicle.subposition !== before) throw new Error('type check: ' + value);
+        }
+        // Upstream uses numeric ToUint32 conversion before checking enum bounds.
+        for (const [value, expected] of [[1.5,1],[4294967296,0],[NaN,0],[Infinity,0]]) {
+            vehicle.subposition = value;
+            if (vehicle.subposition !== expected) throw new Error('conversion: ' + value + ' -> ' + vehicle.subposition);
+        }
+        return true;
+    })())");
+    const auto id = _vehicle->id;
+    entities.EntityRemove(_vehicle);
+    _vehicle = nullptr;
+    Check("vehicle.subposition = 1; vehicle.subposition === 0");
+    EXPECT_EQ(entities.TryGetEntity<Vehicle>(id), nullptr);
+}
+
+TEST_F(VehicleSubpositionScriptingTests, TrackChangePreservesSeatsAndAccruedDirectedSamples)
+{
+    auto* ride = RideAllocateAtIndex(RideId::FromUnderlying(0));
+    ASSERT_NE(ride, nullptr);
+    ride->type = RIDE_TYPE_GO_KARTS;
+    _vehicle->ride = ride->id;
+    _vehicle->TrackLocation = { 128, 128, 112 };
+    _vehicle->SetTrackType(TrackElemType::flat);
+    _vehicle->SetTrackDirection(2);
+    _vehicle->track_progress = 0;
+    _vehicle->TrackSubposition = VehicleTrackSubposition::goKartsLeftLane;
+    _vehicle->UpdateTrackChange();
+    const auto oldPosition = _vehicle->getLocation();
+    _vehicle->num_peeps = 1;
+    _vehicle->num_seats = 2;
+    _vehicle->peep[0] = EntityId::FromUnderlying(123);
+    _vehicle->velocity = 12345;
+    _vehicle->remaining_distance = 678;
+    ride->ratingAccumulator.ticks = 40;
+    ride->ratingAccumulator.excitement = 123456;
+    ride->activeRatingSamples.resize(1);
+    ride->activeRatingSamples[0].originStation = StationIndex::FromUnderlying(0);
+    ride->activeRatingSamples[0].destinationStation = StationIndex::FromUnderlying(1);
+    ride->activeRatingSamples[0].ticks = 23;
+    ride->activeRatingSamples[0].transportDistance = 9876;
+    ride->recentRatingSampleCount = 1;
+    ride->recentRatingSamples[0].ticks = 88;
+    Check("vehicle.subposition = 6; vehicle.subposition === 6");
+    EXPECT_NE(_vehicle->getLocation(), oldPosition);
+    EXPECT_EQ(_vehicle->track_progress, 0);
+    EXPECT_EQ(_vehicle->remaining_distance, 678);
+    EXPECT_EQ(_vehicle->velocity, 12345);
+    EXPECT_EQ(_vehicle->num_peeps, 1);
+    EXPECT_EQ(_vehicle->num_seats, 2);
+    EXPECT_EQ(_vehicle->peep[0], EntityId::FromUnderlying(123));
+    EXPECT_EQ(ride->ratingAccumulator.ticks, 40u);
+    EXPECT_EQ(ride->ratingAccumulator.excitement, 123456);
+    ASSERT_EQ(ride->activeRatingSamples.size(), 1u);
+    EXPECT_EQ(ride->activeRatingSamples[0].originStation, StationIndex::FromUnderlying(0));
+    EXPECT_EQ(ride->activeRatingSamples[0].destinationStation, StationIndex::FromUnderlying(1));
+    EXPECT_EQ(ride->activeRatingSamples[0].ticks, 23u);
+    EXPECT_EQ(ride->activeRatingSamples[0].transportDistance, 9876);
+    EXPECT_EQ(ride->recentRatingSampleCount, 1);
+    EXPECT_EQ(ride->recentRatingSamples[0].ticks, 88u);
 }
 
 #endif

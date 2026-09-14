@@ -16616,7 +16616,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "8644bf5556bf86b52acbf0f16ccc39b8366a7490"
+      ],
       "verification_evidence": [
         "Complete small source patch reviewed and applied."
       ],
@@ -16660,9 +16662,11 @@
         "D08"
       ],
       "review_level": "targeted-code-review",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Full source and UpdateTrackChange/entity publication audited. B50 solution build passes zero warnings/errors, clearing U223/U225 debt. Initial 81/82 selected tests passed; corrected error-realm fixture, both new tests passed (all enum bounds/coercions/payloads and lane/seat/sample preservation). B50 records build and fixture failures."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -16670,7 +16674,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P7"
+      "verification_gate": "P7",
+      "port_commit_locator": "Upstream-Commit: 4872effb804d6bf7ec3e4cba7e4e46217321832d",
+      "implementation_decisions": "Keep upstream ToUint32 coercion including fractional/wrap/NaN behavior, documented in B50. Retain seats, station state and accrued/active/directed rating samples; no broad reset. Full publication handles unchanged coordinates/missing move info. Protocol 11/save 60016 unchanged.",
+      "pending_validation": "Forbidden network callback, occupied/staged boarding over later ticks, nonempty tweener, actual Vulkan pose and live MP/replay remain B50 validation limits; no owner decision pending."
     },
     {
       "sha": "146a7427a39ffb14e184816d70510ed5137a76b1",
@@ -27378,8 +27385,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 227,
-    "remaining_after_receipt": 134,
+    "accounted_in_this_tree": 228,
+    "remaining_after_receipt": 133,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
