@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 306 / 361 source commits recorded
+## Progress: 307 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3384,10 +3384,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U306 — `369341a019` — Rename DataSerialiser method (#27058)
 
 - **Source:** `369341a01916a11579a5815caa2f1169b2c94465`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `374a13f5ba25e06237026aef77b2a523e74b2424`.
 - **Remaining:** 56 → 55.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Rename DataSerialiser and tag methods across production and fork regression callers.
 - **Additional decisions / behavior:** Only identifier changes. Preserve serialization bytes/order, log tag text and independent ObjectAsset API. Fork protocol remains 0.5.5-andersonhk-11.
 - **Verification:** B78: complete-file source/fork token proof 28/31 substitutions, 12/14 files; solution 70.81 seconds zero warnings/errors; 41 play/save/network/clear-mask tests pass 13.190 seconds.
 - **Pending / concerns:** Standing non-Windows, native and live MP/replay checks.
+
+### U307 — `453ddb49b8` — Rename FileScanner fields and methods (#27055)
+
+- **Source:** `453ddb49b8c611c0135051bccdad5294db6b530c`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 55 → 54.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Rename FileScanner methods, fields and all directory scan consumers to camelCase.
+- **Additional decisions / behavior:** Keep enumeration order, wildcard rules, recursion, timestamps/checksums, autosave retention, fork file-index concurrency and companion-object provenance. No serialized field/layout changes.
+- **Verification:** Read full source; complete-file source/fork token proof contains only source camelCase substitutions. Old scanner API consumers absent; all unrelated APIs retained.
+- **Pending / concerns:** Build and meaningful scanner-dependent tests at next coherent checkpoint.
