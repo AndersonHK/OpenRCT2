@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 284 / 361 source commits recorded
+## Progress: 285 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3142,10 +3142,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U284 — `ad94483ff1` — Allow getting and setting caret position for plugin textbox while it's in focus (#26938)
 
 - **Source:** `ad94483ff1029903c3e7f3ddf712c59b16c61ee7`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `38eaae27fe90d8c859eca611bd180cf65feb8736`.
 - **Remaining:** 78 → 77.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Expose focused textbox caret get/set, animate custom textbox carets and guard missing buffers; add UI regression.
 - **Additional decisions / behavior:** Fix source byte/codepoint mismatch: signed requests clamp to UTF-8 buffer byte length and snap backward to a codepoint boundary; clear selection. Guard missing session/buffer. Document byte offsets/inactive behavior in declarations; preserve source blink cycle and API122. See B69.
 - **Verification:** B69 solution 26.44s zero warnings/errors. 24 ScriptingTests/WidgetStateTest pass in 2.031s, including real two-textbox focus, Unicode/negative/end offsets, selection collapse, blink phases and missing/closed sessions.
 - **Pending / concerns:** Actual caret drawing, OS typing/IME/grapheme behavior and existing Unicode caret-width limitation; non-Windows/MP/replay untested. No owner decision.
+
+### U285 — `3e70c47a88` — Fix UI misbehaviors when releasing mouse outside of game window (#27004)
+
+- **Source:** `3e70c47a88994e05995f87c9d6c1f5a349a9f22e`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 77 → 76.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Clamp window-drag pointer X to the game width and dismiss dropdowns released outside all windows.
+- **Additional decisions / behavior:** Preserve fork snapping, vertical toolbar limits, pointer-to-window grab offset and valid dropdown selection. Outside-window release closes the dropdown without selecting an item; game simulation and viewport scrolling unchanged.
+- **Verification:** Read complete two-hunk implementation and changelog source; applied exact delta to existing input state branches and checked fork positioning context.
+- **Pending / concerns:** Compile/input regression at next coherent checkpoint with U286; native cross-window pointer delivery remains. No owner decision.

@@ -20870,7 +20870,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "38eaae27fe90d8c859eca611bd180cf65feb8736"
+      ],
       "verification_evidence": [
         "B69 solution 26.44s zero warnings/errors. 24 ScriptingTests/WidgetStateTest pass in 2.031s, including real two-textbox focus, Unicode/negative/end offsets, selection collapse, blink phases and missing/closed sessions."
       ],
@@ -20910,9 +20912,11 @@
       "note": "Fix outside-window mouse release and gate held/gamepad input on focus; clear accumulated scroll while retaining turbo input pumping.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Read complete two-hunk implementation and changelog source; applied exact delta to existing input state branches and checked fork positioning context."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -20920,7 +20924,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P5"
+      "verification_gate": "P5",
+      "port_commit_locator": "Upstream-Commit: 3e70c47a88994e05995f87c9d6c1f5a349a9f22e",
+      "implementation_decisions": "Preserve fork snapping, vertical toolbar limits, pointer-to-window grab offset and valid dropdown selection. Outside-window release closes the dropdown without selecting an item; game simulation and viewport scrolling unchanged.",
+      "pending_validation": "Compile/input regression at next coherent checkpoint with U286; native cross-window pointer delivery remains. No owner decision."
     },
     {
       "sha": "f219737349cdb1d6425f15f219fe3a12cc02444b",
@@ -27777,8 +27784,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 284,
-    "remaining_after_receipt": 77,
+    "accounted_in_this_tree": 285,
+    "remaining_after_receipt": 76,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
