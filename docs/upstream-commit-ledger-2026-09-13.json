@@ -9701,7 +9701,9 @@
       ],
       "review_level": "targeted-code-review",
       "implementation_status": "adopt typed flags with fork payment/rating callers retained",
-      "port_commits": [],
+      "port_commits": [
+        "02dfaef98638a6f285a183645ab262172e24fae7"
+      ],
       "verification_evidence": [
         "Inspected all actual source changes and complex branch/import contexts. All 21 modern and 15 RCT1 bit positions retained; 53 ordinary fork caller files pass normalized body-token comparison. Batch 22 final build 0 warnings/errors and 176 tests in nine suites pass; initial syntax failure and correction documented in validation log."
       ],
@@ -9871,9 +9873,11 @@
       "note": "No remerge-resolution delta detected. Account for constituent commits before ancestry reconciliation.",
       "decisions": [],
       "review_level": "remerge-probe",
-      "implementation_status": "not-ported",
+      "implementation_status": "history receipt",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected merge parents, empty archived remerge diff, and empty tree delta against the second parent f08bc61f03. Batch 22 validation remains applicable."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -9903,7 +9907,10 @@
         "src/openrct2/world/Park.cpp",
         "test/tests/PlayTests.cpp"
       ],
-      "verification_gate": "P0"
+      "verification_gate": "P0",
+      "port_commit_locator": "Upstream-Commit: 5aa3f85c56c4bd68500380190d9deac357686423",
+      "implementation_decisions": "No additional behavior or code changes. Retain all prior fork adaptations.",
+      "pending_validation": "Standing migration validation debt remains."
     },
     {
       "sha": "2e43967fe5738d991623dba05ef85a8f5d24221c",
@@ -26741,8 +26748,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 136,
-    "remaining_after_receipt": 225,
+    "accounted_in_this_tree": 137,
+    "remaining_after_receipt": 224,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

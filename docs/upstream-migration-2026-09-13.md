@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 136 / 361 source commits recorded
+## Progress: 137 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1514,10 +1514,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U136 — `f08bc61f03` — Refactor park flags into enum class+FlagHolder
 
 - **Source:** `f08bc61f03fa135e2df0c472bfe3b0d5d22af1bd`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `02dfaef98638a6f285a183645ab262172e24fae7`.
 - **Remaining:** 226 → 225.
 - **Disposition:** adopt typed flags with fork payment/rating callers retained.
 - **Manual changes:** Convert 21 modern park flags to uint64 FlagHolder and 15 packed RCT1 flags to uint32 FlagHolder. Adapt 64 fork files across UI, simulation, actions, import/save, scripts and tests. Retain fork fee-target assignments and use typed test snapshots. Simplify conditional setters; preserve finance-window invalidations only outside the scenario editor.
 - **Additional decisions / behavior:** Fork fare/time path choice, entry-price targets, income debuff, guest generation and rewritten park-rating algorithms remain unchanged. Extra fork-only combined price-unlock predicates use hasAny. RCT1 bit 13 remains separately named parkEntryLockedAtFree; source import semantics and RCT2 scenario-only no-money translation are preserved. Save payload remains uint64. Temporary flag backups now retain all 64 bits; unset preserves unused upper 32 bits instead of inadvertently clearing them through a uint32 complement. No fork-defined flag occupies those bits. Keep this preservation correction. No protocol/save-version bump; modern protocol remains 5. No deleted upstream rating/generation algorithms are restored.
 - **Verification:** Inspected all actual source changes and complex branch/import contexts. All 21 modern and 15 RCT1 bit positions retained; 53 ordinary fork caller files pass normalized body-token comparison. Batch 22 final build 0 warnings/errors and 176 tests in nine suites pass; initial syntax failure and correction documented in validation log.
 - **Pending / concerns:** Interactive editor/track-design backup restoration and native non-Windows builds remain unverified. Standing migration validation debt remains.
+
+### U137 — `5aa3f85c56` — Merge pull request #26891 from Gymnasiast/more-enums
+
+- **Source:** `5aa3f85c56c4bd68500380190d9deac357686423`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 225 → 224.
+- **Disposition:** history receipt.
+- **Manual changes:** Record the enum/FlagHolder branch merge; all implementation deltas are already individually ported through U136.
+- **Additional decisions / behavior:** No additional behavior or code changes. Retain all prior fork adaptations.
+- **Verification:** Inspected merge parents, empty archived remerge diff, and empty tree delta against the second parent f08bc61f03. Batch 22 validation remains applicable.
+- **Pending / concerns:** Standing migration validation debt remains.
