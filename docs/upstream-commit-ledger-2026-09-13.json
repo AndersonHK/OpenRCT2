@@ -16486,7 +16486,9 @@
       "decisions": [],
       "review_level": "remerge-probe",
       "implementation_status": "history receipt",
-      "port_commits": [],
+      "port_commits": [
+        "4a68a28610d72fa35287aadc2978d4499217b197"
+      ],
       "verification_evidence": [
         "Successful empty remerge diff and identical tree to reviewed second parent aa65346003."
       ],
@@ -16533,9 +16535,11 @@
       "note": "Single-parent commit despite Merge subject: rename Trigonometry constants and both vehicle consumers.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Full source read; repository search found exactly three affected files. Inverse rename comparison reproduces the old contents exactly after text newline normalization."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -16543,7 +16547,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 3dd304a8d506c422fb3ac0ff1dba566b4f45eece",
+      "implementation_decisions": "Names only: preserve every lookup-table value, formula and vehicle collision/animation behavior.",
+      "pending_validation": "U223/U225 solution compile at next checkpoint."
     },
     {
       "sha": "e356b3cae6f4952b819b3236eda4260ea0df1fe5",
@@ -27357,8 +27364,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 224,
-    "remaining_after_receipt": 137,
+    "accounted_in_this_tree": 225,
+    "remaining_after_receipt": 136,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 224 / 361 source commits recorded
+## Progress: 225 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2482,10 +2482,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U224 — `2e7cb6c4bf` — Merge pull request #26970 from Gymnasiast/refactor/pickup-peep
 
 - **Source:** `2e7cb6c4bfa66559e4f12217a5712eb6368a43ba`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `4a68a28610d72fa35287aadc2978d4499217b197`.
 - **Remaining:** 138 → 137.
 - **Disposition:** history receipt.
 - **Manual changes:** History receipt for #26970; implementation already adapted in U222 and U223.
 - **Additional decisions / behavior:** No additional source resolution. Preserve owned aggregate and fork drawing behavior.
 - **Verification:** Successful empty remerge diff and identical tree to reviewed second parent aa65346003.
 - **Pending / concerns:** U223 solution compilation remains for next checkpoint.
+
+### U225 — `3dd304a8d5` — Merge pull request #26972 from fasma-oO/fasma-contribution
+
+- **Source:** `3dd304a8d506c422fb3ac0ff1dba566b4f45eece`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 137 → 136.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Rename two trigonometry constants and all references to kCamelCase.
+- **Additional decisions / behavior:** Names only: preserve every lookup-table value, formula and vehicle collision/animation behavior.
+- **Verification:** Full source read; repository search found exactly three affected files. Inverse rename comparison reproduces the old contents exactly after text newline normalization.
+- **Pending / concerns:** U223/U225 solution compile at next checkpoint.
