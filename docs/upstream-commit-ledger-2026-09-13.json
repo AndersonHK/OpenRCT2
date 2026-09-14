@@ -13251,7 +13251,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "12ba72078c2fec4767cda2dc259ddf678b4b7cc2"
+      ],
       "verification_evidence": [
         "Read all 76 source-file patches and inspected divergent fork window bodies/dependencies. Proof covers all 72 fork deltas as include/format-only, exact project-item removal and no consumers of the deleted forwarding header. Formatted changed C++ lines; receipt whitespace and singleton ancestry gates apply."
       ],
@@ -13414,9 +13416,11 @@
       "note": "No remerge-resolution delta detected. Account for constituent commits before ancestry reconciliation.",
       "decisions": [],
       "review_level": "remerge-probe",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Reviewed source parents, empty remerge probe and first/second-parent delta scopes. B30 full Release x64 MSVC/Vulkan build passed first attempt with 0 warnings/errors in 86.73 seconds; 172 selected tests passed in 17.523 seconds plus one image import test in 0.003 seconds. Corrected a nonmatching image test filter with a separate run."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -13433,7 +13437,10 @@
         "src/openrct2-ui/windows/Ride.cpp",
         "src/openrct2-ui/windows/Staff.cpp"
       ],
-      "verification_gate": "P0"
+      "verification_gate": "P0",
+      "port_commit_locator": "Upstream-Commit: 34e8149e936a785acf9cbe3cdbf6934d222b9ac9",
+      "implementation_decisions": "No new behavior or unresolved merge decision. Preserve the manually ported fork tree and existing gameplay/render ownership.",
+      "pending_validation": "Interactive windows, title/audio operation and native non-Windows remain unverified; standing migration validation debt retained."
     },
     {
       "sha": "bc68828c7dd07ac51eff12e133156a2f31c43024",
@@ -26972,8 +26979,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 169,
-    "remaining_after_receipt": 192,
+    "accounted_in_this_tree": 170,
+    "remaining_after_receipt": 191,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

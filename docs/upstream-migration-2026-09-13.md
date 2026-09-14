@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 169 / 361 source commits recorded
+## Progress: 170 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1877,10 +1877,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U169 — `b95d24bb68` — Remove openrct2-ui/windows includes
 
 - **Source:** `b95d24bb68218ca9a597063420e4b580592bebc9`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `12ba72078c2fec4767cda2dc259ddf678b4b7cc2`.
 - **Remaining:** 193 → 192.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Port window include cleanup across 72 changed fork paths, remove the redundant UI interface/Viewport.h forwarding header and its project/PCH references, use core viewport and direct rendering/localisation headers, narrow SDL keyboard dependency. Source Construction.h cstddef/cstdint and namespace/whitespace fixes were already covered in U166-U168.
 - **Additional decisions / behavior:** No window behavior, geometry or gameplay change. Retain fork Vulkan/HDR controls, automatic admission pricing, ratings display, safe-erasure traversal and toolbar network visibility policy. The deleted viewport file contained only a forwarding include; no fork declarations or implementation were removed.
 - **Verification:** Read all 76 source-file patches and inspected divergent fork window bodies/dependencies. Proof covers all 72 fork deltas as include/format-only, exact project-item removal and no consumers of the deleted forwarding header. Formatted changed C++ lines; receipt whitespace and singleton ancestry gates apply.
 - **Pending / concerns:** Compile and focused UI/scripting/audio/gameplay checks in B30 immediately after this source receipt; interactive windows and native non-Windows remain unverified.
+
+### U170 — `34e8149e93` — Merge pull request #26915 from Harry-Hopkinson/remove-final-openrct2-ui-includes
+
+- **Source:** `34e8149e936a785acf9cbe3cdbf6934d222b9ac9`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 192 → 191.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** History receipt for the final UI-includes merge; checkpoint B30 validation. The cached actual remerge diff is empty; first-parent delta consists of the U165-U169 header work and the other parent carries tile-element names already ported in U155-U163.
+- **Additional decisions / behavior:** No new behavior or unresolved merge decision. Preserve the manually ported fork tree and existing gameplay/render ownership.
+- **Verification:** Reviewed source parents, empty remerge probe and first/second-parent delta scopes. B30 full Release x64 MSVC/Vulkan build passed first attempt with 0 warnings/errors in 86.73 seconds; 172 selected tests passed in 17.523 seconds plus one image import test in 0.003 seconds. Corrected a nonmatching image test filter with a separate run.
+- **Pending / concerns:** Interactive windows, title/audio operation and native non-Windows remain unverified; standing migration validation debt retained.
