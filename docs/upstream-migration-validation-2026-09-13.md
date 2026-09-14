@@ -122,3 +122,10 @@ All 61 selected Sawyer coding, map/path topology, pathfinding, clear-scenery and
 ## Batch 20 — typed clear flags U134
 
 Full Release x64 MSVC/Vulkan build passed, 0 warnings/errors, 13.66 seconds. All three selected clear-scenery, scripting and network tests passed from bin in 0.377 seconds, including the all-32-mask serialization/query/execute matrix introduced with U124. Logs: `obj/upstream-audit/batch-20-clear-flags-build.log` and `batch-20-clear-flags-tests.*`. Five bit positions and the serialized/visitor uint8 payload remain unchanged; the visitor still exposes itemsToClear. The test now constructs the holder explicitly from its raw byte. Fork protocol revision remains 5. U124 behavioral validation debt remains as recorded above.
+
+
+## Batch 21 — typed peep flags U135
+
+Full Release x64 MSVC/Vulkan build passed with 0 warnings/errors in 77.30 seconds. All 151 selected tests across eight suites passed from bin in 19.859 seconds: pathfinding, ride ratings, train/station assignment, entity import, park migration, scripting and network. Logs: `obj/upstream-audit/batch-21-build.log` and `batch-21-tests.*`. Nine large fork implementation/import/test files passed a body-token comparison after normalizing the reviewed flag operations and Easter-egg setter simplification. The initial post-format comparison caught an include reordering; checking the include multiset separately restored the proof. All 32 peep flag positions retain their previous mask, including bit 31. Modern save/action/visitor/network serialization uses the same uint32 holder; the packed RCT2 source field remains raw uint32. No protocol or park version bump.
+
+Fork fare checks, transport-route speed, optimized Easter-egg interaction mask, guest happiness/motive logic and random-call ordering are preserved. Interactive tracking/Easter-egg presentation and native non-Windows builds remain unverified.

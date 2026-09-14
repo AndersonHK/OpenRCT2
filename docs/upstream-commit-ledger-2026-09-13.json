@@ -9475,7 +9475,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adapt clear flags",
-      "port_commits": [],
+      "port_commits": [
+        "ddd09a1ca588b2acae4fd2b98e084edabe1a4016"
+      ],
       "verification_evidence": [
         "Actual complete three-file source diff inspected; all old constants absent. Batch 20 full build passed 0 warnings/errors and three selected tests passed, including all 32 masks with serialization, query/execute, erasures and ghosts. Whitespace/ancestry checks."
       ],
@@ -9548,9 +9550,11 @@
         "D14"
       ],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt with fork-specific flag callers adapted",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected actual source diff; all 32 old masks mapped to identical positions. Nine fork body-token comparisons pass, including additional fare/speed/interaction callers. Whitespace check passes; Batch 21 full Release x64 MSVC/Vulkan build 0 warnings/errors and 151 tests in eight suites pass."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -9571,7 +9575,10 @@
         "src/openrct2/ride/Vehicle.cpp",
         "src/openrct2/world/Park.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: a70874710a412bdb62f6179018ee72894aae9ed7",
+      "implementation_decisions": "Retain fork guest motives/happiness, fare/value and directed transport logic. Preserve short-circuit random calls and all freeze/tracking/lost-state behavior. Keep the RCT2 packed source PeepFlags field raw; serialize modern holder explicitly. The fork bulk park serializer uses holder in place. Upstream park-rating hunk has no surviving counterpart in the overwritten fork rating implementation and is not reintroduced. Check-name implementation already returns a boolean comparison. Existing 27 script flag strings remain unchanged. No network revision change (fork stays 5) or save-version change.",
+      "pending_validation": "Interactive guest tracking and Easter-egg presentation plus native non-Windows builds remain unverified; standing migration validation debt remains."
     },
     {
       "sha": "f08bc61f03fa135e2df0c472bfe3b0d5d22af1bd",
@@ -26727,8 +26734,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 134,
-    "remaining_after_receipt": 227,
+    "accounted_in_this_tree": 135,
+    "remaining_after_receipt": 226,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

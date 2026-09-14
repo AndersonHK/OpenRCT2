@@ -1380,7 +1380,7 @@ namespace OpenRCT2::RCT1
             dst->InteractionRideIndex = RCT12RideIdToOpenRCT2RideId(src->InteractionRideIndex);
             dst->PeepId = src->ID;
             dst->PathCheckOptimisation = 0;
-            dst->PeepFlags = 0;
+            dst->peepFlags = {};
             dst->PathfindGoal.x = 0xFF;
             dst->PathfindGoal.y = 0xFF;
             dst->PathfindGoal.z = 0xFF;
@@ -2978,7 +2978,7 @@ namespace OpenRCT2::RCT1
         RideUse::GetTypeHistory().Set(dst->id, RCT12GetRideTypesBeenOn(src));
 
         dst->photo1RideRef = RCT12RideIdToOpenRCT2RideId(src->Photo1RideRef);
-        dst->PeepFlags = src->getPeepFlags(_gameVersion == FILE_VERSION_RCT1_LL);
+        dst->peepFlags.holder = src->getPeepFlags(_gameVersion == FILE_VERSION_RCT1_LL);
 
         for (size_t i = 0; i < std::size(src->Thoughts); i++)
         {

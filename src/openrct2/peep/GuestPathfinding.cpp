@@ -23,8 +23,8 @@
 #include "../util/Util.h"
 #include "../world/Footpath.h"
 #include "../world/Map.h"
-#include "../world/MapPathTopology.h"
 #include "../world/MapPathRouteCache.h"
+#include "../world/MapPathTopology.h"
 #include "../world/MapTopology.h"
 #include "../world/Park.h"
 #include "../world/TileElementsView.h"
@@ -101,7 +101,7 @@ namespace OpenRCT2::PathFinding
 
 #pragma region Pathfinding Logging
     // In case this is set to true it will enable code paths that log path finding. The peep will additionally
-    // require to have PEEP_FLAGS_DEBUG_PATHFINDING set in PeepFlags in order to activate logging.
+    // require to have PeepFlag::debugPathfinding set in peepFlags in order to activate logging.
     static constexpr bool kLogPathfinding = false;
 
     template<typename... TArgs>
@@ -109,7 +109,7 @@ namespace OpenRCT2::PathFinding
     {
         if constexpr (kLogPathfinding)
         {
-            if ((peep->PeepFlags & PEEP_FLAGS_DEBUG_PATHFINDING) == 0)
+            if (!peep->peepFlags.has(PeepFlag::debugPathfinding))
                 return;
 
             char buffer[256];
@@ -789,7 +789,7 @@ namespace OpenRCT2::PathFinding
             return kMaxJunctionsStaff;
         }
 
-        bool isLeavingPark = (guest->PeepFlags & PEEP_FLAGS_LEAVING_PARK) != 0;
+        bool isLeavingPark = guest->peepFlags.has(PeepFlag::leavingPark);
         if (isLeavingPark && guest->guestIsLostCountdown < 90)
         {
             return kMaxJunctionsGuestLeavingParkLost;
@@ -880,7 +880,7 @@ namespace OpenRCT2::PathFinding
 
         auto walkingSpeed = kNormalWalkingSpeedMillimetresPerSecond
             * std::clamp<int64_t>(peep.Energy, kPeepMinEnergy, kPeepMaxEnergy) / kNormalWalkingEnergy;
-        if (peep.PeepFlags & PEEP_FLAGS_SLOW_WALK)
+        if (peep.peepFlags.has(PeepFlag::slowWalk))
         {
             walkingSpeed /= 2;
         }
@@ -929,8 +929,7 @@ namespace OpenRCT2::PathFinding
         return EstimateWalkingTravelTime(walkingSpeedMillimetresPerSecond, start, destination);
     }
 
-    bool PlanTransportRoute(
-        Guest& peep, const TileCoordsXYZ& finalGoal, bool hasWalkingAlternative, RideId finalQueueRide)
+    bool PlanTransportRoute(Guest& peep, const TileCoordsXYZ& finalGoal, bool hasWalkingAlternative, RideId finalQueueRide)
     {
         PROFILED_FUNCTION();
 
@@ -957,9 +956,8 @@ namespace OpenRCT2::PathFinding
 
         const auto& gameState = getGameState();
         const bool isPrecipitating = Weather::isPrecipitating();
-        const auto freeRideTieTolerance = isPrecipitating
-            ? std::max<TravelTimeMilliseconds>(30'000, directWalkTime / 5)
-            : std::max<TravelTimeMilliseconds>(15'000, directWalkTime / 10);
+        const auto freeRideTieTolerance = isPrecipitating ? std::max<TravelTimeMilliseconds>(30'000, directWalkTime / 5)
+                                                          : std::max<TravelTimeMilliseconds>(15'000, directWalkTime / 10);
         struct TransportCandidate
         {
             TravelTimeMilliseconds rankingTime{};
@@ -1166,8 +1164,7 @@ namespace OpenRCT2::PathFinding
         if (peep.hasTransportRoute())
         {
             const auto* selectedRide = GetRide(peep.previousRide);
-            const bool selectedBoardingIsOvercrowded = selectedRide != nullptr
-                && !peep.CurrentRideStation.IsNull()
+            const bool selectedBoardingIsOvercrowded = selectedRide != nullptr && !peep.CurrentRideStation.IsNull()
                 && peep.CurrentRideStation.ToUnderlying() < selectedRide->numStations
                 && RideIsTransportStationOvercrowded(*selectedRide, peep.CurrentRideStation);
             if (!selectedBoardingIsOvercrowded)
@@ -2133,7 +2130,7 @@ namespace OpenRCT2::PathFinding
         const auto closestReachable = MapPathRouteCache::GetClosestReachableTargetIndex(entranceTargets, source);
         return closestReachable.has_value()
             ? std::optional<CoordsXYZ>{ entranceTargets[*closestReachable].location.ToCoordsXYZ() }
-                                             : nearestEntrance;
+            : nearestEntrance;
     }
 
     /**
@@ -2209,25 +2206,25 @@ namespace OpenRCT2::PathFinding
     int32_t GuestPathFindParkEntranceLeaving(Peep& peep, uint8_t edges)
     {
         TileCoordsXYZ entranceGoal{};
-        if (peep.PeepFlags & PEEP_FLAGS_PARK_ENTRANCE_CHOSEN)
+        if (peep.peepFlags.has(PeepFlag::parkEntranceChosen))
         {
             entranceGoal = peep.PathfindGoal;
             auto* entranceElement = MapGetParkEntranceElementAt(entranceGoal.ToCoordsXYZ(), false);
             // If entrance no longer exists, choose a new one
             if (entranceElement == nullptr)
             {
-                peep.PeepFlags &= ~(PEEP_FLAGS_PARK_ENTRANCE_CHOSEN);
+                peep.peepFlags.unset(PeepFlag::parkEntranceChosen);
             }
         }
 
-        if (!(peep.PeepFlags & PEEP_FLAGS_PARK_ENTRANCE_CHOSEN))
+        if (!peep.peepFlags.has(PeepFlag::parkEntranceChosen))
         {
             auto chosenEntrance = GetBestParkEntrance(TileCoordsXYZ{ peep.NextLoc });
 
             if (!chosenEntrance.has_value())
                 return GuestPathfindAimless(peep, edges);
 
-            peep.PeepFlags |= PEEP_FLAGS_PARK_ENTRANCE_CHOSEN;
+            peep.peepFlags.set(PeepFlag::parkEntranceChosen);
             entranceGoal = TileCoordsXYZ(*chosenEntrance);
         }
 
@@ -2410,9 +2407,8 @@ namespace OpenRCT2::PathFinding
                     const auto stationStart = station.GetStart();
                     if (MapGetTrackElementAtFromRide(stationStart, ride.id) != nullptr)
                     {
-                        targets.push_back(
-                            { TileCoordsXYZ{ stationStart }, ride.id,
-                              MapPathRouteCache::RouteTargetKind::shopOrFacilityTrack });
+                        targets.push_back({ TileCoordsXYZ{ stationStart }, ride.id,
+                                            MapPathRouteCache::RouteTargetKind::shopOrFacilityTrack });
                     }
                 }
             }
@@ -2470,8 +2466,7 @@ namespace OpenRCT2::PathFinding
         if (auto* guest = peep.as<Guest>(); guest != nullptr)
         {
             RevalidateTransportRouteForServiceConditions(*guest);
-            if (guest->hasTransportRoute()
-                && guest->transportRouteTopologyEpoch != MapTopology::GetPathConnectivityEpoch())
+            if (guest->hasTransportRoute() && guest->transportRouteTopologyEpoch != MapTopology::GetPathConnectivityEpoch())
             {
                 guest->clearTransportRoute();
                 guest->transportRoutePlanningInitialised = false;
@@ -2698,7 +2693,7 @@ namespace OpenRCT2::PathFinding
             }
         }
 
-        if (peep.PeepFlags & PEEP_FLAGS_LEAVING_PARK)
+        if (peep.peepFlags.has(PeepFlag::leavingPark))
         {
             LogPathfinding(&peep, "Completed CalculateNextDestination - peep is leaving the park.");
 

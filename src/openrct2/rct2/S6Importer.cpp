@@ -16,8 +16,8 @@
 #include "../core/GameTime.hpp"
 #include "../core/Path.hpp"
 #include "../core/String.hpp"
-#include "../drawing/ScrollingText.h"
 #include "../core/UnitConversion.h"
+#include "../drawing/ScrollingText.h"
 #include "../entity/Balloon.h"
 #include "../entity/Duck.h"
 #include "../entity/Guest.h"
@@ -1711,7 +1711,7 @@ namespace OpenRCT2::RCT2
             dst->InteractionRideIndex = RCT12RideIdToOpenRCT2RideId(src->InteractionRideIndex);
             dst->PeepId = src->Id;
             dst->PathCheckOptimisation = src->PathCheckOptimisation;
-            dst->PeepFlags = src->PeepFlags;
+            dst->peepFlags.holder = src->PeepFlags;
             if (isNullLocation(src->PathfindGoal))
             {
                 dst->PathfindGoal.SetNull();

@@ -106,7 +106,7 @@ namespace OpenRCT2
                         continue;
 
                     while (UnpackOwner(observed) > ownerValue
-                        && !entry.compare_exchange_weak(observed, desired, std::memory_order_relaxed))
+                           && !entry.compare_exchange_weak(observed, desired, std::memory_order_relaxed))
                     {
                     }
                     return;
@@ -161,8 +161,7 @@ namespace OpenRCT2
             static std::optional<uint32_t> MakeKey(const CoordsXY& location, HandymanService service)
             {
                 const TileCoordsXY tile(location);
-                if (tile.x < 0 || tile.y < 0 || tile.x >= kMaximumMapSizeTechnical
-                    || tile.y >= kMaximumMapSizeTechnical)
+                if (tile.x < 0 || tile.y < 0 || tile.x >= kMaximumMapSizeTechnical || tile.y >= kMaximumMapSizeTechnical)
                 {
                     return std::nullopt;
                 }
@@ -224,8 +223,8 @@ namespace OpenRCT2
                 case PeepState::emptyingBin:
                     return std::pair{ CoordsXY{ staff.x, staff.y }, HandymanService::emptyingBin };
                 case PeepState::watering:
-                    return std::pair{
-                        CoordsXY{ staff.NextLoc } + CoordsDirectionDelta[staff.Var37], HandymanService::watering };
+                    return std::pair{ CoordsXY{ staff.NextLoc } + CoordsDirectionDelta[staff.Var37],
+                                      HandymanService::watering };
                 default:
                     return std::nullopt;
             }
@@ -1917,10 +1916,10 @@ namespace OpenRCT2
         auto* animObj = objManager.GetLoadedObject<PeepAnimationsObject>(AnimationObjectIndex);
 
         // NB: security staff have two animations groups: one regular, and one slow-walking
-        PeepFlags &= ~PEEP_FLAGS_SLOW_WALK;
+        peepFlags.unset(PeepFlag::slowWalk);
         if (animObj->IsSlowWalking(newAnimationGroup))
         {
-            PeepFlags |= PEEP_FLAGS_SLOW_WALK;
+            peepFlags.set(PeepFlag::slowWalk);
         }
 
         AnimationType = PeepAnimationType::invalid;
@@ -1939,9 +1938,9 @@ namespace OpenRCT2
 
     void Staff::Update()
     {
-        if (PeepFlags & PEEP_FLAGS_POSITION_FROZEN)
+        if (peepFlags.has(PeepFlag::positionFrozen))
         {
-            if (!(PeepFlags & PEEP_FLAGS_ANIMATION_FROZEN))
+            if (!peepFlags.has(PeepFlag::animationFrozen))
             {
                 // This is circumventing other logic, so only update every few ticks
                 if ((getGameState().currentTicks & 3) == 0)
@@ -1955,12 +1954,12 @@ namespace OpenRCT2
             }
             return;
         }
-        else if (PeepFlags & PEEP_FLAGS_ANIMATION_FROZEN)
+        else if (peepFlags.has(PeepFlag::animationFrozen))
         {
             // Animation is frozen while position is not. This allows a peep to walk
             // around without its sprite being updated, which looks very glitchy.
             // We'll just remove the flag and continue as normal, in this case.
-            PeepFlags &= ~PEEP_FLAGS_ANIMATION_FROZEN;
+            peepFlags.unset(PeepFlag::animationFrozen);
         }
 
         // Walking speed logic

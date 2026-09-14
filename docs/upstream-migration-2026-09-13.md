@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 134 / 361 source commits recorded
+## Progress: 135 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1492,10 +1492,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U134 — `11bf58dceb` — Refactor CLEARABLE_ITEMS into enum class+FlagHolder
 
 - **Source:** `11bf58dceb588ec4e1d04fa2e247b55979cbb0bc`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `ddd09a1ca588b2acae4fd2b98e084edabe1a4016`.
 - **Remaining:** 228 → 227.
 - **Disposition:** adapt clear flags.
 - **Manual changes:** Replace clear bit constants with scoped ClearableItem/uint8 FlagHolder; update UI, action predicates, visitor and serializer; adapt fork regression raw-mask constructor.
 - **Additional decisions / behavior:** Preserve approved D10 bit values and behavior, including independent walls/additions. Serialize and visit holder byte so wire payload width/meaning stays the same; retain fork stream revision 5. No compatibility shim or new gameplay change.
 - **Verification:** Actual complete three-file source diff inspected; all old constants absent. Batch 20 full build passed 0 warnings/errors and three selected tests passed, including all 32 masks with serialization, query/execute, erasures and ghosts. Whitespace/ancestry checks.
 - **Pending / concerns:** Existing U124 live-staff, positive-cost insufficient-funds, embedded-script and interactive debt remains.
+
+### U135 — `a70874710a` — Refactor peep flags to enum class+FlagHolder
+
+- **Source:** `a70874710a412bdb62f6179018ee72894aae9ed7`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 227 → 226.
+- **Disposition:** adopt with fork-specific flag callers adapted.
+- **Manual changes:** Convert peep flags to a uint32 FlagHolder with all 32 original bit positions; adapt actions, UI, scripts, snapshots, save/import and simulation callers. Port the eighteen Easter-egg conditional setters and bool return. Convert additional fork fare/routing and test callers and the optimized interaction mask.
+- **Additional decisions / behavior:** Retain fork guest motives/happiness, fare/value and directed transport logic. Preserve short-circuit random calls and all freeze/tracking/lost-state behavior. Keep the RCT2 packed source PeepFlags field raw; serialize modern holder explicitly. The fork bulk park serializer uses holder in place. Upstream park-rating hunk has no surviving counterpart in the overwritten fork rating implementation and is not reintroduced. Check-name implementation already returns a boolean comparison. Existing 27 script flag strings remain unchanged. No network revision change (fork stays 5) or save-version change.
+- **Verification:** Inspected actual source diff; all 32 old masks mapped to identical positions. Nine fork body-token comparisons pass, including additional fare/speed/interaction callers. Whitespace check passes; Batch 21 full Release x64 MSVC/Vulkan build 0 warnings/errors and 151 tests in eight suites pass.
+- **Pending / concerns:** Interactive guest tracking and Easter-egg presentation plus native non-Windows builds remain unverified; standing migration validation debt remains.

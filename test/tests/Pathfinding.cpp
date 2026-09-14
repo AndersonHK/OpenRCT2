@@ -9,8 +9,8 @@
 #include <openrct2/GameState.h>
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/core/String.hpp>
-#include <openrct2/entity/Guest.h>
 #include <openrct2/entity/EntityRegistry.h>
+#include <openrct2/entity/Guest.h>
 #include <openrct2/management/Marketing.h>
 #include <openrct2/peep/GuestPathfinding.h>
 #include <openrct2/platform/Platform.h>
@@ -486,7 +486,6 @@ TEST_F(PathfindingTestBase, RainRelaxesTheTransportTimeSavingThreshold)
 
     Weather::forceWeather(Weather::Type::rain);
     EXPECT_TRUE(PathFinding::PlanTransportRoute(guest, { 100, 0, 0 }));
-
 }
 
 TEST_F(PathfindingTestBase, RainPrefersShelteredSelectedLegOverEquivalentExposedService)
@@ -532,7 +531,6 @@ TEST_F(PathfindingTestBase, RainPrefersShelteredSelectedLegOverEquivalentExposed
     const auto shelteredJourney = RideGetTransportJourney(
         *sheltered, StationIndex::FromUnderlying(0), StationIndex::FromUnderlying(1));
     EXPECT_EQ(shelteredJourney.shelteredTravelTimeMilliseconds, shelteredJourney.travelTimeMilliseconds);
-
 }
 
 TEST_F(PathfindingTestBase, TransportRoutingExcludesOnlyFullQueueAndPlatformAndRevalidatesSelectedService)
@@ -595,7 +593,6 @@ TEST_F(PathfindingTestBase, FreeTransportMayWinAReasonableTimeTie)
     ClearTransportRoute(guest);
     monorail->priceTarget = RidePriceTarget::goodValue;
     EXPECT_FALSE(PathFinding::PlanTransportRoute(guest, { 100, 0, 0 }));
-
 }
 
 TEST_F(PathfindingTestBase, DiscountRequiresLessDryTimeSavingThanFair)
@@ -614,7 +611,6 @@ TEST_F(PathfindingTestBase, DiscountRequiresLessDryTimeSavingThanFair)
 
     monorail->priceTarget = RidePriceTarget::neutral;
     EXPECT_FALSE(PathFinding::PlanTransportRoute(guest, { 100, 0, 0 }));
-
 }
 
 TEST_F(PathfindingTestBase, ExtortiveTransportRequiresNoWalkingOrNonExtortiveAlternative)
@@ -655,7 +651,6 @@ TEST_F(PathfindingTestBase, DisconnectedTransportSearchRetainsFullSpatialFallbac
     EXPECT_TRUE(PathFinding::PlanTransportRoute(guest, { 300, 0, 0 }, false));
     EXPECT_EQ(guest.previousRide, monorail->id);
     EXPECT_TRUE(guest.transportRouteWasExtortive);
-
 }
 
 TEST_F(PathfindingTestBase, TransportIsBoardedOnlyAsAPlannedRouteLeg)
@@ -686,7 +681,7 @@ TEST_F(PathfindingTestBase, TransportIsBoardedOnlyAsAPlannedRouteLeg)
 
     monorail.priceTarget = RidePriceTarget::neutral;
     guest.setTransportRoute(monorail.id, StationIndex::FromUnderlying(0), StationIndex::FromUnderlying(1));
-    guest.PeepFlags |= PEEP_FLAGS_LEAVING_PARK;
+    guest.peepFlags.set(PeepFlag::leavingPark);
     EXPECT_TRUE(guest.shouldGoOnRide(monorail, StationIndex::FromUnderlying(0), false, true));
 
     const auto happinessBefore = guest.happiness;
@@ -696,7 +691,6 @@ TEST_F(PathfindingTestBase, TransportIsBoardedOnlyAsAPlannedRouteLeg)
 
     guest.onExitRide(monorail);
     EXPECT_FALSE(guest.hasTransportRoute());
-
 }
 
 TEST_F(PathfindingTestBase, TransportCannotBecomeAnOrdinaryAttractionThroughRideAdvertising)
