@@ -3479,7 +3479,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "ported",
-      "port_commits": [],
+      "port_commits": [
+        "128e4489257bf8f1014fd991cf09faeeaab03d93"
+      ],
       "verification_evidence": [
         "Reviewed full source patch and Slide.png artwork. Confirmed fork assets matched source parent before replacement; all new assets byte-identical to source; archived SVG identical to the original Git blob (working-tree CRLF normalized); both ICNS headers/lengths and JSON/plist resource references valid. Exact-one ancestry checked."
       ],
@@ -3517,9 +3519,11 @@
       "note": "Single-parent localisation update; use final target blobs after English ID reconciliation.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "ported",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected every source hunk and checked unique 7039 IDs plus removal of the malformed token. Source/diff and exact-one ancestry checked."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -3527,7 +3531,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P1"
+      "verification_gate": "P1",
+      "port_commit_locator": "Upstream-Commit: 687fa7181df6747d544930250d6272f1deccd58b",
+      "implementation_decisions": "Adopt all text corrections including malformed sausage-value thought opening quote; preserve valid STRINGID/STRING and formatting placeholders. The lost/stuck guest message changes wording only, with no pathfinding or thought-generation changes.",
+      "pending_validation": "Parser tests at the next enum-refactor checkpoint."
     },
     {
       "sha": "e103cb11bb7e116bbd48d7bf01c7a8163391b148",
@@ -26139,8 +26146,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 50,
-    "remaining_after_receipt": 311,
+    "accounted_in_this_tree": 51,
+    "remaining_after_receipt": 310,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
