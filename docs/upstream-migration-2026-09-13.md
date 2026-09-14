@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 69 / 361 source commits recorded
+## Progress: 70 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -777,10 +777,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U069 — `cb13ddba48` — Rename members of GuestList::GuestViewType
 
 - **Source:** `cb13ddba4897d3ab96e26623636c9ded253ee454`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `f6c2de3d944a2e8426ae45241e7cf6a12a36ae99`.
 - **Remaining:** 293 → 292.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename GuestViewType members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Keep actions/thoughts values, default view, thought freshness filtering, action formatting and group aggregation unchanged. Preserve fork guest-list UI behavior; no changes to thought generation or guest decisions.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U070 — `95cf306886` — Rename members of GuestList::GuestFilterType
+
+- **Source:** `95cf3068869c314b2aea0cd683651e2b60e1dbbf`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 292 → 291.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename GuestFilterType members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Preserve filter values, ride and queue matching, wildcard thought arguments, labels and selection state. This is UI naming only; guest simulation and fork economics remain unchanged.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
