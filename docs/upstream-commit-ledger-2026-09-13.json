@@ -11467,7 +11467,9 @@
       "decisions": [],
       "review_level": "remerge-probe",
       "implementation_status": "history receipt",
-      "port_commits": [],
+      "port_commits": [
+        "313324f5f74cd62fd817d0aac4c0052c1c16e108"
+      ],
       "verification_evidence": [
         "Inspected both parents and empty remerge; second-parent delta is exactly the already-ported Android orientation change."
       ],
@@ -11543,9 +11545,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Complete actual source diff reviewed and all 11 source token streams verified as the 26 reviewed names only. All 11 fork deltas pass the same token proof after changed-line formatting; whitespace check passed."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -11559,7 +11563,10 @@
         "src/openrct2/ride/Vehicle.cpp",
         "src/openrct2/ride/Vehicle.h"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: bdbe9013ccbcfb36be7c3948f296da8dcd9a61c2",
+      "implementation_decisions": "Identifier changes only: preserve fork motion, acceleration, braking, station stopping, per-car/directed-leg calculations and rider-control expressions. Do not replace any implementation with upstream bodies.",
+      "pending_validation": "Batch 27 build for U150-U154 is running; targeted tests will follow before further C++ edits."
     },
     {
       "sha": "ac2515d483bb4e7f3d7e09cdce79a44653f1722e",
@@ -26860,8 +26867,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 153,
-    "remaining_after_receipt": 208,
+    "accounted_in_this_tree": 154,
+    "remaining_after_receipt": 207,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

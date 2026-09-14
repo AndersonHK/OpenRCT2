@@ -40,10 +40,10 @@ namespace OpenRCT2
     extern Breakdown _vehicleBreakdown;
     extern StationIndex _vehicleStationIndex;
     extern uint32_t _vehicleMotionTrackFlags;
-    extern int32_t _vehicleVelocityF64E08;
-    extern int32_t _vehicleVelocityF64E0C;
-    extern int32_t _vehicleUnkF64E10;
-    extern uint8_t _vehicleF64E2C;
+    extern int32_t _vehicleVelocity;
+    extern int32_t _vehicleRemainingDistance;
+    extern int32_t _vehicleSubpositionsMoved;
+    extern uint8_t _vehicleBrakeSoundTimeout;
     extern Vehicle* _vehicleFrontVehicle;
     extern CoordsXYZ _vehicleCurPosition;
 
@@ -57,7 +57,7 @@ namespace OpenRCT2
      *
      *  rct2: 0x006DAB90
      */
-    void Vehicle::UpdateTrackMotionUpStopCheck() const
+    void Vehicle::upstopCheck() const
     {
         const auto* carEntry = Entry();
         if (carEntry == nullptr)
@@ -130,7 +130,7 @@ namespace OpenRCT2
      * merely as a velocity regulator, in a closed state. When the brake is open, it
      * boosts the train to the speed limit
      */
-    void Vehicle::ApplyNonStopBlockBrake()
+    void Vehicle::applyNonstopBlockBrake()
     {
         if (velocity >= 0)
         {
@@ -153,7 +153,7 @@ namespace OpenRCT2
      *
      * Modifies the train's velocity influenced by a block brake
      */
-    void Vehicle::ApplyStopBlockBrake()
+    void Vehicle::applyStopBlockBrake()
     {
         // Slow it down till completely stop the car
         _vehicleMotionTrackFlags |= VEHICLE_UPDATE_MOTION_TRACK_FLAG_VEHICLE_AT_BLOCK_BRAKE;
@@ -169,7 +169,7 @@ namespace OpenRCT2
         }
     }
 
-    void Vehicle::ApplyCableLiftBlockBrake(bool brakeClosed)
+    void Vehicle::applyCableLiftBlockBrake(bool brakeClosed)
     {
         // If we are already on the cable lift, ignore the brake
         if (status == Status::travellingCableLift)
@@ -203,7 +203,7 @@ namespace OpenRCT2
      *
      *  rct2: 0x006DAC43
      */
-    void Vehicle::CheckAndApplyBlockSectionStopSite()
+    void Vehicle::handleBlockBrake()
     {
         auto curRide = GetRide();
         if (curRide == nullptr)
@@ -242,16 +242,16 @@ namespace OpenRCT2
                             TrackLocation, *curRide, GetTrackDirection(), &track, &zUnused, &direction, false)
                         && track.element != nullptr && track.element->asTrack()->HasCableLift())
                     {
-                        ApplyCableLiftBlockBrake(curRide->isBlockSectioned() && trackElement->asTrack()->IsBrakeClosed());
+                        applyCableLiftBlockBrake(curRide->isBlockSectioned() && trackElement->asTrack()->IsBrakeClosed());
                         break;
                     }
                 }
                 [[fallthrough]];
             case TrackElemType::diagBlockBrakes:
                 if (curRide->isBlockSectioned() && trackElement->asTrack()->IsBrakeClosed())
-                    ApplyStopBlockBrake();
+                    applyStopBlockBrake();
                 else
-                    ApplyNonStopBlockBrake();
+                    applyNonstopBlockBrake();
 
                 break;
             case TrackElemType::endStation:
@@ -270,7 +270,7 @@ namespace OpenRCT2
                     {
                         if (trackElement->asTrack()->IsBrakeClosed())
                         {
-                            ApplyStopBlockBrake();
+                            applyStopBlockBrake();
                         }
                     }
                 }
@@ -284,7 +284,7 @@ namespace OpenRCT2
      *
      *  rct2: 0x006DADAE
      */
-    void Vehicle::UpdateVelocity()
+    void Vehicle::updateVelocity()
     {
         int32_t nextVelocity = acceleration + velocity;
         if (flags.has(VehicleFlag::stoppedBySafetyCutout))
@@ -302,11 +302,11 @@ namespace OpenRCT2
         }
         velocity = nextVelocity;
 
-        _vehicleVelocityF64E08 = nextVelocity;
-        _vehicleVelocityF64E0C = (nextVelocity >> 10) * 42;
+        _vehicleVelocity = nextVelocity;
+        _vehicleRemainingDistance = (nextVelocity >> 10) * 42;
     }
 
-    static void BlockBrakesOpenPreviousSection(
+    static void blockBrakesOpenPreviousSection(
         const Ride& ride, const CoordsXYZ& vehicleTrackLocation, TileElement* tileElement)
     {
         CoordsXYZ location = vehicleTrackLocation;
@@ -329,7 +329,7 @@ namespace OpenRCT2
         }
     }
 
-    void Vehicle::UpdateGoKartAttemptSwitchLanes()
+    void Vehicle::goKartAttemptLaneSwitch()
     {
         uint16_t probability = 0x8000;
         if (flags.has(VehicleFlag::currentlyColliding))
@@ -347,9 +347,9 @@ namespace OpenRCT2
         }
     }
 
-    static void vehicle_update_play_water_splash_sound()
+    static void playSplashSound()
     {
-        if (_vehicleVelocityF64E08 <= kBlockBrakeBaseSpeed)
+        if (_vehicleVelocity <= kBlockBrakeBaseSpeed)
         {
             return;
         }
@@ -361,7 +361,7 @@ namespace OpenRCT2
      *
      *  rct2: 0x006DB59E
      */
-    void Vehicle::UpdateHandleWaterSplash() const
+    void Vehicle::handleWaterSplash() const
     {
         const auto* rideEntry = GetRideEntry();
         auto trackType = GetTrackType();
@@ -386,7 +386,7 @@ namespace OpenRCT2
                         {
                             if (track_progress == 4)
                             {
-                                vehicle_update_play_water_splash_sound();
+                                playSplashSound();
                             }
                         }
                     }
@@ -399,7 +399,7 @@ namespace OpenRCT2
             {
                 if (track_progress == 12)
                 {
-                    vehicle_update_play_water_splash_sound();
+                    playSplashSound();
                 }
             }
         }
@@ -409,7 +409,7 @@ namespace OpenRCT2
             {
                 if (track_progress == 48)
                 {
-                    vehicle_update_play_water_splash_sound();
+                    playSplashSound();
                 }
             }
         }
@@ -419,11 +419,11 @@ namespace OpenRCT2
      *
      *  rct2: 0x006DBF3E
      */
-    void Vehicle::Sub6DBF3E()
+    void Vehicle::findStationStopPoint()
     {
         const auto* carEntry = Entry();
 
-        acceleration /= _vehicleUnkF64E10;
+        acceleration /= _vehicleSubpositionsMoved;
         if (TrackSubposition == VehicleTrackSubposition::chairliftGoingBack)
         {
             return;
@@ -480,7 +480,7 @@ namespace OpenRCT2
         }
 
         uint16_t ax = track_progress;
-        if (_vehicleVelocityF64E08 < 0)
+        if (_vehicleVelocity < 0)
         {
             if (ax <= 22)
             {
@@ -513,7 +513,7 @@ namespace OpenRCT2
      * Determine whether to use block brake speed or brake speed. If block brake is closed or no block brake present, use the
      * brake's speed; if block brake is open, use maximum of brake speed or block brake speed.
      */
-    uint8_t Vehicle::ChooseBrakeSpeed() const
+    uint8_t Vehicle::chooseBrakeSpeed() const
     {
         if (!trackTypeIsBrakes(GetTrackType()))
             return brake_speed;
@@ -531,7 +531,7 @@ namespace OpenRCT2
     /**
      * Populate the vehicle's brake_speed and BlockBrakeSpeed values.
      */
-    void Vehicle::PopulateBrakeSpeed(const CoordsXYZ& vehicleTrackLocation, TrackElement& brake)
+    void Vehicle::populateBrakeSpeed(const CoordsXYZ& vehicleTrackLocation, TrackElement& brake)
     {
         auto trackSpeed = brake.GetBrakeBoosterSpeed();
         brake_speed = trackSpeed;
@@ -567,8 +567,7 @@ namespace OpenRCT2
      *
      *  rct2: 0x006DB08C
      */
-    bool Vehicle::UpdateTrackMotionForwardsGetNewTrack(
-        TrackElemType trackType, const Ride& curRide, const RideObjectEntry& rideEntry)
+    bool Vehicle::trackMotionForwardsGetNewTrack(TrackElemType trackType, const Ride& curRide, const RideObjectEntry& rideEntry)
     {
         CoordsXYZD location = {};
 
@@ -598,7 +597,7 @@ namespace OpenRCT2
                     }
                 }
                 MapInvalidateTileForRendering({ TrackLocation, tileElement->getBaseZ(), tileElement->getClearanceZ() });
-                BlockBrakesOpenPreviousSection(curRide, TrackLocation, tileElement);
+                blockBrakesOpenPreviousSection(curRide, TrackLocation, tileElement);
                 if (trackTypeIsBlockBrakes(trackType))
                 {
                     BlockBrakeSetLinkedBrakesClosed(TrackLocation, *tileElement->asTrack(), true);
@@ -708,7 +707,7 @@ namespace OpenRCT2
                 || trackType == TrackElemType::sBendLeft || trackType == TrackElemType::sBendRight
                 || (curRide.flags.has(RideFlag::passStationNoStopping) && tileElement->asTrack()->IsStation()))
             {
-                UpdateGoKartAttemptSwitchLanes();
+                goKartAttemptLaneSwitch();
             }
         }
 
@@ -742,7 +741,7 @@ namespace OpenRCT2
         }
         SetTrackDirection(location.direction);
         SetTrackType(trackType);
-        PopulateBrakeSpeed(TrackLocation, *tileElement->asTrack());
+        populateBrakeSpeed(TrackLocation, *tileElement->asTrack());
         if (flags.has(VehicleFlag::stoppedOnHoldingBrake) && vertical_drop_countdown <= 0)
         {
             flags.unset(VehicleFlag::stoppedOnHoldingBrake);
@@ -767,7 +766,7 @@ namespace OpenRCT2
      *
      *  rct2: 0x006DAEB9
      */
-    bool Vehicle::UpdateTrackMotionForwards(const CarEntry* carEntry, const Ride& curRide, const RideObjectEntry& rideEntry)
+    bool Vehicle::trackMotionForwards(const CarEntry* carEntry, const Ride& curRide, const RideObjectEntry& rideEntry)
     {
         EntityId otherVehicleIndex = EntityId::GetNull();
         while (true)
@@ -780,11 +779,11 @@ namespace OpenRCT2
                     vehicle_type ^= 1;
                     carEntry = Entry();
                 }
-                if (_vehicleVelocityF64E08 >= 0x40000)
+                if (_vehicleVelocity >= 0x40000)
                 {
-                    acceleration = -_vehicleVelocityF64E08 * 8;
+                    acceleration = -_vehicleVelocity * 8;
                 }
-                else if (_vehicleVelocityF64E08 < 0x20000)
+                else if (_vehicleVelocity < 0x20000)
                 {
                     acceleration = 0x50000;
                 }
@@ -793,17 +792,17 @@ namespace OpenRCT2
             {
                 if (!curRide.hasFailingBrakes())
                 {
-                    auto brakeSpeed = ChooseBrakeSpeed() << kTrackSpeedShiftAmount;
+                    auto brakeSpeed = chooseBrakeSpeed() << kTrackSpeedShiftAmount;
 
-                    if ((brakeSpeed) < _vehicleVelocityF64E08)
+                    if ((brakeSpeed) < _vehicleVelocity)
                     {
-                        acceleration = -_vehicleVelocityF64E08 * 16;
+                        acceleration = -_vehicleVelocity * 16;
                     }
                     else if (!(getGameState().currentTicks & 0x0F))
                     {
-                        if (_vehicleF64E2C == 0)
+                        if (_vehicleBrakeSoundTimeout == 0)
                         {
-                            _vehicleF64E2C++;
+                            _vehicleBrakeSoundTimeout++;
                             Play3D(SoundId::brakeRelease, { x, y, z });
                         }
                     }
@@ -812,7 +811,7 @@ namespace OpenRCT2
             else if (trackTypeIsBooster(trackType))
             {
                 auto boosterSpeed = GetUnifiedBoosterSpeed(curRide.type, brake_speed) << kTrackSpeedShiftAmount;
-                if (boosterSpeed > _vehicleVelocityF64E08)
+                if (boosterSpeed > _vehicleVelocity)
                 {
                     acceleration = GetRideTypeDescriptor(curRide.type).LegacyBoosterSettings.BoosterAcceleration
                         << kBoosterAccelerationShiftAmount;
@@ -837,7 +836,7 @@ namespace OpenRCT2
                     {
                         if (track_progress >= 8)
                         {
-                            acceleration = -_vehicleVelocityF64E08 * 16;
+                            acceleration = -_vehicleVelocity * 16;
                             if (track_progress >= 24)
                             {
                                 flags.set(VehicleFlag::stoppedOnHoldingBrake);
@@ -871,10 +870,10 @@ namespace OpenRCT2
             {
                 UpdateCrossings();
 
-                if (!UpdateTrackMotionForwardsGetNewTrack(trackType, curRide, rideEntry))
+                if (!trackMotionForwardsGetNewTrack(trackType, curRide, rideEntry))
                 {
                     _vehicleMotionTrackFlags |= VEHICLE_UPDATE_MOTION_TRACK_FLAG_5;
-                    _vehicleVelocityF64E0C -= remaining_distance + 1;
+                    _vehicleRemainingDistance -= remaining_distance + 1;
                     remaining_distance = -1;
                     return false;
                 }
@@ -882,7 +881,7 @@ namespace OpenRCT2
             }
 
             track_progress = newTrackProgress;
-            UpdateHandleWaterSplash();
+            handleWaterSplash();
 
             // Loc6DB706
             const auto moveInfo = GetMoveInfo();
@@ -926,12 +925,12 @@ namespace OpenRCT2
                 // this == frontVehicle
                 if (this == _vehicleFrontVehicle)
                 {
-                    if (_vehicleVelocityF64E08 >= 0)
+                    if (_vehicleVelocity >= 0)
                     {
                         otherVehicleIndex = prev_vehicle_on_ride;
                         if (UpdateMotionCollisionDetection(nextVehiclePosition, &otherVehicleIndex))
                         {
-                            _vehicleVelocityF64E0C -= remaining_distance + 1;
+                            _vehicleRemainingDistance -= remaining_distance + 1;
                             remaining_distance = -1;
 
                             // Might need to be bp rather than this, but hopefully not
@@ -980,11 +979,11 @@ namespace OpenRCT2
             }
 
             acceleration += Geometry::getAccelerationFromPitch(pitch);
-            _vehicleUnkF64E10++;
+            _vehicleSubpositionsMoved++;
         }
     }
 
-    static PitchAndRoll PitchAndRollEnd(
+    static PitchAndRoll getPitchAndRollEnd(
         const Ride& curRide, bool useInvertedSprites, TrackElemType trackType, TileElement* tileElement)
     {
         bool isInverted = useInvertedSprites ^ tileElement->asTrack()->IsInverted();
@@ -996,7 +995,7 @@ namespace OpenRCT2
      *
      *  rct2: 0x006DBAA6
      */
-    bool Vehicle::UpdateTrackMotionBackwardsGetNewTrack(TrackElemType trackType, const Ride& curRide, uint16_t* progress)
+    bool Vehicle::trackMotionBackwardsGetNewTrack(TrackElemType trackType, const Ride& curRide, uint16_t* progress)
     {
         auto pitchAndRollStart = TrackPitchAndRollStart(trackType);
         TileElement* tileElement = MapGetTrackElementAtOfTypeSeq(TrackLocation, trackType, 0);
@@ -1045,7 +1044,7 @@ namespace OpenRCT2
                 return false;
             }
 
-            if (PitchAndRollEnd(curRide, flags.has(VehicleFlag::carIsInverted), trackType, tileElement) != pitchAndRollStart)
+            if (getPitchAndRollEnd(curRide, flags.has(VehicleFlag::carIsInverted), trackType, tileElement) != pitchAndRollStart)
             {
                 return false;
             }
@@ -1106,7 +1105,7 @@ namespace OpenRCT2
 
         if (tileElement->asTrack()->HasChain())
         {
-            if (_vehicleVelocityF64E08 < 0)
+            if (_vehicleVelocity < 0)
             {
                 if (next_vehicle_on_train.IsNull())
                 {
@@ -1127,7 +1126,7 @@ namespace OpenRCT2
                 flags.unset(VehicleFlag::onLiftHill);
                 if (next_vehicle_on_train.IsNull())
                 {
-                    if (_vehicleVelocityF64E08 < 0)
+                    if (_vehicleVelocity < 0)
                     {
                         _vehicleMotionTrackFlags |= VEHICLE_UPDATE_MOTION_TRACK_FLAG_8;
                     }
@@ -1143,7 +1142,7 @@ namespace OpenRCT2
         direction &= 3;
         SetTrackType(trackType);
         SetTrackDirection(direction);
-        PopulateBrakeSpeed(TrackLocation, *tileElement->asTrack());
+        populateBrakeSpeed(TrackLocation, *tileElement->asTrack());
         if (flags.has(VehicleFlag::stoppedOnHoldingBrake) && vertical_drop_countdown <= 0)
         {
             flags.unset(VehicleFlag::stoppedOnHoldingBrake);
@@ -1158,7 +1157,7 @@ namespace OpenRCT2
      *
      *  rct2: 0x006DBA33
      */
-    bool Vehicle::UpdateTrackMotionBackwards(const CarEntry* carEntry, const Ride& curRide, const RideObjectEntry& rideEntry)
+    bool Vehicle::trackMotionBackwards(const CarEntry* carEntry, const Ride& curRide, const RideObjectEntry& rideEntry)
     {
         EntityId otherVehicleIndex = EntityId::GetNull();
 
@@ -1167,7 +1166,7 @@ namespace OpenRCT2
             auto trackType = GetTrackType();
             if (trackType == TrackElemType::flat && curRide.getRideTypeDescriptor().flags.has(RtdFlag::hasLsmBehaviourOnFlat))
             {
-                int32_t unkVelocity = _vehicleVelocityF64E08;
+                int32_t unkVelocity = _vehicleVelocity;
                 if (unkVelocity < -524288)
                 {
                     unkVelocity = abs(unkVelocity);
@@ -1177,11 +1176,11 @@ namespace OpenRCT2
 
             if (trackTypeIsBrakes(trackType))
             {
-                auto brakeSpeed = ChooseBrakeSpeed();
+                auto brakeSpeed = chooseBrakeSpeed();
 
-                if (-(brakeSpeed << kTrackSpeedShiftAmount) > _vehicleVelocityF64E08)
+                if (-(brakeSpeed << kTrackSpeedShiftAmount) > _vehicleVelocity)
                 {
-                    acceleration = _vehicleVelocityF64E08 * -16;
+                    acceleration = _vehicleVelocity * -16;
                 }
             }
 
@@ -1190,10 +1189,10 @@ namespace OpenRCT2
             {
                 UpdateCrossings();
 
-                if (!UpdateTrackMotionBackwardsGetNewTrack(trackType, curRide, &newTrackProgress))
+                if (!trackMotionBackwardsGetNewTrack(trackType, curRide, &newTrackProgress))
                 {
                     _vehicleMotionTrackFlags |= VEHICLE_UPDATE_MOTION_TRACK_FLAG_5;
-                    _vehicleVelocityF64E0C -= remaining_distance - 0x368A;
+                    _vehicleRemainingDistance -= remaining_distance - 0x368A;
                     remaining_distance = 0x368A;
                     return false;
                 }
@@ -1223,12 +1222,12 @@ namespace OpenRCT2
 
                 if (this == _vehicleFrontVehicle)
                 {
-                    if (_vehicleVelocityF64E08 < 0)
+                    if (_vehicleVelocity < 0)
                     {
                         otherVehicleIndex = next_vehicle_on_ride;
                         if (UpdateMotionCollisionDetection(nextVehiclePosition, &otherVehicleIndex))
                         {
-                            _vehicleVelocityF64E0C -= remaining_distance - 0x368A;
+                            _vehicleRemainingDistance -= remaining_distance - 0x368A;
                             remaining_distance = 0x368A;
 
                             Vehicle* v3 = getGameState().entities.GetEntity<Vehicle>(otherVehicleIndex);
@@ -1274,7 +1273,7 @@ namespace OpenRCT2
                 return true;
             }
             acceleration += Geometry::getAccelerationFromPitch(pitch);
-            _vehicleUnkF64E10++;
+            _vehicleSubpositionsMoved++;
         }
     }
 
@@ -1282,7 +1281,7 @@ namespace OpenRCT2
      *
      *  rct2: 0x006DC1E4
      */
-    static uint8_t modified_speed(TrackElemType trackType, VehicleTrackSubposition trackSubposition, uint8_t speed)
+    static uint8_t poweredCarCurveSpeed(TrackElemType trackType, VehicleTrackSubposition trackSubposition, uint8_t speed)
     {
         enum
         {
@@ -1312,8 +1311,7 @@ namespace OpenRCT2
         return speed;
     }
 
-    int32_t Vehicle::UpdateTrackMotionPoweredRideAcceleration(
-        const CarEntry* carEntry, uint32_t totalMass, const int32_t curAcceleration)
+    int32_t Vehicle::getPoweredCarAcceleration(const CarEntry* carEntry, uint32_t totalMass, const int32_t curAcceleration)
     {
         if (carEntry->flags.has(CarEntryFlag::isPoweredRideWithUnrestrictedGravity))
         {
@@ -1327,7 +1325,7 @@ namespace OpenRCT2
                 return curAcceleration;
             }
         }
-        uint8_t modifiedSpeed = modified_speed(GetTrackType(), TrackSubposition, speed);
+        uint8_t modifiedSpeed = poweredCarCurveSpeed(GetTrackType(), TrackSubposition, speed);
         int32_t poweredAcceleration = modifiedSpeed << 14;
         int32_t quarterForce = (modifiedSpeed * totalMass) >> 2;
         if (flags.has(VehicleFlag::poweredCarInReverse))
@@ -1385,7 +1383,7 @@ namespace OpenRCT2
         return curAcceleration + poweredAcceleration;
     }
 
-    void Vehicle::UpdateTrackMotionPreUpdate(
+    void Vehicle::updateTrackMotionCar(
         Vehicle& car, const Ride& curRide, const RideObjectEntry& rideEntry, const CarEntry* carEntry)
     {
         if (carEntry->flags.has(CarEntryFlag::hasSwinging))
@@ -1401,11 +1399,11 @@ namespace OpenRCT2
             car.UpdateAdditionalAnimation();
         }
         car.acceleration = Geometry::getAccelerationFromPitch(car.pitch);
-        _vehicleUnkF64E10 = 1;
+        _vehicleSubpositionsMoved = 1;
 
         if (!car.flags.has(VehicleFlag::moveSingleCar))
         {
-            car.remaining_distance += _vehicleVelocityF64E0C;
+            car.remaining_distance += _vehicleRemainingDistance;
         }
 
         car.sound2_flags &= ~VEHICLE_SOUND2_FLAGS_LIFT_HILL;
@@ -1419,7 +1417,7 @@ namespace OpenRCT2
             if (car.remaining_distance < 0)
             {
                 // Backward loop
-                if (car.UpdateTrackMotionBackwards(carEntry, curRide, rideEntry))
+                if (car.trackMotionBackwards(carEntry, curRide, rideEntry))
                 {
                     break;
                 }
@@ -1429,7 +1427,7 @@ namespace OpenRCT2
                     break;
                 }
                 car.acceleration += Geometry::getAccelerationFromPitch(car.pitch);
-                _vehicleUnkF64E10++;
+                _vehicleSubpositionsMoved++;
                 continue;
             }
             if (car.remaining_distance < 0x368A)
@@ -1437,7 +1435,7 @@ namespace OpenRCT2
                 // Location found
                 return;
             }
-            if (car.UpdateTrackMotionForwards(carEntry, curRide, rideEntry))
+            if (car.trackMotionForwards(carEntry, curRide, rideEntry))
             {
                 break;
             }
@@ -1447,7 +1445,7 @@ namespace OpenRCT2
                 break;
             }
             car.acceleration = Geometry::getAccelerationFromPitch(car.pitch);
-            _vehicleUnkF64E10++;
+            _vehicleSubpositionsMoved++;
         }
         // Loc6DBF20
         car.moveTo(_vehicleCurPosition);
@@ -1457,7 +1455,7 @@ namespace OpenRCT2
      *
      *  rct2: 0x006DAB4C
      */
-    int32_t Vehicle::UpdateTrackMotion(int32_t* outStation)
+    int32_t Vehicle::updateTrackMotionTrain(int32_t* outStation)
     {
         PROFILED_FUNCTION();
 
@@ -1478,17 +1476,17 @@ namespace OpenRCT2
             return UpdateTrackMotionMiniGolf(outStation);
         }
 
-        _vehicleF64E2C = 0;
+        _vehicleBrakeSoundTimeout = 0;
         gCurrentVehicle = this;
         _vehicleMotionTrackFlags = 0;
         _vehicleStationIndex = StationIndex::GetNull();
 
-        UpdateTrackMotionUpStopCheck();
-        CheckAndApplyBlockSectionStopSite();
-        UpdateVelocity();
+        upstopCheck();
+        handleBlockBrake();
+        updateVelocity();
 
         Vehicle* vehicle = this;
-        if (_vehicleVelocityF64E08 < 0 && !vehicle->flags.has(VehicleFlag::moveSingleCar))
+        if (_vehicleVelocity < 0 && !vehicle->flags.has(VehicleFlag::moveSingleCar))
         {
             vehicle = vehicle->TrainTail();
         }
@@ -1507,10 +1505,10 @@ namespace OpenRCT2
             carEntry = car->Entry();
             if (carEntry != nullptr)
             {
-                UpdateTrackMotionPreUpdate(*car, *curRide, *rideEntry, carEntry);
+                updateTrackMotionCar(*car, *curRide, *rideEntry, carEntry);
             }
 
-            car->Sub6DBF3E();
+            car->findStationStopPoint();
 
             // Loc6DC0F7
             if (car->flags.has(VehicleFlag::onLiftHill))
@@ -1523,7 +1521,7 @@ namespace OpenRCT2
                     *outStation = _vehicleStationIndex.ToUnderlying();
                 return _vehicleMotionTrackFlags;
             }
-            if (_vehicleVelocityF64E08 >= 0)
+            if (_vehicleVelocity >= 0)
             {
                 spriteId = car->next_vehicle_on_train;
             }
@@ -1568,7 +1566,7 @@ namespace OpenRCT2
 
         if (carEntry->flags.has(CarEntryFlag::isPowered))
         {
-            curAcceleration = vehicle->UpdateTrackMotionPoweredRideAcceleration(carEntry, totalMass, curAcceleration);
+            curAcceleration = vehicle->getPoweredCarAcceleration(carEntry, totalMass, curAcceleration);
         }
         else if (curAcceleration <= 0 && curAcceleration >= -500)
         {

@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 153 / 361 source commits recorded
+## Progress: 154 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1701,10 +1701,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U153 — `d9c423b1d6` — Merge pull request #26907 from Harry-Hopkinson/start-removing-ui-includes
 
 - **Source:** `d9c423b1d6e7698e8435ab5d301ec52cf7ab5720`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `313324f5f74cd62fd817d0aac4c0052c1c16e108`.
 - **Remaining:** 209 → 208.
 - **Disposition:** history receipt.
 - **Manual changes:** Record the UI include merge; constituent changes handled in U150-U152 and Android first-parent changes in U149.
 - **Additional decisions / behavior:** No new implementation delta; retain fork Vulkan and input adaptations plus documented U150 alias correction.
 - **Verification:** Inspected both parents and empty remerge; second-parent delta is exactly the already-ported Android orientation change.
 - **Pending / concerns:** UI include compile checkpoint pending.
+
+### U154 — `bdbe9013cc` — Rename track motion functions and name globals
+
+- **Source:** `bdbe9013ccbcfb36be7c3948f296da8dcd9a61c2`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 208 → 207.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Rename 26 vehicle track-motion methods and global variables across 11 files, including fork-only callers.
+- **Additional decisions / behavior:** Identifier changes only: preserve fork motion, acceleration, braking, station stopping, per-car/directed-leg calculations and rider-control expressions. Do not replace any implementation with upstream bodies.
+- **Verification:** Complete actual source diff reviewed and all 11 source token streams verified as the 26 reviewed names only. All 11 fork deltas pass the same token proof after changed-line formatting; whitespace check passed.
+- **Pending / concerns:** Batch 27 build for U150-U154 is running; targeted tests will follow before further C++ edits.

@@ -509,7 +509,7 @@ void Vehicle::UpdateMovingToEndOfStation()
                 velocity -= velocity / 16;
                 acceleration = 0;
             }
-            curFlags = UpdateTrackMotion(&station);
+            curFlags = updateTrackMotionTrain(&station);
             if (!(curFlags & VEHICLE_UPDATE_MOTION_TRACK_FLAG_5))
                 break;
             [[fallthrough]];
@@ -558,7 +558,7 @@ void Vehicle::UpdateMovingToEndOfStation()
                 acceleration = 0;
             }
 
-            curFlags = UpdateTrackMotion(&station);
+            curFlags = updateTrackMotionTrain(&station);
 
             if (curFlags & VEHICLE_UPDATE_MOTION_TRACK_FLAG_1)
             {
@@ -1250,7 +1250,7 @@ void Vehicle::UpdateDeparting()
         }
     }
 
-    uint32_t curFlags = UpdateTrackMotion(nullptr);
+    uint32_t curFlags = updateTrackMotionTrain(nullptr);
 
     if (curFlags & VEHICLE_UPDATE_MOTION_TRACK_FLAG_8)
     {
@@ -1500,7 +1500,7 @@ void Vehicle::UpdateTravelling()
         return;
     }
 
-    uint32_t curFlags = UpdateTrackMotion(nullptr);
+    uint32_t curFlags = updateTrackMotionTrain(nullptr);
 
     bool skipCheck = false;
     if (curFlags & (VEHICLE_UPDATE_MOTION_TRACK_FLAG_8 | VEHICLE_UPDATE_MOTION_TRACK_FLAG_9)
@@ -1784,7 +1784,7 @@ void Vehicle::UpdateArriving()
 
     UpdateArrivingPassThroughStation(*curRide, carEntry, stationBrakesWork);
 
-    curFlags = UpdateTrackMotion(nullptr);
+    curFlags = updateTrackMotionTrain(nullptr);
     if (curFlags & VEHICLE_UPDATE_MOTION_TRACK_FLAG_VEHICLE_COLLISION && !stationBrakesWork)
     {
         UpdateCollisionSetup();
