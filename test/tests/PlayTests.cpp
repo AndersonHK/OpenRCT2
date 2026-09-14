@@ -340,7 +340,7 @@ TEST_F(PlayTests, SecondGuestInQueueShouldNotRideIfNoFunds)
     // Open park for free but charging for rides
     execute<GameActions::ParkSetParameterAction>(GameActions::ParkParameter::open);
     execute<GameActions::ParkSetEntranceFeeAction>(0);
-    gameState.park.flags |= PARK_FLAGS_UNLOCK_ALL_PRICES;
+    gameState.park.flags.set(ParkFlag::unlockAllPrices);
 
     // Find ferris wheel
     auto rideManager = RideManager(gameState);
@@ -387,8 +387,8 @@ TEST_F(PlayTests, GuestPaysAtEntranceBeforeBoarding)
     ASSERT_NE(context, nullptr);
 
     auto& gameState = getGameState();
-    gameState.park.flags &= ~PARK_FLAGS_NO_MONEY;
-    gameState.park.flags |= PARK_FLAGS_UNLOCK_ALL_PRICES;
+    gameState.park.flags.unset(ParkFlag::noMoney);
+    gameState.park.flags.set(ParkFlag::unlockAllPrices);
     gameState.cheats.ignorePrice = true;
 
     auto* ride = FindFerrisWheel(gameState);
@@ -449,7 +449,7 @@ TEST_F(PlayTests, CarRideWithOneCarOnlyAcceptsTwoGuests)
     // Open park for free but charging for rides
     execute<GameActions::ParkSetParameterAction>(GameActions::ParkParameter::open);
     execute<GameActions::ParkSetEntranceFeeAction>(0);
-    gameState.park.flags |= PARK_FLAGS_UNLOCK_ALL_PRICES;
+    gameState.park.flags.set(ParkFlag::unlockAllPrices);
 
     // Find car ride
     auto rideManager = RideManager(gameState);
@@ -593,7 +593,7 @@ TEST_F(PlayTests, SameSideCoasterGuestContinuesOrdinaryBoarding)
     ASSERT_FALSE(RideStationPlatformPreQueueIsActive(*target.ride, target.station));
 
     OpenPlatformTestRide(*target.ride);
-    gameState.park.flags |= PARK_FLAGS_NO_MONEY;
+    gameState.park.flags.set(ParkFlag::noMoney);
     ClearTrain(gameState, *target.train, true);
     target.train->current_station = target.station;
     target.train->status = Vehicle::Status::waitingForPassengers;
@@ -737,7 +737,7 @@ TEST_F(PlayTests, NaturallyArrivingTrainPreservesStagedSeatsThroughUnloadAndBoar
     constexpr auto targetStation = StationIndex::FromUnderlying(0);
     OpenPlatformTestRide(*targetRide);
     targetRide->departFlags = 0;
-    gameState.park.flags |= PARK_FLAGS_NO_MONEY;
+    gameState.park.flags.set(ParkFlag::noMoney);
     ClearTrain(gameState, *targetTrain, true);
 
     bool departedNaturally = false;
@@ -866,9 +866,9 @@ TEST_F(PlayTests, ParkEntranceFeeTargetsUseGuestCashAndDebuffedParkValue)
     ASSERT_NE(context.get(), nullptr);
 
     auto& gameState = getGameState();
-    gameState.park.flags &= ~PARK_FLAGS_NO_MONEY;
-    gameState.park.flags &= ~PARK_FLAGS_PARK_FREE_ENTRY;
-    gameState.park.flags |= PARK_FLAGS_UNLOCK_ALL_PRICES;
+    gameState.park.flags.unset(ParkFlag::noMoney);
+    gameState.park.flags.unset(ParkFlag::freeEntry);
+    gameState.park.flags.set(ParkFlag::unlockAllPrices);
     gameState.park.entranceFeeTarget = Park::ParkEntranceFeeTarget::affordable;
 
     gameState.scenarioOptions.guestInitialCash = 10.00_GBP;
@@ -900,8 +900,8 @@ TEST_F(PlayTests, RideCreateConvertsLegacyDefaultPricesToCentMoney)
     ASSERT_NE(context.get(), nullptr);
 
     auto& gameState = getGameState();
-    gameState.park.flags &= ~PARK_FLAGS_NO_MONEY;
-    gameState.park.flags |= PARK_FLAGS_UNLOCK_ALL_PRICES;
+    gameState.park.flags.unset(ParkFlag::noMoney);
+    gameState.park.flags.set(ParkFlag::unlockAllPrices);
     gameState.park.entranceFee = 0.00_GBP;
 
     const auto& rtd = GetRideTypeDescriptor(RIDE_TYPE_FERRIS_WHEEL);
@@ -929,7 +929,7 @@ TEST_F(PlayTests, RideSetPriceActionPreservesCentPrices)
     ASSERT_NE(context.get(), nullptr);
 
     auto& gameState = getGameState();
-    gameState.park.flags |= PARK_FLAGS_UNLOCK_ALL_PRICES;
+    gameState.park.flags.set(ParkFlag::unlockAllPrices);
 
     auto rideManager = RideManager(gameState);
     auto it = std::find_if(
@@ -1089,7 +1089,7 @@ TEST_F(PlayTests, ImportedMazeTrackDesignCapacityMapsToClosestMode)
 static Park::ParkData MakeGuestGenerationPark(uint16_t rating, money64 value)
 {
     Park::ParkData park{};
-    park.flags = PARK_FLAGS_NO_MONEY;
+    park.flags = { ParkFlag::noMoney };
     park.rating = rating;
     park.value = value;
     return park;
@@ -1117,8 +1117,8 @@ TEST_F(PlayTests, RideTargetPriceUsesIncomeDebuff)
     ASSERT_NE(context.get(), nullptr);
 
     auto& gameState = getGameState();
-    gameState.park.flags &= ~PARK_FLAGS_NO_MONEY;
-    gameState.park.flags |= PARK_FLAGS_UNLOCK_ALL_PRICES;
+    gameState.park.flags.unset(ParkFlag::noMoney);
+    gameState.park.flags.set(ParkFlag::unlockAllPrices);
     gameState.park.entranceFeeTarget = Park::ParkEntranceFeeTarget::custom;
     gameState.park.entranceFee = 0.00_GBP;
 
@@ -1140,8 +1140,8 @@ TEST_F(PlayTests, GuestRideValueThresholdsUseIncomeDebuff)
     ASSERT_NE(context.get(), nullptr);
 
     auto& gameState = getGameState();
-    gameState.park.flags &= ~PARK_FLAGS_NO_MONEY;
-    gameState.park.flags |= PARK_FLAGS_UNLOCK_ALL_PRICES;
+    gameState.park.flags.unset(ParkFlag::noMoney);
+    gameState.park.flags.set(ParkFlag::unlockAllPrices);
     gameState.park.entranceFeeTarget = Park::ParkEntranceFeeTarget::custom;
     gameState.park.entranceFee = 0.00_GBP;
     gameState.cheats.ignoreRideIntensity = true;

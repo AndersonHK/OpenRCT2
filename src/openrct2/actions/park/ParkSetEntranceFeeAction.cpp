@@ -58,7 +58,7 @@ namespace OpenRCT2::GameActions
 
     Result ParkSetEntranceFeeAction::Query(GameState_t& gameState, Park::ParkData& park) const
     {
-        if ((park.flags & PARK_FLAGS_NO_MONEY) || !Park::EntranceFeeUnlocked(park))
+        if ((park.flags.has(ParkFlag::noMoney)) || !Park::EntranceFeeUnlocked(park))
         {
             LOG_ERROR("Park entrance fee is locked");
             return Result(Status::disallowed, STR_ERR_CANT_CHANGE_PARK_ENTRANCE_FEE, kStringIdNone);

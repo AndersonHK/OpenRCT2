@@ -158,8 +158,8 @@ protected:
     static void EnablePaidTransport()
     {
         auto& flags = getGameState().park.flags;
-        flags &= ~PARK_FLAGS_NO_MONEY;
-        flags |= PARK_FLAGS_UNLOCK_ALL_PRICES;
+        flags.unset(ParkFlag::noMoney);
+        flags.set(ParkFlag::unlockAllPrices);
     }
 
     struct SurfaceRejoinCandidate
@@ -356,7 +356,7 @@ protected:
     }
 
 private:
-    uint64_t _parkFlags{};
+    ParkFlags _parkFlags{};
     Weather::State _weatherCurrent{};
     Weather::State _weatherNext{};
     uint16_t _weatherUpdateTimer{};

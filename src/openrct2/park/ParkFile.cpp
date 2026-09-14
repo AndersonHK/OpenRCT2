@@ -1187,7 +1187,7 @@ namespace OpenRCT2
                     ReadWriteParkMoney64(cs, park.bankLoan, version);
                     ReadWriteParkMoney64(cs, park.maxBankLoan, version);
                     cs.readWrite(park.bankLoanInterestRate);
-                    cs.readWrite(park.flags);
+                    cs.readWrite(park.flags.holder);
                     if (version <= 18)
                     {
                         money16 tempParkEntranceFee{};

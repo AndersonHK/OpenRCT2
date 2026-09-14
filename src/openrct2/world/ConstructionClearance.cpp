@@ -47,13 +47,13 @@ static ClearanceResult MapPlaceClearFunc(
     auto* scenery = (*tile_element)->asSmallScenery()->GetEntry();
 
     auto& park = getGameState().park;
-    if (park.flags & PARK_FLAGS_FORBID_TREE_REMOVAL)
+    if (park.flags.has(ParkFlag::forbidTreeRemoval))
     {
         if (scenery != nullptr && scenery->flags.has(SmallSceneryFlag::isTree))
             return ClearanceResult::blocked;
     }
 
-    if (!(park.flags & PARK_FLAGS_NO_MONEY) && scenery != nullptr)
+    if (!(park.flags.has(ParkFlag::noMoney)) && scenery != nullptr)
         *price += scenery->removal_price;
 
     if (flags.has(CommandFlag::ghost))
@@ -269,7 +269,7 @@ GameActions::Result MapCanConstructWithClearAt(
             }
         }
 
-        if (getGameState().park.flags & PARK_FLAGS_FORBID_HIGH_CONSTRUCTION && !isTree)
+        if (getGameState().park.flags.has(ParkFlag::forbidHighConstruction) && !isTree)
         {
             const auto heightFromGround = pos.clearanceZ - tileElement->getBaseZ();
 

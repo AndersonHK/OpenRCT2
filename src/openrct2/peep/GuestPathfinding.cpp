@@ -1032,7 +1032,7 @@ namespace OpenRCT2::PathFinding
                 }
                 else
                 {
-                    paysForRide = !peep.hasFreeRideVoucherFor(*ride) && !(gameState.park.flags & PARK_FLAGS_NO_MONEY)
+                    paysForRide = !peep.hasFreeRideVoucherFor(*ride) && !(gameState.park.flags.has(ParkFlag::noMoney))
                         && Park::RidePricesUnlocked(gameState.park);
                     effectivePriceTarget = paysForRide ? ride->priceTarget : RidePriceTarget::free;
                 }

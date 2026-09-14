@@ -9551,7 +9551,9 @@
       ],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt with fork-specific flag callers adapted",
-      "port_commits": [],
+      "port_commits": [
+        "a68f07dd91f6f145b4989f40f1e94e1a1393993b"
+      ],
       "verification_evidence": [
         "Inspected actual source diff; all 32 old masks mapped to identical positions. Nine fork body-token comparisons pass, including additional fare/speed/interaction callers. Whitespace check passes; Batch 21 full Release x64 MSVC/Vulkan build 0 warnings/errors and 151 tests in eight suites pass."
       ],
@@ -9698,9 +9700,11 @@
         "D14"
       ],
       "review_level": "targeted-code-review",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt typed flags with fork payment/rating callers retained",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected all actual source changes and complex branch/import contexts. All 21 modern and 15 RCT1 bit positions retained; 53 ordinary fork caller files pass normalized body-token comparison. Batch 22 final build 0 warnings/errors and 176 tests in nine suites pass; initial syntax failure and correction documented in validation log."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -9725,7 +9729,10 @@
         "src/openrct2/world/Park.cpp",
         "test/tests/PlayTests.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: f08bc61f03fa135e2df0c472bfe3b0d5d22af1bd",
+      "implementation_decisions": "Fork fare/time path choice, entry-price targets, income debuff, guest generation and rewritten park-rating algorithms remain unchanged. Extra fork-only combined price-unlock predicates use hasAny. RCT1 bit 13 remains separately named parkEntryLockedAtFree; source import semantics and RCT2 scenario-only no-money translation are preserved. Save payload remains uint64. Temporary flag backups now retain all 64 bits; unset preserves unused upper 32 bits instead of inadvertently clearing them through a uint32 complement. No fork-defined flag occupies those bits. Keep this preservation correction. No protocol/save-version bump; modern protocol remains 5. No deleted upstream rating/generation algorithms are restored.",
+      "pending_validation": "Interactive editor/track-design backup restoration and native non-Windows builds remain unverified. Standing migration validation debt remains."
     },
     {
       "sha": "5aa3f85c56c4bd68500380190d9deac357686423",
@@ -26734,8 +26741,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 135,
-    "remaining_after_receipt": 226,
+    "accounted_in_this_tree": 136,
+    "remaining_after_receipt": 225,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

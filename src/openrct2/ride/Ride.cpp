@@ -5951,8 +5951,8 @@ namespace OpenRCT2
         {
             auto value = ride.value;
             const auto& park = getGameState().park;
-            if ((park.flags & PARK_FLAGS_UNLOCK_ALL_PRICES) && Park::GetEntranceFee(park) > 0
-                && !(park.flags & PARK_FLAGS_PARK_FREE_ENTRY))
+            if ((park.flags.has(ParkFlag::unlockAllPrices)) && Park::GetEntranceFee(park) > 0
+                && !(park.flags.has(ParkFlag::freeEntry)))
             {
                 value /= 4;
             }
@@ -6047,7 +6047,7 @@ namespace OpenRCT2
 
         const auto& park = getGameState().park;
         money64 price = ride.price[0];
-        if ((park.flags & PARK_FLAGS_NO_MONEY) || !Park::RidePricesUnlocked(park))
+        if ((park.flags.has(ParkFlag::noMoney)) || !Park::RidePricesUnlocked(park))
         {
             price = 0.00_GBP;
         }
@@ -6066,7 +6066,7 @@ namespace OpenRCT2
     money64 RideGetPrice(const Ride& ride)
     {
         auto& park = getGameState().park;
-        if (park.flags & PARK_FLAGS_NO_MONEY)
+        if (park.flags.has(ParkFlag::noMoney))
             return 0;
         if (ride.isRide())
         {

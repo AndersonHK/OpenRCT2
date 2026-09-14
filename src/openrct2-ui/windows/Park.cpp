@@ -430,7 +430,7 @@ namespace OpenRCT2::Ui::Windows
         void SetDisabledTabs()
         {
             // Disable price tab if money is disabled
-            setWidgetDisabled(WIDX_TAB_4, (getGameState().park.flags & PARK_FLAGS_NO_MONEY) != 0);
+            setWidgetDisabled(WIDX_TAB_4, getGameState().park.flags.has(ParkFlag::noMoney));
         }
 
         void PrepareWindowTitleText()
@@ -554,7 +554,7 @@ namespace OpenRCT2::Ui::Windows
             setWidgetDisabled(WIDX_OPEN_LIGHT, disableOpenClose);
 
             // only allow purchase of land when there is money
-            widgets[WIDX_BUY_LAND_RIGHTS].setHidden(_parkData.flags & PARK_FLAGS_NO_MONEY);
+            widgets[WIDX_BUY_LAND_RIGHTS].setHidden(_parkData.flags.has(ParkFlag::noMoney));
 
             WindowAlignTabs(this, WIDX_TAB_1, WIDX_TAB_7);
 
@@ -833,7 +833,7 @@ namespace OpenRCT2::Ui::Windows
         void showEntranceFeeTargetDropdown()
         {
             auto& park = getGameState().park;
-            if ((park.flags & PARK_FLAGS_NO_MONEY) || !Park::EntranceFeeUnlocked(park))
+            if ((park.flags.has(ParkFlag::noMoney)) || !Park::EntranceFeeUnlocked(park))
             {
                 return;
             }
@@ -903,7 +903,7 @@ namespace OpenRCT2::Ui::Windows
                 widgets[WIDX_PRICE].tooltip = STR_ADMISSION_PRICE_PAY_PER_RIDE_TIP;
             }
 
-            if ((park.flags & PARK_FLAGS_NO_MONEY) || !Park::EntranceFeeUnlocked(park))
+            if ((park.flags.has(ParkFlag::noMoney)) || !Park::EntranceFeeUnlocked(park))
             {
                 widgets[WIDX_PRICE].type = WidgetType::labelCentred;
                 widgets[WIDX_PRICE].setString(STR_FREE);
@@ -1084,7 +1084,7 @@ namespace OpenRCT2::Ui::Windows
             PrepareWindowTitleText();
 
             // Show name input button on scenario completion.
-            if (getGameState().park.flags & PARK_FLAGS_SCENARIO_COMPLETE_NAME_INPUT)
+            if (getGameState().park.flags.has(ParkFlag::scenarioCompleteNameInput))
             {
                 widgets[WIDX_ENTER_NAME].setVisible();
                 widgets[WIDX_ENTER_NAME].top = height - 19;

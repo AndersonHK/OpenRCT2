@@ -603,7 +603,7 @@ TEST_F(RideRatings, OnRidePhotoIncomeKeepsAdmissionRevenue)
     auto context = LoadPark("small_park_with_ferris_wheel.sv6");
 
     auto& gameState = getGameState();
-    gameState.park.flags |= PARK_FLAGS_UNLOCK_ALL_PRICES;
+    gameState.park.flags.set(ParkFlag::unlockAllPrices);
 
     auto rideManager = RideManager(gameState);
     auto it = std::find_if(

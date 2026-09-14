@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 135 / 361 source commits recorded
+## Progress: 136 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1503,10 +1503,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U135 — `a70874710a` — Refactor peep flags to enum class+FlagHolder
 
 - **Source:** `a70874710a412bdb62f6179018ee72894aae9ed7`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `a68f07dd91f6f145b4989f40f1e94e1a1393993b`.
 - **Remaining:** 227 → 226.
 - **Disposition:** adopt with fork-specific flag callers adapted.
 - **Manual changes:** Convert peep flags to a uint32 FlagHolder with all 32 original bit positions; adapt actions, UI, scripts, snapshots, save/import and simulation callers. Port the eighteen Easter-egg conditional setters and bool return. Convert additional fork fare/routing and test callers and the optimized interaction mask.
 - **Additional decisions / behavior:** Retain fork guest motives/happiness, fare/value and directed transport logic. Preserve short-circuit random calls and all freeze/tracking/lost-state behavior. Keep the RCT2 packed source PeepFlags field raw; serialize modern holder explicitly. The fork bulk park serializer uses holder in place. Upstream park-rating hunk has no surviving counterpart in the overwritten fork rating implementation and is not reintroduced. Check-name implementation already returns a boolean comparison. Existing 27 script flag strings remain unchanged. No network revision change (fork stays 5) or save-version change.
 - **Verification:** Inspected actual source diff; all 32 old masks mapped to identical positions. Nine fork body-token comparisons pass, including additional fare/speed/interaction callers. Whitespace check passes; Batch 21 full Release x64 MSVC/Vulkan build 0 warnings/errors and 151 tests in eight suites pass.
 - **Pending / concerns:** Interactive guest tracking and Easter-egg presentation plus native non-Windows builds remain unverified; standing migration validation debt remains.
+
+### U136 — `f08bc61f03` — Refactor park flags into enum class+FlagHolder
+
+- **Source:** `f08bc61f03fa135e2df0c472bfe3b0d5d22af1bd`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 226 → 225.
+- **Disposition:** adopt typed flags with fork payment/rating callers retained.
+- **Manual changes:** Convert 21 modern park flags to uint64 FlagHolder and 15 packed RCT1 flags to uint32 FlagHolder. Adapt 64 fork files across UI, simulation, actions, import/save, scripts and tests. Retain fork fee-target assignments and use typed test snapshots. Simplify conditional setters; preserve finance-window invalidations only outside the scenario editor.
+- **Additional decisions / behavior:** Fork fare/time path choice, entry-price targets, income debuff, guest generation and rewritten park-rating algorithms remain unchanged. Extra fork-only combined price-unlock predicates use hasAny. RCT1 bit 13 remains separately named parkEntryLockedAtFree; source import semantics and RCT2 scenario-only no-money translation are preserved. Save payload remains uint64. Temporary flag backups now retain all 64 bits; unset preserves unused upper 32 bits instead of inadvertently clearing them through a uint32 complement. No fork-defined flag occupies those bits. Keep this preservation correction. No protocol/save-version bump; modern protocol remains 5. No deleted upstream rating/generation algorithms are restored.
+- **Verification:** Inspected all actual source changes and complex branch/import contexts. All 21 modern and 15 RCT1 bit positions retained; 53 ordinary fork caller files pass normalized body-token comparison. Batch 22 final build 0 warnings/errors and 176 tests in nine suites pass; initial syntax failure and correction documented in validation log.
+- **Pending / concerns:** Interactive editor/track-design backup restoration and native non-Windows builds remain unverified. Standing migration validation debt remains.

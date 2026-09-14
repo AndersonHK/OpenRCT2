@@ -60,7 +60,7 @@ static constexpr bool kCountTowardsCurrentExpenditure[EnumValue(ExpenditureType:
  */
 bool FinanceCheckMoneyRequired(CommandFlags flags)
 {
-    if (getGameState().park.flags & PARK_FLAGS_NO_MONEY)
+    if (getGameState().park.flags.has(ParkFlag::noMoney))
         return false;
     if (isInEditorMode())
         return false;
@@ -111,7 +111,7 @@ void FinancePayWages()
 {
     PROFILED_FUNCTION();
 
-    if (getGameState().park.flags & PARK_FLAGS_NO_MONEY)
+    if (getGameState().park.flags.has(ParkFlag::noMoney))
     {
         return;
     }
@@ -129,7 +129,7 @@ void FinancePayWages()
 void FinancePayResearch()
 {
     const auto& gameState = getGameState();
-    if (getGameState().park.flags & PARK_FLAGS_NO_MONEY)
+    if (getGameState().park.flags.has(ParkFlag::noMoney))
     {
         return;
     }
@@ -146,7 +146,7 @@ void FinancePayInterest()
 {
     const auto& park = getGameState().park;
 
-    if (park.flags & PARK_FLAGS_NO_MONEY)
+    if (park.flags.has(ParkFlag::noMoney))
     {
         return;
     }
@@ -155,7 +155,7 @@ void FinancePayInterest()
     // that will overflow money64 if the loan is greater than (1 << 31) / (5 * current_interest_rate)
     const money64 current_loan = park.bankLoan;
     const auto current_interest_rate = park.bankLoanInterestRate;
-    const money64 interest_to_pay = (park.flags & PARK_FLAGS_RCT1_INTEREST)
+    const money64 interest_to_pay = (park.flags.has(ParkFlag::rct1Interest))
         ? (current_loan / 2400)
         : (current_loan * current_interest_rate) / (100 * GameTime::kCalendarFinancePeriodsPerYear);
 
@@ -178,7 +178,7 @@ void FinancePayRideUpkeep()
             ride.renew();
         }
 
-        if (ride.status != RideStatus::closed && !(gameState.park.flags & PARK_FLAGS_NO_MONEY))
+        if (ride.status != RideStatus::closed && !(gameState.park.flags.has(ParkFlag::noMoney)))
         {
             auto upkeep = ride.upkeepCost;
             if (upkeep != kMoney64Undefined)
@@ -268,7 +268,7 @@ void FinanceUpdateDailyProfit()
 
     money64 current_profit = 0;
 
-    if (!(park.flags & PARK_FLAGS_NO_MONEY))
+    if (!(park.flags.has(ParkFlag::noMoney)))
     {
         // Staff costs
         for (auto peep : EntityList<Staff>())
