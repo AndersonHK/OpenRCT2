@@ -16576,7 +16576,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "5533bee4639922d88a8fd44f9658981b60675852"
+      ],
       "verification_evidence": [
         "Full three-line source delta reviewed and applied."
       ],
@@ -16613,9 +16615,11 @@
       "note": "Single-parent localisation update; use final target blobs after English ID reconciliation.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Complete small source patch reviewed and applied."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -16623,7 +16627,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P1"
+      "verification_gate": "P1",
+      "port_commit_locator": "Upstream-Commit: 1557aca82098edaa3637d9ef296807a1ed4f10d1",
+      "implementation_decisions": "Only this source delta; retain all fork strings and allocation.",
+      "pending_validation": "No new runtime checks required for text-only additions."
     },
     {
       "sha": "4872effb804d6bf7ec3e4cba7e4e46217321832d",
@@ -27371,8 +27378,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 226,
-    "remaining_after_receipt": 135,
+    "accounted_in_this_tree": 227,
+    "remaining_after_receipt": 134,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 226 / 361 source commits recorded
+## Progress: 227 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2504,10 +2504,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U226 — `e356b3cae6` — Update reference to Duktape in readme.txt
 
 - **Source:** `e356b3cae6f4952b819b3236eda4260ea0df1fe5`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `5533bee4639922d88a8fd44f9658981b60675852`.
 - **Remaining:** 136 → 135.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Update shipped readme dependency list from retired dukglue/duktape to QuickJS.
 - **Additional decisions / behavior:** Documentation follows the already active fork QuickJS implementation; no engine or behavior change.
 - **Verification:** Full three-line source delta reviewed and applied.
 - **Pending / concerns:** No additional checks for this documentation-only row; earlier compile debt unchanged.
+
+### U227 — `1557aca820` — Merge Localisation/master into OpenRCT2/develop
+
+- **Source:** `1557aca82098edaa3637d9ef296807a1ed4f10d1`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 135 → 134.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Add Hungarian path-addition and park/date information panel translations, IDs 7040–7042.
+- **Additional decisions / behavior:** Only this source delta; retain all fork strings and allocation.
+- **Verification:** Complete small source patch reviewed and applied.
+- **Pending / concerns:** No new runtime checks required for text-only additions.
