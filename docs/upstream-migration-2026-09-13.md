@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 186 / 361 source commits recorded
+## Progress: 187 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2064,10 +2064,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U186 — `db53fd3f7f` — Introduce SurfaceElement::hasOwnership()
 
 - **Source:** `db53fd3f7f1aa07549db5f509973fc57a2c4a92f`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `5000db0b9b332b9eb22a60511981412a362e055d`.
 - **Remaining:** 176 → 175.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Add SurfaceElement::hasOwnership(flag) forwarding to getOwnership().has(flag), and update the 11 reviewed source paths.
 - **Additional decisions / behavior:** Forwarding-only refactor preserves ownership predicates, prices, normalized API119 numbers, packed saves, protocol11 and fork behavior. No additional owner decision.
 - **Verification:** All actual source hunks reviewed; audit_u186.py verifies all 11 files differ only by the forwarding helper and equivalent caller spelling. Whitespace check passes. B35 provides the preceding ownership baseline.
 - **Pending / concerns:** Compile and affected ownership/plugin checks deferred to the next coherent batch; standing interactive/network/non-Windows validation remains.
+
+### U187 — `d2783e0564` — Rename some ‘OwnershipFlag’s
+
+- **Source:** `d2783e05642247971350f8b8c3fc6383be7c46c1`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 175 → 174.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Rename OwnershipFlag owned/forSale/constructionRightsAvailable to landOwned/landForSale/constructionRightsForSale in all 15 reviewed source files.
+- **Additional decisions / behavior:** Names only; retain numeric bit positions, API119, protocol11, packed data and corrected U185 land-purchase predicate. Carry the renamed token into the nearby land-sales comment as well. No gameplay change.
+- **Verification:** Actual source reviewed; port_u187.py --audit verifies all 15 changed files are exactly the scoped renames modulo whitespace. Removed-name search has no matches; diff whitespace check passes.
+- **Pending / concerns:** U186-U187 compile and ownership/plugin checks due at the next batch; standing interactive/network/non-Windows validation remains.

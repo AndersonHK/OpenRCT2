@@ -14360,7 +14360,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "5000db0b9b332b9eb22a60511981412a362e055d"
+      ],
       "verification_evidence": [
         "All actual source hunks reviewed; audit_u186.py verifies all 11 files differ only by the forwarding helper and equivalent caller spelling. Whitespace check passes. B35 provides the preceding ownership baseline."
       ],
@@ -14424,9 +14426,11 @@
       "note": "Ownership API normalizes high-nibble flags to low-bit FlagHolder; preserve packed tile bytes, script values and fork surface-rejoin/cache checks.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Actual source reviewed; port_u187.py --audit verifies all 15 changed files are exactly the scoped renames modulo whitespace. Removed-name search has no matches; diff whitespace check passes."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -14441,7 +14445,10 @@
         "src/openrct2/world/Map.cpp",
         "src/openrct2/world/Park.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: d2783e05642247971350f8b8c3fc6383be7c46c1",
+      "implementation_decisions": "Names only; retain numeric bit positions, API119, protocol11, packed data and corrected U185 land-purchase predicate. Carry the renamed token into the nearby land-sales comment as well. No gameplay change.",
+      "pending_validation": "U186-U187 compile and ownership/plugin checks due at the next batch; standing interactive/network/non-Windows validation remains."
     },
     {
       "sha": "26c10680d59ad031eb9ca444b055850863f2f3bf",
@@ -27091,8 +27098,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 186,
-    "remaining_after_receipt": 175,
+    "accounted_in_this_tree": 187,
+    "remaining_after_receipt": 174,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
