@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 127 / 361 source commits recorded
+## Progress: 128 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1415,10 +1415,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U127 — `f91e2d680b` — Remove openrct2/sawyer_coding includes
 
 - **Source:** `f91e2d680b9daee427eac08d379a27038e6c9fd3`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `d3a84032e00858486e9e5f1bd4eac16814c89cfc`.
 - **Remaining:** 235 → 234.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Replace unused Sawyer coding headers with direct ownership includes; remove redundant IStream declaration.
 - **Additional decisions / behavior:** Compression, chunk format and byte handling unchanged.
 - **Verification:** All four source deltas inspected; includes/declaration only; whitespace/ancestry gates.
 - **Pending / concerns:** Build/Sawyer checkpoint after header group.
+
+### U128 — `f4ddda3f69` — Remove openrct2/scenario includes
+
+- **Source:** `f4ddda3f6974938165d15571b7014c4c0c731636`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 234 → 233.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Rework scenario header dependencies and forward-declare ObjectiveType in repository header.
+- **Additional decisions / behavior:** Preserve fork scenario startup, admission policy, objective checks and timing; no scenario gameplay change.
+- **Verification:** Five fork paths verified include/forward-declaration-only; actual source reviewed and fork consumers inspected; whitespace/ancestry gates.
+- **Pending / concerns:** Build checkpoint after header group.
