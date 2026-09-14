@@ -1815,8 +1815,7 @@ namespace OpenRCT2
                 return true;
             }
 
-            // If not the centre of the entrance arch
-            if (tile_element->asEntrance()->getSequenceIndex() != 0)
+            if (tile_element->asEntrance()->getSequenceIndex() != ParkEntranceSequence::centre)
             {
                 PeepReturnToCentreOfTile(guest);
                 return true;

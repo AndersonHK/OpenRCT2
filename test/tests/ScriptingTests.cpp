@@ -160,7 +160,7 @@ TEST_F(ScriptingTests, MapResizeHookObservesCompletedChangesAndAllowsStateUpdate
     JS_FreeValue(ctx, global);
 }
 
-TEST_F(ScriptingTests, EntranceObjectWritesClampAfterUnsignedConversionAndInvalidateTopology)
+TEST_F(ScriptingTests, EntranceObjectAndSequenceWritesClampAndInvalidateTopology)
 {
     auto& scriptEngine = static_cast<ScriptEngine&>(_context->GetScriptEngine());
     MapInit({ 16, 16 });
@@ -168,7 +168,7 @@ TEST_F(ScriptingTests, EntranceObjectWritesClampAfterUnsignedConversionAndInvali
     auto* entrance = InsertTileElement<EntranceElement>(
         { tile.ToCoordsXY(), 10 * kCoordsZStep }, 0, [](EntranceElement& element) {
             element.setEntranceType(EntranceType::rideEntrance);
-            element.setSequenceIndex(EntranceSequence::Centre);
+            element.setSequenceIndex(ParkEntranceSequence::centre);
             element.setClearanceZ(14 * kCoordsZStep);
         });
     ASSERT_NE(entrance, nullptr);
@@ -213,6 +213,24 @@ TEST_F(ScriptingTests, EntranceObjectWritesClampAfterUnsignedConversionAndInvali
         EXPECT_EQ(actual, test.expected);
         EXPECT_EQ(static_cast<uint8_t>(entrance->getEntranceType()), test.expected);
         EXPECT_EQ(entrance->getDirections(), test.expected == 2 ? 5 : 4);
+        EXPECT_GT(MapTopology::GetChunkGeneration(tile), generation);
+        JS_FreeValue(ctx, value);
+    }
+    EXPECT_EQ(JS_SetPropertyStr(ctx, element, "object", JS_NewInt32(ctx, 2)), 1);
+    const Case sequenceCases[] = { { 0, 0 },   { 1, 1 },   { 2, 2 },   { 3, 2 },   { 7, 2 },
+                                   { 8, 2 },   { 15, 2 },  { 16, 2 },  { 255, 2 }, { 256, 0 },
+                                   { 257, 1 }, { 258, 2 }, { 259, 2 }, { -1, 2 },  { 4294967296LL, 0 } };
+    for (const auto& test : sequenceCases)
+    {
+        SCOPED_TRACE(test.input);
+        const auto generation = MapTopology::GetChunkGeneration(tile);
+        EXPECT_EQ(JS_SetPropertyStr(ctx, element, "sequence", JS_NewInt64(ctx, test.input)), 1);
+        auto value = JS_GetPropertyStr(ctx, element, "sequence");
+        uint32_t actual{};
+        EXPECT_EQ(JS_ToUint32(ctx, &actual, value), 0);
+        EXPECT_EQ(actual, test.expected);
+        EXPECT_EQ(static_cast<uint8_t>(entrance->getSequenceIndex()), test.expected);
+        EXPECT_EQ(entrance->getDirections(), test.expected == 0 ? 5 : 0);
         EXPECT_GT(MapTopology::GetChunkGeneration(tile), generation);
         JS_FreeValue(ctx, value);
     }

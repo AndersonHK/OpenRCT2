@@ -149,7 +149,7 @@ namespace OpenRCT2::MapPathTopology
         {
             const auto entranceType = entrance.getEntranceType();
             const auto sequence = entrance.getSequenceIndex();
-            if (entranceType > EntranceType::parkEntrance || sequence >= 8)
+            if (entranceType > EntranceType::parkEntrance || static_cast<uint8_t>(sequence) >= 8)
             {
                 isExact = false;
                 return 0;

@@ -97,7 +97,7 @@ protected:
             { tile.ToCoordsXY(), baseZ * kCoordsZStep }, 0, [&](EntranceElement& entrance) {
                 entrance.setClearanceZ((baseZ + 4) * kCoordsZStep);
                 entrance.setEntranceType(entranceType);
-                entrance.setSequenceIndex(EntranceSequence::Centre);
+                entrance.setSequenceIndex(ParkEntranceSequence::centre);
                 entrance.setDirection(direction);
                 entrance.setRideIndex(ride);
                 entrance.setStationIndex(station);
