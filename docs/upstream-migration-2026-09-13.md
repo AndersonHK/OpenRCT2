@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 93 / 361 source commits recorded
+## Progress: 94 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1041,10 +1041,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U093 — `f256f03fff` — Rename members of RideColourKey
 
 - **Source:** `f256f03fff2dd6c4bd2178d0f163bc2844c49cde`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `04a153056d2d2d94c075e4c1e7ccc79c5c626696`.
 - **Remaining:** 269 → 268.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename RideColourKey members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Ride colour-key names only: preserve all eight indices and ride/shop/facility assignments, including fork-modified descriptors; no palette or financial change.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U094 — `bd4a9eb0ef` — Rename members of TrackDesignCreateMode
+
+- **Source:** `bd4a9eb0ef5b0e8d0dc098d7838a2d8fc820c54d`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 268 → 267.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename TrackDesignCreateMode members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Track-design mode names only: Default becomes standard, Maze becomes maze; preserve 0/1 values, maze-specific export path and fork design/save extensions.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.

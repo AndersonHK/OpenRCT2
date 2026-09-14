@@ -5713,7 +5713,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt naming only",
-      "port_commits": [],
+      "port_commits": [
+        "04a153056d2d2d94c075e4c1e7ccc79c5c626696"
+      ],
       "verification_evidence": [
         "Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt."
       ],
@@ -5780,9 +5782,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt naming only",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -5793,7 +5797,10 @@
         "src/openrct2/ride/RideData.h",
         "src/openrct2/ride/rtd/gentle/Maze.h"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: bd4a9eb0ef5b0e8d0dc098d7838a2d8fc820c54d",
+      "implementation_decisions": "Track-design mode names only: Default becomes standard, Maze becomes maze; preserve 0/1 values, maze-specific export path and fork design/save extensions.",
+      "pending_validation": "Compile at next coherent naming batch checkpoint."
     },
     {
       "sha": "7f879409acfa787215bfa66633823e2a754b9284",
@@ -26440,8 +26447,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 93,
-    "remaining_after_receipt": 268,
+    "accounted_in_this_tree": 94,
+    "remaining_after_receipt": 267,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
