@@ -14667,7 +14667,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "7b719dc96c4e3d9e93ffd39475399ab8d4a852aa"
+      ],
       "verification_evidence": [
         "Both actual source files reviewed, including window-manager BringToFrontByClass behavior and unchanged missing-window branches. Scoped diff and whitespace checks pass."
       ],
@@ -14706,9 +14708,11 @@
       "note": "Report oversized/invalid plugin images as exceptions instead of crashing or asserting; test >300px and malformed input.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "B37 initial and final Release/Vulkan builds pass, 0 warnings/errors, 22.53s and 10.42s. All 23 selected tests in five suites pass, 1.448s. Real plugin catches oversized/bad PNGs, retains previous image, has stable live-object count after 32 repeated errors and successfully uploads again; portable PNG/import errors and unchanged logo hash pass. U190-U192 compile/test debt cleared."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -14716,7 +14720,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P7"
+      "verification_gate": "P7",
+      "port_commit_locator": "Upstream-Commit: 8ebb607fc4692deefdf5108538990c49a5cc06b6",
+      "implementation_decisions": "Keep the 300x300 limit and existing valid conversion behavior. Recoverable errors require cleanup of the acquired JS reference and preserving old image data on replacement allocation failure. Enable UI-binding tests only in the MSBuild configuration already linking the UI library; no extra UI dependency for CMake/core-only tests. No gameplay, API119, protocol11, save60016 or renderer-policy change.",
+      "pending_validation": "Allocation failure reviewed but not injected. UI-binding test not enabled for CMake/core-only builds. Toolbar/rain/title attention interactive checks, live multiplayer/replay and standing non-Windows validation remain."
     },
     {
       "sha": "af352f18ef113f77af6f6f8880168c15215804a3",
@@ -27126,8 +27133,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 191,
-    "remaining_after_receipt": 170,
+    "accounted_in_this_tree": 192,
+    "remaining_after_receipt": 169,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

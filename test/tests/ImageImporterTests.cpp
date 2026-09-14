@@ -12,6 +12,7 @@
 #include <gtest/gtest.h>
 #include <openrct2/core/Path.hpp>
 #include <openrct2/drawing/ImageImporter.h>
+#include <stdexcept>
 #include <string_view>
 
 using namespace OpenRCT2;
@@ -57,4 +58,42 @@ TEST_F(ImageImporterTests, Import_Logo)
     ASSERT_NE(nullptr, result.Buffer.data());
     auto hash = GetHash(result.Buffer.data(), result.Buffer.size());
     ASSERT_EQ(uint32_t(0x212A99BC), hash);
+}
+
+TEST_F(ImageImporterTests, InvalidPngFormatsThrowAndValidImportsStillWork)
+{
+    // RGBA and grayscale+alpha have more than one byte per pixel and cannot keep palette indices.
+    for (const auto* name : { "rgba-1x1.png", "grayscale-alpha-1x1.png" })
+    {
+        SCOPED_TRACE(name);
+        EXPECT_THROW(Imaging::ReadFromFile(GetImagePath(name), ImageFormat::png), std::runtime_error);
+        const auto image = Imaging::ReadFromFile(GetImagePath(name), ImageFormat::png32);
+        EXPECT_EQ(image.Width, 1u);
+        EXPECT_EQ(image.Height, 1u);
+        EXPECT_EQ(image.Depth, 32u);
+        EXPECT_EQ(image.Pixels, (std::vector<uint8_t>{ 255, 255, 255, 255 }));
+    }
+    EXPECT_THROW(Imaging::ReadFromBuffer({ 0, 1, 2, 3, 4, 5, 6, 7 }, ImageFormat::png32), std::runtime_error);
+    auto image = Imaging::ReadFromFile(GetImagePath("rgba-1x1.png"), ImageFormat::png32);
+    ImageImporter importer;
+    ImageImportMeta meta{};
+    EXPECT_NO_THROW(importer.Import(image, meta));
+}
+
+TEST_F(ImageImporterTests, OversizedPngThrowsInvalidArgumentAndAllowsSubsequentImport)
+{
+    ImageImporter importer;
+    for (const auto* name : { "rgba-301x1.png", "rgba-1x301.png" })
+    {
+        SCOPED_TRACE(name);
+        auto image = Imaging::ReadFromFile(GetImagePath(name), ImageFormat::png32);
+        ImageImportMeta meta{};
+        EXPECT_THROW(importer.Import(image, meta), std::invalid_argument);
+    }
+    auto image = Imaging::ReadFromFile(GetImagePath("rgba-1x1.png"), ImageFormat::png32);
+    ImageImportMeta meta{};
+    const auto result = importer.Import(image, meta);
+    EXPECT_EQ(result.Element.width, 1);
+    EXPECT_EQ(result.Element.height, 1);
+    EXPECT_FALSE(result.Buffer.empty());
 }

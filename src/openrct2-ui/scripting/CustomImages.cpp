@@ -354,6 +354,10 @@ namespace OpenRCT2::Scripting
 
     static void ReplacePixelDataForImage(ImageIndex id, const PixelData& pixelData, std::vector<uint8_t>&& data)
     {
+        // Allocate before releasing the previous image so a caught allocation failure leaves it usable.
+        auto newData = new uint8_t[data.size()];
+        std::memcpy(newData, data.data(), data.size());
+
         // Setup the g1 element
         G1Element el{};
         auto* lastel = GfxGetG1Element(id);
@@ -362,10 +366,6 @@ namespace OpenRCT2::Scripting
             el = *lastel;
             delete[] el.offset;
         }
-
-        // Copy data into new unmanaged uint8_t[]
-        auto newData = new uint8_t[data.size()];
-        std::memcpy(newData, data.data(), data.size());
 
         el.offset = newData;
         el.width = pixelData.Width;
@@ -382,8 +382,16 @@ namespace OpenRCT2::Scripting
     void JSSetPixelData(JSContext* ctx, ImageIndex id, JSValue jsPixelData)
     {
         auto pixelData = GetPixelDataFromJS(ctx, jsPixelData);
-        auto newData = GetBufferFromPixelData(ctx, pixelData);
-        ReplacePixelDataForImage(id, pixelData, std::move(newData));
+        try
+        {
+            auto newData = GetBufferFromPixelData(ctx, pixelData);
+            ReplacePixelDataForImage(id, pixelData, std::move(newData));
+        }
+        catch (...)
+        {
+            JS_FreeValue(ctx, pixelData.Data);
+            throw;
+        }
         JS_FreeValue(ctx, pixelData.Data);
     }
 

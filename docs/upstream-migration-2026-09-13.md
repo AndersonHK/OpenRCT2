@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 191 / 361 source commits recorded
+## Progress: 192 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2119,10 +2119,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U191 — `182efeea9a` — Fix title windows not flashing when already open (#26935)
 
 - **Source:** `182efeea9ae9c0f7e5f9ee28a20a2432fa0907d4`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `7b719dc96c4e3d9e93ffd39475399ab8d4a852aa`.
 - **Remaining:** 171 → 170.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Use BringToFrontByClass for already-open scenario, load/save and multiplayer windows on the title menu; add changelog entry.
 - **Additional decisions / behavior:** Adopt edge-flash attention behavior while retaining existing close/open branches, pause/focus policy and single existing window. No gameplay change.
 - **Verification:** Both actual source files reviewed, including window-manager BringToFrontByClass behavior and unchanged missing-window branches. Scoped diff and whitespace checks pass.
 - **Pending / concerns:** U190-U191 compile/widget checks due at next batch; title-window flashing and toolbar/rain need interactive validation; standing limitations remain.
+
+### U192 — `8ebb607fc4` — Fix #21632: Crash when loading custom image larger than 300 by 300 pixels (#26934)
+
+- **Source:** `8ebb607fc4692deefdf5108538990c49a5cc06b6`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 170 → 169.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Catch standard image-upload exceptions and replace PNG row-size assertions with runtime errors. Release JS pixel-buffer references on failure and allocate replacement pixels before freeing the old image. Add four small PNG fixtures, portable decoder/import tests and an actual UI-binding plugin recovery/leak regression test.
+- **Additional decisions / behavior:** Keep the 300x300 limit and existing valid conversion behavior. Recoverable errors require cleanup of the acquired JS reference and preserving old image data on replacement allocation failure. Enable UI-binding tests only in the MSBuild configuration already linking the UI library; no extra UI dependency for CMake/core-only tests. No gameplay, API119, protocol11, save60016 or renderer-policy change.
+- **Verification:** B37 initial and final Release/Vulkan builds pass, 0 warnings/errors, 22.53s and 10.42s. All 23 selected tests in five suites pass, 1.448s. Real plugin catches oversized/bad PNGs, retains previous image, has stable live-object count after 32 repeated errors and successfully uploads again; portable PNG/import errors and unchanged logo hash pass. U190-U192 compile/test debt cleared.
+- **Pending / concerns:** Allocation failure reviewed but not injected. UI-binding test not enabled for CMake/core-only builds. Toolbar/rain/title attention interactive checks, live multiplayer/replay and standing non-Windows validation remain.

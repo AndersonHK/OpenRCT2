@@ -21,6 +21,13 @@
 #include <openrct2/world/tile_element/SurfaceElement.h>
 #include <quickjs.h>
 
+#if defined(ENABLE_SCRIPTING) && defined(OPENRCT2_TEST_UI_BINDINGS)
+    #include "TestData.h"
+    #include <openrct2-ui/scripting/UiExtensions.h>
+    #include <openrct2/core/File.h>
+    #include <openrct2/core/Path.hpp>
+#endif
+
 using namespace OpenRCT2;
 using namespace OpenRCT2::Scripting;
 
@@ -160,6 +167,97 @@ TEST_F(ScriptingTests, MapResizeHookObservesCompletedChangesAndAllowsStateUpdate
     JS_FreeValue(ctx, events);
     JS_FreeValue(ctx, global);
 }
+
+    #ifdef OPENRCT2_TEST_UI_BINDINGS
+TEST_F(ScriptingTests, CustomImageErrorsAreCatchablePreserveTheImageAndReleaseBuffers)
+{
+    struct RestoreImageContext
+    {
+        std::unique_ptr<IContext>& context;
+        bool noGraphics;
+        ~RestoreImageContext()
+        {
+            context.reset();
+            gOpenRCT2NoGraphics = noGraphics;
+        }
+    } restore{ _context, gOpenRCT2NoGraphics };
+    // Custom image allocation requires sprite storage; no display or drawing engine is needed.
+    gOpenRCT2NoGraphics = false;
+    auto& scriptEngine = static_cast<ScriptEngine&>(_context->GetScriptEngine());
+    UiScriptExtensions::Extend(scriptEngine);
+    const char* pluginCode = R"(
+        registerPlugin({
+            name: 'test-image-errors', version: '1.0.0', authors: ['openrct2-test'],
+            type: 'remote', licence: 'MIT', minApiVersion: 119, targetApiVersion: 119,
+            main: function () {
+                const manager = ui.imageManager;
+                const range = manager.allocate(1);
+                globalThis.uploadImage = function (data, palette) {
+                    let caught = false;
+                    let message = '';
+                    try {
+                        manager.setPixelData(range.start, { type: 'png', palette: palette, data: new Uint8Array(data) });
+                    } catch (e) {
+                        caught = true;
+                        message = String(e);
+                    }
+                    const info = manager.getImageInfo(range.start);
+                    return { caught: caught, message: message, width: info.width, height: info.height };
+                };
+            }
+        });
+    )";
+    scriptEngine.AddNetworkPlugin(pluginCode);
+    scriptEngine.LoadTransientPlugins();
+    scriptEngine.Tick();
+    const auto& plugins = scriptEngine.GetPlugins();
+    const auto plugin = std::find_if(plugins.begin(), plugins.end(), [](const auto& candidate) {
+        return candidate->GetMetadata().Name == "test-image-errors";
+    });
+    ASSERT_NE(plugin, plugins.end());
+    ASSERT_TRUE((*plugin)->HasStarted());
+    auto* ctx = (*plugin)->GetContext();
+    auto global = JS_GetGlobalObject(ctx);
+    auto upload = JS_GetPropertyStr(ctx, global, "uploadImage");
+    ASSERT_TRUE(JS_IsFunction(ctx, upload));
+    const auto run = [&](const std::vector<uint8_t>& png, const char* palette, bool shouldFail) {
+        auto data = JS_NewArray(ctx);
+        for (uint32_t i = 0; i < png.size(); ++i)
+            JS_SetPropertyUint32(ctx, data, i, JS_NewInt32(ctx, png[i]));
+        auto result = scriptEngine.ExecutePluginCall(
+            *plugin, upload, JS_UNDEFINED, { data, JS_NewString(ctx, palette) }, false, false, true);
+        EXPECT_FALSE(JS_IsException(result));
+        EXPECT_EQ(AsOrDefault(ctx, result, "caught", false), shouldFail);
+        EXPECT_EQ(AsOrDefault(ctx, result, "width", -1), 1);
+        EXPECT_EQ(AsOrDefault(ctx, result, "height", -1), 1);
+        if (shouldFail)
+            EXPECT_FALSE(JSToStdString(ctx, result, "message").empty());
+        JS_FreeValue(ctx, result);
+    };
+    const auto read = [](const char* name) {
+        return File::ReadAllBytes(Path::Combine(TestData::GetBasePath(), "images", name));
+    };
+    const auto valid = read("rgba-1x1.png");
+    const auto tooWide = read("rgba-301x1.png");
+    run(valid, "closest", false);
+    run(tooWide, "closest", true);
+    run(read("rgba-1x301.png"), "closest", true);
+    run(valid, "keep", true);
+    run({ 0, 1, 2, 3, 4, 5, 6, 7 }, "closest", true);
+    auto* runtime = JS_GetRuntime(ctx);
+    JS_RunGC(runtime);
+    JSMemoryUsage before{}, after{};
+    JS_ComputeMemoryUsage(runtime, &before);
+    for (int i = 0; i < 32; ++i)
+        run(tooWide, "closest", true);
+    JS_RunGC(runtime);
+    JS_ComputeMemoryUsage(runtime, &after);
+    EXPECT_EQ(after.obj_count, before.obj_count);
+    run(valid, "closest", false);
+    JS_FreeValue(ctx, upload);
+    JS_FreeValue(ctx, global);
+}
+    #endif
 
 TEST_F(ScriptingTests, OwnershipUsesApi119FlagsAndPreservesPackedFences)
 {
