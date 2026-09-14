@@ -27075,7 +27075,9 @@
       ],
       "review_level": "targeted-code-review",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "c411b11d80cfdd026da97d0ce4e80b310cfa6cf5"
+      ],
       "verification_evidence": [
         "All 91 descriptor files preserve mode lists and every other non-whitespace byte; relocated enum byte-identical. Solution zero warnings/errors 82.79s; 166 affected tests pass 31.895s. B96."
       ],
@@ -27121,9 +27123,11 @@
       "note": "Use vehicle-type-specific extra zero cars in RCT1 park/design imports; retain cent/time conversion and platform reconstruction.",
       "decisions": [],
       "review_level": "targeted-code-review",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Read full switch and header contract; nine case labels match source."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -27131,7 +27135,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P7"
+      "verification_gate": "P7",
+      "port_commit_locator": "Upstream-Commit: fdcda7be5d5d1293092a5e8fc0fe075579b2f283",
+      "implementation_decisions": "Nine listed legacy vehicle types return two dummy cars; all others zero. Helper is not yet called; ordinary ride capacity policy unchanged.",
+      "pending_validation": "Compile and integration fixtures with following RCT1 importer consumers."
     },
     {
       "sha": "8eb25bb02f707d8199d988e7a7ea4243ea079363",
@@ -28239,8 +28246,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 350,
-    "remaining_after_receipt": 11,
+    "accounted_in_this_tree": 351,
+    "remaining_after_receipt": 10,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

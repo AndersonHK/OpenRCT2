@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 350 / 361 source commits recorded
+## Progress: 351 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3868,10 +3868,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U350 — `1e7fdd7ba6` — Refactor RideModes into FlagHolder (#27115)
 
 - **Source:** `1e7fdd7ba65378db65290eba994f882542111340`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `c411b11d80cfdd026da97d0ce4e80b310cfa6cf5`.
 - **Remaining:** 12 → 11.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Convert ride mode availability to uint64 typed flag holders.
 - **Additional decisions / behavior:** All mode bit positions, ordered descriptor sets, cheat contents and dropdown order retained. Fork ride models untouched. Existing unbounded mode-action shift edge case documented for separate hardening rather than silently changing action policy.
 - **Verification:** All 91 descriptor files preserve mode lists and every other non-whitespace byte; relocated enum byte-identical. Solution zero warnings/errors 82.79s; 166 affected tests pass 31.895s. B96.
 - **Pending / concerns:** Standing manual checks and separately documented pre-existing action-boundary issue remain.
+
+### U351 — `fdcda7be5d` — RCT1: create function to get number of additional zero cars
+
+- **Source:** `fdcda7be5d5d1293092a5e8fc0fe075579b2f283`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 11 → 10.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Add RCT1 vehicle-specific additional zero-car lookup for import compatibility.
+- **Additional decisions / behavior:** Nine listed legacy vehicle types return two dummy cars; all others zero. Helper is not yet called; ordinary ride capacity policy unchanged.
+- **Verification:** Read full switch and header contract; nine case labels match source.
+- **Pending / concerns:** Compile and integration fixtures with following RCT1 importer consumers.
