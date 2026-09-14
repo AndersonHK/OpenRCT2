@@ -16,6 +16,11 @@
 #include <cstdint>
 #include <span>
 
+namespace OpenRCT2
+{
+    enum class EntranceType : uint8_t;
+}
+
 namespace OpenRCT2::MapPathTopology
 {
     enum class ConnectionFlag : uint8_t
@@ -61,7 +66,7 @@ namespace OpenRCT2::MapPathTopology
         uint8_t localX{};
         uint8_t localY{};
         uint8_t baseZ{};
-        uint8_t entranceType{};
+        EntranceType entranceType{};
 
         [[nodiscard]] TileCoordsXYZ GetLocation(const TileCoordsXY& origin) const noexcept
         {

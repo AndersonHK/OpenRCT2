@@ -17,6 +17,7 @@
 #include <openrct2/scripting/ScriptEngine.h>
 #include <openrct2/world/Map.h>
 #include <openrct2/world/MapTopology.h>
+#include <openrct2/world/tile_element/EntranceElement.h>
 #include <quickjs.h>
 
 using namespace OpenRCT2;
@@ -156,6 +157,66 @@ TEST_F(ScriptingTests, MapResizeHookObservesCompletedChangesAndAllowsStateUpdate
     EXPECT_EQ(eventCount(), 4);
     EXPECT_EQ(state.park.cash, 4);
     JS_FreeValue(ctx, events);
+    JS_FreeValue(ctx, global);
+}
+
+TEST_F(ScriptingTests, EntranceObjectWritesClampAfterUnsignedConversionAndInvalidateTopology)
+{
+    auto& scriptEngine = static_cast<ScriptEngine&>(_context->GetScriptEngine());
+    MapInit({ 16, 16 });
+    const TileCoordsXY tile{ 2, 2 };
+    auto* entrance = InsertTileElement<EntranceElement>(
+        { tile.ToCoordsXY(), 10 * kCoordsZStep }, 0, [](EntranceElement& element) {
+            element.setEntranceType(EntranceType::rideEntrance);
+            element.setSequenceIndex(EntranceSequence::Centre);
+            element.setClearanceZ(14 * kCoordsZStep);
+        });
+    ASSERT_NE(entrance, nullptr);
+    const char* pluginCode = R"(
+        registerPlugin({
+            name: 'test-entrance-object-bounds', version: '1.0.0', authors: ['openrct2-test'],
+            type: 'remote', licence: 'MIT', minApiVersion: 118, targetApiVersion: 118,
+            main: function () {
+                globalThis.testEntrance = map.getTile(2, 2).elements.find(e => e.type === 'entrance');
+            }
+        });
+    )";
+    scriptEngine.AddNetworkPlugin(pluginCode);
+    scriptEngine.LoadTransientPlugins();
+    scriptEngine.Tick();
+    const auto& plugins = scriptEngine.GetPlugins();
+    const auto plugin = std::find_if(plugins.begin(), plugins.end(), [](const auto& candidate) {
+        return candidate->GetMetadata().Name == "test-entrance-object-bounds";
+    });
+    ASSERT_NE(plugin, plugins.end());
+    ASSERT_TRUE((*plugin)->HasStarted());
+    auto* ctx = (*plugin)->GetContext();
+    auto global = JS_GetGlobalObject(ctx);
+    auto element = JS_GetPropertyStr(ctx, global, "testEntrance");
+    ASSERT_TRUE(JS_IsObject(element));
+    struct Case
+    {
+        int64_t input;
+        uint32_t expected;
+    };
+    const Case cases[] = { { 0, 0 },   { 1, 1 },           { 2, 2 },   { 3, 2 },
+                           { 255, 2 }, { 256, 2 },         { 257, 2 }, { 4294967295LL, 2 },
+                           { -1, 2 },  { 4294967296LL, 0 } };
+    for (const auto& test : cases)
+    {
+        SCOPED_TRACE(test.input);
+        const auto generation = MapTopology::GetChunkGeneration(tile);
+        EXPECT_EQ(JS_SetPropertyStr(ctx, element, "object", JS_NewInt64(ctx, test.input)), 1);
+        auto value = JS_GetPropertyStr(ctx, element, "object");
+        uint32_t actual{};
+        EXPECT_EQ(JS_ToUint32(ctx, &actual, value), 0);
+        EXPECT_EQ(actual, test.expected);
+        EXPECT_EQ(static_cast<uint8_t>(entrance->getEntranceType()), test.expected);
+        EXPECT_EQ(entrance->getDirections(), test.expected == 2 ? 5 : 4);
+        EXPECT_GT(MapTopology::GetChunkGeneration(tile), generation);
+        JS_FreeValue(ctx, value);
+    }
+    JS_FreeValue(ctx, element);
     JS_FreeValue(ctx, global);
 }
 

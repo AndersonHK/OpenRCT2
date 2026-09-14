@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 172 / 361 source commits recorded
+## Progress: 173 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1910,10 +1910,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U172 — `cef7dd164b` — Merge Localisation/master into OpenRCT2/develop
 
 - **Source:** `cef7dd164ba8394ae0b7b43f961ded962e06ddb8`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `bfd04b63296b4f2602d0a4959bbaea600b9eb373`.
 - **Remaining:** 190 → 189.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Shorten Dutch STR_6678 from Bronbestand: to Bron: (source file to source), matching the single actual translation delta.
 - **Additional decisions / behavior:** Text-only label correction. Preserve all fork custom IDs and other translations; no gameplay or object dependency change.
 - **Verification:** Inspected complete one-line source diff and matching fork string. No format placeholders or string IDs changed; receipt whitespace and ancestry gates apply.
 - **Pending / concerns:** Covered by normal language compilation at the next build; interactive Dutch label remains unverified.
+
+### U173 — `d943171fae` — Create enum class for EntranceType
+
+- **Source:** `d943171faefddb192ac3aa143270f449f447d2db`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 189 → 188.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Adopt uint8 EntranceType values 0/1/2 across modern and packed legacy elements, typed construction/ghost helpers, named callers and equivalent three-by-eight direction table. Adapt fork path-topology and frozen-route fields and test fixtures. Keep numeric scripting reads; clamp script object writes. Add a real-plugin bounds/topology test and B31 validation.
+- **Additional decisions / behavior:** Adopt malformed-input clamp after existing uint32 conversion: above 2 becomes parkEntrance instead of byte truncation/wrap; -1 becomes 2, 2^32 becomes 0. Retain fork Invalidate(data, true) and all ghost/routing/payment rules. Independent network revision 7 to 8 prevents mixed simulation behavior; API118/save60016 unchanged. Valid UI toggle remains entrance/exit; invalid internal tool states now select entrance. No reinterpretation or repair of malformed imported bytes. Explicit array include and typed uint8 cache fields preserve dependencies/layout.
+- **Verification:** Read all 34 source patches; 24 ordinary fork files pass enum-name/type-only proof and 16 structural/protocol/test files separately reviewed. Resolved a partially applied tool operation through exact remaining-delta inspection before build. B31 first-attempt full Release x64 MSVC/Vulkan build passed 0 warnings/errors in 86.62 seconds; 240 tests across 16 suites passed in 32.441 seconds, including the new 10-input public scripting/native value/direction/topology test.
+- **Pending / concerns:** Interactive entrance tools and U171 layouts, multiplayer/replay synchronization and native non-Windows remain unverified. Full standing migration validation debt retained.

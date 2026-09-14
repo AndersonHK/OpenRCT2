@@ -57,7 +57,7 @@ namespace OpenRCT2::MapPathRouteCache
             std::array<NodeIndex, kNumOrthogonalDirections> connections{ kInvalidNodeIndex, kInvalidNodeIndex,
                                                                          kInvalidNodeIndex, kInvalidNodeIndex };
             RideId ride{ RideId::GetNull() };
-            uint8_t entranceType{};
+            EntranceType entranceType{};
         };
 
         static_assert(sizeof(FrozenNode) <= 36);
@@ -370,10 +370,10 @@ namespace OpenRCT2::MapPathRouteCache
                 const auto& entrance = graph.entrances[entranceIndex->second];
                 if (target.queueRide.IsNull())
                 {
-                    if (entrance.entranceType != ENTRANCE_TYPE_PARK_ENTRANCE)
+                    if (entrance.entranceType != EntranceType::parkEntrance)
                         continue;
                 }
-                else if (entrance.entranceType != ENTRANCE_TYPE_RIDE_ENTRANCE || entrance.ride != target.queueRide)
+                else if (entrance.entranceType != EntranceType::rideEntrance || entrance.ride != target.queueRide)
                 {
                     continue;
                 }
@@ -618,7 +618,7 @@ namespace OpenRCT2::MapPathRouteCache
         for (; entranceIterator != _entranceIndex.end() && entranceIterator->first == key; entranceIterator++)
         {
             const auto& entrance = _entrances[entranceIterator->second];
-            if (entrance.entranceType != ENTRANCE_TYPE_RIDE_EXIT || entrance.ride != sourceRide)
+            if (entrance.entranceType != EntranceType::rideExit || entrance.ride != sourceRide)
                 continue;
             foundExit = true;
             for (const auto pathNode : entrance.connections)

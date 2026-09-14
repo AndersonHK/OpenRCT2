@@ -25,6 +25,7 @@ enum class RideColourScheme : uint8_t;
 namespace OpenRCT2
 {
     struct TileElement;
+    enum class EntranceType : uint8_t;
     enum class TrackElemType : uint16_t;
 
     namespace TrackMetadata
@@ -124,7 +125,7 @@ namespace OpenRCT2
 
     extern CoordsXYZD _unkF440C5;
 
-    extern uint8_t gRideEntranceExitPlaceType;
+    extern EntranceType gRideEntranceExitPlaceType;
     extern RideId gRideEntranceExitPlaceRideIndex;
     extern StationIndex gRideEntranceExitPlaceStationIndex;
     extern OpenRCT2::RideConstructionState gRideEntranceExitPlacePreviousRideConstructionState;

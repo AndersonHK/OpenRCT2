@@ -90,7 +90,8 @@ protected:
     }
 
     static EntranceElement* AddEntrance(
-        const TileCoordsXY& tile, uint8_t baseZ, uint8_t entranceType, Direction direction, RideId ride, StationIndex station)
+        const TileCoordsXY& tile, uint8_t baseZ, EntranceType entranceType, Direction direction, RideId ride,
+        StationIndex station)
     {
         auto* entrance = InsertTileElement<EntranceElement>(
             { tile.ToCoordsXY(), baseZ * kCoordsZStep }, 0, [&](EntranceElement& entrance) {
@@ -349,7 +350,7 @@ TEST_F(MapPathTopologyTest, PermittedEdgesQueueOwnershipAndEntranceConnectionsAr
     const auto entranceRide = RideId::FromUnderlying(55);
     const auto entranceStation = StationIndex::FromUnderlying(1);
     ASSERT_NE(
-        AddEntrance(entranceTile, 10, ENTRANCE_TYPE_RIDE_ENTRANCE, entranceDirection, entranceRide, entranceStation), nullptr);
+        AddEntrance(entranceTile, 10, EntranceType::rideEntrance, entranceDirection, entranceRide, entranceStation), nullptr);
 
     const auto view = MapPathTopology::GetChunk(queueTile);
     ASSERT_TRUE(view);
@@ -364,7 +365,7 @@ TEST_F(MapPathTopologyTest, PermittedEdgesQueueOwnershipAndEntranceConnectionsAr
 
     const auto entrance = std::find_if(view.entrances.begin(), view.entrances.end(), [&](const auto& candidate) {
         return candidate.GetLocation(view.origin) == TileCoordsXYZ{ entranceTile, 10 }
-            && candidate.entranceType == ENTRANCE_TYPE_RIDE_ENTRANCE;
+        && candidate.entranceType == EntranceType::rideEntrance;
     });
     ASSERT_NE(entrance, view.entrances.end());
     EXPECT_EQ(entrance->ride, entranceRide);
@@ -467,8 +468,7 @@ TEST_F(MapPathTopologyTest, SharedRouteFieldsRespectDirectedEdgesInvalidateAndIg
     ASSERT_NE(
         AddPath(mergePath, 10, (1 << DirectionReverse(south)) | (1 << DirectionReverse(east)) | (1 << east)), nullptr);
     const auto ride = RideId::FromUnderlying(42);
-    ASSERT_NE(
-        AddEntrance(entranceTile, 10, ENTRANCE_TYPE_RIDE_ENTRANCE, east, ride, StationIndex::FromUnderlying(0)), nullptr);
+    ASSERT_NE(AddEntrance(entranceTile, 10, EntranceType::rideEntrance, east, ride, StationIndex::FromUnderlying(0)), nullptr);
     const auto target = MapPathRouteCache::RouteTarget{ { entranceTile, 10 }, ride };
     MapPathRouteCache::Prepare(std::array{ target });
     const auto equalLengthTie = MapPathRouteCache::GetNextStep(target, { start, 10 });
@@ -568,8 +568,7 @@ TEST_F(MapPathTopologyTest, SharedRouteFieldsFallBackGloballyWhenAnIntermediateC
     ASSERT_NE(AddPath({ 20, pathY }, baseZ, (1 << east) | (1 << west)), nullptr);
     const auto entranceTile = TileCoordsXY{ lastPathX + 1, pathY };
     ASSERT_NE(
-        AddEntrance(entranceTile, baseZ, ENTRANCE_TYPE_RIDE_ENTRANCE, east, ride, StationIndex::FromUnderlying(0)),
-        nullptr);
+        AddEntrance(entranceTile, baseZ, EntranceType::rideEntrance, east, ride, StationIndex::FromUnderlying(0)), nullptr);
 
     const auto middleView = MapPathTopology::GetChunk(TileCoordsXY{ 20, pathY });
     ASSERT_TRUE(middleView);
@@ -646,8 +645,7 @@ TEST_F(MapPathTopologyTest, SharedRouteProposalCannotBypassGuestJunctionHistory)
         AddPath(detourCorner, 10, (1 << DirectionReverse(east)) | (1 << DirectionReverse(south))), nullptr);
     ASSERT_NE(AddPath(deadEnd, 10, 1 << DirectionReverse(west)), nullptr);
     const auto ride = RideId::FromUnderlying(42);
-    ASSERT_NE(
-        AddEntrance(entranceTile, 10, ENTRANCE_TYPE_RIDE_ENTRANCE, east, ride, StationIndex::FromUnderlying(0)), nullptr);
+    ASSERT_NE(AddEntrance(entranceTile, 10, EntranceType::rideEntrance, east, ride, StationIndex::FromUnderlying(0)), nullptr);
 
     const auto target = MapPathRouteCache::RouteTarget{ { entranceTile, 10 }, ride };
     MapPathRouteCache::Prepare(std::array{ target });
@@ -821,12 +819,11 @@ TEST_F(MapPathTopologyTest, ParkExitWalkUsesExactDistanceFromTransportExit)
         ASSERT_NE(AddPath({ x, sourceExitTile.y }, baseZ, edges), nullptr);
     }
     ASSERT_NE(
-        AddEntrance(
-            sourceExitTile, baseZ, ENTRANCE_TYPE_RIDE_EXIT, east, transportRide, StationIndex::FromUnderlying(0)),
+        AddEntrance(sourceExitTile, baseZ, EntranceType::rideExit, east, transportRide, StationIndex::FromUnderlying(0)),
         nullptr);
     ASSERT_NE(
         AddEntrance(
-            targetExitTile, baseZ, ENTRANCE_TYPE_PARK_ENTRANCE, east, RideId::GetNull(), StationIndex::FromUnderlying(0)),
+            targetExitTile, baseZ, EntranceType::parkEntrance, east, RideId::GetNull(), StationIndex::FromUnderlying(0)),
         nullptr);
 
     const auto parkExit = MapPathRouteCache::RouteTarget{ { targetExitTile, baseZ }, RideId::GetNull() };
@@ -865,10 +862,10 @@ TEST_F(MapPathTopologyTest, OrdinaryRideTargetSelectionUsesShortestReachablePath
     ASSERT_NE(AddPath(longPath1, baseZ, (1 << north) | (1 << south)), nullptr);
     ASSERT_NE(AddPath(longPath2, baseZ, (1 << north) | (1 << south)), nullptr);
     ASSERT_NE(
-        AddEntrance(shortEntrance, baseZ, ENTRANCE_TYPE_RIDE_ENTRANCE, east, shortRide, StationIndex::FromUnderlying(0)),
+        AddEntrance(shortEntrance, baseZ, EntranceType::rideEntrance, east, shortRide, StationIndex::FromUnderlying(0)),
         nullptr);
     ASSERT_NE(
-        AddEntrance(longEntrance, baseZ, ENTRANCE_TYPE_RIDE_ENTRANCE, south, longRide, StationIndex::FromUnderlying(0)),
+        AddEntrance(longEntrance, baseZ, EntranceType::rideEntrance, south, longRide, StationIndex::FromUnderlying(0)),
         nullptr);
 
     const auto longTarget = MapPathRouteCache::RouteTarget{ { longEntrance, baseZ }, longRide };
@@ -928,8 +925,7 @@ TEST_F(MapPathTopologyTest, AdvertisedRideKeepsItsSpecifiedTargetWithExactRoutin
     ASSERT_NE(AddPath(source, baseZ, 1 << east), nullptr);
     ASSERT_NE(AddPath(path, baseZ, (1 << west) | (1 << east)), nullptr);
     ASSERT_NE(
-        AddEntrance(
-            entranceTile, baseZ, ENTRANCE_TYPE_RIDE_ENTRANCE, east, advertisedRide, StationIndex::FromUnderlying(0)),
+        AddEntrance(entranceTile, baseZ, EntranceType::rideEntrance, east, advertisedRide, StationIndex::FromUnderlying(0)),
         nullptr);
     const auto advertisedTarget = MapPathRouteCache::RouteTarget{ { entranceTile, baseZ }, advertisedRide };
     MapPathRouteCache::Prepare(std::array{ advertisedTarget });
