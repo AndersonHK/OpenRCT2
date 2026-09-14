@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 241 / 361 source commits recorded
+## Progress: 242 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2669,10 +2669,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U241 — `dc6fd8a913` — Do not reload ride type to ride entry map unless actually loading a ride object
 
 - **Source:** `dc6fd8a913fefe94d87cdc41c29851bdcc9edeec`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `07c513b14573eb9d06da873b4604d0b01ca4c5c7`.
 - **Remaining:** 121 → 120.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Rebuild ride-type to ride-entry mapping after individual loads only for ride objects.
 - **Additional decisions / behavior:** Retain scenery-group refresh and all load/unload/reset ownership. Non-ride loads cannot change the ride-only mapping; bulk-load/unload/reset rebuilds remain.
 - **Verification:** Full source and all mapping reset callers inspected; exact guarded call applied in successful individual registration path.
 - **Pending / concerns:** Compile with related object-manager checkpoint; runtime load mapping check pending.
+
+### U242 — `d7bba3b92e` — Merge pull request #26975 from Gymnasiast/fix/18197
+
+- **Source:** `d7bba3b92e2f14d7a0987cee11c2457fb31bfc94`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 120 → 119.
+- **Disposition:** history receipt.
+- **Manual changes:** History receipt for #26975; source constituents already ported in U240/U241.
+- **Additional decisions / behavior:** No independent merge resolution; retain configured-fork object lookup and preview-map ownership.
+- **Verification:** Empty remerge diff; first-parent delta inspected and consists of the reviewed loader and guarded mapping refresh.
+- **Pending / concerns:** U240–U241 compile at next checkpoint; actual previews remain runtime validation.

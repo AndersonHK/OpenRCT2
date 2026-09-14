@@ -17236,7 +17236,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "07c513b14573eb9d06da873b4604d0b01ca4c5c7"
+      ],
       "verification_evidence": [
         "Full source and all mapping reset callers inspected; exact guarded call applied in successful individual registration path."
       ],
@@ -17283,9 +17285,11 @@
       "note": "No remerge-resolution delta detected. Account for constituent commits before ancestry reconciliation.",
       "decisions": [],
       "review_level": "remerge-probe",
-      "implementation_status": "not-ported",
+      "implementation_status": "history receipt",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Empty remerge diff; first-parent delta inspected and consists of the reviewed loader and guarded mapping refresh."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -17295,7 +17299,10 @@
       "merge_conflict_paths": [
         "src/openrct2/object/ObjectManager.cpp"
       ],
-      "verification_gate": "P0"
+      "verification_gate": "P0",
+      "port_commit_locator": "Upstream-Commit: d7bba3b92e2f14d7a0987cee11c2457fb31bfc94",
+      "implementation_decisions": "No independent merge resolution; retain configured-fork object lookup and preview-map ownership.",
+      "pending_validation": "U240–U241 compile at next checkpoint; actual previews remain runtime validation."
     },
     {
       "sha": "f66c153a101cc49d4f77eb53a52915dea785848e",
@@ -27476,8 +27483,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 241,
-    "remaining_after_receipt": 120,
+    "accounted_in_this_tree": 242,
+    "remaining_after_receipt": 119,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
