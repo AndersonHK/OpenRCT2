@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 105 / 361 source commits recorded
+## Progress: 106 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1173,10 +1173,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U105 — `38bce48524` — Rename members of ScatterToolDensity
 
 - **Source:** `38bce4852403e43d47af72906fe53680f2ede126`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `96efffcedd1825460551a9d951e3fb20995a49e3`.
 - **Remaining:** 257 → 256.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename ScatterToolDensity members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Scatter density names only: preserve quantity multipliers 1/2/3 and default medium density with size 16; no scenery placement cost, randomness or density change.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U106 — `a5892a2d17` — Enforce `enum class` member code style via Clang-Tidy
+
+- **Source:** `a5892a2d173fce9dd838512bbe0151eae8b3a864`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 256 → 255.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Add enum CamelCase and scoped enumerator camelBack clang-tidy rules.
+- **Additional decisions / behavior:** Adopt style enforcement after individual renames. No runtime behavior change; existing warnings-as-errors policy retained.
+- **Verification:** Actual four-line source delta reviewed and applied; whitespace and singleton ancestry checked.
+- **Pending / concerns:** Clang-tidy is not on PATH; dedicated lint run remains unverified. Compile at naming checkpoint.

@@ -6696,7 +6696,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt naming only",
-      "port_commits": [],
+      "port_commits": [
+        "96efffcedd1825460551a9d951e3fb20995a49e3"
+      ],
       "verification_evidence": [
         "Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt."
       ],
@@ -6735,9 +6737,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Actual four-line source delta reviewed and applied; whitespace and singleton ancestry checked."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -6745,7 +6749,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: a5892a2d173fce9dd838512bbe0151eae8b3a864",
+      "implementation_decisions": "Adopt style enforcement after individual renames. No runtime behavior change; existing warnings-as-errors policy retained.",
+      "pending_validation": "Clang-tidy is not on PATH; dedicated lint run remains unverified. Compile at naming checkpoint."
     },
     {
       "sha": "228c4bfb34d74729d67e4ba309a5ee5412f7851d",
@@ -26524,8 +26531,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 105,
-    "remaining_after_receipt": 256,
+    "accounted_in_this_tree": 106,
+    "remaining_after_receipt": 255,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
