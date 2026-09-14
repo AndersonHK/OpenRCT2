@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 260 / 361 source commits recorded
+## Progress: 261 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2878,10 +2878,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U260 — `5d23833cc3` — Clear ‘Bullet Coaster 1’ name in Okinawa Coast (as an example)
 
 - **Source:** `5d23833cc3c82dd07466d51be842428bd49d13ee`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `04f1ab3566e19dbb6341f5a4bd61bf5b77a730ee`.
 - **Remaining:** 102 → 101.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Add clear_name for Okinawa ride ID 18 in both scenario hashes; extend actual patch test with dry-run/name clearing and preserved ride fields.
 - **Additional decisions / behavior:** Approved authored default-name restoration. Remove imported Bullet Coaster 1 custom text, allowing the existing default/localized name; do not renumber or alter ride mechanics. Ownership patches retained exactly. B58.
 - **Verification:** Full source inspected; solution build 13.65s zero warnings/errors; five scenario/normalized-ownership tests passed 0.737s. B58.
 - **Pending / concerns:** Original scenario/default localized name rendering and standing checks remain.
+
+### U261 — `436bc0d53e` — Merge pull request #26996 from Gymnasiast/feature/rename-ride-in-scenariopatch
+
+- **Source:** `436bc0d53eeda036930c60b5d6ad5a84d9934bd7`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 101 → 100.
+- **Disposition:** history receipt.
+- **Manual changes:** History receipt for merge of the individually reviewed U254-U260 scenario changes with the U253 construction UI fix.
+- **Additional decisions / behavior:** No additional merge resolution. Second-parent delta is exactly the already ported U253 layout change; preserve the explicit assertion-format adaptation and regression fixtures.
+- **Verification:** Empty remerge-diff inspected; full second-parent delta read, all component changes inspected in historical order; B58 build/tests passed.
+- **Pending / concerns:** Standing original-scenario/rendering/platform/MP/replay checks remain.
