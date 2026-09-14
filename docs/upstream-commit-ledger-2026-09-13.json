@@ -25976,7 +25976,9 @@
       "decisions": [],
       "review_level": "remerge-probe",
       "implementation_status": "history receipt",
-      "port_commits": [],
+      "port_commits": [
+        "393a6cb2917e8b5ff57b814baa19ccc93bcc8164"
+      ],
       "verification_evidence": [
         "Actual remerge inspection; U332 source/fork equivalence audit."
       ],
@@ -26018,19 +26020,24 @@
         "D02"
       ],
       "review_level": "targeted-code-review",
-      "implementation_status": "not-ported",
+      "implementation_status": "approved deferral: retain fork station margin",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected actual source and both fork owners. B90 full suite includes capacity/ratings/boarding/import coverage; production files unchanged here."
+      ],
       "deferral": {
-        "status": "not-selected",
-        "reason": null,
+        "status": "approved-retain-fork",
+        "reason": "D02 approved: keep existing station allowance in both capacity owners; upstream relaxation changes ordinary gameplay.",
         "dependent_commits": [],
-        "revisit_trigger": null
+        "revisit_trigger": "Owner chooses larger non-block capacity after consistent car/train allocator adaptation and geometry/exact-seat validation."
       },
       "merge_conflict_paths": [
         "src/openrct2/ride/Ride.cpp"
       ],
-      "verification_gate": "P4"
+      "verification_gate": "P4",
+      "port_commit_locator": "Upstream-Commit: 829dd93bd03ad79a4fd94803707f83dcc7831c4d",
+      "implementation_decisions": "Defer removal of the non-block margin. Keep kStationLengthEndAllowance0x16B2A in maximum-car calculation and RideGetMaxTrainsPerStation so UI limits and multi-station allocation agree. Independent RCT1 import/zero-car fixes remain integrated.",
+      "pending_validation": "Revisit only if owner opts into larger non-block capacity after station geometry, shortest/longest boundary, one-car, block-brake and exact-seat boarding validation."
     },
     {
       "sha": "e93fa5342a6c447fa0d32492281af9459ceaed24",
@@ -28120,8 +28127,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 333,
-    "remaining_after_receipt": 28,
+    "accounted_in_this_tree": 334,
+    "remaining_after_receipt": 27,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
