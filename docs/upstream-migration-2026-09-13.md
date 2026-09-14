@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 254 / 361 source commits recorded
+## Progress: 255 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2812,10 +2812,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U254 — `d687a06a22` — Add scenario patching feature to rename rides
 
 - **Source:** `d687a06a2244dfc452dd09f46c58bfd27282033b`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `98477675ce71a67c9946c59c1e4218f10f5f5123`.
 - **Remaining:** 108 → 107.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Add hash-gated scenario set_name operation and actual Unicode rename/dry-run/state-preservation regression fixture.
 - **Additional decisions / behavior:** Adopt scenario-authored direct customName assignment, preserving importer scenario-only gating. Format the underlying ride ID safely in the new assertion. Existing dry-run skips operation-specific work; reset old format-test dry-run state. B56 details.
 - **Verification:** Full source and S4/S6 callers inspected; final solution build 6.58s zero warnings/errors after test signedness correction; 47 tests in three suites passed 7.213s. B56.
 - **Pending / concerns:** Real Heide-Park import, malformed operation/assertion paths and standing UI/platform/MP/replay checks remain.
+
+### U255 — `f5a3ff521d` — Patch Heide-Park to correct some names
+
+- **Source:** `f5a3ff521d563cc415cd6ee5dbee2575fd3ef4b8`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 107 → 106.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Add the exact Heide-Park hash patch renaming rides 24 and 25 to the Santa-Maria and Bounty Schiffschaukel names, plus scenario hash index and changelog.
+- **Additional decisions / behavior:** Approved scenario spelling corrections. Applies only to full SHA 5973a6ae5e629cb0f0a62d9383bfd5d63e7ed69669ef055b847cb98ea0aaea01 through existing scenario import gating; preserves authored German punctuation and all gameplay parameters.
+- **Verification:** Full three-file source inspected; new JSON byte-equivalent to source after line-ending normalization, parsed hash prefix and IDs verified. U254 actual rename operation test passed B56.
+- **Pending / concerns:** Original matching Heide-Park scenario import not available in the test fixture; standing checks remain.
