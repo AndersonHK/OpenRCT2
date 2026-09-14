@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 104 / 361 source commits recorded
+## Progress: 105 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1162,10 +1162,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U104 — `25fc422c44` — Rename members of IntroState
 
 - **Source:** `25fc422c44b6298ea85a680bc44537464c59f517`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `47796ba94619b34fbb61336b8b69236e3a6d5b98`.
 - **Remaining:** 258 → 257.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename IntroState members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Intro state naming only: preserve 0-7 and special clear=254/finish=255 values, 80-tick wait, fade speeds and audio/click-skip lifecycle.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U105 — `38bce48524` — Rename members of ScatterToolDensity
+
+- **Source:** `38bce4852403e43d47af72906fe53680f2ede126`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 257 → 256.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename ScatterToolDensity members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Scatter density names only: preserve quantity multipliers 1/2/3 and default medium density with size 16; no scenery placement cost, randomness or density change.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
