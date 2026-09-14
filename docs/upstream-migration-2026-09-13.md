@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 99 / 361 source commits recorded
+## Progress: 100 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1107,10 +1107,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U099 — `9c830feef5` — Rename members of TrackDesignGameStateFlag
 
 - **Source:** `9c830feef560cb2017223721112cf2b764d8ebac`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `2daf82d6dd24306a0df5bb0517516b2681610123`.
 - **Remaining:** 263 → 262.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename TrackDesignGameStateFlag members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Track design flags naming only: retain bit positions, availability warnings and scenery-toggle/research behavior.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U100 — `b229ff8f60` — Rename members of MiniGolfState
+
+- **Source:** `b229ff8f607ac0d4543fcef6cdd4c7935eacbae8`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 262 → 261.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename MiniGolfState members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Mini-golf state names only, including MINI_GOLF_STATE macro arguments. Preserve all seven int16 state values, the unused Unk1 slot, every vehicle movement coordinate/frame and fork ride measurements. Complete source table verified against the selected substitutions.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
