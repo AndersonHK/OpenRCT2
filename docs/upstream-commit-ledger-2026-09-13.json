@@ -1037,7 +1037,9 @@
       ],
       "review_level": "intent-and-path-triage",
       "implementation_status": "manually-ported-with-fork-adaptation",
-      "port_commits": [],
+      "port_commits": [
+        "27aa32a78764407a27ab28aaf9220915b067d4a0"
+      ],
       "verification_evidence": [
         "Inspected the full source patch, all changed fork UI areas and localization allocation/persistence. All 31 selected text hunks had unique exact context before edits. Verified unique English IDs, 42 relocated definitions, preserved text/placeholders, icon/manifest alignment and retained fork UI symbols. Batch 01 evidence for U001–U010 is in docs/upstream-migration-validation-2026-09-13.md: complete Release/Vulkan and test builds pass, action regression passes, nine localization tests pass, archive hash matches. Singleton ancestry and whitespace checked before receipt."
       ],
@@ -1081,9 +1083,11 @@
         "D06"
       ],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "manually-ported",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected both upstream hunks and fork mode switch; inserted shop case without replacing default maze logic. Offset remains four. Whitespace and singleton ancestry checked before receipt."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -1093,7 +1097,10 @@
       "merge_conflict_paths": [
         "src/openrct2-ui/windows/Ride.cpp"
       ],
-      "verification_gate": "P5"
+      "verification_gate": "P5",
+      "port_commit_locator": "Upstream-Commit: c35f71131fed435a1f98cb31799d891e901bb5da",
+      "implementation_decisions": "Hide only the shopStall case; retain the fork maze-capacity branch and operation option limits. No changes to pricing or stall throughput.",
+      "pending_validation": "Ride-window batch compile/UI checks at U016."
     },
     {
       "sha": "ea084b982808d9b7e392a19598896a4cc92c3b33",
@@ -25866,8 +25873,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 11,
-    "remaining_after_receipt": 350,
+    "accounted_in_this_tree": 12,
+    "remaining_after_receipt": 349,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
