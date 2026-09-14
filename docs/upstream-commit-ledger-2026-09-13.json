@@ -7412,7 +7412,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "c270e7ae163fe8eeeebf1c8d4354b65d02339909"
+      ],
       "verification_evidence": [
         "Entire source delta and direct uses reviewed; whitespace and singleton ancestry checked."
       ],
@@ -7474,9 +7476,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt with fork header dependencies retained",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Reviewed source patch and adapted only header/declaration/whitespace blocks; fork-only neighboring includes preserved."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -7489,7 +7493,10 @@
         "src/openrct2/rct12/ScenarioPatcher.cpp",
         "src/openrct2/rct2/S6Importer.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 5c0caf461afb2acc4d704c817b284a2cec6b8467",
+      "implementation_decisions": "Keep GuestPathfinding bit for direct std::popcount uses and S4Importer Map.h for map operations. Retain fork save/import recovery and topology invalidation; no logic or format changes.",
+      "pending_validation": "Compile importer/header group and run migration/import regressions."
     },
     {
       "sha": "6323d95edc0a239031938ff8c20983f5894ecf7d",
@@ -26566,8 +26573,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 111,
-    "remaining_after_receipt": 250,
+    "accounted_in_this_tree": 112,
+    "remaining_after_receipt": 249,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
