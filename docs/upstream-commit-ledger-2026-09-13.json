@@ -20694,7 +20694,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "9494be94abb4827e98974da4e4ff87d4a193b036"
+      ],
       "verification_evidence": [
         "Read every changed string; all changed values match source. Audited formatter tokens: only Spanish 1858 changes CURRENCY to CURRENCY2DP. Single parent despite Merge subject."
       ],
@@ -20731,9 +20733,11 @@
       "note": "Apply final documentation/changelog/string correction; distinguish upstream release history from features actually ported.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Read complete one-line source delta and applied exact text. B57/B58 already validate the corresponding CD ownership payload."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -20741,7 +20745,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P1"
+      "verification_gate": "P1",
+      "port_commit_locator": "Upstream-Commit: 4fa8219e1f571d96488f430ab678de8edea1e51f",
+      "implementation_decisions": "Documentation-only source correction; actual approved ownership/name patches and economics remain unchanged.",
+      "pending_validation": "No compile debt or new owner decision."
     },
     {
       "sha": "9adbdd643bb2cd3413f2f8952c140d002504d59a",
@@ -27749,8 +27756,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 280,
-    "remaining_after_receipt": 81,
+    "accounted_in_this_tree": 281,
+    "remaining_after_receipt": 80,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

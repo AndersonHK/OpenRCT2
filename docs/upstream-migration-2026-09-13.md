@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 280 / 361 source commits recorded
+## Progress: 281 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3098,10 +3098,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U280 — `69c8522d43` — Merge Localisation/master into OpenRCT2/develop
 
 - **Source:** `69c8522d4367f84770aa31b32db78efa5a808d10`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `9494be94abb4827e98974da4e4ff87d4a193b036`.
 - **Remaining:** 82 → 81.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Port localized Won symbols and Spanish ride/track/objective/UI wording corrections.
 - **Additional decisions / behavior:** Text-only updates. Spanish 1858 explicitly uses CURRENCY2DP, matching cent precision. Correct Spanish heartline-roll direction labels 1377/1378 without changing track controls; preserve all fork strings. Swedish EOF-only source hunk handled separately from its Won replacement.
 - **Verification:** Read every changed string; all changed values match source. Audited formatter tokens: only Spanish 1858 changes CURRENCY to CURRENCY2DP. Single parent despite Merge subject.
 - **Pending / concerns:** Language parser/font tests at next batch; native translation/rendering review remains. No new gameplay decision.
+
+### U281 — `4fa8219e1f` — Small changelog correction
+
+- **Source:** `4fa8219e1f571d96488f430ab678de8edea1e51f`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 81 → 80.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Clarify the Okinawa ownership patch changelog entry applies to CD versions of Wacky Worlds.
+- **Additional decisions / behavior:** Documentation-only source correction; actual approved ownership/name patches and economics remain unchanged.
+- **Verification:** Read complete one-line source delta and applied exact text. B57/B58 already validate the corresponding CD ownership payload.
+- **Pending / concerns:** No compile debt or new owner decision.
