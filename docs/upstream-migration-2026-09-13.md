@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 268 / 361 source commits recorded
+## Progress: 269 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2966,10 +2966,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U268 — `52a684a0da` — Fix #15891: Add lower case hard sign
 
 - **Source:** `52a684a0dae90fb087f5cb3df0001e10dbba6d4f`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `be509c7c5a9a82b86543e42a2cee8e36056a248c`.
 - **Remaining:** 94 → 93.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Add three exact upstream lower-case Cyrillic hard-sign glyphs, per-style manifest entries, sprite enum slot and corrected codepoint lookup; changelog fix.
 - **Additional decisions / behavior:** Use dedicated lowercase glyph instead of uppercase fallback. Preserve tiny y=1 baseline adjustment and per-style ordering. Sprite IDs shift through existing enum/manifest machinery; no save/gameplay data change.
 - **Verification:** Complete textual delta inspected; exact PNG blobs copied with valid PNG signatures; bold glyph viewed; all three style entries reviewed. B61 asset rebuild/lookup validation pending.
 - **Pending / concerns:** Font archive regeneration, style glyph mapping checks and actual rendered text/non-Windows checks pending.
+
+### U269 — `a0840b2a71` — Close #19000: Add sprite font glyph for the Won
+
+- **Source:** `a0840b2a711c8a97db3a6464ec9a2f8cc3dc854f`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 93 → 92.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Add exact Won glyph PNGs in all three font sizes, manifest/enum/Unicode lookup entries and English currency label using the actual symbol.
+- **Additional decisions / behavior:** Glyph support and label only: exchange rates, currency arithmetic, cent-money model and saved values unchanged. Remove whitespace on the new blank enum line so diff checks pass. Preserve fork English string IDs and custom text.
+- **Verification:** Complete textual source inspected; three exact upstream PNG blobs with valid headers, bold glyph viewed; manifest ordering and corresponding enum/map insertions checked. B61 rebuild/lookup checkpoint pending.
+- **Pending / concerns:** Font archive regeneration and rendered currency text/non-Windows checks pending.

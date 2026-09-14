@@ -19143,7 +19143,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "be509c7c5a9a82b86543e42a2cee8e36056a248c"
+      ],
       "verification_evidence": [
         "Complete textual delta inspected; exact PNG blobs copied with valid PNG signatures; bold glyph viewed; all three style entries reviewed. B61 asset rebuild/lookup validation pending."
       ],
@@ -19191,9 +19193,11 @@
       "note": "Take final sprite-font glyph definitions/assets and numeric codepoints as one package; check money glyphs with cent formatting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Complete textual source inspected; three exact upstream PNG blobs with valid headers, bold glyph viewed; manifest ordering and corresponding enum/map insertions checked. B61 rebuild/lookup checkpoint pending."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -19203,7 +19207,10 @@
       "merge_conflict_paths": [
         "data/language/en-GB.txt"
       ],
-      "verification_gate": "P1"
+      "verification_gate": "P1",
+      "port_commit_locator": "Upstream-Commit: a0840b2a711c8a97db3a6464ec9a2f8cc3dc854f",
+      "implementation_decisions": "Glyph support and label only: exchange rates, currency arithmetic, cent-money model and saved values unchanged. Remove whitespace on the new blank enum line so diff checks pass. Preserve fork English string IDs and custom text.",
+      "pending_validation": "Font archive regeneration and rendered currency text/non-Windows checks pending."
     },
     {
       "sha": "e9c7f6667ccc2d6e44fd8fa5f4bfc2284d7d94ed",
@@ -27665,8 +27672,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 268,
-    "remaining_after_receipt": 93,
+    "accounted_in_this_tree": 269,
+    "remaining_after_receipt": 92,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
