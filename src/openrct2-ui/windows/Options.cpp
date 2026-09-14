@@ -777,10 +777,7 @@ namespace OpenRCT2::Ui::Windows
             const bool advancedTabSelected = (WIDX_FIRST_TAB + page) == WIDX_TAB_ADVANCED;
             const bool disableAlwaysNative = !hasFilePicker && advancedTabSelected;
             setWidgetDisabled(WIDX_ALWAYS_NATIVE_LOADSAVE, disableAlwaysNative);
-            if (disableAlwaysNative)
-            {
-                widgets[WIDX_ALWAYS_NATIVE_LOADSAVE].type = WidgetType::empty;
-            }
+            widgets[WIDX_ALWAYS_NATIVE_LOADSAVE].setHidden(disableAlwaysNative);
         }
 
         void CommonPrepareDrawAfter()
@@ -2192,9 +2189,9 @@ namespace OpenRCT2::Ui::Windows
         {
             if (!Config::Get().general.rct1Path.empty())
             {
-                widgets[WIDX_PATH_TO_RCT1_PATH].type = WidgetType::label;
-                widgets[WIDX_PATH_TO_RCT1_BROWSE].type = WidgetType::empty;
-                widgets[WIDX_PATH_TO_RCT1_CLEAR].type = WidgetType::button;
+                widgets[WIDX_PATH_TO_RCT1_PATH].setVisible();
+                widgets[WIDX_PATH_TO_RCT1_BROWSE].setHidden();
+                widgets[WIDX_PATH_TO_RCT1_CLEAR].setVisible();
 
                 // Get 'Clear' button string width
                 auto clearLabel = LanguageGetString(STR_CLEAR_BUTTON);
@@ -2205,9 +2202,9 @@ namespace OpenRCT2::Ui::Windows
             }
             else
             {
-                widgets[WIDX_PATH_TO_RCT1_PATH].type = WidgetType::empty;
-                widgets[WIDX_PATH_TO_RCT1_BROWSE].type = WidgetType::button;
-                widgets[WIDX_PATH_TO_RCT1_CLEAR].type = WidgetType::empty;
+                widgets[WIDX_PATH_TO_RCT1_PATH].setHidden();
+                widgets[WIDX_PATH_TO_RCT1_BROWSE].setVisible();
+                widgets[WIDX_PATH_TO_RCT1_CLEAR].setHidden();
 
                 // Get 'Browse' button string width
                 auto browseLabel = LanguageGetString(STR_BROWSE);

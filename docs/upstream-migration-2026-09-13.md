@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 18 / 361 source commits recorded
+## Progress: 19 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -216,10 +216,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U018 — `430bb95b63` — Rework includes in openrct2/object and openrct2/paint (#26852)
 
 - **Source:** `430bb95b63541ae8d6c1610cf16b50ee3578365c`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `2886403bc27edc170a91dc16422a5b5e65d2b6d9`.
 - **Remaining:** 344 → 343.
 - **Disposition:** manually-ported-with-fork-adaptation.
 - **Manual changes:** Clean up object/paint include dependencies and forward declarations, preserving fork-required headers and implementations. Correct U008 network revision policy drift by restoring the independent fork revision to 4.
 - **Additional decisions / behavior:** Retain Painter.cpp Guard.hpp for the fork paint-session assertion. ObjectManager retains its stable JobPool result publication and does not restore removed mutex/thread includes. Keep entity/map snapshot dependencies and VehiclePaint presentation lookup. No runtime statements change in the include port. Outside review identified that U008 release reset violated the approved independent revision policy: keep 0.5.4-andersonhk-4 and never adopt future upstream release resets; rationale is in the validation doc. This is a correction under existing approval, not a new product decision.
 - **Verification:** Inspected include/forward-declaration deltas, including every track painter change, and compared fork overlap. Unchanged contexts were uniquely matched; divergent header contexts were edited explicitly. Source identity check confirms version 0.5.4, flavor andersonhk, revision 4. Whitespace and singleton ancestry checked before receipt.
 - **Pending / concerns:** Compile the include and following widget/dropdown API migration as a batch; add any direct headers needed by fork consumers. Earlier conversion and visual validation debt remains recorded.
+
+### U019 — `d517f19ce2` — Use flags for widget visibility instead of empty widget type (#26801)
+
+- **Source:** `d517f19ce293d5d7190aac5dba0f2d2a71ac9559`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 343 → 342.
+- **Disposition:** adopt with fork behavior preservation.
+- **Manual changes:** Port explicit widget visibility flags, hidden-input/draw guards and UI call sites. Adapt fork target-price controls, directed-leg selector, maze/block layouts and longitudinal-G graph.
+- **Additional decisions / behavior:** Preserve additive network restrictions (client also hides fast-forward) so later rules cannot reveal editor/settings-hidden controls; retain debug preference. Preserve small-curve availability as curveVertical OR curveSmall, avoiding upstream overwrite. Keep update notice above title menu at y=0. Restore scenario tabs and guest-list filter buttons via visibility flags when revisiting. Retain purposeful widget type changes for target pricing/admission policy and forced-open park lights. No changes to ticket-age pricing, transport economics, ride measurements or maze capacity.
+- **Verification:** Full 37-file upstream delta inspected; exact reviewed hunks applied and fork conflicts manually adapted. Mixed visibility/type usages audited. Added hidden-control representation/state regression test, not yet run. U018 complete build passed 0 warnings/errors, 79.19s (batch-03-includes-build.log). Diff whitespace and singleton ancestry checked by receipt helper.
+- **Pending / concerns:** U019 compile and widget regression test deferred to next coherent UI checkpoint; interactive layout/input cases remain in validation log.

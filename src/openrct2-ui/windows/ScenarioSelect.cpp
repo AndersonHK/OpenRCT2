@@ -325,7 +325,7 @@ namespace OpenRCT2::Ui::Windows
             for (uint32_t i = 0; i < std::size(kScenarioOriginStringIds); i++)
             {
                 const Widget& widget = widgets[WIDX_TAB1 + i];
-                if (widget.type == WidgetType::empty)
+                if (widget.isHidden())
                     continue;
 
                 auto ft = Formatter();
@@ -833,11 +833,11 @@ namespace OpenRCT2::Ui::Windows
                 auto& widget = widgets[i + WIDX_TAB1];
                 if (!(showPages & (1 << i)))
                 {
-                    widget.type = WidgetType::empty;
+                    widget.setHidden();
                     continue;
                 }
 
-                widget.type = WidgetType::tab;
+                widget.setVisible();
                 widget.top = y;
                 widget.bottom = y + (kTabHeight - 1);
                 y += kTabHeight;

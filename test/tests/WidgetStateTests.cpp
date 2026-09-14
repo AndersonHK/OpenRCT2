@@ -16,6 +16,26 @@
 
 using namespace OpenRCT2;
 
+// A hidden control can still change representation (for example, target-price dropdown versus shop spinner).
+TEST(WidgetStateTest, HiddenControlPreservesUpdatedRepresentationAndInteractionState)
+{
+    Widget widget{};
+    widget.type = WidgetType::spinner;
+    widget.flags.set(WidgetFlag::isHoldable);
+    widget.flags.set(WidgetFlag::isDisabled);
+    widget.setHidden();
+    widget.type = WidgetType::dropdownMenu;
+    widget.setString("target price");
+    widget.setVisible();
+
+    EXPECT_TRUE(widget.isVisible());
+    EXPECT_EQ(widget.type, WidgetType::dropdownMenu);
+    EXPECT_STREQ(widget.string, "target price");
+    EXPECT_TRUE(widget.flags.has(WidgetFlag::textIsString));
+    EXPECT_TRUE(widget.flags.has(WidgetFlag::isHoldable));
+    EXPECT_TRUE(widget.flags.has(WidgetFlag::isDisabled));
+}
+
 TEST(WidgetStateTest, WidgetDefaultConstructedHasNoFlags)
 {
     Widget widget{};
