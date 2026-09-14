@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 152 / 361 source commits recorded
+## Progress: 153 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1690,10 +1690,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U152 — `d6863ccf99` — Remove openrct2-ui/interface includes
 
 - **Source:** `d6863ccf998573fd6cecbf33272cf378523ea554`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `67f46bb34e48ef39ac71c42ae6320de0311d23b2`.
 - **Remaining:** 210 → 209.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Narrow UI interface headers and add direct Window.h includes to window consumers; forward declare RenderTarget/WindowBase/WindowClass where sufficient. Keep deleted OpenGL TextureCache absent.
 - **Additional decisions / behavior:** Header ownership only. All fork UI bodies, cent-money graphs, ride/guest controls, Vulkan presentation and input behavior remain unchanged.
 - **Verification:** Inspected complete 94-path source patch; selected 93 live paths. All modified fork paths pass normalized include/forward-declaration-only body proof; whitespace check passed.
 - **Pending / concerns:** Compile with remaining UI include cleanup batch; native non-Windows and interactive UI remain unverified.
+
+### U153 — `d9c423b1d6` — Merge pull request #26907 from Harry-Hopkinson/start-removing-ui-includes
+
+- **Source:** `d9c423b1d6e7698e8435ab5d301ec52cf7ab5720`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 209 → 208.
+- **Disposition:** history receipt.
+- **Manual changes:** Record the UI include merge; constituent changes handled in U150-U152 and Android first-parent changes in U149.
+- **Additional decisions / behavior:** No new implementation delta; retain fork Vulkan and input adaptations plus documented U150 alias correction.
+- **Verification:** Inspected both parents and empty remerge; second-parent delta is exactly the already-ported Android orientation change.
+- **Pending / concerns:** UI include compile checkpoint pending.

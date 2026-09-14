@@ -11275,7 +11275,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "67f46bb34e48ef39ac71c42ae6320de0311d23b2"
+      ],
       "verification_evidence": [
         "Inspected complete 94-path source patch; selected 93 live paths. All modified fork paths pass normalized include/forward-declaration-only body proof; whitespace check passed."
       ],
@@ -11464,9 +11466,11 @@
       "note": "No remerge-resolution delta detected. Account for constituent commits before ancestry reconciliation.",
       "decisions": [],
       "review_level": "remerge-probe",
-      "implementation_status": "not-ported",
+      "implementation_status": "history receipt",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected both parents and empty remerge; second-parent delta is exactly the already-ported Android orientation change."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -11496,7 +11500,10 @@
         "src/openrct2-ui/windows/Staff.cpp",
         "src/openrct2/ride/Vehicle.h"
       ],
-      "verification_gate": "P0"
+      "verification_gate": "P0",
+      "port_commit_locator": "Upstream-Commit: d9c423b1d6e7698e8435ab5d301ec52cf7ab5720",
+      "implementation_decisions": "No new implementation delta; retain fork Vulkan and input adaptations plus documented U150 alias correction.",
+      "pending_validation": "UI include compile checkpoint pending."
     },
     {
       "sha": "bdbe9013ccbcfb36be7c3948f296da8dcd9a61c2",
@@ -26853,8 +26860,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 152,
-    "remaining_after_receipt": 209,
+    "accounted_in_this_tree": 153,
+    "remaining_after_receipt": 208,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
