@@ -10299,7 +10299,9 @@
       ],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "38415e70f465f52fc2fba10991723207f128ccf3"
+      ],
       "verification_evidence": [
         "Read source definition changes and verified every delta in all 92 actual source files as identifier substitution plus whitespace only. Applied only those 94 exact identifier tokens to 92 current fork files; all other bytes and initializer expressions remain unchanged. Whitespace check passes."
       ],
@@ -10515,9 +10517,11 @@
       "note": "No remerge-resolution delta detected. Account for constituent commits before ancestry reconciliation.",
       "decisions": [],
       "review_level": "remerge-probe",
-      "implementation_status": "not-ported",
+      "implementation_status": "history receipt",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected both merge parents, empty archived remerge and empty tree delta against second parent bb0b26e3f2."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -10537,7 +10541,10 @@
         "src/openrct2/ride/rtd/gentle/Maze.h",
         "src/openrct2/scripting/bindings/object/ScObject.hpp"
       ],
-      "verification_gate": "P0"
+      "verification_gate": "P0",
+      "port_commit_locator": "Upstream-Commit: 5d3903209e66820cdf129ed86c2a4a1f51ce8e4c",
+      "implementation_decisions": "No further changes; retain fork invalid-door-sound validation and all vehicle/descriptor adaptations.",
+      "pending_validation": "U140-U142 compile/test checkpoint remains pending with the following vehicle rename batch."
     },
     {
       "sha": "5c0fc863979b7c7b9a8675cf69d51661309c0033",
@@ -26783,8 +26790,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 142,
-    "remaining_after_receipt": 219,
+    "accounted_in_this_tree": 143,
+    "remaining_after_receipt": 218,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

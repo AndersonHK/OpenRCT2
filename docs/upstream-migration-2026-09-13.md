@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 142 / 361 source commits recorded
+## Progress: 143 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1580,10 +1580,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U142 — `bb0b26e3f2` — Rename RTD constants
 
 - **Source:** `bb0b26e3f2155d180cefce6cfe9e8fd0f35b294d`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `38415e70f465f52fc2fba10991723207f128ccf3`.
 - **Remaining:** 220 → 219.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Rename 94 ride-type descriptor constants with the k prefix across 92 definition and registry files.
 - **Additional decisions / behavior:** Preserve every fork descriptor initializer, ride-type ordering, sampled-rating setup, costs, heights, flags and callbacks. No upstream descriptor values are copied.
 - **Verification:** Read source definition changes and verified every delta in all 92 actual source files as identifier substitution plus whitespace only. Applied only those 94 exact identifier tokens to 92 current fork files; all other bytes and initializer expressions remain unchanged. Whitespace check passes.
 - **Pending / concerns:** Compile and test with the pending vehicle rename batch; U140-U142 build debt remains explicit.
+
+### U143 — `5d3903209e` — More enum class conversions (plus a constexpr rename) (#26897)
+
+- **Source:** `5d3903209e66820cdf129ed86c2a4a1f51ce8e4c`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 219 → 218.
+- **Disposition:** history receipt.
+- **Manual changes:** Record the wall/vehicle enum and RTD rename merge; the implementation is already individually handled in U139-U142.
+- **Additional decisions / behavior:** No further changes; retain fork invalid-door-sound validation and all vehicle/descriptor adaptations.
+- **Verification:** Inspected both merge parents, empty archived remerge and empty tree delta against second parent bb0b26e3f2.
+- **Pending / concerns:** U140-U142 compile/test checkpoint remains pending with the following vehicle rename batch.
