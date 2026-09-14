@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 113 / 361 source commits recorded
+## Progress: 114 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1261,10 +1261,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U113 — `6323d95edc` — Remove openrct2/ride includes
 
 - **Source:** `6323d95edc0a239031938ff8c20983f5894ecf7d`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `552188767c33a2915ab44489d915354cc02e9111`.
 - **Remaining:** 249 → 248.
 - **Disposition:** adopt header cleanup with direct fork dependencies retained.
 - **Manual changes:** Narrow ride headers, add direct declarations/includes to consumers, remove redundant headers and trailing whitespace across 160 paths.
 - **Additional decisions / behavior:** Keep Vehicle.cpp Config.h for fork threaded rating updates and RideRatings.cpp TrackData.h for fork descriptor calls. Already-retained cstring/bit/ctime need no duplicate insertion. Keep TrackDesign.cpp primary self-include, removing only its duplicate. Preserve fork callbacks, station tick parameters, physics, ratings, rendering and all descriptors.
 - **Verification:** All 160 fork token deltas restricted to includes/forward declarations/whitespace. Initial compile exposed missing TrackData declaration; restored it. Full rebuild and all 154 selected tests passed; see validation Batch 14.
 - **Pending / concerns:** Non-Windows platform builds and interactive checks remain unverified.
+
+### U114 — `53a81b1b45` — Merge pull request #26874 from Harry-Hopkinson/remove-even-more-includes
+
+- **Source:** `53a81b1b45b95b0745fa6f3fb38162f8bef64d42`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 248 → 247.
+- **Disposition:** history receipt.
+- **Manual changes:** Record completed header-cleanup branch merge; no additional source delta.
+- **Additional decisions / behavior:** All constituent sources individually ported; retain manually adapted fork tree.
+- **Verification:** Archived remerge empty and merge tree equals second parent. Singleton ancestry checked. Batch 14 build and 154 tests cover constituents.
+- **Pending / concerns:** No additional merge-specific check required.

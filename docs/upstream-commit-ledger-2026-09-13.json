@@ -7749,7 +7749,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt header cleanup with direct fork dependencies retained",
-      "port_commits": [],
+      "port_commits": [
+        "552188767c33a2915ab44489d915354cc02e9111"
+      ],
       "verification_evidence": [
         "All 160 fork token deltas restricted to includes/forward declarations/whitespace. Initial compile exposed missing TrackData declaration; restored it. Full rebuild and all 154 selected tests passed; see validation Batch 14."
       ],
@@ -8064,9 +8066,11 @@
       "note": "No remerge-resolution delta detected. Account for constituent commits before ancestry reconciliation.",
       "decisions": [],
       "review_level": "remerge-probe",
-      "implementation_status": "not-ported",
+      "implementation_status": "history receipt",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Archived remerge empty and merge tree equals second parent. Singleton ancestry checked. Batch 14 build and 154 tests cover constituents."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -8096,7 +8100,10 @@
         "src/openrct2/ride/rtd/gentle/HauntedHouse.h",
         "src/openrct2/ride/rtd/gentle/Maze.h"
       ],
-      "verification_gate": "P0"
+      "verification_gate": "P0",
+      "port_commit_locator": "Upstream-Commit: 53a81b1b45b95b0745fa6f3fb38162f8bef64d42",
+      "implementation_decisions": "All constituent sources individually ported; retain manually adapted fork tree.",
+      "pending_validation": "No additional merge-specific check required."
     },
     {
       "sha": "51649e5873c8441e8bfab995e3e4d1d5953417aa",
@@ -26580,8 +26587,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 113,
-    "remaining_after_receipt": 248,
+    "accounted_in_this_tree": 114,
+    "remaining_after_receipt": 247,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
