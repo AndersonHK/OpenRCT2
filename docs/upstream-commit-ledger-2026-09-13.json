@@ -2909,7 +2909,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "ported",
-      "port_commits": [],
+      "port_commits": [
+        "ef5ecc9e9b1d8141a101b6b89566eae1e940c93c"
+      ],
       "verification_evidence": [
         "Inspected all three source hunks and both local branches. Six restored type assignments match the shared roles; source/diff and exact-one ancestry checked."
       ],
@@ -2951,9 +2953,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "ported",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Reviewed full four-file source delta and every fork reference. Unique-context edits and exact-one ancestry checked."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -2961,7 +2965,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: d26b161668e42872287912b0de5e811a66c3f6a5",
+      "implementation_decisions": "Storage duration, three palette indices and draw ordering are unchanged. All fork consumers were searched; no extra Vulkan snapshot or concurrency policy changes are introduced by this ownership move.",
+      "pending_validation": "Compile/link at the UI-header batch checkpoint."
     },
     {
       "sha": "4bf86c6e6c96cb7a171bf51f9a6cadcdf3e178a6",
@@ -26062,8 +26069,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 39,
-    "remaining_after_receipt": 322,
+    "accounted_in_this_tree": 40,
+    "remaining_after_receipt": 321,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

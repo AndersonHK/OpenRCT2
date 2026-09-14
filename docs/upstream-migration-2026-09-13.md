@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 39 / 361 source commits recorded
+## Progress: 40 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -447,10 +447,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U039 — `a3f7b5d3b0` — Restore overriding widget type for construction bank/speed setting (#26863)
 
 - **Source:** `a3f7b5d3b09f470dee3e1b28ba157e40e3ff95c4`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `ef5ecc9e9b1d8141a101b6b89566eae1e940c93c`.
 - **Remaining:** 323 → 322.
 - **Disposition:** ported.
 - **Manual changes:** Restore genuine bank-button versus brake/booster-spinner widget types before revealing shared controls; remove obsolete comment.
 - **Additional decisions / behavior:** The hidden-state refactor does not replace widget type when the same slot serves different controls. Adopt this UI repair without changing banking eligibility, speed values, seat rotation or fork pressed/holdable state logic. Later separated-widget redesign remains for its own source commit.
 - **Verification:** Inspected all three source hunks and both local branches. Six restored type assignments match the shared roles; source/diff and exact-one ancestry checked.
 - **Pending / concerns:** Compile and interactive bank-to-brake/booster transitions at next coherent checkpoint.
+
+### U040 — `d26b161668` — Move gCurrentWindowColours to Drawing.String.cpp
+
+- **Source:** `d26b161668e42872287912b0de5e811a66c3f6a5`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 322 → 321.
+- **Disposition:** ported.
+- **Manual changes:** Move the current three window text colours into Drawing.String ownership and qualify the window draw writes.
+- **Additional decisions / behavior:** Storage duration, three palette indices and draw ordering are unchanged. All fork consumers were searched; no extra Vulkan snapshot or concurrency policy changes are introduced by this ownership move.
+- **Verification:** Reviewed full four-file source delta and every fork reference. Unique-context edits and exact-one ancestry checked.
+- **Pending / concerns:** Compile/link at the UI-header batch checkpoint.
