@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 236 / 361 source commits recorded
+## Progress: 237 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2614,10 +2614,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U236 — `e9b9979ee3` — Rename NUM_HookTypeS to kHookTypeCount
 
 - **Source:** `e9b9979ee318f0d9c56add4da5b71fdbc6b7b613`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `06150d210b7ca251b6bb86636132149db53e946e`.
 - **Remaining:** 126 → 125.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Rename hook type count and its vector initialization consumers.
 - **Additional decisions / behavior:** Preserve all HookType values, callback ordering and map-resize hook behavior.
 - **Verification:** Full source/reference search and inverse-rename content proof passed.
+- **Pending / concerns:** Compile at next checkpoint.
+
+### U237 — `f10a778c7a` — Rename MIN_TILE_ELEMENTS to kMinTileElements
+
+- **Source:** `f10a778c7a847a9af0f1335c259ece6b3a2d940e`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 125 → 124.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Rename minimum tile allocation capacity constant and spell out internal linkage.
+- **Additional decisions / behavior:** Keep capacity 1024, compaction, ghost exclusion, canonical mutation and O05 preview identities unchanged.
+- **Verification:** Complete source/reference search and inverse-transform content proof passed.
 - **Pending / concerns:** Compile at next checkpoint.
