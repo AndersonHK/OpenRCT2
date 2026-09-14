@@ -27371,7 +27371,9 @@
       ],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "e018ad9df7a4f482c6631290496edd8a36dc7d42"
+      ],
       "verification_evidence": [
         "Inspected source one-line logic and fork preparation sequence; changelog added without deferred claims."
       ],
@@ -27408,9 +27410,11 @@
       "note": "Apply final documentation/changelog/string correction; distinguish upstream release history from features actually ported.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Complete source two-hunk changelog change inspected and adapted to prior whitespace cleanup."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -27418,7 +27422,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P1"
+      "verification_gate": "P1",
+      "port_commit_locator": "Upstream-Commit: d8345a4d533288967d689d6613c5719a2b637598",
+      "implementation_decisions": "Keep approved D01/D02 omitted claims; no executable change.",
+      "pending_validation": "No additional test required."
     },
     {
       "sha": "a535c9f810bcdb876523094e48253a1080b9f4ea",
@@ -28281,8 +28288,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 356,
-    "remaining_after_receipt": 5,
+    "accounted_in_this_tree": 357,
+    "remaining_after_receipt": 4,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

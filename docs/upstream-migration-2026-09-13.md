@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 356 / 361 source commits recorded
+## Progress: 357 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3934,10 +3934,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U356 — `612b3cb2aa` — Fix #27113: Chat button is shown in editor mode
 
 - **Source:** `612b3cb2aae32865fbcce2729ae9b638c37b548b`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `e018ad9df7a4f482c6631290496edd8a36dc7d42`.
 - **Remaining:** 6 → 5.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Explicitly hide toolbar chat in editor mode.
 - **Additional decisions / behavior:** Preserve fork visibility ordering, network restrictions, configured controls and turbo behavior; add source editor guard only.
 - **Verification:** Inspected source one-line logic and fork preparation sequence; changelog added without deferred claims.
 - **Pending / concerns:** Final Windows/UI test checkpoint.
+
+### U357 — `d8345a4d53` — Add #19754 to changelog
+
+- **Source:** `d8345a4d533288967d689d6613c5719a2b637598`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 5 → 4.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Consolidate RCT1 car-count changelog references under both issue IDs.
+- **Additional decisions / behavior:** Keep approved D01/D02 omitted claims; no executable change.
+- **Verification:** Complete source two-hunk changelog change inspected and adapted to prior whitespace cleanup.
+- **Pending / concerns:** No additional test required.
