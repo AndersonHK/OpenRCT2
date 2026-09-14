@@ -4364,7 +4364,7 @@ namespace OpenRCT2::Ui::Windows
         void SetTrackColourScheme(const ScreenCoordsXY& screenPos)
         {
             auto newColourScheme = static_cast<uint8_t>(_rideColour);
-            auto info = GetMapCoordinatesFromPos(screenPos, EnumsToFlags(ViewportInteractionItem::ride));
+            auto info = GetMapCoordinatesFromPos(screenPos, ViewportInteractionItem::ride);
 
             if (info.interactionType != ViewportInteractionItem::ride)
                 return;
@@ -5979,10 +5979,11 @@ namespace OpenRCT2::Ui::Windows
             _lastSceneryY = screenCoords.y;
             _collectTrackDesignScenery = true; // Default to true in case user does not select anything valid
 
-            constexpr auto interactionFlags = EnumsToFlags(
-                ViewportInteractionItem::scenery, ViewportInteractionItem::footpath, ViewportInteractionItem::wall,
-                ViewportInteractionItem::largeScenery);
-            auto info = GetMapCoordinatesFromPos(screenCoords, interactionFlags);
+            constexpr ViewportInteractionItems kInteractionFlags = { ViewportInteractionItem::scenery,
+                                                                     ViewportInteractionItem::footpath,
+                                                                     ViewportInteractionItem::wall,
+                                                                     ViewportInteractionItem::largeScenery };
+            auto info = GetMapCoordinatesFromPos(screenCoords, kInteractionFlags);
             switch (info.interactionType)
             {
                 case ViewportInteractionItem::scenery:
@@ -6004,10 +6005,11 @@ namespace OpenRCT2::Ui::Windows
             _lastSceneryX = screenCoords.x;
             _lastSceneryY = screenCoords.y;
 
-            constexpr auto interactionFlags = EnumsToFlags(
-                ViewportInteractionItem::scenery, ViewportInteractionItem::footpath, ViewportInteractionItem::wall,
-                ViewportInteractionItem::largeScenery);
-            auto info = GetMapCoordinatesFromPos(screenCoords, interactionFlags);
+            constexpr ViewportInteractionItems kInteractionFlags = { ViewportInteractionItem::scenery,
+                                                                     ViewportInteractionItem::footpath,
+                                                                     ViewportInteractionItem::wall,
+                                                                     ViewportInteractionItem::largeScenery };
+            auto info = GetMapCoordinatesFromPos(screenCoords, kInteractionFlags);
             switch (info.interactionType)
             {
                 case ViewportInteractionItem::scenery:

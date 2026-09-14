@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 343 / 361 source commits recorded
+## Progress: 344 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3791,10 +3791,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U343 — `b1175458bf` — Refactor CoordsRange.hpp/ScreenCoords.hpp members to camelCase (#27112)
 
 - **Source:** `b1175458bfb9481a02e8ac526cdf52c864aa033d`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `d1378a0a9969f7bcc01ed9a077308d9653c8d9c3`.
 - **Remaining:** 19 → 18.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Rename coordinate range members and screen rectangle methods, including fork GPU consumers.
 - **Additional decisions / behavior:** Names only. Preserve clipping/range arithmetic, serializer order, fork spatial audio and removed OpenGL ownership. Separate UiContext/TextLayout/Viewport/collection APIs unchanged.
 - **Verification:** Complete source 571 substitutions/40 files and fork 539/39: all other noncomment tokens, literals and strings identical. Solution clean 81.90s; 133 existing affected tests pass 14.983s; B94.
 - **Pending / concerns:** Native renderer and other standing handoff checks remain.
+
+### U344 — `fdd84f2612` — Refactor ViewportInteractionItems into FlagHolder (#27111)
+
+- **Source:** `fdd84f26125d49df189f24738ee10a5ca20d3e6e`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 18 → 17.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Convert viewport picking filters to typed 16-bit flag holders across all consumers.
+- **Additional decisions / behavior:** Every concrete item retains its bit index and listed filter membership. All-filter drops only none/reserved bits; paint filtering still rejects none and label before membership. Complement filter explicitly lists the same selectable non-terrain/non-water items. Plugin filter arrays retain clear/set/default semantics. Fork presentation picking and dual-height patrol selection unchanged.
+- **Verification:** Read every source hunk; all 17 source files applied at existing owners; inventory confirms callers use typed filters and no leftover raw mask conversion. Diff check passes.
+- **Pending / concerns:** Compile and affected UI/scripting/GPU tests at following display checkpoint.
