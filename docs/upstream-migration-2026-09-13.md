@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 66 / 361 source commits recorded
+## Progress: 67 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -744,10 +744,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U066 — `5a0aa69409` — Rename members of PixelDataKind
 
 - **Source:** `5a0aa69409f312233bcfe4f95cf1203205b33e96`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `74f43922a539132bd0a992f189d2e02a4219aadf`.
 - **Remaining:** 296 → 295.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename PixelDataKind members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Preserve raw/RLE/palette/PNG numeric kinds, JS strings, stride handling, PNG import mode and image buffer ownership. Naming only; no custom-image encoding or sprite-cache behavior change.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U067 — `e89ab11a6a` — Rename members of PixelDataPaletteKind
+
+- **Source:** `e89ab11a6a1e1fa0f04669da2b93ed895aae0c2b`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 295 → 294.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename PixelDataPaletteKind members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Preserve palette-kind values, keep/closest/dither JS strings, palette index retention and importer mode selection. No quantization or dithering algorithm change; fork image/rendering behavior stays intact.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
