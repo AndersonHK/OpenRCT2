@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 110 / 361 source commits recorded
+## Progress: 111 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1228,10 +1228,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U110 — `b3ef890f38` — Remove openrct2/peep includes
 
 - **Source:** `b3ef890f383ea9af6904b079c906336f0b3ed4f0`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `d543575a66cff59e73101f7c8d52763a65b80999`.
 - **Remaining:** 252 → 251.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Narrow pathfinding header to Identifiers.h, remove unused forward declaration and two includes; format RideUseSystem header.
 - **Additional decisions / behavior:** Keep bitset: fork transport routing uses destinationCandidateMask and walkAfterRideComputed. Header memory include already absent. No pathfinding or fare behavior changes.
 - **Verification:** Actual patch and fork uses inspected; whitespace and singleton ancestry checked.
 - **Pending / concerns:** Compile header group.
+
+### U111 — `7f8fc39ff5` — Remove openrct2/platform includes
+
+- **Source:** `7f8fc39ff533d965c7875101a833158196a518bb`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 251 → 250.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Remove unused Android/Emscripten/Linux/common platform headers.
+- **Additional decisions / behavior:** Retain direct standard-library dependencies: Platform.Common.cpp uses strlen; Platform.h declares time_t APIs and a std::endian assertion. Keep cstring, ctime and bit despite proposed removal. No platform behavior change.
+- **Verification:** Entire source delta and direct uses reviewed; whitespace and singleton ancestry checked.
+- **Pending / concerns:** Windows compilation in next header checkpoint; non-Windows build unavailable here.

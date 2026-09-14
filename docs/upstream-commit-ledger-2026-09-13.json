@@ -7363,7 +7363,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "d543575a66cff59e73101f7c8d52763a65b80999"
+      ],
       "verification_evidence": [
         "Actual patch and fork uses inspected; whitespace and singleton ancestry checked."
       ],
@@ -7409,9 +7411,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Entire source delta and direct uses reviewed; whitespace and singleton ancestry checked."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -7419,7 +7423,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 7f8fc39ff533d965c7875101a833158196a518bb",
+      "implementation_decisions": "Retain direct standard-library dependencies: Platform.Common.cpp uses strlen; Platform.h declares time_t APIs and a std::endian assertion. Keep cstring, ctime and bit despite proposed removal. No platform behavior change.",
+      "pending_validation": "Windows compilation in next header checkpoint; non-Windows build unavailable here."
     },
     {
       "sha": "5c0caf461afb2acc4d704c817b284a2cec6b8467",
@@ -26559,8 +26566,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 110,
-    "remaining_after_receipt": 251,
+    "accounted_in_this_tree": 111,
+    "remaining_after_receipt": 250,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
