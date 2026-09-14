@@ -13470,7 +13470,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "b56d43dbd3ef6cf8cd568aa8f786c832c82b0eea"
+      ],
       "verification_evidence": [
         "Inspected all three source patches and every repository use of kButtonFaceHeight, including the fork graph layout. Changes match actual source deltas; coordinate arithmetic and affected consumers reviewed. Receipt whitespace and singleton ancestry gates apply."
       ],
@@ -13507,9 +13509,11 @@
       "note": "Single-parent localisation update; use final target blobs after English ID reconciliation.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected complete one-line source diff and matching fork string. No format placeholders or string IDs changed; receipt whitespace and ancestry gates apply."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -13517,7 +13521,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P1"
+      "verification_gate": "P1",
+      "port_commit_locator": "Upstream-Commit: cef7dd164ba8394ae0b7b43f961ded962e06ddb8",
+      "implementation_decisions": "Text-only label correction. Preserve all fork custom IDs and other translations; no gameplay or object dependency change.",
+      "pending_validation": "Covered by normal language compilation at the next build; interactive Dutch label remains unverified."
     },
     {
       "sha": "d943171faefddb192ac3aa143270f449f447d2db",
@@ -26986,8 +26993,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 171,
-    "remaining_after_receipt": 190,
+    "accounted_in_this_tree": 172,
+    "remaining_after_receipt": 189,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

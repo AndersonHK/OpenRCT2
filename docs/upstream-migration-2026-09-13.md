@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 171 / 361 source commits recorded
+## Progress: 172 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1899,10 +1899,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U171 — `bc68828c7d` — Improve save field alignment in file browser window (#26916)
 
 - **Source:** `bc68828c7dd07ac51eff12e133156a2f31c43024`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `b56d43dbd3ef6cf8cd568aa8f786c832c82b0eea`.
 - **Remaining:** 191 → 190.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Align save textbox and Save button using the standard button-face height, move the filename label accordingly, and adjust marketing button spacing; kButtonFaceHeight advances 12 to 14.
 - **Additional decisions / behavior:** Adopt all source geometry changes. Additional reviewed effects: save controls have a two-pixel larger top-to-bottom span and the scroll area reserves 21 instead of 18 pixels; marketing button span/stride each grow one pixel. The shared constant moves the preview park-name text up two pixels. In the fork five-button ride graph row, graph/button tops move up two pixels and button bottoms stay fixed; preserve the longitudinal-G button, equal widths and graph data. No pricing, marketing cost/eligibility, save format or gameplay changes.
 - **Verification:** Inspected all three source patches and every repository use of kButtonFaceHeight, including the fork graph layout. Changes match actual source deltas; coordinate arithmetic and affected consumers reviewed. Receipt whitespace and singleton ancestry gates apply.
 - **Pending / concerns:** Build/widget regression at the next checkpoint; interactive file browser, marketing and five-button graph layout remain unverified.
+
+### U172 — `cef7dd164b` — Merge Localisation/master into OpenRCT2/develop
+
+- **Source:** `cef7dd164ba8394ae0b7b43f961ded962e06ddb8`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 190 → 189.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Shorten Dutch STR_6678 from Bronbestand: to Bron: (source file to source), matching the single actual translation delta.
+- **Additional decisions / behavior:** Text-only label correction. Preserve all fork custom IDs and other translations; no gameplay or object dependency change.
+- **Verification:** Inspected complete one-line source diff and matching fork string. No format placeholders or string IDs changed; receipt whitespace and ancestry gates apply.
+- **Pending / concerns:** Covered by normal language compilation at the next build; interactive Dutch label remains unverified.
