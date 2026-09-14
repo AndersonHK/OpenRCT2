@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 146 / 361 source commits recorded
+## Progress: 147 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1624,10 +1624,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U146 — `24869300df` — Rename VehicleSpriteGroup member function to adhere to code style
 
 - **Source:** `24869300dfeb6d5f80587e3dfb5c934198eeccf2`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `ec071472bc48ab54092d2c751bbceaa68a3dee4f`.
 - **Remaining:** 216 → 215.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Rename VehicleSpriteGroup.Enabled to isEnabled and update all three call sites.
 - **Additional decisions / behavior:** Internal method naming only; spritePrecision comparison and rendering/object/script behavior remain identical.
 - **Verification:** Inspected complete four-file source patch and fork delta; all callers updated and whitespace check passed.
 - **Pending / concerns:** Compile with the next coherent batch.
+
+### U147 — `bd935d75c9` — Merge pull request #26899 from Gymnasiast/more-renames
+
+- **Source:** `bd935d75c947eba5c4620e96cd978c25c9484468`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 215 → 214.
+- **Disposition:** history receipt.
+- **Manual changes:** Record the CarEntry naming merge; source changes already handled individually in U144-U146.
+- **Additional decisions / behavior:** No additional implementation changes or behavioral decisions.
+- **Verification:** Both merge parents inspected; empty remerge and identical second-parent tree verified.
+- **Pending / concerns:** U145-U146 compile checkpoint remains pending with next coherent batch.

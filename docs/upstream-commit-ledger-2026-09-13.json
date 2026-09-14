@@ -10762,7 +10762,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "ec071472bc48ab54092d2c751bbceaa68a3dee4f"
+      ],
       "verification_evidence": [
         "Inspected complete four-file source patch and fork delta; all callers updated and whitespace check passed."
       ],
@@ -10873,9 +10875,11 @@
       "note": "No remerge-resolution delta detected. Account for constituent commits before ancestry reconciliation.",
       "decisions": [],
       "review_level": "remerge-probe",
-      "implementation_status": "not-ported",
+      "implementation_status": "history receipt",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Both merge parents inspected; empty remerge and identical second-parent tree verified."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -10911,7 +10915,10 @@
         "src/openrct2/ride/Vehicle.cpp",
         "src/openrct2/scripting/bindings/object/ScObject.hpp"
       ],
-      "verification_gate": "P0"
+      "verification_gate": "P0",
+      "port_commit_locator": "Upstream-Commit: bd935d75c947eba5c4620e96cd978c25c9484468",
+      "implementation_decisions": "No additional implementation changes or behavioral decisions.",
+      "pending_validation": "U145-U146 compile checkpoint remains pending with next coherent batch."
     },
     {
       "sha": "a187bc95503c9f35f224046e6bf945ab6adfac39",
@@ -26811,8 +26818,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 146,
-    "remaining_after_receipt": 215,
+    "accounted_in_this_tree": 147,
+    "remaining_after_receipt": 214,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
