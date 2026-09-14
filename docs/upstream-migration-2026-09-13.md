@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 7 / 361 source commits recorded
+## Progress: 8 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -95,10 +95,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U007 — `cd44174f9b` — Merge branch 'develop'
 
 - **Source:** `cd44174f9b04ee909309214fee35656a0d07f871`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `956cb285b3f29f053ba21c6ee749c3c65715f965`.
 - **Remaining:** 355 → 354.
 - **Disposition:** merge-no-unique-source-change.
 - **Manual changes:** Record the upstream develop-to-master merge; no additional source edits are required.
 - **Additional decisions / behavior:** Both parents are already in fork ancestry. The merge has no unique resolution delta, so its first-parent aggregate diff must not replay already accounted changes or restore legacy fork implementations.
 - **Verification:** Inspected merge parents and successful empty git show --remerge-diff using an isolated scratch object directory. git rev-list HEAD..source returns only this merge. Receipt checks exact one-less ancestry.
 - **Pending / concerns:** No new validation debt; earlier port checks remain pending.
+
+### U008 — `4a7ee146ca` — Release v0.5.4
+
+- **Source:** `4a7ee146caab8888eb31e56a33c0559db89b17bd`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 354 → 353.
+- **Disposition:** manually-ported.
+- **Manual changes:** Advance release metadata to 0.5.4 and Android code 24, record upstream release notes, and reset the stream revision for the new release version.
+- **Additional decisions / behavior:** Retain andersonhk in the network stream ID and all fork tick-clock/player-list logic. Resetting revision 4 to 0 is safe across the distinct 0.5.4 release string: it cannot match the prior 0.5.3 fork stream. Release notes describe upstream history; their legacy maze claim does not override the fork maze model. CI edits only update the version variable and do not trigger a release here.
+- **Verification:** Inspected all eight source-file changes and fork differences. Explicit metadata substitutions preserve fork CI removal of OpenGL. Debian and appdata files matched their source parent before taking this commit's reviewed blobs. Whitespace and singleton ancestry checked before receipt.
+- **Pending / concerns:** Batch compile and network identity check; no cross-platform package build or deployment performed.

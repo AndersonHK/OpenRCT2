@@ -775,7 +775,9 @@
       "decisions": [],
       "review_level": "remerge-probe",
       "implementation_status": "merge-no-unique-source-change",
-      "port_commits": [],
+      "port_commits": [
+        "956cb285b3f29f053ba21c6ee749c3c65715f965"
+      ],
       "verification_evidence": [
         "Inspected merge parents and successful empty git show --remerge-diff using an isolated scratch object directory. git rev-list HEAD..source returns only this merge. Receipt checks exact one-less ancestry."
       ],
@@ -885,9 +887,11 @@
       "note": "Record final release/version state, preserving andersonhk protocol flavor and advancing fork revision for accepted simulation/action changes.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "manually-ported",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected all eight source-file changes and fork differences. Explicit metadata substitutions preserve fork CI removal of OpenGL. Debian and appdata files matched their source parent before taking this commit's reviewed blobs. Whitespace and singleton ancestry checked before receipt."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -897,7 +901,10 @@
       "merge_conflict_paths": [
         "src/openrct2/network/NetworkBase.cpp"
       ],
-      "verification_gate": "P8"
+      "verification_gate": "P8",
+      "port_commit_locator": "Upstream-Commit: 4a7ee146caab8888eb31e56a33c0559db89b17bd",
+      "implementation_decisions": "Retain andersonhk in the network stream ID and all fork tick-clock/player-list logic. Resetting revision 4 to 0 is safe across the distinct 0.5.4 release string: it cannot match the prior 0.5.3 fork stream. Release notes describe upstream history; their legacy maze claim does not override the fork maze model. CI edits only update the version variable and do not trigger a release here.",
+      "pending_validation": "Batch compile and network identity check; no cross-platform package build or deployment performed."
     },
     {
       "sha": "31760893d61fa4fee2ed3fafc2f7db1cec6ec36d",
@@ -25838,8 +25845,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 7,
-    "remaining_after_receipt": 354,
+    "accounted_in_this_tree": 8,
+    "remaining_after_receipt": 353,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
