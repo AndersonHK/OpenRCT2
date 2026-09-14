@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 47 / 361 source commits recorded
+## Progress: 48 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -535,10 +535,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U047 — `bcd7708dc1` — Merge pull request #26872 from Gymnasiast/fix/26811
 
 - **Source:** `bcd7708dc1a1da55aa1f74e570e93ebeb0ec34c3`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `20ada0ae25c0d20d767ed9baa383bd9a524205d8`.
 - **Remaining:** 315 → 314.
 - **Disposition:** merge receipt; already ported.
 - **Manual changes:** Record the missing-station-object crash-fix merge; U046 contains its entire product delta.
 - **Additional decisions / behavior:** No additional merge resolution or behavior change; retain the fork-adapted null guard.
 - **Verification:** Inspected merge metadata, empty archived remerge diff and second-parent tree equivalence; exact-one ancestry checked.
 - **Pending / concerns:** UI-header batch build and selected tests next.
+
+### U048 — `40b7741b58` — Merge Localisation/master into OpenRCT2/develop
+
+- **Source:** `40b7741b58bfa1d165249a0ba53e3b1b97f58ec3`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 314 → 313.
+- **Disposition:** ported.
+- **Manual changes:** Add Esperanto ride-type label at reconciled upstream ID 7039.
+- **Additional decisions / behavior:** Single-parent localisation change despite merge-style subject. Text only; fork IDs 8000-8041 untouched.
+- **Verification:** Inspected the one-line source patch and checked the translated ID is unique; exact-one ancestry checked.
+- **Pending / concerns:** Language parser regression at the in-flight UI checkpoint.

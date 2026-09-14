@@ -3342,7 +3342,9 @@
       "decisions": [],
       "review_level": "remerge-probe",
       "implementation_status": "merge receipt; already ported",
-      "port_commits": [],
+      "port_commits": [
+        "20ada0ae25c0d20d767ed9baa383bd9a524205d8"
+      ],
       "verification_evidence": [
         "Inspected merge metadata, empty archived remerge diff and second-parent tree equivalence; exact-one ancestry checked."
       ],
@@ -3381,9 +3383,11 @@
       "note": "Single-parent localisation update; use final target blobs after English ID reconciliation.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "ported",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected the one-line source patch and checked the translated ID is unique; exact-one ancestry checked."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -3391,7 +3395,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P1"
+      "verification_gate": "P1",
+      "port_commit_locator": "Upstream-Commit: 40b7741b58bfa1d165249a0ba53e3b1b97f58ec3",
+      "implementation_decisions": "Single-parent localisation change despite merge-style subject. Text only; fork IDs 8000-8041 untouched.",
+      "pending_validation": "Language parser regression at the in-flight UI checkpoint."
     },
     {
       "sha": "26b28153bbfdfe30ec74f1e13db3f17d89329a01",
@@ -26118,8 +26125,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 47,
-    "remaining_after_receipt": 314,
+    "accounted_in_this_tree": 48,
+    "remaining_after_receipt": 313,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
