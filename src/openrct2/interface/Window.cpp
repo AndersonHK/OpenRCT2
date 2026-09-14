@@ -763,14 +763,16 @@ static constexpr float kWindowScrollLocations[][2] = {
             dateInfoPanel->windowPos.y = height - 32;
         }
 
-        WindowBase* bottomWind = windowMgr->FindByClass(WindowClass::bottomToolbar);
-        if (bottomWind != nullptr)
+        const auto parkPanelWidth = parkInfoPanel != nullptr ? parkInfoPanel->width : 0;
+        const auto datePanelWidth = dateInfoPanel != nullptr ? dateInfoPanel->width : 0;
+        for (const auto windowClass : { WindowClass::gameStatusBar, WindowClass::newsTicker })
         {
-            const auto parkPanelWidth = parkInfoPanel != nullptr ? parkInfoPanel->width : 0;
-            const auto datePanelWidth = dateInfoPanel != nullptr ? dateInfoPanel->width : 0;
-            bottomWind->width = std::max(640, width) - parkPanelWidth - datePanelWidth;
-            bottomWind->windowPos.x = parkPanelWidth;
-            bottomWind->windowPos.y = height - 32;
+            if (auto* window = windowMgr->FindByClass(windowClass))
+            {
+                window->width = std::max(640, width) - parkPanelWidth - datePanelWidth;
+                window->windowPos.x = parkPanelWidth;
+                window->windowPos.y = height - 32;
+            }
         }
     }
 

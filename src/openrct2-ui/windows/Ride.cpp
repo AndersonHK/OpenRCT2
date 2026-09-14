@@ -133,7 +133,7 @@ namespace OpenRCT2::Ui::Windows
         }
         const auto detail = ride.value == kRideValueUndefined
             ? FormatStringID(STR_RIDE_PRICE_TARGET_WAITING_FOR_RATING)
-            : price == 0.00_GBP ? FormatStringID(STR_FREE) : FormatStringID(STR_BOTTOM_TOOLBAR_CASH, price);
+            : price == 0.00_GBP ? FormatStringID(STR_FREE) : FormatStringID(STR_CURRENCY2DP, price);
         return FormatStringID(kIncomeRidePriceTargetCaptions[targetIndex], detail.c_str());
     }
 
@@ -6907,7 +6907,7 @@ namespace OpenRCT2::Ui::Windows
                 widgets[widgetIndex].setString(STR_FREE);
                 return;
             }
-            caption = FormatStringID(STR_BOTTOM_TOOLBAR_CASH, price);
+            caption = FormatStringID(STR_CURRENCY2DP, price);
             widgets[widgetIndex].setString(caption.c_str());
         }
 

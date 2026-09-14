@@ -26159,7 +26159,9 @@
       ],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "9d382a78e49827b2ac7747aa0d26c17d633973f3"
+      ],
       "verification_evidence": [
         "Inspected all three source hunks and complete consumer inventory."
       ],
@@ -26229,9 +26231,11 @@
         "D07"
       ],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Read full source patch and predecessor news owner; complete old-identifier inventory empty. Expanded existing real HUD lifecycle fixture for both windows, singleton opening, news-type transition, empty queue closure, status visibility and all side-panel/size cases. Diff check passes."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -26244,7 +26248,10 @@
         "src/openrct2-ui/windows/Ride.cpp",
         "src/openrct2/Game.cpp"
       ],
-      "verification_gate": "P5"
+      "verification_gate": "P5",
+      "port_commit_locator": "Upstream-Commit: 212c99ae591925eb22763fc1ad022bb4204fd09b",
+      "implementation_decisions": "D07 approved. Preserve fork price helpers, independent absent-side-panel resize and 30-second weather preview. Correct source swapped editor labels, stale third-color border to primary news color, and restore subject-button visibility when consecutive news types change. Open both new singleton windows idempotently; do not create empty ticker and close immediately when archive invalidation empties queue. These UI corrections do not change news timing/queue or gameplay. U337 documentation direction typo corrected.",
+      "pending_validation": "Compile/runtime and theme file compatibility deferred to coherent U340 checkpoint; native rain/theme pixels remain manual."
     },
     {
       "sha": "345f61452e9c66a0eec584243933a3563b93e822",
@@ -28148,8 +28155,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 337,
-    "remaining_after_receipt": 24,
+    "accounted_in_this_tree": 338,
+    "remaining_after_receipt": 23,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

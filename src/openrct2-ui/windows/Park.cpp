@@ -72,7 +72,7 @@ namespace OpenRCT2::Ui::Windows
         const auto price = Park::GetEntranceFeeForTarget(park, target);
         u8string caption = FormatStringID(targetName);
         caption += " (";
-        caption += price == 0.00_GBP ? FormatStringID(STR_FREE) : FormatStringID(STR_BOTTOM_TOOLBAR_CASH, price);
+        caption += price == 0.00_GBP ? FormatStringID(STR_FREE) : FormatStringID(STR_CURRENCY2DP, price);
         caption += ")";
         return caption;
     }

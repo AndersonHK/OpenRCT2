@@ -168,7 +168,7 @@ void GameCreateWindows()
 {
     ContextOpenWindow(WindowClass::mainWindow);
     ContextOpenWindow(WindowClass::topToolbar);
-    ContextOpenWindow(WindowClass::bottomToolbar);
+    ContextOpenWindow(WindowClass::gameStatusBar);
     ContextOpenWindow(WindowClass::parkInfoPanel);
     ContextOpenWindow(WindowClass::dateInfoPanel);
     WindowResizeGui(ContextGetWidth(), ContextGetHeight());
@@ -405,6 +405,7 @@ void GameLoadInit()
     // being displayed due to pointer value reuse in the cache matching logic
     Drawing::ScrollingText::invalidate();
 
+    // TODO: move relevant UI calls to UI subproject
     if (!gLoadKeepWindowsOpen)
     {
         ContextResetSubsystems();

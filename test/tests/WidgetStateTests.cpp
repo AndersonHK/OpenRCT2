@@ -18,6 +18,7 @@
     #include <openrct2-ui/UiContext.h>
     #include <openrct2-ui/input/MouseInput.h>
     #include <openrct2-ui/interface/Dropdown.h>
+    #include <openrct2-ui/interface/Theme.h>
     #include <openrct2-ui/input/ShortcutIds.h>
     #include <openrct2-ui/input/ShortcutManager.h>
     #include <openrct2-ui/windows/Windows.h>
@@ -32,6 +33,8 @@
     #include <openrct2/interface/WidgetIndexGlobals.h>
     #include <openrct2/interface/Window.h>
     #include <openrct2/interface/WindowClasses.h>
+    #include <openrct2/management/NewsItem.h>
+    #include <openrct2/scenes/SceneManager.h>
     #include <openrct2/scenes/editor/EditorController.h>
     #include <openrct2/scenes/editor/EditorStep.h>
     #include <openrct2/ui/UiContext.h>
@@ -331,8 +334,34 @@ TEST(WidgetStateTest, SplitHudResizesWithEitherInfoPanelAbsentAndPreservesNoMone
     ASSERT_TRUE(context->Initialise());
     auto* manager = Ui::GetWindowManager();
     manager->CloseByClass(WindowClass::progressWindow);
-    auto* news = manager->OpenWindow(WindowClass::bottomToolbar);
+    struct RestoreHud
+    {
+        uint8_t flags = Ui::ThemeGetFlags();
+        LegacyScene scene = gLegacyScene;
+        ~RestoreHud() { Ui::ThemeSetFlags(flags); gLegacyScene = scene; }
+    } restoreHud;
+    context->GetSceneManager()->setActiveScene(context->GetSceneManager()->getGameScene());
+    gLegacyScene = LegacyScene::playing;
+    Ui::ThemeSetFlags(Ui::ThemeGetFlags() | Ui::UITHEME_FLAG_USE_GAME_STATUS_BAR);
+    auto* status = manager->OpenWindow(WindowClass::gameStatusBar);
+    ASSERT_NE(status, nullptr);
+    EXPECT_EQ(manager->OpenWindow(WindowClass::gameStatusBar), status);
+    EXPECT_EQ(Ui::Windows::newsTickerOpen(), nullptr);
+    News::Item item{};
+    item.type = News::ItemType::blank;
+    item.text = "HUD test";
+    News::AddItemToQueue(&item);
+    auto* news = Ui::Windows::newsTickerOpen();
     ASSERT_NE(news, nullptr);
+    EXPECT_EQ(Ui::Windows::newsTickerOpen(), news);
+    news->onPrepareDraw();
+    EXPECT_TRUE(news->widgets[2].isHidden());
+    News::GetItem(0)->type = News::ItemType::money;
+    news->onPrepareDraw();
+    EXPECT_TRUE(news->widgets[2].isVisible());
+    EXPECT_FALSE(news->widgets[2].flags.has(WidgetFlag::isDisabled));
+    status->onPrepareDraw();
+    EXPECT_TRUE(status->widgets[0].isHidden());
     auto* options = manager->Create<WindowBase>(WindowClass::options, ScreenCoordsXY{}, ScreenSize{ 200, 100 }, {});
     auto* progress = manager->Create<WindowBase>(WindowClass::progressWindow, ScreenCoordsXY{}, ScreenSize{ 100, 40 }, {});
     ASSERT_NE(options, nullptr);
@@ -356,6 +385,8 @@ TEST(WidgetStateTest, SplitHudResizesWithEitherInfoPanelAbsentAndPreservesNoMone
                 EXPECT_EQ(news->windowPos.x, havePark ? 142 : 0);
                 EXPECT_EQ(news->width, size.width - (havePark ? 142 : 0) - (haveDate ? 142 : 0));
                 EXPECT_EQ(news->windowPos.y, size.height - 32);
+                EXPECT_EQ(status->windowPos, news->windowPos);
+                EXPECT_EQ(status->width, news->width);
                 if (park != nullptr)
                     EXPECT_EQ(park->windowPos.y, size.height - 32);
                 if (date != nullptr)
@@ -379,6 +410,14 @@ TEST(WidgetStateTest, SplitHudResizesWithEitherInfoPanelAbsentAndPreservesNoMone
             }
         }
     }
+    News::CloseCurrentItem();
+    EXPECT_EQ(manager->FindByClass(WindowClass::newsTicker), nullptr);
+    EXPECT_EQ(Ui::Windows::newsTickerOpen(), nullptr);
+    status->onPrepareDraw();
+    EXPECT_TRUE(status->widgets[0].isVisible());
+    Ui::ThemeSetFlags(Ui::ThemeGetFlags() & ~Ui::UITHEME_FLAG_USE_GAME_STATUS_BAR);
+    status->onPrepareDraw();
+    EXPECT_TRUE(status->widgets[0].isHidden());
 }
 #endif
 

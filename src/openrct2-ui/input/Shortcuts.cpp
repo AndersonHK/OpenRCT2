@@ -170,7 +170,8 @@ static void ShortcutRemoveTopBottomToolbarToggle()
         {
             windowMgr->CloseByClass(WindowClass::dropdown);
             windowMgr->CloseByClass(WindowClass::topToolbar);
-            windowMgr->CloseByClass(WindowClass::bottomToolbar);
+            windowMgr->CloseByClass(WindowClass::gameStatusBar);
+            windowMgr->CloseByClass(WindowClass::newsTicker);
             windowMgr->CloseByClass(WindowClass::parkInfoPanel);
             windowMgr->CloseByClass(WindowClass::dateInfoPanel);
             windowMgr->CloseByClass(WindowClass::editorStepController);
@@ -179,7 +180,7 @@ static void ShortcutRemoveTopBottomToolbarToggle()
         else if (gLegacyScene == LegacyScene::playing)
         {
             ContextOpenWindow(WindowClass::topToolbar);
-            ContextOpenWindow(WindowClass::bottomToolbar);
+            ContextOpenWindow(WindowClass::gameStatusBar);
             ContextOpenWindow(WindowClass::parkInfoPanel);
             ContextOpenWindow(WindowClass::dateInfoPanel);
         }
