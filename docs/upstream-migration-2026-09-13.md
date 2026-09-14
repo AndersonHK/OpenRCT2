@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 220 / 361 source commits recorded
+## Progress: 221 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2438,10 +2438,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U220 — `7cc48f5c14` — Close #25362: Dragged footpaths over hills are disconnected (#25913)
 
 - **Source:** `7cc48f5c142b46d0f8a5ef50e7c9dac969fb530b`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `b5c64a6e2cb2c527f973a5172c7412032ee81895`.
 - **Remaining:** 142 → 141.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Adopt D05 connected terrain-following drag slopes, irregular/Shift placement and stale-preview/modifier fixes; register new core files; add geometry tests.
 - **Additional decisions / behavior:** Preserve fork action/cost/clearance/topology boundaries and Ctrl/Shift bypass. Guard source singleton spike-filter out-of-bounds access; clear unrelated old preview errors. Document axis/slice/spike rules and normalized input contract in B48.
 - **Verification:** Full source inspected; new geometry files source-exact except documented guard/comment. Solution builds passed with zero warnings/errors. Initial 73/74 selected tests passed; corrected normalized-range fixture and all three new geometry tests passed. B48 has exact evidence; U217–U218 compile debt cleared.
 - **Pending / concerns:** Interactive dragging/modifiers/error UI, action-level generated geometry and live MP/replay remain listed in B48; no new owner decision.
+
+### U221 — `f66c0a65f9` — Move PaletteMap implementation to PaletteMap.cpp (#26969)
+
+- **Source:** `f66c0a65f9da330c164cfe2625bcd30fbfd2497b`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 141 → 140.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Move existing PaletteMap storage and methods from Drawing.cpp into registered PaletteMap.cpp.
+- **Additional decisions / behavior:** Retain exact fork implementation and Vulkan consumers. Add direct PaletteIndex.h, algorithm and array dependencies; upstream omitted the enum definition needed by Debug assertions.
+- **Verification:** Complete source read; whitespace-normalized moved implementation equals pre-port code. New translation unit passes standalone clang C++20 syntax checks with and without _DEBUG.
+- **Pending / concerns:** Solution link/GPU regression checks at next coherent checkpoint; no gameplay change.

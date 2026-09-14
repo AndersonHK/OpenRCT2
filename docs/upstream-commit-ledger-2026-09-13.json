@@ -16252,7 +16252,9 @@
       ],
       "review_level": "targeted-code-review",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "b5c64a6e2cb2c527f973a5172c7412032ee81895"
+      ],
       "verification_evidence": [
         "Full source inspected; new geometry files source-exact except documented guard/comment. Solution builds passed with zero warnings/errors. Initial 73/74 selected tests passed; corrected normalized-range fixture and all three new geometry tests passed. B48 has exact evidence; U217–U218 compile debt cleared."
       ],
@@ -16296,9 +16298,11 @@
       "note": "Move PaletteMap implementation with its Debug include fix; retain Vulkan palette/texture consumers.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Complete source read; whitespace-normalized moved implementation equals pre-port code. New translation unit passes standalone clang C++20 syntax checks with and without _DEBUG."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -16309,7 +16313,10 @@
         "src/openrct2/drawing/Drawing.cpp",
         "src/openrct2/libopenrct2.vcxproj"
       ],
-      "verification_gate": "P6"
+      "verification_gate": "P6",
+      "port_commit_locator": "Upstream-Commit: f66c0a65f9da330c164cfe2625bcd30fbfd2497b",
+      "implementation_decisions": "Retain exact fork implementation and Vulkan consumers. Add direct PaletteIndex.h, algorithm and array dependencies; upstream omitted the enum definition needed by Debug assertions.",
+      "pending_validation": "Solution link/GPU regression checks at next coherent checkpoint; no gameplay change."
     },
     {
       "sha": "1f76487769475f36465e2052baacfb77a4b51a9c",
@@ -27329,8 +27336,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 220,
-    "remaining_after_receipt": 141,
+    "accounted_in_this_tree": 221,
+    "remaining_after_receipt": 140,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
