@@ -462,7 +462,7 @@ namespace OpenRCT2
     {
         if (patrolInfo != nullptr)
         {
-            return patrolInfo->Get(coords);
+            return patrolInfo->get(coords);
         }
         return false;
     }
@@ -481,7 +481,7 @@ namespace OpenRCT2
             }
         }
 
-        patrolInfo->Set(coords, value);
+        patrolInfo->set(coords, value);
     }
 
     void Staff::setPatrolArea(const MapRange& range, bool value)
@@ -503,7 +503,7 @@ namespace OpenRCT2
 
     bool Staff::hasPatrolArea() const
     {
-        return patrolInfo == nullptr ? false : !patrolInfo->IsEmpty();
+        return patrolInfo == nullptr ? false : !patrolInfo->isEmpty();
     }
 
     /**

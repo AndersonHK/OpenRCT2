@@ -24154,7 +24154,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "346576af74e15080cba5d7d824ea147ea72198ef"
+      ],
       "verification_evidence": [
         "Read full source; complete-file source/fork token proof contains only source camelCase substitutions. Old scanner API consumers absent; all unrelated APIs retained."
       ],
@@ -24203,9 +24205,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "B79: source/fork full-token proof85 substitutions across6 files; solution19.60 seconds zero warnings/errors; all56 play/save/script/downloader/language tests pass15.150 seconds. Clears U307 build debt."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -24217,7 +24221,10 @@
         "src/openrct2/park/ParkFile.cpp",
         "src/openrct2/world/Map.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 48242d86d65a5e8638c8cff7b5194d179a797784",
+      "implementation_decisions": "Preserve all cell dimensions, sorted membership, staff logic and saved coordinates. Pre-existing clear does not reset tileCount in either fork/source: recorded as separate gameplay-correction follow-up, not changed by this spelling port.",
+      "pending_validation": "Pre-existing patrol clear counter follow-up; native/non-Windows/live-MP/replay remain standing."
     },
     {
       "sha": "9f9b14d0b882296b4250e2ee9b09f4118aec27a4",
@@ -27938,8 +27945,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 307,
-    "remaining_after_receipt": 54,
+    "accounted_in_this_tree": 308,
+    "remaining_after_receipt": 53,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
