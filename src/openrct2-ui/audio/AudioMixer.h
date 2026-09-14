@@ -14,7 +14,7 @@
 #include "AudioMixer.SIMD.h"
 #include "SDLAudioSource.h"
 
-#include <SDL.h>
+#include <SDL_audio.h>
 #include <array>
 #include <chrono>
 #include <cstdint>

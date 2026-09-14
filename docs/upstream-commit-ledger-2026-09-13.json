@@ -17286,7 +17286,9 @@
       "decisions": [],
       "review_level": "remerge-probe",
       "implementation_status": "history receipt",
-      "port_commits": [],
+      "port_commits": [
+        "4e726ab12e7587210550ed89481ce1c4452ca521"
+      ],
       "verification_evidence": [
         "Empty remerge diff; first-parent delta inspected and consists of the reviewed loader and guarded mapping refresh."
       ],
@@ -17344,9 +17346,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Complete 16-path source read; all 15 applicable files compare equal excluding includes. B52 solution build 16.77s zero warnings/errors; 66 selected tests/five suites pass in 8.253s. U240/U241 compile debt cleared."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -17358,7 +17362,10 @@
         "src/openrct2-ui/drawing/engines/HardwareDisplayDrawingEngine.cpp",
         "src/openrct2-ui/drawing/engines/opengl/OpenGLDrawingEngine.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: f66c153a101cc49d4f77eb53a52915dea785848e",
+      "implementation_decisions": "Omit only the retired OpenGL backend include edit. All fork mixing/presentation behavior unchanged; no Vulkan edits.",
+      "pending_validation": "Non-Windows headers remain uncompiled; actual track-design preview cases and consolidated runtime limits remain B52."
     },
     {
       "sha": "341d3b834a9894a0d673afda833651aebb671aac",
@@ -27483,8 +27490,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 242,
-    "remaining_after_receipt": 119,
+    "accounted_in_this_tree": 243,
+    "remaining_after_receipt": 118,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
