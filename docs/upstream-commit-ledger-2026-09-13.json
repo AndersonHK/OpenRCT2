@@ -3045,7 +3045,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "ported",
-      "port_commits": [],
+      "port_commits": [
+        "27b6d06a891b045062556de3670ce38e993a0fba"
+      ],
       "verification_evidence": [
         "Reviewed all nine source paths; every source hunk matches unique fork context. Fork Guard.hpp and immutable presentation-frame publication remain present. Source/diff and exact-one ancestry checked."
       ],
@@ -3106,9 +3108,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "ported",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected the full 17-file source delta; all 20 declarations compare exactly after indentation. Searched fork references; direct includes cover each consumer. Source/diff and exact-one ancestry checked."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -3121,7 +3125,10 @@
         "src/openrct2/ride/Ride.cpp",
         "src/openrct2/ride/RideConstruction.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 082994cd5266f2c3aac4fe09b5b265ac506e7e4c",
+      "implementation_decisions": "All numeric values and cross-widget aliases are unchanged. Keep existing global-index static assertions and fork construction/pickup behavior; this is header/namespace ownership cleanup only.",
+      "pending_validation": "Compile at UI-header batch checkpoint."
     },
     {
       "sha": "bfd0a374ff3ec4fc6a46d7839ae6424634475ce8",
@@ -26083,8 +26090,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 42,
-    "remaining_after_receipt": 319,
+    "accounted_in_this_tree": 43,
+    "remaining_after_receipt": 318,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

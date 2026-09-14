@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 42 / 361 source commits recorded
+## Progress: 43 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -480,10 +480,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U042 — `0f620b0714` — Remove Widget.h include from Window.h
 
 - **Source:** `0f620b0714209970908c69d525173e77d2545189`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `27b6d06a891b045062556de3670ce38e993a0fba`.
 - **Remaining:** 320 → 319.
 - **Disposition:** ported.
 - **Manual changes:** Remove transitive Widget.h from Window.h and add explicit type includes/forward declarations in nine affected UI/core files.
 - **Additional decisions / behavior:** Preserve fork core/Guard.hpp and all rendering logic. WidgetIndex remains uint16_t; no layout, flags, ownership lifetime or gameplay changes. WindowBase directly owns its Widget dependency.
 - **Verification:** Reviewed all nine source paths; every source hunk matches unique fork context. Fork Guard.hpp and immutable presentation-frame publication remain present. Source/diff and exact-one ancestry checked.
 - **Pending / concerns:** Compile will identify any fork-only transitive dependencies at UI-header checkpoint.
+
+### U043 — `082994cd52` — Move widget index globals into WidgetIndexGlobals.h
+
+- **Source:** `082994cd5266f2c3aac4fe09b5b265ac506e7e4c`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 319 → 318.
+- **Disposition:** ported.
+- **Manual changes:** Move 20 shared widget-index constants into WidgetIndexGlobals.h under OpenRCT2; add direct includes at all source consumers.
+- **Additional decisions / behavior:** All numeric values and cross-widget aliases are unchanged. Keep existing global-index static assertions and fork construction/pickup behavior; this is header/namespace ownership cleanup only.
+- **Verification:** Inspected the full 17-file source delta; all 20 declarations compare exactly after indentation. Searched fork references; direct includes cover each consumer. Source/diff and exact-one ancestry checked.
+- **Pending / concerns:** Compile at UI-header batch checkpoint.
