@@ -24689,7 +24689,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "7646c8b672eda0a72ef6f7699f0ddc2003d6d4d3"
+      ],
       "verification_evidence": [
         "B84: solution zero warnings/errors;79 play/GPU/localisation tests passed. Inspected fallback constants and palette producer/worker copy boundary."
       ],
@@ -24743,9 +24745,11 @@
       "note": "Adopt final palette/screen/line header ownership with fork-only GPU consumers; retain immutable presentation state.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected all source hunks; verified rename byte identity and consumer inventory."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -24758,7 +24762,10 @@
         "src/openrct2/drawing/NewDrawing.h",
         "src/openrct2/libopenrct2.vcxproj"
       ],
-      "verification_gate": "P6"
+      "verification_gate": "P6",
+      "port_commit_locator": "Upstream-Commit: 49eeb352616444fa3baec7b4184a7d116127b846",
+      "implementation_decisions": "Header bytes unchanged; no fork-only direct old-header consumers found. Palette storage, layout and owned presentation behavior unchanged.",
+      "pending_validation": "Compile checkpoint deferred to the following coherent palette refactor."
     },
     {
       "sha": "5491820d0291e171245d997983057c386daa928e",
@@ -28001,8 +28008,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 316,
-    "remaining_after_receipt": 45,
+    "accounted_in_this_tree": 317,
+    "remaining_after_receipt": 44,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

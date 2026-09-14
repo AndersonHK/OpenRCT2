@@ -14,9 +14,9 @@
 #include "../interface/ZoomLevel.h"
 #include "../world/Location.hpp"
 #include "Colour.h"
-#include "ColourPalette.h"
 #include "ImageId.hpp"
 #include "PaletteMap.h"
+#include "PaletteType.h"
 
 #include <optional>
 #include <span>

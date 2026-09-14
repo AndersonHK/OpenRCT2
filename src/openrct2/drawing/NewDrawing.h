@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "ColourPalette.h"
+#include "PaletteType.h"
 
 namespace OpenRCT2::Drawing
 {

@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 316 / 361 source commits recorded
+## Progress: 317 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3494,10 +3494,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U316 — `b0b81afcfa` — Create function to get active water type
 
 - **Source:** `b0b81afcfaef418c9fa4825992f9f13319d59b1a`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `7646c8b672eda0a72ef6f7699f0ddc2003d6d4d3`.
 - **Remaining:** 46 → 45.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Added the active-water helper and routed palette effects and weekly ducks through it.
 - **Additional decisions / behavior:** Fallback palette IDs and no-duck behavior match the former null branches. Preserve copied immutable Vulkan palette presentation and companion-fork water provenance; no gameplay or renderer workaround.
 - **Verification:** B84: solution zero warnings/errors;79 play/GPU/localisation tests passed. Inspected fallback constants and palette producer/worker copy boundary.
 - **Pending / concerns:** Native lightning/water appearance and targeted duck-spawn checks remain outside this checkpoint.
+
+### U317 — `49eeb35261` — Rename ColourPalette.h to PaletteType.h
+
+- **Source:** `49eeb352616444fa3baec7b4184a7d116127b846`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 45 → 44.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Renamed ColourPalette.h to PaletteType.h and updated all eight include/project consumers.
+- **Additional decisions / behavior:** Header bytes unchanged; no fork-only direct old-header consumers found. Palette storage, layout and owned presentation behavior unchanged.
+- **Verification:** Inspected all source hunks; verified rename byte identity and consumer inventory.
+- **Pending / concerns:** Compile checkpoint deferred to the following coherent palette refactor.

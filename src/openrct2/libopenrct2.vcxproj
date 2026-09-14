@@ -255,7 +255,6 @@
     <ClInclude Include="drawing\BlendColourMap.h" />
     <ClInclude Include="drawing\Colour.h" />
     <ClInclude Include="drawing\ColourMap.h" />
-    <ClInclude Include="drawing\ColourPalette.h" />
     <ClInclude Include="drawing\Drawing.h" />
     <ClInclude Include="drawing\Drawing.String.h" />
     <ClInclude Include="drawing\FilterPaletteIds.h" />
@@ -273,6 +272,7 @@
     <ClInclude Include="drawing\NewDrawing.h" />
     <ClInclude Include="drawing\PaletteIndex.h" />
     <ClInclude Include="drawing\PaletteMap.h" />
+    <ClInclude Include="drawing\PaletteType.h" />
     <ClInclude Include="drawing\PickupPeep.h" />
     <ClInclude Include="drawing\Rectangle.h" />
     <ClInclude Include="drawing\RenderTarget.h" />
