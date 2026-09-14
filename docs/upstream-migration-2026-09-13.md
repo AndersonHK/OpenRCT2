@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 65 / 361 source commits recorded
+## Progress: 66 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -733,10 +733,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U065 — `17f7713603` — Rename members of SoundType
 
 - **Source:** `17f7713603dd806b21c89376797663c434feb8a5`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `ea1c304157cb79a23a8e7482810df70e42a1ca6c`.
 - **Remaining:** 297 → 296.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename SoundType members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Preserve the fork spatial-audio pipeline, authored linear-amplitude interpretation, track-noise calibration, object gain and source lifetime. Rename the fork-only track-noise gain branch too. Do not reintroduce the upstream legacy channel-rate/pan-volume implementation that this fork replaced.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U066 — `5a0aa69409` — Rename members of PixelDataKind
+
+- **Source:** `5a0aa69409f312233bcfe4f95cf1203205b33e96`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 296 → 295.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename PixelDataKind members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Preserve raw/RLE/palette/PNG numeric kinds, JS strings, stride handling, PNG import mode and image buffer ownership. Naming only; no custom-image encoding or sprite-cache behavior change.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
