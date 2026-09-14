@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 357 / 361 source commits recorded
+## Progress: 358 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3945,10 +3945,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U357 — `d8345a4d53` — Add #19754 to changelog
 
 - **Source:** `d8345a4d533288967d689d6613c5719a2b637598`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `299bbf2048e5a7a85b5e5d0b5efde471086a3af2`.
 - **Remaining:** 5 → 4.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Consolidate RCT1 car-count changelog references under both issue IDs.
 - **Additional decisions / behavior:** Keep approved D01/D02 omitted claims; no executable change.
 - **Verification:** Complete source two-hunk changelog change inspected and adapted to prior whitespace cleanup.
 - **Pending / concerns:** No additional test required.
+
+### U358 — `a535c9f810` — Merge pull request #27119 from Gymnasiast/fix/27113
+
+- **Source:** `a535c9f810bcdb876523094e48253a1080b9f4ea`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 4 → 3.
+- **Disposition:** history receipt.
+- **Manual changes:** Account editor-chat branch merge with no independent resolution.
+- **Additional decisions / behavior:** Preserve fork toolbar adaptations and changelog deferrals.
+- **Verification:** Actual remerge diff empty; constituent ports already accounted.
+- **Pending / concerns:** Final UI checkpoint pending U356 guard.

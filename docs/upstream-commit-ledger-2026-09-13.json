@@ -27411,7 +27411,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "299bbf2048e5a7a85b5e5d0b5efde471086a3af2"
+      ],
       "verification_evidence": [
         "Complete source two-hunk changelog change inspected and adapted to prior whitespace cleanup."
       ],
@@ -27452,9 +27454,11 @@
       "note": "No remerge-resolution delta detected. Account for constituent commits before ancestry reconciliation.",
       "decisions": [],
       "review_level": "remerge-probe",
-      "implementation_status": "not-ported",
+      "implementation_status": "history receipt",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Actual remerge diff empty; constituent ports already accounted."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -27462,7 +27466,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P0"
+      "verification_gate": "P0",
+      "port_commit_locator": "Upstream-Commit: a535c9f810bcdb876523094e48253a1080b9f4ea",
+      "implementation_decisions": "Preserve fork toolbar adaptations and changelog deferrals.",
+      "pending_validation": "Final UI checkpoint pending U356 guard."
     },
     {
       "sha": "eb7b5feab9cbf52cae49059aa28e5871bdf1e10a",
@@ -28288,8 +28295,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 357,
-    "remaining_after_receipt": 4,
+    "accounted_in_this_tree": 358,
+    "remaining_after_receipt": 3,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
