@@ -68,7 +68,7 @@ namespace OpenRCT2
         if ((ride.status == RideStatus::closed && ride.numRiders == 0)
             || (tileElement != nullptr && tileElement->asTrack()->isBrakeClosed()))
         {
-            station.Depart &= ~kStationDepartFlag;
+            station.depart &= ~kStationDepartFlag;
 
             if (tileElement != nullptr && tileElement->asTrack()->hasGreenLight())
             {
@@ -77,9 +77,9 @@ namespace OpenRCT2
         }
         else
         {
-            if (!(station.Depart & kStationDepartFlag))
+            if (!(station.depart & kStationDepartFlag))
             {
-                station.Depart |= kStationDepartFlag;
+                station.depart |= kStationDepartFlag;
                 RideInvalidateStationStart(ride, stationIndex, true, tileElement);
             }
         }
@@ -97,7 +97,7 @@ namespace OpenRCT2
         // but since dodgems do not have station lights there is no point.
         if (ride.status == RideStatus::closed || ride.flags.hasAny(RideFlag::brokenDown, RideFlag::crashed))
         {
-            station.Depart &= ~kStationDepartFlag;
+            station.depart &= ~kStationDepartFlag;
             return;
         }
 
@@ -116,12 +116,12 @@ namespace OpenRCT2
 
                 // End match
                 ride.flags.unset(RideFlag::passStationNoStopping);
-                station.Depart &= ~kStationDepartFlag;
+                station.depart &= ~kStationDepartFlag;
                 return;
             }
 
             // Continue match
-            station.Depart |= kStationDepartFlag;
+            station.depart |= kStationDepartFlag;
         }
         else
         {
@@ -134,14 +134,14 @@ namespace OpenRCT2
 
                 if (vehicle->status != Vehicle::Status::waitingToDepart)
                 {
-                    station.Depart &= ~kStationDepartFlag;
+                    station.depart &= ~kStationDepartFlag;
                     return;
                 }
             }
 
             // Begin the match
             ride.flags.set(RideFlag::passStationNoStopping);
-            station.Depart |= kStationDepartFlag;
+            station.depart |= kStationDepartFlag;
             ride.windowInvalidateFlags.set(RideInvalidateFlag::main, RideInvalidateFlag::list);
         }
     }
@@ -153,15 +153,15 @@ namespace OpenRCT2
     static void RideUpdateStationNormal(Ride& ride, StationIndex stationIndex, uint32_t currentTicks, bool wholeSecondTick)
     {
         auto& station = ride.getStation(stationIndex);
-        const bool wasGreen = (station.Depart & kStationDepartFlag) != 0;
-        int32_t time = station.Depart & kStationDepartMask;
+        const bool wasGreen = (station.depart & kStationDepartFlag) != 0;
+        int32_t time = station.depart & kStationDepartMask;
         if (ride.flags.hasAny(RideFlag::brokenDown, RideFlag::crashed)
             || (ride.status == RideStatus::closed && ride.numRiders == 0))
         {
             if (time != 0 && time != 127 && !(currentTicks & 7))
                 time--;
 
-            station.Depart = time;
+            station.depart = time;
             if (wasGreen)
             {
                 RideInvalidateStationStart(ride, stationIndex, false);
@@ -171,7 +171,7 @@ namespace OpenRCT2
         {
             if (time == 0)
             {
-                station.Depart |= kStationDepartFlag;
+                station.depart |= kStationDepartFlag;
                 if (!wasGreen)
                 {
                     RideInvalidateStationStart(ride, stationIndex, true);
@@ -182,7 +182,7 @@ namespace OpenRCT2
                 if (time != 127 && wholeSecondTick)
                     time--;
 
-                station.Depart = time;
+                station.depart = time;
                 if (wasGreen)
                 {
                     RideInvalidateStationStart(ride, stationIndex, false);
@@ -200,9 +200,9 @@ namespace OpenRCT2
         auto& station = ride.getStation(stationIndex);
         if (ride.status == RideStatus::closed || ride.flags.hasAny(RideFlag::brokenDown, RideFlag::crashed))
         {
-            if (station.Depart & kStationDepartFlag)
+            if (station.depart & kStationDepartFlag)
             {
-                station.Depart &= ~kStationDepartFlag;
+                station.depart &= ~kStationDepartFlag;
                 RideInvalidateStationStart(ride, stationIndex, false);
             }
             return;
@@ -233,9 +233,9 @@ namespace OpenRCT2
 
                     // Race is over
                     ride.flags.unset(RideFlag::passStationNoStopping);
-                    if (station.Depart & kStationDepartFlag)
+                    if (station.depart & kStationDepartFlag)
                     {
-                        station.Depart &= ~kStationDepartFlag;
+                        station.depart &= ~kStationDepartFlag;
                         RideInvalidateStationStart(ride, stationIndex, false);
                     }
                     return;
@@ -243,7 +243,7 @@ namespace OpenRCT2
             }
 
             // Continue racing
-            station.Depart |= kStationDepartFlag;
+            station.depart |= kStationDepartFlag;
         }
         else
         {
@@ -256,9 +256,9 @@ namespace OpenRCT2
 
                 if (vehicle->status != Vehicle::Status::waitingToDepart && vehicle->status != Vehicle::Status::departing)
                 {
-                    if (station.Depart & kStationDepartFlag)
+                    if (station.depart & kStationDepartFlag)
                     {
-                        station.Depart &= ~kStationDepartFlag;
+                        station.depart &= ~kStationDepartFlag;
                         RideInvalidateStationStart(ride, stationIndex, false);
                     }
                     return;
@@ -268,9 +268,9 @@ namespace OpenRCT2
             // Begin the race
             RideRaceInitVehicleSpeeds(ride);
             ride.flags.set(RideFlag::passStationNoStopping);
-            if (!(station.Depart & kStationDepartFlag))
+            if (!(station.depart & kStationDepartFlag))
             {
-                station.Depart |= kStationDepartFlag;
+                station.depart |= kStationDepartFlag;
                 RideInvalidateStationStart(ride, stationIndex, true);
             }
             ride.windowInvalidateFlags.set(RideInvalidateFlag::main, RideInvalidateFlag::list);
@@ -339,7 +339,7 @@ namespace OpenRCT2
      */
     static void RideInvalidateStationStart(Ride& ride, StationIndex stationIndex, bool greenLight, TileElement* stationElement)
     {
-        auto startPos = ride.getStation(stationIndex).Start;
+        auto startPos = ride.getStation(stationIndex).start;
         TileElement* tileElement = stationElement != nullptr ? stationElement
                                                              : RideGetStationStartTrackElement(ride, stationIndex);
 
@@ -357,7 +357,7 @@ namespace OpenRCT2
 
     TileElement* RideGetStationStartTrackElement(const Ride& ride, StationIndex stationIndex)
     {
-        auto stationStart = ride.getStation(stationIndex).GetStart();
+        auto stationStart = ride.getStation(stationIndex).getStart();
 
         // Find the station track element
         TileElement* tileElement = MapGetFirstElementAt(stationStart);
@@ -394,7 +394,7 @@ namespace OpenRCT2
     {
         for (const auto& station : ride.getStations())
         {
-            if (!station.Exit.IsNull())
+            if (!station.exit.IsNull())
             {
                 return ride.getStationIndex(&station);
             }
@@ -406,7 +406,7 @@ namespace OpenRCT2
     {
         for (const auto& station : ride.getStations())
         {
-            if (!station.Start.IsNull())
+            if (!station.start.IsNull())
             {
                 return ride.getStationIndex(&station);
             }
@@ -418,7 +418,7 @@ namespace OpenRCT2
     {
         for (const auto& station : ride.getStations())
         {
-            if (station.Start.IsNull())
+            if (station.start.IsNull())
             {
                 return ride.getStationIndex(&station);
             }
@@ -426,18 +426,18 @@ namespace OpenRCT2
         return StationIndex::GetNull();
     }
 
-    int32_t RideStation::GetBaseZ() const
+    int32_t RideStation::getBaseZ() const
     {
-        return Height * kCoordsZStep;
+        return height * kCoordsZStep;
     }
 
-    void RideStation::SetBaseZ(int32_t newZ)
+    void RideStation::setBaseZ(int32_t newZ)
     {
-        Height = newZ / kCoordsZStep;
+        height = newZ / kCoordsZStep;
     }
 
-    CoordsXYZ RideStation::GetStart() const
+    CoordsXYZ RideStation::getStart() const
     {
-        return { Start, GetBaseZ() };
+        return { start, getBaseZ() };
     }
 } // namespace OpenRCT2

@@ -112,12 +112,12 @@ protected:
         ride->stableStats.stations[0].SegmentTime = segmentTime;
         for (auto& station : ride->getStations())
         {
-            station.Start.SetNull();
-            station.Entrance.SetNull();
-            station.Exit.SetNull();
+            station.start.SetNull();
+            station.entrance.SetNull();
+            station.exit.SetNull();
         }
-        ride->getStation(StationIndex::FromUnderlying(0)).Entrance = entrance;
-        ride->getStation(StationIndex::FromUnderlying(stationCount - 1)).Exit = exit;
+        ride->getStation(StationIndex::FromUnderlying(0)).entrance = entrance;
+        ride->getStation(StationIndex::FromUnderlying(stationCount - 1)).exit = exit;
         return ride;
     }
 
@@ -134,7 +134,7 @@ protected:
         train->next_free_seat = 0;
         ride.numTrains = 1;
         ride.vehicles[0] = train->id;
-        ride.getStation(StationIndex::FromUnderlying(0)).TrainAtStation = 0;
+        ride.getStation(StationIndex::FromUnderlying(0)).trainAtStation = 0;
         return train;
     }
 
@@ -400,7 +400,7 @@ TEST_P(SimplePathfindingTest, CanFindPathFromStartToGoal)
     auto ride = FindRideByName(scenario.name);
     ASSERT_NE(ride, nullptr);
 
-    auto entrancePos = ride->getStation().Entrance;
+    auto entrancePos = ride->getStation().entrance;
     TileCoordsXYZ goal = TileCoordsXYZ(
         entrancePos.x - TileDirectionDelta[entrancePos.direction].x,
         entrancePos.y - TileDirectionDelta[entrancePos.direction].y, entrancePos.z);
@@ -784,7 +784,7 @@ TEST_P(ImpossiblePathfindingTest, CannotFindPathFromStartToGoal)
     auto ride = FindRideByName(scenario.name);
     ASSERT_NE(ride, nullptr);
 
-    auto entrancePos = ride->getStation().Entrance;
+    auto entrancePos = ride->getStation().entrance;
     TileCoordsXYZ goal = TileCoordsXYZ(
         entrancePos.x + TileDirectionDelta[entrancePos.direction].x,
         entrancePos.y + TileDirectionDelta[entrancePos.direction].y, entrancePos.z);

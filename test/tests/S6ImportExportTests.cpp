@@ -274,7 +274,7 @@ TEST(ParkFileMigration, LegacyRideLengthsScaleOnce)
 
         auto* ride = GetFirstRide();
         ASSERT_NE(ride, nullptr);
-        ride->getStation().SegmentLength = static_cast<int32_t>(static_cast<int64_t>(426) << 16);
+        ride->getStation().segmentLength = static_cast<int32_t>(static_cast<int64_t>(426) << 16);
         ride->shelteredLength = static_cast<int32_t>(static_cast<int64_t>(213) << 16);
 
         ASSERT_TRUE(ExportSave(oldVersionPark, context, kRideItemSalesHistoryVersion));
@@ -286,7 +286,7 @@ TEST(ParkFileMigration, LegacyRideLengthsScaleOnce)
 
         auto* ride = GetFirstRide();
         ASSERT_NE(ride, nullptr);
-        EXPECT_EQ(ToHumanReadableRideLength(ride->getStation().SegmentLength), 316);
+        EXPECT_EQ(ToHumanReadableRideLength(ride->getStation().segmentLength), 316);
         EXPECT_EQ(ToHumanReadableRideLength(ride->shelteredLength), 158);
 
         ASSERT_TRUE(ExportSave(currentVersionPark, context));
@@ -298,7 +298,7 @@ TEST(ParkFileMigration, LegacyRideLengthsScaleOnce)
 
         auto* ride = GetFirstRide();
         ASSERT_NE(ride, nullptr);
-        EXPECT_EQ(ToHumanReadableRideLength(ride->getStation().SegmentLength), 316);
+        EXPECT_EQ(ToHumanReadableRideLength(ride->getStation().segmentLength), 316);
         EXPECT_EQ(ToHumanReadableRideLength(ride->shelteredLength), 158);
     }
 }
@@ -591,9 +591,9 @@ TEST(ParkFileMigration, PlatformGuestRoundTripsAndOlderTargetUsesStationExitReco
         ride->type = RIDE_TYPE_MONORAIL;
         ride->numStations = std::max<uint8_t>(ride->numStations, 1);
         auto& station = ride->getStation(StationIndex::FromUnderlying(0));
-        station.Entrance = { 10, 10, 2, 0 };
-        station.Exit = { 12, 10, 2, 2 };
-        exit = station.Exit;
+        station.entrance = { 10, 10, 2, 0 };
+        station.exit = { 12, 10, 2, 2 };
+        exit = station.exit;
 
         auto* train = getGameState().entities.createEntity<Vehicle>();
         ASSERT_NE(train, nullptr);
@@ -603,7 +603,7 @@ TEST(ParkFileMigration, PlatformGuestRoundTripsAndOlderTargetUsesStationExitReco
         ride->numTrains = 1;
         ride->vehicles[0] = train->id;
 
-        auto* guest = Guest::generate({ 10 * kCoordsXYStep, 10 * kCoordsXYStep, station.GetBaseZ() });
+        auto* guest = Guest::generate({ 10 * kCoordsXYStep, 10 * kCoordsXYStep, station.getBaseZ() });
         ASSERT_NE(guest, nullptr);
         guestId = guest->id;
         guest->currentRide = ride->id;
@@ -645,7 +645,7 @@ TEST(ParkFileMigration, PlatformGuestRoundTripsAndOlderTargetUsesStationExitReco
         EXPECT_EQ(guest->currentCar, 0u);
         EXPECT_EQ(guest->currentSeat, 0u);
         ride->status = RideStatus::open;
-        ride->getStation(guest->currentRideStation).TrainAtStation = 0;
+        ride->getStation(guest->currentRideStation).trainAtStation = 0;
         train->status = Vehicle::Status::waitingForPassengers;
         guest->stepProgress = std::numeric_limits<uint8_t>::max();
         guest->update();

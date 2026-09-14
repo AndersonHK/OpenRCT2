@@ -1060,7 +1060,7 @@ namespace OpenRCT2::PathFinding
             constexpr TravelTimeMilliseconds kBoardingTime = 8'000;
             constexpr TravelTimeMilliseconds kMillisecondsPerMinute = 60'000;
             const auto waitingTime = kBoardingTime
-                + (static_cast<TravelTimeMilliseconds>(ride->getStation(boardingStation).QueueTime) * kMillisecondsPerMinute);
+                + (static_cast<TravelTimeMilliseconds>(ride->getStation(boardingStation).queueTime) * kMillisecondsPerMinute);
 
             const auto stationCount = service.stations.size();
             for (size_t destinationOffset = 1; destinationOffset < stationCount; destinationOffset++)
@@ -2391,10 +2391,10 @@ namespace OpenRCT2::PathFinding
             bool hasEntrance = false;
             for (const auto& station : ride.getStations())
             {
-                if (station.Entrance.IsNull())
+                if (station.entrance.IsNull())
                     continue;
                 hasEntrance = true;
-                auto goal = TileCoordsXYZ{ station.Entrance };
+                auto goal = TileCoordsXYZ{ station.entrance };
                 GetRideQueueEnd(goal);
                 targets.push_back({ goal, ride.id });
             }
@@ -2402,9 +2402,9 @@ namespace OpenRCT2::PathFinding
             if (!hasEntrance && ride.getRideTypeDescriptor().flags.has(RtdFlag::isShopOrFacility))
             {
                 const auto& station = ride.getStation(StationIndex::FromUnderlying(0));
-                if (!station.Start.IsNull())
+                if (!station.start.IsNull())
                 {
-                    const auto stationStart = station.GetStart();
+                    const auto stationStart = station.getStart();
                     if (MapGetTrackElementAtFromRide(stationStart, ride.id) != nullptr)
                     {
                         targets.push_back({ TileCoordsXYZ{ stationStart }, ride.id,
@@ -2438,7 +2438,7 @@ namespace OpenRCT2::PathFinding
         }
         else
         {
-            const auto entrance = ride->getStation(peep.currentRideStation).Entrance;
+            const auto entrance = ride->getStation(peep.currentRideStation).entrance;
             if (entrance.IsNull())
             {
                 peep.clearTransportRoute();
@@ -2744,17 +2744,17 @@ namespace OpenRCT2::PathFinding
         for (const auto& station : ride->getStations())
         {
             // Skip if stationNum has no entrance (so presumably an exit only station)
-            if (station.Entrance.IsNull())
+            if (station.entrance.IsNull())
                 continue;
 
             const auto stationIndex = ride->getStationIndex(&station);
 
             const auto entranceIndex = static_cast<size_t>(numEntranceStations++);
             entranceStations[stationIndex.ToUnderlying()] = true;
-            entranceTargets[entranceIndex] = { TileCoordsXYZ{ station.Entrance }, rideIndex };
+            entranceTargets[entranceIndex] = { TileCoordsXYZ{ station.entrance }, rideIndex };
             entranceTargetStations[entranceIndex] = stationIndex;
 
-            TileCoordsXYZD entranceLocation = station.Entrance;
+            TileCoordsXYZD entranceLocation = station.entrance;
             auto score = CalculateHeuristicPathingScore(entranceLocation, TileCoordsXYZ{ peep.nextLoc });
             if (score < bestScore)
             {
@@ -2789,14 +2789,14 @@ namespace OpenRCT2::PathFinding
         {
             // closestStationNum is always 0 here.
             const auto& closestStation = ride->getStation(closestStationNum);
-            auto entranceXY = TileCoordsXY(closestStation.Start);
+            auto entranceXY = TileCoordsXY(closestStation.start);
             loc.x = entranceXY.x;
             loc.y = entranceXY.y;
-            loc.z = closestStation.Height;
+            loc.z = closestStation.height;
         }
         else
         {
-            TileCoordsXYZD entranceXYZD = ride->getStation(closestStationNum).Entrance;
+            TileCoordsXYZD entranceXYZD = ride->getStation(closestStationNum).entrance;
             loc.x = entranceXYZD.x;
             loc.y = entranceXYZD.y;
             loc.z = entranceXYZD.z;

@@ -183,25 +183,25 @@ namespace OpenRCT2
     {
         static constexpr uint8_t kNoTrain = std::numeric_limits<uint8_t>::max();
 
-        CoordsXY Start;
-        uint8_t Height{};
-        uint8_t Length{};
-        uint8_t Depart{};
-        uint8_t TrainAtStation{ kNoTrain };
-        TileCoordsXYZD Entrance;
-        TileCoordsXYZD Exit;
-        int32_t SegmentLength{}; // Length of track between this station and the next.
-        uint16_t SegmentTime{};  // Time for train to reach the next station from this station.
-        uint8_t QueueTime{};
-        uint16_t QueueLength{};
-        EntityId LastPeepInQueue{ EntityId::GetNull() };
+        CoordsXY start;
+        uint8_t height{};
+        uint8_t length{};
+        uint8_t depart{};
+        uint8_t trainAtStation{ kNoTrain };
+        TileCoordsXYZD entrance;
+        TileCoordsXYZD exit;
+        int32_t segmentLength{}; // Length of track between this station and the next.
+        uint16_t segmentTime{};  // Time for train to reach the next station from this station.
+        uint8_t queueTime{};
+        uint16_t queueLength{};
+        EntityId lastPeepInQueue{ EntityId::GetNull() };
         // Transient station-specific signal. It is rebuilt by live queue admission
         // rather than saved; RideFlag::queueFull remains the legacy ride-wide hint.
         bool QueueFull{};
 
-        int32_t GetBaseZ() const;
-        void SetBaseZ(int32_t newZ);
-        CoordsXYZ GetStart() const;
+        int32_t getBaseZ() const;
+        void setBaseZ(int32_t newZ);
+        CoordsXYZ getStart() const;
     };
 
     struct RideStationPlatformReservation
@@ -775,12 +775,12 @@ namespace OpenRCT2
         int32_t getDisplayStationSegmentLength(StationIndex stationIndex) const
         {
             const auto index = stationIndex.ToUnderlying();
-            return hasStableStats() ? stableStats.stations[index].SegmentLength : stations[index].SegmentLength;
+            return hasStableStats() ? stableStats.stations[index].SegmentLength : stations[index].segmentLength;
         }
         uint16_t getDisplayStationSegmentTime(StationIndex stationIndex) const
         {
             const auto index = stationIndex.ToUnderlying();
-            return hasStableStats() ? stableStats.stations[index].SegmentTime : stations[index].SegmentTime;
+            return hasStableStats() ? stableStats.stations[index].SegmentTime : stations[index].segmentTime;
         }
         fixed16_2dp getDisplayMaxPositiveVerticalG() const
         {

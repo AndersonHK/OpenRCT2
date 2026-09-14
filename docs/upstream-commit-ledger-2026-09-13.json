@@ -24507,7 +24507,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "8877ddb2e333eeb8dcf209e59872c0e16c8dc209"
+      ],
       "verification_evidence": [
         "B82: full Release x64 Vulkan solution, zero warnings/errors; 57 WidgetState/GpuFoundation tests passed. Actual source/fork hunks inspected."
       ],
@@ -24613,9 +24615,11 @@
         "D14"
       ],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "B83: source391/fork526 identifier substitutions proved; solution zero warnings/errors;170 ratings/pathfinding/play/scenario/scripting tests and7 save/import migration tests passed."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -24648,7 +24652,10 @@
         "src/openrct2/world/Park.cpp",
         "src/openrct2/world/TileInspector.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 97b91941eba665b67185c7b8f5f4dff2ab03410d",
+      "implementation_decisions": "D12/D14: preserve live versus stable statistics, fork transient QueueFull, directed-leg ratings, platform staging, travel-time units and legacy length migration. Distinct stable-statistics fields retain their names. No save/API/network version change.",
+      "pending_validation": "Standing native multiplayer/replay and long-park validation remain; no new debt or decision."
     },
     {
       "sha": "b0b81afcfaef418c9fa4825992f9f13319d59b1a",
@@ -27987,8 +27994,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 314,
-    "remaining_after_receipt": 47,
+    "accounted_in_this_tree": 315,
+    "remaining_after_receipt": 46,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

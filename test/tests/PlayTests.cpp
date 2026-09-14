@@ -355,15 +355,15 @@ static GameActions::Result executeImmediate(Args&&... args)
 static void InsertGuestAtBackOfQueue(Guest& guest, Ride& ride, StationIndex stationIndex, const Peep& queueAnchor)
 {
     auto& station = ride.getStation(stationIndex);
-    ASSERT_FALSE(station.LastPeepInQueue.IsNull());
+    ASSERT_FALSE(station.lastPeepInQueue.IsNull());
 
     guest.moveTo(queueAnchor.getLocation());
     guest.nextLoc = queueAnchor.nextLoc;
     guest.peepDirection = queueAnchor.peepDirection;
     guest.interactionRideIndex = ride.id;
-    guest.guestNextInQueue = station.LastPeepInQueue;
-    station.LastPeepInQueue = guest.id;
-    station.QueueLength++;
+    guest.guestNextInQueue = station.lastPeepInQueue;
+    station.lastPeepInQueue = guest.id;
+    station.queueLength++;
 
     guest.currentRide = ride.id;
     guest.currentRideStation = stationIndex;
@@ -527,7 +527,7 @@ TEST_F(PlayTests, GuestPaysAtEntranceBeforeBoarding)
     ASSERT_NE(ride, nullptr);
     constexpr auto stationIndex = StationIndex::FromUnderlying(0);
     auto& station = ride->getStation(stationIndex);
-    ASSERT_FALSE(station.Entrance.IsNull());
+    ASSERT_FALSE(station.entrance.IsNull());
 
     auto openResult = executeImmediate<GameActions::RideSetStatusAction>(ride->id, RideStatus::open);
     ASSERT_EQ(openResult.error, GameActions::Status::ok);
@@ -537,7 +537,7 @@ TEST_F(PlayTests, GuestPaysAtEntranceBeforeBoarding)
     ASSERT_EQ(priceResult.error, GameActions::Status::ok);
     ASSERT_EQ(RideGetPrice(*ride), admission);
 
-    auto* guest = Guest::generate(station.Entrance.ToCoordsXYZ());
+    auto* guest = Guest::generate(station.entrance.ToCoordsXYZ());
     ASSERT_NE(guest, nullptr);
     guest->cashInPocket = 10.00_GBP;
     guest->currentRide = ride->id;
@@ -546,8 +546,8 @@ TEST_F(PlayTests, GuestPaysAtEntranceBeforeBoarding)
     guest->rideSubState = PeepRideSubState::atEntrance;
     guest->destinationTolerance = 0;
     guest->guestNextInQueue = EntityId::GetNull();
-    station.LastPeepInQueue = guest->id;
-    station.QueueLength = 1;
+    station.lastPeepInQueue = guest->id;
+    station.queueLength = 1;
 
     const auto profitBefore = ride->totalProfit;
     const bool paidAtEntrance = updateUntil(10000, [&]() { return guest->paidOnRides != 0.00_GBP; });
@@ -630,11 +630,11 @@ TEST_F(PlayTests, CoasterPlatformPreQueueRequiresOppositeLateralStationSides)
                 return false;
             auto& station = ride.getStation(stationIndex);
             coasterOrigin = ride.getOriginElement(stationIndex);
-            if (station.Entrance.IsNull() || station.Exit.IsNull() || coasterOrigin == nullptr)
+            if (station.entrance.IsNull() || station.exit.IsNull() || coasterOrigin == nullptr)
                 return false;
             const auto stationDirection = coasterOrigin->getDirection();
-            station.Entrance.direction = (stationDirection + 1) & kTileElementDirectionMask;
-            station.Exit.direction = (stationDirection + 3) & kTileElementDirectionMask;
+            station.entrance.direction = (stationDirection + 1) & kTileElementDirectionMask;
+            station.exit.direction = (stationDirection + 3) & kTileElementDirectionMask;
             return true;
         });
     auto* coaster = coasterTarget.ride;
@@ -649,15 +649,15 @@ TEST_F(PlayTests, CoasterPlatformPreQueueRequiresOppositeLateralStationSides)
     const auto coasterDirection = coasterOrigin->getDirection();
 
     RideClearAllStationPlatformPreQueues();
-    coasterStationData.Entrance.direction = (coasterDirection + 1) & kTileElementDirectionMask;
-    coasterStationData.Exit.direction = coasterStationData.Entrance.direction;
+    coasterStationData.entrance.direction = (coasterDirection + 1) & kTileElementDirectionMask;
+    coasterStationData.exit.direction = coasterStationData.entrance.direction;
     EXPECT_FALSE(RideCaptureStationPlatformTemplate(*coaster, coasterStation, *coasterTrain));
     RideActivateStationPlatformPreQueue(*coaster, coasterStation);
     EXPECT_FALSE(RideStationPlatformPreQueueIsActive(*coaster, coasterStation));
     EXPECT_FALSE(
         RideReserveStationPlatformSlot(*coaster, coasterStation, EntityId::FromUnderlying(65000)).has_value());
 
-    auto* stagedGuest = Guest::generate(coasterStationData.Entrance.ToCoordsXYZ());
+    auto* stagedGuest = Guest::generate(coasterStationData.entrance.ToCoordsXYZ());
     ASSERT_NE(stagedGuest, nullptr);
     stagedGuest->currentRide = coaster->id;
     stagedGuest->currentRideStation = coasterStation;
@@ -668,12 +668,12 @@ TEST_F(PlayTests, CoasterPlatformPreQueueRequiresOppositeLateralStationSides)
     EXPECT_EQ(stagedGuest->state, PeepState::leavingRide);
     EXPECT_EQ(stagedGuest->rideSubState, PeepRideSubState::approachExit);
 
-    coasterStationData.Entrance.direction = coasterDirection;
-    coasterStationData.Exit.direction = DirectionReverse(coasterDirection);
+    coasterStationData.entrance.direction = coasterDirection;
+    coasterStationData.exit.direction = DirectionReverse(coasterDirection);
     EXPECT_FALSE(RideCaptureStationPlatformTemplate(*coaster, coasterStation, *coasterTrain));
 
-    coasterStationData.Entrance.direction = (coasterDirection + 1) & kTileElementDirectionMask;
-    coasterStationData.Exit.direction = (coasterDirection + 3) & kTileElementDirectionMask;
+    coasterStationData.entrance.direction = (coasterDirection + 1) & kTileElementDirectionMask;
+    coasterStationData.exit.direction = (coasterDirection + 3) & kTileElementDirectionMask;
     EXPECT_TRUE(RideCaptureStationPlatformTemplate(*coaster, coasterStation, *coasterTrain));
 
     const auto transportTarget = FindCapturedPlatformTrain(
@@ -681,9 +681,9 @@ TEST_F(PlayTests, CoasterPlatformPreQueueRequiresOppositeLateralStationSides)
             if (!ride.getRideTypeDescriptor().flags.has(RtdFlag::isTransportRide))
                 return false;
             auto& station = ride.getStation(stationIndex);
-            if (station.Entrance.IsNull() || station.Exit.IsNull())
+            if (station.entrance.IsNull() || station.exit.IsNull())
                 return false;
-            station.Exit.direction = station.Entrance.direction;
+            station.exit.direction = station.entrance.direction;
             return true;
         });
     EXPECT_NE(transportTarget.ride, nullptr);
@@ -703,11 +703,11 @@ TEST_F(PlayTests, SameSideCoasterGuestContinuesOrdinaryBoarding)
                 return false;
             auto& station = ride.getStation(stationIndex);
             coasterOrigin = ride.getOriginElement(stationIndex);
-            if (station.Entrance.IsNull() || station.Exit.IsNull() || coasterOrigin == nullptr)
+            if (station.entrance.IsNull() || station.exit.IsNull() || coasterOrigin == nullptr)
                 return false;
             const auto stationDirection = coasterOrigin->getDirection();
-            station.Entrance.direction = (stationDirection + 1) & kTileElementDirectionMask;
-            station.Exit.direction = (stationDirection + 3) & kTileElementDirectionMask;
+            station.entrance.direction = (stationDirection + 1) & kTileElementDirectionMask;
+            station.exit.direction = (stationDirection + 3) & kTileElementDirectionMask;
             return true;
         });
 
@@ -717,8 +717,8 @@ TEST_F(PlayTests, SameSideCoasterGuestContinuesOrdinaryBoarding)
 
     auto& station = target.ride->getStation(target.station);
     const auto stationDirection = coasterOrigin->getDirection();
-    station.Entrance.direction = (stationDirection + 1) & kTileElementDirectionMask;
-    station.Exit.direction = station.Entrance.direction;
+    station.entrance.direction = (stationDirection + 1) & kTileElementDirectionMask;
+    station.exit.direction = station.entrance.direction;
     RideClearStationPlatformPreQueue(*target.ride);
     EXPECT_FALSE(RideCaptureStationPlatformTemplate(*target.ride, target.station, *target.train));
     RideActivateStationPlatformPreQueue(*target.ride, target.station);
@@ -731,9 +731,9 @@ TEST_F(PlayTests, SameSideCoasterGuestContinuesOrdinaryBoarding)
     target.train->status = Vehicle::Status::waitingForPassengers;
     target.train->sub_state = 1;
     target.train->flags.unset(VehicleFlag::readyToDepart, VehicleFlag::waitingOnAdjacentStation);
-    station.TrainAtStation = target.trainIndex;
+    station.trainAtStation = target.trainIndex;
 
-    auto* guest = Guest::generate(station.Entrance.ToCoordsXYZ());
+    auto* guest = Guest::generate(station.entrance.ToCoordsXYZ());
     ASSERT_NE(guest, nullptr);
     guest->currentRide = target.ride->id;
     guest->currentRideStation = target.station;
@@ -803,7 +803,7 @@ TEST_F(PlayTests, TrainCannotPublishStationWhileZeroPrefixPassengersAreStillAlig
     const auto target = FindCapturedPlatformTrain(
         gameState, [](const Ride& ride, const Vehicle&, uint8_t trainIndex, StationIndex stationIndex) {
             return trainIndex == 0 && ride.getRideTypeDescriptor().Category == RideCategory::rollerCoaster
-                && !ride.getStation(stationIndex).Exit.IsNull();
+                && !ride.getStation(stationIndex).exit.IsNull();
         });
     ASSERT_NE(target.ride, nullptr);
     ASSERT_NE(target.train, nullptr);
@@ -844,7 +844,7 @@ TEST_F(PlayTests, NaturallyArrivingTrainPreservesStagedSeatsThroughUnloadAndBoar
         auto* train = gameState.entities.getEntity<Vehicle>(ride.vehicles[0]);
         auto* origin = ride.getOriginElement(StationIndex::FromUnderlying(0));
         const auto trackLength = ride.getTotalLength();
-        if (station.Entrance.IsNull() || station.Exit.IsNull() || train == nullptr || origin == nullptr
+        if (station.entrance.IsNull() || station.exit.IsNull() || train == nullptr || origin == nullptr
             || (train->num_seats & kVehicleSeatNumMask) == 0
             || trackLength <= 0 || trackLength >= shortestTrack
             || RideVehicle::StationDetail::BuildTrainSeatSummary(*train).capacity < 4)
@@ -852,8 +852,8 @@ TEST_F(PlayTests, NaturallyArrivingTrainPreservesStagedSeatsThroughUnloadAndBoar
             continue;
         }
         const auto stationDirection = origin->getDirection();
-        station.Entrance.direction = (stationDirection + 1) & kTileElementDirectionMask;
-        station.Exit.direction = (stationDirection + 3) & kTileElementDirectionMask;
+        station.entrance.direction = (stationDirection + 1) & kTileElementDirectionMask;
+        station.exit.direction = (stationDirection + 3) & kTileElementDirectionMask;
         if (!RideCaptureStationPlatformTemplate(ride, StationIndex::FromUnderlying(0), *train))
         {
             continue;
@@ -904,7 +904,7 @@ TEST_F(PlayTests, NaturallyArrivingTrainPreservesStagedSeatsThroughUnloadAndBoar
     std::array<RideStationPlatformReservation, kStagedGuestCount> reservations{};
     for (size_t guestIndex = 0; guestIndex < guests.size(); guestIndex++)
     {
-        auto* guest = Guest::generate(targetRide->getStation(targetStation).Entrance.ToCoordsXYZ());
+        auto* guest = Guest::generate(targetRide->getStation(targetStation).entrance.ToCoordsXYZ());
         ASSERT_NE(guest, nullptr);
         const auto reservation = RideReserveStationPlatformSlot(*targetRide, targetStation, guest->id);
         ASSERT_TRUE(reservation.has_value());
@@ -975,7 +975,7 @@ TEST_F(PlayTests, NaturallyArrivingTrainPreservesStagedSeatsThroughUnloadAndBoar
             trace << "tick=" << tick << " trainStatus=" << static_cast<int32_t>(targetTrain->status)
                   << " trainSubState=" << static_cast<int32_t>(targetTrain->sub_state)
                   << " trainStation=" << static_cast<int32_t>(targetTrain->current_station.ToUnderlying())
-                  << " trainAtStation=" << static_cast<int32_t>(targetRide->getStation(targetStation).TrainAtStation)
+                  << " trainAtStation=" << static_cast<int32_t>(targetRide->getStation(targetStation).trainAtStation)
                   << " firstGuestState=" << static_cast<int32_t>(guests.front()->state)
                   << " firstGuestSubState=" << static_cast<int32_t>(guests.front()->rideSubState)
                   << " firstGuestTrain=" << static_cast<int32_t>(guests.front()->currentTrain) << '\n';
@@ -1284,8 +1284,8 @@ TEST_F(PlayTests, GuestRideValueThresholdsUseIncomeDebuff)
     ASSERT_EQ(openResult.error, GameActions::Status::ok);
     ferrisWheel->value = 10.00_GBP;
     auto& station = ferrisWheel->getStation(StationIndex::FromUnderlying(0));
-    station.LastPeepInQueue = EntityId::GetNull();
-    station.QueueLength = 0;
+    station.lastPeepInQueue = EntityId::GetNull();
+    station.queueLength = 0;
 
     auto* badValueGuest = Park::GenerateGuest();
     badValueGuest->cashInPocket = 100.00_GBP;

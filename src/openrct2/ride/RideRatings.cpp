@@ -1344,17 +1344,17 @@ namespace OpenRCT2
         const auto& rtd = ride.getRideTypeDescriptor();
         if (rtd.specialType == RtdSpecialType::maze)
         {
-            base.location = ride.getStation().Entrance.ToCoordsXY();
-            base.baseZ = ride.getStation().GetBaseZ();
+            base.location = ride.getStation().entrance.ToCoordsXY();
+            base.baseZ = ride.getStation().getBaseZ();
             return true;
         }
 
         const auto& station = ride.getStation(stationIndex);
-        base.location = station.Start;
-        base.baseZ = station.GetBaseZ();
+        base.location = station.start;
+        base.baseZ = station.getBaseZ();
         base.trackType = rtd.StartTrackPiece;
 
-        if (MapIsLocationValid(station.GetStart()))
+        if (MapIsLocationValid(station.getStart()))
         {
             auto* stationTrackElement = RideGetStationStartTrackElement(ride, stationIndex);
             auto* trackElement = stationTrackElement != nullptr ? stationTrackElement->asTrack() : nullptr;
@@ -1363,7 +1363,7 @@ namespace OpenRCT2
                 base.direction = trackElement->getDirection();
                 base.trackType = trackElement->getTrackType();
 
-                if (const auto origin = GetTrackSegmentOrigin({ station.GetStart(), stationTrackElement }))
+                if (const auto origin = GetTrackSegmentOrigin({ station.getStart(), stationTrackElement }))
                 {
                     base.location = *origin;
                     base.baseZ = origin->z;
@@ -2076,7 +2076,7 @@ namespace OpenRCT2
                 {
                     auto entranceIndex = tileElement->asTrack()->getStationIndex();
                     state.StationFlags &= ~RIDE_RATING_STATION_FLAG_NO_ENTRANCE;
-                    if (ride->getStation(entranceIndex).Entrance.IsNull())
+                    if (ride->getStation(entranceIndex).entrance.IsNull())
                     {
                         state.StationFlags |= RIDE_RATING_STATION_FLAG_NO_ENTRANCE;
                     }
@@ -2224,15 +2224,15 @@ namespace OpenRCT2
 
         for (auto& station : ride->getStations())
         {
-            if (!station.Start.IsNull())
+            if (!station.start.IsNull())
             {
                 state.StationFlags &= ~RIDE_RATING_STATION_FLAG_NO_ENTRANCE;
-                if (station.Entrance.IsNull())
+                if (station.entrance.IsNull())
                 {
                     state.StationFlags |= RIDE_RATING_STATION_FLAG_NO_ENTRANCE;
                 }
 
-                auto location = station.GetStart();
+                auto location = station.getStart();
                 state.Proximity = location;
                 state.ProximityTrackType = TrackElemType::none;
                 state.ProximityStart = location;
@@ -3885,7 +3885,7 @@ namespace OpenRCT2
 
     static void RideRatingsApplyRequirementLength(RideRating::Tuple& ratings, const Ride& ride, RatingsModifier modifier)
     {
-        if (ride.getStation().SegmentLength < modifier.threshold)
+        if (ride.getStation().segmentLength < modifier.threshold)
         {
             ratings.excitement /= modifier.excitement;
             ratings.intensity /= modifier.intensity;

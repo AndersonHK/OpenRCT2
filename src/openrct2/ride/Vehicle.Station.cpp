@@ -233,7 +233,7 @@ static bool try_add_synchronised_station(const CoordsXYZ& coords)
 
     /* Station is not ready to depart, so just return;
      * vehicle_id for this station is SPRITE_INDEX_NULL. */
-    if (!(ride->getStation(stationIndex).Depart & kStationDepartFlag))
+    if (!(ride->getStation(stationIndex).depart & kStationDepartFlag))
     {
         return true;
     }
@@ -288,7 +288,7 @@ static bool try_add_synchronised_station(const CoordsXYZ& coords)
 static bool ride_station_can_depart_synchronised(const Ride& ride, StationIndex stationIndex)
 {
     const auto& station = ride.getStation(stationIndex);
-    auto location = station.GetStart();
+    auto location = station.getStart();
 
     auto tileElement = MapGetTrackElementAt(location);
     if (tileElement == nullptr)
@@ -323,7 +323,7 @@ static bool ride_station_can_depart_synchronised(const Ride& ride, StationIndex 
     }
 
     // Other search direction.
-    location = station.GetStart();
+    location = station.getStart();
     direction = DirectionReverse(direction) & 3;
     spaceBetween = maxCheckDistance;
     while (_lastSynchronisedVehicle < &_synchronisedVehicles[kSynchronisedVehicleCount - 1])
@@ -356,7 +356,7 @@ static bool ride_station_can_depart_synchronised(const Ride& ride, StationIndex 
             {
                 if (sv_ride->isBlockSectioned())
                 {
-                    if (!(sv_ride->getStation(sv->stationIndex).Depart & kStationDepartFlag))
+                    if (!(sv_ride->getStation(sv->stationIndex).depart & kStationDepartFlag))
                     {
                         sv = _synchronisedVehicles;
                         RideId rideId = RideId::GetNull();
@@ -618,7 +618,7 @@ void Vehicle::TrainReadyToDepart(uint32_t numPeepsOnTrain, uint32_t numUsedSeats
         // Boat Hire with passengers on it.
         if (curRide->status != RideStatus::closed || (curRide->numRiders != 0 && rtd.specialType != RtdSpecialType::boatHire))
         {
-            curRide->getStation(current_station).TrainAtStation = RideStation::kNoTrain;
+            curRide->getStation(current_station).trainAtStation = RideStation::kNoTrain;
             sub_state = 2;
             return;
         }
@@ -629,7 +629,7 @@ void Vehicle::TrainReadyToDepart(uint32_t numPeepsOnTrain, uint32_t numUsedSeats
         uint8_t seat = ((-flatRideAnimationFrame) / 8) & 0xF;
         if (!peep[seat].IsNull())
         {
-            curRide->getStation(current_station).TrainAtStation = RideStation::kNoTrain;
+            curRide->getStation(current_station).trainAtStation = RideStation::kNoTrain;
             SetState(Status::unloadingPassengers);
             return;
         }
@@ -637,7 +637,7 @@ void Vehicle::TrainReadyToDepart(uint32_t numPeepsOnTrain, uint32_t numUsedSeats
         if (num_peeps == 0)
             return;
 
-        curRide->getStation(current_station).TrainAtStation = RideStation::kNoTrain;
+        curRide->getStation(current_station).trainAtStation = RideStation::kNoTrain;
         sub_state = 2;
         return;
     }
@@ -645,7 +645,7 @@ void Vehicle::TrainReadyToDepart(uint32_t numPeepsOnTrain, uint32_t numUsedSeats
     if (numPeepsOnTrain == 0)
         return;
 
-    curRide->getStation(current_station).TrainAtStation = RideStation::kNoTrain;
+    curRide->getStation(current_station).trainAtStation = RideStation::kNoTrain;
     SetState(Status::waitingForPassengers);
 }
 
@@ -669,9 +669,9 @@ void Vehicle::UpdateWaitingForPassengers()
             return;
 
         auto& station = curRide->getStation(current_station);
-        if (station.Entrance.IsNull())
+        if (station.entrance.IsNull())
         {
-            station.TrainAtStation = RideStation::kNoTrain;
+            station.trainAtStation = RideStation::kNoTrain;
             sub_state = 2;
             return;
         }
@@ -682,10 +682,10 @@ void Vehicle::UpdateWaitingForPassengers()
             return;
         }
 
-        if (station.TrainAtStation != RideStation::kNoTrain)
+        if (station.trainAtStation != RideStation::kNoTrain)
             return;
 
-        station.TrainAtStation = trainIndex.value();
+        station.trainAtStation = trainIndex.value();
         sub_state = 1;
         time_waiting = 0;
 
@@ -724,7 +724,7 @@ void Vehicle::UpdateWaitingForPassengers()
                 // signal. Keep the normal synchronisation and track-safety gates in UpdateWaitingToDepart.
                 if (!curRide->isBlockSectioned())
                 {
-                    curRide->getStation(current_station).Depart = kStationDepartFlag;
+                    curRide->getStation(current_station).depart = kStationDepartFlag;
                 }
                 incomingTrain = true;
                 break;
@@ -824,7 +824,7 @@ void Vehicle::UpdateWaitingToDepart()
             }
             else
             {
-                if (!currentStation.Exit.IsNull())
+                if (!currentStation.exit.IsNull())
                 {
                     SetState(Status::unloadingPassengers);
                     return;
@@ -838,7 +838,7 @@ void Vehicle::UpdateWaitingToDepart()
             {
                 if (trainCar->num_peeps != 0)
                 {
-                    if (!currentStation.Exit.IsNull())
+                    if (!currentStation.exit.IsNull())
                     {
                         SetState(Status::unloadingPassengers);
                         return;
@@ -851,7 +851,7 @@ void Vehicle::UpdateWaitingToDepart()
 
     if (!skipCheck)
     {
-        if (!(currentStation.Depart & kStationDepartFlag))
+        if (!(currentStation.depart & kStationDepartFlag))
             return;
     }
 
@@ -1064,7 +1064,7 @@ void Vehicle::UpdateUnloadingPassengers()
     }
     else
     {
-        if (currentStation.Exit.IsNull())
+        if (currentStation.exit.IsNull())
         {
             if (sub_state != 1)
                 return;
@@ -1402,7 +1402,7 @@ void Vehicle::FinishDeparting()
     if (curRide->mode != RideMode::race && !curRide->isBlockSectioned())
     {
         auto& currentStation = curRide->getStation(current_station);
-        currentStation.Depart &= kStationDepartFlag;
+        currentStation.depart &= kStationDepartFlag;
         uint8_t waitingTime = 3;
         if (curRide->departFlags & RIDE_DEPART_WAIT_FOR_MINIMUM_LENGTH)
         {
@@ -1410,7 +1410,7 @@ void Vehicle::FinishDeparting()
             waitingTime = std::min(waitingTime, static_cast<uint8_t>(127));
         }
 
-        currentStation.Depart |= waitingTime;
+        currentStation.depart |= waitingTime;
     }
     lost_time_out = 0;
     RideActivateStationPlatformPreQueue(*curRide, current_station);

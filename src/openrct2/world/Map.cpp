@@ -2684,9 +2684,9 @@ namespace OpenRCT2
             auto stations = ride.getStations();
             for (auto& station : stations)
             {
-                shiftIfNotNull(station.Start, amountToMove);
-                shiftIfNotNull(station.Entrance, amount);
-                shiftIfNotNull(station.Exit, amount);
+                shiftIfNotNull(station.start, amountToMove);
+                shiftIfNotNull(station.entrance, amount);
+                shiftIfNotNull(station.exit, amount);
             }
 
             shiftIfNotNull(ride.overallView, amountToMove);

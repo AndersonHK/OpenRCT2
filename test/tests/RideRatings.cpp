@@ -88,8 +88,8 @@ protected:
         ride.id = id;
         ride.type = type;
         ride.numStations = 1;
-        ride.getStation().Start = stationTile.ToCoordsXY();
-        ride.getStation().SetBaseZ(baseZ);
+        ride.getStation().start = stationTile.ToCoordsXY();
+        ride.getStation().setBaseZ(baseZ);
     }
 
     static void InitialiseRide(Ride& ride, ride_type_t type, uint8_t numStations)
@@ -396,7 +396,7 @@ protected:
     void SetLegacySummaryStats(Ride& ride, bool strong)
     {
         const auto maximumByte = std::numeric_limits<uint8_t>::max();
-        ride.getStation().SegmentLength = strong ? std::numeric_limits<int32_t>::max() / 4 : 0;
+        ride.getStation().segmentLength = strong ? std::numeric_limits<int32_t>::max() / 4 : 0;
         ride.highestDropHeight = strong ? maximumByte : 0;
         ride.maxSpeed = strong ? std::numeric_limits<int32_t>::max() / 4 : 0;
         ride.numDrops = strong ? maximumByte : 0;
@@ -571,7 +571,7 @@ TEST_F(RideRatings, InProgressAverageSpeedDisplaysPartialAverage)
     Ride ride{};
     ride.numStations = 1;
     ride.averageSpeed = 30 << 16;
-    ride.getStation().SegmentTime = 2;
+    ride.getStation().segmentTime = 2;
     ride.flags.set(RideFlag::testInProgress);
 
     EXPECT_EQ(ride.getDisplayAverageSpeed(), 15 << 16);
@@ -993,9 +993,9 @@ TEST_F(RideRatings, TransportServiceCacheBuildsEveryDirectedJourneyAndRefreshesO
     {
         const auto index = StationIndex::FromUnderlying(static_cast<StationIndex::UnderlyingType>(stationIndex));
         auto& station = ride->getStation(index);
-        station.Start = { static_cast<int32_t>(stationIndex * 10), static_cast<int32_t>(stationIndex * 20) };
-        station.Entrance = { static_cast<int32_t>(10 + stationIndex), 20, 2, 0 };
-        station.Exit = { static_cast<int32_t>(30 + stationIndex), 40, 2, 2 };
+        station.start = { static_cast<int32_t>(stationIndex * 10), static_cast<int32_t>(stationIndex * 20) };
+        station.entrance = { static_cast<int32_t>(10 + stationIndex), 20, 2, 0 };
+        station.exit = { static_cast<int32_t>(30 + stationIndex), 40, 2, 2 };
         ride->stableStats.stations[stationIndex].SegmentLength = segmentLengthsMetres[stationIndex] << 16;
         ride->stableStats.stations[stationIndex].SegmentTime = segmentTimesSeconds[stationIndex];
     }
@@ -1013,8 +1013,8 @@ TEST_F(RideRatings, TransportServiceCacheBuildsEveryDirectedJourneyAndRefreshesO
     ASSERT_EQ(service.journeys.size(), 6u);
     EXPECT_EQ(service.quality.comfortPermille, 900);
     EXPECT_EQ(service.quality.decorationPermille, 1100);
-    EXPECT_EQ(service.stations[0].entrance, ride->getStation(StationIndex::FromUnderlying(0)).Entrance);
-    EXPECT_EQ(service.stations[2].exit, ride->getStation(StationIndex::FromUnderlying(2)).Exit);
+    EXPECT_EQ(service.stations[0].entrance, ride->getStation(StationIndex::FromUnderlying(0)).entrance);
+    EXPECT_EQ(service.stations[2].exit, ride->getStation(StationIndex::FromUnderlying(2)).exit);
 
     size_t journeyIndex = 0;
     for (size_t boardingIndex = 0; boardingIndex < ride->numStations; boardingIndex++)
@@ -1042,8 +1042,8 @@ TEST_F(RideRatings, TransportServiceCacheBuildsEveryDirectedJourneyAndRefreshesO
 
     const auto initialEntrance = service.stations[0].entrance;
     const auto initialTravelTime = service.journeys.front().journey.travelTimeMilliseconds;
-    ride->getStation().QueueTime = 12;
-    ride->getStation().QueueLength = 30;
+    ride->getStation().queueTime = 12;
+    ride->getStation().queueLength = 30;
     ride->getStation().QueueFull = true;
     ride->priceTarget = RidePriceTarget::badValue;
     gameState.currentTicks++;
@@ -1053,14 +1053,14 @@ TEST_F(RideRatings, TransportServiceCacheBuildsEveryDirectedJourneyAndRefreshesO
     EXPECT_EQ(afterLiveOverlays.journeys.front().journey.travelTimeMilliseconds, initialTravelTime);
 
     ride->stableStats.stations[0].SegmentTime = 90;
-    ride->getStation().Entrance = { 50, 60, 3, 1 };
+    ride->getStation().entrance = { 50, 60, 3, 1 };
     const auto unchangedWithinTick = RideGetTransportService(transportRideId);
     EXPECT_EQ(unchangedWithinTick.stations[0].entrance, initialEntrance);
     EXPECT_EQ(unchangedWithinTick.journeys.front().journey.travelTimeMilliseconds, initialTravelTime);
 
     RideInvalidateTransportServiceCache(transportRideId);
     const auto afterMeasuredStats = RideGetTransportService(transportRideId);
-    EXPECT_EQ(afterMeasuredStats.stations[0].entrance, ride->getStation().Entrance);
+    EXPECT_EQ(afterMeasuredStats.stations[0].entrance, ride->getStation().entrance);
     ASSERT_NE(afterMeasuredStats.getJourney(StationIndex::FromUnderlying(0), StationIndex::FromUnderlying(1)), nullptr);
     EXPECT_EQ(
         afterMeasuredStats.getJourney(StationIndex::FromUnderlying(0), StationIndex::FromUnderlying(1))
@@ -1091,10 +1091,10 @@ TEST_F(RideRatings, TransportServiceCacheTracksAvailabilityDeletionReuseAndReset
             return ride;
         ride->stableStats.stations[0].SegmentLength = 400 << 16;
         ride->stableStats.stations[1].SegmentLength = 600 << 16;
-        ride->getStation(StationIndex::FromUnderlying(0)).Entrance = { entranceX, 20, 2, 0 };
-        ride->getStation(StationIndex::FromUnderlying(0)).Exit = { 30, 20, 2, 2 };
-        ride->getStation(StationIndex::FromUnderlying(1)).Entrance = { 40, 20, 2, 0 };
-        ride->getStation(StationIndex::FromUnderlying(1)).Exit = { 50, 20, 2, 2 };
+        ride->getStation(StationIndex::FromUnderlying(0)).entrance = { entranceX, 20, 2, 0 };
+        ride->getStation(StationIndex::FromUnderlying(0)).exit = { 30, 20, 2, 2 };
+        ride->getStation(StationIndex::FromUnderlying(1)).entrance = { 40, 20, 2, 0 };
+        ride->getStation(StationIndex::FromUnderlying(1)).exit = { 50, 20, 2, 2 };
         return ride;
     };
 
@@ -1126,7 +1126,7 @@ TEST_F(RideRatings, TransportServiceCacheTracksAvailabilityDeletionReuseAndReset
     ASSERT_NE(replacement, nullptr);
     const auto afterReuse = RideGetTransportService(transportRideId);
     ASSERT_TRUE(afterReuse.isAvailable());
-    EXPECT_EQ(afterReuse.stations[0].entrance, replacement->getStation().Entrance);
+    EXPECT_EQ(afterReuse.stations[0].entrance, replacement->getStation().entrance);
 
     RideInitAll();
     EXPECT_FALSE(RideGetTransportService(transportRideId).isAvailable());
@@ -1146,10 +1146,10 @@ TEST_F(RideRatings, TransportServiceSpatialQueriesAreStableAcrossBoundariesMoves
             return ride;
         ride->stableStats.stations[0].SegmentLength = 400 << 16;
         ride->stableStats.stations[1].SegmentLength = 600 << 16;
-        ride->getStation(StationIndex::FromUnderlying(0)).Entrance = { firstEntrance, 2, 0 };
-        ride->getStation(StationIndex::FromUnderlying(0)).Exit = { firstEntrance + TileCoordsXY{ 100, 0 }, 2, 2 };
-        ride->getStation(StationIndex::FromUnderlying(1)).Entrance = { secondEntrance, 2, 0 };
-        ride->getStation(StationIndex::FromUnderlying(1)).Exit = { secondEntrance + TileCoordsXY{ 100, 0 }, 2, 2 };
+        ride->getStation(StationIndex::FromUnderlying(0)).entrance = { firstEntrance, 2, 0 };
+        ride->getStation(StationIndex::FromUnderlying(0)).exit = { firstEntrance + TileCoordsXY{ 100, 0 }, 2, 2 };
+        ride->getStation(StationIndex::FromUnderlying(1)).entrance = { secondEntrance, 2, 0 };
+        ride->getStation(StationIndex::FromUnderlying(1)).exit = { secondEntrance + TileCoordsXY{ 100, 0 }, 2, 2 };
         return ride;
     };
 
@@ -1203,7 +1203,7 @@ TEST_F(RideRatings, TransportServiceSpatialQueriesAreStableAcrossBoundariesMoves
     // A candidate result owns copied references in its caller buffer, so a
     // different buffer remains valid while this ride is moved and rebuilt.
     const auto retainedCandidate = highRideBuffer.front();
-    highRide->getStation(StationIndex::FromUnderlying(0)).Entrance = { 64, 64, 2, 0 };
+    highRide->getStation(StationIndex::FromUnderlying(0)).entrance = { 64, 64, 2, 0 };
     RideInvalidateTransportServiceCache(highRideId);
     std::vector<TransportRideServiceStationRef> movedBuffer;
     RideQueryTransportServiceStationsInBounds(
@@ -1235,7 +1235,7 @@ TEST_F(RideRatings, PlatformCapacityUsesActualConsistAndSafeLegacyFallback)
 
     Ride ride{};
     InitialiseRide(ride, RIDE_TYPE_MONORAIL, 1);
-    ride.getStation().Length = 3;
+    ride.getStation().length = 3;
     EXPECT_EQ(RideGetTransportStationPlatformCapacity(ride, StationIndex::FromUnderlying(0)), 0);
 
     auto* head = entities.createEntity<Vehicle>();
@@ -1278,7 +1278,7 @@ TEST_F(RideRatings, TransportStationOvercrowdingRequiresFullQueueAndFullPlatform
     constexpr auto stationIndex = StationIndex::FromUnderlying(0);
     Ride ride{};
     InitialiseRide(ride, RIDE_TYPE_MONORAIL, 1);
-    ride.getStation().Length = 3;
+    ride.getStation().length = 3;
     ride.getStation().QueueFull = true;
     EXPECT_FALSE(RideIsTransportStationOvercrowded(ride, StationIndex::GetNull()));
     EXPECT_FALSE(RideIsTransportStationOvercrowded(ride, StationIndex::FromUnderlying(1)));
@@ -1293,7 +1293,7 @@ TEST_F(RideRatings, TransportStationOvercrowdingRequiresFullQueueAndFullPlatform
     head->status = Vehicle::Status::unloadingPassengers;
     ride.numTrains = 1;
     ride.vehicles[0] = head->id;
-    ride.getStation().TrainAtStation = 0;
+    ride.getStation().trainAtStation = 0;
 
     head->num_peeps = 2;
     head->next_free_seat = 0;
@@ -2424,7 +2424,7 @@ TEST_F(RideRatings, FixedRideContextOriginUsesRideSpecificEyeHeight)
 
     Ride towerRide{};
     InitialiseFixedRide(towerRide, RideId::FromUnderlying(4), RIDE_TYPE_OBSERVATION_TOWER, stationTile, baseZ);
-    towerRide.getStation().SegmentLength = 12 << 16;
+    towerRide.getStation().segmentLength = 12 << 16;
 
     const auto groundOrigin = RideRating::GetFixedRideLocalContextOrigin(groundRide);
     const auto ferrisOrigin = RideRating::GetFixedRideLocalContextOrigin(ferrisRide);

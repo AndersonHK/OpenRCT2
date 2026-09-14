@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 314 / 361 source commits recorded
+## Progress: 315 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3472,10 +3472,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U314 — `1cee317188` — Fix #24457: Yellow is always rendered as third remap in Ride window (#27063)
 
 - **Source:** `1cee3171888071cf4283a5579007b644b606ae1b`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `8877ddb2e333eeb8dcf209e59872c0e16c8dc209`.
 - **Remaining:** 48 → 47.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Ported object-flag-aware remapping to all three ride-window vehicle preview paths and the changelog.
 - **Additional decisions / behavior:** Preserve source frame selection and fork ride controls; no object or renderer workaround. Vehicles without tertiary remapping retain their original yellow pixels in these previews.
 - **Verification:** B82: full Release x64 Vulkan solution, zero warnings/errors; 57 WidgetState/GpuFoundation tests passed. Actual source/fork hunks inspected.
 - **Pending / concerns:** Native Vulkan one-/two-/three-remap vehicle preview visual comparison remains for manual testing.
+
+### U315 — `97b91941eb` — Rename RideStation struct members in Ride.h (#27072)
+
+- **Source:** `97b91941eba665b67185c7b8f5f4dff2ab03410d`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 47 → 46.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Renamed RideStation members/accessors and all fork consumers without changing behavior.
+- **Additional decisions / behavior:** D12/D14: preserve live versus stable statistics, fork transient QueueFull, directed-leg ratings, platform staging, travel-time units and legacy length migration. Distinct stable-statistics fields retain their names. No save/API/network version change.
+- **Verification:** B83: source391/fork526 identifier substitutions proved; solution zero warnings/errors;170 ratings/pathfinding/play/scenario/scripting tests and7 save/import migration tests passed.
+- **Pending / concerns:** Standing native multiplayer/replay and long-park validation remain; no new debt or decision.
