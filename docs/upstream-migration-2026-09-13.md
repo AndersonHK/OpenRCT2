@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 89 / 361 source commits recorded
+## Progress: 90 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -997,10 +997,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U089 — `41164a7453` — Rename members of JuniorRCSubType
 
 - **Source:** `41164a74533f4c5744d0b8e4dc86eb5364db842e`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `11cdaefc1a1ecd4c00fc10502f410e7cde47ee8f`.
 - **Remaining:** 273 → 272.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename JuniorRCSubType members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Junior/water coaster paint subtype names only: preserve subtype values 1/2, chain image reuse, station brake conditions and track dispatch. No ratings or vehicle simulation change.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U090 — `4502be0fb2` — Rename members of Plane
+
+- **Source:** `4502be0fb2f2d96a7522b6eee8a76c69f0e986b1`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 272 → 271.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename Plane members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Magic Carpet local Plane enum only: preserve back/front values and exact painter layering/parent-child order; do not rename unrelated Plane types.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
