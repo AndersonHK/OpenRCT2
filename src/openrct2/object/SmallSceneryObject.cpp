@@ -185,7 +185,7 @@ void SmallSceneryObject::PerformFixes()
         if (properties.is_object())
         {
             _legacyType.height = Json::GetNumber<uint8_t>(properties["height"]);
-            _legacyType.tool_id = Cursor::FromString(Json::GetString(properties["cursor"]), CursorID::StatueDown);
+            _legacyType.tool_id = Cursor::FromString(Json::GetString(properties["cursor"]), CursorID::statueDown);
             _legacyType.price = ToMoney64FromGBP(Json::GetNumber<int16_t>(properties["price"]));
             _legacyType.removal_price = ToMoney64FromGBP(Json::GetNumber<int16_t>(properties["removalPrice"]));
             _legacyType.animation_delay = Json::GetNumber<uint16_t>(properties["animationDelay"]);

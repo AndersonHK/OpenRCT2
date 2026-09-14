@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 58 / 361 source commits recorded
+## Progress: 59 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -656,10 +656,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U058 — `8c3ad47b92` — Rename members of CustomToolbarMenuItemKind
 
 - **Source:** `8c3ad47b92f67fbee1c4a3933545631263ff0006`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `8992695c2b5498c8a683cf3225f5c55b690355aa`.
 - **Remaining:** 304 → 303.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename CustomToolbarMenuItemKind members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Retain standard/toolbox categorization, plugin ownership and callback dispatch, alphabetic menu sorting and the intransient-plugin restriction. Naming only, including fork toolbar consumers.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U059 — `45007c1865` — Rename members of CursorID
+
+- **Source:** `45007c1865e3380311e312f201935fc616cd3c20`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 303 → 302.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename CursorID members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Keep all 28 cursor slots, count=28 and undefined=0xFF; preserve sprite tables, cursor scaling, tool selection, object CURSOR_* tokens and scripting cursor strings. Use zzz consistently, correcting the upstream CursorData comment typo zZZ (comment only). Include all fork cursor references without changing viewport interaction.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.

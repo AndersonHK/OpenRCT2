@@ -1427,8 +1427,8 @@ namespace OpenRCT2
     {
         switch (cursor)
         {
-            case CursorID::TreeDown:
-            case CursorID::FlowerDown:
+            case CursorID::treeDown:
+            case CursorID::flowerDown:
                 return true;
             default:
                 return false;

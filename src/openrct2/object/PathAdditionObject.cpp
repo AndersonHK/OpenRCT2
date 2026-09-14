@@ -97,7 +97,7 @@ namespace OpenRCT2
         if (properties.is_object())
         {
             _legacyType.draw_type = ParseDrawType(Json::GetString(properties["renderAs"]));
-            _legacyType.tool_id = Cursor::FromString(Json::GetString(properties["cursor"]), CursorID::LamppostDown);
+            _legacyType.tool_id = Cursor::FromString(Json::GetString(properties["cursor"]), CursorID::lamppostDown);
             _legacyType.price = ToMoney64(Json::GetNumber<money32>(properties["price"]));
 
             SetPrimarySceneryGroup(ObjectEntryDescriptor(Json::GetString(properties["sceneryGroup"])));
