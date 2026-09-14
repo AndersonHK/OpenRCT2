@@ -11,6 +11,8 @@
 #include <gtest/gtest.h>
 #include <openrct2/ride/Ride.h>
 
+using OpenRCT2::RideBuildTrainStationAssignments;
+
 TEST(TrainStationAssignment, TwoStationsReceiveOneTrainEachInPhysicalRingOrder)
 {
     constexpr std::array stationOrder = {

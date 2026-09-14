@@ -9,14 +9,18 @@
 
 #pragma once
 
-#include "../audio/SpatialAudio.h"
 #include "../Identifiers.h"
+#include "../audio/SpatialAudio.h"
 
 #include <cstdint>
 #include <utility>
 
 struct CoordsXYZ;
-struct Ride;
+
+namespace OpenRCT2
+{
+    struct Ride;
+}
 
 namespace OpenRCT2::RideAudio
 {
@@ -47,8 +51,7 @@ namespace OpenRCT2::RideAudio
     void UpdateMusicChannels();
     void AdvanceMusicPosition(Ride& ride);
     void CollectMusicInstance(const Ride& ride, const CoordsXYZ& rideCoords, uint16_t sampleRate);
-    bool IsMusicInstanceHigherPriority(
-        const ViewportRideMusicInstance& lhs, const ViewportRideMusicInstance& rhs);
+    bool IsMusicInstanceHigherPriority(const ViewportRideMusicInstance& lhs, const ViewportRideMusicInstance& rhs);
 
     void DefaultStartRideMusicChannel(const ViewportRideMusicInstance& instance);
     void CircusStartRideMusicChannel(const ViewportRideMusicInstance& instance);

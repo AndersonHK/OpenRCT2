@@ -244,9 +244,8 @@ namespace OpenRCT2::RCT2
             dst->Category = _s6.Info.Category;
             dst->ObjectiveType = _s6.Info.ObjectiveType;
             dst->ObjectiveArg1 = _s6.Info.ObjectiveArg1;
-            dst->ObjectiveArg2 = Scenario::ObjectiveNeedsMoney(_s6.Info.ObjectiveType)
-                ? ToMoney64(_s6.Info.ObjectiveArg2)
-                : _s6.Info.ObjectiveArg2;
+            dst->ObjectiveArg2 = Scenario::ObjectiveNeedsMoney(_s6.Info.ObjectiveType) ? ToMoney64(_s6.Info.ObjectiveArg2)
+                                                                                       : _s6.Info.ObjectiveArg2;
             dst->ObjectiveArg3 = _s6.Info.ObjectiveArg3;
             dst->Highscore = nullptr;
 
@@ -710,7 +709,7 @@ namespace OpenRCT2::RCT2
             return _isFlatRide[rct12RideIndex];
         }
 
-        void ImportRide(::Ride* dst, const Ride* src, const RideId rideIndex)
+        void ImportRide(OpenRCT2::Ride* dst, const Ride* src, const RideId rideIndex)
         {
             *dst = {};
             dst->id = rideIndex;
@@ -931,8 +930,7 @@ namespace OpenRCT2::RCT2
             dst->slidePeep = EntityId::FromUnderlying(src->slidePeep);
             if (dst->type == RIDE_TYPE_MAZE)
             {
-                dst->operationOption = static_cast<uint8_t>(
-                    dst->getClosestMazeCapacityModeForCapacity(src->operationOption));
+                dst->operationOption = static_cast<uint8_t>(dst->getClosestMazeCapacityModeForCapacity(src->operationOption));
             }
             // Pad160[0xE];
             dst->slidePeepTShirtColour = src->slidePeepTShirtColour;
@@ -1966,14 +1964,14 @@ namespace OpenRCT2::RCT2
     };
 
     template<>
-    void S6Importer::ImportEntity<::Vehicle>(GameState_t& gameState, const RCT12EntityBase& baseSrc)
+    void S6Importer::ImportEntity<OpenRCT2::Vehicle>(GameState_t& gameState, const RCT12EntityBase& baseSrc)
     {
-        auto dst = getGameState().entities.CreateEntityAt<::Vehicle>(EntityId::FromUnderlying(baseSrc.EntityIndex));
+        auto dst = getGameState().entities.CreateEntityAt<OpenRCT2::Vehicle>(EntityId::FromUnderlying(baseSrc.EntityIndex));
         auto src = static_cast<const Vehicle*>(&baseSrc);
         const auto& ride = _s6.Rides[src->Ride];
 
         ImportEntityCommonProperties(dst, src);
-        dst->SubType = ::Vehicle::Type(src->Type);
+        dst->SubType = OpenRCT2::Vehicle::Type(src->Type);
         dst->pitch = src->pitch;
         dst->roll = src->roll;
         dst->remaining_distance = src->RemainingDistance;
@@ -1987,7 +1985,7 @@ namespace OpenRCT2::RCT2
         dst->track_progress = src->TrackProgress;
         dst->TrackLocation = { src->TrackX, src->TrackY, src->TrackZ };
         if (src->BoatLocation.IsNull() || static_cast<RideMode>(ride.mode) != RideMode::boatHire
-            || src->Status != static_cast<uint8_t>(::Vehicle::Status::travellingBoat))
+            || src->Status != static_cast<uint8_t>(OpenRCT2::Vehicle::Status::travellingBoat))
         {
             dst->BoatLocation.SetNull();
             dst->SetTrackDirection(src->GetTrackDirection());
@@ -2032,10 +2030,10 @@ namespace OpenRCT2::RCT2
         dst->current_time = src->CurrentTime;
         dst->crash_z = src->CrashZ;
 
-        ::Vehicle::Status statusSrc = ::Vehicle::Status::movingToEndOfStation;
-        if (src->Status <= static_cast<uint8_t>(::Vehicle::Status::stoppedByBlockBrakes))
+        OpenRCT2::Vehicle::Status statusSrc = OpenRCT2::Vehicle::Status::movingToEndOfStation;
+        if (src->Status <= static_cast<uint8_t>(OpenRCT2::Vehicle::Status::stoppedByBlockBrakes))
         {
-            statusSrc = static_cast<::Vehicle::Status>(src->Status);
+            statusSrc = static_cast<OpenRCT2::Vehicle::Status>(src->Status);
         }
 
         dst->status = statusSrc;
@@ -2315,7 +2313,7 @@ namespace OpenRCT2::RCT2
         switch (GetEntityTypeFromRCT2Sprite(&src))
         {
             case EntityType::vehicle:
-                ImportEntity<::Vehicle>(gameState, src);
+                ImportEntity<OpenRCT2::Vehicle>(gameState, src);
                 break;
             case EntityType::guest:
                 ImportEntity<::Guest>(gameState, src);

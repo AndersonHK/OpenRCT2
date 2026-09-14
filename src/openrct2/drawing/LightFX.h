@@ -18,12 +18,12 @@
 #include <vector>
 
 struct CoordsXY;
-struct Vehicle;
 struct CoordsXYZ;
 
 namespace OpenRCT2
 {
     struct EntityBase;
+    struct Vehicle;
     struct Viewport;
 } // namespace OpenRCT2
 
@@ -83,8 +83,8 @@ namespace OpenRCT2::Drawing::LightFx
     };
 
     [[nodiscard]] bool ResolveLightCommandForCanvas(
-        int32_t centreX, int32_t centreY, uint32_t canvasWidth, uint32_t canvasHeight, LightType type,
-        uint8_t intensity, FrameSnapshot::ResolvedLight& resolved) noexcept;
+        int32_t centreX, int32_t centreY, uint32_t canvasWidth, uint32_t canvasHeight, LightType type, uint8_t intensity,
+        FrameSnapshot::ResolvedLight& resolved) noexcept;
     [[nodiscard]] bool RasterizeResolvedLightCommands(
         uint32_t canvasWidth, uint32_t canvasHeight, std::span<const FrameSnapshot::ResolvedLight> lights,
         std::span<uint8_t> intensities) noexcept;

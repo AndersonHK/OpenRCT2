@@ -408,15 +408,14 @@ namespace OpenRCT2::RCT1
         void AddDefaultEntries()
         {
             // Add default scenery groups
-            _sceneryGroupEntries.AddRange(
-                {
-                    "rct2.scenery_group.scgtrees",
-                    "rct2.scenery_group.scgshrub",
-                    "rct2.scenery_group.scggardn",
-                    "rct2.scenery_group.scgfence",
-                    "rct2.scenery_group.scgwalls",
-                    "rct2.scenery_group.scgpathx",
-                });
+            _sceneryGroupEntries.AddRange({
+                "rct2.scenery_group.scgtrees",
+                "rct2.scenery_group.scgshrub",
+                "rct2.scenery_group.scggardn",
+                "rct2.scenery_group.scgfence",
+                "rct2.scenery_group.scgwalls",
+                "rct2.scenery_group.scgpathx",
+            });
 
             // Add default footpaths
             _footpathSurfaceEntries.AddRange(
@@ -428,13 +427,12 @@ namespace OpenRCT2::RCT1
                   "rct1aa.footpath_surface.queue_yellow", "rct1aa.footpath_surface.queue_green" });
 
             // All four are always available. By using the same order as RCT1, we don’t need to map the indices later on.
-            _footpathRailingsEntries.AddRange(
-                {
-                    "rct2.footpath_railings.wood",     // RCT1_PATH_SUPPORT_TYPE_TRUSS
-                    "rct2.footpath_railings.concrete", // RCT1_PATH_SUPPORT_TYPE_COATED_WOOD
-                    "rct1ll.footpath_railings.space",  // RCT1_PATH_SUPPORT_TYPE_SPACE
-                    "rct1ll.footpath_railings.bamboo", // RCT1_PATH_SUPPORT_TYPE_BAMBOO
-                });
+            _footpathRailingsEntries.AddRange({
+                "rct2.footpath_railings.wood",     // RCT1_PATH_SUPPORT_TYPE_TRUSS
+                "rct2.footpath_railings.concrete", // RCT1_PATH_SUPPORT_TYPE_COATED_WOOD
+                "rct1ll.footpath_railings.space",  // RCT1_PATH_SUPPORT_TYPE_SPACE
+                "rct1ll.footpath_railings.bamboo", // RCT1_PATH_SUPPORT_TYPE_BAMBOO
+            });
 
             // Add default surfaces
             _terrainSurfaceEntries.AddRange(
@@ -446,12 +444,12 @@ namespace OpenRCT2::RCT1
                   "rct1ll.terrain_surface.roof_grey", "rct1ll.terrain_surface.rust", "rct1ll.terrain_surface.wood" });
 
             // Add default edges
-            _terrainEdgeEntries.AddRange(
-                { "rct2.terrain_edge.rock", "rct2.terrain_edge.wood_red", "rct2.terrain_edge.wood_black",
-                  "rct2.terrain_edge.ice", "rct1.terrain_edge.brick", "rct1.terrain_edge.iron", "rct1aa.terrain_edge.grey",
-                  "rct1aa.terrain_edge.yellow", "rct1aa.terrain_edge.red", "rct1ll.terrain_edge.purple",
-                  "rct1ll.terrain_edge.green", "rct1ll.terrain_edge.stone_brown", "rct1ll.terrain_edge.stone_grey",
-                  "rct1ll.terrain_edge.skyscraper_a", "rct1ll.terrain_edge.skyscraper_b" });
+            _terrainEdgeEntries.AddRange({ "rct2.terrain_edge.rock", "rct2.terrain_edge.wood_red",
+                                           "rct2.terrain_edge.wood_black", "rct2.terrain_edge.ice", "rct1.terrain_edge.brick",
+                                           "rct1.terrain_edge.iron", "rct1aa.terrain_edge.grey", "rct1aa.terrain_edge.yellow",
+                                           "rct1aa.terrain_edge.red", "rct1ll.terrain_edge.purple", "rct1ll.terrain_edge.green",
+                                           "rct1ll.terrain_edge.stone_brown", "rct1ll.terrain_edge.stone_grey",
+                                           "rct1ll.terrain_edge.skyscraper_a", "rct1ll.terrain_edge.skyscraper_b" });
         }
 
         void AddAvailableEntriesFromResearchList()
@@ -822,7 +820,7 @@ namespace OpenRCT2::RCT1
             }
         }
 
-        void ImportRide(::Ride* dst, Ride* src, RideId rideIndex)
+        void ImportRide(OpenRCT2::Ride* dst, Ride* src, RideId rideIndex)
         {
             *dst = {};
             dst->id = rideIndex;
@@ -1079,8 +1077,7 @@ namespace OpenRCT2::RCT1
             dst->mazeTiles = src->mazeTiles;
             if (dst->type == RIDE_TYPE_MAZE)
             {
-                dst->operationOption = static_cast<uint8_t>(
-                    dst->getClosestMazeCapacityModeForCapacity(src->operationOption));
+                dst->operationOption = static_cast<uint8_t>(dst->getClosestMazeCapacityModeForCapacity(src->operationOption));
             }
 
             // Finance / customers
@@ -1107,7 +1104,7 @@ namespace OpenRCT2::RCT1
             dst->musicTuneId = kTuneIDNull;
         }
 
-        void SetRideColourScheme(::Ride* dst, Ride* src)
+        void SetRideColourScheme(OpenRCT2::Ride* dst, Ride* src)
         {
             // Colours
             dst->vehicleColourSettings = src->vehicleColourSettings;
@@ -1287,7 +1284,7 @@ namespace OpenRCT2::RCT1
             }
         }
 
-        void SetVehicleColours(::Vehicle* dst, const Vehicle* src)
+        void SetVehicleColours(OpenRCT2::Vehicle* dst, const Vehicle* src)
         {
             const auto& srcRide = _s4.Rides[src->Ride];
             VehicleColourSchemeCopyDescriptor colourSchemeCopyDescriptor = GetColourSchemeCopyDescriptor(srcRide.vehicleType);
@@ -2799,9 +2796,9 @@ namespace OpenRCT2::RCT1
     }
 
     template<>
-    void S4Importer::ImportEntity<::Vehicle>(GameState_t& gameState, const RCT12EntityBase& srcBase)
+    void S4Importer::ImportEntity<OpenRCT2::Vehicle>(GameState_t& gameState, const RCT12EntityBase& srcBase)
     {
-        auto* dst = getGameState().entities.CreateEntityAt<::Vehicle>(EntityId::FromUnderlying(srcBase.EntityIndex));
+        auto* dst = getGameState().entities.CreateEntityAt<OpenRCT2::Vehicle>(EntityId::FromUnderlying(srcBase.EntityIndex));
         auto* src = static_cast<const Vehicle*>(&srcBase);
         const auto* ride = GetRide(RideId::FromUnderlying(src->Ride));
         if (ride == nullptr)
@@ -2814,7 +2811,7 @@ namespace OpenRCT2::RCT1
         dst->ride_subtype = RCTEntryIndexToOpenRCT2EntryIndex(ride->subtype);
 
         dst->vehicle_type = vehicleEntryIndex;
-        dst->SubType = ::Vehicle::Type(src->Type);
+        dst->SubType = OpenRCT2::Vehicle::Type(src->Type);
         dst->var_44 = src->Var44;
         dst->remaining_distance = src->RemainingDistance;
 
@@ -2874,16 +2871,17 @@ namespace OpenRCT2::RCT1
             }
         }
 
-        ::Vehicle::Status statusSrc = ::Vehicle::Status::movingToEndOfStation;
-        if (src->Status <= static_cast<uint8_t>(::Vehicle::Status::stoppedByBlockBrakes))
+        OpenRCT2::Vehicle::Status statusSrc = OpenRCT2::Vehicle::Status::movingToEndOfStation;
+        if (src->Status <= static_cast<uint8_t>(OpenRCT2::Vehicle::Status::stoppedByBlockBrakes))
         {
-            statusSrc = static_cast<::Vehicle::Status>(src->Status);
+            statusSrc = static_cast<OpenRCT2::Vehicle::Status>(src->Status);
         }
         dst->status = statusSrc;
         dst->TrackSubposition = VehicleTrackSubposition{ src->TrackSubposition };
         dst->TrackLocation = { src->TrackX, src->TrackY, src->TrackZ };
         dst->current_station = StationIndex::FromUnderlying(src->CurrentStation);
-        if (src->BoatLocation.IsNull() || ride->mode != RideMode::boatHire || statusSrc != ::Vehicle::Status::travellingBoat)
+        if (src->BoatLocation.IsNull() || ride->mode != RideMode::boatHire
+            || statusSrc != OpenRCT2::Vehicle::Status::travellingBoat)
         {
             dst->BoatLocation.SetNull();
             dst->SetTrackDirection(src->GetTrackDirection());
@@ -3177,7 +3175,7 @@ namespace OpenRCT2::RCT1
         switch (GetEntityTypeFromRCT1Sprite(src))
         {
             case EntityType::vehicle:
-                ImportEntity<::Vehicle>(gameState, src);
+                ImportEntity<OpenRCT2::Vehicle>(gameState, src);
                 break;
             case EntityType::guest:
                 ImportEntity<Guest>(gameState, src);

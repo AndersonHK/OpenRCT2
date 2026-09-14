@@ -13,7 +13,10 @@
 #include "../localisation/StringIdType.h"
 #include "../ride/ShopItem.h"
 
-struct Ride;
+namespace OpenRCT2
+{
+    struct Ride;
+}
 
 enum
 {
@@ -72,7 +75,7 @@ uint16_t MarketingGetCampaignGuestGenerationProbability(int32_t campaign);
 void MarketingUpdate();
 void MarketingSetGuestCampaign(OpenRCT2::Guest* peep, int32_t campaign);
 bool MarketingIsCampaignTypeApplicable(int32_t campaignType);
-bool MarketingIsRideCampaignEligible(const Ride& ride);
+bool MarketingIsRideCampaignEligible(const OpenRCT2::Ride& ride);
 MarketingCampaign* MarketingGetCampaign(int32_t campaignType);
 void MarketingNewCampaign(const MarketingCampaign& campaign);
 void MarketingCancelCampaignsForRide(RideId rideId);

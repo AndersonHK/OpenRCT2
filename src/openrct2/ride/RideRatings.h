@@ -18,14 +18,15 @@
 #include <span>
 #include <utility>
 
-struct Ride;
 struct RideObjectEntry;
-struct RideRatingAccumulator;
-struct SampledRideRatingProfile;
-struct Vehicle;
 
 namespace OpenRCT2
 {
+    struct Ride;
+    struct RideRatingAccumulator;
+    struct SampledRideRatingProfile;
+    struct Vehicle;
+
     enum class TrackElemType : uint16_t;
     using RideRating_t = fixed16_2dp;
     namespace RideRating
@@ -90,8 +91,7 @@ namespace OpenRCT2
         class VehicleGForceScoreMemo
         {
         public:
-            VehicleGForceScoreMemo(
-                const SampledRideRatingProfile& profile, const VehicleGForceSpeedContext& speedContext);
+            VehicleGForceScoreMemo(const SampledRideRatingProfile& profile, const VehicleGForceSpeedContext& speedContext);
 
             TickScore Get(int32_t verticalG, int32_t lateralG, int32_t longitudinalG);
 
@@ -221,9 +221,12 @@ namespace OpenRCT2
         void PublishTrainSample(Ride& ride, const Vehicle& head, StationIndex destinationStation);
         void UpdateAll();
     } // namespace RideRating
-} // namespace OpenRCT2
 
-// Special Track Element Adjustment functions for RTDs
-void SpecialTrackElementRatingsAjustment_Default(const Ride& ride, int32_t& excitement, int32_t& intensity, int32_t& nausea);
-void SpecialTrackElementRatingsAjustment_GhostTrain(const Ride& ride, int32_t& excitement, int32_t& intensity, int32_t& nausea);
-void SpecialTrackElementRatingsAjustment_LogFlume(const Ride& ride, int32_t& excitement, int32_t& intensity, int32_t& nausea);
+    // Special Track Element Adjustment functions for RTDs
+    void SpecialTrackElementRatingsAdjustment_Default(
+        const Ride& ride, int32_t& excitement, int32_t& intensity, int32_t& nausea);
+    void SpecialTrackElementRatingsAdjustment_GhostTrain(
+        const Ride& ride, int32_t& excitement, int32_t& intensity, int32_t& nausea);
+    void SpecialTrackElementRatingsAdjustment_LogFlume(
+        const Ride& ride, int32_t& excitement, int32_t& intensity, int32_t& nausea);
+} // namespace OpenRCT2

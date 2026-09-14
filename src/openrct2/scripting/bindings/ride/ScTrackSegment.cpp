@@ -22,7 +22,7 @@
 using namespace OpenRCT2::Scripting;
 using namespace OpenRCT2::TrackMetadata;
 
-static JSValue VehicleInfoToJSValue(JSContext* ctx, const VehicleInfo& value)
+static JSValue VehicleInfoToJSValue(JSContext* ctx, const OpenRCT2::VehicleInfo& value)
 {
     JSValue obj = JS_NewObject(ctx);
     JS_SetPropertyStr(ctx, obj, "x", JS_NewInt32(ctx, value.x));
@@ -238,18 +238,17 @@ JSValue ScTrackSegment::getSubpositions(JSContext* ctx, JSValue thisVal, int arg
 
 static JSValue _trackCurveToString(JSContext* ctx, TrackCurve curve)
 {
-    static const EnumMap<TrackCurve> map(
-        {
-            { "straight", TrackCurve::none },
-            { "left", TrackCurve::left },
-            { "right", TrackCurve::right },
-            { "left_small", TrackCurve::leftSmall },
-            { "right_small", TrackCurve::rightSmall },
-            { "left_very_small", TrackCurve::leftVerySmall },
-            { "right_very_small", TrackCurve::rightVerySmall },
-            { "left_large", TrackCurve::leftLarge },
-            { "right_large", TrackCurve::rightLarge },
-        });
+    static const EnumMap<TrackCurve> map({
+        { "straight", TrackCurve::none },
+        { "left", TrackCurve::left },
+        { "right", TrackCurve::right },
+        { "left_small", TrackCurve::leftSmall },
+        { "right_small", TrackCurve::rightSmall },
+        { "left_very_small", TrackCurve::leftVerySmall },
+        { "right_very_small", TrackCurve::rightVerySmall },
+        { "left_large", TrackCurve::leftLarge },
+        { "right_large", TrackCurve::rightLarge },
+    });
 
     const auto text = std::string(map[curve]);
     return JSFromStdString(ctx, text);

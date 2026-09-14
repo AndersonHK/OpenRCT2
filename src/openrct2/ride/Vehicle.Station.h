@@ -17,8 +17,14 @@
 #include <cstdint>
 #include <span>
 
-struct Vehicle;
-struct Ride;
+namespace OpenRCT2
+{
+    struct Vehicle;
+}
+namespace OpenRCT2
+{
+    struct Ride;
+}
 
 namespace OpenRCT2
 {

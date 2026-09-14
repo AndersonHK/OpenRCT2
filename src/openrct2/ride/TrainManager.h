@@ -12,7 +12,10 @@
 
 #include <vector>
 
-struct Vehicle;
+namespace OpenRCT2
+{
+    struct Vehicle;
+}
 
 namespace OpenRCT2::TrainManager
 {

@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 114 / 361 source commits recorded
+## Progress: 115 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1272,10 +1272,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U114 — `53a81b1b45` — Merge pull request #26874 from Harry-Hopkinson/remove-even-more-includes
 
 - **Source:** `53a81b1b45b95b0745fa6f3fb38162f8bef64d42`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `f7ac048b68a050524e98ced537d51008bcc37a34`.
 - **Remaining:** 248 → 247.
 - **Disposition:** history receipt.
 - **Manual changes:** Record completed header-cleanup branch merge; no additional source delta.
 - **Additional decisions / behavior:** All constituent sources individually ported; retain manually adapted fork tree.
 - **Verification:** Archived remerge empty and merge tree equals second parent. Singleton ancestry checked. Batch 14 build and 154 tests cover constituents.
 - **Pending / concerns:** No additional merge-specific check required.
+
+### U115 — `51649e5873` — Rework Ride and Vehicle headers into OpenRCT2 namespace (#26881)
+
+- **Source:** `51649e5873c8441e8bfab995e3e4d1d5953417aa`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 247 → 246.
+- **Disposition:** adapt namespace refactor.
+- **Manual changes:** Move Ride/Vehicle types, constants and functions into OpenRCT2; extract unchanged VehicleFlags header; update declarations/callers and correct Adjustment spelling/UI dropdown type collision.
+- **Additional decisions / behavior:** D11/D12: preserve complete fork implementations, sampled/directed-leg ratings, longitudinal G, age multipliers 1.5/1.2, fares, station timing, physics and audio. Move fork-only rating/price/vehicle-station declarations too; retain native global CarEntry/TrackDesign types. Qualify legacy importer destination types while preserving source types. Restore PatrolArea declaration omitted during adaptation and qualify fork scripting/test callers; no global compatibility aliases.
+- **Verification:** Actual upstream token delta inspected. Nine large fork implementation token comparisons prove only namespaces/qualification/spelling/include order changed. Header/17 flag values reviewed. Batch 15 full MSVC/Vulkan build passed 0 warnings/errors and 177 selected tests passed. Whitespace and singleton ancestry gates.
+- **Pending / concerns:** Native non-Windows and interactive checks remain; no new owner decision.

@@ -13,7 +13,10 @@
 
 #include <cstdint>
 
-enum class RidePriceTarget : uint8_t;
+namespace OpenRCT2
+{
+    enum class RidePriceTarget : uint8_t;
+}
 
 namespace OpenRCT2::GameActions
 {

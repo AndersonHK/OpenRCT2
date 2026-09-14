@@ -13,9 +13,12 @@
 
 #include <cstdint>
 
-struct Ride;
+namespace OpenRCT2
+{
+    struct Ride;
 
-void RideUpdateStation(Ride& ride, StationIndex stationIndex, uint32_t currentTicks, bool wholeSecondTick);
-StationIndex RideGetFirstValidStationExit(const Ride& ride);
-StationIndex RideGetFirstValidStationStart(const Ride& ride);
-StationIndex RideGetFirstEmptyStationStart(const Ride& ride);
+    void RideUpdateStation(Ride& ride, StationIndex stationIndex, uint32_t currentTicks, bool wholeSecondTick);
+    StationIndex RideGetFirstValidStationExit(const Ride& ride);
+    StationIndex RideGetFirstValidStationStart(const Ride& ride);
+    StationIndex RideGetFirstEmptyStationStart(const Ride& ride);
+} // namespace OpenRCT2

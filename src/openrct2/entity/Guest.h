@@ -14,10 +14,11 @@
 #include "Peep.h"
 
 struct CarEntry;
-struct Vehicle;
 
 namespace OpenRCT2
 {
+    struct Vehicle;
+
     constexpr uint16_t kTransportRouteTimeoutFlag = 1U << 15;
 
     constexpr int8_t kPeepMaxThoughts = 5;

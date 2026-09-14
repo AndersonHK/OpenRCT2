@@ -8067,7 +8067,9 @@
       "decisions": [],
       "review_level": "remerge-probe",
       "implementation_status": "history receipt",
-      "port_commits": [],
+      "port_commits": [
+        "f7ac048b68a050524e98ced537d51008bcc37a34"
+      ],
       "verification_evidence": [
         "Archived remerge empty and merge tree equals second parent. Singleton ancestry checked. Batch 14 build and 154 tests cover constituents."
       ],
@@ -8215,9 +8217,11 @@
         "D12"
       ],
       "review_level": "targeted-code-review",
-      "implementation_status": "not-ported",
+      "implementation_status": "adapt namespace refactor",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Actual upstream token delta inspected. Nine large fork implementation token comparisons prove only namespaces/qualification/spelling/include order changed. Header/17 flag values reviewed. Batch 15 full MSVC/Vulkan build passed 0 warnings/errors and 177 selected tests passed. Whitespace and singleton ancestry gates."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -8245,7 +8249,10 @@
         "src/openrct2/ride/rtd/gentle/Maze.h",
         "src/openrct2/scripting/bindings/ride/ScRideStation.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 51649e5873c8441e8bfab995e3e4d1d5953417aa",
+      "implementation_decisions": "D11/D12: preserve complete fork implementations, sampled/directed-leg ratings, longitudinal G, age multipliers 1.5/1.2, fares, station timing, physics and audio. Move fork-only rating/price/vehicle-station declarations too; retain native global CarEntry/TrackDesign types. Qualify legacy importer destination types while preserving source types. Restore PatrolArea declaration omitted during adaptation and qualify fork scripting/test callers; no global compatibility aliases.",
+      "pending_validation": "Native non-Windows and interactive checks remain; no new owner decision."
     },
     {
       "sha": "4087c9c6b9a6a6c6871dda823ee1473006902679",
@@ -26587,8 +26594,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 114,
-    "remaining_after_receipt": 247,
+    "accounted_in_this_tree": 115,
+    "remaining_after_receipt": 246,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
