@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 84 / 361 source commits recorded
+## Progress: 85 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -942,10 +942,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U084 — `a850d78a7d` — Rename members of DuckState
 
 - **Source:** `a850d78a7d5c23355b42e9c290e771c71043dc6c`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `11ae635a477969c876dbda5ebd1743ca4cbb11fb`.
 - **Remaining:** 278 → 277.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename DuckState members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Duck naming only: preserve state values 0-4, animations, random draws and seasonal departure probability, including fork entity presentation. Update five stale animation-table comments left upstream. Batch 11 build and all 16 selected sprite/import/scripting/widget tests passed through U083; no gameplay changes.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U085 — `a6175f8930` — Rename members of JumpingFountainType
+
+- **Source:** `a6175f893014a1e18d41488a0a48f31dd125eb5e`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 277 → 276.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename JumpingFountainType members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Water/snow fountain names only. Preserve water=0 and snow=1, animation flags/frames and RCT1/RCT2 import encoding.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
