@@ -377,7 +377,7 @@ namespace OpenRCT2::PathFinding
             return false;
 
         const auto* surfaceElement = MapGetSurfaceElementAt(loc);
-        if (surfaceElement == nullptr || surfaceElement->GetWaterHeight() > 0)
+        if (surfaceElement == nullptr || surfaceElement->getWaterHeight() > 0)
             return false;
 
         const int32_t walkZ = TileElementHeight(loc.ToTileCentre());

@@ -88,11 +88,11 @@ int32_t TileElementGetDecorationScore(const TileElement& tileElement)
             {
                 return 0;
             }
-            if (surfaceElement->GetWaterHeight() > surfaceElement->getBaseZ())
+            if (surfaceElement->getWaterHeight() > surfaceElement->getBaseZ())
             {
                 return 18;
             }
-            if (surfaceElement->CanGrassGrow() && (surfaceElement->GetGrassLength() & 0x7) == GRASS_LENGTH_MOWED)
+            if (surfaceElement->canGrassGrow() && (surfaceElement->getGrassLength() & 0x7) == GRASS_LENGTH_MOWED)
             {
                 return 18;
             }

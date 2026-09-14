@@ -247,7 +247,7 @@ GameActions::Result MapCanConstructWithClearAt(
             continue;
         }
 
-        const auto waterHeight = tileElement->asSurface()->GetWaterHeight();
+        const auto waterHeight = tileElement->asSurface()->getWaterHeight();
         if (waterHeight && waterHeight > pos.baseZ && tileElement->getBaseZ() < pos.clearanceZ)
         {
             groundFlags |= ELEMENT_IS_UNDERWATER;
@@ -282,7 +282,7 @@ GameActions::Result MapCanConstructWithClearAt(
         }
 
         // Only allow building crossings directly on a flat surface tile.
-        if (tileElement->getType() == TileElementType::surface && (tileElement->asSurface()->GetSlope()) == kTileSlopeFlat
+        if (tileElement->getType() == TileElementType::surface && (tileElement->asSurface()->getSlope()) == kTileSlopeFlat
             && tileElement->getBaseZ() == pos.baseZ)
         {
             canBuildCrossing = true;
@@ -299,7 +299,7 @@ GameActions::Result MapCanConstructWithClearAt(
             else
             {
                 const auto [northZ, eastZ, southZ, westZ] = GetSlopeCornerHeights(
-                    tileElement->getBaseZ(), tileElement->asSurface()->GetSlope());
+                    tileElement->getBaseZ(), tileElement->asSurface()->getSlope());
                 const auto baseHeight = pos.baseZ + (4 * kCoordsZStep);
                 const auto baseQuarter = quarterTile.GetBaseQuarterOccupied();
                 const auto zQuarter = quarterTile.GetZQuarterOccupied();

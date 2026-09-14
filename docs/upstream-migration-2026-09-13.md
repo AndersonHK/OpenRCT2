@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 160 / 361 source commits recorded
+## Progress: 161 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1778,10 +1778,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U160 — `d3c54532ca` — Make SmallSceneryElement members adhere to code style
 
 - **Source:** `d3c54532cab94c7f69998f8fc54cfd98c025c17d`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `0d6af1ab30e867cf690ba586750ce2cae230bfb4`.
 - **Remaining:** 202 → 201.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Rename 20 SmallSceneryElement members in 28 fork files. Carry three receiver corrections from Batch 28: retain WallElement.GetBanner and two RCT12 map-discovery getters.
 - **Additional decisions / behavior:** Plant watering/age/withering, support masks, colour storage and legacy support-bit conversion remain identical. No ride-age or price changes. Earlier over-broad receiver renames were build errors, repaired without changing type contracts; detailed in Batch 28.
 - **Verification:** Complete 28-file source delta verified as 20 identifier mappings only. All fork changes verified as those mappings plus three explicitly enumerated receiver repairs. Batch 28 clean rebuild and 227 tests cleared U155-U159; whitespace check passed.
 - **Pending / concerns:** U160 compile/tests pending with surface/track/wall naming batch; prior Batch 28 does not validate these new small-scenery names.
+
+### U161 — `25865dce31` — Make SurfaceElement members adhere to code style
+
+- **Source:** `25865dce31965a58a010f386b4a632886bf86461`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 201 → 200.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Rename 28 SurfaceElement members in 61 fork files, including fork scenery/pathfinding and regression callers. Reuse the existing surface-object getter in canGrassGrow.
+- **Additional decisions / behavior:** The grass lookup simplification returns the identical loaded object through the same manager/index; preserve flags, randomness, growth timing and null behavior. Water-height units, ownership/fence masks, terrain slope, D03 cheat gates, sampled local-context ratings and packed tile layout unchanged.
+- **Verification:** Complete 56-file source delta verified as reviewed names plus the exact three-line lookup simplification. All 61 fork files pass the same normalized token proof; fork-only callers inspected and whitespace check passed.
+- **Pending / concerns:** Compile and regressions pending with remaining track/wall naming batch.

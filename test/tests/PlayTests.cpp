@@ -1261,8 +1261,8 @@ TEST_F(PlayTests, WaterSpecificClearanceRulesAreBypassedOnlyWithTheClearanceChea
         auto* surface = MapGetSurfaceElementAt(coords);
         surface->baseHeight = 2;
         surface->clearanceHeight = 2;
-        surface->SetWaterHeight(waterHeight);
-        surface->SetSlope(slope);
+        surface->setWaterHeight(waterHeight);
+        surface->setSlope(slope);
     };
     GameActions::TrackPlaceAction track(boat->id, TrackElemType::flat, boat->type, { coords, 32, 0 }, 0, 0, 0, {}, false);
 
@@ -1280,15 +1280,15 @@ TEST_F(PlayTests, WaterSpecificClearanceRulesAreBypassedOnlyWithTheClearanceChea
             const auto query = track.Query(state, state.park);
             const bool allowed = clearanceCheat || (waterHeight == 32 && slope == kTileSlopeFlat);
             EXPECT_EQ(query.error == GameActions::Status::ok, allowed);
-            EXPECT_EQ(MapGetSurfaceElementAt(coords)->GetWaterHeight(), waterHeight);
-            EXPECT_FALSE(MapGetSurfaceElementAt(coords)->HasTrackThatNeedsWater());
+            EXPECT_EQ(MapGetSurfaceElementAt(coords)->getWaterHeight(), waterHeight);
+            EXPECT_FALSE(MapGetSurfaceElementAt(coords)->hasTrackThatNeedsWater());
             if (allowed)
             {
                 ASSERT_EQ(query.error, GameActions::Status::ok);
                 const auto result = track.Execute(state, state.park);
                 ASSERT_EQ(result.error, GameActions::Status::ok);
                 EXPECT_EQ(result.cost, query.cost);
-                EXPECT_TRUE(MapGetSurfaceElementAt(coords)->HasTrackThatNeedsWater());
+                EXPECT_TRUE(MapGetSurfaceElementAt(coords)->hasTrackThatNeedsWater());
                 auto* placedTrack = *TileElementsView<TrackElement>(coords).begin();
                 ASSERT_NE(placedTrack, nullptr);
                 EXPECT_EQ(placedTrack->GetRideIndex(), boat->id);
@@ -1308,7 +1308,7 @@ TEST_F(PlayTests, WaterSpecificClearanceRulesAreBypassedOnlyWithTheClearanceChea
         GameActions::WaterSetHeightAction water(coords, 2);
         const GameActions::GameAction& action = changeLand ? static_cast<const GameActions::GameAction&>(land) : water;
         EXPECT_EQ(action.Query(state, state.park).error, GameActions::Status::disallowed);
-        EXPECT_EQ(MapGetSurfaceElementAt(coords)->GetWaterHeight(), 32);
+        EXPECT_EQ(MapGetSurfaceElementAt(coords)->getWaterHeight(), 32);
         EXPECT_EQ(MapGetSurfaceElementAt(coords)->baseHeight, 2);
         state.cheats.disableClearanceChecks = true;
         const auto query = action.Query(state, state.park);
@@ -1316,7 +1316,7 @@ TEST_F(PlayTests, WaterSpecificClearanceRulesAreBypassedOnlyWithTheClearanceChea
         const auto result = action.Execute(state, state.park);
         ASSERT_EQ(result.error, GameActions::Status::ok);
         EXPECT_EQ(result.cost, query.cost);
-        EXPECT_EQ(MapGetSurfaceElementAt(coords)->GetWaterHeight(), 0);
+        EXPECT_EQ(MapGetSurfaceElementAt(coords)->getWaterHeight(), 0);
         EXPECT_EQ(MapGetSurfaceElementAt(coords)->baseHeight, changeLand ? 4 : 2);
     }
 }

@@ -12154,7 +12154,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "0d6af1ab30e867cf690ba586750ce2cae230bfb4"
+      ],
       "verification_evidence": [
         "Complete 28-file source delta verified as 20 identifier mappings only. All fork changes verified as those mappings plus three explicitly enumerated receiver repairs. Batch 28 clean rebuild and 227 tests cleared U155-U159; whitespace check passed."
       ],
@@ -12288,9 +12290,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Complete 56-file source delta verified as reviewed names plus the exact three-line lookup simplification. All 61 fork files pass the same normalized token proof; fork-only callers inspected and whitespace check passed."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -12320,7 +12324,10 @@
         "src/openrct2/world/TileInspector.cpp",
         "src/openrct2/world/map_generator/TreePlacement.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 25865dce31965a58a010f386b4a632886bf86461",
+      "implementation_decisions": "The grass lookup simplification returns the identical loaded object through the same manager/index; preserve flags, randomness, growth timing and null behavior. Water-height units, ownership/fence masks, terrain slope, D03 cheat gates, sampled local-context ratings and packed tile layout unchanged.",
+      "pending_validation": "Compile and regressions pending with remaining track/wall naming batch."
     },
     {
       "sha": "84f1946db82d9022ecd79d9edf878e0e2eb0710a",
@@ -26909,8 +26916,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 160,
-    "remaining_after_receipt": 201,
+    "accounted_in_this_tree": 161,
+    "remaining_after_receipt": 200,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

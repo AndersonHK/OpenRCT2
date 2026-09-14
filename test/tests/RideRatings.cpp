@@ -189,7 +189,7 @@ protected:
             {
                 const auto tile = TileCoordsXY{ x, y };
                 const auto* surfaceElement = MapGetSurfaceElementAt(tile);
-                if (surfaceElement != nullptr && surfaceElement->CanGrassGrow())
+                if (surfaceElement != nullptr && surfaceElement->canGrassGrow())
                 {
                     return tile;
                 }
@@ -212,7 +212,7 @@ protected:
         if (originSurface != nullptr && result.scenerySurface != nullptr)
         {
             result.origin = { contextOriginTile.ToCoordsXY().ToTileCentre(), originSurface->getBaseZ() };
-            result.scenerySurface->SetGrassLength(GRASS_LENGTH_CLEAR_0);
+            result.scenerySurface->setGrassLength(GRASS_LENGTH_CLEAR_0);
             MapInvalidateTileFull(result.sceneryTile.ToCoordsXY());
         }
         return result;
@@ -2093,7 +2093,7 @@ TEST_F(RideRatings, LocalContextInvalidatesWhenMapTileChanges)
 
     const auto before = RideRating::GetLocalContextScore(fixture.origin, rideId);
 
-    fixture.scenerySurface->SetGrassLength(GRASS_LENGTH_MOWED);
+    fixture.scenerySurface->setGrassLength(GRASS_LENGTH_MOWED);
     MapInvalidateTileFull(fixture.sceneryTile.ToCoordsXY());
 
     const auto after = RideRating::GetLocalContextScore(fixture.origin, rideId);
@@ -2109,7 +2109,7 @@ TEST_F(RideRatings, ClearLocalContextCacheMakesStoredPayloadsUnreachable)
 
     // Deliberately bypass invalidation to prove that the first lookup is the stored value
     // and that clearing the validity masks, rather than the payload bytes, is sufficient.
-    fixture.scenerySurface->SetGrassLength(GRASS_LENGTH_MOWED);
+    fixture.scenerySurface->setGrassLength(GRASS_LENGTH_MOWED);
     const auto cached = RideRating::GetLocalContextScore(fixture.origin, rideId);
     EXPECT_EQ(cached.scenery, before.scenery);
     EXPECT_EQ(cached.excitement, before.excitement);
@@ -2126,7 +2126,7 @@ TEST_F(RideRatings, ViewportOnlyInvalidationKeepsStoredLocalContextPayloads)
     ASSERT_NE(fixture.scenerySurface, nullptr);
     const auto before = RideRating::GetLocalContextScore(fixture.origin, rideId);
 
-    fixture.scenerySurface->SetGrassLength(GRASS_LENGTH_MOWED);
+    fixture.scenerySurface->setGrassLength(GRASS_LENGTH_MOWED);
     MapInvalidateTileForRendering({ fixture.sceneryTile.ToCoordsXY(), 0, 2080 });
     MapInvalidateRegion(fixture.sceneryTile.ToCoordsXY(), fixture.sceneryTile.ToCoordsXY());
     const auto cached = RideRating::GetLocalContextScore(fixture.origin, rideId);
