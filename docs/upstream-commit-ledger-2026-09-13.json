@@ -17085,7 +17085,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "7caa27080a05c5888fd2466751417bd47e425559"
+      ],
       "verification_evidence": [
         "Full source patch reviewed and exactly three source lines replaced."
       ],
@@ -17143,9 +17145,11 @@
       "note": "No remerge-resolution delta detected. Account for constituent commits before ancestry reconciliation.",
       "decisions": [],
       "review_level": "remerge-probe",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Empty remerge diff; tree identical to reviewed second parent. B51 complete solution build 31.70s zero warnings/errors; 80 tests/eight suites pass in 10.646s. U229–U238 compile debt cleared."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -17158,7 +17162,10 @@
         "src/openrct2/world/Map.cpp",
         "src/openrct2/world/Park.cpp"
       ],
-      "verification_gate": "P0"
+      "verification_gate": "P0",
+      "port_commit_locator": "Upstream-Commit: 99b16bc638b5d075bb4b42bcdf1b2d6b48080a99",
+      "implementation_decisions": "No merge resolution or behavioral delta. All numerical values and fork implementations preserved.",
+      "pending_validation": "Consolidated interactive/live MP/replay/non-Windows checks remain; no new owner decision."
     },
     {
       "sha": "d414239d5b5a25c312988e91dac976490c6c3f14",
@@ -27455,8 +27462,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 238,
-    "remaining_after_receipt": 123,
+    "accounted_in_this_tree": 239,
+    "remaining_after_receipt": 122,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
