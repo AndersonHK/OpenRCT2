@@ -15627,7 +15627,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "b65b08504b0761ef22e3ee4ea644c3ddc43029ce"
+      ],
       "verification_evidence": [
         "Reviewed all 63 source paths/1361 lines. Moved headers/remaining Location exact source tokens; other modified C++ tokens unchanged except includes/forward declarations. B43 two incomplete-type failures fixed at owning headers; standalone checks pass. Final MSVC/Vulkan 30.86s zero warnings/errors; 279 tests/18 suites pass in 35.991s. U205 compilation cleared too."
       ],
@@ -15686,9 +15688,11 @@
       "note": "Request attention for already-open title windows or quit-blocking save prompt; retain normal focus/pause policy.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected full five-file source and fork SavePromptOpen branch; both concrete IUiContext implementations updated. Diff check passes."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -15698,7 +15702,10 @@
       "merge_conflict_paths": [
         "src/openrct2-ui/UiContext.cpp"
       ],
-      "verification_gate": "P5"
+      "verification_gate": "P5",
+      "port_commit_locator": "Upstream-Commit: 3768b089990e75c298e359d85118043a86e821a6",
+      "implementation_decisions": "Adopt exact source logic. Existing title/confirmation/invalid-mode early exits and fork save-prompt age threshold, focus/pause/audio policies unchanged. No forced focus and no new owner choice.",
+      "pending_validation": "Compile next batch; actual Windows taskbar/Linux urgency/macOS dock behavior and OS quit session interaction unverified."
     },
     {
       "sha": "d1ea87512ff1d793b5dc80ae49562efd9a9e2075",
@@ -27231,8 +27238,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 206,
-    "remaining_after_receipt": 155,
+    "accounted_in_this_tree": 207,
+    "remaining_after_receipt": 154,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

@@ -75,6 +75,9 @@ namespace OpenRCT2::Ui
         {
             return false;
         }
+        void requestUserAttention() override
+        {
+        }
         bool IsMinimised() override
         {
             return false;
