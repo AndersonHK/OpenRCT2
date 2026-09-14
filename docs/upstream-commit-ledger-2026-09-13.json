@@ -3249,7 +3249,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "ported",
-      "port_commits": [],
+      "port_commits": [
+        "075ebd0d7cc0221e721082e3052471c8e84d3efd"
+      ],
       "verification_evidence": [
         "Reviewed all nine source-file deltas; compared the complete old/new enum and alias. Unique-context edits, diff and exact-one ancestry checked."
       ],
@@ -3291,9 +3293,11 @@
       "note": "Handle missing station object without dereference; retain station platform/staging behavior.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "ported",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected source hunks plus caption caller, helper boundary and adjacent preview/icon guards. Source/diff and exact-one ancestry checked."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -3303,7 +3307,10 @@
       "merge_conflict_paths": [
         "src/openrct2-ui/windows/Ride.cpp"
       ],
-      "verification_gate": "P4"
+      "verification_gate": "P4",
+      "port_commit_locator": "Upstream-Commit: 1423ab779a5a47190f72e04449690e184efc8a36",
+      "implementation_decisions": "Adopt the null guard. It exits only the caption helper, leaving other ride-window drawing and all fork station capacity, staging, platform, routing and pricing models unchanged. Existing entrance preview/icon paths already guard missing objects.",
+      "pending_validation": "Full build and selected regression tests at the immediate UI checkpoint; missing-object interactive rendering remains unverified."
     },
     {
       "sha": "bcd7708dc1a1da55aa1f74e570e93ebeb0ec34c3",
@@ -26104,8 +26111,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 45,
-    "remaining_after_receipt": 316,
+    "accounted_in_this_tree": 46,
+    "remaining_after_receipt": 315,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
