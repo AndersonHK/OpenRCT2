@@ -15008,7 +15008,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "b5d769173b00f50802680ec74b3e20e44fb509a8"
+      ],
       "verification_evidence": [
         "B39 first build 86.31s zero warnings/errors; all 240 tests in 13 suites pass in 24.216s. 43-file token proof, ten-file source equality with five documented pre-existing comment spellings; residual search and diff check pass."
       ],
@@ -15068,9 +15070,11 @@
         "D07"
       ],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected entire five-file source delta and resulting ten-line replacement diff; audited remaining bottomToolbar invalidation and date drawing/action. Diff check passes."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -15078,7 +15082,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P5"
+      "verification_gate": "P5",
+      "port_commit_locator": "Upstream-Commit: f5f4b522c7438b6c2ad30f28a941c4d325116f49",
+      "implementation_decisions": "D07: money/no-money/loan changes invalidate park info; date cheats invalidate date info. Correct upstream ConsoleCommandForceDate targeting parkInfoPanel to dateInfoPanel, which actually draws the changed date. Keep remaining MapTooltip invalidation on news toolbar because it owns full-toolbar map tooltip rendering. No action values, simulation or weather timing change.",
+      "pending_validation": "Batch compile/widget checks pending; interactive date/money redraw and standing limitations remain."
     },
     {
       "sha": "a74f7437b92694dab9fbd0d6374f566854c0f4fd",
@@ -27168,8 +27175,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 197,
-    "remaining_after_receipt": 164,
+    "accounted_in_this_tree": 198,
+    "remaining_after_receipt": 163,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
