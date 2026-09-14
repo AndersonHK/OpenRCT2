@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 15 / 361 source commits recorded
+## Progress: 16 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -183,10 +183,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U015 — `89b9f7d64c` — Add changelog entries
 
 - **Source:** `89b9f7d64c6c0f0ded7ba99ffae58c937daa647b`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `ecd9dfd1bbdc52e6ea6ccb1e73d4f28b973c2778`.
 - **Remaining:** 347 → 346.
 - **Disposition:** manually-ported.
 - **Manual changes:** Document the two approved ride-cheat tab moves in the development changelog.
 - **Additional decisions / behavior:** Retain the source release-note wording at this historical step; no additional behavior change.
 - **Verification:** Inspected and inserted both changelog lines. Whitespace and singleton ancestry checked before receipt.
 - **Pending / concerns:** Existing ride-window batch validation only.
+
+### U016 — `7339f6eba6` — Merge pull request #26099 from AaronVanGeffen/ride-type-move
+
+- **Source:** `7339f6eba68a38574ee4663fe803a90125a455b1`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 346 → 345.
+- **Disposition:** merge-no-unique-source-change.
+- **Manual changes:** Record the ride-cheat UI pull-request merge after its five source commits.
+- **Additional decisions / behavior:** Successful empty remerge diff means no independent resolution changes. Preserve the ported fork string map and UI adaptations rather than taking the upstream aggregate tree.
+- **Verification:** Inspected merge metadata and empty remerge diff using scratch object storage. Singleton ancestry and whitespace checked before receipt.
+- **Pending / concerns:** Batch 02 build/resource and targeted widget/localization checks follow this receipt.

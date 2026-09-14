@@ -1216,7 +1216,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "manually-ported",
-      "port_commits": [],
+      "port_commits": [
+        "ecd9dfd1bbdc52e6ea6ccb1e73d4f28b973c2778"
+      ],
       "verification_evidence": [
         "Inspected and inserted both changelog lines. Whitespace and singleton ancestry checked before receipt."
       ],
@@ -1267,9 +1269,11 @@
       "note": "No remerge-resolution delta detected. Account for constituent commits before ancestry reconciliation.",
       "decisions": [],
       "review_level": "remerge-probe",
-      "implementation_status": "not-ported",
+      "implementation_status": "merge-no-unique-source-change",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected merge metadata and empty remerge diff using scratch object storage. Singleton ancestry and whitespace checked before receipt."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -1280,7 +1284,10 @@
         "data/language/en-GB.txt",
         "src/openrct2-ui/windows/Ride.cpp"
       ],
-      "verification_gate": "P0"
+      "verification_gate": "P0",
+      "port_commit_locator": "Upstream-Commit: 7339f6eba68a38574ee4663fe803a90125a455b1",
+      "implementation_decisions": "Successful empty remerge diff means no independent resolution changes. Preserve the ported fork string map and UI adaptations rather than taking the upstream aggregate tree.",
+      "pending_validation": "Batch 02 build/resource and targeted widget/localization checks follow this receipt."
     },
     {
       "sha": "b8cf2f8c359a818debd359c1ae9966877548c29a",
@@ -25894,8 +25901,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 15,
-    "remaining_after_receipt": 346,
+    "accounted_in_this_tree": 16,
+    "remaining_after_receipt": 345,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
