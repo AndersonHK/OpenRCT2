@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 259 / 361 source commits recorded
+## Progress: 260 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2867,10 +2867,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U259 — `f31588edfc` — Add ability to clear a ride’s name, in addition to setting it
 
 - **Source:** `f31588edfc4cb70151f84b5aa5c041de29d6a12b`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `c01b560a8a09523f6b2f052f2b44a3c49f5a6bde`.
 - **Remaining:** 103 → 102.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Add clear_name scenario patch operation, clearing only the addressed ride customName after checking ride existence.
 - **Additional decisions / behavior:** Adopt default-name restoration for authored hash-matched scenarios. No renumbering, type, fare or gameplay state changes; existing dry-run bypass and import-only automatic gating remain. U260 supplies the first authored use.
 - **Verification:** Full source read; direct field-only helper and operation dispatch. B58 compile/actual clear test planned with U260 data.
 - **Pending / concerns:** B58 compile/runtime clear regression and standing original-scenario/platform/MP/replay checks pending.
+
+### U260 — `5d23833cc3` — Clear ‘Bullet Coaster 1’ name in Okinawa Coast (as an example)
+
+- **Source:** `5d23833cc3c82dd07466d51be842428bd49d13ee`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 102 → 101.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Add clear_name for Okinawa ride ID 18 in both scenario hashes; extend actual patch test with dry-run/name clearing and preserved ride fields.
+- **Additional decisions / behavior:** Approved authored default-name restoration. Remove imported Bullet Coaster 1 custom text, allowing the existing default/localized name; do not renumber or alter ride mechanics. Ownership patches retained exactly. B58.
+- **Verification:** Full source inspected; solution build 13.65s zero warnings/errors; five scenario/normalized-ownership tests passed 0.737s. B58.
+- **Pending / concerns:** Original scenario/default localized name rendering and standing checks remain.

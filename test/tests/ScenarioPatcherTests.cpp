@@ -94,9 +94,19 @@ TEST(FetchAndApplyScenarioPatch, OkinawaCdPatchAppliesApprovedStartingOwnership)
     auto context = CreateContext();
     ASSERT_TRUE(context->Initialise());
     MapInit({ 128, 128 });
+    auto* ride = RideAllocateAtIndex(RideId::FromUnderlying(18));
+    ASSERT_NE(ride, nullptr);
+    ride->type = RIDE_TYPE_SPLASH_BOATS;
+    ride->customName = "Bullet Coaster 1";
+    ride->numCarsPerTrain = 3;
+    ride->ratingAccumulator.ticks = 123;
     const auto untouched = MapGetSurfaceElementAt(TileCoordsXY{ 50, 50 })->getOwnership();
     const auto directory = context->GetPlatformEnvironment().GetDirectoryPath(DirBase::openrct2, DirId::scenarioPatches);
     const auto path = Path::Combine(directory, "b2eed35.parkpatch");
+    RCT12::SetDryRun(true);
+    RCT12::ApplyScenarioPatch(path, "b2eed35919d3992139041b68eb3fbbfa5e3fd06e2cb9058e8f50c5d9f15974bf");
+    RCT12::SetDryRun(false);
+    EXPECT_EQ(ride->customName, "Bullet Coaster 1");
     RCT12::SetDryRun(false);
     RCT12::ApplyScenarioPatch(path, "b2eed35919d3992139041b68eb3fbbfa5e3fd06e2cb9058e8f50c5d9f15974bf");
     const auto patch = Json::ReadFromFile(path);
@@ -119,4 +129,7 @@ TEST(FetchAndApplyScenarioPatch, OkinawaCdPatchAppliesApprovedStartingOwnership)
     }
     EXPECT_EQ(checked, 214u);
     EXPECT_EQ(MapGetSurfaceElementAt(TileCoordsXY{ 50, 50 })->getOwnership(), untouched);
+    EXPECT_TRUE(ride->customName.empty());
+    EXPECT_EQ(ride->numCarsPerTrain, 3);
+    EXPECT_EQ(ride->ratingAccumulator.ticks, 123u);
 }
