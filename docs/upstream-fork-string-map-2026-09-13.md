@@ -1,0 +1,50 @@
+# Fork string relocation — U011
+
+Fork strings move from 7039–7080 to 8000–8041 so upstream keeps its translation IDs. The chosen range is unused and below the object-string allocator at 0x2000 (8192). All symbolic consumers retain their meaning; English text and placeholders are unchanged. Localisation falls back to English for untranslated fork strings.
+
+Source audit found no numeric string consumers in source/tests/script declarations outside these definitions. The unrelated peep sprite 7041 and issue references are not string IDs and remain unchanged. Guest thoughts serialize the thought enum, not this display-string mapping. External plugins that hardcode private fork string numbers must use the mapping below; there is no numeric alias because the old IDs now belong to upstream.
+
+| Old ID | Symbol | New ID |
+| --- | --- | --- |
+| 7039 | `STR_MAZE_CAPACITY_MODE` | 8000 |
+| 7040 | `STR_MAZE_CAPACITY_MODE_TIP` | 8001 |
+| 7041 | `STR_MAZE_CAPACITY_SPARSE` | 8002 |
+| 7042 | `STR_MAZE_CAPACITY_NORMAL` | 8003 |
+| 7043 | `STR_MAZE_CAPACITY_OVERCROWDING` | 8004 |
+| 7044 | `STR_MAX_POSITIVE_LONGITUDINAL_G` | 8005 |
+| 7045 | `STR_MAX_NEGATIVE_LONGITUDINAL_G` | 8006 |
+| 7046 | `STR_RIDE_STATS_LONG_G` | 8007 |
+| 7047 | `STR_SHOW_GRAPH_OF_LONGITUDINAL_ACCELERATION_AGAINST_TIME_TIP` | 8008 |
+| 7048 | `STR_TRANSPORT_SERVICE_QUALITY` | 8009 |
+| 7049 | `STR_TRANSPORT_COMFORT` | 8010 |
+| 7050 | `STR_TRANSPORT_COMFORT_ESTIMATED` | 8011 |
+| 7051 | `STR_TRANSPORT_DECORATION_BONUS` | 8012 |
+| 7052 | `STR_TRANSPORT_DECORATION_BONUS_ESTIMATED` | 8013 |
+| 7053 | `STR_TRANSPORT_SEGMENT_FARE` | 8014 |
+| 7054 | `STR_PEEP_THOUGHT_TYPE_EXTORTIVE_TRANSPORT` | 8015 |
+| 7055 | `STR_WALKING_TO_PLATFORM_FOR` | 8016 |
+| 7056 | `STR_WAITING_ON_PLATFORM_FOR` | 8017 |
+| 7057 | `STR_QUEUE_AND_PLATFORM_STATUS` | 8018 |
+| 7058 | `STR_DRAWING_ENGINE_VULKAN` | 8019 |
+| 7059 | `STR_RIDE_RATING_LEGS` | 8020 |
+| 7060 | `STR_RIDE_RATING_LEG_DISTANCE` | 8021 |
+| 7061 | `STR_RIDE_RATING_LEG_DURATION` | 8022 |
+| 7062 | `STR_RIDE_GLOBAL_MEASUREMENTS` | 8023 |
+| 7063 | `STR_RIDE_RATING_LEG_OPTION` | 8024 |
+| 7064 | `STR_RIDE_RATING_LEGS_NOT_YET_AVAILABLE` | 8025 |
+| 7065 | `STR_RIDE_RATING_LEG_SELECT_TIP` | 8026 |
+| 7066 | `STR_ENABLE_HDR10_OUTPUT` | 8027 |
+| 7067 | `STR_ENABLE_HDR10_OUTPUT_TIP` | 8028 |
+| 7068 | `STR_RIDE_PRICE_TARGET_DISCOUNT` | 8029 |
+| 7069 | `STR_RIDE_PRICE_TARGET_FAIR` | 8030 |
+| 7070 | `STR_RIDE_PRICE_TARGET_EXPENSIVE` | 8031 |
+| 7071 | `STR_TRANSPORT_PRICE_TARGET_FREE` | 8032 |
+| 7072 | `STR_TRANSPORT_PRICE_TARGET_DISCOUNT` | 8033 |
+| 7073 | `STR_TRANSPORT_PRICE_TARGET_FAIR` | 8034 |
+| 7074 | `STR_TRANSPORT_PRICE_TARGET_EXTORTIVE` | 8035 |
+| 7075 | `STR_RIDE_PRICE_TARGET_WAITING_FOR_RATING` | 8036 |
+| 7076 | `STR_ADMISSION_PRICE_TARGET_RICHEST_GUEST` | 8037 |
+| 7077 | `STR_ADMISSION_PRICE_TARGET_MAX_PROFIT` | 8038 |
+| 7078 | `STR_ADMISSION_PRICE_TARGET_ALL_GUESTS` | 8039 |
+| 7079 | `STR_SELECT_ADMISSION_PRICING_POLICY` | 8040 |
+| 7080 | `STR_ADMISSION_PRICING_POLICY_TIP` | 8041 |

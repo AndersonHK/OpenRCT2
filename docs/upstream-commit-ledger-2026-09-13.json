@@ -985,7 +985,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "manually-ported",
-      "port_commits": [],
+      "port_commits": [
+        "c9446e6d6f178155a8680fcdc6dda5fb34b70a59"
+      ],
       "verification_evidence": [
         "Inspected the complete three-line patch and manually inserted the section. Whitespace and singleton ancestry checked before receipt."
       ],
@@ -1034,9 +1036,11 @@
         "D06"
       ],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "manually-ported-with-fork-adaptation",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected the full source patch, all changed fork UI areas and localization allocation/persistence. All 31 selected text hunks had unique exact context before edits. Verified unique English IDs, 42 relocated definitions, preserved text/placeholders, icon/manifest alignment and retained fork UI symbols. Batch 01 evidence for U001–U010 is in docs/upstream-migration-validation-2026-09-13.md: complete Release/Vulkan and test builds pass, action regression passes, nine localization tests pass, archive hash matches. Singleton ancestry and whitespace checked before receipt."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -1047,7 +1051,10 @@
         "data/language/en-GB.txt",
         "src/openrct2-ui/windows/Ride.cpp"
       ],
-      "verification_gate": "P5"
+      "verification_gate": "P5",
+      "port_commit_locator": "Upstream-Commit: c51e3a3e4000ddd0435304c4f0eb587cd8cc14a6",
+      "implementation_decisions": "Approved D06. The collision map is docs/upstream-fork-string-map-2026-09-13.md: new ID = old ID + 961. The unused range is below the object allocator at 8192. No string-number save migration is needed: thought persistence uses PeepThoughtType and symbolic display lookup; no other numeric consumers were found in source/tests/script declarations. External scripts hardcoding private fork text IDs need the documented relocation. Preserve English fallback and fork changes to old IDs 1647/1651. Only this commit's visibility scope is ported; later shop/facility refinements follow in order.",
+      "pending_validation": "Compile/resource regeneration and UI checks after this ride-tab sequence (U016). Best Staff boundary and terrain-edge visual coverage remain outstanding as recorded in the validation doc."
     },
     {
       "sha": "c35f71131fed435a1f98cb31799d891e901bb5da",
@@ -25859,8 +25866,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 10,
-    "remaining_after_receipt": 351,
+    "accounted_in_this_tree": 11,
+    "remaining_after_receipt": 350,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
