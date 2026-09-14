@@ -1279,7 +1279,7 @@ namespace OpenRCT2::Scripting
             case TileElementType::smallScenery:
             {
                 auto* el = element->asSmallScenery();
-                return JS_NewUint32(ctx, el->GetEntryIndex());
+                return JS_NewUint32(ctx, el->getEntryIndex());
             }
             case TileElementType::largeScenery:
             {
@@ -1329,7 +1329,7 @@ namespace OpenRCT2::Scripting
             {
                 JS_UNPACK_UINT32(index, ctx, jsValue);
                 auto* el = element->asSmallScenery();
-                el->SetEntryIndex(index);
+                el->setEntryIndex(index);
                 Invalidate(data);
                 break;
             }
@@ -1396,7 +1396,7 @@ namespace OpenRCT2::Scripting
         auto data = gScTileElement.GetOpaque<OpaqueTileElementData*>(thisValue);
         auto* el = data->element->asSmallScenery();
         if (el != nullptr)
-            return JS_NewUint32(ctx, el->GetAge());
+            return JS_NewUint32(ctx, el->getAge());
         else
             return JS_NULL;
     }
@@ -1408,7 +1408,7 @@ namespace OpenRCT2::Scripting
         auto* el = data->element->asSmallScenery();
         if (el != nullptr)
         {
-            el->SetAge(value);
+            el->setAge(value);
             Invalidate(data);
         }
         return JS_UNDEFINED;
@@ -1419,7 +1419,7 @@ namespace OpenRCT2::Scripting
         auto data = gScTileElement.GetOpaque<OpaqueTileElementData*>(thisValue);
         auto* el = data->element->asSmallScenery();
         if (el != nullptr)
-            return JS_NewUint32(ctx, el->GetSceneryQuadrant());
+            return JS_NewUint32(ctx, el->getSceneryQuadrant());
         else
             return JS_NULL;
     }
@@ -1431,7 +1431,7 @@ namespace OpenRCT2::Scripting
         auto* el = data->element->asSmallScenery();
         if (el != nullptr)
         {
-            el->SetSceneryQuadrant(value);
+            el->setSceneryQuadrant(value);
             Invalidate(data);
         }
         return JS_UNDEFINED;
@@ -1477,7 +1477,7 @@ namespace OpenRCT2::Scripting
             case TileElementType::smallScenery:
             {
                 auto* el = element->asSmallScenery();
-                return JS_NewUint32(ctx, EnumValue(el->GetPrimaryColour()));
+                return JS_NewUint32(ctx, EnumValue(el->getPrimaryColour()));
             }
             case TileElementType::largeScenery:
             {
@@ -1509,7 +1509,7 @@ namespace OpenRCT2::Scripting
             case TileElementType::smallScenery:
             {
                 auto* el = element->asSmallScenery();
-                el->SetPrimaryColour(static_cast<Drawing::Colour>(value));
+                el->setPrimaryColour(static_cast<Drawing::Colour>(value));
                 Invalidate(data);
                 break;
             }
@@ -1549,7 +1549,7 @@ namespace OpenRCT2::Scripting
             case TileElementType::smallScenery:
             {
                 auto* el = element->asSmallScenery();
-                return JS_NewUint32(ctx, EnumValue(el->GetSecondaryColour()));
+                return JS_NewUint32(ctx, EnumValue(el->getSecondaryColour()));
             }
             case TileElementType::largeScenery:
             {
@@ -1581,7 +1581,7 @@ namespace OpenRCT2::Scripting
             case TileElementType::smallScenery:
             {
                 auto* el = element->asSmallScenery();
-                el->SetSecondaryColour(static_cast<Drawing::Colour>(value));
+                el->setSecondaryColour(static_cast<Drawing::Colour>(value));
                 Invalidate(data);
                 break;
             }
@@ -1621,7 +1621,7 @@ namespace OpenRCT2::Scripting
             case TileElementType::smallScenery:
             {
                 auto* el = element->asSmallScenery();
-                return JS_NewUint32(ctx, EnumValue(el->GetTertiaryColour()));
+                return JS_NewUint32(ctx, EnumValue(el->getTertiaryColour()));
             }
             case TileElementType::largeScenery:
             {
@@ -1648,7 +1648,7 @@ namespace OpenRCT2::Scripting
             case TileElementType::smallScenery:
             {
                 auto* el = element->asSmallScenery();
-                el->SetTertiaryColour(static_cast<Drawing::Colour>(value));
+                el->setTertiaryColour(static_cast<Drawing::Colour>(value));
                 Invalidate(data);
                 break;
             }

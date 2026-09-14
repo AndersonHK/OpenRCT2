@@ -1442,7 +1442,7 @@ namespace OpenRCT2
             case TileElementType::smallScenery:
             {
                 auto sceneryItem = tileElement->asSmallScenery();
-                auto sceneryEntry = sceneryItem->GetEntry();
+                auto sceneryEntry = sceneryItem->getEntry();
                 if (sceneryEntry != nullptr
                     && (sceneryEntry->flags.has(SmallSceneryFlag::isTree) || IsCursorIdVegetation(sceneryEntry->tool_id)))
                 {

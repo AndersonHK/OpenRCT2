@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 159 / 361 source commits recorded
+## Progress: 160 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1767,10 +1767,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U159 — `2f9db0a5d4` — Make PathElement members adhere to code style
 
 - **Source:** `2f9db0a5d48e9bc770c79ba3d647767e7efdb494`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `7824f3ae20001f8b704255105360ba12987fa394`.
 - **Remaining:** 203 → 202.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Rename 61 PathElement fields/accessors in 49 fork files, including topology nodes, sampled path-adjacency ratings, test fixtures and the fork IsBin helper.
 - **Additional decisions / behavior:** Preserve edge/corner masks, slope/queue/ride/station values, packed addition-status union and all fork routing/ratings/staff-bin behavior. Retain independent PathConstructFlag and legacy RCT12 names. Fork IsBin/HasFullBinSlot APIs remain their existing names.
 - **Verification:** Complete 45-file source delta verified as the 61 reviewed identifiers only. All 49 fork file token streams pass identical-name-substitution proof after formatting. Additional direct topology/ratings/bin callers inspected; whitespace check passed.
 - **Pending / concerns:** Batch 28 full build is running for U155-U159; tile/import/topology and gameplay regression tests follow before additional C++ edits.
+
+### U160 — `d3c54532ca` — Make SmallSceneryElement members adhere to code style
+
+- **Source:** `d3c54532cab94c7f69998f8fc54cfd98c025c17d`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 202 → 201.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Rename 20 SmallSceneryElement members in 28 fork files. Carry three receiver corrections from Batch 28: retain WallElement.GetBanner and two RCT12 map-discovery getters.
+- **Additional decisions / behavior:** Plant watering/age/withering, support masks, colour storage and legacy support-bit conversion remain identical. No ride-age or price changes. Earlier over-broad receiver renames were build errors, repaired without changing type contracts; detailed in Batch 28.
+- **Verification:** Complete 28-file source delta verified as 20 identifier mappings only. All fork changes verified as those mappings plus three explicitly enumerated receiver repairs. Batch 28 clean rebuild and 227 tests cleared U155-U159; whitespace check passed.
+- **Pending / concerns:** U160 compile/tests pending with surface/track/wall naming batch; prior Batch 28 does not validate these new small-scenery names.
