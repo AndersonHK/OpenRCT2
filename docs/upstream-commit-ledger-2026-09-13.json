@@ -17041,7 +17041,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "1031e17fc0ffc866221200552fd7f70fcaad8317"
+      ],
       "verification_evidence": [
         "Complete source/reference search and inverse-transform content proof passed."
       ],
@@ -17082,9 +17084,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Full source patch reviewed and exactly three source lines replaced."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -17094,7 +17098,10 @@
       "merge_conflict_paths": [
         "src/openrct2/world/Park.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: bc834240fd83f7279ea23818e0909c4b7ae5b66a",
+      "implementation_decisions": "Keep integers 100000/314159, arithmetic order and fork park/guest-growth model exactly unchanged.",
+      "pending_validation": "U229–U238 compile at next checkpoint."
     },
     {
       "sha": "99b16bc638b5d075bb4b42bcdf1b2d6b48080a99",
@@ -27448,8 +27455,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 237,
-    "remaining_after_receipt": 124,
+    "accounted_in_this_tree": 238,
+    "remaining_after_receipt": 123,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

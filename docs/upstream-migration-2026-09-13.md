@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 237 / 361 source commits recorded
+## Progress: 238 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2625,10 +2625,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U237 — `f10a778c7a` — Rename MIN_TILE_ELEMENTS to kMinTileElements
 
 - **Source:** `f10a778c7a847a9af0f1335c259ece6b3a2d940e`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `1031e17fc0ffc866221200552fd7f70fcaad8317`.
 - **Remaining:** 125 → 124.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Rename minimum tile allocation capacity constant and spell out internal linkage.
 - **Additional decisions / behavior:** Keep capacity 1024, compaction, ghost exclusion, canonical mutation and O05 preview identities unchanged.
 - **Verification:** Complete source/reference search and inverse-transform content proof passed.
 - **Pending / concerns:** Compile at next checkpoint.
+
+### U238 — `bc834240fd` — Rename SCALE and PI_SCALED to kScale and kScaled
+
+- **Source:** `bc834240fd83f7279ea23818e0909c4b7ae5b66a`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 124 → 123.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Rename two local scaled-PI constants.
+- **Additional decisions / behavior:** Keep integers 100000/314159, arithmetic order and fork park/guest-growth model exactly unchanged.
+- **Verification:** Full source patch reviewed and exactly three source lines replaced.
+- **Pending / concerns:** U229–U238 compile at next checkpoint.
