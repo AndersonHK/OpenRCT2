@@ -1270,7 +1270,9 @@
       "decisions": [],
       "review_level": "remerge-probe",
       "implementation_status": "merge-no-unique-source-change",
-      "port_commits": [],
+      "port_commits": [
+        "543cbdfa279ef9fb12f6762c05bb8e715d21f622"
+      ],
       "verification_evidence": [
         "Inspected merge metadata and empty remerge diff using scratch object storage. Singleton ancestry and whitespace checked before receipt."
       ],
@@ -1315,9 +1317,11 @@
       "note": "Pack custom objects by default in convert; forward ExportObjectsList in path exporter while retaining TargetVersion and cent conversion.",
       "decisions": [],
       "review_level": "targeted-code-review",
-      "implementation_status": "not-ported",
+      "implementation_status": "manually-ported-with-fork-adaptation",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected all source hunks and both exporter overloads, packed-object chunk writer and conversion importer. Path and stream overloads now both forward object list plus fork target version. Batch 02 passed complete Release/Vulkan/resource build and 17 selected tests; evidence is in the validation doc. Whitespace and singleton ancestry checked before receipt."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -1327,7 +1331,10 @@
       "merge_conflict_paths": [
         "src/openrct2/park/ParkFile.cpp"
       ],
-      "verification_gate": "P7"
+      "verification_gate": "P7",
+      "port_commit_locator": "Upstream-Commit: b8cf2f8c359a818debd359c1ae9966877548c29a",
+      "implementation_decisions": "Preserve TargetVersion forwarding in both fork exporter overloads and private save version 60016. The opt-out affects object embedding, not required-object references or scenario reset rules. Retain existing GetPackableObjects selection/precedence; unsupported loose formats keep the existing packer behavior.",
+      "pending_validation": "Compile in next mechanical batch; custom-object conversion round-trip and --strip-objects comparison remain pending."
     },
     {
       "sha": "430bb95b63541ae8d6c1610cf16b50ee3578365c",
@@ -25901,8 +25908,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 16,
-    "remaining_after_receipt": 345,
+    "accounted_in_this_tree": 17,
+    "remaining_after_receipt": 344,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

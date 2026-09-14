@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 16 / 361 source commits recorded
+## Progress: 17 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -194,10 +194,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U016 — `7339f6eba6` — Merge pull request #26099 from AaronVanGeffen/ride-type-move
 
 - **Source:** `7339f6eba68a38574ee4663fe803a90125a455b1`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `543cbdfa279ef9fb12f6762c05bb8e715d21f622`.
 - **Remaining:** 346 → 345.
 - **Disposition:** merge-no-unique-source-change.
 - **Manual changes:** Record the ride-cheat UI pull-request merge after its five source commits.
 - **Additional decisions / behavior:** Successful empty remerge diff means no independent resolution changes. Preserve the ported fork string map and UI adaptations rather than taking the upstream aggregate tree.
 - **Verification:** Inspected merge metadata and empty remerge diff using scratch object storage. Singleton ancestry and whitespace checked before receipt.
 - **Pending / concerns:** Batch 02 build/resource and targeted widget/localization checks follow this receipt.
+
+### U017 — `b8cf2f8c35` — Fix #25169: convert command strips packed objects (#26808)
+
+- **Source:** `b8cf2f8c359a818debd359c1ae9966877548c29a`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 345 → 344.
+- **Disposition:** manually-ported-with-fork-adaptation.
+- **Manual changes:** Preserve packable custom objects by default in the convert command, add --strip-objects opt-out, and forward ExportObjectsList in the path exporter overload.
+- **Additional decisions / behavior:** Preserve TargetVersion forwarding in both fork exporter overloads and private save version 60016. The opt-out affects object embedding, not required-object references or scenario reset rules. Retain existing GetPackableObjects selection/precedence; unsupported loose formats keep the existing packer behavior.
+- **Verification:** Inspected all source hunks and both exporter overloads, packed-object chunk writer and conversion importer. Path and stream overloads now both forward object list plus fork target version. Batch 02 passed complete Release/Vulkan/resource build and 17 selected tests; evidence is in the validation doc. Whitespace and singleton ancestry checked before receipt.
+- **Pending / concerns:** Compile in next mechanical batch; custom-object conversion round-trip and --strip-objects comparison remain pending.
