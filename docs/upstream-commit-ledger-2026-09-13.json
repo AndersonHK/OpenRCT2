@@ -20328,7 +20328,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "0e421827c8248e63c23e2f5b8fe944c155fd37b8"
+      ],
       "verification_evidence": [
         "Read all four source-file deltas and applied exact changed statements; inspected fork string insertion context and retained all fork strings. U276 clearance refactor unchanged."
       ],
@@ -20385,9 +20387,11 @@
       "note": "Adopt final scenario name corrections through scenario import patching; verify affected scenario hashes and custom-name preservation.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "All sixteen JSON payloads match source and contain only name-operation additions. B65 solution 76.28s zero warnings/errors; 38 scenario-patch/Play/language tests pass in 7.001s, clearing U277 debt."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -20395,7 +20399,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P7"
+      "verification_gate": "P7",
+      "port_commit_locator": "Upstream-Commit: b92dd1d78ccdf65d07789a0387a3a9167ed2e865",
+      "implementation_decisions": "Approved scenario name port. Preserve exact IDs/full hashes/Unicode names; all existing non-ride patch properties unchanged. Names are fixed official strings. Keep scenario-only S4/S6 import gating and full-SHA check, preserving custom names in ordinary saves. See B65.",
+      "pending_validation": "Original sixteen scenario imports, actual terrain dialogs, standing non-Windows/MP/replay remain. No new owner decision."
     },
     {
       "sha": "0fb70602d3404c43c19a02400ac220045a460d8f",
@@ -27728,8 +27735,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 277,
-    "remaining_after_receipt": 84,
+    "accounted_in_this_tree": 278,
+    "remaining_after_receipt": 83,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

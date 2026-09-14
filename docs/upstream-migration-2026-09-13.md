@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 277 / 361 source commits recorded
+## Progress: 278 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3065,10 +3065,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U277 — `c776757fb2` — Fix #22500: LandSetHeightAction does not provide an error title (#27018)
 
 - **Source:** `c776757fb2718e6c4258792e552bf561ad11f639`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `0e421827c8248e63c23e2f5b8fe944c155fd37b8`.
 - **Remaining:** 85 → 84.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Add localized land-height error title 7043 for invalid parameters, tree obstructions, ride supports and floating structures; include English text/changelog.
 - **Additional decisions / behavior:** Message-only change: preserve existing error status/detail and all terrain permissions/costs. New upstream string sits below fork 8000-series IDs without collision.
 - **Verification:** Read all four source-file deltas and applied exact changed statements; inspected fork string insertion context and retained all fork strings. U276 clearance refactor unchanged.
 - **Pending / concerns:** Compile and existing terrain/localization tests at next batch; actual error dialog interaction remains standing. No owner decision.
+
+### U278 — `b92dd1d78c` — Use RCTC ride names in RCT1 scenarios (#27017)
+
+- **Source:** `b92dd1d78ccdf65d07789a0387a3a9167ed2e865`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 84 → 83.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Add 36 official RCT Classic ride names to 16 original scenario patches and hash-reference/changelog entries.
+- **Additional decisions / behavior:** Approved scenario name port. Preserve exact IDs/full hashes/Unicode names; all existing non-ride patch properties unchanged. Names are fixed official strings. Keep scenario-only S4/S6 import gating and full-SHA check, preserving custom names in ordinary saves. See B65.
+- **Verification:** All sixteen JSON payloads match source and contain only name-operation additions. B65 solution 76.28s zero warnings/errors; 38 scenario-patch/Play/language tests pass in 7.001s, clearing U277 debt.
+- **Pending / concerns:** Original sixteen scenario imports, actual terrain dialogs, standing non-Windows/MP/replay remain. No new owner decision.
