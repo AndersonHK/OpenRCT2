@@ -14757,7 +14757,9 @@
       "decisions": [],
       "review_level": "targeted-code-review",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "599c6e0cf12dca6c16a313acf328469f609b0168"
+      ],
       "verification_evidence": [
         "All source hunks inspected. audit_u193.py expands each helper and proves all four caller files retain previous expressions modulo whitespace; Colour.h/cpp exactly match this reviewed source. Diff check passes."
       ],
@@ -14797,9 +14799,11 @@
       "note": "Apply platform/CI/documentation change with relevant target check; retain fork build targets and workflows.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Actual one-line source diff reviewed and applied exactly; diff/whitespace checks pass. Platform implementation remains excluded on Windows, Android, Apple and Emscripten by its existing guard."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -14807,7 +14811,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P8"
+      "verification_gate": "P8",
+      "port_commit_locator": "Upstream-Commit: 8ebe3965a2f1e2540f8882a1d67e7b66f5470195",
+      "implementation_decisions": "Header-only platform repair; no change to fork build targets, locale paths or gameplay.",
+      "pending_validation": "Native Unix/Haiku compilation remains unverified on this Windows host; U193 compile/gameplay batch still pending."
     },
     {
       "sha": "8dab2cce07684fd6a3cbd8670bef546d0a86c4de",
@@ -27140,8 +27147,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 193,
-    "remaining_after_receipt": 168,
+    "accounted_in_this_tree": 194,
+    "remaining_after_receipt": 167,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

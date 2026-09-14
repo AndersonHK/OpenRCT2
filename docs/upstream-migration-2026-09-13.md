@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 193 / 361 source commits recorded
+## Progress: 194 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2141,10 +2141,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U193 — `af352f18ef` — Create functions to get a random colour (#26939)
 
 - **Source:** `af352f18ef113f77af6f6f8880168c15215804a3`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `599c6e0cf12dca6c16a313acf328469f609b0168`.
 - **Remaining:** 169 → 168.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Extract utility-random, scenario-random and tick-cycling colour helpers and replace the six reviewed source paths.
 - **Additional decisions / behavior:** Keep deterministic ScenarioRandMax for guest merchandise/cheat colours, UtilRand for UI and intentional console desync, and the existing 32-tick shop preview cycle. At fork 40 TPS this remains 0.8s per colour; do not silently retime it. Same RNG draws, limits and invocation order; no gameplay or protocol change.
 - **Verification:** All source hunks inspected. audit_u193.py expands each helper and proves all four caller files retain previous expressions modulo whitespace; Colour.h/cpp exactly match this reviewed source. Diff check passes.
 - **Pending / concerns:** Compile/gameplay checks due at next batch; standing interactive/network/non-Windows validation remains.
+
+### U194 — `8ebe3965a2` — Re-include unistd.h in Platform.Linux.cpp (#26940)
+
+- **Source:** `8ebe3965a2f1e2540f8882a1d67e7b66f5470195`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 168 → 167.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Restore the direct unistd.h include in the guarded Unix/Haiku platform implementation.
+- **Additional decisions / behavior:** Header-only platform repair; no change to fork build targets, locale paths or gameplay.
+- **Verification:** Actual one-line source diff reviewed and applied exactly; diff/whitespace checks pass. Platform implementation remains excluded on Windows, Android, Apple and Emscripten by its existing guard.
+- **Pending / concerns:** Native Unix/Haiku compilation remains unverified on this Windows host; U193 compile/gameplay batch still pending.
