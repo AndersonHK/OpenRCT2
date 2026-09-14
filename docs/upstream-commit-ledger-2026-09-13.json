@@ -14295,7 +14295,9 @@
       "decisions": [],
       "review_level": "targeted-code-review",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "36efe1015daf62f520064d03681264973d2fb7b0"
+      ],
       "verification_evidence": [
         "B35 first Release x64 MSVC/Vulkan build: 0 warnings/errors, 87.20s. All 245 selected tests in 16 suites pass, 33.819s, including normalized parameter/wire byte, query/execute costs for all 256 masks, packed ownership/fence preservation and API119 script getter/setter boolean behavior. Full source/diff review and removed-constant search completed."
       ],
@@ -14357,9 +14359,11 @@
       "note": "Ownership API normalizes high-nibble flags to low-bit FlagHolder; preserve packed tile bytes, script values and fork surface-rejoin/cache checks.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "All actual source hunks reviewed; audit_u186.py verifies all 11 files differ only by the forwarding helper and equivalent caller spelling. Whitespace check passes. B35 provides the preceding ownership baseline."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -14372,7 +14376,10 @@
         "src/openrct2/world/Map.cpp",
         "src/openrct2/world/Park.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: db53fd3f7f1aa07549db5f509973fc57a2c4a92f",
+      "implementation_decisions": "Forwarding-only refactor preserves ownership predicates, prices, normalized API119 numbers, packed saves, protocol11 and fork behavior. No additional owner decision.",
+      "pending_validation": "Compile and affected ownership/plugin checks deferred to the next coherent batch; standing interactive/network/non-Windows validation remains."
     },
     {
       "sha": "d2783e05642247971350f8b8c3fc6383be7c46c1",
@@ -27084,8 +27091,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 185,
-    "remaining_after_receipt": 176,
+    "accounted_in_this_tree": 186,
+    "remaining_after_receipt": 175,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

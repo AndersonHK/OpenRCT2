@@ -561,7 +561,7 @@ namespace OpenRCT2::Park
             return;
 
         uint8_t newFences = 0;
-        if (!surfaceElement->getOwnership().has(OwnershipFlag::owned))
+        if (!surfaceElement->hasOwnership(OwnershipFlag::owned))
         {
             bool fenceRequired = true;
 

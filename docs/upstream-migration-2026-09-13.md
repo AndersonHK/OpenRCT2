@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 185 / 361 source commits recorded
+## Progress: 186 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2053,10 +2053,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U185 — `11547e998a` — Make enum class+FlagHolder for ownership flags and normalise them
 
 - **Source:** `11547e998a4f0e6c3f2b0c05018b53ab6a024e41`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `36efe1015daf62f520064d03681264973d2fb7b0`.
 - **Remaining:** 177 → 176.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Apply typed normalized ownership across all 26 source paths, register the new header, document public plugin/action values, and add packed-byte, 256-transition action and real-plugin regression coverage.
 - **Additional decisions / behavior:** Owner approved API 119 normalized external flags 1/2/4/8 with no legacy adapter and matching action wire format. Advance fork protocol 10 to 11, retain andersonhk and save 60016. Preserve !currentOwned && desiredOwned, excluding the upstream negated-conjunction pricing regression. Existing combined-right cost precedence, fork mutation/topology/render behavior and objects pin remain. See docs/upstream-migration-decision-u185.md for resolved decision and evidence.
 - **Verification:** B35 first Release x64 MSVC/Vulkan build: 0 warnings/errors, 87.20s. All 245 selected tests in 16 suites pass, 33.819s, including normalized parameter/wire byte, query/execute costs for all 256 masks, packed ownership/fence preservation and API119 script getter/setter boolean behavior. Full source/diff review and removed-constant search completed.
 - **Pending / concerns:** Compile/test debt cleared. Live multiplayer/replay, interactive ownership overlays, non-Windows and existing standing validation remain unverified.
+
+### U186 — `db53fd3f7f` — Introduce SurfaceElement::hasOwnership()
+
+- **Source:** `db53fd3f7f1aa07549db5f509973fc57a2c4a92f`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 176 → 175.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Add SurfaceElement::hasOwnership(flag) forwarding to getOwnership().has(flag), and update the 11 reviewed source paths.
+- **Additional decisions / behavior:** Forwarding-only refactor preserves ownership predicates, prices, normalized API119 numbers, packed saves, protocol11 and fork behavior. No additional owner decision.
+- **Verification:** All actual source hunks reviewed; audit_u186.py verifies all 11 files differ only by the forwarding helper and equivalent caller spelling. Whitespace check passes. B35 provides the preceding ownership baseline.
+- **Pending / concerns:** Compile and affected ownership/plugin checks deferred to the next coherent batch; standing interactive/network/non-Windows validation remains.
