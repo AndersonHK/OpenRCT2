@@ -7526,7 +7526,7 @@ namespace OpenRCT2::Ui::Windows
     WindowBase* RideOpenTrack(TileElement* tileElement)
     {
         assert(tileElement != nullptr);
-        auto rideIndex = tileElement->GetRideIndex();
+        auto rideIndex = tileElement->getRideIndex();
         if (!rideIndex.IsNull())
         {
             auto ride = GetRide(rideIndex);

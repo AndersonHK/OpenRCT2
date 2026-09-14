@@ -124,7 +124,7 @@ namespace OpenRCT2::Scripting
             std::vector<TileElement> data(first, first + origNumElements);
 
             TileElement newElement{};
-            newElement.ClearAs(TileElementType::surface);
+            newElement.clearAs(TileElementType::surface);
             data.insert(data.begin() + index, newElement);
             if (ReplaceTileElementsAt(TileCoordsXY{ coords }, std::move(data)) != TileMutationStatus::ok)
             {
@@ -163,7 +163,7 @@ namespace OpenRCT2::Scripting
                 return JS_EXCEPTION;
             }
             if (removeBanner)
-                removedElement.RemoveBannerEntry();
+                removedElement.removeBannerEntry();
         }
         return JS_UNDEFINED;
     }

@@ -24,7 +24,7 @@ void WallRemoveAt(const CoordsXYRangedZ& wallPos)
 {
     for (auto wallElement = MapGetWallElementAt(wallPos); wallElement != nullptr; wallElement = MapGetWallElementAt(wallPos))
     {
-        reinterpret_cast<TileElement*>(wallElement)->RemoveBannerEntry();
+        reinterpret_cast<TileElement*>(wallElement)->removeBannerEntry();
         EraseTileElement(TileCoordsXY{ wallPos }, reinterpret_cast<TileElement*>(wallElement));
     }
 }
@@ -68,7 +68,7 @@ void WallRemoveIntersectingWalls(const CoordsXYRangedZ& wallPos, Direction direc
             continue;
         }
 
-        tileElement->RemoveBannerEntry();
+        tileElement->removeBannerEntry();
         const auto eraseResult = EraseTileElement(TileCoordsXY{ wallPos }, tileElement);
         tileElement = eraseResult ? eraseResult.next : next;
     }

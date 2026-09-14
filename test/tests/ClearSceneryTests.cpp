@@ -45,14 +45,14 @@ TEST(ClearScenery, EveryMaskKeepsWallAndPathAdditionSelectionsIndependentAfterSe
         for (int height : { 4, 8 })
         {
             TileElement wall{};
-            wall.ClearAs(TileElementType::wall);
+            wall.clearAs(TileElementType::wall);
             wall.baseHeight = height;
             wall.clearanceHeight = height + 2;
             wall.asWall()->SetBannerIndex(BannerIndex::GetNull());
             elements.push_back(wall);
         }
         TileElement path{};
-        path.ClearAs(TileElementType::path);
+        path.clearAs(TileElementType::path);
         path.baseHeight = 12;
         path.clearanceHeight = 14;
         path.asPath()->SetAddition(1);

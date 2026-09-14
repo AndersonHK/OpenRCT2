@@ -129,7 +129,7 @@ TEST_F(MapPathTopologyTest, CanonicalMutationRejectsInvalidPointersAndPreservesS
     EXPECT_EQ(MapGetFirstElementAt(tile), originalSurface);
 
     TileElement duplicateSurface{};
-    duplicateSurface.ClearAs(TileElementType::surface);
+    duplicateSurface.clearAs(TileElementType::surface);
     duplicateSurface.setBaseZ(16 * kCoordsZStep);
     duplicateSurface.setClearanceZ(16 * kCoordsZStep);
     const auto insertResult = InsertTileElement(tile, duplicateSurface);
@@ -147,7 +147,7 @@ TEST_F(MapPathTopologyTest, FinalizedInsertionOrdersElementsAndRejectsStalePoint
     const TileCoordsXY tile{ 10, 10 };
     const auto makeElement = [](const int32_t baseZ) {
         TileElement element{};
-        element.ClearAs(TileElementType::smallScenery);
+        element.clearAs(TileElementType::smallScenery);
         element.setBaseZ(baseZ);
         element.setClearanceZ(baseZ + kCoordsZStep);
         return element;
@@ -177,7 +177,7 @@ TEST_F(MapPathTopologyTest, ErasureReturnsTheMovedSuccessorAndDeduplicatesPublic
     const TileCoordsXY tile{ 10, 10 };
     const auto makeElement = [](const TileElementType type, const int32_t baseZ) {
         TileElement element{};
-        element.ClearAs(type);
+        element.clearAs(type);
         element.setBaseZ(baseZ);
         element.setClearanceZ(baseZ + kCoordsZStep);
         return element;
@@ -220,7 +220,7 @@ TEST_F(MapPathTopologyTest, RoutingInferenceExcludesGhosts)
     const auto initialGeneration = MapTopology::GetChunkGeneration(tile);
 
     TileElement ghostBanner{};
-    ghostBanner.ClearAs(TileElementType::banner);
+    ghostBanner.clearAs(TileElementType::banner);
     ghostBanner.setBaseZ(16 * kCoordsZStep);
     ghostBanner.setClearanceZ(18 * kCoordsZStep);
     ghostBanner.setGhost(true);
@@ -231,7 +231,7 @@ TEST_F(MapPathTopologyTest, RoutingInferenceExcludesGhosts)
     EXPECT_EQ(MapTopology::GetChunkGeneration(tile), initialGeneration);
 
     TileElement path{};
-    path.ClearAs(TileElementType::path);
+    path.clearAs(TileElementType::path);
     path.setBaseZ(14 * kCoordsZStep);
     path.setClearanceZ(18 * kCoordsZStep);
     ASSERT_TRUE(InsertTileElement(tile, path));
@@ -245,7 +245,7 @@ TEST_F(MapPathTopologyTest, GhostErasureIsPublishedToTheNextSnapshot)
     snapshot.Apply(ConsumeMapPresentationChanges());
 
     TileElement ghostBanner{};
-    ghostBanner.ClearAs(TileElementType::banner);
+    ghostBanner.clearAs(TileElementType::banner);
     ghostBanner.setBaseZ(16 * kCoordsZStep);
     ghostBanner.setClearanceZ(18 * kCoordsZStep);
     ghostBanner.setGhost(true);
@@ -282,7 +282,7 @@ TEST_F(MapPathTopologyTest, RawReplacementIsAtomicAndStorageRelocationIsPresenta
     EXPECT_EQ(
         ReplaceTileElementsAt(tile, std::vector<TileElement>{}), TileMutationStatus::wouldViolateSurfaceInvariant);
     TileElement pathOnly{};
-    pathOnly.ClearAs(TileElementType::path);
+    pathOnly.clearAs(TileElementType::path);
     EXPECT_EQ(
         ReplaceTileElementsAt(tile, std::vector<TileElement>{ pathOnly }),
         TileMutationStatus::wouldViolateSurfaceInvariant);

@@ -138,7 +138,7 @@ namespace OpenRCT2::GameActions
             res.errorMessage = STR_INVALID_SELECTION_OF_OBJECTS;
             return res;
         }
-        removedElement.RemoveBannerEntry();
+        removedElement.removeBannerEntry();
 
         return res;
     }

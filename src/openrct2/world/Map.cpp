@@ -376,7 +376,7 @@ namespace OpenRCT2
     static TileElement GetDefaultSurfaceElement()
     {
         TileElement el;
-        el.ClearAs(TileElementType::surface);
+        el.clearAs(TileElementType::surface);
         el.setLastForTile(true);
         el.baseHeight = 14;
         el.clearanceHeight = 14;

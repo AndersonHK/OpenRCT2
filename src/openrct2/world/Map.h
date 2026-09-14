@@ -176,7 +176,7 @@ namespace OpenRCT2
         TileMutationMode mode = TileMutationMode::immediate)
     {
         TileElement element{};
-        element.ClearAs(T::kElementType);
+        element.clearAs(T::kElementType);
         element.setBaseZ(loc.z);
         element.setClearanceZ(loc.z);
         element.setOccupiedQuadrants(occupiedQuadrants);

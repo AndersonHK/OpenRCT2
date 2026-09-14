@@ -170,7 +170,7 @@ namespace OpenRCT2::TileInspector
                 return GameActions::Result(
                     GameActions::Status::invalidParameters, STR_ERR_INVALID_PARAMETER, STR_ERR_TILE_ELEMENT_NOT_FOUND);
             if (removeBanner)
-                removedElement.RemoveBannerEntry();
+                removedElement.removeBannerEntry();
 
             if (IsTileSelected(loc))
             {
@@ -325,7 +325,7 @@ namespace OpenRCT2::TileInspector
         if (isExecuting)
         {
             // Check if the element to be pasted has a banner
-            if (element.GetBannerIndex() != BannerIndex::GetNull())
+            if (element.getBannerIndex() != BannerIndex::GetNull())
             {
                 // The element to be pasted has a banner - make a copy of it from the banner provided
                 auto newBanner = CreateBanner();
@@ -349,7 +349,7 @@ namespace OpenRCT2::TileInspector
                 }
 
                 // Use the new banner index
-                element.SetBannerIndex(newBanner->id);
+                element.setBannerIndex(newBanner->id);
             }
 
             auto insertResult = InsertTileElement(TileCoordsXY{ loc }, element);

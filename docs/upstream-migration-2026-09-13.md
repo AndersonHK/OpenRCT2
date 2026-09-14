@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 154 / 361 source commits recorded
+## Progress: 155 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1712,10 +1712,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U154 — `bdbe9013cc` — Rename track motion functions and name globals
 
 - **Source:** `bdbe9013ccbcfb36be7c3948f296da8dcd9a61c2`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `b9e11e3a6a01a98699640b6d6e17a61b7eb89f94`.
 - **Remaining:** 208 → 207.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Rename 26 vehicle track-motion methods and global variables across 11 files, including fork-only callers.
 - **Additional decisions / behavior:** Identifier changes only: preserve fork motion, acceleration, braking, station stopping, per-car/directed-leg calculations and rider-control expressions. Do not replace any implementation with upstream bodies.
 - **Verification:** Complete actual source diff reviewed and all 11 source token streams verified as the 26 reviewed names only. All 11 fork deltas pass the same token proof after changed-line formatting; whitespace check passed.
 - **Pending / concerns:** Batch 27 build for U150-U154 is running; targeted tests will follow before further C++ edits.
+
+### U155 — `ac2515d483` — Make TileElement.h adhere to code style
+
+- **Source:** `ac2515d483bb4e7f3d7e09cdce79a44653f1722e`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 207 → 206.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Rename eight TileElement members/helpers across 24 fork files, including Map.h insertion, copied-element banner cleanup, script replacement and test callers; retain derived-element accessors until their own source commits.
+- **Additional decisions / behavior:** Naming only: 16-byte tile layout and padding widths/serialization unchanged. Preserve fork safe erase then copied-banner cleanup order, topology ownership and script replacement guards. Do not restore legacy raw pointer traversal.
+- **Verification:** Complete 20-file source delta and all 24 fork body token streams verified against eight reviewed identifier mappings; scoped mixed accessors checked. Whitespace check passed. Batch 27 cleared U150-U154 with clean build and 147 tests.
+- **Pending / concerns:** Tile-element naming compile/tests pending with following related commits; Batch 27 does not validate U155.

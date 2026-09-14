@@ -30,7 +30,7 @@ using namespace OpenRCT2;
 TEST(MapPresentationSnapshotTest, CopyOnWriteUpdateDoesNotMutatePublishedSnapshot)
 {
     TileElement first;
-    first.ClearAs(TileElementType::surface);
+    first.clearAs(TileElementType::surface);
     first.baseHeight = 10;
     first.clearanceHeight = 10;
     first.setLastForTile(true);
@@ -57,7 +57,7 @@ TEST(MapPresentationSnapshotTest, CopyOnWriteUpdateDoesNotMutatePublishedSnapsho
 TEST(MapPresentationSnapshotTest, StoresTheFinalPartialTechnicalMapChunk)
 {
     TileElement element;
-    element.ClearAs(TileElementType::surface);
+    element.clearAs(TileElementType::surface);
     element.baseHeight = 12;
     element.clearanceHeight = 12;
     element.setLastForTile(true);
@@ -77,7 +77,7 @@ TEST(MapPresentationSnapshotTest, StoresTheFinalPartialTechnicalMapChunk)
 TEST(MapPresentationSnapshotTest, SurfaceChunksAreImmutableAndRevisioned)
 {
     TileElement element;
-    element.ClearAs(TileElementType::surface);
+    element.clearAs(TileElementType::surface);
     element.setLastForTile(true);
     SurfacePresentationRecord surface;
     surface.valid = 1;
@@ -116,7 +116,7 @@ TEST(MapPresentationSnapshotTest, SurfaceChunksAreImmutableAndRevisioned)
 TEST(MapPresentationSnapshotTest, SurfacePublicationUsesDenseActiveMapIndicesAndDynamicChunks)
 {
     TileElement element;
-    element.ClearAs(TileElementType::surface);
+    element.clearAs(TileElementType::surface);
     element.setLastForTile(true);
     SurfacePresentationRecord surface;
     surface.valid = 1;
@@ -149,7 +149,7 @@ TEST(MapPresentationSnapshotTest, SurfacePublicationUsesDenseActiveMapIndicesAnd
 TEST(MapPresentationSnapshotTest, MixedOrNonUniformSurfacePublicationCannotDrawSurfaceBaseIndependently)
 {
     TileElement element;
-    element.ClearAs(TileElementType::surface);
+    element.clearAs(TileElementType::surface);
     element.setLastForTile(true);
     SurfacePresentationRecord surface;
     surface.valid = 1;
