@@ -74,7 +74,9 @@
       ],
       "review_level": "targeted-code-review",
       "implementation_status": "manually-ported",
-      "port_commits": [],
+      "port_commits": [
+        "f92a9caf94cfc9a665c9d0cc3034a8b53b401edc"
+      ],
       "verification_evidence": [
         "Inspected all three upstream file deltas; fork award logic matches the source intent while retaining protocol flavor. Source/diff checks and exact-one-source ancestry validation."
       ],
@@ -113,9 +115,11 @@
       "note": "Single-parent localisation update; use final target blobs after English ID reconciliation.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "manually-ported",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Exact source-parent blob match before edit and exact resulting source blob match after edit; existing-ID range reviewed. No code changed. Exact-one-source ancestry gate."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -123,7 +127,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P1"
+      "verification_gate": "P1",
+      "port_commit_locator": "Upstream-Commit: d181e640ac5283c9530b0ceb26f447b503b83122",
+      "implementation_decisions": "The Swedish file matched the source parent exactly, so adopted the inspected resulting blob. No fork ID collision occurs at or below 7038. Did not copy later upstream translation changes.",
+      "pending_validation": "Language parsing is included in the next batch checks; source encoding and exact bytes preserved."
     },
     {
       "sha": "a4f0d22988fd5c54cb67a142bb14c9be2c749b95",
@@ -25803,8 +25810,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 2,
-    "remaining_after_receipt": 359,
+    "accounted_in_this_tree": 3,
+    "remaining_after_receipt": 358,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
