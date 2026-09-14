@@ -2638,7 +2638,7 @@ namespace OpenRCT2
 
     static void RideQueueBannerSetMapTooltip(const PathElement& pathElement)
     {
-        auto rideIndex = pathElement.GetRideIndex();
+        auto rideIndex = pathElement.getRideIndex();
         auto ride = GetRide(rideIndex);
         if (ride == nullptr)
             return;

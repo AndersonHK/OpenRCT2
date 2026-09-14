@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 158 / 361 source commits recorded
+## Progress: 159 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1756,10 +1756,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U158 — `95025ba916` — Make LargeSceneryElement members adhere to code style
 
 - **Source:** `95025ba9166d8f88589b9484342350e507a85ff8`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `ecb04cea7677ed30cdc925a1c6a6f67f7797a971`.
 - **Remaining:** 204 → 203.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Rename 21 LargeSceneryElement fields/accessors across 26 fork files and remove the unused, undefined GetObject declaration.
 - **Additional decisions / behavior:** Preserve colour storage, banner references, sequence numbers, accounted-bit semantics, clear-tool cost handling and fork clearance/erase guards. No new gameplay or object format behavior.
 - **Verification:** Complete source token proof permits only the 21 reviewed identifiers plus exact obsolete declaration removal; 26 fork files pass the same body proof. Scoped importer and script branches preserved; whitespace check passed.
 - **Pending / concerns:** Compile and tile/import/topology tests pending with related element naming batch.
+
+### U159 — `2f9db0a5d4` — Make PathElement members adhere to code style
+
+- **Source:** `2f9db0a5d48e9bc770c79ba3d647767e7efdb494`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 203 → 202.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Rename 61 PathElement fields/accessors in 49 fork files, including topology nodes, sampled path-adjacency ratings, test fixtures and the fork IsBin helper.
+- **Additional decisions / behavior:** Preserve edge/corner masks, slope/queue/ride/station values, packed addition-status union and all fork routing/ratings/staff-bin behavior. Retain independent PathConstructFlag and legacy RCT12 names. Fork IsBin/HasFullBinSlot APIs remain their existing names.
+- **Verification:** Complete 45-file source delta verified as the 61 reviewed identifiers only. All 49 fork file token streams pass identical-name-substitution proof after formatting. Additional direct topology/ratings/bin callers inspected; whitespace check passed.
+- **Pending / concerns:** Batch 28 full build is running for U155-U159; tile/import/topology and gameplay regression tests follow before additional C++ edits.

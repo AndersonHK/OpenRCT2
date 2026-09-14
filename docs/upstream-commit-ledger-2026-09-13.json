@@ -11921,7 +11921,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "ecb04cea7677ed30cdc925a1c6a6f67f7797a971"
+      ],
       "verification_evidence": [
         "Complete source token proof permits only the 21 reviewed identifiers plus exact obsolete declaration removal; 26 fork files pass the same body proof. Scoped importer and script branches preserved; whitespace check passed."
       ],
@@ -12042,9 +12044,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Complete 45-file source delta verified as the 61 reviewed identifiers only. All 49 fork file token streams pass identical-name-substitution proof after formatting. Additional direct topology/ratings/bin callers inspected; whitespace check passed."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -12076,7 +12080,10 @@
         "src/openrct2/world/TileInspector.cpp",
         "src/openrct2/world/tile_element/PathElement.h"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 2f9db0a5d48e9bc770c79ba3d647767e7efdb494",
+      "implementation_decisions": "Preserve edge/corner masks, slope/queue/ride/station values, packed addition-status union and all fork routing/ratings/staff-bin behavior. Retain independent PathConstructFlag and legacy RCT12 names. Fork IsBin/HasFullBinSlot APIs remain their existing names.",
+      "pending_validation": "Batch 28 full build is running for U155-U159; tile/import/topology and gameplay regression tests follow before additional C++ edits."
     },
     {
       "sha": "d3c54532cab94c7f69998f8fc54cfd98c025c17d",
@@ -26895,8 +26902,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 158,
-    "remaining_after_receipt": 203,
+    "accounted_in_this_tree": 159,
+    "remaining_after_receipt": 202,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

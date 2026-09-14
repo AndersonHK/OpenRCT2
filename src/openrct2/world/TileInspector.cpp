@@ -224,15 +224,15 @@ namespace OpenRCT2::TileInspector
             switch (tileElement->getType())
             {
                 case TileElementType::path:
-                    if (tileElement->asPath()->IsSloped())
+                    if (tileElement->asPath()->isSloped())
                     {
-                        newRotation = (tileElement->asPath()->GetSlopeDirection() + 1) & kTileElementDirectionMask;
-                        tileElement->asPath()->SetSlopeDirection(newRotation);
+                        newRotation = (tileElement->asPath()->getSlopeDirection() + 1) & kTileElementDirectionMask;
+                        tileElement->asPath()->setSlopeDirection(newRotation);
                     }
-                    pathEdges = tileElement->asPath()->GetEdges();
-                    pathCorners = tileElement->asPath()->GetCorners();
-                    tileElement->asPath()->SetEdges((pathEdges << 1) | (pathEdges >> 3));
-                    tileElement->asPath()->SetCorners((pathCorners << 1) | (pathCorners >> 3));
+                    pathEdges = tileElement->asPath()->getEdges();
+                    pathCorners = tileElement->asPath()->getCorners();
+                    tileElement->asPath()->setEdges((pathEdges << 1) | (pathEdges >> 3));
+                    tileElement->asPath()->setCorners((pathCorners << 1) | (pathCorners >> 3));
                     break;
                 case TileElementType::entrance:
                 {
@@ -597,7 +597,7 @@ namespace OpenRCT2::TileInspector
 
         if (isExecuting)
         {
-            pathElement->asPath()->SetSloped(sloped);
+            pathElement->asPath()->setSloped(sloped);
             if (!pathElement->isGhost())
             {
                 MapTopology::InvalidateTileAndNeighbours(loc);
@@ -617,7 +617,7 @@ namespace OpenRCT2::TileInspector
 
         if (isExecuting)
         {
-            pathElement->asPath()->SetJunctionRailings(hasJunctionRailings);
+            pathElement->asPath()->setJunctionRailings(hasJunctionRailings);
         }
 
         return GameActions::Result();
@@ -632,7 +632,7 @@ namespace OpenRCT2::TileInspector
 
         if (isExecuting)
         {
-            pathElement->asPath()->SetIsBroken(broken);
+            pathElement->asPath()->setIsBroken(broken);
         }
 
         return GameActions::Result();
@@ -647,8 +647,8 @@ namespace OpenRCT2::TileInspector
 
         if (isExecuting)
         {
-            uint8_t newEdges = pathElement->asPath()->GetEdgesAndCorners() ^ (1 << edgeIndex);
-            pathElement->asPath()->SetEdgesAndCorners(newEdges);
+            uint8_t newEdges = pathElement->asPath()->getEdgesAndCorners() ^ (1 << edgeIndex);
+            pathElement->asPath()->setEdgesAndCorners(newEdges);
             if (!pathElement->isGhost())
             {
                 MapTopology::InvalidateTileAndNeighbours(loc);

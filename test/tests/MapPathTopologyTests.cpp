@@ -55,12 +55,12 @@ protected:
         auto* path = InsertTileElement<PathElement>(
             { tile.ToCoordsXY(), baseZ * kCoordsZStep }, 0, [&](PathElement& path) {
                 path.setClearanceZ((baseZ + 4) * kCoordsZStep);
-                path.SetEdges(edges);
-                path.SetSloped(sloped);
-                path.SetSlopeDirection(slopeDirection);
-                path.SetIsQueue(false);
-                path.SetWide(false);
-                path.SetHasQueueBanner(false);
+                path.setEdges(edges);
+                path.setSloped(sloped);
+                path.setSlopeDirection(slopeDirection);
+                path.setIsQueue(false);
+                path.setWide(false);
+                path.setHasQueueBanner(false);
                 path.setGhost(false);
             });
         if (path == nullptr)
@@ -337,8 +337,8 @@ TEST_F(MapPathTopologyTest, PermittedEdgesQueueOwnershipAndEntranceConnectionsAr
     ASSERT_NE(AddPath(queueTile + TileDirectionDelta[south], 10, 1 << DirectionReverse(south)), nullptr);
 
     const auto queueRide = RideId::FromUnderlying(42);
-    queue->SetIsQueue(true);
-    queue->SetRideIndex(queueRide);
+    queue->setIsQueue(true);
+    queue->setRideIndex(queueRide);
     ASSERT_NE(AddBanner(queueTile, 12, 1 << south), nullptr);
     MapTopology::InvalidateTileAndNeighbours(queueTile);
 
@@ -423,7 +423,7 @@ TEST_F(MapPathTopologyTest, ThinJunctionClassificationExcludesWidePathsAndOwnedQ
     EXPECT_TRUE(sourceNode->isThinJunction);
     EXPECT_FALSE(sourceNode->connections[west].HasFlag(MapPathTopology::ConnectionFlag::targetWide));
 
-    westPath->SetWide(true);
+    westPath->setWide(true);
     MapTopology::InvalidateTileAndNeighbours(centre + TileDirectionDelta[west]);
     view = MapPathTopology::GetChunk(centre);
     sourceNode = MapPathTopology::FindPath(view, { centre, 10 });
@@ -433,8 +433,8 @@ TEST_F(MapPathTopologyTest, ThinJunctionClassificationExcludesWidePathsAndOwnedQ
 
     auto* southPath = MapGetPathElementAt({ centre + TileDirectionDelta[south], 10 });
     ASSERT_NE(southPath, nullptr);
-    southPath->SetIsQueue(true);
-    southPath->SetRideIndex(RideId::FromUnderlying(42));
+    southPath->setIsQueue(true);
+    southPath->setRideIndex(RideId::FromUnderlying(42));
     MapTopology::InvalidateTileAndNeighbours(centre + TileDirectionDelta[south]);
     view = MapPathTopology::GetChunk(centre);
     sourceNode = MapPathTopology::FindPath(view, { centre, 10 });
@@ -442,7 +442,7 @@ TEST_F(MapPathTopologyTest, ThinJunctionClassificationExcludesWidePathsAndOwnedQ
     EXPECT_FALSE(sourceNode->isThinJunction);
     EXPECT_TRUE(sourceNode->connections[south].HasFlag(MapPathTopology::ConnectionFlag::targetRideQueue));
 
-    southPath->SetRideIndex(RideId::GetNull());
+    southPath->setRideIndex(RideId::GetNull());
     MapTopology::InvalidateTileAndNeighbours(centre + TileDirectionDelta[south]);
     view = MapPathTopology::GetChunk(centre);
     sourceNode = MapPathTopology::FindPath(view, { centre, 10 });
@@ -599,13 +599,13 @@ TEST_F(MapPathTopologyTest, SharedRouteFieldsExcludeForeignQueuesAndAdmitTheTarg
     ASSERT_NE(foreignQueue, nullptr);
     const auto targetRide = RideId::FromUnderlying(42);
     const auto foreignRide = RideId::FromUnderlying(99);
-    foreignQueue->SetIsQueue(true);
-    foreignQueue->SetRideIndex(foreignRide);
+    foreignQueue->setIsQueue(true);
+    foreignQueue->setRideIndex(foreignRide);
     auto* targetQueue = AddPath(
         targetPath, 10, (1 << DirectionReverse(south)) | (1 << DirectionReverse(east)));
     ASSERT_NE(targetQueue, nullptr);
-    targetQueue->SetIsQueue(true);
-    targetQueue->SetRideIndex(targetRide);
+    targetQueue->setIsQueue(true);
+    targetQueue->setRideIndex(targetRide);
     MapTopology::InvalidateTileAndNeighbours(southPath);
     MapTopology::InvalidateTileAndNeighbours(targetPath);
 
@@ -615,7 +615,7 @@ TEST_F(MapPathTopologyTest, SharedRouteFieldsExcludeForeignQueuesAndAdmitTheTarg
     ASSERT_TRUE(avoidsForeignQueue.has_value());
     EXPECT_EQ(avoidsForeignQueue->direction, east);
 
-    foreignQueue->SetRideIndex(targetRide);
+    foreignQueue->setRideIndex(targetRide);
     MapTopology::InvalidateTileAndNeighbours(southPath);
     MapPathRouteCache::Prepare(std::array{ target });
     const auto admitsTargetQueue = MapPathRouteCache::GetNextStep(target, { start, 10 });

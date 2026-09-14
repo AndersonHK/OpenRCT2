@@ -305,7 +305,7 @@ protected:
         auto* pathElement = InsertTileElement<PathElement>(
             { tile.ToCoordsXY(), baseZ }, 0, [&](PathElement& pathElement) {
                 pathElement.setClearanceZ(clearanceZ);
-                pathElement.SetEdges(edges);
+                pathElement.setEdges(edges);
             });
         ASSERT_NE(pathElement, nullptr);
     }

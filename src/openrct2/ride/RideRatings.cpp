@@ -371,7 +371,7 @@ namespace OpenRCT2
 
     static int32_t RideRatingGetPathEdgeZ(const PathElement& pathElement, Direction direction)
     {
-        if (pathElement.IsSloped() && pathElement.GetSlopeDirection() == direction)
+        if (pathElement.isSloped() && pathElement.getSlopeDirection() == direction)
         {
             return pathElement.getBaseZ() + kLandHeightStep;
         }
@@ -381,7 +381,7 @@ namespace OpenRCT2
 
     static bool RideRatingPathConnects(const TileCoordsXY& tile, const PathElement& pathElement, Direction direction)
     {
-        if (!DirectionValid(direction) || (pathElement.GetEdges() & (1 << direction)) == 0)
+        if (!DirectionValid(direction) || (pathElement.getEdges() & (1 << direction)) == 0)
         {
             return false;
         }
@@ -408,7 +408,7 @@ namespace OpenRCT2
             }
 
             const auto* adjacentPath = tileElement->asPath();
-            if (adjacentPath == nullptr || (adjacentPath->GetEdges() & (1 << reverseDirection)) == 0)
+            if (adjacentPath == nullptr || (adjacentPath->getEdges() & (1 << reverseDirection)) == 0)
             {
                 continue;
             }

@@ -100,9 +100,9 @@ namespace OpenRCT2::MapPathTopology
                 {
                     result.targetBaseZ = tileElement->baseHeight;
                     result.flags = static_cast<uint8_t>(ConnectionFlag::connected);
-                    if (path->IsWide())
+                    if (path->isWide())
                         result.flags |= static_cast<uint8_t>(ConnectionFlag::targetWide);
-                    if (path->IsQueue() && !path->GetRideIndex().IsNull())
+                    if (path->isQueue() && !path->getRideIndex().IsNull())
                         result.flags |= static_cast<uint8_t>(ConnectionFlag::targetRideQueue);
                 }
                 else if (result.targetBaseZ == tileElement->baseHeight)
@@ -117,7 +117,7 @@ namespace OpenRCT2::MapPathTopology
 
         [[nodiscard]] uint8_t GetPermittedEdges(const PathElement& path)
         {
-            auto edges = path.GetEdges();
+            auto edges = path.getEdges();
             const auto* tileElement = reinterpret_cast<const TileElement*>(&path);
             if (tileElement->isLastForTile())
                 return edges;
@@ -214,13 +214,13 @@ namespace OpenRCT2::MapPathTopology
                                 node.localX = static_cast<uint8_t>(x - origin.x);
                                 node.localY = static_cast<uint8_t>(y - origin.y);
                                 node.baseZ = tileElement->baseHeight;
-                                node.edges = path->GetEdges();
+                                node.edges = path->getEdges();
                                 node.permittedEdges = GetPermittedEdges(*path);
-                                const bool isSloped = path->IsSloped();
+                                const bool isSloped = path->isSloped();
                                 if (isSloped)
-                                    node.slopeDirection = path->GetSlopeDirection();
-                                if (path->IsQueue())
-                                    node.queueRide = path->GetRideIndex();
+                                    node.slopeDirection = path->getSlopeDirection();
+                                if (path->isQueue())
+                                    node.queueRide = path->getRideIndex();
 
                                 constexpr auto excludedThinNeighbourFlags = static_cast<uint8_t>(
                                     ConnectionFlag::targetWide) | static_cast<uint8_t>(ConnectionFlag::targetRideQueue);

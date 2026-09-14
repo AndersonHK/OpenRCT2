@@ -55,7 +55,7 @@ TEST(ClearScenery, EveryMaskKeepsWallAndPathAdditionSelectionsIndependentAfterSe
         path.clearAs(TileElementType::path);
         path.baseHeight = 12;
         path.clearanceHeight = 14;
-        path.asPath()->SetAddition(1);
+        path.asPath()->setAddition(1);
         elements.push_back(path);
         auto ghostWall = elements[1];
         ghostWall.setGhost(true);
@@ -90,7 +90,7 @@ TEST(ClearScenery, EveryMaskKeepsWallAndPathAdditionSelectionsIndependentAfterSe
         EXPECT_EQ(count(TileElementType::wall, false), 2u);
         EXPECT_EQ(count(TileElementType::path, false), 1u);
         ASSERT_NE(MapGetFootpathElement({ coords, 96 }), nullptr);
-        EXPECT_TRUE(MapGetFootpathElement({ coords, 96 })->asPath()->HasAddition());
+        EXPECT_TRUE(MapGetFootpathElement({ coords, 96 })->asPath()->hasAddition());
 
         const auto result = action.Execute(state, state.park);
         EXPECT_EQ(result.error, Status::ok);
@@ -101,13 +101,13 @@ TEST(ClearScenery, EveryMaskKeepsWallAndPathAdditionSelectionsIndependentAfterSe
         {
             auto* remainingPath = MapGetFootpathElement({ coords, 96 });
             ASSERT_NE(remainingPath, nullptr);
-            EXPECT_EQ(remainingPath->asPath()->HasAddition(), !(mask & 16));
+            EXPECT_EQ(remainingPath->asPath()->hasAddition(), !(mask & 16));
         }
         EXPECT_EQ(count(TileElementType::wall, true), 1u);
         EXPECT_EQ(count(TileElementType::path, true), 1u);
         auto* remainingGhost = MapGetFootpathElement({ coords, 160 });
         ASSERT_NE(remainingGhost, nullptr);
-        EXPECT_TRUE(remainingGhost->asPath()->HasAddition());
+        EXPECT_TRUE(remainingGhost->asPath()->hasAddition());
     }
     gLegacyScene = previousScene;
 }
