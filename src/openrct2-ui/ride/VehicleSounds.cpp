@@ -1,8 +1,6 @@
 #include "VehicleSounds.h"
 
-#include "../interface/Viewport.h"
 #include "../interface/Window.h"
-#include "../windows/Windows.h"
 
 #include <cassert>
 #include <chrono>
@@ -17,6 +15,7 @@
 #include <openrct2/audio/AudioMixer.h>
 #include <openrct2/audio/SpatialAudio.h>
 #include <openrct2/entity/EntityRegistry.h>
+#include <openrct2/interface/Viewport.h>
 #include <openrct2/profiling/Profiling.h>
 #include <openrct2/ride/TrainManager.h>
 #include <openrct2/ride/Vehicle.h>

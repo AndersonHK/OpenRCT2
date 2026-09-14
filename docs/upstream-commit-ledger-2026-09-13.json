@@ -12981,7 +12981,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "0ebb380961b4dc012313144789e62e752046e192"
+      ],
       "verification_evidence": [
         "Reviewed all ten source patches and fork usages; normalized comparison verifies all ten fork deltas contain only includes, forward declarations and whitespace. Changed C++ lines formatted; whitespace and singleton ancestry checked by receipt helper."
       ],
@@ -13026,9 +13028,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Reviewed all five source paths and fork definitions/usages. Normalized comparison proves five fork paths have only include/forward-declaration changes. Whitespace and exact-one ancestry gate apply."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -13038,7 +13042,10 @@
       "merge_conflict_paths": [
         "src/openrct2-ui/ride/VehicleSounds.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 2c8891ca8b2513ec9567d54619ffbb1f362ea44a",
+      "implementation_decisions": "Retain direct AudioMixer.h in fork VehicleSounds.cpp because the spatial playback code uses MixerGroup::vehicle and kMixerVolumeMax, even though Audio.h currently also exposes it. Add direct cstddef/cstdint to Construction.h for its size_t and enum underlying types. Fork spatial gains, Doppler, source selection, routing and construction behavior are unchanged.",
+      "pending_validation": "Compile and focused UI/audio regressions at the next header batch checkpoint; native non-Windows and interactive validation remain pending."
     },
     {
       "sha": "e75c1dde1519770617b8fb49821cdb7911041c72",
@@ -26944,8 +26951,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 165,
-    "remaining_after_receipt": 196,
+    "accounted_in_this_tree": 166,
+    "remaining_after_receipt": 195,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

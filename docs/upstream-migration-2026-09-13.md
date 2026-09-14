@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 165 / 361 source commits recorded
+## Progress: 166 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1833,10 +1833,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U165 — `a80faffd5c` — Remove openrct2-ui/ includes
 
 - **Source:** `a80faffd5ce231205c7f1957af9ecc1be4cd00a7`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `0ebb380961b4dc012313144789e62e752046e192`.
 - **Remaining:** 197 → 196.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Port all ten UI header-dependency cleanups: narrow SDL mouse/error/clipboard/events includes, forward-declare CursorID, remove unused includes/declarations and use direct core Viewport and Audio dependencies.
 - **Additional decisions / behavior:** No behavior change. Fork Vulkan platform include and all UI/input/render ownership bodies are retained. UiScriptExtensions only takes a ScriptEngine reference, so the removed full engine header is not required there; provisional path functions and input dispatch retain their actual declaring headers.
 - **Verification:** Reviewed all ten source patches and fork usages; normalized comparison verifies all ten fork deltas contain only includes, forward declarations and whitespace. Changed C++ lines formatted; whitespace and singleton ancestry checked by receipt helper.
 - **Pending / concerns:** Compile and focused regression tests at the next UI-header checkpoint; interactive and non-Windows UI checks remain outstanding.
+
+### U166 — `2c8891ca8b` — Remove openrct2-ui/ride includes
+
+- **Source:** `2c8891ca8b2513ec9567d54619ffbb1f362ea44a`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 196 → 195.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Port five ride UI/type header cleanups: explicit core Viewport/Track headers, construction forward declarations and direct ride-use identifier dependency; remove unused RideTypes dependencies.
+- **Additional decisions / behavior:** Retain direct AudioMixer.h in fork VehicleSounds.cpp because the spatial playback code uses MixerGroup::vehicle and kMixerVolumeMax, even though Audio.h currently also exposes it. Add direct cstddef/cstdint to Construction.h for its size_t and enum underlying types. Fork spatial gains, Doppler, source selection, routing and construction behavior are unchanged.
+- **Verification:** Reviewed all five source paths and fork definitions/usages. Normalized comparison proves five fork paths have only include/forward-declaration changes. Whitespace and exact-one ancestry gate apply.
+- **Pending / concerns:** Compile and focused UI/audio regressions at the next header batch checkpoint; native non-Windows and interactive validation remain pending.
