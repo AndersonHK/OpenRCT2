@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 251 / 361 source commits recorded
+## Progress: 252 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2779,10 +2779,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U251 — `e16a74030d` — Fix #18415: Preview in Track Designs Manager not updating after a delete (#27003)
 
 - **Source:** `e16a74030d4cdbc80a0e21f05271a7f696b8bff3`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `f2c4bd1cf796bfa801ad53efba69e2b2488be5d8`.
 - **Remaining:** 111 → 110.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Invalidate the loaded-preview index whenever the track-design list reloads; add changelog fix.
 - **Additional decisions / behavior:** Adopt source fix: an unchanged list index may now name a different file after deletion. Retain lazy preview loading, fork object repository and O05 map stash/restore. This port itself performs no file deletion.
 - **Verification:** Full source and cache/reload/preview consumers inspected; exact one-line source insertion plus changelog; diff check. Next batch build pending.
 - **Pending / concerns:** Actual deletion/rename/filter and last-design preview UI verification pending; standing limits remain.
+
+### U252 — `9d502af244` — Merge Localisation/master into OpenRCT2/develop
+
+- **Source:** `9d502af2442facf52d37f11c043d2acdf9a09f92`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 110 → 109.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Apply five Brazilian Portuguese grammar/wording corrections.
+- **Additional decisions / behavior:** Single-parent localization commit despite Merge subject. Preserve format tokens and all fork strings; renderer tooltip wording does not change renderer availability or configuration.
+- **Verification:** Full five-string patch inspected; IDs 1412/3347/5792/5876/6170 only; diff check.
+- **Pending / concerns:** Language UI appearance and standing checks remain.

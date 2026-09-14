@@ -17699,7 +17699,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "f2c4bd1cf796bfa801ad53efba69e2b2488be5d8"
+      ],
       "verification_evidence": [
         "Full source and cache/reload/preview consumers inspected; exact one-line source insertion plus changelog; diff check. Next batch build pending."
       ],
@@ -17736,9 +17738,11 @@
       "note": "Single-parent localisation update; use final target blobs after English ID reconciliation.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Full five-string patch inspected; IDs 1412/3347/5792/5876/6170 only; diff check."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -17746,7 +17750,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P1"
+      "verification_gate": "P1",
+      "port_commit_locator": "Upstream-Commit: 9d502af2442facf52d37f11c043d2acdf9a09f92",
+      "implementation_decisions": "Single-parent localization commit despite Merge subject. Preserve format tokens and all fork strings; renderer tooltip wording does not change renderer availability or configuration.",
+      "pending_validation": "Language UI appearance and standing checks remain."
     },
     {
       "sha": "c8ab33406096069c77ed979d9cac236e8e98748a",
@@ -27546,8 +27553,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 251,
-    "remaining_after_receipt": 110,
+    "accounted_in_this_tree": 252,
+    "remaining_after_receipt": 109,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
