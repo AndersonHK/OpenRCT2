@@ -52,7 +52,7 @@ constexpr RideTypeDescriptor MazeRTD =
         { Drawing::Colour::grey, Drawing::Colour::grey, Drawing::Colour::grey },
     ),
     .ColourPreview = { 0, 0 },
-    .ColourKey = RideColourKey::Ride,
+    .ColourKey = RideColourKey::ride,
     .Name = "maze",
     .RatingsData = 
     {
