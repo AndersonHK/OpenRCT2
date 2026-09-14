@@ -5294,6 +5294,12 @@ declare global {
     interface TextBoxWidget extends WidgetBase {
         type: "textbox";
         text: string;
+        /**
+         * The UTF-8 byte offset of the text cursor while typing into the textbox.
+         * Only available when focused; otherwise reads as 0 and writes are ignored.
+         * Writes clamp to the buffer and snap back to a codepoint boundary, clearing the selection.
+         */
+        caret: number;
         maxLength: number;
         focus(): void;
     }

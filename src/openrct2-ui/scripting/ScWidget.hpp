@@ -19,6 +19,7 @@
 
     #include <memory>
     #include <openrct2/Context.h>
+    #include <openrct2/Input.h>
     #include <openrct2/scripting/IconNames.hpp>
     #include <openrct2/scripting/ScriptEngine.h>
     #include <openrct2/ui/WindowManager.h>
@@ -1066,6 +1067,7 @@ namespace OpenRCT2::Scripting
         {
             static constexpr JSCFunctionListEntry funcs[] = {
                 JS_CGETSET_DEF("maxLength", ScTextBoxWidget::maxLength_get, ScTextBoxWidget::maxLength_set),
+                JS_CGETSET_DEF("caret", ScTextBoxWidget::caret_get, ScTextBoxWidget::caret_set),
                 JS_CGETSET_DEF("text", ScWidget::text_get, ScWidget::text_set), JS_CFUNC_DEF("focus", 0, ScTextBoxWidget::focus)
             };
             JS_SetPropertyFunctionList(ctx, obj, funcs, static_cast<int32_t>(std::size(funcs)));
@@ -1096,6 +1098,33 @@ namespace OpenRCT2::Scripting
             return JS_UNDEFINED;
         }
 
+        static JSValue caret_get(JSContext* ctx, JSValue thisVal)
+        {
+            WidgetData data = GetWidgetData(thisVal);
+            auto w = GetWindow(data._class, data._number);
+            if (IsCustomWindow(w) && IsActive(w, data._widgetIndex))
+            {
+                auto* session = GetTextboxSession();
+                if (session != nullptr && session->Buffer != nullptr)
+                    return JS_NewInt64(ctx, session->SelectionStart);
+            }
+            return JS_NewInt64(ctx, 0);
+        }
+
+        static JSValue caret_set(JSContext* ctx, JSValue thisVal, JSValue value)
+        {
+            JS_UNPACK_INT64(valueInt, ctx, value);
+
+            WidgetData data = GetWidgetData(thisVal);
+            auto w = GetWindow(data._class, data._number);
+            if (IsCustomWindow(w) && IsActive(w, data._widgetIndex))
+            {
+                SetTextboxCaret(valueInt);
+                Invalidate(thisVal);
+            }
+            return JS_UNDEFINED;
+        }
+
         static JSValue focus(JSContext* ctx, JSValue thisVal, int argc, JSValue* argv)
         {
             WidgetData data = GetWidgetData(thisVal);
@@ -1107,6 +1136,14 @@ namespace OpenRCT2::Scripting
                     *w, data._widgetIndex, wPtr->string, Ui::Windows::GetWidgetMaxLength(w, data._widgetIndex));
             }
             return JS_UNDEFINED;
+        }
+
+        static bool IsActive(WindowBase* window, WidgetIndex widgetIndex)
+        {
+            auto currentTextBox = GetCurrentTextBox();
+            return (
+                currentTextBox.window.classification == window->classification && currentTextBox.window.number == window->number
+                && currentTextBox.widgetIndex == widgetIndex);
         }
     };
 

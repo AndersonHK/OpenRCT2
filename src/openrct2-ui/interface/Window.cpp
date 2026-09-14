@@ -21,6 +21,7 @@
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/SpriteIds.h>
 #include <openrct2/config/Config.h>
+#include <openrct2/core/UTF8.h>
 #include <openrct2/drawing/Rectangle.h>
 #include <openrct2/drawing/RenderTarget.h>
 #include <openrct2/interface/Viewport.h>
@@ -616,6 +617,19 @@ namespace OpenRCT2::Ui::Windows
     void SetTexboxSession(TextInputSession* session)
     {
         _textInput = session;
+    }
+    void SetTextboxCaret(int64_t position)
+    {
+        if (_textInput != nullptr && _textInput->Buffer != nullptr)
+        {
+            const auto& buffer = *_textInput->Buffer;
+            auto offset = static_cast<size_t>(std::min<uint64_t>(std::max<int64_t>(position, 0), buffer.size()));
+            // Selection offsets are UTF-8 bytes; Length counts codepoints.
+            while (offset > 0 && offset < buffer.size() && !UTF8IsCodepointStart(buffer.data() + offset))
+                offset--;
+            _textInput->SelectionStart = offset;
+            _textInput->SelectionSize = 0;
+        }
     }
     bool IsUsingWidgetTextBox()
     {

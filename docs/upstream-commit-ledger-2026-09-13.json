@@ -20821,7 +20821,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "4751e314aace7973f3dcf605bf48a3d0a3f4ce79"
+      ],
       "verification_evidence": [
         "B68 solution 15.16s zero warnings/errors; all 12 ScriptingTests/ObjectDownloaderTest cases passed in 1.940s. Injected disposal fixture exercises actual RemoveNetworkPlugins/EventList shutdown and both timer/connect guards without network traffic."
       ],
@@ -20867,9 +20869,11 @@
       "note": "Expose focused textbox caret getter/setter; verify focus transitions and bounds with final widget API.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "B69 solution 26.44s zero warnings/errors. 24 ScriptingTests/WidgetStateTest pass in 2.031s, including real two-textbox focus, Unicode/negative/end offsets, selection collapse, blink phases and missing/closed sessions."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -20879,7 +20883,10 @@
       "merge_conflict_paths": [
         "src/openrct2-ui/scripting/ScWidget.hpp"
       ],
-      "verification_gate": "P7"
+      "verification_gate": "P7",
+      "port_commit_locator": "Upstream-Commit: ad94483ff1029903c3e7f3ddf712c59b16c61ee7",
+      "implementation_decisions": "Fix source byte/codepoint mismatch: signed requests clamp to UTF-8 buffer byte length and snap backward to a codepoint boundary; clear selection. Guard missing session/buffer. Document byte offsets/inactive behavior in declarations; preserve source blink cycle and API122. See B69.",
+      "pending_validation": "Actual caret drawing, OS typing/IME/grapheme behavior and existing Unicode caret-width limitation; non-Windows/MP/replay untested. No owner decision."
     },
     {
       "sha": "3e70c47a88994e05995f87c9d6c1f5a349a9f22e",
@@ -27770,8 +27777,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 283,
-    "remaining_after_receipt": 78,
+    "accounted_in_this_tree": 284,
+    "remaining_after_receipt": 77,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

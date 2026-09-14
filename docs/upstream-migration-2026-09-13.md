@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 283 / 361 source commits recorded
+## Progress: 284 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3131,10 +3131,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U283 — `fae5cf0f9d` — Fix #22854: network connections of plugins pile up when loading another park (#26928)
 
 - **Source:** `fae5cf0f9d7e181c7e769accb5db4560400716ed`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `4751e314aace7973f3dcf605bf48a3d0a3f4ce79`.
 - **Remaining:** 79 → 78.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Refuse timers and socket connections for stopping plugins while retaining synchronous close handlers; add real shutdown-path regression.
 - **Additional decisions / behavior:** Exact source guards: timer handle 0, socket connect returns same wrapper; existing validation/errors first. Preserve active/ownerless behavior. Inert wrapper creation/registration is unchanged; no claim this fixes all socket-wrapper lifetime issues. See B68.
 - **Verification:** B68 solution 15.16s zero warnings/errors; all 12 ScriptingTests/ObjectDownloaderTest cases passed in 1.940s. Injected disposal fixture exercises actual RemoveNetworkPlugins/EventList shutdown and both timer/connect guards without network traffic.
 - **Pending / concerns:** Live TCP reconnect/server/listener shutdown and exhaustive heap accounting untested; standing native/non-Windows/MP/replay remain. No owner decision.
+
+### U284 — `ad94483ff1` — Allow getting and setting caret position for plugin textbox while it's in focus (#26938)
+
+- **Source:** `ad94483ff1029903c3e7f3ddf712c59b16c61ee7`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 78 → 77.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Expose focused textbox caret get/set, animate custom textbox carets and guard missing buffers; add UI regression.
+- **Additional decisions / behavior:** Fix source byte/codepoint mismatch: signed requests clamp to UTF-8 buffer byte length and snap backward to a codepoint boundary; clear selection. Guard missing session/buffer. Document byte offsets/inactive behavior in declarations; preserve source blink cycle and API122. See B69.
+- **Verification:** B69 solution 26.44s zero warnings/errors. 24 ScriptingTests/WidgetStateTest pass in 2.031s, including real two-textbox focus, Unicode/negative/end offsets, selection collapse, blink phases and missing/closed sessions.
+- **Pending / concerns:** Actual caret drawing, OS typing/IME/grapheme behavior and existing Unicode caret-width limitation; non-Windows/MP/replay untested. No owner decision.

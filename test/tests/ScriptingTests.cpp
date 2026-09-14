@@ -31,8 +31,10 @@
 #if defined(ENABLE_SCRIPTING) && defined(OPENRCT2_TEST_UI_BINDINGS)
     #include "TestData.h"
     #include <openrct2-ui/UiContext.h>
+    #include <openrct2-ui/interface/Window.h>
     #include <openrct2-ui/scripting/UiExtensions.h>
     #include <openrct2/PlatformEnvironment.h>
+    #include <openrct2/Input.h>
     #include <openrct2/audio/AudioContext.h>
     #include <openrct2/core/File.h>
     #include <openrct2/core/Path.hpp>
@@ -646,6 +648,92 @@ TEST_F(ScriptingTests, MapResizeHookObservesCompletedChangesAndAllowsStateUpdate
 }
 
     #ifdef OPENRCT2_TEST_UI_BINDINGS
+TEST_F(ScriptingTests, TextboxCaretUsesSafeUtf8OffsetsFocusAndBlinkUpdates)
+{
+    _context.reset();
+    auto env = CreatePlatformEnvironment();
+    auto uiContext = Ui::CreateUiContext(*env);
+    _context = CreateContext(std::move(env), Audio::CreateDummyAudioContext(), std::move(uiContext));
+    ASSERT_TRUE(_context->Initialise());
+    struct ResetTextbox
+    {
+        ~ResetTextbox()
+        {
+            Ui::Windows::WindowCancelTextbox();
+            Ui::Windows::SetTexboxSession(nullptr);
+        }
+    } resetTextbox;
+    auto& engine = static_cast<ScriptEngine&>(_context->GetScriptEngine());
+    engine.AddNetworkPlugin(R"(
+        registerPlugin({name:'test-textbox-caret',version:'1',authors:['openrct2-test'],type:'remote',licence:'MIT',
+            minApiVersion:122,targetApiVersion:122,main:function(){
+                globalThis.caretWindow = ui.openWindow({classification:'test-textbox-caret',title:'Caret',width:220,height:110,
+                    widgets:[{type:'textbox',name:'a',x:10,y:30,width:190,height:20,text:'Aé😀Z',maxLength:40},
+                             {type:'textbox',name:'b',x:10,y:60,width:190,height:20,text:'other',maxLength:40}]});
+                globalThis.a = caretWindow.findWidget('a');
+                globalThis.b = caretWindow.findWidget('b');
+            }});
+    )");
+    engine.LoadTransientPlugins();
+    engine.Tick();
+    auto plugin = std::find_if(engine.GetPlugins().begin(), engine.GetPlugins().end(), [](const auto& candidate) {
+        return candidate->GetMetadata().Name == "test-textbox-caret";
+    });
+    ASSERT_NE(plugin, engine.GetPlugins().end());
+    ASSERT_TRUE((*plugin)->HasStarted());
+    auto* js = (*plugin)->GetContext();
+    const auto check = [&](const char* code) {
+        SCOPED_TRACE(code);
+        auto result = JS_Eval(js, code, strlen(code), "textbox-caret-test", JS_EVAL_TYPE_GLOBAL);
+        if (JS_IsException(result))
+        {
+            auto exception = JS_GetException(js);
+            const char* message = JS_ToCString(js, exception);
+            ADD_FAILURE() << (message == nullptr ? "JS exception" : message);
+            JS_FreeCString(js, message);
+            JS_FreeValue(js, exception);
+        }
+        else
+            EXPECT_EQ(JS_ToBool(js, result), 1);
+        JS_FreeValue(js, result);
+    };
+    check("a.caret === 0 && b.caret === 0");
+    check("a.focus(); a.caret === 8 && b.caret === 0");
+    auto* session = Ui::Windows::GetTextboxSession();
+    ASSERT_NE(session, nullptr);
+    EXPECT_EQ(session->Length, size_t{ 4 });
+    for (const auto [requested, expected] : std::initializer_list<std::pair<int64_t, size_t>>{
+             { -1, 0 }, { 0, 0 }, { 1, 1 }, { 2, 1 }, { 3, 3 }, { 4, 3 }, { 5, 3 }, { 6, 3 }, { 7, 7 }, { 8, 8 }, { 999, 8 } })
+    {
+        const auto code = "a.caret=" + std::to_string(requested) + "; a.caret===" + std::to_string(expected);
+        check(code.c_str());
+        EXPECT_EQ(session->SelectionStart, expected);
+        EXPECT_EQ(session->SelectionSize, size_t{ 0 });
+    }
+    TextInputSession selected = *session;
+    selected.SelectionSize = 2;
+    Ui::Windows::SetTexboxSession(&selected);
+    check("a.caret=7; a.caret===7");
+    EXPECT_EQ(selected.SelectionSize, size_t{ 0 });
+    Ui::Windows::SetTexboxSession(const_cast<TextInputSession*>(session));
+    check("b.focus(); a.caret=2; a.caret===0 && b.caret===5");
+    session = Ui::Windows::GetTextboxSession();
+    auto* window = Ui::GetWindowManager()->FindByClass(WindowClass::custom);
+    ASSERT_NE(window, nullptr);
+    EXPECT_TRUE(Ui::Windows::TextBoxCaretIsFlashed());
+    for (int i = 0; i < 16; i++) window->onUpdate();
+    EXPECT_FALSE(Ui::Windows::TextBoxCaretIsFlashed());
+    for (int i = 0; i < 15; i++) window->onUpdate();
+    EXPECT_TRUE(Ui::Windows::TextBoxCaretIsFlashed());
+    Ui::Windows::SetTexboxSession(nullptr);
+    check("b.caret=3; b.caret===0");
+    TextInputSession missingBuffer{};
+    Ui::Windows::SetTexboxSession(&missingBuffer);
+    check("b.caret=3; b.caret===0");
+    Ui::Windows::SetTexboxSession(const_cast<TextInputSession*>(session));
+    check("caretWindow.close(); b.caret=3; a.caret===0 && b.caret===0");
+}
+
 TEST_F(ScriptingTests, ExplicitImageButtonBordersRetainImageAndVisibilityBindings)
 {
     _context.reset();
