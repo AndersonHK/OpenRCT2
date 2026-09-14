@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 341 / 361 source commits recorded
+## Progress: 342 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3769,10 +3769,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U341 — `cd728ac481` — Merge pull request #26947 from AaronVanGeffen/news-ticker
 
 - **Source:** `cd728ac48196898a91ca03f4decf8872bc424ff6`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `def18d0f33d2dfbc381948b70049c926b2d63817`.
 - **Remaining:** 21 → 20.
 - **Disposition:** history receipt.
 - **Manual changes:** Accounted HUD branch merge; no independent resolution delta.
 - **Additional decisions / behavior:** Preserve documented D07 fork adaptations and B93-tested constituent ports.
 - **Verification:** Actual remerge diff is empty; parents already accounted. B93 validates constituent code.
 - **Pending / concerns:** Native UI checks remain documented.
+
+### U342 — `242b916767` — Fix typo in en-GB
+
+- **Source:** `242b9167679274b6670c80504850867f13dfc7cc`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 20 → 19.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Correct English Track Designer theme label.
+- **Additional decisions / behavior:** Retain U338 corrected mapping of track theme to 7047 and scenario theme to 7048.
+- **Verification:** Inspected single-line source edit and matching string owners.
+- **Pending / concerns:** Native translated labels remain manual.
