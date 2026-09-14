@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 354 / 361 source commits recorded
+## Progress: 355 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3912,10 +3912,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U354 — `831ea32857` — Merge pull request #27109 from Gymnasiast/fix/wrong-number-of-cars-per-train-rct1
 
 - **Source:** `831ea328574d2c1394b0ae2a2a2cbf8ac94f63bb`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `d516b4d864e8079058690fed12460825762e2375`.
 - **Remaining:** 8 → 7.
 - **Disposition:** history receipt.
 - **Manual changes:** Account RCT1 car-count branch merge; no independent resolution changes.
 - **Additional decisions / behavior:** Preserve B97-tested importer ports and companion pin.
 - **Verification:** Actual remerge diff empty; all parents accounted.
 - **Pending / concerns:** Original S4/native placement checks remain documented.
+
+### U355 — `b6235baa9a` — Merge Localisation/master into OpenRCT2/develop
+
+- **Source:** `b6235baa9ac5ffd359605b86100dc98b4c316b53`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 7 → 6.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Update 25 translations for split HUD owners and complete guest-group labels.
+- **Additional decisions / behavior:** Remove obsolete toolbar theme labels and old Guests prefix; translated strings match reconciled English IDs, with fork English 8000-8043 retained as fallback. No gameplay code.
+- **Verification:** Inspected actual nonrepetitive translations and deleted-ID inventory; all non-English language files equal source target; diff check passes.
+- **Pending / concerns:** Final localisation tests; native translated layout still manual.

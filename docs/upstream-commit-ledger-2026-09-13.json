@@ -27262,7 +27262,9 @@
       "decisions": [],
       "review_level": "remerge-probe",
       "implementation_status": "history receipt",
-      "port_commits": [],
+      "port_commits": [
+        "d516b4d864e8079058690fed12460825762e2375"
+      ],
       "verification_evidence": [
         "Actual remerge diff empty; all parents accounted."
       ],
@@ -27325,9 +27327,11 @@
       "note": "Single-parent localisation update; use final target blobs after English ID reconciliation.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected actual nonrepetitive translations and deleted-ID inventory; all non-English language files equal source target; diff check passes."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -27335,7 +27339,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P1"
+      "verification_gate": "P1",
+      "port_commit_locator": "Upstream-Commit: b6235baa9ac5ffd359605b86100dc98b4c316b53",
+      "implementation_decisions": "Remove obsolete toolbar theme labels and old Guests prefix; translated strings match reconciled English IDs, with fork English 8000-8043 retained as fallback. No gameplay code.",
+      "pending_validation": "Final localisation tests; native translated layout still manual."
     },
     {
       "sha": "612b3cb2aae32865fbcce2729ae9b638c37b548b",
@@ -28267,8 +28274,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 354,
-    "remaining_after_receipt": 7,
+    "accounted_in_this_tree": 355,
+    "remaining_after_receipt": 6,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
