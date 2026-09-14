@@ -11,7 +11,9 @@
 #include <openrct2/Context.h>
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/network/NetworkBase.h>
+#include <openrct2/network/NetworkAction.h>
 #include <openrct2/network/NetworkConnection.h>
+#include <openrct2/network/NetworkGroup.h>
 #include <openrct2/network/NetworkPacket.h>
 
 using namespace OpenRCT2;
@@ -125,6 +127,24 @@ protected:
 
     std::unique_ptr<IContext> _context;
 };
+
+TEST_F(NetworkTests, RideVisibilityRequiresCheatPermissionAndRespectsRevocation)
+{
+    EXPECT_EQ(NetworkActions::findCommand(GameCommand::setRideVisibility), Permission::cheat);
+    NetworkGroup group;
+    EXPECT_FALSE(group.canPerformCommand(GameCommand::setRideVisibility));
+    group.toggleActionPermission(Permission::rideProperties);
+    EXPECT_TRUE(group.canPerformAction(Permission::rideProperties));
+    EXPECT_FALSE(group.canPerformCommand(GameCommand::setRideVisibility));
+    group.toggleActionPermission(Permission::cheat);
+    EXPECT_TRUE(group.canPerformCommand(GameCommand::setRideVisibility));
+    EXPECT_TRUE(group.canPerformCommand(GameCommand::cheat));
+    EXPECT_TRUE(group.canPerformCommand(GameCommand::setDate));
+    EXPECT_TRUE(group.canPerformCommand(GameCommand::freezeRideRating));
+    group.toggleActionPermission(Permission::cheat);
+    EXPECT_FALSE(group.canPerformCommand(GameCommand::setRideVisibility));
+    EXPECT_TRUE(group.canPerformAction(Permission::rideProperties));
+}
 
 TEST_F(NetworkTests, MapRequestWithoutPlayerDisconnectsAndDoesNotCrash)
 {

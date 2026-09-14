@@ -49,7 +49,7 @@
 // single OpenRCT2 version.
 
 // Fork-owned revision: upstream release resets must not reset this counter.
-constexpr uint8_t kStreamVersion = 9;
+constexpr uint8_t kStreamVersion = 10;
 constexpr std::string_view kNetworkProtocolFlavor = "andersonhk";
 
 const std::string kStreamID = std::string(kOpenRCT2Version) + "-" + std::string(kNetworkProtocolFlavor) + "-"

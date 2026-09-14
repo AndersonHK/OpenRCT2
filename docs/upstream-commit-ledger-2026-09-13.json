@@ -14173,7 +14173,9 @@
       ],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "7393218a28bf01df37f7fae2ea165cc80b02e9f4"
+      ],
       "verification_evidence": [
         "Reviewed the complete source and fork diffs; the mouse-input body delta exactly matches source. Existing lookup/preparation/invalidation ownership is unchanged. Receipt whitespace and exact-one ancestry gates apply."
       ],
@@ -14214,9 +14216,11 @@
       "note": "Add permission coverage for ride visibility action; verify denied and allowed users.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Reviewed all three source patches and actual NetworkActions/NetworkGroup lookup gates. New test verifies deny/default/ride-properties-only, grant cheat, existing cheat/date/freeze-rating permissions and revoke. B34 first-attempt Release x64 MSVC/Vulkan build passed 0 warnings/errors in14.77 seconds; all16 network/scripting/widget tests passed in0.836 seconds. U183-U184 compile/test debt cleared."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -14226,7 +14230,10 @@
       "merge_conflict_paths": [
         "src/openrct2/network/NetworkBase.cpp"
       ],
-      "verification_gate": "P7"
+      "verification_gate": "P7",
+      "port_commit_locator": "Upstream-Commit: 27a9d4b3d5e8488601e9d78daea56b64a3070221",
+      "implementation_decisions": "Adopt upstream authorization fix: existing cheat-authorized groups can now show/hide rides; ordinary rideProperties permission alone remains insufficient. No new permission bit, group schema, single-player behavior or fork UI move. Preserve andersonhk stream flavor and apply +1 rather than copying upstream revision4; resulting stream0.5.4-andersonhk-10, API118/save60016.",
+      "pending_validation": "Live multiplayer visibility action, interactive hover rendering and native non-Windows remain unverified; standing migration validation debt retained."
     },
     {
       "sha": "11547e998a4f0e6c3f2b0c05018b53ab6a024e41",
@@ -27070,8 +27077,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 183,
-    "remaining_after_receipt": 178,
+    "accounted_in_this_tree": 184,
+    "remaining_after_receipt": 177,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
