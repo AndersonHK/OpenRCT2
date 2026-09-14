@@ -25889,7 +25889,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "history receipt",
-      "port_commits": [],
+      "port_commits": [
+        "a47eaf2fcbccc566267a6f271e7a57534232b00e"
+      ],
       "verification_evidence": [
         "Inspected source diff; complete source-to-HEAD file diff is empty; B91 verified all three water-load forms."
       ],
@@ -25929,9 +25931,11 @@
         "D07"
       ],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected source and fork complete ApplyNetworkMode, Widget default argument and provenance. Source code unchanged, already covered by B90 full suite/build."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -25939,7 +25943,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P5"
+      "verification_gate": "P5",
+      "port_commit_locator": "Upstream-Commit: c25762467a5b44141a73ebc01307703531b4f1e1",
+      "implementation_decisions": "D07: existing switch matches upstream restrictions; default setHidden equals true. Keep the fork applying restrictions after settings/editor visibility instead of restoring the source early editor return. Preserve local speed/turbo handlers and fork toolbar sizing fixes.",
+      "pending_validation": "None."
     },
     {
       "sha": "255928221c7d4e72d1b8fda1ef7e7f53be4b3612",
@@ -28106,8 +28113,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 331,
-    "remaining_after_receipt": 30,
+    "accounted_in_this_tree": 332,
+    "remaining_after_receipt": 29,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

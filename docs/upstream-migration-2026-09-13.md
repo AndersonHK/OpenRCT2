@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 331 / 361 source commits recorded
+## Progress: 332 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3659,10 +3659,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U331 — `3fb24b8963` — Fix references to LoadPalette in ScObjectManager.cpp (#27105)
 
 - **Source:** `3fb24b8963f388944986aafc034710b02c0a0efe`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `a47eaf2fcbccc566267a6f271e7a57534232b00e`.
 - **Remaining:** 31 → 30.
 - **Disposition:** history receipt.
 - **Manual changes:** Reconciled the palette-header and LoadPalette qualification correction already applied in U329.
 - **Additional decisions / behavior:** Complete ScObjectManager.cpp matches source after the U329 adaptation; no duplicate change needed.
 - **Verification:** Inspected source diff; complete source-to-HEAD file diff is empty; B91 verified all three water-load forms.
+- **Pending / concerns:** None.
+
+### U332 — `c25762467a` — Fix #27093: Pause and fast forward buttons are shown in multiplayer
+
+- **Source:** `c25762467a5b44141a73ebc01307703531b4f1e1`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 30 → 29.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Recorded the multiplayer toolbar restrictions already present in the fork and added the changelog.
+- **Additional decisions / behavior:** D07: existing switch matches upstream restrictions; default setHidden equals true. Keep the fork applying restrictions after settings/editor visibility instead of restoring the source early editor return. Preserve local speed/turbo handlers and fork toolbar sizing fixes.
+- **Verification:** Inspected source and fork complete ApplyNetworkMode, Widget default argument and provenance. Source code unchanged, already covered by B90 full suite/build.
 - **Pending / concerns:** None.
