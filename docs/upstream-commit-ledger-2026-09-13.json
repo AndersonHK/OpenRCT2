@@ -10711,7 +10711,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "49df23eafd03e1acc90f9e8bca399f1d4d4a80d6"
+      ],
       "verification_evidence": [
         "Inspected all three source file deltas and fork adaptations; static count assertion retained; whitespace check passed."
       ],
@@ -10759,9 +10761,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected complete four-file source patch and fork delta; all callers updated and whitespace check passed."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -10773,7 +10777,10 @@
         "src/openrct2/ride/CarEntry.h",
         "src/openrct2/scripting/bindings/object/ScObject.hpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 24869300dfeb6d5f80587e3dfb5c934198eeccf2",
+      "implementation_decisions": "Internal method naming only; spritePrecision comparison and rendering/object/script behavior remain identical.",
+      "pending_validation": "Compile with the next coherent batch."
     },
     {
       "sha": "bd935d75c947eba5c4620e96cd978c25c9484468",
@@ -26804,8 +26811,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 145,
-    "remaining_after_receipt": 216,
+    "accounted_in_this_tree": 146,
+    "remaining_after_receipt": 215,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

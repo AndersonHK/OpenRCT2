@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 145 / 361 source commits recorded
+## Progress: 146 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1613,10 +1613,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U145 — `a629158a4b` — Rename SpriteGroupNames to kSpriteGroupNames
 
 - **Source:** `a629158a4bbe87b89b8d16f86e218ab23e0d8a24`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `49df23eafd03e1acc90f9e8bca399f1d4d4a80d6`.
 - **Remaining:** 217 → 216.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Rename SpriteGroupNames to kSpriteGroupNames in the definition and both JSON/scripting callers; retain all 40 group strings and order.
 - **Additional decisions / behavior:** Pure internal constant rename; JSON keys and scripting property names unchanged.
 - **Verification:** Inspected all three source file deltas and fork adaptations; static count assertion retained; whitespace check passed.
+- **Pending / concerns:** Compile with the next coherent batch.
+
+### U146 — `24869300df` — Rename VehicleSpriteGroup member function to adhere to code style
+
+- **Source:** `24869300dfeb6d5f80587e3dfb5c934198eeccf2`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 216 → 215.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Rename VehicleSpriteGroup.Enabled to isEnabled and update all three call sites.
+- **Additional decisions / behavior:** Internal method naming only; spritePrecision comparison and rendering/object/script behavior remain identical.
+- **Verification:** Inspected complete four-file source patch and fork delta; all callers updated and whitespace check passed.
 - **Pending / concerns:** Compile with the next coherent batch.
