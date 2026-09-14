@@ -16874,7 +16874,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "acb63fa878d6b280283453ce5d4b42d4ac22d4a8"
+      ],
       "verification_evidence": [
         "Full source/reference search and inverse-transform equality check passed."
       ],
@@ -16911,9 +16913,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Full source and repository references inspected; exact inverse-transform equality passed."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -16921,7 +16925,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: d611a7d560d7f50ff7bccc85c2fdcd2d88dd0e27",
+      "implementation_decisions": "Preserve radius one tile and all selection behavior; no expansion of what scenery is saved.",
+      "pending_validation": "U229–U234 compile at next checkpoint."
     },
     {
       "sha": "19e2404ac26d767628db75f4d65de3b22b33c4d1",
@@ -27420,8 +27427,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 233,
-    "remaining_after_receipt": 128,
+    "accounted_in_this_tree": 234,
+    "remaining_after_receipt": 127,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
