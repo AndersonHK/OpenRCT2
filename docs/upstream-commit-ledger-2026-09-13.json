@@ -5099,7 +5099,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt naming only",
-      "port_commits": [],
+      "port_commits": [
+        "d5cd7af071fd8b09c16488258871748806ebb7e0"
+      ],
       "verification_evidence": [
         "Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt."
       ],
@@ -5153,9 +5155,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt naming only",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -5167,7 +5171,10 @@
         "src/openrct2/park/ParkFile.cpp",
         "src/openrct2/scripting/bindings/object/ScObject.hpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 9bd1e0c858d9ae70bc700835c5245b7e121cd1cf",
+      "implementation_decisions": "Object generation names only. Preserve DAT=0/JSON=1 wire values, JSON/DAT precedence, save version 60016 and fork network stream revision 4. No change to authoritative sibling objects source.",
+      "pending_validation": "Compile at next coherent naming batch checkpoint."
     },
     {
       "sha": "76e75e687f36f9f2a325b147500af2b8e6e14f95",
@@ -26391,8 +26398,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 86,
-    "remaining_after_receipt": 275,
+    "accounted_in_this_tree": 87,
+    "remaining_after_receipt": 274,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

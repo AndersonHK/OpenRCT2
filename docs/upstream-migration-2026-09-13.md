@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 86 / 361 source commits recorded
+## Progress: 87 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -964,10 +964,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U086 — `53f5a41a74` — Rename members of MusicNiceFactor
 
 - **Source:** `53f5a41a74c3b746fad60b0b0b3e8172feb85173`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `d5cd7af071fd8b09c16488258871748806ebb7e0`.
 - **Remaining:** 276 → 275.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename MusicNiceFactor members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Music niceness names only. Preserve -1/0/1 values and guest nearby-music masks 1/2; retain fork spatial music implementation and guest happiness policy.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U087 — `9bd1e0c858` — Rename members of ObjectGeneration
+
+- **Source:** `9bd1e0c858d9ae70bc700835c5245b7e121cd1cf`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 275 → 274.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename ObjectGeneration members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Object generation names only. Preserve DAT=0/JSON=1 wire values, JSON/DAT precedence, save version 60016 and fork network stream revision 4. No change to authoritative sibling objects source.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
