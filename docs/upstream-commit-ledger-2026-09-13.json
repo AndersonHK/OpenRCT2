@@ -21504,7 +21504,9 @@
       "decisions": [],
       "review_level": "targeted-code-review",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "162be4d5093c8cea2cf6cc50c2fa49cb7d56621f"
+      ],
       "verification_evidence": [
         "B76: final solution 11.30 seconds zero warnings/errors; 51 scripting/GPU foundation tests pass in 1.795 seconds; four actual software pixel paths verified."
       ],
@@ -21565,9 +21567,11 @@
       "note": "Single-parent localisation update; use final target blobs after English ID reconciliation.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Read all 50 deletions. Each removed line verified present exactly once per file; whitespace check passed."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -21575,7 +21579,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P1"
+      "verification_gate": "P1",
+      "port_commit_locator": "Upstream-Commit: f1faf90ed4fe5849f7a9fe07a0afbc8eb3a1ca9e",
+      "implementation_decisions": "Only IDs 824 and 6164 removed, matching U294 English/API removal; no renumbering, other translation or fork-string changes.",
+      "pending_validation": "Parser check at next coherent checkpoint; no native rendering change beyond U294."
     },
     {
       "sha": "4a081c584c22f411cdf6ff80a387d2ef15327501",
@@ -27868,8 +27875,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 297,
-    "remaining_after_receipt": 64,
+    "accounted_in_this_tree": 298,
+    "remaining_after_receipt": 63,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
