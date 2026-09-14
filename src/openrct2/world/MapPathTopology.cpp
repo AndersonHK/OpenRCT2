@@ -139,7 +139,7 @@ namespace OpenRCT2::MapPathTopology
                 if (tileElement->isGhost())
                     continue;
 
-                edges &= tileElement->asBanner()->GetAllowedEdges();
+                edges &= tileElement->asBanner()->getAllowedEdges();
             } while (!tileElement->isLastForTile());
 
             return edges;

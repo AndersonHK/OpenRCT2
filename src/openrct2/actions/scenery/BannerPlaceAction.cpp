@@ -149,9 +149,9 @@ namespace OpenRCT2::GameActions
         auto* bannerElement = InsertTileElement<BannerElement>(
             { _loc, _loc.z + (2 * kCoordsZStep) }, 0b0000, [&](BannerElement& bannerElement) {
                 bannerElement.setClearanceZ(_loc.z + kPathClearance);
-                bannerElement.SetPosition(_loc.direction);
-                bannerElement.ResetAllowedEdges();
-                bannerElement.SetIndex(banner->id);
+                bannerElement.setPosition(_loc.direction);
+                bannerElement.resetAllowedEdges();
+                bannerElement.setIndex(banner->id);
                 bannerElement.setGhost(GetFlags().has(CommandFlag::ghost));
             });
         Guard::Assert(bannerElement != nullptr);

@@ -197,7 +197,7 @@ namespace OpenRCT2::PathFinding
         {
             do
             {
-                edges &= bannerElement->asBanner()->GetAllowedEdges();
+                edges &= bannerElement->asBanner()->getAllowedEdges();
             } while ((bannerElement = GetBannerOnPath(bannerElement)) != nullptr);
         }
         return edges;

@@ -77,7 +77,7 @@ protected:
         auto* banner = InsertTileElement<BannerElement>(
             { tile.ToCoordsXY(), baseZ * kCoordsZStep }, 0, [&](BannerElement& banner) {
                 banner.setClearanceZ((baseZ + 2) * kCoordsZStep);
-                banner.SetAllowedEdges(allowedEdges);
+                banner.setAllowedEdges(allowedEdges);
                 banner.setGhost(false);
             });
         if (banner == nullptr)
@@ -499,7 +499,7 @@ TEST_F(MapPathTopologyTest, SharedRouteFieldsRespectDirectedEdgesInvalidateAndIg
     ASSERT_TRUE(reordered.has_value());
     EXPECT_EQ(reordered->direction, first->direction);
 
-    banner->SetAllowedEdges(1 << south);
+    banner->setAllowedEdges(1 << south);
     MapTopology::InvalidateTileAndNeighbours(start);
     EXPECT_FALSE(MapPathRouteCache::IsPreparedForCurrentTopology());
     EXPECT_FALSE(MapPathRouteCache::GetNextStep(target, { start, 10 }).has_value());

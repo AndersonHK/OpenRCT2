@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 155 / 361 source commits recorded
+## Progress: 156 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1723,10 +1723,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U155 — `ac2515d483` — Make TileElement.h adhere to code style
 
 - **Source:** `ac2515d483bb4e7f3d7e09cdce79a44653f1722e`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `f420db6abd56fcaf88923b65611cf8eeb7ecf181`.
 - **Remaining:** 207 → 206.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Rename eight TileElement members/helpers across 24 fork files, including Map.h insertion, copied-element banner cleanup, script replacement and test callers; retain derived-element accessors until their own source commits.
 - **Additional decisions / behavior:** Naming only: 16-byte tile layout and padding widths/serialization unchanged. Preserve fork safe erase then copied-banner cleanup order, topology ownership and script replacement guards. Do not restore legacy raw pointer traversal.
 - **Verification:** Complete 20-file source delta and all 24 fork body token streams verified against eight reviewed identifier mappings; scoped mixed accessors checked. Whitespace check passed. Batch 27 cleared U150-U154 with clean build and 147 tests.
 - **Pending / concerns:** Tile-element naming compile/tests pending with following related commits; Batch 27 does not validate U155.
+
+### U156 — `be98df4081` — Make BannerElement.h adhere to code style
+
+- **Source:** `be98df4081f86c41453fb3e8f81f2b6b3cc1cc9a`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 206 → 205.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Rename 11 BannerElement fields/methods in 25 fork files, including MapPathTopology and its direct banner fixtures.
+- **Additional decisions / behavior:** Preserve the four-bit allowed-edge mask, ghost exclusion, banner identity, safe removal, and object lookup. Keep legacy RCT12 source accessors and global GetBanner unchanged; only modern destinations change.
+- **Verification:** Complete 23-file source delta reviewed and source/fork token comparisons permit only the 11 reviewed names. Remaining uppercase allowed-edge uses confined to RCT12 and legacy importer source reads. Whitespace check passed.
+- **Pending / concerns:** Compile and targeted tile/import/topology tests pending with following element renames.

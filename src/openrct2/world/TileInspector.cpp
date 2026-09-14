@@ -274,10 +274,10 @@ namespace OpenRCT2::TileInspector
                     break;
                 case TileElementType::banner:
                 {
-                    uint8_t unblockedEdges = tileElement->asBanner()->GetAllowedEdges();
+                    uint8_t unblockedEdges = tileElement->asBanner()->getAllowedEdges();
                     unblockedEdges = (unblockedEdges << 1 | unblockedEdges >> 3) & 0xF;
-                    tileElement->asBanner()->SetAllowedEdges(unblockedEdges);
-                    tileElement->asBanner()->SetPosition((tileElement->asBanner()->GetPosition() + 1) & 3);
+                    tileElement->asBanner()->setAllowedEdges(unblockedEdges);
+                    tileElement->asBanner()->setPosition((tileElement->asBanner()->getPosition() + 1) & 3);
                     break;
                 }
                 case TileElementType::surface:
@@ -965,9 +965,9 @@ namespace OpenRCT2::TileInspector
 
         if (isExecuting)
         {
-            uint8_t edges = bannerElement->asBanner()->GetAllowedEdges();
+            uint8_t edges = bannerElement->asBanner()->getAllowedEdges();
             edges ^= (1 << edgeIndex);
-            bannerElement->asBanner()->SetAllowedEdges(edges);
+            bannerElement->asBanner()->setAllowedEdges(edges);
             if (!bannerElement->isGhost())
             {
                 MapTopology::InvalidateTileAndNeighbours(loc);

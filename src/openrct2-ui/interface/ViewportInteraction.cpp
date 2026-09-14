@@ -407,7 +407,7 @@ namespace OpenRCT2::Ui
                 auto* wallEntry = tileElement->asWall()->GetEntry();
                 if (wallEntry->scrolling_mode != kScrollingModeNone)
                 {
-                    auto banner = tileElement->asWall()->GetBanner();
+                    auto banner = tileElement->asWall()->getBanner();
                     if (banner != nullptr)
                     {
                         auto ft = Formatter();
@@ -426,7 +426,7 @@ namespace OpenRCT2::Ui
                 auto* sceneryEntry = tileElement->asLargeScenery()->GetEntry();
                 if (sceneryEntry->scrolling_mode != kScrollingModeNone)
                 {
-                    auto banner = tileElement->asLargeScenery()->GetBanner();
+                    auto banner = tileElement->asLargeScenery()->getBanner();
                     if (banner != nullptr)
                     {
                         auto ft = Formatter();
@@ -442,7 +442,7 @@ namespace OpenRCT2::Ui
             }
             case ViewportInteractionItem::banner:
             {
-                auto banner = tileElement->asBanner()->GetBanner();
+                auto banner = tileElement->asBanner()->getBanner();
                 if (banner != nullptr)
                 {
                     auto* bannerEntry = ObjectEntryManager::GetObjectEntry<BannerSceneryEntry>(banner->type);
@@ -605,7 +605,7 @@ namespace OpenRCT2::Ui
                 ViewportInteractionRemoveLargeScenery(*info.Element->asLargeScenery(), info.Loc);
                 break;
             case ViewportInteractionItem::banner:
-                ContextOpenDetailWindow(WindowDetail::banner, info.Element->asBanner()->GetIndex().ToUnderlying());
+                ContextOpenDetailWindow(WindowDetail::banner, info.Element->asBanner()->getIndex().ToUnderlying());
                 break;
         }
 
