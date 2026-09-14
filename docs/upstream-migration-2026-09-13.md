@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 239 / 361 source commits recorded
+## Progress: 240 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2647,10 +2647,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U239 — `99b16bc638` — Merge pull request #26979 from Gymnasiast/refactor/track-design-preview-map-size
 
 - **Source:** `99b16bc638b5d075bb4b42bcdf1b2d6b48080a99`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `bca5e50b2c86b79a529754247d2c6cfdbbc35f3b`.
 - **Remaining:** 123 → 122.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** History receipt for #26979; record B51 checkpoint for the preceding constant-renaming batch.
 - **Additional decisions / behavior:** No merge resolution or behavioral delta. All numerical values and fork implementations preserved.
 - **Verification:** Empty remerge diff; tree identical to reviewed second parent. B51 complete solution build 31.70s zero warnings/errors; 80 tests/eight suites pass in 10.646s. U229–U238 compile debt cleared.
 - **Pending / concerns:** Consolidated interactive/live MP/replay/non-Windows checks remain; no new owner decision.
+
+### U240 — `d414239d5b` — Fix #18197: Track Designs Manager does not autoload scenery
+
+- **Source:** `d414239d5b5a25c312988e91dac976490c6c3f14`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 122 → 121.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Autoload mapped normal/queue surfaces and railings for legacy official paths, load the design station object, and allow custom legacy paths without a separate railing object.
+- **Additional decisions / behavior:** Use existing configured ObjectManager/repository lookups for every asset, preserving our objects fork. Official mapping uses the existing legacy-name mapping table; unmapped custom DAT paths retain normal loading. Existing transient unload, manager-only trigger, temporary-map restoration and fallback surface rules remain.
+- **Verification:** Full source and current loader/fallback/preview ownership inspected; ObjectManager overloads resolve through the configured repository. Only source loader/secondary-index delta and changelog applied.
+- **Pending / concerns:** Compile with next related object-manager checkpoint; actual design previews and custom-DAT/queue/station combinations remain runtime checks.
