@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 26 / 361 source commits recorded
+## Progress: 27 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -304,10 +304,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U026 — `e80faf5606` — Rename members of TunnelSubType
 
 - **Source:** `e80faf5606b59b47b242fec9a5af562baafd64a2`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `5601a0cb564e283023d1c715467ed9643de1a8e6`.
 - **Remaining:** 336 → 335.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename TunnelSubType members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Keep all five numeric tunnel subtype values 0-4, painter heights and fork track support/layout calculations. Large track-paint diff is strictly a symbol rename, not tunnel geometry changes.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U027 — `abbbb251ee` — Rename members of CarEntryAnimation
+
+- **Source:** `abbbb251eeafe49454a43fa2fc7a25c821ab2039`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 335 → 334.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename CarEntryAnimation members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Keep animation dispatch order, frame/rate parameters and JSON lookup keys (including capitalized MultiDimension) unchanged. Preserve fork vehicle and restraint implementations.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
