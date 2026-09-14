@@ -14109,7 +14109,9 @@
       "decisions": [],
       "review_level": "remerge-probe",
       "implementation_status": "history receipt",
-      "port_commits": [],
+      "port_commits": [
+        "73751da44addb22c52b958688b42d3480ceb0077"
+      ],
       "verification_evidence": [
         "Reviewed merge parents, empty actual cached remerge diff and the four second-parent delta files. U173-U181 ports and B31-B33 checks cover both constituent branches. Singleton ancestry gate accounts for exactly one source commit."
       ],
@@ -14170,9 +14172,11 @@
         "D07"
       ],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Reviewed the complete source and fork diffs; the mouse-input body delta exactly matches source. Existing lookup/preparation/invalidation ownership is unchanged. Receipt whitespace and exact-one ancestry gates apply."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -14180,7 +14184,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P5"
+      "verification_gate": "P5",
+      "port_commit_locator": "Upstream-Commit: 95b54aa4f3ad66c2d1e906e64aea5af695e09244",
+      "implementation_decisions": "Adopt redraw correction. hiddenButton is a widget type, distinct from the visibility flag; the change requests redraw when hover changes and does not expose hidden controls, change click permissions or alter simulation. Retain fork drawing publication and prior toolbar visibility policies.",
+      "pending_validation": "B34 build and widget/network regressions pending with the next permission fix; interactive bottom-panel hover redraw remains unverified."
     },
     {
       "sha": "27a9d4b3d5e8488601e9d78daea56b64a3070221",
@@ -27063,8 +27070,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 182,
-    "remaining_after_receipt": 179,
+    "accounted_in_this_tree": 183,
+    "remaining_after_receipt": 178,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

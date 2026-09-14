@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 182 / 361 source commits recorded
+## Progress: 183 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2020,10 +2020,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U182 — `3937aaa967` — Merge pull request #26917 from Gymnasiast/refactor/more-enums
 
 - **Source:** `3937aaa967de8c61dccca1ee0b1f999c43d35230`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `73751da44addb22c52b958688b42d3480ceb0077`.
 - **Remaining:** 180 → 179.
 - **Disposition:** history receipt.
 - **Manual changes:** History receipt for the entrance/private-flag/indestructibility merge. No remerge-resolution delta; second-parent delta consists only of the U171 save/marketing/button-height changes and U172 Dutch string already ported.
 - **Additional decisions / behavior:** No new behavior or decision. Preserve all manually adapted fork implementations and source-by-source dispositions.
 - **Verification:** Reviewed merge parents, empty actual cached remerge diff and the four second-parent delta files. U173-U181 ports and B31-B33 checks cover both constituent branches. Singleton ancestry gate accounts for exactly one source commit.
 - **Pending / concerns:** Existing interactive, non-Windows and multiplayer/replay debt remains; no new integration debt.
+
+### U183 — `95b54aa4f3` — Fix bottom toolbar button invalidation (#26921)
+
+- **Source:** `95b54aa4f3ad66c2d1e906e64aea5af695e09244`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 179 → 178.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Include hiddenButton widgets in hover invalidation alongside flatBtn widgets, and add the corresponding bottom-panel changelog entry.
+- **Additional decisions / behavior:** Adopt redraw correction. hiddenButton is a widget type, distinct from the visibility flag; the change requests redraw when hover changes and does not expose hidden controls, change click permissions or alter simulation. Retain fork drawing publication and prior toolbar visibility policies.
+- **Verification:** Reviewed the complete source and fork diffs; the mouse-input body delta exactly matches source. Existing lookup/preparation/invalidation ownership is unchanged. Receipt whitespace and exact-one ancestry gates apply.
+- **Pending / concerns:** B34 build and widget/network regressions pending with the next permission fix; interactive bottom-panel hover redraw remains unverified.
