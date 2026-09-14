@@ -14709,7 +14709,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "611589b1fb94a1e9bf62b2c2a3de88b127db4c38"
+      ],
       "verification_evidence": [
         "B37 initial and final Release/Vulkan builds pass, 0 warnings/errors, 22.53s and 10.42s. All 23 selected tests in five suites pass, 1.448s. Real plugin catches oversized/bad PNGs, retains previous image, has stable live-object count after 32 repeated errors and successfully uploads again; portable PNG/import errors and unchanged logo hash pass. U190-U192 compile/test debt cleared."
       ],
@@ -14754,9 +14756,11 @@
       "note": "Keep deterministic ScenarioRandMax separate from UI UtilRand; preserve fork timing at colour-cycle call sites.",
       "decisions": [],
       "review_level": "targeted-code-review",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "All source hunks inspected. audit_u193.py expands each helper and proves all four caller files retain previous expressions modulo whitespace; Colour.h/cpp exactly match this reviewed source. Diff check passes."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -14767,7 +14771,10 @@
         "src/openrct2-ui/windows/Ride.cpp",
         "src/openrct2/entity/Guest.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: af352f18ef113f77af6f6f8880168c15215804a3",
+      "implementation_decisions": "Keep deterministic ScenarioRandMax for guest merchandise/cheat colours, UtilRand for UI and intentional console desync, and the existing 32-tick shop preview cycle. At fork 40 TPS this remains 0.8s per colour; do not silently retime it. Same RNG draws, limits and invocation order; no gameplay or protocol change.",
+      "pending_validation": "Compile/gameplay checks due at next batch; standing interactive/network/non-Windows validation remains."
     },
     {
       "sha": "8ebe3965a2f1e2540f8882a1d67e7b66f5470195",
@@ -27133,8 +27140,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 192,
-    "remaining_after_receipt": 169,
+    "accounted_in_this_tree": 193,
+    "remaining_after_receipt": 168,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
