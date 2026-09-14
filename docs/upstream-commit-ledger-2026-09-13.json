@@ -4470,7 +4470,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt naming only",
-      "port_commits": [],
+      "port_commits": [
+        "01463a05f289d3d7df8b2ff547b4fc027c866c0c"
+      ],
       "verification_evidence": [
         "Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt."
       ],
@@ -4507,9 +4509,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt naming only",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -4517,7 +4521,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 0c4322a98297de1b4edfaf7343b8651cd418f61f",
+      "implementation_decisions": "Scope ResizeDirection to MapGen; preserve size bounds, technical-versus-practical size offset of two, linked width/height and generator settings. No map-generation output or random-seed change.",
+      "pending_validation": "Compile at next coherent naming batch checkpoint."
     },
     {
       "sha": "c166b42a67a58492dbef5d2cfc32ad75c2e61534",
@@ -26293,8 +26300,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 72,
-    "remaining_after_receipt": 289,
+    "accounted_in_this_tree": 73,
+    "remaining_after_receipt": 288,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

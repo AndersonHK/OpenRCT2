@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 72 / 361 source commits recorded
+## Progress: 73 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -810,10 +810,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U072 — `546cd2dab6` — Rename members of ResizeDirection
 
 - **Source:** `546cd2dab65d44aeadb3fc07a93e4cef7561f77b`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `01463a05f289d3d7df8b2ff547b4fc027c866c0c`.
 - **Remaining:** 290 → 289.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename ResizeDirection members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Scope ResizeDirection to the map window only; MapGen has a separate enum handled by U073. Preserve both/x/y values, linked-axis selection, size clamps and MapChangeSizeAction arguments. No map resizing or land-loss policy change.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U073 — `0c4322a982` — Rename members of ResizeDirection
+
+- **Source:** `0c4322a98297de1b4edfaf7343b8651cd418f61f`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 289 → 288.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename ResizeDirection members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Scope ResizeDirection to MapGen; preserve size bounds, technical-versus-practical size offset of two, linked width/height and generator settings. No map-generation output or random-seed change.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
