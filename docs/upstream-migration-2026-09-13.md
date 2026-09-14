@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 124 / 361 source commits recorded
+## Progress: 125 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1382,10 +1382,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U124 — `5a814722e1` — Add Walls-only and Footpath Addition modes to Clear Scenery (#26877)
 
 - **Source:** `5a814722e136db8fc168f06a4794f29c88ca31b9`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `68226604c5923eb5429ff7cfe3ab27a42040f7f8`.
 - **Remaining:** 238 → 237.
 - **Disposition:** adopt approved D10 with fork protocol adaptation.
 - **Manual changes:** Add separate walls and path-addition clear modes, icons/tooltips, API-117 mask documentation and UI controls; implement through existing nested removal actions. Add 32-mask serialization/query/execute regression.
 - **Additional decisions / behavior:** D10 approved: bit 1 now small scenery only, walls bit 8, additions bit 16; UI defaults keep small scenery plus walls, no old-plugin shim. No tracked script callers and no installed JS/TS plugins found; embedded park scripts not scanned. Advance independent fork stream 4 to 5 rather than upstream 0 to 1. New label 7040 leaves fork IDs 8000-8041 intact. Preserve erasure-restart traversal, nested permissions/costs, coordinate-based staff claims and companion object pin. Addition removal mutates a field without tile erasure or topology replacement; existing bin work rechecks addition presence.
 - **Verification:** Actual complete source diff inspected; binary icons exact source blobs. Batch 17 flag build plus 50 tests clear prior debt. Batch 18 full build 0 warnings/errors; 18 tests passed, including all 32 masks after serialization, nonmutating queries, cost agreement, adjacent wall erasure and ghosts. Whitespace/ancestry gates.
 - **Pending / concerns:** Directed active staff-claim case, positive-cost insufficient-funds combinations, embedded park scripts and interactive buttons remain explicit validation debt.
+
+### U125 — `42885ec965` — Update GitHub checkout action to v7 (#26885)
+
+- **Source:** `42885ec9659d628a842f76d45be9c9430ba1a8fb`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 237 → 236.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Update checkout action references to v7 in the three reviewed workflows.
+- **Additional decisions / behavior:** Preserve fork workflow content, repository paths, triggers, tokens and permissions; no workflow dispatched or artifacts published.
+- **Verification:** Actual source diff is version-reference substitutions only; existing job structures retained; whitespace/ancestry checks.
+- **Pending / concerns:** Hosted CI execution unverified; no local gameplay impact.
