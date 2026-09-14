@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 102 / 361 source commits recorded
+## Progress: 103 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1140,10 +1140,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U102 — `b5a92d9296` — Rename members of BoatHireSubState
 
 - **Source:** `b5a92d92968697a1645327e47d6cb33019cd3e5f`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `eb7fecd241ff327543bb7ba7dfc93add732d1046`.
 - **Remaining:** 260 → 259.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename BoatHireSubState members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Boat substate naming only: Normal becomes rowing=0, return-position state stays 1. Retain collision exemption, movement probabilities and fork vehicle motion.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U103 — `78fb8d73bb` — Rename members of ScenarioSource
+
+- **Source:** `78fb8d73bb82f78b276b55399b393b8f1fe749fb`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 259 → 258.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename ScenarioSource members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Scenario source names only: preserve ten source IDs, ordering, scenario indexing, expansion detection and script API strings such as rct1_aa. Fork park version stays 60016.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.

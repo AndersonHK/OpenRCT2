@@ -521,7 +521,7 @@ namespace OpenRCT2
                         ? ReadLegacyParkMoney64(objectiveCurrency)
                         : objectiveCurrency;
 
-                    entry.SourceGame = ScenarioSource::Other;
+                    entry.SourceGame = ScenarioSource::other;
                 });
             return entry;
         }
