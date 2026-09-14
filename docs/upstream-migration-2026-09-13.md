@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 258 / 361 source commits recorded
+## Progress: 259 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2856,10 +2856,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U258 — `7aca955172` — Extend scenario patch for Okinawa Coast to CD version
 
 - **Source:** `7aca955172a67da773c4fc79250032fa59c35e7d`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `bda14e45acab38d55e446ef334fb6097e0032469`.
 - **Remaining:** 104 → 103.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Extend existing Okinawa land-rights corrections to the CD full hash; add actual 214-tile application regression using fork normalized ownership.
 - **Additional decisions / behavior:** Approved D15: replace starting ownership on 111 land-owned, 4 rights-owned, 5 rights-for-sale, 94 land-for-sale tiles, without purchase charges. Entire ownership payload equals existing non-CD patch. No change to global ownership/price rules. B57.
 - **Verification:** Full source read; JSON comparison exact; solution build 7.17s zero warnings/errors; three scenario patch tests passed 0.383s, checking all 214 affected coordinates plus an untouched tile. B57.
 - **Pending / concerns:** Original CD scenario terrain/topology and visible fences not exercised; standing checks remain.
+
+### U259 — `f31588edfc` — Add ability to clear a ride’s name, in addition to setting it
+
+- **Source:** `f31588edfc4cb70151f84b5aa5c041de29d6a12b`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 103 → 102.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Add clear_name scenario patch operation, clearing only the addressed ride customName after checking ride existence.
+- **Additional decisions / behavior:** Adopt default-name restoration for authored hash-matched scenarios. No renumbering, type, fare or gameplay state changes; existing dry-run bypass and import-only automatic gating remain. U260 supplies the first authored use.
+- **Verification:** Full source read; direct field-only helper and operation dispatch. B58 compile/actual clear test planned with U260 data.
+- **Pending / concerns:** B58 compile/runtime clear regression and standing original-scenario/platform/MP/replay checks pending.

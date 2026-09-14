@@ -17996,7 +17996,9 @@
       ],
       "review_level": "targeted-code-review",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "bda14e45acab38d55e446ef334fb6097e0032469"
+      ],
       "verification_evidence": [
         "Full source read; JSON comparison exact; solution build 7.17s zero warnings/errors; three scenario patch tests passed 0.383s, checking all 214 affected coordinates plus an untouched tile. B57."
       ],
@@ -18035,9 +18037,11 @@
       "note": "Extend scenario patch schema for ride names, clearing and ID arrays; preserve fork topology changes and import repair.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Full source read; direct field-only helper and operation dispatch. B58 compile/actual clear test planned with U260 data."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -18047,7 +18051,10 @@
       "merge_conflict_paths": [
         "src/openrct2/rct12/ScenarioPatcher.cpp"
       ],
-      "verification_gate": "P7"
+      "verification_gate": "P7",
+      "port_commit_locator": "Upstream-Commit: f31588edfc4cb70151f84b5aa5c041de29d6a12b",
+      "implementation_decisions": "Adopt default-name restoration for authored hash-matched scenarios. No renumbering, type, fare or gameplay state changes; existing dry-run bypass and import-only automatic gating remain. U260 supplies the first authored use.",
+      "pending_validation": "B58 compile/runtime clear regression and standing original-scenario/platform/MP/replay checks pending."
     },
     {
       "sha": "5d23833cc3c82dd07466d51be842428bd49d13ee",
@@ -27595,8 +27602,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 258,
-    "remaining_after_receipt": 103,
+    "accounted_in_this_tree": 259,
+    "remaining_after_receipt": 102,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

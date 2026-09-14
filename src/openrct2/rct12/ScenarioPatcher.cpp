@@ -578,6 +578,18 @@ static void renameRide(RideId rideId, u8string_view newName)
     ride->customName = newName;
 }
 
+static void clearRideName(RideId rideId)
+{
+    auto* ride = GetRide(rideId);
+    if (ride == nullptr)
+    {
+        Guard::Assert(false, "Invalid Ride Id for clearRideName");
+        return;
+    }
+
+    ride->customName.clear();
+}
+
 static void ApplyRideFixes(const json_t& scenarioPatch)
 {
     if (!scenarioPatch.contains(_ridesKey))
@@ -635,6 +647,10 @@ static void ApplyRideFixes(const json_t& scenarioPatch)
                 Guard::Assert(false, "Need to specify a new name for ride id %d", static_cast<int>(rideId.ToUnderlying()));
             else
                 renameRide(rideId, newName);
+        }
+        else if (operation == "clear_name")
+        {
+            clearRideName(rideId);
         }
         else
         {
