@@ -13417,7 +13417,9 @@
       "decisions": [],
       "review_level": "remerge-probe",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "548433401d8b41bd8f391b52c075a8878a5673f5"
+      ],
       "verification_evidence": [
         "Reviewed source parents, empty remerge probe and first/second-parent delta scopes. B30 full Release x64 MSVC/Vulkan build passed first attempt with 0 warnings/errors in 86.73 seconds; 172 selected tests passed in 17.523 seconds plus one image import test in 0.003 seconds. Corrected a nonmatching image test filter with a separate run."
       ],
@@ -13467,9 +13469,11 @@
       "note": "Align file-browser save field; validate scaled UI.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected all three source patches and every repository use of kButtonFaceHeight, including the fork graph layout. Changes match actual source deltas; coordinate arithmetic and affected consumers reviewed. Receipt whitespace and singleton ancestry gates apply."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -13477,7 +13481,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P5"
+      "verification_gate": "P5",
+      "port_commit_locator": "Upstream-Commit: bc68828c7dd07ac51eff12e133156a2f31c43024",
+      "implementation_decisions": "Adopt all source geometry changes. Additional reviewed effects: save controls have a two-pixel larger top-to-bottom span and the scroll area reserves 21 instead of 18 pixels; marketing button span/stride each grow one pixel. The shared constant moves the preview park-name text up two pixels. In the fork five-button ride graph row, graph/button tops move up two pixels and button bottoms stay fixed; preserve the longitudinal-G button, equal widths and graph data. No pricing, marketing cost/eligibility, save format or gameplay changes.",
+      "pending_validation": "Build/widget regression at the next checkpoint; interactive file browser, marketing and five-button graph layout remain unverified."
     },
     {
       "sha": "cef7dd164ba8394ae0b7b43f961ded962e06ddb8",
@@ -26979,8 +26986,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 170,
-    "remaining_after_receipt": 191,
+    "accounted_in_this_tree": 171,
+    "remaining_after_receipt": 190,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

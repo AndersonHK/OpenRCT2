@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 170 / 361 source commits recorded
+## Progress: 171 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1888,10 +1888,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U170 — `34e8149e93` — Merge pull request #26915 from Harry-Hopkinson/remove-final-openrct2-ui-includes
 
 - **Source:** `34e8149e936a785acf9cbe3cdbf6934d222b9ac9`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `548433401d8b41bd8f391b52c075a8878a5673f5`.
 - **Remaining:** 192 → 191.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** History receipt for the final UI-includes merge; checkpoint B30 validation. The cached actual remerge diff is empty; first-parent delta consists of the U165-U169 header work and the other parent carries tile-element names already ported in U155-U163.
 - **Additional decisions / behavior:** No new behavior or unresolved merge decision. Preserve the manually ported fork tree and existing gameplay/render ownership.
 - **Verification:** Reviewed source parents, empty remerge probe and first/second-parent delta scopes. B30 full Release x64 MSVC/Vulkan build passed first attempt with 0 warnings/errors in 86.73 seconds; 172 selected tests passed in 17.523 seconds plus one image import test in 0.003 seconds. Corrected a nonmatching image test filter with a separate run.
 - **Pending / concerns:** Interactive windows, title/audio operation and native non-Windows remain unverified; standing migration validation debt retained.
+
+### U171 — `bc68828c7d` — Improve save field alignment in file browser window (#26916)
+
+- **Source:** `bc68828c7dd07ac51eff12e133156a2f31c43024`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 191 → 190.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Align save textbox and Save button using the standard button-face height, move the filename label accordingly, and adjust marketing button spacing; kButtonFaceHeight advances 12 to 14.
+- **Additional decisions / behavior:** Adopt all source geometry changes. Additional reviewed effects: save controls have a two-pixel larger top-to-bottom span and the scroll area reserves 21 instead of 18 pixels; marketing button span/stride each grow one pixel. The shared constant moves the preview park-name text up two pixels. In the fork five-button ride graph row, graph/button tops move up two pixels and button bottoms stay fixed; preserve the longitudinal-G button, equal widths and graph data. No pricing, marketing cost/eligibility, save format or gameplay changes.
+- **Verification:** Inspected all three source patches and every repository use of kButtonFaceHeight, including the fork graph layout. Changes match actual source deltas; coordinate arithmetic and affected consumers reviewed. Receipt whitespace and singleton ancestry gates apply.
+- **Pending / concerns:** Build/widget regression at the next checkpoint; interactive file browser, marketing and five-button graph layout remain unverified.
