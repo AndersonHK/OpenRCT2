@@ -4390,7 +4390,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt naming only",
-      "port_commits": [],
+      "port_commits": [
+        "ef6c6c80b82bec0f5e4e063599be4c2077550a30"
+      ],
       "verification_evidence": [
         "Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt."
       ],
@@ -4427,9 +4429,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt naming only",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt. Prior U070 checkpoint: full build and 51 selected regressions passed; batch evidence recorded."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -4437,7 +4441,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 275e6597a772858ad71294339303a397b884b796",
+      "implementation_decisions": "Preserve seven mode values, ownership visibility table, buy-versus-sandbox mode transitions, action dispatch and ownership bit mappings. Land and construction-rights prices and restrictions are unchanged.",
+      "pending_validation": "Compile at next coherent naming batch checkpoint."
     },
     {
       "sha": "546cd2dab65d44aeadb3fc07a93e4cef7561f77b",
@@ -26279,8 +26286,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 70,
-    "remaining_after_receipt": 291,
+    "accounted_in_this_tree": 71,
+    "remaining_after_receipt": 290,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

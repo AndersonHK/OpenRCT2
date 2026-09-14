@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 70 / 361 source commits recorded
+## Progress: 71 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -788,10 +788,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U070 — `95cf306886` — Rename members of GuestList::GuestFilterType
 
 - **Source:** `95cf3068869c314b2aea0cd683651e2b60e1dbbf`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `ef6c6c80b82bec0f5e4e063599be4c2077550a30`.
 - **Remaining:** 292 → 291.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename GuestFilterType members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Preserve filter values, ride and queue matching, wildcard thought arguments, labels and selection state. This is UI naming only; guest simulation and fork economics remain unchanged.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U071 — `275e6597a7` — Rename members of LandRightsMode
+
+- **Source:** `275e6597a772858ad71294339303a397b884b796`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 291 → 290.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename LandRightsMode members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Preserve seven mode values, ownership visibility table, buy-versus-sandbox mode transitions, action dispatch and ownership bit mappings. Land and construction-rights prices and restrictions are unchanged.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt. Prior U070 checkpoint: full build and 51 selected regressions passed; batch evidence recorded.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
