@@ -76,3 +76,7 @@ Full Release x64 MSVC/Vulkan build passed, 0 warnings/errors, 16.47 seconds. All
 ## Batch 11 — naming checkpoint U083
 
 Full Release x64 MSVC/Vulkan build passed. All 16 selected tests passed from `bin`: sprite details/build, failed sprite build preserving prior output, image import, scripting and widget state. Build log: `obj/upstream-audit/batch-11-import-names-build.log`; test XML: `obj/upstream-audit/batch-11-tests.xml`. This clears compilation debt through U083, including HTTP, palette and lighting identifier changes. The failed-build fixture deliberately reports an invalid PNG; profile/index writes remain restricted and emit diagnostics. Native non-Windows HTTP backends and interactive lighting remain unverified.
+
+## Batch 12 — ratings and pathfinding checkpoint U097
+
+Full Release x64 MSVC/Vulkan build passed, 0 warnings/errors, 79.27 seconds. All 149 selected tests passed from `bin` in 19.49 seconds across RideRatings, PathfindingTestBase, ParkFileMigration, EntityImportTests, TrainStationAssignment and RideVehicleStation. Logs: `obj/upstream-audit/batch-12-ratings-names-build.log`, `batch-12-ratings-names-tests.log` and matching test XML. This clears compilation debt through U097 and exercises fork ratings, transport routing, platform-guest round trips and older-save recovery. Source transforms also verified that no upstream rating coefficients, deleted maze-size bonus, or changed state ordinals were introduced. U096 removed pre-existing trailing spaces on six renamed modifier lines to pass the whitespace gate.

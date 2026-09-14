@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 97 / 361 source commits recorded
+## Progress: 98 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1085,10 +1085,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U097 — `991fc7b4a1` — Rename members of RideConstructionWindowContext
 
 - **Source:** `991fc7b4a17d606d5800b12575f12cab6133c577`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `1d39f177d825b0f544eca1ba7acbcac0e1600b1f`.
 - **Remaining:** 265 → 264.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename RideConstructionWindowContext members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Construction context names only: standard=0 and maze=1 retain window selection and fork widgets, layout fixes and operating settings.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U098 — `0d8af50f45` — Rename members of GameCommand
+
+- **Source:** `0d8af50f45b0d4dffbcae25dd5ce63afcac89947`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 264 → 263.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename GameCommand members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** GameCommand identifiers only: retain every action ID/order, script action-name string, network permission group and server pause/quit restriction. Keep setRideVisibility and fork stream revision 4; no replay/wire format change. Batch 12 full build and 149 selected regressions passed through U097.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.

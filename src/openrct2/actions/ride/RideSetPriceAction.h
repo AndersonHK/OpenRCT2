@@ -17,7 +17,7 @@ enum class RidePriceTarget : uint8_t;
 
 namespace OpenRCT2::GameActions
 {
-    class RideSetPriceAction final : public GameActionBase<GameCommand::SetRidePrice>
+    class RideSetPriceAction final : public GameActionBase<GameCommand::setRidePrice>
     {
     private:
         RideId _rideIndex{ RideId::GetNull() };
