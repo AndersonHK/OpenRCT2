@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 27 / 361 source commits recorded
+## Progress: 28 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -315,10 +315,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U027 — `abbbb251ee` — Rename members of CarEntryAnimation
 
 - **Source:** `abbbb251eeafe49454a43fa2fc7a25c821ab2039`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `1493a5714809c2421c6552968f6c42830b86e738`.
 - **Remaining:** 335 → 334.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename CarEntryAnimation members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Keep animation dispatch order, frame/rate parameters and JSON lookup keys (including capitalized MultiDimension) unchanged. Preserve fork vehicle and restraint implementations.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U028 — `47c1bf9166` — Rename members of SpriteGroupType
+
+- **Source:** `47c1bf91669e56e9dcd0d6ebc2c0f742715b98ce`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 334 → 333.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename SpriteGroupType members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Preserve sprite group ordering, numeric indices, JSON names, frame multipliers and fork presentation snapshots. Existing cable-lift table comment spellings are renamed only, not interpreted as data fixes.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
