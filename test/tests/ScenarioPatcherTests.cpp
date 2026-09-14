@@ -15,10 +15,13 @@
 #include <openrct2/PlatformEnvironment.h>
 #include <openrct2/core/FileSystem.hpp>
 #include <openrct2/core/Guard.hpp>
+#include <openrct2/core/Json.hpp>
 #include <openrct2/core/Path.hpp>
 #include <openrct2/core/String.hpp>
 #include <openrct2/rct12/ScenarioPatcher.h>
 #include <openrct2/ride/Ride.h>
+#include <openrct2/world/Map.h>
+#include <openrct2/world/tile_element/SurfaceElement.h>
 
 /* Test that all JSONs are with the expected formatting, otherwise the fetcher will abort
     NOTE: This will *not* test that it actually applies the patch, due to the scenarios
@@ -81,4 +84,39 @@ TEST(FetchAndApplyScenarioPatch, RideNameOperationPreservesRideStateAndHonoursDr
     EXPECT_EQ(ride->numCarsPerTrain, 3);
     EXPECT_EQ(ride->ratingAccumulator.ticks, 123u);
     EXPECT_EQ(ride->status, status);
+}
+
+TEST(FetchAndApplyScenarioPatch, OkinawaCdPatchAppliesApprovedStartingOwnership)
+{
+    using namespace OpenRCT2;
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    MapInit({ 128, 128 });
+    const auto untouched = MapGetSurfaceElementAt(TileCoordsXY{ 50, 50 })->getOwnership();
+    const auto directory = context->GetPlatformEnvironment().GetDirectoryPath(DirBase::openrct2, DirId::scenarioPatches);
+    const auto path = Path::Combine(directory, "b2eed35.parkpatch");
+    RCT12::SetDryRun(false);
+    RCT12::ApplyScenarioPatch(path, "b2eed35919d3992139041b68eb3fbbfa5e3fd06e2cb9058e8f50c5d9f15974bf");
+    const auto patch = Json::ReadFromFile(path);
+    const std::array expected = {
+        std::pair{ "owned", OwnershipFlag::landOwned },
+        std::pair{ "construction_rights_owned", OwnershipFlag::constructionRightsOwned },
+        std::pair{ "construction_rights_available", OwnershipFlag::constructionRightsForSale },
+        std::pair{ "available", OwnershipFlag::landForSale },
+    };
+    size_t checked = 0;
+    for (const auto& [key, flag] : expected)
+    {
+        for (const auto& coordinates : patch["land_ownership"][key]["coordinates"])
+        {
+            const TileCoordsXY tile{ coordinates[0].get<int32_t>(), coordinates[1].get<int32_t>() };
+            ASSERT_NE(MapGetSurfaceElementAt(tile), nullptr);
+            EXPECT_EQ(MapGetSurfaceElementAt(tile)->getOwnership(), OwnershipFlags{ flag });
+            checked++;
+        }
+    }
+    EXPECT_EQ(checked, 214u);
+    EXPECT_EQ(MapGetSurfaceElementAt(TileCoordsXY{ 50, 50 })->getOwnership(), untouched);
 }

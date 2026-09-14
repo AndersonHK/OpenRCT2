@@ -17952,7 +17952,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "11889e4b81555118b5f62c0ebf2419a0966804ab"
+      ],
       "verification_evidence": [
         "Full source and existing patch inspected; direct additive name operation. U254 operation test passed B56."
       ],
@@ -17993,9 +17995,11 @@
         "D15"
       ],
       "review_level": "targeted-code-review",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Full source read; JSON comparison exact; solution build 7.17s zero warnings/errors; three scenario patch tests passed 0.383s, checking all 214 affected coordinates plus an untouched tile. B57."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -18003,7 +18007,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P7"
+      "verification_gate": "P7",
+      "port_commit_locator": "Upstream-Commit: 7aca955172a67da773c4fc79250032fa59c35e7d",
+      "implementation_decisions": "Approved D15: replace starting ownership on 111 land-owned, 4 rights-owned, 5 rights-for-sale, 94 land-for-sale tiles, without purchase charges. Entire ownership payload equals existing non-CD patch. No change to global ownership/price rules. B57.",
+      "pending_validation": "Original CD scenario terrain/topology and visible fences not exercised; standing checks remain."
     },
     {
       "sha": "f31588edfc4cb70151f84b5aa5c041de29d6a12b",
@@ -27588,8 +27595,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 257,
-    "remaining_after_receipt": 104,
+    "accounted_in_this_tree": 258,
+    "remaining_after_receipt": 103,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

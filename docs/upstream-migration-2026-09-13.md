@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 257 / 361 source commits recorded
+## Progress: 258 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2845,10 +2845,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U257 — `7a6a02e35c` — Patch Alton Towers to correct spelling of ‘Hex... the Legend of the Towers’
 
 - **Source:** `7a6a02e35c89fcd67cd858cf880a922fc7418a11`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `11889e4b81555118b5f62c0ebf2419a0966804ab`.
 - **Remaining:** 105 → 104.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Extend existing Alton Towers scenario patch with ride 33 name Hex... the Legend of the Towers and update changelog.
-- **Additional decisions / behavior:** Adopt authored capitalization/spelling correction. Existing entrance swaps and open-ride operations remain unchanged; this delta only renames ride 33 for the existing full-hash match.
+- **Additional decisions / behavior:** Adopt authored capitalization/spelling correction. Existing land/path and open-ride operations remain unchanged; this delta only renames ride 33 for the existing full-hash match.
 - **Verification:** Full source and existing patch inspected; direct additive name operation. U254 operation test passed B56.
 - **Pending / concerns:** Original matching Alton Towers scenario import not exercised; standing limits remain.
+
+### U258 — `7aca955172` — Extend scenario patch for Okinawa Coast to CD version
+
+- **Source:** `7aca955172a67da773c4fc79250032fa59c35e7d`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 104 → 103.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Extend existing Okinawa land-rights corrections to the CD full hash; add actual 214-tile application regression using fork normalized ownership.
+- **Additional decisions / behavior:** Approved D15: replace starting ownership on 111 land-owned, 4 rights-owned, 5 rights-for-sale, 94 land-for-sale tiles, without purchase charges. Entire ownership payload equals existing non-CD patch. No change to global ownership/price rules. B57.
+- **Verification:** Full source read; JSON comparison exact; solution build 7.17s zero warnings/errors; three scenario patch tests passed 0.383s, checking all 214 affected coordinates plus an untouched tile. B57.
+- **Pending / concerns:** Original CD scenario terrain/topology and visible fences not exercised; standing checks remain.
