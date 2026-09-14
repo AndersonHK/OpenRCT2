@@ -10952,7 +10952,9 @@
       "decisions": [],
       "review_level": "targeted-code-review",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "74108ad686e00486e322d61a7c586310c23656a7"
+      ],
       "verification_evidence": [
         "Complete source/fork patch review; full Release x64 MSVC/Vulkan build 0 warnings/errors in 87.30 seconds; all 32 scripting/network/map topology tests passed in 1.790 seconds. Directed plugin checks payloads, completed size, single-player mutation, queries, expansion/shrink/shift/no-op and disposal."
       ],
@@ -10990,9 +10992,11 @@
       "note": "Apply platform/CI/documentation change with relevant target check; retain fork build targets and workflows.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected complete two-file source patch and unchanged fork contexts. Manifest XML parses; both activities report sensorLandscape; whitespace check passed."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -11000,7 +11004,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P8"
+      "verification_gate": "P8",
+      "port_commit_locator": "Upstream-Commit: 4e576a04ada64265e64abc4132a9ea6f06a8ebb6",
+      "implementation_decisions": "Adopt landscape-only startup and sensor-controlled landscape direction; runtime SDL portrait/resize hints no longer override the app policy. No gameplay change.",
+      "pending_validation": "Android build, launch and physical rotation checks unavailable on this Windows checkpoint."
     },
     {
       "sha": "5ca2c1845c5ef1d4a6dc79a0b980851b4bc668bc",
@@ -26825,8 +26832,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 148,
-    "remaining_after_receipt": 213,
+    "accounted_in_this_tree": 149,
+    "remaining_after_receipt": 212,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

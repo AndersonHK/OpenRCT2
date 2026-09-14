@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 148 / 361 source commits recorded
+## Progress: 149 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1646,10 +1646,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U148 — `a187bc9550` — Close #26827: Add map resize hook to scripting API (#26828)
 
 - **Source:** `a187bc95503c9f35f224046e6bf945ab6adfac39`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `74108ad686e00486e322d61a7c586310c23656a7`.
 - **Remaining:** 214 → 213.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Add API-118 map.resize subscription with targetSizeX/Y and shiftX/Y after completed resize/shift, fork topology reset, park size and UI updates. Add directed real-plugin regression.
 - **Additional decisions / behavior:** Preserve notifications on successful shift-only/no-op actions and no query notifications. Retain mutable callback semantics. Add missing ENABLE_SCRIPTING guard; advance fork protocol 6 to 7 because subscribed plugins can change simulation state. Preserve map algorithms and park format 60016.
 - **Verification:** Complete source/fork patch review; full Release x64 MSVC/Vulkan build 0 warnings/errors in 87.30 seconds; all 32 scripting/network/map topology tests passed in 1.790 seconds. Directed plugin checks payloads, completed size, single-player mutation, queries, expansion/shrink/shift/no-op and disposal.
 - **Pending / concerns:** No-scripting build, multiplayer/replay hook synchronization, callback-visible topology internals, interactive map resizing and native non-Windows builds unverified. U145-U148 compile/test debt cleared by Batch 26.
+
+### U149 — `4e576a04ad` — Fix forced portrait orientation on Android app launch (#26873)
+
+- **Source:** `4e576a04ada64265e64abc4132a9ea6f06a8ebb6`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 213 → 212.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Set Android launcher and game activities to sensorLandscape and remove SDL orientation-hint overrides, leaving the manifest to own orientation.
+- **Additional decisions / behavior:** Adopt landscape-only startup and sensor-controlled landscape direction; runtime SDL portrait/resize hints no longer override the app policy. No gameplay change.
+- **Verification:** Inspected complete two-file source patch and unchanged fork contexts. Manifest XML parses; both activities report sensorLandscape; whitespace check passed.
+- **Pending / concerns:** Android build, launch and physical rotation checks unavailable on this Windows checkpoint.
