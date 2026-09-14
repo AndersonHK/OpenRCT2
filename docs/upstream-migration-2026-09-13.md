@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 327 / 361 source commits recorded
+## Progress: 328 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3615,10 +3615,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U327 — `bcf80e292e` — Fix 'update available' widget position (#27091)
 
 - **Source:** `bcf80e292e76d1f05fe12e745d1d7a1754f8f390`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `db6f9bb587856b26de759979876363c29e5f92a3`.
 - **Remaining:** 35 → 34.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Recorded the update-widget position fix already present in the fork and added its changelog entry.
 - **Additional decisions / behavior:** TitleMenu already uses update button origin0,0; upstream differs only in alignment whitespace. Preserve existing equivalent implementation, with no duplicate UI change.
 - **Verification:** Inspected source diff and complete TitleMenu delta: existing fork0,0 is exactly the corrected behavior. Covered by B90 full build/suite; no source changed here.
+- **Pending / concerns:** None.
+
+### U328 — `bb11851664` — Merge Localisation/master into OpenRCT2/develop
+
+- **Source:** `bb118516646347d73e7eb0d30de9eef2f5b16043`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 34 → 33.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Ported the Spanish localisation update.
+- **Additional decisions / behavior:** Translation text only; preserve fork English IDs and behavior.
+- **Verification:** Inspected every source language hunk and applied corresponding entries.
 - **Pending / concerns:** None.

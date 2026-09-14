@@ -25728,7 +25728,9 @@
       ],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "db6f9bb587856b26de759979876363c29e5f92a3"
+      ],
       "verification_evidence": [
         "Inspected source diff and complete TitleMenu delta: existing fork0,0 is exactly the corrected behavior. Covered by B90 full build/suite; no source changed here."
       ],
@@ -25765,9 +25767,11 @@
       "note": "Single-parent localisation update; use final target blobs after English ID reconciliation.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected every source language hunk and applied corresponding entries."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -25775,7 +25779,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P1"
+      "verification_gate": "P1",
+      "port_commit_locator": "Upstream-Commit: bb118516646347d73e7eb0d30de9eef2f5b16043",
+      "implementation_decisions": "Translation text only; preserve fork English IDs and behavior.",
+      "pending_validation": "None."
     },
     {
       "sha": "7164b12fd693267d3cfe0c21e681d64158b3c682",
@@ -28078,8 +28085,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 327,
-    "remaining_after_receipt": 34,
+    "accounted_in_this_tree": 328,
+    "remaining_after_receipt": 33,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
