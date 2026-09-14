@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 51 / 361 source commits recorded
+## Progress: 52 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -579,10 +579,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U051 — `687fa7181d` — Merge Localisation/master into OpenRCT2/develop
 
 - **Source:** `687fa7181df6747d544930250d6272f1deccd58b`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `4486080d551c9da282583368b1c3521f2ec8e4c0`.
 - **Remaining:** 311 → 310.
 - **Disposition:** ported.
 - **Manual changes:** Add French/Hungarian ride-type labels and Hungarian wording/token corrections.
 - **Additional decisions / behavior:** Adopt all text corrections including malformed sausage-value thought opening quote; preserve valid STRINGID/STRING and formatting placeholders. The lost/stuck guest message changes wording only, with no pathfinding or thought-generation changes.
 - **Verification:** Inspected every source hunk and checked unique 7039 IDs plus removal of the malformed token. Source/diff and exact-one ancestry checked.
 - **Pending / concerns:** Parser tests at the next enum-refactor checkpoint.
+
+### U052 — `e103cb11bb` — Rename members of DrawingEngine
+
+- **Source:** `e103cb11bb7e116bbd48d7bf01c7a8163391b148`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 310 → 309.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename DrawingEngine members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Preserve the fork renderer set and config contract: none=-1, software=0, vulkan=2, count=3; do not reintroduce retired OpenGL. Include the fork-only Vulkan enum spelling and CLI/options/config references in the naming change. Keep persisted SOFTWARE_HWD, OPENGL legacy-to-software alias and VULKAN strings unchanged. Vulkan LightFX, window creation, frame ownership and crash-capture behavior stay as implemented in the fork.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.

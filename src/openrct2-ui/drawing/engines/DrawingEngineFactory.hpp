@@ -28,10 +28,10 @@ namespace OpenRCT2::Ui
         {
             switch (type)
             {
-                case DrawingEngine::SoftwareWithHardwareDisplay:
+                case DrawingEngine::softwareWithHardwareDisplay:
                     return CreateHardwareDisplayDrawingEngine(uiContext);
 #ifdef ENABLE_VULKAN
-                case DrawingEngine::Vulkan:
+                case DrawingEngine::vulkan:
                     return CreateVulkanDrawingEngine(uiContext);
 #endif
                 default:

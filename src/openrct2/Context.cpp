@@ -168,9 +168,9 @@ namespace OpenRCT2
         {
             switch (drawingEngine)
             {
-                case DrawingEngine::SoftwareWithHardwareDisplay:
+                case DrawingEngine::softwareWithHardwareDisplay:
                     return "software";
-                case DrawingEngine::Vulkan:
+                case DrawingEngine::vulkan:
                     return "vulkan";
                 default:
                     return "unknown";
@@ -225,7 +225,7 @@ namespace OpenRCT2
         Network::NetworkBase _network;
 #endif
 
-        DrawingEngine _drawingEngineType = DrawingEngine::SoftwareWithHardwareDisplay;
+        DrawingEngine _drawingEngineType = DrawingEngine::softwareWithHardwareDisplay;
         std::unique_ptr<Drawing::IDrawingEngine> _drawingEngine;
         std::unique_ptr<Paint::Painter> _painter;
 

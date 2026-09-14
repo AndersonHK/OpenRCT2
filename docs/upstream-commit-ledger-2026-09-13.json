@@ -3520,7 +3520,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "ported",
-      "port_commits": [],
+      "port_commits": [
+        "4486080d551c9da282583368b1c3521f2ec8e4c0"
+      ],
       "verification_evidence": [
         "Inspected every source hunk and checked unique 7039 IDs plus removal of the malformed token. Source/diff and exact-one ancestry checked."
       ],
@@ -3573,9 +3575,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt naming only",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -3592,7 +3596,10 @@
         "src/openrct2/drawing/NewDrawing.cpp",
         "src/openrct2/platform/Crash.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: e103cb11bb7e116bbd48d7bf01c7a8163391b148",
+      "implementation_decisions": "Preserve the fork renderer set and config contract: none=-1, software=0, vulkan=2, count=3; do not reintroduce retired OpenGL. Include the fork-only Vulkan enum spelling and CLI/options/config references in the naming change. Keep persisted SOFTWARE_HWD, OPENGL legacy-to-software alias and VULKAN strings unchanged. Vulkan LightFX, window creation, frame ownership and crash-capture behavior stay as implemented in the fork.",
+      "pending_validation": "Compile at next coherent naming batch checkpoint."
     },
     {
       "sha": "3fa93c32786eef367c5a851061e74f0e11c10ef3",
@@ -26146,8 +26153,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 51,
-    "remaining_after_receipt": 310,
+    "accounted_in_this_tree": 52,
+    "remaining_after_receipt": 309,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

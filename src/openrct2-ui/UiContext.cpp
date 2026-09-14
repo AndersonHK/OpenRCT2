@@ -866,7 +866,7 @@ private:
                 return;
         }
 #ifdef ENABLE_VULKAN
-        else if (Config::Get().general.drawingEngine == DrawingEngine::Vulkan)
+        else if (Config::Get().general.drawingEngine == DrawingEngine::vulkan)
         {
             const auto extent = Vulkan::Platform::GetDrawableExtent(_window);
             rWidth = static_cast<int32_t>(extent.width);
@@ -910,7 +910,7 @@ private:
         }
         const auto drawingEngine = gIntegratedBenchmark.drawingEngine.value_or(Config::Get().general.drawingEngine);
 #ifdef ENABLE_VULKAN
-        if (drawingEngine == DrawingEngine::Vulkan)
+        if (drawingEngine == DrawingEngine::vulkan)
         {
             flags |= Vulkan::Platform::GetRequiredSdlWindowFlags();
         }

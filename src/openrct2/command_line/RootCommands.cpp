@@ -308,10 +308,10 @@ namespace OpenRCT2
             if (!_benchmarkRenderer.empty())
             {
                 if (_benchmarkRenderer == "software")
-                    drawingEngine = DrawingEngine::SoftwareWithHardwareDisplay;
+                    drawingEngine = DrawingEngine::softwareWithHardwareDisplay;
 #ifdef ENABLE_VULKAN
                 else if (_benchmarkRenderer == "vulkan")
-                    drawingEngine = DrawingEngine::Vulkan;
+                    drawingEngine = DrawingEngine::vulkan;
 #endif
                 else
                 {

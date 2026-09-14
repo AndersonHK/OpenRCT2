@@ -21,10 +21,10 @@
 
 enum class DrawingEngine : int32_t
 {
-    None = -1,
-    SoftwareWithHardwareDisplay,
-    Vulkan = 2, // Preserve the established Vulkan configuration value after retiring OpenGL.
-    Count = 3,
+    none = -1,
+    softwareWithHardwareDisplay,
+    vulkan = 2, // Preserve the established vulkan configuration value after retiring openGL.
+    count = 3,
 };
 
 enum DrawingEngineFlag

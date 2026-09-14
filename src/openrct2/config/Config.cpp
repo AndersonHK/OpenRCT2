@@ -108,11 +108,11 @@ namespace OpenRCT2::Config
     });
 
     static const auto Enum_DrawingEngine = ConfigEnum<DrawingEngine>({
-        ConfigEnumEntry<DrawingEngine>("SOFTWARE_HWD", DrawingEngine::SoftwareWithHardwareDisplay),
+        ConfigEnumEntry<DrawingEngine>("SOFTWARE_HWD", DrawingEngine::softwareWithHardwareDisplay),
         // Read old configurations without retaining a second graphics backend.
-        ConfigEnumEntry<DrawingEngine>("OPENGL", DrawingEngine::SoftwareWithHardwareDisplay),
+        ConfigEnumEntry<DrawingEngine>("OPENGL", DrawingEngine::softwareWithHardwareDisplay),
 #ifdef ENABLE_VULKAN
-        ConfigEnumEntry<DrawingEngine>("VULKAN", DrawingEngine::Vulkan),
+        ConfigEnumEntry<DrawingEngine>("VULKAN", DrawingEngine::vulkan),
 #endif
     });
 
@@ -217,7 +217,7 @@ namespace OpenRCT2::Config
             model->windowWidth = reader->GetInt32("window_width", -1);
             model->defaultDisplay = reader->GetInt32("default_display", 0);
             model->drawingEngine = reader->GetEnum<DrawingEngine>(
-                "drawing_engine", DrawingEngine::SoftwareWithHardwareDisplay, Enum_DrawingEngine);
+                "drawing_engine", DrawingEngine::softwareWithHardwareDisplay, Enum_DrawingEngine);
             model->uncapFPS = reader->GetBoolean("uncap_fps", false);
             model->useVSync = reader->GetBoolean("use_vsync", true);
             model->enableHdr10Output = reader->GetBoolean("enable_hdr10_output", false);
@@ -237,9 +237,9 @@ namespace OpenRCT2::Config
 
             // Default config setting is false until the games canvas can be separated from the effect
             model->dayNightCycle = reader->GetBoolean("day_night_cycle", false);
-            bool supportsLightFx = model->drawingEngine == DrawingEngine::SoftwareWithHardwareDisplay;
+            bool supportsLightFx = model->drawingEngine == DrawingEngine::softwareWithHardwareDisplay;
 #ifdef ENABLE_VULKAN
-            supportsLightFx |= model->drawingEngine == DrawingEngine::Vulkan;
+            supportsLightFx |= model->drawingEngine == DrawingEngine::vulkan;
 #endif
             model->enableLightFx = supportsLightFx && reader->GetBoolean("enable_light_fx", false);
             model->enableLightFxForVehicles = supportsLightFx && reader->GetBoolean("enable_light_fx_for_vehicles", false);
