@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 120 / 361 source commits recorded
+## Progress: 121 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1338,10 +1338,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U120 — `ac8b290671` — Refactor WALL_SCENERY_FLAGS into enum class+FlagHolder
 
 - **Source:** `ac8b29067165e49ae492a7c3d6fbd292c475371d`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `2b47fc47c7c8c3a30f85862b80981d1f96f5d848`.
 - **Remaining:** 242 → 241.
 - **Disposition:** adapt wall flags.
 - **Manual changes:** Replace wall scenery bit constants with scoped WallSceneryFlag/uint8 FlagHolder; convert predicates, DAT byte load and JSON reader.
 - **Additional decisions / behavior:** Preserve eight legacy bit positions, byte storage, door timing, slope restrictions, colours and double-sided behavior. Keep inverted isAllowedOnSlope missing/false restriction and both isBanner/isDoubleSided plus hasTernaryColour aliases. Preserve secondary/tertiary-only colour normalization and all companion object data; no data migration needed.
 - **Verification:** Inspected all 10 actual source diffs and current callers. Each has/hasAny/set maps to same old bit mask; all former wall flag identifiers absent. Whitespace/singleton ancestry checks.
 - **Pending / concerns:** Build and object-load checks at flag-group checkpoint.
+
+### U121 — `94a889e4c9` — Refactor SCROLL_FLAGS into enum class+FlagHolder
+
+- **Source:** `94a889e4c9d6d719e4072270a327dd650cf2c4ec`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 241 → 240.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Convert scrollbar bit constants to ScrollFlag and uint16 FlagHolder; use named predicates/set/clear/unset.
+- **Additional decisions / behavior:** Preserve eight bit positions, scroll offsets/ranges, wheel handling, drawing conditions and 16-bit storage. Release clears the same six pressed bits as old 0xFF11 mask, retaining visibility and upper bits.
+- **Verification:** Full four-file source diff reviewed; exhaustive 65,536-value mask comparison passed; no old scroll identifiers remain; whitespace/ancestry checks.
+- **Pending / concerns:** Build/widget checkpoint follows flag group; interactive scroll dragging remains pending.

@@ -8542,7 +8542,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adapt wall flags",
-      "port_commits": [],
+      "port_commits": [
+        "2b47fc47c7c8c3a30f85862b80981d1f96f5d848"
+      ],
       "verification_evidence": [
         "Inspected all 10 actual source diffs and current callers. Each has/hasAny/set maps to same old bit mask; all former wall flag identifiers absent. Whitespace/singleton ancestry checks."
       ],
@@ -8585,9 +8587,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Full four-file source diff reviewed; exhaustive 65,536-value mask comparison passed; no old scroll identifiers remain; whitespace/ancestry checks."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -8595,7 +8599,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 94a889e4c9d6d719e4072270a327dd650cf2c4ec",
+      "implementation_decisions": "Preserve eight bit positions, scroll offsets/ranges, wheel handling, drawing conditions and 16-bit storage. Release clears the same six pressed bits as old 0xFF11 mask, retaining visibility and upper bits.",
+      "pending_validation": "Build/widget checkpoint follows flag group; interactive scroll dragging remains pending."
     },
     {
       "sha": "c2c126da9ce7ada8eedac10549d8fd4f07163669",
@@ -26629,8 +26636,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 120,
-    "remaining_after_receipt": 241,
+    "accounted_in_this_tree": 121,
+    "remaining_after_receipt": 240,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
