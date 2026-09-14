@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 247 / 361 source commits recorded
+## Progress: 248 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2735,10 +2735,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U247 — `63a787c2ae` — Guard bottom toolbar resizing to prevent nullptr deref (#26994)
 
 - **Source:** `63a787c2ae68478c11ceaefe91b01fec16b3eeac`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `c1a1a036527dd33cdaeb4f848b84487dcbd69669`.
 - **Remaining:** 115 → 114.
 - **Disposition:** history receipt.
 - **Manual changes:** Already covered by the earlier split-HUD resize adaptation; retain existing independent optional-panel width accounting.
 - **Additional decisions / behavior:** Upstream uses full news width if either panel is absent, overlapping the surviving panel. Retain the fork adaptation subtracting each panel only when present, positioning news after any park panel. Covers all four panel-presence combinations without dereferencing null.
 - **Verification:** Full source inspected against WindowResizeGui; B53 just passed SplitHudResizesWithEitherInfoPanelAbsentAndPreservesNoMoneyControls, testing all four combinations at 640x480 and 1001x701.
 - **Pending / concerns:** Actual rendered HUD and standing interactive/MP limits remain.
+
+### U248 — `1e8d8707c0` — Fix partial/no car drawn on vehicle tab if ride has <1 cars per train (#26992)
+
+- **Source:** `1e8d8707c08fd654fc9e628944a44c38e67d3c32`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 114 → 113.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Select the vehicle-tab icon using zero_cars + 1 instead of current train length; add changelog fix.
+- **Additional decisions / behavior:** Adopt upstream representative-car selection for the tab icon. This can select a different tab sprite even on longer trains; it does not change actual train length, ride car assignment, seats or simulation.
+- **Verification:** Full source and draw context inspected; only tab-icon lookup and changelog change. B54 build pending.
+- **Pending / concerns:** Representative ride-object icon rendering, especially zero-car offsets, awaits interactive verification; standing limits remain.
