@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 139 / 361 source commits recorded
+## Progress: 140 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1547,10 +1547,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U139 — `4c1cedbb08` — Refactor wall scenery flags 2 into enum class+FlagHolder
 
 - **Source:** `4c1cedbb084cfa77b1523d593993d6fcdbdaca29`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `03ba7ecf75fbbc4781a0d8963ae613fc5c37d23b`.
 - **Remaining:** 223 → 222.
 - **Disposition:** adopt secondary flags and separate validated door sound.
 - **Manual changes:** Type wall flags2 with bits 0/3/4 preserved; split legacy door bits 1/2 into a separate sound field. Adapt JSON/DAT loading, painting, guest sight checks, map animation and vehicle door callers. Remove the obsolete getter translation unit/project entry. Add all-byte legacy and invalid-JSON import coverage.
 - **Additional decisions / behavior:** Keep fork cent-money conversion and all guest sight/sound/animation behavior for valid objects. Validate sound indices consistently with TerrainEdgeObject: unsupported values become none rather than indexing beyond the three-entry audio arrays. Legacy invalid sound 3 is muted; invalid JSON values no longer alias to 0/1/2 through the old two-bit mask. Explicit none default/reset avoids stale values on repeated reads. Preserve XXWLBR03 door correction and isOpaque alias. Authoritative sibling objects audit found seven wall sound definitions all valid (plus nine terrain-edge definitions); no objects edit or pin change needed.
 - **Verification:** Inspected actual nine-file source delta and fork consumers. Exhaustive import test for all 256 legacy bytes and nine JSON values passes, including flag independence and cent price. Batch 24 build 0 warnings/errors and 51 import/audio tests pass after correcting missing test context. No stale old flags/getter/project references remain; whitespace check passes.
 - **Pending / concerns:** Interactive door rendering/audio and native non-Windows builds remain unverified; standing migration validation debt remains.
+
+### U140 — `d4c67d9b8d` — Turn FrictionSound into enum class
+
+- **Source:** `d4c67d9b8df443306e439c3c30e52100c9e041a2`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 222 → 221.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Replace the nine unused global friction-sound constants with the uint8 FrictionSound enum class in Vehicle.h.
+- **Additional decisions / behavior:** All numeric values remain 1,2,21,31,32,54,57,65,255. There are no old-constant consumers. Keep existing CarEntry audio identifiers, spatial audio and object-owned kart gain unchanged.
+- **Verification:** Inspected the complete one-file source patch; searched all src/test consumers and verified numeric identity. Batch 24 audio/object validation is the prior checkpoint.
+- **Pending / concerns:** Compile with the following vehicle type/rename batch; no new runtime behavior.
