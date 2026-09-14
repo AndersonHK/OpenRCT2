@@ -988,20 +988,13 @@ namespace OpenRCT2::Ui::Windows
                 gMapSelectPositionB = mapCoords;
             }
 
-            gPickupPeep.image = ImageId();
+            Drawing::pickupPeepClear();
 
             auto info = GetMapCoordinatesFromPos(screenCoords, kViewportInteractionItemAll);
             if (info.interactionType == ViewportInteractionItem::none)
                 return;
 
-            gPickupPeep.position.x = screenCoords.x - 1;
-            gPickupPeep.position.y = screenCoords.y + 16;
-            gPickupPeep.zoom = ZoomLevel{ 0 };
-            const auto* mainWindow = WindowGetMain();
-            if (mainWindow != nullptr && mainWindow->viewport != nullptr)
-            {
-                gPickupPeep.zoom = std::min(mainWindow->viewport->zoom, ZoomLevel{ 0 });
-            }
+            Drawing::pickupPeepSetPosition({ screenCoords.x - 1, screenCoords.y + 16 });
 
             const auto peep = GetGuest();
             if (peep == nullptr)
@@ -1014,7 +1007,7 @@ namespace OpenRCT2::Ui::Windows
 
             auto baseImageId = animObj->GetPeepAnimation(peep->animationGroup, PeepAnimationType::hanging).baseImage;
             baseImageId += pickedPeepFrame >> 2;
-            gPickupPeep.image = ImageId(baseImageId, peep->tShirtColour, peep->trousersColour);
+            Drawing::pickupPeepSetImage(baseImageId, peep->tShirtColour, peep->trousersColour);
         }
 
         void onToolDownOverview(WidgetIndex widgetIndex, const ScreenCoordsXY& screenCoords)
@@ -1036,7 +1029,7 @@ namespace OpenRCT2::Ui::Windows
                 if (result->error != GameActions::Status::ok)
                     return;
                 ToolCancel();
-                gPickupPeep.image = ImageId();
+                Drawing::pickupPeepClear();
             });
             GameActions::Execute(&pickupAction, getGameState());
         }

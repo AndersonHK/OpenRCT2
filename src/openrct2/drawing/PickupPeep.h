@@ -9,22 +9,19 @@
 
 #pragma once
 
-#include "../interface/ScreenCoords.hpp"
-#include "../interface/ZoomLevel.h"
-#include "ImageId.hpp"
+#include <cstdint>
+
+using ImageIndex = uint32_t;
+struct ScreenCoordsXY;
 
 namespace OpenRCT2::Drawing
 {
+    enum class Colour : uint8_t;
     struct RenderTarget;
-}
 
-struct PickedUpPeepState
-{
-    ImageId image;
-    ScreenCoordsXY position;
-    ZoomLevel zoom{};
-};
-
-extern PickedUpPeepState gPickupPeep;
-void GfxInvalidatePickedUpPeep();
-void GfxDrawPickedUpPeep(OpenRCT2::Drawing::RenderTarget& rt);
+    void pickupPeepSetImage(ImageIndex baseImageId, Colour primaryColour, Colour secondaryColour);
+    void pickupPeepSetPosition(ScreenCoordsXY position);
+    void pickupPeepClear();
+    void pickupPeepInvalidate();
+    void pickupPeepDraw(RenderTarget& rt);
+} // namespace OpenRCT2::Drawing

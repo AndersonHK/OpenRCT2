@@ -9,59 +9,92 @@
 
 #include "PickupPeep.h"
 
+#include "../interface/ScreenCoords.hpp"
+#include "../interface/Viewport.h"
+#include "../interface/Window.h"
+#include "../interface/WindowBase.h"
+#include "../interface/ZoomLevel.h"
 #include "Drawing.Sprite.h"
 #include "Drawing.h"
+#include "ImageId.hpp"
 #include "RenderTarget.h"
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 
-using OpenRCT2::Drawing::RenderTarget;
-
-PickedUpPeepState gPickupPeep;
-
-namespace
+namespace OpenRCT2::Drawing
 {
-    constexpr std::array<int8_t, 3> kPickedUpPeepYOffsets = { 0, 16, 48 };
-}
+    namespace
+    {
+        struct PickedUpPeepState
+        {
+            ImageId image;
+            ScreenCoordsXY position;
+            ZoomLevel zoom{};
+        };
 
-void GfxInvalidatePickedUpPeep()
-{
-    if (!gPickupPeep.image.HasValue())
-        return;
+        PickedUpPeepState _pickupPeep;
+        constexpr std::array<int8_t, 3> kPickedUpPeepYOffsets = { 0, 16, 48 };
+    }
 
-    const auto* g1 = GfxGetG1Element(gPickupPeep.image);
-    if (g1 == nullptr)
-        return;
+    void pickupPeepSetImage(ImageIndex baseImageId, Colour primaryColour, Colour secondaryColour)
+    {
+        _pickupPeep.image = ImageId(baseImageId, primaryColour, secondaryColour);
+    }
 
-    const auto zoomIndex = static_cast<size_t>(-static_cast<int8_t>(gPickupPeep.zoom));
-    assert(zoomIndex < kPickedUpPeepYOffsets.size());
-    const auto xOffset = static_cast<int32_t>(zoomIndex);
-    const auto yOffset = kPickedUpPeepYOffsets[zoomIndex];
-    const auto left = gPickupPeep.position.x + gPickupPeep.zoom.ApplyInversedTo(g1->xOffset) + xOffset;
-    const auto top = gPickupPeep.position.y + gPickupPeep.zoom.ApplyInversedTo(g1->yOffset) + yOffset;
-    const auto right = left + gPickupPeep.zoom.ApplyInversedTo(g1->width);
-    const auto bottom = top + gPickupPeep.zoom.ApplyInversedTo(g1->height);
-    GfxSetDirtyBlocks({ { left, top }, { right, bottom } });
-}
+    void pickupPeepSetPosition(ScreenCoordsXY position)
+    {
+        _pickupPeep.position = position;
+        _pickupPeep.zoom = ZoomLevel{ 0 };
+        const auto* mainWindow = WindowGetMain();
+        if (mainWindow != nullptr && mainWindow->viewport != nullptr)
+            _pickupPeep.zoom = std::min(mainWindow->viewport->zoom, ZoomLevel{ 0 });
+    }
 
-void GfxDrawPickedUpPeep(RenderTarget& rt)
-{
-    if (!gPickupPeep.image.HasValue())
-        return;
+    void pickupPeepClear()
+    {
+        _pickupPeep.image = ImageId();
+    }
 
-    assert(rt.zoom_level == ZoomLevel{ 0 });
-    const auto zoomIndex = static_cast<size_t>(-static_cast<int8_t>(gPickupPeep.zoom));
-    assert(zoomIndex < kPickedUpPeepYOffsets.size());
-    const auto xOffset = static_cast<int32_t>(zoomIndex);
-    const auto yOffset = kPickedUpPeepYOffsets[zoomIndex];
-    const auto position = ScreenCoordsXY{
-        gPickupPeep.zoom.ApplyTo(gPickupPeep.position.x + xOffset),
-        gPickupPeep.zoom.ApplyTo(gPickupPeep.position.y + yOffset),
-    };
+    void pickupPeepInvalidate()
+    {
+        if (!_pickupPeep.image.HasValue())
+            return;
 
-    auto peepTarget = rt;
-    peepTarget.zoom_level = gPickupPeep.zoom;
-    peepTarget.pitch = gPickupPeep.zoom.ApplyTo(rt.pitch);
-    GfxDrawSprite(peepTarget, gPickupPeep.image, position);
-}
+        const auto* g1 = GfxGetG1Element(_pickupPeep.image);
+        if (g1 == nullptr)
+            return;
+
+        const auto zoomIndex = static_cast<size_t>(-static_cast<int8_t>(_pickupPeep.zoom));
+        assert(zoomIndex < kPickedUpPeepYOffsets.size());
+        const auto xOffset = static_cast<int32_t>(zoomIndex);
+        const auto yOffset = kPickedUpPeepYOffsets[zoomIndex];
+        const auto left = _pickupPeep.position.x + _pickupPeep.zoom.ApplyInversedTo(g1->xOffset) + xOffset;
+        const auto top = _pickupPeep.position.y + _pickupPeep.zoom.ApplyInversedTo(g1->yOffset) + yOffset;
+        const auto right = left + _pickupPeep.zoom.ApplyInversedTo(g1->width);
+        const auto bottom = top + _pickupPeep.zoom.ApplyInversedTo(g1->height);
+        GfxSetDirtyBlocks({ { left, top }, { right, bottom } });
+    }
+
+    void pickupPeepDraw(RenderTarget& rt)
+    {
+        if (!_pickupPeep.image.HasValue())
+            return;
+
+        assert(rt.zoom_level == ZoomLevel{ 0 });
+        const auto zoomIndex = static_cast<size_t>(-static_cast<int8_t>(_pickupPeep.zoom));
+        assert(zoomIndex < kPickedUpPeepYOffsets.size());
+        const auto xOffset = static_cast<int32_t>(zoomIndex);
+        const auto yOffset = kPickedUpPeepYOffsets[zoomIndex];
+        const auto position = ScreenCoordsXY{
+            _pickupPeep.zoom.ApplyTo(_pickupPeep.position.x + xOffset),
+            _pickupPeep.zoom.ApplyTo(_pickupPeep.position.y + yOffset),
+        };
+
+        auto peepTarget = rt;
+        peepTarget.zoom_level = _pickupPeep.zoom;
+        peepTarget.pitch = _pickupPeep.zoom.ApplyTo(rt.pitch);
+        GfxDrawSprite(peepTarget, _pickupPeep.image, position);
+    }
+} // namespace OpenRCT2::Drawing

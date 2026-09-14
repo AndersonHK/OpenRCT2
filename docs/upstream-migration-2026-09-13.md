@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 222 / 361 source commits recorded
+## Progress: 223 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2460,10 +2460,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U222 — `1f76487769` — Move gPickupPeep* to PickupPeep.{cpp,h}
 
 - **Source:** `1f76487769475f36465e2052baacfb77a4b51a9c`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `1662f4cf2386806441673cf4b954dfb56f359003`.
 - **Remaining:** 140 → 139.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Move fork-owned picked-up peep state and drawing functions into PickupPeep.h/.cpp; update five caller includes and MSBuild registration.
 - **Additional decisions / behavior:** Preserve aggregate image/position/zoom state, assertions and local RenderTarget copy instead of upstream scalar globals and caller-target mutation. Exact existing fork behavior retained; see B49.
 - **Verification:** Exact state/function extraction and include-only caller audits pass; standalone Debug syntax check passes. B49 solution build 30.79s zero warnings/errors, 80 tests/four suites passed in 8.129s. U221 link debt cleared.
 - **Pending / concerns:** Interactive pickup/zoom and actual rendered GPU comparisons remain consolidated validation checks; no new owner decision.
+
+### U223 — `aa65346003` — Refactor pickup peep into namespace, hide globals, use ScreenCoordsXY
+
+- **Source:** `aa653460037eae7764fbedfbf81df01e07face4f`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 139 → 138.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Introduce namespaced pickupPeep setters/clear/draw/invalidate API, private aggregate state and updated callers.
+- **Additional decisions / behavior:** Keep fork image/position/zoom aggregate and copied render target. Position setter retains existing zero-zoom fallback and null main-window/viewport guards; source would retain stale zoom. Clear still clears image only. No callback timing or animation changes.
+- **Verification:** Full source reviewed; draw/invalidate bodies unchanged after rename/whitespace audit. No old globals/functions remain. Standalone Debug syntax passed with repository third-party include path and fno-char8_t matching project settings. Earlier standalone attempts missed these options; premature receipt call safely rejected stale pending data without editing Git.
+- **Pending / concerns:** Solution build and caller checks at next checkpoint; interactive pickup/zoom and rendering validation remain pending.
