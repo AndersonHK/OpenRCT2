@@ -9947,7 +9947,9 @@
       ],
       "review_level": "targeted-code-review",
       "implementation_status": "adopt approved D03 in clearance-cheat mode only",
-      "port_commits": [],
+      "port_commits": [
+        "216701c39ac614a8b63b1f7fde6ce20fba03f764"
+      ],
       "verification_evidence": [
         "Inspected actual five-file source diff and fork action bodies. Batch 23 full build passes after fixing a test-only iterator compile error; new water-rule matrix plus clear/network checks (3 tests) and map/path topology (29 tests) all pass. Whitespace check passes. Test evidence and limitations recorded in validation log."
       ],
@@ -10000,9 +10002,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt secondary flags and separate validated door sound",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected actual nine-file source delta and fork consumers. Exhaustive import test for all 256 legacy bytes and nine JSON values passes, including flag independence and cent price. Batch 24 build 0 warnings/errors and 51 import/audio tests pass after correcting missing test context. No stale old flags/getter/project references remain; whitespace check passes."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -10014,7 +10018,10 @@
         "src/openrct2/libopenrct2.vcxproj",
         "src/openrct2/object/WallObject.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 4c1cedbb084cfa77b1523d593993d6fcdbdaca29",
+      "implementation_decisions": "Keep fork cent-money conversion and all guest sight/sound/animation behavior for valid objects. Validate sound indices consistently with TerrainEdgeObject: unsupported values become none rather than indexing beyond the three-entry audio arrays. Legacy invalid sound 3 is muted; invalid JSON values no longer alias to 0/1/2 through the old two-bit mask. Explicit none default/reset avoids stale values on repeated reads. Preserve XXWLBR03 door correction and isOpaque alias. Authoritative sibling objects audit found seven wall sound definitions all valid (plus nine terrain-edge definitions); no objects edit or pin change needed.",
+      "pending_validation": "Interactive door rendering/audio and native non-Windows builds remain unverified; standing migration validation debt remains."
     },
     {
       "sha": "d4c67d9b8df443306e439c3c30e52100c9e041a2",
@@ -26755,8 +26762,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 138,
-    "remaining_after_receipt": 223,
+    "accounted_in_this_tree": 139,
+    "remaining_after_receipt": 222,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

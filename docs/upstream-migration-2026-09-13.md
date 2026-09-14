@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 138 / 361 source commits recorded
+## Progress: 139 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1536,10 +1536,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U138 — `2e43967fe5` — Fix: water rides ignore zero clearances, preventing adjacent terrain modifications and building them anywhere (#26816)
 
 - **Source:** `2e43967fe5738d991623dba05ef85a8f5d24221c`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `216701c39ac614a8b63b1f7fde6ce20fba03f764`.
 - **Remaining:** 224 → 223.
 - **Disposition:** adopt approved D03 in clearance-cheat mode only.
 - **Manual changes:** Gate floating-structure terrain restrictions, water-height protection and water-only track placement constraints on disableClearanceChecks. Add the upstream changelog entry. Advance fork protocol revision 5 to 6. Add a directed query/execute regression for all three actions.
 - **Additional decisions / behavior:** D03 was approved: ordinary construction rules remain unchanged. Keep missing-surface, ownership, parameter and support-limit checks, plus existing fork clearance traversal and element-erased handling. No upstream legacy traversal is copied. Retain fork protocol flavor and increment its revision rather than using upstream 2-to-3 values. Off-water rides remain an explicit cheat outcome; no simulation fallback or automatic water repair is introduced.
 - **Verification:** Inspected actual five-file source diff and fork action bodies. Batch 23 full build passes after fixing a test-only iterator compile error; new water-rule matrix plus clear/network checks (3 tests) and map/path topology (29 tests) all pass. Whitespace check passes. Test evidence and limitations recorded in validation log.
 - **Pending / concerns:** Interactive placement preview, running water rides off water and native non-Windows checks remain unverified; standing migration validation debt remains.
+
+### U139 — `4c1cedbb08` — Refactor wall scenery flags 2 into enum class+FlagHolder
+
+- **Source:** `4c1cedbb084cfa77b1523d593993d6fcdbdaca29`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 223 → 222.
+- **Disposition:** adopt secondary flags and separate validated door sound.
+- **Manual changes:** Type wall flags2 with bits 0/3/4 preserved; split legacy door bits 1/2 into a separate sound field. Adapt JSON/DAT loading, painting, guest sight checks, map animation and vehicle door callers. Remove the obsolete getter translation unit/project entry. Add all-byte legacy and invalid-JSON import coverage.
+- **Additional decisions / behavior:** Keep fork cent-money conversion and all guest sight/sound/animation behavior for valid objects. Validate sound indices consistently with TerrainEdgeObject: unsupported values become none rather than indexing beyond the three-entry audio arrays. Legacy invalid sound 3 is muted; invalid JSON values no longer alias to 0/1/2 through the old two-bit mask. Explicit none default/reset avoids stale values on repeated reads. Preserve XXWLBR03 door correction and isOpaque alias. Authoritative sibling objects audit found seven wall sound definitions all valid (plus nine terrain-edge definitions); no objects edit or pin change needed.
+- **Verification:** Inspected actual nine-file source delta and fork consumers. Exhaustive import test for all 256 legacy bytes and nine JSON values passes, including flag independence and cent price. Batch 24 build 0 warnings/errors and 51 import/audio tests pass after correcting missing test context. No stale old flags/getter/project references remain; whitespace check passes.
+- **Pending / concerns:** Interactive door rendering/audio and native non-Windows builds remain unverified; standing migration validation debt remains.

@@ -18,17 +18,95 @@
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/ParkImporter.h>
 #include <openrct2/core/FileStream.h>
+#include <openrct2/core/Json.hpp>
+#include <openrct2/core/MemoryStream.h>
 #include <openrct2/drawing/Colour.h>
 #include <openrct2/entity/EntityList.h>
 #include <openrct2/entity/EntityRegistry.h>
 #include <openrct2/entity/Guest.h>
 #include <openrct2/object/ObjectManager.h>
+#include <openrct2/object/WallObject.h>
 #include <openrct2/ride/Ride.h>
 #include <openrct2/ride/Vehicle.Station.h>
 #include <openrct2/ride/Vehicle.h>
 #include <openrct2/world/MapAnimation.h>
 
 using namespace OpenRCT2;
+
+namespace
+{
+    struct WallReadContext final : IReadObjectContext
+    {
+        std::string_view GetObjectIdentifier() override
+        {
+            return "test.scenery_wall.flags";
+        }
+        bool ShouldLoadImages() override
+        {
+            return false;
+        }
+        std::vector<uint8_t> GetData(std::string_view) override
+        {
+            return {};
+        }
+        ObjectAsset GetAsset(std::string_view) override
+        {
+            return {};
+        }
+        void LogVerbose(ObjectError, const utf8*) override
+        {
+        }
+        void LogWarning(ObjectError, const utf8*) override
+        {
+        }
+        void LogError(ObjectError, const utf8* message) override
+        {
+            ADD_FAILURE() << message;
+        }
+    };
+} // namespace
+
+TEST(WallObjectImport, DoorSoundIsIndependentOfWallFlagsAndRejectsInvalidIndices)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+    auto gameContext = CreateContext();
+    ASSERT_NE(gameContext, nullptr);
+    ASSERT_TRUE(gameContext->Initialise());
+    WallReadContext context;
+    for (int combined = 0; combined < 256; ++combined)
+    {
+        SCOPED_TRACE(combined);
+        std::vector<uint8_t> data(14 + 1 + sizeof(RCTObjectEntry) + 8);
+        data[8] = 4; // Height.
+        data[9] = static_cast<uint8_t>(combined);
+        data[10] = 10;   // Legacy tenths of a pound: 1.00 GBP.
+        data[14] = 0xFF; // Empty string table; empty scenery-group entry and image table follow.
+        MemoryStream stream(data);
+        WallObject object;
+        object.ReadLegacy(&context, &stream);
+        const auto* wall = static_cast<WallSceneryEntry*>(object.GetLegacyData());
+        EXPECT_EQ(wall->flags2.holder, combined & ~6);
+        const auto sound = (combined & 6) >> 1;
+        EXPECT_EQ(wall->doorSound, static_cast<Audio::DoorSoundType>(sound < 3 ? sound : 0));
+        EXPECT_EQ(wall->price, 1.00_GBP);
+    }
+
+    for (uint32_t sound : { 0u, 1u, 2u, 3u, 4u, 5u, 255u, 256u, 257u })
+    {
+        SCOPED_TRACE(sound);
+        json_t root = {
+            { "properties",
+              { { "doorSound", sound }, { "isTransparent", true }, { "isAnimated", true }, { "hasSecondaryColour", true } } }
+        };
+        WallObject object;
+        object.ReadJson(&context, root);
+        const auto* wall = static_cast<WallSceneryEntry*>(object.GetLegacyData());
+        EXPECT_EQ(wall->doorSound, static_cast<Audio::DoorSoundType>(sound < 3 ? sound : 0));
+        EXPECT_EQ(wall->flags2.holder, 0b11001);
+        EXPECT_TRUE(wall->flags.has(WallSceneryFlag::hasPrimaryColour));
+    }
+}
 
 TEST(RideVehicleStation, GoKartRaceStartDelaySpansOneThroughFortyTicks)
 {
