@@ -1130,7 +1130,9 @@
       ],
       "review_level": "intent-and-path-triage",
       "implementation_status": "manually-ported",
-      "port_commits": [],
+      "port_commits": [
+        "13c1801e0596db46b83d64314a9324a83238b912"
+      ],
       "verification_evidence": [
         "Inspected all source hunks and current tab/preview logic; manual edits keep the fork's unrelated layout and operation settings. Whitespace and singleton ancestry checked before receipt."
       ],
@@ -1171,9 +1173,11 @@
       "note": "Correct facility drawing in the ride window; verify current/final ride appearance controls.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "manually-ported",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected all source hunks and existing shop-category dispatch; caller only reaches building previews with a ride entry. Preserved null-image guard. Whitespace and singleton ancestry checked before receipt."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -1183,7 +1187,10 @@
       "merge_conflict_paths": [
         "src/openrct2-ui/windows/Ride.cpp"
       ],
-      "verification_gate": "P6"
+      "verification_gate": "P6",
+      "port_commit_locator": "Upstream-Commit: b9484d7f485d27355b27d0d8e4d16dbfa4585988",
+      "implementation_decisions": "Presentation-only distinction follows guestsShouldGoInsideFacility. Use existing GfxDrawSprite ownership path, with no rendering-engine reintroduction or change to facility admission/service behavior.",
+      "pending_validation": "Ride-window batch compile and facility preview visual check."
     },
     {
       "sha": "89b9f7d64c6c0f0ded7ba99ffae58c937daa647b",
@@ -25880,8 +25887,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 13,
-    "remaining_after_receipt": 348,
+    "accounted_in_this_tree": 14,
+    "remaining_after_receipt": 347,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

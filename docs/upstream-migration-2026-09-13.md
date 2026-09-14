@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 13 / 361 source commits recorded
+## Progress: 14 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -161,10 +161,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U013 — `ea084b9828` — Keep colour tab visible for shops when ride type cheats are on
 
 - **Source:** `ea084b982808d9b7e392a19598896a4cc92c3b33`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `13c1801e0596db46b83d64314a9324a83238b912`.
 - **Remaining:** 349 → 348.
 - **Disposition:** manually-ported.
 - **Manual changes:** Keep Operations and Appearance accessible with arbitrary ride type cheats, expose visibility for shops and rides without colour schemes, and select previews by shop category.
 - **Additional decisions / behavior:** Approved D06 refinement: visibility follows cheat state, not recolourability. Retain normal tab restrictions when cheats are disabled and preserve fork gameplay controls.
 - **Verification:** Inspected all source hunks and current tab/preview logic; manual edits keep the fork's unrelated layout and operation settings. Whitespace and singleton ancestry checked before receipt.
 - **Pending / concerns:** Facility preview correction is the next source; batch UI/compile checks at U016.
+
+### U014 — `b9484d7f48` — Fix facility drawing
+
+- **Source:** `b9484d7f485d27355b27d0d8e4d16dbfa4585988`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 348 → 347.
+- **Disposition:** manually-ported.
+- **Manual changes:** Draw facility previews using both building sprite pieces; retain single-image shop previews and colour remapping.
+- **Additional decisions / behavior:** Presentation-only distinction follows guestsShouldGoInsideFacility. Use existing GfxDrawSprite ownership path, with no rendering-engine reintroduction or change to facility admission/service behavior.
+- **Verification:** Inspected all source hunks and existing shop-category dispatch; caller only reaches building previews with a ride entry. Preserved null-image guard. Whitespace and singleton ancestry checked before receipt.
+- **Pending / concerns:** Ride-window batch compile and facility preview visual check.
