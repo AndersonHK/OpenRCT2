@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 313 / 361 source commits recorded
+## Progress: 314 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3461,10 +3461,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U313 — `e70f51a68e` — Add changelog entry for #27052
 
 - **Source:** `e70f51a68ead08d4722b4827a2b7ebfe133cc8d9`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `813f994f7d28c613813252460cff28dcbe0529cd`.
 - **Remaining:** 49 → 48.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Added the upstream changelog entry describing the integrated base/WW scenario ride-name corrections.
 - **Additional decisions / behavior:** The entry describes U309-U311 behavior already ported; no new gameplay or release-version change.
 - **Verification:** Inspected the single-line source diff and applied it verbatim.
 - **Pending / concerns:** None.
+
+### U314 — `1cee317188` — Fix #24457: Yellow is always rendered as third remap in Ride window (#27063)
+
+- **Source:** `1cee3171888071cf4283a5579007b644b606ae1b`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 48 → 47.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Ported object-flag-aware remapping to all three ride-window vehicle preview paths and the changelog.
+- **Additional decisions / behavior:** Preserve source frame selection and fork ride controls; no object or renderer workaround. Vehicles without tertiary remapping retain their original yellow pixels in these previews.
+- **Verification:** B82: full Release x64 Vulkan solution, zero warnings/errors; 57 WidgetState/GpuFoundation tests passed. Actual source/fork hunks inspected.
+- **Pending / concerns:** Native Vulkan one-/two-/three-remap vehicle preview visual comparison remains for manual testing.
