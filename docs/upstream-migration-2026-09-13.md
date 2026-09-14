@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 291 / 361 source commits recorded
+## Progress: 292 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3219,10 +3219,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U291 — `144aebc9df` — Convert contents of EntityTweener.h to camelCase (#27029)
 
 - **Source:** `144aebc9df497381fafb4c8643d9a0a3ba6cfe7b`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `8a85d1f3d9fc36af61e80f4b94a69e6adab38a44`.
 - **Remaining:** 71 → 70.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Rename EntityTweener API and all fork callers to camelCase.
 - **Additional decisions / behavior:** Preserve fork execution lists, visibility, moving-entity compaction, moveToForTween and owned presentation lifecycle. Already-camelCase private members retain fork names; absent upstream AddEntity is not introduced.
 - **Verification:** B72: complete-file token proof, 82 source and 57 fork substitutions across 13 files; solution 17.12 seconds zero warnings/errors; all 47 selected play/save/script tests pass in 18.005 seconds.
 - **Pending / concerns:** Native interpolation, live MP/replay and non-Windows remain standing.
+
+### U292 — `01b4f05421` — Merge Localisation/master into OpenRCT2/develop
+
+- **Source:** `01b4f05421347b6154ff4d2801d8a11553c99ce3`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 70 → 69.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Add Esperanto, Korean and Russian translations for STR_7043 terrain-height rejection title.
+- **Additional decisions / behavior:** Single-parent localisation payload despite Merge subject. Existing U277 ID and behavior unchanged; fork strings retained.
+- **Verification:** Read all three added values; unique-context patch and whitespace check passed. No formatter arguments introduced.
+- **Pending / concerns:** Language-pack parser check at next data checkpoint; native translated display remains untested.

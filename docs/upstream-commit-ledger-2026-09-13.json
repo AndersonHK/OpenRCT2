@@ -21205,7 +21205,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "8a85d1f3d9fc36af61e80f4b94a69e6adab38a44"
+      ],
       "verification_evidence": [
         "B72: complete-file token proof, 82 source and 57 fork substitutions across 13 files; solution 17.12 seconds zero warnings/errors; all 47 selected play/save/script tests pass in 18.005 seconds."
       ],
@@ -21255,9 +21257,11 @@
       "note": "Single-parent localisation update; use final target blobs after English ID reconciliation.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Read all three added values; unique-context patch and whitespace check passed. No formatter arguments introduced."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -21265,7 +21269,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P1"
+      "verification_gate": "P1",
+      "port_commit_locator": "Upstream-Commit: 01b4f05421347b6154ff4d2801d8a11553c99ce3",
+      "implementation_decisions": "Single-parent localisation payload despite Merge subject. Existing U277 ID and behavior unchanged; fork strings retained.",
+      "pending_validation": "Language-pack parser check at next data checkpoint; native translated display remains untested."
     },
     {
       "sha": "1452f71be9e100619cd9fed67b08bd4d36988690",
@@ -27826,8 +27833,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 291,
-    "remaining_after_receipt": 70,
+    "accounted_in_this_tree": 292,
+    "remaining_after_receipt": 69,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
