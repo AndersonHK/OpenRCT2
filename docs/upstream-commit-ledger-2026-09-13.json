@@ -25849,7 +25849,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "2107837b14aaa0d1c857c1d2b914461ec46ae400"
+      ],
       "verification_evidence": [
         "Inspected and applied the source entry move."
       ],
@@ -25886,9 +25888,11 @@
       "note": "Reload palette after plugin water object load using final Palette API; refresh owned GPU palette state for single and array loads.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "history receipt",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected source diff; complete source-to-HEAD file diff is empty; B91 verified all three water-load forms."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -25896,7 +25900,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P6"
+      "verification_gate": "P6",
+      "port_commit_locator": "Upstream-Commit: 3fb24b8963f388944986aafc034710b02c0a0efe",
+      "implementation_decisions": "Complete ScObjectManager.cpp matches source after the U329 adaptation; no duplicate change needed.",
+      "pending_validation": "None."
     },
     {
       "sha": "c25762467a5b44141a73ebc01307703531b4f1e1",
@@ -28099,8 +28106,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 330,
-    "remaining_after_receipt": 31,
+    "accounted_in_this_tree": 331,
+    "remaining_after_receipt": 30,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

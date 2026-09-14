@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 330 / 361 source commits recorded
+## Progress: 331 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3648,10 +3648,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U330 — `ced6f35f9f` — Move changelog entry for #27056 to correct place
 
 - **Source:** `ced6f35f9f4d2b138fec70c5d78d044b04a024e0`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `2107837b14aaa0d1c857c1d2b914461ec46ae400`.
 - **Remaining:** 32 → 31.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Moved the plugin water-palette changelog entry into the current development release.
 - **Additional decisions / behavior:** Release-history placement only; integrated U329 behavior unchanged.
 - **Verification:** Inspected and applied the source entry move.
+- **Pending / concerns:** None.
+
+### U331 — `3fb24b8963` — Fix references to LoadPalette in ScObjectManager.cpp (#27105)
+
+- **Source:** `3fb24b8963f388944986aafc034710b02c0a0efe`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 31 → 30.
+- **Disposition:** history receipt.
+- **Manual changes:** Reconciled the palette-header and LoadPalette qualification correction already applied in U329.
+- **Additional decisions / behavior:** Complete ScObjectManager.cpp matches source after the U329 adaptation; no duplicate change needed.
+- **Verification:** Inspected source diff; complete source-to-HEAD file diff is empty; B91 verified all three water-load forms.
 - **Pending / concerns:** None.
