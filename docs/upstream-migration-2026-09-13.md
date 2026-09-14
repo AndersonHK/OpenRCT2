@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 312 / 361 source commits recorded
+## Progress: 313 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3450,10 +3450,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U312 — `394e588fc7` — Fix unnamed rides appearing in English in base/WW scenarios (#27052)
 
 - **Source:** `394e588fc7c94512a0adad3f1fa1f1dc4c964237`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `df90183adfcc9a267060156fcddabb0e805e26e5`.
 - **Remaining:** 50 → 49.
 - **Disposition:** history receipt.
 - **Manual changes:** Reconciled the scenario ride-name merge after porting its U309-U311 constituent changes.
 - **Additional decisions / behavior:** Actual remerge inspection has no resolution delta; preserve the adapted parser, full-SHA scenario gates and fork ownership behavior already verified in B80/B81.
 - **Verification:** git show --remerge-diff is empty; B80/B81 cover the integrated constituent payload.
+- **Pending / concerns:** None.
+
+### U313 — `e70f51a68e` — Add changelog entry for #27052
+
+- **Source:** `e70f51a68ead08d4722b4827a2b7ebfe133cc8d9`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 49 → 48.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Added the upstream changelog entry describing the integrated base/WW scenario ride-name corrections.
+- **Additional decisions / behavior:** The entry describes U309-U311 behavior already ported; no new gameplay or release-version change.
+- **Verification:** Inspected the single-line source diff and applied it verbatim.
 - **Pending / concerns:** None.

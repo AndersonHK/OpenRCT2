@@ -24422,7 +24422,9 @@
       "decisions": [],
       "review_level": "remerge-probe",
       "implementation_status": "history receipt",
-      "port_commits": [],
+      "port_commits": [
+        "df90183adfcc9a267060156fcddabb0e805e26e5"
+      ],
       "verification_evidence": [
         "git show --remerge-diff is empty; B80/B81 cover the integrated constituent payload."
       ],
@@ -24461,9 +24463,11 @@
       "note": "Apply final documentation/changelog/string correction; distinguish upstream release history from features actually ported.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected the single-line source diff and applied it verbatim."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -24471,7 +24475,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P1"
+      "verification_gate": "P1",
+      "port_commit_locator": "Upstream-Commit: e70f51a68ead08d4722b4827a2b7ebfe133cc8d9",
+      "implementation_decisions": "The entry describes U309-U311 behavior already ported; no new gameplay or release-version change.",
+      "pending_validation": "None."
     },
     {
       "sha": "1cee3171888071cf4283a5579007b644b606ae1b",
@@ -27973,8 +27980,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 312,
-    "remaining_after_receipt": 49,
+    "accounted_in_this_tree": 313,
+    "remaining_after_receipt": 48,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
