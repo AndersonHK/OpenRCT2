@@ -26718,7 +26718,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "1139d946b1ac55425c2003aa0c5890ce9d92bd4c"
+      ],
       "verification_evidence": [
         "Final solution zero warnings/errors in 75.00s; 112 affected tests passed in 9.263s, including platform/group/missing-ride regression. Unique English IDs and all 44 fork strings verified. B95 clears U344-U346."
       ],
@@ -26780,9 +26782,11 @@
       "note": "No remerge-resolution delta detected. Account for constituent commits before ancestry reconciliation.",
       "decisions": [],
       "review_level": "remerge-probe",
-      "implementation_status": "not-ported",
+      "implementation_status": "history receipt",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Actual remerge diff empty; all parents accounted; B95 passed."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -26798,7 +26802,10 @@
         "src/openrct2/libopenrct2.vcxproj",
         "src/openrct2/localisation/StringIds.h"
       ],
-      "verification_gate": "P0"
+      "verification_gate": "P0",
+      "port_commit_locator": "Upstream-Commit: b5ad1e41108567b4411496abc1d53742c71792e3",
+      "implementation_decisions": "Preserve U345-U346 platform and missing-ride adaptations.",
+      "pending_validation": "Standing native checks remain."
     },
     {
       "sha": "6ab43acb35c436318cbe0932c42283ac6c43db89",
@@ -28211,8 +28218,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 346,
-    "remaining_after_receipt": 15,
+    "accounted_in_this_tree": 347,
+    "remaining_after_receipt": 14,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

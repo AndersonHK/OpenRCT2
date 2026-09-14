@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 346 / 361 source commits recorded
+## Progress: 347 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3824,10 +3824,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U346 — `6e0d62b403` — Fix #1514: Wrong capitalisation for descriptions in Guest List
 
 - **Source:** `6e0d62b4039e7b04cff29afa486805ed141f753b`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `1139d946b1ac55425c2003aa0c5890ce9d92bd4c`.
 - **Remaining:** 16 → 15.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Separate singular/group guest action strings and migrate guest list filters and headings.
 - **Additional decisions / behavior:** Preserve fork platform action groups with new reserved strings 8042/8043; individual labels unchanged. Keep U345 absent-ride argument handling. Group wording and grouping IDs change as intended; no movement, routing or pricing mutation.
 - **Verification:** Final solution zero warnings/errors in 75.00s; 112 affected tests passed in 9.263s, including platform/group/missing-ride regression. Unique English IDs and all 44 fork strings verified. B95 clears U344-U346.
 - **Pending / concerns:** Native labels/translations and other standing handoff checks remain.
+
+### U347 — `b5ad1e4110` — Merge pull request #27061 from Gymnasiast/fix/1514
+
+- **Source:** `b5ad1e41108567b4411496abc1d53742c71792e3`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 15 → 14.
+- **Disposition:** history receipt.
+- **Manual changes:** Accounted peep display branch merge without reapplying changes.
+- **Additional decisions / behavior:** Preserve U345-U346 platform and missing-ride adaptations.
+- **Verification:** Actual remerge diff empty; all parents accounted; B95 passed.
+- **Pending / concerns:** Standing native checks remain.
