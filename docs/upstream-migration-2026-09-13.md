@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 292 / 361 source commits recorded
+## Progress: 293 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3230,10 +3230,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U292 — `01b4f05421` — Merge Localisation/master into OpenRCT2/develop
 
 - **Source:** `01b4f05421347b6154ff4d2801d8a11553c99ce3`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `a946fc13f9feef35f991150abbeabb0850f12f98`.
 - **Remaining:** 70 → 69.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Add Esperanto, Korean and Russian translations for STR_7043 terrain-height rejection title.
 - **Additional decisions / behavior:** Single-parent localisation payload despite Merge subject. Existing U277 ID and behavior unchanged; fork strings retained.
 - **Verification:** Read all three added values; unique-context patch and whitespace check passed. No formatter arguments introduced.
 - **Pending / concerns:** Language-pack parser check at next data checkpoint; native translated display remains untested.
+
+### U293 — `1452f71be9` — Prune outdated pragma warning disable directives (#27028)
+
+- **Source:** `1452f71be9e100619cd9fed67b08bd4d36988690`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 69 → 68.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Remove obsolete C4706 suppressions and debug-only C4505 pragma scope.
+- **Additional decisions / behavior:** No object/theme/image runtime statements changed; preserve all fork implementation bodies.
+- **Verification:** B73: complete solution 15.55 seconds, zero warnings/errors; LanguagePackTest passes after U292.
+- **Pending / concerns:** DEBUG_LEVEL_1 and non-Windows remain unbuilt; native translation display remains untested.

@@ -571,3 +571,8 @@ U213 audit: mark Http::DoAsync and both LAN async functions nodiscard, including
 - Preserve the fork visible execution lists, moving-entity compaction, parallel position buffers, moveToForTween presentation-only positioning, simulation restoration, snapshot publication and script vehicle mutation hooks. No upstream interpolation implementation was substituted. Remaining old method call searches are empty.
 - Complete Release x64 MSVC/Vulkan solution build passed in 17.12 seconds, zero warnings/errors. All 47 selected PlayTests, S6 import/export, ParkFileMigration and ScriptingTests passed in 18.005 seconds. Logs: obj/upstream-audit/batch-72-build.log and batch-72-tests.log/xml. Diff whitespace check passed. No new test duplicates the spelling change.
 - Actual rendered interpolation, live multiplayer/replay and non-Windows remain standing checks. No new owner decision.
+
+## B73 — U292 translations and U293 obsolete warning suppressions
+
+- U292 adds the already-defined STR_7043 terrain-height rejection title in Esperanto, Korean and Russian, without format arguments. U293 only removes seven file-wide C4706 suppressions and the DEBUG_LEVEL_1 C4505 push/disable/pop around a maybe_unused function. Object, image and theme logic remains untouched.
+- Full Release x64 MSVC/Vulkan solution build passed in 15.55 seconds, zero warnings/errors, with all seven assignment-warning suppressions removed. All four LanguagePackTest cases pass; this checks the translation parser suite after U292. Logs: obj/upstream-audit/batch-73-build.log and batch-73-tests.log/xml. DEBUG_LEVEL_1 is not enabled in this Release build, so the debug-only warning removal is inspected but not compiled here. No runtime tests duplicate pragma removal. No new owner decision.
