@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 78 / 361 source commits recorded
+## Progress: 79 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -876,10 +876,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U078 — `086b5ecabe` — Rename members of FlagType
 
 - **Source:** `086b5ecabe73351cefca8f1464df0c7d318aa25e`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `6f3221651a0ceac403b3c181c3833fb9fc018437`.
 - **Remaining:** 284 → 283.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename FlagType members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Preserve normal/inverted polarity, missing-property behavior and all JSON property names/legacy aliases. Path queue/slope permissions and wall capability flags retain their exact meanings; companion object definitions need no data migration.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U079 — `25df52f1bf` — Rename members of ImageCatalogue
+
+- **Source:** `25df52f1bf51d4be9516755289c4ddd9413bbe86`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 283 → 282.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename ImageCatalogue members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Preserve all six catalogue values and temporary/G1/G2/CSG/object index boundaries. Include applicable fork consumers; no sprite ownership, cache or Vulkan resource-lifetime changes.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
