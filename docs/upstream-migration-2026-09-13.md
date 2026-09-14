@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 79 / 361 source commits recorded
+## Progress: 80 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -887,10 +887,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U079 — `25df52f1bf` — Rename members of ImageCatalogue
 
 - **Source:** `25df52f1bf51d4be9516755289c4ddd9413bbe86`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `9637f95d15aced9ee80c799d6bd1d7a4998845cb`.
 - **Remaining:** 283 → 282.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename ImageCatalogue members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Preserve all six catalogue values and temporary/G1/G2/CSG/object index boundaries. Include applicable fork consumers; no sprite ownership, cache or Vulkan resource-lifetime changes.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U080 — `d0db940bde` — Rename members of ImportMode
+
+- **Source:** `d0db940bdeca52191c1f0bdc81c0652d8c83a4b6`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 282 → 281.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename ImportMode members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Default becomes standard with value 0; closest and dithering retain values 1/2. Preserve CLI mode strings, pixel error diffusion and metadata defaults. Include sprite-build regression call sites without changing expected binary output.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
