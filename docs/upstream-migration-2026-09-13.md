@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 126 / 361 source commits recorded
+## Progress: 127 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1404,10 +1404,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U126 — `d7d8915065` — Fixed bug where ride.previousVerticalG was reset to 0 instead of 100 (#26879)
 
 - **Source:** `d7d89150658d8f6a654ce10cc8d598d844fe277c`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `256db7e697e1d97276f3c3ab0e1ed2d7e19ede75`.
 - **Remaining:** 236 → 235.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Record upstream changelog entry; reset-code fix is already satisfied in the fork.
 - **Additional decisions / behavior:** Keep previousVerticalG at 1G, longitudinal reset at zero and sampled reset policy. No simulation change, so retain fork stream revision 5; do not copy upstream revision 2 or increment for a no-op. Changelog records upstream history, not a newly changed fork force model.
 - **Verification:** Inspected source and current Vehicle::TestReset: exact 1G assignment already present. Prior ratings checkpoint covers this retained implementation. Whitespace/singleton ancestry checks.
 - **Pending / concerns:** No new runtime check required for retained implementation.
+
+### U127 — `f91e2d680b` — Remove openrct2/sawyer_coding includes
+
+- **Source:** `f91e2d680b9daee427eac08d379a27038e6c9fd3`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 235 → 234.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Replace unused Sawyer coding headers with direct ownership includes; remove redundant IStream declaration.
+- **Additional decisions / behavior:** Compression, chunk format and byte handling unchanged.
+- **Verification:** All four source deltas inspected; includes/declaration only; whitespace/ancestry gates.
+- **Pending / concerns:** Build/Sawyer checkpoint after header group.

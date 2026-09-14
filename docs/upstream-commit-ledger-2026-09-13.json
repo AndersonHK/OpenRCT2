@@ -8863,7 +8863,9 @@
       "decisions": [],
       "review_level": "targeted-code-review",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "256db7e697e1d97276f3c3ab0e1ed2d7e19ede75"
+      ],
       "verification_evidence": [
         "Inspected source and current Vehicle::TestReset: exact 1G assignment already present. Prior ratings checkpoint covers this retained implementation. Whitespace/singleton ancestry checks."
       ],
@@ -8906,9 +8908,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "All four source deltas inspected; includes/declaration only; whitespace/ancestry gates."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -8916,7 +8920,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: f91e2d680b9daee427eac08d379a27038e6c9fd3",
+      "implementation_decisions": "Compression, chunk format and byte handling unchanged.",
+      "pending_validation": "Build/Sawyer checkpoint after header group."
     },
     {
       "sha": "f4ddda3f6974938165d15571b7014c4c0c731636",
@@ -26671,8 +26678,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 126,
-    "remaining_after_receipt": 235,
+    "accounted_in_this_tree": 127,
+    "remaining_after_receipt": 234,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
