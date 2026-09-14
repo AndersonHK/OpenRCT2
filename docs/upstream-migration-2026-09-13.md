@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 201 / 361 source commits recorded
+## Progress: 202 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2229,10 +2229,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U201 — `840f1c4f91` — Move includes in scripting files inside ENABLE_SCRIPTING (#26950)
 
 - **Source:** `840f1c4f9147ad328700377d93d90428a53d197a`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `031f00dfd5327374b463e77069796d53c2b1d01b`.
 - **Remaining:** 161 → 160.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Move includes for ScParticle, ScVehicle and ScRide inside ENABLE_SCRIPTING; add ScProfiler spacing.
 - **Additional decisions / behavior:** Keep every include in its existing order when scripting is enabled; fork ScRide implementations remain unchanged. Disabled scripting no longer pulls these dependencies. No gameplay or public API change.
 - **Verification:** Read full four-file delta, applied exact reviewed hunks and checked diff. All four files pass clang C++20 syntax checking with ENABLE_SCRIPTING undefined and no include paths.
 - **Pending / concerns:** Enabled-scripting build and runtime checks at next batch; disabled full-project build remains standing debt.
+
+### U202 — `8de0f10777` — Fix #25496: guest pickup button does not grey out when guest state changes (#26926)
+
+- **Source:** `8de0f107774c4762496f84c2a0c2c544a380b1f1`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 160 → 159.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Move guest DisableWidgets from resize-only path to common prepare-draw; add changelog and actual guest-window state-transition regression.
+- **Additional decisions / behavior:** Preserve all pickup eligibility and fork platform policies; synchronize displayed availability without resize/reopen. Entering-ride platform/boarding remains disabled; walking/ordinary queuing remains enabled. Existing finance/debug tab predicates refreshed too.
+- **Verification:** B41 production compiled; test fixture initially used subclass-only accessor via WindowBase (eight diagnostics). Corrected to public widget flag; final build 6.64s zero warnings/errors, all 49 tests in four suites pass in 7.671s. Actual GuestOpen test covers repeated transitions and three platform/entrance substates with unchanged dimensions.
+- **Pending / concerns:** Rendered appearance and standing interactive/native non-Windows/full disabled-scripting/multiplayer/replay checks remain.

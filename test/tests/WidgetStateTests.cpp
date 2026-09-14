@@ -16,11 +16,14 @@
 
 #ifdef OPENRCT2_TEST_UI_BINDINGS
     #include <openrct2-ui/UiContext.h>
+    #include <openrct2-ui/windows/Windows.h>
     #include <openrct2/Context.h>
     #include <openrct2/GameState.h>
     #include <openrct2/OpenRCT2.h>
     #include <openrct2/PlatformEnvironment.h>
     #include <openrct2/audio/AudioContext.h>
+    #include <openrct2/entity/Guest.h>
+    #include <openrct2/interface/WidgetIndexGlobals.h>
     #include <openrct2/interface/Window.h>
     #include <openrct2/interface/WindowClasses.h>
     #include <openrct2/ui/UiContext.h>
@@ -30,6 +33,45 @@
 using namespace OpenRCT2;
 
 #ifdef OPENRCT2_TEST_UI_BINDINGS
+TEST(WidgetStateTest, GuestPickupRefreshesWithoutResizeAcrossPlatformAndRideStates)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+    auto env = CreatePlatformEnvironment();
+    auto uiContext = Ui::CreateUiContext(*env);
+    auto context = CreateContext(std::move(env), Audio::CreateDummyAudioContext(), std::move(uiContext));
+    ASSERT_TRUE(context->Initialise());
+    auto* guest = getGameState().entities.CreateEntity<Guest>();
+    ASSERT_NE(guest, nullptr);
+    guest->state = PeepState::picked;
+    auto* window = Ui::Windows::GuestOpen(guest);
+    ASSERT_NE(window, nullptr);
+    const auto width = window->width;
+    const auto height = window->height;
+    for (const auto state : { PeepState::walking, PeepState::queuingFront, PeepState::walking, PeepState::onRide,
+                              PeepState::leavingRide, PeepState::queuing })
+    {
+        SCOPED_TRACE(static_cast<int>(state));
+        guest->state = state;
+        window->onPrepareDraw();
+        const bool allowed = state == PeepState::walking || state == PeepState::queuing;
+        EXPECT_EQ(window->widgets[WC_PEEP__WIDX_PICKUP].flags.has(WidgetFlag::isDisabled), !allowed);
+        EXPECT_EQ(window->width, width);
+        EXPECT_EQ(window->height, height);
+    }
+    guest->state = PeepState::enteringRide;
+    for (const auto subState :
+         { PeepRideSubState::inEntrance, PeepRideSubState::approachPlatformSlot, PeepRideSubState::waitingOnPlatform })
+    {
+        guest->rideSubState = subState;
+        window->onPrepareDraw();
+        EXPECT_TRUE(window->widgets[WC_PEEP__WIDX_PICKUP].flags.has(WidgetFlag::isDisabled));
+    }
+    guest->state = PeepState::walking;
+    window->onPrepareDraw();
+    EXPECT_FALSE(window->widgets[WC_PEEP__WIDX_PICKUP].flags.has(WidgetFlag::isDisabled));
+}
+
 TEST(WidgetStateTest, SplitHudResizesWithEitherInfoPanelAbsentAndPreservesNoMoneyControls)
 {
     gOpenRCT2Headless = true;

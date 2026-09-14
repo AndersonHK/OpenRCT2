@@ -15315,7 +15315,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "031f00dfd5327374b463e77069796d53c2b1d01b"
+      ],
       "verification_evidence": [
         "Read full four-file delta, applied exact reviewed hunks and checked diff. All four files pass clang C++20 syntax checking with ENABLE_SCRIPTING undefined and no include paths."
       ],
@@ -15355,9 +15357,11 @@
       "note": "Refresh guest pickup availability as state changes, including platform waiting/boarding and transport states.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "B41 production compiled; test fixture initially used subclass-only accessor via WindowBase (eight diagnostics). Corrected to public widget flag; final build 6.64s zero warnings/errors, all 49 tests in four suites pass in 7.671s. Actual GuestOpen test covers repeated transitions and three platform/entrance substates with unchanged dimensions."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -15367,7 +15371,10 @@
       "merge_conflict_paths": [
         "src/openrct2-ui/windows/Guest.cpp"
       ],
-      "verification_gate": "P5"
+      "verification_gate": "P5",
+      "port_commit_locator": "Upstream-Commit: 8de0f107774c4762496f84c2a0c2c544a380b1f1",
+      "implementation_decisions": "Preserve all pickup eligibility and fork platform policies; synchronize displayed availability without resize/reopen. Entering-ride platform/boarding remains disabled; walking/ordinary queuing remains enabled. Existing finance/debug tab predicates refreshed too.",
+      "pending_validation": "Rendered appearance and standing interactive/native non-Windows/full disabled-scripting/multiplayer/replay checks remain."
     },
     {
       "sha": "ad578a121d0a6ef633c3d36523626f69949fff5d",
@@ -27196,8 +27203,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 201,
-    "remaining_after_receipt": 160,
+    "accounted_in_this_tree": 202,
+    "remaining_after_receipt": 159,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
