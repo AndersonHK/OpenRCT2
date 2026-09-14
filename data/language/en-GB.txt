@@ -3840,6 +3840,7 @@ STR_7039    :Ride type
 STR_7040    :Footpath additions
 STR_7041    :Park info panel
 STR_7042    :Date info panel
+STR_7043    :Can’t change land height here…
 STR_8000    :Maze capacity
 STR_8001    :Select sparse, normal, or overcrowding capacity policy for this maze
 STR_8002    :Sparse

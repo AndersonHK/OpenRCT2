@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 276 / 361 source commits recorded
+## Progress: 277 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3054,10 +3054,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U276 — `4beb0ec8e0` — Put lesser-used arguments to MapCanConstructWithClearAt() into a struct (#27010)
 
 - **Source:** `4beb0ec8e0a178542316c7d6a0b1a30d01c84a20`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `e850102af69441b9816efa6977e2ffaab90579ec`.
 - **Remaining:** 86 → 85.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Group construction-clearance optional arguments in MapProposedConstructionInfo and update all action callers.
 - **Additional decisions / behavior:** Keep exact slope/crossing/tree/ignored-ride defaults and values. Adapt the two clearance helper calls to preserve fork tri-state elementErased retry/null/blocked semantics; preserve resolved scenery heights. Full function normalized comparison proves only parameter/member substitutions. See B64.
 - **Verification:** B64 solution build 17.67s, zero warnings/errors; 41 PlayTests/ClearScenery/TileElementsViewTests passed in 7.299s. All call sites audited.
 - **Pending / concerns:** Standing interactive/non-Windows/MP/replay checks; no new owner decision or compile debt.
+
+### U277 — `c776757fb2` — Fix #22500: LandSetHeightAction does not provide an error title (#27018)
+
+- **Source:** `c776757fb2718e6c4258792e552bf561ad11f639`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 85 → 84.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Add localized land-height error title 7043 for invalid parameters, tree obstructions, ride supports and floating structures; include English text/changelog.
+- **Additional decisions / behavior:** Message-only change: preserve existing error status/detail and all terrain permissions/costs. New upstream string sits below fork 8000-series IDs without collision.
+- **Verification:** Read all four source-file deltas and applied exact changed statements; inspected fork string insertion context and retained all fork strings. U276 clearance refactor unchanged.
+- **Pending / concerns:** Compile and existing terrain/localization tests at next batch; actual error dialog interaction remains standing. No owner decision.
