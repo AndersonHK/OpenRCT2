@@ -17,6 +17,7 @@
 #include "../core/Guard.hpp"
 #include "../drawing/Drawing.String.h"
 #include "../drawing/Drawing.h"
+#include "../drawing/PickupPeep.h"
 #include "../drawing/IDrawingEngine.h"
 #include "../drawing/Text.h"
 #include "../interface/Viewport.h"

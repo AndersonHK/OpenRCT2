@@ -16299,7 +16299,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "362407d9ab34fe498771d111523cd04b60675745"
+      ],
       "verification_evidence": [
         "Complete source read; whitespace-normalized moved implementation equals pre-port code. New translation unit passes standalone clang C++20 syntax checks with and without _DEBUG."
       ],
@@ -16357,9 +16359,11 @@
       "note": "Adopt PickupPeep API ownership while preserving fork image+position+zoom value snapshot and asynchronous packet lifetime.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Exact state/function extraction and include-only caller audits pass; standalone Debug syntax check passes. B49 solution build 30.79s zero warnings/errors, 80 tests/four suites passed in 8.129s. U221 link debt cleared."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -16375,7 +16379,10 @@
         "src/openrct2/entity/Peep.cpp",
         "src/openrct2/libopenrct2.vcxproj"
       ],
-      "verification_gate": "P6"
+      "verification_gate": "P6",
+      "port_commit_locator": "Upstream-Commit: 1f76487769475f36465e2052baacfb77a4b51a9c",
+      "implementation_decisions": "Preserve aggregate image/position/zoom state, assertions and local RenderTarget copy instead of upstream scalar globals and caller-target mutation. Exact existing fork behavior retained; see B49.",
+      "pending_validation": "Interactive pickup/zoom and actual rendered GPU comparisons remain consolidated validation checks; no new owner decision."
     },
     {
       "sha": "aa653460037eae7764fbedfbf81df01e07face4f",
@@ -27336,8 +27343,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 221,
-    "remaining_after_receipt": 140,
+    "accounted_in_this_tree": 222,
+    "remaining_after_receipt": 139,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 221 / 361 source commits recorded
+## Progress: 222 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2449,10 +2449,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U221 — `f66c0a65f9` — Move PaletteMap implementation to PaletteMap.cpp (#26969)
 
 - **Source:** `f66c0a65f9da330c164cfe2625bcd30fbfd2497b`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `362407d9ab34fe498771d111523cd04b60675745`.
 - **Remaining:** 141 → 140.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Move existing PaletteMap storage and methods from Drawing.cpp into registered PaletteMap.cpp.
 - **Additional decisions / behavior:** Retain exact fork implementation and Vulkan consumers. Add direct PaletteIndex.h, algorithm and array dependencies; upstream omitted the enum definition needed by Debug assertions.
 - **Verification:** Complete source read; whitespace-normalized moved implementation equals pre-port code. New translation unit passes standalone clang C++20 syntax checks with and without _DEBUG.
 - **Pending / concerns:** Solution link/GPU regression checks at next coherent checkpoint; no gameplay change.
+
+### U222 — `1f76487769` — Move gPickupPeep* to PickupPeep.{cpp,h}
+
+- **Source:** `1f76487769475f36465e2052baacfb77a4b51a9c`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 140 → 139.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Move fork-owned picked-up peep state and drawing functions into PickupPeep.h/.cpp; update five caller includes and MSBuild registration.
+- **Additional decisions / behavior:** Preserve aggregate image/position/zoom state, assertions and local RenderTarget copy instead of upstream scalar globals and caller-target mutation. Exact existing fork behavior retained; see B49.
+- **Verification:** Exact state/function extraction and include-only caller audits pass; standalone Debug syntax check passes. B49 solution build 30.79s zero warnings/errors, 80 tests/four suites passed in 8.129s. U221 link debt cleared.
+- **Pending / concerns:** Interactive pickup/zoom and actual rendered GPU comparisons remain consolidated validation checks; no new owner decision.
