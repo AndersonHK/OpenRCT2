@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 234 / 361 source commits recorded
+## Progress: 235 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2592,10 +2592,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U234 — `d611a7d560` — Rename TRACK_NEARBY_SCENERY_DISTANCE to kTrackNearbySceneryDistance
 
 - **Source:** `d611a7d560d7f50ff7bccc85c2fdcd2d88dd0e27`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `8fe36a66dc15a106f930443e20e3fad46f08f9be`.
 - **Remaining:** 128 → 127.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Rename the track-design nearby-scenery radius constant and spell out static linkage.
 - **Additional decisions / behavior:** Preserve radius one tile and all selection behavior; no expansion of what scenery is saved.
 - **Verification:** Full source and repository references inspected; exact inverse-transform equality passed.
 - **Pending / concerns:** U229–U234 compile at next checkpoint.
+
+### U235 — `19e2404ac2` — Rename SYNCHRONISED_VEHICLE_COUNT to kSynchronisedVehicleCount
+
+- **Source:** `19e2404ac26d767628db75f4d65de3b22b33c4d1`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 127 → 126.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Rename synchronized-vehicle count constant with explicit static linkage.
+- **Additional decisions / behavior:** Keep capacity 16 and exact fork station boarding/departure logic; no timing or synchronization rule change.
+- **Verification:** Full source/reference search and exact inverse-transform content check passed.
+- **Pending / concerns:** U229–U235 compile at next checkpoint.

@@ -16914,7 +16914,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "8fe36a66dc15a106f930443e20e3fad46f08f9be"
+      ],
       "verification_evidence": [
         "Full source and repository references inspected; exact inverse-transform equality passed."
       ],
@@ -16953,9 +16955,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Full source/reference search and exact inverse-transform content check passed."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -16965,7 +16969,10 @@
       "merge_conflict_paths": [
         "src/openrct2/ride/Vehicle.Station.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 19e2404ac26d767628db75f4d65de3b22b33c4d1",
+      "implementation_decisions": "Keep capacity 16 and exact fork station boarding/departure logic; no timing or synchronization rule change.",
+      "pending_validation": "U229–U235 compile at next checkpoint."
     },
     {
       "sha": "e9b9979ee318f0d9c56add4da5b71fdbc6b7b613",
@@ -27427,8 +27434,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 234,
-    "remaining_after_receipt": 127,
+    "accounted_in_this_tree": 235,
+    "remaining_after_receipt": 126,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
