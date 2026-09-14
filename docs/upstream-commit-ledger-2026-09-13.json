@@ -25809,7 +25809,9 @@
       "decisions": [],
       "review_level": "targeted-code-review",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "c1468629ff936f2e574e6ac9cd6aeb604d3fc3ec"
+      ],
       "verification_evidence": [
         "B91: corrected solution zero warnings/errors;63 selected tests passed. New actual-JS fixture checks every main-palette RGB entry for all three load forms."
       ],
@@ -25846,9 +25848,11 @@
       "note": "Apply final documentation/changelog/string correction; distinguish upstream release history from features actually ported.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected and applied the source entry move."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -25856,7 +25860,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P1"
+      "verification_gate": "P1",
+      "port_commit_locator": "Upstream-Commit: ced6f35f9f4d2b138fec70c5d78d044b04a024e0",
+      "implementation_decisions": "Release-history placement only; integrated U329 behavior unchanged.",
+      "pending_validation": "None."
     },
     {
       "sha": "3fb24b8963f388944986aafc034710b02c0a0efe",
@@ -28092,8 +28099,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 329,
-    "remaining_after_receipt": 32,
+    "accounted_in_this_tree": 330,
+    "remaining_after_receipt": 31,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

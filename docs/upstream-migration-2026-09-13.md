@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 329 / 361 source commits recorded
+## Progress: 330 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3637,10 +3637,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U329 — `7164b12fd6` — Fix #27056: Loading water palettes from plugin would not update the palette correctly (#27057)
 
 - **Source:** `7164b12fd693267d3cfe0c21e681d64158b3c682`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `c1468629ff936f2e574e6ac9cd6aeb604d3fc3ec`.
 - **Remaining:** 33 → 32.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Refresh the active palette after successful plugin water-object registration for single, indexed and array loads.
 - **Additional decisions / behavior:** Use final Palette API and existing immutable Vulkan palette handoff; preserve object/research/return behavior and companion-fork assets. No fallback object or renderer workaround.
 - **Verification:** B91: corrected solution zero warnings/errors;63 selected tests passed. New actual-JS fixture checks every main-palette RGB entry for all three load forms.
 - **Pending / concerns:** Native Vulkan palette appearance remains for manual testing.
+
+### U330 — `ced6f35f9f` — Move changelog entry for #27056 to correct place
+
+- **Source:** `ced6f35f9f4d2b138fec70c5d78d044b04a024e0`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 32 → 31.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Moved the plugin water-palette changelog entry into the current development release.
+- **Additional decisions / behavior:** Release-history placement only; integrated U329 behavior unchanged.
+- **Verification:** Inspected and applied the source entry move.
+- **Pending / concerns:** None.
