@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 253 / 361 source commits recorded
+## Progress: 254 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2801,10 +2801,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U253 — `c8ab334060` — Fix track style buttons overlapping with banking ones (#27006)
 
 - **Source:** `c8ab33406096069c77ed979d9cac236e8e98748a`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `467dac9b52ad06a9a9d500bdadb2d14e738c623e`.
 - **Remaining:** 109 → 108.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Position regular/covered track-style controls according to whether flat-roll banking controls are visible.
 - **Additional decisions / behavior:** Adopt layout-only offsets 25/128 with banking and 41/144 without it. Preserve capability checks, track-type selection, covered-piece availability and fork construction semantics.
 - **Verification:** Full source and helper context inspected; only two control x positions plus boolean parameter/call change. Next batch compile pending.
 - **Pending / concerns:** Interactive banking and covered-track transitions/rendering pending; standing limits remain.
+
+### U254 — `d687a06a22` — Add scenario patching feature to rename rides
+
+- **Source:** `d687a06a2244dfc452dd09f46c58bfd27282033b`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 108 → 107.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Add hash-gated scenario set_name operation and actual Unicode rename/dry-run/state-preservation regression fixture.
+- **Additional decisions / behavior:** Adopt scenario-authored direct customName assignment, preserving importer scenario-only gating. Format the underlying ride ID safely in the new assertion. Existing dry-run skips operation-specific work; reset old format-test dry-run state. B56 details.
+- **Verification:** Full source and S4/S6 callers inspected; final solution build 6.58s zero warnings/errors after test signedness correction; 47 tests in three suites passed 7.213s. B56.
+- **Pending / concerns:** Real Heide-Park import, malformed operation/assertion paths and standing UI/platform/MP/replay checks remain.

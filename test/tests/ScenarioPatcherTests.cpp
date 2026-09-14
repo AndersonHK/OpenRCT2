@@ -15,8 +15,10 @@
 #include <openrct2/PlatformEnvironment.h>
 #include <openrct2/core/FileSystem.hpp>
 #include <openrct2/core/Guard.hpp>
+#include <openrct2/core/Path.hpp>
 #include <openrct2/core/String.hpp>
 #include <openrct2/rct12/ScenarioPatcher.h>
+#include <openrct2/ride/Ride.h>
 
 /* Test that all JSONs are with the expected formatting, otherwise the fetcher will abort
     NOTE: This will *not* test that it actually applies the patch, due to the scenarios
@@ -46,5 +48,37 @@ TEST(FetchAndApplyScenarioPatch, expected_json_format)
             OpenRCT2::RCT12::ApplyScenarioPatch(path, dummySHA);
         }
     }
+    OpenRCT2::RCT12::SetDryRun(false);
     SUCCEED();
+}
+
+TEST(FetchAndApplyScenarioPatch, RideNameOperationPreservesRideStateAndHonoursDryRun)
+{
+    using namespace OpenRCT2;
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    auto* ride = RideAllocateAtIndex(RideId::FromUnderlying(24));
+    auto* untouched = RideAllocateAtIndex(RideId::FromUnderlying(25));
+    ASSERT_NE(ride, nullptr);
+    ASSERT_NE(untouched, nullptr);
+    ride->type = RIDE_TYPE_SPLASH_BOATS;
+    untouched->type = RIDE_TYPE_SPLASH_BOATS;
+    ride->customName = "Before";
+    untouched->customName = "Unchanged";
+    ride->numCarsPerTrain = 3;
+    ride->ratingAccumulator.ticks = 123;
+    const auto status = ride->status;
+    const auto patch = Path::Combine(TestData::GetBasePath(), "scenario-ride-name.parkpatch");
+    RCT12::SetDryRun(true);
+    RCT12::ApplyScenarioPatch(patch, "fixture-sha");
+    RCT12::SetDryRun(false);
+    EXPECT_EQ(ride->customName, "Before");
+    RCT12::ApplyScenarioPatch(patch, "fixture-sha");
+    EXPECT_EQ(ride->customName, u8"Test – Schiffschaukel");
+    EXPECT_EQ(untouched->customName, "Unchanged");
+    EXPECT_EQ(ride->numCarsPerTrain, 3);
+    EXPECT_EQ(ride->ratingAccumulator.ticks, 123u);
+    EXPECT_EQ(ride->status, status);
 }

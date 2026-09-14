@@ -17781,7 +17781,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "467dac9b52ad06a9a9d500bdadb2d14e738c623e"
+      ],
       "verification_evidence": [
         "Full source and helper context inspected; only two control x positions plus boolean parameter/call change. Next batch compile pending."
       ],
@@ -17821,9 +17823,11 @@
       "note": "Extend scenario patch schema for ride names, clearing and ID arrays; preserve fork topology changes and import repair.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Full source and S4/S6 callers inspected; final solution build 6.58s zero warnings/errors after test signedness correction; 47 tests in three suites passed 7.213s. B56."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -17833,7 +17837,10 @@
       "merge_conflict_paths": [
         "src/openrct2/rct12/ScenarioPatcher.cpp"
       ],
-      "verification_gate": "P7"
+      "verification_gate": "P7",
+      "port_commit_locator": "Upstream-Commit: d687a06a2244dfc452dd09f46c58bfd27282033b",
+      "implementation_decisions": "Adopt scenario-authored direct customName assignment, preserving importer scenario-only gating. Format the underlying ride ID safely in the new assertion. Existing dry-run skips operation-specific work; reset old format-test dry-run state. B56 details.",
+      "pending_validation": "Real Heide-Park import, malformed operation/assertion paths and standing UI/platform/MP/replay checks remain."
     },
     {
       "sha": "f5a3ff521d563cc415cd6ee5dbee2575fd3ef4b8",
@@ -27560,8 +27567,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 253,
-    "remaining_after_receipt": 108,
+    "accounted_in_this_tree": 254,
+    "remaining_after_receipt": 107,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

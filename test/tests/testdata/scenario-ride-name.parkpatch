@@ -1,0 +1,11 @@
+{
+    "scenario_name": "Ride name test fixture",
+    "sha256": "fixture-sha",
+    "rides": [
+        {
+            "id": 24,
+            "operation": "set_name",
+            "name": "Test – Schiffschaukel"
+        }
+    ]
+}
