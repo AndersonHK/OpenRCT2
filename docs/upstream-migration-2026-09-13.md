@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 229 / 361 source commits recorded
+## Progress: 230 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2537,10 +2537,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U229 — `146a7427a3` — Refactor FontStyle constants to kCamelCase (#26974)
 
 - **Source:** `146a7427a39ffb14e184816d70510ed5137a76b1`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `adc30b389c31b047b359b74f49012184d1ff8584`.
 - **Remaining:** 133 → 132.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Rename FontStyleCount and FontStyles to kCamelCase in all three consumers.
 - **Additional decisions / behavior:** Identifier-only refactor; keep fork TTF cache/lifetime behavior and all font dimensions/values.
 - **Verification:** Full source read; whole-repository consumer search and exact inverse-rename content check passed.
 - **Pending / concerns:** Compile at next checkpoint; no new behavioral test needed for rename-only change.
+
+### U230 — `00df3c16b7` — Rename TRACK_DESIGN_PREVIEW_MAP_SIZE to kTrackDesignPreviewMapSize
+
+- **Source:** `00df3c16b7ea185169b53d118608abe7fcef0b15`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 132 → 131.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Rename the track-design preview map size constant and make internal linkage explicit.
+- **Additional decisions / behavior:** Retain 256x256 preview size and O05 temporary-map identity restoration. Namespace-scope const already had internal linkage.
+- **Verification:** Complete two-location source patch reviewed; repository search found no other references.
+- **Pending / concerns:** Compile at next checkpoint; preview lifecycle runtime evidence remains B46.
