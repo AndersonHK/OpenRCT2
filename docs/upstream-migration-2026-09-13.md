@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 56 / 361 source commits recorded
+## Progress: 57 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -634,10 +634,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U056 — `1b63339ef7` — Rename members of ScrollbarType
 
 - **Source:** `1b63339ef7d64d45bdaf24dc289c0e0a2d5fd982`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `82acab715bf93307496c03a4fe1d597c08ba8924`.
 - **Remaining:** 306 → 305.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename ScrollbarType members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Keep scrollbar values and horizontal/vertical bit mappings, default vertical bars, JS strings, column width calculations and pointer behavior unchanged. No custom window API migration is required.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U057 — `1e2817a5e1` — Rename members of ColumnSortOrder
+
+- **Source:** `1e2817a5e1a0b3d93711cf0f7e6530ac1a6d7fa1`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 305 → 304.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename ColumnSortOrder members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Preserve sort enum values and the ascending-descending-none cycle, unsorted item order, selected-cell resets, comparison logic and scripting strings. No sorting algorithm or user-visible API change.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
