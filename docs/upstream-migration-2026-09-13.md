@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 338 / 361 source commits recorded
+## Progress: 339 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3736,10 +3736,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U338 — `212c99ae59` — Move NewsTicker to its own window and rename GameStatusBar
 
 - **Source:** `212c99ae591925eb22763fc1ad022bb4204fd09b`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `30a3bcfb08f77cd530d6c81a1c006999e2c6614e`.
 - **Remaining:** 24 → 23.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Split news ticker from optional RCT1 game status bar; migrate classes, strings, colors, callers and build registrations.
 - **Additional decisions / behavior:** D07 approved. Preserve fork price helpers, independent absent-side-panel resize and 30-second weather preview. Correct source swapped editor labels, stale third-color border to primary news color, and restore subject-button visibility when consecutive news types change. Open both new singleton windows idempotently; do not create empty ticker and close immediately when archive invalidation empties queue. These UI corrections do not change news timing/queue or gameplay. U337 documentation direction typo corrected.
 - **Verification:** Read full source patch and predecessor news owner; complete old-identifier inventory empty. Expanded existing real HUD lifecycle fixture for both windows, singleton opening, news-type transition, empty queue closure, status visibility and all side-panel/size cases. Diff check passes.
 - **Pending / concerns:** Compile/runtime and theme file compatibility deferred to coherent U340 checkpoint; native rain/theme pixels remain manual.
+
+### U339 — `345f61452e` — Move JSON colour conversion to its own function
+
+- **Source:** `345f61452e9c66a0eec584243933a3563b93e822`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 23 → 22.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Extracted shared JSON theme color conversion helper.
+- **Additional decisions / behavior:** Preserve version-zero legacy bytes and version-one color/translucency defaults exactly; preparation for old toolbar settings migration.
+- **Verification:** Full source inspected; complete Theme.cpp identical to source at this receipt.
+- **Pending / concerns:** Compile and theme compatibility fixture at U340 checkpoint.
