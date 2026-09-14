@@ -20583,7 +20583,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "dd5989d8c10ef7b3cfba4e9a265581f4176272f0"
+      ],
       "verification_evidence": [
         "B66 complete Release x64 MSVC/Vulkan build 82.46s zero warnings/errors. Full unfiltered available Windows suite: 603 tests in 53 suites passed in 37.778s; XML has zero failures/errors/disabled. Source and fork lexical proofs pass."
       ],
@@ -20691,9 +20693,11 @@
       "note": "Single-parent localisation update; use final target blobs after English ID reconciliation.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Read every changed string; all changed values match source. Audited formatter tokens: only Spanish 1858 changes CURRENCY to CURRENCY2DP. Single parent despite Merge subject."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -20701,7 +20705,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P1"
+      "verification_gate": "P1",
+      "port_commit_locator": "Upstream-Commit: 69c8522d4367f84770aa31b32db78efa5a808d10",
+      "implementation_decisions": "Text-only updates. Spanish 1858 explicitly uses CURRENCY2DP, matching cent precision. Correct Spanish heartline-roll direction labels 1377/1378 without changing track controls; preserve all fork strings. Swedish EOF-only source hunk handled separately from its Won replacement.",
+      "pending_validation": "Language parser/font tests at next batch; native translation/rendering review remains. No new gameplay decision."
     },
     {
       "sha": "4fa8219e1f571d96488f430ab678de8edea1e51f",
@@ -27742,8 +27749,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 279,
-    "remaining_after_receipt": 82,
+    "accounted_in_this_tree": 280,
+    "remaining_after_receipt": 81,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

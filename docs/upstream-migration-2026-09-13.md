@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 279 / 361 source commits recorded
+## Progress: 280 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3087,10 +3087,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U279 — `0fb70602d3` — Convert contents of EntityRegistry.h to camelCase (#27019)
 
 - **Source:** `0fb70602d3404c43c19a02400ac220045a460d8f`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `dd5989d8c10ef7b3cfba4e9a265581f4176272f0`.
 - **Remaining:** 83 → 82.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Port entity-registry camelCase identifiers through live registry callers, fork-only ownership consumers and tests.
 - **Additional decisions / behavior:** Only 576 identifier replacements in 86 fork files, proven against complete pre-port files; source has 471 replacements in 99 files. Preserve pooled storage, ordered membership, execution/dirty lists, visual lifecycle, snapshot interfaces and GetEntityForPresentation paint ownership. Rename Entity_t padding access without layout change. See B66.
 - **Verification:** B66 complete Release x64 MSVC/Vulkan build 82.46s zero warnings/errors. Full unfiltered available Windows suite: 603 tests in 53 suites passed in 37.778s; XML has zero failures/errors/disabled. Source and fork lexical proofs pass.
 - **Pending / concerns:** Native rendering/input, live MP, longer performance runs, non-Windows/disabled-scripting remain. No new owner decision or compile debt.
+
+### U280 — `69c8522d43` — Merge Localisation/master into OpenRCT2/develop
+
+- **Source:** `69c8522d4367f84770aa31b32db78efa5a808d10`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 82 → 81.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Port localized Won symbols and Spanish ride/track/objective/UI wording corrections.
+- **Additional decisions / behavior:** Text-only updates. Spanish 1858 explicitly uses CURRENCY2DP, matching cent precision. Correct Spanish heartline-roll direction labels 1377/1378 without changing track controls; preserve all fork strings. Swedish EOF-only source hunk handled separately from its Won replacement.
+- **Verification:** Read every changed string; all changed values match source. Audited formatter tokens: only Spanish 1858 changes CURRENCY to CURRENCY2DP. Single parent despite Merge subject.
+- **Pending / concerns:** Language parser/font tests at next batch; native translation/rendering review remains. No new gameplay decision.
