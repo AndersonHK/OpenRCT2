@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 217 / 361 source commits recorded
+## Progress: 218 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2405,10 +2405,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U217 — `54b7abd25a` — Fix: When showing missing objects, some types show up as ‘Unknown type’
 
 - **Source:** `54b7abd25ae34ab15fd06ced429c6d5bf9e1b710`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `b5d3210306a98defa917d9cf7ae8916de48a72be`.
 - **Remaining:** 145 → 144.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Add missing-object type display names for terrain surfaces/edges, stations, music, footpath surfaces/railings, peep names/animations, climate and scenario metadata.
 - **Additional decisions / behavior:** Adopt source display mapping; audio and invalid values still use Unknown type. No object lookup, download eligibility or fork repository precedence changes.
 - **Verification:** Full source inspected; only source switch additions and changelog applied with unique local context.
 - **Pending / concerns:** Compile at next coherent checkpoint; actual missing-object list rendering remains unverified.
+
+### U218 — `4fdcae5092` — Fix: The window with missing objects is displayed under the ‘Load game’ window
+
+- **Source:** `4fdcae5092682e3839b8c332a485c51b471f36ad`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 144 → 143.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Create missing-object windows in the stick-to-front layer, with source explanation and changelog.
+- **Additional decisions / behavior:** Matches the existing LoadSave and NetworkStatus window layer; preserve reuse/bring-to-front and the U212 cancellation lifecycle. No repository or gameplay change.
+- **Verification:** Read complete patch and current window lifecycle; verified LoadSave and NetworkStatus already use stickToFront.
+- **Pending / concerns:** U217–U218 compile at next checkpoint; actual window ordering requires interactive verification.

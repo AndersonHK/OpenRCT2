@@ -16118,7 +16118,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "b5d3210306a98defa917d9cf7ae8916de48a72be"
+      ],
       "verification_evidence": [
         "Full source inspected; only source switch additions and changelog applied with unique local context."
       ],
@@ -16156,9 +16158,11 @@
       "note": "Show missing object type names and raise the error above the load window; preserve object lookup precedence.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Read complete patch and current window lifecycle; verified LoadSave and NetworkStatus already use stickToFront."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -16166,7 +16170,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P7"
+      "verification_gate": "P7",
+      "port_commit_locator": "Upstream-Commit: 4fdcae5092682e3839b8c332a485c51b471f36ad",
+      "implementation_decisions": "Matches the existing LoadSave and NetworkStatus window layer; preserve reuse/bring-to-front and the U212 cancellation lifecycle. No repository or gameplay change.",
+      "pending_validation": "U217–U218 compile at next checkpoint; actual window ordering requires interactive verification."
     },
     {
       "sha": "3dc5a1a7efb7712d2a43b9bdd01f76c22cb86be3",
@@ -27308,8 +27315,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 217,
-    "remaining_after_receipt": 144,
+    "accounted_in_this_tree": 218,
+    "remaining_after_receipt": 143,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
