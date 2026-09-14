@@ -48,7 +48,8 @@
 // It is used for making sure only compatible builds get connected, even within
 // single OpenRCT2 version.
 
-constexpr uint8_t kStreamVersion = 0;
+// Fork-owned revision: upstream release resets must not reset this counter.
+constexpr uint8_t kStreamVersion = 4;
 constexpr std::string_view kNetworkProtocolFlavor = "andersonhk";
 
 const std::string kStreamID = std::string(kOpenRCT2Version) + "-" + std::string(kNetworkProtocolFlavor) + "-"

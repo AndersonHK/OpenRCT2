@@ -9,16 +9,12 @@
 
 #include "VehiclePaint.h"
 
-#include "../../Game.h"
 #include "../../GameState.h"
 #include "../../SpriteIds.h"
 #include "../../core/Speed.hpp"
-#include "../../drawing/Drawing.h"
-#include "../../drawing/LightFX.h"
 #include "../../entity/EntityRegistry.h"
 #include "../../entity/EntityPresentationSnapshot.h"
 #include "../../entity/Yaw.hpp"
-#include "../../interface/Viewport.h"
 #include "../../ride/CarEntry.h"
 #include "../../ride/Vehicle.h"
 #include "../Paint.h"

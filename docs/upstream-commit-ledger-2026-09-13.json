@@ -1318,7 +1318,9 @@
       "decisions": [],
       "review_level": "targeted-code-review",
       "implementation_status": "manually-ported-with-fork-adaptation",
-      "port_commits": [],
+      "port_commits": [
+        "9f0411fb13f741c9b5137ef1bc2cee21487e62be"
+      ],
       "verification_evidence": [
         "Inspected all source hunks and both exporter overloads, packed-object chunk writer and conversion importer. Path and stream overloads now both forward object list plus fork target version. Batch 02 passed complete Release/Vulkan/resource build and 17 selected tests; evidence is in the validation doc. Whitespace and singleton ancestry checked before receipt."
       ],
@@ -1554,9 +1556,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "manually-ported-with-fork-adaptation",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected include/forward-declaration deltas, including every track painter change, and compared fork overlap. Unchanged contexts were uniquely matched; divergent header contexts were edited explicitly. Source identity check confirms version 0.5.4, flavor andersonhk, revision 4. Whitespace and singleton ancestry checked before receipt."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -1588,7 +1592,10 @@
         "src/openrct2/paint/vehicle/Vehicle.SplashBoats.cpp",
         "src/openrct2/paint/vehicle/VehiclePaint.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 430bb95b63541ae8d6c1610cf16b50ee3578365c",
+      "implementation_decisions": "Retain Painter.cpp Guard.hpp for the fork paint-session assertion. ObjectManager retains its stable JobPool result publication and does not restore removed mutex/thread includes. Keep entity/map snapshot dependencies and VehiclePaint presentation lookup. No runtime statements change in the include port. Outside review identified that U008 release reset violated the approved independent revision policy: keep 0.5.4-andersonhk-4 and never adopt future upstream release resets; rationale is in the validation doc. This is a correction under existing approval, not a new product decision.",
+      "pending_validation": "Compile the include and following widget/dropdown API migration as a batch; add any direct headers needed by fork consumers. Earlier conversion and visual validation debt remains recorded."
     },
     {
       "sha": "d517f19ce293d5d7190aac5dba0f2d2a71ac9559",
@@ -25908,8 +25915,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 17,
-    "remaining_after_receipt": 344,
+    "accounted_in_this_tree": 18,
+    "remaining_after_receipt": 343,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
