@@ -15,6 +15,10 @@
 #include <span>
 
 #ifdef OPENRCT2_TEST_UI_BINDINGS
+    #include <chrono>
+    #include <filesystem>
+    #include <openrct2/core/Json.hpp>
+    #include <openrct2/drawing/Colour.h>
     #include <openrct2-ui/UiContext.h>
     #include <openrct2-ui/input/MouseInput.h>
     #include <openrct2-ui/interface/Dropdown.h>
@@ -324,6 +328,95 @@ TEST(WidgetStateTest, GuestPickupRefreshesWithoutResizeAcrossPlatformAndRideStat
     EXPECT_FALSE(window->widgets[WC_PEEP__WIDX_PICKUP].flags.has(WidgetFlag::isDisabled));
 }
 
+TEST(WidgetStateTest, LegacyHudThemesPreserveColorsAndEditorAliases)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+    auto env = CreatePlatformEnvironment();
+    auto uiContext = Ui::CreateUiContext(*env);
+    auto context = CreateContext(std::move(env), Audio::CreateDummyAudioContext(), std::move(uiContext));
+    ASSERT_TRUE(context->Initialise());
+    auto& platform = context->GetPlatformEnvironment();
+    const auto temporary = std::filesystem::temp_directory_path()
+        / ("openrct2-hud-theme-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    struct RestoreTheme
+    {
+        IPlatformEnvironment& env;
+        std::string user;
+        std::string preset;
+        LegacyScene scene;
+        std::filesystem::path root;
+        ~RestoreTheme()
+        {
+            env.SetBasePath(DirBase::user, user);
+            Config::Get().interface.currentThemePreset = preset;
+            Ui::ThemeManagerInitialise();
+            gLegacyScene = scene;
+            std::error_code ec;
+            std::filesystem::remove(root / "themes" / "migration.json", ec);
+            std::filesystem::remove(root / "themes", ec);
+            std::filesystem::remove(root, ec);
+        }
+    } restore{ platform, platform.GetDirectoryPath(DirBase::user), Config::Get().interface.currentThemePreset,
+               gLegacyScene, temporary };
+    platform.SetBasePath(DirBase::user, temporary.u8string());
+    std::filesystem::create_directories(temporary / "themes");
+    context->GetSceneManager()->setActiveScene(context->GetSceneManager()->getGameScene());
+    auto* manager = Ui::GetWindowManager();
+    ASSERT_NE(manager->OpenWindow(WindowClass::topToolbar), nullptr);
+    Ui::ThemeManagerLoadAvailableThemes();
+    Ui::ThemeManagerSetActiveAvailableTheme(1);
+    const auto defaultPanel = Ui::ThemeGetColour(WindowClass::gameStatusBar, 0);
+    const auto defaultRating = Ui::ThemeGetColour(WindowClass::parkInfoPanel, 1);
+    const auto check = [](WindowClass wc, uint8_t index, ColourWithFlags expected) {
+        const auto actual = Ui::ThemeGetColour(wc, index);
+        EXPECT_EQ(actual.colour, expected.colour);
+        EXPECT_EQ(actual.flags, expected.flags);
+    };
+    for (uint8_t version : { 0, 1 })
+    {
+        for (size_t count = 0; count <= 4; ++count)
+        {
+            SCOPED_TRACE(version);
+            SCOPED_TRACE(count);
+            auto colours = json_t::array();
+            for (size_t i = 0; i < count; ++i)
+                colours.push_back(version == 0 ? json_t(128 + static_cast<uint8_t>(Drawing::Colour::bordeauxRed))
+                    : json_t{ { "colour", "bordeaux_red" }, { "translucent", true } });
+            auto editorColours = json_t::array();
+            editorColours.push_back(version == 0 ? json_t(static_cast<uint8_t>(Drawing::Colour::yellow))
+                : json_t{ { "colour", "yellow" }, { "translucent", false } });
+            json_t document{ { "name", "migration" }, { "version", version }, { "useFullBottomToolbar", true },
+                { "entries", { { "WC_BOTTOM_TOOLBAR", { { "colours", colours } } },
+                    { "WC_EDITOR_TRACK_BOTTOM_TOOLBAR", { { "colours", editorColours } } },
+                    { "WC_EDITOR_SCENARIO_BOTTOM_TOOLBAR", { { "colours", editorColours } } } } } };
+            Json::WriteToFile((temporary / "themes" / "migration.json").u8string(), document);
+            Ui::ThemeManagerLoadAvailableThemes();
+            Ui::ThemeManagerSetActiveAvailableTheme(Ui::ThemeGetIndexForName("migration"));
+            EXPECT_TRUE(Ui::ThemeGetFlags() & Ui::UITHEME_FLAG_USE_GAME_STATUS_BAR);
+            EXPECT_NE(manager->FindByClass(WindowClass::gameStatusBar), nullptr);
+            const auto custom = ColourWithFlags::fromLegacy(128 + static_cast<uint8_t>(Drawing::Colour::bordeauxRed));
+            for (const auto wc : { WindowClass::gameStatusBar, WindowClass::dateInfoPanel, WindowClass::parkInfoPanel })
+                check(wc, 0, count > 0 ? custom : defaultPanel);
+            check(WindowClass::parkInfoPanel, 1, count > 3 ? custom : defaultRating);
+            check(WindowClass::newsTicker, 0, count > 2 ? custom : ColourWithFlags{ Drawing::Colour::black });
+            check(WindowClass::newsTicker, 1, count > 1 ? custom : ColourWithFlags{ Drawing::Colour::black });
+            check(WindowClass::editorStepControlTrack, 0, ColourWithFlags{ Drawing::Colour::yellow });
+            check(WindowClass::editorStepControlScenario, 0, ColourWithFlags{ Drawing::Colour::yellow });
+            // Current-format settings win over old aliases, regardless of JSON key ordering.
+            document["entries"]["WC_EDITOR_STEP_CONTROL_TRACK"] = { { "colours", json_t::array({ version == 0
+                ? json_t(static_cast<uint8_t>(Drawing::Colour::black)) : json_t{ { "colour", "black" } } }) } };
+            document["entries"]["WC_PARK_INFO_PANEL"] = { { "colours", editorColours } };
+            Json::WriteToFile((temporary / "themes" / "migration.json").u8string(), document);
+            Ui::ThemeManagerSetActiveAvailableTheme(Ui::ThemeGetIndexForName("migration"));
+            check(WindowClass::editorStepControlTrack, 0, ColourWithFlags{ Drawing::Colour::black });
+            check(WindowClass::parkInfoPanel, 0, ColourWithFlags{ Drawing::Colour::yellow });
+            Ui::ThemeManagerSetActiveAvailableTheme(1);
+            EXPECT_EQ(manager->FindByClass(WindowClass::gameStatusBar), nullptr);
+        }
+    }
+}
+
 TEST(WidgetStateTest, SplitHudResizesWithEitherInfoPanelAbsentAndPreservesNoMoneyControls)
 {
     gOpenRCT2Headless = true;
@@ -336,19 +429,21 @@ TEST(WidgetStateTest, SplitHudResizesWithEitherInfoPanelAbsentAndPreservesNoMone
     manager->CloseByClass(WindowClass::progressWindow);
     struct RestoreHud
     {
-        uint8_t flags = Ui::ThemeGetFlags();
+        size_t themeIndex = Ui::ThemeManagerGetAvailableThemeIndex();
         LegacyScene scene = gLegacyScene;
-        ~RestoreHud() { Ui::ThemeSetFlags(flags); gLegacyScene = scene; }
+        ~RestoreHud() { Ui::ThemeManagerSetActiveAvailableTheme(themeIndex); gLegacyScene = scene; }
     } restoreHud;
     context->GetSceneManager()->setActiveScene(context->GetSceneManager()->getGameScene());
     gLegacyScene = LegacyScene::playing;
-    Ui::ThemeSetFlags(Ui::ThemeGetFlags() | Ui::UITHEME_FLAG_USE_GAME_STATUS_BAR);
+    Ui::ThemeManagerSetActiveAvailableTheme(0);
+    ASSERT_NE(manager->OpenWindow(WindowClass::topToolbar), nullptr);
     auto* status = manager->OpenWindow(WindowClass::gameStatusBar);
     ASSERT_NE(status, nullptr);
     EXPECT_EQ(manager->OpenWindow(WindowClass::gameStatusBar), status);
     EXPECT_EQ(Ui::Windows::newsTickerOpen(), nullptr);
     News::Item item{};
     item.type = News::ItemType::blank;
+    item.assoc = static_cast<uint16_t>(kLocationNull);
     item.text = "HUD test";
     News::AddItemToQueue(&item);
     auto* news = Ui::Windows::newsTickerOpen();
@@ -362,6 +457,17 @@ TEST(WidgetStateTest, SplitHudResizesWithEitherInfoPanelAbsentAndPreservesNoMone
     EXPECT_FALSE(news->widgets[2].flags.has(WidgetFlag::isDisabled));
     status->onPrepareDraw();
     EXPECT_TRUE(status->widgets[0].isHidden());
+    Ui::ShortcutManager shortcuts(context->GetPlatformEnvironment());
+    auto* toggle = shortcuts.getShortcut(Ui::ShortcutId::kInterfaceToggleToolbars);
+    ASSERT_NE(toggle, nullptr);
+    toggle->action();
+    Ui::Windows::newsTickerInvalidateNewsItem();
+    EXPECT_EQ(manager->FindByClass(WindowClass::newsTicker), nullptr);
+    toggle->action();
+    news = manager->FindByClass(WindowClass::newsTicker);
+    status = manager->FindByClass(WindowClass::gameStatusBar);
+    ASSERT_NE(news, nullptr);
+    ASSERT_NE(status, nullptr);
     auto* options = manager->Create<WindowBase>(WindowClass::options, ScreenCoordsXY{}, ScreenSize{ 200, 100 }, {});
     auto* progress = manager->Create<WindowBase>(WindowClass::progressWindow, ScreenCoordsXY{}, ScreenSize{ 100, 40 }, {});
     ASSERT_NE(options, nullptr);
@@ -415,9 +521,8 @@ TEST(WidgetStateTest, SplitHudResizesWithEitherInfoPanelAbsentAndPreservesNoMone
     EXPECT_EQ(Ui::Windows::newsTickerOpen(), nullptr);
     status->onPrepareDraw();
     EXPECT_TRUE(status->widgets[0].isVisible());
-    Ui::ThemeSetFlags(Ui::ThemeGetFlags() & ~Ui::UITHEME_FLAG_USE_GAME_STATUS_BAR);
-    status->onPrepareDraw();
-    EXPECT_TRUE(status->widgets[0].isHidden());
+    Ui::ThemeManagerSetActiveAvailableTheme(1);
+    EXPECT_EQ(manager->FindByClass(WindowClass::gameStatusBar), nullptr);
 }
 #endif
 

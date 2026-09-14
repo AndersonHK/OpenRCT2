@@ -272,7 +272,8 @@ namespace OpenRCT2::Ui::Windows
     {
         // Only show news ticker in-game
         auto* sceneMgr = GetContext()->GetSceneManager();
-        if (sceneMgr->getActiveScene() != sceneMgr->getGameScene() || News::IsQueueEmpty())
+        if (sceneMgr->getActiveScene() != sceneMgr->getGameScene() || News::IsQueueEmpty()
+            || GetWindowManager()->FindByClass(WindowClass::topToolbar) == nullptr)
             return nullptr;
 
         // TODO: query ParkInfoPanel, DateInfoPanel
@@ -304,7 +305,7 @@ namespace OpenRCT2::Ui::Windows
         if (News::IsQueueEmpty())
         {
             if (window != nullptr)
-                window->close();
+                windowMgr->CloseByClass(WindowClass::newsTicker);
             return;
         }
         if (window != nullptr)

@@ -183,6 +183,7 @@ static void ShortcutRemoveTopBottomToolbarToggle()
             ContextOpenWindow(WindowClass::gameStatusBar);
             ContextOpenWindow(WindowClass::parkInfoPanel);
             ContextOpenWindow(WindowClass::dateInfoPanel);
+            newsTickerInvalidateNewsItem();
         }
         else
         {

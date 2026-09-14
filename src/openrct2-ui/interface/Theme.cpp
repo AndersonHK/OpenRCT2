@@ -14,6 +14,7 @@
 #include <memory>
 #include <openrct2/Context.h>
 #include <openrct2/Diagnostic.h>
+#include <openrct2/OpenRCT2.h>
 #include <openrct2/PlatformEnvironment.h>
 #include <openrct2/config/Config.h>
 #include <openrct2/core/File.h>
@@ -28,6 +29,7 @@
 #include <openrct2/interface/WindowBase.h>
 #include <openrct2/localisation/Language.h>
 #include <openrct2/localisation/StringIds.h>
+#include <openrct2/ui/WindowManager.h>
 #include <stdexcept>
 #include <vector>
 
@@ -473,6 +475,50 @@ namespace OpenRCT2::Ui
         return result;
     }
 
+    static void importOldBottomToolbar(UITheme& theme, json_t& jsonObj, uint8_t version)
+    {
+        auto jsonColours = Json::AsArray(jsonObj["colours"]);
+        const auto readColour = [&](size_t index, WindowClass windowClass, size_t colourIndex) {
+            if (index < jsonColours.size())
+                return jsonColourObjectToColourWithFlags(jsonColours[index], version);
+            return GetWindowThemeDescriptor(windowClass)->windowColours.defaultTheme.Colours[colourIndex];
+        };
+        const auto panelColour = readColour(0, WindowClass::gameStatusBar, 0);
+        const auto newsTickerButtonsColour = readColour(1, WindowClass::newsTicker, 1);
+        const auto messageBackgroundColour = readColour(2, WindowClass::newsTicker, 0);
+        const auto parkRatingBarColour = readColour(3, WindowClass::parkInfoPanel, 1);
+
+        const auto* parkInfoPanelDesc = GetWindowThemeDescriptor(WindowClass::parkInfoPanel);
+        UIThemeWindowEntry parkInfoPanelEntry{};
+        parkInfoPanelEntry.Class = parkInfoPanelDesc->WindowClass;
+        parkInfoPanelEntry.Theme = parkInfoPanelDesc->windowColours.defaultTheme;
+        parkInfoPanelEntry.Theme.Colours[0] = panelColour;
+        parkInfoPanelEntry.Theme.Colours[1] = parkRatingBarColour;
+        theme.SetEntry(&parkInfoPanelEntry);
+
+        const auto* dateInfoPanelDesc = GetWindowThemeDescriptor(WindowClass::dateInfoPanel);
+        UIThemeWindowEntry dateInfoPanelEntry{};
+        dateInfoPanelEntry.Class = dateInfoPanelDesc->WindowClass;
+        dateInfoPanelEntry.Theme = dateInfoPanelDesc->windowColours.defaultTheme;
+        dateInfoPanelEntry.Theme.Colours[0] = panelColour;
+        theme.SetEntry(&dateInfoPanelEntry);
+
+        const auto* statusBarDesc = GetWindowThemeDescriptor(WindowClass::gameStatusBar);
+        UIThemeWindowEntry statusBarEntry{};
+        statusBarEntry.Class = statusBarDesc->WindowClass;
+        statusBarEntry.Theme = statusBarDesc->windowColours.defaultTheme;
+        statusBarEntry.Theme.Colours[0] = panelColour;
+        theme.SetEntry(&statusBarEntry);
+
+        const auto* newsTickerDesc = GetWindowThemeDescriptor(WindowClass::newsTicker);
+        UIThemeWindowEntry newsTickerEntry{};
+        newsTickerEntry.Class = newsTickerDesc->WindowClass;
+        newsTickerEntry.Theme = newsTickerDesc->windowColours.defaultTheme;
+        newsTickerEntry.Theme.Colours[0] = messageBackgroundColour;
+        newsTickerEntry.Theme.Colours[1] = newsTickerButtonsColour;
+        theme.SetEntry(&newsTickerEntry);
+    }
+
     UITheme* UITheme::FromJson(json_t& jsonObj)
     {
         Guard::Assert(jsonObj.is_object(), "UITheme::FromJson expects parameter jsonObj to be object");
@@ -507,14 +553,30 @@ namespace OpenRCT2::Ui
                 {
                     if (jsonValue.is_object())
                     {
-                        const WindowThemeDesc* wtDesc = GetWindowThemeDescriptor(jsonKey.data());
-                        if (wtDesc == nullptr)
+                        const utf8* windowClassName = jsonKey.data();
+                        // May occur in older themes created before the bottom toolbar split
+                        if (strcmp(windowClassName, "WC_BOTTOM_TOOLBAR") == 0)
                         {
-                            continue;
+                            importOldBottomToolbar(*result, jsonValue, version);
                         }
+                        else
+                        {
+                            if (strcmp(windowClassName, "WC_EDITOR_TRACK_BOTTOM_TOOLBAR") == 0)
+                                windowClassName = "WC_EDITOR_STEP_CONTROL_TRACK";
+                            else if (strcmp(windowClassName, "WC_EDITOR_SCENARIO_BOTTOM_TOOLBAR") == 0)
+                                windowClassName = "WC_EDITOR_STEP_CONTROL_SCENARIO";
+                            // Explicit current-format entries take precedence over legacy aliases.
+                            if (jsonKey != windowClassName && jsonEntries.contains(windowClassName))
+                                continue;
+                            const WindowThemeDesc* wtDesc = GetWindowThemeDescriptor(windowClassName);
+                            if (wtDesc == nullptr)
+                            {
+                                continue;
+                            }
 
-                        UIThemeWindowEntry entry = UIThemeWindowEntry::FromJson(wtDesc, jsonValue, version);
-                        result->SetEntry(&entry);
+                            UIThemeWindowEntry entry = UIThemeWindowEntry::FromJson(wtDesc, jsonValue, version);
+                            result->SetEntry(&entry);
+                        }
                     }
                 }
             }
@@ -769,6 +831,14 @@ namespace OpenRCT2::Ui
         Config::Get().interface.currentThemePreset = ThemeManagerGetAvailableThemeConfigName(index);
 
         ColourSchemeUpdateAll();
+        auto* windowMgr = GetWindowManager();
+        if (gLegacyScene == LegacyScene::playing && windowMgr->FindByClass(WindowClass::topToolbar) != nullptr)
+        {
+            if (ThemeGetFlags() & UITHEME_FLAG_USE_GAME_STATUS_BAR)
+                windowMgr->OpenWindow(WindowClass::gameStatusBar);
+            else
+                windowMgr->CloseByClass(WindowClass::gameStatusBar);
+        }
     }
 
     size_t ThemeGetIndexForName(const utf8* name)

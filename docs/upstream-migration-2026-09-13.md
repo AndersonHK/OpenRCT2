@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 339 / 361 source commits recorded
+## Progress: 340 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3747,10 +3747,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U339 — `345f61452e` — Move JSON colour conversion to its own function
 
 - **Source:** `345f61452e9c66a0eec584243933a3563b93e822`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `4a22f4c5ef2f8561b3263c2753091750d8af9272`.
 - **Remaining:** 23 → 22.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Extracted shared JSON theme color conversion helper.
 - **Additional decisions / behavior:** Preserve version-zero legacy bytes and version-one color/translucency defaults exactly; preparation for old toolbar settings migration.
 - **Verification:** Full source inspected; complete Theme.cpp identical to source at this receipt.
 - **Pending / concerns:** Compile and theme compatibility fixture at U340 checkpoint.
+
+### U340 — `be90806c80` — Convert settings for the bottom toolbar to the new window types
+
+- **Source:** `be90806c808ab3d469d6edd5484472c11b00defd`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 22 → 21.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Import old toolbar theme colors into split HUD owners; complete and validate U336-U340 checkpoint.
+- **Additional decisions / behavior:** D07: missing old color slots use owner defaults; preserve old editor theme aliases and prefer explicit current keys. Switching themes updates optional status window with visible HUD. Preserve hidden toolbar across news updates and refresh ticker when restoring HUD, including paused games. Fix U338 WindowBase close call through manager. No gameplay change.
+- **Verification:** Final Release/x64/Vulkan solution zero warnings/errors in 7.79s; 69 WidgetState/GPU/localisation tests pass in 0.942s. Actual version 0/1 theme file imports cover 0-4 slots, aliases, precedence and theme switching; actual HUD tests cover queue transitions, resize, repeated opens and hide/show. Full source and diff checks inspected; details B93.
+- **Pending / concerns:** Native HUD/theme/rain pixels, translations and interactions remain manual handoff checks.
