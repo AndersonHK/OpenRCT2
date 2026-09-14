@@ -93,6 +93,7 @@ namespace OpenRCT2
     static TilePointerIndex<TileElement> _tileIndex;
     static uint64_t _tileElementRevision = 1;
     static std::array<uint64_t, kMaximumMapSizeTechnical * kMaximumMapSizeTechnical> _tileElementRevisions{};
+    static decltype(_tileElementRevisions) _tileElementRevisionsStash{};
 
     static void ResetTileElementReferences()
     {
@@ -120,6 +121,7 @@ namespace OpenRCT2
         _tileElementsStash = std::move(gameState.tileElements);
         _mapSizeStash = gameState.mapSize;
         _tileElementsInUseStash = _tileElementsInUse;
+        _tileElementRevisionsStash = _tileElementRevisions;
         _presentationDirtyTilesStash = _presentationDirtyTiles;
         _presentationDirtyWorklistStash = std::move(_presentationDirtyWorklist);
         _presentationEpochStash = _presentationEpoch;
@@ -142,7 +144,8 @@ namespace OpenRCT2
         _presentationDirtyWorklist = std::move(_presentationDirtyWorklistStash);
         _presentationEpoch = _presentationEpochStash;
         _presentationResetPending = _presentationResetPendingStash;
-        ResetTileElementReferences();
+        // Restore the live map's identity; never rewind the allocator used by temporary maps.
+        _tileElementRevisions = _tileElementRevisionsStash;
         MapTopology::Reset();
     }
 
@@ -611,7 +614,7 @@ namespace OpenRCT2
         {
             Guard::ArgumentInRange(item.tile.x, 0, kMaximumMapSizeTechnical - 1, "tile.x");
             Guard::ArgumentInRange(item.tile.y, 0, kMaximumMapSizeTechnical - 1, "tile.y");
-            _originals.push_back({ item.tile, _tileIndex.GetFirstElementAt(item.tile) });
+            _originals.push_back({ item.tile, _tileIndex.GetFirstElementAt(item.tile), GetTileElementRevision(item.tile) });
             _tileIndex.SetTile(item.tile, item.elements);
             InvalidateTileElementReferences(item.tile);
         }
@@ -622,7 +625,8 @@ namespace OpenRCT2
         for (auto item = _originals.rbegin(); item != _originals.rend(); item++)
         {
             _tileIndex.SetTile(item->tile, item->elements);
-            InvalidateTileElementReferences(item->tile);
+            // A balanced render-only override restores the same elements, including nested scopes.
+            _tileElementRevisions[item->tile.x + item->tile.y * kMaximumMapSizeTechnical] = item->revision;
         }
     }
 

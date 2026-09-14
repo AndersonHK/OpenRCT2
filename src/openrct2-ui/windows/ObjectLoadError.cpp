@@ -7,15 +7,13 @@
  * OpenRCT2 is licensed under the GNU General Public License version 3.
  *****************************************************************************/
 
-#include <mutex>
+#include "ObjectDownloader.h"
+
+#include <openrct2/Context.h>
 #include <openrct2-ui/interface/Widget.h>
 #include <openrct2-ui/interface/Window.h>
 #include <openrct2-ui/windows/Windows.h>
 #include <openrct2/Diagnostic.h>
-#include <openrct2/core/Console.hpp>
-#include <openrct2/core/Http.h>
-#include <openrct2/core/Json.hpp>
-#include <openrct2/core/String.hpp>
 #include <openrct2/drawing/ColourMap.h>
 #include <openrct2/drawing/Rectangle.h>
 #include <openrct2/drawing/RenderTarget.h>
@@ -24,7 +22,6 @@
 #include <openrct2/localisation/Formatting.h>
 #include <openrct2/localisation/StringIds.h>
 #include <openrct2/object/ObjectManager.h>
-#include <openrct2/object/ObjectRepository.h>
 #include <openrct2/platform/Platform.h>
 #include <openrct2/ui/UiContext.h>
 #include <openrct2/ui/WindowManager.h>
@@ -37,231 +34,6 @@ using namespace OpenRCT2::Drawing;
 
 namespace OpenRCT2::Ui::Windows
 {
-#ifndef DISABLE_HTTP
-
-    // TODO: move to its own compilation unit
-    class ObjectDownloader
-    {
-    private:
-        static constexpr auto kOpenRCT2ApiLegacyObjectURL = "https://api.openrct2.io/objects/legacy/";
-
-        struct DownloadStatusInfo
-        {
-            std::string Name;
-            std::string Source;
-            size_t Count{};
-            size_t Total{};
-
-            bool operator==(const DownloadStatusInfo& rhs) const
-            {
-                return Name == rhs.Name && Source == rhs.Source && Count == rhs.Count && Total == rhs.Total;
-            }
-            bool operator!=(const DownloadStatusInfo& rhs) const
-            {
-                return !(*this == rhs);
-            }
-        };
-
-        std::vector<ObjectEntryDescriptor> _entries;
-        std::vector<ObjectEntryDescriptor> _downloadedEntries;
-        size_t _currentDownloadIndex{};
-        std::mutex _downloadedEntriesMutex;
-        std::mutex _queueMutex;
-        bool _nextDownloadQueued{};
-
-        DownloadStatusInfo _lastDownloadStatusInfo;
-        DownloadStatusInfo _downloadStatusInfo;
-        std::mutex _downloadStatusInfoMutex;
-        std::string _lastDownloadSource;
-
-        // TODO static due to INTENT_EXTRA_CALLBACK not allowing a std::function
-        inline static bool _downloadingObjects;
-
-    public:
-        void Begin(const std::vector<ObjectEntryDescriptor>& entries)
-        {
-            _lastDownloadStatusInfo = {};
-            _downloadStatusInfo = {};
-            _lastDownloadSource = {};
-            _entries = entries;
-            _currentDownloadIndex = 0;
-            _downloadingObjects = true;
-            QueueNextDownload();
-        }
-
-        bool IsDownloading() const
-        {
-            return _downloadingObjects;
-        }
-
-        std::vector<ObjectEntryDescriptor> GetDownloadedEntries()
-        {
-            std::lock_guard<std::mutex> guard(_downloadedEntriesMutex);
-            return _downloadedEntries;
-        }
-
-        void Update()
-        {
-            std::lock_guard guard(_queueMutex);
-            if (_nextDownloadQueued)
-            {
-                _nextDownloadQueued = false;
-                NextDownload();
-            }
-            UpdateStatusBox();
-        }
-
-    private:
-        void UpdateStatusBox()
-        {
-            std::lock_guard<std::mutex> guard(_downloadStatusInfoMutex);
-            if (_lastDownloadStatusInfo != _downloadStatusInfo)
-            {
-                _lastDownloadStatusInfo = _downloadStatusInfo;
-
-                if (_downloadStatusInfo == DownloadStatusInfo())
-                {
-                    ContextForceCloseWindowByClass(WindowClass::networkStatus);
-                }
-                else
-                {
-                    char str_downloading_objects[256]{};
-                    Formatter ft;
-                    if (_downloadStatusInfo.Source.empty())
-                    {
-                        ft.Add<int16_t>(static_cast<int16_t>(_downloadStatusInfo.Count));
-                        ft.Add<int16_t>(static_cast<int16_t>(_downloadStatusInfo.Total));
-                        ft.Add<char*>(_downloadStatusInfo.Name.c_str());
-                        FormatStringLegacy(
-                            str_downloading_objects, sizeof(str_downloading_objects), STR_DOWNLOADING_OBJECTS, ft.Data());
-                    }
-                    else
-                    {
-                        ft.Add<char*>(_downloadStatusInfo.Name.c_str());
-                        ft.Add<char*>(_downloadStatusInfo.Source.c_str());
-                        ft.Add<int16_t>(static_cast<int16_t>(_downloadStatusInfo.Count));
-                        ft.Add<int16_t>(static_cast<int16_t>(_downloadStatusInfo.Total));
-                        FormatStringLegacy(
-                            str_downloading_objects, sizeof(str_downloading_objects), STR_DOWNLOADING_OBJECTS_FROM, ft.Data());
-                    }
-
-                    auto intent = Intent(WindowClass::networkStatus);
-                    intent.PutExtra(INTENT_EXTRA_MESSAGE, std::string(str_downloading_objects));
-                    intent.PutExtra(INTENT_EXTRA_CALLBACK, []() -> void { _downloadingObjects = false; });
-                    ContextOpenIntent(&intent);
-                }
-            }
-        }
-
-        void UpdateProgress(const DownloadStatusInfo& info)
-        {
-            std::lock_guard<std::mutex> guard(_downloadStatusInfoMutex);
-            _downloadStatusInfo = info;
-        }
-
-        void QueueNextDownload()
-        {
-            std::lock_guard guard(_queueMutex);
-            _nextDownloadQueued = true;
-        }
-
-        void DownloadObject(const ObjectEntryDescriptor& entry, const std::string& name, const std::string& url)
-        {
-            try
-            {
-                Console::WriteLine("Downloading %s", url.c_str());
-                Http::Request req;
-                req.method = Http::Method::get;
-                req.url = url;
-                Http::DoAsync(req, [this, entry, name](Http::Response response) {
-                    if (response.status == Http::Status::ok)
-                    {
-                        // Check that download operation hasn't been cancelled
-                        if (_downloadingObjects)
-                        {
-                            auto data = reinterpret_cast<uint8_t*>(response.body.data());
-                            auto dataLen = response.body.size();
-
-                            auto& objRepo = GetContext()->GetObjectRepository();
-                            objRepo.AddObjectFromFile(ObjectGeneration::dat, name, data, dataLen);
-
-                            std::lock_guard<std::mutex> guard(_downloadedEntriesMutex);
-                            _downloadedEntries.push_back(entry);
-                        }
-                    }
-                    else
-                    {
-                        Console::Error::WriteLine("  Failed to download %s", name.c_str());
-                    }
-                    QueueNextDownload();
-                });
-            }
-            catch (const std::exception&)
-            {
-                Console::Error::WriteLine("  Failed to download %s", name.c_str());
-                QueueNextDownload();
-            }
-        }
-
-        void NextDownload()
-        {
-            if (!_downloadingObjects || _currentDownloadIndex >= _entries.size())
-            {
-                // Finished...
-                _downloadingObjects = false;
-                UpdateProgress({});
-                return;
-            }
-
-            auto& entry = _entries[_currentDownloadIndex];
-            auto name = String::trim(std::string(entry.GetName()));
-            LOG_VERBOSE("Downloading object: [%s]:", name.c_str());
-            _currentDownloadIndex++;
-            UpdateProgress({ name, _lastDownloadSource, _currentDownloadIndex, _entries.size() });
-            try
-            {
-                Http::Request req;
-                req.method = Http::Method::get;
-                req.url = kOpenRCT2ApiLegacyObjectURL + name;
-                Http::DoAsync(req, [this, entry, name](Http::Response response) {
-                    if (response.status == Http::Status::ok)
-                    {
-                        auto jresponse = Json::FromString(response.body);
-                        if (jresponse.is_object())
-                        {
-                            auto objName = Json::GetString(jresponse["name"]);
-                            auto source = Json::GetString(jresponse["source"]);
-                            auto downloadLink = Json::GetString(jresponse["download"]);
-                            if (!downloadLink.empty())
-                            {
-                                _lastDownloadSource = source;
-                                UpdateProgress({ name, source, _currentDownloadIndex, _entries.size() });
-                                DownloadObject(entry, objName, downloadLink);
-                            }
-                        }
-                    }
-                    else if (response.status == Http::Status::notFound)
-                    {
-                        Console::Error::WriteLine("  %s not found", name.c_str());
-                        QueueNextDownload();
-                    }
-                    else
-                    {
-                        Console::Error::WriteLine(
-                            "  %s query failed (status %d)", name.c_str(), static_cast<int32_t>(response.status));
-                        QueueNextDownload();
-                    }
-                });
-            }
-            catch (const std::exception&)
-            {
-                Console::Error::WriteLine("  Failed to query %s", name.c_str());
-            }
-        }
-    };
-
-#endif
-
     enum WindowObjectLoadErrorWidgetIdx
     {
         WIDX_BACKGROUND,
@@ -340,7 +112,7 @@ namespace OpenRCT2::Ui::Windows
         int32_t _highlightedIndex = -1;
         std::string _filePath;
 #ifndef DISABLE_HTTP
-        ObjectDownloader _objDownloader;
+        ObjectDownloader _objDownloader{ GetContext()->GetBackgroundWorker() };
         bool _updatedListAfterDownload{};
 
         void DownloadAllObjects()
@@ -411,6 +183,12 @@ namespace OpenRCT2::Ui::Windows
 
         void onClose() override
         {
+#ifndef DISABLE_HTTP
+            const bool wasDownloading = _objDownloader.IsDownloading();
+            _objDownloader.Cancel();
+            if (wasDownloading)
+                ContextForceCloseWindowByClass(WindowClass::networkStatus);
+#endif
             _invalidEntries.clear();
             _invalidEntries.shrink_to_fit();
         }
@@ -562,6 +340,13 @@ namespace OpenRCT2::Ui::Windows
 
         void initialise(utf8* path, const size_t numMissingObjects, const ObjectEntryDescriptor* missingObjects)
         {
+#ifndef DISABLE_HTTP
+            const bool wasDownloading = _objDownloader.IsDownloading();
+            _objDownloader.Cancel();
+            _updatedListAfterDownload = true;
+            if (wasDownloading)
+                ContextForceCloseWindowByClass(WindowClass::networkStatus);
+#endif
             _invalidEntries = std::vector<ObjectEntryDescriptor>(missingObjects, missingObjects + numMissingObjects);
 
             // Refresh list items and path

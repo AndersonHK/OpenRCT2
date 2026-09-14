@@ -95,7 +95,13 @@ namespace OpenRCT2
         ScopedTileIndexOverride& operator=(const ScopedTileIndexOverride&) = delete;
 
     private:
-        std::vector<TileIndexOverride> _originals;
+        struct OriginalTile
+        {
+            TileCoordsXY tile;
+            TileElement* elements;
+            uint64_t revision;
+        };
+        std::vector<OriginalTile> _originals;
     };
 
     constexpr TileCoordsXY kDefaultMapSize = { 150, 150 };

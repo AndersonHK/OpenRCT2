@@ -289,10 +289,11 @@ TEST_F(PathNavigatorScriptingTests, StructuralEditsInvalidateReferencesWithoutAl
     CheckInvalid();
 }
 
-TEST_F(PathNavigatorScriptingTests, TemporaryMapsAndShiftsInvalidateWhileUnchangedTilesSurviveResize)
+TEST_F(PathNavigatorScriptingTests, PreviewMapsRestoreLiveReferencesWhileReplacedMapsInvalidate)
 {
     SetTile({ 2, 2 }, { Path() });
     Capture();
+    Check("globalThis.liveNav=nav; globalThis.liveSaved=saved; true");
     std::array<TileElement, 2> temporary{ *MapGetNthElementAt({ 64, 64 }, 0), Path() };
     temporary[0].setLastForTile(false);
     temporary[1].setLastForTile(true);
@@ -302,6 +303,7 @@ TEST_F(PathNavigatorScriptingTests, TemporaryMapsAndShiftsInvalidateWhileUnchang
         Capture();
     }
     CheckInvalid();
+    Check("liveNav.current!==null && liveSaved.isSloped===false");
     Capture();
     StashMap();
     MapInit({ 16, 16 });
@@ -310,6 +312,7 @@ TEST_F(PathNavigatorScriptingTests, TemporaryMapsAndShiftsInvalidateWhileUnchang
     Capture();
     UnstashMap();
     CheckInvalid();
+    Check("liveNav.current!==null && liveSaved.isSloped===false");
     Capture();
     GameActions::MapChangeSizeAction expand({ 18, 18 });
     EXPECT_EQ(expand.Execute(getGameState(), getGameState().park).error, GameActions::Status::ok);
@@ -322,6 +325,59 @@ TEST_F(PathNavigatorScriptingTests, TemporaryMapsAndShiftsInvalidateWhileUnchang
     GameActions::MapChangeSizeAction shift({ 18, 18 }, { 1, 0 });
     EXPECT_EQ(shift.Execute(getGameState(), getGameState().park).error, GameActions::Status::ok);
     CheckInvalid();
+}
+
+TEST_F(PathNavigatorScriptingTests, ConstructionPreviewRestoresIdentityAcrossNestedTileOverrides)
+{
+    MapInit({ 150, 150 });
+    // DrawTrackPieceHelper substitutes the tile at world (4096,4096) and its four neighbours solely for painting.
+    const std::array<TileCoordsXY, 5> tiles{ TileCoordsXY{ 128, 128 }, { 127, 128 }, { 129, 128 }, { 128, 127 }, { 128, 129 } };
+    for (const auto& tile : tiles)
+        SetTile(tile, { Path() });
+    Check(R"(
+        globalThis.livePaths=[[128,128],[127,128],[129,128],[128,127],[128,129]].map(p=>
+            map.getPathNavigator({x:p[0]*32,y:p[1]*32},1));
+        globalThis.liveConnections=livePaths.map(n=>n.current);
+        liveConnections.every(c=>c!==null)
+    )");
+    std::array<TileElement, 2> temporary{ *MapGetNthElementAt({ 4096, 4096 }, 0), Path() };
+    temporary[0].setLastForTile(false);
+    temporary[1].setLastForTile(true);
+    for (int repaint = 0; repaint < 2; ++repaint)
+    {
+        {
+            ScopedTileIndexOverride outer({
+                { tiles[0], temporary.data() },
+                { tiles[1], temporary.data() },
+                { tiles[2], temporary.data() },
+                { tiles[3], temporary.data() },
+                { tiles[4], temporary.data() },
+            });
+            Check("livePaths.every(n=>n.current===null) && liveConnections.every(c=>c.isSloped===null)");
+            if (repaint != 0)
+                Check("outerNav.current===null && innerNav.current===null");
+            Check("globalThis.outerNav=map.getPathNavigator({x:4096,y:4096},1); globalThis.outerConnection=outerNav.current; "
+                  "true");
+            {
+                ScopedTileIndexOverride inner({ { tiles[0], temporary.data() } });
+                Check("outerNav.current===null && outerConnection.isSloped===null");
+                Check("globalThis.innerNav=map.getPathNavigator({x:4096,y:4096},1); "
+                      "globalThis.innerConnection=innerNav.current; true");
+            }
+            Check("outerNav.current!==null && outerConnection.isSloped===false && innerNav.current===null && "
+                  "innerConnection.isSloped===null");
+        }
+        Check(R"(
+            livePaths.every(n=>n.current!==null) && liveConnections.every(c=>c.isSloped===false) &&
+            outerNav.current===null && outerConnection.isSloped===null && innerNav.current===null
+        )");
+    }
+    // Genuine mutation remains permanent even after later preview scopes.
+    SetTile(tiles[0], { Path() });
+    {
+        ScopedTileIndexOverride preview({ { tiles[0], temporary.data() } });
+    }
+    Check("livePaths[0].current===null && liveConnections[0].isSloped===null && livePaths.slice(1).every(n=>n.current!==null)");
 }
 
 TEST_F(ScriptingTests, MultipleSubscribersToSameEventShouldNotCrash)

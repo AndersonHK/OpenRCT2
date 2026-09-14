@@ -2946,8 +2946,9 @@ declare global {
     /**
      * Fork lifetime rule: inserting, deleting, replacing, reordering or changing an element type on
      * the current tile invalidates this navigator, including ghost edits. Reacquire it afterwards.
-     * Map replacement, shifts, and temporary map swaps also invalidate references. Resizing without
-     * a shift preserves references on unchanged tiles; removed or replaced tiles invalidate them.
+     * Map replacement and shifts invalidate references. Resizing without a shift preserves references
+     * on unchanged tiles; removed or replaced tiles invalidate them. Temporary preview maps suspend
+     * live references and restore them afterwards; references to preview elements expire on restoration.
      * Invalid navigators return null from getters/getConnectedPaths and false from moveTo.
      * Changes to existing path properties are read live. Other tiles may change independently.
      * This is a physical-path query; it does not model guest fares, transport, seats or crowding.

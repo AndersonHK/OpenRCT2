@@ -114,6 +114,7 @@
     <ClInclude Include="UiStringIds.h" />
     <ClInclude Include="WindowManager.h" />
     <ClInclude Include="windows\Windows.h" />
+    <ClInclude Include="windows\ObjectDownloader.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="audio\AudioChannel.cpp" />
@@ -218,6 +219,7 @@
     <ClCompile Include="windows\NewRide.cpp" />
     <ClCompile Include="windows\News.cpp" />
     <ClCompile Include="windows\ObjectLoadError.cpp" />
+    <ClCompile Include="windows\ObjectDownloader.cpp" />
     <ClCompile Include="windows\Options.cpp" />
     <ClCompile Include="windows\OverwritePrompt.cpp" />
     <ClCompile Include="windows\Park.cpp" />

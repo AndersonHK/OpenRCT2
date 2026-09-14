@@ -15860,7 +15860,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "09da873e8a2738526ff15afc3284f6929d9f5aa3"
+      ],
       "verification_evidence": [
         "Full three-file source inspected; B45 initial test-header dependency corrected. Final build 6.96s zero warnings/errors; 55 tests/5 suites passed in 9.272s. Real API120 plugin/raw widget test covers default/true/false, runtime border toggles and image/visibility/pressed/disabled bindings."
       ],
@@ -15900,9 +15902,11 @@
       "note": "Retain async request futures to avoid blocking temporary destruction; audit cancel/restart/window shutdown and late callbacks against fork background I/O ownership.",
       "decisions": [],
       "review_level": "targeted-code-review",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "O05 first build34.28s and59/6 tests4.102s; requested full Windows checkpoint585/50 passed36.124s before U212 edits. U212 test chrono include failure fixed; final build11.46s zero warnings/errors,108/10 combined tests pass11.334s. Four controller tests use real workers/UI with fake transport/install; nested five-tile preview and map stash tests pass."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -15910,7 +15914,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P7"
+      "verification_gate": "P7",
+      "port_commit_locator": "Upstream-Commit: 4cce29b5a9aceb14321ef7350457a17e896adf16",
+      "implementation_decisions": "Source future-vector approach has cross-thread mutation, restart waits and unsafe late callbacks; use existing worker ownership. Failed/malformed/no-link responses advance, short DAT rejected, only verified installs reported; preserve configured fork repository/assets pin and legacy missing-custom-object service. O05 corrects U204 preview/UI-dependent invalidation: save/restore live revisions, never rewind allocator; genuine mutations remain invalidating. No gameplay/save/protocol change or new owner choice; detailed trace B46.",
+      "pending_validation": "Live HTTP/successful native DAT install, actual preview rendering, multiplayer/replay and non-Windows/full disabled-scripting remain unverified. In-flight native HTTP cannot be interrupted; context shutdown can wait for it. U338/U340 HUD/theme and consolidated standing debt retained; companion pin remains unpublished."
     },
     {
       "sha": "44b178e30f6b072ba86ca7a6edacf4a09054858f",
@@ -27266,8 +27273,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 211,
-    "remaining_after_receipt": 150,
+    "accounted_in_this_tree": 212,
+    "remaining_after_receipt": 149,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
