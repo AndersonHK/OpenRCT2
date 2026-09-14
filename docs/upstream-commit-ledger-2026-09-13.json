@@ -15814,7 +15814,9 @@
       "decisions": [],
       "review_level": "targeted-code-review",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "123d6bb6af4202c520a98801915d4f6de6a83814"
+      ],
       "verification_evidence": [
         "Full source/fork action inspected; exact four-hunk code port. B44 first build 20.31s zero warnings/errors; 99 tests/9 suites passed in 10.221s, including independent flat/low/high/sloped/explicit height cases and unchanged costs/query nonmutation. Clears U207-U208 compile debt."
       ],
@@ -15857,9 +15859,11 @@
       "note": "Honor explicit plugin button border; test hidden/type state with final widget migration.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Full three-file source inspected; B45 initial test-header dependency corrected. Final build 6.96s zero warnings/errors; 55 tests/5 suites passed in 9.272s. Real API120 plugin/raw widget test covers default/true/false, runtime border toggles and image/visibility/pressed/disabled bindings."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -15869,7 +15873,10 @@
       "merge_conflict_paths": [
         "src/openrct2-ui/scripting/ScWidget.hpp"
       ],
-      "verification_gate": "P7"
+      "verification_gate": "P7",
+      "port_commit_locator": "Upstream-Commit: 34762ceb81f8799bc4078c3425ccc124990ef06f",
+      "implementation_decisions": "Omitted follows theme, true uses imgBtn, false uses hiddenButton; descriptor nonbooleans treated as unspecified. Preserve separate visibility flags, hover/pressed feedback, text buttons and legacy image-index conversion. No new owner decision or gameplay change.",
+      "pending_validation": "Actual theme rendering/hover/click, native non-Windows/full disabled-scripting and live multiplayer/replay unverified; standing debt retained."
     },
     {
       "sha": "4cce29b5a9aceb14321ef7350457a17e896adf16",
@@ -27259,8 +27266,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 210,
-    "remaining_after_receipt": 151,
+    "accounted_in_this_tree": 211,
+    "remaining_after_receipt": 150,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

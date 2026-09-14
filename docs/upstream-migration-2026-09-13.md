@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 210 / 361 source commits recorded
+## Progress: 211 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2328,10 +2328,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U210 — `c34fee484a` — Fix result.position.z of WallPlaceAction (#26441)
 
 - **Source:** `c34fee484abbbec39b0efb1b032da3b129a02877`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `123d6bb6af4202c520a98801915d4f6de6a83814`.
 - **Remaining:** 152 → 151.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Return actual resolved wall target height from Query/Execute; add five-case action/placed-element regression.
 - **Additional decisions / behavior:** Preserve placement, clearance, prices, cent precision, safe insertion, banner payload and XY centring. Correct feedback/last-action result position only. Protocol11/API120/save60016 unchanged. No owner decision.
 - **Verification:** Full source/fork action inspected; exact four-hunk code port. B44 first build 20.31s zero warnings/errors; 99 tests/9 suites passed in 10.221s, including independent flat/low/high/sloped/explicit height cases and unchanged costs/query nonmutation. Clears U207-U208 compile debt.
 - **Pending / concerns:** Actual OS attention, Ctrl quote refresh, multiplayer markers/visual feedback/replay and native non-Windows unverified; standing debt retained.
+
+### U211 — `34762ceb81` — Fix #25558: plugin buttons ignore an explicitly set border (#26925)
+
+- **Source:** `34762ceb81f8799bc4078c3425ccc124990ef06f`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 151 → 150.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Honor explicit plugin image-button borders with optional descriptor state and hiddenButton support throughout button bindings; add real custom-window regression.
+- **Additional decisions / behavior:** Omitted follows theme, true uses imgBtn, false uses hiddenButton; descriptor nonbooleans treated as unspecified. Preserve separate visibility flags, hover/pressed feedback, text buttons and legacy image-index conversion. No new owner decision or gameplay change.
+- **Verification:** Full three-file source inspected; B45 initial test-header dependency corrected. Final build 6.96s zero warnings/errors; 55 tests/5 suites passed in 9.272s. Real API120 plugin/raw widget test covers default/true/false, runtime border toggles and image/visibility/pressed/disabled bindings.
+- **Pending / concerns:** Actual theme rendering/hover/click, native non-Windows/full disabled-scripting and live multiplayer/replay unverified; standing debt retained.

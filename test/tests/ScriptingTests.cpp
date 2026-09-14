@@ -26,9 +26,16 @@
 
 #if defined(ENABLE_SCRIPTING) && defined(OPENRCT2_TEST_UI_BINDINGS)
     #include "TestData.h"
+    #include <openrct2-ui/UiContext.h>
     #include <openrct2-ui/scripting/UiExtensions.h>
+    #include <openrct2/PlatformEnvironment.h>
+    #include <openrct2/audio/AudioContext.h>
     #include <openrct2/core/File.h>
     #include <openrct2/core/Path.hpp>
+    #include <openrct2/interface/Widget.h>
+    #include <openrct2/interface/WindowBase.h>
+    #include <openrct2/ui/UiContext.h>
+    #include <openrct2/ui/WindowManager.h>
 #endif
 
 using namespace OpenRCT2;
@@ -439,6 +446,83 @@ TEST_F(ScriptingTests, MapResizeHookObservesCompletedChangesAndAllowsStateUpdate
 }
 
     #ifdef OPENRCT2_TEST_UI_BINDINGS
+TEST_F(ScriptingTests, ExplicitImageButtonBordersRetainImageAndVisibilityBindings)
+{
+    _context.reset();
+    auto env = CreatePlatformEnvironment();
+    auto uiContext = Ui::CreateUiContext(*env);
+    _context = CreateContext(std::move(env), Audio::CreateDummyAudioContext(), std::move(uiContext));
+    ASSERT_TRUE(_context->Initialise());
+    auto& engine = static_cast<ScriptEngine&>(_context->GetScriptEngine());
+    engine.AddNetworkPlugin(R"(
+        registerPlugin({
+            name:'test-button-border',version:'1',authors:['openrct2-test'],type:'remote',licence:'MIT',
+            minApiVersion:120,targetApiVersion:120,
+            main:function() {
+                const window=ui.openWindow({classification:'test-button-border',title:'Border test',width:200,height:100,
+                    widgets:[
+                        {type:'button',name:'implicit',x:10,y:30,width:20,height:20,image:100},
+                        {type:'button',name:'bordered',x:40,y:30,width:20,height:20,image:101,border:true},
+                        {type:'button',name:'borderless',x:70,y:30,width:20,height:20,image:102,border:false},
+                        {type:'button',name:'text',x:100,y:30,width:60,height:20,text:'Text',border:false}
+                    ]});
+                globalThis.exerciseBorder=function() {
+                    const button=window.findWidget('borderless');
+                    if (button.border || button.image!==102 || !button.isVisible) return false;
+                    button.isVisible=false;
+                    button.border=true;
+                    if (!button.border || button.isVisible) return false;
+                    button.border=false;
+                    button.image=103;
+                    if (button.border || button.image!==103 || button.isVisible) return false;
+                    button.isVisible=true;
+                    button.isPressed=true;
+                    button.isDisabled=true;
+                    return button.isVisible && button.isPressed && button.isDisabled && button.text==='';
+                };
+            }
+        });
+    )");
+    engine.LoadTransientPlugins();
+    engine.Tick();
+    const auto& plugins = engine.GetPlugins();
+    auto plugin = std::find_if(
+        plugins.begin(), plugins.end(), [](const auto& item) { return item->GetMetadata().Name == "test-button-border"; });
+    ASSERT_NE(plugin, plugins.end());
+    ASSERT_TRUE((*plugin)->HasStarted());
+    auto* window = Ui::GetWindowManager()->FindByClass(WindowClass::custom);
+    ASSERT_NE(window, nullptr);
+    const auto findImage = [&](uint32_t image) -> const Widget* {
+        for (const auto& widget : window->widgets)
+        {
+            if (widget.image.GetIndex() == image)
+                return &widget;
+        }
+        return nullptr;
+    };
+    ASSERT_NE(findImage(100), nullptr);
+    ASSERT_NE(findImage(101), nullptr);
+    ASSERT_NE(findImage(102), nullptr);
+    EXPECT_EQ(findImage(100)->type, WidgetType::flatBtn);
+    EXPECT_EQ(findImage(101)->type, WidgetType::imgBtn);
+    EXPECT_EQ(findImage(102)->type, WidgetType::hiddenButton);
+    EXPECT_FALSE(findImage(102)->flags.has(WidgetFlag::isHidden));
+    auto* ctx = (*plugin)->GetContext();
+    auto global = JS_GetGlobalObject(ctx);
+    auto function = JS_GetPropertyStr(ctx, global, "exerciseBorder");
+    auto result = engine.ExecutePluginCall(*plugin, function, JS_UNDEFINED, {}, false, false, true);
+    EXPECT_FALSE(JS_IsException(result));
+    EXPECT_EQ(JS_ToBool(ctx, result), 1);
+    ASSERT_NE(findImage(103), nullptr);
+    EXPECT_EQ(findImage(103)->type, WidgetType::hiddenButton);
+    EXPECT_FALSE(findImage(103)->flags.has(WidgetFlag::isHidden));
+    EXPECT_TRUE(findImage(103)->flags.has(WidgetFlag::isPressed));
+    EXPECT_TRUE(findImage(103)->flags.has(WidgetFlag::isDisabled));
+    JS_FreeValue(ctx, result);
+    JS_FreeValue(ctx, function);
+    JS_FreeValue(ctx, global);
+}
+
 TEST_F(ScriptingTests, CustomImageErrorsAreCatchablePreserveTheImageAndReleaseBuffers)
 {
     struct RestoreImageContext
