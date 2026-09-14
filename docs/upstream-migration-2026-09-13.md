@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 116 / 361 source commits recorded
+## Progress: 117 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1294,10 +1294,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U116 — `4087c9c6b9` — Rework script binding includes (#26882)
 
 - **Source:** `4087c9c6b9a6a6c6871dda823ee1473006902679`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `592235f42d829b3083328e750d3dad6445481012`.
 - **Remaining:** 246 → 245.
 - **Disposition:** adapt header cleanup.
 - **Manual changes:** Reorganize script binding includes and forward declarations; prefix two internal string arrays with k.
 - **Additional decisions / behavior:** Retain cstring and utility for fork ScTile atomic tile replacement memcpy/move calls. Public script strings and all binding behavior unchanged; companion objects ownership unchanged.
 - **Verification:** Full actual source diff reviewed; all 34 fork paths verified limited to includes, forward declarations and the two internal names. Whitespace/ancestry checks.
 - **Pending / concerns:** Compile and scripting checkpoint after header group.
+
+### U117 — `15b36d6ced` — Introduce dedicated header for window-related enum types (#26883)
+
+- **Source:** `15b36d6ced4d227826a1ad4c218cd5fa5ae79835`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 245 → 244.
+- **Disposition:** adapt window type/header ownership.
+- **Manual changes:** Extract WindowTypes.h, namespace WindowClass and related types/callbacks, move widget-index macro to its owning header, update includes and declarations, register new header in MSBuild.
+- **Additional decisions / behavior:** All 14 moved definitions preserve values, field order and underlying types. Retain Window.h for fork replay camera operations. Remove obsolete global PromptMode forward declaration alongside fork DrawingEngine declaration; preserve benchmark configuration. Move Game.cpp using directive before Emscripten declarations. No gameplay, save-prompt, widget-index or class ID changes.
+- **Verification:** Entire source diff inspected; moved definition bodies independently compared identical against fork HEAD. Whitespace and singleton ancestry gates. Build/test checkpoint pending. Batch 16 full MSVC/Vulkan build passed 0 warnings/errors; all 13 scripting/widget/network tests passed.
+- **Pending / concerns:** Native Emscripten/non-Windows builds and interactive window/replay checks remain.

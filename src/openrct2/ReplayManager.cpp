@@ -31,6 +31,7 @@
 #include "entity/EntityRegistry.h"
 #include "entity/EntityTweener.h"
 #include "entity/Guest.h"
+#include "interface/WindowTypes.h"
 #include "interface/Window.h"
 #include "localisation/Formatting.h"
 #include "localisation/StringIds.h"

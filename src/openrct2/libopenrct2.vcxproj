@@ -317,6 +317,7 @@
     <ClInclude Include="interface\WindowBase.h" />
     <ClInclude Include="interface\WindowClasses.h" />
     <ClInclude Include="interface\WindowFlags.h" />
+    <ClInclude Include="interface\WindowTypes.h" />
     <ClInclude Include="interface\ZoomLevel.h" />
     <ClInclude Include="Limits.h" />
     <ClInclude Include="localisation\Currency.h" />
