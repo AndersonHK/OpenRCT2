@@ -21610,7 +21610,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "603b406f3e847f45e8bace27d085a29c2bab9049"
+      ],
       "verification_evidence": [
         "Complete source patch changes one public token only. Breakpad remains conditional and absent from current Release validation configuration."
       ],
@@ -21649,9 +21651,11 @@
       "note": "Apply final documentation/changelog/string correction; distinguish upstream release history from features actually ported.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Read exact one-line patch; no runtime validation needed."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -21659,7 +21663,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P1"
+      "verification_gate": "P1",
+      "port_commit_locator": "Upstream-Commit: bf1c99fad5c9165294b1958dfa2dc266b437e9bb",
+      "implementation_decisions": "Documentation only; reflects already ported approved clear-mask behavior.",
+      "pending_validation": "None specific to this wording."
     },
     {
       "sha": "96a6638263408ee2b00110b77f06e7328eaaf211",
@@ -27882,8 +27889,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 299,
-    "remaining_after_receipt": 62,
+    "accounted_in_this_tree": 300,
+    "remaining_after_receipt": 61,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

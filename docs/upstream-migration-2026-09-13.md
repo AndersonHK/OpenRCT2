@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 299 / 361 source commits recorded
+## Progress: 300 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3307,10 +3307,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U299 — `4a081c584c` — Update backtrace token for v0.5.5
 
 - **Source:** `4a081c584c22f411cdf6ff80a387d2ef15327501`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `603b406f3e847f45e8bace27d085a29c2bab9049`.
 - **Remaining:** 63 → 62.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Refresh the existing public Backtrace token for the upstream 0.5.5 release.
 - **Additional decisions / behavior:** Follow documented U005 decision: preserve reporting integration, destination and consent flow, fork screenshot handling and removed OpenGL dependency. No upload performed or reporting enabled.
 - **Verification:** Complete source patch changes one public token only. Breakpad remains conditional and absent from current Release validation configuration.
 - **Pending / concerns:** External crash upload and Breakpad-enabled build not exercised.
+
+### U300 — `bf1c99fad5` — Small rewording in changelog
+
+- **Source:** `bf1c99fad5c9165294b1958dfa2dc266b437e9bb`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 62 → 61.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Clarify Clear Scenery changelog: footpath additions supported and walls separable from small scenery.
+- **Additional decisions / behavior:** Documentation only; reflects already ported approved clear-mask behavior.
+- **Verification:** Read exact one-line patch; no runtime validation needed.
+- **Pending / concerns:** None specific to this wording.
