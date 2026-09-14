@@ -14,6 +14,11 @@
 #include <openrct2/entity/EntityPresentationSnapshot.h>
 #include <openrct2/entity/Guest.h>
 #include <openrct2/entity/Litter.h>
+#include <openrct2/object/ObjectManager.h>
+#include <openrct2/paint/Paint.h>
+#include <openrct2/paint/vehicle/VehiclePaint.h>
+#include <openrct2/ride/Ride.h>
+#include <openrct2/ride/RideEntry.h>
 #include <openrct2/ride/Vehicle.h>
 
 using namespace OpenRCT2;
@@ -38,6 +43,63 @@ protected:
         context.reset();
     }
 };
+
+TEST_F(EntityPresentationSnapshotTests, SplashBoatPaintRejectsEmptyTrainsAndCapturedRecursion)
+{
+    auto& objectManager = context->GetObjectManager();
+    ASSERT_NE(objectManager.LoadObject("rct2.ride.spboat"), nullptr);
+    auto* ride = RideAllocateAtIndex(RideId::FromUnderlying(0));
+    ASSERT_NE(ride, nullptr);
+    ride->type = RIDE_TYPE_SPLASH_BOATS;
+    ride->subtype = objectManager.GetLoadedObjectEntryIndex("rct2.ride.spboat");
+    const auto* entry = ride->getRideEntry();
+    ASSERT_NE(entry, nullptr);
+    ASSERT_EQ(entry->zero_cars, 2);
+    ASSERT_EQ(entry->Cars[1].paintStyle, VehiclePaintStyle::splashBoatsOrWaterCoaster);
+    auto& entities = getGameState().entities;
+    auto* head = entities.CreateEntity<Vehicle>();
+    auto* tail = entities.CreateEntity<Vehicle>();
+    ASSERT_NE(head, nullptr);
+    ASSERT_NE(tail, nullptr);
+    for (auto* vehicle : { head, tail })
+    {
+        vehicle->ride = ride->id;
+        vehicle->ride_subtype = ride->subtype;
+        vehicle->vehicle_type = 1;
+        vehicle->flags = {};
+    }
+    head->SubType = Vehicle::Type::head;
+    tail->SubType = Vehicle::Type::tail;
+    head->next_vehicle_on_ride = tail->id;
+    tail->prev_vehicle_on_ride = head->id;
+    const std::array<CoordsXY, 0> noTiles{};
+    const auto snapshot = EntityPresentationSnapshot::Capture(entities, noTiles);
+    ScopedEntityPresentationSnapshot scope(snapshot.get());
+    auto* capturedHead = GetEntityForPresentation<Vehicle>(head->id);
+    ASSERT_NE(capturedHead, nullptr);
+    Drawing::RenderTarget rt{};
+    std::unique_ptr<PaintSession, decltype(&PaintSessionFree)> session(PaintSessionAlloc(rt, 0, 0), PaintSessionFree);
+    ASSERT_NE(session, nullptr);
+    for (uint8_t count : { 1, 2 })
+    {
+        ride->numCarsPerTrain = count;
+        session->CurrentlyDrawnEntity = nullptr;
+        VehicleVisualSplashBoatsOrWaterCoaster(*session, 0, 0, 0, 0, capturedHead, &entry->Cars[1]);
+        EXPECT_FALSE(static_cast<bool>(session->CurrentlyDrawnEntity));
+    }
+    // Live ride size now permits painting, but the captured two-proxy chain still loops.
+    ride->numCarsPerTrain = 3;
+    head->next_vehicle_on_ride = EntityId::GetNull();
+    for (int repeat = 0; repeat < 2; repeat++)
+    {
+        session->CurrentlyDrawnEntity = nullptr;
+        VehicleVisualSplashBoatsOrWaterCoaster(*session, 0, 0, 0, 0, capturedHead, &entry->Cars[1]);
+        EXPECT_EQ(session->CurrentlyDrawnEntity.id, head->id);
+        EXPECT_EQ(session->LastPS, nullptr);
+    }
+    EXPECT_TRUE(head->next_vehicle_on_ride.IsNull());
+    EXPECT_EQ(capturedHead->next_vehicle_on_ride, tail->id);
+}
 
 TEST_F(EntityPresentationSnapshotTests, CapturesOnlyRequestedSpatialBucketsAndKeepsOwnedState)
 {

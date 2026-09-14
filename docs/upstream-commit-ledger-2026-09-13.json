@@ -17563,7 +17563,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "d6f87cc132360306d73828f951f8de246087aff6"
+      ],
       "verification_evidence": [
         "Full source and draw context inspected; only tab-icon lookup and changelog change. B54 build pending."
       ],
@@ -17605,9 +17607,11 @@
       "note": "Guard fewer-than-one visible car in ride preview and Splash Boats paint recursion; use fork presentation snapshot owners.",
       "decisions": [],
       "review_level": "targeted-code-review",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Full source and paint barriers inspected; solution build 14.55s zero warnings/errors; 48 tests across three suites passed 7.420s, including captured two-proxy chain with newer positive live count. B54."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -17617,7 +17621,10 @@
       "merge_conflict_paths": [
         "src/openrct2/paint/vehicle/Vehicle.SplashBoats.cpp"
       ],
-      "verification_gate": "P6"
+      "verification_gate": "P6",
+      "port_commit_locator": "Upstream-Commit: bcdb769cfd3dc57b8524ac7f476ea64e42596128",
+      "implementation_decisions": "Approved crash fix. Additional B54 decision: source count guard reads live ride metadata behind the existing synchronous paint barrier; captured vehicle chains can lag that count, so a stack-backed thread-local per-session cycle guard prevents residual recursion. No train composition or gameplay state is changed.",
+      "pending_validation": "Rendered normal/empty Splash Boats and Water Coaster, custom/crashed/ghost combinations and standing platform/MP/replay checks remain."
     },
     {
       "sha": "35898a258c35374a458666771990a6e137004a07",
@@ -27525,8 +27532,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 248,
-    "remaining_after_receipt": 113,
+    "accounted_in_this_tree": 249,
+    "remaining_after_receipt": 112,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
