@@ -2823,7 +2823,9 @@
       ],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt",
-      "port_commits": [],
+      "port_commits": [
+        "169f32a42e15a64187d2d2693d0b0aa83461b14b"
+      ],
       "verification_evidence": [
         "Inspected all four source hunks and current fork Appearance flow; exact contexts matched. Naming batch build passed 0 warnings/errors in 85.41s. Source/diff/ancestry checks."
       ],
@@ -2864,9 +2866,11 @@
       "note": "Single-parent localisation update; use final target blobs after English ID reconciliation.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "ported; companion-fork dependency correction",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected all three actual localisation additions and unique IDs. Batch 06 full Windows build 0 warnings/errors; selected 45 tests passed with source-owned kart calibration and no 419 conflict warnings. Objects exporter compiled; CMake clean install and Windows linked-source install verified. See validation and objects correction docs."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -2874,7 +2878,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P1"
+      "verification_gate": "P1",
+      "port_commit_locator": "Upstream-Commit: b782a7dcc9da6a30b2626724604d380316f09ec3",
+      "implementation_decisions": "Localisation changes are text only; fork IDs remain 8000-8041. Owner clarified companion objects source: preserve all four data-owned -6 dB kart gains, remove uncommitted post-download workaround, and require pinned clean tracked source instead of silently downloading upstream assets. Objects migration has its own four-source ledger and does not alter engine source accounting. English typo regression skipped; actual exporter version 2.1.13 adopted. Full traceability, cleanup backup and local-only publication prerequisite are in docs/upstream-objects-migration-2026-09-13.md.",
+      "pending_validation": "Full Android/macOS/Linux packaging, interactive Appearance cases and exporter pixel-output check remain pending. The pinned objects receipt is local and has not been published. Existing exporter net6/framework compatibility warnings documented."
     },
     {
       "sha": "a3f7b5d3b09f470dee3e1b28ba157e40e3ff95c4",
@@ -26048,8 +26055,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 37,
-    "remaining_after_receipt": 324,
+    "accounted_in_this_tree": 38,
+    "remaining_after_receipt": 323,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

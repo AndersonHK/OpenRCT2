@@ -72,8 +72,9 @@ file(READ "${CMAKE_CURRENT_SOURCE_DIR}/assets.json" ASSETS_JSON)
 string(JSON TITLE_SEQUENCE_URL GET "${ASSETS_JSON}" "title-sequences" url)
 string(JSON TITLE_SEQUENCE_SHA256 GET "${ASSETS_JSON}" "title-sequences" sha256)
 
-string(JSON OBJECTS_URL GET "${ASSETS_JSON}" objects url)
-string(JSON OBJECTS_SHA256 GET "${ASSETS_JSON}" objects sha256)
+string(JSON OBJECTS_CHECKOUT GET "${ASSETS_JSON}" objects checkout)
+set(OPENRCT2_OBJECTS_SOURCE "${CMAKE_SOURCE_DIR}/${OBJECTS_CHECKOUT}" CACHE PATH "Companion objects fork checkout")
+include("${CMAKE_SOURCE_DIR}/cmake/ForkObjects.cmake")
 
 string(JSON OPENSFX_URL GET "${ASSETS_JSON}" opensfx url)
 string(JSON OPENSFX_SHA256 GET "${ASSETS_JSON}" opensfx sha256)
@@ -89,7 +90,7 @@ option(WITH_TESTS "Build tests")
 option(PORTABLE "Create a portable build (-rpath=$ORIGIN)" OFF)
 option(APPIMAGE "Create an appimage build (-rpath=$ORIGIN/../lib)" OFF)
 option(DOWNLOAD_TITLE_SEQUENCES "Download title sequences during installation." ON)
-option(DOWNLOAD_OBJECTS "Download objects during installation." ON)
+option(DOWNLOAD_OBJECTS "Install objects from the companion fork during installation." ON)
 option(DOWNLOAD_OPENSFX "Download OpenSoundEffects during installation." ON)
 option(DOWNLOAD_OPENMUSIC "Download OpenMusic during installation." ON)
 CMAKE_DEPENDENT_OPTION(DOWNLOAD_REPLAYS "Download replays during installation." ON
@@ -350,7 +351,7 @@ else ()
     ADD_CHECK_CXX_COMPILER_FLAG(CMAKE_CXX_FLAGS CXX_WARN_STRICT_OVERFLOW -Wstrict-overflow=1)
 
     # Compiler flags
-    set(DEBUG_LEVEL 0 CACHE STRING "Select debug level for compilation. Use value in range 0–3.")
+    set(DEBUG_LEVEL 0 CACHE STRING "Select debug level for compilation. Use value in range 0â€“3.")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fstrict-aliasing -Werror -Wundef -Wmissing-declarations -Winit-self -Wall -Wextra -Wshadow")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unknown-pragmas -Wno-missing-braces -Wno-comment -Wnonnull -Wno-unused-parameter -Wno-attributes")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDEBUG=${DEBUG_LEVEL}")
@@ -463,17 +464,10 @@ if (NOT MACOS_BUNDLE OR (MACOS_BUNDLE AND WITH_TESTS))
             )")
     endif ()
     if (DOWNLOAD_OBJECTS)
-        # Checks if this version of the objects are already installed, updates if necessary
-        # if /data/object exists, it will overwrite this anyways (see `install(DIRECTORY "data/" ...)` below)
-        # therefore, the existence of that directory will skip this download
         install(CODE "
-            include(${ROOT_DIR}/cmake/download.cmake)
-            download_openrct2_zip(
-                DOWNLOAD_DIR \$ENV{DESTDIR}${CMAKE_INSTALL_FULL_DATADIR}/openrct2/object/
-                SKIP_IF_EXISTS ${CMAKE_SOURCE_DIR}/data/object/
-                ZIP_URL ${OBJECTS_URL}
-                SHA256 ${OBJECTS_SHA256}
-            )")
+            include(\"${ROOT_DIR}/cmake/ForkObjects.cmake\")
+            install_fork_objects(\"${ROOT_DIR}\" \"${OPENRCT2_OBJECTS_SOURCE}\"
+                \"\$ENV{DESTDIR}${CMAKE_INSTALL_FULL_DATADIR}/openrct2/object\")")
     endif ()
     if (DOWNLOAD_OPENSFX)
         install(CODE "

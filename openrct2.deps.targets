@@ -9,8 +9,6 @@
       <JsonFilePath           Required="true"  ParameterType="System.String" />
       <TitleSequencesUrl      Required="false" ParameterType="System.String" Output="true" />
       <TitleSequencesSha256   Required="false" ParameterType="System.String" Output="true" />
-      <ObjectsUrl             Required="false" ParameterType="System.String" Output="true" />
-      <ObjectsSha256          Required="false" ParameterType="System.String" Output="true" />
       <OpenSFXUrl             Required="false" ParameterType="System.String" Output="true" />
       <OpenSFXSha256          Required="false" ParameterType="System.String" Output="true" />
       <OpenMusicUrl           Required="false" ParameterType="System.String" Output="true" />
@@ -46,8 +44,6 @@
                       TitleSequencesUrl = GetAssetProperty(root, "title-sequences", "url");
                       TitleSequencesSha256 = GetAssetProperty(root, "title-sequences", "sha256");
 
-                      ObjectsUrl = GetAssetProperty(root, "objects", "url");
-                      ObjectsSha256 = GetAssetProperty(root, "objects", "sha256");
 
                       OpenSFXUrl = GetAssetProperty(root, "opensfx", "url");
                       OpenSFXSha256 = GetAssetProperty(root, "opensfx", "sha256");
@@ -310,8 +306,6 @@
       Condition="Exists('$(AssetsJsonPath)')">
       <Output TaskParameter="TitleSequencesUrl" PropertyName="TitleSequencesUrl" />
       <Output TaskParameter="TitleSequencesSha256" PropertyName="TitleSequencesSha256" />
-      <Output TaskParameter="ObjectsUrl" PropertyName="ObjectsUrl" />
-      <Output TaskParameter="ObjectsSha256" PropertyName="ObjectsSha256" />
       <Output TaskParameter="OpenSFXUrl" PropertyName="OpenSFXUrl" />
       <Output TaskParameter="OpenSFXSha256" PropertyName="OpenSFXSha256" />
       <Output TaskParameter="OpenMusicUrl" PropertyName="OpenMusicUrl" />
@@ -350,13 +344,13 @@
                         OutputDirectory="$(TargetDir)data\sequence" />
   </Target>
 
-  <!-- Target to download the objects -->
+  <!-- Keep the target name for existing callers; use the companion fork source. -->
   <Target Name="DownloadObjects">
-    <DownloadDependency Name="Objects"
-                        Url="$(ObjectsUrl)"
-                        Sha256="$(ObjectsSha256)"
-                        CheckFile="$(DependenciesCheckFile)"
-                        OutputDirectory="$(TargetDir)data\object" />
+    <PropertyGroup>
+      <ObjectsSourceDirectory Condition="'$(ObjectsSourceDirectory)' == ''">$(RootDir)..\OpenRCT2-objects</ObjectsSourceDirectory>
+      <PythonExecutable Condition="'$(PythonExecutable)' == ''">python</PythonExecutable>
+    </PropertyGroup>
+    <Exec Command="&quot;$(PythonExecutable)&quot; &quot;$(RootDir)scripts\install-fork-objects.py&quot; --manifest &quot;$(AssetsJsonPath)&quot; --source &quot;$(ObjectsSourceDirectory)&quot; --destination &quot;$(TargetDir)data\object&quot;" />
   </Target>
 
   <!-- Target to download OpenSFX -->

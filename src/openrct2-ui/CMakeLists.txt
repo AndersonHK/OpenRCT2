@@ -292,14 +292,10 @@ if(MACOS_BUNDLE)
     file(COPY ${SOURCE_DATA_DIR}/scenario_patches DESTINATION "${BUNDLE_RESOURCE_DIR}")
     file(COPY ${SOURCE_DATA_DIR}/shaders DESTINATION "${BUNDLE_RESOURCE_DIR}")
 
-    # Download objects and sequences
+    # Install companion fork objects and download sequences.
     set(OBJECTS_DIR ${CMAKE_BINARY_DIR}/object)
     set(TITLE_SEQUENCE_DIR ${CMAKE_BINARY_DIR}/sequence)
-    download_openrct2_zip(
-        DOWNLOAD_DIR ${OBJECTS_DIR}
-        ZIP_URL ${OBJECTS_URL}
-        SHA256 ${OBJECTS_SHA256}
-    )
+    install_fork_objects("${ROOT_DIR}" "${OPENRCT2_OBJECTS_SOURCE}" "${OBJECTS_DIR}")
 
     download_openrct2_zip(
         DOWNLOAD_DIR ${TITLE_SEQUENCE_DIR}

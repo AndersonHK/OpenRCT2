@@ -23,13 +23,10 @@ cp -r "$ROOT_DIR/data/scenario_patches" "$DATA_DIR/"
 cp "$ROOT_DIR/distribution/changelog.txt" "$DATA_DIR/"
 cp "$ROOT_DIR/contributors.md" "$DATA_DIR/"
 
-OBJECTS_URL=$(jq -r '.objects.url' "$ROOT_DIR/assets.json")
 TS_URL=$(jq -r '."title-sequences".url' "$ROOT_DIR/assets.json")
 
-curl -fL "$OBJECTS_URL" -o "$DATA_DIR/objects.zip"
-mkdir -p "$DATA_DIR/object"
-unzip -q "$DATA_DIR/objects.zip" -d "$DATA_DIR/object"
-rm -f "$DATA_DIR/objects.zip"
+python3 "$ROOT_DIR/scripts/install-fork-objects.py" --manifest "$ROOT_DIR/assets.json" \
+    --source "${OPENRCT2_OBJECTS_SOURCE:-$ROOT_DIR/../OpenRCT2-objects}" --destination "$DATA_DIR/object"
 
 curl -fL "$TS_URL" -o "$DATA_DIR/title-sequences.zip"
 mkdir -p "$DATA_DIR/sequence"
