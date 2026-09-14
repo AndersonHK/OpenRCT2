@@ -19300,7 +19300,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "2a3ba9f8c5ccd403b0e4aa2c132ed93ee4c72392"
+      ],
       "verification_evidence": [
         "Complete text and binary file list inspected; exact upstream PNG blobs retained and bold glyph viewed. Existing B61 fixture extended with distinct Hryvnia mapping and loaded positive-width entry checks. B62 build/rebuild pending."
       ],
@@ -19339,9 +19341,11 @@
       "note": "Take final sprite-font glyph definitions/assets and numeric codepoints as one package; check money glyphs with cent formatting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Solution build 27.24s zero warnings/errors; fonts.dat and manifest 1023 entries/all paths valid; ten language/loaded-glyph tests passed 0.115s. B62."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -19349,7 +19353,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P1"
+      "verification_gate": "P1",
+      "port_commit_locator": "Upstream-Commit: 1ce70b8bf8c5ad282ffc47850501a5ce885154d2",
+      "implementation_decisions": "Text appearance/width changes only: bold guilder x=-1, tiny y=0; small unchanged. Source-parent bytes verified before replacement and bold before/after viewed. Currency arithmetic and values remain unchanged.",
+      "pending_validation": "Actual text rendering/TTF/packaging/non-Windows and standing interactive/MP/replay checks remain."
     },
     {
       "sha": "550fe4be8588a5f176fff1e00b8bd41f9427051f",
@@ -27686,8 +27693,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 271,
-    "remaining_after_receipt": 90,
+    "accounted_in_this_tree": 272,
+    "remaining_after_receipt": 89,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

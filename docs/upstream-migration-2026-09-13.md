@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 271 / 361 source commits recorded
+## Progress: 272 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2999,10 +2999,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U271 — `9d59ed34dd` — Close #21441: Add sprite font glyph for the Hryvnia (₴)
 
 - **Source:** `9d59ed34dddd927b80b19dd9656f25fa6b36f0f1`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `2a3ba9f8c5ccd403b0e4aa2c132ed93ee4c72392`.
 - **Remaining:** 91 → 90.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Add exact three-style Hryvnia glyphs, manifest/enum/Unicode mapping; extend loaded-font regression to Hryvnia.
 - **Additional decisions / behavior:** Character rendering only; no currency calculations/rates or save change. Normalize patch context for the already-cleaned U269 blank enum line. Keep three-style slot alignment.
 - **Verification:** Complete text and binary file list inspected; exact upstream PNG blobs retained and bold glyph viewed. Existing B61 fixture extended with distinct Hryvnia mapping and loaded positive-width entry checks. B62 build/rebuild pending.
 - **Pending / concerns:** B62 font archive regeneration and extended glyph test pending; standing rendered text/platform checks remain.
+
+### U272 — `1ce70b8bf8` — Redesign f-with-hook (guilder) glyph
+
+- **Source:** `1ce70b8bf8c5ad282ffc47850501a5ce885154d2`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 90 → 89.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Adopt exact redesigned bold/tiny guilder PNGs and manifest offsets; validate Hryvnia and guilder loaded glyphs with rebuilt archive.
+- **Additional decisions / behavior:** Text appearance/width changes only: bold guilder x=-1, tiny y=0; small unchanged. Source-parent bytes verified before replacement and bold before/after viewed. Currency arithmetic and values remain unchanged.
+- **Verification:** Solution build 27.24s zero warnings/errors; fonts.dat and manifest 1023 entries/all paths valid; ten language/loaded-glyph tests passed 0.115s. B62.
+- **Pending / concerns:** Actual text rendering/TTF/packaging/non-Windows and standing interactive/MP/replay checks remain.

@@ -65,6 +65,12 @@ TEST_F(Localisation, SpriteFontsHaveDistinctLowercaseHardSignAndCurrencyGlyphsIn
         ASSERT_NE(GfxGetG1Element(hryvnia), nullptr);
         EXPECT_GT(GfxGetG1Element(hryvnia)->width, 0);
     }
+    const auto* guilderBold = GfxGetG1Element(FontSpriteGetCodepointSprite(FontStyle::medium, U'ƒ'));
+    const auto* guilderTiny = GfxGetG1Element(FontSpriteGetCodepointSprite(FontStyle::tiny, U'ƒ'));
+    ASSERT_NE(guilderBold, nullptr);
+    ASSERT_NE(guilderTiny, nullptr);
+    EXPECT_EQ(guilderBold->xOffset, -1);
+    EXPECT_EQ(guilderTiny->yOffset, 0);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
