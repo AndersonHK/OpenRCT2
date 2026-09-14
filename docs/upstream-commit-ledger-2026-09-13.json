@@ -20913,7 +20913,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "b8663283e67c0a471db00a61e8d9abb83cc0fb05"
+      ],
       "verification_evidence": [
         "Read complete two-hunk implementation and changelog source; applied exact delta to existing input state branches and checked fork positioning context."
       ],
@@ -20951,9 +20953,11 @@
       "note": "Close orphan dropdowns and reject stale hover indices after page changes; exercise fork dynamic ride widgets.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "B70 final complete solution 7.17s zero warnings/errors; 25 UI/scripting tests passed in 2.197s. Synthetic SDL resize and real queued outside releases verify both drag bounds/dropdown dismissal and closed-parent cleanup, clearing U285 debt. Initial two fixture compile errors corrected."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -20961,7 +20965,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P5"
+      "verification_gate": "P5",
+      "port_commit_locator": "Upstream-Commit: f219737349cdb1d6425f15f219fe3a12cc02444b",
+      "implementation_decisions": "Exact source parent-missing cleanup preserves input reset behavior. Paired U285 clamp keeps the grab point inside the canvas without changing snapping or vertical bounds; partial off-screen extent by grab offset remains. See B70.",
+      "pending_validation": "Native pointer capture/multi-monitor/rendering and actual plugin/live-MP closure events untested; non-Windows/replay standing. No new owner decision."
     },
     {
       "sha": "abcc8f90caed10382875b8c9e81b9238c6597102",
@@ -27784,8 +27791,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 285,
-    "remaining_after_receipt": 76,
+    "accounted_in_this_tree": 286,
+    "remaining_after_receipt": 75,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

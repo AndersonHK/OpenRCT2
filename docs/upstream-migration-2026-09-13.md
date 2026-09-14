@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 285 / 361 source commits recorded
+## Progress: 286 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3153,10 +3153,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U285 — `3e70c47a88` — Fix UI misbehaviors when releasing mouse outside of game window (#27004)
 
 - **Source:** `3e70c47a88994e05995f87c9d6c1f5a349a9f22e`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `b8663283e67c0a471db00a61e8d9abb83cc0fb05`.
 - **Remaining:** 77 → 76.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Clamp window-drag pointer X to the game width and dismiss dropdowns released outside all windows.
 - **Additional decisions / behavior:** Preserve fork snapping, vertical toolbar limits, pointer-to-window grab offset and valid dropdown selection. Outside-window release closes the dropdown without selecting an item; game simulation and viewport scrolling unchanged.
 - **Verification:** Read complete two-hunk implementation and changelog source; applied exact delta to existing input state branches and checked fork positioning context.
 - **Pending / concerns:** Compile/input regression at next coherent checkpoint with U286; native cross-window pointer delivery remains. No owner decision.
+
+### U286 — `f219737349` — Fix #7858: dropdown stays open when its parent window is closed (#27027)
+
+- **Source:** `f219737349cdb1d6425f15f219fe3a12cc02444b`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 76 → 75.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Close an active dropdown when its recorded parent window no longer exists; add paired queued-input regression.
+- **Additional decisions / behavior:** Exact source parent-missing cleanup preserves input reset behavior. Paired U285 clamp keeps the grab point inside the canvas without changing snapping or vertical bounds; partial off-screen extent by grab offset remains. See B70.
+- **Verification:** B70 final complete solution 7.17s zero warnings/errors; 25 UI/scripting tests passed in 2.197s. Synthetic SDL resize and real queued outside releases verify both drag bounds/dropdown dismissal and closed-parent cleanup, clearing U285 debt. Initial two fixture compile errors corrected.
+- **Pending / concerns:** Native pointer capture/multi-monitor/rendering and actual plugin/live-MP closure events untested; non-Windows/replay standing. No new owner decision.

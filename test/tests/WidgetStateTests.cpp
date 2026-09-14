@@ -16,11 +16,14 @@
 
 #ifdef OPENRCT2_TEST_UI_BINDINGS
     #include <openrct2-ui/UiContext.h>
+    #include <openrct2-ui/input/MouseInput.h>
+    #include <openrct2-ui/interface/Dropdown.h>
     #include <openrct2-ui/input/ShortcutIds.h>
     #include <openrct2-ui/input/ShortcutManager.h>
     #include <openrct2-ui/windows/Windows.h>
     #include <openrct2/Context.h>
     #include <openrct2/GameState.h>
+    #include <openrct2/Input.h>
     #include <openrct2/OpenRCT2.h>
     #include <openrct2/PlatformEnvironment.h>
     #include <openrct2/audio/AudioContext.h>
@@ -38,6 +41,80 @@
 using namespace OpenRCT2;
 
 #ifdef OPENRCT2_TEST_UI_BINDINGS
+    #include <SDL.h>
+TEST(WidgetStateTest, QueuedOutsideMouseReleaseClampsDraggingAndClosesOrphanDropdowns)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+    auto env = CreatePlatformEnvironment();
+    auto uiContext = Ui::CreateUiContext(*env);
+    auto context = CreateContext(std::move(env), Audio::CreateDummyAudioContext(), std::move(uiContext));
+    ASSERT_TRUE(context->Initialise());
+    struct RestoreInput
+    {
+        InputFlags flags{ gInputFlags };
+        decltype(Config::Get().general.windowScale) scale{ Config::Get().general.windowScale };
+        int32_t width{ Config::Get().general.windowWidth };
+        int32_t height{ Config::Get().general.windowHeight };
+        bool startedEvents{ SDL_WasInit(SDL_INIT_EVENTS) == 0 };
+        ~RestoreInput()
+        {
+            InputSetState(InputState::reset);
+            gInputFlags = flags;
+            Config::Get().general.windowScale = scale;
+            Config::Get().general.windowWidth = width;
+            Config::Get().general.windowHeight = height;
+            if (startedEvents) SDL_QuitSubSystem(SDL_INIT_EVENTS);
+        }
+    } restoreInput;
+    if (restoreInput.startedEvents) ASSERT_EQ(SDL_InitSubSystem(SDL_INIT_EVENTS), 0);
+    Config::Get().general.windowScale = 1;
+    Config::Get().general.windowWidth = 640;
+    Config::Get().general.windowHeight = 480;
+    SDL_Event resize{};
+    resize.type = SDL_WINDOWEVENT;
+    resize.window.event = SDL_WINDOWEVENT_RESIZED;
+    resize.window.data1 = 640;
+    resize.window.data2 = 480;
+    ASSERT_EQ(SDL_PushEvent(&resize), 1);
+    context->GetUiContext().ProcessMessages();
+    ASSERT_EQ(ContextGetWidth(), 640);
+    ASSERT_EQ(ContextGetHeight(), 480);
+    gInputFlags = {};
+    auto* manager = Ui::GetWindowManager();
+    auto* parent = manager->OpenWindow(WindowClass::finances);
+    ASSERT_NE(parent, nullptr);
+    parent->flags.set(WindowFlag::noSnapping);
+    for (const int32_t pointerX : { -1000, 2000 })
+    {
+        InputWindowPositionBegin(*parent, 0, parent->windowPos + ScreenCoordsXY{ 10, 10 });
+        StoreMouseInput(MouseState::leftRelease, { pointerX, 150 });
+        GameHandleInput();
+        EXPECT_EQ(parent->windowPos.x, pointerX < 0 ? -10 : 629);
+        EXPECT_EQ(parent->windowPos.y, 140);
+        EXPECT_EQ(InputGetState(), InputState::normal);
+    }
+    const auto openDropdown = [&]() {
+        gPressedWidget.windowClassification = parent->classification;
+        gPressedWidget.windowNumber = parent->number;
+        gPressedWidget.widgetIndex = 0;
+        Ui::Windows::WindowDropdownShowTextCustomWidth({ 100, 100 }, 0, parent->colours[0], 12, {}, size_t{ 1 }, 60);
+    };
+    openDropdown();
+    ASSERT_NE(manager->FindByClass(WindowClass::dropdown), nullptr);
+    StoreMouseInput(MouseState::leftRelease, { -1000, -1000 });
+    GameHandleInput();
+    EXPECT_EQ(manager->FindByClass(WindowClass::dropdown), nullptr);
+    EXPECT_EQ(InputGetState(), InputState::normal);
+    openDropdown();
+    ASSERT_NE(manager->FindByClass(WindowClass::dropdown), nullptr);
+    manager->CloseByClass(WindowClass::finances);
+    StoreMouseInput(MouseState::leftRelease, { -1000, -1000 });
+    GameHandleInput();
+    EXPECT_EQ(manager->FindByClass(WindowClass::dropdown), nullptr);
+    EXPECT_NE(InputGetState(), InputState::dropdownActive);
+}
+
 TEST(WidgetStateTest, EditorPanelsPreserveStepVisibilityResizeAndToolbarToggle)
 {
     gOpenRCT2Headless = true;
