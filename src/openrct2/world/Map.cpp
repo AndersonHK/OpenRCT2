@@ -2244,7 +2244,7 @@ namespace OpenRCT2
                 continue;
             if (tileElement->baseHeight != trackTilePos.z)
                 continue;
-            if (tileElement->asTrack()->GetTrackType() != trackType)
+            if (tileElement->asTrack()->getTrackType() != trackType)
                 continue;
 
             return tileElement;
@@ -2271,9 +2271,9 @@ namespace OpenRCT2
                 continue;
             if (tileElement->baseHeight != trackTilePos.z)
                 continue;
-            if (tileElement->asTrack()->GetTrackType() != trackType)
+            if (tileElement->asTrack()->getTrackType() != trackType)
                 continue;
-            if (tileElement->asTrack()->GetSequenceIndex() != sequence)
+            if (tileElement->asTrack()->getSequenceIndex() != sequence)
                 continue;
 
             return tileElement;
@@ -2296,7 +2296,7 @@ namespace OpenRCT2
                         continue;
                     if (trackElement->getDirection() != location.direction)
                         continue;
-                    if (trackElement->GetTrackType() != trackType)
+                    if (trackElement->getTrackType() != trackType)
                         continue;
                     return trackElement;
                 }
@@ -2319,9 +2319,9 @@ namespace OpenRCT2
                         continue;
                     if (trackElement->getDirection() != location.direction)
                         continue;
-                    if (trackElement->GetTrackType() != trackType)
+                    if (trackElement->getTrackType() != trackType)
                         continue;
-                    if (trackElement->GetSequenceIndex() != sequence)
+                    if (trackElement->getSequenceIndex() != sequence)
                         continue;
                     return trackElement;
                 }
@@ -2348,9 +2348,9 @@ namespace OpenRCT2
                 continue;
             if (tileElement->baseHeight != trackTilePos.z)
                 continue;
-            if (tileElement->asTrack()->GetRideIndex() != rideIndex)
+            if (tileElement->asTrack()->getRideIndex() != rideIndex)
                 continue;
-            if (tileElement->asTrack()->GetTrackType() != trackType)
+            if (tileElement->asTrack()->getTrackType() != trackType)
                 continue;
 
             return tileElement;
@@ -2377,7 +2377,7 @@ namespace OpenRCT2
                 continue;
             if (tileElement->baseHeight != trackTilePos.z)
                 continue;
-            if (tileElement->asTrack()->GetRideIndex() != rideIndex)
+            if (tileElement->asTrack()->getRideIndex() != rideIndex)
                 continue;
 
             return tileElement;
@@ -2400,7 +2400,7 @@ namespace OpenRCT2
             }
 
             if (tileElement->getType() == TileElementType::track && tileElement->getBaseZ() == trackPos.z
-                && tileElement->asTrack()->GetRideIndex() == rideIndex)
+                && tileElement->asTrack()->getRideIndex() == rideIndex)
             {
                 return tileElement;
             }
@@ -2428,7 +2428,7 @@ namespace OpenRCT2
                 continue;
             if (tileElement->baseHeight != trackTilePos.z)
                 continue;
-            if (tileElement->asTrack()->GetRideIndex() != rideIndex)
+            if (tileElement->asTrack()->getRideIndex() != rideIndex)
                 continue;
             if (tileElement->getDirection() != trackPos.direction)
                 continue;

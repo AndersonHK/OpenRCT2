@@ -1291,7 +1291,7 @@ TEST_F(PlayTests, WaterSpecificClearanceRulesAreBypassedOnlyWithTheClearanceChea
                 EXPECT_TRUE(MapGetSurfaceElementAt(coords)->hasTrackThatNeedsWater());
                 auto* placedTrack = *TileElementsView<TrackElement>(coords).begin();
                 ASSERT_NE(placedTrack, nullptr);
-                EXPECT_EQ(placedTrack->GetRideIndex(), boat->id);
+                EXPECT_EQ(placedTrack->getRideIndex(), boat->id);
             }
         }
     }

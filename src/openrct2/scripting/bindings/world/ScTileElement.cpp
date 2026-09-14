@@ -470,7 +470,7 @@ namespace OpenRCT2::Scripting
         auto* el = data->element->asTrack();
         if (el != nullptr)
         {
-            return JS_NewUint32(ctx, EnumValue(el->GetTrackType()));
+            return JS_NewUint32(ctx, EnumValue(el->getTrackType()));
         }
         else
         {
@@ -492,7 +492,7 @@ namespace OpenRCT2::Scripting
             return JS_UNDEFINED;
         }
 
-        el->SetTrackType(static_cast<TrackElemType>(value));
+        el->setTrackType(static_cast<TrackElemType>(value));
         Invalidate(data);
         return JS_UNDEFINED;
     }
@@ -503,7 +503,7 @@ namespace OpenRCT2::Scripting
         auto* el = data->element->asTrack();
         if (el != nullptr)
         {
-            return JS_NewUint32(ctx, el->GetRideType());
+            return JS_NewUint32(ctx, el->getRideType());
         }
         else
         {
@@ -533,7 +533,7 @@ namespace OpenRCT2::Scripting
             return JS_UNDEFINED;
         }
 
-        el->SetRideType(value);
+        el->setRideType(value);
         Invalidate(data);
         return JS_UNDEFINED;
     }
@@ -552,7 +552,7 @@ namespace OpenRCT2::Scripting
             case TileElementType::track:
             {
                 auto* el = element->asTrack();
-                auto* ride = GetRide(el->GetRideIndex());
+                auto* ride = GetRide(el->getRideIndex());
 
                 if (ride != nullptr)
                 {
@@ -565,7 +565,7 @@ namespace OpenRCT2::Scripting
                     }
                 }
 
-                return JS_NewUint32(ctx, el->GetSequenceIndex());
+                return JS_NewUint32(ctx, el->getSequenceIndex());
             }
             case TileElementType::entrance:
             {
@@ -602,7 +602,7 @@ namespace OpenRCT2::Scripting
             case TileElementType::track:
             {
                 auto* el = element->asTrack();
-                auto ride = GetRide(el->GetRideIndex());
+                auto ride = GetRide(el->getRideIndex());
 
                 if (ride != nullptr)
                 {
@@ -615,7 +615,7 @@ namespace OpenRCT2::Scripting
                     }
                 }
 
-                el->SetSequenceIndex(value);
+                el->setSequenceIndex(value);
                 Invalidate(data);
                 break;
             }
@@ -661,7 +661,7 @@ namespace OpenRCT2::Scripting
             case TileElementType::track:
             {
                 auto* el = element->asTrack();
-                return JS_NewUint32(ctx, el->GetRideIndex().ToUnderlying());
+                return JS_NewUint32(ctx, el->getRideIndex().ToUnderlying());
             }
             case TileElementType::entrance:
             {
@@ -724,7 +724,7 @@ namespace OpenRCT2::Scripting
 
                 JS_UNPACK_UINT32(value, ctx, jsValue);
                 auto* el = element->asTrack();
-                el->SetRideIndex(RideId::FromUnderlying(value));
+                el->setRideIndex(RideId::FromUnderlying(value));
                 Invalidate(data);
                 break;
             }
@@ -785,14 +785,14 @@ namespace OpenRCT2::Scripting
             case TileElementType::track:
             {
                 auto* el = element->asTrack();
-                if (!el->IsStation())
+                if (!el->isStation())
                 {
                     auto& scriptEngine = GetContext()->GetScriptEngine();
                     scriptEngine.LogPluginInfo("Cannot read 'station' property, track is not a station.");
                     return JS_NULL;
                 }
 
-                return JS_NewUint32(ctx, el->GetStationIndex().ToUnderlying());
+                return JS_NewUint32(ctx, el->getStationIndex().ToUnderlying());
             }
             case TileElementType::entrance:
             {
@@ -848,7 +848,7 @@ namespace OpenRCT2::Scripting
 
                 JS_UNPACK_UINT32(value, ctx, jsValue);
                 auto* el = element->asTrack();
-                el->SetStationIndex(StationIndex::FromUnderlying(value));
+                el->setStationIndex(StationIndex::FromUnderlying(value));
                 Invalidate(data);
                 break;
             }
@@ -879,7 +879,7 @@ namespace OpenRCT2::Scripting
         auto* el = data->element->asTrack();
         if (el != nullptr)
         {
-            return JS_NewBool(ctx, el->HasChain());
+            return JS_NewBool(ctx, el->hasChain());
         }
         else
         {
@@ -901,7 +901,7 @@ namespace OpenRCT2::Scripting
             return JS_UNDEFINED;
         }
 
-        el->SetHasChain(value);
+        el->setHasChain(value);
         Invalidate(data);
         return JS_UNDEFINED;
     }
@@ -917,7 +917,7 @@ namespace OpenRCT2::Scripting
             return JS_NULL;
         }
 
-        Ride* ride = GetRide(el->GetRideIndex());
+        Ride* ride = GetRide(el->getRideIndex());
         if (ride == nullptr)
         {
             auto& scriptEngine = GetContext()->GetScriptEngine();
@@ -933,7 +933,7 @@ namespace OpenRCT2::Scripting
             return JS_NULL;
         }
 
-        return JS_NewUint32(ctx, el->GetMazeEntry());
+        return JS_NewUint32(ctx, el->getMazeEntry());
     }
     JSValue ScTileElement::mazeEntry_set(JSContext* ctx, JSValue thisValue, JSValue jsValue)
     {
@@ -955,7 +955,7 @@ namespace OpenRCT2::Scripting
             return JS_UNDEFINED;
         }
 
-        auto* ride = GetRide(el->GetRideIndex());
+        auto* ride = GetRide(el->getRideIndex());
         if (ride == nullptr)
         {
             auto& scriptEngine = GetContext()->GetScriptEngine();
@@ -972,7 +972,7 @@ namespace OpenRCT2::Scripting
         }
 
         JS_UNPACK_UINT32(value, ctx, jsValue);
-        el->SetMazeEntry(value);
+        el->setMazeEntry(value);
         Invalidate(data);
         return JS_UNDEFINED;
     }
@@ -988,7 +988,7 @@ namespace OpenRCT2::Scripting
             return JS_NULL;
         }
 
-        auto* ride = GetRide(el->GetRideIndex());
+        auto* ride = GetRide(el->getRideIndex());
         if (ride == nullptr)
         {
             auto& scriptEngine = GetContext()->GetScriptEngine();
@@ -1004,7 +1004,7 @@ namespace OpenRCT2::Scripting
             return JS_NULL;
         }
 
-        return JS_NewUint32(ctx, el->GetColourScheme());
+        return JS_NewUint32(ctx, el->getColourScheme());
     }
     JSValue ScTileElement::colourScheme_set(JSContext* ctx, JSValue thisValue, JSValue jsValue)
     {
@@ -1026,7 +1026,7 @@ namespace OpenRCT2::Scripting
             return JS_UNDEFINED;
         }
 
-        auto* ride = GetRide(el->GetRideIndex());
+        auto* ride = GetRide(el->getRideIndex());
         if (ride == nullptr)
         {
             auto& scriptEngine = GetContext()->GetScriptEngine();
@@ -1043,7 +1043,7 @@ namespace OpenRCT2::Scripting
         }
 
         JS_UNPACK_UINT32(value, ctx, jsValue);
-        el->SetColourScheme(static_cast<RideColourScheme>(value));
+        el->setColourScheme(static_cast<RideColourScheme>(value));
         Invalidate(data);
         return JS_UNDEFINED;
     }
@@ -1059,7 +1059,7 @@ namespace OpenRCT2::Scripting
             return JS_NULL;
         }
 
-        auto* ride = GetRide(el->GetRideIndex());
+        auto* ride = GetRide(el->getRideIndex());
         if (ride == nullptr)
         {
             auto& scriptEngine = GetContext()->GetScriptEngine();
@@ -1075,7 +1075,7 @@ namespace OpenRCT2::Scripting
             return JS_NULL;
         }
 
-        return JS_NewUint32(ctx, el->GetSeatRotation());
+        return JS_NewUint32(ctx, el->getSeatRotation());
     }
     JSValue ScTileElement::seatRotation_set(JSContext* ctx, JSValue thisValue, JSValue jsValue)
     {
@@ -1097,7 +1097,7 @@ namespace OpenRCT2::Scripting
             return JS_UNDEFINED;
         }
 
-        auto* ride = GetRide(el->GetRideIndex());
+        auto* ride = GetRide(el->getRideIndex());
         if (ride == nullptr)
         {
             auto& scriptEngine = GetContext()->GetScriptEngine();
@@ -1114,7 +1114,7 @@ namespace OpenRCT2::Scripting
         }
 
         JS_UNPACK_UINT32(value, ctx, jsValue);
-        el->SetSeatRotation(value);
+        el->setSeatRotation(value);
         Invalidate(data);
         return JS_UNDEFINED;
     }
@@ -1130,14 +1130,14 @@ namespace OpenRCT2::Scripting
             return JS_NULL;
         }
 
-        if (!trackTypeHasSpeedSetting(el->GetTrackType()))
+        if (!trackTypeHasSpeedSetting(el->getTrackType()))
         {
             auto& scriptEngine = GetContext()->GetScriptEngine();
             scriptEngine.LogPluginInfo("Cannot read 'brakeBoosterSpeed' property, track element has no speed setting.");
             return JS_NULL;
         }
 
-        return JS_NewUint32(ctx, el->GetBrakeBoosterSpeed());
+        return JS_NewUint32(ctx, el->getBrakeBoosterSpeed());
     }
     JSValue ScTileElement::brakeBoosterSpeed_set(JSContext* ctx, JSValue thisValue, JSValue jsValue)
     {
@@ -1159,7 +1159,7 @@ namespace OpenRCT2::Scripting
             return JS_UNDEFINED;
         }
 
-        if (!trackTypeHasSpeedSetting(el->GetTrackType()))
+        if (!trackTypeHasSpeedSetting(el->getTrackType()))
         {
             auto& scriptEngine = GetContext()->GetScriptEngine();
             scriptEngine.LogPluginInfo("Cannot set 'brakeBoosterSpeed' property, track element has no speed setting.");
@@ -1167,7 +1167,7 @@ namespace OpenRCT2::Scripting
         }
 
         JS_UNPACK_UINT32(value, ctx, jsValue);
-        el->SetBrakeBoosterSpeed(value);
+        el->setBrakeBoosterSpeed(value);
         Invalidate(data);
         return JS_UNDEFINED;
     }
@@ -1178,7 +1178,7 @@ namespace OpenRCT2::Scripting
         auto* el = data->element->asTrack();
         if (el != nullptr)
         {
-            return JS_NewBool(ctx, el->IsInverted());
+            return JS_NewBool(ctx, el->isInverted());
         }
         else
         {
@@ -1200,7 +1200,7 @@ namespace OpenRCT2::Scripting
             return JS_UNDEFINED;
         }
 
-        el->SetInverted(value);
+        el->setInverted(value);
         Invalidate(data);
         return JS_UNDEFINED;
     }
@@ -1211,7 +1211,7 @@ namespace OpenRCT2::Scripting
         auto* el = data->element->asTrack();
         if (el != nullptr)
         {
-            return JS_NewBool(ctx, el->HasCableLift());
+            return JS_NewBool(ctx, el->hasCableLift());
         }
         else
         {
@@ -1233,7 +1233,7 @@ namespace OpenRCT2::Scripting
             return JS_UNDEFINED;
         }
 
-        el->SetHasCableLift(value);
+        el->setHasCableLift(value);
         Invalidate(data);
         return JS_UNDEFINED;
     }
@@ -1243,7 +1243,7 @@ namespace OpenRCT2::Scripting
         auto data = gScTileElement.GetOpaque<OpaqueTileElementData*>(thisValue);
         auto el = data->element->asTrack();
         if (el != nullptr)
-            return JS_NewBool(ctx, el->IsHighlighted());
+            return JS_NewBool(ctx, el->isHighlighted());
         else
             return JS_NULL;
     }
@@ -1255,7 +1255,7 @@ namespace OpenRCT2::Scripting
         auto el = data->element->asTrack();
         if (el != nullptr)
         {
-            el->SetHighlight(value);
+            el->setHighlight(value);
             Invalidate(data);
         }
         return JS_UNDEFINED;

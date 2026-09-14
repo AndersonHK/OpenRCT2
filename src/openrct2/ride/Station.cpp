@@ -66,11 +66,11 @@ namespace OpenRCT2
         auto& station = ride.getStation(stationIndex);
 
         if ((ride.status == RideStatus::closed && ride.numRiders == 0)
-            || (tileElement != nullptr && tileElement->asTrack()->IsBrakeClosed()))
+            || (tileElement != nullptr && tileElement->asTrack()->isBrakeClosed()))
         {
             station.Depart &= ~kStationDepartFlag;
 
-            if (tileElement != nullptr && tileElement->asTrack()->HasGreenLight())
+            if (tileElement != nullptr && tileElement->asTrack()->hasGreenLight())
             {
                 RideInvalidateStationStart(ride, stationIndex, false, tileElement);
             }
@@ -346,9 +346,9 @@ namespace OpenRCT2
             return;
 
         TrackElement* const trackElement = tileElement->asTrack();
-        if (trackElement->HasGreenLight() != greenLight)
+        if (trackElement->hasGreenLight() != greenLight)
         {
-            trackElement->SetHasGreenLight(greenLight);
+            trackElement->setHasGreenLight(greenLight);
             MapInvalidateTileFull(startPos);
         }
     }

@@ -586,7 +586,7 @@ namespace OpenRCT2
                     case TileElementType::track:
                         if (initialTileElementPos.z == tileElement->getBaseZ())
                         {
-                            auto ride = GetRide(tileElement->asTrack()->GetRideIndex());
+                            auto ride = GetRide(tileElement->asTrack()->getRideIndex());
                             if (ride == nullptr)
                             {
                                 continue;
@@ -597,8 +597,8 @@ namespace OpenRCT2
                                 continue;
                             }
 
-                            const auto trackType = tileElement->asTrack()->GetTrackType();
-                            const uint8_t trackSequence = tileElement->asTrack()->GetSequenceIndex();
+                            const auto trackType = tileElement->asTrack()->getTrackType();
+                            const uint8_t trackSequence = tileElement->asTrack()->getSequenceIndex();
                             const auto& ted = GetTrackElementDescriptor(trackType);
                             if (!ted.sequenceData.sequences[trackSequence].flags.has(SequenceFlag::connectsToPath))
                             {
@@ -614,7 +614,7 @@ namespace OpenRCT2
                             if (query)
                             {
                                 FootpathNeighbourListPush(
-                                    neighbourList, 1, direction, tileElement->asTrack()->GetRideIndex(),
+                                    neighbourList, 1, direction, tileElement->asTrack()->getRideIndex(),
                                     StationIndex::GetNull());
                             }
                             Loc6A6FD2(initialTileElementPos, direction, initialTileElement, query);
@@ -675,7 +675,7 @@ namespace OpenRCT2
 
         if (tileElementPos.element->getType() == TileElementType::track)
         {
-            auto ride = GetRide(tileElementPos.element->asTrack()->GetRideIndex());
+            auto ride = GetRide(tileElementPos.element->asTrack()->getRideIndex());
             if (ride == nullptr)
             {
                 return;
@@ -686,8 +686,8 @@ namespace OpenRCT2
                 return;
             }
 
-            const auto trackType = tileElementPos.element->asTrack()->GetTrackType();
-            const uint8_t trackSequence = tileElementPos.element->asTrack()->GetSequenceIndex();
+            const auto trackType = tileElementPos.element->asTrack()->getTrackType();
+            const uint8_t trackSequence = tileElementPos.element->asTrack()->getSequenceIndex();
             const auto& ted = GetTrackElementDescriptor(trackType);
             if (!ted.sequenceData.sequences[trackSequence].flags.has(SequenceFlag::connectsToPath))
             {
@@ -1762,15 +1762,15 @@ namespace OpenRCT2
                 case TileElementType::track:
                     if (tileElement->baseHeight == coords.z)
                     {
-                        auto ride = GetRide(tileElement->asTrack()->GetRideIndex());
+                        auto ride = GetRide(tileElement->asTrack()->getRideIndex());
                         if (ride == nullptr)
                             continue;
 
                         if (!ride->getRideTypeDescriptor().flags.has(RtdFlag::isFlatRide))
                             break;
 
-                        const auto trackType = tileElement->asTrack()->GetTrackType();
-                        const uint8_t trackSequence = tileElement->asTrack()->GetSequenceIndex();
+                        const auto trackType = tileElement->asTrack()->getTrackType();
+                        const uint8_t trackSequence = tileElement->asTrack()->getSequenceIndex();
                         const auto& ted = GetTrackElementDescriptor(trackType);
                         if (ted.sequenceData.sequences[trackSequence].flags.has(SequenceFlag::connectsToPath))
                         {
@@ -1815,7 +1815,7 @@ namespace OpenRCT2
 
         if (tileElement->getType() == TileElementType::track)
         {
-            auto rideIndex = tileElement->asTrack()->GetRideIndex();
+            auto rideIndex = tileElement->asTrack()->getRideIndex();
             auto ride = GetRide(rideIndex);
             if (ride == nullptr)
                 return;
@@ -1966,12 +1966,12 @@ namespace OpenRCT2
             return false;
         }
 
-        if (trackElement->GetTrackType() != TrackElemType::flat)
+        if (trackElement->getTrackType() != TrackElemType::flat)
         {
             return false;
         }
 
-        auto ride = GetRide(trackElement->GetRideIndex());
+        auto ride = GetRide(trackElement->getRideIndex());
         if (ride == nullptr)
         {
             return false;

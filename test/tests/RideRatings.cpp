@@ -261,9 +261,9 @@ protected:
         auto* mazeElement = InsertTileElement<TrackElement>(
             { tile.ToCoordsXY(), baseZ }, 0, [&](TrackElement& mazeElement) {
                 mazeElement.setClearanceZ(clearanceZ);
-                mazeElement.SetTrackType(TrackElemType::maze);
-                mazeElement.SetRideType(RIDE_TYPE_MAZE);
-                mazeElement.SetRideIndex(trackRideId);
+                mazeElement.setTrackType(TrackElemType::maze);
+                mazeElement.setRideType(RIDE_TYPE_MAZE);
+                mazeElement.setRideIndex(trackRideId);
             });
         ASSERT_NE(mazeElement, nullptr);
     }
@@ -275,10 +275,10 @@ protected:
         auto* trackElement = InsertTileElement<TrackElement>(
             { tile.ToCoordsXY(), baseZ }, 0, [&](TrackElement& trackElement) {
                 trackElement.setClearanceZ(clearanceZ);
-                trackElement.SetTrackType(trackType);
+                trackElement.setTrackType(trackType);
                 trackElement.setDirection(direction);
-                trackElement.SetRideType(RIDE_TYPE_MINIATURE_RAILWAY);
-                trackElement.SetRideIndex(trackRideId);
+                trackElement.setRideType(RIDE_TYPE_MINIATURE_RAILWAY);
+                trackElement.setRideIndex(trackRideId);
             });
         ASSERT_NE(trackElement, nullptr);
     }
@@ -2214,7 +2214,7 @@ TEST_F(RideRatings, LocalContextScoresSameTileVerticalInteractionsStrongly)
     SetVehicleSideSurfaces(originTile, 0, origin.z, origin.z);
     auto* foreignTrack = InsertTileElement<TrackElement>(
         { originTile.ToCoordsXY(), 18 * kCoordsZStep }, 0, [&](TrackElement& foreignTrack) {
-            foreignTrack.SetRideIndex(foreignRideId);
+            foreignTrack.setRideIndex(foreignRideId);
             foreignTrack.setClearanceZ(20 * kCoordsZStep);
         });
     ASSERT_NE(foreignTrack, nullptr);
@@ -2481,9 +2481,9 @@ TEST_F(RideRatings, LocalContextMazeTrackBlocksLineOfSight)
     auto* mazeElement = InsertTileElement<TrackElement>(
         { blockerTile.ToCoordsXY(), groundZ }, 0, [&](TrackElement& mazeElement) {
             mazeElement.setClearanceZ(originZ + kCoordsZStep);
-            mazeElement.SetTrackType(TrackElemType::maze);
-            mazeElement.SetRideType(RIDE_TYPE_MAZE);
-            mazeElement.SetRideIndex(RideId::FromUnderlying(2));
+            mazeElement.setTrackType(TrackElemType::maze);
+            mazeElement.setRideType(RIDE_TYPE_MAZE);
+            mazeElement.setRideIndex(RideId::FromUnderlying(2));
         });
     ASSERT_NE(mazeElement, nullptr);
     RideRating::ClearLocalContextCache();

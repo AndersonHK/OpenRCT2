@@ -1882,7 +1882,7 @@ namespace OpenRCT2
 
                     for (auto* trackElement : TileElementsView<TrackElement>(location))
                     {
-                        auto rideIndex = trackElement->GetRideIndex();
+                        auto rideIndex = trackElement->getRideIndex();
                         if (!rideIndex.IsNull())
                         {
                             rideConsideration[rideIndex.ToUnderlying()] = true;
@@ -3277,7 +3277,7 @@ namespace OpenRCT2
                         }
                         case TileElementType::track:
                         {
-                            auto* ride = GetRide(tileElement->asTrack()->GetRideIndex());
+                            auto* ride = GetRide(tileElement->asTrack()->getRideIndex());
                             if (ride == nullptr)
                                 break;
 
@@ -3530,7 +3530,7 @@ namespace OpenRCT2
 
                     for (auto* trackElement : TileElementsView<TrackElement>(location))
                     {
-                        auto rideIndex = trackElement->GetRideIndex();
+                        auto rideIndex = trackElement->getRideIndex();
                         auto ride = GetRide(rideIndex);
                         if (ride == nullptr)
                             continue;
@@ -4711,7 +4711,7 @@ namespace OpenRCT2
                         if (trackElement->getBaseZ() != vehicle->TrackLocation.z)
                             continue;
 
-                        if (trackElement->GetStationIndex() != CurrentRideStation)
+                        if (trackElement->getStationIndex() != CurrentRideStation)
                             continue;
 
                         foundStation = true;
@@ -5482,7 +5482,7 @@ namespace OpenRCT2
             return;
         }
 
-        uint16_t mazeEntry = trackElement->GetMazeEntry();
+        uint16_t mazeEntry = trackElement->getMazeEntry();
         // Var37 is 3, 7, 11 or 15
         uint8_t hedges[4]{ 0xFF, 0xFF, 0xFF, 0xFF };
         uint8_t openCount = 0;
@@ -6922,7 +6922,7 @@ namespace OpenRCT2
                 return false;
         }
 
-        auto ride = GetRide(tileElement->asTrack()->GetRideIndex());
+        auto ride = GetRide(tileElement->asTrack()->getRideIndex());
         if (ride == nullptr || !ride->isRide())
         {
             return false;
@@ -6968,7 +6968,7 @@ namespace OpenRCT2
 
     bool Loc690FD0(Guest& guest, RideId* rideToView, uint8_t* rideSeatToView, TileElement* tileElement)
     {
-        auto ride = GetRide(tileElement->asTrack()->GetRideIndex());
+        auto ride = GetRide(tileElement->asTrack()->getRideIndex());
         if (ride == nullptr)
             return false;
 

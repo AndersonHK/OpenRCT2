@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 161 / 361 source commits recorded
+## Progress: 162 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1789,10 +1789,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U161 — `25865dce31` — Make SurfaceElement members adhere to code style
 
 - **Source:** `25865dce31965a58a010f386b4a632886bf86461`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `eac6c509180a437f16dd650e05d6ea1207983221`.
 - **Remaining:** 201 → 200.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Rename 28 SurfaceElement members in 61 fork files, including fork scenery/pathfinding and regression callers. Reuse the existing surface-object getter in canGrassGrow.
 - **Additional decisions / behavior:** The grass lookup simplification returns the identical loaded object through the same manager/index; preserve flags, randomness, growth timing and null behavior. Water-height units, ownership/fence masks, terrain slope, D03 cheat gates, sampled local-context ratings and packed tile layout unchanged.
 - **Verification:** Complete 56-file source delta verified as reviewed names plus the exact three-line lookup simplification. All 61 fork files pass the same normalized token proof; fork-only callers inspected and whitespace check passed.
 - **Pending / concerns:** Compile and regressions pending with remaining track/wall naming batch.
+
+### U162 — `84f1946db8` — Make TrackElement members adhere to code style
+
+- **Source:** `84f1946db82d9022ecd79d9edf878e0e2eb0710a`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 200 → 199.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Rename 55 TrackElement fields/accessors plus the ride-type setter parameter across 100 fork files; include direct fixture callers while retaining Vehicle accessors.
+- **Additional decisions / behavior:** Keep all union widths, photo/brake/maze storage, flag masks, station/seat rotation/door logic and fork per-car/directed-leg motion and ratings. Rename setter parameter to newRideType to avoid shadowing the renamed member. No gameplay or serialized-value changes.
+- **Verification:** Complete 98-file source token streams verified against 56 reviewed identifier mappings. All 100 fork file token streams pass the same comparison after formatting; remaining uppercase track-type accessors reviewed as Vehicle/legacy types; whitespace check passed.
+- **Pending / concerns:** Compile and regressions pending with following wall naming commit.

@@ -93,9 +93,9 @@ static bool landSlopeFitsUnderTrack(int32_t baseZ, uint8_t slope, const TrackEle
 {
     const auto [slopeNorthZ, slopeEastZ, slopeSouthZ, slopeWestZ] = GetSlopeCornerHeights(baseZ, slope);
 
-    const TrackElemType trackElemType = trackElement.GetTrackType();
+    const TrackElemType trackElemType = trackElement.getTrackType();
     const auto& ted = TrackMetadata::GetTrackElementDescriptor(trackElemType);
-    const uint8_t sequenceIndex = trackElemType == TrackElemType::maze ? 0 : trackElement.GetSequenceIndex();
+    const uint8_t sequenceIndex = trackElemType == TrackElemType::maze ? 0 : trackElement.getSequenceIndex();
     const auto& trackClearances = ted.sequenceData.sequences[sequenceIndex].clearance;
     const auto trackQuarters = trackClearances.quarterTile.Rotate(trackElement.getDirection());
     const auto trackQuarterHeights = trackQuarters.GetQuarterHeights(trackElement.getBaseZ());
@@ -156,9 +156,9 @@ static ClearanceResult MapLoc68BABCShouldContinue(
     else if (
         crossingMode == CreateCrossingMode::pathOverTrack && canBuildCrossing
         && tileElement->getType() == TileElementType::track && tileElement->getBaseZ() == pos.baseZ
-        && tileElement->asTrack()->GetTrackType() == TrackElemType::flat)
+        && tileElement->asTrack()->getTrackType() == TrackElemType::flat)
     {
-        auto ride = GetRide(tileElement->asTrack()->GetRideIndex());
+        auto ride = GetRide(tileElement->asTrack()->getRideIndex());
         if (ride != nullptr && ride->getRideTypeDescriptor().flags.has(RtdFlag::supportsLevelCrossings))
         {
             return ClearanceResult::clear;
@@ -216,7 +216,7 @@ GameActions::Result MapCanConstructWithClearAt(
         {
             // Skip track elements belonging to the ride that's being ignored for rides that intersect themselves.
             if (!ignoreRideId.IsNull() && tileElement->getType() == TileElementType::track
-                && tileElement->asTrack()->GetRideIndex() == ignoreRideId)
+                && tileElement->asTrack()->getRideIndex() == ignoreRideId)
             {
                 continue;
             }
@@ -366,7 +366,7 @@ void MapGetObstructionErrorText(TileElement* tileElement, GameActions::Result& r
             res.errorMessage = STR_FOOTPATH_IN_THE_WAY;
             break;
         case TileElementType::track:
-            ride = GetRide(tileElement->asTrack()->GetRideIndex());
+            ride = GetRide(tileElement->asTrack()->getRideIndex());
             if (ride != nullptr)
             {
                 res.errorMessage = STR_X_IN_THE_WAY;

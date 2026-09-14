@@ -12291,7 +12291,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "eac6c509180a437f16dd650e05d6ea1207983221"
+      ],
       "verification_evidence": [
         "Complete 56-file source delta verified as reviewed names plus the exact three-line lookup simplification. All 61 fork files pass the same normalized token proof; fork-only callers inspected and whitespace check passed."
       ],
@@ -12481,9 +12483,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Complete 98-file source token streams verified against 56 reviewed identifier mappings. All 100 fork file token streams pass the same comparison after formatting; remaining uppercase track-type accessors reviewed as Vehicle/legacy types; whitespace check passed."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -12518,7 +12522,10 @@
         "src/openrct2/world/Map.cpp",
         "src/openrct2/world/TileInspector.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 84f1946db82d9022ecd79d9edf878e0e2eb0710a",
+      "implementation_decisions": "Keep all union widths, photo/brake/maze storage, flag masks, station/seat rotation/door logic and fork per-car/directed-leg motion and ratings. Rename setter parameter to newRideType to avoid shadowing the renamed member. No gameplay or serialized-value changes.",
+      "pending_validation": "Compile and regressions pending with following wall naming commit."
     },
     {
       "sha": "631804fd133aad292a75e1b5514558c1c975a50d",
@@ -26916,8 +26923,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 161,
-    "remaining_after_receipt": 200,
+    "accounted_in_this_tree": 162,
+    "remaining_after_receipt": 199,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
