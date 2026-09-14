@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 336 / 361 source commits recorded
+## Progress: 337 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3714,10 +3714,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U336 — `3418b4f8bf` — Group themes window tab info into one struct (#27026)
 
 - **Source:** `3418b4f8bf2a74394c1d52e01a603402ee2dacaa`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `adec0640e1b97d811cc5055729e30a6707b040f8`.
 - **Remaining:** 26 → 25.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Grouped theme-tab animation, widget and window-class metadata into one constexpr table.
 - **Additional decisions / behavior:** Preserve all class ordering and nine animation pairs. WindowClass is uint8_t, so former sizeof counts equal the new span element counts. No theme colors or fork behavior changed.
 - **Verification:** Complete Themes.cpp matches source; all WindowClass occurrences preserve order; animation values and tab/widget mapping inspected.
 - **Pending / concerns:** Compile/UI checkpoint deferred to the following coherent HUD/theme migration.
+
+### U337 — `b52dc2d933` — Rename INTENT_ACTION_UPDATE_NEWS_TICKER
+
+- **Source:** `b52dc2d9333463e26d3aba822eb9453014e28252`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 25 → 24.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Renamed the news ticker update intent to its invalidation name in producer, dispatcher and enum.
+- **Additional decisions / behavior:** D07 preparatory naming only; same enum position, call timing and dispatched behavior.
+- **Verification:** Inspected all three source hunks and complete consumer inventory.
+- **Pending / concerns:** Compile/UI checkpoint pending the following HUD migration, together with U336.

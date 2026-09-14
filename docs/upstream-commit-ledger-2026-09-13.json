@@ -26113,7 +26113,9 @@
       ],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "adec0640e1b97d811cc5055729e30a6707b040f8"
+      ],
       "verification_evidence": [
         "Complete Themes.cpp matches source; all WindowClass occurrences preserve order; animation values and tab/widget mapping inspected."
       ],
@@ -26156,9 +26158,11 @@
         "D07"
       ],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected all three source hunks and complete consumer inventory."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -26166,7 +26170,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P5"
+      "verification_gate": "P5",
+      "port_commit_locator": "Upstream-Commit: b52dc2d9333463e26d3aba822eb9453014e28252",
+      "implementation_decisions": "D07 preparatory naming only; same enum position, call timing and dispatched behavior.",
+      "pending_validation": "Compile/UI checkpoint pending the following HUD migration, together with U336."
     },
     {
       "sha": "212c99ae591925eb22763fc1ad022bb4204fd09b",
@@ -28141,8 +28148,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 336,
-    "remaining_after_receipt": 25,
+    "accounted_in_this_tree": 337,
+    "remaining_after_receipt": 24,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
