@@ -5783,7 +5783,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt naming only",
-      "port_commits": [],
+      "port_commits": [
+        "052d74247f7f9fbeb13c0daeef96762167f42a63"
+      ],
       "verification_evidence": [
         "Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt."
       ],
@@ -5969,9 +5971,11 @@
         "D12"
       ],
       "review_level": "targeted-code-review",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt naming only",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -5985,7 +5989,10 @@
         "src/openrct2/ride/rtd/gentle/HauntedHouse.h",
         "src/openrct2/ride/rtd/gentle/Maze.h"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 7f879409acfa787215bfa66633823e2a754b9284",
+      "implementation_decisions": "Approved D12: rename ratings calculation categories only. Preserve fork base ratings, sampled per-car and directed-leg/maze models, modifiers and coefficients. No upstream balancing data restored.",
+      "pending_validation": "Compile at next coherent naming batch checkpoint."
     },
     {
       "sha": "28ad2fcaa2570ee2d2bc7c665c641b4168687cc0",
@@ -26447,8 +26454,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 94,
-    "remaining_after_receipt": 267,
+    "accounted_in_this_tree": 95,
+    "remaining_after_receipt": 266,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

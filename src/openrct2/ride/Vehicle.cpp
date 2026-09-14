@@ -361,7 +361,7 @@ static void RideRatingAccumulateTrainTick(
 
 void RideRating::PublishTrainSample(Ride& ride, const Vehicle& head, StationIndex destinationStation)
 {
-    if (!head.IsHead() || head.isGhost() || ride.getRideTypeDescriptor().RatingsData.Type != RatingsCalculationType::Normal)
+    if (!head.IsHead() || head.isGhost() || ride.getRideTypeDescriptor().RatingsData.Type != RatingsCalculationType::normal)
     {
         return;
     }
@@ -650,7 +650,7 @@ void Vehicle::AccumulateLiveRatings()
     if (RideRating::ShouldSampleCircuit(*curRide, *this))
         UpdateMeasurements();
 
-    if (isGhost() || !RideRatingStatusIsLiveSampled(status) || rtd.RatingsData.Type != RatingsCalculationType::Normal)
+    if (isGhost() || !RideRatingStatusIsLiveSampled(status) || rtd.RatingsData.Type != RatingsCalculationType::normal)
         return;
 
     const auto train = RideVehicle::StationDetail::BuildTrainSeatSummary(*this);

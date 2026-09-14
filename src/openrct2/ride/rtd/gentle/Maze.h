@@ -56,7 +56,7 @@ constexpr RideTypeDescriptor MazeRTD =
     .Name = "maze",
     .RatingsData = 
     {
-        RatingsCalculationType::FlatRide,
+        RatingsCalculationType::flatRide,
         { RideRating::make(1, 30), RideRating::make(0, 50), RideRating::make(0, 00) },
         8,
         0,

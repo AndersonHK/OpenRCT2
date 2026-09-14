@@ -1690,7 +1690,7 @@ static void RideRatingsApplyPenaltyLateralGs(RideRating::Tuple& ratings, const R
 static bool RideRatingsUsesAggregateSamples(const Ride& ride)
 {
     const auto& rtd = ride.getRideTypeDescriptor();
-    return rtd.RatingsData.Type == RatingsCalculationType::Normal || rtd.specialType == RtdSpecialType::maze;
+    return rtd.RatingsData.Type == RatingsCalculationType::normal || rtd.specialType == RtdSpecialType::maze;
 }
 
 void RideRating::ResetUpdateStates()
@@ -2541,14 +2541,14 @@ static void RideRatingsCalculate(RideRating::UpdateState& state, Ride& ride)
 
     switch (rrd.Type)
     {
-        case RatingsCalculationType::Normal:
+        case RatingsCalculationType::normal:
             if (!ride.flags.has(RideFlag::tested))
                 return;
             break;
-        case RatingsCalculationType::FlatRide:
+        case RatingsCalculationType::flatRide:
             ride.flags.set(RideFlag::tested, RideFlag::noRawStats);
             break;
-        case RatingsCalculationType::Stall:
+        case RatingsCalculationType::stall:
             ride.upkeepCost = RideComputeUpkeep(state, ride);
             ride.windowInvalidateFlags.set(RideInvalidateFlag::income);
             // Exit ratings

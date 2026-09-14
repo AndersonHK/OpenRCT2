@@ -372,7 +372,7 @@ protected:
                 || std::ranges::any_of(rtd.RatingsData.Modifiers, [](const auto& modifier) {
                        return IsAggregateSummaryStatGate(modifier.type);
                    });
-            if (rtd.RatingsData.Type == RatingsCalculationType::Normal && hasRequiredGate)
+            if (rtd.RatingsData.Type == RatingsCalculationType::normal && hasRequiredGate)
             {
                 return &ride;
             }
