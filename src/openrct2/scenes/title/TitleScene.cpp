@@ -19,6 +19,7 @@
 #include "../../config/Config.h"
 #include "../../core/Console.hpp"
 #include "../../drawing/Drawing.h"
+#include "../../drawing/Palette.h"
 #include "../../interface/Screenshot.h"
 #include "../../interface/Window.h"
 #include "../../network/NetworkBase.h"
@@ -145,7 +146,7 @@ void TitleScene::Tick()
         _sequencePlayer->Update();
 
         gameStateUpdateLogic();
-        UpdatePaletteEffects();
+        Drawing::UpdatePaletteEffects();
         // update_weather_animation();
     }
 

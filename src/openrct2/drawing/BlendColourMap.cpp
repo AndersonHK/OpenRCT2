@@ -15,6 +15,7 @@
 
     #include "../core/EnumUtils.hpp"
     #include "Drawing.h"
+    #include "Palette.h"
     #include "PaletteType.h"
 
     #include <cmath>

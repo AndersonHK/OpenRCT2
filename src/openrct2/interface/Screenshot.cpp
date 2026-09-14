@@ -24,6 +24,7 @@
 #include "../core/String.hpp"
 #include "../drawing/Drawing.h"
 #include "../drawing/NewDrawing.h"
+#include "../drawing/Palette.h"
 #include "../drawing/X8DrawingEngine.h"
 #include "../localisation/Formatter.h"
 #include "../localisation/StringIds.h"

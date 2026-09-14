@@ -23,6 +23,7 @@
 #include <openrct2/core/String.hpp>
 #include <openrct2/core/UnitConversion.h>
 #include <openrct2/drawing/Drawing.h>
+#include <openrct2/drawing/Palette.h>
 #include <openrct2/entity/EntityRegistry.h>
 #include <openrct2/entity/EntityTweener.h>
 #include <openrct2/entity/Guest.h>
@@ -64,7 +65,7 @@ static void GameInit(bool retainSpatialIndices)
         gameState.entities.resetEntitySpatialIndices();
 
     ResetAllSpriteQuadrantPlacements();
-    LoadPalette();
+    Drawing::LoadPalette();
     EntityTweener::get().reset();
     MapAnimations::MarkAllTiles();
     FixInvalidVehicleSpriteSizes();

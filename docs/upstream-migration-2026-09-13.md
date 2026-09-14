@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 317 / 361 source commits recorded
+## Progress: 318 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3505,10 +3505,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U317 — `49eeb35261` — Rename ColourPalette.h to PaletteType.h
 
 - **Source:** `49eeb352616444fa3baec7b4184a7d116127b846`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `b8f2a83fbf413af49d313cf828fcc27723cf1009`.
 - **Remaining:** 45 → 44.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Renamed ColourPalette.h to PaletteType.h and updated all eight include/project consumers.
 - **Additional decisions / behavior:** Header bytes unchanged; no fork-only direct old-header consumers found. Palette storage, layout and owned presentation behavior unchanged.
 - **Verification:** Inspected all source hunks; verified rename byte identity and consumer inventory.
 - **Pending / concerns:** Compile checkpoint deferred to the following coherent palette refactor.
+
+### U318 — `5491820d02` — Move game palette-related stuff into Palette.{cpp.h}
+
+- **Source:** `5491820d0291e171245d997983057c386daa928e`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 44 → 43.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Moved palette state/functions to Drawing::Palette and updated callers, including the fork renderer-switch consumer.
+- **Additional decisions / behavior:** All four function bodies retain prior fork tokens and calculations. Preserve copied Vulkan presentation palette, fork owning includes and viewport invalidation contract; namespace/header ownership only.
+- **Verification:** B85: four-body equivalence and new-file source equality; full solution zero warnings/errors;96 selected tests passed. Clears U317 compile debt.
+- **Pending / concerns:** Standing native rendering/renderer-switch and non-Windows checks remain.

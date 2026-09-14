@@ -27,6 +27,7 @@
 #include <openrct2/core/String.hpp>
 #include <openrct2/drawing/ColourMap.h>
 #include <openrct2/drawing/Drawing.h>
+#include <openrct2/drawing/Palette.h>
 #include <openrct2/drawing/Rectangle.h>
 #include <openrct2/drawing/Text.h>
 #include <openrct2/interface/WidgetIndexGlobals.h>
@@ -1721,7 +1722,7 @@ namespace OpenRCT2::Ui::Windows
         if (Editor::_numSelectedObjectsForType[EnumValue(ObjectType::water)] == 0)
         {
             // Reloads the default cyan water palette if no palette was selected.
-            LoadPalette();
+            Drawing::LoadPalette();
         }
         if (showFallbackWarning)
             ContextShowError(STR_OBJECT_SELECTION_FALLBACK_IMAGES_WARNING, kStringIdEmpty, {});

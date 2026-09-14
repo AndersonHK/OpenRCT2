@@ -17,6 +17,7 @@
 #include "../../audio/Audio.h"
 #include "../../core/EnumUtils.hpp"
 #include "../../drawing/Drawing.h"
+#include "../../drawing/Palette.h"
 #include "../../entity/EntityList.h"
 #include "../../entity/Guest.h"
 #include "../../entity/Staff.h"
@@ -673,7 +674,7 @@ namespace OpenRCT2::Editor
         auto newPaletteEntry = ObjectEntryDescriptor(*item);
         if (objectManager.GetLoadedObject(newPaletteEntry) != nullptr || objectManager.LoadObject(newPaletteEntry) != nullptr)
         {
-            LoadPalette();
+            Drawing::LoadPalette();
         }
         else
         {

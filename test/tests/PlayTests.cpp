@@ -35,6 +35,7 @@
 #include <openrct2/actions/track/TrackPlaceAction.h>
 #include <openrct2/actions/track/TrackRemoveAction.h>
 #include <openrct2/drawing/Drawing.h>
+#include <openrct2/drawing/Palette.h>
 #include <openrct2/core/DataSerialiser.h>
 #include <openrct2/rct12/RCT12.h>
 #include <openrct2/entity/EntityRegistry.h>
@@ -144,7 +145,7 @@ static std::unique_ptr<IContext> localStartGame(const std::string& parkPath)
     gameState.entities.resetEntitySpatialIndices();
 
     ResetAllSpriteQuadrantPlacements();
-    LoadPalette();
+    Drawing::LoadPalette();
     EntityTweener::get().reset();
     MapAnimations::MarkAllTiles();
     FixInvalidVehicleSpriteSizes();
