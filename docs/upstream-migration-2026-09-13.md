@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 61 / 361 source commits recorded
+## Progress: 62 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -689,10 +689,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U061 — `959401a3a0` — Rename Guest::MazeType and its members
 
 - **Source:** `959401a3a082177f645f73023ecd58a18544534c`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `bb1798e6a4508f584718b5702d03bae6a8ce3d5b`.
 - **Remaining:** 301 → 300.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename the local maze_type enum to MazeType and entrance_or_exit to entranceOrExit in Guest maze movement.
 - **Additional decisions / behavior:** Keep fork RideRatingAccumulateMazeStep calls for hedge and exit transitions, all random edge selection, destination updates and maze capacity/rating models. This commit contains no maze traversal repair or gameplay change.
 - **Verification:** Complete upstream parent/child file equals only the two reviewed token replacements. Fork port contains only those replacements, retaining rating accumulation calls. Exact-one ancestry checked. Batch 09 build and 56-test result for the preceding U060 checkpoint recorded, including the corrected fixture working directory.
 - **Pending / concerns:** Compile and maze regressions at the next naming checkpoint.
+
+### U062 — `0d0498a081` — Rename members of ReplayMode
+
+- **Source:** `0d0498a0819134d2a80919f3e3bda5c3dc11891d`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 300 → 299.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename ReplayMode members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Preserve replay modes 0-3, command/checksum tick scheduling, record/playback/normalisation transitions, diagnostics, snapshot comparison and fork timing. Naming only; no replay format or synchronization change.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
