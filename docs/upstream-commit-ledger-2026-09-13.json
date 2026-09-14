@@ -14573,7 +14573,9 @@
       "decisions": [],
       "review_level": "remerge-probe",
       "implementation_status": "history receipt",
-      "port_commits": [],
+      "port_commits": [
+        "97b52a3a06bfe23dc007980671e0b1ae0e896f1e"
+      ],
       "verification_evidence": [
         "Actual merge and second-parent tree IDs both 52cae0e77e32b115d12c497953b629b344a725b5; second-parent diff empty; cached remerge patch zero bytes; only this source is newly reachable. B35 and B36 validate constituent changes."
       ],
@@ -14623,9 +14625,11 @@
         "D07"
       ],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Actual two-file patch and surrounding alignment/drawing/dropdown consumers reviewed; sprites and menus already add windowPos to local widget positions. Checked GUI resize width assignment and weather-window traversal. Scoped diff/whitespace checks pass."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -14633,7 +14637,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P5"
+      "verification_gate": "P5",
+      "port_commit_locator": "Upstream-Commit: 3d90510a63d47510c6a91028616e7fb1186f1b56",
+      "implementation_decisions": "Approved D07 HUD adoption. Check both x position and width before updating/invalidation: WindowResizeGuiScenarioEditor resets toolbar width, and a one-pixel resize can retain the same integer centre x. Width-only changes must repair the bounds too. Preserve all fork buttons, visibility/permissions, turbo controls and render publication; no gameplay/weather simulation change.",
+      "pending_validation": "Compile/widget checks due at next UI batch. Centred/left-right toggling, one-pixel resize and rain rendering need interactive verification; standing validation remains."
     },
     {
       "sha": "182efeea9ae9c0f7e5f9ee28a20a2432fa0907d4",
@@ -27112,8 +27119,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 189,
-    "remaining_after_receipt": 172,
+    "accounted_in_this_tree": 190,
+    "remaining_after_receipt": 171,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
