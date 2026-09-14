@@ -10110,7 +10110,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "d537a2ee5416017d38a6a40388ec36b78dd72db7"
+      ],
       "verification_evidence": [
         "Inspected complete 13-file source diff and every fork delta. Numeric/default/read widths are unchanged; no stale old field or enum callers remain (one historical comment retains its spelling). Whitespace check passes."
       ],
@@ -10296,9 +10298,11 @@
         "D12"
       ],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Read source definition changes and verified every delta in all 92 actual source files as identifier substitution plus whitespace only. Applied only those 94 exact identifier tokens to 92 current fork files; all other bytes and initializer expressions remain unchanged. Whitespace check passes."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -10310,7 +10314,10 @@
         "src/openrct2/ride/rtd/gentle/HauntedHouse.h",
         "src/openrct2/ride/rtd/gentle/Maze.h"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: bb0b26e3f2155d180cefce6cfe9e8fd0f35b294d",
+      "implementation_decisions": "Preserve every fork descriptor initializer, ride-type ordering, sampled-rating setup, costs, heights, flags and callbacks. No upstream descriptor values are copied.",
+      "pending_validation": "Compile and test with the pending vehicle rename batch; U140-U142 build debt remains explicit."
     },
     {
       "sha": "5d3903209e66820cdf129ed86c2a4a1f51ce8e4c",
@@ -26776,8 +26783,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 141,
-    "remaining_after_receipt": 220,
+    "accounted_in_this_tree": 142,
+    "remaining_after_receipt": 219,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

@@ -17,7 +17,7 @@
 // clang-format off
 namespace OpenRCT2
 {
-constexpr RideTypeDescriptor MultiDimensionRollerCoasterRTD =
+constexpr RideTypeDescriptor kMultiDimensionRollerCoasterRTD =
 {
     .Category = RideCategory::rollerCoaster,
     .StartTrackPiece = TrackElemType::endStation,
@@ -96,7 +96,7 @@ constexpr RideTypeDescriptor MultiDimensionRollerCoasterRTD =
     .SampledRatings = kRollerCoasterSampledRideRatingProfile,
 };
 
-constexpr RideTypeDescriptor MultiDimensionRollerCoasterAltRTD =
+constexpr RideTypeDescriptor kMultiDimensionRollerCoasterAltRTD =
 {
     .Category = RideCategory::none,
     .StartTrackPiece = TrackElemType::endStation,

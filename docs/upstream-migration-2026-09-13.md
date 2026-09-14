@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 141 / 361 source commits recorded
+## Progress: 142 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1569,10 +1569,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U141 — `8b4b1c6561` — Refactor VEHICLE_VEHICLE_* to two enum classes
 
 - **Source:** `8b4b1c6561b407359dc3198dfc09ee2737bc27d2`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `d537a2ee5416017d38a6a40388ec36b78dd72db7`.
 - **Remaining:** 221 → 220.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Split vehicle paint style and splash-effect identifiers into two uint8 enum classes; rename the two CarEntry fields and adapt JSON/DAT readers, draw dispatch, construction availability, defaults and numeric script getters across 13 files.
 - **Additional decisions / behavior:** Preserve values 0-9 and 15-17 for paint styles, 1 and 10-14 for effects, JSON defaults 0/1, legacy spinner reset and the existing spinning-car object restriction. Default switch branches keep unrecognized values as no-op. Keep all fork CarEntry fields, costs, kart gain and render algorithms.
 - **Verification:** Inspected complete 13-file source diff and every fork delta. Numeric/default/read widths are unchanged; no stale old field or enum callers remain (one historical comment retains its spelling). Whitespace check passes.
 - **Pending / concerns:** Compile and regression-test with the following RTD/vehicle rename batch; interactive vehicle effects and native non-Windows remain unverified.
+
+### U142 — `bb0b26e3f2` — Rename RTD constants
+
+- **Source:** `bb0b26e3f2155d180cefce6cfe9e8fd0f35b294d`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 220 → 219.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Rename 94 ride-type descriptor constants with the k prefix across 92 definition and registry files.
+- **Additional decisions / behavior:** Preserve every fork descriptor initializer, ride-type ordering, sampled-rating setup, costs, heights, flags and callbacks. No upstream descriptor values are copied.
+- **Verification:** Read source definition changes and verified every delta in all 92 actual source files as identifier substitution plus whitespace only. Applied only those 94 exact identifier tokens to 92 current fork files; all other bytes and initializer expressions remain unchanged. Whitespace check passes.
+- **Pending / concerns:** Compile and test with the pending vehicle rename batch; U140-U142 build debt remains explicit.

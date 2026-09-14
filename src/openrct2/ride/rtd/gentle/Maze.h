@@ -19,7 +19,7 @@
 // clang-format off
 namespace OpenRCT2
 {
-constexpr RideTypeDescriptor MazeRTD =
+constexpr RideTypeDescriptor kMazeRTD =
 {
     .Category = RideCategory::gentle,
     .StartTrackPiece = TrackElemType::maze,
