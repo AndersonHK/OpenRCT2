@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 177 / 361 source commits recorded
+## Progress: 178 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1965,10 +1965,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U177 — `1bf29b9afe` — Create enum class+FlagHolder for FootpathElementFlag
 
 - **Source:** `1bf29b9afebe3c2cd7d7ddc11510ac30c5f2cbb0`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `3b2263c3ede1b91d555ae941f6df5a81ec231fd9`.
 - **Remaining:** 185 → 184.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Type the private path flags byte as FootpathElementFlags and convert tests/setters for sloped, queue banner, ghost addition, vehicle blockage, broken addition, legacy path and junction railings.
 - **Additional decisions / behavior:** Preserve all seven bit positions 0..6, unused bit 7, one-byte storage, legacy surface/railings null handling and every setter result. Fork IsBin/HasFullBinSlot declarations and implementations remain. No path connection, fare routing, blockage, staff work, ghost or clearance rule change.
 - **Verification:** Reviewed both full source diffs and all raw-flag consumers. Post-port PathElement.cpp matches this source commit; header differs only by the two existing fork bin-helper declarations. FlagHolder operations retain the original masks; ancestry and whitespace gates apply.
 - **Pending / concerns:** B32 build and path/topology/clearance/import/gameplay regressions pending; interactive and non-Windows checks retained.
+
+### U178 — `4d7866e3ad` — Create enum class+FlagHolder for SmallSceneryElementFlag
+
+- **Source:** `4d7866e3ad4428270840a757022dc46b6ab18c2e`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 184 → 183.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Replace the private small-scenery support byte with SmallSceneryElementFlags and bit-0 has/set operations.
+- **Additional decisions / behavior:** Preserve one-byte storage, bit 0, unknown bits, packed offsets, support rendering and all plant watering/age/withering behavior. Source void-return expression simply returns the void setter result; no value or control-flow change.
+- **Verification:** Reviewed both full source diffs; both resulting fork files match this source commit exactly. Existing layout assertions and B32 build/import checks cover storage; receipt whitespace/ancestry gates apply.
+- **Pending / concerns:** B32 compile and targeted regressions pending; interactive support/plant rendering and native non-Windows remain unverified.
