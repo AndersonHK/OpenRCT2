@@ -57,7 +57,7 @@ constexpr RideTypeDescriptor HauntedHouseRTD =
         8,
         7,
         false,
-        { { RatingsModifierType::BonusScenery, 0, 11155, 0, 0 } }
+        { { RatingsModifierType::bonusScenery, 0, 11155, 0, 0 } }
     },
 };
 } // namespace OpenRCT2

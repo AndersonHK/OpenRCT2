@@ -5972,7 +5972,9 @@
       ],
       "review_level": "targeted-code-review",
       "implementation_status": "adopt naming only",
-      "port_commits": [],
+      "port_commits": [
+        "72b586364afeca68b9ede762fc8bb2335e10cb43"
+      ],
       "verification_evidence": [
         "Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt."
       ],
@@ -6161,9 +6163,11 @@
         "D12"
       ],
       "review_level": "targeted-code-review",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt naming only",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -6177,7 +6181,10 @@
         "src/openrct2/ride/rtd/gentle/HauntedHouse.h",
         "src/openrct2/ride/rtd/gentle/Maze.h"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 28ad2fcaa2570ee2d2bc7c665c641b4168687cc0",
+      "implementation_decisions": "Approved D12: rename only existing fork rating modifiers and consumers, including tests. Fork intentionally deleted BonusMazeSize enum/function/descriptor entries: do not reintroduce them or upstream ordinal layout. Keep fork modifier order/values, all coefficients, negative-G warnings, per-car longitudinal-G and directed-leg/maze calculations.",
+      "pending_validation": "Compile at next coherent naming batch checkpoint."
     },
     {
       "sha": "991fc7b4a17d606d5800b12575f12cab6133c577",
@@ -26454,8 +26461,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 95,
-    "remaining_after_receipt": 266,
+    "accounted_in_this_tree": 96,
+    "remaining_after_receipt": 265,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

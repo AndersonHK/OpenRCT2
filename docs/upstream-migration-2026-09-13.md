@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 95 / 361 source commits recorded
+## Progress: 96 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1063,10 +1063,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U095 — `7f879409ac` — Rename members of RatingsCalculationType
 
 - **Source:** `7f879409acfa787215bfa66633823e2a754b9284`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `72b586364afeca68b9ede762fc8bb2335e10cb43`.
 - **Remaining:** 267 → 266.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename RatingsCalculationType members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Approved D12: rename ratings calculation categories only. Preserve fork base ratings, sampled per-car and directed-leg/maze models, modifiers and coefficients. No upstream balancing data restored.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U096 — `28ad2fcaa2` — Rename members of RatingsModifierType
+
+- **Source:** `28ad2fcaa2570ee2d2bc7c665c641b4168687cc0`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 266 → 265.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename RatingsModifierType members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Approved D12: rename only existing fork rating modifiers and consumers, including tests. Fork intentionally deleted BonusMazeSize enum/function/descriptor entries: do not reintroduce them or upstream ordinal layout. Keep fork modifier order/values, all coefficients, negative-G warnings, per-car longitudinal-G and directed-leg/maze calculations.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.

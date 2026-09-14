@@ -343,19 +343,19 @@ protected:
     {
         switch (type)
         {
-            case RatingsModifierType::RequirementLength:
-            case RatingsModifierType::RequirementDropHeight:
-            case RatingsModifierType::RequirementMaxSpeed:
-            case RatingsModifierType::RequirementNumDrops:
-            case RatingsModifierType::RequirementNegativeGs:
-            case RatingsModifierType::RequirementLateralGs:
-            case RatingsModifierType::RequirementInversions:
-            case RatingsModifierType::RequirementUnsheltered:
-            case RatingsModifierType::RequirementReversals:
-            case RatingsModifierType::RequirementHoles:
-            case RatingsModifierType::RequirementStations:
-            case RatingsModifierType::RequirementSplashdown:
-            case RatingsModifierType::PenaltyLateralGs:
+            case RatingsModifierType::requirementLength:
+            case RatingsModifierType::requirementDropHeight:
+            case RatingsModifierType::requirementMaxSpeed:
+            case RatingsModifierType::requirementNumDrops:
+            case RatingsModifierType::requirementNegativeGs:
+            case RatingsModifierType::requirementLateralGs:
+            case RatingsModifierType::requirementInversions:
+            case RatingsModifierType::requirementUnsheltered:
+            case RatingsModifierType::requirementReversals:
+            case RatingsModifierType::requirementHoles:
+            case RatingsModifierType::requirementStations:
+            case RatingsModifierType::requirementSplashdown:
+            case RatingsModifierType::penaltyLateralGs:
                 return true;
             default:
                 return false;

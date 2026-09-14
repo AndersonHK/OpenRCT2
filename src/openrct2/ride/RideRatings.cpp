@@ -2597,118 +2597,118 @@ static void RideRatingsCalculate(RideRating::UpdateState& state, Ride& ride)
         {
             switch (modifier.type)
             {
-                case RatingsModifierType::BonusLength:
+                case RatingsModifierType::bonusLength:
                     RideRatingsApplyBonusLength(ratings, ride, modifier);
                     break;
-                case RatingsModifierType::BonusSynchronisation:
+                case RatingsModifierType::bonusSynchronisation:
                     RideRatingsApplyBonusSynchronisation(ratings, ride, modifier);
                     break;
-                case RatingsModifierType::BonusTrainLength:
+                case RatingsModifierType::bonusTrainLength:
                     RideRatingsApplyBonusTrainLength(ratings, ride, modifier);
                     break;
-                case RatingsModifierType::BonusMaxSpeed:
+                case RatingsModifierType::bonusMaxSpeed:
                     RideRatingsApplyBonusMaxSpeed(ratings, ride, modifier);
                     break;
-                case RatingsModifierType::BonusAverageSpeed:
+                case RatingsModifierType::bonusAverageSpeed:
                     RideRatingsApplyBonusAverageSpeed(ratings, ride, modifier);
                     break;
-                case RatingsModifierType::BonusDuration:
+                case RatingsModifierType::bonusDuration:
                     RideRatingsApplyBonusDuration(ratings, ride, modifier);
                     break;
-                case RatingsModifierType::BonusGForces:
+                case RatingsModifierType::bonusGForces:
                     RideRatingsApplyBonusGForces(ratings, ride, modifier);
                     break;
-                case RatingsModifierType::BonusTurns:
+                case RatingsModifierType::bonusTurns:
                     RideRatingsApplyBonusTurns(ratings, ride, modifier);
                     break;
-                case RatingsModifierType::BonusDrops:
+                case RatingsModifierType::bonusDrops:
                     RideRatingsApplyBonusDrops(ratings, ride, modifier);
                     break;
-                case RatingsModifierType::BonusSheltered:
+                case RatingsModifierType::bonusSheltered:
                     RideRatingsApplyBonusSheltered(ratings, ride, modifier);
                     break;
-                case RatingsModifierType::BonusProximity:
+                case RatingsModifierType::bonusProximity:
                     RideRatingsApplyBonusProximity(ratings, ride, state, modifier);
                     break;
-                case RatingsModifierType::BonusScenery:
+                case RatingsModifierType::bonusScenery:
                     RideRatingsApplyBonusScenery(ratings, ride, modifier);
                     break;
-                case RatingsModifierType::BonusRotations:
+                case RatingsModifierType::bonusRotations:
                     RideRatingsApplyBonusRotations(ratings, ride, modifier);
                     break;
-                case RatingsModifierType::BonusOperationOption:
+                case RatingsModifierType::bonusOperationOption:
                     RideRatingsApplyBonusOperationOption(ratings, ride, modifier);
                     break;
-                case RatingsModifierType::BonusReversedTrains:
+                case RatingsModifierType::bonusReversedTrains:
                     RideRatingsApplyBonusReversedTrains(ratings, ride, modifier);
                     break;
-                case RatingsModifierType::BonusGoKartRace:
+                case RatingsModifierType::bonusGoKartRace:
                     RideRatingsApplyBonusGoKartRace(ratings, ride, modifier);
                     break;
-                case RatingsModifierType::BonusTowerRide:
+                case RatingsModifierType::bonusTowerRide:
                     RideRatingsApplyBonusTowerRide(ratings, ride, modifier);
                     break;
-                case RatingsModifierType::BonusRotoDrop:
+                case RatingsModifierType::bonusRotoDrop:
                     RideRatingsApplyBonusRotoDrop(ratings, ride);
                     break;
-                case RatingsModifierType::BonusBoatHireNoCircuit:
+                case RatingsModifierType::bonusBoatHireNoCircuit:
                     RideRatingsApplyBonusBoatHireNoCircuit(ratings, ride, modifier);
                     break;
-                case RatingsModifierType::BonusSlideUnlimitedRides:
+                case RatingsModifierType::bonusSlideUnlimitedRides:
                     RideRatingsApplyBonusSlideUnlimitedRides(ratings, ride, modifier);
                     break;
-                case RatingsModifierType::BonusMotionSimulatorMode:
+                case RatingsModifierType::bonusMotionSimulatorMode:
                     RideRatingsApplyBonusMotionSimulatorMode(ratings, ride, modifier);
                     break;
-                case RatingsModifierType::Bonus3DCinemaMode:
+                case RatingsModifierType::bonus3DCinemaMode:
                     RideRatingsApplyBonus3DCinemaMode(ratings, ride, modifier);
                     break;
-                case RatingsModifierType::BonusTopSpinMode:
+                case RatingsModifierType::bonusTopSpinMode:
                     RideRatingsApplyBonusTopSpinMode(ratings, ride, modifier);
                     break;
-                case RatingsModifierType::BonusReversals:
+                case RatingsModifierType::bonusReversals:
                     RideRatingsApplyBonusReversals(ratings, ride, state, modifier);
                     break;
-                case RatingsModifierType::BonusHoles:
+                case RatingsModifierType::bonusHoles:
                     RideRatingsApplyBonusHoles(ratings, ride, modifier);
                     break;
-                case RatingsModifierType::BonusNumTrains:
+                case RatingsModifierType::bonusNumTrains:
                     RideRatingsApplyBonusNumTrains(ratings, ride, modifier);
                     break;
-                case RatingsModifierType::BonusDownwardLaunch:
+                case RatingsModifierType::bonusDownwardLaunch:
                     RideRatingsApplyBonusDownwardLaunch(ratings, ride, modifier);
                     break;
-                case RatingsModifierType::BonusLaunchedFreefallSpecial:
+                case RatingsModifierType::bonusLaunchedFreefallSpecial:
                     RideRatingsApplyBonusLaunchedFreefallSpecial(ratings, ride, state, modifier);
                     break;
-                case RatingsModifierType::RequirementLength:
+                case RatingsModifierType::requirementLength:
                     RideRatingsApplyRequirementLength(ratings, ride, modifier);
                     break;
-                case RatingsModifierType::RequirementMaxSpeed:
+                case RatingsModifierType::requirementMaxSpeed:
                     RideRatingsApplyRequirementMaxSpeed(ratings, ride, modifier);
                     break;
-                case RatingsModifierType::RequirementLateralGs:
+                case RatingsModifierType::requirementLateralGs:
                     RideRatingsApplyRequirementLateralGs(ratings, ride, modifier);
                     break;
-                case RatingsModifierType::RequirementInversions:
+                case RatingsModifierType::requirementInversions:
                     RideRatingsApplyRequirementInversions(ratings, ride, modifier);
                     break;
-                case RatingsModifierType::RequirementUnsheltered:
+                case RatingsModifierType::requirementUnsheltered:
                     RideRatingsApplyRequirementUnsheltered(ratings, ride, shelteredEighths.TrackShelteredEighths, modifier);
                     break;
-                case RatingsModifierType::RequirementReversals:
+                case RatingsModifierType::requirementReversals:
                     RideRatingsApplyRequirementReversals(ratings, ride, state, modifier);
                     break;
-                case RatingsModifierType::RequirementHoles:
+                case RatingsModifierType::requirementHoles:
                     RideRatingsApplyRequirementHoles(ratings, ride, modifier);
                     break;
-                case RatingsModifierType::RequirementStations:
+                case RatingsModifierType::requirementStations:
                     RideRatingsApplyRequirementStations(ratings, ride, modifier);
                     break;
-                case RatingsModifierType::RequirementSplashdown:
+                case RatingsModifierType::requirementSplashdown:
                     RideRatingsApplyRequirementSplashdown(ratings, ride, modifier);
                     break;
-                case RatingsModifierType::PenaltyLateralGs:
+                case RatingsModifierType::penaltyLateralGs:
                     RideRatingsApplyPenaltyLateralGs(ratings, ride, modifier);
                     break;
                 default:
@@ -2720,13 +2720,13 @@ static void RideRatingsCalculate(RideRating::UpdateState& state, Ride& ride)
             {
                 switch (modifier.type)
                 {
-                    case RatingsModifierType::RequirementDropHeight:
+                    case RatingsModifierType::requirementDropHeight:
                         RideRatingsApplyRequirementDropHeight(ratings, ride, modifier);
                         break;
-                    case RatingsModifierType::RequirementNumDrops:
+                    case RatingsModifierType::requirementNumDrops:
                         RideRatingsApplyRequirementNumDrops(ratings, ride, modifier);
                         break;
-                    case RatingsModifierType::RequirementNegativeGs:
+                    case RatingsModifierType::requirementNegativeGs:
                         RideRatingsApplyRequirementNegativeGs(ratings, ride, modifier);
                         break;
                     default:
@@ -3493,19 +3493,19 @@ static bool RideRatingsModifierIsAggregateSummaryStatGate(RatingsModifierType ty
 {
     switch (type)
     {
-        case RatingsModifierType::RequirementLength:
-        case RatingsModifierType::RequirementDropHeight:
-        case RatingsModifierType::RequirementMaxSpeed:
-        case RatingsModifierType::RequirementNumDrops:
-        case RatingsModifierType::RequirementNegativeGs:
-        case RatingsModifierType::RequirementLateralGs:
-        case RatingsModifierType::RequirementInversions:
-        case RatingsModifierType::RequirementUnsheltered:
-        case RatingsModifierType::RequirementReversals:
-        case RatingsModifierType::RequirementHoles:
-        case RatingsModifierType::RequirementStations:
-        case RatingsModifierType::RequirementSplashdown:
-        case RatingsModifierType::PenaltyLateralGs:
+        case RatingsModifierType::requirementLength:
+        case RatingsModifierType::requirementDropHeight:
+        case RatingsModifierType::requirementMaxSpeed:
+        case RatingsModifierType::requirementNumDrops:
+        case RatingsModifierType::requirementNegativeGs:
+        case RatingsModifierType::requirementLateralGs:
+        case RatingsModifierType::requirementInversions:
+        case RatingsModifierType::requirementUnsheltered:
+        case RatingsModifierType::requirementReversals:
+        case RatingsModifierType::requirementHoles:
+        case RatingsModifierType::requirementStations:
+        case RatingsModifierType::requirementSplashdown:
+        case RatingsModifierType::penaltyLateralGs:
             return true;
         default:
             return false;
@@ -3526,7 +3526,7 @@ static void RideRatingsRawApplyModifiers(RawRideRating& raw, const Ride& ride)
 
         switch (modifier.type)
         {
-            case RatingsModifierType::BonusReversedTrains:
+            case RatingsModifierType::bonusReversedTrains:
                 if (ride.flags.has(RideFlag::reversedTrains))
                 {
                     raw.excitement += (raw.excitement * modifier.excitement) >> 7;
