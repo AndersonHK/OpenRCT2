@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 335 / 361 source commits recorded
+## Progress: 336 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3703,10 +3703,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U335 — `e93fa5342a` — Close #21400: draw staff patrol area selector on the water (#27067)
 
 - **Source:** `e93fa5342a6c447fa0d32492281af9459ceaed24`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `420690b9b5afa03822a1f804f0c2fc814ce3882f`.
 - **Remaining:** 27 → 26.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Enabled patrol selector water hits and dual terrain/water overlays; renamed the shared selection mode.
 - **Additional decisions / behavior:** Preserve enum value, land-rights behavior, fork cached terrain and presentation staff lookup. Selection feedback/picking change only; patrol permissions and movement unchanged.
 - **Verification:** B92: solution zero warnings/errors;88 widget/GPU/play tests passed. Inspected dual-height overlay and fork ownership boundaries.
 - **Pending / concerns:** Native water/underwater patrol picking and appearance remain for manual validation.
+
+### U336 — `3418b4f8bf` — Group themes window tab info into one struct (#27026)
+
+- **Source:** `3418b4f8bf2a74394c1d52e01a603402ee2dacaa`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 26 → 25.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Grouped theme-tab animation, widget and window-class metadata into one constexpr table.
+- **Additional decisions / behavior:** Preserve all class ordering and nine animation pairs. WindowClass is uint8_t, so former sizeof counts equal the new span element counts. No theme colors or fork behavior changed.
+- **Verification:** Complete Themes.cpp matches source; all WindowClass occurrences preserve order; animation values and tab/widget mapping inspected.
+- **Pending / concerns:** Compile/UI checkpoint deferred to the following coherent HUD/theme migration.
