@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include "../world/Location.hpp"
 #include "EntityBase.h"
 
 #include <cstddef>

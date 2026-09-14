@@ -10,6 +10,7 @@
 #pragma once
 
 #include "../core/CallingConventions.h"
+#include "../interface/ScreenCoords.hpp"
 #include "../interface/ZoomLevel.h"
 #include "../world/Location.hpp"
 #include "Colour.h"

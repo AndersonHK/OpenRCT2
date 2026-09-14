@@ -25,6 +25,8 @@
 #include <type_traits>
 #include <vector>
 
+struct CoordsXY;
+
 namespace OpenRCT2
 {
     constexpr uint16_t kMaxEntities = 65535;

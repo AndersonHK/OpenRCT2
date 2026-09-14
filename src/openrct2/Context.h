@@ -12,7 +12,6 @@
 #include "core/StringTypes.h"
 #include "interface/WindowClasses.h"
 #include "localisation/StringIdType.h"
-#include "world/Location.hpp"
 
 #include <memory>
 
@@ -23,6 +22,7 @@ struct IScenarioRepository;
 struct ITrackDesignRepository;
 class JobPool;
 struct NewVersionInfo;
+struct ScreenCoordsXY;
 
 namespace OpenRCT2
 {

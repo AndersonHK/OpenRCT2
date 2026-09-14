@@ -15500,7 +15500,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "086b4effe2c8ac284b0f7e32c821b8784c0a1f81"
+      ],
       "verification_evidence": [
         "Inspected full two-file source and local startup/load branches; exact helper and success-branch call ported; diff check passes."
       ],
@@ -15624,9 +15626,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Reviewed all 63 source paths/1361 lines. Moved headers/remaining Location exact source tokens; other modified C++ tokens unchanged except includes/forward declarations. B43 two incomplete-type failures fixed at owning headers; standalone checks pass. Final MSVC/Vulkan 30.86s zero warnings/errors; 279 tests/18 suites pass in 35.991s. U205 compilation cleared too."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -15648,7 +15652,10 @@
         "src/openrct2/park/ParkFile.cpp",
         "src/openrct2/peep/GuestPathfinding.h"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 6b2fb43861a9b3d35a79c01c188ccfe6b435a41b",
+      "implementation_decisions": "Preserve all coordinate values/operators/layout and fork gameplay/rendering/serialization logic. Omit retired OpenGL include-only change; keep GPU/Vulkan. Correct upstream project CoordsRange.h typo to .hpp. Supply direct Location.hpp in fork EntityVisualLifecycle and ScreenCoords.hpp in Drawing.h for their by-value fields; retain presentation-generation and transport declarations. No new owner choice.",
+      "pending_validation": "Native non-Windows/full disabled-scripting, interactive startup-folder persistence and live multiplayer/replay unverified; standing debt retained."
     },
     {
       "sha": "3768b089990e75c298e359d85118043a86e821a6",
@@ -27224,8 +27231,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 205,
-    "remaining_after_receipt": 156,
+    "accounted_in_this_tree": 206,
+    "remaining_after_receipt": 155,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

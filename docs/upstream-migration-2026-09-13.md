@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 205 / 361 source commits recorded
+## Progress: 206 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2273,10 +2273,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U205 — `ac926d5550` — Fix #23872: Set load/save folder for parks loaded outside the game (#26927)
 
 - **Source:** `ac926d5550b21addad8fc0630c0e528d931915e5`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `086b4effe2c8ac284b0f7e32c821b8784c0a1f81`.
 - **Remaining:** 157 → 156.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Remember the absolute directory of a successfully continued local startup save for subsequent load/save dialogs, and add changelog.
 - **Additional decisions / behavior:** Adopt source guard: only nonempty scenario save path matching startup path; failed loads, fresh scenarios and URL startup bypass it. Fork layered object directories untouched. No gameplay or save-format change.
 - **Verification:** Inspected full two-file source and local startup/load branches; exact helper and success-branch call ported; diff check passes.
 - **Pending / concerns:** Compile at next batch. Interactive file association/command-line folder persistence unverified; no external config-write claim.
+
+### U206 — `6b2fb43861` — Move interface types from Location.hpp to ScreenCoords.hpp (#26945)
+
+- **Source:** `6b2fb43861a9b3d35a79c01c188ccfe6b435a41b`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 156 → 155.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Move screen-coordinate types to ScreenCoords.hpp and shared ranges to CoordsRange.hpp; update direct includes/forward declarations across 64 fork paths.
+- **Additional decisions / behavior:** Preserve all coordinate values/operators/layout and fork gameplay/rendering/serialization logic. Omit retired OpenGL include-only change; keep GPU/Vulkan. Correct upstream project CoordsRange.h typo to .hpp. Supply direct Location.hpp in fork EntityVisualLifecycle and ScreenCoords.hpp in Drawing.h for their by-value fields; retain presentation-generation and transport declarations. No new owner choice.
+- **Verification:** Reviewed all 63 source paths/1361 lines. Moved headers/remaining Location exact source tokens; other modified C++ tokens unchanged except includes/forward declarations. B43 two incomplete-type failures fixed at owning headers; standalone checks pass. Final MSVC/Vulkan 30.86s zero warnings/errors; 279 tests/18 suites pass in 35.991s. U205 compilation cleared too.
+- **Pending / concerns:** Native non-Windows/full disabled-scripting, interactive startup-folder persistence and live multiplayer/replay unverified; standing debt retained.

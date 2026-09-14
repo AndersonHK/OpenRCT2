@@ -9,12 +9,12 @@
 
 #pragma once
 
-#include "../world/Location.hpp"
 #include "FilterPaletteIds.h"
 #include "ImageId.hpp"
 #include "PaletteIndex.h"
 #include "PresentationGeneration.h"
 
+struct ScreenLine;
 struct TTFSurface;
 
 #include <memory>
