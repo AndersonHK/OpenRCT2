@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 144 / 361 source commits recorded
+## Progress: 145 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1602,10 +1602,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U144 — `5c0fc86397` — Rename CarEntry members to adhere to code style
 
 - **Source:** `5c0fc863979b7c7b9a8675cf69d51661309c0033`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `12959e5113028b03130aea9e2f8089caffd561c2`.
 - **Remaining:** 218 → 217.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Rename 31 CarEntry members and methods across 40 files, including fork-only platform waiting callers; retain all fork implementation expressions.
 - **Additional decisions / behavior:** CarEntry numSeats/poweredAcceleration are distinct from live Vehicle num_seats/powered_acceleration. Preserve fork friction_sound_gain and serialized/JSON/scripting names. No gameplay or protocol change.
 - **Verification:** All 40 source deltas and fork body tokens verified as identifier-only changes. Batch 25 full Release x64 MSVC/Vulkan build: 0 warnings/errors, 86.24 seconds; 204 tests in 12 suites passed in 28.828 seconds. Whitespace check passed.
 - **Pending / concerns:** Interactive vehicle rendering and native non-Windows builds remain unverified; U140-U144 compile/test debt cleared by Batch 25.
+
+### U145 — `a629158a4b` — Rename SpriteGroupNames to kSpriteGroupNames
+
+- **Source:** `a629158a4bbe87b89b8d16f86e218ab23e0d8a24`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 217 → 216.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Rename SpriteGroupNames to kSpriteGroupNames in the definition and both JSON/scripting callers; retain all 40 group strings and order.
+- **Additional decisions / behavior:** Pure internal constant rename; JSON keys and scripting property names unchanged.
+- **Verification:** Inspected all three source file deltas and fork adaptations; static count assertion retained; whitespace check passed.
+- **Pending / concerns:** Compile with the next coherent batch.
