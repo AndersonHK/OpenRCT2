@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 207 / 361 source commits recorded
+## Progress: 208 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2295,10 +2295,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U207 — `3768b08999` — Request user attention when the save prompt blocks quitting (#26933)
 
 - **Source:** `3768b089990e75c298e359d85118043a86e821a6`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `300af2ea32b2beded7333a68ea0f82cd22a72af3`.
 - **Remaining:** 155 → 154.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Request SDL desktop attention until focused when an OS quit request opens a blocking save prompt in an unfocused window; add UI interface and headless no-op.
 - **Additional decisions / behavior:** Adopt exact source logic. Existing title/confirmation/invalid-mode early exits and fork save-prompt age threshold, focus/pause/audio policies unchanged. No forced focus and no new owner choice.
 - **Verification:** Inspected full five-file source and fork SavePromptOpen branch; both concrete IUiContext implementations updated. Diff check passes.
 - **Pending / concerns:** Compile next batch; actual Windows taskbar/Linux urgency/macOS dock behavior and OS quit session interaction unverified.
+
+### U208 — `d1ea87512f` — Fix land paint price not updating when holding Ctrl (#26954)
+
+- **Source:** `d1ea87512ff1d793b5dc80ae49562efd9a9e2075`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 154 → 153.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Display land-paint quote for N tiles while Ctrl selects a row/column, otherwise N squared; add changelog.
+- **Additional decisions / behavior:** UI estimate only: retain cent-money multiplication, surface/edge object costs, actual terrain action charging and provisional selection behavior. No new owner decision.
+- **Verification:** Full two-file patch and current price calculation inspected; exact source change; diff check passes.
+- **Pending / concerns:** Compile next batch; interactive Ctrl row/column quote refresh unverified.
