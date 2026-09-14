@@ -123,7 +123,7 @@ protected:
 
     static Vehicle* AddStationTrain(Ride& ride, uint8_t passengerCount)
     {
-        auto* train = getGameState().entities.CreateEntity<Vehicle>();
+        auto* train = getGameState().entities.createEntity<Vehicle>();
         if (train == nullptr)
             return nullptr;
         train->SubType = Vehicle::Type::head;

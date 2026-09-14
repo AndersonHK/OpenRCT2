@@ -1231,15 +1231,15 @@ TEST_F(RideRatings, TransportServiceSpatialQueriesAreStableAcrossBoundariesMoves
 TEST_F(RideRatings, PlatformCapacityUsesActualConsistAndSafeLegacyFallback)
 {
     auto& entities = getGameState().entities;
-    entities.ResetAllEntities();
+    entities.resetAllEntities();
 
     Ride ride{};
     InitialiseRide(ride, RIDE_TYPE_MONORAIL, 1);
     ride.getStation().Length = 3;
     EXPECT_EQ(RideGetTransportStationPlatformCapacity(ride, StationIndex::FromUnderlying(0)), 0);
 
-    auto* head = entities.CreateEntity<Vehicle>();
-    auto* tail = entities.CreateEntity<Vehicle>();
+    auto* head = entities.createEntity<Vehicle>();
+    auto* tail = entities.createEntity<Vehicle>();
     ASSERT_NE(head, nullptr);
     ASSERT_NE(tail, nullptr);
     head->SubType = Vehicle::Type::head;
@@ -1273,7 +1273,7 @@ TEST_F(RideRatings, PlatformCapacityUsesActualConsistAndSafeLegacyFallback)
 TEST_F(RideRatings, TransportStationOvercrowdingRequiresFullQueueAndFullPlatform)
 {
     auto& entities = getGameState().entities;
-    entities.ResetAllEntities();
+    entities.resetAllEntities();
 
     constexpr auto stationIndex = StationIndex::FromUnderlying(0);
     Ride ride{};
@@ -1285,7 +1285,7 @@ TEST_F(RideRatings, TransportStationOvercrowdingRequiresFullQueueAndFullPlatform
     EXPECT_EQ(RideGetTransportStationPlatformCapacity(ride, stationIndex), 0);
     EXPECT_FALSE(RideIsTransportStationOvercrowded(ride, stationIndex));
 
-    auto* head = entities.CreateEntity<Vehicle>();
+    auto* head = entities.createEntity<Vehicle>();
     ASSERT_NE(head, nullptr);
     head->SubType = Vehicle::Type::head;
     head->num_seats = 2;

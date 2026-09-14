@@ -61,7 +61,7 @@ static void GameInit(bool retainSpatialIndices)
 {
     auto& gameState = getGameState();
     if (!retainSpatialIndices)
-        gameState.entities.ResetEntitySpatialIndices();
+        gameState.entities.resetEntitySpatialIndices();
 
     ResetAllSpriteQuadrantPlacements();
     LoadPalette();
@@ -442,7 +442,7 @@ TEST(ParkFileMigration, TransportDestinationRoundTripsAndIsRemovedFromOlderTarge
         const auto* ride = GetFirstRide();
         ASSERT_NE(ride, nullptr);
         EXPECT_EQ(ride->priceTarget, RidePriceTarget::free);
-        const auto* guest = getGameState().entities.GetEntity<Guest>(guestId);
+        const auto* guest = getGameState().entities.getEntity<Guest>(guestId);
         ASSERT_NE(guest, nullptr);
         EXPECT_TRUE(guest->hasTransportRoute());
         EXPECT_EQ(guest->previousRide, transportRide);
@@ -458,7 +458,7 @@ TEST(ParkFileMigration, TransportDestinationRoundTripsAndIsRemovedFromOlderTarge
         const auto* ride = GetFirstRide();
         ASSERT_NE(ride, nullptr);
         EXPECT_EQ(ride->priceTarget, RidePriceTarget::neutral);
-        const auto* guest = getGameState().entities.GetEntity<Guest>(guestId);
+        const auto* guest = getGameState().entities.getEntity<Guest>(guestId);
         ASSERT_NE(guest, nullptr);
         EXPECT_FALSE(guest->hasTransportRoute());
         EXPECT_EQ(guest->previousRide, transportRide);
@@ -595,7 +595,7 @@ TEST(ParkFileMigration, PlatformGuestRoundTripsAndOlderTargetUsesStationExitReco
         station.Exit = { 12, 10, 2, 2 };
         exit = station.Exit;
 
-        auto* train = getGameState().entities.CreateEntity<Vehicle>();
+        auto* train = getGameState().entities.createEntity<Vehicle>();
         ASSERT_NE(train, nullptr);
         train->SubType = Vehicle::Type::head;
         train->num_seats = 2;
@@ -623,7 +623,7 @@ TEST(ParkFileMigration, PlatformGuestRoundTripsAndOlderTargetUsesStationExitReco
         auto context = ImportParkVersion(currentVersionPark);
         ASSERT_NE(context, nullptr);
 
-        auto* guest = getGameState().entities.GetEntity<Guest>(guestId);
+        auto* guest = getGameState().entities.getEntity<Guest>(guestId);
         ASSERT_NE(guest, nullptr);
         EXPECT_EQ(guest->state, PeepState::enteringRide);
         EXPECT_EQ(guest->rideSubState, PeepRideSubState::waitingOnPlatform);
@@ -634,7 +634,7 @@ TEST(ParkFileMigration, PlatformGuestRoundTripsAndOlderTargetUsesStationExitReco
         EXPECT_EQ(RideGetTransportStationPlatformOccupancy(*ride, guest->currentRideStation), 1);
         EXPECT_EQ(RideGetTransportStationPlatformCapacity(*ride, guest->currentRideStation), 2);
 
-        auto* train = getGameState().entities.GetEntity<Vehicle>(ride->vehicles[0]);
+        auto* train = getGameState().entities.getEntity<Vehicle>(ride->vehicles[0]);
         ASSERT_NE(train, nullptr);
         train->num_peeps = 1;
         train->next_free_seat = 1;
@@ -663,7 +663,7 @@ TEST(ParkFileMigration, PlatformGuestRoundTripsAndOlderTargetUsesStationExitReco
         auto context = ImportParkVersion(previousVersionPark);
         ASSERT_NE(context, nullptr);
 
-        const auto* guest = getGameState().entities.GetEntity<Guest>(guestId);
+        const auto* guest = getGameState().entities.getEntity<Guest>(guestId);
         ASSERT_NE(guest, nullptr);
         EXPECT_EQ(guest->state, PeepState::leavingRide);
         EXPECT_EQ(guest->rideSubState, PeepRideSubState::approachExit);

@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 278 / 361 source commits recorded
+## Progress: 279 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3076,10 +3076,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U278 — `b92dd1d78c` — Use RCTC ride names in RCT1 scenarios (#27017)
 
 - **Source:** `b92dd1d78ccdf65d07789a0387a3a9167ed2e865`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `8670fdff468a3500d39ad959c92d517494621986`.
 - **Remaining:** 84 → 83.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Add 36 official RCT Classic ride names to 16 original scenario patches and hash-reference/changelog entries.
 - **Additional decisions / behavior:** Approved scenario name port. Preserve exact IDs/full hashes/Unicode names; all existing non-ride patch properties unchanged. Names are fixed official strings. Keep scenario-only S4/S6 import gating and full-SHA check, preserving custom names in ordinary saves. See B65.
 - **Verification:** All sixteen JSON payloads match source and contain only name-operation additions. B65 solution 76.28s zero warnings/errors; 38 scenario-patch/Play/language tests pass in 7.001s, clearing U277 debt.
 - **Pending / concerns:** Original sixteen scenario imports, actual terrain dialogs, standing non-Windows/MP/replay remain. No new owner decision.
+
+### U279 — `0fb70602d3` — Convert contents of EntityRegistry.h to camelCase (#27019)
+
+- **Source:** `0fb70602d3404c43c19a02400ac220045a460d8f`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 83 → 82.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Port entity-registry camelCase identifiers through live registry callers, fork-only ownership consumers and tests.
+- **Additional decisions / behavior:** Only 576 identifier replacements in 86 fork files, proven against complete pre-port files; source has 471 replacements in 99 files. Preserve pooled storage, ordered membership, execution/dirty lists, visual lifecycle, snapshot interfaces and GetEntityForPresentation paint ownership. Rename Entity_t padding access without layout change. See B66.
+- **Verification:** B66 complete Release x64 MSVC/Vulkan build 82.46s zero warnings/errors. Full unfiltered available Windows suite: 603 tests in 53 suites passed in 37.778s; XML has zero failures/errors/disabled. Source and fork lexical proofs pass.
+- **Pending / concerns:** Native rendering/input, live MP, longer performance runs, non-Windows/disabled-scripting remain. No new owner decision or compile debt.

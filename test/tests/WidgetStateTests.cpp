@@ -54,7 +54,7 @@ TEST(WidgetStateTest, EditorPanelsPreserveStepVisibilityResizeAndToolbarToggle)
     } restoreScene{ previousScene };
     gLegacyScene = LegacyScene::scenarioEditor;
     auto& state = getGameState();
-    state.entities.ResetAllEntities();
+    state.entities.resetAllEntities();
     state.park.flags.unset(ParkFlag::spritesInitialised);
     auto* manager = Ui::GetWindowManager();
     auto* previous = manager->OpenWindow(WindowClass::editorStepController);
@@ -191,7 +191,7 @@ TEST(WidgetStateTest, GuestPickupRefreshesWithoutResizeAcrossPlatformAndRideStat
     auto uiContext = Ui::CreateUiContext(*env);
     auto context = CreateContext(std::move(env), Audio::CreateDummyAudioContext(), std::move(uiContext));
     ASSERT_TRUE(context->Initialise());
-    auto* guest = getGameState().entities.CreateEntity<Guest>();
+    auto* guest = getGameState().entities.createEntity<Guest>();
     ASSERT_NE(guest, nullptr);
     guest->state = PeepState::picked;
     auto* window = Ui::Windows::GuestOpen(guest);

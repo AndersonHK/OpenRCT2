@@ -202,7 +202,7 @@ namespace OpenRCT2
         : _storage(std::make_unique<EntityStorage>())
     {
         _entityPoolSlots.fill(UINT32_MAX);
-        ResetAllEntities();
+        resetAllEntities();
     }
 
     EntityRegistry::~EntityRegistry() = default;
@@ -233,37 +233,37 @@ namespace OpenRCT2
     }
 
     // TODO: make part of EntityList unit?
-    uint16_t EntityRegistry::GetEntityListCount(EntityType type)
+    uint16_t EntityRegistry::getEntityListCount(EntityType type)
     {
         return static_cast<uint16_t>(gEntityLists[EnumValue(type)].size());
     }
 
     // TODO: make part of EntityList unit?
-    uint16_t EntityRegistry::GetNumFreeEntities()
+    uint16_t EntityRegistry::getNumFreeEntities()
     {
         return static_cast<uint16_t>(_freeIds.size());
     }
 
-    std::string EntitiesChecksum::ToString() const
+    std::string EntitiesChecksum::toString() const
     {
         return String::StringFromHex(raw);
     }
 
-    EntityBase* EntityRegistry::GetEntity(EntityId entityIndex)
+    EntityBase* EntityRegistry::getEntity(EntityId entityIndex)
     {
         if (entityIndex.IsNull())
             return nullptr;
 
         Guard::Assert(entityIndex.ToUnderlying() < kMaxEntities, "Tried getting entity %u", entityIndex.ToUnderlying());
-        return TryGetEntity(entityIndex);
+        return tryGetEntity(entityIndex);
     }
 
-    const std::vector<EntityId>& EntityRegistry::GetEntityTileList(const CoordsXY& spritePos)
+    const std::vector<EntityId>& EntityRegistry::getEntityTileList(const CoordsXY& spritePos)
     {
         return gEntitySpatialIndex[ComputeSpatialIndex(spritePos)];
     }
 
-    const EntityIdList& EntityRegistry::GetEntityList(const EntityType id)
+    const EntityIdList& EntityRegistry::getEntityList(const EntityType id)
     {
         return gEntityLists[EnumValue(id)];
     }
@@ -285,7 +285,7 @@ namespace OpenRCT2
         _vehicleHeadEntityList.reserve(vehicles.size());
         for (const auto entityId : vehicles)
         {
-            const auto* vehicle = GetEntity<Vehicle>(entityId);
+            const auto* vehicle = getEntity<Vehicle>(entityId);
             if (vehicle->IsHead())
                 _vehicleHeadEntityList.push_back(entityId);
         }
@@ -297,14 +297,14 @@ namespace OpenRCT2
      *
      *  rct2: 0x0069EB13
      */
-    void EntityRegistry::ResetAllEntities()
+    void EntityRegistry::resetAllEntities()
     {
         // Free live entities before zeroing storage. The typed membership is complete, so avoid scanning every empty slot.
         for (const auto& list : gEntityLists)
         {
             for (const auto entityId : list)
             {
-                FreeEntity(*entities[entityId.ToUnderlying()]);
+                freeEntity(*entities[entityId.ToUnderlying()]);
             }
         }
 
@@ -321,7 +321,7 @@ namespace OpenRCT2
         _vehicleHeadEntityList.clear();
         _vehicleHeadEntityListDirty = true;
         _freeIds.fill();
-        ResetEntitySpatialIndices();
+        resetEntitySpatialIndices();
         ResetEntityVisualLifecycle();
     }
 
@@ -331,7 +331,7 @@ namespace OpenRCT2
      * This function looks as though it sets some sort of order for sprites.
      * Sprites can share their position if this is the case.
      */
-    void EntityRegistry::ResetEntitySpatialIndices()
+    void EntityRegistry::resetEntitySpatialIndices()
     {
         ClearSpatialIndexDirtyWorklist();
         for (auto& vec : gEntitySpatialIndex)
@@ -339,46 +339,46 @@ namespace OpenRCT2
             vec.clear();
         }
         // Membership is rebuilt alongside entity creation/import. Iterate live ids rather than rescanning every registry
-        // slot, which is especially wasteful immediately after ResetAllEntities() has cleared every list.
+        // slot, which is especially wasteful immediately after resetAllEntities() has cleared every list.
         for (const auto& list : gEntityLists)
         {
             for (const auto entityId : list)
             {
                 auto& entity = *entities[entityId.ToUnderlying()];
-                EntitySpatialInsert(entity, { entity.x, entity.y });
+                entitySpatialInsert(entity, { entity.x, entity.y });
             }
         }
     }
 
 #ifndef DISABLE_NETWORK
-    EntitiesChecksum EntityRegistry::GetAllEntitiesChecksum()
+    EntitiesChecksum EntityRegistry::getAllEntitiesChecksum()
     {
         EntitiesChecksum checksum{};
 
         ChecksumStream ms(checksum.raw);
         DataSerialiser ds(true, ms);
-        NetworkSerialiseEntityTypes<Guest, Staff, Vehicle, Litter>(ds);
+        networkSerialiseEntityTypes<Guest, Staff, Vehicle, Litter>(ds);
 
         return checksum;
     }
 #else
-    EntitiesChecksum EntityRegistry::GetAllEntitiesChecksum()
+    EntitiesChecksum EntityRegistry::getAllEntitiesChecksum()
     {
         return EntitiesChecksum{};
     }
 #endif // DISABLE_NETWORK
 
-    uint16_t EntityRegistry::GetMiscEntityCount()
+    uint16_t EntityRegistry::getMiscEntityCount()
     {
         uint16_t count = 0;
         for (const auto id : kMiscEntityTypes)
         {
-            count += GetEntityListCount(id);
+            count += getEntityListCount(id);
         }
         return count;
     }
 
-    void EntityRegistry::PrepareNewEntity(EntityBase& base, const EntityType type)
+    void EntityRegistry::prepareNewEntity(EntityBase& base, const EntityType type)
     {
         base.type = type;
         auto& list = gEntityLists[EnumValue(type)];
@@ -399,7 +399,7 @@ namespace OpenRCT2
         base.spriteData.spriteRect = {};
         base.spatialIndex = kInvalidSpatialIndex;
 
-        EntitySpatialInsert(base, { kLocationNull, 0 });
+        entitySpatialInsert(base, { kLocationNull, 0 });
 
         auto& generation = _entityVisualGenerations[base.id.ToUnderlying()];
         if (++generation == 0)
@@ -407,7 +407,7 @@ namespace OpenRCT2
         QueueEntityVisualChange(base.id, EntityVisualDirty::full);
     }
 
-    EntityBase* EntityRegistry::CreateEntity(EntityType type)
+    EntityBase* EntityRegistry::createEntity(EntityType type)
     {
         if (_freeIds.empty())
         {
@@ -418,7 +418,7 @@ namespace OpenRCT2
         if (IsMiscEntity(type))
         {
             // Misc sprites are commonly used for effects, give other entity types higher priority.
-            if (GetMiscEntityCount() >= kMaxMiscEntities)
+            if (getMiscEntityCount() >= kMaxMiscEntities)
             {
                 return nullptr;
             }
@@ -436,11 +436,11 @@ namespace OpenRCT2
         entity->id = entityId;
         entities[entityId.ToUnderlying()] = entity;
         _entityPoolSlots[entityId.ToUnderlying()] = poolSlot;
-        PrepareNewEntity(*entity, type);
+        prepareNewEntity(*entity, type);
         return entity;
     }
 
-    EntityBase* EntityRegistry::CreateEntityAt(const EntityId index, const EntityType type)
+    EntityBase* EntityRegistry::createEntityAt(const EntityId index, const EntityType type)
     {
         if (!_freeIds.erase(index))
         {
@@ -451,7 +451,7 @@ namespace OpenRCT2
         entity->id = index;
         entities[index.ToUnderlying()] = entity;
         _entityPoolSlots[index.ToUnderlying()] = poolSlot;
-        PrepareNewEntity(*entity, type);
+        prepareNewEntity(*entity, type);
         return entity;
     }
 
@@ -459,22 +459,22 @@ namespace OpenRCT2
      *
      *  rct2: 0x00672AA4
      */
-    void EntityRegistry::UpdateAllMiscEntities()
+    void EntityRegistry::updateAllMiscEntities()
     {
         PROFILED_FUNCTION();
 
-        MiscUpdateAllTypes<
+        miscUpdateAllTypes<
             SteamParticle, MoneyEffect, VehicleCrashParticle, ExplosionCloud, CrashSplashParticle, ExplosionFlare,
             JumpingFountain, Balloon, Duck>();
     }
 
-    void EntityRegistry::UpdateMoneyEffect()
+    void EntityRegistry::updateMoneyEffect()
     {
-        MiscUpdateAllTypes<MoneyEffect>();
+        miscUpdateAllTypes<MoneyEffect>();
     }
 
     // Performs a search to ensure that insert keeps next_in_quadrant in sprite_index order
-    void EntityRegistry::EntitySpatialInsert(EntityBase& entity, const CoordsXY& newLoc)
+    void EntityRegistry::entitySpatialInsert(EntityBase& entity, const CoordsXY& newLoc)
     {
         const auto newIndex = ComputeSpatialIndex(newLoc);
 
@@ -485,7 +485,7 @@ namespace OpenRCT2
         entity.spatialIndex = newIndex;
     }
 
-    void EntityRegistry::EntitySpatialRemove(EntityBase& entity)
+    void EntityRegistry::entitySpatialRemove(EntityBase& entity)
     {
         const auto currentIndex = GetSpatialIndex(entity);
 
@@ -499,15 +499,15 @@ namespace OpenRCT2
         entity.spatialIndex = kInvalidSpatialIndex;
     }
 
-    void EntityRegistry::UpdateEntitySpatialIndex(EntityBase& entity)
+    void EntityRegistry::updateEntitySpatialIndex(EntityBase& entity)
     {
         if (entity.spatialIndex & kSpatialIndexDirtyMask)
         {
             if (entity.spatialIndex != kInvalidSpatialIndex)
             {
-                EntitySpatialRemove(entity);
+                entitySpatialRemove(entity);
             }
-            EntitySpatialInsert(entity, { entity.x, entity.y });
+            entitySpatialInsert(entity, { entity.x, entity.y });
         }
     }
 
@@ -516,7 +516,7 @@ namespace OpenRCT2
         const auto entityIndex = entity.id.ToUnderlying();
         // Presentation-only movement must use moveToForTween(). Every authoritative move belongs to a live registry slot.
         Guard::Assert(
-            entityIndex < kMaxEntities && entity.type != EntityType::null && TryGetEntity(entity.id) == &entity,
+            entityIndex < kMaxEntities && entity.type != EntityType::null && tryGetEntity(entity.id) == &entity,
             "Only registered live entities may queue spatial movement");
         if (_spatialIndexDirtyQueued.test(entityIndex))
             return;
@@ -530,7 +530,7 @@ namespace OpenRCT2
         _spatialIndexDirtyQueued.reset(entity.id.ToUnderlying());
     }
 
-    void EntityRegistry::UpdateEntitiesSpatialIndex()
+    void EntityRegistry::updateEntitiesSpatialIndex()
     {
         if (_spatialIndexDirtyEntities.empty())
         {
@@ -550,7 +550,7 @@ namespace OpenRCT2
 
             auto* entity = entities[entityIndex];
             Guard::Assert(entity != nullptr, "Queued spatial entity %u is not live", entityIndex);
-            UpdateEntitySpatialIndex(*entity);
+            updateEntitySpatialIndex(*entity);
         }
         _spatialIndexDirtyEntities.clear();
     }
@@ -583,7 +583,7 @@ namespace OpenRCT2
     void EntityRegistry::QueueEntityVisualChange(EntityBase& entity, const EntityVisualDirty dirty) noexcept
     {
         const auto index = entity.id.ToUnderlying();
-        if (index < kMaxEntities && TryGetEntity(entity.id) == &entity)
+        if (index < kMaxEntities && tryGetEntity(entity.id) == &entity)
             QueueEntityVisualChange(entity.id, dirty);
     }
 
@@ -656,7 +656,7 @@ namespace OpenRCT2
     /**
      * Frees any dynamically attached memory to the entity, such as peep name.
      */
-    void EntityRegistry::FreeEntity(EntityBase& entity)
+    void EntityRegistry::freeEntity(EntityBase& entity)
     {
         if (auto* staff = entity.as<Staff>(); staff != nullptr)
         {
@@ -677,13 +677,13 @@ namespace OpenRCT2
      *
      *  rct2: 0x0069EDB6
      */
-    void EntityRegistry::EntityRemove(EntityBase* entity)
+    void EntityRegistry::entityRemove(EntityBase* entity)
     {
         const auto id = entity->id;
         const auto type = entity->type;
         const auto index = id.ToUnderlying();
         const auto poolSlot = _entityPoolSlots[index];
-        FreeEntity(*entity);
+        freeEntity(*entity);
         CancelEntitySpatialIndexUpdate(*entity);
 
         EntityTweener::Get().RemoveEntity(entity);
@@ -700,7 +700,7 @@ namespace OpenRCT2
         if (type == EntityType::vehicle)
             _vehicleHeadEntityListDirty = true;
 
-        EntitySpatialRemove(*entity);
+        entitySpatialRemove(*entity);
         entities[index] = nullptr;
         _entityPoolSlots[index] = UINT32_MAX;
         _storage->Release(type, poolSlot);
@@ -711,37 +711,37 @@ namespace OpenRCT2
      * Loops through all floating entities and removes them.
      * Returns the amount of removed objects as feedback.
      */
-    uint16_t EntityRegistry::RemoveFloatingEntities()
+    uint16_t EntityRegistry::removeFloatingEntities()
     {
         uint16_t removed = 0;
         for (auto* balloon : EntityList<Balloon>())
         {
-            EntityRemove(balloon);
+            entityRemove(balloon);
             removed++;
         }
         for (auto* duck : EntityList<Duck>())
         {
             if (duck->isFlying())
             {
-                EntityRemove(duck);
+                entityRemove(duck);
                 removed++;
             }
         }
         for (auto* money : EntityList<MoneyEffect>())
         {
-            EntityRemove(money);
+            entityRemove(money);
             removed++;
         }
         return removed;
     }
 
-    void EntityRegistry::EntitySetFlashing(EntityBase* entity, bool flashing)
+    void EntityRegistry::entitySetFlashing(EntityBase* entity, bool flashing)
     {
         assert(entity->id.ToUnderlying() < kMaxEntities);
         _entityFlashingList[entity->id.ToUnderlying()] = flashing;
     }
 
-    bool EntityRegistry::EntityGetFlashing(EntityBase* entity)
+    bool EntityRegistry::entityGetFlashing(EntityBase* entity)
     {
         assert(entity->id.ToUnderlying() < kMaxEntities);
         return _entityFlashingList[entity->id.ToUnderlying()];
@@ -840,5 +840,5 @@ void EntityBase::moveToAndUpdateSpatialIndex(const CoordsXYZ& newLocation)
     // TODO: pass as param instead of relying on global game state
     auto& gameState = getGameState();
 
-    gameState.entities.UpdateEntitySpatialIndex(*this);
+    gameState.entities.updateEntitySpatialIndex(*this);
 }

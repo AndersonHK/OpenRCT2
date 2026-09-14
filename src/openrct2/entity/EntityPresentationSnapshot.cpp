@@ -109,7 +109,7 @@ namespace OpenRCT2
 
         if (lookupRoots.empty())
         {
-            for (const auto id : registry.GetEntityList(EntityType::vehicle))
+            for (const auto id : registry.getEntityList(EntityType::vehicle))
                 enqueue(id);
         }
         else
@@ -123,7 +123,7 @@ namespace OpenRCT2
         for (size_t queueIndex = 0; queueIndex < closureQueue.size(); queueIndex++)
         {
             const auto id = closureQueue[queueIndex];
-            const auto* vehicle = registry.GetEntity<Vehicle>(id);
+            const auto* vehicle = registry.getEntity<Vehicle>(id);
             if (vehicle == nullptr)
                 continue;
             enqueue(vehicle->next_vehicle_on_train);
@@ -221,7 +221,7 @@ namespace OpenRCT2
             if (change.present)
             {
                 const auto* payload = batch.payload.data() + change.payloadOffset;
-                std::memcpy(activeEntityChunk->entities[entityOffset].Pad00, payload, change.payloadSize);
+                std::memcpy(activeEntityChunk->entities[entityOffset].pad00, payload, change.payloadSize);
                 activeEntityChunk->present.set(entityOffset);
                 if (!wasPresent)
                     _entityCount++;
@@ -359,6 +359,6 @@ namespace OpenRCT2
     {
         if (_currentSnapshot != nullptr)
             return const_cast<EntityBase*>(_currentSnapshot->TryGetEntity(id));
-        return getGameState().entities.GetEntity(id);
+        return getGameState().entities.getEntity(id);
     }
 } // namespace OpenRCT2

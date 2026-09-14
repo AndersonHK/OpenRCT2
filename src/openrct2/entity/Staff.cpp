@@ -2322,7 +2322,7 @@ namespace OpenRCT2
                     break;
                 }
 
-                vehicle = getGameState().entities.GetEntity<Vehicle>(vehicle->prev_vehicle_on_ride);
+                vehicle = getGameState().entities.getEntity<Vehicle>(vehicle->prev_vehicle_on_ride);
                 if (vehicle == nullptr)
                 {
                     return true;

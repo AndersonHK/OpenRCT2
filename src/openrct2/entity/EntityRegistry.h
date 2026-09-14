@@ -219,10 +219,10 @@ namespace OpenRCT2
 
     union Entity_t
     {
-        uint8_t Pad00[0x200];
+        uint8_t pad00[0x200];
         EntityBase base;
         Entity_t()
-            : Pad00()
+            : pad00()
         {
         }
     };
@@ -232,7 +232,7 @@ namespace OpenRCT2
     {
         std::array<std::byte, 20> raw;
 
-        std::string ToString() const;
+        std::string toString() const;
     };
 #pragma pack(pop)
 
@@ -289,55 +289,55 @@ namespace OpenRCT2
         EntityRegistry(const EntityRegistry&) = delete;
         EntityRegistry& operator=(const EntityRegistry&) = delete;
 
-        uint16_t GetEntityListCount(EntityType type);
-        uint16_t GetNumFreeEntities();
+        uint16_t getEntityListCount(EntityType type);
+        uint16_t getNumFreeEntities();
 
-        EntityBase* GetEntity(EntityId entityId);
+        EntityBase* getEntity(EntityId entityId);
 
         template<typename T>
-        T* GetEntity(EntityId entityId)
+        T* getEntity(EntityId entityId)
         {
-            return CastEntity<T>(GetEntity(entityId));
+            return CastEntity<T>(getEntity(entityId));
         }
 
-        EntityBase* TryGetEntity(EntityId entityId)
+        EntityBase* tryGetEntity(EntityId entityId)
         {
             const auto index = entityId.ToUnderlying();
             return index < kMaxEntities ? entities[index] : nullptr;
         }
 
         template<typename T>
-        T* TryGetEntity(EntityId entityId)
+        T* tryGetEntity(EntityId entityId)
         {
-            return CastEntity<T>(TryGetEntity(entityId));
+            return CastEntity<T>(tryGetEntity(entityId));
         }
 
-        const std::vector<EntityId>& GetEntityTileList(const CoordsXY& spritePos);
+        const std::vector<EntityId>& getEntityTileList(const CoordsXY& spritePos);
 
-        EntityBase* CreateEntity(EntityType type);
+        EntityBase* createEntity(EntityType type);
 
         template<typename T>
-        T* CreateEntity()
+        T* createEntity()
         {
-            return static_cast<T*>(CreateEntity(T::kEntityType));
+            return static_cast<T*>(createEntity(T::kEntityType));
         }
 
         // Use only with imports that must happen at a specified index
-        EntityBase* CreateEntityAt(EntityId index, EntityType type);
+        EntityBase* createEntityAt(EntityId index, EntityType type);
         // Use only with imports that must happen at a specified index
         template<typename T>
-        T* CreateEntityAt(EntityId index)
+        T* createEntityAt(EntityId index)
         {
-            return static_cast<T*>(CreateEntityAt(index, T::kEntityType));
+            return static_cast<T*>(createEntityAt(index, T::kEntityType));
         }
 
-        const EntityIdList& GetEntityList(EntityType id);
+        const EntityIdList& getEntityList(EntityType id);
         const std::vector<EntityBase*>& GetEntityExecutionList(EntityType id) const noexcept;
         const std::vector<EntityId>& GetVehicleHeadEntityList();
-        uint16_t GetMiscEntityCount();
+        uint16_t getMiscEntityCount();
 
-        void ResetAllEntities();
-        void ResetEntitySpatialIndices();
+        void resetAllEntities();
+        void resetEntitySpatialIndices();
 
         [[nodiscard]] EntityVisualHandle GetEntityVisualHandle(EntityId id) const noexcept;
         [[nodiscard]] EntityVisualChangeBatch ConsumeEntityVisualChanges();
@@ -347,7 +347,7 @@ namespace OpenRCT2
 #ifndef DISABLE_NETWORK
 
         template<typename T>
-        void NetworkSerialseEntityType(DataSerialiser& ds)
+        void networkSerialseEntityType(DataSerialiser& ds)
         {
             for (auto* ent : EntityList<T>())
             {
@@ -356,17 +356,17 @@ namespace OpenRCT2
         }
 
         template<typename... T>
-        void NetworkSerialiseEntityTypes(DataSerialiser& ds)
+        void networkSerialiseEntityTypes(DataSerialiser& ds)
         {
-            (NetworkSerialseEntityType<T>(ds), ...);
+            (networkSerialseEntityType<T>(ds), ...);
         }
 
 #endif // DISABLE_NETWORK
 
-        EntitiesChecksum GetAllEntitiesChecksum();
+        EntitiesChecksum getAllEntitiesChecksum();
 
         template<typename T>
-        void MiscUpdateAllType()
+        void miscUpdateAllType()
         {
             for (auto misc : EntityList<T>())
             {
@@ -375,20 +375,20 @@ namespace OpenRCT2
         }
 
         template<typename... T>
-        void MiscUpdateAllTypes()
+        void miscUpdateAllTypes()
         {
-            (MiscUpdateAllType<T>(), ...);
+            (miscUpdateAllType<T>(), ...);
         }
 
-        void UpdateAllMiscEntities();
-        void UpdateMoneyEffect();
-        void EntityRemove(EntityBase* entity);
-        uint16_t RemoveFloatingEntities();
-        void UpdateEntitiesSpatialIndex();
-        void UpdateEntitySpatialIndex(EntityBase& entity);
+        void updateAllMiscEntities();
+        void updateMoneyEffect();
+        void entityRemove(EntityBase* entity);
+        uint16_t removeFloatingEntities();
+        void updateEntitiesSpatialIndex();
+        void updateEntitySpatialIndex(EntityBase& entity);
 
-        void EntitySetFlashing(EntityBase* entity, bool flashing);
-        bool EntityGetFlashing(EntityBase* entity);
+        void entitySetFlashing(EntityBase* entity, bool flashing);
+        bool entityGetFlashing(EntityBase* entity);
 
     private:
         static constexpr std::array kMiscEntityTypes{
@@ -401,16 +401,16 @@ namespace OpenRCT2
         static uint32_t GetSpatialIndex(const EntityBase& entity) noexcept;
         static bool IsMiscEntity(EntityType type) noexcept;
 
-        void PrepareNewEntity(EntityBase& base, EntityType type);
-        void EntitySpatialInsert(EntityBase& entity, const CoordsXY& newLoc);
-        void EntitySpatialRemove(EntityBase& entity);
+        void prepareNewEntity(EntityBase& base, EntityType type);
+        void entitySpatialInsert(EntityBase& entity, const CoordsXY& newLoc);
+        void entitySpatialRemove(EntityBase& entity);
         void QueueEntitySpatialIndexUpdate(EntityBase& entity);
         void CancelEntitySpatialIndexUpdate(EntityBase& entity) noexcept;
         void ClearSpatialIndexDirtyWorklist() noexcept;
         void QueueEntityVisualChange(EntityId id, EntityVisualDirty dirty) noexcept;
         void QueueEntityVisualChange(EntityBase& entity, EntityVisualDirty dirty) noexcept;
         void ResetEntityVisualLifecycle() noexcept;
-        void FreeEntity(EntityBase& entity);
+        void freeEntity(EntityBase& entity);
     };
 
     // Presentation code resolves through the scoped immutable scene when one is active and through the live registry otherwise.

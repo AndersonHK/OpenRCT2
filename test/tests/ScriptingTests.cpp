@@ -819,7 +819,7 @@ protected:
     {
         ScriptingTests::SetUp();
         MapInit({ 16, 16 });
-        _vehicle = getGameState().entities.CreateEntity<Vehicle>();
+        _vehicle = getGameState().entities.createEntity<Vehicle>();
         ASSERT_NE(_vehicle, nullptr);
         _vehicle->ride = RideId::GetNull();
         _vehicle->TrackSubposition = VehicleTrackSubposition::standard;
@@ -898,10 +898,10 @@ TEST_F(VehicleSubpositionScriptingTests, BoundsConversionAndMissingMoveInfoPubli
         return true;
     })())");
     const auto id = _vehicle->id;
-    entities.EntityRemove(_vehicle);
+    entities.entityRemove(_vehicle);
     _vehicle = nullptr;
     Check("vehicle.subposition = 1; vehicle.subposition === 0");
-    EXPECT_EQ(entities.TryGetEntity<Vehicle>(id), nullptr);
+    EXPECT_EQ(entities.tryGetEntity<Vehicle>(id), nullptr);
 }
 
 TEST_F(VehicleSubpositionScriptingTests, TrackChangePreservesSeatsAndAccruedDirectedSamples)

@@ -188,7 +188,7 @@ namespace OpenRCT2
                 PrintBenchmarkStateSnapshot("Initial", initialState);
                 PrintBenchmarkStateSnapshot("Final", CaptureBenchmarkStateSnapshot());
             }
-            Console::WriteLine("Completed: %s", getGameState().entities.GetAllEntitiesChecksum().ToString().c_str());
+            Console::WriteLine("Completed: %s", getGameState().entities.getAllEntitiesChecksum().toString().c_str());
         }
         else
         {

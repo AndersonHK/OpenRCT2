@@ -721,7 +721,7 @@ namespace OpenRCT2
         Guest* peep;
         Guest* result = nullptr;
         auto spriteIndex = getStation(stationIndex).LastPeepInQueue;
-        while ((peep = getGameState().entities.TryGetEntity<Guest>(spriteIndex)) != nullptr)
+        while ((peep = getGameState().entities.tryGetEntity<Guest>(spriteIndex)) != nullptr)
         {
             spriteIndex = peep->guestNextInQueue;
             result = peep;
@@ -735,7 +735,7 @@ namespace OpenRCT2
         Guest* peep;
         auto& station = getStation(stationIndex);
         auto spriteIndex = station.LastPeepInQueue;
-        while ((peep = getGameState().entities.TryGetEntity<Guest>(spriteIndex)) != nullptr)
+        while ((peep = getGameState().entities.tryGetEntity<Guest>(spriteIndex)) != nullptr)
         {
             spriteIndex = peep->guestNextInQueue;
             count++;
@@ -936,7 +936,7 @@ namespace OpenRCT2
         }
         else if (mode == RideMode::race && !flags.has(RideFlag::passStationNoStopping) && !raceWinner.IsNull())
         {
-            auto peep = getGameState().entities.GetEntity<Guest>(raceWinner);
+            auto peep = getGameState().entities.getEntity<Guest>(raceWinner);
             if (peep != nullptr)
             {
                 ft.Add<StringId>(STR_RACE_WON_BY);
@@ -1437,7 +1437,7 @@ namespace OpenRCT2
         {
             ride.slideInUse = 0;
 
-            auto* peep = getGameState().entities.GetEntity<Guest>(ride.slidePeep);
+            auto* peep = getGameState().entities.getEntity<Guest>(ride.slidePeep);
             if (peep != nullptr)
             {
                 peep->spiralSlideSubstate = PeepSpiralSlideSubState::finishedSliding;
@@ -1735,7 +1735,7 @@ namespace OpenRCT2
                     ride.brokenCar = ScenarioRand() % ride.numCarsPerTrain;
 
                     // Set flag on broken car
-                    vehicle = getGameState().entities.GetEntity<Vehicle>(ride.vehicles[ride.brokenTrain]);
+                    vehicle = getGameState().entities.getEntity<Vehicle>(ride.vehicles[ride.brokenTrain]);
                     if (vehicle != nullptr)
                     {
                         vehicle = vehicle->GetCar(ride.brokenCar);
@@ -1752,7 +1752,7 @@ namespace OpenRCT2
                 ride.brokenCar = 0;
 
                 // Set flag on broken train, first car
-                vehicle = getGameState().entities.GetEntity<Vehicle>(ride.vehicles[ride.brokenTrain]);
+                vehicle = getGameState().entities.getEntity<Vehicle>(ride.vehicles[ride.brokenTrain]);
                 if (vehicle != nullptr)
                 {
                     vehicle->flags.set(VehicleFlag::trainIsBroken);
@@ -2026,7 +2026,7 @@ namespace OpenRCT2
 
     Staff* RideGetMechanic(const Ride& ride)
     {
-        auto staff = getGameState().entities.GetEntity<Staff>(ride.mechanic);
+        auto staff = getGameState().entities.getEntity<Staff>(ride.mechanic);
         if (staff != nullptr && staff->isMechanic())
         {
             return staff;
@@ -2112,7 +2112,7 @@ namespace OpenRCT2
      */
     void CircusMusicUpdate(Ride& ride)
     {
-        Vehicle* vehicle = getGameState().entities.GetEntity<Vehicle>(ride.vehicles[0]);
+        Vehicle* vehicle = getGameState().entities.getEntity<Vehicle>(ride.vehicles[0]);
         if (vehicle == nullptr || vehicle->status != Vehicle::Status::doingCircusShow)
         {
             ride.musicPosition = 0;
@@ -2192,7 +2192,7 @@ namespace OpenRCT2
         if (measurement.vehicle_index >= std::size(ride.vehicles))
             return;
 
-        auto vehicle = getGameState().entities.GetEntity<Vehicle>(ride.vehicles[measurement.vehicle_index]);
+        auto vehicle = getGameState().entities.getEntity<Vehicle>(ride.vehicles[measurement.vehicle_index]);
         if (vehicle == nullptr)
             return;
 
@@ -2300,7 +2300,7 @@ namespace OpenRCT2
                     for (int32_t j = 0; j < ride.numTrains; j++)
                     {
                         auto vehicleSpriteIdx = ride.vehicles[j];
-                        auto vehicle = gameState.entities.GetEntity<Vehicle>(vehicleSpriteIdx);
+                        auto vehicle = gameState.entities.getEntity<Vehicle>(vehicleSpriteIdx);
                         if (vehicle != nullptr)
                         {
                             if (vehicle->status == Vehicle::Status::departing
@@ -3404,8 +3404,8 @@ namespace OpenRCT2
     static int32_t count_free_misc_sprite_slots()
     {
         auto& gameState = getGameState();
-        int32_t miscSpriteCount = gameState.entities.GetMiscEntityCount();
-        int32_t remainingSpriteCount = gameState.entities.GetNumFreeEntities();
+        int32_t miscSpriteCount = gameState.entities.getMiscEntityCount();
+        int32_t remainingSpriteCount = gameState.entities.getNumFreeEntities();
         return std::max(0, miscSpriteCount + remainingSpriteCount - 300);
     }
 
@@ -3450,7 +3450,7 @@ namespace OpenRCT2
 
         auto& carEntry = rideEntry->Cars[carEntryIndex];
 
-        auto* vehicle = getGameState().entities.CreateEntity<Vehicle>();
+        auto* vehicle = getGameState().entities.createEntity<Vehicle>();
         if (vehicle == nullptr)
             return nullptr;
 
@@ -3530,7 +3530,7 @@ namespace OpenRCT2
                 // This can happen when trying to spawn dozens of cars in a tiny area.
                 if (numAttempts > 10000)
                 {
-                    getGameState().entities.EntityRemove(vehicle);
+                    getGameState().entities.entityRemove(vehicle);
                     return nullptr;
                 }
 
@@ -3667,8 +3667,8 @@ namespace OpenRCT2
                 while (createdCar != nullptr)
                 {
                     const auto nextCar = createdCar->next_vehicle_on_train;
-                    getGameState().entities.EntityRemove(createdCar);
-                    createdCar = getGameState().entities.GetEntity<Vehicle>(nextCar);
+                    getGameState().entities.entityRemove(createdCar);
+                    createdCar = getGameState().entities.getEntity<Vehicle>(nextCar);
                 }
                 return {};
             }
@@ -3958,7 +3958,7 @@ namespace OpenRCT2
      */
     static void RidecreateVehiclesFindFirstBlock(const Ride& ride, CoordsXYE* outXYElement)
     {
-        Vehicle* vehicle = getGameState().entities.GetEntity<Vehicle>(ride.vehicles[0]);
+        Vehicle* vehicle = getGameState().entities.getEntity<Vehicle>(ride.vehicles[0]);
         if (vehicle == nullptr)
             return;
 
@@ -4098,7 +4098,7 @@ namespace OpenRCT2
             {
                 for (int32_t i = 0; i < numTrains; i++)
                 {
-                    Vehicle* vehicle = getGameState().entities.GetEntity<Vehicle>(vehicles[i]);
+                    Vehicle* vehicle = getGameState().entities.getEntity<Vehicle>(vehicles[i]);
                     if (vehicle == nullptr)
                     {
                         continue;
@@ -4142,7 +4142,7 @@ namespace OpenRCT2
 
         for (int32_t i = 0; i < numTrains; i++)
         {
-            auto train = getGameState().entities.GetEntity<Vehicle>(vehicles[i]);
+            auto train = getGameState().entities.getEntity<Vehicle>(vehicles[i]);
             if (train == nullptr)
                 continue;
 
@@ -4179,7 +4179,7 @@ namespace OpenRCT2
                 }
                 firstBlock.setBrakeClosed(true);
                 for (Vehicle* car = train; car != nullptr;
-                     car = getGameState().entities.GetEntity<Vehicle>(car->next_vehicle_on_train))
+                     car = getGameState().entities.getEntity<Vehicle>(car->next_vehicle_on_train))
                 {
                     car->velocity = 0;
                     car->acceleration = 0;
@@ -4196,7 +4196,7 @@ namespace OpenRCT2
                 BlockBrakeSetLinkedBrakesClosed(firstBlockPosition, firstBlock, true);
             }
             for (Vehicle* car = train; car != nullptr;
-                 car = getGameState().entities.GetEntity<Vehicle>(car->next_vehicle_on_train))
+                 car = getGameState().entities.getEntity<Vehicle>(car->next_vehicle_on_train))
             {
                 car->flags.unset(VehicleFlag::collisionDisabled);
                 car->SetState(Vehicle::Status::travelling, car->sub_state);
@@ -5114,7 +5114,7 @@ namespace OpenRCT2
         {
             for (int32_t i = 0; i < ride.numTrains; i++)
             {
-                Vehicle* vehicle = getGameState().entities.GetEntity<Vehicle>(ride.vehicles[i]);
+                Vehicle* vehicle = getGameState().entities.getEntity<Vehicle>(ride.vehicles[i]);
                 if (vehicle != nullptr)
                 {
                     vehicle->flags.unset(VehicleFlag::testing);
@@ -5143,8 +5143,8 @@ namespace OpenRCT2
         {
             for (int32_t i = 0; i < ride.numTrains; i++)
             {
-                for (Vehicle* vehicle = getGameState().entities.GetEntity<Vehicle>(ride.vehicles[i]); vehicle != nullptr;
-                     vehicle = getGameState().entities.GetEntity<Vehicle>(vehicle->next_vehicle_on_train))
+                for (Vehicle* vehicle = getGameState().entities.getEntity<Vehicle>(ride.vehicles[i]); vehicle != nullptr;
+                     vehicle = getGameState().entities.getEntity<Vehicle>(vehicle->next_vehicle_on_train))
                 {
                     vehicle->flags.unset(
                         VehicleFlag::stoppedBySafetyCutout, VehicleFlag::carIsBroken, VehicleFlag::trainIsBroken);
@@ -5172,8 +5172,8 @@ namespace OpenRCT2
         for (int32_t i = 0; i <= Limits::kMaxTrainsPerRide; i++)
         {
             int32_t carIndex = 0;
-            for (Vehicle* vehicle = entities.GetEntity<Vehicle>(ride.vehicles[i]); vehicle != nullptr;
-                 vehicle = entities.GetEntity<Vehicle>(vehicle->next_vehicle_on_train))
+            for (Vehicle* vehicle = entities.getEntity<Vehicle>(ride.vehicles[i]); vehicle != nullptr;
+                 vehicle = entities.getEntity<Vehicle>(vehicle->next_vehicle_on_train))
             {
                 VehicleColour colours = {};
                 switch (ride.vehicleColourSettings)
@@ -5856,7 +5856,7 @@ namespace OpenRCT2
      */
     void Ride::crash(uint8_t vehicleIndex)
     {
-        Vehicle* vehicle = getGameState().entities.GetEntity<Vehicle>(vehicles[vehicleIndex]);
+        Vehicle* vehicle = getGameState().entities.getEntity<Vehicle>(vehicles[vehicleIndex]);
 
         if (gLegacyScene != LegacyScene::titleSequence && vehicle != nullptr)
         {
@@ -5902,7 +5902,7 @@ namespace OpenRCT2
     Vehicle* RideGetBrokenVehicle(const Ride& ride)
     {
         auto vehicleIndex = ride.vehicles[ride.brokenTrain];
-        Vehicle* vehicle = getGameState().entities.GetEntity<Vehicle>(vehicleIndex);
+        Vehicle* vehicle = getGameState().entities.getEntity<Vehicle>(vehicleIndex);
         if (vehicle != nullptr)
         {
             return vehicle->GetCar(ride.brokenCar);
@@ -7080,7 +7080,7 @@ namespace OpenRCT2
             return RideStationPlatformSeatBindingResult::seatUnavailable;
         }
 
-        auto* head = getGameState().entities.GetEntity<Vehicle>(ride.vehicles[trainIndex]);
+        auto* head = getGameState().entities.getEntity<Vehicle>(ride.vehicles[trainIndex]);
         Guard::Assert(head != nullptr);
         if (head->flags.has(VehicleFlag::readyToDepart))
             return RideStationPlatformSeatBindingResult::seatUnavailable;
@@ -7157,7 +7157,7 @@ namespace OpenRCT2
                 guest->recoverFromStationPlatform(*ride);
                 continue;
             }
-            auto* head = getGameState().entities.GetEntity<Vehicle>(ride->vehicles[0]);
+            auto* head = getGameState().entities.getEntity<Vehicle>(ride->vehicles[0]);
             if (head == nullptr)
             {
                 guest->recoverFromStationPlatform(*ride);
@@ -7198,7 +7198,7 @@ namespace OpenRCT2
             const auto queueEntry = std::lower_bound(
                 state.assignments.begin(), state.assignments.end(), guest,
                 [](const StationPlatformAssignment& queuedAssignment, const Guest* candidate) {
-                    const auto* queuedGuest = getGameState().entities.GetEntity<Guest>(queuedAssignment.guestId);
+                    const auto* queuedGuest = getGameState().entities.getEntity<Guest>(queuedAssignment.guestId);
                     Guard::Assert(queuedGuest != nullptr);
                     return queuedGuest->timeInQueue != candidate->timeInQueue
                         ? queuedGuest->timeInQueue > candidate->timeInQueue
@@ -7232,7 +7232,7 @@ namespace OpenRCT2
             {
                 return 0;
             }
-            const auto* head = getGameState().entities.TryGetEntity<Vehicle>(ride.vehicles[0]);
+            const auto* head = getGameState().entities.tryGetEntity<Vehicle>(ride.vehicles[0]);
             if (head == nullptr)
             {
                 return 0;
@@ -7269,8 +7269,8 @@ namespace OpenRCT2
         }
 
         uint16_t occupancy = 0;
-        for (auto* vehicle = getGameState().entities.GetEntity<Vehicle>(ride.vehicles[trainIndex]); vehicle != nullptr;
-             vehicle = getGameState().entities.GetEntity<Vehicle>(vehicle->next_vehicle_on_train))
+        for (auto* vehicle = getGameState().entities.getEntity<Vehicle>(ride.vehicles[trainIndex]); vehicle != nullptr;
+             vehicle = getGameState().entities.getEntity<Vehicle>(vehicle->next_vehicle_on_train))
         {
             if (vehicle->status == Vehicle::Status::unloadingPassengers)
             {
@@ -7425,8 +7425,8 @@ namespace OpenRCT2
         {
             for (auto entityIndex : ride.vehicles)
             {
-                for (Vehicle* vehicle = getGameState().entities.TryGetEntity<Vehicle>(entityIndex); vehicle != nullptr;
-                     vehicle = getGameState().entities.TryGetEntity<Vehicle>(vehicle->next_vehicle_on_train))
+                for (Vehicle* vehicle = getGameState().entities.tryGetEntity<Vehicle>(entityIndex); vehicle != nullptr;
+                     vehicle = getGameState().entities.tryGetEntity<Vehicle>(vehicle->next_vehicle_on_train))
                 {
                     auto carEntry = vehicle->Entry();
                     if (carEntry == nullptr)

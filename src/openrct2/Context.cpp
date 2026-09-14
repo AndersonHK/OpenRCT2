@@ -1531,7 +1531,7 @@ namespace OpenRCT2
             }
             const auto metrics = CalculateIntegratedBenchmarkMetrics(_benchmarkTotals);
             const auto finalState = CaptureBenchmarkStateSnapshot();
-            const auto checksum = getGameState().entities.GetAllEntitiesChecksum().ToString();
+            const auto checksum = getGameState().entities.getAllEntitiesChecksum().toString();
 
             std::sort(_benchmarkFrameIntervalsMilliseconds.begin(), _benchmarkFrameIntervalsMilliseconds.end());
 

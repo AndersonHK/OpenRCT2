@@ -56,7 +56,7 @@ namespace OpenRCT2
 
             while (iter != end && Entity == nullptr)
             {
-                auto* entity = snapshot == nullptr ? registry->TryGetEntity(*iter++)
+                auto* entity = snapshot == nullptr ? registry->tryGetEntity(*iter++)
                                                    : const_cast<EntityBase*>(snapshot->TryGetEntity(*iter++));
                 if constexpr (std::is_same_v<T, EntityBase>)
                 {
@@ -122,7 +122,7 @@ namespace OpenRCT2
             else
             {
                 registry = &getGameState().entities;
-                vec = &registry->GetEntityTileList(loc);
+                vec = &registry->getEntityTileList(loc);
             }
         }
 
@@ -200,7 +200,7 @@ namespace OpenRCT2
     public:
         EntityList()
             : registry(getGameState().entities)
-            , list(registry.GetEntityList(T::kEntityType))
+            , list(registry.getEntityList(T::kEntityType))
         {
         }
 

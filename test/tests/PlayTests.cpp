@@ -141,7 +141,7 @@ static std::unique_ptr<IContext> localStartGame(const std::string& parkPath)
     auto& gameState = getGameState();
     importer->Import(gameState);
 
-    gameState.entities.ResetEntitySpatialIndices();
+    gameState.entities.resetEntitySpatialIndices();
 
     ResetAllSpriteQuadrantPlacements();
     LoadPalette();
@@ -404,7 +404,7 @@ static CapturedPlatformTrain FindCapturedPlatformTrain(GameState_t& gameState, A
             continue;
         for (uint8_t trainIndex = 0; trainIndex < ride.numTrains; trainIndex++)
         {
-            auto* train = gameState.entities.GetEntity<Vehicle>(ride.vehicles[trainIndex]);
+            auto* train = gameState.entities.getEntity<Vehicle>(ride.vehicles[trainIndex]);
             if (train == nullptr)
                 continue;
             for (uint8_t stationIndex = 0; stationIndex < ride.numStations; stationIndex++)
@@ -428,7 +428,7 @@ static void OpenPlatformTestRide(Ride& ride)
 
 static void ClearTrain(GameState_t& gameState, Vehicle& head, bool clearPairFlag = false)
 {
-    for (auto* car = &head; car != nullptr; car = gameState.entities.GetEntity<Vehicle>(car->next_vehicle_on_train))
+    for (auto* car = &head; car != nullptr; car = gameState.entities.getEntity<Vehicle>(car->next_vehicle_on_train))
     {
         if (clearPairFlag)
             car->num_seats &= kVehicleSeatNumMask;
@@ -841,7 +841,7 @@ TEST_F(PlayTests, NaturallyArrivingTrainPreservesStagedSeatsThroughUnloadAndBoar
             continue;
         }
         auto& station = ride.getStation(StationIndex::FromUnderlying(0));
-        auto* train = gameState.entities.GetEntity<Vehicle>(ride.vehicles[0]);
+        auto* train = gameState.entities.getEntity<Vehicle>(ride.vehicles[0]);
         auto* origin = ride.getOriginElement(StationIndex::FromUnderlying(0));
         const auto trackLength = ride.getTotalLength();
         if (station.Entrance.IsNull() || station.Exit.IsNull() || train == nullptr || origin == nullptr
@@ -1144,7 +1144,7 @@ TEST_F(PlayTests, LegacyMazeCapacityMapsToClosestCapacityMode)
 TEST_F(PlayTests, GameFixRideNumRidersRebuildsCountsFromGuestStates)
 {
     auto& gameState = getGameState();
-    gameState.entities.ResetAllEntities();
+    gameState.entities.resetAllEntities();
     for (auto& ride : gameState.rides)
     {
         ride.id = RideId::GetNull();
@@ -1166,7 +1166,7 @@ TEST_F(PlayTests, GameFixRideNumRidersRebuildsCountsFromGuestStates)
     ferrisWheel.numRiders = 64;
 
     auto addGuest = [&gameState](RideId rideId, PeepState state) {
-        auto* guest = gameState.entities.CreateEntity<Guest>();
+        auto* guest = gameState.entities.createEntity<Guest>();
         EXPECT_NE(guest, nullptr);
         guest->currentRide = rideId;
         guest->state = state;

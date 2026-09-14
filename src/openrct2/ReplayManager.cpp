@@ -188,7 +188,7 @@ namespace OpenRCT2
         {
             if (_currentReplay == nullptr || _currentReplay->version >= kReplayCentMoneyVersion)
             {
-                return getGameState().entities.GetAllEntitiesChecksum();
+                return getGameState().entities.getAllEntitiesChecksum();
             }
 
             static constexpr std::array guestMoneyFields{
@@ -213,7 +213,7 @@ namespace OpenRCT2
                 }
             }
 
-            auto checksum = getGameState().entities.GetAllEntitiesChecksum();
+            auto checksum = getGameState().entities.getAllEntitiesChecksum();
 
             for (const auto& backup : backups)
             {
@@ -234,7 +234,7 @@ namespace OpenRCT2
 
             if ((_mode == ReplayMode::recording || _mode == ReplayMode::normalisation) && currentTicks == _nextChecksumTick)
             {
-                EntitiesChecksum checksum = getGameState().entities.GetAllEntitiesChecksum();
+                EntitiesChecksum checksum = getGameState().entities.getAllEntitiesChecksum();
                 AddChecksum(currentTicks, std::move(checksum));
 
                 _nextChecksumTick = currentTicks + ChecksumTicksDelta();
@@ -364,7 +364,7 @@ namespace OpenRCT2
             _currentRecording->tickEnd = currentTicks;
 
             {
-                EntitiesChecksum checksum = getGameState().entities.GetAllEntitiesChecksum();
+                EntitiesChecksum checksum = getGameState().entities.getAllEntitiesChecksum();
                 AddChecksum(currentTicks, std::move(checksum));
             }
 
@@ -872,8 +872,8 @@ namespace OpenRCT2
                             LOG_WARNING(
                                 "Ignoring sprite checksum mismatch at tick %u (Replay Tick: %u) for pre-cent replay version "
                                 "%u; Saved: %s, Current: %s. Old replay checksums use the legacy 0.10 money scale.",
-                                currentTicks, replayTick, _currentReplay->version, savedChecksum.second.ToString().c_str(),
-                                checksum.ToString().c_str());
+                                currentTicks, replayTick, _currentReplay->version, savedChecksum.second.toString().c_str(),
+                                checksum.toString().c_str());
                             _legacyChecksumMismatchLogged = true;
                         }
                         return;
@@ -882,7 +882,7 @@ namespace OpenRCT2
                     // Detected different game state.
                     LOG_WARNING(
                         "Different sprite checksum at tick %u (Replay Tick: %u) ; Saved: %s, Current: %s", currentTicks,
-                        replayTick, savedChecksum.second.ToString().c_str(), checksum.ToString().c_str());
+                        replayTick, savedChecksum.second.toString().c_str(), checksum.toString().c_str());
 
                     _faultyChecksumIndex = checksumIndex;
                 }
@@ -890,8 +890,8 @@ namespace OpenRCT2
                 {
                     // Good state.
                     LOG_VERBOSE(
-                        "Good state at tick %u ; Saved: %s, Current: %s", currentTicks, savedChecksum.second.ToString().c_str(),
-                        checksum.ToString().c_str());
+                        "Good state at tick %u ; Saved: %s, Current: %s", currentTicks, savedChecksum.second.toString().c_str(),
+                        checksum.toString().c_str());
                 }
             }
         }

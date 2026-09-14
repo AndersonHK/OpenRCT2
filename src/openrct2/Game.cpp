@@ -97,8 +97,8 @@ BenchmarkStateSnapshot OpenRCT2::CaptureBenchmarkStateSnapshot()
 
     BenchmarkStateSnapshot result;
     result.simulationTick = gameState.currentTicks;
-    result.staff = gameState.entities.GetEntityListCount(EntityType::staff);
-    result.vehicles = gameState.entities.GetEntityListCount(EntityType::vehicle);
+    result.staff = gameState.entities.getEntityListCount(EntityType::staff);
+    result.vehicles = gameState.entities.getEntityListCount(EntityType::vehicle);
     result.routeNodes = routeCache.nodeCount;
     result.routeTargets = routeCache.targetCount;
     result.routeDirectionEntries = routeCache.directionEntryCount;
@@ -290,7 +290,7 @@ static void FixPeepsWithInvalidRideReference()
     if (!peepsToRemove.empty())
     {
         // Some broken saves have broken spatial indexes
-        getGameState().entities.ResetEntitySpatialIndices();
+        getGameState().entities.resetEntitySpatialIndices();
     }
 
     for (auto ptr : peepsToRemove)
@@ -424,7 +424,7 @@ void GameLoadInit()
     {
         GameActions::ClearQueue();
     }
-    getGameState().entities.ResetEntitySpatialIndices();
+    getGameState().entities.resetEntitySpatialIndices();
     ResetAllSpriteQuadrantPlacements();
 
     gWindowUpdateTicks = 0;
@@ -493,7 +493,7 @@ void ResetAllSpriteQuadrantPlacements()
 {
     for (EntityId::UnderlyingType i = 0; i < kMaxEntities; i++)
     {
-        auto* spr = getGameState().entities.GetEntity(EntityId::FromUnderlying(i));
+        auto* spr = getGameState().entities.getEntity(EntityId::FromUnderlying(i));
         if (spr != nullptr && spr->type != EntityType::null)
         {
             spr->moveTo(spr->getLocation());
@@ -792,7 +792,7 @@ void GameLoadOrQuitNoSavePrompt()
         }
         default:
             GameUnloadScripts();
-            getGameState().entities.ResetAllEntities();
+            getGameState().entities.resetAllEntities();
             GetContext()->Finish();
             break;
     }

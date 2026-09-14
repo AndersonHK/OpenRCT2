@@ -148,7 +148,7 @@ protected:
         context = CreateContext();
         ASSERT_NE(context, nullptr);
         ASSERT_TRUE(context->Initialise());
-        getGameState().entities.ResetAllEntities();
+        getGameState().entities.resetAllEntities();
     }
 
     void TearDown() override
@@ -165,39 +165,39 @@ TEST_F(EntityImportTests, CreateEntityAtDuplicateIndexReturnsNull)
     auto& gameState = getGameState();
 
     // Create an entity at index 100
-    auto* entity1 = gameState.entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(100));
+    auto* entity1 = gameState.entities.createEntityAt<Guest>(EntityId::FromUnderlying(100));
     ASSERT_NE(entity1, nullptr);
     EXPECT_EQ(entity1->id.ToUnderlying(), 100u);
 
     // Try to create another entity at the same index, which should return nullptr
-    auto* entity2 = gameState.entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(100));
+    auto* entity2 = gameState.entities.createEntityAt<Guest>(EntityId::FromUnderlying(100));
     EXPECT_EQ(entity2, nullptr);
 }
 
 TEST_F(EntityImportTests, FreeEntityIdsPreserveLowestIdAllocationAndExactClaims)
 {
     auto& entities = getGameState().entities;
-    EXPECT_EQ(entities.GetNumFreeEntities(), kMaxEntities);
+    EXPECT_EQ(entities.getNumFreeEntities(), kMaxEntities);
 
     constexpr auto exactId = EntityId::FromUnderlying(100);
-    auto* exact = entities.CreateEntityAt<Guest>(exactId);
-    auto* first = entities.CreateEntity<Guest>();
-    auto* second = entities.CreateEntity<Guest>();
+    auto* exact = entities.createEntityAt<Guest>(exactId);
+    auto* first = entities.createEntity<Guest>();
+    auto* second = entities.createEntity<Guest>();
     ASSERT_NE(exact, nullptr);
     ASSERT_NE(first, nullptr);
     ASSERT_NE(second, nullptr);
     EXPECT_EQ(first->id.ToUnderlying(), 0u);
     EXPECT_EQ(second->id.ToUnderlying(), 1u);
-    EXPECT_EQ(entities.GetNumFreeEntities(), kMaxEntities - 3);
+    EXPECT_EQ(entities.getNumFreeEntities(), kMaxEntities - 3);
 
-    entities.EntityRemove(first);
-    auto* reusedLowest = entities.CreateEntity<Guest>();
+    entities.entityRemove(first);
+    auto* reusedLowest = entities.createEntity<Guest>();
     ASSERT_NE(reusedLowest, nullptr);
     EXPECT_EQ(reusedLowest->id.ToUnderlying(), 0u);
 
-    entities.EntityRemove(exact);
-    EXPECT_NE(entities.CreateEntityAt<Guest>(exactId), nullptr);
-    EXPECT_EQ(entities.GetNumFreeEntities(), kMaxEntities - 3);
+    entities.entityRemove(exact);
+    EXPECT_NE(entities.createEntityAt<Guest>(exactId), nullptr);
+    EXPECT_EQ(entities.getNumFreeEntities(), kMaxEntities - 3);
 }
 
 TEST_F(EntityImportTests, TypedEntityIterationSkipsSparseWordRangesInIdOrder)
@@ -206,7 +206,7 @@ TEST_F(EntityImportTests, TypedEntityIterationSkipsSparseWordRangesInIdOrder)
 
     constexpr std::array ids{ 0u, 4096u, static_cast<uint32_t>(kMaxEntities - 1) };
     for (const auto id : ids)
-        ASSERT_NE(entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(static_cast<uint16_t>(id))), nullptr);
+        ASSERT_NE(entities.createEntityAt<Guest>(EntityId::FromUnderlying(static_cast<uint16_t>(id))), nullptr);
 
     std::vector<uint32_t> iteratedIds;
     for (const auto* guest : EntityList<Guest>())
@@ -218,9 +218,9 @@ TEST_F(EntityImportTests, VehicleHeadEntityListTracksAddsRemovalsAndReset)
 {
     auto& entities = getGameState().entities;
 
-    auto* tail = entities.CreateEntityAt<Vehicle>(EntityId::FromUnderlying(10));
-    auto* secondHead = entities.CreateEntityAt<Vehicle>(EntityId::FromUnderlying(40));
-    auto* firstHead = entities.CreateEntityAt<Vehicle>(EntityId::FromUnderlying(20));
+    auto* tail = entities.createEntityAt<Vehicle>(EntityId::FromUnderlying(10));
+    auto* secondHead = entities.createEntityAt<Vehicle>(EntityId::FromUnderlying(40));
+    auto* firstHead = entities.createEntityAt<Vehicle>(EntityId::FromUnderlying(20));
     ASSERT_NE(tail, nullptr);
     ASSERT_NE(firstHead, nullptr);
     ASSERT_NE(secondHead, nullptr);
@@ -233,7 +233,7 @@ TEST_F(EntityImportTests, VehicleHeadEntityListTracksAddsRemovalsAndReset)
     EXPECT_EQ(initialHeads[0].ToUnderlying(), 20u);
     EXPECT_EQ(initialHeads[1].ToUnderlying(), 40u);
 
-    auto* middleHead = entities.CreateEntityAt<Vehicle>(EntityId::FromUnderlying(30));
+    auto* middleHead = entities.createEntityAt<Vehicle>(EntityId::FromUnderlying(30));
     ASSERT_NE(middleHead, nullptr);
     middleHead->SubType = Vehicle::Type::head;
 
@@ -243,14 +243,14 @@ TEST_F(EntityImportTests, VehicleHeadEntityListTracksAddsRemovalsAndReset)
     EXPECT_EQ(headsAfterAdd[1].ToUnderlying(), 30u);
     EXPECT_EQ(headsAfterAdd[2].ToUnderlying(), 40u);
 
-    entities.EntityRemove(firstHead);
+    entities.entityRemove(firstHead);
 
     const auto& headsAfterRemove = entities.GetVehicleHeadEntityList();
     ASSERT_EQ(headsAfterRemove.size(), 2u);
     EXPECT_EQ(headsAfterRemove[0].ToUnderlying(), 30u);
     EXPECT_EQ(headsAfterRemove[1].ToUnderlying(), 40u);
 
-    entities.ResetAllEntities();
+    entities.resetAllEntities();
     EXPECT_TRUE(entities.GetVehicleHeadEntityList().empty());
 }
 
@@ -258,9 +258,9 @@ TEST_F(EntityImportTests, TypedEntityIterationPreservesOrderAndMutationVisibilit
 {
     auto& entities = getGameState().entities;
 
-    ASSERT_NE(entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(50)), nullptr);
-    ASSERT_NE(entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(10)), nullptr);
-    ASSERT_NE(entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(30)), nullptr);
+    ASSERT_NE(entities.createEntityAt<Guest>(EntityId::FromUnderlying(50)), nullptr);
+    ASSERT_NE(entities.createEntityAt<Guest>(EntityId::FromUnderlying(10)), nullptr);
+    ASSERT_NE(entities.createEntityAt<Guest>(EntityId::FromUnderlying(30)), nullptr);
 
     std::vector<uint16_t> visited;
     for (auto* guest : EntityList<Guest>())
@@ -269,17 +269,17 @@ TEST_F(EntityImportTests, TypedEntityIterationPreservesOrderAndMutationVisibilit
         visited.push_back(id);
         if (id == 10)
         {
-            entities.EntityRemove(guest);
-            ASSERT_NE(entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(20)), nullptr);
-            ASSERT_NE(entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(5)), nullptr);
+            entities.entityRemove(guest);
+            ASSERT_NE(entities.createEntityAt<Guest>(EntityId::FromUnderlying(20)), nullptr);
+            ASSERT_NE(entities.createEntityAt<Guest>(EntityId::FromUnderlying(5)), nullptr);
         }
         else if (id == 30)
         {
-            auto* future = entities.GetEntity<Guest>(EntityId::FromUnderlying(50));
+            auto* future = entities.getEntity<Guest>(EntityId::FromUnderlying(50));
             ASSERT_NE(future, nullptr);
-            entities.EntityRemove(future);
-            ASSERT_NE(entities.CreateEntityAt<Vehicle>(EntityId::FromUnderlying(50)), nullptr);
-            ASSERT_NE(entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(40)), nullptr);
+            entities.entityRemove(future);
+            ASSERT_NE(entities.createEntityAt<Vehicle>(EntityId::FromUnderlying(50)), nullptr);
+            ASSERT_NE(entities.createEntityAt<Guest>(EntityId::FromUnderlying(40)), nullptr);
         }
     }
 
@@ -288,12 +288,12 @@ TEST_F(EntityImportTests, TypedEntityIterationPreservesOrderAndMutationVisibilit
     EXPECT_EQ(visited, (std::vector<uint16_t>{ 10, 30 }));
 
     std::vector<uint16_t> remaining;
-    for (const auto id : entities.GetEntityList(EntityType::guest))
+    for (const auto id : entities.getEntityList(EntityType::guest))
     {
         remaining.push_back(id.ToUnderlying());
     }
     EXPECT_EQ(remaining, (std::vector<uint16_t>{ 5, 20, 30, 40 }));
-    const auto& vehicles = entities.GetEntityList(EntityType::vehicle);
+    const auto& vehicles = entities.getEntityList(EntityType::vehicle);
     ASSERT_EQ(vehicles.size(), 1u);
     EXPECT_EQ((*vehicles.begin()).ToUnderlying(), 50u);
 }
@@ -302,12 +302,12 @@ TEST_F(EntityImportTests, TypedEntityIteratorEqualityIgnoresMutationLookahead)
 {
     auto& entities = getGameState().entities;
 
-    ASSERT_NE(entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(10)), nullptr);
-    ASSERT_NE(entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(30)), nullptr);
+    ASSERT_NE(entities.createEntityAt<Guest>(EntityId::FromUnderlying(10)), nullptr);
+    ASSERT_NE(entities.createEntityAt<Guest>(EntityId::FromUnderlying(30)), nullptr);
 
-    const auto& guestIds = entities.GetEntityList(EntityType::guest);
+    const auto& guestIds = entities.getEntityList(EntityType::guest);
     auto beforeInsertion = guestIds.begin();
-    ASSERT_NE(entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(20)), nullptr);
+    ASSERT_NE(entities.createEntityAt<Guest>(EntityId::FromUnderlying(20)), nullptr);
     auto afterInsertion = guestIds.begin();
 
     EXPECT_EQ(beforeInsertion, afterInsertion);
@@ -327,23 +327,23 @@ TEST_F(EntityImportTests, TypedEntityMembershipClearsAndRebuildsAtBoundaryIds)
     constexpr auto firstId = EntityId::FromUnderlying(0);
     constexpr auto middleId = EntityId::FromUnderlying(123);
     constexpr auto lastId = EntityId::FromUnderlying(kMaxEntities - 1);
-    ASSERT_NE(entities.CreateEntityAt<Guest>(firstId), nullptr);
-    ASSERT_NE(entities.CreateEntityAt<Vehicle>(middleId), nullptr);
-    ASSERT_NE(entities.CreateEntityAt<Guest>(lastId), nullptr);
-    EXPECT_EQ(entities.GetEntityList(EntityType::guest).size(), 2u);
-    EXPECT_EQ(entities.GetEntityList(EntityType::vehicle).size(), 1u);
+    ASSERT_NE(entities.createEntityAt<Guest>(firstId), nullptr);
+    ASSERT_NE(entities.createEntityAt<Vehicle>(middleId), nullptr);
+    ASSERT_NE(entities.createEntityAt<Guest>(lastId), nullptr);
+    EXPECT_EQ(entities.getEntityList(EntityType::guest).size(), 2u);
+    EXPECT_EQ(entities.getEntityList(EntityType::vehicle).size(), 1u);
 
-    entities.ResetAllEntities();
-    EXPECT_TRUE(entities.GetEntityList(EntityType::guest).empty());
-    EXPECT_TRUE(entities.GetEntityList(EntityType::vehicle).empty());
+    entities.resetAllEntities();
+    EXPECT_TRUE(entities.getEntityList(EntityType::guest).empty());
+    EXPECT_TRUE(entities.getEntityList(EntityType::vehicle).empty());
 
-    auto* lastVehicle = entities.CreateEntityAt<Vehicle>(lastId);
-    auto* middleGuest = entities.CreateEntityAt<Guest>(middleId);
+    auto* lastVehicle = entities.createEntityAt<Vehicle>(lastId);
+    auto* middleGuest = entities.createEntityAt<Guest>(middleId);
     ASSERT_NE(lastVehicle, nullptr);
     ASSERT_NE(middleGuest, nullptr);
 
-    const auto& guestIds = entities.GetEntityList(EntityType::guest);
-    const auto& vehicleIds = entities.GetEntityList(EntityType::vehicle);
+    const auto& guestIds = entities.getEntityList(EntityType::guest);
+    const auto& vehicleIds = entities.getEntityList(EntityType::vehicle);
     ASSERT_EQ(guestIds.size(), 1u);
     ASSERT_EQ(vehicleIds.size(), 1u);
     EXPECT_EQ(*guestIds.begin(), middleId);
@@ -358,8 +358,8 @@ TEST_F(EntityImportTests, TypedEntityPagesKeepPointersStableAcrossGrowth)
 {
     auto& entities = getGameState().entities;
 
-    auto* first = entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(3));
-    auto* boundary = entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(9000));
+    auto* first = entities.createEntityAt<Guest>(EntityId::FromUnderlying(3));
+    auto* boundary = entities.createEntityAt<Guest>(EntityId::FromUnderlying(9000));
     ASSERT_NE(first, nullptr);
     ASSERT_NE(boundary, nullptr);
 
@@ -371,10 +371,10 @@ TEST_F(EntityImportTests, TypedEntityPagesKeepPointersStableAcrossGrowth)
     // Cross several storage pages. Page growth must never relocate an existing entity because vehicle/guest links retain
     // direct pointers for the duration of an update phase.
     for (uint16_t id = 100; id < 900; id++)
-        ASSERT_NE(entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(id)), nullptr);
+        ASSERT_NE(entities.createEntityAt<Guest>(EntityId::FromUnderlying(id)), nullptr);
 
-    EXPECT_EQ(entities.GetEntity<Guest>(EntityId::FromUnderlying(3)), firstAddress);
-    EXPECT_EQ(entities.GetEntity<Guest>(EntityId::FromUnderlying(9000)), boundaryAddress);
+    EXPECT_EQ(entities.getEntity<Guest>(EntityId::FromUnderlying(3)), firstAddress);
+    EXPECT_EQ(entities.getEntity<Guest>(EntityId::FromUnderlying(9000)), boundaryAddress);
     EXPECT_EQ(first->happiness, 37);
     EXPECT_EQ(boundary->happiness, 91);
 }
@@ -384,21 +384,21 @@ TEST_F(EntityImportTests, EntityIdReuseChangesTypedPoolAndClearsRecycledStorage)
     auto& entities = getGameState().entities;
     constexpr auto id = EntityId::FromUnderlying(77);
 
-    auto* guest = entities.CreateEntityAt<Guest>(id);
+    auto* guest = entities.createEntityAt<Guest>(id);
     ASSERT_NE(guest, nullptr);
     guest->happiness = 123;
     const auto* const guestAddress = guest;
-    entities.EntityRemove(guest);
+    entities.entityRemove(guest);
 
-    auto* vehicle = entities.CreateEntityAt<Vehicle>(id);
+    auto* vehicle = entities.createEntityAt<Vehicle>(id);
     ASSERT_NE(vehicle, nullptr);
     EXPECT_NE(static_cast<const void*>(vehicle), static_cast<const void*>(guestAddress));
-    EXPECT_EQ(entities.GetEntity<Guest>(id), nullptr);
-    EXPECT_EQ(entities.GetEntity<Vehicle>(id), vehicle);
+    EXPECT_EQ(entities.getEntity<Guest>(id), nullptr);
+    EXPECT_EQ(entities.getEntity<Vehicle>(id), vehicle);
     vehicle->velocity = 456;
-    entities.EntityRemove(vehicle);
+    entities.entityRemove(vehicle);
 
-    auto* recycledGuest = entities.CreateEntityAt<Guest>(id);
+    auto* recycledGuest = entities.createEntityAt<Guest>(id);
     ASSERT_NE(recycledGuest, nullptr);
     EXPECT_EQ(recycledGuest, guestAddress);
     EXPECT_EQ(recycledGuest->happiness, 0);
@@ -409,9 +409,9 @@ TEST_F(EntityImportTests, EntityIdReuseChangesTypedPoolAndClearsRecycledStorage)
 TEST_F(EntityImportTests, ExecutionListsTrackSortedStablePointersIncrementally)
 {
     auto& entities = getGameState().entities;
-    auto* last = entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(50));
-    auto* first = entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(10));
-    auto* middle = entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(30));
+    auto* last = entities.createEntityAt<Guest>(EntityId::FromUnderlying(50));
+    auto* first = entities.createEntityAt<Guest>(EntityId::FromUnderlying(10));
+    auto* middle = entities.createEntityAt<Guest>(EntityId::FromUnderlying(30));
     ASSERT_NE(last, nullptr);
     ASSERT_NE(first, nullptr);
     ASSERT_NE(middle, nullptr);
@@ -422,15 +422,15 @@ TEST_F(EntityImportTests, ExecutionListsTrackSortedStablePointersIncrementally)
     EXPECT_EQ(guests[1], middle);
     EXPECT_EQ(guests[2], last);
 
-    entities.EntityRemove(middle);
-    auto* inserted = entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(20));
+    entities.entityRemove(middle);
+    auto* inserted = entities.createEntityAt<Guest>(EntityId::FromUnderlying(20));
     ASSERT_NE(inserted, nullptr);
     ASSERT_EQ(guests.size(), 3u);
     EXPECT_EQ(guests[0], first);
     EXPECT_EQ(guests[1], inserted);
     EXPECT_EQ(guests[2], last);
 
-    entities.ResetAllEntities();
+    entities.resetAllEntities();
     EXPECT_TRUE(guests.empty());
 }
 
@@ -452,7 +452,7 @@ TEST_F(EntityImportTests, PassengerUnloadPlanPreservesThroughRidersAndOrdinaryUn
     for (size_t index = 0; index < passengerCount; index++)
     {
         const auto entityId = EntityId::FromUnderlying(static_cast<uint16_t>(100 + index));
-        auto* guest = entities.CreateEntityAt<Guest>(entityId);
+        auto* guest = entities.createEntityAt<Guest>(entityId);
         ASSERT_NE(guest, nullptr);
         guest->state = PeepState::walking;
         guest->rideSubState = PeepRideSubState::onRide;
@@ -631,9 +631,9 @@ TEST_F(EntityImportTests, TrainSeatSummaryUsesExactWideCapacityAndReservationCou
 {
     auto& entities = getGameState().entities;
 
-    auto* head = entities.CreateEntityAt<Vehicle>(EntityId::FromUnderlying(200));
-    auto* middle = entities.CreateEntityAt<Vehicle>(EntityId::FromUnderlying(201));
-    auto* tail = entities.CreateEntityAt<Vehicle>(EntityId::FromUnderlying(202));
+    auto* head = entities.createEntityAt<Vehicle>(EntityId::FromUnderlying(200));
+    auto* middle = entities.createEntityAt<Vehicle>(EntityId::FromUnderlying(201));
+    auto* tail = entities.createEntityAt<Vehicle>(EntityId::FromUnderlying(202));
     ASSERT_NE(head, nullptr);
     ASSERT_NE(middle, nullptr);
     ASSERT_NE(tail, nullptr);
@@ -674,9 +674,9 @@ TEST_F(EntityImportTests, SpatialIndexDirtyWorklistCoalescesMovesAndPreservesSor
 {
     auto& entities = getGameState().entities;
 
-    auto* last = entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(40));
-    auto* first = entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(10));
-    auto* middle = entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(30));
+    auto* last = entities.createEntityAt<Guest>(EntityId::FromUnderlying(40));
+    auto* first = entities.createEntityAt<Guest>(EntityId::FromUnderlying(10));
+    auto* middle = entities.createEntityAt<Guest>(EntityId::FromUnderlying(30));
     ASSERT_NE(last, nullptr);
     ASSERT_NE(first, nullptr);
     ASSERT_NE(middle, nullptr);
@@ -688,10 +688,10 @@ TEST_F(EntityImportTests, SpatialIndexDirtyWorklistCoalescesMovesAndPreservesSor
     middle->setLocation(intermediate);
     middle->setLocation(destination);
 
-    entities.UpdateEntitiesSpatialIndex();
+    entities.updateEntitiesSpatialIndex();
 
-    EXPECT_TRUE(entities.GetEntityTileList(intermediate).empty());
-    const auto& destinationEntities = entities.GetEntityTileList(destination);
+    EXPECT_TRUE(entities.getEntityTileList(intermediate).empty());
+    const auto& destinationEntities = entities.getEntityTileList(destination);
     ASSERT_EQ(destinationEntities.size(), 3u);
     EXPECT_EQ(destinationEntities[0].ToUnderlying(), 10u);
     EXPECT_EQ(destinationEntities[1].ToUnderlying(), 30u);
@@ -707,8 +707,8 @@ TEST_F(EntityImportTests, VisualLifecycleCoalescesCreationAndMovementIntoSortedO
     constexpr auto earlierId = EntityId::FromUnderlying(10);
     constexpr CoordsXYZ intermediate{ 5 * kCoordsXYStep, 6 * kCoordsXYStep, 8 };
     constexpr CoordsXYZ destination{ 7 * kCoordsXYStep, 8 * kCoordsXYStep, 16 };
-    auto* later = entities.CreateEntityAt<Guest>(laterId);
-    auto* earlier = entities.CreateEntityAt<Guest>(earlierId);
+    auto* later = entities.createEntityAt<Guest>(laterId);
+    auto* earlier = entities.createEntityAt<Guest>(earlierId);
     ASSERT_NE(later, nullptr);
     ASSERT_NE(earlier, nullptr);
     later->setLocation(intermediate);
@@ -732,18 +732,18 @@ TEST_F(EntityImportTests, VisualLifecycleRejectsStaleIdentityAfterRemovalAndReus
     static_cast<void>(entities.ConsumeEntityVisualChanges());
 
     constexpr auto id = EntityId::FromUnderlying(30);
-    auto* guest = entities.CreateEntityAt<Guest>(id);
+    auto* guest = entities.createEntityAt<Guest>(id);
     ASSERT_NE(guest, nullptr);
     const auto original = entities.GetEntityVisualHandle(id);
     static_cast<void>(entities.ConsumeEntityVisualChanges());
 
-    entities.EntityRemove(guest);
+    entities.entityRemove(guest);
     const auto removed = entities.ConsumeEntityVisualChanges();
     ASSERT_EQ(removed.changes.size(), 1u);
     EXPECT_FALSE(removed.changes.front().present);
     EXPECT_EQ(removed.changes.front().handle, original);
 
-    auto* replacement = entities.CreateEntityAt<Vehicle>(id);
+    auto* replacement = entities.createEntityAt<Vehicle>(id);
     ASSERT_NE(replacement, nullptr);
     const auto reused = entities.ConsumeEntityVisualChanges();
     ASSERT_EQ(reused.changes.size(), 1u);
@@ -758,10 +758,10 @@ TEST_F(EntityImportTests, VisualLifecycleResetChangesEpochAndDiscardsOldWork)
 {
     auto& entities = getGameState().entities;
     const auto initial = entities.ConsumeEntityVisualChanges();
-    auto* guest = entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(20));
+    auto* guest = entities.createEntityAt<Guest>(EntityId::FromUnderlying(20));
     ASSERT_NE(guest, nullptr);
 
-    entities.ResetAllEntities();
+    entities.resetAllEntities();
     const auto reset = entities.ConsumeEntityVisualChanges();
     EXPECT_TRUE(reset.reset);
     EXPECT_NE(reset.epoch, initial.epoch);
@@ -773,7 +773,7 @@ TEST_F(EntityImportTests, TweenMovementDoesNotPublishAuthoritativeVisualTransfor
     auto& entities = getGameState().entities;
     static_cast<void>(entities.ConsumeEntityVisualChanges());
 
-    auto* guest = entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(10));
+    auto* guest = entities.createEntityAt<Guest>(EntityId::FromUnderlying(10));
     ASSERT_NE(guest, nullptr);
     constexpr CoordsXYZ authoritative{ 10 * kCoordsXYStep, 11 * kCoordsXYStep, 0 };
     constexpr CoordsXYZ tween{ 5 * kCoordsXYStep, 6 * kCoordsXYStep, 0 };
@@ -792,18 +792,18 @@ TEST_F(EntityImportTests, TweenMovementPreservesAuthoritativeSpatialIndex)
     constexpr CoordsXYZ authoritativeLocation{ 10 * kCoordsXYStep, 11 * kCoordsXYStep, 0 };
     constexpr CoordsXYZ tweenLocation{ 5 * kCoordsXYStep, 6 * kCoordsXYStep, 0 };
 
-    auto* guest = entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(10));
+    auto* guest = entities.createEntityAt<Guest>(EntityId::FromUnderlying(10));
     ASSERT_NE(guest, nullptr);
     guest->setLocation(authoritativeLocation);
-    entities.UpdateEntitySpatialIndex(*guest);
+    entities.updateEntitySpatialIndex(*guest);
 
     guest->moveToForTween(tweenLocation);
     EXPECT_EQ(guest->getLocation(), tweenLocation);
     EXPECT_EQ(guest->spatialIndex & kSpatialIndexDirtyMask, 0u);
 
-    entities.UpdateEntitiesSpatialIndex();
-    EXPECT_TRUE(entities.GetEntityTileList(tweenLocation).empty());
-    const auto& authoritativeEntities = entities.GetEntityTileList(authoritativeLocation);
+    entities.updateEntitiesSpatialIndex();
+    EXPECT_TRUE(entities.getEntityTileList(tweenLocation).empty());
+    const auto& authoritativeEntities = entities.getEntityTileList(authoritativeLocation);
     ASSERT_EQ(authoritativeEntities.size(), 1u);
     EXPECT_EQ(authoritativeEntities.front(), guest->id);
 
@@ -823,29 +823,29 @@ TEST_F(EntityImportTests, SpatialIndexDirtyWorklistCoversImmediateUpdatesAndEnti
     constexpr CoordsXYZ removedLocation{ 16 * kCoordsXYStep, 17 * kCoordsXYStep, 0 };
     constexpr CoordsXYZ replacementLocation{ 18 * kCoordsXYStep, 19 * kCoordsXYStep, 0 };
 
-    auto* immediate = entities.CreateEntityAt<Guest>(immediateId);
+    auto* immediate = entities.createEntityAt<Guest>(immediateId);
     ASSERT_NE(immediate, nullptr);
     immediate->setLocation(firstLocation);
-    entities.UpdateEntitySpatialIndex(*immediate);
+    entities.updateEntitySpatialIndex(*immediate);
     immediate->setLocation(secondLocation);
 
-    auto* removed = entities.CreateEntityAt<Guest>(reusedId);
+    auto* removed = entities.createEntityAt<Guest>(reusedId);
     ASSERT_NE(removed, nullptr);
     removed->setLocation(removedLocation);
-    entities.EntityRemove(removed);
+    entities.entityRemove(removed);
 
-    auto* replacement = entities.CreateEntityAt<Guest>(reusedId);
+    auto* replacement = entities.createEntityAt<Guest>(reusedId);
     ASSERT_NE(replacement, nullptr);
     replacement->setLocation(replacementLocation);
 
-    entities.UpdateEntitiesSpatialIndex();
+    entities.updateEntitiesSpatialIndex();
 
-    EXPECT_TRUE(entities.GetEntityTileList(firstLocation).empty());
-    const auto& immediateEntities = entities.GetEntityTileList(secondLocation);
+    EXPECT_TRUE(entities.getEntityTileList(firstLocation).empty());
+    const auto& immediateEntities = entities.getEntityTileList(secondLocation);
     ASSERT_EQ(immediateEntities.size(), 1u);
     EXPECT_EQ(immediateEntities.front(), immediateId);
-    EXPECT_TRUE(entities.GetEntityTileList(removedLocation).empty());
-    const auto& replacementEntities = entities.GetEntityTileList(replacementLocation);
+    EXPECT_TRUE(entities.getEntityTileList(removedLocation).empty());
+    const auto& replacementEntities = entities.getEntityTileList(replacementLocation);
     ASSERT_EQ(replacementEntities.size(), 1u);
     EXPECT_EQ(replacementEntities.front(), reusedId);
 }
@@ -857,8 +857,8 @@ TEST_F(EntityImportTests, SpatialIndexResetRebuildsDirectImportCoordinatesAndCle
     constexpr CoordsXYZ queuedLocation{ 18 * kCoordsXYStep, 19 * kCoordsXYStep, 0 };
     constexpr CoordsXYZ importedLocation{ 20 * kCoordsXYStep, 21 * kCoordsXYStep, 8 };
 
-    auto* queued = entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(60));
-    auto* imported = entities.CreateEntityAt<Guest>(EntityId::FromUnderlying(70));
+    auto* queued = entities.createEntityAt<Guest>(EntityId::FromUnderlying(60));
+    auto* imported = entities.createEntityAt<Guest>(EntityId::FromUnderlying(70));
     ASSERT_NE(queued, nullptr);
     ASSERT_NE(imported, nullptr);
     queued->setLocation(queuedLocation);
@@ -866,13 +866,13 @@ TEST_F(EntityImportTests, SpatialIndexResetRebuildsDirectImportCoordinatesAndCle
     imported->y = importedLocation.y;
     imported->z = importedLocation.z;
 
-    entities.ResetEntitySpatialIndices();
+    entities.resetEntitySpatialIndices();
 
-    entities.UpdateEntitiesSpatialIndex();
-    const auto& queuedEntities = entities.GetEntityTileList(queuedLocation);
+    entities.updateEntitiesSpatialIndex();
+    const auto& queuedEntities = entities.getEntityTileList(queuedLocation);
     ASSERT_EQ(queuedEntities.size(), 1u);
     EXPECT_EQ(queuedEntities.front(), queued->id);
-    const auto& importedEntities = entities.GetEntityTileList(importedLocation);
+    const auto& importedEntities = entities.getEntityTileList(importedLocation);
     ASSERT_EQ(importedEntities.size(), 1u);
     EXPECT_EQ(importedEntities.front(), imported->id);
 }

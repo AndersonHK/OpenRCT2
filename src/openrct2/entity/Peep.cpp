@@ -187,7 +187,7 @@ namespace OpenRCT2
 
     int32_t PeepGetStaffCount()
     {
-        return getGameState().entities.GetEntityListCount(EntityType::staff);
+        return getGameState().entities.getEntityListCount(EntityType::staff);
     }
 
     /**
@@ -753,7 +753,7 @@ namespace OpenRCT2
 
             News::DisableNewsItems(News::ItemType::peep, staff->id.ToUnderlying());
         }
-        getGameState().entities.EntityRemove(peep);
+        getGameState().entities.entityRemove(peep);
 
         auto intent = Intent(wasGuest ? INTENT_ACTION_REFRESH_GUEST_LIST : INTENT_ACTION_REFRESH_STAFF_LIST);
         ContextBroadcastIntent(&intent);
@@ -2599,8 +2599,8 @@ namespace OpenRCT2
 
     int32_t PeepCompare(const EntityId sprite_index_a, const EntityId sprite_index_b)
     {
-        Peep const* peep_a = getGameState().entities.GetEntity<Peep>(sprite_index_a);
-        Peep const* peep_b = getGameState().entities.GetEntity<Peep>(sprite_index_b);
+        Peep const* peep_a = getGameState().entities.getEntity<Peep>(sprite_index_a);
+        Peep const* peep_b = getGameState().entities.getEntity<Peep>(sprite_index_b);
         if (peep_a == nullptr || peep_b == nullptr)
         {
             return 0;

@@ -69,7 +69,7 @@ namespace OpenRCT2
         FinanceInit();
         BannerInit(gameState);
         RideInitAll();
-        gameState.entities.ResetAllEntities();
+        gameState.entities.resetAllEntities();
         UpdateConsolidatedPatrolAreas();
         ResetDate();
         Weather::reset();
@@ -179,7 +179,7 @@ namespace OpenRCT2
 
                 // Keep updating the money effect even when paused.
                 auto& gameState = getGameState();
-                gameState.entities.UpdateMoneyEffect();
+                gameState.entities.updateMoneyEffect();
 
                 // Post-tick network update
                 if (isNetworked)
@@ -189,7 +189,7 @@ namespace OpenRCT2
 
                 // Post-tick game actions.
                 GameActions::ProcessQueue(gameState);
-                gameState.entities.UpdateEntitiesSpatialIndex();
+                gameState.entities.updateEntitiesSpatialIndex();
             }
         }
 
@@ -348,7 +348,7 @@ namespace OpenRCT2
         auto restoreProvisionalIntent = Intent(INTENT_ACTION_RESTORE_PROVISIONAL_ELEMENTS);
         ContextBroadcastIntent(&restoreProvisionalIntent);
         VehicleUpdateAll();
-        gameState.entities.UpdateAllMiscEntities();
+        gameState.entities.updateAllMiscEntities();
         Ride::updateAll();
 
         if (!isInEditorMode())
@@ -374,7 +374,7 @@ namespace OpenRCT2
         // Update windows
         // WindowDispatchUpdateAll();
 
-        gameState.entities.UpdateEntitiesSpatialIndex();
+        gameState.entities.updateEntitiesSpatialIndex();
 
         // Start autosave timer after update
         if (gLastAutoSaveUpdate == kAutosavePause)

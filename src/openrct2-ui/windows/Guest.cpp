@@ -434,7 +434,7 @@ namespace OpenRCT2::Ui::Windows
     private:
         Guest* GetGuest()
         {
-            auto guest = getGameState().entities.GetEntity<Guest>(EntityId::FromUnderlying(number));
+            auto guest = getGameState().entities.getEntity<Guest>(EntityId::FromUnderlying(number));
             if (guest == nullptr)
             {
                 close();

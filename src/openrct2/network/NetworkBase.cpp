@@ -872,8 +872,8 @@ namespace OpenRCT2::Network
 
         if (!storedTick.spriteHash.empty())
         {
-            EntitiesChecksum checksum = getGameState().entities.GetAllEntitiesChecksum();
-            std::string clientSpriteHash = checksum.ToString();
+            EntitiesChecksum checksum = getGameState().entities.getAllEntitiesChecksum();
+            std::string clientSpriteHash = checksum.toString();
             if (clientSpriteHash != storedTick.spriteHash)
             {
                 LOG_INFO(
@@ -1617,8 +1617,8 @@ namespace OpenRCT2::Network
         packet << flags;
         if (flags & TickFlags::kChecksums)
         {
-            EntitiesChecksum checksum = getGameState().entities.GetAllEntitiesChecksum();
-            packet.writeString(checksum.ToString());
+            EntitiesChecksum checksum = getGameState().entities.getAllEntitiesChecksum();
+            packet.writeString(checksum.toString());
         }
 
         SendPacketToClients(packet);

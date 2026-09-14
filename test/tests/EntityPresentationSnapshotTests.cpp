@@ -35,7 +35,7 @@ protected:
         context = CreateContext();
         ASSERT_NE(context, nullptr);
         ASSERT_TRUE(context->Initialise());
-        getGameState().entities.ResetAllEntities();
+        getGameState().entities.resetAllEntities();
     }
 
     void TearDown() override
@@ -57,8 +57,8 @@ TEST_F(EntityPresentationSnapshotTests, SplashBoatPaintRejectsEmptyTrainsAndCapt
     ASSERT_EQ(entry->zero_cars, 2);
     ASSERT_EQ(entry->Cars[1].paintStyle, VehiclePaintStyle::splashBoatsOrWaterCoaster);
     auto& entities = getGameState().entities;
-    auto* head = entities.CreateEntity<Vehicle>();
-    auto* tail = entities.CreateEntity<Vehicle>();
+    auto* head = entities.createEntity<Vehicle>();
+    auto* tail = entities.createEntity<Vehicle>();
     ASSERT_NE(head, nullptr);
     ASSERT_NE(tail, nullptr);
     for (auto* vehicle : { head, tail })
@@ -104,13 +104,13 @@ TEST_F(EntityPresentationSnapshotTests, SplashBoatPaintRejectsEmptyTrainsAndCapt
 TEST_F(EntityPresentationSnapshotTests, CapturesOnlyRequestedSpatialBucketsAndKeepsOwnedState)
 {
     auto& entities = getGameState().entities;
-    auto* visible = entities.CreateEntity<Litter>();
-    auto* hidden = entities.CreateEntity<Litter>();
+    auto* visible = entities.createEntity<Litter>();
+    auto* hidden = entities.createEntity<Litter>();
     ASSERT_NE(visible, nullptr);
     ASSERT_NE(hidden, nullptr);
     visible->moveTo({ 32, 64, 8 });
     hidden->moveTo({ 320, 640, 16 });
-    entities.UpdateEntitiesSpatialIndex();
+    entities.updateEntitiesSpatialIndex();
 
     const std::array tiles{ CoordsXY{ 32, 64 } };
     const auto snapshot = EntityPresentationSnapshot::Capture(entities, tiles);
@@ -122,15 +122,15 @@ TEST_F(EntityPresentationSnapshotTests, CapturesOnlyRequestedSpatialBucketsAndKe
 
     const auto originalLocation = snapshot->TryGetEntity(visible->id)->getLocation();
     visible->moveTo({ 96, 128, 24 });
-    entities.UpdateEntitiesSpatialIndex();
+    entities.updateEntitiesSpatialIndex();
     EXPECT_EQ(snapshot->TryGetEntity(visible->id)->getLocation(), originalLocation);
 }
 
 TEST_F(EntityPresentationSnapshotTests, CapturesVehicleAndRiderLookupClosureOutsideVisibleBuckets)
 {
     auto& entities = getGameState().entities;
-    auto* vehicle = entities.CreateEntity<Vehicle>();
-    auto* rider = entities.CreateEntity<Guest>();
+    auto* vehicle = entities.createEntity<Vehicle>();
+    auto* rider = entities.createEntity<Guest>();
     ASSERT_NE(vehicle, nullptr);
     ASSERT_NE(rider, nullptr);
     vehicle->peep[0] = rider->id;

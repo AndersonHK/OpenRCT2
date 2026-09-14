@@ -67,7 +67,7 @@ namespace OpenRCT2::RideVehicle::StationDetail
     {
         TrainSeatSummary result;
         for (const auto* car = &head; car != nullptr && result.carCount < result.cars.size();
-             car = getGameState().entities.GetEntity<Vehicle>(car->next_vehicle_on_train))
+             car = getGameState().entities.getEntity<Vehicle>(car->next_vehicle_on_train))
         {
             const auto capacity = car->num_seats & kVehicleSeatNumMask;
             // Unloading deliberately clears the reservation prefix before all seated guests have alighted.
@@ -152,7 +152,7 @@ namespace OpenRCT2::RideVehicle::StationDetail
         vehicle.next_free_seat = 0;
         for (uint8_t peepIndex = 0; peepIndex < vehicle.num_peeps; peepIndex++)
         {
-            auto* guest = entities.GetEntity<Guest>(vehicle.peep[peepIndex]);
+            auto* guest = entities.getEntity<Guest>(vehicle.peep[peepIndex]);
             if (guest != nullptr)
             {
                 guest->setState(PeepState::leavingRide);
@@ -241,7 +241,7 @@ static bool try_add_synchronised_station(const CoordsXYZ& coords)
     // Look for a vehicle on this station waiting to depart.
     for (int32_t i = 0; i < ride->numTrains; i++)
     {
-        auto* vehicle = getGameState().entities.GetEntity<Vehicle>(ride->vehicles[i]);
+        auto* vehicle = getGameState().entities.getEntity<Vehicle>(ride->vehicles[i]);
         if (vehicle == nullptr)
         {
             continue;
@@ -379,7 +379,7 @@ static bool ride_station_can_depart_synchronised(const Ride& ride, StationIndex 
                         {
                             for (int32_t i = 0; i < curRide->numTrains; i++)
                             {
-                                Vehicle* v = getGameState().entities.GetEntity<Vehicle>(curRide->vehicles[i]);
+                                Vehicle* v = getGameState().entities.getEntity<Vehicle>(curRide->vehicles[i]);
                                 if (v == nullptr)
                                 {
                                     continue;
@@ -417,7 +417,7 @@ static bool ride_station_can_depart_synchronised(const Ride& ride, StationIndex 
                     auto currentStation = sv->stationIndex;
                     for (int32_t i = 0; i < sv_ride->numTrains; i++)
                     {
-                        auto* otherVehicle = getGameState().entities.GetEntity<Vehicle>(sv_ride->vehicles[i]);
+                        auto* otherVehicle = getGameState().entities.getEntity<Vehicle>(sv_ride->vehicles[i]);
                         if (otherVehicle == nullptr)
                         {
                             continue;
@@ -461,7 +461,7 @@ static bool ride_station_can_depart_synchronised(const Ride& ride, StationIndex 
     // At this point all vehicles in _snychronisedVehicles can depart.
     for (SynchronisedVehicle* sv = _synchronisedVehicles; sv < _lastSynchronisedVehicle; sv++)
     {
-        auto v = getGameState().entities.GetEntity<Vehicle>(sv->vehicle_id);
+        auto v = getGameState().entities.getEntity<Vehicle>(sv->vehicle_id);
         if (v != nullptr)
         {
             v->flags.unset(VehicleFlag::waitingOnAdjacentStation);
@@ -713,7 +713,7 @@ void Vehicle::UpdateWaitingForPassengers()
                 if (train_id == id)
                     continue;
 
-                const auto* otherTrain = getGameState().entities.GetEntity<Vehicle>(train_id);
+                const auto* otherTrain = getGameState().entities.getEntity<Vehicle>(train_id);
                 if (otherTrain == nullptr || otherTrain->current_station != current_station
                     || (otherTrain->status != Status::unloadingPassengers
                         && otherTrain->status != Status::movingToEndOfStation))
@@ -833,8 +833,8 @@ void Vehicle::UpdateWaitingToDepart()
         }
         else
         {
-            for (const Vehicle* trainCar = getGameState().entities.GetEntity<Vehicle>(id); trainCar != nullptr;
-                 trainCar = getGameState().entities.GetEntity<Vehicle>(trainCar->next_vehicle_on_train))
+            for (const Vehicle* trainCar = getGameState().entities.getEntity<Vehicle>(id); trainCar != nullptr;
+                 trainCar = getGameState().entities.getEntity<Vehicle>(trainCar->next_vehicle_on_train))
             {
                 if (trainCar->num_peeps != 0)
                 {
@@ -1043,7 +1043,7 @@ void Vehicle::UpdateUnloadingPassengers()
         {
             next_free_seat -= 2;
 
-            auto firstGuest = entities.GetEntity<Guest>(peep[seat * 2]);
+            auto firstGuest = entities.getEntity<Guest>(peep[seat * 2]);
             peep[seat * 2] = EntityId::GetNull();
 
             if (firstGuest != nullptr)
@@ -1052,7 +1052,7 @@ void Vehicle::UpdateUnloadingPassengers()
                 firstGuest->rideSubState = PeepRideSubState::leaveVehicle;
             }
 
-            auto secondGuest = entities.GetEntity<Guest>(peep[seat * 2 + 1]);
+            auto secondGuest = entities.getEntity<Guest>(peep[seat * 2 + 1]);
             peep[seat * 2 + 1] = EntityId::GetNull();
 
             if (secondGuest != nullptr)
@@ -1074,8 +1074,8 @@ void Vehicle::UpdateUnloadingPassengers()
         }
 
         const bool isTransportRide = curRide->getRideTypeDescriptor().flags.has(RtdFlag::isTransportRide);
-        for (Vehicle* train = entities.GetEntity<Vehicle>(id); train != nullptr;
-             train = entities.GetEntity<Vehicle>(train->next_vehicle_on_train))
+        for (Vehicle* train = entities.getEntity<Vehicle>(id); train != nullptr;
+             train = entities.getEntity<Vehicle>(train->next_vehicle_on_train))
         {
             if (train->restraints_position != 255)
                 continue;
@@ -1095,7 +1095,7 @@ void Vehicle::UpdateUnloadingPassengers()
 
                 for (uint8_t peepIndex = 0; peepIndex < train->num_peeps; peepIndex++)
                 {
-                    originalPassengers[peepIndex] = entities.GetEntity<Guest>(train->peep[peepIndex]);
+                    originalPassengers[peepIndex] = entities.getEntity<Guest>(train->peep[peepIndex]);
                 }
 
                 const auto passengers = std::span<Guest* const>{ originalPassengers.data(), train->num_peeps };
@@ -1115,8 +1115,8 @@ void Vehicle::UpdateUnloadingPassengers()
 
     if (isRotatingRide)
     {
-        for (Vehicle* train = entities.GetEntity<Vehicle>(id); train != nullptr;
-             train = entities.GetEntity<Vehicle>(train->next_vehicle_on_train))
+        for (Vehicle* train = entities.getEntity<Vehicle>(id); train != nullptr;
+             train = entities.getEntity<Vehicle>(train->next_vehicle_on_train))
         {
             if (train->num_peeps != train->next_free_seat)
                 return;

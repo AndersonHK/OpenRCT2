@@ -77,7 +77,7 @@ namespace OpenRCT2::Audio
             }
             iterator& operator++()
             {
-                Current = getGameState().entities.GetEntity<Vehicle>(NextVehicleId);
+                Current = getGameState().entities.getEntity<Vehicle>(NextVehicleId);
                 if (Current != nullptr)
                 {
                     NextVehicleId = Current->next_vehicle_on_train;
@@ -164,7 +164,7 @@ namespace OpenRCT2::Audio
         auto closestDistanceSquared = std::numeric_limits<float>::max();
         size_t visitedCars = 0;
         for (auto* car = &head; car != nullptr && visitedCars < 256;
-             car = getGameState().entities.GetEntity<Vehicle>(car->next_vehicle_on_train), visitedCars++)
+             car = getGameState().entities.getEntity<Vehicle>(car->next_vehicle_on_train), visitedCars++)
         {
             if (car->x == kLocationNull)
             {
@@ -568,7 +568,7 @@ namespace OpenRCT2::Audio
                 continue;
             }
 
-            Vehicle* vehicle = getGameState().entities.GetEntity<Vehicle>(EntityId::FromUnderlying(vehicleSoundParams.id));
+            Vehicle* vehicle = getGameState().entities.getEntity<Vehicle>(EntityId::FromUnderlying(vehicleSoundParams.id));
             if (vehicle != nullptr)
             {
                 UpdateSound<SoundType::trackNoises>(

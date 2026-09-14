@@ -20388,7 +20388,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "8670fdff468a3500d39ad959c92d517494621986"
+      ],
       "verification_evidence": [
         "All sixteen JSON payloads match source and contain only name-operation additions. B65 solution 76.28s zero warnings/errors; 38 scenario-patch/Play/language tests pass in 7.001s, clearing U277 debt."
       ],
@@ -20580,9 +20582,11 @@
       "note": "Rename entity registry/tweener APIs across fork pool, checksums, presentation snapshots and visual lifecycle consumers.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "B66 complete Release x64 MSVC/Vulkan build 82.46s zero warnings/errors. Full unfiltered available Windows suite: 603 tests in 53 suites passed in 37.778s; XML has zero failures/errors/disabled. Source and fork lexical proofs pass."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -20640,7 +20644,10 @@
         "test/tests/EntityImportTests.cpp",
         "test/tests/PlayTests.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 0fb70602d3404c43c19a02400ac220045a460d8f",
+      "implementation_decisions": "Only 576 identifier replacements in 86 fork files, proven against complete pre-port files; source has 471 replacements in 99 files. Preserve pooled storage, ordered membership, execution/dirty lists, visual lifecycle, snapshot interfaces and GetEntityForPresentation paint ownership. Rename Entity_t padding access without layout change. See B66.",
+      "pending_validation": "Native rendering/input, live MP, longer performance runs, non-Windows/disabled-scripting remain. No new owner decision or compile debt."
     },
     {
       "sha": "69c8522d4367f84770aa31b32db78efa5a808d10",
@@ -27735,8 +27742,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 278,
-    "remaining_after_receipt": 83,
+    "accounted_in_this_tree": 279,
+    "remaining_after_receipt": 82,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
