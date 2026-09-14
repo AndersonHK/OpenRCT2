@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 106 / 361 source commits recorded
+## Progress: 107 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1184,10 +1184,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U106 — `a5892a2d17` — Enforce `enum class` member code style via Clang-Tidy
 
 - **Source:** `a5892a2d173fce9dd838512bbe0151eae8b3a864`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `ce868d41f6c665b6a349850e11c6157718b4eb33`.
 - **Remaining:** 256 → 255.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Add enum CamelCase and scoped enumerator camelBack clang-tidy rules.
 - **Additional decisions / behavior:** Adopt style enforcement after individual renames. No runtime behavior change; existing warnings-as-errors policy retained.
 - **Verification:** Actual four-line source delta reviewed and applied; whitespace and singleton ancestry checked.
 - **Pending / concerns:** Clang-tidy is not on PATH; dedicated lint run remains unverified. Compile at naming checkpoint.
+
+### U107 — `228c4bfb34` — Rename CursorNames to kCursorNames
+
+- **Source:** `228c4bfb34d74729d67e4ba309a5ee5412f7851d`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 255 → 254.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Rename CursorNames to kCursorNames at all four local sites.
+- **Additional decisions / behavior:** Preserve all script cursor strings and indices, invalid-ID fallback and lookup behavior.
+- **Verification:** Entire source patch reviewed; whitespace and singleton ancestry checked.
+- **Pending / concerns:** Build with completed naming group.

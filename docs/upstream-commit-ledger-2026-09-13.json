@@ -6738,7 +6738,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "ce868d41f6c665b6a349850e11c6157718b4eb33"
+      ],
       "verification_evidence": [
         "Actual four-line source delta reviewed and applied; whitespace and singleton ancestry checked."
       ],
@@ -6775,9 +6777,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Entire source patch reviewed; whitespace and singleton ancestry checked."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -6785,7 +6789,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 228c4bfb34d74729d67e4ba309a5ee5412f7851d",
+      "implementation_decisions": "Preserve all script cursor strings and indices, invalid-ID fallback and lookup behavior.",
+      "pending_validation": "Build with completed naming group."
     },
     {
       "sha": "205497a4800f9cc1a06c8616318845e551f501d5",
@@ -26531,8 +26538,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 106,
-    "remaining_after_receipt": 255,
+    "accounted_in_this_tree": 107,
+    "remaining_after_receipt": 254,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
