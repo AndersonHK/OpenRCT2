@@ -420,7 +420,7 @@ void Vehicle::Sub6DBF3E()
     const auto* carEntry = Entry();
 
     acceleration /= _vehicleUnkF64E10;
-    if (TrackSubposition == VehicleTrackSubposition::ChairliftGoingBack)
+    if (TrackSubposition == VehicleTrackSubposition::chairliftGoingBack)
     {
         return;
     }
@@ -495,7 +495,7 @@ void Vehicle::Sub6DBF3E()
             // Determine the stop positions for the karts. If in left lane it's further along the track than the right lane.
             // Since it's not possible to overtake when the race has ended, this does not check for overtake states (7 and
             // 8).
-            cx = TrackSubposition == VehicleTrackSubposition::GoKartsRightLane ? 18 : 20;
+            cx = TrackSubposition == VehicleTrackSubposition::goKartsRightLane ? 18 : 20;
         }
 
         if (ax > cx)
@@ -608,19 +608,19 @@ bool Vehicle::UpdateTrackMotionForwardsGetNewTrack(
     bool isGoingBack = false;
     switch (TrackSubposition)
     {
-        case VehicleTrackSubposition::ChairliftGoingBack:
-        case VehicleTrackSubposition::ChairliftEndBullwheel:
-            TrackSubposition = VehicleTrackSubposition::ChairliftGoingBack;
+        case VehicleTrackSubposition::chairliftGoingBack:
+        case VehicleTrackSubposition::chairliftEndBullwheel:
+            TrackSubposition = VehicleTrackSubposition::chairliftGoingBack;
             isGoingBack = true;
             break;
-        case VehicleTrackSubposition::ChairliftStartBullwheel:
-            TrackSubposition = VehicleTrackSubposition::ChairliftGoingOut;
+        case VehicleTrackSubposition::chairliftStartBullwheel:
+            TrackSubposition = VehicleTrackSubposition::chairliftGoingOut;
             break;
-        case VehicleTrackSubposition::GoKartsMovingToRightLane:
-            TrackSubposition = VehicleTrackSubposition::GoKartsRightLane;
+        case VehicleTrackSubposition::goKartsMovingToRightLane:
+            TrackSubposition = VehicleTrackSubposition::goKartsRightLane;
             break;
-        case VehicleTrackSubposition::GoKartsMovingToLeftLane:
-            TrackSubposition = VehicleTrackSubposition::GoKartsLeftLane;
+        case VehicleTrackSubposition::goKartsMovingToLeftLane:
+            TrackSubposition = VehicleTrackSubposition::goKartsLeftLane;
             break;
         default:
             break;
@@ -693,7 +693,7 @@ bool Vehicle::UpdateTrackMotionForwardsGetNewTrack(
     {
         return false;
     }
-    if (carEntry->flags.has(CarEntryFlag::isGoKart) && TrackSubposition < VehicleTrackSubposition::GoKartsMovingToRightLane)
+    if (carEntry->flags.has(CarEntryFlag::isGoKart) && TrackSubposition < VehicleTrackSubposition::goKartsMovingToRightLane)
     {
         trackType = tileElement->asTrack()->GetTrackType();
         if (trackType == TrackElemType::flat || trackType == TrackElemType::leftQuarterTurn3Tiles
@@ -708,18 +708,18 @@ bool Vehicle::UpdateTrackMotionForwardsGetNewTrack(
         }
     }
 
-    if (TrackSubposition >= VehicleTrackSubposition::ChairliftGoingOut
-        && TrackSubposition <= VehicleTrackSubposition::ChairliftStartBullwheel)
+    if (TrackSubposition >= VehicleTrackSubposition::chairliftGoingOut
+        && TrackSubposition <= VehicleTrackSubposition::chairliftStartBullwheel)
     {
         TileCoordsXYZ curLocation{ TrackLocation };
 
         if (curLocation == curRide.chairliftBullwheelLocation[1])
         {
-            TrackSubposition = VehicleTrackSubposition::ChairliftEndBullwheel;
+            TrackSubposition = VehicleTrackSubposition::chairliftEndBullwheel;
         }
         else if (curLocation == curRide.chairliftBullwheelLocation[0])
         {
-            TrackSubposition = VehicleTrackSubposition::ChairliftStartBullwheel;
+            TrackSubposition = VehicleTrackSubposition::chairliftStartBullwheel;
         }
     }
 
@@ -888,7 +888,7 @@ bool Vehicle::UpdateTrackMotionForwards(const CarEntry* carEntry, const Ride& cu
                 + CoordsXYZ{ moveInfo->x, moveInfo->y,
                              moveInfo->z + GetRideTypeDescriptor(curRide.type).Heights.VehicleZOffset };
 
-            bool useReverserDistance = TrackSubposition == VehicleTrackSubposition::ReverserRCFrontBogie
+            bool useReverserDistance = TrackSubposition == VehicleTrackSubposition::reverserRCFrontBogie
                 && (trackType == TrackElemType::leftReverser || trackType == TrackElemType::rightReverser)
                 && track_progress >= 30 && track_progress <= 66;
 
@@ -896,7 +896,7 @@ bool Vehicle::UpdateTrackMotionForwards(const CarEntry* carEntry, const Ride& cu
             remaining_distance -= Geometry::getTranslationDistance(
                 nextVehiclePosition - _vehicleCurPosition, useReverserDistance);
 
-            if (TrackSubposition == VehicleTrackSubposition::ReverserRCRearBogie
+            if (TrackSubposition == VehicleTrackSubposition::reverserRCRearBogie
                 && (trackType == TrackElemType::leftReverser || trackType == TrackElemType::rightReverser)
                 && track_progress == 96)
             {
@@ -1007,18 +1007,18 @@ bool Vehicle::UpdateTrackMotionBackwardsGetNewTrack(TrackElemType trackType, con
 
     switch (TrackSubposition)
     {
-        case VehicleTrackSubposition::ChairliftEndBullwheel:
-            TrackSubposition = VehicleTrackSubposition::ChairliftGoingOut;
+        case VehicleTrackSubposition::chairliftEndBullwheel:
+            TrackSubposition = VehicleTrackSubposition::chairliftGoingOut;
             break;
-        case VehicleTrackSubposition::GoKartsMovingToRightLane:
-            TrackSubposition = VehicleTrackSubposition::GoKartsLeftLane;
+        case VehicleTrackSubposition::goKartsMovingToRightLane:
+            TrackSubposition = VehicleTrackSubposition::goKartsLeftLane;
             break;
-        case VehicleTrackSubposition::GoKartsMovingToLeftLane:
-            TrackSubposition = VehicleTrackSubposition::GoKartsRightLane;
+        case VehicleTrackSubposition::goKartsMovingToLeftLane:
+            TrackSubposition = VehicleTrackSubposition::goKartsRightLane;
             break;
-        case VehicleTrackSubposition::ChairliftGoingBack:
-        case VehicleTrackSubposition::ChairliftStartBullwheel:
-            TrackSubposition = VehicleTrackSubposition::ChairliftGoingBack;
+        case VehicleTrackSubposition::chairliftGoingBack:
+        case VehicleTrackSubposition::chairliftStartBullwheel:
+            TrackSubposition = VehicleTrackSubposition::chairliftGoingBack;
             nextTileBackwards = false;
             break;
         default:
@@ -1085,18 +1085,18 @@ bool Vehicle::UpdateTrackMotionBackwardsGetNewTrack(TrackElemType trackType, con
     // Loc6DBC3B:
     TrackLocation = trackPos;
 
-    if (TrackSubposition >= VehicleTrackSubposition::ChairliftGoingOut
-        && TrackSubposition <= VehicleTrackSubposition::ChairliftStartBullwheel)
+    if (TrackSubposition >= VehicleTrackSubposition::chairliftGoingOut
+        && TrackSubposition <= VehicleTrackSubposition::chairliftStartBullwheel)
     {
         TileCoordsXYZ curLocation{ TrackLocation };
 
         if (curLocation == curRide.chairliftBullwheelLocation[1])
         {
-            TrackSubposition = VehicleTrackSubposition::ChairliftEndBullwheel;
+            TrackSubposition = VehicleTrackSubposition::chairliftEndBullwheel;
         }
         else if (curLocation == curRide.chairliftBullwheelLocation[0])
         {
-            TrackSubposition = VehicleTrackSubposition::ChairliftStartBullwheel;
+            TrackSubposition = VehicleTrackSubposition::chairliftStartBullwheel;
         }
     }
 
@@ -1291,11 +1291,11 @@ static uint8_t modified_speed(TrackElemType trackType, VehicleTrackSubposition t
 
     if (trackType == TrackElemType::leftQuarterTurn1Tile)
     {
-        speedModifier = (trackSubposition == VehicleTrackSubposition::GoKartsLeftLane) ? HALF_SPEED : THREE_QUARTER_SPEED;
+        speedModifier = (trackSubposition == VehicleTrackSubposition::goKartsLeftLane) ? HALF_SPEED : THREE_QUARTER_SPEED;
     }
     else if (trackType == TrackElemType::rightQuarterTurn1Tile)
     {
-        speedModifier = (trackSubposition == VehicleTrackSubposition::GoKartsRightLane) ? HALF_SPEED : THREE_QUARTER_SPEED;
+        speedModifier = (trackSubposition == VehicleTrackSubposition::goKartsRightLane) ? HALF_SPEED : THREE_QUARTER_SPEED;
     }
 
     switch (speedModifier)

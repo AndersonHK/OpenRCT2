@@ -2303,7 +2303,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt naming only",
-      "port_commits": [],
+      "port_commits": [
+        "022ea2310fdea6b954c6c3e96a8220bc55a80755"
+      ],
       "verification_evidence": [
         "Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt."
       ],
@@ -2356,9 +2358,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt naming only",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -2371,7 +2375,10 @@
         "src/openrct2/ride/Vehicle.TrackMotion.cpp",
         "src/openrct2/ride/Vehicle.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 2ed6bef643c7217dcaaf4735dc4714789f140e1a",
+      "implementation_decisions": "Default becomes standard; keep serialized values, the two mini-golf value-9 aliases, vehicle movement tables and all fork boarding/path/physics logic. This is not the later approved subposition repair and does not introduce that behavioral change early.",
+      "pending_validation": "Compile at next coherent naming batch checkpoint."
     },
     {
       "sha": "46dbc1cf203caa8b9d8253814e4a684b8aba2ac4",
@@ -25992,8 +25999,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 29,
-    "remaining_after_receipt": 332,
+    "accounted_in_this_tree": 30,
+    "remaining_after_receipt": 331,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
