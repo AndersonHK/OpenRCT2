@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 359 / 361 source commits recorded
+## Progress: 360 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3967,10 +3967,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U359 — `eb7b5feab9` — Fix #17409: Game defaults to pounds in Canada (#27120)
 
 - **Source:** `eb7b5feab9cbf52cae49059aa28e5871bdf1e10a`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `7b9e8c43efdb73092d7d7c8d0f87e518138666e2`.
 - **Remaining:** 3 → 2.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Map additional dollar locales to generic dollar display rather than default pounds.
 - **Additional decisions / behavior:** Preserve dedicated currency descriptors and lookup priority, null/short/unknown fallback and case sensitivity. Display default only; fork cent-denominated money, pricing and currency rates unchanged. Remove source changelog trailing space.
 - **Verification:** Read full source change and current guard/lookup order. Added actual locale lookup regression for CAD/AUD/NZD/SGD/XCD, all dedicated descriptors and invalid inputs.
 - **Pending / concerns:** Build/localisation tests at final checkpoint.
+
+### U360 — `75c12dbe7d` — Fix #27070: Gate polled input on window focus (#27078)
+
+- **Source:** `75c12dbe7d091856872da26abb01547cc3a4a0e0`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 2 → 1.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Stop polled gamepad analogue and held scrolling input while the window is unfocused.
+- **Additional decisions / behavior:** Reset per-frame scroll before focus early returns, preserving deadzone, sensitivity, fractional accumulation and focused behavior. Queued event handling and fork simulation timing unchanged; do not broaden into unrelated focus policy.
+- **Verification:** Read full source patch and fork process/polling/HasFocus owners; three source hunks applied exactly. Diff check passes.
+- **Pending / concerns:** Final Windows/UI tests; physical gamepad focus loss/regain remains native manual validation.

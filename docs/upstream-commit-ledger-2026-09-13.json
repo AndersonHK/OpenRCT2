@@ -27496,7 +27496,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "7b9e8c43efdb73092d7d7c8d0f87e518138666e2"
+      ],
       "verification_evidence": [
         "Read full source change and current guard/lookup order. Added actual locale lookup regression for CAD/AUD/NZD/SGD/XCD, all dedicated descriptors and invalid inputs."
       ],
@@ -27536,9 +27538,11 @@
       "note": "Fix outside-window mouse release and gate held/gamepad input on focus; clear accumulated scroll while retaining turbo input pumping.",
       "decisions": [],
       "review_level": "targeted-code-review",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Read full source patch and fork process/polling/HasFocus owners; three source hunks applied exactly. Diff check passes."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -27546,7 +27550,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P5"
+      "verification_gate": "P5",
+      "port_commit_locator": "Upstream-Commit: 75c12dbe7d091856872da26abb01547cc3a4a0e0",
+      "implementation_decisions": "Reset per-frame scroll before focus early returns, preserving deadzone, sensitivity, fractional accumulation and focused behavior. Queued event handling and fork simulation timing unchanged; do not broaden into unrelated focus policy.",
+      "pending_validation": "Final Windows/UI tests; physical gamepad focus loss/regain remains native manual validation."
     },
     {
       "sha": "15d4b5e933555913d216f4548f673cd55cfb0579",
@@ -28302,8 +28309,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 359,
-    "remaining_after_receipt": 2,
+    "accounted_in_this_tree": 360,
+    "remaining_after_receipt": 1,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
