@@ -203,7 +203,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "manually-ported",
-      "port_commits": [],
+      "port_commits": [
+        "75891b0b9dd203b1b4e1493df8a044900f91dffa"
+      ],
       "verification_evidence": [
         "Inspected the complete one-line upstream patch and fork Crash.cpp differences. Only the token changes; whitespace and singleton ancestry checks run before receipt."
       ],
@@ -242,9 +244,11 @@
       "note": "Update object archive to v1.7.11 and verify SHA-256; preserve local object precedence and deployed data pairing.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "manually-ported",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected the full manifest patch and existing manifest; URL/hash pair matches this source commit. Earlier source review is captured in obj/upstream-audit/objects-compare.json. Whitespace and singleton ancestry checks run before receipt."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -252,7 +256,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P1"
+      "verification_gate": "P1",
+      "port_commit_locator": "Upstream-Commit: 9198ff13f4c9cfb0f5f786f30c6f3f7c502a1c4b",
+      "implementation_decisions": "The reviewed object release source comparison contains translation/typo changes, with no gameplay property change in the returned net patch. Keep local object precedence and all other asset pins. This receipt changes the manifest only, not a deployed installation.",
+      "pending_validation": "Download and verify the archive hash at the dependency/batch checkpoint; manifest pin is not a claim of downloaded-byte verification."
     },
     {
       "sha": "cd44174f9b04ee909309214fee35656a0d07f871",
@@ -25824,8 +25831,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 5,
-    "remaining_after_receipt": 356,
+    "accounted_in_this_tree": 6,
+    "remaining_after_receipt": 355,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

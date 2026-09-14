@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 5 / 361 source commits recorded
+## Progress: 6 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -73,10 +73,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U005 — `775c4e7635` — Update backtrace for upcoming release
 
 - **Source:** `775c4e76350382a59fbdcd5504ee9437cafc6bf1`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `75891b0b9dd203b1b4e1493df8a044900f91dffa`.
 - **Remaining:** 357 → 356.
 - **Disposition:** manually-ported.
 - **Manual changes:** Refresh the existing public Backtrace release token.
 - **Additional decisions / behavior:** Keep the existing crash-reporting integration, destination and consent flow; this only updates its public upload token. Preserve the fork screenshot handling and removed OpenGL dependency. No report was sent during verification.
 - **Verification:** Inspected the complete one-line upstream patch and fork Crash.cpp differences. Only the token changes; whitespace and singleton ancestry checks run before receipt.
 - **Pending / concerns:** Compile at the batch checkpoint; external crash upload is not exercised.
+
+### U006 — `9198ff13f4` — Update to objects v1.7.11
+
+- **Source:** `9198ff13f4c9cfb0f5f786f30c6f3f7c502a1c4b`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 356 → 355.
+- **Disposition:** manually-ported.
+- **Manual changes:** Update the object archive URL and SHA-256 together to objects v1.7.11.
+- **Additional decisions / behavior:** The reviewed object release source comparison contains translation/typo changes, with no gameplay property change in the returned net patch. Keep local object precedence and all other asset pins. This receipt changes the manifest only, not a deployed installation.
+- **Verification:** Inspected the full manifest patch and existing manifest; URL/hash pair matches this source commit. Earlier source review is captured in obj/upstream-audit/objects-compare.json. Whitespace and singleton ancestry checks run before receipt.
+- **Pending / concerns:** Download and verify the archive hash at the dependency/batch checkpoint; manifest pin is not a claim of downloaded-byte verification.
