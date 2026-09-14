@@ -26321,7 +26321,9 @@
       ],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "2a10a411d12f1022a590f8f83a748e565b397921"
+      ],
       "verification_evidence": [
         "Final Release/x64/Vulkan solution zero warnings/errors in 7.79s; 69 WidgetState/GPU/localisation tests pass in 0.942s. Actual version 0/1 theme file imports cover 0-4 slots, aliases, precedence and theme switching; actual HUD tests cover queue transitions, resize, repeated opens and hide/show. Full source and diff checks inspected; details B93."
       ],
@@ -26394,9 +26396,11 @@
       "note": "No remerge-resolution delta detected. Account for constituent commits before ancestry reconciliation.",
       "decisions": [],
       "review_level": "remerge-probe",
-      "implementation_status": "not-ported",
+      "implementation_status": "history receipt",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Actual remerge diff is empty; parents already accounted. B93 validates constituent code."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -26409,7 +26413,10 @@
         "src/openrct2-ui/windows/Ride.cpp",
         "src/openrct2/Game.cpp"
       ],
-      "verification_gate": "P0"
+      "verification_gate": "P0",
+      "port_commit_locator": "Upstream-Commit: cd728ac48196898a91ca03f4decf8872bc424ff6",
+      "implementation_decisions": "Preserve documented D07 fork adaptations and B93-tested constituent ports.",
+      "pending_validation": "Native UI checks remain documented."
     },
     {
       "sha": "242b9167679274b6670c80504850867f13dfc7cc",
@@ -28169,8 +28176,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 340,
-    "remaining_after_receipt": 21,
+    "accounted_in_this_tree": 341,
+    "remaining_after_receipt": 20,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

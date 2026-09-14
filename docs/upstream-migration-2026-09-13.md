@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 340 / 361 source commits recorded
+## Progress: 341 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3758,10 +3758,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U340 — `be90806c80` — Convert settings for the bottom toolbar to the new window types
 
 - **Source:** `be90806c808ab3d469d6edd5484472c11b00defd`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `2a10a411d12f1022a590f8f83a748e565b397921`.
 - **Remaining:** 22 → 21.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Import old toolbar theme colors into split HUD owners; complete and validate U336-U340 checkpoint.
 - **Additional decisions / behavior:** D07: missing old color slots use owner defaults; preserve old editor theme aliases and prefer explicit current keys. Switching themes updates optional status window with visible HUD. Preserve hidden toolbar across news updates and refresh ticker when restoring HUD, including paused games. Fix U338 WindowBase close call through manager. No gameplay change.
 - **Verification:** Final Release/x64/Vulkan solution zero warnings/errors in 7.79s; 69 WidgetState/GPU/localisation tests pass in 0.942s. Actual version 0/1 theme file imports cover 0-4 slots, aliases, precedence and theme switching; actual HUD tests cover queue transitions, resize, repeated opens and hide/show. Full source and diff checks inspected; details B93.
 - **Pending / concerns:** Native HUD/theme/rain pixels, translations and interactions remain manual handoff checks.
+
+### U341 — `cd728ac481` — Merge pull request #26947 from AaronVanGeffen/news-ticker
+
+- **Source:** `cd728ac48196898a91ca03f4decf8872bc424ff6`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 21 → 20.
+- **Disposition:** history receipt.
+- **Manual changes:** Accounted HUD branch merge; no independent resolution delta.
+- **Additional decisions / behavior:** Preserve documented D07 fork adaptations and B93-tested constituent ports.
+- **Verification:** Actual remerge diff is empty; parents already accounted. B93 validates constituent code.
+- **Pending / concerns:** Native UI checks remain documented.
