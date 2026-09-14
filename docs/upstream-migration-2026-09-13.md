@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 46 / 361 source commits recorded
+## Progress: 47 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -524,10 +524,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U046 — `1423ab779a` — Fix #26811: Crash when a ride points to a non-existing station object
 
 - **Source:** `1423ab779a5a47190f72e04449690e184efc8a36`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `781ea6d87e8dda57533048964ba9a5b00b217294`.
 - **Remaining:** 316 → 315.
 - **Disposition:** ported.
 - **Manual changes:** Skip the entrance dropdown caption when the ride station object is missing; add upstream crash-fix changelog line.
 - **Additional decisions / behavior:** Adopt the null guard. It exits only the caption helper, leaving other ride-window drawing and all fork station capacity, staging, platform, routing and pricing models unchanged. Existing entrance preview/icon paths already guard missing objects.
 - **Verification:** Inspected source hunks plus caption caller, helper boundary and adjacent preview/icon guards. Source/diff and exact-one ancestry checked.
 - **Pending / concerns:** Full build and selected regression tests at the immediate UI checkpoint; missing-object interactive rendering remains unverified.
+
+### U047 — `bcd7708dc1` — Merge pull request #26872 from Gymnasiast/fix/26811
+
+- **Source:** `bcd7708dc1a1da55aa1f74e570e93ebeb0ec34c3`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 315 → 314.
+- **Disposition:** merge receipt; already ported.
+- **Manual changes:** Record the missing-station-object crash-fix merge; U046 contains its entire product delta.
+- **Additional decisions / behavior:** No additional merge resolution or behavior change; retain the fork-adapted null guard.
+- **Verification:** Inspected merge metadata, empty archived remerge diff and second-parent tree equivalence; exact-one ancestry checked.
+- **Pending / concerns:** UI-header batch build and selected tests next.
