@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 349 / 361 source commits recorded
+## Progress: 350 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3857,10 +3857,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U349 — `1cc42279dc` — Remove red for negative Gs (#27100)
 
 - **Source:** `1cc42279dcbd40802fc0f60d1674e6fa962a697f`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `de15e0c7d95ec7c2256ece5384c291615add8be2`.
 - **Remaining:** 13 → 12.
 - **Disposition:** approved deferral: retain fork negative-G warning.
 - **Manual changes:** Retain fork negative-G red warnings; source change intentionally deferred under D01.
 - **Additional decisions / behavior:** Approved D01 keeps -2.50G warning in both global and directed-leg stats and vertical graph because the fork force model still penalizes harsh negative G. No source production or changelog claim adopted.
 - **Verification:** Read complete source patch and all fork warning owners; threshold, both stats consumers and vertical graph branch remain unchanged. No executable change.
 - **Pending / concerns:** Revisit only with an explicit force-model/warning policy decision covering all views.
+
+### U350 — `1e7fdd7ba6` — Refactor RideModes into FlagHolder (#27115)
+
+- **Source:** `1e7fdd7ba65378db65290eba994f882542111340`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 12 → 11.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Convert ride mode availability to uint64 typed flag holders.
+- **Additional decisions / behavior:** All mode bit positions, ordered descriptor sets, cheat contents and dropdown order retained. Fork ride models untouched. Existing unbounded mode-action shift edge case documented for separate hardening rather than silently changing action policy.
+- **Verification:** All 91 descriptor files preserve mode lists and every other non-whitespace byte; relocated enum byte-identical. Solution zero warnings/errors 82.79s; 166 affected tests pass 31.895s. B96.
+- **Pending / concerns:** Standing manual checks and separately documented pre-existing action-boundary issue remain.

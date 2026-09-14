@@ -33,7 +33,7 @@ constexpr RideTypeDescriptor kGoKartsRTD =
                      RtdFlag::noWallsAroundTrack, RtdFlag::guestsWillRideAgain, RtdFlag::hasVehicleColours,
                      RtdFlag::hasDataLogging, RtdFlag::hasGForces, RtdFlag::hasTrack,
                      RtdFlag::supportsMultipleColourSchemes, RtdFlag::allowMusic, RtdFlag::hasEntranceAndExit, RtdFlag::interestingToLookAt),
-    .RideModes = EnumsToFlags(RideMode::race, RideMode::continuousCircuit),
+    .rideModes = { RideMode::race, RideMode::continuousCircuit },
     .DefaultMode = RideMode::race,
     .OperatingSettings = { 1, 10 },
     .Naming = { STR_RIDE_NAME_GO_KARTS, STR_RIDE_DESCRIPTION_GO_KARTS },

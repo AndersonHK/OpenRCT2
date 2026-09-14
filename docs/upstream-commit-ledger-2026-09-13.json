@@ -26880,7 +26880,9 @@
       ],
       "review_level": "targeted-code-review",
       "implementation_status": "approved deferral: retain fork negative-G warning",
-      "port_commits": [],
+      "port_commits": [
+        "de15e0c7d95ec7c2256ece5384c291615add8be2"
+      ],
       "verification_evidence": [
         "Read complete source patch and all fork warning owners; threshold, both stats consumers and vertical graph branch remain unchanged. No executable change."
       ],
@@ -27072,9 +27074,11 @@
         "D12"
       ],
       "review_level": "targeted-code-review",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "All 91 descriptor files preserve mode lists and every other non-whitespace byte; relocated enum byte-identical. Solution zero warnings/errors 82.79s; 166 affected tests pass 31.895s. B96."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -27090,7 +27094,10 @@
         "src/openrct2/ride/rtd/gentle/HauntedHouse.h",
         "src/openrct2/ride/rtd/gentle/Maze.h"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 1e7fdd7ba65378db65290eba994f882542111340",
+      "implementation_decisions": "All mode bit positions, ordered descriptor sets, cheat contents and dropdown order retained. Fork ride models untouched. Existing unbounded mode-action shift edge case documented for separate hardening rather than silently changing action policy.",
+      "pending_validation": "Standing manual checks and separately documented pre-existing action-boundary issue remain."
     },
     {
       "sha": "fdcda7be5d5d1293092a5e8fc0fe075579b2f283",
@@ -28232,8 +28239,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 349,
-    "remaining_after_receipt": 12,
+    "accounted_in_this_tree": 350,
+    "remaining_after_receipt": 11,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

@@ -387,7 +387,7 @@ namespace OpenRCT2
 
     bool RideTypeDescriptor::SupportsRideMode(RideMode rideMode) const
     {
-        return RideModes & EnumToFlag(rideMode);
+        return rideModes.has(rideMode);
     }
 
     static RideTrackGroups _enabledRideGroups = {};

@@ -32,7 +32,7 @@ constexpr RideTypeDescriptor kMazeRTD =
     .flags = RtdFlags(RtdFlag::hasTrackColourSupports, RtdFlag::hasSinglePieceStation, RtdFlag::noTestMode, RtdFlag::noVehicles,
                      RtdFlag::noWallsAroundTrack, RtdFlag::describeAsInside, RtdFlag::hasTrack, RtdFlag::hasEntranceAndExit,
                      RtdFlag::guestsCanUseUmbrella),
-    .RideModes = EnumsToFlags(RideMode::maze),
+    .rideModes = { RideMode::maze },
     .DefaultMode = RideMode::maze,
     .OperatingSettings = { 0, 2 },
     .Naming = { STR_RIDE_NAME_MAZE, STR_RIDE_DESCRIPTION_MAZE },

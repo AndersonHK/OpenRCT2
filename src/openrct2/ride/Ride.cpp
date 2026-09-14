@@ -7697,12 +7697,12 @@ namespace OpenRCT2
         }
     }
 
-    uint64_t Ride::getAvailableModes() const
+    RideModes Ride::getAvailableModes() const
     {
         if (getGameState().cheats.showAllOperatingModes)
             return kAllRideModesAvailable;
 
-        return getRideTypeDescriptor().RideModes;
+        return getRideTypeDescriptor().rideModes;
     }
 
     const RideTypeDescriptor& Ride::getRideTypeDescriptor() const

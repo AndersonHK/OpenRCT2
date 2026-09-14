@@ -33,7 +33,7 @@ constexpr RideTypeDescriptor kSwingingShipRTD =
                      RtdFlag::isFlatRide, RtdFlag::hasVehicleColours, RtdFlag::allowMusic,
                      RtdFlag::hasEntranceAndExit, RtdFlag::singleSession, RtdFlag::interestingToLookAt,
                      RtdFlag::listVehiclesSeparately),
-    .RideModes = EnumsToFlags(RideMode::swing),
+    .rideModes = { RideMode::swing },
     .DefaultMode = RideMode::swing,
     .OperatingSettings = { 7, 25 },
     .Naming = { STR_RIDE_NAME_SWINGING_SHIP, STR_RIDE_DESCRIPTION_SWINGING_SHIP },
