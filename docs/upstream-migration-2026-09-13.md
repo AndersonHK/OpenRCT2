@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 28 / 361 source commits recorded
+## Progress: 29 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -326,10 +326,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U028 — `47c1bf9166` — Rename members of SpriteGroupType
 
 - **Source:** `47c1bf91669e56e9dcd0d6ebc2c0f742715b98ce`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `e6eb2367226557e399fde0578c0481e09741bc9c`.
 - **Remaining:** 334 → 333.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename SpriteGroupType members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Preserve sprite group ordering, numeric indices, JSON names, frame multipliers and fork presentation snapshots. Existing cable-lift table comment spellings are renamed only, not interpreted as data fixes.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U029 — `b2375341bb` — Rename members of RideConstructionState
+
+- **Source:** `b2375341bbc96db4288aea3f50375b9b301027fb`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 333 → 332.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename RideConstructionState members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Keep all construction states and transitions, fork maze building controls, topology invalidation and safe mutation logic. No new construction behavior or disabled-widget bitmask is copied from legacy source bodies.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
