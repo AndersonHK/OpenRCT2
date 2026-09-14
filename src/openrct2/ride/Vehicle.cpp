@@ -696,7 +696,7 @@ namespace OpenRCT2
 
         for (auto vehicle : TrainManager::View())
         {
-            vehicle->Update();
+            vehicle->update();
         }
     }
 
@@ -1228,7 +1228,7 @@ namespace OpenRCT2
      *
      *  rct2: 0x006D77F2
      */
-    void Vehicle::Update()
+    void Vehicle::update()
     {
         PROFILED_FUNCTION();
 

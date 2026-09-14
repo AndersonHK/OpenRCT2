@@ -696,11 +696,11 @@ TEST_F(PlayTests, TrainCannotPublishStationWhileZeroPrefixPassengersAreStillAlig
     target.train->num_peeps = 1;
     target.train->next_free_seat = 0;
 
-    target.train->Update();
+    target.train->update();
     EXPECT_EQ(target.train->status, Vehicle::Status::unloadingPassengers);
 
     target.train->num_peeps = 0;
-    target.train->Update();
+    target.train->update();
     EXPECT_EQ(target.train->status, Vehicle::Status::movingToEndOfStation);
 }
 

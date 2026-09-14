@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 196 / 361 source commits recorded
+## Progress: 197 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2174,10 +2174,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U196 — `ab3065fbe1` — Merge Localisation/master into OpenRCT2/develop
 
 - **Source:** `ab3065fbe12a43e80a34c02ea46fb486c91d68c2`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `6077ca4edd4f53c7242e83daf0004dbe90bc9a03`.
 - **Remaining:** 166 → 165.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Add Russian labels 7040 path additions, 7041 park information panel and 7042 date information panel.
 - **Additional decisions / behavior:** Adopt current source translations in historical order; existing English IDs match and fork IDs 8000-8041 are untouched. No gameplay change.
 - **Verification:** Read entire three-line source delta; resulting diff and blob identity 075c93f39d match source; diff check passed.
 - **Pending / concerns:** No runtime test needed for localized labels; standing validation debt unchanged.
+
+### U197 — `b5c1570b78` — Rename members of smaller entities (#26946)
+
+- **Source:** `b5c1570b782dc1587a475045491f67c9c5dcb0ac`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 165 → 164.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Manually rename small-entity members and constants across all 42 source paths plus fork train tests; adapt fork registry/presentation guards, entity list and batched park serialization.
+- **Additional decisions / behavior:** Preserve existing simulation/RNG/timing, layout and serialization order including duplicate legacy fields. Removed Paint declarations have no definitions/callers. Renamed particle serializers remain outside existing network checksum and snapshot coverage. No public script key, API119/protocol11/save60016 change.
+- **Verification:** B39 first build 86.31s zero warnings/errors; all 240 tests in 13 suites pass in 24.216s. 43-file token proof, ten-file source equality with five documented pre-existing comment spellings; residual search and diff check pass.
+- **Pending / concerns:** Standing interactive/native non-Windows/live multiplayer and replay limitations unchanged.

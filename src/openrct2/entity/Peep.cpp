@@ -241,7 +241,7 @@ namespace OpenRCT2
                 nextTick128UpdateIndex += kTicks128Period;
             }
 
-            staff->Update();
+            staff->update();
 
             index++;
             if (staffPosition < staffExecutionList.size() && staffExecutionList[staffPosition] == staff)
@@ -2715,7 +2715,7 @@ namespace OpenRCT2
 
             if (peep->AnimationGroup == PeepAnimationGroup::balloon && peep->x != kLocationNull)
             {
-                Balloon::Create({ peep->x, peep->y, spawn_height }, peep->balloonColour, false);
+                Balloon::create({ peep->x, peep->y, spawn_height }, peep->balloonColour, false);
                 peep->WindowInvalidateFlags |= PEEP_INVALIDATE_PEEP_INVENTORY;
                 peep->updateAnimationGroup();
             }

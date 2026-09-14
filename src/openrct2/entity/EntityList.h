@@ -63,9 +63,9 @@ namespace OpenRCT2
                 {
                     Entity = entity;
                 }
-                else if constexpr (requires { T::cEntityType; })
+                else if constexpr (requires { T::kEntityType; })
                 {
-                    if (entity != nullptr && entity->type == T::cEntityType)
+                    if (entity != nullptr && entity->type == T::kEntityType)
                     {
                         Entity = entity->cast<T>();
                     }
@@ -179,7 +179,7 @@ namespace OpenRCT2
             const auto id = (*iter).ToUnderlying();
             assert(id < kMaxEntities);
             auto* entity = registry->entities[id];
-            assert(entity != nullptr && entity->type == T::cEntityType);
+            assert(entity != nullptr && entity->type == T::kEntityType);
             return entity->cast<T>();
         }
         // iterator traits
@@ -201,7 +201,7 @@ namespace OpenRCT2
     public:
         EntityList()
             : registry(getGameState().entities)
-            , list(registry.GetEntityList(T::cEntityType))
+            , list(registry.GetEntityList(T::kEntityType))
         {
         }
 

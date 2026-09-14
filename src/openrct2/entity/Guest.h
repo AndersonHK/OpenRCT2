@@ -262,7 +262,7 @@ namespace OpenRCT2
 
     struct Guest : Peep
     {
-        static constexpr auto cEntityType = EntityType::guest;
+        static constexpr auto kEntityType = EntityType::guest;
 
     public:
         uint8_t guestNumRides;

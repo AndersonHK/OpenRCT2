@@ -86,7 +86,7 @@ namespace OpenRCT2
 
     struct Vehicle : OpenRCT2::EntityBase
     {
-        static constexpr auto cEntityType = OpenRCT2::EntityType::vehicle;
+        static constexpr auto kEntityType = OpenRCT2::EntityType::vehicle;
 
         enum class Type : uint8_t
         {
@@ -249,7 +249,7 @@ namespace OpenRCT2
         {
             return SubType == Type::head;
         }
-        void Update();
+        void update();
         void AccumulateLiveRatings();
         Vehicle* GetHead();
         const Vehicle* GetHead() const;

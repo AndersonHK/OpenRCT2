@@ -274,8 +274,8 @@ namespace OpenRCT2
         {
             if constexpr (std::is_same_v<T, EntityBase>)
                 return entity;
-            else if constexpr (requires { T::cEntityType; })
-                return entity != nullptr && entity->type == T::cEntityType ? entity->cast<T>() : nullptr;
+            else if constexpr (requires { T::kEntityType; })
+                return entity != nullptr && entity->type == T::kEntityType ? entity->cast<T>() : nullptr;
             else
                 return entity == nullptr ? nullptr : entity->as<T>();
         }
@@ -317,7 +317,7 @@ namespace OpenRCT2
         template<typename T>
         T* CreateEntity()
         {
-            return static_cast<T*>(CreateEntity(T::cEntityType));
+            return static_cast<T*>(CreateEntity(T::kEntityType));
         }
 
         // Use only with imports that must happen at a specified index
@@ -326,7 +326,7 @@ namespace OpenRCT2
         template<typename T>
         T* CreateEntityAt(EntityId index)
         {
-            return static_cast<T*>(CreateEntityAt(index, T::cEntityType));
+            return static_cast<T*>(CreateEntityAt(index, T::kEntityType));
         }
 
         const EntityIdList& GetEntityList(EntityType id);
@@ -368,7 +368,7 @@ namespace OpenRCT2
         {
             for (auto misc : EntityList<T>())
             {
-                misc->Update();
+                misc->update();
             }
         }
 
@@ -420,8 +420,8 @@ namespace OpenRCT2
         auto* entity = GetEntityForPresentation(id);
         if constexpr (std::is_same_v<T, EntityBase>)
             return entity;
-        else if constexpr (requires { T::cEntityType; })
-            return entity != nullptr && entity->type == T::cEntityType ? entity->cast<T>() : nullptr;
+        else if constexpr (requires { T::kEntityType; })
+            return entity != nullptr && entity->type == T::kEntityType ? entity->cast<T>() : nullptr;
         else
             return entity == nullptr ? nullptr : entity->as<T>();
     }
