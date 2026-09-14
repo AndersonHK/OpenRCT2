@@ -76,6 +76,7 @@ namespace OpenRCT2::TileInspector
 
         // Swap their memory
         std::swap(*firstElement, *secondElement);
+        InvalidateTileElementReferences(TileCoordsXY(loc));
 
         // Swap the 'last map element for tile' flag if either one of them was last
         if ((firstElement)->isLastForTile() || (secondElement)->isLastForTile())

@@ -91,6 +91,13 @@ namespace OpenRCT2
     bool gMapLandRightsUpdateSuccess;
 
     static TilePointerIndex<TileElement> _tileIndex;
+    static uint64_t _tileElementRevision = 1;
+    static std::array<uint64_t, kMaximumMapSizeTechnical * kMaximumMapSizeTechnical> _tileElementRevisions{};
+
+    static void ResetTileElementReferences()
+    {
+        _tileElementRevisions.fill(++_tileElementRevision);
+    }
     static thread_local const MapPresentationSnapshot* _presentationSnapshot;
     static std::bitset<kMaximumMapSizeTechnical * kMaximumMapSizeTechnical> _presentationDirtyTiles;
     static std::vector<uint32_t> _presentationDirtyWorklist;
@@ -120,6 +127,7 @@ namespace OpenRCT2
         _presentationDirtyTiles.reset();
         _presentationDirtyWorklist.clear();
         _presentationResetPending = true;
+        ResetTileElementReferences();
         MapTopology::Reset();
     }
 
@@ -134,6 +142,7 @@ namespace OpenRCT2
         _presentationDirtyWorklist = std::move(_presentationDirtyWorklistStash);
         _presentationEpoch = _presentationEpochStash;
         _presentationResetPending = _presentationResetPendingStash;
+        ResetTileElementReferences();
         MapTopology::Reset();
     }
 
@@ -365,6 +374,7 @@ namespace OpenRCT2
         _presentationDirtyWorklist.clear();
         _presentationDirtyTiles.reset();
         RideRating::ClearLocalContextCache();
+        ResetTileElementReferences();
         MapTopology::Reset();
     }
 
@@ -565,6 +575,19 @@ namespace OpenRCT2
         return is_x_valid && is_y_valid;
     }
 
+    uint64_t GetTileElementRevision(const TileCoordsXY& tile)
+    {
+        if (!IsTileLocationValid(tile))
+            return 0;
+        return _tileElementRevisions[tile.x + tile.y * kMaximumMapSizeTechnical];
+    }
+
+    void InvalidateTileElementReferences(const TileCoordsXY& tile)
+    {
+        if (IsTileLocationValid(tile))
+            _tileElementRevisions[tile.x + tile.y * kMaximumMapSizeTechnical] = ++_tileElementRevision;
+    }
+
     TileElement* MapGetFirstElementAt(const TileCoordsXY& tilePos)
     {
         if (!IsTileLocationValid(tilePos))
@@ -590,13 +613,17 @@ namespace OpenRCT2
             Guard::ArgumentInRange(item.tile.y, 0, kMaximumMapSizeTechnical - 1, "tile.y");
             _originals.push_back({ item.tile, _tileIndex.GetFirstElementAt(item.tile) });
             _tileIndex.SetTile(item.tile, item.elements);
+            InvalidateTileElementReferences(item.tile);
         }
     }
 
     ScopedTileIndexOverride::~ScopedTileIndexOverride()
     {
         for (auto item = _originals.rbegin(); item != _originals.rend(); item++)
+        {
             _tileIndex.SetTile(item->tile, item->elements);
+            InvalidateTileElementReferences(item->tile);
+        }
     }
 
     TileElement* MapGetNthElementAt(const CoordsXY& coords, int32_t n)
@@ -1245,6 +1272,7 @@ namespace OpenRCT2
     static void PublishTileMutation(
         const TileCoordsXY& tile, const TileElement& element, const TileMutationMode mode)
     {
+        InvalidateTileElementReferences(tile);
         if (mode == TileMutationMode::deferred)
             return;
 
@@ -1500,6 +1528,7 @@ namespace OpenRCT2
         std::ranges::copy(elements, replacement);
         _tileIndex.SetTile(tile, replacement);
         _tileElementsInUse = _tileElementsInUse - oldCount + newCount;
+        InvalidateTileElementReferences(tile);
 
         if (mode == TileMutationMode::immediate)
         {
@@ -2202,6 +2231,7 @@ namespace OpenRCT2
                 ClearElementsAt({ x, y });
             }
         }
+        ResetTileElementReferences();
         MapTopology::Reset();
     }
 

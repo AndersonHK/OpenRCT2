@@ -15400,7 +15400,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "e0f8987dcd718c028711eb16eb1f8071e3edac6c"
+      ],
       "verification_evidence": [
         "Read entire three-line patch; final diff/blob d4c1fd5df0 matches source, diff check passes."
       ],
@@ -15452,9 +15454,11 @@
         "D09"
       ],
       "review_level": "targeted-code-review",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Full 940-line source inspected; four new files equal source tokens plus enumerated lifetime changes; ScMap overload/options exact. B42 builds 39.50s and final 12.30s, zero warnings/errors. Initial focused 3/4 (overbroad resize test corrected); final 276/17 suites passed in 35.971s, including all four real API120 plugin tests."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -15464,7 +15468,10 @@
       "merge_conflict_paths": [
         "src/openrct2/libopenrct2.vcxproj"
       ],
-      "verification_gate": "P7"
+      "verification_gate": "P7",
+      "port_commit_locator": "Upstream-Commit: e25c301668db6ac1dd496e30463276f9905d07d5",
+      "implementation_decisions": "D09 approved: preserve upstream physical traversal, including nonreciprocal edges, first neighbor per direction, destination-only queue/wide filtering and ghost banner rules. Replace ambiguous same-height fallback with explicit stale-reference failure; live properties remain live and unaffected tiles survive resize. Revisions cover deferred/ghost edits, inspector reorder/type changes and map lifecycle independently of guest topology. Correct world-coordinate and nullable/lifetime declarations. Protocol11/save60016/fork fare, transport, seats and crowding unchanged. Detailed trace and failed-test correction in B42.",
+      "pending_validation": "Interactive plugin visualization, live multiplayer/replay and native non-Windows/full disabled-scripting builds unverified; existing standing debt retained. No owner choice pending."
     },
     {
       "sha": "ac926d5550b21addad8fc0630c0e528d931915e5",
@@ -27210,8 +27217,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 203,
-    "remaining_after_receipt": 158,
+    "accounted_in_this_tree": 204,
+    "remaining_after_receipt": 157,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

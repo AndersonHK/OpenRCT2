@@ -164,6 +164,11 @@ namespace OpenRCT2
         const TileCoordsXY& tile, std::vector<TileElement> elements,
         TileMutationMode mode = TileMutationMode::immediate);
 
+    // Simulation-thread structural identity, independent of routing and presentation caches.
+    // References must be reacquired after insertion, deletion, replacement or reordering on their tile.
+    uint64_t GetTileElementRevision(const TileCoordsXY& tile);
+    void InvalidateTileElementReferences(const TileCoordsXY& tile);
+
     template<typename T = TileElement>
     T* MapGetFirstTileElementWithBaseHeightBetween(const TileCoordsXYRangedZ& loc)
     {

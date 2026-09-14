@@ -112,6 +112,7 @@ namespace OpenRCT2::Scripting
             return JS_UNDEFINED;
         }
         CreateBannerEntryIfNeeded(element, data->coords);
+        InvalidateTileElementReferences(TileCoordsXY(data->coords));
         Invalidate(data, wasRoutingTopology || IsRoutingTopologyElement(*element));
         return JS_UNDEFINED;
     }

@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 203 / 361 source commits recorded
+## Progress: 204 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2251,10 +2251,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U203 — `ad578a121d` — Merge Localisation/master into OpenRCT2/develop
 
 - **Source:** `ad578a121d0a6ef633c3d36523626f69949fff5d`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `e0f8987dcd718c028711eb16eb1f8071e3edac6c`.
 - **Remaining:** 159 → 158.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Add Brazilian Portuguese labels 7040 path additions, 7041 park info and 7042 date info.
 - **Additional decisions / behavior:** Adopt current source labels in historical order, matching established English IDs. No gameplay change.
 - **Verification:** Read entire three-line patch; final diff/blob d4c1fd5df0 matches source, diff check passes.
 - **Pending / concerns:** No runtime test needed for localized labels; standing debt unchanged.
+
+### U204 — `e25c301668` — feat: add PathNavigator (#26412)
+
+- **Source:** `e25c301668db6ac1dd496e30463276f9905d07d5`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 158 → 157.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Add API120 PathNavigator/PathConnection physical-path plugin bindings and MSBuild registration. Port all 11 source paths; add per-tile structural reference revisions at core mutation owners and four actual plugin regression tests.
+- **Additional decisions / behavior:** D09 approved: preserve upstream physical traversal, including nonreciprocal edges, first neighbor per direction, destination-only queue/wide filtering and ghost banner rules. Replace ambiguous same-height fallback with explicit stale-reference failure; live properties remain live and unaffected tiles survive resize. Revisions cover deferred/ghost edits, inspector reorder/type changes and map lifecycle independently of guest topology. Correct world-coordinate and nullable/lifetime declarations. Protocol11/save60016/fork fare, transport, seats and crowding unchanged. Detailed trace and failed-test correction in B42.
+- **Verification:** Full 940-line source inspected; four new files equal source tokens plus enumerated lifetime changes; ScMap overload/options exact. B42 builds 39.50s and final 12.30s, zero warnings/errors. Initial focused 3/4 (overbroad resize test corrected); final 276/17 suites passed in 35.971s, including all four real API120 plugin tests.
+- **Pending / concerns:** Interactive plugin visualization, live multiplayer/replay and native non-Windows/full disabled-scripting builds unverified; existing standing debt retained. No owner choice pending.

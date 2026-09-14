@@ -17,7 +17,10 @@
 #include <openrct2/scripting/ScriptEngine.h>
 #include <openrct2/world/Map.h>
 #include <openrct2/world/MapTopology.h>
+#include <openrct2/world/TileInspector.h>
+#include <openrct2/world/tile_element/BannerElement.h>
 #include <openrct2/world/tile_element/EntranceElement.h>
+#include <openrct2/world/tile_element/PathElement.h>
 #include <openrct2/world/tile_element/SurfaceElement.h>
 #include <quickjs.h>
 
@@ -46,6 +49,273 @@ protected:
 };
 
 #ifdef ENABLE_SCRIPTING
+
+class PathNavigatorScriptingTests : public ScriptingTests
+{
+protected:
+    JSContext* _js{};
+
+    void SetUp() override
+    {
+        ScriptingTests::SetUp();
+        MapInit({ 16, 16 });
+        auto& engine = static_cast<ScriptEngine&>(_context->GetScriptEngine());
+        engine.AddNetworkPlugin(R"(
+            registerPlugin({
+                name: 'test-path-navigator', version: '1', authors: ['openrct2-test'],
+                type: 'remote', licence: 'MIT', minApiVersion: 120, targetApiVersion: 120,
+                main: function () {}
+            });
+        )");
+        engine.LoadTransientPlugins();
+        engine.Tick();
+        for (const auto& plugin : engine.GetPlugins())
+        {
+            if (plugin->GetMetadata().Name == "test-path-navigator")
+            {
+                ASSERT_TRUE(plugin->HasStarted());
+                _js = plugin->GetContext();
+            }
+        }
+        ASSERT_NE(_js, nullptr);
+    }
+
+    void Check(const char* code)
+    {
+        SCOPED_TRACE(code);
+        auto result = JS_Eval(_js, code, strlen(code), "path-navigator-test", JS_EVAL_TYPE_GLOBAL);
+        if (JS_IsException(result))
+        {
+            auto exception = JS_GetException(_js);
+            const char* message = JS_ToCString(_js, exception);
+            ADD_FAILURE() << (message == nullptr ? "JS exception" : message);
+            JS_FreeCString(_js, message);
+            JS_FreeValue(_js, exception);
+        }
+        else
+        {
+            EXPECT_EQ(JS_ToBool(_js, result), 1);
+        }
+        JS_FreeValue(_js, result);
+    }
+
+    static TileElement Path(uint8_t height = 14, uint8_t edges = 15)
+    {
+        TileElement element{};
+        element.clearAs(TileElementType::path);
+        element.baseHeight = height;
+        element.clearanceHeight = height + 4;
+        element.asPath()->setEdges(edges);
+        return element;
+    }
+
+    void SetTile(const TileCoordsXY& tile, std::initializer_list<TileElement> paths)
+    {
+        std::vector<TileElement> elements{ *reinterpret_cast<TileElement*>(MapGetSurfaceElementAt(tile)) };
+        elements.insert(elements.end(), paths);
+        ASSERT_EQ(ReplaceTileElementsAt(tile, std::move(elements)), TileMutationStatus::ok);
+    }
+
+    void Capture()
+    {
+        Check("globalThis.nav = map.getPathNavigator({x:64,y:64},1); globalThis.saved = nav.current; saved !== null");
+    }
+
+    void CheckInvalid()
+    {
+        Check(R"(
+            nav.current === null && nav.edges === null && nav.permittedEdges === null &&
+            nav.getConnectedPaths() === null && nav.moveTo(0) === false &&
+            saved.isSloped === null && saved.isWide === null && saved.isQueue === null &&
+            saved.ride === null && saved.station === null && saved.slopeDirection === null &&
+            saved.position.x === 64 && saved.position.y === 64 && saved.position.z === 112 &&
+            saved.elementIndex === 1 && saved.direction === null
+        )");
+    }
+};
+
+TEST_F(PathNavigatorScriptingTests, PhysicalOptionsAndWorldCoordinatesDoNotChangeGuestTopology)
+{
+    SetTile({ 2, 2 }, { Path() });
+    SetTile({ 1, 2 }, { Path(14, 0) }); // Upstream does not require a reciprocal neighbor edge.
+    auto queue = Path();
+    queue.asPath()->setIsQueue(true);
+    queue.asPath()->setRideIndex(RideId::FromUnderlying(7));
+    queue.asPath()->setStationIndex(StationIndex::FromUnderlying(2));
+    SetTile({ 2, 3 }, { queue });
+    auto wide = Path();
+    wide.asPath()->setWide(true);
+    SetTile({ 3, 2 }, { wide });
+    auto ghost = Path();
+    ghost.setGhost(true);
+    SetTile({ 2, 1 }, { ghost });
+    const auto topology = MapTopology::GetEpoch();
+    const auto connectivity = MapTopology::GetPathConnectivityEpoch();
+    Check(R"(
+        (() => {
+            for (let mask=0; mask<16; mask++) {
+                const options = {includeQueues:!!(mask&1),includeWidePaths:!!(mask&2),
+                    includeGhosts:!!(mask&4),respectBanners:!!(mask&8)};
+                const nav = map.getPathNavigator({x:64,y:64,z:112},options);
+                const expected = [0];
+                if (options.includeQueues) expected.push(1);
+                if (options.includeWidePaths) expected.push(2);
+                if (options.includeGhosts) expected.push(3);
+                const connections = nav.getConnectedPaths();
+                if (JSON.stringify(connections.map(c=>c.direction)) !== JSON.stringify(expected)) return false;
+                for (let d=0; d<4; d++) {
+                    const moving = map.getPathNavigator({x:64,y:64},1,options);
+                    if (moving.moveTo(d) !== expected.includes(d)) return false;
+                    if (expected.includes(d) && moving.current.direction !== d) return false;
+                }
+                const q = connections.find(c=>c.direction===1);
+                if (q && (!q.isQueue || q.ride!==7 || q.station!==2)) return false;
+            }
+            const startQueue = map.getPathNavigator({x:64,y:96,z:112});
+            const startWide = map.getPathNavigator({x:96,y:64,z:112});
+            const indexedGhost = map.getPathNavigator({x:64,y:32},1);
+            return startQueue.current.isQueue && startWide.current.isWide && indexedGhost.current===null &&
+                map.getPathNavigator({x:64,y:32,z:112})===null &&
+                map.getPathNavigator({x:2,y:2},1)===null &&
+                map.getPathNavigator({x:-32,y:64},1)===null &&
+                map.getPathNavigator({x:64,y:64},999)===null &&
+                map.getPathNavigator({x:64,y:64},1).moveTo(4)===false;
+        })()
+    )");
+    EXPECT_EQ(MapTopology::GetEpoch(), topology);
+    EXPECT_EQ(MapTopology::GetPathConnectivityEpoch(), connectivity);
+    Check("globalThis.nav=map.getPathNavigator({x:64,y:64},1); globalThis.neighbor=nav.getConnectedPaths()[0]; true");
+    SetTile({ 1, 2 }, { Path() });
+    Check("nav.current!==null && neighbor.isWide===null && nav.moveTo(0) && nav.current.elementIndex===1");
+    SetTile({ 2, 2 }, { Path() });
+    Check("nav.current!==null && nav.current.position.x===32");
+}
+
+TEST_F(PathNavigatorScriptingTests, SlopesBannersAndFirstMatchingDuplicateFollowUpstreamRules)
+{
+    for (Direction direction = 0; direction < 4; ++direction)
+    {
+        SCOPED_TRACE(direction);
+        auto slope = Path(14, (1 << direction) | (1 << DirectionReverse(direction)));
+        slope.asPath()->setSloped(true);
+        slope.asPath()->setSlopeDirection(direction);
+        SetTile({ 4, 4 }, { slope });
+        SetTile(TileCoordsXY{ 4, 4 } + TileDirectionDelta[direction], { Path(16) });
+        SetTile(TileCoordsXY{ 4, 4 } + TileDirectionDelta[DirectionReverse(direction)], { Path(14) });
+        auto global = JS_GetGlobalObject(_js);
+        JS_SetPropertyStr(_js, global, "uphill", JS_NewInt32(_js, direction));
+        JS_FreeValue(_js, global);
+        Check(R"(
+            (() => {
+                const nav=map.getPathNavigator({x:128,y:128,z:112});
+                if (!nav.current.isSloped || nav.current.slopeDirection!==uphill) return false;
+                const paths=nav.getConnectedPaths();
+                if (paths.length!==2 || paths.find(c=>c.direction===uphill).position.z!==128) return false;
+                if (!nav.moveTo(uphill) || nav.current.position.z!==128) return false;
+                return nav.moveTo((uphill+2)%4) && nav.current.position.z===112 && nav.current.isSloped;
+            })()
+        )");
+    }
+    TileElement banner{};
+    banner.clearAs(TileElementType::banner);
+    banner.baseHeight = 16;
+    banner.asBanner()->setAllowedEdges(3);
+    auto ghostBanner = banner;
+    ghostBanner.setGhost(true);
+    ghostBanner.asBanner()->setAllowedEdges(5);
+    SetTile({ 2, 2 }, { Path(), banner, ghostBanner });
+    auto duplicate = Path();
+    duplicate.asPath()->setWide(true);
+    SetTile({ 1, 2 }, { Path(), duplicate });
+    SetTile({ 2, 3 }, { Path() });
+    SetTile({ 3, 2 }, { Path() });
+    SetTile({ 2, 1 }, { Path() });
+    Check(R"(
+        (() => {
+            const unrestricted=map.getPathNavigator({x:64,y:64},1);
+            const restricted=map.getPathNavigator({x:64,y:64},1,{respectBanners:true,includeWidePaths:true});
+            const paths=restricted.getConnectedPaths();
+            return unrestricted.edges===15 && unrestricted.permittedEdges===15 &&
+                restricted.edges===15 && restricted.permittedEdges===1 && paths.length===1 &&
+                paths[0].direction===0 && paths[0].elementIndex===1 && !paths[0].isWide &&
+                restricted.moveTo(1)===false && restricted.moveTo(0)===true;
+        })()
+    )");
+}
+
+TEST_F(PathNavigatorScriptingTests, StructuralEditsInvalidateReferencesWithoutAliasingDuplicatePaths)
+{
+    SetTile({ 2, 2 }, { Path(), Path() });
+    Capture();
+    ASSERT_EQ(EraseTileElement({ 2, 2 }, MapGetNthElementAt({ 64, 64 }, 1)).status, TileMutationStatus::ok);
+    CheckInvalid(); // The identical second path now occupies the saved index.
+    Capture();
+    SetTile({ 2, 2 }, { Path() }); // Even an identical replacement is a new identity.
+    CheckInvalid();
+    Capture();
+    const auto topology = MapTopology::GetEpoch();
+    auto ghost = Path(10);
+    ghost.setGhost(true);
+    ASSERT_EQ(InsertTileElement({ 2, 2 }, ghost, TileMutationMode::deferred).status, TileMutationStatus::ok);
+    EXPECT_EQ(MapTopology::GetEpoch(), topology);
+    CheckInvalid();
+    ASSERT_EQ(
+        EraseTileElement({ 2, 2 }, MapGetNthElementAt({ 64, 64 }, 0), TileMutationMode::deferred).status,
+        TileMutationStatus::ok);
+    ghost.baseHeight = 14;
+    ASSERT_EQ(InsertTileElement({ 2, 2 }, ghost, TileMutationMode::deferred).status, TileMutationStatus::ok);
+    Capture();
+    ASSERT_EQ(
+        EraseTileElement({ 2, 2 }, MapGetNthElementAt({ 64, 64 }, 2), TileMutationMode::deferred).status,
+        TileMutationStatus::ok);
+    EXPECT_EQ(MapTopology::GetEpoch(), topology);
+    CheckInvalid();
+    SetTile({ 2, 2 }, { Path(), Path() });
+    Capture();
+    ASSERT_EQ(TileInspector::SwapElementsAt({ 64, 64 }, 1, 2, true).error, GameActions::Status::ok);
+    CheckInvalid();
+    Capture();
+    SetTile({ 8, 8 }, { Path() });
+    MapGetNthElementAt({ 64, 64 }, 1)->asPath()->setEdges(5);
+    Check("nav.current!==null && nav.edges===5 && saved.isSloped===false");
+    Check("map.getTile(2,2).elements[1].type='track'; map.getTile(2,2).elements[1].type='footpath'; true");
+    CheckInvalid();
+}
+
+TEST_F(PathNavigatorScriptingTests, TemporaryMapsAndShiftsInvalidateWhileUnchangedTilesSurviveResize)
+{
+    SetTile({ 2, 2 }, { Path() });
+    Capture();
+    std::array<TileElement, 2> temporary{ *MapGetNthElementAt({ 64, 64 }, 0), Path() };
+    temporary[0].setLastForTile(false);
+    temporary[1].setLastForTile(true);
+    {
+        ScopedTileIndexOverride override({ { { 2, 2 }, temporary.data() } });
+        CheckInvalid();
+        Capture();
+    }
+    CheckInvalid();
+    Capture();
+    StashMap();
+    MapInit({ 16, 16 });
+    SetTile({ 2, 2 }, { Path() });
+    CheckInvalid();
+    Capture();
+    UnstashMap();
+    CheckInvalid();
+    Capture();
+    GameActions::MapChangeSizeAction expand({ 18, 18 });
+    EXPECT_EQ(expand.Execute(getGameState(), getGameState().park).error, GameActions::Status::ok);
+    Check("nav.current!==null && saved.isSloped===false");
+    SetTile({ 16, 2 }, { Path() });
+    Check("globalThis.edge=map.getPathNavigator({x:512,y:64},1); globalThis.edgeSaved=edge.current; edgeSaved!==null");
+    GameActions::MapChangeSizeAction shrink({ 16, 16 });
+    EXPECT_EQ(shrink.Execute(getGameState(), getGameState().park).error, GameActions::Status::ok);
+    Check("nav.current!==null && saved.isSloped===false && edge.current===null && edgeSaved.isSloped===null");
+    GameActions::MapChangeSizeAction shift({ 18, 18 }, { 1, 0 });
+    EXPECT_EQ(shift.Execute(getGameState(), getGameState().park).error, GameActions::Status::ok);
+    CheckInvalid();
+}
 
 TEST_F(ScriptingTests, MultipleSubscribersToSameEventShouldNotCrash)
 {
