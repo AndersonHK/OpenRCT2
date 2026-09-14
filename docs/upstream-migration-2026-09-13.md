@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 269 / 361 source commits recorded
+## Progress: 270 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2977,10 +2977,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U269 — `a0840b2a71` — Close #19000: Add sprite font glyph for the Won
 
 - **Source:** `a0840b2a711c8a97db3a6464ec9a2f8cc3dc854f`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `d99bbfa52bc3672f30b34d6773ba75fb747504f1`.
 - **Remaining:** 93 → 92.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Add exact Won glyph PNGs in all three font sizes, manifest/enum/Unicode lookup entries and English currency label using the actual symbol.
 - **Additional decisions / behavior:** Glyph support and label only: exchange rates, currency arithmetic, cent-money model and saved values unchanged. Remove whitespace on the new blank enum line so diff checks pass. Preserve fork English string IDs and custom text.
 - **Verification:** Complete textual source inspected; three exact upstream PNG blobs with valid headers, bold glyph viewed; manifest ordering and corresponding enum/map insertions checked. B61 rebuild/lookup checkpoint pending.
 - **Pending / concerns:** Font archive regeneration and rendered currency text/non-Windows checks pending.
+
+### U270 — `e9c7f6667c` — Move currency glyphs to currency folder
+
+- **Source:** `e9c7f6667ccc2d6e44fd8fa5f4bfc2284d7d94ed`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 92 → 91.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Move 15 byte-identical currency glyphs to their currency directory and update paths; add loaded glyph mapping regression and B61 validation.
+- **Additional decisions / behavior:** Path reorganization only. Old U+00B5 sprite files retain their legacy euro slot while names now describe U+20AC. Preserve all entry order/metadata and image bytes. Font test fixture initialization/type/header corrections documented B61; no production workarounds.
+- **Verification:** Full manifest delta and all 15 R100 blobs checked; fonts.dat regenerated with 1020 entries, all paths resolve; final registered glyph/language/widget run passed 24 tests in 0.571s. B61 records all earlier fixture failures and final build evidence.
+- **Pending / concerns:** Actual text rendering/TTF/platform/package and standing gameplay/UI/MP/replay checks remain.

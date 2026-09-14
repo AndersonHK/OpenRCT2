@@ -12,12 +12,54 @@
 #include "openrct2/rct12/CSStringConverter.h"
 
 #include <gtest/gtest.h>
+#include <openrct2/Context.h>
+#include <openrct2/OpenRCT2.h>
+#include <openrct2/SpriteIds.h>
+#include <openrct2/core/UnicodeChar.h>
+#include <openrct2/drawing/Font.h>
+#include <openrct2/drawing/Drawing.Sprite.h>
 
 using namespace OpenRCT2;
 
 class Localisation : public testing::Test
 {
 };
+
+TEST_F(Localisation, SpriteFontsHaveDistinctLowercaseHardSignAndWonInEveryStyle)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    // Enable resource lookup after creating the headless context, without creating a native window.
+    struct RestoreGraphics
+    {
+        ~RestoreGraphics() { gOpenRCT2NoGraphics = true; }
+    } restoreGraphics;
+    gOpenRCT2NoGraphics = false;
+    GfxLoadG2PalettesFontsTracks();
+    FontSpriteInitialiseCharacters();
+    EXPECT_TRUE(FontSupportsStringSprite(u8"ъ₩"));
+    EXPECT_EQ(FontSpriteGetCodepointOffset(U'ъ'), static_cast<int32_t>(SPR_FONTS_CYRILLIC_HARD_SIGN_LOWER - SPR_FONTS_BEGIN));
+    EXPECT_EQ(FontSpriteGetCodepointOffset(U'₩'), static_cast<int32_t>(SPR_FONTS_WON_SIGN - SPR_FONTS_BEGIN));
+    for (const auto style : kFontStyles)
+    {
+        const auto lower = FontSpriteGetCodepointSprite(style, U'ъ').GetIndex();
+        const auto upper = FontSpriteGetCodepointSprite(style, U'Ъ').GetIndex();
+        const auto won = FontSpriteGetCodepointSprite(style, U'₩').GetIndex();
+        const auto fallback = FontSpriteGetCodepointSprite(style, U'?').GetIndex();
+        EXPECT_NE(lower, upper);
+        EXPECT_NE(won, fallback);
+        EXPECT_GE(lower, SPR_FONTS_BEGIN);
+        EXPECT_LT(lower, SPR_FONTS_END);
+        EXPECT_GE(won, SPR_FONTS_BEGIN);
+        EXPECT_LT(won, SPR_FONTS_END);
+        ASSERT_NE(GfxGetG1Element(lower), nullptr);
+        ASSERT_NE(GfxGetG1Element(won), nullptr);
+        EXPECT_GT(GfxGetG1Element(lower)->width, 0);
+        EXPECT_GT(GfxGetG1Element(won)->width, 0);
+    }
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // Tests for RCT2StringToUTF8
