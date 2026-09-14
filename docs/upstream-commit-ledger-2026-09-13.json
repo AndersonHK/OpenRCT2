@@ -24826,7 +24826,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "2ca51d54c0cf88c4ab7679b01086e9ea744e4e20"
+      ],
       "verification_evidence": [
         "B85: four-body equivalence and new-file source equality; full solution zero warnings/errors;96 selected tests passed. Clears U317 compile debt."
       ],
@@ -24920,9 +24922,11 @@
       "note": "No remerge-resolution delta detected. Account for constituent commits before ancestry reconciliation.",
       "decisions": [],
       "review_level": "remerge-probe",
-      "implementation_status": "not-ported",
+      "implementation_status": "history receipt",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Actual git remerge inspection; B84/B85 passed for constituent payload."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -24940,7 +24944,10 @@
         "src/openrct2/scenes/title/TitleScene.cpp",
         "test/tests/PlayTests.cpp"
       ],
-      "verification_gate": "P0"
+      "verification_gate": "P0",
+      "port_commit_locator": "Upstream-Commit: ef7707a9df3b3eec12b522090cfc6a585f70aa11",
+      "implementation_decisions": "Actual remerge diff is empty; retain U316-U318 adapted payload and fork presentation ownership.",
+      "pending_validation": "None."
     },
     {
       "sha": "83cbac90ec522b3b4e28141e600c62080a065534",
@@ -28015,8 +28022,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 318,
-    "remaining_after_receipt": 43,
+    "accounted_in_this_tree": 319,
+    "remaining_after_receipt": 42,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
