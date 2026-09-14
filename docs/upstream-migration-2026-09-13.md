@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 67 / 361 source commits recorded
+## Progress: 68 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -755,10 +755,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U067 — `e89ab11a6a` — Rename members of PixelDataPaletteKind
 
 - **Source:** `e89ab11a6a1e1fa0f04669da2b93ed895aae0c2b`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `952627bca2ab606710ec8b0b124ea40b30d05551`.
 - **Remaining:** 295 → 294.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename PixelDataPaletteKind members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Preserve palette-kind values, keep/closest/dither JS strings, palette index retention and importer mode selection. No quantization or dithering algorithm change; fork image/rendering behavior stays intact.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U068 — `882467fe20` — Rename members of GuestList::TabId
+
+- **Source:** `882467fe20a6446d58e39a91dbd56860e3f5934b`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 294 → 293.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename TabId members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Scope TabId renaming to GuestList only. Preserve tab indices, pagination, grouping refresh, animation periods and the fork visibility restoration when returning from a summary to individual guests.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
