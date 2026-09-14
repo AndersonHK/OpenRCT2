@@ -18365,7 +18365,9 @@
       "decisions": [],
       "review_level": "targeted-code-review",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "3b06fa75fe95078d25800a5718e98700d84d44e1"
+      ],
       "verification_evidence": [
         "Full source and existing updateWidgets read; solution build 16.83s zero warnings/errors; 39 Play/TrainStationAssignment/EntityPresentationSnapshot tests passed 7.174s. B60."
       ],
@@ -19092,9 +19094,11 @@
       "note": "Take final sprite-font glyph definitions/assets and numeric codepoints as one package; check money glyphs with cent formatting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "All 690 R100 source renames and complete old/new manifest parsed; codepoint identity, unchanged metadata/order, byte equality of every destination and final manifest equality to source verified. 691 changed old paths plus 690 new paths; diff check passed."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -19102,7 +19106,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P1"
+      "verification_gate": "P1",
+      "port_commit_locator": "Upstream-Commit: 57de7b82be001d497bee266a50dbfd118b59ba92",
+      "implementation_decisions": "No font glyph appearance or index change. Git rename detection paired four identical images under different character labels; manual rename mapping follows decimal-to-Unicode identity and verifies destination blob equality. Windows receipt helper now uses chunked diff checks and a NUL-separated explicit pathspec file for git add to avoid command-line length limits; ancestry/staging allowlist checks remain.",
+      "pending_validation": "Font archive regeneration checkpoint with subsequent glyph changes; standing rendered font/non-Windows checks remain."
     },
     {
       "sha": "52a684a0dae90fb087f5cb3df0001e10dbba6d4f",
@@ -27651,8 +27658,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 266,
-    "remaining_after_receipt": 95,
+    "accounted_in_this_tree": 267,
+    "remaining_after_receipt": 94,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
