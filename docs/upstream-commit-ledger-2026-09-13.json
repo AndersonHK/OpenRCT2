@@ -17911,7 +17911,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "2c20178ca59cd4496b4282f4b093cb3810769856"
+      ],
       "verification_evidence": [
         "All four source files inspected; both UTF-8 JSON patches parse. U254 operation regression passed B56."
       ],
@@ -17949,9 +17951,11 @@
       "note": "Adopt final scenario name corrections through scenario import patching; verify affected scenario hashes and custom-name preservation.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Full source and existing patch inspected; direct additive name operation. U254 operation test passed B56."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -17959,7 +17963,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P7"
+      "verification_gate": "P7",
+      "port_commit_locator": "Upstream-Commit: 7a6a02e35c89fcd67cd858cf880a922fc7418a11",
+      "implementation_decisions": "Adopt authored capitalization/spelling correction. Existing entrance swaps and open-ride operations remain unchanged; this delta only renames ride 33 for the existing full-hash match.",
+      "pending_validation": "Original matching Alton Towers scenario import not exercised; standing limits remain."
     },
     {
       "sha": "7aca955172a67da773c4fc79250032fa59c35e7d",
@@ -27581,8 +27588,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 256,
-    "remaining_after_receipt": 105,
+    "accounted_in_this_tree": 257,
+    "remaining_after_receipt": 104,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 256 / 361 source commits recorded
+## Progress: 257 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2834,10 +2834,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U256 — `0ea046196d` — Patch Diamond Heights to correct spelling of ‘Doppelgänger’
 
 - **Source:** `0ea046196d5d4947d42832bf84746870f3d696b5`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `2c20178ca59cd4496b4282f4b093cb3810769856`.
 - **Remaining:** 106 → 105.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Add two full-hash Diamond Heights patches renaming ride 3 to Doppelgänger; extend hash index/changelog.
 - **Additional decisions / behavior:** Adopt authored spelling correction for the standard and .sea scenario variants only. Imported target custom name is replaced; unrelated rides, saved games and gameplay parameters are unchanged by this data.
 - **Verification:** All four source files inspected; both UTF-8 JSON patches parse. U254 operation regression passed B56.
 - **Pending / concerns:** Matching original scenario imports not exercised; standing checks remain.
+
+### U257 — `7a6a02e35c` — Patch Alton Towers to correct spelling of ‘Hex... the Legend of the Towers’
+
+- **Source:** `7a6a02e35c89fcd67cd858cf880a922fc7418a11`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 105 → 104.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Extend existing Alton Towers scenario patch with ride 33 name Hex... the Legend of the Towers and update changelog.
+- **Additional decisions / behavior:** Adopt authored capitalization/spelling correction. Existing entrance swaps and open-ride operations remain unchanged; this delta only renames ride 33 for the existing full-hash match.
+- **Verification:** Full source and existing patch inspected; direct additive name operation. U254 operation test passed B56.
+- **Pending / concerns:** Original matching Alton Towers scenario import not exercised; standing limits remain.
