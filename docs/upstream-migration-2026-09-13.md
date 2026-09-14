@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 273 / 361 source commits recorded
+## Progress: 274 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3021,10 +3021,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U273 — `550fe4be85` — Merge pull request #27015 from Gymnasiast/more-sprite-font-characters
 
 - **Source:** `550fe4be8588a5f176fff1e00b8bd41f9427051f`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `e4a3fb883e732c2a0f30499094696708c6573003`.
 - **Remaining:** 89 → 88.
 - **Disposition:** history receipt.
 - **Manual changes:** History receipt for the individually inspected U267-U272 font changes.
 - **Additional decisions / behavior:** No independent resolution; keep exact asset changes and fork regression fixtures.
 - **Verification:** Empty remerge delta and empty second-parent tree difference inspected. Constituents reviewed in order; final B62 build/font archive/glyph tests passed.
 - **Pending / concerns:** Standing text rendering/TTF/packaging/platform/MP/replay checks remain.
+
+### U274 — `21e37e12f9` — Rework EditorBottomToolbar into EditorStepController (#26961)
+
+- **Source:** `21e37e12f93bcf40c841485ff0907efeb0931471`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 88 → 87.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Split editor navigation/status panels, relocate shared step labels and wire window lifecycle/resize/shortcut restoration; add regression coverage.
+- **Additional decisions / behavior:** Approved D07/P5. Preserve fork resize/HUD flow and existing theme colours; retain all navigation/save callback semantics. Additionally make opening idempotent, close new classes on toolbar toggle, initialize direction, guard allocation, and reject decorative/hidden/invalid navigation calls; invalid labels return none. See B63.
+- **Verification:** B63 complete Release x64 MSVC/Vulkan build: 89.19s, zero warnings/errors. 52 WidgetStateTest/PlayTests/ScriptingTests passed in 8.393s, including editor step visibility, resize and actual registered toggle action. Old entry points absent.
+- **Pending / concerns:** Actual rendered themes, OS key input/save dialogs, non-Windows/MP/replay remain; no owner decision.

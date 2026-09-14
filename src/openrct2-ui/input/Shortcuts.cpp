@@ -173,6 +173,8 @@ static void ShortcutRemoveTopBottomToolbarToggle()
             windowMgr->CloseByClass(WindowClass::bottomToolbar);
             windowMgr->CloseByClass(WindowClass::parkInfoPanel);
             windowMgr->CloseByClass(WindowClass::dateInfoPanel);
+            windowMgr->CloseByClass(WindowClass::editorStepController);
+            windowMgr->CloseByClass(WindowClass::editorStatusLine);
         }
         else if (gLegacyScene == LegacyScene::playing)
         {
@@ -184,7 +186,9 @@ static void ShortcutRemoveTopBottomToolbarToggle()
         else
         {
             ContextOpenWindow(WindowClass::topToolbar);
-            ContextOpenWindowView(WindowView::editorBottomToolbar);
+            ContextOpenWindow(WindowClass::editorStepController); // previous step
+            ContextOpenWindow(WindowClass::editorStatusLine);
+            ContextOpenWindow(WindowClass::editorStepController); // next step
         }
     }
     GfxInvalidateScreen();

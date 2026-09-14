@@ -20100,7 +20100,9 @@
       "decisions": [],
       "review_level": "remerge-probe",
       "implementation_status": "history receipt",
-      "port_commits": [],
+      "port_commits": [
+        "e4a3fb883e732c2a0f30499094696708c6573003"
+      ],
       "verification_evidence": [
         "Empty remerge delta and empty second-parent tree difference inspected. Constituents reviewed in order; final B62 build/font archive/glyph tests passed."
       ],
@@ -20162,9 +20164,11 @@
         "D07"
       ],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "B63 complete Release x64 MSVC/Vulkan build: 89.19s, zero warnings/errors. 52 WidgetStateTest/PlayTests/ScriptingTests passed in 8.393s, including editor step visibility, resize and actual registered toggle action. Old entry points absent."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -20174,7 +20178,10 @@
       "merge_conflict_paths": [
         "src/openrct2/localisation/StringIds.h"
       ],
-      "verification_gate": "P5"
+      "verification_gate": "P5",
+      "port_commit_locator": "Upstream-Commit: 21e37e12f93bcf40c841485ff0907efeb0931471",
+      "implementation_decisions": "Approved D07/P5. Preserve fork resize/HUD flow and existing theme colours; retain all navigation/save callback semantics. Additionally make opening idempotent, close new classes on toolbar toggle, initialize direction, guard allocation, and reject decorative/hidden/invalid navigation calls; invalid labels return none. See B63.",
+      "pending_validation": "Actual rendered themes, OS key input/save dialogs, non-Windows/MP/replay remain; no owner decision."
     },
     {
       "sha": "763d42cad783512f51c3299ff216d46f3b8f5db9",
@@ -27700,8 +27707,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 273,
-    "remaining_after_receipt": 88,
+    "accounted_in_this_tree": 274,
+    "remaining_after_receipt": 87,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

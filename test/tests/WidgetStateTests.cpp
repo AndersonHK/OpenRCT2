@@ -16,6 +16,8 @@
 
 #ifdef OPENRCT2_TEST_UI_BINDINGS
     #include <openrct2-ui/UiContext.h>
+    #include <openrct2-ui/input/ShortcutIds.h>
+    #include <openrct2-ui/input/ShortcutManager.h>
     #include <openrct2-ui/windows/Windows.h>
     #include <openrct2/Context.h>
     #include <openrct2/GameState.h>
@@ -27,6 +29,8 @@
     #include <openrct2/interface/WidgetIndexGlobals.h>
     #include <openrct2/interface/Window.h>
     #include <openrct2/interface/WindowClasses.h>
+    #include <openrct2/scenes/editor/EditorController.h>
+    #include <openrct2/scenes/editor/EditorStep.h>
     #include <openrct2/ui/UiContext.h>
     #include <openrct2/ui/WindowManager.h>
 #endif
@@ -34,6 +38,94 @@
 using namespace OpenRCT2;
 
 #ifdef OPENRCT2_TEST_UI_BINDINGS
+TEST(WidgetStateTest, EditorPanelsPreserveStepVisibilityResizeAndToolbarToggle)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+    auto env = CreatePlatformEnvironment();
+    auto uiContext = Ui::CreateUiContext(*env);
+    auto context = CreateContext(std::move(env), Audio::CreateDummyAudioContext(), std::move(uiContext));
+    ASSERT_TRUE(context->Initialise());
+    const auto previousScene = gLegacyScene;
+    struct RestoreScene
+    {
+        LegacyScene scene;
+        ~RestoreScene() { gLegacyScene = scene; }
+    } restoreScene{ previousScene };
+    gLegacyScene = LegacyScene::scenarioEditor;
+    auto& state = getGameState();
+    state.entities.ResetAllEntities();
+    state.park.flags.unset(ParkFlag::spritesInitialised);
+    auto* manager = Ui::GetWindowManager();
+    auto* previous = manager->OpenWindow(WindowClass::editorStepController);
+    auto* status = manager->OpenWindow(WindowClass::editorStatusLine);
+    auto* next = manager->OpenWindow(WindowClass::editorStepController);
+    ASSERT_NE(previous, nullptr);
+    ASSERT_NE(status, nullptr);
+    ASSERT_NE(next, nullptr);
+    EXPECT_NE(previous, next);
+    EXPECT_EQ(previous->number, 0);
+    EXPECT_EQ(next->number, 1);
+    EXPECT_EQ(manager->OpenWindow(WindowClass::editorStepController), next);
+    EXPECT_EQ(manager->OpenWindow(WindowClass::editorStatusLine), status);
+    for (int step = 0; step <= 8; step++)
+    {
+        state.editorStep = static_cast<Editor::Step>(step);
+        gLegacyScene = step == 8 ? LegacyScene::trackDesignsManager
+            : step == 7 ? LegacyScene::trackDesigner : LegacyScene::scenarioEditor;
+        previous->onPrepareDraw();
+        next->onPrepareDraw();
+        EXPECT_EQ(previous->widgets[1].isVisible(), step != 0 && step != 6 && step != 8);
+        EXPECT_EQ(next->widgets[1].isVisible(), step != 6 && step != 7 && step != 8);
+        previous->onMouseUp(0); // The decorative image must not navigate.
+        next->onMouseUp(0);
+        EXPECT_EQ(state.editorStep, static_cast<Editor::Step>(step));
+        if (step == 6 || step == 8)
+        {
+            previous->onMouseUp(1);
+            next->onMouseUp(1);
+            EXPECT_EQ(state.editorStep, static_cast<Editor::Step>(step));
+        }
+    }
+    gLegacyScene = LegacyScene::scenarioEditor;
+    state.editorStep = Editor::Step::optionsSelection;
+    state.park.flags.set(ParkFlag::spritesInitialised);
+    previous->onPrepareDraw();
+    EXPECT_FALSE(previous->widgets[1].isVisible());
+    previous->onMouseUp(1);
+    EXPECT_EQ(state.editorStep, Editor::Step::optionsSelection);
+    state.editorStep = Editor::Step::invalid;
+    EXPECT_EQ(Editor::getStepStringId(state.editorStep), kStringIdNone);
+    previous->onMouseUp(1);
+    next->onMouseUp(1);
+    EXPECT_EQ(state.editorStep, Editor::Step::invalid);
+    state.editorStep = Editor::Step::landscapeEditor;
+    for (const auto size : { ScreenSize{ 640, 480 }, ScreenSize{ 1001, 701 } })
+    {
+        WindowResizeGui(size.width, size.height);
+        EXPECT_EQ(previous->windowPos, (ScreenCoordsXY{ 0, size.height - previous->height }));
+        EXPECT_EQ(next->windowPos, (ScreenCoordsXY{ size.width - next->width, size.height - next->height }));
+        EXPECT_EQ(status->windowPos, (ScreenCoordsXY{ (size.width - status->width) / 2, size.height - status->height }));
+    }
+    previous->onMouseUp(1);
+    EXPECT_EQ(state.editorStep, Editor::Step::objectSelection);
+    manager->OpenWindow(WindowClass::topToolbar);
+    Ui::ShortcutManager shortcuts(context->GetPlatformEnvironment());
+    auto* toggle = shortcuts.getShortcut(Ui::ShortcutId::kInterfaceToggleToolbars);
+    ASSERT_NE(toggle, nullptr);
+    for (int cycle = 0; cycle < 3; cycle++)
+    {
+        toggle->action();
+        EXPECT_EQ(manager->FindByClass(WindowClass::topToolbar), nullptr);
+        EXPECT_EQ(manager->FindByClass(WindowClass::editorStepController), nullptr);
+        EXPECT_EQ(manager->FindByClass(WindowClass::editorStatusLine), nullptr);
+        toggle->action();
+        EXPECT_NE(manager->FindByNumber(WindowClass::editorStepController, 0), nullptr);
+        EXPECT_NE(manager->FindByNumber(WindowClass::editorStepController, 1), nullptr);
+        EXPECT_NE(manager->FindByClass(WindowClass::editorStatusLine), nullptr);
+    }
+}
+
 TEST(WidgetStateTest, FinancesGraphTabsKeepTheirHeightWithEitherTitleSizeAndButtonSide)
 {
     gOpenRCT2Headless = true;
