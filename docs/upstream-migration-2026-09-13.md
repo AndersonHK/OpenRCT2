@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 35 / 361 source commits recorded
+## Progress: 36 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -403,10 +403,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U035 — `9c5057a524` — Rename members of TileInspectorPage
 
 - **Source:** `9c5057a524ac748dca642928c2594db1b8a099ef`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `ace6742170ae135f5a5b6c23e13fce0bde8067df`.
 - **Remaining:** 327 → 326.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename TileInspectorPage members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Default becomes standard; page numbers, widget indices and tile element selection/edit behavior stay unchanged.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U036 — `8b9bde1f54` — Merge pull request #26856 from Gymnasiast/refactor/enum-class
+
+- **Source:** `8b9bde1f548fd4d9c6ba269a45e47721ee9c0c27`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 326 → 325.
+- **Disposition:** ancestry receipt only.
+- **Manual changes:** No additional product changes; all enum-renaming parents were individually ported in U023-U035.
+- **Additional decisions / behavior:** Do not copy merge tree over fork implementations.
+- **Verification:** Inspected merge metadata and empty remerge diff. HEAD..source contains only this merge.
+- **Pending / concerns:** Naming batch compile follows this receipt.

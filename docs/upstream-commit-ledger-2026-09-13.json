@@ -2586,7 +2586,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt naming only",
-      "port_commits": [],
+      "port_commits": [
+        "ace6742170ae135f5a5b6c23e13fce0bde8067df"
+      ],
       "verification_evidence": [
         "Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt."
       ],
@@ -2760,9 +2762,11 @@
       "note": "No remerge-resolution delta detected. Account for constituent commits before ancestry reconciliation.",
       "decisions": [],
       "review_level": "remerge-probe",
-      "implementation_status": "not-ported",
+      "implementation_status": "ancestry receipt only",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected merge metadata and empty remerge diff. HEAD..source contains only this merge."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -2786,7 +2790,10 @@
         "src/openrct2/ride/Vehicle.cpp",
         "src/openrct2/scripting/bindings/object/ScObject.hpp"
       ],
-      "verification_gate": "P0"
+      "verification_gate": "P0",
+      "port_commit_locator": "Upstream-Commit: 8b9bde1f548fd4d9c6ba269a45e47721ee9c0c27",
+      "implementation_decisions": "Do not copy merge tree over fork implementations.",
+      "pending_validation": "Naming batch compile follows this receipt."
     },
     {
       "sha": "799002a820822ad6f9551c1095878ad63f5336a0",
@@ -26034,8 +26041,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 35,
-    "remaining_after_receipt": 326,
+    "accounted_in_this_tree": 36,
+    "remaining_after_receipt": 325,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
