@@ -1078,7 +1078,7 @@ const G1Element* GfxGetG1Element(ImageIndex image_id)
     else if (offset < SPR_G2_END)
     {
         size_t idx = offset - SPR_G2_BEGIN;
-        if (idx < _g2.header.numEntries)
+        if (idx < _g2.elements.size())
         {
             return &_g2.elements[idx];
         }
@@ -1088,7 +1088,7 @@ const G1Element* GfxGetG1Element(ImageIndex image_id)
     else if (offset < SPR_PALETTE_END)
     {
         size_t idx = offset - SPR_PALETTE_START;
-        if (idx < _palettes.header.numEntries)
+        if (idx < _palettes.elements.size())
         {
             return &_palettes.elements[idx];
         }
@@ -1098,7 +1098,7 @@ const G1Element* GfxGetG1Element(ImageIndex image_id)
     else if (offset < SPR_FONTS_END)
     {
         size_t idx = offset - SPR_FONTS_BEGIN;
-        if (idx < _fonts.header.numEntries)
+        if (idx < _fonts.elements.size())
         {
             return &_fonts.elements[idx];
         }
@@ -1108,7 +1108,7 @@ const G1Element* GfxGetG1Element(ImageIndex image_id)
     else if (offset < SPR_TRACKS_END)
     {
         size_t idx = offset - SPR_TRACKS_BEGIN;
-        if (idx < _tracks.header.numEntries)
+        if (idx < _tracks.elements.size())
         {
             return &_tracks.elements[idx];
         }
@@ -1120,7 +1120,7 @@ const G1Element* GfxGetG1Element(ImageIndex image_id)
         if (IsCsgLoaded())
         {
             size_t idx = offset - SPR_CSG_BEGIN;
-            if (idx < _csg.header.numEntries)
+            if (idx < _csg.elements.size())
             {
                 return &_csg.elements[idx];
             }

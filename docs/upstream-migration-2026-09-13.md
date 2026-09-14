@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 302 / 361 source commits recorded
+## Progress: 303 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3340,10 +3340,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U302 — `3ae38cf3d7` — Merge branch 'develop'
 
 - **Source:** `3ae38cf3d758e6e619730761d1eb81ce921e26d7`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `acdf32c7e01fbbbf0ba9bc200a31cbcc3b4969de`.
 - **Remaining:** 60 → 59.
 - **Disposition:** history receipt.
 - **Manual changes:** History receipt for develop merge; both parent histories already accounted.
 - **Additional decisions / behavior:** Actual combined and remerge resolution diffs empty. Broad first-parent path list is inherited work, not a new port payload.
 - **Verification:** Inspected parent identities and empty remerge result; exact singleton ancestry receipt check.
 - **Pending / concerns:** U298/U301 parser checkpoint still pending; standing validation gaps unchanged.
+
+### U303 — `8694e34836` — Releasse v0.5.5
+
+- **Source:** `8694e3483690323b6a75fa7264b6c58116f51f31`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 59 → 58.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Advance 0.5.5 release metadata; correct sprite lookup bounds exposed by full-suite resource unloading.
+- **Additional decisions / behavior:** Keep fork revision 11 and andersonhk: stream 0.5.5-andersonhk-11, save60016/API122. No release publication. Extra correction uses actual G2/palette/font/track/CSG vector sizes instead of stale file-header counts, preserving valid loaded lookups and safely rejecting unloaded resources.
+- **Verification:** B77: metadata XML/plist parse; initial 608/609 exposed U297 test order crash, reproduced with Localisation+image test. Corrected solution 12.05 seconds zero warnings/errors; eight-test reproduction passes; final full 609 tests/53 suites pass 55.078 seconds, zero failures/errors/disabled.
+- **Pending / concerns:** Standing native UI/custom-image Vulkan, live MP/replay, long performance, non-Windows, disabled-scripting and Breakpad build gaps.

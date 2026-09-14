@@ -83,6 +83,12 @@ TEST_F(Localisation, SpriteFontsHaveDistinctLowercaseHardSignAndCurrencyGlyphsIn
     ASSERT_NE(guilderTiny, nullptr);
     EXPECT_EQ(guilderBold->xOffset, -1);
     EXPECT_EQ(guilderTiny->yOffset, 0);
+    // Unloading releases the vectors even though the old file headers retain their entry counts.
+    GfxUnloadG2PalettesFontsTracks();
+    EXPECT_EQ(GfxGetG1Element(SPR_G2_BEGIN + 1), nullptr);
+    EXPECT_EQ(GfxGetG1Element(SPR_PALETTE_START + 1), nullptr);
+    EXPECT_EQ(GfxGetG1Element(SPR_FONTS_BEGIN + 1), nullptr);
+    EXPECT_EQ(GfxGetG1Element(SPR_TRACKS_BEGIN + 1), nullptr);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
