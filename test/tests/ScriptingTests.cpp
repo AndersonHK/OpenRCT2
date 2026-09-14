@@ -7,11 +7,16 @@
  * OpenRCT2 is licensed under the GNU General Public License version 3.
  *****************************************************************************/
 
+#include <algorithm>
+#include <cstring>
 #include <gtest/gtest.h>
 #include <openrct2/Context.h>
 #include <openrct2/GameState.h>
 #include <openrct2/OpenRCT2.h>
+#include <openrct2/actions/general/MapChangeSizeAction.h>
 #include <openrct2/scripting/ScriptEngine.h>
+#include <openrct2/world/Map.h>
+#include <openrct2/world/MapTopology.h>
 #include <quickjs.h>
 
 using namespace OpenRCT2;
@@ -71,6 +76,87 @@ TEST_F(ScriptingTests, MultipleSubscribersToSameEventShouldNotCrash)
 
     // This should NOT crash.
     hookEngine.Call(HookType::intervalTick, arg, false);
+}
+
+TEST_F(ScriptingTests, MapResizeHookObservesCompletedChangesAndAllowsStateUpdates)
+{
+    auto& scriptEngine = static_cast<ScriptEngine&>(_context->GetScriptEngine());
+    MapInit({ 16, 16 });
+    auto& state = getGameState();
+    state.park.cash = 0;
+    const char* pluginCode = R"(
+        globalThis.resizeEvents = [];
+        registerPlugin({
+            name: 'test-map-resize', version: '1.0.0', authors: ['openrct2-test'],
+            type: 'remote', licence: 'MIT', minApiVersion: 118, targetApiVersion: 118,
+            main: function () {
+                globalThis.resizeSubscription = context.subscribe('map.resize', function (e) {
+                    resizeEvents.push({
+                        targetSizeX: e.targetSizeX, targetSizeY: e.targetSizeY,
+                        shiftX: e.shiftX, shiftY: e.shiftY,
+                        actualX: map.size.x, actualY: map.size.y
+                    });
+                    park.cash += 1;
+                });
+            }
+        });
+    )";
+    scriptEngine.AddNetworkPlugin(pluginCode);
+    scriptEngine.LoadTransientPlugins();
+    scriptEngine.Tick();
+    const auto& plugins = scriptEngine.GetPlugins();
+    const auto plugin = std::find_if(plugins.begin(), plugins.end(), [](const auto& candidate) {
+        return candidate->GetMetadata().Name == "test-map-resize";
+    });
+    ASSERT_NE(plugin, plugins.end());
+    ASSERT_TRUE((*plugin)->HasStarted());
+    auto* ctx = (*plugin)->GetContext();
+    auto global = JS_GetGlobalObject(ctx);
+    auto events = JS_GetPropertyStr(ctx, global, "resizeEvents");
+    auto eventCount = [&] { return AsOrDefault(ctx, events, "length", int32_t{}); };
+    EXPECT_EQ(GetHookType("map.resize"), HookType::mapResize);
+    ASSERT_TRUE(scriptEngine.GetHookEngine().HasSubscriptions(HookType::mapResize));
+
+    const TileCoordsXY targets[] = { { 18, 20 }, { 16, 16 }, { 16, 16 }, { 16, 16 } };
+    const TileCoordsXY shifts[] = { { 1, 2 }, { -1, -2 }, { 1, 0 }, { 0, 0 } };
+    for (int32_t i = 0; i < 4; ++i)
+    {
+        SCOPED_TRACE(i);
+        GameActions::MapChangeSizeAction action(targets[i], shifts[i]);
+        const auto previousSize = state.mapSize;
+        const auto previousEpoch = MapTopology::GetEpoch();
+        EXPECT_EQ(action.Query(state, state.park).error, GameActions::Status::ok);
+        EXPECT_EQ(state.mapSize, previousSize);
+        EXPECT_EQ(eventCount(), i);
+        EXPECT_EQ(action.Execute(state, state.park).error, GameActions::Status::ok);
+        EXPECT_EQ(state.mapSize, targets[i]);
+        EXPECT_EQ(eventCount(), i + 1);
+        EXPECT_EQ(state.park.cash, i + 1);
+        if (targets[i] != previousSize)
+            EXPECT_GT(MapTopology::GetEpoch(), previousEpoch);
+        auto event = JS_GetPropertyUint32(ctx, events, i);
+        EXPECT_EQ(AsOrDefault(ctx, event, "targetSizeX", -1), targets[i].x);
+        EXPECT_EQ(AsOrDefault(ctx, event, "targetSizeY", -1), targets[i].y);
+        EXPECT_EQ(AsOrDefault(ctx, event, "shiftX", -99), shifts[i].x);
+        EXPECT_EQ(AsOrDefault(ctx, event, "shiftY", -99), shifts[i].y);
+        EXPECT_EQ(AsOrDefault(ctx, event, "actualX", -1), targets[i].x);
+        EXPECT_EQ(AsOrDefault(ctx, event, "actualY", -1), targets[i].y);
+        JS_FreeValue(ctx, event);
+    }
+    GameActions::MapChangeSizeAction invalid({ 1, 1 });
+    EXPECT_EQ(invalid.Query(state, state.park).error, GameActions::Status::invalidParameters);
+    EXPECT_EQ(eventCount(), 4);
+    const char* dispose = "resizeSubscription.dispose()";
+    auto result = JS_Eval(ctx, dispose, strlen(dispose), "test", JS_EVAL_TYPE_GLOBAL);
+    EXPECT_FALSE(JS_IsException(result));
+    JS_FreeValue(ctx, result);
+    EXPECT_FALSE(scriptEngine.GetHookEngine().HasSubscriptions(HookType::mapResize));
+    GameActions::MapChangeSizeAction unsubscribed({ 17, 17 });
+    EXPECT_EQ(unsubscribed.Execute(state, state.park).error, GameActions::Status::ok);
+    EXPECT_EQ(eventCount(), 4);
+    EXPECT_EQ(state.park.cash, 4);
+    JS_FreeValue(ctx, events);
+    JS_FreeValue(ctx, global);
 }
 
 #endif

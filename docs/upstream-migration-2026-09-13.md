@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 147 / 361 source commits recorded
+## Progress: 148 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1635,10 +1635,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U147 — `bd935d75c9` — Merge pull request #26899 from Gymnasiast/more-renames
 
 - **Source:** `bd935d75c947eba5c4620e96cd978c25c9484468`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `9df017697391c906e31dc6961cdefaf89e84d97a`.
 - **Remaining:** 215 → 214.
 - **Disposition:** history receipt.
 - **Manual changes:** Record the CarEntry naming merge; source changes already handled individually in U144-U146.
 - **Additional decisions / behavior:** No additional implementation changes or behavioral decisions.
 - **Verification:** Both merge parents inspected; empty remerge and identical second-parent tree verified.
 - **Pending / concerns:** U145-U146 compile checkpoint remains pending with next coherent batch.
+
+### U148 — `a187bc9550` — Close #26827: Add map resize hook to scripting API (#26828)
+
+- **Source:** `a187bc95503c9f35f224046e6bf945ab6adfac39`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 214 → 213.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Add API-118 map.resize subscription with targetSizeX/Y and shiftX/Y after completed resize/shift, fork topology reset, park size and UI updates. Add directed real-plugin regression.
+- **Additional decisions / behavior:** Preserve notifications on successful shift-only/no-op actions and no query notifications. Retain mutable callback semantics. Add missing ENABLE_SCRIPTING guard; advance fork protocol 6 to 7 because subscribed plugins can change simulation state. Preserve map algorithms and park format 60016.
+- **Verification:** Complete source/fork patch review; full Release x64 MSVC/Vulkan build 0 warnings/errors in 87.30 seconds; all 32 scripting/network/map topology tests passed in 1.790 seconds. Directed plugin checks payloads, completed size, single-player mutation, queries, expansion/shrink/shift/no-op and disposal.
+- **Pending / concerns:** No-scripting build, multiplayer/replay hook synchronization, callback-visible topology internals, interactive map resizing and native non-Windows builds unverified. U145-U148 compile/test debt cleared by Batch 26.

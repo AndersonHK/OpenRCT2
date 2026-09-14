@@ -10876,7 +10876,9 @@
       "decisions": [],
       "review_level": "remerge-probe",
       "implementation_status": "history receipt",
-      "port_commits": [],
+      "port_commits": [
+        "9df017697391c906e31dc6961cdefaf89e84d97a"
+      ],
       "verification_evidence": [
         "Both merge parents inspected; empty remerge and identical second-parent tree verified."
       ],
@@ -10949,9 +10951,11 @@
       "note": "Add map.resize hook after successful resize/shift and fork topology reset; script callbacks must see the completed map.",
       "decisions": [],
       "review_level": "targeted-code-review",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Complete source/fork patch review; full Release x64 MSVC/Vulkan build 0 warnings/errors in 87.30 seconds; all 32 scripting/network/map topology tests passed in 1.790 seconds. Directed plugin checks payloads, completed size, single-player mutation, queries, expansion/shrink/shift/no-op and disposal."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -10959,7 +10963,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P7"
+      "verification_gate": "P7",
+      "port_commit_locator": "Upstream-Commit: a187bc95503c9f35f224046e6bf945ab6adfac39",
+      "implementation_decisions": "Preserve notifications on successful shift-only/no-op actions and no query notifications. Retain mutable callback semantics. Add missing ENABLE_SCRIPTING guard; advance fork protocol 6 to 7 because subscribed plugins can change simulation state. Preserve map algorithms and park format 60016.",
+      "pending_validation": "No-scripting build, multiplayer/replay hook synchronization, callback-visible topology internals, interactive map resizing and native non-Windows builds unverified. U145-U148 compile/test debt cleared by Batch 26."
     },
     {
       "sha": "4e576a04ada64265e64abc4132a9ea6f06a8ebb6",
@@ -26818,8 +26825,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 147,
-    "remaining_after_receipt": 214,
+    "accounted_in_this_tree": 148,
+    "remaining_after_receipt": 213,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
