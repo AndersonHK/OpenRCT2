@@ -4917,7 +4917,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt naming only",
-      "port_commits": [],
+      "port_commits": [
+        "6ca16cce29bb9bc8db00065178667530bdb930e4"
+      ],
       "verification_evidence": [
         "Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt."
       ],
@@ -4956,9 +4958,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt naming only",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -4968,7 +4972,10 @@
       "merge_conflict_paths": [
         "src/openrct2/drawing/LightFX.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: b0e7d321e34a316a3127242129515cc39fb69573",
+      "implementation_decisions": "Preserve entity/map light-key qualification, sampling counts, packed coordinates and fork LightFX/Vulkan ownership. Rename only the applicable enum symbols, without restoring upstream lighting code replaced by the fork.",
+      "pending_validation": "Compile at next coherent naming batch checkpoint."
     },
     {
       "sha": "a850d78a7d5c23355b42e9c290e771c71043dc6c",
@@ -26363,8 +26370,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 82,
-    "remaining_after_receipt": 279,
+    "accounted_in_this_tree": 83,
+    "remaining_after_receipt": 278,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
