@@ -17,6 +17,7 @@
 #include <memory>
 #include <openrct2-ui/audio/AudioContext.h>
 #include <openrct2-ui/audio/AudioFormat.h>
+#include <openrct2-ui/audio/AudioMixer.h>
 #include <openrct2-ui/audio/SDLAudioSource.h>
 #include <openrct2/Context.h>
 #include <openrct2/OpenRCT2.h>
@@ -62,6 +63,39 @@ TEST(AudioChannel, NonLoopingSourceCompletionOwnsChannelLifetimeState)
     std::array<int16_t, 4> output{};
     EXPECT_EQ(channel->Read(output.data(), sizeof(output)), sizeof(output));
     EXPECT_TRUE(channel->IsDone());
+}
+
+TEST(AudioMixer, RepeatedSampleVoicesRetainIndependentPlayback)
+{
+    TestAudioSource source;
+    AudioMixer mixer;
+    std::vector<std::shared_ptr<IAudioChannel>> voices;
+    // A busy park reuses the same engine/rumble sample across hundreds of trains.
+    // Admission must not deduplicate that source or restore a small legacy voice limit.
+    for (size_t i = 0; i < 1024; i++)
+    {
+        auto voice = mixer.Play(&source, kMixerLoopInfinite);
+        ASSERT_NE(voice, nullptr) << "Repeated sample rejected at voice " << i;
+        EXPECT_EQ(voice->GetSource(), &source);
+        EXPECT_FALSE(voice->IsDone());
+        voices.push_back(std::move(voice));
+    }
+
+    voices.front()->SetOffset(sizeof(int16_t));
+    auto* first = static_cast<ISDLAudioChannel*>(voices.front().get());
+    auto* last = static_cast<ISDLAudioChannel*>(voices.back().get());
+    int16_t output{};
+    ASSERT_EQ(first->Read(&output, sizeof(output)), sizeof(output));
+    EXPECT_EQ(output, 2);
+    ASSERT_EQ(last->Read(&output, sizeof(output)), sizeof(output));
+    EXPECT_EQ(output, 1);
+
+    voices.front()->SetDone(true);
+    auto replacement = mixer.Play(&source, kMixerLoopInfinite);
+    ASSERT_NE(replacement, nullptr);
+    EXPECT_FALSE(voices.back()->IsDone());
+    ASSERT_EQ(last->Read(&output, sizeof(output)), sizeof(output));
+    EXPECT_EQ(output, 2);
 }
 
 TEST(SpatialAudio, DistanceAttenuationIsContinuousAndLongRange)
