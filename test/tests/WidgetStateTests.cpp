@@ -53,6 +53,7 @@ TEST(WidgetStateTest, QueuedOutsideMouseReleaseClampsDraggingAndClosesOrphanDrop
     struct RestoreInput
     {
         InputFlags flags{ gInputFlags };
+        decltype(gHoverWidget) hover{ gHoverWidget };
         decltype(Config::Get().general.windowScale) scale{ Config::Get().general.windowScale };
         int32_t width{ Config::Get().general.windowWidth };
         int32_t height{ Config::Get().general.windowHeight };
@@ -61,6 +62,7 @@ TEST(WidgetStateTest, QueuedOutsideMouseReleaseClampsDraggingAndClosesOrphanDrop
         {
             InputSetState(InputState::reset);
             gInputFlags = flags;
+            gHoverWidget = hover;
             Config::Get().general.windowScale = scale;
             Config::Get().general.windowWidth = width;
             Config::Get().general.windowHeight = height;
@@ -93,6 +95,25 @@ TEST(WidgetStateTest, QueuedOutsideMouseReleaseClampsDraggingAndClosesOrphanDrop
         EXPECT_EQ(parent->windowPos.x, pointerX < 0 ? -10 : 629);
         EXPECT_EQ(parent->windowPos.y, 140);
         EXPECT_EQ(InputGetState(), InputState::normal);
+    }
+    // Remember a summary-page widget, then switch to a shorter graph page before the next hover update.
+    parent->windowPos = { 100, 100 };
+    parent->onMouseUp(4);
+    parent->onPrepareDraw();
+    const auto summaryLastWidget = static_cast<WidgetIndex>(parent->widgets.size() - 1);
+    parent->onMouseUp(5);
+    parent->onPrepareDraw();
+    ASSERT_GE(summaryLastWidget, parent->widgets.size());
+    for (const WidgetIndex staleIndex : { summaryLastWidget, kWidgetIndexNull })
+    {
+        gHoverWidget.windowClassification = parent->classification;
+        gHoverWidget.windowNumber = parent->number;
+        gHoverWidget.widgetIndex = staleIndex;
+        InputSetState(InputState::normal);
+        StoreMouseInput(MouseState::released, parent->windowPos + ScreenCoordsXY{ 50, 5 });
+        GameHandleInput();
+        EXPECT_EQ(gHoverWidget.windowClassification, parent->classification);
+        EXPECT_LT(gHoverWidget.widgetIndex, parent->widgets.size());
     }
     const auto openDropdown = [&]() {
         gPressedWidget.windowClassification = parent->classification;

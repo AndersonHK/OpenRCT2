@@ -25365,7 +25365,9 @@
       "decisions": [],
       "review_level": "remerge-probe",
       "implementation_status": "history receipt",
-      "port_commits": [],
+      "port_commits": [
+        "3e6787fe5eb3fb5ef8eb4e6ef9dba5644c2c00cd"
+      ],
       "verification_evidence": [
         "Actual remerge inspection and passing B86-B88 constituent checkpoints."
       ],
@@ -25419,9 +25421,11 @@
       "note": "Close orphan dropdowns and reject stale hover indices after page changes; exercise fork dynamic ride widgets.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "B89: solution zero warnings/errors;26 widget/scripting tests passed, including actual page shrink and null-index queued hover cases."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -25429,7 +25433,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P5"
+      "verification_gate": "P5",
+      "port_commit_locator": "Upstream-Commit: b8a5e2431cde79b75656d05fc82348d886dac409",
+      "implementation_decisions": "Reject out-of-range and null remembered indexes before access, preserving valid hover behavior. Extended actual finance-page input fixture; no fork dynamic-widget replacement.",
+      "pending_validation": "Native Linux touch validation remains unavailable."
     },
     {
       "sha": "092783cc1160be24f2acbed023217558bdb1f41a",
@@ -28057,8 +28064,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 324,
-    "remaining_after_receipt": 37,
+    "accounted_in_this_tree": 325,
+    "remaining_after_receipt": 36,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

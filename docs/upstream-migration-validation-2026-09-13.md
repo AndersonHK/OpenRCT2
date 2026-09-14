@@ -683,3 +683,9 @@ U213 audit: mark Http::DoAsync and both LAN async functions nodiscard, including
 
 - U322 moves the catalogue method unchanged into its own registered source. U323 moves the one-pixel rectangle-filter wrapper to Rectangle::filterPixel and updates all four tooltip corners. The rectangle operation remains the same inclusive single-coordinate rectangle with the same palette; no new fork consumers. Rectangle.cpp/.h and Tooltip.cpp fully match U323 source. No new GPU or gameplay behavior.
 - Release x64 MSVC/Vulkan solution passed in26.47 seconds with zero warnings/errors; all67 widget/GPU/scripting tests passed in2.229 seconds. Logs: obj/upstream-audit/batch-88-build.log and batch-88-tests.log/xml. Clears U322 compile debt. Native tooltip pixels remain part of standing manual validation; no new decision.
+
+## B89 — U325 stale hover after page changes
+
+- Adopted the exact source guard after onPrepareDraw: remembered hover indexes at or beyond the current widget-span length return before indexing. This also safely rejects kWidgetIndexNull. Valid hover invalidation and subsequent hover replacement are unchanged; no fork widget behavior is overwritten.
+- Extended the existing real UI/queued-mouse fixture: remember the last finance-summary widget, switch to its shorter graph page (assert it is out of range), feed a normal hover event to a valid title coordinate, and verify the hover index becomes valid. Repeat with the null sentinel. Restore the hover global alongside existing input/config restoration. Original dragging/dropdown cases still run.
+- Release x64 MSVC/Vulkan solution passed in10.55 seconds with zero warnings/errors; all26 widget/scripting tests passed in2.249 seconds. Logs: obj/upstream-audit/batch-89-build.log and batch-89-tests.log/xml. This exercises actual Windows UI input dispatch, not native Linux touch or allocator-specific out-of-range detection. No new owner decision.

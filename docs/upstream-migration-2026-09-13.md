@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 324 / 361 source commits recorded
+## Progress: 325 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3582,10 +3582,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U324 — `c3a2fe508f` — Move screen and line functions out of Drawing.{cpp,h} (#27079)
 
 - **Source:** `c3a2fe508fbf2d583ebe4dc14781dd45006bb5cf`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `3e6787fe5eb3fb5ef8eb4e6ef9dba5644c2c00cd`.
 - **Remaining:** 38 → 37.
 - **Disposition:** history receipt.
 - **Manual changes:** Reconciled the completed screen/line/ImageId/pixel-filter refactor merge.
 - **Additional decisions / behavior:** Actual remerge is empty; preserve adapted U320-U323 functions and fork ownership.
 - **Verification:** Actual remerge inspection and passing B86-B88 constituent checkpoints.
 - **Pending / concerns:** None.
+
+### U325 — `b8a5e2431c` — Fix #26754: Guard stale hover widget index when switching window pages (#27086)
+
+- **Source:** `b8a5e2431cde79b75656d05fc82348d886dac409`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 37 → 36.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Guarded stale hover-widget indexes after page preparation and added the changelog.
+- **Additional decisions / behavior:** Reject out-of-range and null remembered indexes before access, preserving valid hover behavior. Extended actual finance-page input fixture; no fork dynamic-widget replacement.
+- **Verification:** B89: solution zero warnings/errors;26 widget/scripting tests passed, including actual page shrink and null-index queued hover cases.
+- **Pending / concerns:** Native Linux touch validation remains unavailable.
