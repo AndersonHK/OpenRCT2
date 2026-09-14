@@ -18,6 +18,7 @@
 #include <openrct2/world/Map.h>
 #include <openrct2/world/MapTopology.h>
 #include <openrct2/world/tile_element/EntranceElement.h>
+#include <openrct2/world/tile_element/SurfaceElement.h>
 #include <quickjs.h>
 
 using namespace OpenRCT2;
@@ -157,6 +158,63 @@ TEST_F(ScriptingTests, MapResizeHookObservesCompletedChangesAndAllowsStateUpdate
     EXPECT_EQ(eventCount(), 4);
     EXPECT_EQ(state.park.cash, 4);
     JS_FreeValue(ctx, events);
+    JS_FreeValue(ctx, global);
+}
+
+TEST_F(ScriptingTests, OwnershipUsesApi119FlagsAndPreservesPackedFences)
+{
+    auto& scriptEngine = static_cast<ScriptEngine&>(_context->GetScriptEngine());
+    MapInit({ 16, 16 });
+    auto* surface = MapGetSurfaceElementAt(CoordsXY{ 64, 64 });
+    ASSERT_NE(surface, nullptr);
+    surface->setParkFences(5);
+    const char* pluginCode = R"(
+        registerPlugin({
+            name: 'test-ownership-api119', version: '1.0.0', authors: ['openrct2-test'],
+            type: 'remote', licence: 'MIT', minApiVersion: 119, targetApiVersion: 119,
+            main: function () {
+                globalThis.testSurface = map.getTile(2, 2).elements.find(e => e.type === 'surface');
+            }
+        });
+    )";
+    scriptEngine.AddNetworkPlugin(pluginCode);
+    scriptEngine.LoadTransientPlugins();
+    scriptEngine.Tick();
+    const auto& plugins = scriptEngine.GetPlugins();
+    const auto plugin = std::find_if(plugins.begin(), plugins.end(), [](const auto& candidate) {
+        return candidate->GetMetadata().Name == "test-ownership-api119";
+    });
+    ASSERT_NE(plugin, plugins.end());
+    ASSERT_TRUE((*plugin)->HasStarted());
+    auto* ctx = (*plugin)->GetContext();
+    auto global = JS_GetGlobalObject(ctx);
+    auto element = JS_GetPropertyStr(ctx, global, "testSurface");
+    ASSERT_TRUE(JS_IsObject(element));
+    const auto verify = [&](int64_t input, uint32_t expected) {
+        SCOPED_TRACE(input);
+        EXPECT_EQ(JS_SetPropertyStr(ctx, element, "ownership", JS_NewInt64(ctx, input)), 1);
+        auto value = JS_GetPropertyStr(ctx, element, "ownership");
+        uint32_t actual{};
+        EXPECT_EQ(JS_ToUint32(ctx, &actual, value), 0);
+        EXPECT_EQ(actual, expected);
+        EXPECT_EQ(surface->getOwnership().holder, expected);
+        EXPECT_EQ(surface->getParkFences(), 5);
+        EXPECT_EQ(reinterpret_cast<const uint8_t*>(surface)[8], (expected << 4) | 5);
+        JS_FreeValue(ctx, value);
+        auto owned = JS_GetPropertyStr(ctx, element, "hasOwnership");
+        auto rights = JS_GetPropertyStr(ctx, element, "hasConstructionRights");
+        EXPECT_EQ(JS_ToBool(ctx, owned), (expected & 2) != 0);
+        EXPECT_EQ(JS_ToBool(ctx, rights), (expected & 3) != 0);
+        JS_FreeValue(ctx, owned);
+        JS_FreeValue(ctx, rights);
+    };
+    for (int64_t input = 0; input < 256; ++input)
+        verify(input, static_cast<uint32_t>(input) & 15);
+    verify(256, 0);
+    verify(257, 1);
+    verify(-1, 15);
+    verify(4294967296LL, 0);
+    JS_FreeValue(ctx, element);
     JS_FreeValue(ctx, global);
 }
 

@@ -707,6 +707,7 @@
     <ClInclude Include="world\LargeScenery.h" />
     <ClInclude Include="world\Location.hpp" />
     <ClInclude Include="world\Map.h" />
+    <ClInclude Include="world\MapOwnership.h" />
     <ClInclude Include="world\MapPathTopology.h" />
     <ClInclude Include="world\MapPathRouteCache.h" />
     <ClInclude Include="world\MapTopology.h" />

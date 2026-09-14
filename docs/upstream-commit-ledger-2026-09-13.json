@@ -14217,7 +14217,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "cb64f95e31ba14103e784a4bee1fb0433742c11b"
+      ],
       "verification_evidence": [
         "Reviewed all three source patches and actual NetworkActions/NetworkGroup lookup gates. New test verifies deny/default/ride-properties-only, grant cheat, existing cheat/date/freeze-rating permissions and revoke. B34 first-attempt Release x64 MSVC/Vulkan build passed 0 warnings/errors in14.77 seconds; all16 network/scripting/widget tests passed in0.836 seconds. U183-U184 compile/test debt cleared."
       ],
@@ -14292,9 +14294,11 @@
       "note": "Ownership API normalizes high-nibble flags to low-bit FlagHolder; preserve packed tile bytes, script values and fork surface-rejoin/cache checks.",
       "decisions": [],
       "review_level": "targeted-code-review",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "B35 first Release x64 MSVC/Vulkan build: 0 warnings/errors, 87.20s. All 245 selected tests in 16 suites pass, 33.819s, including normalized parameter/wire byte, query/execute costs for all 256 masks, packed ownership/fence preservation and API119 script getter/setter boolean behavior. Full source/diff review and removed-constant search completed."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -14312,7 +14316,10 @@
         "src/openrct2/world/Map.h",
         "src/openrct2/world/Park.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 11547e998a4f0e6c3f2b0c05018b53ab6a024e41",
+      "implementation_decisions": "Owner approved API 119 normalized external flags 1/2/4/8 with no legacy adapter and matching action wire format. Advance fork protocol 10 to 11, retain andersonhk and save 60016. Preserve !currentOwned && desiredOwned, excluding the upstream negated-conjunction pricing regression. Existing combined-right cost precedence, fork mutation/topology/render behavior and objects pin remain. See docs/upstream-migration-decision-u185.md for resolved decision and evidence.",
+      "pending_validation": "Compile/test debt cleared. Live multiplayer/replay, interactive ownership overlays, non-Windows and existing standing validation remain unverified."
     },
     {
       "sha": "db53fd3f7f1aa07549db5f509973fc57a2c4a92f",
@@ -27077,8 +27084,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 184,
-    "remaining_after_receipt": 177,
+    "accounted_in_this_tree": 185,
+    "remaining_after_receipt": 176,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

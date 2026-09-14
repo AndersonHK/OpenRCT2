@@ -19,6 +19,8 @@
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/ParkImporter.h>
 #include <openrct2/actions/GameActionRunner.h>
+#include <openrct2/actions/GameActionParameterVisitor.h>
+#include <openrct2/actions/park/LandSetRightsAction.h>
 #include <openrct2/actions/park/ParkMarketingAction.h>
 #include <openrct2/actions/park/ParkSetEntranceFeeAction.h>
 #include <openrct2/actions/park/ParkSetParameterAction.h>
@@ -31,6 +33,8 @@
 #include <openrct2/actions/track/TrackPlaceAction.h>
 #include <openrct2/actions/track/TrackRemoveAction.h>
 #include <openrct2/drawing/Drawing.h>
+#include <openrct2/core/DataSerialiser.h>
+#include <openrct2/rct12/RCT12.h>
 #include <openrct2/entity/EntityRegistry.h>
 #include <openrct2/entity/EntityTweener.h>
 #include <openrct2/entity/Guest.h>
@@ -1295,6 +1299,105 @@ TEST_F(PlayTests, TrackIndestructibilityReportsStoredFlagWhileRemovalHonoursChea
     for (auto* remaining : TileElementsView<TrackElement>(coords))
         trackRemains |= remaining->getRideIndex() == boat.id;
     EXPECT_FALSE(trackRemains);
+}
+
+TEST_F(PlayTests, NormalisedOwnershipPreservesPackedLandAndFenceBits)
+{
+    static_assert(sizeof(SurfaceElement) == 16);
+    static_assert(sizeof(RCT12SurfaceElement) == 8);
+    for (uint16_t raw = 0; raw < 256; ++raw)
+    {
+        SCOPED_TRACE(raw);
+        RCT12SurfaceElement legacy{};
+        reinterpret_cast<uint8_t*>(&legacy)[7] = static_cast<uint8_t>(raw);
+        EXPECT_EQ(legacy.GetOwnership().holder, raw >> 4);
+        EXPECT_EQ(legacy.GetParkFences(), raw & 15);
+        SurfaceElement surface{};
+        surface.setParkFences(legacy.GetParkFences());
+        surface.setOwnership(legacy.GetOwnership());
+        EXPECT_EQ(reinterpret_cast<const uint8_t*>(&surface)[8], raw);
+        EXPECT_EQ(surface.getOwnership().holder, raw >> 4);
+        for (uint16_t value = 0; value < 256; ++value)
+        {
+            OwnershipFlags flags;
+            flags.holder = static_cast<uint8_t>(value);
+            surface.setOwnership(flags);
+            EXPECT_EQ(surface.getOwnership().holder, value & 15);
+            EXPECT_EQ(surface.getParkFences(), raw & 15);
+            EXPECT_EQ(reinterpret_cast<const uint8_t*>(&surface)[8], ((value & 15) << 4) | (raw & 15));
+            surface.setParkFences(static_cast<uint8_t>(raw));
+            EXPECT_EQ(surface.getOwnership().holder, value & 15);
+        }
+    }
+}
+
+TEST_F(PlayTests, NormalisedOwnershipActionsPreserveAllLandCostTransitions)
+{
+    auto context = LoadEverythingPark();
+    ASSERT_NE(context, nullptr);
+    auto& state = getGameState();
+    state.cheats.sandboxMode = true;
+    state.scenarioOptions.landPrice = 9000;
+    state.scenarioOptions.constructionRightsPrice = 4000;
+    MapInit({ 16, 16 });
+    constexpr CoordsXY coords{ 96, 96 };
+    // Rows/columns: neither owned, construction owned, land owned, both owned.
+    // Sale availability does not add a purchase or refund; retain legacy precedence for combined flags.
+    constexpr money64 expectedCost[4][4] = {
+        { 0, 4000, 9000, 4000 }, { -4000, 0, -4000, 0 }, { -9000, -9000, 0, 0 }, { -4000, -9000, -4000, 0 }
+    };
+    struct OwnershipParameter : GameActions::GameActionParameterVisitor
+    {
+        int32_t value{};
+        bool write{};
+        void Visit(std::string_view name, int32_t& param) override
+        {
+            if (name == "ownership")
+            {
+                if (write)
+                    param = value;
+                else
+                    value = param;
+            }
+        }
+    } parameter;
+    for (uint8_t current = 0; current < 16; ++current)
+    {
+        for (uint8_t desired = 0; desired < 16; ++desired)
+        {
+            SCOPED_TRACE(current);
+            SCOPED_TRACE(desired);
+            OwnershipFlags flags;
+            flags.holder = current;
+            auto* surface = MapGetSurfaceElementAt(coords);
+            surface->setOwnership(flags);
+            GameActions::LandSetRightsAction original(coords, GameActions::LandSetRightSetting::setOwnershipWithChecks);
+            parameter.value = desired;
+            parameter.write = true;
+            original.AcceptParameters(parameter);
+            DataSerialiser writer(true);
+            original.Serialise(writer);
+            auto& stream = writer.GetStream();
+            stream.SetPosition(stream.GetLength() - 1);
+            EXPECT_EQ(stream.ReadValue<uint8_t>(), desired);
+            stream.SetPosition(0);
+            DataSerialiser reader(false, stream);
+            GameActions::LandSetRightsAction action;
+            action.Serialise(reader);
+            parameter.write = false;
+            parameter.value = -1;
+            action.AcceptParameters(parameter);
+            EXPECT_EQ(parameter.value, desired);
+            const auto query = action.Query(state, state.park);
+            ASSERT_EQ(query.error, GameActions::Status::ok);
+            EXPECT_EQ(query.cost, expectedCost[current & 3][desired & 3]);
+            EXPECT_EQ(surface->getOwnership().holder, current);
+            const auto result = action.Execute(state, state.park);
+            EXPECT_EQ(result.error, GameActions::Status::ok);
+            EXPECT_EQ(result.cost, query.cost);
+            EXPECT_EQ(MapGetSurfaceElementAt(coords)->getOwnership().holder, desired);
+        }
+    }
 }
 
 TEST_F(PlayTests, WaterSpecificClearanceRulesAreBypassedOnlyWithTheClearanceCheat)

@@ -985,7 +985,10 @@ declare global {
         /**
          * Only used if {@link LandSetRightsArgs.setting} === 4 (set ownership)
          *
-         * @see {@link https://github.com/OpenRCT2/OpenRCT2/blob/develop/src/openrct2/world/tile_element/SurfaceElement.h}
+         * Since API 119, combine these flags: 1 = construction rights owned, 2 = land owned,
+         * 4 = construction rights for sale, 8 = land for sale. Zero means unowned.
+         * Earlier API values were 16, 32, 64 and 128 respectively; update plugins to use the new values.
+         * @see {@link https://github.com/OpenRCT2/OpenRCT2/blob/develop/src/openrct2/world/MapOwnership.h}
          */
         ownership: number;
     }
@@ -1821,6 +1824,12 @@ declare global {
         edgeStyle: number;
         waterHeight: number;
         grassLength: number;
+        /**
+         * Since API 119, combine these flags: 1 = construction rights owned, 2 = land owned,
+         * 4 = construction rights for sale, 8 = land for sale. Zero means unowned.
+         * Earlier API values were 16, 32, 64 and 128 respectively; update plugins to use the new values.
+         * Bits outside the low four bits are discarded when writing this property.
+         */
         ownership: number;
         parkFences: number;
 
