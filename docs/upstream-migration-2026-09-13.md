@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 118 / 361 source commits recorded
+## Progress: 119 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1316,10 +1316,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U118 — `9c59a4c5e8` — Fix notation of two numbers
 
 - **Source:** `9c59a4c5e8dde0d146ec6b501745a9a565c4efe0`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `ebca1bd84d32a3341ec7f0f187ce215408300dde`.
 - **Remaining:** 244 → 243.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Normalize two unsigned-zero suffixes in land dropdown index lookup.
 - **Additional decisions / behavior:** 0U and 0u denote the same type/value; no ordering or selection behavior changes.
 - **Verification:** Actual two-line source diff inspected; whitespace and singleton ancestry checks.
 - **Pending / concerns:** Covered by next compile checkpoint.
+
+### U119 — `536973e9e6` — Add GetFlagHolder() overload for normal/inverted flag
+
+- **Source:** `536973e9e6aa355049831dabf306d916ff09464e`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 243 → 242.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Add tuple-based GetFlagHolder overload supporting normal/inverted JSON flags.
+- **Additional decisions / behavior:** Same truth table as existing GetFlags: normal missing/false unset, true set; inverted missing/false set, true unset. Missing properties keep legacy false default. No caller changes in this source.
+- **Verification:** Full source and existing FlagHolder zero initialization/GetFlags implementation inspected; whitespace and ancestry checks.
+- **Pending / concerns:** Template instantiation and object consumers covered at next flag-group build.
