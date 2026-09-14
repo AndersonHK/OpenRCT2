@@ -25768,7 +25768,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "a2b8e8ee962993119b67b514ab2e64cf1b7968a1"
+      ],
       "verification_evidence": [
         "Inspected every source language hunk and applied corresponding entries."
       ],
@@ -25806,9 +25808,11 @@
       "note": "Reload palette after plugin water object load using final Palette API; refresh owned GPU palette state for single and array loads.",
       "decisions": [],
       "review_level": "targeted-code-review",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "B91: corrected solution zero warnings/errors;63 selected tests passed. New actual-JS fixture checks every main-palette RGB entry for all three load forms."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -25816,7 +25820,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P6"
+      "verification_gate": "P6",
+      "port_commit_locator": "Upstream-Commit: 7164b12fd693267d3cfe0c21e681d64158b3c682",
+      "implementation_decisions": "Use final Palette API and existing immutable Vulkan palette handoff; preserve object/research/return behavior and companion-fork assets. No fallback object or renderer workaround.",
+      "pending_validation": "Native Vulkan palette appearance remains for manual testing."
     },
     {
       "sha": "ced6f35f9f4d2b138fec70c5d78d044b04a024e0",
@@ -28085,8 +28092,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 328,
-    "remaining_after_receipt": 33,
+    "accounted_in_this_tree": 329,
+    "remaining_after_receipt": 32,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

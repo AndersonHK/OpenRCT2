@@ -13,6 +13,9 @@
 #include <openrct2/Context.h>
 #include <openrct2/GameState.h>
 #include <openrct2/OpenRCT2.h>
+#include <openrct2/drawing/Drawing.Sprite.h>
+#include <openrct2/drawing/Palette.h>
+#include <openrct2/object/WaterEntry.h>
 #include <openrct2/entity/EntityRegistry.h>
 #include <openrct2/ride/Ride.h>
 #include <openrct2/ride/RideData.h>
@@ -65,6 +68,66 @@ protected:
 };
 
 #ifdef ENABLE_SCRIPTING
+
+TEST_F(ScriptingTests, PluginWaterLoadsPublishTheRegisteredWaterPalette)
+{
+    struct RestorePaletteState
+    {
+        bool noGraphics{ gOpenRCT2NoGraphics };
+        Drawing::GamePalette palette{ Drawing::gPalette };
+        Drawing::GamePalette gamePalette{ Drawing::gGamePalette };
+        ~RestorePaletteState()
+        {
+            gOpenRCT2NoGraphics = noGraphics;
+            Drawing::gPalette = palette;
+            Drawing::gGamePalette = gamePalette;
+        }
+    } restore;
+    gOpenRCT2NoGraphics = false;
+    auto& engine = static_cast<ScriptEngine&>(_context->GetScriptEngine());
+    engine.AddNetworkPlugin(R"(
+        registerPlugin({name:'test-water-palette', version:'1', authors:['openrct2-test'],
+            type:'remote', licence:'MIT', minApiVersion:122, targetApiVersion:122, main:function(){}});
+    )");
+    engine.LoadTransientPlugins();
+    engine.Tick();
+    auto* js = engine.GetContext();
+    ASSERT_NE(js, nullptr);
+    for (const char* code : {
+             "objectManager.load('rct2.water.wtrcyan') !== null",
+             "objectManager.load('rct2.water.wtrgreen', 0) !== null",
+             "objectManager.unload('water', 0); objectManager.load(['rct2.water.wtrcyan'])[0] !== null" })
+    {
+        SCOPED_TRACE(code);
+        Drawing::gGamePalette.fill({ 1, 2, 3, 0 });
+        auto result = JS_Eval(js, code, strlen(code), "water-palette-test", JS_EVAL_TYPE_GLOBAL);
+        if (JS_IsException(result))
+        {
+            auto exception = JS_GetException(js);
+            const char* message = JS_ToCString(js, exception);
+            ADD_FAILURE() << (message == nullptr ? "JS exception" : message);
+            JS_FreeCString(js, message);
+            JS_FreeValue(js, exception);
+        }
+        const bool passed = !JS_IsException(result) && JS_ToBool(js, result) == 1;
+        JS_FreeValue(js, result);
+        ASSERT_TRUE(passed);
+        const auto* source = GfxGetG1Palette(getActiveWaterEntry().mainPalette);
+        ASSERT_NE(source, nullptr);
+        ASSERT_GT(source->numColours, 0);
+        bool differsFromMarker = false;
+        for (int32_t i = 0; i < source->numColours; i++)
+        {
+            const auto& actual = Drawing::gGamePalette[source->startIndex + i];
+            const auto& expected = source->palette[i];
+            EXPECT_EQ(actual.blue, expected.blue);
+            EXPECT_EQ(actual.green, expected.green);
+            EXPECT_EQ(actual.red, expected.red);
+            differsFromMarker |= actual.blue != 1 || actual.green != 2 || actual.red != 3;
+        }
+        EXPECT_TRUE(differsFromMarker);
+    }
+}
 
     #ifndef DISABLE_NETWORK
         #include <openrct2/scripting/bindings/network/ScSocket.hpp>
