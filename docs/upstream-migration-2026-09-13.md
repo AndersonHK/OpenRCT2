@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 117 / 361 source commits recorded
+## Progress: 118 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1305,10 +1305,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U117 — `15b36d6ced` — Introduce dedicated header for window-related enum types (#26883)
 
 - **Source:** `15b36d6ced4d227826a1ad4c218cd5fa5ae79835`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `c8c6c49920b4eab3f688e75c6217947490dd6a33`.
 - **Remaining:** 245 → 244.
 - **Disposition:** adapt window type/header ownership.
 - **Manual changes:** Extract WindowTypes.h, namespace WindowClass and related types/callbacks, move widget-index macro to its owning header, update includes and declarations, register new header in MSBuild.
 - **Additional decisions / behavior:** All 14 moved definitions preserve values, field order and underlying types. Retain Window.h for fork replay camera operations. Remove obsolete global PromptMode forward declaration alongside fork DrawingEngine declaration; preserve benchmark configuration. Move Game.cpp using directive before Emscripten declarations. No gameplay, save-prompt, widget-index or class ID changes.
 - **Verification:** Entire source diff inspected; moved definition bodies independently compared identical against fork HEAD. Whitespace and singleton ancestry gates. Build/test checkpoint pending. Batch 16 full MSVC/Vulkan build passed 0 warnings/errors; all 13 scripting/widget/network tests passed.
 - **Pending / concerns:** Native Emscripten/non-Windows builds and interactive window/replay checks remain.
+
+### U118 — `9c59a4c5e8` — Fix notation of two numbers
+
+- **Source:** `9c59a4c5e8dde0d146ec6b501745a9a565c4efe0`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 244 → 243.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Normalize two unsigned-zero suffixes in land dropdown index lookup.
+- **Additional decisions / behavior:** 0U and 0u denote the same type/value; no ordering or selection behavior changes.
+- **Verification:** Actual two-line source diff inspected; whitespace and singleton ancestry checks.
+- **Pending / concerns:** Covered by next compile checkpoint.
