@@ -380,7 +380,7 @@ All recommendations were approved by the owner on 2026-09-13. The newer historic
 | `a535c9f810` | history receipt | `989a9cfc3e2419cc9d6760c3cb6da5b2fda90ffe` |
 | `eb7b5feab9` | adopt applicable changes | `7b9e8c43efdb73092d7d7c8d0f87e518138666e2` |
 | `75c12dbe7d` | adopt applicable changes | `4f996081396a1f05d503929f5658fd177afffdbb` |
-| `15d4b5e933` | adopt applicable changes | `Upstream-Commit: 15d4b5e933555913d216f4548f673cd55cfb0579` |
+| `15d4b5e933` | adopt applicable changes | `c6560d2679cd7871ba583236fd9515bb81955511` |
 
 ## How to use the ledger
 

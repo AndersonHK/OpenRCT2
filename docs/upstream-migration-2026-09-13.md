@@ -3989,10 +3989,10 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U361 — `15d4b5e933` — Remove AddFuncs calls in ScWidget.hpp (#27044)
 
 - **Source:** `15d4b5e933555913d216f4548f673cd55cfb0579`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `c6560d2679cd7871ba583236fd9515bb81955511`.
 - **Remaining:** 1 → 0.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Registered ten shared derived widget prototypes and selected the correct prototype when wrapping a widget; preserved all property bodies and the fork caret guard. Added a real JS/UI fixture across all types, GC and two context lifetimes. Corrected the U359 test pointer-array declaration.
 - **Additional decisions / behavior:** Normal getter/setter behavior is preserved; derived properties now live on prototypes, changing hasOwnProperty/getOwnPropertyNames reflection as with approved U282. Preserve U284 null-session/null-buffer caret behavior. No gameplay change or new owner decision.
 - **Verification:** Complete source patch and fork-parent deltas inspected. Final UiExtensions equals target; ScWidget differs only by retained caret guard. Release x64 MSVC14.44/Vulkan full solution 16.68s zero warnings/errors; all 616 tests/53 suites pass 57.077s, zero failures/errors/disabled. batch-98-build.log and batch-98-full-tests.log/xml. Whitespace checked.
-- **Pending / concerns:** Automated debt cleared. Final committed-revision build metadata and handoff follow. Native GPU/UI/input, multiplayer/replay, longer simulation/performance, original S4/placed TD4 and other-platform checks remain documented manual gaps.
+- **Pending / concerns:** No remaining automated compile/test debt. Final receipt build is up to date, 0 warnings/errors; full 616-test suite passed on identical source. See docs/upstream-migration-handoff-2026-09-14.md for binary hashes, companion pin, native/platform validation gaps and separate pre-existing debt. Overseer owns deployment/final review; no push or merge.

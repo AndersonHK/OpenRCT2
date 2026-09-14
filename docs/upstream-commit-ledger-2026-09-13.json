@@ -27582,7 +27582,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "c6560d2679cd7871ba583236fd9515bb81955511"
+      ],
       "verification_evidence": [
         "Complete source patch and fork-parent deltas inspected. Final UiExtensions equals target; ScWidget differs only by retained caret guard. Release x64 MSVC14.44/Vulkan full solution 16.68s zero warnings/errors; all 616 tests/53 suites pass 57.077s, zero failures/errors/disabled. batch-98-build.log and batch-98-full-tests.log/xml. Whitespace checked."
       ],
@@ -27598,7 +27600,7 @@
       "verification_gate": "P7",
       "port_commit_locator": "Upstream-Commit: 15d4b5e933555913d216f4548f673cd55cfb0579",
       "implementation_decisions": "Normal getter/setter behavior is preserved; derived properties now live on prototypes, changing hasOwnProperty/getOwnPropertyNames reflection as with approved U282. Preserve U284 null-session/null-buffer caret behavior. No gameplay change or new owner decision.",
-      "pending_validation": "Automated debt cleared. Final committed-revision build metadata and handoff follow. Native GPU/UI/input, multiplayer/replay, longer simulation/performance, original S4/placed TD4 and other-platform checks remain documented manual gaps."
+      "pending_validation": "No remaining automated compile/test debt. Final receipt build is up to date, 0 warnings/errors; full 616-test suite passed on identical source. See docs/upstream-migration-handoff-2026-09-14.md for binary hashes, companion pin, native/platform validation gaps and separate pre-existing debt. Overseer owns deployment/final review; no push or merge."
     }
   ],
   "fork_files": [
@@ -28320,5 +28322,7 @@
     "remaining_after_receipt": 0,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
-  }
+  },
+  "final_handoff": "docs/upstream-migration-handoff-2026-09-14.md",
+  "final_source_receipt": "c6560d2679cd7871ba583236fd9515bb81955511"
 }
