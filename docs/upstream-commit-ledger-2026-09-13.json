@@ -4876,7 +4876,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt naming only",
-      "port_commits": [],
+      "port_commits": [
+        "998cdc15f57e58c4ff3f2cd5aa9d63db9b68aa51"
+      ],
       "verification_evidence": [
         "Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt."
       ],
@@ -4914,9 +4916,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt naming only",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -4924,7 +4928,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: e6cc15f033672dec277fb7553d0ad23e6276e684",
+      "implementation_decisions": "Preserve palette classes and every reserved/remap range: 0-9, 230-239, 255 special; 243-254 primary; 202-213 secondary; 46-57 tertiary. Pixel mutability and nearest-colour behavior remain unchanged.",
+      "pending_validation": "Compile at next coherent naming batch checkpoint."
     },
     {
       "sha": "b0e7d321e34a316a3127242129515cc39fb69573",
@@ -26356,8 +26363,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 81,
-    "remaining_after_receipt": 280,
+    "accounted_in_this_tree": 82,
+    "remaining_after_receipt": 279,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

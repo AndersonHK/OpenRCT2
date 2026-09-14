@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 81 / 361 source commits recorded
+## Progress: 82 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -909,10 +909,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U081 — `1c4daab873` — Rename members of Palette
 
 - **Source:** `1c4daab873f851be55eddd3e074be0bbda917922`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `998cdc15f57e58c4ff3f2cd5aa9d63db9b68aa51`.
 - **Remaining:** 281 → 280.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename Palette members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Preserve palette mode values, 8-bit keep-indices validation, pixel stride and offset handling, JSON keep token and PNG format selection. No colour remapping, resource regeneration or companion-object changes.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U082 — `e6cc15f033` — Rename members of PaletteIndexType
+
+- **Source:** `e6cc15f033672dec277fb7553d0ad23e6276e684`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 280 → 279.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename PaletteIndexType members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Preserve palette classes and every reserved/remap range: 0-9, 230-239, 255 special; 243-254 primary; 202-213 secondary; 46-57 tertiary. Pixel mutability and nearest-colour behavior remain unchanged.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
