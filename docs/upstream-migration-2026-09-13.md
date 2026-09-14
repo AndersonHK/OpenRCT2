@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 121 / 361 source commits recorded
+## Progress: 122 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1349,10 +1349,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U121 — `94a889e4c9` — Refactor SCROLL_FLAGS into enum class+FlagHolder
 
 - **Source:** `94a889e4c9d6d719e4072270a327dd650cf2c4ec`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `a0c1e1ce8275908d628b0334e2ce27c68e5d12b8`.
 - **Remaining:** 241 → 240.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Convert scrollbar bit constants to ScrollFlag and uint16 FlagHolder; use named predicates/set/clear/unset.
 - **Additional decisions / behavior:** Preserve eight bit positions, scroll offsets/ranges, wheel handling, drawing conditions and 16-bit storage. Release clears the same six pressed bits as old 0xFF11 mask, retaining visibility and upper bits.
 - **Verification:** Full four-file source diff reviewed; exhaustive 65,536-value mask comparison passed; no old scroll identifiers remain; whitespace/ancestry checks.
 - **Pending / concerns:** Build/widget checkpoint follows flag group; interactive scroll dragging remains pending.
+
+### U122 — `c2c126da9c` — Refactor BTM_TOOLBAR_DIRTY_FLAGS into enum class+FlagHolder
+
+- **Source:** `c2c126da9ce7ada8eedac10549d8fd4f07163669`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 240 → 239.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Convert five bottom-toolbar dirty flags to typed uint8 FlagHolder and update all producers/consumers.
+- **Additional decisions / behavior:** Retain bit positions 0-4, zero initial state, invalidation targets/order and clearing semantics. climate-to-weather and peep-to-guest names do not change simulation or refresh cadence.
+- **Verification:** Actual four-file delta and every gToolbarDirtyFlags reference reviewed; no old identifiers remain; whitespace/ancestry gates.
+- **Pending / concerns:** Build/widget checkpoint after merge receipt.
