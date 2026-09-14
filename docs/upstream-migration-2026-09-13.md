@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 347 / 361 source commits recorded
+## Progress: 348 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3835,10 +3835,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U347 — `b5ad1e4110` — Merge pull request #27061 from Gymnasiast/fix/1514
 
 - **Source:** `b5ad1e41108567b4411496abc1d53742c71792e3`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `5449949fba5cbd4a23b1d0bf3cc43d2da738490b`.
 - **Remaining:** 15 → 14.
 - **Disposition:** history receipt.
 - **Manual changes:** Accounted peep display branch merge without reapplying changes.
 - **Additional decisions / behavior:** Preserve U345-U346 platform and missing-ride adaptations.
 - **Verification:** Actual remerge diff empty; all parents accounted; B95 passed.
 - **Pending / concerns:** Standing native checks remain.
+
+### U348 — `6ab43acb35` — Add missing PermissionType "drag_path_area" (#27084)
+
+- **Source:** `6ab43acb35c436318cbe0932c42283ac6c43db89`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 14 → 13.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Add missing drag_path_area TypeScript permission name and contributor sync note.
+- **Additional decisions / behavior:** Runtime permission already exists; this only aligns declarations, without granting permissions or changing action ordering.
+- **Verification:** All three source hunks inspected; runtime permission name matches declaration; no executable code change.
+- **Pending / concerns:** Final build will include documentation/header artifacts.

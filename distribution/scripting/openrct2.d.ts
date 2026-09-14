@@ -4294,7 +4294,8 @@ declare global {
         "toggle_scenery_cluster" |
         "passwordless_login" |
         "modify_tile" |
-        "edit_scenario_options";
+        "edit_scenario_options" |
+        "drag_path_area";
 
     /**
      * Park APIs

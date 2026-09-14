@@ -26783,7 +26783,9 @@
       "decisions": [],
       "review_level": "remerge-probe",
       "implementation_status": "history receipt",
-      "port_commits": [],
+      "port_commits": [
+        "5449949fba5cbd4a23b1d0bf3cc43d2da738490b"
+      ],
       "verification_evidence": [
         "Actual remerge diff empty; all parents accounted; B95 passed."
       ],
@@ -26832,9 +26834,11 @@
       "note": "Expose drag_path_area permission in plugin declarations; verify mapping to existing server permission.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "All three source hunks inspected; runtime permission name matches declaration; no executable code change."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -26842,7 +26846,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P7"
+      "verification_gate": "P7",
+      "port_commit_locator": "Upstream-Commit: 6ab43acb35c436318cbe0932c42283ac6c43db89",
+      "implementation_decisions": "Runtime permission already exists; this only aligns declarations, without granting permissions or changing action ordering.",
+      "pending_validation": "Final build will include documentation/header artifacts."
     },
     {
       "sha": "1cc42279dcbd40802fc0f60d1674e6fa962a697f",
@@ -28218,8 +28225,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 347,
-    "remaining_after_receipt": 14,
+    "accounted_in_this_tree": 348,
+    "remaining_after_receipt": 13,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
