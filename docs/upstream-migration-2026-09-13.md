@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 190 / 361 source commits recorded
+## Progress: 191 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2108,10 +2108,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U190 — `3d90510a63` — Shrink and reposition top toolbar, allowing rain to be drawn (#26936)
 
 - **Source:** `3d90510a63d47510c6a91028616e7fb1186f1b56`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `0b81367e16aee13cf6c3b63ab0bae7892de86a22`.
 - **Remaining:** 172 → 171.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Shrink and reposition the centred top-toolbar window and use local button positions, allowing weather drawing beside it; restore full width in left/right mode. Include the source changelog entry.
 - **Additional decisions / behavior:** Approved D07 HUD adoption. Check both x position and width before updating/invalidation: WindowResizeGuiScenarioEditor resets toolbar width, and a one-pixel resize can retain the same integer centre x. Width-only changes must repair the bounds too. Preserve all fork buttons, visibility/permissions, turbo controls and render publication; no gameplay/weather simulation change.
 - **Verification:** Actual two-file patch and surrounding alignment/drawing/dropdown consumers reviewed; sprites and menus already add windowPos to local widget positions. Checked GUI resize width assignment and weather-window traversal. Scoped diff/whitespace checks pass.
 - **Pending / concerns:** Compile/widget checks due at next UI batch. Centred/left-right toggling, one-pixel resize and rain rendering need interactive verification; standing validation remains.
+
+### U191 — `182efeea9a` — Fix title windows not flashing when already open (#26935)
+
+- **Source:** `182efeea9ae9c0f7e5f9ee28a20a2432fa0907d4`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 171 → 170.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Use BringToFrontByClass for already-open scenario, load/save and multiplayer windows on the title menu; add changelog entry.
+- **Additional decisions / behavior:** Adopt edge-flash attention behavior while retaining existing close/open branches, pause/focus policy and single existing window. No gameplay change.
+- **Verification:** Both actual source files reviewed, including window-manager BringToFrontByClass behavior and unchanged missing-window branches. Scoped diff and whitespace checks pass.
+- **Pending / concerns:** U190-U191 compile/widget checks due at next batch; title-window flashing and toolbar/rain need interactive validation; standing limitations remain.

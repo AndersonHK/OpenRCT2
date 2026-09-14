@@ -14626,7 +14626,9 @@
       ],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "0b81367e16aee13cf6c3b63ab0bae7892de86a22"
+      ],
       "verification_evidence": [
         "Actual two-file patch and surrounding alignment/drawing/dropdown consumers reviewed; sprites and menus already add windowPos to local widget positions. Checked GUI resize width assignment and weather-window traversal. Scoped diff/whitespace checks pass."
       ],
@@ -14664,9 +14666,11 @@
       "note": "Request attention for already-open title windows or quit-blocking save prompt; retain normal focus/pause policy.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Both actual source files reviewed, including window-manager BringToFrontByClass behavior and unchanged missing-window branches. Scoped diff and whitespace checks pass."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -14674,7 +14678,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P5"
+      "verification_gate": "P5",
+      "port_commit_locator": "Upstream-Commit: 182efeea9ae9c0f7e5f9ee28a20a2432fa0907d4",
+      "implementation_decisions": "Adopt edge-flash attention behavior while retaining existing close/open branches, pause/focus policy and single existing window. No gameplay change.",
+      "pending_validation": "U190-U191 compile/widget checks due at next batch; title-window flashing and toolbar/rain need interactive validation; standing limitations remain."
     },
     {
       "sha": "8ebb607fc4692deefdf5108538990c49a5cc06b6",
@@ -27119,8 +27126,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 190,
-    "remaining_after_receipt": 171,
+    "accounted_in_this_tree": 191,
+    "remaining_after_receipt": 170,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
