@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 231 / 361 source commits recorded
+## Progress: 232 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2559,10 +2559,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U231 — `7a855d8c3b` — Rename RCT2ToOpenRCT2LanguageId to kRCT2ToOpenRCT2LanguageId
 
 - **Source:** `7a855d8c3b161dd9513168381e9b33738124c9fe`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `68dcd12bf2456fba67f5622313bbb03540ff6f9f`.
 - **Remaining:** 131 → 130.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Rename the legacy object-language mapping constant at its definition and use.
 - **Additional decisions / behavior:** No mapping values, object source priority or encoding behavior change.
 - **Verification:** Full two-line source delta and whole-repository references inspected.
 - **Pending / concerns:** Compile at next checkpoint.
+
+### U232 — `a5edcd5780` — Rename RCT1ResearchFlagsSeparator to kRCT1ResearchFlagsSeparator
+
+- **Source:** `a5edcd5780ab9749bb138d9b6af0be0de5abb1d5`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 130 → 129.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Rename the RCT1 research separator constant and its four importer uses.
+- **Additional decisions / behavior:** Keep numeric separator 0xFF, research ordering and all fork importer behavior.
+- **Verification:** Complete source and repository references reviewed; inverse replacement reproduces original file contents.
+- **Pending / concerns:** U229–U232 compile at next checkpoint.
