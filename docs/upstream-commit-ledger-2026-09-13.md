@@ -16,7 +16,7 @@ Planning ledger for [the port plan and decision register](upstream-port-plan-202
 
 All recommendations were approved by the owner on 2026-09-13. The newer historical, one-source-per-receipt loop and batched validation supersede the original grouped plan. See [the migration log](upstream-migration-2026-09-13.md) for decisions, behavior and pending checks.
 
-**Source receipts recorded: 34 / 361; remaining after the newest receipt: 327.**
+**Source receipts recorded: 35 / 361; remaining after the newest receipt: 326.**
 
 | Source | Disposition | Fork receipt |
 | --- | --- | --- |
@@ -53,7 +53,8 @@ All recommendations were approved by the owner on 2026-09-13. The newer historic
 | `46dbc1cf20` | adopt naming only | `276955b2f9702a8db7668b51e8a540c204b1e04c` |
 | `e1f2c365c1` | adopt naming only | `7d13c4ef2f15a8f4c27575ffb6916974c514e399` |
 | `0ab5cb5c49` | adopt naming only | `00ab8534baf3817c1d5c950a813f17dc4bcf3fd5` |
-| `c728e66032` | adopt naming only | `Upstream-Commit: c728e66032040e58b76291c7521cb2776b774314` |
+| `c728e66032` | adopt naming only | `5d41788fc1365b6e82aea60538a4839ec5e1c31b` |
+| `9c5057a524` | adopt naming only | `Upstream-Commit: 9c5057a524ac748dca642928c2594db1b8a099ef` |
 
 ## How to use the ledger
 

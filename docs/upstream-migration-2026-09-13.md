@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 34 / 361 source commits recorded
+## Progress: 35 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -392,10 +392,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U034 — `c728e66032` — Rename members of FileDialogType
 
 - **Source:** `c728e66032040e58b76291c7521cb2776b774314`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `5d41788fc1365b6e82aea60538a4839ec5e1c31b`.
 - **Remaining:** 328 → 327.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename FileDialogType members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Keep native open/save behavior and overwrite prompts across platforms. Names only; Windows build does not validate Linux/macOS runtime dialogs.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U035 — `9c5057a524` — Rename members of TileInspectorPage
+
+- **Source:** `9c5057a524ac748dca642928c2594db1b8a099ef`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 327 → 326.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename TileInspectorPage members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Default becomes standard; page numbers, widget indices and tile element selection/edit behavior stay unchanged.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
