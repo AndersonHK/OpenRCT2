@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 4 / 361 source commits recorded
+## Progress: 5 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -62,10 +62,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U004 — `a4f0d22988` — Fix #26288: Land bordering map edges does not blend at certain angles (#26844)
 
 - **Source:** `a4f0d22988fd5c54cb67a142bb14c9be2c749b95`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `68897c3b5878dd15f7fae2e9d42251c0fdce10aa`.
 - **Remaining:** 358 → 357.
 - **Disposition:** manually-ported.
 - **Manual changes:** Use map coordinates and cardinal neighbor offsets in surface descriptors so map-edge terrain blends correctly at all camera rotations.
 - **Additional decisions / behavior:** Presentation correction only: retained the fork surface cache and Vulkan ownership. Changed the coordinate base and its offsets together; no simulation terrain, path, or ownership mutations.
 - **Verification:** Inspected full source patch and fork descriptor consumers. Manual diff matches the source hunks while retaining fork additions. Each rotation selects the four cardinal adjacent tiles; whitespace and exact-one-source ancestry checks pass before receipt.
 - **Pending / concerns:** Compile at the next batch checkpoint; visual map-edge comparison at all four rotations remains pending.
+
+### U005 — `775c4e7635` — Update backtrace for upcoming release
+
+- **Source:** `775c4e76350382a59fbdcd5504ee9437cafc6bf1`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 357 → 356.
+- **Disposition:** manually-ported.
+- **Manual changes:** Refresh the existing public Backtrace release token.
+- **Additional decisions / behavior:** Keep the existing crash-reporting integration, destination and consent flow; this only updates its public upload token. Preserve the fork screenshot handling and removed OpenGL dependency. No report was sent during verification.
+- **Verification:** Inspected the complete one-line upstream patch and fork Crash.cpp differences. Only the token changes; whitespace and singleton ancestry checks run before receipt.
+- **Pending / concerns:** Compile at the batch checkpoint; external crash upload is not exercised.

@@ -159,7 +159,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "manually-ported",
-      "port_commits": [],
+      "port_commits": [
+        "68897c3b5878dd15f7fae2e9d42251c0fdce10aa"
+      ],
       "verification_evidence": [
         "Inspected full source patch and fork descriptor consumers. Manual diff matches the source hunks while retaining fork additions. Each rotation selects the four cardinal adjacent tiles; whitespace and exact-one-source ancestry checks pass before receipt."
       ],
@@ -200,9 +202,11 @@
       "note": "Review release crash-report metadata against fork deployment; do not treat upstream credentials/configuration as fork telemetry policy.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "manually-ported",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected the complete one-line upstream patch and fork Crash.cpp differences. Only the token changes; whitespace and singleton ancestry checks run before receipt."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -212,7 +216,10 @@
       "merge_conflict_paths": [
         "src/openrct2/platform/Crash.cpp"
       ],
-      "verification_gate": "P8"
+      "verification_gate": "P8",
+      "port_commit_locator": "Upstream-Commit: 775c4e76350382a59fbdcd5504ee9437cafc6bf1",
+      "implementation_decisions": "Keep the existing crash-reporting integration, destination and consent flow; this only updates its public upload token. Preserve the fork screenshot handling and removed OpenGL dependency. No report was sent during verification.",
+      "pending_validation": "Compile at the batch checkpoint; external crash upload is not exercised."
     },
     {
       "sha": "9198ff13f4c9cfb0f5f786f30c6f3f7c502a1c4b",
@@ -25817,8 +25824,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 4,
-    "remaining_after_receipt": 357,
+    "accounted_in_this_tree": 5,
+    "remaining_after_receipt": 356,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
