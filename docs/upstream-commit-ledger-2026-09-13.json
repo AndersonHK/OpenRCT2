@@ -888,7 +888,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "manually-ported",
-      "port_commits": [],
+      "port_commits": [
+        "fe03c6d1f0703eddbd7770a1fbb674dbfe19f3c0"
+      ],
       "verification_evidence": [
         "Inspected all eight source-file changes and fork differences. Explicit metadata substitutions preserve fork CI removal of OpenGL. Debian and appdata files matched their source parent before taking this commit's reviewed blobs. Whitespace and singleton ancestry checked before receipt."
       ],
@@ -940,9 +942,11 @@
       "note": "No remerge-resolution delta detected. Account for constituent commits before ancestry reconciliation.",
       "decisions": [],
       "review_level": "remerge-probe",
-      "implementation_status": "not-ported",
+      "implementation_status": "merge-no-unique-source-change",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected merge parents and successful empty remerge diff in scratch object storage. Singleton ancestry and whitespace checked before receipt."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -952,7 +956,10 @@
       "merge_conflict_paths": [
         "src/openrct2/network/NetworkBase.cpp"
       ],
-      "verification_gate": "P0"
+      "verification_gate": "P0",
+      "port_commit_locator": "Upstream-Commit: 31760893d61fa4fee2ed3fafc2f7db1cec6ec36d",
+      "implementation_decisions": "The release changes are already manually ported in U008. Do not replay the merge aggregate diff over fork network/CI changes.",
+      "pending_validation": "No additional debt; earlier checks are scheduled at U010 checkpoint."
     },
     {
       "sha": "f475c5b94923c902580b2237c7ba54c04320dc92",
@@ -25845,8 +25852,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 8,
-    "remaining_after_receipt": 353,
+    "accounted_in_this_tree": 9,
+    "remaining_after_receipt": 352,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
