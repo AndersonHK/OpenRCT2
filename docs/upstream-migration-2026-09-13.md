@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 53 / 361 source commits recorded
+## Progress: 54 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -601,10 +601,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U053 — `3fa93c3278` — Rename members of Weather::Type
 
 - **Source:** `3fa93c32786eef367c5a851061e74f0e11c10ef3`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `71aaa996c67e1580f65fc7c254c9e718aa7174d2`.
 - **Remaining:** 309 → 308.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename Weather::Type members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Preserve weather values 0-8 and count=9, climate distributions, screenshot option offsets, force-weather bounds and scripting strings. Restrict unqualified Type substitutions to the Weather namespace files; unrelated Type enums remain untouched. Include fork pathfinding weather tests without changing routing behavior.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U054 — `068f68e4a9` — Rename members of Weather::EffectType
+
+- **Source:** `068f68e4a910011f1c47485f3380153cefbaf9cd`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 308 → 307.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename Weather::EffectType members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Preserve effect values 0-4 and the complete weather-trait table, thunder probabilities, rain/storm audio trigger and RCT1 import defaults. Namespace-scoped naming only; no climate, sound gain or simulation changes.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
