@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 123 / 361 source commits recorded
+## Progress: 124 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1371,10 +1371,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U123 — `263cb53047` — Merge pull request #26884 from Gymnasiast/more-enum-refactor
 
 - **Source:** `263cb53047ea432cf6bd80507095f69982065e42`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `3bb88b05112330292f930290c863444128f5848a`.
 - **Remaining:** 239 → 238.
 - **Disposition:** history receipt.
 - **Manual changes:** Record completed flag-refactor branch merge; no additional source delta.
 - **Additional decisions / behavior:** Keep individually ported fork tree; no upstream whole-tree merge.
 - **Verification:** Archived remerge is empty and tree equals second parent; singleton ancestry gate.
 - **Pending / concerns:** Flag-group compile/test checkpoint starting.
+
+### U124 — `5a814722e1` — Add Walls-only and Footpath Addition modes to Clear Scenery (#26877)
+
+- **Source:** `5a814722e136db8fc168f06a4794f29c88ca31b9`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 238 → 237.
+- **Disposition:** adopt approved D10 with fork protocol adaptation.
+- **Manual changes:** Add separate walls and path-addition clear modes, icons/tooltips, API-117 mask documentation and UI controls; implement through existing nested removal actions. Add 32-mask serialization/query/execute regression.
+- **Additional decisions / behavior:** D10 approved: bit 1 now small scenery only, walls bit 8, additions bit 16; UI defaults keep small scenery plus walls, no old-plugin shim. No tracked script callers and no installed JS/TS plugins found; embedded park scripts not scanned. Advance independent fork stream 4 to 5 rather than upstream 0 to 1. New label 7040 leaves fork IDs 8000-8041 intact. Preserve erasure-restart traversal, nested permissions/costs, coordinate-based staff claims and companion object pin. Addition removal mutates a field without tile erasure or topology replacement; existing bin work rechecks addition presence.
+- **Verification:** Actual complete source diff inspected; binary icons exact source blobs. Batch 17 flag build plus 50 tests clear prior debt. Batch 18 full build 0 warnings/errors; 18 tests passed, including all 32 masks after serialization, nonmutating queries, cost agreement, adjacent wall erasure and ghosts. Whitespace/ancestry gates.
+- **Pending / concerns:** Directed active staff-claim case, positive-cost insufficient-funds combinations, embedded park scripts and interactive buttons remain explicit validation debt.

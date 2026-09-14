@@ -8705,7 +8705,9 @@
       "decisions": [],
       "review_level": "remerge-probe",
       "implementation_status": "history receipt",
-      "port_commits": [],
+      "port_commits": [
+        "3bb88b05112330292f930290c863444128f5848a"
+      ],
       "verification_evidence": [
         "Archived remerge is empty and tree equals second parent; singleton ancestry gate."
       ],
@@ -8768,9 +8770,11 @@
         "D10"
       ],
       "review_level": "targeted-code-review",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt approved D10 with fork protocol adaptation",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Actual complete source diff inspected; binary icons exact source blobs. Batch 17 flag build plus 50 tests clear prior debt. Batch 18 full build 0 warnings/errors; 18 tests passed, including all 32 masks after serialization, nonmutating queries, cost agreement, adjacent wall erasure and ghosts. Whitespace/ancestry gates."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -8781,7 +8785,10 @@
         "data/language/en-GB.txt",
         "src/openrct2/network/NetworkBase.cpp"
       ],
-      "verification_gate": "P3"
+      "verification_gate": "P3",
+      "port_commit_locator": "Upstream-Commit: 5a814722e136db8fc168f06a4794f29c88ca31b9",
+      "implementation_decisions": "D10 approved: bit 1 now small scenery only, walls bit 8, additions bit 16; UI defaults keep small scenery plus walls, no old-plugin shim. No tracked script callers and no installed JS/TS plugins found; embedded park scripts not scanned. Advance independent fork stream 4 to 5 rather than upstream 0 to 1. New label 7040 leaves fork IDs 8000-8041 intact. Preserve erasure-restart traversal, nested permissions/costs, coordinate-based staff claims and companion object pin. Addition removal mutates a field without tile erasure or topology replacement; existing bin work rechecks addition presence.",
+      "pending_validation": "Directed active staff-claim case, positive-cost insufficient-funds combinations, embedded park scripts and interactive buttons remain explicit validation debt."
     },
     {
       "sha": "42885ec9659d628a842f76d45be9c9430ba1a8fb",
@@ -26650,8 +26657,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 123,
-    "remaining_after_receipt": 238,
+    "accounted_in_this_tree": 124,
+    "remaining_after_receipt": 237,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
