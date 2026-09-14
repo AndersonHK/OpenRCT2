@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 243 / 361 source commits recorded
+## Progress: 244 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2691,10 +2691,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U243 — `f66c153a10` — Replace SDL.h headers with SDL sub headers (#26990)
 
 - **Source:** `f66c153a101cc49d4f77eb53a52915dea785848e`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `0ff89e0b994476c135665ffa91d84ea1d4b7fcd7`.
 - **Remaining:** 119 → 118.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Use targeted SDL headers across 15 existing files; document B52 object-loading and dependency checkpoint.
 - **Additional decisions / behavior:** Omit only the retired OpenGL backend include edit. All fork mixing/presentation behavior unchanged; no Vulkan edits.
 - **Verification:** Complete 16-path source read; all 15 applicable files compare equal excluding includes. B52 solution build 16.77s zero warnings/errors; 66 selected tests/five suites pass in 8.253s. U240/U241 compile debt cleared.
 - **Pending / concerns:** Non-Windows headers remain uncompiled; actual track-design preview cases and consolidated runtime limits remain B52.
+
+### U244 — `341d3b834a` — Fix PaletteMap.cpp compilation in debug mode (#26989)
+
+- **Source:** `341d3b834a9894a0d673afda833651aebb671aac`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 118 → 117.
+- **Disposition:** history receipt.
+- **Manual changes:** Already satisfied by U221: PaletteIndex.h is directly included by PaletteMap.cpp.
+- **Additional decisions / behavior:** Retain the small unconditional owning-enum include, rather than wrapping it in _DEBUG; runtime and declarations remain equivalent. No source edit needed.
+- **Verification:** Complete source patch inspected; owning header present. U221 standalone Debug/Release syntax checks and B49 solution/GPU validation cover this correction.
+- **Pending / concerns:** Full Debug solution/non-Windows builds remain unrun; no new debt.

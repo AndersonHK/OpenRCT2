@@ -17347,7 +17347,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "0ff89e0b994476c135665ffa91d84ea1d4b7fcd7"
+      ],
       "verification_evidence": [
         "Complete 16-path source read; all 15 applicable files compare equal excluding includes. B52 solution build 16.77s zero warnings/errors; 66 selected tests/five suites pass in 8.253s. U240/U241 compile debt cleared."
       ],
@@ -17388,9 +17390,11 @@
       "note": "Move PaletteMap implementation with its Debug include fix; retain Vulkan palette/texture consumers.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "history receipt",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Complete source patch inspected; owning header present. U221 standalone Debug/Release syntax checks and B49 solution/GPU validation cover this correction."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -17398,7 +17402,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P6"
+      "verification_gate": "P6",
+      "port_commit_locator": "Upstream-Commit: 341d3b834a9894a0d673afda833651aebb671aac",
+      "implementation_decisions": "Retain the small unconditional owning-enum include, rather than wrapping it in _DEBUG; runtime and declarations remain equivalent. No source edit needed.",
+      "pending_validation": "Full Debug solution/non-Windows builds remain unrun; no new debt."
     },
     {
       "sha": "31004bbf332455a82084d466a9e081dfc760aebd",
@@ -27490,8 +27497,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 243,
-    "remaining_after_receipt": 118,
+    "accounted_in_this_tree": 244,
+    "remaining_after_receipt": 117,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
