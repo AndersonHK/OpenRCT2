@@ -678,3 +678,8 @@ U213 audit: mark Http::DoAsync and both LAN async functions nodiscard, including
 - Full-context Line.cpp application was required after the generic small-block adapter refused a repeated internal line. No behavior was approximated. Full tracked consumer inventory finds no missing direct Line.h includes.
 - Release x64 MSVC/Vulkan solution passed in24.86 seconds with zero warnings/errors. Validation results follow in the receipt; native graph/plugin line appearance remains a standing manual check. No new owner decision.
 - All67 widget/GPU/scripting tests passed in2.273 seconds. Logs: obj/upstream-audit/batch-87-build.log and batch-87-tests.log/xml.
+
+## B88 — U322/U323 ImageId catalogue and pixel-filter ownership
+
+- U322 moves the catalogue method unchanged into its own registered source. U323 moves the one-pixel rectangle-filter wrapper to Rectangle::filterPixel and updates all four tooltip corners. The rectangle operation remains the same inclusive single-coordinate rectangle with the same palette; no new fork consumers. Rectangle.cpp/.h and Tooltip.cpp fully match U323 source. No new GPU or gameplay behavior.
+- Release x64 MSVC/Vulkan solution passed in26.47 seconds with zero warnings/errors; all67 widget/GPU/scripting tests passed in2.229 seconds. Logs: obj/upstream-audit/batch-88-build.log and batch-88-tests.log/xml. Clears U322 compile debt. Native tooltip pixels remain part of standing manual validation; no new decision.

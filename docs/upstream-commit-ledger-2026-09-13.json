@@ -25175,7 +25175,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "4502923382b1c7a68f5a1cfa984735716a87e9d7"
+      ],
       "verification_evidence": [
         "Inspected the complete moved method and registration; new file is source-identical."
       ],
@@ -25222,9 +25224,11 @@
       "note": "Adopt final palette/screen/line header ownership with fork-only GPU consumers; retain immutable presentation state.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "B88: source equality for Rectangle/Tooltip; solution zero warnings/errors;67 widget/GPU/scripting tests passed. Clears U322 compile debt."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -25235,7 +25239,10 @@
         "src/openrct2/drawing/Drawing.cpp",
         "src/openrct2/drawing/Drawing.h"
       ],
-      "verification_gate": "P6"
+      "verification_gate": "P6",
+      "port_commit_locator": "Upstream-Commit: fcdf61e009b2f3da81cf3ba019174c353bad9709",
+      "implementation_decisions": "Preserve the same single-coordinate rectangle and palette; no behavior change or extra fork consumer.",
+      "pending_validation": "Standing native tooltip visual checks remain."
     },
     {
       "sha": "c3a2fe508fbf2d583ebe4dc14781dd45006bb5cf",
@@ -28043,8 +28050,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 322,
-    "remaining_after_receipt": 39,
+    "accounted_in_this_tree": 323,
+    "remaining_after_receipt": 38,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

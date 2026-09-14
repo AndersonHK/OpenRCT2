@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 322 / 361 source commits recorded
+## Progress: 323 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3560,10 +3560,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U322 — `96ba41b5e6` — Move ImageId::GetCatalogue() out of Drawing.cpp
 
 - **Source:** `96ba41b5e6aa82222b525d198478aeeb149f9f9a`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `4502923382b1c7a68f5a1cfa984735716a87e9d7`.
 - **Remaining:** 40 → 39.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Moved ImageId::GetCatalogue to ImageId.cpp and registered the new source.
 - **Additional decisions / behavior:** Preserve exact image-index catalogue bounds/order; no resource lookup or renderer behavior change.
 - **Verification:** Inspected the complete moved method and registration; new file is source-identical.
 - **Pending / concerns:** Compile checkpoint deferred to the following coherent drawing refactor.
+
+### U323 — `fcdf61e009` — Move GfxFilterPixel to Rectangle.cpp
+
+- **Source:** `fcdf61e009b2f3da81cf3ba019174c353bad9709`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 39 → 38.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Moved the pixel-filter wrapper to Rectangle::filterPixel and updated tooltip corners.
+- **Additional decisions / behavior:** Preserve the same single-coordinate rectangle and palette; no behavior change or extra fork consumer.
+- **Verification:** B88: source equality for Rectangle/Tooltip; solution zero warnings/errors;67 widget/GPU/scripting tests passed. Clears U322 compile debt.
+- **Pending / concerns:** Standing native tooltip visual checks remain.
