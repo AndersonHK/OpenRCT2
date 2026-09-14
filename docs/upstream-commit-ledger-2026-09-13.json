@@ -12883,7 +12883,9 @@
       "decisions": [],
       "review_level": "remerge-probe",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "18b9091c7445d7af48c4dda8440366732e7d7d06"
+      ],
       "verification_evidence": [
         "Source parents reviewed, tree equality verified. B29 full Release x64 MSVC/Vulkan rebuild passed with 0 warnings/errors in 17.15 seconds; all 254 tests in 17 suites passed in 32.768 seconds. Initial four diagnostics and repairs are recorded in validation Markdown."
       ],
@@ -12978,9 +12980,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Reviewed all ten source patches and fork usages; normalized comparison verifies all ten fork deltas contain only includes, forward declarations and whitespace. Changed C++ lines formatted; whitespace and singleton ancestry checked by receipt helper."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -12990,7 +12994,10 @@
       "merge_conflict_paths": [
         "src/openrct2-ui/UiContext.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: a80faffd5ce231205c7f1957af9ecc1be4cd00a7",
+      "implementation_decisions": "No behavior change. Fork Vulkan platform include and all UI/input/render ownership bodies are retained. UiScriptExtensions only takes a ScriptEngine reference, so the removed full engine header is not required there; provisional path functions and input dispatch retain their actual declaring headers.",
+      "pending_validation": "Compile and focused regression tests at the next UI-header checkpoint; interactive and non-Windows UI checks remain outstanding."
     },
     {
       "sha": "2c8891ca8b2513ec9567d54619ffbb1f362ea44a",
@@ -26937,8 +26944,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 164,
-    "remaining_after_receipt": 197,
+    "accounted_in_this_tree": 165,
+    "remaining_after_receipt": 196,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

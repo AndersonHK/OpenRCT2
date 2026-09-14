@@ -12,7 +12,6 @@
 #include "CursorRepository.h"
 #include "SDLException.h"
 #include "TextComposition.h"
-#include "UiStringIds.h"
 #include "WindowManager.h"
 #include "drawing/engines/DrawingEngineFactory.hpp"
 #ifdef ENABLE_VULKAN
@@ -21,12 +20,10 @@
 #include "input/ShortcutManager.h"
 #include "interface/InGameConsole.h"
 #include "interface/Theme.h"
-#include "interface/Viewport.h"
 #include "scripting/UiExtensions.h"
 #include "title/TitleSequencePlayer.h"
 
 #include <SDL.h>
-#include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <memory>
@@ -47,9 +44,8 @@
 #include <openrct2/drawing/NewDrawing.h>
 #include <openrct2/drawing/RenderTarget.h>
 #include <openrct2/interface/Chat.h>
-#include <openrct2/platform/Platform.h>
+#include <openrct2/interface/Viewport.h>
 #include <openrct2/scenes/title/TitleSequencePlayer.h>
-#include <openrct2/scripting/ScriptEngine.h>
 #include <openrct2/ui/UiContext.h>
 #include <openrct2/ui/WindowManager.h>
 #include <openrct2/world/Location.hpp>

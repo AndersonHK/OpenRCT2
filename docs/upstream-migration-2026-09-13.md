@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 164 / 361 source commits recorded
+## Progress: 165 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1822,10 +1822,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U164 — `e501376aa3` — Merge pull request #26914 from Gymnasiast/refactor/tile-element-code-style
 
 - **Source:** `e501376aa3eab0b8c2ec1a6644aea2042e5d5372`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `18b9091c7445d7af48c4dda8440366732e7d7d06`.
 - **Remaining:** 198 → 197.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** History receipt for the tile-element naming merge; source tree equals its second parent and the previously inspected remerge diff is empty. Carry two B29 repair calls in fork Map.cpp terrain snapshots, GetSurfaceObject/GetParkFences to getSurfaceObject/getParkFences, and checkpoint batch validation.
 - **Additional decisions / behavior:** No new source behavior or design decision. Preserve fork snapshot object-resolution ownership and all approved gameplay models; repair two missed U161 call-site spellings without aliases.
 - **Verification:** Source parents reviewed, tree equality verified. B29 full Release x64 MSVC/Vulkan rebuild passed with 0 warnings/errors in 17.15 seconds; all 254 tests in 17 suites passed in 32.768 seconds. Initial four diagnostics and repairs are recorded in validation Markdown.
 - **Pending / concerns:** Interactive rendering/editing and native non-Windows checks remain unverified; other standing validation debt is retained.
+
+### U165 — `a80faffd5c` — Remove openrct2-ui/ includes
+
+- **Source:** `a80faffd5ce231205c7f1957af9ecc1be4cd00a7`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 197 → 196.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Port all ten UI header-dependency cleanups: narrow SDL mouse/error/clipboard/events includes, forward-declare CursorID, remove unused includes/declarations and use direct core Viewport and Audio dependencies.
+- **Additional decisions / behavior:** No behavior change. Fork Vulkan platform include and all UI/input/render ownership bodies are retained. UiScriptExtensions only takes a ScriptEngine reference, so the removed full engine header is not required there; provisional path functions and input dispatch retain their actual declaring headers.
+- **Verification:** Reviewed all ten source patches and fork usages; normalized comparison verifies all ten fork deltas contain only includes, forward declarations and whitespace. Changed C++ lines formatted; whitespace and singleton ancestry checked by receipt helper.
+- **Pending / concerns:** Compile and focused regression tests at the next UI-header checkpoint; interactive and non-Windows UI checks remain outstanding.
