@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 198 / 361 source commits recorded
+## Progress: 199 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2196,10 +2196,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U198 — `f5f4b522c7` — Replace some bottomToolbar invalidation with date/parkInfoPanel (#26948)
 
 - **Source:** `f5f4b522c7438b6c2ad30f28a941c4d325116f49`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `3c6def531a1805fda0d4398b712c7ce82e20a012`.
 - **Remaining:** 164 → 163.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Retarget ten bottom-toolbar redraw requests to their new park/date panel owners across five files.
 - **Additional decisions / behavior:** D07: money/no-money/loan changes invalidate park info; date cheats invalidate date info. Correct upstream ConsoleCommandForceDate targeting parkInfoPanel to dateInfoPanel, which actually draws the changed date. Keep remaining MapTooltip invalidation on news toolbar because it owns full-toolbar map tooltip rendering. No action values, simulation or weather timing change.
 - **Verification:** Inspected entire five-file source delta and resulting ten-line replacement diff; audited remaining bottomToolbar invalidation and date drawing/action. Diff check passes.
 - **Pending / concerns:** Batch compile/widget checks pending; interactive date/money redraw and standing limitations remain.
+
+### U199 — `a74f7437b9` — Rename symbols of Peep (#26949)
+
+- **Source:** `a74f7437b92694dab9fbd0d6374f566854c0f4fd`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 163 → 162.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Manually port Peep member and method renames across 55 source paths plus three fork-only test paths; preserve fork inline movement, transport/platform, registry and park migration implementations. Restore O04 missing park-rating HUD invalidation from U195.
+- **Additional decisions / behavior:** 85 reviewed names and three anti-shadowing local renames; preserve all numeric/layout/gameplay contracts and unrelated legacy/rating/vehicle APIs. O04 corrects prior incomplete U195 intent migration: rating changes now invalidate parkInfoPanel independently. No API119/protocol11/save60016 change.
+- **Verification:** B40 first build found three missed names from digit-separator scanner bug (five diagnostics); repaired scanner/references, final build 18.12s zero warnings/errors. All 252 tests in 14 suites pass in 33.886s. Source and 59-file fork token audits plus all five HUD intent-body comparisons pass; diff check passes.
+- **Pending / concerns:** O04 redraw is source-verified, not observed with renderer; existing headless test cannot record dirty regions. Standing interactive/native non-Windows/live multiplayer/replay and later custom-theme conversion remain.

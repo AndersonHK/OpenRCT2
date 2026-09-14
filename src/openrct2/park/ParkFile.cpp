@@ -2096,15 +2096,15 @@ namespace OpenRCT2
             if (cs.getMode() == OrcaStream::Mode::reading)
             {
                 auto name = cs.read<std::string>();
-                entity.SetName(name);
+                entity.setName(name);
             }
             else
             {
-                cs.write(static_cast<const char*>(entity.Name));
+                cs.write(static_cast<const char*>(entity.name));
             }
 
-            cs.readWrite(entity.NextLoc);
-            cs.readWrite(entity.NextFlags);
+            cs.readWrite(entity.nextLoc);
+            cs.readWrite(entity.nextFlags);
 
             if (version <= 1)
             {
@@ -2118,18 +2118,18 @@ namespace OpenRCT2
                 }
             }
 
-            auto state = entity.State;
-            auto subState = entity.SubState;
+            auto state = entity.state;
+            auto subState = entity.subState;
             const Ride* platformRide = nullptr;
             if (cs.getMode() == OrcaStream::Mode::writing && guest != nullptr)
             {
-                platformRide = GetRide(guest->CurrentRide);
+                platformRide = GetRide(guest->currentRide);
             }
             const bool exportPlatformGuest = cs.getMode() == OrcaStream::Mode::writing
-                && version < kStationPlatformPreQueueVersion && guest != nullptr && guest->State == PeepState::enteringRide
-                && (guest->RideSubState == PeepRideSubState::approachPlatformSlot
-                    || guest->RideSubState == PeepRideSubState::waitingOnPlatform
-                    || (guest->RideSubState == PeepRideSubState::inEntrance && guest->CurrentTrain == RideStation::kNoTrain
+                && version < kStationPlatformPreQueueVersion && guest != nullptr && guest->state == PeepState::enteringRide
+                && (guest->rideSubState == PeepRideSubState::approachPlatformSlot
+                    || guest->rideSubState == PeepRideSubState::waitingOnPlatform
+                    || (guest->rideSubState == PeepRideSubState::inEntrance && guest->currentTrain == RideStation::kNoTrain
                         && platformRide != nullptr && RideSupportsStationPlatformPreQueue(*platformRide)));
             if (exportPlatformGuest)
             {
@@ -2142,16 +2142,16 @@ namespace OpenRCT2
             ReadWriteFields(cs, state, subState);
             if (cs.getMode() == OrcaStream::Mode::reading)
             {
-                entity.State = state;
-                entity.SubState = subState;
+                entity.state = state;
+                entity.subState = subState;
             }
 
             if (version >= kPeepAnimationObjectsVersion)
-                cs.readWrite(entity.AnimationObjectIndex);
+                cs.readWrite(entity.animationObjectIndex);
             else
-                entity.AnimationObjectIndex = kObjectEntryIndexNull;
+                entity.animationObjectIndex = kObjectEntryIndexNull;
 
-            cs.readWrite(entity.AnimationGroup);
+            cs.readWrite(entity.animationGroup);
 
             if (version <= 1)
             {
@@ -2165,16 +2165,16 @@ namespace OpenRCT2
                 }
             }
 
-            ReadWriteFields(cs, entity.TshirtColour, entity.TrousersColour);
-            auto destinationX = entity.DestinationX;
-            auto destinationY = entity.DestinationY;
-            auto destinationTolerance = entity.DestinationTolerance;
+            ReadWriteFields(cs, entity.tShirtColour, entity.trousersColour);
+            auto destinationX = entity.destinationX;
+            auto destinationY = entity.destinationY;
+            auto destinationTolerance = entity.destinationTolerance;
             if (exportPlatformGuest)
             {
-                if (const auto* ride = GetRide(guest->CurrentRide);
-                    ride != nullptr && guest->CurrentRideStation.ToUnderlying() < ride->numStations)
+                if (const auto* ride = GetRide(guest->currentRide);
+                    ride != nullptr && guest->currentRideStation.ToUnderlying() < ride->numStations)
                 {
-                    const auto exit = ride->getStation(guest->CurrentRideStation).Exit;
+                    const auto exit = ride->getStation(guest->currentRideStation).Exit;
                     if (!exit.IsNull() && exit.direction < kNumOrthogonalDirections)
                     {
                         destinationX = static_cast<uint16_t>(
@@ -2188,11 +2188,11 @@ namespace OpenRCT2
             ReadWriteFields(cs, destinationX, destinationY, destinationTolerance);
             if (cs.getMode() == OrcaStream::Mode::reading)
             {
-                entity.DestinationX = destinationX;
-                entity.DestinationY = destinationY;
-                entity.DestinationTolerance = destinationTolerance;
+                entity.destinationX = destinationX;
+                entity.destinationY = destinationY;
+                entity.destinationTolerance = destinationTolerance;
             }
-            ReadWriteFields(cs, entity.Var37, entity.Energy, entity.EnergyTarget);
+            ReadWriteFields(cs, entity.var37, entity.energy, entity.energyTarget);
 
             if (version <= 1)
             {
@@ -2214,7 +2214,7 @@ namespace OpenRCT2
                 }
             }
 
-            cs.readWrite(entity.Mass);
+            cs.readWrite(entity.mass);
 
             if (version <= 1)
             {
@@ -2250,7 +2250,7 @@ namespace OpenRCT2
                 }
             }
 
-            cs.readWrite(entity.WindowInvalidateFlags);
+            cs.readWrite(entity.windowInvalidateFlags);
 
             if (version <= 1)
             {
@@ -2277,17 +2277,17 @@ namespace OpenRCT2
                 }
             }
 
-            cs.readWrite(entity.CurrentRide);
-            cs.readWrite(entity.CurrentRideStation);
-            cs.readWrite(entity.CurrentTrain);
-            cs.readWrite(entity.TimeToSitdown);
-            cs.readWrite(entity.SpecialSprite);
-            cs.readWrite(entity.AnimationType);
-            cs.readWrite(entity.NextAnimationType);
-            cs.readWrite(entity.AnimationImageIdOffset);
-            cs.readWrite(entity.Action);
-            cs.readWrite(entity.AnimationFrameNum);
-            cs.readWrite(entity.StepProgress);
+            cs.readWrite(entity.currentRide);
+            cs.readWrite(entity.currentRideStation);
+            cs.readWrite(entity.currentTrain);
+            cs.readWrite(entity.timeToSitdown);
+            cs.readWrite(entity.specialSprite);
+            cs.readWrite(entity.animationType);
+            cs.readWrite(entity.nextAnimationType);
+            cs.readWrite(entity.animationImageIdOffset);
+            cs.readWrite(entity.action);
+            cs.readWrite(entity.animationFrameNum);
+            cs.readWrite(entity.stepProgress);
 
             if (version <= 1)
             {
@@ -2301,8 +2301,8 @@ namespace OpenRCT2
                 }
             }
 
-            cs.readWrite(entity.PeepDirection);
-            cs.readWrite(entity.InteractionRideIndex);
+            cs.readWrite(entity.peepDirection);
+            cs.readWrite(entity.interactionRideIndex);
 
             if (version <= 1)
             {
@@ -2322,7 +2322,7 @@ namespace OpenRCT2
                 }
             }
 
-            cs.readWrite(entity.PeepId);
+            cs.readWrite(entity.peepId);
 
             if (version <= 1)
             {
@@ -2378,7 +2378,7 @@ namespace OpenRCT2
                 }
             }
 
-            cs.readWrite(entity.PathCheckOptimisation);
+            cs.readWrite(entity.pathCheckOptimisation);
 
             if (version <= 1)
             {
@@ -2397,14 +2397,14 @@ namespace OpenRCT2
             }
 
             ReadWriteFields(
-                cs, entity.peepFlags.holder, entity.PathfindGoal.x, entity.PathfindGoal.y, entity.PathfindGoal.z,
-                entity.PathfindGoal.direction);
-            for (size_t i = 0; i < std::size(entity.PathfindHistory); i++)
+                cs, entity.peepFlags.holder, entity.pathfindGoal.x, entity.pathfindGoal.y, entity.pathfindGoal.z,
+                entity.pathfindGoal.direction);
+            for (size_t i = 0; i < std::size(entity.pathfindHistory); i++)
             {
-                auto& entry = entity.PathfindHistory[i];
+                auto& entry = entity.pathfindHistory[i];
                 ReadWriteFields(cs, entry.x, entry.y, entry.z, entry.direction);
             }
-            cs.readWrite(entity.WalkingAnimationFrameNum);
+            cs.readWrite(entity.walkingAnimationFrameNum);
 
             if (version <= 1)
             {

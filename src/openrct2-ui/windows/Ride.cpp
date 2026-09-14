@@ -4306,7 +4306,7 @@ namespace OpenRCT2::Ui::Windows
                         if (staff != nullptr && staff->isMechanic())
                         {
                             ft = Formatter();
-                            staff->FormatNameTo(ft);
+                            staff->formatNameTo(ft);
                             drawTextWrapped(rt, screenCoords, 280, stringId, ft, { TextAlignment::left });
                         }
                     }

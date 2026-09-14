@@ -655,12 +655,12 @@ TEST_F(MapPathTopologyTest, SharedRouteProposalCannotBypassGuestJunctionHistory)
 
     Guest guest{};
     guest.type = EntityType::guest;
-    guest.PathfindGoal = { target.location, 0 };
-    for (auto& history : guest.PathfindHistory)
+    guest.pathfindGoal = { target.location, 0 };
+    for (auto& history : guest.pathfindHistory)
     {
         history.SetNull();
     }
-    guest.PathfindHistory[0] = { { start, 10 }, 1 << south };
+    guest.pathfindHistory[0] = { { start, 10 }, 1 << south };
 
     const auto chosen = PathFinding::ChooseDirection({ start, 10 }, target.location, guest, true, ride);
     EXPECT_EQ(chosen, south);

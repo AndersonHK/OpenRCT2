@@ -136,11 +136,11 @@ namespace OpenRCT2::RideVehicle::StationDetail
             auto* guest = originalPassengers[sourceIndex];
             if (guest != nullptr)
             {
-                guest->CurrentSeat = destinationIndex;
+                guest->currentSeat = destinationIndex;
                 if (destinationIndex >= plan.continuingCount)
                 {
-                    guest->SetState(PeepState::leavingRide);
-                    guest->RideSubState = PeepRideSubState::leaveVehicle;
+                    guest->setState(PeepState::leavingRide);
+                    guest->rideSubState = PeepRideSubState::leaveVehicle;
                 }
             }
         }
@@ -155,8 +155,8 @@ namespace OpenRCT2::RideVehicle::StationDetail
             auto* guest = entities.GetEntity<Guest>(vehicle.peep[peepIndex]);
             if (guest != nullptr)
             {
-                guest->SetState(PeepState::leavingRide);
-                guest->RideSubState = PeepRideSubState::leaveVehicle;
+                guest->setState(PeepState::leavingRide);
+                guest->rideSubState = PeepRideSubState::leaveVehicle;
             }
         }
     }
@@ -173,10 +173,10 @@ namespace OpenRCT2::RideVehicle::StationDetail
             return false;
         }
 
-        guest.CurrentSeat = seatIndex;
+        guest.currentSeat = seatIndex;
         vehicle.next_free_seat++;
         vehicle.peep[seatIndex] = guest.id;
-        vehicle.peep_tshirt_colours[seatIndex] = guest.TshirtColour;
+        vehicle.peep_tshirt_colours[seatIndex] = guest.tShirtColour;
         return true;
     }
 } // namespace OpenRCT2::RideVehicle::StationDetail
@@ -1048,8 +1048,8 @@ void Vehicle::UpdateUnloadingPassengers()
 
             if (firstGuest != nullptr)
             {
-                firstGuest->SetState(PeepState::leavingRide);
-                firstGuest->RideSubState = PeepRideSubState::leaveVehicle;
+                firstGuest->setState(PeepState::leavingRide);
+                firstGuest->rideSubState = PeepRideSubState::leaveVehicle;
             }
 
             auto secondGuest = entities.GetEntity<Guest>(peep[seat * 2 + 1]);
@@ -1057,8 +1057,8 @@ void Vehicle::UpdateUnloadingPassengers()
 
             if (secondGuest != nullptr)
             {
-                secondGuest->SetState(PeepState::leavingRide);
-                secondGuest->RideSubState = PeepRideSubState::leaveVehicle;
+                secondGuest->setState(PeepState::leavingRide);
+                secondGuest->rideSubState = PeepRideSubState::leaveVehicle;
             }
         }
     }

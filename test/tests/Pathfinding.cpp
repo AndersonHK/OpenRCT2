@@ -140,8 +140,8 @@ protected:
 
     static void InitialiseTransportGuest(Guest& guest)
     {
-        guest.NextLoc = { 0, 0, 0 };
-        guest.Energy = 96;
+        guest.nextLoc = { 0, 0, 0 };
+        guest.energy = 96;
         guest.cashInPocket = 100.00_GBP;
         guest.outsideOfPark = false;
         guest.guestHeadingToRideId = RideId::GetNull();
@@ -292,9 +292,9 @@ protected:
         // 'destination' which is a close position that they will walk towards in a straight line - in this case, one
         // tile away. Stepping the peep will move them towards their destination, and once they reach it, a new
         // destination will be picked, to try and get the peep towards the overall pathfinding goal.
-        peep->PeepDirection = moveDir;
+        peep->peepDirection = moveDir;
         auto destination = CoordsDirectionDelta[moveDir] + peep->getLocation();
-        peep->SetDestination(destination, 2);
+        peep->setDestination(destination, 2);
 
         // Repeatedly step the peep, until they reach the target position or until the expected number of steps have
         // elapsed. Each step, check that the tile they are standing on is not marked as forbidden in the test data
@@ -302,7 +302,7 @@ protected:
         int step = 0;
         while (*pos != goal && step < expectedSteps)
         {
-            peep->PerformNextAction();
+            peep->performNextAction();
             ++step;
 
             *pos = TileCoordsXYZ(peep->getLocation());
@@ -311,7 +311,7 @@ protected:
 
             // Check that the peep is still on a footpath. Use next_z instead of pos->z here because pos->z will change
             // when the peep is halfway up a slope, but next_z will not change until they move to the next tile.
-            EXPECT_NE(MapGetFootpathElement({ pos->ToCoordsXY(), peep->NextLoc.z }), nullptr);
+            EXPECT_NE(MapGetFootpathElement({ pos->ToCoordsXY(), peep->nextLoc.z }), nullptr);
         }
 
         // Clean up the peep, because we're reusing this loaded context for all tests.
@@ -422,13 +422,13 @@ TEST_F(PathfindingTestBase, SurfaceGuestsStepTowardAdjacentPath)
     ASSERT_NE(peep, nullptr);
 
     peep->outsideOfPark = false;
-    peep->SetState(PeepState::walking);
-    peep->NextLoc = { candidate.loc, candidate.baseZ };
-    peep->SetNextFlags(0, false, true);
-    peep->SetDestination(candidate.loc.ToTileCentre(), 2);
+    peep->setState(PeepState::walking);
+    peep->nextLoc = { candidate.loc, candidate.baseZ };
+    peep->setNextFlags(0, false, true);
+    peep->setDestination(candidate.loc.ToTileCentre(), 2);
 
     EXPECT_EQ(PathFinding::CalculateNextDestination(*peep), 0);
-    EXPECT_EQ(peep->PeepDirection, candidate.pathDirection);
+    EXPECT_EQ(peep->peepDirection, candidate.pathDirection);
 
     PeepEntityRemove(peep);
 }
@@ -457,7 +457,7 @@ TEST_F(PathfindingTestBase, ReasonableMonorailIsChosenOverLongWalk)
 
     EXPECT_TRUE(PathFinding::PlanTransportRoute(guest, { 300, 0, 0 }));
     EXPECT_EQ(guest.previousRide, monorail->id);
-    EXPECT_EQ(guest.CurrentRideStation, StationIndex::FromUnderlying(0));
+    EXPECT_EQ(guest.currentRideStation, StationIndex::FromUnderlying(0));
     EXPECT_EQ(guest.transportDestinationStation, StationIndex::FromUnderlying(2));
 
     ClearTransportRoute(guest);
@@ -731,16 +731,16 @@ TEST_F(PathfindingTestBase, PlannedTransportRouteIsIndependentOfRideInteractionS
 {
     Guest guest{};
     const auto transportRide = RideId::FromUnderlying(10);
-    guest.PathfindGoal = TileCoordsXYZD{ TileCoordsXYZ{ 4, 5, 6 }, 1 };
+    guest.pathfindGoal = TileCoordsXYZD{ TileCoordsXYZ{ 4, 5, 6 }, 1 };
     guest.setTransportRoute(transportRide, StationIndex::FromUnderlying(0), StationIndex::FromUnderlying(1));
 
-    guest.InteractionRideIndex = RideId::FromUnderlying(12);
+    guest.interactionRideIndex = RideId::FromUnderlying(12);
 
     EXPECT_TRUE(guest.hasTransportRoute());
     EXPECT_EQ(guest.previousRide, transportRide);
-    EXPECT_EQ(guest.CurrentRideStation, StationIndex::FromUnderlying(0));
+    EXPECT_EQ(guest.currentRideStation, StationIndex::FromUnderlying(0));
     EXPECT_EQ(guest.transportRouteTopologyEpoch, MapTopology::GetPathConnectivityEpoch());
-    EXPECT_FALSE(DirectionValid(guest.PathfindGoal.direction));
+    EXPECT_FALSE(DirectionValid(guest.pathfindGoal.direction));
 }
 
 TEST_F(PathfindingTestBase, ChangingConcreteTargetInvalidatesPlannedTransportLeg)
@@ -756,7 +756,7 @@ TEST_F(PathfindingTestBase, ChangingConcreteTargetInvalidatesPlannedTransportLeg
     EXPECT_FALSE(guest.hasTransportRoute());
     EXPECT_EQ(guest.previousRide, transportRide);
     EXPECT_EQ(guest.previousRideTimeOut, 0);
-    EXPECT_FALSE(DirectionValid(guest.PathfindGoal.direction));
+    EXPECT_FALSE(DirectionValid(guest.pathfindGoal.direction));
 }
 
 INSTANTIATE_TEST_SUITE_P(

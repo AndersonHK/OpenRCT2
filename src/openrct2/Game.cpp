@@ -113,7 +113,7 @@ BenchmarkStateSnapshot OpenRCT2::CaptureBenchmarkStateSnapshot()
         else
             result.guestsInsidePark++;
 
-        switch (guest->State)
+        switch (guest->state)
         {
             case PeepState::walking:
                 result.guestsWalking++;
@@ -227,7 +227,7 @@ static void FixGuestCounts()
     {
         if (!guest->outsideOfPark)
             guestsInPark++;
-        else if (guest->State != PeepState::leavingPark)
+        else if (guest->state != PeepState::leavingPark)
             guestsHeadingToPark++;
     }
 
@@ -254,10 +254,10 @@ static void FixPeepsWithInvalidRideReference()
     // Fix possibly invalid field values
     for (auto peep : EntityList<Guest>())
     {
-        if (peep->CurrentRideStation.ToUnderlying() >= Limits::kMaxStationsPerRide)
+        if (peep->currentRideStation.ToUnderlying() >= Limits::kMaxStationsPerRide)
         {
-            const auto srcStation = peep->CurrentRideStation;
-            const auto rideIdx = peep->CurrentRide;
+            const auto srcStation = peep->currentRideStation;
+            const auto rideIdx = peep->currentRide;
             if (rideIdx.IsNull())
             {
                 continue;
@@ -266,10 +266,10 @@ static void FixPeepsWithInvalidRideReference()
             if (ride == nullptr)
             {
                 LOG_WARNING("Couldn't find ride %u, resetting ride on peep %u", rideIdx, peep->id);
-                peep->CurrentRide = RideId::GetNull();
+                peep->currentRide = RideId::GetNull();
                 continue;
             }
-            auto curName = peep->GetName();
+            auto curName = peep->getName();
             LOG_WARNING(
                 "Peep %u (%s) has invalid ride station = %u for ride %u.", peep->id, curName.c_str(), srcStation.ToUnderlying(),
                 rideIdx);
@@ -282,7 +282,7 @@ static void FixPeepsWithInvalidRideReference()
             else
             {
                 LOG_WARNING("Amending ride station to %u.", station);
-                peep->CurrentRideStation = station;
+                peep->currentRideStation = station;
             }
         }
     }
@@ -295,7 +295,7 @@ static void FixPeepsWithInvalidRideReference()
 
     for (auto ptr : peepsToRemove)
     {
-        ptr->Remove();
+        ptr->remove();
     }
 }
 
@@ -347,10 +347,10 @@ void GameFixRideNumRiders()
 
     for (auto* guest : EntityList<Guest>())
     {
-        if (guest->State != PeepState::onRide && guest->State != PeepState::enteringRide)
+        if (guest->state != PeepState::onRide && guest->state != PeepState::enteringRide)
             continue;
 
-        auto* ride = GetRide(guest->CurrentRide);
+        auto* ride = GetRide(guest->currentRide);
         if (ride == nullptr || ride->numRiders == std::numeric_limits<decltype(ride->numRiders)>::max())
             continue;
 

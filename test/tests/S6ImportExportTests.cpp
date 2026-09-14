@@ -446,7 +446,7 @@ TEST(ParkFileMigration, TransportDestinationRoundTripsAndIsRemovedFromOlderTarge
         ASSERT_NE(guest, nullptr);
         EXPECT_TRUE(guest->hasTransportRoute());
         EXPECT_EQ(guest->previousRide, transportRide);
-        EXPECT_EQ(guest->CurrentRideStation, StationIndex::FromUnderlying(0));
+        EXPECT_EQ(guest->currentRideStation, StationIndex::FromUnderlying(0));
         EXPECT_EQ(guest->transportDestinationStation, StationIndex::FromUnderlying(2));
         EXPECT_TRUE(guest->transportRouteWasExtortive);
     }
@@ -606,14 +606,14 @@ TEST(ParkFileMigration, PlatformGuestRoundTripsAndOlderTargetUsesStationExitReco
         auto* guest = Guest::generate({ 10 * kCoordsXYStep, 10 * kCoordsXYStep, station.GetBaseZ() });
         ASSERT_NE(guest, nullptr);
         guestId = guest->id;
-        guest->CurrentRide = ride->id;
-        guest->CurrentRideStation = StationIndex::FromUnderlying(0);
-        guest->CurrentTrain = RideStation::kNoTrain;
-        guest->CurrentCar = 0;
-        guest->CurrentSeat = 0;
-        guest->State = PeepState::enteringRide;
-        guest->RideSubState = PeepRideSubState::waitingOnPlatform;
-        guest->SetDestination({ 11 * kCoordsXYStep, 10 * kCoordsXYStep }, 2);
+        guest->currentRide = ride->id;
+        guest->currentRideStation = StationIndex::FromUnderlying(0);
+        guest->currentTrain = RideStation::kNoTrain;
+        guest->currentCar = 0;
+        guest->currentSeat = 0;
+        guest->state = PeepState::enteringRide;
+        guest->rideSubState = PeepRideSubState::waitingOnPlatform;
+        guest->setDestination({ 11 * kCoordsXYStep, 10 * kCoordsXYStep }, 2);
 
         ASSERT_TRUE(ExportSave(currentVersionPark, context));
         ASSERT_TRUE(ExportSave(previousVersionPark, context, kTransportJourneyRoutingVersion));
@@ -625,14 +625,14 @@ TEST(ParkFileMigration, PlatformGuestRoundTripsAndOlderTargetUsesStationExitReco
 
         auto* guest = getGameState().entities.GetEntity<Guest>(guestId);
         ASSERT_NE(guest, nullptr);
-        EXPECT_EQ(guest->State, PeepState::enteringRide);
-        EXPECT_EQ(guest->RideSubState, PeepRideSubState::waitingOnPlatform);
-        EXPECT_EQ(guest->CurrentTrain, RideStation::kNoTrain);
-        auto* ride = GetRide(guest->CurrentRide);
+        EXPECT_EQ(guest->state, PeepState::enteringRide);
+        EXPECT_EQ(guest->rideSubState, PeepRideSubState::waitingOnPlatform);
+        EXPECT_EQ(guest->currentTrain, RideStation::kNoTrain);
+        auto* ride = GetRide(guest->currentRide);
         ASSERT_NE(ride, nullptr);
-        EXPECT_TRUE(RideStationPlatformPreQueueIsActive(*ride, guest->CurrentRideStation));
-        EXPECT_EQ(RideGetTransportStationPlatformOccupancy(*ride, guest->CurrentRideStation), 1);
-        EXPECT_EQ(RideGetTransportStationPlatformCapacity(*ride, guest->CurrentRideStation), 2);
+        EXPECT_TRUE(RideStationPlatformPreQueueIsActive(*ride, guest->currentRideStation));
+        EXPECT_EQ(RideGetTransportStationPlatformOccupancy(*ride, guest->currentRideStation), 1);
+        EXPECT_EQ(RideGetTransportStationPlatformCapacity(*ride, guest->currentRideStation), 2);
 
         auto* train = getGameState().entities.GetEntity<Vehicle>(ride->vehicles[0]);
         ASSERT_NE(train, nullptr);
@@ -642,19 +642,19 @@ TEST(ParkFileMigration, PlatformGuestRoundTripsAndOlderTargetUsesStationExitReco
         train->peep[1] = EntityId::GetNull();
         // A through-rider still occupies the guest's exact platform seat. The
         // saved assignment must remain unchanged for the next train.
-        EXPECT_EQ(guest->CurrentCar, 0u);
-        EXPECT_EQ(guest->CurrentSeat, 0u);
+        EXPECT_EQ(guest->currentCar, 0u);
+        EXPECT_EQ(guest->currentSeat, 0u);
         ride->status = RideStatus::open;
-        ride->getStation(guest->CurrentRideStation).TrainAtStation = 0;
+        ride->getStation(guest->currentRideStation).TrainAtStation = 0;
         train->status = Vehicle::Status::waitingForPassengers;
-        guest->StepProgress = std::numeric_limits<uint8_t>::max();
+        guest->stepProgress = std::numeric_limits<uint8_t>::max();
         guest->update();
 
-        EXPECT_EQ(guest->State, PeepState::enteringRide);
-        EXPECT_EQ(guest->RideSubState, PeepRideSubState::waitingOnPlatform);
-        EXPECT_EQ(guest->CurrentTrain, RideStation::kNoTrain);
-        EXPECT_EQ(guest->CurrentCar, 0u);
-        EXPECT_EQ(guest->CurrentSeat, 0u);
+        EXPECT_EQ(guest->state, PeepState::enteringRide);
+        EXPECT_EQ(guest->rideSubState, PeepRideSubState::waitingOnPlatform);
+        EXPECT_EQ(guest->currentTrain, RideStation::kNoTrain);
+        EXPECT_EQ(guest->currentCar, 0u);
+        EXPECT_EQ(guest->currentSeat, 0u);
         EXPECT_EQ(train->peep[0], EntityId::FromUnderlying(900));
         EXPECT_TRUE(train->peep[1].IsNull());
     }
@@ -665,14 +665,12 @@ TEST(ParkFileMigration, PlatformGuestRoundTripsAndOlderTargetUsesStationExitReco
 
         const auto* guest = getGameState().entities.GetEntity<Guest>(guestId);
         ASSERT_NE(guest, nullptr);
-        EXPECT_EQ(guest->State, PeepState::leavingRide);
-        EXPECT_EQ(guest->RideSubState, PeepRideSubState::approachExit);
+        EXPECT_EQ(guest->state, PeepState::leavingRide);
+        EXPECT_EQ(guest->rideSubState, PeepRideSubState::approachExit);
         EXPECT_EQ(
-            guest->GetDestination().x,
-            exit.x * kCoordsXYStep + kCoordsXYHalfTile - DirectionOffsets[exit.direction].x * 20);
+            guest->getDestination().x, exit.x * kCoordsXYStep + kCoordsXYHalfTile - DirectionOffsets[exit.direction].x * 20);
         EXPECT_EQ(
-            guest->GetDestination().y,
-            exit.y * kCoordsXYStep + kCoordsXYHalfTile - DirectionOffsets[exit.direction].y * 20);
+            guest->getDestination().y, exit.y * kCoordsXYStep + kCoordsXYHalfTile - DirectionOffsets[exit.direction].y * 20);
     }
 }
 

@@ -517,6 +517,7 @@ public:
 
             case INTENT_ACTION_UPDATE_PARK_RATING:
                 InvalidateByClass(WindowClass::parkInformation);
+                InvalidateByClass(WindowClass::parkInfoPanel);
                 break;
 
             case INTENT_ACTION_UPDATE_DATE:

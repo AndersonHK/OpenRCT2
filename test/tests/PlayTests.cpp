@@ -239,19 +239,19 @@ static void InsertGuestAtBackOfQueue(Guest& guest, Ride& ride, StationIndex stat
     ASSERT_FALSE(station.LastPeepInQueue.IsNull());
 
     guest.moveTo(queueAnchor.getLocation());
-    guest.NextLoc = queueAnchor.NextLoc;
-    guest.PeepDirection = queueAnchor.PeepDirection;
-    guest.InteractionRideIndex = ride.id;
+    guest.nextLoc = queueAnchor.nextLoc;
+    guest.peepDirection = queueAnchor.peepDirection;
+    guest.interactionRideIndex = ride.id;
     guest.guestNextInQueue = station.LastPeepInQueue;
     station.LastPeepInQueue = guest.id;
     station.QueueLength++;
 
-    guest.CurrentRide = ride.id;
-    guest.CurrentRideStation = stationIndex;
-    guest.State = PeepState::queuing;
+    guest.currentRide = ride.id;
+    guest.currentRideStation = stationIndex;
+    guest.state = PeepState::queuing;
     guest.daysInQueue = 0;
-    guest.RideSubState = PeepRideSubState::inQueue;
-    guest.DestinationTolerance = 2;
+    guest.rideSubState = PeepRideSubState::inQueue;
+    guest.destinationTolerance = 2;
     guest.timeInQueue = 0;
 }
 
@@ -259,13 +259,13 @@ static void StagePlatformGuest(
     Guest& guest, const Ride& ride, StationIndex station, const RideStationPlatformReservation& reservation,
     PeepRideSubState subState = PeepRideSubState::waitingOnPlatform)
 {
-    guest.CurrentRide = ride.id;
-    guest.CurrentRideStation = station;
-    guest.CurrentTrain = RideStation::kNoTrain;
-    guest.CurrentCar = reservation.carIndex;
-    guest.CurrentSeat = reservation.seatIndex;
-    guest.State = PeepState::enteringRide;
-    guest.RideSubState = subState;
+    guest.currentRide = ride.id;
+    guest.currentRideStation = station;
+    guest.currentTrain = RideStation::kNoTrain;
+    guest.currentCar = reservation.carIndex;
+    guest.currentSeat = reservation.seatIndex;
+    guest.state = PeepState::enteringRide;
+    guest.rideSubState = subState;
 }
 
 struct CapturedPlatformTrain
@@ -374,13 +374,13 @@ TEST_F(PlayTests, SecondGuestInQueueShouldNotRideIfNoFunds)
     richGuest->cashInPocket = 300.00_GBP;
 
     // Wait for rich guest to get in queue
-    bool matched = updateUntil(1000, [&]() { return richGuest->State == PeepState::queuing; });
+    bool matched = updateUntil(1000, [&]() { return richGuest->state == PeepState::queuing; });
     ASSERT_TRUE(matched);
 
     // Insert poor guest
     auto poorGuest = Park::GenerateGuest();
     poorGuest->cashInPocket = 0.49_GBP;
-    InsertGuestAtBackOfQueue(*poorGuest, ferrisWheel, richGuest->CurrentRideStation, *richGuest);
+    InsertGuestAtBackOfQueue(*poorGuest, ferrisWheel, richGuest->currentRideStation, *richGuest);
 
     // Raise the price of the ride to a value poor guest can't pay.
     poorGuest->cashInPocket = 0.49_GBP;
@@ -389,8 +389,8 @@ TEST_F(PlayTests, SecondGuestInQueueShouldNotRideIfNoFunds)
     ASSERT_GT(RideGetPrice(ferrisWheel), poorGuest->cashInPocket);
 
     const auto cashBeforeDecision = poorGuest->cashInPocket;
-    EXPECT_FALSE(poorGuest->shouldGoOnRide(ferrisWheel, poorGuest->CurrentRideStation, true, false));
-    EXPECT_NE(poorGuest->State, PeepState::onRide);
+    EXPECT_FALSE(poorGuest->shouldGoOnRide(ferrisWheel, poorGuest->currentRideStation, true, false));
+    EXPECT_NE(poorGuest->state, PeepState::onRide);
     EXPECT_EQ(poorGuest->cashInPocket, cashBeforeDecision);
 }
 
@@ -421,11 +421,11 @@ TEST_F(PlayTests, GuestPaysAtEntranceBeforeBoarding)
     auto* guest = Guest::generate(station.Entrance.ToCoordsXYZ());
     ASSERT_NE(guest, nullptr);
     guest->cashInPocket = 10.00_GBP;
-    guest->CurrentRide = ride->id;
-    guest->CurrentRideStation = stationIndex;
-    guest->SetState(PeepState::queuingFront);
-    guest->RideSubState = PeepRideSubState::atEntrance;
-    guest->DestinationTolerance = 0;
+    guest->currentRide = ride->id;
+    guest->currentRideStation = stationIndex;
+    guest->setState(PeepState::queuingFront);
+    guest->rideSubState = PeepRideSubState::atEntrance;
+    guest->destinationTolerance = 0;
     guest->guestNextInQueue = EntityId::GetNull();
     station.LastPeepInQueue = guest->id;
     station.QueueLength = 1;
@@ -437,8 +437,8 @@ TEST_F(PlayTests, GuestPaysAtEntranceBeforeBoarding)
     const auto paidAdmission = guest->paidOnRides;
     EXPECT_EQ(guest->cashInPocket, 10.00_GBP - paidAdmission);
     EXPECT_GE(ride->totalProfit, profitBefore + paidAdmission);
-    EXPECT_EQ(guest->State, PeepState::enteringRide);
-    EXPECT_NE(guest->State, PeepState::onRide);
+    EXPECT_EQ(guest->state, PeepState::enteringRide);
+    EXPECT_NE(guest->state, PeepState::onRide);
 
     // Progressing from the paid station area into a vehicle must not charge admission again.
     for (int32_t tick = 0; tick < 64; tick++)
@@ -485,7 +485,7 @@ TEST_F(PlayTests, CarRideWithOneCarOnlyAcceptsTwoGuests)
     }
 
     // Wait until one of them is riding
-    auto guestIsOnRide = [](auto* g) { return g->State == PeepState::onRide; };
+    auto guestIsOnRide = [](auto* g) { return g->state == PeepState::onRide; };
     bool matched = updateUntil(10000, [&]() { return std::any_of(guests.begin(), guests.end(), guestIsOnRide); });
     ASSERT_TRUE(matched);
 
@@ -540,14 +540,14 @@ TEST_F(PlayTests, CoasterPlatformPreQueueRequiresOppositeLateralStationSides)
 
     auto* stagedGuest = Guest::generate(coasterStationData.Entrance.ToCoordsXYZ());
     ASSERT_NE(stagedGuest, nullptr);
-    stagedGuest->CurrentRide = coaster->id;
-    stagedGuest->CurrentRideStation = coasterStation;
-    stagedGuest->CurrentTrain = RideStation::kNoTrain;
-    stagedGuest->State = PeepState::enteringRide;
-    stagedGuest->RideSubState = PeepRideSubState::waitingOnPlatform;
+    stagedGuest->currentRide = coaster->id;
+    stagedGuest->currentRideStation = coasterStation;
+    stagedGuest->currentTrain = RideStation::kNoTrain;
+    stagedGuest->state = PeepState::enteringRide;
+    stagedGuest->rideSubState = PeepRideSubState::waitingOnPlatform;
     RideRebuildStationPlatformPreQueues();
-    EXPECT_EQ(stagedGuest->State, PeepState::leavingRide);
-    EXPECT_EQ(stagedGuest->RideSubState, PeepRideSubState::approachExit);
+    EXPECT_EQ(stagedGuest->state, PeepState::leavingRide);
+    EXPECT_EQ(stagedGuest->rideSubState, PeepRideSubState::approachExit);
 
     coasterStationData.Entrance.direction = coasterDirection;
     coasterStationData.Exit.direction = DirectionReverse(coasterDirection);
@@ -616,23 +616,23 @@ TEST_F(PlayTests, SameSideCoasterGuestContinuesOrdinaryBoarding)
 
     auto* guest = Guest::generate(station.Entrance.ToCoordsXYZ());
     ASSERT_NE(guest, nullptr);
-    guest->CurrentRide = target.ride->id;
-    guest->CurrentRideStation = target.station;
-    guest->CurrentTrain = target.trainIndex;
-    guest->CurrentCar = 0;
-    guest->CurrentSeat = 0;
-    guest->State = PeepState::enteringRide;
-    guest->RideSubState = PeepRideSubState::inEntrance;
-    guest->SetDestination(guest->getLocation(), 2);
-    guest->StepProgress = std::numeric_limits<uint8_t>::max();
+    guest->currentRide = target.ride->id;
+    guest->currentRideStation = target.station;
+    guest->currentTrain = target.trainIndex;
+    guest->currentCar = 0;
+    guest->currentSeat = 0;
+    guest->state = PeepState::enteringRide;
+    guest->rideSubState = PeepRideSubState::inEntrance;
+    guest->setDestination(guest->getLocation(), 2);
+    guest->stepProgress = std::numeric_limits<uint8_t>::max();
     target.train->next_free_seat = 1;
     target.train->peep[0] = guest->id;
 
     guest->update();
 
-    EXPECT_EQ(guest->State, PeepState::enteringRide);
-    EXPECT_NE(guest->RideSubState, PeepRideSubState::approachExit);
-    EXPECT_EQ(guest->CurrentTrain, target.trainIndex);
+    EXPECT_EQ(guest->state, PeepState::enteringRide);
+    EXPECT_NE(guest->rideSubState, PeepRideSubState::approachExit);
+    EXPECT_EQ(guest->currentTrain, target.trainIndex);
     EXPECT_EQ(target.train->next_free_seat, 1);
     EXPECT_EQ(target.train->peep[0], guest->id);
 }
@@ -768,17 +768,17 @@ TEST_F(PlayTests, NaturallyArrivingTrainPreservesStagedSeatsThroughUnloadAndBoar
     // published for boarding. The staged guests below reserve the same complete, empty-train plan in advance.
     auto* alightingGuest = Guest::generate(targetTrain->getLocation());
     ASSERT_NE(alightingGuest, nullptr);
-    alightingGuest->CurrentRide = targetRide->id;
-    alightingGuest->CurrentRideStation = targetStation;
-    alightingGuest->CurrentTrain = 0;
-    alightingGuest->CurrentCar = 0;
-    alightingGuest->CurrentSeat = 0;
-    alightingGuest->State = PeepState::onRide;
-    alightingGuest->RideSubState = PeepRideSubState::onRide;
+    alightingGuest->currentRide = targetRide->id;
+    alightingGuest->currentRideStation = targetStation;
+    alightingGuest->currentTrain = 0;
+    alightingGuest->currentCar = 0;
+    alightingGuest->currentSeat = 0;
+    alightingGuest->state = PeepState::onRide;
+    alightingGuest->rideSubState = PeepRideSubState::onRide;
     targetTrain->num_peeps = 1;
     targetTrain->next_free_seat = 1;
     targetTrain->peep[0] = alightingGuest->id;
-    targetTrain->peep_tshirt_colours[0] = alightingGuest->TshirtColour;
+    targetTrain->peep_tshirt_colours[0] = alightingGuest->tShirtColour;
 
     constexpr size_t kStagedGuestCount = 4;
     std::array<Guest*, kStagedGuestCount> guests{};
@@ -792,10 +792,10 @@ TEST_F(PlayTests, NaturallyArrivingTrainPreservesStagedSeatsThroughUnloadAndBoar
         guests[guestIndex] = guest;
         reservations[guestIndex] = reservation.value();
         guest->moveTo(reservation->waitPosition);
-        guest->SetDestination(reservation->waitPosition, 2);
+        guest->setDestination(reservation->waitPosition, 2);
         StagePlatformGuest(*guest, *targetRide, targetStation, reservation.value());
-        guest->DestinationTolerance = 0;
-        guest->StepProgress = std::numeric_limits<uint8_t>::max();
+        guest->destinationTolerance = 0;
+        guest->stepProgress = std::numeric_limits<uint8_t>::max();
     }
 
     bool sawUnloading = false;
@@ -820,10 +820,10 @@ TEST_F(PlayTests, NaturallyArrivingTrainPreservesStagedSeatsThroughUnloadAndBoar
         {
             const auto* guest = guests[guestIndex];
             const auto& reservation = reservations[guestIndex];
-            EXPECT_EQ(guest->CurrentCar, reservation.carIndex);
-            EXPECT_EQ(guest->CurrentSeat, reservation.seatIndex);
+            EXPECT_EQ(guest->currentCar, reservation.carIndex);
+            EXPECT_EQ(guest->currentSeat, reservation.seatIndex);
 
-            if (guest->CurrentTrain == RideStation::kNoTrain)
+            if (guest->currentTrain == RideStation::kNoTrain)
             {
                 const auto currentReservation = RideGetStationPlatformReservation(*targetRide, targetStation, guest->id);
                 ASSERT_TRUE(currentReservation.has_value());
@@ -832,7 +832,7 @@ TEST_F(PlayTests, NaturallyArrivingTrainPreservesStagedSeatsThroughUnloadAndBoar
                 EXPECT_EQ(currentReservation->seatIndex, reservation.seatIndex);
                 EXPECT_EQ(currentReservation->waitPosition, reservation.waitPosition);
                 const CoordsXY expectedDestination{ reservation.waitPosition.x, reservation.waitPosition.y };
-                EXPECT_EQ(guest->GetDestination(), expectedDestination);
+                EXPECT_EQ(guest->getDestination(), expectedDestination);
             }
             else
             {
@@ -841,7 +841,7 @@ TEST_F(PlayTests, NaturallyArrivingTrainPreservesStagedSeatsThroughUnloadAndBoar
                 ASSERT_NE(car, nullptr);
                 EXPECT_EQ(car->peep[reservation.seatIndex], guest->id);
             }
-            allBoarded = allBoarded && guest->State == PeepState::onRide;
+            allBoarded = allBoarded && guest->state == PeepState::onRide;
         }
         if (allBoarded)
             break;
@@ -854,12 +854,12 @@ TEST_F(PlayTests, NaturallyArrivingTrainPreservesStagedSeatsThroughUnloadAndBoar
         if (tick % 256 == 0)
         {
             trace << "tick=" << tick << " trainStatus=" << static_cast<int32_t>(targetTrain->status)
-                   << " trainSubState=" << static_cast<int32_t>(targetTrain->sub_state)
-                   << " trainStation=" << static_cast<int32_t>(targetTrain->current_station.ToUnderlying())
-                   << " trainAtStation=" << static_cast<int32_t>(targetRide->getStation(targetStation).TrainAtStation)
-                   << " firstGuestState=" << static_cast<int32_t>(guests.front()->State)
-                   << " firstGuestSubState=" << static_cast<int32_t>(guests.front()->RideSubState)
-                   << " firstGuestTrain=" << static_cast<int32_t>(guests.front()->CurrentTrain) << '\n';
+                  << " trainSubState=" << static_cast<int32_t>(targetTrain->sub_state)
+                  << " trainStation=" << static_cast<int32_t>(targetTrain->current_station.ToUnderlying())
+                  << " trainAtStation=" << static_cast<int32_t>(targetRide->getStation(targetStation).TrainAtStation)
+                  << " firstGuestState=" << static_cast<int32_t>(guests.front()->state)
+                  << " firstGuestSubState=" << static_cast<int32_t>(guests.front()->rideSubState)
+                  << " firstGuestTrain=" << static_cast<int32_t>(guests.front()->currentTrain) << '\n';
         }
     }
 
@@ -868,7 +868,7 @@ TEST_F(PlayTests, NaturallyArrivingTrainPreservesStagedSeatsThroughUnloadAndBoar
     EXPECT_TRUE(std::ranges::all_of(seatBound, [](bool value) { return value; })) << trace.str();
     EXPECT_FALSE(departedEmpty) << trace.str();
     EXPECT_TRUE(allBoarded) << trace.str();
-    EXPECT_NE(alightingGuest->State, PeepState::onRide);
+    EXPECT_NE(alightingGuest->state, PeepState::onRide);
 }
 
 TEST_F(PlayTests, ParkEntranceFeeTargetsUseGuestCashAndDebuffedParkValue)
@@ -1049,8 +1049,8 @@ TEST_F(PlayTests, GameFixRideNumRidersRebuildsCountsFromGuestStates)
     auto addGuest = [&gameState](RideId rideId, PeepState state) {
         auto* guest = gameState.entities.CreateEntity<Guest>();
         EXPECT_NE(guest, nullptr);
-        guest->CurrentRide = rideId;
-        guest->State = state;
+        guest->currentRide = rideId;
+        guest->state = state;
         return guest;
     };
 
@@ -1211,7 +1211,7 @@ TEST_F(PlayTests, NiceRidePhoenixThoughtIsARareFallback)
     Guest guest{};
     guest.happiness = 100;
     guest.happinessTarget = 100;
-    guest.Energy = 0;
+    guest.energy = 0;
     for (auto& thought : guest.thoughts)
     {
         thought.type = PeepThoughtType::none;

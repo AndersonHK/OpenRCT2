@@ -15071,7 +15071,9 @@
       ],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "3c6def531a1805fda0d4398b712c7ce82e20a012"
+      ],
       "verification_evidence": [
         "Inspected entire five-file source delta and resulting ten-line replacement diff; audited remaining bottomToolbar invalidation and date drawing/action. Diff check passes."
       ],
@@ -15197,9 +15199,11 @@
         "D14"
       ],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "B40 first build found three missed names from digit-separator scanner bug (five diagnostics); repaired scanner/references, final build 18.12s zero warnings/errors. All 252 tests in 14 suites pass in 33.886s. Source and 59-file fork token audits plus all five HUD intent-body comparisons pass; diff check passes."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -15234,7 +15238,10 @@
         "src/openrct2/world/Park.cpp",
         "test/tests/PlayTests.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: a74f7437b92694dab9fbd0d6374f566854c0f4fd",
+      "implementation_decisions": "85 reviewed names and three anti-shadowing local renames; preserve all numeric/layout/gameplay contracts and unrelated legacy/rating/vehicle APIs. O04 corrects prior incomplete U195 intent migration: rating changes now invalidate parkInfoPanel independently. No API119/protocol11/save60016 change.",
+      "pending_validation": "O04 redraw is source-verified, not observed with renderer; existing headless test cannot record dirty regions. Standing interactive/native non-Windows/live multiplayer/replay and later custom-theme conversion remain."
     },
     {
       "sha": "bb0215abb0e4a48cd71e5fc8b105ce664b49d59e",
@@ -27175,8 +27182,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 198,
-    "remaining_after_receipt": 163,
+    "accounted_in_this_tree": 199,
+    "remaining_after_receipt": 162,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

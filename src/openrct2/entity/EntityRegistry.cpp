@@ -660,12 +660,12 @@ namespace OpenRCT2
     {
         if (auto* staff = entity.as<Staff>(); staff != nullptr)
         {
-            staff->SetName({});
+            staff->setName({});
             staff->clearPatrolArea();
         }
         else if (auto* guest = entity.as<Guest>(); guest != nullptr)
         {
-            guest->SetName({});
+            guest->setName({});
             guest->guestNextInQueue = EntityId::GetNull();
 
             RideUse::GetHistory().RemoveHandle(guest->id);

@@ -454,9 +454,9 @@ TEST_F(EntityImportTests, PassengerUnloadPlanPreservesThroughRidersAndOrdinaryUn
         const auto entityId = EntityId::FromUnderlying(static_cast<uint16_t>(100 + index));
         auto* guest = entities.CreateEntityAt<Guest>(entityId);
         ASSERT_NE(guest, nullptr);
-        guest->State = PeepState::walking;
-        guest->RideSubState = PeepRideSubState::onRide;
-        guest->CurrentSeat = static_cast<uint8_t>(index);
+        guest->state = PeepState::walking;
+        guest->rideSubState = PeepRideSubState::onRide;
+        guest->currentSeat = static_cast<uint8_t>(index);
 
         const auto colour = static_cast<Drawing::Colour>(index);
         passengers[index] = guest;
@@ -481,24 +481,24 @@ TEST_F(EntityImportTests, PassengerUnloadPlanPreservesThroughRidersAndOrdinaryUn
         const auto sourceIndex = expectedSourceIndices[destinationIndex];
         EXPECT_EQ(vehicle.peep[destinationIndex], passengerIds[sourceIndex]);
         EXPECT_EQ(vehicle.peep_tshirt_colours[destinationIndex], passengerColours[sourceIndex]);
-        EXPECT_EQ(passengers[sourceIndex]->CurrentSeat, destinationIndex);
+        EXPECT_EQ(passengers[sourceIndex]->currentSeat, destinationIndex);
     }
     for (const auto throughRiderIndex : { 0u, 2u, 4u })
     {
-        EXPECT_EQ(passengers[throughRiderIndex]->State, PeepState::walking);
-        EXPECT_EQ(passengers[throughRiderIndex]->RideSubState, PeepRideSubState::onRide);
+        EXPECT_EQ(passengers[throughRiderIndex]->state, PeepState::walking);
+        EXPECT_EQ(passengers[throughRiderIndex]->rideSubState, PeepRideSubState::onRide);
     }
     for (const auto alightingIndex : { 1u, 3u })
     {
-        EXPECT_EQ(passengers[alightingIndex]->State, PeepState::leavingRide);
-        EXPECT_EQ(passengers[alightingIndex]->RideSubState, PeepRideSubState::leaveVehicle);
+        EXPECT_EQ(passengers[alightingIndex]->state, PeepState::leavingRide);
+        EXPECT_EQ(passengers[alightingIndex]->rideSubState, PeepRideSubState::leaveVehicle);
     }
 
     for (size_t index = 0; index < passengerCount; index++)
     {
-        passengers[index]->State = PeepState::walking;
-        passengers[index]->RideSubState = PeepRideSubState::onRide;
-        passengers[index]->CurrentSeat = static_cast<uint8_t>(index);
+        passengers[index]->state = PeepState::walking;
+        passengers[index]->rideSubState = PeepRideSubState::onRide;
+        passengers[index]->currentSeat = static_cast<uint8_t>(index);
         vehicle.peep[index] = passengerIds[index];
         vehicle.peep_tshirt_colours[index] = passengerColours[index];
     }
@@ -511,8 +511,8 @@ TEST_F(EntityImportTests, PassengerUnloadPlanPreservesThroughRidersAndOrdinaryUn
     {
         EXPECT_EQ(vehicle.peep[index], passengerIds[index]);
         EXPECT_EQ(vehicle.peep_tshirt_colours[index], passengerColours[index]);
-        EXPECT_EQ(passengers[index]->State, PeepState::leavingRide);
-        EXPECT_EQ(passengers[index]->RideSubState, PeepRideSubState::leaveVehicle);
+        EXPECT_EQ(passengers[index]->state, PeepState::leavingRide);
+        EXPECT_EQ(passengers[index]->rideSubState, PeepRideSubState::leaveVehicle);
     }
 }
 
@@ -552,9 +552,9 @@ TEST_F(EntityImportTests, TransportPassengerStaysAboardIntermediateStationAndAli
 
     EXPECT_EQ(vehicle.next_free_seat, 1);
     EXPECT_EQ(vehicle.peep[0], throughRider.id);
-    EXPECT_NE(throughRider.State, PeepState::leavingRide);
-    EXPECT_EQ(intermediateRider.State, PeepState::leavingRide);
-    EXPECT_EQ(ordinaryRider.State, PeepState::leavingRide);
+    EXPECT_NE(throughRider.state, PeepState::leavingRide);
+    EXPECT_EQ(intermediateRider.state, PeepState::leavingRide);
+    EXPECT_EQ(ordinaryRider.state, PeepState::leavingRide);
 
     vehicle.num_peeps = 1;
     vehicle.next_free_seat = 1;
@@ -564,7 +564,7 @@ TEST_F(EntityImportTests, TransportPassengerStaysAboardIntermediateStationAndAli
     EXPECT_EQ(destinationPlan.continuingCount, 0);
     RideVehicle::StationDetail::ApplyTransportPassengerUnload(vehicle, remainingPassenger, destinationPlan);
     EXPECT_EQ(vehicle.next_free_seat, 0);
-    EXPECT_EQ(throughRider.State, PeepState::leavingRide);
+    EXPECT_EQ(throughRider.state, PeepState::leavingRide);
 }
 
 TEST_F(EntityImportTests, PlatformSeatBindingPreservesThroughRidersAndBindsFifoToExactSeats)
@@ -578,10 +578,10 @@ TEST_F(EntityImportTests, PlatformSeatBindingPreservesThroughRidersAndBindsFifoT
 
     Guest first{};
     first.id = EntityId::FromUnderlying(101);
-    first.TshirtColour = Drawing::Colour::brightRed;
+    first.tShirtColour = Drawing::Colour::brightRed;
     Guest second{};
     second.id = EntityId::FromUnderlying(102);
-    second.TshirtColour = Drawing::Colour::brightGreen;
+    second.tShirtColour = Drawing::Colour::brightGreen;
 
     using RideVehicle::StationDetail::BindPlatformGuestToSeat;
     EXPECT_TRUE(BindPlatformGuestToSeat(first, vehicle, 1));
@@ -591,10 +591,10 @@ TEST_F(EntityImportTests, PlatformSeatBindingPreservesThroughRidersAndBindsFifoT
     EXPECT_EQ(vehicle.peep[0], throughRider);
     EXPECT_EQ(vehicle.peep[1], first.id);
     EXPECT_EQ(vehicle.peep[2], second.id);
-    EXPECT_EQ(first.CurrentSeat, 1u);
-    EXPECT_EQ(second.CurrentSeat, 2u);
-    EXPECT_EQ(vehicle.peep_tshirt_colours[1], first.TshirtColour);
-    EXPECT_EQ(vehicle.peep_tshirt_colours[2], second.TshirtColour);
+    EXPECT_EQ(first.currentSeat, 1u);
+    EXPECT_EQ(second.currentSeat, 2u);
+    EXPECT_EQ(vehicle.peep_tshirt_colours[1], first.tShirtColour);
+    EXPECT_EQ(vehicle.peep_tshirt_colours[2], second.tShirtColour);
 }
 
 TEST_F(EntityImportTests, PlatformSeatBindingUsesReservedCountAndRejectsActiveDuplicate)
@@ -607,7 +607,7 @@ TEST_F(EntityImportTests, PlatformSeatBindingUsesReservedCountAndRejectsActiveDu
 
     Guest guest{};
     guest.id = EntityId::FromUnderlying(101);
-    guest.CurrentSeat = 7;
+    guest.currentSeat = 7;
 
     using RideVehicle::StationDetail::BindPlatformGuestToSeat;
     EXPECT_FALSE(BindPlatformGuestToSeat(guest, vehicle, 0));
@@ -617,7 +617,7 @@ TEST_F(EntityImportTests, PlatformSeatBindingUsesReservedCountAndRejectsActiveDu
     vehicle.peep[1] = guest.id;
     EXPECT_TRUE(BindPlatformGuestToSeat(guest, vehicle, 1));
     EXPECT_EQ(vehicle.next_free_seat, 2u);
-    EXPECT_EQ(guest.CurrentSeat, 1u);
+    EXPECT_EQ(guest.currentSeat, 1u);
 
     vehicle.next_free_seat = 1;
     vehicle.peep[0] = guest.id;

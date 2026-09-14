@@ -71,7 +71,7 @@ namespace OpenRCT2::Scripting
         static JSValue name_get(JSContext* ctx, JSValue thisVal)
         {
             auto peep = GetPeep(thisVal);
-            return JSFromStdString(ctx, peep != nullptr ? peep->GetName() : std::string());
+            return JSFromStdString(ctx, peep != nullptr ? peep->getName() : std::string());
         }
         static JSValue name_set(JSContext* ctx, JSValue thisVal, JSValue jsValue)
         {
@@ -80,7 +80,7 @@ namespace OpenRCT2::Scripting
             auto peep = GetPeep(thisVal);
             if (peep != nullptr)
             {
-                peep->SetName(value);
+                peep->setName(value);
             }
             return JS_UNDEFINED;
         }
@@ -117,7 +117,7 @@ namespace OpenRCT2::Scripting
             auto peep = GetPeep(thisVal);
             if (peep != nullptr)
             {
-                return ToJSValue(ctx, peep->GetDestination());
+                return ToJSValue(ctx, peep->getDestination());
             }
             return JS_NULL;
         }
@@ -130,7 +130,7 @@ namespace OpenRCT2::Scripting
             if (peep != nullptr)
             {
                 auto pos = JSToCoordsXY(ctx, value);
-                peep->SetDestination(pos);
+                peep->setDestination(pos);
                 peep->invalidate();
             }
             return JS_UNDEFINED;
@@ -139,7 +139,7 @@ namespace OpenRCT2::Scripting
         static JSValue direction_get(JSContext* ctx, JSValue thisVal)
         {
             auto peep = GetPeep(thisVal);
-            return JS_NewUint32(ctx, peep != nullptr ? peep->PeepDirection : 0);
+            return JS_NewUint32(ctx, peep != nullptr ? peep->peepDirection : 0);
         }
 
         static JSValue direction_set(JSContext* ctx, JSValue thisVal, JSValue jsValue)
@@ -149,7 +149,7 @@ namespace OpenRCT2::Scripting
             auto peep = GetPeep(thisVal);
             if (peep != nullptr && value < kNumOrthogonalDirections)
             {
-                peep->PeepDirection = value;
+                peep->peepDirection = value;
                 peep->orientation = value << 3;
                 peep->invalidate();
             }
@@ -159,7 +159,7 @@ namespace OpenRCT2::Scripting
         static JSValue energy_get(JSContext* ctx, JSValue thisVal)
         {
             auto peep = GetPeep(thisVal);
-            return JS_NewUint32(ctx, peep != nullptr ? peep->Energy : 0);
+            return JS_NewUint32(ctx, peep != nullptr ? peep->energy : 0);
         }
         static JSValue energy_set(JSContext* ctx, JSValue thisVal, JSValue jsValue)
         {
@@ -169,7 +169,7 @@ namespace OpenRCT2::Scripting
             if (peep != nullptr)
             {
                 value = static_cast<uint8_t>(std::clamp<uint32_t>(value, kPeepMinEnergy, kPeepMaxEnergy));
-                peep->Energy = value;
+                peep->energy = value;
                 peep->invalidate();
             }
             return JS_UNDEFINED;
@@ -178,7 +178,7 @@ namespace OpenRCT2::Scripting
         static JSValue energyTarget_get(JSContext* ctx, JSValue thisVal)
         {
             auto peep = GetPeep(thisVal);
-            return JS_NewUint32(ctx, peep != nullptr ? peep->EnergyTarget : 0);
+            return JS_NewUint32(ctx, peep != nullptr ? peep->energyTarget : 0);
         }
         static JSValue energyTarget_set(JSContext* ctx, JSValue thisVal, JSValue jsValue)
         {
@@ -188,7 +188,7 @@ namespace OpenRCT2::Scripting
             if (peep != nullptr)
             {
                 auto target = static_cast<uint8_t>(std::clamp<uint32_t>(value, kPeepMinEnergy, kPeepMaxEnergyTarget));
-                peep->EnergyTarget = target;
+                peep->energyTarget = target;
             }
             return JS_UNDEFINED;
         }
