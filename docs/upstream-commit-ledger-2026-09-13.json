@@ -27212,7 +27212,9 @@
       "decisions": [],
       "review_level": "targeted-code-review",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "158978fef068dcde88e95b9c633f5b2278965b10"
+      ],
       "verification_evidence": [
         "Release/x64/Vulkan solution zero warnings/errors 15.18s; eight TD4/S6/Park tests pass 6.453s. New actual importer fixture covers 24 header/object cases (nine affected and three controls, both versions). B97 clears U351-U353."
       ],
@@ -27259,9 +27261,11 @@
       "note": "No remerge-resolution delta detected. Account for constituent commits before ancestry reconciliation.",
       "decisions": [],
       "review_level": "remerge-probe",
-      "implementation_status": "not-ported",
+      "implementation_status": "history receipt",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Actual remerge diff empty; all parents accounted."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -27271,7 +27275,10 @@
       "merge_conflict_paths": [
         "src/openrct2/rct1/S4Importer.cpp"
       ],
-      "verification_gate": "P0"
+      "verification_gate": "P0",
+      "port_commit_locator": "Upstream-Commit: 831ea328574d2c1394b0ae2a2a2cbf8ac94f63bb",
+      "implementation_decisions": "Preserve B97-tested importer ports and companion pin.",
+      "pending_validation": "Original S4/native placement checks remain documented."
     },
     {
       "sha": "b6235baa9ac5ffd359605b86100dc98b4c316b53",
@@ -28260,8 +28267,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 353,
-    "remaining_after_receipt": 8,
+    "accounted_in_this_tree": 354,
+    "remaining_after_receipt": 7,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
