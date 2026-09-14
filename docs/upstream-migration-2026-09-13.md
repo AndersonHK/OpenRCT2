@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 21 / 361 source commits recorded
+## Progress: 22 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -249,10 +249,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U021 — `77c69cb55d` — Fix debug menu/button always visible in toolbar (#26854)
 
 - **Source:** `77c69cb55d94e64f08a1978b49c0af99525a11a2`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `f1c21f7e6598552653a24cd6d99328804682c5ee`.
 - **Remaining:** 341 → 340.
 - **Disposition:** already satisfied by U019 adaptation.
 - **Manual changes:** No additional product changes: U019 retained debug toolbar visibility governed by debuggingTools.
 - **Additional decisions / behavior:** Do not duplicate the same visibility assignment; upstream now fixes exactly the regression prevented during the prior refactor port.
 - **Verification:** Inspected one-line source delta against current HideDisabledButtons; identical condition is present once. Receipt singleton/whitespace checks.
 - **Pending / concerns:** UI batch build/test follows this receipt.
+
+### U022 — `7df1cfe7c0` — Merge Localisation/master into OpenRCT2/develop
+
+- **Source:** `7df1cfe7c084d4b65b3ebfc1c0fc261c2bf135ca`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 340 → 339.
+- **Disposition:** adopt.
+- **Manual changes:** Add Dutch and Russian ride-type labels at upstream string ID 7039.
+- **Additional decisions / behavior:** Fork private strings remain at 8000-8041; these additions fill the upstream label without collisions.
+- **Verification:** Inspected both added strings and unique 7039 IDs. Singleton ancestry and whitespace checks.
+- **Pending / concerns:** Generic parser tests at UI checkpoint; no native-language UI review claimed.

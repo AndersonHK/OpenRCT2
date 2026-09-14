@@ -1802,7 +1802,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "already satisfied by U019 adaptation",
-      "port_commits": [],
+      "port_commits": [
+        "f1c21f7e6598552653a24cd6d99328804682c5ee"
+      ],
       "verification_evidence": [
         "Inspected one-line source delta against current HideDisabledButtons; identical condition is present once. Receipt singleton/whitespace checks."
       ],
@@ -1840,9 +1842,11 @@
       "note": "Single-parent localisation update; use final target blobs after English ID reconciliation.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected both added strings and unique 7039 IDs. Singleton ancestry and whitespace checks."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -1850,7 +1854,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P1"
+      "verification_gate": "P1",
+      "port_commit_locator": "Upstream-Commit: 7df1cfe7c084d4b65b3ebfc1c0fc261c2bf135ca",
+      "implementation_decisions": "Fork private strings remain at 8000-8041; these additions fill the upstream label without collisions.",
+      "pending_validation": "Generic parser tests at UI checkpoint; no native-language UI review claimed."
     },
     {
       "sha": "2ac48e6c4233597efab90bfa11d88b0cc28e6d1a",
@@ -25936,8 +25943,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 21,
-    "remaining_after_receipt": 340,
+    "accounted_in_this_tree": 22,
+    "remaining_after_receipt": 339,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
