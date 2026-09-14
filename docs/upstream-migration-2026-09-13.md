@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 334 / 361 source commits recorded
+## Progress: 335 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3692,10 +3692,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U334 — `829dd93bd0` — Fix #21320: RCT1 allows more cars per train on some rides than OpenRCT2 (#27106)
 
 - **Source:** `829dd93bd03ad79a4fd94803707f83dcc7831c4d`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `04ca8eb538faab154392ad9a941445208e627bbf`.
 - **Remaining:** 28 → 27.
 - **Disposition:** approved deferral: retain fork station margin.
 - **Manual changes:** Retained the fork station-length end allowance under approved D02; did not advertise the declined capacity change in the changelog.
 - **Additional decisions / behavior:** Defer removal of the non-block margin. Keep kStationLengthEndAllowance0x16B2A in maximum-car calculation and RideGetMaxTrainsPerStation so UI limits and multi-station allocation agree. Independent RCT1 import/zero-car fixes remain integrated.
 - **Verification:** Inspected actual source and both fork owners. B90 full suite includes capacity/ratings/boarding/import coverage; production files unchanged here.
 - **Pending / concerns:** Revisit only if owner opts into larger non-block capacity after station geometry, shortest/longest boundary, one-car, block-brake and exact-seat boarding validation.
+
+### U335 — `e93fa5342a` — Close #21400: draw staff patrol area selector on the water (#27067)
+
+- **Source:** `e93fa5342a6c447fa0d32492281af9459ceaed24`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 27 → 26.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Enabled patrol selector water hits and dual terrain/water overlays; renamed the shared selection mode.
+- **Additional decisions / behavior:** Preserve enum value, land-rights behavior, fork cached terrain and presentation staff lookup. Selection feedback/picking change only; patrol permissions and movement unchanged.
+- **Verification:** B92: solution zero warnings/errors;88 widget/GPU/play tests passed. Inspected dual-height overlay and fork ownership boundaries.
+- **Pending / concerns:** Native water/underwater patrol picking and appearance remain for manual validation.

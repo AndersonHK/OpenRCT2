@@ -26021,7 +26021,9 @@
       ],
       "review_level": "targeted-code-review",
       "implementation_status": "approved deferral: retain fork station margin",
-      "port_commits": [],
+      "port_commits": [
+        "04ca8eb538faab154392ad9a941445208e627bbf"
+      ],
       "verification_evidence": [
         "Inspected actual source and both fork owners. B90 full suite includes capacity/ratings/boarding/import coverage; production files unchanged here."
       ],
@@ -26066,9 +26068,11 @@
       "note": "Draw staff patrol selector on water and ground; integrate with fork surface drawing/cache and patrol permission rules.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "B92: solution zero warnings/errors;88 widget/GPU/play tests passed. Inspected dual-height overlay and fork ownership boundaries."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -26078,7 +26082,10 @@
       "merge_conflict_paths": [
         "src/openrct2/paint/tile_element/Paint.Surface.cpp"
       ],
-      "verification_gate": "P6"
+      "verification_gate": "P6",
+      "port_commit_locator": "Upstream-Commit: e93fa5342a6c447fa0d32492281af9459ceaed24",
+      "implementation_decisions": "Preserve enum value, land-rights behavior, fork cached terrain and presentation staff lookup. Selection feedback/picking change only; patrol permissions and movement unchanged.",
+      "pending_validation": "Native water/underwater patrol picking and appearance remain for manual validation."
     },
     {
       "sha": "3418b4f8bf2a74394c1d52e01a603402ee2dacaa",
@@ -28127,8 +28134,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 334,
-    "remaining_after_receipt": 27,
+    "accounted_in_this_tree": 335,
+    "remaining_after_receipt": 26,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
