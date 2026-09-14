@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 326 / 361 source commits recorded
+## Progress: 327 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3604,10 +3604,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U326 — `092783cc11` — Rename Location.hpp members to camelCase (#27085)
 
 - **Source:** `092783cc1160be24f2acbed023217558bdb1f41a`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `9537969da6cce080fae10fdcfaf5211dd1f5f905`.
 - **Remaining:** 36 → 35.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Renamed coordinate methods and JS conversion helpers across all applicable fork consumers.
 - **Additional decisions / behavior:** 625 source/748 fork identifier substitutions only. Preserve Identifier and RCT12 null APIs, QuarterTile/window Rotate, and separate SpatialAudio Normalise helper. Retain topology-aware ScTile allocation, spatial geometry, transport recovery and coordinate/null arithmetic.
 - **Verification:** B90: full solution and610 tests/53suites passed; after isolated unnecessary audio-helper spelling restoration, corrected solution and26 audio tests passed. Final complete-token proof across128 fork files.
 - **Pending / concerns:** Standing native rendering, live multiplayer/replay, non-Windows and long-park validation remain.
+
+### U327 — `bcf80e292e` — Fix 'update available' widget position (#27091)
+
+- **Source:** `bcf80e292e76d1f05fe12e745d1d7a1754f8f390`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 35 → 34.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Recorded the update-widget position fix already present in the fork and added its changelog entry.
+- **Additional decisions / behavior:** TitleMenu already uses update button origin0,0; upstream differs only in alignment whitespace. Preserve existing equivalent implementation, with no duplicate UI change.
+- **Verification:** Inspected source diff and complete TitleMenu delta: existing fork0,0 is exactly the corrected behavior. Covered by B90 full build/suite; no source changed here.
+- **Pending / concerns:** None.
