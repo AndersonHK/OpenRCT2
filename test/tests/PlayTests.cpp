@@ -29,6 +29,7 @@
 #include <openrct2/actions/terraform/LandSetHeightAction.h>
 #include <openrct2/actions/terraform/WaterSetHeightAction.h>
 #include <openrct2/actions/track/TrackPlaceAction.h>
+#include <openrct2/actions/track/TrackRemoveAction.h>
 #include <openrct2/drawing/Drawing.h>
 #include <openrct2/entity/EntityRegistry.h>
 #include <openrct2/entity/EntityTweener.h>
@@ -1229,6 +1230,71 @@ TEST_F(PlayTests, NiceRidePhoenixThoughtIsARareFallback)
     ScenarioRandSeed(0, 0);
     guest.onExitRide(ride);
     EXPECT_EQ(guest.thoughts[0].type, PeepThoughtType::badValue);
+}
+
+TEST_F(PlayTests, TrackIndestructibilityReportsStoredFlagWhileRemovalHonoursCheat)
+{
+    auto context = LoadEverythingPark();
+    ASSERT_NE(context, nullptr);
+    auto& state = getGameState();
+    struct RestoreScene
+    {
+        LegacyScene scene;
+        ~RestoreScene()
+        {
+            gLegacyScene = scene;
+        }
+    } restoreScene{ gLegacyScene };
+    gLegacyScene = LegacyScene::scenarioEditor;
+    state.cheats.sandboxMode = true;
+    state.cheats.disableClearanceChecks = false;
+    state.park.flags = { ParkFlag::noMoney };
+    auto rides = RideManager(state);
+    auto boatIt = std::find_if(rides.begin(), rides.end(), [](auto& ride) { return ride.type == RIDE_TYPE_BOAT_HIRE; });
+    ASSERT_NE(boatIt, rides.end());
+    auto& boat = *boatIt;
+    boat.status = RideStatus::closed;
+    constexpr CoordsXY coords{ 96, 96 };
+    MapInit({ 16, 16 });
+    auto* surface = MapGetSurfaceElementAt(coords);
+    surface->baseHeight = 2;
+    surface->clearanceHeight = 2;
+    surface->setSlope(kTileSlopeFlat);
+    surface->setWaterHeight(32);
+    GameActions::TrackPlaceAction place(boat.id, TrackElemType::flat, boat.type, { coords, 32, 0 }, 0, 0, 0, {}, false);
+    ASSERT_EQ(place.Query(state, state.park).error, GameActions::Status::ok);
+    ASSERT_EQ(place.Execute(state, state.park).error, GameActions::Status::ok);
+    auto* track = *TileElementsView<TrackElement>(coords).begin();
+    ASSERT_NE(track, nullptr);
+    GameActions::TrackRemoveAction remove(TrackElemType::flat, 0, { coords, 32, 0 });
+    for (bool stored : { false, true })
+    {
+        track->setIsIndestructible(stored);
+        for (bool cheat : { false, true })
+        {
+            SCOPED_TRACE(stored);
+            SCOPED_TRACE(cheat);
+            state.cheats.makeAllDestructible = cheat;
+            EXPECT_EQ(track->isIndestructible(), stored);
+            const auto query = remove.Query(state, state.park);
+            EXPECT_EQ(query.error, stored && !cheat ? GameActions::Status::disallowed : GameActions::Status::ok);
+            EXPECT_EQ(track->isIndestructible(), stored);
+        }
+    }
+    // Tile Inspector's toggle must be able to clear and restore the raw flag even with the cheat enabled.
+    track->setIsIndestructible(!track->isIndestructible());
+    EXPECT_FALSE(track->isIndestructible());
+    track->setIsIndestructible(!track->isIndestructible());
+    EXPECT_TRUE(track->isIndestructible());
+    const auto query = remove.Query(state, state.park);
+    ASSERT_EQ(query.error, GameActions::Status::ok);
+    const auto result = GameActions::ExecuteNested(&remove, state);
+    ASSERT_EQ(result.error, GameActions::Status::ok);
+    EXPECT_EQ(result.cost, query.cost);
+    bool trackRemains = false;
+    for (auto* remaining : TileElementsView<TrackElement>(coords))
+        trackRemains |= remaining->getRideIndex() == boat.id;
+    EXPECT_FALSE(trackRemains);
 }
 
 TEST_F(PlayTests, WaterSpecificClearanceRulesAreBypassedOnlyWithTheClearanceCheat)

@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 180 / 361 source commits recorded
+## Progress: 181 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1998,10 +1998,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U180 — `1eacb1eec8` — Fix formatting for MazeConstruction.cpp
 
 - **Source:** `1eacb1eec8a512885e4e84d546fe2980fd6b5b58`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `4b903899e27871ebda783c38f02be486158025aa`.
 - **Remaining:** 182 → 181.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Reformat the maze entrance-placement callback exactly as upstream and checkpoint B32 validation.
 - **Additional decisions / behavior:** Whitespace-only change: callback ordering, errors, audio, tool switching, ride completion and maze behavior remain identical.
 - **Verification:** Reviewed the full source patch and matched unique fork context. Whole-file normalization confirms only whitespace differences; B32 preceding U174-U179 build passed first attempt 0 warnings/errors in 74.02 seconds and all 240 tests in 16 suites passed in 32.170 seconds. A line-oriented git -w comparison still reports wrapped lines, so whole-file normalization supplies the relevant proof.
 - **Pending / concerns:** No runtime change in this receipt. Interactive/non-Windows and multiplayer/replay debt remains as recorded; U174-U179 compile/test debt cleared.
+
+### U181 — `df06376780` — Move indestructible cheat check to caller
+
+- **Source:** `df06376780f443c3038edbd14438cfcf66e48daf`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 181 → 180.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Make TrackElement.isIndestructible report its stored flag, move the makeAllDestructible check to TrackRemoveAction.Query, remove unused GameState include and add the changelog entry. Add a real placed-track regression and B33 validation.
+- **Additional decisions / behavior:** Adopt corrected Tile Inspector checkbox/toggle semantics while the cheat is active: protected track remains visibly marked and the raw flag can be cleared/restored. All actual getter consumers were checked; removal still rejects exactly stored=true and cheat=false. No fork-only permission gate is lost, and no pricing/physics/routing/save-format change. Network stays9 because action acceptance and execution for an identical payload are unchanged.
+- **Verification:** Reviewed all three source diffs and every isIndestructible consumer. Release x64 MSVC/Vulkan build passed 0 warnings/errors, 14.37 seconds and final fixture rebuild 7.03 seconds. Initial run passed 146/147 in 18.430 seconds; repaired new test passed in 0.357 seconds after using immediate ExecuteNested instead of the queuing UI dispatcher. It checks four query/flag combinations, query non-mutation, raw toggles and actual removal/cost.
+- **Pending / concerns:** Interactive Tile Inspector presentation and native non-Windows remain unverified. B33 compile and focused regression debt is cleared; standing migration debt retained.

@@ -13948,7 +13948,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "4b903899e27871ebda783c38f02be486158025aa"
+      ],
       "verification_evidence": [
         "Reviewed the full source patch and matched unique fork context. Whole-file normalization confirms only whitespace differences; B32 preceding U174-U179 build passed first attempt 0 warnings/errors in 74.02 seconds and all 240 tests in 16 suites passed in 32.170 seconds. A line-oriented git -w comparison still reports wrapped lines, so whole-file normalization supplies the relevant proof."
       ],
@@ -13989,9 +13991,11 @@
       "note": "isIndestructible reports stored track flag; apply makeAllDestructible at removal permission check. Audit fork callers.",
       "decisions": [],
       "review_level": "targeted-code-review",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Reviewed all three source diffs and every isIndestructible consumer. Release x64 MSVC/Vulkan build passed 0 warnings/errors, 14.37 seconds and final fixture rebuild 7.03 seconds. Initial run passed 146/147 in 18.430 seconds; repaired new test passed in 0.357 seconds after using immediate ExecuteNested instead of the queuing UI dispatcher. It checks four query/flag combinations, query non-mutation, raw toggles and actual removal/cost."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -13999,7 +14003,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P3"
+      "verification_gate": "P3",
+      "port_commit_locator": "Upstream-Commit: df06376780f443c3038edbd14438cfcf66e48daf",
+      "implementation_decisions": "Adopt corrected Tile Inspector checkbox/toggle semantics while the cheat is active: protected track remains visibly marked and the raw flag can be cleared/restored. All actual getter consumers were checked; removal still rejects exactly stored=true and cheat=false. No fork-only permission gate is lost, and no pricing/physics/routing/save-format change. Network stays9 because action acceptance and execution for an identical payload are unchanged.",
+      "pending_validation": "Interactive Tile Inspector presentation and native non-Windows remain unverified. B33 compile and focused regression debt is cleared; standing migration debt retained."
     },
     {
       "sha": "3937aaa967de8c61dccca1ee0b1f999c43d35230",
@@ -27049,8 +27056,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 180,
-    "remaining_after_receipt": 181,
+    "accounted_in_this_tree": 181,
+    "remaining_after_receipt": 180,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
