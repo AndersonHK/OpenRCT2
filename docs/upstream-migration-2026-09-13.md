@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 49 / 361 source commits recorded
+## Progress: 50 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -557,10 +557,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U049 — `26b28153bb` — Disentangle speed controls from the banking widgets (#26864)
 
 - **Source:** `26b28153bbfdfe30ec74f1e13db3f17d89329a01`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `ca39d23303ff95df98226c8d09d161a3f50df914`.
 - **Remaining:** 313 → 312.
 - **Disposition:** adapted.
 - **Manual changes:** Separate bank controls from four dedicated brake/booster speed widgets and handlers; adopt 14-pixel spinner/dropdown defaults and seat-rotation spacing. Restore base layout and banking caption each update. Also close the documented objects-installer preflight gap and restore CMake help-text encoding.
 - **Additional decisions / behavior:** Preserve fork small-curve visibility OR condition, speed bounds/increments/cheat semantics, selected-piece SetBrakeSpeed actions, construction state and pressed-bit logic. Avoid upstream stale layout/caption state when switching between seat-rotation or covered-piece modes by resetting geometry/text before conditional adjustments. New speed indices fit 64-bit masks. UI size change has no simulation/economics effect. Oversight objects follow-up: reject duplicate packed/loose IDs and stale previously managed paths before writes; preserve unrelated assets and document provenance. See objects correction log.
 - **Verification:** Reviewed every upstream hunk; skipped only the directional cleanup hunk to retain the fork fix. Full Batch 08 Windows build passed; 18 selected regressions passed. Four installer fixtures and live companion-source validation passed. Batch 07 evidence also recorded.
 - **Pending / concerns:** Interactive bank/speed/seat-rotation/covered-piece layouts and global spinner/dropdown appearance remain unverified. Subsequent source overlap fixes will be reviewed in order.
+
+### U050 — `8bfe55af63` — Add Liquid Glass app icon for macOS 26+ (#26862)
+
+- **Source:** `8bfe55af6378da68c0e48d9be3f716e7b8e9155b`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 312 → 311.
+- **Disposition:** ported.
+- **Manual changes:** Add macOS Liquid Glass icon catalog/source and bundle icon-name metadata, retain flat ICNS fallback, archive prior artwork, and include Assets.car in bundle resources.
+- **Additional decisions / behavior:** Presentation/packaging only; existing macOS bundle and companion-objects source wiring retained. Reuse reviewed upstream artwork byte-for-byte; no regeneration or platform build requirement added. Omit upstream incidental extra blank line in CMake.
+- **Verification:** Reviewed full source patch and Slide.png artwork. Confirmed fork assets matched source parent before replacement; all new assets byte-identical to source; archived SVG identical to the original Git blob (working-tree CRLF normalized); both ICNS headers/lengths and JSON/plist resource references valid. Exact-one ancestry checked.
+- **Pending / concerns:** Native macOS 26 icon rendering, older-macOS fallback and bundle build cannot be validated on this Windows host.
