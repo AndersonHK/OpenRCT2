@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 261 / 361 source commits recorded
+## Progress: 262 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2889,10 +2889,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U261 — `436bc0d53e` — Merge pull request #26996 from Gymnasiast/feature/rename-ride-in-scenariopatch
 
 - **Source:** `436bc0d53eeda036930c60b5d6ad5a84d9934bd7`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `82a083e3f347d394865acc1f52763281720fbce8`.
 - **Remaining:** 101 → 100.
 - **Disposition:** history receipt.
 - **Manual changes:** History receipt for merge of the individually reviewed U254-U260 scenario changes with the U253 construction UI fix.
 - **Additional decisions / behavior:** No additional merge resolution. Second-parent delta is exactly the already ported U253 layout change; preserve the explicit assertion-format adaptation and regression fixtures.
 - **Verification:** Empty remerge-diff inspected; full second-parent delta read, all component changes inspected in historical order; B58 build/tests passed.
 - **Pending / concerns:** Standing original-scenario/rendering/platform/MP/replay checks remain.
+
+### U262 — `08aa13fee3` — Fix: sanitise packed object filenames
+
+- **Source:** `08aa13fee37938f6259507ee081a0af43a8b4491`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 100 → 99.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Sanitize packed JSON object storage filenames with blank-name fallback; add repository write/collision regression and enable Platform.cpp in Windows tests.
+- **Additional decisions / behavior:** Preserve internal identifiers, bytes, configured user directory and existing collision suffixes. MSBuild now includes existing platform tests already registered in CMake. No fork object pin/source change. B59.
+- **Verification:** Full source and sanitizer/storage consumers inspected. Production solution build passed; final registered test-project build 7.51s zero warnings/errors; both platform tests passed 0.119s after registration/include correction. Earlier 35 Play/Downloader tests passed separately. B59.
+- **Pending / concerns:** Valid packed asset reimport, reserved Windows device names, non-Windows and standing UI/MP/replay checks remain.
