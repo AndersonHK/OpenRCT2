@@ -21568,7 +21568,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "c6ab88780bd26d4f85f4a43ecc750514f27b5a74"
+      ],
       "verification_evidence": [
         "Read all 50 deletions. Each removed line verified present exactly once per file; whitespace check passed."
       ],
@@ -21607,9 +21609,11 @@
       "note": "Review release crash-report metadata against fork deployment; do not treat upstream credentials/configuration as fork telemetry policy.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Complete source patch changes one public token only. Breakpad remains conditional and absent from current Release validation configuration."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -21619,7 +21623,10 @@
       "merge_conflict_paths": [
         "src/openrct2/platform/Crash.cpp"
       ],
-      "verification_gate": "P8"
+      "verification_gate": "P8",
+      "port_commit_locator": "Upstream-Commit: 4a081c584c22f411cdf6ff80a387d2ef15327501",
+      "implementation_decisions": "Follow documented U005 decision: preserve reporting integration, destination and consent flow, fork screenshot handling and removed OpenGL dependency. No upload performed or reporting enabled.",
+      "pending_validation": "External crash upload and Breakpad-enabled build not exercised."
     },
     {
       "sha": "bf1c99fad5c9165294b1958dfa2dc266b437e9bb",
@@ -27875,8 +27882,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 298,
-    "remaining_after_receipt": 63,
+    "accounted_in_this_tree": 299,
+    "remaining_after_receipt": 62,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

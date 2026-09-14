@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 298 / 361 source commits recorded
+## Progress: 299 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3296,10 +3296,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U298 — `f1faf90ed4` — Merge Localisation/master into OpenRCT2/develop
 
 - **Source:** `f1faf90ed4fe5849f7a9fe07a0afbc8eb3a1ca9e`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `c6ab88780bd26d4f85f4a43ecc750514f27b5a74`.
 - **Remaining:** 64 → 63.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Remove the two obsolete close-button strings from 25 translations.
 - **Additional decisions / behavior:** Only IDs 824 and 6164 removed, matching U294 English/API removal; no renumbering, other translation or fork-string changes.
 - **Verification:** Read all 50 deletions. Each removed line verified present exactly once per file; whitespace check passed.
 - **Pending / concerns:** Parser check at next coherent checkpoint; no native rendering change beyond U294.
+
+### U299 — `4a081c584c` — Update backtrace token for v0.5.5
+
+- **Source:** `4a081c584c22f411cdf6ff80a387d2ef15327501`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 63 → 62.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Refresh the existing public Backtrace token for the upstream 0.5.5 release.
+- **Additional decisions / behavior:** Follow documented U005 decision: preserve reporting integration, destination and consent flow, fork screenshot handling and removed OpenGL dependency. No upload performed or reporting enabled.
+- **Verification:** Complete source patch changes one public token only. Breakpad remains conditional and absent from current Release validation configuration.
+- **Pending / concerns:** External crash upload and Breakpad-enabled build not exercised.
