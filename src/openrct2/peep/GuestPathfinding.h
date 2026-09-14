@@ -9,14 +9,13 @@
 
 #pragma once
 
-#include "../ride/RideTypes.h"
+#include "../Identifiers.h"
 #include "../world/Location.hpp"
 
 namespace OpenRCT2
 {
     struct Guest;
     struct Peep;
-    struct TileElement;
 } // namespace OpenRCT2
 
 namespace OpenRCT2::PathFinding

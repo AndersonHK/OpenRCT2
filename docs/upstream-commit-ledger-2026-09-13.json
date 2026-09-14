@@ -7316,7 +7316,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "a08b88d1a2a3ebd3f8241616876abd9347bfcf2c"
+      ],
       "verification_evidence": [
         "Reviewed complete include-only delta and direct fork dependencies. Batch 13 build and 37 selected network/script/entity/widget tests passed through U108."
       ],
@@ -7360,9 +7362,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Actual patch and fork uses inspected; whitespace and singleton ancestry checked."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -7373,7 +7377,10 @@
         "src/openrct2/peep/GuestPathfinding.cpp",
         "src/openrct2/peep/GuestPathfinding.h"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: b3ef890f383ea9af6904b079c906336f0b3ed4f0",
+      "implementation_decisions": "Keep bitset: fork transport routing uses destinationCandidateMask and walkAfterRideComputed. Header memory include already absent. No pathfinding or fare behavior changes.",
+      "pending_validation": "Compile header group."
     },
     {
       "sha": "7f8fc39ff533d965c7875101a833158196a518bb",
@@ -26552,8 +26559,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 109,
-    "remaining_after_receipt": 252,
+    "accounted_in_this_tree": 110,
+    "remaining_after_receipt": 251,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

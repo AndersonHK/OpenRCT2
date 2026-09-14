@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 109 / 361 source commits recorded
+## Progress: 110 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1217,10 +1217,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U109 — `7f39bdebf5` — Remove openrct2/park includes
 
 - **Source:** `7f39bdebf52fabf3bcb2a431cda2edbc9c83f914`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `a08b88d1a2a3ebd3f8241616876abd9347bfcf2c`.
 - **Remaining:** 253 → 252.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Remove seven unused park headers.
 - **Additional decisions / behavior:** Retain ParkFile.cpp world/Park.h for fork entrance-fee target persistence and rct2/RCT2.h for directly referenced FootpathMapping/legacy limits. Preserve save version 60016 and custom recovery logic.
 - **Verification:** Reviewed complete include-only delta and direct fork dependencies. Batch 13 build and 37 selected network/script/entity/widget tests passed through U108.
 - **Pending / concerns:** Build header cleanup group next.
+
+### U110 — `b3ef890f38` — Remove openrct2/peep includes
+
+- **Source:** `b3ef890f383ea9af6904b079c906336f0b3ed4f0`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 252 → 251.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Narrow pathfinding header to Identifiers.h, remove unused forward declaration and two includes; format RideUseSystem header.
+- **Additional decisions / behavior:** Keep bitset: fork transport routing uses destinationCandidateMask and walkAfterRideComputed. Header memory include already absent. No pathfinding or fare behavior changes.
+- **Verification:** Actual patch and fork uses inspected; whitespace and singleton ancestry checked.
+- **Pending / concerns:** Compile header group.
