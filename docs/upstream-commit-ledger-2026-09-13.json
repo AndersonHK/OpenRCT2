@@ -15903,7 +15903,9 @@
       "decisions": [],
       "review_level": "targeted-code-review",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "65c3da47955524f76f43367da8f3dbee9dfdc692"
+      ],
       "verification_evidence": [
         "O05 first build34.28s and59/6 tests4.102s; requested full Windows checkpoint585/50 passed36.124s before U212 edits. U212 test chrono include failure fixed; final build11.46s zero warnings/errors,108/10 combined tests pass11.334s. Four controller tests use real workers/UI with fake transport/install; nested five-tile preview and map stash tests pass."
       ],
@@ -15941,9 +15943,11 @@
       "note": "Retain async request futures to avoid blocking temporary destruction; audit cancel/restart/window shutdown and late callbacks against fork background I/O ownership.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Full two-file source and three remaining Http::DoAsync call sites inspected, plus server-list async caller and close lifecycle; diff/source review."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -15951,7 +15955,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P7"
+      "verification_gate": "P7",
+      "port_commit_locator": "Upstream-Commit: 44b178e30f6b072ba86ca7a6edacf4a09054858f",
+      "implementation_decisions": "Audit confirms online wait occurs on server-list window outer worker; retain current behavior and concrete comment/tuple include. Advertiser futures retained; downloader uses owned worker. Separate legacy server-list onClose wait and promise/error handling remain unchanged, not claimed fixed. No owner/gameplay choice.",
+      "pending_validation": "Compile next batch. Live server-list fetch/close/network failure behavior remains unverified; legacy close can wait for in-flight work."
     },
     {
       "sha": "2449e06d9c360e494cf8da9e5cc6cffe9feeea7a",
@@ -27273,8 +27280,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 212,
-    "remaining_after_receipt": 149,
+    "accounted_in_this_tree": 213,
+    "remaining_after_receipt": 148,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

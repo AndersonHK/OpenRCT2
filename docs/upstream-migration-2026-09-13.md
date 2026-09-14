@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 212 / 361 source commits recorded
+## Progress: 213 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2350,10 +2350,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U212 — `4cce29b5a9` — Fix #26056: Freeze when trying to download all objects on save where they are missing
 
 - **Source:** `4cce29b5a9aceb14321ef7350457a17e896adf16`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `65c3da47955524f76f43367da8f3dbee9dfdc692`.
 - **Remaining:** 150 → 149.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Adapt missing-object async downloads to the fork owned BackgroundWorker with main-thread completions, cancellable controller lifetime and offline lifecycle tests. Also correct O05: restore live navigator revisions after balanced visual tile/map previews while expiring temporary references.
 - **Additional decisions / behavior:** Source future-vector approach has cross-thread mutation, restart waits and unsafe late callbacks; use existing worker ownership. Failed/malformed/no-link responses advance, short DAT rejected, only verified installs reported; preserve configured fork repository/assets pin and legacy missing-custom-object service. O05 corrects U204 preview/UI-dependent invalidation: save/restore live revisions, never rewind allocator; genuine mutations remain invalidating. No gameplay/save/protocol change or new owner choice; detailed trace B46.
 - **Verification:** O05 first build34.28s and59/6 tests4.102s; requested full Windows checkpoint585/50 passed36.124s before U212 edits. U212 test chrono include failure fixed; final build11.46s zero warnings/errors,108/10 combined tests pass11.334s. Four controller tests use real workers/UI with fake transport/install; nested five-tile preview and map stash tests pass.
 - **Pending / concerns:** Live HTTP/successful native DAT install, actual preview rendering, multiplayer/replay and non-Windows/full disabled-scripting remain unverified. In-flight native HTTP cannot be interrupted; context shutdown can wait for it. U338/U340 HUD/theme and consolidated standing debt retained; companion pin remains unpublished.
+
+### U213 — `44b178e30f` — Make all places returning std::async [[nodiscard]]
+
+- **Source:** `44b178e30f6b072ba86ca7a6edacf4a09054858f`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 149 → 148.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Mark HTTP and LAN async results nodiscard, expose LAN annotations in declarations and explicitly ignore the legacy online-request future as source does.
+- **Additional decisions / behavior:** Audit confirms online wait occurs on server-list window outer worker; retain current behavior and concrete comment/tuple include. Advertiser futures retained; downloader uses owned worker. Separate legacy server-list onClose wait and promise/error handling remain unchanged, not claimed fixed. No owner/gameplay choice.
+- **Verification:** Full two-file source and three remaining Http::DoAsync call sites inspected, plus server-list async caller and close lifecycle; diff/source review.
+- **Pending / concerns:** Compile next batch. Live server-list fetch/close/network failure behavior remains unverified; legacy close can wait for in-flight work.

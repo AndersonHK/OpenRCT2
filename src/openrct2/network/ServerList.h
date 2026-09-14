@@ -54,7 +54,8 @@ namespace OpenRCT2::Network
         void Sort();
         std::vector<ServerListEntry> ReadFavourites() const;
         bool WriteFavourites(const std::vector<ServerListEntry>& entries) const;
-        std::future<std::vector<ServerListEntry>> FetchLocalServerListAsync(const INetworkEndpoint& broadcastEndpoint) const;
+        [[nodiscard]] std::future<std::vector<ServerListEntry>> FetchLocalServerListAsync(
+            const INetworkEndpoint& broadcastEndpoint) const;
 
     public:
         ServerListEntry& GetServer(size_t index);
@@ -67,7 +68,7 @@ namespace OpenRCT2::Network
         void ReadAndAddFavourites();
         void WriteFavourites() const;
 
-        std::future<std::vector<ServerListEntry>> FetchLocalServerListAsync() const;
+        [[nodiscard]] std::future<std::vector<ServerListEntry>> FetchLocalServerListAsync() const;
         std::future<std::vector<ServerListEntry>> FetchOnlineServerListAsync() const;
         uint32_t GetTotalPlayerCount() const;
     };

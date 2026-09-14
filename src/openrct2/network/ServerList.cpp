@@ -29,6 +29,7 @@
 
     #include <numeric>
     #include <optional>
+    #include <tuple>
 
 namespace OpenRCT2::Network
 {
@@ -264,7 +265,7 @@ namespace OpenRCT2::Network
         }
     }
 
-    std::future<std::vector<ServerListEntry>> ServerList::FetchLocalServerListAsync(
+    [[nodiscard]] std::future<std::vector<ServerListEntry>> ServerList::FetchLocalServerListAsync(
         const INetworkEndpoint& broadcastEndpoint) const
     {
         auto broadcastAddress = broadcastEndpoint.GetHostname();
@@ -321,7 +322,7 @@ namespace OpenRCT2::Network
         });
     }
 
-    std::future<std::vector<ServerListEntry>> ServerList::FetchLocalServerListAsync() const
+    [[nodiscard]] std::future<std::vector<ServerListEntry>> ServerList::FetchLocalServerListAsync() const
     {
         return std::async(std::launch::async, [&] {
             // Get all possible LAN broadcast addresses
@@ -372,7 +373,8 @@ namespace OpenRCT2::Network
         request.url = std::move(masterServerUrl);
         request.method = Http::Method::get;
         request.header["Accept"] = "application/json";
-        Http::DoAsync(request, [p](Http::Response& response) -> void {
+        // This legacy method waits here on the server-list window's worker; its outer fetch future owns the wait.
+        std::ignore = Http::DoAsync(request, [p](Http::Response& response) -> void {
             json_t root;
             try
             {
