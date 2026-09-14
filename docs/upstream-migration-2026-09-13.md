@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 321 / 361 source commits recorded
+## Progress: 322 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3549,10 +3549,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U321 — `c90ca119eb` — Move line drawing stuff into Line.{cpp.h}
 
 - **Source:** `c90ca119eb740d15313a7bcb3d0a5047129e342a`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `b99cb465e4ee86e08bac214a50eb2882fa849522`.
 - **Remaining:** 41 → 40.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Moved line drawing declarations/dispatch into Drawing::Line and updated all consumers.
 - **Additional decisions / behavior:** All four function bodies preserve prior fork tokens, clipping/endpoints/dash arithmetic and drawing-context dispatch. No backend or gameplay change.
 - **Verification:** B87: four-body proof and consumer inventory; solution zero warnings/errors;67 widget/GPU/scripting tests passed.
 - **Pending / concerns:** Standing native line/graph/plugin appearance checks remain.
+
+### U322 — `96ba41b5e6` — Move ImageId::GetCatalogue() out of Drawing.cpp
+
+- **Source:** `96ba41b5e6aa82222b525d198478aeeb149f9f9a`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 40 → 39.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Moved ImageId::GetCatalogue to ImageId.cpp and registered the new source.
+- **Additional decisions / behavior:** Preserve exact image-index catalogue bounds/order; no resource lookup or renderer behavior change.
+- **Verification:** Inspected the complete moved method and registration; new file is source-identical.
+- **Pending / concerns:** Compile checkpoint deferred to the following coherent drawing refactor.

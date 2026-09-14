@@ -25125,7 +25125,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "b99cb465e4ee86e08bac214a50eb2882fa849522"
+      ],
       "verification_evidence": [
         "B87: four-body proof and consumer inventory; solution zero warnings/errors;67 widget/GPU/scripting tests passed."
       ],
@@ -25172,9 +25174,11 @@
       "note": "Adopt final palette/screen/line header ownership with fork-only GPU consumers; retain immutable presentation state.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected the complete moved method and registration; new file is source-identical."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -25185,7 +25189,10 @@
         "src/openrct2/drawing/Drawing.cpp",
         "src/openrct2/libopenrct2.vcxproj"
       ],
-      "verification_gate": "P6"
+      "verification_gate": "P6",
+      "port_commit_locator": "Upstream-Commit: 96ba41b5e6aa82222b525d198478aeeb149f9f9a",
+      "implementation_decisions": "Preserve exact image-index catalogue bounds/order; no resource lookup or renderer behavior change.",
+      "pending_validation": "Compile checkpoint deferred to the following coherent drawing refactor."
     },
     {
       "sha": "fcdf61e009b2f3da81cf3ba019174c353bad9709",
@@ -28036,8 +28043,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 321,
-    "remaining_after_receipt": 40,
+    "accounted_in_this_tree": 322,
+    "remaining_after_receipt": 39,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
