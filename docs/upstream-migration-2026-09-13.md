@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 223 / 361 source commits recorded
+## Progress: 224 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2471,10 +2471,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U223 — `aa65346003` — Refactor pickup peep into namespace, hide globals, use ScreenCoordsXY
 
 - **Source:** `aa653460037eae7764fbedfbf81df01e07face4f`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `1e7faabede408dd93f650fac4966685db9d3c795`.
 - **Remaining:** 139 → 138.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Introduce namespaced pickupPeep setters/clear/draw/invalidate API, private aggregate state and updated callers.
 - **Additional decisions / behavior:** Keep fork image/position/zoom aggregate and copied render target. Position setter retains existing zero-zoom fallback and null main-window/viewport guards; source would retain stale zoom. Clear still clears image only. No callback timing or animation changes.
 - **Verification:** Full source reviewed; draw/invalidate bodies unchanged after rename/whitespace audit. No old globals/functions remain. Standalone Debug syntax passed with repository third-party include path and fno-char8_t matching project settings. Earlier standalone attempts missed these options; premature receipt call safely rejected stale pending data without editing Git.
 - **Pending / concerns:** Solution build and caller checks at next checkpoint; interactive pickup/zoom and rendering validation remain pending.
+
+### U224 — `2e7cb6c4bf` — Merge pull request #26970 from Gymnasiast/refactor/pickup-peep
+
+- **Source:** `2e7cb6c4bfa66559e4f12217a5712eb6368a43ba`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 138 → 137.
+- **Disposition:** history receipt.
+- **Manual changes:** History receipt for #26970; implementation already adapted in U222 and U223.
+- **Additional decisions / behavior:** No additional source resolution. Preserve owned aggregate and fork drawing behavior.
+- **Verification:** Successful empty remerge diff and identical tree to reviewed second parent aa65346003.
+- **Pending / concerns:** U223 solution compilation remains for next checkpoint.

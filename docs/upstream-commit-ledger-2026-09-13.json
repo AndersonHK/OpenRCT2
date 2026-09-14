@@ -16420,7 +16420,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "1e7faabede408dd93f650fac4966685db9d3c795"
+      ],
       "verification_evidence": [
         "Full source reviewed; draw/invalidate bodies unchanged after rename/whitespace audit. No old globals/functions remain. Standalone Debug syntax passed with repository third-party include path and fno-char8_t matching project settings. Earlier standalone attempts missed these options; premature receipt call safely rejected stale pending data without editing Git."
       ],
@@ -16483,9 +16485,11 @@
       "note": "No remerge-resolution delta detected. Account for constituent commits before ancestry reconciliation.",
       "decisions": [],
       "review_level": "remerge-probe",
-      "implementation_status": "not-ported",
+      "implementation_status": "history receipt",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Successful empty remerge diff and identical tree to reviewed second parent aa65346003."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -16501,7 +16505,10 @@
         "src/openrct2/entity/Peep.cpp",
         "src/openrct2/libopenrct2.vcxproj"
       ],
-      "verification_gate": "P0"
+      "verification_gate": "P0",
+      "port_commit_locator": "Upstream-Commit: 2e7cb6c4bfa66559e4f12217a5712eb6368a43ba",
+      "implementation_decisions": "No additional source resolution. Preserve owned aggregate and fork drawing behavior.",
+      "pending_validation": "U223 solution compilation remains for next checkpoint."
     },
     {
       "sha": "3dd304a8d506c422fb3ac0ff1dba566b4f45eece",
@@ -27350,8 +27357,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 223,
-    "remaining_after_receipt": 138,
+    "accounted_in_this_tree": 224,
+    "remaining_after_receipt": 137,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
