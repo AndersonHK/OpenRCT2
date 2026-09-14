@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 68 / 361 source commits recorded
+## Progress: 69 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -766,10 +766,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U068 — `882467fe20` — Rename members of GuestList::TabId
 
 - **Source:** `882467fe20a6446d58e39a91dbd56860e3f5934b`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `a631f0646f36803842ff83de23996979d9e9039d`.
 - **Remaining:** 294 → 293.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename TabId members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Scope TabId renaming to GuestList only. Preserve tab indices, pagination, grouping refresh, animation periods and the fork visibility restoration when returning from a summary to individual guests.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U069 — `cb13ddba48` — Rename members of GuestList::GuestViewType
+
+- **Source:** `cb13ddba4897d3ab96e26623636c9ded253ee454`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 293 → 292.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename GuestViewType members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Keep actions/thoughts values, default view, thought freshness filtering, action formatting and group aggregation unchanged. Preserve fork guest-list UI behavior; no changes to thought generation or guest decisions.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
