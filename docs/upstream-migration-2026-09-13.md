@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 188 / 361 source commits recorded
+## Progress: 189 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2086,10 +2086,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U188 — `26c10680d5` — Move two map ownership functions out of Map.h
 
 - **Source:** `26c10680d59ad031eb9ca444b055850863f2f3bf`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `e24adc33e799f7bb4288ecae214147c72a9cde07`.
 - **Remaining:** 174 → 173.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Move eligibility to MapOwnership.cpp with TileElementsView traversal, localize the scenario ownership/fence helper with const span, relocate declarations and register the new compilation unit. Add explicit span include.
 - **Additional decisions / behavior:** Preserve null-tile fallback, element order and ghost inclusion in eligibility; moved loop has no mutation. Scenario helper retains ownership and fence updates plus surrounding fork topology invalidation. No gameplay/API/wire/save changes; corrected U185 pricing remains.
 - **Verification:** audit_u188.py verifies unchanged eligibility-body statements and scenario ownership/fence loop, exact current-source new file and unique MSBuild registration. CMake source glob covers new cpp. B36 first Release/Vulkan build 0 warnings/errors 74.83s; all 127 selected tests in 11 suites pass 21.987s. U186-U188 compile/test debt cleared.
 - **Pending / concerns:** Standing interactive ownership/scenario UI, live multiplayer/replay and non-Windows validation remain unverified.
+
+### U189 — `11da390704` — Merge pull request #26920 from Gymnasiast/refactor/ownership-flags
+
+- **Source:** `11da390704950cd30f1275c392140480908183a0`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 173 → 172.
+- **Disposition:** history receipt.
+- **Manual changes:** Record the ownership-refactor merge after individually porting U185-U188; no additional source delta.
+- **Additional decisions / behavior:** Merge tree equals its second parent, so retain the manually adapted fork tree, approved API119/protocol11 boundary and U185 land-pricing correction. Do not reapply upstream merge tree.
+- **Verification:** Actual merge and second-parent tree IDs both 52cae0e77e32b115d12c497953b629b344a725b5; second-parent diff empty; cached remerge patch zero bytes; only this source is newly reachable. B35 and B36 validate constituent changes.
+- **Pending / concerns:** No new compile/test debt; standing validation limitations remain.
