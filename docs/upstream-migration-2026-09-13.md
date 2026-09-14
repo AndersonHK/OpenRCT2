@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 167 / 361 source commits recorded
+## Progress: 168 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1855,10 +1855,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U167 — `e75c1dde15` — Remove openrct2-ui/scripting includes
 
 - **Source:** `e75c1dde1519770617b8fb49821cdb7911041c72`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `8999239cc242d36211662f5a939dec8a02bfaf3a`.
 - **Remaining:** 195 → 194.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Port eight scripting UI header cleanups, direct CustomListView implementation dependencies and forward-declared ScriptEngine/window/render types. ScWindow declares the existing WindowNumber int16_t alias locally.
 - **Additional decisions / behavior:** No behavior or public API change. Script/plugin ownership, custom images, widgets and menu dispatch are unchanged; the WindowNumber alias matches Window.h and WindowTypes.h.
 - **Verification:** Reviewed all source hunks; all eight pre-port fork files matched the source parent. Include/declaration-only proof passes after explicitly allowing the existing WindowNumber alias and namespace closing comments. Formatted changed lines and apply ancestry/whitespace receipt gates.
 - **Pending / concerns:** Compile and scripting/widget/image regressions at the next UI-header batch checkpoint; interactive and non-Windows checks remain pending.
+
+### U168 — `8a0507708f` — Remove openrct2-ui/title includes
+
+- **Source:** `8a0507708f40f4856dd48e0c8ef6f3a975871a77`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 194 → 193.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Clean up title-sequence includes in two files, use direct WindowBase.h and remove the unused IScenarioRepository forward declaration.
+- **Additional decisions / behavior:** No change to title playback, scenario loading, simulation or rendering policy.
+- **Verification:** Reviewed both complete source patches. Both fork files matched the source parent before editing; normalized include/declaration-only proof passes, changed lines formatted and receipt whitespace/ancestry gates apply.
+- **Pending / concerns:** Build and focused regressions at the upcoming UI-header checkpoint; interactive title playback and native non-Windows remain unverified.

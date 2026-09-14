@@ -13078,7 +13078,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "8999239cc242d36211662f5a939dec8a02bfaf3a"
+      ],
       "verification_evidence": [
         "Reviewed all source hunks; all eight pre-port fork files matched the source parent. Include/declaration-only proof passes after explicitly allowing the existing WindowNumber alias and namespace closing comments. Formatted changed lines and apply ancestry/whitespace receipt gates."
       ],
@@ -13116,9 +13118,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Reviewed both complete source patches. Both fork files matched the source parent before editing; normalized include/declaration-only proof passes, changed lines formatted and receipt whitespace/ancestry gates apply."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -13126,7 +13130,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 8a0507708f40f4856dd48e0c8ef6f3a975871a77",
+      "implementation_decisions": "No change to title playback, scenario loading, simulation or rendering policy.",
+      "pending_validation": "Build and focused regressions at the upcoming UI-header checkpoint; interactive title playback and native non-Windows remain unverified."
     },
     {
       "sha": "b95d24bb68218ca9a597063420e4b580592bebc9",
@@ -26958,8 +26965,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 167,
-    "remaining_after_receipt": 194,
+    "accounted_in_this_tree": 168,
+    "remaining_after_receipt": 193,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
