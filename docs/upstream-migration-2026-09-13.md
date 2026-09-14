@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 119 / 361 source commits recorded
+## Progress: 120 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1327,10 +1327,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U119 — `536973e9e6` — Add GetFlagHolder() overload for normal/inverted flag
 
 - **Source:** `536973e9e6aa355049831dabf306d916ff09464e`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `5f69d7b4b691ebb476244c4ab4d5a9a842e8e48f`.
 - **Remaining:** 243 → 242.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Add tuple-based GetFlagHolder overload supporting normal/inverted JSON flags.
 - **Additional decisions / behavior:** Same truth table as existing GetFlags: normal missing/false unset, true set; inverted missing/false set, true unset. Missing properties keep legacy false default. No caller changes in this source.
 - **Verification:** Full source and existing FlagHolder zero initialization/GetFlags implementation inspected; whitespace and ancestry checks.
 - **Pending / concerns:** Template instantiation and object consumers covered at next flag-group build.
+
+### U120 — `ac8b290671` — Refactor WALL_SCENERY_FLAGS into enum class+FlagHolder
+
+- **Source:** `ac8b29067165e49ae492a7c3d6fbd292c475371d`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 242 → 241.
+- **Disposition:** adapt wall flags.
+- **Manual changes:** Replace wall scenery bit constants with scoped WallSceneryFlag/uint8 FlagHolder; convert predicates, DAT byte load and JSON reader.
+- **Additional decisions / behavior:** Preserve eight legacy bit positions, byte storage, door timing, slope restrictions, colours and double-sided behavior. Keep inverted isAllowedOnSlope missing/false restriction and both isBanner/isDoubleSided plus hasTernaryColour aliases. Preserve secondary/tertiary-only colour normalization and all companion object data; no data migration needed.
+- **Verification:** Inspected all 10 actual source diffs and current callers. Each has/hasAny/set maps to same old bit mask; all former wall flag identifiers absent. Whitespace/singleton ancestry checks.
+- **Pending / concerns:** Build and object-load checks at flag-group checkpoint.
