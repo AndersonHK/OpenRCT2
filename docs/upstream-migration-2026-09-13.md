@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 23 / 361 source commits recorded
+## Progress: 24 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -271,10 +271,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U023 — `2ac48e6c42` — Rename members of MixerGroup
 
 - **Source:** `2ac48e6c4233597efab90bfa11d88b0cc28e6d1a`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `7ef9085dd3c81489a5c79d2e72855c674c651a16`.
 - **Remaining:** 339 → 338.
 - **Disposition:** adopt naming in fork mixer.
 - **Manual changes:** Rename MixerGroup members and references to lower camel case, including fork vehicle channels.
 - **Additional decisions / behavior:** Keep fork four-group ordering and values (sound, vehicle, rideMusic, titleMusic); do not restore upstream three-group mixer or its old callback/volume implementation. Spatial gains, channel lifecycle and vehicle group remain intact.
 - **Verification:** Inspected complete upstream rename delta and fork mixer dispatch/volume paths; inverse identifier substitution reproduces each pre-port file exactly. UI checkpoint after U021 passed complete build 0 warnings/errors in 42.28s.
 - **Pending / concerns:** This identifier port will compile at the next checkpoint. UI tests and audio regression checkpoint results logged separately.
+
+### U024 — `c80a0e168d` — Rename members of FileExtension
+
+- **Source:** `c80a0e168d214a23fffe02a59e84319b1abb1bbe`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 338 → 337.
+- **Disposition:** adopt.
+- **Manual changes:** Rename FileExtension enum members and classifier/converter references without changing extension aliases or enum order.
+- **Additional decisions / behavior:** Keep case-insensitive matching, .pob/.sea/.sv7/.td7 aliases, fork park version and U017 object-packing policy. Naming only.
+- **Verification:** Inspected full source delta; all hunks uniquely matched. No old FileExtension member references remain in src/test. Batch04 UI build and 16 tests passed, details in validation doc.
+- **Pending / concerns:** Next batch compile covers naming changes; custom-object conversion round trips remain pending.
