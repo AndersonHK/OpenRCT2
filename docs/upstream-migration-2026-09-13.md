@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 249 / 361 source commits recorded
+## Progress: 250 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2757,10 +2757,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U249 — `bcdb769cfd` — Fix #26802: Splash Boats draw recursion (#26991)
 
 - **Source:** `bcdb769cfd3dc57b8524ac7f476ea64e42596128`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `d3492d958e9677cc7472db83a3c005a4044e1a7f`.
 - **Remaining:** 113 → 112.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Adopt nonpositive visible-water-car guard, retain captured adjacent-vehicle resolution, and prevent exact recursive paint-chain re-entry; add actual fork-object painter regression.
 - **Additional decisions / behavior:** Approved crash fix. Additional B54 decision: source count guard reads live ride metadata behind the existing synchronous paint barrier; captured vehicle chains can lag that count, so a stack-backed thread-local per-session cycle guard prevents residual recursion. No train composition or gameplay state is changed.
 - **Verification:** Full source and paint barriers inspected; solution build 14.55s zero warnings/errors; 48 tests across three suites passed 7.420s, including captured two-proxy chain with newer positive live count. B54.
 - **Pending / concerns:** Rendered normal/empty Splash Boats and Water Coaster, custom/crashed/ghost combinations and standing platform/MP/replay checks remain.
+
+### U250 — `35898a258c` — Refactor TRACK_ELEMENT_*_MASK and ObjectSelectionFlag to constexpr/enum class (#26986)
+
+- **Source:** `35898a258c35374a458666771990a6e137004a07`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 112 → 111.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Convert editor-selection bytes to typed FlagHolder and track masks to named uint8_t constants; update all consumers.
+- **Additional decisions / behavior:** Preserve bit values 1/4/16/32 and track masks 03/1C/E0/F0. Both former partial-clear API callers always requested AllFlags, so new whole-clear API is equivalent. No fork selection or packed-save behavior change.
+- **Verification:** Full seven-file delta read and exact added/removed-line equality verified. Solution build 74.30s zero warnings/errors; 61 tests in five suites passed 8.591s. B55.
+- **Pending / concerns:** Editor selection/filter UI and exhaustive packed-mask roundtrips not newly tested; standing platform/MP/replay checks remain.
