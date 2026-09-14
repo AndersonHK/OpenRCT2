@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 250 / 361 source commits recorded
+## Progress: 251 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2768,10 +2768,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U250 — `35898a258c` — Refactor TRACK_ELEMENT_*_MASK and ObjectSelectionFlag to constexpr/enum class (#26986)
 
 - **Source:** `35898a258c35374a458666771990a6e137004a07`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `1797e3e440d4fa2c30d31912e21fa3f6416c7f4d`.
 - **Remaining:** 112 → 111.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Convert editor-selection bytes to typed FlagHolder and track masks to named uint8_t constants; update all consumers.
 - **Additional decisions / behavior:** Preserve bit values 1/4/16/32 and track masks 03/1C/E0/F0. Both former partial-clear API callers always requested AllFlags, so new whole-clear API is equivalent. No fork selection or packed-save behavior change.
 - **Verification:** Full seven-file delta read and exact added/removed-line equality verified. Solution build 74.30s zero warnings/errors; 61 tests in five suites passed 8.591s. B55.
 - **Pending / concerns:** Editor selection/filter UI and exhaustive packed-mask roundtrips not newly tested; standing platform/MP/replay checks remain.
+
+### U251 — `e16a74030d` — Fix #18415: Preview in Track Designs Manager not updating after a delete (#27003)
+
+- **Source:** `e16a74030d4cdbc80a0e21f05271a7f696b8bff3`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 111 → 110.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Invalidate the loaded-preview index whenever the track-design list reloads; add changelog fix.
+- **Additional decisions / behavior:** Adopt source fix: an unchanged list index may now name a different file after deletion. Retain lazy preview loading, fork object repository and O05 map stash/restore. This port itself performs no file deletion.
+- **Verification:** Full source and cache/reload/preview consumers inspected; exact one-line source insertion plus changelog; diff check. Next batch build pending.
+- **Pending / concerns:** Actual deletion/rename/filter and last-design preview UI verification pending; standing limits remain.
