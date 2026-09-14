@@ -18,12 +18,24 @@
 #include <openrct2/core/UnicodeChar.h>
 #include <openrct2/drawing/Font.h>
 #include <openrct2/drawing/Drawing.Sprite.h>
+#include <openrct2/localisation/Currency.h>
+#include <openrct2/platform/Platform.h>
 
 using namespace OpenRCT2;
 
 class Localisation : public testing::Test
 {
 };
+
+TEST_F(Localisation, DollarLocaleDefaultsPreserveDedicatedCurrenciesAndInvalidFallback)
+{
+    for (const char* code : { "CAD", "AUD", "NZD", "SGD", "XCD" })
+        EXPECT_EQ(Platform::GetCurrencyValue(code), CurrencyType::dollars);
+    for (int32_t i = 0; i < EnumValue(CurrencyType::count); ++i)
+        EXPECT_EQ(Platform::GetCurrencyValue(CurrencyDescriptors[i].isoCode), static_cast<CurrencyType>(i));
+    for (const char* code : { nullptr, "", "CA", "ZZZ", "cad" })
+        EXPECT_EQ(Platform::GetCurrencyValue(code), CurrencyType::pounds);
+}
 
 TEST_F(Localisation, SpriteFontsHaveDistinctLowercaseHardSignAndCurrencyGlyphsInEveryStyle)
 {

@@ -27455,7 +27455,9 @@
       "decisions": [],
       "review_level": "remerge-probe",
       "implementation_status": "history receipt",
-      "port_commits": [],
+      "port_commits": [
+        "989a9cfc3e2419cc9d6760c3cb6da5b2fda90ffe"
+      ],
       "verification_evidence": [
         "Actual remerge diff empty; constituent ports already accounted."
       ],
@@ -27493,9 +27495,11 @@
       "note": "Select Canadian dollars by default for Canadian locale; preserve user-selected currency and fork cent precision.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Read full source change and current guard/lookup order. Added actual locale lookup regression for CAD/AUD/NZD/SGD/XCD, all dedicated descriptors and invalid inputs."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -27503,7 +27507,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P8"
+      "verification_gate": "P8",
+      "port_commit_locator": "Upstream-Commit: eb7b5feab9cbf52cae49059aa28e5871bdf1e10a",
+      "implementation_decisions": "Preserve dedicated currency descriptors and lookup priority, null/short/unknown fallback and case sensitivity. Display default only; fork cent-denominated money, pricing and currency rates unchanged. Remove source changelog trailing space.",
+      "pending_validation": "Build/localisation tests at final checkpoint."
     },
     {
       "sha": "75c12dbe7d091856872da26abb01547cc3a4a0e0",
@@ -28295,8 +28302,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 358,
-    "remaining_after_receipt": 3,
+    "accounted_in_this_tree": 359,
+    "remaining_after_receipt": 2,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

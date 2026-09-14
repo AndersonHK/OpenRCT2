@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 358 / 361 source commits recorded
+## Progress: 359 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3956,10 +3956,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U358 — `a535c9f810` — Merge pull request #27119 from Gymnasiast/fix/27113
 
 - **Source:** `a535c9f810bcdb876523094e48253a1080b9f4ea`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `989a9cfc3e2419cc9d6760c3cb6da5b2fda90ffe`.
 - **Remaining:** 4 → 3.
 - **Disposition:** history receipt.
 - **Manual changes:** Account editor-chat branch merge with no independent resolution.
 - **Additional decisions / behavior:** Preserve fork toolbar adaptations and changelog deferrals.
 - **Verification:** Actual remerge diff empty; constituent ports already accounted.
 - **Pending / concerns:** Final UI checkpoint pending U356 guard.
+
+### U359 — `eb7b5feab9` — Fix #17409: Game defaults to pounds in Canada (#27120)
+
+- **Source:** `eb7b5feab9cbf52cae49059aa28e5871bdf1e10a`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 3 → 2.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Map additional dollar locales to generic dollar display rather than default pounds.
+- **Additional decisions / behavior:** Preserve dedicated currency descriptors and lookup priority, null/short/unknown fallback and case sensitivity. Display default only; fork cent-denominated money, pricing and currency rates unchanged. Remove source changelog trailing space.
+- **Verification:** Read full source change and current guard/lookup order. Added actual locale lookup regression for CAD/AUD/NZD/SGD/XCD, all dedicated descriptors and invalid inputs.
+- **Pending / concerns:** Build/localisation tests at final checkpoint.

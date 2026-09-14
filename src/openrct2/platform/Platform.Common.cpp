@@ -44,6 +44,12 @@ static constexpr std::array _prohibitedCharacters = { '<', '>', '*', '\\', ':', 
 static constexpr std::array _prohibitedCharacters = { '/' };
 #endif
 
+// Other dollar currencies share the generic dollar display; USD, HKD and TWD have dedicated entries.
+static constexpr std::array kDollarCurrencies = {
+    "AUD", "BBD", "BMD", "BND", "BSD", "BZD", "CAD", "FJD", "GYD", "JMD", "KID",
+    "KYD", "LRD", "NAD", "NZD", "SBD", "SGD", "SRD", "TTD", "TVD", "XCD",
+};
+
 namespace OpenRCT2::Platform
 {
     CurrencyType GetCurrencyValue(const char* currCode)
@@ -60,6 +66,9 @@ namespace OpenRCT2::Platform
                 return static_cast<CurrencyType>(currency);
             }
         }
+
+        if (std::ranges::find(kDollarCurrencies, u8string_view(currCode, 3)) != kDollarCurrencies.end())
+            return CurrencyType::dollars;
 
         return CurrencyType::pounds;
     }
