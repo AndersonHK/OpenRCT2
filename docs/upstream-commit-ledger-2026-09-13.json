@@ -24355,7 +24355,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "8cedfd93ea652725b77edecd3d881649c30cdd3e"
+      ],
       "verification_evidence": [
         "B81: all15 data files exact source; every existing nonride JSON payload identical. Solution7.34 seconds zero warnings/errors; all4 scenario tests pass0.534 seconds, including25 Okinawa CD name clears/3 exclusions and214 ownership checks."
       ],
@@ -24419,9 +24421,11 @@
       "note": "No remerge-resolution delta detected. Account for constituent commits before ancestry reconciliation.",
       "decisions": [],
       "review_level": "remerge-probe",
-      "implementation_status": "not-ported",
+      "implementation_status": "history receipt",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "git show --remerge-diff is empty; B80/B81 cover the integrated constituent payload."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -24431,7 +24435,10 @@
       "merge_conflict_paths": [
         "src/openrct2/rct12/ScenarioPatcher.cpp"
       ],
-      "verification_gate": "P0"
+      "verification_gate": "P0",
+      "port_commit_locator": "Upstream-Commit: 394e588fc7c94512a0adad3f1fa1f1dc4c964237",
+      "implementation_decisions": "Actual remerge inspection has no resolution delta; preserve the adapted parser, full-SHA scenario gates and fork ownership behavior already verified in B80/B81.",
+      "pending_validation": "None."
     },
     {
       "sha": "e70f51a68ead08d4722b4827a2b7ebfe133cc8d9",
@@ -27966,8 +27973,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 311,
-    "remaining_after_receipt": 50,
+    "accounted_in_this_tree": 312,
+    "remaining_after_receipt": 49,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

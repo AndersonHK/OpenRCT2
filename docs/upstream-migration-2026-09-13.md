@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 311 / 361 source commits recorded
+## Progress: 312 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3439,10 +3439,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U311 — `99cdd3892a` — Fix unlocalised names in Wacky Worlds
 
 - **Source:** `99cdd3892a32b4628b65f8dd4b383582a9da3dc5`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `8cedfd93ea652725b77edecd3d881649c30cdd3e`.
 - **Remaining:** 51 → 50.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Extend localized default-name fixes across14 Wacky Worlds scenario variants and retain2 official fixed names.
 - **Additional decisions / behavior:** 234 clear-name targets total include2 earlier ride18 clears; Beach Barbecue ride0=7 Hole Golf, ride2=Rings of Fun. All existing ownership/path payloads preserved. Name-only original-scenario hash-gated changes.
 - **Verification:** B81: all15 data files exact source; every existing nonride JSON payload identical. Solution7.34 seconds zero warnings/errors; all4 scenario tests pass0.534 seconds, including25 Okinawa CD name clears/3 exclusions and214 ownership checks.
 - **Pending / concerns:** Original scenario-file imports remain untested; synthetic fixture and parser coverage only.
+
+### U312 — `394e588fc7` — Fix unnamed rides appearing in English in base/WW scenarios (#27052)
+
+- **Source:** `394e588fc7c94512a0adad3f1fa1f1dc4c964237`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 50 → 49.
+- **Disposition:** history receipt.
+- **Manual changes:** Reconciled the scenario ride-name merge after porting its U309-U311 constituent changes.
+- **Additional decisions / behavior:** Actual remerge inspection has no resolution delta; preserve the adapted parser, full-SHA scenario gates and fork ownership behavior already verified in B80/B81.
+- **Verification:** git show --remerge-diff is empty; B80/B81 cover the integrated constituent payload.
+- **Pending / concerns:** None.
