@@ -140,7 +140,7 @@ namespace OpenRCT2::GameActions
 
         auto entranceElement = MapGetParkEntranceElementAt(_loc, false);
         // Make sure the entrance part is the middle
-        if (entranceElement != nullptr && (entranceElement->GetSequenceIndex()) == 0)
+        if (entranceElement != nullptr && (entranceElement->getSequenceIndex()) == 0)
         {
             entrancePath = true;
             // Make the price the same as replacing a path
@@ -209,7 +209,7 @@ namespace OpenRCT2::GameActions
 
         auto entranceElement = MapGetParkEntranceElementAt(_loc, false);
         // Make sure the entrance part is the middle
-        if (entranceElement != nullptr && (entranceElement->GetSequenceIndex()) == 0)
+        if (entranceElement != nullptr && (entranceElement->getSequenceIndex()) == 0)
         {
             entrancePath = true;
             // Make the price the same as replacing a path
@@ -251,11 +251,11 @@ namespace OpenRCT2::GameActions
             {
                 if (_constructFlags & PathConstructFlag::IsLegacyPathObject)
                 {
-                    entranceElement->SetLegacyPathEntryIndex(_type);
+                    entranceElement->setLegacyPathEntryIndex(_type);
                 }
                 else
                 {
-                    entranceElement->SetSurfaceEntryIndex(_type);
+                    entranceElement->setSurfaceEntryIndex(_type);
                 }
                 MapInvalidateTileFull(_loc);
             }
@@ -300,11 +300,11 @@ namespace OpenRCT2::GameActions
 
     bool FootpathLayoutPlaceAction::IsSameAsEntranceElement(const EntranceElement& entranceElement) const
     {
-        if (entranceElement.HasLegacyPathEntry())
+        if (entranceElement.hasLegacyPathEntry())
         {
             if (_constructFlags & PathConstructFlag::IsLegacyPathObject)
             {
-                return entranceElement.GetLegacyPathEntryIndex() == _type;
+                return entranceElement.getLegacyPathEntryIndex() == _type;
             }
 
             return false;
@@ -315,6 +315,6 @@ namespace OpenRCT2::GameActions
             return false;
         }
 
-        return entranceElement.GetSurfaceEntryIndex() == _type;
+        return entranceElement.getSurfaceEntryIndex() == _type;
     }
 } // namespace OpenRCT2::GameActions

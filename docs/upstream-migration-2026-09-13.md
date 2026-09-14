@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 156 / 361 source commits recorded
+## Progress: 157 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1734,10 +1734,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U156 — `be98df4081` — Make BannerElement.h adhere to code style
 
 - **Source:** `be98df4081f86c41453fb3e8f81f2b6b3cc1cc9a`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `8ecda6556e9877e4cf394c9d0e69f37673884f2d`.
 - **Remaining:** 206 → 205.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Rename 11 BannerElement fields/methods in 25 fork files, including MapPathTopology and its direct banner fixtures.
 - **Additional decisions / behavior:** Preserve the four-bit allowed-edge mask, ghost exclusion, banner identity, safe removal, and object lookup. Keep legacy RCT12 source accessors and global GetBanner unchanged; only modern destinations change.
 - **Verification:** Complete 23-file source delta reviewed and source/fork token comparisons permit only the 11 reviewed names. Remaining uppercase allowed-edge uses confined to RCT12 and legacy importer source reads. Whitespace check passed.
 - **Pending / concerns:** Compile and targeted tile/import/topology tests pending with following element renames.
+
+### U157 — `4af2e9d1fd` — Make EntranceElement members adhere to code style
+
+- **Source:** `4af2e9d1fdf10778792543314c2922f0553a23c1`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 205 → 204.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Rename 20 EntranceElement fields/accessors in 37 fork files, including topology edge construction and fixture insertion. Preserve separate path/track and legacy source accessors.
+- **Additional decisions / behavior:** No layout, mask, sequence/station/ride association or movement changes. Preserve fork prepaid/platform boarding, topology and import destination ownership. Use receiver-specific changes where methods share names.
+- **Verification:** Complete 35-file source token changes verified as reviewed names only; 37 fork file token comparisons passed. Inspected mixed importer destinations and scripting cases plus fork topology callers; whitespace check passed.
+- **Pending / concerns:** Compile and targeted tile/import/topology tests pending with related element naming batch.

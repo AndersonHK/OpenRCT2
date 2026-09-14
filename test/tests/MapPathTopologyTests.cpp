@@ -95,11 +95,11 @@ protected:
         auto* entrance = InsertTileElement<EntranceElement>(
             { tile.ToCoordsXY(), baseZ * kCoordsZStep }, 0, [&](EntranceElement& entrance) {
                 entrance.setClearanceZ((baseZ + 4) * kCoordsZStep);
-                entrance.SetEntranceType(entranceType);
-                entrance.SetSequenceIndex(EntranceSequence::Centre);
+                entrance.setEntranceType(entranceType);
+                entrance.setSequenceIndex(EntranceSequence::Centre);
                 entrance.setDirection(direction);
-                entrance.SetRideIndex(ride);
-                entrance.SetStationIndex(station);
+                entrance.setRideIndex(ride);
+                entrance.setStationIndex(station);
                 entrance.setGhost(false);
             });
         if (entrance == nullptr)

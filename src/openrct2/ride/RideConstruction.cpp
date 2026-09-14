@@ -1059,16 +1059,16 @@ namespace OpenRCT2
         if (entranceElement == nullptr)
             return false;
 
-        auto rideIndex = entranceElement->GetRideIndex();
+        auto rideIndex = entranceElement->getRideIndex();
         auto ride = GetRide(rideIndex);
         if (ride == nullptr)
             return false;
 
-        auto entranceType = entranceElement->GetEntranceType();
+        auto entranceType = entranceElement->getEntranceType();
         if (entranceType != ENTRANCE_TYPE_RIDE_ENTRANCE && entranceType != ENTRANCE_TYPE_RIDE_EXIT)
             return false;
 
-        auto stationIndex = entranceElement->GetStationIndex();
+        auto stationIndex = entranceElement->getStationIndex();
 
         // Get or create construction window for ride
         auto* windowMgr = Ui::GetWindowManager();
@@ -1552,8 +1552,8 @@ namespace OpenRCT2
                     tileElement = nextTileElement;
                     continue;
                 }
-                if (tileElement->baseHeight != locationCoords.z || tileElement->asEntrance()->GetRideIndex() != id
-                    || tileElement->asEntrance()->GetEntranceType() > ENTRANCE_TYPE_RIDE_EXIT)
+                if (tileElement->baseHeight != locationCoords.z || tileElement->asEntrance()->getRideIndex() != id
+                    || tileElement->asEntrance()->getEntranceType() > ENTRANCE_TYPE_RIDE_EXIT)
                 {
                     tileElement = nextTileElement;
                     continue;
@@ -1605,7 +1605,7 @@ namespace OpenRCT2
                     }
 
                     auto& station = getStation(stationId);
-                    if (tileElement->asEntrance()->GetEntranceType() == ENTRANCE_TYPE_RIDE_EXIT)
+                    if (tileElement->asEntrance()->getEntranceType() == ENTRANCE_TYPE_RIDE_EXIT)
                     {
                         // if the location is already set for this station, big problem!
                         if (!station.Exit.IsNull())
@@ -1624,7 +1624,7 @@ namespace OpenRCT2
                         station.Entrance = TileCoordsXYZD{ loc };
                     }
                     // set the entrance's StationIndex as this station
-                    tileElement->asEntrance()->SetStationIndex(stationId);
+                    tileElement->asEntrance()->setStationIndex(stationId);
                     shouldRemove = false;
                 } while (!(trackElement++)->isLastForTile());
 

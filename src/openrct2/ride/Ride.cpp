@@ -2676,16 +2676,16 @@ namespace OpenRCT2
 
     static void RideEntranceSetMapTooltip(const EntranceElement& entranceElement)
     {
-        auto rideIndex = entranceElement.GetRideIndex();
+        auto rideIndex = entranceElement.getRideIndex();
         auto ride = GetRide(rideIndex);
         if (ride == nullptr)
             return;
 
-        if (entranceElement.GetEntranceType() == ENTRANCE_TYPE_RIDE_ENTRANCE)
+        if (entranceElement.getEntranceType() == ENTRANCE_TYPE_RIDE_ENTRANCE)
         {
             // Get the queue length
             int32_t queueLength = 0;
-            const auto stationIndex = entranceElement.GetStationIndex();
+            const auto stationIndex = entranceElement.getStationIndex();
             if (!ride->getStation(stationIndex).Entrance.IsNull())
             {
                 queueLength = ride->getStation(stationIndex).QueueLength;
@@ -2729,7 +2729,7 @@ namespace OpenRCT2
             // String IDs have an extra pop16 for some reason
             ft.Increment(sizeof(uint16_t));
 
-            const auto stationIndex = entranceElement.GetStationIndex();
+            const auto stationIndex = entranceElement.getStationIndex();
             const auto stationNumber = ride->getStationNumber(stationIndex);
             ft.Add<uint16_t>(stationNumber);
             auto intent = Intent(INTENT_ACTION_SET_MAP_TOOLTIP);
@@ -3256,8 +3256,8 @@ namespace OpenRCT2
                     break;
                 if (tileElement->getType() != TileElementType::entrance)
                     continue;
-                if (tileElement->asEntrance()->GetEntranceType() != ENTRANCE_TYPE_RIDE_ENTRANCE
-                    && tileElement->asEntrance()->GetEntranceType() != ENTRANCE_TYPE_RIDE_EXIT)
+                if (tileElement->asEntrance()->getEntranceType() != ENTRANCE_TYPE_RIDE_ENTRANCE
+                    && tileElement->asEntrance()->getEntranceType() != ENTRANCE_TYPE_RIDE_EXIT)
                 {
                     continue;
                 }
@@ -7532,8 +7532,8 @@ namespace OpenRCT2
                 {
                     const EntranceElement* entranceElement = MapGetRideEntranceElementAt(entranceLoc.ToCoordsXYZD(), false);
 
-                    if (entranceElement == nullptr || entranceElement->GetRideIndex() != ride.id
-                        || entranceElement->GetStationIndex() != stationIndex)
+                    if (entranceElement == nullptr || entranceElement->getRideIndex() != ride.id
+                        || entranceElement->getStationIndex() != stationIndex)
                     {
                         fixEntrance = true;
                     }
@@ -7547,8 +7547,8 @@ namespace OpenRCT2
                 {
                     const EntranceElement* entranceElement = MapGetRideExitElementAt(exitLoc.ToCoordsXYZD(), false);
 
-                    if (entranceElement == nullptr || entranceElement->GetRideIndex() != ride.id
-                        || entranceElement->GetStationIndex() != stationIndex)
+                    if (entranceElement == nullptr || entranceElement->getRideIndex() != ride.id
+                        || entranceElement->getStationIndex() != stationIndex)
                     {
                         fixExit = true;
                     }
@@ -7582,11 +7582,11 @@ namespace OpenRCT2
                                     continue;
                                 }
                                 const EntranceElement* entranceElement = tileElement->asEntrance();
-                                if (entranceElement->GetRideIndex() != ride.id)
+                                if (entranceElement->getRideIndex() != ride.id)
                                 {
                                     continue;
                                 }
-                                if (entranceElement->GetStationIndex() != stationIndex)
+                                if (entranceElement->getStationIndex() != stationIndex)
                                 {
                                     continue;
                                 }
@@ -7594,7 +7594,7 @@ namespace OpenRCT2
                                 // The expected height is where entrances and exit reside in non-hacked parks.
                                 const uint8_t expectedHeight = station.Height;
 
-                                if (fixEntrance && entranceElement->GetEntranceType() == ENTRANCE_TYPE_RIDE_ENTRANCE)
+                                if (fixEntrance && entranceElement->getEntranceType() == ENTRANCE_TYPE_RIDE_ENTRANCE)
                                 {
                                     if (alreadyFoundEntrance)
                                     {
@@ -7612,7 +7612,7 @@ namespace OpenRCT2
                                         "Fixed disconnected entrance of ride %d, station %d to x = %d, y = %d and z = %d.",
                                         ride.id, stationIndex, x, y, entranceElement->baseHeight);
                                 }
-                                else if (fixExit && entranceElement->GetEntranceType() == ENTRANCE_TYPE_RIDE_EXIT)
+                                else if (fixExit && entranceElement->getEntranceType() == ENTRANCE_TYPE_RIDE_EXIT)
                                 {
                                     if (alreadyFoundExit)
                                     {
@@ -7658,11 +7658,11 @@ namespace OpenRCT2
             {
                 for (auto* entrance : TileElementsView<EntranceElement>(tilePos.ToCoordsXY()))
                 {
-                    const bool isRideEntranceExit = entrance->GetEntranceType() == ENTRANCE_TYPE_RIDE_ENTRANCE
-                        || entrance->GetEntranceType() == ENTRANCE_TYPE_RIDE_EXIT;
+                    const bool isRideEntranceExit = entrance->getEntranceType() == ENTRANCE_TYPE_RIDE_ENTRANCE
+                        || entrance->getEntranceType() == ENTRANCE_TYPE_RIDE_EXIT;
                     if (!isRideEntranceExit)
                         continue;
-                    if (entrance->GetRideIndex() != ride.id)
+                    if (entrance->getRideIndex() != ride.id)
                         continue;
 
                     if (!entrance->isGhost())

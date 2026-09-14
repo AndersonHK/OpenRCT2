@@ -11713,7 +11713,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "8ecda6556e9877e4cf394c9d0e69f37673884f2d"
+      ],
       "verification_evidence": [
         "Complete 23-file source delta reviewed and source/fork token comparisons permit only the 11 reviewed names. Remaining uppercase allowed-edge uses confined to RCT12 and legacy importer source reads. Whitespace check passed."
       ],
@@ -11818,9 +11820,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Complete 35-file source token changes verified as reviewed names only; 37 fork file token comparisons passed. Inspected mixed importer destinations and scripting cases plus fork topology callers; whitespace check passed."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -11849,7 +11853,10 @@
         "src/openrct2/world/Park.cpp",
         "src/openrct2/world/TileInspector.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 4af2e9d1fdf10778792543314c2922f0553a23c1",
+      "implementation_decisions": "No layout, mask, sequence/station/ride association or movement changes. Preserve fork prepaid/platform boarding, topology and import destination ownership. Use receiver-specific changes where methods share names.",
+      "pending_validation": "Compile and targeted tile/import/topology tests pending with related element naming batch."
     },
     {
       "sha": "95025ba9166d8f88589b9484342350e507a85ff8",
@@ -26881,8 +26888,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 156,
-    "remaining_after_receipt": 205,
+    "accounted_in_this_tree": 157,
+    "remaining_after_receipt": 204,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

@@ -147,8 +147,8 @@ namespace OpenRCT2::MapPathTopology
 
         [[nodiscard]] uint8_t GetAbsoluteEntranceEdges(const EntranceElement& entrance, bool& isExact)
         {
-            const auto entranceType = entrance.GetEntranceType();
-            const auto sequence = entrance.GetSequenceIndex();
+            const auto entranceType = entrance.getEntranceType();
+            const auto sequence = entrance.getSequenceIndex();
             if (entranceType > ENTRANCE_TYPE_PARK_ENTRANCE || sequence >= 8)
             {
                 isExact = false;
@@ -156,7 +156,7 @@ namespace OpenRCT2::MapPathTopology
             }
 
             uint8_t result = 0;
-            const auto relativeEdges = static_cast<uint8_t>(entrance.GetDirections());
+            const auto relativeEdges = static_cast<uint8_t>(entrance.getDirections());
             for (Direction relativeDirection : kAllDirections)
             {
                 if (relativeEdges & (1 << relativeDirection))
@@ -249,8 +249,8 @@ namespace OpenRCT2::MapPathTopology
                                 node.localX = static_cast<uint8_t>(x - origin.x);
                                 node.localY = static_cast<uint8_t>(y - origin.y);
                                 node.baseZ = tileElement->baseHeight;
-                                node.entranceType = entrance->GetEntranceType();
-                                node.ride = entrance->GetRideIndex();
+                                node.entranceType = entrance->getEntranceType();
+                                node.ride = entrance->getRideIndex();
                                 const auto connectionEdges = GetAbsoluteEntranceEdges(*entrance, cache.isExact);
                                 for (Direction direction : kAllDirections)
                                 {

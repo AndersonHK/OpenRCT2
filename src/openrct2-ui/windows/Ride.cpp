@@ -7537,7 +7537,7 @@ namespace OpenRCT2::Ui::Windows
                 {
                     // Open ride window in station view
                     auto entranceElement = tileElement->asEntrance();
-                    auto stationIndex = entranceElement->GetStationIndex();
+                    auto stationIndex = entranceElement->getStationIndex();
                     return WindowRideOpenStation(*ride, stationIndex);
                 }
                 else if (type == TileElementType::track)

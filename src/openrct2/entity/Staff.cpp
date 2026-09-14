@@ -1497,10 +1497,10 @@ namespace OpenRCT2
                 return;
             }
 
-            if (CurrentRide != rideEntranceExitElement->asEntrance()->GetRideIndex())
+            if (CurrentRide != rideEntranceExitElement->asEntrance()->getRideIndex())
                 return;
 
-            StationIndex exitIndex = rideEntranceExitElement->asEntrance()->GetStationIndex();
+            StationIndex exitIndex = rideEntranceExitElement->asEntrance()->getStationIndex();
             if (CurrentRideStation != exitIndex)
                 return;
 
@@ -1602,10 +1602,10 @@ namespace OpenRCT2
                 return;
             }
 
-            if (CurrentRide != rideEntranceExitElement->asEntrance()->GetRideIndex())
+            if (CurrentRide != rideEntranceExitElement->asEntrance()->getRideIndex())
                 return;
 
-            StationIndex exitIndex = rideEntranceExitElement->asEntrance()->GetStationIndex();
+            StationIndex exitIndex = rideEntranceExitElement->asEntrance()->getStationIndex();
             if (CurrentRideStation != exitIndex)
                 return;
 
