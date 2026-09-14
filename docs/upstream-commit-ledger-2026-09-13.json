@@ -25225,7 +25225,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "ab9fbc59be8b07fdd35442aafa902f770414deae"
+      ],
       "verification_evidence": [
         "B88: source equality for Rectangle/Tooltip; solution zero warnings/errors;67 widget/GPU/scripting tests passed. Clears U322 compile debt."
       ],
@@ -25362,9 +25364,11 @@
       "note": "No remerge-resolution delta detected. Account for constituent commits before ancestry reconciliation.",
       "decisions": [],
       "review_level": "remerge-probe",
-      "implementation_status": "not-ported",
+      "implementation_status": "history receipt",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Actual remerge inspection and passing B86-B88 constituent checkpoints."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -25388,7 +25392,10 @@
         "src/openrct2/scenes/title/TitleScene.cpp",
         "src/openrct2/world/Weather.cpp"
       ],
-      "verification_gate": "P0"
+      "verification_gate": "P0",
+      "port_commit_locator": "Upstream-Commit: c3a2fe508fbf2d583ebe4dc14781dd45006bb5cf",
+      "implementation_decisions": "Actual remerge is empty; preserve adapted U320-U323 functions and fork ownership.",
+      "pending_validation": "None."
     },
     {
       "sha": "b8a5e2431cde79b75656d05fc82348d886dac409",
@@ -28050,8 +28057,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 323,
-    "remaining_after_receipt": 38,
+    "accounted_in_this_tree": 324,
+    "remaining_after_receipt": 37,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

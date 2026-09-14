@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 323 / 361 source commits recorded
+## Progress: 324 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3571,10 +3571,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U323 — `fcdf61e009` — Move GfxFilterPixel to Rectangle.cpp
 
 - **Source:** `fcdf61e009b2f3da81cf3ba019174c353bad9709`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `ab9fbc59be8b07fdd35442aafa902f770414deae`.
 - **Remaining:** 39 → 38.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Moved the pixel-filter wrapper to Rectangle::filterPixel and updated tooltip corners.
 - **Additional decisions / behavior:** Preserve the same single-coordinate rectangle and palette; no behavior change or extra fork consumer.
 - **Verification:** B88: source equality for Rectangle/Tooltip; solution zero warnings/errors;67 widget/GPU/scripting tests passed. Clears U322 compile debt.
 - **Pending / concerns:** Standing native tooltip visual checks remain.
+
+### U324 — `c3a2fe508f` — Move screen and line functions out of Drawing.{cpp,h} (#27079)
+
+- **Source:** `c3a2fe508fbf2d583ebe4dc14781dd45006bb5cf`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 38 → 37.
+- **Disposition:** history receipt.
+- **Manual changes:** Reconciled the completed screen/line/ImageId/pixel-filter refactor merge.
+- **Additional decisions / behavior:** Actual remerge is empty; preserve adapted U320-U323 functions and fork ownership.
+- **Verification:** Actual remerge inspection and passing B86-B88 constituent checkpoints.
+- **Pending / concerns:** None.
