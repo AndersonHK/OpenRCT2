@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 107 / 361 source commits recorded
+## Progress: 108 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1195,10 +1195,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U107 — `228c4bfb34` — Rename CursorNames to kCursorNames
 
 - **Source:** `228c4bfb34d74729d67e4ba309a5ee5412f7851d`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `8f8c39badff2656e712cc14543f71e4d3b72bcce`.
 - **Remaining:** 255 → 254.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Rename CursorNames to kCursorNames at all four local sites.
 - **Additional decisions / behavior:** Preserve all script cursor strings and indices, invalid-ID fallback and lookup behavior.
 - **Verification:** Entire source patch reviewed; whitespace and singleton ancestry checked.
 - **Pending / concerns:** Build with completed naming group.
+
+### U108 — `205497a480` — Merge pull request #26876 from Gymnasiast/refactor/remaining-enum-class-members
+
+- **Source:** `205497a4800f9cc1a06c8616318845e551f501d5`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 254 → 253.
+- **Disposition:** history receipt.
+- **Manual changes:** Account for the completed enum-style branch merge; no additional source edit.
+- **Additional decisions / behavior:** All constituent source changes already individually ported. Keep fork tree unchanged.
+- **Verification:** Archived remerge delta empty; merge tree equals second-parent tree. Singleton ancestry checked.
+- **Pending / concerns:** Build completed naming group next.

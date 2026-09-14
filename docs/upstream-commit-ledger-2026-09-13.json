@@ -6778,7 +6778,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "8f8c39badff2656e712cc14543f71e4d3b72bcce"
+      ],
       "verification_evidence": [
         "Entire source patch reviewed; whitespace and singleton ancestry checked."
       ],
@@ -7228,9 +7230,11 @@
       "note": "No remerge-resolution delta detected. Account for constituent commits before ancestry reconciliation.",
       "decisions": [],
       "review_level": "remerge-probe",
-      "implementation_status": "not-ported",
+      "implementation_status": "history receipt",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Archived remerge delta empty; merge tree equals second-parent tree. Singleton ancestry checked."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -7279,7 +7283,10 @@
         "src/openrct2/world/Scenery.h",
         "src/openrct2/world/Weather.cpp"
       ],
-      "verification_gate": "P0"
+      "verification_gate": "P0",
+      "port_commit_locator": "Upstream-Commit: 205497a4800f9cc1a06c8616318845e551f501d5",
+      "implementation_decisions": "All constituent source changes already individually ported. Keep fork tree unchanged.",
+      "pending_validation": "Build completed naming group next."
     },
     {
       "sha": "7f39bdebf52fabf3bcb2a431cda2edbc9c83f914",
@@ -26538,8 +26545,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 107,
-    "remaining_after_receipt": 254,
+    "accounted_in_this_tree": 108,
+    "remaining_after_receipt": 253,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
