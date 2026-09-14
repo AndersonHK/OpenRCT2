@@ -24616,7 +24616,9 @@
       ],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "78db06fe3a400af66e00783d6be3a152a959630b"
+      ],
       "verification_evidence": [
         "B83: source391/fork526 identifier substitutions proved; solution zero warnings/errors;170 ratings/pathfinding/play/scenario/scripting tests and7 save/import migration tests passed."
       ],
@@ -24686,9 +24688,11 @@
       "note": "Adopt final palette/screen/line header ownership with fork-only GPU consumers; retain immutable presentation state.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "B84: solution zero warnings/errors;79 play/GPU/localisation tests passed. Inspected fallback constants and palette producer/worker copy boundary."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -24699,7 +24703,10 @@
         "src/openrct2/drawing/Drawing.cpp",
         "src/openrct2/libopenrct2.vcxproj"
       ],
-      "verification_gate": "P6"
+      "verification_gate": "P6",
+      "port_commit_locator": "Upstream-Commit: b0b81afcfaef418c9fa4825992f9f13319d59b1a",
+      "implementation_decisions": "Fallback palette IDs and no-duck behavior match the former null branches. Preserve copied immutable Vulkan palette presentation and companion-fork water provenance; no gameplay or renderer workaround.",
+      "pending_validation": "Native lightning/water appearance and targeted duck-spawn checks remain outside this checkpoint."
     },
     {
       "sha": "49eeb352616444fa3baec7b4184a7d116127b846",
@@ -27994,8 +28001,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 315,
-    "remaining_after_receipt": 46,
+    "accounted_in_this_tree": 316,
+    "remaining_after_receipt": 45,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

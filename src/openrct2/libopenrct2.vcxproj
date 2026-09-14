@@ -1026,6 +1026,7 @@
     <ClCompile Include="object\TerrainEdgeObject.cpp" />
     <ClCompile Include="object\TerrainSurfaceObject.cpp" />
     <ClCompile Include="object\WallObject.cpp" />
+    <ClCompile Include="object\WaterEntry.cpp" />
     <ClCompile Include="object\WaterObject.cpp" />
     <ClCompile Include="OpenRCT2.cpp" />
     <ClCompile Include="openrct2_pch.cpp" Condition="'$(UsePCH)'=='true'">

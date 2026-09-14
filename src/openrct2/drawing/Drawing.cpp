@@ -472,14 +472,9 @@ void LoadPalette()
         return;
     }
 
-    uint32_t palette = SPR_GAME_DEFAULT_PALETTE;
-
-    auto water_type = OpenRCT2::ObjectEntryManager::GetObjectEntry<WaterObjectEntry>(0);
-    if (water_type != nullptr)
-    {
-        Guard::Assert(water_type->mainPalette != kImageIndexUndefined, "Failed to load water palette");
-        palette = water_type->mainPalette;
-    }
+    const auto& waterEntry = getActiveWaterEntry();
+    Guard::Assert(waterEntry.mainPalette != kImageIndexUndefined, "Failed to load water palette");
+    auto palette = waterEntry.mainPalette;
 
     const auto* g1 = GfxGetG1Palette(palette);
     if (g1 != nullptr)
@@ -644,17 +639,12 @@ void UpdatePalette(std::span<const BGRAColour> palette, PaletteIndex startIndex,
  */
 void UpdatePaletteEffects()
 {
-    auto water_type = OpenRCT2::ObjectEntryManager::GetObjectEntry<WaterObjectEntry>(0);
+    const auto& waterEntry = getActiveWaterEntry();
 
     if (Weather::gLightningFlash == 1)
     {
         // Change palette to lighter colour during lightning
-        int32_t palette = SPR_GAME_DEFAULT_PALETTE;
-
-        if (water_type != nullptr)
-        {
-            palette = water_type->mainPalette;
-        }
+        auto palette = waterEntry.mainPalette;
         const auto* g1 = GfxGetG1Palette(palette);
         if (g1 != nullptr)
         {
@@ -678,13 +668,7 @@ void UpdatePaletteEffects()
         if (Weather::gLightningFlash == 2)
         {
             // Change palette back to normal after lightning
-            int32_t palette = SPR_GAME_DEFAULT_PALETTE;
-
-            if (water_type != nullptr)
-            {
-                palette = water_type->mainPalette;
-            }
-
+            auto palette = waterEntry.mainPalette;
             const auto* g1 = GfxGetG1Palette(palette);
             if (g1 != nullptr)
             {
@@ -717,11 +701,8 @@ void UpdatePaletteEffects()
         }
         uint32_t j = gPaletteEffectFrame;
         j = ((static_cast<uint16_t>((~j / 2) * 128) * 15) >> 16);
-        uint32_t waterId = SPR_GAME_PALETTE_WATER;
-        if (water_type != nullptr)
-        {
-            waterId = water_type->waterWavesPalette;
-        }
+
+        auto waterId = waterEntry.waterWavesPalette;
         const auto* g1 = GfxGetG1Palette(shade + waterId);
         if (g1 != nullptr)
         {
@@ -741,12 +722,7 @@ void UpdatePaletteEffects()
             }
         }
 
-        waterId = SPR_GAME_PALETTE_3;
-        if (water_type != nullptr)
-        {
-            waterId = water_type->waterSparklesPalette;
-        }
-
+        waterId = waterEntry.waterSparklesPalette;
         g1 = GfxGetG1Palette(shade + waterId);
         if (g1 != nullptr)
         {

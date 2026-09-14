@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 315 / 361 source commits recorded
+## Progress: 316 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3483,10 +3483,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U315 — `97b91941eb` — Rename RideStation struct members in Ride.h (#27072)
 
 - **Source:** `97b91941eba665b67185c7b8f5f4dff2ab03410d`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `78db06fe3a400af66e00783d6be3a152a959630b`.
 - **Remaining:** 47 → 46.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Renamed RideStation members/accessors and all fork consumers without changing behavior.
 - **Additional decisions / behavior:** D12/D14: preserve live versus stable statistics, fork transient QueueFull, directed-leg ratings, platform staging, travel-time units and legacy length migration. Distinct stable-statistics fields retain their names. No save/API/network version change.
 - **Verification:** B83: source391/fork526 identifier substitutions proved; solution zero warnings/errors;170 ratings/pathfinding/play/scenario/scripting tests and7 save/import migration tests passed.
 - **Pending / concerns:** Standing native multiplayer/replay and long-park validation remain; no new debt or decision.
+
+### U316 — `b0b81afcfa` — Create function to get active water type
+
+- **Source:** `b0b81afcfaef418c9fa4825992f9f13319d59b1a`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 46 → 45.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Added the active-water helper and routed palette effects and weekly ducks through it.
+- **Additional decisions / behavior:** Fallback palette IDs and no-duck behavior match the former null branches. Preserve copied immutable Vulkan palette presentation and companion-fork water provenance; no gameplay or renderer workaround.
+- **Verification:** B84: solution zero warnings/errors;79 play/GPU/localisation tests passed. Inspected fallback constants and palette producer/worker copy boundary.
+- **Pending / concerns:** Native lightning/water appearance and targeted duck-spawn checks remain outside this checkpoint.

@@ -306,9 +306,8 @@ static void ScenarioWeekUpdate()
     RideCheckAllReachable();
     RideUpdateFavouritedStat();
 
-    auto water_type = OpenRCT2::ObjectEntryManager::GetObjectEntry<WaterObjectEntry>(0);
-
-    if (month <= MONTH_APRIL && water_type != nullptr && water_type->flags & WATER_FLAGS_ALLOW_DUCKS)
+    const auto& waterEntry = getActiveWaterEntry();
+    if (month <= MONTH_APRIL && waterEntry.flags & WATER_FLAGS_ALLOW_DUCKS)
     {
         // 100 attempts at finding some water to create a few ducks at
         for (int32_t i = 0; i < 100; i++)
