@@ -23940,7 +23940,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "2748de91364d23ea72ad07f051637457f4dd33a6"
+      ],
       "verification_evidence": [
         "B77: metadata XML/plist parse; initial 608/609 exposed U297 test order crash, reproduced with Localisation+image test. Corrected solution 12.05 seconds zero warnings/errors; eight-test reproduction passes; final full 609 tests/53 suites pass 55.078 seconds, zero failures/errors/disabled."
       ],
@@ -23992,9 +23994,11 @@
       "note": "No remerge-resolution delta detected. Account for constituent commits before ancestry reconciliation.",
       "decisions": [],
       "review_level": "remerge-probe",
-      "implementation_status": "not-ported",
+      "implementation_status": "history receipt",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Actual merge parents inspected; empty remerge diff; B77 full609 checkpoint covers merged payload."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -24004,7 +24008,10 @@
       "merge_conflict_paths": [
         "src/openrct2/network/NetworkBase.cpp"
       ],
-      "verification_gate": "P0"
+      "verification_gate": "P0",
+      "port_commit_locator": "Upstream-Commit: d1ec88619d325d123b7eab96550c3e7999cc5aec",
+      "implementation_decisions": "No remerge resolution delta. Preserve U303 fork protocol and metadata dispositions.",
+      "pending_validation": "Standing native, platform and live multiplayer checks unchanged."
     },
     {
       "sha": "ee15855bf32cce8f986fb675371876f9e957ac02",
@@ -27910,8 +27917,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 303,
-    "remaining_after_receipt": 58,
+    "accounted_in_this_tree": 304,
+    "remaining_after_receipt": 57,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

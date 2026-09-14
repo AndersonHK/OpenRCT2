@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 303 / 361 source commits recorded
+## Progress: 304 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3351,10 +3351,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U303 — `8694e34836` — Releasse v0.5.5
 
 - **Source:** `8694e3483690323b6a75fa7264b6c58116f51f31`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `2748de91364d23ea72ad07f051637457f4dd33a6`.
 - **Remaining:** 59 → 58.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Advance 0.5.5 release metadata; correct sprite lookup bounds exposed by full-suite resource unloading.
 - **Additional decisions / behavior:** Keep fork revision 11 and andersonhk: stream 0.5.5-andersonhk-11, save60016/API122. No release publication. Extra correction uses actual G2/palette/font/track/CSG vector sizes instead of stale file-header counts, preserving valid loaded lookups and safely rejecting unloaded resources.
 - **Verification:** B77: metadata XML/plist parse; initial 608/609 exposed U297 test order crash, reproduced with Localisation+image test. Corrected solution 12.05 seconds zero warnings/errors; eight-test reproduction passes; final full 609 tests/53 suites pass 55.078 seconds, zero failures/errors/disabled.
 - **Pending / concerns:** Standing native UI/custom-image Vulkan, live MP/replay, long performance, non-Windows, disabled-scripting and Breakpad build gaps.
+
+### U304 — `d1ec88619d` — Merge branch 'master' into develop
+
+- **Source:** `d1ec88619d325d123b7eab96550c3e7999cc5aec`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 58 → 57.
+- **Disposition:** history receipt.
+- **Manual changes:** History receipt for master into develop release merge.
+- **Additional decisions / behavior:** No remerge resolution delta. Preserve U303 fork protocol and metadata dispositions.
+- **Verification:** Actual merge parents inspected; empty remerge diff; B77 full609 checkpoint covers merged payload.
+- **Pending / concerns:** Standing native, platform and live multiplayer checks unchanged.
