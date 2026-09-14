@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 163 / 361 source commits recorded
+## Progress: 164 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1811,10 +1811,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U163 — `631804fd13` — Make WallElement members adhere to code style
 
 - **Source:** `631804fd133aad292a75e1b5514558c1c975a50d`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `060a4bf13790f2d6488316a62f71d0ad232cd26e`.
 - **Remaining:** 199 → 198.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Rename 27 WallElement fields/accessors across 25 fork files, including the clear-tool fixture.
 - **Additional decisions / behavior:** Preserve colour/banner storage, slope and animation bit packing, frame timing, door motion and audio dispatch. Keep U139 separate sound validation and all fork clearance/visibility rules.
 - **Verification:** Complete 24-file source token streams and 25 fork file token streams verified as the 27 reviewed identifier substitutions only; whitespace check passed.
 - **Pending / concerns:** Batch 29 build for U160-U163 running; gameplay/import/topology/audio tests will follow before further C++ changes.
+
+### U164 — `e501376aa3` — Merge pull request #26914 from Gymnasiast/refactor/tile-element-code-style
+
+- **Source:** `e501376aa3eab0b8c2ec1a6644aea2042e5d5372`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 198 → 197.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** History receipt for the tile-element naming merge; source tree equals its second parent and the previously inspected remerge diff is empty. Carry two B29 repair calls in fork Map.cpp terrain snapshots, GetSurfaceObject/GetParkFences to getSurfaceObject/getParkFences, and checkpoint batch validation.
+- **Additional decisions / behavior:** No new source behavior or design decision. Preserve fork snapshot object-resolution ownership and all approved gameplay models; repair two missed U161 call-site spellings without aliases.
+- **Verification:** Source parents reviewed, tree equality verified. B29 full Release x64 MSVC/Vulkan rebuild passed with 0 warnings/errors in 17.15 seconds; all 254 tests in 17 suites passed in 32.768 seconds. Initial four diagnostics and repairs are recorded in validation Markdown.
+- **Pending / concerns:** Interactive rendering/editing and native non-Windows checks remain unverified; other standing validation debt is retained.

@@ -12585,7 +12585,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "060a4bf13790f2d6488316a62f71d0ad232cd26e"
+      ],
       "verification_evidence": [
         "Complete 24-file source token streams and 25 fork file token streams verified as the 27 reviewed identifier substitutions only; whitespace check passed."
       ],
@@ -12880,9 +12882,11 @@
       "note": "No remerge-resolution delta detected. Account for constituent commits before ancestry reconciliation.",
       "decisions": [],
       "review_level": "remerge-probe",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Source parents reviewed, tree equality verified. B29 full Release x64 MSVC/Vulkan rebuild passed with 0 warnings/errors in 17.15 seconds; all 254 tests in 17 suites passed in 32.768 seconds. Initial four diagnostics and repairs are recorded in validation Markdown."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -12935,7 +12939,10 @@
         "src/openrct2/world/map_generator/TreePlacement.cpp",
         "src/openrct2/world/tile_element/PathElement.h"
       ],
-      "verification_gate": "P0"
+      "verification_gate": "P0",
+      "port_commit_locator": "Upstream-Commit: e501376aa3eab0b8c2ec1a6644aea2042e5d5372",
+      "implementation_decisions": "No new source behavior or design decision. Preserve fork snapshot object-resolution ownership and all approved gameplay models; repair two missed U161 call-site spellings without aliases.",
+      "pending_validation": "Interactive rendering/editing and native non-Windows checks remain unverified; other standing validation debt is retained."
     },
     {
       "sha": "a80faffd5ce231205c7f1957af9ecc1be4cd00a7",
@@ -26930,8 +26937,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 163,
-    "remaining_after_receipt": 198,
+    "accounted_in_this_tree": 164,
+    "remaining_after_receipt": 197,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

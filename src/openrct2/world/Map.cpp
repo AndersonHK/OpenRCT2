@@ -192,7 +192,7 @@ namespace OpenRCT2
                 return;
 
             const auto& surfaceElement = *surface->asSurface();
-            const auto* surfaceObject = surfaceElement.GetSurfaceObject();
+            const auto* surfaceObject = surfaceElement.getSurfaceObject();
             if (surfaceObject == nullptr)
                 return;
 
@@ -206,7 +206,7 @@ namespace OpenRCT2
             change.surface.valid = 1;
             change.surface.requiresCategoryInterleaving = change.surface.requiresCategoryInterleaving
                 || surfaceElement.getSlope() != 0 || surfaceElement.getWaterHeight() != 0
-                || surfaceElement.GetParkFences() != 0;
+                || surfaceElement.getParkFences() != 0;
             const auto position = tilePos.ToCoordsXY();
             for (uint8_t rotation = 0; rotation < SurfacePresentationRecord::kRotationCount; rotation++)
             {
