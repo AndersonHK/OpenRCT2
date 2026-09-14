@@ -26835,7 +26835,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "ca1e45b5d2c53400331430f7399b16a2d1824263"
+      ],
       "verification_evidence": [
         "All three source hunks inspected; runtime permission name matches declaration; no executable code change."
       ],
@@ -26877,19 +26879,24 @@
         "D01"
       ],
       "review_level": "targeted-code-review",
-      "implementation_status": "not-ported",
+      "implementation_status": "approved deferral: retain fork negative-G warning",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Read complete source patch and all fork warning owners; threshold, both stats consumers and vertical graph branch remain unchanged. No executable change."
+      ],
       "deferral": {
-        "status": "not-selected",
-        "reason": null,
+        "status": "approved-retain-fork",
+        "reason": "D01: fork continuous force model penalizes harsh negative G; keep global/directed-leg stats and vertical graph warnings consistent.",
         "dependent_commits": [],
-        "revisit_trigger": null
+        "revisit_trigger": "Owner approves a coordinated force-model and warning policy change for all views."
       },
       "merge_conflict_paths": [
         "src/openrct2-ui/windows/Ride.cpp"
       ],
-      "verification_gate": "P4"
+      "verification_gate": "P4",
+      "port_commit_locator": "Upstream-Commit: 1cc42279dcbd40802fc0f60d1674e6fa962a697f",
+      "implementation_decisions": "Approved D01 keeps -2.50G warning in both global and directed-leg stats and vertical graph because the fork force model still penalizes harsh negative G. No source production or changelog claim adopted.",
+      "pending_validation": "Revisit only with an explicit force-model/warning policy decision covering all views."
     },
     {
       "sha": "1e7fdd7ba65378db65290eba994f882542111340",
@@ -28225,8 +28232,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 348,
-    "remaining_after_receipt": 13,
+    "accounted_in_this_tree": 349,
+    "remaining_after_receipt": 12,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
