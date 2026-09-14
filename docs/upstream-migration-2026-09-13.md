@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 33 / 361 source commits recorded
+## Progress: 34 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -381,10 +381,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U033 — `0ab5cb5c49` — Rename members of ScConfigurationKind
 
 - **Source:** `0ab5cb5c49753d3cf50e79c799fffea8fb6f7777`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `00ab8534baf3817c1d5c950a813f17dc4bcf3fd5`.
 - **Remaining:** 329 → 328.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename ScConfigurationKind members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Preserve plugin configuration namespaces, user/shared/park storage scope, ownership and error handling. No data migration or plugin API string rename.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U034 — `c728e66032` — Rename members of FileDialogType
+
+- **Source:** `c728e66032040e58b76291c7521cb2776b774314`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 328 → 327.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename FileDialogType members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Keep native open/save behavior and overwrite prompts across platforms. Names only; Windows build does not validate Linux/macOS runtime dialogs.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.

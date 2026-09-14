@@ -2494,7 +2494,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt naming only",
-      "port_commits": [],
+      "port_commits": [
+        "00ab8534baf3817c1d5c950a813f17dc4bcf3fd5"
+      ],
       "verification_evidence": [
         "Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt."
       ],
@@ -2539,9 +2541,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt naming only",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -2551,7 +2555,10 @@
       "merge_conflict_paths": [
         "src/openrct2/config/Config.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: c728e66032040e58b76291c7521cb2776b774314",
+      "implementation_decisions": "Keep native open/save behavior and overwrite prompts across platforms. Names only; Windows build does not validate Linux/macOS runtime dialogs.",
+      "pending_validation": "Compile at next coherent naming batch checkpoint."
     },
     {
       "sha": "9c5057a524ac748dca642928c2594db1b8a099ef",
@@ -26020,8 +26027,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 33,
-    "remaining_after_receipt": 328,
+    "accounted_in_this_tree": 34,
+    "remaining_after_receipt": 327,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
