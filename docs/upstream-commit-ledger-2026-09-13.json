@@ -1756,7 +1756,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt with fork call-site adaptation",
-      "port_commits": [],
+      "port_commits": [
+        "cde0dcdd1b37670964a6ebb70d8d05736d3f8d2e"
+      ],
       "verification_evidence": [
         "Inspected complete source delta and each exact hunk context. Audited all dropdown argument positions across src/test for stale numeric flags; none remain. Checked old/new release polarity for all four stay-open/touch combinations. Singleton ancestry and whitespace checks in receipt helper."
       ],
@@ -1799,9 +1801,11 @@
       "note": "Hide debug controls when disabled; include final multiplayer/editor visibility fixes in the same verification matrix.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "already satisfied by U019 adaptation",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected one-line source delta against current HideDisabledButtons; identical condition is present once. Receipt singleton/whitespace checks."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -1809,7 +1813,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P5"
+      "verification_gate": "P5",
+      "port_commit_locator": "Upstream-Commit: 77c69cb55d94e64f08a1978b49c0af99525a11a2",
+      "implementation_decisions": "Do not duplicate the same visibility assignment; upstream now fixes exactly the regression prevented during the prior refactor port.",
+      "pending_validation": "UI batch build/test follows this receipt."
     },
     {
       "sha": "7df1cfe7c084d4b65b3ebfc1c0fc261c2bf135ca",
@@ -25929,8 +25936,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 20,
-    "remaining_after_receipt": 341,
+    "accounted_in_this_tree": 21,
+    "remaining_after_receipt": 340,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 20 / 361 source commits recorded
+## Progress: 21 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -238,10 +238,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U020 — `0284f9cda6` — Refactor dropdown flag to FlagHolder, reverse "stay open" flag (#26855)
 
 - **Source:** `0284f9cda66206d8d99362f1dddf490dc0733640`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `cde0dcdd1b37670964a6ebb70d8d05736d3f8d2e`.
 - **Remaining:** 342 → 341.
 - **Disposition:** adopt with fork call-site adaptation.
 - **Manual changes:** Replace dropdown integer flags with FlagHolder and invert StayOpen into autoClose across input handling, dropdown implementation and callers.
 - **Additional decisions / behavior:** Keep behavior equivalent: old StayOpen becomes empty flags; old zero becomes autoClose. Fork-only directed-leg selector remains open on first release; target fare and entrance-fee selectors retain autoClose. Touch enhancements still suppress autoClose. No pricing algorithm changes.
 - **Verification:** Inspected complete source delta and each exact hunk context. Audited all dropdown argument positions across src/test for stale numeric flags; none remain. Checked old/new release polarity for all four stay-open/touch combinations. Singleton ancestry and whitespace checks in receipt helper.
 - **Pending / concerns:** Build and widget regression run at UI checkpoint after U021; interactive dropdown click/release checks remain.
+
+### U021 — `77c69cb55d` — Fix debug menu/button always visible in toolbar (#26854)
+
+- **Source:** `77c69cb55d94e64f08a1978b49c0af99525a11a2`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 341 → 340.
+- **Disposition:** already satisfied by U019 adaptation.
+- **Manual changes:** No additional product changes: U019 retained debug toolbar visibility governed by debuggingTools.
+- **Additional decisions / behavior:** Do not duplicate the same visibility assignment; upstream now fixes exactly the regression prevented during the prior refactor port.
+- **Verification:** Inspected one-line source delta against current HideDisabledButtons; identical condition is present once. Receipt singleton/whitespace checks.
+- **Pending / concerns:** UI batch build/test follows this receipt.
