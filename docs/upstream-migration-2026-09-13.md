@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 149 / 361 source commits recorded
+## Progress: 150 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1657,10 +1657,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U149 — `4e576a04ad` — Fix forced portrait orientation on Android app launch (#26873)
 
 - **Source:** `4e576a04ada64265e64abc4132a9ea6f06a8ebb6`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `7c48c88804099dbe3718e33ce5f15d51caa8478a`.
 - **Remaining:** 213 → 212.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Set Android launcher and game activities to sensorLandscape and remove SDL orientation-hint overrides, leaving the manifest to own orientation.
 - **Additional decisions / behavior:** Adopt landscape-only startup and sensor-controlled landscape direction; runtime SDL portrait/resize hints no longer override the app policy. No gameplay change.
 - **Verification:** Inspected complete two-file source patch and unchanged fork contexts. Manifest XML parses; both activities report sensorLandscape; whitespace check passed.
 - **Pending / concerns:** Android build, launch and physical rotation checks unavailable on this Windows checkpoint.
+
+### U150 — `5ca2c1845c` — Remove openrct2-ui/drawing includes
+
+- **Source:** `5ca2c1845c5ef1d4a6dc79a0b980851b4bc668bc`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 212 → 211.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Replace broad SDL.h with SDL_rwops.h and SDL_surface.h in BitmapReader. Review all 16 source paths; OpenGL-only files remain deleted.
+- **Additional decisions / behavior:** Do not resurrect the removed OpenGL backend. Vehicle.h already directly includes Identifiers.h defining ObjectEntryIndex and other required identifiers, so no redundant alias is added. Preserve Vulkan implementation.
+- **Verification:** Complete source patch reviewed; live BitmapReader body unchanged after include normalization; absence of OpenGL directory and direct ObjectEntryIndex definition checked; whitespace check passed.
+- **Pending / concerns:** Compile the live bitmap reader with next UI header batch; OpenGL targets deliberately unavailable.
