@@ -11125,7 +11125,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "8079602451ba0bac7c038e3915c42b79bae57e85"
+      ],
       "verification_evidence": [
         "All four source patches inspected; five fork paths pass normalized body comparison allowing only include/forward declarations and the reviewed alias. Whitespace check passed."
       ],
@@ -11272,9 +11274,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected complete 94-path source patch; selected 93 live paths. All modified fork paths pass normalized include/forward-declaration-only body proof; whitespace check passed."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -11290,7 +11294,10 @@
         "src/openrct2-ui/windows/Ride.cpp",
         "src/openrct2-ui/windows/Staff.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: d6863ccf998573fd6cecbf33272cf378523ea554",
+      "implementation_decisions": "Header ownership only. All fork UI bodies, cent-money graphs, ride/guest controls, Vulkan presentation and input behavior remain unchanged.",
+      "pending_validation": "Compile with remaining UI include cleanup batch; native non-Windows and interactive UI remain unverified."
     },
     {
       "sha": "d9c423b1d6e7698e8435ab5d301ec52cf7ab5720",
@@ -26846,8 +26853,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 151,
-    "remaining_after_receipt": 210,
+    "accounted_in_this_tree": 152,
+    "remaining_after_receipt": 209,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

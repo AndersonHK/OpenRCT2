@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 151 / 361 source commits recorded
+## Progress: 152 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1679,10 +1679,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U151 — `e6be313f1d` — Remove openrct2-ui/input includes
 
 - **Source:** `e6be313f1d925c83ab4055960b0cfc8611eddabf`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `8079602451ba0bac7c038e3915c42b79bae57e85`.
 - **Remaining:** 211 → 210.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Narrow UI input includes across four files. Retain direct SDL_gamecontroller.h and utility for fork controller ownership/input moves. Repair U150 omission by adding reviewed ObjectEntryIndex uint16 alias in Vehicle.h.
 - **Additional decisions / behavior:** No runtime expression changes. Correct U150 mistaken note that Identifiers.h defines ObjectEntryIndex: it does not; ObjectTypes.h defines the alias. U150 journal now explicitly records the error and U151 correction. OpenGL directory is empty, not absent; deleted source files remain deleted.
 - **Verification:** All four source patches inspected; five fork paths pass normalized body comparison allowing only include/forward declarations and the reviewed alias. Whitespace check passed.
 - **Pending / concerns:** Compile UI input and prior BitmapReader/Vehicle.h cleanup at the next coherent batch.
+
+### U152 — `d6863ccf99` — Remove openrct2-ui/interface includes
+
+- **Source:** `d6863ccf998573fd6cecbf33272cf378523ea554`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 210 → 209.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Narrow UI interface headers and add direct Window.h includes to window consumers; forward declare RenderTarget/WindowBase/WindowClass where sufficient. Keep deleted OpenGL TextureCache absent.
+- **Additional decisions / behavior:** Header ownership only. All fork UI bodies, cent-money graphs, ride/guest controls, Vulkan presentation and input behavior remain unchanged.
+- **Verification:** Inspected complete 94-path source patch; selected 93 live paths. All modified fork paths pass normalized include/forward-declaration-only body proof; whitespace check passed.
+- **Pending / concerns:** Compile with remaining UI include cleanup batch; native non-Windows and interactive UI remain unverified.
