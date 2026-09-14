@@ -6962,7 +6962,7 @@ namespace OpenRCT2
             return true;
         }
         const auto* stationObject = ride.getStationObject();
-        return stationObject == nullptr || !(stationObject->Flags & StationObjectFlags::noPlatforms);
+        return stationObject == nullptr || !stationObject->Flags.has(StationObjectFlag::noPlatforms);
     }
 
     bool RideCaptureStationPlatformTemplate(Ride& ride, StationIndex stationIndex, const Vehicle& trainHead)

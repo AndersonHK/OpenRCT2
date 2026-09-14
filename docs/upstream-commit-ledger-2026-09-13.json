@@ -18277,7 +18277,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "0b5a483165403a4073c82f5be4be3f7433568e06"
+      ],
       "verification_evidence": [
         "All 13 source files inspected; exact added/removed-line equality and no old flag names verified. B60 build/test checkpoint pending."
       ],
@@ -18320,9 +18322,11 @@
       "note": "Apply platform/CI/documentation change with relevant target check; retain fork build targets and workflows.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Full template source read; fork boarding helper inspected and converted. B60 build and platform-boarding regression checkpoint pending."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -18330,7 +18334,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P8"
+      "verification_gate": "P8",
+      "port_commit_locator": "Upstream-Commit: 672bd553fe27d5c1c4ed786d3973da822f9e8421",
+      "implementation_decisions": "PR template is contributor documentation with change/rationale/testing/AI disclosure fields; no PR is submitted. Ancillary U264 correction preserves the existing fork rule that a null station style permits boarding infrastructure and noPlatforms disables it; only typed flag syntax changes. Corrected the U264 no-old-names verification claim after its search output showed this extra consumer.",
+      "pending_validation": "Batched compile/runtime and standing checks remain."
     },
     {
       "sha": "340bb07626c59c62d4b044af23249c5949fbf01b",
@@ -27637,8 +27644,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 264,
-    "remaining_after_receipt": 97,
+    "accounted_in_this_tree": 265,
+    "remaining_after_receipt": 96,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

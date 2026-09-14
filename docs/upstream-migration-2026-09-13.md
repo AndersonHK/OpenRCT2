@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 264 / 361 source commits recorded
+## Progress: 265 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2922,10 +2922,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U264 — `c7bee6257d` — Create enum and flagholder for StationObjectFlags
 
 - **Source:** `c7bee6257df77a5ada33d1475b802c5d2ab49252`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `0b5a483165403a4073c82f5be4be3f7433568e06`.
 - **Remaining:** 98 → 97.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Convert station-object flags to enum/uint32 FlagHolder and update JSON parsing, colour UI, station/shelter/platform painting and shelter query.
 - **Additional decisions / behavior:** Keep primary/secondary/transparency/no-platforms/shelter bits 1/2/4/8/16 and same JSON property keys. Boolean semantics and object storage width unchanged. Preserve fork vehicle/platform/ratings code around the mechanical replacements.
-- **Verification:** All 13 source files inspected; exact added/removed-line equality and no old flag names verified. B60 build/test checkpoint pending.
+- **Verification:** All 13 source files inspected; exact added/removed-line equality verified. Search also identified one additional fork-only noPlatforms consumer in RideHasPlatformBoardingInfrastructure, carried forward for correction in U265 before B60 build. The first note incorrectly claimed no old names remained; corrected here.
 - **Pending / concerns:** Batched compile and station object/rendered colour/glass/platform/shelter checks pending; standing limits remain.
+
+### U265 — `672bd553fe` — Add GitHub pull request template (#27007)
+
+- **Source:** `672bd553fe27d5c1c4ed786d3973da822f9e8421`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 97 → 96.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Add upstream PR template and complete U264 conversion of the fork-only station noPlatforms check in RideHasPlatformBoardingInfrastructure.
+- **Additional decisions / behavior:** PR template is contributor documentation with change/rationale/testing/AI disclosure fields; no PR is submitted. Ancillary U264 correction preserves the existing fork rule that a null station style permits boarding infrastructure and noPlatforms disables it; only typed flag syntax changes. Corrected the U264 no-old-names verification claim after its search output showed this extra consumer.
+- **Verification:** Full template source read; fork boarding helper inspected and converted. B60 build and platform-boarding regression checkpoint pending.
+- **Pending / concerns:** Batched compile/runtime and standing checks remain.
