@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 235 / 361 source commits recorded
+## Progress: 236 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2603,10 +2603,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U235 — `19e2404ac2` — Rename SYNCHRONISED_VEHICLE_COUNT to kSynchronisedVehicleCount
 
 - **Source:** `19e2404ac26d767628db75f4d65de3b22b33c4d1`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `65c1ea75d41baf34fc836591182df00e737a8755`.
 - **Remaining:** 127 → 126.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Rename synchronized-vehicle count constant with explicit static linkage.
 - **Additional decisions / behavior:** Keep capacity 16 and exact fork station boarding/departure logic; no timing or synchronization rule change.
 - **Verification:** Full source/reference search and exact inverse-transform content check passed.
 - **Pending / concerns:** U229–U235 compile at next checkpoint.
+
+### U236 — `e9b9979ee3` — Rename NUM_HookTypeS to kHookTypeCount
+
+- **Source:** `e9b9979ee318f0d9c56add4da5b71fdbc6b7b613`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 126 → 125.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Rename hook type count and its vector initialization consumers.
+- **Additional decisions / behavior:** Preserve all HookType values, callback ordering and map-resize hook behavior.
+- **Verification:** Full source/reference search and inverse-rename content proof passed.
+- **Pending / concerns:** Compile at next checkpoint.
