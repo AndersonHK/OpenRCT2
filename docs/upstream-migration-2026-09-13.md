@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 55 / 361 source commits recorded
+## Progress: 56 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -623,10 +623,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U055 — `4dbb57a87a` — Rename members of Weather::Level
 
 - **Source:** `4dbb57a87a851571e3ac0c9f41c30611f189b969`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `9e3032d0d24f7d63a08fb4717c037aa2a337323b`.
 - **Remaining:** 307 → 306.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename Weather::Level members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Keep precipitation levels 0/1/2, trait rows, transition stepping and draw suppression unchanged. Scope short Level references to Weather files so unrelated logging or UI level enums are not modified. Fork Vulkan weather drawing stays intact.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U056 — `1b63339ef7` — Rename members of ScrollbarType
+
+- **Source:** `1b63339ef7d64d45bdaf24dc289c0e0a2d5fd982`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 306 → 305.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename ScrollbarType members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Keep scrollbar values and horizontal/vertical bit mappings, default vertical bars, JS strings, column width calculations and pointer behavior unchanged. No custom window API migration is required.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
