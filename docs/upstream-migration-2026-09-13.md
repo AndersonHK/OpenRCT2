@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 100 / 361 source commits recorded
+## Progress: 101 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1118,10 +1118,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U100 — `b229ff8f60` — Rename members of MiniGolfState
 
 - **Source:** `b229ff8f607ac0d4543fcef6cdd4c7935eacbae8`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `eb37bbc80c90126d9c9c11ad36f91943b3274f69`.
 - **Remaining:** 262 → 261.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename MiniGolfState members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Mini-golf state names only, including MINI_GOLF_STATE macro arguments. Preserve all seven int16 state values, the unused Unk1 slot, every vehicle movement coordinate/frame and fork ride measurements. Complete source table verified against the selected substitutions.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U101 — `ae5dc4422a` — Rename members of MiniGolfAnimation
+
+- **Source:** `ae5dc4422a3ccb5908c8c5037784ea712c0b35c8`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 261 → 260.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename MiniGolfAnimation members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Mini-golf animation names only, including MINI_GOLF_ANIMATION macro arguments. Preserve nine animation indices, coordinates/frame tables, ball visibility, initial walk state and peep-ID-based handedness.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
