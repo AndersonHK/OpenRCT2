@@ -11064,7 +11064,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "c0c5209dbdf1e62984f3bb6a11232816c9c5d2ef"
+      ],
       "verification_evidence": [
         "Complete source patch reviewed; live BitmapReader body unchanged after include normalization; absence of OpenGL directory and direct ObjectEntryIndex definition checked; whitespace check passed."
       ],
@@ -11122,9 +11124,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "All four source patches inspected; five fork paths pass normalized body comparison allowing only include/forward declarations and the reviewed alias. Whitespace check passed."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -11132,7 +11136,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: e6be313f1d925c83ab4055960b0cfc8611eddabf",
+      "implementation_decisions": "No runtime expression changes. Correct U150 mistaken note that Identifiers.h defines ObjectEntryIndex: it does not; ObjectTypes.h defines the alias. U150 journal now explicitly records the error and U151 correction. OpenGL directory is empty, not absent; deleted source files remain deleted.",
+      "pending_validation": "Compile UI input and prior BitmapReader/Vehicle.h cleanup at the next coherent batch."
     },
     {
       "sha": "d6863ccf998573fd6cecbf33272cf378523ea554",
@@ -26839,8 +26846,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 150,
-    "remaining_after_receipt": 211,
+    "accounted_in_this_tree": 151,
+    "remaining_after_receipt": 210,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

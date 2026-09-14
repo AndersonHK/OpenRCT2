@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 150 / 361 source commits recorded
+## Progress: 151 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1668,10 +1668,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U150 — `5ca2c1845c` — Remove openrct2-ui/drawing includes
 
 - **Source:** `5ca2c1845c5ef1d4a6dc79a0b980851b4bc668bc`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `c0c5209dbdf1e62984f3bb6a11232816c9c5d2ef`.
 - **Remaining:** 212 → 211.
 - **Disposition:** adopt applicable changes.
-- **Manual changes:** Replace broad SDL.h with SDL_rwops.h and SDL_surface.h in BitmapReader. Review all 16 source paths; OpenGL-only files remain deleted.
-- **Additional decisions / behavior:** Do not resurrect the removed OpenGL backend. Vehicle.h already directly includes Identifiers.h defining ObjectEntryIndex and other required identifiers, so no redundant alias is added. Preserve Vulkan implementation.
-- **Verification:** Complete source patch reviewed; live BitmapReader body unchanged after include normalization; absence of OpenGL directory and direct ObjectEntryIndex definition checked; whitespace check passed.
+- **Manual changes:** Replace broad SDL.h with SDL_rwops.h and SDL_surface.h in BitmapReader. Review all 16 source paths; OpenGL-only files remain deleted. The omitted Vehicle.h ObjectEntryIndex alias is corrected with U151.
+- **Additional decisions / behavior:** Do not resurrect the removed OpenGL backend. Correction after this receipt: Identifiers.h defines entity/ride identifiers, not ObjectEntryIndex; the initial skip rationale was mistaken. Add the reviewed uint16 alias in U151 to remove the transitive dependency. OpenGL directory exists but is empty; its source files are absent. Preserve Vulkan implementation.
+- **Verification:** Complete source patch reviewed and live BitmapReader body unchanged after include normalization; whitespace check passed. Follow-up inspection corrected two inaccurate initial verification statements: the OpenGL directory is empty rather than absent, and ObjectEntryIndex is defined by ObjectTypes.h rather than Identifiers.h.
 - **Pending / concerns:** Compile the live bitmap reader with next UI header batch; OpenGL targets deliberately unavailable.
+
+### U151 — `e6be313f1d` — Remove openrct2-ui/input includes
+
+- **Source:** `e6be313f1d925c83ab4055960b0cfc8611eddabf`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 211 → 210.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Narrow UI input includes across four files. Retain direct SDL_gamecontroller.h and utility for fork controller ownership/input moves. Repair U150 omission by adding reviewed ObjectEntryIndex uint16 alias in Vehicle.h.
+- **Additional decisions / behavior:** No runtime expression changes. Correct U150 mistaken note that Identifiers.h defines ObjectEntryIndex: it does not; ObjectTypes.h defines the alias. U150 journal now explicitly records the error and U151 correction. OpenGL directory is empty, not absent; deleted source files remain deleted.
+- **Verification:** All four source patches inspected; five fork paths pass normalized body comparison allowing only include/forward declarations and the reviewed alias. Whitespace check passed.
+- **Pending / concerns:** Compile UI input and prior BitmapReader/Vehicle.h cleanup at the next coherent batch.
