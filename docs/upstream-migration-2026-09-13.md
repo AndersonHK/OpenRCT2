@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 168 / 361 source commits recorded
+## Progress: 169 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1866,10 +1866,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U168 — `8a0507708f` — Remove openrct2-ui/title includes
 
 - **Source:** `8a0507708f40f4856dd48e0c8ef6f3a975871a77`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `035aacb55efb15c190d66d6383fbae02be2926eb`.
 - **Remaining:** 194 → 193.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Clean up title-sequence includes in two files, use direct WindowBase.h and remove the unused IScenarioRepository forward declaration.
 - **Additional decisions / behavior:** No change to title playback, scenario loading, simulation or rendering policy.
 - **Verification:** Reviewed both complete source patches. Both fork files matched the source parent before editing; normalized include/declaration-only proof passes, changed lines formatted and receipt whitespace/ancestry gates apply.
 - **Pending / concerns:** Build and focused regressions at the upcoming UI-header checkpoint; interactive title playback and native non-Windows remain unverified.
+
+### U169 — `b95d24bb68` — Remove openrct2-ui/windows includes
+
+- **Source:** `b95d24bb68218ca9a597063420e4b580592bebc9`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 193 → 192.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Port window include cleanup across 72 changed fork paths, remove the redundant UI interface/Viewport.h forwarding header and its project/PCH references, use core viewport and direct rendering/localisation headers, narrow SDL keyboard dependency. Source Construction.h cstddef/cstdint and namespace/whitespace fixes were already covered in U166-U168.
+- **Additional decisions / behavior:** No window behavior, geometry or gameplay change. Retain fork Vulkan/HDR controls, automatic admission pricing, ratings display, safe-erasure traversal and toolbar network visibility policy. The deleted viewport file contained only a forwarding include; no fork declarations or implementation were removed.
+- **Verification:** Read all 76 source-file patches and inspected divergent fork window bodies/dependencies. Proof covers all 72 fork deltas as include/format-only, exact project-item removal and no consumers of the deleted forwarding header. Formatted changed C++ lines; receipt whitespace and singleton ancestry gates apply.
+- **Pending / concerns:** Compile and focused UI/scripting/audio/gameplay checks in B30 immediately after this source receipt; interactive windows and native non-Windows remain unverified.
