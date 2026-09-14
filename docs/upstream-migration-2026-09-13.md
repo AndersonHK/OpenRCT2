@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 77 / 361 source commits recorded
+## Progress: 78 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -865,10 +865,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U077 — `45bc989f1b` — Rename members of Http::Method
 
 - **Source:** `45bc989f1bf3e9c3986cd2221a73c95f5e1e0cac`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `8986d7bfa96ca7f9c874cc23b6d38616fe479c66`.
 - **Remaining:** 285 → 284.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename Http::Method members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Preserve method values and uppercase GET/POST/PUT wire strings across Android, WinHTTP and cURL. Request bodies, upload options, URLs and server heartbeat cadence are unchanged. No network requests are made by this source port.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U078 — `086b5ecabe` — Rename members of FlagType
+
+- **Source:** `086b5ecabe73351cefca8f1464df0c7d318aa25e`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 284 → 283.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename FlagType members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Preserve normal/inverted polarity, missing-property behavior and all JSON property names/legacy aliases. Path queue/slope permissions and wall capability flags retain their exact meanings; companion object definitions need no data migration.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
