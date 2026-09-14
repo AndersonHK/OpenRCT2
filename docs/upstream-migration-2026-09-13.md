@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 244 / 361 source commits recorded
+## Progress: 245 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2702,10 +2702,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U244 — `341d3b834a` — Fix PaletteMap.cpp compilation in debug mode (#26989)
 
 - **Source:** `341d3b834a9894a0d673afda833651aebb671aac`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `e14ae48908bfdf33daab9e174a345b4e438518ba`.
 - **Remaining:** 118 → 117.
 - **Disposition:** history receipt.
 - **Manual changes:** Already satisfied by U221: PaletteIndex.h is directly included by PaletteMap.cpp.
 - **Additional decisions / behavior:** Retain the small unconditional owning-enum include, rather than wrapping it in _DEBUG; runtime and declarations remain equivalent. No source edit needed.
 - **Verification:** Complete source patch inspected; owning header present. U221 standalone Debug/Release syntax checks and B49 solution/GPU validation cover this correction.
 - **Pending / concerns:** Full Debug solution/non-Windows builds remain unrun; no new debt.
+
+### U245 — `31004bbf33` — Fix #24610: Graph tabs on Finances window get a little bit longer every time you switch between them (#26976)
+
+- **Source:** `31004bbf332455a82084d466a9e081dfc760aebd`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 117 → 116.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Adopt consistent inclusive title dimensions and close-button sizes/placement; add repeated Finances graph-tab geometry regression.
+- **Additional decisions / behavior:** Approved P5. No production divergence; preserve fork cent-money calculations and finance time labels. Normal/enlarged title heights are 14/25 with 11x12/21x23 close controls. See B53.
+- **Verification:** Full source and consumers inspected; solution build 32.96s zero warnings/errors; 51 tests in three suites passed 8.194s including four title/button configurations. B53 logs.
+- **Pending / concerns:** Rendered captions/touch, other live-resized windows, non-Windows and standing live-MP/replay checks remain.

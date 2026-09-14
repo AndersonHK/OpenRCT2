@@ -22,6 +22,7 @@
     #include <openrct2/OpenRCT2.h>
     #include <openrct2/PlatformEnvironment.h>
     #include <openrct2/audio/AudioContext.h>
+    #include <openrct2/config/Config.h>
     #include <openrct2/entity/Guest.h>
     #include <openrct2/interface/WidgetIndexGlobals.h>
     #include <openrct2/interface/Window.h>
@@ -33,6 +34,63 @@
 using namespace OpenRCT2;
 
 #ifdef OPENRCT2_TEST_UI_BINDINGS
+TEST(WidgetStateTest, FinancesGraphTabsKeepTheirHeightWithEitherTitleSizeAndButtonSide)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+    auto env = CreatePlatformEnvironment();
+    auto uiContext = Ui::CreateUiContext(*env);
+    auto context = CreateContext(std::move(env), Audio::CreateDummyAudioContext(), std::move(uiContext));
+    ASSERT_TRUE(context->Initialise());
+    auto& interfaceConfig = Config::Get().interface;
+    struct RestoreTitleOptions
+    {
+        bool enlarged = Config::Get().interface.enlargedUi;
+        bool onLeft = Config::Get().interface.windowButtonsOnTheLeft;
+        ~RestoreTitleOptions()
+        {
+            Config::Get().interface.enlargedUi = enlarged;
+            Config::Get().interface.windowButtonsOnTheLeft = onLeft;
+        }
+    } restore;
+    for (bool enlarged : { false, true })
+    {
+        for (bool onLeft : { false, true })
+        {
+            SCOPED_TRACE(enlarged);
+            SCOPED_TRACE(onLeft);
+            interfaceConfig.enlargedUi = enlarged;
+            interfaceConfig.windowButtonsOnTheLeft = onLeft;
+            auto* window = Ui::Windows::FinancesOpen();
+            ASSERT_NE(window, nullptr);
+            // Finances has frame/title/close/page widgets, followed by six tabs.
+            constexpr WidgetIndex firstTab = 4;
+            window->onMouseUp(firstTab + 1);
+            const auto initialHeight = window->height;
+            const auto initialWidth = window->width;
+            const auto titleHeight = enlarged ? kTitleHeightLarge : kTitleHeightNormal;
+            const auto closeSize = enlarged ? kCloseButtonSizeTouch : kCloseButtonSize;
+            for (int repeat = 0; repeat < 20; repeat++)
+            {
+                for (int page = 1; page <= 3; page++)
+                {
+                    window->onMouseUp(firstTab + page);
+                    window->resizeFrame();
+                    window->onPrepareDraw();
+                    EXPECT_EQ(window->height, initialHeight);
+                    EXPECT_EQ(window->width, initialWidth);
+                    EXPECT_EQ(window->getTitleBarCurrentHeight(), titleHeight);
+                    EXPECT_EQ(window->getTitleBarDiffTarget(), 0);
+                    EXPECT_EQ(window->widgets[2].width(), closeSize.width);
+                    EXPECT_EQ(window->widgets[2].height(), closeSize.height);
+                    EXPECT_EQ(window->widgets[2].left, onLeft ? 2 : window->width - 2 - closeSize.width);
+                }
+            }
+            Ui::GetWindowManager()->CloseByClass(WindowClass::finances);
+        }
+    }
+}
+
 TEST(WidgetStateTest, GuestPickupRefreshesWithoutResizeAcrossPlatformAndRideStates)
 {
     gOpenRCT2Headless = true;
