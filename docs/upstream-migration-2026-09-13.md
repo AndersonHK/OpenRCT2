@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 274 / 361 source commits recorded
+## Progress: 275 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3032,10 +3032,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U274 — `21e37e12f9` — Rework EditorBottomToolbar into EditorStepController (#26961)
 
 - **Source:** `21e37e12f93bcf40c841485ff0907efeb0931471`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `070ead006337f332e4983bde5ec85031546b0c35`.
 - **Remaining:** 88 → 87.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Split editor navigation/status panels, relocate shared step labels and wire window lifecycle/resize/shortcut restoration; add regression coverage.
 - **Additional decisions / behavior:** Approved D07/P5. Preserve fork resize/HUD flow and existing theme colours; retain all navigation/save callback semantics. Additionally make opening idempotent, close new classes on toolbar toggle, initialize direction, guard allocation, and reject decorative/hidden/invalid navigation calls; invalid labels return none. See B63.
 - **Verification:** B63 complete Release x64 MSVC/Vulkan build: 89.19s, zero warnings/errors. 52 WidgetStateTest/PlayTests/ScriptingTests passed in 8.393s, including editor step visibility, resize and actual registered toggle action. Old entry points absent.
 - **Pending / concerns:** Actual rendered themes, OS key input/save dialogs, non-Windows/MP/replay remain; no owner decision.
+
+### U275 — `763d42cad7` — Fix editor inadvertently showing the pause and fastforward buttons (#27021)
+
+- **Source:** `763d42cad783512f51c3299ff216d46f3b8f5db9`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 87 → 86.
+- **Disposition:** history receipt.
+- **Manual changes:** No source edit: the fork already preserves editor-hidden pause/speed controls through network-mode handling.
+- **Additional decisions / behavior:** Approved D07. Retain the existing additive hide-only network switch after ApplyEditorMode; it cannot re-show editor or user-disabled controls, unlike the upstream assignment implementation this source fixes. Local speed/turbo and server/client restrictions remain.
+- **Verification:** Read complete one-hunk source patch and current toolbar reset/editor/network call order and branches. B63 built and tested the current UI tree; no new runtime visibility claim.
+- **Pending / concerns:** Actual editor/network visibility interaction remains part of standing UI checks; no compile debt or owner decision.
