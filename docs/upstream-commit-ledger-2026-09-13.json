@@ -15455,7 +15455,9 @@
       ],
       "review_level": "targeted-code-review",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "6fa1afb1d477afe0c1f5eb30008f50efb89dccb3"
+      ],
       "verification_evidence": [
         "Full 940-line source inspected; four new files equal source tokens plus enumerated lifetime changes; ScMap overload/options exact. B42 builds 39.50s and final 12.30s, zero warnings/errors. Initial focused 3/4 (overbroad resize test corrected); final 276/17 suites passed in 35.971s, including all four real API120 plugin tests."
       ],
@@ -15497,9 +15499,11 @@
       "note": "Use externally opened park folder for subsequent load/save while retaining fork layered object-directory handling.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected full two-file source and local startup/load branches; exact helper and success-branch call ported; diff check passes."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -15509,7 +15513,10 @@
       "merge_conflict_paths": [
         "src/openrct2/Context.cpp"
       ],
-      "verification_gate": "P7"
+      "verification_gate": "P7",
+      "port_commit_locator": "Upstream-Commit: ac926d5550b21addad8fc0630c0e528d931915e5",
+      "implementation_decisions": "Adopt source guard: only nonempty scenario save path matching startup path; failed loads, fresh scenarios and URL startup bypass it. Fork layered object directories untouched. No gameplay or save-format change.",
+      "pending_validation": "Compile at next batch. Interactive file association/command-line folder persistence unverified; no external config-write claim."
     },
     {
       "sha": "6b2fb43861a9b3d35a79c01c188ccfe6b435a41b",
@@ -27217,8 +27224,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 204,
-    "remaining_after_receipt": 157,
+    "accounted_in_this_tree": 205,
+    "remaining_after_receipt": 156,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
