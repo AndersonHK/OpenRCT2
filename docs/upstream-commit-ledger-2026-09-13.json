@@ -26664,7 +26664,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "f4a44743dcc027f9d2f09108125c551075abda74"
+      ],
       "verification_evidence": [
         "Full source and fork state switch inspected; all consumers migrated; explicit fixture tests platform/transport labels, named rides and deleted/null ride formatter boundaries. Diff check passes."
       ],
@@ -26715,9 +26717,11 @@
       "note": "Split peep action description from display capitalization; preserve platform walking/waiting and transport status semantics.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Final solution zero warnings/errors in 75.00s; 112 affected tests passed in 9.263s, including platform/group/missing-ride regression. Unique English IDs and all 44 fork strings verified. B95 clears U344-U346."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -26728,7 +26732,10 @@
         "data/language/en-GB.txt",
         "src/openrct2/localisation/StringIds.h"
       ],
-      "verification_gate": "P5"
+      "verification_gate": "P5",
+      "port_commit_locator": "Upstream-Commit: 6e0d62b4039e7b04cff29afa486805ed141f753b",
+      "implementation_decisions": "Preserve fork platform action groups with new reserved strings 8042/8043; individual labels unchanged. Keep U345 absent-ride argument handling. Group wording and grouping IDs change as intended; no movement, routing or pricing mutation.",
+      "pending_validation": "Native labels/translations and other standing handoff checks remain."
     },
     {
       "sha": "b5ad1e41108567b4411496abc1d53742c71792e3",
@@ -28204,8 +28211,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 345,
-    "remaining_after_receipt": 16,
+    "accounted_in_this_tree": 346,
+    "remaining_after_receipt": 15,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

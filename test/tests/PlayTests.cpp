@@ -119,6 +119,18 @@ TEST_F(PlayTests, PeepDescriptionsPreservePlatformStatusAndMissingRideArguments)
     guest->rideSubState = PeepRideSubState::waitingOnPlatform;
     EXPECT_EQ(guest->getActionDescription().type, PeepActionDescriptionType::waitingOnPlatform);
     check(STR_WAITING_ON_PLATFORM_FOR, true);
+    for (const auto subState : { PeepRideSubState::approachPlatformSlot, PeepRideSubState::waitingOnPlatform })
+    {
+        guest->rideSubState = subState;
+        auto ft = Formatter();
+        formatPeepActionTo(*guest, ft, true);
+        StringId groupString{};
+        std::memcpy(&groupString, ft.Data(), sizeof(StringId));
+        EXPECT_EQ(groupString, subState == PeepRideSubState::approachPlatformSlot
+            ? STR_GUESTS_WALKING_TO_PLATFORM_FOR : STR_GUESTS_WAITING_ON_PLATFORM_FOR);
+        EXPECT_EQ(ft.NumBytes(), 2 * sizeof(StringId) + sizeof(const char*));
+    }
+
     guest->state = PeepState::onRide;
     check(STR_ON_RIDE, true);
     ride.type = kRideTypeNull;

@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 345 / 361 source commits recorded
+## Progress: 346 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3813,10 +3813,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U345 — `fe4e93cf0e` — Split determining peep action and display
 
 - **Source:** `fe4e93cf0e54736420742c2149185eb5cdd87f44`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `f4a44743dcc027f9d2f09108125c551075abda74`.
 - **Remaining:** 17 → 16.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Separate peep action descriptions from display formatting and migrate all consumers.
 - **Additional decisions / behavior:** Retain fork platform approach/wait labels as appended description types; no serialized Peep state or movement change. Preserve explicit absent ride-name argument for every ride-bearing description, including null/deleted rides. Adopt source display fallbacks: walking staff/default and missing watched ride get meaningful generic descriptions, heading/queue with deleted ride gets unnamed action. Existing ride targeting and transport simulation untouched.
 - **Verification:** Full source and fork state switch inspected; all consumers migrated; explicit fixture tests platform/transport labels, named rides and deleted/null ride formatter boundaries. Diff check passes.
 - **Pending / concerns:** Compile and runtime checkpoint with U346 capitalization change; U344 typed-filter debt included.
+
+### U346 — `6e0d62b403` — Fix #1514: Wrong capitalisation for descriptions in Guest List
+
+- **Source:** `6e0d62b4039e7b04cff29afa486805ed141f753b`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 16 → 15.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Separate singular/group guest action strings and migrate guest list filters and headings.
+- **Additional decisions / behavior:** Preserve fork platform action groups with new reserved strings 8042/8043; individual labels unchanged. Keep U345 absent-ride argument handling. Group wording and grouping IDs change as intended; no movement, routing or pricing mutation.
+- **Verification:** Final solution zero warnings/errors in 75.00s; 112 affected tests passed in 9.263s, including platform/group/missing-ride regression. Unique English IDs and all 44 fork strings verified. B95 clears U344-U346.
+- **Pending / concerns:** Native labels/translations and other standing handoff checks remain.
