@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 296 / 361 source commits recorded
+## Progress: 297 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3274,10 +3274,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U296 — `4be8013397` — Refactor Guest.h members and EASTEREGG_PEEP_NAME to enum class (#27038)
 
 - **Source:** `4be80133970f12c5c72c945f2140c907ff402db0`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `abaed358a16927cdc7d790d9eff41d9fa1e8f629`.
 - **Remaining:** 66 → 65.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Strong EasterEggPeepName enum and camelCase IntensityRange accessors across all consumers.
 - **Additional decisions / behavior:** Keep 24 names/effects, kart speeds, intensity nibble packing and fork preference/happiness policy. Computed no-match sentinel changes -1 to none=255; sole station consumer still no-ops. No stored entity layout change.
 - **Verification:** B75: complete source/fork code-line delta match; solution 78.12 seconds zero warnings/errors; all 51 play/save/script/language tests pass, 18.021 seconds.
 - **Pending / concerns:** Individual Easter egg effects, native UI, non-Windows and live MP/replay remain standing checks.
+
+### U297 — `29a15582c1` — Fix #27023: Transparent plugin sprites do not work correctly in software rendering mode (#27025)
+
+- **Source:** `29a15582c100faeb68a7a4c4ed6b3b6897772961`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 65 → 64.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Mark drawn plugin images transparent, including same-size reused raw uploads; add software pixel regression.
+- **Additional decisions / behavior:** Extend source flag to reused opaque bitmaps so draw/clear zero pixels match fresh-image behavior. Raw uploads without draw retain existing behavior. Keep Vulkan invalidation/generation and in-flight frame ownership.
+- **Verification:** B76: final solution 11.30 seconds zero warnings/errors; 51 scripting/GPU foundation tests pass in 1.795 seconds; four actual software pixel paths verified.
+- **Pending / concerns:** Live Vulkan image display and compressed conversion not exercised; standing non-Windows/disabled-scripting checks.

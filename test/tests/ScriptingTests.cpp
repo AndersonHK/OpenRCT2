@@ -38,6 +38,9 @@
     #include <openrct2/audio/AudioContext.h>
     #include <openrct2/core/File.h>
     #include <openrct2/core/Path.hpp>
+    #include <openrct2/drawing/Drawing.Sprite.h>
+    #include <openrct2/drawing/Drawing.h>
+    #include <openrct2/drawing/X8DrawingEngine.h>
     #include <openrct2/interface/Widget.h>
     #include <openrct2/interface/WindowBase.h>
     #include <openrct2/ui/UiContext.h>
@@ -808,6 +811,85 @@ TEST_F(ScriptingTests, ExplicitImageButtonBordersRetainImageAndVisibilityBinding
     EXPECT_TRUE(findImage(103)->flags.has(WidgetFlag::isDisabled));
     JS_FreeValue(ctx, result);
     JS_FreeValue(ctx, function);
+    JS_FreeValue(ctx, global);
+}
+
+TEST_F(ScriptingTests, DrawnCustomImagesPreserveTransparentPixelsOnCreationRedrawAndResize)
+{
+    struct RestoreImageContext
+    {
+        std::unique_ptr<IContext>& context;
+        bool noGraphics;
+        ~RestoreImageContext()
+        {
+            context.reset();
+            gOpenRCT2NoGraphics = noGraphics;
+        }
+    } restore{ _context, gOpenRCT2NoGraphics };
+    gOpenRCT2NoGraphics = false;
+    auto& engine = static_cast<ScriptEngine&>(_context->GetScriptEngine());
+    UiScriptExtensions::Extend(engine);
+    engine.AddNetworkPlugin(R"(
+        registerPlugin({name:'test-image-transparency', version:'1', authors:['openrct2-test'],
+            type:'remote', licence:'MIT', minApiVersion:122, targetApiVersion:122,
+            main:function() {
+                globalThis.imageId = ui.imageManager.allocate(1).start;
+                globalThis.drawImage = function(size, colour) {
+                    if (colour === 13) {
+                        ui.imageManager.setPixelData(imageId, {type:'raw', width:size, height:size,
+                            data:new Uint8Array(size * size)});
+                    }
+                    ui.imageManager.draw(imageId, {width:size, height:size}, function(g) {
+                        g.clear(); g.fill = colour; g.rect(0, 0, 1, 1);
+                    });
+                    return ui.imageManager.getImageInfo(imageId).hasTransparent;
+                };
+            }});
+    )");
+    engine.LoadTransientPlugins();
+    engine.Tick();
+    const auto& plugins = engine.GetPlugins();
+    auto plugin = std::find_if(plugins.begin(), plugins.end(), [](const auto& p) {
+        return p->GetMetadata().Name == "test-image-transparency";
+    });
+    ASSERT_NE(plugin, plugins.end());
+    ASSERT_TRUE((*plugin)->HasStarted());
+    auto* ctx = (*plugin)->GetContext();
+    auto global = JS_GetGlobalObject(ctx);
+    auto idValue = JS_GetPropertyStr(ctx, global, "imageId");
+    uint32_t imageId{};
+    ASSERT_EQ(JS_ToUint32(ctx, &imageId, idValue), 0);
+    JS_FreeValue(ctx, idValue);
+    auto draw = JS_GetPropertyStr(ctx, global, "drawImage");
+    Drawing::X8DrawingEngine software(_context->GetUiContext());
+    for (int pass = 0; pass < 4; ++pass)
+    {
+        const int size = pass >= 2 ? 3 : 2;
+        const auto colour = static_cast<Drawing::PaletteIndex>(10 + pass);
+        auto result = engine.ExecutePluginCall(
+            *plugin, draw, JS_UNDEFINED, { JS_NewInt32(ctx, size), JS_NewInt32(ctx, 10 + pass) }, false, false, true);
+        EXPECT_FALSE(JS_IsException(result));
+        EXPECT_EQ(JS_ToBool(ctx, result), 1);
+        JS_FreeValue(ctx, result);
+        const auto* sprite = GfxGetG1Element(imageId);
+        ASSERT_NE(sprite, nullptr);
+        EXPECT_TRUE(sprite->flags.has(G1Flag::hasTransparency));
+        EXPECT_EQ(sprite->width, size);
+        EXPECT_EQ(sprite->height, size);
+        std::vector<Drawing::PaletteIndex> pixels(size * size, Drawing::PaletteIndex::pi20);
+        Drawing::RenderTarget target{};
+        target.DrawingEngine = &software;
+        target.bits = pixels.data();
+        target.width = size;
+        target.height = size;
+        software.BeginDraw();
+        GfxDrawSprite(target, ImageId(imageId), { 0, 0 });
+        software.EndDraw();
+        EXPECT_EQ(pixels[0], colour);
+        for (size_t i = 1; i < pixels.size(); ++i)
+            EXPECT_EQ(pixels[i], Drawing::PaletteIndex::pi20);
+    }
+    JS_FreeValue(ctx, draw);
     JS_FreeValue(ctx, global);
 }
 

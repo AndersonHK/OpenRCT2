@@ -21458,7 +21458,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "abaed358a16927cdc7d790d9eff41d9fa1e8f629"
+      ],
       "verification_evidence": [
         "B75: complete source/fork code-line delta match; solution 78.12 seconds zero warnings/errors; all 51 play/save/script/language tests pass, 18.021 seconds."
       ],
@@ -21501,9 +21503,11 @@
       "note": "Mark custom image transparency correctly; verify software reference and Vulkan indexed sprite cache refresh.",
       "decisions": [],
       "review_level": "targeted-code-review",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "B76: final solution 11.30 seconds zero warnings/errors; 51 scripting/GPU foundation tests pass in 1.795 seconds; four actual software pixel paths verified."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -21511,7 +21515,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P6"
+      "verification_gate": "P6",
+      "port_commit_locator": "Upstream-Commit: 29a15582c100faeb68a7a4c4ed6b3b6897772961",
+      "implementation_decisions": "Extend source flag to reused opaque bitmaps so draw/clear zero pixels match fresh-image behavior. Raw uploads without draw retain existing behavior. Keep Vulkan invalidation/generation and in-flight frame ownership.",
+      "pending_validation": "Live Vulkan image display and compressed conversion not exercised; standing non-Windows/disabled-scripting checks."
     },
     {
       "sha": "f1faf90ed4fe5849f7a9fe07a0afbc8eb3a1ca9e",
@@ -27861,8 +27868,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 296,
-    "remaining_after_receipt": 65,
+    "accounted_in_this_tree": 297,
+    "remaining_after_receipt": 64,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

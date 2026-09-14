@@ -449,7 +449,14 @@ namespace OpenRCT2::Scripting
             newg1.offset = reinterpret_cast<uint8_t*>(rt.bits);
             newg1.width = size.width;
             newg1.height = size.height;
-            newg1.flags = {};
+            newg1.flags = { G1Flag::hasTransparency };
+            GfxSetG1Element(id, &newg1);
+        }
+        else if (!g1->flags.has(G1Flag::hasTransparency))
+        {
+            // A raw upload can be reused at the same size. Drawing/clearing it must use the same transparency as a new image.
+            auto newg1 = *g1;
+            newg1.flags.set(G1Flag::hasTransparency);
             GfxSetG1Element(id, &newg1);
         }
 
