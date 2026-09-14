@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 98 / 361 source commits recorded
+## Progress: 99 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1096,10 +1096,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U098 — `0d8af50f45` — Rename members of GameCommand
 
 - **Source:** `0d8af50f45b0d4dffbcae25dd5ce63afcac89947`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `6313a20bf868fca3fbf385dc1464622867c34318`.
 - **Remaining:** 264 → 263.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename GameCommand members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** GameCommand identifiers only: retain every action ID/order, script action-name string, network permission group and server pause/quit restriction. Keep setRideVisibility and fork stream revision 4; no replay/wire format change. Batch 12 full build and 149 selected regressions passed through U097.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U099 — `9c830feef5` — Rename members of TrackDesignGameStateFlag
+
+- **Source:** `9c830feef560cb2017223721112cf2b764d8ebac`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 263 → 262.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename TrackDesignGameStateFlag members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Track design flags naming only: retain bit positions, availability warnings and scenery-toggle/research behavior.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
