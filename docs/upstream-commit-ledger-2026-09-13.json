@@ -17967,7 +17967,7 @@
       "merge_conflict_paths": [],
       "verification_gate": "P7",
       "port_commit_locator": "Upstream-Commit: 7a6a02e35c89fcd67cd858cf880a922fc7418a11",
-      "implementation_decisions": "Adopt authored capitalization/spelling correction. Existing entrance swaps and open-ride operations remain unchanged; this delta only renames ride 33 for the existing full-hash match.",
+      "implementation_decisions": "Adopt authored capitalization/spelling correction. Existing land/path and open-ride operations remain unchanged; this delta only renames ride 33 for the existing full-hash match.",
       "pending_validation": "Original matching Alton Towers scenario import not exercised; standing limits remain."
     },
     {
@@ -18281,7 +18281,7 @@
         "0b5a483165403a4073c82f5be4be3f7433568e06"
       ],
       "verification_evidence": [
-        "All 13 source files inspected; exact added/removed-line equality and no old flag names verified. B60 build/test checkpoint pending."
+        "All 13 source files inspected; exact added/removed-line equality verified. Search also identified one additional fork-only noPlatforms consumer in RideSupportsStationPlatformPreQueue, carried forward for correction in U265 before B60 build. The first note incorrectly claimed no old names remained; corrected here."
       ],
       "deferral": {
         "status": "not-selected",
@@ -18323,7 +18323,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "2f0b1da286b0cfb6031c856cf3d6ea316e7e695b"
+      ],
       "verification_evidence": [
         "Full template source read; fork boarding helper inspected and converted. B60 build and platform-boarding regression checkpoint pending."
       ],
@@ -18362,9 +18364,11 @@
       "note": "Repairs widget-visibility regression introduced by d517f19ce2; preserve existing vertical-twist access. No new track group or rating change.",
       "decisions": [],
       "review_level": "targeted-code-review",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Full source and existing updateWidgets read; solution build 16.83s zero warnings/errors; 39 Play/TrainStationAssignment/EntityPresentationSnapshot tests passed 7.174s. B60."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -18372,7 +18376,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P5"
+      "verification_gate": "P5",
+      "port_commit_locator": "Upstream-Commit: 340bb07626c59c62d4b044af23249c5949fbf01b",
+      "implementation_decisions": "No source change required. Earlier fork visibility port avoided the upstream overwrite that hid vertical twists. U264 fork-only flag consumer was corrected in U265; previous documentation claims corrected in journal and ledger. B60.",
+      "pending_validation": "Actual Inverted Impulse construction-button interaction and rendered station flags plus standing checks remain."
     },
     {
       "sha": "57de7b82be001d497bee266a50dbfd118b59ba92",
@@ -27644,8 +27651,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 265,
-    "remaining_after_receipt": 96,
+    "accounted_in_this_tree": 266,
+    "remaining_after_receipt": 95,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

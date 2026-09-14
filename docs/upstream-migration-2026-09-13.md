@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 265 / 361 source commits recorded
+## Progress: 266 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2927,16 +2927,27 @@ A row with pending checks records source integration, not a claim that runtime v
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Convert station-object flags to enum/uint32 FlagHolder and update JSON parsing, colour UI, station/shelter/platform painting and shelter query.
 - **Additional decisions / behavior:** Keep primary/secondary/transparency/no-platforms/shelter bits 1/2/4/8/16 and same JSON property keys. Boolean semantics and object storage width unchanged. Preserve fork vehicle/platform/ratings code around the mechanical replacements.
-- **Verification:** All 13 source files inspected; exact added/removed-line equality verified. Search also identified one additional fork-only noPlatforms consumer in RideHasPlatformBoardingInfrastructure, carried forward for correction in U265 before B60 build. The first note incorrectly claimed no old names remained; corrected here.
+- **Verification:** All 13 source files inspected; exact added/removed-line equality verified. Search also identified one additional fork-only noPlatforms consumer in RideSupportsStationPlatformPreQueue, carried forward for correction in U265 before B60 build. The first note incorrectly claimed no old names remained; corrected here.
 - **Pending / concerns:** Batched compile and station object/rendered colour/glass/platform/shelter checks pending; standing limits remain.
 
 ### U265 — `672bd553fe` — Add GitHub pull request template (#27007)
 
 - **Source:** `672bd553fe27d5c1c4ed786d3973da822f9e8421`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `2f0b1da286b0cfb6031c856cf3d6ea316e7e695b`.
 - **Remaining:** 97 → 96.
 - **Disposition:** adopt applicable changes.
-- **Manual changes:** Add upstream PR template and complete U264 conversion of the fork-only station noPlatforms check in RideHasPlatformBoardingInfrastructure.
+- **Manual changes:** Add upstream PR template and complete U264 conversion of the fork-only station noPlatforms check in RideSupportsStationPlatformPreQueue.
 - **Additional decisions / behavior:** PR template is contributor documentation with change/rationale/testing/AI disclosure fields; no PR is submitted. Ancillary U264 correction preserves the existing fork rule that a null station style permits boarding infrastructure and noPlatforms disables it; only typed flag syntax changes. Corrected the U264 no-old-names verification claim after its search output showed this extra consumer.
 - **Verification:** Full template source read; fork boarding helper inspected and converted. B60 build and platform-boarding regression checkpoint pending.
 - **Pending / concerns:** Batched compile/runtime and standing checks remain.
+
+### U266 — `340bb07626` — Fix #26960: Vertical twists not available on the Inverted Impulse Coaster (#27012)
+
+- **Source:** `340bb07626c59c62d4b044af23249c5949fbf01b`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 96 → 95.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Already covered: retain existing hasSmallCurve OR of vertical/small curve capability and single visibility assignment per button. Record B60 validation and correction trace.
+- **Additional decisions / behavior:** No source change required. Earlier fork visibility port avoided the upstream overwrite that hid vertical twists. U264 fork-only flag consumer was corrected in U265; previous documentation claims corrected in journal and ledger. B60.
+- **Verification:** Full source and existing updateWidgets read; solution build 16.83s zero warnings/errors; 39 Play/TrainStationAssignment/EntityPresentationSnapshot tests passed 7.174s. B60.
+- **Pending / concerns:** Actual Inverted Impulse construction-button interaction and rendered station flags plus standing checks remain.
