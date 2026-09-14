@@ -16536,7 +16536,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "007aecbd03630ca69bca12ee2c577de99e35d7df"
+      ],
       "verification_evidence": [
         "Full source read; repository search found exactly three affected files. Inverse rename comparison reproduces the old contents exactly after text newline normalization."
       ],
@@ -16573,9 +16575,11 @@
       "note": "Apply final documentation/changelog/string correction; distinguish upstream release history from features actually ported.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Full three-line source delta reviewed and applied."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -16583,7 +16587,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P1"
+      "verification_gate": "P1",
+      "port_commit_locator": "Upstream-Commit: e356b3cae6f4952b819b3236eda4260ea0df1fe5",
+      "implementation_decisions": "Documentation follows the already active fork QuickJS implementation; no engine or behavior change.",
+      "pending_validation": "No additional checks for this documentation-only row; earlier compile debt unchanged."
     },
     {
       "sha": "1557aca82098edaa3637d9ef296807a1ed4f10d1",
@@ -27364,8 +27371,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 225,
-    "remaining_after_receipt": 136,
+    "accounted_in_this_tree": 226,
+    "remaining_after_receipt": 135,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

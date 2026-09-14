@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 225 / 361 source commits recorded
+## Progress: 226 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2493,10 +2493,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U225 — `3dd304a8d5` — Merge pull request #26972 from fasma-oO/fasma-contribution
 
 - **Source:** `3dd304a8d506c422fb3ac0ff1dba566b4f45eece`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `007aecbd03630ca69bca12ee2c577de99e35d7df`.
 - **Remaining:** 137 → 136.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Rename two trigonometry constants and all references to kCamelCase.
 - **Additional decisions / behavior:** Names only: preserve every lookup-table value, formula and vehicle collision/animation behavior.
 - **Verification:** Full source read; repository search found exactly three affected files. Inverse rename comparison reproduces the old contents exactly after text newline normalization.
 - **Pending / concerns:** U223/U225 solution compile at next checkpoint.
+
+### U226 — `e356b3cae6` — Update reference to Duktape in readme.txt
+
+- **Source:** `e356b3cae6f4952b819b3236eda4260ea0df1fe5`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 136 → 135.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Update shipped readme dependency list from retired dukglue/duktape to QuickJS.
+- **Additional decisions / behavior:** Documentation follows the already active fork QuickJS implementation; no engine or behavior change.
+- **Verification:** Full three-line source delta reviewed and applied.
+- **Pending / concerns:** No additional checks for this documentation-only row; earlier compile debt unchanged.
