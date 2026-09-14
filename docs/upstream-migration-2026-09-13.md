@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 255 / 361 source commits recorded
+## Progress: 256 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2823,10 +2823,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U255 — `f5a3ff521d` — Patch Heide-Park to correct some names
 
 - **Source:** `f5a3ff521d563cc415cd6ee5dbee2575fd3ef4b8`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `d221faff35c8745aa6fb8c1c3e64aff8b591c2a3`.
 - **Remaining:** 107 → 106.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Add the exact Heide-Park hash patch renaming rides 24 and 25 to the Santa-Maria and Bounty Schiffschaukel names, plus scenario hash index and changelog.
 - **Additional decisions / behavior:** Approved scenario spelling corrections. Applies only to full SHA 5973a6ae5e629cb0f0a62d9383bfd5d63e7ed69669ef055b847cb98ea0aaea01 through existing scenario import gating; preserves authored German punctuation and all gameplay parameters.
 - **Verification:** Full three-file source inspected; new JSON byte-equivalent to source after line-ending normalization, parsed hash prefix and IDs verified. U254 actual rename operation test passed B56.
 - **Pending / concerns:** Original matching Heide-Park scenario import not available in the test fixture; standing checks remain.
+
+### U256 — `0ea046196d` — Patch Diamond Heights to correct spelling of ‘Doppelgänger’
+
+- **Source:** `0ea046196d5d4947d42832bf84746870f3d696b5`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 106 → 105.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Add two full-hash Diamond Heights patches renaming ride 3 to Doppelgänger; extend hash index/changelog.
+- **Additional decisions / behavior:** Adopt authored spelling correction for the standard and .sea scenario variants only. Imported target custom name is replaced; unrelated rides, saved games and gameplay parameters are unchanged by this data.
+- **Verification:** All four source files inspected; both UTF-8 JSON patches parse. U254 operation regression passed B56.
+- **Pending / concerns:** Matching original scenario imports not exercised; standing checks remain.
