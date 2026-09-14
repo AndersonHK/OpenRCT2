@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 178 / 361 source commits recorded
+## Progress: 179 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1976,10 +1976,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U178 — `4d7866e3ad` — Create enum class+FlagHolder for SmallSceneryElementFlag
 
 - **Source:** `4d7866e3ad4428270840a757022dc46b6ab18c2e`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `d23c36a9287aad2265f76daf45905476b5b3c60b`.
 - **Remaining:** 184 → 183.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Replace the private small-scenery support byte with SmallSceneryElementFlags and bit-0 has/set operations.
 - **Additional decisions / behavior:** Preserve one-byte storage, bit 0, unknown bits, packed offsets, support rendering and all plant watering/age/withering behavior. Source void-return expression simply returns the void setter result; no value or control-flow change.
-- **Verification:** Reviewed both full source diffs; both resulting fork files match this source commit exactly. Existing layout assertions and B32 build/import checks cover storage; receipt whitespace/ancestry gates apply.
+- **Verification:** Reviewed both source patches and the resulting fork diff. Correction recorded with U179: the U178 receipt initially overstated exact equality with upstream. The header matches, but the CPP correctly retains the existing fork MapInvalidateTileFull(sceneryPos) in watering/withering instead of upstream MapInvalidateTileZoom1. The flag delta itself matches source, and that fork rendering behavior was not changed. Existing layout assertions and B32 build/import checks cover storage; receipt whitespace/ancestry gates apply.
 - **Pending / concerns:** B32 compile and targeted regressions pending; interactive support/plant rendering and native non-Windows remain unverified.
+
+### U179 — `5af73fa31b` — Create enum class+FlagHolder for TrackTileElementFlag
+
+- **Source:** `5af73fa31b36391daf3fca281fd978481673b684`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 183 → 182.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Replace the private track flags byte with TrackTileElementFlags and has/set operations for seven bits: chain, inverted, cable lift, highlight, green light, brake closed and indestructible. Correct U178 verification wording to acknowledge its retained fork watering redraw.
+- **Additional decisions / behavior:** All seven bit positions 0..6, unknown bit 7, byte storage, packed maze/ride union and setter outcomes remain identical. The makeAllDestructible cheat remains in isIndestructible at this source step. No train physics, brakes, station, ratings or cheat behavior changes. U178 source code needed no repair; its existing MapInvalidateTileFull behavior was preserved, despite the original receipt overstating equality with upstream.
+- **Verification:** Read both complete source patches and all flag consumers. Resulting TrackElement header/CPP match this source commit exactly; no old track flag names remain. FlagHolder bit semantics reviewed; receipt whitespace and singleton ancestry gates apply.
+- **Pending / concerns:** B32 full build and gameplay/import/topology/scripting tests immediately after this receipt; interactive and non-Windows debt retained.

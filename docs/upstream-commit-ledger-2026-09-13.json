@@ -13867,7 +13867,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "d23c36a9287aad2265f76daf45905476b5b3c60b"
+      ],
       "verification_evidence": [
         "Reviewed both full source diffs; both resulting fork files match this source commit exactly. Existing layout assertions and B32 build/import checks cover storage; receipt whitespace/ancestry gates apply."
       ],
@@ -13905,9 +13907,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Read both complete source patches and all flag consumers. Resulting TrackElement header/CPP match this source commit exactly; no old track flag names remain. FlagHolder bit semantics reviewed; receipt whitespace and singleton ancestry gates apply."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -13915,7 +13919,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 5af73fa31b36391daf3fca281fd978481673b684",
+      "implementation_decisions": "All seven bit positions 0..6, unknown bit 7, byte storage, packed maze/ride union and setter outcomes remain identical. The makeAllDestructible cheat remains in isIndestructible at this source step. No train physics, brakes, station, ratings or cheat behavior changes. U178 source code needed no repair; its existing MapInvalidateTileFull behavior was preserved, despite the original receipt overstating equality with upstream.",
+      "pending_validation": "B32 full build and gameplay/import/topology/scripting tests immediately after this receipt; interactive and non-Windows debt retained."
     },
     {
       "sha": "1eacb1eec8a512885e4e84d546fe2980fd6b5b58",
@@ -27035,8 +27042,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 178,
-    "remaining_after_receipt": 183,
+    "accounted_in_this_tree": 179,
+    "remaining_after_receipt": 182,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
