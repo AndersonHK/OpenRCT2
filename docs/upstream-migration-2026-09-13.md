@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 275 / 361 source commits recorded
+## Progress: 276 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3043,10 +3043,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U275 — `763d42cad7` — Fix editor inadvertently showing the pause and fastforward buttons (#27021)
 
 - **Source:** `763d42cad783512f51c3299ff216d46f3b8f5db9`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `748398c604b8347ab970d4223d916f03ab2c9e0d`.
 - **Remaining:** 87 → 86.
 - **Disposition:** history receipt.
 - **Manual changes:** No source edit: the fork already preserves editor-hidden pause/speed controls through network-mode handling.
 - **Additional decisions / behavior:** Approved D07. Retain the existing additive hide-only network switch after ApplyEditorMode; it cannot re-show editor or user-disabled controls, unlike the upstream assignment implementation this source fixes. Local speed/turbo and server/client restrictions remain.
 - **Verification:** Read complete one-hunk source patch and current toolbar reset/editor/network call order and branches. B63 built and tested the current UI tree; no new runtime visibility claim.
 - **Pending / concerns:** Actual editor/network visibility interaction remains part of standing UI checks; no compile debt or owner decision.
+
+### U276 — `4beb0ec8e0` — Put lesser-used arguments to MapCanConstructWithClearAt() into a struct (#27010)
+
+- **Source:** `4beb0ec8e0a178542316c7d6a0b1a30d01c84a20`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 86 → 85.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Group construction-clearance optional arguments in MapProposedConstructionInfo and update all action callers.
+- **Additional decisions / behavior:** Keep exact slope/crossing/tree/ignored-ride defaults and values. Adapt the two clearance helper calls to preserve fork tri-state elementErased retry/null/blocked semantics; preserve resolved scenery heights. Full function normalized comparison proves only parameter/member substitutions. See B64.
+- **Verification:** B64 solution build 17.67s, zero warnings/errors; 41 PlayTests/ClearScenery/TileElementsViewTests passed in 7.299s. All call sites audited.
+- **Pending / concerns:** Standing interactive/non-Windows/MP/replay checks; no new owner decision or compile debt.

@@ -180,7 +180,7 @@ static ClearanceResult MapLoc68BABCShouldContinue(
  */
 GameActions::Result MapCanConstructWithClearAt(
     const CoordsXYRangedZ& pos, ClearingFunction clearFunc, const QuarterTile quarterTile, const CommandFlags flags,
-    const uint8_t slope, const CreateCrossingMode crossingMode, const bool isTree, const RideId ignoreRideId)
+    MapProposedConstructionInfo additionalInfo)
 {
     auto res = GameActions::Result();
 
@@ -215,8 +215,8 @@ GameActions::Result MapCanConstructWithClearAt(
         if (tileElement->getType() != TileElementType::surface)
         {
             // Skip track elements belonging to the ride that's being ignored for rides that intersect themselves.
-            if (!ignoreRideId.IsNull() && tileElement->getType() == TileElementType::track
-                && tileElement->asTrack()->getRideIndex() == ignoreRideId)
+            if (!additionalInfo.ignoreRideId.IsNull() && tileElement->getType() == TileElementType::track
+                && tileElement->asTrack()->getRideIndex() == additionalInfo.ignoreRideId)
             {
                 continue;
             }
@@ -227,7 +227,8 @@ GameActions::Result MapCanConstructWithClearAt(
                 if (tileElement->getOccupiedQuadrants() & (quarterTile.GetBaseQuarterOccupied()))
                 {
                     const auto clearResult = MapLoc68BABCShouldContinue(
-                        &tileElement, pos, clearFunc, flags, res.cost, crossingMode, canBuildCrossing, slope);
+                        &tileElement, pos, clearFunc, flags, res.cost, additionalInfo.crossingMode, canBuildCrossing,
+                        additionalInfo.slope);
                     if (clearResult != ClearanceResult::blocked)
                     {
                         if (clearResult == ClearanceResult::elementErased)
@@ -269,7 +270,7 @@ GameActions::Result MapCanConstructWithClearAt(
             }
         }
 
-        if (getGameState().park.flags.has(ParkFlag::forbidHighConstruction) && !isTree)
+        if (getGameState().park.flags.has(ParkFlag::forbidHighConstruction) && !additionalInfo.isTree)
         {
             const auto heightFromGround = pos.clearanceZ - tileElement->getBaseZ();
 
@@ -312,7 +313,8 @@ GameActions::Result MapCanConstructWithClearAt(
                 }
 
                 const auto clearResult = MapLoc68BABCShouldContinue(
-                    &tileElement, pos, clearFunc, flags, res.cost, crossingMode, canBuildCrossing, slope);
+                    &tileElement, pos, clearFunc, flags, res.cost, additionalInfo.crossingMode, canBuildCrossing,
+                    additionalInfo.slope);
                 if (clearResult != ClearanceResult::blocked)
                 {
                     if (clearResult == ClearanceResult::elementErased)
@@ -345,7 +347,7 @@ static ClearanceResult dummyClearFunc(
 
 GameActions::Result MapCanConstructAt(const CoordsXYRangedZ& pos, QuarterTile bl)
 {
-    return MapCanConstructWithClearAt(pos, dummyClearFunc, bl, {}, kTileSlopeFlat);
+    return MapCanConstructWithClearAt(pos, dummyClearFunc, bl, {});
 }
 
 /**

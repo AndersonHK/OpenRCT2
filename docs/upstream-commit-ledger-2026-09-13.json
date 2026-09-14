@@ -20209,7 +20209,9 @@
       ],
       "review_level": "intent-and-path-triage",
       "implementation_status": "history receipt",
-      "port_commits": [],
+      "port_commits": [
+        "748398c604b8347ab970d4223d916f03ab2c9e0d"
+      ],
       "verification_evidence": [
         "Read complete one-hunk source patch and current toolbar reset/editor/network call order and branches. B63 built and tested the current UI tree; no new runtime visibility claim."
       ],
@@ -20268,9 +20270,11 @@
       "note": "Introduce MapProposedConstructionInfo at fork clearance owner without replacing ClearanceResult::elementErased or compaction-safe traversal.",
       "decisions": [],
       "review_level": "targeted-code-review",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "B64 solution build 17.67s, zero warnings/errors; 41 PlayTests/ClearScenery/TileElementsViewTests passed in 7.299s. All call sites audited."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -20288,7 +20292,10 @@
         "src/openrct2/actions/track/TrackPlaceAction.cpp",
         "src/openrct2/world/ConstructionClearance.cpp"
       ],
-      "verification_gate": "P3"
+      "verification_gate": "P3",
+      "port_commit_locator": "Upstream-Commit: 4beb0ec8e0a178542316c7d6a0b1a30d01c84a20",
+      "implementation_decisions": "Keep exact slope/crossing/tree/ignored-ride defaults and values. Adapt the two clearance helper calls to preserve fork tri-state elementErased retry/null/blocked semantics; preserve resolved scenery heights. Full function normalized comparison proves only parameter/member substitutions. See B64.",
+      "pending_validation": "Standing interactive/non-Windows/MP/replay checks; no new owner decision or compile debt."
     },
     {
       "sha": "c776757fb2718e6c4258792e552bf561ad11f639",
@@ -27714,8 +27721,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 275,
-    "remaining_after_receipt": 86,
+    "accounted_in_this_tree": 276,
+    "remaining_after_receipt": 85,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
