@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 43 / 361 source commits recorded
+## Progress: 44 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -491,10 +491,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U043 — `082994cd52` — Move widget index globals into WidgetIndexGlobals.h
 
 - **Source:** `082994cd5266f2c3aac4fe09b5b265ac506e7e4c`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `b3ae95f5337e4a285c52b1d85f5fe228f14b301e`.
 - **Remaining:** 319 → 318.
 - **Disposition:** ported.
 - **Manual changes:** Move 20 shared widget-index constants into WidgetIndexGlobals.h under OpenRCT2; add direct includes at all source consumers.
 - **Additional decisions / behavior:** All numeric values and cross-widget aliases are unchanged. Keep existing global-index static assertions and fork construction/pickup behavior; this is header/namespace ownership cleanup only.
 - **Verification:** Inspected the full 17-file source delta; all 20 declarations compare exactly after indentation. Searched fork references; direct includes cover each consumer. Source/diff and exact-one ancestry checked.
 - **Pending / concerns:** Compile at UI-header batch checkpoint.
+
+### U044 — `bfd0a374ff` — Merge pull request #26867 from AaronVanGeffen/strip-window-header
+
+- **Source:** `bfd0a374ff3ec4fc6a46d7839ae6424634475ce8`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 318 → 317.
+- **Disposition:** merge receipt; already ported.
+- **Manual changes:** Record the UI header refactor merge after U040-U043; no additional product delta.
+- **Additional decisions / behavior:** The merge tree equals its second parent and contains no conflict-resolution behavior to port. Preserve the individually adapted fork changes.
+- **Verification:** Inspected merge metadata, empty archived remerge diff and exact second-parent tree equivalence; exact-one ancestry checked.
+- **Pending / concerns:** UI-header batch build pending.
