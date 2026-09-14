@@ -80,7 +80,7 @@ static void TTFToggleHinting(bool)
         return;
     }
 
-    for (int32_t i = 0; i < FontStyleCount; i++)
+    for (int32_t i = 0; i < kFontStyleCount; i++)
     {
         TTFFontDescriptor* fontDesc = &(gCurrentTTFFontSet->size[i]);
         bool use_hinting = Config::Get().fonts.enableHinting && fontDesc->hinting_threshold;
@@ -106,7 +106,7 @@ bool TTFInitialise()
         return false;
     }
 
-    for (int32_t i = 0; i < FontStyleCount; i++)
+    for (int32_t i = 0; i < kFontStyleCount; i++)
     {
         TTFFontDescriptor* fontDesc = &(gCurrentTTFFontSet->size[i]);
 
@@ -142,7 +142,7 @@ void TTFDispose()
     TTFSurfaceCacheDisposeAll();
     TTFGetWidthCacheDisposeAll();
 
-    for (int32_t i = 0; i < FontStyleCount; i++)
+    for (int32_t i = 0; i < kFontStyleCount; i++)
     {
         TTFFontDescriptor* fontDesc = &(gCurrentTTFFontSet->size[i]);
         if (fontDesc->font != nullptr)

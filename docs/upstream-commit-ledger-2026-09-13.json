@@ -16663,7 +16663,9 @@
       ],
       "review_level": "targeted-code-review",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "66a5b23f8f8f72d49f6d16b274a79bfca84e777d"
+      ],
       "verification_evidence": [
         "Full source and UpdateTrackChange/entity publication audited. B50 solution build passes zero warnings/errors, clearing U223/U225 debt. Initial 81/82 selected tests passed; corrected error-realm fixture, both new tests passed (all enum bounds/coercions/payloads and lane/seat/sample preservation). B50 records build and fixture failures."
       ],
@@ -16704,9 +16706,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Full source read; whole-repository consumer search and exact inverse-rename content check passed."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -16714,7 +16718,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 146a7427a39ffb14e184816d70510ed5137a76b1",
+      "implementation_decisions": "Identifier-only refactor; keep fork TTF cache/lifetime behavior and all font dimensions/values.",
+      "pending_validation": "Compile at next checkpoint; no new behavioral test needed for rename-only change."
     },
     {
       "sha": "00df3c16b7ea185169b53d118608abe7fcef0b15",
@@ -27385,8 +27392,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 228,
-    "remaining_after_receipt": 133,
+    "accounted_in_this_tree": 229,
+    "remaining_after_receipt": 132,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

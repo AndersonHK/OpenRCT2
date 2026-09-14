@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 228 / 361 source commits recorded
+## Progress: 229 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2526,10 +2526,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U228 — `4872effb80` — Make vehicle subposition writable in API (#26971)
 
 - **Source:** `4872effb804d6bf7ec3e4cba7e4e46217321832d`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `66a5b23f8f8f72d49f6d16b274a79bfca84e777d`.
 - **Remaining:** 134 → 133.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Adopt D08 writable vehicle subposition/API 122 with source bounds/mutability/update/tweener contract; publish full fork-owned presentation payload; add two API tests.
 - **Additional decisions / behavior:** Keep upstream ToUint32 coercion including fractional/wrap/NaN behavior, documented in B50. Retain seats, station state and accrued/active/directed rating samples; no broad reset. Full publication handles unchanged coordinates/missing move info. Protocol 11/save 60016 unchanged.
 - **Verification:** Full source and UpdateTrackChange/entity publication audited. B50 solution build passes zero warnings/errors, clearing U223/U225 debt. Initial 81/82 selected tests passed; corrected error-realm fixture, both new tests passed (all enum bounds/coercions/payloads and lane/seat/sample preservation). B50 records build and fixture failures.
 - **Pending / concerns:** Forbidden network callback, occupied/staged boarding over later ticks, nonempty tweener, actual Vulkan pose and live MP/replay remain B50 validation limits; no owner decision pending.
+
+### U229 — `146a7427a3` — Refactor FontStyle constants to kCamelCase (#26974)
+
+- **Source:** `146a7427a39ffb14e184816d70510ed5137a76b1`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 133 → 132.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Rename FontStyleCount and FontStyles to kCamelCase in all three consumers.
+- **Additional decisions / behavior:** Identifier-only refactor; keep fork TTF cache/lifetime behavior and all font dimensions/values.
+- **Verification:** Full source read; whole-repository consumer search and exact inverse-rename content check passed.
+- **Pending / concerns:** Compile at next checkpoint; no new behavioral test needed for rename-only change.
