@@ -9415,7 +9415,9 @@
       "decisions": [],
       "review_level": "remerge-probe",
       "implementation_status": "history receipt",
-      "port_commits": [],
+      "port_commits": [
+        "93185c989637bf2091daf94963b91878744da82c"
+      ],
       "verification_evidence": [
         "Archived remerge empty; full three-file second-parent delta inspected and matches previously handled U126; singleton ancestry checks."
       ],
@@ -9472,9 +9474,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adapt clear flags",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Actual complete three-file source diff inspected; all old constants absent. Batch 20 full build passed 0 warnings/errors and three selected tests passed, including all 32 masks with serialization, query/execute, erasures and ghosts. Whitespace/ancestry checks."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -9482,7 +9486,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 11bf58dceb588ec4e1d04fa2e247b55979cbb0bc",
+      "implementation_decisions": "Preserve approved D10 bit values and behavior, including independent walls/additions. Serialize and visit holder byte so wire payload width/meaning stays the same; retain fork stream revision 5. No compatibility shim or new gameplay change.",
+      "pending_validation": "Existing U124 live-staff, positive-cost insufficient-funds, embedded-script and interactive debt remains."
     },
     {
       "sha": "a70874710a412bdb62f6179018ee72894aae9ed7",
@@ -26720,8 +26727,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 133,
-    "remaining_after_receipt": 228,
+    "accounted_in_this_tree": 134,
+    "remaining_after_receipt": 227,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

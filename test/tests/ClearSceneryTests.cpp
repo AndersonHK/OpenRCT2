@@ -70,7 +70,7 @@ TEST(ClearScenery, EveryMaskKeepsWallAndPathAdditionSelectionsIndependentAfterSe
         elements.push_back(ghostPath);
         ASSERT_EQ(ReplaceTileElementsAt(tile, std::move(elements)), TileMutationStatus::ok);
 
-        ClearAction original(MapRange{ coords, coords }, mask);
+        ClearAction original(MapRange{ coords, coords }, ClearableItems{ mask });
         DataSerialiser writer(true);
         original.Serialise(writer);
         writer.GetStream().SetPosition(0);

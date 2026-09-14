@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 133 / 361 source commits recorded
+## Progress: 134 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1481,10 +1481,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U133 — `8839956721` — Merge pull request #26886 from Harry-Hopkinson/remove-more-includes
 
 - **Source:** `8839956721913ef48e6981477339a01f6f39e4f5`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `93185c989637bf2091daf94963b91878744da82c`.
 - **Remaining:** 229 → 228.
 - **Disposition:** history receipt.
 - **Manual changes:** Record header-cleanup branch merge; no new manual source change.
 - **Additional decisions / behavior:** Preserve separately integrated fork tree. Merge difference from second parent is only U126 changelog, 1G reset and upstream stream bump; U126 already handled with fork stream 5 retained.
 - **Verification:** Archived remerge empty; full three-file second-parent delta inspected and matches previously handled U126; singleton ancestry checks.
 - **Pending / concerns:** Batch 19 build and 61 tests cover constituent ports.
+
+### U134 — `11bf58dceb` — Refactor CLEARABLE_ITEMS into enum class+FlagHolder
+
+- **Source:** `11bf58dceb588ec4e1d04fa2e247b55979cbb0bc`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 228 → 227.
+- **Disposition:** adapt clear flags.
+- **Manual changes:** Replace clear bit constants with scoped ClearableItem/uint8 FlagHolder; update UI, action predicates, visitor and serializer; adapt fork regression raw-mask constructor.
+- **Additional decisions / behavior:** Preserve approved D10 bit values and behavior, including independent walls/additions. Serialize and visit holder byte so wire payload width/meaning stays the same; retain fork stream revision 5. No compatibility shim or new gameplay change.
+- **Verification:** Actual complete three-file source diff inspected; all old constants absent. Batch 20 full build passed 0 warnings/errors and three selected tests passed, including all 32 masks with serialization, query/execute, erasures and ghosts. Whitespace/ancestry checks.
+- **Pending / concerns:** Existing U124 live-staff, positive-cost insufficient-funds, embedded-script and interactive debt remains.
