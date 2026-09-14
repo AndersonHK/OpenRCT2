@@ -682,7 +682,7 @@ namespace OpenRCT2
                 }
                 if (previousCarIsInverted != flags.has(VehicleFlag::carIsInverted))
                 {
-                    EntityTweener::Get().RemoveEntity(this);
+                    EntityTweener::get().removeEntity(this);
                 }
             }
         }
@@ -1060,7 +1060,7 @@ namespace OpenRCT2
                 }
                 if (previousCarIsInverted != flags.has(VehicleFlag::carIsInverted))
                 {
-                    EntityTweener::Get().RemoveEntity(this);
+                    EntityTweener::get().removeEntity(this);
                 }
             }
 

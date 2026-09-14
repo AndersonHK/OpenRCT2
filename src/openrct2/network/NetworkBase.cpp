@@ -2895,7 +2895,7 @@ namespace OpenRCT2::Network
             auto& gameState = getGameState();
             importer->Import(gameState);
 
-            EntityTweener::Get().Reset();
+            EntityTweener::get().reset();
             MapAnimations::MarkAllTiles();
 
             gLastAutoSaveUpdate = kAutosavePause;

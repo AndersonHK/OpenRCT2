@@ -922,7 +922,7 @@ namespace OpenRCT2
                 gFirstTimeSaving = true;
                 GameFixSaveVars();
                 MapAnimations::MarkAllTiles();
-                EntityTweener::Get().Reset();
+                EntityTweener::get().reset();
                 gScreenAge = 0;
                 gLastAutoSaveUpdate = kAutosavePause;
 
@@ -1404,9 +1404,9 @@ namespace OpenRCT2
             if (_variableFrame)
             {
                 // Fixed frames need authoritative end-of-tick positions.
-                auto& tweener = EntityTweener::Get();
-                tweener.Restore();
-                tweener.Reset();
+                auto& tweener = EntityTweener::get();
+                tweener.restore();
+                tweener.reset();
             }
             _variableFrame = useVariableFrame;
             return useVariableFrame;
@@ -1891,7 +1891,7 @@ namespace OpenRCT2
         {
             PROFILED_FUNCTION();
 
-            auto& tweener = EntityTweener::Get();
+            auto& tweener = EntityTweener::get();
 
             ProcessMessages();
 
@@ -1900,8 +1900,8 @@ namespace OpenRCT2
             {
                 // A completed logical tick must never begin from presentation-only interpolated coordinates, including when
                 // VSync has not yet requested another frame.
-                tweener.Restore();
-                tweener.Reset();
+                tweener.restore();
+                tweener.reset();
                 canTween = false;
             }
             while (_ticksAccumulator >= updateTime)
@@ -1912,7 +1912,7 @@ namespace OpenRCT2
                 const bool captureTween = shouldDraw && _ticksAccumulator < (2.0f * updateTime);
                 if (captureTween)
                 {
-                    tweener.PreTick();
+                    tweener.preTick();
                 }
 
                 Tick();
@@ -1925,7 +1925,7 @@ namespace OpenRCT2
                     if (continueVariableFrame)
                     {
                         // Get the next position of each sprite only when this frame can consume the endpoints.
-                        tweener.PostTick();
+                        tweener.postTick();
                         canTween = true;
                     }
                     else
@@ -1933,7 +1933,7 @@ namespace OpenRCT2
                         // The tick left every entity at its authoritative post-tick position. Fixed-frame mode cannot use the
                         // captured pre-tick positions, so discard them without rescanning visible entities or restoring
                         // positions which have not been tweened.
-                        tweener.Reset();
+                        tweener.reset();
                         canTween = false;
                     }
                 }
@@ -1969,7 +1969,7 @@ namespace OpenRCT2
                 if (useVariableFrame && canTween)
                 {
                     const float alpha = std::min(_ticksAccumulator / updateTime, 1.0f);
-                    tweener.Tween(alpha);
+                    tweener.tween(alpha);
                 }
 
                 Draw();

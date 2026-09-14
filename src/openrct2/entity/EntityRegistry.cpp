@@ -686,7 +686,7 @@ namespace OpenRCT2
         freeEntity(*entity);
         CancelEntitySpatialIndexUpdate(*entity);
 
-        EntityTweener::Get().RemoveEntity(entity);
+        EntityTweener::get().removeEntity(entity);
         auto& list = gEntityLists[EnumValue(type)];
         Guard::Assert(list.erase(id), "Entity %u was not in its typed list", id.ToUnderlying());
         auto& executionList = _entityExecutionLists[EnumValue(type)];

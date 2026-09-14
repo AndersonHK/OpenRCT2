@@ -21140,7 +21140,9 @@
       "decisions": [],
       "review_level": "remerge-probe",
       "implementation_status": "history receipt",
-      "port_commits": [],
+      "port_commits": [
+        "68f53010b31dd1674a8b4bd65e16454b62f09e33"
+      ],
       "verification_evidence": [
         "Both parent sources already accounted; B71 covers the merged encoding state with full solution and 39 passing tests."
       ],
@@ -21202,9 +21204,11 @@
       "note": "Rename entity registry/tweener APIs across fork pool, checksums, presentation snapshots and visual lifecycle consumers.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "B72: complete-file token proof, 82 source and 57 fork substitutions across 13 files; solution 17.12 seconds zero warnings/errors; all 47 selected play/save/script tests pass in 18.005 seconds."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -21223,7 +21227,10 @@
         "src/openrct2/world/Map.cpp",
         "test/tests/PlayTests.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 144aebc9df497381fafb4c8643d9a0a3ba6cfe7b",
+      "implementation_decisions": "Preserve fork execution lists, visibility, moving-entity compaction, moveToForTween and owned presentation lifecycle. Already-camelCase private members retain fork names; absent upstream AddEntity is not introduced.",
+      "pending_validation": "Native interpolation, live MP/replay and non-Windows remain standing."
     },
     {
       "sha": "01b4f05421347b6154ff4d2801d8a11553c99ce3",
@@ -27819,8 +27826,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 290,
-    "remaining_after_receipt": 71,
+    "accounted_in_this_tree": 291,
+    "remaining_after_receipt": 70,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

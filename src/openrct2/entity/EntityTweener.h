@@ -15,8 +15,8 @@
 
 namespace OpenRCT2
 {
-    // Simulation positions remain authoritative. PreTick restores any presentation-only interpolation before capturing the
-    // visible set; PostTick then compacts it to entities that actually moved, which Tween may temporarily reposition.
+    // Simulation positions remain authoritative. preTick restores any presentation-only interpolation before capturing the
+    // visible set; postTick then compacts it to entities that actually moved, which tween may temporarily reposition.
     class EntityTweener
     {
     private:
@@ -24,17 +24,17 @@ namespace OpenRCT2
         std::vector<CoordsXYZ> _prePositions;
         std::vector<CoordsXYZ> _postPositions;
 
-        void PopulateEntities();
+        void populateEntities();
 
     public:
-        static EntityTweener& Get();
+        static EntityTweener& get();
 
-        void PreTick();
-        void PostTick();
-        void RemoveEntity(EntityBase* entity);
-        void Tween(float alpha);
-        void Restore();
-        void Reset();
+        void preTick();
+        void postTick();
+        void removeEntity(EntityBase* entity);
+        void tween(float alpha);
+        void restore();
+        void reset();
     };
 
 } // namespace OpenRCT2

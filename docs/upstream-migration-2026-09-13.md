@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 290 / 361 source commits recorded
+## Progress: 291 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3208,10 +3208,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U290 — `9279d06590` — Merge pull request #27016 from Gymnasiast/refactor/unicode-char-strong-enum-fix-warning
 
 - **Source:** `9279d0659011c8acd42d89c720c46639f3fa53af`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `68f53010b31dd1674a8b4bd65e16454b62f09e33`.
 - **Remaining:** 72 → 71.
 - **Disposition:** history receipt.
 - **Manual changes:** History receipt for the UnicodeChar, CSChar and CodePage merge; U287-U289 already ported.
 - **Additional decisions / behavior:** Actual combined and remerge diffs are empty. No additional resolution changes or owner decision.
 - **Verification:** Both parent sources already accounted; B71 covers the merged encoding state with full solution and 39 passing tests.
 - **Pending / concerns:** Standing non-Windows/native checks only.
+
+### U291 — `144aebc9df` — Convert contents of EntityTweener.h to camelCase (#27029)
+
+- **Source:** `144aebc9df497381fafb4c8643d9a0a3ba6cfe7b`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 71 → 70.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Rename EntityTweener API and all fork callers to camelCase.
+- **Additional decisions / behavior:** Preserve fork execution lists, visibility, moving-entity compaction, moveToForTween and owned presentation lifecycle. Already-camelCase private members retain fork names; absent upstream AddEntity is not introduced.
+- **Verification:** B72: complete-file token proof, 82 source and 57 fork substitutions across 13 files; solution 17.12 seconds zero warnings/errors; all 47 selected play/save/script tests pass in 18.005 seconds.
+- **Pending / concerns:** Native interpolation, live MP/replay and non-Windows remain standing.

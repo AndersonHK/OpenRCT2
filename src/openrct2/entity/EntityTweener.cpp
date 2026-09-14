@@ -21,7 +21,7 @@
 
 namespace OpenRCT2
 {
-    void EntityTweener::PopulateEntities()
+    void EntityTweener::populateEntities()
     {
         sfl::static_vector<Viewport*, kWindowLimitMax> viewports;
         WindowVisitEach([&](WindowBase* window) {
@@ -55,14 +55,14 @@ namespace OpenRCT2
             addEntity(ent);
     }
 
-    void EntityTweener::PreTick()
+    void EntityTweener::preTick()
     {
-        Restore();
-        Reset();
-        PopulateEntities();
+        restore();
+        reset();
+        populateEntities();
     }
 
-    void EntityTweener::PostTick()
+    void EntityTweener::postTick()
     {
         _postPositions.reserve(_entities.size());
         size_t writeIndex = 0;
@@ -76,7 +76,7 @@ namespace OpenRCT2
             if (_prePositions[readIndex] == postPos)
                 continue;
 
-            // Tween and transition restore only need entities which moved during this tick. Compacting the parallel arrays
+            // tween and transition restore only need entities which moved during this tick. Compacting the parallel arrays
             // here avoids rescanning every visible but stationary peep and vehicle for each rendered frame.
             _entities[writeIndex] = ent;
             _prePositions[writeIndex] = _prePositions[readIndex];
@@ -87,7 +87,7 @@ namespace OpenRCT2
         _prePositions.resize(writeIndex);
     }
 
-    void EntityTweener::RemoveEntity(EntityBase* entity)
+    void EntityTweener::removeEntity(EntityBase* entity)
     {
         if (entity->type != EntityType::guest && entity->type != EntityType::staff && entity->type != EntityType::vehicle)
             return;
@@ -97,7 +97,7 @@ namespace OpenRCT2
             *it = nullptr;
     }
 
-    void EntityTweener::Tween(float alpha)
+    void EntityTweener::tween(float alpha)
     {
         const float inv = (1.0f - alpha);
         for (size_t i = 0; i < _entities.size(); ++i)
@@ -116,7 +116,7 @@ namespace OpenRCT2
         }
     }
 
-    void EntityTweener::Restore()
+    void EntityTweener::restore()
     {
         for (size_t i = 0; i < _entities.size(); ++i)
         {
@@ -128,7 +128,7 @@ namespace OpenRCT2
         }
     }
 
-    void EntityTweener::Reset()
+    void EntityTweener::reset()
     {
         _entities.clear();
         _prePositions.clear();
@@ -137,7 +137,7 @@ namespace OpenRCT2
 
     static EntityTweener tweener;
 
-    EntityTweener& EntityTweener::Get()
+    EntityTweener& EntityTweener::get()
     {
         return tweener;
     }

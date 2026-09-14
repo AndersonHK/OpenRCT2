@@ -97,7 +97,7 @@ namespace OpenRCT2
         scriptEngine.ClearParkStorage();
 #endif
 
-        EntityTweener::Get().Reset();
+        EntityTweener::get().reset();
     }
 
     /**
