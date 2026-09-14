@@ -99,7 +99,6 @@ namespace OpenRCT2::GameActions
         if (_loc.z != 0)
         {
             surfaceHeight = _loc.z;
-            res.position.z = surfaceHeight;
         }
 
         if (!LocationValid(_loc))
@@ -166,6 +165,7 @@ namespace OpenRCT2::GameActions
         {
             targetHeight = surfaceHeight;
         }
+        res.position.z = targetHeight;
 
         if (gLegacyScene != LegacyScene::scenarioEditor && !gameState.cheats.sandboxMode
             && !MapIsLocationOwned({ _loc.x, _loc.y, targetHeight }))
@@ -307,7 +307,6 @@ namespace OpenRCT2::GameActions
         if (_loc.z != 0)
         {
             surfaceHeight = _loc.z;
-            res.position.z = surfaceHeight;
         }
 
         auto* sceneryEntry = ObjectEntryManager::GetObjectEntry<SmallSceneryEntry>(_sceneryType);
@@ -356,6 +355,7 @@ namespace OpenRCT2::GameActions
         {
             targetHeight = surfaceHeight;
         }
+        res.position.z = targetHeight;
 
         if (!GetFlags().has(CommandFlag::ghost))
         {

@@ -28,6 +28,7 @@
 #include <openrct2/actions/ride/RideSetPriceAction.h>
 #include <openrct2/actions/ride/RideSetSettingAction.h>
 #include <openrct2/actions/ride/RideSetStatusAction.h>
+#include <openrct2/actions/scenery/SmallSceneryPlaceAction.h>
 #include <openrct2/actions/scenery/WallPlaceAction.h>
 #include <openrct2/actions/terraform/LandSetHeightAction.h>
 #include <openrct2/actions/terraform/WaterSetHeightAction.h>
@@ -42,6 +43,7 @@
 #include <openrct2/entity/Peep.h>
 #include <openrct2/object/ObjectLimits.h>
 #include <openrct2/object/ObjectManager.h>
+#include <openrct2/object/SmallSceneryObject.h>
 #include <openrct2/object/WallObject.h>
 #include <openrct2/ride/Ride.h>
 #include <openrct2/ride/RideData.h>
@@ -57,6 +59,7 @@
 #include <openrct2/world/tile_element/SurfaceElement.h>
 #include <openrct2/world/tile_element/Slope.h>
 #include <openrct2/world/tile_element/TrackElement.h>
+#include <openrct2/world/tile_element/SmallSceneryElement.h>
 #include <openrct2/world/tile_element/WallElement.h>
 #include <sstream>
 #include <string>
@@ -230,6 +233,68 @@ TEST_F(PlayTests, WallPlacementResultUsesResolvedEdgeHeight)
         const auto* wall = MapGetWallElementAt(CoordsXYZD{ 64, 64, test.expectedZ, test.edge });
         ASSERT_NE(wall, nullptr);
         EXPECT_EQ(wall->getBaseZ(), test.expectedZ);
+    }
+}
+
+TEST_F(PlayTests, SmallSceneryPlacementReportsResolvedAndExplicitHeights)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+    auto context = CreateContext();
+    ASSERT_NE(context, nullptr);
+    ASSERT_TRUE(context->Initialise());
+    auto& objects = context->GetObjectManager();
+    auto* object = dynamic_cast<SmallSceneryObject*>(objects.LoadObject("rct2.scenery_small.tl0"));
+    ASSERT_NE(object, nullptr);
+    const auto sceneryType = objects.GetLoadedObjectEntryIndex(object);
+    auto& entry = *static_cast<SmallSceneryEntry*>(object->GetLegacyData());
+    auto& state = getGameState();
+    MapInit({ 16, 16 });
+    state.cheats.sandboxMode = true;
+    struct Case
+    {
+        uint8_t slope;
+        uint8_t quadrant;
+        bool fullTile;
+        int32_t waterZ;
+        int32_t requestedZ;
+        int32_t expectedZ;
+    };
+    // Stackable fixture isolates height reporting from object-specific support restrictions.
+    const Case cases[] = {
+        { 0, 0, true, 0, 0, 112 },
+        { kTileSlopeNESideUp, 0, true, 0, 0, 120 },
+        { kTileSlopeNCornerUp, 2, false, 0, 0, 120 },
+        { kTileSlopeNCornerUp, 0, false, 0, 0, 112 },
+        { 0, 0, true, 144, 0, 144 },
+        { kTileSlopeNESideUp, 0, true, 0, 160, 160 },
+        { 0, 2, false, 144, 176, 176 },
+    };
+    for (const auto& test : cases)
+    {
+        SCOPED_TRACE(test.expectedZ);
+        entry.flags = { SmallSceneryFlag::isStackable };
+        entry.flags.set(SmallSceneryFlag::occupiesFullTile, test.fullTile);
+        auto surface = *MapGetNthElementAt({ 64, 64 }, 0);
+        surface.asSurface()->setSlope(test.slope);
+        surface.asSurface()->setWaterHeight(test.waterZ);
+        ASSERT_EQ(ReplaceTileElementsAt({ 2, 2 }, { surface }), TileMutationStatus::ok);
+        GameActions::SmallSceneryPlaceAction action(
+            { 64, 64, test.requestedZ, 0 }, test.quadrant, sceneryType, Drawing::Colour::black, Drawing::Colour::black,
+            Drawing::Colour::black);
+        const auto query = action.Query(state, state.park);
+        ASSERT_EQ(query.error, GameActions::Status::ok);
+        EXPECT_EQ(query.position, (CoordsXYZ{ 80, 80, test.expectedZ }));
+        EXPECT_EQ(query.cost, entry.price);
+        EXPECT_TRUE(MapGetNthElementAt({ 64, 64 }, 0)->isLastForTile());
+        const auto result = action.Execute(state, state.park);
+        ASSERT_EQ(result.error, GameActions::Status::ok);
+        EXPECT_EQ(result.position, query.position);
+        EXPECT_EQ(result.cost, query.cost);
+        EXPECT_EQ(result.getData<GameActions::SmallSceneryPlaceActionResult>().BaseHeight, test.expectedZ);
+        const auto* placed = MapGetNthElementAt({ 64, 64 }, 1)->asSmallScenery();
+        ASSERT_NE(placed, nullptr);
+        EXPECT_EQ(placed->getBaseZ(), test.expectedZ);
     }
 }
 

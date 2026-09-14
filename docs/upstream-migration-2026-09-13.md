@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 215 / 361 source commits recorded
+## Progress: 216 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2383,10 +2383,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U215 — `d005dda508` — Merge Localisation/master into OpenRCT2/develop
 
 - **Source:** `d005dda5083f28cd3ed7442804241b6c3f3efdb0`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `c44799a5c817dabcde9bed517160076e6cb9877e`.
 - **Remaining:** 147 → 146.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Added the three source Spanish and French path-addition / HUD panel translations, IDs 7040–7042.
 - **Additional decisions / behavior:** Current-commit additions only; fork IDs 8000–8041 remain untouched. No gameplay behavior change.
 - **Verification:** Read full source patch; each locale receives exactly three additions and diff whitespace checks pass.
 - **Pending / concerns:** No additional checks required for these text-only additions; existing HUD integration debt remains.
+
+### U216 — `7bf6a4b4fb` — Fix result.position.z of SmallSceneryPlaceAction (#26958)
+
+- **Source:** `7bf6a4b4fbf0b0b384c7635629be0b1a50b86297`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 146 → 145.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Resolve small-scenery Query/Execute result Z from the actual placement target; API 121; upstream changelog; seven-case placement regression test.
+- **Additional decisions / behavior:** Assign result Z after the automatic-height conditional, avoiding the source regression for explicit raised placement. Preserve fork clearance, safe insertion, cost and quantization. Protocol 11/save 60016 unchanged. See B47.
+- **Verification:** Complete source reviewed; B47 solution build 25.76s, zero warnings/errors; 46 tests in four suites passed, including seven independent scenery cases and U212 downloader regressions. U213 compile debt cleared.
+- **Pending / concerns:** Actual rendered scenery feedback and multiplayer marker behavior remain unverified; consolidated validation limits continue.

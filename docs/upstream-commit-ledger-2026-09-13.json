@@ -16031,7 +16031,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "c44799a5c817dabcde9bed517160076e6cb9877e"
+      ],
       "verification_evidence": [
         "Read full source patch; each locale receives exactly three additions and diff whitespace checks pass."
       ],
@@ -16072,9 +16074,11 @@
       "note": "Return actual resolved placement Z from Query and Execute; preserve fork safe handles and placement mutation ordering.",
       "decisions": [],
       "review_level": "targeted-code-review",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Complete source reviewed; B47 solution build 25.76s, zero warnings/errors; 46 tests in four suites passed, including seven independent scenery cases and U212 downloader regressions. U213 compile debt cleared."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -16084,7 +16088,10 @@
       "merge_conflict_paths": [
         "src/openrct2/actions/scenery/SmallSceneryPlaceAction.cpp"
       ],
-      "verification_gate": "P3"
+      "verification_gate": "P3",
+      "port_commit_locator": "Upstream-Commit: 7bf6a4b4fbf0b0b384c7635629be0b1a50b86297",
+      "implementation_decisions": "Assign result Z after the automatic-height conditional, avoiding the source regression for explicit raised placement. Preserve fork clearance, safe insertion, cost and quantization. Protocol 11/save 60016 unchanged. See B47.",
+      "pending_validation": "Actual rendered scenery feedback and multiplayer marker behavior remain unverified; consolidated validation limits continue."
     },
     {
       "sha": "54b7abd25ae34ab15fd06ced429c6d5bf9e1b710",
@@ -27294,8 +27301,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 215,
-    "remaining_after_receipt": 146,
+    "accounted_in_this_tree": 216,
+    "remaining_after_receipt": 145,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
