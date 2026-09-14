@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 332 / 361 source commits recorded
+## Progress: 333 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3670,10 +3670,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U332 — `c25762467a` — Fix #27093: Pause and fast forward buttons are shown in multiplayer
 
 - **Source:** `c25762467a5b44141a73ebc01307703531b4f1e1`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `21b2a86cbd95396d14cd2d30669cd9bb0e2c0eee`.
 - **Remaining:** 30 → 29.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Recorded the multiplayer toolbar restrictions already present in the fork and added the changelog.
 - **Additional decisions / behavior:** D07: existing switch matches upstream restrictions; default setHidden equals true. Keep the fork applying restrictions after settings/editor visibility instead of restoring the source early editor return. Preserve local speed/turbo handlers and fork toolbar sizing fixes.
 - **Verification:** Inspected source and fork complete ApplyNetworkMode, Widget default argument and provenance. Source code unchanged, already covered by B90 full suite/build.
+- **Pending / concerns:** None.
+
+### U333 — `255928221c` — Merge pull request #27104 from Gymnasiast/fix/27093
+
+- **Source:** `255928221c7d4e72d1b8fda1ef7e7f53be4b3612`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 29 → 28.
+- **Disposition:** history receipt.
+- **Manual changes:** Reconciled the multiplayer-toolbar merge after the U332 equivalence audit.
+- **Additional decisions / behavior:** Actual remerge is empty; preserve existing fork restrictions and visibility settings.
+- **Verification:** Actual remerge inspection; U332 source/fork equivalence audit.
 - **Pending / concerns:** None.
