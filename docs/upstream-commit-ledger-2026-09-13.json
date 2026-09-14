@@ -18176,7 +18176,9 @@
       "decisions": [],
       "review_level": "targeted-code-review",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "37a0147a92649df89105f5b44be7f3058c6f0527"
+      ],
       "verification_evidence": [
         "Full source and sanitizer/storage consumers inspected. Production solution build passed; final registered test-project build 7.51s zero warnings/errors; both platform tests passed 0.119s after registration/include correction. Earlier 35 Play/Downloader tests passed separately. B59."
       ],
@@ -18216,9 +18218,11 @@
       "note": "No remerge-resolution delta detected. Account for constituent commits before ancestry reconciliation.",
       "decisions": [],
       "review_level": "remerge-probe",
-      "implementation_status": "not-ported",
+      "implementation_status": "history receipt",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Empty remerge delta and empty second-parent tree delta inspected. U262 production build and repository path tests passed B59."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -18226,7 +18230,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P0"
+      "verification_gate": "P0",
+      "port_commit_locator": "Upstream-Commit: 8e40456478268022cd2c29cd23ac5bde50f2740d",
+      "implementation_decisions": "No independent resolution; retain U262 tests and Windows test registration.",
+      "pending_validation": "U262 and standing validation limits remain."
     },
     {
       "sha": "c7bee6257df77a5ada33d1475b802c5d2ab49252",
@@ -27623,8 +27630,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 262,
-    "remaining_after_receipt": 99,
+    "accounted_in_this_tree": 263,
+    "remaining_after_receipt": 98,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
