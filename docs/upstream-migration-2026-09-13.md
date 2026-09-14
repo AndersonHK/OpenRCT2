@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 240 / 361 source commits recorded
+## Progress: 241 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2658,10 +2658,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U240 — `d414239d5b` — Fix #18197: Track Designs Manager does not autoload scenery
 
 - **Source:** `d414239d5b5a25c312988e91dac976490c6c3f14`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `111cea033eba291a29cb92be0e0391785dccadf1`.
 - **Remaining:** 122 → 121.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Autoload mapped normal/queue surfaces and railings for legacy official paths, load the design station object, and allow custom legacy paths without a separate railing object.
 - **Additional decisions / behavior:** Use existing configured ObjectManager/repository lookups for every asset, preserving our objects fork. Official mapping uses the existing legacy-name mapping table; unmapped custom DAT paths retain normal loading. Existing transient unload, manager-only trigger, temporary-map restoration and fallback surface rules remain.
 - **Verification:** Full source and current loader/fallback/preview ownership inspected; ObjectManager overloads resolve through the configured repository. Only source loader/secondary-index delta and changelog applied.
 - **Pending / concerns:** Compile with next related object-manager checkpoint; actual design previews and custom-DAT/queue/station combinations remain runtime checks.
+
+### U241 — `dc6fd8a913` — Do not reload ride type to ride entry map unless actually loading a ride object
+
+- **Source:** `dc6fd8a913fefe94d87cdc41c29851bdcc9edeec`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 121 → 120.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Rebuild ride-type to ride-entry mapping after individual loads only for ride objects.
+- **Additional decisions / behavior:** Retain scenery-group refresh and all load/unload/reset ownership. Non-ride loads cannot change the ride-only mapping; bulk-load/unload/reset rebuilds remain.
+- **Verification:** Full source and all mapping reset callers inspected; exact guarded call applied in successful individual registration path.
+- **Pending / concerns:** Compile with related object-manager checkpoint; runtime load mapping check pending.

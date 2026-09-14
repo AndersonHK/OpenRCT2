@@ -17194,7 +17194,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "111cea033eba291a29cb92be0e0391785dccadf1"
+      ],
       "verification_evidence": [
         "Full source and current loader/fallback/preview ownership inspected; ObjectManager overloads resolve through the configured repository. Only source loader/secondary-index delta and changelog applied."
       ],
@@ -17233,9 +17235,11 @@
       "note": "Load scenery for track-design manager, rebuild ride-entry map only for ride objects, refresh after deletion; retain temporary-map isolation.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Full source and all mapping reset callers inspected; exact guarded call applied in successful individual registration path."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -17245,7 +17249,10 @@
       "merge_conflict_paths": [
         "src/openrct2/object/ObjectManager.cpp"
       ],
-      "verification_gate": "P7"
+      "verification_gate": "P7",
+      "port_commit_locator": "Upstream-Commit: dc6fd8a913fefe94d87cdc41c29851bdcc9edeec",
+      "implementation_decisions": "Retain scenery-group refresh and all load/unload/reset ownership. Non-ride loads cannot change the ride-only mapping; bulk-load/unload/reset rebuilds remain.",
+      "pending_validation": "Compile with related object-manager checkpoint; runtime load mapping check pending."
     },
     {
       "sha": "d7bba3b92e2f14d7a0987cee11c2457fb31bfc94",
@@ -27469,8 +27476,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 240,
-    "remaining_after_receipt": 121,
+    "accounted_in_this_tree": 241,
+    "remaining_after_receipt": 120,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
