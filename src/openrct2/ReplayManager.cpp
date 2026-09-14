@@ -373,7 +373,7 @@ namespace OpenRCT2
             // Serialise Body.
             DataSerialiser recSerialiser(true);
             Serialise(recSerialiser, *_currentRecording);
-            auto& stream = recSerialiser.GetStream();
+            auto& stream = recSerialiser.getStream();
 
             MemoryStream compressed;
             stream.SetPosition(0);
@@ -746,7 +746,7 @@ namespace OpenRCT2
             serialiser << command.commandIndex;
 
             uint32_t actionType = 0;
-            if (serialiser.IsSaving())
+            if (serialiser.isSaving())
             {
                 if (!command.action)
                 {
@@ -756,7 +756,7 @@ namespace OpenRCT2
             }
             serialiser << actionType;
 
-            if (serialiser.IsLoading())
+            if (serialiser.isLoading())
             {
                 command.action = Create(static_cast<GameCommand>(actionType));
             }
@@ -809,7 +809,7 @@ namespace OpenRCT2
             uint32_t countCommands = static_cast<uint32_t>(data.commands.size());
             serialiser << countCommands;
 
-            if (serialiser.IsSaving())
+            if (serialiser.isSaving())
             {
                 for (auto& command : data.commands)
                 {
@@ -830,7 +830,7 @@ namespace OpenRCT2
             uint32_t countChecksums = static_cast<uint32_t>(data.checksums.size());
             serialiser << countChecksums;
 
-            if (serialiser.IsLoading())
+            if (serialiser.isLoading())
             {
                 data.checksums.resize(countChecksums);
             }

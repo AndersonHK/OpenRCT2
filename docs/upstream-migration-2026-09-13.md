@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 305 / 361 source commits recorded
+## Progress: 306 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3373,10 +3373,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U305 — `ee15855bf3` — Start v0.5.6
 
 - **Source:** `ee15855bf32cce8f986fb675371876f9e957ac02`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `fa7c4bc1984cbd8be3bb06e0b3c62870fee76434`.
 - **Remaining:** 57 → 56.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Add the upstream 0.5.6 in-development changelog section.
 - **Additional decisions / behavior:** Header only. Binary/package version remains 0.5.5, protocol0.5.5-andersonhk-11, save60016/API122; do not label this a released 0.5.6 build.
 - **Verification:** Read exact three-line insertion; no runtime change.
 - **Pending / concerns:** None specific to this documentation.
+
+### U306 — `369341a019` — Rename DataSerialiser method (#27058)
+
+- **Source:** `369341a01916a11579a5815caa2f1169b2c94465`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 56 → 55.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Rename DataSerialiser and tag methods across production and fork regression callers.
+- **Additional decisions / behavior:** Only identifier changes. Preserve serialization bytes/order, log tag text and independent ObjectAsset API. Fork protocol remains 0.5.5-andersonhk-11.
+- **Verification:** B78: complete-file source/fork token proof 28/31 substitutions, 12/14 files; solution 70.81 seconds zero warnings/errors; 41 play/save/network/clear-mask tests pass 13.190 seconds.
+- **Pending / concerns:** Standing non-Windows, native and live MP/replay checks.

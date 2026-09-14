@@ -24037,7 +24037,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "fa7c4bc1984cbd8be3bb06e0b3c62870fee76434"
+      ],
       "verification_evidence": [
         "Read exact three-line insertion; no runtime change."
       ],
@@ -24092,9 +24094,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "B78: complete-file source/fork token proof 28/31 substitutions, 12/14 files; solution 70.81 seconds zero warnings/errors; 41 play/save/network/clear-mask tests pass 13.190 seconds."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -24106,7 +24110,10 @@
         "src/openrct2/entity/Peep.cpp",
         "src/openrct2/network/NetworkBase.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 369341a01916a11579a5815caa2f1169b2c94465",
+      "implementation_decisions": "Only identifier changes. Preserve serialization bytes/order, log tag text and independent ObjectAsset API. Fork protocol remains 0.5.5-andersonhk-11.",
+      "pending_validation": "Standing non-Windows, native and live MP/replay checks."
     },
     {
       "sha": "453ddb49b8c611c0135051bccdad5294db6b530c",
@@ -27924,8 +27931,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 305,
-    "remaining_after_receipt": 56,
+    "accounted_in_this_tree": 306,
+    "remaining_after_receipt": 55,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

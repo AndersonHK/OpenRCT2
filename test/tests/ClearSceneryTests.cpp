@@ -73,8 +73,8 @@ TEST(ClearScenery, EveryMaskKeepsWallAndPathAdditionSelectionsIndependentAfterSe
         ClearAction original(MapRange{ coords, coords }, ClearableItems{ mask });
         DataSerialiser writer(true);
         original.Serialise(writer);
-        writer.GetStream().SetPosition(0);
-        DataSerialiser reader(false, writer.GetStream());
+        writer.getStream().SetPosition(0);
+        DataSerialiser reader(false, writer.getStream());
         ClearAction action;
         action.Serialise(reader);
 

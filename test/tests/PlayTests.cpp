@@ -1496,7 +1496,7 @@ TEST_F(PlayTests, NormalisedOwnershipActionsPreserveAllLandCostTransitions)
             original.AcceptParameters(parameter);
             DataSerialiser writer(true);
             original.Serialise(writer);
-            auto& stream = writer.GetStream();
+            auto& stream = writer.getStream();
             stream.SetPosition(stream.GetLength() - 1);
             EXPECT_EQ(stream.ReadValue<uint8_t>(), desired);
             stream.SetPosition(0);
