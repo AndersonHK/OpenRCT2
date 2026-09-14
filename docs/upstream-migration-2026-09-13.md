@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 272 / 361 source commits recorded
+## Progress: 273 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3010,10 +3010,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U272 — `1ce70b8bf8` — Redesign f-with-hook (guilder) glyph
 
 - **Source:** `1ce70b8bf8c5ad282ffc47850501a5ce885154d2`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `dc32f5a0621401075c707299e76f8dfb6c0d5927`.
 - **Remaining:** 90 → 89.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Adopt exact redesigned bold/tiny guilder PNGs and manifest offsets; validate Hryvnia and guilder loaded glyphs with rebuilt archive.
 - **Additional decisions / behavior:** Text appearance/width changes only: bold guilder x=-1, tiny y=0; small unchanged. Source-parent bytes verified before replacement and bold before/after viewed. Currency arithmetic and values remain unchanged.
 - **Verification:** Solution build 27.24s zero warnings/errors; fonts.dat and manifest 1023 entries/all paths valid; ten language/loaded-glyph tests passed 0.115s. B62.
 - **Pending / concerns:** Actual text rendering/TTF/packaging/non-Windows and standing interactive/MP/replay checks remain.
+
+### U273 — `550fe4be85` — Merge pull request #27015 from Gymnasiast/more-sprite-font-characters
+
+- **Source:** `550fe4be8588a5f176fff1e00b8bd41f9427051f`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 89 → 88.
+- **Disposition:** history receipt.
+- **Manual changes:** History receipt for the individually inspected U267-U272 font changes.
+- **Additional decisions / behavior:** No independent resolution; keep exact asset changes and fork regression fixtures.
+- **Verification:** Empty remerge delta and empty second-parent tree difference inspected. Constituents reviewed in order; final B62 build/font archive/glyph tests passed.
+- **Pending / concerns:** Standing text rendering/TTF/packaging/platform/MP/replay checks remain.
