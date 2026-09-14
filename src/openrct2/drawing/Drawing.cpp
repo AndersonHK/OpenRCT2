@@ -9,25 +9,20 @@
 
 #include "Drawing.h"
 
-#include "../Context.h"
 #include "../Game.h"
 #include "../GameState.h"
 #include "../SpriteIds.h"
-#include "../config/Config.h"
 #include "../interface/ScreenCoords.hpp"
 #include "../platform/Platform.h"
 #include "Drawing.Sprite.h"
 #include "FilterPaletteIds.h"
 #include "Font.h"
-#include "NewDrawing.h"
-#include "Palette.h"
+#include "Line.h"
 #include "Rectangle.h"
 #include "RenderTarget.h"
 #include "Text.h"
 
-#include <array>
 #include <cassert>
-#include <cstring>
 
 using namespace OpenRCT2;
 using namespace OpenRCT2::Drawing;

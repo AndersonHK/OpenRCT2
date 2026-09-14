@@ -25053,7 +25053,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "a4e104ee67d591db3d5ff3a34f46367dc15838ee"
+      ],
       "verification_evidence": [
         "B86: body equivalence, consumer inventory, full solution zero warnings/errors and98 widget/GPU/play/scripting tests passed."
       ],
@@ -25122,9 +25124,11 @@
       "note": "Adopt final palette/screen/line header ownership with fork-only GPU consumers; retain immutable presentation state.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "B87: four-body proof and consumer inventory; solution zero warnings/errors;67 widget/GPU/scripting tests passed."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -25137,7 +25141,10 @@
         "src/openrct2/drawing/NewDrawing.cpp",
         "src/openrct2/libopenrct2.vcxproj"
       ],
-      "verification_gate": "P6"
+      "verification_gate": "P6",
+      "port_commit_locator": "Upstream-Commit: c90ca119eb740d15313a7bcb3d0a5047129e342a",
+      "implementation_decisions": "All four function bodies preserve prior fork tokens, clipping/endpoints/dash arithmetic and drawing-context dispatch. No backend or gameplay change.",
+      "pending_validation": "Standing native line/graph/plugin appearance checks remain."
     },
     {
       "sha": "96ba41b5e6aa82222b525d198478aeeb149f9f9a",
@@ -28029,8 +28036,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 320,
-    "remaining_after_receipt": 41,
+    "accounted_in_this_tree": 321,
+    "remaining_after_receipt": 40,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
