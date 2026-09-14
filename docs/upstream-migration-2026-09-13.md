@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 36 / 361 source commits recorded
+## Progress: 37 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -414,10 +414,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U036 — `8b9bde1f54` — Merge pull request #26856 from Gymnasiast/refactor/enum-class
 
 - **Source:** `8b9bde1f548fd4d9c6ba269a45e47721ee9c0c27`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `8a80e52197a864e6ee65ed6498035ac9fb1bc3e6`.
 - **Remaining:** 326 → 325.
 - **Disposition:** ancestry receipt only.
 - **Manual changes:** No additional product changes; all enum-renaming parents were individually ported in U023-U035.
 - **Additional decisions / behavior:** Do not copy merge tree over fork implementations.
 - **Verification:** Inspected merge metadata and empty remerge diff. HEAD..source contains only this merge.
 - **Pending / concerns:** Naming batch compile follows this receipt.
+
+### U037 — `799002a820` — Fix colour buttons showing up for uncolourable shops with cheats active (#26858)
+
+- **Source:** `799002a820822ad6f9551c1095878ad63f5336a0`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 325 → 324.
+- **Disposition:** adopt.
+- **Manual changes:** Hide ineffective color controls for entries disabling the color tab when no station flags apply; improve shop/entrance preview and cheat visibility-button placement.
+- **Additional decisions / behavior:** Keep the approved Appearance visibility feature for uncolorable shops; restrict the cheat-only track preview to shops and reposition the visibility button alongside entrance previews for rides without track colors. No shop pricing/service behavior changes. Existing caller validates ride entry before HasTrackColour.
+- **Verification:** Inspected all four source hunks and current fork Appearance flow; exact contexts matched. Naming batch build passed 0 warnings/errors in 85.41s. Source/diff/ancestry checks.
+- **Pending / concerns:** Interactive checks for uncolorable shops, entrance-only rides and toggling cheats; compile at next UI checkpoint. Batch05 test results recorded separately.

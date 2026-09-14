@@ -2763,7 +2763,9 @@
       "decisions": [],
       "review_level": "remerge-probe",
       "implementation_status": "ancestry receipt only",
-      "port_commits": [],
+      "port_commits": [
+        "8a80e52197a864e6ee65ed6498035ac9fb1bc3e6"
+      ],
       "verification_evidence": [
         "Inspected merge metadata and empty remerge diff. HEAD..source contains only this merge."
       ],
@@ -2820,9 +2822,11 @@
         "D06"
       ],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected all four source hunks and current fork Appearance flow; exact contexts matched. Naming batch build passed 0 warnings/errors in 85.41s. Source/diff/ancestry checks."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -2832,7 +2836,10 @@
       "merge_conflict_paths": [
         "src/openrct2-ui/windows/Ride.cpp"
       ],
-      "verification_gate": "P5"
+      "verification_gate": "P5",
+      "port_commit_locator": "Upstream-Commit: 799002a820822ad6f9551c1095878ad63f5336a0",
+      "implementation_decisions": "Keep the approved Appearance visibility feature for uncolorable shops; restrict the cheat-only track preview to shops and reposition the visibility button alongside entrance previews for rides without track colors. No shop pricing/service behavior changes. Existing caller validates ride entry before HasTrackColour.",
+      "pending_validation": "Interactive checks for uncolorable shops, entrance-only rides and toggling cheats; compile at next UI checkpoint. Batch05 test results recorded separately."
     },
     {
       "sha": "b782a7dcc9da6a30b2626724604d380316f09ec3",
@@ -26041,8 +26048,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 36,
-    "remaining_after_receipt": 325,
+    "accounted_in_this_tree": 37,
+    "remaining_after_receipt": 324,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
