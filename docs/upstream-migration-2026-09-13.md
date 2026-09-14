@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 286 / 361 source commits recorded
+## Progress: 287 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3164,10 +3164,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U286 — `f219737349` — Fix #7858: dropdown stays open when its parent window is closed (#27027)
 
 - **Source:** `f219737349cdb1d6425f15f219fe3a12cc02444b`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `87f9d8a9f5d4fad7c4143bd410134ba6f3f2f6b5`.
 - **Remaining:** 76 → 75.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Close an active dropdown when its recorded parent window no longer exists; add paired queued-input regression.
 - **Additional decisions / behavior:** Exact source parent-missing cleanup preserves input reset behavior. Paired U285 clamp keeps the grab point inside the canvas without changing snapping or vertical bounds; partial off-screen extent by grab offset remains. See B70.
 - **Verification:** B70 final complete solution 7.17s zero warnings/errors; 25 UI/scripting tests passed in 2.197s. Synthetic SDL resize and real queued outside releases verify both drag bounds/dropdown dismissal and closed-parent cleanup, clearing U285 debt. Initial two fixture compile errors corrected.
 - **Pending / concerns:** Native pointer capture/multi-monitor/rendering and actual plugin/live-MP closure events untested; non-Windows/replay standing. No new owner decision.
+
+### U287 — `abcc8f90ca` — Turn UnicodeChar into a strong enum, rename for codestyle
+
+- **Source:** `abcc8f90caed10382875b8c9e81b9238c6597102`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 75 → 74.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Convert UnicodeChar constants to a char32_t enum class with camelCase names; update font and legacy converter uses.
+- **Additional decisions / behavior:** All 197 values and 194 font/32 legacy mapping entries preserve numeric identity and order. Retain all source casts/EnumValue conversions and fallback paths; no glyph, pricing or text input behavior changes intended. UTF-16 output still follows the existing conversion pipeline.
+- **Verification:** Read enum and consumer changes; programmatic full table/value correspondence passed. Four source files matched source parent exactly before port; existing Drawing.String fork retained outside delta.
+- **Pending / concerns:** Compile and localization/font/import tests at upcoming enum batch checkpoint, including possible char32_t-to-UTF16 narrowing diagnostics. No owner decision.
