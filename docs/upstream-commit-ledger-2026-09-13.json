@@ -20734,7 +20734,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "b311ee83e62fd0d76fea31b1492a961f03b32be8"
+      ],
       "verification_evidence": [
         "Read complete one-line source delta and applied exact text. B57/B58 already validate the corresponding CD ownership payload."
       ],
@@ -20774,9 +20776,11 @@
       "note": "Replace AddFuncs registration with final prototype/class setup; retain fork QuickJS /WX count fixes and verify teardown/re-registration.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "ScObject.hpp matches source exactly. B67 full solution 15.15s zero warnings/errors; final test build 7.92s zero warnings/errors. 22 scripting/path/localization tests passed in 2.392s after fixing only the test expectation; six real fork object types and post-GC access exercised."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -20786,7 +20790,10 @@
       "merge_conflict_paths": [
         "src/openrct2/scripting/bindings/object/ScObject.hpp"
       ],
-      "verification_gate": "P7"
+      "verification_gate": "P7",
+      "port_commit_locator": "Upstream-Commit: 9adbdd643bb2cd3413f2f8952c140d002504d59a",
+      "implementation_decisions": "Preserve getter logic and fork asset lookup. Derived properties become inherited: direct access remains, own-property inspection changes; getters remain non-enumerable/configurable so Object.keys/for-in still omit them. Shared prototype mutation affects sibling instances. Record corrected test enumeration assumption in B67.",
+      "pending_validation": "External plugin own-property reliance, full heap instrumentation, native rendering/non-Windows/MP/replay remain; no new owner decision."
     },
     {
       "sha": "fae5cf0f9d7e181c7e769accb5db4560400716ed",
@@ -27756,8 +27763,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 281,
-    "remaining_after_receipt": 80,
+    "accounted_in_this_tree": 282,
+    "remaining_after_receipt": 79,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

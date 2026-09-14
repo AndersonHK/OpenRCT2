@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 281 / 361 source commits recorded
+## Progress: 282 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3109,10 +3109,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U281 — `4fa8219e1f` — Small changelog correction
 
 - **Source:** `4fa8219e1f571d96488f430ab678de8edea1e51f`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `b311ee83e62fd0d76fea31b1492a961f03b32be8`.
 - **Remaining:** 81 → 80.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Clarify the Okinawa ownership patch changelog entry applies to CD versions of Wacky Worlds.
 - **Additional decisions / behavior:** Documentation-only source correction; actual approved ownership/name patches and economics remain unchanged.
 - **Verification:** Read complete one-line source delta and applied exact text. B57/B58 already validate the corresponding CD ownership payload.
 - **Pending / concerns:** No compile debt or new owner decision.
+
+### U282 — `9adbdd643b` — Remove AddFuncs calls in ScObject.hpp (#26978)
+
+- **Source:** `9adbdd643bb2cd3413f2f8952c140d002504d59a`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 80 → 79.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Move typed object-wrapper getters to registered shared prototypes with base Object finalization and add real object API/GC regression.
+- **Additional decisions / behavior:** Preserve getter logic and fork asset lookup. Derived properties become inherited: direct access remains, own-property inspection changes; getters remain non-enumerable/configurable so Object.keys/for-in still omit them. Shared prototype mutation affects sibling instances. Record corrected test enumeration assumption in B67.
+- **Verification:** ScObject.hpp matches source exactly. B67 full solution 15.15s zero warnings/errors; final test build 7.92s zero warnings/errors. 22 scripting/path/localization tests passed in 2.392s after fixing only the test expectation; six real fork object types and post-GC access exercised.
+- **Pending / concerns:** External plugin own-property reliance, full heap instrumentation, native rendering/non-Windows/MP/replay remain; no new owner decision.

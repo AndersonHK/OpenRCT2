@@ -384,6 +384,78 @@ TEST_F(PathNavigatorScriptingTests, ConstructionPreviewRestoresIdentityAcrossNes
     Check("livePaths[0].current===null && liveConnections[0].isSloped===null && livePaths.slice(1).every(n=>n.current!==null)");
 }
 
+TEST_F(ScriptingTests, ObjectWrappersShareTypedPrototypesAndRetainInheritedGetters)
+{
+    auto& engine = static_cast<ScriptEngine&>(_context->GetScriptEngine());
+    engine.AddNetworkPlugin(R"(
+        registerPlugin({name:'test-object-prototypes', version:'1', authors:['openrct2-test'],
+            type:'remote', licence:'MIT', minApiVersion:122, targetApiVersion:122, main:function(){}});
+    )");
+    engine.LoadTransientPlugins();
+    engine.Tick();
+    auto* js = engine.GetContext();
+    ASSERT_NE(js, nullptr);
+    const char* code = R"(
+        (() => {
+            const cases = [
+                ['rct2.ride.spboat', 'description', v => typeof v === 'string'],
+                ['rct2.scenery_small.tl0', 'height', v => typeof v === 'number'],
+                ['rct2.scenery_large.badrack', 'tiles', v => Array.isArray(v) && v.length > 0],
+                ['rct2.scenery_wall.wcw1', 'sceneryGroups', v => Array.isArray(v)],
+                ['rct2.footpath_surface.tarmac', 'flags', v => typeof v === 'number'],
+                ['rct2.scenery_group.scgclass', 'items', v => Array.isArray(v) && v.length > 0]
+            ];
+            globalThis.retainedObjectWrappers = [];
+            for (const [id, property, validate] of cases) {
+                const first = objectManager.load(id);
+                if (!first) throw new Error('Could not load ' + id);
+                const second = objectManager.getObject(first.type, first.index);
+                if (first === second || Object.getPrototypeOf(first) !== Object.getPrototypeOf(second))
+                    throw new Error('Prototype not shared: ' + id);
+                if (first.identifier !== id || second.identifier !== id || !validate(first[property]))
+                    throw new Error('Inherited getter failed: ' + id);
+                if (Object.prototype.hasOwnProperty.call(first, property) || Object.keys(first).includes(property))
+                    throw new Error('Derived getter still an own property: ' + id);
+                if (Object.getOwnPropertyNames(first).includes(property))
+                    throw new Error('Derived property is still stored on instance: ' + id);
+                const descriptor = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(first), property);
+                if (!descriptor || typeof descriptor.get !== 'function' || descriptor.enumerable || !descriptor.configurable)
+                    throw new Error('Getter descriptor changed: ' + id);
+                const enumerable = [];
+                for (const key in first) enumerable.push(key);
+                if (enumerable.includes(property) || enumerable.includes('identifier'))
+                    throw new Error('Non-enumerable getters became enumerable: ' + id);
+                for (let i = 0; i < 20; i++) {
+                    const copy = objectManager.getObject(first.type, first.index);
+                    if (!validate(copy[property])) throw new Error('Repeated wrapper failed: ' + id);
+                }
+                retainedObjectWrappers.push(first);
+            }
+            return true;
+        })()
+    )";
+    auto result = JS_Eval(js, code, strlen(code), "object-prototype-test", JS_EVAL_TYPE_GLOBAL);
+    if (JS_IsException(result))
+    {
+        auto exception = JS_GetException(js);
+        const char* message = JS_ToCString(js, exception);
+        ADD_FAILURE() << (message == nullptr ? "JS exception" : message);
+        JS_FreeCString(js, message);
+        JS_FreeValue(js, exception);
+    }
+    else
+    {
+        EXPECT_EQ(JS_ToBool(js, result), 1);
+    }
+    JS_FreeValue(js, result);
+    JS_RunGC(JS_GetRuntime(js));
+    const char* afterGc = "retainedObjectWrappers.length === 6 && retainedObjectWrappers.every(o => o.identifier.length > 0)";
+    result = JS_Eval(js, afterGc, strlen(afterGc), "object-prototype-gc-test", JS_EVAL_TYPE_GLOBAL);
+    EXPECT_FALSE(JS_IsException(result));
+    EXPECT_EQ(JS_ToBool(js, result), 1);
+    JS_FreeValue(js, result);
+}
+
 TEST_F(ScriptingTests, MultipleSubscribersToSameEventShouldNotCrash)
 {
     auto& scriptEngine = static_cast<ScriptEngine&>(_context->GetScriptEngine());
