@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 143 / 361 source commits recorded
+## Progress: 144 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1591,10 +1591,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U143 — `5d3903209e` — More enum class conversions (plus a constexpr rename) (#26897)
 
 - **Source:** `5d3903209e66820cdf129ed86c2a4a1f51ce8e4c`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `ccb38d4f6ae6c7723b96147ac35f8ec885c51cb0`.
 - **Remaining:** 219 → 218.
 - **Disposition:** history receipt.
 - **Manual changes:** Record the wall/vehicle enum and RTD rename merge; the implementation is already individually handled in U139-U142.
 - **Additional decisions / behavior:** No further changes; retain fork invalid-door-sound validation and all vehicle/descriptor adaptations.
 - **Verification:** Inspected both merge parents, empty archived remerge and empty tree delta against second parent bb0b26e3f2.
 - **Pending / concerns:** U140-U142 compile/test checkpoint remains pending with the following vehicle rename batch.
+
+### U144 — `5c0fc86397` — Rename CarEntry members to adhere to code style
+
+- **Source:** `5c0fc863979b7c7b9a8675cf69d51661309c0033`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 218 → 217.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Rename 31 CarEntry members and methods across 40 files, including fork-only platform waiting callers; retain all fork implementation expressions.
+- **Additional decisions / behavior:** CarEntry numSeats/poweredAcceleration are distinct from live Vehicle num_seats/powered_acceleration. Preserve fork friction_sound_gain and serialized/JSON/scripting names. No gameplay or protocol change.
+- **Verification:** All 40 source deltas and fork body tokens verified as identifier-only changes. Batch 25 full Release x64 MSVC/Vulkan build: 0 warnings/errors, 86.24 seconds; 204 tests in 12 suites passed in 28.828 seconds. Whitespace check passed.
+- **Pending / concerns:** Interactive vehicle rendering and native non-Windows builds remain unverified; U140-U144 compile/test debt cleared by Batch 25.

@@ -295,7 +295,7 @@ namespace OpenRCT2
 
             const auto* rideEntry = vehicle->GetRideEntry();
 
-            vehicle->speed = (ScenarioRand() & 15) - 8 + rideEntry->Cars[vehicle->vehicle_type].powered_max_speed;
+            vehicle->speed = (ScenarioRand() & 15) - 8 + rideEntry->Cars[vehicle->vehicle_type].poweredMaxSpeed;
             const auto& carEntry = rideEntry->Cars[vehicle->vehicle_type];
             vehicle->var_C0 = carEntry.flags.has(CarEntryFlag::isGoKart)
                 ? RideVehicle::StationDetail::CalculateGoKartRaceStartDelay(ScenarioRand())

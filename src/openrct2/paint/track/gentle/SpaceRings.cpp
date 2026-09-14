@@ -49,8 +49,8 @@ static void PaintSpaceRingsStructure(
     }
 
     int32_t frameNum = direction;
-    uint32_t baseImageId = rideEntry->Cars[0].base_image_id;
-        auto vehicle = GetEntityForPresentation<Vehicle>(ride.vehicles[vehicleIndex]);
+    uint32_t baseImageId = rideEntry->Cars[0].baseImageId;
+    auto vehicle = GetEntityForPresentation<Vehicle>(ride.vehicles[vehicleIndex]);
     if (ride.flags.has(RideFlag::onTrack) && vehicle != nullptr)
     {
         session.InteractionType = ViewportInteractionItem::entity;

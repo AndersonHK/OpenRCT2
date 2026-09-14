@@ -213,7 +213,7 @@ namespace OpenRCT2::Audio
             {
                 param.frictionSoundGain = soundCar->friction_sound_gain;
             }
-            if (rideType->Cars[vehicle.vehicle_type].double_sound_frequency & 1)
+            if (rideType->Cars[vehicle.vehicle_type].doubleSoundFrequency & 1)
             {
                 frequency *= 2;
             }
