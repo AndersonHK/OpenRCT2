@@ -4056,7 +4056,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt naming only",
-      "port_commits": [],
+      "port_commits": [
+        "775be3abdb92559187c244839abcfba8cbceb366"
+      ],
       "verification_evidence": [
         "Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt."
       ],
@@ -4100,9 +4102,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt naming only",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -4113,7 +4117,10 @@
         "src/openrct2/Game.cpp",
         "src/openrct2/ReplayManager.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 2769a3ff8cdf39f028666f5d6da65fb7ad392c70",
+      "implementation_decisions": "Keep normal/silent recording values 0/1, notice visibility, silent replacement behavior, checksum cadence and debug recording defaults. No change to replay contents, file names or capture policy. Also rename the stale RecordType::NORMAL default-argument comment left by upstream; source verification explicitly accounts for this comment-only correction.",
+      "pending_validation": "Compile at next coherent naming batch checkpoint."
     },
     {
       "sha": "331dd2670a7f15a9e980c00ca233f86c760fbe4b",
@@ -26223,8 +26230,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 62,
-    "remaining_after_receipt": 299,
+    "accounted_in_this_tree": 63,
+    "remaining_after_receipt": 298,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

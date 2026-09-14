@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 62 / 361 source commits recorded
+## Progress: 63 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -700,10 +700,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U062 — `0d0498a081` — Rename members of ReplayMode
 
 - **Source:** `0d0498a0819134d2a80919f3e3bda5c3dc11891d`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `775be3abdb92559187c244839abcfba8cbceb366`.
 - **Remaining:** 300 → 299.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename ReplayMode members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Preserve replay modes 0-3, command/checksum tick scheduling, record/playback/normalisation transitions, diagnostics, snapshot comparison and fork timing. Naming only; no replay format or synchronization change.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U063 — `2769a3ff8c` — Rename members of RecordType
+
+- **Source:** `2769a3ff8cdf39f028666f5d6da65fb7ad392c70`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 299 → 298.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename RecordType members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Keep normal/silent recording values 0/1, notice visibility, silent replacement behavior, checksum cadence and debug recording defaults. No change to replay contents, file names or capture policy. Also rename the stale RecordType::NORMAL default-argument comment left by upstream; source verification explicitly accounts for this comment-only correction.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
