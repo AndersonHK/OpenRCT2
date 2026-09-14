@@ -84,3 +84,9 @@ Full Release x64 MSVC/Vulkan build passed, 0 warnings/errors, 79.27 seconds. All
 ## Batch 13 — completed enum group U108
 
 Full Release x64 MSVC/Vulkan build passed, 0 warnings/errors, 77.43 seconds. All 37 selected NetworkTests, ScriptingTests, EntityImportTests and WidgetStateTest tests passed from `bin` in 2.71 seconds. Logs: `obj/upstream-audit/batch-13-enum-completion-build.log`, `batch-13-enum-completion-tests.log` and matching XML. Compilation debt through U108 is clear. This includes the GameCommand ID rename and mini-golf state/animation table substitutions. Clang-tidy was not available on PATH, so the new naming rules have not had a dedicated lint run; the compiler/test pass does not claim that coverage.
+
+## Batch 14 — header cleanup through U113
+
+Initial full build failed with four compiler diagnostics rooted in two fork calls to `GetTrackElementDescriptor` after the proposed removal of `TrackData.h` from RideRatings.cpp. That function is declared in TrackData.h, so the direct include was restored without changing ratings code. The complete Release x64 MSVC/Vulkan rebuild then passed, 0 warnings/errors, 18.59 seconds. Logs: `obj/upstream-audit/batch-14-headers-build.log` and `batch-14-headers-rebuild.log`.
+
+All 154 selected tests passed from `bin` in 19.58 seconds: ratings, pathfinding, park migration, entity import, station/vehicle assignment and legacy localisation. Log/XML: `obj/upstream-audit/batch-14-headers-tests.*`. A token comparison of all 160 changed U113 source paths confirmed only include directives, forward declarations and whitespace changed. No runtime expression or rating coefficient changed. Non-Windows platform compilation and interactive checks remain outside this checkpoint.

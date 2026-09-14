@@ -14,7 +14,6 @@
 #include <cstdint>
 
 struct Ride;
-struct TileCoordsXYZD;
 
 void RideUpdateStation(Ride& ride, StationIndex stationIndex, uint32_t currentTicks, bool wholeSecondTick);
 StationIndex RideGetFirstValidStationExit(const Ride& ride);

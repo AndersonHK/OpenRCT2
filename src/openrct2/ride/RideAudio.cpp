@@ -14,7 +14,6 @@
 #include "../OpenRCT2.h"
 #include "../audio/Audio.h"
 #include "../audio/AudioChannel.h"
-#include "../audio/AudioContext.h"
 #include "../audio/AudioMixer.h"
 #include "../audio/SpatialAudio.h"
 #include "../config/Config.h"

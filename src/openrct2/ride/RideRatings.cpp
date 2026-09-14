@@ -18,7 +18,6 @@
 #include "../core/UnitConversion.h"
 #include "../profiling/Profiling.h"
 #include "../scripting/ScriptEngine.h"
-#include "../ui/WindowManager.h"
 #include "../world/Map.h"
 #include "../world/MapLimits.h"
 #include "../world/Scenery.h"

@@ -10,7 +10,6 @@
 
 #include "../Identifiers.h"
 
-#include <cstdint>
 #include <vector>
 
 struct Vehicle;

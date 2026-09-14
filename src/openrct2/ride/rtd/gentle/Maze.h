@@ -10,10 +10,10 @@
 #pragma once
 
 #include "../../../Limits.h"
-#include "../../../SpriteIds.h"
 #include "../../RideAudio.h"
 #include "../../RideData.h"
 #include "../../RideRatings.h"
+#include "../../RideStringIds.h"
 #include "../../ShopItem.h"
 
 // clang-format off
@@ -54,7 +54,7 @@ constexpr RideTypeDescriptor MazeRTD =
     .ColourPreview = { 0, 0 },
     .ColourKey = RideColourKey::ride,
     .Name = "maze",
-    .RatingsData = 
+    .RatingsData =
     {
         RatingsCalculationType::flatRide,
         { RideRating::make(1, 30), RideRating::make(0, 50), RideRating::make(0, 00) },

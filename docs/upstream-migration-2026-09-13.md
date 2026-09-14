@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 112 / 361 source commits recorded
+## Progress: 113 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1250,10 +1250,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U112 — `5c0caf461a` — Remove openrct2/rct1, openrct2/rct2 and openrct2/rct12 includes
 
 - **Source:** `5c0caf461afb2acc4d704c817b284a2cec6b8467`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `cc475ae5bbf43562fbf7ef321d38e26a3a8bc9c3`.
 - **Remaining:** 250 → 249.
 - **Disposition:** adopt with fork header dependencies retained.
 - **Manual changes:** Apply RCT1/RCT2/RCT12 include narrowing and explicit type declarations at 19 paths.
 - **Additional decisions / behavior:** Keep GuestPathfinding bit for direct std::popcount uses and S4Importer Map.h for map operations. Retain fork save/import recovery and topology invalidation; no logic or format changes.
 - **Verification:** Reviewed source patch and adapted only header/declaration/whitespace blocks; fork-only neighboring includes preserved.
 - **Pending / concerns:** Compile importer/header group and run migration/import regressions.
+
+### U113 — `6323d95edc` — Remove openrct2/ride includes
+
+- **Source:** `6323d95edc0a239031938ff8c20983f5894ecf7d`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 249 → 248.
+- **Disposition:** adopt header cleanup with direct fork dependencies retained.
+- **Manual changes:** Narrow ride headers, add direct declarations/includes to consumers, remove redundant headers and trailing whitespace across 160 paths.
+- **Additional decisions / behavior:** Keep Vehicle.cpp Config.h for fork threaded rating updates and RideRatings.cpp TrackData.h for fork descriptor calls. Already-retained cstring/bit/ctime need no duplicate insertion. Keep TrackDesign.cpp primary self-include, removing only its duplicate. Preserve fork callbacks, station tick parameters, physics, ratings, rendering and all descriptors.
+- **Verification:** All 160 fork token deltas restricted to includes/forward declarations/whitespace. Initial compile exposed missing TrackData declaration; restored it. Full rebuild and all 154 selected tests passed; see validation Batch 14.
+- **Pending / concerns:** Non-Windows platform builds and interactive checks remain unverified.

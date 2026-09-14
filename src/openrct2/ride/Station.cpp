@@ -9,7 +9,6 @@
 
 #include "Station.h"
 
-#include "../Game.h"
 #include "../GameState.h"
 #include "../core/GameTime.hpp"
 #include "../entity/Guest.h"

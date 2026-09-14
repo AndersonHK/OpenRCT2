@@ -32,11 +32,8 @@
 #include <utility>
 #include <vector>
 
-struct IObjectManager;
-struct Ride;
 struct RideTypeDescriptor;
 struct Vehicle;
-struct RideObjectEntry;
 struct ResultWithMessage;
 
 namespace OpenRCT2
