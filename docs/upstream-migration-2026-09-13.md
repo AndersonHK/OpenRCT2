@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 308 / 361 source commits recorded
+## Progress: 309 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3406,10 +3406,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U308 — `48242d86d6` — Refactor PatrolArea.h members and constexpr code style (#27050)
 
 - **Source:** `48242d86d65a5e8638c8cff7b5194d179a797784`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `4ec4ceaddf53a34b87063a7a00bfb94adf33e9bd`.
 - **Remaining:** 54 → 53.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Rename PatrolArea methods/members/constants and all consumers; Union becomes unify.
 - **Additional decisions / behavior:** Preserve all cell dimensions, sorted membership, staff logic and saved coordinates. Pre-existing clear does not reset tileCount in either fork/source: recorded as separate gameplay-correction follow-up, not changed by this spelling port.
 - **Verification:** B79: source/fork full-token proof85 substitutions across6 files; solution19.60 seconds zero warnings/errors; all56 play/save/script/downloader/language tests pass15.150 seconds. Clears U307 build debt.
 - **Pending / concerns:** Pre-existing patrol clear counter follow-up; native/non-Windows/live-MP/replay remain standing.
+
+### U309 — `9f9b14d0b8` — Allow using arrays for ride ids in scenario patches
+
+- **Source:** `9f9b14d0b882296b4250e2ee9b09f4118aec27a4`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 53 → 52.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Support ordered arrays of ride IDs alongside scalars in scenario patches.
+- **Additional decisions / behavior:** Retain duplicates and empty-array no-op, existing uint16 conversion/dry-run and all operation bodies. Preserve formatter cast, full-hash scenario-only import gates and fork topology changes.
+- **Verification:** B80: solution13.48 seconds zero warnings/errors; four scenario tests pass0.489 seconds, including new ordered array/scalar/duplicate/empty/dry-run fixture with unchanged ride state.
+- **Pending / concerns:** Array open/swap paths and original scenarios not individually exercised; standing native/live-MP checks.

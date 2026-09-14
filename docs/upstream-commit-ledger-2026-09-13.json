@@ -24206,7 +24206,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "4ec4ceaddf53a34b87063a7a00bfb94adf33e9bd"
+      ],
       "verification_evidence": [
         "B79: source/fork full-token proof85 substitutions across6 files; solution19.60 seconds zero warnings/errors; all56 play/save/script/downloader/language tests pass15.150 seconds. Clears U307 build debt."
       ],
@@ -24249,9 +24251,11 @@
       "note": "Extend scenario patch schema for ride names, clearing and ID arrays; preserve fork topology changes and import repair.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "B80: solution13.48 seconds zero warnings/errors; four scenario tests pass0.489 seconds, including new ordered array/scalar/duplicate/empty/dry-run fixture with unchanged ride state."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -24261,7 +24265,10 @@
       "merge_conflict_paths": [
         "src/openrct2/rct12/ScenarioPatcher.cpp"
       ],
-      "verification_gate": "P7"
+      "verification_gate": "P7",
+      "port_commit_locator": "Upstream-Commit: 9f9b14d0b882296b4250e2ee9b09f4118aec27a4",
+      "implementation_decisions": "Retain duplicates and empty-array no-op, existing uint16 conversion/dry-run and all operation bodies. Preserve formatter cast, full-hash scenario-only import gates and fork topology changes.",
+      "pending_validation": "Array open/swap paths and original scenarios not individually exercised; standing native/live-MP checks."
     },
     {
       "sha": "6d06f9a15ea2ba9525473483d3e2e6325590a39f",
@@ -27945,8 +27952,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 308,
-    "remaining_after_receipt": 53,
+    "accounted_in_this_tree": 309,
+    "remaining_after_receipt": 52,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

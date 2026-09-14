@@ -1,0 +1,10 @@
+{
+    "scenario_name": "Ride ID array test fixture",
+    "sha256": "fixture-arrays-sha",
+    "rides": [
+        { "id": [24, 26, 24], "operation": "set_name", "name": "Shared – name" },
+        { "id": [26, 27], "operation": "clear_name" },
+        { "id": 27, "operation": "set_name", "name": "Scalar after array" },
+        { "id": [], "operation": "set_name", "name": "Empty array does nothing" }
+    ]
+}

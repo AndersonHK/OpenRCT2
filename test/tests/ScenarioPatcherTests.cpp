@@ -86,6 +86,46 @@ TEST(FetchAndApplyScenarioPatch, RideNameOperationPreservesRideStateAndHonoursDr
     EXPECT_EQ(ride->status, status);
 }
 
+TEST(FetchAndApplyScenarioPatch, RideIdArraysApplyInOrderAndHonourDryRun)
+{
+    using namespace OpenRCT2;
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    for (uint16_t id = 24; id <= 27; ++id)
+    {
+        auto* ride = RideAllocateAtIndex(RideId::FromUnderlying(id));
+        ASSERT_NE(ride, nullptr);
+        ride->type = RIDE_TYPE_SPLASH_BOATS;
+        ride->customName = "Before";
+        ride->numCarsPerTrain = 3;
+        ride->ratingAccumulator.ticks = 123;
+    }
+    const auto patch = Path::Combine(TestData::GetBasePath(), "scenario-ride-arrays.parkpatch");
+    struct ResetDryRun
+    {
+        ~ResetDryRun() { RCT12::SetDryRun(false); }
+    } resetDryRun;
+    RCT12::SetDryRun(true);
+    RCT12::ApplyScenarioPatch(patch, "fixture-arrays-sha");
+    for (uint16_t id = 24; id <= 27; ++id)
+        EXPECT_EQ(GetRide(RideId::FromUnderlying(id))->customName, "Before");
+    RCT12::SetDryRun(false);
+    RCT12::ApplyScenarioPatch(patch, "fixture-arrays-sha");
+    EXPECT_EQ(GetRide(RideId::FromUnderlying(24))->customName, u8"Shared – name");
+    EXPECT_EQ(GetRide(RideId::FromUnderlying(25))->customName, "Before");
+    EXPECT_TRUE(GetRide(RideId::FromUnderlying(26))->customName.empty());
+    EXPECT_EQ(GetRide(RideId::FromUnderlying(27))->customName, "Scalar after array");
+    for (uint16_t id = 24; id <= 27; ++id)
+    {
+        const auto* ride = GetRide(RideId::FromUnderlying(id));
+        EXPECT_EQ(ride->numCarsPerTrain, 3);
+        EXPECT_EQ(ride->ratingAccumulator.ticks, 123u);
+        EXPECT_EQ(ride->status, RideStatus::closed);
+    }
+}
+
 TEST(FetchAndApplyScenarioPatch, OkinawaCdPatchAppliesApprovedStartingOwnership)
 {
     using namespace OpenRCT2;
