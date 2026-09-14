@@ -13779,7 +13779,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "c4ef1030819f49d399157b30dd6993d5d35a88ed"
+      ],
       "verification_evidence": [
         "Reviewed both actual source patches, fork deltas and the previously checked FlagHolder bool setter and bit masks. No caller or accounting algorithm is replaced; receipt whitespace/ancestry gates apply."
       ],
@@ -13819,9 +13821,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Reviewed both full source diffs and all raw-flag consumers. Post-port PathElement.cpp matches this source commit; header differs only by the two existing fork bin-helper declarations. FlagHolder operations retain the original masks; ancestry and whitespace gates apply."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -13831,7 +13835,10 @@
       "merge_conflict_paths": [
         "src/openrct2/world/tile_element/PathElement.h"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 1bf29b9afebe3c2cd7d7ddc11510ac30c5f2cbb0",
+      "implementation_decisions": "Preserve all seven bit positions 0..6, unused bit 7, one-byte storage, legacy surface/railings null handling and every setter result. Fork IsBin/HasFullBinSlot declarations and implementations remain. No path connection, fare routing, blockage, staff work, ghost or clearance rule change.",
+      "pending_validation": "B32 build and path/topology/clearance/import/gameplay regressions pending; interactive and non-Windows checks retained."
     },
     {
       "sha": "4d7866e3ad4428270840a757022dc46b6ab18c2e",
@@ -27021,8 +27028,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 176,
-    "remaining_after_receipt": 185,
+    "accounted_in_this_tree": 177,
+    "remaining_after_receipt": 184,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
