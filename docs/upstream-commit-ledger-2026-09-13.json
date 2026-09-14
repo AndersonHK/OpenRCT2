@@ -10049,7 +10049,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "a122ba9e8c192d24e23ce511f71493c9ec88f8b9"
+      ],
       "verification_evidence": [
         "Inspected the complete one-file source patch; searched all src/test consumers and verified numeric identity. Batch 24 audio/object validation is the prior checkpoint."
       ],
@@ -10107,9 +10109,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected complete 13-file source diff and every fork delta. Numeric/default/read widths are unchanged; no stale old field or enum callers remain (one historical comment retains its spelling). Whitespace check passes."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -10123,7 +10127,10 @@
         "src/openrct2/ride/Vehicle.h",
         "src/openrct2/scripting/bindings/object/ScObject.hpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 8b4b1c6561b407359dc3198dfc09ee2737bc27d2",
+      "implementation_decisions": "Preserve values 0-9 and 15-17 for paint styles, 1 and 10-14 for effects, JSON defaults 0/1, legacy spinner reset and the existing spinning-car object restriction. Default switch branches keep unrecognized values as no-op. Keep all fork CarEntry fields, costs, kart gain and render algorithms.",
+      "pending_validation": "Compile and regression-test with the following RTD/vehicle rename batch; interactive vehicle effects and native non-Windows remain unverified."
     },
     {
       "sha": "bb0b26e3f2155d180cefce6cfe9e8fd0f35b294d",
@@ -26769,8 +26776,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 140,
-    "remaining_after_receipt": 221,
+    "accounted_in_this_tree": 141,
+    "remaining_after_receipt": 220,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

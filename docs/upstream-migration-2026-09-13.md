@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 140 / 361 source commits recorded
+## Progress: 141 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1558,10 +1558,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U140 — `d4c67d9b8d` — Turn FrictionSound into enum class
 
 - **Source:** `d4c67d9b8df443306e439c3c30e52100c9e041a2`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `a122ba9e8c192d24e23ce511f71493c9ec88f8b9`.
 - **Remaining:** 222 → 221.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Replace the nine unused global friction-sound constants with the uint8 FrictionSound enum class in Vehicle.h.
 - **Additional decisions / behavior:** All numeric values remain 1,2,21,31,32,54,57,65,255. There are no old-constant consumers. Keep existing CarEntry audio identifiers, spatial audio and object-owned kart gain unchanged.
 - **Verification:** Inspected the complete one-file source patch; searched all src/test consumers and verified numeric identity. Batch 24 audio/object validation is the prior checkpoint.
 - **Pending / concerns:** Compile with the following vehicle type/rename batch; no new runtime behavior.
+
+### U141 — `8b4b1c6561` — Refactor VEHICLE_VEHICLE_* to two enum classes
+
+- **Source:** `8b4b1c6561b407359dc3198dfc09ee2737bc27d2`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 221 → 220.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Split vehicle paint style and splash-effect identifiers into two uint8 enum classes; rename the two CarEntry fields and adapt JSON/DAT readers, draw dispatch, construction availability, defaults and numeric script getters across 13 files.
+- **Additional decisions / behavior:** Preserve values 0-9 and 15-17 for paint styles, 1 and 10-14 for effects, JSON defaults 0/1, legacy spinner reset and the existing spinning-car object restriction. Default switch branches keep unrecognized values as no-op. Keep all fork CarEntry fields, costs, kart gain and render algorithms.
+- **Verification:** Inspected complete 13-file source diff and every fork delta. Numeric/default/read widths are unchanged; no stale old field or enum callers remain (one historical comment retains its spelling). Whitespace check passes.
+- **Pending / concerns:** Compile and regression-test with the following RTD/vehicle rename batch; interactive vehicle effects and native non-Windows remain unverified.
