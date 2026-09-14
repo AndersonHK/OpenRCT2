@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 209 / 361 source commits recorded
+## Progress: 210 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2317,10 +2317,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U209 — `911afdbd6e` — Fix changelog broken by #26954 (#26956)
 
 - **Source:** `911afdbd6e00809c4c6a899d8b6fa906ff3e868e`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `37d60287a0fe0f876c2f958115840c3428747e32`.
 - **Remaining:** 153 → 152.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Move land-paint fix entry into numeric changelog order.
 - **Additional decisions / behavior:** Documentation ordering only; retain all migration decisions and gameplay code.
 - **Verification:** Full one-file source inspected; exact line move; diff check passes.
 - **Pending / concerns:** None for this documentation-only change; U207-U208 pending batch compilation remains.
+
+### U210 — `c34fee484a` — Fix result.position.z of WallPlaceAction (#26441)
+
+- **Source:** `c34fee484abbbec39b0efb1b032da3b129a02877`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 152 → 151.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Return actual resolved wall target height from Query/Execute; add five-case action/placed-element regression.
+- **Additional decisions / behavior:** Preserve placement, clearance, prices, cent precision, safe insertion, banner payload and XY centring. Correct feedback/last-action result position only. Protocol11/API120/save60016 unchanged. No owner decision.
+- **Verification:** Full source/fork action inspected; exact four-hunk code port. B44 first build 20.31s zero warnings/errors; 99 tests/9 suites passed in 10.221s, including independent flat/low/high/sloped/explicit height cases and unchanged costs/query nonmutation. Clears U207-U208 compile debt.
+- **Pending / concerns:** Actual OS attention, Ctrl quote refresh, multiplayer markers/visual feedback/replay and native non-Windows unverified; standing debt retained.

@@ -28,6 +28,7 @@
 #include <openrct2/actions/ride/RideSetPriceAction.h>
 #include <openrct2/actions/ride/RideSetSettingAction.h>
 #include <openrct2/actions/ride/RideSetStatusAction.h>
+#include <openrct2/actions/scenery/WallPlaceAction.h>
 #include <openrct2/actions/terraform/LandSetHeightAction.h>
 #include <openrct2/actions/terraform/WaterSetHeightAction.h>
 #include <openrct2/actions/track/TrackPlaceAction.h>
@@ -41,6 +42,7 @@
 #include <openrct2/entity/Peep.h>
 #include <openrct2/object/ObjectLimits.h>
 #include <openrct2/object/ObjectManager.h>
+#include <openrct2/object/WallObject.h>
 #include <openrct2/ride/Ride.h>
 #include <openrct2/ride/RideData.h>
 #include <openrct2/ride/RideManager.hpp>
@@ -55,6 +57,7 @@
 #include <openrct2/world/tile_element/SurfaceElement.h>
 #include <openrct2/world/tile_element/Slope.h>
 #include <openrct2/world/tile_element/TrackElement.h>
+#include <openrct2/world/tile_element/WallElement.h>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -177,6 +180,57 @@ static void execute(Args&&... args)
 {
     GA ga(std::forward<Args>(args)...);
     GameActions::Execute(&ga, getGameState());
+}
+
+TEST_F(PlayTests, WallPlacementResultUsesResolvedEdgeHeight)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+    auto context = CreateContext();
+    ASSERT_NE(context, nullptr);
+    ASSERT_TRUE(context->Initialise());
+    auto& objects = context->GetObjectManager();
+    auto* object = dynamic_cast<WallObject*>(objects.LoadObject("rct2.scenery_wall.wcw1"));
+    ASSERT_NE(object, nullptr);
+    const auto wallType = objects.GetLoadedObjectEntryIndex(object);
+    const auto price = static_cast<WallSceneryEntry*>(object->GetLegacyData())->price;
+    auto& state = getGameState();
+    MapInit({ 16, 16 });
+    state.cheats.sandboxMode = true;
+    struct Case
+    {
+        uint8_t slope;
+        Direction edge;
+        int32_t requestedZ;
+        int32_t expectedZ;
+    };
+    // Independent expected base heights: flat, low/high sides, sloped side and explicit placement.
+    const Case cases[] = { { 0, 0, 0, 112 }, { 3, 0, 0, 112 }, { 3, 2, 0, 128 }, { 1, 1, 0, 112 }, { 3, 2, 160, 160 } };
+    for (const auto& test : cases)
+    {
+        SCOPED_TRACE(test.slope);
+        SCOPED_TRACE(test.edge);
+        auto surface = *MapGetNthElementAt({ 64, 64 }, 0);
+        surface.asSurface()->setSlope(test.slope);
+        ASSERT_EQ(ReplaceTileElementsAt({ 2, 2 }, { surface }), TileMutationStatus::ok);
+        GameActions::WallPlaceAction action(
+            wallType, { 64, 64, test.requestedZ }, test.edge, Drawing::Colour::black, Drawing::Colour::black,
+            Drawing::Colour::black);
+        const auto query = action.Query(state, state.park);
+        ASSERT_EQ(query.error, GameActions::Status::ok);
+        EXPECT_EQ(query.position, (CoordsXYZ{ 80, 80, test.expectedZ }));
+        EXPECT_EQ(query.getData<GameActions::WallPlaceActionResult>().BaseHeight, test.expectedZ);
+        EXPECT_EQ(query.cost, price);
+        EXPECT_TRUE(MapGetNthElementAt({ 64, 64 }, 0)->isLastForTile());
+        const auto result = action.Execute(state, state.park);
+        ASSERT_EQ(result.error, GameActions::Status::ok);
+        EXPECT_EQ(result.position, query.position);
+        EXPECT_EQ(result.getData<GameActions::WallPlaceActionResult>().BaseHeight, test.expectedZ);
+        EXPECT_EQ(result.cost, price);
+        const auto* wall = MapGetWallElementAt(CoordsXYZD{ 64, 64, test.expectedZ, test.edge });
+        ASSERT_NE(wall, nullptr);
+        EXPECT_EQ(wall->getBaseZ(), test.expectedZ);
+    }
 }
 
 TEST_F(PlayTests, ArbitraryRideTypeCheatRejectsOutOfRangeTypes)
