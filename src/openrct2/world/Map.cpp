@@ -1775,7 +1775,7 @@ namespace OpenRCT2
             {
                 auto removeSceneryAction = GameActions::LargeSceneryRemoveAction(
                     { loc.x, loc.y, element->getBaseZ(), element->getDirection() },
-                    element->asLargeScenery()->GetSequenceIndex());
+                    element->asLargeScenery()->getSequenceIndex());
                 auto result = GameActions::ExecuteNested(&removeSceneryAction, gameState);
                 // If asking nicely did not work, forcibly remove this to avoid an infinite loop.
                 if (result.error != GameActions::Status::ok)
@@ -1865,7 +1865,7 @@ namespace OpenRCT2
                 continue;
             if (tileElement->baseHeight != sceneryTilePos.z)
                 continue;
-            if (tileElement->asLargeScenery()->GetSequenceIndex() != sequence)
+            if (tileElement->asLargeScenery()->getSequenceIndex() != sequence)
                 continue;
             if ((tileElement->getDirection()) != sceneryPos.direction)
                 continue;
@@ -1983,7 +1983,7 @@ namespace OpenRCT2
         if (tileElement == nullptr)
             return std::nullopt;
 
-        auto* sceneryEntry = tileElement->GetEntry();
+        auto* sceneryEntry = tileElement->getEntry();
         auto& tile = sceneryEntry->tiles[sequence];
 
         CoordsXY offsetPos{ tile.offset };
@@ -2011,7 +2011,7 @@ namespace OpenRCT2
             return false;
         }
 
-        auto* sceneryEntry = tileElement->GetEntry();
+        auto* sceneryEntry = tileElement->getEntry();
 
         // Iterate through each tile of the large scenery element
         for (auto& tile : sceneryEntry->tiles)
@@ -2024,8 +2024,8 @@ namespace OpenRCT2
             tileElement = MapGetLargeScenerySegment(tmpSignPos, tile.index);
             if (tileElement != nullptr)
             {
-                tileElement->SetPrimaryColour(mainColour);
-                tileElement->SetSecondaryColour(textColour);
+                tileElement->setPrimaryColour(mainColour);
+                tileElement->setSecondaryColour(textColour);
 
                 MapInvalidateTile({ tmpSignPos, tileElement->getBaseZ(), tileElement->getClearanceZ() });
             }

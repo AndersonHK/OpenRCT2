@@ -97,9 +97,9 @@ namespace OpenRCT2::TileInspector
 
     static int32_t NumLargeScenerySequences(const CoordsXY& loc, const LargeSceneryElement* const largeScenery)
     {
-        const auto* const largeEntry = largeScenery->GetEntry();
+        const auto* const largeEntry = largeScenery->getEntry();
         const auto direction = largeScenery->getDirection();
-        const auto sequenceIndex = largeScenery->GetSequenceIndex();
+        const auto sequenceIndex = largeScenery->getSequenceIndex();
         const auto& tiles = largeEntry->tiles;
         const auto& initialTile = tiles[sequenceIndex];
         const auto rotatedFirstTile = CoordsXYZ{
@@ -126,7 +126,7 @@ namespace OpenRCT2::TileInspector
                     if (tileElement->getDirection() != direction)
                         continue;
 
-                    if (tileElement->asLargeScenery()->GetSequenceIndex() != tile.index)
+                    if (tileElement->asLargeScenery()->getSequenceIndex() != tile.index)
                         continue;
 
                     if (tileElement->getBaseZ() != currentTile.z)

@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 157 / 361 source commits recorded
+## Progress: 158 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1745,10 +1745,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U157 — `4af2e9d1fd` — Make EntranceElement members adhere to code style
 
 - **Source:** `4af2e9d1fdf10778792543314c2922f0553a23c1`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `45743f848cfd898be0fef054ea30d36df02eaaec`.
 - **Remaining:** 205 → 204.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Rename 20 EntranceElement fields/accessors in 37 fork files, including topology edge construction and fixture insertion. Preserve separate path/track and legacy source accessors.
 - **Additional decisions / behavior:** No layout, mask, sequence/station/ride association or movement changes. Preserve fork prepaid/platform boarding, topology and import destination ownership. Use receiver-specific changes where methods share names.
 - **Verification:** Complete 35-file source token changes verified as reviewed names only; 37 fork file token comparisons passed. Inspected mixed importer destinations and scripting cases plus fork topology callers; whitespace check passed.
 - **Pending / concerns:** Compile and targeted tile/import/topology tests pending with related element naming batch.
+
+### U158 — `95025ba916` — Make LargeSceneryElement members adhere to code style
+
+- **Source:** `95025ba9166d8f88589b9484342350e507a85ff8`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 204 → 203.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Rename 21 LargeSceneryElement fields/accessors across 26 fork files and remove the unused, undefined GetObject declaration.
+- **Additional decisions / behavior:** Preserve colour storage, banner references, sequence numbers, accounted-bit semantics, clear-tool cost handling and fork clearance/erase guards. No new gameplay or object format behavior.
+- **Verification:** Complete source token proof permits only the 21 reviewed identifiers plus exact obsolete declaration removal; 26 fork files pass the same body proof. Scoped importer and script branches preserved; whitespace check passed.
+- **Pending / concerns:** Compile and tile/import/topology tests pending with related element naming batch.

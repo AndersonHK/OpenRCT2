@@ -152,7 +152,7 @@ namespace OpenRCT2::Scripting
             auto* element = &first[index];
             TileElement removedElement = *element;
             const bool removeBanner = element->getType() != TileElementType::largeScenery
-                || element->asLargeScenery()->GetEntry()->scrolling_mode == kScrollingModeNone
+                || element->asLargeScenery()->getEntry()->scrolling_mode == kScrollingModeNone
                 || ScTileElement::GetOtherLargeSceneryElement(coords, element->asLargeScenery()) == nullptr;
 
             std::vector<TileElement> elements(first, first + GetNumElements(first));

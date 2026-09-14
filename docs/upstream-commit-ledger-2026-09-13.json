@@ -11821,7 +11821,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "45743f848cfd898be0fef054ea30d36df02eaaec"
+      ],
       "verification_evidence": [
         "Complete 35-file source token changes verified as reviewed names only; 37 fork file token comparisons passed. Inspected mixed importer destinations and scripting cases plus fork topology callers; whitespace check passed."
       ],
@@ -11918,9 +11920,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Complete source token proof permits only the 21 reviewed identifiers plus exact obsolete declaration removal; 26 fork files pass the same body proof. Scoped importer and script branches preserved; whitespace check passed."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -11939,7 +11943,10 @@
         "src/openrct2/world/Map.cpp",
         "src/openrct2/world/TileInspector.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 95025ba9166d8f88589b9484342350e507a85ff8",
+      "implementation_decisions": "Preserve colour storage, banner references, sequence numbers, accounted-bit semantics, clear-tool cost handling and fork clearance/erase guards. No new gameplay or object format behavior.",
+      "pending_validation": "Compile and tile/import/topology tests pending with related element naming batch."
     },
     {
       "sha": "2f9db0a5d48e9bc770c79ba3d647767e7efdb494",
@@ -26888,8 +26895,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 157,
-    "remaining_after_receipt": 204,
+    "accounted_in_this_tree": 158,
+    "remaining_after_receipt": 203,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
