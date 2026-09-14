@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 90 / 361 source commits recorded
+## Progress: 91 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1008,10 +1008,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U090 — `4502be0fb2` — Rename members of Plane
 
 - **Source:** `4502be0fb2f2d96a7522b6eee8a76c69f0e986b1`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `e219dbb097b49d7ec369ab7f1dc1931cb283b31c`.
 - **Remaining:** 272 → 271.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename Plane members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Magic Carpet local Plane enum only: preserve back/front values and exact painter layering/parent-child order; do not rename unrelated Plane types.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U091 — `5ba0b8028c` — Rename members of PathSearchResult
+
+- **Source:** `5ba0b8028ccb11d9aadd05f5f973fef740bcb3ea`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 271 → 270.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename PathSearchResult members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Guest pathfinding result names only: preserve diagnostic strings, result order and search limits. Retain fork transport fare/time path choice, ghost exclusion and routing implementations; no legacy algorithm replacement. Update stale qualified identifiers in return-value comments; preserve ordinary prose.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
