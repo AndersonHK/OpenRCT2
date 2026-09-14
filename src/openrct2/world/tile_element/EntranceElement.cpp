@@ -68,7 +68,7 @@ namespace OpenRCT2
 
     bool EntranceElement::hasLegacyPathEntry() const
     {
-        return (flags2 & ENTRANCE_ELEMENT_FLAGS2_LEGACY_PATH_ENTRY) != 0;
+        return flags2.has(EntranceElementFlag::isLegacyPathEntry);
     }
 
     ObjectEntryIndex EntranceElement::getLegacyPathEntryIndex() const
@@ -88,7 +88,7 @@ namespace OpenRCT2
     void EntranceElement::setLegacyPathEntryIndex(ObjectEntryIndex newPathType)
     {
         pathType = newPathType;
-        flags2 |= ENTRANCE_ELEMENT_FLAGS2_LEGACY_PATH_ENTRY;
+        flags2.set(EntranceElementFlag::isLegacyPathEntry);
     }
 
     ObjectEntryIndex EntranceElement::getSurfaceEntryIndex() const
@@ -108,7 +108,7 @@ namespace OpenRCT2
     void EntranceElement::setSurfaceEntryIndex(ObjectEntryIndex newIndex)
     {
         pathType = newIndex;
-        flags2 &= ~ENTRANCE_ELEMENT_FLAGS2_LEGACY_PATH_ENTRY;
+        flags2.unset(EntranceElementFlag::isLegacyPathEntry);
     }
 
     const PathSurfaceDescriptor* EntranceElement::getPathSurfaceDescriptor() const

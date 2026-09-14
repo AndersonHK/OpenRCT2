@@ -13688,7 +13688,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "c0636090860f48528ec53c6114e7bab94369e103"
+      ],
       "verification_evidence": [
         "Read all 20 source patches and fork overlaps. Applied repeated identical footpath conditions explicitly twice per owner; restored both explicit default no-op switch branches skipped by the generic insertion helper. Reviewed all enum widths, masks, ordered placement coordinates and public numeric conversions; changed lines formatted and receipt gates apply. Expanded plugin regression checks numeric/native sequence, directions and topology."
       ],
@@ -13735,9 +13737,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Reviewed complete two-file source and fork diffs and FlagHolder storage/bit operations. Only bit 0 is defined and affected; all other bits remain untouched. Receipt whitespace and exact-one ancestry gates apply."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -13745,7 +13749,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 4ebed48631c32af6ea32387bb5a8e10d38b56eb5",
+      "implementation_decisions": "Same one-byte storage, offset, packed element size, unknown-bit preservation and legacy/surface path choice. No gameplay, import translation or protocol change.",
+      "pending_validation": "Compile and import/topology/scripting regressions in B32 tile-flag batch; interactive/non-Windows debt retained."
     },
     {
       "sha": "b854b8d2f612468239dfaa052ef19e7ad2a8012d",
@@ -27007,8 +27014,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 174,
-    "remaining_after_receipt": 187,
+    "accounted_in_this_tree": 175,
+    "remaining_after_receipt": 186,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
