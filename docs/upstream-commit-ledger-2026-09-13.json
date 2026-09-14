@@ -27328,7 +27328,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "7ff21f86fab9ef505c03f37081d81b205ba1ccd9"
+      ],
       "verification_evidence": [
         "Inspected actual nonrepetitive translations and deleted-ID inventory; all non-English language files equal source target; diff check passes."
       ],
@@ -27368,9 +27370,11 @@
         "D07"
       ],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected source one-line logic and fork preparation sequence; changelog added without deferred claims."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -27378,7 +27382,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P5"
+      "verification_gate": "P5",
+      "port_commit_locator": "Upstream-Commit: 612b3cb2aae32865fbcce2729ae9b638c37b548b",
+      "implementation_decisions": "Preserve fork visibility ordering, network restrictions, configured controls and turbo behavior; add source editor guard only.",
+      "pending_validation": "Final Windows/UI test checkpoint."
     },
     {
       "sha": "d8345a4d533288967d689d6613c5719a2b637598",
@@ -28274,8 +28281,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 355,
-    "remaining_after_receipt": 6,
+    "accounted_in_this_tree": 356,
+    "remaining_after_receipt": 5,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

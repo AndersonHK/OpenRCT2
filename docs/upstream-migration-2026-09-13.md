@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 355 / 361 source commits recorded
+## Progress: 356 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3923,10 +3923,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U355 — `b6235baa9a` — Merge Localisation/master into OpenRCT2/develop
 
 - **Source:** `b6235baa9ac5ffd359605b86100dc98b4c316b53`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `7ff21f86fab9ef505c03f37081d81b205ba1ccd9`.
 - **Remaining:** 7 → 6.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Update 25 translations for split HUD owners and complete guest-group labels.
 - **Additional decisions / behavior:** Remove obsolete toolbar theme labels and old Guests prefix; translated strings match reconciled English IDs, with fork English 8000-8043 retained as fallback. No gameplay code.
 - **Verification:** Inspected actual nonrepetitive translations and deleted-ID inventory; all non-English language files equal source target; diff check passes.
 - **Pending / concerns:** Final localisation tests; native translated layout still manual.
+
+### U356 — `612b3cb2aa` — Fix #27113: Chat button is shown in editor mode
+
+- **Source:** `612b3cb2aae32865fbcce2729ae9b638c37b548b`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 6 → 5.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Explicitly hide toolbar chat in editor mode.
+- **Additional decisions / behavior:** Preserve fork visibility ordering, network restrictions, configured controls and turbo behavior; add source editor guard only.
+- **Verification:** Inspected source one-line logic and fork preparation sequence; changelog added without deferred claims.
+- **Pending / concerns:** Final Windows/UI test checkpoint.
