@@ -21310,7 +21310,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "45766971e8b0ac971c43672c860e0cafdb862706"
+      ],
       "verification_evidence": [
         "B73: complete solution 15.55 seconds, zero warnings/errors; LanguagePackTest passes after U292."
       ],
@@ -21360,9 +21362,11 @@
       "note": "Respect enlarged sprite font in close button; test scaled UI and theme fonts.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "B74: full solution 34.42 seconds zero warnings/errors; all 27 font/language/widget tests pass, 0.769 seconds, including new legacy decode and scaled close-string assertions."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -21372,7 +21376,10 @@
       "merge_conflict_paths": [
         "data/language/en-GB.txt"
       ],
-      "verification_gate": "P5"
+      "verification_gate": "P5",
+      "port_commit_locator": "Upstream-Commit: 3a50f2378f4ed4ab06997b51edbb6dac04904d12",
+      "implementation_decisions": "U+2715 maps to small CS cross; U+274C now maps to larger X everywhere. Legacy byte AD decodes to U+2715 to keep its small appearance; record changed Unicode output. Both color variants and fork IDs retained as applicable.",
+      "pending_validation": "Native TTF rendering, translucent/plugin variants and OS scaling remain untested."
     },
     {
       "sha": "ff9dc55921f3bc81d8aaeba12d083ae34f00c0b2",
@@ -27840,8 +27847,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 293,
-    "remaining_after_receipt": 68,
+    "accounted_in_this_tree": 294,
+    "remaining_after_receipt": 67,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

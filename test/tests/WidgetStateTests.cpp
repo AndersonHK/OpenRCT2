@@ -252,6 +252,7 @@ TEST(WidgetStateTest, FinancesGraphTabsKeepTheirHeightWithEitherTitleSizeAndButt
                     EXPECT_EQ(window->getTitleBarDiffTarget(), 0);
                     EXPECT_EQ(window->widgets[2].width(), closeSize.width);
                     EXPECT_EQ(window->widgets[2].height(), closeSize.height);
+                    EXPECT_STREQ(window->widgets[2].string, enlarged ? u8"{BLACK}❌" : u8"{BLACK}✕");
                     EXPECT_EQ(window->widgets[2].left, onLeft ? 2 : window->width - 2 - closeSize.width);
                 }
             }

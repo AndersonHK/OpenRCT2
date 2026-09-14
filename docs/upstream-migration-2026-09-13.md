@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 293 / 361 source commits recorded
+## Progress: 294 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3241,10 +3241,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U293 — `1452f71be9` — Prune outdated pragma warning disable directives (#27028)
 
 - **Source:** `1452f71be9e100619cd9fed67b08bd4d36988690`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `45766971e8b0ac971c43672c860e0cafdb862706`.
 - **Remaining:** 69 → 68.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Remove obsolete C4706 suppressions and debug-only C4505 pragma scope.
 - **Additional decisions / behavior:** No object/theme/image runtime statements changed; preserve all fork implementation bodies.
 - **Verification:** B73: complete solution 15.55 seconds, zero warnings/errors; LanguagePackTest passes after U292.
 - **Pending / concerns:** DEBUG_LEVEL_1 and non-Windows remain unbuilt; native translation display remains untested.
+
+### U294 — `3a50f2378f` — Fix #24520: close button ignores sprite font with enlarged UI (#27009)
+
+- **Source:** `3a50f2378f4ed4ab06997b51edbb6dac04904d12`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 68 → 67.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Use separate small and large sprite close glyphs with TTF languages; remove unused close-string IDs.
+- **Additional decisions / behavior:** U+2715 maps to small CS cross; U+274C now maps to larger X everywhere. Legacy byte AD decodes to U+2715 to keep its small appearance; record changed Unicode output. Both color variants and fork IDs retained as applicable.
+- **Verification:** B74: full solution 34.42 seconds zero warnings/errors; all 27 font/language/widget tests pass, 0.769 seconds, including new legacy decode and scaled close-string assertions.
+- **Pending / concerns:** Native TTF rendering, translucent/plugin variants and OS scaling remain untested.

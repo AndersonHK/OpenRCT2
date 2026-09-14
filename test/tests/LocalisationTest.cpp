@@ -40,11 +40,23 @@ TEST_F(Localisation, SpriteFontsHaveDistinctLowercaseHardSignAndCurrencyGlyphsIn
     GfxLoadG2PalettesFontsTracks();
     FontSpriteInitialiseCharacters();
     EXPECT_TRUE(FontSupportsStringSprite(u8"ъ₩₴"));
+    EXPECT_TRUE(FontSupportsStringSprite(u8"✕❌"));
+    EXPECT_EQ(FontSpriteGetCodepointOffset(U'✕'), 0xAD - 32);
+    EXPECT_EQ(FontSpriteGetCodepointOffset(U'❌'), FontSpriteGetCodepointOffset(U'X'));
+    EXPECT_NE(FontSpriteGetCodepointOffset(U'✕'), FontSpriteGetCodepointOffset(U'❌'));
     EXPECT_EQ(FontSpriteGetCodepointOffset(U'ъ'), static_cast<int32_t>(SPR_FONTS_CYRILLIC_HARD_SIGN_LOWER - SPR_FONTS_BEGIN));
     EXPECT_EQ(FontSpriteGetCodepointOffset(U'₩'), static_cast<int32_t>(SPR_FONTS_WON_SIGN - SPR_FONTS_BEGIN));
     EXPECT_EQ(FontSpriteGetCodepointOffset(U'₴'), static_cast<int32_t>(SPR_FONTS_HRYVNIA_SIGN - SPR_FONTS_BEGIN));
     for (const auto style : kFontStyles)
     {
+        const auto smallClose = FontSpriteGetCodepointSprite(style, U'✕').GetIndex();
+        const auto largeClose = FontSpriteGetCodepointSprite(style, U'❌').GetIndex();
+        EXPECT_EQ(largeClose, FontSpriteGetCodepointSprite(style, U'X').GetIndex());
+        EXPECT_NE(smallClose, largeClose);
+        ASSERT_NE(GfxGetG1Element(smallClose), nullptr);
+        ASSERT_NE(GfxGetG1Element(largeClose), nullptr);
+        EXPECT_GT(GfxGetG1Element(smallClose)->width, 0);
+        EXPECT_GT(GfxGetG1Element(largeClose)->width, 0);
         const auto lower = FontSpriteGetCodepointSprite(style, U'ъ').GetIndex();
         const auto upper = FontSpriteGetCodepointSprite(style, U'Ъ').GetIndex();
         const auto won = FontSpriteGetCodepointSprite(style, U'₩').GetIndex();
@@ -76,6 +88,11 @@ TEST_F(Localisation, SpriteFontsHaveDistinctLowercaseHardSignAndCurrencyGlyphsIn
 ///////////////////////////////////////////////////////////////////////////////
 // Tests for RCT2StringToUTF8
 ///////////////////////////////////////////////////////////////////////////////
+
+TEST_F(Localisation, LegacyCloseGlyphDecodesToDingbatMultiply)
+{
+    EXPECT_EQ(RCT2StringToUTF8(StringFromHex("41AD42"), RCT2LanguageId::englishUK), u8"A✕B");
+}
 
 TEST_F(Localisation, RCT2_to_UTF8_UK)
 {
