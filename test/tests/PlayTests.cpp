@@ -26,6 +26,9 @@
 #include <openrct2/actions/ride/RideSetPriceAction.h>
 #include <openrct2/actions/ride/RideSetSettingAction.h>
 #include <openrct2/actions/ride/RideSetStatusAction.h>
+#include <openrct2/actions/terraform/LandSetHeightAction.h>
+#include <openrct2/actions/terraform/WaterSetHeightAction.h>
+#include <openrct2/actions/track/TrackPlaceAction.h>
 #include <openrct2/drawing/Drawing.h>
 #include <openrct2/entity/EntityRegistry.h>
 #include <openrct2/entity/EntityTweener.h>
@@ -39,9 +42,14 @@
 #include <openrct2/ride/TrackDesign.h>
 #include <openrct2/ride/Vehicle.h>
 #include <openrct2/ride/Vehicle.Station.h>
+#include <openrct2/ride/ted/TrackElemType.h>
 #include <openrct2/scenario/Scenario.h>
 #include <openrct2/world/MapAnimation.h>
 #include <openrct2/world/Park.h>
+#include <openrct2/world/TileElementsView.h>
+#include <openrct2/world/tile_element/SurfaceElement.h>
+#include <openrct2/world/tile_element/Slope.h>
+#include <openrct2/world/tile_element/TrackElement.h>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -1221,4 +1229,94 @@ TEST_F(PlayTests, NiceRidePhoenixThoughtIsARareFallback)
     ScenarioRandSeed(0, 0);
     guest.onExitRide(ride);
     EXPECT_EQ(guest.thoughts[0].type, PeepThoughtType::badValue);
+}
+
+TEST_F(PlayTests, WaterSpecificClearanceRulesAreBypassedOnlyWithTheClearanceCheat)
+{
+    auto context = LoadEverythingPark();
+    ASSERT_NE(context, nullptr);
+    auto& state = getGameState();
+    const auto previousScene = gLegacyScene;
+    struct RestoreScene
+    {
+        LegacyScene scene;
+        ~RestoreScene()
+        {
+            gLegacyScene = scene;
+        }
+    } restoreScene{ previousScene };
+    gLegacyScene = LegacyScene::scenarioEditor;
+    state.cheats.sandboxMode = true;
+    state.cheats.disableSupportLimits = false;
+    state.park.flags = { ParkFlag::noMoney };
+
+    auto rides = RideManager(state);
+    auto boatIt = std::find_if(rides.begin(), rides.end(), [](auto& ride) { return ride.type == RIDE_TYPE_BOAT_HIRE; });
+    ASSERT_NE(boatIt, rides.end());
+    auto* boat = &*boatIt;
+    boat->status = RideStatus::closed;
+    constexpr CoordsXY coords{ 96, 96 };
+    const auto resetTile = [&](int waterHeight, uint8_t slope) {
+        MapInit({ 16, 16 });
+        auto* surface = MapGetSurfaceElementAt(coords);
+        surface->baseHeight = 2;
+        surface->clearanceHeight = 2;
+        surface->SetWaterHeight(waterHeight);
+        surface->SetSlope(slope);
+    };
+    GameActions::TrackPlaceAction track(boat->id, TrackElemType::flat, boat->type, { coords, 32, 0 }, 0, 0, 0, {}, false);
+
+    // Correct water, dry land, a mismatched water level and a raised land corner.
+    for (const auto& [waterHeight, slope] : std::array<std::pair<int, uint8_t>, 4>{
+             { { 32, kTileSlopeFlat }, { 0, kTileSlopeFlat }, { 48, kTileSlopeFlat }, { 32, kTileSlopeWCornerDown } } })
+    {
+        SCOPED_TRACE(waterHeight);
+        SCOPED_TRACE(slope);
+        for (bool clearanceCheat : { false, true })
+        {
+            SCOPED_TRACE(clearanceCheat);
+            resetTile(waterHeight, slope);
+            state.cheats.disableClearanceChecks = clearanceCheat;
+            const auto query = track.Query(state, state.park);
+            const bool allowed = clearanceCheat || (waterHeight == 32 && slope == kTileSlopeFlat);
+            EXPECT_EQ(query.error == GameActions::Status::ok, allowed);
+            EXPECT_EQ(MapGetSurfaceElementAt(coords)->GetWaterHeight(), waterHeight);
+            EXPECT_FALSE(MapGetSurfaceElementAt(coords)->HasTrackThatNeedsWater());
+            if (allowed)
+            {
+                ASSERT_EQ(query.error, GameActions::Status::ok);
+                const auto result = track.Execute(state, state.park);
+                ASSERT_EQ(result.error, GameActions::Status::ok);
+                EXPECT_EQ(result.cost, query.cost);
+                EXPECT_TRUE(MapGetSurfaceElementAt(coords)->HasTrackThatNeedsWater());
+                auto* placedTrack = *TileElementsView<TrackElement>(coords).begin();
+                ASSERT_NE(placedTrack, nullptr);
+                EXPECT_EQ(placedTrack->GetRideIndex(), boat->id);
+            }
+        }
+    }
+
+    // Both terrain and water edits retain the ordinary restriction around a real water ride.
+    for (bool changeLand : { false, true })
+    {
+        SCOPED_TRACE(changeLand);
+        resetTile(32, kTileSlopeFlat);
+        state.cheats.disableClearanceChecks = false;
+        ASSERT_EQ(track.Query(state, state.park).error, GameActions::Status::ok);
+        ASSERT_EQ(track.Execute(state, state.park).error, GameActions::Status::ok);
+        GameActions::LandSetHeightAction land(coords, 4, kTileSlopeFlat);
+        GameActions::WaterSetHeightAction water(coords, 2);
+        const GameActions::GameAction& action = changeLand ? static_cast<const GameActions::GameAction&>(land) : water;
+        EXPECT_EQ(action.Query(state, state.park).error, GameActions::Status::disallowed);
+        EXPECT_EQ(MapGetSurfaceElementAt(coords)->GetWaterHeight(), 32);
+        EXPECT_EQ(MapGetSurfaceElementAt(coords)->baseHeight, 2);
+        state.cheats.disableClearanceChecks = true;
+        const auto query = action.Query(state, state.park);
+        ASSERT_EQ(query.error, GameActions::Status::ok);
+        const auto result = action.Execute(state, state.park);
+        ASSERT_EQ(result.error, GameActions::Status::ok);
+        EXPECT_EQ(result.cost, query.cost);
+        EXPECT_EQ(MapGetSurfaceElementAt(coords)->GetWaterHeight(), 0);
+        EXPECT_EQ(MapGetSurfaceElementAt(coords)->baseHeight, changeLand ? 4 : 2);
+    }
 }

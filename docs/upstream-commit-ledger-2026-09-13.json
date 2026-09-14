@@ -9874,7 +9874,9 @@
       "decisions": [],
       "review_level": "remerge-probe",
       "implementation_status": "history receipt",
-      "port_commits": [],
+      "port_commits": [
+        "301e6cc84cd65f1759143910f24da130ed6c8fd3"
+      ],
       "verification_evidence": [
         "Inspected merge parents, empty archived remerge diff, and empty tree delta against the second parent f08bc61f03. Batch 22 validation remains applicable."
       ],
@@ -9944,9 +9946,11 @@
         "D03"
       ],
       "review_level": "targeted-code-review",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt approved D03 in clearance-cheat mode only",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected actual five-file source diff and fork action bodies. Batch 23 full build passes after fixing a test-only iterator compile error; new water-rule matrix plus clear/network checks (3 tests) and map/path topology (29 tests) all pass. Whitespace check passes. Test evidence and limitations recorded in validation log."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -9957,7 +9961,10 @@
         "src/openrct2/actions/track/TrackPlaceAction.cpp",
         "src/openrct2/network/NetworkBase.cpp"
       ],
-      "verification_gate": "P3"
+      "verification_gate": "P3",
+      "port_commit_locator": "Upstream-Commit: 2e43967fe5738d991623dba05ef85a8f5d24221c",
+      "implementation_decisions": "D03 was approved: ordinary construction rules remain unchanged. Keep missing-surface, ownership, parameter and support-limit checks, plus existing fork clearance traversal and element-erased handling. No upstream legacy traversal is copied. Retain fork protocol flavor and increment its revision rather than using upstream 2-to-3 values. Off-water rides remain an explicit cheat outcome; no simulation fallback or automatic water repair is introduced.",
+      "pending_validation": "Interactive placement preview, running water rides off water and native non-Windows checks remain unverified; standing migration validation debt remains."
     },
     {
       "sha": "4c1cedbb084cfa77b1523d593993d6fcdbdaca29",
@@ -26748,8 +26755,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 137,
-    "remaining_after_receipt": 224,
+    "accounted_in_this_tree": 138,
+    "remaining_after_receipt": 223,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

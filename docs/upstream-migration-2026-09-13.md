@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 137 / 361 source commits recorded
+## Progress: 138 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1525,10 +1525,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U137 — `5aa3f85c56` — Merge pull request #26891 from Gymnasiast/more-enums
 
 - **Source:** `5aa3f85c56c4bd68500380190d9deac357686423`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `301e6cc84cd65f1759143910f24da130ed6c8fd3`.
 - **Remaining:** 225 → 224.
 - **Disposition:** history receipt.
 - **Manual changes:** Record the enum/FlagHolder branch merge; all implementation deltas are already individually ported through U136.
 - **Additional decisions / behavior:** No additional behavior or code changes. Retain all prior fork adaptations.
 - **Verification:** Inspected merge parents, empty archived remerge diff, and empty tree delta against the second parent f08bc61f03. Batch 22 validation remains applicable.
 - **Pending / concerns:** Standing migration validation debt remains.
+
+### U138 — `2e43967fe5` — Fix: water rides ignore zero clearances, preventing adjacent terrain modifications and building them anywhere (#26816)
+
+- **Source:** `2e43967fe5738d991623dba05ef85a8f5d24221c`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 224 → 223.
+- **Disposition:** adopt approved D03 in clearance-cheat mode only.
+- **Manual changes:** Gate floating-structure terrain restrictions, water-height protection and water-only track placement constraints on disableClearanceChecks. Add the upstream changelog entry. Advance fork protocol revision 5 to 6. Add a directed query/execute regression for all three actions.
+- **Additional decisions / behavior:** D03 was approved: ordinary construction rules remain unchanged. Keep missing-surface, ownership, parameter and support-limit checks, plus existing fork clearance traversal and element-erased handling. No upstream legacy traversal is copied. Retain fork protocol flavor and increment its revision rather than using upstream 2-to-3 values. Off-water rides remain an explicit cheat outcome; no simulation fallback or automatic water repair is introduced.
+- **Verification:** Inspected actual five-file source diff and fork action bodies. Batch 23 full build passes after fixing a test-only iterator compile error; new water-rule matrix plus clear/network checks (3 tests) and map/path topology (29 tests) all pass. Whitespace check passes. Test evidence and limitations recorded in validation log.
+- **Pending / concerns:** Interactive placement preview, running water rides off water and native non-Windows checks remain unverified; standing migration validation debt remains.
