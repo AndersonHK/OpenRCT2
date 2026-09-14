@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 30 / 361 source commits recorded
+## Progress: 31 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -348,10 +348,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U030 — `2ed6bef643` — Rename members of VehicleTrackSubposition
 
 - **Source:** `2ed6bef643c7217dcaaf4735dc4714789f140e1a`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `0342b582ae16f9fe696f9dc852cf5074e0024896`.
 - **Remaining:** 332 → 331.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename VehicleTrackSubposition members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Default becomes standard; keep serialized values, the two mini-golf value-9 aliases, vehicle movement tables and all fork boarding/path/physics logic. This is not the later approved subposition repair and does not introduce that behavioral change early.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U031 — `46dbc1cf20` — Rename members of ObjectiveStatus
+
+- **Source:** `46dbc1cf203caa8b9d8253814e4a684b8aba2ac4`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 331 → 330.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename ObjectiveStatus members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Keep objective thresholds, evaluation timing, success/failure side effects and fork park behavior; no gameplay difficulty changes are part of this rename.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
