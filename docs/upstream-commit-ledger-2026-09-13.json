@@ -28,7 +28,9 @@
       "decisions": [],
       "review_level": "targeted-code-review",
       "implementation_status": "manually-ported",
-      "port_commits": [],
+      "port_commits": [
+        "df0ec5b8f0456c50ce0040363c85d3d57aee0a60"
+      ],
       "verification_evidence": [
         "Inspected full upstream patch and fork action path; source/diff checks. Baseline Release/Vulkan build passed before source edits. Per-receipt ancestry gate requires exactly this one missing source commit."
       ],
@@ -71,9 +73,11 @@
         "D04"
       ],
       "review_level": "targeted-code-review",
-      "implementation_status": "not-ported",
+      "implementation_status": "manually-ported",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected all three upstream file deltas; fork award logic matches the source intent while retaining protocol flavor. Source/diff checks and exact-one-source ancestry validation."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -83,7 +87,10 @@
       "merge_conflict_paths": [
         "src/openrct2/network/NetworkBase.cpp"
       ],
-      "verification_gate": "P4"
+      "verification_gate": "P4",
+      "port_commit_locator": "Upstream-Commit: d81c3a7f144148775f8b539dd4fe809c526e0c1b",
+      "implementation_decisions": "Applied approved D04. Preserved andersonhk network flavor. The award check performs one linear staff traversal when this award is evaluated; it does not alter per-tick handyman service reservations. No new owner choice.",
+      "pending_validation": "Award count/type boundary runtime checks and compilation deferred to the first batch checkpoint, together with U001 targeted regression."
     },
     {
       "sha": "d181e640ac5283c9530b0ceb26f447b503b83122",
@@ -25796,8 +25803,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 1,
-    "remaining_after_receipt": 360,
+    "accounted_in_this_tree": 2,
+    "remaining_after_receipt": 359,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
