@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 263 / 361 source commits recorded
+## Progress: 264 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2911,10 +2911,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U263 — `8e40456478` — Merge pull request #26966 from Gymnasiast/sanitise-object-filenames
 
 - **Source:** `8e40456478268022cd2c29cd23ac5bde50f2740d`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `492a2b44d9e630fac0665cd6d9bf5eb448c52923`.
 - **Remaining:** 99 → 98.
 - **Disposition:** history receipt.
 - **Manual changes:** History receipt for packed-object filename sanitization merge; implementation already ported in U262.
 - **Additional decisions / behavior:** No independent resolution; retain U262 tests and Windows test registration.
 - **Verification:** Empty remerge delta and empty second-parent tree delta inspected. U262 production build and repository path tests passed B59.
 - **Pending / concerns:** U262 and standing validation limits remain.
+
+### U264 — `c7bee6257d` — Create enum and flagholder for StationObjectFlags
+
+- **Source:** `c7bee6257df77a5ada33d1475b802c5d2ab49252`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 98 → 97.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Convert station-object flags to enum/uint32 FlagHolder and update JSON parsing, colour UI, station/shelter/platform painting and shelter query.
+- **Additional decisions / behavior:** Keep primary/secondary/transparency/no-platforms/shelter bits 1/2/4/8/16 and same JSON property keys. Boolean semantics and object storage width unchanged. Preserve fork vehicle/platform/ratings code around the mechanical replacements.
+- **Verification:** All 13 source files inspected; exact added/removed-line equality and no old flag names verified. B60 build/test checkpoint pending.
+- **Pending / concerns:** Batched compile and station object/rendered colour/glass/platform/shelter checks pending; standing limits remain.
