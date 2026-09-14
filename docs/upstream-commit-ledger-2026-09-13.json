@@ -17436,7 +17436,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "df70c8c9276e6fee6a14e353a9174082b34865cf"
+      ],
       "verification_evidence": [
         "Full source and consumers inspected; solution build 32.96s zero warnings/errors; 51 tests in three suites passed 8.194s including four title/button configurations. B53 logs."
       ],
@@ -17473,9 +17475,11 @@
       "note": "Remove obsolete ImageIndex -2 handling; audit fork-owned command/sprite sentinel usage.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Full source inspected; sentinel-producer search across src/test and local button flow inspected; diff check. B54 compile pending."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -17483,7 +17487,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P6"
+      "verification_gate": "P6",
+      "port_commit_locator": "Upstream-Commit: 79be249f71ad2a616f0f521e6ec3ce873f59d732",
+      "implementation_decisions": "Adopt source cleanup. No source producer of that sentinel found; ordinary image buttons retain existing explicit border/theme handling. ImageId itself can hold this numeric value, so externally fabricated invalid image indices no longer select this undocumented border-only behavior.",
+      "pending_validation": "Batched compile and rendered custom-image/theme coverage pending."
     },
     {
       "sha": "63a787c2ae68478c11ceaefe91b01fec16b3eeac",
@@ -27504,8 +27511,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 245,
-    "remaining_after_receipt": 116,
+    "accounted_in_this_tree": 246,
+    "remaining_after_receipt": 115,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

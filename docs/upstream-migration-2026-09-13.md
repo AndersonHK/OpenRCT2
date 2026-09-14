@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 245 / 361 source commits recorded
+## Progress: 246 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2713,10 +2713,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U245 — `31004bbf33` — Fix #24610: Graph tabs on Finances window get a little bit longer every time you switch between them (#26976)
 
 - **Source:** `31004bbf332455a82084d466a9e081dfc760aebd`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `df70c8c9276e6fee6a14e353a9174082b34865cf`.
 - **Remaining:** 117 → 116.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Adopt consistent inclusive title dimensions and close-button sizes/placement; add repeated Finances graph-tab geometry regression.
 - **Additional decisions / behavior:** Approved P5. No production divergence; preserve fork cent-money calculations and finance time labels. Normal/enlarged title heights are 14/25 with 11x12/21x23 close controls. See B53.
 - **Verification:** Full source and consumers inspected; solution build 32.96s zero warnings/errors; 51 tests in three suites passed 8.194s including four title/button configurations. B53 logs.
 - **Pending / concerns:** Rendered captions/touch, other live-resized windows, non-Windows and standing live-MP/replay checks remain.
+
+### U246 — `79be249f71` — Remove dead code testing for ImageIndex -2 (#26993)
+
+- **Source:** `79be249f71ad2a616f0f521e6ec3ce873f59d732`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 116 → 115.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Remove two legacy image-index minus-two border-only branches from button drawing.
+- **Additional decisions / behavior:** Adopt source cleanup. No source producer of that sentinel found; ordinary image buttons retain existing explicit border/theme handling. ImageId itself can hold this numeric value, so externally fabricated invalid image indices no longer select this undocumented border-only behavior.
+- **Verification:** Full source inspected; sentinel-producer search across src/test and local button flow inspected; diff check. B54 compile pending.
+- **Pending / concerns:** Batched compile and rendered custom-image/theme coverage pending.
