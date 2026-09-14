@@ -27124,7 +27124,9 @@
       "decisions": [],
       "review_level": "targeted-code-review",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "2e4854d52c8a12fe1b165a4fc8431fb179686a43"
+      ],
       "verification_evidence": [
         "Read full switch and header contract; nine case labels match source."
       ],
@@ -27164,9 +27166,11 @@
       "note": "Use vehicle-type-specific extra zero cars in RCT1 park/design imports; retain cent/time conversion and platform reconstruction.",
       "decisions": [],
       "review_level": "targeted-code-review",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Full source hunk and adjacent fork importer inspected; pinned object JSON check all nine passed (u352-object-proof.txt)."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -27176,7 +27180,10 @@
       "merge_conflict_paths": [
         "src/openrct2/rct1/S4Importer.cpp"
       ],
-      "verification_gate": "P7"
+      "verification_gate": "P7",
+      "port_commit_locator": "Upstream-Commit: 8eb25bb02f707d8199d988e7a7ea4243ea079363",
+      "implementation_decisions": "Do not add the entire modern object zero-car count: RCT1 saves already account for their original dummy cars. Add only later door-compatibility dummy cars for nine types. Both current/proposed values agree; fork real-length conversion, capacity policy and station margin preserved. Pinned companion fork verified: all nine mapped objects have numEmptyCars 2; no asset patch or upstream substitution needed.",
+      "pending_validation": "Compile/import checkpoint with following TD4 consumer; original RCT1 saves still require manual validation."
     },
     {
       "sha": "0dfc546c8b82a646223a4312f611b15d235756e6",
@@ -28246,8 +28253,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 351,
-    "remaining_after_receipt": 10,
+    "accounted_in_this_tree": 352,
+    "remaining_after_receipt": 9,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

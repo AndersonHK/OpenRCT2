@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 351 / 361 source commits recorded
+## Progress: 352 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3879,10 +3879,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U351 — `fdcda7be5d` — RCT1: create function to get number of additional zero cars
 
 - **Source:** `fdcda7be5d5d1293092a5e8fc0fe075579b2f283`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `2e4854d52c8a12fe1b165a4fc8431fb179686a43`.
 - **Remaining:** 11 → 10.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Add RCT1 vehicle-specific additional zero-car lookup for import compatibility.
 - **Additional decisions / behavior:** Nine listed legacy vehicle types return two dummy cars; all others zero. Helper is not yet called; ordinary ride capacity policy unchanged.
 - **Verification:** Read full switch and header contract; nine case labels match source.
 - **Pending / concerns:** Compile and integration fixtures with following RCT1 importer consumers.
+
+### U352 — `8eb25bb02f` — Fix: Some rides in RCT1 saves have a wrong number of cars per train
+
+- **Source:** `8eb25bb02f707d8199d988e7a7ea4243ea079363`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 10 → 9.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Import RCT1 current/proposed train length using legacy vehicle-specific additional dummy cars.
+- **Additional decisions / behavior:** Do not add the entire modern object zero-car count: RCT1 saves already account for their original dummy cars. Add only later door-compatibility dummy cars for nine types. Both current/proposed values agree; fork real-length conversion, capacity policy and station margin preserved. Pinned companion fork verified: all nine mapped objects have numEmptyCars 2; no asset patch or upstream substitution needed.
+- **Verification:** Full source hunk and adjacent fork importer inspected; pinned object JSON check all nine passed (u352-object-proof.txt).
+- **Pending / concerns:** Compile/import checkpoint with following TD4 consumer; original RCT1 saves still require manual validation.
