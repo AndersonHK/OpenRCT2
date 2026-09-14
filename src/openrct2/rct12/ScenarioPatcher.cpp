@@ -28,12 +28,15 @@
 #include "../world/Footpath.h"
 #include "../world/Location.hpp"
 #include "../world/Map.h"
+#include "../world/Park.h"
 #include "../world/MapTopology.h"
 #include "../world/TileElementsView.h"
 #include "../world/tile_element/EntranceElement.h"
 #include "../world/tile_element/SurfaceElement.h"
 #include "../world/tile_element/TileElementType.h"
 #include "../world/tile_element/TrackElement.h"
+
+#include <span>
 
 #ifdef DISABLE_NETWORK
     #include <picosha2.hpp>
@@ -200,6 +203,19 @@ static bool IsQueue(const json_t& parameters)
     else
     {
         return Json::GetBoolean(parameters[_isQueue]);
+    }
+}
+
+static void FixLandOwnershipTilesWithOwnership(const std::span<const TileCoordsXY> tiles, OwnershipFlags ownership)
+{
+    for (const auto& tile : tiles)
+    {
+        auto surfaceElement = MapGetSurfaceElementAt(tile);
+        if (surfaceElement != nullptr)
+        {
+            surfaceElement->setOwnership(ownership);
+            Park::UpdateFencesAroundTile(tile.ToCoordsXY());
+        }
     }
 }
 

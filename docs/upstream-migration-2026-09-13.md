@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 187 / 361 source commits recorded
+## Progress: 188 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2075,10 +2075,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U187 — `d2783e0564` — Rename some ‘OwnershipFlag’s
 
 - **Source:** `d2783e05642247971350f8b8c3fc6383be7c46c1`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `3ffd12141b33079ea80e494c1451b4b4fe37156b`.
 - **Remaining:** 175 → 174.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Rename OwnershipFlag owned/forSale/constructionRightsAvailable to landOwned/landForSale/constructionRightsForSale in all 15 reviewed source files.
 - **Additional decisions / behavior:** Names only; retain numeric bit positions, API119, protocol11, packed data and corrected U185 land-purchase predicate. Carry the renamed token into the nearby land-sales comment as well. No gameplay change.
 - **Verification:** Actual source reviewed; port_u187.py --audit verifies all 15 changed files are exactly the scoped renames modulo whitespace. Removed-name search has no matches; diff whitespace check passes.
 - **Pending / concerns:** U186-U187 compile and ownership/plugin checks due at the next batch; standing interactive/network/non-Windows validation remains.
+
+### U188 — `26c10680d5` — Move two map ownership functions out of Map.h
+
+- **Source:** `26c10680d59ad031eb9ca444b055850863f2f3bf`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 174 → 173.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Move eligibility to MapOwnership.cpp with TileElementsView traversal, localize the scenario ownership/fence helper with const span, relocate declarations and register the new compilation unit. Add explicit span include.
+- **Additional decisions / behavior:** Preserve null-tile fallback, element order and ghost inclusion in eligibility; moved loop has no mutation. Scenario helper retains ownership and fence updates plus surrounding fork topology invalidation. No gameplay/API/wire/save changes; corrected U185 pricing remains.
+- **Verification:** audit_u188.py verifies unchanged eligibility-body statements and scenario ownership/fence loop, exact current-source new file and unique MSBuild registration. CMake source glob covers new cpp. B36 first Release/Vulkan build 0 warnings/errors 74.83s; all 127 selected tests in 11 suites pass 21.987s. U186-U188 compile/test debt cleared.
+- **Pending / concerns:** Standing interactive ownership/scenario UI, live multiplayer/replay and non-Windows validation remain unverified.

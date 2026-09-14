@@ -1289,6 +1289,7 @@
     <ClCompile Include="world\MapPathRouteCache.cpp" />
     <ClCompile Include="world\MapTopology.cpp" />
     <ClCompile Include="world\MapAnimation.cpp" />
+    <ClCompile Include="world\MapOwnership.cpp" />
     <ClCompile Include="world\MapRangeView.cpp" />
     <ClCompile Include="world\MapSelection.cpp" />
     <ClCompile Include="world\Park.cpp" />
