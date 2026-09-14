@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 267 / 361 source commits recorded
+## Progress: 268 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2955,10 +2955,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U267 — `57de7b82be` — Switch characters from decimal to the more common hex notation
 
 - **Source:** `57de7b82be001d497bee266a50dbfd118b59ba92`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `315b650e6856a527a5f42c4b3c5f3816f2a13ed1`.
 - **Remaining:** 95 → 94.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Rename 690 existing font PNGs from decimal to hexadecimal Unicode names and update their manifest paths; preserve every image byte and manifest entry order/offset/palette/format.
 - **Additional decisions / behavior:** No font glyph appearance or index change. Git rename detection paired four identical images under different character labels; manual rename mapping follows decimal-to-Unicode identity and verifies destination blob equality. Windows receipt helper now uses chunked diff checks and a NUL-separated explicit pathspec file for git add to avoid command-line length limits; ancestry/staging allowlist checks remain.
 - **Verification:** All 690 R100 source renames and complete old/new manifest parsed; codepoint identity, unchanged metadata/order, byte equality of every destination and final manifest equality to source verified. 691 changed old paths plus 690 new paths; diff check passed.
 - **Pending / concerns:** Font archive regeneration checkpoint with subsequent glyph changes; standing rendered font/non-Windows checks remain.
+
+### U268 — `52a684a0da` — Fix #15891: Add lower case hard sign
+
+- **Source:** `52a684a0dae90fb087f5cb3df0001e10dbba6d4f`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 94 → 93.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Add three exact upstream lower-case Cyrillic hard-sign glyphs, per-style manifest entries, sprite enum slot and corrected codepoint lookup; changelog fix.
+- **Additional decisions / behavior:** Use dedicated lowercase glyph instead of uppercase fallback. Preserve tiny y=1 baseline adjustment and per-style ordering. Sprite IDs shift through existing enum/manifest machinery; no save/gameplay data change.
+- **Verification:** Complete textual delta inspected; exact PNG blobs copied with valid PNG signatures; bold glyph viewed; all three style entries reviewed. B61 asset rebuild/lookup validation pending.
+- **Pending / concerns:** Font archive regeneration, style glyph mapping checks and actual rendered text/non-Windows checks pending.
