@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 287 / 361 source commits recorded
+## Progress: 288 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3175,10 +3175,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U287 — `abcc8f90ca` — Turn UnicodeChar into a strong enum, rename for codestyle
 
 - **Source:** `abcc8f90caed10382875b8c9e81b9238c6597102`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `05cccd2eb2fc964e1ffc342cf6ff3c6275e1c39d`.
 - **Remaining:** 75 → 74.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Convert UnicodeChar constants to a char32_t enum class with camelCase names; update font and legacy converter uses.
 - **Additional decisions / behavior:** All 197 values and 194 font/32 legacy mapping entries preserve numeric identity and order. Retain all source casts/EnumValue conversions and fallback paths; no glyph, pricing or text input behavior changes intended. UTF-16 output still follows the existing conversion pipeline.
 - **Verification:** Read enum and consumer changes; programmatic full table/value correspondence passed. Four source files matched source parent exactly before port; existing Drawing.String fork retained outside delta.
 - **Pending / concerns:** Compile and localization/font/import tests at upcoming enum batch checkpoint, including possible char32_t-to-UTF16 narrowing diagnostics. No owner decision.
+
+### U288 — `db9ab61b28` — Turn CSChar into a strong enum, rename for codestyle
+
+- **Source:** `db9ab61b280a48db047eb18e1ca9eed16564e44a`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 74 → 73.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Convert CSChar to uint8_t enum class and typed legacy conversion entries; use explicit values in font arithmetic.
+- **Additional decisions / behavior:** All 34 legacy byte values remain identical and fit uint8_t; preserve 194 font and 32 conversion rows/order. bsearch still compares the same integer key against the enum underlying value; private in-memory converter entries are not serialized.
+- **Verification:** Read all three source deltas; full numeric/table correspondence checks passed. Exact source applied, without replacing fork unrelated code.
+- **Pending / concerns:** Compile and font/localization/import checks at pending encoding checkpoint; U287 conversion narrowing debt remains tracked. No owner decision.

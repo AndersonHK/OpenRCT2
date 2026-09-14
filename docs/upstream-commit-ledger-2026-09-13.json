@@ -20998,7 +20998,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "05cccd2eb2fc964e1ffc342cf6ff3c6275e1c39d"
+      ],
       "verification_evidence": [
         "Read enum and consumer changes; programmatic full table/value correspondence passed. Four source files matched source parent exactly before port; existing Drawing.String fork retained outside delta."
       ],
@@ -21037,9 +21039,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Read all three source deltas; full numeric/table correspondence checks passed. Exact source applied, without replacing fork unrelated code."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -21047,7 +21051,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: db9ab61b280a48db047eb18e1ca9eed16564e44a",
+      "implementation_decisions": "All 34 legacy byte values remain identical and fit uint8_t; preserve 194 font and 32 conversion rows/order. bsearch still compares the same integer key against the enum underlying value; private in-memory converter entries are not serialized.",
+      "pending_validation": "Compile and font/localization/import checks at pending encoding checkpoint; U287 conversion narrowing debt remains tracked. No owner decision."
     },
     {
       "sha": "bb870ce4fad1f1a6d6fd9dead58f6fe918455765",
@@ -27798,8 +27805,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 287,
-    "remaining_after_receipt": 74,
+    "accounted_in_this_tree": 288,
+    "remaining_after_receipt": 73,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
