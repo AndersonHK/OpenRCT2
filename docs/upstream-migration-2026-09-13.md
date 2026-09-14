@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 129 / 361 source commits recorded
+## Progress: 130 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1437,10 +1437,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U129 — `f967ebc2d2` — Remove openrct2/scenes includes
 
 - **Source:** `f967ebc2d239eb9cb5762c5c060aea59dd212775`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `ea5e9a6da14b6da5e7ba35546c605ee9bbcc2f69`.
 - **Remaining:** 233 → 232.
 - **Disposition:** adopt applicable header cleanup.
 - **Manual changes:** Remove unused scene/editor/title implementation includes.
 - **Additional decisions / behavior:** Retain existing fork scene lifetimes, gameStateTick dispatch, editor startup and title behavior; no runtime code changes.
 - **Verification:** All 12 source paths inspected and verified include-only against current fork; whitespace/ancestry gates.
 - **Pending / concerns:** Build checkpoint after header group.
+
+### U130 — `6c5c2079ce` — Remove openrct2/scripting includes
+
+- **Source:** `6c5c2079ce16675a7996a426d707a6f4ccc2cbce`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 232 → 231.
+- **Disposition:** adapt script header cleanup.
+- **Manual changes:** Remove unused script-binding includes/declarations and tidy prior namespace comment/blank line.
+- **Additional decisions / behavior:** Retain Profiling.h for fork PROFILED_FUNCTION and cassert for live handle assertion. Preserve all fork script bodies, public API strings and entity lifecycle behavior.
+- **Verification:** Thirty fork paths verified include/declaration/comment/whitespace-only; actual source and fork profiling/assert callers inspected; whitespace/ancestry gates.
+- **Pending / concerns:** Build/scripting checkpoint after header group.

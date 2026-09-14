@@ -65,9 +65,8 @@
     #include "bindings/world/ScTileElement.hpp"
     #include "bindings/world/ScWeather.hpp"
 
-    #include <cassert>
-    #include <iostream>
     #include <memory>
+    #include <cassert>
     #include <stdexcept>
     #include <string>
 
