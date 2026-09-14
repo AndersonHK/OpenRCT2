@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 232 / 361 source commits recorded
+## Progress: 233 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2570,10 +2570,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U232 — `a5edcd5780` — Rename RCT1ResearchFlagsSeparator to kRCT1ResearchFlagsSeparator
 
 - **Source:** `a5edcd5780ab9749bb138d9b6af0be0de5abb1d5`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `5af2c583e5eeda3ac8f407339da5906e8759d8c8`.
 - **Remaining:** 130 → 129.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Rename the RCT1 research separator constant and its four importer uses.
 - **Additional decisions / behavior:** Keep numeric separator 0xFF, research ordering and all fork importer behavior.
 - **Verification:** Complete source and repository references reviewed; inverse replacement reproduces original file contents.
 - **Pending / concerns:** U229–U232 compile at next checkpoint.
+
+### U233 — `65dfdd3030` — Rename MASK_SIZE to kMaskSize
+
+- **Source:** `65dfdd3030bfe5da17cc3324dc2a96a1d5766dff`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 129 → 128.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Rename encrypted scenario mask size to kMaskSize and spell out static linkage.
+- **Additional decisions / behavior:** Retain 0x1000 mask size and exact decryption arithmetic; prior namespace const already had internal linkage.
+- **Verification:** Full source/reference search and inverse-transform equality check passed.
+- **Pending / concerns:** Compile at next checkpoint.

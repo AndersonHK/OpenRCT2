@@ -16832,7 +16832,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "5af2c583e5eeda3ac8f407339da5906e8759d8c8"
+      ],
       "verification_evidence": [
         "Complete source and repository references reviewed; inverse replacement reproduces original file contents."
       ],
@@ -16871,9 +16873,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Full source/reference search and inverse-transform equality check passed."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -16881,7 +16885,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 65dfdd3030bfe5da17cc3324dc2a96a1d5766dff",
+      "implementation_decisions": "Retain 0x1000 mask size and exact decryption arithmetic; prior namespace const already had internal linkage.",
+      "pending_validation": "Compile at next checkpoint."
     },
     {
       "sha": "d611a7d560d7f50ff7bccc85c2fdcd2d88dd0e27",
@@ -27413,8 +27420,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 232,
-    "remaining_after_receipt": 129,
+    "accounted_in_this_tree": 233,
+    "remaining_after_receipt": 128,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
