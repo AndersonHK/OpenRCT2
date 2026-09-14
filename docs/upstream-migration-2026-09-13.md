@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 52 / 361 source commits recorded
+## Progress: 53 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -590,10 +590,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U052 — `e103cb11bb` — Rename members of DrawingEngine
 
 - **Source:** `e103cb11bb7e116bbd48d7bf01c7a8163391b148`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `7da651bc9d8a70220a1c285ef6f47bda8611d437`.
 - **Remaining:** 310 → 309.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename DrawingEngine members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Preserve the fork renderer set and config contract: none=-1, software=0, vulkan=2, count=3; do not reintroduce retired OpenGL. Include the fork-only Vulkan enum spelling and CLI/options/config references in the naming change. Keep persisted SOFTWARE_HWD, OPENGL legacy-to-software alias and VULKAN strings unchanged. Vulkan LightFX, window creation, frame ownership and crash-capture behavior stay as implemented in the fork.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U053 — `3fa93c3278` — Rename members of Weather::Type
+
+- **Source:** `3fa93c32786eef367c5a851061e74f0e11c10ef3`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 309 → 308.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename Weather::Type members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Preserve weather values 0-8 and count=9, climate distributions, screenshot option offsets, force-weather bounds and scripting strings. Restrict unqualified Type substitutions to the Weather namespace files; unrelated Type enums remain untouched. Include fork pathfinding weather tests without changing routing behavior.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.

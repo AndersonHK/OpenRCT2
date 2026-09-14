@@ -481,10 +481,10 @@ TEST_F(PathfindingTestBase, RainRelaxesTheTransportTimeSavingThreshold)
     Guest guest{};
     InitialiseTransportGuest(guest);
 
-    Weather::forceWeather(Weather::Type::Sunny);
+    Weather::forceWeather(Weather::Type::sunny);
     EXPECT_FALSE(PathFinding::PlanTransportRoute(guest, { 100, 0, 0 }));
 
-    Weather::forceWeather(Weather::Type::Rain);
+    Weather::forceWeather(Weather::Type::rain);
     EXPECT_TRUE(PathFinding::PlanTransportRoute(guest, { 100, 0, 0 }));
 
 }
@@ -520,12 +520,12 @@ TEST_F(PathfindingTestBase, RainPrefersShelteredSelectedLegOverEquivalentExposed
     Guest guest{};
     InitialiseTransportGuest(guest);
 
-    Weather::forceWeather(Weather::Type::Sunny);
+    Weather::forceWeather(Weather::Type::sunny);
     ASSERT_TRUE(PathFinding::PlanTransportRoute(guest, { 100, 0, 0 }));
     EXPECT_EQ(guest.previousRide, exposed->id);
 
     ClearTransportRoute(guest);
-    Weather::forceWeather(Weather::Type::Rain);
+    Weather::forceWeather(Weather::Type::rain);
     ASSERT_TRUE(PathFinding::PlanTransportRoute(guest, { 100, 0, 0 }));
     EXPECT_EQ(guest.previousRide, sheltered->id);
 
@@ -603,7 +603,7 @@ TEST_F(PathfindingTestBase, DiscountRequiresLessDryTimeSavingThanFair)
     auto* monorail = AddTransportRide(1800, 240);
     ASSERT_NE(monorail, nullptr);
     EnablePaidTransport();
-    Weather::forceWeather(Weather::Type::Sunny);
+    Weather::forceWeather(Weather::Type::sunny);
 
     Guest guest{};
     InitialiseTransportGuest(guest);
