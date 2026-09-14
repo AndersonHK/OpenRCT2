@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 44 / 361 source commits recorded
+## Progress: 45 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -502,10 +502,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U044 — `bfd0a374ff` — Merge pull request #26867 from AaronVanGeffen/strip-window-header
 
 - **Source:** `bfd0a374ff3ec4fc6a46d7839ae6424634475ce8`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `a7d9dfac77243731a13d864e53564dbe83393a8f`.
 - **Remaining:** 318 → 317.
 - **Disposition:** merge receipt; already ported.
 - **Manual changes:** Record the UI header refactor merge after U040-U043; no additional product delta.
 - **Additional decisions / behavior:** The merge tree equals its second parent and contains no conflict-resolution behavior to port. Preserve the individually adapted fork changes.
 - **Verification:** Inspected merge metadata, empty archived remerge diff and exact second-parent tree equivalence; exact-one ancestry checked.
 - **Pending / concerns:** UI-header batch build pending.
+
+### U045 — `302058221f` — Move WindowFlags into their own header (#26869)
+
+- **Source:** `302058221f4c3c47e079f194c61ffc49f6f7bbf0`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 317 → 316.
+- **Disposition:** ported.
+- **Manual changes:** Move WindowFlag/WindowFlags into WindowFlags.h, make Window.h use forward declarations, and supply explicit type includes at consumers. Add both new headers to the Visual Studio project.
+- **Additional decisions / behavior:** The entire flag declaration and uint16_t storage alias are unchanged byte-for-byte. All 14 flag positions retain meanings, including create-only flags. No window placement, transparency, input or rendering policy changes.
+- **Verification:** Reviewed all nine source-file deltas; compared the complete old/new enum and alias. Unique-context edits, diff and exact-one ancestry checked.
+- **Pending / concerns:** Compile/link and focused tests at the next checkpoint will check fork transitive dependencies.

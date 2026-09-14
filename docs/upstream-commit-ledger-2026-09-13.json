@@ -3193,7 +3193,9 @@
       "decisions": [],
       "review_level": "remerge-probe",
       "implementation_status": "merge receipt; already ported",
-      "port_commits": [],
+      "port_commits": [
+        "a7d9dfac77243731a13d864e53564dbe83393a8f"
+      ],
       "verification_evidence": [
         "Inspected merge metadata, empty archived remerge diff and exact second-parent tree equivalence; exact-one ancestry checked."
       ],
@@ -3246,9 +3248,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "ported",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Reviewed all nine source-file deltas; compared the complete old/new enum and alias. Unique-context edits, diff and exact-one ancestry checked."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -3258,7 +3262,10 @@
       "merge_conflict_paths": [
         "src/openrct2/libopenrct2.vcxproj"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 302058221f4c3c47e079f194c61ffc49f6f7bbf0",
+      "implementation_decisions": "The entire flag declaration and uint16_t storage alias are unchanged byte-for-byte. All 14 flag positions retain meanings, including create-only flags. No window placement, transparency, input or rendering policy changes.",
+      "pending_validation": "Compile/link and focused tests at the next checkpoint will check fork transitive dependencies."
     },
     {
       "sha": "1423ab779a5a47190f72e04449690e184efc8a36",
@@ -26097,8 +26104,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 44,
-    "remaining_after_receipt": 317,
+    "accounted_in_this_tree": 45,
+    "remaining_after_receipt": 316,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
