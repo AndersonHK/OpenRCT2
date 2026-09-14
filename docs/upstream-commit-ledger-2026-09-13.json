@@ -24301,7 +24301,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "f39720d2d7c5bed9defd3268c2346e236d97f2fd"
+      ],
       "verification_evidence": [
         "All8 files match complete source; JSON/hash prefixes and26 clear-name IDs verified. U309 tests cover scalar/array clear operations."
       ],
@@ -24352,9 +24354,11 @@
       "note": "Adopt final scenario name corrections through scenario import patching; verify affected scenario hashes and custom-name preservation.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "B81: all15 data files exact source; every existing nonride JSON payload identical. Solution7.34 seconds zero warnings/errors; all4 scenario tests pass0.534 seconds, including25 Okinawa CD name clears/3 exclusions and214 ownership checks."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -24362,7 +24366,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P7"
+      "verification_gate": "P7",
+      "port_commit_locator": "Upstream-Commit: 99cdd3892a32b4628b65f8dd4b383582a9da3dc5",
+      "implementation_decisions": "234 clear-name targets total include2 earlier ride18 clears; Beach Barbecue ride0=7 Hole Golf, ride2=Rings of Fun. All existing ownership/path payloads preserved. Name-only original-scenario hash-gated changes.",
+      "pending_validation": "Original scenario-file imports remain untested; synthetic fixture and parser coverage only."
     },
     {
       "sha": "394e588fc7c94512a0adad3f1fa1f1dc4c964237",
@@ -27959,8 +27966,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 310,
-    "remaining_after_receipt": 51,
+    "accounted_in_this_tree": 311,
+    "remaining_after_receipt": 50,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

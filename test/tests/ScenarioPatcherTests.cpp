@@ -134,9 +134,14 @@ TEST(FetchAndApplyScenarioPatch, OkinawaCdPatchAppliesApprovedStartingOwnership)
     auto context = CreateContext();
     ASSERT_TRUE(context->Initialise());
     MapInit({ 128, 128 });
-    auto* ride = RideAllocateAtIndex(RideId::FromUnderlying(18));
-    ASSERT_NE(ride, nullptr);
-    ride->type = RIDE_TYPE_SPLASH_BOATS;
+    for (uint16_t id = 0; id < 28; ++id)
+    {
+        auto* fixtureRide = RideAllocateAtIndex(RideId::FromUnderlying(id));
+        ASSERT_NE(fixtureRide, nullptr);
+        fixtureRide->type = RIDE_TYPE_SPLASH_BOATS;
+        fixtureRide->customName = "Original fixture name";
+    }
+    auto* ride = GetRide(RideId::FromUnderlying(18));
     ride->customName = "Bullet Coaster 1";
     ride->numCarsPerTrain = 3;
     ride->ratingAccumulator.ticks = 123;
@@ -169,6 +174,14 @@ TEST(FetchAndApplyScenarioPatch, OkinawaCdPatchAppliesApprovedStartingOwnership)
     }
     EXPECT_EQ(checked, 214u);
     EXPECT_EQ(MapGetSurfaceElementAt(TileCoordsXY{ 50, 50 })->getOwnership(), untouched);
+    for (uint16_t id = 0; id < 28; ++id)
+    {
+        const auto* fixtureRide = GetRide(RideId::FromUnderlying(id));
+        if (id == 5 || id == 6 || id == 20)
+            EXPECT_EQ(fixtureRide->customName, "Original fixture name");
+        else
+            EXPECT_TRUE(fixtureRide->customName.empty());
+    }
     EXPECT_TRUE(ride->customName.empty());
     EXPECT_EQ(ride->numCarsPerTrain, 3);
     EXPECT_EQ(ride->ratingAccumulator.ticks, 123u);

@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 310 / 361 source commits recorded
+## Progress: 311 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3428,10 +3428,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U310 — `6d06f9a15e` — Fix unlocalised names in RCT2 base
 
 - **Source:** `6d06f9a15ea2ba9525473483d3e2e6325590a39f`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `f39720d2d7c5bed9defd3268c2346e236d97f2fd`.
 - **Remaining:** 52 → 51.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Clear fixed default names for26 rides in7 RCT2 base scenarios, enabling localized generated names.
 - **Additional decisions / behavior:** Fungus Woods0; Dusty Greens0,1; Electric Fields0,1; Rainbow Summit2,3; Bumbly Bazaar0..9; Lucky Lake0..6; Extreme Heights1,2. FullSHA/scenario gates preserve ordinary saves/custom parks. Existing Extreme Heights ownership unchanged. Human-only scenario_to_hash reference retains source formatting.
 - **Verification:** All8 files match complete source; JSON/hash prefixes and26 clear-name IDs verified. U309 tests cover scalar/array clear operations.
 - **Pending / concerns:** Data/parser checkpoint with next scenario batch; original7 scenarios not imported.
+
+### U311 — `99cdd3892a` — Fix unlocalised names in Wacky Worlds
+
+- **Source:** `99cdd3892a32b4628b65f8dd4b383582a9da3dc5`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 51 → 50.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Extend localized default-name fixes across14 Wacky Worlds scenario variants and retain2 official fixed names.
+- **Additional decisions / behavior:** 234 clear-name targets total include2 earlier ride18 clears; Beach Barbecue ride0=7 Hole Golf, ride2=Rings of Fun. All existing ownership/path payloads preserved. Name-only original-scenario hash-gated changes.
+- **Verification:** B81: all15 data files exact source; every existing nonride JSON payload identical. Solution7.34 seconds zero warnings/errors; all4 scenario tests pass0.534 seconds, including25 Okinawa CD name clears/3 exclusions and214 ownership checks.
+- **Pending / concerns:** Original scenario-file imports remain untested; synthetic fixture and parser coverage only.
