@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 25 / 361 source commits recorded
+## Progress: 26 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -293,10 +293,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U025 — `a7881846e1` — Rename members of TunnelGroup
 
 - **Source:** `a7881846e18921dec2e5b1e5109aeb53dd41469e`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `74162ebe200b794c4cbfdbac349147dd3bc637e4`.
 - **Remaining:** 337 → 336.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename TunnelGroup members and all fork references to standard/square/inverted.
 - **Additional decisions / behavior:** Keep numeric group values 0/1/2 and every fork terrain/paint path; apply identifier substitutions rather than replacing track painter bodies. Additional ClassicWoodenTwisterRollerCoaster.cpp and WoodenRollerCoaster.cpp references are included.
 - **Verification:** All complete source parent/child file deltas mechanically verified to contain only the reviewed identifier substitutions (58 files); 60 fork paths updated. Receipt whitespace/singleton checks.
 - **Pending / concerns:** Compile at next naming batch checkpoint; no tunnel sprite/layout changes intended.
+
+### U026 — `e80faf5606` — Rename members of TunnelSubType
+
+- **Source:** `e80faf5606b59b47b242fec9a5af562baafd64a2`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 336 → 335.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename TunnelSubType members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Keep all five numeric tunnel subtype values 0-4, painter heights and fork track support/layout calculations. Large track-paint diff is strictly a symbol rename, not tunnel geometry changes.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
