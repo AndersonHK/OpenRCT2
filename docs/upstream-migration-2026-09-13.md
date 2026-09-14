@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 309 / 361 source commits recorded
+## Progress: 310 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3417,10 +3417,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U309 — `9f9b14d0b8` — Allow using arrays for ride ids in scenario patches
 
 - **Source:** `9f9b14d0b882296b4250e2ee9b09f4118aec27a4`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `48b2cbfc4cc1c2c112d30293402f5105a4d7952d`.
 - **Remaining:** 53 → 52.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Support ordered arrays of ride IDs alongside scalars in scenario patches.
 - **Additional decisions / behavior:** Retain duplicates and empty-array no-op, existing uint16 conversion/dry-run and all operation bodies. Preserve formatter cast, full-hash scenario-only import gates and fork topology changes.
 - **Verification:** B80: solution13.48 seconds zero warnings/errors; four scenario tests pass0.489 seconds, including new ordered array/scalar/duplicate/empty/dry-run fixture with unchanged ride state.
 - **Pending / concerns:** Array open/swap paths and original scenarios not individually exercised; standing native/live-MP checks.
+
+### U310 — `6d06f9a15e` — Fix unlocalised names in RCT2 base
+
+- **Source:** `6d06f9a15ea2ba9525473483d3e2e6325590a39f`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 52 → 51.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Clear fixed default names for26 rides in7 RCT2 base scenarios, enabling localized generated names.
+- **Additional decisions / behavior:** Fungus Woods0; Dusty Greens0,1; Electric Fields0,1; Rainbow Summit2,3; Bumbly Bazaar0..9; Lucky Lake0..6; Extreme Heights1,2. FullSHA/scenario gates preserve ordinary saves/custom parks. Existing Extreme Heights ownership unchanged. Human-only scenario_to_hash reference retains source formatting.
+- **Verification:** All8 files match complete source; JSON/hash prefixes and26 clear-name IDs verified. U309 tests cover scalar/array clear operations.
+- **Pending / concerns:** Data/parser checkpoint with next scenario batch; original7 scenarios not imported.

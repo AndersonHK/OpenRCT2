@@ -24252,7 +24252,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "48b2cbfc4cc1c2c112d30293402f5105a4d7952d"
+      ],
       "verification_evidence": [
         "B80: solution13.48 seconds zero warnings/errors; four scenario tests pass0.489 seconds, including new ordered array/scalar/duplicate/empty/dry-run fixture with unchanged ride state."
       ],
@@ -24298,9 +24300,11 @@
       "note": "Adopt final scenario name corrections through scenario import patching; verify affected scenario hashes and custom-name preservation.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "All8 files match complete source; JSON/hash prefixes and26 clear-name IDs verified. U309 tests cover scalar/array clear operations."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -24308,7 +24312,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P7"
+      "verification_gate": "P7",
+      "port_commit_locator": "Upstream-Commit: 6d06f9a15ea2ba9525473483d3e2e6325590a39f",
+      "implementation_decisions": "Fungus Woods0; Dusty Greens0,1; Electric Fields0,1; Rainbow Summit2,3; Bumbly Bazaar0..9; Lucky Lake0..6; Extreme Heights1,2. FullSHA/scenario gates preserve ordinary saves/custom parks. Existing Extreme Heights ownership unchanged. Human-only scenario_to_hash reference retains source formatting.",
+      "pending_validation": "Data/parser checkpoint with next scenario batch; original7 scenarios not imported."
     },
     {
       "sha": "99cdd3892a32b4628b65f8dd4b383582a9da3dc5",
@@ -27952,8 +27959,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 309,
-    "remaining_after_receipt": 52,
+    "accounted_in_this_tree": 310,
+    "remaining_after_receipt": 51,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
