@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 103 / 361 source commits recorded
+## Progress: 104 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1151,10 +1151,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U103 — `78fb8d73bb` — Rename members of ScenarioSource
 
 - **Source:** `78fb8d73bb82f78b276b55399b393b8f1fe749fb`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `05bea6ca18c140aca87d848dd0c3ce96f04f57c8`.
 - **Remaining:** 259 → 258.
 - **Disposition:** adopt naming only.
 - **Manual changes:** Rename ScenarioSource members and all applicable fork references using the individually reviewed name map.
 - **Additional decisions / behavior:** Scenario source names only: preserve ten source IDs, ordering, scenario indexing, expansion detection and script API strings such as rct1_aa. Fork park version stays 60016.
+- **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
+- **Pending / concerns:** Compile at next coherent naming batch checkpoint.
+
+### U104 — `25fc422c44` — Rename members of IntroState
+
+- **Source:** `25fc422c44b6298ea85a680bc44537464c59f517`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 258 → 257.
+- **Disposition:** adopt naming only.
+- **Manual changes:** Rename IntroState members and all applicable fork references using the individually reviewed name map.
+- **Additional decisions / behavior:** Intro state naming only: preserve 0-7 and special clear=254/finish=255 values, 80-tick wait, fade speeds and audio/click-skip lifecycle.
 - **Verification:** Complete source parent/child deltas verified to contain only the reviewed identifier substitutions and whitespace. Fork changes use only these substitutions; enum order/values retained. Singleton ancestry and whitespace checked per receipt.
 - **Pending / concerns:** Compile at next coherent naming batch checkpoint.
