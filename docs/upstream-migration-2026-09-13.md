@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 301 / 361 source commits recorded
+## Progress: 302 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3329,10 +3329,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U301 — `96a6638263` — Merge Localisation/master into OpenRCT2/develop
 
 - **Source:** `96a6638263408ee2b00110b77f06e7328eaaf211`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `2f465c622b86964045ce3d3486169a41e05676f0`.
 - **Remaining:** 61 → 60.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Add Dutch STR_7043 terrain-height rejection title.
 - **Additional decisions / behavior:** Single-parent translation; no formatting parameters, runtime behavior or fork ID changes.
 - **Verification:** Read and applied exact one-line addition.
 - **Pending / concerns:** Parser at next coherent checkpoint; native display remains untested.
+
+### U302 — `3ae38cf3d7` — Merge branch 'develop'
+
+- **Source:** `3ae38cf3d758e6e619730761d1eb81ce921e26d7`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 60 → 59.
+- **Disposition:** history receipt.
+- **Manual changes:** History receipt for develop merge; both parent histories already accounted.
+- **Additional decisions / behavior:** Actual combined and remerge resolution diffs empty. Broad first-parent path list is inherited work, not a new port payload.
+- **Verification:** Inspected parent identities and empty remerge result; exact singleton ancestry receipt check.
+- **Pending / concerns:** U298/U301 parser checkpoint still pending; standing validation gaps unchanged.

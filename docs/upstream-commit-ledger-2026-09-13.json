@@ -21692,7 +21692,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "2f465c622b86964045ce3d3486169a41e05676f0"
+      ],
       "verification_evidence": [
         "Read and applied exact one-line addition."
       ],
@@ -23747,9 +23749,11 @@
       "note": "No remerge-resolution delta detected. Account for constituent commits before ancestry reconciliation.",
       "decisions": [],
       "review_level": "remerge-probe",
-      "implementation_status": "not-ported",
+      "implementation_status": "history receipt",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Inspected parent identities and empty remerge result; exact singleton ancestry receipt check."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -23897,7 +23901,10 @@
         "test/tests/EntityImportTests.cpp",
         "test/tests/PlayTests.cpp"
       ],
-      "verification_gate": "P0"
+      "verification_gate": "P0",
+      "port_commit_locator": "Upstream-Commit: 3ae38cf3d758e6e619730761d1eb81ce921e26d7",
+      "implementation_decisions": "Actual combined and remerge resolution diffs empty. Broad first-parent path list is inherited work, not a new port payload.",
+      "pending_validation": "U298/U301 parser checkpoint still pending; standing validation gaps unchanged."
     },
     {
       "sha": "8694e3483690323b6a75fa7264b6c58116f51f31",
@@ -27896,8 +27903,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 301,
-    "remaining_after_receipt": 60,
+    "accounted_in_this_tree": 302,
+    "remaining_after_receipt": 59,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
