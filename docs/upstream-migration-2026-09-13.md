@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 199 / 361 source commits recorded
+## Progress: 200 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2207,10 +2207,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U199 — `a74f7437b9` — Rename symbols of Peep (#26949)
 
 - **Source:** `a74f7437b92694dab9fbd0d6374f566854c0f4fd`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `e2b2eb90530ba8c82f4cb9dfac42931ba6725de8`.
 - **Remaining:** 163 → 162.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Manually port Peep member and method renames across 55 source paths plus three fork-only test paths; preserve fork inline movement, transport/platform, registry and park migration implementations. Restore O04 missing park-rating HUD invalidation from U195.
-- **Additional decisions / behavior:** 85 reviewed names and three anti-shadowing local renames; preserve all numeric/layout/gameplay contracts and unrelated legacy/rating/vehicle APIs. O04 corrects prior incomplete U195 intent migration: rating changes now invalidate parkInfoPanel independently. No API119/protocol11/save60016 change.
+- **Additional decisions / behavior:** 86 reviewed names and three anti-shadowing local renames; preserve all numeric/layout/gameplay contracts and unrelated legacy/rating/vehicle APIs. O04 corrects prior incomplete U195 intent migration: rating changes now invalidate parkInfoPanel independently. No API119/protocol11/save60016 change.
 - **Verification:** B40 first build found three missed names from digit-separator scanner bug (five diagnostics); repaired scanner/references, final build 18.12s zero warnings/errors. All 252 tests in 14 suites pass in 33.886s. Source and 59-file fork token audits plus all five HUD intent-body comparisons pass; diff check passes.
 - **Pending / concerns:** O04 redraw is source-verified, not observed with renderer; existing headless test cannot record dirty regions. Standing interactive/native non-Windows/live multiplayer/replay and later custom-theme conversion remain.
+
+### U200 — `bb0215abb0` — Merge Localisation/master into OpenRCT2/develop
+
+- **Source:** `bb0215abb0e4a48cd71e5fc8b105ce664b49d59e`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 162 → 161.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Add IDs 7040-7042 in Esperanto, Korean and Dutch; apply 32 Polish spelling, grammar and punctuation corrections, including the broken STRINGID placeholder.
+- **Additional decisions / behavior:** Translation-only. Polish STR_1636 fixes RINGID to STRINGID so the ride name formats correctly; other formatting tokens preserved. Correct U199 prose name-map count from 85 to measured 86 without changing its code or audit result.
+- **Verification:** All four resulting files exactly match reviewed current source blobs. Checked every changed format-token sequence; only intended Polish STR_1636 differs. No new Polish IDs; three new IDs in each other language. Diff check passed.
+- **Pending / concerns:** No runtime test required for translation-only delta; standing limitations unchanged.

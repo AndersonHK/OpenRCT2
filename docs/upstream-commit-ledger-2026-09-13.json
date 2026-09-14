@@ -15200,7 +15200,9 @@
       ],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "e2b2eb90530ba8c82f4cb9dfac42931ba6725de8"
+      ],
       "verification_evidence": [
         "B40 first build found three missed names from digit-separator scanner bug (five diagnostics); repaired scanner/references, final build 18.12s zero warnings/errors. All 252 tests in 14 suites pass in 33.886s. Source and 59-file fork token audits plus all five HUD intent-body comparisons pass; diff check passes."
       ],
@@ -15240,7 +15242,7 @@
       ],
       "verification_gate": "P2",
       "port_commit_locator": "Upstream-Commit: a74f7437b92694dab9fbd0d6374f566854c0f4fd",
-      "implementation_decisions": "85 reviewed names and three anti-shadowing local renames; preserve all numeric/layout/gameplay contracts and unrelated legacy/rating/vehicle APIs. O04 corrects prior incomplete U195 intent migration: rating changes now invalidate parkInfoPanel independently. No API119/protocol11/save60016 change.",
+      "implementation_decisions": "86 reviewed names and three anti-shadowing local renames; preserve all numeric/layout/gameplay contracts and unrelated legacy/rating/vehicle APIs. O04 corrects prior incomplete U195 intent migration: rating changes now invalidate parkInfoPanel independently. No API119/protocol11/save60016 change.",
       "pending_validation": "O04 redraw is source-verified, not observed with renderer; existing headless test cannot record dirty regions. Standing interactive/native non-Windows/live multiplayer/replay and later custom-theme conversion remain."
     },
     {
@@ -15267,9 +15269,11 @@
       "note": "Single-parent localisation update; use final target blobs after English ID reconciliation.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "All four resulting files exactly match reviewed current source blobs. Checked every changed format-token sequence; only intended Polish STR_1636 differs. No new Polish IDs; three new IDs in each other language. Diff check passed."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -15277,7 +15281,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P1"
+      "verification_gate": "P1",
+      "port_commit_locator": "Upstream-Commit: bb0215abb0e4a48cd71e5fc8b105ce664b49d59e",
+      "implementation_decisions": "Translation-only. Polish STR_1636 fixes RINGID to STRINGID so the ride name formats correctly; other formatting tokens preserved. Correct U199 prose name-map count from 85 to measured 86 without changing its code or audit result.",
+      "pending_validation": "No runtime test required for translation-only delta; standing limitations unchanged."
     },
     {
       "sha": "840f1c4f9147ad328700377d93d90428a53d197a",
@@ -27182,8 +27189,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 199,
-    "remaining_after_receipt": 162,
+    "accounted_in_this_tree": 200,
+    "remaining_after_receipt": 161,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
