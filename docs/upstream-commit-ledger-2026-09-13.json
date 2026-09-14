@@ -9235,7 +9235,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adapt world header cleanup",
-      "port_commits": [],
+      "port_commits": [
+        "112e9f4af4ea2611e8823f14ad2a000634baede6"
+      ],
       "verification_evidence": [
         "Complete source diff inspected; all 46 fork paths pass include/forward-declaration-only comparison. Whitespace and singleton ancestry checks. Batch 19 in progress. Batch 19 complete rebuild passed 0 warnings/errors; 61 selected tests passed."
       ],
@@ -9412,9 +9414,11 @@
       "note": "No remerge-resolution delta detected. Account for constituent commits before ancestry reconciliation.",
       "decisions": [],
       "review_level": "remerge-probe",
-      "implementation_status": "not-ported",
+      "implementation_status": "history receipt",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Archived remerge empty; full three-file second-parent delta inspected and matches previously handled U126; singleton ancestry checks."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -9440,7 +9444,10 @@
         "src/openrct2/world/Weather.cpp",
         "src/openrct2/world/map_generator/TreePlacement.cpp"
       ],
-      "verification_gate": "P0"
+      "verification_gate": "P0",
+      "port_commit_locator": "Upstream-Commit: 8839956721913ef48e6981477339a01f6f39e4f5",
+      "implementation_decisions": "Preserve separately integrated fork tree. Merge difference from second parent is only U126 changelog, 1G reset and upstream stream bump; U126 already handled with fork stream 5 retained.",
+      "pending_validation": "Batch 19 build and 61 tests cover constituent ports."
     },
     {
       "sha": "11bf58dceb588ec4e1d04fa2e247b55979cbb0bc",
@@ -26713,8 +26720,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 132,
-    "remaining_after_receipt": 229,
+    "accounted_in_this_tree": 133,
+    "remaining_after_receipt": 228,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

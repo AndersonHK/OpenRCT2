@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 132 / 361 source commits recorded
+## Progress: 133 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1470,10 +1470,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U132 — `8cd44cc686` — Remove openrct2/world includes
 
 - **Source:** `8cd44cc6861ed74658c7deeec81eaf5513e5f294`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `112e9f4af4ea2611e8823f14ad2a000634baede6`.
 - **Remaining:** 230 → 229.
 - **Disposition:** adapt world header cleanup.
 - **Manual changes:** Rework 46 world/tile/object consumer includes and forward declarations.
 - **Additional decisions / behavior:** Retain Map.cpp Guard.hpp for mutation bounds assertions and TerrainSurfaceObject.h for snapshot surface rendering. Adapt ScTileElement insertion anchors to fork include set. Preserve all fork clearance erasure results, mutation/presentation ownership, topology, park economics/growth and weather logic; no runtime expression changed. Restore Footpath.cpp PathAdditionEntry.h for fork IsBin helper, identified by two compiler diagnostics.
 - **Verification:** Complete source diff inspected; all 46 fork paths pass include/forward-declaration-only comparison. Whitespace and singleton ancestry checks. Batch 19 in progress. Batch 19 complete rebuild passed 0 warnings/errors; 61 selected tests passed.
 - **Pending / concerns:** Native non-Windows and interactive checks remain; compile debt through U132 cleared.
+
+### U133 — `8839956721` — Merge pull request #26886 from Harry-Hopkinson/remove-more-includes
+
+- **Source:** `8839956721913ef48e6981477339a01f6f39e4f5`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 229 → 228.
+- **Disposition:** history receipt.
+- **Manual changes:** Record header-cleanup branch merge; no new manual source change.
+- **Additional decisions / behavior:** Preserve separately integrated fork tree. Merge difference from second parent is only U126 changelog, 1G reset and upstream stream bump; U126 already handled with fork stream 5 retained.
+- **Verification:** Archived remerge empty; full three-file second-parent delta inspected and matches previously handled U126; singleton ancestry checks.
+- **Pending / concerns:** Batch 19 build and 61 tests cover constituent ports.
