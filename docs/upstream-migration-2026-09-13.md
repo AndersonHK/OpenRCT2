@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 216 / 361 source commits recorded
+## Progress: 217 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -2394,10 +2394,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U216 — `7bf6a4b4fb` — Fix result.position.z of SmallSceneryPlaceAction (#26958)
 
 - **Source:** `7bf6a4b4fbf0b0b384c7635629be0b1a50b86297`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `396c980ddf6469766d136f1e5d56bbf6f4e5efa9`.
 - **Remaining:** 146 → 145.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Resolve small-scenery Query/Execute result Z from the actual placement target; API 121; upstream changelog; seven-case placement regression test.
 - **Additional decisions / behavior:** Assign result Z after the automatic-height conditional, avoiding the source regression for explicit raised placement. Preserve fork clearance, safe insertion, cost and quantization. Protocol 11/save 60016 unchanged. See B47.
 - **Verification:** Complete source reviewed; B47 solution build 25.76s, zero warnings/errors; 46 tests in four suites passed, including seven independent scenery cases and U212 downloader regressions. U213 compile debt cleared.
 - **Pending / concerns:** Actual rendered scenery feedback and multiplayer marker behavior remain unverified; consolidated validation limits continue.
+
+### U217 — `54b7abd25a` — Fix: When showing missing objects, some types show up as ‘Unknown type’
+
+- **Source:** `54b7abd25ae34ab15fd06ced429c6d5bf9e1b710`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 145 → 144.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Add missing-object type display names for terrain surfaces/edges, stations, music, footpath surfaces/railings, peep names/animations, climate and scenario metadata.
+- **Additional decisions / behavior:** Adopt source display mapping; audio and invalid values still use Unknown type. No object lookup, download eligibility or fork repository precedence changes.
+- **Verification:** Full source inspected; only source switch additions and changelog applied with unique local context.
+- **Pending / concerns:** Compile at next coherent checkpoint; actual missing-object list rendering remains unverified.
