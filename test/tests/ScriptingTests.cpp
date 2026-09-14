@@ -1046,7 +1046,7 @@ TEST_F(ScriptingTests, EntranceObjectAndSequenceWritesClampAndInvalidateTopology
     MapInit({ 16, 16 });
     const TileCoordsXY tile{ 2, 2 };
     auto* entrance = InsertTileElement<EntranceElement>(
-        { tile.ToCoordsXY(), 10 * kCoordsZStep }, 0, [](EntranceElement& element) {
+        { tile.toCoordsXY(), 10 * kCoordsZStep }, 0, [](EntranceElement& element) {
             element.setEntranceType(EntranceType::rideEntrance);
             element.setSequenceIndex(ParkEntranceSequence::centre);
             element.setClearanceZ(14 * kCoordsZStep);

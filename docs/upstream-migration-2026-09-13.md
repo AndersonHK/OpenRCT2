@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 325 / 361 source commits recorded
+## Progress: 326 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3593,10 +3593,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U325 — `b8a5e2431c` — Fix #26754: Guard stale hover widget index when switching window pages (#27086)
 
 - **Source:** `b8a5e2431cde79b75656d05fc82348d886dac409`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `89a6cddaba45575a501a8841aa9c6fc56beae2ea`.
 - **Remaining:** 37 → 36.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Guarded stale hover-widget indexes after page preparation and added the changelog.
 - **Additional decisions / behavior:** Reject out-of-range and null remembered indexes before access, preserving valid hover behavior. Extended actual finance-page input fixture; no fork dynamic-widget replacement.
 - **Verification:** B89: solution zero warnings/errors;26 widget/scripting tests passed, including actual page shrink and null-index queued hover cases.
 - **Pending / concerns:** Native Linux touch validation remains unavailable.
+
+### U326 — `092783cc11` — Rename Location.hpp members to camelCase (#27085)
+
+- **Source:** `092783cc1160be24f2acbed023217558bdb1f41a`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 36 → 35.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Renamed coordinate methods and JS conversion helpers across all applicable fork consumers.
+- **Additional decisions / behavior:** 625 source/748 fork identifier substitutions only. Preserve Identifier and RCT12 null APIs, QuarterTile/window Rotate, and separate SpatialAudio Normalise helper. Retain topology-aware ScTile allocation, spatial geometry, transport recovery and coordinate/null arithmetic.
+- **Verification:** B90: full solution and610 tests/53suites passed; after isolated unnecessary audio-helper spelling restoration, corrected solution and26 audio tests passed. Final complete-token proof across128 fork files.
+- **Pending / concerns:** Standing native rendering, live multiplayer/replay, non-Windows and long-park validation remain.

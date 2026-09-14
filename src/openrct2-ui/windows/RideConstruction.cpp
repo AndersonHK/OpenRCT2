@@ -2238,7 +2238,7 @@ namespace OpenRCT2::Ui::Windows
             for (uint8_t i = 0; i < ted.sequenceData.numSequences; i++)
             {
                 CoordsXY offsets = { ted.sequenceData.sequences[i].clearance.x, ted.sequenceData.sequences[i].clearance.y };
-                CoordsXY currentTileCoords = tileCoords + offsets.Rotate(trackDirection);
+                CoordsXY currentTileCoords = tileCoords + offsets.rotate(trackDirection);
 
                 MapSelection::addSelectedTile(currentTileCoords);
             }
@@ -2668,7 +2668,7 @@ namespace OpenRCT2::Ui::Windows
                 mapCoords.y = 0;
             }
 
-            auto rotatedMapCoords = mapCoords.Rotate(trackDirection);
+            auto rotatedMapCoords = mapCoords.rotate(trackDirection);
             // this is actually case 0, but the other cases all jump to it
             mapCoords.x = 4112 + (rotatedMapCoords.x / 2);
             mapCoords.y = 4112 + (rotatedMapCoords.y / 2);
@@ -2734,7 +2734,7 @@ namespace OpenRCT2::Ui::Windows
 
                 auto quarterTile = trackBlock.quarterTile.Rotate(trackDirection);
                 CoordsXY offsets = { trackBlock.x, trackBlock.y };
-                CoordsXY coords = originCoords + offsets.Rotate(trackDirection);
+                CoordsXY coords = originCoords + offsets.rotate(trackDirection);
 
                 int32_t baseZ = originZ + trackBlock.z;
                 int32_t clearanceZ = trackBlock.clearanceZ + clearanceHeight + baseZ + (4 * kCoordsZStep);
@@ -3054,7 +3054,7 @@ namespace OpenRCT2::Ui::Windows
         if (!_trackPlaceCtrlState)
         {
             mapCoords = ViewportInteractionGetTileStartAtCursor(screenCoords);
-            if (mapCoords.IsNull())
+            if (mapCoords.isNull())
                 return std::nullopt;
 
             _trackPlaceZ = 0;
@@ -3092,7 +3092,7 @@ namespace OpenRCT2::Ui::Windows
         if (mapCoords.x == kLocationNull)
             return std::nullopt;
 
-        return mapCoords.ToTileStart();
+        return mapCoords.toTileStart();
     }
 
     /**
@@ -4909,7 +4909,7 @@ namespace OpenRCT2::Ui::Windows
 
             CoordsXY offsets = { trackCoordinates.x, trackCoordinates.y };
             CoordsXY coords = { x, y };
-            coords += offsets.Rotate(DirectionReverse(trackDirection));
+            coords += offsets.rotate(DirectionReverse(trackDirection));
             x = static_cast<uint16_t>(coords.x);
             y = static_cast<uint16_t>(coords.y);
         }

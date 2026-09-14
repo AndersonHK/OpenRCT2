@@ -935,7 +935,7 @@ namespace OpenRCT2
                 }
 
                 // Focus camera on event.
-                if (!gSilentReplays && isPositionValid && !result.position.IsNull())
+                if (!gSilentReplays && isPositionValid && !result.position.isNull())
                 {
                     auto* mainWindow = WindowGetMain();
                     if (mainWindow != nullptr)

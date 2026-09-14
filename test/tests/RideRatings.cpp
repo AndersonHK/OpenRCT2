@@ -88,7 +88,7 @@ protected:
         ride.id = id;
         ride.type = type;
         ride.numStations = 1;
-        ride.getStation().start = stationTile.ToCoordsXY();
+        ride.getStation().start = stationTile.toCoordsXY();
         ride.getStation().setBaseZ(baseZ);
     }
 
@@ -211,9 +211,9 @@ protected:
         EXPECT_NE(result.scenerySurface, nullptr);
         if (originSurface != nullptr && result.scenerySurface != nullptr)
         {
-            result.origin = { contextOriginTile.ToCoordsXY().ToTileCentre(), originSurface->getBaseZ() };
+            result.origin = { contextOriginTile.toCoordsXY().toTileCentre(), originSurface->getBaseZ() };
             result.scenerySurface->setGrassLength(GRASS_LENGTH_CLEAR_0);
-            MapInvalidateTileFull(result.sceneryTile.ToCoordsXY());
+            MapInvalidateTileFull(result.sceneryTile.toCoordsXY());
         }
         return result;
     }
@@ -225,12 +225,12 @@ protected:
 
         surfaceElement->setBaseZ(z);
         surfaceElement->setClearanceZ(z);
-        MapInvalidateTileFull(tile.ToCoordsXY());
+        MapInvalidateTileFull(tile.toCoordsXY());
     }
 
     TileCoordsXY OffsetTile(const TileCoordsXY& tile, Direction direction, int32_t steps = 1)
     {
-        auto coords = tile.ToCoordsXY();
+        auto coords = tile.toCoordsXY();
         for (int32_t i = 0; i < steps; i++)
         {
             coords += CoordsDirectionDelta[direction];
@@ -251,7 +251,7 @@ protected:
     void PlaceSmallScenery(const TileCoordsXY& tile, int32_t baseZ, int32_t clearanceZ)
     {
         auto* sceneryElement = InsertTileElement<SmallSceneryElement>(
-            { tile.ToCoordsXY(), baseZ }, 0,
+            { tile.toCoordsXY(), baseZ }, 0,
             [&](SmallSceneryElement& sceneryElement) { sceneryElement.setClearanceZ(clearanceZ); });
         ASSERT_NE(sceneryElement, nullptr);
     }
@@ -259,7 +259,7 @@ protected:
     void PlaceMazeTrack(const TileCoordsXY& tile, int32_t baseZ, int32_t clearanceZ, RideId trackRideId)
     {
         auto* mazeElement = InsertTileElement<TrackElement>(
-            { tile.ToCoordsXY(), baseZ }, 0, [&](TrackElement& mazeElement) {
+            { tile.toCoordsXY(), baseZ }, 0, [&](TrackElement& mazeElement) {
                 mazeElement.setClearanceZ(clearanceZ);
                 mazeElement.setTrackType(TrackElemType::maze);
                 mazeElement.setRideType(RIDE_TYPE_MAZE);
@@ -273,7 +273,7 @@ protected:
         TrackElemType trackType = TrackElemType::flatTrack1x4A, Direction direction = 0)
     {
         auto* trackElement = InsertTileElement<TrackElement>(
-            { tile.ToCoordsXY(), baseZ }, 0, [&](TrackElement& trackElement) {
+            { tile.toCoordsXY(), baseZ }, 0, [&](TrackElement& trackElement) {
                 trackElement.setClearanceZ(clearanceZ);
                 trackElement.setTrackType(trackType);
                 trackElement.setDirection(direction);
@@ -288,7 +288,7 @@ protected:
         Direction direction = 0)
     {
         PlaceFlatTrack(tile, trackZ, trackZ + (2 * kCoordsZStep), rideId, trackType, direction);
-        return { tile.ToCoordsXY().ToTileCentre(), trackZ };
+        return { tile.toCoordsXY().toTileCentre(), trackZ };
     }
 
     CoordsXYZ PlaceVehicleTrackWithTerrain(
@@ -303,7 +303,7 @@ protected:
     void PlacePath(const TileCoordsXY& tile, int32_t baseZ, int32_t clearanceZ, uint8_t edges = 0)
     {
         auto* pathElement = InsertTileElement<PathElement>(
-            { tile.ToCoordsXY(), baseZ }, 0, [&](PathElement& pathElement) {
+            { tile.toCoordsXY(), baseZ }, 0, [&](PathElement& pathElement) {
                 pathElement.setClearanceZ(clearanceZ);
                 pathElement.setEdges(edges);
             });
@@ -1930,7 +1930,7 @@ TEST_F(RideRatings, VehicleLocalContextRuntimeCacheTracksNearbyMapChanges)
     const auto cacheOriginTile = TileCoordsXY{ 15, 10 };
     const auto sceneryTile = TileCoordsXY{ 16, 10 };
     constexpr int32_t groundZ = 14 * kCoordsZStep;
-    const auto origin = CoordsXYZ{ cacheOriginTile.ToCoordsXY().ToTileCentre(), groundZ + kCoordsZStep };
+    const auto origin = CoordsXYZ{ cacheOriginTile.toCoordsXY().toTileCentre(), groundZ + kCoordsZStep };
     RideRating::VehicleLocalContextCache runtimeCache{};
 
     SetSurfaceZ(cacheOriginTile, groundZ);
@@ -1980,14 +1980,14 @@ TEST_F(RideRatings, LocalContextHeightExtendsSceneryRange)
 
     const auto sceneryTile = TileCoordsXY{ 14, 10 };
     auto* sceneryElement = InsertTileElement<SmallSceneryElement>(
-        { sceneryTile.ToCoordsXY(), 14 * kCoordsZStep }, 0,
+        { sceneryTile.toCoordsXY(), 14 * kCoordsZStep }, 0,
         [](SmallSceneryElement& sceneryElement) { sceneryElement.setClearanceZ(18 * kCoordsZStep); });
     ASSERT_NE(sceneryElement, nullptr);
 
     const auto groundScore = RideRating::GetLocalContextScore(
-        { originTile.ToCoordsXY().ToTileCentre(), 14 * kCoordsZStep }, RideId::FromUnderlying(1));
+        { originTile.toCoordsXY().toTileCentre(), 14 * kCoordsZStep }, RideId::FromUnderlying(1));
     const auto highScore = RideRating::GetLocalContextScore(
-        { originTile.ToCoordsXY().ToTileCentre(), 18 * kCoordsZStep }, RideId::FromUnderlying(1));
+        { originTile.toCoordsXY().toTileCentre(), 18 * kCoordsZStep }, RideId::FromUnderlying(1));
 
     EXPECT_EQ(groundScore.scenery, 0);
     EXPECT_GT(highScore.scenery, groundScore.scenery);
@@ -2012,15 +2012,15 @@ TEST_F(RideRatings, LocalContextRangeUsesHeightAboveLocalGround)
     scenerySurface->setClearanceZ(plateauZ);
 
     auto* sceneryElement = InsertTileElement<SmallSceneryElement>(
-        { sceneryTile.ToCoordsXY(), plateauZ }, 0, [=](SmallSceneryElement& sceneryElement) {
+        { sceneryTile.toCoordsXY(), plateauZ }, 0, [=](SmallSceneryElement& sceneryElement) {
             sceneryElement.setClearanceZ(plateauZ + (4 * kCoordsZStep));
         });
     ASSERT_NE(sceneryElement, nullptr);
 
     const auto plateauScore = RideRating::GetLocalContextScore(
-        { originTile.ToCoordsXY().ToTileCentre(), plateauZ }, RideId::FromUnderlying(1));
+        { originTile.toCoordsXY().toTileCentre(), plateauZ }, RideId::FromUnderlying(1));
     const auto abovePlateauScore = RideRating::GetLocalContextScore(
-        { originTile.ToCoordsXY().ToTileCentre(), plateauZ + (4 * kCoordsZStep) }, RideId::FromUnderlying(1));
+        { originTile.toCoordsXY().toTileCentre(), plateauZ + (4 * kCoordsZStep) }, RideId::FromUnderlying(1));
 
     EXPECT_EQ(plateauScore.scenery, 0);
     EXPECT_GT(abovePlateauScore.scenery, plateauScore.scenery);
@@ -2039,7 +2039,7 @@ TEST_F(RideRatings, LocalContextRangeCountsTerrainHeightBelowOrigin)
     PlaceSmallScenery(sceneryTile, lowGroundZ, lowGroundZ + (4 * kCoordsZStep));
 
     const auto score = RideRating::GetLocalContextScore(
-        { originTile.ToCoordsXY().ToTileCentre(), hillGroundZ + (3 * kCoordsZStep) }, RideId::FromUnderlying(1));
+        { originTile.toCoordsXY().toTileCentre(), hillGroundZ + (3 * kCoordsZStep) }, RideId::FromUnderlying(1));
 
     EXPECT_GT(score.scenery, 0);
     EXPECT_GT(score.excitement, 0);
@@ -2061,7 +2061,7 @@ TEST_F(RideRatings, LocalContextRangeCountsTerrainHeightAboveOrigin)
     PlaceSmallScenery(sceneryTile, surroundingGroundZ, surroundingGroundZ + (4 * kCoordsZStep));
 
     const auto score = RideRating::GetLocalContextScore(
-        { originTile.ToCoordsXY().ToTileCentre(), pitGroundZ + (12 * kCoordsZStep) }, RideId::FromUnderlying(1));
+        { originTile.toCoordsXY().toTileCentre(), pitGroundZ + (12 * kCoordsZStep) }, RideId::FromUnderlying(1));
 
     EXPECT_EQ(score.scenery, 0);
     EXPECT_EQ(score.excitement, 0);
@@ -2080,7 +2080,7 @@ TEST_F(RideRatings, LocalContextDoesNotSeeSceneryOnCliffAboveOrigin)
     PlaceSmallScenery(sceneryTile, cliffZ, cliffZ + (4 * kCoordsZStep));
 
     const auto score = RideRating::GetLocalContextScore(
-        { originTile.ToCoordsXY().ToTileCentre(), groundZ + (12 * kCoordsZStep) }, RideId::FromUnderlying(1));
+        { originTile.toCoordsXY().toTileCentre(), groundZ + (12 * kCoordsZStep) }, RideId::FromUnderlying(1));
 
     EXPECT_EQ(score.scenery, 0);
     EXPECT_EQ(score.excitement, 0);
@@ -2094,7 +2094,7 @@ TEST_F(RideRatings, LocalContextInvalidatesWhenMapTileChanges)
     const auto before = RideRating::GetLocalContextScore(fixture.origin, rideId);
 
     fixture.scenerySurface->setGrassLength(GRASS_LENGTH_MOWED);
-    MapInvalidateTileFull(fixture.sceneryTile.ToCoordsXY());
+    MapInvalidateTileFull(fixture.sceneryTile.toCoordsXY());
 
     const auto after = RideRating::GetLocalContextScore(fixture.origin, rideId);
     EXPECT_GT(after.scenery, before.scenery);
@@ -2127,13 +2127,13 @@ TEST_F(RideRatings, ViewportOnlyInvalidationKeepsStoredLocalContextPayloads)
     const auto before = RideRating::GetLocalContextScore(fixture.origin, rideId);
 
     fixture.scenerySurface->setGrassLength(GRASS_LENGTH_MOWED);
-    MapInvalidateTileForRendering({ fixture.sceneryTile.ToCoordsXY(), 0, 2080 });
-    MapInvalidateRegion(fixture.sceneryTile.ToCoordsXY(), fixture.sceneryTile.ToCoordsXY());
+    MapInvalidateTileForRendering({ fixture.sceneryTile.toCoordsXY(), 0, 2080 });
+    MapInvalidateRegion(fixture.sceneryTile.toCoordsXY(), fixture.sceneryTile.toCoordsXY());
     const auto cached = RideRating::GetLocalContextScore(fixture.origin, rideId);
     EXPECT_EQ(cached.scenery, before.scenery);
     EXPECT_EQ(cached.excitement, before.excitement);
 
-    MapInvalidateTileFull(fixture.sceneryTile.ToCoordsXY());
+    MapInvalidateTileFull(fixture.sceneryTile.toCoordsXY());
     const auto refreshed = RideRating::GetLocalContextScore(fixture.origin, rideId);
     EXPECT_GT(refreshed.scenery, cached.scenery);
     EXPECT_GT(refreshed.excitement, cached.excitement);
@@ -2208,12 +2208,12 @@ TEST_F(RideRatings, LocalContextScoresSameTileVerticalInteractionsStrongly)
     auto context = InitialiseMap();
 
     const auto foreignRideId = RideId::FromUnderlying(2);
-    const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), 14 * kCoordsZStep };
+    const auto origin = CoordsXYZ{ originTile.toCoordsXY().toTileCentre(), 14 * kCoordsZStep };
 
     SetSurfaceZ(originTile, origin.z);
     SetVehicleSideSurfaces(originTile, 0, origin.z, origin.z);
     auto* foreignTrack = InsertTileElement<TrackElement>(
-        { originTile.ToCoordsXY(), 18 * kCoordsZStep }, 0, [&](TrackElement& foreignTrack) {
+        { originTile.toCoordsXY(), 18 * kCoordsZStep }, 0, [&](TrackElement& foreignTrack) {
             foreignTrack.setRideIndex(foreignRideId);
             foreignTrack.setClearanceZ(20 * kCoordsZStep);
         });
@@ -2450,7 +2450,7 @@ TEST_F(RideRatings, FixedRideContextOriginUsesDescriptorFootprintCentre)
     Ride ferrisRide{};
     InitialiseFixedRide(ferrisRide, RideId::FromUnderlying(2), RIDE_TYPE_FERRIS_WHEEL, stationTile, baseZ);
 
-    const auto stationStart = stationTile.ToCoordsXY();
+    const auto stationStart = stationTile.toCoordsXY();
     const auto groundOrigin = RideRating::GetFixedRideLocalContextOrigin(groundRide);
     const auto ferrisOrigin = RideRating::GetFixedRideLocalContextOrigin(ferrisRide);
 
@@ -2468,7 +2468,7 @@ TEST_F(RideRatings, LocalContextMazeTrackBlocksLineOfSight)
     const auto sceneryTile = TileCoordsXY{ 14, 10 };
     constexpr int32_t groundZ = 14 * kCoordsZStep;
     constexpr int32_t originZ = groundZ + (4 * kCoordsZStep);
-    const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), originZ };
+    const auto origin = CoordsXYZ{ originTile.toCoordsXY().toTileCentre(), originZ };
 
     SetSurfaceZ(originTile, groundZ);
     SetSurfaceZ(blockerTile, groundZ);
@@ -2479,7 +2479,7 @@ TEST_F(RideRatings, LocalContextMazeTrackBlocksLineOfSight)
     ASSERT_GT(before.scenery, 0);
 
     auto* mazeElement = InsertTileElement<TrackElement>(
-        { blockerTile.ToCoordsXY(), groundZ }, 0, [&](TrackElement& mazeElement) {
+        { blockerTile.toCoordsXY(), groundZ }, 0, [&](TrackElement& mazeElement) {
             mazeElement.setClearanceZ(originZ + kCoordsZStep);
             mazeElement.setTrackType(TrackElemType::maze);
             mazeElement.setRideType(RIDE_TYPE_MAZE);
@@ -2501,7 +2501,7 @@ TEST_F(RideRatings, LocalContextOwnMazeTrackBlocksLineOfSightToSameHeightForeign
     const auto foreignRideId = RideId::FromUnderlying(2);
     constexpr int32_t groundZ = 14 * kCoordsZStep;
     constexpr int32_t clearanceZ = groundZ + (3 * kCoordsZStep);
-    const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), groundZ + kCoordsZStep };
+    const auto origin = CoordsXYZ{ originTile.toCoordsXY().toTileCentre(), groundZ + kCoordsZStep };
 
     SetSurfaceZ(originTile, groundZ);
     SetSurfaceZ(blockerTile, groundZ);
@@ -2526,7 +2526,7 @@ TEST_F(RideRatings, LocalContextSeesTallSceneryOverMazeTrack)
     const auto sceneryTile = TileCoordsXY{ 14, 10 };
     constexpr int32_t groundZ = 14 * kCoordsZStep;
     constexpr int32_t mazeTopZ = groundZ + (3 * kCoordsZStep);
-    const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), groundZ + (4 * kCoordsZStep) };
+    const auto origin = CoordsXYZ{ originTile.toCoordsXY().toTileCentre(), groundZ + (4 * kCoordsZStep) };
 
     SetSurfaceZ(originTile, groundZ);
     SetSurfaceZ(blockerTile, groundZ);
@@ -2546,7 +2546,7 @@ TEST_F(RideRatings, LocalContextSeesElevatedForeignTrackOverMazeTrack)
     const auto foreignTrackTile = TileCoordsXY{ 12, 10 };
     const auto foreignRideId = RideId::FromUnderlying(2);
     constexpr int32_t groundZ = 14 * kCoordsZStep;
-    const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), groundZ + kCoordsZStep };
+    const auto origin = CoordsXYZ{ originTile.toCoordsXY().toTileCentre(), groundZ + kCoordsZStep };
 
     SetSurfaceZ(originTile, groundZ);
     SetSurfaceZ(blockerTile, groundZ);
@@ -2565,7 +2565,7 @@ TEST_F(RideRatings, LocalContextLonePathAboveMazeAddsNoBonus)
     const auto mazeOriginTile = TileCoordsXY{ 9, 10 };
     const auto pathTile = TileCoordsXY{ 10, 10 };
     constexpr int32_t groundZ = 14 * kCoordsZStep;
-    const auto origin = CoordsXYZ{ mazeOriginTile.ToCoordsXY().ToTileCentre(), groundZ + kCoordsZStep };
+    const auto origin = CoordsXYZ{ mazeOriginTile.toCoordsXY().toTileCentre(), groundZ + kCoordsZStep };
 
     PlaceMazeTrack(mazeOriginTile, groundZ, groundZ + (3 * kCoordsZStep), rideId);
     PlacePath(pathTile, groundZ + (6 * kCoordsZStep), groundZ + (7 * kCoordsZStep));
@@ -2583,7 +2583,7 @@ TEST_F(RideRatings, LocalContextPathPlazaAboveMazeAddsNoBonus)
     const auto mazeOriginTile = TileCoordsXY{ 9, 10 };
     const auto plazaTile = TileCoordsXY{ 10, 10 };
     constexpr int32_t groundZ = 14 * kCoordsZStep;
-    const auto origin = CoordsXYZ{ mazeOriginTile.ToCoordsXY().ToTileCentre(), groundZ + kCoordsZStep };
+    const auto origin = CoordsXYZ{ mazeOriginTile.toCoordsXY().toTileCentre(), groundZ + kCoordsZStep };
 
     PlaceMazeTrack(mazeOriginTile, groundZ, groundZ + (3 * kCoordsZStep), rideId);
     PlacePathPlaza(plazaTile, groundZ + (6 * kCoordsZStep), groundZ + (7 * kCoordsZStep));
@@ -2602,8 +2602,8 @@ TEST_F(RideRatings, LocalContextBridgeAboveMazeAddsExcitementToAdjacentTilesOnly
     const auto underBridgeTile = TileCoordsXY{ 10, 10 };
     constexpr int32_t groundZ = 14 * kCoordsZStep;
     constexpr int32_t mazeTopZ = groundZ + (3 * kCoordsZStep);
-    const auto adjacentOrigin = CoordsXYZ{ adjacentMazeTile.ToCoordsXY().ToTileCentre(), groundZ + kCoordsZStep };
-    const auto underBridgeOrigin = CoordsXYZ{ underBridgeTile.ToCoordsXY().ToTileCentre(), groundZ + kCoordsZStep };
+    const auto adjacentOrigin = CoordsXYZ{ adjacentMazeTile.toCoordsXY().toTileCentre(), groundZ + kCoordsZStep };
+    const auto underBridgeOrigin = CoordsXYZ{ underBridgeTile.toCoordsXY().toTileCentre(), groundZ + kCoordsZStep };
 
     PlaceMazeTrack(adjacentMazeTile, groundZ, mazeTopZ, rideId);
     PlaceMazeTrack(underBridgeTile, groundZ, mazeTopZ, rideId);
@@ -2628,7 +2628,7 @@ TEST_F(RideRatings, LocalContextOriginMazeTileBlocksLowSceneryButSeesOverWalls)
     const auto elevatedPathTile = TileCoordsXY{ 10, 11 };
     constexpr int32_t groundZ = 14 * kCoordsZStep;
     constexpr int32_t mazeTopZ = groundZ + (3 * kCoordsZStep);
-    const auto origin = CoordsXYZ{ originTile.ToCoordsXY().ToTileCentre(), groundZ + kCoordsZStep };
+    const auto origin = CoordsXYZ{ originTile.toCoordsXY().toTileCentre(), groundZ + kCoordsZStep };
 
     SetSurfaceZ(originTile, groundZ);
     SetSurfaceZ(gardenTile, groundZ);

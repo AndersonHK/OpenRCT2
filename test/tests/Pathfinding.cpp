@@ -112,9 +112,9 @@ protected:
         ride->stableStats.stations[0].SegmentTime = segmentTime;
         for (auto& station : ride->getStations())
         {
-            station.start.SetNull();
-            station.entrance.SetNull();
-            station.exit.SetNull();
+            station.start.setNull();
+            station.entrance.setNull();
+            station.exit.setNull();
         }
         ride->getStation(StationIndex::FromUnderlying(0)).entrance = entrance;
         ride->getStation(StationIndex::FromUnderlying(stationCount - 1)).exit = exit;
@@ -214,7 +214,7 @@ protected:
         if (WallInTheWay(pathPos, direction))
             return false;
 
-        auto nextLoc = (loc + CoordsDirectionDelta[direction]).ToTileStart();
+        auto nextLoc = (loc + CoordsDirectionDelta[direction]).toTileStart();
         pathPos = CoordsXYRangedZ{ nextLoc, baseZ, baseZ + kPathClearance };
         return !WallInTheWay(pathPos, DirectionReverse(direction));
     }
@@ -226,13 +226,13 @@ protected:
         {
             for (int32_t x = 1; x < gameState.mapSize.x - 1; x++)
             {
-                const auto loc = TileCoordsXY{ x, y }.ToCoordsXY();
+                const auto loc = TileCoordsXY{ x, y }.toCoordsXY();
                 const auto* surfaceElement = MapGetSurfaceElementAt(loc);
                 if (surfaceElement == nullptr || !MapIsLocationInPark(loc) || MapSurfaceIsBlocked(loc))
                     continue;
 
                 const int32_t baseZ = surfaceElement->getBaseZ();
-                const int32_t walkZ = TileElementHeight(loc.ToTileCentre());
+                const int32_t walkZ = TileElementHeight(loc.toTileCentre());
                 if (TileHasReachablePathAtHeight(loc, walkZ))
                     continue;
 
@@ -243,7 +243,7 @@ protected:
                     if (!SurfaceStepIsClear(loc, baseZ, direction))
                         continue;
 
-                    const auto nextLoc = (loc + CoordsDirectionDelta[direction]).ToTileStart();
+                    const auto nextLoc = (loc + CoordsDirectionDelta[direction]).toTileStart();
                     if (TileHasReachablePathAtHeight(nextLoc, walkZ))
                     {
                         pathDirection = direction;
@@ -267,7 +267,7 @@ protected:
         // Our start position is in tile coordinates, but we need to give the peep spawn
         // position in actual world coords (32 units per tile X/Y, 8 per Z level).
         // Add 16 so the peep spawns in the centre of the tile.
-        auto* peep = Guest::generate(pos->ToCoordsXYZ().ToTileCentre());
+        auto* peep = Guest::generate(pos->toCoordsXYZ().toTileCentre());
 
         // Peeps that are outside of the park use specialized pathfinding which we don't want to
         // use here
@@ -311,7 +311,7 @@ protected:
 
             // Check that the peep is still on a footpath. Use next_z instead of pos->z here because pos->z will change
             // when the peep is halfway up a slope, but next_z will not change until they move to the next tile.
-            EXPECT_NE(MapGetFootpathElement({ pos->ToCoordsXY(), peep->nextLoc.z }), nullptr);
+            EXPECT_NE(MapGetFootpathElement({ pos->toCoordsXY(), peep->nextLoc.z }), nullptr);
         }
 
         // Clean up the peep, because we're reusing this loaded context for all tests.
@@ -330,7 +330,7 @@ protected:
     static testing::AssertionResult AssertIsStartPosition(const char*, const TileCoordsXYZ& location)
     {
         const uint32_t expectedSurfaceStyle = 11u;
-        const uint32_t style = MapGetSurfaceElementAt(location.ToCoordsXYZ())->getSurfaceObjectIndex();
+        const uint32_t style = MapGetSurfaceElementAt(location.toCoordsXYZ())->getSurfaceObjectIndex();
 
         if (style != expectedSurfaceStyle)
             return testing::AssertionFailure()
@@ -345,7 +345,7 @@ protected:
     {
         const uint32_t forbiddenSurfaceStyle = 8u;
 
-        const uint32_t style = MapGetSurfaceElementAt(location.ToCoordsXYZ())->getSurfaceObjectIndex();
+        const uint32_t style = MapGetSurfaceElementAt(location.toCoordsXYZ())->getSurfaceObjectIndex();
 
         if (style == forbiddenSurfaceStyle)
             return testing::AssertionFailure()
@@ -418,14 +418,14 @@ TEST_F(PathfindingTestBase, SurfaceGuestsStepTowardAdjacentPath)
     SurfaceRejoinCandidate candidate{};
     ASSERT_TRUE(FindSurfaceRejoinCandidate(candidate));
 
-    auto* peep = Guest::generate({ candidate.loc.ToTileCentre(), candidate.walkZ });
+    auto* peep = Guest::generate({ candidate.loc.toTileCentre(), candidate.walkZ });
     ASSERT_NE(peep, nullptr);
 
     peep->outsideOfPark = false;
     peep->setState(PeepState::walking);
     peep->nextLoc = { candidate.loc, candidate.baseZ };
     peep->setNextFlags(0, false, true);
-    peep->setDestination(candidate.loc.ToTileCentre(), 2);
+    peep->setDestination(candidate.loc.toTileCentre(), 2);
 
     EXPECT_EQ(PathFinding::CalculateNextDestination(*peep), 0);
     EXPECT_EQ(peep->peepDirection, candidate.pathDirection);

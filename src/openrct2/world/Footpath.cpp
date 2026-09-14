@@ -166,7 +166,7 @@ namespace OpenRCT2
                 auto location = peep->getLocation();
                 if (location.z == footpathPos.z)
                 {
-                    auto destination = location.ToTileCentre();
+                    auto destination = location.toTileCentre();
                     peep->setState(PeepState::walking);
                     peep->setDestination(destination, 5);
                     peep->updateCurrentAnimationType();
@@ -964,7 +964,7 @@ namespace OpenRCT2
 
             for (const auto& station : ride->getStations())
             {
-                if (station.entrance.IsNull())
+                if (station.entrance.isNull())
                     continue;
 
                 TileElement* tileElement = MapGetFirstElementAt(station.entrance);
@@ -981,7 +981,7 @@ namespace OpenRCT2
 
                         Direction direction = DirectionReverse(tileElement->getDirection());
                         FootpathChainRideQueue(
-                            rideIndex, ride->getStationIndex(&station), station.entrance.ToCoordsXY(), tileElement, direction);
+                            rideIndex, ride->getStationIndex(&station), station.entrance.toCoordsXY(), tileElement, direction);
                     } while (!(tileElement++)->isLastForTile());
                 }
             }

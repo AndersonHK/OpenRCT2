@@ -209,7 +209,7 @@ namespace OpenRCT2
 
     uint32_t EntityRegistry::ComputeSpatialIndex(const CoordsXY& loc) noexcept
     {
-        if (loc.IsNull())
+        if (loc.isNull())
             return kSpatialIndexNullBucket;
 
         // NOTE: The input coordinate is rotated and can have negative components.

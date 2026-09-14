@@ -215,7 +215,7 @@ static void FixLandOwnershipTilesWithOwnership(const std::span<const TileCoordsX
         if (surfaceElement != nullptr)
         {
             surfaceElement->setOwnership(ownership);
-            Park::UpdateFencesAroundTile(tile.ToCoordsXY());
+            Park::UpdateFencesAroundTile(tile.toCoordsXY());
         }
     }
 }
@@ -490,7 +490,7 @@ static void RemoveTileElements(const json_t& scenarioPatch)
 
         for (const auto& tile : coordinatesVector)
         {
-            auto tileElement = MapGetNthElementAt(tile.ToCoordsXY(), elementIndex);
+            auto tileElement = MapGetNthElementAt(tile.toCoordsXY(), elementIndex);
             if (tileElement == nullptr)
             {
                 Guard::Assert(false, "Invalid Nth element at tile");
@@ -498,7 +498,7 @@ static void RemoveTileElements(const json_t& scenarioPatch)
             }
             else
             {
-                ClearElementAt(tile.ToCoordsXY(), &tileElement);
+                ClearElementAt(tile.toCoordsXY(), &tileElement);
             }
         }
     }
@@ -533,16 +533,16 @@ static void SwapRideEntranceAndExit(RideId rideId)
         station.entrance = entranceCoords;
         station.exit = exitCoords;
 
-        auto entranceElement = MapGetRideExitElementAt(entranceCoords.ToCoordsXYZD(), false);
+        auto entranceElement = MapGetRideExitElementAt(entranceCoords.toCoordsXYZD(), false);
         entranceElement->setEntranceType(EntranceType::rideEntrance);
-        auto exitElement = MapGetRideEntranceElementAt(exitCoords.ToCoordsXYZD(), false);
+        auto exitElement = MapGetRideEntranceElementAt(exitCoords.toCoordsXYZD(), false);
         exitElement->setEntranceType(EntranceType::rideExit);
-        MapTopology::InvalidateTileAndNeighbours(exitCoords.ToCoordsXY());
+        MapTopology::InvalidateTileAndNeighbours(exitCoords.toCoordsXY());
 
         // Trigger footpath update
         FootpathQueueChainReset();
         FootpathConnectEdges(
-            entranceCoords.ToCoordsXY(), reinterpret_cast<TileElement*>(entranceElement),
+            entranceCoords.toCoordsXY(), reinterpret_cast<TileElement*>(entranceElement),
             { CommandFlag::apply, CommandFlag::allowDuringPaused });
         FootpathUpdateQueueChains();
     }
@@ -743,7 +743,7 @@ static void ApplyPathFixes(const json_t& scenarioPatch)
             if (direction != kInvalidDirection)
                 slope = { FootpathSlopeType::sloped, direction };
             auto footpathPlaceAction = GameActions::FootpathPlaceAction(
-                coordinate.ToCoordsXYZ(), slope, surfaceObjIndex, railingsObjIndex, direction, constructionFlags);
+                coordinate.toCoordsXYZ(), slope, surfaceObjIndex, railingsObjIndex, direction, constructionFlags);
             auto& gameState = getGameState();
             auto result = footpathPlaceAction.Execute(gameState, gameState.park);
             if (result.error != GameActions::Status::ok)

@@ -182,11 +182,11 @@ namespace OpenRCT2::Audio
 
         // Translate3DTo2DWithZ has a (1, 1, 1) null direction before view rotation. Positioning the
         // listener on that ray makes the rendered centre ray and the acoustic forward ray agree.
-        const auto cameraGroundOffset = CoordsXY{ 1, 1 }.Rotate((4 - rotation) & 3);
+        const auto cameraGroundOffset = CoordsXY{ 1, 1 }.rotate((4 - rotation) & 3);
         const auto cameraOffset = Normalise(SpatialAudioVector{
             static_cast<float>(cameraGroundOffset.x), static_cast<float>(cameraGroundOffset.y), 1.0f });
         const auto forward = cameraOffset * -1.0f;
-        const auto screenRightGround = CoordsXY{ -1, 1 }.Rotate((4 - rotation) & 3);
+        const auto screenRightGround = CoordsXY{ -1, 1 }.rotate((4 - rotation) & 3);
         const auto right = Normalise(SpatialAudioVector{
             static_cast<float>(screenRightGround.x), static_cast<float>(screenRightGround.y), 0.0f });
         const auto up = Normalise(Cross(right, forward));

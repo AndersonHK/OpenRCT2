@@ -28,7 +28,7 @@ void Vehicle::UpdateTravellingBoatHireSetup()
     var_34 = orientation;
     TrackLocation.x = x;
     TrackLocation.y = y;
-    TrackLocation = TrackLocation.ToTileStart();
+    TrackLocation = TrackLocation.toTileStart();
 
     CoordsXY location = CoordsXY(TrackLocation) + CoordsDirectionDelta[orientation >> 3];
 
@@ -89,7 +89,7 @@ void Vehicle::TryReconnectBoatToTrack(const CoordsXY& currentBoatLocation, const
                 SetTrackType(trackElement->getTrackType());
 
             SetTrackDirection(curRide->boatHireReturnDirection);
-            BoatLocation.SetNull();
+            BoatLocation.setNull();
         }
 
         track_progress = 0;
@@ -133,7 +133,7 @@ void Vehicle::UpdateMotionBoatHire()
         {
             // Loc6DA7A5
             var_35++;
-            auto loc = BoatLocation.ToTileCentre();
+            auto loc = BoatLocation.toTileCentre();
             CoordsXY loc2 = loc;
             uint8_t bl;
 
@@ -250,7 +250,7 @@ void Vehicle::UpdateMotionBoatHire()
                 break;
             }
 
-            auto flooredLocation = loc2.ToTileStart();
+            auto flooredLocation = loc2.toTileStart();
             if (flooredLocation != TrackLocation)
             {
                 if (!vehicle_boat_is_location_accessible({ loc2, TrackLocation.z }))
@@ -399,10 +399,10 @@ void Vehicle::UpdateBoatLocation()
 
     CoordsXY location = CoordsXY{ x, y } + CoordsDirectionDelta[returnDirection];
 
-    if (location.ToTileStart() == returnPosition.ToCoordsXY())
+    if (location.toTileStart() == returnPosition.toCoordsXY())
     {
         sub_state = BoatHireSubState::enteringReturnPosition;
-        BoatLocation = location.ToTileStart();
+        BoatLocation = location.toTileStart();
         return;
     }
 
@@ -414,7 +414,7 @@ void Vehicle::UpdateBoatLocation()
     {
         if (ScenarioRand() & 1)
         {
-            CoordsXY destLocation = (returnPosition.ToCoordsXY() - CoordsDirectionDelta[returnDirection]).ToTileCentre();
+            CoordsXY destLocation = (returnPosition.toCoordsXY() - CoordsDirectionDelta[returnDirection]).toTileCentre();
 
             destLocation.x -= x;
             destLocation.y -= y;
@@ -446,13 +446,13 @@ void Vehicle::UpdateBoatLocation()
             continue;
         }
 
-        BoatLocation = trackLocation.ToTileStart();
+        BoatLocation = trackLocation.toTileStart();
         return;
     }
 
     CoordsXY trackLocation = TrackLocation;
     trackLocation += CoordsDirectionDelta[curDirection & 3];
-    BoatLocation = trackLocation.ToTileStart();
+    BoatLocation = trackLocation.toTileStart();
 }
 
 /**

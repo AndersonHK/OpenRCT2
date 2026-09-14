@@ -2176,7 +2176,7 @@ namespace OpenRCT2
                     ride != nullptr && guest->currentRideStation.ToUnderlying() < ride->numStations)
                 {
                     const auto exit = ride->getStation(guest->currentRideStation).exit;
-                    if (!exit.IsNull() && exit.direction < kNumOrthogonalDirections)
+                    if (!exit.isNull() && exit.direction < kNumOrthogonalDirections)
                     {
                         destinationX = static_cast<uint16_t>(
                             exit.x * kCoordsXYStep + kCoordsXYHalfTile - DirectionOffsets[exit.direction].x * 20);

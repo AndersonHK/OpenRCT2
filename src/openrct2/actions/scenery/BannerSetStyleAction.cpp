@@ -67,7 +67,7 @@ namespace OpenRCT2::GameActions
         }
 
         res.expenditure = ExpenditureType::landscaping;
-        auto location = banner->position.ToCoordsXY().ToTileCentre();
+        auto location = banner->position.toCoordsXY().toTileCentre();
         res.position = { location, TileElementHeight(location) };
 
         TileElement* tileElement = BannerGetTileElement(_bannerIndex);
@@ -79,7 +79,7 @@ namespace OpenRCT2::GameActions
         }
 
         BannerElement* bannerElement = tileElement->asBanner();
-        CoordsXYZ loc = { banner->position.ToCoordsXY(), bannerElement->getBaseZ() };
+        CoordsXYZ loc = { banner->position.toCoordsXY(), bannerElement->getBaseZ() };
 
         if (!LocationValid(loc))
         {
@@ -133,7 +133,7 @@ namespace OpenRCT2::GameActions
         }
 
         res.expenditure = ExpenditureType::landscaping;
-        auto location = banner->position.ToCoordsXY().ToTileCentre();
+        auto location = banner->position.toCoordsXY().toTileCentre();
         res.position = { location, TileElementHeight(location) };
 
         TileElement* tileElement = BannerGetTileElement(_bannerIndex);

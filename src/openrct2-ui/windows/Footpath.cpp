@@ -1019,7 +1019,7 @@ namespace OpenRCT2::Ui::Windows
             if (mapCoords.x == kLocationNull)
                 return std::nullopt;
 
-            return mapCoords.ToTileStart();
+            return mapCoords.toTileStart();
         }
 
         FootpathPlacementResult FootpathGetPlacementFromInfo(const InteractionInfo& info)
@@ -1226,7 +1226,7 @@ namespace OpenRCT2::Ui::Windows
             gMapSelectFlags.unset(MapSelectFlag::enable, MapSelectFlag::enableArrow);
 
             auto mapCoords = FootpathBridgeGetInfoFromPos(screenCoords, &direction, &tileElement);
-            if (mapCoords.IsNull())
+            if (mapCoords.isNull())
             {
                 return;
             }
@@ -1280,7 +1280,7 @@ namespace OpenRCT2::Ui::Windows
             gMapSelectFlags.set(MapSelectFlag::enable);
             gMapSelectType = MapSelectType::full;
 
-            auto correctedPosition = mapPos->ToTileStart();
+            auto correctedPosition = mapPos->toTileStart();
             setMapSelectRange(correctedPosition);
             _dragStartPos = correctedPosition;
             WindowFootpathSetProvisionalPathDragArea(getMapSelectRange(), placement.baseZ);
@@ -1304,7 +1304,7 @@ namespace OpenRCT2::Ui::Windows
                 return;
             }
 
-            auto correctedPos = mapPos->ToTileStart();
+            auto correctedPos = mapPos->toTileStart();
 
             // For queues, only allow selecting a single line.
             if (gFootpathSelection.isQueueSelected)
@@ -1505,7 +1505,7 @@ namespace OpenRCT2::Ui::Windows
             TileElement* tileElement;
 
             auto mapCoords = FootpathBridgeGetInfoFromPos(screenCoords, &direction, &tileElement);
-            if (mapCoords.IsNull())
+            if (mapCoords.isNull())
             {
                 return;
             }

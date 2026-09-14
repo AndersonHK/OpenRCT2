@@ -55,7 +55,7 @@ protected:
         const TileCoordsXY& tile, uint8_t baseZ, uint8_t edges, bool sloped = false, Direction slopeDirection = 0)
     {
         auto* path = InsertTileElement<PathElement>(
-            { tile.ToCoordsXY(), baseZ * kCoordsZStep }, 0, [&](PathElement& path) {
+            { tile.toCoordsXY(), baseZ * kCoordsZStep }, 0, [&](PathElement& path) {
                 path.setClearanceZ((baseZ + 4) * kCoordsZStep);
                 path.setEdges(edges);
                 path.setSloped(sloped);
@@ -77,7 +77,7 @@ protected:
     static BannerElement* AddBanner(const TileCoordsXY& tile, uint8_t baseZ, uint8_t allowedEdges)
     {
         auto* banner = InsertTileElement<BannerElement>(
-            { tile.ToCoordsXY(), baseZ * kCoordsZStep }, 0, [&](BannerElement& banner) {
+            { tile.toCoordsXY(), baseZ * kCoordsZStep }, 0, [&](BannerElement& banner) {
                 banner.setClearanceZ((baseZ + 2) * kCoordsZStep);
                 banner.setAllowedEdges(allowedEdges);
                 banner.setGhost(false);
@@ -96,7 +96,7 @@ protected:
         StationIndex station)
     {
         auto* entrance = InsertTileElement<EntranceElement>(
-            { tile.ToCoordsXY(), baseZ * kCoordsZStep }, 0, [&](EntranceElement& entrance) {
+            { tile.toCoordsXY(), baseZ * kCoordsZStep }, 0, [&](EntranceElement& entrance) {
                 entrance.setClearanceZ((baseZ + 4) * kCoordsZStep);
                 entrance.setEntranceType(entranceType);
                 entrance.setSequenceIndex(ParkEntranceSequence::centre);
@@ -489,7 +489,7 @@ TEST_F(MapPathTopologyTest, SharedRouteFieldsRespectDirectedEdgesInvalidateAndIg
     ASSERT_TRUE(singleTarget.has_value());
     EXPECT_EQ(singleTarget->location, target.location);
 
-    MapTopology::InvalidatePathWideTileAndNeighbours(start.ToCoordsXY());
+    MapTopology::InvalidatePathWideTileAndNeighbours(start.toCoordsXY());
     EXPECT_TRUE(MapPathRouteCache::IsPreparedForCurrentTopology());
     const auto afterWidePathChange = MapPathRouteCache::GetNextStep(target, { start, 10 });
     ASSERT_TRUE(afterWidePathChange.has_value());
@@ -660,7 +660,7 @@ TEST_F(MapPathTopologyTest, SharedRouteProposalCannotBypassGuestJunctionHistory)
     guest.pathfindGoal = { target.location, 0 };
     for (auto& history : guest.pathfindHistory)
     {
-        history.SetNull();
+        history.setNull();
     }
     guest.pathfindHistory[0] = { { start, 10 }, 1 << south };
 
@@ -984,7 +984,7 @@ TEST_F(MapPathTopologyTest, DragSlopesConnectHillsInBothAxesAndDragDirectionsWit
         {
             const auto start = pos(reverse ? 4 : 0);
             const auto end = pos(reverse ? 0 : 4);
-            const auto placements = calculateConnectedPathSlopes(MapRange(start, end).Normalise(), start);
+            const auto placements = calculateConnectedPathSlopes(MapRange(start, end).normalise(), start);
             ASSERT_EQ(placements.size(), 5u);
             for (int32_t j = 0; j < 5; j++)
             {

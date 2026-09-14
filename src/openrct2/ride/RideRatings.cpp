@@ -386,7 +386,7 @@ namespace OpenRCT2
             return false;
         }
 
-        const auto adjacentCoords = tile.ToCoordsXY() + CoordsDirectionDelta[direction];
+        const auto adjacentCoords = tile.toCoordsXY() + CoordsDirectionDelta[direction];
         if (!MapIsLocationValid(adjacentCoords))
         {
             return false;
@@ -582,7 +582,7 @@ namespace OpenRCT2
 
         for (const auto sideDirection : sideDirections)
         {
-            const auto sideCoords = originTile.ToCoordsXY() + CoordsDirectionDelta[sideDirection];
+            const auto sideCoords = originTile.toCoordsXY() + CoordsDirectionDelta[sideDirection];
             if (!MapIsLocationValid(sideCoords))
             {
                 continue;
@@ -706,7 +706,7 @@ namespace OpenRCT2
             return true;
         }
 
-        const auto targetCentre = targetTile.ToCoordsXY().ToTileCentre();
+        const auto targetCentre = targetTile.toCoordsXY().toTileCentre();
         for (int32_t step = 1; step < steps; step++)
         {
             const CoordsXYZ sample{
@@ -1179,7 +1179,7 @@ namespace OpenRCT2
         if (cacheLock.owns_lock())
             cacheLock.unlock();
 
-        const auto centredOrigin = CoordsXYZ{ origin.ToTileCentre(), origin.z };
+        const auto centredOrigin = CoordsXYZ{ origin.toTileCentre(), origin.z };
         RideRating::VehicleRatingEnvironment environment{
             .context = RideRatingBuildLocalContextScore(centredOrigin, query),
             .isSheltered = query.sampleKind == RideRatingLocalContextSampleKind::vehicle
@@ -1306,13 +1306,13 @@ namespace OpenRCT2
     {
         if (base.trackType == TrackElemType::none)
         {
-            return base.location.ToTileCentre();
+            return base.location.toTileCentre();
         }
 
         const auto& ted = GetTrackElementDescriptor(base.trackType);
         if (ted.sequenceData.numSequences == 0)
         {
-            return base.location.ToTileCentre();
+            return base.location.toTileCentre();
         }
 
         auto minX = std::numeric_limits<int32_t>::max();
@@ -1323,7 +1323,7 @@ namespace OpenRCT2
         for (uint8_t sequenceIndex = 0; sequenceIndex < ted.sequenceData.numSequences; sequenceIndex++)
         {
             const auto& trackBlock = ted.sequenceData.sequences[sequenceIndex].clearance;
-            const auto rotatedOffset = CoordsXY{ trackBlock.x, trackBlock.y }.Rotate(base.direction);
+            const auto rotatedOffset = CoordsXY{ trackBlock.x, trackBlock.y }.rotate(base.direction);
             minX = std::min(minX, rotatedOffset.x);
             minY = std::min(minY, rotatedOffset.y);
             maxX = std::max(maxX, rotatedOffset.x + kCoordsXYStep);
@@ -1344,7 +1344,7 @@ namespace OpenRCT2
         const auto& rtd = ride.getRideTypeDescriptor();
         if (rtd.specialType == RtdSpecialType::maze)
         {
-            base.location = ride.getStation().entrance.ToCoordsXY();
+            base.location = ride.getStation().entrance.toCoordsXY();
             base.baseZ = ride.getStation().getBaseZ();
             return true;
         }
@@ -2076,7 +2076,7 @@ namespace OpenRCT2
                 {
                     auto entranceIndex = tileElement->asTrack()->getStationIndex();
                     state.StationFlags &= ~RIDE_RATING_STATION_FLAG_NO_ENTRANCE;
-                    if (ride->getStation(entranceIndex).entrance.IsNull())
+                    if (ride->getStation(entranceIndex).entrance.isNull())
                     {
                         state.StationFlags |= RIDE_RATING_STATION_FLAG_NO_ENTRANCE;
                     }
@@ -2224,10 +2224,10 @@ namespace OpenRCT2
 
         for (auto& station : ride->getStations())
         {
-            if (!station.start.IsNull())
+            if (!station.start.isNull())
             {
                 state.StationFlags &= ~RIDE_RATING_STATION_FLAG_NO_ENTRANCE;
-                if (station.entrance.IsNull())
+                if (station.entrance.isNull())
                 {
                     state.StationFlags |= RIDE_RATING_STATION_FLAG_NO_ENTRANCE;
                 }

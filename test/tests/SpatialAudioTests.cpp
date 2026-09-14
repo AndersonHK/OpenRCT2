@@ -160,7 +160,7 @@ TEST(SpatialAudio, IsometricCentreRayIsCameraForwardAtEveryRotation)
     {
         const auto listener = CalculateIsometricListener(focus, rotation, 1280, 720);
         const auto ground = CalculateSpatialAudioParams(listener, focus);
-        const auto rayGround = CoordsXY{ 1, 1 }.Rotate((4 - rotation) & 3);
+        const auto rayGround = CoordsXY{ 1, 1 }.rotate((4 - rotation) & 3);
         const auto elevation = std::max(1, static_cast<int32_t>(std::lround(listener.Altitude * 0.5f)));
         const CoordsXYZ elevatedOnRay{
             focus.x + (rayGround.x * elevation),
@@ -184,7 +184,7 @@ TEST(SpatialAudio, IsometricScreenRightMapsToPositiveCameraAzimuth)
     for (uint8_t rotation = 0; rotation < 4; rotation++)
     {
         const auto listener = CalculateIsometricListener(focus, rotation, 1280, 720);
-        const auto rightGround = CoordsXY{ -1, 1 }.Rotate((4 - rotation) & 3);
+        const auto rightGround = CoordsXY{ -1, 1 }.rotate((4 - rotation) & 3);
         const CoordsXYZ source{
             focus.x + (rightGround.x * 128),
             focus.y + (rightGround.y * 128),
