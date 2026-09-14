@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 295 / 361 source commits recorded
+## Progress: 296 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -3263,10 +3263,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U295 — `ff9dc55921` — Merge Localisation/master into OpenRCT2/develop
 
 - **Source:** `ff9dc55921f3bc81d8aaeba12d083ae34f00c0b2`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `1ffaa290959cd1c10d23ededba68918955a70236`.
 - **Remaining:** 67 → 66.
 - **Disposition:** adopt applicable changes.
 - **Manual changes:** Add German IDs 7033-7043 and Hungarian/Brazilian Portuguese terrain-height title 7043.
 - **Additional decisions / behavior:** Single-parent text update; 13 added translations, no formatter arguments or simulation changes. Preserve fork strings.
 - **Verification:** Read complete patch; full-context emitter refused absent Hungarian EOF blank line before mutation. Manually inserted three reviewed translation blocks; whitespace check passed.
 - **Pending / concerns:** Language parser at next checkpoint; native translated display remains untested.
+
+### U296 — `4be8013397` — Refactor Guest.h members and EASTEREGG_PEEP_NAME to enum class (#27038)
+
+- **Source:** `4be80133970f12c5c72c945f2140c907ff402db0`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 66 → 65.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Strong EasterEggPeepName enum and camelCase IntensityRange accessors across all consumers.
+- **Additional decisions / behavior:** Keep 24 names/effects, kart speeds, intensity nibble packing and fork preference/happiness policy. Computed no-match sentinel changes -1 to none=255; sole station consumer still no-ops. No stored entity layout change.
+- **Verification:** B75: complete source/fork code-line delta match; solution 78.12 seconds zero warnings/errors; all 51 play/save/script/language tests pass, 18.021 seconds.
+- **Pending / concerns:** Individual Easter egg effects, native UI, non-Windows and live MP/replay remain standing checks.

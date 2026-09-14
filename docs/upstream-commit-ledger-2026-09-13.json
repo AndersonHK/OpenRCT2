@@ -21407,7 +21407,9 @@
       "decisions": [],
       "review_level": "intent-and-path-triage",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "1ffaa290959cd1c10d23ededba68918955a70236"
+      ],
       "verification_evidence": [
         "Read complete patch; full-context emitter refused absent Hungarian EOF blank line before mutation. Manually inserted three reviewed translation blocks; whitespace check passed."
       ],
@@ -21455,9 +21457,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "B75: complete source/fork code-line delta match; solution 78.12 seconds zero warnings/errors; all 51 play/save/script/language tests pass, 18.021 seconds."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -21470,7 +21474,10 @@
         "src/openrct2/entity/Guest.h",
         "src/openrct2/ride/Station.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 4be80133970f12c5c72c945f2140c907ff402db0",
+      "implementation_decisions": "Keep 24 names/effects, kart speeds, intensity nibble packing and fork preference/happiness policy. Computed no-match sentinel changes -1 to none=255; sole station consumer still no-ops. No stored entity layout change.",
+      "pending_validation": "Individual Easter egg effects, native UI, non-Windows and live MP/replay remain standing checks."
     },
     {
       "sha": "29a15582c100faeb68a7a4c4ed6b3b6897772961",
@@ -27854,8 +27861,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 295,
-    "remaining_after_receipt": 66,
+    "accounted_in_this_tree": 296,
+    "remaining_after_receipt": 65,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }
