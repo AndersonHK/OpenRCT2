@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 22 / 361 source commits recorded
+## Progress: 23 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -260,10 +260,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U022 — `7df1cfe7c0` — Merge Localisation/master into OpenRCT2/develop
 
 - **Source:** `7df1cfe7c084d4b65b3ebfc1c0fc261c2bf135ca`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `e7919f4dbafbd6ef5dedc7f90fe299240f2edbab`.
 - **Remaining:** 340 → 339.
 - **Disposition:** adopt.
 - **Manual changes:** Add Dutch and Russian ride-type labels at upstream string ID 7039.
 - **Additional decisions / behavior:** Fork private strings remain at 8000-8041; these additions fill the upstream label without collisions.
 - **Verification:** Inspected both added strings and unique 7039 IDs. Singleton ancestry and whitespace checks.
 - **Pending / concerns:** Generic parser tests at UI checkpoint; no native-language UI review claimed.
+
+### U023 — `2ac48e6c42` — Rename members of MixerGroup
+
+- **Source:** `2ac48e6c4233597efab90bfa11d88b0cc28e6d1a`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 339 → 338.
+- **Disposition:** adopt naming in fork mixer.
+- **Manual changes:** Rename MixerGroup members and references to lower camel case, including fork vehicle channels.
+- **Additional decisions / behavior:** Keep fork four-group ordering and values (sound, vehicle, rideMusic, titleMusic); do not restore upstream three-group mixer or its old callback/volume implementation. Spatial gains, channel lifecycle and vehicle group remain intact.
+- **Verification:** Inspected complete upstream rename delta and fork mixer dispatch/volume paths; inverse identifier substitution reproduces each pre-port file exactly. UI checkpoint after U021 passed complete build 0 warnings/errors in 42.28s.
+- **Pending / concerns:** This identifier port will compile at the next checkpoint. UI tests and audio regression checkpoint results logged separately.

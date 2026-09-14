@@ -418,7 +418,7 @@ namespace OpenRCT2::Audio
             auto looping = IsLoopingSound(id);
             _vehicleChannelStartAttempts++;
             auto channel = CreateSpatialAudioChannel(
-                id, MixerGroup::Vehicle, looping, kMixerVolumeMax,
+                id, MixerGroup::vehicle, looping, kMixerVolumeMax,
                 DStoMixerRate(frequency) * sound_params->dopplerFactor, playbackGain, sound_params->azimuth,
                 sound_params->elevation, sound_params->lowPassCutoff);
             if (channel != nullptr)

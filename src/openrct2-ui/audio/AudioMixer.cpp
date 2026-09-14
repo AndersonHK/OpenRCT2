@@ -208,7 +208,7 @@ void AudioMixer::GetNextAudioChunk(uint8_t* dst, size_t length)
         }
 
         const auto group = channel->GetGroup();
-        const auto isSoundEffect = group == MixerGroup::Sound || group == MixerGroup::Vehicle;
+        const auto isSoundEffect = group == MixerGroup::sound || group == MixerGroup::vehicle;
         if ((!isSoundEffect || soundConfig.soundEnabled) && masterGain > 0.0f)
         {
             MixChannel(channel.get(), frames, masterGain);
@@ -517,8 +517,8 @@ float AudioMixer::GetVolumeAdjust(const IAudioChannel* channel, float masterGain
 
     switch (channel->GetGroup())
     {
-        case MixerGroup::Sound:
-        case MixerGroup::Vehicle:
+        case MixerGroup::sound:
+        case MixerGroup::vehicle:
             volumeAdjust *= _adjustSoundVolume;
 
             // Cap sound volume on title screen so music is more audible
@@ -527,8 +527,8 @@ float AudioMixer::GetVolumeAdjust(const IAudioChannel* channel, float masterGain
                 volumeAdjust = std::min(volumeAdjust, 0.75f);
             }
             break;
-        case MixerGroup::RideMusic:
-        case MixerGroup::TitleMusic:
+        case MixerGroup::rideMusic:
+        case MixerGroup::titleMusic:
             volumeAdjust *= _adjustMusicVolume;
             break;
     }

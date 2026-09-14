@@ -1261,7 +1261,7 @@ namespace OpenRCT2
                     channel = CreateAudioChannel(SoundId::crowdAmbience, true, 0);
                     if (channel != nullptr)
                     {
-                        channel->SetGroup(MixerGroup::Sound);
+                        channel->SetGroup(MixerGroup::sound);
                         const auto* source = channel->GetSource();
                         if (source != nullptr)
                         {

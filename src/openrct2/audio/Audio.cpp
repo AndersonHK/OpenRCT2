@@ -223,13 +223,13 @@ namespace OpenRCT2::Audio
             mixerPan = ((x2 / screenWidth) - 0x8000) >> 4;
         }
 
-        CreateAudioChannel(audioSource, MixerGroup::Sound, false, DStoMixerVolume(volume), DStoMixerPan(mixerPan));
+        CreateAudioChannel(audioSource, MixerGroup::sound, false, DStoMixerVolume(volume), DStoMixerPan(mixerPan));
     }
 
     static void PlaySpatial(IAudioSource* audioSource, const AudioParams& params, const CoordsXYZ& location)
     {
         auto channel = CreateSpatialAudioChannel(
-            audioSource, MixerGroup::Sound, false, DStoMixerVolume(params.volume), 1.0, params.spatialGain,
+            audioSource, MixerGroup::sound, false, DStoMixerVolume(params.volume), 1.0, params.spatialGain,
             params.azimuth, params.elevation, params.lowPassCutoff);
         if (channel != nullptr)
         {
@@ -385,7 +385,7 @@ namespace OpenRCT2::Audio
             auto source = audioObject->GetSample(0);
             if (source != nullptr)
             {
-                _titleMusicChannel = CreateAudioChannel(source, MixerGroup::TitleMusic, true);
+                _titleMusicChannel = CreateAudioChannel(source, MixerGroup::titleMusic, true);
             }
         }
     }
@@ -547,7 +547,7 @@ namespace OpenRCT2::Audio
     std::shared_ptr<IAudioChannel> CreateAudioChannel(
         SoundId id, bool loop, int32_t volume, float pan, double rate)
     {
-        return CreateAudioChannel(id, MixerGroup::Sound, loop, volume, pan, rate);
+        return CreateAudioChannel(id, MixerGroup::sound, loop, volume, pan, rate);
     }
 
     std::shared_ptr<IAudioChannel> CreateAudioChannel(
