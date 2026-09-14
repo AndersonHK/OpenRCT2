@@ -27167,7 +27167,9 @@
       "decisions": [],
       "review_level": "targeted-code-review",
       "implementation_status": "adopt applicable changes",
-      "port_commits": [],
+      "port_commits": [
+        "dfe2f401c07f2b318d3a7b3e3d8ed82bcf7f0601"
+      ],
       "verification_evidence": [
         "Full source hunk and adjacent fork importer inspected; pinned object JSON check all nine passed (u352-object-proof.txt)."
       ],
@@ -27209,9 +27211,11 @@
       "note": "Use vehicle-type-specific extra zero cars in RCT1 park/design imports; retain cent/time conversion and platform reconstruction.",
       "decisions": [],
       "review_level": "targeted-code-review",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Release/x64/Vulkan solution zero warnings/errors 15.18s; eight TD4/S6/Park tests pass 6.453s. New actual importer fixture covers 24 header/object cases (nine affected and three controls, both versions). B97 clears U351-U353."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -27219,7 +27223,10 @@
         "revisit_trigger": null
       },
       "merge_conflict_paths": [],
-      "verification_gate": "P7"
+      "verification_gate": "P7",
+      "port_commit_locator": "Upstream-Commit: 0dfc546c8b82a646223a4312f611b15d235756e6",
+      "implementation_decisions": "Import-only adjustment matches nine pinned companion objects; no change to ordinary station margin/capacity or fork real-unit conversion. Both TD4 format versions use the shared owner. No asset workaround.",
+      "pending_validation": "Original S4 saves and native TD4 placement/boarding still need manual validation."
     },
     {
       "sha": "831ea328574d2c1394b0ae2a2a2cbf8ac94f63bb",
@@ -28253,8 +28260,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 352,
-    "remaining_after_receipt": 9,
+    "accounted_in_this_tree": 353,
+    "remaining_after_receipt": 8,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

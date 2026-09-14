@@ -18,6 +18,13 @@
 #include <openrct2/Limits.h>
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/ParkImporter.h>
+#include <openrct2/TrackImporter.h>
+#include <openrct2/core/MemoryStream.h>
+#include <openrct2/rct1/RCT1.h>
+#include <openrct2/rct1/Tables.h>
+#include <openrct2/rct12/TD46.h>
+#include <openrct2/sawyer_coding/SawyerCoding.h>
+#include <openrct2/object/RideObject.h>
 #include <openrct2/actions/GameActionRunner.h>
 #include <openrct2/actions/GameActionParameterVisitor.h>
 #include <openrct2/actions/park/LandSetRightsAction.h>
@@ -74,6 +81,68 @@ using namespace OpenRCT2;
 class PlayTests : public testing::Test
 {
 };
+
+TEST_F(PlayTests, Rct1TrackImportsAddOnlyLaterDummyCarsFromPinnedObjects)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    using LegacyRide = RCT1::RideType;
+    using LegacyVehicle = RCT1::VehicleType;
+    struct Case { LegacyRide type; LegacyVehicle vehicle; uint8_t added; };
+    const Case cases[] = {
+        { LegacyRide::woodenCrazyRodentRollerCoaster, LegacyVehicle::woodenMineCars, 2 },
+        { LegacyRide::woodenCrazyRodentRollerCoaster, LegacyVehicle::woodenMouseCars, 2 },
+        { LegacyRide::steelWildMouseRollerCoaster, LegacyVehicle::steelMouseCars, 2 },
+        { LegacyRide::carRide, LegacyVehicle::sportscars, 2 },
+        { LegacyRide::carRide, LegacyVehicle::racingCars, 2 },
+        { LegacyRide::carRide, LegacyVehicle::trucks, 2 },
+        { LegacyRide::carRide, LegacyVehicle::vintageCars, 2 },
+        { LegacyRide::carRide, LegacyVehicle::catCars, 2 },
+        { LegacyRide::carRide, LegacyVehicle::helicopterCars, 2 },
+        { LegacyRide::bobsledRollerCoaster, LegacyVehicle::bobsleighCars, 0 },
+        { LegacyRide::miniatureRailway, LegacyVehicle::steamTrain, 0 },
+        { LegacyRide::steelRollerCoaster, LegacyVehicle::steelRollerCoasterTrain, 0 },
+    };
+    for (const auto& c : cases)
+    {
+        SCOPED_TRACE(EnumValue(c.vehicle));
+        const auto identifier = std::string(RCT1::GetVehicleObject(c.vehicle));
+        auto* object = dynamic_cast<RideObject*>(context->GetObjectManager().LoadObject(identifier));
+        ASSERT_NE(object, nullptr) << identifier;
+        if (c.added != 0) EXPECT_EQ(object->GetEntry().zero_cars, c.added);
+        EXPECT_EQ(RCT1::getAdditionalZeroCars(c.vehicle), c.added);
+        for (const auto version : { RCT12::TD46Version::td4, RCT12::TD46Version::td4AA })
+        {
+            SCOPED_TRACE(EnumValue(version));
+            RCT1::TD4AA header{};
+            header.Type = c.type;
+            header.VehicleType = c.vehicle;
+            header.VersionAndColourScheme = EnumValue(version) << 2;
+            header.NumberOfCarsPerTrain = 2;
+            header.NumberOfTrains = 3;
+            header.MinWaitingTime = 7;
+            header.MaxWaitingTime = 19;
+            const size_t headerSize = version == RCT12::TD46Version::td4 ? sizeof(RCT1::TD4) : sizeof(RCT1::TD4AA);
+            std::vector<uint8_t> raw(headerSize + 1);
+            std::memcpy(raw.data(), &header, headerSize);
+            raw.back() = 0xFF; // No track elements are needed to exercise header/count import.
+            std::vector<uint8_t> encoded(raw.size() * 2 + 4);
+            encoded.resize(SawyerCoding::EncodeTD6(raw.data(), encoded.data(), raw.size()));
+            MemoryStream stream(encoded);
+            auto importer = TrackImporter::CreateTD4();
+            ASSERT_TRUE(importer->LoadFromStream(&stream));
+            auto track = importer->Import();
+            ASSERT_NE(track, nullptr);
+            EXPECT_EQ(track->trackAndVehicle.numberOfCarsPerTrain, 2 + c.added);
+            EXPECT_EQ(track->trackAndVehicle.numberOfTrains, 3);
+            EXPECT_EQ(track->operation.minWaitingTime, 7);
+            EXPECT_EQ(track->operation.maxWaitingTime, 19);
+            EXPECT_TRUE(track->trackElements.empty());
+        }
+    }
+}
 
 TEST_F(PlayTests, PeepDescriptionsPreservePlatformStatusAndMissingRideArguments)
 {

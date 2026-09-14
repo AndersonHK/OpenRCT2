@@ -752,3 +752,12 @@ Ride mode availability uses a typed uint64 flag holder instead of raw bit masks.
 Pre-existing edge case observed during U350 review: RideSetSettingAction mode Query does not explicitly bound its uint8 value before bit membership, and show-all mode bypasses membership rejection. Both old direct shift and new EnumToFlag shift are undefined for values at least 64. This naming/type port does not change that existing action policy; hardening needs a separate action-boundary regression and protocol assessment. Normal descriptor/UI-generated modes are unchanged.
 
 B96 completed: Release/x64/Vulkan solution passed in 82.79s with zero warnings/errors; 166 selected WidgetState/Play/RideRatings/Scripting/S6/Park tests passed in 31.895s (batch-96-tests.xml).
+
+
+## B97 - U351-U353 RCT1 car-count translation
+
+U351 adds the exact nine-vehicle lookup for later door-compatibility dummy cars. U352 uses that delta for both current and proposed S4 train counts rather than adding the entire loaded object zero-car count. U353 adds the same delta to TD4 counts, fixing two-car wooden wild mouse designs. This import-only translation is separate from approved D02: ordinary station end allowance and fork capacity/boarding models remain intact. Adjacent real-unit import conversions are preserved.
+
+Checked all nine actual pinned companion objects at b2a5511: every mapped object has numEmptyCars 2 (u352-object-proof.txt). No objects modification or upstream repository substitution is needed for these commits. The new actual TD4 importer fixture loads all nine objects plus bobsleigh, steam train and steel coaster controls, then decodes/imports both base and AA headers (24 cases). Two-car headers become four only for the nine mapped types; unaffected types remain two, with train count/wait settings unchanged. This exercises importer streams and object metadata, not placed trains in original parks. S4 source change is inspected and compiled; an original S4 end-to-end case remains manual validation debt.
+
+Solution Release/x64/Vulkan passed in 15.18s, zero warnings/errors. All eight matched TD4/S6/Park import tests passed in 6.453s (batch-97-tests.xml), clearing U351-U353 compile/test debt. Source changelog trailing space in U352 was removed after the receipt whitespace gate rejected it; no duplicate receipt. U353 placement in our changelog preserves the absent D01/D02 claims.
