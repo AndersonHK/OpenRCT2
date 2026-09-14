@@ -17,9 +17,7 @@
 #include "../OpenRCT2.h"
 #include "../ParkImporter.h"
 #include "../Version.h"
-#include "../config/Config.h"
 #include "../core/Console.hpp"
-#include "../core/Crypt.h"
 #include "../core/DataSerialiser.h"
 #include "../core/File.h"
 #include "../core/OrcaStream.hpp"
@@ -37,7 +35,6 @@
 #include "../entity/Particle.h"
 #include "../entity/PatrolArea.h"
 #include "../entity/Staff.h"
-#include "../interface/Viewport.h"
 #include "../localisation/Formatter.h"
 #include "../management/Award.h"
 #include "../management/Finance.h"
@@ -50,7 +47,6 @@
 #include "../ride/Ride.h"
 #include "../ride/RideData.h"
 #include "../ride/RideManager.hpp"
-#include "../ride/ShopItem.h"
 #include "../ride/Track.h"
 #include "../ride/Vehicle.h"
 #include "../scenario/Scenario.h"
@@ -75,7 +71,6 @@
 #include <cassert>
 #include <cstdint>
 #include <ctime>
-#include <numeric>
 #include <optional>
 #include <string_view>
 #include <utility>

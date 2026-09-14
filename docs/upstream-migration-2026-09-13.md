@@ -22,7 +22,7 @@ Validation cadence was clarified by the owner: use source/diff/ancestry checks p
 
 - Release x64 MSVC/Vulkan `openrct2.proj` build at the frozen source baseline passed: 0 warnings, 0 errors, 15.53 seconds. Log: `obj/upstream-audit/baseline-build.log` (local scratch, not committed). This does not establish a fresh test-suite baseline.
 
-## Progress: 108 / 361 source commits recorded
+## Progress: 109 / 361 source commits recorded
 
 A row with pending checks records source integration, not a claim that runtime validation passed. Receipt hashes are resolved from first-parent history; source-attributed checks and later batch evidence remain traceable.
 
@@ -1206,10 +1206,21 @@ A row with pending checks records source integration, not a claim that runtime v
 ### U108 — `205497a480` — Merge pull request #26876 from Gymnasiast/refactor/remaining-enum-class-members
 
 - **Source:** `205497a4800f9cc1a06c8616318845e551f501d5`.
-- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Fork receipt:** `8b96fd8f802f7c17479dc5380607a6145dbd8c3d`.
 - **Remaining:** 254 → 253.
 - **Disposition:** history receipt.
 - **Manual changes:** Account for the completed enum-style branch merge; no additional source edit.
 - **Additional decisions / behavior:** All constituent source changes already individually ported. Keep fork tree unchanged.
 - **Verification:** Archived remerge delta empty; merge tree equals second-parent tree. Singleton ancestry checked.
 - **Pending / concerns:** Build completed naming group next.
+
+### U109 — `7f39bdebf5` — Remove openrct2/park includes
+
+- **Source:** `7f39bdebf52fabf3bcb2a431cda2edbc9c83f914`.
+- **Fork receipt:** `this entry’s unique Upstream-Commit trailer`.
+- **Remaining:** 253 → 252.
+- **Disposition:** adopt applicable changes.
+- **Manual changes:** Remove seven unused park headers.
+- **Additional decisions / behavior:** Retain ParkFile.cpp world/Park.h for fork entrance-fee target persistence and rct2/RCT2.h for directly referenced FootpathMapping/legacy limits. Preserve save version 60016 and custom recovery logic.
+- **Verification:** Reviewed complete include-only delta and direct fork dependencies. Batch 13 build and 37 selected network/script/entity/widget tests passed through U108.
+- **Pending / concerns:** Build header cleanup group next.

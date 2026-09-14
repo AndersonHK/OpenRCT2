@@ -7231,7 +7231,9 @@
       "decisions": [],
       "review_level": "remerge-probe",
       "implementation_status": "history receipt",
-      "port_commits": [],
+      "port_commits": [
+        "8b96fd8f802f7c17479dc5380607a6145dbd8c3d"
+      ],
       "verification_evidence": [
         "Archived remerge delta empty; merge tree equals second-parent tree. Singleton ancestry checked."
       ],
@@ -7313,9 +7315,11 @@
       "note": "Apply mechanical intent under P2 contract across all fork-only consumers; inspect numeric flags and deleted legacy code before porting.",
       "decisions": [],
       "review_level": "intent-and-path-triage",
-      "implementation_status": "not-ported",
+      "implementation_status": "adopt applicable changes",
       "port_commits": [],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "Reviewed complete include-only delta and direct fork dependencies. Batch 13 build and 37 selected network/script/entity/widget tests passed through U108."
+      ],
       "deferral": {
         "status": "not-selected",
         "reason": null,
@@ -7325,7 +7329,10 @@
       "merge_conflict_paths": [
         "src/openrct2/park/ParkFile.cpp"
       ],
-      "verification_gate": "P2"
+      "verification_gate": "P2",
+      "port_commit_locator": "Upstream-Commit: 7f39bdebf52fabf3bcb2a431cda2edbc9c83f914",
+      "implementation_decisions": "Retain ParkFile.cpp world/Park.h for fork entrance-fee target persistence and rct2/RCT2.h for directly referenced FootpathMapping/legacy limits. Preserve save version 60016 and custom recovery logic.",
+      "pending_validation": "Build header cleanup group next."
     },
     {
       "sha": "b3ef890f383ea9af6904b079c906336f0b3ed4f0",
@@ -26545,8 +26552,8 @@
   },
   "execution_override": "Historical one-source-per-commit loop; lightweight per-commit checks and batched compile/test, per later owner instruction. No pushes/deployment.",
   "implementation_progress": {
-    "accounted_in_this_tree": 108,
-    "remaining_after_receipt": 253,
+    "accounted_in_this_tree": 109,
+    "remaining_after_receipt": 252,
     "branch": "refs/heads/codex/catching-up-to-upstream",
     "log": "docs/upstream-migration-2026-09-13.md"
   }

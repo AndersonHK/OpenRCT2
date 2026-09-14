@@ -80,3 +80,7 @@ Full Release x64 MSVC/Vulkan build passed. All 16 selected tests passed from `bi
 ## Batch 12 — ratings and pathfinding checkpoint U097
 
 Full Release x64 MSVC/Vulkan build passed, 0 warnings/errors, 79.27 seconds. All 149 selected tests passed from `bin` in 19.49 seconds across RideRatings, PathfindingTestBase, ParkFileMigration, EntityImportTests, TrainStationAssignment and RideVehicleStation. Logs: `obj/upstream-audit/batch-12-ratings-names-build.log`, `batch-12-ratings-names-tests.log` and matching test XML. This clears compilation debt through U097 and exercises fork ratings, transport routing, platform-guest round trips and older-save recovery. Source transforms also verified that no upstream rating coefficients, deleted maze-size bonus, or changed state ordinals were introduced. U096 removed pre-existing trailing spaces on six renamed modifier lines to pass the whitespace gate.
+
+## Batch 13 — completed enum group U108
+
+Full Release x64 MSVC/Vulkan build passed, 0 warnings/errors, 77.43 seconds. All 37 selected NetworkTests, ScriptingTests, EntityImportTests and WidgetStateTest tests passed from `bin` in 2.71 seconds. Logs: `obj/upstream-audit/batch-13-enum-completion-build.log`, `batch-13-enum-completion-tests.log` and matching XML. Compilation debt through U108 is clear. This includes the GameCommand ID rename and mini-golf state/animation table substitutions. Clang-tidy was not available on PATH, so the new naming rules have not had a dedicated lint run; the compiler/test pass does not claim that coverage.
