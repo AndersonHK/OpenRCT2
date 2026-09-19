@@ -2,6 +2,9 @@
 
 This is the canonical renderer contract. Historical measurements and abandoned designs belong in `docs/archive/`, not here.
 
+The [Vulkan-only migration plan](vulkan-exclusive-migration-plan.md) tracks the parity evidence, auxiliary-target migration,
+and software removal required to reach an exclusive Vulkan renderer. The contracts below describe the current implementation.
+
 ## Non-negotiable invariants
 
 1. The main window renders one immutable `PresentationGeneration`. Map and entity snapshots advance together through
