@@ -1,0 +1,63 @@
+{
+  "schema": 1,
+  "date": "2026-09-20",
+  "status": "validated-source-checkpoint-not-deployed",
+  "baseRevision": "3b28313a1bedd1160ef63b62a2fae004ca53c23c",
+  "sourceMatchesBuild56": true,
+  "tests": {
+    "passed": 800,
+    "suites": 86,
+    "parityTests": 66,
+    "hdrReferenceSamples": 72,
+    "synchronizationValidation": "clean"
+  },
+  "installedCheckpoint": 52,
+  "workingTreeCommitted": false,
+  "migrationComplete": false,
+  "orderingResolved": false,
+  "newPixelExceptions": [],
+  "finalPerformance": {
+    "width": 3840,
+    "height": 2160,
+    "refreshHz": 144,
+    "warmupTicks": 100,
+    "measuredTicks": 3000,
+    "renderer": "Vulkan",
+    "vsync": true,
+    "hiddenWindow": true,
+    "tps": 70.461,
+    "drawsPerSecond": 30.157,
+    "cpuDrawMs": 25.722075,
+    "gpuMs": 1.816604,
+    "intervalP50P95P99Ms": [
+      33.926,
+      35.349,
+      35.999
+    ],
+    "displayedPacingQualified": false
+  },
+  "evidenceSha256": {
+    "obj/vulkan-parity/build-56/receipt.json": "e4007b2dfddcc68d945603fb7a320177f23eba03dfb21edbf13b99f4d34c4fcc",
+    "obj/vulkan-parity/run-48/summary.json": "52ed36dc50defa47ba7c115cbf610f8ea8fde9573d141101693a36b5c30b0228",
+    "obj/vulkan-parity/performance-build56/snapshot.json": "2b25a8cfd70641b5a12c7eb0d36e7812fc89d72149e1dfdbf377f3ca37a5f31b",
+    "obj/vulkan-parity/perf-build56-4k-vulkan-vsync1-01/summary.json": "b5dad5281506a76c56d3c1e94bff4eab66dd6f77539b80bdad66e40faaea80fa",
+    "obj/vulkan-parity/perf-build55-4k-vulkan-vsync1-01/summary.json": "a252aa54b411bd63207363b7f73341a7ae4e230edff6c71c0d8af7d1d61adb6e",
+    "obj/vulkan-parity/presentation-start-deadline-withdrawal.json": "869379e00912349d3099152d2e2a0c431e7394df9393957458c2f67329668a54",
+    "obj/vulkan-parity/ui-frozen-build-22/receipt.json": "b531daa0e55f275a2adfd58357a0d252994a3e25b4a7b4c1f631b7b3cc41b12b",
+    "obj/vulkan-parity/ordering-frozen-trinity-motion-01/summary.json": "c3b2bd4b9d786bc39a9d72dfec1b15201626b686bb5fd88061415006ae53cb00",
+    "obj/vulkan-parity/final-motion-hdr-review/manual-review.json": "4d50cec60a281a7216f08df93e8ecaca018f1cccf5da0aab8fc125b5c4f3b2df",
+    "obj/vulkan-parity/retained-peep-foundation-staged/manifest.json": "84261db22f9933990f6fdde7eaec7f915e8d59be26dba3282ac7884c8ac54fd5",
+    "obj/vulkan-parity/peep-gpu-rules-staged/manifest.json": "3293e207a7c404084ffacc414bf3a937a853f0a303c8ac5eb890fb468c20bd9f",
+    "obj/vulkan-parity/perf-build53-4k-software-vsync0-01/summary.json": "581838a7dacba9a7004bc0f9c143d801748b53ec5d9b2e5265bdc6d3937026aa",
+    "obj/vulkan-parity/perf-build53-4k-software-vsync1-01/summary.json": "efee3953ef8893dc22f6dbbcd9d7c6e940b398711b653c1a819405dd1454d223",
+    "obj/vulkan-parity/perf-build53-4k-vulkan-vsync0-01/summary.json": "bc53a0bf5e878c38ba6bb582bbef934e16d12434f544b9378bc2ec61ac8703c7",
+    "obj/vulkan-parity/perf-build53-4k-vulkan-vsync1-01/summary.json": "6bec6e2b24f109b614768097856a2dfbffe6988aacdf37b58c206bb65b427345"
+  },
+  "resumeDocument": "docs/vulkan-post-checkpoint-feedback.md",
+  "architectureProposal": "docs/vulkan-orthographic-renderer-proposal.md",
+  "unappliedDrafts": [
+    "retained-peep-foundation-staged",
+    "peep-gpu-rules-staged"
+  ],
+  "rejectedExperiment": "presentation-start-deadline-staged"
+}

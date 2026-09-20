@@ -7,11 +7,15 @@
     #include "VulkanParityTestSupport.h"
 
     #include <atomic>
+    #include <cmath>
+    #include <cstring>
     #include <cstdlib>
+    #include <fstream>
     #include <future>
     #include <openrct2-renderer/gpu/GpuCommandDrawingContext.h>
     #include <openrct2-renderer/vulkan/VulkanRenderService.h>
     #include <openrct2-renderer/vulkan/VulkanFrameExecutor.h>
+    #include <openrct2-renderer/vulkan/VulkanPalettePipeline.h>
     #include <openrct2-renderer/vulkan/VulkanSubmissionSlots.h>
     #include <openrct2/OpenRCT2.h>
     #include <openrct2/SpriteIds.h>
@@ -137,6 +141,150 @@ namespace
         }
     };
 } // namespace
+
+// Separate suite keeps the existing offscreen image-report contract unchanged.
+class VulkanHdrOutputTest : public VulkanOffscreenRenderTest
+{
+};
+
+TEST_F(VulkanHdrOutputTest, AbsolutePqWhiteAndSdrPaletteSurviveDynamicWhiteChanges)
+{
+    constexpr Gpu::Extent extent{ 16, 16 };
+    std::array<std::byte, 1024> palette{};
+    std::array<std::byte, 256> indices{};
+    for (size_t i = 0; i < 256; ++i)
+    {
+        indices[i] = static_cast<std::byte>(i);
+        for (size_t channel = 0; channel < 3; ++channel)
+            palette[i * 4 + channel] = static_cast<std::byte>(i);
+        palette[i * 4 + 3] = std::byte{ 255 };
+    }
+    for (size_t primary = 0; primary < 3; ++primary)
+        for (size_t channel = 0; channel < 3; ++channel)
+            palette[(252 + primary) * 4 + channel] = static_cast<std::byte>(primary == channel ? 255 : 0);
+
+    // Independent double-precision reference: IEC sRGB EOTF, linear D65
+    // sRGB-to-BT.2020 primaries, then the absolute ST 2084 OETF (10,000 nits).
+    const auto reference = [&](size_t index, float white) {
+        std::array<double, 3> linear{};
+        for (size_t channel = 0; channel < 3; ++channel)
+        {
+            const auto value = std::to_integer<uint8_t>(palette[index * 4 + channel]) / 255.0;
+            linear[channel] = value <= 0.04045 ? value / 12.92 : std::pow((value + 0.055) / 1.055, 2.4);
+        }
+        constexpr double matrix[3][3] = {
+            { 0.6274038959, 0.3292830384, 0.0433130657 },
+            { 0.0690972894, 0.9195403951, 0.0113623156 },
+            { 0.0163914389, 0.0880133079, 0.8955952532 },
+        };
+        std::array<uint32_t, 3> codes{};
+        for (size_t channel = 0; channel < 3; ++channel)
+        {
+            double luminance = 0;
+            for (size_t component = 0; component < 3; ++component)
+                luminance += matrix[channel][component] * linear[component];
+            const auto p = std::pow(luminance * white / 10000.0, 2610.0 / 16384.0);
+            const auto pq = std::pow((3424.0 / 4096.0 + 2413.0 / 128.0 * p) / (1 + 2392.0 / 128.0 * p), 2523.0 / 32.0);
+            codes[channel] = static_cast<uint32_t>(std::lround(pq * 1023));
+        }
+        return codes;
+    };
+    json_t reports = json_t::array();
+    for (const auto format : { VK_FORMAT_A2B10G10R10_UNORM_PACK32, VK_FORMAT_A2R10G10B10_UNORM_PACK32,
+                               VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_R8G8B8A8_SRGB })
+    {
+        SCOPED_TRACE(format);
+        const bool hdr = format == VK_FORMAT_A2B10G10R10_UNORM_PACK32 || format == VK_FORMAT_A2R10G10B10_UNORM_PACK32;
+        Vulkan::FrameExecutor executor;
+        executor.Initialise(context, extent, options.shaderDirectory, 1, 1, false);
+        executor.SetPalette(palette);
+        Vulkan::SubmissionSlots slots(context, 1024 * 1024, 1);
+        Vulkan::Image image;
+        image.Initialise(context->GetPhysicalDevice(), context->GetDevice(), { 16, 16, 1 }, 1, format,
+            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+        Vulkan::PalettePipeline pipeline;
+        pipeline.Initialise(*context, executor.GetResources(), options.shaderDirectory, 203.0f);
+        const std::array views{ image.GetView() };
+        pipeline.RefreshOutput(format, { 16, 16 }, views, 1, hdr ? 2 : (format == VK_FORMAT_R8G8B8A8_SRGB ? 1 : 0),
+            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+        for (const auto mode : { Gpu::ScaleMode::Nearest, Gpu::ScaleMode::Linear, Gpu::ScaleMode::SmoothNearest })
+        {
+            for (const float white : { 80.0f, 203.0f, 280.0f, 400.0f, 1000.0f, 203.0f })
+            {
+                SCOPED_TRACE(white);
+                pipeline.SetHdrPaperWhiteNits(white);
+                auto token = slots.Begin(0, true);
+                ASSERT_TRUE(token.has_value());
+                const auto output = executor.Record(*token, {}, 0, indices);
+                ASSERT_NE(output.canvas, nullptr);
+                pipeline.SetCanvasSource(0, *output.canvas);
+                pipeline.Record(*token, 0, { 16, 16 }, false, extent, { mode, 2 });
+                auto readback = token->upload->Allocate(1024, 16);
+                ASSERT_TRUE(static_cast<bool>(readback));
+                const VkImageSubresourceRange range{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+                Vulkan::RecordImageBarrier(token->commandBuffer, image.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, range, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                    VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT,
+                    VK_ACCESS_TRANSFER_READ_BIT);
+                const VkBufferImageCopy copy{ .bufferOffset = readback.offset,
+                    .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 }, .imageExtent = { 16, 16, 1 } };
+                vkCmdCopyImageToBuffer(token->commandBuffer, image.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                    readback.buffer, 1, &copy);
+                const VkMemoryBarrier host{ .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+                    .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT, .dstAccessMask = VK_ACCESS_HOST_READ_BIT };
+                vkCmdPipelineBarrier(token->commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_HOST_BIT,
+                    0, 1, &host, 0, nullptr, 0, nullptr);
+                slots.Submit(*token);
+                ASSERT_TRUE(slots.Wait(*token, 30'000'000'000ULL));
+                executor.Commit();
+                token->upload->Invalidate(readback.offset, readback.size);
+                std::array<uint32_t, 256> packed{};
+                std::memcpy(packed.data(), readback.data, sizeof(packed));
+                uint32_t maximumError = 0;
+                json_t expectedCodes = json_t::array();
+                for (size_t index = 0; index < 256; ++index)
+                {
+                    if (hdr)
+                    {
+                        const auto expected = reference(index, white);
+                        expectedCodes.push_back(expected);
+                        for (size_t channel = 0; channel < 3; ++channel)
+                        {
+                            const auto shift = static_cast<uint32_t>((format == VK_FORMAT_A2B10G10R10_UNORM_PACK32 ? channel : 2 - channel) * 10);
+                            const auto actual = (packed[index] >> shift) & 1023;
+                            const auto error = actual > expected[channel] ? actual - expected[channel] : expected[channel] - actual;
+                            maximumError = std::max(maximumError, error);
+                        }
+                        EXPECT_EQ(packed[index] >> 30, 3u);
+                    }
+                    else
+                    {
+                        uint32_t expected;
+                        std::memcpy(&expected, palette.data() + index * 4, 4);
+                        EXPECT_EQ(packed[index], expected) << "SDR palette index " << index;
+                        maximumError += packed[index] != expected ? 1 : 0;
+                    }
+                }
+                EXPECT_LE(maximumError, hdr ? 1u : 0u) << "format=" << format << " mode=" << static_cast<int>(mode);
+                reports.push_back({ { "format", format }, { "mode", static_cast<int>(mode) }, { "whiteNits", white },
+                    { "maximumError", maximumError }, { "packedActual", packed }, { "referenceRgb10", expectedCodes } });
+            }
+        }
+    }
+    ASSERT_EQ(reports.size(), 72u);
+    if (const auto* directory = std::getenv("OPENRCT2_VULKAN_PARITY_ARTIFACTS"))
+    {
+        const auto path = std::filesystem::path(directory) / "hdr-output";
+        std::filesystem::create_directories(path);
+        std::ofstream report(path / "palette-reference.json");
+        ASSERT_TRUE(report.good());
+        report << json_t{ { "schemaVersion", 1 }, { "passed", !HasFailure() }, { "samples", reports }, { "hdrCodeTolerance", 1 },
+            { "sdrByteTolerance", 0 }, { "hardwareReadback", true }, { "requiresHdrMonitor", false } }.dump(2);
+        report.close();
+        ASSERT_FALSE(report.fail());
+    }
+    RecordProperty("hdrOutputSamples", 72);
+}
 
 TEST_F(VulkanOffscreenRenderTest, TransparentPeelsPreserveExactCommandDepthAcrossQuadDiagonals)
 {

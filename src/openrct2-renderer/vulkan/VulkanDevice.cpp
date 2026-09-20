@@ -22,6 +22,7 @@
     #include <cstring>
     #include <limits>
     #include <openrct2-renderer/gpu/GpuAtlas.h>
+    #include <openrct2-renderer/gpu/GpuBackend.h>
     #include <openrct2-renderer/gpu/GpuCommandStream.h>
     #include <openrct2/core/Console.hpp>
     #include <stdexcept>
@@ -242,7 +243,7 @@ namespace OpenRCT2::Ui::Vulkan
         _vsync = vsync;
         _preferHdr10 = preferHdr10;
         _enableDiagnosticCapture = enableDiagnosticCapture;
-        _hdrPaperWhiteNits = std::isfinite(hdrPaperWhiteNits) ? std::clamp(hdrPaperWhiteNits, 80.0f, 1000.0f) : 203.0f;
+        _hdrPaperWhiteNits = Gpu::NormaliseHdrPaperWhiteNits(hdrPaperWhiteNits);
         uploadRingCapacity = std::max<VkDeviceSize>(uploadRingCapacity, 1024 * 1024);
 
         try
@@ -334,6 +335,16 @@ namespace OpenRCT2::Ui::Vulkan
             _vsync = enabled;
             RequestSwapchainRecreate();
         }
+    }
+
+    void Device::SetHdrPaperWhiteNits(float nits)
+    {
+        const std::lock_guard lock(_hostMutex);
+        nits = Gpu::NormaliseHdrPaperWhiteNits(nits);
+        if (_hdrPaperWhiteNits == nits)
+            return;
+        _hdrPaperWhiteNits = nits;
+        PublishHdrMetadata();
     }
 
     void Device::SetDrawableExtent(VkExtent2D drawableExtent) noexcept

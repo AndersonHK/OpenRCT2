@@ -31,6 +31,7 @@
     #include <algorithm>
     #include <array>
     #include <atomic>
+    #include <chrono>
     #include <cmath>
     #include <cstring>
     #include <exception>
@@ -53,6 +54,7 @@
     #include <openrct2/interface/Screenshot.h>
     #include <openrct2/interface/Viewport.h>
     #include <openrct2/ui/UiContext.h>
+    #include <openrct2/profiling/Profiling.h>
     #include <span>
     #include <stdexcept>
     #include <thread>
@@ -180,6 +182,9 @@ namespace OpenRCT2::Ui
         bool _graphicsLookupTablesReady = false;
         bool _hasPalette = false;
         bool _vsync = true;
+        bool _hdrOutputRequested = false;
+        float _hdrPaperWhiteNits = 203.0f;
+        std::chrono::steady_clock::time_point _nextHdrWhiteRefresh{};
         std::atomic_bool _gpuLightFxRasterization{ false };
     #ifdef OPENRCT2_VULKAN_DIAGNOSTICS
         const bool _diagnosticCaptureEnabled = Vulkan::Diagnostic::CaptureEnabled.load();
@@ -221,6 +226,9 @@ namespace OpenRCT2::Ui
             const uint32_t height = static_cast<uint32_t>(std::max(1, _uiContext.GetHeight()));
             _drawableExtent = QueryDrawableExtentOnUiThread(_uiContext);
             auto config = BuildBackendConfig(_uiContext, { width, height }, _drawableExtent, _vsync, shaderDirectory);
+            _hdrOutputRequested = config.outputColorMode == Gpu::OutputColorMode::Hdr10IfAvailable;
+            RefreshHdrWhiteOnUiThread();
+            config.hdrPaperWhiteNits = _hdrPaperWhiteNits;
     #ifdef OPENRCT2_VULKAN_DIAGNOSTICS
             config.enableDiagnosticCapture = _diagnosticCaptureEnabled;
     #endif
@@ -282,6 +290,8 @@ namespace OpenRCT2::Ui
                 return;
             }
             _surfaceFormatVersion++;
+            // Monitor moves/HDR mode changes must not inherit another display's white.
+            _nextHdrWhiteRefresh = {};
         }
 
         void SetPalette(const Drawing::GamePalette& palette) override
@@ -403,6 +413,8 @@ namespace OpenRCT2::Ui
 
         void CaptureLightFx(Gpu::FrameCommandStream& commands)
         {
+            PROFILED_FUNCTION();
+
             if (!Drawing::LightFx::IsAvailable())
             {
                 commands.lightFx.reset();
@@ -459,10 +471,27 @@ namespace OpenRCT2::Ui
             return packet;
         }
 
+        void RefreshHdrWhiteOnUiThread()
+        {
+            if (!_hdrOutputRequested)
+                return;
+            const auto now = std::chrono::steady_clock::now();
+            if (now < _nextHdrWhiteRefresh)
+                return;
+            _hdrPaperWhiteNits = Gpu::NormaliseHdrPaperWhiteNits(
+                Vulkan::Platform::GetSdrWhiteNits(static_cast<SDL_Window*>(_uiContext.GetWindow())).value_or(203.0f));
+            // The Windows SDR-content slider has no SDL event. Poll at most once
+            // per second, never per pixel and never from the render worker.
+            _nextHdrWhiteRefresh = now + std::chrono::seconds(1);
+        }
+
         void BeginDrawQueued()
         {
+            PROFILED_FUNCTION();
+
             RethrowWorkerError();
             RefreshDrawableExtent();
+            RefreshHdrWhiteOnUiThread();
             if (_recordingPacket == nullptr)
             {
                 _recordingPacket = _frameMailbox.TakeRecycled();
@@ -495,6 +524,8 @@ namespace OpenRCT2::Ui
 
         void EndDrawQueued()
         {
+            PROFILED_FUNCTION();
+
             bool sealed = false;
             try
             {
@@ -521,6 +552,7 @@ namespace OpenRCT2::Ui
                     .graphicsLookupTablesVersion = _graphicsLookupTablesVersion,
                     .hasPalette = _hasPalette,
                     .scaleSettings = CaptureScaleSettings(_uiContext),
+                    .hdrPaperWhiteNits = _hdrPaperWhiteNits,
                 };
 
                 auto result = _frameMailbox.Publish(std::move(_recordingPacket));
@@ -587,6 +619,7 @@ namespace OpenRCT2::Ui
 
                         const auto& presentation = packet->presentation;
                         _backend->SetScaleSettings(presentation.scaleSettings);
+                        _backend->SetHdrPaperWhiteNits(presentation.hdrPaperWhiteNits);
                         if (presentation.resizeVersion != appliedResizeVersion)
                         {
                             if (presentation.logicalExtent.width != 0 && presentation.logicalExtent.height != 0)
@@ -930,6 +963,8 @@ namespace OpenRCT2::Ui
     public:
         void PaintWindows() override
         {
+            PROFILED_FUNCTION();
+
             auto& commands = _recordingPacket->commands;
             const auto commandCount = [&commands] {
                 return commands.lines.size() + commands.opaqueRects.size() + commands.opaqueSprites.size()

@@ -271,6 +271,7 @@ namespace OpenRCT2::Ui::Vulkan
         }
 
         void SetVSync(bool enabled);
+        void SetHdrPaperWhiteNits(float nits);
         void SetDrawableExtent(VkExtent2D drawableExtent) noexcept;
         void RequestSwapchainRecreate() noexcept;
         [[nodiscard]] bool IsSwapchainInvalid() const noexcept

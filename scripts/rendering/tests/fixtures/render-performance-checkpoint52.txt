@@ -1,0 +1,32 @@
+Integrated UI benchmark:[0m
+  renderer:           vulkan[0m
+  VSync:              enabled[0m
+  elapsed:            7.944855 s[0m
+  logical ticks:      2000[0m
+  actual logical TPS: 251.735[0m
+  draws / FPS:        623 / 78.416[0m
+  message / window:  625 pumps / 623 updates (78.667 / 78.416 Hz)[0m
+  frame intervals:    13.658 ms p50, 14.581 ms p95, 14.957 ms p99, 16.047 ms max[0m
+  simulation time:    3.795100 s (47.8%, 1897.550 us/logical tick)[0m
+  simulation batches: 2000 (1897.550 us mean, 2.970 ms longest; 2.970 ms longest UI-bounded slice)[0m
+  draw time:          3.306351 s (41.6%, 5307.145 us/draw; includes presentation)[0m
+  renderer CPU:       417.282 us submit, 150.275 us present mean (623 fence-complete samples)[0m
+  present API call:   110.026 us mean (623 samples)[0m
+  GPU frame:          270.341 us mean (623 samples)[0m
+  GPU passes:         13.118 upload, 251.197 draw, 0.004 LightFX, 6.022 composite us mean[0m
+Initial simulation state:[0m
+  simulation tick:    3133931[0m
+  guests:             13213 (13212 inside, 1 outside)[0m
+  guest states:       6322 walking, 2672 queued, 2889 on ride[0m
+  transport routes:   2 active[0m
+  staff / vehicles:   2208 / 2128[0m
+  shared route cache: 6663 nodes, 543 targets, 3611346 direction / 3611346 distance entries, 517 single-ride targets (current)[0m
+Final simulation state:[0m
+  simulation tick:    3135931[0m
+  guests:             14084 (14045 inside, 39 outside)[0m
+  guest states:       7521 walking, 2682 queued, 2683 on ride[0m
+  transport routes:   15 active[0m
+  staff / vehicles:   2208 / 2128[0m
+  shared route cache: 6663 nodes, 543 targets, 3611346 direction / 3611346 distance entries, 517 single-ride targets (current)[0m
+Completed: d28b8266984c50a8000000000000000000000000[0m
+

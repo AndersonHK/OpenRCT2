@@ -287,7 +287,7 @@ def main():
     pinned_inputs[executable] = executable_before
     arguments = [str(executable), "--gtest_output=xml:" + str(output / "tests.xml")]
     if not args.full:
-        arguments.append("--gtest_filter=*Vulkan*ParityTest.*:VulkanCoverageCacheTest.*:PublicationSnapshotParityTest.*:SpriteAssetDecoderTest.*:GpuFoundationTest.*:VulkanRuntimeIntegrationTest.*:VulkanDiagnosticCaptureTest.*:AssetMetadataCorpusParityTest.*:RenderServiceContract.*:RenderServiceLazyLifetime.*:ScreenshotTilingTest.*:ViewportGenerationTest.*:VulkanPresentationHostTest.*:VulkanOffscreenDeviceTest.*:VulkanOffscreenDeviceOwnerTest.*:VulkanSubmissionSlotsContractTest.*:RetainedBalloonSceneTest.*:RetainedBalloonHookTest.*:TerrainSurfaceRulesTest.*:TerrainPresentationBridgeTest.*:TerrainSurfaceEmissionTest.*:VulkanTerrainSurfaceRulesTest.*:VulkanRetainedTerrainEmissionTest.*:VulkanRetainedTerrainDrawTest.*:VulkanTerrainCompletionTest.*:VulkanOffscreenRenderTest.*:VulkanOffscreenServiceContract.*:VulkanBalloonPipelineTest.*:VulkanBalloonAdmissionTest.*")
+        arguments.append("--gtest_filter=*Vulkan*ParityTest.*:VulkanCoverageCacheTest.*:PublicationSnapshotParityTest.*:SpriteAssetDecoderTest.*:GpuFoundationTest.*:VulkanRuntimeIntegrationTest.*:VulkanDiagnosticCaptureTest.*:AssetMetadataCorpusParityTest.*:RenderServiceContract.*:RenderServiceLazyLifetime.*:ScreenshotTilingTest.*:ViewportGenerationTest.*:VulkanPresentationHostTest.*:VulkanOffscreenDeviceTest.*:VulkanOffscreenDeviceOwnerTest.*:VulkanSubmissionSlotsContractTest.*:RetainedBalloonSceneTest.*:RetainedBalloonHookTest.*:TerrainSurfaceRulesTest.*:TerrainPresentationBridgeTest.*:TerrainSurfaceEmissionTest.*:VulkanTerrainSurfaceRulesTest.*:VulkanRetainedTerrainEmissionTest.*:VulkanRetainedTerrainDrawTest.*:VulkanTerrainCompletionTest.*:VulkanOffscreenRenderTest.*:VulkanHdrOutputTest.*:VulkanOffscreenServiceContract.*:VulkanBalloonPipelineTest.*:VulkanBalloonAdmissionTest.*")
     with (output / "tests.log").open("w", encoding="utf-8") as log:
         result = subprocess.run(arguments, cwd=root / "bin", env=env, stdout=log, stderr=subprocess.STDOUT)
     validation_messages = []
@@ -327,6 +327,29 @@ def main():
             json_artifacts[relative] = {"sha256": sha256(path), "data": artifact_data}
             if artifact_data.get("passed") is not True or artifact_data.get("objectCount", 0) == 0:
                 missing_artifacts.append(relative + ": did not report a passing nonempty corpus")
+    if "VulkanHdrOutputTest" in fixture_manifest["requiredSuiteMinimumCounts"]:
+        relative = "hdr-output/palette-reference.json"
+        path = output / "samples" / relative
+        if not path.is_file():
+            missing_artifacts.append(relative)
+        else:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            json_artifacts[relative] = {"sha256": sha256(path), "data": data}
+            # VkFormat values are stable API constants: both packed RGB10 layouts,
+            # RGBA8 UNORM and RGBA8 sRGB. Each mode changes white on one live pipeline.
+            expected = [(fmt, mode, white) for fmt in (64, 58, 37, 43)
+                        for mode in range(3) for white in (80, 203, 280, 400, 1000, 203)]
+            samples = data.get("samples", [])
+            observed = [(sample.get("format"), sample.get("mode"), sample.get("whiteNits")) for sample in samples]
+            valid = (data.get("passed") is True and data.get("hardwareReadback") is True
+                     and data.get("hdrCodeTolerance") == 1 and data.get("sdrByteTolerance") == 0
+                     and observed == expected
+                     and all(len(sample.get("packedActual", [])) == 256
+                             and 0 <= sample.get("maximumError", -1) <= (1 if sample["format"] in (64, 58) else 0)
+                             and len(sample.get("referenceRgb10", [])) == (256 if sample["format"] in (64, 58) else 0)
+                             for sample in samples))
+            if not valid:
+                missing_artifacts.append(relative + ": invalid or failing 72-sample HDR/SDR reference corpus")
     suite_counts = {}
     for case in tests:
         name = case.get("classname", "")

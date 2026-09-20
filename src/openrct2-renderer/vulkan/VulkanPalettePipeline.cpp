@@ -65,6 +65,11 @@ namespace OpenRCT2::Ui::Vulkan
         }
     } // namespace
 
+    void PalettePipeline::SetHdrPaperWhiteNits(float nits) noexcept
+    {
+        _paperWhiteNits = Gpu::NormaliseHdrPaperWhiteNits(nits);
+    }
+
     PalettePipeline::~PalettePipeline()
     {
         Dispose();
@@ -93,7 +98,7 @@ namespace OpenRCT2::Ui::Vulkan
         _nearestSampler = resources.GetNearestSampler();
         _pipelineCache = device.GetPipelineCache();
         _shaderDirectory = std::move(shaderDirectory);
-        _paperWhiteNits = std::isfinite(paperWhiteNits) ? std::clamp(paperWhiteNits, 80.0f, 1000.0f) : 203.0f;
+        _paperWhiteNits = Gpu::NormaliseHdrPaperWhiteNits(paperWhiteNits);
         CreateDescriptorResources(resources);
         CreateScaleResources();
     }

@@ -13,6 +13,7 @@
 
     #include <cstdint>
     #include <memory>
+    #include <optional>
     #include <openrct2-renderer/vulkan/VulkanPresentationHost.h>
     #include <vector>
     #include <vulkan/vulkan.h>
@@ -29,6 +30,9 @@ namespace OpenRCT2::Ui::Vulkan::Platform
     [[nodiscard]] std::vector<const char*> GetInstanceExtensions(SDL_Window* window);
     [[nodiscard]] VkSurfaceKHR CreateSurface(SDL_Window* window, VkInstance instance);
     [[nodiscard]] VkExtent2D GetDrawableExtent(SDL_Window* window) noexcept;
+    // UI-thread only. The Windows SDR-content brightness is in absolute nits;
+    // unavailable/ambiguous display information leaves the caller's fallback explicit.
+    [[nodiscard]] std::optional<float> GetSdrWhiteNits(SDL_Window* window);
 } // namespace OpenRCT2::Ui::Vulkan::Platform
 
 #endif // ENABLE_VULKAN

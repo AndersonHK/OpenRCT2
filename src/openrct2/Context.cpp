@@ -260,6 +260,8 @@ namespace OpenRCT2
         IntegratedBenchmarkClock::time_point _benchmarkPreviousDrawStart{};
         IntegratedBenchmarkTotals _benchmarkTotals{};
         BenchmarkStateSnapshot _benchmarkInitialState{};
+        Ui::Resolution _benchmarkInitialDrawableSize{};
+        uint32_t _benchmarkInitialRefreshRate{};
         uint64_t _benchmarkInitialLogicalTicks{};
         uint64_t _benchmarkPhaseInitialLogicalTicks{};
         uint64_t _benchmarkMessagePumps{};
@@ -1490,6 +1492,8 @@ namespace OpenRCT2
         void BeginIntegratedBenchmarkMeasurement()
         {
             _benchmarkInitialState = CaptureBenchmarkStateSnapshot();
+            _benchmarkInitialDrawableSize = _uiContext->GetDrawableSize();
+            _benchmarkInitialRefreshRate = _uiContext->GetRefreshRate();
             _benchmarkTotals = {};
             _benchmarkInitialLogicalTicks = gTotalSimulationTicks;
             _benchmarkRenderer = {};
@@ -1563,6 +1567,12 @@ namespace OpenRCT2
             Console::WriteLine("  elapsed:            %.6f s", _benchmarkTotals.elapsedSeconds);
             Console::WriteLine("  logical ticks:      %llu", static_cast<unsigned long long>(_benchmarkTotals.logicalTicks));
             Console::WriteLine("  actual logical TPS: %.3f", metrics.logicalTicksPerSecond);
+            const auto finalDrawableSize = _uiContext->GetDrawableSize();
+            Console::WriteLine(
+                "  drawable pixels:    %d x %d initial, %d x %d final", _benchmarkInitialDrawableSize.Width,
+                _benchmarkInitialDrawableSize.Height, finalDrawableSize.Width, finalDrawableSize.Height);
+            Console::WriteLine(
+                "  monitor refresh:    %u Hz initial, %u Hz final", _benchmarkInitialRefreshRate, _uiContext->GetRefreshRate());
             Console::WriteLine("  draws / FPS:        %llu / %.3f", static_cast<unsigned long long>(_benchmarkTotals.draws), metrics.framesPerSecond);
             Console::WriteLine(
                 "  message / window:  %llu pumps / %llu updates (%.3f / %.3f Hz)",

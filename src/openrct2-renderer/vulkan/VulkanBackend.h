@@ -79,6 +79,7 @@ namespace OpenRCT2::Ui::Vulkan
         void RequestSurfaceFormatRefresh() override;
         void SetPresentMode(Gpu::PresentMode mode) override;
         void SetScaleSettings(Gpu::ScaleSettings settings) override;
+        void SetHdrPaperWhiteNits(float nits) override;
 
         [[nodiscard]] std::optional<Gpu::FrameHandle> BeginFrame(uint64_t frameNumber) override;
         void SetPalette(std::span<const std::byte> rgba) override;

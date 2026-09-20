@@ -186,6 +186,18 @@ namespace OpenRCT2::Ui::Vulkan
         _config.scaleSettings = settings;
     }
 
+    void Backend::SetHdrPaperWhiteNits(float nits)
+    {
+        if (_activeToken.has_value())
+            throw std::logic_error("Cannot change Vulkan HDR white during a frame");
+        nits = Gpu::NormaliseHdrPaperWhiteNits(nits);
+        if (_config.hdrPaperWhiteNits == nits)
+            return;
+        _config.hdrPaperWhiteNits = nits;
+        _device.SetHdrPaperWhiteNits(nits);
+        _palettePipeline.SetHdrPaperWhiteNits(nits);
+    }
+
     std::optional<Gpu::FrameHandle> Backend::BeginFrame(uint64_t frameNumber)
     {
         if (_activeToken.has_value())

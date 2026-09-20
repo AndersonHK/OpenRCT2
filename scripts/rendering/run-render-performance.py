@@ -167,6 +167,15 @@ def parse_log(text):
                            ("seconds", "utilisationPercent", "meanMicroseconds"), "draw CPU"),
     }
     missing = []
+    display_observation = None
+    if "drawable pixels:" in metrics_text or "monitor refresh:" in metrics_text:
+        extents = tuple(int(v) for v in one(metrics_text,
+            r"drawable pixels:\s+(\d+) x (\d+) initial, (\d+) x (\d+) final", "drawable pixels"))
+        refresh = tuple(int(v) for v in one(metrics_text,
+            r"monitor refresh:\s+(\d+) Hz initial, (\d+) Hz final", "monitor refresh"))
+        display_observation = {"initialExtent": list(extents[:2]), "finalExtent": list(extents[2:]),
+                               "initialRefreshHz": refresh[0], "finalRefreshHz": refresh[1],
+                               "scope": "SDL physical output at measurement boundaries; not a scanout observation"}
     frame_pattern = r"frame intervals:\s+" + n + " ms p50, " + n + " ms p95, " + n + " ms p99, " + n + " ms max"
     if "frame intervals:" in metrics_text:
         metrics["applicationFrameIntervalsMs"] = numeric(metrics_text, frame_pattern, ("p50", "p95", "p99", "max"), "frame intervals")
@@ -199,6 +208,9 @@ def parse_log(text):
     result = {"metrics": metrics, "states": states, "finalEntityChecksum": checksum,
               "missingMetrics": missing + ["initial entity checksum is not emitted", "actual drawable extent/selected monitor refresh is not emitted",
                                             "displayed presentation cadence is not measured", "CPU copied/upload byte counters are not emitted"]}
+    if display_observation is not None:
+        result["displayObservation"] = display_observation
+        result["missingMetrics"].remove("actual drawable extent/selected monitor refresh is not emitted")
     if "Upload telemetry v1:" in metrics_text:
         payload = json.loads(one(metrics_text, r"Upload telemetry v1:\s+(\{.*\})", "upload telemetry"))
         validate_upload_telemetry(payload)
@@ -206,6 +218,16 @@ def parse_log(text):
         result["missingMetrics"].remove("CPU copied/upload byte counters are not emitted")
         result["missingMetrics"].append("producer CPU copies, physical bandwidth, flush/high-water and generation age are not measured")
     return result
+
+
+def validate_display_observation(result, width, height):
+    observation = result.get("displayObservation")
+    if observation is None:
+        raise ValueError("Required actual drawable/refresh evidence is unavailable in this executable")
+    if observation["initialExtent"] != [width, height] or observation["finalExtent"] != [width, height]:
+        raise ValueError("Actual physical drawable differs from requested benchmark extent")
+    if observation["initialRefreshHz"] <= 0 or observation["initialRefreshHz"] != observation["finalRefreshHz"]:
+        raise ValueError("Selected monitor refresh is unavailable or changed during measurement")
 
 
 def validate_upload_telemetry(payload):
@@ -353,10 +375,12 @@ def main():
     parser.add_argument("--park", type=Path)
     parser.add_argument("--config-seed", type=Path)
     parser.add_argument("--warmup-ticks", type=int, default=100)
-    parser.add_argument("--ticks", type=int, default=1000)
+    parser.add_argument("--ticks", type=int, default=3000)
     parser.add_argument("--vsync", type=int, choices=(0, 1), default=1)
-    parser.add_argument("--width", type=int, default=960)
-    parser.add_argument("--height", type=int, default=640)
+    parser.add_argument("--width", type=int, default=3840)
+    parser.add_argument("--height", type=int, default=2160)
+    parser.add_argument("--require-display-evidence", action="store_true",
+                        help="Fail unless observed physical extent matches the request and monitor refresh is stable")
     parser.add_argument("--display", type=int, default=0)
     parser.add_argument("--timeout", type=int, default=600)
     parser.add_argument("--visible", action="store_true", help="Show the benchmark window; external display trace still required")
@@ -501,6 +525,10 @@ def main():
             summary["failures"].append("Runtime diagnostic requires investigation")
             summary["runtimeDiagnostics"] = suspicious
         summary["result"] = parse_log(text)
+        if args.require_display_evidence:
+            validate_display_observation(summary["result"], args.width, args.height)
+        if "displayObservation" in summary["result"]:
+            summary["observedDisplay"] = summary["result"]["displayObservation"]
         if ("uploadTelemetry" in summary["result"]) != args.upload_telemetry:
             summary["failures"].append("Requested/actual upload telemetry mode differs")
         if args.upload_telemetry and "uploadTelemetry" in summary["result"]:

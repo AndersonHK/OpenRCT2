@@ -11,6 +11,8 @@
 
 #include "GpuCommandStream.h"
 
+#include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <openrct2/drawing/IDrawingEngine.h>
@@ -21,6 +23,20 @@
 
 namespace OpenRCT2::Ui::Gpu
 {
+    // Keep unavailable/invalid display data distinct from a valid dim setting.
+    [[nodiscard]] inline float NormaliseHdrPaperWhiteNits(float value) noexcept
+    {
+        return std::isfinite(value) && value > 0 ? std::clamp(value, 80.0f, 1000.0f) : 203.0f;
+    }
+
+    [[nodiscard]] inline std::optional<float> DecodeWindowsSdrWhiteNits(uint32_t level) noexcept
+    {
+        if (level == 0)
+            return std::nullopt;
+        // DISPLAYCONFIG_SDR_WHITE_LEVEL: 1000 means an 80-nit SDR white.
+        return static_cast<float>(static_cast<double>(level) * 80.0 / 1000.0);
+    }
+
     enum class PresentMode : uint8_t
     {
         VSync,
@@ -140,6 +156,9 @@ namespace OpenRCT2::Ui::Gpu
         virtual void RequestSurfaceFormatRefresh() = 0;
         virtual void SetPresentMode(PresentMode mode) = 0;
         virtual void SetScaleSettings(ScaleSettings)
+        {
+        }
+        virtual void SetHdrPaperWhiteNits(float)
         {
         }
 

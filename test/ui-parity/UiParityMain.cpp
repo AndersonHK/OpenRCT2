@@ -6,6 +6,7 @@
 #include "BalloonFixtureState.h"
 #include "SdlCapture.h"
 #include "UiFixtures.h"
+#include "UiTreeTrackSceneLocator.h"
 #include <openrct2/drawing/IDrawingContext.h>
 #include "UiFontFixture.h"
 #include "UiLightFixture.h"
@@ -41,6 +42,8 @@
 #include <openrct2/drawing/Palette.h>
 #include <openrct2/drawing/RenderTarget.h>
 #include <openrct2/entity/EntityTweener.h>
+#include <openrct2/network/Network.h>
+#include <openrct2/ride/Vehicle.h>
 #include <openrct2/interface/Viewport.h>
 #include <openrct2/interface/Window.h>
 #include <openrct2/interface/WindowBase.h>
@@ -64,6 +67,39 @@ using namespace OpenRCT2::Drawing;
 
 namespace
 {
+    json_t MotionVehicleCensus()
+    {
+        auto records = json_t::array();
+        auto& state = getGameState();
+        for (uint32_t id = 0; id < kMaxEntities; ++id)
+        {
+            const auto* entity = state.entities.tryGetEntity(EntityId::FromUnderlying(static_cast<uint16_t>(id)));
+            if (entity == nullptr || entity->type != EntityType::vehicle)
+                continue;
+            const auto& v = *entity->cast<Vehicle>();
+            records.push_back(std::array<int64_t, 25>{ v.id.ToUnderlying(), v.ride.ToUnderlying(), v.x, v.y, v.z,
+                v.orientation, static_cast<uint8_t>(v.pitch), static_cast<uint8_t>(v.roll), v.TrackTypeAndDirection,
+                v.TrackLocation.x, v.TrackLocation.y, v.TrackLocation.z, v.track_progress, v.velocity, v.acceleration,
+                static_cast<uint8_t>(v.status), v.animation_frame, v.animationState, v.next_vehicle_on_train.ToUnderlying(),
+                v.prev_vehicle_on_ride.ToUnderlying(), v.next_vehicle_on_ride.ToUnderlying(), v.vehicle_type,
+                v.spriteData.width, v.spriteData.heightMin, v.spriteData.heightMax });
+        }
+        const auto random = state.scenarioRand.state();
+        return { {"schema",1}, {"columns",{"id","ride","x","y","z","orientation","pitch","roll","trackTypeDirection",
+            "trackX","trackY","trackZ","trackProgress","velocity","acceleration","status","animationFrame","animationState",
+            "nextTrain","previousRide","nextRide","vehicleType","width","heightMin","heightMax"}},
+            {"count",records.size()}, {"records",std::move(records)}, {"scenarioRng",{random.s0,random.s1}} };
+    }
+
+    std::vector<std::string> MotionSteps(uint32_t ticks)
+    {
+        std::vector<std::string> result;
+        for (uint32_t tick = 0; tick <= ticks; ++tick)
+            for (const auto* pass : { "damage", "full" })
+                result.push_back("motion-" + std::to_string(tick) + "-" + pass);
+        return result;
+    }
+
     std::map<std::string, std::string> ParseArguments(int argc, char** argv)
     {
         std::map<std::string, std::string> arguments;
@@ -284,6 +320,14 @@ int main(int argc, char** argv)
         constexpr std::string_view incrementalSuffix = "-incremental";
         const bool incremental = fixture.ends_with(incrementalSuffix);
         const auto compositionFamily = incremental ? fixture.substr(0, fixture.size() - incrementalSuffix.size()) : fixture;
+        const bool worldMotion = compositionFamily == "world-motion16" || compositionFamily == "world-motion32";
+        const uint32_t motionTicks = compositionFamily == "world-motion32" ? 32u : 16u;
+        if (worldMotion && (incremental || nativeTerrain || nativeBalloons || retainedBalloons || sharedServiceLifecycle
+                || viewportFlags != 0 || requiredBalloonCount != 0 || gPaintForceRedraw))
+            throw std::invalid_argument("World motion requires isolated ordinary world painting and the normal invalidation grid");
+        if (compositionFamily == "world-dirty" && (nativeTerrain || nativeBalloons || retainedBalloons || sharedServiceLifecycle
+                || viewportFlags != 0 || requiredBalloonCount != 0 || gPaintForceRedraw))
+            throw std::invalid_argument("Dirty-world requires ordinary world painting, viewport flags0 and the normal invalidation grid");
         const bool lightNight = compositionFamily == "light-night";
         const bool weatherFixture = UiParityWeather::IsFamily(compositionFamily);
         const bool fontFixture = UiParityFonts::IsFamily(compositionFamily);
@@ -298,10 +342,11 @@ int main(int argc, char** argv)
                 || sharedServiceLifecycle || viewportFlags != 0 || smoothing != "false"
                 || requiredBalloonCount != 0))
             throw std::invalid_argument("Transparent history requires isolated ordinary painting and initial opaque flags");
-        const bool ordinalSequence = lightNight || weatherFixture || fontFixture || transparentHistory;
+        const bool ordinalSequence = lightNight || weatherFixture || fontFixture || transparentHistory || worldMotion;
         if (ordinalSequence && incremental)
             throw std::invalid_argument("Lighting/weather/font sequences use full invalidation at every named paint ordinal");
         const auto steps = lightNight ? UiParityLight::Steps()
+            : worldMotion             ? MotionSteps(motionTicks)
             : weatherFixture          ? UiParityWeather::Steps(compositionFamily)
             : transparentHistory      ? std::vector<std::string>{ "history-post-load", "history-opaque-first", "history-opaque-settled",
                                           "history-transparent-first", "history-transparent-second",
@@ -432,6 +477,22 @@ int main(int argc, char** argv)
         if (mainWindow == nullptr || mainWindow->viewport == nullptr)
             throw std::runtime_error("Fixture did not establish the real main window and viewport");
         auto& viewport = *mainWindow->viewport;
+        json_t sceneLocatorBinding;
+        if (compositionFamily == "world-dirty" || worldMotion)
+        {
+            // The ordinary harness also pauses below; establish that same state
+            // before the read-only census, before camera edits or warmup paints.
+            gGamePaused = GAME_PAUSED_NORMAL;
+            const auto censusTick = getGameState().currentTicks;
+            auto census = UiParity::LocateTreeTrackScenes(context->GetObjectManager(), viewport.width, viewport.height);
+            if (getGameState().currentTicks != censusTick || gGamePaused != GAME_PAUSED_NORMAL)
+                throw std::runtime_error("Tree/track scene census changed the paused simulation state");
+            census["simulationTicks"] = censusTick;
+            census["paused"] = true;
+            census["simulationTicksAfter"] = getGameState().currentTicks;
+            Json::WriteToFile((output / "tree-track-scenes.json").string(), census);
+            sceneLocatorBinding = { { "simulationTicks", censusTick }, { "viewportExtent", { viewport.width, viewport.height } } };
+        }
         const auto cameraPose = [&]() {
             return json_t{ { "viewPosition", { viewport.viewPos.x, viewport.viewPos.y } },
                            { "rotation", viewport.rotation }, { "zoom", static_cast<int8_t>(viewport.zoom) } };
@@ -518,6 +579,8 @@ int main(int argc, char** argv)
             throw std::runtime_error(
                 "Actual UI scale did not produce the required logical extent and production filter policy");
         const auto lifecycleTick = getGameState().currentTicks;
+        if (worldMotion && (Network::GetMode() != Network::Mode::none || MotionVehicleCensus().at("count").get<size_t>() == 0))
+            throw std::runtime_error("World motion requires an offline park containing vehicles");
         uint32_t paintOrdinal = 0;
         const auto draw = [&](bool forceFullInvalidation = true) {
             if (paintOrdinal == 0 && cameraMode == "saved")
@@ -579,8 +642,12 @@ int main(int argc, char** argv)
                          { "viewportFlags", viewport.flags },
                          { "requireWorldSurfaces", requireWorldSurfaces },
                          { "state", "paused; paint-only warmup=2; weather/lighting/FPS disabled; no event/tick loop" } };
+        if (!sceneLocatorBinding.is_null())
+            metadata["sceneLocator"] = sceneLocatorBinding;
         if (transparentHistory)
             metadata["state"] = "paused; no warmup; post-load no-painter frame then opaque/transparent history; no event/tick loop";
+        if (worldMotion)
+            metadata["state"] = "two paint-only warmups; explicit single gameStateUpdateLogic(false) ticks; authoritative positions; damage/full pairs";
         if (lightNight)
             metadata["state"] = "paused; night=1; sunny20C; vehicles/FPS/precipitation disabled; one palette refresh; two "
                                 "warmup paints; no event/tick loop";
@@ -644,11 +711,25 @@ int main(int argc, char** argv)
                 if (gPaintStableSort != (stableSort == "true"))
                     throw std::runtime_error("Paint stable-sort policy changed before named capture");
                 auto sampleMetadata = metadata;
+                const auto paintDrawCountBefore = gCurrentDrawCount;
+                if (compositionFamily == "world-dirty" && getGameState().currentTicks != lifecycleTick)
+                    throw std::runtime_error("Dirty-world static fixture advanced the paused simulation tick");
                 sampleMetadata["paintStableSort"] = gPaintStableSort;
                 sampleMetadata["worldSurfaceAdmission"] = "unavailable-software";
-                const bool forceFullInvalidation = !incremental || captureCount == 0;
+                const bool forceFullInvalidation = worldMotion ? step.ends_with("-full") || captureCount == 0
+                    : !incremental || captureCount == 0;
+                if (worldMotion)
+                {
+                    inputState["invalidation"] = "ordinary-motion-damage-and-explicit-full-control";
+                    sampleMetadata["simulationTicks"] = getGameState().currentTicks;
+                    sampleMetadata["paletteEffectFrame"] = gPaletteEffectFrame;
+                    sampleMetadata["worldMotion"] = { {"schema",1}, {"initialTick",lifecycleTick},
+                        {"tickOffset",captureCount / 2}, {"totalTicks",motionTicks}, {"pass",step.ends_with("-full") ? "full" : "damage"},
+                        {"positions","authoritative; no tween"}, {"vehicles",MotionVehicleCensus()} };
+                }
                 if (incremental)
-                    inputState["invalidation"] = "public-window-operations";
+                    inputState["invalidation"] = compositionFamily == "world-dirty"
+                        ? "public-render-target-rectangles" : "public-window-operations";
                 if (requiredBalloonCount != 0)
                 {
                     const auto census = UiParityBalloons::Census();
@@ -781,6 +862,13 @@ int main(int argc, char** argv)
                 sampleMetadata["cpuViewportPaint"] = {{"generate",cpuPaint.generate},{"arrange",cpuPaint.arrange},
                     {"draw",cpuPaint.draw},{"scope","all actual viewport column calls in this named synchronous draw, including provisional attempts"}};
 #endif
+                if (compositionFamily == "world-dirty")
+                {
+                    sampleMetadata["worldDirtyDrawCount"] = {{"before",paintDrawCountBefore},{"after",gCurrentDrawCount},
+                        {"scope","ordinary Painter::Paint counter; never reset by this fixture"}};
+                    if (getGameState().currentTicks != lifecycleTick || gCurrentDrawCount != paintDrawCountBefore + 1)
+                        throw std::runtime_error("Dirty-world phase did not perform exactly one paused paint");
+                }
                 if (scaledFontFixture
                     && (capture.width != static_cast<uint32_t>(requestedPhysicalWidth)
                         || capture.height != static_cast<uint32_t>(requestedPhysicalHeight)))
@@ -823,6 +911,15 @@ int main(int argc, char** argv)
                 sampleMetadata["zoom"] = static_cast<int8_t>(viewport.zoom);
                 sampleMetadata["cameraContract"]["afterPaintPose"] = cameraPose();
                 sampleMetadata["cameraContract"]["paintOrdinal"] = paintOrdinal;
+                if (worldMotion)
+                {
+                    sampleMetadata["worldMotion"]["drawCount"] = {{"before",paintDrawCountBefore},{"after",gCurrentDrawCount}};
+                    if (sampleMetadata.at("simulationTicks") != getGameState().currentTicks
+                        || sampleMetadata.at("paletteEffectFrame") != gPaletteEffectFrame
+                        || sampleMetadata.at("worldMotion").at("vehicles") != MotionVehicleCensus()
+                        || gCurrentDrawCount != paintDrawCountBefore + 1)
+                        admissionError = "Paint changed authoritative motion input or skipped its ordinary paint counter";
+                }
                 SaveCapture(output, capture, sampleMetadata);
                 WriteBytes(output / name / "screen.indexed", indexed);
                 // Preserve the actual rendered frame even when the intended native/fallback coverage was not reached.
@@ -831,7 +928,10 @@ int main(int argc, char** argv)
                 if (sample != 0)
                 {
                     const auto& first = firstSamples.at(step);
-                    if (capture.rgba != first.rgba || indexed != first.indexed || inputState != first.inputState)
+                    // Retain every diagnostic dirty-world phase even if history changes its pixels.
+                    // The runner still requires exact repeats and full-state equality; this is not an exception.
+                    if (compositionFamily != "world-dirty"
+                        && (capture.rgba != first.rgba || indexed != first.indexed || inputState != first.inputState))
                         throw std::runtime_error("Repeated UI fixture pixels or input state differ at " + step);
                 }
                 else
@@ -911,7 +1011,28 @@ int main(int argc, char** argv)
                     throw std::runtime_error("Heavy snow command coverage differs from heavy rain visible rectangles");
                 captureCount++;
             };
-            if (lightNight)
+            if (worldMotion)
+            {
+                for (uint32_t tick = 0; tick <= motionTicks; ++tick)
+                {
+                    if (tick != 0)
+                    {
+                        if (Network::GetMode() != Network::Mode::none)
+                            throw std::runtime_error("Motion fixture became networked");
+                        const auto before = getGameState().currentTicks;
+                        const auto paused = gGamePaused;
+                        gGamePaused = 0;
+                        try { gameStateUpdateLogic(false); }
+                        catch (...) { gGamePaused = paused; throw; }
+                        gGamePaused = paused;
+                        if (getGameState().currentTicks != before + 1)
+                            throw std::runtime_error("Motion fixture did not advance exactly one logical tick");
+                    }
+                    for (size_t pass = 0; pass < 2; ++pass)
+                        captureStep(steps[static_cast<size_t>(tick) * 2 + pass], UiParityFixtures::WindowInputState());
+                }
+            }
+            else if (lightNight)
             {
                 for (const auto& step : steps)
                     captureStep(step, UiParityFixtures::WindowInputState());

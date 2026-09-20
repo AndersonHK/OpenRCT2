@@ -115,6 +115,11 @@ namespace OpenRCT2
             virtual int32_t GetWidth() = 0;
             virtual int32_t GetHeight() = 0;
             virtual uint32_t GetRefreshRate() const = 0;
+            // Physical output pixels, distinct from the scaled game canvas. Zero means unavailable.
+            virtual Resolution GetDrawableSize() const
+            {
+                return {};
+            }
             virtual ScaleQuality GetScaleQuality() = 0;
             virtual void SetFullscreenMode(FullscreenMode mode) = 0;
             virtual const std::vector<Resolution>& GetFullscreenResolutions() = 0;

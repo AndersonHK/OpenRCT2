@@ -23,6 +23,8 @@
     #endif
 
     #include <algorithm>
+    #include <cwchar>
+    #include <openrct2-renderer/gpu/GpuBackend.h>
     #include <stdexcept>
     #include <string>
 
@@ -176,6 +178,67 @@ namespace OpenRCT2::Ui::Vulkan::Platform
         }
         return surface;
     #endif
+    }
+
+    std::optional<float> GetSdrWhiteNits(SDL_Window* window)
+    {
+    #if defined(_WIN32)
+        if (window == nullptr)
+            return std::nullopt;
+        SDL_SysWMinfo windowInfo{};
+        SDL_VERSION(&windowInfo.version);
+        if (SDL_GetWindowWMInfo(window, &windowInfo) != SDL_TRUE || windowInfo.subsystem != SDL_SYSWM_WINDOWS)
+            return std::nullopt;
+        MONITORINFOEXW monitor{};
+        monitor.cbSize = sizeof(monitor);
+        const auto handle = MonitorFromWindow(windowInfo.info.win.window, MONITOR_DEFAULTTONEAREST);
+        if (handle == nullptr || !GetMonitorInfoW(handle, reinterpret_cast<MONITORINFO*>(&monitor)))
+            return std::nullopt;
+
+        for (uint32_t attempt = 0; attempt < 4; ++attempt)
+        {
+            uint32_t pathCount = 0;
+            uint32_t modeCount = 0;
+            if (GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &pathCount, &modeCount) != ERROR_SUCCESS
+                || pathCount > 256 || modeCount > 4096)
+                return std::nullopt;
+            std::vector<DISPLAYCONFIG_PATH_INFO> paths(pathCount);
+            std::vector<DISPLAYCONFIG_MODE_INFO> modes(modeCount);
+            const auto status = QueryDisplayConfig(
+                QDC_ONLY_ACTIVE_PATHS, &pathCount, paths.data(), &modeCount, modes.data(), nullptr);
+            if (status == ERROR_INSUFFICIENT_BUFFER)
+                continue;
+            if (status != ERROR_SUCCESS)
+                return std::nullopt;
+            std::optional<float> nits;
+            for (uint32_t i = 0; i < pathCount; ++i)
+            {
+                const auto& path = paths[i];
+                DISPLAYCONFIG_SOURCE_DEVICE_NAME source{};
+                source.header = { DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME, sizeof(source), path.sourceInfo.adapterId,
+                                  path.sourceInfo.id };
+                if (DisplayConfigGetDeviceInfo(&source.header) != ERROR_SUCCESS)
+                    return std::nullopt;
+                if (std::wcscmp(source.viewGdiDeviceName, monitor.szDevice) != 0)
+                    continue;
+                DISPLAYCONFIG_SDR_WHITE_LEVEL white{};
+                white.header = { DISPLAYCONFIG_DEVICE_INFO_GET_SDR_WHITE_LEVEL, sizeof(white), path.targetInfo.adapterId,
+                                 path.targetInfo.id };
+                if (DisplayConfigGetDeviceInfo(&white.header) != ERROR_SUCCESS || white.SDRWhiteLevel == 0)
+                    return std::nullopt;
+                const float value = *Gpu::DecodeWindowsSdrWhiteNits(white.SDRWhiteLevel);
+                // A cloned source can map to multiple physical targets. Do not
+                // pick an arbitrary white point when their settings disagree.
+                if (nits.has_value() && *nits != value)
+                    return std::nullopt;
+                nits = value;
+            }
+            return nits;
+        }
+    #else
+        (void)window;
+    #endif
+        return std::nullopt;
     }
 
     VkExtent2D GetDrawableExtent(SDL_Window* window) noexcept

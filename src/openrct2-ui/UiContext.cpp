@@ -191,6 +191,26 @@ public:
         return _refreshRate;
     }
 
+    Resolution GetDrawableSize() const override
+    {
+        if (_window == nullptr)
+            return {};
+        if (auto* renderer = SDL_GetRenderer(_window); renderer != nullptr)
+        {
+            Resolution result{};
+            if (SDL_GetRendererOutputSize(renderer, &result.Width, &result.Height) == 0)
+                return result;
+        }
+#ifdef ENABLE_VULKAN
+        else if (gIntegratedBenchmark.drawingEngine.value_or(Config::Get().general.drawingEngine) == DrawingEngine::vulkan)
+        {
+            const auto extent = Vulkan::Platform::GetDrawableExtent(_window);
+            return { static_cast<int32_t>(extent.width), static_cast<int32_t>(extent.height) };
+        }
+#endif
+        return {};
+    }
+
     ScaleQuality GetScaleQuality() override
     {
         return _scaleQuality;

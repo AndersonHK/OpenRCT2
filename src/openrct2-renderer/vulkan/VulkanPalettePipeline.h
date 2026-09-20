@@ -86,6 +86,7 @@ namespace OpenRCT2::Ui::Vulkan
         void RefreshDescriptors(const IndexedResources& resources);
         void SetCanvasSource(uint32_t frameIndex, const Image& canvas);
         void SetLightMapSource(uint32_t frameIndex, const Image& lightMap);
+        void SetHdrPaperWhiteNits(float nits) noexcept;
         void Record(const FrameToken& frame, bool lightFxEnabled, Gpu::Extent logicalExtent, Gpu::ScaleSettings scaleSettings);
 
     private:

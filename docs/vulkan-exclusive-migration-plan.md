@@ -2,7 +2,41 @@
 
 ## Current checkpoint
 
-The owner requested a stable manual-test deployment. **Checkpoint52 is deployed and verified** at `D:\Games\Independent\OpenRCT2Mod`, with a verified rollback copy and successful installed Vulkan smoke. See the compact [progress table and testing guide](vulkan-checkpoint-52.md) and [pinned receipt](vulkan-checkpoint-52.json) for completed work, current performance and remaining gates. Further feature implementation is deferred for the owner's manual testing.
+**Stopping point requested by the owner, 2026-09-20:** build56 passes with zero warnings/errors and run48 passes **800/800 tests with clean synchronization validation**. HDR now follows the measured monitor SDR white (280 nits on this host);72 GPU reference samples and exact SDR controls pass. The frame-start scheduling experiment was withdrawn after4K evidence showed a53.85% TPS loss. The original scheduler is restored. The installed checkpoint52 is unchanged. See [findings, measurements and resume instructions](vulkan-post-checkpoint-feedback.md) and the separate [new orthographic GPU renderer proposal](vulkan-orthographic-renderer-proposal.md). No renderer-replacement architecture or peep draft is silently applied by those documents.
+
+- [x] Qualify the final ordinary source build and HDR transfer/SDR regression suite.
+- [x] Recheck final build 56 at observed 4K for 3,000 ticks: 70.461 TPS, 30.157 draws/sec, 25.722 ms CPU draw and 1.817 ms GPU. This restores the earlier regime; displayed pacing remains unqualified.
+- [x] Have an agent inspect all 16 frozen motion divergences. Moving-object/publication timing remains a confounder; no ordering correction or new exception is accepted.
+- [x] Measure the ordinary pipeline at actual3840×2160,100warmup +3,000measured ticks, both renderers and both VSync policies.
+- [x] Preserve and reject the pacing experiment that traded simulation throughput for additional expensive CPU-prepared frames.
+- [x] Compile the common frozen static/motion diagnostic; preserve its failed moving-frame control instead of adopting it as a golden.
+- [x] Preserve incomplete guest/staff raw-state and GPU-rule drafts with explicit remaining work and known lifetime risk.
+- [ ] Confirm HDR appearance on the actual display and reproduce the reported cherry/support and steep-transition scene.
+- [ ] Establish consumed publication revisions for temporal comparisons; identical live state alone is insufficient.
+- [ ] Review the proposed orthographic depth/visibility architecture and choose the next implementation direction.
+- [ ] Prove GPU visual decisions and simulation independence in a mixed world scene, then qualify large-park4K performance and displayed VSync pacing.
+- [ ] Complete all original parity, auxiliary, lifecycle/platform and exclusive-renderer removal gates below.
+### Post-checkpoint feedback and acceptance checklist (2026-09-20)
+
+- [x] Record owner feedback: HDR appears globally darker; supports overwrite foreground cherry canopies and vehicles intermittently restore ordering when crossing those tiles.
+- [x] Establish that the owner reproduces ordering defects in **both deployed renderers**. Current software is a candidate, not the canonical reference. Compare shared publication/paint changes against the immutable pre-migration software revision `9a092745f3`; do not accept matching current software as sufficient.
+- [x] Manually inspect and pin the supplied screenshot; preserve the observation separately from any unproven 3D ordering interpretation.
+- [x] Read actual host SDR white: Windows DISPLAY1 reports 3500/1000 × 80 = **280 nits**, whereas the current HDR path uses fixed203 nits. This supports the darkening report; it does not by itself certify the whole HDR pipeline.
+- [x] Implement display-aware HDR reference white with immutable frame settings, correct metadata, fallback behavior and independent transfer-function/device tests.
+- [ ] Manually compare the resulting original-art balance on the actual HDR display; screenshot RGB alone cannot certify HDR appearance.
+- [ ] Reproduce ordering in identical frozen/current-software/Vulkan saved scenes. Compare full redraw with requested dirty regions and record actual painting/publication behavior; the draw counter and normal invalidations must not be artificially frozen.
+- [ ] Reproduce affected vehicle transitions across consecutive simulation ticks and interpolation phases. Correct the shared regression if frozen software is correct; document and visually review a narrow correction if the immutable reference itself is wrong.
+- [ ] Audit application deadline scheduling and independently measure actual displayed pacing. A CPU frame interval or a successful present call is not scanout evidence.
+- [x] Run initial clean comparative performance lanes at **observed 3840×2160**, at least **3,000 measured logical ticks** after warmup, same park/camera/state, with VSync off and on. Record refresh rate, CPU draw preparation, available GPU timing, frame percentiles and final state checksum. The historical 960×640/2,000-tick results do not satisfy this requirement.
+- [ ] Repeat counterbalanced performance lanes after architectural changes and separately attribute simulation, publication, CPU preparation and transfers.
+- [ ] Use a separate instrumented lane for CPU copy/upload payloads. Keep readbacks/validation/profiling out of clean throughput measurements.
+- [ ] Complete immutable world snapshots and retained VRAM assets/state so simulation does not wait on full world paint preparation. The existing GPU worker already offloads submit/present; arbitrary-world command generation still runs on the simulation/UI thread. Moving live mutable game reads onto a thread is not an acceptable shortcut.
+- [ ] Qualify sustained VSync pacing and measure progress toward360TPS on large parks. The owner clarified that >1,000FPS expressed the intended architecture, not a separate benchmark target: simulation publishes simulation state only; GPU shaders select sprite textures/animation and determine quad offsets, transforms, visibility and order from resident world/assets. CPU-generated world draw streams do not satisfy this requirement.
+- [ ] Rebuild, run parity/lifecycle tests, obtain agent visual review of every divergent sample, then deploy the next qualified checkpoint with rollback and updated metrics.
+
+The previously open transparent viewport history, arbitrary-world shader coverage, auxiliary callers, platform qualification and software removal gates remain open. Software rasterization stays frozen throughout diagnosis.
+
+The owner requested a stable manual-test deployment. **Checkpoint52 is deployed and verified** at `D:\Games\Independent\OpenRCT2Mod`, with a verified rollback copy and successful installed Vulkan smoke. See the compact [progress table and testing guide](vulkan-checkpoint-52.md) and [pinned receipt](vulkan-checkpoint-52.json) for completed work, current performance and remaining gates. The owner committed this checkpoint as `3b28313a1b` and completed initial manual testing. Implementation has resumed with the post-checkpoint priorities below.
 
 - [x] Freeze software and preserve exact reference assets/source.
 - [x] Establish exact pixel comparisons, agent visual review and shared Vulkan device/executor.

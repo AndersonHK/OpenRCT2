@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <limits>
 #include <openrct2/drawing/LightFX.h>
 #include <openrct2/drawing/TTF.h>
 #include <optional>
@@ -29,6 +30,21 @@
 
 using namespace OpenRCT2::Ui::Gpu;
 namespace LightFx = OpenRCT2::Drawing::LightFx;
+
+TEST(GpuFoundationTest, HdrWhiteMatchesWindowsAbsoluteUnitsAndBoundsInvalidSettings)
+{
+    EXPECT_EQ(DecodeWindowsSdrWhiteNits(0), std::nullopt);
+    EXPECT_FLOAT_EQ(*DecodeWindowsSdrWhiteNits(1000), 80.0f);
+    EXPECT_FLOAT_EQ(*DecodeWindowsSdrWhiteNits(2538), 203.04f);
+    EXPECT_FLOAT_EQ(*DecodeWindowsSdrWhiteNits(3500), 280.0f);
+    EXPECT_FLOAT_EQ(NormaliseHdrPaperWhiteNits(*DecodeWindowsSdrWhiteNits(1)), 80.0f);
+    EXPECT_FLOAT_EQ(NormaliseHdrPaperWhiteNits(280.0f), 280.0f);
+    EXPECT_FLOAT_EQ(NormaliseHdrPaperWhiteNits(0.0f), 203.0f);
+    EXPECT_FLOAT_EQ(NormaliseHdrPaperWhiteNits(-1.0f), 203.0f);
+    EXPECT_FLOAT_EQ(NormaliseHdrPaperWhiteNits(std::numeric_limits<float>::quiet_NaN()), 203.0f);
+    EXPECT_FLOAT_EQ(NormaliseHdrPaperWhiteNits(std::numeric_limits<float>::infinity()), 203.0f);
+    EXPECT_FLOAT_EQ(NormaliseHdrPaperWhiteNits(*DecodeWindowsSdrWhiteNits(UINT32_MAX)), 1000.0f);
+}
 
 namespace
 {
@@ -296,6 +312,7 @@ TEST(GpuFoundationTest, NewestFrameMailboxReplacesPendingVisualWork)
 
     auto newest = MakeFramePacket(11);
     newest->presentation.paletteVersion = 4;
+    newest->presentation.hdrPaperWhiteNits = 280.0f;
     newest->presentation.surfaceFormatVersion = 5;
     newest->presentation.graphicsLookupTablesVersion = 6;
     newest->presentation.logicalExtent = { 640, 480 };
@@ -304,11 +321,13 @@ TEST(GpuFoundationTest, NewestFrameMailboxReplacesPendingVisualWork)
     ASSERT_TRUE(newestResult.accepted);
     ASSERT_NE(newestResult.released, nullptr);
     EXPECT_EQ(newestResult.released->frameNumber, 10u);
+    EXPECT_FLOAT_EQ(newestResult.released->presentation.hdrPaperWhiteNits, 203.0f);
 
     const auto taken = mailbox.WaitTakeNewest();
     ASSERT_NE(taken, nullptr);
     EXPECT_EQ(taken->frameNumber, 11u);
     EXPECT_EQ(taken->presentation.paletteVersion, 4u);
+    EXPECT_FLOAT_EQ(taken->presentation.hdrPaperWhiteNits, 280.0f);
     EXPECT_EQ(taken->presentation.surfaceFormatVersion, 5u);
     EXPECT_EQ(taken->presentation.graphicsLookupTablesVersion, 6u);
     EXPECT_EQ(taken->presentation.logicalExtent, (Extent{ 640, 480 }));

@@ -18,6 +18,8 @@ from PIL import Image, ImageChops
 
 FIXTURE_STEPS = {
     "baseline": ("baseline",),
+    "world-dirty": ("dirty-baseline", "dirty-upper-canopy", "dirty-interior", "dirty-diagonal",
+                    "dirty-lower-band", "dirty-full-restored"),
     "transparent-history": ("history-post-load", "history-opaque-first", "history-opaque-settled", "history-transparent-first",
                             "history-transparent-second", "history-transparent-settled", "history-opaque-restored"),
     "overlap": ("empty-ui", "research-front", "finances-front", "partially-clipped", "research-only", "restored"),
@@ -35,12 +37,174 @@ FONT_STEPS = ("font-empty-ui", "font-localized-window", "font-caret-start", "fon
               "font-caret-end", "font-screen-clip", "font-restored")
 for _family in FONT_FAMILIES:
     FIXTURE_STEPS[_family] = FONT_STEPS
-for _family in ("overlap", "scroll", "text"):
+for _ticks in (16, 32):
+    FIXTURE_STEPS["world-motion" + str(_ticks)] = tuple(
+        "motion-" + str(tick) + "-" + phase for tick in range(_ticks + 1) for phase in ("damage", "full"))
+MOTION_FAMILIES = ("world-motion16", "world-motion32")
+for _family in ("overlap", "scroll", "text", "world-dirty"):
     FIXTURE_STEPS[_family + "-incremental"] = FIXTURE_STEPS[_family]
 
 
 LIFECYCLE_PHASES = ("lifecycle-software-initial", "lifecycle-vulkan-first", "lifecycle-vulkan-after-aux",
                     "lifecycle-vulkan-recreated", "lifecycle-software-return", "lifecycle-vulkan-return")
+
+
+def validate_world_motion_samples(samples, ticks):
+    """Capture every authoritative tick twice; damage/full differences are failures."""
+    failures = []
+    baseline = samples.get("motion-0-damage", {}).get("metadata", {})
+    initial = baseline.get("simulationTicks")
+    moved = False
+    initial_records = baseline.get("worldMotion", {}).get("vehicles", {}).get("records", [])
+    for tick in range(ticks + 1):
+        pair = []
+        for pass_index, phase in enumerate(("damage", "full")):
+            name = "motion-" + str(tick) + "-" + phase
+            sample = samples.get(name, {})
+            meta = sample.get("metadata", {})
+            motion = meta.get("worldMotion", {})
+            count = motion.get("drawCount", {})
+            census = motion.get("vehicles", {})
+            records = census.get("records", [])
+            ordinal = tick * 2 + pass_index + 3
+            if (motion.get("schema") != 1 or type(initial) is not int or motion.get("initialTick") != initial
+                    or meta.get("simulationTicks") != initial + tick or motion.get("tickOffset") != tick
+                    or motion.get("totalTicks") != ticks or motion.get("pass") != phase
+                    or motion.get("positions") != "authoritative; no tween"
+                    or meta.get("cameraContract", {}).get("paintOrdinal") != ordinal
+                    or meta.get("forcedFullInvalidation") is not (tick == 0 or phase == "full")
+                    or type(count.get("before")) is not int or count.get("after") != count.get("before", -2) + 1
+                    or census.get("schema") != 1 or census.get("count", 0) <= 0 or census.get("count") != len(records)
+                    or len(census.get("columns", [])) != 25 or any(len(record) != 25 for record in records)
+                    or len(census.get("scenarioRng", [])) != 2):
+                failures.append("Malformed world motion contract " + name)
+            for key in ("viewPosition", "rotation", "zoom", "cameraMode", "mainViewportBounds", "viewportFlags",
+                        "paintStableSort", "landscapeSmoothing"):
+                if meta.get(key) != baseline.get(key):
+                    failures.append("World motion camera/policy changed " + name + ": " + key)
+            if tick and records and initial_records:
+                old = {record[0]:record[2:8] for record in initial_records}
+                moved |= any(record[0] in old and record[2:8] != old[record[0]] for record in records)
+            pair.append(sample)
+        first, second = pair
+        for key in ("simulationTicks", "paletteEffectFrame", "inputState"):
+            if first.get("metadata", {}).get(key) != second.get("metadata", {}).get(key):
+                failures.append("Motion pair input changed at tick " + str(tick) + ": " + key)
+        if (first.get("metadata", {}).get("worldMotion", {}).get("vehicles")
+                != second.get("metadata", {}).get("worldMotion", {}).get("vehicles")):
+            failures.append("Motion pair vehicle/RNG state changed at tick " + str(tick))
+        for layer in ("indexedSha256", "rgbaSha256"):
+            if not first.get(layer) or first.get(layer) != second.get(layer):
+                failures.append("Motion damage/full repaint differs at tick " + str(tick) + ": " + layer)
+    if not moved:
+        failures.append("World motion fixture did not move or rotate any existing vehicle")
+    return failures
+
+
+def validate_tree_track_census(census, samples, motion):
+    """Bind a read-only loaded census to the paused tick before the first paint."""
+    failures = []
+    integer = lambda value: type(value) is int and value >= 0
+    if (census.get("schemaVersion") != 1 or census.get("kind") != "loaded-tree-wooden-track-scene-locator"
+            or census.get("mutatedWorld") is not False or census.get("paused") is not True
+            or not integer(census.get("simulationTicks"))
+            or census.get("simulationTicksAfter") != census.get("simulationTicks")
+            or census.get("unresolvedScenery") != 0 or census.get("searchRadiusTiles") != 8
+            or census.get("candidateLimit") != 64):
+        failures.append("Scene locator identity/paused-state contract differs")
+    extent, map_size = census.get("viewportExtent", []), census.get("mapSize", [])
+    if (len(extent) != 2 or any(not integer(v) or not 0 < v <= 16384 for v in extent)
+            or len(map_size) != 2 or any(not integer(v) or not 0 < v <= 1024 for v in map_size)):
+        failures.append("Scene locator map/viewport extent is invalid")
+    counts, styles = census.get("treeCounts", {}), census.get("woodenStyleCounts", [])
+    matched, wooden = census.get("matchedTrees"), census.get("woodenTrackElements")
+    candidates = census.get("candidates", [])
+    if (not isinstance(counts, dict) or any(not isinstance(k, str) or not k or not integer(v) or v == 0 for k,v in counts.items())
+            or not isinstance(styles, list) or any(not isinstance(p, list) or len(p) != 2
+                or not integer(p[0]) or not integer(p[1]) or p[1] == 0 for p in styles)
+            or not integer(matched) or not integer(wooden) or not isinstance(candidates, list)):
+        failures.append("Scene locator census count types are invalid")
+    elif (sum(p[1] for p in styles) != wooden or matched > sum(counts.values())
+            or len(candidates) != min(matched, 64) or (wooden == 0 and matched != 0)):
+        failures.append("Scene locator counts disagree")
+    for candidate in candidates:
+        tree, track = candidate.get("tree", {}), candidate.get("track", {})
+        if (tree.get("id") not in counts
+                or tree.get("exactCherryObject") is not (tree.get("id") in (
+                    "rct2ww.scenery_small.jachtree", "rct2ww.scenery_small.japchblo"))
+                or not integer(candidate.get("tileDistanceSquared")) or candidate["tileDistanceSquared"] > 128):
+            failures.append("Scene locator candidate does not belong to its census")
+        for element in (tree, track):
+            tile = element.get("tile", [])
+            if (len(tile) != 2 or len(map_size) != 2
+                    or any(not integer(value) or value >= map_size[axis] for axis,value in enumerate(tile))):
+                failures.append("Scene locator candidate tile is outside the map")
+        cameras = candidate.get("cameras", [])
+        if ([(camera.get("rotation"), camera.get("zoom")) for camera in cameras]
+                != [(rotation,zoom) for rotation in range(4) for zoom in range(2)]
+                or any(len(camera.get("viewPosition", [])) != 2
+                       or any(type(v) is not int for v in camera["viewPosition"]) for camera in cameras)):
+            failures.append("Scene locator camera proposal inventory differs")
+    if not samples:
+        failures.append("Scene locator lacks a captured frame binding")
+    for sample in samples.values():
+        metadata = sample.get("metadata", {})
+        tick = metadata.get("worldMotion", {}).get("initialTick") if motion else metadata.get("simulationTicks")
+        binding = metadata.get("sceneLocator", {})
+        if (tick != census.get("simulationTicks") or binding.get("simulationTicks") != tick
+                or binding.get("viewportExtent") != extent):
+            failures.append("Scene locator paused tick/viewport differs from captured frames")
+            break
+    return failures
+
+
+def validate_world_dirty_samples(samples, incremental):
+    """Static scene repainting must preserve pixels despite different invalidation domains."""
+    failures = []
+    phases = FIXTURE_STEPS["world-dirty"]
+    for repetition in range(2):
+        baseline = samples.get(phases[0] + "-" + str(repetition), {})
+        baseline_meta = baseline.get("metadata", {})
+        for index, phase in enumerate(phases):
+            name = phase + "-" + str(repetition)
+            sample = samples.get(name, {})
+            metadata = sample.get("metadata", {})
+            fact = metadata.get("inputState", {}).get("detail", {}).get("worldDirty", {})
+            viewport = fact.get("viewport", [])
+            if len(viewport) != 4 or any(type(v) is not int for v in viewport):
+                failures.append("Missing dirty-world viewport evidence " + name)
+                continue
+            left, top, width, height = viewport
+            expected = {
+                "dirty-baseline": [], "dirty-full-restored": [],
+                "dirty-upper-canopy": [[left+width//4, top+height//4, left+3*width//4, top+height//4+32]],
+                "dirty-interior": [[left+width//2-16, top+height//2-16, left+width//2+16, top+height//2+16]],
+                "dirty-diagonal": [[left+width//2+i*32, top+height//2+i*24,
+                                    left+width//2+i*32+24, top+height//2+i*24+24] for i in range(-2,3)],
+                "dirty-lower-band": [[left+width//4, top+3*height//4, left+3*width//4, top+3*height//4+32]],
+            }[phase]
+            full = index in (0, len(phases)-1)
+            if (width < 384 or height < 320 or fact.get("schema") != 1 or fact.get("phase") != phase
+                    or fact.get("mutation") != "none" or fact.get("requestedFullInvalidation") is not full
+                    or fact.get("requestedRectangles") != expected
+                    or fact.get("api") != ("GfxInvalidateScreen" if full else "IDrawingEngine::Invalidate")
+                    or viewport != metadata.get("mainViewportBounds")
+                    or metadata.get("forcedFullInvalidation") is not (not incremental or (repetition == 0 and index == 0))):
+                failures.append("Malformed dirty-world invalidation contract " + name)
+            for key in ("simulationTicks", "paletteEffectFrame", "viewPosition", "rotation", "zoom", "viewportFlags",
+                        "paintStableSort", "landscapeSmoothing", "mainViewportBounds", "cameraMode"):
+                if metadata.get(key) != baseline_meta.get(key):
+                    failures.append("Static dirty-world input changed " + name + ": " + key)
+            if metadata.get("cameraContract", {}).get("paintOrdinal") != 3 + repetition*len(phases) + index:
+                failures.append("Dirty-world capture skipped or added a paint " + name)
+            count = metadata.get("worldDirtyDrawCount", {})
+            if (type(count.get("before")) is not int or type(count.get("after")) is not int
+                    or count["after"] != count["before"] + 1):
+                failures.append("Dirty-world did not retain its ordinary paint-counter transition " + name)
+            for layer in ("rgbaSha256", "indexedSha256"):
+                if not sample.get(layer) or sample[layer] != baseline.get(layer):
+                    failures.append("Static dirty-world repaint changed " + name + ": " + layer)
+    return failures
 
 
 def validate_terrain_preparation_sequence(metadata_sequence):
@@ -437,6 +601,12 @@ def main():
     parser.add_argument("--paint-stable-sort", choices=("true", "false"), default="false")
     parser.add_argument("--viewport-flags", type=lambda value: int(value, 0), default=0)
     args = parser.parse_args()
+    if args.fixture in ("world-dirty", "world-dirty-incremental") + MOTION_FAMILIES and (
+            args.gpu_terrain or args.gpu_balloons or args.retained_balloons or args.shared_service_lifecycle
+            or args.require_balloon_count is not None or args.viewport_flags or args.window_scale != 1
+            or args.width < 384 or args.height < 320
+            or (args.renderer == "vulkan" and (not args.validation or not args.compare_run or not args.shader_build_receipt))):
+        raise SystemExit("Dirty-world requires an isolated ordinary pinned park/camera and exact validated Vulkan comparison")
     if args.history_clear_zero and args.fixture != "transparent-history":
         raise SystemExit("--history-clear-zero is restricted to transparent-history")
     if args.fixture == "transparent-history" and (
@@ -535,7 +705,7 @@ def main():
             raise SystemExit("Fresh repeat requires identical native balloon admission")
         if previous.get("retainedBalloons", False) != args.retained_balloons:
             raise SystemExit("Fresh repeat requires identical publication profile")
-        if (args.shared_service_lifecycle or args.gpu_terrain or args.fixture == "transparent-history") and ((previous.get("shaderBuildReceipt") or {}).get("sha256") != (sha256(args.shader_build_receipt) if args.shader_build_receipt else None)
+        if (args.shared_service_lifecycle or args.gpu_terrain or args.fixture in ("transparent-history", "world-dirty", "world-dirty-incremental") + MOTION_FAMILIES) and ((previous.get("shaderBuildReceipt") or {}).get("sha256") != (sha256(args.shader_build_receipt) if args.shader_build_receipt else None)
                 or previous.get("fixture") != args.fixture):
             raise SystemExit("Native terrain/shared lifecycle fresh repeat requires identical shaders and fixture")
         if args.gpu_terrain and previous.get("terrainInputReceipt", {}).get("sha256") != sha256(args.terrain_input_receipt):
@@ -701,7 +871,7 @@ def main():
         if getattr(args, name) is not None:
             command += ["--" + name.replace("_", "-"), str(getattr(args, name))]
     env = {key.upper() if os.name == "nt" else key: value for key, value in os.environ.items()}
-    if args.shared_service_lifecycle or args.gpu_terrain or args.fixture == "transparent-history":
+    if args.shared_service_lifecycle or args.gpu_terrain or args.fixture in ("transparent-history", "world-dirty", "world-dirty-incremental") + MOTION_FAMILIES:
         for key in list(env):
             if key.startswith(("OPENRCT2_", "VK_")):
                 env.pop(key)
@@ -716,11 +886,13 @@ def main():
             "khronos_validation.enable_message_limit = false\n", encoding="utf-8")
     lifecycle_pins = {}
     lifecycle_dlls = None
-    if args.shared_service_lifecycle or args.gpu_terrain or args.fixture == "transparent-history":
+    if args.shared_service_lifecycle or args.gpu_terrain or args.fixture in ("transparent-history", "world-dirty", "world-dirty-incremental") + MOTION_FAMILIES:
         if any(build.get(key) for key in ("sourceChangesDuringBuild", "dependencyChangesDuringBuild", "missingArtifacts")):
             raise SystemExit("Shared lifecycle needs a stable qualified UI build")
-        diagnostic_headers = ("test/ui-parity/UiParityMain.cpp",) if args.fixture == "transparent-history" else ("test/ui-parity/UiTerrainFixture.h", "test/ui-parity/UiParityMain.cpp") if args.gpu_terrain else (
+        diagnostic_headers = ("test/ui-parity/UiFixtures.h", "test/ui-parity/UiParityMain.cpp") if args.fixture in ("world-dirty", "world-dirty-incremental") else ("test/ui-parity/UiParityMain.cpp",) if args.fixture == "transparent-history" or args.fixture in MOTION_FAMILIES else ("test/ui-parity/UiTerrainFixture.h", "test/ui-parity/UiParityMain.cpp") if args.gpu_terrain else (
             "test/ui-parity/UiSharedServiceLifecycle.h", "test/ui-parity/UiParityMain.cpp")
+        if args.fixture in ("world-dirty", "world-dirty-incremental") + MOTION_FAMILIES:
+            diagnostic_headers += ("test/ui-parity/UiTreeTrackSceneLocator.h",)
         for relative in diagnostic_headers:
             path = root / relative
             if sha256(path) != build.get("sourceSha256", {}).get("harness/" + relative):
@@ -746,6 +918,11 @@ def main():
             lifecycle_pins[Path(asset["path"])] = asset["sha256"]
         for reference_run, reference_summary in references.items():
             lifecycle_pins[reference_run / "summary.json"] = sha256(reference_run / "summary.json")
+            if args.fixture in ("world-dirty", "world-dirty-incremental") + MOTION_FAMILIES:
+                proof = reference_summary.get("sceneLocatorProof")
+                if not isinstance(proof, dict) or not isinstance(proof.get("reportSha256"), str):
+                    raise SystemExit("World reference lacks qualified tree/track scene census")
+                lifecycle_pins[reference_run / "captures/tree-track-scenes.json"] = proof["reportSha256"]
             for name, sample in reference_summary["samples"].items():
                 for filename, key in (("screen.rgba", "rgbaSha256"), ("screen.indexed", "indexedSha256"), ("report.json", "reportSha256")):
                     lifecycle_pins[reference_run / "captures" / name / filename] = sample[key]
@@ -756,7 +933,7 @@ def main():
     with (output / "capture.log").open("w", encoding="utf-8") as log:
         try:
             result = subprocess.run(command, cwd=build_root / "bin", env=env, stdout=log,
-                                    stderr=subprocess.STDOUT, timeout=120)
+                                    stderr=subprocess.STDOUT, timeout=300 if args.fixture in MOTION_FAMILIES else 120)
             exit_code = result.returncode
         except subprocess.TimeoutExpired:
             exit_code = "timeout"
@@ -773,7 +950,7 @@ def main():
     comparisons = []
     scaling_checks = []
     samples = {}
-    temporal_sequence = args.shared_service_lifecycle or args.fixture in ("light-night", "weather-precipitation", "weather-palette", "transparent-history") + FONT_FAMILIES
+    temporal_sequence = args.shared_service_lifecycle or args.fixture in ("light-night", "weather-precipitation", "weather-palette", "transparent-history") + FONT_FAMILIES + MOTION_FAMILIES
     required_names = (list(FIXTURE_STEPS[args.fixture]) if temporal_sequence else
                       [step + "-" + str(repetition) for repetition in range(2) for step in FIXTURE_STEPS[args.fixture]])
     if args.shared_service_lifecycle:
@@ -852,6 +1029,10 @@ def main():
             for key in ("fixture", "fixtureVersion", "logicalExtent", "physicalExtent", "viewPosition", "rotation", "zoom", "cameraMode", "assetState", "simulationTicks", "paletteEffectFrame", "landscapeSmoothing", "viewportFlags", "language", "themePreset", "windowScale", "scaleQuality", "inputState", "step", "repetition", "lighting", "weather", "fonts", "scaling", "balloonState", "transparentHistory"):
                 if reference_report.get(key) != metadata.get(key):
                     failures.append("Fixture input mismatch " + name + ": " + key)
+            if args.fixture in MOTION_FAMILIES:
+                for key in ("schema", "initialTick", "tickOffset", "totalTicks", "pass", "positions", "vehicles"):
+                    if reference_report.get("worldMotion", {}).get(key) != metadata.get("worldMotion", {}).get(key):
+                        failures.append("World motion state mismatch " + name + ": " + key)
             expected = (comparison / "screen.rgba").read_bytes()
             actual = raw.read_bytes()
             if len(expected) != len(actual):
@@ -940,6 +1121,95 @@ def main():
                         "differingPixels":sum(transitions.values()),"indexedTransitions":transitions,
                         "fromSha256":sha256(output / "captures" / prior / "screen.indexed"),
                         "toSha256":sha256(output / "captures" / name / "screen.indexed")})
+    motion_proof = None
+    if args.fixture in MOTION_FAMILIES:
+        failures.extend(validate_world_motion_samples(samples, int(args.fixture.removeprefix("world-motion"))))
+        motion_proof = {"schema":1,"phases":[{"name":name, **sample["metadata"].get("worldMotion", {}),
+            "cpuColumns":sample["metadata"].get("cpuViewportPaint"),
+            "indexedSha256":sample["indexedSha256"],"rgbaSha256":sample["rgbaSha256"]} for name,sample in samples.items()],
+            "inputSha256":{str(p):d for p,d in lifecycle_pins.items()}}
+        motion_proof["divergences"] = []
+        for tick in range(int(args.fixture.removeprefix("world-motion")) + 1):
+            first_name, second_name = "motion-" + str(tick) + "-damage", "motion-" + str(tick) + "-full"
+            if first_name not in samples or second_name not in samples:
+                continue
+            for key, filename, mode, extent_key in (("indexedSha256", "screen.indexed", "L", "logicalExtent"),
+                                                    ("rgbaSha256", "screen.rgba", "RGBA", "physicalExtent")):
+                if samples[first_name][key] == samples[second_name][key]:
+                    continue
+                extent = tuple(samples[first_name]["metadata"][extent_key])
+                first = Image.frombytes(mode, extent, (output / "captures" / first_name / filename).read_bytes())
+                second = Image.frombytes(mode, extent, (output / "captures" / second_name / filename).read_bytes())
+                difference = ImageChops.difference(first, second)
+                if mode == "RGBA":
+                    parts = difference.split()
+                    difference = Image.merge("RGB", tuple(ImageChops.lighter(part, parts[3]) for part in parts[:3]))
+                path = output / "world-motion-comparisons" / str(tick) / key
+                path.mkdir(parents=True)
+                first.save(path / "damage.png")
+                second.save(path / "full.png")
+                difference.save(path / "diff.png")
+                motion_proof["divergences"].append({"tickOffset":tick,"layer":key,
+                    "boundsExclusive":difference.getbbox(),"path":str(path),"manualVisualReview":"required"})
+    scene_locator_proof = None
+    if args.fixture in ("world-dirty", "world-dirty-incremental") + MOTION_FAMILIES:
+        census_path = output / "captures/tree-track-scenes.json"
+        try:
+            census = json.loads(census_path.read_text(encoding="utf-8"))
+            failures.extend(validate_tree_track_census(census, samples, args.fixture in MOTION_FAMILIES))
+            for reference_run in references:
+                reference_census = json.loads((reference_run / "captures/tree-track-scenes.json").read_text(encoding="utf-8"))
+                if reference_census != census:
+                    failures.append("Tree/track scene census differs from reference " + str(reference_run))
+            scene_locator_proof = {"reportSha256":sha256(census_path), "simulationTicks":census.get("simulationTicks"),
+                "viewportExtent":census.get("viewportExtent"), "treeCounts":census.get("treeCounts"),
+                "woodenTrackElements":census.get("woodenTrackElements"), "matchedTrees":census.get("matchedTrees"),
+                "unresolvedScenery":census.get("unresolvedScenery"), "candidateCount":len(census.get("candidates", [])),
+                "candidateScope":"Semantic proximity; actual occlusion requires manual image inspection"}
+        except (OSError, ValueError, TypeError, KeyError, AttributeError) as error:
+            failures.append("Missing/malformed tree-track scene census: " + str(error))
+    world_dirty_proof = None
+    if args.fixture in ("world-dirty", "world-dirty-incremental"):
+        failures.extend(validate_world_dirty_samples(samples, args.fixture.endswith("-incremental")))
+        world_dirty_proof = {"schema":1,"scope":"Requested invalidation rectangles; ordinary backend may expand them",
+                             "phases":[],"inputSha256":{str(p):d for p,d in lifecycle_pins.items()}}
+        for name in required_names:
+            if name not in samples:
+                continue
+            sample = samples[name]
+            metadata = sample["metadata"]
+            world_dirty_proof["phases"].append({"name":name,
+                "requested":metadata.get("inputState",{}).get("detail",{}).get("worldDirty"),
+                "paintCounter":metadata.get("worldDirtyDrawCount"),"cpuColumns":metadata.get("cpuViewportPaint"),
+                "forcedFullInvalidation":metadata.get("forcedFullInvalidation"),
+                "indexedSha256":sample["indexedSha256"],"rgbaSha256":sample["rgbaSha256"]})
+            baseline = "dirty-baseline-" + name.rsplit("-",1)[1]
+            if baseline not in samples or name == baseline:
+                continue
+            for filename, mode, layer in (("screen.indexed","L","indexed"),("screen.rgba","RGBA","rgba")):
+                extent = metadata["logicalExtent" if mode == "L" else "physicalExtent"]
+                before = (output / "captures" / baseline / filename).read_bytes()
+                after = (output / "captures" / name / filename).read_bytes()
+                if before == after:
+                    continue
+                channels = 1 if mode == "L" else 4
+                if len(before) != len(after) or len(after) != extent[0]*extent[1]*channels:
+                    failures.append("Dirty-world comparison buffer size mismatch " + name)
+                    continue
+                first, second = Image.frombytes(mode, tuple(extent), before), Image.frombytes(mode, tuple(extent), after)
+                diff = ImageChops.difference(first, second)
+                if mode == "RGBA":
+                    parts = diff.split()
+                    diff = Image.merge("RGB",tuple(ImageChops.lighter(part,parts[3]) for part in parts[:3]))
+                pair = output / "world-dirty-comparisons" / name / layer
+                pair.mkdir(parents=True)
+                first.save(pair / "reference.png")
+                second.save(pair / "candidate.png")
+                diff.save(pair / "diff.png")
+                diff.point(lambda v:min(255,v*8)).save(pair / "diff-amplified.png")
+                comparisons.append({"capture":name,"comparison":"unchanged-world-invalidation","layer":layer,
+                    "differingPixels":sum(before[i:i+channels] != after[i:i+channels] for i in range(0,len(after),channels)),
+                    "boundsExclusive":diff.getbbox(),"manualVisualReview":"required for every divergence"})
     for step in (() if temporal_sequence else FIXTURE_STEPS[args.fixture]):
         first, second = samples.get(step + "-0"), samples.get(step + "-1")
         if first and second:
@@ -1061,7 +1331,7 @@ def main():
         failures.extend(validate_terrain_preparation_sequence(
             [samples[name]["metadata"] for name in required_names if name in samples]))
     terrain_changed = []
-    if args.gpu_terrain or args.fixture == "transparent-history":
+    if args.gpu_terrain or args.fixture in ("transparent-history", "world-dirty", "world-dirty-incremental") + MOTION_FAMILIES:
         terrain_changed = [str(p) for p,d in lifecycle_pins.items() if not p.is_file() or sha256(p) != d]
         if {str(p):sha256(p) for p in sorted(executable.parent.glob("*.dll"))} != lifecycle_dlls:
             terrain_changed.append("runtime DLL membership")
@@ -1070,6 +1340,8 @@ def main():
     summary = {"schema": 1, "status": "fail" if failures else "pass", "failures": failures,
                "sharedServiceLifecycle": args.shared_service_lifecycle, "sharedServiceProof": lifecycle_proof,
                "transparentHistoryProof": history_proof, "historyClearZero": args.history_clear_zero,
+                "worldDirtyProof":world_dirty_proof, "worldMotionProof":motion_proof,
+                "sceneLocatorProof":scene_locator_proof,
                "transparentHistoryInputSha256": {str(p):d for p,d in lifecycle_pins.items()} if args.fixture == "transparent-history" else {},
                "command": command, "exitCode": exit_code, "renderer": args.renderer,
                "fixture": args.fixture, "requiredCaptures": required_names,

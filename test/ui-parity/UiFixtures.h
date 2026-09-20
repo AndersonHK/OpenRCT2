@@ -6,13 +6,18 @@
 #pragma once
 
 #include <SDL.h>
+#include <array>
 #include <functional>
 #include <iterator>
 #include <openrct2-ui/interface/Widget.h>
 #include <openrct2-ui/interface/Window.h>
 #include <openrct2-ui/windows/Windows.h>
 #include <openrct2/Input.h>
+#include <openrct2/Context.h>
 #include <openrct2/core/Json.hpp>
+#include <openrct2/drawing/IDrawingEngine.h>
+#include <openrct2/drawing/Drawing.Screen.h>
+#include <openrct2/interface/Viewport.h>
 #include <openrct2/interface/Window.h>
 #include <openrct2/ui/WindowManager.h>
 #include <stdexcept>
@@ -31,13 +36,16 @@ namespace OpenRCT2::UiParityFixtures
     {
         if (family == "baseline")
             return { "baseline" };
+        if (family == "world-dirty")
+            return { "dirty-baseline", "dirty-upper-canopy", "dirty-interior", "dirty-diagonal",
+                     "dirty-lower-band", "dirty-full-restored" };
         if (family == "overlap")
             return { "empty-ui", "research-front", "finances-front", "partially-clipped", "research-only", "restored" };
         if (family == "scroll")
             return { "empty-ui", "scroll-top", "scroll-partial-row", "scroll-screen-clip", "scroll-resized", "restored" };
         if (family == "text")
             return { "empty-ui", "text-empty", "wrapped-caret-start", "wrapped-caret-end", "submitted", "restored" };
-        throw std::invalid_argument("--fixture must be baseline, overlap, scroll or text");
+        throw std::invalid_argument("--fixture must be baseline, world-dirty, overlap, scroll or text");
     }
 
     inline json_t WindowInputState()
@@ -91,6 +99,48 @@ namespace OpenRCT2::UiParityFixtures
             state["detail"] = std::move(detail);
             capture(step, std::move(state));
         };
+        if (family == "world-dirty")
+        {
+            auto* main = WindowGetMain();
+            Require(main != nullptr && main->viewport != nullptr, "Dirty-world fixture has no main viewport");
+            const auto& viewport = *main->viewport;
+            Require(viewport.width >= 384 && viewport.height >= 320, "Dirty-world fixture viewport is too small");
+            auto* engine = GetContext()->GetDrawingEngine();
+            Require(engine != nullptr, "Dirty-world fixture has no selected drawing engine");
+            const int32_t left = viewport.pos.x;
+            const int32_t top = viewport.pos.y;
+            const int32_t width = viewport.width;
+            const int32_t height = viewport.height;
+            using Rect = std::array<int32_t, 4>;
+            const auto record = [&](const char* phase, const std::vector<Rect>& rectangles, bool full) {
+                if (full)
+                    Drawing::GfxInvalidateScreen();
+                else
+                    for (const auto& r : rectangles)
+                        engine->Invalidate(r[0], r[1], r[2], r[3]);
+                // These are requested dirty rectangles. The backend's ordinary invalidation grid may expand them.
+                // No map/entity mutation, presentation reset, simulation tick, or private painter call is performed.
+                sample(phase, {{"worldDirty", {{"schema",1},{"phase",phase},{"requestedFullInvalidation",full},
+                    {"viewport",{left,top,width,height}},{"requestedRectangles",rectangles},
+                    {"mutation","none"},{"api",full ? "GfxInvalidateScreen" : "IDrawingEngine::Invalidate"}}}});
+            };
+            record("dirty-baseline", {}, true);
+            record("dirty-upper-canopy", {{left + width/4, top + height/4, left + 3*width/4, top + height/4 + 32}}, false);
+            record("dirty-interior", {{left + width/2 - 16, top + height/2 - 16,
+                                       left + width/2 + 16, top + height/2 + 16}}, false);
+            std::vector<Rect> diagonal;
+            for (int32_t i = -2; i <= 2; ++i)
+            {
+                const int32_t x = left + width/2 + i*32;
+                const int32_t y = top + height/2 + i*24;
+                diagonal.push_back({x,y,x+24,y+24});
+            }
+            record("dirty-diagonal", diagonal, false);
+            record("dirty-lower-band", {{left + width/4, top + 3*height/4,
+                                         left + 3*width/4, top + 3*height/4 + 32}}, false);
+            record("dirty-full-restored", {}, true);
+            return;
+        }
         if (family == "baseline")
         {
             // Preserve the original baseline's paint sequence; it needs no fixture layout preparation.

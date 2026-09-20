@@ -250,7 +250,7 @@
     }
   ],
   "requiredSuiteMinimumCounts": {
-    "GpuFoundationTest": 42,
+    "GpuFoundationTest": 43,
     "VulkanRuntimeIntegrationTest": 2,
     "VulkanCoverageCacheTest": 3,
     "PublicationSnapshotParityTest": 6,
@@ -273,6 +273,7 @@
     "TerrainSurfaceRulesTest": 3,
     "TerrainPresentationBridgeTest": 8,
     "VulkanOffscreenRenderTest": 7,
+    "VulkanHdrOutputTest": 1,
     "VulkanOffscreenServiceContract": 6,
     "VulkanBalloonPipelineTest": 3,
     "VulkanBalloonAdmissionTest": 1,

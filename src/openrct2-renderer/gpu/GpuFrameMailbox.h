@@ -147,6 +147,7 @@ namespace OpenRCT2::Ui::Gpu
         uint64_t graphicsLookupTablesVersion = 0;
         bool hasPalette = false;
         ScaleSettings scaleSettings{};
+        float hdrPaperWhiteNits = 203.0f;
     };
 
     struct RecordedFramePacket

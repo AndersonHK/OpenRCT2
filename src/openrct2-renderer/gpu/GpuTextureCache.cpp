@@ -21,6 +21,7 @@
 #include <openrct2/drawing/PaletteMap.h>
 #include <openrct2/drawing/SpriteAssetDecoder.h>
 #include <openrct2/drawing/TTF.h>
+#include <openrct2/profiling/Profiling.h>
 #include <stdexcept>
 
 namespace OpenRCT2::Ui::Gpu
@@ -237,6 +238,8 @@ namespace OpenRCT2::Ui::Gpu
     }
     void TextureCache::BeginFrame()
     {
+        PROFILED_FUNCTION();
+
         if (_recordingFrame)
         {
             throw std::logic_error("GPU texture cache frame is already active");
@@ -250,6 +253,8 @@ namespace OpenRCT2::Ui::Gpu
 
     AtlasResidencyToken TextureCache::SealFrame(FrameCommandStream& commands)
     {
+        PROFILED_FUNCTION();
+
         if (!_recordingFrame)
         {
             throw std::logic_error("GPU texture cache has no active frame");
@@ -333,6 +338,8 @@ namespace OpenRCT2::Ui::Gpu
 
     void TextureCache::DrainFrameRetirements()
     {
+        PROFILED_FUNCTION();
+
         if (_recordingFrame)
         {
             throw std::logic_error("GPU atlas retirements require a frame boundary");
