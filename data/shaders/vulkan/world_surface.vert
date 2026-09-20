@@ -14,6 +14,7 @@ layout(push_constant) uniform WorldSurfaceConstants
     int zoom;
     uint rotation;
     uint spriteSetCount;
+    int depthBase;
 } uCamera;
 
 struct SpriteAssetDescriptor

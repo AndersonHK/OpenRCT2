@@ -14,8 +14,10 @@
 #include "../interface/ZoomLevel.h"
 #include "../world/Location.hpp"
 #include "Window.h"
+#include "ViewportGeneration.h"
 
 #include <list>
+#include <memory>
 #include <optional>
 #include <sfl/static_vector.hpp>
 
@@ -25,11 +27,13 @@ struct PaintStruct;
 namespace OpenRCT2::Drawing
 {
     struct RenderTarget;
-}
+    struct BalloonPublicationCopyTotals;
+} // namespace OpenRCT2::Drawing
 
 namespace OpenRCT2
 {
     struct EntityBase;
+    struct PresentationGeneration;
     struct Guest;
     struct TileElement;
     struct WindowBase;
@@ -207,7 +211,12 @@ namespace OpenRCT2
     void ViewportRotateSingle(WindowBase* window, int32_t direction);
     void ViewportRotateAll(int32_t direction);
     void ViewportRender(Drawing::RenderTarget& rt, const Viewport* viewport);
+    // Explicit screenshot subdivision policy; normal callers retain target-clip generation.
+    void ViewportRender(Drawing::RenderTarget& rt, const Viewport* viewport, ViewportGenerationDomain domain);
     void ViewportBeginPresentationFrame();
+    // Producer-thread observation only; never captures or consumes a publication worklist.
+    [[nodiscard]] std::shared_ptr<const PresentationGeneration> ViewportGetPresentationGeneration();
+    [[nodiscard]] Drawing::BalloonPublicationCopyTotals ViewportGetBalloonPublicationCopyTotals();
     void ViewportDisposePresentation();
 
     CoordsXYZ ViewportAdjustForMapHeight(const ScreenCoordsXY& startCoords, uint8_t rotation);

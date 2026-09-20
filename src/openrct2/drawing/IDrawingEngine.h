@@ -11,6 +11,8 @@
 
 #include "../core/FlagHolder.hpp"
 #include "PaletteType.h"
+#include "PresentationGeneration.h"
+#include "RenderUploadTelemetry.h"
 #include "WeatherDrawer.h"
 
 #include <cstdint>
@@ -51,6 +53,8 @@ namespace OpenRCT2::Drawing
     struct FrameTimings
     {
         uint64_t frameNumber = 0;
+        std::optional<RenderUploadTelemetry> uploadTelemetry;
+        bool telemetryOnly = false;
         double cpuSubmitMicroseconds = 0.0;
         double cpuPresentMicroseconds = 0.0;
         double gpuMicroseconds = 0.0;
@@ -73,6 +77,11 @@ namespace OpenRCT2::Drawing
         {
         }
 
+        // Retained publication is separate from native GPU paint admission; the default preserves bulk software capture.
+        virtual EntityPublicationProfile GetEntityPublicationProfile() const
+        {
+            return EntityPublicationProfile::legacyBulk;
+        }
         virtual void Initialise() = 0;
         virtual void Resize(uint32_t width, uint32_t height) = 0;
         // Display identity changed independently of the logical canvas size.

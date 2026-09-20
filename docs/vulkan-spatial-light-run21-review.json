@@ -1,0 +1,91 @@
+{
+  "run": "run-21",
+  "reviewer": "decode_assets",
+  "inspectedAt": "2026-09-19",
+  "images": [
+    {
+      "path": "obj/vulkan-parity/run-21/samples/SpatialLight/Lantern3/physical/software.png",
+      "sha256": "BD47783A4668617DECC50ED66703C832AAE52D2115E597165CBE7BE6E013CB31"
+    },
+    {
+      "path": "obj/vulkan-parity/run-21/samples/SpatialLight/Lantern3/physical/vulkan.png",
+      "sha256": "BD47783A4668617DECC50ED66703C832AAE52D2115E597165CBE7BE6E013CB31"
+    },
+    {
+      "path": "obj/vulkan-parity/run-21/samples/SpatialLight/Lantern3/physical/diff.png",
+      "sha256": "E18ACCBCF20D3F56D402F6729AC39AD95EC5048614ADA3238672C16B0148A31D"
+    },
+    {
+      "path": "obj/vulkan-parity/run-21/samples/SpatialLight/Spot3/physical/software.png",
+      "sha256": "F4FBE5308E214CD1A93D024E04EF2B151CB45519F21DECB1120E5CE3D07F0E29"
+    },
+    {
+      "path": "obj/vulkan-parity/run-21/samples/SpatialLight/Spot3/physical/vulkan.png",
+      "sha256": "F4FBE5308E214CD1A93D024E04EF2B151CB45519F21DECB1120E5CE3D07F0E29"
+    },
+    {
+      "path": "obj/vulkan-parity/run-21/samples/SpatialLight/Spot3/physical/diff.png",
+      "sha256": "E18ACCBCF20D3F56D402F6729AC39AD95EC5048614ADA3238672C16B0148A31D"
+    },
+    {
+      "path": "obj/vulkan-parity/run-21/samples/SpatialLight/OverlapSaturation/physical/software.png",
+      "sha256": "31B122484F83FDA398BF65F2A6AF71985155E72C7E41397001DFBB90CEF34FF5"
+    },
+    {
+      "path": "obj/vulkan-parity/run-21/samples/SpatialLight/OverlapSaturation/physical/vulkan.png",
+      "sha256": "31B122484F83FDA398BF65F2A6AF71985155E72C7E41397001DFBB90CEF34FF5"
+    },
+    {
+      "path": "obj/vulkan-parity/run-21/samples/SpatialLight/OverlapSaturation/physical/diff.png",
+      "sha256": "E18ACCBCF20D3F56D402F6729AC39AD95EC5048614ADA3238672C16B0148A31D"
+    },
+    {
+      "path": "obj/vulkan-parity/run-21/samples/SpatialLight/EdgesCorners/physical/software.png",
+      "sha256": "2D973077D12F07B1CF81B5E234FDA260122A7EA42181DA9E7D557269708739E3"
+    },
+    {
+      "path": "obj/vulkan-parity/run-21/samples/SpatialLight/EdgesCorners/physical/vulkan.png",
+      "sha256": "2D973077D12F07B1CF81B5E234FDA260122A7EA42181DA9E7D557269708739E3"
+    },
+    {
+      "path": "obj/vulkan-parity/run-21/samples/SpatialLight/EdgesCorners/physical/diff.png",
+      "sha256": "E18ACCBCF20D3F56D402F6729AC39AD95EC5048614ADA3238672C16B0148A31D"
+    },
+    {
+      "path": "obj/vulkan-parity/run-21/samples/SpatialLight/SmallCanvasStride/physical/software.png",
+      "sha256": "FD17210FCB87CD983675E1A32C08F07457A225E1937B955F6282B5F039B56B0A"
+    },
+    {
+      "path": "obj/vulkan-parity/run-21/samples/SpatialLight/SmallCanvasStride/physical/vulkan.png",
+      "sha256": "FD17210FCB87CD983675E1A32C08F07457A225E1937B955F6282B5F039B56B0A"
+    },
+    {
+      "path": "obj/vulkan-parity/run-21/samples/SpatialLight/SmallCanvasStride/physical/diff.png",
+      "sha256": "FBE36EC52921E0D25F7CBE5EFA50514B81A0F433981E4B7E0623BD380790C372"
+    },
+    {
+      "path": "obj/vulkan-parity/run-21/samples/SpatialLight/OverlapSaturation_Cleared/physical/software.png",
+      "sha256": "0584C0806DB064EAA49F48506ED3470562E1F8AE283163A5266C1C54F36E24D6"
+    },
+    {
+      "path": "obj/vulkan-parity/run-21/samples/SpatialLight/OverlapSaturation_Cleared/physical/vulkan.png",
+      "sha256": "0584C0806DB064EAA49F48506ED3470562E1F8AE283163A5266C1C54F36E24D6"
+    },
+    {
+      "path": "obj/vulkan-parity/run-21/samples/SpatialLight/OverlapSaturation_Cleared/physical/diff.png",
+      "sha256": "E18ACCBCF20D3F56D402F6729AC39AD95EC5048614ADA3238672C16B0148A31D"
+    },
+    {
+      "path": "obj/vulkan-parity/run-21/samples/SpatialLight/Empty/physical/software.png",
+      "sha256": "0584C0806DB064EAA49F48506ED3470562E1F8AE283163A5266C1C54F36E24D6"
+    },
+    {
+      "path": "obj/vulkan-parity/run-21/samples/SpatialLight/Empty/physical/vulkan.png",
+      "sha256": "0584C0806DB064EAA49F48506ED3470562E1F8AE283163A5266C1C54F36E24D6"
+    },
+    {
+      "path": "obj/vulkan-parity/run-21/samples/SpatialLight/Empty/physical/diff.png",
+      "sha256": "E18ACCBCF20D3F56D402F6729AC39AD95EC5048614ADA3238672C16B0148A31D"
+    }
+  ]
+}

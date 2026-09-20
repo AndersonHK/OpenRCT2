@@ -42,6 +42,7 @@
 #include "Footpath.h"
 #include "MapAnimation.h"
 #include "MapPresentationSnapshot.h"
+#include "../object/TerrainEdgeObject.h"
 #include "MapTopology.h"
 #include "Park.h"
 #include "Scenery.h"
@@ -170,6 +171,57 @@ namespace OpenRCT2
         return getGameState().tileElements;
     }
 
+    static std::shared_ptr<const TerrainPresentationMaterials> CaptureTerrainMaterials(uint64_t epoch)
+    {
+        static uint64_t capturedEpoch{};
+        static std::shared_ptr<const TerrainPresentationMaterials> captured;
+        const auto revision = GetTerrainObjectRevision();
+        if (captured != nullptr && capturedEpoch == epoch && captured->revision == revision)
+            return captured;
+        auto next = std::make_shared<TerrainPresentationMaterials>();
+        next->revision = revision;
+        for (uint16_t slot = 0; slot < 255; slot++)
+        {
+            if (const auto* object = TerrainSurfaceObject::GetById(slot); object != nullptr)
+            {
+                auto& material = next->surfaces[slot];
+                material.imageBase = object->EntryBaseImageId;
+                const auto offset = object->EntryBaseImageId - object->IconImageId;
+                const auto total = object->GetNumImages();
+                material.imageCount = offset < total ? total - offset : 0;
+                material.supported = material.imageCount != 0 && object->Colour == Drawing::kColourNull;
+                for (uint32_t length = 0; length < 9; length++)
+                    for (uint32_t rotation = 0; rotation < 4; rotation++)
+                        for (uint32_t variation = 0; variation < 4; variation++)
+                        {
+                            // Enumerate immutable selectors, never a world tile or per-frame sprite decision.
+                            const auto image = object->GetImageId(
+                                CoordsXY{ static_cast<int32_t>((variation & 1) * 32),
+                                          static_cast<int32_t>((variation >> 1) * 32) },
+                                length == 8 ? TerrainSurfaceObject::kNoValue : static_cast<uint8_t>(length),
+                                static_cast<uint8_t>(rotation), 0, false, false);
+                            const auto relative = image.GetIndex() - material.imageBase;
+                            material.supported = material.supported && !image.HasPrimary() && !image.HasSecondary()
+                                && !image.IsRemap() && !image.IsBlended() && relative % 19 == 0
+                                && static_cast<uint64_t>(relative) + 19 <= material.imageCount;
+                            material.selectors[(length * 4 + rotation) * 4 + variation] = relative / 19;
+                        }
+            }
+            if (const auto* object = TerrainEdgeObject::GetById(slot); object != nullptr)
+            {
+                auto& material = next->edges[slot];
+                material.imageBase = object->BaseImageId;
+                const auto offset = object->BaseImageId - object->IconImageId;
+                const auto total = object->GetNumImages();
+                material.imageCount = offset < total ? total - offset : 0;
+                material.supported = material.imageCount >= 37;
+            }
+        }
+        capturedEpoch = epoch;
+        captured = std::move(next);
+        return captured;
+    }
+
     MapPresentationChangeBatch ConsumeMapPresentationChanges()
     {
         PROFILED_FUNCTION();
@@ -182,6 +234,7 @@ namespace OpenRCT2
             .surfaceWidth = surfaceWidth,
             .surfaceHeight = surfaceHeight,
         };
+        batch.terrainMaterials = CaptureTerrainMaterials(batch.epoch);
         const auto copyTile = [&batch](const uint32_t index, const uint32_t surfaceIndex) {
             const TileCoordsXY tilePos{ static_cast<int32_t>(index % kMaximumMapSizeTechnical),
                                         static_cast<int32_t>(index / kMaximumMapSizeTechnical) };
@@ -204,6 +257,24 @@ namespace OpenRCT2
                 return;
 
             const auto& surfaceElement = *surface->asSurface();
+            auto& terrain = change.surface.terrain;
+            terrain.baseZ = surfaceElement.getBaseZ();
+            terrain.surfaceSlot = surfaceElement.getSurfaceObjectIndex();
+            terrain.edgeSlot = surfaceElement.getEdgeObjectIndex();
+            terrain.slope = surfaceElement.getSlope();
+            terrain.grass = surfaceElement.getGrassLength() & 7;
+            const bool border = tilePos.x == 0 || tilePos.y == 0
+                || static_cast<uint32_t>(tilePos.x + 1) == batch.surfaceWidth
+                || static_cast<uint32_t>(tilePos.y + 1) == batch.surfaceHeight;
+            if (change.elements.size() == 1 && !surface->isGhost())
+            {
+                if (border && terrain.baseZ == 16 && terrain.slope == 0 && terrain.grass < 7)
+                    terrain.kind = 2;
+                else if (!border && (terrain.baseZ == 16 || terrain.baseZ == 32 || terrain.baseZ == 48 || terrain.baseZ == 64)
+                    && terrain.slope < 15 && terrain.grass < 7 && surfaceElement.getWaterHeight() == 0
+                    && surfaceElement.getParkFences() == 0 && !surfaceElement.hasTrackThatNeedsWater())
+                    terrain.kind = 1;
+            }
             const auto* surfaceObject = surfaceElement.getSurfaceObject();
             if (surfaceObject == nullptr)
                 return;
@@ -286,6 +357,7 @@ namespace OpenRCT2
             _surfaceBaselineZ = 0;
             _surfaceBaselineSet = false;
             _surfaceBlockingRecordCount = 0;
+            _terrainBlockingRecordCount = static_cast<uint32_t>(recordCount);
         }
 
         size_t activeChunkIndex = std::numeric_limits<size_t>::max();
@@ -335,8 +407,13 @@ namespace OpenRCT2
             }
             if (blocksIndependentBase(change.surface))
                 _surfaceBlockingRecordCount++;
+            if (surfaceRecord.terrain.kind != 0)
+                _terrainBlockingRecordCount++;
+            if (change.surface.terrain.kind != 0)
+                _terrainBlockingRecordCount--;
             surfaceRecord = change.surface;
         }
+        _terrainMaterials = batch.terrainMaterials;
         _epoch = batch.epoch;
     }
 

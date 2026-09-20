@@ -8,8 +8,6 @@ install(CODE "execute_process(COMMAND \"${CMAKE_COMMAND}\" -E create_symlink \"\
 
 set(test_files
     "${CMAKE_CURRENT_SOURCE_DIR}/ObjectDownloaderTests.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../src/openrct2-ui/drawing/engines/gpu/GpuTextureCache.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../src/openrct2-ui/drawing/engines/gpu/GpuTransparencyDepth.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/AssertHelpers.hpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/BitSetTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/CircularBuffer.cpp"
@@ -20,11 +18,27 @@ set(test_files
    "${CMAKE_CURRENT_SOURCE_DIR}/EnumMapTest.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/FormattingTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/GpuFoundationTests.cpp"
-   "${CMAKE_CURRENT_SOURCE_DIR}/VulkanRuntimeIntegrationTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/VulkanBackendContractTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/VulkanBalloonPipelineTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/VulkanOffscreenDeviceTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/VulkanOffscreenRenderTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/PublicationSnapshotParityTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/RetainedBalloonSceneTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/TerrainSurfaceRulesTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/TerrainPresentationBridgeTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/TerrainSurfaceEmissionTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/VulkanRetainedTerrainEmissionTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/VulkanRetainedTerrainDrawTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/VulkanTerrainCompletionTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/SpriteAssetDecoderTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/AssetMetadataCorpusParityTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/ImageImporterTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/IniReaderTest.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/IniWriterTest.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/JobPoolTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/RenderServiceTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/ScreenshotTilingTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/ViewportGenerationTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/MapPathTopologyTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/MapTopologyTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/LanguagePackTest.cpp"
@@ -52,28 +66,65 @@ set(test_files
    "${CMAKE_CURRENT_SOURCE_DIR}/TileElementsView.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/WidgetStateTests.cpp")
 
+# Windowed parity remains selected by default for GUI builds. A GUI-disabled
+# build can explicitly opt in, but must then provide SDL; the shared renderer never does.
+set(OPENRCT2_VULKAN_WINDOW_TESTS_DEFAULT ON)
+if (DISABLE_GUI)
+    set(OPENRCT2_VULKAN_WINDOW_TESTS_DEFAULT OFF)
+endif ()
+option(WITH_VULKAN_WINDOW_TESTS "Build SDL windowed Vulkan parity/lifecycle fixtures" ${OPENRCT2_VULKAN_WINDOW_TESTS_DEFAULT})
+if (WITH_VULKAN_WINDOW_TESTS)
+    list(APPEND test_files
+        "${CMAKE_CURRENT_SOURCE_DIR}/VulkanRuntimeIntegrationTests.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/VulkanParityTests.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/VulkanScalingParityTests.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/VulkanSceneParityTests.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/VulkanTtfParityTests.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/VulkanSpatialLightParityTests.cpp"
+    )
+else ()
+    message(STATUS "WINDOWED_PARITY_COVERAGE=disabled: SDL window fixtures are not compiled; this build cannot qualify full windowed parity")
+endif ()
+
 add_executable(OpenRCT2Tests ${test_files})
 add_executable(OpenRCT2::OpenRCT2Tests ALIAS OpenRCT2Tests)
 
-target_link_libraries(OpenRCT2Tests GTest::gtest GTest::gtest_main libopenrct2)
+target_link_libraries(OpenRCT2Tests GTest::gtest GTest::gtest_main libopenrct2 OpenRCT2::renderer)
 target_include_directories(OpenRCT2Tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../src")
+# Core spatial math remains tested without linking SDL audio implementations.
+if (DISABLE_GUI OR NOT WITH_VULKAN_WINDOW_TESTS)
+    target_compile_definitions(OpenRCT2Tests PRIVATE OPENRCT2_TEST_NO_UI_AUDIO)
+    message(STATUS "UI_AUDIO_COVERAGE=disabled: four SDL audio implementation tests are not compiled; core spatial audio tests remain enabled")
+endif ()
 if (OPENRCT2_VULKAN_ENABLED)
-    target_sources(OpenRCT2Tests PRIVATE ${OPENRCT2_VULKAN_BACKEND_SOURCES})
-    target_compile_definitions(OpenRCT2Tests PRIVATE ENABLE_VULKAN)
-    target_include_directories(OpenRCT2Tests SYSTEM PRIVATE ${Vulkan_INCLUDE_DIRS} ${SDL2_INCLUDE_DIRS})
-    target_link_libraries(OpenRCT2Tests Vulkan::Vulkan)
-    if (NOT MSVC AND NOT WIN32)
-        target_link_libraries(OpenRCT2Tests PkgConfig::SDL2)
-    else ()
-        target_link_libraries(OpenRCT2Tests ${SDL2_LDFLAGS})
+    # Backend symbols/SDK usage come from the single shared renderer owner.
+    add_dependencies(OpenRCT2Tests openrct2-vulkan-shaders)
+    if (WITH_VULKAN_WINDOW_TESTS)
+        if (MSVC)
+            find_package(SDL2 REQUIRED)
+        elseif (NOT WIN32)
+            PKG_CHECK_MODULES(SDL2 REQUIRED IMPORTED_TARGET sdl2)
+        else ()
+            find_path(SDL2_INCLUDE_DIRS SDL.h PATH_SUFFIXES SDL2 REQUIRED)
+            if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+                find_library(SDL2_LDFLAGS sdl2d REQUIRED)
+            else ()
+                find_library(SDL2_LDFLAGS sdl2 REQUIRED)
+            endif ()
+        endif ()
+        target_sources(OpenRCT2Tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../src/openrct2-ui/drawing/engines/vulkan/VulkanPlatform.cpp")
+        target_include_directories(OpenRCT2Tests SYSTEM PRIVATE ${SDL2_INCLUDE_DIRS})
         if (MSVC)
             target_link_libraries(OpenRCT2Tests SDL2::SDL2-static)
+        elseif (NOT WIN32)
+            target_link_libraries(OpenRCT2Tests PkgConfig::SDL2)
+        else ()
+            target_link_libraries(OpenRCT2Tests ${SDL2_LDFLAGS})
         endif ()
+        message(STATUS "WINDOWED_PARITY_COVERAGE=enabled: SDL windowed Vulkan fixtures are compiled")
     endif ()
-    add_dependencies(OpenRCT2Tests openrct2-vulkan-shaders)
 endif ()
 set_target_properties(OpenRCT2Tests PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 gtest_discover_tests(OpenRCT2Tests
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     DISCOVERY_MODE PRE_TEST)
-

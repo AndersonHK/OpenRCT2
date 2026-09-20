@@ -1,0 +1,804 @@
+{
+  "reviewer": "/root/decode_assets",
+  "date": "2026-09-19",
+  "fixtureVersion": 2,
+  "manuallyViewedImages": [
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-light-night-03/comparisons/light-paint-3/reference.png",
+      "sha256": "6083e533b1bfb6133d5d9c750152529e1a22cdc09dbf37354ec8bee8194a17d9"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-light-night-03/comparisons/light-paint-3/candidate.png",
+      "sha256": "6083e533b1bfb6133d5d9c750152529e1a22cdc09dbf37354ec8bee8194a17d9"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-light-night-03/comparisons/light-paint-3/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-light-night-03/comparisons/light-paint-4/reference.png",
+      "sha256": "6083e533b1bfb6133d5d9c750152529e1a22cdc09dbf37354ec8bee8194a17d9"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-light-night-03/comparisons/light-paint-4/candidate.png",
+      "sha256": "6083e533b1bfb6133d5d9c750152529e1a22cdc09dbf37354ec8bee8194a17d9"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-light-night-03/comparisons/light-paint-4/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-light-night-03/comparisons/light-paint-5/reference.png",
+      "sha256": "6083e533b1bfb6133d5d9c750152529e1a22cdc09dbf37354ec8bee8194a17d9"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-light-night-03/comparisons/light-paint-5/candidate.png",
+      "sha256": "6083e533b1bfb6133d5d9c750152529e1a22cdc09dbf37354ec8bee8194a17d9"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-light-night-03/comparisons/light-paint-5/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-light-night-03/comparisons/light-paint-6/reference.png",
+      "sha256": "6083e533b1bfb6133d5d9c750152529e1a22cdc09dbf37354ec8bee8194a17d9"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-light-night-03/comparisons/light-paint-6/candidate.png",
+      "sha256": "6083e533b1bfb6133d5d9c750152529e1a22cdc09dbf37354ec8bee8194a17d9"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-light-night-03/comparisons/light-paint-6/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-frozen-light-night-04/comparisons/light-paint-3/reference.png",
+      "sha256": "6083e533b1bfb6133d5d9c750152529e1a22cdc09dbf37354ec8bee8194a17d9"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-frozen-light-night-04/comparisons/light-paint-3/candidate.png",
+      "sha256": "6083e533b1bfb6133d5d9c750152529e1a22cdc09dbf37354ec8bee8194a17d9"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-frozen-light-night-04/comparisons/light-paint-3/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-frozen-light-night-04/comparisons/light-paint-4/reference.png",
+      "sha256": "6083e533b1bfb6133d5d9c750152529e1a22cdc09dbf37354ec8bee8194a17d9"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-frozen-light-night-04/comparisons/light-paint-4/candidate.png",
+      "sha256": "6083e533b1bfb6133d5d9c750152529e1a22cdc09dbf37354ec8bee8194a17d9"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-frozen-light-night-04/comparisons/light-paint-4/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-frozen-light-night-04/comparisons/light-paint-5/reference.png",
+      "sha256": "6083e533b1bfb6133d5d9c750152529e1a22cdc09dbf37354ec8bee8194a17d9"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-frozen-light-night-04/comparisons/light-paint-5/candidate.png",
+      "sha256": "6083e533b1bfb6133d5d9c750152529e1a22cdc09dbf37354ec8bee8194a17d9"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-frozen-light-night-04/comparisons/light-paint-5/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-frozen-light-night-04/comparisons/light-paint-6/reference.png",
+      "sha256": "6083e533b1bfb6133d5d9c750152529e1a22cdc09dbf37354ec8bee8194a17d9"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-frozen-light-night-04/comparisons/light-paint-6/candidate.png",
+      "sha256": "6083e533b1bfb6133d5d9c750152529e1a22cdc09dbf37354ec8bee8194a17d9"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-frozen-light-night-04/comparisons/light-paint-6/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    }
+  ],
+  "verifiedRuns": [
+    {
+      "run": "obj/vulkan-parity/ui-frozen-light-night-03",
+      "summarySha256": "71214e057d944f45ca51948ce09c8e40765e668c78d8ecfd050eeef60c0c5cb7",
+      "repeatScope": "paint ordinals only; fresh-process repeat still required",
+      "samples": [
+        {
+          "ordinal": 3,
+          "rgbaSha256": "7945ad096255d0a5850d19db4f5dfa052619a32a6067f7dc020b42732902f762",
+          "indexedSha256": "e47851fe01b173c34491076ffef2b63fd0ef04da6ddea36239e8a91fe6de30ea",
+          "lighting": {
+            "darkPaletteFnv1a64": 1243344898264867578,
+            "initialization": "startup-disabled; enable-after-load; explicit-same-size-resize; pin-inputs; full-palette-refresh; warmup",
+            "lightPaletteFnv1a64": 4573124237079475475,
+            "lightningFlash": 0,
+            "night": 1.0,
+            "paintOrdinal": 3,
+            "paletteEffectFrame": 0,
+            "source": "natural park paint sources; no harness light injection",
+            "temperature": 20,
+            "temporalContract": "Compare this paint ordinal across fresh processes; adjacent paints need not match",
+            "warmupPaints": 2,
+            "weatherLevel": 0,
+            "weatherType": 0
+          },
+          "lightFxCommands": null
+        },
+        {
+          "ordinal": 4,
+          "rgbaSha256": "7945ad096255d0a5850d19db4f5dfa052619a32a6067f7dc020b42732902f762",
+          "indexedSha256": "e47851fe01b173c34491076ffef2b63fd0ef04da6ddea36239e8a91fe6de30ea",
+          "lighting": {
+            "darkPaletteFnv1a64": 1243344898264867578,
+            "initialization": "startup-disabled; enable-after-load; explicit-same-size-resize; pin-inputs; full-palette-refresh; warmup",
+            "lightPaletteFnv1a64": 4573124237079475475,
+            "lightningFlash": 0,
+            "night": 1.0,
+            "paintOrdinal": 4,
+            "paletteEffectFrame": 0,
+            "source": "natural park paint sources; no harness light injection",
+            "temperature": 20,
+            "temporalContract": "Compare this paint ordinal across fresh processes; adjacent paints need not match",
+            "warmupPaints": 2,
+            "weatherLevel": 0,
+            "weatherType": 0
+          },
+          "lightFxCommands": null
+        },
+        {
+          "ordinal": 5,
+          "rgbaSha256": "7945ad096255d0a5850d19db4f5dfa052619a32a6067f7dc020b42732902f762",
+          "indexedSha256": "e47851fe01b173c34491076ffef2b63fd0ef04da6ddea36239e8a91fe6de30ea",
+          "lighting": {
+            "darkPaletteFnv1a64": 1243344898264867578,
+            "initialization": "startup-disabled; enable-after-load; explicit-same-size-resize; pin-inputs; full-palette-refresh; warmup",
+            "lightPaletteFnv1a64": 4573124237079475475,
+            "lightningFlash": 0,
+            "night": 1.0,
+            "paintOrdinal": 5,
+            "paletteEffectFrame": 0,
+            "source": "natural park paint sources; no harness light injection",
+            "temperature": 20,
+            "temporalContract": "Compare this paint ordinal across fresh processes; adjacent paints need not match",
+            "warmupPaints": 2,
+            "weatherLevel": 0,
+            "weatherType": 0
+          },
+          "lightFxCommands": null
+        },
+        {
+          "ordinal": 6,
+          "rgbaSha256": "7945ad096255d0a5850d19db4f5dfa052619a32a6067f7dc020b42732902f762",
+          "indexedSha256": "e47851fe01b173c34491076ffef2b63fd0ef04da6ddea36239e8a91fe6de30ea",
+          "lighting": {
+            "darkPaletteFnv1a64": 1243344898264867578,
+            "initialization": "startup-disabled; enable-after-load; explicit-same-size-resize; pin-inputs; full-palette-refresh; warmup",
+            "lightPaletteFnv1a64": 4573124237079475475,
+            "lightningFlash": 0,
+            "night": 1.0,
+            "paintOrdinal": 6,
+            "paletteEffectFrame": 0,
+            "source": "natural park paint sources; no harness light injection",
+            "temperature": 20,
+            "temporalContract": "Compare this paint ordinal across fresh processes; adjacent paints need not match",
+            "warmupPaints": 2,
+            "weatherLevel": 0,
+            "weatherType": 0
+          },
+          "lightFxCommands": null
+        }
+      ]
+    },
+    {
+      "run": "obj/vulkan-parity/ui-frozen-light-night-04",
+      "summarySha256": "bdcf6c12b744338c0ba959763a5e57720ce8cb9ac203ab0a5f21fd20f130a966",
+      "repeatScope": "fresh process against identical renderer build",
+      "samples": [
+        {
+          "ordinal": 3,
+          "rgbaSha256": "7945ad096255d0a5850d19db4f5dfa052619a32a6067f7dc020b42732902f762",
+          "indexedSha256": "e47851fe01b173c34491076ffef2b63fd0ef04da6ddea36239e8a91fe6de30ea",
+          "lighting": {
+            "darkPaletteFnv1a64": 1243344898264867578,
+            "initialization": "startup-disabled; enable-after-load; explicit-same-size-resize; pin-inputs; full-palette-refresh; warmup",
+            "lightPaletteFnv1a64": 4573124237079475475,
+            "lightningFlash": 0,
+            "night": 1.0,
+            "paintOrdinal": 3,
+            "paletteEffectFrame": 0,
+            "source": "natural park paint sources; no harness light injection",
+            "temperature": 20,
+            "temporalContract": "Compare this paint ordinal across fresh processes; adjacent paints need not match",
+            "warmupPaints": 2,
+            "weatherLevel": 0,
+            "weatherType": 0
+          },
+          "lightFxCommands": null
+        },
+        {
+          "ordinal": 4,
+          "rgbaSha256": "7945ad096255d0a5850d19db4f5dfa052619a32a6067f7dc020b42732902f762",
+          "indexedSha256": "e47851fe01b173c34491076ffef2b63fd0ef04da6ddea36239e8a91fe6de30ea",
+          "lighting": {
+            "darkPaletteFnv1a64": 1243344898264867578,
+            "initialization": "startup-disabled; enable-after-load; explicit-same-size-resize; pin-inputs; full-palette-refresh; warmup",
+            "lightPaletteFnv1a64": 4573124237079475475,
+            "lightningFlash": 0,
+            "night": 1.0,
+            "paintOrdinal": 4,
+            "paletteEffectFrame": 0,
+            "source": "natural park paint sources; no harness light injection",
+            "temperature": 20,
+            "temporalContract": "Compare this paint ordinal across fresh processes; adjacent paints need not match",
+            "warmupPaints": 2,
+            "weatherLevel": 0,
+            "weatherType": 0
+          },
+          "lightFxCommands": null
+        },
+        {
+          "ordinal": 5,
+          "rgbaSha256": "7945ad096255d0a5850d19db4f5dfa052619a32a6067f7dc020b42732902f762",
+          "indexedSha256": "e47851fe01b173c34491076ffef2b63fd0ef04da6ddea36239e8a91fe6de30ea",
+          "lighting": {
+            "darkPaletteFnv1a64": 1243344898264867578,
+            "initialization": "startup-disabled; enable-after-load; explicit-same-size-resize; pin-inputs; full-palette-refresh; warmup",
+            "lightPaletteFnv1a64": 4573124237079475475,
+            "lightningFlash": 0,
+            "night": 1.0,
+            "paintOrdinal": 5,
+            "paletteEffectFrame": 0,
+            "source": "natural park paint sources; no harness light injection",
+            "temperature": 20,
+            "temporalContract": "Compare this paint ordinal across fresh processes; adjacent paints need not match",
+            "warmupPaints": 2,
+            "weatherLevel": 0,
+            "weatherType": 0
+          },
+          "lightFxCommands": null
+        },
+        {
+          "ordinal": 6,
+          "rgbaSha256": "7945ad096255d0a5850d19db4f5dfa052619a32a6067f7dc020b42732902f762",
+          "indexedSha256": "e47851fe01b173c34491076ffef2b63fd0ef04da6ddea36239e8a91fe6de30ea",
+          "lighting": {
+            "darkPaletteFnv1a64": 1243344898264867578,
+            "initialization": "startup-disabled; enable-after-load; explicit-same-size-resize; pin-inputs; full-palette-refresh; warmup",
+            "lightPaletteFnv1a64": 4573124237079475475,
+            "lightningFlash": 0,
+            "night": 1.0,
+            "paintOrdinal": 6,
+            "paletteEffectFrame": 0,
+            "source": "natural park paint sources; no harness light injection",
+            "temperature": 20,
+            "temporalContract": "Compare this paint ordinal across fresh processes; adjacent paints need not match",
+            "warmupPaints": 2,
+            "weatherLevel": 0,
+            "weatherType": 0
+          },
+          "lightFxCommands": null
+        }
+      ]
+    },
+    {
+      "run": "obj/vulkan-parity/ui-current-light-night-03",
+      "summarySha256": "3740188ebf0678b588626e6997932eef284568e4bba548366e98bc28f07da51b",
+      "repeatScope": "paint ordinals only; fresh-process repeat still required",
+      "samples": [
+        {
+          "ordinal": 3,
+          "rgbaSha256": "7945ad096255d0a5850d19db4f5dfa052619a32a6067f7dc020b42732902f762",
+          "indexedSha256": "e47851fe01b173c34491076ffef2b63fd0ef04da6ddea36239e8a91fe6de30ea",
+          "lighting": {
+            "darkPaletteFnv1a64": 1243344898264867578,
+            "initialization": "startup-disabled; enable-after-load; explicit-same-size-resize; pin-inputs; full-palette-refresh; warmup",
+            "lightPaletteFnv1a64": 4573124237079475475,
+            "lightningFlash": 0,
+            "night": 1.0,
+            "paintOrdinal": 3,
+            "paletteEffectFrame": 0,
+            "source": "natural park paint sources; no harness light injection",
+            "temperature": 20,
+            "temporalContract": "Compare this paint ordinal across fresh processes; adjacent paints need not match",
+            "warmupPaints": 2,
+            "weatherLevel": 0,
+            "weatherType": 0
+          },
+          "lightFxCommands": null
+        },
+        {
+          "ordinal": 4,
+          "rgbaSha256": "7945ad096255d0a5850d19db4f5dfa052619a32a6067f7dc020b42732902f762",
+          "indexedSha256": "e47851fe01b173c34491076ffef2b63fd0ef04da6ddea36239e8a91fe6de30ea",
+          "lighting": {
+            "darkPaletteFnv1a64": 1243344898264867578,
+            "initialization": "startup-disabled; enable-after-load; explicit-same-size-resize; pin-inputs; full-palette-refresh; warmup",
+            "lightPaletteFnv1a64": 4573124237079475475,
+            "lightningFlash": 0,
+            "night": 1.0,
+            "paintOrdinal": 4,
+            "paletteEffectFrame": 0,
+            "source": "natural park paint sources; no harness light injection",
+            "temperature": 20,
+            "temporalContract": "Compare this paint ordinal across fresh processes; adjacent paints need not match",
+            "warmupPaints": 2,
+            "weatherLevel": 0,
+            "weatherType": 0
+          },
+          "lightFxCommands": null
+        },
+        {
+          "ordinal": 5,
+          "rgbaSha256": "7945ad096255d0a5850d19db4f5dfa052619a32a6067f7dc020b42732902f762",
+          "indexedSha256": "e47851fe01b173c34491076ffef2b63fd0ef04da6ddea36239e8a91fe6de30ea",
+          "lighting": {
+            "darkPaletteFnv1a64": 1243344898264867578,
+            "initialization": "startup-disabled; enable-after-load; explicit-same-size-resize; pin-inputs; full-palette-refresh; warmup",
+            "lightPaletteFnv1a64": 4573124237079475475,
+            "lightningFlash": 0,
+            "night": 1.0,
+            "paintOrdinal": 5,
+            "paletteEffectFrame": 0,
+            "source": "natural park paint sources; no harness light injection",
+            "temperature": 20,
+            "temporalContract": "Compare this paint ordinal across fresh processes; adjacent paints need not match",
+            "warmupPaints": 2,
+            "weatherLevel": 0,
+            "weatherType": 0
+          },
+          "lightFxCommands": null
+        },
+        {
+          "ordinal": 6,
+          "rgbaSha256": "7945ad096255d0a5850d19db4f5dfa052619a32a6067f7dc020b42732902f762",
+          "indexedSha256": "e47851fe01b173c34491076ffef2b63fd0ef04da6ddea36239e8a91fe6de30ea",
+          "lighting": {
+            "darkPaletteFnv1a64": 1243344898264867578,
+            "initialization": "startup-disabled; enable-after-load; explicit-same-size-resize; pin-inputs; full-palette-refresh; warmup",
+            "lightPaletteFnv1a64": 4573124237079475475,
+            "lightningFlash": 0,
+            "night": 1.0,
+            "paintOrdinal": 6,
+            "paletteEffectFrame": 0,
+            "source": "natural park paint sources; no harness light injection",
+            "temperature": 20,
+            "temporalContract": "Compare this paint ordinal across fresh processes; adjacent paints need not match",
+            "warmupPaints": 2,
+            "weatherLevel": 0,
+            "weatherType": 0
+          },
+          "lightFxCommands": null
+        }
+      ]
+    },
+    {
+      "run": "obj/vulkan-parity/ui-current-light-night-04",
+      "summarySha256": "4a8168f2d2121e97d21bda94d31a51281dd6946fa45b4b61c603e4946809a8c5",
+      "repeatScope": "fresh process against identical renderer build",
+      "samples": [
+        {
+          "ordinal": 3,
+          "rgbaSha256": "7945ad096255d0a5850d19db4f5dfa052619a32a6067f7dc020b42732902f762",
+          "indexedSha256": "e47851fe01b173c34491076ffef2b63fd0ef04da6ddea36239e8a91fe6de30ea",
+          "lighting": {
+            "darkPaletteFnv1a64": 1243344898264867578,
+            "initialization": "startup-disabled; enable-after-load; explicit-same-size-resize; pin-inputs; full-palette-refresh; warmup",
+            "lightPaletteFnv1a64": 4573124237079475475,
+            "lightningFlash": 0,
+            "night": 1.0,
+            "paintOrdinal": 3,
+            "paletteEffectFrame": 0,
+            "source": "natural park paint sources; no harness light injection",
+            "temperature": 20,
+            "temporalContract": "Compare this paint ordinal across fresh processes; adjacent paints need not match",
+            "warmupPaints": 2,
+            "weatherLevel": 0,
+            "weatherType": 0
+          },
+          "lightFxCommands": null
+        },
+        {
+          "ordinal": 4,
+          "rgbaSha256": "7945ad096255d0a5850d19db4f5dfa052619a32a6067f7dc020b42732902f762",
+          "indexedSha256": "e47851fe01b173c34491076ffef2b63fd0ef04da6ddea36239e8a91fe6de30ea",
+          "lighting": {
+            "darkPaletteFnv1a64": 1243344898264867578,
+            "initialization": "startup-disabled; enable-after-load; explicit-same-size-resize; pin-inputs; full-palette-refresh; warmup",
+            "lightPaletteFnv1a64": 4573124237079475475,
+            "lightningFlash": 0,
+            "night": 1.0,
+            "paintOrdinal": 4,
+            "paletteEffectFrame": 0,
+            "source": "natural park paint sources; no harness light injection",
+            "temperature": 20,
+            "temporalContract": "Compare this paint ordinal across fresh processes; adjacent paints need not match",
+            "warmupPaints": 2,
+            "weatherLevel": 0,
+            "weatherType": 0
+          },
+          "lightFxCommands": null
+        },
+        {
+          "ordinal": 5,
+          "rgbaSha256": "7945ad096255d0a5850d19db4f5dfa052619a32a6067f7dc020b42732902f762",
+          "indexedSha256": "e47851fe01b173c34491076ffef2b63fd0ef04da6ddea36239e8a91fe6de30ea",
+          "lighting": {
+            "darkPaletteFnv1a64": 1243344898264867578,
+            "initialization": "startup-disabled; enable-after-load; explicit-same-size-resize; pin-inputs; full-palette-refresh; warmup",
+            "lightPaletteFnv1a64": 4573124237079475475,
+            "lightningFlash": 0,
+            "night": 1.0,
+            "paintOrdinal": 5,
+            "paletteEffectFrame": 0,
+            "source": "natural park paint sources; no harness light injection",
+            "temperature": 20,
+            "temporalContract": "Compare this paint ordinal across fresh processes; adjacent paints need not match",
+            "warmupPaints": 2,
+            "weatherLevel": 0,
+            "weatherType": 0
+          },
+          "lightFxCommands": null
+        },
+        {
+          "ordinal": 6,
+          "rgbaSha256": "7945ad096255d0a5850d19db4f5dfa052619a32a6067f7dc020b42732902f762",
+          "indexedSha256": "e47851fe01b173c34491076ffef2b63fd0ef04da6ddea36239e8a91fe6de30ea",
+          "lighting": {
+            "darkPaletteFnv1a64": 1243344898264867578,
+            "initialization": "startup-disabled; enable-after-load; explicit-same-size-resize; pin-inputs; full-palette-refresh; warmup",
+            "lightPaletteFnv1a64": 4573124237079475475,
+            "lightningFlash": 0,
+            "night": 1.0,
+            "paintOrdinal": 6,
+            "paletteEffectFrame": 0,
+            "source": "natural park paint sources; no harness light injection",
+            "temperature": 20,
+            "temporalContract": "Compare this paint ordinal across fresh processes; adjacent paints need not match",
+            "warmupPaints": 2,
+            "weatherLevel": 0,
+            "weatherType": 0
+          },
+          "lightFxCommands": null
+        }
+      ]
+    },
+    {
+      "run": "obj/vulkan-parity/ui-vulkan-light-night-03",
+      "summarySha256": "e73532b5c82c0b641d6ddf50e8794df444377c36b6833d7598fc2c7ca55dcd69",
+      "repeatScope": "paint ordinals only; fresh-process repeat still required",
+      "samples": [
+        {
+          "ordinal": 3,
+          "rgbaSha256": "7945ad096255d0a5850d19db4f5dfa052619a32a6067f7dc020b42732902f762",
+          "indexedSha256": "e47851fe01b173c34491076ffef2b63fd0ef04da6ddea36239e8a91fe6de30ea",
+          "lighting": {
+            "darkPaletteFnv1a64": 1243344898264867578,
+            "initialization": "startup-disabled; enable-after-load; explicit-same-size-resize; pin-inputs; full-palette-refresh; warmup",
+            "lightPaletteFnv1a64": 4573124237079475475,
+            "lightningFlash": 0,
+            "night": 1.0,
+            "paintOrdinal": 3,
+            "paletteEffectFrame": 0,
+            "source": "natural park paint sources; no harness light injection",
+            "temperature": 20,
+            "temporalContract": "Compare this paint ordinal across fresh processes; adjacent paints need not match",
+            "warmupPaints": 2,
+            "weatherLevel": 0,
+            "weatherType": 0
+          },
+          "lightFxCommands": {
+            "commandFnv1a64": 2836593439978595784,
+            "count": 6,
+            "cpuIntensityAttached": false,
+            "lightPaletteFnv1a64": 4828772568644702067,
+            "typeHistogram": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              2,
+              4,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "ordinal": 4,
+          "rgbaSha256": "7945ad096255d0a5850d19db4f5dfa052619a32a6067f7dc020b42732902f762",
+          "indexedSha256": "e47851fe01b173c34491076ffef2b63fd0ef04da6ddea36239e8a91fe6de30ea",
+          "lighting": {
+            "darkPaletteFnv1a64": 1243344898264867578,
+            "initialization": "startup-disabled; enable-after-load; explicit-same-size-resize; pin-inputs; full-palette-refresh; warmup",
+            "lightPaletteFnv1a64": 4573124237079475475,
+            "lightningFlash": 0,
+            "night": 1.0,
+            "paintOrdinal": 4,
+            "paletteEffectFrame": 0,
+            "source": "natural park paint sources; no harness light injection",
+            "temperature": 20,
+            "temporalContract": "Compare this paint ordinal across fresh processes; adjacent paints need not match",
+            "warmupPaints": 2,
+            "weatherLevel": 0,
+            "weatherType": 0
+          },
+          "lightFxCommands": {
+            "commandFnv1a64": 6483248878311902136,
+            "count": 6,
+            "cpuIntensityAttached": false,
+            "lightPaletteFnv1a64": 4828772568644702067,
+            "typeHistogram": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              2,
+              4,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "ordinal": 5,
+          "rgbaSha256": "7945ad096255d0a5850d19db4f5dfa052619a32a6067f7dc020b42732902f762",
+          "indexedSha256": "e47851fe01b173c34491076ffef2b63fd0ef04da6ddea36239e8a91fe6de30ea",
+          "lighting": {
+            "darkPaletteFnv1a64": 1243344898264867578,
+            "initialization": "startup-disabled; enable-after-load; explicit-same-size-resize; pin-inputs; full-palette-refresh; warmup",
+            "lightPaletteFnv1a64": 4573124237079475475,
+            "lightningFlash": 0,
+            "night": 1.0,
+            "paintOrdinal": 5,
+            "paletteEffectFrame": 0,
+            "source": "natural park paint sources; no harness light injection",
+            "temperature": 20,
+            "temporalContract": "Compare this paint ordinal across fresh processes; adjacent paints need not match",
+            "warmupPaints": 2,
+            "weatherLevel": 0,
+            "weatherType": 0
+          },
+          "lightFxCommands": {
+            "commandFnv1a64": 6483248878311902136,
+            "count": 6,
+            "cpuIntensityAttached": false,
+            "lightPaletteFnv1a64": 4828772568644702067,
+            "typeHistogram": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              2,
+              4,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "ordinal": 6,
+          "rgbaSha256": "7945ad096255d0a5850d19db4f5dfa052619a32a6067f7dc020b42732902f762",
+          "indexedSha256": "e47851fe01b173c34491076ffef2b63fd0ef04da6ddea36239e8a91fe6de30ea",
+          "lighting": {
+            "darkPaletteFnv1a64": 1243344898264867578,
+            "initialization": "startup-disabled; enable-after-load; explicit-same-size-resize; pin-inputs; full-palette-refresh; warmup",
+            "lightPaletteFnv1a64": 4573124237079475475,
+            "lightningFlash": 0,
+            "night": 1.0,
+            "paintOrdinal": 6,
+            "paletteEffectFrame": 0,
+            "source": "natural park paint sources; no harness light injection",
+            "temperature": 20,
+            "temporalContract": "Compare this paint ordinal across fresh processes; adjacent paints need not match",
+            "warmupPaints": 2,
+            "weatherLevel": 0,
+            "weatherType": 0
+          },
+          "lightFxCommands": {
+            "commandFnv1a64": 6483248878311902136,
+            "count": 6,
+            "cpuIntensityAttached": false,
+            "lightPaletteFnv1a64": 4828772568644702067,
+            "typeHistogram": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              2,
+              4,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "run": "obj/vulkan-parity/ui-vulkan-light-night-04",
+      "summarySha256": "d79f13ae102ae695d065df1cd2e32455ad1a03cb301daaa08525a834ca9d5ca3",
+      "repeatScope": "fresh process against identical renderer build",
+      "samples": [
+        {
+          "ordinal": 3,
+          "rgbaSha256": "7945ad096255d0a5850d19db4f5dfa052619a32a6067f7dc020b42732902f762",
+          "indexedSha256": "e47851fe01b173c34491076ffef2b63fd0ef04da6ddea36239e8a91fe6de30ea",
+          "lighting": {
+            "darkPaletteFnv1a64": 1243344898264867578,
+            "initialization": "startup-disabled; enable-after-load; explicit-same-size-resize; pin-inputs; full-palette-refresh; warmup",
+            "lightPaletteFnv1a64": 4573124237079475475,
+            "lightningFlash": 0,
+            "night": 1.0,
+            "paintOrdinal": 3,
+            "paletteEffectFrame": 0,
+            "source": "natural park paint sources; no harness light injection",
+            "temperature": 20,
+            "temporalContract": "Compare this paint ordinal across fresh processes; adjacent paints need not match",
+            "warmupPaints": 2,
+            "weatherLevel": 0,
+            "weatherType": 0
+          },
+          "lightFxCommands": {
+            "commandFnv1a64": 2836593439978595784,
+            "count": 6,
+            "cpuIntensityAttached": false,
+            "lightPaletteFnv1a64": 4828772568644702067,
+            "typeHistogram": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              2,
+              4,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "ordinal": 4,
+          "rgbaSha256": "7945ad096255d0a5850d19db4f5dfa052619a32a6067f7dc020b42732902f762",
+          "indexedSha256": "e47851fe01b173c34491076ffef2b63fd0ef04da6ddea36239e8a91fe6de30ea",
+          "lighting": {
+            "darkPaletteFnv1a64": 1243344898264867578,
+            "initialization": "startup-disabled; enable-after-load; explicit-same-size-resize; pin-inputs; full-palette-refresh; warmup",
+            "lightPaletteFnv1a64": 4573124237079475475,
+            "lightningFlash": 0,
+            "night": 1.0,
+            "paintOrdinal": 4,
+            "paletteEffectFrame": 0,
+            "source": "natural park paint sources; no harness light injection",
+            "temperature": 20,
+            "temporalContract": "Compare this paint ordinal across fresh processes; adjacent paints need not match",
+            "warmupPaints": 2,
+            "weatherLevel": 0,
+            "weatherType": 0
+          },
+          "lightFxCommands": {
+            "commandFnv1a64": 6483248878311902136,
+            "count": 6,
+            "cpuIntensityAttached": false,
+            "lightPaletteFnv1a64": 4828772568644702067,
+            "typeHistogram": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              2,
+              4,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "ordinal": 5,
+          "rgbaSha256": "7945ad096255d0a5850d19db4f5dfa052619a32a6067f7dc020b42732902f762",
+          "indexedSha256": "e47851fe01b173c34491076ffef2b63fd0ef04da6ddea36239e8a91fe6de30ea",
+          "lighting": {
+            "darkPaletteFnv1a64": 1243344898264867578,
+            "initialization": "startup-disabled; enable-after-load; explicit-same-size-resize; pin-inputs; full-palette-refresh; warmup",
+            "lightPaletteFnv1a64": 4573124237079475475,
+            "lightningFlash": 0,
+            "night": 1.0,
+            "paintOrdinal": 5,
+            "paletteEffectFrame": 0,
+            "source": "natural park paint sources; no harness light injection",
+            "temperature": 20,
+            "temporalContract": "Compare this paint ordinal across fresh processes; adjacent paints need not match",
+            "warmupPaints": 2,
+            "weatherLevel": 0,
+            "weatherType": 0
+          },
+          "lightFxCommands": {
+            "commandFnv1a64": 6483248878311902136,
+            "count": 6,
+            "cpuIntensityAttached": false,
+            "lightPaletteFnv1a64": 4828772568644702067,
+            "typeHistogram": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              2,
+              4,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "ordinal": 6,
+          "rgbaSha256": "7945ad096255d0a5850d19db4f5dfa052619a32a6067f7dc020b42732902f762",
+          "indexedSha256": "e47851fe01b173c34491076ffef2b63fd0ef04da6ddea36239e8a91fe6de30ea",
+          "lighting": {
+            "darkPaletteFnv1a64": 1243344898264867578,
+            "initialization": "startup-disabled; enable-after-load; explicit-same-size-resize; pin-inputs; full-palette-refresh; warmup",
+            "lightPaletteFnv1a64": 4573124237079475475,
+            "lightningFlash": 0,
+            "night": 1.0,
+            "paintOrdinal": 6,
+            "paletteEffectFrame": 0,
+            "source": "natural park paint sources; no harness light injection",
+            "temperature": 20,
+            "temporalContract": "Compare this paint ordinal across fresh processes; adjacent paints need not match",
+            "warmupPaints": 2,
+            "weatherLevel": 0,
+            "weatherType": 0
+          },
+          "lightFxCommands": {
+            "commandFnv1a64": 6483248878311902136,
+            "count": 6,
+            "cpuIntensityAttached": false,
+            "lightPaletteFnv1a64": 4828772568644702067,
+            "typeHistogram": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              2,
+              4,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "independentByteCheck": "All24 frames equal corresponding frozen03 indexed and RGBA bytes; entire lighting metadata equal"
+}

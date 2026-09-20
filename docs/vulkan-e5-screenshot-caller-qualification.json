@@ -1,0 +1,209 @@
+{
+  "status": "pass",
+  "scope": "E5 diagnostic-injected actual bounded screenshot caller, main-window regressions, fresh no-window runtime and SDL-free renderer compilation; production composition is the next unqualified stage.",
+  "fullSuite": {
+    "path": "obj/vulkan-parity/run-37/summary.json",
+    "sha256": "3ae9f7a6049dc96c5e1717d9509f4dc1866048f67e2ad6bf8fbb12038a42e047",
+    "status": "pass"
+  },
+  "cliBuild": {
+    "path": "obj/vulkan-parity/e5-cli-build-02/receipt.json",
+    "sha256": "7b1227582074aa8bf70d7e274313bad24a62c714771f0d6f3ead3db1a3de27bc",
+    "status": "pass"
+  },
+  "cliLifecycle": {
+    "path": "obj/vulkan-parity/e5-cli-lifecycle-01/summary.json",
+    "sha256": "30b0bb7c1a409f475e9619a0eeaf3e363b765e583c4c93016f85621a140a8545",
+    "status": "pass"
+  },
+  "cliCaptureCount": 128,
+  "cliRuns": [
+    {
+      "path": "obj/vulkan-parity/e5-software-cli-scenes-01/summary.json",
+      "sha256": "2cbaf2d6a1703f3ecba4f1fcccc8456cbc8483eba7d9eded43886818a57ab2a2",
+      "status": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/e5-software-cli-scenes-02/summary.json",
+      "sha256": "0b5b76f76cf782cf54adc97d6f05a313735dabed0f266a8006bf4039b4dfab43",
+      "status": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/e5-vulkan-cli-scenes-02/summary.json",
+      "sha256": "e01a766013986c0f000268792dc35f76b954a16cc49ebae07c9062e4ffc2757e",
+      "status": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/e5-vulkan-cli-scenes-03/summary.json",
+      "sha256": "c6b9d37319e1d22ee8c3ecc294efdeb495254c9e6f956127e236228122260b83",
+      "status": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/e5-software-cli-background-01/summary.json",
+      "sha256": "5728f8c95744451e8362a43a52c7090f5ddc42ced939db5e12bcc9acb72c727a",
+      "status": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/e5-software-cli-background-02/summary.json",
+      "sha256": "ad052f013ee1c1c2dce9516aef965bb4f84b385948cbad0c7eaf7e423b19696e",
+      "status": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/e5-vulkan-cli-background-01/summary.json",
+      "sha256": "ffe0107e6887f6d8b13795b2f52aeb789cb37a17e6f729a4bc299cfb2a6f39e0",
+      "status": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/e5-vulkan-cli-background-02/summary.json",
+      "sha256": "b5fea15ec014c0545ef870a1f08044d6085c2b77e62077bbf3dd773f30c0846a",
+      "status": "pass"
+    }
+  ],
+  "mainWindowCaptureCount": 91,
+  "windowedRuns": [
+    {
+      "path": "obj/vulkan-parity/ui-e5-vulkan-balloon-v2-overlap-incremental-01/summary.json",
+      "sha256": "d9b7a829d9abf1c21d710c83c7bf82e9d0194a169df1515d3e1e35578222d25d",
+      "status": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e5-vulkan-baseline-01/summary.json",
+      "sha256": "6cd36c1dd18283f2f6672b419e6ae62830a0a3cbe97830fff67381f7cd67a58c",
+      "status": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e5-vulkan-everything-saved-01/summary.json",
+      "sha256": "e283e04f8ebf971d5cc134b685d0051c73cabfc285ce5071255c5eb80e1b9978",
+      "status": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e5-vulkan-font-ttf-arial-hinted-scale125-01/summary.json",
+      "sha256": "e71c52c0bd9f4aa40af95ad7b5bf962ebd3b5187d551a6ec61f8404b07bfce45",
+      "status": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e5-vulkan-font-ttf-arial-hinted-scale150-01/summary.json",
+      "sha256": "8953ab57c2341c027c78b8e613b4daa1a3aec6fdf38bb94727fd24d3607ca537",
+      "status": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e5-vulkan-font-ttf-arial-hinted-scale200-01/summary.json",
+      "sha256": "7f597b6beb53f47acc87f41451b100253531724c2ef509f4300c65a64853efa3",
+      "status": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e5-vulkan-light-night-01/summary.json",
+      "sha256": "0c704cfe2401d4bc612b936a57d1cbfc7faccd997f639b9a92230bdcce3a5bf8",
+      "status": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e5-vulkan-overlap-01/summary.json",
+      "sha256": "3152b83c4932b845b2fc908d0713bb46ec65d7ad966873f74974a7abd8929618",
+      "status": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e5-vulkan-scroll-01/summary.json",
+      "sha256": "29d1ea920e2ebf5561c4aef4912f752ef3b8b4f5115837209cf34caa07974e6b",
+      "status": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e5-vulkan-text-01/summary.json",
+      "sha256": "73de6cac46142241effd2d2f90620c8eaf16f694c17b34cee98a631dc1b83e3d",
+      "status": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e5-vulkan-weather-palette-01/summary.json",
+      "sha256": "0f1596bd7e57e7366bd540e284c6980578ab65b91c90784821e52f2dfe2fe898",
+      "status": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e5-vulkan-weather-precipitation-01/summary.json",
+      "sha256": "3ac35f21148ab2a12c4854e092877f57af445fb0df65c4c81f4fa291eb3f07f3",
+      "status": "pass"
+    }
+  ],
+  "renewedNativeBalloonCaptureCount": 52,
+  "nativeBalloonRuns": [
+    {
+      "path": "obj/vulkan-parity/ui-e5-native-balloon-baseline-01/summary.json",
+      "sha256": "d01c2a92f9f63c425ab2f597993199dd229e11cf87566d61eb1d02ace0bf6e9c",
+      "status": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e5-native-balloon-baseline-02/summary.json",
+      "sha256": "6db4af613b1c1d367cf4c9b181bc4cbb096bc2d34ec07a3f61ee59b560e51ac6",
+      "status": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e5-native-balloon-overlap-01/summary.json",
+      "sha256": "854f3fcb6ce5d268e479be1b1706f5510c0a8902611297ca320628a89bb451e3",
+      "status": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e5-native-balloon-overlap-02/summary.json",
+      "sha256": "06e2817da0c7a908a68ebbfec178b880e7d7954db2db06fad93c1f5cee86162c",
+      "status": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e5-native-balloon-overlap-incremental-01/summary.json",
+      "sha256": "c27399444bc712a131712049e4b430344fd4c35dab5b6fd01800cd558db6adb8",
+      "status": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e5-native-balloon-overlap-incremental-02/summary.json",
+      "sha256": "2cb6081bd5ef8d7a4654d9872a98ee2a841893446063f9068f6843c924c5c125",
+      "status": "pass"
+    }
+  ],
+  "noWindowBuild": {
+    "path": "obj/vulkan-parity/e5-no-window-08/receipt.json",
+    "sha256": "a65445f0f3d7b9d598321630f0916a54c87ea03cd34cb80382155f9a3c1a2295",
+    "status": "pass"
+  },
+  "noWindowOffscreen": {
+    "path": "obj/vulkan-parity/e5-no-window-offscreen-01/summary.json",
+    "sha256": "7d57b9e4c3ba8b4de9668126e4c5b8a1e6b9d81c1d501037732c543d403c851c",
+    "status": "pass"
+  },
+  "noWindowTerrainRules": {
+    "path": "obj/vulkan-parity/e5-no-window-terrain-rules-01/summary.json",
+    "sha256": "a51efe788bf0bb44a85c7b5960ef5709c4660e090b63683500f6cf72421daa53",
+    "status": "pass"
+  },
+  "sdlFreeCompile": {
+    "path": "obj/vulkan-parity/e5-sdl-free-cmake-05/qualification.json",
+    "sha256": "9afbbae24b57a1a930b1e5604106a0e0d2f5681219ce454507212e57a5a181ea",
+    "status": "pass"
+  },
+  "cliVisualReview": {
+    "path": "docs/vulkan-cli-screenshot-visual-review.json",
+    "sha256": "742616e738c4177bc5861808412a75d1d5ae470ecfbe3b1a7dc57c6e3dffaaaf"
+  },
+  "terrainDepthVisualReview": {
+    "path": "docs/vulkan-terrain-depth-corrected-review.json",
+    "sha256": "91b377b518e8b838e1cd8e824fd1cb16cb0434f2f769ca143e02a0556bec99a4"
+  },
+  "limitations": [
+    "Giant/tiling, native auxiliary scenes, nested/LightFX requests remain unsupported in this bounded service.",
+    "Production entry-point wiring and actual shared WSI owner lifecycle not qualified here.",
+    "Global parity, retained-world coverage, sustained VSync/CPU/bandwidth/TPS and software removal remain open."
+  ],
+  "preservedFailures": [
+    {
+      "path": "obj/vulkan-parity/e5-cli-build-01/receipt.json",
+      "sha256": "83952c3e6fd91860dc37f55480179cde652c22f626c3e53db1942a55d9fc1c42"
+    },
+    {
+      "path": "obj/vulkan-parity/e5-vulkan-cli-scenes-01/summary.json",
+      "sha256": "bd394e5a99874ca4b3264ecfe1fbc159a951f7de081624fb648a82cf83814146"
+    },
+    {
+      "path": "obj/vulkan-parity/e5-sdl-free-cmake-04/qualification.json",
+      "sha256": "43f10c2bfc1b0d0b51b3d2a86c3dda951a25e02ecfd2be8feea0a8ad7ef69d34"
+    }
+  ],
+  "nativeBalloonVisualReview": {
+    "path": "docs/vulkan-native-category-corrected-review.json",
+    "sha256": "b0afc331a215b7dff3f3d2b1e419b41281b8d17b94a421e97b40104eecd50e74"
+  }
+}

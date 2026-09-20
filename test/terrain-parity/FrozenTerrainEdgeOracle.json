@@ -1,0 +1,84 @@
+{
+  "schema": 1,
+  "frozenCommit": "9a092745f38a714cf33629aaa005d078d473e48b",
+  "scope": "Unmodified source fragments; only drawing-call interception macros surround side functions. No source tests or GPU execution claimed.",
+  "fragments": [
+    {
+      "source": "obj/vulkan-parity/oracle-ui-source-02/src/openrct2/paint/tile_element/Paint.Surface.cpp",
+      "sourceSha256": "a7c12f66481b3f4588cde42a2a8b031d0fec775dd440f430ec589d0bf3e0c7c4",
+      "start": "static constexpr uint8_t Byte97B444[]",
+      "endBefore": "// clang-format off",
+      "fragmentSha256": "89c4c98d138b800e194c118f468dd6a14397edb873328dafb1efe3def2a5ddab"
+    },
+    {
+      "source": "obj/vulkan-parity/oracle-ui-source-02/src/openrct2/paint/tile_element/Paint.Surface.cpp",
+      "sourceSha256": "a7c12f66481b3f4588cde42a2a8b031d0fec775dd440f430ec589d0bf3e0c7c4",
+      "start": "struct TunnelDescriptor",
+      "endBefore": "// clang-format on",
+      "fragmentSha256": "876215a0c3000cd48451eead73621bffb7ed27f27c327fa5df63f55a539ff243"
+    },
+    {
+      "source": "obj/vulkan-parity/oracle-ui-source-02/src/openrct2/paint/tile_element/Paint.Surface.cpp",
+      "sourceSha256": "a7c12f66481b3f4588cde42a2a8b031d0fec775dd440f430ec589d0bf3e0c7c4",
+      "start": "struct TileDescriptor",
+      "endBefore": "struct TileSurfaceBoundaryData",
+      "fragmentSha256": "7a0d12733a2e36feb0162d5b1f34b56c9b87cf80659f72cec28b936eea89ffe4"
+    },
+    {
+      "source": "obj/vulkan-parity/oracle-ui-source-02/src/openrct2/world/tile_element/Slope.cpp",
+      "sourceSha256": "f47967a0fde8355528da7e9cc980c9181b75602811b2e04f0c7077d31cf76b8a",
+      "start": "    static constexpr std::array<SlopeRelativeCornerHeights",
+      "endBefore": "    TileCornersZ GetSlopeCornerHeights",
+      "fragmentSha256": "9f64ecccc818b1ddc878b6d52168de693f1bf98bc98d1e98937f158b256ebe1e"
+    },
+    {
+      "source": "obj/vulkan-parity/oracle-ui-source-02/src/openrct2/paint/Paint.cpp",
+      "sourceSha256": "be3abe83eb4c4dbb1d33c9b18d9ac11323ebaf761d4b67d4e5048934d1373ff5",
+      "start": "bool PaintAttachToPreviousPS(",
+      "endBefore": "\n/**",
+      "fragmentSha256": "139ce3942bdccaca7b32afe9cb17a293c22c63b3faeeae57a4ca22fa03d93bfb"
+    },
+    {
+      "source": "obj/vulkan-parity/oracle-ui-source-02/src/openrct2/paint/tile_element/Paint.Surface.cpp",
+      "sourceSha256": "a7c12f66481b3f4588cde42a2a8b031d0fec775dd440f430ec589d0bf3e0c7c4",
+      "start": "static ImageId GetEdgeImageWithOffset",
+      "endBefore": "/**",
+      "fragmentSha256": "a61ac71a1e6c0b17eba96a74eb1e5d9a3315b94bafac8bc173dc7532397e4817"
+    },
+    {
+      "source": "obj/vulkan-parity/oracle-ui-source-02/src/openrct2/paint/tile_element/Paint.Surface.cpp",
+      "sourceSha256": "a7c12f66481b3f4588cde42a2a8b031d0fec775dd440f430ec589d0bf3e0c7c4",
+      "start": "static bool TileIsInsideClipView",
+      "endBefore": "static std::pair<int32_t, int32_t> SurfaceGetHeightAboveWater",
+      "fragmentSha256": "04abc622ce5bdcbfce2300c74eaf529d8097035540ae8b3664d26b0e23aecbb7"
+    },
+    {
+      "source": "obj/vulkan-parity/oracle-ui-source-02/src/openrct2/paint/tile_element/Paint.Surface.cpp",
+      "sourceSha256": "a7c12f66481b3f4588cde42a2a8b031d0fec775dd440f430ec589d0bf3e0c7c4",
+      "start": "        ViewportSurfaceDrawTileSideTop(session, EDGE_TOPLEFT, height, edgeObject, selfDescriptor, tileDescriptors[2], false);",
+      "endBefore": "    }",
+      "fragmentSha256": "4909d7782e68f28b9e602e2de609a6e2b6b01931dc6504edeb9f6a9ae832514d"
+    }
+  ],
+  "sourceCommitChecks": [
+    {
+      "source": "obj/vulkan-parity/oracle-ui-source-02/src/openrct2/paint/Paint.cpp",
+      "frozenGitBlobSha256": "8ab506cdd14095028bfdeed7bf86c7587d9b9ae0e5a092418440940a2a66d891",
+      "checkedOutSha256": "be3abe83eb4c4dbb1d33c9b18d9ac11323ebaf761d4b67d4e5048934d1373ff5",
+      "equalAfterCRLFNormalization": true
+    },
+    {
+      "source": "obj/vulkan-parity/oracle-ui-source-02/src/openrct2/paint/tile_element/Paint.Surface.cpp",
+      "frozenGitBlobSha256": "0ed083345089b0fd61e01076262419eae411d76132dcfdee4f1998261a56d7bc",
+      "checkedOutSha256": "a7c12f66481b3f4588cde42a2a8b031d0fec775dd440f430ec589d0bf3e0c7c4",
+      "equalAfterCRLFNormalization": true
+    },
+    {
+      "source": "obj/vulkan-parity/oracle-ui-source-02/src/openrct2/world/tile_element/Slope.cpp",
+      "frozenGitBlobSha256": "b70f762e15da1f15fce82e5e4d36ad41d7bd323192f0b0724c136ce3fd20f3a9",
+      "checkedOutSha256": "f47967a0fde8355528da7e9cc980c9181b75602811b2e04f0c7077d31cf76b8a",
+      "equalAfterCRLFNormalization": true
+    }
+  ],
+  "oracleArtifactSha256": "c70ecba6331ea59b06641acfcd28ebca742484eb673208204e56cb53f51dec6f"
+}

@@ -1,0 +1,3165 @@
+{
+  "schema": 1,
+  "status": "pass",
+  "reviewedRuns": [
+    "production-cli-software-background-01",
+    "production-cli-software-background-02",
+    "production-cli-vulkan-background-01",
+    "production-cli-vulkan-background-02",
+    "production-cli-software-lifecycle-02",
+    "production-cli-vulkan-lifecycle-02"
+  ],
+  "inputAudit": {
+    "uniqueFilesRehashed": 35460,
+    "allHashesMatched": true,
+    "inputMembershipAndStabilityReceipts": "Each accepted summary pins its complete before/after input inventory; summaries are bound in this review."
+  },
+  "captures": [
+    {
+      "path": "obj/vulkan-parity/production-cli-software-background-01",
+      "summarySha256": "279d242a3b7e3d16d94b64fac58c42321ffdf7de5aa087d83815f4d8b0f24a2e",
+      "renderer": "software",
+      "freshRepeat": false,
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-cli-build-03\\receipt.json",
+        "sha256": "ffa3852c8b257b11f90f767b6b8ff83e1a856efa80773ca4d5cb5a4660ca249f"
+      },
+      "shaderBuildReceipt": null,
+      "shaderSha256": {},
+      "installedDataFileCount": 4694,
+      "installedDataVerification": "All summary-pinned files independently rehashed; final inventory equals frozen data plus qualified shaders",
+      "cases": [
+        {
+          "name": "ordinary-r0z0",
+          "images": {
+            "rgba.bin": "f90b2f6435877ebdc9226618f325d773e526601c9efee5214d4d542853f69081",
+            "indexed.bin": "762b2d460a15e053c6be66dfd6e419f3909e0095f36bca2550bd8ebad1918fc7",
+            "screen.png": "c83f66b7843a70fd9ad659d0f9aa64a65e6204a89d5da6ba0a0c40997405dc18",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "4ccf58d4fc6896189223ec084a6dc2c9f225e31decc5c75b59a22b1472e4e0a3",
+          "diagnosticArtifacts": {
+            "report.json": "d5e91bf2b1a51af1c4fb455836025dc97d9a5cca89df003da140930cd738fbbf"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 0,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 0,
+                "enabled": false
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": false
+          },
+          "serviceCreations": 0,
+          "deviceCreations": 0,
+          "assetState": null,
+          "validationActivated": null,
+          "logSha256": "404597be18ebf29f8e1177e956189e92940798b97931c37d3f75ed1886e3cc40"
+        },
+        {
+          "name": "ordinary-r1z0",
+          "images": {
+            "rgba.bin": "636625eef2e155c5cc762a969976219dcb4c9e0d3671934cd5fc0d16d11b91cb",
+            "indexed.bin": "2b86caa1c57833653bc261f6082ccd9a01bad4136b6ecffa3d0b8b1a2346216a",
+            "screen.png": "4c2c0f45f740a7a10d357c7216795defd07bece5aee2f1b16b56d55562672550",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "4ccf58d4fc6896189223ec084a6dc2c9f225e31decc5c75b59a22b1472e4e0a3",
+          "diagnosticArtifacts": {
+            "report.json": "d5e91bf2b1a51af1c4fb455836025dc97d9a5cca89df003da140930cd738fbbf"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 0,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 0,
+                "enabled": false
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": false
+          },
+          "serviceCreations": 0,
+          "deviceCreations": 0,
+          "assetState": null,
+          "validationActivated": null,
+          "logSha256": "b6484263e5cfaaba4164c9e06769d7406ca6b8a6f5aa074d09fb940908e010a1"
+        },
+        {
+          "name": "ordinary-r2z0",
+          "images": {
+            "rgba.bin": "2b882b5a768866eaae03510aeec7e853fb39bab44c3ee6cf16aa909499f95c00",
+            "indexed.bin": "b63ab3ee4f425843f9d8e30bbadf782e73d85585ec5f765f44544b522833d049",
+            "screen.png": "644ba6ba79483ed61dcd227666c7b4d6cf207621f43d52acf6ac86bfbbcade50",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "4ccf58d4fc6896189223ec084a6dc2c9f225e31decc5c75b59a22b1472e4e0a3",
+          "diagnosticArtifacts": {
+            "report.json": "d5e91bf2b1a51af1c4fb455836025dc97d9a5cca89df003da140930cd738fbbf"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 0,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 0,
+                "enabled": false
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": false
+          },
+          "serviceCreations": 0,
+          "deviceCreations": 0,
+          "assetState": null,
+          "validationActivated": null,
+          "logSha256": "b6484263e5cfaaba4164c9e06769d7406ca6b8a6f5aa074d09fb940908e010a1"
+        },
+        {
+          "name": "ordinary-r3z0",
+          "images": {
+            "rgba.bin": "598993f2bff40ae13d8b5c3cde4c1e0d0fe4dbf8d7811eb4d731227ed634cd5c",
+            "indexed.bin": "e825b18ed5e8fc27fd8afe739419d00ccd775c5a3eb444e472c30714c288059e",
+            "screen.png": "d00c35d2d43c12a7eed63a5e62f0e3780afe1cc31c5588901278f0cd0bf93a88",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "4ccf58d4fc6896189223ec084a6dc2c9f225e31decc5c75b59a22b1472e4e0a3",
+          "diagnosticArtifacts": {
+            "report.json": "d5e91bf2b1a51af1c4fb455836025dc97d9a5cca89df003da140930cd738fbbf"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 0,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 0,
+                "enabled": false
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": false
+          },
+          "serviceCreations": 0,
+          "deviceCreations": 0,
+          "assetState": null,
+          "validationActivated": null,
+          "logSha256": "9c82dabf56c756bcaf7fbfec14acec15fef82cd2a2d85b7d9f53861a33d58f23"
+        },
+        {
+          "name": "ordinary-r0z1",
+          "images": {
+            "rgba.bin": "989261aade4c902ef1531a3313103fea69c4d1aff9b3ae526fbb6f7885ef197c",
+            "indexed.bin": "3ebc54d5ea74c2063cb8b99f62287d5059e03333f6c4c5a10d71ecdd314afe75",
+            "screen.png": "6e260758afe342951ad356552c82090f27d32626013f022cd7a98e9168cc8204",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "4ccf58d4fc6896189223ec084a6dc2c9f225e31decc5c75b59a22b1472e4e0a3",
+          "diagnosticArtifacts": {
+            "report.json": "d5e91bf2b1a51af1c4fb455836025dc97d9a5cca89df003da140930cd738fbbf"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 0,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 0,
+                "enabled": false
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": false
+          },
+          "serviceCreations": 0,
+          "deviceCreations": 0,
+          "assetState": null,
+          "validationActivated": null,
+          "logSha256": "b6484263e5cfaaba4164c9e06769d7406ca6b8a6f5aa074d09fb940908e010a1"
+        },
+        {
+          "name": "ordinary-r1z1",
+          "images": {
+            "rgba.bin": "58194e2c961276495774aa7e67defe88d5e435143d3e4375e73ee1acc75dd0d7",
+            "indexed.bin": "c28443574dac7697de60110fe09aba00f92dad7e2b938dbd0e5fea815af2c2c7",
+            "screen.png": "f57d547feb7efdc108cd007cb03a645bd6e798289b383d4a1f929bc3f5dc502d",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "4ccf58d4fc6896189223ec084a6dc2c9f225e31decc5c75b59a22b1472e4e0a3",
+          "diagnosticArtifacts": {
+            "report.json": "d5e91bf2b1a51af1c4fb455836025dc97d9a5cca89df003da140930cd738fbbf"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 0,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 0,
+                "enabled": false
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": false
+          },
+          "serviceCreations": 0,
+          "deviceCreations": 0,
+          "assetState": null,
+          "validationActivated": null,
+          "logSha256": "404597be18ebf29f8e1177e956189e92940798b97931c37d3f75ed1886e3cc40"
+        },
+        {
+          "name": "ordinary-r2z1",
+          "images": {
+            "rgba.bin": "330a39b6b8df2e4aa7aa04e8d9e80a6e0156a6ce035c0ff11da1cba046a34da9",
+            "indexed.bin": "0d5633862e693fc85a7a5335f01387fe54666874467dc2676390d167b6f0eab7",
+            "screen.png": "58c83b251234fbf759de4e5af31ab3cc1bc969d98067ec5e1fdaf2c1dc160744",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "4ccf58d4fc6896189223ec084a6dc2c9f225e31decc5c75b59a22b1472e4e0a3",
+          "diagnosticArtifacts": {
+            "report.json": "d5e91bf2b1a51af1c4fb455836025dc97d9a5cca89df003da140930cd738fbbf"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 0,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 0,
+                "enabled": false
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": false
+          },
+          "serviceCreations": 0,
+          "deviceCreations": 0,
+          "assetState": null,
+          "validationActivated": null,
+          "logSha256": "404597be18ebf29f8e1177e956189e92940798b97931c37d3f75ed1886e3cc40"
+        },
+        {
+          "name": "ordinary-r3z1",
+          "images": {
+            "rgba.bin": "381c1b7b1d9f630fea3191ff4c514657a60c6309c1678ee3d485165007444c75",
+            "indexed.bin": "481ec0facc872874aa0a3fd49801ceef62ce5d171eab180a2e1912ac0a79b65c",
+            "screen.png": "9e13481c260a909e71710e63869bd4f2ca8798b102e9a43c08278a27d8a79886",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "4ccf58d4fc6896189223ec084a6dc2c9f225e31decc5c75b59a22b1472e4e0a3",
+          "diagnosticArtifacts": {
+            "report.json": "d5e91bf2b1a51af1c4fb455836025dc97d9a5cca89df003da140930cd738fbbf"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 0,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 0,
+                "enabled": false
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": false
+          },
+          "serviceCreations": 0,
+          "deviceCreations": 0,
+          "assetState": null,
+          "validationActivated": null,
+          "logSha256": "b6484263e5cfaaba4164c9e06769d7406ca6b8a6f5aa074d09fb940908e010a1"
+        },
+        {
+          "name": "transparent-r0z0",
+          "images": {
+            "rgba.bin": "7938b40acaf6ea6e471ed6e7a09cc751822753d9cd8a971991d144ae8208460f",
+            "indexed.bin": "8e8d0ffb170de0ebaf9f5ac586bfc66ae2e28e69d84be5090a0db7fd7678c6e5",
+            "screen.png": "14f6f3c02c42196e22b4d7556cde7c09717f5ac3754b7dddcb10ba086da5df14",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "4ccf58d4fc6896189223ec084a6dc2c9f225e31decc5c75b59a22b1472e4e0a3",
+          "diagnosticArtifacts": {
+            "report.json": "d5e91bf2b1a51af1c4fb455836025dc97d9a5cca89df003da140930cd738fbbf"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 0,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 0,
+                "enabled": false
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": false
+          },
+          "serviceCreations": 0,
+          "deviceCreations": 0,
+          "assetState": null,
+          "validationActivated": null,
+          "logSha256": "43079bcca049513ae3be9b29968372f1de3c4d80f8463f6102d02507899b97c0"
+        },
+        {
+          "name": "transparent-r1z0",
+          "images": {
+            "rgba.bin": "972c36f8c8c51f36cd43a30f957d0a7f4e71e60794a5dd32051967ec19590e22",
+            "indexed.bin": "c43cf4c83ef7ca31e1f4671577c403be3371d4d507a57675d039e1e6253e4423",
+            "screen.png": "f89fd320190b42b1643540c11910d6e69fbd0340a7baa862c7f543843bd32222",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "4ccf58d4fc6896189223ec084a6dc2c9f225e31decc5c75b59a22b1472e4e0a3",
+          "diagnosticArtifacts": {
+            "report.json": "d5e91bf2b1a51af1c4fb455836025dc97d9a5cca89df003da140930cd738fbbf"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 0,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 0,
+                "enabled": false
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": false
+          },
+          "serviceCreations": 0,
+          "deviceCreations": 0,
+          "assetState": null,
+          "validationActivated": null,
+          "logSha256": "b6484263e5cfaaba4164c9e06769d7406ca6b8a6f5aa074d09fb940908e010a1"
+        },
+        {
+          "name": "transparent-r2z0",
+          "images": {
+            "rgba.bin": "66686c4485300a9a6dc127f00dcb1302b23fa15d7f01cdb8170231db76b89f99",
+            "indexed.bin": "84eb362bb6f78547aca385e159e8d95c4e80e7fe5b252d55eb3373e39463efe1",
+            "screen.png": "5d4734cda3daaf430749de3c62778d6240c1e90d6bd2a9b902c627809a6b78be",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "4ccf58d4fc6896189223ec084a6dc2c9f225e31decc5c75b59a22b1472e4e0a3",
+          "diagnosticArtifacts": {
+            "report.json": "d5e91bf2b1a51af1c4fb455836025dc97d9a5cca89df003da140930cd738fbbf"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 0,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 0,
+                "enabled": false
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": false
+          },
+          "serviceCreations": 0,
+          "deviceCreations": 0,
+          "assetState": null,
+          "validationActivated": null,
+          "logSha256": "404597be18ebf29f8e1177e956189e92940798b97931c37d3f75ed1886e3cc40"
+        },
+        {
+          "name": "transparent-r3z0",
+          "images": {
+            "rgba.bin": "711cf2d9ae70fe141fccd5b3df918d3e91dae55ab4632a6cb2f4f66a2ed165d7",
+            "indexed.bin": "10c81efcf239116f21d5799a10c97a942b4825d2924ec4b22928b5c981727a42",
+            "screen.png": "22bc8880b442346d038837bce20e546409dee240e2ff65e1c1a127402b31b77d",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "4ccf58d4fc6896189223ec084a6dc2c9f225e31decc5c75b59a22b1472e4e0a3",
+          "diagnosticArtifacts": {
+            "report.json": "d5e91bf2b1a51af1c4fb455836025dc97d9a5cca89df003da140930cd738fbbf"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 0,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 0,
+                "enabled": false
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": false
+          },
+          "serviceCreations": 0,
+          "deviceCreations": 0,
+          "assetState": null,
+          "validationActivated": null,
+          "logSha256": "b6484263e5cfaaba4164c9e06769d7406ca6b8a6f5aa074d09fb940908e010a1"
+        },
+        {
+          "name": "transparent-r0z1",
+          "images": {
+            "rgba.bin": "77d5983c880ece2fd6cb7764b817e2148c7dc4ff8df556ebf1cd8a2495f4975f",
+            "indexed.bin": "049a7a0b7d93bd36ecb51a07a6475075650a491f8dbb098ce261f8a07ef03186",
+            "screen.png": "278545522e792ecd907a5b2187f509ccd0149408d52ecc14b7de1aec73b37718",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "4ccf58d4fc6896189223ec084a6dc2c9f225e31decc5c75b59a22b1472e4e0a3",
+          "diagnosticArtifacts": {
+            "report.json": "d5e91bf2b1a51af1c4fb455836025dc97d9a5cca89df003da140930cd738fbbf"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 0,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 0,
+                "enabled": false
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": false
+          },
+          "serviceCreations": 0,
+          "deviceCreations": 0,
+          "assetState": null,
+          "validationActivated": null,
+          "logSha256": "9c82dabf56c756bcaf7fbfec14acec15fef82cd2a2d85b7d9f53861a33d58f23"
+        },
+        {
+          "name": "transparent-r1z1",
+          "images": {
+            "rgba.bin": "d91c1db52723de04d6137754f90406b1dbc4f3b8afe5ce8554d02d5b26eb4474",
+            "indexed.bin": "bdb1a31a440223daec3d308d7bdd63fc2a91c281a328e3492470da495ca20b9f",
+            "screen.png": "0b73afce776baadbc1fb80dc1dd6f0ddb87684cd4f0504f85abf731ddbae2e4c",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "4ccf58d4fc6896189223ec084a6dc2c9f225e31decc5c75b59a22b1472e4e0a3",
+          "diagnosticArtifacts": {
+            "report.json": "d5e91bf2b1a51af1c4fb455836025dc97d9a5cca89df003da140930cd738fbbf"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 0,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 0,
+                "enabled": false
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": false
+          },
+          "serviceCreations": 0,
+          "deviceCreations": 0,
+          "assetState": null,
+          "validationActivated": null,
+          "logSha256": "b6484263e5cfaaba4164c9e06769d7406ca6b8a6f5aa074d09fb940908e010a1"
+        },
+        {
+          "name": "transparent-r2z1",
+          "images": {
+            "rgba.bin": "1d5c9dc6b1266c0b4f028980035db7165f84bc00939474c2a51bf5ece7bfbc7f",
+            "indexed.bin": "678853ed1f9ca698c53ea867c99a345ae4de3e4844a7eb58d5847dab81d1a60a",
+            "screen.png": "b4cae14d15e49d192ee5dcf4122759674f0421d2d2342a7619cc491ab8a0b8ec",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "4ccf58d4fc6896189223ec084a6dc2c9f225e31decc5c75b59a22b1472e4e0a3",
+          "diagnosticArtifacts": {
+            "report.json": "d5e91bf2b1a51af1c4fb455836025dc97d9a5cca89df003da140930cd738fbbf"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 0,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 0,
+                "enabled": false
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": false
+          },
+          "serviceCreations": 0,
+          "deviceCreations": 0,
+          "assetState": null,
+          "validationActivated": null,
+          "logSha256": "b6484263e5cfaaba4164c9e06769d7406ca6b8a6f5aa074d09fb940908e010a1"
+        },
+        {
+          "name": "transparent-r3z1",
+          "images": {
+            "rgba.bin": "47434aac8e5aff5c392f8b283c824adab3d1670214c5802bfc8eaae7f1411abc",
+            "indexed.bin": "7b5c81f2e460b53fc202c75eb76dbcfad6304cb9f18766e74fe6cd294881873c",
+            "screen.png": "609b2311d63f29edc1b8bd657203d43b88f821ebebe7039c46aad52f8b66e741",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "4ccf58d4fc6896189223ec084a6dc2c9f225e31decc5c75b59a22b1472e4e0a3",
+          "diagnosticArtifacts": {
+            "report.json": "d5e91bf2b1a51af1c4fb455836025dc97d9a5cca89df003da140930cd738fbbf"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 0,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 0,
+                "enabled": false
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": false
+          },
+          "serviceCreations": 0,
+          "deviceCreations": 0,
+          "assetState": null,
+          "validationActivated": null,
+          "logSha256": "b6484263e5cfaaba4164c9e06769d7406ca6b8a6f5aa074d09fb940908e010a1"
+        }
+      ],
+      "backgroundPolicyDistinctions": [
+        {
+          "camera": "r0z0",
+          "differentIndices": 151315,
+          "opaqueBlankToTransparent": 151315
+        },
+        {
+          "camera": "r1z0",
+          "differentIndices": 157926,
+          "opaqueBlankToTransparent": 157926
+        },
+        {
+          "camera": "r2z0",
+          "differentIndices": 141479,
+          "opaqueBlankToTransparent": 141479
+        },
+        {
+          "camera": "r3z0",
+          "differentIndices": 87648,
+          "opaqueBlankToTransparent": 87648
+        },
+        {
+          "camera": "r0z1",
+          "differentIndices": 242536,
+          "opaqueBlankToTransparent": 242536
+        },
+        {
+          "camera": "r1z1",
+          "differentIndices": 242445,
+          "opaqueBlankToTransparent": 242445
+        },
+        {
+          "camera": "r2z1",
+          "differentIndices": 242379,
+          "opaqueBlankToTransparent": 242379
+        },
+        {
+          "camera": "r3z1",
+          "differentIndices": 243968,
+          "opaqueBlankToTransparent": 243968
+        }
+      ]
+    },
+    {
+      "path": "obj/vulkan-parity/production-cli-software-background-02",
+      "summarySha256": "289429521c2906746403b9dcfe7510038e3230eb3c49eee7b636bd74dec64b5a",
+      "renderer": "software",
+      "freshRepeat": true,
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-cli-build-03\\receipt.json",
+        "sha256": "ffa3852c8b257b11f90f767b6b8ff83e1a856efa80773ca4d5cb5a4660ca249f"
+      },
+      "shaderBuildReceipt": null,
+      "shaderSha256": {},
+      "installedDataFileCount": 4694,
+      "installedDataVerification": "All summary-pinned files independently rehashed; final inventory equals frozen data plus qualified shaders",
+      "cases": [
+        {
+          "name": "ordinary-r0z0",
+          "images": {
+            "rgba.bin": "f90b2f6435877ebdc9226618f325d773e526601c9efee5214d4d542853f69081",
+            "indexed.bin": "762b2d460a15e053c6be66dfd6e419f3909e0095f36bca2550bd8ebad1918fc7",
+            "screen.png": "c83f66b7843a70fd9ad659d0f9aa64a65e6204a89d5da6ba0a0c40997405dc18",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "4ccf58d4fc6896189223ec084a6dc2c9f225e31decc5c75b59a22b1472e4e0a3",
+          "diagnosticArtifacts": {
+            "report.json": "d5e91bf2b1a51af1c4fb455836025dc97d9a5cca89df003da140930cd738fbbf"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 0,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 0,
+                "enabled": false
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": false
+          },
+          "serviceCreations": 0,
+          "deviceCreations": 0,
+          "assetState": null,
+          "validationActivated": null,
+          "logSha256": "b6484263e5cfaaba4164c9e06769d7406ca6b8a6f5aa074d09fb940908e010a1"
+        },
+        {
+          "name": "ordinary-r1z0",
+          "images": {
+            "rgba.bin": "636625eef2e155c5cc762a969976219dcb4c9e0d3671934cd5fc0d16d11b91cb",
+            "indexed.bin": "2b86caa1c57833653bc261f6082ccd9a01bad4136b6ecffa3d0b8b1a2346216a",
+            "screen.png": "4c2c0f45f740a7a10d357c7216795defd07bece5aee2f1b16b56d55562672550",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "4ccf58d4fc6896189223ec084a6dc2c9f225e31decc5c75b59a22b1472e4e0a3",
+          "diagnosticArtifacts": {
+            "report.json": "d5e91bf2b1a51af1c4fb455836025dc97d9a5cca89df003da140930cd738fbbf"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 0,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 0,
+                "enabled": false
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": false
+          },
+          "serviceCreations": 0,
+          "deviceCreations": 0,
+          "assetState": null,
+          "validationActivated": null,
+          "logSha256": "b6484263e5cfaaba4164c9e06769d7406ca6b8a6f5aa074d09fb940908e010a1"
+        },
+        {
+          "name": "ordinary-r2z0",
+          "images": {
+            "rgba.bin": "2b882b5a768866eaae03510aeec7e853fb39bab44c3ee6cf16aa909499f95c00",
+            "indexed.bin": "b63ab3ee4f425843f9d8e30bbadf782e73d85585ec5f765f44544b522833d049",
+            "screen.png": "644ba6ba79483ed61dcd227666c7b4d6cf207621f43d52acf6ac86bfbbcade50",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "4ccf58d4fc6896189223ec084a6dc2c9f225e31decc5c75b59a22b1472e4e0a3",
+          "diagnosticArtifacts": {
+            "report.json": "d5e91bf2b1a51af1c4fb455836025dc97d9a5cca89df003da140930cd738fbbf"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 0,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 0,
+                "enabled": false
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": false
+          },
+          "serviceCreations": 0,
+          "deviceCreations": 0,
+          "assetState": null,
+          "validationActivated": null,
+          "logSha256": "b6484263e5cfaaba4164c9e06769d7406ca6b8a6f5aa074d09fb940908e010a1"
+        },
+        {
+          "name": "ordinary-r3z0",
+          "images": {
+            "rgba.bin": "598993f2bff40ae13d8b5c3cde4c1e0d0fe4dbf8d7811eb4d731227ed634cd5c",
+            "indexed.bin": "e825b18ed5e8fc27fd8afe739419d00ccd775c5a3eb444e472c30714c288059e",
+            "screen.png": "d00c35d2d43c12a7eed63a5e62f0e3780afe1cc31c5588901278f0cd0bf93a88",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "4ccf58d4fc6896189223ec084a6dc2c9f225e31decc5c75b59a22b1472e4e0a3",
+          "diagnosticArtifacts": {
+            "report.json": "d5e91bf2b1a51af1c4fb455836025dc97d9a5cca89df003da140930cd738fbbf"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 0,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 0,
+                "enabled": false
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": false
+          },
+          "serviceCreations": 0,
+          "deviceCreations": 0,
+          "assetState": null,
+          "validationActivated": null,
+          "logSha256": "404597be18ebf29f8e1177e956189e92940798b97931c37d3f75ed1886e3cc40"
+        },
+        {
+          "name": "ordinary-r0z1",
+          "images": {
+            "rgba.bin": "989261aade4c902ef1531a3313103fea69c4d1aff9b3ae526fbb6f7885ef197c",
+            "indexed.bin": "3ebc54d5ea74c2063cb8b99f62287d5059e03333f6c4c5a10d71ecdd314afe75",
+            "screen.png": "6e260758afe342951ad356552c82090f27d32626013f022cd7a98e9168cc8204",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "4ccf58d4fc6896189223ec084a6dc2c9f225e31decc5c75b59a22b1472e4e0a3",
+          "diagnosticArtifacts": {
+            "report.json": "d5e91bf2b1a51af1c4fb455836025dc97d9a5cca89df003da140930cd738fbbf"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 0,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 0,
+                "enabled": false
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": false
+          },
+          "serviceCreations": 0,
+          "deviceCreations": 0,
+          "assetState": null,
+          "validationActivated": null,
+          "logSha256": "404597be18ebf29f8e1177e956189e92940798b97931c37d3f75ed1886e3cc40"
+        },
+        {
+          "name": "ordinary-r1z1",
+          "images": {
+            "rgba.bin": "58194e2c961276495774aa7e67defe88d5e435143d3e4375e73ee1acc75dd0d7",
+            "indexed.bin": "c28443574dac7697de60110fe09aba00f92dad7e2b938dbd0e5fea815af2c2c7",
+            "screen.png": "f57d547feb7efdc108cd007cb03a645bd6e798289b383d4a1f929bc3f5dc502d",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "4ccf58d4fc6896189223ec084a6dc2c9f225e31decc5c75b59a22b1472e4e0a3",
+          "diagnosticArtifacts": {
+            "report.json": "d5e91bf2b1a51af1c4fb455836025dc97d9a5cca89df003da140930cd738fbbf"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 0,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 0,
+                "enabled": false
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": false
+          },
+          "serviceCreations": 0,
+          "deviceCreations": 0,
+          "assetState": null,
+          "validationActivated": null,
+          "logSha256": "b6484263e5cfaaba4164c9e06769d7406ca6b8a6f5aa074d09fb940908e010a1"
+        },
+        {
+          "name": "ordinary-r2z1",
+          "images": {
+            "rgba.bin": "330a39b6b8df2e4aa7aa04e8d9e80a6e0156a6ce035c0ff11da1cba046a34da9",
+            "indexed.bin": "0d5633862e693fc85a7a5335f01387fe54666874467dc2676390d167b6f0eab7",
+            "screen.png": "58c83b251234fbf759de4e5af31ab3cc1bc969d98067ec5e1fdaf2c1dc160744",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "4ccf58d4fc6896189223ec084a6dc2c9f225e31decc5c75b59a22b1472e4e0a3",
+          "diagnosticArtifacts": {
+            "report.json": "d5e91bf2b1a51af1c4fb455836025dc97d9a5cca89df003da140930cd738fbbf"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 0,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 0,
+                "enabled": false
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": false
+          },
+          "serviceCreations": 0,
+          "deviceCreations": 0,
+          "assetState": null,
+          "validationActivated": null,
+          "logSha256": "b6484263e5cfaaba4164c9e06769d7406ca6b8a6f5aa074d09fb940908e010a1"
+        },
+        {
+          "name": "ordinary-r3z1",
+          "images": {
+            "rgba.bin": "381c1b7b1d9f630fea3191ff4c514657a60c6309c1678ee3d485165007444c75",
+            "indexed.bin": "481ec0facc872874aa0a3fd49801ceef62ce5d171eab180a2e1912ac0a79b65c",
+            "screen.png": "9e13481c260a909e71710e63869bd4f2ca8798b102e9a43c08278a27d8a79886",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "4ccf58d4fc6896189223ec084a6dc2c9f225e31decc5c75b59a22b1472e4e0a3",
+          "diagnosticArtifacts": {
+            "report.json": "d5e91bf2b1a51af1c4fb455836025dc97d9a5cca89df003da140930cd738fbbf"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 0,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 0,
+                "enabled": false
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": false
+          },
+          "serviceCreations": 0,
+          "deviceCreations": 0,
+          "assetState": null,
+          "validationActivated": null,
+          "logSha256": "404597be18ebf29f8e1177e956189e92940798b97931c37d3f75ed1886e3cc40"
+        },
+        {
+          "name": "transparent-r0z0",
+          "images": {
+            "rgba.bin": "7938b40acaf6ea6e471ed6e7a09cc751822753d9cd8a971991d144ae8208460f",
+            "indexed.bin": "8e8d0ffb170de0ebaf9f5ac586bfc66ae2e28e69d84be5090a0db7fd7678c6e5",
+            "screen.png": "14f6f3c02c42196e22b4d7556cde7c09717f5ac3754b7dddcb10ba086da5df14",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "4ccf58d4fc6896189223ec084a6dc2c9f225e31decc5c75b59a22b1472e4e0a3",
+          "diagnosticArtifacts": {
+            "report.json": "d5e91bf2b1a51af1c4fb455836025dc97d9a5cca89df003da140930cd738fbbf"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 0,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 0,
+                "enabled": false
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": false
+          },
+          "serviceCreations": 0,
+          "deviceCreations": 0,
+          "assetState": null,
+          "validationActivated": null,
+          "logSha256": "9c82dabf56c756bcaf7fbfec14acec15fef82cd2a2d85b7d9f53861a33d58f23"
+        },
+        {
+          "name": "transparent-r1z0",
+          "images": {
+            "rgba.bin": "972c36f8c8c51f36cd43a30f957d0a7f4e71e60794a5dd32051967ec19590e22",
+            "indexed.bin": "c43cf4c83ef7ca31e1f4671577c403be3371d4d507a57675d039e1e6253e4423",
+            "screen.png": "f89fd320190b42b1643540c11910d6e69fbd0340a7baa862c7f543843bd32222",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "4ccf58d4fc6896189223ec084a6dc2c9f225e31decc5c75b59a22b1472e4e0a3",
+          "diagnosticArtifacts": {
+            "report.json": "d5e91bf2b1a51af1c4fb455836025dc97d9a5cca89df003da140930cd738fbbf"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 0,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 0,
+                "enabled": false
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": false
+          },
+          "serviceCreations": 0,
+          "deviceCreations": 0,
+          "assetState": null,
+          "validationActivated": null,
+          "logSha256": "b6484263e5cfaaba4164c9e06769d7406ca6b8a6f5aa074d09fb940908e010a1"
+        },
+        {
+          "name": "transparent-r2z0",
+          "images": {
+            "rgba.bin": "66686c4485300a9a6dc127f00dcb1302b23fa15d7f01cdb8170231db76b89f99",
+            "indexed.bin": "84eb362bb6f78547aca385e159e8d95c4e80e7fe5b252d55eb3373e39463efe1",
+            "screen.png": "5d4734cda3daaf430749de3c62778d6240c1e90d6bd2a9b902c627809a6b78be",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "4ccf58d4fc6896189223ec084a6dc2c9f225e31decc5c75b59a22b1472e4e0a3",
+          "diagnosticArtifacts": {
+            "report.json": "d5e91bf2b1a51af1c4fb455836025dc97d9a5cca89df003da140930cd738fbbf"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 0,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 0,
+                "enabled": false
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": false
+          },
+          "serviceCreations": 0,
+          "deviceCreations": 0,
+          "assetState": null,
+          "validationActivated": null,
+          "logSha256": "b6484263e5cfaaba4164c9e06769d7406ca6b8a6f5aa074d09fb940908e010a1"
+        },
+        {
+          "name": "transparent-r3z0",
+          "images": {
+            "rgba.bin": "711cf2d9ae70fe141fccd5b3df918d3e91dae55ab4632a6cb2f4f66a2ed165d7",
+            "indexed.bin": "10c81efcf239116f21d5799a10c97a942b4825d2924ec4b22928b5c981727a42",
+            "screen.png": "22bc8880b442346d038837bce20e546409dee240e2ff65e1c1a127402b31b77d",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "4ccf58d4fc6896189223ec084a6dc2c9f225e31decc5c75b59a22b1472e4e0a3",
+          "diagnosticArtifacts": {
+            "report.json": "d5e91bf2b1a51af1c4fb455836025dc97d9a5cca89df003da140930cd738fbbf"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 0,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 0,
+                "enabled": false
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": false
+          },
+          "serviceCreations": 0,
+          "deviceCreations": 0,
+          "assetState": null,
+          "validationActivated": null,
+          "logSha256": "b6484263e5cfaaba4164c9e06769d7406ca6b8a6f5aa074d09fb940908e010a1"
+        },
+        {
+          "name": "transparent-r0z1",
+          "images": {
+            "rgba.bin": "77d5983c880ece2fd6cb7764b817e2148c7dc4ff8df556ebf1cd8a2495f4975f",
+            "indexed.bin": "049a7a0b7d93bd36ecb51a07a6475075650a491f8dbb098ce261f8a07ef03186",
+            "screen.png": "278545522e792ecd907a5b2187f509ccd0149408d52ecc14b7de1aec73b37718",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "4ccf58d4fc6896189223ec084a6dc2c9f225e31decc5c75b59a22b1472e4e0a3",
+          "diagnosticArtifacts": {
+            "report.json": "d5e91bf2b1a51af1c4fb455836025dc97d9a5cca89df003da140930cd738fbbf"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 0,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 0,
+                "enabled": false
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": false
+          },
+          "serviceCreations": 0,
+          "deviceCreations": 0,
+          "assetState": null,
+          "validationActivated": null,
+          "logSha256": "b6484263e5cfaaba4164c9e06769d7406ca6b8a6f5aa074d09fb940908e010a1"
+        },
+        {
+          "name": "transparent-r1z1",
+          "images": {
+            "rgba.bin": "d91c1db52723de04d6137754f90406b1dbc4f3b8afe5ce8554d02d5b26eb4474",
+            "indexed.bin": "bdb1a31a440223daec3d308d7bdd63fc2a91c281a328e3492470da495ca20b9f",
+            "screen.png": "0b73afce776baadbc1fb80dc1dd6f0ddb87684cd4f0504f85abf731ddbae2e4c",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "4ccf58d4fc6896189223ec084a6dc2c9f225e31decc5c75b59a22b1472e4e0a3",
+          "diagnosticArtifacts": {
+            "report.json": "d5e91bf2b1a51af1c4fb455836025dc97d9a5cca89df003da140930cd738fbbf"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 0,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 0,
+                "enabled": false
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": false
+          },
+          "serviceCreations": 0,
+          "deviceCreations": 0,
+          "assetState": null,
+          "validationActivated": null,
+          "logSha256": "b6484263e5cfaaba4164c9e06769d7406ca6b8a6f5aa074d09fb940908e010a1"
+        },
+        {
+          "name": "transparent-r2z1",
+          "images": {
+            "rgba.bin": "1d5c9dc6b1266c0b4f028980035db7165f84bc00939474c2a51bf5ece7bfbc7f",
+            "indexed.bin": "678853ed1f9ca698c53ea867c99a345ae4de3e4844a7eb58d5847dab81d1a60a",
+            "screen.png": "b4cae14d15e49d192ee5dcf4122759674f0421d2d2342a7619cc491ab8a0b8ec",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "4ccf58d4fc6896189223ec084a6dc2c9f225e31decc5c75b59a22b1472e4e0a3",
+          "diagnosticArtifacts": {
+            "report.json": "d5e91bf2b1a51af1c4fb455836025dc97d9a5cca89df003da140930cd738fbbf"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 0,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 0,
+                "enabled": false
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": false
+          },
+          "serviceCreations": 0,
+          "deviceCreations": 0,
+          "assetState": null,
+          "validationActivated": null,
+          "logSha256": "404597be18ebf29f8e1177e956189e92940798b97931c37d3f75ed1886e3cc40"
+        },
+        {
+          "name": "transparent-r3z1",
+          "images": {
+            "rgba.bin": "47434aac8e5aff5c392f8b283c824adab3d1670214c5802bfc8eaae7f1411abc",
+            "indexed.bin": "7b5c81f2e460b53fc202c75eb76dbcfad6304cb9f18766e74fe6cd294881873c",
+            "screen.png": "609b2311d63f29edc1b8bd657203d43b88f821ebebe7039c46aad52f8b66e741",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "4ccf58d4fc6896189223ec084a6dc2c9f225e31decc5c75b59a22b1472e4e0a3",
+          "diagnosticArtifacts": {
+            "report.json": "d5e91bf2b1a51af1c4fb455836025dc97d9a5cca89df003da140930cd738fbbf"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 0,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 0,
+                "enabled": false
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": false
+          },
+          "serviceCreations": 0,
+          "deviceCreations": 0,
+          "assetState": null,
+          "validationActivated": null,
+          "logSha256": "404597be18ebf29f8e1177e956189e92940798b97931c37d3f75ed1886e3cc40"
+        }
+      ],
+      "backgroundPolicyDistinctions": [
+        {
+          "camera": "r0z0",
+          "differentIndices": 151315,
+          "opaqueBlankToTransparent": 151315
+        },
+        {
+          "camera": "r1z0",
+          "differentIndices": 157926,
+          "opaqueBlankToTransparent": 157926
+        },
+        {
+          "camera": "r2z0",
+          "differentIndices": 141479,
+          "opaqueBlankToTransparent": 141479
+        },
+        {
+          "camera": "r3z0",
+          "differentIndices": 87648,
+          "opaqueBlankToTransparent": 87648
+        },
+        {
+          "camera": "r0z1",
+          "differentIndices": 242536,
+          "opaqueBlankToTransparent": 242536
+        },
+        {
+          "camera": "r1z1",
+          "differentIndices": 242445,
+          "opaqueBlankToTransparent": 242445
+        },
+        {
+          "camera": "r2z1",
+          "differentIndices": 242379,
+          "opaqueBlankToTransparent": 242379
+        },
+        {
+          "camera": "r3z1",
+          "differentIndices": 243968,
+          "opaqueBlankToTransparent": 243968
+        }
+      ]
+    },
+    {
+      "path": "obj/vulkan-parity/production-cli-vulkan-background-01",
+      "summarySha256": "280d96240f152cdfc15cc470056cdfc479f99f3be2abe9427efc6da03dffe375",
+      "renderer": "vulkan",
+      "freshRepeat": false,
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-cli-build-03\\receipt.json",
+        "sha256": "ffa3852c8b257b11f90f767b6b8ff83e1a856efa80773ca4d5cb5a4660ca249f"
+      },
+      "shaderBuildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\build-44\\receipt.json",
+        "sha256": "b3e9086f188879f7de31e27443f150eca88b3b569a427d1fcff7da9947cca6c9"
+      },
+      "shaderSha256": {
+        "balloon.vert.spv": "56355825a87a187597d1a61c86590cda4036e98e642ce55751fa23b43116aac6",
+        "balloon_order.comp.spv": "b37491a08b58eeca8f278634182eeed3aee4a194c5ba6c89ac6383b86685dd11",
+        "indexed_line.frag.spv": "c3c698d64588c606db4ff3cc0469b6f2814d9b6191245a2b9e38ac04bf07f899",
+        "indexed_line.vert.spv": "cafe58b52c3f5ef6f1a31727c2e471e23f19cfb5717e0dd42deca1891665873a",
+        "indexed_palette.frag.spv": "00426e41ca288331f9912947c513c146775134239bc1b9c02a80a5e11d104ff2",
+        "indexed_palette.vert.spv": "ce9e9307593f2c1e4b2a80c7e10038031499584729fd681ec6f329d25df864b0",
+        "indexed_rect.frag.spv": "e19e81df04d77051fd3566b551751b3fc326817b4849e77df9a6a9337dcb3f0d",
+        "indexed_rect.vert.spv": "81c0bcd4b70683d7f7604ddff4f5a99af0d9de678182984ddbbb7f6a805484c8",
+        "indexed_sprite.vert.spv": "e7274e5d1c08245ad72330b784d0f3b89e7cbf2bd8bf33236522e1802d23f7c4",
+        "indexed_transparency_compose.frag.spv": "3b8ece50dec315d191608cbbc6708f93a774d6f78d46902b9fcde0583cb9824e",
+        "indexed_transparency_compose.vert.spv": "dc3f97b0bf58a34a07d88f92625b03fd48de909d441b5555024120244be8a153",
+        "indexed_transparent_rect.frag.spv": "280c6ad33634c220815f5123cdcc64a02e5847b8b0a1fda876fd36ab0880e658",
+        "indexed_transparent_rect.vert.spv": "ca77710e6008654acb0cb03dc29e81a345ef59bf84f26bac06639503bbf79be4",
+        "indexed_weather.frag.spv": "997336e48b6f29c22ba4642584e29f40db9937fc7141f5b70a499175aeea5afc",
+        "indexed_weather.vert.spv": "51fb76bcdc69aa11e6dbd8617d53a0d546b37e17380a2c0fc7d836a917a597f7",
+        "lightfx_accumulate.comp.spv": "6c01b995b3712b1bc44835357569774d15d423316738c9319e59e0e81bbad39b",
+        "rgba_scale.frag.spv": "a590532b2cc17ae5ce694c1af46103554884f87758b679e9d04439852997bd77",
+        "world_surface.vert.spv": "7510b4db285eb498e39c53acf2097ea2420832e0dd623fc999e78db963da1679",
+        "world_surface_compact.comp.spv": "4a159f211fe39393ea5288b8e05cb7009448865220aff3fb6652105bfe21e6b9"
+      },
+      "installedDataFileCount": 4697,
+      "installedDataVerification": "All summary-pinned files independently rehashed; final inventory equals frozen data plus qualified shaders",
+      "cases": [
+        {
+          "name": "ordinary-r0z0",
+          "images": {
+            "rgba.bin": "f90b2f6435877ebdc9226618f325d773e526601c9efee5214d4d542853f69081",
+            "indexed.bin": "762b2d460a15e053c6be66dfd6e419f3909e0095f36bca2550bd8ebad1918fc7",
+            "screen.png": "c83f66b7843a70fd9ad659d0f9aa64a65e6204a89d5da6ba0a0c40997405dc18",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "86d03bb4f7ceb51744b042a3d507f0b99469e9c22e481af7fbfa8ea7398064ec",
+          "diagnosticArtifacts": {
+            "report.json": "c6684d5df6c1584c4bd69aef174c956b05a8331faa5cf3a6d731bad34e9f57fb",
+            "screen.rgba": "f90b2f6435877ebdc9226618f325d773e526601c9efee5214d4d542853f69081",
+            "screen.indexed": "762b2d460a15e053c6be66dfd6e419f3909e0095f36bca2550bd8ebad1918fc7"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 2,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              },
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": true
+          },
+          "serviceCreations": 1,
+          "deviceCreations": 1,
+          "assetState": {
+            "configuredRct1Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe",
+            "configuredRct2Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack",
+            "g1PayloadCount": 29294,
+            "g1RecordCount": 29294,
+            "rct1CsgLoaded": true,
+            "rct1Required": true
+          },
+          "validationActivated": true,
+          "logSha256": "1688c7bfc55dee59354cd6beec335729d66e5d387c2d46a8d14d4c243de55697"
+        },
+        {
+          "name": "ordinary-r1z0",
+          "images": {
+            "rgba.bin": "636625eef2e155c5cc762a969976219dcb4c9e0d3671934cd5fc0d16d11b91cb",
+            "indexed.bin": "2b86caa1c57833653bc261f6082ccd9a01bad4136b6ecffa3d0b8b1a2346216a",
+            "screen.png": "4c2c0f45f740a7a10d357c7216795defd07bece5aee2f1b16b56d55562672550",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "86d03bb4f7ceb51744b042a3d507f0b99469e9c22e481af7fbfa8ea7398064ec",
+          "diagnosticArtifacts": {
+            "report.json": "c6684d5df6c1584c4bd69aef174c956b05a8331faa5cf3a6d731bad34e9f57fb",
+            "screen.rgba": "636625eef2e155c5cc762a969976219dcb4c9e0d3671934cd5fc0d16d11b91cb",
+            "screen.indexed": "2b86caa1c57833653bc261f6082ccd9a01bad4136b6ecffa3d0b8b1a2346216a"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 2,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              },
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": true
+          },
+          "serviceCreations": 1,
+          "deviceCreations": 1,
+          "assetState": {
+            "configuredRct1Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe",
+            "configuredRct2Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack",
+            "g1PayloadCount": 29294,
+            "g1RecordCount": 29294,
+            "rct1CsgLoaded": true,
+            "rct1Required": true
+          },
+          "validationActivated": true,
+          "logSha256": "4a5bc4197f32f092fbafae70d36a79a018487ca1016e5dc99a64163975f89f69"
+        },
+        {
+          "name": "ordinary-r2z0",
+          "images": {
+            "rgba.bin": "2b882b5a768866eaae03510aeec7e853fb39bab44c3ee6cf16aa909499f95c00",
+            "indexed.bin": "b63ab3ee4f425843f9d8e30bbadf782e73d85585ec5f765f44544b522833d049",
+            "screen.png": "644ba6ba79483ed61dcd227666c7b4d6cf207621f43d52acf6ac86bfbbcade50",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "86d03bb4f7ceb51744b042a3d507f0b99469e9c22e481af7fbfa8ea7398064ec",
+          "diagnosticArtifacts": {
+            "report.json": "c6684d5df6c1584c4bd69aef174c956b05a8331faa5cf3a6d731bad34e9f57fb",
+            "screen.rgba": "2b882b5a768866eaae03510aeec7e853fb39bab44c3ee6cf16aa909499f95c00",
+            "screen.indexed": "b63ab3ee4f425843f9d8e30bbadf782e73d85585ec5f765f44544b522833d049"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 2,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              },
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": true
+          },
+          "serviceCreations": 1,
+          "deviceCreations": 1,
+          "assetState": {
+            "configuredRct1Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe",
+            "configuredRct2Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack",
+            "g1PayloadCount": 29294,
+            "g1RecordCount": 29294,
+            "rct1CsgLoaded": true,
+            "rct1Required": true
+          },
+          "validationActivated": true,
+          "logSha256": "931229c3be64676a8b57675feea78879852d0447d7fd026b3d22662f27eb1e17"
+        },
+        {
+          "name": "ordinary-r3z0",
+          "images": {
+            "rgba.bin": "598993f2bff40ae13d8b5c3cde4c1e0d0fe4dbf8d7811eb4d731227ed634cd5c",
+            "indexed.bin": "e825b18ed5e8fc27fd8afe739419d00ccd775c5a3eb444e472c30714c288059e",
+            "screen.png": "d00c35d2d43c12a7eed63a5e62f0e3780afe1cc31c5588901278f0cd0bf93a88",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "86d03bb4f7ceb51744b042a3d507f0b99469e9c22e481af7fbfa8ea7398064ec",
+          "diagnosticArtifacts": {
+            "report.json": "c6684d5df6c1584c4bd69aef174c956b05a8331faa5cf3a6d731bad34e9f57fb",
+            "screen.rgba": "598993f2bff40ae13d8b5c3cde4c1e0d0fe4dbf8d7811eb4d731227ed634cd5c",
+            "screen.indexed": "e825b18ed5e8fc27fd8afe739419d00ccd775c5a3eb444e472c30714c288059e"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 2,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              },
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": true
+          },
+          "serviceCreations": 1,
+          "deviceCreations": 1,
+          "assetState": {
+            "configuredRct1Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe",
+            "configuredRct2Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack",
+            "g1PayloadCount": 29294,
+            "g1RecordCount": 29294,
+            "rct1CsgLoaded": true,
+            "rct1Required": true
+          },
+          "validationActivated": true,
+          "logSha256": "c4313adc615e9a5523ba35c69fe2d6aaa65fa5d67ce14c807164491f89b69e9f"
+        },
+        {
+          "name": "ordinary-r0z1",
+          "images": {
+            "rgba.bin": "989261aade4c902ef1531a3313103fea69c4d1aff9b3ae526fbb6f7885ef197c",
+            "indexed.bin": "3ebc54d5ea74c2063cb8b99f62287d5059e03333f6c4c5a10d71ecdd314afe75",
+            "screen.png": "6e260758afe342951ad356552c82090f27d32626013f022cd7a98e9168cc8204",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "86d03bb4f7ceb51744b042a3d507f0b99469e9c22e481af7fbfa8ea7398064ec",
+          "diagnosticArtifacts": {
+            "report.json": "c6684d5df6c1584c4bd69aef174c956b05a8331faa5cf3a6d731bad34e9f57fb",
+            "screen.rgba": "989261aade4c902ef1531a3313103fea69c4d1aff9b3ae526fbb6f7885ef197c",
+            "screen.indexed": "3ebc54d5ea74c2063cb8b99f62287d5059e03333f6c4c5a10d71ecdd314afe75"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 2,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              },
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": true
+          },
+          "serviceCreations": 1,
+          "deviceCreations": 1,
+          "assetState": {
+            "configuredRct1Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe",
+            "configuredRct2Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack",
+            "g1PayloadCount": 29294,
+            "g1RecordCount": 29294,
+            "rct1CsgLoaded": true,
+            "rct1Required": true
+          },
+          "validationActivated": true,
+          "logSha256": "9dbedd35b36052d813ead779a1bb646d217c4903c29b88937b334b968ce31edf"
+        },
+        {
+          "name": "ordinary-r1z1",
+          "images": {
+            "rgba.bin": "58194e2c961276495774aa7e67defe88d5e435143d3e4375e73ee1acc75dd0d7",
+            "indexed.bin": "c28443574dac7697de60110fe09aba00f92dad7e2b938dbd0e5fea815af2c2c7",
+            "screen.png": "f57d547feb7efdc108cd007cb03a645bd6e798289b383d4a1f929bc3f5dc502d",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "86d03bb4f7ceb51744b042a3d507f0b99469e9c22e481af7fbfa8ea7398064ec",
+          "diagnosticArtifacts": {
+            "report.json": "c6684d5df6c1584c4bd69aef174c956b05a8331faa5cf3a6d731bad34e9f57fb",
+            "screen.rgba": "58194e2c961276495774aa7e67defe88d5e435143d3e4375e73ee1acc75dd0d7",
+            "screen.indexed": "c28443574dac7697de60110fe09aba00f92dad7e2b938dbd0e5fea815af2c2c7"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 2,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              },
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": true
+          },
+          "serviceCreations": 1,
+          "deviceCreations": 1,
+          "assetState": {
+            "configuredRct1Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe",
+            "configuredRct2Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack",
+            "g1PayloadCount": 29294,
+            "g1RecordCount": 29294,
+            "rct1CsgLoaded": true,
+            "rct1Required": true
+          },
+          "validationActivated": true,
+          "logSha256": "4a5bc4197f32f092fbafae70d36a79a018487ca1016e5dc99a64163975f89f69"
+        },
+        {
+          "name": "ordinary-r2z1",
+          "images": {
+            "rgba.bin": "330a39b6b8df2e4aa7aa04e8d9e80a6e0156a6ce035c0ff11da1cba046a34da9",
+            "indexed.bin": "0d5633862e693fc85a7a5335f01387fe54666874467dc2676390d167b6f0eab7",
+            "screen.png": "58c83b251234fbf759de4e5af31ab3cc1bc969d98067ec5e1fdaf2c1dc160744",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "86d03bb4f7ceb51744b042a3d507f0b99469e9c22e481af7fbfa8ea7398064ec",
+          "diagnosticArtifacts": {
+            "report.json": "c6684d5df6c1584c4bd69aef174c956b05a8331faa5cf3a6d731bad34e9f57fb",
+            "screen.rgba": "330a39b6b8df2e4aa7aa04e8d9e80a6e0156a6ce035c0ff11da1cba046a34da9",
+            "screen.indexed": "0d5633862e693fc85a7a5335f01387fe54666874467dc2676390d167b6f0eab7"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 2,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              },
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": true
+          },
+          "serviceCreations": 1,
+          "deviceCreations": 1,
+          "assetState": {
+            "configuredRct1Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe",
+            "configuredRct2Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack",
+            "g1PayloadCount": 29294,
+            "g1RecordCount": 29294,
+            "rct1CsgLoaded": true,
+            "rct1Required": true
+          },
+          "validationActivated": true,
+          "logSha256": "537b762d8c247cd127917af50e59678392823858b2a0aa96cfc6f1fa97ba1710"
+        },
+        {
+          "name": "ordinary-r3z1",
+          "images": {
+            "rgba.bin": "381c1b7b1d9f630fea3191ff4c514657a60c6309c1678ee3d485165007444c75",
+            "indexed.bin": "481ec0facc872874aa0a3fd49801ceef62ce5d171eab180a2e1912ac0a79b65c",
+            "screen.png": "9e13481c260a909e71710e63869bd4f2ca8798b102e9a43c08278a27d8a79886",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "86d03bb4f7ceb51744b042a3d507f0b99469e9c22e481af7fbfa8ea7398064ec",
+          "diagnosticArtifacts": {
+            "report.json": "c6684d5df6c1584c4bd69aef174c956b05a8331faa5cf3a6d731bad34e9f57fb",
+            "screen.rgba": "381c1b7b1d9f630fea3191ff4c514657a60c6309c1678ee3d485165007444c75",
+            "screen.indexed": "481ec0facc872874aa0a3fd49801ceef62ce5d171eab180a2e1912ac0a79b65c"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 2,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              },
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": true
+          },
+          "serviceCreations": 1,
+          "deviceCreations": 1,
+          "assetState": {
+            "configuredRct1Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe",
+            "configuredRct2Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack",
+            "g1PayloadCount": 29294,
+            "g1RecordCount": 29294,
+            "rct1CsgLoaded": true,
+            "rct1Required": true
+          },
+          "validationActivated": true,
+          "logSha256": "9dbedd35b36052d813ead779a1bb646d217c4903c29b88937b334b968ce31edf"
+        },
+        {
+          "name": "transparent-r0z0",
+          "images": {
+            "rgba.bin": "7938b40acaf6ea6e471ed6e7a09cc751822753d9cd8a971991d144ae8208460f",
+            "indexed.bin": "8e8d0ffb170de0ebaf9f5ac586bfc66ae2e28e69d84be5090a0db7fd7678c6e5",
+            "screen.png": "14f6f3c02c42196e22b4d7556cde7c09717f5ac3754b7dddcb10ba086da5df14",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "86d03bb4f7ceb51744b042a3d507f0b99469e9c22e481af7fbfa8ea7398064ec",
+          "diagnosticArtifacts": {
+            "report.json": "c6684d5df6c1584c4bd69aef174c956b05a8331faa5cf3a6d731bad34e9f57fb",
+            "screen.rgba": "7938b40acaf6ea6e471ed6e7a09cc751822753d9cd8a971991d144ae8208460f",
+            "screen.indexed": "8e8d0ffb170de0ebaf9f5ac586bfc66ae2e28e69d84be5090a0db7fd7678c6e5"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 2,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              },
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": true
+          },
+          "serviceCreations": 1,
+          "deviceCreations": 1,
+          "assetState": {
+            "configuredRct1Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe",
+            "configuredRct2Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack",
+            "g1PayloadCount": 29294,
+            "g1RecordCount": 29294,
+            "rct1CsgLoaded": true,
+            "rct1Required": true
+          },
+          "validationActivated": true,
+          "logSha256": "9dbedd35b36052d813ead779a1bb646d217c4903c29b88937b334b968ce31edf"
+        },
+        {
+          "name": "transparent-r1z0",
+          "images": {
+            "rgba.bin": "972c36f8c8c51f36cd43a30f957d0a7f4e71e60794a5dd32051967ec19590e22",
+            "indexed.bin": "c43cf4c83ef7ca31e1f4671577c403be3371d4d507a57675d039e1e6253e4423",
+            "screen.png": "f89fd320190b42b1643540c11910d6e69fbd0340a7baa862c7f543843bd32222",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "86d03bb4f7ceb51744b042a3d507f0b99469e9c22e481af7fbfa8ea7398064ec",
+          "diagnosticArtifacts": {
+            "report.json": "c6684d5df6c1584c4bd69aef174c956b05a8331faa5cf3a6d731bad34e9f57fb",
+            "screen.rgba": "972c36f8c8c51f36cd43a30f957d0a7f4e71e60794a5dd32051967ec19590e22",
+            "screen.indexed": "c43cf4c83ef7ca31e1f4671577c403be3371d4d507a57675d039e1e6253e4423"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 2,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              },
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": true
+          },
+          "serviceCreations": 1,
+          "deviceCreations": 1,
+          "assetState": {
+            "configuredRct1Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe",
+            "configuredRct2Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack",
+            "g1PayloadCount": 29294,
+            "g1RecordCount": 29294,
+            "rct1CsgLoaded": true,
+            "rct1Required": true
+          },
+          "validationActivated": true,
+          "logSha256": "b1e3b89f78b515f3702b66b637df856fd5c04be0afc2864438efbb53775e3a57"
+        },
+        {
+          "name": "transparent-r2z0",
+          "images": {
+            "rgba.bin": "66686c4485300a9a6dc127f00dcb1302b23fa15d7f01cdb8170231db76b89f99",
+            "indexed.bin": "84eb362bb6f78547aca385e159e8d95c4e80e7fe5b252d55eb3373e39463efe1",
+            "screen.png": "5d4734cda3daaf430749de3c62778d6240c1e90d6bd2a9b902c627809a6b78be",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "86d03bb4f7ceb51744b042a3d507f0b99469e9c22e481af7fbfa8ea7398064ec",
+          "diagnosticArtifacts": {
+            "report.json": "c6684d5df6c1584c4bd69aef174c956b05a8331faa5cf3a6d731bad34e9f57fb",
+            "screen.rgba": "66686c4485300a9a6dc127f00dcb1302b23fa15d7f01cdb8170231db76b89f99",
+            "screen.indexed": "84eb362bb6f78547aca385e159e8d95c4e80e7fe5b252d55eb3373e39463efe1"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 2,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              },
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": true
+          },
+          "serviceCreations": 1,
+          "deviceCreations": 1,
+          "assetState": {
+            "configuredRct1Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe",
+            "configuredRct2Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack",
+            "g1PayloadCount": 29294,
+            "g1RecordCount": 29294,
+            "rct1CsgLoaded": true,
+            "rct1Required": true
+          },
+          "validationActivated": true,
+          "logSha256": "9dbedd35b36052d813ead779a1bb646d217c4903c29b88937b334b968ce31edf"
+        },
+        {
+          "name": "transparent-r3z0",
+          "images": {
+            "rgba.bin": "711cf2d9ae70fe141fccd5b3df918d3e91dae55ab4632a6cb2f4f66a2ed165d7",
+            "indexed.bin": "10c81efcf239116f21d5799a10c97a942b4825d2924ec4b22928b5c981727a42",
+            "screen.png": "22bc8880b442346d038837bce20e546409dee240e2ff65e1c1a127402b31b77d",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "86d03bb4f7ceb51744b042a3d507f0b99469e9c22e481af7fbfa8ea7398064ec",
+          "diagnosticArtifacts": {
+            "report.json": "c6684d5df6c1584c4bd69aef174c956b05a8331faa5cf3a6d731bad34e9f57fb",
+            "screen.rgba": "711cf2d9ae70fe141fccd5b3df918d3e91dae55ab4632a6cb2f4f66a2ed165d7",
+            "screen.indexed": "10c81efcf239116f21d5799a10c97a942b4825d2924ec4b22928b5c981727a42"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 2,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              },
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": true
+          },
+          "serviceCreations": 1,
+          "deviceCreations": 1,
+          "assetState": {
+            "configuredRct1Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe",
+            "configuredRct2Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack",
+            "g1PayloadCount": 29294,
+            "g1RecordCount": 29294,
+            "rct1CsgLoaded": true,
+            "rct1Required": true
+          },
+          "validationActivated": true,
+          "logSha256": "9dbedd35b36052d813ead779a1bb646d217c4903c29b88937b334b968ce31edf"
+        },
+        {
+          "name": "transparent-r0z1",
+          "images": {
+            "rgba.bin": "77d5983c880ece2fd6cb7764b817e2148c7dc4ff8df556ebf1cd8a2495f4975f",
+            "indexed.bin": "049a7a0b7d93bd36ecb51a07a6475075650a491f8dbb098ce261f8a07ef03186",
+            "screen.png": "278545522e792ecd907a5b2187f509ccd0149408d52ecc14b7de1aec73b37718",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "86d03bb4f7ceb51744b042a3d507f0b99469e9c22e481af7fbfa8ea7398064ec",
+          "diagnosticArtifacts": {
+            "report.json": "c6684d5df6c1584c4bd69aef174c956b05a8331faa5cf3a6d731bad34e9f57fb",
+            "screen.rgba": "77d5983c880ece2fd6cb7764b817e2148c7dc4ff8df556ebf1cd8a2495f4975f",
+            "screen.indexed": "049a7a0b7d93bd36ecb51a07a6475075650a491f8dbb098ce261f8a07ef03186"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 2,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              },
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": true
+          },
+          "serviceCreations": 1,
+          "deviceCreations": 1,
+          "assetState": {
+            "configuredRct1Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe",
+            "configuredRct2Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack",
+            "g1PayloadCount": 29294,
+            "g1RecordCount": 29294,
+            "rct1CsgLoaded": true,
+            "rct1Required": true
+          },
+          "validationActivated": true,
+          "logSha256": "4a5bc4197f32f092fbafae70d36a79a018487ca1016e5dc99a64163975f89f69"
+        },
+        {
+          "name": "transparent-r1z1",
+          "images": {
+            "rgba.bin": "d91c1db52723de04d6137754f90406b1dbc4f3b8afe5ce8554d02d5b26eb4474",
+            "indexed.bin": "bdb1a31a440223daec3d308d7bdd63fc2a91c281a328e3492470da495ca20b9f",
+            "screen.png": "0b73afce776baadbc1fb80dc1dd6f0ddb87684cd4f0504f85abf731ddbae2e4c",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "86d03bb4f7ceb51744b042a3d507f0b99469e9c22e481af7fbfa8ea7398064ec",
+          "diagnosticArtifacts": {
+            "report.json": "c6684d5df6c1584c4bd69aef174c956b05a8331faa5cf3a6d731bad34e9f57fb",
+            "screen.rgba": "d91c1db52723de04d6137754f90406b1dbc4f3b8afe5ce8554d02d5b26eb4474",
+            "screen.indexed": "bdb1a31a440223daec3d308d7bdd63fc2a91c281a328e3492470da495ca20b9f"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 2,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              },
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": true
+          },
+          "serviceCreations": 1,
+          "deviceCreations": 1,
+          "assetState": {
+            "configuredRct1Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe",
+            "configuredRct2Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack",
+            "g1PayloadCount": 29294,
+            "g1RecordCount": 29294,
+            "rct1CsgLoaded": true,
+            "rct1Required": true
+          },
+          "validationActivated": true,
+          "logSha256": "20b8410248adc01184a28515f5f4f9b1b4529b6c6315355caa209b670ece2827"
+        },
+        {
+          "name": "transparent-r2z1",
+          "images": {
+            "rgba.bin": "1d5c9dc6b1266c0b4f028980035db7165f84bc00939474c2a51bf5ece7bfbc7f",
+            "indexed.bin": "678853ed1f9ca698c53ea867c99a345ae4de3e4844a7eb58d5847dab81d1a60a",
+            "screen.png": "b4cae14d15e49d192ee5dcf4122759674f0421d2d2342a7619cc491ab8a0b8ec",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "86d03bb4f7ceb51744b042a3d507f0b99469e9c22e481af7fbfa8ea7398064ec",
+          "diagnosticArtifacts": {
+            "report.json": "c6684d5df6c1584c4bd69aef174c956b05a8331faa5cf3a6d731bad34e9f57fb",
+            "screen.rgba": "1d5c9dc6b1266c0b4f028980035db7165f84bc00939474c2a51bf5ece7bfbc7f",
+            "screen.indexed": "678853ed1f9ca698c53ea867c99a345ae4de3e4844a7eb58d5847dab81d1a60a"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 2,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              },
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": true
+          },
+          "serviceCreations": 1,
+          "deviceCreations": 1,
+          "assetState": {
+            "configuredRct1Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe",
+            "configuredRct2Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack",
+            "g1PayloadCount": 29294,
+            "g1RecordCount": 29294,
+            "rct1CsgLoaded": true,
+            "rct1Required": true
+          },
+          "validationActivated": true,
+          "logSha256": "9dbedd35b36052d813ead779a1bb646d217c4903c29b88937b334b968ce31edf"
+        },
+        {
+          "name": "transparent-r3z1",
+          "images": {
+            "rgba.bin": "47434aac8e5aff5c392f8b283c824adab3d1670214c5802bfc8eaae7f1411abc",
+            "indexed.bin": "7b5c81f2e460b53fc202c75eb76dbcfad6304cb9f18766e74fe6cd294881873c",
+            "screen.png": "609b2311d63f29edc1b8bd657203d43b88f821ebebe7039c46aad52f8b66e741",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "86d03bb4f7ceb51744b042a3d507f0b99469e9c22e481af7fbfa8ea7398064ec",
+          "diagnosticArtifacts": {
+            "report.json": "c6684d5df6c1584c4bd69aef174c956b05a8331faa5cf3a6d731bad34e9f57fb",
+            "screen.rgba": "47434aac8e5aff5c392f8b283c824adab3d1670214c5802bfc8eaae7f1411abc",
+            "screen.indexed": "7b5c81f2e460b53fc202c75eb76dbcfad6304cb9f18766e74fe6cd294881873c"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 2,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              },
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": true
+          },
+          "serviceCreations": 1,
+          "deviceCreations": 1,
+          "assetState": {
+            "configuredRct1Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe",
+            "configuredRct2Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack",
+            "g1PayloadCount": 29294,
+            "g1RecordCount": 29294,
+            "rct1CsgLoaded": true,
+            "rct1Required": true
+          },
+          "validationActivated": true,
+          "logSha256": "9dbedd35b36052d813ead779a1bb646d217c4903c29b88937b334b968ce31edf"
+        }
+      ],
+      "backgroundPolicyDistinctions": [
+        {
+          "camera": "r0z0",
+          "differentIndices": 151315,
+          "opaqueBlankToTransparent": 151315
+        },
+        {
+          "camera": "r1z0",
+          "differentIndices": 157926,
+          "opaqueBlankToTransparent": 157926
+        },
+        {
+          "camera": "r2z0",
+          "differentIndices": 141479,
+          "opaqueBlankToTransparent": 141479
+        },
+        {
+          "camera": "r3z0",
+          "differentIndices": 87648,
+          "opaqueBlankToTransparent": 87648
+        },
+        {
+          "camera": "r0z1",
+          "differentIndices": 242536,
+          "opaqueBlankToTransparent": 242536
+        },
+        {
+          "camera": "r1z1",
+          "differentIndices": 242445,
+          "opaqueBlankToTransparent": 242445
+        },
+        {
+          "camera": "r2z1",
+          "differentIndices": 242379,
+          "opaqueBlankToTransparent": 242379
+        },
+        {
+          "camera": "r3z1",
+          "differentIndices": 243968,
+          "opaqueBlankToTransparent": 243968
+        }
+      ]
+    },
+    {
+      "path": "obj/vulkan-parity/production-cli-vulkan-background-02",
+      "summarySha256": "1b54a29e60194bb82b4f38cac45d008d95feb210d6b1c94bcaa0d6323dee3753",
+      "renderer": "vulkan",
+      "freshRepeat": true,
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-cli-build-03\\receipt.json",
+        "sha256": "ffa3852c8b257b11f90f767b6b8ff83e1a856efa80773ca4d5cb5a4660ca249f"
+      },
+      "shaderBuildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\build-44\\receipt.json",
+        "sha256": "b3e9086f188879f7de31e27443f150eca88b3b569a427d1fcff7da9947cca6c9"
+      },
+      "shaderSha256": {
+        "balloon.vert.spv": "56355825a87a187597d1a61c86590cda4036e98e642ce55751fa23b43116aac6",
+        "balloon_order.comp.spv": "b37491a08b58eeca8f278634182eeed3aee4a194c5ba6c89ac6383b86685dd11",
+        "indexed_line.frag.spv": "c3c698d64588c606db4ff3cc0469b6f2814d9b6191245a2b9e38ac04bf07f899",
+        "indexed_line.vert.spv": "cafe58b52c3f5ef6f1a31727c2e471e23f19cfb5717e0dd42deca1891665873a",
+        "indexed_palette.frag.spv": "00426e41ca288331f9912947c513c146775134239bc1b9c02a80a5e11d104ff2",
+        "indexed_palette.vert.spv": "ce9e9307593f2c1e4b2a80c7e10038031499584729fd681ec6f329d25df864b0",
+        "indexed_rect.frag.spv": "e19e81df04d77051fd3566b551751b3fc326817b4849e77df9a6a9337dcb3f0d",
+        "indexed_rect.vert.spv": "81c0bcd4b70683d7f7604ddff4f5a99af0d9de678182984ddbbb7f6a805484c8",
+        "indexed_sprite.vert.spv": "e7274e5d1c08245ad72330b784d0f3b89e7cbf2bd8bf33236522e1802d23f7c4",
+        "indexed_transparency_compose.frag.spv": "3b8ece50dec315d191608cbbc6708f93a774d6f78d46902b9fcde0583cb9824e",
+        "indexed_transparency_compose.vert.spv": "dc3f97b0bf58a34a07d88f92625b03fd48de909d441b5555024120244be8a153",
+        "indexed_transparent_rect.frag.spv": "280c6ad33634c220815f5123cdcc64a02e5847b8b0a1fda876fd36ab0880e658",
+        "indexed_transparent_rect.vert.spv": "ca77710e6008654acb0cb03dc29e81a345ef59bf84f26bac06639503bbf79be4",
+        "indexed_weather.frag.spv": "997336e48b6f29c22ba4642584e29f40db9937fc7141f5b70a499175aeea5afc",
+        "indexed_weather.vert.spv": "51fb76bcdc69aa11e6dbd8617d53a0d546b37e17380a2c0fc7d836a917a597f7",
+        "lightfx_accumulate.comp.spv": "6c01b995b3712b1bc44835357569774d15d423316738c9319e59e0e81bbad39b",
+        "rgba_scale.frag.spv": "a590532b2cc17ae5ce694c1af46103554884f87758b679e9d04439852997bd77",
+        "world_surface.vert.spv": "7510b4db285eb498e39c53acf2097ea2420832e0dd623fc999e78db963da1679",
+        "world_surface_compact.comp.spv": "4a159f211fe39393ea5288b8e05cb7009448865220aff3fb6652105bfe21e6b9"
+      },
+      "installedDataFileCount": 4697,
+      "installedDataVerification": "All summary-pinned files independently rehashed; final inventory equals frozen data plus qualified shaders",
+      "cases": [
+        {
+          "name": "ordinary-r0z0",
+          "images": {
+            "rgba.bin": "f90b2f6435877ebdc9226618f325d773e526601c9efee5214d4d542853f69081",
+            "indexed.bin": "762b2d460a15e053c6be66dfd6e419f3909e0095f36bca2550bd8ebad1918fc7",
+            "screen.png": "c83f66b7843a70fd9ad659d0f9aa64a65e6204a89d5da6ba0a0c40997405dc18",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "86d03bb4f7ceb51744b042a3d507f0b99469e9c22e481af7fbfa8ea7398064ec",
+          "diagnosticArtifacts": {
+            "report.json": "c6684d5df6c1584c4bd69aef174c956b05a8331faa5cf3a6d731bad34e9f57fb",
+            "screen.rgba": "f90b2f6435877ebdc9226618f325d773e526601c9efee5214d4d542853f69081",
+            "screen.indexed": "762b2d460a15e053c6be66dfd6e419f3909e0095f36bca2550bd8ebad1918fc7"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 2,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              },
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": true
+          },
+          "serviceCreations": 1,
+          "deviceCreations": 1,
+          "assetState": {
+            "configuredRct1Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe",
+            "configuredRct2Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack",
+            "g1PayloadCount": 29294,
+            "g1RecordCount": 29294,
+            "rct1CsgLoaded": true,
+            "rct1Required": true
+          },
+          "validationActivated": true,
+          "logSha256": "9dbedd35b36052d813ead779a1bb646d217c4903c29b88937b334b968ce31edf"
+        },
+        {
+          "name": "ordinary-r1z0",
+          "images": {
+            "rgba.bin": "636625eef2e155c5cc762a969976219dcb4c9e0d3671934cd5fc0d16d11b91cb",
+            "indexed.bin": "2b86caa1c57833653bc261f6082ccd9a01bad4136b6ecffa3d0b8b1a2346216a",
+            "screen.png": "4c2c0f45f740a7a10d357c7216795defd07bece5aee2f1b16b56d55562672550",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "86d03bb4f7ceb51744b042a3d507f0b99469e9c22e481af7fbfa8ea7398064ec",
+          "diagnosticArtifacts": {
+            "report.json": "c6684d5df6c1584c4bd69aef174c956b05a8331faa5cf3a6d731bad34e9f57fb",
+            "screen.rgba": "636625eef2e155c5cc762a969976219dcb4c9e0d3671934cd5fc0d16d11b91cb",
+            "screen.indexed": "2b86caa1c57833653bc261f6082ccd9a01bad4136b6ecffa3d0b8b1a2346216a"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 2,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              },
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": true
+          },
+          "serviceCreations": 1,
+          "deviceCreations": 1,
+          "assetState": {
+            "configuredRct1Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe",
+            "configuredRct2Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack",
+            "g1PayloadCount": 29294,
+            "g1RecordCount": 29294,
+            "rct1CsgLoaded": true,
+            "rct1Required": true
+          },
+          "validationActivated": true,
+          "logSha256": "9dbedd35b36052d813ead779a1bb646d217c4903c29b88937b334b968ce31edf"
+        },
+        {
+          "name": "ordinary-r2z0",
+          "images": {
+            "rgba.bin": "2b882b5a768866eaae03510aeec7e853fb39bab44c3ee6cf16aa909499f95c00",
+            "indexed.bin": "b63ab3ee4f425843f9d8e30bbadf782e73d85585ec5f765f44544b522833d049",
+            "screen.png": "644ba6ba79483ed61dcd227666c7b4d6cf207621f43d52acf6ac86bfbbcade50",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "86d03bb4f7ceb51744b042a3d507f0b99469e9c22e481af7fbfa8ea7398064ec",
+          "diagnosticArtifacts": {
+            "report.json": "c6684d5df6c1584c4bd69aef174c956b05a8331faa5cf3a6d731bad34e9f57fb",
+            "screen.rgba": "2b882b5a768866eaae03510aeec7e853fb39bab44c3ee6cf16aa909499f95c00",
+            "screen.indexed": "b63ab3ee4f425843f9d8e30bbadf782e73d85585ec5f765f44544b522833d049"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 2,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              },
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": true
+          },
+          "serviceCreations": 1,
+          "deviceCreations": 1,
+          "assetState": {
+            "configuredRct1Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe",
+            "configuredRct2Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack",
+            "g1PayloadCount": 29294,
+            "g1RecordCount": 29294,
+            "rct1CsgLoaded": true,
+            "rct1Required": true
+          },
+          "validationActivated": true,
+          "logSha256": "b1e3b89f78b515f3702b66b637df856fd5c04be0afc2864438efbb53775e3a57"
+        },
+        {
+          "name": "ordinary-r3z0",
+          "images": {
+            "rgba.bin": "598993f2bff40ae13d8b5c3cde4c1e0d0fe4dbf8d7811eb4d731227ed634cd5c",
+            "indexed.bin": "e825b18ed5e8fc27fd8afe739419d00ccd775c5a3eb444e472c30714c288059e",
+            "screen.png": "d00c35d2d43c12a7eed63a5e62f0e3780afe1cc31c5588901278f0cd0bf93a88",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "86d03bb4f7ceb51744b042a3d507f0b99469e9c22e481af7fbfa8ea7398064ec",
+          "diagnosticArtifacts": {
+            "report.json": "c6684d5df6c1584c4bd69aef174c956b05a8331faa5cf3a6d731bad34e9f57fb",
+            "screen.rgba": "598993f2bff40ae13d8b5c3cde4c1e0d0fe4dbf8d7811eb4d731227ed634cd5c",
+            "screen.indexed": "e825b18ed5e8fc27fd8afe739419d00ccd775c5a3eb444e472c30714c288059e"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 2,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              },
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": true
+          },
+          "serviceCreations": 1,
+          "deviceCreations": 1,
+          "assetState": {
+            "configuredRct1Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe",
+            "configuredRct2Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack",
+            "g1PayloadCount": 29294,
+            "g1RecordCount": 29294,
+            "rct1CsgLoaded": true,
+            "rct1Required": true
+          },
+          "validationActivated": true,
+          "logSha256": "9dbedd35b36052d813ead779a1bb646d217c4903c29b88937b334b968ce31edf"
+        },
+        {
+          "name": "ordinary-r0z1",
+          "images": {
+            "rgba.bin": "989261aade4c902ef1531a3313103fea69c4d1aff9b3ae526fbb6f7885ef197c",
+            "indexed.bin": "3ebc54d5ea74c2063cb8b99f62287d5059e03333f6c4c5a10d71ecdd314afe75",
+            "screen.png": "6e260758afe342951ad356552c82090f27d32626013f022cd7a98e9168cc8204",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "86d03bb4f7ceb51744b042a3d507f0b99469e9c22e481af7fbfa8ea7398064ec",
+          "diagnosticArtifacts": {
+            "report.json": "c6684d5df6c1584c4bd69aef174c956b05a8331faa5cf3a6d731bad34e9f57fb",
+            "screen.rgba": "989261aade4c902ef1531a3313103fea69c4d1aff9b3ae526fbb6f7885ef197c",
+            "screen.indexed": "3ebc54d5ea74c2063cb8b99f62287d5059e03333f6c4c5a10d71ecdd314afe75"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 2,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              },
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": true
+          },
+          "serviceCreations": 1,
+          "deviceCreations": 1,
+          "assetState": {
+            "configuredRct1Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe",
+            "configuredRct2Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack",
+            "g1PayloadCount": 29294,
+            "g1RecordCount": 29294,
+            "rct1CsgLoaded": true,
+            "rct1Required": true
+          },
+          "validationActivated": true,
+          "logSha256": "20b8410248adc01184a28515f5f4f9b1b4529b6c6315355caa209b670ece2827"
+        },
+        {
+          "name": "ordinary-r1z1",
+          "images": {
+            "rgba.bin": "58194e2c961276495774aa7e67defe88d5e435143d3e4375e73ee1acc75dd0d7",
+            "indexed.bin": "c28443574dac7697de60110fe09aba00f92dad7e2b938dbd0e5fea815af2c2c7",
+            "screen.png": "f57d547feb7efdc108cd007cb03a645bd6e798289b383d4a1f929bc3f5dc502d",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "86d03bb4f7ceb51744b042a3d507f0b99469e9c22e481af7fbfa8ea7398064ec",
+          "diagnosticArtifacts": {
+            "report.json": "c6684d5df6c1584c4bd69aef174c956b05a8331faa5cf3a6d731bad34e9f57fb",
+            "screen.rgba": "58194e2c961276495774aa7e67defe88d5e435143d3e4375e73ee1acc75dd0d7",
+            "screen.indexed": "c28443574dac7697de60110fe09aba00f92dad7e2b938dbd0e5fea815af2c2c7"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 2,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              },
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": true
+          },
+          "serviceCreations": 1,
+          "deviceCreations": 1,
+          "assetState": {
+            "configuredRct1Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe",
+            "configuredRct2Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack",
+            "g1PayloadCount": 29294,
+            "g1RecordCount": 29294,
+            "rct1CsgLoaded": true,
+            "rct1Required": true
+          },
+          "validationActivated": true,
+          "logSha256": "b1e3b89f78b515f3702b66b637df856fd5c04be0afc2864438efbb53775e3a57"
+        },
+        {
+          "name": "ordinary-r2z1",
+          "images": {
+            "rgba.bin": "330a39b6b8df2e4aa7aa04e8d9e80a6e0156a6ce035c0ff11da1cba046a34da9",
+            "indexed.bin": "0d5633862e693fc85a7a5335f01387fe54666874467dc2676390d167b6f0eab7",
+            "screen.png": "58c83b251234fbf759de4e5af31ab3cc1bc969d98067ec5e1fdaf2c1dc160744",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "86d03bb4f7ceb51744b042a3d507f0b99469e9c22e481af7fbfa8ea7398064ec",
+          "diagnosticArtifacts": {
+            "report.json": "c6684d5df6c1584c4bd69aef174c956b05a8331faa5cf3a6d731bad34e9f57fb",
+            "screen.rgba": "330a39b6b8df2e4aa7aa04e8d9e80a6e0156a6ce035c0ff11da1cba046a34da9",
+            "screen.indexed": "0d5633862e693fc85a7a5335f01387fe54666874467dc2676390d167b6f0eab7"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 2,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              },
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": true
+          },
+          "serviceCreations": 1,
+          "deviceCreations": 1,
+          "assetState": {
+            "configuredRct1Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe",
+            "configuredRct2Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack",
+            "g1PayloadCount": 29294,
+            "g1RecordCount": 29294,
+            "rct1CsgLoaded": true,
+            "rct1Required": true
+          },
+          "validationActivated": true,
+          "logSha256": "9dbedd35b36052d813ead779a1bb646d217c4903c29b88937b334b968ce31edf"
+        },
+        {
+          "name": "ordinary-r3z1",
+          "images": {
+            "rgba.bin": "381c1b7b1d9f630fea3191ff4c514657a60c6309c1678ee3d485165007444c75",
+            "indexed.bin": "481ec0facc872874aa0a3fd49801ceef62ce5d171eab180a2e1912ac0a79b65c",
+            "screen.png": "9e13481c260a909e71710e63869bd4f2ca8798b102e9a43c08278a27d8a79886",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "86d03bb4f7ceb51744b042a3d507f0b99469e9c22e481af7fbfa8ea7398064ec",
+          "diagnosticArtifacts": {
+            "report.json": "c6684d5df6c1584c4bd69aef174c956b05a8331faa5cf3a6d731bad34e9f57fb",
+            "screen.rgba": "381c1b7b1d9f630fea3191ff4c514657a60c6309c1678ee3d485165007444c75",
+            "screen.indexed": "481ec0facc872874aa0a3fd49801ceef62ce5d171eab180a2e1912ac0a79b65c"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 2,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              },
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": true
+          },
+          "serviceCreations": 1,
+          "deviceCreations": 1,
+          "assetState": {
+            "configuredRct1Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe",
+            "configuredRct2Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack",
+            "g1PayloadCount": 29294,
+            "g1RecordCount": 29294,
+            "rct1CsgLoaded": true,
+            "rct1Required": true
+          },
+          "validationActivated": true,
+          "logSha256": "9dbedd35b36052d813ead779a1bb646d217c4903c29b88937b334b968ce31edf"
+        },
+        {
+          "name": "transparent-r0z0",
+          "images": {
+            "rgba.bin": "7938b40acaf6ea6e471ed6e7a09cc751822753d9cd8a971991d144ae8208460f",
+            "indexed.bin": "8e8d0ffb170de0ebaf9f5ac586bfc66ae2e28e69d84be5090a0db7fd7678c6e5",
+            "screen.png": "14f6f3c02c42196e22b4d7556cde7c09717f5ac3754b7dddcb10ba086da5df14",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "86d03bb4f7ceb51744b042a3d507f0b99469e9c22e481af7fbfa8ea7398064ec",
+          "diagnosticArtifacts": {
+            "report.json": "c6684d5df6c1584c4bd69aef174c956b05a8331faa5cf3a6d731bad34e9f57fb",
+            "screen.rgba": "7938b40acaf6ea6e471ed6e7a09cc751822753d9cd8a971991d144ae8208460f",
+            "screen.indexed": "8e8d0ffb170de0ebaf9f5ac586bfc66ae2e28e69d84be5090a0db7fd7678c6e5"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 2,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              },
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": true
+          },
+          "serviceCreations": 1,
+          "deviceCreations": 1,
+          "assetState": {
+            "configuredRct1Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe",
+            "configuredRct2Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack",
+            "g1PayloadCount": 29294,
+            "g1RecordCount": 29294,
+            "rct1CsgLoaded": true,
+            "rct1Required": true
+          },
+          "validationActivated": true,
+          "logSha256": "9dbedd35b36052d813ead779a1bb646d217c4903c29b88937b334b968ce31edf"
+        },
+        {
+          "name": "transparent-r1z0",
+          "images": {
+            "rgba.bin": "972c36f8c8c51f36cd43a30f957d0a7f4e71e60794a5dd32051967ec19590e22",
+            "indexed.bin": "c43cf4c83ef7ca31e1f4671577c403be3371d4d507a57675d039e1e6253e4423",
+            "screen.png": "f89fd320190b42b1643540c11910d6e69fbd0340a7baa862c7f543843bd32222",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "86d03bb4f7ceb51744b042a3d507f0b99469e9c22e481af7fbfa8ea7398064ec",
+          "diagnosticArtifacts": {
+            "report.json": "c6684d5df6c1584c4bd69aef174c956b05a8331faa5cf3a6d731bad34e9f57fb",
+            "screen.rgba": "972c36f8c8c51f36cd43a30f957d0a7f4e71e60794a5dd32051967ec19590e22",
+            "screen.indexed": "c43cf4c83ef7ca31e1f4671577c403be3371d4d507a57675d039e1e6253e4423"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 2,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              },
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": true
+          },
+          "serviceCreations": 1,
+          "deviceCreations": 1,
+          "assetState": {
+            "configuredRct1Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe",
+            "configuredRct2Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack",
+            "g1PayloadCount": 29294,
+            "g1RecordCount": 29294,
+            "rct1CsgLoaded": true,
+            "rct1Required": true
+          },
+          "validationActivated": true,
+          "logSha256": "9dbedd35b36052d813ead779a1bb646d217c4903c29b88937b334b968ce31edf"
+        },
+        {
+          "name": "transparent-r2z0",
+          "images": {
+            "rgba.bin": "66686c4485300a9a6dc127f00dcb1302b23fa15d7f01cdb8170231db76b89f99",
+            "indexed.bin": "84eb362bb6f78547aca385e159e8d95c4e80e7fe5b252d55eb3373e39463efe1",
+            "screen.png": "5d4734cda3daaf430749de3c62778d6240c1e90d6bd2a9b902c627809a6b78be",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "86d03bb4f7ceb51744b042a3d507f0b99469e9c22e481af7fbfa8ea7398064ec",
+          "diagnosticArtifacts": {
+            "report.json": "c6684d5df6c1584c4bd69aef174c956b05a8331faa5cf3a6d731bad34e9f57fb",
+            "screen.rgba": "66686c4485300a9a6dc127f00dcb1302b23fa15d7f01cdb8170231db76b89f99",
+            "screen.indexed": "84eb362bb6f78547aca385e159e8d95c4e80e7fe5b252d55eb3373e39463efe1"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 2,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              },
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": true
+          },
+          "serviceCreations": 1,
+          "deviceCreations": 1,
+          "assetState": {
+            "configuredRct1Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe",
+            "configuredRct2Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack",
+            "g1PayloadCount": 29294,
+            "g1RecordCount": 29294,
+            "rct1CsgLoaded": true,
+            "rct1Required": true
+          },
+          "validationActivated": true,
+          "logSha256": "b1e3b89f78b515f3702b66b637df856fd5c04be0afc2864438efbb53775e3a57"
+        },
+        {
+          "name": "transparent-r3z0",
+          "images": {
+            "rgba.bin": "711cf2d9ae70fe141fccd5b3df918d3e91dae55ab4632a6cb2f4f66a2ed165d7",
+            "indexed.bin": "10c81efcf239116f21d5799a10c97a942b4825d2924ec4b22928b5c981727a42",
+            "screen.png": "22bc8880b442346d038837bce20e546409dee240e2ff65e1c1a127402b31b77d",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "86d03bb4f7ceb51744b042a3d507f0b99469e9c22e481af7fbfa8ea7398064ec",
+          "diagnosticArtifacts": {
+            "report.json": "c6684d5df6c1584c4bd69aef174c956b05a8331faa5cf3a6d731bad34e9f57fb",
+            "screen.rgba": "711cf2d9ae70fe141fccd5b3df918d3e91dae55ab4632a6cb2f4f66a2ed165d7",
+            "screen.indexed": "10c81efcf239116f21d5799a10c97a942b4825d2924ec4b22928b5c981727a42"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 2,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              },
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": true
+          },
+          "serviceCreations": 1,
+          "deviceCreations": 1,
+          "assetState": {
+            "configuredRct1Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe",
+            "configuredRct2Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack",
+            "g1PayloadCount": 29294,
+            "g1RecordCount": 29294,
+            "rct1CsgLoaded": true,
+            "rct1Required": true
+          },
+          "validationActivated": true,
+          "logSha256": "9dbedd35b36052d813ead779a1bb646d217c4903c29b88937b334b968ce31edf"
+        },
+        {
+          "name": "transparent-r0z1",
+          "images": {
+            "rgba.bin": "77d5983c880ece2fd6cb7764b817e2148c7dc4ff8df556ebf1cd8a2495f4975f",
+            "indexed.bin": "049a7a0b7d93bd36ecb51a07a6475075650a491f8dbb098ce261f8a07ef03186",
+            "screen.png": "278545522e792ecd907a5b2187f509ccd0149408d52ecc14b7de1aec73b37718",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "86d03bb4f7ceb51744b042a3d507f0b99469e9c22e481af7fbfa8ea7398064ec",
+          "diagnosticArtifacts": {
+            "report.json": "c6684d5df6c1584c4bd69aef174c956b05a8331faa5cf3a6d731bad34e9f57fb",
+            "screen.rgba": "77d5983c880ece2fd6cb7764b817e2148c7dc4ff8df556ebf1cd8a2495f4975f",
+            "screen.indexed": "049a7a0b7d93bd36ecb51a07a6475075650a491f8dbb098ce261f8a07ef03186"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 2,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              },
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": true
+          },
+          "serviceCreations": 1,
+          "deviceCreations": 1,
+          "assetState": {
+            "configuredRct1Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe",
+            "configuredRct2Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack",
+            "g1PayloadCount": 29294,
+            "g1RecordCount": 29294,
+            "rct1CsgLoaded": true,
+            "rct1Required": true
+          },
+          "validationActivated": true,
+          "logSha256": "9dbedd35b36052d813ead779a1bb646d217c4903c29b88937b334b968ce31edf"
+        },
+        {
+          "name": "transparent-r1z1",
+          "images": {
+            "rgba.bin": "d91c1db52723de04d6137754f90406b1dbc4f3b8afe5ce8554d02d5b26eb4474",
+            "indexed.bin": "bdb1a31a440223daec3d308d7bdd63fc2a91c281a328e3492470da495ca20b9f",
+            "screen.png": "0b73afce776baadbc1fb80dc1dd6f0ddb87684cd4f0504f85abf731ddbae2e4c",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "86d03bb4f7ceb51744b042a3d507f0b99469e9c22e481af7fbfa8ea7398064ec",
+          "diagnosticArtifacts": {
+            "report.json": "c6684d5df6c1584c4bd69aef174c956b05a8331faa5cf3a6d731bad34e9f57fb",
+            "screen.rgba": "d91c1db52723de04d6137754f90406b1dbc4f3b8afe5ce8554d02d5b26eb4474",
+            "screen.indexed": "bdb1a31a440223daec3d308d7bdd63fc2a91c281a328e3492470da495ca20b9f"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 2,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              },
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": true
+          },
+          "serviceCreations": 1,
+          "deviceCreations": 1,
+          "assetState": {
+            "configuredRct1Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe",
+            "configuredRct2Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack",
+            "g1PayloadCount": 29294,
+            "g1RecordCount": 29294,
+            "rct1CsgLoaded": true,
+            "rct1Required": true
+          },
+          "validationActivated": true,
+          "logSha256": "b1842b87014b472c019f3bf5986544571c6c41ad2763ec92519efa6d8159ee74"
+        },
+        {
+          "name": "transparent-r2z1",
+          "images": {
+            "rgba.bin": "1d5c9dc6b1266c0b4f028980035db7165f84bc00939474c2a51bf5ece7bfbc7f",
+            "indexed.bin": "678853ed1f9ca698c53ea867c99a345ae4de3e4844a7eb58d5847dab81d1a60a",
+            "screen.png": "b4cae14d15e49d192ee5dcf4122759674f0421d2d2342a7619cc491ab8a0b8ec",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "86d03bb4f7ceb51744b042a3d507f0b99469e9c22e481af7fbfa8ea7398064ec",
+          "diagnosticArtifacts": {
+            "report.json": "c6684d5df6c1584c4bd69aef174c956b05a8331faa5cf3a6d731bad34e9f57fb",
+            "screen.rgba": "1d5c9dc6b1266c0b4f028980035db7165f84bc00939474c2a51bf5ece7bfbc7f",
+            "screen.indexed": "678853ed1f9ca698c53ea867c99a345ae4de3e4844a7eb58d5847dab81d1a60a"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 2,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              },
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": true
+          },
+          "serviceCreations": 1,
+          "deviceCreations": 1,
+          "assetState": {
+            "configuredRct1Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe",
+            "configuredRct2Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack",
+            "g1PayloadCount": 29294,
+            "g1RecordCount": 29294,
+            "rct1CsgLoaded": true,
+            "rct1Required": true
+          },
+          "validationActivated": true,
+          "logSha256": "b1e3b89f78b515f3702b66b637df856fd5c04be0afc2864438efbb53775e3a57"
+        },
+        {
+          "name": "transparent-r3z1",
+          "images": {
+            "rgba.bin": "47434aac8e5aff5c392f8b283c824adab3d1670214c5802bfc8eaae7f1411abc",
+            "indexed.bin": "7b5c81f2e460b53fc202c75eb76dbcfad6304cb9f18766e74fe6cd294881873c",
+            "screen.png": "609b2311d63f29edc1b8bd657203d43b88f821ebebe7039c46aad52f8b66e741",
+            "palette.bin": "aa57418ece0263440a7b8d0ba8864021d98a07449a23017473f091bb5ee62db9"
+          },
+          "configInputSha256": "86d03bb4f7ceb51744b042a3d507f0b99469e9c22e481af7fbfa8ea7398064ec",
+          "diagnosticArtifacts": {
+            "report.json": "c6684d5df6c1584c4bd69aef174c956b05a8331faa5cf3a6d731bad34e9f57fb",
+            "screen.rgba": "47434aac8e5aff5c392f8b283c824adab3d1670214c5802bfc8eaae7f1411abc",
+            "screen.indexed": "7b5c81f2e460b53fc202c75eb76dbcfad6304cb9f18766e74fe6cd294881873c"
+          },
+          "productionFactory": {
+            "benchmarkOverride": false,
+            "configuredEngine": 2,
+            "deviceObservation": "persistent-owner-created-state",
+            "enabledChecks": [
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              },
+              {
+                "benchmarkOverride": false,
+                "configuredEngine": 2,
+                "enabled": true
+              }
+            ],
+            "kind": "configured",
+            "ownerCreated": true
+          },
+          "serviceCreations": 1,
+          "deviceCreations": 1,
+          "assetState": {
+            "configuredRct1Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe",
+            "configuredRct2Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack",
+            "g1PayloadCount": 29294,
+            "g1RecordCount": 29294,
+            "rct1CsgLoaded": true,
+            "rct1Required": true
+          },
+          "validationActivated": true,
+          "logSha256": "b1e3b89f78b515f3702b66b637df856fd5c04be0afc2864438efbb53775e3a57"
+        }
+      ],
+      "backgroundPolicyDistinctions": [
+        {
+          "camera": "r0z0",
+          "differentIndices": 151315,
+          "opaqueBlankToTransparent": 151315
+        },
+        {
+          "camera": "r1z0",
+          "differentIndices": 157926,
+          "opaqueBlankToTransparent": 157926
+        },
+        {
+          "camera": "r2z0",
+          "differentIndices": 141479,
+          "opaqueBlankToTransparent": 141479
+        },
+        {
+          "camera": "r3z0",
+          "differentIndices": 87648,
+          "opaqueBlankToTransparent": 87648
+        },
+        {
+          "camera": "r0z1",
+          "differentIndices": 242536,
+          "opaqueBlankToTransparent": 242536
+        },
+        {
+          "camera": "r1z1",
+          "differentIndices": 242445,
+          "opaqueBlankToTransparent": 242445
+        },
+        {
+          "camera": "r2z1",
+          "differentIndices": 242379,
+          "opaqueBlankToTransparent": 242379
+        },
+        {
+          "camera": "r3z1",
+          "differentIndices": 243968,
+          "opaqueBlankToTransparent": 243968
+        }
+      ]
+    }
+  ],
+  "lifecycle": [
+    {
+      "path": "obj/vulkan-parity/production-cli-software-lifecycle-02",
+      "summarySha256": "f1e2ebe2e27fd9c2eaf4a6f0c1ffe8e2580e57c1d41f28432a72892548d669c4",
+      "cases": [
+        {
+          "name": "help",
+          "exitCode": 0,
+          "report": {
+            "assetState": null,
+            "capture": null,
+            "deviceCreations": 0,
+            "error": "",
+            "exitCode": 0,
+            "fixture": "screenshot-cli",
+            "fixtureVersion": 1,
+            "mode": "software",
+            "productionFactory": {
+              "benchmarkOverride": false,
+              "configuredEngine": 0,
+              "deviceObservation": "persistent-owner-created-state",
+              "enabledChecks": [],
+              "kind": "configured",
+              "ownerCreated": false
+            },
+            "schema": 1,
+            "serviceCreations": 0
+          },
+          "expectedDiagnostic": null,
+          "artifacts": {
+            "config-input.ini": "d1a5dbd22b021dc73df1435c8ff4359cfcf113baacfc33ec7deb8ec3817406ef",
+            "capture/report.json": "8ad78375d148618911010ad8391ea0aeced4e38fede3beffc55f62147aec2815",
+            "capture.log": "4b0f43c48d4775b9e630693b9ca2d32712b0ac1bebc9b38ebebaffd14fe5b0f9"
+          },
+          "validationActivated": false,
+          "noPngOrOwnedOutput": true
+        },
+        {
+          "name": "version",
+          "exitCode": 0,
+          "report": {
+            "assetState": null,
+            "capture": null,
+            "deviceCreations": 0,
+            "error": "",
+            "exitCode": 0,
+            "fixture": "screenshot-cli",
+            "fixtureVersion": 1,
+            "mode": "software",
+            "productionFactory": {
+              "benchmarkOverride": false,
+              "configuredEngine": 0,
+              "deviceObservation": "persistent-owner-created-state",
+              "enabledChecks": [],
+              "kind": "configured",
+              "ownerCreated": false
+            },
+            "schema": 1,
+            "serviceCreations": 0
+          },
+          "expectedDiagnostic": null,
+          "artifacts": {
+            "config-input.ini": "d1a5dbd22b021dc73df1435c8ff4359cfcf113baacfc33ec7deb8ec3817406ef",
+            "capture/report.json": "8ad78375d148618911010ad8391ea0aeced4e38fede3beffc55f62147aec2815",
+            "capture.log": "21279357119deb9448af840872a928d07f5d4c9898e3510ea53a0697c09baa68"
+          },
+          "validationActivated": false,
+          "noPngOrOwnedOutput": true
+        },
+        {
+          "name": "missing-park",
+          "exitCode": 1,
+          "report": {
+            "assetState": null,
+            "capture": null,
+            "deviceCreations": 0,
+            "error": "",
+            "exitCode": 1,
+            "fixture": "screenshot-cli",
+            "fixtureVersion": 1,
+            "mode": "software",
+            "productionFactory": {
+              "benchmarkOverride": false,
+              "configuredEngine": 0,
+              "deviceObservation": "persistent-owner-created-state",
+              "enabledChecks": [],
+              "kind": "configured",
+              "ownerCreated": false
+            },
+            "schema": 1,
+            "serviceCreations": 0
+          },
+          "expectedDiagnostic": "Failed to load park.",
+          "artifacts": {
+            "config-input.ini": "d1a5dbd22b021dc73df1435c8ff4359cfcf113baacfc33ec7deb8ec3817406ef",
+            "capture/report.json": "6230923c60bd705e0f67e3b75f96dca9bfcc1146cb648c6615b4730f450c562c",
+            "capture.log": "311199e8b136fb4b704f4e12b596e794cde4b0058fa43eab9b065c60d6ab9c00"
+          },
+          "validationActivated": false,
+          "noPngOrOwnedOutput": true
+        }
+      ],
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-cli-build-03\\receipt.json",
+        "sha256": "ffa3852c8b257b11f90f767b6b8ff83e1a856efa80773ca4d5cb5a4660ca249f"
+      },
+      "shaderBuildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\build-44\\receipt.json",
+        "sha256": "b3e9086f188879f7de31e27443f150eca88b3b569a427d1fcff7da9947cca6c9"
+      }
+    },
+    {
+      "path": "obj/vulkan-parity/production-cli-vulkan-lifecycle-02",
+      "summarySha256": "e51aee476d50c3de44c97e9e1398c9d8e0c8ff345b43885c2bf590d8c05b562e",
+      "cases": [
+        {
+          "name": "help",
+          "exitCode": 0,
+          "report": {
+            "assetState": null,
+            "capture": null,
+            "deviceCreations": 0,
+            "error": "",
+            "exitCode": 0,
+            "fixture": "screenshot-cli",
+            "fixtureVersion": 1,
+            "mode": "vulkan",
+            "productionFactory": {
+              "benchmarkOverride": false,
+              "configuredEngine": 2,
+              "deviceObservation": "persistent-owner-created-state",
+              "enabledChecks": [],
+              "kind": "configured",
+              "ownerCreated": false
+            },
+            "schema": 1,
+            "serviceCreations": 0
+          },
+          "expectedDiagnostic": null,
+          "artifacts": {
+            "config-input.ini": "c278836c161f9ed7397b22d0325f7207f3af33e785c4cad5c2df4ac8d7036a36",
+            "capture/report.json": "5a825f207c814822f0fe201f613230178af1bb1e945f91073afd43ad57cf3949",
+            "capture.log": "4b0f43c48d4775b9e630693b9ca2d32712b0ac1bebc9b38ebebaffd14fe5b0f9"
+          },
+          "validationActivated": false,
+          "noPngOrOwnedOutput": true
+        },
+        {
+          "name": "version",
+          "exitCode": 0,
+          "report": {
+            "assetState": null,
+            "capture": null,
+            "deviceCreations": 0,
+            "error": "",
+            "exitCode": 0,
+            "fixture": "screenshot-cli",
+            "fixtureVersion": 1,
+            "mode": "vulkan",
+            "productionFactory": {
+              "benchmarkOverride": false,
+              "configuredEngine": 2,
+              "deviceObservation": "persistent-owner-created-state",
+              "enabledChecks": [],
+              "kind": "configured",
+              "ownerCreated": false
+            },
+            "schema": 1,
+            "serviceCreations": 0
+          },
+          "expectedDiagnostic": null,
+          "artifacts": {
+            "config-input.ini": "c278836c161f9ed7397b22d0325f7207f3af33e785c4cad5c2df4ac8d7036a36",
+            "capture/report.json": "5a825f207c814822f0fe201f613230178af1bb1e945f91073afd43ad57cf3949",
+            "capture.log": "21279357119deb9448af840872a928d07f5d4c9898e3510ea53a0697c09baa68"
+          },
+          "validationActivated": false,
+          "noPngOrOwnedOutput": true
+        },
+        {
+          "name": "missing-park",
+          "exitCode": 1,
+          "report": {
+            "assetState": null,
+            "capture": null,
+            "deviceCreations": 0,
+            "error": "",
+            "exitCode": 1,
+            "fixture": "screenshot-cli",
+            "fixtureVersion": 1,
+            "mode": "vulkan",
+            "productionFactory": {
+              "benchmarkOverride": false,
+              "configuredEngine": 2,
+              "deviceObservation": "persistent-owner-created-state",
+              "enabledChecks": [],
+              "kind": "configured",
+              "ownerCreated": false
+            },
+            "schema": 1,
+            "serviceCreations": 0
+          },
+          "expectedDiagnostic": "Failed to load park.",
+          "artifacts": {
+            "config-input.ini": "c278836c161f9ed7397b22d0325f7207f3af33e785c4cad5c2df4ac8d7036a36",
+            "capture/report.json": "b4f40080530f191e731f5470a4be04a81e9deead976d4e2e2597734179d92261",
+            "capture.log": "c4c615ac0f87c597c713c27a7b2c1d5cb5f8a9c63ad7751cfa0780cd597a4f04"
+          },
+          "validationActivated": false,
+          "noPngOrOwnedOutput": true
+        },
+        {
+          "name": "giant-rejected",
+          "exitCode": 1,
+          "report": {
+            "assetState": null,
+            "capture": null,
+            "deviceCreations": 0,
+            "error": "",
+            "exitCode": 1,
+            "fixture": "screenshot-cli",
+            "fixtureVersion": 1,
+            "mode": "vulkan",
+            "productionFactory": {
+              "benchmarkOverride": false,
+              "configuredEngine": 2,
+              "deviceObservation": "persistent-owner-created-state",
+              "enabledChecks": [
+                {
+                  "benchmarkOverride": false,
+                  "configuredEngine": 2,
+                  "enabled": true
+                }
+              ],
+              "kind": "configured",
+              "ownerCreated": false
+            },
+            "schema": 1,
+            "serviceCreations": 0
+          },
+          "expectedDiagnostic": "Giant screenshots require tiled offscreen rendering",
+          "artifacts": {
+            "config-input.ini": "c278836c161f9ed7397b22d0325f7207f3af33e785c4cad5c2df4ac8d7036a36",
+            "capture/report.json": "122b27fc936448084ba355b2e7e6f0ad8db44cdd59f9823f8195a719580ec2c9",
+            "capture.log": "07237c5d9a4232d89eba6f39169243aec0eafe3df0f8a4c1f69dffcf0e1b2f2c"
+          },
+          "validationActivated": false,
+          "noPngOrOwnedOutput": true
+        },
+        {
+          "name": "oversized-rejected",
+          "exitCode": 1,
+          "report": {
+            "assetState": {
+              "configuredRct1Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe",
+              "configuredRct2Path": "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack",
+              "g1PayloadCount": 29294,
+              "g1RecordCount": 29294,
+              "rct1CsgLoaded": true,
+              "rct1Required": true
+            },
+            "capture": null,
+            "deviceCreations": 0,
+            "error": "",
+            "exitCode": 1,
+            "fixture": "screenshot-cli",
+            "fixtureVersion": 1,
+            "mode": "vulkan",
+            "productionFactory": {
+              "benchmarkOverride": false,
+              "configuredEngine": 2,
+              "deviceObservation": "persistent-owner-created-state",
+              "enabledChecks": [
+                {
+                  "benchmarkOverride": false,
+                  "configuredEngine": 2,
+                  "enabled": true
+                },
+                {
+                  "benchmarkOverride": false,
+                  "configuredEngine": 2,
+                  "enabled": true
+                }
+              ],
+              "kind": "configured",
+              "ownerCreated": false
+            },
+            "schema": 1,
+            "serviceCreations": 1
+          },
+          "expectedDiagnostic": "Offscreen target exceeds the configured bounded target pool",
+          "artifacts": {
+            "config-input.ini": "c278836c161f9ed7397b22d0325f7207f3af33e785c4cad5c2df4ac8d7036a36",
+            "capture/report.json": "c174bf50163a9a6dd01279bdfb6af816ab0b11b8d04bcd48f58fee2dddff9344",
+            "capture.log": "292efdc49804f8b96eae0c4f6e6b426b5209e792d9782313f0c0c4bb20586378"
+          },
+          "validationActivated": false,
+          "noPngOrOwnedOutput": true
+        }
+      ],
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-cli-build-03\\receipt.json",
+        "sha256": "ffa3852c8b257b11f90f767b6b8ff83e1a856efa80773ca4d5cb5a4660ca249f"
+      },
+      "shaderBuildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\build-44\\receipt.json",
+        "sha256": "b3e9086f188879f7de31e27443f150eca88b3b569a427d1fcff7da9947cca6c9"
+      }
+    }
+  ],
+  "preservedFailure": {
+    "path": "obj/vulkan-parity/production-cli-software-lifecycle-01",
+    "summarySha256": "8afe4cc5571d6d2744a208e11b8ac1141e6fba065876aa2c5f933cea1a973179",
+    "runnerErrorLogSha256": "876c23de104d7e3694320b7504218a23ba297f5b8bb51aff57350bb884984f85",
+    "status": "fail",
+    "casesExecuted": 0,
+    "failures": [
+      "ValueError: Shader destination already exists",
+      "Runner did not complete every required lifecycle case"
+    ],
+    "resolution": "Verified frozen install already contains SPVs. Narrow overlay fix permits only known frozen destination bytes to be replaced with qualified shaders; final exact inventory pinned before any child. No image divergence, GPU run, or exception waiver in failed preflight."
+  },
+  "reviewedSourceSha256": {
+    "src/openrct2/interface/Screenshot.cpp": "607d869796a018f470d3357f9e45948fde9068c3141d5bf426963bcef4745985",
+    "test/cli-parity/ScreenshotMain.cpp": "30d3542077fab33ee2f47289856a02b3a10ef976212b7380b6f42258c9fccdaa",
+    "src/openrct2-cli/Cli.cpp": "832f56751c51a81ce348ef4407f100c7dc2fcb6613dd281d197bf3b0b44f3902",
+    "scripts/rendering/run-screenshot-parity.py": "87cb04c91da02de749467ced04a9bb502515e33b9ae010ff329683f6dfa2c8cc",
+    "src/openrct2-renderer/vulkan/VulkanDeviceContext.cpp": "a11b7f6352f2cb505a96c5f6275aaf9f76f3b8e3caae8333941219ab003a4e48",
+    "scripts/rendering/run-screenshot-lifecycle.py": "5c3132df5fba6c41ad4820067c241b39a9c9b5aa5e006bdfa7a93d5bfb819256",
+    "src/openrct2-renderer/RenderServiceFactory.cpp": "dc5a1fcadb4fe46b003e1072ecf919381806c8ee47967d334b045de8a295d820"
+  },
+  "manualInspection": {
+    "images": [
+      "obj/vulkan-parity/production-cli-vulkan-background-01/ordinary-r0z0/screen.png",
+      "obj/vulkan-parity/production-cli-vulkan-background-01/ordinary-r1z0/screen.png",
+      "obj/vulkan-parity/production-cli-vulkan-background-01/ordinary-r2z0/screen.png",
+      "obj/vulkan-parity/production-cli-vulkan-background-01/ordinary-r3z0/screen.png",
+      "obj/vulkan-parity/production-cli-vulkan-background-01/ordinary-r0z1/screen.png",
+      "obj/vulkan-parity/production-cli-vulkan-background-01/ordinary-r1z1/screen.png",
+      "obj/vulkan-parity/production-cli-vulkan-background-01/ordinary-r2z1/screen.png",
+      "obj/vulkan-parity/production-cli-vulkan-background-01/ordinary-r3z1/screen.png",
+      "obj/vulkan-parity/production-cli-vulkan-background-01/transparent-r0z0/screen.png",
+      "obj/vulkan-parity/production-cli-vulkan-background-01/transparent-r1z0/screen.png",
+      "obj/vulkan-parity/production-cli-vulkan-background-01/transparent-r2z0/screen.png",
+      "obj/vulkan-parity/production-cli-vulkan-background-01/transparent-r3z0/screen.png",
+      "obj/vulkan-parity/production-cli-vulkan-background-01/transparent-r0z1/screen.png",
+      "obj/vulkan-parity/production-cli-vulkan-background-01/transparent-r1z1/screen.png",
+      "obj/vulkan-parity/production-cli-vulkan-background-01/transparent-r2z1/screen.png",
+      "obj/vulkan-parity/production-cli-vulkan-background-01/transparent-r3z1/screen.png",
+      "obj/vulkan-parity/e5-frozen-cli-background-01/ordinary-r0z0/screen.png",
+      "obj/vulkan-parity/e5-frozen-cli-background-01/transparent-r0z0/screen.png",
+      "obj/vulkan-parity/e5-frozen-cli-background-01/ordinary-r3z1/screen.png",
+      "obj/vulkan-parity/e5-frozen-cli-background-01/transparent-r3z1/screen.png"
+    ],
+    "finding": "All 16 configured Vulkan views and four frozen counterparts inspected. Rotated Ferris-wheel spokes/supports, foreground/background occlusion of entrance towers/banner and station, fences, grass/cliff textures, zoom scale and location agree. Opaque and transparent backgrounds visibly differ as intended while park pixels remain intact."
+  },
+  "divergences": [],
+  "exceptions": [],
+  "limits": [
+    "This diagnostic executable calls the real dispatcher and production configured factory through transparent policy/output observers; ordinary production launcher execution is not independently captured.",
+    "Persistent owner IsCreated plus reviewed source wiring establishes zero/one owner device; no global Vulkan API interception counter.",
+    "Installed shader path and removal of bypass variables are established by pinned runner/factory source and isolated inventories, not runtime file-open interception or an archived child environment.",
+    "32 software image cases have no post-load G1/CSG observer; Vulkan service creation verifies loaded original assets.",
+    "Giant Vulkan screenshot rejection is a current expected limitation, not feature parity; oversized non-giant rejection preserves the bounded pool.",
+    "No main-window WSI, native world-category completeness, sustained CPU/upload bandwidth, vsync, TPS, or Gate P claim from these captures."
+  ],
+  "globalGateP": false,
+  "frozenReference": {
+    "path": "obj/vulkan-parity/e5-frozen-cli-background-01",
+    "summarySha256": "825ba302a81a683c4980b0b0e421131f7d8c5d2f4a92bb96739c0ca3747c4c49",
+    "qualification": "Qualified frozen CLI build and controlled-background fixture version2; all PNG/index/palette/RGBA hashes independently matched for each current capture."
+  }
+}

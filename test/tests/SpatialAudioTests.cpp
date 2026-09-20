@@ -15,10 +15,12 @@
 #include <numbers>
 #include <numeric>
 #include <memory>
+#ifndef OPENRCT2_TEST_NO_UI_AUDIO
 #include <openrct2-ui/audio/AudioContext.h>
 #include <openrct2-ui/audio/AudioFormat.h>
 #include <openrct2-ui/audio/AudioMixer.h>
 #include <openrct2-ui/audio/SDLAudioSource.h>
+#endif
 #include <openrct2/Context.h>
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/audio/Audio.h>
@@ -30,6 +32,7 @@
 
 using namespace OpenRCT2::Audio;
 
+#ifndef OPENRCT2_TEST_NO_UI_AUDIO
 namespace
 {
     class TestAudioSource final : public SDLAudioSource
@@ -97,6 +100,8 @@ TEST(AudioMixer, RepeatedSampleVoicesRetainIndependentPlayback)
     ASSERT_EQ(last->Read(&output, sizeof(output)), sizeof(output));
     EXPECT_EQ(output, 2);
 }
+
+#endif
 
 TEST(SpatialAudio, DistanceAttenuationIsContinuousAndLongRange)
 {
@@ -421,6 +426,7 @@ TEST(SpatialAudio, RideDefinitionDecibelGainUsesAmplitudeConvention)
     EXPECT_FLOAT_EQ(DecibelsToLinearGain(0.0f), 1.0f);
 }
 
+#ifndef OPENRCT2_TEST_NO_UI_AUDIO
 TEST(SpatialAudio, NewSpatialChannelStartsFromConfiguredState)
 {
     std::unique_ptr<IAudioChannel> channel(AudioChannel::Create());
@@ -437,6 +443,8 @@ TEST(SpatialAudio, NewSpatialChannelStartsFromConfiguredState)
     EXPECT_EQ(channel->GetOldVolume(), 64);
 }
 
+#endif
+
 TEST(SpatialAudio, ShippedKartDefinitionProvidesFrictionSoundGain)
 {
     gOpenRCT2Headless = true;
@@ -452,6 +460,7 @@ TEST(SpatialAudio, ShippedKartDefinitionProvidesFrictionSoundGain)
         rideObject->GetEntry().Cars[0].friction_sound_gain, DecibelsToLinearGain(-6.0f), 0.000001f);
 }
 
+#ifndef OPENRCT2_TEST_NO_UI_AUDIO
 TEST(AudioChannel, FloatingPointGainPreservesValuesAboveUnity)
 {
     std::unique_ptr<ISDLAudioChannel> channel(AudioChannel::Create());
@@ -460,6 +469,8 @@ TEST(AudioChannel, FloatingPointGainPreservesValuesAboveUnity)
     channel->UpdateOldVolume();
     EXPECT_FLOAT_EQ(channel->GetOldGain(), 4.5f);
 }
+
+#endif
 
 TEST(SpatialAudio, LimiterUsesImmediateAttackAndGradualRelease)
 {

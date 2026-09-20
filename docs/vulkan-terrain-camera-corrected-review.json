@@ -1,0 +1,2074 @@
+{
+  "schema": 1,
+  "reviewer": "screenshot_runner",
+  "date": "2026-09-19",
+  "status": "open-vulkan-defect-staged-fix-awaiting-qualification",
+  "manualInspectionMethod": "Opened listed original PNGs and generated physical/indexed comparison images using view_image. No edited reference imagery. Pixel counts are runner evidence, not visual estimates.",
+  "reviewedImages": [
+    {
+      "path": "obj/vulkan-parity/ui-camera-terrain-frozen-r0z0-01/captures/baseline-0/screen.png",
+      "sha256": "74c81b869799ef80cb52b243bdb47f1374eae2858767a4c018713e23e63cf95a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-camera-terrain-vulkan-r0z0-01/captures/baseline-0/screen.png",
+      "sha256": "74c81b869799ef80cb52b243bdb47f1374eae2858767a4c018713e23e63cf95a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-camera-terrain-vulkan-r1z0-01/captures/baseline-0/screen.png",
+      "sha256": "570408542973294fe149523282dccfee831d280fe5014f373ece1d4827eed211"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-camera-terrain-vulkan-r1z0-01/captures/baseline-1/screen.png",
+      "sha256": "570408542973294fe149523282dccfee831d280fe5014f373ece1d4827eed211"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-camera-terrain-vulkan-r1z0-01/comparisons/baseline-0/diff-amplified.png",
+      "sha256": "3b68b4ef4bad431ba523ea08e76cf9eb473908703bf8539ec151b993b9efd83b"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-camera-terrain-vulkan-r1z0-01/comparisons/baseline-0/indexed/diff-mask.png",
+      "sha256": "61882b7623219410a2239d656a15c2ec42c66e14b81b32d82311a6b5960ffc84"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-camera-terrain-vulkan-r1z0-01/comparisons/baseline-0/indexed/reference.png",
+      "sha256": "11e2c72aeebcf226f995265fe6217ebdf4ff4c8659f996a31b4b1e179fb46a97"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-camera-terrain-vulkan-r1z0-01/comparisons/baseline-0/indexed/candidate.png",
+      "sha256": "04f47180e4be537e2cc3e1ac54d77728f79ddbf5a5d8b111534b794c3c622461"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-camera-terrain-vulkan-r1z0-01/comparisons/baseline-1/reference.png",
+      "sha256": "4ebdb420fe05bbe6823a82111520788134032fca1253b513c1be0cdf0cb2f5f6"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-camera-terrain-vulkan-r1z0-01/comparisons/baseline-1/diff-amplified.png",
+      "sha256": "3b68b4ef4bad431ba523ea08e76cf9eb473908703bf8539ec151b993b9efd83b"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-camera-terrain-vulkan-r1z0-01/comparisons/baseline-1/indexed/diff-mask.png",
+      "sha256": "61882b7623219410a2239d656a15c2ec42c66e14b81b32d82311a6b5960ffc84"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-camera-terrain-frozen-r1z0-01/captures/baseline-0/screen.png",
+      "sha256": "a0b0a527d5de75a2fcaccadf131d9e7cba381091f79b15e2b188785669313091"
+    }
+  ],
+  "runs": [
+    {
+      "path": "obj/vulkan-parity/ui-camera-terrain-frozen-r0z0-01/summary.json",
+      "sha256": "c25f693c2eeb46febc4a9c06e0fcbecad49aa127857c7a664d16589dd3ee0135",
+      "status": "pass",
+      "failures": [],
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-frozen-build-18\\receipt.json",
+        "sha256": "41725fcf8b9edf4a98ec4296fc34fd2c62d58473c589ce6ad4044a60d0f412fb"
+      },
+      "shaderBuildReceipt": null,
+      "comparisons": [],
+      "samples": {
+        "baseline-0": {
+          "pose": {
+            "viewPosition": [
+              -480,
+              -240
+            ],
+            "rotation": 0,
+            "zoom": 0
+          },
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 3,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "worldSurfaceAdmission": "unavailable-software",
+          "commandCoverage": null
+        },
+        "baseline-1": {
+          "pose": {
+            "viewPosition": [
+              -480,
+              -240
+            ],
+            "rotation": 0,
+            "zoom": 0
+          },
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 4,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "worldSurfaceAdmission": "unavailable-software",
+          "commandCoverage": null
+        }
+      }
+    },
+    {
+      "path": "obj/vulkan-parity/ui-camera-terrain-frozen-r0z0-02/summary.json",
+      "sha256": "43be04bc3edef59872a0aa04233a1ed54802be502d134a80baa7ec018c618723",
+      "status": "pass",
+      "failures": [],
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-frozen-build-18\\receipt.json",
+        "sha256": "41725fcf8b9edf4a98ec4296fc34fd2c62d58473c589ce6ad4044a60d0f412fb"
+      },
+      "shaderBuildReceipt": null,
+      "comparisons": [
+        {
+          "capture": "baseline-0",
+          "differingPixels": 0,
+          "boundsExclusive": null,
+          "layer": "physical-rgba",
+          "firstMismatch": null,
+          "maxChannelError": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "referenceSha256": "7e5f218a1b022658bbaff6c6c4e277042e66a80ce2cb525cb862c9cbb00fcde6",
+          "candidateSha256": "7e5f218a1b022658bbaff6c6c4e277042e66a80ce2cb525cb862c9cbb00fcde6",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-0",
+          "layer": "indexed",
+          "differingPixels": 0,
+          "boundsExclusive": null,
+          "referenceSha256": "89d22c8c6254ef5f4aa2d636e9174a65498d6015f6e0e9539da6a8cbfbba057f",
+          "candidateSha256": "89d22c8c6254ef5f4aa2d636e9174a65498d6015f6e0e9539da6a8cbfbba057f",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-1",
+          "differingPixels": 0,
+          "boundsExclusive": null,
+          "layer": "physical-rgba",
+          "firstMismatch": null,
+          "maxChannelError": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "referenceSha256": "7e5f218a1b022658bbaff6c6c4e277042e66a80ce2cb525cb862c9cbb00fcde6",
+          "candidateSha256": "7e5f218a1b022658bbaff6c6c4e277042e66a80ce2cb525cb862c9cbb00fcde6",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-1",
+          "layer": "indexed",
+          "differingPixels": 0,
+          "boundsExclusive": null,
+          "referenceSha256": "89d22c8c6254ef5f4aa2d636e9174a65498d6015f6e0e9539da6a8cbfbba057f",
+          "candidateSha256": "89d22c8c6254ef5f4aa2d636e9174a65498d6015f6e0e9539da6a8cbfbba057f",
+          "manualVisualReview": "required for every divergence"
+        }
+      ],
+      "samples": {
+        "baseline-0": {
+          "pose": {
+            "viewPosition": [
+              -480,
+              -240
+            ],
+            "rotation": 0,
+            "zoom": 0
+          },
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 3,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "worldSurfaceAdmission": "unavailable-software",
+          "commandCoverage": null
+        },
+        "baseline-1": {
+          "pose": {
+            "viewPosition": [
+              -480,
+              -240
+            ],
+            "rotation": 0,
+            "zoom": 0
+          },
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 4,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "worldSurfaceAdmission": "unavailable-software",
+          "commandCoverage": null
+        }
+      }
+    },
+    {
+      "path": "obj/vulkan-parity/ui-camera-terrain-software-r0z0-01/summary.json",
+      "sha256": "a499402ff944b6153655a9dd27b4f9f17e2fa28291bf15baaa968070eeb442ce",
+      "status": "pass",
+      "failures": [],
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-30\\receipt.json",
+        "sha256": "a4e892b116aa3af0e899f1a9f689dfa23ed48078d85130fa13bf67752e609c7a"
+      },
+      "shaderBuildReceipt": null,
+      "comparisons": [
+        {
+          "capture": "baseline-0",
+          "differingPixels": 0,
+          "boundsExclusive": null,
+          "layer": "physical-rgba",
+          "firstMismatch": null,
+          "maxChannelError": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "referenceSha256": "7e5f218a1b022658bbaff6c6c4e277042e66a80ce2cb525cb862c9cbb00fcde6",
+          "candidateSha256": "7e5f218a1b022658bbaff6c6c4e277042e66a80ce2cb525cb862c9cbb00fcde6",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-0",
+          "layer": "indexed",
+          "differingPixels": 0,
+          "boundsExclusive": null,
+          "referenceSha256": "89d22c8c6254ef5f4aa2d636e9174a65498d6015f6e0e9539da6a8cbfbba057f",
+          "candidateSha256": "89d22c8c6254ef5f4aa2d636e9174a65498d6015f6e0e9539da6a8cbfbba057f",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-1",
+          "differingPixels": 0,
+          "boundsExclusive": null,
+          "layer": "physical-rgba",
+          "firstMismatch": null,
+          "maxChannelError": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "referenceSha256": "7e5f218a1b022658bbaff6c6c4e277042e66a80ce2cb525cb862c9cbb00fcde6",
+          "candidateSha256": "7e5f218a1b022658bbaff6c6c4e277042e66a80ce2cb525cb862c9cbb00fcde6",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-1",
+          "layer": "indexed",
+          "differingPixels": 0,
+          "boundsExclusive": null,
+          "referenceSha256": "89d22c8c6254ef5f4aa2d636e9174a65498d6015f6e0e9539da6a8cbfbba057f",
+          "candidateSha256": "89d22c8c6254ef5f4aa2d636e9174a65498d6015f6e0e9539da6a8cbfbba057f",
+          "manualVisualReview": "required for every divergence"
+        }
+      ],
+      "samples": {
+        "baseline-0": {
+          "pose": {
+            "viewPosition": [
+              -480,
+              -240
+            ],
+            "rotation": 0,
+            "zoom": 0
+          },
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 3,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "worldSurfaceAdmission": "unavailable-software",
+          "commandCoverage": null
+        },
+        "baseline-1": {
+          "pose": {
+            "viewPosition": [
+              -480,
+              -240
+            ],
+            "rotation": 0,
+            "zoom": 0
+          },
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 4,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "worldSurfaceAdmission": "unavailable-software",
+          "commandCoverage": null
+        }
+      }
+    },
+    {
+      "path": "obj/vulkan-parity/ui-camera-terrain-software-r0z0-02/summary.json",
+      "sha256": "49e8da40044bc43aef0195974d17cd4ff689e3ee860916314168ea7054d67630",
+      "status": "pass",
+      "failures": [],
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-30\\receipt.json",
+        "sha256": "a4e892b116aa3af0e899f1a9f689dfa23ed48078d85130fa13bf67752e609c7a"
+      },
+      "shaderBuildReceipt": null,
+      "comparisons": [
+        {
+          "capture": "baseline-0",
+          "differingPixels": 0,
+          "boundsExclusive": null,
+          "layer": "physical-rgba",
+          "firstMismatch": null,
+          "maxChannelError": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "referenceSha256": "7e5f218a1b022658bbaff6c6c4e277042e66a80ce2cb525cb862c9cbb00fcde6",
+          "candidateSha256": "7e5f218a1b022658bbaff6c6c4e277042e66a80ce2cb525cb862c9cbb00fcde6",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-0",
+          "layer": "indexed",
+          "differingPixels": 0,
+          "boundsExclusive": null,
+          "referenceSha256": "89d22c8c6254ef5f4aa2d636e9174a65498d6015f6e0e9539da6a8cbfbba057f",
+          "candidateSha256": "89d22c8c6254ef5f4aa2d636e9174a65498d6015f6e0e9539da6a8cbfbba057f",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-1",
+          "differingPixels": 0,
+          "boundsExclusive": null,
+          "layer": "physical-rgba",
+          "firstMismatch": null,
+          "maxChannelError": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "referenceSha256": "7e5f218a1b022658bbaff6c6c4e277042e66a80ce2cb525cb862c9cbb00fcde6",
+          "candidateSha256": "7e5f218a1b022658bbaff6c6c4e277042e66a80ce2cb525cb862c9cbb00fcde6",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-1",
+          "layer": "indexed",
+          "differingPixels": 0,
+          "boundsExclusive": null,
+          "referenceSha256": "89d22c8c6254ef5f4aa2d636e9174a65498d6015f6e0e9539da6a8cbfbba057f",
+          "candidateSha256": "89d22c8c6254ef5f4aa2d636e9174a65498d6015f6e0e9539da6a8cbfbba057f",
+          "manualVisualReview": "required for every divergence"
+        }
+      ],
+      "samples": {
+        "baseline-0": {
+          "pose": {
+            "viewPosition": [
+              -480,
+              -240
+            ],
+            "rotation": 0,
+            "zoom": 0
+          },
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 3,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "worldSurfaceAdmission": "unavailable-software",
+          "commandCoverage": null
+        },
+        "baseline-1": {
+          "pose": {
+            "viewPosition": [
+              -480,
+              -240
+            ],
+            "rotation": 0,
+            "zoom": 0
+          },
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 4,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "worldSurfaceAdmission": "unavailable-software",
+          "commandCoverage": null
+        }
+      }
+    },
+    {
+      "path": "obj/vulkan-parity/ui-camera-terrain-vulkan-r0z0-01/summary.json",
+      "sha256": "512fcd3b554760ea1b10b7b3ed8ddbeb77b2f691f31a27f69b9fb743257f1593",
+      "status": "pass",
+      "failures": [],
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-30\\receipt.json",
+        "sha256": "a4e892b116aa3af0e899f1a9f689dfa23ed48078d85130fa13bf67752e609c7a"
+      },
+      "shaderBuildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\build-41\\receipt.json",
+        "sha256": "1fa856f3f4007646ae829da084ea64fa88b1c1cb712fb692b5f65922a3159746"
+      },
+      "comparisons": [
+        {
+          "capture": "baseline-0",
+          "differingPixels": 0,
+          "boundsExclusive": null,
+          "layer": "physical-rgba",
+          "firstMismatch": null,
+          "maxChannelError": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "referenceSha256": "7e5f218a1b022658bbaff6c6c4e277042e66a80ce2cb525cb862c9cbb00fcde6",
+          "candidateSha256": "7e5f218a1b022658bbaff6c6c4e277042e66a80ce2cb525cb862c9cbb00fcde6",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-0",
+          "layer": "indexed",
+          "differingPixels": 0,
+          "boundsExclusive": null,
+          "referenceSha256": "89d22c8c6254ef5f4aa2d636e9174a65498d6015f6e0e9539da6a8cbfbba057f",
+          "candidateSha256": "89d22c8c6254ef5f4aa2d636e9174a65498d6015f6e0e9539da6a8cbfbba057f",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-1",
+          "differingPixels": 0,
+          "boundsExclusive": null,
+          "layer": "physical-rgba",
+          "firstMismatch": null,
+          "maxChannelError": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "referenceSha256": "7e5f218a1b022658bbaff6c6c4e277042e66a80ce2cb525cb862c9cbb00fcde6",
+          "candidateSha256": "7e5f218a1b022658bbaff6c6c4e277042e66a80ce2cb525cb862c9cbb00fcde6",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-1",
+          "layer": "indexed",
+          "differingPixels": 0,
+          "boundsExclusive": null,
+          "referenceSha256": "89d22c8c6254ef5f4aa2d636e9174a65498d6015f6e0e9539da6a8cbfbba057f",
+          "candidateSha256": "89d22c8c6254ef5f4aa2d636e9174a65498d6015f6e0e9539da6a8cbfbba057f",
+          "manualVisualReview": "required for every divergence"
+        }
+      ],
+      "samples": {
+        "baseline-0": {
+          "pose": {
+            "viewPosition": [
+              -480,
+              -240
+            ],
+            "rotation": 0,
+            "zoom": 0
+          },
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 3,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "worldSurfaceAdmission": "native",
+          "commandCoverage": {
+            "frameNumber": 4,
+            "graphicsLookupTablesVersion": 1,
+            "lines": 0,
+            "opaqueRectangles": 32,
+            "opaqueSprites": 746,
+            "paletteVersion": 9,
+            "resizeVersion": 1,
+            "surfaceFormatVersion": 0,
+            "transparentRectangles": 20,
+            "weather": 0,
+            "worldEpoch": 4,
+            "worldSurfaceRecordCount": 1024,
+            "worldSurfaces": true
+          }
+        },
+        "baseline-1": {
+          "pose": {
+            "viewPosition": [
+              -480,
+              -240
+            ],
+            "rotation": 0,
+            "zoom": 0
+          },
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 4,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "worldSurfaceAdmission": "native",
+          "commandCoverage": {
+            "frameNumber": 5,
+            "graphicsLookupTablesVersion": 1,
+            "lines": 0,
+            "opaqueRectangles": 32,
+            "opaqueSprites": 746,
+            "paletteVersion": 10,
+            "resizeVersion": 1,
+            "surfaceFormatVersion": 0,
+            "transparentRectangles": 20,
+            "weather": 0,
+            "worldEpoch": 4,
+            "worldSurfaceRecordCount": 1024,
+            "worldSurfaces": true
+          }
+        }
+      }
+    },
+    {
+      "path": "obj/vulkan-parity/ui-camera-terrain-vulkan-r0z0-02/summary.json",
+      "sha256": "7a8e6f0de247a2b5a044eb2bc58cc02c5d647124f47040b495cd33cc0a2dcdc2",
+      "status": "pass",
+      "failures": [],
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-30\\receipt.json",
+        "sha256": "a4e892b116aa3af0e899f1a9f689dfa23ed48078d85130fa13bf67752e609c7a"
+      },
+      "shaderBuildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\build-41\\receipt.json",
+        "sha256": "1fa856f3f4007646ae829da084ea64fa88b1c1cb712fb692b5f65922a3159746"
+      },
+      "comparisons": [
+        {
+          "capture": "baseline-0",
+          "differingPixels": 0,
+          "boundsExclusive": null,
+          "layer": "physical-rgba",
+          "firstMismatch": null,
+          "maxChannelError": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "referenceSha256": "7e5f218a1b022658bbaff6c6c4e277042e66a80ce2cb525cb862c9cbb00fcde6",
+          "candidateSha256": "7e5f218a1b022658bbaff6c6c4e277042e66a80ce2cb525cb862c9cbb00fcde6",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-0",
+          "layer": "indexed",
+          "differingPixels": 0,
+          "boundsExclusive": null,
+          "referenceSha256": "89d22c8c6254ef5f4aa2d636e9174a65498d6015f6e0e9539da6a8cbfbba057f",
+          "candidateSha256": "89d22c8c6254ef5f4aa2d636e9174a65498d6015f6e0e9539da6a8cbfbba057f",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-1",
+          "differingPixels": 0,
+          "boundsExclusive": null,
+          "layer": "physical-rgba",
+          "firstMismatch": null,
+          "maxChannelError": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "referenceSha256": "7e5f218a1b022658bbaff6c6c4e277042e66a80ce2cb525cb862c9cbb00fcde6",
+          "candidateSha256": "7e5f218a1b022658bbaff6c6c4e277042e66a80ce2cb525cb862c9cbb00fcde6",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-1",
+          "layer": "indexed",
+          "differingPixels": 0,
+          "boundsExclusive": null,
+          "referenceSha256": "89d22c8c6254ef5f4aa2d636e9174a65498d6015f6e0e9539da6a8cbfbba057f",
+          "candidateSha256": "89d22c8c6254ef5f4aa2d636e9174a65498d6015f6e0e9539da6a8cbfbba057f",
+          "manualVisualReview": "required for every divergence"
+        }
+      ],
+      "samples": {
+        "baseline-0": {
+          "pose": {
+            "viewPosition": [
+              -480,
+              -240
+            ],
+            "rotation": 0,
+            "zoom": 0
+          },
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 3,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "worldSurfaceAdmission": "native",
+          "commandCoverage": {
+            "frameNumber": 4,
+            "graphicsLookupTablesVersion": 1,
+            "lines": 0,
+            "opaqueRectangles": 32,
+            "opaqueSprites": 746,
+            "paletteVersion": 9,
+            "resizeVersion": 1,
+            "surfaceFormatVersion": 0,
+            "transparentRectangles": 20,
+            "weather": 0,
+            "worldEpoch": 4,
+            "worldSurfaceRecordCount": 1024,
+            "worldSurfaces": true
+          }
+        },
+        "baseline-1": {
+          "pose": {
+            "viewPosition": [
+              -480,
+              -240
+            ],
+            "rotation": 0,
+            "zoom": 0
+          },
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 4,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "worldSurfaceAdmission": "native",
+          "commandCoverage": {
+            "frameNumber": 5,
+            "graphicsLookupTablesVersion": 1,
+            "lines": 0,
+            "opaqueRectangles": 32,
+            "opaqueSprites": 746,
+            "paletteVersion": 10,
+            "resizeVersion": 1,
+            "surfaceFormatVersion": 0,
+            "transparentRectangles": 20,
+            "weather": 0,
+            "worldEpoch": 4,
+            "worldSurfaceRecordCount": 1024,
+            "worldSurfaces": true
+          }
+        }
+      }
+    },
+    {
+      "path": "obj/vulkan-parity/ui-camera-terrain-frozen-r1z0-01/summary.json",
+      "sha256": "2a4d9e2d13ba0e399b6258aa39914e85e9acff060e765648ab1cef602488b98f",
+      "status": "pass",
+      "failures": [],
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-frozen-build-18\\receipt.json",
+        "sha256": "41725fcf8b9edf4a98ec4296fc34fd2c62d58473c589ce6ad4044a60d0f412fb"
+      },
+      "shaderBuildReceipt": null,
+      "comparisons": [],
+      "samples": {
+        "baseline-0": {
+          "pose": {
+            "viewPosition": [
+              -672,
+              -336
+            ],
+            "rotation": 1,
+            "zoom": 0
+          },
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 1,
+              "viewPosition": [
+                -672,
+                -336
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 1,
+              "viewPosition": [
+                -672,
+                -336
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 1,
+              "viewPosition": [
+                -672,
+                -336
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 3,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "worldSurfaceAdmission": "unavailable-software",
+          "commandCoverage": null
+        },
+        "baseline-1": {
+          "pose": {
+            "viewPosition": [
+              -672,
+              -336
+            ],
+            "rotation": 1,
+            "zoom": 0
+          },
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 1,
+              "viewPosition": [
+                -672,
+                -336
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 1,
+              "viewPosition": [
+                -672,
+                -336
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 1,
+              "viewPosition": [
+                -672,
+                -336
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 4,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "worldSurfaceAdmission": "unavailable-software",
+          "commandCoverage": null
+        }
+      }
+    },
+    {
+      "path": "obj/vulkan-parity/ui-camera-terrain-frozen-r1z0-02/summary.json",
+      "sha256": "1a2af33dd27cf8eb545cd43f2e6d3f3393502ad0fe28c9051d42e84da117f031",
+      "status": "pass",
+      "failures": [],
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-frozen-build-18\\receipt.json",
+        "sha256": "41725fcf8b9edf4a98ec4296fc34fd2c62d58473c589ce6ad4044a60d0f412fb"
+      },
+      "shaderBuildReceipt": null,
+      "comparisons": [
+        {
+          "capture": "baseline-0",
+          "differingPixels": 0,
+          "boundsExclusive": null,
+          "layer": "physical-rgba",
+          "firstMismatch": null,
+          "maxChannelError": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "referenceSha256": "5b6957fe6e4f1a832ef069b18ba98972bf7d68f0900d46451a997da496a7483a",
+          "candidateSha256": "5b6957fe6e4f1a832ef069b18ba98972bf7d68f0900d46451a997da496a7483a",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-0",
+          "layer": "indexed",
+          "differingPixels": 0,
+          "boundsExclusive": null,
+          "referenceSha256": "5555a80be007fad10df5cf0f3c36244f27a871e0e209922a1d9efb0852075025",
+          "candidateSha256": "5555a80be007fad10df5cf0f3c36244f27a871e0e209922a1d9efb0852075025",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-1",
+          "differingPixels": 0,
+          "boundsExclusive": null,
+          "layer": "physical-rgba",
+          "firstMismatch": null,
+          "maxChannelError": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "referenceSha256": "5b6957fe6e4f1a832ef069b18ba98972bf7d68f0900d46451a997da496a7483a",
+          "candidateSha256": "5b6957fe6e4f1a832ef069b18ba98972bf7d68f0900d46451a997da496a7483a",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-1",
+          "layer": "indexed",
+          "differingPixels": 0,
+          "boundsExclusive": null,
+          "referenceSha256": "5555a80be007fad10df5cf0f3c36244f27a871e0e209922a1d9efb0852075025",
+          "candidateSha256": "5555a80be007fad10df5cf0f3c36244f27a871e0e209922a1d9efb0852075025",
+          "manualVisualReview": "required for every divergence"
+        }
+      ],
+      "samples": {
+        "baseline-0": {
+          "pose": {
+            "viewPosition": [
+              -672,
+              -336
+            ],
+            "rotation": 1,
+            "zoom": 0
+          },
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 1,
+              "viewPosition": [
+                -672,
+                -336
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 1,
+              "viewPosition": [
+                -672,
+                -336
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 1,
+              "viewPosition": [
+                -672,
+                -336
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 3,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "worldSurfaceAdmission": "unavailable-software",
+          "commandCoverage": null
+        },
+        "baseline-1": {
+          "pose": {
+            "viewPosition": [
+              -672,
+              -336
+            ],
+            "rotation": 1,
+            "zoom": 0
+          },
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 1,
+              "viewPosition": [
+                -672,
+                -336
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 1,
+              "viewPosition": [
+                -672,
+                -336
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 1,
+              "viewPosition": [
+                -672,
+                -336
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 4,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "worldSurfaceAdmission": "unavailable-software",
+          "commandCoverage": null
+        }
+      }
+    },
+    {
+      "path": "obj/vulkan-parity/ui-camera-terrain-software-r1z0-01/summary.json",
+      "sha256": "0a9e04a1242c9e21da6fc1daa54c1a589632186e34b192fe1bfc693936148f80",
+      "status": "pass",
+      "failures": [],
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-30\\receipt.json",
+        "sha256": "a4e892b116aa3af0e899f1a9f689dfa23ed48078d85130fa13bf67752e609c7a"
+      },
+      "shaderBuildReceipt": null,
+      "comparisons": [
+        {
+          "capture": "baseline-0",
+          "differingPixels": 0,
+          "boundsExclusive": null,
+          "layer": "physical-rgba",
+          "firstMismatch": null,
+          "maxChannelError": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "referenceSha256": "5b6957fe6e4f1a832ef069b18ba98972bf7d68f0900d46451a997da496a7483a",
+          "candidateSha256": "5b6957fe6e4f1a832ef069b18ba98972bf7d68f0900d46451a997da496a7483a",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-0",
+          "layer": "indexed",
+          "differingPixels": 0,
+          "boundsExclusive": null,
+          "referenceSha256": "5555a80be007fad10df5cf0f3c36244f27a871e0e209922a1d9efb0852075025",
+          "candidateSha256": "5555a80be007fad10df5cf0f3c36244f27a871e0e209922a1d9efb0852075025",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-1",
+          "differingPixels": 0,
+          "boundsExclusive": null,
+          "layer": "physical-rgba",
+          "firstMismatch": null,
+          "maxChannelError": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "referenceSha256": "5b6957fe6e4f1a832ef069b18ba98972bf7d68f0900d46451a997da496a7483a",
+          "candidateSha256": "5b6957fe6e4f1a832ef069b18ba98972bf7d68f0900d46451a997da496a7483a",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-1",
+          "layer": "indexed",
+          "differingPixels": 0,
+          "boundsExclusive": null,
+          "referenceSha256": "5555a80be007fad10df5cf0f3c36244f27a871e0e209922a1d9efb0852075025",
+          "candidateSha256": "5555a80be007fad10df5cf0f3c36244f27a871e0e209922a1d9efb0852075025",
+          "manualVisualReview": "required for every divergence"
+        }
+      ],
+      "samples": {
+        "baseline-0": {
+          "pose": {
+            "viewPosition": [
+              -672,
+              -336
+            ],
+            "rotation": 1,
+            "zoom": 0
+          },
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 1,
+              "viewPosition": [
+                -672,
+                -336
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 1,
+              "viewPosition": [
+                -672,
+                -336
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 1,
+              "viewPosition": [
+                -672,
+                -336
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 3,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "worldSurfaceAdmission": "unavailable-software",
+          "commandCoverage": null
+        },
+        "baseline-1": {
+          "pose": {
+            "viewPosition": [
+              -672,
+              -336
+            ],
+            "rotation": 1,
+            "zoom": 0
+          },
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 1,
+              "viewPosition": [
+                -672,
+                -336
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 1,
+              "viewPosition": [
+                -672,
+                -336
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 1,
+              "viewPosition": [
+                -672,
+                -336
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 4,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "worldSurfaceAdmission": "unavailable-software",
+          "commandCoverage": null
+        }
+      }
+    },
+    {
+      "path": "obj/vulkan-parity/ui-camera-terrain-software-r1z0-02/summary.json",
+      "sha256": "7d785960cc4e25c5a54a7834149773eb7f4a29d201dca31b6c2529455f270719",
+      "status": "pass",
+      "failures": [],
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-30\\receipt.json",
+        "sha256": "a4e892b116aa3af0e899f1a9f689dfa23ed48078d85130fa13bf67752e609c7a"
+      },
+      "shaderBuildReceipt": null,
+      "comparisons": [
+        {
+          "capture": "baseline-0",
+          "differingPixels": 0,
+          "boundsExclusive": null,
+          "layer": "physical-rgba",
+          "firstMismatch": null,
+          "maxChannelError": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "referenceSha256": "5b6957fe6e4f1a832ef069b18ba98972bf7d68f0900d46451a997da496a7483a",
+          "candidateSha256": "5b6957fe6e4f1a832ef069b18ba98972bf7d68f0900d46451a997da496a7483a",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-0",
+          "layer": "indexed",
+          "differingPixels": 0,
+          "boundsExclusive": null,
+          "referenceSha256": "5555a80be007fad10df5cf0f3c36244f27a871e0e209922a1d9efb0852075025",
+          "candidateSha256": "5555a80be007fad10df5cf0f3c36244f27a871e0e209922a1d9efb0852075025",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-1",
+          "differingPixels": 0,
+          "boundsExclusive": null,
+          "layer": "physical-rgba",
+          "firstMismatch": null,
+          "maxChannelError": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "referenceSha256": "5b6957fe6e4f1a832ef069b18ba98972bf7d68f0900d46451a997da496a7483a",
+          "candidateSha256": "5b6957fe6e4f1a832ef069b18ba98972bf7d68f0900d46451a997da496a7483a",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-1",
+          "layer": "indexed",
+          "differingPixels": 0,
+          "boundsExclusive": null,
+          "referenceSha256": "5555a80be007fad10df5cf0f3c36244f27a871e0e209922a1d9efb0852075025",
+          "candidateSha256": "5555a80be007fad10df5cf0f3c36244f27a871e0e209922a1d9efb0852075025",
+          "manualVisualReview": "required for every divergence"
+        }
+      ],
+      "samples": {
+        "baseline-0": {
+          "pose": {
+            "viewPosition": [
+              -672,
+              -336
+            ],
+            "rotation": 1,
+            "zoom": 0
+          },
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 1,
+              "viewPosition": [
+                -672,
+                -336
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 1,
+              "viewPosition": [
+                -672,
+                -336
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 1,
+              "viewPosition": [
+                -672,
+                -336
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 3,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "worldSurfaceAdmission": "unavailable-software",
+          "commandCoverage": null
+        },
+        "baseline-1": {
+          "pose": {
+            "viewPosition": [
+              -672,
+              -336
+            ],
+            "rotation": 1,
+            "zoom": 0
+          },
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 1,
+              "viewPosition": [
+                -672,
+                -336
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 1,
+              "viewPosition": [
+                -672,
+                -336
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 1,
+              "viewPosition": [
+                -672,
+                -336
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 4,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "worldSurfaceAdmission": "unavailable-software",
+          "commandCoverage": null
+        }
+      }
+    },
+    {
+      "path": "obj/vulkan-parity/ui-camera-terrain-vulkan-r1z0-01/summary.json",
+      "sha256": "9416b1ec875a33db2a89d1b2669d81101462199e90756d22475c706d73243483",
+      "status": "fail",
+      "failures": [
+        "Pixel divergence baseline-0: 240",
+        "Indexed pixel divergence baseline-0: 240",
+        "Pixel divergence baseline-1: 240",
+        "Indexed pixel divergence baseline-1: 240"
+      ],
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-30\\receipt.json",
+        "sha256": "a4e892b116aa3af0e899f1a9f689dfa23ed48078d85130fa13bf67752e609c7a"
+      },
+      "shaderBuildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\build-41\\receipt.json",
+        "sha256": "1fa856f3f4007646ae829da084ea64fa88b1c1cb712fb692b5f65922a3159746"
+      },
+      "comparisons": [
+        {
+          "capture": "baseline-0",
+          "differingPixels": 240,
+          "boundsExclusive": [
+            0,
+            608,
+            30,
+            623
+          ],
+          "layer": "physical-rgba",
+          "firstMismatch": [
+            0,
+            608
+          ],
+          "maxChannelError": [
+            88,
+            104,
+            128,
+            0
+          ],
+          "referenceSha256": "5b6957fe6e4f1a832ef069b18ba98972bf7d68f0900d46451a997da496a7483a",
+          "candidateSha256": "e47ff0a3e78fdb81645dd8572aa5735f634f1c1db829e41792e510ee16c9570a",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-0",
+          "layer": "indexed",
+          "differingPixels": 240,
+          "boundsExclusive": [
+            0,
+            608,
+            30,
+            623
+          ],
+          "referenceSha256": "5555a80be007fad10df5cf0f3c36244f27a871e0e209922a1d9efb0852075025",
+          "candidateSha256": "73345f0c84612515ccf57d640fe71308a464d9e85d9674c2e9241302de27a81a",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-1",
+          "differingPixels": 240,
+          "boundsExclusive": [
+            0,
+            608,
+            30,
+            623
+          ],
+          "layer": "physical-rgba",
+          "firstMismatch": [
+            0,
+            608
+          ],
+          "maxChannelError": [
+            88,
+            104,
+            128,
+            0
+          ],
+          "referenceSha256": "5b6957fe6e4f1a832ef069b18ba98972bf7d68f0900d46451a997da496a7483a",
+          "candidateSha256": "e47ff0a3e78fdb81645dd8572aa5735f634f1c1db829e41792e510ee16c9570a",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-1",
+          "layer": "indexed",
+          "differingPixels": 240,
+          "boundsExclusive": [
+            0,
+            608,
+            30,
+            623
+          ],
+          "referenceSha256": "5555a80be007fad10df5cf0f3c36244f27a871e0e209922a1d9efb0852075025",
+          "candidateSha256": "73345f0c84612515ccf57d640fe71308a464d9e85d9674c2e9241302de27a81a",
+          "manualVisualReview": "required for every divergence"
+        }
+      ],
+      "samples": {
+        "baseline-0": {
+          "pose": {
+            "viewPosition": [
+              -672,
+              -336
+            ],
+            "rotation": 1,
+            "zoom": 0
+          },
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 1,
+              "viewPosition": [
+                -672,
+                -336
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 1,
+              "viewPosition": [
+                -672,
+                -336
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 1,
+              "viewPosition": [
+                -672,
+                -336
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 3,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "worldSurfaceAdmission": "native",
+          "commandCoverage": {
+            "frameNumber": 4,
+            "graphicsLookupTablesVersion": 1,
+            "lines": 0,
+            "opaqueRectangles": 32,
+            "opaqueSprites": 955,
+            "paletteVersion": 9,
+            "resizeVersion": 1,
+            "surfaceFormatVersion": 0,
+            "transparentRectangles": 20,
+            "weather": 0,
+            "worldEpoch": 4,
+            "worldSurfaceRecordCount": 1024,
+            "worldSurfaces": true
+          }
+        },
+        "baseline-1": {
+          "pose": {
+            "viewPosition": [
+              -672,
+              -336
+            ],
+            "rotation": 1,
+            "zoom": 0
+          },
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 1,
+              "viewPosition": [
+                -672,
+                -336
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 1,
+              "viewPosition": [
+                -672,
+                -336
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 1,
+              "viewPosition": [
+                -672,
+                -336
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                -240
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 4,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "worldSurfaceAdmission": "native",
+          "commandCoverage": {
+            "frameNumber": 5,
+            "graphicsLookupTablesVersion": 1,
+            "lines": 0,
+            "opaqueRectangles": 32,
+            "opaqueSprites": 955,
+            "paletteVersion": 10,
+            "resizeVersion": 1,
+            "surfaceFormatVersion": 0,
+            "transparentRectangles": 20,
+            "weather": 0,
+            "worldEpoch": 4,
+            "worldSurfaceRecordCount": 1024,
+            "worldSurfaces": true
+          }
+        }
+      }
+    }
+  ],
+  "observations": {
+    "r0z0": "Frozen and Vulkan grass apex near (480,256), clean straight diagonals, consistent fine grass texture, toolbar icons and guest/date panels match without visible seams or gaps.",
+    "r1z0": "Both repetitions show a 30x15 bounding box triangle of unfiltered grass intruding over the translucent guest panel at bottom left. Physical amplified difference and indexed mask have the same triangular footprint. Terrain tip near (608,320), exterior dark background, toolbar and other UI match elsewhere."
+  },
+  "defect": {
+    "kind": "Vulkan painter-depth collision",
+    "differentPixelsPerLayerPerRepetition": 240,
+    "boundsExclusive": [
+      0,
+      608,
+      30,
+      623
+    ],
+    "acceptedException": false,
+    "staticCause": "Native compute emitted orderIndex directly as painter depth while ordinary commands restarted at zero and native surface admission reserved no interval. Suppressing duplicate CPU terrain reduced UI command keys below native terrain keys, so native grass occluded the later translucent panel.",
+    "stagedFixManifest": "obj/vulkan-parity/terrain-depth-interval-staged/manifest.json",
+    "stagedFixManifestSha256": "443a647dde6ca52f2e67f61647aaf56842f29d112affd2c0464d05feb9f57bb2"
+  },
+  "scopeLimits": [
+    "Old runs preserve pixel equality at their reported actual pose but do not prove requested offsets or odd phase if the production painter reset them.",
+    "Native surface admission and fewer ordinary terrain sprites after the per-tile flag fix are not a full zero-CPU terrain claim. Legacy tile traversal, border/overlay commands, publication and unchanged Vulkan fallback paths remain.",
+    "No FPS, CPU bandwidth, memory bandwidth, or TPS benchmark conclusion follows from paused captures.",
+    "Remaining corrected matrix cases and repaired r1 captures require separate qualification and manual review."
+  ]
+}

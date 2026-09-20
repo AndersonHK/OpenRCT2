@@ -18,6 +18,7 @@ struct ScreenLine;
 struct TTFSurface;
 
 #include <memory>
+#include <utility>
 
 namespace OpenRCT2::Drawing
 {
@@ -25,6 +26,15 @@ namespace OpenRCT2::Drawing
     struct PaletteMap;
     struct RenderTarget;
     struct TextDrawInfo;
+
+    struct NativeWorldCategories
+    {
+        bool surfaces{};
+        bool entities{};
+        uint32_t submission{};
+        // A surface-only scene including borders. Transfers the entire viewport generation/drawing job.
+        bool completeTerrainScene{};
+    };
 
     struct IDrawingContext
     {
@@ -46,6 +56,15 @@ namespace OpenRCT2::Drawing
         virtual void DrawTTFBitmap(
             RenderTarget& rt, const TextDrawInfo& info, TTFSurface* surface, int32_t x, int32_t y, uint8_t hintingThreshold)
             = 0;
+
+        virtual NativeWorldCategories DrawWorldScene(
+            RenderTarget& rt, std::shared_ptr<const PresentationGeneration> generation, const OrthographicCamera& camera)
+        {
+            return { DrawWorldSurfaceScene(rt, std::move(generation), camera), false, 0 };
+        }
+        virtual void SealWorldScene(const NativeWorldCategories&)
+        {
+        }
 
         /**
          * Submit publication-owned base terrain. Returning true transfers that category away from PaintSurface for this

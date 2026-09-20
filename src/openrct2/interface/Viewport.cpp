@@ -8,6 +8,26 @@
  *****************************************************************************/
 
 #include "Viewport.h"
+#ifdef OPENRCT2_VIEWPORT_PAINT_DIAGNOSTICS
+    #include "ViewportPaintDiagnostics.h"
+    #include <atomic>
+
+namespace OpenRCT2::Drawing::Diagnostic
+{
+    static std::atomic_uint64_t GenerateCount{}, ArrangeCount{}, DrawCount{};
+    void ResetViewportPaintCounts() noexcept
+    {
+        GenerateCount.store(0, std::memory_order_relaxed);
+        ArrangeCount.store(0, std::memory_order_relaxed);
+        DrawCount.store(0, std::memory_order_relaxed);
+    }
+    ViewportPaintCounts ReadViewportPaintCounts() noexcept
+    {
+        return { GenerateCount.load(std::memory_order_relaxed), ArrangeCount.load(std::memory_order_relaxed),
+            DrawCount.load(std::memory_order_relaxed) };
+    }
+}
+#endif
 
 #include "../Context.h"
 #include "../Diagnostic.h"
@@ -26,15 +46,16 @@
 #include "../drawing/PresentationGeneration.h"
 #include "../drawing/PresentationScene.h"
 #include "../drawing/Rectangle.h"
-#include "../entity/Guest.h"
+#include "../drawing/RetainedBalloonScene.h"
 #include "../entity/EntityPresentationSnapshot.h"
+#include "../entity/Guest.h"
 #include "../entity/Staff.h"
 #include "../interface/Cursors.h"
 #include "../object/LargeSceneryEntry.h"
 #include "../object/SmallSceneryEntry.h"
 #include "../object/WallSceneryEntry.h"
-#include "../paint/Paint.h"
 #include "../paint/Paint.SessionFlags.h"
+#include "../paint/Paint.h"
 #include "../profiling/Profiling.h"
 #include "../ride/Ride.h"
 #include "../ride/RideData.h"
@@ -92,7 +113,8 @@ namespace OpenRCT2
     }
 
     static void ViewportPaintWeatherGloom(RenderTarget& rt);
-    static void ViewportPaint(const Viewport* viewport, RenderTarget& rt);
+    static void ViewportPaint(
+        const Viewport* viewport, RenderTarget& rt, ViewportGenerationDomain domain = ViewportGenerationDomain::targetClip);
     static void ViewportUpdateFollowSprite(WindowBase* window);
     static void ViewportUpdateSmartFollowEntity(WindowBase* window);
     static void ViewportUpdateSmartFollowStaff(WindowBase* window, const Staff& peep);
@@ -842,6 +864,11 @@ namespace OpenRCT2
      */
     void ViewportRender(RenderTarget& rt, const Viewport* viewport)
     {
+        ViewportRender(rt, viewport, ViewportGenerationDomain::targetClip);
+    }
+
+    void ViewportRender(RenderTarget& rt, const Viewport* viewport, ViewportGenerationDomain domain)
+    {
         if (viewport->flags & VIEWPORT_FLAG_RENDERING_INHIBITED)
             return;
 
@@ -854,16 +881,24 @@ namespace OpenRCT2
         if (rt.y >= viewport->pos.y + viewport->height)
             return;
 
-        ViewportPaint(viewport, rt);
+        ViewportPaint(viewport, rt, domain);
     }
 
-    static void ViewportFillColumn(PaintSession& session)
+    static void ViewportFillColumn(
+        PaintSession& session, const std::optional<ViewportGenerationBounds>& generationBounds)
     {
         PROFILED_FUNCTION();
 
         ScopedEntityPresentationSnapshot entitySnapshotScope(session.EntitySnapshot);
         ScopedMapPresentationSnapshot mapSnapshotScope(session.MapSnapshot);
+        const ScopedViewportGenerationTarget generationTarget(session.rt, generationBounds);
+#ifdef OPENRCT2_VIEWPORT_PAINT_DIAGNOSTICS
+        Drawing::Diagnostic::GenerateCount.fetch_add(1, std::memory_order_relaxed);
+#endif
         PaintSessionGenerate(session);
+#ifdef OPENRCT2_VIEWPORT_PAINT_DIAGNOSTICS
+        Drawing::Diagnostic::ArrangeCount.fetch_add(1, std::memory_order_relaxed);
+#endif
         PaintSessionArrange(session);
     }
 
@@ -920,6 +955,9 @@ namespace OpenRCT2
             GfxClear(session.rt, colour);
         }
 
+#ifdef OPENRCT2_VIEWPORT_PAINT_DIAGNOSTICS
+        Drawing::Diagnostic::DrawCount.fetch_add(1, std::memory_order_relaxed);
+#endif
         PaintDrawStructs(session);
 
         if (Config::Get().general.renderWeatherGloom && !gTrackDesignSaveMode
@@ -955,9 +993,8 @@ namespace OpenRCT2
     };
 
     static std::unique_ptr<PreparedViewportFrame> CreatePreparedViewportFrame(
-        const RenderTarget& worldRT, const Viewport& viewport,
-        std::shared_ptr<const MapPresentationSnapshot> mapSnapshot,
-        std::shared_ptr<const EntityPresentationSnapshot> entitySnapshot, const bool surfaceBaseDrawn)
+        const RenderTarget& worldRT, const Viewport& viewport, std::shared_ptr<const MapPresentationSnapshot> mapSnapshot,
+        std::shared_ptr<const EntityPresentationSnapshot> entitySnapshot, const bool surfaceBaseDrawn, const bool entitiesDrawn)
     {
         auto frame = std::make_unique<PreparedViewportFrame>();
         frame->columnWidth = worldRT.zoom_level.ApplyInversedTo(kCoordsXYStep);
@@ -973,6 +1010,8 @@ namespace OpenRCT2
             auto* session = PaintSessionAlloc(sessionRT, viewport.flags, viewport.rotation);
             if (surfaceBaseDrawn)
                 session->Flags |= PaintSessionFlags::SurfaceBaseDrawn;
+            if (entitiesDrawn)
+                session->Flags |= PaintSessionFlags::EntitiesDrawn;
             session->MapSnapshot = frame->mapSnapshot.get();
             session->EntitySnapshot = frame->entitySnapshot.get();
             RenderTarget columnRT{};
@@ -1004,12 +1043,24 @@ namespace OpenRCT2
         // additional explicit transient-state signal.
         const bool requiresSynchronousMapPublication = !gMapSelectFlags.isEmpty()
             || TileInspector::GetSelectedElement() != nullptr || isToolActive(WindowClass::trackDesignPlace);
+        const auto* engine = GetContext()->GetDrawingEngine();
+        const auto profile = engine == nullptr ? EntityPublicationProfile::legacyBulk : engine->GetEntityPublicationProfile();
         if (GetPresentationScene().BeginFrame(
-                jobs, gameState.entities, gCurrentDrawCount, requiresSynchronousMapPublication))
+                jobs, gameState.entities, gCurrentDrawCount, requiresSynchronousMapPublication, profile))
         {
             // Software drawing still consumes dirty blocks. Complete-frame backends explicitly ignore this invalidation.
             GfxInvalidateScreen();
         }
+    }
+
+    std::shared_ptr<const PresentationGeneration> ViewportGetPresentationGeneration()
+    {
+        return GetPresentationScene().GetGeneration();
+    }
+
+    Drawing::BalloonPublicationCopyTotals ViewportGetBalloonPublicationCopyTotals()
+    {
+        return GetPresentationScene().GetBalloonPublicationCopyTotals();
     }
 
     void ViewportDisposePresentation()
@@ -1027,7 +1078,7 @@ namespace OpenRCT2
      *  edi: rt
      *  ebp: bottom
      */
-    static void ViewportPaint(const Viewport* viewport, RenderTarget& rt)
+    static void ViewportPaint(const Viewport* viewport, RenderTarget& rt, ViewportGenerationDomain domain)
     {
         PROFILED_FUNCTION();
 
@@ -1067,7 +1118,8 @@ namespace OpenRCT2
         constexpr uint32_t kPaintSurfaceOverlayFlags = VIEWPORT_FLAG_GRIDLINES | VIEWPORT_FLAG_UNDERGROUND_INSIDE
             | VIEWPORT_FLAG_HIDE_BASE | VIEWPORT_FLAG_CLIP_VIEW | VIEWPORT_FLAG_LAND_HEIGHTS | VIEWPORT_FLAG_LAND_OWNERSHIP
             | VIEWPORT_FLAG_CONSTRUCTION_RIGHTS;
-        bool surfaceBaseDrawn = false;
+        Drawing::NativeWorldCategories nativeWorld;
+        Drawing::IDrawingContext* nativeContext = nullptr;
         if (usesMainPresentation && viewport == ViewportGetMain() && generation != nullptr
             && (viewport->flags & kPaintSurfaceOverlayFlags) == 0 && gMapSelectFlags.isEmpty()
             && TileInspector::GetSelectedElement() == nullptr && !isInTrackDesignerOrManager())
@@ -1084,9 +1136,21 @@ namespace OpenRCT2
                     .zoom = static_cast<int8_t>(viewport->zoom),
                     .rotation = viewport->rotation,
                     .landscapeSmoothing = Config::Get().general.landscapeSmoothing,
+                    .nativeEntitiesAllowed = viewport->flags == 0 && !gPaintStableSort && !gPaintBoundingBoxes
+                        && !gPaintBlockedTiles && !gTrackDesignSaveMode,
                 };
-                surfaceBaseDrawn = drawingContext->DrawWorldSurfaceScene(worldRT, generation, camera);
+                nativeWorld = drawingContext->DrawWorldScene(worldRT, generation, camera);
+                nativeContext = drawingContext;
             }
+        }
+
+        if (nativeWorld.completeTerrainScene)
+        {
+            // No per-frame CPU tile visitation, paint projection, parent ordering or world sprite commands.
+            nativeContext->SealWorldScene(nativeWorld);
+            if (usesMainPresentation)
+                presentation.ScheduleNext(sceneJobs, gameState.entities);
+            return;
         }
 
         bool useMultithreading = Config::Get().general.multiThreading;
@@ -1096,18 +1160,23 @@ namespace OpenRCT2
             useParallelDrawing = true;
         }
 
-        auto prepared = CreatePreparedViewportFrame(worldRT, *viewport, mapSnapshot, entitySnapshot, surfaceBaseDrawn);
+        const auto generationBounds = domain == ViewportGenerationDomain::fullViewportHeight
+            ? std::optional<ViewportGenerationBounds>{ { viewport->zoom.ApplyInversedTo(viewport->viewPos.y), viewport->height } }
+            : std::nullopt;
+
+        auto prepared = CreatePreparedViewportFrame(
+            worldRT, *viewport, mapSnapshot, entitySnapshot, nativeWorld.surfaces, nativeWorld.entities);
         if (useMultithreading)
         {
             sceneJobs.ParallelFor(
                 prepared->columns.size(),
-                [frame = prepared.get()](const size_t index) { ViewportFillColumn(*frame->columns[index].session); }, 1,
+                [frame = prepared.get(), generationBounds](const size_t index) { ViewportFillColumn(*frame->columns[index].session, generationBounds); }, 1,
                 nullptr, JobPool::TaskPriority::foreground);
         }
         else
         {
             for (const auto& column : prepared->columns)
-                ViewportFillColumn(*column.session);
+                ViewportFillColumn(*column.session, generationBounds);
         }
 
         if (useParallelDrawing)
@@ -1122,6 +1191,9 @@ namespace OpenRCT2
             for (const auto& column : prepared->columns)
                 ViewportPaintColumn(*column.session);
         }
+
+        if (nativeContext != nullptr)
+            nativeContext->SealWorldScene(nativeWorld);
 
         // Snapshot preparation starts only after the current viewport barriers,
         // allowing it to overlap the following simulation/UI work instead of

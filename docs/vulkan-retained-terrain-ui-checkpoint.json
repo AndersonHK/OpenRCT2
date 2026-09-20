@@ -1,0 +1,173 @@
+{
+  "schema": 1,
+  "status": "partial-qualified-transparent-main-viewport-history-gap-open",
+  "runtimeAdmission": false,
+  "softwareFrozen": true,
+  "newAcceptedExceptions": [],
+  "evidence": [
+    {
+      "path": "obj/vulkan-parity/retained-terrain-ui-application.json",
+      "sha256": "c2931379fc6f626338c1b3c798e657c58e9c5b7447fe346cb2c27790c22da5f1",
+      "recordedStatus": "applied-unqualified"
+    },
+    {
+      "path": "obj/vulkan-parity/terrain-ui-policy-v2-application.json",
+      "sha256": "ffe1db31b15f75f44cef179b1779b2e3533335931cdf6aa689b844f3bee3f0a9",
+      "recordedStatus": "applied-unqualified"
+    },
+    {
+      "path": "obj/vulkan-parity/terrain-draw-cached-readback-application.json",
+      "sha256": "b005e126523854573fd44b7a5f4bbc9f2559bbcba32331f6dc44c68249854e85",
+      "recordedStatus": "applied-unqualified"
+    },
+    {
+      "path": "obj/vulkan-parity/build-50/receipt.json",
+      "sha256": "8044dbc4be4bc03e506db6c7afb831e4847da7df9dacf49249d9959576cbf93b",
+      "recordedStatus": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/run-44/summary.json",
+      "sha256": "3f3e290d2a24c15c720eead3956bc0a7dd8b8ebff170d7a3dd41d1078adbeb70",
+      "recordedStatus": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/build-51/receipt.json",
+      "sha256": "6362c3aa3a9b269165b8d80c45bcf6a0efa9b99fa9c08b84e784b943bb5fd6d4",
+      "recordedStatus": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-cache-build-06/receipt.json",
+      "sha256": "0a302fbce0fa2d921c77694a3ea668de9693d9b8e1c15ba4873c8ecc49b3f10a",
+      "recordedStatus": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-build-35/receipt.json",
+      "sha256": "6d7b39c164da2681c95b96c5faf2959681f34801b83398783222c9b7e3b06438",
+      "recordedStatus": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-frozen-build-19/receipt.json",
+      "sha256": "3ad3aecdd54f3764ffcfb4cc03b99623626dfa880193611cd2d48db6c4fd28e8",
+      "recordedStatus": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/terrain-ui-bootstrap-01/summary.json",
+      "sha256": "0678f6201481e6c17abf1bd89d10e557f738e855b1f4a5061afcb2fd13e35612",
+      "recordedStatus": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/terrain-ui-bootstrap-manual-review-01/audit.json",
+      "sha256": "55dc0e082413d24bac667af82f72c839cb4fcdbecae4b055884f569ec65f7100",
+      "recordedStatus": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/run44-terrain-manual-review/audit.json",
+      "sha256": "82ce160782599a2f949b1e9289cf87a2bbbee8ff75994b3d3c5682be62eb11a3",
+      "recordedStatus": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/terrain-ui-matrix-01/summary.json",
+      "sha256": "3dbc840c25eb8f0a30e4e41e1dbb5591e9aa96eb35e706ae05a814dc7ec3db37",
+      "recordedStatus": "fail"
+    },
+    {
+      "path": "obj/vulkan-parity/terrain-ui-stable-decline-01/summary.json",
+      "sha256": "3fc2508454bbd5b96102fea29bf943fa3de5b86da2a55e10c352215ec5d29945",
+      "recordedStatus": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/terrain-ui-matrix-manual-review-01/audit.json",
+      "sha256": "c007a14bb975a1361024e3280f5858cd53d6277f4ddb22efa84e409f22726d6b",
+      "recordedStatus": "pass-for-listed-subset"
+    },
+    {
+      "path": "obj/vulkan-parity/terrain-ui-transparent-decline-failure-review-01/audit.json",
+      "sha256": "e0bf6af93ad9bd3860d6cd3080baa7f589c3f740b80db6932735c40a76d50e61",
+      "recordedStatus": "failure-confirmed-unresolved"
+    },
+    {
+      "path": "obj/vulkan-parity/retained-no-window-build-01/receipt.json",
+      "sha256": "0d2a39cb3b16fc1b46b06364585a3e289f66b35b254198d0e7d2cd760d5f747b",
+      "recordedStatus": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/retained-no-window-device-01/summary.json",
+      "sha256": "1502ac30e58e179ad626c6051accab8bd9f793efb280d23a500a60dbe32af1c1",
+      "recordedStatus": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/retained-no-window-offscreen-01/summary.json",
+      "sha256": "16172d8f745ebecad130a05bb0f7e90d2a7b8304891cac0cc57ee097e95e9cb2",
+      "recordedStatus": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/terrain-draw-probe-03/summary.json",
+      "sha256": "d196b0c292abaf6829632f290e9ea57d2954e1d514f1c5eb7db922f95d8a42ab",
+      "recordedStatus": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/terrain-draw-probe-03-independent-audit/audit.json",
+      "sha256": "1e221129d3b79e423ee89440b99ee4cb29c1997659f5c7620064a2805e573bdf",
+      "recordedStatus": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/terrain-draw-probe-03-independent-audit/qualification.json",
+      "sha256": "a2fa8fdae5e7af10d8dbf70a81d8d976bc789fbf22e003ea1966b7b486cc0f79",
+      "recordedStatus": null
+    },
+    {
+      "path": "obj/vulkan-parity/retained-sdl-free-cmake-07/prepare-receipt.json",
+      "sha256": "0174597b089bd88757b59caee5be6e4c1b6a8501ea3e6fe74eac6419044dfbc6",
+      "recordedStatus": "prepared-not-built"
+    },
+    {
+      "path": "obj/vulkan-parity/retained-sdl-free-cmake-07/qualification.json",
+      "sha256": "7f057e36cfd18a4fe5e0b6a4fc1ecc45adcc95497d3ee1a09c19fbfd33a16835",
+      "recordedStatus": "pass"
+    }
+  ],
+  "qualified": {
+    "ordinaryTests": 794,
+    "parityTests": 66,
+    "manualDrawingSamples": 50,
+    "drawingHealthySamples": 44,
+    "drawingExpectedEmptyErrorSamples": 6,
+    "mainWindowPassingProcesses": 66,
+    "mainWindowPassingCaptures": 252,
+    "ordinaryNativeCameras": 8,
+    "windowOverlapModes": [
+      "full",
+      "incremental"
+    ],
+    "explicitPassingDecline": "stable-sort",
+    "nativeCpuGenerateArrangeDrawCalls": 0,
+    "settledNativeTileMaterialSpriteUploadBytes": 0,
+    "compactStatusReadbackBytes": [
+      124,
+      244
+    ],
+    "deviceTests": 8,
+    "offscreenTests": 21,
+    "offscreenExactReports": 26,
+    "freshNoWindowDrawingSamples": 50,
+    "readbackArtifactsIdenticalToReviewedRun": 500,
+    "sdlFreeRendererTranslationUnits": 23,
+    "matchingProductionShaders": 21
+  },
+  "openDivergence": {
+    "case": "transparent-background scripted/main-viewport history",
+    "differingIndexedAndRgbaPixelsPerCapture": 18990,
+    "captures": 2,
+    "nativePathDeclined": true,
+    "cpuPaintingPositive": true,
+    "exceptionAccepted": false,
+    "description": "Retained off-map background and toolbar filter history differ. Controlled history probe required; original failed matrix preserved."
+  },
+  "limits": [
+    "No production admission, global feature parity, default switch or software deletion.",
+    "No sustained VSync, large-park TPS, cold/incremental upload or complete CPU-cost qualification.",
+    "Catalog reuse/counter optimization and interactive auxiliary callers remain staged and unapplied.",
+    "Diagnostic cached-readback timing improvement is not a game-performance claim."
+  ],
+  "recorderSha256": "d593e0610ea5f0acfaccf5d4940c157d09cad931cc3a435d301b5652d2cb841a"
+}

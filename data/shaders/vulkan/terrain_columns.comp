@@ -1,0 +1,283 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+#include "terrain_sprite_geometry.glsl"
+
+// Independent columns, exact bounded painter order inside each column. No CPU
+// generated positions, lists or sort keys. Still unqualified for admission.
+layout(local_size_x = 1) in;
+const uint QUADRANTS = 2002u; // Frozen kMaximumMapSizeTechnical(1001) * 2.
+const uint CAPACITY = 8192u;
+struct Tile { int baseZ; int slope; uint grass; uint surfaceMaterial; uint edgeMaterial; uint kind; uint r0; uint r1; };
+struct TileCount { uint count; uint offset; uint rear; uint front; uint invalid; uint border; uint r0; uint r1; };
+struct Primitive {
+    uint tileIndex; uint imageIndex; uint kind; uint parentIndex;
+    int offsetX; int offsetY; int offsetZ; int attachedY;
+    int boundsX; int boundsY; int boundsZ; uint rotation;
+    uint localOrdinal; int edge; uint r0; uint r1;
+};
+struct Variant { int width; int height; int xOffset; int yOffset; uint asset; uint flags; int zoom; int shift; };
+struct Sprite { uint image; int width; int height; int xOffset; int yOffset; uint flags; uint r0; uint r1; Variant variants[2]; };
+struct Parent {
+    int x; int y; int z; int xe; int ye; int ze; int sx; int sy;
+    uint primitive; uint sprite; int next; uint quadrant; uint flags; uint attachedFirst; uint attachedCount; uint reserved;
+};
+struct Column { uint error; uint parents; uint commands; int head; uint vertexCount; uint instanceCount; uint firstVertex; uint firstInstance; };
+layout(std430,binding=0) readonly buffer Tiles { Tile records[]; } tiles;
+layout(std430,binding=1) readonly buffer Counts { TileCount records[]; } counts;
+layout(std430,binding=2) readonly buffer Primitives { Primitive records[]; } primitives;
+layout(std430,binding=3) readonly buffer EmissionStatus { uint words[]; } emission;
+layout(std430,binding=4) readonly buffer Sprites { Sprite records[]; } sprites;
+layout(std430,binding=5) buffer Parents { Parent records[]; } parents;
+// Scalar words preserve the existing 60-byte vertex ABI (std430 vec4 would pad it).
+layout(std430,binding=6) writeonly buffer Commands { uint words[]; } commands;
+layout(std430,binding=7) buffer Columns { Column records[]; } columns;
+layout(push_constant) uniform Parameters {
+    int x; int y; int width; int height;
+    int clipX; int clipY; uint rotation; int zoom;
+    uint transparent; uint stable; int depthBase; uint spriteCount;
+    uint columnCount; uint pass; uint assetCount; uint limits;
+} camera;
+
+shared int quadrantHeads[2002];
+uint columnIndex, nodeBase, errorCode, nodeCount, backQuadrant, frontQuadrant, commandCount;
+int head;
+ivec4 target;
+ivec2 clipOrigin;
+
+int floorTo(int value, int interval) { int remainder = value % interval; return value - remainder - (remainder < 0 ? interval : 0); }
+int nextNode(int node) { return node == -2 ? head : parents.records[nodeBase + uint(node)].next; }
+void setNext(int node, int next) { if (node == -2) head = next; else parents.records[nodeBase + uint(node)].next = next; }
+
+int findSprite(uint image)
+{
+    uint lo = 0u, hi = camera.spriteCount;
+    while (lo < hi) { uint mid = lo + (hi - lo) / 2u; if (sprites.records[mid].image < image) lo = mid + 1u; else hi = mid; }
+    if (lo >= camera.spriteCount || sprites.records[lo].image != image) { errorCode = 3u; return -1; }
+    return int(lo);
+}
+
+bool originalImageInColumn(ivec2 position, Sprite sprite)
+{
+    int left = position.x + sprite.xOffset, right = left + sprite.width;
+    int cullLeft = floorTo(camera.x, 32 >> camera.zoom) + int(columnIndex) * (32 >> camera.zoom);
+    cullLeft <<= camera.zoom;
+    // Frozen columns have practically unbounded vertical painter culling. The
+    // separately reproduced tile/blank coarse y checks remain necessary.
+    return right > cullLeft && left < cullLeft + 32;
+}
+
+void addParent(ivec2 tileOrigin, Primitive primitive, uint sourceIndex, uint attachedFirst, uint attachedCount)
+{
+    if (errorCode != 0u) return;
+    int spriteIndex = findSprite(primitive.imageIndex);
+    if (spriteIndex < 0) return;
+    Sprite sprite = sprites.records[spriteIndex];
+    ivec2 screen = terrainProjectParent(tileOrigin, ivec3(primitive.offsetX, primitive.offsetY, primitive.offsetZ), camera.rotation);
+    if (!originalImageInColumn(screen, sprite)) return;
+    if (nodeCount >= (camera.limits & 65535u)) { errorCode = 2u; return; }
+    ivec3 begin, end;
+    terrainParentPaintBounds(tileOrigin, ivec3(primitive.offsetX, primitive.offsetY, primitive.offsetZ),
+        ivec3(primitive.boundsX, primitive.boundsY, primitive.boundsZ), camera.rotation, begin, end);
+    int hash = begin.x + begin.y;
+    if (camera.rotation == 1u) hash = begin.y - begin.x + 32032;
+    else if (camera.rotation == 2u) hash = -(begin.x + begin.y) + 64064;
+    else if (camera.rotation == 3u) hash = begin.x - begin.y + 32032;
+    uint quadrant = uint(clamp(hash / 32, 0, 2001));
+    parents.records[nodeBase + nodeCount] = Parent(begin.x, begin.y, begin.z, end.x, end.y, end.z, screen.x, screen.y,
+        sourceIndex, uint(spriteIndex), quadrantHeads[quadrant], quadrant, 0u, attachedFirst, attachedCount, 0u);
+    quadrantHeads[quadrant] = int(nodeCount++);
+    backQuadrant = min(backQuadrant, quadrant); frontQuadrant = max(frontQuadrant, quadrant);
+}
+
+void addTile(ivec2 tileOrigin)
+{
+    if (errorCode != 0u) return;
+    bool edge = tileOrigin.x < 32 || tileOrigin.y < 32 || tileOrigin.x >= 992 || tileOrigin.y >= 992;
+    int worldY = camera.y << camera.zoom, worldHeight = camera.height << camera.zoom;
+    if (edge)
+    {
+        if (camera.transparent != 0u) return;
+        ivec2 origin = terrainPaintTileOrigin(tileOrigin, camera.rotation);
+        int diagonal = origin.x + origin.y;
+        if (camera.rotation == 1u) diagonal = origin.y - origin.x;
+        else if (camera.rotation == 2u) diagonal = -(origin.x + origin.y);
+        else if (camera.rotation == 3u) diagonal = origin.x - origin.y;
+        int low = diagonal / 2 - 16; // BlankTilesPaint deliberately uses truncating division.
+        if (low + 32 <= worldY || low - 20 - worldHeight >= worldY) return;
+        Primitive blank = Primitive(0xffffffffu, 3123u, 3u, 0xffffffffu, 0, 0, 16, 0, 32, 32, -1,
+            camera.rotation, 0u, -1, 0u, 0u);
+        addParent(tileOrigin, blank, 0xffffffffu, 0u, 0u);
+        return;
+    }
+    uint tile = uint(tileOrigin.y / 32) * 32u + uint(tileOrigin.x / 32);
+    int screenMinY = terrainProjectParent(tileOrigin, ivec3(0), camera.rotation).y;
+    if (screenMinY + 52 <= worldY || screenMinY - (tiles.records[tile].baseZ + 32) >= worldY + worldHeight) return;
+    TileCount count = counts.records[tile];
+    if (count.invalid != 0u || count.count > 512u || count.offset > emission.words[1]
+        || count.count > emission.words[1] - count.offset) { errorCode = 1u; return; }
+    for (uint i = 0u; i < count.count; i++)
+    {
+        uint index = count.offset + i;
+        Primitive primitive = primitives.records[index];
+        if (primitive.rotation != camera.rotation || primitive.tileIndex != tile) { errorCode = 1u; return; }
+        if (primitive.kind == 1u) continue;
+        if (primitive.kind != 0u && primitive.kind != 2u) { errorCode = 1u; return; }
+        addParent(tileOrigin, primitive, index, count.offset + 1u, primitive.kind == 0u ? count.rear : 0u);
+    }
+}
+
+void generate()
+{
+    errorCode = emission.words[0] == 0u ? 0u : 1u; nodeCount = 0u; head = -1;
+    backQuadrant = 0xffffffffu; frontQuadrant = 0u;
+    // Exact first drawing scope: the accepted input02 elevation envelope. This
+    // scan is device-side and scene-wide; camera must not change eligibility.
+    for (uint i = 0u; i < 1024u; i++) if (tiles.records[i].baseZ < 16 || tiles.records[i].baseZ > 64) errorCode = 1u;
+    for (uint q = 0u; q < QUADRANTS; q++) quadrantHeads[q] = -1;
+    int sx = floorTo(target.x << camera.zoom, 32);
+    int sy = floorTo((target.y << camera.zoom) - 16, 32);
+    // PaintSessionGenerate dispatches DirectionFlipXAxis(CurrentRotation).
+    // This is inverse screen-to-map traversal, distinct from sprite projection.
+    uint traversalRotation = (camera.rotation * 3u) & 3u;
+    ivec2 tile = terrainRotateXY(ivec2(sy - sx / 2, sy + sx / 2), traversalRotation);
+    if ((camera.rotation & 1u) != 0u) tile.y -= 16;
+    tile = ivec2(floorTo(tile.x, 32), floorTo(tile.y, 32));
+    ivec2 second = terrainRotateXY(ivec2(0,32), traversalRotation);
+    ivec2 step = terrainRotateXY(ivec2(32), traversalRotation);
+    uint vertical = uint(((target.w << camera.zoom) + 2128) >> 5);
+    for (uint i = 0u; i < vertical; i++) { addTile(tile); addTile(tile + second); tile += step; }
+    int tail = -2;
+    if (backQuadrant != 0xffffffffu)
+        for (uint q = backQuadrant; q <= frontQuadrant; q++)
+        {
+            int next = quadrantHeads[q];
+            if (next == -1) continue;
+            setNext(tail, next);
+            while (next != -1) { tail = next; next = nextNode(next); }
+        }
+    columns.records[columnIndex] = Column(errorCode, nodeCount, 0u, head, 4u, 0u, 0u, 0u);
+}
+
+bool intersects(Parent a, Parent b)
+{
+    if (camera.rotation == 0u) return a.ze >= b.z && a.ye >= b.y && a.xe >= b.x && !(a.z < b.ze && a.y < b.ye && a.x < b.xe);
+    if (camera.rotation == 1u) return a.ze >= b.z && a.ye >= b.y && a.xe < b.x && !(a.z < b.ze && a.y < b.ye && a.x >= b.xe);
+    if (camera.rotation == 2u) return a.ze >= b.z && a.ye < b.y && a.xe < b.x && !(a.z < b.ze && a.y >= b.ye && a.x >= b.xe);
+    return a.ze >= b.z && a.ye < b.y && a.xe >= b.x && !(a.z < b.ze && a.y >= b.ye && a.x < b.xe);
+}
+
+int arrangeQuadrant(int start, uint quadrant, uint flags)
+{
+    int before = start;
+    while (nextNode(before) != -1 && parents.records[nodeBase + uint(nextNode(before))].quadrant < quadrant)
+        before = nextNode(before);
+    int node = before;
+    while (nextNode(node) != -1)
+    {
+        node = nextNode(node);
+        uint q = parents.records[nodeBase + uint(node)].quadrant;
+        if (q > quadrant + 1u) parents.records[nodeBase + uint(node)].flags = 128u;
+        else if (q == quadrant + 1u) parents.records[nodeBase + uint(node)].flags = 3u;
+        else if (q == quadrant) parents.records[nodeBase + uint(node)].flags = flags | 1u;
+        if (q > quadrant + 1u) break;
+    }
+    int cursor = before;
+    uint visits = 0u;
+    for (;;)
+    {
+        int parent = cursor, child = nextNode(parent);
+        while (child != -1 && (parents.records[nodeBase + uint(child)].flags & 129u) == 0u)
+        { parent = child; child = nextNode(parent); }
+        if (child == -1 || (parents.records[nodeBase + uint(child)].flags & 128u) != 0u) break;
+        if (++visits > CAPACITY) { errorCode = 4u; return before; }
+        parents.records[nodeBase + uint(child)].flags &= ~1u;
+        Parent initial = parents.records[nodeBase + uint(child)];
+        int scan = child, stableHead = -1, stableTail = -1;
+        for (;;)
+        {
+            int next = nextNode(scan);
+            if (next == -1 || (parents.records[nodeBase + uint(next)].flags & 128u) != 0u) break;
+            Parent candidate = parents.records[nodeBase + uint(next)];
+            if ((candidate.flags & 2u) != 0u && intersects(initial, candidate))
+            {
+                setNext(scan, candidate.next);
+                if (camera.stable == 0u) { setNext(next, nextNode(parent)); setNext(parent, next); }
+                else
+                {
+                    if (stableHead == -1) stableHead = next; else setNext(stableTail, next);
+                    stableTail = next; setNext(next, -1);
+                }
+            }
+            else scan = next;
+        }
+        if (stableHead != -1) { setNext(stableTail, nextNode(parent)); setNext(parent, stableHead); }
+        cursor = parent;
+    }
+    return before;
+}
+
+void emitSprite(uint spriteIndex, ivec2 position)
+{
+    Sprite sprite = sprites.records[spriteIndex]; Variant variant = sprite.variants[camera.zoom];
+    if (variant.flags > 1u || variant.asset >= camera.assetCount || sprite.flags != 0u) { errorCode = 3u; return; }
+    TerrainSpriteGeometry geometry = terrainSpriteGeometry(position, ivec2(variant.width,variant.height),
+        ivec2(variant.xOffset,variant.yOffset), (variant.flags & 1u) != 0u, variant.zoom, variant.shift,
+        camera.zoom, target, clipOrigin);
+    if (geometry.visible == 0u) return;
+    if (commandCount >= (camera.limits >> 16)) { errorCode = 2u; return; }
+    uint word = (columnIndex * CAPACITY + commandCount) * 15u;
+    ivec4 clip = ivec4(clipOrigin, clipOrigin + target.zw);
+    for (int c = 0; c < 4; c++) { commands.words[word + uint(c)] = uint(clip[c]); commands.words[word + 4u + uint(c)] = uint(geometry.bounds[c]); }
+    commands.words[word + 8u] = uint(geometry.texelOffset.x); commands.words[word + 9u] = uint(geometry.texelOffset.y);
+    commands.words[word + 10u] = variant.asset; commands.words[word + 11u] = 0u; commands.words[word + 12u] = 0u;
+    commands.words[word + 13u] = uint(camera.depthBase) + commandCount;
+    commands.words[word + 14u] = floatBitsToUint(geometry.sampleStep);
+    commandCount++;
+}
+
+void arrangeAndEmit()
+{
+    Column column = columns.records[columnIndex]; errorCode = column.error; nodeCount = column.parents; head = column.head; commandCount = 0u;
+    if (errorCode != 0u || head == -1) return;
+    uint back = parents.records[nodeBase + uint(head)].quadrant, front = back;
+    for (uint i = 0u; i < nodeCount; i++) front = max(front, parents.records[nodeBase + i].quadrant);
+    int start = arrangeQuadrant(-2, back, 2u);
+    for (uint q = back + 1u; q < front && errorCode == 0u; q++) start = arrangeQuadrant(start, q, 0u);
+    uint visited = 0u;
+    for (int node = head; node != -1 && errorCode == 0u; node = nextNode(node))
+    {
+        if (++visited > nodeCount) { errorCode = 4u; break; }
+        Parent parent = parents.records[nodeBase + uint(node)];
+        emitSprite(parent.sprite, ivec2(parent.sx,parent.sy));
+        if (parent.attachedFirst > emission.words[1] || parent.attachedCount > emission.words[1] - parent.attachedFirst)
+        { errorCode = 1u; break; }
+        for (uint i = 0u; i < parent.attachedCount && errorCode == 0u; i++)
+        {
+            Primitive attached = primitives.records[parent.attachedFirst + i];
+            if (attached.kind != 1u || attached.parentIndex != parent.primitive) { errorCode = 1u; break; }
+            int sprite = findSprite(attached.imageIndex);
+            if (sprite >= 0) emitSprite(uint(sprite), ivec2(parent.sx, parent.sy + attached.attachedY));
+        }
+    }
+    if (visited != nodeCount && errorCode == 0u) errorCode = 4u;
+    columns.records[columnIndex] = Column(errorCode,nodeCount,commandCount,head,4u,errorCode == 0u ? commandCount : 0u,0u,0u);
+}
+
+void main()
+{
+    columnIndex = gl_WorkGroupID.x;
+    if (camera.pass == 2u)
+    {
+        if (columnIndex != 0u) return;
+        uint error = 0u;
+        for (uint i = 0u; i < camera.columnCount; i++) error = max(error, columns.records[i].error);
+        if (error != 0u) for (uint i = 0u; i < camera.columnCount; i++) columns.records[i].instanceCount = 0u;
+        return;
+    }
+    if (columnIndex >= camera.columnCount) return;
+    nodeBase = columnIndex * CAPACITY;
+    int aligned = floorTo(camera.x,32 >> camera.zoom) + int(columnIndex) * (32 >> camera.zoom);
+    target = ivec4(max(aligned,camera.x),camera.y,min(aligned + (32 >> camera.zoom),camera.x + camera.width) - max(aligned,camera.x),camera.height);
+    clipOrigin = ivec2(camera.clipX + target.x - camera.x,camera.clipY);
+    if (camera.pass == 0u) generate(); else if (camera.pass == 1u) arrangeAndEmit();
+}

@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "status": "failure-manually-reviewed-before-fix",
+  "runSummarySha256": "c19f0328fceadd5e29267f2da7467e84cbb0bd654bb6c51c5ec07a7acd6890df",
+  "finding": "Real duplicate CPU balloon and surface-base painting: TileElementPaintSetup resets viewport-category flags before entity paint. Pixels match but native-only coverage failed.",
+  "reviewedImages": [
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-gpu-balloon-v2-baseline-01/comparisons/baseline-0/reference.png",
+      "sha256": "ce22056df3b1c47efc8313916e5f41319f639806959130dba455c3f0e3b4ce69"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-gpu-balloon-v2-baseline-01/comparisons/baseline-0/candidate.png",
+      "sha256": "ce22056df3b1c47efc8313916e5f41319f639806959130dba455c3f0e3b4ce69"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-gpu-balloon-v2-baseline-01/captures/baseline-0/screen.png",
+      "sha256": "5b5099cf01be3b7fcbd5a711c739afe99ef0ee2ff1aea870ac2615abc91ede7e"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-gpu-balloon-v2-baseline-01/comparisons/baseline-0/indexed/diff-mask.png",
+      "sha256": "afe49af36eb233dec89887af7122e1ddb56eccaf5e909b63c7df78f83930830a"
+    }
+  ],
+  "noRendererException": true,
+  "correctedVisualReviewPending": true,
+  "observations": "Reference and actual comparison show identical intact/popped balloon grid and central overlap, flat green terrain, clipped map border and UI. Indexed diff mask is entirely black. Raw bytes and decoded capture PNG equal the comparison candidate. This does not prove shader-only rendering while CPU duplicates are present.",
+  "reviewer": "/root/balloon_visual"
+}

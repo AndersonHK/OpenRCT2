@@ -8,21 +8,21 @@
  *****************************************************************************/
 
 #include <gtest/gtest.h>
-#include <openrct2-ui/drawing/engines/gpu/GpuAtlas.h>
-#include <openrct2-ui/drawing/engines/gpu/GpuBackend.h>
-#include <openrct2-ui/drawing/engines/gpu/GpuCommandStream.h>
-#include <openrct2-ui/drawing/engines/gpu/GpuFrameMailbox.h>
-#include <openrct2-ui/drawing/engines/gpu/GpuTextureCache.h>
-#include <openrct2-ui/drawing/engines/gpu/GpuTransparencyDepth.h>
+#include <openrct2-renderer/gpu/GpuAtlas.h>
+#include <openrct2-renderer/gpu/GpuBackend.h>
+#include <openrct2-renderer/gpu/GpuCommandStream.h>
+#include <openrct2-renderer/gpu/GpuFrameMailbox.h>
+#include <openrct2-renderer/gpu/GpuTextureCache.h>
+#include <openrct2-renderer/gpu/GpuTransparencyDepth.h>
 #ifdef ENABLE_VULKAN
-    #include <openrct2-ui/drawing/engines/vulkan/VulkanDevice.h>
-    #include <openrct2-ui/drawing/engines/vulkan/VulkanSurfaceFormat.h>
+    #include <openrct2-renderer/vulkan/VulkanDevice.h>
+    #include <openrct2-renderer/vulkan/VulkanSurfaceFormat.h>
 #endif
-#include <openrct2/drawing/LightFX.h>
-#include <openrct2/drawing/TTF.h>
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <openrct2/drawing/LightFX.h>
+#include <openrct2/drawing/TTF.h>
 #include <optional>
 #include <stdexcept>
 #include <utility>
@@ -33,9 +33,8 @@ namespace LightFx = OpenRCT2::Drawing::LightFx;
 namespace
 {
     constexpr std::array kLightTypes = {
-        LightFx::LightType::lantern0, LightFx::LightType::lantern1, LightFx::LightType::lantern2,
-        LightFx::LightType::lantern3, LightFx::LightType::spot0, LightFx::LightType::spot1,
-        LightFx::LightType::spot2, LightFx::LightType::spot3,
+        LightFx::LightType::lantern0, LightFx::LightType::lantern1, LightFx::LightType::lantern2, LightFx::LightType::lantern3,
+        LightFx::LightType::spot0,    LightFx::LightType::spot1,    LightFx::LightType::spot2,    LightFx::LightType::spot3,
     };
     constexpr std::array<uint8_t, 5> kLightIntensities = { 0, 1, 127, 254, 255 };
 
@@ -135,6 +134,33 @@ TEST(GpuFoundationTest, CompactSpritePackingPreservesPalettesAndEffects)
     constexpr auto effects = SpriteCommand::PackEffects(flags, 197);
     EXPECT_EQ(SpriteCommand::GetEffectFlags(effects), flags);
     EXPECT_EQ(SpriteCommand::GetEffectColour(effects), 197);
+}
+
+TEST(GpuFoundationTest, NativeTerrainReservesPainterDepthBetweenEarlierCommandsAndLaterUi)
+{
+    for (const uint32_t count : { 1024u, static_cast<uint32_t>(kWorldSurfaceMaximumRecordCount) })
+    {
+        const auto range = GetWorldSurfaceDepthRange(37, count);
+        ASSERT_TRUE(range.has_value());
+        EXPECT_EQ(range->first, 37);
+        EXPECT_EQ(range->next, 37 + static_cast<int32_t>(count));
+        const auto depth = [](int32_t key) { return 1.0f - (static_cast<float>(key) + 1.0f) / (1 << 22); };
+        // Less depth wins. A later UI rectangle must beat every native tile,
+        // while the first native tile must beat preceding ordinary commands.
+        EXPECT_LT(depth(range->first), depth(36));
+        EXPECT_LT(depth(range->next), depth(range->next - 1));
+        EXPECT_GT(depth(range->next), 0.0f);
+        const auto following = GetWorldSurfaceDepthRange(range->next + 11, count);
+        ASSERT_TRUE(following.has_value());
+        EXPECT_GT(following->first, range->next);
+    }
+    constexpr int32_t limit = (1 << 22) - 1;
+    EXPECT_TRUE(GetWorldSurfaceDepthRange(limit - 1024, 1024).has_value());
+    EXPECT_FALSE(GetWorldSurfaceDepthRange(limit - 1023, 1024).has_value());
+    EXPECT_FALSE(GetWorldSurfaceDepthRange(-1, 1024).has_value());
+    EXPECT_FALSE(GetWorldSurfaceDepthRange(limit, 1).has_value());
+    EXPECT_FALSE(GetWorldSurfaceDepthRange(0, 0).has_value());
+    EXPECT_FALSE(GetWorldSurfaceDepthRange(0, static_cast<uint32_t>(kWorldSurfaceMaximumRecordCount) + 1).has_value());
 }
 
 TEST(GpuFoundationTest, WorldSurfaceAbiHasStableComputeBlocksAndDepthCapacity)
@@ -531,8 +557,7 @@ TEST(GpuFoundationTest, VulkanHdr10ClassificationRequiresAnApprovedExactPair)
     EXPECT_TRUE(IsHdr10SurfaceFormat({ VK_FORMAT_A2B10G10R10_UNORM_PACK32, VK_COLOR_SPACE_HDR10_ST2084_EXT }));
     EXPECT_TRUE(IsHdr10SurfaceFormat(kHdr10Format));
     EXPECT_FALSE(IsHdr10SurfaceFormat(kNonTenBitHdrFormat));
-    EXPECT_FALSE(IsHdr10SurfaceFormat(
-        { VK_FORMAT_A2B10G10R10_UNORM_PACK32, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR }));
+    EXPECT_FALSE(IsHdr10SurfaceFormat({ VK_FORMAT_A2B10G10R10_UNORM_PACK32, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR }));
 }
 
 TEST(GpuFoundationTest, VulkanGpuTimestampDurationsHandleLinearAndWrappedCounters)
@@ -568,11 +593,9 @@ TEST(GpuFoundationTest, VulkanHdr10SelectionHonoursAvailabilityAndUserPreference
 
 TEST(GpuFoundationTest, VulkanHdr10FallbacksNeverActivateWithoutAnApprovedPair)
 {
+    ExpectSurfaceSelection(std::array{ kNonTenBitHdrFormat }, true, false, false, kNonTenBitHdrFormat);
     ExpectSurfaceSelection(
-        std::array{ kNonTenBitHdrFormat }, true, false, false, kNonTenBitHdrFormat);
-    ExpectSurfaceSelection(
-        std::array{ kUndefinedHdrFormat }, true, false, false,
-        { VK_FORMAT_B8G8R8A8_UNORM, kUndefinedHdrFormat.colorSpace });
+        std::array{ kUndefinedHdrFormat }, true, false, false, { VK_FORMAT_B8G8R8A8_UNORM, kUndefinedHdrFormat.colorSpace });
 }
 
 TEST(GpuFoundationTest, VulkanOutputRejectsUnsupportedOrInactiveColourSpacePairs)
@@ -581,8 +604,7 @@ TEST(GpuFoundationTest, VulkanOutputRejectsUnsupportedOrInactiveColourSpacePairs
 
     constexpr VkSurfaceFormatKHR hdr10{ VK_FORMAT_A2B10G10R10_UNORM_PACK32, VK_COLOR_SPACE_HDR10_ST2084_EXT };
     EXPECT_TRUE(IsSupportedOutputSurfaceFormat({ .surfaceFormat = kSdrFormat }));
-    EXPECT_TRUE(IsSupportedOutputSurfaceFormat(
-        { .surfaceFormat = hdr10, .hdr10Available = true, .hdr10Active = true }));
+    EXPECT_TRUE(IsSupportedOutputSurfaceFormat({ .surfaceFormat = hdr10, .hdr10Available = true, .hdr10Active = true }));
     EXPECT_FALSE(IsSupportedOutputSurfaceFormat({ .surfaceFormat = hdr10, .hdr10Available = true }));
     EXPECT_FALSE(IsSupportedOutputSurfaceFormat({ .surfaceFormat = kNonTenBitHdrFormat }));
 }
@@ -600,9 +622,7 @@ TEST(GpuFoundationTest, VulkanStraightAlphaCompositeSelectionNeverClaimsPremulti
     expect(
         VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR | VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
         VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR);
-    expect(
-        VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR | VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR,
-        VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR);
+    expect(VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR | VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR, VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR);
     expect(VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR, std::nullopt);
 }
 #endif
@@ -704,8 +724,7 @@ TEST(GpuFoundationTest, LightFxCommandRasterMatchesAllBakedFalloffsAndIntensityS
             SCOPED_TRACE(testing::Message() << "type=" << typeValue << " intensity=" << static_cast<int>(intensity));
             LightFx::FrameSnapshot::ResolvedLight command;
             ASSERT_TRUE(LightFx::ResolveLightCommandForCanvas(
-                static_cast<int32_t>(size / 2), static_cast<int32_t>(size / 2), size, size, type, intensity,
-                command));
+                static_cast<int32_t>(size / 2), static_cast<int32_t>(size / 2), size, size, type, intensity, command));
             ASSERT_EQ(command.destinationX, 0);
             ASSERT_EQ(command.destinationY, 0);
             ASSERT_EQ(command.width, size);
@@ -734,8 +753,7 @@ TEST(GpuFoundationTest, LightFxCommandRasterMatchesAllBakedFalloffsAndIntensityS
             for (uint32_t y = 0; y < size; y++)
                 std::transform(
                     falloffs.begin() + layerOffset + y * 256, falloffs.begin() + layerOffset + y * 256 + size,
-                    expected.begin() + static_cast<size_t>(y) * size,
-                    [intensity](std::byte falloff) {
+                    expected.begin() + static_cast<size_t>(y) * size, [intensity](std::byte falloff) {
                         return static_cast<uint8_t>(GetLightFxContribution(std::to_integer<uint8_t>(falloff), intensity));
                     });
             EXPECT_EQ(actual, expected);
@@ -764,19 +782,18 @@ TEST(GpuFoundationTest, LightFxResolvedCommandsPreserveAllFourClippedEdges)
         };
         for (const auto [centreX, centreY] : centres)
         {
-            SCOPED_TRACE(testing::Message() << "type=" << static_cast<uint32_t>(type) << " centre=" << centreX << ','
-                                            << centreY);
+            SCOPED_TRACE(
+                testing::Message() << "type=" << static_cast<uint32_t>(type) << " centre=" << centreX << ',' << centreY);
             LightFx::FrameSnapshot::ResolvedLight clipped;
-            ASSERT_TRUE(LightFx::ResolveLightCommandForCanvas(
-                centreX, centreY, canvasSize, canvasSize, type, 255, clipped));
+            ASSERT_TRUE(LightFx::ResolveLightCommandForCanvas(centreX, centreY, canvasSize, canvasSize, type, 255, clipped));
             const int32_t unclippedLeft = centreX - static_cast<int32_t>(size / 2);
             const int32_t unclippedTop = centreY - static_cast<int32_t>(size / 2);
             const int32_t expectedLeft = std::max(unclippedLeft, 0);
             const int32_t expectedTop = std::max(unclippedTop, 0);
-            const int32_t expectedRight = std::min(unclippedLeft + static_cast<int32_t>(size),
-                                                   static_cast<int32_t>(canvasSize));
-            const int32_t expectedBottom = std::min(unclippedTop + static_cast<int32_t>(size),
-                                                    static_cast<int32_t>(canvasSize));
+            const int32_t expectedRight = std::min(
+                unclippedLeft + static_cast<int32_t>(size), static_cast<int32_t>(canvasSize));
+            const int32_t expectedBottom = std::min(
+                unclippedTop + static_cast<int32_t>(size), static_cast<int32_t>(canvasSize));
             ASSERT_EQ(clipped.destinationX, expectedLeft);
             ASSERT_EQ(clipped.destinationY, expectedTop);
             ASSERT_EQ(clipped.width, static_cast<uint32_t>(expectedRight - expectedLeft));
@@ -784,8 +801,8 @@ TEST(GpuFoundationTest, LightFxResolvedCommandsPreserveAllFourClippedEdges)
             ASSERT_EQ(clipped.sourceStride, size);
             ASSERT_EQ(
                 clipped.sourceOffset,
-                static_cast<uint32_t>((expectedTop - unclippedTop) * static_cast<int32_t>(size)
-                                      + expectedLeft - unclippedLeft));
+                static_cast<uint32_t>(
+                    (expectedTop - unclippedTop) * static_cast<int32_t>(size) + expectedLeft - unclippedLeft));
             std::vector<uint8_t> actual(static_cast<size_t>(canvasSize) * canvasSize);
             ASSERT_TRUE(LightFx::RasterizeResolvedLightCommands(canvasSize, canvasSize, { &clipped, 1 }, actual));
 
@@ -793,8 +810,7 @@ TEST(GpuFoundationTest, LightFxResolvedCommandsPreserveAllFourClippedEdges)
             for (uint32_t y = 0; y < clipped.height; y++)
                 std::copy_n(
                     fullRaster.begin() + clipped.sourceOffset + y * clipped.sourceStride, clipped.width,
-                    expected.begin() + (static_cast<size_t>(clipped.destinationY) + y) * canvasSize
-                        + clipped.destinationX);
+                    expected.begin() + (static_cast<size_t>(clipped.destinationY) + y) * canvasSize + clipped.destinationX);
             EXPECT_EQ(actual, expected);
         }
     }
@@ -803,9 +819,8 @@ TEST(GpuFoundationTest, LightFxResolvedCommandsPreserveAllFourClippedEdges)
 TEST(GpuFoundationTest, LightFxNarrowCanvasUsesTheLegacyFlatClampedSourceStride)
 {
     LightFx::Init();
-    constexpr std::array smallCanvases = {
-        std::pair{ 1u, 1u }, std::pair{ 3u, 2u }, std::pair{ 7u, 5u }, std::pair{ 31u, 9u }
-    };
+    constexpr std::array smallCanvases = { std::pair{ 1u, 1u }, std::pair{ 3u, 2u }, std::pair{ 7u, 5u },
+                                           std::pair{ 31u, 9u } };
 
     for (const auto type : kLightTypes)
     {
@@ -814,21 +829,19 @@ TEST(GpuFoundationTest, LightFxNarrowCanvasUsesTheLegacyFlatClampedSourceStride)
         {
             LightFx::FrameSnapshot::ResolvedLight fullCommand;
             ASSERT_TRUE(LightFx::ResolveLightCommandForCanvas(
-                static_cast<int32_t>(nativeSize / 2), static_cast<int32_t>(nativeSize / 2), nativeSize, nativeSize,
-                type, intensity, fullCommand));
+                static_cast<int32_t>(nativeSize / 2), static_cast<int32_t>(nativeSize / 2), nativeSize, nativeSize, type,
+                intensity, fullCommand));
             std::vector<uint8_t> fullRaster(static_cast<size_t>(nativeSize) * nativeSize);
-            ASSERT_TRUE(
-                LightFx::RasterizeResolvedLightCommands(nativeSize, nativeSize, { &fullCommand, 1 }, fullRaster));
+            ASSERT_TRUE(LightFx::RasterizeResolvedLightCommands(nativeSize, nativeSize, { &fullCommand, 1 }, fullRaster));
 
             for (const auto [width, height] : smallCanvases)
             {
-                SCOPED_TRACE(testing::Message() << "type=" << static_cast<uint32_t>(type)
-                                                << " intensity=" << static_cast<int>(intensity) << " canvas=" << width
-                                                << 'x' << height);
+                SCOPED_TRACE(
+                    testing::Message() << "type=" << static_cast<uint32_t>(type) << " intensity=" << static_cast<int>(intensity)
+                                       << " canvas=" << width << 'x' << height);
                 LightFx::FrameSnapshot::ResolvedLight narrow;
                 ASSERT_TRUE(LightFx::ResolveLightCommandForCanvas(
-                    static_cast<int32_t>(width / 2), static_cast<int32_t>(height / 2), width, height, type,
-                    intensity, narrow));
+                    static_cast<int32_t>(width / 2), static_cast<int32_t>(height / 2), width, height, type, intensity, narrow));
                 ASSERT_EQ(narrow.destinationX, 0);
                 ASSERT_EQ(narrow.destinationY, 0);
                 ASSERT_EQ(narrow.width, width);
@@ -849,8 +862,8 @@ TEST(GpuFoundationTest, LightFxOverlapsSaturateExactlyAfterExceeding255)
     LightFx::Init();
     constexpr uint32_t size = 32;
     LightFx::FrameSnapshot::ResolvedLight command;
-    ASSERT_TRUE(LightFx::ResolveLightCommandForCanvas(
-        size / 2, size / 2, size, size, LightFx::LightType::lantern0, 255, command));
+    ASSERT_TRUE(
+        LightFx::ResolveLightCommandForCanvas(size / 2, size / 2, size, size, LightFx::LightType::lantern0, 255, command));
 
     std::vector<uint8_t> single(size * size);
     ASSERT_TRUE(LightFx::RasterizeResolvedLightCommands(size, size, { &command, 1 }, single));

@@ -5,6 +5,7 @@ const int FLAG_NO_TEXTURE = (1 << 2);
 const int FLAG_MASK = (1 << 3);
 const int FLAG_CROSS_HATCH = (1 << 4);
 const int FLAG_TTF_TEXT = (1 << 5);
+const int FLAG_ZERO_COVERAGE = (1 << 6);
 
 layout(set = 0, binding = 0) uniform usampler2DArray uSpriteAtlas;
 layout(set = 0, binding = 1) uniform usampler2D uRemapPalette;
@@ -50,8 +51,13 @@ void main()
             if (hintThreshold > 0u)
             {
                 bool solidColour = texel > 180u;
-                texel = texel > hintThreshold ? fColour : 0u;
-                texel = (texel << 8) + (solidColour ? 1u : 0u);
+                // Solid glyph coverage takes precedence over the hinting threshold.
+                if (!solidColour && texel <= hintThreshold)
+                    discard;
+                // Filter rows occupy 0x0000..0x00ff and ordinary text uses low
+                // byte 0/1. Reserve 0x0102/0x0103 for blended/solid index-zero ink.
+                texel = fColour == 0u ? (solidColour ? 0x0103u : 0x0102u)
+                                     : (fColour << 8) + (solidColour ? 1u : 0u);
             }
             else
             {
@@ -72,12 +78,26 @@ void main()
     else if (paletteCount >= 1)
         texel = texelFetch(uRemapPalette, ivec2(int(texel), fPalettes.x), 0).r;
 
-    if (texel == 0u)
+    // Index zero is a valid untextured canvas write (including cropped clears).
+    // TTF source coverage was checked before applying the ink index, which may be zero.
+    if (texel == 0u && (fFlags & (FLAG_NO_TEXTURE | FLAG_TTF_TEXT)) == 0)
         discard;
     if ((fFlags & FLAG_CROSS_HATCH) != 0 && ((position.x + position.y) & 1) != 0)
         discard;
-    if ((fFlags & FLAG_MASK) != 0 && atlasTexel(fTexMask, fTexMaskAtlas, position) == 0u)
+    if ((fFlags & FLAG_ZERO_COVERAGE) != 0 && atlasTexel(fTexMask, fTexMaskAtlas, position) == 0u)
         discard;
+    if ((fFlags & FLAG_MASK) != 0)
+    {
+        uint mask = atlasTexel(fTexMask, fTexMaskAtlas, position);
+        // Raw masked images combine the two index bytes bitwise. Solid sprites
+        // use the same mask flag but only need the sprite's nonzero coverage.
+        if ((fFlags & FLAG_NO_TEXTURE) == 0)
+            texel &= mask;
+        else if (mask == 0u)
+            discard;
+        if (texel == 0u)
+            discard;
+    }
 
     oColour = texel;
 }

@@ -7,6 +7,7 @@
 #pragma once
 
 #include "MapLimits.h"
+#include "TerrainPresentation.h"
 #include "../drawing/ImageId.hpp"
 #include "tile_element/TileElement.h"
 
@@ -27,6 +28,7 @@ namespace OpenRCT2
         uint16_t baseZ{};
         uint8_t valid{};
         uint8_t requiresCategoryInterleaving{};
+        TerrainPresentationRecord terrain;
         std::array<ImageId, kRotationCount> detailedImages{};
         std::array<ImageId, kRotationCount> distantImages{};
     };
@@ -46,6 +48,7 @@ namespace OpenRCT2
         uint32_t surfaceWidth{};
         uint32_t surfaceHeight{};
         std::vector<MapPresentationTileChange> changes;
+        std::shared_ptr<const TerrainPresentationMaterials> terrainMaterials;
     };
 
     /** Owned tile storage and O(1) tile lookup for one presentation frame. */
@@ -76,8 +79,19 @@ namespace OpenRCT2
         uint16_t _surfaceBaselineZ{};
         bool _surfaceBaselineSet{};
         uint32_t _surfaceBlockingRecordCount{};
+        uint32_t _terrainBlockingRecordCount{};
+        std::shared_ptr<const TerrainPresentationMaterials> _terrainMaterials;
 
     public:
+        [[nodiscard]] const std::shared_ptr<const TerrainPresentationMaterials>& GetTerrainMaterials() const noexcept
+        {
+            return _terrainMaterials;
+        }
+        [[nodiscard]] bool HasBoundedTerrainFacts() const noexcept
+        {
+            return _surfaceWidth == 32 && _surfaceHeight == 32 && _terrainBlockingRecordCount == 0
+                && _terrainMaterials != nullptr;
+        }
         void Apply(const MapPresentationChangeBatch& batch);
         [[nodiscard]] TileElement* GetFirstElementAt(const TileCoordsXY& tilePos) const;
         [[nodiscard]] uint64_t GetEpoch() const noexcept

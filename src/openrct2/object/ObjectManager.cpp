@@ -8,6 +8,7 @@
  *****************************************************************************/
 
 #include "ObjectManager.h"
+#include "../world/TerrainPresentation.h"
 
 #include "../Context.h"
 #include "../Diagnostic.h"
@@ -391,6 +392,8 @@ namespace OpenRCT2
                     }
                     loadedObject = object;
                     list[*slot] = object;
+                    if (objectType == ObjectType::terrainSurface || objectType == ObjectType::terrainEdge)
+                        AdvanceTerrainObjectRevision();
                     UpdateSceneryGroupIndexes();
                     if (objectType == ObjectType::ride)
                         ResetTypeToRideEntryIndexMap();
@@ -721,6 +724,8 @@ namespace OpenRCT2
                     list.resize(otl.Index + 1);
                 }
                 list[otl.Index] = otl.LoadedObject;
+                    if (objectType == ObjectType::terrainSurface || objectType == ObjectType::terrainEdge)
+                        AdvanceTerrainObjectRevision();
             }
 
             LOG_VERBOSE("%u / %u new objects loaded", newLoadedObjects.size(), requiredObjects.size());

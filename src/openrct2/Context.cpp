@@ -57,6 +57,7 @@
 #include "drawing/Image.h"
 #include "drawing/LightFX.h"
 #include "drawing/Palette.h"
+#include "drawing/RenderService.h"
 #include "entity/EntityTweener.h"
 #include "entity/PatrolArea.h"
 #include "interface/Chat.h"
@@ -93,6 +94,7 @@
 #include <cmath>
 #include <exception>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <thread>
 #include <vector>
@@ -192,7 +194,8 @@ namespace OpenRCT2
             Console::WriteLine("  transport routes:   %zu active", snapshot.activeTransportRoutes);
             Console::WriteLine("  staff / vehicles:   %zu / %zu", snapshot.staff, snapshot.vehicles);
             Console::WriteLine(
-                "  shared route cache: %zu nodes, %zu targets, %zu direction / %zu distance entries, %zu single-ride targets (%s)",
+                "  shared route cache: %zu nodes, %zu targets, %zu direction / %zu distance entries, %zu single-ride targets "
+                "(%s)",
                 snapshot.routeNodes, snapshot.routeTargets, snapshot.routeDirectionEntries, snapshot.routeDistanceEntries,
                 snapshot.singleRideTargets, snapshot.routeCacheCurrent ? "current" : "fallback or stale");
         }
@@ -205,6 +208,7 @@ namespace OpenRCT2
         std::unique_ptr<IPlatformEnvironment> const _env;
         std::unique_ptr<IAudioContext> const _audioContext;
         std::unique_ptr<IUiContext> const _uiContext;
+        Drawing::LazyRenderService _renderService;
 
         // Services
         std::unique_ptr<Localisation::LocalisationService> _localisationService;
@@ -275,6 +279,7 @@ namespace OpenRCT2
             double gpuCompositeMicroseconds{};
             double presentCallMicroseconds{};
         } _benchmarkRenderer{};
+        Drawing::RenderUploadTotals _benchmarkUploads{};
         std::vector<double> _benchmarkFrameIntervalsMilliseconds;
         std::vector<Drawing::FrameTimings> _benchmarkRendererTimingScratch;
         bool _benchmarkFailed{};
@@ -306,10 +311,11 @@ namespace OpenRCT2
     public:
         Context(
             std::unique_ptr<IPlatformEnvironment>&& env, std::unique_ptr<IAudioContext>&& audioContext,
-            std::unique_ptr<IUiContext>&& uiContext)
+            std::unique_ptr<IUiContext>&& uiContext, std::shared_ptr<Drawing::IRenderServiceFactory> renderServiceFactory)
             : _env(std::move(env))
             , _audioContext(std::move(audioContext))
             , _uiContext(std::move(uiContext))
+            , _renderService(std::move(renderServiceFactory))
             , _localisationService(std::make_unique<Localisation::LocalisationService>(*_env))
             , _replayManager(CreateReplayManager())
             , _gameStateSnapshots(CreateGameStateSnapshots())
@@ -372,6 +378,10 @@ namespace OpenRCT2
 
             auto* windowMgr = GetWindowManager();
             windowMgr->Cleanup();
+
+            // Stop auxiliary work while its immutable asset dependencies and context services still exist. An unused
+            // injected factory is discarded without creating a loader/device or video subsystem.
+            _renderService.Shutdown();
 
             // Unload objects after closing all windows, this is to overcome windows like
             // the object selection window which loads objects when closed.
@@ -464,6 +474,11 @@ namespace OpenRCT2
         Drawing::IDrawingEngine* GetDrawingEngine() override
         {
             return _drawingEngine.get();
+        }
+
+        Drawing::IRenderService& GetRenderService() override
+        {
+            return _renderService.Get();
         }
 
         Paint::Painter* GetPainter() override
@@ -1444,6 +1459,10 @@ namespace OpenRCT2
         {
             for (const auto& timings : samples)
             {
+                if (gIntegratedBenchmark.uploadTelemetry && timings.uploadTelemetry.has_value())
+                    _benchmarkUploads.Include(*timings.uploadTelemetry);
+                if (timings.telemetryOnly)
+                    continue;
                 _benchmarkRenderer.rendererSamples++;
                 _benchmarkRenderer.submitMicroseconds += timings.cpuSubmitMicroseconds;
                 _benchmarkRenderer.presentMicroseconds += timings.cpuPresentMicroseconds;
@@ -1474,6 +1493,7 @@ namespace OpenRCT2
             _benchmarkTotals = {};
             _benchmarkInitialLogicalTicks = gTotalSimulationTicks;
             _benchmarkRenderer = {};
+            _benchmarkUploads = {};
             _benchmarkMessagePumps = 0;
             _benchmarkUiFrames = 0;
             _benchmarkPreviousDrawStart = {};
@@ -1616,6 +1636,39 @@ namespace OpenRCT2
             else
             {
                 Console::WriteLine("  GPU passes:         unavailable");
+            }
+            if (gIntegratedBenchmark.uploadTelemetry)
+            {
+                const auto& u = _benchmarkUploads;
+                const auto& a = u.attempted;
+                std::ostringstream out;
+                out << "{\"schema\":1,\"attemptedFrames\":" << u.attemptedFrames << ",\"submittedFrames\":" << u.submittedFrames
+                    << ",\"auxiliarySamples\":" << u.auxiliarySamples << ",\"allocatedBytes\":" << a.allocatedBytes
+                    << ",\"alignmentBytes\":" << a.alignmentBytes << ",\"allocationFailures\":" << a.allocationFailures
+                    << ",\"captureRequests\":" << a.captureRequests << ",\"readbackRequests\":" << a.readbackRequests
+                    << ",\"readbackBytes\":" << a.readbackBytes << ",\"lostSamples\":" << a.lostSamples
+                    << ",\"overflow\":" << (a.overflow ? "true" : "false");
+                const auto matrix = [&out](const char* label, const Drawing::UploadByteMatrix& bytes) {
+                    out << ",\"" << label << "\":[";
+                    for (size_t c = 0; c < bytes.size(); ++c)
+                    {
+                        if (c != 0)
+                            out << ',';
+                        out << '[';
+                        for (size_t m = 0; m < bytes[c].size(); ++m)
+                        {
+                            if (m != 0)
+                                out << ',';
+                            out << bytes[c][m];
+                        }
+                        out << ']';
+                    }
+                    out << ']';
+                };
+                matrix("attempted", a.bytes);
+                matrix("submitted", u.submittedBytes);
+                out << '}';
+                Console::WriteLine("Upload telemetry v1: %s", out.str().c_str());
             }
             PrintBenchmarkStateSnapshot("Initial", _benchmarkInitialState);
             PrintBenchmarkStateSnapshot("Final", finalState);
@@ -2213,9 +2266,10 @@ namespace OpenRCT2
 
     std::unique_ptr<IContext> CreateContext(
         std::unique_ptr<IPlatformEnvironment>&& env, std::unique_ptr<IAudioContext>&& audioContext,
-        std::unique_ptr<IUiContext>&& uiContext)
+        std::unique_ptr<IUiContext>&& uiContext, std::shared_ptr<Drawing::IRenderServiceFactory> renderServiceFactory)
     {
-        return std::make_unique<Context>(std::move(env), std::move(audioContext), std::move(uiContext));
+        return std::make_unique<Context>(
+            std::move(env), std::move(audioContext), std::move(uiContext), std::move(renderServiceFactory));
     }
 
     IContext* GetContext()

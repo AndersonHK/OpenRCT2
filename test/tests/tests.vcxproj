@@ -51,6 +51,7 @@
   </PropertyGroup>
   <Import Project="..\..\openrct2.common.props" />
   <PropertyGroup>
+    <EnableVulkanWindowTests Condition="'$(EnableVulkanWindowTests)'==''">true</EnableVulkanWindowTests>
     <OutDir>$(SolutionDir)bin\</OutDir>
     <LibraryPath>$(SolutionDir)bin;$(LibraryPath)</LibraryPath>
     <LibraryPath Condition="'$(Configuration)'=='Debug'">$(SolutionDir)lib\$(Platform)\debug\lib;$(LibraryPath)</LibraryPath>
@@ -59,15 +60,18 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <PreprocessorDefinitions>GTEST_LANG_CXX11;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(EnableVulkan)'=='true'">ENABLE_VULKAN;OPENRCT2_TEST_UI_BINDINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(EnableVulkanWindowTests)'!='true'">OPENRCT2_TEST_NO_UI_AUDIO;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(EnableVulkan)'=='true'">ENABLE_VULKAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(EnableVulkan)'=='true' and '$(EnableVulkanWindowTests)'=='true'">OPENRCT2_TEST_UI_BINDINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories Condition="'$(EnableVulkan)'=='true'">$(VULKAN_SDK)\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeader Condition="'$(UsePCH)'=='true'">Use</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(UsePCH)'=='true'">tests_pch.h</PrecompiledHeaderFile>
       <ForcedIncludeFiles Condition="'$(UsePCH)'=='true'">tests_pch.h</ForcedIncludeFiles>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>libopenrct2.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalDependencies Condition="'$(EnableVulkan)'=='true'">$(VulkanAdditionalDependencies)libopenrct2ui.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libopenrct2.lib;libopenrct2renderer.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies Condition="'$(EnableVulkan)'=='true'">$(VulkanAdditionalDependencies)%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies Condition="'$(EnableVulkan)'=='true' and '$(EnableVulkanWindowTests)'=='true'">libopenrct2ui.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalDependencies Condition="'$(Configuration)'=='Debug'">gtest.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalDependencies Condition="'$(Configuration)'!='Debug'">gtest.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Console</SubSystem>
@@ -85,8 +89,6 @@
     <ClInclude Include="tests_pch.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\src\openrct2-ui\drawing\engines\gpu\GpuTextureCache.cpp" />
-    <ClCompile Include="..\..\src\openrct2-ui\drawing\engines\gpu\GpuTransparencyDepth.cpp" />
     <ClCompile Include="BitSetTests.cpp" />
     <ClCompile Include="CircularBuffer.cpp" />
     <ClCompile Include="CLITests.cpp" />
@@ -96,12 +98,34 @@
     <ClCompile Include="EnumMapTest.cpp" />
     <ClCompile Include="FormattingTests.cpp" />
     <ClCompile Include="GpuFoundationTests.cpp" />
-    <ClCompile Include="VulkanRuntimeIntegrationTests.cpp" />
+    <ClCompile Include="VulkanBackendContractTests.cpp" />
+    <ClCompile Include="VulkanBalloonPipelineTests.cpp" />
+    <ClCompile Include="VulkanOffscreenDeviceTests.cpp" />
+    <ClCompile Include="VulkanOffscreenRenderTests.cpp" />
+    <ClCompile Include="VulkanRuntimeIntegrationTests.cpp" Condition="'$(EnableVulkanWindowTests)'=='true'" />
+    <ClCompile Include="VulkanParityTests.cpp" Condition="'$(EnableVulkanWindowTests)'=='true'" />
+    <ClCompile Include="VulkanScalingParityTests.cpp" Condition="'$(EnableVulkanWindowTests)'=='true'" />
+    <ClCompile Include="VulkanSceneParityTests.cpp" Condition="'$(EnableVulkanWindowTests)'=='true'" />
+    <ClCompile Include="VulkanTtfParityTests.cpp" Condition="'$(EnableVulkanWindowTests)'=='true'" />
+    <ClCompile Include="VulkanSpatialLightParityTests.cpp" Condition="'$(EnableVulkanWindowTests)'=='true'" />
+    <ClCompile Include="AssetMetadataCorpusParityTests.cpp" />
+    <ClCompile Include="PublicationSnapshotParityTests.cpp" />
+    <ClCompile Include="RetainedBalloonSceneTests.cpp" />
+    <ClCompile Include="TerrainSurfaceRulesTests.cpp" />
+    <ClCompile Include="TerrainPresentationBridgeTests.cpp" />
+    <ClCompile Include="TerrainSurfaceEmissionTests.cpp" />
+    <ClCompile Include="VulkanRetainedTerrainEmissionTests.cpp" />
+    <ClCompile Include="VulkanRetainedTerrainDrawTests.cpp" />
+    <ClCompile Include="VulkanTerrainCompletionTests.cpp" />
+    <ClCompile Include="SpriteAssetDecoderTests.cpp" />
     <ClCompile Include="LanguagePackTest.cpp" />
     <ClCompile Include="ImageImporterTests.cpp" />
     <ClCompile Include="IniReaderTest.cpp" />
     <ClCompile Include="IniWriterTest.cpp" />
     <ClCompile Include="JobPoolTests.cpp" />
+    <ClCompile Include="RenderServiceTests.cpp" />
+    <ClCompile Include="ScreenshotTilingTests.cpp" />
+    <ClCompile Include="ViewportGenerationTests.cpp" />
     <ClCompile Include="MapPathTopologyTests.cpp" />
     <ClCompile Include="MapTopologyTests.cpp" />
     <ClCompile Include="LocalisationTest.cpp" />
@@ -138,16 +162,23 @@
     <None Include="testdata\sprites\manifest.json" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\src\openrct2-renderer\libopenrct2renderer.vcxproj">
+      <Project>{4F65E397-FDA9-4F15-A03C-C3A2139BDE8E}</Project>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
     <ProjectReference Include="..\..\src\openrct2-deps\openrct2-deps.vcxproj">
       <Project>{c453da76-44b3-4ac8-aaa2-2b64a76993a5}</Project>
     </ProjectReference>
     <ProjectReference Include="..\..\src\openrct2\libopenrct2.vcxproj">
       <Project>{d24d94f6-2a74-480c-b512-629c306ce92f}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\src\openrct2-ui\libopenrct2ui.vcxproj" Condition="'$(EnableVulkan)'=='true'">
+    <ProjectReference Include="..\..\src\openrct2-ui\libopenrct2ui.vcxproj" Condition="'$(EnableVulkan)'=='true' and '$(EnableVulkanWindowTests)'=='true'">
       <Project>{8DD8AB7D-2EA6-44E3-8265-BAF08E832951}</Project>
     </ProjectReference>
   </ItemGroup>
+  <Target Name="ReportVulkanWindowCoverage" BeforeTargets="PrepareForBuild" Condition="'$(EnableVulkanWindowTests)'!='true'">
+    <Message Importance="high" Text="WINDOWED_PARITY_COVERAGE=disabled: SDL window fixtures and UI bindings are not compiled; this build cannot qualify full windowed parity." />
+    <Message Importance="high" Text="UI_AUDIO_COVERAGE=disabled: four SDL audio implementation tests are not compiled; core spatial audio tests remain enabled." />
+  </Target>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>
-

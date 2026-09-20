@@ -264,6 +264,7 @@
     <ClInclude Include="drawing\IDrawingContext.h" />
     <ClInclude Include="drawing\PresentationGeneration.h" />
     <ClInclude Include="drawing\PresentationScene.h" />
+    <ClInclude Include="drawing\RetainedBalloonScene.h" />
     <ClInclude Include="drawing\IDrawingEngine.h" />
     <ClInclude Include="drawing\Image.h" />
     <ClInclude Include="drawing\ImageId.hpp" />
@@ -274,6 +275,7 @@
     <ClInclude Include="drawing\NewDrawing.h" />
     <ClInclude Include="drawing\PaletteIndex.h" />
     <ClInclude Include="drawing\Palette.h" />
+    <ClInclude Include="drawing\RenderService.h" />
     <ClInclude Include="drawing\PaletteMap.h" />
     <ClInclude Include="drawing\PaletteType.h" />
     <ClInclude Include="drawing\PickupPeep.h" />
@@ -284,6 +286,7 @@
     <ClInclude Include="drawing\TextColour.h" />
     <ClInclude Include="drawing\TTF.h" />
     <ClInclude Include="drawing\WeatherDrawer.h" />
+    <ClInclude Include="drawing\SpriteAssetDecoder.h" />
     <ClInclude Include="drawing\X8DrawingEngine.h" />
     <ClInclude Include="entity\Balloon.h" />
     <ClInclude Include="entity\Duck.h" />
@@ -316,8 +319,11 @@
     <ClInclude Include="interface\InteractiveConsole.h" />
     <ClInclude Include="interface\ScreenCoords.hpp" />
     <ClInclude Include="interface\Screenshot.h" />
+    <ClInclude Include="interface\ScreenshotTiling.h" />
     <ClInclude Include="interface\ScrollArea.h" />
     <ClInclude Include="interface\Viewport.h" />
+    <ClInclude Include="interface\ViewportGeneration.h" />
+    <ClInclude Include="interface\ViewportPaintDiagnostics.h" />
     <ClInclude Include="interface\Widget.h" />
     <ClInclude Include="interface\WidgetIndexGlobals.h" />
     <ClInclude Include="interface\Window.h" />
@@ -718,6 +724,7 @@
     <ClInclude Include="world\LargeScenery.h" />
     <ClInclude Include="world\Location.hpp" />
     <ClInclude Include="world\Map.h" />
+    <ClInclude Include="world\TerrainPresentation.h" />
     <ClInclude Include="world\MapOwnership.h" />
     <ClInclude Include="world\MapPathTopology.h" />
     <ClInclude Include="world\MapPathRouteCache.h" />
@@ -930,9 +937,11 @@
     <ClCompile Include="drawing\Line.cpp" />
     <ClCompile Include="drawing\NewDrawing.cpp" />
     <ClCompile Include="drawing\Palette.cpp" />
+    <ClCompile Include="drawing\RenderService.cpp" />
     <ClCompile Include="drawing\PaletteMap.cpp" />
     <ClCompile Include="drawing\PickupPeep.cpp" />
     <ClCompile Include="drawing\PresentationScene.cpp" />
+    <ClCompile Include="drawing\RetainedBalloonScene.cpp" />
     <ClCompile Include="drawing\Rectangle.cpp" />
     <ClCompile Include="drawing\RenderTarget.cpp" />
     <ClCompile Include="drawing\ScrollingText.cpp" />
@@ -942,6 +951,7 @@
     <ClCompile Include="drawing\TTF.cpp" />
     <ClCompile Include="drawing\TTFSDLPort.cpp" />
     <ClCompile Include="drawing\WeatherDrawer.cpp" />
+    <ClCompile Include="drawing\SpriteAssetDecoder.cpp" />
     <ClCompile Include="drawing\X8DrawingEngine.cpp" />
     <ClCompile Include="entity\Balloon.cpp" />
     <ClCompile Include="entity\Duck.cpp" />
@@ -969,6 +979,7 @@
     <ClCompile Include="interface\Fonts.cpp" />
     <ClCompile Include="interface\InteractiveConsole.cpp" />
     <ClCompile Include="interface\Screenshot.cpp" />
+    <ClCompile Include="interface\ScreenshotTiling.cpp" />
     <ClCompile Include="interface\StdInOutConsole.cpp" />
     <ClCompile Include="interface\Viewport.cpp" />
     <ClCompile Include="interface\Window.cpp" />

@@ -1,0 +1,247 @@
+{
+  "run": "run-14",
+  "fixtureVersion": 2,
+  "classification": "Exact corrected TTF parity; no exception",
+  "reports": [
+    {
+      "fixture": "TtfCacheReplacement_F0",
+      "layer": "indexed",
+      "differingPixels": 0,
+      "pngSha256": {
+        "software": "25BCA6AF8AB72A0E05082185640F2BC1750559C4BA761378E39BD3AAB05FDFF3",
+        "vulkan": "25BCA6AF8AB72A0E05082185640F2BC1750559C4BA761378E39BD3AAB05FDFF3",
+        "diff": "DB015ED2D0F82A9F8613D850E173457FC34137983415C0BF4B93DBAB63ADA488"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfCacheReplacement_F0",
+      "layer": "rgba",
+      "differingPixels": 0,
+      "pngSha256": {
+        "software": "25BCA6AF8AB72A0E05082185640F2BC1750559C4BA761378E39BD3AAB05FDFF3",
+        "vulkan": "25BCA6AF8AB72A0E05082185640F2BC1750559C4BA761378E39BD3AAB05FDFF3",
+        "diff": "DB015ED2D0F82A9F8613D850E173457FC34137983415C0BF4B93DBAB63ADA488"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfCacheReplacement_F1",
+      "layer": "indexed",
+      "differingPixels": 0,
+      "pngSha256": {
+        "software": "703C62860AA15C7DA3E1FAD658947D72AFC723C38D9142A17818465F4249461C",
+        "vulkan": "703C62860AA15C7DA3E1FAD658947D72AFC723C38D9142A17818465F4249461C",
+        "diff": "DB015ED2D0F82A9F8613D850E173457FC34137983415C0BF4B93DBAB63ADA488"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfCacheReplacement_F1",
+      "layer": "rgba",
+      "differingPixels": 0,
+      "pngSha256": {
+        "software": "703C62860AA15C7DA3E1FAD658947D72AFC723C38D9142A17818465F4249461C",
+        "vulkan": "703C62860AA15C7DA3E1FAD658947D72AFC723C38D9142A17818465F4249461C",
+        "diff": "DB015ED2D0F82A9F8613D850E173457FC34137983415C0BF4B93DBAB63ADA488"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfCacheReplacement_F2",
+      "layer": "indexed",
+      "differingPixels": 0,
+      "pngSha256": {
+        "software": "703C62860AA15C7DA3E1FAD658947D72AFC723C38D9142A17818465F4249461C",
+        "vulkan": "703C62860AA15C7DA3E1FAD658947D72AFC723C38D9142A17818465F4249461C",
+        "diff": "DB015ED2D0F82A9F8613D850E173457FC34137983415C0BF4B93DBAB63ADA488"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfCacheReplacement_F2",
+      "layer": "rgba",
+      "differingPixels": 0,
+      "pngSha256": {
+        "software": "703C62860AA15C7DA3E1FAD658947D72AFC723C38D9142A17818465F4249461C",
+        "vulkan": "703C62860AA15C7DA3E1FAD658947D72AFC723C38D9142A17818465F4249461C",
+        "diff": "DB015ED2D0F82A9F8613D850E173457FC34137983415C0BF4B93DBAB63ADA488"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfClipping",
+      "layer": "indexed",
+      "differingPixels": 0,
+      "pngSha256": {
+        "software": "66CB507CD64871C0E6C21FA2933BF02B17384795D02B0170934ED269767761FE",
+        "vulkan": "66CB507CD64871C0E6C21FA2933BF02B17384795D02B0170934ED269767761FE",
+        "diff": "DB015ED2D0F82A9F8613D850E173457FC34137983415C0BF4B93DBAB63ADA488"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfClipping",
+      "layer": "rgba",
+      "differingPixels": 0,
+      "pngSha256": {
+        "software": "66CB507CD64871C0E6C21FA2933BF02B17384795D02B0170934ED269767761FE",
+        "vulkan": "66CB507CD64871C0E6C21FA2933BF02B17384795D02B0170934ED269767761FE",
+        "diff": "DB015ED2D0F82A9F8613D850E173457FC34137983415C0BF4B93DBAB63ADA488"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfInset",
+      "layer": "indexed",
+      "differingPixels": 0,
+      "pngSha256": {
+        "software": "B248D3A99CEC4B811606FA8D97519349711063CDAB939C1D1006400A2791ADA7",
+        "vulkan": "B248D3A99CEC4B811606FA8D97519349711063CDAB939C1D1006400A2791ADA7",
+        "diff": "DB015ED2D0F82A9F8613D850E173457FC34137983415C0BF4B93DBAB63ADA488"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfInset",
+      "layer": "rgba",
+      "differingPixels": 0,
+      "pngSha256": {
+        "software": "B248D3A99CEC4B811606FA8D97519349711063CDAB939C1D1006400A2791ADA7",
+        "vulkan": "B248D3A99CEC4B811606FA8D97519349711063CDAB939C1D1006400A2791ADA7",
+        "diff": "DB015ED2D0F82A9F8613D850E173457FC34137983415C0BF4B93DBAB63ADA488"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfOrdering",
+      "layer": "indexed",
+      "differingPixels": 0,
+      "pngSha256": {
+        "software": "92E3C95DAAB6539A6B050A5D4AF62E0C12C24F2744D6AB49CE6CC7771AAB1C8D",
+        "vulkan": "92E3C95DAAB6539A6B050A5D4AF62E0C12C24F2744D6AB49CE6CC7771AAB1C8D",
+        "diff": "DB015ED2D0F82A9F8613D850E173457FC34137983415C0BF4B93DBAB63ADA488"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfOrdering",
+      "layer": "rgba",
+      "differingPixels": 0,
+      "pngSha256": {
+        "software": "92E3C95DAAB6539A6B050A5D4AF62E0C12C24F2744D6AB49CE6CC7771AAB1C8D",
+        "vulkan": "92E3C95DAAB6539A6B050A5D4AF62E0C12C24F2744D6AB49CE6CC7771AAB1C8D",
+        "diff": "DB015ED2D0F82A9F8613D850E173457FC34137983415C0BF4B93DBAB63ADA488"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfOutline",
+      "layer": "indexed",
+      "differingPixels": 0,
+      "pngSha256": {
+        "software": "B7FE84F8CBFF26086A14C91926A84AE0C16A6E5825E28663EF886AB91625738C",
+        "vulkan": "B7FE84F8CBFF26086A14C91926A84AE0C16A6E5825E28663EF886AB91625738C",
+        "diff": "DB015ED2D0F82A9F8613D850E173457FC34137983415C0BF4B93DBAB63ADA488"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfOutline",
+      "layer": "rgba",
+      "differingPixels": 0,
+      "pngSha256": {
+        "software": "B7FE84F8CBFF26086A14C91926A84AE0C16A6E5825E28663EF886AB91625738C",
+        "vulkan": "B7FE84F8CBFF26086A14C91926A84AE0C16A6E5825E28663EF886AB91625738C",
+        "diff": "DB015ED2D0F82A9F8613D850E173457FC34137983415C0BF4B93DBAB63ADA488"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfOutlineInset",
+      "layer": "indexed",
+      "differingPixels": 0,
+      "pngSha256": {
+        "software": "A801D53F39CAE20B93F212C2448CE1B19535A2D8C2D10F81E827687FBC7A034E",
+        "vulkan": "A801D53F39CAE20B93F212C2448CE1B19535A2D8C2D10F81E827687FBC7A034E",
+        "diff": "DB015ED2D0F82A9F8613D850E173457FC34137983415C0BF4B93DBAB63ADA488"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfOutlineInset",
+      "layer": "rgba",
+      "differingPixels": 0,
+      "pngSha256": {
+        "software": "A801D53F39CAE20B93F212C2448CE1B19535A2D8C2D10F81E827687FBC7A034E",
+        "vulkan": "A801D53F39CAE20B93F212C2448CE1B19535A2D8C2D10F81E827687FBC7A034E",
+        "diff": "DB015ED2D0F82A9F8613D850E173457FC34137983415C0BF4B93DBAB63ADA488"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfThresholds",
+      "layer": "indexed",
+      "differingPixels": 0,
+      "pngSha256": {
+        "software": "25BCA6AF8AB72A0E05082185640F2BC1750559C4BA761378E39BD3AAB05FDFF3",
+        "vulkan": "25BCA6AF8AB72A0E05082185640F2BC1750559C4BA761378E39BD3AAB05FDFF3",
+        "diff": "DB015ED2D0F82A9F8613D850E173457FC34137983415C0BF4B93DBAB63ADA488"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfThresholds",
+      "layer": "rgba",
+      "differingPixels": 0,
+      "pngSha256": {
+        "software": "25BCA6AF8AB72A0E05082185640F2BC1750559C4BA761378E39BD3AAB05FDFF3",
+        "vulkan": "25BCA6AF8AB72A0E05082185640F2BC1750559C4BA761378E39BD3AAB05FDFF3",
+        "diff": "DB015ED2D0F82A9F8613D850E173457FC34137983415C0BF4B93DBAB63ADA488"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfZeroInk",
+      "layer": "indexed",
+      "differingPixels": 0,
+      "pngSha256": {
+        "software": "98F8A753CB4B785F48D2A8D4A72EE6AD5E2B57AE2EF6D18800E98A01DCD44FED",
+        "vulkan": "98F8A753CB4B785F48D2A8D4A72EE6AD5E2B57AE2EF6D18800E98A01DCD44FED",
+        "diff": "DB015ED2D0F82A9F8613D850E173457FC34137983415C0BF4B93DBAB63ADA488"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfZeroInk",
+      "layer": "rgba",
+      "differingPixels": 0,
+      "pngSha256": {
+        "software": "98F8A753CB4B785F48D2A8D4A72EE6AD5E2B57AE2EF6D18800E98A01DCD44FED",
+        "vulkan": "98F8A753CB4B785F48D2A8D4A72EE6AD5E2B57AE2EF6D18800E98A01DCD44FED",
+        "diff": "DB015ED2D0F82A9F8613D850E173457FC34137983415C0BF4B93DBAB63ADA488"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    }
+  ]
+}

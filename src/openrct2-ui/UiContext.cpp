@@ -77,6 +77,7 @@ private:
     const std::unique_ptr<IPlatformUiContext> _platformUiContext;
     const std::unique_ptr<IWindowManager> _windowManager;
 
+    std::shared_ptr<IDrawingEngineFactory> _drawingEngineFactory;
     CursorRepository _cursorRepository;
 
     SDL_Window* _window = nullptr;
@@ -120,9 +121,11 @@ public:
         return _shortcutManager;
     }
 
-    explicit UiContext(IPlatformEnvironment& env)
+    explicit UiContext(IPlatformEnvironment& env, std::shared_ptr<IDrawingEngineFactory> drawingEngineFactory)
         : _platformUiContext(CreatePlatformUiContext())
         , _windowManager(CreateWindowManager())
+        , _drawingEngineFactory(
+              drawingEngineFactory ? std::move(drawingEngineFactory) : std::make_shared<DrawingEngineFactory>())
         , _shortcutManager(env)
     {
         LogSDLVersion();
@@ -137,6 +140,9 @@ public:
     ~UiContext() override
     {
         UiContext::CloseWindow();
+        // Release the presentation owner/loader lease before SDL video quits.
+        // Context has already drained and released its auxiliary factory.
+        _drawingEngineFactory.reset();
         SDL_QuitSubSystem(SDL_INIT_VIDEO);
     }
 
@@ -296,7 +302,7 @@ public:
     // Drawing
     std::shared_ptr<IDrawingEngineFactory> GetDrawingEngineFactory() override
     {
-        return std::make_shared<DrawingEngineFactory>();
+        return _drawingEngineFactory;
     }
 
     void DrawWeatherAnimation(IWeatherDrawer* weatherDrawer, RenderTarget& rt, DrawWeatherFunc drawFunc) override
@@ -1188,9 +1194,10 @@ private:
     }
 };
 
-std::unique_ptr<IUiContext> Ui::CreateUiContext(IPlatformEnvironment& env)
+std::unique_ptr<IUiContext> Ui::CreateUiContext(
+    IPlatformEnvironment& env, std::shared_ptr<IDrawingEngineFactory> drawingEngineFactory)
 {
-    return std::make_unique<UiContext>(env);
+    return std::make_unique<UiContext>(env, std::move(drawingEngineFactory));
 }
 
 InGameConsole& Ui::GetInGameConsole()

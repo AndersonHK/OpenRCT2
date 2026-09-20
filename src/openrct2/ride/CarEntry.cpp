@@ -10,7 +10,7 @@
 #include "CarEntry.h"
 
 #include "../drawing/Drawing.Sprite.h"
-#include "../drawing/RenderTarget.h"
+#include "../drawing/SpriteAssetDecoder.h"
 #include "../entity/Yaw.hpp"
 
 #include <cstdint>
@@ -47,90 +47,14 @@ uint32_t CarEntry::getSpriteOffset(SpriteGroupType spriteGroup, int32_t imageDir
  */
 void CarEntrySetImageMaxSizes(CarEntry& carEntry, int32_t numImages)
 {
-    constexpr uint8_t kWidth = 200;
-    constexpr uint8_t kHeight = 200;
-    constexpr uint8_t kCentreX = kWidth / 2;
-    constexpr uint8_t kCentreY = kHeight / 2;
-
-    OpenRCT2::Drawing::PaletteIndex bitmap[kHeight][kWidth]{};
-
-    OpenRCT2::Drawing::RenderTarget rt = {
-        .bits = reinterpret_cast<OpenRCT2::Drawing::PaletteIndex*>(bitmap),
-        .x = -(kWidth / 2),
-        .y = -(kHeight / 2),
-        .width = kWidth,
-        .height = kHeight,
-        .pitch = 0,
-        .zoom_level = ZoomLevel{ 0 },
-    };
-
+    OpenRCT2::Drawing::SpriteAssetBoundsAccumulator inference;
     for (int32_t i = 0; i < numImages; ++i)
     {
-        GfxDrawSpriteSoftware(rt, ImageId(carEntry.baseImageId + i), { 0, 0 });
+        if (const auto* element = GfxGetG1Element(carEntry.baseImageId + i); element != nullptr)
+            inference.Add(*element);
     }
-
-    int32_t spriteWidth = -1;
-    for (int32_t i = kCentreX - 1; i != 0; --i)
-    {
-        for (int32_t j = 0; j < kWidth; j++)
-        {
-            if (bitmap[j][kCentreX - i] != OpenRCT2::Drawing::PaletteIndex::transparent)
-            {
-                spriteWidth = i;
-                break;
-            }
-        }
-
-        if (spriteWidth != -1)
-            break;
-
-        for (int32_t j = 0; j < kWidth; j++)
-        {
-            if (bitmap[j][kCentreX + i] != OpenRCT2::Drawing::PaletteIndex::transparent)
-            {
-                spriteWidth = i;
-                break;
-            }
-        }
-
-        if (spriteWidth != -1)
-            break;
-    }
-    spriteWidth++;
-
-    int32_t spriteHeightNegative = -1;
-    for (int32_t i = kCentreY - 1; i != 0; --i)
-    {
-        for (int32_t j = 0; j < kWidth; j++)
-        {
-            if (bitmap[kCentreY - i][j] != OpenRCT2::Drawing::PaletteIndex::transparent)
-            {
-                spriteHeightNegative = i;
-                break;
-            }
-        }
-
-        if (spriteHeightNegative != -1)
-            break;
-    }
-    spriteHeightNegative++;
-
-    int32_t spriteHeightPositive = -1;
-    for (int32_t i = kCentreY - 1; i != 0; --i)
-    {
-        for (int32_t j = 0; j < kWidth; j++)
-        {
-            if (bitmap[kCentreY + i][j] != OpenRCT2::Drawing::PaletteIndex::transparent)
-            {
-                spriteHeightPositive = i;
-                break;
-            }
-        }
-
-        if (spriteHeightPositive != -1)
-            break;
-    }
-    spriteHeightPositive++;
+    const auto bounds = inference.GetBounds();
+    int32_t spriteHeightNegative = bounds.heightNegative;
 
     // Moved from object paint
 
@@ -139,9 +63,9 @@ void CarEntrySetImageMaxSizes(CarEntry& carEntry, int32_t numImages)
         spriteHeightNegative += 16;
     }
 
-    carEntry.spriteWidth = spriteWidth;
+    carEntry.spriteWidth = bounds.width;
     carEntry.spriteHeightNegative = spriteHeightNegative;
-    carEntry.spriteHeightPositive = spriteHeightPositive;
+    carEntry.spriteHeightPositive = bounds.heightPositive;
 }
 
 bool CarEntry::isVisible() const

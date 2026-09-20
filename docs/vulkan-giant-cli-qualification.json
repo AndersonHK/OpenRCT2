@@ -1,0 +1,105 @@
+{
+  "schema": 1,
+  "status": "pass",
+  "qualifiedAtUtc": "2026-09-20T05:41:02.722553+00:00",
+  "scope": "Bounded selected-Vulkan CLI giant screenshot checkpoint; frozen96x96 terrain/800balloon fixture,20camera/background cases and fresh repeats",
+  "receipts": {
+    "build": {
+      "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\build-49\\receipt.json",
+      "sha256": "870d495d2d849704b8fb272cd7f3ade4d7bb8ae712a91ba763939e281fa82036"
+    },
+    "fullSuite": {
+      "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\run-43\\summary.json",
+      "sha256": "097660adb34f6b6a9e11847456456091c0f3f21d29a3d10b05d88ff41ff34f43"
+    },
+    "uiLibraries": {
+      "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-cache-build-05\\receipt.json",
+      "sha256": "bc62de4d7861ac67cf018652a534487feaa23ef439b1b78fc8e014164fec90c9"
+    },
+    "cliBuild": {
+      "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\giant-cli-build-03\\receipt.json",
+      "sha256": "e1e6a17c4412d075cc9f25ebc02897f53d34760ad056e2359f7084289c7118a7"
+    },
+    "softwareControl": {
+      "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\software-giant-tiling-02\\summary.json",
+      "sha256": "d32efeda4240c5904d740809fc32e5200957ac74d6ae56850be4ad746fd9a4ab"
+    },
+    "noWindowBuild": {
+      "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\giant-no-window-build-01\\receipt.json",
+      "sha256": "0a1de36c23cef778cb3cb617bc4c5a331be59a4c8a853e86e08a09cbae1f4480"
+    },
+    "noWindowContracts": {
+      "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\giant-no-window-contracts-02\\summary.json",
+      "sha256": "e3d27f350125110635ae55738cc08969cfe89617f1720dc92b29b4e4d297d8d0"
+    },
+    "reportValidatorTests": {
+      "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\no-window-report-checks-02\\summary.json",
+      "sha256": "c18b5719eeb5152d3286e425e5329407173ead3d42aaa7d1b3d5ab9280c5057c"
+    },
+    "lifecycle": {
+      "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\giant-cli-lifecycle-01\\summary.json",
+      "sha256": "51aa87ec5a898c73f8ecd9d7629fa665962c35aac82b4dc047477345909f21f6"
+    },
+    "manualReview": {
+      "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\docs\\vulkan-giant-cli-visual-review.json",
+      "sha256": "8285bf4c37c5d07e4d098c2f7ca26efeaed62c84f56fd2252a8e21197148f8db"
+    },
+    "sixLaneAudit": {
+      "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\giant-corrected-final-review\\six-lane-audit.json",
+      "sha256": "95e2f12f3072ea9657eb73ddc33f715b2f8b0029c7a6bdd3cd35d5e755402d99"
+    }
+  },
+  "qualifiedSummaryReceipts": [
+    {
+      "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\giant-cli-frozen-01\\summary.json",
+      "sha256": "1ef7d6d3a451fd8b8e957cb51a8ca8793f0c4f07f156555649586311d7865923"
+    },
+    {
+      "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\giant-cli-frozen-02\\summary.json",
+      "sha256": "498410ffb474c45525053323a2b9fe89eee427a437ce60fd46f91b08a11d1ce6"
+    },
+    {
+      "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\giant-cli-software-01\\summary.json",
+      "sha256": "359a5f16c0f4bd8c681eafb6af48faf50e7a74ace0323e8b0214c6d697b78776"
+    },
+    {
+      "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\giant-cli-software-02\\summary.json",
+      "sha256": "38a7a4a69045a6f7985ec60ce6bd980d1863434d9c2cc6b15f19c835fdb34448"
+    },
+    {
+      "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\giant-cli-vulkan-04\\summary.json",
+      "sha256": "b53e529b93c1c4fb62b44ea1cd4a6d2a0c9907d584020a088a73f1993f1b0897"
+    },
+    {
+      "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\giant-cli-vulkan-05\\summary.json",
+      "sha256": "244d145adb98a3dd2973c3bb4e8e34d466402c9982d5110e9a35cf39320dfad1"
+    }
+  ],
+  "fullSuiteTests": 786,
+  "currentVulkanCaptures": 40,
+  "allReferenceAndCandidateCaptures": 120,
+  "noWindowTests": 21,
+  "noWindowReports": 26,
+  "lifecycleControls": 6,
+  "manualCoverage": {
+    "fullScenes": 20,
+    "seamJunctionFinalEdgeSamples": 88,
+    "formerlyDivergentRegions": 2
+  },
+  "acceptedExceptions": [],
+  "correction": "Generate and arrange each tile column over the unchanged whole viewport vertical domain; restore bounded raster target before drawing. Existing software entry behavior and protected rasterizer sources remain unchanged.",
+  "preservedFailures": [
+    "giant-cli-vulkan-01",
+    "giant-cli-vulkan-02",
+    "giant-cli-vulkan-03",
+    "giant-no-window-contracts-01"
+  ],
+  "reportCheckerCorrection": "Native maxChannelError is a four-channel array. First no-window run passed21 native tests but failed the scalar-assuming checker; native-fixture regression and fresh qualification02 pass.",
+  "limits": [
+    "Arbitrary park and tall ride/scenery coverage remain open.",
+    "Interactive giant and remaining auxiliary callers remain open.",
+    "Retained main-window terrain runtime admission remains closed.",
+    "No Gate P, universal parity, exclusive default or software-deletion claim.",
+    "Historical source receipts are not a hermetic compiler environment."
+  ]
+}

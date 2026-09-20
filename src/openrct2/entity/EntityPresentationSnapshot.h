@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include "../drawing/RetainedBalloonScene.h"
 #include "EntityRegistry.h"
 
 #include <array>
@@ -70,6 +71,8 @@ namespace OpenRCT2
         bool _bulkMode{};
         size_t _entityCount{};
         uint64_t _epoch{};
+        std::shared_ptr<const Drawing::RetainedBalloonSnapshot> _retainedBalloons;
+        Drawing::BalloonPublicationMetrics _balloonMetrics{};
 
     public:
         EntityPresentationSnapshot();
@@ -78,7 +81,17 @@ namespace OpenRCT2
             EntityRegistry& registry, std::span<const CoordsXY> tileLocations, std::span<const EntityId> lookupRoots = {});
 
         void Apply(const EntityVisualChangeBatch& batch);
-        void CaptureStorage(EntityRegistry& registry);
+        void CaptureStorage(
+            EntityRegistry& registry, std::shared_ptr<const Drawing::RetainedBalloonSnapshot> balloons = {},
+            Drawing::BalloonPublicationMetrics metrics = {});
+        [[nodiscard]] const auto& GetRetainedBalloons() const noexcept
+        {
+            return _retainedBalloons;
+        }
+        [[nodiscard]] const auto& GetBalloonMetrics() const noexcept
+        {
+            return _balloonMetrics;
+        }
         void BuildCapturedStorage();
 
         [[nodiscard]] const EntityBase* TryGetEntity(EntityId id) const noexcept;

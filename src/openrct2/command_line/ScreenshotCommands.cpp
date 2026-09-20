@@ -50,7 +50,7 @@ namespace OpenRCT2
     {
         const char** argv = const_cast<const char**>(argEnumerator->GetArguments()) + argEnumerator->GetIndex();
         int32_t argc = argEnumerator->GetCount() - argEnumerator->GetIndex();
-        int32_t result = CommandLineForScreenshot(argv, argc, &_options);
+        int32_t result = CommandLineForScreenshot(argv, argc, &_options, argEnumerator->GetRenderServiceFactory());
         if (result < 0)
         {
             return ExitCode::fail;

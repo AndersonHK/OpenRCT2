@@ -1,0 +1,726 @@
+{
+  "schema": 1,
+  "referenceRevision": "9a092745f38a714cf33629aaa005d078d473e48b",
+  "policy": "All active report groups are required. No missing capture or skipped test passes. Covered means only the listed cases; all broad feature gates remain open. Exceptions use whole-image corrected expectations, never masks.",
+  "groups": [
+    {
+      "id": "primitive",
+      "gaps": [
+        "G03",
+        "G07",
+        "G12"
+      ],
+      "coverage": [
+        "V01",
+        "V02",
+        "V03",
+        "V06",
+        "V07"
+      ],
+      "requires": [],
+      "fixtures": [
+        "Rectangles",
+        "Hatches",
+        "Lines",
+        "BitmapSprites",
+        "RleSprites",
+        "Filters",
+        "BitmapZoomIn",
+        "BitmapZoomOut",
+        "RleZoomIn",
+        "RleZoomOut",
+        "Remaps",
+        "Masks",
+        "MasksZoomIn",
+        "Transparency",
+        "SolidSprites",
+        "Glyphs",
+        "NestedTargets",
+        "OpaqueZeroBitmapRaw",
+        "OpaqueZeroBitmapRemapped",
+        "OpaqueZeroBitmapSolid",
+        "CoveredZeroRleRaw",
+        "CoveredZeroRleRemapped",
+        "CoveredZeroRleSolid",
+        "WeatherRain",
+        "WeatherSnow",
+        "OpaqueZeroBitmapOrdering",
+        "CoveredZeroRleOrdering",
+        "TransparencyOrdering",
+        "WeatherTransparencyOrdering",
+        "TransparencyDeep32",
+        "TransparencyDeep33"
+      ],
+      "layers": [
+        "indexed",
+        "rgba"
+      ],
+      "limits": "Synthetic operations; not every flag/zoom/remap combination or full UI."
+    },
+    {
+      "id": "scaling",
+      "gaps": [
+        "G02",
+        "G04"
+      ],
+      "coverage": [
+        "V09"
+      ],
+      "requires": [],
+      "fixtures": [
+        "NearestInteger",
+        "NearestFractional",
+        "LinearInteger",
+        "LinearFractional",
+        "SmoothNearestInteger",
+        "SmoothNearestFractional",
+        "NearestHiDpiRatio",
+        "LinearHiDpiRatio",
+        "SmoothNearestHiDpiRatio",
+        "SmoothNearestSmallScale",
+        "SmoothNearestDownscale",
+        "SmoothNearestOddLogical"
+      ],
+      "layers": [
+        "physical",
+        "uniform-lightfx"
+      ],
+      "limits": "Actual SDL versus Vulkan targets on local device; uniform light fixture does not prove spatial lighting."
+    },
+    {
+      "id": "screen-palette",
+      "gaps": [
+        "G04"
+      ],
+      "coverage": [
+        "V09"
+      ],
+      "requires": [],
+      "fixtures": [
+        "ScreenPaletteAllIndices"
+      ],
+      "layers": [
+        "physical"
+      ],
+      "limits": "All palette indices and opaque window alpha; not main UI."
+    },
+    {
+      "id": "auxiliary-scenes",
+      "gaps": [
+        "G03",
+        "G12"
+      ],
+      "coverage": [
+        "V02",
+        "V04",
+        "V08"
+      ],
+      "requires": [
+        "rct2-assets"
+      ],
+      "fixtures": [
+        "SmallPark_R0_Z0",
+        "SmallPark_R0_Z1",
+        "SmallPark_R1_Z0",
+        "SmallPark_R1_Z1",
+        "SmallPark_R2_Z0",
+        "SmallPark_R2_Z1",
+        "SmallPark_R3_Z0",
+        "SmallPark_R3_Z1",
+        "SmallParkTransparent_R0_Z0",
+        "SmallParkTransparent_R0_Z1",
+        "SmallParkTransparent_R1_Z0",
+        "SmallParkTransparent_R1_Z1",
+        "SmallParkTransparent_R2_Z0",
+        "SmallParkTransparent_R2_Z1",
+        "SmallParkTransparent_R3_Z0",
+        "SmallParkTransparent_R3_Z1"
+      ],
+      "layers": [
+        "indexed",
+        "rgba"
+      ],
+      "limits": "Independent auxiliary views, no actual main UI or native terrain admission. Eight transparent views separately corroborated against frozen CLI."
+    },
+    {
+      "id": "main-publication",
+      "gaps": [
+        "G11"
+      ],
+      "coverage": [
+        "V08",
+        "V10"
+      ],
+      "requires": [
+        "rct2-assets"
+      ],
+      "fixtures": [
+        "MainPublication_EntityMove"
+      ],
+      "layers": [
+        "indexed",
+        "rgba"
+      ],
+      "limits": "Live versus published X8 output isolates shared defect; not Vulkan final UI evidence."
+    },
+    {
+      "id": "ttf-bitmap",
+      "gaps": [
+        "G03",
+        "G12"
+      ],
+      "coverage": [
+        "V06"
+      ],
+      "requires": [],
+      "fixtures": [
+        "TtfThresholds",
+        "TtfOutline",
+        "TtfInset",
+        "TtfOutlineInset",
+        "TtfClipping",
+        "TtfOrdering",
+        "TtfCacheReplacement_F0",
+        "TtfCacheReplacement_F1",
+        "TtfCacheReplacement_F2",
+        "TtfZeroInk"
+      ],
+      "layers": [
+        "indexed",
+        "rgba"
+      ],
+      "limits": "Synthetic immutable post-raster TTFSurface coverage, six thresholds, outlines/inset, nested clips, ordering and cache identity replacement/hit. Frozen bitmap API requires zoom0. Host font selection, shaping, TTF library rasterization and zoomed text layout remain unqualified."
+    },
+    {
+      "id": "spatial-light",
+      "gaps": [
+        "G04",
+        "G05"
+      ],
+      "coverage": [
+        "V07",
+        "V09"
+      ],
+      "requires": [],
+      "fixtures": [
+        "Lantern0",
+        "Lantern1",
+        "Lantern2",
+        "Lantern3",
+        "Spot0",
+        "Spot1",
+        "Spot2",
+        "Spot3",
+        "OverlapSaturation",
+        "OverlapSaturation_Cleared",
+        "EdgesCorners",
+        "SmallCanvasStride",
+        "Empty"
+      ],
+      "layers": [
+        "indexed",
+        "physical"
+      ],
+      "limits": "Resolved spatial commands and all falloffs against CPU light rasterizer through actual SDL output; GPU commands contain no CPU intensity fallback. Does not qualify world source discovery, occlusion or temporal palette/light adaptation."
+    },
+    {
+      "id": "offscreen-service",
+      "gaps": [
+        "G08"
+      ],
+      "coverage": [
+        "auxiliary indexed/RGBA primitive contracts"
+      ],
+      "requires": [],
+      "fixtures": [
+        "clear-0",
+        "clear-1",
+        "clear-2",
+        "owned-0",
+        "owned-1",
+        "owned-2",
+        "offscreen-primitives",
+        "owned-sprite-covered-zero"
+      ],
+      "layers": [
+        "indexed",
+        "rgba"
+      ],
+      "limits": "Real graphics-only shared executor with explicit initial contents/alpha and immutable sprite payload. No caller migration, retained world/LightFX, giant tiling or device-free packaging claim."
+    }
+  ],
+  "requiredSuiteMinimumCounts": {
+    "GpuFoundationTest": 42,
+    "VulkanRuntimeIntegrationTest": 2,
+    "VulkanCoverageCacheTest": 3,
+    "PublicationSnapshotParityTest": 6,
+    "SpriteAssetDecoderTest": 11,
+    "Primitives/VulkanParityTest": 31,
+    "DisplayModes/VulkanScalingParityTest": 13,
+    "VulkanDiagnosticCaptureTest": 5,
+    "Ttf/VulkanTtfParityTest": 8,
+    "AssetMetadataCorpusParityTest": 2,
+    "Spatial/VulkanSpatialLightParityTest": 12,
+    "RenderServiceContract": 8,
+    "ScreenshotTilingTest": 5,
+    "ViewportGenerationTest": 3,
+    "RenderServiceLazyLifetime": 7,
+    "VulkanPresentationHostTest": 4,
+    "VulkanOffscreenDeviceTest": 2,
+    "VulkanSubmissionSlotsContractTest": 1,
+    "RetainedBalloonSceneTest": 5,
+    "RetainedBalloonHookTest": 5,
+    "TerrainSurfaceRulesTest": 3,
+    "TerrainPresentationBridgeTest": 8,
+    "VulkanOffscreenRenderTest": 7,
+    "VulkanOffscreenServiceContract": 6,
+    "VulkanBalloonPipelineTest": 3,
+    "VulkanBalloonAdmissionTest": 1,
+    "TerrainSurfaceEmissionTest": 5,
+    "VulkanTerrainSurfaceRulesTest": 2,
+    "VulkanRetainedTerrainEmissionTest": 2,
+    "VulkanRetainedTerrainDrawTest": 3,
+    "VulkanTerrainCompletionTest": 2,
+    "VulkanOffscreenDeviceOwnerTest": 1
+  },
+  "requiredJsonArtifacts": [
+    "AssetMetadataCorpus/AllAvailableRideCars.json",
+    "AssetMetadataCorpus/AllAvailablePeepActions.json"
+  ],
+  "drawingMethods": [
+    "Clear",
+    "FillRect",
+    "FilterRect",
+    "DrawLine",
+    "DrawSprite",
+    "DrawSpriteRawMasked",
+    "DrawSpriteSolid",
+    "DrawGlyph",
+    "DrawTTFBitmap",
+    "DrawWorldSurfaceScene"
+  ],
+  "viewportFlags": [
+    {
+      "name": "VIEWPORT_FLAG_NONE",
+      "expression": "0u",
+      "status": "pending explicit main UI coverage"
+    },
+    {
+      "name": "VIEWPORT_FLAG_GRIDLINES",
+      "expression": "(1u << 7)",
+      "status": "pending explicit main UI coverage"
+    },
+    {
+      "name": "VIEWPORT_FLAG_UNDERGROUND_INSIDE",
+      "expression": "(1u << 0)",
+      "status": "pending explicit main UI coverage"
+    },
+    {
+      "name": "VIEWPORT_FLAG_HIDE_BASE",
+      "expression": "(1u << 12)",
+      "status": "pending explicit main UI coverage"
+    },
+    {
+      "name": "VIEWPORT_FLAG_HIDE_VERTICAL",
+      "expression": "(1u << 13)",
+      "status": "pending explicit main UI coverage"
+    },
+    {
+      "name": "VIEWPORT_FLAG_SOUND_ON",
+      "expression": "(1u << 10)",
+      "status": "pending explicit main UI coverage"
+    },
+    {
+      "name": "VIEWPORT_FLAG_LAND_OWNERSHIP",
+      "expression": "(1u << 8)",
+      "status": "pending explicit main UI coverage"
+    },
+    {
+      "name": "VIEWPORT_FLAG_CONSTRUCTION_RIGHTS",
+      "expression": "(1u << 9)",
+      "status": "pending explicit main UI coverage"
+    },
+    {
+      "name": "VIEWPORT_FLAG_HIDE_ENTITIES",
+      "expression": "(1u << 14)",
+      "status": "pending explicit main UI coverage"
+    },
+    {
+      "name": "VIEWPORT_FLAG_CLIP_VIEW",
+      "expression": "(1u << 15)",
+      "status": "pending explicit main UI coverage"
+    },
+    {
+      "name": "VIEWPORT_FLAG_CLIP_VIEW_SEE_THROUGH",
+      "expression": "(1u << 17)",
+      "status": "pending explicit main UI coverage"
+    },
+    {
+      "name": "VIEWPORT_FLAG_HIGHLIGHT_PATH_ISSUES",
+      "expression": "(1u << 18)",
+      "status": "pending explicit main UI coverage"
+    },
+    {
+      "name": "VIEWPORT_FLAG_TRANSPARENT_BACKGROUND",
+      "expression": "(1u << 19)",
+      "status": "partial transparent-background fixture"
+    },
+    {
+      "name": "VIEWPORT_FLAG_LAND_HEIGHTS",
+      "expression": "(1u << 4)",
+      "status": "pending explicit main UI coverage"
+    },
+    {
+      "name": "VIEWPORT_FLAG_TRACK_HEIGHTS",
+      "expression": "(1u << 5)",
+      "status": "pending explicit main UI coverage"
+    },
+    {
+      "name": "VIEWPORT_FLAG_PATH_HEIGHTS",
+      "expression": "(1u << 6)",
+      "status": "pending explicit main UI coverage"
+    },
+    {
+      "name": "VIEWPORT_FLAG_HIDE_RIDES",
+      "expression": "(1u << 1)",
+      "status": "pending explicit main UI coverage"
+    },
+    {
+      "name": "VIEWPORT_FLAG_HIDE_VEHICLES",
+      "expression": "(1u << 20)",
+      "status": "pending explicit main UI coverage"
+    },
+    {
+      "name": "VIEWPORT_FLAG_HIDE_VEGETATION",
+      "expression": "(1u << 21)",
+      "status": "pending explicit main UI coverage"
+    },
+    {
+      "name": "VIEWPORT_FLAG_HIDE_SCENERY",
+      "expression": "(1u << 2)",
+      "status": "pending explicit main UI coverage"
+    },
+    {
+      "name": "VIEWPORT_FLAG_HIDE_PATHS",
+      "expression": "(1u << 16)",
+      "status": "pending explicit main UI coverage"
+    },
+    {
+      "name": "VIEWPORT_FLAG_HIDE_SUPPORTS",
+      "expression": "(1u << 3)",
+      "status": "pending explicit main UI coverage"
+    },
+    {
+      "name": "VIEWPORT_FLAG_HIDE_GUESTS",
+      "expression": "(1u << 11)",
+      "status": "pending explicit main UI coverage"
+    },
+    {
+      "name": "VIEWPORT_FLAG_HIDE_STAFF",
+      "expression": "(1u << 23)",
+      "status": "pending explicit main UI coverage"
+    },
+    {
+      "name": "VIEWPORT_FLAG_INVISIBLE_RIDES",
+      "expression": "(1u << 24)",
+      "status": "pending explicit main UI coverage"
+    },
+    {
+      "name": "VIEWPORT_FLAG_INVISIBLE_VEHICLES",
+      "expression": "(1u << 25)",
+      "status": "pending explicit main UI coverage"
+    },
+    {
+      "name": "VIEWPORT_FLAG_INVISIBLE_VEGETATION",
+      "expression": "(1u << 26)",
+      "status": "pending explicit main UI coverage"
+    },
+    {
+      "name": "VIEWPORT_FLAG_INVISIBLE_SCENERY",
+      "expression": "(1u << 27)",
+      "status": "pending explicit main UI coverage"
+    },
+    {
+      "name": "VIEWPORT_FLAG_INVISIBLE_PATHS",
+      "expression": "(1u << 28)",
+      "status": "pending explicit main UI coverage"
+    },
+    {
+      "name": "VIEWPORT_FLAG_INVISIBLE_SUPPORTS",
+      "expression": "(1u << 29)",
+      "status": "pending explicit main UI coverage"
+    },
+    {
+      "name": "VIEWPORT_FLAG_INDEPENDENT_ROTATION",
+      "expression": "(1u << 30)",
+      "status": "pending explicit main UI coverage"
+    },
+    {
+      "name": "VIEWPORT_FLAG_RENDERING_INHIBITED",
+      "expression": "(1u << 31)",
+      "status": "pending explicit main UI coverage"
+    }
+  ],
+  "pendingFamilies": [
+    {
+      "id": "V01",
+      "status": "partial; not qualified"
+    },
+    {
+      "id": "V02",
+      "status": "partial; not qualified"
+    },
+    {
+      "id": "V03",
+      "status": "partial; not qualified"
+    },
+    {
+      "id": "V04",
+      "status": "partial; not qualified"
+    },
+    {
+      "id": "V05",
+      "status": "partial; not qualified"
+    },
+    {
+      "id": "V06",
+      "status": "partial; not qualified"
+    },
+    {
+      "id": "V07",
+      "status": "partial; not qualified"
+    },
+    {
+      "id": "V08",
+      "status": "partial; not qualified"
+    },
+    {
+      "id": "V09",
+      "status": "partial; not qualified"
+    },
+    {
+      "id": "V10",
+      "status": "partial; not qualified"
+    },
+    {
+      "id": "V11",
+      "status": "partial; not qualified"
+    },
+    {
+      "id": "V12",
+      "status": "partial; not qualified"
+    }
+  ],
+  "actualMainUiEvidence": {
+    "baseline": "obj/vulkan-parity/ui-vulkan-baseline-02/summary.json",
+    "families": [
+      "overlap",
+      "scroll",
+      "text"
+    ],
+    "fullInvalidation": "obj/vulkan-parity/ui-vulkan-{family}-02/summary.json",
+    "incrementalInvalidation": "obj/vulkan-parity/ui-vulkan-{family}-incremental-01/summary.json",
+    "requiredCapturesPerFamily": 12,
+    "layers": [
+      "indexed",
+      "physical-rgba"
+    ],
+    "status": "All listed frozen/current software/Vulkan comparisons, repeat/restoration and incremental/full-state checks exact; Vulkan synchronization validation clean",
+    "limits": "One pinned park/language/theme/scale/device; remaining windows/widgets, weather, broader temporal lighting and terrain/scale/lifecycle coverage remain open",
+    "freshProcessRepeat": "obj/vulkan-parity/ui-vulkan-{family}-incremental-02/summary.json",
+    "rct1AssetScope": "Before UI build15/frozen12, RCT1 input file hashes did not prove CSG loading. These captures retain exact parity for their recorded inputs; original-RCT1-loaded coverage needs new asserted-loaded references and fresh repeats. See docs/vulkan-large-park-visual-review.md. Auxiliary tests with explicit asset assertions retain their own scope."
+  },
+  "latestPassingLocalEvidence": "obj/vulkan-parity/run-27/summary.json",
+  "evidenceLimits": "724 full-suite tests pass including31primitive cases,12spatial light cases,13RenderService contracts/lifetime tests,2presentation-host lifecycle tests and pinned metadata corpus; required artifacts and synchronization validation clean. Actual UI and native/light fixtures are separately scoped. Cross-platform/device, wider main UI, offscreen implementation and VRAM/TPS performance gates remain open.",
+  "latestPassingFullSuiteEvidence": "obj/vulkan-parity/run-27/summary.json",
+  "actualNativeTerrainEvidence": {
+    "inputReceipt": "docs/vulkan-native-terrain-input.json",
+    "cases": [
+      "r0z0",
+      "r1z0",
+      "r2z0",
+      "r3z0",
+      "r0z1phase",
+      "smooth",
+      "grid",
+      "overlap"
+    ],
+    "threeWay": "obj/vulkan-parity/ui-{frozen,current,vulkan}-terrain-{case}-02/summary.json",
+    "freshProcessRepeat": "obj/vulkan-parity/ui-{frozen,current,vulkan}-terrain-{case}-03/summary.json",
+    "manualReview": "docs/vulkan-native-terrain-corrected-review.json",
+    "status": "All cases/layers/captures exact, same-build fresh-process repeats exact, validation clean; all three formerly divergent views manually reviewed corrected; no exception",
+    "limits": "Pinned entity-free flat32x32 map with border/rotation/phase/fallback/UI controls; other terrain, slopes, moving entities, scene edits and retained GPU world expansion unqualified",
+    "rct1AssetScope": "Before UI build15/frozen12, RCT1 input file hashes did not prove CSG loading. These captures retain exact parity for their recorded inputs; original-RCT1-loaded coverage needs new asserted-loaded references and fresh repeats. See docs/vulkan-large-park-visual-review.md. Auxiliary tests with explicit asset assertions retain their own scope."
+  },
+  "actualMainUiLightEvidence": {
+    "fixture": "light-night",
+    "fixtureVersion": 2,
+    "threeWay": "obj/vulkan-parity/ui-{frozen,current,vulkan}-light-night-03/summary.json",
+    "freshProcessRepeat": "obj/vulkan-parity/ui-{frozen,current,vulkan}-light-night-04/summary.json",
+    "manualReview": "docs/vulkan-main-ui-light-v2-review.json",
+    "status": "All24frames exact; corrected samples manually reviewed; six natural lights per Vulkan frame with no CPU intensity map; validation clean",
+    "limits": "Lighting enabled only after loading to isolate deterministic paint sequence; startup-enabled adaptation and broader lighting/weather remain open",
+    "rct1AssetScope": "Before UI build15/frozen12, RCT1 input file hashes did not prove CSG loading. These captures retain exact parity for their recorded inputs; original-RCT1-loaded coverage needs new asserted-loaded references and fresh repeats. See docs/vulkan-large-park-visual-review.md. Auxiliary tests with explicit asset assertions retain their own scope."
+  },
+  "actualWeatherEvidence": {
+    "families": {
+      "weather-precipitation": 8,
+      "weather-palette": 6
+    },
+    "threeWay": "obj/vulkan-parity/ui-{frozen,current,vulkan}-{family}-01/summary.json",
+    "freshProcessRepeat": "obj/vulkan-parity/ui-{frozen,current,vulkan}-{family}-02/summary.json",
+    "manualReview": "docs/vulkan-main-ui-weather-review.json",
+    "status": "All84capturedframes exact in both layers across12processes, complete weather metadata matches,14states manually visually inspected, Vulkan validation clean",
+    "limits": "Paused fixed tick/phase/viewport and loaded small park, LightFX disabled; animated weather, visible water-palette changes, native terrain, additional clipping/zoom and LightFX combinations remain open",
+    "rct1AssetScope": "Before UI build15/frozen12, RCT1 input file hashes did not prove CSG loading. These captures retain exact parity for their recorded inputs; original-RCT1-loaded coverage needs new asserted-loaded references and fresh repeats. See docs/vulkan-large-park-visual-review.md. Auxiliary tests with explicit asset assertions retain their own scope."
+  },
+  "e1ExtractionEvidence": {
+    "ordinaryBuild": "obj/vulkan-parity/build-28/receipt.json",
+    "fullSuite": "obj/vulkan-parity/run-24/summary.json",
+    "uiBuild": "obj/vulkan-parity/ui-build-13/receipt.json",
+    "uiCases": "obj/vulkan-parity/ui-e1-vulkan-*/summary.json; baseline-01 is retained metadata-only failure, baseline-02 supersedes it",
+    "status": "13 regression runs exact+validation clean: baseline, overlap/scroll/text incremental, light-night, all8terraincases; backend host injection E2a applied after this evidence and awaits qualification"
+  },
+  "mainUiAssetInputContract": {
+    "introducedCurrentBuild": "obj/vulkan-parity/ui-build-15/receipt.json",
+    "introducedFrozenBuild": "obj/vulkan-parity/ui-frozen-build-12/receipt.json",
+    "required": "Assign pinned RCT1/RCT2 configuration paths after context construction and before initialisation; assert supplied RCT1 CSG loaded; compare assetState and cameraMode; reject fallback-image warnings.",
+    "earlierEvidenceScope": "Before UI build15/frozen12, RCT1 input file hashes did not prove CSG loading. These captures retain exact parity for their recorded inputs; original-RCT1-loaded coverage needs new asserted-loaded references and fresh repeats. See docs/vulkan-large-park-visual-review.md. Auxiliary tests with explicit asset assertions retain their own scope."
+  },
+  "actualLargeParkEvidence": {
+    "park": "EverythingPark.park",
+    "parkSha256": "c11bca8296bbf6d0b2673c4c80e3703139360b802e04b363d25cedd605459cf4",
+    "threeWay": "obj/vulkan-parity/ui-{frozen,current,vulkan}-everything-saved-02/summary.json",
+    "freshProcessRepeat": "obj/vulkan-parity/ui-{frozen,current,vulkan}-everything-saved-03/summary.json",
+    "repeatSummaryReceipts": [
+      {
+        "path": "obj/vulkan-parity/ui-frozen-everything-saved-03/summary.json",
+        "sha256": "4ccd980b6560b0bbd111a1160bff8ba99fd6e54a3c38e0a0e1369a6bd7e97667"
+      },
+      {
+        "path": "obj/vulkan-parity/ui-current-everything-saved-03/summary.json",
+        "sha256": "66727d9ef46082dd3d220b2c4eff27deee4d9a38c35443cc03299d5d88deca49"
+      },
+      {
+        "path": "obj/vulkan-parity/ui-vulkan-everything-saved-03/summary.json",
+        "sha256": "ae777dd71ee2f07990ec3ec2ec08e2c0c40a29978497d99434a79debdba801fd"
+      }
+    ],
+    "manualReview": "docs/vulkan-large-park-visual-review.json",
+    "assetState": {
+      "rct1CsgLoaded": true,
+      "rct1Required": true
+    },
+    "cameraMode": "saved",
+    "rotation": 3,
+    "zoom": 2,
+    "viewPosition": [
+      6218,
+      -1330
+    ],
+    "simulationTicks": 3133831,
+    "capturesPerRun": 2,
+    "layers": [
+      "indexed",
+      "physical-rgba"
+    ],
+    "status": "All12correctedcaptures exact across three renderers and their same-build fresh-process repeats; agent visually reviewed both saved-02 captures at both layers; validation clean",
+    "rejectedCoverage": "ui-{frozen,current,vulkan}-everything-r0z0-01 matched pixels but used RCT1 fallback images and a mostly void camera; retained as inadequate intended coverage, not an exception",
+    "limits": "One paused dense saved view, ordinary GPU paint commands, one scale/device; native world coverage, other cameras, advancing simulation and performance remain open"
+  },
+  "e2bExtractionEvidence": {
+    "buildReceipt": "obj/vulkan-parity/build-30/receipt.json",
+    "fullSuite": "obj/vulkan-parity/run-26/summary.json",
+    "fullSuiteSha256": "abac2088447e93fbdb0b4851fb69d1b71d58d81b48e60d98ad24625c4a36c2f3",
+    "tests": 725,
+    "status": "Full suite725/725 passes, no skips/disabled/failures or missing required reports/artifacts; test executable SHA matches build30",
+    "validationRequested": false,
+    "limits": "Main UI E2b pixel requalification and explicit validation remain separate evidence; backend ownership move does not establish surface-free service or retained-world rendering"
+  },
+  "actualMainUiFontEvidence": {
+    "families": {
+      "font-ttf-arial-hinted": 7,
+      "font-sprite-fr": 7
+    },
+    "firstPassing": {
+      "frozenTtf": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-02/summary.json",
+      "frozenSprite": "obj/vulkan-parity/ui-frozen-font-sprite-fr-01/summary.json",
+      "currentAndVulkan": "obj/vulkan-parity/ui-{current,vulkan}-{family}-02/summary.json"
+    },
+    "freshProcessRepeat": "obj/vulkan-parity/ui-{frozen,current,vulkan}-{family}-03/summary.json",
+    "manualReview": "docs/vulkan-main-ui-font-review.json",
+    "status": "All84captures exact in indexed/physical RGBA across12processes; identical-build fresh repeats;14states manually inspected across three lanes/bothlayers; actual Arial TTF and French sprite routes verified; CSG loaded, Vulkan validation clean",
+    "limits": "Two pinned profiles, one scale/device/fixed park; broader fonts/languages, unhinted/fallback/cache churn/enlarged controls/complex shaping and IME remain open",
+    "failedSetupPreserved": "ui-frozen-font-ttf-arial-hinted-01 failed beforecaptures due harness symbol classification; no renderer divergence/exception"
+  },
+  "latestValidationFullSuite": {
+    "path": "obj/vulkan-parity/run-32/summary.json",
+    "sha256": "0f628eddab9a7fffad0f38e2b466534ec5cdc11f5b04c2257ddc24ca46508f26",
+    "tests": 750,
+    "validationRequested": true,
+    "validationDiagnostics": 0
+  },
+  "uploadAccountingEvidence": {
+    "receipt": "docs/vulkan-upload-telemetry-smoke.json",
+    "tests": "obj/vulkan-parity/run-27/summary.json",
+    "status": "Bounded counters implemented and tested; actual-loop400submitted frame smoke and clean same-build state equivalence pass",
+    "limits": "P02 partial; no physical-bandwidth, producer-copy, sustained-performance, retained-world or displayed-cadence claim; G16/Gate P open"
+  },
+  "actualMainUiFontExpandedEvidence": {
+    "families": {
+      "font-ttf-arial-unhinted": 7,
+      "font-sprite-ru": 7,
+      "font-ttf-ja": 7,
+      "font-family-fallback-vi": 7
+    },
+    "firstPassing": "obj/vulkan-parity/ui-{frozen,current,vulkan}-{family}-01/summary.json",
+    "freshProcessRepeat": "obj/vulkan-parity/ui-{frozen,current,vulkan}-{family}-02/summary.json",
+    "manualReview": "docs/vulkan-main-ui-font-expanded-review.json",
+    "status": "All168captures exact in both layers across24processes; same-build fresh repeats; all28states manually viewed across3lanes/bothlayers; actual mode/font/cmap/dialog coverage verified; CSGloaded and Vulkan validation clean",
+    "combinedWithFirstProfiles": {
+      "families": 6,
+      "processes": 36,
+      "captures": 252
+    },
+    "limits": "Pinned Windows profiles, scale1/device/paused park/full invalidation only; broader font, missing-glyph, cache, shaping, IME and physical-scale coverage open"
+  },
+  "actualMainUiScaleEvidence": {
+    "families": [
+      "font-ttf-arial-hinted",
+      "font-sprite-fr"
+    ],
+    "scales": [
+      1.25,
+      1.5,
+      2
+    ],
+    "logicalExtent": [
+      960,
+      640
+    ],
+    "physicalExtents": [
+      [
+        1200,
+        800
+      ],
+      [
+        1440,
+        960
+      ],
+      [
+        1920,
+        1280
+      ]
+    ],
+    "firstPassing": "obj/vulkan-parity/ui-{frozen,current,vulkan}-{family}-scale{125,150,200}-01/summary.json",
+    "separateProcessRepeat": "obj/vulkan-parity/ui-{frozen,current,vulkan}-{family}-scale{125,150,200}-02/summary.json",
+    "processes": 36,
+    "captures": 252,
+    "manualReview": "docs/vulkan-main-ui-scale-review.json",
+    "reviewSha256": "9aed263cd7a43213d929e6a59b4758cd0d06b23a233463e78d1a1772ab751eac",
+    "status": "All 252 captures exact in both layers; all 42 states manually reviewed in three lanes; full raw audit, loaded CSG and clean Vulkan validation",
+    "repeatQualification": "The launcher omitted --fresh-repeat; original sequence-only labels are preserved. Independent audit confirms separate profile/output commands, identical renderer/build/shaders, pinned own-first references and exact full buffers.",
+    "executedRunnerSha256": "7678cdbbe63aa34942544fa76c994e7bd4e26a0cc8815cae34c0cac4e84c4656",
+    "limits": "Two profiles and three exact physical scales; production nearest and smooth-nearest policy only. Dynamic resize/DPI, odd extents, enlarged controls, other font scales and combined effects remain open."
+  }
+}

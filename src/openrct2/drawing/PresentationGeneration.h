@@ -14,6 +14,15 @@
 
 namespace OpenRCT2
 {
+    namespace Drawing
+    {
+        struct RetainedBalloonSnapshot;
+    }
+    enum class EntityPublicationProfile : uint8_t
+    {
+        legacyBulk,
+        retainedBalloons
+    };
     class EntityPresentationSnapshot;
     class MapPresentationSnapshot;
 
@@ -25,6 +34,7 @@ namespace OpenRCT2
     {
         std::shared_ptr<const MapPresentationSnapshot> map;
         std::shared_ptr<const EntityPresentationSnapshot> entities;
+        std::shared_ptr<const Drawing::RetainedBalloonSnapshot> balloons;
     };
 
     /** Integer camera state latched with one world-scene submission. */
@@ -39,5 +49,6 @@ namespace OpenRCT2
         int8_t zoom{};
         uint8_t rotation{};
         uint8_t landscapeSmoothing{};
+        bool nativeEntitiesAllowed{};
     };
 } // namespace OpenRCT2

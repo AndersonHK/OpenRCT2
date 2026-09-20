@@ -28,6 +28,9 @@ namespace OpenRCT2
 
     void Balloon::update()
     {
+        // The owner captures final state at the completed tick, including appearance-only pop frames.
+        // Mark before mutation so the removal branch never publishes through a freed entity.
+        getGameState().entities.PublishEntityVisualState(*this);
         invalidate();
         if (popped == 1)
         {
@@ -90,10 +93,18 @@ namespace OpenRCT2
     {
         popped = 1;
         frame = 0;
+        getGameState().entities.PublishEntityVisualState(*this);
         if (playSound)
         {
             Audio::Play3D(Audio::SoundId::balloonPop, { x, y, z });
         }
+    }
+
+    void Balloon::setColour(Drawing::Colour newColour)
+    {
+        colour = newColour;
+        invalidate();
+        getGameState().entities.PublishEntityVisualState(*this);
     }
 
     void Balloon::create(const CoordsXYZ& balloonPos, Drawing::Colour colour, bool isPopped)
@@ -110,6 +121,7 @@ namespace OpenRCT2
         balloon->frame = 0;
         balloon->colour = colour;
         balloon->popped = (isPopped ? 1 : 0);
+        getGameState().entities.PublishEntityVisualState(*balloon);
     }
 
     void Balloon::serialise(DataSerialiser& stream)

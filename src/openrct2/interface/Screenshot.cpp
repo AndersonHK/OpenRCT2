@@ -8,6 +8,7 @@
  *****************************************************************************/
 
 #include "Screenshot.h"
+#include "ScreenshotTiling.h"
 
 #include "../Context.h"
 #include "../Diagnostic.h"
@@ -16,6 +17,7 @@
 #include "../OpenRCT2.h"
 #include "../PlatformEnvironment.h"
 #include "../audio/Audio.h"
+#include "../audio/AudioContext.h"
 #include "../config/Config.h"
 #include "../core/EnumUtils.hpp"
 #include "../core/File.h"
@@ -25,12 +27,14 @@
 #include "../drawing/Drawing.h"
 #include "../drawing/NewDrawing.h"
 #include "../drawing/Palette.h"
+#include "../drawing/RenderService.h"
 #include "../drawing/X8DrawingEngine.h"
 #include "../localisation/Formatter.h"
 #include "../localisation/StringIds.h"
 #include "../paint/Paint.h"
 #include "../paint/tile_element/Paint.TileElement.h"
 #include "../platform/Platform.h"
+#include "../ui/UiContext.h"
 #include "../world/Map.h"
 #include "../world/TileElementsView.h"
 #include "../world/Weather.h"
@@ -436,7 +440,9 @@ static void ApplyOptions(const ScreenshotOptions* options, Viewport& viewport)
     }
 }
 
-int32_t CommandLineForScreenshot(const char** argv, int32_t argc, ScreenshotOptions* options)
+int32_t CommandLineForScreenshot(
+    const char** argv, int32_t argc, ScreenshotOptions* options,
+    std::shared_ptr<Drawing::IRenderServiceFactory> renderServiceFactory)
 {
     // Don't include options in the count (they have been handled by CommandLine::ParseOptions already)
     for (int32_t i = 0; i < argc; i++)
@@ -469,7 +475,10 @@ int32_t CommandLineForScreenshot(const char** argv, int32_t argc, ScreenshotOpti
         const char* outputPath = argv[1];
 
         gOpenRCT2Headless = true;
-        auto context = CreateContext();
+        auto context = renderServiceFactory ? CreateContext(
+                                                  CreatePlatformEnvironment(), Audio::CreateDummyAudioContext(),
+                                                  Ui::CreateDummyUiContext(), renderServiceFactory)
+                                            : CreateContext();
         if (!context->Initialise())
         {
             throw std::runtime_error("Failed to initialize context.");
@@ -483,11 +492,16 @@ int32_t CommandLineForScreenshot(const char** argv, int32_t argc, ScreenshotOpti
         }
 
         gLegacyScene = LegacyScene::playing;
+        const bool useRenderService = renderServiceFactory && renderServiceFactory->IsEnabled();
 
         Viewport viewport{};
         if (giantScreenshot)
         {
-            auto customZoom = static_cast<int8_t>(std::atoi(argv[3]));
+            const auto parsedZoom = std::atoi(argv[3]);
+            if (useRenderService && (parsedZoom < static_cast<int8_t>(ZoomLevel::min())
+                                     || parsedZoom > static_cast<int8_t>(ZoomLevel::max())))
+                throw RenderServiceException({ RenderErrorCode::invalidRequest, "Giant screenshot zoom is unsupported" });
+            auto customZoom = static_cast<int8_t>(parsedZoom);
             auto zoom = ZoomLevel{ customZoom };
             auto rotation = std::atoi(argv[4]) & 3;
             viewport = GetGiantViewport(rotation, zoom);
@@ -561,10 +575,53 @@ int32_t CommandLineForScreenshot(const char** argv, int32_t argc, ScreenshotOpti
 
         ApplyOptions(options, viewport);
 
-        rt = CreateRT(viewport);
-
-        RenderViewport(nullptr, viewport, rt);
-        WriteRTToFile(outputPath, rt, gPalette);
+        if (useRenderService && giantScreenshot)
+        {
+            ResetAllSpriteQuadrantPlacements();
+            const auto image = ScreenshotTiling::Render(
+                context->GetRenderService(), viewport, gPalette,
+                [](RenderTarget& target, const Viewport& tileViewport) {
+                    ViewportRender(target, &tileViewport, ViewportGenerationDomain::fullViewportHeight);
+                });
+            Imaging::WriteToFile(outputPath, image, ImageFormat::png);
+        }
+        else if (useRenderService)
+        {
+            // The PNG writer treats palette index zero as transparent, independently of the viewport background option.
+            OffscreenRenderRequest request;
+            request.name = "screenshot-cli";
+            request.logicalExtent = { static_cast<uint32_t>(viewport.width), static_cast<uint32_t>(viewport.height) };
+            request.outputExtent = request.logicalExtent;
+            request.alphaPolicy = RenderAlphaPolicy::transparentIndexZero;
+            request.rgbaOutput = true;
+            for (size_t i = 0; i < request.palette.size(); ++i)
+                request.palette[i] = { gPalette[i].red, gPalette[i].green, gPalette[i].blue, gPalette[i].alpha };
+            auto session = context->GetRenderService().BeginOffscreen(std::move(request));
+            ResetAllSpriteQuadrantPlacements();
+            ViewportRender(session->GetRenderTarget(), &viewport);
+            const auto outcome = session->Submit()->Wait(std::chrono::seconds(120));
+            if (outcome.error)
+                throw RenderServiceException(*outcome.error);
+            if (!outcome.result)
+                throw RenderServiceException({ RenderErrorCode::executionFailed, "Screenshot completed without owned output" });
+            const auto& result = *outcome.result;
+            GamePalette palette{};
+            for (size_t i = 0; i < palette.size(); ++i)
+                palette[i] = { result.palette[i].blue, result.palette[i].green, result.palette[i].red,
+                               result.palette[i].alpha };
+            RenderTarget output{};
+            output.width = static_cast<int32_t>(result.logicalExtent.width);
+            output.height = static_cast<int32_t>(result.logicalExtent.height);
+            output.bits = reinterpret_cast<PaletteIndex*>(const_cast<std::byte*>(result.indexed.data()));
+            if (!WriteRTToFile(outputPath, output, palette))
+                throw std::runtime_error("Failed to write offscreen screenshot PNG");
+        }
+        else
+        {
+            rt = CreateRT(viewport);
+            RenderViewport(nullptr, viewport, rt);
+            WriteRTToFile(outputPath, rt, gPalette);
+        }
     }
     catch (const std::exception& e)
     {

@@ -1,0 +1,41 @@
+{
+  "status": "pass",
+  "scope": "Real production renderer CMake target, all 16 TUs and 17 shaders, plus declaration-only consumer. No SDL include/link metadata supplied; core is a receipt-pinned library behind a header adapter.",
+  "limitations": [
+    "No GPU device, surface, renderer call or screenshot is executed",
+    "Does not prove core dependency packaging without SDL",
+    "Does not qualify full GUI-disabled application build or windowed parity"
+  ],
+  "prepareReceipt": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\e3b-sdl-free-cmake-02\\prepare-receipt.json",
+  "prepareReceiptSha256": "6ef450e0a33c4ed6c3ee04592046c2bfda551a8157190fa310c2d9ef6f028c65",
+  "configureExitCode": 0,
+  "buildExitCode": 0,
+  "sourceStable": true,
+  "rendererTranslationUnits": 16,
+  "compiledShadersEqualOrdinaryBuild34": 17,
+  "noSdlIncludeOrLinkMetadata": true,
+  "artifactSha256": {
+    "configure.log": "f425ebbce771430e6addb22ac27e8a18046b0b22779210800ac6f2eeadc3eaa2",
+    "build.log": "aa618da548f870bf5fd11f02e32b81fd45d1018932bf2836db23f77370392f33",
+    "build/renderer-inputs-Release.txt": "c5c3b31a8f4856fc612be08f00e921bc6f5145cea1c43335d82203f1d7880e3a",
+    "build/renderer/Release/libopenrct2renderer.lib": "a13eceb3ab902d5d1184b7f03ab9be6d595a4841bde7706de94a35933dbd8122",
+    "build/Release/renderer-header-consumer.exe": "6cf092f2ec45e08eea09153c09e74bcd192a9a37260ea20918a36cbaf2a7796d",
+    "build/data/shaders/vulkan/indexed_line.frag.spv": "c3c698d64588c606db4ff3cc0469b6f2814d9b6191245a2b9e38ac04bf07f899",
+    "build/data/shaders/vulkan/indexed_line.vert.spv": "cafe58b52c3f5ef6f1a31727c2e471e23f19cfb5717e0dd42deca1891665873a",
+    "build/data/shaders/vulkan/indexed_palette.frag.spv": "00426e41ca288331f9912947c513c146775134239bc1b9c02a80a5e11d104ff2",
+    "build/data/shaders/vulkan/indexed_palette.vert.spv": "ce9e9307593f2c1e4b2a80c7e10038031499584729fd681ec6f329d25df864b0",
+    "build/data/shaders/vulkan/indexed_rect.frag.spv": "e19e81df04d77051fd3566b551751b3fc326817b4849e77df9a6a9337dcb3f0d",
+    "build/data/shaders/vulkan/indexed_rect.vert.spv": "81c0bcd4b70683d7f7604ddff4f5a99af0d9de678182984ddbbb7f6a805484c8",
+    "build/data/shaders/vulkan/indexed_sprite.vert.spv": "e7274e5d1c08245ad72330b784d0f3b89e7cbf2bd8bf33236522e1802d23f7c4",
+    "build/data/shaders/vulkan/indexed_transparency_compose.frag.spv": "3b8ece50dec315d191608cbbc6708f93a774d6f78d46902b9fcde0583cb9824e",
+    "build/data/shaders/vulkan/indexed_transparency_compose.vert.spv": "dc3f97b0bf58a34a07d88f92625b03fd48de909d441b5555024120244be8a153",
+    "build/data/shaders/vulkan/indexed_transparent_rect.frag.spv": "280c6ad33634c220815f5123cdcc64a02e5847b8b0a1fda876fd36ab0880e658",
+    "build/data/shaders/vulkan/indexed_transparent_rect.vert.spv": "ca77710e6008654acb0cb03dc29e81a345ef59bf84f26bac06639503bbf79be4",
+    "build/data/shaders/vulkan/indexed_weather.frag.spv": "997336e48b6f29c22ba4642584e29f40db9937fc7141f5b70a499175aeea5afc",
+    "build/data/shaders/vulkan/indexed_weather.vert.spv": "51fb76bcdc69aa11e6dbd8617d53a0d546b37e17380a2c0fc7d836a917a597f7",
+    "build/data/shaders/vulkan/lightfx_accumulate.comp.spv": "6c01b995b3712b1bc44835357569774d15d423316738c9319e59e0e81bbad39b",
+    "build/data/shaders/vulkan/rgba_scale.frag.spv": "a590532b2cc17ae5ce694c1af46103554884f87758b679e9d04439852997bd77",
+    "build/data/shaders/vulkan/world_surface.vert.spv": "4904f3ab5df9f1ed52e82a2a9c92a2cd83f3692c43c50a743346553ab05cff7e",
+    "build/data/shaders/vulkan/world_surface_compact.comp.spv": "299ca58c58fc3828eb34b45af9d7c803782d461f95d8fe2388091d8876711e81"
+  }
+}

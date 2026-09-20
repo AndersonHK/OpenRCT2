@@ -13,6 +13,8 @@
 #include "UiContext.h"
 #include "audio/AudioContext.h"
 #include "drawing/BitmapReader.h"
+#include "drawing/engines/DrawingEngineFactory.hpp"
+#include <openrct2-renderer/RenderServiceFactory.h>
 
 #include <memory>
 #include <string>
@@ -54,7 +56,7 @@ int main(int argc, const char** argv)
     });
 #endif
     int32_t rc = EXIT_SUCCESS;
-    auto runGame = CommandLineRun(argv, argc);
+    auto runGame = CommandLineRun(argv, argc, Renderer::CreateConfiguredRenderServiceFactory());
     RegisterBitmapReader();
     if (runGame == OpenRCT2::CommandLine::ExitCode::launch)
     {
@@ -89,8 +91,16 @@ int main(int argc, const char** argv)
                         audioContext = CreateDummyAudioContext();
                     }
                 }
+#ifdef ENABLE_VULKAN
+                auto deviceOwner = std::make_shared<Vulkan::DeviceContextOwner>(true);
+                auto uiContext = CreateUiContext(*env, std::make_shared<DrawingEngineFactory>(deviceOwner));
+                auto renderFactory = Renderer::CreateConfiguredRenderServiceFactory(std::move(deviceOwner));
+#else
                 auto uiContext = CreateUiContext(*env);
-                context = CreateContext(std::move(env), std::move(audioContext), std::move(uiContext));
+                auto renderFactory = Renderer::CreateConfiguredRenderServiceFactory();
+#endif
+                context = CreateContext(
+                    std::move(env), std::move(audioContext), std::move(uiContext), std::move(renderFactory));
             }
             rc = context->RunOpenRCT2(argc, argv);
         }

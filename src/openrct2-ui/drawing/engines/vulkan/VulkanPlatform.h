@@ -12,6 +12,8 @@
 #ifdef ENABLE_VULKAN
 
     #include <cstdint>
+    #include <memory>
+    #include <openrct2-renderer/vulkan/VulkanPresentationHost.h>
     #include <vector>
     #include <vulkan/vulkan.h>
 
@@ -19,6 +21,8 @@ struct SDL_Window;
 
 namespace OpenRCT2::Ui::Vulkan::Platform
 {
+    // The caller owns the SDL window and must dispose the backend before destroying it.
+    [[nodiscard]] std::unique_ptr<PresentationHost> CreatePresentationHost(SDL_Window* window);
     [[nodiscard]] uint32_t GetRequiredSdlWindowFlags() noexcept;
     void LoadVulkanLibrary();
     void UnloadVulkanLibrary() noexcept;

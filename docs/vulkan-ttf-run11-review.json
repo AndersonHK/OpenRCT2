@@ -1,0 +1,331 @@
+{
+  "run": "run-11",
+  "fixtureVersion": 1,
+  "classification": "fixture input defect, not an accepted renderer divergence",
+  "reports": [
+    {
+      "fixture": "TtfCacheReplacement_F0",
+      "layer": "indexed",
+      "differingPixels": 7232,
+      "boundsInclusive": [
+        0,
+        0,
+        95,
+        79
+      ],
+      "pngSha256": {
+        "software": "25BCA6AF8AB72A0E05082185640F2BC1750559C4BA761378E39BD3AAB05FDFF3",
+        "vulkan": "6718CCC899DFBB726CC186633A10F4E27CD153FC3194E3989D58E0F03520F68E",
+        "diff": "ADC3EF0492DB5C2F1DA3567FF65779770F95F7DCE4E535E95DD583553A8D7323"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfCacheReplacement_F0",
+      "layer": "rgba",
+      "differingPixels": 7232,
+      "boundsInclusive": [
+        0,
+        0,
+        95,
+        79
+      ],
+      "pngSha256": {
+        "software": "25BCA6AF8AB72A0E05082185640F2BC1750559C4BA761378E39BD3AAB05FDFF3",
+        "vulkan": "6718CCC899DFBB726CC186633A10F4E27CD153FC3194E3989D58E0F03520F68E",
+        "diff": "ADC3EF0492DB5C2F1DA3567FF65779770F95F7DCE4E535E95DD583553A8D7323"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfCacheReplacement_F1",
+      "layer": "indexed",
+      "differingPixels": 7232,
+      "boundsInclusive": [
+        0,
+        0,
+        95,
+        79
+      ],
+      "pngSha256": {
+        "software": "703C62860AA15C7DA3E1FAD658947D72AFC723C38D9142A17818465F4249461C",
+        "vulkan": "6A134F8AED973B11F0CD3751DA86DAB70FB4D464FEA880E98A1159A3C59EBC61",
+        "diff": "BA60BECADAC6D7BC0C45180482FE6013471012990D63FDDDE3C71BD1EB23DE32"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfCacheReplacement_F1",
+      "layer": "rgba",
+      "differingPixels": 7232,
+      "boundsInclusive": [
+        0,
+        0,
+        95,
+        79
+      ],
+      "pngSha256": {
+        "software": "703C62860AA15C7DA3E1FAD658947D72AFC723C38D9142A17818465F4249461C",
+        "vulkan": "6A134F8AED973B11F0CD3751DA86DAB70FB4D464FEA880E98A1159A3C59EBC61",
+        "diff": "BA60BECADAC6D7BC0C45180482FE6013471012990D63FDDDE3C71BD1EB23DE32"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfCacheReplacement_F2",
+      "layer": "indexed",
+      "differingPixels": 7232,
+      "boundsInclusive": [
+        0,
+        0,
+        95,
+        79
+      ],
+      "pngSha256": {
+        "software": "703C62860AA15C7DA3E1FAD658947D72AFC723C38D9142A17818465F4249461C",
+        "vulkan": "6A134F8AED973B11F0CD3751DA86DAB70FB4D464FEA880E98A1159A3C59EBC61",
+        "diff": "BA60BECADAC6D7BC0C45180482FE6013471012990D63FDDDE3C71BD1EB23DE32"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfCacheReplacement_F2",
+      "layer": "rgba",
+      "differingPixels": 7232,
+      "boundsInclusive": [
+        0,
+        0,
+        95,
+        79
+      ],
+      "pngSha256": {
+        "software": "703C62860AA15C7DA3E1FAD658947D72AFC723C38D9142A17818465F4249461C",
+        "vulkan": "6A134F8AED973B11F0CD3751DA86DAB70FB4D464FEA880E98A1159A3C59EBC61",
+        "diff": "BA60BECADAC6D7BC0C45180482FE6013471012990D63FDDDE3C71BD1EB23DE32"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfClipping",
+      "layer": "indexed",
+      "differingPixels": 7156,
+      "boundsInclusive": [
+        0,
+        0,
+        95,
+        79
+      ],
+      "pngSha256": {
+        "software": "66CB507CD64871C0E6C21FA2933BF02B17384795D02B0170934ED269767761FE",
+        "vulkan": "0D6D0A474C4CB7D7EC391B93FF1FAAF747F01ABB7BC825159437A7CC4A6CFD30",
+        "diff": "28C7E387DABA5B9D0BE9D038A4D5EC3C75026B1958CFD0FBAE5E3DB5D5986241"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfClipping",
+      "layer": "rgba",
+      "differingPixels": 7156,
+      "boundsInclusive": [
+        0,
+        0,
+        95,
+        79
+      ],
+      "pngSha256": {
+        "software": "66CB507CD64871C0E6C21FA2933BF02B17384795D02B0170934ED269767761FE",
+        "vulkan": "0D6D0A474C4CB7D7EC391B93FF1FAAF747F01ABB7BC825159437A7CC4A6CFD30",
+        "diff": "28C7E387DABA5B9D0BE9D038A4D5EC3C75026B1958CFD0FBAE5E3DB5D5986241"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfInset",
+      "layer": "indexed",
+      "differingPixels": 7232,
+      "boundsInclusive": [
+        0,
+        0,
+        95,
+        79
+      ],
+      "pngSha256": {
+        "software": "B248D3A99CEC4B811606FA8D97519349711063CDAB939C1D1006400A2791ADA7",
+        "vulkan": "E58C36F5F679508E29B465D8F3CA871A7E8029E85E26118BF15739E5CA7C6273",
+        "diff": "ADC3EF0492DB5C2F1DA3567FF65779770F95F7DCE4E535E95DD583553A8D7323"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfInset",
+      "layer": "rgba",
+      "differingPixels": 7232,
+      "boundsInclusive": [
+        0,
+        0,
+        95,
+        79
+      ],
+      "pngSha256": {
+        "software": "B248D3A99CEC4B811606FA8D97519349711063CDAB939C1D1006400A2791ADA7",
+        "vulkan": "E58C36F5F679508E29B465D8F3CA871A7E8029E85E26118BF15739E5CA7C6273",
+        "diff": "ADC3EF0492DB5C2F1DA3567FF65779770F95F7DCE4E535E95DD583553A8D7323"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfOrdering",
+      "layer": "indexed",
+      "differingPixels": 7680,
+      "boundsInclusive": [
+        0,
+        0,
+        95,
+        79
+      ],
+      "pngSha256": {
+        "software": "92E3C95DAAB6539A6B050A5D4AF62E0C12C24F2744D6AB49CE6CC7771AAB1C8D",
+        "vulkan": "A1DA64F7D82113FA8DB9F008B580CF18E8CF752B5E4038260EC2F0C10F8572AE",
+        "diff": "9664527A7C25CEFB24406AFF19FD5901F36B1529F84C3C2AAFF94EDF48979FAA"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfOrdering",
+      "layer": "rgba",
+      "differingPixels": 7680,
+      "boundsInclusive": [
+        0,
+        0,
+        95,
+        79
+      ],
+      "pngSha256": {
+        "software": "92E3C95DAAB6539A6B050A5D4AF62E0C12C24F2744D6AB49CE6CC7771AAB1C8D",
+        "vulkan": "A1DA64F7D82113FA8DB9F008B580CF18E8CF752B5E4038260EC2F0C10F8572AE",
+        "diff": "9664527A7C25CEFB24406AFF19FD5901F36B1529F84C3C2AAFF94EDF48979FAA"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfOutline",
+      "layer": "indexed",
+      "differingPixels": 7232,
+      "boundsInclusive": [
+        0,
+        0,
+        95,
+        79
+      ],
+      "pngSha256": {
+        "software": "B7FE84F8CBFF26086A14C91926A84AE0C16A6E5825E28663EF886AB91625738C",
+        "vulkan": "A2D9B2A4270894668D4CCED15FA5C259289D4BC37549F78D3F28F3D022E2A5A4",
+        "diff": "ADC3EF0492DB5C2F1DA3567FF65779770F95F7DCE4E535E95DD583553A8D7323"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfOutline",
+      "layer": "rgba",
+      "differingPixels": 7232,
+      "boundsInclusive": [
+        0,
+        0,
+        95,
+        79
+      ],
+      "pngSha256": {
+        "software": "B7FE84F8CBFF26086A14C91926A84AE0C16A6E5825E28663EF886AB91625738C",
+        "vulkan": "A2D9B2A4270894668D4CCED15FA5C259289D4BC37549F78D3F28F3D022E2A5A4",
+        "diff": "ADC3EF0492DB5C2F1DA3567FF65779770F95F7DCE4E535E95DD583553A8D7323"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfOutlineInset",
+      "layer": "indexed",
+      "differingPixels": 7232,
+      "boundsInclusive": [
+        0,
+        0,
+        95,
+        79
+      ],
+      "pngSha256": {
+        "software": "A801D53F39CAE20B93F212C2448CE1B19535A2D8C2D10F81E827687FBC7A034E",
+        "vulkan": "A2D9B2A4270894668D4CCED15FA5C259289D4BC37549F78D3F28F3D022E2A5A4",
+        "diff": "ADC3EF0492DB5C2F1DA3567FF65779770F95F7DCE4E535E95DD583553A8D7323"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfOutlineInset",
+      "layer": "rgba",
+      "differingPixels": 7232,
+      "boundsInclusive": [
+        0,
+        0,
+        95,
+        79
+      ],
+      "pngSha256": {
+        "software": "A801D53F39CAE20B93F212C2448CE1B19535A2D8C2D10F81E827687FBC7A034E",
+        "vulkan": "A2D9B2A4270894668D4CCED15FA5C259289D4BC37549F78D3F28F3D022E2A5A4",
+        "diff": "ADC3EF0492DB5C2F1DA3567FF65779770F95F7DCE4E535E95DD583553A8D7323"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfThresholds",
+      "layer": "indexed",
+      "differingPixels": 7232,
+      "boundsInclusive": [
+        0,
+        0,
+        95,
+        79
+      ],
+      "pngSha256": {
+        "software": "25BCA6AF8AB72A0E05082185640F2BC1750559C4BA761378E39BD3AAB05FDFF3",
+        "vulkan": "6718CCC899DFBB726CC186633A10F4E27CD153FC3194E3989D58E0F03520F68E",
+        "diff": "ADC3EF0492DB5C2F1DA3567FF65779770F95F7DCE4E535E95DD583553A8D7323"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfThresholds",
+      "layer": "rgba",
+      "differingPixels": 7232,
+      "boundsInclusive": [
+        0,
+        0,
+        95,
+        79
+      ],
+      "pngSha256": {
+        "software": "25BCA6AF8AB72A0E05082185640F2BC1750559C4BA761378E39BD3AAB05FDFF3",
+        "vulkan": "6718CCC899DFBB726CC186633A10F4E27CD153FC3194E3989D58E0F03520F68E",
+        "diff": "ADC3EF0492DB5C2F1DA3567FF65779770F95F7DCE4E535E95DD583553A8D7323"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    }
+  ]
+}

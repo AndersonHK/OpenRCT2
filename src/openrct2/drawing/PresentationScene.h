@@ -19,6 +19,10 @@ class JobPool;
 namespace OpenRCT2
 {
     class EntityRegistry;
+    namespace Drawing
+    {
+        struct BalloonPublicationCopyTotals;
+    }
 
     /**
      * Sole owner of main-window presentation publication.
@@ -41,9 +45,13 @@ namespace OpenRCT2
         PresentationScene& operator=(const PresentationScene&) = delete;
 
         /** Returns true when a new generation was admitted for this draw. */
-        bool BeginFrame(JobPool& jobs, EntityRegistry& entities, uint32_t drawCount, bool synchronousMapPublication);
+        bool BeginFrame(
+            JobPool& jobs, EntityRegistry& entities, uint32_t drawCount, bool synchronousMapPublication,
+            EntityPublicationProfile profile = EntityPublicationProfile::legacyBulk);
         void ScheduleNext(JobPool& jobs, EntityRegistry& entities);
         void Reset(JobPool& jobs);
+        // Producer-thread totals include prepared snapshots discarded before admission; lifetime of this scene owner.
+        [[nodiscard]] Drawing::BalloonPublicationCopyTotals GetBalloonPublicationCopyTotals() const noexcept;
 
         [[nodiscard]] const std::shared_ptr<const PresentationGeneration>& GetGeneration() const noexcept;
     };

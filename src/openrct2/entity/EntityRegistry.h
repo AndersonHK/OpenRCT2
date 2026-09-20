@@ -180,7 +180,8 @@ namespace OpenRCT2
 
             const_iterator& operator++() noexcept
             {
-                // Preserve the old list iterator's mutation semantics: current removal is safe and removed lookahead is skipped.
+                // Preserve the old list iterator's mutation semantics: current removal is safe and removed lookahead is
+                // skipped.
                 _index = _nextIndex;
                 if (_index < kEndIndex && !_list->Contains(_index))
                     _index = _list->FindNext(_index + 1);
@@ -340,7 +341,13 @@ namespace OpenRCT2
         void resetEntitySpatialIndices();
 
         [[nodiscard]] EntityVisualHandle GetEntityVisualHandle(EntityId id) const noexcept;
-        [[nodiscard]] EntityVisualChangeBatch ConsumeEntityVisualChanges();
+        // A family filter retains identity/tombstone metadata for every dirty slot, but copies concrete payload only
+        // for that family. null preserves the existing all-family capture. One publication owner consumes this queue.
+        [[nodiscard]] EntityVisualChangeBatch ConsumeEntityVisualChanges(EntityType payloadFamily = EntityType::null);
+        [[nodiscard]] uint64_t GetEntityVisualEpoch() const noexcept
+        {
+            return _entityVisualEpoch;
+        }
         void PublishEntityVisualState(EntityBase& entity) noexcept;
         void CaptureEntityPresentationStorage(EntityPresentationSnapshot& snapshot) const;
 

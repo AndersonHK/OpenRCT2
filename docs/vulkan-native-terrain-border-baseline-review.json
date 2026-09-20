@@ -1,0 +1,409 @@
+{
+  "schema": 1,
+  "reviewer": "/root/screen_capture",
+  "date": "2026-09-19",
+  "classification": "Vulkan native map-border defect; no software exception",
+  "reviewedImageCount": 36,
+  "status": "Fix implemented; corrected capture and manual review pending",
+  "runs": [
+    {
+      "fixture": "r1z0",
+      "summary": "obj/vulkan-parity/ui-vulkan-terrain-r1z0-01/summary.json",
+      "summarySha256": "d55272ff72adf3877873d62022d81ed23868aa7bdb77b0adc3354e0fec52167f",
+      "comparisons": [
+        {
+          "capture": "baseline-0",
+          "differingPixels": 26918,
+          "boundsExclusive": [
+            0,
+            25,
+            480,
+            463
+          ],
+          "layer": "physical-rgba",
+          "firstMismatch": [
+            30,
+            25
+          ],
+          "maxChannelError": [
+            48,
+            76,
+            12,
+            0
+          ],
+          "referenceSha256": "7815cbc22e65ec23d117ebef5413d8ee86b35c470713ced8d10b2dcc2db79fe8",
+          "candidateSha256": "4d1a3eb0475de7b7a52fd94462e99b618caaad6d628a9761237d2c5896e27bd0",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-0",
+          "layer": "indexed",
+          "differingPixels": 26918,
+          "boundsExclusive": [
+            0,
+            25,
+            480,
+            463
+          ],
+          "referenceSha256": "d041592f1c974398fef85cb8fe96fe265ce18edc7d64b5576f70f44102b0e6c1",
+          "candidateSha256": "5871c62ae8999a8591f5eded80143562b9d8afbe05028948e09c942b0b69096d",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-1",
+          "differingPixels": 26918,
+          "boundsExclusive": [
+            0,
+            25,
+            480,
+            463
+          ],
+          "layer": "physical-rgba",
+          "firstMismatch": [
+            30,
+            25
+          ],
+          "maxChannelError": [
+            48,
+            76,
+            12,
+            0
+          ],
+          "referenceSha256": "7815cbc22e65ec23d117ebef5413d8ee86b35c470713ced8d10b2dcc2db79fe8",
+          "candidateSha256": "4d1a3eb0475de7b7a52fd94462e99b618caaad6d628a9761237d2c5896e27bd0",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-1",
+          "layer": "indexed",
+          "differingPixels": 26918,
+          "boundsExclusive": [
+            0,
+            25,
+            480,
+            463
+          ],
+          "referenceSha256": "d041592f1c974398fef85cb8fe96fe265ce18edc7d64b5576f70f44102b0e6c1",
+          "candidateSha256": "5871c62ae8999a8591f5eded80143562b9d8afbe05028948e09c942b0b69096d",
+          "manualVisualReview": "required for every divergence"
+        }
+      ],
+      "images": [
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r1z0-01/comparisons/baseline-0/reference.png",
+          "sha256": "0b171678e5ee7fbdaa5060b7935a7c702f4de77601917208321cc677371c55e1"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r1z0-01/comparisons/baseline-0/candidate.png",
+          "sha256": "ee5621cca173e6130382447c31cb86b4b0e0c1c850ba1e99c3ea28a6b2e2dd9e"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r1z0-01/comparisons/baseline-0/diff-amplified.png",
+          "sha256": "43a9e7091906441f823878f7c1909c3916d07c8b9f815513b10e09985c43759f"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r1z0-01/comparisons/baseline-0/indexed/reference.png",
+          "sha256": "90ae2b1fb9a3af623c1b155d0f7cadb33618e2d152d4e7f1be8bd226f70b2e82"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r1z0-01/comparisons/baseline-0/indexed/candidate.png",
+          "sha256": "8f3b13b72b170c72a9e0149f253defaa0045156aec43d7d67b8cb3bbf872bf72"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r1z0-01/comparisons/baseline-0/indexed/diff-mask.png",
+          "sha256": "e39c509ed83e6325ef3fc1cde70c807eb780b19988c3cecb92ecf7eb025d6a9a"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r1z0-01/comparisons/baseline-1/reference.png",
+          "sha256": "0b171678e5ee7fbdaa5060b7935a7c702f4de77601917208321cc677371c55e1"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r1z0-01/comparisons/baseline-1/candidate.png",
+          "sha256": "ee5621cca173e6130382447c31cb86b4b0e0c1c850ba1e99c3ea28a6b2e2dd9e"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r1z0-01/comparisons/baseline-1/diff-amplified.png",
+          "sha256": "43a9e7091906441f823878f7c1909c3916d07c8b9f815513b10e09985c43759f"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r1z0-01/comparisons/baseline-1/indexed/reference.png",
+          "sha256": "90ae2b1fb9a3af623c1b155d0f7cadb33618e2d152d4e7f1be8bd226f70b2e82"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r1z0-01/comparisons/baseline-1/indexed/candidate.png",
+          "sha256": "8f3b13b72b170c72a9e0149f253defaa0045156aec43d7d67b8cb3bbf872bf72"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r1z0-01/comparisons/baseline-1/indexed/diff-mask.png",
+          "sha256": "e39c509ed83e6325ef3fc1cde70c807eb780b19988c3cecb92ecf7eb025d6a9a"
+        }
+      ]
+    },
+    {
+      "fixture": "r2z0",
+      "summary": "obj/vulkan-parity/ui-vulkan-terrain-r2z0-01/summary.json",
+      "summarySha256": "577009a4c2b16a75bbf27831592991f6bf168f0d55d77d995b1809a741f65506",
+      "comparisons": [
+        {
+          "capture": "baseline-0",
+          "differingPixels": 20024,
+          "boundsExclusive": [
+            88,
+            0,
+            736,
+            223
+          ],
+          "layer": "physical-rgba",
+          "firstMismatch": [
+            90,
+            0
+          ],
+          "maxChannelError": [
+            48,
+            76,
+            12,
+            0
+          ],
+          "referenceSha256": "012c0dba259a67ce073f0b2485b3000f55a84e1c5cacf9191bc7a1f45b12f620",
+          "candidateSha256": "30fbf9e226bc52b7a0ea34bc79ef29d0ecdb45151ecfb04387ffeb2c843d6c9e",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-0",
+          "layer": "indexed",
+          "differingPixels": 20024,
+          "boundsExclusive": [
+            88,
+            0,
+            736,
+            223
+          ],
+          "referenceSha256": "bc27d37a570b3607d46c7d80e884c9ad9adb9d87b0c2719e384172449f5af283",
+          "candidateSha256": "4d7108762131e5d53c38268d2657c962e17e8a6eb963e08b7c03f52925b09c56",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-1",
+          "differingPixels": 20024,
+          "boundsExclusive": [
+            88,
+            0,
+            736,
+            223
+          ],
+          "layer": "physical-rgba",
+          "firstMismatch": [
+            90,
+            0
+          ],
+          "maxChannelError": [
+            48,
+            76,
+            12,
+            0
+          ],
+          "referenceSha256": "012c0dba259a67ce073f0b2485b3000f55a84e1c5cacf9191bc7a1f45b12f620",
+          "candidateSha256": "30fbf9e226bc52b7a0ea34bc79ef29d0ecdb45151ecfb04387ffeb2c843d6c9e",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-1",
+          "layer": "indexed",
+          "differingPixels": 20024,
+          "boundsExclusive": [
+            88,
+            0,
+            736,
+            223
+          ],
+          "referenceSha256": "bc27d37a570b3607d46c7d80e884c9ad9adb9d87b0c2719e384172449f5af283",
+          "candidateSha256": "4d7108762131e5d53c38268d2657c962e17e8a6eb963e08b7c03f52925b09c56",
+          "manualVisualReview": "required for every divergence"
+        }
+      ],
+      "images": [
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r2z0-01/comparisons/baseline-0/reference.png",
+          "sha256": "404b229a3b7599582ff9f453e1b0567211bf33ddae90f7608d6cad1eebbf1bd4"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r2z0-01/comparisons/baseline-0/candidate.png",
+          "sha256": "edcc4b66ef990ec89d242cb843f1287b53898df4a8d7ce5d96d8f9a24c69e996"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r2z0-01/comparisons/baseline-0/diff-amplified.png",
+          "sha256": "20c7041373540c3a2455fbf924bf15f4bc2e7fd4ebacf2be5f6d26752a74d437"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r2z0-01/comparisons/baseline-0/indexed/reference.png",
+          "sha256": "feb561ef57c37832303aa2a5e7b0b7951f5ebdcf011c4357dc05e23c3ce8a8f6"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r2z0-01/comparisons/baseline-0/indexed/candidate.png",
+          "sha256": "2fb87dfa0dca1d5f643888737f325bfdeca58c982574f3a0ebead383949d35ae"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r2z0-01/comparisons/baseline-0/indexed/diff-mask.png",
+          "sha256": "3bd7bdb7dff0ef2e27251d31872a960f6f46f98fa1c176db9855d48f12e6cf47"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r2z0-01/comparisons/baseline-1/reference.png",
+          "sha256": "404b229a3b7599582ff9f453e1b0567211bf33ddae90f7608d6cad1eebbf1bd4"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r2z0-01/comparisons/baseline-1/candidate.png",
+          "sha256": "edcc4b66ef990ec89d242cb843f1287b53898df4a8d7ce5d96d8f9a24c69e996"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r2z0-01/comparisons/baseline-1/diff-amplified.png",
+          "sha256": "20c7041373540c3a2455fbf924bf15f4bc2e7fd4ebacf2be5f6d26752a74d437"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r2z0-01/comparisons/baseline-1/indexed/reference.png",
+          "sha256": "feb561ef57c37832303aa2a5e7b0b7951f5ebdcf011c4357dc05e23c3ce8a8f6"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r2z0-01/comparisons/baseline-1/indexed/candidate.png",
+          "sha256": "2fb87dfa0dca1d5f643888737f325bfdeca58c982574f3a0ebead383949d35ae"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r2z0-01/comparisons/baseline-1/indexed/diff-mask.png",
+          "sha256": "3bd7bdb7dff0ef2e27251d31872a960f6f46f98fa1c176db9855d48f12e6cf47"
+        }
+      ]
+    },
+    {
+      "fixture": "r0z1phase",
+      "summary": "obj/vulkan-parity/ui-vulkan-terrain-r0z1phase-01/summary.json",
+      "summarySha256": "653c6fb75eb4161deb60c6093576681bea33e53d259625727e0cdf57795c6eaf",
+      "comparisons": [
+        {
+          "capture": "baseline-0",
+          "differingPixels": 2560,
+          "boundsExclusive": [
+            0,
+            488,
+            160,
+            583
+          ],
+          "layer": "physical-rgba",
+          "firstMismatch": [
+            0,
+            488
+          ],
+          "maxChannelError": [
+            48,
+            76,
+            12,
+            0
+          ],
+          "referenceSha256": "89f9839f42118a4975935b9558a467ab2a3964f49b2f3af82f9a48eaa72ed321",
+          "candidateSha256": "ca4326f227a257a496b5168d0394ec6c0f89fe2a8dc947a7288221230cd923cd",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-0",
+          "layer": "indexed",
+          "differingPixels": 2560,
+          "boundsExclusive": [
+            0,
+            488,
+            160,
+            583
+          ],
+          "referenceSha256": "261a3562f5c4bc20b024684635bcf36f14b1bcf6723aaafe7ceca595c94584b1",
+          "candidateSha256": "7e98271a9c16e66d924f915ea27d79acae9b7094a62d557d67bb6f4edc1dae98",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-1",
+          "differingPixels": 2560,
+          "boundsExclusive": [
+            0,
+            488,
+            160,
+            583
+          ],
+          "layer": "physical-rgba",
+          "firstMismatch": [
+            0,
+            488
+          ],
+          "maxChannelError": [
+            48,
+            76,
+            12,
+            0
+          ],
+          "referenceSha256": "89f9839f42118a4975935b9558a467ab2a3964f49b2f3af82f9a48eaa72ed321",
+          "candidateSha256": "ca4326f227a257a496b5168d0394ec6c0f89fe2a8dc947a7288221230cd923cd",
+          "manualVisualReview": "required for every divergence"
+        },
+        {
+          "capture": "baseline-1",
+          "layer": "indexed",
+          "differingPixels": 2560,
+          "boundsExclusive": [
+            0,
+            488,
+            160,
+            583
+          ],
+          "referenceSha256": "261a3562f5c4bc20b024684635bcf36f14b1bcf6723aaafe7ceca595c94584b1",
+          "candidateSha256": "7e98271a9c16e66d924f915ea27d79acae9b7094a62d557d67bb6f4edc1dae98",
+          "manualVisualReview": "required for every divergence"
+        }
+      ],
+      "images": [
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r0z1phase-01/comparisons/baseline-0/reference.png",
+          "sha256": "d085e85ef4522d2caadacf333162ba7bc613eda78aae971fa0bf6062a5455f57"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r0z1phase-01/comparisons/baseline-0/candidate.png",
+          "sha256": "70275ce292277ab41dfeb1121de687b875306173f3520b05c8b1cc1e29c79b90"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r0z1phase-01/comparisons/baseline-0/diff-amplified.png",
+          "sha256": "02163d7fcdf1116129ebd789322062f8d371c224a0232f5df29f1ab4c4f6f173"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r0z1phase-01/comparisons/baseline-0/indexed/reference.png",
+          "sha256": "89268771bf1916ff7696c3b275063089684b04b7204de46d555e9831ef1beaf2"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r0z1phase-01/comparisons/baseline-0/indexed/candidate.png",
+          "sha256": "b4173473d7bf7361b01b0708a2b279c2401fcd85f8549828c1e39e28740635d1"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r0z1phase-01/comparisons/baseline-0/indexed/diff-mask.png",
+          "sha256": "4a115f1072fc19af4edd3845d42b4cb0fce48889c37e0f0d87d05ff98a30ca3a"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r0z1phase-01/comparisons/baseline-1/reference.png",
+          "sha256": "d085e85ef4522d2caadacf333162ba7bc613eda78aae971fa0bf6062a5455f57"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r0z1phase-01/comparisons/baseline-1/candidate.png",
+          "sha256": "70275ce292277ab41dfeb1121de687b875306173f3520b05c8b1cc1e29c79b90"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r0z1phase-01/comparisons/baseline-1/diff-amplified.png",
+          "sha256": "02163d7fcdf1116129ebd789322062f8d371c224a0232f5df29f1ab4c4f6f173"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r0z1phase-01/comparisons/baseline-1/indexed/reference.png",
+          "sha256": "89268771bf1916ff7696c3b275063089684b04b7204de46d555e9831ef1beaf2"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r0z1phase-01/comparisons/baseline-1/indexed/candidate.png",
+          "sha256": "b4173473d7bf7361b01b0708a2b279c2401fcd85f8549828c1e39e28740635d1"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-terrain-r0z1phase-01/comparisons/baseline-1/indexed/diff-mask.png",
+          "sha256": "4a115f1072fc19af4edd3845d42b4cb0fce48889c37e0f0d87d05ff98a30ca3a"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "run": "run-13",
+  "fixtureVersion": 2,
+  "classification": "Vulkan covered zero text output defect",
+  "reports": [
+    {
+      "fixture": "TtfZeroInk",
+      "layer": "indexed",
+      "differingPixels": 1604,
+      "boundsInclusive": [
+        3,
+        2,
+        44,
+        70
+      ],
+      "pngSha256": {
+        "diff": "17D523FE6D2319FBE6ACB5F0886D91D043B4344F78B8F81670A642C6D62A4293",
+        "vulkan": "57213577AAC5A292D33E31EF538F83A1734E75D5C864E6077E7759DD16DE0118",
+        "software": "98F8A753CB4B785F48D2A8D4A72EE6AD5E2B57AE2EF6D18800E98A01DCD44FED"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfZeroInk",
+      "layer": "rgba",
+      "differingPixels": 1604,
+      "boundsInclusive": [
+        3,
+        2,
+        44,
+        70
+      ],
+      "pngSha256": {
+        "diff": "17D523FE6D2319FBE6ACB5F0886D91D043B4344F78B8F81670A642C6D62A4293",
+        "vulkan": "57213577AAC5A292D33E31EF538F83A1734E75D5C864E6077E7759DD16DE0118",
+        "software": "98F8A753CB4B785F48D2A8D4A72EE6AD5E2B57AE2EF6D18800E98A01DCD44FED"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    }
+  ]
+}

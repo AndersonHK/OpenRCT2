@@ -1,0 +1,3341 @@
+{
+  "schema": 1,
+  "reviewer": "/root/decode_assets",
+  "date": "2026-09-19",
+  "fixtureVersion": 1,
+  "status": "exact-bounded-coverage",
+  "manualMethod": "All 14 named states inspected using native-resolution lossless 3-column x 2-row contact sheets; physical and indexed reference/candidate/diff panels. Each original image receipt is retained. Numeric equality independently rechecked for every raw capture and common weather metadata.",
+  "acceptedExceptions": [],
+  "scope": {
+    "park": "small_park_with_ferris_wheel.sv6",
+    "logicalAndPhysicalExtent": [
+      960,
+      640
+    ],
+    "rotation": 0,
+    "zoom": 0,
+    "ticks": 1215,
+    "paintOrdinalStart": 3,
+    "lightFxEnabled": false,
+    "simulationUpdates": 0
+  },
+  "runs": [
+    {
+      "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-01/summary.json",
+      "sha256": "c10bd1e172ce3fc3f59eadfb0bd179eadc96b8073bde233d69d14c3de2555db7",
+      "status": "pass",
+      "repeatScope": "paint ordinals only; fresh-process repeat still required",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-frozen-build-11\\receipt.json",
+        "sha256": "36f031d9ba0b19866b04ecb64752adfd1d9705d475a0eec00c441b8ba69c7ce7"
+      },
+      "comparisonReferences": [],
+      "captureCount": 8
+    },
+    {
+      "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-02/summary.json",
+      "sha256": "6e7677afde450cc1625b348b65494c90d7ce9a4377bfed685e83a1fd21ff54a6",
+      "status": "pass",
+      "repeatScope": "fresh process against identical renderer build",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-frozen-build-11\\receipt.json",
+        "sha256": "36f031d9ba0b19866b04ecb64752adfd1d9705d475a0eec00c441b8ba69c7ce7"
+      },
+      "comparisonReferences": [
+        {
+          "path": "obj\\vulkan-parity\\ui-frozen-weather-precipitation-01",
+          "summarySha256": "c10bd1e172ce3fc3f59eadfb0bd179eadc96b8073bde233d69d14c3de2555db7"
+        }
+      ],
+      "captureCount": 8
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-weather-precipitation-01/summary.json",
+      "sha256": "c607382efb4def051976594da40639daae541a26b81f11f903030320a5d75edb",
+      "status": "pass",
+      "repeatScope": "paint ordinals only; fresh-process repeat still required",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-13\\receipt.json",
+        "sha256": "52102594c055cdf4b947f9feecb353f59cf6b68d29016265f6f6e778e06974fe"
+      },
+      "comparisonReferences": [
+        {
+          "path": "obj\\vulkan-parity\\ui-frozen-weather-precipitation-01",
+          "summarySha256": "c10bd1e172ce3fc3f59eadfb0bd179eadc96b8073bde233d69d14c3de2555db7"
+        }
+      ],
+      "captureCount": 8
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-weather-precipitation-02/summary.json",
+      "sha256": "1a91154f5428a32d8565e06341ef81ca64e7c5eeb9546acb65648e2693bd09e7",
+      "status": "pass",
+      "repeatScope": "fresh process against identical renderer build",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-13\\receipt.json",
+        "sha256": "52102594c055cdf4b947f9feecb353f59cf6b68d29016265f6f6e778e06974fe"
+      },
+      "comparisonReferences": [
+        {
+          "path": "obj\\vulkan-parity\\ui-current-weather-precipitation-01",
+          "summarySha256": "c607382efb4def051976594da40639daae541a26b81f11f903030320a5d75edb"
+        }
+      ],
+      "captureCount": 8
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/summary.json",
+      "sha256": "f43dff65e7f70dec2bfd1cd633a7cbee9fe91c72b70c73dbecbdfd21690f418d",
+      "status": "pass",
+      "repeatScope": "paint ordinals only; fresh-process repeat still required",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-13\\receipt.json",
+        "sha256": "52102594c055cdf4b947f9feecb353f59cf6b68d29016265f6f6e778e06974fe"
+      },
+      "comparisonReferences": [
+        {
+          "path": "obj\\vulkan-parity\\ui-frozen-weather-precipitation-01",
+          "summarySha256": "c10bd1e172ce3fc3f59eadfb0bd179eadc96b8073bde233d69d14c3de2555db7"
+        }
+      ],
+      "captureCount": 8
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-02/summary.json",
+      "sha256": "b12693e412795c0db93fca362974dafb375ae5a8addd7ce176fd628c6dedbb7f",
+      "status": "pass",
+      "repeatScope": "fresh process against identical renderer build",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-13\\receipt.json",
+        "sha256": "52102594c055cdf4b947f9feecb353f59cf6b68d29016265f6f6e778e06974fe"
+      },
+      "comparisonReferences": [
+        {
+          "path": "obj\\vulkan-parity\\ui-vulkan-weather-precipitation-01",
+          "summarySha256": "f43dff65e7f70dec2bfd1cd633a7cbee9fe91c72b70c73dbecbdfd21690f418d"
+        }
+      ],
+      "captureCount": 8
+    },
+    {
+      "path": "obj/vulkan-parity/ui-frozen-weather-palette-01/summary.json",
+      "sha256": "69d7e4dd4c48b5e40114a6913de0627fb3899564665f35202df35700ffc818cd",
+      "status": "pass",
+      "repeatScope": "paint ordinals only; fresh-process repeat still required",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-frozen-build-11\\receipt.json",
+        "sha256": "36f031d9ba0b19866b04ecb64752adfd1d9705d475a0eec00c441b8ba69c7ce7"
+      },
+      "comparisonReferences": [],
+      "captureCount": 6
+    },
+    {
+      "path": "obj/vulkan-parity/ui-frozen-weather-palette-02/summary.json",
+      "sha256": "71f1b131c6f5d559b04b3b19ad1cb098ed45381d2d2d7e37fc1022a43d11d78a",
+      "status": "pass",
+      "repeatScope": "fresh process against identical renderer build",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-frozen-build-11\\receipt.json",
+        "sha256": "36f031d9ba0b19866b04ecb64752adfd1d9705d475a0eec00c441b8ba69c7ce7"
+      },
+      "comparisonReferences": [
+        {
+          "path": "obj\\vulkan-parity\\ui-frozen-weather-palette-01",
+          "summarySha256": "69d7e4dd4c48b5e40114a6913de0627fb3899564665f35202df35700ffc818cd"
+        }
+      ],
+      "captureCount": 6
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-weather-palette-01/summary.json",
+      "sha256": "2f1f1a6fe50f25dfb7b48acd1002a6bad56352b3cb112599ceaa9b1eb0435715",
+      "status": "pass",
+      "repeatScope": "paint ordinals only; fresh-process repeat still required",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-13\\receipt.json",
+        "sha256": "52102594c055cdf4b947f9feecb353f59cf6b68d29016265f6f6e778e06974fe"
+      },
+      "comparisonReferences": [
+        {
+          "path": "obj\\vulkan-parity\\ui-frozen-weather-palette-01",
+          "summarySha256": "69d7e4dd4c48b5e40114a6913de0627fb3899564665f35202df35700ffc818cd"
+        }
+      ],
+      "captureCount": 6
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-weather-palette-02/summary.json",
+      "sha256": "92a800750c9d4ec1b4a9460b539829d8c778e67719116e4162b50b07aed3de64",
+      "status": "pass",
+      "repeatScope": "fresh process against identical renderer build",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-13\\receipt.json",
+        "sha256": "52102594c055cdf4b947f9feecb353f59cf6b68d29016265f6f6e778e06974fe"
+      },
+      "comparisonReferences": [
+        {
+          "path": "obj\\vulkan-parity\\ui-current-weather-palette-01",
+          "summarySha256": "2f1f1a6fe50f25dfb7b48acd1002a6bad56352b3cb112599ceaa9b1eb0435715"
+        }
+      ],
+      "captureCount": 6
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/summary.json",
+      "sha256": "a74d574f24fca64d860fb27bdc67d2a298589ed07a2669011e7cbdbb638325e3",
+      "status": "pass",
+      "repeatScope": "paint ordinals only; fresh-process repeat still required",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-13\\receipt.json",
+        "sha256": "52102594c055cdf4b947f9feecb353f59cf6b68d29016265f6f6e778e06974fe"
+      },
+      "comparisonReferences": [
+        {
+          "path": "obj\\vulkan-parity\\ui-frozen-weather-palette-01",
+          "summarySha256": "69d7e4dd4c48b5e40114a6913de0627fb3899564665f35202df35700ffc818cd"
+        }
+      ],
+      "captureCount": 6
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-02/summary.json",
+      "sha256": "69f5fe3a2745dbdec7df1c316492e327745990f09295a211dd826031d2205c83",
+      "status": "pass",
+      "repeatScope": "fresh process against identical renderer build",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-13\\receipt.json",
+        "sha256": "52102594c055cdf4b947f9feecb353f59cf6b68d29016265f6f6e778e06974fe"
+      },
+      "comparisonReferences": [
+        {
+          "path": "obj\\vulkan-parity\\ui-vulkan-weather-palette-01",
+          "summarySha256": "a74d574f24fca64d860fb27bdc67d2a298589ed07a2669011e7cbdbb638325e3"
+        }
+      ],
+      "captureCount": 6
+    }
+  ],
+  "manuallyViewedSheets": [
+    {
+      "path": "obj/vulkan-parity/weather-manual-review/weather-clear.png",
+      "sha256": "d56fb71812b7e669a86b1feacc376b1a4842c82bc850e23922bde02c36b8c56b"
+    },
+    {
+      "path": "obj/vulkan-parity/weather-manual-review/weather-rain-light.png",
+      "sha256": "2b8156300fa9b190c9b9daaeaa118f9ddb2827876f166069e03375f5a610c552"
+    },
+    {
+      "path": "obj/vulkan-parity/weather-manual-review/weather-rain-heavy.png",
+      "sha256": "f118f2078a7d07ac1cb03e18b3b835c1d22ec5c609fe50c647e8a2752d6e3ff2"
+    },
+    {
+      "path": "obj/vulkan-parity/weather-manual-review/weather-rain-occluded.png",
+      "sha256": "012e8746dbeb064898b487c2e37464bce259be6800d88990eeb7fe5967d7975f"
+    },
+    {
+      "path": "obj/vulkan-parity/weather-manual-review/weather-rain-restored.png",
+      "sha256": "3cc481a63df3d8aa512f8d0d72ce020ec73692844cecffcf9c4ecb42bd87be65"
+    },
+    {
+      "path": "obj/vulkan-parity/weather-manual-review/weather-snow-light.png",
+      "sha256": "84a25cc9e7f19489533ee2b5c6093afb07bcaebde51770c78490593fd626b8c8"
+    },
+    {
+      "path": "obj/vulkan-parity/weather-manual-review/weather-snow-heavy.png",
+      "sha256": "2da51551232c121ec3eca9a79754eece4c989ad4da9402dc84c865926333bea5"
+    },
+    {
+      "path": "obj/vulkan-parity/weather-manual-review/weather-cleared.png",
+      "sha256": "18cabf5a664a1f8474109b4daf1340a691ed4cb535519c2f7ac10138ac1dd730"
+    },
+    {
+      "path": "obj/vulkan-parity/weather-manual-review/palette-clear.png",
+      "sha256": "a07f33a287fbf306448729e3645fcbe5fd05b8b1cc0b556d4db6a3f824ed6f26"
+    },
+    {
+      "path": "obj/vulkan-parity/weather-manual-review/palette-gloom-1.png",
+      "sha256": "b6ed1da44360491907bf43aba60f5b156f9334ef4df048ab323088dec644b702"
+    },
+    {
+      "path": "obj/vulkan-parity/weather-manual-review/palette-gloom-2.png",
+      "sha256": "7fed2487565390c9478a48a729817c5aa7568fa10e40b8db9774e2945ff677df"
+    },
+    {
+      "path": "obj/vulkan-parity/weather-manual-review/palette-lightning.png",
+      "sha256": "416e4fb9cb8e0e8a26354a03d3b35b50631164367d6ea460c60e08c3ed92f3a7"
+    },
+    {
+      "path": "obj/vulkan-parity/weather-manual-review/palette-lightning-recovered.png",
+      "sha256": "0c5423660e01bb56e0b18b1ff884e2eb123aa1386ded8532aa7600dc2981152e"
+    },
+    {
+      "path": "obj/vulkan-parity/weather-manual-review/palette-restored.png",
+      "sha256": "f847250e187643cfc7d3bc22fa5c4c688236df1c4b72d22f80b76a9bd3890601"
+    }
+  ],
+  "manuallyViewedSourceImages": [
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-clear/reference.png",
+      "sha256": "5cdf59c23cc178e5227ec839139767b32cb9f3ba5a42df629e1865c8ad70e57f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-clear/candidate.png",
+      "sha256": "5cdf59c23cc178e5227ec839139767b32cb9f3ba5a42df629e1865c8ad70e57f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-clear/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-clear/indexed/reference.png",
+      "sha256": "3777bc4a75f29202bf5af7278bb645f2238417e5f176d682a66c74a74a6f187f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-clear/indexed/candidate.png",
+      "sha256": "3777bc4a75f29202bf5af7278bb645f2238417e5f176d682a66c74a74a6f187f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-clear/indexed/diff.png",
+      "sha256": "afe49af36eb233dec89887af7122e1ddb56eccaf5e909b63c7df78f83930830a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-rain-light/reference.png",
+      "sha256": "5298aff035c47ac144a202296a97f96280b7f812b9a48d81f09b41b145250ce1"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-rain-light/candidate.png",
+      "sha256": "5298aff035c47ac144a202296a97f96280b7f812b9a48d81f09b41b145250ce1"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-rain-light/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-rain-light/indexed/reference.png",
+      "sha256": "cbe21832fbfc3c599d7b2d1ec7fee06f8f51ee68eead233380ff48445c2b199e"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-rain-light/indexed/candidate.png",
+      "sha256": "cbe21832fbfc3c599d7b2d1ec7fee06f8f51ee68eead233380ff48445c2b199e"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-rain-light/indexed/diff.png",
+      "sha256": "afe49af36eb233dec89887af7122e1ddb56eccaf5e909b63c7df78f83930830a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-rain-heavy/reference.png",
+      "sha256": "20249f4848bcfebb396401c1b4168502d031b255b7713034b149c54948685576"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-rain-heavy/candidate.png",
+      "sha256": "20249f4848bcfebb396401c1b4168502d031b255b7713034b149c54948685576"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-rain-heavy/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-rain-heavy/indexed/reference.png",
+      "sha256": "4a966d08d74dc18642a2a55c8c07e35458676a85796759b974cd3db1be85efe5"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-rain-heavy/indexed/candidate.png",
+      "sha256": "4a966d08d74dc18642a2a55c8c07e35458676a85796759b974cd3db1be85efe5"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-rain-heavy/indexed/diff.png",
+      "sha256": "afe49af36eb233dec89887af7122e1ddb56eccaf5e909b63c7df78f83930830a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-rain-occluded/reference.png",
+      "sha256": "a525628b12cd81a3c499f42eb64b4dab39d3297fb8567a221b86ac09a74e8e94"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-rain-occluded/candidate.png",
+      "sha256": "a525628b12cd81a3c499f42eb64b4dab39d3297fb8567a221b86ac09a74e8e94"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-rain-occluded/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-rain-occluded/indexed/reference.png",
+      "sha256": "542850d3a63d4e98b2c1a62043100519e65facee74b872b1c19c0cdd3dd365ed"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-rain-occluded/indexed/candidate.png",
+      "sha256": "542850d3a63d4e98b2c1a62043100519e65facee74b872b1c19c0cdd3dd365ed"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-rain-occluded/indexed/diff.png",
+      "sha256": "afe49af36eb233dec89887af7122e1ddb56eccaf5e909b63c7df78f83930830a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-rain-restored/reference.png",
+      "sha256": "20249f4848bcfebb396401c1b4168502d031b255b7713034b149c54948685576"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-rain-restored/candidate.png",
+      "sha256": "20249f4848bcfebb396401c1b4168502d031b255b7713034b149c54948685576"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-rain-restored/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-rain-restored/indexed/reference.png",
+      "sha256": "4a966d08d74dc18642a2a55c8c07e35458676a85796759b974cd3db1be85efe5"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-rain-restored/indexed/candidate.png",
+      "sha256": "4a966d08d74dc18642a2a55c8c07e35458676a85796759b974cd3db1be85efe5"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-rain-restored/indexed/diff.png",
+      "sha256": "afe49af36eb233dec89887af7122e1ddb56eccaf5e909b63c7df78f83930830a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-snow-light/reference.png",
+      "sha256": "403927352642da93764e8bad8d6f36d63717a61844600281cc72d661fd32d554"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-snow-light/candidate.png",
+      "sha256": "403927352642da93764e8bad8d6f36d63717a61844600281cc72d661fd32d554"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-snow-light/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-snow-light/indexed/reference.png",
+      "sha256": "f98dd76e4e6883e17079576fb741e8785d2dec1a6e4eb2a15bd637ef1210ba8e"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-snow-light/indexed/candidate.png",
+      "sha256": "f98dd76e4e6883e17079576fb741e8785d2dec1a6e4eb2a15bd637ef1210ba8e"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-snow-light/indexed/diff.png",
+      "sha256": "afe49af36eb233dec89887af7122e1ddb56eccaf5e909b63c7df78f83930830a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-snow-heavy/reference.png",
+      "sha256": "7951a5946baa56d00da7688b450963e7bc49a147ba764bf4637f9891972b4124"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-snow-heavy/candidate.png",
+      "sha256": "7951a5946baa56d00da7688b450963e7bc49a147ba764bf4637f9891972b4124"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-snow-heavy/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-snow-heavy/indexed/reference.png",
+      "sha256": "5738dd69518e81aa3fb093af2718f7ce684c7a3ab41e5430ceb364a99861b342"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-snow-heavy/indexed/candidate.png",
+      "sha256": "5738dd69518e81aa3fb093af2718f7ce684c7a3ab41e5430ceb364a99861b342"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-snow-heavy/indexed/diff.png",
+      "sha256": "afe49af36eb233dec89887af7122e1ddb56eccaf5e909b63c7df78f83930830a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-cleared/reference.png",
+      "sha256": "5cdf59c23cc178e5227ec839139767b32cb9f3ba5a42df629e1865c8ad70e57f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-cleared/candidate.png",
+      "sha256": "5cdf59c23cc178e5227ec839139767b32cb9f3ba5a42df629e1865c8ad70e57f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-cleared/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-cleared/indexed/reference.png",
+      "sha256": "3777bc4a75f29202bf5af7278bb645f2238417e5f176d682a66c74a74a6f187f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-cleared/indexed/candidate.png",
+      "sha256": "3777bc4a75f29202bf5af7278bb645f2238417e5f176d682a66c74a74a6f187f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/comparisons/weather-cleared/indexed/diff.png",
+      "sha256": "afe49af36eb233dec89887af7122e1ddb56eccaf5e909b63c7df78f83930830a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-clear/reference.png",
+      "sha256": "5cdf59c23cc178e5227ec839139767b32cb9f3ba5a42df629e1865c8ad70e57f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-clear/candidate.png",
+      "sha256": "5cdf59c23cc178e5227ec839139767b32cb9f3ba5a42df629e1865c8ad70e57f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-clear/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-clear/indexed/reference.png",
+      "sha256": "3777bc4a75f29202bf5af7278bb645f2238417e5f176d682a66c74a74a6f187f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-clear/indexed/candidate.png",
+      "sha256": "3777bc4a75f29202bf5af7278bb645f2238417e5f176d682a66c74a74a6f187f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-clear/indexed/diff.png",
+      "sha256": "afe49af36eb233dec89887af7122e1ddb56eccaf5e909b63c7df78f83930830a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-gloom-1/reference.png",
+      "sha256": "dc218fc2d990b22e63f3f0cd2e0897c42b7bd5970a35da80097bbabbc6fb6af7"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-gloom-1/candidate.png",
+      "sha256": "dc218fc2d990b22e63f3f0cd2e0897c42b7bd5970a35da80097bbabbc6fb6af7"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-gloom-1/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-gloom-1/indexed/reference.png",
+      "sha256": "108515d33c5ddfc1e7cc5fdb6c43032c416c6590427d9ae54a7820d7175838f3"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-gloom-1/indexed/candidate.png",
+      "sha256": "108515d33c5ddfc1e7cc5fdb6c43032c416c6590427d9ae54a7820d7175838f3"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-gloom-1/indexed/diff.png",
+      "sha256": "afe49af36eb233dec89887af7122e1ddb56eccaf5e909b63c7df78f83930830a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-gloom-2/reference.png",
+      "sha256": "93bf7ccdf5837dd2fa6c85d20099b94c3529fabd37c8d73d7e7b9ba20af9576f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-gloom-2/candidate.png",
+      "sha256": "93bf7ccdf5837dd2fa6c85d20099b94c3529fabd37c8d73d7e7b9ba20af9576f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-gloom-2/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-gloom-2/indexed/reference.png",
+      "sha256": "16aad2fa7cc9624d71c5b6384b730284551a860c2d631e251c908c29d117ee79"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-gloom-2/indexed/candidate.png",
+      "sha256": "16aad2fa7cc9624d71c5b6384b730284551a860c2d631e251c908c29d117ee79"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-gloom-2/indexed/diff.png",
+      "sha256": "afe49af36eb233dec89887af7122e1ddb56eccaf5e909b63c7df78f83930830a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-lightning/reference.png",
+      "sha256": "029b52559e0bf4d736724dbe77d275bd184d7a4fccd6570b45cd729689211fb5"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-lightning/candidate.png",
+      "sha256": "029b52559e0bf4d736724dbe77d275bd184d7a4fccd6570b45cd729689211fb5"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-lightning/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-lightning/indexed/reference.png",
+      "sha256": "16aad2fa7cc9624d71c5b6384b730284551a860c2d631e251c908c29d117ee79"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-lightning/indexed/candidate.png",
+      "sha256": "16aad2fa7cc9624d71c5b6384b730284551a860c2d631e251c908c29d117ee79"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-lightning/indexed/diff.png",
+      "sha256": "afe49af36eb233dec89887af7122e1ddb56eccaf5e909b63c7df78f83930830a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-lightning-recovered/reference.png",
+      "sha256": "93bf7ccdf5837dd2fa6c85d20099b94c3529fabd37c8d73d7e7b9ba20af9576f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-lightning-recovered/candidate.png",
+      "sha256": "93bf7ccdf5837dd2fa6c85d20099b94c3529fabd37c8d73d7e7b9ba20af9576f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-lightning-recovered/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-lightning-recovered/indexed/reference.png",
+      "sha256": "16aad2fa7cc9624d71c5b6384b730284551a860c2d631e251c908c29d117ee79"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-lightning-recovered/indexed/candidate.png",
+      "sha256": "16aad2fa7cc9624d71c5b6384b730284551a860c2d631e251c908c29d117ee79"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-lightning-recovered/indexed/diff.png",
+      "sha256": "afe49af36eb233dec89887af7122e1ddb56eccaf5e909b63c7df78f83930830a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-restored/reference.png",
+      "sha256": "5cdf59c23cc178e5227ec839139767b32cb9f3ba5a42df629e1865c8ad70e57f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-restored/candidate.png",
+      "sha256": "5cdf59c23cc178e5227ec839139767b32cb9f3ba5a42df629e1865c8ad70e57f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-restored/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-restored/indexed/reference.png",
+      "sha256": "3777bc4a75f29202bf5af7278bb645f2238417e5f176d682a66c74a74a6f187f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-restored/indexed/candidate.png",
+      "sha256": "3777bc4a75f29202bf5af7278bb645f2238417e5f176d682a66c74a74a6f187f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/comparisons/palette-restored/indexed/diff.png",
+      "sha256": "afe49af36eb233dec89887af7122e1ddb56eccaf5e909b63c7df78f83930830a"
+    }
+  ],
+  "frames": [
+    {
+      "step": "weather-clear",
+      "paintOrdinal": 3,
+      "weatherCommands": 0,
+      "weatherBeforePaint": {
+        "climateObject": "rct2.climate.cool_and_wet",
+        "current": {
+          "effect": 0,
+          "gloom": 0,
+          "level": 0,
+          "temperature": 18,
+          "type": 0
+        },
+        "displayPaletteFnv1a64": 3621528282574585282,
+        "effectsEnabled": true,
+        "gamePaletteFnv1a64": 16859882636877638191,
+        "gloomEnabled": false,
+        "lightFxEnabled": false,
+        "lightningFlash": 0,
+        "next": {
+          "effect": 0,
+          "gloom": 0,
+          "level": 0,
+          "temperature": 18,
+          "type": 0
+        },
+        "night": 0.0,
+        "normalization": "Public forceWeather then next=current; fixed paused tick; no weather update or simulation step",
+        "paletteEffectFrame": 0,
+        "rng": [
+          826632073,
+          38177487
+        ],
+        "snowSelected": false,
+        "ticks": 1215,
+        "timer": 2400,
+        "waterObject": "rct2.water.wtrcyan",
+        "waterPaletteImages": [
+          128194,
+          128195,
+          128198
+        ]
+      },
+      "weatherAfterPaint": {
+        "climateObject": "rct2.climate.cool_and_wet",
+        "current": {
+          "effect": 0,
+          "gloom": 0,
+          "level": 0,
+          "temperature": 18,
+          "type": 0
+        },
+        "displayPaletteFnv1a64": 3621528282574585282,
+        "effectsEnabled": true,
+        "gamePaletteFnv1a64": 16859882636877638191,
+        "gloomEnabled": false,
+        "lightFxEnabled": false,
+        "lightningFlash": 0,
+        "next": {
+          "effect": 0,
+          "gloom": 0,
+          "level": 0,
+          "temperature": 18,
+          "type": 0
+        },
+        "night": 0.0,
+        "normalization": "Public forceWeather then next=current; fixed paused tick; no weather update or simulation step",
+        "paletteEffectFrame": 0,
+        "rng": [
+          826632073,
+          38177487
+        ],
+        "snowSelected": false,
+        "ticks": 1215,
+        "timer": 2400,
+        "waterObject": "rct2.water.wtrcyan",
+        "waterPaletteImages": [
+          128194,
+          128195,
+          128198
+        ]
+      },
+      "indexedChangedPixelsFromPrevious": null,
+      "indexedChangedPixelsExcludingToolbarRowsFromPrevious": null,
+      "manuallyReviewed": "Reference and candidate visually identical; physical and indexed diffs uniformly black."
+    },
+    {
+      "step": "weather-rain-light",
+      "paintOrdinal": 4,
+      "weatherCommands": 6,
+      "weatherBeforePaint": {
+        "climateObject": "rct2.climate.cool_and_wet",
+        "current": {
+          "effect": 1,
+          "gloom": 1,
+          "level": 1,
+          "temperature": 6,
+          "type": 3
+        },
+        "displayPaletteFnv1a64": 3621528282574585282,
+        "effectsEnabled": true,
+        "gamePaletteFnv1a64": 16859882636877638191,
+        "gloomEnabled": false,
+        "lightFxEnabled": false,
+        "lightningFlash": 0,
+        "next": {
+          "effect": 1,
+          "gloom": 1,
+          "level": 1,
+          "temperature": 6,
+          "type": 3
+        },
+        "night": 0.0,
+        "normalization": "Public forceWeather then next=current; fixed paused tick; no weather update or simulation step",
+        "paletteEffectFrame": 0,
+        "rng": [
+          2439400770,
+          640199921
+        ],
+        "snowSelected": false,
+        "ticks": 1215,
+        "timer": 2400,
+        "waterObject": "rct2.water.wtrcyan",
+        "waterPaletteImages": [
+          128194,
+          128195,
+          128198
+        ]
+      },
+      "weatherAfterPaint": {
+        "climateObject": "rct2.climate.cool_and_wet",
+        "current": {
+          "effect": 1,
+          "gloom": 1,
+          "level": 1,
+          "temperature": 6,
+          "type": 3
+        },
+        "displayPaletteFnv1a64": 3621528282574585282,
+        "effectsEnabled": true,
+        "gamePaletteFnv1a64": 16859882636877638191,
+        "gloomEnabled": false,
+        "lightFxEnabled": false,
+        "lightningFlash": 0,
+        "next": {
+          "effect": 1,
+          "gloom": 1,
+          "level": 1,
+          "temperature": 6,
+          "type": 3
+        },
+        "night": 0.0,
+        "normalization": "Public forceWeather then next=current; fixed paused tick; no weather update or simulation step",
+        "paletteEffectFrame": 0,
+        "rng": [
+          2439400770,
+          640199921
+        ],
+        "snowSelected": false,
+        "ticks": 1215,
+        "timer": 2400,
+        "waterObject": "rct2.water.wtrcyan",
+        "waterPaletteImages": [
+          128194,
+          128195,
+          128198
+        ]
+      },
+      "indexedChangedPixelsFromPrevious": 3638,
+      "indexedChangedPixelsExcludingToolbarRowsFromPrevious": 3233,
+      "manuallyReviewed": "Reference and candidate visually identical; physical and indexed diffs uniformly black."
+    },
+    {
+      "step": "weather-rain-heavy",
+      "paintOrdinal": 5,
+      "weatherCommands": 12,
+      "weatherBeforePaint": {
+        "climateObject": "rct2.climate.cool_and_wet",
+        "current": {
+          "effect": 1,
+          "gloom": 2,
+          "level": 2,
+          "temperature": 4,
+          "type": 4
+        },
+        "displayPaletteFnv1a64": 3621528282574585282,
+        "effectsEnabled": true,
+        "gamePaletteFnv1a64": 16859882636877638191,
+        "gloomEnabled": false,
+        "lightFxEnabled": false,
+        "lightningFlash": 0,
+        "next": {
+          "effect": 1,
+          "gloom": 2,
+          "level": 2,
+          "temperature": 4,
+          "type": 4
+        },
+        "night": 0.0,
+        "normalization": "Public forceWeather then next=current; fixed paused tick; no weather update or simulation step",
+        "paletteEffectFrame": 0,
+        "rng": [
+          2915993399,
+          1378666920
+        ],
+        "snowSelected": false,
+        "ticks": 1215,
+        "timer": 2400,
+        "waterObject": "rct2.water.wtrcyan",
+        "waterPaletteImages": [
+          128194,
+          128195,
+          128198
+        ]
+      },
+      "weatherAfterPaint": {
+        "climateObject": "rct2.climate.cool_and_wet",
+        "current": {
+          "effect": 1,
+          "gloom": 2,
+          "level": 2,
+          "temperature": 4,
+          "type": 4
+        },
+        "displayPaletteFnv1a64": 3621528282574585282,
+        "effectsEnabled": true,
+        "gamePaletteFnv1a64": 16859882636877638191,
+        "gloomEnabled": false,
+        "lightFxEnabled": false,
+        "lightningFlash": 0,
+        "next": {
+          "effect": 1,
+          "gloom": 2,
+          "level": 2,
+          "temperature": 4,
+          "type": 4
+        },
+        "night": 0.0,
+        "normalization": "Public forceWeather then next=current; fixed paused tick; no weather update or simulation step",
+        "paletteEffectFrame": 0,
+        "rng": [
+          2915993399,
+          1378666920
+        ],
+        "snowSelected": false,
+        "ticks": 1215,
+        "timer": 2400,
+        "waterObject": "rct2.water.wtrcyan",
+        "waterPaletteImages": [
+          128194,
+          128195,
+          128198
+        ]
+      },
+      "indexedChangedPixelsFromPrevious": 3700,
+      "indexedChangedPixelsExcludingToolbarRowsFromPrevious": 3280,
+      "manuallyReviewed": "Reference and candidate visually identical; physical and indexed diffs uniformly black."
+    },
+    {
+      "step": "weather-rain-occluded",
+      "paintOrdinal": 6,
+      "weatherCommands": 24,
+      "weatherBeforePaint": {
+        "climateObject": "rct2.climate.cool_and_wet",
+        "current": {
+          "effect": 1,
+          "gloom": 2,
+          "level": 2,
+          "temperature": 4,
+          "type": 4
+        },
+        "displayPaletteFnv1a64": 3621528282574585282,
+        "effectsEnabled": true,
+        "gamePaletteFnv1a64": 16859882636877638191,
+        "gloomEnabled": false,
+        "lightFxEnabled": false,
+        "lightningFlash": 0,
+        "next": {
+          "effect": 1,
+          "gloom": 2,
+          "level": 2,
+          "temperature": 4,
+          "type": 4
+        },
+        "night": 0.0,
+        "normalization": "Public forceWeather then next=current; fixed paused tick; no weather update or simulation step",
+        "paletteEffectFrame": 0,
+        "rng": [
+          2915993399,
+          1378666920
+        ],
+        "snowSelected": false,
+        "ticks": 1215,
+        "timer": 2400,
+        "waterObject": "rct2.water.wtrcyan",
+        "waterPaletteImages": [
+          128194,
+          128195,
+          128198
+        ]
+      },
+      "weatherAfterPaint": {
+        "climateObject": "rct2.climate.cool_and_wet",
+        "current": {
+          "effect": 1,
+          "gloom": 2,
+          "level": 2,
+          "temperature": 4,
+          "type": 4
+        },
+        "displayPaletteFnv1a64": 3621528282574585282,
+        "effectsEnabled": true,
+        "gamePaletteFnv1a64": 16859882636877638191,
+        "gloomEnabled": false,
+        "lightFxEnabled": false,
+        "lightningFlash": 0,
+        "next": {
+          "effect": 1,
+          "gloom": 2,
+          "level": 2,
+          "temperature": 4,
+          "type": 4
+        },
+        "night": 0.0,
+        "normalization": "Public forceWeather then next=current; fixed paused tick; no weather update or simulation step",
+        "paletteEffectFrame": 0,
+        "rng": [
+          2915993399,
+          1378666920
+        ],
+        "snowSelected": false,
+        "ticks": 1215,
+        "timer": 2400,
+        "waterObject": "rct2.water.wtrcyan",
+        "waterPaletteImages": [
+          128194,
+          128195,
+          128198
+        ]
+      },
+      "indexedChangedPixelsFromPrevious": 57808,
+      "indexedChangedPixelsExcludingToolbarRowsFromPrevious": 57808,
+      "manuallyReviewed": "Reference and candidate visually identical; physical and indexed diffs uniformly black."
+    },
+    {
+      "step": "weather-rain-restored",
+      "paintOrdinal": 7,
+      "weatherCommands": 12,
+      "weatherBeforePaint": {
+        "climateObject": "rct2.climate.cool_and_wet",
+        "current": {
+          "effect": 1,
+          "gloom": 2,
+          "level": 2,
+          "temperature": 4,
+          "type": 4
+        },
+        "displayPaletteFnv1a64": 3621528282574585282,
+        "effectsEnabled": true,
+        "gamePaletteFnv1a64": 16859882636877638191,
+        "gloomEnabled": false,
+        "lightFxEnabled": false,
+        "lightningFlash": 0,
+        "next": {
+          "effect": 1,
+          "gloom": 2,
+          "level": 2,
+          "temperature": 4,
+          "type": 4
+        },
+        "night": 0.0,
+        "normalization": "Public forceWeather then next=current; fixed paused tick; no weather update or simulation step",
+        "paletteEffectFrame": 0,
+        "rng": [
+          2915993399,
+          1378666920
+        ],
+        "snowSelected": false,
+        "ticks": 1215,
+        "timer": 2400,
+        "waterObject": "rct2.water.wtrcyan",
+        "waterPaletteImages": [
+          128194,
+          128195,
+          128198
+        ]
+      },
+      "weatherAfterPaint": {
+        "climateObject": "rct2.climate.cool_and_wet",
+        "current": {
+          "effect": 1,
+          "gloom": 2,
+          "level": 2,
+          "temperature": 4,
+          "type": 4
+        },
+        "displayPaletteFnv1a64": 3621528282574585282,
+        "effectsEnabled": true,
+        "gamePaletteFnv1a64": 16859882636877638191,
+        "gloomEnabled": false,
+        "lightFxEnabled": false,
+        "lightningFlash": 0,
+        "next": {
+          "effect": 1,
+          "gloom": 2,
+          "level": 2,
+          "temperature": 4,
+          "type": 4
+        },
+        "night": 0.0,
+        "normalization": "Public forceWeather then next=current; fixed paused tick; no weather update or simulation step",
+        "paletteEffectFrame": 0,
+        "rng": [
+          2915993399,
+          1378666920
+        ],
+        "snowSelected": false,
+        "ticks": 1215,
+        "timer": 2400,
+        "waterObject": "rct2.water.wtrcyan",
+        "waterPaletteImages": [
+          128194,
+          128195,
+          128198
+        ]
+      },
+      "indexedChangedPixelsFromPrevious": 57808,
+      "indexedChangedPixelsExcludingToolbarRowsFromPrevious": 57808,
+      "manuallyReviewed": "Reference and candidate visually identical; physical and indexed diffs uniformly black."
+    },
+    {
+      "step": "weather-snow-light",
+      "paintOrdinal": 8,
+      "weatherCommands": 6,
+      "weatherBeforePaint": {
+        "climateObject": "rct2.climate.cool_and_wet",
+        "current": {
+          "effect": 3,
+          "gloom": 1,
+          "level": 1,
+          "temperature": -2,
+          "type": 6
+        },
+        "displayPaletteFnv1a64": 3621528282574585282,
+        "effectsEnabled": true,
+        "gamePaletteFnv1a64": 16859882636877638191,
+        "gloomEnabled": false,
+        "lightFxEnabled": false,
+        "lightningFlash": 0,
+        "next": {
+          "effect": 3,
+          "gloom": 1,
+          "level": 1,
+          "temperature": -2,
+          "type": 6
+        },
+        "night": 0.0,
+        "normalization": "Public forceWeather then next=current; fixed paused tick; no weather update or simulation step",
+        "paletteEffectFrame": 0,
+        "rng": [
+          1548662902,
+          4122595558
+        ],
+        "snowSelected": true,
+        "ticks": 1215,
+        "timer": 2400,
+        "waterObject": "rct2.water.wtrcyan",
+        "waterPaletteImages": [
+          128194,
+          128195,
+          128198
+        ]
+      },
+      "weatherAfterPaint": {
+        "climateObject": "rct2.climate.cool_and_wet",
+        "current": {
+          "effect": 3,
+          "gloom": 1,
+          "level": 1,
+          "temperature": -2,
+          "type": 6
+        },
+        "displayPaletteFnv1a64": 3621528282574585282,
+        "effectsEnabled": true,
+        "gamePaletteFnv1a64": 16859882636877638191,
+        "gloomEnabled": false,
+        "lightFxEnabled": false,
+        "lightningFlash": 0,
+        "next": {
+          "effect": 3,
+          "gloom": 1,
+          "level": 1,
+          "temperature": -2,
+          "type": 6
+        },
+        "night": 0.0,
+        "normalization": "Public forceWeather then next=current; fixed paused tick; no weather update or simulation step",
+        "paletteEffectFrame": 0,
+        "rng": [
+          1548662902,
+          4122595558
+        ],
+        "snowSelected": true,
+        "ticks": 1215,
+        "timer": 2400,
+        "waterObject": "rct2.water.wtrcyan",
+        "waterPaletteImages": [
+          128194,
+          128195,
+          128198
+        ]
+      },
+      "indexedChangedPixelsFromPrevious": 10395,
+      "indexedChangedPixelsExcludingToolbarRowsFromPrevious": 9744,
+      "manuallyReviewed": "Reference and candidate visually identical; physical and indexed diffs uniformly black."
+    },
+    {
+      "step": "weather-snow-heavy",
+      "paintOrdinal": 9,
+      "weatherCommands": 12,
+      "weatherBeforePaint": {
+        "climateObject": "rct2.climate.cool_and_wet",
+        "current": {
+          "effect": 3,
+          "gloom": 2,
+          "level": 2,
+          "temperature": -7,
+          "type": 7
+        },
+        "displayPaletteFnv1a64": 3621528282574585282,
+        "effectsEnabled": true,
+        "gamePaletteFnv1a64": 16859882636877638191,
+        "gloomEnabled": false,
+        "lightFxEnabled": false,
+        "lightningFlash": 0,
+        "next": {
+          "effect": 3,
+          "gloom": 2,
+          "level": 2,
+          "temperature": -7,
+          "type": 7
+        },
+        "night": 0.0,
+        "normalization": "Public forceWeather then next=current; fixed paused tick; no weather update or simulation step",
+        "paletteEffectFrame": 0,
+        "rng": [
+          2417873795,
+          3414808334
+        ],
+        "snowSelected": true,
+        "ticks": 1215,
+        "timer": 2400,
+        "waterObject": "rct2.water.wtrcyan",
+        "waterPaletteImages": [
+          128194,
+          128195,
+          128198
+        ]
+      },
+      "weatherAfterPaint": {
+        "climateObject": "rct2.climate.cool_and_wet",
+        "current": {
+          "effect": 3,
+          "gloom": 2,
+          "level": 2,
+          "temperature": -7,
+          "type": 7
+        },
+        "displayPaletteFnv1a64": 3621528282574585282,
+        "effectsEnabled": true,
+        "gamePaletteFnv1a64": 16859882636877638191,
+        "gloomEnabled": false,
+        "lightFxEnabled": false,
+        "lightningFlash": 0,
+        "next": {
+          "effect": 3,
+          "gloom": 2,
+          "level": 2,
+          "temperature": -7,
+          "type": 7
+        },
+        "night": 0.0,
+        "normalization": "Public forceWeather then next=current; fixed paused tick; no weather update or simulation step",
+        "paletteEffectFrame": 0,
+        "rng": [
+          2417873795,
+          3414808334
+        ],
+        "snowSelected": true,
+        "ticks": 1215,
+        "timer": 2400,
+        "waterObject": "rct2.water.wtrcyan",
+        "waterPaletteImages": [
+          128194,
+          128195,
+          128198
+        ]
+      },
+      "indexedChangedPixelsFromPrevious": 10382,
+      "indexedChangedPixelsExcludingToolbarRowsFromPrevious": 9698,
+      "manuallyReviewed": "Reference and candidate visually identical; physical and indexed diffs uniformly black."
+    },
+    {
+      "step": "weather-cleared",
+      "paintOrdinal": 10,
+      "weatherCommands": 0,
+      "weatherBeforePaint": {
+        "climateObject": "rct2.climate.cool_and_wet",
+        "current": {
+          "effect": 0,
+          "gloom": 0,
+          "level": 0,
+          "temperature": 18,
+          "type": 0
+        },
+        "displayPaletteFnv1a64": 3621528282574585282,
+        "effectsEnabled": true,
+        "gamePaletteFnv1a64": 16859882636877638191,
+        "gloomEnabled": false,
+        "lightFxEnabled": false,
+        "lightningFlash": 0,
+        "next": {
+          "effect": 0,
+          "gloom": 0,
+          "level": 0,
+          "temperature": 18,
+          "type": 0
+        },
+        "night": 0.0,
+        "normalization": "Public forceWeather then next=current; fixed paused tick; no weather update or simulation step",
+        "paletteEffectFrame": 0,
+        "rng": [
+          1943096965,
+          1912846960
+        ],
+        "snowSelected": false,
+        "ticks": 1215,
+        "timer": 2400,
+        "waterObject": "rct2.water.wtrcyan",
+        "waterPaletteImages": [
+          128194,
+          128195,
+          128198
+        ]
+      },
+      "weatherAfterPaint": {
+        "climateObject": "rct2.climate.cool_and_wet",
+        "current": {
+          "effect": 0,
+          "gloom": 0,
+          "level": 0,
+          "temperature": 18,
+          "type": 0
+        },
+        "displayPaletteFnv1a64": 3621528282574585282,
+        "effectsEnabled": true,
+        "gamePaletteFnv1a64": 16859882636877638191,
+        "gloomEnabled": false,
+        "lightFxEnabled": false,
+        "lightningFlash": 0,
+        "next": {
+          "effect": 0,
+          "gloom": 0,
+          "level": 0,
+          "temperature": 18,
+          "type": 0
+        },
+        "night": 0.0,
+        "normalization": "Public forceWeather then next=current; fixed paused tick; no weather update or simulation step",
+        "paletteEffectFrame": 0,
+        "rng": [
+          1943096965,
+          1912846960
+        ],
+        "snowSelected": false,
+        "ticks": 1215,
+        "timer": 2400,
+        "waterObject": "rct2.water.wtrcyan",
+        "waterPaletteImages": [
+          128194,
+          128195,
+          128198
+        ]
+      },
+      "indexedChangedPixelsFromPrevious": 7068,
+      "indexedChangedPixelsExcludingToolbarRowsFromPrevious": 6467,
+      "manuallyReviewed": "Reference and candidate visually identical; physical and indexed diffs uniformly black."
+    },
+    {
+      "step": "palette-clear",
+      "paintOrdinal": 3,
+      "weatherCommands": 0,
+      "weatherBeforePaint": {
+        "climateObject": "rct2.climate.cool_and_wet",
+        "current": {
+          "effect": 0,
+          "gloom": 0,
+          "level": 0,
+          "temperature": 18,
+          "type": 0
+        },
+        "displayPaletteFnv1a64": 3621528282574585282,
+        "effectsEnabled": false,
+        "gamePaletteFnv1a64": 16859882636877638191,
+        "gloomEnabled": true,
+        "lightFxEnabled": false,
+        "lightningFlash": 0,
+        "next": {
+          "effect": 0,
+          "gloom": 0,
+          "level": 0,
+          "temperature": 18,
+          "type": 0
+        },
+        "night": 0.0,
+        "normalization": "Public forceWeather then next=current; fixed paused tick; no weather update or simulation step",
+        "paletteEffectFrame": 0,
+        "rng": [
+          826632073,
+          38177487
+        ],
+        "snowSelected": false,
+        "ticks": 1215,
+        "timer": 2400,
+        "waterObject": "rct2.water.wtrcyan",
+        "waterPaletteImages": [
+          128194,
+          128195,
+          128198
+        ]
+      },
+      "weatherAfterPaint": {
+        "climateObject": "rct2.climate.cool_and_wet",
+        "current": {
+          "effect": 0,
+          "gloom": 0,
+          "level": 0,
+          "temperature": 18,
+          "type": 0
+        },
+        "displayPaletteFnv1a64": 3621528282574585282,
+        "effectsEnabled": false,
+        "gamePaletteFnv1a64": 16859882636877638191,
+        "gloomEnabled": true,
+        "lightFxEnabled": false,
+        "lightningFlash": 0,
+        "next": {
+          "effect": 0,
+          "gloom": 0,
+          "level": 0,
+          "temperature": 18,
+          "type": 0
+        },
+        "night": 0.0,
+        "normalization": "Public forceWeather then next=current; fixed paused tick; no weather update or simulation step",
+        "paletteEffectFrame": 0,
+        "rng": [
+          826632073,
+          38177487
+        ],
+        "snowSelected": false,
+        "ticks": 1215,
+        "timer": 2400,
+        "waterObject": "rct2.water.wtrcyan",
+        "waterPaletteImages": [
+          128194,
+          128195,
+          128198
+        ]
+      },
+      "indexedChangedPixelsFromPrevious": null,
+      "indexedChangedPixelsExcludingToolbarRowsFromPrevious": null,
+      "manuallyReviewed": "Reference and candidate visually identical; physical and indexed diffs uniformly black."
+    },
+    {
+      "step": "palette-gloom-1",
+      "paintOrdinal": 4,
+      "weatherCommands": 0,
+      "weatherBeforePaint": {
+        "climateObject": "rct2.climate.cool_and_wet",
+        "current": {
+          "effect": 1,
+          "gloom": 1,
+          "level": 1,
+          "temperature": 6,
+          "type": 3
+        },
+        "displayPaletteFnv1a64": 3621528282574585282,
+        "effectsEnabled": false,
+        "gamePaletteFnv1a64": 16859882636877638191,
+        "gloomEnabled": true,
+        "lightFxEnabled": false,
+        "lightningFlash": 0,
+        "next": {
+          "effect": 1,
+          "gloom": 1,
+          "level": 1,
+          "temperature": 6,
+          "type": 3
+        },
+        "night": 0.0,
+        "normalization": "Public forceWeather then next=current; fixed paused tick; no weather update or simulation step",
+        "paletteEffectFrame": 0,
+        "rng": [
+          2439400770,
+          640199921
+        ],
+        "snowSelected": false,
+        "ticks": 1215,
+        "timer": 2400,
+        "waterObject": "rct2.water.wtrcyan",
+        "waterPaletteImages": [
+          128194,
+          128195,
+          128198
+        ]
+      },
+      "weatherAfterPaint": {
+        "climateObject": "rct2.climate.cool_and_wet",
+        "current": {
+          "effect": 1,
+          "gloom": 1,
+          "level": 1,
+          "temperature": 6,
+          "type": 3
+        },
+        "displayPaletteFnv1a64": 1866208864008416821,
+        "effectsEnabled": false,
+        "gamePaletteFnv1a64": 14353163511838937532,
+        "gloomEnabled": true,
+        "lightFxEnabled": false,
+        "lightningFlash": 0,
+        "next": {
+          "effect": 1,
+          "gloom": 1,
+          "level": 1,
+          "temperature": 6,
+          "type": 3
+        },
+        "night": 0.0,
+        "normalization": "Public forceWeather then next=current; fixed paused tick; no weather update or simulation step",
+        "paletteEffectFrame": 0,
+        "rng": [
+          2439400770,
+          640199921
+        ],
+        "snowSelected": false,
+        "ticks": 1215,
+        "timer": 2400,
+        "waterObject": "rct2.water.wtrcyan",
+        "waterPaletteImages": [
+          128194,
+          128195,
+          128198
+        ]
+      },
+      "indexedChangedPixelsFromPrevious": 254035,
+      "indexedChangedPixelsExcludingToolbarRowsFromPrevious": 249246,
+      "manuallyReviewed": "Reference and candidate visually identical; physical and indexed diffs uniformly black."
+    },
+    {
+      "step": "palette-gloom-2",
+      "paintOrdinal": 5,
+      "weatherCommands": 0,
+      "weatherBeforePaint": {
+        "climateObject": "rct2.climate.cool_and_wet",
+        "current": {
+          "effect": 1,
+          "gloom": 2,
+          "level": 2,
+          "temperature": 4,
+          "type": 4
+        },
+        "displayPaletteFnv1a64": 1866208864008416821,
+        "effectsEnabled": false,
+        "gamePaletteFnv1a64": 14353163511838937532,
+        "gloomEnabled": true,
+        "lightFxEnabled": false,
+        "lightningFlash": 0,
+        "next": {
+          "effect": 1,
+          "gloom": 2,
+          "level": 2,
+          "temperature": 4,
+          "type": 4
+        },
+        "night": 0.0,
+        "normalization": "Public forceWeather then next=current; fixed paused tick; no weather update or simulation step",
+        "paletteEffectFrame": 0,
+        "rng": [
+          2915993399,
+          1378666920
+        ],
+        "snowSelected": false,
+        "ticks": 1215,
+        "timer": 2400,
+        "waterObject": "rct2.water.wtrcyan",
+        "waterPaletteImages": [
+          128194,
+          128195,
+          128198
+        ]
+      },
+      "weatherAfterPaint": {
+        "climateObject": "rct2.climate.cool_and_wet",
+        "current": {
+          "effect": 1,
+          "gloom": 2,
+          "level": 2,
+          "temperature": 4,
+          "type": 4
+        },
+        "displayPaletteFnv1a64": 6215128908824923765,
+        "effectsEnabled": false,
+        "gamePaletteFnv1a64": 196647398704764284,
+        "gloomEnabled": true,
+        "lightFxEnabled": false,
+        "lightningFlash": 0,
+        "next": {
+          "effect": 1,
+          "gloom": 2,
+          "level": 2,
+          "temperature": 4,
+          "type": 4
+        },
+        "night": 0.0,
+        "normalization": "Public forceWeather then next=current; fixed paused tick; no weather update or simulation step",
+        "paletteEffectFrame": 0,
+        "rng": [
+          2915993399,
+          1378666920
+        ],
+        "snowSelected": false,
+        "ticks": 1215,
+        "timer": 2400,
+        "waterObject": "rct2.water.wtrcyan",
+        "waterPaletteImages": [
+          128194,
+          128195,
+          128198
+        ]
+      },
+      "indexedChangedPixelsFromPrevious": 244574,
+      "indexedChangedPixelsExcludingToolbarRowsFromPrevious": 239965,
+      "manuallyReviewed": "Reference and candidate visually identical; physical and indexed diffs uniformly black."
+    },
+    {
+      "step": "palette-lightning",
+      "paintOrdinal": 6,
+      "weatherCommands": 0,
+      "weatherBeforePaint": {
+        "climateObject": "rct2.climate.cool_and_wet",
+        "current": {
+          "effect": 1,
+          "gloom": 2,
+          "level": 2,
+          "temperature": 4,
+          "type": 4
+        },
+        "displayPaletteFnv1a64": 6215128908824923765,
+        "effectsEnabled": false,
+        "gamePaletteFnv1a64": 196647398704764284,
+        "gloomEnabled": true,
+        "lightFxEnabled": false,
+        "lightningFlash": 1,
+        "next": {
+          "effect": 1,
+          "gloom": 2,
+          "level": 2,
+          "temperature": 4,
+          "type": 4
+        },
+        "night": 0.0,
+        "normalization": "Public forceWeather then next=current; fixed paused tick; no weather update or simulation step",
+        "paletteEffectFrame": 0,
+        "rng": [
+          2915993399,
+          1378666920
+        ],
+        "snowSelected": false,
+        "ticks": 1215,
+        "timer": 2400,
+        "waterObject": "rct2.water.wtrcyan",
+        "waterPaletteImages": [
+          128194,
+          128195,
+          128198
+        ]
+      },
+      "weatherAfterPaint": {
+        "climateObject": "rct2.climate.cool_and_wet",
+        "current": {
+          "effect": 1,
+          "gloom": 2,
+          "level": 2,
+          "temperature": 4,
+          "type": 4
+        },
+        "displayPaletteFnv1a64": 7051952898255628084,
+        "effectsEnabled": false,
+        "gamePaletteFnv1a64": 2435600309838530237,
+        "gloomEnabled": true,
+        "lightFxEnabled": false,
+        "lightningFlash": 2,
+        "next": {
+          "effect": 1,
+          "gloom": 2,
+          "level": 2,
+          "temperature": 4,
+          "type": 4
+        },
+        "night": 0.0,
+        "normalization": "Public forceWeather then next=current; fixed paused tick; no weather update or simulation step",
+        "paletteEffectFrame": 0,
+        "rng": [
+          2915993399,
+          1378666920
+        ],
+        "snowSelected": false,
+        "ticks": 1215,
+        "timer": 2400,
+        "waterObject": "rct2.water.wtrcyan",
+        "waterPaletteImages": [
+          128194,
+          128195,
+          128198
+        ]
+      },
+      "indexedChangedPixelsFromPrevious": 0,
+      "indexedChangedPixelsExcludingToolbarRowsFromPrevious": 0,
+      "manuallyReviewed": "Reference and candidate visually identical; physical and indexed diffs uniformly black."
+    },
+    {
+      "step": "palette-lightning-recovered",
+      "paintOrdinal": 7,
+      "weatherCommands": 0,
+      "weatherBeforePaint": {
+        "climateObject": "rct2.climate.cool_and_wet",
+        "current": {
+          "effect": 1,
+          "gloom": 2,
+          "level": 2,
+          "temperature": 4,
+          "type": 4
+        },
+        "displayPaletteFnv1a64": 7051952898255628084,
+        "effectsEnabled": false,
+        "gamePaletteFnv1a64": 2435600309838530237,
+        "gloomEnabled": true,
+        "lightFxEnabled": false,
+        "lightningFlash": 2,
+        "next": {
+          "effect": 1,
+          "gloom": 2,
+          "level": 2,
+          "temperature": 4,
+          "type": 4
+        },
+        "night": 0.0,
+        "normalization": "Public forceWeather then next=current; fixed paused tick; no weather update or simulation step",
+        "paletteEffectFrame": 0,
+        "rng": [
+          2915993399,
+          1378666920
+        ],
+        "snowSelected": false,
+        "ticks": 1215,
+        "timer": 2400,
+        "waterObject": "rct2.water.wtrcyan",
+        "waterPaletteImages": [
+          128194,
+          128195,
+          128198
+        ]
+      },
+      "weatherAfterPaint": {
+        "climateObject": "rct2.climate.cool_and_wet",
+        "current": {
+          "effect": 1,
+          "gloom": 2,
+          "level": 2,
+          "temperature": 4,
+          "type": 4
+        },
+        "displayPaletteFnv1a64": 6215128908824923765,
+        "effectsEnabled": false,
+        "gamePaletteFnv1a64": 196647398704764284,
+        "gloomEnabled": true,
+        "lightFxEnabled": false,
+        "lightningFlash": 0,
+        "next": {
+          "effect": 1,
+          "gloom": 2,
+          "level": 2,
+          "temperature": 4,
+          "type": 4
+        },
+        "night": 0.0,
+        "normalization": "Public forceWeather then next=current; fixed paused tick; no weather update or simulation step",
+        "paletteEffectFrame": 0,
+        "rng": [
+          2915993399,
+          1378666920
+        ],
+        "snowSelected": false,
+        "ticks": 1215,
+        "timer": 2400,
+        "waterObject": "rct2.water.wtrcyan",
+        "waterPaletteImages": [
+          128194,
+          128195,
+          128198
+        ]
+      },
+      "indexedChangedPixelsFromPrevious": 0,
+      "indexedChangedPixelsExcludingToolbarRowsFromPrevious": 0,
+      "manuallyReviewed": "Reference and candidate visually identical; physical and indexed diffs uniformly black."
+    },
+    {
+      "step": "palette-restored",
+      "paintOrdinal": 8,
+      "weatherCommands": 0,
+      "weatherBeforePaint": {
+        "climateObject": "rct2.climate.cool_and_wet",
+        "current": {
+          "effect": 0,
+          "gloom": 0,
+          "level": 0,
+          "temperature": 18,
+          "type": 0
+        },
+        "displayPaletteFnv1a64": 6215128908824923765,
+        "effectsEnabled": false,
+        "gamePaletteFnv1a64": 196647398704764284,
+        "gloomEnabled": true,
+        "lightFxEnabled": false,
+        "lightningFlash": 0,
+        "next": {
+          "effect": 0,
+          "gloom": 0,
+          "level": 0,
+          "temperature": 18,
+          "type": 0
+        },
+        "night": 0.0,
+        "normalization": "Public forceWeather then next=current; fixed paused tick; no weather update or simulation step",
+        "paletteEffectFrame": 0,
+        "rng": [
+          1548662902,
+          4122595558
+        ],
+        "snowSelected": false,
+        "ticks": 1215,
+        "timer": 2400,
+        "waterObject": "rct2.water.wtrcyan",
+        "waterPaletteImages": [
+          128194,
+          128195,
+          128198
+        ]
+      },
+      "weatherAfterPaint": {
+        "climateObject": "rct2.climate.cool_and_wet",
+        "current": {
+          "effect": 0,
+          "gloom": 0,
+          "level": 0,
+          "temperature": 18,
+          "type": 0
+        },
+        "displayPaletteFnv1a64": 3621528282574585282,
+        "effectsEnabled": false,
+        "gamePaletteFnv1a64": 16859882636877638191,
+        "gloomEnabled": true,
+        "lightFxEnabled": false,
+        "lightningFlash": 0,
+        "next": {
+          "effect": 0,
+          "gloom": 0,
+          "level": 0,
+          "temperature": 18,
+          "type": 0
+        },
+        "night": 0.0,
+        "normalization": "Public forceWeather then next=current; fixed paused tick; no weather update or simulation step",
+        "paletteEffectFrame": 0,
+        "rng": [
+          1548662902,
+          4122595558
+        ],
+        "snowSelected": false,
+        "ticks": 1215,
+        "timer": 2400,
+        "waterObject": "rct2.water.wtrcyan",
+        "waterPaletteImages": [
+          128194,
+          128195,
+          128198
+        ]
+      },
+      "indexedChangedPixelsFromPrevious": 257264,
+      "indexedChangedPixelsExcludingToolbarRowsFromPrevious": 252303,
+      "manuallyReviewed": "Reference and candidate visually identical; physical and indexed diffs uniformly black."
+    }
+  ],
+  "independentRawChecks": [
+    {
+      "run": "ui-frozen-weather-precipitation-01",
+      "step": "weather-clear",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-01/captures/weather-clear/screen.indexed",
+        "sha256": "02c35cfa7fc97adb07497e8803e32c16622464bc154c0e453deb788fb5879661"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-01/captures/weather-clear/screen.rgba",
+        "sha256": "d5ae02322e450a4da748819c8e8b23c0085507166affe8a8d311358e709910e7"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-01/captures/weather-clear/report.json",
+        "sha256": "8b65439d2c3b07391ab996e2a4a9de3df117bbfc3ee7415aa5a23772cda91630"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-frozen-weather-precipitation-01",
+      "step": "weather-rain-light",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-01/captures/weather-rain-light/screen.indexed",
+        "sha256": "ff16ebf93c4e3bad91e708f3740775789865582d2f3f7b8a49cfd1f565a9ad70"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-01/captures/weather-rain-light/screen.rgba",
+        "sha256": "f3857f3380652916f6b0c81d53e0191593cb55c377b5fede1839c20ae9bdd95c"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-01/captures/weather-rain-light/report.json",
+        "sha256": "bf2d6dbde95d21798d741f9c91280e92f86b9ec2fbfc7a0b241013ff9b49df7c"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-frozen-weather-precipitation-01",
+      "step": "weather-rain-heavy",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-01/captures/weather-rain-heavy/screen.indexed",
+        "sha256": "d2aab7a53b5406b09f209c33b25da142da9049ef740ddc5934a39260f7612bf1"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-01/captures/weather-rain-heavy/screen.rgba",
+        "sha256": "9690d254e8e2908a2dd28ef424691f0b75456d4d91a32578e71d950f2363bccb"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-01/captures/weather-rain-heavy/report.json",
+        "sha256": "11568039adf4f75fa9d5ad95c33ccffcfffcf7977d05ccf9f6f0893d12ce9f06"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-frozen-weather-precipitation-01",
+      "step": "weather-rain-occluded",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-01/captures/weather-rain-occluded/screen.indexed",
+        "sha256": "7a2548d941bf0df5b43bdb74f7a9eddaf1862409f6d267a4e01382f634bdb69f"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-01/captures/weather-rain-occluded/screen.rgba",
+        "sha256": "b7a3e1e857b275e77a3bc7e25fa974b9c858d70e4413a3ad81ea74fd66bf5c3b"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-01/captures/weather-rain-occluded/report.json",
+        "sha256": "2dc08b66bfb5cf4473eeba46c399c5889ddc0009731151d20a4e67d23992298a"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-frozen-weather-precipitation-01",
+      "step": "weather-rain-restored",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-01/captures/weather-rain-restored/screen.indexed",
+        "sha256": "d2aab7a53b5406b09f209c33b25da142da9049ef740ddc5934a39260f7612bf1"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-01/captures/weather-rain-restored/screen.rgba",
+        "sha256": "9690d254e8e2908a2dd28ef424691f0b75456d4d91a32578e71d950f2363bccb"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-01/captures/weather-rain-restored/report.json",
+        "sha256": "3b45c655de11733b43003c04ba133d904079ff89590b9971dc88488c441ebb5e"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-frozen-weather-precipitation-01",
+      "step": "weather-snow-light",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-01/captures/weather-snow-light/screen.indexed",
+        "sha256": "cfd20b9920c2ee54f8f8c778abb05807c4d0e2827ee00ef6895201d5b80f2198"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-01/captures/weather-snow-light/screen.rgba",
+        "sha256": "4496932536bc6b18b026973c46cc4f5c49938a0a608038e6bf9458e4099ad99a"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-01/captures/weather-snow-light/report.json",
+        "sha256": "b2eccad3d26182bc10f16921c46234143ae1d33206998f21d76689a4ffd5437b"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-frozen-weather-precipitation-01",
+      "step": "weather-snow-heavy",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-01/captures/weather-snow-heavy/screen.indexed",
+        "sha256": "040aa7674a54554d6e40ca3be3787424fa9d7bc26f3e5a5468fe5bb264f2ab3d"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-01/captures/weather-snow-heavy/screen.rgba",
+        "sha256": "8782f7cb967b6908323aa8217921574f5fc7449f491dbf05d62ff5390f0a88c5"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-01/captures/weather-snow-heavy/report.json",
+        "sha256": "8725417f5450bc5f2e653f78f057356d0a7b5b664d3c42af955a1f4f61aa1fea"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-frozen-weather-precipitation-01",
+      "step": "weather-cleared",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-01/captures/weather-cleared/screen.indexed",
+        "sha256": "02c35cfa7fc97adb07497e8803e32c16622464bc154c0e453deb788fb5879661"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-01/captures/weather-cleared/screen.rgba",
+        "sha256": "d5ae02322e450a4da748819c8e8b23c0085507166affe8a8d311358e709910e7"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-01/captures/weather-cleared/report.json",
+        "sha256": "c4802b814709daf09972be7226ac697246f34b1c3032efc1fb1431f2e4040018"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-frozen-weather-precipitation-02",
+      "step": "weather-clear",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-02/captures/weather-clear/screen.indexed",
+        "sha256": "02c35cfa7fc97adb07497e8803e32c16622464bc154c0e453deb788fb5879661"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-02/captures/weather-clear/screen.rgba",
+        "sha256": "d5ae02322e450a4da748819c8e8b23c0085507166affe8a8d311358e709910e7"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-02/captures/weather-clear/report.json",
+        "sha256": "8b65439d2c3b07391ab996e2a4a9de3df117bbfc3ee7415aa5a23772cda91630"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-frozen-weather-precipitation-02",
+      "step": "weather-rain-light",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-02/captures/weather-rain-light/screen.indexed",
+        "sha256": "ff16ebf93c4e3bad91e708f3740775789865582d2f3f7b8a49cfd1f565a9ad70"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-02/captures/weather-rain-light/screen.rgba",
+        "sha256": "f3857f3380652916f6b0c81d53e0191593cb55c377b5fede1839c20ae9bdd95c"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-02/captures/weather-rain-light/report.json",
+        "sha256": "bf2d6dbde95d21798d741f9c91280e92f86b9ec2fbfc7a0b241013ff9b49df7c"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-frozen-weather-precipitation-02",
+      "step": "weather-rain-heavy",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-02/captures/weather-rain-heavy/screen.indexed",
+        "sha256": "d2aab7a53b5406b09f209c33b25da142da9049ef740ddc5934a39260f7612bf1"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-02/captures/weather-rain-heavy/screen.rgba",
+        "sha256": "9690d254e8e2908a2dd28ef424691f0b75456d4d91a32578e71d950f2363bccb"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-02/captures/weather-rain-heavy/report.json",
+        "sha256": "11568039adf4f75fa9d5ad95c33ccffcfffcf7977d05ccf9f6f0893d12ce9f06"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-frozen-weather-precipitation-02",
+      "step": "weather-rain-occluded",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-02/captures/weather-rain-occluded/screen.indexed",
+        "sha256": "7a2548d941bf0df5b43bdb74f7a9eddaf1862409f6d267a4e01382f634bdb69f"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-02/captures/weather-rain-occluded/screen.rgba",
+        "sha256": "b7a3e1e857b275e77a3bc7e25fa974b9c858d70e4413a3ad81ea74fd66bf5c3b"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-02/captures/weather-rain-occluded/report.json",
+        "sha256": "2dc08b66bfb5cf4473eeba46c399c5889ddc0009731151d20a4e67d23992298a"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-frozen-weather-precipitation-02",
+      "step": "weather-rain-restored",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-02/captures/weather-rain-restored/screen.indexed",
+        "sha256": "d2aab7a53b5406b09f209c33b25da142da9049ef740ddc5934a39260f7612bf1"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-02/captures/weather-rain-restored/screen.rgba",
+        "sha256": "9690d254e8e2908a2dd28ef424691f0b75456d4d91a32578e71d950f2363bccb"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-02/captures/weather-rain-restored/report.json",
+        "sha256": "3b45c655de11733b43003c04ba133d904079ff89590b9971dc88488c441ebb5e"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-frozen-weather-precipitation-02",
+      "step": "weather-snow-light",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-02/captures/weather-snow-light/screen.indexed",
+        "sha256": "cfd20b9920c2ee54f8f8c778abb05807c4d0e2827ee00ef6895201d5b80f2198"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-02/captures/weather-snow-light/screen.rgba",
+        "sha256": "4496932536bc6b18b026973c46cc4f5c49938a0a608038e6bf9458e4099ad99a"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-02/captures/weather-snow-light/report.json",
+        "sha256": "b2eccad3d26182bc10f16921c46234143ae1d33206998f21d76689a4ffd5437b"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-frozen-weather-precipitation-02",
+      "step": "weather-snow-heavy",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-02/captures/weather-snow-heavy/screen.indexed",
+        "sha256": "040aa7674a54554d6e40ca3be3787424fa9d7bc26f3e5a5468fe5bb264f2ab3d"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-02/captures/weather-snow-heavy/screen.rgba",
+        "sha256": "8782f7cb967b6908323aa8217921574f5fc7449f491dbf05d62ff5390f0a88c5"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-02/captures/weather-snow-heavy/report.json",
+        "sha256": "8725417f5450bc5f2e653f78f057356d0a7b5b664d3c42af955a1f4f61aa1fea"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-frozen-weather-precipitation-02",
+      "step": "weather-cleared",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-02/captures/weather-cleared/screen.indexed",
+        "sha256": "02c35cfa7fc97adb07497e8803e32c16622464bc154c0e453deb788fb5879661"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-02/captures/weather-cleared/screen.rgba",
+        "sha256": "d5ae02322e450a4da748819c8e8b23c0085507166affe8a8d311358e709910e7"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-precipitation-02/captures/weather-cleared/report.json",
+        "sha256": "c4802b814709daf09972be7226ac697246f34b1c3032efc1fb1431f2e4040018"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-current-weather-precipitation-01",
+      "step": "weather-clear",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-01/captures/weather-clear/screen.indexed",
+        "sha256": "02c35cfa7fc97adb07497e8803e32c16622464bc154c0e453deb788fb5879661"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-01/captures/weather-clear/screen.rgba",
+        "sha256": "d5ae02322e450a4da748819c8e8b23c0085507166affe8a8d311358e709910e7"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-01/captures/weather-clear/report.json",
+        "sha256": "8b65439d2c3b07391ab996e2a4a9de3df117bbfc3ee7415aa5a23772cda91630"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-current-weather-precipitation-01",
+      "step": "weather-rain-light",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-01/captures/weather-rain-light/screen.indexed",
+        "sha256": "ff16ebf93c4e3bad91e708f3740775789865582d2f3f7b8a49cfd1f565a9ad70"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-01/captures/weather-rain-light/screen.rgba",
+        "sha256": "f3857f3380652916f6b0c81d53e0191593cb55c377b5fede1839c20ae9bdd95c"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-01/captures/weather-rain-light/report.json",
+        "sha256": "bf2d6dbde95d21798d741f9c91280e92f86b9ec2fbfc7a0b241013ff9b49df7c"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-current-weather-precipitation-01",
+      "step": "weather-rain-heavy",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-01/captures/weather-rain-heavy/screen.indexed",
+        "sha256": "d2aab7a53b5406b09f209c33b25da142da9049ef740ddc5934a39260f7612bf1"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-01/captures/weather-rain-heavy/screen.rgba",
+        "sha256": "9690d254e8e2908a2dd28ef424691f0b75456d4d91a32578e71d950f2363bccb"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-01/captures/weather-rain-heavy/report.json",
+        "sha256": "11568039adf4f75fa9d5ad95c33ccffcfffcf7977d05ccf9f6f0893d12ce9f06"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-current-weather-precipitation-01",
+      "step": "weather-rain-occluded",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-01/captures/weather-rain-occluded/screen.indexed",
+        "sha256": "7a2548d941bf0df5b43bdb74f7a9eddaf1862409f6d267a4e01382f634bdb69f"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-01/captures/weather-rain-occluded/screen.rgba",
+        "sha256": "b7a3e1e857b275e77a3bc7e25fa974b9c858d70e4413a3ad81ea74fd66bf5c3b"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-01/captures/weather-rain-occluded/report.json",
+        "sha256": "2dc08b66bfb5cf4473eeba46c399c5889ddc0009731151d20a4e67d23992298a"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-current-weather-precipitation-01",
+      "step": "weather-rain-restored",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-01/captures/weather-rain-restored/screen.indexed",
+        "sha256": "d2aab7a53b5406b09f209c33b25da142da9049ef740ddc5934a39260f7612bf1"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-01/captures/weather-rain-restored/screen.rgba",
+        "sha256": "9690d254e8e2908a2dd28ef424691f0b75456d4d91a32578e71d950f2363bccb"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-01/captures/weather-rain-restored/report.json",
+        "sha256": "3b45c655de11733b43003c04ba133d904079ff89590b9971dc88488c441ebb5e"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-current-weather-precipitation-01",
+      "step": "weather-snow-light",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-01/captures/weather-snow-light/screen.indexed",
+        "sha256": "cfd20b9920c2ee54f8f8c778abb05807c4d0e2827ee00ef6895201d5b80f2198"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-01/captures/weather-snow-light/screen.rgba",
+        "sha256": "4496932536bc6b18b026973c46cc4f5c49938a0a608038e6bf9458e4099ad99a"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-01/captures/weather-snow-light/report.json",
+        "sha256": "b2eccad3d26182bc10f16921c46234143ae1d33206998f21d76689a4ffd5437b"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-current-weather-precipitation-01",
+      "step": "weather-snow-heavy",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-01/captures/weather-snow-heavy/screen.indexed",
+        "sha256": "040aa7674a54554d6e40ca3be3787424fa9d7bc26f3e5a5468fe5bb264f2ab3d"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-01/captures/weather-snow-heavy/screen.rgba",
+        "sha256": "8782f7cb967b6908323aa8217921574f5fc7449f491dbf05d62ff5390f0a88c5"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-01/captures/weather-snow-heavy/report.json",
+        "sha256": "8725417f5450bc5f2e653f78f057356d0a7b5b664d3c42af955a1f4f61aa1fea"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-current-weather-precipitation-01",
+      "step": "weather-cleared",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-01/captures/weather-cleared/screen.indexed",
+        "sha256": "02c35cfa7fc97adb07497e8803e32c16622464bc154c0e453deb788fb5879661"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-01/captures/weather-cleared/screen.rgba",
+        "sha256": "d5ae02322e450a4da748819c8e8b23c0085507166affe8a8d311358e709910e7"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-01/captures/weather-cleared/report.json",
+        "sha256": "c4802b814709daf09972be7226ac697246f34b1c3032efc1fb1431f2e4040018"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-current-weather-precipitation-02",
+      "step": "weather-clear",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-02/captures/weather-clear/screen.indexed",
+        "sha256": "02c35cfa7fc97adb07497e8803e32c16622464bc154c0e453deb788fb5879661"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-02/captures/weather-clear/screen.rgba",
+        "sha256": "d5ae02322e450a4da748819c8e8b23c0085507166affe8a8d311358e709910e7"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-02/captures/weather-clear/report.json",
+        "sha256": "8b65439d2c3b07391ab996e2a4a9de3df117bbfc3ee7415aa5a23772cda91630"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-current-weather-precipitation-02",
+      "step": "weather-rain-light",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-02/captures/weather-rain-light/screen.indexed",
+        "sha256": "ff16ebf93c4e3bad91e708f3740775789865582d2f3f7b8a49cfd1f565a9ad70"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-02/captures/weather-rain-light/screen.rgba",
+        "sha256": "f3857f3380652916f6b0c81d53e0191593cb55c377b5fede1839c20ae9bdd95c"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-02/captures/weather-rain-light/report.json",
+        "sha256": "bf2d6dbde95d21798d741f9c91280e92f86b9ec2fbfc7a0b241013ff9b49df7c"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-current-weather-precipitation-02",
+      "step": "weather-rain-heavy",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-02/captures/weather-rain-heavy/screen.indexed",
+        "sha256": "d2aab7a53b5406b09f209c33b25da142da9049ef740ddc5934a39260f7612bf1"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-02/captures/weather-rain-heavy/screen.rgba",
+        "sha256": "9690d254e8e2908a2dd28ef424691f0b75456d4d91a32578e71d950f2363bccb"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-02/captures/weather-rain-heavy/report.json",
+        "sha256": "11568039adf4f75fa9d5ad95c33ccffcfffcf7977d05ccf9f6f0893d12ce9f06"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-current-weather-precipitation-02",
+      "step": "weather-rain-occluded",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-02/captures/weather-rain-occluded/screen.indexed",
+        "sha256": "7a2548d941bf0df5b43bdb74f7a9eddaf1862409f6d267a4e01382f634bdb69f"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-02/captures/weather-rain-occluded/screen.rgba",
+        "sha256": "b7a3e1e857b275e77a3bc7e25fa974b9c858d70e4413a3ad81ea74fd66bf5c3b"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-02/captures/weather-rain-occluded/report.json",
+        "sha256": "2dc08b66bfb5cf4473eeba46c399c5889ddc0009731151d20a4e67d23992298a"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-current-weather-precipitation-02",
+      "step": "weather-rain-restored",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-02/captures/weather-rain-restored/screen.indexed",
+        "sha256": "d2aab7a53b5406b09f209c33b25da142da9049ef740ddc5934a39260f7612bf1"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-02/captures/weather-rain-restored/screen.rgba",
+        "sha256": "9690d254e8e2908a2dd28ef424691f0b75456d4d91a32578e71d950f2363bccb"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-02/captures/weather-rain-restored/report.json",
+        "sha256": "3b45c655de11733b43003c04ba133d904079ff89590b9971dc88488c441ebb5e"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-current-weather-precipitation-02",
+      "step": "weather-snow-light",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-02/captures/weather-snow-light/screen.indexed",
+        "sha256": "cfd20b9920c2ee54f8f8c778abb05807c4d0e2827ee00ef6895201d5b80f2198"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-02/captures/weather-snow-light/screen.rgba",
+        "sha256": "4496932536bc6b18b026973c46cc4f5c49938a0a608038e6bf9458e4099ad99a"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-02/captures/weather-snow-light/report.json",
+        "sha256": "b2eccad3d26182bc10f16921c46234143ae1d33206998f21d76689a4ffd5437b"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-current-weather-precipitation-02",
+      "step": "weather-snow-heavy",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-02/captures/weather-snow-heavy/screen.indexed",
+        "sha256": "040aa7674a54554d6e40ca3be3787424fa9d7bc26f3e5a5468fe5bb264f2ab3d"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-02/captures/weather-snow-heavy/screen.rgba",
+        "sha256": "8782f7cb967b6908323aa8217921574f5fc7449f491dbf05d62ff5390f0a88c5"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-02/captures/weather-snow-heavy/report.json",
+        "sha256": "8725417f5450bc5f2e653f78f057356d0a7b5b664d3c42af955a1f4f61aa1fea"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-current-weather-precipitation-02",
+      "step": "weather-cleared",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-02/captures/weather-cleared/screen.indexed",
+        "sha256": "02c35cfa7fc97adb07497e8803e32c16622464bc154c0e453deb788fb5879661"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-02/captures/weather-cleared/screen.rgba",
+        "sha256": "d5ae02322e450a4da748819c8e8b23c0085507166affe8a8d311358e709910e7"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-current-weather-precipitation-02/captures/weather-cleared/report.json",
+        "sha256": "c4802b814709daf09972be7226ac697246f34b1c3032efc1fb1431f2e4040018"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-vulkan-weather-precipitation-01",
+      "step": "weather-clear",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/captures/weather-clear/screen.indexed",
+        "sha256": "02c35cfa7fc97adb07497e8803e32c16622464bc154c0e453deb788fb5879661"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/captures/weather-clear/screen.rgba",
+        "sha256": "d5ae02322e450a4da748819c8e8b23c0085507166affe8a8d311358e709910e7"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/captures/weather-clear/report.json",
+        "sha256": "d7419bea755dd38c13022d092e5088a249f84c7f064f4984db9ed292ac8ed8b1"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-vulkan-weather-precipitation-01",
+      "step": "weather-rain-light",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/captures/weather-rain-light/screen.indexed",
+        "sha256": "ff16ebf93c4e3bad91e708f3740775789865582d2f3f7b8a49cfd1f565a9ad70"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/captures/weather-rain-light/screen.rgba",
+        "sha256": "f3857f3380652916f6b0c81d53e0191593cb55c377b5fede1839c20ae9bdd95c"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/captures/weather-rain-light/report.json",
+        "sha256": "2369a55da239b6ca88d103ea84147fef49386c48a2924a1bcad557ef186da492"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-vulkan-weather-precipitation-01",
+      "step": "weather-rain-heavy",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/captures/weather-rain-heavy/screen.indexed",
+        "sha256": "d2aab7a53b5406b09f209c33b25da142da9049ef740ddc5934a39260f7612bf1"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/captures/weather-rain-heavy/screen.rgba",
+        "sha256": "9690d254e8e2908a2dd28ef424691f0b75456d4d91a32578e71d950f2363bccb"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/captures/weather-rain-heavy/report.json",
+        "sha256": "9fba61efb4e7e8efafe256971c6dded81f01ab4d76bdb0e8ee5cb087aada7faf"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-vulkan-weather-precipitation-01",
+      "step": "weather-rain-occluded",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/captures/weather-rain-occluded/screen.indexed",
+        "sha256": "7a2548d941bf0df5b43bdb74f7a9eddaf1862409f6d267a4e01382f634bdb69f"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/captures/weather-rain-occluded/screen.rgba",
+        "sha256": "b7a3e1e857b275e77a3bc7e25fa974b9c858d70e4413a3ad81ea74fd66bf5c3b"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/captures/weather-rain-occluded/report.json",
+        "sha256": "e0e2cece838fe0b420d3ae63c620ed06f348143fa23928bfe4b0fb41b681e346"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-vulkan-weather-precipitation-01",
+      "step": "weather-rain-restored",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/captures/weather-rain-restored/screen.indexed",
+        "sha256": "d2aab7a53b5406b09f209c33b25da142da9049ef740ddc5934a39260f7612bf1"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/captures/weather-rain-restored/screen.rgba",
+        "sha256": "9690d254e8e2908a2dd28ef424691f0b75456d4d91a32578e71d950f2363bccb"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/captures/weather-rain-restored/report.json",
+        "sha256": "3911e2a10e7ff2ae7859b812b3eb2b0563215a70dd95c36999f3a3e3819df2c5"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-vulkan-weather-precipitation-01",
+      "step": "weather-snow-light",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/captures/weather-snow-light/screen.indexed",
+        "sha256": "cfd20b9920c2ee54f8f8c778abb05807c4d0e2827ee00ef6895201d5b80f2198"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/captures/weather-snow-light/screen.rgba",
+        "sha256": "4496932536bc6b18b026973c46cc4f5c49938a0a608038e6bf9458e4099ad99a"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/captures/weather-snow-light/report.json",
+        "sha256": "2fafa94a2dceb8fce4afe83d6b24e24957c0709a7ad55b45a029b8b39d33cfa9"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-vulkan-weather-precipitation-01",
+      "step": "weather-snow-heavy",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/captures/weather-snow-heavy/screen.indexed",
+        "sha256": "040aa7674a54554d6e40ca3be3787424fa9d7bc26f3e5a5468fe5bb264f2ab3d"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/captures/weather-snow-heavy/screen.rgba",
+        "sha256": "8782f7cb967b6908323aa8217921574f5fc7449f491dbf05d62ff5390f0a88c5"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/captures/weather-snow-heavy/report.json",
+        "sha256": "d76affe89c2615bdf89d0b8e6a320e3df2085fc6108ea25e3c035a236e269ce5"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-vulkan-weather-precipitation-01",
+      "step": "weather-cleared",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/captures/weather-cleared/screen.indexed",
+        "sha256": "02c35cfa7fc97adb07497e8803e32c16622464bc154c0e453deb788fb5879661"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/captures/weather-cleared/screen.rgba",
+        "sha256": "d5ae02322e450a4da748819c8e8b23c0085507166affe8a8d311358e709910e7"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-01/captures/weather-cleared/report.json",
+        "sha256": "47c25cf2570bb829cd6c4dc3dcf09b67ef1b65f97df5c1fee8ed9b48789021da"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-vulkan-weather-precipitation-02",
+      "step": "weather-clear",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-02/captures/weather-clear/screen.indexed",
+        "sha256": "02c35cfa7fc97adb07497e8803e32c16622464bc154c0e453deb788fb5879661"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-02/captures/weather-clear/screen.rgba",
+        "sha256": "d5ae02322e450a4da748819c8e8b23c0085507166affe8a8d311358e709910e7"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-02/captures/weather-clear/report.json",
+        "sha256": "d7419bea755dd38c13022d092e5088a249f84c7f064f4984db9ed292ac8ed8b1"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-vulkan-weather-precipitation-02",
+      "step": "weather-rain-light",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-02/captures/weather-rain-light/screen.indexed",
+        "sha256": "ff16ebf93c4e3bad91e708f3740775789865582d2f3f7b8a49cfd1f565a9ad70"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-02/captures/weather-rain-light/screen.rgba",
+        "sha256": "f3857f3380652916f6b0c81d53e0191593cb55c377b5fede1839c20ae9bdd95c"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-02/captures/weather-rain-light/report.json",
+        "sha256": "2369a55da239b6ca88d103ea84147fef49386c48a2924a1bcad557ef186da492"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-vulkan-weather-precipitation-02",
+      "step": "weather-rain-heavy",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-02/captures/weather-rain-heavy/screen.indexed",
+        "sha256": "d2aab7a53b5406b09f209c33b25da142da9049ef740ddc5934a39260f7612bf1"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-02/captures/weather-rain-heavy/screen.rgba",
+        "sha256": "9690d254e8e2908a2dd28ef424691f0b75456d4d91a32578e71d950f2363bccb"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-02/captures/weather-rain-heavy/report.json",
+        "sha256": "9fba61efb4e7e8efafe256971c6dded81f01ab4d76bdb0e8ee5cb087aada7faf"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-vulkan-weather-precipitation-02",
+      "step": "weather-rain-occluded",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-02/captures/weather-rain-occluded/screen.indexed",
+        "sha256": "7a2548d941bf0df5b43bdb74f7a9eddaf1862409f6d267a4e01382f634bdb69f"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-02/captures/weather-rain-occluded/screen.rgba",
+        "sha256": "b7a3e1e857b275e77a3bc7e25fa974b9c858d70e4413a3ad81ea74fd66bf5c3b"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-02/captures/weather-rain-occluded/report.json",
+        "sha256": "e0e2cece838fe0b420d3ae63c620ed06f348143fa23928bfe4b0fb41b681e346"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-vulkan-weather-precipitation-02",
+      "step": "weather-rain-restored",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-02/captures/weather-rain-restored/screen.indexed",
+        "sha256": "d2aab7a53b5406b09f209c33b25da142da9049ef740ddc5934a39260f7612bf1"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-02/captures/weather-rain-restored/screen.rgba",
+        "sha256": "9690d254e8e2908a2dd28ef424691f0b75456d4d91a32578e71d950f2363bccb"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-02/captures/weather-rain-restored/report.json",
+        "sha256": "3911e2a10e7ff2ae7859b812b3eb2b0563215a70dd95c36999f3a3e3819df2c5"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-vulkan-weather-precipitation-02",
+      "step": "weather-snow-light",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-02/captures/weather-snow-light/screen.indexed",
+        "sha256": "cfd20b9920c2ee54f8f8c778abb05807c4d0e2827ee00ef6895201d5b80f2198"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-02/captures/weather-snow-light/screen.rgba",
+        "sha256": "4496932536bc6b18b026973c46cc4f5c49938a0a608038e6bf9458e4099ad99a"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-02/captures/weather-snow-light/report.json",
+        "sha256": "2fafa94a2dceb8fce4afe83d6b24e24957c0709a7ad55b45a029b8b39d33cfa9"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-vulkan-weather-precipitation-02",
+      "step": "weather-snow-heavy",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-02/captures/weather-snow-heavy/screen.indexed",
+        "sha256": "040aa7674a54554d6e40ca3be3787424fa9d7bc26f3e5a5468fe5bb264f2ab3d"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-02/captures/weather-snow-heavy/screen.rgba",
+        "sha256": "8782f7cb967b6908323aa8217921574f5fc7449f491dbf05d62ff5390f0a88c5"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-02/captures/weather-snow-heavy/report.json",
+        "sha256": "d76affe89c2615bdf89d0b8e6a320e3df2085fc6108ea25e3c035a236e269ce5"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-vulkan-weather-precipitation-02",
+      "step": "weather-cleared",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-02/captures/weather-cleared/screen.indexed",
+        "sha256": "02c35cfa7fc97adb07497e8803e32c16622464bc154c0e453deb788fb5879661"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-02/captures/weather-cleared/screen.rgba",
+        "sha256": "d5ae02322e450a4da748819c8e8b23c0085507166affe8a8d311358e709910e7"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-precipitation-02/captures/weather-cleared/report.json",
+        "sha256": "47c25cf2570bb829cd6c4dc3dcf09b67ef1b65f97df5c1fee8ed9b48789021da"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-frozen-weather-palette-01",
+      "step": "palette-clear",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-01/captures/palette-clear/screen.indexed",
+        "sha256": "02c35cfa7fc97adb07497e8803e32c16622464bc154c0e453deb788fb5879661"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-01/captures/palette-clear/screen.rgba",
+        "sha256": "d5ae02322e450a4da748819c8e8b23c0085507166affe8a8d311358e709910e7"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-01/captures/palette-clear/report.json",
+        "sha256": "0fee0a549dee2af87bb2387d628a91917763e7b8b96b418dddab0150f412c0e8"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-frozen-weather-palette-01",
+      "step": "palette-gloom-1",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-01/captures/palette-gloom-1/screen.indexed",
+        "sha256": "7677d69ed6b46b50995e67e39df063e18182776b690267d5d9bc5cb80781d67a"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-01/captures/palette-gloom-1/screen.rgba",
+        "sha256": "6c30d1fac0d5edbf3903014b619df5de850574542332e77293365a392e25a1c9"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-01/captures/palette-gloom-1/report.json",
+        "sha256": "0728ce3a5e9fd1929d4d2ab5de1a26976916a8a48f13b1f2cd0430c1e76cdda2"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-frozen-weather-palette-01",
+      "step": "palette-gloom-2",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-01/captures/palette-gloom-2/screen.indexed",
+        "sha256": "356675dc0cb2738400a0c548593b2bff47647ecd5915797e60a61acd50a8fe54"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-01/captures/palette-gloom-2/screen.rgba",
+        "sha256": "d83f1ae05903fd6cf44b2678a9a218b780c4c712b45dae701f098a4677a1d892"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-01/captures/palette-gloom-2/report.json",
+        "sha256": "cd1216ddb62bd0695ff76f2e5c06b96b34e40ac2eea8f8a1bc6453533a79070d"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-frozen-weather-palette-01",
+      "step": "palette-lightning",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-01/captures/palette-lightning/screen.indexed",
+        "sha256": "356675dc0cb2738400a0c548593b2bff47647ecd5915797e60a61acd50a8fe54"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-01/captures/palette-lightning/screen.rgba",
+        "sha256": "e1470043dbacf011a8ac1d5a8932b788a54b64ec96961320972a30394f4ee014"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-01/captures/palette-lightning/report.json",
+        "sha256": "ac8a3d483b50014ab4450913ca5a63358d8f4a0506a442b802e91ed87f262509"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-frozen-weather-palette-01",
+      "step": "palette-lightning-recovered",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-01/captures/palette-lightning-recovered/screen.indexed",
+        "sha256": "356675dc0cb2738400a0c548593b2bff47647ecd5915797e60a61acd50a8fe54"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-01/captures/palette-lightning-recovered/screen.rgba",
+        "sha256": "d83f1ae05903fd6cf44b2678a9a218b780c4c712b45dae701f098a4677a1d892"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-01/captures/palette-lightning-recovered/report.json",
+        "sha256": "153e56f3c3ce62549384bf488a4bd73fa08c9a8e47f54f4e4eb47772ac950bf4"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-frozen-weather-palette-01",
+      "step": "palette-restored",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-01/captures/palette-restored/screen.indexed",
+        "sha256": "02c35cfa7fc97adb07497e8803e32c16622464bc154c0e453deb788fb5879661"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-01/captures/palette-restored/screen.rgba",
+        "sha256": "d5ae02322e450a4da748819c8e8b23c0085507166affe8a8d311358e709910e7"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-01/captures/palette-restored/report.json",
+        "sha256": "69e12864b54e80fde94a1e4fabb93896dcba8e46c95bafd19b874d62c6d3f8d2"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-frozen-weather-palette-02",
+      "step": "palette-clear",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-02/captures/palette-clear/screen.indexed",
+        "sha256": "02c35cfa7fc97adb07497e8803e32c16622464bc154c0e453deb788fb5879661"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-02/captures/palette-clear/screen.rgba",
+        "sha256": "d5ae02322e450a4da748819c8e8b23c0085507166affe8a8d311358e709910e7"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-02/captures/palette-clear/report.json",
+        "sha256": "055ce6e8ed7c6c5de1a99cad93694f77ba4f8d649398de67ed7881c512c4d5d4"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-frozen-weather-palette-02",
+      "step": "palette-gloom-1",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-02/captures/palette-gloom-1/screen.indexed",
+        "sha256": "7677d69ed6b46b50995e67e39df063e18182776b690267d5d9bc5cb80781d67a"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-02/captures/palette-gloom-1/screen.rgba",
+        "sha256": "6c30d1fac0d5edbf3903014b619df5de850574542332e77293365a392e25a1c9"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-02/captures/palette-gloom-1/report.json",
+        "sha256": "7b9591a73a9d592115b86cb883fe42e5ccc9072306b145f7464145b0cac425c7"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-frozen-weather-palette-02",
+      "step": "palette-gloom-2",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-02/captures/palette-gloom-2/screen.indexed",
+        "sha256": "356675dc0cb2738400a0c548593b2bff47647ecd5915797e60a61acd50a8fe54"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-02/captures/palette-gloom-2/screen.rgba",
+        "sha256": "d83f1ae05903fd6cf44b2678a9a218b780c4c712b45dae701f098a4677a1d892"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-02/captures/palette-gloom-2/report.json",
+        "sha256": "378d812645f1e178817037e3670fd8e55f8fff238beb6df3384896f18236cb45"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-frozen-weather-palette-02",
+      "step": "palette-lightning",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-02/captures/palette-lightning/screen.indexed",
+        "sha256": "356675dc0cb2738400a0c548593b2bff47647ecd5915797e60a61acd50a8fe54"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-02/captures/palette-lightning/screen.rgba",
+        "sha256": "e1470043dbacf011a8ac1d5a8932b788a54b64ec96961320972a30394f4ee014"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-02/captures/palette-lightning/report.json",
+        "sha256": "98aa672ee900c4c5239513acb4dd93ea99fdb6d5f7565cae28742d59bd0ea7d1"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-frozen-weather-palette-02",
+      "step": "palette-lightning-recovered",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-02/captures/palette-lightning-recovered/screen.indexed",
+        "sha256": "356675dc0cb2738400a0c548593b2bff47647ecd5915797e60a61acd50a8fe54"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-02/captures/palette-lightning-recovered/screen.rgba",
+        "sha256": "d83f1ae05903fd6cf44b2678a9a218b780c4c712b45dae701f098a4677a1d892"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-02/captures/palette-lightning-recovered/report.json",
+        "sha256": "d817b537f93f7bd4f51b1292a3096bf5a78cbbb5e255fc872cd8679722380552"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-frozen-weather-palette-02",
+      "step": "palette-restored",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-02/captures/palette-restored/screen.indexed",
+        "sha256": "02c35cfa7fc97adb07497e8803e32c16622464bc154c0e453deb788fb5879661"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-02/captures/palette-restored/screen.rgba",
+        "sha256": "d5ae02322e450a4da748819c8e8b23c0085507166affe8a8d311358e709910e7"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-frozen-weather-palette-02/captures/palette-restored/report.json",
+        "sha256": "12ee989b867ef4e900b980c4e7ee32fa47a4178d24f5a2cb1307b5a01778de5f"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-current-weather-palette-01",
+      "step": "palette-clear",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-01/captures/palette-clear/screen.indexed",
+        "sha256": "02c35cfa7fc97adb07497e8803e32c16622464bc154c0e453deb788fb5879661"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-01/captures/palette-clear/screen.rgba",
+        "sha256": "d5ae02322e450a4da748819c8e8b23c0085507166affe8a8d311358e709910e7"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-01/captures/palette-clear/report.json",
+        "sha256": "0fee0a549dee2af87bb2387d628a91917763e7b8b96b418dddab0150f412c0e8"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-current-weather-palette-01",
+      "step": "palette-gloom-1",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-01/captures/palette-gloom-1/screen.indexed",
+        "sha256": "7677d69ed6b46b50995e67e39df063e18182776b690267d5d9bc5cb80781d67a"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-01/captures/palette-gloom-1/screen.rgba",
+        "sha256": "6c30d1fac0d5edbf3903014b619df5de850574542332e77293365a392e25a1c9"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-01/captures/palette-gloom-1/report.json",
+        "sha256": "0728ce3a5e9fd1929d4d2ab5de1a26976916a8a48f13b1f2cd0430c1e76cdda2"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-current-weather-palette-01",
+      "step": "palette-gloom-2",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-01/captures/palette-gloom-2/screen.indexed",
+        "sha256": "356675dc0cb2738400a0c548593b2bff47647ecd5915797e60a61acd50a8fe54"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-01/captures/palette-gloom-2/screen.rgba",
+        "sha256": "d83f1ae05903fd6cf44b2678a9a218b780c4c712b45dae701f098a4677a1d892"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-01/captures/palette-gloom-2/report.json",
+        "sha256": "cd1216ddb62bd0695ff76f2e5c06b96b34e40ac2eea8f8a1bc6453533a79070d"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-current-weather-palette-01",
+      "step": "palette-lightning",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-01/captures/palette-lightning/screen.indexed",
+        "sha256": "356675dc0cb2738400a0c548593b2bff47647ecd5915797e60a61acd50a8fe54"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-01/captures/palette-lightning/screen.rgba",
+        "sha256": "e1470043dbacf011a8ac1d5a8932b788a54b64ec96961320972a30394f4ee014"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-01/captures/palette-lightning/report.json",
+        "sha256": "ac8a3d483b50014ab4450913ca5a63358d8f4a0506a442b802e91ed87f262509"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-current-weather-palette-01",
+      "step": "palette-lightning-recovered",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-01/captures/palette-lightning-recovered/screen.indexed",
+        "sha256": "356675dc0cb2738400a0c548593b2bff47647ecd5915797e60a61acd50a8fe54"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-01/captures/palette-lightning-recovered/screen.rgba",
+        "sha256": "d83f1ae05903fd6cf44b2678a9a218b780c4c712b45dae701f098a4677a1d892"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-01/captures/palette-lightning-recovered/report.json",
+        "sha256": "153e56f3c3ce62549384bf488a4bd73fa08c9a8e47f54f4e4eb47772ac950bf4"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-current-weather-palette-01",
+      "step": "palette-restored",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-01/captures/palette-restored/screen.indexed",
+        "sha256": "02c35cfa7fc97adb07497e8803e32c16622464bc154c0e453deb788fb5879661"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-01/captures/palette-restored/screen.rgba",
+        "sha256": "d5ae02322e450a4da748819c8e8b23c0085507166affe8a8d311358e709910e7"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-01/captures/palette-restored/report.json",
+        "sha256": "69e12864b54e80fde94a1e4fabb93896dcba8e46c95bafd19b874d62c6d3f8d2"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-current-weather-palette-02",
+      "step": "palette-clear",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-02/captures/palette-clear/screen.indexed",
+        "sha256": "02c35cfa7fc97adb07497e8803e32c16622464bc154c0e453deb788fb5879661"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-02/captures/palette-clear/screen.rgba",
+        "sha256": "d5ae02322e450a4da748819c8e8b23c0085507166affe8a8d311358e709910e7"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-02/captures/palette-clear/report.json",
+        "sha256": "0fee0a549dee2af87bb2387d628a91917763e7b8b96b418dddab0150f412c0e8"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-current-weather-palette-02",
+      "step": "palette-gloom-1",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-02/captures/palette-gloom-1/screen.indexed",
+        "sha256": "7677d69ed6b46b50995e67e39df063e18182776b690267d5d9bc5cb80781d67a"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-02/captures/palette-gloom-1/screen.rgba",
+        "sha256": "6c30d1fac0d5edbf3903014b619df5de850574542332e77293365a392e25a1c9"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-02/captures/palette-gloom-1/report.json",
+        "sha256": "0728ce3a5e9fd1929d4d2ab5de1a26976916a8a48f13b1f2cd0430c1e76cdda2"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-current-weather-palette-02",
+      "step": "palette-gloom-2",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-02/captures/palette-gloom-2/screen.indexed",
+        "sha256": "356675dc0cb2738400a0c548593b2bff47647ecd5915797e60a61acd50a8fe54"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-02/captures/palette-gloom-2/screen.rgba",
+        "sha256": "d83f1ae05903fd6cf44b2678a9a218b780c4c712b45dae701f098a4677a1d892"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-02/captures/palette-gloom-2/report.json",
+        "sha256": "cd1216ddb62bd0695ff76f2e5c06b96b34e40ac2eea8f8a1bc6453533a79070d"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-current-weather-palette-02",
+      "step": "palette-lightning",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-02/captures/palette-lightning/screen.indexed",
+        "sha256": "356675dc0cb2738400a0c548593b2bff47647ecd5915797e60a61acd50a8fe54"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-02/captures/palette-lightning/screen.rgba",
+        "sha256": "e1470043dbacf011a8ac1d5a8932b788a54b64ec96961320972a30394f4ee014"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-02/captures/palette-lightning/report.json",
+        "sha256": "ac8a3d483b50014ab4450913ca5a63358d8f4a0506a442b802e91ed87f262509"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-current-weather-palette-02",
+      "step": "palette-lightning-recovered",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-02/captures/palette-lightning-recovered/screen.indexed",
+        "sha256": "356675dc0cb2738400a0c548593b2bff47647ecd5915797e60a61acd50a8fe54"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-02/captures/palette-lightning-recovered/screen.rgba",
+        "sha256": "d83f1ae05903fd6cf44b2678a9a218b780c4c712b45dae701f098a4677a1d892"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-02/captures/palette-lightning-recovered/report.json",
+        "sha256": "153e56f3c3ce62549384bf488a4bd73fa08c9a8e47f54f4e4eb47772ac950bf4"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-current-weather-palette-02",
+      "step": "palette-restored",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-02/captures/palette-restored/screen.indexed",
+        "sha256": "02c35cfa7fc97adb07497e8803e32c16622464bc154c0e453deb788fb5879661"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-02/captures/palette-restored/screen.rgba",
+        "sha256": "d5ae02322e450a4da748819c8e8b23c0085507166affe8a8d311358e709910e7"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-current-weather-palette-02/captures/palette-restored/report.json",
+        "sha256": "69e12864b54e80fde94a1e4fabb93896dcba8e46c95bafd19b874d62c6d3f8d2"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-vulkan-weather-palette-01",
+      "step": "palette-clear",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/captures/palette-clear/screen.indexed",
+        "sha256": "02c35cfa7fc97adb07497e8803e32c16622464bc154c0e453deb788fb5879661"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/captures/palette-clear/screen.rgba",
+        "sha256": "d5ae02322e450a4da748819c8e8b23c0085507166affe8a8d311358e709910e7"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/captures/palette-clear/report.json",
+        "sha256": "b677eb58e48387f259592ce9980abbd84d80fd204938f0d2ccefc56c8dd7f41c"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-vulkan-weather-palette-01",
+      "step": "palette-gloom-1",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/captures/palette-gloom-1/screen.indexed",
+        "sha256": "7677d69ed6b46b50995e67e39df063e18182776b690267d5d9bc5cb80781d67a"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/captures/palette-gloom-1/screen.rgba",
+        "sha256": "6c30d1fac0d5edbf3903014b619df5de850574542332e77293365a392e25a1c9"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/captures/palette-gloom-1/report.json",
+        "sha256": "97aea9c1f96b09c433ea6706a820f4987cbdf978bed5db8e009a45579f41c863"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-vulkan-weather-palette-01",
+      "step": "palette-gloom-2",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/captures/palette-gloom-2/screen.indexed",
+        "sha256": "356675dc0cb2738400a0c548593b2bff47647ecd5915797e60a61acd50a8fe54"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/captures/palette-gloom-2/screen.rgba",
+        "sha256": "d83f1ae05903fd6cf44b2678a9a218b780c4c712b45dae701f098a4677a1d892"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/captures/palette-gloom-2/report.json",
+        "sha256": "e14e1d60a8eb56680af0aacbf21779bb34349ec4150393afe9ec2bbfc8335297"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-vulkan-weather-palette-01",
+      "step": "palette-lightning",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/captures/palette-lightning/screen.indexed",
+        "sha256": "356675dc0cb2738400a0c548593b2bff47647ecd5915797e60a61acd50a8fe54"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/captures/palette-lightning/screen.rgba",
+        "sha256": "e1470043dbacf011a8ac1d5a8932b788a54b64ec96961320972a30394f4ee014"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/captures/palette-lightning/report.json",
+        "sha256": "d494359595ace33a5fdcfea2f25ca9db0ea8126858397d1f6fd0269ea2cefa11"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-vulkan-weather-palette-01",
+      "step": "palette-lightning-recovered",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/captures/palette-lightning-recovered/screen.indexed",
+        "sha256": "356675dc0cb2738400a0c548593b2bff47647ecd5915797e60a61acd50a8fe54"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/captures/palette-lightning-recovered/screen.rgba",
+        "sha256": "d83f1ae05903fd6cf44b2678a9a218b780c4c712b45dae701f098a4677a1d892"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/captures/palette-lightning-recovered/report.json",
+        "sha256": "d463917ff0a731d0a95860e5bea9b9991032141cadf9d611421d3e7bdbd79a94"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-vulkan-weather-palette-01",
+      "step": "palette-restored",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/captures/palette-restored/screen.indexed",
+        "sha256": "02c35cfa7fc97adb07497e8803e32c16622464bc154c0e453deb788fb5879661"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/captures/palette-restored/screen.rgba",
+        "sha256": "d5ae02322e450a4da748819c8e8b23c0085507166affe8a8d311358e709910e7"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-01/captures/palette-restored/report.json",
+        "sha256": "fbd82f73ff0d7fd45446ced9dab7e22657866b6187ec05eabee9703b351775b9"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-vulkan-weather-palette-02",
+      "step": "palette-clear",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-02/captures/palette-clear/screen.indexed",
+        "sha256": "02c35cfa7fc97adb07497e8803e32c16622464bc154c0e453deb788fb5879661"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-02/captures/palette-clear/screen.rgba",
+        "sha256": "d5ae02322e450a4da748819c8e8b23c0085507166affe8a8d311358e709910e7"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-02/captures/palette-clear/report.json",
+        "sha256": "b677eb58e48387f259592ce9980abbd84d80fd204938f0d2ccefc56c8dd7f41c"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-vulkan-weather-palette-02",
+      "step": "palette-gloom-1",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-02/captures/palette-gloom-1/screen.indexed",
+        "sha256": "7677d69ed6b46b50995e67e39df063e18182776b690267d5d9bc5cb80781d67a"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-02/captures/palette-gloom-1/screen.rgba",
+        "sha256": "6c30d1fac0d5edbf3903014b619df5de850574542332e77293365a392e25a1c9"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-02/captures/palette-gloom-1/report.json",
+        "sha256": "97aea9c1f96b09c433ea6706a820f4987cbdf978bed5db8e009a45579f41c863"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-vulkan-weather-palette-02",
+      "step": "palette-gloom-2",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-02/captures/palette-gloom-2/screen.indexed",
+        "sha256": "356675dc0cb2738400a0c548593b2bff47647ecd5915797e60a61acd50a8fe54"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-02/captures/palette-gloom-2/screen.rgba",
+        "sha256": "d83f1ae05903fd6cf44b2678a9a218b780c4c712b45dae701f098a4677a1d892"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-02/captures/palette-gloom-2/report.json",
+        "sha256": "e14e1d60a8eb56680af0aacbf21779bb34349ec4150393afe9ec2bbfc8335297"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-vulkan-weather-palette-02",
+      "step": "palette-lightning",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-02/captures/palette-lightning/screen.indexed",
+        "sha256": "356675dc0cb2738400a0c548593b2bff47647ecd5915797e60a61acd50a8fe54"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-02/captures/palette-lightning/screen.rgba",
+        "sha256": "e1470043dbacf011a8ac1d5a8932b788a54b64ec96961320972a30394f4ee014"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-02/captures/palette-lightning/report.json",
+        "sha256": "d494359595ace33a5fdcfea2f25ca9db0ea8126858397d1f6fd0269ea2cefa11"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-vulkan-weather-palette-02",
+      "step": "palette-lightning-recovered",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-02/captures/palette-lightning-recovered/screen.indexed",
+        "sha256": "356675dc0cb2738400a0c548593b2bff47647ecd5915797e60a61acd50a8fe54"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-02/captures/palette-lightning-recovered/screen.rgba",
+        "sha256": "d83f1ae05903fd6cf44b2678a9a218b780c4c712b45dae701f098a4677a1d892"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-02/captures/palette-lightning-recovered/report.json",
+        "sha256": "d463917ff0a731d0a95860e5bea9b9991032141cadf9d611421d3e7bdbd79a94"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    },
+    {
+      "run": "ui-vulkan-weather-palette-02",
+      "step": "palette-restored",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-02/captures/palette-restored/screen.indexed",
+        "sha256": "02c35cfa7fc97adb07497e8803e32c16622464bc154c0e453deb788fb5879661"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-02/captures/palette-restored/screen.rgba",
+        "sha256": "d5ae02322e450a4da748819c8e8b23c0085507166affe8a8d311358e709910e7"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-vulkan-weather-palette-02/captures/palette-restored/report.json",
+        "sha256": "fbd82f73ff0d7fd45446ced9dab7e22657866b6187ec05eabee9703b351775b9"
+      },
+      "equalToFrozen01": true,
+      "commonWeatherMetadataEqual": true
+    }
+  ],
+  "remainingCoverage": [
+    "Natural unpaused weather progression and stochastic lightning scheduling",
+    "Visible water waves and sparkles or animated water palette phases",
+    "Weather combined with LightFX, including startup-enabled temporal adaptation",
+    "Weather combined with native world-surface admission",
+    "Other ticks, cameras, zooms, resolutions, scale qualities, window placements and GPUs"
+  ]
+}

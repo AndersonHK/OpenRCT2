@@ -1,0 +1,815 @@
+{
+  "schema": 1,
+  "referenceRevision": "9a092745f38a714cf33629aaa005d078d473e48b",
+  "policy": "Exact pixels by default. Every divergence requires an agent's recorded manual visual inspection of reference, Vulkan and difference samples. A correction requires a root-cause explanation, bounded fixture/state, corrected expected image hash and review; no automatic tolerance, global masks or unreviewed rebaselining.",
+  "exceptions": [
+    {
+      "id": "PUBLICATION-001-stale-synchronous-entity",
+      "fixture": "MainPublication_EntityMove",
+      "fixtureVersion": 1,
+      "date": "2026-09-19",
+      "reviewer": "/root/decode_assets",
+      "classification": "Confirmed shared scene-publication defect affecting software and Vulkan; corrected live-state reference",
+      "status": "closed: exact full-frame corrected-live indexed/RGBA match in run-09, manually inspected",
+      "evidence": "docs/vulkan-publication-visual-review.md",
+      "rootCause": "Synchronous map publication paired current map state with entity storage prepared before a visible balloon movement. Main software used the same shared publication path.",
+      "scope": {
+        "park": "small_park_with_ferris_wheel.sv6",
+        "tick": 1215,
+        "extent": [
+          640,
+          480
+        ],
+        "rotation": 0,
+        "zoom": 0,
+        "viewPosition": [
+          -544,
+          -160
+        ],
+        "entity": "red balloon",
+        "before": [
+          336,
+          112,
+          240
+        ],
+        "after": [
+          400,
+          176,
+          240
+        ],
+        "trigger": "completed old-state entity job followed by synchronous transient-state publication"
+      },
+      "baselineDifferentPixels": 154,
+      "baselineBoundsInclusive": [
+        316,
+        124,
+        323,
+        206
+      ],
+      "acceptance": "The complete result must equal the previously frozen live-state reference hashes below, with zero differing pixels. No region masks, tolerances, other fixtures or arbitrary entity lag are exempted.",
+      "correctedExpected": {
+        "indexed": {
+          "path": "obj/vulkan-parity/run-08/samples/MainPublication_EntityMove/indexed/live.bin",
+          "sha256": "721759bdb37b9c9fdf4f839a5ad63d1ce09889dac34f668caa32a4049d5bb100"
+        },
+        "rgba": {
+          "path": "obj/vulkan-parity/run-08/samples/MainPublication_EntityMove/rgba/live.bin",
+          "sha256": "2e12fa5c738829f5718c680d2a33cb2a7aa4fec81b262122d2a81f2661cc0dd4"
+        }
+      },
+      "baselineSamples": [
+        {
+          "path": "obj/vulkan-parity/run-08/samples/MainPublication_EntityMove/indexed/live.png",
+          "sha256": "c3eb96ee2e6dba034ebc790b02ccbba5f2dc0bc0b0dc089ad60986163b1cc9e0"
+        },
+        {
+          "path": "obj/vulkan-parity/run-08/samples/MainPublication_EntityMove/indexed/published.png",
+          "sha256": "f9282355766a82fc389dfc3d5027c3ffe9291a28acf1c3e71681ba07739137ab"
+        },
+        {
+          "path": "obj/vulkan-parity/run-08/samples/MainPublication_EntityMove/indexed/diff.png",
+          "sha256": "4a08462cc37b398b7cf83cf815aebb34e1d7f69b9edabbd32de83fb065e95bb0"
+        },
+        {
+          "path": "obj/vulkan-parity/run-08/samples/MainPublication_EntityMove/rgba/live.png",
+          "sha256": "c3eb96ee2e6dba034ebc790b02ccbba5f2dc0bc0b0dc089ad60986163b1cc9e0"
+        },
+        {
+          "path": "obj/vulkan-parity/run-08/samples/MainPublication_EntityMove/rgba/published.png",
+          "sha256": "f9282355766a82fc389dfc3d5027c3ffe9291a28acf1c3e71681ba07739137ab"
+        },
+        {
+          "path": "obj/vulkan-parity/run-08/samples/MainPublication_EntityMove/rgba/diff.png",
+          "sha256": "4a08462cc37b398b7cf83cf815aebb34e1d7f69b9edabbd32de83fb065e95bb0"
+        }
+      ],
+      "verificationRun": "obj/vulkan-parity/run-09",
+      "verificationDifferentPixels": 0,
+      "verificationSamples": [
+        {
+          "path": "obj/vulkan-parity/run-09/samples/MainPublication_EntityMove/indexed/live.png",
+          "sha256": "c3eb96ee2e6dba034ebc790b02ccbba5f2dc0bc0b0dc089ad60986163b1cc9e0"
+        },
+        {
+          "path": "obj/vulkan-parity/run-09/samples/MainPublication_EntityMove/indexed/published.png",
+          "sha256": "c3eb96ee2e6dba034ebc790b02ccbba5f2dc0bc0b0dc089ad60986163b1cc9e0"
+        },
+        {
+          "path": "obj/vulkan-parity/run-09/samples/MainPublication_EntityMove/indexed/diff.png",
+          "sha256": "b03f807fccd8db3a0bc49d06a77bc1864e190540f44e14d13258d661a4843038"
+        },
+        {
+          "path": "obj/vulkan-parity/run-09/samples/MainPublication_EntityMove/rgba/live.png",
+          "sha256": "c3eb96ee2e6dba034ebc790b02ccbba5f2dc0bc0b0dc089ad60986163b1cc9e0"
+        },
+        {
+          "path": "obj/vulkan-parity/run-09/samples/MainPublication_EntityMove/rgba/published.png",
+          "sha256": "c3eb96ee2e6dba034ebc790b02ccbba5f2dc0bc0b0dc089ad60986163b1cc9e0"
+        },
+        {
+          "path": "obj/vulkan-parity/run-09/samples/MainPublication_EntityMove/rgba/diff.png",
+          "sha256": "b03f807fccd8db3a0bc49d06a77bc1864e190540f44e14d13258d661a4843038"
+        }
+      ],
+      "limits": "Both diagnostic images use frozen X8 rasterization; this does not qualify main Vulkan UI/presentation or justify a separate retained-snapshot pixel exception."
+    }
+  ],
+  "visualReviews": [
+    {
+      "id": "PRIMITIVE-001-Rectangles",
+      "fixture": "Rectangles",
+      "reviewer": "/root/primitive_parity",
+      "date": "2026-09-19",
+      "evidence": "docs/vulkan-primitive-visual-review.md",
+      "classification": "Vulkan bug; no software exception",
+      "status": "closed: GPU fix, exact run-02 indexed/RGBA rerun and agent visual confirmation",
+      "samples": [
+        {
+          "path": "obj/vulkan-parity/run-01/samples/Rectangles/indexed/software.png",
+          "sha256": "e663d567590c550b82f4b16282eaccf30903b2258f2df1d00feb455714fb0d6a"
+        },
+        {
+          "path": "obj/vulkan-parity/run-01/samples/Rectangles/indexed/vulkan.png",
+          "sha256": "5310884eb41b6bf2f617c881268e4ae7b97d28b02d1929869e1908e4a83e49ee"
+        },
+        {
+          "path": "obj/vulkan-parity/run-01/samples/Rectangles/indexed/diff.png",
+          "sha256": "474bdcf5d70ca70c5bcbf42848a2055b072bbb7c9e1aa5ee83abd3dffaf8aef9"
+        },
+        {
+          "path": "obj/vulkan-parity/run-01/samples/Rectangles/rgba/software.png",
+          "sha256": "e663d567590c550b82f4b16282eaccf30903b2258f2df1d00feb455714fb0d6a"
+        },
+        {
+          "path": "obj/vulkan-parity/run-01/samples/Rectangles/rgba/vulkan.png",
+          "sha256": "5310884eb41b6bf2f617c881268e4ae7b97d28b02d1929869e1908e4a83e49ee"
+        },
+        {
+          "path": "obj/vulkan-parity/run-01/samples/Rectangles/rgba/diff.png",
+          "sha256": "474bdcf5d70ca70c5bcbf42848a2055b072bbb7c9e1aa5ee83abd3dffaf8aef9"
+        }
+      ],
+      "verificationRun": "obj/vulkan-parity/run-02",
+      "verificationDifferentPixels": 0
+    },
+    {
+      "id": "PRIMITIVE-001-Lines",
+      "fixture": "Lines",
+      "reviewer": "/root/primitive_parity",
+      "date": "2026-09-19",
+      "evidence": "docs/vulkan-primitive-visual-review.md",
+      "classification": "Vulkan bug; no software exception",
+      "status": "closed: GPU fix, exact run-02 indexed/RGBA rerun and agent visual confirmation",
+      "samples": [
+        {
+          "path": "obj/vulkan-parity/run-01/samples/Lines/indexed/software.png",
+          "sha256": "f22479ee519fe1d0e859a2a05e10322bb769d737491a8bb3088b85e6ff17819b"
+        },
+        {
+          "path": "obj/vulkan-parity/run-01/samples/Lines/indexed/vulkan.png",
+          "sha256": "d134ea840f026f0e38f917b62325c969d9e812c193d3881100ee9be90b48c1de"
+        },
+        {
+          "path": "obj/vulkan-parity/run-01/samples/Lines/indexed/diff.png",
+          "sha256": "7fe15d997a51d21a1890581df3e6b41801105d05b2a7c7fa136717628b8fbe47"
+        },
+        {
+          "path": "obj/vulkan-parity/run-01/samples/Lines/rgba/software.png",
+          "sha256": "f22479ee519fe1d0e859a2a05e10322bb769d737491a8bb3088b85e6ff17819b"
+        },
+        {
+          "path": "obj/vulkan-parity/run-01/samples/Lines/rgba/vulkan.png",
+          "sha256": "d134ea840f026f0e38f917b62325c969d9e812c193d3881100ee9be90b48c1de"
+        },
+        {
+          "path": "obj/vulkan-parity/run-01/samples/Lines/rgba/diff.png",
+          "sha256": "7fe15d997a51d21a1890581df3e6b41801105d05b2a7c7fa136717628b8fbe47"
+        }
+      ],
+      "verificationRun": "obj/vulkan-parity/run-02",
+      "verificationDifferentPixels": 0
+    },
+    {
+      "id": "SCALING-001-LinearInteger",
+      "fixture": "LinearInteger",
+      "reviewer": "/root/screen_capture",
+      "date": "2026-09-19",
+      "evidence": "docs/vulkan-scaling-visual-review.md",
+      "classification": "Vulkan bug; no software exception",
+      "status": "closed: GPU fix, exact run-04 rerun and agent visual confirmation",
+      "samples": [
+        {
+          "path": "obj/vulkan-parity/run-02/samples/Scaling/LinearInteger/physical/diff.png",
+          "sha256": "ae591fb0dee3ca2a9e0a50e13c14b9e59e37a3f2961ca9b7fc0f18d415ba8ded"
+        },
+        {
+          "path": "obj/vulkan-parity/run-02/samples/Scaling/LinearInteger/physical/software.png",
+          "sha256": "d9adcb969574935bdd66f10f45d1b0c058bdd6e1baf37b1415105e59ac6a5805"
+        },
+        {
+          "path": "obj/vulkan-parity/run-02/samples/Scaling/LinearInteger/physical/vulkan.png",
+          "sha256": "68a5c57f7b921207f2c079087c66542c31bf9cf435b58bc868f9644ec83b4811"
+        }
+      ],
+      "verificationRun": "obj/vulkan-parity/run-04",
+      "verificationDifferentPixels": 0
+    },
+    {
+      "id": "SCALING-001-LinearFractional",
+      "fixture": "LinearFractional",
+      "reviewer": "/root/screen_capture",
+      "date": "2026-09-19",
+      "evidence": "docs/vulkan-scaling-visual-review.md",
+      "classification": "Vulkan bug; no software exception",
+      "status": "closed: GPU fix, exact run-04 rerun and agent visual confirmation",
+      "samples": [
+        {
+          "path": "obj/vulkan-parity/run-02/samples/Scaling/LinearFractional/physical/diff.png",
+          "sha256": "1d68861d33c359491c805b88a68c60ec6b9d4c28244c306c2ad4b5f18115f50e"
+        },
+        {
+          "path": "obj/vulkan-parity/run-02/samples/Scaling/LinearFractional/physical/software.png",
+          "sha256": "b62460dd37a10ae9aae169ed2538c3b5f0d36dad933bca229a35e670380e3ab9"
+        },
+        {
+          "path": "obj/vulkan-parity/run-02/samples/Scaling/LinearFractional/physical/vulkan.png",
+          "sha256": "2eb8df39e0f36b3a068d7ee6ec7a7b56a2041bb53c81aa1c5f2d87f3f73692a3"
+        }
+      ],
+      "verificationRun": "obj/vulkan-parity/run-04",
+      "verificationDifferentPixels": 0
+    },
+    {
+      "id": "SCALING-001-SmoothNearestFractional",
+      "fixture": "SmoothNearestFractional",
+      "reviewer": "/root/screen_capture",
+      "date": "2026-09-19",
+      "evidence": "docs/vulkan-scaling-visual-review.md",
+      "classification": "Vulkan bug; no software exception",
+      "status": "closed: GPU fix, exact run-04 rerun and agent visual confirmation",
+      "samples": [
+        {
+          "path": "obj/vulkan-parity/run-02/samples/Scaling/SmoothNearestFractional/physical/diff.png",
+          "sha256": "1aaeb32151858144745e9c3273526d36615e1d948f9779d2d984ebc7b7d026ef"
+        },
+        {
+          "path": "obj/vulkan-parity/run-02/samples/Scaling/SmoothNearestFractional/physical/software.png",
+          "sha256": "6d5337ddb478a04e6f556902ae76e6e79a7c8df17bb50d108db35c38f17490fc"
+        },
+        {
+          "path": "obj/vulkan-parity/run-02/samples/Scaling/SmoothNearestFractional/physical/vulkan.png",
+          "sha256": "2eb8df39e0f36b3a068d7ee6ec7a7b56a2041bb53c81aa1c5f2d87f3f73692a3"
+        }
+      ],
+      "verificationRun": "obj/vulkan-parity/run-04",
+      "verificationDifferentPixels": 0
+    },
+    {
+      "id": "SCENE-001-SmallPark_R0_Z1",
+      "fixture": "SmallPark_R0_Z1",
+      "reviewer": "/root/decode_assets",
+      "date": "2026-09-19",
+      "evidence": "docs/vulkan-scene-visual-review.md",
+      "classification": "Vulkan bug; no software exception",
+      "status": "closed: GPU fix, exact run-04 rerun and agent visual confirmation",
+      "samples": [
+        {
+          "path": "obj/vulkan-parity/run-03/samples/SmallPark_R0_Z1/indexed/diff.png",
+          "sha256": "6df19d27cfceee624174b6210186c329150ecd83a868312a04708d8b51b8b65c"
+        },
+        {
+          "path": "obj/vulkan-parity/run-03/samples/SmallPark_R0_Z1/indexed/software.png",
+          "sha256": "6226b970cd5306c505b39375115c8580a23c2d71be28dd184187f285cfd9cf35"
+        },
+        {
+          "path": "obj/vulkan-parity/run-03/samples/SmallPark_R0_Z1/indexed/vulkan.png",
+          "sha256": "22f50e22ae765560864c04e571b2a413ad6d9d85f043d832c2b6fc2f161242a6"
+        },
+        {
+          "path": "obj/vulkan-parity/run-03/samples/SmallPark_R0_Z1/rgba/diff.png",
+          "sha256": "6df19d27cfceee624174b6210186c329150ecd83a868312a04708d8b51b8b65c"
+        },
+        {
+          "path": "obj/vulkan-parity/run-03/samples/SmallPark_R0_Z1/rgba/software.png",
+          "sha256": "6226b970cd5306c505b39375115c8580a23c2d71be28dd184187f285cfd9cf35"
+        },
+        {
+          "path": "obj/vulkan-parity/run-03/samples/SmallPark_R0_Z1/rgba/vulkan.png",
+          "sha256": "22f50e22ae765560864c04e571b2a413ad6d9d85f043d832c2b6fc2f161242a6"
+        }
+      ],
+      "verificationRun": "obj/vulkan-parity/run-04",
+      "verificationDifferentPixels": 0
+    },
+    {
+      "id": "SCENE-001-SmallPark_R1_Z1",
+      "fixture": "SmallPark_R1_Z1",
+      "reviewer": "/root/decode_assets",
+      "date": "2026-09-19",
+      "evidence": "docs/vulkan-scene-visual-review.md",
+      "classification": "Vulkan bug; no software exception",
+      "status": "closed: GPU fix, exact run-04 rerun and agent visual confirmation",
+      "samples": [
+        {
+          "path": "obj/vulkan-parity/run-03/samples/SmallPark_R1_Z1/indexed/diff.png",
+          "sha256": "3c098c4bd8c416378fb7ad223a33ff7e24a088064b91834d5925436f6567cac5"
+        },
+        {
+          "path": "obj/vulkan-parity/run-03/samples/SmallPark_R1_Z1/indexed/software.png",
+          "sha256": "0fa678af5fafd11798afcf67e0966efc404d779efa4c556fbd009ef2d5bab99e"
+        },
+        {
+          "path": "obj/vulkan-parity/run-03/samples/SmallPark_R1_Z1/indexed/vulkan.png",
+          "sha256": "cc4dc9ca23df040ac430df78192007503bb1f5083d666f73d6c1123d8e7ecccb"
+        },
+        {
+          "path": "obj/vulkan-parity/run-03/samples/SmallPark_R1_Z1/rgba/diff.png",
+          "sha256": "3c098c4bd8c416378fb7ad223a33ff7e24a088064b91834d5925436f6567cac5"
+        },
+        {
+          "path": "obj/vulkan-parity/run-03/samples/SmallPark_R1_Z1/rgba/software.png",
+          "sha256": "0fa678af5fafd11798afcf67e0966efc404d779efa4c556fbd009ef2d5bab99e"
+        },
+        {
+          "path": "obj/vulkan-parity/run-03/samples/SmallPark_R1_Z1/rgba/vulkan.png",
+          "sha256": "cc4dc9ca23df040ac430df78192007503bb1f5083d666f73d6c1123d8e7ecccb"
+        }
+      ],
+      "verificationRun": "obj/vulkan-parity/run-04",
+      "verificationDifferentPixels": 0
+    },
+    {
+      "id": "SCENE-001-SmallPark_R2_Z1",
+      "fixture": "SmallPark_R2_Z1",
+      "reviewer": "/root/decode_assets",
+      "date": "2026-09-19",
+      "evidence": "docs/vulkan-scene-visual-review.md",
+      "classification": "Vulkan bug; no software exception",
+      "status": "closed: GPU fix, exact run-04 rerun and agent visual confirmation",
+      "samples": [
+        {
+          "path": "obj/vulkan-parity/run-03/samples/SmallPark_R2_Z1/indexed/diff.png",
+          "sha256": "938b3b3f6314c7e0a18e159f71e1dafd94f02262f784dc03143383f40af4987a"
+        },
+        {
+          "path": "obj/vulkan-parity/run-03/samples/SmallPark_R2_Z1/indexed/software.png",
+          "sha256": "96f6a0772452beb207dcd9c93b0b86b511da11cccf5c8291d0009bdd96b761fc"
+        },
+        {
+          "path": "obj/vulkan-parity/run-03/samples/SmallPark_R2_Z1/indexed/vulkan.png",
+          "sha256": "e9f380eb434b71050b7ba363198914aa458f5ad3bc2cee28ffe25ca0e485f6bf"
+        },
+        {
+          "path": "obj/vulkan-parity/run-03/samples/SmallPark_R2_Z1/rgba/diff.png",
+          "sha256": "938b3b3f6314c7e0a18e159f71e1dafd94f02262f784dc03143383f40af4987a"
+        },
+        {
+          "path": "obj/vulkan-parity/run-03/samples/SmallPark_R2_Z1/rgba/software.png",
+          "sha256": "96f6a0772452beb207dcd9c93b0b86b511da11cccf5c8291d0009bdd96b761fc"
+        },
+        {
+          "path": "obj/vulkan-parity/run-03/samples/SmallPark_R2_Z1/rgba/vulkan.png",
+          "sha256": "e9f380eb434b71050b7ba363198914aa458f5ad3bc2cee28ffe25ca0e485f6bf"
+        }
+      ],
+      "verificationRun": "obj/vulkan-parity/run-04",
+      "verificationDifferentPixels": 0
+    },
+    {
+      "id": "SCENE-001-SmallPark_R3_Z1",
+      "fixture": "SmallPark_R3_Z1",
+      "reviewer": "/root/decode_assets",
+      "date": "2026-09-19",
+      "evidence": "docs/vulkan-scene-visual-review.md",
+      "classification": "Vulkan bug; no software exception",
+      "status": "closed: GPU fix, exact run-04 rerun and agent visual confirmation",
+      "samples": [
+        {
+          "path": "obj/vulkan-parity/run-03/samples/SmallPark_R3_Z1/indexed/diff.png",
+          "sha256": "31769e51ea550c6647d354bfec96c6e4801e212d1c5ad43ffc3822c13b8afb00"
+        },
+        {
+          "path": "obj/vulkan-parity/run-03/samples/SmallPark_R3_Z1/indexed/software.png",
+          "sha256": "851aed94ff8c681b33666be3970d1b89b97bbe1deb4b48d4bc104039233c3f2f"
+        },
+        {
+          "path": "obj/vulkan-parity/run-03/samples/SmallPark_R3_Z1/indexed/vulkan.png",
+          "sha256": "92eeb4dc2594a5a4c8169ab85edecff03c73100dc58b5818513e057e43ed33e3"
+        },
+        {
+          "path": "obj/vulkan-parity/run-03/samples/SmallPark_R3_Z1/rgba/diff.png",
+          "sha256": "31769e51ea550c6647d354bfec96c6e4801e212d1c5ad43ffc3822c13b8afb00"
+        },
+        {
+          "path": "obj/vulkan-parity/run-03/samples/SmallPark_R3_Z1/rgba/software.png",
+          "sha256": "851aed94ff8c681b33666be3970d1b89b97bbe1deb4b48d4bc104039233c3f2f"
+        },
+        {
+          "path": "obj/vulkan-parity/run-03/samples/SmallPark_R3_Z1/rgba/vulkan.png",
+          "sha256": "92eeb4dc2594a5a4c8169ab85edecff03c73100dc58b5818513e057e43ed33e3"
+        }
+      ],
+      "verificationRun": "obj/vulkan-parity/run-04",
+      "verificationDifferentPixels": 0
+    },
+    {
+      "id": "PRIMITIVE-004-Masks",
+      "fixture": "Masks",
+      "reviewer": "/root/primitive_parity",
+      "date": "2026-09-19",
+      "evidence": "docs/vulkan-primitive-visual-review.md",
+      "classification": "Vulkan bug; no software exception",
+      "status": "closed: GPU fix, exact passing rerun and agent corrected-sample visual confirmation",
+      "samples": [
+        {
+          "path": "obj/vulkan-parity/run-04/samples/Masks/indexed/diff.png",
+          "sha256": "67c933f64e4e803dc3a6a6e44377ee70ac81c17ac28e811aee4e316e4341c3dd"
+        },
+        {
+          "path": "obj/vulkan-parity/run-04/samples/Masks/indexed/software.png",
+          "sha256": "c27acf1ab8e10ceaa15eda6ff6462d8a095c4bad3ab43dc4065313d406338896"
+        },
+        {
+          "path": "obj/vulkan-parity/run-04/samples/Masks/indexed/vulkan.png",
+          "sha256": "3a01fbdb6e490ff83bf7b3d7198ba7a33237069c17012740714a12565dacb939"
+        },
+        {
+          "path": "obj/vulkan-parity/run-04/samples/Masks/rgba/diff.png",
+          "sha256": "67c933f64e4e803dc3a6a6e44377ee70ac81c17ac28e811aee4e316e4341c3dd"
+        },
+        {
+          "path": "obj/vulkan-parity/run-04/samples/Masks/rgba/software.png",
+          "sha256": "c27acf1ab8e10ceaa15eda6ff6462d8a095c4bad3ab43dc4065313d406338896"
+        },
+        {
+          "path": "obj/vulkan-parity/run-04/samples/Masks/rgba/vulkan.png",
+          "sha256": "3a01fbdb6e490ff83bf7b3d7198ba7a33237069c17012740714a12565dacb939"
+        }
+      ],
+      "verificationRun": "obj/vulkan-parity/run-05",
+      "verificationDifferentPixels": 0
+    },
+    {
+      "id": "PRIMITIVE-004-MasksZoomIn",
+      "fixture": "MasksZoomIn",
+      "reviewer": "/root/primitive_parity",
+      "date": "2026-09-19",
+      "evidence": "docs/vulkan-primitive-visual-review.md",
+      "classification": "Vulkan bug; no software exception",
+      "status": "closed: GPU fix, exact passing rerun and agent corrected-sample visual confirmation",
+      "samples": [
+        {
+          "path": "obj/vulkan-parity/run-04/samples/MasksZoomIn/indexed/diff.png",
+          "sha256": "b6cc4707c71d5cf2bc1f7ac7cebef95c69550e595e6a0cd35774c47a5297c6dd"
+        },
+        {
+          "path": "obj/vulkan-parity/run-04/samples/MasksZoomIn/indexed/software.png",
+          "sha256": "d296c5836bc29cdbb60ccfc9f16127de354bee7734a6392d650b0d9b8e9685a5"
+        },
+        {
+          "path": "obj/vulkan-parity/run-04/samples/MasksZoomIn/indexed/vulkan.png",
+          "sha256": "44ce97a188ed9496b67aa8432f284bee01d6100e58a02b2343a02f3d8be52fff"
+        },
+        {
+          "path": "obj/vulkan-parity/run-04/samples/MasksZoomIn/rgba/diff.png",
+          "sha256": "b6cc4707c71d5cf2bc1f7ac7cebef95c69550e595e6a0cd35774c47a5297c6dd"
+        },
+        {
+          "path": "obj/vulkan-parity/run-04/samples/MasksZoomIn/rgba/software.png",
+          "sha256": "d296c5836bc29cdbb60ccfc9f16127de354bee7734a6392d650b0d9b8e9685a5"
+        },
+        {
+          "path": "obj/vulkan-parity/run-04/samples/MasksZoomIn/rgba/vulkan.png",
+          "sha256": "44ce97a188ed9496b67aa8432f284bee01d6100e58a02b2343a02f3d8be52fff"
+        }
+      ],
+      "verificationRun": "obj/vulkan-parity/run-05",
+      "verificationDifferentPixels": 0
+    },
+    {
+      "id": "PRIMITIVE-005-OpaqueZeroBitmapRaw",
+      "fixture": "OpaqueZeroBitmapRaw",
+      "reviewer": "/root/primitive_parity",
+      "date": "2026-09-19",
+      "evidence": "docs/vulkan-primitive-visual-review.md",
+      "classification": "Vulkan bug; no software exception",
+      "status": "closed: GPU fix, exact passing rerun and agent corrected-sample visual confirmation",
+      "samples": [
+        {
+          "path": "obj/vulkan-parity/run-05/samples/OpaqueZeroBitmapRaw/indexed/diff.png",
+          "sha256": "ea2e4a8c6dfaa7ae47991e943aa6ec23fa36205c5809b9aa84457275980699ed"
+        },
+        {
+          "path": "obj/vulkan-parity/run-05/samples/OpaqueZeroBitmapRaw/indexed/software.png",
+          "sha256": "ac3b4b0b3db3ee9c73b1f18abe80e60071290608e4fd7a10c6da9a251ec738df"
+        },
+        {
+          "path": "obj/vulkan-parity/run-05/samples/OpaqueZeroBitmapRaw/indexed/vulkan.png",
+          "sha256": "8daf68ed2aae8c4c0264d13de68f8edc221e127b8f9dba58ddd62d9986935c2c"
+        },
+        {
+          "path": "obj/vulkan-parity/run-05/samples/OpaqueZeroBitmapRaw/rgba/diff.png",
+          "sha256": "ea2e4a8c6dfaa7ae47991e943aa6ec23fa36205c5809b9aa84457275980699ed"
+        },
+        {
+          "path": "obj/vulkan-parity/run-05/samples/OpaqueZeroBitmapRaw/rgba/software.png",
+          "sha256": "ac3b4b0b3db3ee9c73b1f18abe80e60071290608e4fd7a10c6da9a251ec738df"
+        },
+        {
+          "path": "obj/vulkan-parity/run-05/samples/OpaqueZeroBitmapRaw/rgba/vulkan.png",
+          "sha256": "8daf68ed2aae8c4c0264d13de68f8edc221e127b8f9dba58ddd62d9986935c2c"
+        }
+      ],
+      "verificationRun": "obj/vulkan-parity/targeted-07",
+      "verificationDifferentPixels": 0
+    },
+    {
+      "id": "PRIMITIVE-005-CoveredZeroRleRaw",
+      "fixture": "CoveredZeroRleRaw",
+      "reviewer": "/root/primitive_parity",
+      "date": "2026-09-19",
+      "evidence": "docs/vulkan-primitive-visual-review.md",
+      "classification": "Vulkan bug; no software exception",
+      "status": "closed: GPU fix, exact passing rerun and agent corrected-sample visual confirmation",
+      "samples": [
+        {
+          "path": "obj/vulkan-parity/run-05/samples/CoveredZeroRleRaw/indexed/diff.png",
+          "sha256": "46347c0bb43856e3e92a7ed9da0651978ac876337b4f73701dd6e6e9de6ce28f"
+        },
+        {
+          "path": "obj/vulkan-parity/run-05/samples/CoveredZeroRleRaw/indexed/software.png",
+          "sha256": "8a5d2d9d0fce978de5fffba9ce556b3cc9cccff3354f3d6ac904f78359c98619"
+        },
+        {
+          "path": "obj/vulkan-parity/run-05/samples/CoveredZeroRleRaw/indexed/vulkan.png",
+          "sha256": "2ba223261866283597288f57b2d47490da39b44fb79e99f618ecaec7d290580b"
+        },
+        {
+          "path": "obj/vulkan-parity/run-05/samples/CoveredZeroRleRaw/rgba/diff.png",
+          "sha256": "46347c0bb43856e3e92a7ed9da0651978ac876337b4f73701dd6e6e9de6ce28f"
+        },
+        {
+          "path": "obj/vulkan-parity/run-05/samples/CoveredZeroRleRaw/rgba/software.png",
+          "sha256": "8a5d2d9d0fce978de5fffba9ce556b3cc9cccff3354f3d6ac904f78359c98619"
+        },
+        {
+          "path": "obj/vulkan-parity/run-05/samples/CoveredZeroRleRaw/rgba/vulkan.png",
+          "sha256": "2ba223261866283597288f57b2d47490da39b44fb79e99f618ecaec7d290580b"
+        }
+      ],
+      "verificationRun": "obj/vulkan-parity/targeted-07",
+      "verificationDifferentPixels": 0
+    },
+    {
+      "id": "ORACLE-001-background-input",
+      "fixture": "SmallPark_R0_Z0 version1 versus frozen CLI",
+      "reviewer": "/root",
+      "date": "2026-09-19",
+      "classification": "Fixture input mismatch, not renderer exception",
+      "status": "closed: identical explicit transparent viewport inputs; all8 frozen-source views match both renderers in indexed/RGBA (32 exact comparisons)",
+      "evidence": "docs/vulkan-exclusive-migration-plan.md",
+      "observations": "Root manually inspected software/reference/diff sample:151315 background pixels only. Initial clear does not control final ordinary background: tile painting writes index10. CLI transparentScreenshot default sets TRANSPARENT_BACKGROUND, retaining index0. Keep ordinary fixtures and add explicitly transparent fixtures; call oracle with --transparent. Compare all pixels under identical flags and explicitly expand screenshot RGB to opaque-screen alpha. No masks/tolerances/exceptions.",
+      "samples": [
+        {
+          "path": "obj/vulkan-parity/frozen-cli/SmallPark_R0_Z0.png",
+          "sha256": "14f6f3c02c42196e22b4d7556cde7c09717f5ac3754b7dddcb10ba086da5df14"
+        },
+        {
+          "path": "obj/vulkan-parity/run-05/samples/SmallPark_R0_Z0/rgba/software.png",
+          "sha256": "9844f7dd1ccb33df101ce0a6bded86846f6acadb173f6bc61ccd4f32cc7e181b"
+        },
+        {
+          "path": "obj/vulkan-parity/frozen-cli/SmallPark_R0_Z0-diff.png",
+          "sha256": "95e572f6af3ad15eaa06884bb2975a325774ab8ab0273d34b2b62b24baee907b"
+        }
+      ],
+      "verificationReviewer": "/root/decode_assets",
+      "verificationEvidence": "docs/vulkan-scene-visual-review.md",
+      "verificationSummary": {
+        "path": "obj/vulkan-parity/frozen-scenes-02/summary.json",
+        "sha256": "00daeac7c7aa66a8c7596f8969d4e17ea47919e20e9b974f1ee06bca7b4da0d1"
+      },
+      "verificationDifferentPixels": 0,
+      "verificationSamples": [
+        {
+          "path": "obj/vulkan-parity/frozen-scenes-02/SmallParkTransparent_R0_Z0/frozen.png",
+          "sha256": "14f6f3c02c42196e22b4d7556cde7c09717f5ac3754b7dddcb10ba086da5df14"
+        },
+        {
+          "path": "obj/vulkan-parity/run-08/samples/SmallParkTransparent_R0_Z0/rgba/software.png",
+          "sha256": "330fb1c1d0d82f82a83cb0768ed75044da87917daac8a5f07c37eae13f5381d4"
+        },
+        {
+          "path": "obj/vulkan-parity/run-08/samples/SmallParkTransparent_R0_Z0/rgba/vulkan.png",
+          "sha256": "330fb1c1d0d82f82a83cb0768ed75044da87917daac8a5f07c37eae13f5381d4"
+        },
+        {
+          "path": "obj/vulkan-parity/run-08/samples/SmallParkTransparent_R0_Z0/rgba/diff.png",
+          "sha256": "b03f807fccd8db3a0bc49d06a77bc1864e190540f44e14d13258d661a4843038"
+        }
+      ],
+      "verificationObservation": "Representative frozen/software/Vulkan PNGs and difference manually inspected: same geometry and background, black difference. Initial clear0 alone was insufficient because ordinary blank tiles paint10. Explicit transparent viewport flag now matches explicit oracle --transparent. Screenshot alpha expanded to opaque-screen contract; indexed bytes unchanged. No renderer exception."
+    },
+    {
+      "id": "SCALING-002-screen-index-zero-alpha",
+      "fixture": "ScreenPaletteAllIndices",
+      "reviewer": "/root/screen_capture",
+      "date": "2026-09-19",
+      "evidence": "docs/vulkan-scaling-visual-review.md",
+      "classification": "Vulkan screen-palette conversion bug; no software exception",
+      "status": "closed: exact run-08 RGBA match and corrected-triplet manual review by screen-capture agent",
+      "baselineDifferentPixels": 27,
+      "baselineBoundsInclusive": [
+        0,
+        0,
+        2,
+        50
+      ],
+      "baselineMaxChannelError": [
+        0,
+        0,
+        0,
+        255
+      ],
+      "rootCause": "Main SDL screen palette makes index0 opaque, while Vulkan previously assigned alpha0. ConvertScreenPalette now sets all256 entries opaque; indexed screenshot export remains separate.",
+      "samples": [
+        {
+          "path": "obj/vulkan-parity/targeted-07/samples/Scaling/ScreenPaletteAllIndices/physical/software.png",
+          "sha256": "b7d5e47e83972e1b55f598a9eb1ade1c9c0254ff04db696f36cc7d1961d68356"
+        },
+        {
+          "path": "obj/vulkan-parity/targeted-07/samples/Scaling/ScreenPaletteAllIndices/physical/vulkan.png",
+          "sha256": "b5e5a8004bd6c1b61194dd80083ad381c4c3cb3a35d38b66dbe7e18321dee046"
+        },
+        {
+          "path": "obj/vulkan-parity/targeted-07/samples/Scaling/ScreenPaletteAllIndices/physical/diff.png",
+          "sha256": "1a5ef06d66024afb9f5e963d141c2263bf5bb1286a2b217edb3cc6787d4265ec"
+        }
+      ],
+      "verificationRun": "obj/vulkan-parity/run-08",
+      "verificationDifferentPixels": 0,
+      "verificationSamples": [
+        {
+          "path": "obj/vulkan-parity/run-08/samples/Scaling/ScreenPaletteAllIndices/physical/software.png",
+          "sha256": "b7d5e47e83972e1b55f598a9eb1ade1c9c0254ff04db696f36cc7d1961d68356"
+        },
+        {
+          "path": "obj/vulkan-parity/run-08/samples/Scaling/ScreenPaletteAllIndices/physical/vulkan.png",
+          "sha256": "b7d5e47e83972e1b55f598a9eb1ade1c9c0254ff04db696f36cc7d1961d68356"
+        },
+        {
+          "path": "obj/vulkan-parity/run-08/samples/Scaling/ScreenPaletteAllIndices/physical/diff.png",
+          "sha256": "16108d89605408ea41e82b6fb4de47c02eba5406540093dd695ef1174ccb348c"
+        }
+      ]
+    },
+    {
+      "id": "TTF-001-invalid-fixture-remap",
+      "fixture": "Nine synthetic TTF sample frames, fixtureVersion1",
+      "reviewer": "/root/decode_assets",
+      "date": "2026-09-19",
+      "classification": "Fixture input error; no software exception",
+      "status": "closed: fixtureVersion2 run12 background and opaque pixels restored; all54 corrected-input images manually reviewed",
+      "evidence": "docs/vulkan-ttf-visual-review.md",
+      "observations": "All-zero remap row0 erased unfiltered background/opaque pixels during transparency composition. Identity row0 now matches production. Remaining70 text pixels per frame are tracked separately; no pixels waived.",
+      "verificationEvidence": "docs/vulkan-ttf-run12-review.json"
+    },
+    {
+      "id": "TTF-002-solid-threshold-precedence",
+      "fixture": "Nine synthetic TTF sample frames, fixtureVersion2",
+      "reviewer": "/root/decode_assets",
+      "date": "2026-09-19",
+      "classification": "Vulkan glyph coverage defect; no software exception",
+      "status": "closed: run14 exact indexed/RGBA parity and all corrected samples manually reviewed",
+      "verificationEvidence": "docs/vulkan-ttf-run14-review.json",
+      "verificationDifferentPixelsPerLayer": 0,
+      "evidence": "docs/vulkan-ttf-visual-review.md",
+      "baselineReceipt": "docs/vulkan-ttf-run12-review.json",
+      "baselineDifferentPixelsPerLayer": 70,
+      "baselineBoundsInclusive": [
+        4,
+        51,
+        43,
+        69
+      ],
+      "observations": "All54 valid-input PNGs reviewed. Solid coverage over180 must write ink regardless of hint threshold. Threshold181/255 wrongly suppress70 solid pixels; other regions match."
+    },
+    {
+      "id": "TTF-003-zero-ink-coverage",
+      "fixture": "TtfZeroInk, fixtureVersion2",
+      "reviewer": "/root/decode_assets",
+      "date": "2026-09-19",
+      "classification": "Vulkan valid index-zero text output defect; no software exception",
+      "status": "closed: run14 exact indexed/RGBA parity and corrected zero-ink triplets manually reviewed",
+      "verificationEvidence": "docs/vulkan-ttf-run14-review.json",
+      "verificationDifferentPixelsPerLayer": 0,
+      "evidence": "docs/vulkan-ttf-visual-review.md",
+      "baselineReceipt": "docs/vulkan-ttf-run13-zero-review.json",
+      "baselineDifferentPixelsPerLayer": 1604,
+      "baselineBoundsInclusive": [
+        3,
+        2,
+        44,
+        70
+      ],
+      "observations": "All6 baseline PNGs reviewed. Software writes covered zero fill/outline/inset; Vulkan discarded opaque zero and lacked zero-ink transparency encoding. Added two unused16bit codes without changing attachment format."
+    },
+    {
+      "id": "NATIVE-TERRAIN-001-map-border-r1z0",
+      "fixture": "native-terrain-v1 r1z0",
+      "reviewer": "/root/screen_capture",
+      "date": "2026-09-19",
+      "classification": "Vulkan native map-border defect; no software exception",
+      "status": "closed: corrected run02 exact indexed/RGBA parity, both repetitions manually reviewed",
+      "evidence": "docs/vulkan-native-terrain-visual-review.md",
+      "baselineReceipt": "docs/vulkan-native-terrain-border-baseline-review.json",
+      "baselineDifferentPixelsPerLayer": 26918,
+      "baselineBoundsExclusive": [
+        0,
+        25,
+        480,
+        463
+      ],
+      "rootCause": "Native recorder emitted grass for reserved declared map border; TileElementPaintSetup uses BlankTilesPaint there. Keep dense1024records but deactivate124border records using immutable declared width/height, leaving ordinary blank-tile commands authoritative.",
+      "softwareChanged": false,
+      "pixelTolerance": 0,
+      "verificationEvidence": "docs/vulkan-native-terrain-corrected-review.json",
+      "verificationDifferentPixelsPerLayer": 0,
+      "verificationRenderers": [
+        "frozen-software",
+        "current-software",
+        "vulkan"
+      ]
+    },
+    {
+      "id": "NATIVE-TERRAIN-001-map-border-r2z0",
+      "fixture": "native-terrain-v1 r2z0",
+      "reviewer": "/root/screen_capture",
+      "date": "2026-09-19",
+      "classification": "Vulkan native map-border defect; no software exception",
+      "status": "closed: corrected run02 exact indexed/RGBA parity, both repetitions manually reviewed",
+      "evidence": "docs/vulkan-native-terrain-visual-review.md",
+      "baselineReceipt": "docs/vulkan-native-terrain-border-baseline-review.json",
+      "baselineDifferentPixelsPerLayer": 20024,
+      "baselineBoundsExclusive": [
+        88,
+        0,
+        736,
+        223
+      ],
+      "rootCause": "Native recorder emitted grass for reserved declared map border; TileElementPaintSetup uses BlankTilesPaint there. Keep dense1024records but deactivate124border records using immutable declared width/height, leaving ordinary blank-tile commands authoritative.",
+      "softwareChanged": false,
+      "pixelTolerance": 0,
+      "verificationEvidence": "docs/vulkan-native-terrain-corrected-review.json",
+      "verificationDifferentPixelsPerLayer": 0,
+      "verificationRenderers": [
+        "frozen-software",
+        "current-software",
+        "vulkan"
+      ]
+    },
+    {
+      "id": "NATIVE-TERRAIN-001-map-border-r0z1phase",
+      "fixture": "native-terrain-v1 r0z1phase",
+      "reviewer": "/root/screen_capture",
+      "date": "2026-09-19",
+      "classification": "Vulkan native map-border defect; no software exception",
+      "status": "closed: corrected run02 exact indexed/RGBA parity, both repetitions manually reviewed",
+      "evidence": "docs/vulkan-native-terrain-visual-review.md",
+      "baselineReceipt": "docs/vulkan-native-terrain-border-baseline-review.json",
+      "baselineDifferentPixelsPerLayer": 2560,
+      "baselineBoundsExclusive": [
+        0,
+        488,
+        160,
+        583
+      ],
+      "rootCause": "Native recorder emitted grass for reserved declared map border; TileElementPaintSetup uses BlankTilesPaint there. Keep dense1024records but deactivate124border records using immutable declared width/height, leaving ordinary blank-tile commands authoritative.",
+      "softwareChanged": false,
+      "pixelTolerance": 0,
+      "verificationEvidence": "docs/vulkan-native-terrain-corrected-review.json",
+      "verificationDifferentPixelsPerLayer": 0,
+      "verificationRenderers": [
+        "frozen-software",
+        "current-software",
+        "vulkan"
+      ]
+    },
+    {
+      "id": "LIGHT-001-startup-palette-history",
+      "fixture": "main-ui-light-night",
+      "fixtureVersion": 2,
+      "date": "2026-09-19",
+      "reviewer": "/root/decode_assets",
+      "classification": "Fixture input normalization; no renderer exception",
+      "status": "closed for controlled off-to-on fixture v2: all4 paint ordinals exact across frozen/current/Vulkan and fresh-process repeats; corrected images manually reviewed",
+      "baseline": "ui-frozen-light-night-02 vs01:22RGBA pixels eachordinal,maxred3,indexedexact",
+      "rootCause": "Wall-clock-throttled loading progress paints advanced persistent LightFX palette adaptation before counted fixture paints when lighting was enabled during startup.",
+      "correction": "Harness keeps lighting disabled through loading, then enables it with same-size engine resize before fixed night/weather inputs, one full palette refresh and two warmup paints. Frozen software unchanged.",
+      "evidence": "docs/vulkan-main-ui-light-visual-review.md",
+      "sampleReceipt": "docs/vulkan-main-ui-light-v2-review.json",
+      "acceptance": "Zero full-frame indexed and physicalRGBA difference at matching paint ordinals and exact lighting metadata; no masks/tolerances.",
+      "remainingGap": "Startup-enabled temporal lighting, arbitrary progress histories, further rotations/zooms/weather/resize/source families are unqualified."
+    }
+  ]
+}

@@ -51,6 +51,8 @@ namespace OpenRCT2
     namespace Drawing
     {
         struct IDrawingEngine;
+        struct IRenderService;
+        struct IRenderServiceFactory;
     }
 
     namespace Localisation
@@ -103,6 +105,8 @@ namespace OpenRCT2
         virtual IGameStateSnapshots* GetGameStateSnapshots() = 0;
         virtual DrawingEngine GetDrawingEngineType() = 0;
         virtual Drawing::IDrawingEngine* GetDrawingEngine() = 0;
+        // Explicit image operations acquire the injected service lazily; ordinary context startup does not create it.
+        virtual Drawing::IRenderService& GetRenderService() = 0;
         virtual Paint::Painter* GetPainter() = 0;
 #ifndef DISABLE_NETWORK
         virtual Network::NetworkBase& GetNetwork() = 0;
@@ -143,7 +147,7 @@ namespace OpenRCT2
     [[nodiscard]] std::unique_ptr<IContext> CreateContext();
     [[nodiscard]] std::unique_ptr<IContext> CreateContext(
         std::unique_ptr<IPlatformEnvironment>&& env, std::unique_ptr<Audio::IAudioContext>&& audioContext,
-        std::unique_ptr<Ui::IUiContext>&& uiContext);
+        std::unique_ptr<Ui::IUiContext>&& uiContext, std::shared_ptr<Drawing::IRenderServiceFactory> renderServiceFactory = {});
     [[nodiscard]] IContext* GetContext();
 
     void ContextInit();

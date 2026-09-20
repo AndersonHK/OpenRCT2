@@ -173,6 +173,8 @@ namespace OpenRCT2
     {
         PROFILED_FUNCTION();
         _bulkMode = false;
+        _retainedBalloons.reset();
+        _balloonMetrics = {};
 
         if (batch.reset || _epoch != batch.epoch)
         {
@@ -257,9 +259,13 @@ namespace OpenRCT2
         _epoch = batch.epoch;
     }
 
-    void EntityPresentationSnapshot::CaptureStorage(EntityRegistry& registry)
+    void EntityPresentationSnapshot::CaptureStorage(
+        EntityRegistry& registry, std::shared_ptr<const Drawing::RetainedBalloonSnapshot> balloons,
+        Drawing::BalloonPublicationMetrics metrics)
     {
         PROFILED_FUNCTION();
+        _retainedBalloons = std::move(balloons);
+        _balloonMetrics = metrics;
         registry.CaptureEntityPresentationStorage(*this);
     }
 
@@ -310,6 +316,36 @@ namespace OpenRCT2
             }
         }
 
+        if (_retainedBalloons != nullptr)
+        {
+            for (const auto& chunk : _retainedBalloons->chunks)
+            {
+                if (chunk == nullptr)
+                    continue;
+                for (size_t offset = 0; offset < Drawing::kRetainedBalloonChunkWidth; ++offset)
+                {
+                    ++_balloonMetrics.fallbackSlotVisits;
+                    if (chunk->records[offset].present == 0)
+                        continue;
+                    const auto* entity = &chunk->compatibility[offset];
+                    _bulkEntityIndex[entity->id.ToUnderlying()] = entity;
+                    ++_entityCount;
+                    ++_balloonMetrics.fallbackIndexedBalloons;
+                    const auto bucketIndex = EntityRegistry::ComputeSpatialIndex(entity->getLocation());
+                    auto bucketSlot = _bulkSpatialBucketIndex[bucketIndex];
+                    if (bucketSlot == UINT16_MAX)
+                    {
+                        bucketSlot = static_cast<uint16_t>(_bulkSpatialBucketCount++);
+                        _bulkSpatialBucketIndex[bucketIndex] = bucketSlot;
+                        if (bucketSlot == _bulkSpatialBuckets.size())
+                            _bulkSpatialBuckets.emplace_back();
+                        _bulkSpatialBuckets[bucketSlot].index = bucketIndex;
+                        _bulkSpatialBuckets[bucketSlot].entities.clear();
+                    }
+                    _bulkSpatialBuckets[bucketSlot].entities.push_back(entity->id);
+                }
+            }
+        }
         for (size_t index = 0; index < _bulkSpatialBucketCount; index++)
             std::ranges::sort(_bulkSpatialBuckets[index].entities);
         _bulkMode = true;

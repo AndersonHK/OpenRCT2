@@ -49,8 +49,7 @@ namespace OpenRCT2::Scripting
         auto balloon = GetBalloon(thisVal);
         if (balloon != nullptr)
         {
-            balloon->colour = static_cast<Drawing::Colour>(value);
-            balloon->invalidate();
+            balloon->setColour(static_cast<Drawing::Colour>(value));
         }
         return JS_UNDEFINED;
     }

@@ -1,0 +1,1170 @@
+{
+  "schema": 1,
+  "status": "pass",
+  "scope": "Bounded production UI shared owner and configured auxiliary service lifecycle",
+  "reviewer": "balloon_visual",
+  "buildReceipt": {
+    "driverCompilerConcurrency": "serial",
+    "sha256": "b9cbc565c1a078d1490e5b7923ac0b4c71d6a326c4996bbe286f82f49adc5bf0",
+    "compilerConcurrency": "serial",
+    "path": "obj/vulkan-parity/ui-build-34/receipt.json"
+  },
+  "productionSourceSha256": {
+    "src/openrct2-ui/drawing/engines/vulkan/VulkanDrawingEngine.h": "0865a619f020ea17da7cff86a965cd15c41cdb06913c8bb0a558c84813848f66",
+    "src/openrct2-renderer/vulkan/VulkanDeviceContext.cpp": "a11b7f6352f2cb505a96c5f6275aaf9f76f3b8e3caae8333941219ab003a4e48",
+    "src/openrct2-renderer/vulkan/VulkanDevice.cpp": "cb51d78c777e27b847a1bb47e983381e24db6857f69ac4ec1608b15048a2d64e",
+    "src/openrct2-renderer/vulkan/VulkanRenderService.cpp": "1a2a40cd88729c61f55df11492d58efa97f7c21ec736a73f2ad81f4a0b873be9",
+    "src/openrct2-renderer/vulkan/VulkanBackend.cpp": "1813b8d8cfc5457a380abaf12b714dbd223422aaa72aba1f6a4722d931391a95",
+    "src/openrct2-renderer/vulkan/VulkanDeviceContext.h": "2a38891f892aa83dd349d79f064d6eea8cedd2a53faf42ac9c071cdb11e7f544",
+    "src/openrct2-ui/UiContext.h": "33cf6f896bf4f5416de849eaba8dd522d4a58914acc9f93bd4b6b19015edb2cc",
+    "src/openrct2-ui/drawing/engines/DrawingEngineFactory.hpp": "185227ba11493edf4a07b4e21355f230a254c2a4fd8619587aa5d10d54503e32",
+    "src/openrct2-renderer/vulkan/VulkanBackend.h": "aeaede9f8c6d5c8075200cd9230955a5250770b12389c28c695ff8bf3f7747fc",
+    "src/openrct2-renderer/RenderServiceFactory.cpp": "dc5a1fcadb4fe46b003e1072ecf919381806c8ee47967d334b045de8a295d820",
+    "src/openrct2-cli/CMakeLists.txt": "22933a5075548a750fe6fea71568c9eee6c2c6adeca995b5ed210ea83a5d2454",
+    "src/openrct2-ui/Ui.cpp": "2aa3d64e042ba7540cb8c4e3484c5d56a34672d1ba65bf20a892658289b3b3fa",
+    "src/openrct2-renderer/CMakeLists.txt": "56df3a96684759c806a1638e57529982b05a1e235ed0f8bd7a38fe3dd3d3c949",
+    "src/openrct2-ui/drawing/engines/vulkan/VulkanDrawingEngine.cpp": "70aac42b87bfc3e59186639f5390a91953e58cfc0899a3aaebe271c4fe13c9ba",
+    "src/openrct2-ui/UiContext.cpp": "582a46e0366fa34c6f12365cc7b291ba2ad583c54d6defcd207966061f4d6a50",
+    "src/openrct2/interface/Screenshot.cpp": "607d869796a018f470d3357f9e45948fde9068c3141d5bf426963bcef4745985",
+    "src/openrct2-renderer/libopenrct2renderer.vcxproj": "3a2bce9a541ed5ace5d4156507a4e6f59bea52ba057d500e9754054c5f8dd499",
+    "src/openrct2-cli/Cli.cpp": "832f56751c51a81ce348ef4407f100c7dc2fcb6613dd281d197bf3b0b44f3902",
+    "src/openrct2/drawing/RenderService.h": "a04063137ed94c3bb7e426d867f9ff94b999d9d6010a27d1b46f1d730cea129d",
+    "src/openrct2/drawing/RenderService.cpp": "4332c9c4f34489be1954a5b7be19f2a015d4ef74b0428ace07a26f433cdefd06",
+    "src/openrct2-renderer/vulkan/VulkanDevice.h": "cf721bcd08cd07bca88f7906cf6e9c3755574b2d0e851bed1fb1a83b62bcc8ee",
+    "src/openrct2-cli/openrct2-cli.vcxproj": "2723f8d9cf027841ceea33dfd609dd7caa813999c5b73e9a730759f0c13e4865",
+    "src/openrct2-renderer/RenderServiceFactory.h": "5fd93bd965f510083ce04e86ad9265f460c4a01aad7bb20b55d65fde5e666538"
+  },
+  "reference": {
+    "summarySha256": "4d91b5a792a8464c7b5e51bf9d6b7b989f9c5b94c14438c55287f6c5cca90495",
+    "sample": {
+      "png": "afd639f90470c19f3f0c0d16bf151e705edd5fa21961354983422be2bbf8f743",
+      "rgba": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae",
+      "indexed": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5"
+    },
+    "path": "obj/vulkan-parity/ui-loaded-frozen-baseline-01"
+  },
+  "runs": [
+    {
+      "path": "obj/vulkan-parity/production-ui-lifecycle-01",
+      "summarySha256": "03a0b6ff00df9f78380257477b5002ca4962027a73bb9c61a7696562736139ab",
+      "lifecycleReportSha256": "3bd6c530abd6783f2a999b5693bef464c16c09811bd314b76cd1e9d833e18671",
+      "logSha256": "040349db3baf67a940ebc13016910e224275a4fcdc5b203a4ac487f9c43c0946",
+      "validationSettingsSha256": "745396ad4c66d9797c0b2b5528ce7bf0e65cd169f631025f8c7f683118e17230",
+      "validationLayerInsertions": 1,
+      "validationMessages": [],
+      "verifiedInputSha256": {
+        "obj\\vulkan-parity\\ui-loaded-frozen-baseline-01\\summary.json": "4d91b5a792a8464c7b5e51bf9d6b7b989f9c5b94c14438c55287f6c5cca90495",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-01\\data\\shaders\\vulkan\\lightfx_accumulate.comp.spv": "6c01b995b3712b1bc44835357569774d15d423316738c9319e59e0e81bbad39b",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\indexed_transparency_compose.vert.spv": "dc3f97b0bf58a34a07d88f92625b03fd48de909d441b5555024120244be8a153",
+        "obj\\vulkan-parity\\ui-loaded-frozen-baseline-01\\captures\\baseline-1\\report.json": "b322786cda9385c6b10721f639386b66fe39d7ad52bcf32f0206f5cbbb23fcca",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\lightfx_accumulate.comp.spv": "6c01b995b3712b1bc44835357569774d15d423316738c9319e59e0e81bbad39b",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-01\\vk_layer_settings.txt": "745396ad4c66d9797c0b2b5528ce7bf0e65cd169f631025f8c7f683118e17230",
+        "obj\\vulkan-parity\\ui-loaded-frozen-baseline-01\\captures\\baseline-1\\screen.indexed": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\reference-9a092745f3\\testdata\\parks\\small_park_with_ferris_wheel.sv6": "45d3fe5af73f6bc14f9178648d56c137ca2e7985b340d024eaef7851a7f2584e",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\balloon.vert.spv": "56355825a87a187597d1a61c86590cda4036e98e642ce55751fa23b43116aac6",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-01\\data\\shaders\\vulkan\\indexed_transparency_compose.vert.spv": "dc3f97b0bf58a34a07d88f92625b03fd48de909d441b5555024120244be8a153",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\rgba_scale.frag.spv": "a590532b2cc17ae5ce694c1af46103554884f87758b679e9d04439852997bd77",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-01\\data\\shaders\\vulkan\\indexed_rect.frag.spv": "e19e81df04d77051fd3566b551751b3fc326817b4849e77df9a6a9337dcb3f0d",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-01\\data\\shaders\\vulkan\\indexed_line.frag.spv": "c3c698d64588c606db4ff3cc0469b6f2814d9b6191245a2b9e38ac04bf07f899",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-34\\bin\\libopenrct2.lib": "de635563e9705c27d8c831ddf9b8862523251b6cefb65daead78656e5320d4d6",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-01\\data\\shaders\\vulkan\\indexed_weather.vert.spv": "51fb76bcdc69aa11e6dbd8617d53a0d546b37e17380a2c0fc7d836a917a597f7",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-34\\receipt.json": "b9cbc565c1a078d1490e5b7923ac0b4c71d6a326c4996bbe286f82f49adc5bf0",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-34\\bin\\libopenrct2renderer.lib": "cb65350d594509e7abd9d8189fa0a194d7f1e079817627524271a87345b0a019",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-01\\data\\shaders\\vulkan\\indexed_transparency_compose.frag.spv": "3b8ece50dec315d191608cbbc6708f93a774d6f78d46902b9fcde0583cb9824e",
+        "obj\\vulkan-parity\\ui-loaded-frozen-baseline-01\\captures\\baseline-0\\screen.indexed": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5",
+        "obj\\vulkan-parity\\ui-loaded-frozen-baseline-01\\captures\\baseline-1\\screen.rgba": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\build-44\\receipt.json": "b3e9086f188879f7de31e27443f150eca88b3b569a427d1fcff7da9947cca6c9",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-01\\data\\shaders\\vulkan\\world_surface_compact.comp.spv": "4a159f211fe39393ea5288b8e05cb7009448865220aff3fb6652105bfe21e6b9",
+        "obj\\vulkan-parity\\ui-loaded-frozen-baseline-01\\captures\\baseline-0\\screen.rgba": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\world_surface.vert.spv": "7510b4db285eb498e39c53acf2097ea2420832e0dd623fc999e78db963da1679",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-01\\data\\shaders\\vulkan\\indexed_sprite.vert.spv": "e7274e5d1c08245ad72330b784d0f3b89e7cbf2bd8bf33236522e1802d23f7c4",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-34\\bin\\libopenrct2ui-parity.lib": "2714197d67ed55bbde53c1cd563d872ffc09f8a3b122f173157dd0c0d045bd3b",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\indexed_weather.vert.spv": "51fb76bcdc69aa11e6dbd8617d53a0d546b37e17380a2c0fc7d836a917a597f7",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-01\\data\\shaders\\vulkan\\indexed_rect.vert.spv": "81c0bcd4b70683d7f7604ddff4f5a99af0d9de678182984ddbbb7f6a805484c8",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-01\\data\\shaders\\vulkan\\indexed_palette.vert.spv": "ce9e9307593f2c1e4b2a80c7e10038031499584729fd681ec6f329d25df864b0",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-01\\data\\shaders\\vulkan\\indexed_palette.frag.spv": "00426e41ca288331f9912947c513c146775134239bc1b9c02a80a5e11d104ff2",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\test\\ui-parity\\UiParityMain.cpp": "cb6c809157090bb4599657f141b036130a603e559c9743703e610c82cf0238d2",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\indexed_line.frag.spv": "c3c698d64588c606db4ff3cc0469b6f2814d9b6191245a2b9e38ac04bf07f899",
+        "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe\\Data\\CSG1.DAT": "b16c0fefc5334c022d983857e7529b947a81311101404faa903d13547389aeda",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\indexed_weather.frag.spv": "997336e48b6f29c22ba4642584e29f40db9937fc7141f5b70a499175aeea5afc",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\indexed_rect.vert.spv": "81c0bcd4b70683d7f7604ddff4f5a99af0d9de678182984ddbbb7f6a805484c8",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-34\\bin\\ui-parity.exe": "f29f7800268d43bb6d95a2291feaa1927467956fd78961de92d476829c78ba13",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-01\\data\\shaders\\vulkan\\indexed_transparent_rect.frag.spv": "280c6ad33634c220815f5123cdcc64a02e5847b8b0a1fda876fd36ab0880e658",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\indexed_transparent_rect.frag.spv": "280c6ad33634c220815f5123cdcc64a02e5847b8b0a1fda876fd36ab0880e658",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-01\\data\\shaders\\vulkan\\balloon_order.comp.spv": "b37491a08b58eeca8f278634182eeed3aee4a194c5ba6c89ac6383b86685dd11",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-01\\data\\shaders\\vulkan\\rgba_scale.frag.spv": "a590532b2cc17ae5ce694c1af46103554884f87758b679e9d04439852997bd77",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-01\\data\\shaders\\vulkan\\indexed_line.vert.spv": "cafe58b52c3f5ef6f1a31727c2e471e23f19cfb5717e0dd42deca1891665873a",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-01\\data\\shaders\\vulkan\\world_surface.vert.spv": "7510b4db285eb498e39c53acf2097ea2420832e0dd623fc999e78db963da1679",
+        "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe\\Data\\csg1i.dat": "ffe64a26776f4a7a10c2d76a89543e1d408d09b181279056ee4194acf19889ea",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\indexed_transparent_rect.vert.spv": "ca77710e6008654acb0cb03dc29e81a345ef59bf84f26bac06639503bbf79be4",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\world_surface_compact.comp.spv": "4a159f211fe39393ea5288b8e05cb7009448865220aff3fb6652105bfe21e6b9",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-01\\data\\shaders\\vulkan\\indexed_weather.frag.spv": "997336e48b6f29c22ba4642584e29f40db9937fc7141f5b70a499175aeea5afc",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-01\\data\\shaders\\vulkan\\balloon.vert.spv": "56355825a87a187597d1a61c86590cda4036e98e642ce55751fa23b43116aac6",
+        "obj\\vulkan-parity\\ui-loaded-frozen-baseline-01\\captures\\baseline-0\\report.json": "53cc01c5382474c5b63069ba210a84abee22fb454284d3ac11952896e76a640a",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\indexed_palette.vert.spv": "ce9e9307593f2c1e4b2a80c7e10038031499584729fd681ec6f329d25df864b0",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\indexed_sprite.vert.spv": "e7274e5d1c08245ad72330b784d0f3b89e7cbf2bd8bf33236522e1802d23f7c4",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\indexed_line.vert.spv": "cafe58b52c3f5ef6f1a31727c2e471e23f19cfb5717e0dd42deca1891665873a",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\indexed_rect.frag.spv": "e19e81df04d77051fd3566b551751b3fc326817b4849e77df9a6a9337dcb3f0d",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\indexed_palette.frag.spv": "00426e41ca288331f9912947c513c146775134239bc1b9c02a80a5e11d104ff2",
+        "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack\\Data\\g1.dat": "a78acefbcd1b0f5c8dbbf201afb8cf1a3d9294505134efa155c1323242c55a21",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\scripts\\rendering\\run-ui-parity.py": "c98e986a5b4809621dafcb145d4df507a5b97c30ce8cb38eb5225b29fd4fbb6f",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\balloon_order.comp.spv": "b37491a08b58eeca8f278634182eeed3aee4a194c5ba6c89ac6383b86685dd11",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-01\\data\\shaders\\vulkan\\indexed_transparent_rect.vert.spv": "ca77710e6008654acb0cb03dc29e81a345ef59bf84f26bac06639503bbf79be4",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\test\\ui-parity\\UiSharedServiceLifecycle.h": "1df87e11ef7640ca3336f9721886251967b7ac356251b2a0557c958e1be98b74",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\indexed_transparency_compose.frag.spv": "3b8ece50dec315d191608cbbc6708f93a774d6f78d46902b9fcde0583cb9824e"
+      },
+      "captures": [
+        {
+          "name": "lifecycle-software-initial",
+          "artifacts": {
+            "report.json": "82e96d5d58aeafd0729de4e39a5f2cfc3e0dc021e78372180a72f6b0d445453f",
+            "screen.rgba": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae",
+            "screen.png": "afd639f90470c19f3f0c0d16bf151e705edd5fa21961354983422be2bbf8f743",
+            "screen.indexed": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5"
+          },
+          "renderer": "softwareWithHardwareDisplay",
+          "captureSource": "actual SDL default backbuffer immediately before SDL_RenderPresent",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 3,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "physicalExtent": [
+            960,
+            640
+          ],
+          "logicalExtent": [
+            960,
+            640
+          ],
+          "worldSurfaceAdmission": "unavailable-software"
+        },
+        {
+          "name": "lifecycle-vulkan-first",
+          "artifacts": {
+            "report.json": "6225eefb8074b6cf0ed4139ceb2751fdec2e3fc092a5e06e16b5516abb0e86a7",
+            "screen.rgba": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae",
+            "screen.png": "afd639f90470c19f3f0c0d16bf151e705edd5fa21961354983422be2bbf8f743",
+            "screen.indexed": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5"
+          },
+          "renderer": "vulkan",
+          "captureSource": "actual Vulkan swapchain copy for the named frontend packet before presentation",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 6,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "physicalExtent": [
+            960,
+            640
+          ],
+          "logicalExtent": [
+            960,
+            640
+          ],
+          "worldSurfaceAdmission": "ordinary-paint"
+        },
+        {
+          "name": "lifecycle-vulkan-after-aux",
+          "artifacts": {
+            "report.json": "a6a0cdc32d78da3d8e6e9100e7bed67b09af781515c828da253020a583a76b2d",
+            "screen.rgba": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae",
+            "screen.png": "afd639f90470c19f3f0c0d16bf151e705edd5fa21961354983422be2bbf8f743",
+            "screen.indexed": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5"
+          },
+          "renderer": "vulkan",
+          "captureSource": "actual Vulkan swapchain copy for the named frontend packet before presentation",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 9,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "physicalExtent": [
+            960,
+            640
+          ],
+          "logicalExtent": [
+            960,
+            640
+          ],
+          "worldSurfaceAdmission": "ordinary-paint"
+        },
+        {
+          "name": "lifecycle-vulkan-recreated",
+          "artifacts": {
+            "report.json": "35475c0935738e611f62e5ae17d512e6c9ed8681b606b757bbc013f68ee438c3",
+            "screen.rgba": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae",
+            "screen.png": "afd639f90470c19f3f0c0d16bf151e705edd5fa21961354983422be2bbf8f743",
+            "screen.indexed": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5"
+          },
+          "renderer": "vulkan",
+          "captureSource": "actual Vulkan swapchain copy for the named frontend packet before presentation",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 12,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "physicalExtent": [
+            960,
+            640
+          ],
+          "logicalExtent": [
+            960,
+            640
+          ],
+          "worldSurfaceAdmission": "ordinary-paint"
+        },
+        {
+          "name": "lifecycle-software-return",
+          "artifacts": {
+            "report.json": "b3a9ec679a023c2b76add9200430f1bf841b361ed5206e6db38dcf4057c68f45",
+            "screen.rgba": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae",
+            "screen.png": "afd639f90470c19f3f0c0d16bf151e705edd5fa21961354983422be2bbf8f743",
+            "screen.indexed": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5"
+          },
+          "renderer": "softwareWithHardwareDisplay",
+          "captureSource": "actual SDL default backbuffer immediately before SDL_RenderPresent",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 15,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "physicalExtent": [
+            960,
+            640
+          ],
+          "logicalExtent": [
+            960,
+            640
+          ],
+          "worldSurfaceAdmission": "unavailable-software"
+        },
+        {
+          "name": "lifecycle-vulkan-return",
+          "artifacts": {
+            "report.json": "16226a8c12e2217c9b3f7c571a04d4c89e47c3cf4581f0da728055ad80386119",
+            "screen.rgba": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae",
+            "screen.png": "afd639f90470c19f3f0c0d16bf151e705edd5fa21961354983422be2bbf8f743",
+            "screen.indexed": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5"
+          },
+          "renderer": "vulkan",
+          "captureSource": "actual Vulkan swapchain copy for the named frontend packet before presentation",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 18,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "physicalExtent": [
+            960,
+            640
+          ],
+          "logicalExtent": [
+            960,
+            640
+          ],
+          "worldSurfaceAdmission": "ordinary-paint"
+        }
+      ],
+      "auxiliaryArtifacts": {
+        "lifecycle-aux.png": "5f8d7b22a5ddf88e9e3a91e49875ea4da2d4dfab63339dbafc5a7abc926e8980",
+        "lifecycle-aux.rgba": "0f637796e08e7ce311faeb054e16ce6a743b852e4f5ff0de36e0dd24100bb8be",
+        "lifecycle-aux.indexed": "747e96f7bb30656fb0389f10b2c50eba3deb2e382680581beb3c318f42be0e23"
+      },
+      "auxiliaryRawPatternIndependentlyVerified": true,
+      "lifecycle": {
+        "auxiliary": {
+          "exactPattern": true,
+          "indexedBytes": 4096,
+          "rgbaBytes": 16384,
+          "submissionId": 1,
+          "targetGeneration": 1,
+          "targetId": 1
+        },
+        "ownerUncreatedAfterSoftwareStartup": true,
+        "phases": [
+          {
+            "name": "lifecycle-software-initial",
+            "renderer": "softwareWithHardwareDisplay",
+            "simulationTicks": 1215,
+            "windowId": 1
+          },
+          {
+            "contextIdentity": 2339758859712,
+            "deviceIdentity": 2338621554896,
+            "name": "lifecycle-vulkan-first",
+            "renderer": "vulkan",
+            "simulationTicks": 1215,
+            "windowId": 2
+          },
+          {
+            "contextIdentity": 2339758859712,
+            "deviceIdentity": 2338621554896,
+            "name": "lifecycle-vulkan-after-aux",
+            "renderer": "vulkan",
+            "simulationTicks": 1215,
+            "windowId": 2
+          },
+          {
+            "contextIdentity": 2339758859712,
+            "deviceIdentity": 2338621554896,
+            "name": "lifecycle-vulkan-recreated",
+            "renderer": "vulkan",
+            "simulationTicks": 1215,
+            "windowId": 3
+          },
+          {
+            "contextIdentity": 2339758859712,
+            "deviceIdentity": 2338621554896,
+            "name": "lifecycle-software-return",
+            "renderer": "softwareWithHardwareDisplay",
+            "simulationTicks": 1215,
+            "windowId": 4
+          },
+          {
+            "contextIdentity": 2339758859712,
+            "deviceIdentity": 2338621554896,
+            "name": "lifecycle-vulkan-return",
+            "renderer": "vulkan",
+            "simulationTicks": 1215,
+            "windowId": 5
+          }
+        ],
+        "shutdown": {
+          "deviceExpiredWithRecorderAlive": true,
+          "lateSubmitError": "Offscreen service is shutting down",
+          "lateSubmitRejected": true,
+          "ownerExpiredWithRecorderAlive": true,
+          "sdlVideoStopped": true,
+          "strongDeviceObservationsReleased": true
+        },
+        "status": "pass",
+        "version": 1
+      }
+    },
+    {
+      "path": "obj/vulkan-parity/production-ui-lifecycle-02",
+      "summarySha256": "b1d26feec2ed45d74cea59e9c0f33d150154f14d60e43cb37a992446617e6394",
+      "lifecycleReportSha256": "af4d67933e5d0634f0dd2c81ac8b80cb6d3c470e3c23ccab3a7ffd36e5307052",
+      "logSha256": "95628a275957d5a008ce2c60432e038ea262be7abfad6e2928a527b7f19d3963",
+      "validationSettingsSha256": "745396ad4c66d9797c0b2b5528ce7bf0e65cd169f631025f8c7f683118e17230",
+      "validationLayerInsertions": 1,
+      "validationMessages": [],
+      "verifiedInputSha256": {
+        "obj\\vulkan-parity\\production-ui-lifecycle-01\\captures\\lifecycle-software-initial\\screen.indexed": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5",
+        "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe\\Data\\CSG1.DAT": "b16c0fefc5334c022d983857e7529b947a81311101404faa903d13547389aeda",
+        "obj\\vulkan-parity\\production-ui-lifecycle-01\\captures\\lifecycle-vulkan-first\\screen.rgba": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\test\\ui-parity\\UiSharedServiceLifecycle.h": "1df87e11ef7640ca3336f9721886251967b7ac356251b2a0557c958e1be98b74",
+        "obj\\vulkan-parity\\production-ui-lifecycle-01\\captures\\lifecycle-vulkan-return\\screen.rgba": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-34\\receipt.json": "b9cbc565c1a078d1490e5b7923ac0b4c71d6a326c4996bbe286f82f49adc5bf0",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-02\\data\\shaders\\vulkan\\indexed_transparency_compose.frag.spv": "3b8ece50dec315d191608cbbc6708f93a774d6f78d46902b9fcde0583cb9824e",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-02\\data\\shaders\\vulkan\\indexed_line.vert.spv": "cafe58b52c3f5ef6f1a31727c2e471e23f19cfb5717e0dd42deca1891665873a",
+        "D:\\Games\\GOG Games\\RollerCoaster Tycoon Deluxe\\Data\\csg1i.dat": "ffe64a26776f4a7a10c2d76a89543e1d408d09b181279056ee4194acf19889ea",
+        "obj\\vulkan-parity\\production-ui-lifecycle-01\\captures\\lifecycle-vulkan-first\\screen.indexed": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-02\\data\\shaders\\vulkan\\world_surface_compact.comp.spv": "4a159f211fe39393ea5288b8e05cb7009448865220aff3fb6652105bfe21e6b9",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-02\\data\\shaders\\vulkan\\indexed_transparent_rect.vert.spv": "ca77710e6008654acb0cb03dc29e81a345ef59bf84f26bac06639503bbf79be4",
+        "obj\\vulkan-parity\\production-ui-lifecycle-01\\captures\\lifecycle-vulkan-recreated\\report.json": "35475c0935738e611f62e5ae17d512e6c9ed8681b606b757bbc013f68ee438c3",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-34\\bin\\ui-parity.exe": "f29f7800268d43bb6d95a2291feaa1927467956fd78961de92d476829c78ba13",
+        "obj\\vulkan-parity\\production-ui-lifecycle-01\\captures\\lifecycle-vulkan-return\\screen.indexed": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\indexed_sprite.vert.spv": "e7274e5d1c08245ad72330b784d0f3b89e7cbf2bd8bf33236522e1802d23f7c4",
+        "obj\\vulkan-parity\\production-ui-lifecycle-01\\captures\\lifecycle-vulkan-after-aux\\report.json": "a6a0cdc32d78da3d8e6e9100e7bed67b09af781515c828da253020a583a76b2d",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-34\\bin\\libopenrct2renderer.lib": "cb65350d594509e7abd9d8189fa0a194d7f1e079817627524271a87345b0a019",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-02\\data\\shaders\\vulkan\\indexed_palette.frag.spv": "00426e41ca288331f9912947c513c146775134239bc1b9c02a80a5e11d104ff2",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-02\\data\\shaders\\vulkan\\balloon_order.comp.spv": "b37491a08b58eeca8f278634182eeed3aee4a194c5ba6c89ac6383b86685dd11",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-02\\data\\shaders\\vulkan\\indexed_transparent_rect.frag.spv": "280c6ad33634c220815f5123cdcc64a02e5847b8b0a1fda876fd36ab0880e658",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\test\\ui-parity\\UiParityMain.cpp": "cb6c809157090bb4599657f141b036130a603e559c9743703e610c82cf0238d2",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\indexed_line.vert.spv": "cafe58b52c3f5ef6f1a31727c2e471e23f19cfb5717e0dd42deca1891665873a",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-02\\data\\shaders\\vulkan\\indexed_line.frag.spv": "c3c698d64588c606db4ff3cc0469b6f2814d9b6191245a2b9e38ac04bf07f899",
+        "obj\\vulkan-parity\\production-ui-lifecycle-01\\captures\\lifecycle-vulkan-first\\report.json": "6225eefb8074b6cf0ed4139ceb2751fdec2e3fc092a5e06e16b5516abb0e86a7",
+        "obj\\vulkan-parity\\production-ui-lifecycle-01\\captures\\lifecycle-vulkan-recreated\\screen.rgba": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-02\\data\\shaders\\vulkan\\lightfx_accumulate.comp.spv": "6c01b995b3712b1bc44835357569774d15d423316738c9319e59e0e81bbad39b",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\indexed_rect.frag.spv": "e19e81df04d77051fd3566b551751b3fc326817b4849e77df9a6a9337dcb3f0d",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\balloon_order.comp.spv": "b37491a08b58eeca8f278634182eeed3aee4a194c5ba6c89ac6383b86685dd11",
+        "obj\\vulkan-parity\\production-ui-lifecycle-01\\captures\\lifecycle-vulkan-recreated\\screen.indexed": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\indexed_transparency_compose.vert.spv": "dc3f97b0bf58a34a07d88f92625b03fd48de909d441b5555024120244be8a153",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\reference-9a092745f3\\testdata\\parks\\small_park_with_ferris_wheel.sv6": "45d3fe5af73f6bc14f9178648d56c137ca2e7985b340d024eaef7851a7f2584e",
+        "obj\\vulkan-parity\\production-ui-lifecycle-01\\captures\\lifecycle-vulkan-after-aux\\screen.rgba": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\build-44\\receipt.json": "b3e9086f188879f7de31e27443f150eca88b3b569a427d1fcff7da9947cca6c9",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\indexed_palette.vert.spv": "ce9e9307593f2c1e4b2a80c7e10038031499584729fd681ec6f329d25df864b0",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-34\\bin\\libopenrct2.lib": "de635563e9705c27d8c831ddf9b8862523251b6cefb65daead78656e5320d4d6",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\scripts\\rendering\\run-ui-parity.py": "c98e986a5b4809621dafcb145d4df507a5b97c30ce8cb38eb5225b29fd4fbb6f",
+        "obj\\vulkan-parity\\production-ui-lifecycle-01\\captures\\lifecycle-software-return\\report.json": "b3a9ec679a023c2b76add9200430f1bf841b361ed5206e6db38dcf4057c68f45",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\world_surface.vert.spv": "7510b4db285eb498e39c53acf2097ea2420832e0dd623fc999e78db963da1679",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\indexed_palette.frag.spv": "00426e41ca288331f9912947c513c146775134239bc1b9c02a80a5e11d104ff2",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-02\\data\\shaders\\vulkan\\indexed_rect.vert.spv": "81c0bcd4b70683d7f7604ddff4f5a99af0d9de678182984ddbbb7f6a805484c8",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\indexed_transparent_rect.frag.spv": "280c6ad33634c220815f5123cdcc64a02e5847b8b0a1fda876fd36ab0880e658",
+        "obj\\vulkan-parity\\production-ui-lifecycle-01\\captures\\lifecycle-vulkan-after-aux\\screen.indexed": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-34\\bin\\libopenrct2ui-parity.lib": "2714197d67ed55bbde53c1cd563d872ffc09f8a3b122f173157dd0c0d045bd3b",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-02\\data\\shaders\\vulkan\\balloon.vert.spv": "56355825a87a187597d1a61c86590cda4036e98e642ce55751fa23b43116aac6",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\indexed_transparent_rect.vert.spv": "ca77710e6008654acb0cb03dc29e81a345ef59bf84f26bac06639503bbf79be4",
+        "obj\\vulkan-parity\\production-ui-lifecycle-01\\summary.json": "03a0b6ff00df9f78380257477b5002ca4962027a73bb9c61a7696562736139ab",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-02\\data\\shaders\\vulkan\\indexed_weather.vert.spv": "51fb76bcdc69aa11e6dbd8617d53a0d546b37e17380a2c0fc7d836a917a597f7",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-02\\data\\shaders\\vulkan\\indexed_transparency_compose.vert.spv": "dc3f97b0bf58a34a07d88f92625b03fd48de909d441b5555024120244be8a153",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\world_surface_compact.comp.spv": "4a159f211fe39393ea5288b8e05cb7009448865220aff3fb6652105bfe21e6b9",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\indexed_weather.frag.spv": "997336e48b6f29c22ba4642584e29f40db9937fc7141f5b70a499175aeea5afc",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-02\\data\\shaders\\vulkan\\indexed_weather.frag.spv": "997336e48b6f29c22ba4642584e29f40db9937fc7141f5b70a499175aeea5afc",
+        "D:\\Games\\GOG Games\\RollerCoaster Tycoon 2 Triple Thrill Pack\\Data\\g1.dat": "a78acefbcd1b0f5c8dbbf201afb8cf1a3d9294505134efa155c1323242c55a21",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\rgba_scale.frag.spv": "a590532b2cc17ae5ce694c1af46103554884f87758b679e9d04439852997bd77",
+        "obj\\vulkan-parity\\production-ui-lifecycle-01\\captures\\lifecycle-software-initial\\screen.rgba": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae",
+        "obj\\vulkan-parity\\production-ui-lifecycle-01\\captures\\lifecycle-software-return\\screen.rgba": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-02\\data\\shaders\\vulkan\\indexed_sprite.vert.spv": "e7274e5d1c08245ad72330b784d0f3b89e7cbf2bd8bf33236522e1802d23f7c4",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-02\\data\\shaders\\vulkan\\indexed_palette.vert.spv": "ce9e9307593f2c1e4b2a80c7e10038031499584729fd681ec6f329d25df864b0",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-02\\vk_layer_settings.txt": "745396ad4c66d9797c0b2b5528ce7bf0e65cd169f631025f8c7f683118e17230",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\lightfx_accumulate.comp.spv": "6c01b995b3712b1bc44835357569774d15d423316738c9319e59e0e81bbad39b",
+        "obj\\vulkan-parity\\production-ui-lifecycle-01\\captures\\lifecycle-software-return\\screen.indexed": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\indexed_rect.vert.spv": "81c0bcd4b70683d7f7604ddff4f5a99af0d9de678182984ddbbb7f6a805484c8",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-02\\data\\shaders\\vulkan\\indexed_rect.frag.spv": "e19e81df04d77051fd3566b551751b3fc326817b4849e77df9a6a9337dcb3f0d",
+        "obj\\vulkan-parity\\production-ui-lifecycle-01\\captures\\lifecycle-vulkan-return\\report.json": "16226a8c12e2217c9b3f7c571a04d4c89e47c3cf4581f0da728055ad80386119",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\indexed_weather.vert.spv": "51fb76bcdc69aa11e6dbd8617d53a0d546b37e17380a2c0fc7d836a917a597f7",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\balloon.vert.spv": "56355825a87a187597d1a61c86590cda4036e98e642ce55751fa23b43116aac6",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\indexed_transparency_compose.frag.spv": "3b8ece50dec315d191608cbbc6708f93a774d6f78d46902b9fcde0583cb9824e",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-02\\data\\shaders\\vulkan\\rgba_scale.frag.spv": "a590532b2cc17ae5ce694c1af46103554884f87758b679e9d04439852997bd77",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\data\\shaders\\vulkan\\indexed_line.frag.spv": "c3c698d64588c606db4ff3cc0469b6f2814d9b6191245a2b9e38ac04bf07f899",
+        "obj\\vulkan-parity\\production-ui-lifecycle-01\\captures\\lifecycle-software-initial\\report.json": "82e96d5d58aeafd0729de4e39a5f2cfc3e0dc021e78372180a72f6b0d445453f",
+        "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\production-ui-lifecycle-02\\data\\shaders\\vulkan\\world_surface.vert.spv": "7510b4db285eb498e39c53acf2097ea2420832e0dd623fc999e78db963da1679"
+      },
+      "captures": [
+        {
+          "name": "lifecycle-software-initial",
+          "artifacts": {
+            "report.json": "82e96d5d58aeafd0729de4e39a5f2cfc3e0dc021e78372180a72f6b0d445453f",
+            "screen.rgba": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae",
+            "screen.png": "afd639f90470c19f3f0c0d16bf151e705edd5fa21961354983422be2bbf8f743",
+            "screen.indexed": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5"
+          },
+          "renderer": "softwareWithHardwareDisplay",
+          "captureSource": "actual SDL default backbuffer immediately before SDL_RenderPresent",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 3,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "physicalExtent": [
+            960,
+            640
+          ],
+          "logicalExtent": [
+            960,
+            640
+          ],
+          "worldSurfaceAdmission": "unavailable-software"
+        },
+        {
+          "name": "lifecycle-vulkan-first",
+          "artifacts": {
+            "report.json": "6225eefb8074b6cf0ed4139ceb2751fdec2e3fc092a5e06e16b5516abb0e86a7",
+            "screen.rgba": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae",
+            "screen.png": "afd639f90470c19f3f0c0d16bf151e705edd5fa21961354983422be2bbf8f743",
+            "screen.indexed": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5"
+          },
+          "renderer": "vulkan",
+          "captureSource": "actual Vulkan swapchain copy for the named frontend packet before presentation",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 6,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "physicalExtent": [
+            960,
+            640
+          ],
+          "logicalExtent": [
+            960,
+            640
+          ],
+          "worldSurfaceAdmission": "ordinary-paint"
+        },
+        {
+          "name": "lifecycle-vulkan-after-aux",
+          "artifacts": {
+            "report.json": "a6a0cdc32d78da3d8e6e9100e7bed67b09af781515c828da253020a583a76b2d",
+            "screen.rgba": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae",
+            "screen.png": "afd639f90470c19f3f0c0d16bf151e705edd5fa21961354983422be2bbf8f743",
+            "screen.indexed": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5"
+          },
+          "renderer": "vulkan",
+          "captureSource": "actual Vulkan swapchain copy for the named frontend packet before presentation",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 9,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "physicalExtent": [
+            960,
+            640
+          ],
+          "logicalExtent": [
+            960,
+            640
+          ],
+          "worldSurfaceAdmission": "ordinary-paint"
+        },
+        {
+          "name": "lifecycle-vulkan-recreated",
+          "artifacts": {
+            "report.json": "35475c0935738e611f62e5ae17d512e6c9ed8681b606b757bbc013f68ee438c3",
+            "screen.rgba": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae",
+            "screen.png": "afd639f90470c19f3f0c0d16bf151e705edd5fa21961354983422be2bbf8f743",
+            "screen.indexed": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5"
+          },
+          "renderer": "vulkan",
+          "captureSource": "actual Vulkan swapchain copy for the named frontend packet before presentation",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 12,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "physicalExtent": [
+            960,
+            640
+          ],
+          "logicalExtent": [
+            960,
+            640
+          ],
+          "worldSurfaceAdmission": "ordinary-paint"
+        },
+        {
+          "name": "lifecycle-software-return",
+          "artifacts": {
+            "report.json": "b3a9ec679a023c2b76add9200430f1bf841b361ed5206e6db38dcf4057c68f45",
+            "screen.rgba": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae",
+            "screen.png": "afd639f90470c19f3f0c0d16bf151e705edd5fa21961354983422be2bbf8f743",
+            "screen.indexed": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5"
+          },
+          "renderer": "softwareWithHardwareDisplay",
+          "captureSource": "actual SDL default backbuffer immediately before SDL_RenderPresent",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 15,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "physicalExtent": [
+            960,
+            640
+          ],
+          "logicalExtent": [
+            960,
+            640
+          ],
+          "worldSurfaceAdmission": "unavailable-software"
+        },
+        {
+          "name": "lifecycle-vulkan-return",
+          "artifacts": {
+            "report.json": "16226a8c12e2217c9b3f7c571a04d4c89e47c3cf4581f0da728055ad80386119",
+            "screen.rgba": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae",
+            "screen.png": "afd639f90470c19f3f0c0d16bf151e705edd5fa21961354983422be2bbf8f743",
+            "screen.indexed": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5"
+          },
+          "renderer": "vulkan",
+          "captureSource": "actual Vulkan swapchain copy for the named frontend packet before presentation",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -504,
+                -229
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 18,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "physicalExtent": [
+            960,
+            640
+          ],
+          "logicalExtent": [
+            960,
+            640
+          ],
+          "worldSurfaceAdmission": "ordinary-paint"
+        }
+      ],
+      "auxiliaryArtifacts": {
+        "lifecycle-aux.png": "5f8d7b22a5ddf88e9e3a91e49875ea4da2d4dfab63339dbafc5a7abc926e8980",
+        "lifecycle-aux.rgba": "0f637796e08e7ce311faeb054e16ce6a743b852e4f5ff0de36e0dd24100bb8be",
+        "lifecycle-aux.indexed": "747e96f7bb30656fb0389f10b2c50eba3deb2e382680581beb3c318f42be0e23"
+      },
+      "auxiliaryRawPatternIndependentlyVerified": true,
+      "lifecycle": {
+        "auxiliary": {
+          "exactPattern": true,
+          "indexedBytes": 4096,
+          "rgbaBytes": 16384,
+          "submissionId": 1,
+          "targetGeneration": 1,
+          "targetId": 1
+        },
+        "ownerUncreatedAfterSoftwareStartup": true,
+        "phases": [
+          {
+            "name": "lifecycle-software-initial",
+            "renderer": "softwareWithHardwareDisplay",
+            "simulationTicks": 1215,
+            "windowId": 1
+          },
+          {
+            "contextIdentity": 2242340365344,
+            "deviceIdentity": 2242401140944,
+            "name": "lifecycle-vulkan-first",
+            "renderer": "vulkan",
+            "simulationTicks": 1215,
+            "windowId": 2
+          },
+          {
+            "contextIdentity": 2242340365344,
+            "deviceIdentity": 2242401140944,
+            "name": "lifecycle-vulkan-after-aux",
+            "renderer": "vulkan",
+            "simulationTicks": 1215,
+            "windowId": 2
+          },
+          {
+            "contextIdentity": 2242340365344,
+            "deviceIdentity": 2242401140944,
+            "name": "lifecycle-vulkan-recreated",
+            "renderer": "vulkan",
+            "simulationTicks": 1215,
+            "windowId": 3
+          },
+          {
+            "contextIdentity": 2242340365344,
+            "deviceIdentity": 2242401140944,
+            "name": "lifecycle-software-return",
+            "renderer": "softwareWithHardwareDisplay",
+            "simulationTicks": 1215,
+            "windowId": 4
+          },
+          {
+            "contextIdentity": 2242340365344,
+            "deviceIdentity": 2242401140944,
+            "name": "lifecycle-vulkan-return",
+            "renderer": "vulkan",
+            "simulationTicks": 1215,
+            "windowId": 5
+          }
+        ],
+        "shutdown": {
+          "deviceExpiredWithRecorderAlive": true,
+          "lateSubmitError": "Offscreen service is shutting down",
+          "lateSubmitRejected": true,
+          "ownerExpiredWithRecorderAlive": true,
+          "sdlVideoStopped": true,
+          "strongDeviceObservationsReleased": true
+        },
+        "status": "pass",
+        "version": 1
+      }
+    }
+  ],
+  "manualInspection": {
+    "finding": "All park geometry, Ferris-wheel spokes/supports, entrance towers and banner, grass/cliff boundaries, fences, toolbar and translucent bottom panels match. Auxiliary is a uniform dark grey 64x64 field with the expected lighter rectangle; no main-frame contamination or stale surfaces after auxiliary, recreation or software/Vulkan switches.",
+    "images": [
+      "obj/vulkan-parity/ui-loaded-frozen-baseline-01/captures/baseline-0/screen.png",
+      "obj/vulkan-parity/production-ui-lifecycle-01/captures/lifecycle-software-initial/screen.png",
+      "obj/vulkan-parity/production-ui-lifecycle-01/captures/lifecycle-vulkan-first/screen.png",
+      "obj/vulkan-parity/production-ui-lifecycle-01/captures/lifecycle-vulkan-after-aux/screen.png",
+      "obj/vulkan-parity/production-ui-lifecycle-01/captures/lifecycle-vulkan-recreated/screen.png",
+      "obj/vulkan-parity/production-ui-lifecycle-01/captures/lifecycle-software-return/screen.png",
+      "obj/vulkan-parity/production-ui-lifecycle-01/captures/lifecycle-vulkan-return/screen.png",
+      "obj/vulkan-parity/production-ui-lifecycle-01/captures/lifecycle-aux.png obj/vulkan-parity/production-ui-lifecycle-02/captures/lifecycle-vulkan-return/screen.png obj/vulkan-parity/production-ui-lifecycle-02/captures/lifecycle-aux.png"
+    ]
+  },
+  "divergences": [],
+  "exceptions": [],
+  "limitations": [
+    "Device identity is the injected persistent owner observed between completed phases plus reviewed production wiring, not interception/counting of every VkDevice creation.",
+    "Shutdown verifies weak owner/device expiration and SDL video stopped after Context destruction; no timestamped destructor ordering trace.",
+    "UI driver composes real production factory/owner/drawing factory and performs real WSI recreation, but this is a diagnostic capture executable, not ordinary launcher execution.",
+    "Auxiliary is a 64x64 synthetic exact pattern, not every offscreen caller or tiled giant output.",
+    "This paused 960x640 baseline uses ordinary paint and does not establish native terrain/entity completeness, performance, vsync or TPS gains."
+  ],
+  "globalGateP": false,
+  "buildArtifactSha256": {
+    "obj/vulkan-parity/ui-build-34/bin/libopenrct2.lib": "de635563e9705c27d8c831ddf9b8862523251b6cefb65daead78656e5320d4d6",
+    "obj/vulkan-parity/ui-build-34/bin/libopenrct2ui-parity.lib": "2714197d67ed55bbde53c1cd563d872ffc09f8a3b122f173157dd0c0d045bd3b",
+    "obj/vulkan-parity/ui-build-34/bin/libopenrct2renderer.lib": "cb65350d594509e7abd9d8189fa0a194d7f1e079817627524271a87345b0a019",
+    "obj/vulkan-parity/ui-build-34/bin/ui-parity.exe": "f29f7800268d43bb6d95a2291feaa1927467956fd78961de92d476829c78ba13"
+  },
+  "runtimeDllSha256": {},
+  "buildLogSha256": "c6ac54985ff1e6ae9d0cd33029dd1435bc706a93305b8eded2a9b5c960addad6",
+  "reviewedProductionWiring": [
+    "Ui.cpp injects the same presentation owner into its drawing factory and configured auxiliary factory; UiParityMain composes those same production types.",
+    "DeviceContextOwner retains one context, validates newly recreated surfaces and returns the existing context for auxiliary acquisition.",
+    "Context shuts down auxiliary service before UI teardown; service joins worker and clears provider; UiContext releases drawing factory before SDL video quits."
+  ]
+}

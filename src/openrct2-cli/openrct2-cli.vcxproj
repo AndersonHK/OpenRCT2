@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <SolutionDir Condition="'$(SolutionDir)'==''">..\..\</SolutionDir>
@@ -59,7 +59,7 @@
       <AdditionalOptions>$(OPENRCT2_CL_ADDITIONALOPTIONS) %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>libopenrct2.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libopenrct2renderer.lib;libopenrct2.lib;$(VulkanAdditionalDependencies)%(AdditionalDependencies)</AdditionalDependencies>
       <ProgramDatabaseFile>$(OutDir)openrct2-cli.pdb</ProgramDatabaseFile>
       <SubSystem>Console</SubSystem>
     </Link>
@@ -78,6 +78,9 @@
   <ItemGroup>
     <ProjectReference Include="..\openrct2-deps\openrct2-deps.vcxproj">
       <Project>{c453da76-44b3-4ac8-aaa2-2b64a76993a5}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\openrct2-renderer\libopenrct2renderer.vcxproj">
+      <Project>{4F65E397-FDA9-4F15-A03C-C3A2139BDE8E}</Project>
     </ProjectReference>
     <ProjectReference Include="..\openrct2\libopenrct2.vcxproj">
       <Project>{d24d94f6-2a74-480c-b512-629c306ce92f}</Project>

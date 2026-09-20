@@ -1,0 +1,5585 @@
+{
+  "schema": 1,
+  "reviewer": "/root/decode_assets",
+  "date": "2026-09-19",
+  "acceptedRendererExceptions": [],
+  "runs": [
+    {
+      "summary": {
+        "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-02/summary.json",
+        "sha256": "064ad362ff4dc047c2e984441a0e11c1dee879d6e6a4eafe05f5b6031beed051"
+      },
+      "status": "pass",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-frozen-build-14\\receipt.json",
+        "sha256": "788240818c63aa741920778c1db8df0832566f7faa3b8a52aade143eab507eb1"
+      },
+      "shaderBuildReceipt": null,
+      "references": [],
+      "repeatScope": "paint ordinals only; fresh-process repeat still required",
+      "captureLog": {
+        "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-02/capture.log",
+        "sha256": "c3104a1d51b88e67d885ac2acd584a51c5db94b5cc6ae892db5ff7dce93ee3c8"
+      },
+      "validationActivationConfirmed": false
+    },
+    {
+      "summary": {
+        "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-03/summary.json",
+        "sha256": "1e0f0edca18f83672a3412cf9dfc4fef2d4e10a3d3b308abf7413b8e10bb37f5"
+      },
+      "status": "pass",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-frozen-build-14\\receipt.json",
+        "sha256": "788240818c63aa741920778c1db8df0832566f7faa3b8a52aade143eab507eb1"
+      },
+      "shaderBuildReceipt": null,
+      "references": [
+        {
+          "path": "obj\\vulkan-parity\\ui-frozen-font-ttf-arial-hinted-02",
+          "summarySha256": "064ad362ff4dc047c2e984441a0e11c1dee879d6e6a4eafe05f5b6031beed051"
+        }
+      ],
+      "repeatScope": "fresh process against identical renderer build",
+      "captureLog": {
+        "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-03/capture.log",
+        "sha256": "83c607c437d84bfd27c1f5cc251335d64c812b4c1158babb586bb9ba99b8b028"
+      },
+      "validationActivationConfirmed": false
+    },
+    {
+      "summary": {
+        "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/summary.json",
+        "sha256": "6dc336f45f27f484ccabfdea9687301033d7f65428189b3078de798a2daa27a1"
+      },
+      "status": "pass",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-18\\receipt.json",
+        "sha256": "29621f71ba59e44cbc3271711375758d89ac872b91e4676773977bfcf9145cfc"
+      },
+      "shaderBuildReceipt": null,
+      "references": [
+        {
+          "path": "obj\\vulkan-parity\\ui-frozen-font-ttf-arial-hinted-02",
+          "summarySha256": "064ad362ff4dc047c2e984441a0e11c1dee879d6e6a4eafe05f5b6031beed051"
+        }
+      ],
+      "repeatScope": "paint ordinals only; fresh-process repeat still required",
+      "captureLog": {
+        "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/capture.log",
+        "sha256": "34ab9fa8a5334f493fe67824c3db85be934002212a2a567cd7dcd63cd9c190b6"
+      },
+      "validationActivationConfirmed": false
+    },
+    {
+      "summary": {
+        "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-03/summary.json",
+        "sha256": "d79d556c20e06bf9f5c0696b6a5b4980ade9a02166c784a0d4f3561d29ab349b"
+      },
+      "status": "pass",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-18\\receipt.json",
+        "sha256": "29621f71ba59e44cbc3271711375758d89ac872b91e4676773977bfcf9145cfc"
+      },
+      "shaderBuildReceipt": null,
+      "references": [
+        {
+          "path": "obj\\vulkan-parity\\ui-current-font-ttf-arial-hinted-02",
+          "summarySha256": "6dc336f45f27f484ccabfdea9687301033d7f65428189b3078de798a2daa27a1"
+        }
+      ],
+      "repeatScope": "fresh process against identical renderer build",
+      "captureLog": {
+        "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-03/capture.log",
+        "sha256": "5279bb48ae8af199e0050dbf23aeeb1929f5e3c58221bb20fca4ec882ccda57f"
+      },
+      "validationActivationConfirmed": false
+    },
+    {
+      "summary": {
+        "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/summary.json",
+        "sha256": "3b4b34c23db43188f4c051fe3b00b13eb419805c0f4124171b91d9d27b2919ad"
+      },
+      "status": "pass",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-18\\receipt.json",
+        "sha256": "29621f71ba59e44cbc3271711375758d89ac872b91e4676773977bfcf9145cfc"
+      },
+      "shaderBuildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\build-32\\receipt.json",
+        "sha256": "fb2ced94b602c35ccdfbfb686e3ed1ae816aae2e3c66884eb347b897b0a008da"
+      },
+      "references": [
+        {
+          "path": "obj\\vulkan-parity\\ui-frozen-font-ttf-arial-hinted-02",
+          "summarySha256": "064ad362ff4dc047c2e984441a0e11c1dee879d6e6a4eafe05f5b6031beed051"
+        }
+      ],
+      "repeatScope": "paint ordinals only; fresh-process repeat still required",
+      "captureLog": {
+        "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/capture.log",
+        "sha256": "6425b06d019792f977811836a96ecc494f50f7b804853f8e1909835064872541"
+      },
+      "validationActivationConfirmed": true
+    },
+    {
+      "summary": {
+        "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-03/summary.json",
+        "sha256": "3922950c3ed07e072e506dfc749044d1f4c2d19b67ec508a885bd8d3a7ab969f"
+      },
+      "status": "pass",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-18\\receipt.json",
+        "sha256": "29621f71ba59e44cbc3271711375758d89ac872b91e4676773977bfcf9145cfc"
+      },
+      "shaderBuildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\build-32\\receipt.json",
+        "sha256": "fb2ced94b602c35ccdfbfb686e3ed1ae816aae2e3c66884eb347b897b0a008da"
+      },
+      "references": [
+        {
+          "path": "obj\\vulkan-parity\\ui-vulkan-font-ttf-arial-hinted-02",
+          "summarySha256": "3b4b34c23db43188f4c051fe3b00b13eb419805c0f4124171b91d9d27b2919ad"
+        }
+      ],
+      "repeatScope": "fresh process against identical renderer build",
+      "captureLog": {
+        "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-03/capture.log",
+        "sha256": "8643bc8cb2bde331b347cd2e06d88a9b84387e87aba622e067d1aec1c6eef6f0"
+      },
+      "validationActivationConfirmed": true
+    },
+    {
+      "summary": {
+        "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-01/summary.json",
+        "sha256": "3b8ce81ad6af7b0d388459edae63c8ac174982ffafac413229563cc9113d6bf1"
+      },
+      "status": "pass",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-frozen-build-13\\receipt.json",
+        "sha256": "975d2eb8794864ee6a7bc8d7c9f32bf9dfbaf8edf8ccf6063a482a94f9d36fcc"
+      },
+      "shaderBuildReceipt": null,
+      "references": [],
+      "repeatScope": "paint ordinals only; fresh-process repeat still required",
+      "captureLog": {
+        "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-01/capture.log",
+        "sha256": "da2f7771e47613891f584e1a7507e255db95214ce68515741abb14f3d4449ace"
+      },
+      "validationActivationConfirmed": false
+    },
+    {
+      "summary": {
+        "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-03/summary.json",
+        "sha256": "13088ecbfe5551513625e399f68f045837dc092dc8cf7a9c5201dcd2abe731f3"
+      },
+      "status": "pass",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-frozen-build-13\\receipt.json",
+        "sha256": "975d2eb8794864ee6a7bc8d7c9f32bf9dfbaf8edf8ccf6063a482a94f9d36fcc"
+      },
+      "shaderBuildReceipt": null,
+      "references": [
+        {
+          "path": "obj\\vulkan-parity\\ui-frozen-font-sprite-fr-01",
+          "summarySha256": "3b8ce81ad6af7b0d388459edae63c8ac174982ffafac413229563cc9113d6bf1"
+        }
+      ],
+      "repeatScope": "fresh process against identical renderer build",
+      "captureLog": {
+        "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-03/capture.log",
+        "sha256": "a40a0994a2e87d4f68d06e01a85d0db2faa2ddc1c18a0bb9465150fc885a4c94"
+      },
+      "validationActivationConfirmed": false
+    },
+    {
+      "summary": {
+        "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/summary.json",
+        "sha256": "4b8a5e30fd7d3cab0cd9049ae7be4aa3f14835231ccf71eb71c9fd391710d784"
+      },
+      "status": "pass",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-18\\receipt.json",
+        "sha256": "29621f71ba59e44cbc3271711375758d89ac872b91e4676773977bfcf9145cfc"
+      },
+      "shaderBuildReceipt": null,
+      "references": [
+        {
+          "path": "obj\\vulkan-parity\\ui-frozen-font-sprite-fr-01",
+          "summarySha256": "3b8ce81ad6af7b0d388459edae63c8ac174982ffafac413229563cc9113d6bf1"
+        }
+      ],
+      "repeatScope": "paint ordinals only; fresh-process repeat still required",
+      "captureLog": {
+        "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/capture.log",
+        "sha256": "d6f6eeccbb09bf327a3fd1a15aedd8e63ce8ee621136a4767ec13f87c6cb1662"
+      },
+      "validationActivationConfirmed": false
+    },
+    {
+      "summary": {
+        "path": "obj/vulkan-parity/ui-current-font-sprite-fr-03/summary.json",
+        "sha256": "faf87f296c5799fad85c6f80c0aa8503a190c088cd0f2d80309d39a2ff03d547"
+      },
+      "status": "pass",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-18\\receipt.json",
+        "sha256": "29621f71ba59e44cbc3271711375758d89ac872b91e4676773977bfcf9145cfc"
+      },
+      "shaderBuildReceipt": null,
+      "references": [
+        {
+          "path": "obj\\vulkan-parity\\ui-current-font-sprite-fr-02",
+          "summarySha256": "4b8a5e30fd7d3cab0cd9049ae7be4aa3f14835231ccf71eb71c9fd391710d784"
+        }
+      ],
+      "repeatScope": "fresh process against identical renderer build",
+      "captureLog": {
+        "path": "obj/vulkan-parity/ui-current-font-sprite-fr-03/capture.log",
+        "sha256": "24120859f8141023b10224a17a2991e88d606a0fd75fbb3854669015201648ec"
+      },
+      "validationActivationConfirmed": false
+    },
+    {
+      "summary": {
+        "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/summary.json",
+        "sha256": "aeb50aae406dd489caa1e1acb9303146182609e77e6bb77e4ba747cda9c4c225"
+      },
+      "status": "pass",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-18\\receipt.json",
+        "sha256": "29621f71ba59e44cbc3271711375758d89ac872b91e4676773977bfcf9145cfc"
+      },
+      "shaderBuildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\build-32\\receipt.json",
+        "sha256": "fb2ced94b602c35ccdfbfb686e3ed1ae816aae2e3c66884eb347b897b0a008da"
+      },
+      "references": [
+        {
+          "path": "obj\\vulkan-parity\\ui-frozen-font-sprite-fr-01",
+          "summarySha256": "3b8ce81ad6af7b0d388459edae63c8ac174982ffafac413229563cc9113d6bf1"
+        }
+      ],
+      "repeatScope": "paint ordinals only; fresh-process repeat still required",
+      "captureLog": {
+        "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/capture.log",
+        "sha256": "cefbd1b3f3bbddc10300dfa4072e7fcb145f618d5e983220ac8eefa4f2fc180e"
+      },
+      "validationActivationConfirmed": true
+    },
+    {
+      "summary": {
+        "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-03/summary.json",
+        "sha256": "581705bb149eb80cd047394e281e425fe95f326c6708a6f74959d1fb7f6e4d08"
+      },
+      "status": "pass",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-18\\receipt.json",
+        "sha256": "29621f71ba59e44cbc3271711375758d89ac872b91e4676773977bfcf9145cfc"
+      },
+      "shaderBuildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\build-32\\receipt.json",
+        "sha256": "fb2ced94b602c35ccdfbfb686e3ed1ae816aae2e3c66884eb347b897b0a008da"
+      },
+      "references": [
+        {
+          "path": "obj\\vulkan-parity\\ui-vulkan-font-sprite-fr-02",
+          "summarySha256": "aeb50aae406dd489caa1e1acb9303146182609e77e6bb77e4ba747cda9c4c225"
+        }
+      ],
+      "repeatScope": "fresh process against identical renderer build",
+      "captureLog": {
+        "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-03/capture.log",
+        "sha256": "243d34c0c98808bf2dcf9bfb6fbe7d07d648c5cd6481d6f3861c79fa6b751feb"
+      },
+      "validationActivationConfirmed": true
+    }
+  ],
+  "captures": [
+    {
+      "run": "ui-frozen-font-ttf-arial-hinted-02",
+      "step": "font-empty-ui",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 3,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-02/captures/font-empty-ui/screen.indexed",
+          "sha256": "8b77c7dbab72882736ce87db0492d61dc5fdd9f3adeeb988f62e4f21e6c8fac4"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-02/captures/font-empty-ui/screen.rgba",
+          "sha256": "d267ffba71a196a8c5fcc2f0469cff9f3d5d60c921d7a429c4ebdd25a170ae83"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-02/captures/font-empty-ui/report.json",
+          "sha256": "d7649357cde735f8784b0d7721c05e4a2fae9f89dcd235316b9ed4a240cd55a6"
+        }
+      ]
+    },
+    {
+      "run": "ui-frozen-font-ttf-arial-hinted-02",
+      "step": "font-localized-window",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 4,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-02/captures/font-localized-window/screen.indexed",
+          "sha256": "fbdc8cf44143511b190bc6bb438d12d1a2b69c1b1c69cd3adaf64a39c27c2f73"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-02/captures/font-localized-window/screen.rgba",
+          "sha256": "08416f555288fb5d7199abc1a2fabd8e43a3ddf86d025cb80a041374faac6a09"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-02/captures/font-localized-window/report.json",
+          "sha256": "0b3651cc98108aa9a32e18eee5fc7299fb3ad4da058a7e4dff370c2c717dc995"
+        }
+      ]
+    },
+    {
+      "run": "ui-frozen-font-ttf-arial-hinted-02",
+      "step": "font-caret-start",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 5,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          367
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-02/captures/font-caret-start/screen.indexed",
+          "sha256": "7c5368d7432a3dfa1bff4a88978214a528a41118e6d42cdaf2c6f4c84941c77f"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-02/captures/font-caret-start/screen.rgba",
+          "sha256": "7c13272aa295ebbf22d6e0272fe4e561107046b292b832791dc32313ca766c33"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-02/captures/font-caret-start/report.json",
+          "sha256": "cd6f8bbd4f50a3262eca1fdae3926a563cbd211a929db692123ef4eefa73c4fb"
+        }
+      ]
+    },
+    {
+      "run": "ui-frozen-font-ttf-arial-hinted-02",
+      "step": "font-caret-mid",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 6,
+      "fontTextInput": {
+        "caret": 12,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          367
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-02/captures/font-caret-mid/screen.indexed",
+          "sha256": "50e25ad654cc8b5d2b628832419684dbb86216b5008c10c713598f40ff7976e0"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-02/captures/font-caret-mid/screen.rgba",
+          "sha256": "74d6e06ce48209dee60a320ceed11b4e62191c9b3956e0dd92b62085fccca850"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-02/captures/font-caret-mid/report.json",
+          "sha256": "b715ac3a5d5480033adf8d758b664943d721b53b2c6533400e288ddadee5e967"
+        }
+      ]
+    },
+    {
+      "run": "ui-frozen-font-ttf-arial-hinted-02",
+      "step": "font-caret-end",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 7,
+      "fontTextInput": {
+        "caret": 188,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          367
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-02/captures/font-caret-end/screen.indexed",
+          "sha256": "082d4fc62367a7aca8238a7159fb25fd9b173faf409d78433a8b6ee56277bf34"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-02/captures/font-caret-end/screen.rgba",
+          "sha256": "f6925d82e6bd0e26fbbd5ef3044768b8e97fa97da28dbe86425bb3ac12f5683d"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-02/captures/font-caret-end/report.json",
+          "sha256": "cdf5d90be472ed5ab5af5abc0837fc98fbd4539fd228795d56b3fca3ccc23407"
+        }
+      ]
+    },
+    {
+      "run": "ui-frozen-font-ttf-arial-hinted-02",
+      "step": "font-screen-clip",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 8,
+      "fontTextInput": {
+        "caret": 188,
+        "dialogUpdates": 16,
+        "textBounds": [
+          -12,
+          162,
+          213,
+          214
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-02/captures/font-screen-clip/screen.indexed",
+          "sha256": "d2019ec86346571cf974f070c41c6add19f60cf21e65c5252b902f8155821ae1"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-02/captures/font-screen-clip/screen.rgba",
+          "sha256": "dde575ab9f86720a33f6bfc89559299ddaee1dd343f83c2f06a66bc88f968529"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-02/captures/font-screen-clip/report.json",
+          "sha256": "ee9845ba45582c57e46ada884aff098425a4fb37bff4353d440b0ed6bc33e4ad"
+        }
+      ]
+    },
+    {
+      "run": "ui-frozen-font-ttf-arial-hinted-02",
+      "step": "font-restored",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 9,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-02/captures/font-restored/screen.indexed",
+          "sha256": "8b77c7dbab72882736ce87db0492d61dc5fdd9f3adeeb988f62e4f21e6c8fac4"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-02/captures/font-restored/screen.rgba",
+          "sha256": "d267ffba71a196a8c5fcc2f0469cff9f3d5d60c921d7a429c4ebdd25a170ae83"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-02/captures/font-restored/report.json",
+          "sha256": "87fc041e0945966da22e5bc9448ed5442859d9c8dec288148b09617339a6355c"
+        }
+      ]
+    },
+    {
+      "run": "ui-frozen-font-ttf-arial-hinted-03",
+      "step": "font-empty-ui",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 3,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-03/captures/font-empty-ui/screen.indexed",
+          "sha256": "8b77c7dbab72882736ce87db0492d61dc5fdd9f3adeeb988f62e4f21e6c8fac4"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-03/captures/font-empty-ui/screen.rgba",
+          "sha256": "d267ffba71a196a8c5fcc2f0469cff9f3d5d60c921d7a429c4ebdd25a170ae83"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-03/captures/font-empty-ui/report.json",
+          "sha256": "78b1f92b2ccc65312b9730d2439a411b92676f08c2f586f930ad84f26cb5137e"
+        }
+      ]
+    },
+    {
+      "run": "ui-frozen-font-ttf-arial-hinted-03",
+      "step": "font-localized-window",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 4,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-03/captures/font-localized-window/screen.indexed",
+          "sha256": "fbdc8cf44143511b190bc6bb438d12d1a2b69c1b1c69cd3adaf64a39c27c2f73"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-03/captures/font-localized-window/screen.rgba",
+          "sha256": "08416f555288fb5d7199abc1a2fabd8e43a3ddf86d025cb80a041374faac6a09"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-03/captures/font-localized-window/report.json",
+          "sha256": "854b505f7b3071d2d3b2cb333d8c59d29fa187588abcf461e1e5a47bf86b2bee"
+        }
+      ]
+    },
+    {
+      "run": "ui-frozen-font-ttf-arial-hinted-03",
+      "step": "font-caret-start",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 5,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          367
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-03/captures/font-caret-start/screen.indexed",
+          "sha256": "7c5368d7432a3dfa1bff4a88978214a528a41118e6d42cdaf2c6f4c84941c77f"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-03/captures/font-caret-start/screen.rgba",
+          "sha256": "7c13272aa295ebbf22d6e0272fe4e561107046b292b832791dc32313ca766c33"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-03/captures/font-caret-start/report.json",
+          "sha256": "bc86217e43cc1bce2667a2eeed57c6fb07cf5125563e40b0a6c462f3c62be761"
+        }
+      ]
+    },
+    {
+      "run": "ui-frozen-font-ttf-arial-hinted-03",
+      "step": "font-caret-mid",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 6,
+      "fontTextInput": {
+        "caret": 12,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          367
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-03/captures/font-caret-mid/screen.indexed",
+          "sha256": "50e25ad654cc8b5d2b628832419684dbb86216b5008c10c713598f40ff7976e0"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-03/captures/font-caret-mid/screen.rgba",
+          "sha256": "74d6e06ce48209dee60a320ceed11b4e62191c9b3956e0dd92b62085fccca850"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-03/captures/font-caret-mid/report.json",
+          "sha256": "b436345ff378c151d1b5018d7280cb6aa33dc7986fbf68095b80984bf221f411"
+        }
+      ]
+    },
+    {
+      "run": "ui-frozen-font-ttf-arial-hinted-03",
+      "step": "font-caret-end",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 7,
+      "fontTextInput": {
+        "caret": 188,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          367
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-03/captures/font-caret-end/screen.indexed",
+          "sha256": "082d4fc62367a7aca8238a7159fb25fd9b173faf409d78433a8b6ee56277bf34"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-03/captures/font-caret-end/screen.rgba",
+          "sha256": "f6925d82e6bd0e26fbbd5ef3044768b8e97fa97da28dbe86425bb3ac12f5683d"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-03/captures/font-caret-end/report.json",
+          "sha256": "6383e4805760c68732a51c6c9d6be3bc5987c97ca3441d1579dca26a5b37ae61"
+        }
+      ]
+    },
+    {
+      "run": "ui-frozen-font-ttf-arial-hinted-03",
+      "step": "font-screen-clip",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 8,
+      "fontTextInput": {
+        "caret": 188,
+        "dialogUpdates": 16,
+        "textBounds": [
+          -12,
+          162,
+          213,
+          214
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-03/captures/font-screen-clip/screen.indexed",
+          "sha256": "d2019ec86346571cf974f070c41c6add19f60cf21e65c5252b902f8155821ae1"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-03/captures/font-screen-clip/screen.rgba",
+          "sha256": "dde575ab9f86720a33f6bfc89559299ddaee1dd343f83c2f06a66bc88f968529"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-03/captures/font-screen-clip/report.json",
+          "sha256": "14c2633f4a79217393c5358930adb99bb123b31b3937e2959f62a45a3cf83fad"
+        }
+      ]
+    },
+    {
+      "run": "ui-frozen-font-ttf-arial-hinted-03",
+      "step": "font-restored",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 9,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-03/captures/font-restored/screen.indexed",
+          "sha256": "8b77c7dbab72882736ce87db0492d61dc5fdd9f3adeeb988f62e4f21e6c8fac4"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-03/captures/font-restored/screen.rgba",
+          "sha256": "d267ffba71a196a8c5fcc2f0469cff9f3d5d60c921d7a429c4ebdd25a170ae83"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-03/captures/font-restored/report.json",
+          "sha256": "7b387935420bda38bc8e4eda65c075db822ea30fdec1c8484e7cb0cd314ced90"
+        }
+      ]
+    },
+    {
+      "run": "ui-current-font-ttf-arial-hinted-02",
+      "step": "font-empty-ui",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 3,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/captures/font-empty-ui/screen.indexed",
+          "sha256": "8b77c7dbab72882736ce87db0492d61dc5fdd9f3adeeb988f62e4f21e6c8fac4"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/captures/font-empty-ui/screen.rgba",
+          "sha256": "d267ffba71a196a8c5fcc2f0469cff9f3d5d60c921d7a429c4ebdd25a170ae83"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/captures/font-empty-ui/report.json",
+          "sha256": "78b1f92b2ccc65312b9730d2439a411b92676f08c2f586f930ad84f26cb5137e"
+        }
+      ]
+    },
+    {
+      "run": "ui-current-font-ttf-arial-hinted-02",
+      "step": "font-localized-window",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 4,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/captures/font-localized-window/screen.indexed",
+          "sha256": "fbdc8cf44143511b190bc6bb438d12d1a2b69c1b1c69cd3adaf64a39c27c2f73"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/captures/font-localized-window/screen.rgba",
+          "sha256": "08416f555288fb5d7199abc1a2fabd8e43a3ddf86d025cb80a041374faac6a09"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/captures/font-localized-window/report.json",
+          "sha256": "854b505f7b3071d2d3b2cb333d8c59d29fa187588abcf461e1e5a47bf86b2bee"
+        }
+      ]
+    },
+    {
+      "run": "ui-current-font-ttf-arial-hinted-02",
+      "step": "font-caret-start",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 5,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          367
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/captures/font-caret-start/screen.indexed",
+          "sha256": "7c5368d7432a3dfa1bff4a88978214a528a41118e6d42cdaf2c6f4c84941c77f"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/captures/font-caret-start/screen.rgba",
+          "sha256": "7c13272aa295ebbf22d6e0272fe4e561107046b292b832791dc32313ca766c33"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/captures/font-caret-start/report.json",
+          "sha256": "bc86217e43cc1bce2667a2eeed57c6fb07cf5125563e40b0a6c462f3c62be761"
+        }
+      ]
+    },
+    {
+      "run": "ui-current-font-ttf-arial-hinted-02",
+      "step": "font-caret-mid",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 6,
+      "fontTextInput": {
+        "caret": 12,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          367
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/captures/font-caret-mid/screen.indexed",
+          "sha256": "50e25ad654cc8b5d2b628832419684dbb86216b5008c10c713598f40ff7976e0"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/captures/font-caret-mid/screen.rgba",
+          "sha256": "74d6e06ce48209dee60a320ceed11b4e62191c9b3956e0dd92b62085fccca850"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/captures/font-caret-mid/report.json",
+          "sha256": "b436345ff378c151d1b5018d7280cb6aa33dc7986fbf68095b80984bf221f411"
+        }
+      ]
+    },
+    {
+      "run": "ui-current-font-ttf-arial-hinted-02",
+      "step": "font-caret-end",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 7,
+      "fontTextInput": {
+        "caret": 188,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          367
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/captures/font-caret-end/screen.indexed",
+          "sha256": "082d4fc62367a7aca8238a7159fb25fd9b173faf409d78433a8b6ee56277bf34"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/captures/font-caret-end/screen.rgba",
+          "sha256": "f6925d82e6bd0e26fbbd5ef3044768b8e97fa97da28dbe86425bb3ac12f5683d"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/captures/font-caret-end/report.json",
+          "sha256": "6383e4805760c68732a51c6c9d6be3bc5987c97ca3441d1579dca26a5b37ae61"
+        }
+      ]
+    },
+    {
+      "run": "ui-current-font-ttf-arial-hinted-02",
+      "step": "font-screen-clip",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 8,
+      "fontTextInput": {
+        "caret": 188,
+        "dialogUpdates": 16,
+        "textBounds": [
+          -12,
+          162,
+          213,
+          214
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/captures/font-screen-clip/screen.indexed",
+          "sha256": "d2019ec86346571cf974f070c41c6add19f60cf21e65c5252b902f8155821ae1"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/captures/font-screen-clip/screen.rgba",
+          "sha256": "dde575ab9f86720a33f6bfc89559299ddaee1dd343f83c2f06a66bc88f968529"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/captures/font-screen-clip/report.json",
+          "sha256": "14c2633f4a79217393c5358930adb99bb123b31b3937e2959f62a45a3cf83fad"
+        }
+      ]
+    },
+    {
+      "run": "ui-current-font-ttf-arial-hinted-02",
+      "step": "font-restored",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 9,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/captures/font-restored/screen.indexed",
+          "sha256": "8b77c7dbab72882736ce87db0492d61dc5fdd9f3adeeb988f62e4f21e6c8fac4"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/captures/font-restored/screen.rgba",
+          "sha256": "d267ffba71a196a8c5fcc2f0469cff9f3d5d60c921d7a429c4ebdd25a170ae83"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/captures/font-restored/report.json",
+          "sha256": "7b387935420bda38bc8e4eda65c075db822ea30fdec1c8484e7cb0cd314ced90"
+        }
+      ]
+    },
+    {
+      "run": "ui-current-font-ttf-arial-hinted-03",
+      "step": "font-empty-ui",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 3,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-03/captures/font-empty-ui/screen.indexed",
+          "sha256": "8b77c7dbab72882736ce87db0492d61dc5fdd9f3adeeb988f62e4f21e6c8fac4"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-03/captures/font-empty-ui/screen.rgba",
+          "sha256": "d267ffba71a196a8c5fcc2f0469cff9f3d5d60c921d7a429c4ebdd25a170ae83"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-03/captures/font-empty-ui/report.json",
+          "sha256": "78b1f92b2ccc65312b9730d2439a411b92676f08c2f586f930ad84f26cb5137e"
+        }
+      ]
+    },
+    {
+      "run": "ui-current-font-ttf-arial-hinted-03",
+      "step": "font-localized-window",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 4,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-03/captures/font-localized-window/screen.indexed",
+          "sha256": "fbdc8cf44143511b190bc6bb438d12d1a2b69c1b1c69cd3adaf64a39c27c2f73"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-03/captures/font-localized-window/screen.rgba",
+          "sha256": "08416f555288fb5d7199abc1a2fabd8e43a3ddf86d025cb80a041374faac6a09"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-03/captures/font-localized-window/report.json",
+          "sha256": "854b505f7b3071d2d3b2cb333d8c59d29fa187588abcf461e1e5a47bf86b2bee"
+        }
+      ]
+    },
+    {
+      "run": "ui-current-font-ttf-arial-hinted-03",
+      "step": "font-caret-start",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 5,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          367
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-03/captures/font-caret-start/screen.indexed",
+          "sha256": "7c5368d7432a3dfa1bff4a88978214a528a41118e6d42cdaf2c6f4c84941c77f"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-03/captures/font-caret-start/screen.rgba",
+          "sha256": "7c13272aa295ebbf22d6e0272fe4e561107046b292b832791dc32313ca766c33"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-03/captures/font-caret-start/report.json",
+          "sha256": "bc86217e43cc1bce2667a2eeed57c6fb07cf5125563e40b0a6c462f3c62be761"
+        }
+      ]
+    },
+    {
+      "run": "ui-current-font-ttf-arial-hinted-03",
+      "step": "font-caret-mid",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 6,
+      "fontTextInput": {
+        "caret": 12,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          367
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-03/captures/font-caret-mid/screen.indexed",
+          "sha256": "50e25ad654cc8b5d2b628832419684dbb86216b5008c10c713598f40ff7976e0"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-03/captures/font-caret-mid/screen.rgba",
+          "sha256": "74d6e06ce48209dee60a320ceed11b4e62191c9b3956e0dd92b62085fccca850"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-03/captures/font-caret-mid/report.json",
+          "sha256": "b436345ff378c151d1b5018d7280cb6aa33dc7986fbf68095b80984bf221f411"
+        }
+      ]
+    },
+    {
+      "run": "ui-current-font-ttf-arial-hinted-03",
+      "step": "font-caret-end",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 7,
+      "fontTextInput": {
+        "caret": 188,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          367
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-03/captures/font-caret-end/screen.indexed",
+          "sha256": "082d4fc62367a7aca8238a7159fb25fd9b173faf409d78433a8b6ee56277bf34"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-03/captures/font-caret-end/screen.rgba",
+          "sha256": "f6925d82e6bd0e26fbbd5ef3044768b8e97fa97da28dbe86425bb3ac12f5683d"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-03/captures/font-caret-end/report.json",
+          "sha256": "6383e4805760c68732a51c6c9d6be3bc5987c97ca3441d1579dca26a5b37ae61"
+        }
+      ]
+    },
+    {
+      "run": "ui-current-font-ttf-arial-hinted-03",
+      "step": "font-screen-clip",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 8,
+      "fontTextInput": {
+        "caret": 188,
+        "dialogUpdates": 16,
+        "textBounds": [
+          -12,
+          162,
+          213,
+          214
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-03/captures/font-screen-clip/screen.indexed",
+          "sha256": "d2019ec86346571cf974f070c41c6add19f60cf21e65c5252b902f8155821ae1"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-03/captures/font-screen-clip/screen.rgba",
+          "sha256": "dde575ab9f86720a33f6bfc89559299ddaee1dd343f83c2f06a66bc88f968529"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-03/captures/font-screen-clip/report.json",
+          "sha256": "14c2633f4a79217393c5358930adb99bb123b31b3937e2959f62a45a3cf83fad"
+        }
+      ]
+    },
+    {
+      "run": "ui-current-font-ttf-arial-hinted-03",
+      "step": "font-restored",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 9,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-03/captures/font-restored/screen.indexed",
+          "sha256": "8b77c7dbab72882736ce87db0492d61dc5fdd9f3adeeb988f62e4f21e6c8fac4"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-03/captures/font-restored/screen.rgba",
+          "sha256": "d267ffba71a196a8c5fcc2f0469cff9f3d5d60c921d7a429c4ebdd25a170ae83"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-03/captures/font-restored/report.json",
+          "sha256": "7b387935420bda38bc8e4eda65c075db822ea30fdec1c8484e7cb0cd314ced90"
+        }
+      ]
+    },
+    {
+      "run": "ui-vulkan-font-ttf-arial-hinted-02",
+      "step": "font-empty-ui",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 3,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/captures/font-empty-ui/screen.indexed",
+          "sha256": "8b77c7dbab72882736ce87db0492d61dc5fdd9f3adeeb988f62e4f21e6c8fac4"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/captures/font-empty-ui/screen.rgba",
+          "sha256": "d267ffba71a196a8c5fcc2f0469cff9f3d5d60c921d7a429c4ebdd25a170ae83"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/captures/font-empty-ui/report.json",
+          "sha256": "1bcf5412ab50808528182422ffdc6f6372fd242a70a99b88853c23494a96209c"
+        }
+      ],
+      "ttfCommands": {
+        "opaque": 0,
+        "transparent": 4
+      }
+    },
+    {
+      "run": "ui-vulkan-font-ttf-arial-hinted-02",
+      "step": "font-localized-window",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 4,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/captures/font-localized-window/screen.indexed",
+          "sha256": "fbdc8cf44143511b190bc6bb438d12d1a2b69c1b1c69cd3adaf64a39c27c2f73"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/captures/font-localized-window/screen.rgba",
+          "sha256": "08416f555288fb5d7199abc1a2fabd8e43a3ddf86d025cb80a041374faac6a09"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/captures/font-localized-window/report.json",
+          "sha256": "8a8c7298f038f4831bee7af027a8ae1e7c4b9a5473d90f54168974449a3b5f05"
+        }
+      ],
+      "ttfCommands": {
+        "opaque": 4,
+        "transparent": 13
+      }
+    },
+    {
+      "run": "ui-vulkan-font-ttf-arial-hinted-02",
+      "step": "font-caret-start",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 5,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          367
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/captures/font-caret-start/screen.indexed",
+          "sha256": "7c5368d7432a3dfa1bff4a88978214a528a41118e6d42cdaf2c6f4c84941c77f"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/captures/font-caret-start/screen.rgba",
+          "sha256": "7c13272aa295ebbf22d6e0272fe4e561107046b292b832791dc32313ca766c33"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/captures/font-caret-start/report.json",
+          "sha256": "75c052b5e02bdcae2e55e8bc59aff5f194b70a012f005a5a1470f11ac7b8ea80"
+        }
+      ],
+      "ttfCommands": {
+        "opaque": 12,
+        "transparent": 30
+      },
+      "dialogTtfCommandsAtThreshold40": 7
+    },
+    {
+      "run": "ui-vulkan-font-ttf-arial-hinted-02",
+      "step": "font-caret-mid",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 6,
+      "fontTextInput": {
+        "caret": 12,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          367
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/captures/font-caret-mid/screen.indexed",
+          "sha256": "50e25ad654cc8b5d2b628832419684dbb86216b5008c10c713598f40ff7976e0"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/captures/font-caret-mid/screen.rgba",
+          "sha256": "74d6e06ce48209dee60a320ceed11b4e62191c9b3956e0dd92b62085fccca850"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/captures/font-caret-mid/report.json",
+          "sha256": "4b1023a9b8c09b447bb6ee5f81b07bfab7eb9f205c24dd7196760331767270f2"
+        }
+      ],
+      "ttfCommands": {
+        "opaque": 12,
+        "transparent": 30
+      },
+      "dialogTtfCommandsAtThreshold40": 7
+    },
+    {
+      "run": "ui-vulkan-font-ttf-arial-hinted-02",
+      "step": "font-caret-end",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 7,
+      "fontTextInput": {
+        "caret": 188,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          367
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/captures/font-caret-end/screen.indexed",
+          "sha256": "082d4fc62367a7aca8238a7159fb25fd9b173faf409d78433a8b6ee56277bf34"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/captures/font-caret-end/screen.rgba",
+          "sha256": "f6925d82e6bd0e26fbbd5ef3044768b8e97fa97da28dbe86425bb3ac12f5683d"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/captures/font-caret-end/report.json",
+          "sha256": "60ca086240f1f119da97db88ad6a0296ac4c75eda74896f0a37ab3e822e79616"
+        }
+      ],
+      "ttfCommands": {
+        "opaque": 12,
+        "transparent": 30
+      },
+      "dialogTtfCommandsAtThreshold40": 7
+    },
+    {
+      "run": "ui-vulkan-font-ttf-arial-hinted-02",
+      "step": "font-screen-clip",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 8,
+      "fontTextInput": {
+        "caret": 188,
+        "dialogUpdates": 16,
+        "textBounds": [
+          -12,
+          162,
+          213,
+          214
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/captures/font-screen-clip/screen.indexed",
+          "sha256": "d2019ec86346571cf974f070c41c6add19f60cf21e65c5252b902f8155821ae1"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/captures/font-screen-clip/screen.rgba",
+          "sha256": "dde575ab9f86720a33f6bfc89559299ddaee1dd343f83c2f06a66bc88f968529"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/captures/font-screen-clip/report.json",
+          "sha256": "ea973c0e025a3238e1f61f329a6c1b8162ca82e7aee92f7512e918fb36de15fa"
+        }
+      ],
+      "ttfCommands": {
+        "opaque": 8,
+        "transparent": 24
+      },
+      "dialogTtfCommandsAtThreshold40": 7
+    },
+    {
+      "run": "ui-vulkan-font-ttf-arial-hinted-02",
+      "step": "font-restored",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 9,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/captures/font-restored/screen.indexed",
+          "sha256": "8b77c7dbab72882736ce87db0492d61dc5fdd9f3adeeb988f62e4f21e6c8fac4"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/captures/font-restored/screen.rgba",
+          "sha256": "d267ffba71a196a8c5fcc2f0469cff9f3d5d60c921d7a429c4ebdd25a170ae83"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/captures/font-restored/report.json",
+          "sha256": "4519f9b42520c27fe1d790a9da6cd99569e2ad11296e67ed558c23f2c38230e1"
+        }
+      ],
+      "ttfCommands": {
+        "opaque": 0,
+        "transparent": 4
+      }
+    },
+    {
+      "run": "ui-vulkan-font-ttf-arial-hinted-03",
+      "step": "font-empty-ui",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 3,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-03/captures/font-empty-ui/screen.indexed",
+          "sha256": "8b77c7dbab72882736ce87db0492d61dc5fdd9f3adeeb988f62e4f21e6c8fac4"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-03/captures/font-empty-ui/screen.rgba",
+          "sha256": "d267ffba71a196a8c5fcc2f0469cff9f3d5d60c921d7a429c4ebdd25a170ae83"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-03/captures/font-empty-ui/report.json",
+          "sha256": "1bcf5412ab50808528182422ffdc6f6372fd242a70a99b88853c23494a96209c"
+        }
+      ],
+      "ttfCommands": {
+        "opaque": 0,
+        "transparent": 4
+      }
+    },
+    {
+      "run": "ui-vulkan-font-ttf-arial-hinted-03",
+      "step": "font-localized-window",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 4,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-03/captures/font-localized-window/screen.indexed",
+          "sha256": "fbdc8cf44143511b190bc6bb438d12d1a2b69c1b1c69cd3adaf64a39c27c2f73"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-03/captures/font-localized-window/screen.rgba",
+          "sha256": "08416f555288fb5d7199abc1a2fabd8e43a3ddf86d025cb80a041374faac6a09"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-03/captures/font-localized-window/report.json",
+          "sha256": "8a8c7298f038f4831bee7af027a8ae1e7c4b9a5473d90f54168974449a3b5f05"
+        }
+      ],
+      "ttfCommands": {
+        "opaque": 4,
+        "transparent": 13
+      }
+    },
+    {
+      "run": "ui-vulkan-font-ttf-arial-hinted-03",
+      "step": "font-caret-start",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 5,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          367
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-03/captures/font-caret-start/screen.indexed",
+          "sha256": "7c5368d7432a3dfa1bff4a88978214a528a41118e6d42cdaf2c6f4c84941c77f"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-03/captures/font-caret-start/screen.rgba",
+          "sha256": "7c13272aa295ebbf22d6e0272fe4e561107046b292b832791dc32313ca766c33"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-03/captures/font-caret-start/report.json",
+          "sha256": "75c052b5e02bdcae2e55e8bc59aff5f194b70a012f005a5a1470f11ac7b8ea80"
+        }
+      ],
+      "ttfCommands": {
+        "opaque": 12,
+        "transparent": 30
+      },
+      "dialogTtfCommandsAtThreshold40": 7
+    },
+    {
+      "run": "ui-vulkan-font-ttf-arial-hinted-03",
+      "step": "font-caret-mid",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 6,
+      "fontTextInput": {
+        "caret": 12,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          367
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-03/captures/font-caret-mid/screen.indexed",
+          "sha256": "50e25ad654cc8b5d2b628832419684dbb86216b5008c10c713598f40ff7976e0"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-03/captures/font-caret-mid/screen.rgba",
+          "sha256": "74d6e06ce48209dee60a320ceed11b4e62191c9b3956e0dd92b62085fccca850"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-03/captures/font-caret-mid/report.json",
+          "sha256": "4b1023a9b8c09b447bb6ee5f81b07bfab7eb9f205c24dd7196760331767270f2"
+        }
+      ],
+      "ttfCommands": {
+        "opaque": 12,
+        "transparent": 30
+      },
+      "dialogTtfCommandsAtThreshold40": 7
+    },
+    {
+      "run": "ui-vulkan-font-ttf-arial-hinted-03",
+      "step": "font-caret-end",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 7,
+      "fontTextInput": {
+        "caret": 188,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          367
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-03/captures/font-caret-end/screen.indexed",
+          "sha256": "082d4fc62367a7aca8238a7159fb25fd9b173faf409d78433a8b6ee56277bf34"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-03/captures/font-caret-end/screen.rgba",
+          "sha256": "f6925d82e6bd0e26fbbd5ef3044768b8e97fa97da28dbe86425bb3ac12f5683d"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-03/captures/font-caret-end/report.json",
+          "sha256": "60ca086240f1f119da97db88ad6a0296ac4c75eda74896f0a37ab3e822e79616"
+        }
+      ],
+      "ttfCommands": {
+        "opaque": 12,
+        "transparent": 30
+      },
+      "dialogTtfCommandsAtThreshold40": 7
+    },
+    {
+      "run": "ui-vulkan-font-ttf-arial-hinted-03",
+      "step": "font-screen-clip",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 8,
+      "fontTextInput": {
+        "caret": 188,
+        "dialogUpdates": 16,
+        "textBounds": [
+          -12,
+          162,
+          213,
+          214
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-03/captures/font-screen-clip/screen.indexed",
+          "sha256": "d2019ec86346571cf974f070c41c6add19f60cf21e65c5252b902f8155821ae1"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-03/captures/font-screen-clip/screen.rgba",
+          "sha256": "dde575ab9f86720a33f6bfc89559299ddaee1dd343f83c2f06a66bc88f968529"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-03/captures/font-screen-clip/report.json",
+          "sha256": "ea973c0e025a3238e1f61f329a6c1b8162ca82e7aee92f7512e918fb36de15fa"
+        }
+      ],
+      "ttfCommands": {
+        "opaque": 8,
+        "transparent": 24
+      },
+      "dialogTtfCommandsAtThreshold40": 7
+    },
+    {
+      "run": "ui-vulkan-font-ttf-arial-hinted-03",
+      "step": "font-restored",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 9,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-03/captures/font-restored/screen.indexed",
+          "sha256": "8b77c7dbab72882736ce87db0492d61dc5fdd9f3adeeb988f62e4f21e6c8fac4"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-03/captures/font-restored/screen.rgba",
+          "sha256": "d267ffba71a196a8c5fcc2f0469cff9f3d5d60c921d7a429c4ebdd25a170ae83"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-03/captures/font-restored/report.json",
+          "sha256": "4519f9b42520c27fe1d790a9da6cd99569e2ad11296e67ed558c23f2c38230e1"
+        }
+      ],
+      "ttfCommands": {
+        "opaque": 0,
+        "transparent": 4
+      }
+    },
+    {
+      "run": "ui-frozen-font-sprite-fr-01",
+      "step": "font-empty-ui",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 3,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-01/captures/font-empty-ui/screen.indexed",
+          "sha256": "b3b58fc152ed5d6d9631ac290b47faa11025bd9b6870ebd397984c72b7808236"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-01/captures/font-empty-ui/screen.rgba",
+          "sha256": "77c0ce6441ecc661cce04deeeaa624e43f369396c2965d8d2b39110449bf3a77"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-01/captures/font-empty-ui/report.json",
+          "sha256": "5e1e283a9fd60094190dd0e75a7fc163e97e94c23e55a60cc0d64864e512b546"
+        }
+      ]
+    },
+    {
+      "run": "ui-frozen-font-sprite-fr-01",
+      "step": "font-localized-window",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 4,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-01/captures/font-localized-window/screen.indexed",
+          "sha256": "f86ec2d4404cafb37728f21dcfe00bc0f451d2688038963bea63ee73572a9db7"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-01/captures/font-localized-window/screen.rgba",
+          "sha256": "fbf77622b69065d3935044ac06d26fd841561bed08ee7832fbb9a0a8a6228856"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-01/captures/font-localized-window/report.json",
+          "sha256": "2e1acbebadda7a7f2505e80ddf4d57254ed8cbc51bcb0a886bd8783bbd8e8ac1"
+        }
+      ]
+    },
+    {
+      "run": "ui-frozen-font-sprite-fr-01",
+      "step": "font-caret-start",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 5,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          357
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-01/captures/font-caret-start/screen.indexed",
+          "sha256": "d6ff73af745dcabed02b6d8a20026ab93e2d786187b6b620587f51aa9b4cd4f3"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-01/captures/font-caret-start/screen.rgba",
+          "sha256": "e9e616cfa920fcb844c322f028a8f1b813b9c0c14ebd01c2bf64a15e818c1de9"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-01/captures/font-caret-start/report.json",
+          "sha256": "52c974020bf97f95603c9b28f359e31bbc2f13b415696552d436c61f7a32ce05"
+        }
+      ]
+    },
+    {
+      "run": "ui-frozen-font-sprite-fr-01",
+      "step": "font-caret-mid",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 6,
+      "fontTextInput": {
+        "caret": 5,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          357
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-01/captures/font-caret-mid/screen.indexed",
+          "sha256": "e8105c598ba481952f46ae5b2a67770415de6faa76f7074ffd24543860f0b688"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-01/captures/font-caret-mid/screen.rgba",
+          "sha256": "6b759c211c8883f435f4a57a5c495765dced7a0fb6ac0fa6b7bbae099f3a5f43"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-01/captures/font-caret-mid/report.json",
+          "sha256": "382aee1876c270956fd5d1b92f5da122e810f2b660b662c25dec6db9b740a67c"
+        }
+      ]
+    },
+    {
+      "run": "ui-frozen-font-sprite-fr-01",
+      "step": "font-caret-end",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 7,
+      "fontTextInput": {
+        "caret": 156,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          357
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-01/captures/font-caret-end/screen.indexed",
+          "sha256": "2950f3ebca9e60f507790414a44e9ef3dfe59c0d520f8bbafb3d85ef9b4daecf"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-01/captures/font-caret-end/screen.rgba",
+          "sha256": "750a4783975c36ba97b8747cd5c4ad27d785334f30c7a0b50397b5c9ef41c780"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-01/captures/font-caret-end/report.json",
+          "sha256": "c0cc913e9ad5d0eb264081ada4ed16942fbbb18264a79e380666a77713f31d67"
+        }
+      ]
+    },
+    {
+      "run": "ui-frozen-font-sprite-fr-01",
+      "step": "font-screen-clip",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 8,
+      "fontTextInput": {
+        "caret": 156,
+        "dialogUpdates": 16,
+        "textBounds": [
+          -12,
+          162,
+          213,
+          204
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-01/captures/font-screen-clip/screen.indexed",
+          "sha256": "c114ac9f3390f1987a93dda675a19460b72dc2b67ee998f65b95617f55d61e93"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-01/captures/font-screen-clip/screen.rgba",
+          "sha256": "f1878fd6a1a775cd1a8464d28c3103cb171e5e2bc20b7f465e0ecbc4d9600730"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-01/captures/font-screen-clip/report.json",
+          "sha256": "287e4d9edc3c5aacf07163cdf1d1cc7883c0169a1164477b01be9293ac2ed3d2"
+        }
+      ]
+    },
+    {
+      "run": "ui-frozen-font-sprite-fr-01",
+      "step": "font-restored",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 9,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-01/captures/font-restored/screen.indexed",
+          "sha256": "b3b58fc152ed5d6d9631ac290b47faa11025bd9b6870ebd397984c72b7808236"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-01/captures/font-restored/screen.rgba",
+          "sha256": "77c0ce6441ecc661cce04deeeaa624e43f369396c2965d8d2b39110449bf3a77"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-01/captures/font-restored/report.json",
+          "sha256": "70beea0a7bdb51fbf1e500b69c8f82e124a85edb1ed2fe6e81689daa2bef4103"
+        }
+      ]
+    },
+    {
+      "run": "ui-frozen-font-sprite-fr-03",
+      "step": "font-empty-ui",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 3,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-03/captures/font-empty-ui/screen.indexed",
+          "sha256": "b3b58fc152ed5d6d9631ac290b47faa11025bd9b6870ebd397984c72b7808236"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-03/captures/font-empty-ui/screen.rgba",
+          "sha256": "77c0ce6441ecc661cce04deeeaa624e43f369396c2965d8d2b39110449bf3a77"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-03/captures/font-empty-ui/report.json",
+          "sha256": "5ec5d93a311675b7a14fd6aa54ec360580d3000a478295ab342143bcb5ff5e50"
+        }
+      ]
+    },
+    {
+      "run": "ui-frozen-font-sprite-fr-03",
+      "step": "font-localized-window",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 4,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-03/captures/font-localized-window/screen.indexed",
+          "sha256": "f86ec2d4404cafb37728f21dcfe00bc0f451d2688038963bea63ee73572a9db7"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-03/captures/font-localized-window/screen.rgba",
+          "sha256": "fbf77622b69065d3935044ac06d26fd841561bed08ee7832fbb9a0a8a6228856"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-03/captures/font-localized-window/report.json",
+          "sha256": "e7fca39aeb6391d70067aaa95f1070aa83e9f0afe7d0bb16584a839cb0319a0f"
+        }
+      ]
+    },
+    {
+      "run": "ui-frozen-font-sprite-fr-03",
+      "step": "font-caret-start",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 5,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          357
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-03/captures/font-caret-start/screen.indexed",
+          "sha256": "d6ff73af745dcabed02b6d8a20026ab93e2d786187b6b620587f51aa9b4cd4f3"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-03/captures/font-caret-start/screen.rgba",
+          "sha256": "e9e616cfa920fcb844c322f028a8f1b813b9c0c14ebd01c2bf64a15e818c1de9"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-03/captures/font-caret-start/report.json",
+          "sha256": "979e540e2b49a3a39a5c7fbd56b0e73761eb4d330170e1cc6843afce879445d3"
+        }
+      ]
+    },
+    {
+      "run": "ui-frozen-font-sprite-fr-03",
+      "step": "font-caret-mid",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 6,
+      "fontTextInput": {
+        "caret": 5,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          357
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-03/captures/font-caret-mid/screen.indexed",
+          "sha256": "e8105c598ba481952f46ae5b2a67770415de6faa76f7074ffd24543860f0b688"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-03/captures/font-caret-mid/screen.rgba",
+          "sha256": "6b759c211c8883f435f4a57a5c495765dced7a0fb6ac0fa6b7bbae099f3a5f43"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-03/captures/font-caret-mid/report.json",
+          "sha256": "ee1ed338bf8eea5264e7cdce5cc66329b4e9d63480325e23a3f2892c1a828f4c"
+        }
+      ]
+    },
+    {
+      "run": "ui-frozen-font-sprite-fr-03",
+      "step": "font-caret-end",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 7,
+      "fontTextInput": {
+        "caret": 156,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          357
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-03/captures/font-caret-end/screen.indexed",
+          "sha256": "2950f3ebca9e60f507790414a44e9ef3dfe59c0d520f8bbafb3d85ef9b4daecf"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-03/captures/font-caret-end/screen.rgba",
+          "sha256": "750a4783975c36ba97b8747cd5c4ad27d785334f30c7a0b50397b5c9ef41c780"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-03/captures/font-caret-end/report.json",
+          "sha256": "e09a02df5ffc2829376d28a976b5c7275046f118f349262e62c3a119baa9a773"
+        }
+      ]
+    },
+    {
+      "run": "ui-frozen-font-sprite-fr-03",
+      "step": "font-screen-clip",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 8,
+      "fontTextInput": {
+        "caret": 156,
+        "dialogUpdates": 16,
+        "textBounds": [
+          -12,
+          162,
+          213,
+          204
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-03/captures/font-screen-clip/screen.indexed",
+          "sha256": "c114ac9f3390f1987a93dda675a19460b72dc2b67ee998f65b95617f55d61e93"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-03/captures/font-screen-clip/screen.rgba",
+          "sha256": "f1878fd6a1a775cd1a8464d28c3103cb171e5e2bc20b7f465e0ecbc4d9600730"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-03/captures/font-screen-clip/report.json",
+          "sha256": "f9b1e3df1bd3146c2b5ab93a971c4d0610a60e182ec6a9d7e45ea3ec2e9756fc"
+        }
+      ]
+    },
+    {
+      "run": "ui-frozen-font-sprite-fr-03",
+      "step": "font-restored",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 9,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-03/captures/font-restored/screen.indexed",
+          "sha256": "b3b58fc152ed5d6d9631ac290b47faa11025bd9b6870ebd397984c72b7808236"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-03/captures/font-restored/screen.rgba",
+          "sha256": "77c0ce6441ecc661cce04deeeaa624e43f369396c2965d8d2b39110449bf3a77"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-frozen-font-sprite-fr-03/captures/font-restored/report.json",
+          "sha256": "c6bbc512cd2d069e8bf02f095f0c47770f304d95dcb7af4be7c963efcac3c6c0"
+        }
+      ]
+    },
+    {
+      "run": "ui-current-font-sprite-fr-02",
+      "step": "font-empty-ui",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 3,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/captures/font-empty-ui/screen.indexed",
+          "sha256": "b3b58fc152ed5d6d9631ac290b47faa11025bd9b6870ebd397984c72b7808236"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/captures/font-empty-ui/screen.rgba",
+          "sha256": "77c0ce6441ecc661cce04deeeaa624e43f369396c2965d8d2b39110449bf3a77"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/captures/font-empty-ui/report.json",
+          "sha256": "5ec5d93a311675b7a14fd6aa54ec360580d3000a478295ab342143bcb5ff5e50"
+        }
+      ]
+    },
+    {
+      "run": "ui-current-font-sprite-fr-02",
+      "step": "font-localized-window",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 4,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/captures/font-localized-window/screen.indexed",
+          "sha256": "f86ec2d4404cafb37728f21dcfe00bc0f451d2688038963bea63ee73572a9db7"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/captures/font-localized-window/screen.rgba",
+          "sha256": "fbf77622b69065d3935044ac06d26fd841561bed08ee7832fbb9a0a8a6228856"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/captures/font-localized-window/report.json",
+          "sha256": "e7fca39aeb6391d70067aaa95f1070aa83e9f0afe7d0bb16584a839cb0319a0f"
+        }
+      ]
+    },
+    {
+      "run": "ui-current-font-sprite-fr-02",
+      "step": "font-caret-start",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 5,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          357
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/captures/font-caret-start/screen.indexed",
+          "sha256": "d6ff73af745dcabed02b6d8a20026ab93e2d786187b6b620587f51aa9b4cd4f3"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/captures/font-caret-start/screen.rgba",
+          "sha256": "e9e616cfa920fcb844c322f028a8f1b813b9c0c14ebd01c2bf64a15e818c1de9"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/captures/font-caret-start/report.json",
+          "sha256": "979e540e2b49a3a39a5c7fbd56b0e73761eb4d330170e1cc6843afce879445d3"
+        }
+      ]
+    },
+    {
+      "run": "ui-current-font-sprite-fr-02",
+      "step": "font-caret-mid",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 6,
+      "fontTextInput": {
+        "caret": 5,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          357
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/captures/font-caret-mid/screen.indexed",
+          "sha256": "e8105c598ba481952f46ae5b2a67770415de6faa76f7074ffd24543860f0b688"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/captures/font-caret-mid/screen.rgba",
+          "sha256": "6b759c211c8883f435f4a57a5c495765dced7a0fb6ac0fa6b7bbae099f3a5f43"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/captures/font-caret-mid/report.json",
+          "sha256": "ee1ed338bf8eea5264e7cdce5cc66329b4e9d63480325e23a3f2892c1a828f4c"
+        }
+      ]
+    },
+    {
+      "run": "ui-current-font-sprite-fr-02",
+      "step": "font-caret-end",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 7,
+      "fontTextInput": {
+        "caret": 156,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          357
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/captures/font-caret-end/screen.indexed",
+          "sha256": "2950f3ebca9e60f507790414a44e9ef3dfe59c0d520f8bbafb3d85ef9b4daecf"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/captures/font-caret-end/screen.rgba",
+          "sha256": "750a4783975c36ba97b8747cd5c4ad27d785334f30c7a0b50397b5c9ef41c780"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/captures/font-caret-end/report.json",
+          "sha256": "e09a02df5ffc2829376d28a976b5c7275046f118f349262e62c3a119baa9a773"
+        }
+      ]
+    },
+    {
+      "run": "ui-current-font-sprite-fr-02",
+      "step": "font-screen-clip",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 8,
+      "fontTextInput": {
+        "caret": 156,
+        "dialogUpdates": 16,
+        "textBounds": [
+          -12,
+          162,
+          213,
+          204
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/captures/font-screen-clip/screen.indexed",
+          "sha256": "c114ac9f3390f1987a93dda675a19460b72dc2b67ee998f65b95617f55d61e93"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/captures/font-screen-clip/screen.rgba",
+          "sha256": "f1878fd6a1a775cd1a8464d28c3103cb171e5e2bc20b7f465e0ecbc4d9600730"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/captures/font-screen-clip/report.json",
+          "sha256": "f9b1e3df1bd3146c2b5ab93a971c4d0610a60e182ec6a9d7e45ea3ec2e9756fc"
+        }
+      ]
+    },
+    {
+      "run": "ui-current-font-sprite-fr-02",
+      "step": "font-restored",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 9,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/captures/font-restored/screen.indexed",
+          "sha256": "b3b58fc152ed5d6d9631ac290b47faa11025bd9b6870ebd397984c72b7808236"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/captures/font-restored/screen.rgba",
+          "sha256": "77c0ce6441ecc661cce04deeeaa624e43f369396c2965d8d2b39110449bf3a77"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/captures/font-restored/report.json",
+          "sha256": "c6bbc512cd2d069e8bf02f095f0c47770f304d95dcb7af4be7c963efcac3c6c0"
+        }
+      ]
+    },
+    {
+      "run": "ui-current-font-sprite-fr-03",
+      "step": "font-empty-ui",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 3,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-03/captures/font-empty-ui/screen.indexed",
+          "sha256": "b3b58fc152ed5d6d9631ac290b47faa11025bd9b6870ebd397984c72b7808236"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-03/captures/font-empty-ui/screen.rgba",
+          "sha256": "77c0ce6441ecc661cce04deeeaa624e43f369396c2965d8d2b39110449bf3a77"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-03/captures/font-empty-ui/report.json",
+          "sha256": "5ec5d93a311675b7a14fd6aa54ec360580d3000a478295ab342143bcb5ff5e50"
+        }
+      ]
+    },
+    {
+      "run": "ui-current-font-sprite-fr-03",
+      "step": "font-localized-window",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 4,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-03/captures/font-localized-window/screen.indexed",
+          "sha256": "f86ec2d4404cafb37728f21dcfe00bc0f451d2688038963bea63ee73572a9db7"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-03/captures/font-localized-window/screen.rgba",
+          "sha256": "fbf77622b69065d3935044ac06d26fd841561bed08ee7832fbb9a0a8a6228856"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-03/captures/font-localized-window/report.json",
+          "sha256": "e7fca39aeb6391d70067aaa95f1070aa83e9f0afe7d0bb16584a839cb0319a0f"
+        }
+      ]
+    },
+    {
+      "run": "ui-current-font-sprite-fr-03",
+      "step": "font-caret-start",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 5,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          357
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-03/captures/font-caret-start/screen.indexed",
+          "sha256": "d6ff73af745dcabed02b6d8a20026ab93e2d786187b6b620587f51aa9b4cd4f3"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-03/captures/font-caret-start/screen.rgba",
+          "sha256": "e9e616cfa920fcb844c322f028a8f1b813b9c0c14ebd01c2bf64a15e818c1de9"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-03/captures/font-caret-start/report.json",
+          "sha256": "979e540e2b49a3a39a5c7fbd56b0e73761eb4d330170e1cc6843afce879445d3"
+        }
+      ]
+    },
+    {
+      "run": "ui-current-font-sprite-fr-03",
+      "step": "font-caret-mid",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 6,
+      "fontTextInput": {
+        "caret": 5,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          357
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-03/captures/font-caret-mid/screen.indexed",
+          "sha256": "e8105c598ba481952f46ae5b2a67770415de6faa76f7074ffd24543860f0b688"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-03/captures/font-caret-mid/screen.rgba",
+          "sha256": "6b759c211c8883f435f4a57a5c495765dced7a0fb6ac0fa6b7bbae099f3a5f43"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-03/captures/font-caret-mid/report.json",
+          "sha256": "ee1ed338bf8eea5264e7cdce5cc66329b4e9d63480325e23a3f2892c1a828f4c"
+        }
+      ]
+    },
+    {
+      "run": "ui-current-font-sprite-fr-03",
+      "step": "font-caret-end",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 7,
+      "fontTextInput": {
+        "caret": 156,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          357
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-03/captures/font-caret-end/screen.indexed",
+          "sha256": "2950f3ebca9e60f507790414a44e9ef3dfe59c0d520f8bbafb3d85ef9b4daecf"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-03/captures/font-caret-end/screen.rgba",
+          "sha256": "750a4783975c36ba97b8747cd5c4ad27d785334f30c7a0b50397b5c9ef41c780"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-03/captures/font-caret-end/report.json",
+          "sha256": "e09a02df5ffc2829376d28a976b5c7275046f118f349262e62c3a119baa9a773"
+        }
+      ]
+    },
+    {
+      "run": "ui-current-font-sprite-fr-03",
+      "step": "font-screen-clip",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 8,
+      "fontTextInput": {
+        "caret": 156,
+        "dialogUpdates": 16,
+        "textBounds": [
+          -12,
+          162,
+          213,
+          204
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-03/captures/font-screen-clip/screen.indexed",
+          "sha256": "c114ac9f3390f1987a93dda675a19460b72dc2b67ee998f65b95617f55d61e93"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-03/captures/font-screen-clip/screen.rgba",
+          "sha256": "f1878fd6a1a775cd1a8464d28c3103cb171e5e2bc20b7f465e0ecbc4d9600730"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-03/captures/font-screen-clip/report.json",
+          "sha256": "f9b1e3df1bd3146c2b5ab93a971c4d0610a60e182ec6a9d7e45ea3ec2e9756fc"
+        }
+      ]
+    },
+    {
+      "run": "ui-current-font-sprite-fr-03",
+      "step": "font-restored",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 9,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-03/captures/font-restored/screen.indexed",
+          "sha256": "b3b58fc152ed5d6d9631ac290b47faa11025bd9b6870ebd397984c72b7808236"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-03/captures/font-restored/screen.rgba",
+          "sha256": "77c0ce6441ecc661cce04deeeaa624e43f369396c2965d8d2b39110449bf3a77"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-current-font-sprite-fr-03/captures/font-restored/report.json",
+          "sha256": "c6bbc512cd2d069e8bf02f095f0c47770f304d95dcb7af4be7c963efcac3c6c0"
+        }
+      ]
+    },
+    {
+      "run": "ui-vulkan-font-sprite-fr-02",
+      "step": "font-empty-ui",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 3,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/captures/font-empty-ui/screen.indexed",
+          "sha256": "b3b58fc152ed5d6d9631ac290b47faa11025bd9b6870ebd397984c72b7808236"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/captures/font-empty-ui/screen.rgba",
+          "sha256": "77c0ce6441ecc661cce04deeeaa624e43f369396c2965d8d2b39110449bf3a77"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/captures/font-empty-ui/report.json",
+          "sha256": "1111c8038a760000f8303a6770ac707694b88b31c40fa381bdf45af77e569a41"
+        }
+      ],
+      "ttfCommands": {
+        "opaque": 0,
+        "transparent": 0
+      }
+    },
+    {
+      "run": "ui-vulkan-font-sprite-fr-02",
+      "step": "font-localized-window",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 4,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/captures/font-localized-window/screen.indexed",
+          "sha256": "f86ec2d4404cafb37728f21dcfe00bc0f451d2688038963bea63ee73572a9db7"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/captures/font-localized-window/screen.rgba",
+          "sha256": "fbf77622b69065d3935044ac06d26fd841561bed08ee7832fbb9a0a8a6228856"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/captures/font-localized-window/report.json",
+          "sha256": "232446d02b25c54857c7e3f9463fa8dd028cf52fe6bc31947f527d3d2e0d18fe"
+        }
+      ],
+      "ttfCommands": {
+        "opaque": 0,
+        "transparent": 0
+      }
+    },
+    {
+      "run": "ui-vulkan-font-sprite-fr-02",
+      "step": "font-caret-start",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 5,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          357
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/captures/font-caret-start/screen.indexed",
+          "sha256": "d6ff73af745dcabed02b6d8a20026ab93e2d786187b6b620587f51aa9b4cd4f3"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/captures/font-caret-start/screen.rgba",
+          "sha256": "e9e616cfa920fcb844c322f028a8f1b813b9c0c14ebd01c2bf64a15e818c1de9"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/captures/font-caret-start/report.json",
+          "sha256": "af5ca118e9a0baad2075823918629582eaebe3471d67d91278ea8d4f448429f1"
+        }
+      ],
+      "ttfCommands": {
+        "opaque": 0,
+        "transparent": 0
+      },
+      "dialogTtfCommandsAtThreshold40": 0
+    },
+    {
+      "run": "ui-vulkan-font-sprite-fr-02",
+      "step": "font-caret-mid",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 6,
+      "fontTextInput": {
+        "caret": 5,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          357
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/captures/font-caret-mid/screen.indexed",
+          "sha256": "e8105c598ba481952f46ae5b2a67770415de6faa76f7074ffd24543860f0b688"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/captures/font-caret-mid/screen.rgba",
+          "sha256": "6b759c211c8883f435f4a57a5c495765dced7a0fb6ac0fa6b7bbae099f3a5f43"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/captures/font-caret-mid/report.json",
+          "sha256": "bceaa99c2142cb9fbd39e267ae4a41a2d4bd4f4db51078c4671efcc463fcee23"
+        }
+      ],
+      "ttfCommands": {
+        "opaque": 0,
+        "transparent": 0
+      },
+      "dialogTtfCommandsAtThreshold40": 0
+    },
+    {
+      "run": "ui-vulkan-font-sprite-fr-02",
+      "step": "font-caret-end",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 7,
+      "fontTextInput": {
+        "caret": 156,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          357
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/captures/font-caret-end/screen.indexed",
+          "sha256": "2950f3ebca9e60f507790414a44e9ef3dfe59c0d520f8bbafb3d85ef9b4daecf"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/captures/font-caret-end/screen.rgba",
+          "sha256": "750a4783975c36ba97b8747cd5c4ad27d785334f30c7a0b50397b5c9ef41c780"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/captures/font-caret-end/report.json",
+          "sha256": "ab9465ee4e423af8ebd3697002db341d70a49f7b3d65ad4975841f7bca54beaa"
+        }
+      ],
+      "ttfCommands": {
+        "opaque": 0,
+        "transparent": 0
+      },
+      "dialogTtfCommandsAtThreshold40": 0
+    },
+    {
+      "run": "ui-vulkan-font-sprite-fr-02",
+      "step": "font-screen-clip",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 8,
+      "fontTextInput": {
+        "caret": 156,
+        "dialogUpdates": 16,
+        "textBounds": [
+          -12,
+          162,
+          213,
+          204
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/captures/font-screen-clip/screen.indexed",
+          "sha256": "c114ac9f3390f1987a93dda675a19460b72dc2b67ee998f65b95617f55d61e93"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/captures/font-screen-clip/screen.rgba",
+          "sha256": "f1878fd6a1a775cd1a8464d28c3103cb171e5e2bc20b7f465e0ecbc4d9600730"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/captures/font-screen-clip/report.json",
+          "sha256": "2130a6c6c913b830ce1d222bf522a7d8066653e5ccfd2e4f2308770d6a78d2fc"
+        }
+      ],
+      "ttfCommands": {
+        "opaque": 0,
+        "transparent": 0
+      },
+      "dialogTtfCommandsAtThreshold40": 0
+    },
+    {
+      "run": "ui-vulkan-font-sprite-fr-02",
+      "step": "font-restored",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 9,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/captures/font-restored/screen.indexed",
+          "sha256": "b3b58fc152ed5d6d9631ac290b47faa11025bd9b6870ebd397984c72b7808236"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/captures/font-restored/screen.rgba",
+          "sha256": "77c0ce6441ecc661cce04deeeaa624e43f369396c2965d8d2b39110449bf3a77"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/captures/font-restored/report.json",
+          "sha256": "2a57121238a58e7b4427a0772182adec8ac8d24b7113d3ab2a839e519aade7f4"
+        }
+      ],
+      "ttfCommands": {
+        "opaque": 0,
+        "transparent": 0
+      }
+    },
+    {
+      "run": "ui-vulkan-font-sprite-fr-03",
+      "step": "font-empty-ui",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 3,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-03/captures/font-empty-ui/screen.indexed",
+          "sha256": "b3b58fc152ed5d6d9631ac290b47faa11025bd9b6870ebd397984c72b7808236"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-03/captures/font-empty-ui/screen.rgba",
+          "sha256": "77c0ce6441ecc661cce04deeeaa624e43f369396c2965d8d2b39110449bf3a77"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-03/captures/font-empty-ui/report.json",
+          "sha256": "904c95331a8a3c1733e8be7b09fae6a8a110fe7ccf2197a214337509edd106d3"
+        }
+      ],
+      "ttfCommands": {
+        "opaque": 0,
+        "transparent": 0
+      }
+    },
+    {
+      "run": "ui-vulkan-font-sprite-fr-03",
+      "step": "font-localized-window",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 4,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-03/captures/font-localized-window/screen.indexed",
+          "sha256": "f86ec2d4404cafb37728f21dcfe00bc0f451d2688038963bea63ee73572a9db7"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-03/captures/font-localized-window/screen.rgba",
+          "sha256": "fbf77622b69065d3935044ac06d26fd841561bed08ee7832fbb9a0a8a6228856"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-03/captures/font-localized-window/report.json",
+          "sha256": "c2c99e6da0750244396a38099fa69efe5d5b86a3bacab1af8956401db21daefb"
+        }
+      ],
+      "ttfCommands": {
+        "opaque": 0,
+        "transparent": 0
+      }
+    },
+    {
+      "run": "ui-vulkan-font-sprite-fr-03",
+      "step": "font-caret-start",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 5,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          357
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-03/captures/font-caret-start/screen.indexed",
+          "sha256": "d6ff73af745dcabed02b6d8a20026ab93e2d786187b6b620587f51aa9b4cd4f3"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-03/captures/font-caret-start/screen.rgba",
+          "sha256": "e9e616cfa920fcb844c322f028a8f1b813b9c0c14ebd01c2bf64a15e818c1de9"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-03/captures/font-caret-start/report.json",
+          "sha256": "413ec280d4a788e67e5fe66b50d231878c35cb85f7d69f21f80633697a757d3e"
+        }
+      ],
+      "ttfCommands": {
+        "opaque": 0,
+        "transparent": 0
+      },
+      "dialogTtfCommandsAtThreshold40": 0
+    },
+    {
+      "run": "ui-vulkan-font-sprite-fr-03",
+      "step": "font-caret-mid",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 6,
+      "fontTextInput": {
+        "caret": 5,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          357
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-03/captures/font-caret-mid/screen.indexed",
+          "sha256": "e8105c598ba481952f46ae5b2a67770415de6faa76f7074ffd24543860f0b688"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-03/captures/font-caret-mid/screen.rgba",
+          "sha256": "6b759c211c8883f435f4a57a5c495765dced7a0fb6ac0fa6b7bbae099f3a5f43"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-03/captures/font-caret-mid/report.json",
+          "sha256": "7778d89e340fc9e405e3526e129785695bbee626cc31562af05bc61e50185db7"
+        }
+      ],
+      "ttfCommands": {
+        "opaque": 0,
+        "transparent": 0
+      },
+      "dialogTtfCommandsAtThreshold40": 0
+    },
+    {
+      "run": "ui-vulkan-font-sprite-fr-03",
+      "step": "font-caret-end",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 7,
+      "fontTextInput": {
+        "caret": 156,
+        "dialogUpdates": 16,
+        "textBounds": [
+          367,
+          315,
+          592,
+          357
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-03/captures/font-caret-end/screen.indexed",
+          "sha256": "2950f3ebca9e60f507790414a44e9ef3dfe59c0d520f8bbafb3d85ef9b4daecf"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-03/captures/font-caret-end/screen.rgba",
+          "sha256": "750a4783975c36ba97b8747cd5c4ad27d785334f30c7a0b50397b5c9ef41c780"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-03/captures/font-caret-end/report.json",
+          "sha256": "c5db3a11bfd4c462bff0bed6e0403dd21d65d373bc00c43ff9c9615a44a33190"
+        }
+      ],
+      "ttfCommands": {
+        "opaque": 0,
+        "transparent": 0
+      },
+      "dialogTtfCommandsAtThreshold40": 0
+    },
+    {
+      "run": "ui-vulkan-font-sprite-fr-03",
+      "step": "font-screen-clip",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 8,
+      "fontTextInput": {
+        "caret": 156,
+        "dialogUpdates": 16,
+        "textBounds": [
+          -12,
+          162,
+          213,
+          204
+        ]
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-03/captures/font-screen-clip/screen.indexed",
+          "sha256": "c114ac9f3390f1987a93dda675a19460b72dc2b67ee998f65b95617f55d61e93"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-03/captures/font-screen-clip/screen.rgba",
+          "sha256": "f1878fd6a1a775cd1a8464d28c3103cb171e5e2bc20b7f465e0ecbc4d9600730"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-03/captures/font-screen-clip/report.json",
+          "sha256": "b07d100b2ffe45260e34bd6070f4e07fafa427410e93e53edc73d40da2e48017"
+        }
+      ],
+      "ttfCommands": {
+        "opaque": 0,
+        "transparent": 0
+      },
+      "dialogTtfCommandsAtThreshold40": 0
+    },
+    {
+      "run": "ui-vulkan-font-sprite-fr-03",
+      "step": "font-restored",
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "fontPaintOrdinal": 9,
+      "fontTextInput": {
+        "caret": 0,
+        "dialogUpdates": 0
+      },
+      "rawFiles": [
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-03/captures/font-restored/screen.indexed",
+          "sha256": "b3b58fc152ed5d6d9631ac290b47faa11025bd9b6870ebd397984c72b7808236"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-03/captures/font-restored/screen.rgba",
+          "sha256": "77c0ce6441ecc661cce04deeeaa624e43f369396c2965d8d2b39110449bf3a77"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-03/captures/font-restored/report.json",
+          "sha256": "cc0213f06f6e9632f375917e1a599dc389c2b6900dab43412985b93eae4d1672"
+        }
+      ],
+      "ttfCommands": {
+        "opaque": 0,
+        "transparent": 0
+      }
+    }
+  ],
+  "fontProfiles": {
+    "font-ttf-arial-hinted": {
+      "caretUnit": "UTF-8 byte offset at a validated codepoint boundary",
+      "cmap": [
+        {
+          "codepoint": 65,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 86,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 65,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 84,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 65,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 82,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 67,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 97,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 102,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 233,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 86,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 105,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 7879,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 116,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 78,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 97,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 109,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 272,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 432,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 7901,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 110,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 103,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 118,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 224,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 111,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 10003,
+          "fontProvidesGlyph": false,
+          "intentionalSpriteSymbol": true,
+          "spriteGlyphOffset": 140
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 8594,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 65,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 86,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 65,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 84,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 65,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 82,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 67,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 97,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 102,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 233,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 86,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 105,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 7879,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 116,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 78,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 97,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 109,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 272,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 432,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 7901,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 110,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 103,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 118,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 224,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 111,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 10003,
+          "fontProvidesGlyph": false,
+          "intentionalSpriteSymbol": true,
+          "spriteGlyphOffset": 140
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 8594,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 65,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 86,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 65,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 84,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 65,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 82,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 67,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 97,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 102,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 233,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 86,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 105,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 7879,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 116,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 78,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 97,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 109,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 272,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 432,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 7901,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 110,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 103,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 118,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 224,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 111,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 10003,
+          "fontProvidesGlyph": false,
+          "intentionalSpriteSymbol": true,
+          "spriteGlyphOffset": 140
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 8594,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 65,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 86,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 65,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 84,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 65,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 82,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 67,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 97,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 102,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 233,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 86,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 105,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 7879,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 116,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 78,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 97,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 109,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 272,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 432,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 7901,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 110,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 103,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 118,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 224,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 111,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 10003,
+          "fontProvidesGlyph": false,
+          "intentionalSpriteSymbol": true,
+          "spriteGlyphOffset": 140
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 8594,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false
+        }
+      ],
+      "codepointBoundaries": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        12,
+        13,
+        14,
+        15,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        26,
+        28,
+        31,
+        32,
+        33,
+        34,
+        35,
+        37,
+        38,
+        39,
+        42,
+        43,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        59,
+        60,
+        61,
+        62,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        73,
+        75,
+        78,
+        79,
+        80,
+        81,
+        82,
+        84,
+        85,
+        86,
+        89,
+        90,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100,
+        101,
+        102,
+        103,
+        104,
+        106,
+        107,
+        108,
+        109,
+        112,
+        113,
+        114,
+        115,
+        116,
+        117,
+        118,
+        120,
+        122,
+        125,
+        126,
+        127,
+        128,
+        129,
+        131,
+        132,
+        133,
+        136,
+        137,
+        140,
+        141,
+        142,
+        143,
+        144,
+        145,
+        146,
+        147,
+        148,
+        149,
+        150,
+        151,
+        153,
+        154,
+        155,
+        156,
+        159,
+        160,
+        161,
+        162,
+        163,
+        164,
+        165,
+        167,
+        169,
+        172,
+        173,
+        174,
+        175,
+        176,
+        178,
+        179,
+        180,
+        183,
+        184,
+        187,
+        188
+      ],
+      "languageFiles": [
+        {
+          "locale": "vi-VN",
+          "sha256": "f6c52785df8e9295bde238d056027f67d913e0bf3455439055df8c5a1b6f8011"
+        },
+        {
+          "locale": "en-GB",
+          "sha256": "53c730cc514a17a5f1ad36cb9ee0491cf504af45e059ae7d6977a40770ef9bc1"
+        }
+      ],
+      "locale": "vi-VN",
+      "shapingScope": "existing FreeType glyph and kerning path; no general shaping or IME claim",
+      "styles": [
+        {
+          "actualHinting": 1,
+          "faceIndex": 0,
+          "filename": "arial.ttf",
+          "fontName": "Arial",
+          "hintingThreshold": 40,
+          "lineHeight": 14,
+          "offset": [
+            0,
+            -1
+          ],
+          "pointSize": 12,
+          "resolvedPath": "C:\\WINDOWS\\Fonts\\arial.ttf",
+          "sha256": "c9b76220a5be42ead4733611e417cd65c5fd8aeaa33eb56576ac378a37d130a1",
+          "style": 0
+        },
+        {
+          "actualHinting": 1,
+          "faceIndex": 0,
+          "filename": "arial.ttf",
+          "fontName": "Arial",
+          "hintingThreshold": 40,
+          "lineHeight": 14,
+          "offset": [
+            0,
+            -1
+          ],
+          "pointSize": 12,
+          "resolvedPath": "C:\\WINDOWS\\Fonts\\arial.ttf",
+          "sha256": "c9b76220a5be42ead4733611e417cd65c5fd8aeaa33eb56576ac378a37d130a1",
+          "style": 1
+        },
+        {
+          "actualHinting": 1,
+          "faceIndex": 0,
+          "filename": "arial.ttf",
+          "fontName": "Arial",
+          "hintingThreshold": 40,
+          "lineHeight": 14,
+          "offset": [
+            0,
+            -1
+          ],
+          "pointSize": 12,
+          "resolvedPath": "C:\\WINDOWS\\Fonts\\arial.ttf",
+          "sha256": "c9b76220a5be42ead4733611e417cd65c5fd8aeaa33eb56576ac378a37d130a1",
+          "style": 2
+        }
+      ],
+      "text": "AVATAR Caf\u00e9 Vi\u1ec7t Nam \u0110\u01b0\u1eddng v\u00e0o \u2713 \u2192 AVATAR Caf\u00e9 Vi\u1ec7t Nam \u0110\u01b0\u1eddng v\u00e0o \u2713 \u2192 AVATAR Caf\u00e9 Vi\u1ec7t Nam \u0110\u01b0\u1eddng v\u00e0o \u2713 \u2192 AVATAR Caf\u00e9 Vi\u1ec7t Nam \u0110\u01b0\u1eddng v\u00e0o \u2713 \u2192 ",
+      "textByteLength": 188,
+      "textWidth": 901,
+      "trueTypeEnabled": true,
+      "wrappedLineBreaks": 4,
+      "wrappedUtf8Bytes": [
+        65,
+        86,
+        65,
+        84,
+        65,
+        82,
+        32,
+        67,
+        97,
+        102,
+        195,
+        169,
+        32,
+        86,
+        105,
+        225,
+        187,
+        135,
+        116,
+        32,
+        78,
+        97,
+        109,
+        32,
+        196,
+        144,
+        198,
+        176,
+        225,
+        187,
+        157,
+        110,
+        103,
+        32,
+        118,
+        195,
+        160,
+        111,
+        32,
+        226,
+        156,
+        147,
+        0,
+        226,
+        134,
+        146,
+        32,
+        65,
+        86,
+        65,
+        84,
+        65,
+        82,
+        32,
+        67,
+        97,
+        102,
+        195,
+        169,
+        32,
+        86,
+        105,
+        225,
+        187,
+        135,
+        116,
+        32,
+        78,
+        97,
+        109,
+        32,
+        196,
+        144,
+        198,
+        176,
+        225,
+        187,
+        157,
+        110,
+        103,
+        32,
+        118,
+        195,
+        160,
+        111,
+        0,
+        226,
+        156,
+        147,
+        32,
+        226,
+        134,
+        146,
+        32,
+        65,
+        86,
+        65,
+        84,
+        65,
+        82,
+        32,
+        67,
+        97,
+        102,
+        195,
+        169,
+        32,
+        86,
+        105,
+        225,
+        187,
+        135,
+        116,
+        32,
+        78,
+        97,
+        109,
+        32,
+        196,
+        144,
+        198,
+        176,
+        225,
+        187,
+        157,
+        110,
+        103,
+        0,
+        118,
+        195,
+        160,
+        111,
+        32,
+        226,
+        156,
+        147,
+        32,
+        226,
+        134,
+        146,
+        32,
+        65,
+        86,
+        65,
+        84,
+        65,
+        82,
+        32,
+        67,
+        97,
+        102,
+        195,
+        169,
+        32,
+        86,
+        105,
+        225,
+        187,
+        135,
+        116,
+        32,
+        78,
+        97,
+        109,
+        0,
+        196,
+        144,
+        198,
+        176,
+        225,
+        187,
+        157,
+        110,
+        103,
+        32,
+        118,
+        195,
+        160,
+        111,
+        32,
+        226,
+        156,
+        147,
+        32,
+        226,
+        134,
+        146,
+        32
+      ]
+    },
+    "font-sprite-fr": {
+      "caretUnit": "UTF-8 byte offset at a validated codepoint boundary",
+      "cmap": [
+        {
+          "codepoint": 67,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 35
+        },
+        {
+          "codepoint": 97,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 65
+        },
+        {
+          "codepoint": 102,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 70
+        },
+        {
+          "codepoint": 233,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 201
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 0
+        },
+        {
+          "codepoint": 233,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 201
+        },
+        {
+          "codepoint": 116,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 84
+        },
+        {
+          "codepoint": 233,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 201
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 0
+        },
+        {
+          "codepoint": 83,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 51
+        },
+        {
+          "codepoint": 116,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 84
+        },
+        {
+          "codepoint": 114,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 82
+        },
+        {
+          "codepoint": 97,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 65
+        },
+        {
+          "codepoint": 223,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 191
+        },
+        {
+          "codepoint": 101,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 69
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 0
+        },
+        {
+          "codepoint": 338,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 299
+        },
+        {
+          "codepoint": 117,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 85
+        },
+        {
+          "codepoint": 102,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 70
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 0
+        },
+        {
+          "codepoint": 8212,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 13
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 0
+        },
+        {
+          "codepoint": 1046,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 232
+        },
+        {
+          "codepoint": 1091,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 89
+        },
+        {
+          "codepoint": 1082,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 258
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 0
+        },
+        {
+          "codepoint": 1071,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 249
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 0
+        },
+        {
+          "codepoint": 67,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 35
+        },
+        {
+          "codepoint": 97,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 65
+        },
+        {
+          "codepoint": 102,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 70
+        },
+        {
+          "codepoint": 233,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 201
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 0
+        },
+        {
+          "codepoint": 233,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 201
+        },
+        {
+          "codepoint": 116,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 84
+        },
+        {
+          "codepoint": 233,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 201
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 0
+        },
+        {
+          "codepoint": 83,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 51
+        },
+        {
+          "codepoint": 116,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 84
+        },
+        {
+          "codepoint": 114,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 82
+        },
+        {
+          "codepoint": 97,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 65
+        },
+        {
+          "codepoint": 223,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 191
+        },
+        {
+          "codepoint": 101,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 69
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 0
+        },
+        {
+          "codepoint": 338,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 299
+        },
+        {
+          "codepoint": 117,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 85
+        },
+        {
+          "codepoint": 102,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 70
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 0
+        },
+        {
+          "codepoint": 8212,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 13
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 0
+        },
+        {
+          "codepoint": 1046,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 232
+        },
+        {
+          "codepoint": 1091,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 89
+        },
+        {
+          "codepoint": 1082,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 258
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 0
+        },
+        {
+          "codepoint": 1071,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 249
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 0
+        },
+        {
+          "codepoint": 67,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 35
+        },
+        {
+          "codepoint": 97,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 65
+        },
+        {
+          "codepoint": 102,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 70
+        },
+        {
+          "codepoint": 233,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 201
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 0
+        },
+        {
+          "codepoint": 233,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 201
+        },
+        {
+          "codepoint": 116,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 84
+        },
+        {
+          "codepoint": 233,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 201
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 0
+        },
+        {
+          "codepoint": 83,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 51
+        },
+        {
+          "codepoint": 116,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 84
+        },
+        {
+          "codepoint": 114,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 82
+        },
+        {
+          "codepoint": 97,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 65
+        },
+        {
+          "codepoint": 223,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 191
+        },
+        {
+          "codepoint": 101,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 69
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 0
+        },
+        {
+          "codepoint": 338,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 299
+        },
+        {
+          "codepoint": 117,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 85
+        },
+        {
+          "codepoint": 102,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 70
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 0
+        },
+        {
+          "codepoint": 8212,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 13
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 0
+        },
+        {
+          "codepoint": 1046,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 232
+        },
+        {
+          "codepoint": 1091,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 89
+        },
+        {
+          "codepoint": 1082,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 258
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 0
+        },
+        {
+          "codepoint": 1071,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 249
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 0
+        },
+        {
+          "codepoint": 67,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 35
+        },
+        {
+          "codepoint": 97,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 65
+        },
+        {
+          "codepoint": 102,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 70
+        },
+        {
+          "codepoint": 233,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 201
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 0
+        },
+        {
+          "codepoint": 233,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 201
+        },
+        {
+          "codepoint": 116,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 84
+        },
+        {
+          "codepoint": 233,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 201
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 0
+        },
+        {
+          "codepoint": 83,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 51
+        },
+        {
+          "codepoint": 116,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 84
+        },
+        {
+          "codepoint": 114,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 82
+        },
+        {
+          "codepoint": 97,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 65
+        },
+        {
+          "codepoint": 223,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 191
+        },
+        {
+          "codepoint": 101,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 69
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 0
+        },
+        {
+          "codepoint": 338,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 299
+        },
+        {
+          "codepoint": 117,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 85
+        },
+        {
+          "codepoint": 102,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 70
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 0
+        },
+        {
+          "codepoint": 8212,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 13
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 0
+        },
+        {
+          "codepoint": 1046,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 232
+        },
+        {
+          "codepoint": 1091,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 89
+        },
+        {
+          "codepoint": 1082,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 258
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 0
+        },
+        {
+          "codepoint": 1071,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 249
+        },
+        {
+          "codepoint": 32,
+          "fontProvidesGlyph": true,
+          "intentionalSpriteSymbol": false,
+          "spriteGlyphOffset": 0
+        }
+      ],
+      "codepointBoundaries": [
+        0,
+        1,
+        2,
+        3,
+        5,
+        6,
+        8,
+        9,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        18,
+        19,
+        20,
+        22,
+        23,
+        24,
+        25,
+        28,
+        29,
+        31,
+        33,
+        35,
+        36,
+        38,
+        39,
+        40,
+        41,
+        42,
+        44,
+        45,
+        47,
+        48,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        57,
+        58,
+        59,
+        61,
+        62,
+        63,
+        64,
+        67,
+        68,
+        70,
+        72,
+        74,
+        75,
+        77,
+        78,
+        79,
+        80,
+        81,
+        83,
+        84,
+        86,
+        87,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        96,
+        97,
+        98,
+        100,
+        101,
+        102,
+        103,
+        106,
+        107,
+        109,
+        111,
+        113,
+        114,
+        116,
+        117,
+        118,
+        119,
+        120,
+        122,
+        123,
+        125,
+        126,
+        128,
+        129,
+        130,
+        131,
+        132,
+        133,
+        135,
+        136,
+        137,
+        139,
+        140,
+        141,
+        142,
+        145,
+        146,
+        148,
+        150,
+        152,
+        153,
+        155,
+        156
+      ],
+      "languageFiles": [
+        {
+          "locale": "fr-FR",
+          "sha256": "1a484c8e1f9afa92291f94890108e130c8ed297a7d6b5051da24390ca57e71b7"
+        },
+        {
+          "locale": "en-GB",
+          "sha256": "53c730cc514a17a5f1ad36cb9ee0491cf504af45e059ae7d6977a40770ef9bc1"
+        }
+      ],
+      "locale": "fr-FR",
+      "shapingScope": "existing FreeType glyph and kerning path; no general shaping or IME claim",
+      "styles": [],
+      "text": "Caf\u00e9 \u00e9t\u00e9 Stra\u00dfe \u0152uf \u2014 \u0416\u0443\u043a \u042f Caf\u00e9 \u00e9t\u00e9 Stra\u00dfe \u0152uf \u2014 \u0416\u0443\u043a \u042f Caf\u00e9 \u00e9t\u00e9 Stra\u00dfe \u0152uf \u2014 \u0416\u0443\u043a \u042f Caf\u00e9 \u00e9t\u00e9 Stra\u00dfe \u0152uf \u2014 \u0416\u0443\u043a \u042f ",
+      "textByteLength": 156,
+      "textWidth": 620,
+      "trueTypeEnabled": false,
+      "wrappedLineBreaks": 3,
+      "wrappedUtf8Bytes": [
+        67,
+        97,
+        102,
+        195,
+        169,
+        32,
+        195,
+        169,
+        116,
+        195,
+        169,
+        32,
+        83,
+        116,
+        114,
+        97,
+        195,
+        159,
+        101,
+        32,
+        197,
+        146,
+        117,
+        102,
+        32,
+        226,
+        128,
+        148,
+        32,
+        208,
+        150,
+        209,
+        131,
+        208,
+        186,
+        32,
+        208,
+        175,
+        32,
+        67,
+        97,
+        102,
+        195,
+        169,
+        32,
+        195,
+        169,
+        116,
+        195,
+        169,
+        0,
+        83,
+        116,
+        114,
+        97,
+        195,
+        159,
+        101,
+        32,
+        197,
+        146,
+        117,
+        102,
+        32,
+        226,
+        128,
+        148,
+        32,
+        208,
+        150,
+        209,
+        131,
+        208,
+        186,
+        32,
+        208,
+        175,
+        32,
+        67,
+        97,
+        102,
+        195,
+        169,
+        32,
+        195,
+        169,
+        116,
+        195,
+        169,
+        32,
+        83,
+        116,
+        114,
+        97,
+        195,
+        159,
+        101,
+        0,
+        197,
+        146,
+        117,
+        102,
+        32,
+        226,
+        128,
+        148,
+        32,
+        208,
+        150,
+        209,
+        131,
+        208,
+        186,
+        32,
+        208,
+        175,
+        32,
+        67,
+        97,
+        102,
+        195,
+        169,
+        32,
+        195,
+        169,
+        116,
+        195,
+        169,
+        32,
+        83,
+        116,
+        114,
+        97,
+        195,
+        159,
+        101,
+        32,
+        197,
+        146,
+        117,
+        102,
+        32,
+        226,
+        128,
+        148,
+        0,
+        208,
+        150,
+        209,
+        131,
+        208,
+        186,
+        32,
+        208,
+        175,
+        32
+      ]
+    }
+  },
+  "manuallyViewedImages": [
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-empty-ui/reference.png",
+      "sha256": "978623f042fe65cac9800cfc89601f590f40678567d72c6993c39981159fda86"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/comparisons/font-empty-ui/candidate.png",
+      "sha256": "978623f042fe65cac9800cfc89601f590f40678567d72c6993c39981159fda86"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-empty-ui/candidate.png",
+      "sha256": "978623f042fe65cac9800cfc89601f590f40678567d72c6993c39981159fda86"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-empty-ui/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-empty-ui/indexed/reference.png",
+      "sha256": "d854d71a13faf29c8ee528e1f9177e1093f6bb2ab95113f46ee61f7c2af452a8"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/comparisons/font-empty-ui/indexed/candidate.png",
+      "sha256": "d854d71a13faf29c8ee528e1f9177e1093f6bb2ab95113f46ee61f7c2af452a8"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-empty-ui/indexed/candidate.png",
+      "sha256": "d854d71a13faf29c8ee528e1f9177e1093f6bb2ab95113f46ee61f7c2af452a8"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-empty-ui/indexed/diff.png",
+      "sha256": "afe49af36eb233dec89887af7122e1ddb56eccaf5e909b63c7df78f83930830a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-localized-window/reference.png",
+      "sha256": "e5d3c7a872bada03d538bedbe907c6eeb0fd73724a94b1f6b57dc53fbdd0d8f9"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/comparisons/font-localized-window/candidate.png",
+      "sha256": "e5d3c7a872bada03d538bedbe907c6eeb0fd73724a94b1f6b57dc53fbdd0d8f9"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-localized-window/candidate.png",
+      "sha256": "e5d3c7a872bada03d538bedbe907c6eeb0fd73724a94b1f6b57dc53fbdd0d8f9"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-localized-window/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-localized-window/indexed/reference.png",
+      "sha256": "0d03f902cc556f690b086b0d98a04bac864f372406ad6d7716331c429578815c"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/comparisons/font-localized-window/indexed/candidate.png",
+      "sha256": "0d03f902cc556f690b086b0d98a04bac864f372406ad6d7716331c429578815c"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-localized-window/indexed/candidate.png",
+      "sha256": "0d03f902cc556f690b086b0d98a04bac864f372406ad6d7716331c429578815c"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-localized-window/indexed/diff.png",
+      "sha256": "afe49af36eb233dec89887af7122e1ddb56eccaf5e909b63c7df78f83930830a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-caret-start/reference.png",
+      "sha256": "b2110b669c05258df41ee877f50275fdf107d82f87556b00f2989b14d040a2d6"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/comparisons/font-caret-start/candidate.png",
+      "sha256": "b2110b669c05258df41ee877f50275fdf107d82f87556b00f2989b14d040a2d6"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-caret-start/candidate.png",
+      "sha256": "b2110b669c05258df41ee877f50275fdf107d82f87556b00f2989b14d040a2d6"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-caret-start/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-caret-start/indexed/reference.png",
+      "sha256": "52d13ce024028070e3c03a24835fa4c59355830b36a27691b15de589784f945e"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/comparisons/font-caret-start/indexed/candidate.png",
+      "sha256": "52d13ce024028070e3c03a24835fa4c59355830b36a27691b15de589784f945e"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-caret-start/indexed/candidate.png",
+      "sha256": "52d13ce024028070e3c03a24835fa4c59355830b36a27691b15de589784f945e"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-caret-start/indexed/diff.png",
+      "sha256": "afe49af36eb233dec89887af7122e1ddb56eccaf5e909b63c7df78f83930830a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-caret-mid/reference.png",
+      "sha256": "b1bc4ba42e95cd3ea7af9d17d25f7db991d70290ba58b8ef1fae88d2180432ca"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/comparisons/font-caret-mid/candidate.png",
+      "sha256": "b1bc4ba42e95cd3ea7af9d17d25f7db991d70290ba58b8ef1fae88d2180432ca"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-caret-mid/candidate.png",
+      "sha256": "b1bc4ba42e95cd3ea7af9d17d25f7db991d70290ba58b8ef1fae88d2180432ca"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-caret-mid/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-caret-mid/indexed/reference.png",
+      "sha256": "a6969c58810a704e775c8033c1d1e44ef33fc322648fafa2e65339d09a818a10"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/comparisons/font-caret-mid/indexed/candidate.png",
+      "sha256": "a6969c58810a704e775c8033c1d1e44ef33fc322648fafa2e65339d09a818a10"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-caret-mid/indexed/candidate.png",
+      "sha256": "a6969c58810a704e775c8033c1d1e44ef33fc322648fafa2e65339d09a818a10"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-caret-mid/indexed/diff.png",
+      "sha256": "afe49af36eb233dec89887af7122e1ddb56eccaf5e909b63c7df78f83930830a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-caret-end/reference.png",
+      "sha256": "93fe136e5edc979ec7dec7f993d7e17cb9e2324531fbe8b6f2e1d45c99b05de5"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/comparisons/font-caret-end/candidate.png",
+      "sha256": "93fe136e5edc979ec7dec7f993d7e17cb9e2324531fbe8b6f2e1d45c99b05de5"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-caret-end/candidate.png",
+      "sha256": "93fe136e5edc979ec7dec7f993d7e17cb9e2324531fbe8b6f2e1d45c99b05de5"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-caret-end/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-caret-end/indexed/reference.png",
+      "sha256": "03336d9973eccbcfce1dd6c42d7a05a01309e625116c6a7544e990634f533677"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/comparisons/font-caret-end/indexed/candidate.png",
+      "sha256": "03336d9973eccbcfce1dd6c42d7a05a01309e625116c6a7544e990634f533677"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-caret-end/indexed/candidate.png",
+      "sha256": "03336d9973eccbcfce1dd6c42d7a05a01309e625116c6a7544e990634f533677"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-caret-end/indexed/diff.png",
+      "sha256": "afe49af36eb233dec89887af7122e1ddb56eccaf5e909b63c7df78f83930830a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-screen-clip/reference.png",
+      "sha256": "93daece72f6213ffab747d8fb0e469e82039c03649f6c0ac762e9958a8bfaa19"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/comparisons/font-screen-clip/candidate.png",
+      "sha256": "93daece72f6213ffab747d8fb0e469e82039c03649f6c0ac762e9958a8bfaa19"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-screen-clip/candidate.png",
+      "sha256": "93daece72f6213ffab747d8fb0e469e82039c03649f6c0ac762e9958a8bfaa19"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-screen-clip/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-screen-clip/indexed/reference.png",
+      "sha256": "7bf59cda21035246118fbdd1ad554586fa1c76872204bfa7c2c8c29d539bd17c"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/comparisons/font-screen-clip/indexed/candidate.png",
+      "sha256": "7bf59cda21035246118fbdd1ad554586fa1c76872204bfa7c2c8c29d539bd17c"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-screen-clip/indexed/candidate.png",
+      "sha256": "7bf59cda21035246118fbdd1ad554586fa1c76872204bfa7c2c8c29d539bd17c"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-screen-clip/indexed/diff.png",
+      "sha256": "afe49af36eb233dec89887af7122e1ddb56eccaf5e909b63c7df78f83930830a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-restored/reference.png",
+      "sha256": "978623f042fe65cac9800cfc89601f590f40678567d72c6993c39981159fda86"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/comparisons/font-restored/candidate.png",
+      "sha256": "978623f042fe65cac9800cfc89601f590f40678567d72c6993c39981159fda86"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-restored/candidate.png",
+      "sha256": "978623f042fe65cac9800cfc89601f590f40678567d72c6993c39981159fda86"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-restored/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-restored/indexed/reference.png",
+      "sha256": "d854d71a13faf29c8ee528e1f9177e1093f6bb2ab95113f46ee61f7c2af452a8"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-font-ttf-arial-hinted-02/comparisons/font-restored/indexed/candidate.png",
+      "sha256": "d854d71a13faf29c8ee528e1f9177e1093f6bb2ab95113f46ee61f7c2af452a8"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-restored/indexed/candidate.png",
+      "sha256": "d854d71a13faf29c8ee528e1f9177e1093f6bb2ab95113f46ee61f7c2af452a8"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-ttf-arial-hinted-02/comparisons/font-restored/indexed/diff.png",
+      "sha256": "afe49af36eb233dec89887af7122e1ddb56eccaf5e909b63c7df78f83930830a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-empty-ui/reference.png",
+      "sha256": "0b2100f298351f23dbfb090b4435c6e62bbaf9a8b913882427a79263319ecef2"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/comparisons/font-empty-ui/candidate.png",
+      "sha256": "0b2100f298351f23dbfb090b4435c6e62bbaf9a8b913882427a79263319ecef2"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-empty-ui/candidate.png",
+      "sha256": "0b2100f298351f23dbfb090b4435c6e62bbaf9a8b913882427a79263319ecef2"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-empty-ui/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-empty-ui/indexed/reference.png",
+      "sha256": "7fd631700d8096a64df2b9ba09c1ebe094ce1c494e483b3b9530dc8fefc38999"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/comparisons/font-empty-ui/indexed/candidate.png",
+      "sha256": "7fd631700d8096a64df2b9ba09c1ebe094ce1c494e483b3b9530dc8fefc38999"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-empty-ui/indexed/candidate.png",
+      "sha256": "7fd631700d8096a64df2b9ba09c1ebe094ce1c494e483b3b9530dc8fefc38999"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-empty-ui/indexed/diff.png",
+      "sha256": "afe49af36eb233dec89887af7122e1ddb56eccaf5e909b63c7df78f83930830a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-localized-window/reference.png",
+      "sha256": "d403e118eac74965b9b303a1421db2767d9671575b1b27f617c62fe1cd062235"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/comparisons/font-localized-window/candidate.png",
+      "sha256": "d403e118eac74965b9b303a1421db2767d9671575b1b27f617c62fe1cd062235"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-localized-window/candidate.png",
+      "sha256": "d403e118eac74965b9b303a1421db2767d9671575b1b27f617c62fe1cd062235"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-localized-window/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-localized-window/indexed/reference.png",
+      "sha256": "57031ac7dd1f02a0a649d66b5ee011dbbbb7967555c376ba4664ff0658e78005"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/comparisons/font-localized-window/indexed/candidate.png",
+      "sha256": "57031ac7dd1f02a0a649d66b5ee011dbbbb7967555c376ba4664ff0658e78005"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-localized-window/indexed/candidate.png",
+      "sha256": "57031ac7dd1f02a0a649d66b5ee011dbbbb7967555c376ba4664ff0658e78005"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-localized-window/indexed/diff.png",
+      "sha256": "afe49af36eb233dec89887af7122e1ddb56eccaf5e909b63c7df78f83930830a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-caret-start/reference.png",
+      "sha256": "089e355ac0b74ca8e745081a36607899f6bbfb31abde6e3caa5eba856028d9a4"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/comparisons/font-caret-start/candidate.png",
+      "sha256": "089e355ac0b74ca8e745081a36607899f6bbfb31abde6e3caa5eba856028d9a4"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-caret-start/candidate.png",
+      "sha256": "089e355ac0b74ca8e745081a36607899f6bbfb31abde6e3caa5eba856028d9a4"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-caret-start/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-caret-start/indexed/reference.png",
+      "sha256": "ba829d4c7a791fd0fceb868a7eaed4f81d585ac94189ad22e288f87e8aeee1f0"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/comparisons/font-caret-start/indexed/candidate.png",
+      "sha256": "ba829d4c7a791fd0fceb868a7eaed4f81d585ac94189ad22e288f87e8aeee1f0"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-caret-start/indexed/candidate.png",
+      "sha256": "ba829d4c7a791fd0fceb868a7eaed4f81d585ac94189ad22e288f87e8aeee1f0"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-caret-start/indexed/diff.png",
+      "sha256": "afe49af36eb233dec89887af7122e1ddb56eccaf5e909b63c7df78f83930830a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-caret-mid/reference.png",
+      "sha256": "adc3abbed06267467346fe309b22f23a9b0c087e7b45f17c5db2934da891b9ab"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/comparisons/font-caret-mid/candidate.png",
+      "sha256": "adc3abbed06267467346fe309b22f23a9b0c087e7b45f17c5db2934da891b9ab"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-caret-mid/candidate.png",
+      "sha256": "adc3abbed06267467346fe309b22f23a9b0c087e7b45f17c5db2934da891b9ab"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-caret-mid/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-caret-mid/indexed/reference.png",
+      "sha256": "8c4e7b0c41c814dc7a133e4b510f015fec09269ee4dad5d93fa3a0cd8f496800"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/comparisons/font-caret-mid/indexed/candidate.png",
+      "sha256": "8c4e7b0c41c814dc7a133e4b510f015fec09269ee4dad5d93fa3a0cd8f496800"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-caret-mid/indexed/candidate.png",
+      "sha256": "8c4e7b0c41c814dc7a133e4b510f015fec09269ee4dad5d93fa3a0cd8f496800"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-caret-mid/indexed/diff.png",
+      "sha256": "afe49af36eb233dec89887af7122e1ddb56eccaf5e909b63c7df78f83930830a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-caret-end/reference.png",
+      "sha256": "affe69c1884b3954a036c4566c3cd0635a7183f10488bd2841980df3b19a91f6"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/comparisons/font-caret-end/candidate.png",
+      "sha256": "affe69c1884b3954a036c4566c3cd0635a7183f10488bd2841980df3b19a91f6"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-caret-end/candidate.png",
+      "sha256": "affe69c1884b3954a036c4566c3cd0635a7183f10488bd2841980df3b19a91f6"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-caret-end/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-caret-end/indexed/reference.png",
+      "sha256": "c480cb8fe5c4d7e16f3264dfea88fe691dcf3698c09ce4be7756bd0ff6a52885"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/comparisons/font-caret-end/indexed/candidate.png",
+      "sha256": "c480cb8fe5c4d7e16f3264dfea88fe691dcf3698c09ce4be7756bd0ff6a52885"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-caret-end/indexed/candidate.png",
+      "sha256": "c480cb8fe5c4d7e16f3264dfea88fe691dcf3698c09ce4be7756bd0ff6a52885"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-caret-end/indexed/diff.png",
+      "sha256": "afe49af36eb233dec89887af7122e1ddb56eccaf5e909b63c7df78f83930830a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-screen-clip/reference.png",
+      "sha256": "c4c52606d2a0c9df0c114339290ed6f5c1b50dfc2a981e23215da965d9931043"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/comparisons/font-screen-clip/candidate.png",
+      "sha256": "c4c52606d2a0c9df0c114339290ed6f5c1b50dfc2a981e23215da965d9931043"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-screen-clip/candidate.png",
+      "sha256": "c4c52606d2a0c9df0c114339290ed6f5c1b50dfc2a981e23215da965d9931043"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-screen-clip/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-screen-clip/indexed/reference.png",
+      "sha256": "020413be1e29da0ff760d4f47dce067763597968b56f6ffaffe90461f7f7bcd4"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/comparisons/font-screen-clip/indexed/candidate.png",
+      "sha256": "020413be1e29da0ff760d4f47dce067763597968b56f6ffaffe90461f7f7bcd4"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-screen-clip/indexed/candidate.png",
+      "sha256": "020413be1e29da0ff760d4f47dce067763597968b56f6ffaffe90461f7f7bcd4"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-screen-clip/indexed/diff.png",
+      "sha256": "afe49af36eb233dec89887af7122e1ddb56eccaf5e909b63c7df78f83930830a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-restored/reference.png",
+      "sha256": "0b2100f298351f23dbfb090b4435c6e62bbaf9a8b913882427a79263319ecef2"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/comparisons/font-restored/candidate.png",
+      "sha256": "0b2100f298351f23dbfb090b4435c6e62bbaf9a8b913882427a79263319ecef2"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-restored/candidate.png",
+      "sha256": "0b2100f298351f23dbfb090b4435c6e62bbaf9a8b913882427a79263319ecef2"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-restored/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-restored/indexed/reference.png",
+      "sha256": "7fd631700d8096a64df2b9ba09c1ebe094ce1c494e483b3b9530dc8fefc38999"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-font-sprite-fr-02/comparisons/font-restored/indexed/candidate.png",
+      "sha256": "7fd631700d8096a64df2b9ba09c1ebe094ce1c494e483b3b9530dc8fefc38999"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-restored/indexed/candidate.png",
+      "sha256": "7fd631700d8096a64df2b9ba09c1ebe094ce1c494e483b3b9530dc8fefc38999"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-font-sprite-fr-02/comparisons/font-restored/indexed/diff.png",
+      "sha256": "afe49af36eb233dec89887af7122e1ddb56eccaf5e909b63c7df78f83930830a"
+    }
+  ],
+  "manuallyViewedSheets": [
+    {
+      "path": "obj/vulkan-parity/font-manual-review/font-ttf-arial-hinted-font-empty-ui.png",
+      "sha256": "548fbc9026a607f880195edde2e0eb62b849f6869cc859894a8622916775be70"
+    },
+    {
+      "path": "obj/vulkan-parity/font-manual-review/font-ttf-arial-hinted-font-localized-window.png",
+      "sha256": "ed5a0983b5c47db10d45f908d1c05c60213c2f2df16e8219a815d095f57b1865"
+    },
+    {
+      "path": "obj/vulkan-parity/font-manual-review/font-ttf-arial-hinted-font-caret-start.png",
+      "sha256": "ccf731bc5eec9d5848ed8cc773b63d0a7339d4487b5ef57f4f0919f13b7b930c"
+    },
+    {
+      "path": "obj/vulkan-parity/font-manual-review/font-ttf-arial-hinted-font-caret-mid.png",
+      "sha256": "412eb87f791a1a6b5848b40752174b90a7587eb378955a02238a28da8eae63ab"
+    },
+    {
+      "path": "obj/vulkan-parity/font-manual-review/font-ttf-arial-hinted-font-caret-end.png",
+      "sha256": "864ee9e434b0d88dece5a19ed881994be4d20dbbf42414ecd7118cd5b761e389"
+    },
+    {
+      "path": "obj/vulkan-parity/font-manual-review/font-ttf-arial-hinted-font-screen-clip.png",
+      "sha256": "4b4abf3ce310daa6d2473bbe0835b86cc3dd8f49b42c544c8bd545041b505330"
+    },
+    {
+      "path": "obj/vulkan-parity/font-manual-review/font-ttf-arial-hinted-font-restored.png",
+      "sha256": "f60b9c88bb857c7204477b58904c26efb8dd561ec152636225cdaea1c32e5de3"
+    },
+    {
+      "path": "obj/vulkan-parity/font-manual-review/font-sprite-fr-font-empty-ui.png",
+      "sha256": "989febc5cf2723e6ec98aba7e5a0a1c7e26d51ada9d0c5c8aacf86fddead8f1a"
+    },
+    {
+      "path": "obj/vulkan-parity/font-manual-review/font-sprite-fr-font-localized-window.png",
+      "sha256": "39429735a0eed2e95ba4e66deb79c19a3045bc784279da6ef09f4d9b549f64c6"
+    },
+    {
+      "path": "obj/vulkan-parity/font-manual-review/font-sprite-fr-font-caret-start.png",
+      "sha256": "89362a193f66bb9d684f756cc8081da358d9e6f2d575ae7ea8d9a58cc784ee64"
+    },
+    {
+      "path": "obj/vulkan-parity/font-manual-review/font-sprite-fr-font-caret-mid.png",
+      "sha256": "be062e9b810b8d8d8fc3e0ef17524276eb60040aa2c027545c2abf1c1e413738"
+    },
+    {
+      "path": "obj/vulkan-parity/font-manual-review/font-sprite-fr-font-caret-end.png",
+      "sha256": "fc1e841dc3eb49fcea7cfb3e7ddf37bf43a21d45aae024baec66b7bfa7d04886"
+    },
+    {
+      "path": "obj/vulkan-parity/font-manual-review/font-sprite-fr-font-screen-clip.png",
+      "sha256": "ec1e861a27b766e920bf82e1f27ebaf8f0b17b449a2a221892c317a53d86a3a2"
+    },
+    {
+      "path": "obj/vulkan-parity/font-manual-review/font-sprite-fr-font-restored.png",
+      "sha256": "8b8b40218c8566bf64807d5c12e4e14f5c0ca2b84708eaff1055cb6938b69873"
+    }
+  ],
+  "limits": "Two pinned profiles at960x640 scale1 on one Windows device, actual UI full-invalidation paint ordinals3..9; no general shaping/RTL/IME, all-font, missing-font fallback, cache churn or enlarged/fractional-scale qualification",
+  "failedFixtureSetup": {
+    "summary": {
+      "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-01/summary.json",
+      "sha256": "537406d8da601d58471145e2445bf4ae439e4016f908f5afdf88d510bc8b48fa"
+    },
+    "captureLog": {
+      "path": "obj/vulkan-parity/ui-frozen-font-ttf-arial-hinted-01/capture.log",
+      "sha256": "d29e882aafc8706e33c8f87aa75ce3f7b11325c76a2fc0eab6ca574561f26206"
+    },
+    "captures": 0,
+    "cause": "Fixture incorrectly classified U+2192 as forced sprite; production right symbol is U+25B6. Corrected predicate leaves U+2192 in pinned Arial TTF, preserves U+2713 sprite tick. No rasterizer or pixel exception."
+  },
+  "status": "All84frames exact indexed/physical RGBA across12processes including same-build fresh repeats; common fonts/input metadata exact; all14states manually reviewed three lanes/bothlayers with zero diffs; validationclean"
+}

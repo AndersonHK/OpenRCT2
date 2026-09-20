@@ -1,0 +1,71 @@
+{
+  "reviewer": "decode_assets",
+  "reviewed": "2026-09-19",
+  "status": "fixture initialization failure; no renderer exception",
+  "images": [
+    {
+      "path": "obj/vulkan-parity/ui-frozen-light-night-02/comparisons/light-paint-3/reference.png",
+      "sha256": "4F5BFAC135B2EF1781D3523A1CB9E219E2F3B4F83146256CA926B23E425273DD"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-frozen-light-night-02/comparisons/light-paint-3/candidate.png",
+      "sha256": "9B2991FE1CC53D62A0F54A57661E8B239CA6E7AC24124DDB8508F5E8B1F657D2"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-frozen-light-night-02/comparisons/light-paint-3/diff.png",
+      "sha256": "A8972C6E2086D813DC0212B493B478D71B8C191C516209CCB5FC11837D5AA402"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-frozen-light-night-02/comparisons/light-paint-3/diff-amplified.png",
+      "sha256": "8E1CF49E0EEEAB19D899FAF40843B33BD081A8B2EA97347BA9013C77F486DC11"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-frozen-light-night-02/comparisons/light-paint-4/reference.png",
+      "sha256": "4F5BFAC135B2EF1781D3523A1CB9E219E2F3B4F83146256CA926B23E425273DD"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-frozen-light-night-02/comparisons/light-paint-4/candidate.png",
+      "sha256": "9B2991FE1CC53D62A0F54A57661E8B239CA6E7AC24124DDB8508F5E8B1F657D2"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-frozen-light-night-02/comparisons/light-paint-4/diff.png",
+      "sha256": "A8972C6E2086D813DC0212B493B478D71B8C191C516209CCB5FC11837D5AA402"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-frozen-light-night-02/comparisons/light-paint-4/diff-amplified.png",
+      "sha256": "8E1CF49E0EEEAB19D899FAF40843B33BD081A8B2EA97347BA9013C77F486DC11"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-frozen-light-night-02/comparisons/light-paint-5/reference.png",
+      "sha256": "4F5BFAC135B2EF1781D3523A1CB9E219E2F3B4F83146256CA926B23E425273DD"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-frozen-light-night-02/comparisons/light-paint-5/candidate.png",
+      "sha256": "9B2991FE1CC53D62A0F54A57661E8B239CA6E7AC24124DDB8508F5E8B1F657D2"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-frozen-light-night-02/comparisons/light-paint-5/diff.png",
+      "sha256": "A8972C6E2086D813DC0212B493B478D71B8C191C516209CCB5FC11837D5AA402"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-frozen-light-night-02/comparisons/light-paint-5/diff-amplified.png",
+      "sha256": "8E1CF49E0EEEAB19D899FAF40843B33BD081A8B2EA97347BA9013C77F486DC11"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-frozen-light-night-02/comparisons/light-paint-6/reference.png",
+      "sha256": "4F5BFAC135B2EF1781D3523A1CB9E219E2F3B4F83146256CA926B23E425273DD"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-frozen-light-night-02/comparisons/light-paint-6/candidate.png",
+      "sha256": "9B2991FE1CC53D62A0F54A57661E8B239CA6E7AC24124DDB8508F5E8B1F657D2"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-frozen-light-night-02/comparisons/light-paint-6/diff.png",
+      "sha256": "A8972C6E2086D813DC0212B493B478D71B8C191C516209CCB5FC11837D5AA402"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-frozen-light-night-02/comparisons/light-paint-6/diff-amplified.png",
+      "sha256": "8E1CF49E0EEEAB19D899FAF40843B33BD081A8B2EA97347BA9013C77F486DC11"
+    }
+  ]
+}

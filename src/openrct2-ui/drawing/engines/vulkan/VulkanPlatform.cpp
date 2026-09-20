@@ -28,40 +28,100 @@
 
 namespace OpenRCT2::Ui::Vulkan::Platform
 {
+    namespace
+    {
+        class SdlPresentationHost final : public PresentationHost
+        {
+        private:
+            SDL_Window* _window;
+
+        public:
+            explicit SdlPresentationHost(SDL_Window* window)
+                : _window(window)
+            {
+                if (window == nullptr)
+                    throw std::invalid_argument("Vulkan presentation requires an SDL window");
+            }
+
+            std::unique_ptr<VulkanLibraryLease> AcquireVulkanLibrary() override
+            {
+                class SdlLibraryLease final : public VulkanLibraryLease
+                {
+                public:
+                    SdlLibraryLease()
+                    {
+                        Platform::LoadVulkanLibrary();
+                    }
+                    ~SdlLibraryLease() override
+                    {
+                        Platform::UnloadVulkanLibrary();
+                    }
+                };
+                return std::make_unique<SdlLibraryLease>();
+            }
+
+            std::vector<std::string> GetInstanceExtensions() override
+            {
+                const auto extensions = Platform::GetInstanceExtensions(_window);
+                return { extensions.begin(), extensions.end() };
+            }
+
+            VkSurfaceKHR CreateSurface(VkInstance instance) override
+            {
+                return Platform::CreateSurface(_window, instance);
+            }
+
+            void DestroySurface(VkInstance instance, VkSurfaceKHR surface) noexcept override
+            {
+                vkDestroySurfaceKHR(instance, surface, nullptr);
+            }
+
+            VkExtent2D GetDrawableExtent() const noexcept override
+            {
+                return Platform::GetDrawableExtent(_window);
+            }
+        };
+    } // namespace
+
+    std::unique_ptr<PresentationHost> CreatePresentationHost(SDL_Window* window)
+    {
+        return std::make_unique<SdlPresentationHost>(window);
+    }
+
     uint32_t GetRequiredSdlWindowFlags() noexcept
     {
-#if defined(_WIN32)
+    #if defined(_WIN32)
         // The bundled static SDL is built without its Vulkan video-driver hooks.
         // Native Win32 WSI only needs the ordinary SDL window and its HWND.
         return 0;
-#else
+    #else
         return SDL_WINDOW_VULKAN;
-#endif
+    #endif
     }
 
     void LoadVulkanLibrary()
     {
-#if !defined(_WIN32)
+    #if !defined(_WIN32)
         if (SDL_Vulkan_LoadLibrary(nullptr) != 0)
         {
             throw std::runtime_error(std::string("SDL could not load Vulkan: ") + SDL_GetError());
         }
-#endif
+    #endif
     }
 
     void UnloadVulkanLibrary() noexcept
     {
-#if !defined(_WIN32)
+    #if !defined(_WIN32)
         SDL_Vulkan_UnloadLibrary();
-#endif
+    #endif
     }
 
     std::vector<const char*> GetInstanceExtensions(SDL_Window* window)
     {
-#if defined(_WIN32)
+    #if defined(_WIN32)
         (void)window;
         return { VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME };
-#else
+    #else
         uint32_t count = 0;
         if (SDL_Vulkan_GetInstanceExtensions(window, &count, nullptr) != SDL_TRUE)
         {
@@ -73,12 +133,12 @@ namespace OpenRCT2::Ui::Vulkan::Platform
             throw std::runtime_error(std::string("SDL could not query Vulkan extensions: ") + SDL_GetError());
         }
         return result;
-#endif
+    #endif
     }
 
     VkSurfaceKHR CreateSurface(SDL_Window* window, VkInstance instance)
     {
-#if defined(_WIN32)
+    #if defined(_WIN32)
         SDL_SysWMinfo windowInfo{};
         SDL_VERSION(&windowInfo.version);
         if (SDL_GetWindowWMInfo(window, &windowInfo) != SDL_TRUE)
@@ -105,25 +165,24 @@ namespace OpenRCT2::Ui::Vulkan::Platform
         const auto result = createSurface(instance, &createInfo, nullptr, &surface);
         if (result != VK_SUCCESS)
         {
-            throw std::runtime_error(
-                "vkCreateWin32SurfaceKHR failed with Vulkan result " + std::to_string(result));
+            throw std::runtime_error("vkCreateWin32SurfaceKHR failed with Vulkan result " + std::to_string(result));
         }
         return surface;
-#else
+    #else
         VkSurfaceKHR surface = VK_NULL_HANDLE;
         if (SDL_Vulkan_CreateSurface(window, instance, &surface) != SDL_TRUE)
         {
             throw std::runtime_error(std::string("SDL could not create Vulkan surface: ") + SDL_GetError());
         }
         return surface;
-#endif
+    #endif
     }
 
     VkExtent2D GetDrawableExtent(SDL_Window* window) noexcept
     {
         int32_t width = 0;
         int32_t height = 0;
-#if defined(_WIN32)
+    #if defined(_WIN32)
         SDL_SysWMinfo windowInfo{};
         SDL_VERSION(&windowInfo.version);
         RECT clientRect{};
@@ -134,9 +193,9 @@ namespace OpenRCT2::Ui::Vulkan::Platform
         }
         width = clientRect.right - clientRect.left;
         height = clientRect.bottom - clientRect.top;
-#else
+    #else
         SDL_Vulkan_GetDrawableSize(window, &width, &height);
-#endif
+    #endif
         return {
             static_cast<uint32_t>(std::max(width, 0)),
             static_cast<uint32_t>(std::max(height, 0)),

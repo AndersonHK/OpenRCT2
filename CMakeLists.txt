@@ -400,6 +400,7 @@ endif ()
 
 # Include sub-projects
 include("${ROOT_DIR}/src/openrct2/CMakeLists.txt" NO_POLICY_SCOPE)
+include("${ROOT_DIR}/src/openrct2-renderer/CMakeLists.txt" NO_POLICY_SCOPE)
 include("${ROOT_DIR}/src/openrct2-cli/CMakeLists.txt" NO_POLICY_SCOPE)
 if(NOT DISABLE_GUI)
     include("${ROOT_DIR}/src/openrct2-ui/CMakeLists.txt" NO_POLICY_SCOPE)
@@ -504,6 +505,10 @@ if (NOT MACOS_BUNDLE OR (MACOS_BUNDLE AND WITH_TESTS))
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/palettes.dat" DESTINATION "${CMAKE_INSTALL_DATADIR}/openrct2")
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/tracks.dat" DESTINATION "${CMAKE_INSTALL_DATADIR}/openrct2")
     install(DIRECTORY "data/" DESTINATION "${CMAKE_INSTALL_DATADIR}/openrct2")
+    if (OPENRCT2_VULKAN_ENABLED)
+        # Install generated shaders after source data so stale source SPIR-V cannot replace them.
+        install(FILES ${VULKAN_SHADER_OUTPUTS} DESTINATION "${CMAKE_INSTALL_DATADIR}/openrct2/shaders/vulkan")
+    endif ()
 
     # even when building WITH_TESTS, none of the below install steps are required for OpenRCT2.app
     if (NOT MACOS_BUNDLE)

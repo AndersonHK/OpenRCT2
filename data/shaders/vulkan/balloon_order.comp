@@ -1,0 +1,193 @@
+#version 450
+
+// Exact bounded qualification scaffold. One invocation owns one legacy 32-pixel column.
+// It does not establish acceptable complexity for dense scenes or general entity families.
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+const int CAPACITY = 64;
+const int HEAD = 64;
+const int NIL = -1;
+
+struct SourceRecord
+{
+    int x; int y; int z;
+    uint id; uint generation; uint frame; uint popped; uint colour;
+    uint width; uint heightMin; uint heightMax; uint present;
+};
+struct SpriteVariant
+{
+    ivec2 spriteSize; ivec2 spriteOffset;
+    uint asset; int zoom; int coordinateShift; int valid;
+};
+struct OutputRecord
+{
+    ivec3 world; int valid;
+    ivec2 spriteSize; ivec2 spriteOffset;
+    uint asset; uint palettes; uint effects; int depth;
+    int zoom; int coordinateShift; ivec2 columnClip;
+};
+struct DrawIndirectCommand { uint vertexCount; uint instanceCount; uint firstVertex; uint firstInstance; };
+layout(std430, set = 0, binding = 3) readonly buffer Sources { SourceRecord records[]; } uSources;
+layout(std430, set = 0, binding = 4) readonly buffer Sprites { SpriteVariant records[]; } uSprites;
+layout(std430, set = 0, binding = 5) writeonly buffer Outputs { OutputRecord records[]; } uOutputs;
+layout(std430, set = 0, binding = 6) writeonly buffer Commands { DrawIndirectCommand records[]; } uCommands;
+layout(push_constant) uniform BalloonConstants
+{
+    ivec2 screen; ivec2 view; ivec4 clip; uint depthBase;
+} uScene;
+
+int nextNode[65];
+int quadrant[64];
+int visit[64];
+uint flags[64];
+
+int floor32(int value) { return value & ~31; }
+
+bool boundingBoxReorders(int initial, int current)
+{
+    // Rotation zero, bounding length {1,1,0}: both endpoints equal the entity origin.
+    SourceRecord a = uSources.records[initial];
+    SourceRecord b = uSources.records[current];
+    return a.z >= b.z && a.y >= b.y && a.x >= b.x
+        && !(a.z < b.z && a.y < b.y && a.x < b.x);
+}
+
+void arrangeQuadrant(int q, bool first)
+{
+    // PaintStructsFirstInQuadrant, beginning from the head rather than a cached predecessor.
+    int before = HEAD;
+    while (nextNode[before] != NIL && quadrant[nextNode[before]] < q)
+        before = nextNode[before];
+    int node = nextNode[before];
+    while (node != NIL)
+    {
+        if (quadrant[node] > q + 1)
+        {
+            flags[node] = 128u;
+            break;
+        }
+        if (quadrant[node] == q + 1)
+            flags[node] = 3u;
+        else if (quadrant[node] == q)
+            flags[node] = first ? 3u : 1u;
+        node = nextNode[node];
+    }
+
+    int cursor = before;
+    while (true)
+    {
+        int child = nextNode[cursor];
+        if (child == NIL || (flags[child] & 128u) != 0u)
+            break;
+        if ((flags[child] & 1u) == 0u)
+        {
+            cursor = child;
+            continue;
+        }
+        flags[child] &= ~1u;
+        int initial = child;
+        int previous = child;
+        int candidate = nextNode[previous];
+        while (candidate != NIL && (flags[candidate] & 128u) == 0u)
+        {
+            if ((flags[candidate] & 2u) != 0u && boundingBoxReorders(initial, candidate))
+            {
+                nextNode[previous] = nextNode[candidate];
+                nextNode[candidate] = nextNode[cursor];
+                nextNode[cursor] = candidate;
+            }
+            else
+                previous = candidate;
+            candidate = nextNode[previous];
+        }
+        // Stay at the same parent: newly moved pending nodes must be visited first, as in the legacy list.
+    }
+}
+
+void main()
+{
+    uint column = gl_WorkGroupID.x;
+    int columnWorldLeft = floor32(uScene.view.x) + int(column) * 32;
+    int visibleLeft = max(columnWorldLeft, uScene.view.x);
+    int visibleRight = min(columnWorldLeft + 32, uScene.view.x + uScene.clip.z - uScene.clip.x);
+    ivec2 screenStart = ivec2(floor32(visibleLeft), floor32(uScene.view.y - 16));
+    ivec2 tileStart = ivec2(screenStart.y - screenStart.x / 2, screenStart.y + screenStart.x / 2);
+    tileStart = ivec2(floor32(tileStart.x), floor32(tileStart.y));
+    int verticalTiles = (uScene.clip.w - uScene.clip.y + 2128) >> 5;
+    ivec2 offsets[4] = ivec2[](ivec2(0), ivec2(-32,32), ivec2(0,32), ivec2(32,0));
+    nextNode[HEAD] = NIL;
+    int firstQuadrant = 2147483647;
+    int lastQuadrant = -1;
+
+    for (int i = 0; i < CAPACITY; i++)
+    {
+        SourceRecord source = uSources.records[i];
+        nextNode[i] = NIL;
+        flags[i] = 0u;
+        visit[i] = -1;
+        if (source.present == 0u)
+            continue;
+        ivec2 projected = ivec2(source.y - source.x, ((source.x + source.y) >> 1) - source.z);
+        // EntityPaintSetup coarse culling uses the visible (possibly partial) column and viewport height.
+        if (uScene.view.y + uScene.clip.w - uScene.clip.y <= projected.y - int(source.heightMin)
+            || projected.y + int(source.heightMax) <= uScene.view.y
+            || visibleRight <= projected.x - int(source.width)
+            || projected.x + int(source.width) <= visibleLeft)
+            continue;
+        uint variant = (source.frame & 7u) + (source.popped != 0u ? 8u : 0u);
+        SpriteVariant sprite = uSprites.records[variant];
+        // CreateNormalPaintStruct culls against the full aligned column, with unbounded culling Y.
+        int imageLeft = projected.x + sprite.spriteOffset.x;
+        if (sprite.valid == 0 || imageLeft + sprite.spriteSize.x <= columnWorldLeft || imageLeft >= columnWorldLeft + 32)
+            continue;
+        ivec2 tile = ivec2(floor32(source.x), floor32(source.y));
+        for (int adjacent = 0; adjacent < 4; adjacent++)
+        {
+            ivec2 delta = tile - tileStart - offsets[adjacent];
+            if (delta.x == delta.y && delta.x >= 0 && (delta.x & 31) == 0 && delta.x / 32 < verticalTiles)
+                visit[i] = (delta.x / 32) * 4 + adjacent;
+        }
+        if (visit[i] < 0)
+            continue;
+        quadrant[i] = (source.x + source.y) / 32;
+        firstQuadrant = min(firstQuadrant, quadrant[i]);
+        lastQuadrant = max(lastQuadrant, quadrant[i]);
+        // Link quadrant lists after head insertion: same quadrant reverses traversal and ascending entity IDs.
+        int parent = HEAD;
+        int current = nextNode[parent];
+        while (current != NIL && (quadrant[current] < quadrant[i]
+            || (quadrant[current] == quadrant[i] && (visit[current] > visit[i]
+                || (visit[current] == visit[i] && uSources.records[current].id > source.id)))))
+        {
+            parent = current;
+            current = nextNode[current];
+        }
+        nextNode[i] = current;
+        nextNode[parent] = i;
+    }
+
+    // Admission confines balloons to the interior and Z>=80 on a Z16 32x32 flat map.
+    // Every column containing a visible balloon also has terrain parents in earlier AND later quadrants
+    // (terrain parent culling is horizontal-only). Consequently no balloon quadrant is the full scene's
+    // first or last quadrant. Ground Z16 can never pull a balloon backwards in CheckBoundingBox; deleting
+    // those ground-only nodes preserves the relative balloon list, including all normal quadrant visits.
+    // This reduction is not valid for arbitrary terrain/height/camera admission and must stay gated.
+    // Visit the preceding ground quadrant too: its neighbour flag causes the first balloon quadrant's
+    // own nodes to compare against one another before the normal current-quadrant pass.
+    for (int q = firstQuadrant - 1; q <= lastQuadrant; q++)
+        arrangeQuadrant(q, false);
+    uint count = 0u;
+    for (int i = nextNode[HEAD]; i != NIL; i = nextNode[i])
+    {
+        SourceRecord source = uSources.records[i];
+        SpriteVariant sprite = uSprites.records[(source.frame & 7u) + (source.popped != 0u ? 8u : 0u)];
+        // All admitted colours are normal colour rows 0..53; PaletteToY adds one before paletteWater.
+        OutputRecord record = OutputRecord(ivec3(source.x, source.y, source.z), 1,
+            sprite.spriteSize, sprite.spriteOffset, sprite.asset, source.colour + 1u, 1u,
+            int(uScene.depthBase + count), 0, 0,
+            ivec2(visibleLeft, visibleRight) - ivec2(uScene.view.x) + ivec2(uScene.clip.x));
+        uOutputs.records[column * uint(CAPACITY) + count] = record;
+        count++;
+    }
+    // Bind each column's output range independently, preserving devices without drawIndirectFirstInstance.
+    uCommands.records[column] = DrawIndirectCommand(4u, count, 0u, 0u);
+}

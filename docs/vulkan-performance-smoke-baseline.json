@@ -1,0 +1,398 @@
+{
+  "status": "smoke only; Gate P unqualified",
+  "workload": "EverythingPark,100warmup+400measuredticks,VSync1,hidden; ordinary pre-extraction build26; no validation/capture/profile",
+  "runs": [
+    {
+      "lane": "frozen",
+      "summary": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\perf-frozen-smoke-02\\summary.json",
+      "summarySha256": "dd01abd4bd3d3a298c86b4e85fd69bba4a838313e8baf7d9ef234fe0f384af60",
+      "metrics": {
+        "renderer": "software",
+        "vsync": "enabled",
+        "elapsedSeconds": 2.621418,
+        "logicalTicks": 400,
+        "logicalTps": 152.589,
+        "draws": {
+          "count": 201.0,
+          "fps": 76.676
+        },
+        "ui": {
+          "messagePumps": 202.0,
+          "windowUpdates": 201.0,
+          "messageHz": 77.058,
+          "windowHz": 76.676
+        },
+        "simulation": {
+          "seconds": 0.929718,
+          "utilisationPercent": 35.5,
+          "meanMicrosecondsPerTick": 2324.295
+        },
+        "simulationBatches": {
+          "count": 400.0,
+          "meanMicroseconds": 2324.295,
+          "longestMilliseconds": 3.024,
+          "longestSliceMilliseconds": 3.024
+        },
+        "drawCpu": {
+          "seconds": 1.397739,
+          "utilisationPercent": 53.3,
+          "meanMicroseconds": 6953.926
+        },
+        "applicationFrameIntervalsMs": {
+          "p50": 13.453,
+          "p95": 15.712,
+          "p99": 19.278,
+          "max": 20.619
+        },
+        "rendererCpu": null,
+        "presentApi": null,
+        "gpuFrame": null,
+        "gpuPasses": null
+      },
+      "states": {
+        "initial": {
+          "simulationTick": {
+            "tick": 3133931
+          },
+          "guests": {
+            "total": 13213,
+            "inside": 13212,
+            "outside": 1
+          },
+          "guestStates": {
+            "walking": 6322,
+            "queued": 2672,
+            "onRide": 2889
+          },
+          "transportRoutes": {
+            "active": 2
+          },
+          "staffVehicles": {
+            "staff": 2208,
+            "vehicles": 2128
+          },
+          "routeCache": {
+            "nodes": 6663,
+            "targets": 543,
+            "directionEntries": 3611346,
+            "distanceEntries": 3611346,
+            "singleRideTargets": 517,
+            "status": "current"
+          }
+        },
+        "final": {
+          "simulationTick": {
+            "tick": 3134331
+          },
+          "guests": {
+            "total": 13434,
+            "inside": 13364,
+            "outside": 70
+          },
+          "guestStates": {
+            "walking": 6751,
+            "queued": 2664,
+            "onRide": 2828
+          },
+          "transportRoutes": {
+            "active": 4
+          },
+          "staffVehicles": {
+            "staff": 2208,
+            "vehicles": 2128
+          },
+          "routeCache": {
+            "nodes": 6663,
+            "targets": 543,
+            "directionEntries": 3611346,
+            "distanceEntries": 3611346,
+            "singleRideTargets": 517,
+            "status": "current"
+          }
+        }
+      },
+      "finalEntityChecksum": "8f6361f8141151c4000000000000000000000000",
+      "limitations": [
+        "Hidden smoke cannot certify displayed pacing",
+        "No image readbacks or diagnostic capture requests; ordinary main loop",
+        "Single-run results do not establish a substantial TPS gain",
+        "Initial checkpoint is a state census; initial entity checksum is unavailable"
+      ],
+      "missingMetrics": [
+        "renderer CPU explicitly unavailable",
+        "present API call explicitly unavailable",
+        "GPU frame explicitly unavailable",
+        "GPU passes explicitly unavailable",
+        "initial entity checksum is not emitted",
+        "actual drawable extent/selected monitor refresh is not emitted",
+        "displayed presentation cadence is not measured",
+        "CPU copied/upload byte counters are not emitted"
+      ]
+    },
+    {
+      "lane": "current-software",
+      "summary": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\perf-current-software-smoke-02\\summary.json",
+      "summarySha256": "e3de2b9939ed0868e0091e3731daf7595ef4ff1f7829129df35af9019f662182",
+      "metrics": {
+        "renderer": "software",
+        "vsync": "enabled",
+        "elapsedSeconds": 2.552414,
+        "logicalTicks": 400,
+        "logicalTps": 156.714,
+        "draws": {
+          "count": 207.0,
+          "fps": 81.1
+        },
+        "ui": {
+          "messagePumps": 208.0,
+          "windowUpdates": 207.0,
+          "messageHz": 81.491,
+          "windowHz": 81.1
+        },
+        "simulation": {
+          "seconds": 0.936293,
+          "utilisationPercent": 36.7,
+          "meanMicrosecondsPerTick": 2340.733
+        },
+        "simulationBatches": {
+          "count": 400.0,
+          "meanMicroseconds": 2340.733,
+          "longestMilliseconds": 3.266,
+          "longestSliceMilliseconds": 3.266
+        },
+        "drawCpu": {
+          "seconds": 1.314267,
+          "utilisationPercent": 51.5,
+          "meanMicroseconds": 6349.115
+        },
+        "applicationFrameIntervalsMs": {
+          "p50": 13.24,
+          "p95": 15.438,
+          "p99": 20.357,
+          "max": 20.83
+        },
+        "rendererCpu": null,
+        "presentApi": null,
+        "gpuFrame": null,
+        "gpuPasses": null
+      },
+      "states": {
+        "initial": {
+          "simulationTick": {
+            "tick": 3133931
+          },
+          "guests": {
+            "total": 13213,
+            "inside": 13212,
+            "outside": 1
+          },
+          "guestStates": {
+            "walking": 6322,
+            "queued": 2672,
+            "onRide": 2889
+          },
+          "transportRoutes": {
+            "active": 2
+          },
+          "staffVehicles": {
+            "staff": 2208,
+            "vehicles": 2128
+          },
+          "routeCache": {
+            "nodes": 6663,
+            "targets": 543,
+            "directionEntries": 3611346,
+            "distanceEntries": 3611346,
+            "singleRideTargets": 517,
+            "status": "current"
+          }
+        },
+        "final": {
+          "simulationTick": {
+            "tick": 3134331
+          },
+          "guests": {
+            "total": 13434,
+            "inside": 13364,
+            "outside": 70
+          },
+          "guestStates": {
+            "walking": 6751,
+            "queued": 2664,
+            "onRide": 2828
+          },
+          "transportRoutes": {
+            "active": 4
+          },
+          "staffVehicles": {
+            "staff": 2208,
+            "vehicles": 2128
+          },
+          "routeCache": {
+            "nodes": 6663,
+            "targets": 543,
+            "directionEntries": 3611346,
+            "distanceEntries": 3611346,
+            "singleRideTargets": 517,
+            "status": "current"
+          }
+        }
+      },
+      "finalEntityChecksum": "8f6361f8141151c4000000000000000000000000",
+      "limitations": [
+        "Hidden smoke cannot certify displayed pacing",
+        "No image readbacks or diagnostic capture requests; ordinary main loop",
+        "Single-run results do not establish a substantial TPS gain",
+        "Initial checkpoint is a state census; initial entity checksum is unavailable"
+      ],
+      "missingMetrics": [
+        "renderer CPU explicitly unavailable",
+        "present API call explicitly unavailable",
+        "GPU frame explicitly unavailable",
+        "GPU passes explicitly unavailable",
+        "initial entity checksum is not emitted",
+        "actual drawable extent/selected monitor refresh is not emitted",
+        "displayed presentation cadence is not measured",
+        "CPU copied/upload byte counters are not emitted"
+      ]
+    },
+    {
+      "lane": "vulkan",
+      "summary": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\perf-vulkan-smoke-02\\summary.json",
+      "summarySha256": "d0c127b9aa6f557d62d64d50bc119f4fa357c494f9c7645f5cccb7972accac39",
+      "metrics": {
+        "renderer": "vulkan",
+        "vsync": "enabled",
+        "elapsedSeconds": 1.560074,
+        "logicalTicks": 400,
+        "logicalTps": 256.398,
+        "draws": {
+          "count": 129.0,
+          "fps": 82.688
+        },
+        "ui": {
+          "messagePumps": 130.0,
+          "windowUpdates": 129.0,
+          "messageHz": 83.329,
+          "windowHz": 82.688
+        },
+        "simulation": {
+          "seconds": 0.743275,
+          "utilisationPercent": 47.6,
+          "meanMicrosecondsPerTick": 1858.187
+        },
+        "simulationBatches": {
+          "count": 400.0,
+          "meanMicroseconds": 1858.187,
+          "longestMilliseconds": 2.537,
+          "longestSliceMilliseconds": 2.537
+        },
+        "drawCpu": {
+          "seconds": 0.636761,
+          "utilisationPercent": 40.8,
+          "meanMicroseconds": 4936.129
+        },
+        "applicationFrameIntervalsMs": {
+          "p50": 13.276,
+          "p95": 14.144,
+          "p99": 14.574,
+          "max": 14.8
+        },
+        "rendererCpu": {
+          "submitMeanUs": 341.859,
+          "presentMeanUs": 165.009,
+          "samples": 129.0
+        },
+        "presentApi": {
+          "meanUs": 118.728,
+          "samples": 129.0
+        },
+        "gpuFrame": {
+          "meanUs": 304.153,
+          "samples": 129.0
+        },
+        "gpuPasses": {
+          "uploadMeanUs": 40.014,
+          "drawMeanUs": 259.444,
+          "lightFxMeanUs": 0.003,
+          "compositeMeanUs": 4.691
+        }
+      },
+      "states": {
+        "initial": {
+          "simulationTick": {
+            "tick": 3133931
+          },
+          "guests": {
+            "total": 13213,
+            "inside": 13212,
+            "outside": 1
+          },
+          "guestStates": {
+            "walking": 6322,
+            "queued": 2672,
+            "onRide": 2889
+          },
+          "transportRoutes": {
+            "active": 2
+          },
+          "staffVehicles": {
+            "staff": 2208,
+            "vehicles": 2128
+          },
+          "routeCache": {
+            "nodes": 6663,
+            "targets": 543,
+            "directionEntries": 3611346,
+            "distanceEntries": 3611346,
+            "singleRideTargets": 517,
+            "status": "current"
+          }
+        },
+        "final": {
+          "simulationTick": {
+            "tick": 3134331
+          },
+          "guests": {
+            "total": 13434,
+            "inside": 13364,
+            "outside": 70
+          },
+          "guestStates": {
+            "walking": 6751,
+            "queued": 2664,
+            "onRide": 2828
+          },
+          "transportRoutes": {
+            "active": 4
+          },
+          "staffVehicles": {
+            "staff": 2208,
+            "vehicles": 2128
+          },
+          "routeCache": {
+            "nodes": 6663,
+            "targets": 543,
+            "directionEntries": 3611346,
+            "distanceEntries": 3611346,
+            "singleRideTargets": 517,
+            "status": "current"
+          }
+        }
+      },
+      "finalEntityChecksum": "8f6361f8141151c4000000000000000000000000",
+      "limitations": [
+        "Hidden smoke cannot certify displayed pacing",
+        "No image readbacks or diagnostic capture requests; ordinary main loop",
+        "Single-run results do not establish a substantial TPS gain",
+        "Initial checkpoint is a state census; initial entity checksum is unavailable"
+      ],
+      "missingMetrics": [
+        "initial entity checksum is not emitted",
+        "actual drawable extent/selected monitor refresh is not emitted",
+        "displayed presentation cadence is not measured",
+        "CPU copied/upload byte counters are not emitted"
+      ]
+    }
+  ]
+}

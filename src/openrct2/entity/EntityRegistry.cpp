@@ -8,8 +8,8 @@
  *****************************************************************************/
 
 #include "EntityRegistry.h"
-#include "EntityPresentationSnapshot.h"
 
+#include "EntityPresentationSnapshot.h"
 #include "../GameState.h"
 #include "../core/Algorithm.hpp"
 #include "../core/ChecksumStream.h"
@@ -176,6 +176,8 @@ namespace OpenRCT2
             for (uint8_t value = 0; value < EnumValue(EntityType::count); value++)
             {
                 const auto& pool = _pools[value];
+                if (value == EnumValue(EntityType::balloon) && snapshot._retainedBalloons != nullptr)
+                    continue;
                 for (size_t pageIndex = 0; pageIndex < pool.pages.size(); pageIndex++)
                 {
                     auto& output = snapshot._bulkPages[outputIndex++];
@@ -192,6 +194,8 @@ namespace OpenRCT2
                     const auto byteCount = pool.stride * kSlotsPerPage;
                     output.storage.resize(byteCount);
                     std::memcpy(output.storage.data(), pool.pages[pageIndex].get(), byteCount);
+                    if (value == EnumValue(EntityType::balloon))
+                        snapshot._balloonMetrics.bulkCopiedBytes += byteCount;
                 }
             }
             snapshot._bulkPageCount = outputIndex;
@@ -598,7 +602,7 @@ namespace OpenRCT2
         _entityVisualResetPending = true;
     }
 
-    EntityVisualChangeBatch EntityRegistry::ConsumeEntityVisualChanges()
+    EntityVisualChangeBatch EntityRegistry::ConsumeEntityVisualChanges(EntityType payloadFamily)
     {
         EntityVisualChangeBatch batch{ _entityVisualEpoch, _entityVisualResetPending, {} };
         _entityVisualResetPending = false;
@@ -609,7 +613,7 @@ namespace OpenRCT2
         for (const auto id : _entityVisualDirtyEntities)
         {
             const auto* entity = entities[id.ToUnderlying()];
-            if (entity != nullptr)
+            if (entity != nullptr && (payloadFamily == EntityType::null || entity->type == payloadFamily))
                 payloadSize += EntityStorage::GetConcreteSize(entity->type);
         }
         batch.payload.reserve(payloadSize);
@@ -628,7 +632,7 @@ namespace OpenRCT2
                 static_cast<EntityVisualDirty>(_entityVisualDirtyFlags[index]),
                 present,
             });
-            if (present)
+            if (present && (payloadFamily == EntityType::null || entity->type == payloadFamily))
             {
                 const auto entitySize = EntityStorage::GetConcreteSize(entity->type);
                 change.payloadOffset = static_cast<uint32_t>(batch.payload.size());

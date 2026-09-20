@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "revision": "9a092745f38a714cf33629aaa005d078d473e48b",
+  "deployedSource": "c6560d2679cd7871ba583236fd9515bb81955511",
+  "objectsRevision": "b2a5511cd7ff90646dd40c61f08cb27fa977e8f4",
+  "localReference": "obj/vulkan-parity/reference-9a092745f3",
+  "manifest": {
+    "bytes": 940994,
+    "sha256": "ce7949d8de27129d78df8c07015e133f629d7d76e01dae190adae3848c04d633"
+  },
+  "sourceArchive": {
+    "bytes": 42833183,
+    "sha256": "d51ea98df71cec90e8bb94403e3a80deace505e95af3be56a92a0e20644757cf"
+  },
+  "fileCount": 4730,
+  "executables": {
+    "package/openrct2-cli.exe": {
+      "bytes": 16840704,
+      "sha256": "b698f7705dc23468312f306c71658884b0c8523b8d3e7775f3178337fd62e333"
+    },
+    "package/openrct2.exe": {
+      "bytes": 21312000,
+      "sha256": "1c997f3b030d096388f1e30358102094b587cf3ef8bedee3f72cd89f31fe791e"
+    }
+  },
+  "status": "Frozen package and source verified; scene goldens and original-game asset receipts still pending."
+}

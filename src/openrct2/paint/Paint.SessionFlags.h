@@ -18,4 +18,6 @@ namespace OpenRCT2::PaintSessionFlags
     // The base terrain quad has already been submitted from the immutable presentation generation. Surface sides, water, and
     // fences remain owned by PaintSurface.
     constexpr uint8_t SurfaceBaseDrawn = 1u << 2;
+    // The exact generation's complete entity category was admitted to the native renderer for this viewport rectangle.
+    constexpr uint8_t EntitiesDrawn = 1u << 3;
 } // namespace OpenRCT2::PaintSessionFlags

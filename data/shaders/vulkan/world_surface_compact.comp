@@ -69,6 +69,7 @@ layout(push_constant) uniform WorldSurfaceConstants
     int zoom;
     uint rotation;
     uint spriteSetCount;
+    int depthBase;
 } uScene;
 
 shared uint sPrefix[BLOCK_WIDTH];
@@ -176,7 +177,7 @@ bool buildRecord(uint orderIndex, out OutputRecord outputRecord)
     outputRecord.asset = sprite.asset;
     outputRecord.palettes = spriteSet.palettes;
     outputRecord.effects = spriteSet.effects;
-    outputRecord.depth = int(orderIndex);
+    outputRecord.depth = uScene.depthBase + int(orderIndex);
     outputRecord.zoom = sprite.zoom;
     outputRecord.coordinateShift = sprite.coordinateShift;
     return true;

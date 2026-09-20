@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <SolutionDir Condition="'$(SolutionDir)'==''">..\..\</SolutionDir>
+  </PropertyGroup>
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|arm64">
+      <Configuration>Debug</Configuration>
+      <Platform>arm64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="ReleaseLTCG|arm64">
+      <Configuration>ReleaseLTCG</Configuration>
+      <Platform>arm64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="ReleaseLTCG|Win32">
+      <Configuration>ReleaseLTCG</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="ReleaseLTCG|x64">
+      <Configuration>ReleaseLTCG</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|arm64">
+      <Configuration>Release</Configuration>
+      <Platform>arm64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="vulkan\VulkanPresentationHost.h" />
+    <ClInclude Include="vulkan\VulkanBackend.h" />
+    <ClCompile Include="vulkan\VulkanFrameExecutor.cpp" />
+    <ClInclude Include="vulkan\VulkanFrameExecutor.h" />
+    <ClCompile Include="vulkan\VulkanRenderService.cpp" />
+    <ClInclude Include="vulkan\VulkanRenderService.h" />
+    <ClCompile Include="vulkan\VulkanBackend.cpp" />
+    <ClInclude Include="vulkan\VulkanDevice.h" />
+    <ClCompile Include="vulkan\VulkanDevice.cpp" />
+    <ClInclude Include="vulkan\VulkanDeviceContext.h" />
+    <ClCompile Include="vulkan\VulkanDeviceContext.cpp" />
+    <ClInclude Include="vulkan\VulkanSubmissionSlots.h" />
+    <ClCompile Include="vulkan\VulkanSubmissionSlots.cpp" />
+    <ClInclude Include="vulkan\VulkanResources.h" />
+    <ClCompile Include="vulkan\VulkanResources.cpp" />
+    <ClInclude Include="vulkan\VulkanShader.h" />
+    <ClCompile Include="vulkan\VulkanShader.cpp" />
+    <ClInclude Include="vulkan\VulkanLinePipeline.h" />
+    <ClCompile Include="vulkan\VulkanLinePipeline.cpp" />
+    <ClInclude Include="vulkan\VulkanRectPipeline.h" />
+    <ClCompile Include="vulkan\VulkanRectPipeline.cpp" />
+    <ClInclude Include="vulkan\VulkanBalloonPipeline.h" />
+    <ClCompile Include="vulkan\VulkanBalloonPipeline.cpp" />
+    <ClInclude Include="vulkan\VulkanWorldSurfacePipeline.h" />
+    <ClCompile Include="vulkan\VulkanWorldSurfacePipeline.cpp" />
+    <ClInclude Include="vulkan\VulkanTerrainEmissionPipeline.h" />
+    <ClInclude Include="vulkan\VulkanTerrainDrawPipeline.h" />
+    <ClCompile Include="vulkan\VulkanTerrainEmissionPipeline.cpp" />
+    <ClCompile Include="vulkan\VulkanTerrainDrawPipeline.cpp" />
+    <ClInclude Include="gpu\RetainedTerrain.h" />
+    <ClInclude Include="gpu\RetainedTerrainDrawing.h" />
+    <ClInclude Include="gpu\TerrainPresentationBridge.h" />
+    <ClInclude Include="vulkan\VulkanTransparencyPipeline.h" />
+    <ClCompile Include="vulkan\VulkanTransparencyPipeline.cpp" />
+    <ClInclude Include="vulkan\VulkanWeatherPipeline.h" />
+    <ClCompile Include="vulkan\VulkanWeatherPipeline.cpp" />
+    <ClInclude Include="vulkan\VulkanLightFxPipeline.h" />
+    <ClCompile Include="vulkan\VulkanLightFxPipeline.cpp" />
+    <ClInclude Include="vulkan\VulkanPalettePipeline.h" />
+    <ClCompile Include="vulkan\VulkanPalettePipeline.cpp" />
+    <ClInclude Include="vulkan\VulkanCommandLayouts.h" />
+    <ClInclude Include="vulkan\VulkanSurfaceFormat.h" />
+    <ClInclude Include="gpu\GpuAtlas.h" />
+    <ClInclude Include="gpu\GpuBackend.h" />
+    <ClInclude Include="RenderServiceFactory.h" />
+    <ClCompile Include="RenderServiceFactory.cpp" />
+    <ClCompile Include="gpu\GpuCommandDrawingContext.cpp" />
+    <ClInclude Include="gpu\GpuCommandDrawingContext.h" />
+    <ClInclude Include="gpu\GpuCommandStream.h" />
+    <ClInclude Include="gpu\GpuFrameMailbox.h" />
+    <ClCompile Include="gpu\GpuGraphicsLookupTables.cpp" />
+    <ClInclude Include="gpu\GpuGraphicsLookupTables.h" />
+    <ClCompile Include="gpu\GpuTextureCache.cpp" />
+    <ClInclude Include="gpu\GpuTextureCache.h" />
+    <ClCompile Include="gpu\GpuTransparencyDepth.cpp" />
+    <ClInclude Include="gpu\GpuTransparencyDepth.h" />
+    <ClInclude Include="gpu\GpuWeatherDrawer.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\openrct2\libopenrct2.vcxproj">
+      <Project>{d24d94f6-2a74-480c-b512-629c306ce92f}</Project>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{4F65E397-FDA9-4F15-A03C-C3A2139BDE8E}</ProjectGuid>
+    <RootNamespace>openrct2-renderer</RootNamespace>
+    <ProjectName>libopenrct2renderer</ProjectName>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="..\..\openrct2.common.props" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PreprocessorDefinitions Condition="'$(EnableVulkan)'=='true'">ENABLE_VULKAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories Condition="'$(EnableVulkan)'=='true'">$(VULKAN_SDK)\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <AdditionalOptions>$(OPENRCT2_CL_ADDITIONALOPTIONS) %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Lib>
+      <TargetMachine Condition="'$(Platform)'=='Win32'">MachineX86</TargetMachine>
+      <TargetMachine Condition="'$(Platform)'=='x64'">MachineX64</TargetMachine>
+      <TargetMachine Condition="'$(Platform)'=='arm64'">MachineARM64</TargetMachine>
+    </Lib>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

@@ -1,0 +1,44 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+
+// Diagnostic entry point using the production rule include. A future GPU
+// readback test must compare these outputs to FrozenTerrainEdgeOracle traces;
+// host differential tests alone do not qualify shader execution.
+#include "../../data/shaders/vulkan/terrain_surface_rules.glsl"
+
+layout(local_size_x = 64) in;
+struct RuleQuery
+{
+    ivec4 own;       // baseZ, rawSlope, rotation, grassLength
+    ivec4 neighbour; // baseZ, rawSlope, present, zoom
+    ivec4 query;     // edge, emission index, tileX, tileY
+};
+struct RuleResult
+{
+    TerrainEdgePlan plan;
+    TerrainEdgeEmission emission;
+    ivec4 metadata; // relative slope, shape offset, material selector, validity bits: tile=1/edge=2/index=4
+};
+layout(std430, set = 0, binding = 0) readonly buffer Inputs { RuleQuery records[]; } uInput;
+layout(std430, set = 0, binding = 1) writeonly buffer Outputs { RuleResult records[]; } uOutput;
+layout(push_constant) uniform QueryCount { uint count; } uQueries;
+
+void main()
+{
+    uint index = gl_GlobalInvocationID.x;
+    if (index >= uQueries.count)
+        return;
+    RuleQuery q = uInput.records[index];
+    bool valid = terrainRuleInputValid(q.own.x, q.own.y, q.own.z)
+        && (q.neighbour.z == 0 || terrainRuleInputValid(q.neighbour.x, q.neighbour.y, q.own.z));
+    TerrainEdgePlan plan = terrainPlanEdge(
+        q.query.x, q.own.x, q.own.y, q.neighbour.x, q.neighbour.y, q.neighbour.z != 0, q.own.z);
+    uOutput.records[index].plan = plan;
+    uOutput.records[index].emission = terrainEdgeAt(plan, q.query.y);
+    int relative = valid ? terrainRelativeSlope(q.own.y, q.own.z) : 0;
+    uOutput.records[index].metadata = ivec4(
+        relative, terrainShapeImageOffset(relative),
+        valid ? terrainMaterialSelector(q.own.w, q.own.z, q.query.z, q.query.w, q.neighbour.w) : 0,
+        (valid ? 1 : 0) | ((q.query.x >= 0 && q.query.x < 4) ? 2 : 0)
+            | ((q.query.y >= 0 && q.query.y < plan.count) ? 4 : 0));
+}

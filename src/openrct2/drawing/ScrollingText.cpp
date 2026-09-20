@@ -23,6 +23,7 @@
 #include "Drawing.Sprite.h"
 #include "Drawing.String.h"
 #include "NewDrawing.h"
+#include "SpriteAssetDecoder.h"
 #include "TTF.h"
 
 #include <cassert>
@@ -54,31 +55,11 @@ namespace OpenRCT2::Drawing::ScrollingText
 
     static void initialiseCharacterBitmaps(uint32_t glyphStart, uint16_t count)
     {
-        PaletteIndex drawingSurface[64];
-        RenderTarget rt;
-        rt.bits = drawingSurface;
-        rt.width = 8;
-        rt.height = 8;
-
         for (int32_t i = 0; i < count; i++)
         {
-            std::fill_n(drawingSurface, sizeof(drawingSurface), PaletteIndex::transparent);
-            GfxDrawSpriteSoftware(rt, ImageId(glyphStart + (EnumValue(FontStyle::tiny) * count) + i), { -1, 0 });
-
-            for (int32_t x = 0; x < 8; x++)
-            {
-                uint8_t val = 0;
-                for (int32_t y = 0; y < 8; y++)
-                {
-                    val >>= 1;
-                    PaletteIndex pixel = rt.bits[x + y * 8];
-                    if (pixel == PaletteIndex::fontFill)
-                    {
-                        val |= 0x80;
-                    }
-                }
-                _characterBitmaps[i][x] = val;
-            }
+            const auto* glyph = GfxGetG1Element(glyphStart + (EnumValue(FontStyle::tiny) * count) + i);
+            const auto columns = glyph == nullptr ? std::array<uint8_t, 8>{} : ExtractScrollingGlyphMask(*glyph);
+            std::copy(columns.begin(), columns.end(), _characterBitmaps[i]);
         }
     }
 
