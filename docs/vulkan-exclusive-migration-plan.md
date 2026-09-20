@@ -2,6 +2,13 @@
 
 ## Current checkpoint
 
+**Architecture discussion and historical benchmark, 2026-09-20:** [both candidate plans and blind reviews](vulkan-architecture-comparison-2026-09-20.md) are documented. Three independent reviewers favor testing retained sprite components first, including after reading the complete archived performance history. This is a prototype recommendation, not a selected production architecture. The [pre-catchup software benchmark](vulkan-precatchup-software-benchmark-2026-09-20.md) passes ten 4K runs / 48,000 measured ticks. At scale one, old/current medians are 115.295/115.017 TPS with VSync and 65.831/64.875 uncapped. The historical >300 TPS software result is supported by logs at about 13.4 FPS, with unknown resolution. No production source or installed game changed in this follow-up; the migration remains paused.
+
+- [x] Write both architecture candidates and preserve independently formed votes before revealing the coordinator's preference or other votes.
+- [x] Read the complete 1,265-line performance history and incorporate rejected experiments and reuse requirements into the comparison.
+- [x] Rebuild exact pre-catchup develop source with only untimed display observations, benchmark against the current software path, and preserve provenance/limitations.
+- [ ] Select and qualify the next architecture prototype using mixed-scene correctness and actual publication/rendering cost.
+
 **Stopping point requested by the owner, 2026-09-20:** build56 passes with zero warnings/errors and run48 passes **800/800 tests with clean synchronization validation**. HDR now follows the measured monitor SDR white (280 nits on this host);72 GPU reference samples and exact SDR controls pass. The frame-start scheduling experiment was withdrawn after4K evidence showed a53.85% TPS loss. The original scheduler is restored. The installed checkpoint52 is unchanged. See [findings, measurements and resume instructions](vulkan-post-checkpoint-feedback.md) and the separate [new orthographic GPU renderer proposal](vulkan-orthographic-renderer-proposal.md). No renderer-replacement architecture or peep draft is silently applied by those documents.
 
 - [x] Qualify the final ordinary source build and HDR transfer/SDR regression suite.
