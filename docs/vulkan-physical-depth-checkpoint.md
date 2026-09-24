@@ -1,6 +1,6 @@
 # Physical depth checkpoint
 
-Status: physical-depth architecture committed at `16435967fe`, following correctness source checkpoint `50f16fb7e5`; no new deployment qualification.
+Status: physical-depth architecture checkpoint `6e588a449b` (build135) deployed for owner-requested manual investigation on2026-09-24. Visual parity and stable pacing remain unqualified; historical deployment references below describe their measurement dates.
 
 ## Contract
 
@@ -104,3 +104,9 @@ The post-measurement final image is manually viewed separately from performance 
 The source checkpoint removes sorting from the world hot path and demonstrates the expected performance benefit. It is intentionally incomplete geometry, with persistent generated components and residual pacing still open. Installed build112 remains unchanged.
 
 The exact-build135 opt-in repeat (`performance-physical-depth135-waits-12000-01`) records359.947TPS and143.949 accepted presents/s, with16.593ms maximum accepted-present interval. At tick3141317, simulation takes14.618ms; the vehicle batch waits12.342ms, of which12.114ms occurs after group-ready. The longest worker runs0.397ms. This reproduces and enlarges the completion-to-main-resumption delay seen in133. It does not reproduce or conclusively assign the clean run's53ms stall. No scheduler policy, priority, worker count or simulation result is changed.
+
+## Owner-requested manual deployment
+
+On2026-09-24, the owner requested this candidate specifically to investigate structural patterns in the known rendering defects. Build135, matching every production source hash in checkpoint `6e588a449b`, is installed at `D:/Games/Independent/OpenRCT2Mod`. The deployment verified28 payload files (7 changed) and preserved every replaced preimage under `obj/vulkan-parity/deploy-physical-depth135-01/backup`. Receipt: `obj/vulkan-parity/deploy-physical-depth135-01/receipt.json`, status `deployed-verified`. Objects, saves and user settings were not changed; the game was not automatically launched.
+
+This manual-test deployment supersedes earlier statements that installed112 remains unchanged. It does not waive geometry regressions, deferred categories or frame-pacing failures. The final clean benchmark and visual findings above describe the installed candidate.

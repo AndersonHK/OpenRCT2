@@ -160,3 +160,7 @@ The133 opt-in12,000-tick trace reaches143.976 accepted presents/s and identifies
 Final clean135:359.956TPS /143.743 accepted presents/s at4K for12000 ticks;0.166ms CPU draw /2.924ms GPU. All4792 frames accepted, same final checksum. P99 is9.2ms but maximum57.097ms, with a53.005ms simulation stall. Average throughput passes; stable-pacing and complete-art gates do not. Build135 passes22 focused CPU/GPU checks and19 Python parser tests, without Vulkan validation diagnostics. Source may be checkpointed with those explicit limitations; deployment remains unqualified.
 
 An exact-build135 diagnostic repeat isolates12.114ms after vehicle group completion within a14.618ms simulation tick. This strengthens the completion/wakeup attribution; it does not close the clean53ms stall. See the wait-attribution document before proposing scheduler changes.
+
+## Current manual-test installation
+
+Owner-requested deployment on2026-09-24 installed build135/checkpoint `6e588a449b` at `D:/Games/Independent/OpenRCT2Mod` to investigate the known depth-geometry defects. All28 payload files were hash-verified;7 changed files have preserved backups. Receipt: `obj/vulkan-parity/deploy-physical-depth135-01/receipt.json`. This supersedes earlier installed112 status, but does not mark visual parity or pacing gates complete. No saves, objects or settings were changed.
