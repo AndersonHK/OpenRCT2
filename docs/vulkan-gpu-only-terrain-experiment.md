@@ -1,5 +1,7 @@
 # GPU-only terrain experiment
 
+**Historical build85 experiment.** The current [immutable terrain checkpoint and checklist](vulkan-snapshot-terrain-checkpoint.md) supersedes this baseline: build92 removes CPU surface-image selection and tile-vector copying, adds cliff/water layers, and measures approximately 360 TPS / 144 FPS over 12,000 ticks. Descriptions and numbers below record the earlier implementation rather than current limitations.
+
 The owner has authorized an intentionally incomplete renderer to establish the architecture's performance on a real operating park. [Build85](../obj/vulkan-parity/build-85/receipt.json) passes with zero warnings/errors and unchanged inputs. Two real-park runs pass; both complete 3000 ticks and produce identical indexed/RGBA final pixels. Installed checkpoint52 is unchanged; this experimental source has not been deployed.
 
 ## What is removed

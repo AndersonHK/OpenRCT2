@@ -33,8 +33,11 @@ namespace OpenRCT2::Ui::Vulkan
             uint32_t rotation;
             uint32_t spriteSetCount;
             int32_t depthBase;
+            uint32_t phase;
+            uint32_t transparentWater;
+            uint32_t outputCapacity;
         };
-        static_assert(sizeof(WorldSurfaceConstants) == 60);
+        static_assert(sizeof(WorldSurfaceConstants) == 72);
         static_assert(offsetof(WorldSurfaceConstants, width) == 32);
         static_assert(offsetof(WorldSurfaceConstants, zoom) == 44);
         static_assert(offsetof(WorldSurfaceConstants, spriteSetCount) == 52);
@@ -78,9 +81,26 @@ namespace OpenRCT2::Ui::Vulkan
         constexpr VkDeviceSize sourceBytes = Gpu::kWorldSurfaceMaximumChunkCount * Gpu::kWorldSurfaceChunkWidth
             * sizeof(Gpu::WorldSurfaceSourceRecord);
         constexpr VkDeviceSize spriteBytes = Gpu::kWorldSurfaceMaximumSpriteSetCount * sizeof(Gpu::WorldSurfaceSpriteSet);
-        constexpr VkDeviceSize visibleBytes = Gpu::kWorldSurfaceMaximumDrawCount * Gpu::kWorldSurfaceComputeBlockWidth
-            * sizeof(Gpu::WorldSurfaceRecord);
+        constexpr VkDeviceSize visibleBytes = Gpu::kWorldSurfaceOutputCapacity * sizeof(Gpu::WorldSurfaceRecord);
         constexpr VkDeviceSize indirectBytes = Gpu::kWorldSurfaceMaximumDrawCount * sizeof(VkDrawIndirectCommand);
+        VkPhysicalDeviceProperties properties{};
+        vkGetPhysicalDeviceProperties(device.GetPhysicalDevice(), &properties);
+        if (std::max({ sourceBytes, spriteBytes, visibleBytes }) > properties.limits.maxStorageBufferRange)
+            throw std::runtime_error("GPU terrain storage exceeds the device buffer range");
+        _catalog.Initialise(
+            device.GetPhysicalDevice(), _device, sizeof(Gpu::WorldSurfaceCatalog),
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+        _prefixes.Initialise(
+            device.GetPhysicalDevice(), _device, Gpu::kWorldSurfaceMaximumRecordCount * sizeof(uint32_t),
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+        _status.Initialise(
+            device.GetPhysicalDevice(), _device, sizeof(Gpu::WorldSurfaceStatus),
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+        _landBackground.Initialise(
+            device.GetPhysicalDevice(), _device, { _extent.width, _extent.height, 1 }, 1, VK_FORMAT_R8_UINT,
+            VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+        for (uint32_t i = 0; i < _frameCount; i++)
+            _indexedImages[i] = resources.GetIndexedCanvas(i).GetImage();
         _sourceRecords.Initialise(
             device.GetPhysicalDevice(), _device, sourceBytes,
             VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
@@ -101,6 +121,10 @@ namespace OpenRCT2::Ui::Vulkan
 
     void WorldSurfacePipeline::Dispose()
     {
+        _landBackground.Dispose();
+        _catalog.Dispose();
+        _prefixes.Dispose();
+        _status.Dispose();
         _indirectCommands.Dispose();
         _visibleRecords.Dispose();
         _spriteSets.Dispose();
@@ -142,7 +166,8 @@ namespace OpenRCT2::Ui::Vulkan
         const uint64_t expectedRecordCount = static_cast<uint64_t>(scene.width) * scene.height;
         const size_t expectedChunkCount = (scene.recordCount + Gpu::kWorldSurfaceChunkWidth - 1) / Gpu::kWorldSurfaceChunkWidth;
         if (expectedRecordCount != scene.recordCount || scene.recordCount > Gpu::kWorldSurfaceMaximumRecordCount
-            || scene.chunks.size() != expectedChunkCount || scene.sprites == nullptr
+            || scene.chunks.size() != expectedChunkCount || scene.sprites == nullptr || scene.outputCapacity == 0
+            || scene.outputCapacity > Gpu::kWorldSurfaceOutputCapacity
             || scene.sprites->records.size() > Gpu::kWorldSurfaceMaximumSpriteSetCount
             || std::ranges::any_of(scene.chunks, [](const auto& chunk) { return chunk == nullptr; }))
             throw std::invalid_argument("Vulkan world-surface scene dimensions are inconsistent");
@@ -161,20 +186,15 @@ namespace OpenRCT2::Ui::Vulkan
         }
 
         constexpr VkDeviceSize chunkBytes = Gpu::kWorldSurfaceChunkWidth * sizeof(Gpu::WorldSurfaceSourceRecord);
-        bool hasChangedChunks = false;
-        for (size_t chunkIndex = 0; chunkIndex < scene.chunks.size(); chunkIndex++)
-        {
-            const auto& chunk = scene.chunks[chunkIndex];
-            if (chunk != nullptr && _uploadedRevisions[chunkIndex] != chunk->revision)
-            {
-                hasChangedChunks = true;
-                break;
-            }
-        }
+        std::vector<size_t> dirtyChunks;
+        for (size_t i = 0; i < scene.chunks.size(); i++)
+            if (_uploadedRevisions[i] != scene.chunks[i]->revision)
+                dirtyChunks.push_back(i);
+        const bool hasChangedChunks = !dirtyChunks.empty();
         const bool spritesChanged = _uploadedSpriteRevision != scene.sprites->revision;
         if (hasChangedChunks || spritesChanged)
         {
-            std::array<VkBufferMemoryBarrier, 2> barriers{};
+            std::array<VkBufferMemoryBarrier, 3> barriers{};
             uint32_t barrierCount = 0;
             const auto append = [&barriers, &barrierCount](const VkBuffer buffer) {
                 barriers[barrierCount++] = {
@@ -191,30 +211,37 @@ namespace OpenRCT2::Ui::Vulkan
             if (hasChangedChunks)
                 append(_sourceRecords.GetBuffer());
             if (spritesChanged)
+            {
                 append(_spriteSets.GetBuffer());
+                append(_catalog.GetBuffer());
+            }
             vkCmdPipelineBarrier(
                 frame.commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr,
                 barrierCount, barriers.data(), 0, nullptr);
         }
 
-        for (size_t chunkIndex = 0; chunkIndex < scene.chunks.size(); chunkIndex++)
+        if (hasChangedChunks)
         {
-            const auto& chunk = scene.chunks[chunkIndex];
-            if (chunk == nullptr || _uploadedRevisions[chunkIndex] == chunk->revision)
-                continue;
-            auto allocation = frame.upload->Allocate(chunkBytes, alignof(uint32_t), Drawing::UploadCategory::world);
+            const auto totalBytes = chunkBytes * dirtyChunks.size();
+            auto allocation = frame.upload->Allocate(totalBytes, alignof(uint32_t), Drawing::UploadCategory::world);
             if (!allocation)
-                throw std::runtime_error("Vulkan upload ring has no room for world-surface deltas");
-            std::memcpy(allocation.data, chunk->records.data(), static_cast<size_t>(chunkBytes));
+                throw std::runtime_error("Vulkan upload ring has no room for terrain deltas");
+            std::vector<VkBufferCopy> regions;
+            regions.reserve(dirtyChunks.size());
+            for (size_t i = 0; i < dirtyChunks.size(); i++)
+            {
+                const auto index = dirtyChunks[i];
+                std::memcpy(allocation.data + i * chunkBytes, scene.chunks[index]->records.data(), chunkBytes);
+                regions.push_back({ allocation.offset + i * chunkBytes, index * chunkBytes, chunkBytes });
+                _uploadedRevisions[index] = scene.chunks[index]->revision;
+            }
             allocation.RecordHostWrite();
-            const VkBufferCopy copy = {
-                .srcOffset = allocation.offset,
-                .dstOffset = static_cast<VkDeviceSize>(chunkIndex) * chunkBytes,
-                .size = chunkBytes,
-            };
-            vkCmdCopyBuffer(frame.commandBuffer, allocation.buffer, _sourceRecords.GetBuffer(), 1, &copy);
-            allocation.Record(Drawing::UploadMetric::bufferTransfer, copy.size);
-            _uploadedRevisions[chunkIndex] = chunk->revision;
+            vkCmdCopyBuffer(
+                frame.commandBuffer, allocation.buffer, _sourceRecords.GetBuffer(), static_cast<uint32_t>(regions.size()),
+                regions.data());
+            if (frame.telemetry)
+                frame.telemetry->Add(frame.telemetry->worldBufferCopyCalls, 1);
+            allocation.Record(Drawing::UploadMetric::bufferTransfer, totalBytes);
         }
         if (spritesChanged)
         {
@@ -228,13 +255,26 @@ namespace OpenRCT2::Ui::Vulkan
                 allocation.RecordHostWrite();
                 const VkBufferCopy copy = { .srcOffset = allocation.offset, .dstOffset = 0, .size = spriteBytes };
                 vkCmdCopyBuffer(frame.commandBuffer, allocation.buffer, _spriteSets.GetBuffer(), 1, &copy);
+                if (frame.telemetry)
+                    frame.telemetry->Add(frame.telemetry->worldBufferCopyCalls, 1);
                 allocation.Record(Drawing::UploadMetric::bufferTransfer, copy.size);
             }
+            auto catalogUpload = frame.upload->Allocate(
+                sizeof(Gpu::WorldSurfaceCatalog), alignof(uint32_t), Drawing::UploadCategory::world);
+            if (!catalogUpload)
+                throw std::runtime_error("Vulkan upload ring has no room for terrain materials");
+            std::memcpy(catalogUpload.data, &scene.sprites->catalog, sizeof(Gpu::WorldSurfaceCatalog));
+            catalogUpload.RecordHostWrite();
+            const VkBufferCopy catalogCopy{ catalogUpload.offset, 0, sizeof(Gpu::WorldSurfaceCatalog) };
+            vkCmdCopyBuffer(frame.commandBuffer, catalogUpload.buffer, _catalog.GetBuffer(), 1, &catalogCopy);
+            if (frame.telemetry)
+                frame.telemetry->Add(frame.telemetry->worldBufferCopyCalls, 1);
+            catalogUpload.Record(Drawing::UploadMetric::bufferTransfer, catalogCopy.size);
             _uploadedSpriteRevision = scene.sprites->revision;
         }
         if (hasChangedChunks || spritesChanged)
         {
-            std::array<VkBufferMemoryBarrier, 2> barriers{};
+            std::array<VkBufferMemoryBarrier, 3> barriers{};
             uint32_t barrierCount = 0;
             const auto append = [&barriers, &barrierCount](const VkBuffer buffer) {
                 barriers[barrierCount++] = {
@@ -251,7 +291,10 @@ namespace OpenRCT2::Ui::Vulkan
             if (hasChangedChunks)
                 append(_sourceRecords.GetBuffer());
             if (spritesChanged)
+            {
                 append(_spriteSets.GetBuffer());
+                append(_catalog.GetBuffer());
+            }
             vkCmdPipelineBarrier(
                 frame.commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, nullptr,
                 barrierCount, barriers.data(), 0, nullptr);
@@ -284,7 +327,7 @@ namespace OpenRCT2::Ui::Vulkan
             VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, nullptr, static_cast<uint32_t>(outputToCompute.size()),
             outputToCompute.data(), 0, nullptr);
 
-        const WorldSurfaceConstants constants{
+        WorldSurfaceConstants constants{
             .screen = { static_cast<int32_t>(_extent.width), static_cast<int32_t>(_extent.height) },
             .view = scene.view,
             .clip = scene.clip,
@@ -295,15 +338,35 @@ namespace OpenRCT2::Ui::Vulkan
             .rotation = static_cast<uint32_t>(scene.rotation),
             .spriteSetCount = static_cast<uint32_t>(scene.sprites->records.size()),
             .depthBase = scene.depthBase,
+            .phase = 0,
+            .transparentWater = scene.transparentWater,
+            .outputCapacity = scene.outputCapacity,
         };
         const uint32_t drawCount = Gpu::GetWorldSurfaceDrawCount(scene.recordCount);
         vkCmdBindPipeline(frame.commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, _computePipeline);
         vkCmdBindDescriptorSets(
             frame.commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, _pipelineLayout, 0, 1, &_descriptorSet, 0, nullptr);
-        vkCmdPushConstants(
-            frame.commandBuffer, _pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_VERTEX_BIT, 0,
-            sizeof(constants), &constants);
-        vkCmdDispatch(frame.commandBuffer, drawCount, 1, 1);
+        // Retire earlier compute reads/writes and asynchronous status transfer before reusing the persistent arena.
+        const VkMemoryBarrier previousCompute{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr,
+                                               VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT
+                                                   | VK_ACCESS_TRANSFER_READ_BIT,
+                                               VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT };
+        vkCmdPipelineBarrier(
+            frame.commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &previousCompute, 0, nullptr, 0, nullptr);
+        for (uint32_t phase = 0; phase < 3; phase++)
+        {
+            constants.phase = phase;
+            vkCmdPushConstants(
+                frame.commandBuffer, _pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_VERTEX_BIT, 0,
+                sizeof(constants), &constants);
+            vkCmdDispatch(frame.commandBuffer, phase == 1 ? 1 : drawCount, 1, 1);
+            const VkMemoryBarrier between{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr, VK_ACCESS_SHADER_WRITE_BIT,
+                                           VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT };
+            vkCmdPipelineBarrier(
+                frame.commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &between,
+                0, nullptr, 0, nullptr);
+        }
 
         const std::array computeToDraw = {
             VkBufferMemoryBarrier{
@@ -332,32 +395,90 @@ namespace OpenRCT2::Ui::Vulkan
             VK_PIPELINE_STAGE_VERTEX_INPUT_BIT | VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT, 0, 0, nullptr,
             static_cast<uint32_t>(computeToDraw.size()), computeToDraw.data(), 0, nullptr);
 
-        const VkRenderPassBeginInfo pass = {
-            .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-            .renderPass = _renderPass,
-            .framebuffer = _framebuffers[frame.frameIndex],
-            .renderArea = { .offset = { 0, 0 }, .extent = _extent },
+        const auto imageBarrier = [&](VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
+                                      VkAccessFlags sourceAccess, VkAccessFlags destinationAccess,
+                                      VkPipelineStageFlags sourceStage, VkPipelineStageFlags destinationStage) {
+            const VkImageMemoryBarrier barrier{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                                                nullptr,
+                                                sourceAccess,
+                                                destinationAccess,
+                                                oldLayout,
+                                                newLayout,
+                                                VK_QUEUE_FAMILY_IGNORED,
+                                                VK_QUEUE_FAMILY_IGNORED,
+                                                image,
+                                                { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 } };
+            vkCmdPipelineBarrier(frame.commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
         };
-        vkCmdBeginRenderPass(frame.commandBuffer, &pass, VK_SUBPASS_CONTENTS_INLINE);
-        const VkViewport viewport = {
-            .x = 0.0f,
-            .y = 0.0f,
-            .width = static_cast<float>(_extent.width),
-            .height = static_cast<float>(_extent.height),
-            .minDepth = 0.0f,
-            .maxDepth = 1.0f,
+        // The descriptor is statically referenced by the fragment module even during the land-only phase.
+        // Prior scratch pixels are intentionally discarded; all sampled water background is copied anew below.
+        imageBarrier(
+            _landBackground.GetImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+        const VkRenderPassBeginInfo pass{ VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+                                          nullptr,
+                                          _renderPass,
+                                          _framebuffers[frame.frameIndex],
+                                          { { 0, 0 }, _extent } };
+        const VkViewport viewport{
+            0.0f, 0.0f, static_cast<float>(_extent.width), static_cast<float>(_extent.height), 0.0f, 1.0f
         };
-        const VkRect2D scissor = { .offset = { 0, 0 }, .extent = _extent };
-        vkCmdSetViewport(frame.commandBuffer, 0, 1, &viewport);
-        vkCmdSetScissor(frame.commandBuffer, 0, 1, &scissor);
-        vkCmdBindPipeline(frame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline);
-        vkCmdBindDescriptorSets(
-            frame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineLayout, 0, 1, &_descriptorSet, 0, nullptr);
-        const VkDeviceSize offset = 0;
-        const auto buffer = _visibleRecords.GetBuffer();
-        vkCmdBindVertexBuffers(frame.commandBuffer, 0, 1, &buffer, &offset);
-        vkCmdDrawIndirect(frame.commandBuffer, _indirectCommands.GetBuffer(), 0, drawCount, sizeof(VkDrawIndirectCommand));
-        vkCmdEndRenderPass(frame.commandBuffer);
+        const VkRect2D scissor{ { 0, 0 }, _extent };
+        for (uint32_t phase = 3; phase <= 4; phase++)
+        {
+            if (phase == 4)
+            {
+                imageBarrier(
+                    _indexedImages[frame.frameIndex], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT,
+                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
+                imageBarrier(
+                    _landBackground.GetImage(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                    VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                    VK_PIPELINE_STAGE_TRANSFER_BIT);
+                const VkImageCopy copy{ { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+                                        { 0, 0, 0 },
+                                        { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+                                        { 0, 0, 0 },
+                                        { _extent.width, _extent.height, 1 } };
+                vkCmdCopyImage(
+                    frame.commandBuffer, _indexedImages[frame.frameIndex], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                    _landBackground.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
+                imageBarrier(
+                    _indexedImages[frame.frameIndex], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_ACCESS_TRANSFER_READ_BIT,
+                    VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+                imageBarrier(
+                    _landBackground.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                    VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+                const VkMemoryBarrier depth{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr,
+                                             VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+                                             VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT
+                                                 | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT };
+                vkCmdPipelineBarrier(
+                    frame.commandBuffer, VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+                    VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, 0, 1, &depth, 0,
+                    nullptr, 0, nullptr);
+            }
+            constants.phase = phase;
+            vkCmdPushConstants(
+                frame.commandBuffer, _pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_VERTEX_BIT, 0,
+                sizeof(constants), &constants);
+            vkCmdBeginRenderPass(frame.commandBuffer, &pass, VK_SUBPASS_CONTENTS_INLINE);
+            vkCmdSetViewport(frame.commandBuffer, 0, 1, &viewport);
+            vkCmdSetScissor(frame.commandBuffer, 0, 1, &scissor);
+            vkCmdBindPipeline(frame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline);
+            vkCmdBindDescriptorSets(
+                frame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineLayout, 0, 1, &_descriptorSet, 0, nullptr);
+            const VkDeviceSize offset = 0;
+            const auto buffer = _visibleRecords.GetBuffer();
+            vkCmdBindVertexBuffers(frame.commandBuffer, 0, 1, &buffer, &offset);
+            vkCmdDrawIndirect(frame.commandBuffer, _indirectCommands.GetBuffer(), 0, drawCount, sizeof(VkDrawIndirectCommand));
+            vkCmdEndRenderPass(frame.commandBuffer);
+        }
     }
 
     void WorldSurfacePipeline::DiscardPendingUploads() noexcept
@@ -378,6 +499,10 @@ namespace OpenRCT2::Ui::Vulkan
             VkDescriptorSetLayoutBinding{ 4, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
             VkDescriptorSetLayoutBinding{ 5, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
             VkDescriptorSetLayoutBinding{ 6, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
+            VkDescriptorSetLayoutBinding{ 7, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
+            VkDescriptorSetLayoutBinding{ 8, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
+            VkDescriptorSetLayoutBinding{ 9, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
+            VkDescriptorSetLayoutBinding{ 10, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
         };
         const VkDescriptorSetLayoutCreateInfo layoutInfo = {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
@@ -386,8 +511,8 @@ namespace OpenRCT2::Ui::Vulkan
         };
         CheckVk(vkCreateDescriptorSetLayout(_device, &layoutInfo, nullptr, &_descriptorSetLayout), "world surfaces layout");
         constexpr std::array poolSizes = {
-            VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2 },
-            VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 5 },
+            VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3 },
+            VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 8 },
         };
         const VkDescriptorPoolCreateInfo poolInfo = {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
@@ -413,6 +538,11 @@ namespace OpenRCT2::Ui::Vulkan
         const VkDescriptorBufferInfo spriteSets{ _spriteSets.GetBuffer(), 0, _spriteSets.GetSize() };
         const VkDescriptorBufferInfo outputs{ _visibleRecords.GetBuffer(), 0, _visibleRecords.GetSize() };
         const VkDescriptorBufferInfo commands{ _indirectCommands.GetBuffer(), 0, _indirectCommands.GetSize() };
+        const VkDescriptorBufferInfo catalog{ _catalog.GetBuffer(), 0, _catalog.GetSize() };
+        const VkDescriptorBufferInfo prefixes{ _prefixes.GetBuffer(), 0, _prefixes.GetSize() };
+        const VkDescriptorBufferInfo status{ _status.GetBuffer(), 0, _status.GetSize() };
+        const VkDescriptorImageInfo background{ resources.GetNearestSampler(), _landBackground.GetView(),
+                                                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
         const std::array writes = {
             VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 0, 0, 1,
                                   VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &atlas },
@@ -428,6 +558,14 @@ namespace OpenRCT2::Ui::Vulkan
                                   VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &outputs },
             VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 6, 0, 1,
                                   VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &commands },
+            VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 7, 0, 1,
+                                  VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &catalog },
+            VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 8, 0, 1,
+                                  VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &prefixes },
+            VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 9, 0, 1,
+                                  VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &status },
+            VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 10, 0, 1,
+                                  VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &background },
         };
         vkUpdateDescriptorSets(_device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
     }
@@ -515,7 +653,7 @@ namespace OpenRCT2::Ui::Vulkan
             _device, _pipelineCache,
             {
                 .vertexShader = _shaderDirectory / "world_surface.vert.spv",
-                .fragmentShader = _shaderDirectory / "indexed_rect.frag.spv",
+                .fragmentShader = _shaderDirectory / "world_surface.frag.spv",
                 .vertexBindings = std::span{ &kBinding, 1 },
                 .vertexAttributes = kAttributes,
                 .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,

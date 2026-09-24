@@ -6,7 +6,10 @@
 
 #include "TestData.h"
 
+#include <cstdlib>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
 #include <future>
 #include <gtest/gtest.h>
 #include <openrct2/Context.h>
@@ -15,7 +18,9 @@
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/ParkImporter.h>
 #include <openrct2/core/JobPool.h>
+#include <openrct2/core/Json.hpp>
 #include <openrct2/drawing/PresentationScene.h>
+#include <openrct2/drawing/PresentationTask.h>
 #include <openrct2/entity/Balloon.h>
 #include <openrct2/entity/Duck.h>
 #include <openrct2/entity/EntityPresentationSnapshot.h>
@@ -30,6 +35,7 @@
 #include <openrct2/world/Map.h>
 #include <openrct2/world/MapAnimation.h>
 #include <openrct2/world/MapPresentationSnapshot.h>
+#include <openrct2/world/tile_element/SurfaceElement.h>
 
 using namespace OpenRCT2;
 
@@ -199,6 +205,115 @@ TEST_F(PublicationSnapshotParityTest, InitialImportedParkPublicationEqualsLiveWo
     ResetAllSpriteQuadrantPlacements();
     ASSERT_TRUE(scene->BeginFrame(context->GetJobPool(), getGameState().entities, 1, true));
     ExpectSnapshotEqualsLive(*scene->GetGeneration());
+
+    const auto* artifactRoot = std::getenv("OPENRCT2_VULKAN_PARITY_ARTIFACTS");
+    if (artifactRoot == nullptr || *artifactRoot == '\0')
+        return;
+
+    // The ordinary regression above is the small Ferris-wheel park, not EverythingPark.
+    // Use a fresh headless graphics-capable context for this opt-in metadata diagnostic:
+    // no window/device is created, but object image ranges must not be suppressed by NoGraphics.
+    scene->Reset(context->GetJobPool());
+    scene.reset();
+    importer.reset();
+    context.reset();
+    gOpenRCT2NoGraphics = false;
+    context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    scene = std::make_unique<PresentationScene>();
+    const auto parkPath = TestData::GetParkPath("EverythingPark.park");
+    importer = ParkImporter::CreateParkFile(context->GetObjectRepository());
+    const auto everythingLoad = importer->LoadSavedGame(parkPath, false);
+    context->GetObjectManager().LoadObjects(everythingLoad.RequiredObjects);
+    MapAnimations::ClearAll();
+    importer->Import(getGameState());
+    getGameState().entities.resetEntitySpatialIndices();
+    ResetAllSpriteQuadrantPlacements();
+    ASSERT_TRUE(
+        scene->BeginFrame(context->GetJobPool(), getGameState().entities, 1, false, EntityPublicationProfile::gpuTerrainOnly));
+    const auto generation = scene->GetGeneration();
+    const auto& map = *generation->map;
+    ASSERT_TRUE(map.IsRawTerrainOnly());
+    ASSERT_FALSE(map.HasLegacyTileStorage());
+    const auto materials = map.GetTerrainMaterials();
+    ASSERT_NE(materials, nullptr);
+
+    const auto directory = std::filesystem::path(artifactRoot) / "terrain-publication" / "EverythingPark";
+    std::filesystem::create_directories(directory);
+    std::ofstream surfaces(directory / "surfaces.csv");
+    ASSERT_TRUE(surfaces.good());
+    surfaces << "tileX,tileY,worldX,worldY,baseZ,waterHeight,surfaceSlot,edgeSlot,slope,grass,kind\n";
+    size_t presentCount = 0;
+    for (uint32_t index = 0; index < map.GetSurfaceRecordCount(); ++index)
+    {
+        const auto& chunk = map.GetSurfaceChunks()[index / MapPresentationSnapshot::kChunkWidth];
+        ASSERT_NE(chunk, nullptr);
+        const auto& raw = chunk->records[index % MapPresentationSnapshot::kChunkWidth].terrain;
+        if (!raw.present)
+            continue;
+        const auto x = index % map.GetSurfaceWidth();
+        const auto y = index / map.GetSurfaceWidth();
+        surfaces << x << ',' << y << ',' << x * 32 << ',' << y * 32 << ',' << raw.baseZ << ',' << raw.waterHeight << ','
+                 << raw.surfaceSlot << ',' << raw.edgeSlot << ',' << static_cast<uint32_t>(raw.slope) << ','
+                 << static_cast<uint32_t>(raw.grass) << ',' << static_cast<uint32_t>(raw.kind) << '\n';
+        ++presentCount;
+    }
+    surfaces.close();
+    ASSERT_FALSE(surfaces.fail());
+    std::ofstream ranges(directory / "materials.csv");
+    ASSERT_TRUE(ranges.good());
+    ranges << "type,slot,imageBase,imageCount,supported\n";
+    for (size_t slot = 0; slot < materials->surfaces.size(); ++slot)
+    {
+        const auto& surface = materials->surfaces[slot];
+        const auto& edge = materials->edges[slot];
+        ranges << "surface," << slot << ',' << surface.imageBase << ',' << surface.imageCount << ',' << surface.supported
+               << '\n';
+        ranges << "edge," << slot << ',' << edge.imageBase << ',' << edge.imageCount << ',' << edge.supported << '\n';
+    }
+    ranges.close();
+    ASSERT_FALSE(ranges.fail());
+    auto cornerProbe = json_t::array();
+    for (uint32_t y = 0; y < 3 && y < map.GetSurfaceHeight(); ++y)
+        for (uint32_t x = 253; x < 256 && x < map.GetSurfaceWidth(); ++x)
+        {
+            const auto index = y * map.GetSurfaceWidth() + x;
+            const auto& raw = map.GetSurfaceChunks()[index / MapPresentationSnapshot::kChunkWidth]
+                                  ->records[index % MapPresentationSnapshot::kChunkWidth]
+                                  .terrain;
+            cornerProbe.push_back({ { "tileX", x },
+                                    { "tileY", y },
+                                    { "present", raw.present },
+                                    { "baseZ", raw.baseZ },
+                                    { "waterHeight", raw.waterHeight },
+                                    { "slope", raw.slope },
+                                    { "kind", raw.kind },
+                                    { "surfaceSlot", raw.surfaceSlot },
+                                    { "edgeSlot", raw.edgeSlot } });
+        }
+    std::ofstream report(directory / "report.json");
+    ASSERT_TRUE(report.good());
+    report << json_t{
+        { "schemaVersion", 1 },
+        { "fixture", "EverythingPark.park" },
+        { "fixturePath", std::filesystem::absolute(parkPath).generic_string() },
+        { "fixtureBytes", std::filesystem::file_size(parkPath) },
+        { "scope", "Imported raw publication; no simulation advances or GPU execution" },
+        { "width", map.GetSurfaceWidth() },
+        { "height", map.GetSurfaceHeight() },
+        { "presentSurfaces", presentCount },
+        { "sourceTick", generation->sourceTick },
+        { "mapEpoch", map.GetEpoch() },
+        { "materialRevision", materials->revision },
+        { "surfacesFile", "surfaces.csv" },
+        { "materialsFile", "materials.csv" },
+        { "coordinateUnits", "tileX/Y are tile indices; worldX/Y, baseZ and waterHeight are world units" },
+        { "materialIdentityScope", "Image indices belong to this loaded object generation" },
+        { "cornerProbe253To255By0To2", std::move(cornerProbe) },
+        { "hardwareReadback", false }
+    }.dump(2);
+    report.close();
+    ASSERT_FALSE(report.fail());
 }
 
 TEST_F(PublicationSnapshotParityTest, CompletedScheduledPublicationEqualsChangedLiveWorld)
@@ -311,7 +426,6 @@ TEST_F(PublicationSnapshotParityTest, PendingEntityCaptureCannotBePairedWithLate
     ExpectSnapshotEqualsLive(*publication.GetGeneration());
 }
 
-
 TEST_F(PublicationSnapshotParityTest, ResetBootstrapsAllTilesAndFreshEpochOnlyOnce)
 {
     auto& jobs = context->GetJobPool();
@@ -328,8 +442,11 @@ TEST_F(PublicationSnapshotParityTest, ResetBootstrapsAllTilesAndFreshEpochOnlyOn
         ExpectSnapshotEqualsLive(*restored);
         // Reset must not mutate generations still held by an older submission.
         ASSERT_NE(retained->map->GetFirstElementAt({ 15, 15 }), nullptr);
-        EXPECT_EQ(std::memcmp(retained->map->GetFirstElementAt({ 15, 15 }),
-                              restored->map->GetFirstElementAt({ 15, 15 }), sizeof(TileElement)), 0);
+        EXPECT_EQ(
+            std::memcmp(
+                retained->map->GetFirstElementAt({ 15, 15 }), restored->map->GetFirstElementAt({ 15, 15 }),
+                sizeof(TileElement)),
+            0);
         // A normal empty frame must retain the map and must not request another full bootstrap.
         ASSERT_TRUE(scene->BeginFrame(jobs, entities, 2, synchronous));
         EXPECT_EQ(scene->GetGeneration()->map, restored->map);
@@ -350,8 +467,8 @@ TEST_F(PublicationSnapshotParityTest, ResetAfterConsumedPendingDeltaRecapturesCo
     const auto initialHeight = retained->map->GetFirstElementAt({ 2, 2 })->getBaseZ();
     MutateMapAndEntity(48);
     scene->ScheduleNext(jobs, entities); // Consumes the tile delta, possibly still applying it in the background.
-    scene->Reset(jobs); // Waits and discards that pending publication.
-    MutateMapAndEntity(64); // The fresh snapshot must include this change AND every unchanged tile.
+    scene->Reset(jobs);                  // Waits and discards that pending publication.
+    MutateMapAndEntity(64);              // The fresh snapshot must include this change AND every unchanged tile.
     ASSERT_TRUE(scene->BeginFrame(jobs, entities, 1, false));
     ExpectSnapshotEqualsLive(*scene->GetGeneration());
     EXPECT_NE(scene->GetGeneration()->map->GetEpoch(), retained->map->GetEpoch());
@@ -369,4 +486,210 @@ TEST_F(PublicationSnapshotParityTest, RecreatedOwnerBootstrapsAfterPreviousOwner
     ASSERT_TRUE(scene->BeginFrame(jobs, entities, 1, false));
     ExpectSnapshotEqualsLive(*scene->GetGeneration());
     EXPECT_NE(scene->GetGeneration()->map->GetEpoch(), retained->map->GetEpoch());
+}
+
+TEST_F(PublicationSnapshotParityTest, NativeTerrainCapturesRawSteepWetMixedTileWithoutLegacyCopies)
+{
+    auto surface = *MapGetFirstElementAt(TileCoordsXY{ 2, 2 });
+    surface.setBaseZ(96);
+    surface.asSurface()->setSlope(23); // Complete steep-slope bits, outside the bounded diagnostic recipe.
+    surface.asSurface()->setWaterHeight(128);
+    surface.asSurface()->setGrassLength(6);
+    surface.asSurface()->setSurfaceObjectIndex(3);
+    surface.asSurface()->setEdgeObjectIndex(4);
+    surface.setLastForTile(false);
+    TileElement other{};
+    other.clearAs(TileElementType::path);
+    other.setLastForTile(true);
+    ASSERT_EQ(ReplaceTileElementsAt({ 2, 2 }, { surface, other }), TileMutationStatus::ok);
+    getGameState().currentTicks = 321;
+
+    const auto changes = ConsumeMapPresentationChanges(true, MapPublicationProfile::rawTerrain);
+    ASSERT_EQ(changes.changes.size(), 256u);
+    EXPECT_EQ(changes.sourceTick, 321u);
+    for (const auto& change : changes.changes)
+    {
+        EXPECT_TRUE(change.elements.empty());
+        EXPECT_EQ(change.elements.capacity(), 0u);
+    }
+    MapPresentationSnapshot snapshot;
+    snapshot.Apply(changes);
+    EXPECT_TRUE(snapshot.IsRawTerrainOnly());
+    EXPECT_FALSE(snapshot.HasLegacyTileStorage());
+    EXPECT_EQ(snapshot.GetFirstElementAt({ 2, 2 }), nullptr);
+    EXPECT_EQ(snapshot.GetSourceTick(), 321u);
+    const auto& raw = snapshot.GetSurfaceChunks()[0]->records[34].terrain;
+    EXPECT_EQ(raw.baseZ, 96);
+    EXPECT_EQ(raw.waterHeight, 128);
+    EXPECT_EQ(raw.slope, 23);
+    EXPECT_EQ(raw.grass, 6);
+    EXPECT_EQ(raw.surfaceSlot, 3);
+    EXPECT_EQ(raw.edgeSlot, 4);
+    EXPECT_EQ(raw.present, 1);
+    EXPECT_EQ(raw.kind, 1);
+    EXPECT_EQ(raw.bounded, 0);
+    EXPECT_FALSE(snapshot.HasBoundedTerrainFacts());
+}
+
+TEST_F(PublicationSnapshotParityTest, NativeTerrainReleasesLegacyStorageAndMetadataOnlyTickSharesDirectory)
+{
+    auto& jobs = context->GetJobPool();
+    auto& entities = getGameState().entities;
+    getGameState().currentTicks = 400;
+    ASSERT_TRUE(scene->BeginFrame(jobs, entities, 1, true));
+    const auto heldLegacy = scene->GetGeneration();
+    ASSERT_TRUE(heldLegacy->map->HasLegacyTileStorage());
+
+    ASSERT_TRUE(scene->BeginFrame(jobs, entities, 2, true, EntityPublicationProfile::gpuTerrainOnly));
+    const auto raw = scene->GetGeneration();
+    EXPECT_TRUE(raw->map->IsRawTerrainOnly());
+    EXPECT_FALSE(raw->map->HasLegacyTileStorage());
+    EXPECT_FALSE(raw->entities->HasLegacyStorage());
+    EXPECT_NE(raw->map->GetEpoch(), heldLegacy->map->GetEpoch());
+    ASSERT_NE(heldLegacy->map->GetFirstElementAt({ 15, 15 }), nullptr);
+    EXPECT_EQ(raw->map->GetFirstElementAt({ 15, 15 }), nullptr);
+
+    getGameState().currentTicks = 401;
+    scene->ScheduleNext(jobs, entities);
+    jobs.Join();
+    ASSERT_TRUE(scene->BeginFrame(jobs, entities, 3, false, EntityPublicationProfile::gpuTerrainOnly));
+    const auto next = scene->GetGeneration();
+    EXPECT_EQ(next->sourceTick, 401u);
+    EXPECT_EQ(next->map->GetSourceTick(), 401u);
+    EXPECT_EQ(next->entities->GetSourceTick(), 401u);
+    EXPECT_EQ(&next->map->GetSurfaceChunks(), &raw->map->GetSurfaceChunks());
+    EXPECT_EQ(next->map->GetTerrainMaterials(), raw->map->GetTerrainMaterials());
+    EXPECT_FALSE(next->map->HasLegacyTileStorage());
+    EXPECT_FALSE(next->entities->HasLegacyStorage());
+    EXPECT_EQ(raw->sourceTick, 400u);
+
+    ASSERT_TRUE(scene->BeginFrame(jobs, entities, 4, true, EntityPublicationProfile::legacyBulk));
+    EXPECT_FALSE(scene->GetGeneration()->map->IsRawTerrainOnly());
+    EXPECT_TRUE(scene->GetGeneration()->map->HasLegacyTileStorage());
+    ExpectSnapshotEqualsLive(*scene->GetGeneration());
+    EXPECT_FALSE(raw->map->HasLegacyTileStorage());
+}
+
+TEST_F(PublicationSnapshotParityTest, NativeTerrainPendingMapKeepsMatchingCapturedTickAndNeverWaitsForInteractiveEdits)
+{
+    JobPool jobs(1);
+    PresentationScene publication;
+    auto& entities = getGameState().entities;
+    getGameState().currentTicks = 500;
+    ASSERT_TRUE(publication.BeginFrame(jobs, entities, 1, true, EntityPublicationProfile::gpuTerrainOnly));
+    const auto initial = publication.GetGeneration();
+
+    std::promise<void> started;
+    std::promise<void> release;
+    auto released = release.get_future();
+    struct ReleaseWorker
+    {
+        std::promise<void>& release;
+        JobPool& jobs;
+        bool done{};
+        void Complete()
+        {
+            if (!done)
+            {
+                release.set_value();
+                done = true;
+                jobs.Join();
+            }
+        }
+        ~ReleaseWorker()
+        {
+            Complete();
+        }
+    } gate{ release, jobs };
+    jobs.AddTask([&]() {
+        started.set_value();
+        released.wait();
+    });
+    started.get_future().wait();
+
+    MutateMapAndEntity(48);
+    getGameState().currentTicks = 501;
+    publication.ScheduleNext(jobs, entities);
+    MutateMapAndEntity(64);
+    getGameState().currentTicks = 502;
+    // A synchronous-map hint from interactive editing must not wait for the blocked native worker.
+    EXPECT_FALSE(publication.BeginFrame(jobs, entities, 2, true, EntityPublicationProfile::gpuTerrainOnly));
+    EXPECT_EQ(publication.GetGeneration(), initial);
+    publication.ScheduleNext(jobs, entities); // Must not drain the newer tick alongside the pending older map.
+    gate.Complete();
+
+    ASSERT_TRUE(publication.BeginFrame(jobs, entities, 3, false, EntityPublicationProfile::gpuTerrainOnly));
+    const auto prior = publication.GetGeneration();
+    EXPECT_EQ(prior->sourceTick, 501u);
+    EXPECT_EQ(prior->map->GetSourceTick(), 501u);
+    EXPECT_EQ(prior->entities->GetSourceTick(), 501u);
+    EXPECT_EQ(prior->map->GetSurfaceChunks()[0]->records[34].terrain.baseZ, 48);
+    EXPECT_FALSE(prior->map->HasLegacyTileStorage());
+    EXPECT_FALSE(prior->entities->HasLegacyStorage());
+
+    publication.ScheduleNext(jobs, entities);
+    jobs.Join();
+    ASSERT_TRUE(publication.BeginFrame(jobs, entities, 4, false, EntityPublicationProfile::gpuTerrainOnly));
+    EXPECT_EQ(publication.GetGeneration()->sourceTick, 502u);
+    EXPECT_EQ(publication.GetGeneration()->map->GetSurfaceChunks()[0]->records[34].terrain.baseZ, 64);
+    EXPECT_EQ(prior->map->GetSurfaceChunks()[0]->records[34].terrain.baseZ, 48);
+    publication.Reset(jobs);
+}
+
+TEST_F(PublicationSnapshotParityTest, FailedWorkerIsReportedOnceAndCannotPoisonRetryOrReset)
+{
+    JobPool jobs(1);
+    std::optional<JobPool::TaskGroup> pending{ jobs.CreateTaskGroup() };
+    std::promise<void> executed;
+    jobs.AddTask(*pending, [&]() {
+        executed.set_value();
+        throw std::runtime_error("publication worker failure");
+    });
+    executed.get_future().wait();
+    EXPECT_THROW(Detail::WaitAndReleasePresentationTask(jobs, pending), std::runtime_error);
+    EXPECT_FALSE(pending.has_value());
+    EXPECT_NO_THROW(Detail::WaitAndReleasePresentationTask(jobs, pending));
+
+    bool rebuilt = false;
+    pending.emplace(jobs.CreateTaskGroup());
+    jobs.AddTask(*pending, [&]() { rebuilt = true; });
+    EXPECT_NO_THROW(Detail::WaitAndReleasePresentationTask(jobs, pending));
+    EXPECT_TRUE(rebuilt);
+    EXPECT_FALSE(pending.has_value());
+}
+
+TEST_F(PublicationSnapshotParityTest, NativeTerrainCatalogReplacementRefreshesPendingSourcesAtSameDrawBoundary)
+{
+    auto& jobs = context->GetJobPool();
+    auto& entities = getGameState().entities;
+    getGameState().currentTicks = 600;
+    ASSERT_TRUE(scene->BeginFrame(jobs, entities, 1, false, EntityPublicationProfile::gpuTerrainOnly));
+    const auto held = scene->GetGeneration();
+    const auto heldMaterials = held->map->GetTerrainMaterials();
+    ASSERT_NE(heldMaterials, nullptr);
+    const auto heldHeight = held->map->GetSurfaceChunks()[0]->records[34].terrain.baseZ;
+
+    MutateMapAndEntity(48);
+    getGameState().currentTicks = 601;
+    scene->ScheduleNext(jobs, entities);
+    MutateMapAndEntity(64);
+    getGameState().currentTicks = 602;
+    // This is the production object load/unload identity operation. No graphics/G1 access is required
+    // to exercise publication's catalog lifetime barrier or its already queued older map capture.
+    AdvanceTerrainObjectRevision();
+    ASSERT_TRUE(scene->BeginFrame(jobs, entities, 1, false, EntityPublicationProfile::gpuTerrainOnly));
+    const auto current = scene->GetGeneration();
+    ASSERT_NE(current->map->GetTerrainMaterials(), nullptr);
+    EXPECT_EQ(current->map->GetTerrainMaterials()->revision, GetTerrainObjectRevision());
+    EXPECT_NE(current->map->GetTerrainMaterials(), heldMaterials);
+    EXPECT_EQ(current->sourceTick, 602u);
+    EXPECT_EQ(current->map->GetSourceTick(), 602u);
+    EXPECT_EQ(current->entities->GetSourceTick(), 602u);
+    EXPECT_EQ(current->map->GetSurfaceChunks()[0]->records[34].terrain.baseZ, 64);
+    EXPECT_FALSE(current->map->HasLegacyTileStorage());
+    EXPECT_FALSE(current->entities->HasLegacyStorage());
+    EXPECT_EQ(held->sourceTick, 600u);
+    EXPECT_EQ(held->map->GetSurfaceChunks()[0]->records[34].terrain.baseZ, heldHeight);
+    EXPECT_LT(heldMaterials->revision, current->map->GetTerrainMaterials()->revision);
+    EXPECT_FALSE(scene->BeginFrame(jobs, entities, 1, false, EntityPublicationProfile::gpuTerrainOnly));
 }

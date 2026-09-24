@@ -67,6 +67,7 @@ namespace OpenRCT2
     static bool _benchmarkVisible = false;
     static bool _benchmarkUploadTelemetry = false;
     static bool _benchmarkFinalScreenshot = false;
+    static bool _benchmarkUncappedSimulation = false;
     static int32_t _benchmarkWarmupSeconds = 5;
     static int32_t _benchmarkDurationSeconds = 30;
     static int32_t _benchmarkWarmupTicks = -1;
@@ -97,6 +98,7 @@ namespace OpenRCT2
         { CMDLINE_TYPE_STRING,  &_rct2DataPath,     kNAC, "rct2-data-path",     "path to the RollerCoaster Tycoon 2 data directory (containing data/g1.dat)" },
         { CMDLINE_TYPE_SWITCH,  &_benchmarkUi,      kNAC, "benchmark-ui",        "run a hidden integrated UI benchmark and exit"                 },
         { CMDLINE_TYPE_SWITCH, &_benchmarkFinalScreenshot, kNAC, "benchmark-final-screenshot", "save one final main-canvas screenshot after benchmark timing stops" },
+        { CMDLINE_TYPE_SWITCH, &_benchmarkUncappedSimulation, kNAC, "benchmark-uncapped-simulation", "benchmark simulation headroom without the ordinary 360 TPS target" },
         { CMDLINE_TYPE_SWITCH, &_benchmarkUploadTelemetry, kNAC, "benchmark-upload-telemetry", "aggregate Vulkan API upload payload accounting (attribution only)" },
         { CMDLINE_TYPE_SWITCH,  &_benchmarkVisible, kNAC, "benchmark-visible",   "show the integrated benchmark window for compositor testing"   },
         { CMDLINE_TYPE_INTEGER, &_benchmarkWarmupSeconds, kNAC, "benchmark-warmup", "unmeasured integrated benchmark warm-up in seconds"       },
@@ -272,6 +274,11 @@ namespace OpenRCT2
             gOpenRCT2StartupAction = StartupAction::open;
         }
 
+        if (_benchmarkUncappedSimulation && !_benchmarkUi)
+        {
+            Console::Error::WriteLine("--benchmark-uncapped-simulation requires --benchmark-ui.");
+            return ExitCode::fail;
+        }
         if (_benchmarkFinalScreenshot && !_benchmarkUi)
         {
             Console::Error::WriteLine("--benchmark-final-screenshot requires --benchmark-ui.");
@@ -333,6 +340,7 @@ namespace OpenRCT2
             gIntegratedBenchmark.visible = _benchmarkVisible;
             gIntegratedBenchmark.uploadTelemetry = _benchmarkUploadTelemetry;
             gIntegratedBenchmark.finalScreenshot = _benchmarkFinalScreenshot;
+            gIntegratedBenchmark.uncappedSimulation = _benchmarkUncappedSimulation;
             gIntegratedBenchmark.warmupSeconds = _benchmarkWarmupSeconds;
             gIntegratedBenchmark.measurementSeconds = _benchmarkDurationSeconds;
             gIntegratedBenchmark.warmupTicks = _benchmarkWarmupTicks;

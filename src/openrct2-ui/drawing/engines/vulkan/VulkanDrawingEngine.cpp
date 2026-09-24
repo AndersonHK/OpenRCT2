@@ -971,29 +971,7 @@ namespace OpenRCT2::Ui
         {
             PROFILED_FUNCTION();
 
-            auto& commands = _recordingPacket->commands;
-            const auto commandCount = [&commands] {
-                return commands.lines.size() + commands.opaqueRects.size() + commands.opaqueSprites.size()
-                    + commands.transparentRects.size() + commands.balloons.size() + commands.terrainScenes.size()
-                    + static_cast<size_t>(commands.worldSurfaces.has_value());
-            };
-            const auto beforeViewportUpdate = commandCount();
             WindowUpdateAllViewports();
-            if (commandCount() != beforeViewportUpdate)
-            {
-                // Shift helpers can emit provisional strip redraws. This backend always follows with the authoritative full
-                // scene, so retaining those batches would apply transparent sprites twice.
-                _drawingContext.End();
-                commands.lines.clear();
-                commands.opaqueRects.clear();
-                commands.opaqueSprites.clear();
-                commands.transparentRects.clear();
-                commands.worldSurfaces.reset();
-                commands.balloons.clear();
-                commands.terrainScenes.clear();
-                commands.cpuBalloonSpriteCalls = 0;
-                _drawingContext.Begin(commands);
-            }
             // Publish the immutable scene before traversing any window or viewport. The backend clears its indexed and depth
             // canvases for every admitted packet, and this traversal therefore records one complete replacement frame.
             ViewportBeginPresentationFrame();

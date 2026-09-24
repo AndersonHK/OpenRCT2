@@ -159,7 +159,7 @@ TEST(GpuFoundationTest, NativeTerrainReservesPainterDepthBetweenEarlierCommandsA
         const auto range = GetWorldSurfaceDepthRange(37, count);
         ASSERT_TRUE(range.has_value());
         EXPECT_EQ(range->first, 37);
-        EXPECT_EQ(range->next, 37 + static_cast<int32_t>(count));
+        EXPECT_EQ(range->next, 37 + static_cast<int32_t>(kWorldSurfaceOutputCapacity));
         const auto depth = [](int32_t key) { return 1.0f - (static_cast<float>(key) + 1.0f) / (1 << 22); };
         // Less depth wins. A later UI rectangle must beat every native tile,
         // while the first native tile must beat preceding ordinary commands.
@@ -171,8 +171,8 @@ TEST(GpuFoundationTest, NativeTerrainReservesPainterDepthBetweenEarlierCommandsA
         EXPECT_GT(following->first, range->next);
     }
     constexpr int32_t limit = (1 << 22) - 1;
-    EXPECT_TRUE(GetWorldSurfaceDepthRange(limit - 1024, 1024).has_value());
-    EXPECT_FALSE(GetWorldSurfaceDepthRange(limit - 1023, 1024).has_value());
+    EXPECT_TRUE(GetWorldSurfaceDepthRange(limit - kWorldSurfaceOutputCapacity, 1024).has_value());
+    EXPECT_FALSE(GetWorldSurfaceDepthRange(limit - kWorldSurfaceOutputCapacity + 1, 1024).has_value());
     EXPECT_FALSE(GetWorldSurfaceDepthRange(-1, 1024).has_value());
     EXPECT_FALSE(GetWorldSurfaceDepthRange(limit, 1).has_value());
     EXPECT_FALSE(GetWorldSurfaceDepthRange(0, 0).has_value());
@@ -182,7 +182,7 @@ TEST(GpuFoundationTest, NativeTerrainReservesPainterDepthBetweenEarlierCommandsA
 TEST(GpuFoundationTest, WorldSurfaceAbiHasStableComputeBlocksAndDepthCapacity)
 {
     EXPECT_EQ(sizeof(WorldSurfaceRecord), 64u);
-    EXPECT_EQ(sizeof(WorldSurfaceSourceRecord), 40u);
+    EXPECT_EQ(sizeof(WorldSurfaceSourceRecord), 32u);
     EXPECT_EQ(sizeof(WorldSurfaceSpriteVariant), 32u);
     EXPECT_EQ(sizeof(WorldSurfaceSpriteSet), 200u);
     EXPECT_EQ(kWorldSurfaceChunkWidth, 256u);
@@ -197,10 +197,10 @@ TEST(GpuFoundationTest, WorldSurfaceAbiHasStableComputeBlocksAndDepthCapacity)
     EXPECT_EQ(GetWorldSurfaceDrawCount(0), 0u);
     EXPECT_EQ(GetWorldSurfaceDrawCount(1024), 1u);
     EXPECT_EQ(GetWorldSurfaceDrawCount(1025), 2u);
-    EXPECT_TRUE(AreWorldSurfaceComputeLimitsSufficient(128, 128, 979, 4096, true));
-    EXPECT_FALSE(AreWorldSurfaceComputeLimitsSufficient(127, 128, 979, 4096, true));
-    EXPECT_FALSE(AreWorldSurfaceComputeLimitsSufficient(128, 128, 978, 4096, true));
-    EXPECT_FALSE(AreWorldSurfaceComputeLimitsSufficient(128, 128, 979, 4096, false));
+    EXPECT_TRUE(AreWorldSurfaceComputeLimitsSufficient(128, 128, 979, 4100, true));
+    EXPECT_FALSE(AreWorldSurfaceComputeLimitsSufficient(127, 128, 979, 4100, true));
+    EXPECT_FALSE(AreWorldSurfaceComputeLimitsSufficient(128, 128, 978, 4100, true));
+    EXPECT_FALSE(AreWorldSurfaceComputeLimitsSufficient(128, 128, 979, 4100, false));
 
     WorldSurfaceRecord record{};
     record.world = { 64, 96, 32 };

@@ -8,7 +8,7 @@ and software removal required to reach an exclusive Vulkan renderer. The contrac
 The graphical application now has one renderer: Vulkan. Its factory has no backend selector, old `drawing_engine` settings
 are ignored and removed on save, and Options exposes no renderer menu. Graphical builds require Vulkan support; failure to
 create a usable Vulkan device is an error. This early removal does not mean CPU rendering has been eliminated: ordinary
-world preparation and X8 auxiliary callers are deprecated and tracked in the
+world traversal is deleted, while residual painter consumers, test oracles and X8 source retirement are tracked in the
 [CPU retirement inventory](vulkan-cpu-rendering-retirement-inventory.md). Reference Software executes in separate pinned
 source/build artifacts; upstream comparisons are independent of the active fork.
 
@@ -16,6 +16,14 @@ The replacement redraws the whole visible world each frame. Shared catalogs and 
 slow-changing appearance/topology and fast-changing pose/action data have separate update streams. Shaders select visuals,
 expand components, transform and cull them, and resolve common world visibility. Nongraphical simulation state is not sent
 to the renderer. No world framebuffer preservation, dirty screen chunks or lazy repainting is part of this architecture.
+
+The current native terrain path admits a complete immutable map/entity generation once, before window traversal, and
+captures the next generation at that owner boundary. Unfinished publication leaves the previous generation available;
+workers and GPU submission never read live simulation state. Bootstrap and lifecycle recovery may synchronize explicitly.
+Native records carry raw height, slope, material and water facts; generation-owned tables supply shader image selection.
+Changed chunks share staging storage and one multi-region buffer copy, with catalog copies only when their generation changes.
+Surfaces, cliffs and water redraw every frame. The [current checkpoint](vulkan-snapshot-terrain-checkpoint.md) qualifies this
+partial implementation; other world families and complete mixed-scene ordering remain migration work.
 
 The owner additionally requires the final renderer to keep assets and world state resident in VRAM, submit bounded state deltas,
 and perform expensive world transforms and graphical processing in shaders. The present CPU painter/command path is transitional.

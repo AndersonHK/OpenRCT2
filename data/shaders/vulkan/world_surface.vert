@@ -15,6 +15,8 @@ layout(push_constant) uniform WorldSurfaceConstants
     uint rotation;
     uint spriteSetCount;
     int depthBase;
+    uint phase;
+    uint transparentWater; uint outputCapacity;
 } uCamera;
 
 struct SpriteAssetDescriptor
@@ -103,6 +105,7 @@ void main()
     bounds += ivec4(uCamera.clip.xy - uCamera.view, uCamera.clip.xy - uCamera.view);
     bool visible = vValid != 0 && bounds.x < uCamera.clip.z && bounds.y < uCamera.clip.w
         && bounds.z > uCamera.clip.x && bounds.w > uCamera.clip.y;
+    visible = visible && (((vEffects & 0x300u) != 0u) == (uCamera.phase == 4u));
     ivec2 corners[4] = ivec2[](ivec2(0, 0), ivec2(1, 0), ivec2(0, 1), ivec2(1, 1));
     vec2 position = visible
         ? mix(vec2(bounds.xy), vec2(bounds.zw), vec2(corners[gl_VertexIndex]))

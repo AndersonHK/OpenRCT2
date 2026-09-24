@@ -15,7 +15,10 @@ namespace OpenRCT2
     {
         int32_t baseZ{};
         uint16_t surfaceSlot{}, edgeSlot{};
-        uint8_t slope{}, grass{}, kind{}; // 0 unsupported/missing, 1 surface, 2 border
+        uint8_t slope{}, grass{}, kind{}; // 0 absent, 1 surface, 2 declared map border
+        int32_t waterHeight{};            // World Z units, zero means no water.
+        uint8_t present{};                // Visible, non-ghost surface; independent of catalog/admission support.
+        uint8_t bounded{};                // Historical 32x32 diagnostic eligibility, never a full-map presence predicate.
     };
     struct TerrainPresentationMaterial
     {
@@ -43,4 +46,4 @@ namespace OpenRCT2
                 throw std::overflow_error("Terrain object revision space exhausted");
         } while (!gTerrainObjectRevision.compare_exchange_weak(current, current + 1, std::memory_order_release));
     }
-}
+} // namespace OpenRCT2

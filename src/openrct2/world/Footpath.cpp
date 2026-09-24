@@ -27,7 +27,6 @@
 #include "../ride/ted/TrackElementDescriptor.h"
 #include "Location.hpp"
 #include "Map.h"
-#include "MapAnimation.h"
 #include "MapOwnership.h"
 #include "MapTopology.h"
 #include "Wall.h"
@@ -919,7 +918,6 @@ namespace OpenRCT2
                 lastPathElement->asPath()->setHasQueueBanner(true);
                 lastPathElement->asPath()->setQueueBannerDirection(lastPathDirection); // set the ride sign direction
 
-                MapAnimations::MarkTileForInvalidation(TileCoordsXY(lastPath));
                 if (!lastPathElement->isGhost())
                 {
                     MapTopology::InvalidateTileAndNeighbours(lastPath);

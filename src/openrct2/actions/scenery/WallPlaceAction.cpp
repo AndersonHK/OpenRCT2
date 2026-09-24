@@ -25,7 +25,6 @@
 #include "../../world/Banner.h"
 #include "../../world/ConstructionClearance.h"
 #include "../../world/Map.h"
-#include "../../world/MapAnimation.h"
 #include "../../world/TileElementsView.h"
 #include "../../world/Wall.h"
 #include "../../world/tile_element/LargeSceneryElement.h"
@@ -374,7 +373,6 @@ namespace OpenRCT2::GameActions
             return Result(Status::noFreeElements, STR_CANT_POSITION_THIS_HERE, STR_TILE_ELEMENT_LIMIT_REACHED);
         }
 
-        MapAnimations::MarkTileForInvalidation(TileCoordsXY(targetLoc));
         MapInvalidateTileFull(_loc);
 
         res.cost = wallEntry->price;

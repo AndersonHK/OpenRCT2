@@ -19,14 +19,8 @@
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/ParkImporter.h>
 #include <openrct2/TrackImporter.h>
-#include <openrct2/core/MemoryStream.h>
-#include <openrct2/rct1/RCT1.h>
-#include <openrct2/rct1/Tables.h>
-#include <openrct2/rct12/TD46.h>
-#include <openrct2/sawyer_coding/SawyerCoding.h>
-#include <openrct2/object/RideObject.h>
-#include <openrct2/actions/GameActionRunner.h>
 #include <openrct2/actions/GameActionParameterVisitor.h>
+#include <openrct2/actions/GameActionRunner.h>
 #include <openrct2/actions/park/LandSetRightsAction.h>
 #include <openrct2/actions/park/ParkMarketingAction.h>
 #include <openrct2/actions/park/ParkSetEntranceFeeAction.h>
@@ -41,36 +35,44 @@
 #include <openrct2/actions/terraform/WaterSetHeightAction.h>
 #include <openrct2/actions/track/TrackPlaceAction.h>
 #include <openrct2/actions/track/TrackRemoveAction.h>
+#include <openrct2/core/DataSerialiser.h>
+#include <openrct2/core/MemoryStream.h>
 #include <openrct2/drawing/Drawing.h>
 #include <openrct2/drawing/Palette.h>
-#include <openrct2/core/DataSerialiser.h>
-#include <openrct2/rct12/RCT12.h>
 #include <openrct2/entity/EntityRegistry.h>
 #include <openrct2/entity/EntityTweener.h>
 #include <openrct2/entity/Guest.h>
 #include <openrct2/entity/Peep.h>
-#include <openrct2/peep/PeepActionFormat.h>
 #include <openrct2/localisation/Formatter.h>
 #include <openrct2/localisation/StringIds.h>
 #include <openrct2/object/ObjectLimits.h>
 #include <openrct2/object/ObjectManager.h>
+#include <openrct2/object/RideObject.h>
 #include <openrct2/object/SmallSceneryObject.h>
 #include <openrct2/object/WallObject.h>
+#include <openrct2/peep/PeepActionFormat.h>
+#include <openrct2/platform/Platform.h>
+#include <openrct2/rct1/RCT1.h>
+#include <openrct2/rct1/Tables.h>
+#include <openrct2/rct12/RCT12.h>
+#include <openrct2/rct12/TD46.h>
 #include <openrct2/ride/Ride.h>
 #include <openrct2/ride/RideData.h>
 #include <openrct2/ride/RideManager.hpp>
 #include <openrct2/ride/TrackDesign.h>
-#include <openrct2/ride/Vehicle.h>
 #include <openrct2/ride/Vehicle.Station.h>
+#include <openrct2/ride/Vehicle.h>
 #include <openrct2/ride/ted/TrackElemType.h>
+#include <openrct2/sawyer_coding/SawyerCoding.h>
 #include <openrct2/scenario/Scenario.h>
 #include <openrct2/world/MapAnimation.h>
+#include <openrct2/world/MapPresentationSnapshot.h>
 #include <openrct2/world/Park.h>
 #include <openrct2/world/TileElementsView.h>
-#include <openrct2/world/tile_element/SurfaceElement.h>
 #include <openrct2/world/tile_element/Slope.h>
-#include <openrct2/world/tile_element/TrackElement.h>
 #include <openrct2/world/tile_element/SmallSceneryElement.h>
+#include <openrct2/world/tile_element/SurfaceElement.h>
+#include <openrct2/world/tile_element/TrackElement.h>
 #include <openrct2/world/tile_element/WallElement.h>
 #include <sstream>
 #include <string>
@@ -90,7 +92,12 @@ TEST_F(PlayTests, Rct1TrackImportsAddOnlyLaterDummyCarsFromPinnedObjects)
     ASSERT_TRUE(context->Initialise());
     using LegacyRide = RCT1::RideType;
     using LegacyVehicle = RCT1::VehicleType;
-    struct Case { LegacyRide type; LegacyVehicle vehicle; uint8_t added; };
+    struct Case
+    {
+        LegacyRide type;
+        LegacyVehicle vehicle;
+        uint8_t added;
+    };
     const Case cases[] = {
         { LegacyRide::woodenCrazyRodentRollerCoaster, LegacyVehicle::woodenMineCars, 2 },
         { LegacyRide::woodenCrazyRodentRollerCoaster, LegacyVehicle::woodenMouseCars, 2 },
@@ -111,7 +118,8 @@ TEST_F(PlayTests, Rct1TrackImportsAddOnlyLaterDummyCarsFromPinnedObjects)
         const auto identifier = std::string(RCT1::GetVehicleObject(c.vehicle));
         auto* object = dynamic_cast<RideObject*>(context->GetObjectManager().LoadObject(identifier));
         ASSERT_NE(object, nullptr) << identifier;
-        if (c.added != 0) EXPECT_EQ(object->GetEntry().zero_cars, c.added);
+        if (c.added != 0)
+            EXPECT_EQ(object->GetEntry().zero_cars, c.added);
         EXPECT_EQ(RCT1::getAdditionalZeroCars(c.vehicle), c.added);
         for (const auto version : { RCT12::TD46Version::td4, RCT12::TD46Version::td4AA })
         {
@@ -195,8 +203,10 @@ TEST_F(PlayTests, PeepDescriptionsPreservePlatformStatusAndMissingRideArguments)
         formatPeepActionTo(*guest, ft, true);
         StringId groupString{};
         std::memcpy(&groupString, ft.Data(), sizeof(StringId));
-        EXPECT_EQ(groupString, subState == PeepRideSubState::approachPlatformSlot
-            ? STR_GUESTS_WALKING_TO_PLATFORM_FOR : STR_GUESTS_WAITING_ON_PLATFORM_FOR);
+        EXPECT_EQ(
+            groupString,
+            subState == PeepRideSubState::approachPlatformSlot ? STR_GUESTS_WALKING_TO_PLATFORM_FOR
+                                                               : STR_GUESTS_WAITING_ON_PLATFORM_FOR);
         EXPECT_EQ(ft.NumBytes(), 2 * sizeof(StringId) + sizeof(const char*));
     }
 
@@ -218,6 +228,33 @@ TEST_F(PlayTests, PeepDescriptionsPreservePlatformStatusAndMissingRideArguments)
     check(STR_AT_RIDE, false);
     guest->state = PeepState::fixing;
     check(STR_FIXING_RIDE, false);
+}
+
+TEST_F(PlayTests, SchedulerWaitAccountsForWorkSinceAccumulatorSample)
+{
+    // At Turbo speed the old calculation slept a whole extra millisecond after a two-millisecond tick.
+    const float interval = GetGameSpeedUpdateTime(kGameSpeedTurbo);
+    EXPECT_NEAR(GetSimulationWaitSeconds(interval, 0, 0.002f, 1), interval - 0.002f, 0.0000001f);
+    EXPECT_FLOAT_EQ(GetSimulationWaitSeconds(interval, 0, 0.003f, 1), 0);
+    EXPECT_FLOAT_EQ(GetSimulationWaitSeconds(interval, interval, 0, 1), 0);
+    EXPECT_NEAR(GetSimulationWaitSeconds(0.025f, 0.005f, 0.003f, 2), 0.007f, 0.0000001f);
+    EXPECT_NEAR(GetSimulationWaitSeconds(0.025f, 0.005f, 0.003f, 0.5f), 0.037f, 0.0000001f);
+    EXPECT_FLOAT_EQ(GetSimulationWaitSeconds(0.025f, 0, 0, 0), 0);
+}
+
+TEST_F(PlayTests, SchedulerWaitPreservesSubMillisecondBudgetsAndDueWork)
+{
+    EXPECT_FLOAT_EQ(GetSchedulerWaitSeconds(0.00025f, 0.004f), 0.00025f);
+    EXPECT_FLOAT_EQ(GetSchedulerWaitSeconds(0.002f, 0.000125f), 0.000125f);
+    EXPECT_FLOAT_EQ(GetSchedulerWaitSeconds(0.025f, 0.010f), kNetworkUpdateTimeMS);
+    EXPECT_FLOAT_EQ(GetSchedulerWaitSeconds(0, 0.004f), 0);
+    EXPECT_FLOAT_EQ(GetSchedulerWaitSeconds(-0.001f, 0.004f), 0);
+    EXPECT_FLOAT_EQ(GetSchedulerWaitSeconds(0.002f, 0), 0);
+    EXPECT_FLOAT_EQ(GetSchedulerWaitSeconds(0.002f, -0.001f), 0);
+    // Exercise the actual no-wait path without flaky assertions about OS scheduling latency.
+    const auto now = std::chrono::steady_clock::now();
+    Platform::SleepUntil(now);
+    Platform::SleepUntil(now - std::chrono::seconds(1));
 }
 
 TEST_F(PlayTests, CalculatesIntegratedBenchmarkMetricsFromIndependentCounters)
@@ -301,6 +338,173 @@ static std::unique_ptr<IContext> localStartGame(const std::string& parkPath)
     gGameSpeed = 1;
 
     return context;
+}
+
+TEST_F(PlayTests, MapAnimationPhotoAndLandDoorsKeepLogicalCadenceAndPublishChanges)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    MapInit({ 16, 16 });
+    MapAnimations::ClearAll();
+    const CoordsXYZ location{ 64, 64, 112 };
+    TileElement track{};
+    track.clearAs(TileElementType::track);
+    track.setBaseZ(location.z);
+    track.setClearanceZ(location.z + 32);
+    track.asTrack()->setTrackType(TrackElemType::onRidePhoto);
+    track.asTrack()->setPhotoTimeout(3);
+    track.asTrack()->setDoorAState(kLandEdgeDoorFrameOpening);
+    track.asTrack()->setDoorBState(kLandEdgeDoorFrameClosing);
+    auto surface = *MapGetNthElementAt(location, 0);
+    ASSERT_EQ(ReplaceTileElementsAt({ 2, 2 }, { surface, track }), TileMutationStatus::ok);
+    MapPresentationSnapshot held;
+    held.Apply(ConsumeMapPresentationChanges());
+    MapAnimations::CreateTemporary(location, MapAnimations::TemporaryType::onRidePhoto);
+    MapAnimations::CreateTemporary(location, MapAnimations::TemporaryType::landEdgeDoor);
+    for (uint32_t tick = 1; tick <= 16; ++tick)
+    {
+        getGameState().currentTicks = tick;
+        MapAnimations::UpdateAll();
+        const auto* actual = MapGetNthElementAt(location, 1)->asTrack();
+        EXPECT_EQ(actual->getPhotoTimeout(), tick < 3 ? 3 - tick : 0u);
+        EXPECT_EQ(actual->getDoorAState(), tick < 4 ? 1 : (tick < 8 ? 2 : 3));
+        EXPECT_EQ(actual->getDoorBState(), tick < 4 ? 4 : (tick < 8 ? 5 : (tick < 12 ? 6 : 0)));
+        const auto changes = ConsumeMapPresentationChanges();
+        const bool changed = tick <= 3 || tick == 4 || tick == 8 || tick == 12;
+        ASSERT_EQ(changes.changes.size(), changed ? 1u : 0u) << tick;
+        if (changed)
+        {
+            const auto* published = changes.changes[0].elements[1].asTrack();
+            EXPECT_EQ(published->getPhotoTimeout(), actual->getPhotoTimeout());
+            EXPECT_EQ(published->getDoorAState(), actual->getDoorAState());
+            EXPECT_EQ(published->getDoorBState(), actual->getDoorBState());
+        }
+    }
+    EXPECT_EQ((held.GetFirstElementAt({ 2, 2 }) + 1)->asTrack()->getPhotoTimeout(), 3);
+    MapAnimations::ClearAll();
+}
+
+TEST_F(PlayTests, MapAnimationWallDoorPreservesHoldShortAndLongClosingFrames)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    auto& objects = context->GetObjectManager();
+    auto* object = dynamic_cast<WallObject*>(objects.LoadObject("rct2.scenery_wall.wcw1"));
+    ASSERT_NE(object, nullptr);
+    auto& entry = *static_cast<WallSceneryEntry*>(object->GetLegacyData());
+    entry.flags.set(WallSceneryFlag::isDoor);
+    // Even a combined scrolling/door object must retain its simulation registration.
+    entry.flags2.set(WallSceneryFlag2::isAnimated);
+    MapInit({ 16, 16 });
+    for (const bool longAnimation : { false, true })
+    {
+        MapAnimations::ClearAll();
+        entry.flags.set(WallSceneryFlag::hasLongDoorAnimation, longAnimation);
+        TileElement wall{};
+        wall.clearAs(TileElementType::wall);
+        wall.setBaseZ(112);
+        wall.asWall()->setEntryIndex(objects.GetLoadedObjectEntryIndex(object));
+        wall.asWall()->setIsAnimating(true);
+        wall.asWall()->setAnimationFrame(5);
+        auto surface = *MapGetNthElementAt({ 64, 64 }, 0);
+        ASSERT_EQ(ReplaceTileElementsAt({ 2, 2 }, { surface, wall }), TileMutationStatus::ok);
+        MapAnimations::MarkAllTiles();
+        static_cast<void>(ConsumeMapPresentationChanges());
+        getGameState().currentTicks = 2;
+        MapAnimations::UpdateAll();
+        EXPECT_TRUE(ConsumeMapPresentationChanges().changes.empty());
+        auto* actual = MapGetNthElementAt({ 64, 64 }, 1)->asWall();
+        EXPECT_EQ(actual->getAnimationFrame(), 5);
+        actual->setAnimationFrame(12); // Vehicle-controlled transition from held-open to closing.
+        for (uint32_t tick = 3; tick <= 10; ++tick)
+        {
+            getGameState().currentTicks = tick;
+            MapAnimations::UpdateAll();
+            const uint8_t expected = tick < 4 ? 12
+                : !longAnimation              ? (tick < 6 ? 15 : 0)
+                : tick < 6                    ? 13
+                : tick < 8                    ? 14
+                : tick < 10                   ? 15
+                                              : 0;
+            EXPECT_EQ(actual->getAnimationFrame(), expected) << tick;
+            const bool changed = (tick & 1) == 0 && (longAnimation || tick <= 6);
+            const auto changes = ConsumeMapPresentationChanges();
+            ASSERT_EQ(changes.changes.size(), changed ? 1u : 0u) << tick;
+            if (changed)
+                EXPECT_EQ(changes.changes[0].elements[1].asWall()->getAnimationFrame(), expected);
+        }
+        EXPECT_FALSE(actual->isAnimating());
+    }
+    MapAnimations::ClearAll();
+}
+
+TEST_F(PlayTests, MapAnimationClockChecksTimeAt1024TicksAndPublishesPeepAnimation)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    auto& objects = context->GetObjectManager();
+    auto* object = dynamic_cast<SmallSceneryObject*>(objects.LoadObject("rct2.scenery_small.tl0"));
+    ASSERT_NE(object, nullptr);
+    auto& entry = *static_cast<SmallSceneryEntry*>(object->GetLegacyData());
+    entry.flags.set(SmallSceneryFlag::isAnimated);
+    entry.flags.set(SmallSceneryFlag::isClock);
+    MapInit({ 16, 16 });
+    MapAnimations::ClearAll();
+    TileElement clock{};
+    clock.clearAs(TileElementType::smallScenery);
+    clock.setBaseZ(112);
+    clock.setDirection(0);
+    clock.asSmallScenery()->setEntryIndex(objects.GetLoadedObjectEntryIndex(object));
+    auto surface = *MapGetNthElementAt({ 64, 64 }, 0);
+    ASSERT_EQ(ReplaceTileElementsAt({ 2, 2 }, { surface, clock }), TileMutationStatus::ok);
+    auto& registry = getGameState().entities;
+    auto* guest = registry.createEntity<Guest>();
+    ASSERT_NE(guest, nullptr);
+    guest->state = PeepState::walking;
+    guest->action = PeepActionType::walking;
+    // Exercise the same-type notification branch without needing an animation asset in this headless fixture.
+    guest->animationType = PeepAnimationType::checkTime;
+    guest->animationFrameNum = 7;
+    guest->animationImageIdOffset = 9;
+    const CoordsXYZ guestLocation{ CoordsXY{ 64, 64 } - CoordsDirectionDelta[0], 112 };
+    guest->moveTo(guestLocation);
+    // moveTo queues spatial membership. A real preceding logical tick drains it before the clock's next update.
+    registry.updateEntitiesSpatialIndex();
+    const auto& nearby = registry.getEntityTileList(guestLocation);
+    ASSERT_EQ(nearby.size(), 1u);
+    ASSERT_EQ(nearby.front(), guest->id);
+    MapAnimations::MarkAllTiles();
+    static_cast<void>(registry.ConsumeEntityVisualChanges());
+    for (const uint32_t tick : { 1022u, 1023u })
+    {
+        getGameState().currentTicks = tick;
+        MapAnimations::UpdateAll();
+        EXPECT_EQ(guest->action, PeepActionType::walking);
+        EXPECT_TRUE(registry.ConsumeEntityVisualChanges().changes.empty());
+    }
+    auto* liveClock = MapGetNthElementAt({ 64, 64 }, 1);
+    liveClock->setGhost(true);
+    getGameState().currentTicks = 1024;
+    MapAnimations::UpdateAll();
+    EXPECT_EQ(guest->action, PeepActionType::walking);
+    EXPECT_TRUE(registry.ConsumeEntityVisualChanges().changes.empty());
+    liveClock->setGhost(false);
+    getGameState().currentTicks = 2048;
+    MapAnimations::UpdateAll();
+    EXPECT_EQ(guest->action, PeepActionType::checkTime);
+    EXPECT_EQ(guest->animationFrameNum, 0);
+    EXPECT_EQ(guest->animationImageIdOffset, 0);
+    const auto changes = registry.ConsumeEntityVisualChanges();
+    ASSERT_EQ(changes.changes.size(), 1u);
+    EXPECT_EQ(changes.changes[0].handle.id, guest->id);
+    EXPECT_NE(static_cast<uint8_t>(changes.changes[0].dirty) & static_cast<uint8_t>(EntityVisualDirty::animation), 0);
+    MapAnimations::ClearAll();
 }
 
 static std::unique_ptr<IContext> LoadEverythingPark()
@@ -559,8 +763,7 @@ static CapturedPlatformTrain FindCapturedPlatformTrain(GameState_t& gameState, A
             for (uint8_t stationIndex = 0; stationIndex < ride.numStations; stationIndex++)
             {
                 const auto station = StationIndex::FromUnderlying(stationIndex);
-                if (accept(ride, *train, trainIndex, station)
-                    && RideCaptureStationPlatformTemplate(ride, station, *train))
+                if (accept(ride, *train, trainIndex, station) && RideCaptureStationPlatformTemplate(ride, station, *train))
                     return { &ride, train, station, trainIndex };
             }
         }
@@ -803,8 +1006,7 @@ TEST_F(PlayTests, CoasterPlatformPreQueueRequiresOppositeLateralStationSides)
     EXPECT_FALSE(RideCaptureStationPlatformTemplate(*coaster, coasterStation, *coasterTrain));
     RideActivateStationPlatformPreQueue(*coaster, coasterStation);
     EXPECT_FALSE(RideStationPlatformPreQueueIsActive(*coaster, coasterStation));
-    EXPECT_FALSE(
-        RideReserveStationPlatformSlot(*coaster, coasterStation, EntityId::FromUnderlying(65000)).has_value());
+    EXPECT_FALSE(RideReserveStationPlatformSlot(*coaster, coasterStation, EntityId::FromUnderlying(65000)).has_value());
 
     auto* stagedGuest = Guest::generate(coasterStationData.entrance.toCoordsXYZ());
     ASSERT_NE(stagedGuest, nullptr);
@@ -941,9 +1143,6 @@ TEST_F(PlayTests, StationLoadingDecisionHasCompletePriorityOrder)
     EXPECT_FALSE(ShouldStopBoarding(train, policy));
 }
 
-
-
-
 TEST_F(PlayTests, TrainCannotPublishStationWhileZeroPrefixPassengersAreStillAlighting)
 {
     auto context = LoadEverythingPark();
@@ -984,8 +1183,7 @@ TEST_F(PlayTests, NaturallyArrivingTrainPreservesStagedSeatsThroughUnloadAndBoar
     for (auto& ride : RideManager(gameState))
     {
         if (!RideSupportsStationPlatformPreQueue(ride) || ride.numTrains == 0 || ride.numStations == 0
-            || ride.mode != RideMode::continuousCircuit
-            || ride.getRideTypeDescriptor().Category != RideCategory::rollerCoaster)
+            || ride.mode != RideMode::continuousCircuit || ride.getRideTypeDescriptor().Category != RideCategory::rollerCoaster)
         {
             continue;
         }
@@ -994,8 +1192,7 @@ TEST_F(PlayTests, NaturallyArrivingTrainPreservesStagedSeatsThroughUnloadAndBoar
         auto* origin = ride.getOriginElement(StationIndex::FromUnderlying(0));
         const auto trackLength = ride.getTotalLength();
         if (station.entrance.isNull() || station.exit.isNull() || train == nullptr || origin == nullptr
-            || (train->num_seats & kVehicleSeatNumMask) == 0
-            || trackLength <= 0 || trackLength >= shortestTrack
+            || (train->num_seats & kVehicleSeatNumMask) == 0 || trackLength <= 0 || trackLength >= shortestTrack
             || RideVehicle::StationDetail::BuildTrainSeatSummary(*train).capacity < 4)
         {
             continue;
@@ -1077,8 +1274,7 @@ TEST_F(PlayTests, NaturallyArrivingTrainPreservesStagedSeatsThroughUnloadAndBoar
         sawUnloading = sawUnloading || targetTrain->status == Vehicle::Status::unloadingPassengers;
         gameStateUpdateLogic();
         sawUnloading = sawUnloading || targetTrain->status == Vehicle::Status::unloadingPassengers;
-        if (targetTrain->current_station == targetStation
-            && targetTrain->status == Vehicle::Status::waitingForPassengers)
+        if (targetTrain->current_station == targetStation && targetTrain->status == Vehicle::Status::waitingForPassengers)
         {
             arrivedAndStopped = true;
         }

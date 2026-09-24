@@ -94,6 +94,7 @@
 #include "world/MapSelection.h"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cmath>
 #include <exception>
@@ -275,6 +276,207 @@ namespace OpenRCT2
         std::vector<double> _benchmarkFrameIntervalsMilliseconds;
         std::vector<Drawing::FrameTimings> _benchmarkRendererTimingScratch;
         bool _benchmarkFailed{};
+
+        enum class BenchmarkWorkPhase : size_t
+        {
+            simulation,
+            tick,
+            messages,
+            ui,
+            drawBegin,
+            drawPaint,
+            drawEnd,
+            networkUpdate,
+            networkFlush,
+            schedulerWait,
+            drawInterval,
+            count,
+        };
+        static constexpr std::array<const char*, static_cast<size_t>(BenchmarkWorkPhase::count)> kBenchmarkWorkPhaseNames = {
+            "simulation",    "tick",         "messages",      "ui",           "drawBegin", "drawPaint", "drawEnd",
+            "networkUpdate", "networkFlush", "schedulerWait", "drawInterval",
+        };
+        struct BenchmarkWorstEvent
+        {
+            uint32_t simulationTick{};
+            double offsetMilliseconds{};
+            double wallMilliseconds{};
+            uint64_t threadCycles{};
+            bool threadCyclesAvailable{};
+            double requestedWaitMilliseconds{};
+        };
+        struct BenchmarkPhaseSamples
+        {
+            uint64_t count{};
+            double wallMilliseconds{};
+            uint64_t threadCycles{};
+            uint64_t threadCycleSamples{};
+            std::array<BenchmarkWorstEvent, 16> worst{};
+            size_t retained{};
+            size_t minimum{};
+        };
+        std::array<BenchmarkPhaseSamples, static_cast<size_t>(BenchmarkWorkPhase::count)> _benchmarkPhaseSamples{};
+        uint64_t _benchmarkPreviousDrawCycles{};
+        uint32_t _benchmarkPreviousDrawTick{};
+        struct BenchmarkTickWindow
+        {
+            uint64_t endLogicalTick{};
+            uint32_t simulationTick{};
+            double elapsedSeconds{};
+            double simulationSeconds{};
+            uint64_t draws{};
+            double drawSeconds{};
+        };
+        std::array<BenchmarkTickWindow, 16> _benchmarkTickWindows{};
+        size_t _benchmarkTickWindowCount{};
+
+        void RecordBenchmarkTickWindow()
+        {
+            if (_benchmarkPhase != IntegratedBenchmarkPhase::measurement
+                || _benchmarkTickWindowCount == _benchmarkTickWindows.size())
+                return;
+            const uint64_t ticks = gTotalSimulationTicks - _benchmarkInitialLogicalTicks;
+            if (ticks < (_benchmarkTickWindowCount + 1) * 3000)
+                return;
+            _benchmarkTickWindows[_benchmarkTickWindowCount++] = {
+                ticks,
+                getGameState().currentTicks,
+                std::chrono::duration<double>(IntegratedBenchmarkClock::now() - _benchmarkPhaseStart).count(),
+                _benchmarkTotals.simulationSeconds,
+                _benchmarkTotals.draws,
+                _benchmarkTotals.drawSeconds
+            };
+        }
+
+        static uint64_t ReadBenchmarkThreadCycles() noexcept
+        {
+#ifdef _WIN32
+            ULONG64 cycles{};
+            if (QueryThreadCycleTime(GetCurrentThread(), &cycles))
+                return cycles;
+#endif
+            return 0;
+        }
+
+        void RecordBenchmarkPhase(
+            BenchmarkWorkPhase phase, IntegratedBenchmarkClock::time_point start, IntegratedBenchmarkClock::time_point end,
+            uint64_t startCycles, uint64_t endCycles, uint32_t tick, double requestedWaitMilliseconds = 0) noexcept
+        {
+            auto& samples = _benchmarkPhaseSamples[static_cast<size_t>(phase)];
+            BenchmarkWorstEvent event{ tick,
+                                       std::chrono::duration<double, std::milli>(start - _benchmarkPhaseStart).count(),
+                                       std::chrono::duration<double, std::milli>(end - start).count(),
+                                       endCycles >= startCycles ? endCycles - startCycles : 0,
+                                       startCycles != 0 && endCycles >= startCycles,
+                                       requestedWaitMilliseconds };
+            ++samples.count;
+            samples.wallMilliseconds += event.wallMilliseconds;
+            if (event.threadCyclesAvailable)
+            {
+                samples.threadCycles += event.threadCycles;
+                ++samples.threadCycleSamples;
+            }
+            if (samples.retained == samples.worst.size()
+                && event.wallMilliseconds <= samples.worst[samples.minimum].wallMilliseconds)
+                return;
+            const size_t index = samples.retained < samples.worst.size() ? samples.retained++ : samples.minimum;
+            samples.worst[index] = event;
+            samples.minimum = 0;
+            for (size_t i = 1; i < samples.retained; ++i)
+                if (samples.worst[i].wallMilliseconds < samples.worst[samples.minimum].wallMilliseconds)
+                    samples.minimum = i;
+        }
+
+        // Fixed storage and no I/O during measurement. Nested tick/simulation and draw-interval samples overlap;
+        // thread cycles are scheduled CPU work, not CPU milliseconds or proof of a particular blocking cause.
+        class BenchmarkPhaseScope
+        {
+            Context& _context;
+            BenchmarkWorkPhase _phase;
+            bool _enabled;
+            IntegratedBenchmarkClock::time_point _start{};
+            uint64_t _cycles{};
+            uint32_t _tick{};
+            double _requestedWaitMilliseconds{};
+
+        public:
+            BenchmarkPhaseScope(Context& context, BenchmarkWorkPhase phase, double requestedWaitMilliseconds = 0)
+                : _context(context)
+                , _phase(phase)
+                , _enabled(context._benchmarkPhase == IntegratedBenchmarkPhase::measurement)
+                , _requestedWaitMilliseconds(requestedWaitMilliseconds)
+            {
+                if (_enabled)
+                {
+                    _tick = getGameState().currentTicks;
+                    _cycles = ReadBenchmarkThreadCycles();
+                    _start = IntegratedBenchmarkClock::now();
+                }
+            }
+            ~BenchmarkPhaseScope()
+            {
+                if (_enabled)
+                {
+                    const auto end = IntegratedBenchmarkClock::now();
+                    const auto cycles = ReadBenchmarkThreadCycles();
+                    _context.RecordBenchmarkPhase(_phase, _start, end, _cycles, cycles, _tick, _requestedWaitMilliseconds);
+                }
+            }
+        };
+
+        void PrintBenchmarkPhaseSamples() const
+        {
+            json_t phases = json_t::object();
+            for (size_t p = 0; p < _benchmarkPhaseSamples.size(); ++p)
+            {
+                const auto& samples = _benchmarkPhaseSamples[p];
+                auto events = samples.worst;
+                std::sort(events.begin(), events.begin() + samples.retained, [](const auto& a, const auto& b) {
+                    return a.wallMilliseconds > b.wallMilliseconds;
+                });
+                json_t worst = json_t::array();
+                for (size_t i = 0; i < samples.retained; ++i)
+                {
+                    const auto& e = events[i];
+                    worst.push_back({ { "simulationTick", e.simulationTick },
+                                      { "offsetMs", e.offsetMilliseconds },
+                                      { "wallMs", e.wallMilliseconds },
+                                      { "threadCycles", e.threadCycles },
+                                      { "threadCyclesAvailable", e.threadCyclesAvailable },
+                                      { "requestedWaitMs", e.requestedWaitMilliseconds } });
+                }
+                phases[kBenchmarkWorkPhaseNames[p]] = { { "count", samples.count },
+                                                        { "wallMs", samples.wallMilliseconds },
+                                                        { "threadCycles", samples.threadCycles },
+                                                        { "threadCycleSamples", samples.threadCycleSamples },
+                                                        { "worst", std::move(worst) } };
+            }
+            json_t windows = json_t::array();
+            BenchmarkTickWindow previous{};
+            for (size_t i = 0; i < _benchmarkTickWindowCount; ++i)
+            {
+                const auto& current = _benchmarkTickWindows[i];
+                windows.push_back({ { "startLogicalTick", previous.endLogicalTick },
+                                    { "endLogicalTick", current.endLogicalTick },
+                                    { "simulationTick", current.simulationTick },
+                                    { "elapsedSeconds", current.elapsedSeconds - previous.elapsedSeconds },
+                                    { "simulationSeconds", current.simulationSeconds - previous.simulationSeconds },
+                                    { "draws", current.draws - previous.draws },
+                                    { "drawSeconds", current.drawSeconds - previous.drawSeconds } });
+                previous = current;
+            }
+            const json_t report = {
+                { "schema", 1 },
+                { "capacityPerPhase", 16 },
+                { "phases", std::move(phases) },
+                { "tickWindowSize", 3000 },
+                { "tickWindowCapacity", 16 },
+                { "tickWindows", std::move(windows) },
+                { "scope", "main-thread wall durations; nested phases overlap; Windows thread cycles are not CPU time" }
+            };
+            // Console::WriteLine has a 4096-byte formatting buffer; this bounded event report can exceed it.
+            Console::WriteFormat("Benchmark phase timing v1: %s\n", report.dump().c_str());
+        }
 
         // If set, will end the OpenRCT2 game loop. Intentionally private to this module so that the flag can not be set back to
         // false.
@@ -1476,6 +1678,11 @@ namespace OpenRCT2
             _benchmarkInitialDrawableSize = _uiContext->GetDrawableSize();
             _benchmarkInitialRefreshRate = _uiContext->GetRefreshRate();
             _benchmarkTotals = {};
+            _benchmarkPhaseSamples = {};
+            _benchmarkPreviousDrawCycles = 0;
+            _benchmarkPreviousDrawTick = 0;
+            _benchmarkTickWindows = {};
+            _benchmarkTickWindowCount = 0;
             _benchmarkInitialLogicalTicks = gTotalSimulationTicks;
             _benchmarkRenderer = {};
             _benchmarkUploads = {};
@@ -1640,6 +1847,9 @@ namespace OpenRCT2
                     << ",\"alignmentBytes\":" << a.alignmentBytes << ",\"allocationFailures\":" << a.allocationFailures
                     << ",\"captureRequests\":" << a.captureRequests << ",\"readbackRequests\":" << a.readbackRequests
                     << ",\"readbackBytes\":" << a.readbackBytes << ",\"lostSamples\":" << a.lostSamples
+                    << ",\"statusReadbackRequests\":" << a.statusReadbackRequests
+                    << ",\"statusReadbackBytes\":" << a.statusReadbackBytes
+                    << ",\"worldBufferCopyCalls\":" << a.worldBufferCopyCalls
                     << ",\"overflow\":" << (a.overflow ? "true" : "false");
                 const auto matrix = [&out](const char* label, const Drawing::UploadByteMatrix& bytes) {
                     out << ",\"" << label << "\":[";
@@ -1663,6 +1873,10 @@ namespace OpenRCT2
                 out << '}';
                 Console::WriteLine("Upload telemetry v1: %s", out.str().c_str());
             }
+            PrintBenchmarkPhaseSamples();
+            Console::WriteLine(
+                "Benchmark simulation pacing: %s",
+                gIntegratedBenchmark.uncappedSimulation ? "uncapped headroom" : "ordinary Turbo 360 TPS target");
             PrintBenchmarkStateSnapshot("Initial", _benchmarkInitialState);
             PrintBenchmarkStateSnapshot("Final", finalState);
             Console::WriteLine("Completed: %s", checksum.c_str());
@@ -1897,7 +2111,10 @@ namespace OpenRCT2
 
             UpdateTimeAccumulators(deltaTime, updateTime);
 
-            Network::Update();
+            {
+                BenchmarkPhaseScope timing(*this, BenchmarkWorkPhase::networkUpdate);
+                Network::Update();
+            }
 
             const bool shouldDraw = ShouldDrawFrame();
             if (useVariableFrame)
@@ -1909,23 +2126,32 @@ namespace OpenRCT2
                 RunFixedFrame(shouldDraw, updateTime);
             }
 
-            Network::Flush();
+            {
+                BenchmarkPhaseScope timing(*this, BenchmarkWorkPhase::networkFlush);
+                Network::Flush();
+            }
             UpdateIntegratedBenchmark();
 
-            if (!shouldDraw && ShouldDraw() && _ticksAccumulator < updateTime)
+            // The fixed-frame path already owns its idle wait. Do not wait a second time before servicing input/network.
+            if (useVariableFrame && !shouldDraw && ShouldDraw() && _ticksAccumulator < updateTime)
             {
-                auto waitDuration = std::chrono::duration_cast<IntegratedBenchmarkClock::duration>(
-                    std::chrono::duration<float>(updateTime - _ticksAccumulator));
+                const auto now = IntegratedBenchmarkClock::now();
+                float presentationWait = kNetworkUpdateTimeMS;
                 if (IsVSyncPresentationPaced() && _nextPresentationDeadline != IntegratedBenchmarkClock::time_point{})
                 {
-                    const auto untilPresentation = _nextPresentationDeadline - IntegratedBenchmarkClock::now();
-                    waitDuration = std::min(waitDuration, untilPresentation);
+                    presentationWait = std::chrono::duration<float>(_nextPresentationDeadline - now).count();
                 }
-                const auto waitMilliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(waitDuration).count();
-                if (waitMilliseconds > 0)
-                    Platform::Sleep(static_cast<uint32_t>(waitMilliseconds));
-                else
-                    std::this_thread::yield();
+                const float waitSeconds = GetSchedulerWaitSeconds(
+                    GetSimulationWaitSeconds(updateTime, _ticksAccumulator, _timer.GetElapsedTime().count(), _timeScale),
+                    presentationWait);
+                if (waitSeconds > 0)
+                {
+                    BenchmarkPhaseScope timing(*this, BenchmarkWorkPhase::schedulerWait, waitSeconds * 1000.0);
+                    Platform::SleepUntil(
+                        now
+                        + std::chrono::duration_cast<IntegratedBenchmarkClock::duration>(
+                            std::chrono::duration<float>(waitSeconds)));
+                }
             }
         }
 
@@ -1936,6 +2162,15 @@ namespace OpenRCT2
             // artificially low long-run TPS. The variable-frame loop still checks VSync after every complete tick, so retained
             // debt cannot become a render-blocking partial-tick batch.
             _ticksAccumulator = std::min(_ticksAccumulator + deltaTime * _timeScale, kGameUpdateMaxThreshold);
+            if (gIntegratedBenchmark.enabled && gIntegratedBenchmark.uncappedSimulation
+                && (_benchmarkPhase == IntegratedBenchmarkPhase::warmup
+                    || _benchmarkPhase == IntegratedBenchmarkPhase::measurement)
+                && Network::GetMode() == Network::Mode::none && gGameSpeed == kGameSpeedTurbo && GameIsNotPaused())
+            {
+                // Benchmark headroom only: supply bounded debt without changing logical tick contents or gameplay speed.
+                // Each completed tick still checks the presentation deadline and benchmark tick limit.
+                _ticksAccumulator = kGameUpdateMaxThreshold;
+            }
 
             // Real Time.
             _realtimeAccumulator = std::min(_realtimeAccumulator + deltaTime, kGameUpdateMaxThreshold);
@@ -1948,6 +2183,7 @@ namespace OpenRCT2
 
         void ProcessMessages()
         {
+            BenchmarkPhaseScope timing(*this, BenchmarkWorkPhase::messages);
             _uiContext->ProcessMessages();
             if (_benchmarkPhase == IntegratedBenchmarkPhase::measurement)
                 _benchmarkMessagePumps++;
@@ -1955,6 +2191,7 @@ namespace OpenRCT2
 
         bool UpdateUi()
         {
+            BenchmarkPhaseScope timing(*this, BenchmarkWorkPhase::ui);
             _backgroundWorker.dispatchCompleted();
             ContextHandleInput();
             const bool useVariableFrame = UpdateVariableFrameMode();
@@ -1973,14 +2210,26 @@ namespace OpenRCT2
 
             if (_ticksAccumulator < updateTime)
             {
-                const auto sleepTimeSec = std::min(kNetworkUpdateTimeMS, updateTime - _ticksAccumulator);
-                Platform::Sleep(static_cast<uint32_t>(sleepTimeSec * 1000.f));
+                const auto now = IntegratedBenchmarkClock::now();
+                const auto sleepTimeSec = GetSchedulerWaitSeconds(
+                    GetSimulationWaitSeconds(updateTime, _ticksAccumulator, _timer.GetElapsedTime().count(), _timeScale),
+                    kNetworkUpdateTimeMS);
+                if (sleepTimeSec > 0)
+                {
+                    BenchmarkPhaseScope timing(*this, BenchmarkWorkPhase::schedulerWait, sleepTimeSec * 1000.0);
+                    Platform::SleepUntil(
+                        now
+                        + std::chrono::duration_cast<IntegratedBenchmarkClock::duration>(
+                            std::chrono::duration<float>(sleepTimeSec)));
+                }
                 return;
             }
 
             while (_ticksAccumulator >= updateTime)
             {
                 Tick();
+
+                RecordBenchmarkTickWindow();
 
                 _ticksAccumulator -= updateTime;
 
@@ -2015,6 +2264,8 @@ namespace OpenRCT2
             while (_ticksAccumulator >= updateTime)
             {
                 Tick();
+
+                RecordBenchmarkTickWindow();
 
                 _ticksAccumulator -= updateTime;
 
@@ -2056,17 +2307,34 @@ namespace OpenRCT2
             const auto drawStart = IntegratedBenchmarkClock::now();
 
             const bool measuring = _benchmarkPhase == IntegratedBenchmarkPhase::measurement;
+            const uint64_t drawCycles = measuring ? ReadBenchmarkThreadCycles() : 0;
             if (measuring && _benchmarkPreviousDrawStart != IntegratedBenchmarkClock::time_point{})
             {
                 _benchmarkFrameIntervalsMilliseconds.push_back(
                     std::chrono::duration<double, std::milli>(drawStart - _benchmarkPreviousDrawStart).count());
+                RecordBenchmarkPhase(
+                    BenchmarkWorkPhase::drawInterval, _benchmarkPreviousDrawStart, drawStart, _benchmarkPreviousDrawCycles,
+                    drawCycles, _benchmarkPreviousDrawTick);
             }
             if (measuring)
+            {
                 _benchmarkPreviousDrawStart = drawStart;
+                _benchmarkPreviousDrawCycles = drawCycles;
+                _benchmarkPreviousDrawTick = getGameState().currentTicks;
+            }
 
-            _drawingEngine->BeginDraw();
-            _painter->Paint(*_drawingEngine);
-            _drawingEngine->EndDraw();
+            {
+                BenchmarkPhaseScope timing(*this, BenchmarkWorkPhase::drawBegin);
+                _drawingEngine->BeginDraw();
+            }
+            {
+                BenchmarkPhaseScope timing(*this, BenchmarkWorkPhase::drawPaint);
+                _painter->Paint(*_drawingEngine);
+            }
+            {
+                BenchmarkPhaseScope timing(*this, BenchmarkWorkPhase::drawEnd);
+                _drawingEngine->EndDraw();
+            }
             AdvancePresentationDeadline(IntegratedBenchmarkClock::now());
             if (!measuring)
                 return;
@@ -2081,6 +2349,7 @@ namespace OpenRCT2
         void Tick()
         {
             PROFILED_FUNCTION();
+            BenchmarkPhaseScope tickTiming(*this, BenchmarkWorkPhase::tick);
 
             // TODO: This variable has been never "variable" in time, some code expects
             // this to be 40Hz (25 ms). Refactor this once the UI is decoupled.
@@ -2098,7 +2367,10 @@ namespace OpenRCT2
                 if (_benchmarkPhase == IntegratedBenchmarkPhase::measurement)
                 {
                     const auto benchmarkStart = IntegratedBenchmarkClock::now();
-                    activeScene->Tick();
+                    {
+                        BenchmarkPhaseScope timing(*this, BenchmarkWorkPhase::simulation);
+                        activeScene->Tick();
+                    }
                     const auto benchmarkEnd = IntegratedBenchmarkClock::now();
                     const auto simulationSeconds = std::chrono::duration<double>(benchmarkEnd - benchmarkStart).count();
                     _benchmarkTotals.simulationSeconds += simulationSeconds;

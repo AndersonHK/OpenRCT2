@@ -1,80 +1,31 @@
 #version 450
+#extension GL_GOOGLE_include_directive : require
+#include "world_surface_rules.glsl"
 
-// One workgroup owns one deterministic painter-order block. Keep these values synchronized with GpuCommandStream.h.
+// Three bounded passes: local counts/prefixes, global block-prefix, then emission.
+// Work is linear in map tiles and visible emitted strips; no per-tile strip arrays.
 layout(local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
-
 const uint BLOCK_WIDTH = 1024u;
-
-struct SourceRecord
-{
-    uint baseZ;
-    uint valid;
-    uint detailedSprites[4];
-    uint distantSprites[4];
-};
-
-struct SpriteVariant
-{
-    ivec2 spriteSize;
-    ivec2 spriteOffset;
-    uint asset;
-    int zoom;
-    int coordinateShift;
-    int valid;
-};
-
-struct SpriteSet
-{
-    SpriteVariant variants[6];
-    uint palettes;
-    uint effects;
-};
-
-struct OutputRecord
-{
-    ivec3 world;
-    int valid;
-    ivec2 spriteSize;
-    ivec2 spriteOffset;
-    uint asset;
-    uint palettes;
-    uint effects;
-    int depth;
-    int zoom;
-    int coordinateShift;
-    ivec2 reserved;
-};
-
-struct DrawIndirectCommand
-{
-    uint vertexCount;
-    uint instanceCount;
-    uint firstVertex;
-    uint firstInstance;
-};
-
-layout(std430, set = 0, binding = 3) readonly buffer Sources { SourceRecord records[]; } uSources;
-layout(std430, set = 0, binding = 4) readonly buffer SpriteSets { SpriteSet records[]; } uSpriteSets;
-layout(std430, set = 0, binding = 5) writeonly buffer Outputs { OutputRecord records[]; } uOutputs;
-layout(std430, set = 0, binding = 6) writeonly buffer Commands { DrawIndirectCommand records[]; } uCommands;
-
-layout(push_constant) uniform WorldSurfaceConstants
-{
-    ivec2 screen;
-    ivec2 view;
-    ivec4 clip;
-    uint width;
-    uint height;
-    uint recordCount;
-    int zoom;
-    uint rotation;
-    uint spriteSetCount;
-    int depthBase;
+const uint OUTPUT_CAPACITY = 1048576u;
+struct SourceRecord { int baseZ; int waterHeight; uint surfaceSlot; uint edgeSlot; uint slope; uint grass; uint present; uint kind; };
+struct SpriteVariant { ivec2 spriteSize; ivec2 spriteOffset; uint asset; int zoom; int coordinateShift; int valid; };
+struct SpriteSet { SpriteVariant variants[6]; uint palettes; uint effects; };
+struct Material { uint surfaceBase; uint surfaceCount; uint edgeBase; uint edgeCount; uint selectors[144]; };
+struct OutputRecord { ivec3 world; int valid; ivec2 spriteSize; ivec2 spriteOffset; uint asset; uint palettes; uint effects; int depth; int zoom; int coordinateShift; ivec2 reserved; };
+struct DrawIndirectCommand { uint vertexCount; uint instanceCount; uint firstVertex; uint firstInstance; };
+layout(std430,set=0,binding=3) readonly buffer Sources { SourceRecord records[]; } uSources;
+layout(std430,set=0,binding=4) readonly buffer SpriteSets { SpriteSet records[]; } uSpriteSets;
+layout(std430,set=0,binding=5) writeonly buffer Outputs { OutputRecord records[]; } uOutputs;
+layout(std430,set=0,binding=6) buffer Commands { DrawIndirectCommand records[]; } uCommands;
+layout(std430,set=0,binding=7) readonly buffer Catalog { Material materials[255]; uint waterMask[5]; uint waterOverlay[5]; uint waterOpaque[5]; uint reserved; ivec4 spriteEnvelope[6]; } uCatalog;
+layout(std430,set=0,binding=8) buffer Prefixes { uint records[]; } uPrefixes;
+layout(std430,set=0,binding=9) buffer Status { uint emittedCount; uint capacity; uint overflow; uint reserved; } uStatus;
+layout(push_constant) uniform WorldSurfaceConstants {
+    ivec2 screen; ivec2 view; ivec4 clip; uint width; uint height; uint recordCount; int zoom;
+    uint rotation; uint spriteSetCount; int depthBase; uint phase; uint transparentWater; uint outputCapacity;
 } uScene;
-
 shared uint sPrefix[BLOCK_WIDTH];
-shared uint sVisibleCount;
-
+shared uint sTotal;
 int euclideanRemainder(int value, int divisor)
 {
     int result = value % divisor;
@@ -109,130 +60,167 @@ uvec2 tileForOrder(uint orderIndex)
     return uvec2(orderIndex % uScene.width, orderIndex / uScene.width);
 }
 
-bool buildRecord(uint orderIndex, out OutputRecord outputRecord)
+
+ivec2 worldOffset(ivec2 relative)
 {
-    outputRecord = OutputRecord(ivec3(0), 0, ivec2(0), ivec2(0), 0u, 0u, 0u, 0, 0, 0, ivec2(0));
-    if (orderIndex >= uScene.recordCount)
-        return false;
+    if (uScene.rotation == 1u) return ivec2(-relative.y, relative.x);
+    if (uScene.rotation == 2u) return -relative;
+    if (uScene.rotation == 3u) return ivec2(relative.y, -relative.x);
+    return relative;
+}
 
-    uvec2 tile = tileForOrder(orderIndex);
-    SourceRecord source = uSources.records[tile.y * uScene.width + tile.x];
-    if (source.valid == 0u)
-        return false;
-    uint spriteSetIndex = uScene.zoom <= 0 ? source.detailedSprites[uScene.rotation]
-                                           : source.distantSprites[uScene.rotation];
-    if (spriteSetIndex >= uScene.spriteSetCount)
-        return false;
-    SpriteSet spriteSet = uSpriteSets.records[spriteSetIndex];
-    uint zoomIndex = uint(clamp(uScene.zoom + 2, 0, 5));
-    SpriteVariant sprite = spriteSet.variants[zoomIndex];
-    if (sprite.valid == 0)
-        return false;
-
-    ivec3 world = ivec3(tile * 32u, source.baseZ);
+bool makeRecord(uvec2 tile, int z, ivec2 relative, ivec2 attached, uint spriteIndex, out OutputRecord result)
+{
+    if (spriteIndex >= uScene.spriteSetCount) return false;
+    SpriteSet spriteSet = uSpriteSets.records[spriteIndex];
+    SpriteVariant sprite = spriteSet.variants[clamp(uScene.zoom + 2, 0, 5)];
+    if (sprite.valid == 0) return false;
+    ivec3 world = ivec3(ivec2(tile * 32u) + worldOffset(relative), z);
     ivec2 adjusted = world.xy;
-    if (uScene.rotation == 1u)
-        adjusted.x += 32;
-    else if (uScene.rotation == 2u)
-        adjusted += ivec2(32);
-    else if (uScene.rotation == 3u)
-        adjusted.y += 32;
-
+    if (uScene.rotation == 1u) adjusted.x += 32;
+    else if (uScene.rotation == 2u) adjusted += ivec2(32);
+    else if (uScene.rotation == 3u) adjusted.y += 32;
     ivec2 rotated = adjusted;
-    if (uScene.rotation == 1u)
-        rotated = ivec2(adjusted.y, -adjusted.x);
-    else if (uScene.rotation == 2u)
-        rotated = -adjusted;
-    else if (uScene.rotation == 3u)
-        rotated = ivec2(-adjusted.y, adjusted.x);
-    ivec2 projected = ivec2(rotated.y - rotated.x, ((rotated.x + rotated.y) >> 1) - world.z);
-    for (int i = 0; i < sprite.coordinateShift; i++)
-        projected /= 2;
-
+    if (uScene.rotation == 1u) rotated = ivec2(adjusted.y, -adjusted.x);
+    else if (uScene.rotation == 2u) rotated = -adjusted;
+    else if (uScene.rotation == 3u) rotated = ivec2(-adjusted.y, adjusted.x);
+    ivec2 projected = ivec2(rotated.y - rotated.x, ((rotated.x + rotated.y) >> 1) - z);
+    for (int i=0; i<sprite.coordinateShift; i++) { projected /= 2; attached /= 2; }
+    sprite.spriteOffset += attached;
     ivec2 topLeft = projected + sprite.spriteOffset;
-    int xModifier = 0;
-    int yModifier = 0;
-    int widthModifier = 0;
-    if (sprite.zoom > 0)
-    {
-        int interval = 1 << sprite.zoom;
-        xModifier = euclideanRemainder(topLeft.x, interval);
-        xModifier = xModifier != 0 ? interval - xModifier : 0;
-        yModifier = euclideanRemainder(topLeft.y, interval);
-        widthModifier = euclideanRemainder(topLeft.x + sprite.spriteSize.x, interval);
-        widthModifier = widthModifier != 0 ? interval - widthModifier : 0;
+    int xm=0, ym=0, wm=0;
+    if (sprite.zoom > 0) {
+        int interval=1<<sprite.zoom;
+        xm=euclideanRemainder(topLeft.x,interval); xm=xm!=0?interval-xm:0;
+        ym=euclideanRemainder(topLeft.y,interval);
+        wm=euclideanRemainder(topLeft.x+sprite.spriteSize.x,interval); wm=wm!=0?interval-wm:0;
     }
-    ivec4 bounds = ivec4(
-        inverseZoom(topLeft.x + xModifier, sprite.zoom), inverseZoom(topLeft.y, sprite.zoom),
-        inverseZoom(topLeft.x + xModifier, sprite.zoom) + inverseZoom(sprite.spriteSize.x + widthModifier, sprite.zoom),
-        inverseZoom(topLeft.y, sprite.zoom) + inverseZoom(sprite.spriteSize.y + yModifier, sprite.zoom));
-    bounds += ivec4(uScene.clip.xy - uScene.view, uScene.clip.xy - uScene.view);
-    if (bounds.x >= uScene.clip.z || bounds.y >= uScene.clip.w || bounds.z <= uScene.clip.x || bounds.w <= uScene.clip.y)
-        return false;
-
-    outputRecord.world = world;
-    outputRecord.valid = 1;
-    outputRecord.spriteSize = sprite.spriteSize;
-    outputRecord.spriteOffset = sprite.spriteOffset;
-    outputRecord.asset = sprite.asset;
-    outputRecord.palettes = spriteSet.palettes;
-    outputRecord.effects = spriteSet.effects;
-    outputRecord.depth = uScene.depthBase + int(orderIndex);
-    outputRecord.zoom = sprite.zoom;
-    outputRecord.coordinateShift = sprite.coordinateShift;
+    ivec4 bounds=ivec4(inverseZoom(topLeft.x+xm,sprite.zoom),inverseZoom(topLeft.y,sprite.zoom),
+        inverseZoom(topLeft.x+xm,sprite.zoom)+inverseZoom(sprite.spriteSize.x+wm,sprite.zoom),
+        inverseZoom(topLeft.y,sprite.zoom)+inverseZoom(sprite.spriteSize.y+ym,sprite.zoom));
+    bounds+=ivec4(uScene.clip.xy-uScene.view,uScene.clip.xy-uScene.view);
+    if (bounds.x>=uScene.clip.z || bounds.y>=uScene.clip.w || bounds.z<=uScene.clip.x || bounds.w<=uScene.clip.y) return false;
+    result=OutputRecord(world,1,sprite.spriteSize,sprite.spriteOffset,sprite.asset,spriteSet.palettes,spriteSet.effects,0,
+        sprite.zoom,sprite.coordinateShift,ivec2(0));
     return true;
 }
 
+void emitSprite(uvec2 tile, int z, ivec2 relative, ivec2 attached, uint image, uint destination, bool writeRecords, inout uint count)
+{
+    OutputRecord record;
+    if (!makeRecord(tile,z,relative,attached,image,record)) return;
+    if (writeRecords) {
+        uint outputIndex=destination+count;
+        if (outputIndex < uScene.outputCapacity) {
+            record.depth=uScene.depthBase+int(outputIndex);
+            uOutputs.records[outputIndex]=record;
+        }
+    }
+    count++;
+}
+
+uint visitTile(uint orderIndex, uint destination, bool writeRecords)
+{
+    if (orderIndex>=uScene.recordCount) return 0u;
+    uvec2 tile=tileForOrder(orderIndex);
+    SourceRecord source=uSources.records[tile.y*uScene.width+tile.x];
+    if (source.present==0u || source.kind!=1u || source.surfaceSlot>=255u) return 0u;
+    // Conservative catalog-derived envelope rejects offscreen tiles before any strip traversal.
+    // All heights remain source facts; this does not retain visibility or raster results between frames.
+    ivec2 corner=ivec2(tile*32u);
+    if(uScene.rotation==1u) corner.x+=32;
+    else if(uScene.rotation==2u) corner+=ivec2(32);
+    else if(uScene.rotation==3u) corner.y+=32;
+    if(uScene.rotation==1u) corner=ivec2(corner.y,-corner.x);
+    else if(uScene.rotation==2u) corner=-corner;
+    else if(uScene.rotation==3u) corner=ivec2(-corner.y,corner.x);
+    ivec2 projected=ivec2(inverseZoom(corner.y-corner.x,uScene.zoom),inverseZoom((corner.x+corner.y)>>1,uScene.zoom));
+    projected+=uScene.clip.xy-uScene.view;
+    ivec4 envelope=uCatalog.spriteEnvelope[clamp(uScene.zoom+2,0,5)];
+    int margin=inverseZoom(64,uScene.zoom)+4;
+    int maxHeight=inverseZoom(max(source.baseZ+32,source.waterHeight),uScene.zoom)+4;
+    if(projected.x+envelope.z+margin<=uScene.clip.x || projected.x+envelope.x-margin>=uScene.clip.z
+        || projected.y+envelope.w+margin<=uScene.clip.y || projected.y-maxHeight+envelope.y-margin>=uScene.clip.w) return 0u;
+    uint count=0u;
+    Material material=uCatalog.materials[source.surfaceSlot];
+    int relativeSlope=terrainRelativeSlope(int(source.slope),int(uScene.rotation)) | int(source.slope & 16u);
+    const int shapeOffsets[32]=int[](0,2,1,3,8,10,9,11,4,6,5,7,12,14,13,15,0,0,0,0,0,0,0,17,0,0,0,16,0,18,15,0);
+    uint selector=uint(terrainMaterialSelector(int(source.grass),int(uScene.rotation),int(tile.x),int(tile.y),uScene.zoom));
+    uint offset=material.selectors[selector]*19u+uint(shapeOffsets[relativeSlope&31]);
+    if (offset<material.surfaceCount)
+        emitSprite(tile,source.baseZ,ivec2(0),ivec2(0),material.surfaceBase+offset,destination,writeRecords,count);
+    // Corner heights include the original four steep slopes; neighbours remain raw world facts.
+    if (source.edgeSlot<255u) {
+        Material edgeMaterial=uCatalog.materials[source.edgeSlot];
+        for (int ordinal=0;ordinal<4;ordinal++) {
+            int edge=ordinal<2?terrainRearEdgeForTraversal(ordinal):ordinal-2;
+            ivec2 neighbour=ivec2(tile)+ivec2(terrainNeighbourX(edge,int(uScene.rotation)),terrainNeighbourY(edge,int(uScene.rotation)));
+            bool valid=all(greaterThanEqual(neighbour,ivec2(0))) && neighbour.x<int(uScene.width) && neighbour.y<int(uScene.height);
+            SourceRecord other=source;
+            if(valid) other=uSources.records[uint(neighbour.y)*uScene.width+uint(neighbour.x)];
+            valid=valid && other.present!=0u && other.kind==1u;
+            TerrainEdgePlan plan=worldSurfacePlanEdge(edge,source.baseZ,int(source.slope),other.baseZ,int(other.slope),valid,int(uScene.rotation));
+            for(int strip=0;strip<plan.count;strip++) {
+                TerrainEdgeEmission item=terrainEdgeAt(plan,strip);
+                if(uint(item.imageOffset)>=edgeMaterial.edgeCount) continue;
+                emitSprite(tile,item.attached!=0?source.baseZ:item.z,
+                    item.attached!=0?ivec2(0):ivec2(item.x,item.y),item.attached!=0?ivec2(0,item.y):ivec2(0),
+                    edgeMaterial.edgeBase+uint(item.imageOffset),destination,writeRecords,count);
+            }
+        }
+    }
+    if(source.waterHeight>0) {
+        const uint waterShapes[16]=uint[](0,0,0,0,0,0,0,2,0,0,0,3,0,1,4,0);
+        uint shape=source.waterHeight<=source.baseZ+16?waterShapes[relativeSlope&15]:0u;
+        emitSprite(tile,source.waterHeight,ivec2(0),ivec2(0),uCatalog.waterMask[shape],destination,writeRecords,count);
+        emitSprite(tile,source.waterHeight,ivec2(0),ivec2(0),uScene.transparentWater!=0u?uCatalog.waterOverlay[shape]:uCatalog.waterOpaque[shape],destination,writeRecords,count);
+    }
+    return count;
+}
+
+void prefixScan(uint lane)
+{
+    barrier();
+    for(uint offset=1u;offset<BLOCK_WIDTH;offset<<=1u) {
+        for(uint node=lane;node<BLOCK_WIDTH/(offset<<1u);node+=gl_WorkGroupSize.x) {
+            uint right=(node+1u)*(offset<<1u)-1u; sPrefix[right]+=sPrefix[right-offset];
+        }
+        barrier();
+    }
+    if(lane==0u) { sTotal=sPrefix[BLOCK_WIDTH-1u]; sPrefix[BLOCK_WIDTH-1u]=0u; }
+    barrier();
+    for(uint offset=BLOCK_WIDTH>>1u;offset!=0u;offset>>=1u) {
+        for(uint node=lane;node<BLOCK_WIDTH/(offset<<1u);node+=gl_WorkGroupSize.x) {
+            uint right=(node+1u)*(offset<<1u)-1u; uint left=sPrefix[right-offset];
+            sPrefix[right-offset]=sPrefix[right]; sPrefix[right]+=left;
+        }
+        barrier();
+    }
+}
 void main()
 {
-    uint lane = gl_LocalInvocationID.x;
-    uint blockBase = gl_WorkGroupID.x * BLOCK_WIDTH;
-    for (uint localIndex = lane; localIndex < BLOCK_WIDTH; localIndex += gl_WorkGroupSize.x)
-    {
-        OutputRecord ignored;
-        sPrefix[localIndex] = buildRecord(blockBase + localIndex, ignored) ? 1u : 0u;
-    }
-    barrier();
-
-    for (uint offset = 1u; offset < BLOCK_WIDTH; offset <<= 1u)
-    {
-        uint nodeCount = BLOCK_WIDTH / (offset << 1u);
-        for (uint node = lane; node < nodeCount; node += gl_WorkGroupSize.x)
-        {
-            uint right = (node + 1u) * (offset << 1u) - 1u;
-            sPrefix[right] += sPrefix[right - offset];
+    uint lane=gl_LocalInvocationID.x;
+    uint blocks=(uScene.recordCount+BLOCK_WIDTH-1u)/BLOCK_WIDTH;
+    if(uScene.phase==1u) {
+        for(uint i=lane;i<BLOCK_WIDTH;i+=gl_WorkGroupSize.x) sPrefix[i]=i<blocks?uCommands.records[i].instanceCount:0u;
+        prefixScan(lane);
+        bool overflow=sTotal>uScene.outputCapacity;
+        for(uint i=lane;i<blocks;i+=gl_WorkGroupSize.x) {
+            uCommands.records[i].firstInstance=sPrefix[i];
+            if(overflow) uCommands.records[i].instanceCount=0u;
         }
-        barrier();
+        if(lane==0u) { uStatus.emittedCount=sTotal; uStatus.capacity=uScene.outputCapacity; uStatus.overflow=overflow?1u:0u; uStatus.reserved=0u; }
+        return;
     }
-    if (lane == 0u)
-    {
-        sVisibleCount = sPrefix[BLOCK_WIDTH - 1u];
-        sPrefix[BLOCK_WIDTH - 1u] = 0u;
-    }
-    barrier();
-
-    for (uint offset = BLOCK_WIDTH >> 1u; offset != 0u; offset >>= 1u)
-    {
-        uint nodeCount = BLOCK_WIDTH / (offset << 1u);
-        for (uint node = lane; node < nodeCount; node += gl_WorkGroupSize.x)
-        {
-            uint right = (node + 1u) * (offset << 1u) - 1u;
-            uint leftValue = sPrefix[right - offset];
-            sPrefix[right - offset] = sPrefix[right];
-            sPrefix[right] += leftValue;
-        }
-        barrier();
-    }
-
-    for (uint localIndex = lane; localIndex < BLOCK_WIDTH; localIndex += gl_WorkGroupSize.x)
-    {
-        uint orderIndex = blockBase + localIndex;
-        OutputRecord outputRecord;
-        if (buildRecord(orderIndex, outputRecord))
-            uOutputs.records[blockBase + sPrefix[localIndex]] = outputRecord;
-    }
-    if (lane == 0u)
-    {
-        uCommands.records[gl_WorkGroupID.x] = DrawIndirectCommand(4u, sVisibleCount, 0u, blockBase);
+    uint base=gl_WorkGroupID.x*BLOCK_WIDTH;
+    if(uScene.phase==0u) {
+        for(uint i=lane;i<BLOCK_WIDTH;i+=gl_WorkGroupSize.x) sPrefix[i]=visitTile(base+i,0u,false);
+        prefixScan(lane);
+        for(uint i=lane;i<BLOCK_WIDTH && base+i<uScene.recordCount;i+=gl_WorkGroupSize.x) uPrefixes.records[base+i]=sPrefix[i];
+        if(lane==0u) uCommands.records[gl_WorkGroupID.x]=DrawIndirectCommand(4u,sTotal,0u,0u);
+    } else if(uStatus.overflow==0u) {
+        uint destination=uCommands.records[gl_WorkGroupID.x].firstInstance;
+        for(uint i=lane;i<BLOCK_WIDTH && base+i<uScene.recordCount;i+=gl_WorkGroupSize.x)
+            visitTile(base+i,destination+uPrefixes.records[base+i],true);
     }
 }

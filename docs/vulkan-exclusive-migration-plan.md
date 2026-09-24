@@ -2,6 +2,22 @@
 
 ## Current checkpoint
 
+**Immutable GPU terrain checkpoint, build92:** [results and active checklist](vulkan-snapshot-terrain-checkpoint.md). Two matched EverythingPark runs at **4K/VSync, 12,000 measured ticks** reach **358.825–359.958 TPS / 143.919–144.013 application FPS**, with **0.0807–0.0808 ms CPU Draw** and **1.015–1.031 ms GPU**. The corresponding build85 endurance control reaches 322.525 TPS and 0.3804 ms CPU Draw. All runs finish with 17,042 guests and matching entity checksums. Separate uncapped headroom is 423.672 TPS, approximately 388 TPS in the final 3000-tick window; ordinary Turbo remains capped at 360.
+
+- [x] Admit one immutable world generation before window traversal; defer unfinished publication and keep worker/GPU readers away from live simulation state.
+- [x] Remove eight CPU-selected images per tile and legacy tile vectors from the native terrain producer; select surface/edge/water art in shaders.
+- [x] Add native cliff faces and water masks/overlays with batched changed-chunk transfers and asynchronous overflow status.
+- [x] Remove obsolete viewport strip repaint and map-animation raster invalidation; preserve tested state transitions and crowd audio output.
+- [x] Replace the observed long-yield/polling branch with bounded precise waits; retain bounded phase evidence and 3000-tick windows.
+- [x] Pass 72 focused tests with clean validation and complete [manual image inspection](vulkan-snapshot-terrain-visual-review.md).
+- [ ] Resolve remaining water/terrain modes and ordering, then migrate paths/additions, scenery, tracks/supports, entities and effects through the same snapshot boundary.
+- [ ] Qualify physical displayed pacing and residual occasional stalls: final worst application intervals are 28.913 and 9.907 ms; p99 is about 9.1 ms, not a claim of perfect scanout.
+- [ ] Restore auxiliary views, picking, LightFX/HDR fidelity and full pixel/feature parity; finish CPU painter/X8 deletion.
+
+This renderer is intentionally incomplete. General tree/track/vehicle ordering is not qualified while those families are absent. Installed checkpoint52 remains unchanged. The practical performance ceiling is the owner's 360 TPS / 144 FPS EverythingPark goal; higher uncapped performance is diagnostic, not an invitation to optimize academic worst cases.
+
+## Historical checkpoints
+
 **Owner-directed GPU-only architecture experiment (build85 passes):** the viewport CPU column generation, arrangement and drawing path is deleted, not retained as a fallback. Ordinary rendering now publishes no entity copies and skips CPU entity tween preparation. It draws GPU base terrain/background and UI while unsupported world layers are intentionally absent. Two 4K/3000-tick runs reach **355.820 / 355.048 TPS**, versus complete-rendering controls at **67.379 / 67.048 TPS**; CPU Draw falls from **26.677–26.907 ms to 0.363–0.366 ms**. This supersedes world-output parity claims for the current working tree; earlier passing captures below remain historical evidence. The owner explicitly approved incomplete/inaccurate rendering to establish real-park performance first. These omissions are temporary work items, not accepted final parity exceptions.
 
 The loop is now: same real park at 3840×2160, 100 warmup plus at least 3000 measured ticks; preserve simulation/config/camera comparability; capture after timing; have an agent visually inspect; fix visible mistakes and CPU/GPU regressions; port the next layer. [GPU-only experiment and missing layers](vulkan-gpu-only-terrain-experiment.md).

@@ -51,6 +51,10 @@ namespace OpenRCT2::Drawing
         uint64_t captureRequests{};
         uint64_t readbackRequests{};
         uint64_t readbackBytes{};
+        // Asynchronous bounded GPU safety status, distinct from image capture/readback.
+        uint64_t statusReadbackRequests{};
+        uint64_t statusReadbackBytes{};
+        uint64_t worldBufferCopyCalls{};
         uint64_t lostSamples{};
         bool submitted{};
         bool auxiliary{};
@@ -98,6 +102,9 @@ namespace OpenRCT2::Drawing
             attempted.Add(attempted.captureRequests, sample.captureRequests);
             attempted.Add(attempted.readbackRequests, sample.readbackRequests);
             attempted.Add(attempted.readbackBytes, sample.readbackBytes);
+            attempted.Add(attempted.statusReadbackRequests, sample.statusReadbackRequests);
+            attempted.Add(attempted.statusReadbackBytes, sample.statusReadbackBytes);
+            attempted.Add(attempted.worldBufferCopyCalls, sample.worldBufferCopyCalls);
             attempted.Add(attempted.lostSamples, sample.lostSamples);
             attempted.overflow |= sample.overflow;
         }

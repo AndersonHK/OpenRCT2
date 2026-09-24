@@ -17,6 +17,7 @@
 #include <limits>
 #include <memory>
 #include <openrct2/world/MapLimits.h>
+#include <openrct2/world/TerrainPresentation.h>
 #include <optional>
 #include <type_traits>
 #include <vector>
@@ -212,10 +213,33 @@ namespace OpenRCT2::Ui::Gpu
 
     struct WorldSurfaceSourceRecord
     {
-        uint32_t baseZ;
-        uint32_t valid;
-        std::array<uint32_t, 4> detailedSprites;
-        std::array<uint32_t, 4> distantSprites;
+        int32_t baseZ;
+        int32_t waterHeight;
+        uint32_t surfaceSlot;
+        uint32_t edgeSlot;
+        uint32_t slope;
+        uint32_t grass;
+        uint32_t present;
+        uint32_t kind;
+    };
+
+    struct WorldSurfaceMaterial
+    {
+        uint32_t surfaceBase{}, surfaceCount{}, edgeBase{}, edgeCount{};
+        std::array<uint32_t, 9 * 4 * 4> selectors{};
+    };
+
+    struct WorldSurfaceCatalog
+    {
+        std::array<WorldSurfaceMaterial, 255> materials{};
+        std::array<uint32_t, 5> waterMask{}, waterOverlay{}, waterOpaque{};
+        uint32_t reserved{};
+        std::array<Int4, 6> spriteEnvelope{};
+    };
+
+    struct WorldSurfaceStatus
+    {
+        uint32_t emittedCount{}, capacity{}, overflow{}, reserved{};
     };
 
     struct WorldSurfaceSpriteVariant
@@ -419,11 +443,12 @@ namespace OpenRCT2::Ui::Gpu
     static_assert(offsetof(WorldSurfaceRecord, zoom) == 48);
     static_assert(offsetof(WorldSurfaceRecord, coordinateShift) == 52);
     static_assert(std::is_trivially_copyable_v<WorldSurfaceSourceRecord>);
-    static_assert(sizeof(WorldSurfaceSourceRecord) == 40);
-    static_assert(offsetof(WorldSurfaceSourceRecord, baseZ) == 0);
-    static_assert(offsetof(WorldSurfaceSourceRecord, valid) == 4);
-    static_assert(offsetof(WorldSurfaceSourceRecord, detailedSprites) == 8);
-    static_assert(offsetof(WorldSurfaceSourceRecord, distantSprites) == 24);
+    static_assert(sizeof(WorldSurfaceSourceRecord) == 32);
+    static_assert(offsetof(WorldSurfaceSourceRecord, waterHeight) == 4);
+    static_assert(offsetof(WorldSurfaceSourceRecord, present) == 24);
+    static_assert(sizeof(WorldSurfaceMaterial) == 592);
+    static_assert(sizeof(WorldSurfaceCatalog) == 151120);
+    static_assert(sizeof(WorldSurfaceStatus) == 16);
     static_assert(std::is_trivially_copyable_v<WorldSurfaceSpriteVariant>);
     static_assert(sizeof(WorldSurfaceSpriteVariant) == 32);
     static_assert(offsetof(WorldSurfaceSpriteVariant, asset) == 16);
@@ -443,8 +468,9 @@ namespace OpenRCT2::Ui::Gpu
     constexpr uint32_t kWorldSurfaceComputeBlockWidth = 1024;
     constexpr uint32_t kWorldSurfaceMaximumDrawCount = static_cast<uint32_t>(
         (kWorldSurfaceMaximumRecordCount + kWorldSurfaceComputeBlockWidth - 1) / kWorldSurfaceComputeBlockWidth);
-    constexpr uint32_t kWorldSurfaceMaximumSpriteSetCount = 4096;
-    constexpr int32_t kWorldSurfaceDepthCapacity = 1 << 20;
+    constexpr uint32_t kWorldSurfaceMaximumSpriteSetCount = 65536;
+    constexpr uint32_t kWorldSurfaceOutputCapacity = 1u << 20;
+    constexpr int32_t kWorldSurfaceDepthCapacity = kWorldSurfaceOutputCapacity;
     static_assert(kWorldSurfaceMaximumRecordCount < kWorldSurfaceDepthCapacity);
 
     struct WorldSurfaceDepthRange
@@ -460,9 +486,9 @@ namespace OpenRCT2::Ui::Gpu
     {
         constexpr int32_t limit = (1 << 22) - 1;
         if (nextDepth < 0 || nextDepth >= limit || recordCount == 0 || recordCount > kWorldSurfaceMaximumRecordCount
-            || recordCount > static_cast<uint32_t>(limit - nextDepth))
+            || kWorldSurfaceOutputCapacity > static_cast<uint32_t>(limit - nextDepth))
             return std::nullopt;
-        return WorldSurfaceDepthRange{ nextDepth, nextDepth + static_cast<int32_t>(recordCount) };
+        return WorldSurfaceDepthRange{ nextDepth, nextDepth + static_cast<int32_t>(kWorldSurfaceOutputCapacity) };
     }
 
     [[nodiscard]] constexpr bool AreWorldSurfaceComputeLimitsSufficient(
@@ -471,7 +497,7 @@ namespace OpenRCT2::Ui::Gpu
     {
         return multiDrawIndirect && maxInvocations >= kWorldSurfaceComputeLocalSize && maxSizeX >= kWorldSurfaceComputeLocalSize
             && maxGroupCountX >= kWorldSurfaceMaximumDrawCount
-            && maxSharedMemory >= kWorldSurfaceComputeBlockWidth * sizeof(uint32_t);
+            && maxSharedMemory >= (kWorldSurfaceComputeBlockWidth + 1) * sizeof(uint32_t);
     }
 
     [[nodiscard]] constexpr uint32_t GetWorldSurfaceOrderIndex(
@@ -537,6 +563,9 @@ namespace OpenRCT2::Ui::Gpu
     {
         uint64_t revision{};
         std::vector<WorldSurfaceSpriteSet> records;
+        WorldSurfaceCatalog catalog{};
+        std::shared_ptr<const TerrainPresentationMaterials> sourceMaterials;
+        std::shared_ptr<const AtlasAssetLease> residency;
     };
 
     struct WorldSurfaceSceneCommand
@@ -550,6 +579,8 @@ namespace OpenRCT2::Ui::Gpu
         int32_t zoom{};
         int32_t rotation{};
         int32_t depthBase{};
+        uint32_t transparentWater{ 1 };
+        uint32_t outputCapacity{ kWorldSurfaceOutputCapacity };
         std::vector<std::shared_ptr<const WorldSurfaceChunk>> chunks;
         std::shared_ptr<const WorldSurfaceSpriteTable> sprites;
     };

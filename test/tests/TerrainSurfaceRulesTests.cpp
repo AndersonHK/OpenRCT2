@@ -100,3 +100,23 @@ TEST(TerrainSurfaceRulesTest, NonuniformRecipeContainsAdjacentDiscontinuitiesAnd
     EXPECT_EQ(grass.size(), 7u);
     EXPECT_GT(unequalNeighbours, 0u);
 }
+
+namespace FullMapSurfaceRules
+{
+#include "../../data/shaders/vulkan/world_surface_rules.glsl"
+}
+TEST(TerrainSurfaceRulesTest, FullMapShaderSteepCornersMatchAuthoritativeSlopeTable)
+{
+    for (int slope = 0; slope < 32; slope++)
+        for (int rotation = 0; rotation < 4; rotation++)
+        {
+            const int relative = FullMapSurfaceRules::terrainRelativeSlope(slope, rotation) | (slope & 16);
+            const auto expected = OpenRCT2::GetSlopeRelativeCornerHeights(static_cast<uint8_t>(relative));
+            const std::array<int, 4> heights{ expected.top, expected.right, expected.bottom, expected.left };
+            for (int corner = 0; corner < 4; corner++)
+                EXPECT_EQ(FullMapSurfaceRules::worldSurfaceCornerHeight(64, relative, corner), 4 + heights[corner]);
+        }
+    // A real high steep neighbour is never treated as missing minimum-height land.
+    const auto actual = FullMapSurfaceRules::worldSurfacePlanEdge(0, 64, 0, 80, 23, true, 0);
+    EXPECT_EQ(actual.count, 0);
+}

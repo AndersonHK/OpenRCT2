@@ -730,13 +730,14 @@ TEST(VulkanRuntimeIntegrationTest, HiddenWindowExercisesBackendLifecycleAndIndex
     auto surfaceChunk = std::make_shared<Gpu::WorldSurfaceChunk>();
     surfaceChunk->revision = 1;
     surfaceChunk->records[0].baseZ = 0;
-    surfaceChunk->records[0].valid = 1;
-    surfaceChunk->records[0].detailedSprites.fill(0);
-    surfaceChunk->records[0].distantSprites.fill(0);
+    surfaceChunk->records[0].present = 1;
+    surfaceChunk->records[0].kind = 1;
 
     auto surfaceSprites = std::make_shared<Gpu::WorldSurfaceSpriteTable>();
     surfaceSprites->revision = 1;
     surfaceSprites->records.resize(1);
+    surfaceSprites->catalog.materials[0].surfaceCount = 1;
+    surfaceSprites->catalog.spriteEnvelope[2] = { 0, 0, 2, 2 };
     surfaceSprites->records[0].variants[2] = {
         .spriteSize = { 2, 2 },
         .spriteOffset = { 0, 0 },

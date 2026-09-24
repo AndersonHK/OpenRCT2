@@ -58,22 +58,9 @@ namespace OpenRCT2::Ui::Gpu
         {
             uint64_t sourceRevision{};
             std::shared_ptr<const WorldSurfaceChunk> gpu;
-            std::vector<uint32_t> spriteSets;
-        };
-        struct SurfaceSpriteCacheEntry
-        {
-            ImageId image;
-            WorldSurfaceSpriteSet record{};
-        };
-        struct ImageIdHash
-        {
-            [[nodiscard]] size_t operator()(const ImageId& image) const noexcept;
         };
         std::vector<PublishedSurfaceChunk> _surfaceChunks;
-        std::vector<SurfaceSpriteCacheEntry> _surfaceSpriteCache;
-        std::unordered_map<ImageId, uint32_t, ImageIdHash> _surfaceSpriteLookup;
         std::shared_ptr<const WorldSurfaceSpriteTable> _publishedSurfaceSprites;
-        std::shared_ptr<const AtlasAssetLease> _surfaceAssetLease;
         uint64_t _nextSurfaceSpriteRevision{};
         uint64_t _surfaceWorldEpoch{};
         uint32_t _surfaceWidth{};
@@ -139,7 +126,6 @@ namespace OpenRCT2::Ui::Gpu
             const OrthographicCamera& camera) override;
 
     private:
-        [[nodiscard]] uint32_t GetOrCreateSurfaceSpriteSet(ImageId image);
         [[nodiscard]] WorldSurfaceSpriteSet ResolveSurfaceSpriteSet(
             ImageId image, std::vector<uint64_t>* residencies = nullptr, std::vector<uint32_t>* dependencies = nullptr);
         RectCommand& AppendRect(CommandBatch<RectCommand>& batch, const ScreenRect& clip, Int4 bounds, float zoom = 1.0f);

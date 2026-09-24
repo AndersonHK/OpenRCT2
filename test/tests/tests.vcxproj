@@ -124,6 +124,7 @@
     <ClCompile Include="VulkanRetainedTerrainEmissionTests.cpp" />
     <ClCompile Include="VulkanRetainedTerrainDrawTests.cpp" />
     <ClCompile Include="VulkanNativePeepSceneTests.cpp" />
+    <ClCompile Include="VulkanWorldSurfaceLayerTests.cpp" />
     <ClCompile Include="VulkanTerrainCompletionTests.cpp" />
     <ClCompile Include="SpriteAssetDecoderTests.cpp" />
     <ClCompile Include="LanguagePackTest.cpp" />

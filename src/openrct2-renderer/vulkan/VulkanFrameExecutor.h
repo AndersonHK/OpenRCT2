@@ -10,11 +10,11 @@
 #pragma once
 #ifdef ENABLE_VULKAN
     #include "VulkanBalloonPipeline.h"
-    #include "VulkanTerrainDrawPipeline.h"
     #include "VulkanLightFxPipeline.h"
     #include "VulkanLinePipeline.h"
     #include "VulkanRectPipeline.h"
     #include "VulkanResources.h"
+    #include "VulkanTerrainDrawPipeline.h"
     #include "VulkanTransparencyPipeline.h"
     #include "VulkanWeatherPipeline.h"
     #include "VulkanWorldSurfacePipeline.h"
@@ -49,6 +49,7 @@ namespace OpenRCT2::Ui::Vulkan
             UploadRing* ring{};
             UploadAllocation allocation{};
             uint32_t viewport{}, columns{};
+            bool worldSurface{};
         };
         std::vector<std::vector<PendingTerrainStatus>> _terrainStatuses;
         std::string _terrainFailure; // Terminal for this executor generation.
@@ -103,7 +104,10 @@ namespace OpenRCT2::Ui::Vulkan
         FrameOutput Record(
             const SubmissionToken& token, const Gpu::FrameCommandStream& commands, uint8_t clearIndex = 0,
             std::span<const std::byte> initialIndices = {}, const std::function<void(GpuTimestampPoint)>& timestamp = {});
-        Gpu::TerrainUploadStats GetTerrainUploadStats() const noexcept { return _terrainUploads; }
+        Gpu::TerrainUploadStats GetTerrainUploadStats() const noexcept
+        {
+            return _terrainUploads;
+        }
         Gpu::BalloonUploadStats GetBalloonUploadStats() const noexcept
         {
             return _balloonPipeline.GetUploadStats();
@@ -121,6 +125,7 @@ namespace OpenRCT2::Ui::Vulkan
             std::span<const std::byte> source, const char* errorMessage,
             Drawing::UploadCategory category = Drawing::UploadCategory::lookup);
         void RecordTerrainStatus(const SubmissionToken& token, const Gpu::Terrain::DrawCamera& camera);
+        void RecordWorldSurfaceStatus(const SubmissionToken& token);
         void RecordPendingPalette();
         void RecordPendingIndexTable(std::span<const std::byte> indices, bool& dirty, bool blend);
         void RecordPendingLightFalloffs();

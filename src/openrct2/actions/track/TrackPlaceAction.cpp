@@ -24,7 +24,6 @@
 #include "../../world/ConstructionClearance.h"
 #include "../../world/Footpath.h"
 #include "../../world/Map.h"
-#include "../../world/MapAnimation.h"
 #include "../../world/QuarterTile.h"
 #include "../../world/Wall.h"
 #include "../../world/tile_element/PathElement.h"
@@ -587,12 +586,6 @@ namespace OpenRCT2::GameActions
 
             switch (_trackType)
             {
-                case TrackElemType::waterfall:
-                case TrackElemType::rapids:
-                case TrackElemType::whirlpool:
-                case TrackElemType::spinningTunnel:
-                    MapAnimations::MarkTileForInvalidation(TileCoordsXY(mapLoc));
-                    break;
                 case TrackElemType::brakes:
                 case TrackElemType::diagBrakes:
                     trackElement->setBrakeClosed(true);

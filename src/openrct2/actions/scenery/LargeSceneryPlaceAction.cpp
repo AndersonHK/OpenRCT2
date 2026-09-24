@@ -23,7 +23,6 @@
 #include "../../world/ConstructionClearance.h"
 #include "../../world/Footpath.h"
 #include "../../world/Map.h"
-#include "../../world/MapAnimation.h"
 #include "../../world/QuarterTile.h"
 #include "../../world/Wall.h"
 #include "../../world/tile_element/LargeSceneryElement.h"
@@ -304,8 +303,6 @@ namespace OpenRCT2::GameActions
                         newSceneryElement.setBannerIndex(banner->id);
                 });
             Guard::Assert(newSceneryElement != nullptr);
-
-            MapAnimations::MarkTileForInvalidation(TileCoordsXY(curTile));
 
             if (tile.index == 0)
             {

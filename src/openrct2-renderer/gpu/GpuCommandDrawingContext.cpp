@@ -15,6 +15,7 @@
 #include <cstring>
 #include <openrct2/Context.h>
 #include <openrct2/SpriteIds.h>
+#include <openrct2/config/Config.h>
 #include <openrct2/core/EnumUtils.hpp>
 #include <openrct2/drawing/Drawing.Sprite.h>
 #include <openrct2/drawing/Drawing.String.h>
@@ -25,6 +26,7 @@
 #include <openrct2/drawing/TTF.h>
 #include <openrct2/entity/EntityPresentationSnapshot.h>
 #include <openrct2/object/ObjectManager.h>
+#include <openrct2/paint/tile_element/Paint.Surface.h>
 #include <openrct2/world/Location.hpp>
 #include <openrct2/world/MapPresentationSnapshot.h>
 #include <ranges>
@@ -551,31 +553,6 @@ namespace OpenRCT2::Ui::Gpu
 #endif
     }
 
-    size_t CommandDrawingContext::ImageIdHash::operator()(const ImageId& image) const noexcept
-    {
-        size_t result = image.GetIndex();
-        const auto combine = [&result](const size_t value) { result ^= value + 0x9e3779b9 + (result << 6) + (result >> 2); };
-        combine(static_cast<uint8_t>(image.GetPrimary()));
-        combine(static_cast<uint8_t>(image.GetSecondary()));
-        combine(static_cast<uint8_t>(image.GetTertiary()));
-        combine(image.HasPrimary());
-        combine(image.HasSecondary());
-        combine(image.IsBlended());
-        return result;
-    }
-
-    uint32_t CommandDrawingContext::GetOrCreateSurfaceSpriteSet(const ImageId image)
-    {
-        if (const auto existing = _surfaceSpriteLookup.find(image); existing != _surfaceSpriteLookup.end())
-            return existing->second;
-        if (_surfaceSpriteCache.size() >= kWorldSurfaceMaximumSpriteSetCount)
-            return std::numeric_limits<uint32_t>::max();
-        const auto index = static_cast<uint32_t>(_surfaceSpriteCache.size());
-        _surfaceSpriteCache.push_back({ .image = image });
-        _surfaceSpriteLookup.emplace(image, index);
-        return index;
-    }
-
     WorldSurfaceSpriteSet CommandDrawingContext::ResolveSurfaceSpriteSet(
         const ImageId image, std::vector<uint64_t>* residencies, std::vector<uint32_t>* dependencies)
     {
@@ -897,13 +874,9 @@ namespace OpenRCT2::Ui::Gpu
             _surfaceWidth = scene.width;
             _surfaceHeight = scene.height;
             _surfaceChunks.clear();
-            _surfaceSpriteCache.clear();
-            _surfaceSpriteLookup.clear();
             _publishedSurfaceSprites.reset();
-            _surfaceAssetLease.reset();
         }
 
-        bool surfaceMembershipChanged = false;
         const auto& sourceChunks = generation->map->GetSurfaceChunks();
         _surfaceChunks.resize(sourceChunks.size());
         scene.chunks.resize(sourceChunks.size());
@@ -911,114 +884,106 @@ namespace OpenRCT2::Ui::Gpu
         {
             const auto& source = sourceChunks[chunkIndex];
             if (source == nullptr)
+                throw std::runtime_error("GPU terrain publication has an absent surface chunk");
+            auto& published = _surfaceChunks[chunkIndex];
+            if (published.sourceRevision != source->revision || published.gpu == nullptr)
             {
-                if (terrainOnly)
-                    throw std::runtime_error("GPU-only terrain publication has an absent surface chunk");
-                continue;
-            }
-            auto& publishedChunk = _surfaceChunks[chunkIndex];
-            if (publishedChunk.sourceRevision != source->revision || publishedChunk.gpu == nullptr)
-            {
-                surfaceMembershipChanged = true;
                 auto converted = std::make_shared<WorldSurfaceChunk>();
                 converted->revision = source->revision;
-                publishedChunk.spriteSets.clear();
-                for (size_t localIndex = 0; localIndex < source->records.size(); localIndex++)
+                for (size_t i = 0; i < source->records.size(); i++)
                 {
-                    const size_t tileIndex = chunkIndex * kWorldSurfaceChunkWidth + localIndex;
-                    if (tileIndex >= scene.recordCount)
-                        break;
-                    const auto& input = source->records[localIndex];
-                    auto& output = converted->records[localIndex];
-                    output.baseZ = input.baseZ;
-                    // TileElementPaintSetup paints the declared map's border with
-                    // BlankTilesPaint, not its stored surface. Preserve dense
-                    // snapshot indices. The partial GPU-only path intentionally omits this border.
-                    const auto tileX = tileIndex % scene.width;
-                    const auto tileY = tileIndex / scene.width;
-                    output.valid = input.valid && tileX > 0 && tileY > 0 && tileX + 1 < scene.width && tileY + 1 < scene.height;
-                    if (!output.valid)
-                        continue;
-                    for (size_t rotation = 0; rotation < SurfacePresentationRecord::kRotationCount; rotation++)
-                    {
-                        output.detailedSprites[rotation] = GetOrCreateSurfaceSpriteSet(input.detailedImages[rotation]);
-                        output.distantSprites[rotation] = GetOrCreateSurfaceSpriteSet(input.distantImages[rotation]);
-                        if (output.detailedSprites[rotation] == std::numeric_limits<uint32_t>::max()
-                            || output.distantSprites[rotation] == std::numeric_limits<uint32_t>::max())
-                        {
-                            _commands->worldSurfaces.reset();
-                            if (terrainOnly)
-                                throw std::overflow_error("GPU-only terrain sprite catalog capacity exceeded");
-                            return false;
-                        }
-                        publishedChunk.spriteSets.push_back(output.detailedSprites[rotation]);
-                        publishedChunk.spriteSets.push_back(output.distantSprites[rotation]);
-                    }
+                    const auto& raw = source->records[i].terrain;
+                    converted->records[i] = { raw.baseZ, raw.waterHeight, raw.surfaceSlot, raw.edgeSlot,
+                                              raw.slope, raw.grass,       raw.present,     raw.kind };
                 }
-                std::ranges::sort(publishedChunk.spriteSets);
-                publishedChunk.spriteSets.erase(
-                    std::unique(publishedChunk.spriteSets.begin(), publishedChunk.spriteSets.end()),
-                    publishedChunk.spriteSets.end());
-                publishedChunk.sourceRevision = source->revision;
-                publishedChunk.gpu = std::move(converted);
+                // Only dirty publications are compared. Track-only mutations need no surface transfer.
+                if (!published.gpu
+                    || std::memcmp(
+                           published.gpu->records.data(), converted->records.data(),
+                           converted->records.size() * sizeof(WorldSurfaceSourceRecord))
+                        != 0)
+                    published.gpu = std::move(converted);
+                published.sourceRevision = source->revision;
             }
-            scene.chunks[chunkIndex] = publishedChunk.gpu;
+            scene.chunks[chunkIndex] = published.gpu;
         }
 
-        // A retained asset lease validates every dependency and binds the atlas generation in O(1).
-        // Rebuild only after tile membership changes or an actual image invalidation. Unchanged frames
-        // neither walk active sprite sets nor repeat six zoom resolutions for every terrain image.
-        const bool reuseAssets = terrainOnly && !surfaceMembershipChanged && _publishedSurfaceSprites
-            && _textureCache.TryBindAssetLease(_surfaceAssetLease);
-        if (!reuseAssets)
+        const auto materials = generation->map->GetTerrainMaterials();
+        if (!materials)
+            throw std::runtime_error("GPU terrain material generation is absent");
+        if (!_publishedSurfaceSprites || _publishedSurfaceSprites->sourceMaterials != materials || !terrainOnly
+            || !_textureCache.TryBindAssetLease(_publishedSurfaceSprites->residency))
         {
-            // A failed catalog refresh must not allow the previous lease to validate new chunk references on retry.
-            _surfaceAssetLease.reset();
-            std::vector<bool> activeSpriteSets(_surfaceSpriteCache.size());
-            for (const auto& chunk : _surfaceChunks)
-                for (const auto spriteSet : chunk.spriteSets)
-                    activeSpriteSets[spriteSet] = true;
-            bool spriteTableChanged = _publishedSurfaceSprites == nullptr
-                || _publishedSurfaceSprites->records.size() != _surfaceSpriteCache.size();
+            if (materials->revision != GetTerrainObjectRevision())
+                throw std::runtime_error("GPU terrain cannot resolve a retired material generation");
+            auto table = std::make_shared<WorldSurfaceSpriteTable>();
+            table->revision = ++_nextSurfaceSpriteRevision;
+            table->sourceMaterials = materials;
             std::vector<uint64_t> residencies;
             std::vector<uint32_t> dependencies;
-            for (size_t index = 0; index < _surfaceSpriteCache.size(); index++)
-            {
-                if (!activeSpriteSets[index])
-                    continue;
-                const auto resolved = ResolveSurfaceSpriteSet(
-                    _surfaceSpriteCache[index].image, terrainOnly ? &residencies : nullptr,
-                    terrainOnly ? &dependencies : nullptr);
-                if (std::memcmp(&resolved, &_surfaceSpriteCache[index].record, sizeof(resolved)) != 0)
+            const auto append = [&](ImageId image) {
+                if (table->records.size() >= kWorldSurfaceMaximumSpriteSetCount)
+                    throw std::overflow_error("GPU terrain material sprite capacity exceeded");
+                const auto index = static_cast<uint32_t>(table->records.size());
+                table->records.push_back(ResolveSurfaceSpriteSet(
+                    image, terrainOnly ? &residencies : nullptr, terrainOnly ? &dependencies : nullptr));
+                for (size_t zoom = 0; zoom < kWorldSurfaceZoomCount; zoom++)
                 {
-                    _surfaceSpriteCache[index].record = resolved;
-                    spriteTableChanged = true;
+                    const auto& sprite = table->records.back().variants[zoom];
+                    if (!sprite.valid)
+                        continue;
+                    const auto scale = [z = sprite.zoom](int32_t value) { return z >= 0 ? value >> z : value * (1 << -z); };
+                    auto& bounds = table->catalog.spriteEnvelope[zoom];
+                    bounds.x = std::min(bounds.x, scale(sprite.spriteOffset.x) - 2);
+                    bounds.y = std::min(bounds.y, scale(sprite.spriteOffset.y) - 2);
+                    bounds.z = std::max(bounds.z, scale(sprite.spriteOffset.x + sprite.spriteSize.x) + 3);
+                    bounds.w = std::max(bounds.w, scale(sprite.spriteOffset.y + sprite.spriteSize.y) + 3);
+                }
+                return index;
+            };
+            for (size_t slot = 0; slot < materials->surfaces.size(); slot++)
+            {
+                auto& target = table->catalog.materials[slot];
+                const auto& surface = materials->surfaces[slot];
+                if (surface.supported)
+                {
+                    target.surfaceBase = static_cast<uint32_t>(table->records.size());
+                    target.surfaceCount = surface.imageCount;
+                    target.selectors = surface.selectors;
+                    for (uint32_t image = 0; image < surface.imageCount; image++)
+                        append(ImageId(surface.imageBase + image));
+                }
+                const auto& edge = materials->edges[slot];
+                if (edge.supported)
+                {
+                    target.edgeBase = static_cast<uint32_t>(table->records.size());
+                    target.edgeCount = edge.imageCount;
+                    for (uint32_t image = 0; image < edge.imageCount; image++)
+                        append(ImageId(edge.imageBase + image));
                 }
             }
+            for (uint32_t shape = 0; shape < 5; shape++)
+            {
+                // The water mask contains filter-row offsets, not ordinary remapped colours.
+                table->catalog.waterMask[shape] = append(ImageId(SPR_WATER_MASK + shape));
+                table->records.back().effects |= 1u << 8;
+                table->records.back().palettes = TextureCache::PaletteToY(FilterPaletteID::paletteWater);
+                table->catalog.waterOverlay[shape] = append(ImageId(SPR_WATER_OVERLAY + shape));
+                table->records.back().effects |= 1u << 9;
+                table->catalog.waterOpaque[shape] = append(ImageId(SPR_G2_OPAQUE_WATER_OVERLAY + shape));
+                table->records.back().effects |= 1u << 9;
+            }
             if (_surfaceUsesZeroCoverage)
-            {
-                _commands->worldSurfaces.reset();
-                if (terrainOnly)
-                    throw std::runtime_error("GPU-only terrain does not support explicit covered-zero sprites");
-                return false;
-            }
-            if (spriteTableChanged)
-            {
-                auto table = std::make_shared<WorldSurfaceSpriteTable>();
-                table->revision = ++_nextSurfaceSpriteRevision;
-                table->records.reserve(_surfaceSpriteCache.size());
-                for (const auto& entry : _surfaceSpriteCache)
-                    table->records.push_back(entry.record);
-                _publishedSurfaceSprites = std::move(table);
-            }
+                throw std::runtime_error("GPU terrain material has unsupported covered-zero pixels");
             if (terrainOnly)
             {
-                auto lease = _textureCache.CreateAssetLease(residencies, dependencies);
-                if (!_textureCache.TryBindAssetLease(lease))
-                    throw std::runtime_error("GPU-only terrain atlas generation became invalid during preparation");
-                _surfaceAssetLease = std::move(lease);
+                table->residency = _textureCache.CreateAssetLease(residencies, dependencies);
+                if (!_textureCache.TryBindAssetLease(table->residency))
+                    throw std::runtime_error("GPU terrain atlas generation invalidated during preparation");
             }
+            _publishedSurfaceSprites = std::move(table);
         }
+        scene.transparentWater = Config::Get().general.transparentWater ? 1u : 0u;
         scene.sprites = _publishedSurfaceSprites;
         const auto depthRange = GetWorldSurfaceDepthRange(_drawCount, scene.recordCount);
         if (scene.sprites == nullptr || !depthRange.has_value())

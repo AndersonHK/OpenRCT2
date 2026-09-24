@@ -342,187 +342,14 @@ namespace OpenRCT2
         return { pos, height };
     }
 
-    /*
-     *  rct2: 0x006E7FF3
-     */
-    static void ViewportRedrawAfterShift(
-        RenderTarget& rt, WindowBase* window, const WindowBase* originalWindow, const ScreenCoordsXY shift,
-        const ScreenRect& drawRect)
+    static void ViewportMove(const ScreenCoordsXY& coords, Viewport* viewport)
     {
-        // sub-divide by intersecting windows
-        if (window != nullptr)
-        {
-            // skip current window and non-intersecting windows
-            if (window == originalWindow || drawRect.getRight() <= window->windowPos.x
-                || drawRect.getLeft() >= window->windowPos.x + window->width || drawRect.getBottom() <= window->windowPos.y
-                || drawRect.getTop() >= window->windowPos.y + window->height)
-            {
-                auto itWindowPos = WindowGetIterator(window);
-                // Get next valid window after.
-                auto itNextWindow = [&]() {
-                    auto itNext = std::next(itWindowPos);
-                    while (itNext != gWindowList.end() && (itNext->get()->flags.has(WindowFlag::dead)))
-                    {
-                        ++itNext;
-                    }
-                    return itNext;
-                }();
-                ViewportRedrawAfterShift(
-                    rt, itNextWindow == gWindowList.end() ? nullptr : itNextWindow->get(), originalWindow, shift, drawRect);
-                return;
-            }
-
-            if (drawRect.getLeft() < window->windowPos.x)
-            {
-                ScreenRect leftRect = { drawRect.point1, { window->windowPos.x, drawRect.getBottom() } };
-                ViewportRedrawAfterShift(rt, window, originalWindow, shift, leftRect);
-
-                ScreenRect rightRect = { { window->windowPos.x, drawRect.getTop() }, drawRect.point2 };
-                ViewportRedrawAfterShift(rt, window, originalWindow, shift, rightRect);
-            }
-            else if (drawRect.getRight() > window->windowPos.x + window->width)
-            {
-                ScreenRect leftRect = { drawRect.point1, { window->windowPos.x + window->width, drawRect.getBottom() } };
-                ViewportRedrawAfterShift(rt, window, originalWindow, shift, leftRect);
-
-                ScreenRect rightRect = { { window->windowPos.x + window->width, drawRect.getTop() }, drawRect.point2 };
-                ViewportRedrawAfterShift(rt, window, originalWindow, shift, rightRect);
-            }
-            else if (drawRect.getTop() < window->windowPos.y)
-            {
-                ScreenRect topRect = { drawRect.point1, { drawRect.getRight(), window->windowPos.y } };
-                ViewportRedrawAfterShift(rt, window, originalWindow, shift, topRect);
-
-                ScreenRect bottomRect = { { drawRect.getLeft(), window->windowPos.y }, drawRect.point2 };
-                ViewportRedrawAfterShift(rt, window, originalWindow, shift, bottomRect);
-            }
-            else if (drawRect.getBottom() > window->windowPos.y + window->height)
-            {
-                ScreenRect topRect = { drawRect.point1, { drawRect.getRight(), window->windowPos.y + window->height } };
-                ViewportRedrawAfterShift(rt, window, originalWindow, shift, topRect);
-
-                ScreenRect bottomRect = { { drawRect.getLeft(), window->windowPos.y + window->height }, drawRect.point2 };
-                ViewportRedrawAfterShift(rt, window, originalWindow, shift, bottomRect);
-            }
-        }
-        else
-        {
-            auto left = drawRect.getLeft();
-            auto right = drawRect.getRight();
-            auto top = drawRect.getTop();
-            auto bottom = drawRect.getBottom();
-
-            // if moved more than the draw rectangle size
-            if (abs(shift.x) < drawRect.getWidth() && abs(shift.y) < drawRect.getHeight())
-            {
-                // update whole block ?
-                DrawingEngineCopyRect(
-                    drawRect.getLeft(), drawRect.getTop(), drawRect.getWidth(), drawRect.getHeight(), shift.x, shift.y);
-
-                if (shift.x > 0)
-                {
-                    // draw left
-                    auto _right = left + shift.x;
-                    WindowDrawAll(rt, left, top, _right, bottom);
-                    left += shift.x;
-                }
-                else if (shift.x < 0)
-                {
-                    // draw right
-                    auto _left = right + shift.x;
-                    WindowDrawAll(rt, _left, top, right, bottom);
-                    right += shift.x;
-                }
-
-                if (shift.y > 0)
-                {
-                    // draw top
-                    bottom = top + shift.y;
-                    WindowDrawAll(rt, left, top, right, bottom);
-                }
-                else if (shift.y < 0)
-                {
-                    // draw bottom
-                    top = bottom + shift.y;
-                    WindowDrawAll(rt, left, top, right, bottom);
-                }
-            }
-            else
-            {
-                // redraw whole draw rectangle
-                WindowDrawAll(rt, left, top, right, bottom);
-            }
-        }
-    }
-
-    static void ViewportShiftPixels(
-        RenderTarget& rt, WindowBase* window, const ScreenRect& drawRect, const ScreenCoordsXY& shift)
-    {
-        // This loop redraws all parts covered by transparent windows.
-        auto it = WindowGetIterator(window);
-        for (; it != gWindowList.end(); it++)
-        {
-            auto w = it->get();
-            if (!w->flags.has(WindowFlag::transparent) || w->flags.has(WindowFlag::dead))
-                continue;
-            if (w->viewport == window->viewport)
-                continue;
-
-            if (drawRect.getRight() <= w->windowPos.x)
-                continue;
-            if (w->windowPos.x + w->width <= drawRect.getLeft())
-                continue;
-
-            if (drawRect.getBottom() <= w->windowPos.y)
-                continue;
-            if (w->windowPos.y + w->height <= drawRect.getTop())
-                continue;
-
-            const int32_t left = std::max(w->windowPos.x, drawRect.getLeft());
-            const int32_t right = std::min(w->windowPos.x + w->width, drawRect.getRight());
-            const int32_t top = std::max(w->windowPos.y, drawRect.getTop());
-            const int32_t bottom = std::min(w->windowPos.y + w->height, drawRect.getBottom());
-
-            if (left >= right || top >= bottom)
-                continue;
-
-            WindowDrawAll(rt, left, top, right, bottom);
-        }
-
-        ViewportRedrawAfterShift(rt, window, window, shift, drawRect);
-    }
-
-    static void ViewportMove(const ScreenCoordsXY& coords, WindowBase* w, Viewport* viewport)
-    {
-        // Note: do not do the subtraction and then divide!
-        // Note: Due to arithmetic shift != /zoom a shift will have to be used
-        // hopefully when 0x006E7FF3 is finished this can be converted to /zoom.
-        auto x_diff = viewport->zoom.ApplyInversedTo(viewport->viewPos.x) - viewport->zoom.ApplyInversedTo(coords.x);
-        auto y_diff = viewport->zoom.ApplyInversedTo(viewport->viewPos.y) - viewport->zoom.ApplyInversedTo(coords.y);
-
+        if (viewport->viewPos == coords)
+            return;
         viewport->viewPos = coords;
-
-        // If no change in viewing area
-        if ((!x_diff) && (!y_diff))
-            return;
-
-        const int32_t left = std::max(viewport->pos.x, 0);
-        const int32_t top = std::max(viewport->pos.y, 0);
-        const int32_t right = std::min(left + viewport->width + std::min(viewport->pos.x, 0), ContextGetWidth());
-        const int32_t bottom = std::min(top + viewport->height + std::min(viewport->pos.y, 0), ContextGetHeight());
-
-        if (left >= right || top >= bottom)
-            return;
-
-        if (DrawingEngineHasDirtyOptimisations())
-        {
-            RenderTarget& rt = DrawingEngineGetRT();
-            ViewportShiftPixels(rt, w, { left, top, right, bottom }, { x_diff, y_diff });
-        }
-        else
-        {
-            Drawing::GfxInvalidateScreen();
-        }
+        // Camera motion changes a global parameter. Every GPU frame redraws the world;
+        // there are no pixel shifts, exposed strips or provisional paint callbacks.
+        Drawing::GfxInvalidateScreen();
     }
 
     // rct2: 0x006E7A15
@@ -653,7 +480,7 @@ namespace OpenRCT2
             windowCoords.y += viewport->viewPos.y;
         }
 
-        ViewportMove(windowCoords, window, viewport);
+        ViewportMove(windowCoords, viewport);
     }
 
     void ViewportUpdateFollowSprite(WindowBase* window)
@@ -677,7 +504,7 @@ namespace OpenRCT2
             if (centreLoc.has_value())
             {
                 window->savedViewPos = *centreLoc;
-                ViewportMove(*centreLoc, window, window->viewport);
+                ViewportMove(*centreLoc, window->viewport);
             }
         }
     }
@@ -899,22 +726,25 @@ namespace OpenRCT2
         auto& gameState = getGameState();
         auto& jobs = GetContext()->GetJobPool();
 
-        // Construction ghosts and inspector edits are short-lived map mutations. Publish them synchronously through the same
-        // immutable boundary as an ordinary frame; transient state never selects a different renderer or ownership model.
-        // The track-design placer clears gMapSelectFlags before creating its provisional ride, so its active tool is an
-        // additional explicit transient-state signal.
+        // Legacy diagnostics may request an immediate edit snapshot. Native terrain always
+        // queues owned changes and admits them at a later frame boundary without waiting.
         const bool requiresSynchronousMapPublication = !gMapSelectFlags.isEmpty()
             || TileInspector::GetSelectedElement() != nullptr || isToolActive(WindowClass::trackDesignPlace);
         const auto* engine = GetContext()->GetDrawingEngine();
         const auto profile = engine == nullptr ? EntityPublicationProfile::gpuTerrainOnly
                                                : engine->GetEntityPublicationProfile();
-        auto catalog = GetContext()->GetObjectManager().GetPeepAnimationCatalog();
+        const bool needsPeepCatalog = profile == EntityPublicationProfile::nativePeeps
+            || profile == EntityPublicationProfile::retainedPeepsAndBalloons;
+        auto catalog = needsPeepCatalog ? GetContext()->GetObjectManager().GetPeepAnimationCatalog() : nullptr;
         if (GetPresentationScene().BeginFrame(
-                jobs, gameState.entities, gCurrentDrawCount, requiresSynchronousMapPublication, profile, std::move(catalog)))
+                jobs, gameState.entities, gCurrentDrawCount, requiresSynchronousMapPublication, profile, catalog))
         {
             // UI invalidation does not choose another world rendering path.
             GfxInvalidateScreen();
         }
+        // Capture the next immutable state at this same owner boundary. Its worker
+        // may finish during painting, but only the next frame may publish it.
+        GetPresentationScene().ScheduleNext(jobs, gameState.entities, std::move(catalog));
     }
 
     std::shared_ptr<const PresentationGeneration> ViewportGetPresentationGeneration()
@@ -948,8 +778,6 @@ namespace OpenRCT2
         // The viewport has one world renderer. Missing GPU families deliberately remain absent while
         // this replacement is built; there is no CPU paint-session generation, ordering or fallback.
         const bool mainPresentation = rt.DrawingEngine == GetContext()->GetDrawingEngine();
-        if (mainPresentation)
-            ViewportBeginPresentationFrame();
         auto& presentation = GetPresentationScene();
         const auto generation = mainPresentation ? presentation.GetGeneration() : nullptr;
         const bool terrainOnly = generation && generation->entities && generation->entities->IsTerrainOnly();
@@ -1009,10 +837,6 @@ namespace OpenRCT2
         }
         // Independent auxiliary world capture is not migrated in this partial checkpoint. Its target
         // remains empty rather than invoking the retired CPU painter or borrowing stale main-world data.
-        if (mainPresentation)
-            presentation.ScheduleNext(
-                GetContext()->GetJobPool(), getGameState().entities,
-                GetContext()->GetObjectManager().GetPeepAnimationCatalog());
     }
 
     /**

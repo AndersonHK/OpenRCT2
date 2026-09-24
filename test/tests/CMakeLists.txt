@@ -36,6 +36,7 @@ set(test_files
    "${CMAKE_CURRENT_SOURCE_DIR}/VulkanRetainedTerrainEmissionTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/VulkanRetainedTerrainDrawTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/VulkanNativePeepSceneTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/VulkanWorldSurfaceLayerTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/VulkanTerrainCompletionTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/SpriteAssetDecoderTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/AssetMetadataCorpusParityTests.cpp"

@@ -34,6 +34,11 @@ namespace OpenRCT2::Ui::Vulkan
         std::array<VkFramebuffer, kFramesInFlight> _framebuffers{};
         Buffer _sourceRecords;
         Buffer _spriteSets;
+        Buffer _catalog;
+        Buffer _prefixes;
+        Buffer _status;
+        Image _landBackground;
+        std::array<VkImage, kFramesInFlight> _indexedImages{};
         Buffer _visibleRecords;
         Buffer _indirectCommands;
         std::vector<uint64_t> _uploadedRevisions;
@@ -55,6 +60,10 @@ namespace OpenRCT2::Ui::Vulkan
         void Dispose();
         void Record(const SubmissionToken& frame, const Gpu::WorldSurfaceSceneCommand& scene);
         void DiscardPendingUploads() noexcept;
+        [[nodiscard]] const Buffer& GetStatusBuffer() const noexcept
+        {
+            return _status;
+        }
 
     private:
         void CreateDescriptors(const IndexedResources& resources);

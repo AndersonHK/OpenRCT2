@@ -128,8 +128,39 @@ namespace OpenRCT2::Ui::Vulkan
             VK_PIPELINE_STAGE_HOST_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &statusReady, 0, nullptr, 0, nullptr);
         if (token.telemetry != nullptr)
         {
-            token.telemetry->readbackRequests++;
-            token.telemetry->readbackBytes += allocation.size;
+            token.telemetry->statusReadbackRequests++;
+            token.telemetry->statusReadbackBytes += allocation.size;
+        }
+    }
+
+    void FrameExecutor::RecordWorldSurfaceStatus(const SubmissionToken& token)
+    {
+        // One safety word per complete world submission, retired by its existing fence.
+        // No image download, owner-thread wait, or per-object operation is involved.
+        auto allocation = token.upload->Allocate(sizeof(uint32_t), alignof(uint32_t));
+        if (!allocation)
+            throw std::runtime_error("Vulkan upload ring has no room for world completion status");
+        _terrainStatuses.at(token.frameIndex).push_back({ token.upload, allocation, 0, 1, true });
+        const VkMemoryBarrier ready{ .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+                                     .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
+                                     .dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT };
+        vkCmdPipelineBarrier(
+            token.commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 1, &ready, 0, nullptr,
+            0, nullptr);
+        // WorldSurfaceStatus: emittedCount, capacity, overflow, reserved.
+        const VkBufferCopy copy{ 2 * sizeof(uint32_t), allocation.offset, sizeof(uint32_t) };
+        vkCmdCopyBuffer(token.commandBuffer, _worldSurfacePipeline.GetStatusBuffer().GetBuffer(), allocation.buffer, 1, &copy);
+        const VkMemoryBarrier visible{ .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+                                       .srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT,
+                                       .dstAccessMask = VK_ACCESS_HOST_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT };
+        vkCmdPipelineBarrier(
+            token.commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_HOST_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &visible, 0, nullptr, 0, nullptr);
+        _terrainUploads.statusReadbackBytes += sizeof(uint32_t);
+        if (token.telemetry != nullptr)
+        {
+            token.telemetry->statusReadbackRequests++;
+            token.telemetry->statusReadbackBytes += sizeof(uint32_t);
         }
     }
 
@@ -148,9 +179,11 @@ namespace OpenRCT2::Ui::Vulkan
                 uint32_t error{};
                 std::memcpy(&error, status.allocation.data + column * sizeof(error), sizeof(error));
                 if (error != 0 && _terrainFailure.empty())
-                    _terrainFailure = "Vulkan retained terrain GPU failure: slot=" + std::to_string(frameIndex)
-                        + " viewport=" + std::to_string(status.viewport) + " column=" + std::to_string(column)
-                        + " error=" + std::to_string(error);
+                    _terrainFailure = std::string(
+                                          status.worldSurface ? "Vulkan world output overflow: slot="
+                                                              : "Vulkan retained terrain GPU failure: slot=")
+                        + std::to_string(frameIndex) + " viewport=" + std::to_string(status.viewport)
+                        + " column=" + std::to_string(column) + " error=" + std::to_string(error);
             }
         }
         pending.clear();
@@ -388,10 +421,14 @@ namespace OpenRCT2::Ui::Vulkan
                 initialIndices, "Vulkan upload ring has no room for initial indices", Drawing::UploadCategory::atlas);
             _resources.RecordInitialIndices(token.commandBuffer, token.frameIndex, allocation);
         }
-        if (commands.worldSurfaces.has_value())
-            _worldSurfacePipeline.Record(token, *commands.worldSurfaces);
-        _balloonPipeline.BeginFrame();
         _terrainUploads = {};
+        if (commands.worldSurfaces.has_value())
+        {
+            _worldSurfacePipeline.Record(token, *commands.worldSurfaces);
+            if (commands.worldSurfaces->recordCount != 0)
+                RecordWorldSurfaceStatus(token);
+        }
+        _balloonPipeline.BeginFrame();
         if (!commands.balloons.empty())
         {
             if (!_balloonPipelineReady)

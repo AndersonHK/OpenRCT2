@@ -12,14 +12,14 @@
 #include <cmath>
 #include <cstring>
 #include <gtest/gtest.h>
+#include <memory>
 #include <numbers>
 #include <numeric>
-#include <memory>
 #ifndef OPENRCT2_TEST_NO_UI_AUDIO
-#include <openrct2-ui/audio/AudioContext.h>
-#include <openrct2-ui/audio/AudioFormat.h>
-#include <openrct2-ui/audio/AudioMixer.h>
-#include <openrct2-ui/audio/SDLAudioSource.h>
+    #include <openrct2-ui/audio/AudioContext.h>
+    #include <openrct2-ui/audio/AudioFormat.h>
+    #include <openrct2-ui/audio/AudioMixer.h>
+    #include <openrct2-ui/audio/SDLAudioSource.h>
 #endif
 #include <openrct2/Context.h>
 #include <openrct2/OpenRCT2.h>
@@ -38,8 +38,14 @@ namespace
     class TestAudioSource final : public SDLAudioSource
     {
     public:
-        AudioFormat GetFormat() const override { return { 22050, AUDIO_S16SYS, 1 }; }
-        uint64_t GetLength() const override { return _samples.size() * sizeof(int16_t); }
+        AudioFormat GetFormat() const override
+        {
+            return { 22050, AUDIO_S16SYS, 1 };
+        }
+        uint64_t GetLength() const override
+        {
+            return _samples.size() * sizeof(int16_t);
+        }
 
         size_t Read(void* destination, uint64_t offset, size_t length) override
         {
@@ -50,12 +56,14 @@ namespace
         }
 
     protected:
-        void Unload() override {}
+        void Unload() override
+        {
+        }
 
     private:
         std::array<int16_t, 4> _samples{ 1, 2, 3, 4 };
     };
-}
+} // namespace
 
 TEST(AudioChannel, NonLoopingSourceCompletionOwnsChannelLifetimeState)
 {
@@ -103,6 +111,98 @@ TEST(AudioMixer, RepeatedSampleVoicesRetainIndependentPlayback)
 
 #endif
 
+TEST(SpatialAudio, DirectionOnlyPreservesAxesAndCoincidentSource)
+{
+    SpatialAudioListener listener{};
+    listener.Position = { 64, 96, 32 };
+    listener.Right = { 1, 0, 0 };
+    listener.Forward = { 0, 1, 0 };
+    listener.Up = { 0, 0, 1 };
+    struct Sample
+    {
+        CoordsXYZ source;
+        float azimuth;
+        float elevation;
+    };
+    constexpr float halfPi = std::numbers::pi_v<float> / 2.0f;
+    const std::array samples{
+        Sample{ { 64, 96, 32 }, 0, 0 },
+        Sample{ { 64, 128, 32 }, 0, 0 },
+        Sample{ { 96, 96, 32 }, halfPi, 0 },
+        Sample{ { 32, 96, 32 }, -halfPi, 0 },
+        Sample{ { 64, 64, 32 }, std::numbers::pi_v<float>, 0 },
+        Sample{ { 64, 96, 64 }, 0, halfPi },
+        Sample{ { 64, 96, 0 }, 0, -halfPi },
+    };
+    for (const auto& sample : samples)
+    {
+        const auto angles = CalculateSpatialAudioAngles(listener, sample.source);
+        EXPECT_FLOAT_EQ(angles.Azimuth, sample.azimuth);
+        EXPECT_FLOAT_EQ(angles.Elevation, sample.elevation);
+    }
+}
+
+TEST(SpatialAudio, DirectionOnlyPreservesOriginalCrowdSectorsAndElevation)
+{
+    // Reference is the angular calculation before extraction. Compare the actual crowd consumers
+    // (rounded sector and weighted elevation), including all camera rotations and fractional listener positions.
+    constexpr float sectorAngle = 2.0f * std::numbers::pi_v<float> / 8.0f;
+    constexpr std::array offsets{ -8192, -1024, -32, -1, 0, 1, 32, 1024, 8192 };
+    for (uint8_t rotation = 0; rotation < 4; ++rotation)
+    {
+        auto listener = CalculateIsometricListener({ 1024, 2048, 96 }, rotation, 3840 * 4, 2160 * 4);
+        listener.Position.x += 0.25f;
+        listener.Position.y -= 0.75f;
+        std::array<float, 8> expectedElevation{}, actualElevation{};
+        std::array<int, 8> expectedWeights{}, actualWeights{};
+        for (const auto x : offsets)
+        {
+            for (const auto y : offsets)
+            {
+                for (const auto z : { -64, 0, 256 })
+                {
+                    const CoordsXYZ source{ 1024 + x, 2048 + y, 96 + z };
+                    const SpatialAudioVector relative{
+                        static_cast<float>(source.x) - listener.Position.x,
+                        static_cast<float>(source.y) - listener.Position.y,
+                        static_cast<float>(source.z) - listener.Position.z,
+                    };
+                    const auto dot = [&relative](const SpatialAudioVector& axis) {
+                        return (relative.x * axis.x) + (relative.y * axis.y) + (relative.z * axis.z);
+                    };
+                    const float right = dot(listener.Right);
+                    const float forward = dot(listener.Forward);
+                    const float up = dot(listener.Up);
+                    const float planeDistance = std::sqrt((right * right) + (forward * forward));
+                    const float azimuth = planeDistance > 0.0f ? std::atan2(right, forward) : 0.0f;
+                    const float elevation = std::atan2(up, planeDistance);
+                    const auto actual = CalculateSpatialAudioAngles(listener, source);
+                    EXPECT_EQ(actual.Azimuth, azimuth);
+                    EXPECT_EQ(actual.Elevation, elevation);
+                    const auto sector = [](float angle) {
+                        auto index = std::lround(angle / sectorAngle) % 8;
+                        return static_cast<size_t>(index < 0 ? index + 8 : index);
+                    };
+                    const int weight = z == 0 ? 1 : 2;
+                    expectedWeights[sector(azimuth)] += weight;
+                    actualWeights[sector(actual.Azimuth)] += weight;
+                    expectedElevation[sector(azimuth)] += elevation * static_cast<float>(weight);
+                    actualElevation[sector(actual.Azimuth)] += actual.Elevation * static_cast<float>(weight);
+                    for (const auto rolloff :
+                         { SpatialAudioRolloff::world, SpatialAudioRolloff::vehicle, SpatialAudioRolloff::rideMusic })
+                    {
+                        const auto full = CalculateSpatialAudioParams(listener, source, 0.5f, rolloff);
+                        EXPECT_EQ(full.Azimuth, actual.Azimuth);
+                        EXPECT_EQ(full.Elevation, actual.Elevation);
+                    }
+                }
+            }
+        }
+        EXPECT_EQ(actualWeights, expectedWeights);
+        EXPECT_EQ(actualElevation, expectedElevation);
+    }
+}
+
 TEST(SpatialAudio, DistanceAttenuationIsContinuousAndLongRange)
 {
     const SpatialAudioListener listener{ { 0, 0, 0 }, { 0, 0, 0 }, 0, 0.0f };
@@ -129,8 +229,7 @@ TEST(SpatialAudio, DistanceRolloffIsMildlyCompressedButMonotonic)
 
     EXPECT_GT(eightTiles.Gain, sixteenTiles.Gain);
     EXPECT_GT(sixteenTiles.Gain / eightTiles.Gain, 0.5f);
-    EXPECT_NEAR(
-        sixteenTiles.Gain / eightTiles.Gain, std::pow(0.5f, kSpatialDistanceRolloff), 0.000001f);
+    EXPECT_NEAR(sixteenTiles.Gain / eightTiles.Gain, std::pow(0.5f, kSpatialDistanceRolloff), 0.000001f);
 }
 
 TEST(SpatialAudio, SourceClassesUseDistinctContinuousRolloffCurves)
@@ -148,10 +247,8 @@ TEST(SpatialAudio, SourceClassesUseDistinctContinuousRolloffCurves)
     EXPECT_NEAR(music.Gain, std::pow(0.03125f, kRideMusicSpatialDistanceRolloff), 0.000001f);
 
     const CoordsXYZ referenceSource{ static_cast<int32_t>(kSpatialReferenceDistance), 0, 0 };
-    EXPECT_FLOAT_EQ(
-        CalculateSpatialAudioParams(listener, referenceSource, 1.0f, SpatialAudioRolloff::vehicle).Gain, 1.0f);
-    EXPECT_FLOAT_EQ(
-        CalculateSpatialAudioParams(listener, referenceSource, 1.0f, SpatialAudioRolloff::rideMusic).Gain, 1.0f);
+    EXPECT_FLOAT_EQ(CalculateSpatialAudioParams(listener, referenceSource, 1.0f, SpatialAudioRolloff::vehicle).Gain, 1.0f);
+    EXPECT_FLOAT_EQ(CalculateSpatialAudioParams(listener, referenceSource, 1.0f, SpatialAudioRolloff::rideMusic).Gain, 1.0f);
 }
 
 TEST(SpatialAudio, DistanceCurveHasNoTileBoundary)
@@ -184,8 +281,7 @@ TEST(SpatialAudio, ObjectAndCameraHeightContributeToDistance)
 {
     const auto listener = CalculateIsometricListener({ 0, 0, 0 }, 0, 1280, 720);
     const auto ground = CalculateSpatialAudioParams(listener, { 0, 0, 0 });
-    const auto elevated = CalculateSpatialAudioParams(
-        listener, { 0, 0, static_cast<int32_t>(std::lround(listener.Altitude)) });
+    const auto elevated = CalculateSpatialAudioParams(listener, { 0, 0, static_cast<int32_t>(std::lround(listener.Altitude)) });
 
     EXPECT_GT(ground.Distance, elevated.Distance);
     EXPECT_GT(elevated.Gain, ground.Gain);
@@ -349,8 +445,7 @@ TEST(SpatialAudio, DopplerMotionIsSmoothedAndRejectsTeleports)
     const auto approaching = UpdateDopplerMotion(state, listener, { 980, 0, 0 }, 1.0f / 60.0f, true);
     EXPECT_GT(approaching, 1.0f);
     EXPECT_LT(approaching, kMaxDopplerFactor);
-    EXPECT_FLOAT_EQ(
-        UpdateDopplerMotion(state, listener, { 100000, 0, 0 }, 1.0f / 60.0f, true), 1.0f);
+    EXPECT_FLOAT_EQ(UpdateDopplerMotion(state, listener, { 100000, 0, 0 }, 1.0f / 60.0f, true), 1.0f);
 }
 
 TEST(SpatialAudio, StaticSourceUsesReducedListenerDoppler)
@@ -456,8 +551,7 @@ TEST(SpatialAudio, ShippedKartDefinitionProvidesFrictionSoundGain)
     auto* object = context->GetObjectManager().LoadObject("rct2.ride.kart1");
     auto* rideObject = dynamic_cast<OpenRCT2::RideObject*>(object);
     ASSERT_NE(rideObject, nullptr);
-    EXPECT_NEAR(
-        rideObject->GetEntry().Cars[0].friction_sound_gain, DecibelsToLinearGain(-6.0f), 0.000001f);
+    EXPECT_NEAR(rideObject->GetEntry().Cars[0].friction_sound_gain, DecibelsToLinearGain(-6.0f), 0.000001f);
 }
 
 #ifndef OPENRCT2_TEST_NO_UI_AUDIO

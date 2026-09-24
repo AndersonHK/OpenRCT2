@@ -21,6 +21,7 @@
 #include "../actions/scenery/WallRemoveAction.h"
 #include "../core/EnumUtils.hpp"
 #include "../core/Guard.hpp"
+#include "../drawing/ImageId.hpp"
 #include "../entity/Duck.h"
 #include "../entity/EntityTweener.h"
 #include "../entity/JumpingFountain.h"
@@ -30,6 +31,7 @@
 #include "../interface/Viewport.h"
 #include "../object/LargeSceneryEntry.h"
 #include "../object/SmallSceneryEntry.h"
+#include "../object/TerrainEdgeObject.h"
 #include "../object/TerrainSurfaceObject.h"
 #include "../profiling/Profiling.h"
 #include "../ride/RideManager.hpp"
@@ -42,7 +44,6 @@
 #include "Footpath.h"
 #include "MapAnimation.h"
 #include "MapPresentationSnapshot.h"
-#include "../object/TerrainEdgeObject.h"
 #include "MapTopology.h"
 #include "Park.h"
 #include "Scenery.h"
@@ -222,7 +223,8 @@ namespace OpenRCT2
         return captured;
     }
 
-    MapPresentationChangeBatch ConsumeMapPresentationChanges(const bool requireCompleteSnapshot)
+    MapPresentationChangeBatch ConsumeMapPresentationChanges(
+        const bool requireCompleteSnapshot, const MapPublicationProfile profile)
     {
         PROFILED_FUNCTION();
         if (requireCompleteSnapshot && !_presentationResetPending)
@@ -239,27 +241,32 @@ namespace OpenRCT2
             .reset = _presentationResetPending,
             .surfaceWidth = surfaceWidth,
             .surfaceHeight = surfaceHeight,
+            .sourceTick = gameState.currentTicks,
+            .profile = profile,
         };
         batch.terrainMaterials = CaptureTerrainMaterials(batch.epoch);
         const auto copyTile = [&batch](const uint32_t index, const uint32_t surfaceIndex) {
             const TileCoordsXY tilePos{ static_cast<int32_t>(index % kMaximumMapSizeTechnical),
                                         static_cast<int32_t>(index / kMaximumMapSizeTechnical) };
             auto* source = _tileIndex.GetFirstElementAt(tilePos);
-            if (source == nullptr)
-                return;
             auto& change = batch.changes.emplace_back();
             change.index = index;
             change.surfaceIndex = surfaceIndex;
+            if (source == nullptr)
+                return; // Publish absence as well as presence when a tile disappears.
+            const TileElement* surface = nullptr;
+            const bool singleElement = source->isLastForTile();
             do
             {
-                change.elements.push_back(*source);
+                if (surface == nullptr && source->getType() == TileElementType::surface)
+                    surface = source;
+                if (batch.profile == MapPublicationProfile::legacyTiles)
+                    change.elements.push_back(*source);
+                else if (surface != nullptr)
+                    break; // Native capture does not copy or inspect unrelated elements after the surface.
             } while (!(source++)->isLastForTile());
-            change.surface.requiresCategoryInterleaving = change.elements.size() != 1;
-
-            const auto surface = std::ranges::find_if(change.elements, [](const TileElement& element) {
-                return element.getType() == TileElementType::surface;
-            });
-            if (surface == change.elements.end() || surface->isInvisible())
+            change.surface.requiresCategoryInterleaving = !singleElement;
+            if (surface == nullptr || surface->isInvisible() || surface->isGhost())
                 return;
 
             const auto& surfaceElement = *surface->asSurface();
@@ -269,46 +276,26 @@ namespace OpenRCT2
             terrain.edgeSlot = surfaceElement.getEdgeObjectIndex();
             terrain.slope = surfaceElement.getSlope();
             terrain.grass = surfaceElement.getGrassLength() & 7;
-            const bool border = tilePos.x == 0 || tilePos.y == 0
-                || static_cast<uint32_t>(tilePos.x + 1) == batch.surfaceWidth
+            terrain.waterHeight = surfaceElement.getWaterHeight();
+            terrain.present = 1;
+            const bool border = tilePos.x == 0 || tilePos.y == 0 || static_cast<uint32_t>(tilePos.x + 1) == batch.surfaceWidth
                 || static_cast<uint32_t>(tilePos.y + 1) == batch.surfaceHeight;
-            if (change.elements.size() == 1 && !surface->isGhost())
+            terrain.kind = border ? 2 : 1;
+            if (singleElement)
             {
                 if (border && terrain.baseZ == 16 && terrain.slope == 0 && terrain.grass < 7)
-                    terrain.kind = 2;
-                else if (!border && (terrain.baseZ == 16 || terrain.baseZ == 32 || terrain.baseZ == 48 || terrain.baseZ == 64)
+                    terrain.bounded = 1;
+                else if (
+                    !border && (terrain.baseZ == 16 || terrain.baseZ == 32 || terrain.baseZ == 48 || terrain.baseZ == 64)
                     && terrain.slope < 15 && terrain.grass < 7 && surfaceElement.getWaterHeight() == 0
                     && surfaceElement.getParkFences() == 0 && !surfaceElement.hasTrackThatNeedsWater())
-                    terrain.kind = 1;
+                    terrain.bounded = 1;
             }
-            const auto* surfaceObject = surfaceElement.getSurfaceObject();
-            if (surfaceObject == nullptr)
-                return;
-
-            // This is deliberately resolved while the live object registry and map mutation owner are coherent. Background
-            // presentation jobs and the render worker only receive the resulting ImageIds.
-            static constexpr std::array<uint8_t, 32> kSurfaceShapeImageOffsets = {
-                0, 2, 1, 3, 8, 10, 9, 11, 4, 6, 5, 7, 12, 14, 13, 15,
-                0, 0, 0, 0, 0, 0, 0, 17, 0, 0, 0, 16, 0, 18, 15, 0,
-            };
             change.surface.baseZ = static_cast<uint16_t>(surfaceElement.getBaseZ());
             change.surface.valid = 1;
             change.surface.requiresCategoryInterleaving = change.surface.requiresCategoryInterleaving
                 || surfaceElement.getSlope() != 0 || surfaceElement.getWaterHeight() != 0
                 || surfaceElement.getParkFences() != 0;
-            const auto position = tilePos.toCoordsXY();
-            for (uint8_t rotation = 0; rotation < SurfacePresentationRecord::kRotationCount; rotation++)
-            {
-                const uint8_t slope = surfaceElement.getSlope();
-                uint16_t rotatedCorners = static_cast<uint16_t>((slope & kTileSlopeRaisedCornersMask) << rotation);
-                rotatedCorners = ((rotatedCorners >> 4) | rotatedCorners) & 0x0f;
-                const uint8_t relativeSlope = (slope & kTileSlopeDiagonalFlag) | static_cast<uint8_t>(rotatedCorners);
-                const uint8_t imageOffset = kSurfaceShapeImageOffsets[relativeSlope];
-                change.surface.detailedImages[rotation] = surfaceObject->GetImageId(
-                    position, surfaceElement.getGrassLength() & 0x7, rotation, imageOffset, false, false);
-                change.surface.distantImages[rotation] = surfaceObject->GetImageId(
-                    position, TerrainSurfaceObject::kNoValue, rotation, imageOffset, false, false);
-            }
         };
         if (_presentationResetPending)
         {
@@ -346,24 +333,37 @@ namespace OpenRCT2
     void MapPresentationSnapshot::Apply(const MapPresentationChangeBatch& batch)
     {
         PROFILED_FUNCTION();
-        const bool reset = batch.reset || _epoch != batch.epoch;
+        const bool reset = batch.reset || _epoch != batch.epoch || _profile != batch.profile;
         if (reset)
         {
-            _chunks.fill(nullptr);
+            _chunks.reset();
+        }
+        std::shared_ptr<Chunks> chunks;
+        if (batch.profile == MapPublicationProfile::legacyTiles && !batch.changes.empty())
+        {
+            chunks = _chunks == nullptr ? std::make_shared<Chunks>(kChunkCount) : std::make_shared<Chunks>(*_chunks);
+            _chunks = chunks;
         }
 
         const bool surfaceLayoutChanged = reset || _surfaceWidth != batch.surfaceWidth || _surfaceHeight != batch.surfaceHeight;
+        std::shared_ptr<SurfaceChunks> surfaceChunks;
         if (surfaceLayoutChanged)
         {
             _surfaceWidth = batch.surfaceWidth;
             _surfaceHeight = batch.surfaceHeight;
             const size_t recordCount = static_cast<size_t>(_surfaceWidth) * _surfaceHeight;
-            _surfaceChunks.assign((recordCount + kChunkWidth - 1) / kChunkWidth, nullptr);
+            surfaceChunks = std::make_shared<SurfaceChunks>((recordCount + kChunkWidth - 1) / kChunkWidth, nullptr);
+            _surfaceChunks = surfaceChunks;
             _nextSurfaceRevision = 0;
             _surfaceBaselineZ = 0;
             _surfaceBaselineSet = false;
             _surfaceBlockingRecordCount = 0;
             _terrainBlockingRecordCount = static_cast<uint32_t>(recordCount);
+        }
+        else if (!batch.changes.empty())
+        {
+            surfaceChunks = std::make_shared<SurfaceChunks>(GetSurfaceChunks());
+            _surfaceChunks = surfaceChunks;
         }
 
         size_t activeChunkIndex = std::numeric_limits<size_t>::max();
@@ -372,15 +372,18 @@ namespace OpenRCT2
         std::shared_ptr<SurfaceChunk> activeSurfaceChunk;
         for (const auto& change : batch.changes)
         {
-            const size_t chunkIndex = change.index / kChunkWidth;
-            if (chunkIndex != activeChunkIndex)
+            if (chunks != nullptr)
             {
-                activeChunkIndex = chunkIndex;
-                activeChunk = _chunks[chunkIndex] == nullptr ? std::make_shared<Chunk>()
-                                                             : std::make_shared<Chunk>(*_chunks[chunkIndex]);
-                _chunks[chunkIndex] = activeChunk;
+                const size_t chunkIndex = change.index / kChunkWidth;
+                if (chunkIndex != activeChunkIndex)
+                {
+                    activeChunkIndex = chunkIndex;
+                    activeChunk = (*chunks)[chunkIndex] == nullptr ? std::make_shared<Chunk>()
+                                                                   : std::make_shared<Chunk>(*(*chunks)[chunkIndex]);
+                    (*chunks)[chunkIndex] = activeChunk;
+                }
+                (*activeChunk)[change.index % kChunkWidth] = change.elements;
             }
-            (*activeChunk)[change.index % kChunkWidth] = change.elements;
 
             if (change.surfaceIndex == std::numeric_limits<uint32_t>::max()
                 || change.surfaceIndex >= static_cast<size_t>(_surfaceWidth) * _surfaceHeight)
@@ -389,11 +392,11 @@ namespace OpenRCT2
             if (surfaceChunkIndex != activeSurfaceChunkIndex)
             {
                 activeSurfaceChunkIndex = surfaceChunkIndex;
-                activeSurfaceChunk = _surfaceChunks[surfaceChunkIndex] == nullptr
+                activeSurfaceChunk = (*surfaceChunks)[surfaceChunkIndex] == nullptr
                     ? std::make_shared<SurfaceChunk>()
-                    : std::make_shared<SurfaceChunk>(*_surfaceChunks[surfaceChunkIndex]);
+                    : std::make_shared<SurfaceChunk>(*(*surfaceChunks)[surfaceChunkIndex]);
                 activeSurfaceChunk->revision = ++_nextSurfaceRevision;
-                _surfaceChunks[surfaceChunkIndex] = activeSurfaceChunk;
+                (*surfaceChunks)[surfaceChunkIndex] = activeSurfaceChunk;
             }
             auto& surfaceRecord = activeSurfaceChunk->records[change.surfaceIndex % kChunkWidth];
             const auto blocksIndependentBase = [this](const SurfacePresentationRecord& record) {
@@ -413,20 +416,25 @@ namespace OpenRCT2
             }
             if (blocksIndependentBase(change.surface))
                 _surfaceBlockingRecordCount++;
-            if (surfaceRecord.terrain.kind != 0)
+            if (surfaceRecord.terrain.kind != 0 && surfaceRecord.terrain.bounded)
                 _terrainBlockingRecordCount++;
-            if (change.surface.terrain.kind != 0)
+            if (change.surface.terrain.kind != 0 && change.surface.terrain.bounded)
                 _terrainBlockingRecordCount--;
             surfaceRecord = change.surface;
         }
         _terrainMaterials = batch.terrainMaterials;
         _epoch = batch.epoch;
+        _sourceTick = batch.sourceTick;
+        _profile = batch.profile;
     }
 
     TileElement* MapPresentationSnapshot::GetFirstElementAt(const TileCoordsXY& tilePos) const
     {
+        if (_chunks == nullptr || tilePos.x < 0 || tilePos.y < 0 || tilePos.x >= kMaximumMapSizeTechnical
+            || tilePos.y >= kMaximumMapSizeTechnical)
+            return nullptr;
         const auto index = static_cast<size_t>(tilePos.x + tilePos.y * kMaximumMapSizeTechnical);
-        const auto& chunk = _chunks[index / kChunkWidth];
+        const auto& chunk = (*_chunks)[index / kChunkWidth];
         if (chunk == nullptr)
             return nullptr;
         const auto& tile = (*chunk)[index % kChunkWidth];
@@ -1356,8 +1364,7 @@ namespace OpenRCT2
         return type == TileElementType::path || type == TileElementType::entrance || type == TileElementType::banner;
     }
 
-    static void PublishTileMutation(
-        const TileCoordsXY& tile, const TileElement& element, const TileMutationMode mode)
+    static void PublishTileMutation(const TileCoordsXY& tile, const TileElement& element, const TileMutationMode mode)
     {
         InvalidateTileElementReferences(tile);
         if (mode == TileMutationMode::deferred)
@@ -1368,8 +1375,7 @@ namespace OpenRCT2
             MapTopology::InvalidateTileAndNeighbours(tile);
     }
 
-    TileEraseResult EraseTileElement(
-        const TileCoordsXY& tile, TileElement* element, const TileMutationMode mode)
+    TileEraseResult EraseTileElement(const TileCoordsXY& tile, TileElement* element, const TileMutationMode mode)
     {
         if (!IsTileLocationValid(tile))
             return { TileMutationStatus::invalidTile };
@@ -1512,8 +1518,7 @@ namespace OpenRCT2
      *
      *  rct2: 0x0068B1F6
      */
-    TileInsertResult InsertTileElement(
-        const TileCoordsXY& tileLoc, TileElement element, const TileMutationMode mode)
+    TileInsertResult InsertTileElement(const TileCoordsXY& tileLoc, TileElement element, const TileMutationMode mode)
     {
         if (!IsTileLocationValid(tileLoc) || _tileIndex.GetFirstElementAt(tileLoc) == nullptr)
             return { TileMutationStatus::invalidTile };
@@ -1572,9 +1577,8 @@ namespace OpenRCT2
             return TileMutationStatus::invalidTile;
         if (elements.empty())
             return TileMutationStatus::wouldViolateSurfaceInvariant;
-        if (std::ranges::none_of(elements, [](const TileElement& element) {
-                return element.getType() == TileElementType::surface;
-            }))
+        if (std::ranges::none_of(
+                elements, [](const TileElement& element) { return element.getType() == TileElementType::surface; }))
         {
             return TileMutationStatus::wouldViolateSurfaceInvariant;
         }
@@ -2171,7 +2175,7 @@ namespace OpenRCT2
         MapInvalidateTileForRendering(tilePos);
     }
 
-    static void MarkPresentationTileDirty(const CoordsXY& position)
+    void MarkMapTilePresentationDirty(const CoordsXY& position)
     {
         const TileCoordsXY tileCoords{ position };
         if (tileCoords.x >= 0 && tileCoords.y >= 0 && tileCoords.x < kMaximumMapSizeTechnical
@@ -2188,7 +2192,7 @@ namespace OpenRCT2
 
     void MapInvalidateTileForRendering(const CoordsXYRangedZ& tilePos)
     {
-        MarkPresentationTileDirty(tilePos);
+        MarkMapTilePresentationDirty(tilePos);
         MapInvalidateTileUnderZoom(tilePos.x, tilePos.y, tilePos.baseZ, tilePos.clearanceZ, ZoomLevel{ -1 });
     }
 
@@ -2198,7 +2202,7 @@ namespace OpenRCT2
      */
     void MapInvalidateTileZoom1(const CoordsXYRangedZ& tilePos)
     {
-        MarkPresentationTileDirty(tilePos);
+        MarkMapTilePresentationDirty(tilePos);
         MapInvalidateTileUnderZoom(tilePos.x, tilePos.y, tilePos.baseZ, tilePos.clearanceZ, ZoomLevel{ 1 });
     }
 
@@ -2208,7 +2212,7 @@ namespace OpenRCT2
      */
     void MapInvalidateTileZoom0(const CoordsXYRangedZ& tilePos)
     {
-        MarkPresentationTileDirty(tilePos);
+        MarkMapTilePresentationDirty(tilePos);
         MapInvalidateTileUnderZoom(tilePos.x, tilePos.y, tilePos.baseZ, tilePos.clearanceZ, ZoomLevel{ 0 });
     }
 

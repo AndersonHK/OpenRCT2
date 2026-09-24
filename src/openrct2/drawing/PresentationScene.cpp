@@ -13,6 +13,7 @@
 #include "../core/JobPool.h"
 #include "../entity/EntityPresentationSnapshot.h"
 #include "../world/MapPresentationSnapshot.h"
+#include "PresentationTask.h"
 #include "RetainedBalloonScene.h"
 #include "RetainedPeepState.h"
 
@@ -48,6 +49,7 @@ namespace OpenRCT2
             std::shared_ptr<MapPresentationSnapshot> _pending;
             std::optional<JobPool::TaskGroup> _pendingGroup;
             bool _pendingReset{};
+            MapPublicationProfile _profile{ MapPublicationProfile::legacyTiles };
 
         public:
             struct AcquireResult
@@ -68,11 +70,19 @@ namespace OpenRCT2
             void Reset(JobPool& jobs)
             {
                 if (_pendingGroup.has_value())
-                    jobs.Wait(*_pendingGroup);
+                    Detail::WaitAndReleasePresentationTask(jobs, _pendingGroup);
                 _front.reset();
                 _pending.reset();
                 _pendingGroup.reset();
                 _pendingReset = false;
+            }
+
+            void SetProfile(JobPool& jobs, MapPublicationProfile profile)
+            {
+                if (_profile == profile)
+                    return;
+                Reset(jobs);
+                _profile = profile;
             }
 
             AcquireResult Acquire(JobPool& jobs)
@@ -80,7 +90,7 @@ namespace OpenRCT2
                 bool sceneReset = false;
                 if (_pendingGroup.has_value() && _pendingGroup->IsComplete())
                 {
-                    jobs.Wait(*_pendingGroup);
+                    Detail::WaitAndReleasePresentationTask(jobs, _pendingGroup);
                     _front = std::move(_pending);
                     _pendingGroup.reset();
                     sceneReset = std::exchange(_pendingReset, false);
@@ -89,7 +99,7 @@ namespace OpenRCT2
                 if (_front == nullptr)
                 {
                     auto initial = std::make_shared<MapPresentationSnapshot>();
-                    auto changes = ConsumeMapPresentationChanges(true);
+                    auto changes = ConsumeMapPresentationChanges(true, _profile);
                     sceneReset |= changes.reset;
                     initial->Apply(changes);
                     _front = std::move(initial);
@@ -102,13 +112,13 @@ namespace OpenRCT2
                 bool sceneReset = false;
                 if (_pendingGroup.has_value())
                 {
-                    jobs.Wait(*_pendingGroup);
+                    Detail::WaitAndReleasePresentationTask(jobs, _pendingGroup);
                     _front = std::move(_pending);
                     _pendingGroup.reset();
                     sceneReset = std::exchange(_pendingReset, false);
                 }
 
-                auto changes = ConsumeMapPresentationChanges(_front == nullptr);
+                auto changes = ConsumeMapPresentationChanges(_front == nullptr, _profile);
                 sceneReset |= changes.reset;
                 if (_front == nullptr)
                 {
@@ -116,7 +126,9 @@ namespace OpenRCT2
                     current->Apply(changes);
                     _front = std::move(current);
                 }
-                else if (changes.reset || !changes.changes.empty())
+                else if (
+                    changes.reset || !changes.changes.empty() || changes.sourceTick != _front->GetSourceTick()
+                    || changes.terrainMaterials != _front->GetTerrainMaterials())
                 {
                     auto current = std::make_shared<MapPresentationSnapshot>(*_front);
                     current->Apply(changes);
@@ -130,8 +142,9 @@ namespace OpenRCT2
                 if (_front == nullptr || _pendingGroup.has_value())
                     return;
 
-                auto changes = ConsumeMapPresentationChanges();
-                if (!changes.reset && changes.changes.empty())
+                auto changes = ConsumeMapPresentationChanges(false, _profile);
+                if (!changes.reset && changes.changes.empty() && changes.sourceTick == _front->GetSourceTick()
+                    && changes.terrainMaterials == _front->GetTerrainMaterials())
                     return;
 
                 _pendingReset = changes.reset;
@@ -290,17 +303,17 @@ namespace OpenRCT2
         public:
             bool HasPending() const
             {
-                return _pendingGroup.has_value();
+                return _pending != nullptr;
             }
             bool IsReady() const
             {
-                return !HasPending() || _pendingGroup->IsComplete();
+                return !_pendingGroup.has_value() || _pendingGroup->IsComplete();
             }
 
             void Reset(JobPool& jobs)
             {
                 if (_pendingGroup.has_value())
-                    jobs.Wait(*_pendingGroup);
+                    Detail::WaitAndReleasePresentationTask(jobs, _pendingGroup);
                 _front.reset();
                 _pending.reset();
                 _recycle.reset();
@@ -358,9 +371,10 @@ namespace OpenRCT2
 
             std::shared_ptr<const EntityPresentationSnapshot> Acquire(JobPool& jobs, EntityRegistry& registry)
             {
-                if (_pendingGroup.has_value() && _pendingGroup->IsComplete())
+                if (_pending != nullptr && (!_pendingGroup.has_value() || _pendingGroup->IsComplete()))
                 {
-                    jobs.Wait(*_pendingGroup);
+                    if (_pendingGroup.has_value())
+                        Detail::WaitAndReleasePresentationTask(jobs, _pendingGroup);
                     _recycle = std::const_pointer_cast<EntityPresentationSnapshot>(std::move(_front));
                     _front = std::move(_pending);
                     _pendingGroup.reset();
@@ -380,10 +394,10 @@ namespace OpenRCT2
             {
                 if (_pendingGroup.has_value())
                 {
-                    jobs.Wait(*_pendingGroup);
-                    _pending.reset();
+                    Detail::WaitAndReleasePresentationTask(jobs, _pendingGroup);
                     _pendingGroup.reset();
                 }
+                _pending.reset();
                 // A synchronous map capture describes current live state, even if the prepared entity
                 // snapshot came from an earlier tick. Capture both sources at this same boundary.
                 auto current = _recycle != nullptr && _recycle.use_count() == 1
@@ -398,13 +412,17 @@ namespace OpenRCT2
 
             void Schedule(JobPool& jobs, EntityRegistry& registry)
             {
-                if (_front == nullptr || _pendingGroup.has_value())
+                if (_front == nullptr || HasPending())
                     return;
 
                 // Earlier frame packets may still retain this generation. Never overwrite their storage.
                 _pending = _recycle != nullptr && _recycle.use_count() == 1 ? std::move(_recycle)
                                                                             : std::make_shared<EntityPresentationSnapshot>();
                 Capture(*_pending, registry);
+                // The terrain-only identity has no spatial/index work. Hold it alongside
+                // the map job captured at this exact owner boundary, without another worker.
+                if (_profile == EntityPublicationProfile::gpuTerrainOnly)
+                    return;
                 _pendingGroup.emplace(jobs.CreateTaskGroup());
                 const auto target = _pending;
                 jobs.AddTask(*_pendingGroup, [target]() { target->BuildCapturedStorage(); }, JobPool::TaskPriority::background);
@@ -443,15 +461,27 @@ namespace OpenRCT2
                                          || profile == EntityPublicationProfile::nativePeeps)
                 && (_impl->generation == nullptr || _impl->generation->peepAnimations != peepAnimations);
             const bool profileChanged = _impl->profile != profile;
-            if (!_impl->retrySynchronously && !profileChanged && !catalogChanged && _impl->drawCount == drawCount)
+            // Terrain object replacement can retire atlas dependencies before an older queued map is admitted.
+            // Refresh both sources at this exceptional lifecycle boundary; ordinary tile edits remain asynchronous.
+            const bool terrainCatalogChanged = profile == EntityPublicationProfile::gpuTerrainOnly
+                && _impl->generation != nullptr && _impl->generation->map != nullptr
+                && (_impl->generation->map->GetTerrainMaterials() == nullptr
+                    || _impl->generation->map->GetTerrainMaterials()->revision != GetTerrainObjectRevision());
+            if (!_impl->retrySynchronously && !profileChanged && !catalogChanged && !terrainCatalogChanged
+                && _impl->drawCount == drawCount)
                 return false;
+            _impl->map.SetProfile(
+                jobs,
+                profile == EntityPublicationProfile::gpuTerrainOnly ? MapPublicationProfile::rawTerrain
+                                                                    : MapPublicationProfile::legacyTiles);
             _impl->entities.SetProfile(jobs, profile);
             _impl->entities.SetPeepCatalog(jobs, std::move(peepAnimations));
             _impl->profile = profile;
             const bool entityEpochChanged = _impl->generation != nullptr
                 && _impl->generation->sourceEntityEpoch != entities.GetEntityVisualEpoch();
-            const bool synchronous = _impl->retrySynchronously || synchronousMapPublication || profileChanged
-                || entityEpochChanged || catalogChanged;
+            const bool synchronous = _impl->retrySynchronously
+                || (synchronousMapPublication && profile != EntityPublicationProfile::gpuTerrainOnly) || profileChanged
+                || entityEpochChanged || catalogChanged || terrainCatalogChanged;
 
             const bool worldEpochChanged = _impl->generation != nullptr && _impl->generation->map != nullptr
                 && _impl->generation->map->GetEpoch() != GetMapPresentationEpoch();
@@ -471,9 +501,10 @@ namespace OpenRCT2
             const auto map = synchronous ? _impl->map.AcquireSynchronously(jobs) : _impl->map.Acquire(jobs);
             if (map.sceneReset)
                 _impl->entities.Reset(jobs);
-            const auto entitySnapshot = synchronous || profile == EntityPublicationProfile::gpuTerrainOnly
-                ? _impl->entities.AcquireSynchronously(jobs, entities)
-                : _impl->entities.Acquire(jobs, entities);
+            const auto entitySnapshot = synchronous ? _impl->entities.AcquireSynchronously(jobs, entities)
+                                                    : _impl->entities.Acquire(jobs, entities);
+            if (map.snapshot->GetSourceTick() != entitySnapshot->GetSourceTick())
+                throw std::logic_error("Map and entity publication source ticks differ");
             _impl->generation = std::make_shared<PresentationGeneration>(PresentationGeneration{
                 .map = map.snapshot,
                 .entities = entitySnapshot,
@@ -508,8 +539,7 @@ namespace OpenRCT2
             if (_impl->map.HasPending() || _impl->entities.HasPending())
                 return;
             _impl->map.Schedule(jobs);
-            if (_impl->profile != EntityPublicationProfile::gpuTerrainOnly)
-                _impl->entities.Schedule(jobs, entities);
+            _impl->entities.Schedule(jobs, entities);
         }
         catch (...)
         {

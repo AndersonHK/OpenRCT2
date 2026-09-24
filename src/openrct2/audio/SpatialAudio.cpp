@@ -83,6 +83,18 @@ namespace OpenRCT2::Audio
             return { static_cast<float>(value.x), static_cast<float>(value.y), static_cast<float>(value.z) };
         }
 
+        SpatialAudioAngles CalculateAngles(const SpatialAudioListener& listener, const SpatialAudioVector& relative)
+        {
+            const auto localRight = Dot(relative, listener.Right);
+            const auto localForward = Dot(relative, listener.Forward);
+            const auto localUp = Dot(relative, listener.Up);
+            const auto forwardPlaneDistance = std::sqrt((localRight * localRight) + (localForward * localForward));
+            return {
+                forwardPlaneDistance > 0.0f ? std::atan2(localRight, localForward) : 0.0f,
+                std::atan2(localUp, forwardPlaneDistance),
+            };
+        }
+
         SpatialAudioVector Lerp(const SpatialAudioVector& lhs, const SpatialAudioVector& rhs, float amount)
         {
             return {
@@ -173,22 +185,20 @@ namespace OpenRCT2::Audio
         // Orthographic projection has no literal camera distance. Treat its visible ground radius
         // as a very-wide (150 degree) virtual acoustic frustum to obtain a smooth equivalent height.
         constexpr float kVirtualAcousticHalfFov = 75.0f * std::numbers::pi_v<float> / 180.0f;
-        const auto sidewaysRadius = std::abs(static_cast<float>(projectedViewWidth))
-            / (2.0f * std::numbers::sqrt2_v<float>);
-        const auto forwardRadius = std::abs(static_cast<float>(projectedViewHeight))
-            / std::numbers::sqrt2_v<float>;
+        const auto sidewaysRadius = std::abs(static_cast<float>(projectedViewWidth)) / (2.0f * std::numbers::sqrt2_v<float>);
+        const auto forwardRadius = std::abs(static_cast<float>(projectedViewHeight)) / std::numbers::sqrt2_v<float>;
         const auto visibleRadius = std::min(sidewaysRadius, forwardRadius);
         const auto cameraDistance = visibleRadius / std::tan(kVirtualAcousticHalfFov);
 
         // Translate3DTo2DWithZ has a (1, 1, 1) null direction before view rotation. Positioning the
         // listener on that ray makes the rendered centre ray and the acoustic forward ray agree.
         const auto cameraGroundOffset = CoordsXY{ 1, 1 }.rotate((4 - rotation) & 3);
-        const auto cameraOffset = Normalise(SpatialAudioVector{
-            static_cast<float>(cameraGroundOffset.x), static_cast<float>(cameraGroundOffset.y), 1.0f });
+        const auto cameraOffset = Normalise(
+            SpatialAudioVector{ static_cast<float>(cameraGroundOffset.x), static_cast<float>(cameraGroundOffset.y), 1.0f });
         const auto forward = cameraOffset * -1.0f;
         const auto screenRightGround = CoordsXY{ -1, 1 }.rotate((4 - rotation) & 3);
-        const auto right = Normalise(SpatialAudioVector{
-            static_cast<float>(screenRightGround.x), static_cast<float>(screenRightGround.y), 0.0f });
+        const auto right = Normalise(
+            SpatialAudioVector{ static_cast<float>(screenRightGround.x), static_cast<float>(screenRightGround.y), 0.0f });
         const auto up = Normalise(Cross(right, forward));
         const auto focusVector = ToVector(focus);
         const auto position = focusVector + (cameraOffset * cameraDistance);
@@ -204,6 +214,11 @@ namespace OpenRCT2::Audio
         result.Right = right;
         result.Up = up;
         return result;
+    }
+
+    SpatialAudioAngles CalculateSpatialAudioAngles(const SpatialAudioListener& listener, const CoordsXYZ& source)
+    {
+        return CalculateAngles(listener, ToVector(source) - listener.Position);
     }
 
     SpatialAudioParams CalculateSpatialAudioParams(
@@ -233,12 +248,9 @@ namespace OpenRCT2::Audio
         result.Gain = std::clamp(occlusion, 0.0f, 1.0f) * distanceGain;
         result.LowPassCutoff = CalculateDistanceLowPassCutoff(distance, occlusion, rolloff);
 
-        const auto localRight = Dot(relative, listener.Right);
-        const auto localForward = Dot(relative, listener.Forward);
-        const auto localUp = Dot(relative, listener.Up);
-        const auto forwardPlaneDistance = std::sqrt((localRight * localRight) + (localForward * localForward));
-        result.Azimuth = forwardPlaneDistance > 0.0f ? std::atan2(localRight, localForward) : 0.0f;
-        result.Elevation = std::atan2(localUp, forwardPlaneDistance);
+        const auto angles = CalculateAngles(listener, relative);
+        result.Azimuth = angles.Azimuth;
+        result.Elevation = angles.Elevation;
         return result;
     }
 
@@ -252,8 +264,8 @@ namespace OpenRCT2::Audio
     }
 
     float UpdateDopplerMotion(
-        DopplerMotionState& state, const SpatialAudioListener& listener, const CoordsXYZ& sourcePosition,
-        float elapsedSeconds, bool sourceMoves, bool sourceDiscontinuity)
+        DopplerMotionState& state, const SpatialAudioListener& listener, const CoordsXYZ& sourcePosition, float elapsedSeconds,
+        bool sourceMoves, bool sourceDiscontinuity)
     {
         const auto source = ToVector(sourcePosition);
         const auto sourceStep = state.Initialised ? Length(source - state.PreviousSourcePosition) : 0.0f;
@@ -269,14 +281,12 @@ namespace OpenRCT2::Audio
         }
 
         const auto ray = Normalise(source - listener.Position);
-        const auto sourceVelocity = sourceMoves
-            ? (source - state.PreviousSourcePosition) * (1.0f / elapsedSeconds)
-            : SpatialAudioVector{};
+        const auto sourceVelocity = sourceMoves ? (source - state.PreviousSourcePosition) * (1.0f / elapsedSeconds)
+                                                : SpatialAudioVector{};
         const auto sourceRadialVelocity = Dot(sourceVelocity, ray);
         const auto listenerRadialVelocity = Dot(listener.Velocity, ray);
         const auto velocityBlend = 1.0f - std::exp(-elapsedSeconds / kDopplerVelocitySmoothingSeconds);
-        state.SmoothedSourceRadialVelocity = std::lerp(
-            state.SmoothedSourceRadialVelocity, sourceRadialVelocity, velocityBlend);
+        state.SmoothedSourceRadialVelocity = std::lerp(state.SmoothedSourceRadialVelocity, sourceRadialVelocity, velocityBlend);
         state.SmoothedListenerRadialVelocity = std::lerp(
             state.SmoothedListenerRadialVelocity, listenerRadialVelocity, velocityBlend);
 
@@ -391,22 +401,22 @@ namespace OpenRCT2::Audio
                 return gains;
             }
             case 4:
-                return panBetweenSpeakers(
-                    std::array{ Speaker{ pi_v<float> / 4.0f, 1 }, Speaker{ 3.0f * pi_v<float> / 4.0f, 3 },
-                                Speaker{ 5.0f * pi_v<float> / 4.0f, 2 }, Speaker{ 7.0f * pi_v<float> / 4.0f, 0 } });
+                return panBetweenSpeakers(std::array{ Speaker{ pi_v<float> / 4.0f, 1 }, Speaker{ 3.0f * pi_v<float> / 4.0f, 3 },
+                                                      Speaker{ 5.0f * pi_v<float> / 4.0f, 2 },
+                                                      Speaker{ 7.0f * pi_v<float> / 4.0f, 0 } });
             case 5:
-                return panBetweenSpeakers(
-                    std::array{ Speaker{ pi_v<float> / 4.0f, 1 }, Speaker{ 3.0f * pi_v<float> / 4.0f, 4 },
-                                Speaker{ 5.0f * pi_v<float> / 4.0f, 3 }, Speaker{ 7.0f * pi_v<float> / 4.0f, 0 } });
+                return panBetweenSpeakers(std::array{ Speaker{ pi_v<float> / 4.0f, 1 }, Speaker{ 3.0f * pi_v<float> / 4.0f, 4 },
+                                                      Speaker{ 5.0f * pi_v<float> / 4.0f, 3 },
+                                                      Speaker{ 7.0f * pi_v<float> / 4.0f, 0 } });
             case 6:
                 return panBetweenSpeakers(
                     std::array{ Speaker{ 0.0f, 2 }, Speaker{ pi_v<float> / 6.0f, 1 }, Speaker{ 11.0f * pi_v<float> / 18.0f, 5 },
                                 Speaker{ 25.0f * pi_v<float> / 18.0f, 4 }, Speaker{ 11.0f * pi_v<float> / 6.0f, 0 } });
             case 7:
-                return panBetweenSpeakers(
-                    std::array{ Speaker{ 0.0f, 2 }, Speaker{ pi_v<float> / 6.0f, 1 }, Speaker{ pi_v<float> / 2.0f, 6 },
-                                Speaker{ pi_v<float>, 4 }, Speaker{ 3.0f * pi_v<float> / 2.0f, 5 },
-                                Speaker{ 11.0f * pi_v<float> / 6.0f, 0 } });
+                return panBetweenSpeakers(std::array{ Speaker{ 0.0f, 2 }, Speaker{ pi_v<float> / 6.0f, 1 },
+                                                      Speaker{ pi_v<float> / 2.0f, 6 }, Speaker{ pi_v<float>, 4 },
+                                                      Speaker{ 3.0f * pi_v<float> / 2.0f, 5 },
+                                                      Speaker{ 11.0f * pi_v<float> / 6.0f, 0 } });
             default:
                 // SDL 7.1 order: FL, FR, FC, LFE, BL, BR, SL, SR. LFE remains available for device bass
                 // management; full-range positional audio is not routed to it without a low-pass filter. World

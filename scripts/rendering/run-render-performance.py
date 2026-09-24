@@ -211,6 +211,13 @@ def parse_log(text):
     if display_observation is not None:
         result["displayObservation"] = display_observation
         result["missingMetrics"].remove("actual drawable extent/selected monitor refresh is not emitted")
+    if "Benchmark phase timing v1:" in metrics_text:
+        payload = json.loads(one(metrics_text, r"Benchmark phase timing v1:\s+(\{.*\})", "benchmark phase timing"))
+        validate_phase_timing(payload, metrics["logicalTicks"])
+        result["phaseTiming"] = payload
+    if "Benchmark simulation pacing:" in metrics_text:
+        result["simulationPacing"] = one(metrics_text,
+            r"Benchmark simulation pacing:\s+(ordinary Turbo 360 TPS target|uncapped headroom)", "simulation pacing")
     if "Upload telemetry v1:" in metrics_text:
         payload = json.loads(one(metrics_text, r"Upload telemetry v1:\s+(\{.*\})", "upload telemetry"))
         validate_upload_telemetry(payload)
@@ -278,8 +285,14 @@ def validate_display_observation(result, width, height):
 def validate_upload_telemetry(payload):
     integer_fields = ("schema", "attemptedFrames", "submittedFrames", "auxiliarySamples", "allocatedBytes", "alignmentBytes",
                       "allocationFailures", "captureRequests", "readbackRequests", "readbackBytes", "lostSamples")
-    if set(payload) != set(integer_fields) | {"attempted", "submitted", "overflow"}:
+    optional_fields = {"statusReadbackRequests", "statusReadbackBytes", "worldBufferCopyCalls"}
+    if set(payload) - optional_fields != set(integer_fields) | {"attempted", "submitted", "overflow"}:
         raise ValueError("Unknown/missing upload telemetry schema fields")
+    if any(type(payload[k]) is not int or not 0 <= payload[k] <= 2**64-1 for k in optional_fields if k in payload):
+        raise ValueError("Invalid native status/copy telemetry integer")
+    # Older receipts omit all three fields. Status transfers are bounded scalar safety checks, not image readbacks.
+    if bool(payload.get("statusReadbackRequests", 0)) != bool(payload.get("statusReadbackBytes", 0)):
+        raise ValueError("Native status request/byte coverage disagrees")
     if any(type(payload[k]) is not int or not 0 <= payload[k] <= 2**64-1 for k in integer_fields):
         raise ValueError("Invalid upload telemetry integer")
     if payload["schema"] != 1 or type(payload["overflow"]) is not bool or payload["overflow"]:
@@ -299,6 +312,46 @@ def validate_upload_telemetry(payload):
         raise ValueError("Mapped host writes exceed successful ring allocation payload")
     if any(payload[k] for k in ("allocationFailures", "lostSamples", "captureRequests", "readbackRequests", "readbackBytes")):
         raise ValueError("Telemetry measurement includes allocation failure, lost samples or capture/readback work")
+
+
+def validate_phase_timing(payload, logical_ticks):
+    phases = {"simulation", "tick", "messages", "ui", "drawBegin", "drawPaint", "drawEnd", "networkUpdate",
+              "networkFlush", "schedulerWait", "drawInterval"}
+    if (set(payload) != {"schema", "capacityPerPhase", "phases", "tickWindowSize", "tickWindowCapacity", "tickWindows", "scope"}
+            or payload["schema"] != 1 or payload["capacityPerPhase"] != 16 or payload["tickWindowSize"] != 3000
+            or payload["tickWindowCapacity"] != 16 or set(payload["phases"]) != phases):
+        raise ValueError("Unsupported benchmark phase timing schema")
+    def nonnegative(value):
+        return type(value) in (int, float) and math.isfinite(value) and value >= 0
+    for sample in payload["phases"].values():
+        if set(sample) != {"count", "wallMs", "threadCycles", "threadCycleSamples", "worst"}:
+            raise ValueError("Invalid phase sample fields")
+        if any(type(sample[k]) is not int or sample[k] < 0 for k in ("count", "threadCycles", "threadCycleSamples")):
+            raise ValueError("Invalid phase sample counters")
+        if not nonnegative(sample["wallMs"]) or sample["threadCycleSamples"] > sample["count"]:
+            raise ValueError("Invalid phase timing totals")
+        if not isinstance(sample["worst"], list) or len(sample["worst"]) != min(sample["count"], 16):
+            raise ValueError("Incomplete bounded worst-phase sample set")
+        previous = math.inf
+        for event in sample["worst"]:
+            if set(event) != {"simulationTick", "offsetMs", "wallMs", "threadCycles", "threadCyclesAvailable", "requestedWaitMs"}:
+                raise ValueError("Invalid phase event fields")
+            if (type(event["simulationTick"]) is not int or not 0 <= event["simulationTick"] < 2**32
+                    or type(event["threadCycles"]) is not int or event["threadCycles"] < 0
+                    or type(event["threadCyclesAvailable"]) is not bool
+                    or any(not nonnegative(event[k]) for k in ("offsetMs", "wallMs", "requestedWaitMs"))
+                    or event["wallMs"] > previous or event["wallMs"] > sample["wallMs"] + 1e-6):
+                raise ValueError("Invalid or unsorted phase event")
+            previous = event["wallMs"]
+    windows = payload["tickWindows"]
+    if not isinstance(windows, list) or len(windows) != min(logical_ticks // 3000, 16):
+        raise ValueError("Incomplete benchmark tick windows")
+    for index, window in enumerate(windows):
+        if (set(window) != {"startLogicalTick", "endLogicalTick", "simulationTick", "elapsedSeconds", "simulationSeconds", "draws", "drawSeconds"}
+                or window["startLogicalTick"] != index * 3000 or window["endLogicalTick"] != (index + 1) * 3000
+                or any(not nonnegative(window[k]) for k in ("elapsedSeconds", "simulationSeconds", "drawSeconds"))
+                or window["elapsedSeconds"] <= 0 or type(window["draws"]) is not int or window["draws"] < 0):
+            raise ValueError("Invalid benchmark tick window")
 
 
 def quote_ini_string(value):
@@ -435,6 +488,7 @@ def main():
     parser.add_argument("--attribution-profile", choices=("csv", "json"), help="Separate instrumented attribution lane, never clean acceptance")
     parser.add_argument("--compare-run", type=Path)
     parser.add_argument("--final-screenshot", action="store_true", help="Current-only one final main-canvas PNG after timing stops; excluded from measured workload")
+    parser.add_argument("--uncapped-simulation", action="store_true", help="Current-only simulation headroom experiment; ordinary gameplay keeps its 360 TPS target")
     parser.add_argument("--upload-telemetry", action="store_true", help="Opt-in Vulkan API upload payload attribution; not clean TPS acceptance")
     args = parser.parse_args()
     output = args.output.resolve()
@@ -446,6 +500,8 @@ def main():
         parser.error("Require width >= 640, height >= 480, display >= 0, timeout > 0")
     if args.final_screenshot and args.mode != "current-vulkan":
         parser.error("--final-screenshot requires a current binary with the post-measurement hook; frozen binaries remain unchanged")
+    if args.uncapped_simulation and args.mode != "current-vulkan":
+        parser.error("--uncapped-simulation requires current-vulkan")
     if args.upload_telemetry and args.mode != "current-vulkan":
         parser.error("--upload-telemetry requires current-vulkan; the frozen executable is not instrumented")
     output.mkdir(parents=True)
@@ -507,6 +563,8 @@ def main():
                    "--rct1-data-path", str(games["rct1"]), "--rct2-data-path", str(games["rct2"])]
         if args.final_screenshot:
             command.append("--benchmark-final-screenshot")
+        if args.uncapped_simulation:
+            command.append("--benchmark-uncapped-simulation")
         if args.upload_telemetry:
             command.append("--benchmark-upload-telemetry")
         if args.visible:
@@ -526,6 +584,8 @@ def main():
                                "simulationSpeed": "ordinary Turbo", "camera": "saved park view; no input events injected"}
         if args.upload_telemetry:
             summary["workload"]["uploadTelemetry"] = 1
+        if args.uncapped_simulation:
+            summary["workload"]["simulationSpeed"] = "uncapped benchmark headroom (Turbo logical ticks)"
         summary["postMeasurementScreenshotRequested"] = args.final_screenshot
         summary["command"] = command
         summary["runtimeBefore"] = file_inventory(runtime)
@@ -579,6 +639,11 @@ def main():
             summary["failures"].append("Runtime diagnostic requires investigation")
             summary["runtimeDiagnostics"] = suspicious
         summary["result"] = parse_log(text)
+        expected_pacing = "uncapped headroom" if args.uncapped_simulation else "ordinary Turbo 360 TPS target"
+        if summary["result"].get("simulationPacing", "ordinary Turbo 360 TPS target") != expected_pacing:
+            summary["failures"].append("Requested/actual benchmark simulation pacing differs")
+        if "phaseTiming" in summary["result"]:
+            summary["phaseTimingInstrumentation"] = "Fixed top16 per main-thread phase; clock/thread-cycle sampling included in elapsed time; no loop I/O or full profiler; nested phases overlap"
         if args.final_screenshot:
             summary["finalScreenshot"] = qualify_final_screenshot(
                 text, profile, output, summary["result"], args.width, args.height)
@@ -597,6 +662,8 @@ def main():
                 "categories": ["palette", "lookup", "atlas", "lightFx", "world", "commands"],
                 "metrics": ["mappedHostWrittenBytes", "recordedBufferTransferBytes", "recordedImageTexelBytes", "directHostVertexPayloadBytes", "directHostStoragePayloadBytes"],
                 "units": "API payload bytes; physical bandwidth is not measured",
+                "statusReadback": "Optional statusReadbackRequests/statusReadbackBytes are scalar asynchronous safety checks, not images; absent legacy fields mean zero",
+                "worldBufferCopyCalls": "Optional batched world vkCmdCopyBuffer call count; absent legacy field means zero",
                 "scope": "backend only; producer CPU copies, full ring flush/high-water and generation age remain unavailable"}
         m = summary["result"]["metrics"]
         if m["renderer"] != renderer or m["vsync"] != ("enabled" if args.vsync else "disabled") or m["logicalTicks"] != args.ticks:
@@ -619,6 +686,8 @@ def main():
         summary["measurementLimitations"] = ["Hidden smoke cannot certify displayed pacing" if not args.visible else "Visible run still needs independent displayed-presentation trace",
                                              "No image readbacks during measurement; optional final image is after metrics freeze" if args.final_screenshot else "No image readbacks or diagnostic capture requests; ordinary main loop",
                                              "Single-run results do not establish a substantial TPS gain", "Initial checkpoint is a state census; initial entity checksum is unavailable"]
+        if args.uncapped_simulation:
+            summary["qualification"] += "; uncapped benchmark headroom, not ordinary 360 TPS gameplay pacing"
         if not summary["failures"]:
             summary["status"] = "pass"
     except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:

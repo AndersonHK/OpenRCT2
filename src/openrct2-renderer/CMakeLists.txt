@@ -34,6 +34,7 @@ if (ENABLE_VULKAN AND NOT EMSCRIPTEN)
             "${VULKAN_SHADER_SOURCE_DIR}/balloon.vert"
             "${VULKAN_SHADER_SOURCE_DIR}/balloon_order.comp"
             "${VULKAN_SHADER_SOURCE_DIR}/world_surface.vert"
+            "${VULKAN_SHADER_SOURCE_DIR}/world_surface.frag"
             "${VULKAN_SHADER_SOURCE_DIR}/world_surface_compact.comp"
             "${VULKAN_SHADER_SOURCE_DIR}/terrain_retained_emit.comp"
             "${VULKAN_SHADER_SOURCE_DIR}/terrain_columns.comp"
@@ -61,6 +62,7 @@ if (ENABLE_VULKAN AND NOT EMSCRIPTEN)
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/balloon.vert.spv"
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/balloon_order.comp.spv"
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/world_surface.vert.spv"
+                AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/world_surface.frag.spv"
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/world_surface_compact.comp.spv"
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/terrain_retained_emit.comp.spv"
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/terrain_columns.comp.spv"
@@ -127,6 +129,9 @@ if (OPENRCT2_VULKAN_ENABLED)
         set(VULKAN_SHADER_INCLUDES)
         if (VULKAN_SHADER_NAME STREQUAL "terrain_retained_emit.comp")
             list(APPEND VULKAN_SHADER_INCLUDES "${VULKAN_SHADER_SOURCE_DIR}/terrain_surface_rules.glsl")
+        elseif (VULKAN_SHADER_NAME STREQUAL "world_surface_compact.comp")
+            list(APPEND VULKAN_SHADER_INCLUDES "${VULKAN_SHADER_SOURCE_DIR}/world_surface_rules.glsl"
+                "${VULKAN_SHADER_SOURCE_DIR}/terrain_surface_rules.glsl")
         elseif (VULKAN_SHADER_NAME STREQUAL "terrain_columns.comp")
             list(APPEND VULKAN_SHADER_INCLUDES "${VULKAN_SHADER_SOURCE_DIR}/terrain_sprite_geometry.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/peep_rules.glsl")

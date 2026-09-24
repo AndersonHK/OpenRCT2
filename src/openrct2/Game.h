@@ -50,10 +50,28 @@ namespace OpenRCT2
         return 1.0f / GetGameSpeedTargetTicksPerSecond(speed);
     }
 
+    // Accumulator debt was sampled at the outer-frame boundary. Work since then already moves the next tick closer;
+    // waiting must not count that work a second time, and simulation seconds must be converted back to wall seconds.
+    [[nodiscard]] constexpr float GetSimulationWaitSeconds(
+        float updateTime, float accumulator, float elapsedSinceSample, float timeScale) noexcept
+    {
+        if (timeScale <= 0)
+            return 0;
+        const float remaining = (updateTime - accumulator) / timeScale - elapsedSinceSample;
+        return remaining > 0 ? remaining : 0;
+    }
+
     // The network update runs at a different rate to the game update.
     constexpr uint32_t kNetworkUpdateFPS = 140;
     // The network update interval in milliseconds, (1000 / 140fps) = ~7.14ms
     constexpr float kNetworkUpdateTimeMS = 1.0f / kNetworkUpdateFPS;
+
+    // Keep fractional idle budgets and service input/network work at least once per network interval.
+    [[nodiscard]] constexpr float GetSchedulerWaitSeconds(float simulationWait, float presentationWait) noexcept
+    {
+        const float wait = simulationWait < presentationWait ? simulationWait : presentationWait;
+        return wait <= 0 ? 0 : (wait < kNetworkUpdateTimeMS ? wait : kNetworkUpdateTimeMS);
+    }
 
     constexpr float kGameMinTimeScale = 0.1f;
     constexpr float kGameMaxTimeScale = 5.0f;
@@ -111,10 +129,10 @@ namespace OpenRCT2
             .framesPerSecond = ratio(static_cast<double>(totals.draws), totals.elapsedSeconds),
             .simulationUtilisationPercent = ratio(totals.simulationSeconds * 100.0, totals.elapsedSeconds),
             .drawUtilisationPercent = ratio(totals.drawSeconds * 100.0, totals.elapsedSeconds),
-            .meanSimulationMicrosecondsPerLogicalTick =
-                ratio(totals.simulationSeconds * 1'000'000.0, static_cast<double>(totals.logicalTicks)),
-            .meanSimulationMicrosecondsPerBatch =
-                ratio(totals.simulationSeconds * 1'000'000.0, static_cast<double>(totals.simulationBatches)),
+            .meanSimulationMicrosecondsPerLogicalTick = ratio(
+                totals.simulationSeconds * 1'000'000.0, static_cast<double>(totals.logicalTicks)),
+            .meanSimulationMicrosecondsPerBatch = ratio(
+                totals.simulationSeconds * 1'000'000.0, static_cast<double>(totals.simulationBatches)),
             .meanDrawMicroseconds = ratio(totals.drawSeconds * 1'000'000.0, static_cast<double>(totals.draws)),
             .longestSimulationBatchMilliseconds = totals.longestSimulationBatchSeconds * 1'000.0,
             .longestSimulationSliceMilliseconds = totals.longestSimulationSliceSeconds * 1'000.0,

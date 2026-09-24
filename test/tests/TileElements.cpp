@@ -82,7 +82,8 @@ TEST(MapPresentationSnapshotTest, SurfaceChunksAreImmutableAndRevisioned)
     SurfacePresentationRecord surface;
     surface.valid = 1;
     surface.baseZ = 48;
-    surface.detailedImages[0] = ImageId(1234);
+    surface.terrain.surfaceSlot = 12;
+    surface.terrain.waterHeight = 64;
 
     MapPresentationChangeBatch initial{
         .epoch = 7,
@@ -96,7 +97,8 @@ TEST(MapPresentationSnapshotTest, SurfaceChunksAreImmutableAndRevisioned)
 
     auto next = published;
     surface.baseZ = 64;
-    surface.detailedImages[0] = ImageId(5678);
+    surface.terrain.surfaceSlot = 56;
+    surface.terrain.waterHeight = 96;
     MapPresentationChangeBatch update{ .epoch = 7, .surfaceWidth = 1, .surfaceHeight = 1 };
     update.changes.push_back({ 0, { element }, surface, 0 });
     next.Apply(update);
@@ -108,9 +110,11 @@ TEST(MapPresentationSnapshotTest, SurfaceChunksAreImmutableAndRevisioned)
     EXPECT_NE(oldChunk, newChunk);
     EXPECT_NE(oldChunk->revision, newChunk->revision);
     EXPECT_EQ(oldChunk->records[0].baseZ, 48);
-    EXPECT_EQ(oldChunk->records[0].detailedImages[0].GetIndex(), 1234u);
+    EXPECT_EQ(oldChunk->records[0].terrain.surfaceSlot, 12u);
+    EXPECT_EQ(oldChunk->records[0].terrain.waterHeight, 64);
     EXPECT_EQ(newChunk->records[0].baseZ, 64);
-    EXPECT_EQ(newChunk->records[0].detailedImages[0].GetIndex(), 5678u);
+    EXPECT_EQ(newChunk->records[0].terrain.surfaceSlot, 56u);
+    EXPECT_EQ(newChunk->records[0].terrain.waterHeight, 96);
 }
 
 TEST(MapPresentationSnapshotTest, SurfacePublicationUsesDenseActiveMapIndicesAndDynamicChunks)

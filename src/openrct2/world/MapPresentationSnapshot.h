@@ -8,7 +8,6 @@
 
 #include "MapLimits.h"
 #include "TerrainPresentation.h"
-#include "../drawing/ImageId.hpp"
 #include "tile_element/TileElement.h"
 
 #include <array>
@@ -20,17 +19,19 @@
 
 namespace OpenRCT2
 {
-    /** Pointer-free, object-resolved base terrain data captured at the map publication boundary. */
+    enum class MapPublicationProfile : uint8_t
+    {
+        legacyTiles,
+        rawTerrain,
+    };
+
+    /** Pointer-free raw terrain data captured at the map publication boundary; shaders select original art. */
     struct SurfacePresentationRecord
     {
-        static constexpr size_t kRotationCount = 4;
-
         uint16_t baseZ{};
         uint8_t valid{};
         uint8_t requiresCategoryInterleaving{};
         TerrainPresentationRecord terrain;
-        std::array<ImageId, kRotationCount> detailedImages{};
-        std::array<ImageId, kRotationCount> distantImages{};
     };
 
     struct MapPresentationTileChange
@@ -47,6 +48,8 @@ namespace OpenRCT2
         bool reset{};
         uint32_t surfaceWidth{};
         uint32_t surfaceHeight{};
+        uint32_t sourceTick{};
+        MapPublicationProfile profile{ MapPublicationProfile::legacyTiles };
         std::vector<MapPresentationTileChange> changes;
         std::shared_ptr<const TerrainPresentationMaterials> terrainMaterials;
     };
@@ -70,9 +73,15 @@ namespace OpenRCT2
     private:
         using Chunk = std::array<std::vector<TileElement>, kChunkWidth>;
 
-        std::array<std::shared_ptr<const Chunk>, kChunkCount> _chunks;
-        SurfaceChunks _surfaceChunks;
+        // Native publications never allocate the legacy tile directory. Snapshot header copies
+        // share both immutable directories; Apply clones only directories with actual changes.
+        using Chunks = std::vector<std::shared_ptr<const Chunk>>;
+        std::shared_ptr<const Chunks> _chunks;
+        std::shared_ptr<const SurfaceChunks> _surfaceChunks;
+        inline static const SurfaceChunks kEmptySurfaceChunks{};
         uint64_t _epoch{};
+        uint32_t _sourceTick{};
+        MapPublicationProfile _profile{ MapPublicationProfile::legacyTiles };
         uint64_t _nextSurfaceRevision{};
         uint32_t _surfaceWidth{};
         uint32_t _surfaceHeight{};
@@ -93,6 +102,18 @@ namespace OpenRCT2
                 && _terrainMaterials != nullptr;
         }
         void Apply(const MapPresentationChangeBatch& batch);
+        [[nodiscard]] uint32_t GetSourceTick() const noexcept
+        {
+            return _sourceTick;
+        }
+        [[nodiscard]] bool IsRawTerrainOnly() const noexcept
+        {
+            return _profile == MapPublicationProfile::rawTerrain;
+        }
+        [[nodiscard]] bool HasLegacyTileStorage() const noexcept
+        {
+            return _chunks != nullptr;
+        }
         [[nodiscard]] TileElement* GetFirstElementAt(const TileCoordsXY& tilePos) const;
         [[nodiscard]] uint64_t GetEpoch() const noexcept
         {
@@ -100,7 +121,7 @@ namespace OpenRCT2
         }
         [[nodiscard]] const SurfaceChunks& GetSurfaceChunks() const noexcept
         {
-            return _surfaceChunks;
+            return _surfaceChunks == nullptr ? kEmptySurfaceChunks : *_surfaceChunks;
         }
         [[nodiscard]] uint32_t GetSurfaceWidth() const noexcept
         {
@@ -125,7 +146,8 @@ namespace OpenRCT2
     // The sole publication owner requests a complete bootstrap only when it has no front snapshot.
     // If an earlier owner already consumed the reset, this gives the new snapshot a fresh epoch so
     // GPU chunk revisions cannot alias resident records from the discarded publication.
-    [[nodiscard]] MapPresentationChangeBatch ConsumeMapPresentationChanges(bool requireCompleteSnapshot = false);
+    [[nodiscard]] MapPresentationChangeBatch ConsumeMapPresentationChanges(
+        bool requireCompleteSnapshot = false, MapPublicationProfile profile = MapPublicationProfile::legacyTiles);
     [[nodiscard]] uint64_t GetMapPresentationEpoch() noexcept;
 
     /** Installs a snapshot only for map reads made by the current paint worker. */

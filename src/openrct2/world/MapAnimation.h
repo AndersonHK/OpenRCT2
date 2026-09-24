@@ -22,11 +22,10 @@ namespace OpenRCT2::MapAnimations
         landEdgeDoor,
     };
 
-    void MarkTileForInvalidation(TileCoordsXY coords);
     void MarkTileForUpdate(TileCoordsXY coords);
     void CreateTemporary(const CoordsXYZ& coords, TemporaryType type);
     void MarkAllTiles();
-    void InvalidateAndUpdateAll();
+    void UpdateAll();
     void ClearAll();
     void ShiftAll(TileCoordsXY amount);
 } // namespace OpenRCT2::MapAnimations

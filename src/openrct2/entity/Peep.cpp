@@ -1218,7 +1218,7 @@ namespace OpenRCT2
             const auto peepWeight = peep->state == PeepState::queuing ? 1.0f : 2.0f;
             visiblePeeps += static_cast<int32_t>(peepWeight);
 
-            const auto spatial = CalculateSpatialAudioParams(*listener, peep->getLocation());
+            const auto spatial = CalculateSpatialAudioAngles(*listener, peep->getLocation());
             auto sector = static_cast<int32_t>(std::lround(spatial.Azimuth / kSectorAngle));
             sector %= static_cast<int32_t>(kCrowdSpatialSectorCount);
             if (sector < 0)

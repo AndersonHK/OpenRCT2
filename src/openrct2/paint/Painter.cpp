@@ -17,10 +17,10 @@
 #include "../core/Guard.hpp"
 #include "../drawing/Drawing.String.h"
 #include "../drawing/Drawing.h"
-#include "../drawing/PickupPeep.h"
 #include "../drawing/IDrawingEngine.h"
 #include "../drawing/NewDrawing.h"
 #include "../drawing/Palette.h"
+#include "../drawing/PickupPeep.h"
 #include "../drawing/Text.h"
 #include "../interface/Viewport.h"
 #include "../interface/Widget.h"
@@ -58,8 +58,6 @@ void Painter::Paint(IDrawingEngine& de)
     }
     else
     {
-        // Publish one immutable presentation generation before the drawing engine snapshots this frame's damage.
-        ViewportBeginPresentationFrame();
         MapSelection::invalidate();
         VirtualFloorInvalidate(false);
 

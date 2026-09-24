@@ -46,6 +46,7 @@ struct IntegratedBenchmarkConfig
     bool visible{};
     bool uploadTelemetry{};
     bool finalScreenshot{};
+    bool uncappedSimulation{};
     int32_t warmupSeconds{ 5 };
     int32_t measurementSeconds{ 30 };
     int32_t warmupTicks{ -1 };

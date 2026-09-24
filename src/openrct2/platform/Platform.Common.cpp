@@ -199,6 +199,53 @@ namespace OpenRCT2::Platform
         std::this_thread::sleep_for(std::chrono::milliseconds(ms));
     }
 
+    void SleepUntil(const std::chrono::steady_clock::time_point deadline)
+    {
+        using Clock = std::chrono::steady_clock;
+        if (deadline <= Clock::now())
+            return;
+#ifdef _WIN32
+        // One timer per calling thread; no process-wide timer-resolution change or handle allocation per frame.
+        struct SchedulerTimer
+        {
+            HANDLE handle = CreateWaitableTimerExW(
+                nullptr, nullptr, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_MODIFY_STATE | SYNCHRONIZE);
+            ~SchedulerTimer()
+            {
+                if (handle != nullptr)
+                    CloseHandle(handle);
+            }
+        };
+        static thread_local SchedulerTimer timer;
+        if (timer.handle != nullptr)
+        {
+            const auto remaining = deadline - Clock::now();
+            if (remaining <= Clock::duration::zero())
+                return;
+            // Relative due times are negative 100 ns units. Round down so the requested timer never exceeds the budget.
+            using TimerUnits = std::chrono::duration<int64_t, std::ratio<1, 10000000>>;
+            const auto units = std::chrono::duration_cast<TimerUnits>(remaining).count();
+            if (units <= 0)
+                return;
+            LARGE_INTEGER due{};
+            due.QuadPart = -units;
+            if (SetWaitableTimer(timer.handle, &due, 0, nullptr, nullptr, FALSE))
+            {
+                // Timeout is a finite safety bound, not a second sleep. Cancel on every completion before timer reuse.
+                const auto timeout = std::chrono::ceil<std::chrono::milliseconds>(remaining).count();
+                const auto result = WaitForSingleObject(
+                    timer.handle, static_cast<DWORD>(std::min<int64_t>(timeout, MAXDWORD - 1)));
+                CancelWaitableTimer(timer.handle);
+                if (result == WAIT_OBJECT_0 || result == WAIT_TIMEOUT)
+                    return;
+            }
+        }
+#endif
+        // Older Windows versions may reject high-resolution timers; other platforms retain their native clock wait.
+        if (deadline > Clock::now())
+            std::this_thread::sleep_until(deadline);
+    }
+
     static const auto _processStartTime = std::chrono::high_resolution_clock::now();
 
     uint32_t GetTicks()

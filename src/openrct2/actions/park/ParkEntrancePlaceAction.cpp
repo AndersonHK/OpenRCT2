@@ -19,7 +19,6 @@
 #include "../../world/Entrance.h"
 #include "../../world/Footpath.h"
 #include "../../world/Map.h"
-#include "../../world/MapAnimation.h"
 #include "../../world/Park.h"
 #include "../../world/QuarterTile.h"
 #include "../../world/tile_element/EntranceElement.h"
@@ -187,11 +186,6 @@ namespace OpenRCT2::GameActions
             Park::UpdateFences({ entranceLoc.x, entranceLoc.y + kCoordsXYStep });
 
             MapInvalidateTile({ entranceLoc, entranceElement->getBaseZ(), entranceElement->getClearanceZ() });
-
-            if (index == ParkEntranceSequence::centre)
-            {
-                MapAnimations::MarkTileForInvalidation(TileCoordsXY(entranceLoc));
-            }
         }
 
         return res;

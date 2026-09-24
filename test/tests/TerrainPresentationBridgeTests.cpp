@@ -34,6 +34,8 @@ namespace
         change.surface.valid = 1;
         change.surface.baseZ = 16;
         change.surface.terrain = { 16, 2, 3, 0, 0, 1 };
+        change.surface.terrain.present = 1;
+        change.surface.terrain.bounded = 1;
         return change;
     }
     MapPresentationChangeBatch Initial()
@@ -526,12 +528,19 @@ TEST(TerrainPresentationBridgeTest, PeepAssetCatalogFlattensOnceAndHoldsOriginal
     const auto oldBase = source.base;
     GfxObjectFreeImages(source.base, 37);
     source.base = kImageIndexUndefined;
+    // This standalone cache is not registered with DrawingEngineInvalidateImage.
+    // Retire the freed source range even when the allocator chooses a different replacement range.
+    for (uint32_t i = 0; i < 37; ++i)
+        cache->InvalidateImage(oldBase + i);
     ASSERT_TRUE(source.Initialise(rct2));
-    ASSERT_EQ(source.base, oldBase); // Deliberately reuse numerical G1 IDs while the old packet remains held.
+    const auto replacementBase = source.base;
+    // G1 free-list ordering depends on preceding object loads. Generation ownership must work
+    // for both numerical-ID reuse and a fresh range; exact address reuse is not the allocator contract.
     for (uint32_t i = 0; i < 37; ++i)
         cache->InvalidateImage(source.base + i);
     const auto current = makeCatalog(2);
     cache->BeginFrame();
+    EXPECT_FALSE(cache->TryBindAssetLease(old->atlasLease));
     EXPECT_EQ(resolver.Resolve(*cache, oldCatalog, current, terrain), nullptr);
     const auto replacement = resolver.Resolve(*cache, current, current, terrain);
     ASSERT_NE(replacement, nullptr);
@@ -540,14 +549,19 @@ TEST(TerrainPresentationBridgeTest, PeepAssetCatalogFlattensOnceAndHoldsOriginal
     EXPECT_EQ(old->catalog, oldCatalog);
     EXPECT_EQ(old->descriptors[3].objectGeneration, 1u);
     EXPECT_EQ(replacement->descriptors[3].objectGeneration, 2u);
-    const auto find = [oldBase](const auto& generation) {
-        return std::find_if(
-                   generation->sprites->records.begin(), generation->sprites->records.end(),
-                   [oldBase](const auto& metadata) { return metadata.imageIndex == oldBase; })
-            ->variants[0]
-            .asset;
+    EXPECT_EQ(old->facts[0].baseImage, oldBase);
+    ASSERT_FALSE(replacement->facts.empty());
+    EXPECT_EQ(replacement->facts[0].baseImage, replacementBase);
+    EXPECT_EQ(resolver.GetCatalogBuilds(), 2u);
+    const auto find = [](const auto& generation, uint32_t image) {
+        const auto found = std::find_if(
+            generation->sprites->records.begin(), generation->sprites->records.end(),
+            [image](const auto& metadata) { return metadata.imageIndex == image; });
+        if (found == generation->sprites->records.end())
+            throw std::runtime_error("Held peep asset generation lost its source image metadata");
+        return found->variants[0].asset;
     };
-    EXPECT_NE(find(old), find(replacement));
+    EXPECT_NE(find(old, oldBase), find(replacement, replacementBase));
     cache->AbortFrame();
     cache->DrainFrameRetirements();
 }

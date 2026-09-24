@@ -20,8 +20,8 @@
 #include "entity/EntityTweener.h"
 #include "entity/PatrolArea.h"
 #include "interface/Screenshot.h"
-#include "platform/Platform.h"
 #include "peep/GuestPathfinding.h"
+#include "platform/Platform.h"
 #include "profiling/Profiling.h"
 #include "ride/Vehicle.h"
 #include "scenario/Scenario.h"
@@ -362,7 +362,7 @@ namespace OpenRCT2
         RideMeasurementsUpdate();
         News::UpdateCurrentItem();
 
-        MapAnimations::InvalidateAndUpdateAll();
+        MapAnimations::UpdateAll();
         if (updatePresentationAudio)
         {
             // These scans only select wall-clock audio emitters. Coalesce them at the ordinary UI/frame boundary when

@@ -18,7 +18,6 @@
 #include "../../world/ConstructionClearance.h"
 #include "../../world/Entrance.h"
 #include "../../world/Map.h"
-#include "../../world/MapAnimation.h"
 #include "../../world/QuarterTile.h"
 #include "../../world/Wall.h"
 #include "../../world/tile_element/EntranceElement.h"
@@ -220,8 +219,6 @@ namespace OpenRCT2::GameActions
             station.entrance = TileCoordsXYZD(CoordsXYZD{ _loc, z, entranceElement->getDirection() });
             station.lastPeepInQueue = EntityId::GetNull();
             station.queueLength = 0;
-
-            MapAnimations::MarkTileForInvalidation(TileCoordsXY(_loc));
         }
         RideInvalidateTransportServiceCache(ride->id);
 
