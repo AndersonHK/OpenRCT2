@@ -9,6 +9,7 @@
     #include <openrct2-renderer/vulkan/VulkanFrameExecutor.h>
     #include <openrct2-renderer/vulkan/VulkanSubmissionSlots.h>
     #include <openrct2/Context.h>
+    #include <openrct2/Date.h>
     #include <openrct2/Game.h>
     #include <openrct2/GameState.h>
     #include <openrct2/OpenRCT2.h>
@@ -147,6 +148,28 @@ TEST_F(VulkanWorldPathArtTest, ImportedOriginalArtMatchesExternalUpstreamCorpus)
         importer->Import(getGameState());
         getGameState().entities.resetEntitySpatialIndices();
         ResetAllSpriteQuadrantPlacements();
+        if (manifest.contains("ghostPatches"))
+            for (const auto& patch : manifest.at("ghostPatches"))
+            {
+                auto* element = MapGetFirstElementAt(
+                    TileCoordsXY{ patch.at("x").get<int32_t>(), patch.at("y").get<int32_t>() });
+                ASSERT_NE(element, nullptr);
+                const auto ordinal = patch.at("elementOrdinal").get<uint32_t>();
+                for (uint32_t i = 0; i < ordinal; i++)
+                {
+                    ASSERT_FALSE(element->isLastForTile());
+                    ++element;
+                }
+                ASSERT_EQ(static_cast<uint32_t>(element->getType()), patch.at("type").get<uint32_t>());
+                ASSERT_EQ(element->getBaseZ(), patch.at("baseZ").get<int32_t>());
+                ASSERT_EQ(element->getClearanceZ(), patch.at("clearanceZ").get<int32_t>());
+                element->setGhost(true);
+            }
+        if (manifest.contains("clockHour") && manifest.contains("clockMinute"))
+        {
+            gRealTimeOfDay.hour = manifest.at("clockHour").get<uint8_t>();
+            gRealTimeOfDay.minute = manifest.at("clockMinute").get<uint8_t>();
+        }
         const auto sourceTick = getGameState().currentTicks;
         PresentationScene publication;
         ASSERT_TRUE(publication.BeginFrame(

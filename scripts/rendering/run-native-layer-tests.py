@@ -15,7 +15,8 @@ import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_FILTER = ':'.join((
     'VulkanWorldSurfaceLayerTest.*', 'VulkanWorldPathLayerTest.*',
-    'WorldPathPublicationTest.*', 'WorldPathRulesTest.*',
+    'VulkanWorldObjectLayerTest.*', 'WorldPropCatalogTest.*', 'WorldTrackRulesTest.*',
+    'WorldPathPublicationTest.*', 'WorldObjectUsageTest.*', 'WorldPathRulesTest.*',
     'TerrainSurfaceRulesTest.FullMapShaderSteepCornersMatchAuthoritativeSlopeTable',
     'GpuFoundationTest.*WorldSurface*',
     'GpuFoundationTest.NativeTerrainReservesPainterDepthBetweenEarlierCommandsAndLaterUi',

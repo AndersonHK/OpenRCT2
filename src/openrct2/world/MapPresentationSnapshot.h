@@ -9,6 +9,7 @@
 #include "MapLimits.h"
 #include "PathPresentation.h"
 #include "TerrainPresentation.h"
+#include "WorldObjectPresentation.h"
 #include "tile_element/TileElement.h"
 
 #include <array>
@@ -42,6 +43,7 @@ namespace OpenRCT2
         SurfacePresentationRecord surface;
         uint32_t surfaceIndex{ std::numeric_limits<uint32_t>::max() };
         std::vector<PathPresentationRecord> paths;
+        std::vector<WorldObjectPresentationRecord> objects;
     };
 
     struct MapPresentationChangeBatch
@@ -51,10 +53,13 @@ namespace OpenRCT2
         uint32_t surfaceWidth{};
         uint32_t surfaceHeight{};
         uint32_t sourceTick{};
+        uint8_t clockHour{}, clockMinute{};
         MapPublicationProfile profile{ MapPublicationProfile::legacyTiles };
         std::vector<MapPresentationTileChange> changes;
         std::shared_ptr<const TerrainPresentationMaterials> terrainMaterials;
         std::shared_ptr<const PathPresentationMaterials> pathMaterials;
+        std::shared_ptr<const WorldObjectPresentationMaterials> objectMaterials;
+        std::shared_ptr<const WorldRidePresentationMaterials> rideMaterials;
     };
 
     /** Owned tile storage and O(1) tile lookup for one presentation frame. */
@@ -77,6 +82,13 @@ namespace OpenRCT2
             std::array<PathPresentationTileRange, kChunkWidth> tiles{};
             std::vector<PathPresentationRecord> records;
         };
+        struct ObjectChunk
+        {
+            uint64_t revision{};
+            std::array<WorldObjectPresentationTileRange, kChunkWidth> tiles{};
+            std::vector<WorldObjectPresentationRecord> records;
+        };
+        using ObjectChunks = std::vector<std::shared_ptr<const ObjectChunk>>;
         using PathChunks = std::vector<std::shared_ptr<const PathChunk>>;
         using SurfaceChunks = std::vector<std::shared_ptr<const SurfaceChunk>>;
 
@@ -92,6 +104,16 @@ namespace OpenRCT2
         std::shared_ptr<const PathChunks> _pathChunks;
         inline static const PathChunks kEmptyPathChunks{};
         uint64_t _nextPathRevision{};
+        std::shared_ptr<const ObjectChunks> _objectChunks;
+        inline static const ObjectChunks kEmptyObjectChunks{};
+        uint64_t _nextObjectRevision{};
+        using ObjectOccurrenceCounts = std::array<
+            std::array<uint32_t, WorldObjectPresentationUsage::kSlots>, WorldObjectPresentationUsage::kKinds>;
+        std::shared_ptr<const ObjectOccurrenceCounts> _objectOccurrences;
+        std::shared_ptr<const WorldObjectPresentationUsage> _objectUsage;
+        std::shared_ptr<const WorldObjectPresentationMaterials> _objectMaterials;
+        std::shared_ptr<const WorldRidePresentationMaterials> _rideMaterials;
+        uint8_t _clockHour{}, _clockMinute{};
         std::shared_ptr<const PathPresentationMaterials> _pathMaterials;
         uint64_t _epoch{};
         uint32_t _sourceTick{};
@@ -117,6 +139,30 @@ namespace OpenRCT2
         [[nodiscard]] const std::shared_ptr<const PathPresentationMaterials>& GetPathMaterials() const noexcept
         {
             return _pathMaterials;
+        }
+        [[nodiscard]] const ObjectChunks& GetObjectChunks() const noexcept
+        {
+            return _objectChunks == nullptr ? kEmptyObjectChunks : *_objectChunks;
+        }
+        [[nodiscard]] const std::shared_ptr<const WorldObjectPresentationUsage>& GetObjectUsage() const noexcept
+        {
+            return _objectUsage;
+        }
+        [[nodiscard]] const std::shared_ptr<const WorldObjectPresentationMaterials>& GetObjectMaterials() const noexcept
+        {
+            return _objectMaterials;
+        }
+        [[nodiscard]] const std::shared_ptr<const WorldRidePresentationMaterials>& GetRideMaterials() const noexcept
+        {
+            return _rideMaterials;
+        }
+        [[nodiscard]] uint8_t GetClockHour() const noexcept
+        {
+            return _clockHour;
+        }
+        [[nodiscard]] uint8_t GetClockMinute() const noexcept
+        {
+            return _clockMinute;
         }
         [[nodiscard]] bool HasBoundedTerrainFacts() const noexcept
         {

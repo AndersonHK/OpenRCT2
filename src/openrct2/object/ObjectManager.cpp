@@ -23,6 +23,7 @@
 #include "../ride/RideAudio.h"
 #include "../world/PathPresentation.h"
 #include "../world/TerrainPresentation.h"
+#include "../world/WorldObjectPresentation.h"
 #include "BannerSceneryEntry.h"
 #include "LargeSceneryEntry.h"
 #include "Object.h"
@@ -145,31 +146,35 @@ namespace OpenRCT2
             }
         }
 
-        static bool IsPathMaterialType(ObjectType type)
+        static bool IsWorldMaterialType(ObjectType type)
         {
             return type == ObjectType::paths || type == ObjectType::footpathSurface || type == ObjectType::footpathRailings
-                || type == ObjectType::pathAdditions;
+                || type == ObjectType::pathAdditions || type == ObjectType::smallScenery || type == ObjectType::largeScenery
+                || type == ObjectType::walls || type == ObjectType::banners || type == ObjectType::ride
+                || type == ObjectType::station;
         }
         // Covers slot layout changes as well as image allocation, including exceptional exits.
-        class PathMaterialMutation final
+        class WorldMaterialMutation final
         {
             bool _active;
 
         public:
-            explicit PathMaterialMutation(bool active = true)
+            explicit WorldMaterialMutation(bool active = true)
                 : _active(active)
             {
                 if (_active)
                 {
                     AdvancePathObjectRevision();
+                    AdvanceWorldObjectRevision();
                     gPathObjectMutationDepth.fetch_add(1, std::memory_order_acq_rel);
                 }
             }
-            ~PathMaterialMutation()
+            ~WorldMaterialMutation()
             {
                 if (_active)
                 {
                     AdvancePathObjectRevision();
+                    AdvanceWorldObjectRevision();
                     gPathObjectMutationDepth.fetch_sub(1, std::memory_order_release);
                 }
             }
@@ -424,7 +429,7 @@ namespace OpenRCT2
 
         void ResetObjects() override
         {
-            PathMaterialMutation pathMutation;
+            WorldMaterialMutation worldMutation;
             PeepAnimationMutation peepMutation(*this);
             for (auto& list : _loadedObjects)
             {
@@ -553,7 +558,7 @@ namespace OpenRCT2
             }
             if (slot)
             {
-                PathMaterialMutation pathMutation(IsPathMaterialType(objectType));
+                WorldMaterialMutation worldMutation(IsWorldMaterialType(objectType));
                 PeepAnimationMutation peepMutation(*this, objectType == ObjectType::peepAnimations);
                 auto* object = GetOrLoadObject(ori);
                 if (object != nullptr)
@@ -613,7 +618,7 @@ namespace OpenRCT2
             if (object == nullptr)
                 return;
 
-            PathMaterialMutation pathMutation(IsPathMaterialType(object->GetObjectType()));
+            WorldMaterialMutation worldMutation(IsWorldMaterialType(object->GetObjectType()));
             PeepAnimationMutation peepMutation(*this, object->GetObjectType() == ObjectType::peepAnimations);
             // Because it's possible to have the same loaded object for multiple
             // slots, we have to make sure find and set all of them to nullptr
@@ -772,7 +777,7 @@ namespace OpenRCT2
 
         void LoadObjects(std::vector<ObjectToLoad>& requiredObjects, bool reportProgress)
         {
-            PathMaterialMutation pathMutation;
+            WorldMaterialMutation worldMutation;
             // The outer scope coalesces nested alias removals and publishes after the final slot layout is installed.
             PeepAnimationMutation peepMutation(*this);
             std::vector<Object*> objects;

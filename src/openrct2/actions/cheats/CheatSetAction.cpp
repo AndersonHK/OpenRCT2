@@ -469,7 +469,11 @@ namespace OpenRCT2::GameActions
         {
             if (it.element->getType() == TileElementType::smallScenery)
             {
-                it.element->asSmallScenery()->setAge(0);
+                if (it.element->asSmallScenery()->getAge() != 0)
+                {
+                    it.element->asSmallScenery()->setAge(0);
+                    MarkMapTilePresentationDirty(TileCoordsXY{ it.x, it.y }.toCoordsXY());
+                }
             }
         } while (TileElementIteratorNext(&it));
 

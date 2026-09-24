@@ -34,6 +34,9 @@ namespace OpenRCT2::Ui::Vulkan
         std::array<VkFramebuffer, kFramesInFlight> _framebuffers{};
         Buffer _sourceRecords;
         Buffer _pathRecords;
+        Buffer _objectRecords;
+        Buffer _propCatalog;
+        Buffer _trackCatalog;
         Buffer _spriteSets;
         Buffer _catalog;
         Buffer _prefixes;
@@ -45,6 +48,8 @@ namespace OpenRCT2::Ui::Vulkan
         std::vector<uint64_t> _uploadedRevisions;
         std::vector<uint32_t> _pathOffsets, _pathCapacities;
         uint32_t _pathArenaEnd{};
+        std::vector<uint32_t> _objectOffsets, _objectCapacities;
+        uint32_t _objectArenaEnd{};
         uint64_t _uploadedSpriteRevision{};
         uint64_t _uploadedEpoch{};
         uint32_t _uploadedWidth{};

@@ -38,6 +38,8 @@ set(test_files
    "${CMAKE_CURRENT_SOURCE_DIR}/VulkanNativePeepSceneTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/VulkanWorldSurfaceLayerTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/VulkanWorldPathLayerTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/VulkanWorldObjectLayerTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/WorldTrackRulesTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/VulkanWorldPathArtTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/WorldPathPublicationTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/WorldPathRulesTests.cpp"

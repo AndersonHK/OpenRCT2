@@ -1939,9 +1939,9 @@ namespace OpenRCT2
                                     { "logicalExtent", { _uiContext->GetWidth(), _uiContext->GetHeight() } },
                                     { "drawableExtent", { drawable.Width, drawable.Height } },
                                     { "renderScope",
-                                      partial
-                                          ? "GPU terrain, paths/additions, background and UI; other world categories omitted"
-                                          : "configured main renderer" } };
+                                      partial ? "GPU terrain, paths/additions, scenery and supported track recipes with "
+                                                "ghosts; remaining categories omitted"
+                                              : "configured main renderer" } };
                     // The displayed immutable generation may lag the final simulation tick.
                     // Report that age honestly; no second render or publication reset is hidden.
                     receipt["publicationSourceTick"] = generation ? json_t(generation->sourceTick) : json_t(nullptr);

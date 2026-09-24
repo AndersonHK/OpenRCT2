@@ -71,6 +71,12 @@ void main()
         texel = fColour;
     }
 
+    if ((fFlags & (1 << 10)) != 0)
+    {
+        uint background = texelFetch(uLandBackground, fragment, 0).r;
+        oColour = texelFetch(uRemapPalette, ivec2(int(background), fPalettes.x), 0).r;
+        return;
+    }
     if ((fFlags & (1 << 8)) != 0)
     {
         uint background = texelFetch(uLandBackground, fragment, 0).r;

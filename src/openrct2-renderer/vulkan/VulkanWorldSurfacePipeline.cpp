@@ -37,8 +37,9 @@ namespace OpenRCT2::Ui::Vulkan
             uint32_t phase;
             uint32_t transparentWater;
             uint32_t outputCapacity;
+            uint32_t sourceTick, clockMinute, clockHour;
         };
-        static_assert(sizeof(WorldSurfaceConstants) == 72);
+        static_assert(sizeof(WorldSurfaceConstants) == 84);
         static_assert(offsetof(WorldSurfaceConstants, width) == 32);
         static_assert(offsetof(WorldSurfaceConstants, zoom) == 44);
         static_assert(offsetof(WorldSurfaceConstants, spriteSetCount) == 52);
@@ -82,12 +83,14 @@ namespace OpenRCT2::Ui::Vulkan
         constexpr VkDeviceSize sourceBytes = Gpu::kWorldSurfaceMaximumChunkCount * Gpu::kWorldSurfaceChunkWidth
             * sizeof(Gpu::WorldSurfaceSourceRecord);
         constexpr VkDeviceSize pathBytes = Gpu::kWorldPathSourceCapacity * sizeof(Gpu::WorldPathSourceRecord);
+        constexpr VkDeviceSize objectBytes = Gpu::kWorldObjectSourceCapacity * sizeof(Gpu::WorldObjectSourceRecord);
         constexpr VkDeviceSize spriteBytes = Gpu::kWorldSurfaceMaximumSpriteSetCount * sizeof(Gpu::WorldSurfaceSpriteSet);
         constexpr VkDeviceSize visibleBytes = Gpu::kWorldSurfaceOutputCapacity * sizeof(Gpu::WorldSurfaceRecord);
         constexpr VkDeviceSize indirectBytes = Gpu::kWorldSurfaceMaximumDrawCount * sizeof(VkDrawIndirectCommand);
         VkPhysicalDeviceProperties properties{};
         vkGetPhysicalDeviceProperties(device.GetPhysicalDevice(), &properties);
-        if (std::max({ sourceBytes, pathBytes, spriteBytes, visibleBytes }) > properties.limits.maxStorageBufferRange)
+        if (std::max({ sourceBytes, pathBytes, objectBytes, spriteBytes, visibleBytes })
+            > properties.limits.maxStorageBufferRange)
             throw std::runtime_error("GPU terrain storage exceeds the device buffer range");
         _catalog.Initialise(
             device.GetPhysicalDevice(), _device, sizeof(Gpu::WorldSurfaceCatalog),
@@ -108,6 +111,15 @@ namespace OpenRCT2::Ui::Vulkan
             VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
         _pathRecords.Initialise(
             device.GetPhysicalDevice(), _device, pathBytes,
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+        _objectRecords.Initialise(
+            device.GetPhysicalDevice(), _device, objectBytes,
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+        _propCatalog.Initialise(
+            device.GetPhysicalDevice(), _device, Gpu::kWorldPropCatalogCapacity * sizeof(uint32_t),
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+        _trackCatalog.Initialise(
+            device.GetPhysicalDevice(), _device, Gpu::kWorldTrackCatalogCapacity * sizeof(uint32_t),
             VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
         _spriteSets.Initialise(
             device.GetPhysicalDevice(), _device, spriteBytes,
@@ -135,6 +147,12 @@ namespace OpenRCT2::Ui::Vulkan
         _spriteSets.Dispose();
         _sourceRecords.Dispose();
         _pathRecords.Dispose();
+        _objectRecords.Dispose();
+        _propCatalog.Dispose();
+        _trackCatalog.Dispose();
+        _objectOffsets.clear();
+        _objectCapacities.clear();
+        _objectArenaEnd = 0;
         _pathOffsets.clear();
         _pathCapacities.clear();
         _pathArenaEnd = 0;
@@ -184,6 +202,21 @@ namespace OpenRCT2::Ui::Vulkan
             return;
         if (!Gpu::GetWorldSurfaceDepthRange(scene.depthBase, scene.recordCount).has_value())
             throw std::invalid_argument("Vulkan world-surface painter depth interval is invalid");
+        const auto& props = scene.sprites->propCatalog;
+        const auto& tracks = scene.sprites->trackCatalog;
+        if (props.size() > Gpu::kWorldPropCatalogCapacity || tracks.size() > Gpu::kWorldTrackCatalogCapacity)
+            throw std::overflow_error("GPU world rule catalog capacity exceeded");
+        if (!props.empty())
+        {
+            if (props.size() < Gpu::kWorldPropCatalogHeaderWords)
+                throw std::invalid_argument("GPU prop catalog header is incomplete");
+            for (size_t family = 0; family < 4; family++)
+                if (props[family] < Gpu::kWorldPropCatalogHeaderWords
+                    || uint64_t(props[family]) + uint64_t(props[family + 4]) * Gpu::kWorldPropMaterialWords > props.size())
+                    throw std::invalid_argument("GPU prop catalog family range is invalid");
+        }
+        if (!tracks.empty() && (tracks.size() < 12 || tracks[0] != 0x5754524b || tracks[1] != 1 || tracks[11] != tracks.size()))
+            throw std::invalid_argument("GPU track catalog header is invalid");
         if (_uploadedEpoch != scene.worldEpoch || _uploadedWidth != scene.width || _uploadedHeight != scene.height
             || _uploadedRevisions.size() != scene.chunks.size())
         {
@@ -193,6 +226,9 @@ namespace OpenRCT2::Ui::Vulkan
             _uploadedRevisions.assign(scene.chunks.size(), 0);
             _pathOffsets.assign(scene.chunks.size(), 0);
             _pathCapacities.assign(scene.chunks.size(), 0);
+            _objectOffsets.assign(scene.chunks.size(), 0);
+            _objectCapacities.assign(scene.chunks.size(), 0);
+            _objectArenaEnd = 0;
             _pathArenaEnd = 0;
             _uploadedSpriteRevision = 0;
         }
@@ -202,54 +238,80 @@ namespace OpenRCT2::Ui::Vulkan
         for (size_t i = 0; i < scene.chunks.size(); i++)
             if (_uploadedRevisions[i] != scene.chunks[i]->revision)
                 dirtyChunks.push_back(i);
-        // This shader visits each stack serially. Reject pathological tile work before recording any
-        // copies/dispatches; storage remains variable-length and no path is silently truncated.
-        for (const auto i : dirtyChunks)
-            for (const auto& record : scene.chunks[i]->records)
-                if (record.pathCount > Gpu::kWorldPathMaximumTileWork)
-                    throw std::overflow_error("GPU world path tile dispatch budget exceeded");
-        // Variable-length chunk ranges use a persistent arena;
-        // compact only if fragmented ranges no longer fit. No unchanged-frame path walk or upload.
-        bool repack = false;
+        // An absent table is legal only while no instance can reference it. Otherwise a reused
+        // device buffer could expose an earlier generation's metadata after a malformed submission.
+        if (props.empty() || tracks.empty())
+            for (size_t i = 0; i < scene.chunks.size(); i++)
+                if (_uploadedRevisions[i] != scene.chunks[i]->revision || _uploadedSpriteRevision != scene.sprites->revision)
+                    for (const auto& object : scene.chunks[i]->objects)
+                        if ((object.kind < 4 && props.empty()) || (object.kind == 4 && tracks.empty()))
+                            throw std::invalid_argument("GPU world instance has no matching immutable catalog");
+        // Validate every changed range before recording transfers. Admission never truncates a tile.
         for (const auto i : dirtyChunks)
         {
-            const auto count = scene.chunks[i]->paths.size();
-            if (count > Gpu::kWorldPathSourceCapacity)
-                throw std::overflow_error("GPU world path source capacity exceeded");
-            if (count <= _pathCapacities[i])
-                continue;
-            const auto capacity = std::min<uint64_t>(Gpu::kWorldPathSourceCapacity, std::bit_ceil(uint64_t(count)));
-            if (capacity > Gpu::kWorldPathSourceCapacity - _pathArenaEnd)
+            const auto& chunk = *scene.chunks[i];
+            for (const auto& record : chunk.records)
             {
-                repack = true;
-                break;
+                if (record.pathCount > Gpu::kWorldPathMaximumTileWork || record.objectCount > Gpu::kWorldObjectMaximumTileWork)
+                    throw std::overflow_error("GPU world tile dispatch budget exceeded");
+                if (record.pathFirst > chunk.paths.size() || record.pathCount > chunk.paths.size() - record.pathFirst
+                    || record.objectFirst > chunk.objects.size()
+                    || record.objectCount > chunk.objects.size() - record.objectFirst)
+                    throw std::invalid_argument("GPU world tile range exceeds its owned chunk");
             }
-            _pathOffsets[i] = _pathArenaEnd;
-            _pathCapacities[i] = static_cast<uint32_t>(capacity);
-            _pathArenaEnd += static_cast<uint32_t>(capacity);
         }
-        if (repack)
-        {
+        // Both immutable families share the same bounded allocation policy; fragmentation alone triggers repacking.
+        const auto reserveArena = [&](auto member, uint32_t limit, auto& offsets, auto& capacities, uint32_t& end) {
+            bool repack = false;
+            for (const auto i : dirtyChunks)
+            {
+                const auto count = (scene.chunks[i].get()->*member).size();
+                if (count > limit)
+                    throw std::overflow_error("GPU world source capacity exceeded");
+                if (count <= capacities[i])
+                    continue;
+                const auto capacity = std::min<uint64_t>(limit, std::bit_ceil(uint64_t(count)));
+                if (capacity > limit - end)
+                {
+                    repack = true;
+                    break;
+                }
+                offsets[i] = end;
+                capacities[i] = static_cast<uint32_t>(capacity);
+                end += static_cast<uint32_t>(capacity);
+            }
+            if (!repack)
+                return false;
             uint64_t count = 0;
             for (const auto& chunk : scene.chunks)
-                count += chunk->paths.size();
-            if (count > Gpu::kWorldPathSourceCapacity)
-                throw std::overflow_error("GPU world path source capacity exceeded");
-            dirtyChunks.clear();
-            _pathArenaEnd = 0;
+                count += (chunk.get()->*member).size();
+            if (count > limit)
+                throw std::overflow_error("GPU world source capacity exceeded");
+            end = 0;
             for (size_t i = 0; i < scene.chunks.size(); i++)
             {
-                _pathOffsets[i] = _pathArenaEnd;
-                _pathCapacities[i] = static_cast<uint32_t>(scene.chunks[i]->paths.size());
-                _pathArenaEnd += _pathCapacities[i];
-                dirtyChunks.push_back(i);
+                offsets[i] = end;
+                capacities[i] = static_cast<uint32_t>((scene.chunks[i].get()->*member).size());
+                end += capacities[i];
             }
+            return true;
+        };
+        const bool pathsRepacked = reserveArena(
+            &Gpu::WorldSurfaceChunk::paths, Gpu::kWorldPathSourceCapacity, _pathOffsets, _pathCapacities, _pathArenaEnd);
+        const bool objectsRepacked = reserveArena(
+            &Gpu::WorldSurfaceChunk::objects, Gpu::kWorldObjectSourceCapacity, _objectOffsets, _objectCapacities,
+            _objectArenaEnd);
+        if (pathsRepacked || objectsRepacked)
+        {
+            dirtyChunks.clear();
+            for (size_t i = 0; i < scene.chunks.size(); i++)
+                dirtyChunks.push_back(i);
         }
         const bool hasChangedChunks = !dirtyChunks.empty();
         const bool spritesChanged = _uploadedSpriteRevision != scene.sprites->revision;
         if (hasChangedChunks || spritesChanged)
         {
-            std::array<VkBufferMemoryBarrier, 4> barriers{};
+            std::array<VkBufferMemoryBarrier, 7> barriers{};
             uint32_t barrierCount = 0;
             const auto append = [&barriers, &barrierCount](const VkBuffer buffer) {
                 barriers[barrierCount++] = {
@@ -267,11 +329,14 @@ namespace OpenRCT2::Ui::Vulkan
             {
                 append(_sourceRecords.GetBuffer());
                 append(_pathRecords.GetBuffer());
+                append(_objectRecords.GetBuffer());
             }
             if (spritesChanged)
             {
                 append(_spriteSets.GetBuffer());
                 append(_catalog.GetBuffer());
+                append(_propCatalog.GetBuffer());
+                append(_trackCatalog.GetBuffer());
             }
             vkCmdPipelineBarrier(
                 frame.commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr,
@@ -280,18 +345,23 @@ namespace OpenRCT2::Ui::Vulkan
 
         if (hasChangedChunks)
         {
-            VkDeviceSize pathBytes = 0;
+            VkDeviceSize pathBytes = 0, objectBytes = 0;
             for (const auto i : dirtyChunks)
+            {
                 pathBytes += scene.chunks[i]->paths.size() * sizeof(Gpu::WorldPathSourceRecord);
+                objectBytes += scene.chunks[i]->objects.size() * sizeof(Gpu::WorldObjectSourceRecord);
+            }
             const auto sourceBytes = chunkBytes * dirtyChunks.size();
-            const auto totalBytes = sourceBytes + pathBytes;
+            const auto totalBytes = sourceBytes + pathBytes + objectBytes;
             auto allocation = frame.upload->Allocate(totalBytes, alignof(uint32_t), Drawing::UploadCategory::world);
             if (!allocation)
                 throw std::runtime_error("Vulkan upload ring has no room for terrain/path deltas");
-            std::vector<VkBufferCopy> regions, pathRegions;
+            std::vector<VkBufferCopy> regions, pathRegions, objectRegions;
             regions.reserve(dirtyChunks.size());
             pathRegions.reserve(dirtyChunks.size());
+            objectRegions.reserve(dirtyChunks.size());
             VkDeviceSize pathCursor = sourceBytes;
+            VkDeviceSize objectCursor = sourceBytes + pathBytes;
             for (size_t i = 0; i < dirtyChunks.size(); i++)
             {
                 const auto index = dirtyChunks[i];
@@ -302,6 +372,7 @@ namespace OpenRCT2::Ui::Vulkan
                     if (record.pathFirst > chunk.paths.size() || record.pathCount > chunk.paths.size() - record.pathFirst)
                         throw std::invalid_argument("GPU world path tile range exceeds its owned chunk");
                     record.pathFirst += _pathOffsets[index];
+                    record.objectFirst += _objectOffsets[index];
                 }
                 std::memcpy(allocation.data + i * chunkBytes, records.data(), chunkBytes);
                 regions.push_back({ allocation.offset + i * chunkBytes, index * chunkBytes, chunkBytes });
@@ -313,6 +384,14 @@ namespace OpenRCT2::Ui::Vulkan
                         { allocation.offset + pathCursor, _pathOffsets[index] * sizeof(Gpu::WorldPathSourceRecord), bytes });
                     pathCursor += bytes;
                 }
+                const auto objectSize = chunk.objects.size() * sizeof(Gpu::WorldObjectSourceRecord);
+                if (objectSize != 0)
+                {
+                    std::memcpy(allocation.data + objectCursor, chunk.objects.data(), objectSize);
+                    objectRegions.push_back({ allocation.offset + objectCursor,
+                                              _objectOffsets[index] * sizeof(Gpu::WorldObjectSourceRecord), objectSize });
+                    objectCursor += objectSize;
+                }
                 _uploadedRevisions[index] = chunk.revision;
             }
             allocation.RecordHostWrite();
@@ -323,8 +402,12 @@ namespace OpenRCT2::Ui::Vulkan
                 vkCmdCopyBuffer(
                     frame.commandBuffer, allocation.buffer, _pathRecords.GetBuffer(), static_cast<uint32_t>(pathRegions.size()),
                     pathRegions.data());
+            if (!objectRegions.empty())
+                vkCmdCopyBuffer(
+                    frame.commandBuffer, allocation.buffer, _objectRecords.GetBuffer(),
+                    static_cast<uint32_t>(objectRegions.size()), objectRegions.data());
             if (frame.telemetry)
-                frame.telemetry->Add(frame.telemetry->worldBufferCopyCalls, pathRegions.empty() ? 1 : 2);
+                frame.telemetry->Add(frame.telemetry->worldBufferCopyCalls, 1 + !pathRegions.empty() + !objectRegions.empty());
             allocation.Record(Drawing::UploadMetric::bufferTransfer, totalBytes);
         }
         if (spritesChanged)
@@ -354,11 +437,30 @@ namespace OpenRCT2::Ui::Vulkan
             if (frame.telemetry)
                 frame.telemetry->Add(frame.telemetry->worldBufferCopyCalls, 1);
             catalogUpload.Record(Drawing::UploadMetric::bufferTransfer, catalogCopy.size);
+            const auto uploadWords = [&](const std::vector<uint32_t>& words, const Buffer& target) {
+                if (words.empty())
+                    return;
+                const VkDeviceSize bytes = words.size() * sizeof(uint32_t);
+                if (bytes > target.GetSize())
+                    throw std::overflow_error("GPU world rule catalog capacity exceeded");
+                auto upload = frame.upload->Allocate(bytes, alignof(uint32_t), Drawing::UploadCategory::world);
+                if (!upload)
+                    throw std::runtime_error("Vulkan upload ring has no room for world rules");
+                std::memcpy(upload.data, words.data(), static_cast<size_t>(bytes));
+                upload.RecordHostWrite();
+                const VkBufferCopy copy{ upload.offset, 0, bytes };
+                vkCmdCopyBuffer(frame.commandBuffer, upload.buffer, target.GetBuffer(), 1, &copy);
+                upload.Record(Drawing::UploadMetric::bufferTransfer, bytes);
+                if (frame.telemetry)
+                    frame.telemetry->Add(frame.telemetry->worldBufferCopyCalls, 1);
+            };
+            uploadWords(scene.sprites->propCatalog, _propCatalog);
+            uploadWords(scene.sprites->trackCatalog, _trackCatalog);
             _uploadedSpriteRevision = scene.sprites->revision;
         }
         if (hasChangedChunks || spritesChanged)
         {
-            std::array<VkBufferMemoryBarrier, 4> barriers{};
+            std::array<VkBufferMemoryBarrier, 7> barriers{};
             uint32_t barrierCount = 0;
             const auto append = [&barriers, &barrierCount](const VkBuffer buffer) {
                 barriers[barrierCount++] = {
@@ -376,11 +478,14 @@ namespace OpenRCT2::Ui::Vulkan
             {
                 append(_sourceRecords.GetBuffer());
                 append(_pathRecords.GetBuffer());
+                append(_objectRecords.GetBuffer());
             }
             if (spritesChanged)
             {
                 append(_spriteSets.GetBuffer());
                 append(_catalog.GetBuffer());
+                append(_propCatalog.GetBuffer());
+                append(_trackCatalog.GetBuffer());
             }
             vkCmdPipelineBarrier(
                 frame.commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, nullptr,
@@ -428,6 +533,9 @@ namespace OpenRCT2::Ui::Vulkan
             .phase = 0,
             .transparentWater = scene.transparentWater,
             .outputCapacity = scene.outputCapacity,
+            .sourceTick = scene.sourceTick,
+            .clockMinute = scene.clockMinute,
+            .clockHour = scene.clockHour,
         };
         const uint32_t drawCount = Gpu::GetWorldSurfaceDrawCount(scene.recordCount);
         vkCmdBindPipeline(frame.commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, _computePipeline);
@@ -591,6 +699,9 @@ namespace OpenRCT2::Ui::Vulkan
             VkDescriptorSetLayoutBinding{ 9, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
             VkDescriptorSetLayoutBinding{ 10, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
             VkDescriptorSetLayoutBinding{ 11, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
+            VkDescriptorSetLayoutBinding{ 12, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
+            VkDescriptorSetLayoutBinding{ 13, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
+            VkDescriptorSetLayoutBinding{ 14, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
         };
         const VkDescriptorSetLayoutCreateInfo layoutInfo = {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
@@ -600,7 +711,7 @@ namespace OpenRCT2::Ui::Vulkan
         CheckVk(vkCreateDescriptorSetLayout(_device, &layoutInfo, nullptr, &_descriptorSetLayout), "world surfaces layout");
         constexpr std::array poolSizes = {
             VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3 },
-            VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 9 },
+            VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 12 },
         };
         const VkDescriptorPoolCreateInfo poolInfo = {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
@@ -622,6 +733,9 @@ namespace OpenRCT2::Ui::Vulkan
                                            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
         const VkDescriptorBufferInfo sprites{ resources.GetSpriteDescriptors().GetBuffer(), 0,
                                               resources.GetSpriteDescriptors().GetSize() };
+        const VkDescriptorBufferInfo objects{ _objectRecords.GetBuffer(), 0, _objectRecords.GetSize() };
+        const VkDescriptorBufferInfo props{ _propCatalog.GetBuffer(), 0, _propCatalog.GetSize() };
+        const VkDescriptorBufferInfo tracks{ _trackCatalog.GetBuffer(), 0, _trackCatalog.GetSize() };
         const VkDescriptorBufferInfo paths{ _pathRecords.GetBuffer(), 0, _pathRecords.GetSize() };
         const VkDescriptorBufferInfo sources{ _sourceRecords.GetBuffer(), 0, _sourceRecords.GetSize() };
         const VkDescriptorBufferInfo spriteSets{ _spriteSets.GetBuffer(), 0, _spriteSets.GetSize() };
@@ -657,6 +771,12 @@ namespace OpenRCT2::Ui::Vulkan
                                   VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &background },
             VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 11, 0, 1,
                                   VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &paths },
+            VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 12, 0, 1,
+                                  VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &objects },
+            VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 13, 0, 1,
+                                  VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &props },
+            VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 14, 0, 1,
+                                  VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &tracks },
         };
         vkUpdateDescriptorSets(_device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
     }

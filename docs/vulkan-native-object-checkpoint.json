@@ -1,0 +1,265 @@
+{
+  "schema": 1,
+  "date": "2026-09-23",
+  "scope": "Deployed partial native ghosts, props and track bodies; owner acceptance, full parity and pacing qualification pending",
+  "build": {
+    "path": "obj/vulkan-parity/build-106/receipt.json",
+    "sha256": "90f3e27b92bf6a4c7aa07ae0c5638ad1efae617e31ab1fc39101493f58b3a5b4"
+  },
+  "gpuTests": {
+    "path": "obj/vulkan-parity/object101-focused/summary.json",
+    "sha256": "08b43a2338bdced25114445584736114c42307b2dd907ae088c8f766a59eac42"
+  },
+  "cpuTests": {
+    "path": "obj/vulkan-parity/object106-cpu/summary.json",
+    "sha256": "558fe349a4234fd1817e7fda7a702f75a348aa71747511b6c8a5e5f4b412b70d"
+  },
+  "authoring": {
+    "path": "obj/vulkan-parity/native-track-recipe-authoring-05/coverage.json",
+    "sha256": "7f3eab5c8c5b44e765bc4e4e6a7f5834a7dc0903ac7ec5d773cf0833953b20c7"
+  },
+  "authoringTests": {
+    "path": "obj/vulkan-parity/native-track-extractor-tests-02/tests.log",
+    "sha256": "4903b4c8a0fcd3d8fc67c15e7728b1705726585949cb96c4a3616665f663d824"
+  },
+  "upstream": {
+    "path": "obj/vulkan-parity/upstream-object-fixture-build-02/receipt.json",
+    "sha256": "4ea2180757dcd1179eb52cdebe040013add35ee807e2575ac9794005cffc0eff"
+  },
+  "corpus": {
+    "path": "obj/vulkan-parity/object-upstream-corpus-02/manifest.json",
+    "sha256": "551018eca17e64a8cc1839b149e41e7c3aa7b519ac2e0d273bba0d7acaa1c4fe"
+  },
+  "originalArt": {
+    "path": "obj/vulkan-parity/object103-art/summary.json",
+    "sha256": "a5b5ac5a6ec84312cf3ff192509d612f7c1ad78a87e32405a6b0f9ccd9aa6429"
+  },
+  "visualComparison": {
+    "path": "obj/vulkan-parity/object103-art-review/summary.json",
+    "sha256": "78706af2cae6320b4e9d9594f8ad59f098b442a5a74f7d1ca9fc199770e820f4"
+  },
+  "candidate": {
+    "evidence": {
+      "path": "obj/vulkan-parity/performance-objects106-12000-01/summary.json",
+      "sha256": "f33eb5f8b5c32f83a9c0b08ce74667e665d31b3e030f7f9513a929c8c9a324a7"
+    },
+    "metrics": {
+      "renderer": "vulkan",
+      "vsync": "enabled",
+      "elapsedSeconds": 33.375776,
+      "logicalTicks": 12000,
+      "logicalTps": 359.542,
+      "draws": {
+        "count": 4678.0,
+        "fps": 140.162
+      },
+      "ui": {
+        "messagePumps": 10404.0,
+        "windowUpdates": 4678.0,
+        "messageHz": 311.723,
+        "windowHz": 140.162
+      },
+      "simulation": {
+        "seconds": 22.422426,
+        "utilisationPercent": 67.2,
+        "meanMicrosecondsPerTick": 1868.536
+      },
+      "simulationBatches": {
+        "count": 12000.0,
+        "meanMicroseconds": 1868.536,
+        "longestMilliseconds": 94.505,
+        "longestSliceMilliseconds": 94.505
+      },
+      "drawCpu": {
+        "seconds": 0.622244,
+        "utilisationPercent": 1.9,
+        "meanMicroseconds": 133.015
+      },
+      "applicationFrameIntervalsMs": {
+        "p50": 7.073,
+        "p95": 8.859,
+        "p99": 9.323,
+        "max": 97.0
+      },
+      "rendererCpu": {
+        "submitMeanUs": 93.343,
+        "presentMeanUs": 90.064,
+        "samples": 4678.0
+      },
+      "presentApi": {
+        "meanUs": 65.679,
+        "samples": 4678.0
+      },
+      "gpuFrame": {
+        "meanUs": 1590.457,
+        "samples": 4678.0
+      },
+      "gpuPasses": {
+        "uploadMeanUs": 2.833,
+        "drawMeanUs": 1549.729,
+        "lightFxMeanUs": 0.003,
+        "compositeMeanUs": 37.892
+      }
+    },
+    "tickWindows": [
+      {
+        "drawSeconds": 0.1517112999999999,
+        "draws": 1162,
+        "elapsedSeconds": 8.3369964,
+        "endLogicalTick": 3000,
+        "simulationSeconds": 5.376959200000011,
+        "simulationTick": 3136931,
+        "startLogicalTick": 0
+      },
+      {
+        "drawSeconds": 0.1652376,
+        "draws": 1174,
+        "elapsedSeconds": 8.3330707,
+        "endLogicalTick": 6000,
+        "simulationSeconds": 5.404583400000014,
+        "simulationTick": 3139931,
+        "startLogicalTick": 3000
+      },
+      {
+        "drawSeconds": 0.15830429999999962,
+        "draws": 1176,
+        "elapsedSeconds": 8.439810399999999,
+        "endLogicalTick": 9000,
+        "simulationSeconds": 5.721340200000034,
+        "simulationTick": 3142931,
+        "startLogicalTick": 6000
+      },
+      {
+        "drawSeconds": 0.14699120000000138,
+        "draws": 1166,
+        "elapsedSeconds": 8.265898199999999,
+        "endLogicalTick": 12000,
+        "simulationSeconds": 5.91954349999995,
+        "simulationTick": 3145931,
+        "startLogicalTick": 9000
+      }
+    ],
+    "finalEntityChecksum": "07d58eaefde6aa6d000000000000000000000000",
+    "screenshot": {
+      "receipt": {
+        "authoritativeStateUnchanged": true,
+        "camera": {
+          "flags": 536871936,
+          "rotation": 3,
+          "viewPosition": [
+            458,
+            -4370
+          ],
+          "zoom": 2
+        },
+        "completedFrameNumber": 4726,
+        "drawableExtent": [
+          3840,
+          2160
+        ],
+        "entityChecksum": "07d58eaefde6aa6d000000000000000000000000",
+        "logicalExtent": [
+          3840,
+          2160
+        ],
+        "outsideMeasurement": true,
+        "partialRender": true,
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\performance-objects106-12000-01\\profile\\screenshot\\Colorful Chaos 2026-09-23 20-55-17.png",
+        "publicationSourceTick": 3145929,
+        "renderScope": "GPU terrain, paths/additions, scenery and supported track recipes with ghosts; remaining categories omitted",
+        "schema": 1,
+        "simulationTick": 3145931
+      },
+      "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\performance-objects106-12000-01\\final-benchmark.png",
+      "sha256": "00d653a863ca3c418e6cf4711d07b2873f83e0faa73c21af4854a5b1ea4fdd4e",
+      "indexedSha256": "7d38dadca0f6891363b68354c4ccf614fc4796a79d1b9ec4b77fe6a775e800df",
+      "rgbaSha256": "c84f979df9d70e42d94d8c865f304dc7f839ce2789841f4546716a875158f52d",
+      "scope": "one new final main-canvas draw and indexed readback after measurement; no measured-loop readback; not scanout or original-renderer parity"
+    }
+  },
+  "control": {
+    "evidence": {
+      "path": "obj/vulkan-parity/performance-object-baseline98-12000/summary.json",
+      "sha256": "47dcedcadc4f048252ec34a8930c0403d6acf5b5ec84a62c067f040a79261c52"
+    },
+    "metrics": {
+      "renderer": "vulkan",
+      "vsync": "enabled",
+      "elapsedSeconds": 33.337425,
+      "logicalTicks": 12000,
+      "logicalTps": 359.956,
+      "draws": {
+        "count": 4779.0,
+        "fps": 143.352
+      },
+      "ui": {
+        "messagePumps": 11952.0,
+        "windowUpdates": 4779.0,
+        "messageHz": 358.516,
+        "windowHz": 143.352
+      },
+      "simulation": {
+        "seconds": 22.447333,
+        "utilisationPercent": 67.3,
+        "meanMicrosecondsPerTick": 1870.611
+      },
+      "simulationBatches": {
+        "count": 12000.0,
+        "meanMicroseconds": 1870.611,
+        "longestMilliseconds": 33.982,
+        "longestSliceMilliseconds": 33.982
+      },
+      "drawCpu": {
+        "seconds": 0.49019,
+        "utilisationPercent": 1.5,
+        "meanMicroseconds": 102.572
+      },
+      "applicationFrameIntervalsMs": {
+        "p50": 7.19,
+        "p95": 8.761,
+        "p99": 9.114,
+        "max": 36.116
+      },
+      "rendererCpu": {
+        "submitMeanUs": 84.188,
+        "presentMeanUs": 101.299,
+        "samples": 4779.0
+      },
+      "presentApi": {
+        "meanUs": 73.588,
+        "samples": 4779.0
+      },
+      "gpuFrame": {
+        "meanUs": 1450.594,
+        "samples": 4779.0
+      },
+      "gpuPasses": {
+        "uploadMeanUs": 2.499,
+        "drawMeanUs": 1409.932,
+        "lightFxMeanUs": 0.003,
+        "compositeMeanUs": 38.16
+      }
+    }
+  },
+  "deployment": {
+    "path": "obj/vulkan-parity/deployment-objects-build106-01/receipt.json",
+    "sha256": "78104c55219e43e8318aacd6ea924310784ef001f980f5c544eb58139a34916b"
+  },
+  "pending": [
+    "Owner interactive feedback",
+    "Same-tile tree/rail and banner-pole occlusion",
+    "Missing supports/tunnels/station scenery and unported styles",
+    "Static flat rides, then animation/entity layers",
+    "Full enlarged GPU suite against final build",
+    "Paired pacing diagnosis and separate uncapped/upload lanes"
+  ],
+  "preservedFailedRuns": [
+    "build-99",
+    "object100-focused",
+    "object101-art",
+    "object102-art",
+    "performance-objects103-12000-01",
+    "performance-objects104-12000-01",
+    "performance-objects105-12000-01"
+  ]
+}

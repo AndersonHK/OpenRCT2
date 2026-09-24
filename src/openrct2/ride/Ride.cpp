@@ -3283,7 +3283,11 @@ namespace OpenRCT2
                     isClosed, nullptr, { TrackElementSetFlag::brakeClosed });
                 break;
             default:
-                trackElement.setBrakeClosed(isClosed);
+                if (trackElement.isBrakeClosed() != isClosed)
+                {
+                    trackElement.setBrakeClosed(isClosed);
+                    MarkMapTilePresentationDirty(trackLocation);
+                }
         }
     }
 
@@ -4130,6 +4134,7 @@ namespace OpenRCT2
         // If the ride has a cable lift, we don't want to fetch the cable lift element and the block preceding it
         TrackElement* cableLiftTileElement = nullptr;
         TrackElement* cableLiftPreviousBlock = nullptr;
+        CoordsXYZ cableLiftPreviousPosition{};
         if (flags.has(RideFlag::cableLiftHillComponentUsed))
         {
             cableLiftTileElement = MapGetTrackElementAt(cableLiftLoc);
@@ -4137,6 +4142,7 @@ namespace OpenRCT2
             {
                 CoordsXYZ location = cableLiftLoc;
                 cableLiftPreviousBlock = trackGetPreviousBlock(location, reinterpret_cast<TileElement*>(cableLiftTileElement));
+                cableLiftPreviousPosition = location;
             }
         }
 
@@ -4211,7 +4217,9 @@ namespace OpenRCT2
         if (cableLiftPreviousBlock != nullptr)
         {
             cableLiftPreviousBlock->setBrakeClosed(false);
+            MarkMapTilePresentationDirty(cableLiftPreviousPosition);
         }
+        MarkMapTilePresentationDirty(firstBlockPosition);
     }
 
     static bool RideGetStationTile(const Ride& ride, CoordsXYE* output)

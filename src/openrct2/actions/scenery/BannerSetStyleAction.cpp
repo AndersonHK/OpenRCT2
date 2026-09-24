@@ -183,6 +183,7 @@ namespace OpenRCT2::GameActions
         intent.PutExtra(INTENT_EXTRA_BANNER_INDEX, _bannerIndex);
         ContextBroadcastIntent(&intent);
 
+        MarkMapTilePresentationDirty(banner->position.toCoordsXY());
         Drawing::ScrollingText::invalidate();
         Drawing::GfxInvalidateScreen();
 

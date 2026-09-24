@@ -8,6 +8,7 @@
  *****************************************************************************/
 
 #pragma once
+#include "GpuWorldObject.h"
 #include "RetainedTerrainDrawing.h"
 
 #include <algorithm>
@@ -25,7 +26,10 @@
 namespace OpenRCT2
 {
     struct PathPresentationMaterials;
-}
+    struct WorldObjectPresentationMaterials;
+    struct WorldObjectPresentationUsage;
+    struct WorldRidePresentationMaterials;
+} // namespace OpenRCT2
 
 namespace OpenRCT2::Drawing
 {
@@ -247,6 +251,8 @@ namespace OpenRCT2::Ui::Gpu
         uint32_t kind;
         uint32_t pathFirst{}, pathCount{}; // Chunk-relative until the Vulkan upload assigns an arena range.
         int32_t pathMaxZ{};
+        uint32_t objectFirst{}, objectCount{};
+        int32_t objectMaxZ{};
     };
 
     struct WorldSurfaceMaterial
@@ -471,7 +477,7 @@ namespace OpenRCT2::Ui::Gpu
     static_assert(offsetof(WorldSurfaceRecord, zoom) == 48);
     static_assert(offsetof(WorldSurfaceRecord, coordinateShift) == 52);
     static_assert(std::is_trivially_copyable_v<WorldSurfaceSourceRecord>);
-    static_assert(sizeof(WorldSurfaceSourceRecord) == 44);
+    static_assert(sizeof(WorldSurfaceSourceRecord) == 56);
     static_assert(sizeof(WorldPathSourceRecord) == 48);
     static_assert(sizeof(WorldPathMaterial) == 48);
     static_assert(sizeof(WorldPathAdditionMaterial) == 16);
@@ -502,6 +508,10 @@ namespace OpenRCT2::Ui::Gpu
     constexpr uint32_t kWorldSurfaceMaximumSpriteSetCount = 65536;
     constexpr uint32_t kWorldSurfaceOutputCapacity = 1u << 20;
     constexpr uint32_t kWorldPathSourceCapacity = 1u << 20;
+    constexpr uint32_t kWorldObjectSourceCapacity = 1u << 20;
+    constexpr uint32_t kWorldObjectMaximumTileWork = 4096;
+    constexpr uint32_t kWorldPropCatalogCapacity = 1u << 20;
+    constexpr uint32_t kWorldTrackCatalogCapacity = 8u << 20;
     // Temporary dispatch safety budget: reject larger stacks, never truncate.
     // Replace with bounded work slicing before admitting pathological per-tile populations.
     constexpr uint32_t kWorldPathMaximumTileWork = 4096;
@@ -535,47 +545,67 @@ namespace OpenRCT2::Ui::Gpu
             && maxSharedMemory >= (kWorldSurfaceComputeBlockWidth + 1) * sizeof(uint32_t);
     }
 
+    [[nodiscard]] constexpr uint32_t GetWorldSurfaceDiagonalPrefix(uint32_t width, uint32_t height, uint32_t d) noexcept
+    {
+        const auto m = std::min(width, height), M = std::max(width, height);
+        if (d <= m)
+            return d * (d + 1) / 2;
+        if (d <= M)
+            return m * (m + 1) / 2 + (d - m) * m;
+        const auto remaining = width + height - 1 - d;
+        return width * height - remaining * (remaining + 1) / 2;
+    }
     [[nodiscard]] constexpr uint32_t GetWorldSurfaceOrderIndex(
         uint32_t width, uint32_t height, uint32_t x, uint32_t y, uint32_t rotation) noexcept
     {
+        uint32_t orderedX = x, orderedY = y;
         switch (rotation & 3)
         {
             case 1:
-                return (width - 1 - x) * height + y;
+                orderedX = y;
+                orderedY = width - 1 - x;
+                break;
             case 2:
-                return (height - 1 - y) * width + (width - 1 - x);
+                orderedX = width - 1 - x;
+                orderedY = height - 1 - y;
+                break;
             case 3:
-                return x * height + (height - 1 - y);
-            default:
-                return y * width + x;
+                orderedX = height - 1 - y;
+                orderedY = x;
+                break;
         }
+        if (rotation & 1)
+            std::swap(width, height);
+        const auto d = orderedX + orderedY;
+        const auto firstX = d >= height ? d - height + 1 : 0;
+        return GetWorldSurfaceDiagonalPrefix(width, height, d) + orderedX - firstX;
     }
-
     [[nodiscard]] constexpr uint32_t GetWorldSurfaceSourceIndexForOrder(
         uint32_t width, uint32_t height, uint32_t orderIndex, uint32_t rotation) noexcept
     {
-        uint32_t x{};
-        uint32_t y{};
+        const auto w = (rotation & 1) ? height : width, h = (rotation & 1) ? width : height;
+        uint32_t low = 0, high = w + h - 1;
+        while (low + 1 < high)
+        {
+            const auto mid = (low + high) / 2;
+            if (GetWorldSurfaceDiagonalPrefix(w, h, mid) <= orderIndex)
+                low = mid;
+            else
+                high = mid;
+        }
+        const auto firstX = low >= h ? low - h + 1 : 0;
+        const auto x = firstX + orderIndex - GetWorldSurfaceDiagonalPrefix(w, h, low), y = low - x;
         switch (rotation & 3)
         {
             case 1:
-                x = width - 1 - orderIndex / height;
-                y = orderIndex % height;
-                break;
+                return x * width + width - 1 - y;
             case 2:
-                x = width - 1 - orderIndex % width;
-                y = height - 1 - orderIndex / width;
-                break;
+                return (height - 1 - y) * width + width - 1 - x;
             case 3:
-                x = orderIndex / height;
-                y = height - 1 - orderIndex % height;
-                break;
+                return (height - 1 - x) * width + y;
             default:
-                x = orderIndex % width;
-                y = orderIndex / width;
-                break;
+                return y * width + x;
         }
-        return y * width + x;
     }
 
     [[nodiscard]] constexpr uint32_t GetWorldSurfaceDrawCount(uint32_t recordCount) noexcept
@@ -593,6 +623,7 @@ namespace OpenRCT2::Ui::Gpu
         uint64_t revision{};
         std::array<WorldSurfaceSourceRecord, kWorldSurfaceChunkWidth> records{};
         std::vector<WorldPathSourceRecord> paths;
+        std::vector<WorldObjectSourceRecord> objects;
     };
 
     struct WorldSurfaceSpriteTable
@@ -602,6 +633,10 @@ namespace OpenRCT2::Ui::Gpu
         WorldSurfaceCatalog catalog{};
         std::shared_ptr<const TerrainPresentationMaterials> sourceMaterials;
         std::shared_ptr<const PathPresentationMaterials> sourcePathMaterials;
+        std::shared_ptr<const WorldObjectPresentationMaterials> sourceObjectMaterials;
+        std::shared_ptr<const WorldObjectPresentationUsage> sourceObjectUsage;
+        std::shared_ptr<const WorldRidePresentationMaterials> sourceRideMaterials;
+        std::vector<uint32_t> propCatalog, trackCatalog;
         std::shared_ptr<const AtlasAssetLease> residency;
     };
 
@@ -618,6 +653,7 @@ namespace OpenRCT2::Ui::Gpu
         int32_t depthBase{};
         uint32_t transparentWater{ 1 };
         uint32_t outputCapacity{ kWorldSurfaceOutputCapacity };
+        uint32_t sourceTick{}, clockMinute{}, clockHour{};
         std::vector<std::shared_ptr<const WorldSurfaceChunk>> chunks;
         std::shared_ptr<const WorldSurfaceSpriteTable> sprites;
     };

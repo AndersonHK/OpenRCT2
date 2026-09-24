@@ -10,6 +10,7 @@
 #pragma once
 
 #include "GpuCommandStream.h"
+#include "GpuResourceLimits.h"
 
 #include <algorithm>
 #include <cmath>
@@ -87,8 +88,7 @@ namespace OpenRCT2::Ui::Gpu
         FrameAcquireMode frameAcquireMode = FrameAcquireMode::Wait;
         OutputColorMode outputColorMode = OutputColorMode::Sdr;
         float hdrPaperWhiteNits = 203.0f;
-        // A maximum-size dense terrain generation is about 64 MiB and must fit on its first residency upload.
-        uint64_t uploadRingBytesPerFrame = 96 * 1024 * 1024;
+        uint64_t uploadRingBytesPerFrame = kDefaultUploadRingBytes;
         std::string shaderDirectory;
         // Diagnostic-only swapchain transfer support. Ordinary frames never
         // copy or read back final output, even when this capability is enabled.

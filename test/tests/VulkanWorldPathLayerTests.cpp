@@ -379,4 +379,65 @@ TEST_F(VulkanWorldPathLayerTest, ExcessiveSingleTileWorkRejectsWithoutTruncation
     Run();
     EXPECT_EQ(Pixel(18, 64), 80);
 }
+
+TEST_F(VulkanWorldPathLayerTest, GhostPathsAndGhostAdditionsUseIndependentInstanceRemaps)
+{
+    chunk->records[0].waterHeight = 0;
+    sprites->catalog.reserved = 9; // Fixture palette shifts every covered index by nine.
+    auto path = Path(32, 1u << 4, 15);
+    Paths({ path });
+    Run();
+    EXPECT_EQ(Pixel(18, 64), 80 + 15 + 9);
+    path.flags = 0;
+    Paths({ path });
+    Run();
+    EXPECT_EQ(Pixel(18, 64), 80 + 15);
+    path.edgesAndCorners = 0;
+    path.additionSlot = 0;
+    path.flags = 1u << 5;
+    Paths({ path });
+    Run();
+    EXPECT_GT(ColourCount(210, 213), 0u);
+    EXPECT_EQ(ColourCount(201, 204), 0u);
+    const auto held = pixels;
+    EXPECT_EQ(Run().worldBufferCopyCalls, 0u);
+    EXPECT_EQ(pixels, held);
+}
+
+TEST_F(VulkanWorldPathLayerTest, DamagedLampsBinsAndBenchesChangeArtAndRepairWithoutStaleState)
+{
+    chunk->records[0].waterHeight = 0;
+    for (uint32_t type = 0; type < 3; type++)
+    {
+        sprites->catalog.additions[0].drawType = type;
+        sprites->revision++;
+        auto path = Path(32);
+        path.additionSlot = 0;
+        path.additionStatus = 255;
+        Paths({ path });
+        Run();
+        EXPECT_GT(ColourCount(201, 204), 0u);
+        EXPECT_EQ(ColourCount(205, 212), 0u);
+        const auto intact = pixels;
+        path.flags = 1u << 6;
+        path.additionStatus = 0; // Broken bins must override the full-bin art.
+        Paths({ path });
+        Run();
+        EXPECT_GT(ColourCount(205, 208), 0u);
+        EXPECT_EQ(ColourCount(201, 204), 0u);
+        EXPECT_EQ(ColourCount(209, 212), 0u);
+        path.flags = 0;
+        path.additionStatus = 255;
+        Paths({ path });
+        Run();
+        EXPECT_EQ(pixels, intact);
+        if (type == 1)
+        {
+            path.additionStatus = 0;
+            Paths({ path });
+            Run();
+            EXPECT_GT(ColourCount(209, 212), 0u);
+        }
+    }
+}
 #endif

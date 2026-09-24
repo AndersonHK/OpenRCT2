@@ -2,6 +2,13 @@
 
 ## Current checkpoint
 
+**Build106 deployed for owner testing — ghosts, props and track bodies:** [implementation, results and checklist](vulkan-native-object-checkpoint.md). Native GPU state now supplies these layers; all 72 sampled damaged/intact path-addition regions match upstream. A matched 4K/12,000-tick run reaches **359.542 TPS / 140.162 application FPS**, **0.133 ms CPU Draw / 1.590 ms GPU**. General ordering, complete track coverage and pacing remain open: worst frame interval is 97 ms. Build98 remains the accepted control; build106 is the installed candidate. [Original-art review](vulkan-native-object-visual-review.md), [future update-packing study](vulkan-gpu-state-update-strategy.md), and [flat-ride plan](vulkan-native-flat-rides-plan.md).
+
+- [x] Deploy build106 with verified executable/shaders and preimage backups while the owner tests.
+- [ ] Resolve same-tile tree/rail and banner-pole occlusion; add supports, tunnel mouths and remaining styles.
+- [ ] Diagnose recurring long frames, repeat performance qualification and measure headroom/upload traffic separately.
+- [ ] After owner feedback, add static flat rides; moving vehicles, riders and broader animation are the following major checkpoint.
+
 **Native paths checkpoint, builds97–98:** [results, deployment and checklist](vulkan-native-path-checkpoint.md). Immutable raw path state now drives GPU surfaces, queues, slopes, railings and static additions. Two 4K/12,000-tick capped runs preserve **359.829–359.953 TPS / 143.992–144.011 application FPS**, with **0.105–0.107 ms CPU Draw** and **1.37–1.43 ms GPU**. All 97 focused checks pass; agents reviewed eight independent upstream comparison views and the final real-park image. Full path parity remains open at slope seams and in the missing features below. The owner explicitly accepts the outer cliff skirt as an aesthetic divergence.
 
 - [x] Add paths/additions through immutable generations and batched resident GPU state.
@@ -26,7 +33,7 @@
 - [ ] Qualify physical displayed pacing and residual occasional stalls: final worst application intervals are 28.913 and 9.907 ms; p99 is about 9.1 ms, not a claim of perfect scanout.
 - [ ] Restore auxiliary views, picking, LightFX/HDR fidelity and full pixel/feature parity; finish CPU painter/X8 deletion.
 
-This renderer is intentionally incomplete. General tree/track/vehicle ordering is not qualified while those families are absent. Build98 with paths is installed for owner testing; preimages and verified hashes are recorded in the path checkpoint. The practical performance ceiling is the owner's 360 TPS / 144 FPS EverythingPark goal; higher uncapped performance is diagnostic, not an invitation to optimize academic worst cases.
+This renderer is intentionally incomplete. General tree/track/vehicle ordering is not qualified. Build106 with ghosts, props and partial track bodies is installed for owner testing; it supersedes the accepted build98 paths deployment. The owner reports missing station pieces, special pieces and curves, and authorizes flat rides, entrances, exits and static buildings next. The practical performance ceiling is the owner's 360 TPS / 144 FPS EverythingPark goal; higher uncapped performance is diagnostic, not an invitation to optimize academic worst cases.
 
 ## Historical checkpoints
 

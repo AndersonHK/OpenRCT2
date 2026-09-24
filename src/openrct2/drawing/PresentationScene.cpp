@@ -129,7 +129,10 @@ namespace OpenRCT2
                 else if (
                     changes.reset || !changes.changes.empty() || changes.sourceTick != _front->GetSourceTick()
                     || changes.terrainMaterials != _front->GetTerrainMaterials()
-                    || changes.pathMaterials != _front->GetPathMaterials())
+                    || changes.pathMaterials != _front->GetPathMaterials()
+                    || changes.objectMaterials != _front->GetObjectMaterials()
+                    || changes.rideMaterials != _front->GetRideMaterials() || changes.clockHour != _front->GetClockHour()
+                    || changes.clockMinute != _front->GetClockMinute())
                 {
                     auto current = std::make_shared<MapPresentationSnapshot>(*_front);
                     current->Apply(changes);
@@ -146,7 +149,10 @@ namespace OpenRCT2
                 auto changes = ConsumeMapPresentationChanges(false, _profile);
                 if (!changes.reset && changes.changes.empty() && changes.sourceTick == _front->GetSourceTick()
                     && changes.terrainMaterials == _front->GetTerrainMaterials()
-                    && changes.pathMaterials == _front->GetPathMaterials())
+                    && changes.pathMaterials == _front->GetPathMaterials()
+                    && changes.objectMaterials == _front->GetObjectMaterials()
+                    && changes.rideMaterials == _front->GetRideMaterials() && changes.clockHour == _front->GetClockHour()
+                    && changes.clockMinute == _front->GetClockMinute())
                     return;
 
                 _pendingReset = changes.reset;
@@ -474,7 +480,9 @@ namespace OpenRCT2
                 && (_impl->generation->map->GetTerrainMaterials() == nullptr
                     || _impl->generation->map->GetTerrainMaterials()->revision != GetTerrainObjectRevision()
                     || _impl->generation->map->GetPathMaterials() == nullptr
-                    || _impl->generation->map->GetPathMaterials()->revision != GetPathObjectRevision());
+                    || _impl->generation->map->GetPathMaterials()->revision != GetPathObjectRevision()
+                    || _impl->generation->map->GetObjectMaterials() == nullptr
+                    || _impl->generation->map->GetObjectMaterials()->revision != GetWorldObjectRevision());
             if (!_impl->retrySynchronously && !profileChanged && !catalogChanged && !terrainCatalogChanged
                 && _impl->drawCount == drawCount)
                 return false;

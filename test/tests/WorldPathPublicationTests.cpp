@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 #include <openrct2/Cheats.h>
 #include <openrct2/Context.h>
+#include <openrct2/Date.h>
 #include <openrct2/GameState.h>
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/actions/cheats/CheatSetAction.h>
@@ -12,10 +13,14 @@
 #include <openrct2/entity/EntityPresentationSnapshot.h>
 #include <openrct2/object/FootpathSurfaceObject.h>
 #include <openrct2/object/ObjectManager.h>
+#include <openrct2/object/SmallSceneryObject.h>
 #include <openrct2/world/Map.h>
 #include <openrct2/world/MapPresentationSnapshot.h>
 #include <openrct2/world/Park.h>
 #include <openrct2/world/tile_element/PathElement.h>
+#include <openrct2/world/tile_element/SmallSceneryElement.h>
+#include <openrct2/world/tile_element/TrackElement.h>
+#include <openrct2/world/tile_element/WallElement.h>
 
 using namespace OpenRCT2;
 
@@ -277,7 +282,7 @@ TEST_F(WorldPathPublicationTest, ProgressDrawDuringObjectMutationDefersCaptureAn
     ASSERT_EQ(ReplaceTileElementsAt({ 2, 2 }, { surface, path }), TileMutationStatus::ok);
     state.currentTicks = 901;
     {
-        // The same scope state used by ObjectManager::PathMaterialMutation while SetProgress can draw.
+        // The same scope state used by ObjectManager::WorldMaterialMutation while SetProgress can draw.
         struct ObjectMutationScope
         {
             ObjectMutationScope()
@@ -318,4 +323,238 @@ TEST_F(WorldPathPublicationTest, ProgressDrawDuringObjectMutationDefersCaptureAn
     EXPECT_EQ(cold.GetGeneration()->map->GetPathChunks()[0]->tiles[34].count, 1u);
     scene.Reset(jobs);
     cold.Reset(jobs);
+}
+
+TEST_F(WorldPathPublicationTest, RawWorldObjectsPreserveOrderGhostsAndHeldDeletionWithoutLegacyTiles)
+{
+    auto surface = *MapGetFirstElementAt(TileCoordsXY{ 2, 2 });
+    surface.setLastForTile(false);
+    TileElement tree{};
+    tree.clearAs(TileElementType::smallScenery);
+    tree.setBaseZ(32);
+    tree.setClearanceZ(96);
+    tree.setGhost(true);
+    tree.asSmallScenery()->setEntryIndex(7);
+    tree.asSmallScenery()->setAge(42);
+    tree.asSmallScenery()->setPrimaryColour(static_cast<Drawing::Colour>(12));
+    TileElement track{};
+    track.clearAs(TileElementType::track);
+    track.setBaseZ(32);
+    track.setClearanceZ(64);
+    track.setLastForTile(true);
+    track.asTrack()->setRideIndex(RideId::FromUnderlying(2));
+    track.asTrack()->setHasChain(true);
+    ASSERT_EQ(ReplaceTileElementsAt({ 2, 2 }, { surface, tree, track }), TileMutationStatus::ok);
+    MapPresentationSnapshot current;
+    current.Apply(Capture(true));
+    ASSERT_FALSE(current.HasLegacyTileStorage());
+    ASSERT_EQ(current.GetObjectChunks().size(), 1u);
+    const auto held = current.GetObjectChunks()[0];
+    ASSERT_NE(held, nullptr);
+    const auto range = held->tiles[34];
+    ASSERT_EQ(range.count, 2u);
+    const auto& rawTree = held->records[range.first];
+    EXPECT_EQ(rawTree.kind, WorldObjectKind::smallScenery);
+    EXPECT_EQ(rawTree.elementOrdinal, 1u);
+    EXPECT_EQ(rawTree.objectSlot, 7);
+    EXPECT_EQ(rawTree.age, 42);
+    EXPECT_EQ(rawTree.primaryColour, 12);
+    EXPECT_NE(rawTree.flags & WorldObjectPresentationFlags::ghost, 0u);
+    const auto& rawTrack = held->records[range.first + 1];
+    EXPECT_EQ(rawTrack.kind, WorldObjectKind::track);
+    EXPECT_EQ(rawTrack.elementOrdinal, 2u);
+    EXPECT_EQ(rawTrack.rideId, 2);
+    EXPECT_NE(rawTrack.flags & WorldObjectPresentationFlags::chain, 0u);
+    MarkMapTilePresentationDirty({ 64, 64 });
+    current.Apply(Capture());
+    EXPECT_EQ(current.GetObjectChunks()[0], held);
+    surface.setLastForTile(true);
+    ASSERT_EQ(ReplaceTileElementsAt({ 2, 2 }, { surface }), TileMutationStatus::ok);
+    current.Apply(Capture());
+    EXPECT_EQ(current.GetObjectChunks()[0]->tiles[34].count, 0u);
+    EXPECT_GT(current.GetObjectChunks()[0]->revision, held->revision);
+    EXPECT_EQ(held->records.size(), 2u);
+    surface.setLastForTile(false);
+    tree.setGhost(false);
+    tree.setLastForTile(true);
+    ASSERT_EQ(ReplaceTileElementsAt({ 2, 2 }, { surface, tree }), TileMutationStatus::ok);
+    current.Apply(Capture());
+    EXPECT_EQ(current.GetObjectChunks()[0]->tiles[34].count, 1u);
+    EXPECT_EQ(current.GetObjectChunks()[0]->records[0].flags & WorldObjectPresentationFlags::ghost, 0u);
+}
+
+TEST_F(WorldPathPublicationTest, WorldCatalogAndRideFactsOwnOldValuesAcrossReplacement)
+{
+    auto& manager = context->GetObjectManager();
+    auto* tree = manager.LoadObject("rct2.scenery_small.tl0");
+    ASSERT_NE(tree, nullptr);
+    const auto slot = manager.GetLoadedObjectEntryIndex(tree);
+    auto initial = Capture(true);
+    ASSERT_TRUE(initial.objectMaterials->smallScenery[slot].present);
+    const auto held = initial.objectMaterials;
+    const auto base = held->smallScenery[slot].imageBase;
+    auto& state = getGameState();
+    state.ridesEndOfUsedRange = 1;
+    auto& ride = state.rides[0];
+    ride.id = RideId::FromUnderlying(0);
+    ride.type = 0;
+    ride.trackColours[0].main = static_cast<Drawing::Colour>(12);
+    auto first = Capture();
+    ASSERT_EQ(first.rideMaterials->rides.size(), 1u);
+    EXPECT_EQ(Capture().rideMaterials, first.rideMaterials);
+    ride.trackColours[0].main = static_cast<Drawing::Colour>(14);
+    auto recoloured = Capture();
+    EXPECT_NE(recoloured.rideMaterials, first.rideMaterials);
+    EXPECT_EQ(first.rideMaterials->rides[0].trackColours[0].main, 12);
+    EXPECT_EQ(recoloured.rideMaterials->rides[0].trackColours[0].main, 14);
+    manager.UnloadObjects({ tree->GetDescriptor() });
+    auto removed = Capture();
+    EXPECT_GT(removed.objectMaterials->revision, held->revision);
+    EXPECT_FALSE(removed.objectMaterials->smallScenery[slot].present);
+    EXPECT_TRUE(held->smallScenery[slot].present);
+    EXPECT_EQ(held->smallScenery[slot].imageBase, base);
+}
+
+TEST_F(WorldPathPublicationTest, ClockMetadataChangesWithoutDirtyTilesOrChunkCopies)
+{
+    const auto saved = gRealTimeOfDay;
+    MapPresentationSnapshot snapshot;
+    snapshot.Apply(Capture(true));
+    const auto chunks = snapshot.GetSurfaceChunks();
+    gRealTimeOfDay.hour = 7;
+    gRealTimeOfDay.minute = 23;
+    auto batch = Capture();
+    gRealTimeOfDay = saved;
+    EXPECT_TRUE(batch.changes.empty());
+    snapshot.Apply(batch);
+    EXPECT_EQ(snapshot.GetClockHour(), 7);
+    EXPECT_EQ(snapshot.GetClockMinute(), 23);
+    EXPECT_EQ(snapshot.GetSurfaceChunks(), chunks);
+}
+
+TEST_F(WorldPathPublicationTest, WaterPlantsPublishesOnlyChangedRawAges)
+{
+    auto surface = *MapGetFirstElementAt(TileCoordsXY{ 2, 2 });
+    surface.setLastForTile(false);
+    TileElement tree{};
+    tree.clearAs(TileElementType::smallScenery);
+    tree.setBaseZ(32);
+    tree.setLastForTile(true);
+    tree.asSmallScenery()->setAge(40);
+    ASSERT_EQ(ReplaceTileElementsAt({ 2, 2 }, { surface, tree }), TileMutationStatus::ok);
+    static_cast<void>(Capture(true));
+    auto& state = getGameState();
+    GameActions::CheatSetAction water(CheatType::waterPlants);
+    static_cast<void>(water.Execute(state, state.park));
+    const auto changed = Capture();
+    ASSERT_EQ(changed.changes.size(), 1u);
+    ASSERT_EQ(changed.changes[0].objects.size(), 1u);
+    EXPECT_EQ(changed.changes[0].objects[0].age, 0);
+    static_cast<void>(water.Execute(state, state.park));
+    EXPECT_TRUE(Capture().changes.empty());
+}
+
+TEST_F(WorldPathPublicationTest, WorldCatalogReloadAtSameDrawRefreshesWholeAsyncGeneration)
+{
+    auto& state = getGameState();
+    auto& jobs = context->GetJobPool();
+    PresentationScene scene;
+    state.currentTicks = 80;
+    ASSERT_TRUE(scene.BeginFrame(jobs, state.entities, 1, false, EntityPublicationProfile::gpuTerrainOnly));
+    const auto held = scene.GetGeneration();
+    const auto old = held->map->GetObjectMaterials();
+    ++state.currentTicks;
+    scene.ScheduleNext(jobs, state.entities);
+    ASSERT_NE(context->GetObjectManager().LoadObject("rct2.scenery_small.tl0"), nullptr);
+    ASSERT_TRUE(scene.BeginFrame(jobs, state.entities, 1, false, EntityPublicationProfile::gpuTerrainOnly));
+    const auto current = scene.GetGeneration();
+    ASSERT_NE(current, held);
+    EXPECT_EQ(current->map->GetObjectMaterials()->revision, GetWorldObjectRevision());
+    EXPECT_NE(current->map->GetObjectMaterials(), old);
+    EXPECT_EQ(current->map->GetSourceTick(), current->entities->GetSourceTick());
+    EXPECT_EQ(held->map->GetObjectMaterials(), old);
+    scene.Reset(jobs);
+}
+
+TEST(WorldObjectUsageTest, TracksMembershipAcrossMultiplicityMutationRemovalResetAndHeldSnapshots)
+{
+    MapPresentationSnapshot current;
+    MapPresentationChangeBatch batch;
+    batch.epoch = 1;
+    batch.reset = true;
+    batch.surfaceWidth = 32;
+    batch.surfaceHeight = 32;
+    batch.profile = MapPublicationProfile::rawTerrain;
+    current.Apply(batch);
+    const auto empty = current.GetObjectUsage();
+    ASSERT_NE(empty, nullptr);
+    EXPECT_FALSE(empty->Contains(0, 7));
+    EXPECT_FALSE(empty->Contains(4, 7));
+    EXPECT_FALSE(empty->Contains(0, UINT16_MAX));
+    WorldObjectPresentationRecord tree;
+    tree.kind = WorldObjectKind::smallScenery;
+    tree.objectSlot = 7;
+    WorldObjectPresentationRecord wall;
+    wall.kind = WorldObjectKind::wall;
+    wall.objectSlot = 2047;
+    WorldObjectPresentationRecord track;
+    track.kind = WorldObjectKind::track;
+    track.objectSlot = 7;
+    batch.reset = false;
+    batch.changes.resize(1);
+    auto& change = batch.changes[0];
+    change.index = 34;
+    change.surfaceIndex = 34;
+    change.objects = { tree, tree, wall, track };
+    current.Apply(batch);
+    const auto used = current.GetObjectUsage();
+    ASSERT_NE(used, empty);
+    EXPECT_TRUE(used->Contains(0, 7));
+    EXPECT_TRUE(used->Contains(2, 2047));
+    EXPECT_FALSE(used->Contains(4, 7));
+    const auto held = current;
+    change.objects[0].primaryColour = 12;
+    change.objects[0].flags = WorldObjectPresentationFlags::ghost;
+    current.Apply(batch);
+    EXPECT_EQ(current.GetObjectUsage(), used);
+    // Removing one of two instances changes counts, but not the resident asset inventory.
+    change.objects.erase(change.objects.begin());
+    current.Apply(batch);
+    EXPECT_EQ(current.GetObjectUsage(), used);
+    // A sibling generation still owns independent counts: removing one there also leaves the asset resident.
+    auto sibling = held;
+    sibling.Apply(batch);
+    EXPECT_EQ(sibling.GetObjectUsage(), used);
+    change.objects.erase(change.objects.begin());
+    current.Apply(batch);
+    const auto wallOnly = current.GetObjectUsage();
+    ASSERT_NE(wallOnly, used);
+    EXPECT_FALSE(wallOnly->Contains(0, 7));
+    EXPECT_TRUE(wallOnly->Contains(2, 2047));
+    EXPECT_TRUE(held.GetObjectUsage()->Contains(0, 7));
+    EXPECT_TRUE(sibling.GetObjectUsage()->Contains(0, 7));
+    // Membership unchanged across a reset keeps the inventory identity, but counts must be rebuilt.
+    batch.reset = true;
+    batch.epoch = 2;
+    current.Apply(batch);
+    EXPECT_EQ(current.GetObjectUsage(), wallOnly);
+    batch.reset = false;
+    change.objects.clear();
+    current.Apply(batch);
+    EXPECT_FALSE(current.GetObjectUsage()->Contains(2, 2047));
+    EXPECT_TRUE(wallOnly->Contains(2, 2047));
+    const auto cleared = current.GetObjectUsage();
+    batch.changes.clear();
+    current.Apply(batch);
+    EXPECT_EQ(current.GetObjectUsage(), cleared);
+    // Full reset with no tile work retires every old membership, including across a smaller layout.
+    auto resetHeld = held;
+    batch.reset = true;
+    batch.epoch = 3;
+    batch.surfaceWidth = 16;
+    batch.surfaceHeight = 16;
+    resetHeld.Apply(batch);
+    EXPECT_FALSE(resetHeld.GetObjectUsage()->Contains(0, 7));
+    EXPECT_FALSE(resetHeld.GetObjectUsage()->Contains(2, 2047));
+    EXPECT_TRUE(held.GetObjectUsage()->Contains(0, 7));
 }

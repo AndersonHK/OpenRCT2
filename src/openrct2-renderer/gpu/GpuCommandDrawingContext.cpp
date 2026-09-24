@@ -9,6 +9,9 @@
 
 #include "GpuCommandDrawingContext.h"
 
+#include "GpuWorldPropCatalog.h"
+#include "GpuWorldTrackCatalog.h"
+
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -890,6 +893,9 @@ namespace OpenRCT2::Ui::Gpu
 
         const auto& sourceChunks = generation->map->GetSurfaceChunks();
         const auto& pathChunks = generation->map->GetPathChunks();
+        const auto& objectChunks = generation->map->GetObjectChunks();
+        if (!objectChunks.empty() && objectChunks.size() != sourceChunks.size())
+            throw std::runtime_error("GPU object chunk directory differs from terrain");
         if (!pathChunks.empty() && pathChunks.size() != sourceChunks.size())
             throw std::runtime_error("GPU path chunk directory differs from terrain");
         _surfaceChunks.resize(sourceChunks.size());
@@ -901,9 +907,11 @@ namespace OpenRCT2::Ui::Gpu
                 throw std::runtime_error("GPU terrain publication has an absent surface chunk");
             const auto paths = pathChunks.empty() ? nullptr : pathChunks[chunkIndex];
             const auto pathRevision = paths ? paths->revision : 0;
+            const auto objects = objectChunks.empty() ? nullptr : objectChunks[chunkIndex];
+            const auto objectRevision = objects ? objects->revision : 0;
             auto& published = _surfaceChunks[chunkIndex];
             if (published.sourceRevision != source->revision || published.pathRevision != pathRevision
-                || published.gpu == nullptr)
+                || published.objectRevision != objectRevision || published.gpu == nullptr)
             {
                 auto converted = std::make_shared<WorldSurfaceChunk>();
                 converted->revision = ++_nextSurfaceChunkRevision;
@@ -915,12 +923,42 @@ namespace OpenRCT2::Ui::Gpu
                                                      raw.railingsSlot, raw.additionSlot, raw.rideId, raw.edgesAndCorners,
                                                      raw.slopeDirection, raw.queueBannerDirection, raw.additionStatus });
                 }
+                if (objects)
+                {
+                    converted->objects.reserve(objects->records.size());
+                    for (const auto& raw : objects->records)
+                        converted->objects.push_back(
+                            { raw.baseZ, raw.clearanceZ, raw.elementOrdinal, raw.flags, raw.objectSlot,
+                              static_cast<uint32_t>(raw.kind), raw.direction, raw.sequence,
+                              uint32_t(raw.primaryColour) | (uint32_t(raw.secondaryColour) << 8)
+                                  | (uint32_t(raw.tertiaryColour) << 16),
+                              uint32_t(raw.age) | (uint32_t(raw.quadrant) << 8) | (uint32_t(raw.slope) << 16)
+                                  | (uint32_t(raw.position) << 24),
+                              uint32_t(raw.animationFrame) | (uint32_t(raw.allowedEdges) << 8), 0,
+                              uint32_t(raw.trackType) | (uint32_t(raw.rideType) << 16),
+                              uint32_t(raw.rideId) | (uint32_t(raw.mazeEntry) << 16),
+                              uint32_t(raw.colourScheme) | (uint32_t(raw.stationIndex) << 8)
+                                  | (uint32_t(raw.brakeBoosterSpeed) << 16) | (uint32_t(raw.photoTimeout) << 24),
+                              uint32_t(raw.seatRotation) | (uint32_t(raw.doorA) << 8) | (uint32_t(raw.doorB) << 16) });
+                }
                 for (size_t i = 0; i < source->records.size(); i++)
                 {
                     const auto& raw = source->records[i].terrain;
                     auto& target = converted->records[i];
                     target = { raw.baseZ, raw.waterHeight, raw.surfaceSlot, raw.edgeSlot,
                                raw.slope, raw.grass,       raw.present,     raw.kind };
+                    if (objects)
+                    {
+                        const auto range = objects->tiles[i];
+                        if (range.first > converted->objects.size() || range.count > converted->objects.size() - range.first)
+                            throw std::runtime_error("GPU object publication has an invalid tile range");
+                        target.objectFirst = range.first;
+                        target.objectCount = range.count;
+                        for (uint32_t p = range.first; p < range.first + range.count; p++)
+                            target.objectMaxZ = std::max(
+                                target.objectMaxZ,
+                                std::max(converted->objects[p].baseZ + 32, converted->objects[p].clearanceZ));
+                    }
                     if (paths)
                     {
                         const auto range = paths->tiles[i];
@@ -939,6 +977,12 @@ namespace OpenRCT2::Ui::Gpu
                            published.gpu->records.data(), converted->records.data(),
                            converted->records.size() * sizeof(WorldSurfaceSourceRecord))
                         != 0
+                    || published.gpu->objects.size() != converted->objects.size()
+                    || (!converted->objects.empty()
+                        && std::memcmp(
+                               published.gpu->objects.data(), converted->objects.data(),
+                               converted->objects.size() * sizeof(WorldObjectSourceRecord))
+                            != 0)
                     || published.gpu->paths.size() != converted->paths.size()
                     || (!converted->paths.empty()
                         && std::memcmp(
@@ -948,25 +992,37 @@ namespace OpenRCT2::Ui::Gpu
                     published.gpu = std::move(converted);
                 published.sourceRevision = source->revision;
                 published.pathRevision = pathRevision;
+                published.objectRevision = objectRevision;
             }
             scene.chunks[chunkIndex] = published.gpu;
         }
 
         const auto materials = generation->map->GetTerrainMaterials();
         const auto pathMaterials = generation->map->GetPathMaterials();
+        const auto objectMaterials = generation->map->GetObjectMaterials();
+        const auto objectUsage = generation->map->GetObjectUsage();
+        const auto rideMaterials = generation->map->GetRideMaterials();
         if (!materials)
             throw std::runtime_error("GPU terrain material generation is absent");
         if (!_publishedSurfaceSprites || _publishedSurfaceSprites->sourceMaterials != materials
-            || _publishedSurfaceSprites->sourcePathMaterials != pathMaterials || !terrainOnly
+            || _publishedSurfaceSprites->sourcePathMaterials != pathMaterials
+            || _publishedSurfaceSprites->sourceObjectMaterials != objectMaterials
+            || _publishedSurfaceSprites->sourceObjectUsage != objectUsage
+            || _publishedSurfaceSprites->sourceRideMaterials != rideMaterials || !terrainOnly
             || !_textureCache.TryBindAssetLease(_publishedSurfaceSprites->residency))
         {
             if (materials->revision != GetTerrainObjectRevision()
-                || (pathMaterials && pathMaterials->revision != GetPathObjectRevision()))
+                || (pathMaterials && pathMaterials->revision != GetPathObjectRevision())
+                || (objectMaterials && objectMaterials->revision != GetWorldObjectRevision()))
                 throw std::runtime_error("GPU terrain cannot resolve a retired material generation");
             auto table = std::make_shared<WorldSurfaceSpriteTable>();
             table->revision = ++_nextSurfaceSpriteRevision;
             table->sourceMaterials = materials;
             table->sourcePathMaterials = pathMaterials;
+            table->sourceObjectMaterials = objectMaterials;
+            table->sourceObjectUsage = objectUsage;
+            table->sourceRideMaterials = rideMaterials;
+            table->catalog.reserved = TextureCache::PaletteToY(FilterPaletteID::paletteGhost);
             std::vector<uint64_t> residencies;
             std::vector<uint32_t> dependencies;
             const auto append = [&](ImageId image) {
@@ -1069,6 +1125,26 @@ namespace OpenRCT2::Ui::Gpu
                     target.drawType = addition.drawType;
                 }
             }
+            if (objectMaterials)
+                table->propCatalog = BuildWorldPropCatalog(
+                                         *objectMaterials, TextureCache::PaletteToY(FilterPaletteID::paletteGlass),
+                                         [&](uint32_t image) {
+                                             const auto index = append(ImageId(image));
+                                             for (auto& variant : table->records.back().variants)
+                                                 if (variant.valid != 0)
+                                                     variant.valid |= 4;
+                                             return index;
+                                         },
+                                         objectUsage.get())
+                                         .words;
+            if (rideMaterials)
+                table->trackCatalog = BuildWorldTrackCatalog(*rideMaterials, [&](uint32_t image) {
+                                          const auto index = append(ImageId(image));
+                                          for (auto& variant : table->records.back().variants)
+                                              if (variant.valid != 0)
+                                                  variant.valid |= 4;
+                                          return index;
+                                      }).words;
             for (uint32_t shape = 0; shape < 5; shape++)
             {
                 // The water mask contains filter-row offsets, not ordinary remapped colours.
@@ -1090,6 +1166,9 @@ namespace OpenRCT2::Ui::Gpu
             }
             _publishedSurfaceSprites = std::move(table);
         }
+        scene.sourceTick = generation->sourceTick;
+        scene.clockMinute = generation->map->GetClockMinute();
+        scene.clockHour = generation->map->GetClockHour();
         scene.transparentWater = Config::Get().general.transparentWater ? 1u : 0u;
         scene.sprites = _publishedSurfaceSprites;
         const auto depthRange = GetWorldSurfaceDepthRange(_drawCount, scene.recordCount);

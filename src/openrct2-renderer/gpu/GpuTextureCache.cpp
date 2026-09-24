@@ -702,7 +702,9 @@ namespace OpenRCT2::Ui::Gpu
         {
             if (_atlases.size() >= _maxAtlasLayers)
             {
-                throw std::runtime_error("GPU sprite atlas layer limit reached");
+                throw std::runtime_error(
+                    "GPU sprite atlas layer limit " + std::to_string(_maxAtlasLayers) + " reached for image "
+                    + std::to_string(image) + " at " + std::to_string(width) + "x" + std::to_string(height));
             }
             const int32_t order = AtlasPage::CalculateImageSizeOrder(width, height);
             _atlases.emplace_back(static_cast<uint32_t>(_atlases.size()), 1 << order);

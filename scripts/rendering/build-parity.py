@@ -31,7 +31,7 @@ def source_manifest(root):
             # Shared terrain fixtures and diagnostic shader inputs are bound to the real unit tests.
             if name and name != "test/peep-parity/PeepProducerBenchmark.cpp"
             # The external upstream path fixture is linked only by its isolated driver builder.
-            and not name.startswith("test/path-parity/")
+            and not name.startswith(("test/path-parity/", "test/object-parity/"))
             # This standalone producer driver has its own receipt; its shared fixture remains pinned below.
             and (not name.startswith(("test/ui-parity/", "test/terrain-parity/"))
                          or name in ("test/terrain-parity/NonuniformTerrainRecipe.h",

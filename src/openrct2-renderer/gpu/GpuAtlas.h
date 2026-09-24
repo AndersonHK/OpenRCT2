@@ -21,7 +21,9 @@ namespace OpenRCT2::Ui::Gpu
 {
     constexpr int32_t kAtlasDimension = 2048;
     constexpr int32_t kSmallestAtlasSlot = 32;
-    constexpr uint32_t kAtlasLayers = 64;
+    // Resident terrain, scenery and track catalogs share this bounded indexed atlas.
+    // The EverythingPark object set exceeds the former 256 MiB (64-layer) limit.
+    constexpr uint32_t kAtlasLayers = 128;
     constexpr uint32_t kAtlasSlotsPerLayer =
         (kAtlasDimension / kSmallestAtlasSlot) * (kAtlasDimension / kSmallestAtlasSlot);
     constexpr uint32_t kSpriteAssetDescriptorCount = kAtlasLayers * kAtlasSlotsPerLayer;

@@ -12,6 +12,7 @@
 #ifdef ENABLE_VULKAN
 
     #include "VulkanDeviceContext.h"
+    #include "../gpu/GpuResourceLimits.h"
 
     #include <algorithm>
     #include <array>
@@ -29,7 +30,7 @@
 namespace OpenRCT2::Ui::Vulkan
 {
     constexpr uint32_t kFramesInFlight = 3;
-    constexpr VkDeviceSize kDefaultUploadRingSize = 96 * 1024 * 1024;
+    constexpr VkDeviceSize kDefaultUploadRingSize = Gpu::kDefaultUploadRingBytes;
 
     /**
      * Selects the presentation policy that best matches the renderer's

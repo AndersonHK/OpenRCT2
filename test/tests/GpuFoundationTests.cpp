@@ -182,8 +182,9 @@ TEST(GpuFoundationTest, NativeTerrainReservesPainterDepthBetweenEarlierCommandsA
 TEST(GpuFoundationTest, WorldSurfaceAbiHasStableComputeBlocksAndDepthCapacity)
 {
     EXPECT_EQ(sizeof(WorldSurfaceRecord), 64u);
-    EXPECT_EQ(sizeof(WorldSurfaceSourceRecord), 44u);
+    EXPECT_EQ(sizeof(WorldSurfaceSourceRecord), 56u);
     EXPECT_EQ(sizeof(WorldPathSourceRecord), 48u);
+    EXPECT_EQ(sizeof(WorldObjectSourceRecord), 64u);
     EXPECT_EQ(sizeof(WorldSurfaceSpriteVariant), 32u);
     EXPECT_EQ(sizeof(WorldSurfaceSpriteSet), 200u);
     EXPECT_EQ(kWorldSurfaceChunkWidth, 256u);
@@ -210,9 +211,9 @@ TEST(GpuFoundationTest, WorldSurfaceAbiHasStableComputeBlocksAndDepthCapacity)
     EXPECT_LT(record.depth, kWorldSurfaceDepthCapacity);
 
     EXPECT_EQ(GetWorldSurfaceOrderIndex(3, 2, 2, 1, 0), 5u);
-    EXPECT_EQ(GetWorldSurfaceOrderIndex(3, 2, 2, 1, 1), 1u);
+    EXPECT_EQ(GetWorldSurfaceOrderIndex(3, 2, 2, 1, 1), 2u);
     EXPECT_EQ(GetWorldSurfaceOrderIndex(3, 2, 2, 1, 2), 0u);
-    EXPECT_EQ(GetWorldSurfaceOrderIndex(3, 2, 2, 1, 3), 4u);
+    EXPECT_EQ(GetWorldSurfaceOrderIndex(3, 2, 2, 1, 3), 3u);
     for (uint32_t rotation = 0; rotation < 4; rotation++)
     {
         for (uint32_t sourceIndex = 0; sourceIndex < 6; sourceIndex++)
@@ -978,4 +979,31 @@ TEST(GpuFoundationTest, IntegratedTimingFieldsRemainExplicitlyOptional)
     EXPECT_FALSE(timings.hasGpuTimestamp);
     EXPECT_FALSE(timings.hasGpuPassTimestamps);
     EXPECT_FALSE(timings.hasPresentCallMeasurement);
+}
+
+TEST(GpuFoundationTest, WorldSurfaceDiagonalTraversalIsBijectiveAndMonotonicForRectangles)
+{
+    using namespace OpenRCT2::Ui::Gpu;
+    for (const auto dimensions : { Int2{ 1, 17 }, Int2{ 17, 1 }, Int2{ 32, 32 }, Int2{ 29, 7 }, Int2{ 7, 29 } })
+        for (uint32_t rotation = 0; rotation < 4; rotation++)
+        {
+            const auto width = uint32_t(dimensions.x), height = uint32_t(dimensions.y);
+            std::vector<bool> seen(width * height);
+            int32_t previous = -1;
+            for (uint32_t rank = 0; rank < width * height; rank++)
+            {
+                const auto source = GetWorldSurfaceSourceIndexForOrder(width, height, rank, rotation);
+                ASSERT_LT(source, seen.size());
+                EXPECT_FALSE(seen[source]);
+                seen[source] = true;
+                const auto x = source % width, y = source / width;
+                EXPECT_EQ(GetWorldSurfaceOrderIndex(width, height, x, y, rotation), rank);
+                const auto diagonal = rotation == 0 ? x + y
+                    : rotation == 1                 ? y + width - 1 - x
+                    : rotation == 2                 ? width - 1 - x + height - 1 - y
+                                                    : x + height - 1 - y;
+                EXPECT_GE(int32_t(diagonal), previous);
+                previous = int32_t(diagonal);
+            }
+        }
 }
