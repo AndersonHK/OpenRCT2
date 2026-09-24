@@ -655,7 +655,6 @@
     }
   },
   "remaining": [
-    "Owner interactive edit/camera review",
     "Slope grass/railings sampling and cross-tile ordering",
     "Physical supports, tunnels, queue text, construction overlays",
     "Other world families, terrain modes, auxiliary views, HDR and CPU source retirement"
@@ -664,5 +663,12 @@
     "Build98 differs from focused-tested build97 only in screenshot scope label; all SPVs identical.",
     "The second upload attempt was stopped for immediate deployment; the first completed log was verified against the matching instrumented control offline without rewriting failed evidence.",
     "Outer cliff skirt retained at explicit owner request. No general pixel tolerance."
-  ]
+  ],
+  "implementationCommit": "9b02bf4661",
+  "ownerAcceptance": {
+    "date": "2026-09-23",
+    "status": "accepted",
+    "feedback": "It worked. No dirty frames, perspective was correct for all objects present, no problems with construction.",
+    "benchmarksAccepted": true
+  }
 }

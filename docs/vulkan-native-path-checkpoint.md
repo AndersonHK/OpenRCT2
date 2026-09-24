@@ -16,7 +16,7 @@ Work starts from accepted implementation `775c86edf0` and checklist `d90d4243d9`
 - [x] Measure uncapped headroom and upload traffic separately; investigate reproducible regressions before promoting the candidate.
 - [x] Record limitations, update the migration checklist and commit the incremental checkpoint.
 - [x] Deploy the tested binaries/shaders with verified preimage backups for owner placement, terrain and camera testing.
-- [ ] Record the owner's interactive placement, terrain and camera results.
+- [x] Record the owner's interactive test: no dirty frames, correct perspective for present objects and no construction problems.
 
 ## Candidate results
 
@@ -44,6 +44,8 @@ The first upload invocation selected the uninstrumented control by mistake; the 
 ## Deployment and next checkpoint
 
 The [machine-readable evidence index](vulkan-native-path-checkpoint.json) pins the build, tests, performance, visual comparison, upload and deployment receipts.
+
+**Accepted implementation checkpoint: `9b02bf4661`.** After testing the deployed build, the owner reported: "It worked. No dirty frames, perspective was correct for all objects present, no problems with construction." The owner accepted the benchmark results and authorized the checkpoint. This closes the basic interactive deployment check; the detailed parity and missing-layer work above remains open.
 
 Build98 is installed at **`D:\Games\Independent\OpenRCT2Mod`**. `deployment-paths-build98-01/receipt.json` reports `deployed-verified`: 52 qualified files verified, 34 replaced, with no deletions. Previous bytes are backed up in `obj/vulkan-parity/deployment-paths-build98-01/backup`; the adjacent manifest records every preimage and installed hash. Saves, configuration, objects and destination-only files were not modified. Build receipt SHA-256: `15d4ca6bb2cdefe27fc2335ccb5de26682eca597679f97aa3de1d8fe3b2471fb`.
 

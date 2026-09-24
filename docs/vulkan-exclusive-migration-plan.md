@@ -9,7 +9,7 @@
 - [x] Preserve the 360 TPS / 144 FPS endurance target; separately measure 420.575 TPS uncapped headroom, about 389.5 TPS in the fullest window.
 - [ ] Finish slope-edge/railing differences, all zooms and cross-path/cross-tile ordering.
 - [ ] Restore physical path supports, tunnels, scrolling signs, construction ghosts and selection overlays.
-- [ ] Qualify the owner's installed interactive placement, terraforming and camera tests.
+- [x] Owner tested the installed checkpoint `9b02bf4661`: no dirty frames, correct perspective for all present objects and no construction problems.
 - [ ] Add scenery, tracks/supports, entities and effects without regressing the measured target; close terrain modes, auxiliary views, HDR/LightFX and residual CPU retirement.
 
 **Accepted performance baseline:** implementation commit `775c86edf0` is checkpointed on `codex/gpu-snapshot-terrain-layers`. The owner is satisfied with the performance standard and the shown cliff/water image. Subsequent work prioritizes adding missing layers without performance regressions. Follow the [per-layer regression gate](vulkan-snapshot-terrain-checkpoint.md#baseline-for-adding-layers), comparing each candidate with build92 and the previous accepted layer; retain the 4K/12,000-tick workload and 360 TPS gameplay cap.
