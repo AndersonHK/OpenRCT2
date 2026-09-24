@@ -1,0 +1,67 @@
+{
+  "schema": 1,
+  "frozenCommit": "9a092745f38a714cf33629aaa005d078d473e48b",
+  "oracleArtifactSha256": "66fb9f3283bd30271ae3d65c381c9d6a5ee47b9f91b8ee82cfbb77237be322e5",
+  "sources": {
+    "src/openrct2/interface/Viewport.cpp": "bd20ab8d13fed05b613233a006c1e9d5e61542934767ef4a3d964c5185fa8d94",
+    "src/openrct2/paint/entity/Paint.Guest.cpp": "0b3de3041d56e05f4b3efa851e740258f34ff38aeae2ab13e0cfdab64fd87104",
+    "src/openrct2/paint/Paint.cpp": "8ab506cdd14095028bfdeed7bf86c7587d9b9ae0e5a092418440940a2a66d891",
+    "src/openrct2/paint/entity/Paint.Peep.cpp": "e7c67aee41685f02f9e5204ee6e09d0f044d90eef23626debe818e04e902f9ea",
+    "src/openrct2/paint/entity/Paint.Staff.cpp": "b3e4bf142223a878753143ad3f629caa477eaed861bbc14ff92da469f7630ca2",
+    "src/openrct2/paint/entity/Paint.Peep.h": "d50c184789864763a29104d54017d61c9ef82748e21f4206b7530078ee5427fa"
+  },
+  "fragments": [
+    {
+      "source": "src/openrct2/paint/entity/Paint.Peep.h",
+      "start": "constexpr BoundBoxXYZ kPaintPeepBoundBox(",
+      "sha256": "f403afd5ef8f45e52b22e00c0088ced4c41e5d7ef8517d2fecb7573c14e0d32a"
+    },
+    {
+      "source": "src/openrct2/paint/entity/Paint.Peep.h",
+      "start": "constexpr CoordsXYZ kPaintPeepOffset(",
+      "sha256": "64c76ac9c6a36738bfca33e7b00c984b0bbf82b4a08d7a10110cc1eb97861892"
+    },
+    {
+      "source": "src/openrct2/paint/entity/Paint.Peep.cpp",
+      "start": "BaseImageAndOffset PaintPeepGetBaseImageAndOffset(",
+      "sha256": "464e59b460eecc1b98e2fc75a3bedf06ebb30a5d7452ddc449f9c9abe5759196"
+    },
+    {
+      "source": "src/openrct2/paint/Paint.cpp",
+      "start": "PaintStruct* PaintAddImageAsChild(",
+      "sha256": "d152e662d46c040b60ba4610d95f71af719e7a25105b57956864758f4a413080"
+    },
+    {
+      "source": "src/openrct2/paint/entity/Paint.Guest.cpp",
+      "start": "void PaintGuestAccesories(",
+      "sha256": "faa3f76d45a35670eb7fa86579b7e8b73db9970f3e4d2b801433f6dee96ab69d"
+    },
+    {
+      "source": "src/openrct2/paint/entity/Paint.Guest.cpp",
+      "start": "void PaintGuest(",
+      "sha256": "ffebfda6a9286ca87203f96e46f48285edd7612f90e76df67666885bbe22a2c7"
+    },
+    {
+      "source": "src/openrct2/paint/entity/Paint.Staff.cpp",
+      "start": "void PaintStaff(",
+      "sha256": "95615c1c92f904626caf1c8ef61d34cb310612cb5295c1f85f4a732debe1b736"
+    },
+    {
+      "source": "src/openrct2/paint/Paint.cpp",
+      "start": "static constexpr CoordsXYZ RotateBoundBoxSize(",
+      "sha256": "7576b7def1cc0c1281fd6f968c2b78a57601a2abeaffb9c0eee913859fb4c7ed"
+    },
+    {
+      "source": "src/openrct2/interface/Viewport.cpp",
+      "start": "ScreenCoordsXY Translate3DTo2DWithZ(",
+      "sha256": "6162f8c01b6ac2785783e066ea0a37be08fd249f3d58ed72d7e7b9a2e56ce1ff"
+    }
+  ],
+  "supportSources": {
+    "src/openrct2/drawing/ImageId.hpp": "4b3e4b5cc563cd3b8f191456683b302c6b06e0bcf35190879c5cb59ec9969cd0",
+    "src/openrct2/interface/ZoomLevel.h": "ac3d108a43b6a07d04ef94c2e531a29bca3468c03ef0d4d3bf9f434ab8519219",
+    "src/openrct2/world/Location.hpp": "c4671702d3f53656d3025bdb1ff8f2a88d5781a96ac98e89386bd90e5c00764d",
+    "src/openrct2/peep/PeepSpriteIds.h": "ad75792de0a72eeebdd2146cfb94c8ac41a8e6e555955ef9cdfd1cda111446e0",
+    "src/openrct2/entity/Peep.h": "767921a6324ab78d4fb586b757dc237ccd9a6bbaab8c55269580a18c6086915e"
+  }
+}

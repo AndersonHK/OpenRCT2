@@ -25,6 +25,7 @@
 #include <openrct2/drawing/IDrawingEngine.h>
 #include <span>
 #include "SoftwareTileDiagnostic.h"
+#include "CaptureImageDiagnostic.h"
 
 namespace
 {
@@ -204,6 +205,7 @@ namespace
         {
             _inner->Shutdown();
         }
+        void InvalidateImage(uint32_t image) override { _inner->InvalidateImage(image); }
     };
     class Factory final : public IRenderServiceFactory
     {
@@ -222,9 +224,13 @@ namespace
             if (!_configured)
                 return true;
             const bool enabled = _configured->IsEnabled();
+#ifdef OPENRCT2_VULKAN_ONLY
+            _diagnostics->enabledChecks.push_back({ { "renderer", "vulkan" }, { "enabled", enabled } });
+#else
             _diagnostics->enabledChecks.push_back(
                 { { "configuredEngine", static_cast<int32_t>(Config::Get().general.drawingEngine) },
                   { "benchmarkOverride", gIntegratedBenchmark.drawingEngine.has_value() }, { "enabled", enabled } });
+#endif
             return enabled;
         }
         std::unique_ptr<IRenderService> Create() override
@@ -285,8 +291,12 @@ namespace
 int main(int argc, const char** argv)
 {
     const auto diagnostics = std::make_shared<Diagnostics>();
+    const auto* captureImageMode = std::getenv("OPENRCT2_CLI_CAPTURE_IMAGE");
+    const bool captureImage = captureImageMode && std::string(captureImageMode) == "1";
+    const auto* parkPreviewMode = std::getenv("OPENRCT2_CLI_PARK_PREVIEW");
+    const bool parkPreview = parkPreviewMode && std::string(parkPreviewMode) == "1";
     const auto* giantMode = std::getenv("OPENRCT2_CLI_GIANT_PARITY");
-    diagnostics->giant = giantMode && std::string(giantMode) == "1";
+    diagnostics->giant = captureImage || (giantMode && std::string(giantMode) == "1");
     if (const auto* path = std::getenv("OPENRCT2_CLI_PARITY_ARTIFACTS"))
         diagnostics->directory = path;
     const auto* mode = std::getenv("OPENRCT2_DIAGNOSTIC_OFFSCREEN_SCREENSHOT");
@@ -303,10 +313,15 @@ int main(int argc, const char** argv)
     else if (vulkan)
         factory = std::make_shared<Factory>(diagnostics);
     json_t softwareTiling;
+    json_t imageOperationMetadata;
     int result = EXIT_FAILURE;
     std::string error;
     try
     {
+#ifdef OPENRCT2_VULKAN_ONLY
+        if (!configured && !vulkan)
+            throw std::runtime_error("Software screenshot diagnostics require the external frozen software reference.");
+#endif
         const auto requirePath = [](const char* variable) {
             const auto* path = std::getenv(variable);
             if (!path || !*path)
@@ -327,7 +342,20 @@ int main(int argc, const char** argv)
         if (!Config::SaveToPath(environment->GetFilePath(PathId::config)))
             throw std::runtime_error("Could not seed isolated screenshot profile");
         const auto* softwareTileMode = std::getenv("OPENRCT2_SOFTWARE_TILE_DIAGNOSTIC");
-        if (softwareTileMode && std::string(softwareTileMode) == "1")
+        if (captureImage || parkPreview)
+        {
+#ifdef OPENRCT2_VULKAN_ONLY
+            if (!configured || diagnostics->directory.empty() || (captureImage && parkPreview)
+                || (parkPreview && diagnostics->giant)
+                || (softwareTileMode && std::string(softwareTileMode) == "1"))
+                throw std::runtime_error("CaptureImage diagnostic requires configured mode, artifacts and no software override");
+            imageOperationMetadata = CaptureImageDiagnostic::Run(argc, argv, factory, parkPreview);
+            result = EXIT_SUCCESS;
+#else
+            throw std::runtime_error("CaptureImage diagnostic is available only in the current Vulkan-only build");
+#endif
+        }
+        else if (softwareTileMode && std::string(softwareTileMode) == "1")
         {
             if (configured || vulkan || diagnostics->giant)
                 throw std::runtime_error("Software tile diagnostic cannot enable a service or giant observer");
@@ -353,7 +381,11 @@ int main(int argc, const char** argv)
         json_t report = { { "schema", 1 },
                                 { "fixture", "screenshot-cli" },
                                 { "fixtureVersion", 1 },
+#ifdef OPENRCT2_VULKAN_ONLY
+                                { "mode", (configured || vulkan) ? "vulkan" : "unsupported" },
+#else
                                 { "mode", vulkan ? "vulkan" : "software" },
+#endif
                                 { "exitCode", result },
                                 { "error", error },
                                 { "serviceCreations", diagnostics->serviceCreations.load() },
@@ -379,13 +411,31 @@ int main(int argc, const char** argv)
         {
             // The production owner cannot replace its device. IsCreated observes zero/one without bootstrapping it.
             const bool created = owner->IsCreated();
+#ifdef OPENRCT2_VULKAN_ONLY
+            report["mode"] = "vulkan";
+#else
             report["mode"] = Config::Get().general.drawingEngine == DrawingEngine::vulkan ? "vulkan" : "software";
+#endif
             report["deviceCreations"] = created ? 1 : 0;
             report["productionFactory"] = {
+#ifdef OPENRCT2_VULKAN_ONLY
+                { "kind", "configured" }, { "renderer", "vulkan" },
+#else
                 { "kind", "configured" }, { "configuredEngine", static_cast<int32_t>(Config::Get().general.drawingEngine) },
                 { "benchmarkOverride", gIntegratedBenchmark.drawingEngine.has_value() },
+#endif
                 { "enabledChecks", diagnostics->enabledChecks }, { "ownerCreated", created },
                 { "deviceObservation", "persistent-owner-created-state" } };
+        }
+        if (captureImage)
+        {
+            report["fixture"] = "screenshot-capture-image";
+            report["captureImage"] = imageOperationMetadata;
+        }
+        if (parkPreview)
+        {
+            report["fixture"] = "screenshot-park-preview";
+            report["parkPreview"] = imageOperationMetadata;
         }
         const auto text = report.dump(2) + "\n";
         WriteBytes(diagnostics->directory / "report.json", std::as_bytes(std::span(text)));

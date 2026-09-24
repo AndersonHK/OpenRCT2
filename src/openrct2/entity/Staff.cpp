@@ -2195,6 +2195,7 @@ namespace OpenRCT2
             // Ride has broken down since Mechanic was called to inspect it.
             // Mechanic identifies the breakdown and switches to fixing it.
             state = PeepState::fixing;
+            getGameState().entities.PublishEntityVisualState(*this);
         }
 
         while (progressToNextSubstate)

@@ -1,6 +1,7 @@
 #version 450
 #extension GL_GOOGLE_include_directive : require
 #include "terrain_sprite_geometry.glsl"
+#include "peep_rules.glsl"
 
 // Independent columns, exact bounded painter order inside each column. No CPU
 // generated positions, lists or sort keys. Still unqualified for admission.
@@ -31,11 +32,15 @@ layout(std430,binding=5) buffer Parents { Parent records[]; } parents;
 // Scalar words preserve the existing 60-byte vertex ABI (std430 vec4 would pad it).
 layout(std430,binding=6) writeonly buffer Commands { uint words[]; } commands;
 layout(std430,binding=7) buffer Columns { Column records[]; } columns;
+layout(std430,binding=8) readonly buffer PeepState { uint words[]; } peepState;
+layout(std430,binding=9) readonly buffer PeepBins { uint words[]; } peepBins;
+layout(std430,binding=10) readonly buffer PeepCatalog { uint words[]; } peepCatalog;
 layout(push_constant) uniform Parameters {
     int x; int y; int width; int height;
     int clipX; int clipY; uint rotation; int zoom;
     uint transparent; uint stable; int depthBase; uint spriteCount;
     uint columnCount; uint pass; uint assetCount; uint limits;
+    uint peepEnabled; float entityInterpolation; uint sourceTick;
 } camera;
 
 shared int quadrantHeads[2002];
@@ -126,9 +131,104 @@ void addTile(ivec2 tileOrigin)
     }
 }
 
+
+const uint PEEP_CAP=65535u, PEEP_MOTION=PEEP_CAP*2u, PEEP_APPEARANCE=PEEP_CAP*12u, PEEP_ANIMATION=PEEP_CAP*16u;
+int tweenCoordinate(int current,int previous)
+{
+    precise float inv=1.0-camera.entityInterpolation;
+    precise float post=float(current)*camera.entityInterpolation;
+    precise float pre=float(previous)*inv;
+    precise float value=post+pre;
+    precise float integral=trunc(value);
+    precise float fraction=value-integral;
+    return int(integral)+(abs(fraction)>=0.5?(fraction<0.0?-1:1):0);
+}
+PeepRaw loadPeep(uint id)
+{
+    uint m=PEEP_MOTION+id*10u,a=PEEP_APPEARANCE+id*4u,n=PEEP_ANIMATION+id*9u;
+    PeepFields f;
+    f.id=id; f.lifecycle=PeepLifecycle(peepState.words[id*2u],peepState.words[id*2u+1u]);
+    f.motion=PeepMotion(int(peepState.words[m]),int(peepState.words[m+1u]),int(peepState.words[m+2u]),peepState.words[m+3u],
+        int(peepState.words[m+4u]),int(peepState.words[m+5u]),int(peepState.words[m+6u]),
+        peepState.words[m+7u],peepState.words[m+8u],peepState.words[m+9u]);
+    f.appearance=PeepAppearance(peepState.words[a],peepState.words[a+1u],peepState.words[a+2u],peepState.words[a+3u]);
+    f.animation=PeepAnimation(peepState.words[n],peepState.words[n+1u],peepState.words[n+2u],peepState.words[n+3u],
+        peepState.words[n+4u],peepState.words[n+5u],peepState.words[n+6u],peepState.words[n+7u],peepState.words[n+8u]);
+    PeepRaw raw=peepJoinFields(f);
+    if((raw.flags&4u)!=0u && raw.sourceTick==camera.sourceTick)
+    {
+        raw.x=tweenCoordinate(raw.x,raw.previousX); raw.y=tweenCoordinate(raw.y,raw.previousY);
+        raw.z=tweenCoordinate(raw.z,raw.previousZ);
+    }
+    return raw;
+}
+PeepSelection selectPeep(PeepRaw raw)
+{
+    PeepAnimationDescriptor descriptor=PeepAnimationDescriptor(0u,0u,0u,0u,0u,0u,0u,0u);
+    PeepAnimationFact fact=PeepAnimationFact(0u,0u,0u,0u);
+    if(raw.objectIndex<peepCatalog.words[0])
+    {
+        uint d=4u+raw.objectIndex*8u;
+        descriptor=PeepAnimationDescriptor(peepCatalog.words[d],peepCatalog.words[d+1u],peepCatalog.words[d+2u],
+            peepCatalog.words[d+3u],peepCatalog.words[d+4u],peepCatalog.words[d+5u],peepCatalog.words[d+6u],peepCatalog.words[d+7u]);
+        uint address=peepFactAddress(raw,descriptor,peepCatalog.words[1]);
+        if(address!=0xffffffffu)
+        {
+            uint f=4u+peepCatalog.words[0]*8u+address*4u;
+            fact=PeepAnimationFact(peepCatalog.words[f],peepCatalog.words[f+1u],peepCatalog.words[f+2u],peepCatalog.words[f+3u]);
+        }
+    }
+    return peepSelect(raw,descriptor,fact,camera.rotation,peepCatalog.words[1]);
+}
+uint peepPalettes(uint count,uint primary,uint secondary)
+{
+    if(primary>=56u || (count==2u && secondary>=56u)) { errorCode=5u; return 0u; }
+    return (primary+1u) | (count==2u ? ((secondary+1u)<<8u):0u) | (count<<24u);
+}
+void addPeep(uint id)
+{
+    if(id>=PEEP_CAP) { errorCode=5u; return; }
+    PeepRaw raw=loadPeep(id); PeepProjection projection=peepProject(raw,camera.rotation,camera.zoom);
+    if(projection.error!=0u) { errorCode=5u; return; }
+    // EntityPaintSetup coarse culls against the actual clipped column before image allocation.
+    ivec4 coarse=ivec4(projection.screenX-int(raw.width),projection.screenY-int(raw.heightMin),
+        projection.screenX+int(raw.width),projection.screenY+int(raw.heightMax)) >> camera.zoom;
+    if(coarse.z<=target.x || coarse.x>=target.x+target.z || coarse.w<=target.y || coarse.y>=target.y+target.w) return;
+    PeepSelection selection=selectPeep(raw);
+    if(selection.error!=0u) { errorCode=5u; return; }
+    int body=findSprite(selection.parentImage), child=-1;
+    if(selection.childPresent!=0u) child=findSprite(selection.childImage);
+    if(errorCode!=0u) return; // Missing residency is not culling.
+    ivec2 anchor=ivec2(projection.screenX,projection.screenY);
+    bool bodyAllocated=originalImageInColumn(anchor,sprites.records[body]);
+    bool childAllocated=child>=0 && originalImageInColumn(anchor,sprites.records[child]);
+    if(!bodyAllocated && !childAllocated) return;
+    if(nodeCount>=(camera.limits&65535u)) { errorCode=2u; return; }
+    int hash=projection.x+projection.y;
+    if(camera.rotation==1u) hash=projection.y-projection.x+32032;
+    else if(camera.rotation==2u) hash=-(projection.x+projection.y)+64064;
+    else if(camera.rotation==3u) hash=projection.x-projection.y+32032;
+    uint quadrant=uint(clamp(hash/32,0,2001));
+    // reserved1 is body; reserved2 is promoted accessory. Arrangement flags remain independent.
+    parents.records[nodeBase+nodeCount]=Parent(projection.x,projection.y,projection.z,projection.xEnd,projection.yEnd,
+        projection.zEnd,projection.drawX,projection.drawY,id,uint(bodyAllocated?body:child),quadrantHeads[quadrant],quadrant,
+        0u,uint(max(child,0)),bodyAllocated&&childAllocated?1u:0u,bodyAllocated?1u:2u);
+    quadrantHeads[quadrant]=int(nodeCount++); backQuadrant=min(backQuadrant,quadrant); frontQuadrant=max(frontQuadrant,quadrant);
+}
+void addEntities(ivec2 tileOrigin)
+{
+    if(camera.peepEnabled==0u || errorCode!=0u || tileOrigin.x<0 || tileOrigin.y<0 || tileOrigin.x>=1024 || tileOrigin.y>=1024) return;
+    uint tile=uint(tileOrigin.y/32)*32u+uint(tileOrigin.x/32);
+    uint begin=peepBins.words[4u+tile],end=peepBins.words[5u+tile];
+    if(begin>end || end>PEEP_CAP) { errorCode=5u; return; }
+    for(uint i=begin;i<end && errorCode==0u;i++) addPeep(peepBins.words[2048u+1024u*2048u+i]);
+}
+
 void generate()
 {
-    errorCode = emission.words[0] == 0u ? 0u : 1u; nodeCount = 0u; head = -1;
+    errorCode = emission.words[0] == 0u ? 0u : 1u;
+    if(camera.peepEnabled!=0u && peepBins.words[0]!=0u) errorCode=5u;
+    nodeCount = 0u; head = -1;
     backQuadrant = 0xffffffffu; frontQuadrant = 0u;
     // Exact first drawing scope: the accepted input02 elevation envelope. This
     // scan is device-side and scene-wide; camera must not change eligibility.
@@ -145,7 +245,14 @@ void generate()
     ivec2 second = terrainRotateXY(ivec2(0,32), traversalRotation);
     ivec2 step = terrainRotateXY(ivec2(32), traversalRotation);
     uint vertical = uint(((target.w << camera.zoom) + 2128) >> 5);
-    for (uint i = 0u; i < vertical; i++) { addTile(tile); addTile(tile + second); tile += step; }
+    for (uint i = 0u; i < vertical; i++)
+    {
+        addTile(tile); addEntities(tile);
+        addEntities(tile+terrainRotateXY(ivec2(-32,32),traversalRotation));
+        addTile(tile+second); addEntities(tile+second);
+        addEntities(tile+terrainRotateXY(ivec2(32,0),traversalRotation));
+        tile+=step;
+    }
     int tail = -2;
     if (backQuadrant != 0xffffffffu)
         for (uint q = backQuadrant; q <= frontQuadrant; q++)
@@ -216,9 +323,10 @@ int arrangeQuadrant(int start, uint quadrant, uint flags)
     return before;
 }
 
-void emitSprite(uint spriteIndex, ivec2 position)
+void emitSprite(uint spriteIndex, ivec2 position, uint palettes, uint effects)
 {
     Sprite sprite = sprites.records[spriteIndex]; Variant variant = sprite.variants[camera.zoom];
+    if((variant.flags&2u)!=0u) return;
     if (variant.flags > 1u || variant.asset >= camera.assetCount || sprite.flags != 0u) { errorCode = 3u; return; }
     TerrainSpriteGeometry geometry = terrainSpriteGeometry(position, ivec2(variant.width,variant.height),
         ivec2(variant.xOffset,variant.yOffset), (variant.flags & 1u) != 0u, variant.zoom, variant.shift,
@@ -229,7 +337,7 @@ void emitSprite(uint spriteIndex, ivec2 position)
     ivec4 clip = ivec4(clipOrigin, clipOrigin + target.zw);
     for (int c = 0; c < 4; c++) { commands.words[word + uint(c)] = uint(clip[c]); commands.words[word + 4u + uint(c)] = uint(geometry.bounds[c]); }
     commands.words[word + 8u] = uint(geometry.texelOffset.x); commands.words[word + 9u] = uint(geometry.texelOffset.y);
-    commands.words[word + 10u] = variant.asset; commands.words[word + 11u] = 0u; commands.words[word + 12u] = 0u;
+    commands.words[word + 10u] = variant.asset; commands.words[word + 11u] = palettes; commands.words[word + 12u] = effects;
     commands.words[word + 13u] = uint(camera.depthBase) + commandCount;
     commands.words[word + 14u] = floatBitsToUint(geometry.sampleStep);
     commandCount++;
@@ -248,7 +356,20 @@ void arrangeAndEmit()
     {
         if (++visited > nodeCount) { errorCode = 4u; break; }
         Parent parent = parents.records[nodeBase + uint(node)];
-        emitSprite(parent.sprite, ivec2(parent.sx,parent.sy));
+        if(parent.reserved!=0u)
+        {
+            PeepSelection selection=selectPeep(loadPeep(parent.primitive));
+            if(selection.error!=0u) { errorCode=5u; break; }
+            uint count=parent.reserved==2u?1u:selection.parentRemapCount;
+            uint primary=parent.reserved==2u?selection.childPrimary:selection.parentPrimary;
+            uint palettes=peepPalettes(count,primary,selection.parentSecondary);
+            if(errorCode!=0u) break;
+            emitSprite(parent.sprite,ivec2(parent.sx,parent.sy),palettes,count);
+            if(parent.attachedCount!=0u)
+                emitSprite(parent.attachedFirst,ivec2(parent.sx,parent.sy),peepPalettes(1u,selection.childPrimary,0u),1u);
+            continue;
+        }
+        emitSprite(parent.sprite, ivec2(parent.sx,parent.sy),0u,0u);
         if (parent.attachedFirst > emission.words[1] || parent.attachedCount > emission.words[1] - parent.attachedFirst)
         { errorCode = 1u; break; }
         for (uint i = 0u; i < parent.attachedCount && errorCode == 0u; i++)
@@ -256,7 +377,7 @@ void arrangeAndEmit()
             Primitive attached = primitives.records[parent.attachedFirst + i];
             if (attached.kind != 1u || attached.parentIndex != parent.primitive) { errorCode = 1u; break; }
             int sprite = findSprite(attached.imageIndex);
-            if (sprite >= 0) emitSprite(uint(sprite), ivec2(parent.sx, parent.sy + attached.attachedY));
+            if (sprite >= 0) emitSprite(uint(sprite), ivec2(parent.sx, parent.sy + attached.attachedY),0u,0u);
         }
     }
     if (visited != nodeCount && errorCode == 0u) errorCode = 4u;

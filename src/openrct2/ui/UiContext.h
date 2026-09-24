@@ -180,6 +180,9 @@ namespace OpenRCT2
             virtual ITitleSequencePlayer* GetTitleSequencePlayer() = 0;
         };
 
-        [[nodiscard]] std::unique_ptr<IUiContext> CreateDummyUiContext();
+        // Nongraphical by default. A test may explicitly supply its own display adapter;
+        // production headless image operations use IRenderService instead.
+        [[nodiscard]] std::unique_ptr<IUiContext> CreateDummyUiContext(
+            std::shared_ptr<Drawing::IDrawingEngineFactory> drawingEngineFactory = {});
     } // namespace Ui
 } // namespace OpenRCT2

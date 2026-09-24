@@ -9,6 +9,8 @@
 
 #pragma once
 
+#define OPENRCT2_VULKAN_ONLY 1
+
 #include "../core/FlagHolder.hpp"
 #include "PaletteType.h"
 #include "PresentationGeneration.h"
@@ -20,14 +22,6 @@
 #include <optional>
 #include <string>
 #include <vector>
-
-enum class DrawingEngine : int32_t
-{
-    none = -1,
-    softwareWithHardwareDisplay,
-    vulkan = 2, // Preserve the established vulkan configuration value after retiring openGL.
-    count = 3,
-};
 
 enum DrawingEngineFlag
 {
@@ -148,7 +142,7 @@ namespace OpenRCT2::Drawing
         virtual ~IDrawingEngineFactory()
         {
         }
-        [[nodiscard]] virtual std::unique_ptr<IDrawingEngine> Create(DrawingEngine type, Ui::IUiContext& uiContext) = 0;
+        [[nodiscard]] virtual std::unique_ptr<IDrawingEngine> Create(Ui::IUiContext& uiContext) = 0;
     };
 
     struct IWeatherDrawer

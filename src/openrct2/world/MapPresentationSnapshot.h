@@ -122,7 +122,10 @@ namespace OpenRCT2
 
     static_assert(std::is_trivially_copyable_v<SurfacePresentationRecord>);
 
-    [[nodiscard]] MapPresentationChangeBatch ConsumeMapPresentationChanges();
+    // The sole publication owner requests a complete bootstrap only when it has no front snapshot.
+    // If an earlier owner already consumed the reset, this gives the new snapshot a fresh epoch so
+    // GPU chunk revisions cannot alias resident records from the discarded publication.
+    [[nodiscard]] MapPresentationChangeBatch ConsumeMapPresentationChanges(bool requireCompleteSnapshot = false);
     [[nodiscard]] uint64_t GetMapPresentationEpoch() noexcept;
 
     /** Installs a snapshot only for map reads made by the current paint worker. */

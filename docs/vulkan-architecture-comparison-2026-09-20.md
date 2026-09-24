@@ -1,6 +1,6 @@
 # Renderer alternatives, independent votes and historical lessons
 
-This records the two requested plans and independent review, rather than selecting or implementing an architecture. The broader migration remains paused pending the owner's next decision. The [fresh historical software benchmark](vulkan-precatchup-software-benchmark-2026-09-20.md) reports ten passing runs and 48,000 measured ticks.
+This records the two requested plans and independent review as of September 20. **Subsequent decision, September 23:** the owner selected Plan B for implementation, with measured substantial improvement and reversal of unsuccessful experiments. The [fresh historical software benchmark](vulkan-precatchup-software-benchmark-2026-09-20.md) reports ten passing runs and 48,000 measured ticks.
 
 ## The two plans
 

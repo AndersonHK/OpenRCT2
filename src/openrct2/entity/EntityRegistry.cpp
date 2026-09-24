@@ -9,13 +9,13 @@
 
 #include "EntityRegistry.h"
 
-#include "EntityPresentationSnapshot.h"
 #include "../GameState.h"
 #include "../core/Algorithm.hpp"
 #include "../core/ChecksumStream.h"
 #include "../core/DataSerialiser.h"
 #include "../core/Guard.hpp"
 #include "../core/String.hpp"
+#include "../drawing/RetainedPeepState.h"
 #include "../entity/EntityList.h"
 #include "../entity/Staff.h"
 #include "../interface/Viewport.h"
@@ -25,6 +25,7 @@
 #include "../world/Map.h"
 #include "Balloon.h"
 #include "Duck.h"
+#include "EntityPresentationSnapshot.h"
 #include "EntityTweener.h"
 #include "Guest.h"
 #include "JumpingFountain.h"
@@ -37,6 +38,7 @@
 #include <cstddef>
 #include <cstring>
 #include <iterator>
+#include <stdexcept>
 #include <vector>
 
 namespace OpenRCT2
@@ -177,6 +179,9 @@ namespace OpenRCT2
             {
                 const auto& pool = _pools[value];
                 if (value == EnumValue(EntityType::balloon) && snapshot._retainedBalloons != nullptr)
+                    continue;
+                if ((value == EnumValue(EntityType::guest) || value == EnumValue(EntityType::staff))
+                    && snapshot._retainedPeeps != nullptr)
                     continue;
                 for (size_t pageIndex = 0; pageIndex < pool.pages.size(); pageIndex++)
                 {
@@ -497,7 +502,9 @@ namespace OpenRCT2
         const auto index = Algorithm::binaryFind(std::begin(spatialVector), std::end(spatialVector), entity.id);
         // Membership is written only by this registry. Repairing a missing id here used to hide the corrupting mutation and
         // rebuild every spatial bucket in a hot path; fail at the first broken relationship instead.
-        Guard::Assert(index != std::end(spatialVector), "Entity %u is absent from spatial bucket %u", entity.id.ToUnderlying(), currentIndex);
+        Guard::Assert(
+            index != std::end(spatialVector), "Entity %u is absent from spatial bucket %u", entity.id.ToUnderlying(),
+            currentIndex);
         spatialVector.erase(index);
 
         entity.spatialIndex = kInvalidSpatialIndex;
@@ -647,9 +654,204 @@ namespace OpenRCT2
         return batch;
     }
 
-    void EntityRegistry::PublishEntityVisualState(EntityBase& entity) noexcept
+    Drawing::RetainedEntityPublicationInput EntityRegistry::CaptureRetainedEntityPublication(
+        uint32_t sourceTick, std::span<const uint32_t> loadedObjectGenerations, bool bootstrap,
+        bool includeBalloonCompatibility) const
     {
-        QueueEntityVisualChange(entity, EntityVisualDirty::full);
+        if (!includeBalloonCompatibility && sourceTick != getGameState().currentTicks)
+            throw std::invalid_argument("Native entity capture requires the current authoritative source tick");
+        Drawing::RetainedEntityPublicationInput input{};
+        input.sourceEpoch = _entityVisualEpoch;
+        input.sourceTick = sourceTick;
+        input.bootstrap = bootstrap || _entityVisualResetPending;
+        input.peeps.epoch = input.balloons.epoch = _entityVisualEpoch;
+        input.peeps.reset = input.balloons.reset = input.bootstrap;
+
+        // Reserve only streams actually used by this publication. The coalesced worklist bounds each stream;
+        // no preliminary population/dirty scan or whole-record temporary is needed.
+        const auto append = [&](auto& stream, auto value) {
+            if (stream.capacity() == 0)
+                stream.reserve(_entityVisualDirtyEntities.size());
+            stream.push_back(value);
+        };
+        const auto appendPeep = [&](EntityId id, const EntityBase* entity, EntityVisualDirty dirty) {
+            const auto handle = GetEntityVisualHandle(id);
+            const auto index = static_cast<uint32_t>(id.ToUnderlying());
+            if (entity == nullptr || (entity->type != EntityType::guest && entity->type != EntityType::staff))
+            {
+                // A different-family replacement is also a versioned deletion for the peep scene.
+                append(input.peeps.lifecycle, Drawing::RetainedPeepLifecycleUpdate{ index, { handle.generation, 0 } });
+                return;
+            }
+            const auto& peep = *entity->cast<Peep>();
+            const auto has = [&](EntityVisualDirty mask) {
+                return (static_cast<uint8_t>(dirty) & static_cast<uint8_t>(mask)) != 0;
+            };
+            const bool initialise = input.bootstrap || has(EntityVisualDirty::presence);
+            if (initialise)
+            {
+                const auto flags = Drawing::kRetainedPeepPresent
+                    | (entity->type == EntityType::staff ? Drawing::kRetainedPeepStaff : 0u);
+                append(input.peeps.lifecycle, Drawing::RetainedPeepLifecycleUpdate{ index, { handle.generation, flags } });
+            }
+            if (initialise || has(EntityVisualDirty::transform))
+            {
+                Drawing::RetainedPeepMotion motion{ peep.x, peep.y, peep.z,     peep.orientation, peep.x,
+                                                    peep.y, peep.z, sourceTick, sourceTick,       0 };
+                if (!includeBalloonCompatibility)
+                {
+                    // Draw runs after legacy tweening. Native state owns authoritative endpoints, never the
+                    // temporary live pose. Camera alpha remains one shared frame parameter.
+                    if (const auto history = EntityTweener::get().GetMotion(peep); history.has_value())
+                    {
+                        motion.x = history->current.x;
+                        motion.y = history->current.y;
+                        motion.z = history->current.z;
+                        motion.previousX = motion.x;
+                        motion.previousY = motion.y;
+                        motion.previousZ = motion.z;
+                        const uint32_t span = history->sourceTick - history->previousTick;
+                        if (span != 0 && span < (uint32_t{ 1 } << 31))
+                        {
+                            motion.previousX = history->previous.x;
+                            motion.previousY = history->previous.y;
+                            motion.previousZ = history->previous.z;
+                            motion.previousTick = history->previousTick;
+                            motion.sourceTick = history->sourceTick;
+                            motion.flags = Drawing::kRetainedPeepInterpolate;
+                        }
+                    }
+                }
+                append(
+                    input.peeps.motion,
+                    Drawing::RetainedPeepFieldUpdate<Drawing::RetainedPeepMotion>{ index, handle.generation, motion });
+            }
+            if (initialise || has(EntityVisualDirty::appearance))
+            {
+                if (peep.animationObjectIndex >= loadedObjectGenerations.size()
+                    || loadedObjectGenerations[peep.animationObjectIndex] == 0)
+                    throw std::invalid_argument("Retained peep loaded catalog slot is absent");
+                const auto colours = static_cast<uint32_t>(peep.getTShirtColour())
+                    | (static_cast<uint32_t>(peep.getTrousersColour()) << 8);
+                uint32_t accessories;
+                if (entity->type == EntityType::guest)
+                {
+                    const auto& guest = static_cast<const Guest&>(peep);
+                    accessories = static_cast<uint32_t>(guest.getHatColour())
+                        | (static_cast<uint32_t>(guest.getBalloonColour()) << 8)
+                        | (static_cast<uint32_t>(guest.getUmbrellaColour()) << 16);
+                }
+                else
+                    accessories = static_cast<uint32_t>(static_cast<const Staff&>(peep).assignedStaffType) << 24;
+                append(
+                    input.peeps.appearance,
+                    Drawing::RetainedPeepFieldUpdate<Drawing::RetainedPeepAppearance>{
+                        index,
+                        handle.generation,
+                        { peep.animationObjectIndex, loadedObjectGenerations[peep.animationObjectIndex], colours,
+                          accessories } });
+            }
+            if (initialise || has(EntityVisualDirty::animation | EntityVisualDirty::bounds))
+            {
+                append(
+                    input.peeps.animation,
+                    Drawing::RetainedPeepFieldUpdate<Drawing::RetainedPeepAnimation>{
+                        index,
+                        handle.generation,
+                        { static_cast<uint32_t>(peep.action), static_cast<uint32_t>(peep.animationGroup),
+                          static_cast<uint32_t>(peep.animationType), static_cast<uint32_t>(peep.nextAnimationType),
+                          peep.animationImageIdOffset, peep.spriteData.width, peep.spriteData.heightMin,
+                          peep.spriteData.heightMax, static_cast<uint32_t>(peep.state) << Drawing::kRetainedPeepStateShift } });
+            }
+        };
+        const auto appendBalloon = [&](EntityId id, const EntityBase* entity) {
+            if (!includeBalloonCompatibility)
+                return;
+            EntityVisualChange change{};
+            change.handle = GetEntityVisualHandle(id);
+            change.type = entity != nullptr ? entity->type : EntityType::null;
+            change.present = entity != nullptr;
+            change.dirty = EntityVisualDirty::full;
+            if (entity != nullptr && entity->type == EntityType::balloon)
+            {
+                // Existing balloon migration adapter only. Peeps never enter this payload.
+                change.location = entity->getLocation();
+                change.spriteData = entity->spriteData;
+                change.orientation = entity->orientation;
+                change.payloadOffset = static_cast<uint32_t>(input.balloons.payload.size());
+                change.payloadSize = sizeof(Balloon);
+                const auto* begin = reinterpret_cast<const std::byte*>(entity);
+                input.balloons.payload.insert(input.balloons.payload.end(), begin, begin + sizeof(Balloon));
+            }
+            input.balloons.changes.push_back(change);
+        };
+
+        if (input.bootstrap)
+        {
+            // Exceptional mode/entity-epoch/catalog-epoch transition only. Never a per-frame fallback.
+            const auto& guests = GetEntityExecutionList(EntityType::guest);
+            const auto& staff = GetEntityExecutionList(EntityType::staff);
+            const auto& balloons = GetEntityExecutionList(EntityType::balloon);
+            const auto peepCount = guests.size() + staff.size();
+            input.peeps.lifecycle.reserve(peepCount);
+            input.peeps.motion.reserve(peepCount);
+            input.peeps.appearance.reserve(peepCount);
+            input.peeps.animation.reserve(peepCount);
+            if (includeBalloonCompatibility)
+            {
+                input.balloons.changes.reserve(balloons.size());
+                input.balloons.payload.reserve(balloons.size() * sizeof(Balloon));
+            }
+            for (const auto* entity : guests)
+            {
+                appendPeep(entity->id, entity, EntityVisualDirty::full);
+                ++input.bootstrapVisits;
+            }
+            for (const auto* entity : staff)
+            {
+                appendPeep(entity->id, entity, EntityVisualDirty::full);
+                ++input.bootstrapVisits;
+            }
+            if (includeBalloonCompatibility)
+                for (const auto* entity : balloons)
+                {
+                    appendBalloon(entity->id, entity);
+                    ++input.bootstrapVisits;
+                }
+        }
+        else
+        {
+            if (includeBalloonCompatibility)
+                input.balloons.changes.reserve(_entityVisualDirtyEntities.size());
+            // One dirty-ID traversal, fan-out into both owned forms. Other-family replacements reach both
+            // consumers as versioned tombstones even when an intermediate remove/create was coalesced.
+            for (const auto id : _entityVisualDirtyEntities)
+            {
+                const auto* entity = entities[id.ToUnderlying()];
+                appendPeep(id, entity, static_cast<EntityVisualDirty>(_entityVisualDirtyFlags[id.ToUnderlying()]));
+                appendBalloon(id, entity);
+                ++input.dirtyVisits;
+            }
+        }
+        return input;
+    }
+
+    void EntityRegistry::AcknowledgeRetainedEntityPublication()
+    {
+        // Commit only while the same authoritative owner barrier remains held, after all allocations,
+        // validation and replacement-scene preparation succeeded. A failed preparation never calls this.
+        for (const auto id : _entityVisualDirtyEntities)
+        {
+            _entityVisualDirtyFlags[id.ToUnderlying()] = 0;
+            _entityVisualDirtyQueued.reset(id.ToUnderlying());
+        }
+        _entityVisualDirtyEntities.clear();
+        _entityVisualResetPending = false;
+    }
+
+    void EntityRegistry::PublishEntityVisualState(EntityBase& entity, EntityVisualDirty dirty) noexcept
+    {
+        QueueEntityVisualChange(entity, dirty);
     }
 
     void EntityRegistry::CaptureEntityPresentationStorage(EntityPresentationSnapshot& snapshot) const
@@ -697,8 +899,8 @@ namespace OpenRCT2
         const auto executionPosition = std::ranges::lower_bound(
             executionList, id, {}, [](const EntityBase* candidate) { return candidate->id; });
         Guard::Assert(
-            executionPosition != executionList.end() && *executionPosition == entity,
-            "Entity %u was not in its execution list", id.ToUnderlying());
+            executionPosition != executionList.end() && *executionPosition == entity, "Entity %u was not in its execution list",
+            id.ToUnderlying());
         executionList.erase(executionPosition);
         Guard::Assert(_freeIds.insert(id), "Entity %u is already free", id.ToUnderlying());
         if (type == EntityType::vehicle)

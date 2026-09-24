@@ -35,7 +35,10 @@
 #include "../core/DataSerialiser.h"
 #include "../core/Numerics.hpp"
 #include "../core/UnitConversion.h"
-#include "../drawing/X8DrawingEngine.h"
+#include "../drawing/Palette.h"
+#include "../drawing/PaletteIndex.h"
+#include "../drawing/RenderService.h"
+#include "../drawing/RenderTarget.h"
 #include "../interface/Viewport.h"
 #include "../localisation/StringIds.h"
 #include "../object/FootpathEntry.h"
@@ -65,6 +68,7 @@
 #include "ted/TrackElementDescriptor.h"
 
 #include <algorithm>
+#include <cstring>
 #include <iterator>
 #include <limits>
 #include <memory>
@@ -1941,6 +1945,26 @@ static bool TrackDesignPlacePreview(
     if (ride == nullptr)
         return false;
 
+    // Placement can fail before ownership reaches TrackDesignDrawPreview.
+    const auto removePreviewRide = [](Ride* preview) { preview->remove(); };
+    std::unique_ptr<Ride, decltype(removePreviewRide)> previewRide(ride, removePreviewRide);
+
+    struct RestorePlacementState
+    {
+        GameState_t& state;
+        decltype(gameState.park.flags) parkFlags = state.park.flags;
+        uint8_t direction = _currentTrackPieceDirection;
+        RideId currentRide = _currentRideIndex;
+        bool drawingPreview = _trackDesignDrawingPreview;
+        ~RestorePlacementState()
+        {
+            state.park.flags = parkFlags;
+            _currentTrackPieceDirection = direction;
+            _currentRideIndex = currentRide;
+            _trackDesignDrawingPreview = drawingPreview;
+        }
+    } restorePlacement{ gameState };
+
     ride->customName = {};
 
     ride->entranceStyle = objManager.GetLoadedObjectEntryIndex(td.appearance.stationObjectIdentifier);
@@ -1965,8 +1989,6 @@ static bool TrackDesignPlacePreview(
     }
 
     _trackDesignDrawingPreview = true;
-    uint8_t backup_rotation = _currentTrackPieceDirection;
-    auto backupParkFlags = gameState.park.flags;
     gameState.park.flags.unset(ParkFlag::forbidHighConstruction);
     auto mapSize = TileCoordsXY{ gameState.mapSize.x * 16, gameState.mapSize.y * 16 };
 
@@ -1988,7 +2010,6 @@ static bool TrackDesignPlacePreview(
     auto res = TrackDesignPlaceVirtual(
         tds, td, TrackPlaceOperation::placeTrackPreview, placeScenery, *ride,
         { mapSize.x, mapSize.y, z, _currentTrackPieceDirection });
-    gameState.park.flags = backupParkFlags;
 
     if (res.error == GameActions::Status::ok)
     {
@@ -2001,16 +2022,11 @@ static bool TrackDesignPlacePreview(
             gameStateData.setFlag(TrackDesignGameStateFlag::vehicleUnavailable, true);
         }
 
-        _currentTrackPieceDirection = backup_rotation;
-        _trackDesignDrawingPreview = false;
         gameStateData.cost = res.cost;
-        *outRide = ride;
+        *outRide = previewRide.release();
         return true;
     }
 
-    _currentTrackPieceDirection = backup_rotation;
-    ride->remove();
-    _trackDesignDrawingPreview = false;
     return false;
 }
 
@@ -2105,7 +2121,17 @@ bool TrackDesignSceneryElement::operator!=(const TrackDesignSceneryElement& rhs)
  */
 void TrackDesignDrawPreview(TrackDesign& td, TrackDesignPreviewBuffer& pixels, bool placeScenery)
 {
-    StashMap();
+    struct RestorePreviewMap
+    {
+        Ride* ride{};
+        RestorePreviewMap() { StashMap(); }
+        ~RestorePreviewMap()
+        {
+            if (ride != nullptr)
+                ride->remove();
+            UnstashMap();
+        }
+    } restoreMap;
     TrackDesignPreviewClearMap();
 
     if (gLegacyScene == LegacyScene::trackDesignsManager)
@@ -2115,15 +2141,12 @@ void TrackDesignDrawPreview(TrackDesign& td, TrackDesignPreviewBuffer& pixels, b
 
     TrackDesignState tds{};
 
-    Ride* ride;
     TrackDesignGameStateData updatedGameStateData = td.gameStateData;
-    if (!TrackDesignPlacePreview(tds, td, &ride, updatedGameStateData, placeScenery))
+    if (!TrackDesignPlacePreview(tds, td, &restoreMap.ride, updatedGameStateData, placeScenery))
     {
         std::fill(std::begin(pixels), std::end(pixels), PaletteIndex::transparent);
-        UnstashMap();
         return;
     }
-    td.gameStateData = updatedGameStateData;
 
     CoordsXYZ centre = { (tds.previewMin.x + tds.previewMax.x) / 2 + 16, (tds.previewMin.y + tds.previewMax.y) / 2 + 16,
                          (tds.previewMin.z + tds.previewMax.z) / 2 };
@@ -2166,33 +2189,53 @@ void TrackDesignDrawPreview(TrackDesign& td, TrackDesignPreviewBuffer& pixels, b
     view.zoom = zoom_level;
     view.flags = VIEWPORT_FLAG_HIDE_BASE | VIEWPORT_FLAG_HIDE_ENTITIES;
 
-    RenderTarget rt;
-    rt.x = 0;
-    rt.y = 0;
-    rt.width = 370;
-    rt.height = 217;
-    rt.pitch = 0;
-    rt.bits = pixels.data();
-
-    auto drawingEngine = std::make_unique<X8DrawingEngine>(GetContext()->GetUiContext());
-    rt.DrawingEngine = drawingEngine.get();
-
-    drawingEngine->BeginDraw();
-
+    // Commit all four rotations together. A failed job must not expose a partially replaced preview.
+    std::vector<PaletteIndex> rendered(pixels.size());
+    auto& service = GetContext()->GetRenderService();
     const ScreenCoordsXY offset = { size_x / 2, size_y / 2 };
     for (Direction direction = 0; direction < kNumOrthogonalDirections; direction++)
     {
         view.viewPos = Translate3DTo2DWithZ(direction, centre) - offset;
         view.rotation = direction;
+
+        OffscreenRenderRequest request;
+        request.name = "track-design-preview-" + std::to_string(direction);
+        request.logicalExtent = request.outputExtent = { 370, 217 };
+        for (size_t i = 0; i < request.palette.size(); ++i)
+        {
+            const auto colour = gPalette[i];
+            request.palette[i] = { colour.red, colour.green, colour.blue, colour.alpha };
+        }
+        const auto expectedName = request.name;
+        const auto expectedPalette = request.palette;
+        auto session = service.BeginOffscreen(std::move(request));
+        if (!session)
+            throw RenderServiceException({ RenderErrorCode::creationFailed, "Track preview has no render session" });
+        auto& rt = session->GetRenderTarget();
+        if (rt.x != 0 || rt.y != 0 || rt.width != 370 || rt.height != 217 || rt.bits == nullptr
+            || rt.DrawingEngine == nullptr || rt.pitch < 0)
+            throw RenderServiceException({ RenderErrorCode::executionFailed, "Track preview render target differs" });
         ViewportRender(rt, &view);
-
-        rt.bits += kTrackPreviewImageSize;
+        auto completion = session->Submit();
+        if (!completion)
+            throw RenderServiceException({ RenderErrorCode::executionFailed, "Track preview has no completion" });
+        const auto outcome = completion->Wait(std::chrono::seconds(120));
+        if (outcome.error)
+            throw RenderServiceException(*outcome.error);
+        if (!outcome.result)
+            throw RenderServiceException({ RenderErrorCode::executionFailed, "Track preview has no owned output" });
+        const auto& result = *outcome.result;
+        const RenderExtent expectedExtent{ 370, 217 };
+        if (outcome.identity != completion->GetIdentity() || result.identity != outcome.identity
+            || result.identity.submissionId == 0 || result.identity.targetId == 0 || result.identity.targetGeneration == 0
+            || result.identity.name != expectedName || result.logicalExtent != expectedExtent
+            || result.outputExtent != expectedExtent || result.palette != expectedPalette
+            || result.indexed.size() != kTrackPreviewImageSize || !result.rgba.empty())
+            throw RenderServiceException({ RenderErrorCode::executionFailed, "Track preview readback contract differs" });
+        std::memcpy(rendered.data() + direction * kTrackPreviewImageSize, result.indexed.data(), kTrackPreviewImageSize);
     }
-
-    drawingEngine->EndDraw();
-
-    ride->remove();
-    UnstashMap();
+    td.gameStateData = std::move(updatedGameStateData);
+    std::copy(rendered.begin(), rendered.end(), pixels.begin());
 }
 
 /**

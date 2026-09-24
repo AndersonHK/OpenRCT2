@@ -250,7 +250,7 @@ def execute(args, source, cache, output):
                    "previousSnapshot": previous_snapshot, "previousReceiptSha256": previous_receipt_hash,
                    "changedSourceInputs": source_changes, "signatureSha256": signature,
                    "timestampPolicy": "Hash-changed C/C++ input mtime must exceed every prior private file and its own prior mtime by >2s and not be future; otherwise empty generation"},
-               "instrumentation": "Only HardwareDisplayDrawingEngine.cpp force-includes OraclePresentHook.h; wrapper forwards real SDL_RenderPresent once. Source files and mtimes unchanged."}
+               "instrumentation": build.capture_instrumentation(source, True)}
     next_state = None
     if passed:
         private_files = manifest(work)

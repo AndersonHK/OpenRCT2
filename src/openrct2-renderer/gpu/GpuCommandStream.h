@@ -24,10 +24,13 @@
 namespace OpenRCT2::Drawing
 {
     struct RetainedBalloonSnapshot;
-}
+    struct RetainedPeepSnapshot;
+} // namespace OpenRCT2::Drawing
 
 namespace OpenRCT2::Ui::Gpu
 {
+    class AtlasAssetLease;
+    struct PeepAssetGeneration;
 #pragma pack(push, 1)
     struct Int2
     {
@@ -456,8 +459,8 @@ namespace OpenRCT2::Ui::Gpu
         int32_t nextDepth, uint32_t recordCount) noexcept
     {
         constexpr int32_t limit = (1 << 22) - 1;
-        if (nextDepth < 0 || nextDepth >= limit || recordCount == 0
-            || recordCount > kWorldSurfaceMaximumRecordCount || recordCount > static_cast<uint32_t>(limit - nextDepth))
+        if (nextDepth < 0 || nextDepth >= limit || recordCount == 0 || recordCount > kWorldSurfaceMaximumRecordCount
+            || recordCount > static_cast<uint32_t>(limit - nextDepth))
             return std::nullopt;
         return WorldSurfaceDepthRange{ nextDepth, nextDepth + static_cast<int32_t>(recordCount) };
     }
@@ -678,6 +681,8 @@ namespace OpenRCT2::Ui::Gpu
         Terrain::RetainedTerrainSnapshot snapshot;
         std::shared_ptr<const Terrain::DrawSpriteTable> sprites;
         Terrain::DrawCamera camera;
+        std::shared_ptr<const Drawing::RetainedPeepSnapshot> peeps;
+        std::shared_ptr<const PeepAssetGeneration> peepAssets;
     };
 
     struct FrameCommandStream
@@ -692,6 +697,7 @@ namespace OpenRCT2::Ui::Gpu
         std::vector<TerrainSceneCommand> terrainScenes;
         uint64_t cpuBalloonSpriteCalls{};
         std::vector<TextureUpload> textureUploads;
+        std::vector<std::shared_ptr<const AtlasAssetLease>> atlasAssetLeases;
         std::optional<LightFxFrameSnapshot> lightFx;
 
         void clear() noexcept // NOLINT(readability-identifier-naming)
@@ -706,6 +712,7 @@ namespace OpenRCT2::Ui::Gpu
             terrainScenes.clear();
             cpuBalloonSpriteCalls = 0;
             textureUploads.clear();
+            atlasAssetLeases.clear();
             if (lightFx.has_value())
             {
                 lightFx->width = 0;

@@ -19,14 +19,15 @@ WIDTH, HEIGHT = 640, 480
 CASE_NAMES = tuple(f"{background}-r{rotation}z{zoom}" for background in ("ordinary", "transparent")
                    for zoom in (0, 1) for rotation in range(4))
 BUFFER_LENGTHS = {"indexed.bin": WIDTH * HEIGHT, "palette.bin": 768, "rgba.bin": WIDTH * HEIGHT * 4}
+# Current candidate runtime only. Frozen/reference assets retain their receipt-owned inventory unchanged.
 SHADER_NAMES = {
     "indexed_line.frag.spv", "indexed_line.vert.spv", "indexed_palette.frag.spv", "indexed_palette.vert.spv",
     "indexed_rect.frag.spv", "indexed_rect.vert.spv", "indexed_sprite.vert.spv",
     "indexed_transparency_compose.frag.spv", "indexed_transparency_compose.vert.spv",
     "indexed_transparent_rect.frag.spv", "indexed_transparent_rect.vert.spv",
-    "indexed_weather.frag.spv", "indexed_weather.vert.spv", "lightfx_accumulate.comp.spv",
+    "indexed_weather.frag.spv", "indexed_weather.vert.spv", "lightfx_accumulate.comp.spv", "image_alias.comp.spv",
     "rgba_scale.frag.spv", "balloon.vert.spv", "balloon_order.comp.spv", "world_surface.vert.spv",
-    "world_surface_compact.comp.spv", "terrain_retained_emit.comp.spv", "terrain_columns.comp.spv"}
+    "world_surface_compact.comp.spv", "terrain_retained_emit.comp.spv", "terrain_columns.comp.spv", "peep_fields.comp.spv"}
 
 
 def sha(path):
@@ -56,9 +57,9 @@ def child(base, name):
     return result
 
 
-def png_buffers(path):
+def png_buffers(path, extent=(WIDTH, HEIGHT)):
     with Image.open(path) as image:
-        require(image.mode == "P" and image.size == (WIDTH, HEIGHT), "Invalid PNG mode/extent: " + str(path))
+        require(image.mode == "P" and image.size == tuple(extent), "Invalid PNG mode/extent: " + str(path))
         indices = image.tobytes()
         palette = bytes(image.getpalette())
         transparency = image.info.get("transparency")
@@ -70,7 +71,8 @@ def png_buffers(path):
             alpha = transparency + bytes([255]) * (256 - len(transparency))
         require(alpha == bytes([0]) + bytes([255]) * 255, "PNG must make only palette index zero transparent")
         buffers = {"indexed.bin": indices, "palette.bin": palette, "rgba.bin": image.convert("RGBA").tobytes()}
-        require(all(len(buffers[name]) == size for name, size in BUFFER_LENGTHS.items()), "Invalid PNG buffer lengths")
+        lengths = {"indexed.bin": extent[0] * extent[1], "palette.bin": 768, "rgba.bin": extent[0] * extent[1] * 4}
+        require(all(len(buffers[name]) == size for name, size in lengths.items()), "Invalid PNG buffer lengths")
         return buffers
 
 
@@ -397,7 +399,7 @@ def execute(args, root, output, summary, evidence):
                 install_shader(source_shader, target, expected, evidence,
                                data_hashes if args.factory == "configured" else None)
                 shader_hashes[target.name] = expected
-        require(set(shader_hashes) == SHADER_NAMES, "Shader set does not match the qualified E5/B1 renderer")
+        require(set(shader_hashes) == SHADER_NAMES, "Shader set does not match the current receipt-qualified renderer")
         layer_settings = output / "vk_layer_settings.txt"
         layer_settings.write_text("khronos_validation.validate_sync = true\n"
                                   "khronos_validation.debug_action = VK_DBG_LAYER_ACTION_LOG_MSG\n"

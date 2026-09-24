@@ -25,15 +25,25 @@ set(test_files
    "${CMAKE_CURRENT_SOURCE_DIR}/PublicationSnapshotParityTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/RetainedBalloonSceneTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/TerrainSurfaceRulesTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/RetainedPeepStateTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/NativePeepPublicationTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/PeepRulesTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/VulkanMixedFixtureTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/../mixed-parity/VulkanMixedFixturePipeline.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/PaintOrderingTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/TerrainPresentationBridgeTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/TerrainSurfaceEmissionTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/VulkanRetainedTerrainEmissionTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/VulkanRetainedTerrainDrawTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/VulkanNativePeepSceneTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/VulkanTerrainCompletionTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/SpriteAssetDecoderTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/AssetMetadataCorpusParityTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/ImageImporterTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/IniReaderTest.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/ConfigTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/ParkPreviewTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/TrackDesignPreviewTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/IniWriterTest.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/JobPoolTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/RenderServiceTests.cpp"
@@ -126,5 +136,6 @@ if (OPENRCT2_VULKAN_ENABLED)
 endif ()
 set_target_properties(OpenRCT2Tests PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 gtest_discover_tests(OpenRCT2Tests
+    TEST_FILTER "*-ExperimentalVulkanMixedFixtureTest.*"
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     DISCOVERY_MODE PRE_TEST)

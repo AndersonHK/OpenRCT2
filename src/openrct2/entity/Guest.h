@@ -353,9 +353,19 @@ namespace OpenRCT2
         uint8_t angriness;
         uint8_t timeLost; // the time the peep has been lost when it reaches 254 generates the lost thought
         uint8_t daysInQueue;
-        Drawing::Colour balloonColour;
-        Drawing::Colour umbrellaColour;
-        Drawing::Colour hatColour;
+    private:
+        Drawing::Colour _balloonColour{};
+        Drawing::Colour _umbrellaColour{};
+        Drawing::Colour _hatColour{};
+
+    public:
+        const Drawing::Colour& getBalloonColour() const noexcept { return _balloonColour; }
+        const Drawing::Colour& getUmbrellaColour() const noexcept { return _umbrellaColour; }
+        const Drawing::Colour& getHatColour() const noexcept { return _hatColour; }
+        void setAccessoryColours(Drawing::Colour balloon, Drawing::Colour umbrella, Drawing::Colour hat);
+        void setBalloonColour(Drawing::Colour colour) { setAccessoryColours(colour, _umbrellaColour, _hatColour); }
+        void setUmbrellaColour(Drawing::Colour colour) { setAccessoryColours(_balloonColour, colour, _hatColour); }
+        void setHatColour(Drawing::Colour colour) { setAccessoryColours(_balloonColour, _umbrellaColour, colour); }
         RideId favouriteRide;
         uint8_t favouriteRideRating;
         uint64_t itemFlags;

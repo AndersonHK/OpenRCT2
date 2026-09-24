@@ -1,13 +1,13 @@
 // Copyright (c) 2014-2026 OpenRCT2 developers. GPL-3.0-or-later.
-#include <gtest/gtest.h>
-#include <stdexcept>
 #include <cstdlib>
-#include <string_view>
+#include <gtest/gtest.h>
+#include <openrct2-renderer/gpu/TerrainPresentationBridge.h>
+#include <openrct2/OpenRCT2.h>
 #include <openrct2/PlatformEnvironment.h>
 #include <openrct2/drawing/Image.h>
-#include <openrct2/OpenRCT2.h>
-#include <openrct2-renderer/gpu/TerrainPresentationBridge.h>
 #include <openrct2/world/MapPresentationSnapshot.h>
+#include <stdexcept>
+#include <string_view>
 
 using namespace OpenRCT2;
 namespace Terrain = OpenRCT2::Ui::Gpu::Terrain;
@@ -33,7 +33,7 @@ namespace
         change.surfaceIndex = i;
         change.surface.valid = 1;
         change.surface.baseZ = 16;
-        change.surface.terrain = {16, 2, 3, 0, 0, 1};
+        change.surface.terrain = { 16, 2, 3, 0, 0, 1 };
         return change;
     }
     MapPresentationChangeBatch Initial()
@@ -43,10 +43,11 @@ namespace
         batch.reset = true;
         batch.surfaceWidth = batch.surfaceHeight = 32;
         batch.terrainMaterials = Materials();
-        for (uint32_t i = 0; i < 1024; i++) batch.changes.push_back(Tile(i));
+        for (uint32_t i = 0; i < 1024; i++)
+            batch.changes.push_back(Tile(i));
         return batch;
     }
-}
+} // namespace
 
 TEST(TerrainPresentationBridgeTest, DirtyChunkPublishesNewFactsAndRetainsOldGeneration)
 {
@@ -61,7 +62,7 @@ TEST(TerrainPresentationBridgeTest, DirtyChunkPublishesNewFactsAndRetainsOldGene
     EXPECT_EQ(old.chunks, bridge.GetSnapshot().chunks);
     EXPECT_EQ(old.materials, bridge.GetSnapshot().materials);
     batch.reset = false;
-    batch.changes = {Tile(17)};
+    batch.changes = { Tile(17) };
     batch.changes[0].surface.terrain.baseZ = 48;
     batch.changes[0].surface.terrain.slope = 9;
     source.Apply(batch);
@@ -70,20 +71,24 @@ TEST(TerrainPresentationBridgeTest, DirtyChunkPublishesNewFactsAndRetainsOldGene
     EXPECT_EQ(bridge.GetSnapshot().chunks[0]->records[17].baseZ, 48);
     EXPECT_EQ(bridge.GetSnapshot().chunks[0]->records[17].slope, 9);
     EXPECT_NE(old.chunks[0], bridge.GetSnapshot().chunks[0]);
-    for (size_t i = 1; i < 4; i++) EXPECT_EQ(old.chunks[i], bridge.GetSnapshot().chunks[i]);
+    for (size_t i = 1; i < 4; i++)
+        EXPECT_EQ(old.chunks[i], bridge.GetSnapshot().chunks[i]);
     EXPECT_EQ(old.materials, bridge.GetSnapshot().materials);
 }
 
 TEST(TerrainPresentationBridgeTest, IdenticalObjectReloadRejectsOldPublicationAndRevisesMaterials)
 {
     MapPresentationSnapshot source;
-    auto batch = Initial(); source.Apply(batch);
+    auto batch = Initial();
+    source.Apply(batch);
     Terrain::PresentationBridge bridge;
     ASSERT_TRUE(bridge.Update(source));
     const auto old = bridge.GetSnapshot();
     AdvanceTerrainObjectRevision();
     EXPECT_FALSE(bridge.Update(source));
-    batch.reset = false; batch.changes.clear(); batch.terrainMaterials = Materials();
+    batch.reset = false;
+    batch.changes.clear();
+    batch.terrainMaterials = Materials();
     source.Apply(batch);
     ASSERT_TRUE(bridge.Update(source));
     EXPECT_NE(old.materials->revision, bridge.GetSnapshot().materials->revision);
@@ -95,15 +100,17 @@ TEST(TerrainPresentationBridgeTest, UnsupportedTileDeclinesAndRestoredTileReopen
 {
     EXPECT_FALSE(Terrain::kRuntimeAdmission);
     MapPresentationSnapshot source;
-    auto batch = Initial(); source.Apply(batch);
+    auto batch = Initial();
+    source.Apply(batch);
     Terrain::PresentationBridge bridge;
     ASSERT_TRUE(bridge.Update(source));
-    batch.reset = false; batch.changes = {Tile(513)};
+    batch.reset = false;
+    batch.changes = { Tile(513) };
     batch.changes[0].surface.terrain.kind = 0;
     source.Apply(batch);
     EXPECT_FALSE(source.HasBoundedTerrainFacts());
     EXPECT_FALSE(bridge.Update(source));
-    batch.changes = {Tile(513)};
+    batch.changes = { Tile(513) };
     source.Apply(batch);
     EXPECT_TRUE(source.HasBoundedTerrainFacts());
     EXPECT_TRUE(bridge.Update(source));
@@ -128,17 +135,21 @@ TEST(TerrainPresentationBridgeTest, EdgeRangeCannotResolveImagesFromAdjacentObje
 TEST(TerrainPresentationBridgeTest, UnchangedPublicationAvoidsMaterialMapCopies)
 {
     MapPresentationSnapshot source;
-    auto batch = Initial(); source.Apply(batch);
+    auto batch = Initial();
+    source.Apply(batch);
     Terrain::PresentationBridge bridge;
     ASSERT_TRUE(bridge.Update(source));
     const auto snapshot = bridge.GetSnapshot();
     EXPECT_EQ(bridge.GetMaterialMapCopies(), 1u);
-    for (size_t i = 0; i < 100; i++) ASSERT_TRUE(bridge.Update(source));
+    for (size_t i = 0; i < 100; i++)
+        ASSERT_TRUE(bridge.Update(source));
     EXPECT_EQ(bridge.GetMaterialMapCopies(), 1u);
     EXPECT_EQ(snapshot.materials, bridge.GetSnapshot().materials);
     EXPECT_EQ(snapshot.chunks, bridge.GetSnapshot().chunks);
-    batch.reset = false; batch.changes = { Tile(513) };
-    batch.changes[0].surface.terrain.baseZ = 48; source.Apply(batch);
+    batch.reset = false;
+    batch.changes = { Tile(513) };
+    batch.changes[0].surface.terrain.baseZ = 48;
+    source.Apply(batch);
     ASSERT_TRUE(bridge.Update(source));
     EXPECT_EQ(bridge.GetMaterialMapCopies(), 2u);
     EXPECT_EQ(snapshot.materials, bridge.GetSnapshot().materials);
@@ -156,13 +167,15 @@ namespace
     {
         const bool noGraphics = gOpenRCT2NoGraphics;
         std::array<G1Element, 2> old{};
-        std::array<uint8_t, 4> pixels{1, 2, 3, 4};
+        std::array<uint8_t, 4> pixels{ 1, 2, 3, 4 };
         TwoTemporarySprites()
         {
             gOpenRCT2NoGraphics = false;
-            for (uint32_t i = 0; i < 2; i++) old[i] = *GfxGetG1Element(SPR_TEMP_BEGIN + i);
+            for (uint32_t i = 0; i < 2; i++)
+                old[i] = *GfxGetG1Element(SPR_TEMP_BEGIN + i);
             G1Element element{};
-            element.offset = pixels.data(); element.width = element.height = 2;
+            element.offset = pixels.data();
+            element.width = element.height = 2;
             element.flags = { G1Flag::hasTransparency };
             GfxSetG1Element(SPR_TEMP_BEGIN, &element);
             element.flags = { G1Flag::hasTransparency, G1Flag::hasZoomSprite };
@@ -171,92 +184,12 @@ namespace
         }
         ~TwoTemporarySprites()
         {
-            for (uint32_t i = 0; i < 2; i++) GfxSetG1Element(SPR_TEMP_BEGIN + i, &old[i]);
+            for (uint32_t i = 0; i < 2; i++)
+                GfxSetG1Element(SPR_TEMP_BEGIN + i, &old[i]);
             gOpenRCT2NoGraphics = noGraphics;
         }
     };
-}
-
-TEST(TerrainPresentationBridgeTest, ReboundResidenciesUseIndependentFramePinsAndOwnedUploads)
-{
-    using namespace OpenRCT2::Ui::Gpu;
-    TwoTemporarySprites assets;
-    TextureCache cache(1);
-    cache.BeginFrame();
-    const auto original = cache.GetOrLoadImageSprite(ImageId(SPR_TEMP_BEGIN), ZoomLevel{0});
-    ASSERT_TRUE(original.has_value());
-    const auto generation = cache.GetImageResidencyGeneration();
-    const std::array serials{original->residencyRevision};
-    FrameCommandStream heldCommands;
-    const auto held = cache.SealFrame(heldCommands);
-    ASSERT_EQ(heldCommands.textureUploads.size(), 1u);
-    cache.BeginFrame();
-    ASSERT_TRUE(cache.TryBindImageResidencies(generation, serials));
-    FrameCommandStream secondCommands;
-    const auto second = cache.SealFrame(secondCommands);
-    EXPECT_NE(held, second);
-    // The first packet is still uncommitted; rebinding keeps its upload available.
-    ASSERT_EQ(secondCommands.textureUploads.size(), 1u);
-    EXPECT_EQ(secondCommands.textureUploads[0].pixels, heldCommands.textureUploads[0].pixels);
-    cache.RetireFrame(second, FrameRetirement::Presented);
-    cache.BeginFrame();
-    ASSERT_TRUE(cache.TryBindImageResidencies(generation, serials));
-    FrameCommandStream thirdCommands;
-    const auto third = cache.SealFrame(thirdCommands);
-    EXPECT_TRUE(thirdCommands.textureUploads.empty());
-    assets.pixels[0] = 9;
-    cache.InvalidateImage(SPR_TEMP_BEGIN);
-    cache.BeginFrame();
-    EXPECT_FALSE(cache.TryBindImageResidencies(generation, serials));
-    const auto replacement = cache.GetOrLoadImageSprite(ImageId(SPR_TEMP_BEGIN), ZoomLevel{0});
-    ASSERT_TRUE(replacement.has_value());
-    EXPECT_NE(replacement->residencyRevision, original->residencyRevision);
-    EXPECT_NE(replacement->descriptorIndex, original->descriptorIndex); // Held lease prevents slot reuse.
-    FrameCommandStream replacementCommands;
-    const auto replacementLease = cache.SealFrame(replacementCommands);
-    EXPECT_EQ(heldCommands.textureUploads[0].pixels[0], std::byte{1});
-    ASSERT_EQ(replacementCommands.textureUploads.size(), 1u);
-    EXPECT_EQ(replacementCommands.textureUploads[0].pixels[0], std::byte{9});
-    cache.RetireFrame(held, FrameRetirement::Failed);
-    cache.RetireFrame(third, FrameRetirement::Presented);
-    cache.RetireFrame(replacementLease, FrameRetirement::Presented);
-    cache.DrainFrameRetirements();
-}
-
-TEST(TerrainPresentationBridgeTest, CatalogGenerationRejectsParentInvalidationForeignCacheAndPartialSets)
-{
-    using namespace OpenRCT2::Ui::Gpu;
-    TwoTemporarySprites assets;
-    TextureCache cache(1), other(1);
-    cache.BeginFrame();
-    const auto linked = cache.GetOrLoadImageSprite(ImageId(SPR_TEMP_BEGIN + 1), ZoomLevel{1});
-    ASSERT_TRUE(linked.has_value());
-    const auto generation = cache.GetImageResidencyGeneration();
-    const std::array serials{linked->residencyRevision};
-    FrameCommandStream initialCommands;
-    const auto initial = cache.SealFrame(initialCommands);
-    cache.BeginFrame();
-    const std::array invalidSet{linked->residencyRevision, uint64_t{0}};
-    EXPECT_FALSE(cache.TryBindImageResidencies(generation, invalidSet));
-    FrameCommandStream emptyCommands;
-    const auto empty = cache.SealFrame(emptyCommands);
-    EXPECT_TRUE(emptyCommands.textureUploads.empty()); // No prefix of a rejected set was bound.
-    other.BeginFrame();
-    ASSERT_TRUE(other.GetOrLoadImageSprite(ImageId(SPR_TEMP_BEGIN), ZoomLevel{0}).has_value());
-    EXPECT_FALSE(other.TryBindImageResidencies(generation, serials));
-    other.AbortFrame();
-    cache.InvalidateImage(SPR_TEMP_BEGIN + 1); // Child allocation remains resident, parent metadata does not.
-    cache.BeginFrame();
-    EXPECT_FALSE(cache.TryBindImageResidencies(generation, serials));
-    const auto child = cache.GetOrLoadImageSprite(ImageId(SPR_TEMP_BEGIN), ZoomLevel{0});
-    ASSERT_TRUE(child.has_value());
-    EXPECT_EQ(child->residencyRevision, linked->residencyRevision);
-    cache.AbortFrame();
-    cache.RetireFrame(initial, FrameRetirement::Failed);
-    cache.RetireFrame(empty, FrameRetirement::Presented);
-    cache.DrainFrameRetirements();
-    EXPECT_THROW(static_cast<void>(cache.TryBindImageResidencies(generation, serials)), std::logic_error);
-}
+} // namespace
 
 namespace
 {
@@ -266,12 +199,18 @@ namespace
         const bool oldHeadless = gOpenRCT2Headless;
         bool loadedG1 = false;
         uint32_t base = kImageIndexUndefined;
-        std::array<uint8_t, 4> pixels{1, 2, 3, 4};
-        ScopedTerrainCatalog() { gOpenRCT2NoGraphics = false; gOpenRCT2Headless = true; }
+        std::array<uint8_t, 4> pixels{ 1, 2, 3, 4 };
+        ScopedTerrainCatalog()
+        {
+            gOpenRCT2NoGraphics = false;
+            gOpenRCT2Headless = true;
+        }
         ~ScopedTerrainCatalog()
         {
-            if (base != kImageIndexUndefined) GfxObjectFreeImages(base, 37);
-            if (loadedG1) GfxUnloadG1();
+            if (base != kImageIndexUndefined)
+                GfxObjectFreeImages(base, 37);
+            if (loadedG1)
+                GfxUnloadG1();
             gOpenRCT2NoGraphics = oldNoGraphics;
             gOpenRCT2Headless = oldHeadless;
         }
@@ -282,13 +221,15 @@ namespace
             {
                 auto environment = CreatePlatformEnvironment();
                 environment->SetBasePath(DirBase::rct2, rct2);
-                if (!GfxLoadG1(*environment)) return false;
+                if (!GfxLoadG1(*environment))
+                    return false;
                 loadedG1 = true;
             }
             std::array<G1Element, 37> elements{};
             for (auto& element : elements)
             {
-                element.offset = pixels.data(); element.width = element.height = 2;
+                element.offset = pixels.data();
+                element.width = element.height = 2;
                 element.flags = { G1Flag::hasTransparency };
             }
             elements[1].flags = { G1Flag::hasTransparency, G1Flag::hasZoomSprite };
@@ -297,7 +238,7 @@ namespace
             return base != kImageIndexUndefined;
         }
     };
-}
+} // namespace
 
 TEST(TerrainPresentationBridgeTest, ResolveAssetsRetainsRebuildsAndRecoversWithoutCommittingFailure)
 {
@@ -321,7 +262,8 @@ TEST(TerrainPresentationBridgeTest, ResolveAssetsRetainsRebuildsAndRecoversWitho
     source.Apply(batch);
     Terrain::PresentationBridge bridge;
     ASSERT_TRUE(bridge.Update(source));
-    TextureCache cache(4); // Real blank tile and synthetic sprites use different atlas size classes.
+    auto cacheOwner = std::make_shared<TextureCache>(4);
+    auto& cache = *cacheOwner; // Resident generations own the cache, including after the bridge is destroyed.
     cache.BeginFrame();
     ASSERT_TRUE(bridge.ResolveAssets(cache));
     const auto heldTable = bridge.GetSprites();
@@ -331,7 +273,8 @@ TEST(TerrainPresentationBridgeTest, ResolveAssetsRetainsRebuildsAndRecoversWitho
         const auto found = std::find_if(table->records.begin(), table->records.end(), [&](const auto& value) {
             return value.imageIndex == assets.base + 1;
         });
-        if (found == table->records.end()) throw std::runtime_error("Missing dynamic parent sprite");
+        if (found == table->records.end())
+            throw std::runtime_error("Missing dynamic parent sprite");
         return *found;
     };
     const auto oldParent = findParent(heldTable);
@@ -368,7 +311,7 @@ TEST(TerrainPresentationBridgeTest, ResolveAssetsRetainsRebuildsAndRecoversWitho
     cache.RetireFrame(rebuiltLease, FrameRetirement::Presented);
 
     auto unsupported = parent;
-    unsupported.flags = { G1Flag::noZoomDraw };
+    unsupported.flags = { G1Flag::isPalette }; // noZoomDraw is now an explicitly supported non-raster variant.
     GfxSetG1Element(assets.base + 1, &unsupported);
     cache.InvalidateImage(assets.base + 1);
     cache.BeginFrame();
@@ -402,4 +345,209 @@ TEST(TerrainPresentationBridgeTest, ResolveAssetsRetainsRebuildsAndRecoversWitho
     cache.RetireFrame(settledLease, FrameRetirement::Presented);
     cache.RetireFrame(heldLease, FrameRetirement::Failed);
     cache.DrainFrameRetirements();
+}
+
+TEST(TerrainPresentationBridgeTest, AssetLeaseReplaysFirstUploadAndIgnoresUnrelatedInvalidation)
+{
+    using namespace OpenRCT2::Ui::Gpu;
+    TwoTemporarySprites assets;
+    auto cache = std::make_shared<TextureCache>(1);
+    cache->BeginFrame();
+    std::vector<uint32_t> dependencies;
+    const auto sprite = cache->ResolveAssetSprite(ImageId(SPR_TEMP_BEGIN + 1), ZoomLevel{ 1 }, dependencies);
+    ASSERT_TRUE(sprite.sprite);
+    ASSERT_EQ(dependencies, (std::vector<uint32_t>{ SPR_TEMP_BEGIN + 1, SPR_TEMP_BEGIN }));
+    const std::array serials{ sprite.sprite->residencyRevision };
+    EXPECT_THROW(
+        static_cast<void>(cache->CreateAssetLease(std::array{ serials[0], uint64_t{ 0 } }, dependencies)),
+        std::invalid_argument);
+    const auto held = cache->CreateAssetLease(serials, dependencies);
+    auto foreignCache = std::make_shared<TextureCache>(1);
+    foreignCache->BeginFrame();
+    EXPECT_FALSE(foreignCache->TryBindAssetLease(held));
+    foreignCache->AbortFrame();
+    ASSERT_TRUE(cache->TryBindAssetLease(held));
+    FrameCommandStream first;
+    const auto failed = cache->SealFrame(first);
+    ASSERT_EQ(first.textureUploads.size(), 1u);
+    cache->RetireFrame(failed, FrameRetirement::Failed);
+    cache->InvalidateImage(SPR_TEMP_BEGIN + 20); // No dependency; generation stays current.
+    cache->BeginFrame();
+    ASSERT_TRUE(cache->TryBindAssetLease(held)); // No individual sprite lookup/pin binding.
+    FrameCommandStream retry;
+    const auto accepted = cache->SealFrame(retry);
+    ASSERT_EQ(retry.textureUploads.size(), 1u);
+    EXPECT_EQ(retry.textureUploads[0].pixels, first.textureUploads[0].pixels);
+    EXPECT_EQ(retry.textureUploads[0].descriptorIndex, first.textureUploads[0].descriptorIndex);
+    cache->RetireFrame(accepted, FrameRetirement::Presented);
+    cache->BeginFrame();
+    ASSERT_TRUE(cache->TryBindAssetLease(held));
+    FrameCommandStream settled;
+    const auto complete = cache->SealFrame(settled);
+    EXPECT_TRUE(settled.textureUploads.empty());
+    cache->RetireFrame(complete, FrameRetirement::Presented);
+    cache->InvalidateImage(SPR_TEMP_BEGIN + 1); // Parent-only metadata dependency invalidates the generation.
+    cache->BeginFrame();
+    EXPECT_FALSE(cache->TryBindAssetLease(held));
+    const auto child = cache->GetOrLoadImageSprite(ImageId(SPR_TEMP_BEGIN), ZoomLevel{ 0 });
+    ASSERT_TRUE(child);
+    EXPECT_EQ(child->residencyRevision, sprite.sprite->residencyRevision);
+    cache->AbortFrame();
+    cache->DrainFrameRetirements();
+}
+
+TEST(TerrainPresentationBridgeTest, AssetLeaseKeepsRecycledImageAllocationAndCacheOwnerAlive)
+{
+    using namespace OpenRCT2::Ui::Gpu;
+    TwoTemporarySprites assets;
+    auto cache = std::make_shared<TextureCache>(1);
+    const std::weak_ptr<TextureCache> observer = cache;
+    cache->BeginFrame();
+    std::vector<uint32_t> dependencies;
+    const auto old = cache->ResolveAssetSprite(ImageId(SPR_TEMP_BEGIN), ZoomLevel{ 0 }, dependencies);
+    ASSERT_TRUE(old.sprite);
+    auto held = cache->CreateAssetLease(std::array{ old.sprite->residencyRevision }, dependencies);
+    ASSERT_TRUE(cache->TryBindAssetLease(held));
+    FrameCommandStream packet;
+    const auto token = cache->SealFrame(packet);
+    cache->InvalidateImage(SPR_TEMP_BEGIN);
+    cache->BeginFrame();
+    EXPECT_FALSE(cache->TryBindAssetLease(held));
+    const auto replacement = cache->GetOrLoadImageSprite(ImageId(SPR_TEMP_BEGIN), ZoomLevel{ 0 });
+    ASSERT_TRUE(replacement);
+    EXPECT_NE(replacement->descriptorIndex, old.sprite->descriptorIndex);
+    EXPECT_NE(replacement->residencyRevision, old.sprite->residencyRevision);
+    EXPECT_EQ(packet.textureUploads.front().descriptorIndex, old.sprite->descriptorIndex);
+    cache->AbortFrame();
+    cache->RetireFrame(token, FrameRetirement::Failed);
+    cache->DrainFrameRetirements();
+    cache.reset();
+    held.reset();
+    EXPECT_FALSE(observer.expired()); // Packet survives the recording owner and holds the atlas generation.
+    packet.clear();
+    EXPECT_TRUE(observer.expired()); // No cache->generation->cache ownership cycle remains.
+}
+
+TEST(TerrainPresentationBridgeTest, AssetNoZoomDrawRetainsParentDependencyWithoutRasterUpload)
+{
+    using namespace OpenRCT2::Ui::Gpu;
+    TwoTemporarySprites assets;
+    auto parent = *GfxGetG1Element(SPR_TEMP_BEGIN + 1);
+    parent.flags = { G1Flag::hasTransparency, G1Flag::noZoomDraw };
+    GfxSetG1Element(SPR_TEMP_BEGIN + 1, &parent);
+    auto cache = std::make_shared<TextureCache>(1);
+    cache->BeginFrame();
+    std::vector<uint32_t> dependencies;
+    const auto hidden = cache->ResolveAssetSprite(ImageId(SPR_TEMP_BEGIN + 1), ZoomLevel{ 1 }, dependencies);
+    EXPECT_TRUE(hidden.noZoomDraw);
+    EXPECT_FALSE(hidden.sprite);
+    ASSERT_EQ(dependencies, (std::vector<uint32_t>{ SPR_TEMP_BEGIN + 1 }));
+    const auto lease = cache->CreateAssetLease({}, dependencies);
+    ASSERT_TRUE(cache->TryBindAssetLease(lease));
+    FrameCommandStream packet;
+    const auto token = cache->SealFrame(packet);
+    EXPECT_TRUE(packet.textureUploads.empty());
+    cache->RetireFrame(token, FrameRetirement::Presented);
+    cache->InvalidateImage(SPR_TEMP_BEGIN + 1);
+    cache->BeginFrame();
+    EXPECT_FALSE(cache->TryBindAssetLease(lease));
+    cache->AbortFrame();
+}
+
+TEST(TerrainPresentationBridgeTest, StalePeepCatalogCannotReadRecycledG1)
+{
+    using namespace OpenRCT2::Ui::Gpu;
+    auto cache = std::make_shared<TextureCache>(1);
+    cache->BeginFrame();
+    auto terrain = std::make_shared<Terrain::DrawSpriteTable>();
+    terrain->residency = cache->CreateAssetLease({}, {});
+    auto old = std::make_shared<Drawing::RetainedPeepAnimationCatalog>();
+    auto current = std::make_shared<Drawing::RetainedPeepAnimationCatalog>();
+    old->epoch = current->epoch = 1;
+    old->sequence = 1;
+    current->sequence = 2;
+    PeepAssetResolver resolver;
+    // No graphical source is installed here. The mismatch must return before any G1 read.
+    EXPECT_EQ(resolver.Resolve(*cache, old, current, terrain), nullptr);
+    EXPECT_EQ(resolver.GetCatalogBuilds(), 0u);
+    cache->AbortFrame();
+}
+
+TEST(TerrainPresentationBridgeTest, PeepAssetCatalogFlattensOnceAndHoldsOriginalGenerationAcrossReplacement)
+{
+    using namespace OpenRCT2::Ui::Gpu;
+    const auto* rct2 = std::getenv("OPENRCT2_TEST_RCT2_PATH");
+    if (rct2 == nullptr || *rct2 == '\0')
+    {
+        const auto* required = std::getenv("OPENRCT2_REQUIRE_VULKAN_TESTS");
+        if (required != nullptr && std::string_view(required) == "1")
+            FAIL() << "Peep asset lifecycle requires pinned RCT2 data";
+        GTEST_SKIP() << "Peep asset lifecycle requires OPENRCT2_TEST_RCT2_PATH";
+    }
+    ScopedTerrainCatalog source;
+    ASSERT_TRUE(source.Initialise(rct2));
+    const auto makeCatalog = [&](uint32_t generation) {
+        auto result = std::make_shared<Drawing::RetainedPeepAnimationCatalog>();
+        result->epoch = 79;
+        result->sequence = generation;
+        result->slots[3] = { generation,
+                             Drawing::BuildRetainedPeepAnimationObject(
+                                 { 3, generation, 1, 0, source.base, 37, 0, 0 },
+                                 std::array{ Drawing::RetainedPeepAnimationSource{ 0, 0, source.base } }) };
+        return result;
+    };
+    const auto oldCatalog = makeCatalog(1);
+    auto cache = std::make_shared<TextureCache>();
+    cache->BeginFrame();
+    auto terrain = std::make_shared<Terrain::DrawSpriteTable>();
+    terrain->residency = cache->CreateAssetLease({}, {});
+    PeepAssetResolver resolver;
+    const auto old = resolver.Resolve(*cache, oldCatalog, oldCatalog, terrain);
+    ASSERT_NE(old, nullptr);
+    ASSERT_EQ(old->descriptors.size(), 4u);
+    EXPECT_EQ(old->descriptors[0].groupCount, 0u);
+    EXPECT_EQ(old->descriptors[3].objectGeneration, 1u);
+    ASSERT_EQ(old->facts.size(), 37u);
+    EXPECT_EQ(old->facts[0].baseImage, source.base);
+    EXPECT_EQ(old->sprites->records.size(), 37u + 96u);
+    FrameCommandStream first;
+    const auto token = cache->SealFrame(first);
+    cache->RetireFrame(token, FrameRetirement::Presented);
+    cache->InvalidateImage(SPR_TEMP_BEGIN + 20);
+    cache->BeginFrame();
+    for (size_t i = 0; i < 10; ++i)
+        EXPECT_EQ(resolver.Resolve(*cache, oldCatalog, oldCatalog, terrain), old);
+    EXPECT_EQ(resolver.GetCatalogBuilds(), 1u);
+    FrameCommandStream repeat;
+    const auto repeatToken = cache->SealFrame(repeat);
+    EXPECT_TRUE(repeat.textureUploads.empty());
+    cache->RetireFrame(repeatToken, FrameRetirement::Presented);
+
+    const auto oldBase = source.base;
+    GfxObjectFreeImages(source.base, 37);
+    source.base = kImageIndexUndefined;
+    ASSERT_TRUE(source.Initialise(rct2));
+    ASSERT_EQ(source.base, oldBase); // Deliberately reuse numerical G1 IDs while the old packet remains held.
+    for (uint32_t i = 0; i < 37; ++i)
+        cache->InvalidateImage(source.base + i);
+    const auto current = makeCatalog(2);
+    cache->BeginFrame();
+    EXPECT_EQ(resolver.Resolve(*cache, oldCatalog, current, terrain), nullptr);
+    const auto replacement = resolver.Resolve(*cache, current, current, terrain);
+    ASSERT_NE(replacement, nullptr);
+    EXPECT_NE(replacement, old);
+    EXPECT_NE(replacement->revision, old->revision);
+    EXPECT_EQ(old->catalog, oldCatalog);
+    EXPECT_EQ(old->descriptors[3].objectGeneration, 1u);
+    EXPECT_EQ(replacement->descriptors[3].objectGeneration, 2u);
+    const auto find = [oldBase](const auto& generation) {
+        return std::find_if(
+                   generation->sprites->records.begin(), generation->sprites->records.end(),
+                   [oldBase](const auto& metadata) { return metadata.imageIndex == oldBase; })
+            ->variants[0]
+            .asset;
+    };
+    EXPECT_NE(find(old), find(replacement));
+    cache->AbortFrame();
+    cache->DrainFrameRetirements();
 }

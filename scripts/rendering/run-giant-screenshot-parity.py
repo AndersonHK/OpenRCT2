@@ -1,4 +1,4 @@
-"""Versioned giant CLI qualification: frozen/current software/configured Vulkan.
+"""Versioned giant CLI qualification: external frozen software/configured Vulkan.
 Sequential tile evidence, exact full indexed/palette/alpha/RGBA PNGs, fresh-process
 repeats, seam samples and durable failure receipts. Does not qualify interactive performance.
 """
@@ -106,7 +106,59 @@ def fixture_source_archive(archive_path, fixture_path, manifest, root, evidence)
     return replacements
 
 
-def verify_fixture(path, root, evidence, source_archive=None):
+def fixture_language_sources(manifest, reference, root, evidence, proof):
+    """Historical producer language sources, never replacement runtime assets."""
+    receipts = {}
+    for lane in ("current", "frozen"):
+        receipt_pin = manifest["builds"][lane]
+        receipt_path = Path(receipt_pin["receipt"]).resolve(strict=True)
+        require(root / "obj/vulkan-parity" in receipt_path.parents, "Language producer receipt escapes evidence")
+        evidence.track(receipt_path, receipt_pin["sha256"])
+        receipt = read(receipt_path)
+        require(receipt.get("status") == "pass" and receipt.get("exitCode") == 0
+                and all(receipt.get(key) == [] for key in
+                        ("sourceChangesDuringBuild", "dependencyChangesDuringBuild", "missingArtifacts")),
+                "Historical language sources require successful stable producer receipts")
+        receipts[lane] = receipt
+    require(Path(receipts["current"]["sourceRoot"]).resolve() == root, "Current producer source root differs")
+    frozen_root = Path(receipts["frozen"]["sourceRoot"]).resolve(strict=True)
+    require(root / "obj/vulkan-parity" in frozen_root.parents, "Frozen language source root escapes evidence")
+    archive_receipt = frozen_root / "oracle-ui-source-receipt.json"
+    archive_digest = manifest["inputSha256"].get(str(archive_receipt))
+    require(archive_digest is not None, "Fixture must pin the independent frozen extraction receipt")
+    evidence.track(archive_receipt, archive_digest)
+    extraction = read(archive_receipt)
+    frozen_identity = receipts["frozen"].get("frozenReference", {})
+    require(extraction.get("referenceRevision") == frozen_identity.get("revision") == reference["revision"]
+            and extraction.get("sourceArchiveSha256") == frozen_identity.get("sourceArchiveSha256")
+                == reference["sourceArchive"]["sha256"], "Frozen language extraction provenance differs")
+    evidence.track(root / reference["localReference"] / "source.zip", reference["sourceArchive"]["sha256"])
+    replacements = {}
+    for name, expected in manifest["inputSha256"].items():
+        original = Path(name)
+        if original.parent != root / "data/language" or original.suffix != ".txt":
+            continue
+        relative = original.relative_to(root).as_posix()
+        preserved = child(frozen_root, relative)
+        # Source versions that differ between the two producers remain live-pinned.
+        # They cannot use this narrowly attested archive rule.
+        if not all(value == expected for value in (
+                receipts["current"]["sourceSha256"].get("source/" + relative),
+                receipts["frozen"]["sourceSha256"].get("source/" + relative),
+                extraction.get("originalSourceSha256", {}).get(relative),
+                manifest["inputSha256"].get(str(preserved)))):
+            continue
+        evidence.track(preserved, expected)
+        replacements[name] = preserved
+    proof.update({"kind": "identical-producer-language-sources", "extractionReceipt": pin(archive_receipt),
+                  "sourceRoot": str(frozen_root),
+                  "replacements": {name: {"path": str(path), "sha256": manifest["inputSha256"][name]}
+                                   for name, path in replacements.items()},
+                  "scope": "Historical producer source inputs only; runtime asset roots, inventories and exact comparisons are unchanged"})
+    return replacements
+
+
+def verify_fixture(path, root, evidence, source_archive=None, language_proof=None):
     path = path.resolve(strict=True)
     evidence.track(path)
     manifest = read(path)
@@ -120,6 +172,8 @@ def verify_fixture(path, root, evidence, source_archive=None):
             and manifest["frozenReference"]["sourceArchiveSha256"] == reference["sourceArchive"]["sha256"],
             "Giant preparer frozen revision differs")
     archived_sources = fixture_source_archive(source_archive, path, manifest, root, evidence)
+    archived_sources.update(fixture_language_sources(
+        manifest, reference, root, evidence, language_proof if language_proof is not None else {}))
     for name, digest in manifest["inputSha256"].items():
         evidence.track(archived_sources.get(name, Path(name)), digest)
     park = Path(manifest["park"]["path"]).resolve(strict=True)
@@ -157,18 +211,24 @@ def verify_fixture(path, root, evidence, source_archive=None):
 def validate_tiles(folder, renderer, buffers, extent, args):
     report_path = folder / "capture/report.json"
     report = read(report_path)
-    count = int(renderer == "vulkan")
+    require(renderer == "vulkan", "Current giant capture supports Vulkan only")
+    count = 1
     require(report.get("fixture") == "screenshot-cli-giant" and report.get("fixtureVersion") == 1
             and report.get("schema") == 1 and report.get("mode") == renderer and report.get("exitCode") == 0
             and report.get("error") == "" and report.get("capture") is None
             and report.get("serviceCreations") == count and report.get("deviceCreations") == count,
             "Giant observer identity/lifecycle differs")
-    base.validate_configured_report(report, renderer, count, require_selection=True)
+    production = report.get("productionFactory") or {}
+    require(production.get("kind") == "configured" and production.get("renderer") == "vulkan"
+            and "configuredEngine" not in production and "benchmarkOverride" not in production
+            and production.get("ownerCreated") is True
+            and production.get("deviceObservation") == "persistent-owner-created-state",
+            "Current giant capture requires the Vulkan-only production factory and one shared owner")
+    checks = production.get("enabledChecks")
+    require(isinstance(checks, list) and checks
+            and all(check == {"renderer": "vulkan", "enabled": True} for check in checks),
+            "Vulkan-only production factory availability was not observed")
     artifacts = {"report": pin(report_path)}
-    if not count:
-        require(report.get("tiles") == [] and report.get("tileBegins") == [] and report.get("assetState") is None
-                and report.get("sessions") == {"begun":0,"retired":0,"live":0,"peak":0}, "Software created tile sessions")
-        return report, artifacts, []
     state = report["assetState"]
     require(state.get("rct1Required") is True and state.get("rct1CsgLoaded") is True
             and state.get("g1RecordCount") == 29294 and type(state.get("g1PayloadCount")) is int
@@ -266,7 +326,10 @@ def execute(args, root, output, summary, evidence):
     reference_path = root / "docs/vulkan-software-reference.json"
     reference_receipt = read(reference_path)
     frozen = root / reference_receipt["localReference"]
-    park, fixture_manifest, cameras = verify_fixture(args.fixture_manifest, root, evidence, args.fixture_source_archive)
+    language_proof = {}
+    park, fixture_manifest, cameras = verify_fixture(
+        args.fixture_manifest, root, evidence, args.fixture_source_archive, language_proof)
+    summary["fixtureProducerLanguageSources"] = language_proof
     if args.fixture_source_archive is not None:
         summary["fixtureProducerSourceArchive"] = evidence.track(args.fixture_source_archive.resolve(strict=True))
     data = frozen / "package/data"
@@ -357,6 +420,13 @@ def execute(args, root, output, summary, evidence):
                 and not receipt.get("missingArtifacts"), "Successful source/dependency-stable build required")
         if args.factory == "configured":
             verify_configured_build(receipt, provenance, root, evidence)
+            contract_header = root / "src/openrct2/drawing/IDrawingEngine.h"
+            contract_hash = receipt["sourceSha256"].get("source/src/openrct2/drawing/IDrawingEngine.h")
+            require(contract_hash is not None, "Current build must pin the Vulkan-only renderer contract")
+            evidence.track(contract_header, contract_hash)
+            require("#define OPENRCT2_VULKAN_ONLY 1" in contract_header.read_text(encoding="utf-8"),
+                    "Current giant execution requires a Vulkan-only build; historical receipts remain comparison-only")
+            summary["rendererContract"] = {"vulkanOnly": True, "header": str(contract_header), "sha256": contract_hash}
         require("bin/screenshot-parity.exe" in receipt["artifactSha256"], "Build does not qualify screenshot driver")
         for name, expected in receipt["artifactSha256"].items():
             evidence.track(child(provenance.parent, name), expected)
@@ -406,7 +476,7 @@ def execute(args, root, output, summary, evidence):
                 install_shader(source_shader, target, expected, evidence,
                                data_hashes if args.factory == "configured" else None)
                 shader_hashes[target.name] = expected
-        require(set(shader_hashes) == SHADER_NAMES, "Shader set does not match the qualified E5/B1 renderer")
+        require(set(shader_hashes) == SHADER_NAMES, "Shader set does not match the current receipt-qualified renderer")
         layer_settings = output / "vk_layer_settings.txt"
         layer_settings.write_text("khronos_validation.validate_sync = true\n"
                                   "khronos_validation.debug_action = VK_DBG_LAYER_ACTION_LOG_MSG\n"
@@ -431,14 +501,10 @@ def execute(args, root, output, summary, evidence):
         comparisons.append((reference,previous));summary["comparisonReceipts"].append(receipt_pin)
     require(args.renderer=="frozen" or any(p["renderer"]=="frozen" and p.get("freshRepeat") is True for _,p in comparisons),
             "Current giant lane requires an explicit successful frozen fresh-repeat reference")
-    require(args.renderer!="vulkan" or any(p["renderer"]=="software" and p.get("freshRepeat") is True for _,p in comparisons),
-            "Vulkan giant lane requires an explicit successful current-software fresh-repeat reference")
     if args.fresh_repeat:
         require(any(all(previous.get(k)==v for k,v in identity.items()) for _,previous in comparisons),
                 "Fresh repeat requires the identical renderer, executable, libraries, shaders and fixture")
     config="[general]\nrct1_path = "+ini(args.rct1.resolve())+"\ngame_path = "+ini(args.rct2.resolve())+"\ntransparent_screenshot = false\n"
-    if args.renderer != "frozen":
-        config += "drawing_engine = "+ini("VULKAN" if args.renderer=="vulkan" else "SOFTWARE_HWD")+"\n"
     for name in CASE_NAMES:
         folder=output/name;folder.mkdir();profile=folder/"profile";profile.mkdir()
         (profile/"config.ini").write_text(config,encoding="utf-8")
@@ -517,7 +583,7 @@ def execute(args, root, output, summary, evidence):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--renderer",choices=("frozen","software","vulkan"),required=True)
+    parser.add_argument("--renderer",choices=("frozen","vulkan"),required=True)
     parser.add_argument("--output",type=Path,required=True)
     parser.add_argument("--fixture-manifest",type=Path,required=True)
     parser.add_argument("--fixture-source-archive",type=Path,
@@ -537,7 +603,7 @@ def main():
     summary={"schema":3,"kind":"giant-cli-parity","status":"incomplete","renderer":args.renderer,"cases":[],
              "failures":[],"comparisonReceipts":[],"freshRepeat":args.fresh_repeat,"runnerSha256":sha(Path(__file__)),
              "scope":"Exact giant indexed PNG/palette/alpha/RGBA and serialized bounded owned tile readbacks; manual review is separately required.",
-             "loadedAssetEvidenceLimit":"Loaded CSG/G1 are observed at Vulkan factory creation. Frozen/current software capture paths have no post-load hook; independently qualified fixture reload census does not prove those CLI processes loaded the same CSG.",
+             "loadedAssetEvidenceLimit":"Loaded CSG/G1 are observed at Vulkan factory creation. External frozen and historical software captures have no post-load hook; independently qualified fixture reload census does not prove those CLI processes loaded the same CSG.",
              "cameraEvidenceLimit":"Giant camera bounds derive independently from the exact frozen algorithm and accepted surface census; PNG extent is directly checked, while CLI camera coordinates have no post-load observation hook.",
              "deviceEvidenceLimit":"Configured owner IsCreated observes its persistent zero/one device state; no Vulkan API creation interception.",
              "manualReviewStatus":"pending"}

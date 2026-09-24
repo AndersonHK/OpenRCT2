@@ -195,20 +195,8 @@ public:
     {
         if (_window == nullptr)
             return {};
-        if (auto* renderer = SDL_GetRenderer(_window); renderer != nullptr)
-        {
-            Resolution result{};
-            if (SDL_GetRendererOutputSize(renderer, &result.Width, &result.Height) == 0)
-                return result;
-        }
-#ifdef ENABLE_VULKAN
-        else if (gIntegratedBenchmark.drawingEngine.value_or(Config::Get().general.drawingEngine) == DrawingEngine::vulkan)
-        {
-            const auto extent = Vulkan::Platform::GetDrawableExtent(_window);
-            return { static_cast<int32_t>(extent.width), static_cast<int32_t>(extent.height) };
-        }
-#endif
-        return {};
+        const auto extent = Vulkan::Platform::GetDrawableExtent(_window);
+        return { static_cast<int32_t>(extent.width), static_cast<int32_t>(extent.height) };
     }
 
     ScaleQuality GetScaleQuality() override
@@ -887,21 +875,9 @@ private:
         int wWidth, wHeight;
         SDL_GetWindowSize(_window, &wWidth, &wHeight);
 
-        int32_t rWidth = 0;
-        int32_t rHeight = 0;
-        if (auto* renderer = SDL_GetRenderer(_window); renderer != nullptr)
-        {
-            if (SDL_GetRendererOutputSize(renderer, &rWidth, &rHeight) != 0)
-                return;
-        }
-#ifdef ENABLE_VULKAN
-        else if (Config::Get().general.drawingEngine == DrawingEngine::vulkan)
-        {
-            const auto extent = Vulkan::Platform::GetDrawableExtent(_window);
-            rWidth = static_cast<int32_t>(extent.width);
-            rHeight = static_cast<int32_t>(extent.height);
-        }
-#endif
+        const auto extent = Vulkan::Platform::GetDrawableExtent(_window);
+        const auto rWidth = static_cast<int32_t>(extent.width);
+        const auto rHeight = static_cast<int32_t>(extent.height);
         if (rWidth <= 0 || rHeight <= 0 || wWidth <= 0 || wHeight <= 0)
             return;
         config.windowScale = static_cast<float>(rWidth) / wWidth;
@@ -937,13 +913,7 @@ private:
         {
             flags |= SDL_WINDOW_HIDDEN;
         }
-        const auto drawingEngine = gIntegratedBenchmark.drawingEngine.value_or(Config::Get().general.drawingEngine);
-#ifdef ENABLE_VULKAN
-        if (drawingEngine == DrawingEngine::vulkan)
-        {
-            flags |= Vulkan::Platform::GetRequiredSdlWindowFlags();
-        }
-#endif
+        flags |= Vulkan::Platform::GetRequiredSdlWindowFlags();
 
         _window = SDL_CreateWindow(OPENRCT2_NAME, windowPos.x, windowPos.y, width, height, flags);
         if (_window == nullptr)

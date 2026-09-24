@@ -59,6 +59,19 @@ namespace OpenRCT2::Drawing
         ownedIndices,
     };
 
+    // Auxiliary bitmap compatibility only: scan the clipped source/destination rectangle in row-major order
+    // against the SAME mutable indexed allocation. This is not a world rendering command or a sprite snapshot.
+    // CPU owns geometry and the legacy lookup table; only GPU execution reads/writes pixels.
+    struct OrderedImageAlias
+    {
+        uint32_t sourceX{}, sourceY{}, destinationX{}, destinationY{}, width{}, height{};
+        bool skipSourceZero{};
+        bool skipMappedZero{};
+        std::array<uint8_t, 256> remap{};
+    };
+    constexpr uint32_t kOrderedImageAliasMaxPixels = 4 * 1024 * 1024;
+    constexpr uint32_t kOrderedImageAliasSlicePixels = 8192;
+
     struct OffscreenRenderRequest
     {
         std::string name;
@@ -73,6 +86,8 @@ namespace OpenRCT2::Drawing
         bool indexedOutput{ true };
         bool rgbaOutput{};
         bool lightingEnabled{};
+        // When present, this is the entire operation. Session drawing/target access is forbidden.
+        std::optional<OrderedImageAlias> orderedAlias;
         // Auxiliary painting uses isolated, synchronously captured assets/world state. It must never publish a temporary
         // preview world into the main presentation generation. All dependencies become owned/immutable before Submit returns.
     };
@@ -192,6 +207,12 @@ namespace OpenRCT2::Drawing
     {
         virtual ~IRenderService() = default;
         virtual std::unique_ptr<IRenderSession> BeginOffscreen(OffscreenRenderRequest request) = 0;
+        // Thread-safe notification, including viewport preparation workers. Cached implementations queue changes and
+        // apply them when the owner acquires its recording context/target; submitted jobs retain their owned assets.
+        // Reacquire a session accessor after mutation, rather than retaining a drawing context across asset changes.
+        // Implementations must not call back into context ownership from this notification.
+        // Stateless implementations need no notification work.
+        virtual void InvalidateImage(uint32_t) {}
         // Reject new work, fail outstanding completions, and drain submitted resources before returning. Idempotent.
         // No gameplay/UI/script callbacks may run from GPU completion or shutdown.
         virtual void Shutdown() noexcept = 0;
@@ -219,9 +240,11 @@ namespace OpenRCT2::Drawing
         ~LazyRenderService();
         IRenderService& Get();
         bool IsCreated() const noexcept;
+        void InvalidateImage(uint32_t image);
         void Shutdown() noexcept;
 
     private:
+        mutable std::mutex _notificationMutex;
         std::shared_ptr<IRenderServiceFactory> _factory;
         std::unique_ptr<IRenderService> _service;
         std::exception_ptr _failure;

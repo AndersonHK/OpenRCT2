@@ -2862,11 +2862,6 @@ STR_5871    :Vô hiệu hóa cây cối héo úa
 STR_5872    :Vô hiệu hóa quá trình lão hóa của cây để chúng không bị héo.
 STR_5873    :Cho phép thang nâng trên tất cả các đoạn đường ray
 STR_5874    :Cho phép bất kỳ đoạn đường ray nào cũng có thể trở thành thang nâng
-STR_5875    :Công cụ vẽ:
-STR_5876    :Công cụ được sử dụng để vẽ trò chơi.
-STR_5877    :Phần mềm
-STR_5878    :Phần mềm (hiển thị phần cứng)
-STR_5879    :OpenGL (thử nghiệm)
 STR_5880    :Chỉ được chọn
 STR_5881    :Chỉ không được chọn
 STR_5882    :Tiền tệ tùy chỉnh

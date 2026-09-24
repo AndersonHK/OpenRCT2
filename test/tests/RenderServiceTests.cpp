@@ -11,9 +11,67 @@
 #include <openrct2/config/Config.h>
 #include <openrct2/drawing/IDrawingEngine.h>
 #include <openrct2/drawing/RenderService.h>
+#include <openrct2/ui/UiContext.h>
+#include <stdexcept>
+#ifdef ENABLE_VULKAN
+    #include <array>
+    #include <cstdlib>
+    #include <filesystem>
+    #include <stdexcept>
+    #include <string>
+    #include <string_view>
+    #include <vector>
+    #include <openrct2-renderer/vulkan/VulkanDeviceContext.h>
+    #include <openrct2/Context.h>
+    #include <openrct2/PlatformEnvironment.h>
+    #include <openrct2/SpriteIds.h>
+    #include <openrct2/drawing/Drawing.Sprite.h>
+    #include <openrct2/drawing/G1Element.h>
+    #include <openrct2/drawing/IDrawingContext.h>
+    #ifdef ENABLE_SCRIPTING
+        #include <openrct2/scripting/ScriptEngine.h>
+    #endif
+#endif
 
 using namespace OpenRCT2::Drawing;
 using namespace std::chrono_literals;
+
+TEST(RenderServiceContract, NongraphicalUiDoesNotCreateImplicitDisplayRenderer)
+{
+    auto ui = OpenRCT2::Ui::CreateDummyUiContext();
+    auto factory = ui->GetDrawingEngineFactory();
+    ASSERT_NE(factory, nullptr);
+    EXPECT_THROW(static_cast<void>(factory->Create(*ui)), std::runtime_error);
+}
+
+TEST(RenderServiceContract, OrderedBitmapAliasRejectsInvalidGeometryAndMixedOutputs)
+{
+    OffscreenRenderRequest request;
+    request.name = "alias-validation";
+    request.logicalExtent = request.outputExtent = { 4, 2 };
+    request.initialContents = RenderInitialContents::ownedIndices;
+    request.initialIndices.resize(8);
+    request.orderedAlias = OrderedImageAlias{ .destinationX = 1, .width = 3, .height = 2 };
+    ASSERT_NO_THROW(ValidateOffscreenRenderRequest(request));
+    auto invalid = request;
+    invalid.orderedAlias->destinationX = UINT32_MAX;
+    EXPECT_THROW(ValidateOffscreenRenderRequest(invalid), RenderServiceException);
+    invalid = request;
+    invalid.orderedAlias->sourceY = 1;
+    EXPECT_THROW(ValidateOffscreenRenderRequest(invalid), RenderServiceException);
+    invalid = request;
+    invalid.orderedAlias->width = 0;
+    EXPECT_THROW(ValidateOffscreenRenderRequest(invalid), RenderServiceException);
+    invalid = request;
+    invalid.rgbaOutput = true;
+    EXPECT_THROW(ValidateOffscreenRenderRequest(invalid), RenderServiceException);
+    invalid = request;
+    invalid.outputExtent.width = 8;
+    EXPECT_THROW(ValidateOffscreenRenderRequest(invalid), RenderServiceException);
+    invalid = request;
+    invalid.initialIndices.pop_back();
+    EXPECT_THROW(ValidateOffscreenRenderRequest(invalid), RenderServiceException);
+}
 
 namespace
 {
@@ -48,6 +106,7 @@ namespace
         int created{};
         int shutDown{};
         int destroyed{};
+        std::vector<uint32_t> invalidations;
     };
 
     class TestService final : public IRenderService
@@ -68,6 +127,10 @@ namespace
         void Shutdown() noexcept override
         {
             _counts.shutDown++;
+        }
+        void InvalidateImage(uint32_t image) override
+        {
+            _counts.invalidations.push_back(image);
         }
 
     private:
@@ -267,34 +330,14 @@ TEST(RenderServiceLazyLifetime, DisabledSelectionDoesNotCreateOrPoisonLaterEnabl
     EXPECT_EQ(counts.shutDown, 1);
 }
 
-TEST(RenderServiceLazyLifetime, ProductionSelectionReadsCurrentConfigurationWithoutCreatingGraphics)
+TEST(RenderServiceLazyLifetime, ProductionFactoryIsAlwaysEnabledAndRemainsLazy)
 {
-    struct RestoreConfiguration
-    {
-        DrawingEngine saved = OpenRCT2::Config::Get().general.drawingEngine;
-        std::optional<DrawingEngine> overrideSaved = gIntegratedBenchmark.drawingEngine;
-        ~RestoreConfiguration()
-        {
-            OpenRCT2::Config::Get().general.drawingEngine = saved;
-            gIntegratedBenchmark.drawingEngine = overrideSaved;
-        }
-    } restore;
-    gIntegratedBenchmark.drawingEngine.reset();
     auto factory = OpenRCT2::Renderer::CreateConfiguredRenderServiceFactory();
     LazyRenderService service(factory);
-    OpenRCT2::Config::Get().general.drawingEngine = DrawingEngine::softwareWithHardwareDisplay;
-    EXPECT_FALSE(factory->IsEnabled());
-    ExpectServiceError([&]() { service.Get(); }, RenderErrorCode::unavailable);
-    EXPECT_FALSE(service.IsCreated());
-    OpenRCT2::Config::Get().general.drawingEngine = DrawingEngine::vulkan;
     EXPECT_TRUE(factory->IsEnabled());
     EXPECT_FALSE(service.IsCreated());
-    OpenRCT2::Config::Get().general.drawingEngine = DrawingEngine::softwareWithHardwareDisplay;
-    EXPECT_FALSE(factory->IsEnabled());
-    gIntegratedBenchmark.drawingEngine = DrawingEngine::vulkan;
-    EXPECT_TRUE(factory->IsEnabled());
-    gIntegratedBenchmark.drawingEngine.reset();
     service.Shutdown();
+    EXPECT_FALSE(service.IsCreated());
 }
 
 TEST(RenderServiceLazyLifetime, CreatesOnceAndShutsDownBeforeDestruction)
@@ -358,3 +401,239 @@ TEST(RenderServiceLazyLifetime, ShutdownDuringFactoryCreationRetiresNewService)
     EXPECT_EQ(counts.shutDown, 1);
     EXPECT_EQ(counts.destroyed, 1);
 }
+
+TEST(RenderServiceLazyLifetime, ImageInvalidationOnlyReachesAnExistingService)
+{
+    ServiceCounts counts;
+    LazyRenderService service(std::make_shared<TestFactory>(counts));
+    service.InvalidateImage(12);
+    EXPECT_FALSE(service.IsCreated());
+    EXPECT_EQ(counts.created, 0);
+    static_cast<void>(service.Get());
+    service.InvalidateImage(34);
+    service.InvalidateImage(56);
+    EXPECT_EQ(counts.invalidations, (std::vector<uint32_t>{ 34, 56 }));
+    service.Shutdown();
+    service.InvalidateImage(78);
+    EXPECT_EQ(counts.invalidations, (std::vector<uint32_t>{ 34, 56 }));
+    EXPECT_EQ(counts.created, 1);
+}
+
+TEST(RenderServiceLazyLifetime, WorkerImageNotificationsDoNotCreateOrOutliveTheService)
+{
+    ServiceCounts counts;
+    LazyRenderService service(std::make_shared<TestFactory>(counts));
+    const auto notify = [&](uint32_t image) {
+        std::exception_ptr failure;
+        std::thread worker([&] {
+            try { service.InvalidateImage(image); }
+            catch (...) { failure = std::current_exception(); }
+        });
+        worker.join();
+        EXPECT_EQ(failure, nullptr);
+    };
+    notify(12);
+    EXPECT_FALSE(service.IsCreated());
+    EXPECT_EQ(counts.created, 0);
+    static_cast<void>(service.Get());
+    notify(34);
+    EXPECT_EQ(counts.invalidations, (std::vector<uint32_t>{ 34 }));
+    service.Shutdown();
+    notify(56);
+    EXPECT_EQ(counts.invalidations, (std::vector<uint32_t>{ 34 }));
+    EXPECT_EQ(counts.created, 1);
+    EXPECT_EQ(counts.destroyed, 1);
+}
+
+#ifdef ENABLE_VULKAN
+class RenderServiceProductionRecordingTest : public testing::Test
+{
+protected:
+    bool oldHeadless = gOpenRCT2Headless;
+    bool oldNoGraphics = gOpenRCT2NoGraphics;
+    std::string oldRct1 = OpenRCT2::Config::Get().general.rct1Path;
+    std::string oldRct2 = OpenRCT2::Config::Get().general.rct2Path;
+    std::unique_ptr<OpenRCT2::IContext> context;
+    bool contextReady{};
+
+    void SetUp() override
+    {
+        using namespace OpenRCT2;
+        const auto* rct2 = std::getenv("OPENRCT2_TEST_RCT2_PATH");
+        if (rct2 == nullptr || *rct2 == '\0')
+        {
+            const auto* required = std::getenv("OPENRCT2_REQUIRE_VULKAN_TESTS");
+            if (required && std::string_view(required) == "1")
+                FAIL() << "Production recording requires pinned OPENRCT2_TEST_RCT2_PATH";
+            GTEST_SKIP() << "Production recording requires OPENRCT2_TEST_RCT2_PATH";
+        }
+        gOpenRCT2Headless = true;
+        gOpenRCT2NoGraphics = false;
+        context = CreateContext();
+        ASSERT_NE(context, nullptr);
+        auto& environment = context->GetPlatformEnvironment();
+        Config::Get().general.rct2Path = rct2;
+        environment.SetBasePath(DirBase::rct2, rct2);
+        if (const auto* rct1 = std::getenv("OPENRCT2_TEST_RCT1_PATH"))
+        {
+            Config::Get().general.rct1Path = rct1;
+            environment.SetBasePath(DirBase::rct1, rct1);
+        }
+        auto data = std::filesystem::current_path() / "data";
+        if (const auto* shaders = std::getenv("OPENRCT2_VULKAN_SHADER_DIRECTORY"))
+            data = std::filesystem::path(shaders).parent_path().parent_path();
+        else if (!std::filesystem::is_regular_file(data / "g2.dat"))
+            data = std::filesystem::current_path() / "bin/data";
+        environment.SetBasePath(DirBase::openrct2, data.string());
+        ASSERT_TRUE(context->Initialise());
+        contextReady = true;
+    }
+    void TearDown() override
+    {
+#ifdef ENABLE_SCRIPTING
+        if (context && !contextReady)
+        {
+            try { context->GetScriptEngine().Initialise(); }
+            catch (const std::runtime_error& error)
+            {
+                EXPECT_STREQ(error.what(), "Script engine already initialised.");
+            }
+        }
+#endif
+        context.reset();
+        gOpenRCT2Headless = oldHeadless;
+        gOpenRCT2NoGraphics = oldNoGraphics;
+        OpenRCT2::Config::Get().general.rct1Path = oldRct1;
+        OpenRCT2::Config::Get().general.rct2Path = oldRct2;
+    }
+};
+
+TEST_F(RenderServiceProductionRecordingTest, RecordsFiveSpriteSizeClassesWithoutAcquiringDevice)
+{
+    using namespace OpenRCT2;
+    struct RestoreSprites
+    {
+        std::array<G1Element, 5> saved{};
+        RestoreSprites()
+        {
+            for (uint32_t i = 0; i < saved.size(); ++i)
+                saved[i] = *GfxGetG1Element(SPR_TEMP_BEGIN + i);
+        }
+        ~RestoreSprites()
+        {
+            for (uint32_t i = 0; i < saved.size(); ++i)
+                GfxSetG1Element(SPR_TEMP_BEGIN + i, &saved[i]);
+        }
+    } restore;
+    std::array<std::vector<uint8_t>, 5> pixels;
+    for (uint32_t i = 0; i < pixels.size(); ++i)
+    {
+        const auto width = static_cast<int16_t>(32 << i);
+        pixels[i].resize(width, 42);
+        const G1Element sprite{ .offset = pixels[i].data(), .width = width, .height = 1 };
+        GfxSetG1Element(SPR_TEMP_BEGIN + i, &sprite);
+    }
+    auto owner = std::make_shared<Ui::Vulkan::DeviceContextOwner>(false);
+    auto service = Renderer::CreateConfiguredRenderServiceFactory(owner)->Create();
+    auto request = Request();
+    request.logicalExtent = request.outputExtent = { 512, 8 };
+    // Retry after cancellation proves the fifth class is representable without acquiring a GPU or losing the service.
+    for (uint32_t recording = 0; recording < 2; ++recording)
+    {
+        auto session = service->BeginOffscreen(request);
+        for (uint32_t i = 0; i < pixels.size(); ++i)
+            ASSERT_NO_THROW(session->GetDrawingContext().DrawSprite(
+                session->GetRenderTarget(), ImageId(SPR_TEMP_BEGIN + i), 0, static_cast<int32_t>(i)));
+        EXPECT_FALSE(owner->IsCreated());
+        session->Cancel();
+    }
+    service->Shutdown();
+    EXPECT_FALSE(owner->IsCreated());
+}
+TEST_F(RenderServiceProductionRecordingTest, WorkerInvalidationAfterBeginRefreshesFirstSpriteUse)
+{
+    using namespace OpenRCT2;
+    const auto image = SPR_TEMP_BEGIN;
+    const auto original = *GfxGetG1Element(image);
+    struct RestoreSprite
+    {
+        ImageIndex image;
+        G1Element original;
+        ~RestoreSprite() { GfxSetG1Element(image, &original); }
+    } restore{ image, original };
+    std::array<uint8_t, 2> pixels{ 42, 42 };
+    const G1Element sprite{ .offset = pixels.data(), .width = 2, .height = 1 };
+    GfxSetG1Element(image, &sprite);
+    auto owner = std::make_shared<Ui::Vulkan::DeviceContextOwner>(false);
+    auto service = Renderer::CreateConfiguredRenderServiceFactory(owner)->Create();
+    auto request = Request();
+    request.outputExtent = request.logicalExtent;
+    request.rgbaOutput = false;
+    auto first = service->BeginOffscreen(request);
+    first->GetDrawingContext().DrawSprite(first->GetRenderTarget(), ImageId(image), 0, 0);
+    auto completion = first->Submit();
+    const auto held = completion->Wait(120s);
+    ASSERT_FALSE(held.error.has_value());
+    ASSERT_NE(held.result, nullptr);
+    EXPECT_EQ(held.result->indexed, (std::vector<std::byte>{ std::byte{ 42 }, std::byte{ 42 } }));
+    auto second = service->BeginOffscreen(request);
+    // Models worker-generated scrolling text after BeginOffscreen but before serial sprite recording.
+    pixels.fill(77);
+    std::exception_ptr failure;
+    std::thread worker([&] {
+        try { service->InvalidateImage(image); }
+        catch (...) { failure = std::current_exception(); }
+    });
+    worker.join();
+    ASSERT_EQ(failure, nullptr);
+    second->GetDrawingContext().DrawSprite(second->GetRenderTarget(), ImageId(image), 0, 0);
+    const auto fresh = second->Submit()->Wait(120s);
+    ASSERT_FALSE(fresh.error.has_value());
+    ASSERT_NE(fresh.result, nullptr);
+    EXPECT_EQ(fresh.result->indexed, (std::vector<std::byte>{ std::byte{ 77 }, std::byte{ 77 } }));
+    EXPECT_EQ(held.result->indexed, (std::vector<std::byte>{ std::byte{ 42 }, std::byte{ 42 } }));
+    service->Shutdown();
+}
+
+TEST_F(RenderServiceProductionRecordingTest, OrderedAliasRetainsZeroPoliciesAndSubmittedOwnership)
+{
+    using namespace OpenRCT2;
+    auto owner = std::make_shared<Ui::Vulkan::DeviceContextOwner>(false);
+    auto service = Renderer::CreateConfiguredRenderServiceFactory(owner)->Create();
+    OffscreenRenderRequest request;
+    request.name = "alias-owned-zero";
+    request.logicalExtent = request.outputExtent = { 4, 1 };
+    request.initialContents = RenderInitialContents::ownedIndices;
+    request.initialIndices = { std::byte{ 0 }, std::byte{ 21 }, std::byte{ 22 }, std::byte{ 23 } };
+    request.orderedAlias = OrderedImageAlias{ .destinationX = 1, .width = 3, .height = 1 };
+    for (uint32_t i = 0; i < 256; ++i)
+        request.orderedAlias->remap[i] = static_cast<uint8_t>(i);
+    auto cancelled = service->BeginOffscreen(request);
+    EXPECT_THROW(static_cast<void>(cancelled->GetRenderTarget()), RenderServiceException);
+    EXPECT_THROW(static_cast<void>(cancelled->GetDrawingContext()), RenderServiceException);
+    cancelled->Cancel();
+    EXPECT_FALSE(owner->IsCreated());
+    auto raw = service->BeginOffscreen(request);
+    auto completion = raw->Submit();
+    request.initialIndices[0] = std::byte{ 99 };
+    request.orderedAlias->remap.fill(77);
+    const auto first = completion->Wait(120s);
+    ASSERT_FALSE(first.error.has_value());
+    ASSERT_NE(first.result, nullptr);
+    EXPECT_EQ(first.result->indexed, (std::vector<std::byte>(4, std::byte{ 0 })));
+
+    request.initialIndices[0] = std::byte{ 0 };
+    for (uint32_t i = 0; i < 256; ++i)
+        request.orderedAlias->remap[i] = static_cast<uint8_t>(i);
+    request.orderedAlias->skipSourceZero = true;
+    request.orderedAlias->skipMappedZero = true;
+    request.orderedAlias->remap[21] = 0;
+    const auto remapped = service->BeginOffscreen(request)->Submit()->Wait(120s);
+    ASSERT_FALSE(remapped.error.has_value());
+    ASSERT_NE(remapped.result, nullptr);
+    EXPECT_EQ(remapped.result->indexed,
+        (std::vector<std::byte>{ std::byte{ 0 }, std::byte{ 21 }, std::byte{ 22 }, std::byte{ 22 } }));
+    EXPECT_EQ(first.result->indexed, (std::vector<std::byte>(4, std::byte{ 0 })));
+    service->Shutdown();
+}
+#endif

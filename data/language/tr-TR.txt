@@ -2907,11 +2907,6 @@ STR_5871    :Çiçeklerin solmasını devre dışı bırak
 STR_5872    :Çiçekler bu hile ile solmadığı için sulanmasına gerek kalmıyor
 STR_5873    :Her türlü ray şekline tırmanma zinciri
 STR_5874    :Bu hile ile her türlü ray şekline tırmanma zinciri inşa edebilirsiniz
-STR_5875    :Grafiksel aygıt:
-STR_5876    :Oyunda grafiğin hangi aygıt tarafından görüntüleneceğini seçiniz
-STR_5877    :Software
-STR_5878    :Software (Hardware desteği ile)
-STR_5879    :OpenGL (deneysel)
 STR_5880    :Seçili olanlar
 STR_5881    :Seçilmemiş olanlar
 STR_5882    :Kendi para biriminiz

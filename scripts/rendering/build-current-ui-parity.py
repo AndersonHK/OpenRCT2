@@ -1,4 +1,4 @@
-"""Build an isolated actual-UI software oracle/candidate without editing renderer sources.
+"""Build an isolated actual-UI frozen oracle or Vulkan candidate without editing renderer sources.
 
 --source-root selects the current or extracted frozen tree. --harness-root selects
 the identical test/ui-parity driver and SDL present hook. All objects, libraries,
@@ -82,6 +82,26 @@ def compile_inputs(manifest, vulkan):
     # Software-only library builds never compile or embed runtime GLSL/SPIR-V assets.
     return {name: digest for name, digest in manifest.items() if name.startswith("source/")
             and (vulkan or not name.startswith("source/data/shaders/"))}
+
+
+def vulkan_only_source(source):
+    header = source / "src/openrct2/drawing/IDrawingEngine.h"
+    return re.search(r"(?m)^\s*#\s*define\s+OPENRCT2_VULKAN_ONLY\s+1\s*$",
+                     header.read_text(encoding="utf-8")) is not None
+
+
+def capture_instrumentation(source, vulkan):
+    project = ET.parse(source / "src/openrct2-ui/libopenrct2ui.vcxproj").getroot()
+    sdl_hook = any(Path(item.get("Include", "").replace("\\", "/")).name == "HardwareDisplayDrawingEngine.cpp"
+                   for item in project.iter(tag("ClCompile")))
+    descriptions = []
+    if sdl_hook:
+        descriptions.append("HardwareDisplayDrawingEngine.cpp force-includes OraclePresentHook.h; wrapper forwards real SDL_RenderPresent once.")
+    if vulkan:
+        descriptions.append("Vulkan UI and driver enable OPENRCT2_VULKAN_DIAGNOSTICS for named frame capture.")
+    if not sdl_hook:
+        descriptions.append("No SDL software presentation hook is injected into the UI library.")
+    return " ".join(descriptions) + " Source files and mtimes unchanged."
 
 
 def build_variant(commands):
@@ -234,7 +254,7 @@ def make_library_project(source, harness, output, vulkan, ui, renderer=False):
                         child(element, "PrecompiledHeader", "NotUsing")
                         child(element, "ForcedIncludeFiles", str(harness / "test/ui-parity/OraclePresentHook.h"))
                     if ui and not vulkan and absolute.name == "UiContext.cpp":
-                        # Frozen/current source declares drawingEngine outside #ifdef ENABLE_VULKAN.
+                        # Frozen source declares drawingEngine outside #ifdef ENABLE_VULKAN.
                         # Keep its source unchanged and suppress only this software-only unused-local warning.
                         child(element, "DisableSpecificWarnings", "4189;%(DisableSpecificWarnings)")
     for element in project.findall(tag("Import")):
@@ -327,6 +347,8 @@ def main():
     workspace = Path(__file__).resolve().parents[2]
     source = (args.source_root or workspace).resolve(strict=True)
     harness = (args.harness_root or workspace).resolve(strict=True)
+    if vulkan_only_source(source) and not args.enable_vulkan:
+        parser.error("Vulkan-only source requires --enable-vulkan for the UI capture build")
     output = args.output.resolve()
     if output.exists() or workspace not in output.parents:
         raise SystemExit("--output must be a new directory inside the working workspace")
@@ -433,7 +455,7 @@ def main():
         "artifactSha256": {path.relative_to(output).as_posix(): sha256(path) for path in artifacts if path.is_file()},
         "generatedProjectSha256": {path.name: sha256(path) for _, path, _ in stages},
         "buildLogSha256": sha256(output / "build.log"),
-        "instrumentation": "Only HardwareDisplayDrawingEngine.cpp force-includes OraclePresentHook.h; wrapper forwards real SDL_RenderPresent once. Source files unchanged.",
+        "instrumentation": capture_instrumentation(source, args.enable_vulkan),
     }
     (output / "receipt.json").write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({key: receipt[key] for key in ("status", "exitCode", "sourceChangesDuringBuild", "missingArtifacts")}))

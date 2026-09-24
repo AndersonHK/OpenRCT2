@@ -33,6 +33,7 @@ namespace
     #include <openrct2/ParkImporter.h>
     #include <openrct2/PlatformEnvironment.h>
     #include <openrct2/SpriteIds.h>
+    #include <openrct2/audio/AudioContext.h>
     #include <openrct2/config/Config.h>
     #include <openrct2/core/JobPool.h>
     #include <openrct2/drawing/BlendColourMap.h>
@@ -55,6 +56,7 @@ namespace
     #include <openrct2/world/MapAnimation.h>
     #include <openrct2/world/MapSelection.h>
     #include <openrct2/world/Weather.h>
+    #include <openrct2/ui/UiContext.h>
 
 namespace
 {
@@ -295,6 +297,15 @@ namespace
         return result;
     }
 
+    // Explicit legacy publication oracle, never a production dummy-context fallback.
+    class LegacyPublicationOracleFactory final : public IDrawingEngineFactory
+    {
+        std::unique_ptr<IDrawingEngine> Create(Ui::IUiContext& ui) override
+        {
+            return std::make_unique<X8DrawingEngine>(ui);
+        }
+    };
+
     class VulkanSceneParityTest : public testing::Test
     {
     protected:
@@ -308,7 +319,7 @@ namespace
         std::filesystem::path parkPath;
         json_t inputHashes = json_t::object();
 
-        std::string Initialise()
+        std::string Initialise(bool legacyPublicationOracle = false)
         {
             const auto* rct2Path = std::getenv("OPENRCT2_TEST_RCT2_PATH");
             if (rct2Path == nullptr || *rct2Path == 0)
@@ -334,7 +345,10 @@ namespace
 
             gOpenRCT2Headless = true;
             gOpenRCT2NoGraphics = false;
-            context = CreateContext();
+            context = legacyPublicationOracle
+                ? CreateContext(CreatePlatformEnvironment(), Audio::CreateDummyAudioContext(),
+                    Ui::CreateDummyUiContext(std::make_shared<LegacyPublicationOracleFactory>()))
+                : CreateContext();
             auto& env = context->GetPlatformEnvironment();
             env.SetBasePath(DirBase::rct2, rct2Path);
             if (const auto* rct1Path = std::getenv("OPENRCT2_TEST_RCT1_PATH"))
@@ -592,7 +606,7 @@ TEST_F(VulkanSceneParityTest, FrozenSmallParkViewportRotationsAndZooms)
 
 TEST_F(VulkanSceneParityTest, MainPublicationMustMatchLiveAfterSynchronousEntityMove)
 {
-    const auto unavailable = Initialise();
+    const auto unavailable = Initialise(true);
     if (!unavailable.empty())
     {
         if (RequiredSceneParity())

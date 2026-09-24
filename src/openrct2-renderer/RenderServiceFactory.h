@@ -15,10 +15,9 @@ namespace OpenRCT2::Ui::Vulkan
 }
 namespace OpenRCT2::Renderer
 {
-    // Construction and selection never initialise graphics. A supplied owner is
-    // the UI's presentation owner; omission selects a lazy graphics-only owner.
-    // Selection reads the loaded configuration, preserving the transitional
-    // software path. An explicitly selected Vulkan operation never falls back.
+    // Always enabled; Vulkan initialisation is deferred until an image operation needs it.
+    // A supplied owner shares the UI's presentation device; omission uses a lazy graphics-only owner.
+    // Creation failures are reported explicitly, without a software fallback.
     std::shared_ptr<Drawing::IRenderServiceFactory> CreateConfiguredRenderServiceFactory(
         std::shared_ptr<Ui::Vulkan::DeviceContextOwner> owner = {});
 }

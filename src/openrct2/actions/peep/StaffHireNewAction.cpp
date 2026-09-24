@@ -184,8 +184,7 @@ namespace OpenRCT2::GameActions
             newPeep->pathfindGoal.direction = kInvalidDirection;
 
             auto colour = StaffGetColour(static_cast<StaffType>(_staffType));
-            newPeep->tShirtColour = colour;
-            newPeep->trousersColour = colour;
+            newPeep->setClothingColours(colour, colour);
 
             // Staff energy determines their walking speed
             switch (gameState.cheats.selectedStaffSpeed)

@@ -2923,11 +2923,6 @@ STR_5871    :Disattiva appassimento piante
 STR_5872    :Disabilità l’invecchiamento delle piante.
 STR_5873    :Permetti catena di traino su tutti i pezzi
 STR_5874    :Permette di rendere qualsiasi pezzo del percorso una catena di traino
-STR_5875    :Motore di rendering:
-STR_5876    :Il motore grafico usato per mostrare la grafica del gioco.
-STR_5877    :Software
-STR_5878    :Rendering hardware
-STR_5879    :OpenGL (sperimentale)
 STR_5880    :Solo selezionati
 STR_5881    :Solo non selezionati
 STR_5882    :Valuta personalizzata

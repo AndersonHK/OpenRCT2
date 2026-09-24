@@ -1120,8 +1120,7 @@ namespace OpenRCT2
         STR_DISPLAY_RESOLUTION_TIP = 5856,
         STR_DISTANCE_AND_SPEED = 2329,
         STR_DISTANCE_AND_SPEED_TIP = 5828,
-        STR_DRAWING_ENGINE = 5875,
-        STR_DRAWING_ENGINE_TIP = 5876,
+        // 5875–5876 reserved: retired drawing-engine selector.
         STR_EARLY_COMPLETION_TIP = 6227,
         STR_EDIT_ASSET_PACKS_BUTTON = 6640,
         STR_EXPORT_EMSCRIPTEN = 6730,

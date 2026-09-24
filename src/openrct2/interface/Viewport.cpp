@@ -8,8 +8,11 @@
  *****************************************************************************/
 
 #include "Viewport.h"
+
+#include "../object/ObjectManager.h"
 #ifdef OPENRCT2_VIEWPORT_PAINT_DIAGNOSTICS
     #include "ViewportPaintDiagnostics.h"
+
     #include <atomic>
 
 namespace OpenRCT2::Drawing::Diagnostic
@@ -24,9 +27,9 @@ namespace OpenRCT2::Drawing::Diagnostic
     ViewportPaintCounts ReadViewportPaintCounts() noexcept
     {
         return { GenerateCount.load(std::memory_order_relaxed), ArrangeCount.load(std::memory_order_relaxed),
-            DrawCount.load(std::memory_order_relaxed) };
+                 DrawCount.load(std::memory_order_relaxed) };
     }
-}
+} // namespace OpenRCT2::Drawing::Diagnostic
 #endif
 
 #include "../Context.h"
@@ -48,6 +51,7 @@ namespace OpenRCT2::Drawing::Diagnostic
 #include "../drawing/Rectangle.h"
 #include "../drawing/RetainedBalloonScene.h"
 #include "../entity/EntityPresentationSnapshot.h"
+#include "../entity/EntityTweener.h"
 #include "../entity/Guest.h"
 #include "../entity/Staff.h"
 #include "../interface/Cursors.h"
@@ -78,6 +82,7 @@ namespace OpenRCT2::Drawing::Diagnostic
 #include <list>
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <utility>
 
 namespace OpenRCT2
@@ -112,7 +117,6 @@ namespace OpenRCT2
         }
     }
 
-    static void ViewportPaintWeatherGloom(RenderTarget& rt);
     static void ViewportPaint(
         const Viewport* viewport, RenderTarget& rt, ViewportGenerationDomain domain = ViewportGenerationDomain::targetClip);
     static void ViewportUpdateFollowSprite(WindowBase* window);
@@ -884,148 +888,6 @@ namespace OpenRCT2
         ViewportPaint(viewport, rt, domain);
     }
 
-    static void ViewportFillColumn(
-        PaintSession& session, const std::optional<ViewportGenerationBounds>& generationBounds)
-    {
-        PROFILED_FUNCTION();
-
-        ScopedEntityPresentationSnapshot entitySnapshotScope(session.EntitySnapshot);
-        ScopedMapPresentationSnapshot mapSnapshotScope(session.MapSnapshot);
-        const ScopedViewportGenerationTarget generationTarget(session.rt, generationBounds);
-#ifdef OPENRCT2_VIEWPORT_PAINT_DIAGNOSTICS
-        Drawing::Diagnostic::GenerateCount.fetch_add(1, std::memory_order_relaxed);
-#endif
-        PaintSessionGenerate(session);
-#ifdef OPENRCT2_VIEWPORT_PAINT_DIAGNOSTICS
-        Drawing::Diagnostic::ArrangeCount.fetch_add(1, std::memory_order_relaxed);
-#endif
-        PaintSessionArrange(session);
-    }
-
-    static bool ConfigurePaintColumn(
-        RenderTarget& columnRT, const RenderTarget& worldRT, const int32_t x, const int32_t columnWidth)
-    {
-        if (x + columnWidth <= worldRT.x || x >= worldRT.x + worldRT.width)
-            return false;
-
-        columnRT = worldRT;
-        if (x >= columnRT.x)
-        {
-            const int32_t leftPitch = x - columnRT.x;
-            columnRT.width -= leftPitch;
-            if (columnRT.bits != nullptr)
-                columnRT.bits += leftPitch;
-            columnRT.pitch += leftPitch;
-            columnRT.x = x;
-        }
-
-        int32_t paintRight = columnRT.x + columnRT.width;
-        if (paintRight >= x + columnWidth)
-        {
-            const int32_t rightPitch = paintRight - x - columnWidth;
-            paintRight -= rightPitch;
-            columnRT.pitch += rightPitch;
-        }
-        columnRT.width = paintRight - columnRT.x;
-        if (columnRT.width <= 0)
-            return false;
-
-        constexpr int32_t cullingY = ZoomLevel::max().ApplyInversedTo(std::numeric_limits<int32_t>::max()) / 2;
-        columnRT.cullingX = floor2(x, columnWidth);
-        columnRT.cullingY = -cullingY;
-        columnRT.cullingWidth = columnWidth;
-        columnRT.cullingHeight = cullingY * 2;
-        return true;
-    }
-
-    static void ViewportPaintColumn(PaintSession& session)
-    {
-        PROFILED_FUNCTION();
-
-        if (session.ViewFlags
-                & (VIEWPORT_FLAG_HIDE_VERTICAL | VIEWPORT_FLAG_HIDE_BASE | VIEWPORT_FLAG_UNDERGROUND_INSIDE
-                   | VIEWPORT_FLAG_CLIP_VIEW)
-            && (~session.ViewFlags & VIEWPORT_FLAG_TRANSPARENT_BACKGROUND))
-        {
-            PaletteIndex colour = PaletteIndex::pi10;
-            if (session.ViewFlags & VIEWPORT_FLAG_HIDE_ENTITIES)
-            {
-                colour = PaletteIndex::transparent;
-            }
-            GfxClear(session.rt, colour);
-        }
-
-#ifdef OPENRCT2_VIEWPORT_PAINT_DIAGNOSTICS
-        Drawing::Diagnostic::DrawCount.fetch_add(1, std::memory_order_relaxed);
-#endif
-        PaintDrawStructs(session);
-
-        if (Config::Get().general.renderWeatherGloom && !gTrackDesignSaveMode
-            && !(session.ViewFlags & VIEWPORT_FLAG_HIDE_ENTITIES) && !(session.ViewFlags & VIEWPORT_FLAG_HIGHLIGHT_PATH_ISSUES))
-        {
-            ViewportPaintWeatherGloom(session.rt);
-        }
-
-        if (session.PSStringHead != nullptr)
-        {
-            PaintDrawMoneyStructs(session.rt, session.PSStringHead);
-        }
-    }
-
-    struct PreparedViewportColumn
-    {
-        int32_t x{};
-        PaintSession* session{};
-    };
-
-    struct PreparedViewportFrame
-    {
-        int32_t columnWidth{};
-        std::shared_ptr<const MapPresentationSnapshot> mapSnapshot;
-        std::shared_ptr<const EntityPresentationSnapshot> entitySnapshot;
-        std::vector<PreparedViewportColumn> columns;
-
-        ~PreparedViewportFrame()
-        {
-            for (const auto& column : columns)
-                PaintSessionFree(column.session);
-        }
-    };
-
-    static std::unique_ptr<PreparedViewportFrame> CreatePreparedViewportFrame(
-        const RenderTarget& worldRT, const Viewport& viewport, std::shared_ptr<const MapPresentationSnapshot> mapSnapshot,
-        std::shared_ptr<const EntityPresentationSnapshot> entitySnapshot, const bool surfaceBaseDrawn, const bool entitiesDrawn)
-    {
-        auto frame = std::make_unique<PreparedViewportFrame>();
-        frame->columnWidth = worldRT.zoom_level.ApplyInversedTo(kCoordsXYStep);
-        frame->mapSnapshot = std::move(mapSnapshot);
-        frame->entitySnapshot = std::move(entitySnapshot);
-
-        const int32_t rightBorder = worldRT.x + worldRT.width;
-        const int32_t alignedX = floor2(worldRT.x, frame->columnWidth);
-        frame->columns.reserve(static_cast<size_t>((rightBorder - alignedX + frame->columnWidth - 1) / frame->columnWidth));
-        auto sessionRT = worldRT;
-        for (int32_t x = alignedX; x < rightBorder; x += frame->columnWidth)
-        {
-            auto* session = PaintSessionAlloc(sessionRT, viewport.flags, viewport.rotation);
-            if (surfaceBaseDrawn)
-                session->Flags |= PaintSessionFlags::SurfaceBaseDrawn;
-            if (entitiesDrawn)
-                session->Flags |= PaintSessionFlags::EntitiesDrawn;
-            session->MapSnapshot = frame->mapSnapshot.get();
-            session->EntitySnapshot = frame->entitySnapshot.get();
-            RenderTarget columnRT{};
-            if (!ConfigurePaintColumn(columnRT, worldRT, x, frame->columnWidth))
-            {
-                PaintSessionFree(session);
-                continue;
-            }
-            session->rt = columnRT;
-            frame->columns.push_back({ x, session });
-        }
-        return frame;
-    }
-
     static PresentationScene& GetPresentationScene()
     {
         thread_local PresentationScene scene;
@@ -1044,11 +906,13 @@ namespace OpenRCT2
         const bool requiresSynchronousMapPublication = !gMapSelectFlags.isEmpty()
             || TileInspector::GetSelectedElement() != nullptr || isToolActive(WindowClass::trackDesignPlace);
         const auto* engine = GetContext()->GetDrawingEngine();
-        const auto profile = engine == nullptr ? EntityPublicationProfile::legacyBulk : engine->GetEntityPublicationProfile();
+        const auto profile = engine == nullptr ? EntityPublicationProfile::gpuTerrainOnly
+                                               : engine->GetEntityPublicationProfile();
+        auto catalog = GetContext()->GetObjectManager().GetPeepAnimationCatalog();
         if (GetPresentationScene().BeginFrame(
-                jobs, gameState.entities, gCurrentDrawCount, requiresSynchronousMapPublication, profile))
+                jobs, gameState.entities, gCurrentDrawCount, requiresSynchronousMapPublication, profile, std::move(catalog)))
         {
-            // Software drawing still consumes dirty blocks. Complete-frame backends explicitly ignore this invalidation.
+            // UI invalidation does not choose another world rendering path.
             GfxInvalidateScreen();
         }
     }
@@ -1078,143 +942,77 @@ namespace OpenRCT2
      *  edi: rt
      *  ebp: bottom
      */
-    static void ViewportPaint(const Viewport* viewport, RenderTarget& rt, ViewportGenerationDomain domain)
+    static void ViewportPaint(const Viewport* viewport, RenderTarget& rt, [[maybe_unused]] ViewportGenerationDomain domain)
     {
         PROFILED_FUNCTION();
-
-        // File previews, park previews, and giant screenshots own independent X8 targets. They deliberately render live
-        // temporary state and must neither consume nor reuse the main window's published presentation generation.
-        const bool usesMainPresentation = rt.DrawingEngine == GetContext()->GetDrawingEngine();
-        if (usesMainPresentation)
+        // The viewport has one world renderer. Missing GPU families deliberately remain absent while
+        // this replacement is built; there is no CPU paint-session generation, ordering or fallback.
+        const bool mainPresentation = rt.DrawingEngine == GetContext()->GetDrawingEngine();
+        if (mainPresentation)
             ViewportBeginPresentationFrame();
-        auto& gameState = getGameState();
-        auto& sceneJobs = GetContext()->GetJobPool();
         auto& presentation = GetPresentationScene();
-        const auto generation = usesMainPresentation ? presentation.GetGeneration()
-                                                     : std::shared_ptr<const PresentationGeneration>{};
-        const auto mapSnapshot = generation == nullptr ? std::shared_ptr<const MapPresentationSnapshot>{} : generation->map;
-        const auto entitySnapshot = generation == nullptr ? std::shared_ptr<const EntityPresentationSnapshot>{}
-                                                          : generation->entities;
+        const auto generation = mainPresentation ? presentation.GetGeneration() : nullptr;
+        const bool terrainOnly = generation && generation->entities && generation->entities->IsTerrainOnly();
+        const bool terrainOnlyMain = terrainOnly && viewport == ViewportGetMain();
+        const bool terrainOnlySecondary = terrainOnly && !terrainOnlyMain;
+        // Window drawing may split the main viewport around opaque UI. Record one full main-world
+        // background, clipped only to its viewport and the engine target; later UI remains above it.
+        const auto* source = terrainOnlyMain ? rt.DrawingEngine->getRT() : &rt;
+        if (source == nullptr)
+            throw std::runtime_error("GPU main viewport has no engine render target");
+        const auto& sceneRT = *source;
 
-        const int32_t offsetX = rt.x - viewport->pos.x;
-        const int32_t offsetY = rt.y - viewport->pos.y;
-        const int32_t worldX = viewport->zoom.ApplyInversedTo(viewport->viewPos.x) + std::max(0, offsetX);
-        const int32_t worldY = viewport->zoom.ApplyInversedTo(viewport->viewPos.y) + std::max(0, offsetY);
-        const int32_t width = std::min(viewport->pos.x + viewport->width, rt.x + rt.width) - std::max(viewport->pos.x, rt.x);
-        const int32_t height = std::min(viewport->pos.y + viewport->height, rt.y + rt.height) - std::max(viewport->pos.y, rt.y);
-
+        const int32_t offsetX = sceneRT.x - viewport->pos.x;
+        const int32_t offsetY = sceneRT.y - viewport->pos.y;
         RenderTarget worldRT;
-        worldRT.DrawingEngine = rt.DrawingEngine;
-        worldRT.bits = rt.bits + std::max(0, -offsetX) + std::max(0, -offsetY) * rt.LineStride();
-        worldRT.x = worldX;
-        worldRT.y = worldY;
-        worldRT.width = width;
-        worldRT.height = height;
-        worldRT.pitch = rt.LineStride() - worldRT.width;
+        worldRT.DrawingEngine = sceneRT.DrawingEngine;
+        worldRT.bits = sceneRT.bits == nullptr
+            ? nullptr
+            : sceneRT.bits + std::max(0, -offsetX) + std::max(0, -offsetY) * sceneRT.LineStride();
+        worldRT.x = viewport->zoom.ApplyInversedTo(viewport->viewPos.x) + std::max(0, offsetX);
+        worldRT.y = viewport->zoom.ApplyInversedTo(viewport->viewPos.y) + std::max(0, offsetY);
+        worldRT.width = std::min(viewport->pos.x + viewport->width, sceneRT.x + sceneRT.width)
+            - std::max(viewport->pos.x, sceneRT.x);
+        worldRT.height = std::min(viewport->pos.y + viewport->height, sceneRT.y + sceneRT.height)
+            - std::max(viewport->pos.y, sceneRT.y);
+        worldRT.pitch = sceneRT.LineStride() - worldRT.width;
         worldRT.zoom_level = viewport->zoom;
-
-        // Surface-parent overlays still depend on PaintSurface ordering. Those states leave the whole base category with
-        // PaintSurface until the overlays have independent publication records.
-        constexpr uint32_t kPaintSurfaceOverlayFlags = VIEWPORT_FLAG_GRIDLINES | VIEWPORT_FLAG_UNDERGROUND_INSIDE
-            | VIEWPORT_FLAG_HIDE_BASE | VIEWPORT_FLAG_CLIP_VIEW | VIEWPORT_FLAG_LAND_HEIGHTS | VIEWPORT_FLAG_LAND_OWNERSHIP
-            | VIEWPORT_FLAG_CONSTRUCTION_RIGHTS;
-        Drawing::NativeWorldCategories nativeWorld;
-        Drawing::IDrawingContext* nativeContext = nullptr;
-        if (usesMainPresentation && viewport == ViewportGetMain() && generation != nullptr
-            && (viewport->flags & kPaintSurfaceOverlayFlags) == 0 && gMapSelectFlags.isEmpty()
-            && TileInspector::GetSelectedElement() == nullptr && !isInTrackDesignerOrManager())
-        {
-            if (auto* drawingContext = rt.DrawingEngine->GetDrawingContext(); drawingContext != nullptr)
-            {
-                const OrthographicCamera camera{
-                    .viewX = worldRT.x,
-                    .viewY = worldRT.y,
-                    .clipLeft = std::max(viewport->pos.x, rt.x),
-                    .clipTop = std::max(viewport->pos.y, rt.y),
-                    .clipRight = std::min(viewport->pos.x + viewport->width, rt.x + rt.width),
-                    .clipBottom = std::min(viewport->pos.y + viewport->height, rt.y + rt.height),
-                    .zoom = static_cast<int8_t>(viewport->zoom),
-                    .rotation = viewport->rotation,
-                    .landscapeSmoothing = Config::Get().general.landscapeSmoothing,
-                    .nativeEntitiesAllowed = viewport->flags == 0 && !gPaintStableSort && !gPaintBoundingBoxes
-                        && !gPaintBlockedTiles && !gTrackDesignSaveMode,
-                };
-                nativeWorld = drawingContext->DrawWorldScene(worldRT, generation, camera);
-                nativeContext = drawingContext;
-            }
-        }
-
-        if (nativeWorld.completeTerrainScene)
-        {
-            // No per-frame CPU tile visitation, paint projection, parent ordering or world sprite commands.
-            nativeContext->SealWorldScene(nativeWorld);
-            if (usesMainPresentation)
-                presentation.ScheduleNext(sceneJobs, gameState.entities);
+        if (worldRT.width <= 0 || worldRT.height <= 0)
             return;
-        }
+        if (!terrainOnlyMain && !(viewport->flags & VIEWPORT_FLAG_TRANSPARENT_BACKGROUND))
+            GfxClear(worldRT, PaletteIndex::pi10);
 
-        bool useMultithreading = Config::Get().general.multiThreading;
-        bool useParallelDrawing = false;
-        if (useMultithreading && rt.DrawingEngine->GetFlags().has(DrawingEngineFlag::parallelDrawing))
+        auto* context = rt.DrawingEngine->GetDrawingContext();
+        if (context == nullptr)
+            throw std::runtime_error("Viewport requires the Vulkan world context");
+        if (generation != nullptr && !terrainOnlySecondary)
         {
-            useParallelDrawing = true;
+            const OrthographicCamera camera{
+                .viewX = worldRT.x,
+                .viewY = worldRT.y,
+                .clipLeft = std::max(viewport->pos.x, sceneRT.x),
+                .clipTop = std::max(viewport->pos.y, sceneRT.y),
+                .clipRight = std::min(viewport->pos.x + viewport->width, sceneRT.x + sceneRT.width),
+                .clipBottom = std::min(viewport->pos.y + viewport->height, sceneRT.y + sceneRT.height),
+                .zoom = static_cast<int8_t>(viewport->zoom),
+                .rotation = viewport->rotation,
+                .landscapeSmoothing = Config::Get().general.landscapeSmoothing,
+                .nativeEntitiesAllowed = viewport->flags == 0 && !gPaintStableSort && !gPaintBoundingBoxes
+                    && !gPaintBlockedTiles && !gTrackDesignSaveMode,
+                .entityInterpolation = EntityTweener::get().GetRenderAlpha(),
+                .entityInterpolationSourceTick = getGameState().currentTicks,
+            };
+            const auto world = context->DrawWorldScene(worldRT, generation, camera);
+            if (!world.completeTerrainScene)
+                throw std::runtime_error("GPU world renderer rejected its published scene");
+            context->SealWorldScene(world);
         }
-
-        const auto generationBounds = domain == ViewportGenerationDomain::fullViewportHeight
-            ? std::optional<ViewportGenerationBounds>{ { viewport->zoom.ApplyInversedTo(viewport->viewPos.y), viewport->height } }
-            : std::nullopt;
-
-        auto prepared = CreatePreparedViewportFrame(
-            worldRT, *viewport, mapSnapshot, entitySnapshot, nativeWorld.surfaces, nativeWorld.entities);
-        if (useMultithreading)
-        {
-            sceneJobs.ParallelFor(
-                prepared->columns.size(),
-                [frame = prepared.get(), generationBounds](const size_t index) { ViewportFillColumn(*frame->columns[index].session, generationBounds); }, 1,
-                nullptr, JobPool::TaskPriority::foreground);
-        }
-        else
-        {
-            for (const auto& column : prepared->columns)
-                ViewportFillColumn(*column.session, generationBounds);
-        }
-
-        if (useParallelDrawing)
-        {
-            sceneJobs.ParallelFor(
-                prepared->columns.size(),
-                [frame = prepared.get()](const size_t index) { ViewportPaintColumn(*frame->columns[index].session); }, 1,
-                nullptr, JobPool::TaskPriority::foreground);
-        }
-        else
-        {
-            for (const auto& column : prepared->columns)
-                ViewportPaintColumn(*column.session);
-        }
-
-        if (nativeContext != nullptr)
-            nativeContext->SealWorldScene(nativeWorld);
-
-        // Snapshot preparation starts only after the current viewport barriers,
-        // allowing it to overlap the following simulation/UI work instead of
-        // taking a worker away from this frame's visible columns.
-        if (usesMainPresentation)
-        {
-            presentation.ScheduleNext(sceneJobs, gameState.entities);
-        }
-    }
-
-    static void ViewportPaintWeatherGloom(RenderTarget& rt)
-    {
-        auto paletteId = Weather::getWeatherGloomPaletteId(getGameState().weatherCurrent);
-        if (paletteId != FilterPaletteID::paletteNull)
-        {
-            auto x = rt.x;
-            auto y = rt.y;
-            auto w = rt.width;
-            auto h = rt.height;
-            Rectangle::filter(rt, ScreenRect(x, y, x + w, y + h), paletteId);
-        }
+        // Independent auxiliary world capture is not migrated in this partial checkpoint. Its target
+        // remains empty rather than invoking the retired CPU painter or borrowing stale main-world data.
+        if (mainPresentation)
+            presentation.ScheduleNext(
+                GetContext()->GetJobPool(), getGameState().entities,
+                GetContext()->GetObjectManager().GetPeepAnimationCatalog());
     }
 
     /**

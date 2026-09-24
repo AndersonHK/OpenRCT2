@@ -114,6 +114,8 @@ bool DrawingEngineHasDirtyOptimisations()
 
 void DrawingEngineInvalidateImage(uint32_t image)
 {
+    if (auto* context = GetContext())
+        context->InvalidateRenderServiceImage(image);
     auto drawingEngine = GetDrawingEngine();
     if (drawingEngine != nullptr)
     {

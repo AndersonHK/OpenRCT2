@@ -578,10 +578,10 @@ TEST_F(EntityImportTests, PlatformSeatBindingPreservesThroughRidersAndBindsFifoT
 
     Guest first{};
     first.id = EntityId::FromUnderlying(101);
-    first.tShirtColour = Drawing::Colour::brightRed;
+    first.setTShirtColour(Drawing::Colour::brightRed);
     Guest second{};
     second.id = EntityId::FromUnderlying(102);
-    second.tShirtColour = Drawing::Colour::brightGreen;
+    second.setTShirtColour(Drawing::Colour::brightGreen);
 
     using RideVehicle::StationDetail::BindPlatformGuestToSeat;
     EXPECT_TRUE(BindPlatformGuestToSeat(first, vehicle, 1));
@@ -593,8 +593,8 @@ TEST_F(EntityImportTests, PlatformSeatBindingPreservesThroughRidersAndBindsFifoT
     EXPECT_EQ(vehicle.peep[2], second.id);
     EXPECT_EQ(first.currentSeat, 1u);
     EXPECT_EQ(second.currentSeat, 2u);
-    EXPECT_EQ(vehicle.peep_tshirt_colours[1], first.tShirtColour);
-    EXPECT_EQ(vehicle.peep_tshirt_colours[2], second.tShirtColour);
+    EXPECT_EQ(vehicle.peep_tshirt_colours[1], first.getTShirtColour());
+    EXPECT_EQ(vehicle.peep_tshirt_colours[2], second.getTShirtColour());
 }
 
 TEST_F(EntityImportTests, PlatformSeatBindingUsesReservedCountAndRejectsActiveDuplicate)

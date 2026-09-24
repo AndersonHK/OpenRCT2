@@ -2923,11 +2923,6 @@ STR_5871    :Disable plants withering
 STR_5872    :Disable plant ageing such that they don’t wilt.
 STR_5873    :Allow chain lifts on all track pieces
 STR_5874    :Allows any piece of track to be made into a chain lift
-STR_5875    :Drawing Engine:
-STR_5876    :The engine to use for drawing the game.
-STR_5877    :Software
-STR_5878    :Software (hardware display)
-STR_5879    :OpenGL (experimental)
 STR_5880    :Selected only
 STR_5881    :Non-selected only
 STR_5882    :Custom currency
@@ -3874,7 +3869,6 @@ STR_8015    :“The fare for {STRINGID} was extortionate!”
 STR_8016    :Walking to the platform for {STRINGID}
 STR_8017    :Waiting on the platform for {STRINGID}
 STR_8018    :{BLACK}Queue: {COMMA16}; platform: {COMMA16}/{COMMA16}
-STR_8019    :Vulkan (validation)
 STR_8020    :{WINDOW_COLOUR_2}Station-to-station ratings
 STR_8021    :{WINDOW_COLOUR_2}Ride length: {BLACK}{COMMA32} m
 STR_8022    :{WINDOW_COLOUR_2}Ride time: {BLACK}{COMMA32} secs

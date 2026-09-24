@@ -1685,8 +1685,7 @@ namespace OpenRCT2::RCT2
             dst->animationObjectIndex = kObjectEntryIndexNull;
             dst->animationGroup = static_cast<PeepAnimationGroup>(src->AnimationGroup);
 
-            dst->tShirtColour = src->TshirtColour;
-            dst->trousersColour = src->TrousersColour;
+            dst->setClothingColours(src->TshirtColour, src->TrousersColour);
             dst->destinationX = src->DestinationX;
             dst->destinationY = src->DestinationY;
             dst->destinationTolerance = src->DestinationTolerance;
@@ -2158,9 +2157,9 @@ namespace OpenRCT2::RCT2
         dst->angriness = src->Angriness;
         dst->timeLost = src->TimeLost;
         dst->daysInQueue = src->DaysInQueue;
-        dst->balloonColour = src->BalloonColour;
-        dst->umbrellaColour = src->UmbrellaColour;
-        dst->hatColour = src->HatColour;
+        dst->setBalloonColour(src->BalloonColour);
+        dst->setUmbrellaColour(src->UmbrellaColour);
+        dst->setHatColour(src->HatColour);
         dst->favouriteRide = RCT12RideIdToOpenRCT2RideId(src->FavouriteRide);
         dst->favouriteRideRating = src->FavouriteRideRating;
     }

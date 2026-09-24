@@ -10,44 +10,28 @@
 #pragma once
 
 #include <memory>
-#include <openrct2/core/Guard.hpp>
 #include <openrct2/drawing/IDrawingEngine.h>
-#ifdef ENABLE_VULKAN
-    #include "vulkan/VulkanDrawingEngine.h"
-    #include <openrct2-renderer/vulkan/VulkanDeviceContext.h>
+#ifndef ENABLE_VULKAN
+    #error The graphical application requires Vulkan.
 #endif
+#include "vulkan/VulkanDrawingEngine.h"
+#include <openrct2-renderer/vulkan/VulkanDeviceContext.h>
 
 namespace OpenRCT2::Ui
 {
     struct IUiContext;
 
-    [[nodiscard]] std::unique_ptr<Drawing::IDrawingEngine> CreateHardwareDisplayDrawingEngine(IUiContext& uiContext);
     class DrawingEngineFactory final : public Drawing::IDrawingEngineFactory
     {
-#ifdef ENABLE_VULKAN
         std::shared_ptr<Vulkan::DeviceContextOwner> _owner;
-#endif
     public:
-#ifdef ENABLE_VULKAN
         explicit DrawingEngineFactory(std::shared_ptr<Vulkan::DeviceContextOwner> owner = {})
             : _owner(owner ? std::move(owner) : std::make_shared<Vulkan::DeviceContextOwner>(true))
         {
         }
-#endif
-        [[nodiscard]] std::unique_ptr<Drawing::IDrawingEngine> Create(DrawingEngine type, IUiContext& uiContext) override
+        [[nodiscard]] std::unique_ptr<Drawing::IDrawingEngine> Create(IUiContext& uiContext) override
         {
-            switch (type)
-            {
-                case DrawingEngine::softwareWithHardwareDisplay:
-                    return CreateHardwareDisplayDrawingEngine(uiContext);
-#ifdef ENABLE_VULKAN
-                case DrawingEngine::vulkan:
-                    return CreateVulkanDrawingEngine(uiContext, _owner);
-#endif
-                default:
-                    Guard::Fail("Unknown renderer: %u", static_cast<uint32_t>(type));
-                    return nullptr;
-            }
+            return CreateVulkanDrawingEngine(uiContext, _owner);
         }
     };
 } // namespace OpenRCT2::Ui

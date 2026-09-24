@@ -12,16 +12,23 @@
 #include <cstdint>
 #include <memory>
 
+#define OPENRCT2_PRESENTATION_SOURCE_TICK_VERSION 1
+
 namespace OpenRCT2
 {
     namespace Drawing
     {
         struct RetainedBalloonSnapshot;
-    }
+        struct RetainedPeepSnapshot;
+        struct RetainedPeepAnimationCatalog;
+    } // namespace Drawing
     enum class EntityPublicationProfile : uint8_t
     {
         legacyBulk,
-        retainedBalloons
+        retainedBalloons,
+        retainedPeepsAndBalloons,
+        nativePeeps,
+        gpuTerrainOnly
     };
     class EntityPresentationSnapshot;
     class MapPresentationSnapshot;
@@ -35,6 +42,11 @@ namespace OpenRCT2
         std::shared_ptr<const MapPresentationSnapshot> map;
         std::shared_ptr<const EntityPresentationSnapshot> entities;
         std::shared_ptr<const Drawing::RetainedBalloonSnapshot> balloons;
+        // Tick of the immutable entity payload, not the live tick when it is displayed.
+        uint32_t sourceTick{};
+        uint64_t sourceEntityEpoch{};
+        std::shared_ptr<const Drawing::RetainedPeepSnapshot> peeps;
+        std::shared_ptr<const Drawing::RetainedPeepAnimationCatalog> peepAnimations;
     };
 
     /** Integer camera state latched with one world-scene submission. */
@@ -50,5 +62,8 @@ namespace OpenRCT2
         uint8_t rotation{};
         uint8_t landscapeSmoothing{};
         bool nativeEntitiesAllowed{};
+        float entityInterpolation{ 1.0f };
+        // Current render endpoint tick; a held older generation must not replay history with a newer alpha.
+        uint32_t entityInterpolationSourceTick{};
     };
 } // namespace OpenRCT2

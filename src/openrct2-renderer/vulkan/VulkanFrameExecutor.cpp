@@ -109,21 +109,23 @@ namespace OpenRCT2::Ui::Vulkan
         pending.push_back({ token.upload, allocation, static_cast<uint32_t>(pending.size()), columns });
         std::array<VkBufferCopy, Gpu::Terrain::kDrawMaximumColumns> copies{};
         for (uint32_t column = 0; column < columns; column++)
-            copies[column] = { column * sizeof(Gpu::Terrain::DrawColumnStatus),
-                allocation.offset + column * sizeof(uint32_t), sizeof(uint32_t) };
+            copies[column] = { column * sizeof(Gpu::Terrain::DrawColumnStatus), allocation.offset + column * sizeof(uint32_t),
+                               sizeof(uint32_t) };
         const VkMemoryBarrier sourceReady{ .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
-            .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT, .dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT };
-        vkCmdPipelineBarrier(token.commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-            VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 1, &sourceReady, 0, nullptr, 0, nullptr);
-        vkCmdCopyBuffer(token.commandBuffer, _terrainPipeline.GetColumnBuffer().GetBuffer(),
-            allocation.buffer, columns, copies.data());
+                                           .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
+                                           .dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT };
+        vkCmdPipelineBarrier(
+            token.commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 1, &sourceReady, 0,
+            nullptr, 0, nullptr);
+        vkCmdCopyBuffer(
+            token.commandBuffer, _terrainPipeline.GetColumnBuffer().GetBuffer(), allocation.buffer, columns, copies.data());
         _terrainUploads.statusReadbackBytes += columns * sizeof(uint32_t);
         const VkMemoryBarrier statusReady{ .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
-            .srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT,
-            .dstAccessMask = VK_ACCESS_HOST_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT };
-        vkCmdPipelineBarrier(token.commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
-            VK_PIPELINE_STAGE_HOST_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-            0, 1, &statusReady, 0, nullptr, 0, nullptr);
+                                           .srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT,
+                                           .dstAccessMask = VK_ACCESS_HOST_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT };
+        vkCmdPipelineBarrier(
+            token.commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_HOST_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &statusReady, 0, nullptr, 0, nullptr);
         if (token.telemetry != nullptr)
         {
             token.telemetry->readbackRequests++;
@@ -159,6 +161,7 @@ namespace OpenRCT2::Ui::Vulkan
     void FrameExecutor::Commit() noexcept
     {
         _resources.CommitFrameLayouts();
+        _terrainPipeline.Commit();
         _lightFalloffsRecorded = false;
     }
     void FrameExecutor::Discard(uint32_t frameIndex)
@@ -405,16 +408,18 @@ namespace OpenRCT2::Ui::Vulkan
             if (!_terrainPipelineReady)
             {
                 // TerrainDrawPipeline serializes its nested pipeline-cache use internally.
-                _terrainPipeline.Initialise(*_context, _resources, _shaderDirectory,
-                    _shaderDirectory / "terrain_retained_emit.comp.spv", _shaderDirectory / "terrain_columns.comp.spv");
+                _terrainPipeline.Initialise(
+                    *_context, _resources, _shaderDirectory, _shaderDirectory / "terrain_retained_emit.comp.spv",
+                    _shaderDirectory / "terrain_columns.comp.spv");
                 _terrainPipelineReady = true;
             }
             for (const auto& scene : commands.terrainScenes)
             {
                 if (scene.sprites == nullptr)
                     throw std::invalid_argument("Missing immutable retained terrain sprite table");
-                _terrainPipeline.Record(token, scene.snapshot, *scene.sprites, scene.camera,
-                    _resources.GetAtlasLayers() * Gpu::kAtlasSlotsPerLayer);
+                _terrainPipeline.Record(
+                    token, scene.snapshot, *scene.sprites, scene.camera, _resources.GetAtlasLayers() * Gpu::kAtlasSlotsPerLayer,
+                    scene.peeps, scene.peepAssets);
                 _terrainUploads.tileBytes += _terrainPipeline.GetEmission().GetLastTileUploadBytes();
                 _terrainUploads.materialBytes += _terrainPipeline.GetEmission().GetLastMaterialUploadBytes();
                 _terrainUploads.spriteBytes += _terrainPipeline.GetLastSpriteUploadBytes();

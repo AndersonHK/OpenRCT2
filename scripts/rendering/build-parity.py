@@ -29,7 +29,9 @@ def source_manifest(root):
             # Standalone diagnostic drivers have their own isolated build receipts
             # and are not inputs of openrct2.proj or test/tests/tests.vcxproj.
             # Shared terrain fixtures and diagnostic shader inputs are bound to the real unit tests.
-            if name and (not name.startswith(("test/ui-parity/", "test/terrain-parity/"))
+            if name and name != "test/peep-parity/PeepProducerBenchmark.cpp"
+            # This standalone producer driver has its own receipt; its shared fixture remains pinned below.
+            and (not name.startswith(("test/ui-parity/", "test/terrain-parity/"))
                          or name in ("test/terrain-parity/NonuniformTerrainRecipe.h",
                                      "test/terrain-parity/FrozenTerrainEdgeOracle.inc",
                                      "test/terrain-parity/FrozenTerrainEdgeOracle.json",
@@ -70,7 +72,8 @@ def main():
         raise SystemExit("Refusing to overwrite build evidence: " + str(output))
     subprocess.run([os.sys.executable, str(root / "scripts/rendering/verify-software-reference.py")], check=True)
     command = [find_msbuild(args.msbuild), "openrct2.proj", "/m:1", "/nr:false",
-               "/p:Configuration=Release", "/p:Platform=x64", "/p:EnableVulkan=true"]
+               "/p:Configuration=Release", "/p:Platform=x64", "/p:EnableVulkan=true",
+               "/p:PreferredToolArchitecture=x64"]
     if args.toolset_version:
         command.append("/p:VCToolsVersion=" + args.toolset_version)
     output.mkdir(parents=True)
@@ -103,7 +106,8 @@ def main():
                                if generated_before.get(name) != generated_after.get(name))
     after = source_manifest(root)
     changes = sorted(name for name in before.keys() | after.keys() if before.get(name) != after.get(name))
-    artifacts = [root / "bin/tests.exe", root / "bin/openrct2.exe", root / "bin/openrct2-cli.exe"]
+    artifacts = [root / "bin/tests.exe", root / "bin/openrct2.exe", root / "bin/openrct2-cli.exe",
+                 root / "bin/libopenrct2.lib"]
     artifacts.extend(sorted((root / "bin/data/shaders/vulkan").glob("*.spv")))
     missing = [str(path) for path in artifacts if not path.is_file()]
     passed = result.returncode == 0 and not changes and not generated_changes and not missing
@@ -115,7 +119,7 @@ def main():
         "builderSha256": sha256(Path(__file__)),
         "sourceRevision": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip(),
         "sourceSha256": before, "sourceChangesDuringBuild": changes,
-        "sourceManifestScope": "Production src/data/build metadata and ordinary tests; standalone test/ui-parity and test/terrain-parity drivers use separate build receipts",
+        "sourceManifestScope": "Production src/data/build metadata and ordinary tests; standalone UI/terrain drivers and PeepProducerBenchmark.cpp use separate build receipts; shared peep fixtures remain pinned",
         "artifactSha256": {path.relative_to(root).as_posix(): sha256(path) for path in artifacts if path.is_file()},
         "missingArtifacts": missing, "buildLogSha256": sha256(output / "build.log"),
     }

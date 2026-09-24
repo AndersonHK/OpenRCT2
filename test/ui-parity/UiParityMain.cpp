@@ -7,6 +7,7 @@
 #include "SdlCapture.h"
 #include "UiFixtures.h"
 #include "UiTreeTrackSceneLocator.h"
+#include "UiCherryTrackFixture.h"
 #include <openrct2/drawing/IDrawingContext.h>
 #include "UiFontFixture.h"
 #include "UiLightFixture.h"
@@ -42,6 +43,9 @@
 #include <openrct2/drawing/Palette.h>
 #include <openrct2/drawing/RenderTarget.h>
 #include <openrct2/entity/EntityTweener.h>
+#include <openrct2/entity/EntityPresentationSnapshot.h>
+#include <openrct2/drawing/PresentationGeneration.h>
+#include <openrct2/world/Map.h>
 #include <openrct2/network/Network.h>
 #include <openrct2/ride/Vehicle.h>
 #include <openrct2/interface/Viewport.h>
@@ -67,13 +71,14 @@ using namespace OpenRCT2::Drawing;
 
 namespace
 {
-    json_t MotionVehicleCensus()
+    json_t MotionVehicleCensus(const EntityPresentationSnapshot* snapshot = nullptr)
     {
         auto records = json_t::array();
         auto& state = getGameState();
         for (uint32_t id = 0; id < kMaxEntities; ++id)
         {
-            const auto* entity = state.entities.tryGetEntity(EntityId::FromUnderlying(static_cast<uint16_t>(id)));
+            const auto entityId = EntityId::FromUnderlying(static_cast<uint16_t>(id));
+            const auto* entity = snapshot == nullptr ? state.entities.tryGetEntity(entityId) : snapshot->TryGetEntity(entityId);
             if (entity == nullptr || entity->type != EntityType::vehicle)
                 continue;
             const auto& v = *entity->cast<Vehicle>();
@@ -156,6 +161,7 @@ namespace
         Json::WriteToFile((directory / "report.json").string(), metadata);
     }
 
+#ifndef OPENRCT2_VULKAN_ONLY
     std::vector<uint8_t> ReadSoftwareCanvas(const RenderTarget& target)
     {
         if (target.bits == nullptr || target.width <= 0 || target.height <= 0 || target.zoom_level != ZoomLevel{})
@@ -166,6 +172,7 @@ namespace
                 result.data() + static_cast<size_t>(y) * target.width, target.bits + y * target.LineStride(), target.width);
         return result;
     }
+#endif
 
 #ifdef UI_PARITY_HAS_VULKAN_CAPTURE
     void AddVulkanMetadata(json_t& metadata, const Ui::Vulkan::Diagnostic::CaptureResult& capture)
@@ -261,7 +268,11 @@ int main(int argc, char** argv)
             const auto it = arguments.find(name);
             return it == arguments.end() ? fallback : it->second;
         };
+#ifdef OPENRCT2_VULKAN_ONLY
+        const auto renderer = value("renderer", "vulkan");
+#else
         const auto renderer = value("renderer", "software");
+#endif
         const auto lifecycleArgument = value("shared-service-lifecycle", "false");
         if (lifecycleArgument != "true" && lifecycleArgument != "false")
             throw std::invalid_argument("--shared-service-lifecycle must be true or false");
@@ -355,8 +366,13 @@ int main(int argc, char** argv)
                                       : UiParityFixtures::FixtureSteps(compositionFamily);
         if (incremental && compositionFamily == "baseline")
             throw std::invalid_argument("Incremental fixtures require overlap, scroll or text window operations");
+#ifdef OPENRCT2_VULKAN_ONLY
+        if (renderer != "vulkan")
+            throw std::invalid_argument("This build requires --renderer vulkan");
+#else
         if (renderer != "software" && renderer != "vulkan")
             throw std::invalid_argument("--renderer must be software or vulkan");
+#endif
         const bool vulkan = renderer == "vulkan";
 #ifndef UI_PARITY_HAS_VULKAN_CAPTURE
         if (vulkan)
@@ -373,8 +389,10 @@ int main(int argc, char** argv)
         if (sharedServiceLifecycle && (!vulkan || fixture != "baseline" || retainedBalloons || nativeBalloons
                 || requiredBalloonCount != 0 || requireWorldSurfaces != "any"))
             throw std::invalid_argument("Shared lifecycle requires Vulkan baseline without native admission options");
+#ifndef OPENRCT2_VULKAN_ONLY
         const auto drawingEngine = vulkan && !sharedServiceLifecycle ? DrawingEngine::vulkan
                                                                     : DrawingEngine::softwareWithHardwareDisplay;
+#endif
         const auto output = std::filesystem::absolute(arguments.at("output"));
         const auto profile = std::filesystem::absolute(arguments.at("profile"));
         if (std::filesystem::exists(output) || std::filesystem::exists(profile))
@@ -390,11 +408,15 @@ int main(int argc, char** argv)
         gOpenRCT2NoGraphics = false;
         gIntegratedBenchmark.enabled = true;
         gIntegratedBenchmark.visible = false;
+#ifndef OPENRCT2_VULKAN_ONLY
         gIntegratedBenchmark.drawingEngine = drawingEngine;
+#endif
         gIntegratedBenchmark.useVSync = false;
         auto environment = CreatePlatformEnvironment();
         auto& config = Config::Get();
+#ifndef OPENRCT2_VULKAN_ONLY
         config.general.drawingEngine = drawingEngine;
+#endif
         config.general.windowWidth = std::stoi(value("width", "960"));
         config.general.windowHeight = std::stoi(value("height", "640"));
         if (config.general.windowWidth < 720 || config.general.windowHeight < 480)
@@ -477,6 +499,19 @@ int main(int argc, char** argv)
         if (mainWindow == nullptr || mainWindow->viewport == nullptr)
             throw std::runtime_error("Fixture did not establish the real main window and viewport");
         auto& viewport = *mainWindow->viewport;
+        json_t cherryFixture;
+        if (arguments.contains("cherry-fixture"))
+        {
+            if (compositionFamily != "world-dirty" && !worldMotion)
+                throw std::invalid_argument("Cherry substitution requires an explicit world ordering fixture");
+            gGamePaused = GAME_PAUSED_NORMAL;
+            cherryFixture = UiParity::ApplyCherryTrackFixture(
+                context->GetObjectManager(), arguments.at("cherry-fixture"), viewport.width, viewport.height);
+            MapInvalidateTileFull({ 154 * 32, 210 * 32 });
+            // Preserve the complete map publication: this mutation contributes a
+            // tile delta, not a fresh complete-world bootstrap.
+            GfxInvalidateScreen();
+        }
         json_t sceneLocatorBinding;
         if (compositionFamily == "world-dirty" || worldMotion)
         {
@@ -561,7 +596,11 @@ int main(int argc, char** argv)
         gDayNightCycle = 0;
         EntityTweener::get().reset();
         auto* engine = context->GetDrawingEngine();
-        if (engine == nullptr || context->GetDrawingEngineType() != drawingEngine)
+        if (engine == nullptr
+#ifndef OPENRCT2_VULKAN_ONLY
+            || context->GetDrawingEngineType() != drawingEngine
+#endif
+        )
             throw std::runtime_error("Fixture did not select the requested actual display engine");
         if (lightNight)
         {
@@ -642,8 +681,13 @@ int main(int argc, char** argv)
                          { "viewportFlags", viewport.flags },
                          { "requireWorldSurfaces", requireWorldSurfaces },
                          { "state", "paused; paint-only warmup=2; weather/lighting/FPS disabled; no event/tick loop" } };
+#ifdef OPENRCT2_VULKAN_ONLY
+        metadata["vulkanOnly"] = true;
+#endif
         if (!sceneLocatorBinding.is_null())
             metadata["sceneLocator"] = sceneLocatorBinding;
+        if (!cherryFixture.is_null())
+            metadata["cherryFixture"] = cherryFixture;
         if (transparentHistory)
             metadata["state"] = "paused; no warmup; post-load no-painter frame then opaque/transparent history; no event/tick loop";
         if (worldMotion)
@@ -751,11 +795,16 @@ int main(int argc, char** argv)
                         {"canvasSeed","post-load existing canvas; no assumption that park loading performed no paints"}};
                 }
                 sampleMetadata["repetition"] = sharedServiceLifecycle ? 0 : sample;
-                sampleMetadata["renderer"] = context->GetDrawingEngineType() == DrawingEngine::vulkan
+#ifdef OPENRCT2_VULKAN_ONLY
+                constexpr bool captureVulkan = true;
+#else
+                const bool captureVulkan = context->GetDrawingEngineType() == DrawingEngine::vulkan;
+#endif
+                sampleMetadata["renderer"] = captureVulkan
                     ? "vulkan" : "softwareWithHardwareDisplay";
                 sampleMetadata["inputState"] = inputState;
                 sampleMetadata["forcedFullInvalidation"] = forceFullInvalidation;
-                if (context->GetDrawingEngineType() == DrawingEngine::vulkan)
+                if (captureVulkan)
                 {
 #ifdef UI_PARITY_HAS_VULKAN_CAPTURE
                     const auto request = Ui::Vulkan::Diagnostic::ArmNextCapture(*engine, name);
@@ -850,6 +899,7 @@ int main(int argc, char** argv)
                     }
 #endif
                 }
+#ifndef OPENRCT2_VULKAN_ONLY
                 else
                 {
                     UiParity::ArmSdlCapture(name);
@@ -857,6 +907,7 @@ int main(int argc, char** argv)
                     capture = UiParity::TakeSdlCapture();
                     indexed = ReadSoftwareCanvas(*engine->getRT());
                 }
+#endif
 #ifdef OPENRCT2_VIEWPORT_PAINT_DIAGNOSTICS
                 const auto cpuPaint = Drawing::Diagnostic::ReadViewportPaintCounts();
                 sampleMetadata["cpuViewportPaint"] = {{"generate",cpuPaint.generate},{"arrange",cpuPaint.arrange},
@@ -914,6 +965,15 @@ int main(int argc, char** argv)
                 if (worldMotion)
                 {
                     sampleMetadata["worldMotion"]["drawCount"] = {{"before",paintDrawCountBefore},{"after",gCurrentDrawCount}};
+#ifdef OPENRCT2_PRESENTATION_SOURCE_TICK_VERSION
+                    const auto consumed = ViewportGetPresentationGeneration();
+                    if (consumed == nullptr || consumed->entities == nullptr)
+                        throw std::runtime_error("Motion capture did not consume an immutable entity publication");
+                    auto consumedVehicles = MotionVehicleCensus(consumed->entities.get());
+                    consumedVehicles.erase("scenarioRng"); // The published payload does not own the live RNG.
+                    sampleMetadata["worldMotion"]["consumedVehicles"] = std::move(consumedVehicles);
+                    sampleMetadata["worldMotion"]["consumedSourceTick"] = consumed->sourceTick;
+#endif
                     if (sampleMetadata.at("simulationTicks") != getGameState().currentTicks
                         || sampleMetadata.at("paletteEffectFrame") != gPaletteEffectFrame
                         || sampleMetadata.at("worldMotion").at("vehicles") != MotionVehicleCensus()

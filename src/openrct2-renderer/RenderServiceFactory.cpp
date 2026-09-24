@@ -5,11 +5,10 @@
 #include "RenderServiceFactory.h"
 
 #include <openrct2/OpenRCT2.h>
-#include <openrct2/config/Config.h>
-#include <openrct2/drawing/IDrawingEngine.h>
 #include <openrct2/drawing/RenderService.h>
 #include <utility>
 #ifdef ENABLE_VULKAN
+    #include "gpu/GpuAtlas.h"
     #include "gpu/GpuGraphicsLookupTables.h"
     #include "vulkan/VulkanRenderService.h"
 
@@ -40,14 +39,10 @@ namespace OpenRCT2::Renderer
             }
             bool IsEnabled() const override
             {
-                return gIntegratedBenchmark.drawingEngine.value_or(Config::Get().general.drawingEngine)
-                    == DrawingEngine::vulkan;
+                return true;
             }
             std::unique_ptr<Drawing::IRenderService> Create() override
             {
-                if (!IsEnabled())
-                    throw Drawing::RenderServiceException(
-                        { Drawing::RenderErrorCode::unavailable, "Vulkan rendering is not selected in the loaded configuration" });
 #ifdef ENABLE_VULKAN
                 // LazyRenderService calls this on the Context owner thread only
                 // after the caller has loaded its graphics. No worker reads G1.
@@ -60,6 +55,9 @@ namespace OpenRCT2::Renderer
                         { Drawing::RenderErrorCode::unavailable, "Vulkan image rendering requires loaded base graphics" });
                 auto& environment = GetContext()->GetPlatformEnvironment();
                 Ui::Vulkan::RenderServiceOptions options;
+                // World captures need the display renderer's capacity: each sprite size class occupies a layer.
+                // Allocated lazily on the first submitted job (256 MiB of R8 atlas storage, instead of 16 MiB).
+                options.atlasLayers = Ui::Gpu::kAtlasLayers;
                 options.shaderDirectory = Path::Combine(
                     environment.GetDirectoryPath(DirBase::openrct2, DirId::shaders), "vulkan");
                 const auto lookup = Ui::Gpu::CaptureGraphicsLookupTables();

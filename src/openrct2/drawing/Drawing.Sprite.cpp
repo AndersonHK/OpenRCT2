@@ -724,7 +724,7 @@ std::optional<Gx> GfxLoadGx(const std::vector<uint8_t>& buffer)
     return std::nullopt;
 }
 
-static std::optional<PaletteMap> FASTCALL GfxDrawSpriteGetPalette(ImageId imageId)
+std::optional<PaletteMap> FASTCALL GfxDrawSpriteGetPalette(ImageId imageId)
 {
     if (!imageId.HasSecondary())
     {

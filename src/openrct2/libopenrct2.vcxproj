@@ -265,6 +265,7 @@
     <ClInclude Include="drawing\PresentationGeneration.h" />
     <ClInclude Include="drawing\PresentationScene.h" />
     <ClInclude Include="drawing\RetainedBalloonScene.h" />
+    <ClInclude Include="drawing\RetainedPeepState.h" />
     <ClInclude Include="drawing\IDrawingEngine.h" />
     <ClInclude Include="drawing\Image.h" />
     <ClInclude Include="drawing\ImageId.hpp" />
@@ -942,6 +943,7 @@
     <ClCompile Include="drawing\PickupPeep.cpp" />
     <ClCompile Include="drawing\PresentationScene.cpp" />
     <ClCompile Include="drawing\RetainedBalloonScene.cpp" />
+    <ClCompile Include="drawing\RetainedPeepState.cpp" />
     <ClCompile Include="drawing\Rectangle.cpp" />
     <ClCompile Include="drawing\RenderTarget.cpp" />
     <ClCompile Include="drawing\ScrollingText.cpp" />

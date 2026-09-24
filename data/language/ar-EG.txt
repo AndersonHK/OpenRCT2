@@ -2919,11 +2919,6 @@ STR_5871    :تعطيل ذبول النباتات
 STR_5872    :Disable plant ageing such that they don’t wilt.
 STR_5873    :Allow chain lifts on all track pieces
 STR_5874    :Allows any piece of track to be made into a chain lift
-STR_5875    :محرك الرسم:
-STR_5876    :المحرك المُستخدم في رسم اللعبة.
-STR_5877    :البرمجيات
-STR_5878    :البرمجيات (عرض الأجهزة)
-STR_5879    :أوبن جي إل (تجريبي)
 STR_5880    :المحدد فقط
 STR_5881    :الغير محدد فقط
 STR_5882    :العملة المخصصة

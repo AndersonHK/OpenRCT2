@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -18,6 +19,7 @@ from PIL import Image, ImageChops
 
 FIXTURE_STEPS = {
     "baseline": ("baseline",),
+    "options-display": ("empty-ui", "options-display", "restored"),
     "world-dirty": ("dirty-baseline", "dirty-upper-canopy", "dirty-interior", "dirty-diagonal",
                     "dirty-lower-band", "dirty-full-restored"),
     "transparent-history": ("history-post-load", "history-opaque-first", "history-opaque-settled", "history-transparent-first",
@@ -47,6 +49,8 @@ for _family in ("overlap", "scroll", "text", "world-dirty"):
 
 LIFECYCLE_PHASES = ("lifecycle-software-initial", "lifecycle-vulkan-first", "lifecycle-vulkan-after-aux",
                     "lifecycle-vulkan-recreated", "lifecycle-software-return", "lifecycle-vulkan-return")
+VULKAN_ONLY_LIFECYCLE_PHASES = ("lifecycle-vulkan-initial", "lifecycle-vulkan-first", "lifecycle-vulkan-after-aux",
+                              "lifecycle-vulkan-recreated", "lifecycle-vulkan-recreated-again", "lifecycle-vulkan-return")
 
 
 def validate_world_motion_samples(samples, ticks):
@@ -66,6 +70,14 @@ def validate_world_motion_samples(samples, ticks):
             count = motion.get("drawCount", {})
             census = motion.get("vehicles", {})
             records = census.get("records", [])
+            consumed = motion.get("consumedVehicles", {})
+            consumed_tick = motion.get("consumedSourceTick")
+            if (type(consumed_tick) is not int or not 0 <= consumed_tick <= 0xffffffff
+                    or consumed.get("schema") != 1 or consumed.get("columns") != census.get("columns")
+                    or consumed.get("count", 0) <= 0
+                    or consumed.get("count") != len(consumed.get("records", []))
+                    or any(len(record) != 25 for record in consumed.get("records", []))):
+                failures.append("Missing or malformed consumed publication " + name)
             ordinal = tick * 2 + pass_index + 3
             if (motion.get("schema") != 1 or type(initial) is not int or motion.get("initialTick") != initial
                     or meta.get("simulationTicks") != initial + tick or motion.get("tickOffset") != tick
@@ -93,6 +105,10 @@ def validate_world_motion_samples(samples, ticks):
         if (first.get("metadata", {}).get("worldMotion", {}).get("vehicles")
                 != second.get("metadata", {}).get("worldMotion", {}).get("vehicles")):
             failures.append("Motion pair vehicle/RNG state changed at tick " + str(tick))
+        for key in ("consumedVehicles", "consumedSourceTick"):
+            if (first.get("metadata", {}).get("worldMotion", {}).get(key)
+                    != second.get("metadata", {}).get("worldMotion", {}).get(key)):
+                failures.append("Motion pair consumed publication changed at tick " + str(tick) + ": " + key)
         for layer in ("indexedSha256", "rgbaSha256"):
             if not first.get(layer) or first.get(layer) != second.get(layer):
                 failures.append("Motion damage/full repaint differs at tick " + str(tick) + ": " + layer)
@@ -303,22 +319,29 @@ def validate_native_terrain_sample(metadata, expected_tiles, fallback):
     return list(dict.fromkeys(failures))
 
 
-def validate_shared_lifecycle(report, samples, indices, rgba):
+def validate_shared_lifecycle(report, samples, indices, rgba, vulkan_only=False):
     """Independent lifecycle topology and byte-pattern checks; no device references."""
     failures = []
     if not isinstance(report, dict):
         return ["Shared lifecycle report must be an object"]
-    if (report.get("version") != 1 or report.get("status") != "pass"
+    phase_names = VULKAN_ONLY_LIFECYCLE_PHASES if vulkan_only else LIFECYCLE_PHASES
+    if vulkan_only:
+        if (report.get("version") != 2 or report.get("status") != "pass"
+                or report.get("rendererContract") != "vulkan-only-v1"
+                or report.get("ownerCreatedAfterVulkanStartup") is not True):
+            failures.append("Shared lifecycle lacks the pinned Vulkan-only startup proof")
+    elif (report.get("version") != 1 or report.get("status") != "pass"
             or report.get("ownerUncreatedAfterSoftwareStartup") is not True):
         failures.append("Shared lifecycle lacks a passing deferred-owner proof")
     phases = report.get("phases", [])
-    if not isinstance(phases, list) or [p.get("name") for p in phases if isinstance(p, dict)] != list(LIFECYCLE_PHASES):
+    if not isinstance(phases, list) or [p.get("name") for p in phases if isinstance(p, dict)] != list(phase_names):
         return failures + ["Shared lifecycle phase sequence is missing or malformed"]
-    first = phases[1]
+    device_phases = phases if vulkan_only else phases[1:]
+    first = device_phases[0]
     for key in ("contextIdentity", "deviceIdentity"):
-        if type(first.get(key)) is not int or first[key] <= 0 or any(p.get(key) != first[key] for p in phases[1:]):
+        if type(first.get(key)) is not int or first[key] <= 0 or any(p.get(key) != first[key] for p in device_phases):
             failures.append("Shared device identity changed or is absent: " + key)
-        if phases[0].get(key) is not None:
+        if not vulkan_only and phases[0].get(key) is not None:
             failures.append("Initial software phase unexpectedly observed a device")
     ids = [p.get("windowId") for p in phases]
     if (any(type(value) is not int or value <= 0 for value in ids) or ids[2] != ids[1]
@@ -326,14 +349,14 @@ def validate_shared_lifecycle(report, samples, indices, rgba):
         failures.append("Real window identities do not prove the required recreation topology")
     tick = phases[0].get("simulationTicks")
     for index, phase in enumerate(phases):
-        name = LIFECYCLE_PHASES[index]
-        expected_renderer = "softwareWithHardwareDisplay" if index in (0, 4) else "vulkan"
+        name = phase_names[index]
+        expected_renderer = "softwareWithHardwareDisplay" if not vulkan_only and index in (0, 4) else "vulkan"
         metadata = samples.get(name, {}).get("metadata", {})
         if (phase.get("renderer") != expected_renderer or metadata.get("renderer") != expected_renderer
                 or type(tick) is not int or phase.get("simulationTicks") != tick or metadata.get("simulationTicks") != tick):
             failures.append("Lifecycle renderer or paused tick mismatch: " + name)
         for key in ("rgbaSha256", "indexedSha256"):
-            if not samples.get(name, {}).get(key) or samples[name][key] != samples.get(LIFECYCLE_PHASES[0], {}).get(key):
+            if not samples.get(name, {}).get(key) or samples[name][key] != samples.get(phase_names[0], {}).get(key):
                 failures.append("Lifecycle screen changed across transitions: " + name + ": " + key)
     auxiliary = report.get("auxiliary", {})
     if (auxiliary.get("exactPattern") is not True or auxiliary.get("indexedBytes") != 4096
@@ -599,8 +622,11 @@ def main():
     parser.add_argument("--require-balloon-count", type=int, help="Require exact positive immutable balloon census in every lane")
     parser.add_argument("--balloon-input-receipt", type=Path, help="Accepted frozen-export manifest; required with positive balloon census")
     parser.add_argument("--paint-stable-sort", choices=("true", "false"), default="false")
+    parser.add_argument("--cherry-fixture", choices=("rct2ww.scenery_small.japchblo", "rct2ww.scenery_small.jachtree"))
     parser.add_argument("--viewport-flags", type=lambda value: int(value, 0), default=0)
     args = parser.parse_args()
+    if args.cherry_fixture and args.fixture not in ("world-dirty",) + MOTION_FAMILIES:
+        raise SystemExit("Cherry substitution requires an explicit world ordering fixture")
     if args.fixture in ("world-dirty", "world-dirty-incremental") + MOTION_FAMILIES and (
             args.gpu_terrain or args.gpu_balloons or args.retained_balloons or args.shared_service_lifecycle
             or args.require_balloon_count is not None or args.viewport_flags or args.window_scale != 1
@@ -659,6 +685,19 @@ def main():
     build = json.loads(receipt_path.read_text(encoding="utf-8"))
     if build["status"] != "pass":
         raise SystemExit("Capture build receipt did not pass")
+    # Select the changed contract only from the exact header compiled into this build.
+    # External frozen source retains its software/switching contract without the macro.
+    renderer_header_name = "src/openrct2/drawing/IDrawingEngine.h"
+    renderer_header = Path(build["sourceRoot"]) / renderer_header_name
+    renderer_header_digest = build.get("sourceSha256", {}).get("source/" + renderer_header_name)
+    if not renderer_header_digest or not renderer_header.is_file() or sha256(renderer_header) != renderer_header_digest:
+        raise SystemExit("Renderer contract header does not match the compiled source manifest")
+    vulkan_only = re.search(r"(?m)^\s*#\s*define\s+OPENRCT2_VULKAN_ONLY\s+1\s*$",
+                            renderer_header.read_text(encoding="utf-8")) is not None
+    renderer_contract = {"vulkanOnly": vulkan_only, "header": str(renderer_header),
+                         "sha256": renderer_header_digest, "macro": "OPENRCT2_VULKAN_ONLY"}
+    if vulkan_only and args.renderer != "vulkan":
+        raise SystemExit("This receipt-pinned Vulkan-only build requires --renderer vulkan")
     build_root = receipt_path.parent
     for name, digest in build["artifactSha256"].items():
         path = (build_root / name).resolve(strict=True)
@@ -853,6 +892,8 @@ def main():
         command += ["--require-world-surfaces", args.require_world_surfaces]
     if args.paint_stable_sort == "true":
         command += ["--paint-stable-sort", "true"]
+    if args.cherry_fixture:
+        command += ["--cherry-fixture", args.cherry_fixture]
     if args.gpu_terrain:
         command += ["--gpu-terrain", "true"]
     if args.gpu_balloons:
@@ -893,12 +934,15 @@ def main():
             "test/ui-parity/UiSharedServiceLifecycle.h", "test/ui-parity/UiParityMain.cpp")
         if args.fixture in ("world-dirty", "world-dirty-incremental") + MOTION_FAMILIES:
             diagnostic_headers += ("test/ui-parity/UiTreeTrackSceneLocator.h",)
+        if args.cherry_fixture:
+            diagnostic_headers += ("test/ui-parity/UiCherryTrackFixture.h",)
         for relative in diagnostic_headers:
             path = root / relative
             if sha256(path) != build.get("sourceSha256", {}).get("harness/" + relative):
                 raise SystemExit("UI lifecycle harness does not match the compiled receipt: " + relative)
             lifecycle_pins[path] = sha256(path)
-        lifecycle_pins.update({receipt_path: sha256(receipt_path), Path(__file__).resolve(): sha256(Path(__file__)),
+        lifecycle_pins.update({renderer_header: renderer_header_digest,
+                              receipt_path: sha256(receipt_path), Path(__file__).resolve(): sha256(Path(__file__)),
                               park: sha256(park)})
         if shader_receipt is not None:
             lifecycle_pins[shader_receipt_path] = sha256(shader_receipt_path)
@@ -954,7 +998,7 @@ def main():
     required_names = (list(FIXTURE_STEPS[args.fixture]) if temporal_sequence else
                       [step + "-" + str(repetition) for repetition in range(2) for step in FIXTURE_STEPS[args.fixture]])
     if args.shared_service_lifecycle:
-        required_names = list(LIFECYCLE_PHASES)
+        required_names = list(VULKAN_ONLY_LIFECYCLE_PHASES if vulkan_only else LIFECYCLE_PHASES)
     for name in required_names:
         sample = output / "captures" / name
         raw = sample / "screen.rgba"
@@ -964,9 +1008,22 @@ def main():
             failures.append("Missing required capture " + name)
             continue
         metadata = json.loads(report.read_text(encoding="utf-8"))
+        if vulkan_only and (metadata.get("vulkanOnly") is not True or metadata.get("renderer") != "vulkan"):
+            failures.append("Capture does not satisfy its pinned Vulkan-only contract " + name)
+        elif not vulkan_only and metadata.get("vulkanOnly") is True:
+            failures.append("Capture claims a Vulkan-only contract absent from its source manifest " + name)
         failures.extend(name + ": " + reason for reason in validate_camera_sample(metadata, args))
         if metadata.get("paintStableSort", False) is not (args.paint_stable_sort == "true"):
             failures.append("Actual paint stable-sort policy differs " + name)
+        cherry = metadata.get("cherryFixture")
+        if args.cherry_fixture:
+            if (not isinstance(cherry, dict) or cherry.get("kind") != "everythingpark-adjacent-cherry-substitution"
+                    or cherry.get("after", {}).get("id") != args.cherry_fixture
+                    or cherry.get("treeTile") != [154, 210] or cherry.get("treeBaseZ") != 336
+                    or cherry.get("track", {}).get("tile") != [155, 210]):
+                failures.append("Missing or incorrect cherry substitution " + name)
+        elif cherry is not None:
+            failures.append("Unexpected world mutation in ordinary capture " + name)
         if args.renderer == "vulkan" and args.require_world_surfaces != "any":
             coverage = metadata.get("commandCoverage", {})
             expected_native = args.require_world_surfaces == "true"
@@ -1026,11 +1083,12 @@ def main():
             reference_report = json.loads((comparison / "report.json").read_text(encoding="utf-8"))
             if reference_report.get("paintStableSort", False) is not (args.paint_stable_sort == "true"):
                 failures.append("Reference paint stable-sort policy differs " + name)
-            for key in ("fixture", "fixtureVersion", "logicalExtent", "physicalExtent", "viewPosition", "rotation", "zoom", "cameraMode", "assetState", "simulationTicks", "paletteEffectFrame", "landscapeSmoothing", "viewportFlags", "language", "themePreset", "windowScale", "scaleQuality", "inputState", "step", "repetition", "lighting", "weather", "fonts", "scaling", "balloonState", "transparentHistory"):
+            for key in ("fixture", "fixtureVersion", "logicalExtent", "physicalExtent", "viewPosition", "rotation", "zoom", "cameraMode", "assetState", "simulationTicks", "paletteEffectFrame", "landscapeSmoothing", "viewportFlags", "language", "themePreset", "windowScale", "scaleQuality", "inputState", "step", "repetition", "lighting", "weather", "fonts", "scaling", "balloonState", "transparentHistory", "cherryFixture"):
                 if reference_report.get(key) != metadata.get(key):
                     failures.append("Fixture input mismatch " + name + ": " + key)
             if args.fixture in MOTION_FAMILIES:
-                for key in ("schema", "initialTick", "tickOffset", "totalTicks", "pass", "positions", "vehicles"):
+                for key in ("schema", "initialTick", "tickOffset", "totalTicks", "pass", "positions", "vehicles",
+                            "consumedVehicles", "consumedSourceTick"):
                     if reference_report.get("worldMotion", {}).get(key) != metadata.get("worldMotion", {}).get(key):
                         failures.append("World motion state mismatch " + name + ": " + key)
             expected = (comparison / "screen.rgba").read_bytes()
@@ -1311,7 +1369,7 @@ def main():
         try:
             lifecycle_report = json.loads(report_path.read_text(encoding="utf-8"))
             auxiliary_indices, auxiliary_rgba = index_path.read_bytes(), rgba_path.read_bytes()
-            failures.extend(validate_shared_lifecycle(lifecycle_report, samples, auxiliary_indices, auxiliary_rgba))
+            failures.extend(validate_shared_lifecycle(lifecycle_report, samples, auxiliary_indices, auxiliary_rgba, vulkan_only))
             Image.frombytes("RGBA", (64, 64), auxiliary_rgba).save(output / "captures/lifecycle-aux.png")
             lifecycle_proof = {"report": lifecycle_report, "reportSha256": sha256(report_path),
                                "auxIndexedSha256": sha256(index_path), "auxRgbaSha256": sha256(rgba_path),
@@ -1338,7 +1396,9 @@ def main():
         if terrain_changed:
             failures.append("Terrain diagnostic inputs changed: " + "; ".join(terrain_changed))
     summary = {"schema": 1, "status": "fail" if failures else "pass", "failures": failures,
+               "rendererContract": renderer_contract,
                "sharedServiceLifecycle": args.shared_service_lifecycle, "sharedServiceProof": lifecycle_proof,
+               "cherryFixture": args.cherry_fixture,
                "transparentHistoryProof": history_proof, "historyClearZero": args.history_clear_zero,
                 "worldDirtyProof":world_dirty_proof, "worldMotionProof":motion_proof,
                 "sceneLocatorProof":scene_locator_proof,

@@ -18,10 +18,13 @@ build = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(build)
 
 
-def inputs(source):
+def inputs(source, driver='screenshot'):
     result = build.source_manifest(source, source)
     result.update({'harness/' + path.relative_to(source).as_posix(): build.sha256(path)
                    for path in sorted((source / 'test/cli-parity').rglob('*')) if path.is_file()})
+    if driver == 'track-preview':
+        result.update({'harness/' + path.relative_to(source).as_posix(): build.sha256(path)
+                       for path in sorted((source / 'test/track-preview-parity').rglob('*')) if path.is_file()})
     return result
 
 
@@ -33,7 +36,7 @@ def file_manifest(paths):
     return {str(path): build.sha256(path) for path in paths if path.is_file()}
 
 
-def driver_project(source, output):
+def driver_project(source, output, driver='screenshot'):
     child = build.child
     project = ET.Element(build.tag('Project'), {'ToolsVersion': 'Current'})
     group = child(project, 'ItemGroup', Label='ProjectConfigurations')
@@ -56,7 +59,9 @@ def driver_project(source, output):
     child(linker, 'SubSystem', 'Console')
     child(linker, 'StackReserveSize', '8388608')
     group = child(project, 'ItemGroup')
-    child(group, 'ClCompile', Include=str(source / 'test/cli-parity/ScreenshotMain.cpp'))
+    entrypoint = {'screenshot': 'test/cli-parity/ScreenshotMain.cpp',
+                  'track-preview': 'test/track-preview-parity/TrackPreviewMain.cpp'}[driver]
+    child(group, 'ClCompile', Include=str(source / entrypoint))
     child(project, 'Import', Project=r'$(VCTargetsPath)\Microsoft.Cpp.targets')
     path = output / 'screenshot-driver.vcxproj'
     build.write_xml(path, project)
@@ -69,6 +74,7 @@ def main():
     parser.add_argument('--reuse-build', type=Path, required=True)
     parser.add_argument('--msbuild', type=Path)
     parser.add_argument('--toolset-version')
+    parser.add_argument('--driver', choices=('screenshot', 'track-preview'), default='screenshot')
     args = parser.parse_args()
     source = Path(__file__).resolve().parents[2]
     output = args.output.resolve()
@@ -77,7 +83,8 @@ def main():
     output.mkdir(parents=True)
     core = build.make_library_project(source, source, output, True, ui=False)
     renderer = build.make_library_project(source, source, output, True, ui=False, renderer=True)
-    driver = driver_project(source, output)
+    driver = driver_project(source, output, args.driver)
+    target_name = 'screenshot-parity' if args.driver == 'screenshot' else 'track-preview-parity'
     reuse_receipt_path = args.reuse_build.resolve(strict=True)
     if reuse_receipt_path.is_dir():
         reuse_receipt_path /= 'receipt.json'
@@ -103,7 +110,7 @@ def main():
                     option = build.child(item, 'MultiProcessorCompilation')
                 option.text = 'false'
             build.write_xml(project_path, project)
-    before = inputs(source)
+    before = inputs(source, args.driver)
     dependencies = build.dependency_manifest(source)
     msbuild = build.find_msbuild(args.msbuild)
     common = ['/m:1', '/nr:false', '/p:Configuration=Release', '/p:Platform=x64',
@@ -113,6 +120,9 @@ def main():
     if args.toolset_version:
         common.append('/p:VCToolsVersion=' + args.toolset_version)
     env = {key.upper() if os.name == 'nt' else key: value for key, value in os.environ.items()}
+    for key in ('CL', '_CL_', 'LINK', '_LINK_', 'OPENRCT2_CL_ADDITIONALOPTIONS',
+                'CUSTOMBEFOREMICROSOFTCOMMONPROPS', 'CUSTOMAFTERMICROSOFTCOMMONTARGETS'):
+        env.pop(key, None)
     toolchain = build.compiler_identity(msbuild, core, common, env, output)
     reuse, _ = build.prepare_reuse(args.reuse_build, before, dependencies, toolchain, common, True, output)
     if set(reuse) != {'core', 'renderer'}:
@@ -129,7 +139,7 @@ def main():
         fixed_paths.append(copied)
     fixed_before = file_manifest(fixed_paths)
     command = [msbuild, str(driver), *common, '/p:IntDir=' + str(output / 'int/driver') + os.sep,
-               '/p:TargetName=screenshot-parity']
+               '/p:TargetName=' + target_name]
     with (output / 'build.log').open('w', encoding='utf-8') as log:
         log.write('REUSED ' + json.dumps(reuse) + '\nCOMMAND ' + json.dumps(command) + '\n')
         log.flush()
@@ -142,12 +152,12 @@ def main():
         runtime[path.name] = build.sha256(destination)
         if runtime[path.name] != dependencies.get('bin/' + path.name):
             runtime_copy_mismatches.append(path.name)
-    after = inputs(source)
+    after = inputs(source, args.driver)
     dependency_after = build.dependency_manifest(source)
     changes = changed(before, after)
     dependency_changes = changed(dependencies, dependency_after)
     fixed_changes = changed(fixed_before, file_manifest(fixed_paths))
-    artifacts = [output / 'bin' / name for name in ('libopenrct2.lib', 'libopenrct2renderer.lib', 'screenshot-parity.exe')]
+    artifacts = [output / 'bin' / name for name in ('libopenrct2.lib', 'libopenrct2renderer.lib', target_name + '.exe')]
     missing = [str(path) for path in artifacts if not path.is_file()]
     reuse_receipt_unchanged = build.sha256(reuse_receipt_path) == reuse_receipt_before
     passed = (result.returncode == 0 and not changes and not dependency_changes and not missing
@@ -155,7 +165,7 @@ def main():
     stages = [{'name': name, 'exitCode': 0, 'reused': reused} for name, reused in reuse.items()]
     stages.append({'name': 'driver', 'exitCode': result.returncode})
     receipt = {'schema': 1, 'status': 'pass' if passed else 'fail', 'exitCode': result.returncode,
-               'sourceRoot': str(source), 'commands': [command], 'stageResults': stages,
+               'sourceRoot': str(source), 'driver': args.driver, 'commands': [command], 'stageResults': stages,
                'compilerConcurrency': concurrency, 'reuseReceiptUnchanged': reuse_receipt_unchanged,
                'reuseReceipt': {'path': str(reuse_receipt_path), 'sha256': reuse_receipt_before},
                'fixedBuildInputSha256': fixed_before, 'fixedBuildInputChangesDuringBuild': fixed_changes,
@@ -167,7 +177,7 @@ def main():
                'buildLogSha256': build.sha256(output / 'build.log'),
                'builderSha256': {str(path): build.sha256(path) for path in (Path(__file__), HELPER)},
                'missingArtifacts': missing,
-               'scope': 'Real screenshot dispatcher with diagnostic injected service; default factory-free branch unchanged. No main window, no full parity claim.'}
+               'scope': 'Real Vulkan-only ' + args.driver + ' entrypoint. No main window, no full parity claim.'}
     (output / 'receipt.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
     print(json.dumps({'status': receipt['status'], 'receipt': str(output / 'receipt.json')}))
     raise SystemExit(0 if passed else 1)

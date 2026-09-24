@@ -21,6 +21,7 @@
 #include <cstdint>
 #include <iterator>
 #include <memory>
+#include <span>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -42,6 +43,10 @@ namespace OpenRCT2
     class EntityRegistry;
     class EntityPresentationSnapshot;
     class EntityStorage;
+    namespace Drawing
+    {
+        struct RetainedEntityPublicationInput;
+    }
 
     // Allocation-free ascending membership with the former list iterator's mutation semantics.
     class EntityIdList
@@ -71,8 +76,7 @@ namespace OpenRCT2
                     summary &= ~uint64_t{ 0 } << (start % kBitsPerWord);
                 if (summary != 0)
                 {
-                    const auto wordIndex =
-                        (summaryIndex * kBitsPerWord) + static_cast<size_t>(std::countr_zero(summary));
+                    const auto wordIndex = (summaryIndex * kBitsPerWord) + static_cast<size_t>(std::countr_zero(summary));
                     return wordIndex;
                 }
             }
@@ -93,8 +97,7 @@ namespace OpenRCT2
                     return kEndIndex;
                 word = _membership[wordIndex];
             }
-            const auto index = static_cast<uint32_t>(
-                (wordIndex * kBitsPerWord) + static_cast<size_t>(std::countr_zero(word)));
+            const auto index = static_cast<uint32_t>((wordIndex * kBitsPerWord) + static_cast<size_t>(std::countr_zero(word)));
             return index < kMaxEntities ? index : kEndIndex;
         }
 
@@ -124,8 +127,14 @@ namespace OpenRCT2
             return true;
         }
 
-        bool insert(EntityId id) noexcept { return SetMembership(id, true); }
-        bool erase(EntityId id) noexcept { return SetMembership(id, false); }
+        bool insert(EntityId id) noexcept
+        {
+            return SetMembership(id, true);
+        }
+        bool erase(EntityId id) noexcept
+        {
+            return SetMembership(id, false);
+        }
 
         void clear() noexcept
         {
@@ -212,8 +221,14 @@ namespace OpenRCT2
             return const_iterator(*this, kEndIndex);
         }
 
-        [[nodiscard]] size_t size() const noexcept { return _size; }
-        [[nodiscard]] bool empty() const noexcept { return _size == 0; }
+        [[nodiscard]] size_t size() const noexcept
+        {
+            return _size;
+        }
+        [[nodiscard]] bool empty() const noexcept
+        {
+            return _size == 0;
+        }
     };
 
     static_assert(sizeof(EntityIdList) <= 9 * 1024, "Entity id membership should remain cache compact");
@@ -344,11 +359,22 @@ namespace OpenRCT2
         // A family filter retains identity/tombstone metadata for every dirty slot, but copies concrete payload only
         // for that family. null preserves the existing all-family capture. One publication owner consumes this queue.
         [[nodiscard]] EntityVisualChangeBatch ConsumeEntityVisualChanges(EntityType payloadFamily = EntityType::null);
+        // Alternative mode of the same single-owner dirty stream, never a second consumer. Call only at an
+        // authoritative completed-state boundary before tweening, with catalog generations indexed by object slot.
+        // It captures only dirty peep field groups, not whole records. Invalid capture leaves notifications pending.
+        // Starting after another mode consumed the reset requires explicit bootstrap by the publication owner.
+        // Appearance mutation coverage and object-catalog lifetime must be qualified before renderer admission.
+        // Two-phase shared intake. The same authoritative owner barrier must span prepare and acknowledgement.
+        // No mutation may intervene; this is not a second dirty-stream subscriber.
+        [[nodiscard]] Drawing::RetainedEntityPublicationInput CaptureRetainedEntityPublication(
+            uint32_t sourceTick, std::span<const uint32_t> loadedObjectGenerations, bool bootstrap,
+            bool includeBalloonCompatibility = true) const;
+        void AcknowledgeRetainedEntityPublication();
         [[nodiscard]] uint64_t GetEntityVisualEpoch() const noexcept
         {
             return _entityVisualEpoch;
         }
-        void PublishEntityVisualState(EntityBase& entity) noexcept;
+        void PublishEntityVisualState(EntityBase& entity, EntityVisualDirty dirty = EntityVisualDirty::full) noexcept;
         void CaptureEntityPresentationStorage(EntityPresentationSnapshot& snapshot) const;
 
 #ifndef DISABLE_NETWORK
@@ -399,9 +425,9 @@ namespace OpenRCT2
 
     private:
         static constexpr std::array kMiscEntityTypes{
-            EntityType::steamParticle, EntityType::moneyEffect, EntityType::crashedVehicleParticle,
-            EntityType::explosionCloud, EntityType::crashSplash, EntityType::explosionFlare,
-            EntityType::jumpingFountain, EntityType::balloon, EntityType::duck,
+            EntityType::steamParticle,   EntityType::moneyEffect, EntityType::crashedVehicleParticle,
+            EntityType::explosionCloud,  EntityType::crashSplash, EntityType::explosionFlare,
+            EntityType::jumpingFountain, EntityType::balloon,     EntityType::duck,
         };
 
         static uint32_t ComputeSpatialIndex(const CoordsXY& location) noexcept;

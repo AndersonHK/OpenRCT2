@@ -18,7 +18,6 @@
 #include "../core/File.h"
 #include "../core/Path.hpp"
 #include "../core/String.hpp"
-#include "../drawing/IDrawingEngine.h"
 #include "../network/Network.h"
 #include "../object/ObjectRepository.h"
 #include "../park/ParkFile.h"
@@ -67,6 +66,7 @@ namespace OpenRCT2
     static bool _benchmarkUi = false;
     static bool _benchmarkVisible = false;
     static bool _benchmarkUploadTelemetry = false;
+    static bool _benchmarkFinalScreenshot = false;
     static int32_t _benchmarkWarmupSeconds = 5;
     static int32_t _benchmarkDurationSeconds = 30;
     static int32_t _benchmarkWarmupTicks = -1;
@@ -96,6 +96,7 @@ namespace OpenRCT2
         { CMDLINE_TYPE_STRING,  &_rct1DataPath,     kNAC, "rct1-data-path",     "path to the RollerCoaster Tycoon 1 data directory (containing data/csg1.dat)" },
         { CMDLINE_TYPE_STRING,  &_rct2DataPath,     kNAC, "rct2-data-path",     "path to the RollerCoaster Tycoon 2 data directory (containing data/g1.dat)" },
         { CMDLINE_TYPE_SWITCH,  &_benchmarkUi,      kNAC, "benchmark-ui",        "run a hidden integrated UI benchmark and exit"                 },
+        { CMDLINE_TYPE_SWITCH, &_benchmarkFinalScreenshot, kNAC, "benchmark-final-screenshot", "save one final main-canvas screenshot after benchmark timing stops" },
         { CMDLINE_TYPE_SWITCH, &_benchmarkUploadTelemetry, kNAC, "benchmark-upload-telemetry", "aggregate Vulkan API upload payload accounting (attribution only)" },
         { CMDLINE_TYPE_SWITCH,  &_benchmarkVisible, kNAC, "benchmark-visible",   "show the integrated benchmark window for compositor testing"   },
         { CMDLINE_TYPE_INTEGER, &_benchmarkWarmupSeconds, kNAC, "benchmark-warmup", "unmeasured integrated benchmark warm-up in seconds"       },
@@ -103,7 +104,7 @@ namespace OpenRCT2
         { CMDLINE_TYPE_INTEGER, &_benchmarkWarmupTicks, kNAC, "benchmark-warmup-ticks", "fixed unmeasured integrated warm-up ticks (-1 uses seconds)" },
         { CMDLINE_TYPE_INTEGER, &_benchmarkTicks,       kNAC, "benchmark-ticks", "fixed integrated measurement ticks (-1 uses seconds)"          },
         { CMDLINE_TYPE_STRING,  &_benchmarkProfilePath, kNAC, "benchmark-profile", "profile the integrated measurement to a .csv or .json file" },
-        { CMDLINE_TYPE_STRING,  &_benchmarkRenderer, kNAC, "benchmark-renderer", "renderer override: software or vulkan"                       },
+        { CMDLINE_TYPE_STRING,  &_benchmarkRenderer, kNAC, "benchmark-renderer", "renderer: vulkan (the only supported renderer)"             },
         { CMDLINE_TYPE_INTEGER, &_benchmarkVSync,   kNAC, "benchmark-vsync",     "VSync override: -1 configured, 0 disabled, or 1 enabled"       },
     #ifdef USE_BREAKPAD
         { CMDLINE_TYPE_SWITCH,  &_silentBreakpad,  kNAC, "silent-breakpad",   "make breakpad crash reporting silent"                       },
@@ -271,6 +272,11 @@ namespace OpenRCT2
             gOpenRCT2StartupAction = StartupAction::open;
         }
 
+        if (_benchmarkFinalScreenshot && !_benchmarkUi)
+        {
+            Console::Error::WriteLine("--benchmark-final-screenshot requires --benchmark-ui.");
+            return ExitCode::fail;
+        }
         if (_benchmarkUploadTelemetry && !_benchmarkUi)
         {
             Console::Error::WriteLine("--benchmark-upload-telemetry requires --benchmark-ui.");
@@ -282,11 +288,18 @@ namespace OpenRCT2
             return ExitCode::fail;
         }
 
+        if (!_benchmarkRenderer.empty() && _benchmarkRenderer != "vulkan")
+        {
+            Console::Error::WriteLine("--benchmark-renderer must be vulkan.");
+            return ExitCode::fail;
+        }
+
         if (_benchmarkUi)
         {
             if (gOpenRCT2Headless)
             {
-                Console::Error::WriteLine("--benchmark-ui requires the full UI executable and cannot be combined with --headless.");
+                Console::Error::WriteLine(
+                    "--benchmark-ui requires the full UI executable and cannot be combined with --headless.");
                 return ExitCode::fail;
             }
             if (gOpenRCT2StartupAction != StartupAction::open || gOpenRCT2StartupActionPath[0] == '\0')
@@ -311,35 +324,20 @@ namespace OpenRCT2
                 return ExitCode::fail;
             }
 
-            std::optional<DrawingEngine> drawingEngine;
-            if (!_benchmarkRenderer.empty())
-            {
-                if (_benchmarkRenderer == "software")
-                    drawingEngine = DrawingEngine::softwareWithHardwareDisplay;
-#ifdef ENABLE_VULKAN
-                else if (_benchmarkRenderer == "vulkan")
-                    drawingEngine = DrawingEngine::vulkan;
+#ifndef ENABLE_VULKAN
+            Console::Error::WriteLine("--benchmark-ui requires a build with Vulkan support.");
+            return ExitCode::fail;
 #endif
-                else
-                {
-#ifdef ENABLE_VULKAN
-                    Console::Error::WriteLine("--benchmark-renderer must be software or vulkan.");
-#else
-                    Console::Error::WriteLine("--benchmark-renderer must be software; this build has no Vulkan renderer.");
-#endif
-                    return ExitCode::fail;
-                }
-            }
 
             gIntegratedBenchmark.enabled = true;
             gIntegratedBenchmark.visible = _benchmarkVisible;
             gIntegratedBenchmark.uploadTelemetry = _benchmarkUploadTelemetry;
+            gIntegratedBenchmark.finalScreenshot = _benchmarkFinalScreenshot;
             gIntegratedBenchmark.warmupSeconds = _benchmarkWarmupSeconds;
             gIntegratedBenchmark.measurementSeconds = _benchmarkDurationSeconds;
             gIntegratedBenchmark.warmupTicks = _benchmarkWarmupTicks;
             gIntegratedBenchmark.measurementTicks = _benchmarkTicks;
             gIntegratedBenchmark.profilePath = _benchmarkProfilePath;
-            gIntegratedBenchmark.drawingEngine = drawingEngine;
             if (_benchmarkVSync != -1)
                 gIntegratedBenchmark.useVSync = _benchmarkVSync != 0;
         }

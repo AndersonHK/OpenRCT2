@@ -10,13 +10,16 @@
 #include "ParkPreview.h"
 
 #include "../Context.h"
+#include "../Diagnostic.h"
 #include "../GameState.h"
 #include "../OpenRCT2.h"
 #include "../SpriteIds.h"
 #include "../drawing/Drawing.Sprite.h"
 #include "../drawing/Drawing.h"
 #include "../drawing/NewDrawing.h"
-#include "../drawing/X8DrawingEngine.h"
+#include "../drawing/Palette.h"
+#include "../drawing/RenderService.h"
+#include "../drawing/RenderTarget.h"
 #include "../interface/Viewport.h"
 #include "../interface/WindowTypes.h"
 #include "../object/TerrainSurfaceObject.h"
@@ -25,6 +28,7 @@
 #include "../world/tile_element/SurfaceElement.h"
 #include "../world/tile_element/TileElement.h"
 
+#include <cstring>
 #include <optional>
 
 namespace OpenRCT2
@@ -51,8 +55,16 @@ namespace OpenRCT2
         if (auto image = generatePreviewMap(); image != std::nullopt)
             preview.images.push_back(*image);
 
-        if (auto image = generatePreviewScreenshot(); image != std::nullopt)
-            preview.images.push_back(*image);
+        try
+        {
+            if (auto image = generatePreviewScreenshot(); image != std::nullopt)
+                preview.images.push_back(*image);
+        }
+        catch (const std::exception& error)
+        {
+            // The screenshot is optional save metadata. A device failure must not prevent the park from being saved.
+            LOG_ERROR("Park screenshot preview omitted: %s", error.what());
+        }
 
         return preview;
     }
@@ -226,26 +238,52 @@ namespace OpenRCT2
 
         saveVp.viewPos = *viewPos;
 
-        auto drawingEngine = std::make_unique<Drawing::X8DrawingEngine>(GetContext()->GetUiContext());
-        if (!drawingEngine)
-            return std::nullopt;
-
-        drawingEngine->BeginDraw();
-
-        Drawing::RenderTarget rt{
-            .bits = image.pixels,
-            .x = 0,
-            .y = 0,
-            .width = image.width,
-            .height = image.height,
-            .pitch = 0,
-            .zoom_level = saveVp.zoom,
-            .DrawingEngine = drawingEngine.get(),
-        };
-
+        Drawing::OffscreenRenderRequest request;
+        request.name = "park-preview";
+        request.logicalExtent = { image.width, image.height };
+        request.outputExtent = request.logicalExtent;
+        for (size_t i = 0; i < request.palette.size(); ++i)
+        {
+            const auto colour = Drawing::gPalette[i];
+            request.palette[i] = { colour.red, colour.green, colour.blue, colour.alpha };
+        }
+        const auto expectedPalette = request.palette;
+        auto session = GetContext()->GetRenderService().BeginOffscreen(std::move(request));
+        if (!session)
+            throw Drawing::RenderServiceException(
+                { Drawing::RenderErrorCode::creationFailed, "Park preview has no render session" });
+        auto& rt = session->GetRenderTarget();
+        if (rt.x != 0 || rt.y != 0 || rt.width != image.width || rt.height != image.height
+            || rt.bits == nullptr || rt.DrawingEngine == nullptr || rt.pitch < 0)
+        {
+            throw Drawing::RenderServiceException(
+                { Drawing::RenderErrorCode::executionFailed, "Park preview render target differs" });
+        }
+        rt.zoom_level = saveVp.zoom;
         ViewportRender(rt, &saveVp);
-
-        drawingEngine->EndDraw();
+        auto completion = session->Submit();
+        if (!completion)
+            throw Drawing::RenderServiceException(
+                { Drawing::RenderErrorCode::executionFailed, "Park preview has no render completion" });
+        const auto outcome = completion->Wait(std::chrono::seconds(120));
+        if (outcome.error)
+            throw Drawing::RenderServiceException(*outcome.error);
+        if (!outcome.result)
+            throw Drawing::RenderServiceException(
+                { Drawing::RenderErrorCode::executionFailed, "Park preview has no owned output" });
+        const auto& result = *outcome.result;
+        const Drawing::RenderExtent expectedExtent{ image.width, image.height };
+        const auto expectedBytes = static_cast<size_t>(image.width) * image.height;
+        if (outcome.identity != completion->GetIdentity() || result.identity != outcome.identity
+            || result.identity.submissionId == 0 || result.identity.targetId == 0 || result.identity.targetGeneration == 0
+            || result.identity.name != "park-preview" || result.logicalExtent != expectedExtent
+            || result.outputExtent != expectedExtent || result.palette != expectedPalette
+            || result.indexed.size() != expectedBytes || !result.rgba.empty())
+        {
+            throw Drawing::RenderServiceException(
+                { Drawing::RenderErrorCode::executionFailed, "Park preview readback contract differs" });
+        }
+        std::memcpy(image.pixels, result.indexed.data(), expectedBytes);
 
         return image;
     }

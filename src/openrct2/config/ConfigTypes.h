@@ -12,7 +12,6 @@
 #include <cstdint>
 
 enum class VirtualFloorStyles : int32_t;
-enum class DrawingEngine : int32_t;
 enum class TitleMusicKind : int32_t;
 
 namespace OpenRCT2

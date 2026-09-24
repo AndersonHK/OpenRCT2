@@ -1422,7 +1422,7 @@ enum : StringId
     STR_MULTIPLAYER_UNKNOWN_KEY_DISALLOWED = 5864,
     STR_CHEAT_DISABLE_PLANT_AGING = 5871,
     STR_CHEAT_ENABLE_CHAIN_LIFT_ON_ALL_TRACK = 5873,
-    STR_DRAWING_ENGINE_SOFTWARE = 5877,
+    // 5877–5879 reserved: retired drawing-engine choices.
     STR_CUSTOM_CURRENCY = 5882,
     STR_DEBUG_PAINT_USE_OLD_DRAWING = 5900,
     STR_CHEAT_RESET_DATE = 5904,
@@ -1797,7 +1797,7 @@ enum : StringId
     STR_GUESTS_WALKING_TO_PLATFORM_FOR = 8042,
     STR_GUESTS_WAITING_ON_PLATFORM_FOR = 8043,
     STR_QUEUE_AND_PLATFORM_STATUS = 8018,
-    STR_DRAWING_ENGINE_VULKAN = 8019,
+    // 8019 reserved: retired Vulkan renderer-selection label.
 
     // Have to include resource strings (from scenarios and objects) for the time being now that language is partially working
     /* MAX_STR_COUNT = 32768 */ // MAX_STR_COUNT - upper limit for number of strings, not the current count strings

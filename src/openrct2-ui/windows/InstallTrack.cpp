@@ -9,6 +9,7 @@
 
 #include "../UiStringIds.h"
 
+#include <exception>
 #include <memory>
 #include <openrct2-ui/interface/Widget.h>
 #include <openrct2-ui/interface/Window.h>
@@ -356,7 +357,15 @@ namespace OpenRCT2::Ui::Windows
     private:
         void UpdatePreview()
         {
-            TrackDesignDrawPreview(*_trackDesign, _trackDesignPreviewPixels, !gTrackDesignSceneryToggle);
+            try
+            {
+                TrackDesignDrawPreview(*_trackDesign, _trackDesignPreviewPixels, !gTrackDesignSceneryToggle);
+            }
+            catch (const std::exception& error)
+            {
+                LOG_ERROR("Unable to render track installation preview: %s", error.what());
+                std::fill(_trackDesignPreviewPixels.begin(), _trackDesignPreviewPixels.end(), PaletteIndex::transparent);
+            }
         }
 
         void InstallTrackDesign()

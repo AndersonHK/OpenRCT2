@@ -220,6 +220,51 @@ def parse_log(text):
     return result
 
 
+def qualify_final_screenshot(text, profile, output, result, width, height):
+    from PIL import Image
+    clean = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text).replace("\r\n", "\n")
+    record = json.loads(one(clean, r"Final benchmark screenshot v1:\s+(\{.*\})", "final screenshot receipt"))
+    if (record.get("schema") != 1 or record.get("outsideMeasurement") is not True
+            or record.get("authoritativeStateUnchanged") is not True
+            or type(record.get("completedFrameNumber")) is not int or record["completedFrameNumber"] <= 0
+            or record.get("simulationTick") != result["states"]["final"]["simulationTick"]["tick"]
+            or record.get("entityChecksum") != result["finalEntityChecksum"]
+            or type(record.get("partialRender")) is not bool):
+        raise ValueError("Final screenshot state/boundary receipt is inconsistent")
+    if record.get("logicalExtent") != [width, height] or record.get("drawableExtent") != [width, height]:
+        raise ValueError("Final screenshot target extent differs from the measured target")
+    camera = record.get("camera")
+    if (not isinstance(camera, dict) or set(camera) != {"viewPosition", "rotation", "zoom", "flags"}
+            or not isinstance(camera["viewPosition"], list) or len(camera["viewPosition"]) != 2
+            or any(type(v) is not int for v in camera["viewPosition"])
+            or type(camera["rotation"]) is not int or not 0 <= camera["rotation"] <= 3
+            or type(camera["zoom"]) is not int or type(camera["flags"]) is not int):
+        raise ValueError("Final screenshot camera receipt is invalid")
+    source = Path(record["path"]).resolve(strict=True)
+    # PlatformEnvironment owns this exact production directory spelling.
+    roots = [(profile / "screenshot").resolve()]
+    if not any(parent in source.parents for parent in roots) or source.suffix.lower() != ".png":
+        raise ValueError("Final screenshot escaped the isolated screenshot directory")
+    screenshots = sorted(p for p in profile.rglob("*.png") if any(parent in p.resolve().parents for parent in roots))
+    if screenshots != [source]:
+        raise ValueError("Expected exactly one post-measurement production screenshot")
+    with Image.open(source) as image:
+        image.load()
+        if image.format != "PNG" or image.size != (width, height) or image.mode != "P":
+            raise ValueError("Final screenshot is not the expected indexed main canvas")
+        indices_sha = hashlib.sha256(image.tobytes()).hexdigest()
+        rgba_sha = hashlib.sha256(image.convert("RGBA").tobytes()).hexdigest()
+    target = output / "final-benchmark.png"
+    if target.exists():
+        raise ValueError("Final screenshot destination already exists")
+    shutil.copy2(source, target)
+    if sha256(source) != sha256(target):
+        raise ValueError("Final screenshot changed during copy")
+    return {"receipt": record, "path": str(target), "sha256": sha256(target),
+            "indexedSha256": indices_sha, "rgbaSha256": rgba_sha,
+            "scope": "one new final main-canvas draw and indexed readback after measurement; no measured-loop readback; not scanout or original-renderer parity"}
+
+
 def validate_display_observation(result, width, height):
     observation = result.get("displayObservation")
     if observation is None:
@@ -279,7 +324,7 @@ def make_config(args):
             if not config.has_option(section, key):
                 config.set(section, key, value)
     forced = {"window_width": str(args.width), "window_height": str(args.height), "fullscreen_mode": "0", "default_display": str(args.display),
-              "use_vsync": "true" if args.vsync else "false", "drawing_engine": "SOFTWARE_HWD", "enable_hdr10_output": "false",
+              "use_vsync": "true" if args.vsync else "false", "enable_hdr10_output": "false",
               "play_intro": "false", "edge_scrolling": "false", "autosave": "5", "last_version_check_time": "4102444800",
               # Context reloads configuration after CLI path processing. Both
               # inputs must agree so RCT1 object images stay linked at load.
@@ -287,6 +332,9 @@ def make_config(args):
               "game_path": quote_ini_string(args.rct2_path.resolve(strict=True))}
     for key, value in forced.items():
         config.set("general", key, value)
+    # Current source has one renderer. The external frozen binary is selected by
+    # its explicit --benchmark-renderer argument; neither lane needs this old key.
+    config.remove_option("general", "drawing_engine")
     stream = io.StringIO()
     config.write(stream)
     return stream.getvalue()
@@ -368,7 +416,7 @@ def compare_summary(reference_dir, candidate):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--mode", choices=("frozen-software", "current-software", "current-vulkan"), required=True)
+    parser.add_argument("--mode", choices=("frozen-software", "current-vulkan"), required=True)
     parser.add_argument("--current-snapshot", type=Path, default=ROOT / "obj/vulkan-parity/performance-baseline-build26/snapshot.json")
     parser.add_argument("--rct1-path", type=Path, required=True)
     parser.add_argument("--rct2-path", type=Path, required=True)
@@ -386,6 +434,7 @@ def main():
     parser.add_argument("--visible", action="store_true", help="Show the benchmark window; external display trace still required")
     parser.add_argument("--attribution-profile", choices=("csv", "json"), help="Separate instrumented attribution lane, never clean acceptance")
     parser.add_argument("--compare-run", type=Path)
+    parser.add_argument("--final-screenshot", action="store_true", help="Current-only one final main-canvas PNG after timing stops; excluded from measured workload")
     parser.add_argument("--upload-telemetry", action="store_true", help="Opt-in Vulkan API upload payload attribution; not clean TPS acceptance")
     args = parser.parse_args()
     output = args.output.resolve()
@@ -395,6 +444,8 @@ def main():
         parser.error("Tick counts must fit signed 32-bit; warmup >= 0 and measured ticks > 0")
     if args.width < 640 or args.height < 480 or args.display < 0 or args.timeout <= 0:
         parser.error("Require width >= 640, height >= 480, display >= 0, timeout > 0")
+    if args.final_screenshot and args.mode != "current-vulkan":
+        parser.error("--final-screenshot requires a current binary with the post-measurement hook; frozen binaries remain unchanged")
     if args.upload_telemetry and args.mode != "current-vulkan":
         parser.error("--upload-telemetry requires current-vulkan; the frozen executable is not instrumented")
     output.mkdir(parents=True)
@@ -449,11 +500,13 @@ def main():
             for name in current["artifactSha256"]:
                 if name.endswith(".spv"):
                     shutil.copy2(current_root / name, target / Path(name).name)
-        renderer = "vulkan" if args.mode.endswith("vulkan") else "software"
+        renderer = {"frozen-software": "software", "current-vulkan": "vulkan"}[args.mode]
         command = [str(runtime / "openrct2.exe"), str(park), "--benchmark-ui", "--benchmark-renderer", renderer,
                    "--benchmark-vsync", str(args.vsync), "--benchmark-warmup-ticks", str(args.warmup_ticks), "--benchmark-ticks", str(args.ticks),
                    "--user-data-path", str(profile), "--openrct2-data-path", str(data),
                    "--rct1-data-path", str(games["rct1"]), "--rct2-data-path", str(games["rct2"])]
+        if args.final_screenshot:
+            command.append("--benchmark-final-screenshot")
         if args.upload_telemetry:
             command.append("--benchmark-upload-telemetry")
         if args.visible:
@@ -473,6 +526,7 @@ def main():
                                "simulationSpeed": "ordinary Turbo", "camera": "saved park view; no input events injected"}
         if args.upload_telemetry:
             summary["workload"]["uploadTelemetry"] = 1
+        summary["postMeasurementScreenshotRequested"] = args.final_screenshot
         summary["command"] = command
         summary["runtimeBefore"] = file_inventory(runtime)
         # Non-shader assets are junctions to the fully verified accepted package.
@@ -525,6 +579,13 @@ def main():
             summary["failures"].append("Runtime diagnostic requires investigation")
             summary["runtimeDiagnostics"] = suspicious
         summary["result"] = parse_log(text)
+        if args.final_screenshot:
+            summary["finalScreenshot"] = qualify_final_screenshot(
+                text, profile, output, summary["result"], args.width, args.height)
+            if summary["finalScreenshot"]["receipt"]["partialRender"]:
+                summary["qualification"] = "Partial GPU-only rendering throughput; omitted world categories prevent full-render performance acceptance"
+        elif "Final benchmark screenshot v1:" in text:
+            summary["failures"].append("Unexpected final screenshot in a no-capture process")
         if args.require_display_evidence:
             validate_display_observation(summary["result"], args.width, args.height)
         if "displayObservation" in summary["result"]:
@@ -553,8 +614,10 @@ def main():
             summary["failures"].append("Unexpected profiler activation in clean lane")
         if args.compare_run:
             summary["comparison"] = compare_summary(args.compare_run, summary)
+            if summary.get("finalScreenshot", {}).get("receipt", {}).get("partialRender"):
+                summary["comparison"]["qualification"] = "Matched simulation workload, partial candidate world rendering; TPS ratio is not an equivalent full-render gain or Gate P acceptance"
         summary["measurementLimitations"] = ["Hidden smoke cannot certify displayed pacing" if not args.visible else "Visible run still needs independent displayed-presentation trace",
-                                             "No image readbacks or diagnostic capture requests; ordinary main loop",
+                                             "No image readbacks during measurement; optional final image is after metrics freeze" if args.final_screenshot else "No image readbacks or diagnostic capture requests; ordinary main loop",
                                              "Single-run results do not establish a substantial TPS gain", "Initial checkpoint is a state census; initial entity checksum is unavailable"]
         if not summary["failures"]:
             summary["status"] = "pass"

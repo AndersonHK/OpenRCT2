@@ -9,6 +9,7 @@
 
 #include "../../../GameState.h"
 #include "../../../entity/EntityRegistry.h"
+#include "../../../entity/EntityPresentationSnapshot.h"
 #include "../../../entity/Guest.h"
 #include "../../../interface/Viewport.h"
 #include "../../../ride/RideEntry.h"
@@ -73,10 +74,10 @@ static void PaintSpaceRingsStructure(
 
     if (vehicle != nullptr && vehicle->num_peeps > 0)
     {
-            auto* rider = GetEntityForPresentation<Guest>(vehicle->peep[0]);
-        if (rider != nullptr)
+            const auto rider = GetGuestPresentationFacts(vehicle->peep[0]);
+        if (rider)
         {
-            stationColour = ImageId(0, rider->tShirtColour, rider->trousersColour);
+            stationColour = ImageId(0, static_cast<Drawing::Colour>(rider->colours & 0xff), static_cast<Drawing::Colour>((rider->colours >> 8) & 0xff));
             imageId = stationColour.WithIndex(baseImageId + 352 + frameNum);
             PaintAddImageAsChild(session, imageId, { 0, 0, height }, { { -10, -10, height }, { 20, 20, 23 } });
         }

@@ -16,7 +16,6 @@
 #include <memory>
 
 enum class CursorID : uint8_t;
-enum class DrawingEngine : int32_t;
 struct IGameStateSnapshots;
 struct IScenarioRepository;
 struct ITrackDesignRepository;
@@ -103,10 +102,10 @@ namespace OpenRCT2
         virtual ISceneManager* GetSceneManager() = 0;
         virtual AssetPackManager* GetAssetPackManager() = 0;
         virtual IGameStateSnapshots* GetGameStateSnapshots() = 0;
-        virtual DrawingEngine GetDrawingEngineType() = 0;
         virtual Drawing::IDrawingEngine* GetDrawingEngine() = 0;
         // Explicit image operations acquire the injected service lazily; ordinary context startup does not create it.
         virtual Drawing::IRenderService& GetRenderService() = 0;
+        virtual void InvalidateRenderServiceImage(uint32_t image) = 0;
         virtual Paint::Painter* GetPainter() = 0;
 #ifndef DISABLE_NETWORK
         virtual Network::NetworkBase& GetNetwork() = 0;

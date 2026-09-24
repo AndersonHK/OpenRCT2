@@ -241,6 +241,7 @@ TEST_F(PublicationSnapshotParityTest, RetainedGenerationMustRemainImmutableAcros
 
 TEST_F(PublicationSnapshotParityTest, PendingEntityCaptureCannotBePairedWithLaterMapCapture)
 {
+    getGameState().currentTicks = 100;
     JobPool jobs(1);
     PresentationScene publication;
     struct ResetPublication
@@ -254,6 +255,7 @@ TEST_F(PublicationSnapshotParityTest, PendingEntityCaptureCannotBePairedWithLate
     } reset{ publication, jobs };
     ASSERT_TRUE(publication.BeginFrame(jobs, getGameState().entities, 1, true));
     const auto initial = publication.GetGeneration();
+    EXPECT_EQ(initial->sourceTick, 100u);
     const auto initialHeight = initial->map->GetFirstElementAt({ 2, 2 })->getBaseZ();
     std::promise<void> started;
     std::promise<void> release;
@@ -287,19 +289,84 @@ TEST_F(PublicationSnapshotParityTest, PendingEntityCaptureCannotBePairedWithLate
     ASSERT_NE(entity, nullptr);
     entity->moveTo({ 160, 96, 48 });
     entities.updateEntitiesSpatialIndex();
+    getGameState().currentTicks = 101;
     publication.ScheduleNext(jobs, entities); // Only entities changed; the one worker is deterministically held.
     EXPECT_FALSE(publication.BeginFrame(jobs, entities, 2, false));
     EXPECT_EQ(publication.GetGeneration(), initial);
     MutateMapAndEntity(64);
+    getGameState().currentTicks = 102;
     publication.ScheduleNext(jobs, entities); // Must not queue this newer map beside the already queued older entities.
     gate.Complete();
     ASSERT_TRUE(publication.BeginFrame(jobs, entities, 3, false));
     const auto captured = publication.GetGeneration();
+    EXPECT_EQ(captured->sourceTick, 101u);
+    EXPECT_EQ(initial->sourceTick, 100u);
     EXPECT_EQ(captured->map->GetFirstElementAt({ 2, 2 })->getBaseZ(), initialHeight);
     ASSERT_NE(captured->entities->TryGetEntity(movingEntity), nullptr);
     EXPECT_EQ(captured->entities->TryGetEntity(movingEntity)->z, 48);
     publication.ScheduleNext(jobs, entities);
     jobs.Join();
     ASSERT_TRUE(publication.BeginFrame(jobs, entities, 4, false));
+    EXPECT_EQ(publication.GetGeneration()->sourceTick, 102u);
     ExpectSnapshotEqualsLive(*publication.GetGeneration());
+}
+
+
+TEST_F(PublicationSnapshotParityTest, ResetBootstrapsAllTilesAndFreshEpochOnlyOnce)
+{
+    auto& jobs = context->GetJobPool();
+    auto& entities = getGameState().entities;
+    for (const bool synchronous : { false, true })
+    {
+        SCOPED_TRACE(synchronous);
+        ASSERT_TRUE(scene->BeginFrame(jobs, entities, 1, true));
+        const auto retained = scene->GetGeneration();
+        scene->Reset(jobs);
+        ASSERT_TRUE(scene->BeginFrame(jobs, entities, 1, synchronous));
+        const auto restored = scene->GetGeneration();
+        EXPECT_NE(restored->map->GetEpoch(), retained->map->GetEpoch());
+        ExpectSnapshotEqualsLive(*restored);
+        // Reset must not mutate generations still held by an older submission.
+        ASSERT_NE(retained->map->GetFirstElementAt({ 15, 15 }), nullptr);
+        EXPECT_EQ(std::memcmp(retained->map->GetFirstElementAt({ 15, 15 }),
+                              restored->map->GetFirstElementAt({ 15, 15 }), sizeof(TileElement)), 0);
+        // A normal empty frame must retain the map and must not request another full bootstrap.
+        ASSERT_TRUE(scene->BeginFrame(jobs, entities, 2, synchronous));
+        EXPECT_EQ(scene->GetGeneration()->map, restored->map);
+        EXPECT_EQ(GetMapPresentationEpoch(), restored->map->GetEpoch());
+        const auto remaining = ConsumeMapPresentationChanges();
+        EXPECT_FALSE(remaining.reset);
+        EXPECT_TRUE(remaining.changes.empty());
+        scene->Reset(jobs);
+    }
+}
+
+TEST_F(PublicationSnapshotParityTest, ResetAfterConsumedPendingDeltaRecapturesCompleteLatestMap)
+{
+    auto& jobs = context->GetJobPool();
+    auto& entities = getGameState().entities;
+    ASSERT_TRUE(scene->BeginFrame(jobs, entities, 1, true));
+    const auto retained = scene->GetGeneration();
+    const auto initialHeight = retained->map->GetFirstElementAt({ 2, 2 })->getBaseZ();
+    MutateMapAndEntity(48);
+    scene->ScheduleNext(jobs, entities); // Consumes the tile delta, possibly still applying it in the background.
+    scene->Reset(jobs); // Waits and discards that pending publication.
+    MutateMapAndEntity(64); // The fresh snapshot must include this change AND every unchanged tile.
+    ASSERT_TRUE(scene->BeginFrame(jobs, entities, 1, false));
+    ExpectSnapshotEqualsLive(*scene->GetGeneration());
+    EXPECT_NE(scene->GetGeneration()->map->GetEpoch(), retained->map->GetEpoch());
+    EXPECT_EQ(retained->map->GetFirstElementAt({ 2, 2 })->getBaseZ(), initialHeight);
+}
+
+TEST_F(PublicationSnapshotParityTest, RecreatedOwnerBootstrapsAfterPreviousOwnerConsumedMapReset)
+{
+    auto& jobs = context->GetJobPool();
+    auto& entities = getGameState().entities;
+    ASSERT_TRUE(scene->BeginFrame(jobs, entities, 1, true));
+    const auto retained = scene->GetGeneration();
+    scene->Reset(jobs);
+    scene = std::make_unique<PresentationScene>();
+    ASSERT_TRUE(scene->BeginFrame(jobs, entities, 1, false));
+    ExpectSnapshotEqualsLive(*scene->GetGeneration());
+    EXPECT_NE(scene->GetGeneration()->map->GetEpoch(), retained->map->GetEpoch());
 }

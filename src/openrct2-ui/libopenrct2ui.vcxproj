@@ -109,7 +109,6 @@
     <ClCompile Include="CursorData.cpp" />
     <ClCompile Include="CursorRepository.cpp" />
     <ClCompile Include="drawing\BitmapReader.cpp" />
-    <ClCompile Include="drawing\engines\HardwareDisplayDrawingEngine.cpp" />
     <ClCompile Include="drawing\engines\vulkan\VulkanPlatform.cpp" />
     <ClCompile Include="drawing\engines\vulkan\VulkanDrawingEngine.cpp" />
     <ClCompile Include="input\InputManager.cpp" />
@@ -267,5 +266,8 @@
       <TargetMachine Condition="'$(Platform)'=='arm64'">MachineARM64</TargetMachine>
     </Lib>
   </ItemDefinitionGroup>
+  <Target Name="RequireVulkanForGraphicalApplication" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(EnableVulkan)'!='true'" Text="The graphical application requires Vulkan. EnableVulkan=false is supported only for headless tools." />
+  </Target>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

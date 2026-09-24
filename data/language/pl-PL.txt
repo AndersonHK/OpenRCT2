@@ -2920,11 +2920,6 @@ STR_5871    :Wyłącz usychanie kwiatów
 STR_5872    :Kwiaty się nie starzeją, nie usychają, nie trzeba ich wymieniać
 STR_5873    :Wyciągarka dozwolona na każdym torze
 STR_5874    :Umożliwia przekształcenie dowolnego typu toru w wyciągarkę
-STR_5875    :Silnik graficzny:
-STR_5876    :Silnik używany do generowania grafiki
-STR_5877    :Programowy
-STR_5878    :Programowy (karta graficzna)
-STR_5879    :OpenGL (eksperymentalne)
 STR_5880    :Tylko zaznaczone
 STR_5881    :Tylko niezaznaczone
 STR_5882    :Własna waluta

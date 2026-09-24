@@ -1,10 +1,11 @@
-"""Verify the immutable software package and guard its in-tree parity oracle."""
+"""Verify the external frozen reference without retaining a shipping software renderer."""
 
 import argparse
 import hashlib
 import json
 from pathlib import Path
 import subprocess
+import zipfile
 
 
 PROTECTED = (
@@ -49,15 +50,23 @@ def main():
             path = (reference / relative).resolve()
             if reference.resolve() not in path.parents or not path.is_file() or sha256(path) != expected["sha256"]:
                 failures.append("Frozen file changed/missing: " + relative)
-    for relative in PROTECTED:
-        baseline = subprocess.check_output(["git", "show", receipt["revision"] + ":" + relative], cwd=root)
-        path = root / relative
-        # Working-tree CRLF conversion is not a renderer behavior change.
-        if not path.is_file() or path.read_bytes().replace(b"\r\n", b"\n") != baseline.replace(b"\r\n", b"\n"):
-            failures.append("Software parity oracle changed: " + relative)
+    # The owner authorized deleting the in-tree renderer. The immutable archive,
+    # package and pinned revision remain the historical oracle; source deletion
+    # in the active fork must not require retaining its old production backend.
+    with zipfile.ZipFile(reference / "source.zip") as archive:
+        for relative in PROTECTED:
+            baseline = subprocess.check_output(["git", "show", receipt["revision"] + ":" + relative], cwd=root)
+            try:
+                archived = archive.read(relative)
+            except KeyError:
+                failures.append("Frozen source missing: " + relative)
+                continue
+            if archived.replace(b"\r\n", b"\n") != baseline.replace(b"\r\n", b"\n"):
+                failures.append("Frozen source differs from pinned revision: " + relative)
     if failures:
         raise SystemExit("\n".join(failures))
-    print(json.dumps({"revision": receipt["revision"], "protectedSources": len(PROTECTED),
+    print(json.dumps({"revision": receipt["revision"], "archivedSourcesVerified": len(PROTECTED),
+                      "activeTreeProtected": False,
                       "packageFilesVerified": len(manifest["files"]) if args.package else 0, "result": "pass"}))
 
 

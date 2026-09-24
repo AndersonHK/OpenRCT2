@@ -28,7 +28,6 @@
 #include "../drawing/NewDrawing.h"
 #include "../drawing/Palette.h"
 #include "../drawing/RenderService.h"
-#include "../drawing/X8DrawingEngine.h"
 #include "../localisation/Formatter.h"
 #include "../localisation/StringIds.h"
 #include "../paint/Paint.h"
@@ -230,37 +229,6 @@ static int32_t GetTallestVisibleTileTop(
     return minViewY - 64;
 }
 
-static RenderTarget CreateRT(const Viewport& viewport)
-{
-    RenderTarget rt;
-    rt.width = viewport.width;
-    rt.height = viewport.height;
-    try
-    {
-        rt.bits = new PaletteIndex[rt.width * rt.height];
-    }
-    catch (...)
-    {
-        throw std::runtime_error("Giant screenshot failed, unable to allocate memory for image.");
-    }
-
-    if (viewport.flags & VIEWPORT_FLAG_TRANSPARENT_BACKGROUND)
-    {
-        std::memset(rt.bits, EnumValue(PaletteIndex::transparent), static_cast<size_t>(rt.width) * rt.height);
-    }
-
-    return rt;
-}
-
-static void ReleaseRT(RenderTarget& rt)
-{
-    if (rt.bits != nullptr)
-        delete[] rt.bits;
-    rt.bits = nullptr;
-    rt.width = 0;
-    rt.height = 0;
-}
-
 static Viewport GetGiantViewport(int32_t rotation, ZoomLevel zoom)
 {
     auto& gameState = getGameState();
@@ -311,29 +279,21 @@ static Viewport GetGiantViewport(int32_t rotation, ZoomLevel zoom)
     return viewport;
 }
 
-static void RenderViewport(IDrawingEngine* drawingEngine, const Viewport& viewport, RenderTarget& rt)
+static Image RenderViewport(const Viewport& viewport)
 {
     // Ensure sprites appear regardless of rotation
     ResetAllSpriteQuadrantPlacements();
-
-    std::unique_ptr<X8DrawingEngine> tempDrawingEngine;
-    if (drawingEngine == nullptr)
-    {
-        tempDrawingEngine = std::make_unique<X8DrawingEngine>(GetContext()->GetUiContext());
-        drawingEngine = tempDrawingEngine.get();
-    }
-
-    tempDrawingEngine->BeginDraw();
-
-    rt.DrawingEngine = drawingEngine;
-    ViewportRender(rt, &viewport);
-
-    tempDrawingEngine->EndDraw();
+    // Use the Context's shared auxiliary service. Large captures retain their full
+    // camera/generation bounds while the existing tiler limits GPU target memory.
+    return ScreenshotTiling::Render(
+        GetContext()->GetRenderService(), viewport, gPalette,
+        [](RenderTarget& target, const Viewport& tileViewport) {
+            ViewportRender(target, &tileViewport, ViewportGenerationDomain::fullViewportHeight);
+        });
 }
 
 void ScreenshotGiant()
 {
-    RenderTarget rt{};
     try
     {
         auto path = ScreenshotGetNextPath();
@@ -361,10 +321,8 @@ void ScreenshotGiant()
             viewport.flags |= VIEWPORT_FLAG_TRANSPARENT_BACKGROUND;
         }
 
-        rt = CreateRT(viewport);
-
-        RenderViewport(nullptr, viewport, rt);
-        WriteRTToFile(path.value(), rt, gPalette);
+        const auto image = RenderViewport(viewport);
+        Imaging::WriteToFile(path.value(), image, ImageFormat::png);
 
         // Show user that screenshot saved successfully
         const auto filename = Path::GetFileName(path.value());
@@ -378,8 +336,6 @@ void ScreenshotGiant()
         LOG_ERROR("%s", e.what());
         ContextShowError(STR_SCREENSHOT_FAILED, kStringIdNone, {}, true);
     }
-
-    ReleaseRT(rt);
 }
 
 static void ApplyOptions(const ScreenshotOptions* options, Viewport& viewport)
@@ -464,9 +420,12 @@ int32_t CommandLineForScreenshot(
     }
 
     int32_t exitCode = 1;
-    RenderTarget rt;
     try
     {
+        if (!renderServiceFactory || !renderServiceFactory->IsEnabled())
+            throw RenderServiceException(
+                { RenderErrorCode::unavailable, "CLI screenshots require an enabled Vulkan render service" });
+
         bool customLocation = false;
         bool centreMapX = false;
         bool centreMapY = false;
@@ -475,16 +434,12 @@ int32_t CommandLineForScreenshot(
         const char* outputPath = argv[1];
 
         gOpenRCT2Headless = true;
-        auto context = renderServiceFactory ? CreateContext(
-                                                  CreatePlatformEnvironment(), Audio::CreateDummyAudioContext(),
-                                                  Ui::CreateDummyUiContext(), renderServiceFactory)
-                                            : CreateContext();
+        auto context = CreateContext(
+            CreatePlatformEnvironment(), Audio::CreateDummyAudioContext(), Ui::CreateDummyUiContext(), renderServiceFactory);
         if (!context->Initialise())
         {
             throw std::runtime_error("Failed to initialize context.");
         }
-
-        DrawingEngineInit();
 
         if (!context->LoadParkFromFile(inputPath))
         {
@@ -492,14 +447,11 @@ int32_t CommandLineForScreenshot(
         }
 
         gLegacyScene = LegacyScene::playing;
-        const bool useRenderService = renderServiceFactory && renderServiceFactory->IsEnabled();
-
         Viewport viewport{};
         if (giantScreenshot)
         {
             const auto parsedZoom = std::atoi(argv[3]);
-            if (useRenderService && (parsedZoom < static_cast<int8_t>(ZoomLevel::min())
-                                     || parsedZoom > static_cast<int8_t>(ZoomLevel::max())))
+            if (parsedZoom < static_cast<int8_t>(ZoomLevel::min()) || parsedZoom > static_cast<int8_t>(ZoomLevel::max()))
                 throw RenderServiceException({ RenderErrorCode::invalidRequest, "Giant screenshot zoom is unsupported" });
             auto customZoom = static_cast<int8_t>(parsedZoom);
             auto zoom = ZoomLevel{ customZoom };
@@ -575,17 +527,12 @@ int32_t CommandLineForScreenshot(
 
         ApplyOptions(options, viewport);
 
-        if (useRenderService && giantScreenshot)
+        if (giantScreenshot)
         {
-            ResetAllSpriteQuadrantPlacements();
-            const auto image = ScreenshotTiling::Render(
-                context->GetRenderService(), viewport, gPalette,
-                [](RenderTarget& target, const Viewport& tileViewport) {
-                    ViewportRender(target, &tileViewport, ViewportGenerationDomain::fullViewportHeight);
-                });
+            const auto image = RenderViewport(viewport);
             Imaging::WriteToFile(outputPath, image, ImageFormat::png);
         }
-        else if (useRenderService)
+        else
         {
             // The PNG writer treats palette index zero as transparent, independently of the viewport background option.
             OffscreenRenderRequest request;
@@ -616,22 +563,12 @@ int32_t CommandLineForScreenshot(
             if (!WriteRTToFile(outputPath, output, palette))
                 throw std::runtime_error("Failed to write offscreen screenshot PNG");
         }
-        else
-        {
-            rt = CreateRT(viewport);
-            RenderViewport(nullptr, viewport, rt);
-            WriteRTToFile(outputPath, rt, gPalette);
-        }
     }
     catch (const std::exception& e)
     {
         std::printf("%s\n", e.what());
         exitCode = -1;
     }
-    ReleaseRT(rt);
-
-    DrawingEngineDispose();
-
     return exitCode;
 }
 
@@ -711,8 +648,6 @@ void CaptureImage(const CaptureOptions& options)
     }
 
     auto outputPath = ResolveFilenameForCapture(options.Filename);
-    auto rt = CreateRT(viewport);
-    RenderViewport(nullptr, viewport, rt);
-    WriteRTToFile(outputPath, rt, gPalette);
-    ReleaseRT(rt);
+    const auto image = RenderViewport(viewport);
+    Imaging::WriteToFile(outputPath, image, ImageFormat::png);
 }

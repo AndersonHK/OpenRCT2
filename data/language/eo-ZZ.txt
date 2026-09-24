@@ -2920,11 +2920,6 @@ STR_5871    :Malŝalti ŝrumpadon de kreskaĵoj
 STR_5872    :Malŝalti maljuniĝon de kreskaĵoj tiel, ke ili ne ŝrumpu.
 STR_5873    :Permesi ĉenliftojn sur ĉiuj trakpartoj
 STR_5874    :Permesas ĉian trakparton fariĝi ĉenlifto
-STR_5875    :Modulo de bildigo:
-STR_5876    :La modulo uzata por bildigi la ludon.
-STR_5877    :Programara
-STR_5878    :Programara (aparatara ekrano)
-STR_5879    :OpenGL (eksperimenta)
 STR_5880    :Nur elektita
 STR_5881    :Nur ne-elektita
 STR_5882    :Propra valuto

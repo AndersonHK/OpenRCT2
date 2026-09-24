@@ -45,7 +45,9 @@ namespace OpenRCT2::UiParityFixtures
             return { "empty-ui", "scroll-top", "scroll-partial-row", "scroll-screen-clip", "scroll-resized", "restored" };
         if (family == "text")
             return { "empty-ui", "text-empty", "wrapped-caret-start", "wrapped-caret-end", "submitted", "restored" };
-        throw std::invalid_argument("--fixture must be baseline, world-dirty, overlap, scroll or text");
+        if (family == "options-display")
+            return { "empty-ui", "options-display", "restored" };
+        throw std::invalid_argument("--fixture must be baseline, world-dirty, overlap, scroll, text or options-display");
     }
 
     inline json_t WindowInputState()
@@ -150,7 +152,18 @@ namespace OpenRCT2::UiParityFixtures
             return;
         }
         sample("empty-ui");
-        if (family == "overlap")
+        if (family == "options-display")
+        {
+            Require(manager->FindByClass(WindowClass::options) == nullptr, "Options window already open before fixture");
+            auto* options = OptionsOpen();
+            Require(options != nullptr, "Options window failed to open");
+            // OptionsOpen initializes the first (Display) page in current and frozen source.
+            Require(options->page == 0, "Options did not open on the Display page");
+            WindowSetPosition(*options, { 64, 72 });
+            sample("options-display", { { "page", "display" }, { "openedBy", "OptionsOpen" } });
+            close(options);
+        }
+        else if (family == "overlap")
         {
             auto* finances = FinancesOpen();
             Require(finances != nullptr, "Finances window failed to open");

@@ -56,6 +56,155 @@ namespace OpenRCT2::Ui::Gpu
         }
     }
 
+    AtlasAssetLease::~AtlasAssetLease()
+    {
+        if (_id != 0)
+            _owner->RetireAssetLease(_id);
+    }
+
+    AssetSpriteResolution TextureCache::ResolveAssetSprite(ImageId imageId, ZoomLevel zoom, std::vector<uint32_t>& dependencies)
+    {
+        if (!_recordingFrame)
+            throw std::logic_error("Asset preparation requires an active recording frame");
+        auto image = imageId.GetIndex();
+        auto remaining = zoom;
+        for (;;)
+        {
+            dependencies.push_back(image);
+            const auto* metadata = GetImageMetadata(image);
+            if (metadata == nullptr || metadata->width <= 0 || metadata->height <= 0)
+                return {};
+            if (remaining <= ZoomLevel{ 0 })
+                break;
+            const G1Flags flags{ metadata->flags };
+            if (flags.has(G1Flag::hasZoomSprite))
+            {
+                const int64_t linked = int64_t{ image } - metadata->zoomedOffset;
+                if (linked < 0 || linked >= kImageIndexUndefined)
+                    return {};
+                image = static_cast<uint32_t>(linked);
+                remaining--;
+            }
+            else if (flags.has(G1Flag::noZoomDraw))
+                return { {}, true };
+            else
+                break;
+        }
+        return { GetOrLoadImageSprite(imageId, zoom), false };
+    }
+
+    std::shared_ptr<const AtlasAssetLease> TextureCache::CreateAssetLease(
+        std::span<const uint64_t> residencies, std::span<const uint32_t> dependencies)
+    {
+        if (!_recordingFrame)
+            throw std::logic_error("Asset lease preparation requires an active frame");
+        auto owner = shared_from_this(); // Native asset owners must use the shared cache lifetime.
+        std::vector<uint64_t> serials(residencies.begin(), residencies.end());
+        std::sort(serials.begin(), serials.end());
+        serials.erase(std::unique(serials.begin(), serials.end()), serials.end());
+        std::vector<uint32_t> images(dependencies.begin(), dependencies.end());
+        std::sort(images.begin(), images.end());
+        images.erase(std::unique(images.begin(), images.end()), images.end());
+        for (const auto serial : serials)
+        {
+            const auto allocation = _allocations.find(serial);
+            if (allocation == _allocations.end() || allocation->second.retireWhenUnpinned
+                || allocation->second.pinCount == UINT32_MAX)
+                throw std::invalid_argument("Asset generation references unavailable atlas storage");
+        }
+        if (_nextAssetLease == 0)
+            throw std::overflow_error("Asset lease identity exhausted");
+        // At most one queued retirement per live state. Reserve before publishing the destructor-visible ID.
+        {
+            std::scoped_lock lock(_retirementMutex);
+            _pendingAssetRetirements.reserve(_assetLeases.size() + 1);
+        }
+        auto lease = std::shared_ptr<AtlasAssetLease>(new AtlasAssetLease(std::move(owner), 0));
+        const auto id = _nextAssetLease++;
+        auto [entry, inserted] = _assetLeases.try_emplace(id);
+        if (!inserted)
+            throw std::logic_error("Asset lease identity collision");
+        try
+        {
+            auto& state = entry->second;
+            state.allocations.reserve(serials.size());
+            state.dependencies.reserve(images.size());
+            for (const auto serial : serials)
+            {
+                auto& allocation = _allocations.at(serial);
+                allocation.assetLeases.push_back(id);
+                ++allocation.pinCount;
+                state.allocations.push_back(allocation.location.GetAllocationId());
+            }
+            for (const auto image : images)
+            {
+                _assetDependencies[image].push_back(id);
+                state.dependencies.push_back(image);
+            }
+            state.lease = lease;
+            lease->_id = id;
+        }
+        catch (...)
+        {
+            ApplyAssetRetirement(id);
+            throw;
+        }
+        return lease;
+    }
+
+    bool TextureCache::TryBindAssetLease(const std::shared_ptr<const AtlasAssetLease>& lease)
+    {
+        if (!_recordingFrame)
+            throw std::logic_error("Asset generation binding requires an active frame");
+        if (!lease || lease->_owner.get() != this || !lease->_current)
+            return false;
+        auto& state = _assetLeases.at(lease->_id);
+        if (state.lastBoundFrame != _recordingFrameSerial)
+        {
+            _frameAssetLeases.push_back(lease);
+            state.lastBoundFrame = _recordingFrameSerial;
+        }
+        return true;
+    }
+
+    void TextureCache::RetireAssetLease(uint64_t id) noexcept
+    {
+        std::scoped_lock lock(_retirementMutex);
+        // Capacity was reserved before the handle became visible; destruction cannot allocate.
+        _pendingAssetRetirements.push_back(id);
+    }
+
+    void TextureCache::ApplyAssetRetirement(uint64_t id)
+    {
+        const auto found = _assetLeases.find(id);
+        if (found == _assetLeases.end())
+            throw std::logic_error("Unknown asset lease retirement");
+        for (const auto allocation : found->second.allocations)
+        {
+            auto& state = _allocations.at(allocation.serial);
+            std::erase(state.assetLeases, id);
+            --state.pinCount;
+            FreeIfUnpinned(allocation.serial);
+        }
+        for (const auto image : found->second.dependencies)
+        {
+            auto dependency = _assetDependencies.find(image);
+            std::erase(dependency->second, id);
+            if (dependency->second.empty())
+                _assetDependencies.erase(dependency);
+        }
+        _assetLeases.erase(found);
+    }
+
+    bool TextureCache::IsAllocationBound(const AllocationState& state) const
+    {
+        if (state.lastBoundFrame == _recordingFrameSerial)
+            return true;
+        return std::any_of(state.assetLeases.begin(), state.assetLeases.end(), [this](uint64_t id) {
+            return _assetLeases.at(id).lastBoundFrame == _recordingFrameSerial;
+        });
+    }
+
     TextureBinding TextureCache::GetOrLoadImageTexture(ImageId imageId)
     {
         if (!_recordingFrame)
@@ -219,23 +368,6 @@ namespace OpenRCT2::Ui::Gpu
     }
 #endif
 
-    bool TextureCache::TryBindImageResidencies(
-        const ImageResidencyGeneration& generation, std::span<const uint64_t> serials)
-    {
-        if (!_recordingFrame)
-            throw std::logic_error("GPU image residency requires an active recording frame");
-        if (generation != GetImageResidencyGeneration()) return false;
-        for (const auto serial : serials)
-        {
-            const auto state = _allocations.find(serial);
-            if (state == _allocations.end() || state->second.retireWhenUnpinned) return false;
-        }
-        // Only the recording owner mutates allocations, so validation and binding
-        // cannot race retirement/invalidation. SealFrame still owns the pins.
-        for (const auto serial : serials)
-            static_cast<void>(BindForRecording(_allocations.at(serial).location));
-        return true;
-    }
     void TextureCache::BeginFrame()
     {
         PROFILED_FUNCTION();
@@ -271,12 +403,13 @@ namespace OpenRCT2::Ui::Gpu
             const auto allocation = pending.location.GetAllocationId();
             const auto state = _allocations.find(allocation.serial);
             if (state == _allocations.end() || state->second.location.GetAllocationId() != allocation
-                || state->second.lastBoundFrame != _recordingFrameSerial)
+                || !IsAllocationBound(state->second))
             {
                 continue;
             }
             const auto generationIt = _generations.find(pending.location.image);
-            if (generationIt == _generations.end() || generationIt->second != pending.location.generation)
+            if ((generationIt == _generations.end() || generationIt->second != pending.location.generation)
+                && state->second.assetLeases.empty())
             {
                 continue;
             }
@@ -322,6 +455,7 @@ namespace OpenRCT2::Ui::Gpu
         }
 
         commands.textureUploads = std::move(uploads);
+        commands.atlasAssetLeases = std::move(_frameAssetLeases);
         EndRecordingFrame();
         return token;
     }
@@ -354,6 +488,11 @@ namespace OpenRCT2::Ui::Gpu
         {
             ApplyFrameRetirement(item.token, item.retirement);
         }
+        // Keep the preallocated queue's capacity available to concurrent handle destruction.
+        std::scoped_lock lock(_retirementMutex);
+        for (const auto id : _pendingAssetRetirements)
+            ApplyAssetRetirement(id);
+        _pendingAssetRetirements.clear();
     }
 
     void TextureCache::ApplyFrameRetirement(AtlasResidencyToken token, FrameRetirement retirement)
@@ -407,11 +546,15 @@ namespace OpenRCT2::Ui::Gpu
             // not been referenced by the current command stream yet, retiring it now is both safe and necessary: deferring the
             // invalidation would make the following draw resolve the previous frame's resident pixels. Once an allocation has
             // been bound, however, the recorded commands and residency lease must keep it alive until the frame is sealed.
-            const bool boundThisFrame = std::any_of(
+            bool boundThisFrame = std::any_of(
                 _frameAllocations.begin(), _frameAllocations.end(), [this, image](const auto& allocation) {
                     const auto state = _allocations.find(allocation.serial);
                     return state != _allocations.end() && state->second.location.GetAllocationId() == allocation
                         && state->second.location.image == image;
+                });
+            if (const auto dependency = _assetDependencies.find(image); dependency != _assetDependencies.end())
+                boundThisFrame |= std::any_of(dependency->second.begin(), dependency->second.end(), [this](uint64_t id) {
+                    return _assetLeases.at(id).lastBoundFrame == _recordingFrameSerial;
                 });
             if (!boundThisFrame)
             {
@@ -431,12 +574,15 @@ namespace OpenRCT2::Ui::Gpu
 
     void TextureCache::ApplyInvalidation(uint32_t image)
     {
-        if (_imageInvalidationSerial == std::numeric_limits<uint64_t>::max())
-            throw std::overflow_error("GPU image metadata generation exhausted");
-        ++_imageInvalidationSerial; // Includes parent-only linked-zoom metadata invalidation.
+        if (const auto dependency = _assetDependencies.find(image); dependency != _assetDependencies.end())
+            for (const auto id : dependency->second)
+                if (const auto lease = _assetLeases.at(id).lease.lock())
+                    lease->_current = false;
         const uint32_t oldGeneration = _generations[image]++;
-        std::erase_if(_pendingUploads, [image, oldGeneration](const PendingUpload& pending) {
-            return pending.location.image == image && pending.location.generation == oldGeneration;
+        std::erase_if(_pendingUploads, [this, image, oldGeneration](const PendingUpload& pending) {
+            const auto state = _allocations.find(pending.location.allocationSerial);
+            return pending.location.image == image && pending.location.generation == oldGeneration
+                && (state == _allocations.end() || state->second.assetLeases.empty());
         });
 
         if (image < _images.size() && _images[image].has_value())
@@ -703,6 +849,7 @@ namespace OpenRCT2::Ui::Gpu
     {
         _recordingFrame = false;
         _frameAllocations.clear();
+        _frameAssetLeases.clear();
         for (const auto image : _deferredInvalidations)
         {
             ApplyInvalidation(image);
@@ -729,6 +876,7 @@ namespace OpenRCT2::Ui::Gpu
             return;
         }
         const auto& location = stateIt->second.location;
+        RemovePending(location.GetAllocationId());
         if (location.index < _atlases.size())
         {
             _atlases[location.index].Free(location);

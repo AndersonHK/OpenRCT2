@@ -106,8 +106,7 @@ namespace OpenRCT2::Ui::Vulkan::Diagnostic
             _terrainPublication = std::move(publication);
         }
 
-        void BindFrame(uint64_t frameNumber, uint64_t atlasLease = 0,
-            std::array<uint64_t, 4> terrainPreparation = {})
+        void BindFrame(uint64_t frameNumber, uint64_t atlasLease = 0, std::array<uint64_t, 4> terrainPreparation = {})
         {
             std::scoped_lock lock(_mutex);
             if (_complete)
@@ -204,6 +203,7 @@ namespace OpenRCT2::Ui::Vulkan::Diagnostic
     // Additional isolated fixture gate. Unsupported scenes keep ordinary entity painting.
     void SetNativeBalloonFixtureForTesting(bool enabled);
     void SetNativeTerrainFixtureForTesting(bool enabled);
+    void SetRetainedPeepPublicationForTesting(bool enabled);
     [[nodiscard]] std::shared_ptr<CaptureRequest> ArmNextCapture(Drawing::IDrawingEngine& engine, std::string name);
 #endif
 } // namespace OpenRCT2::Ui::Vulkan::Diagnostic

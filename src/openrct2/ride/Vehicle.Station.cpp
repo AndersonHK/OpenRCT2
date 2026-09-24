@@ -176,7 +176,7 @@ namespace OpenRCT2::RideVehicle::StationDetail
         guest.currentSeat = seatIndex;
         vehicle.next_free_seat++;
         vehicle.peep[seatIndex] = guest.id;
-        vehicle.peep_tshirt_colours[seatIndex] = guest.tShirtColour;
+        vehicle.peep_tshirt_colours[seatIndex] = guest.getTShirtColour();
         return true;
     }
 } // namespace OpenRCT2::RideVehicle::StationDetail

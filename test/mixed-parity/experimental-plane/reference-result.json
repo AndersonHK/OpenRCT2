@@ -1,0 +1,604 @@
+{
+  "schema": 1,
+  "model": "plane-envelope-v1",
+  "status": "rejected-unresolved-contact-ties",
+  "historicalScope": "Actual pre-isolation build63 run; archived migrated source requires fresh qualification.",
+  "canonicalPolicy": "legacy8, zero tolerance",
+  "negativeControls": "stable8; no pixel exception",
+  "validationActivated": true,
+  "validationMessages": [],
+  "inputsUnchanged": true,
+  "gpuPredictionMatchedReports": 64,
+  "historicalEvidenceSha256": {
+    "obj\\vulkan-parity\\plane-run-01\\summary.json": "2bdb142a9c9b2f91448a80db306308cf0eeb14e4f90cb187b60168d5fcc3e986",
+    "obj\\vulkan-parity\\plane-emission-build-01\\receipt.json": "b043c61bd811dd28b21372e84b417ffbbbe96c46d5aed6934ca15d839b799e2d",
+    "obj\\vulkan-parity\\build-63\\receipt.json": "e8ab59d59b1d6095fd2a5a4bc6ab328d7bb114e63058c8176f20849d09d198f8",
+    "obj\\vulkan-parity\\mixed-corpus-01\\receipt.json": "718fa7671c8d5f007cfd3456a8d5e90e72143f2176cb272b3aa940425553ed4d",
+    "obj\\vulkan-parity\\mixed-depth-plane-review.json": "b5dcf2171628bee14c533320e97889c3b67c0485f87e00367481a0d1cdecf0ad"
+  },
+  "overlaySpirvSha256": {
+    "build.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "indexed_rect.frag.spv": "137e0092e183cd1f62bded831efa0b9c2763f0feec880bcf3453716595c06708",
+    "indexed_rect.vert.spv": "c98cba73d97ef4b598997b7d9e62d64cff7de62141f8ce54d1c11c6a88c415d0",
+    "indexed_sprite.vert.spv": "4a4f6f8e22ec31fe770e2681b1cf86eb6ef6f680eb7d14c6a232a2fd97376096",
+    "mixed_fixture_emit.comp.spv": "b3b9f397aefe964714e523abfa6b20290c988e75a859568f146bece28b0e2d29"
+  },
+  "reports": [
+    {
+      "case": "phase0-r0-legacy-0",
+      "layer": "indexed",
+      "gpuSha256": "f875bdf1fb826013ff0b4e8525124211287c51c0e6cdb577fced2954912be0fd",
+      "differingPixels": 0,
+      "uploadedWorldBytes": 54144,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase0-r0-legacy-0",
+      "layer": "rgba",
+      "gpuSha256": "a1978776133904ef44ea37830cfa6fb2fe3da3557fe4cac6d4f8b8aa2291f74f",
+      "differingPixels": 0,
+      "uploadedWorldBytes": 54144,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase0-r0-legacy-1",
+      "layer": "indexed",
+      "gpuSha256": "f875bdf1fb826013ff0b4e8525124211287c51c0e6cdb577fced2954912be0fd",
+      "differingPixels": 0,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase0-r0-legacy-1",
+      "layer": "rgba",
+      "gpuSha256": "a1978776133904ef44ea37830cfa6fb2fe3da3557fe4cac6d4f8b8aa2291f74f",
+      "differingPixels": 0,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase0-r0-stable-0",
+      "layer": "indexed",
+      "gpuSha256": "f875bdf1fb826013ff0b4e8525124211287c51c0e6cdb577fced2954912be0fd",
+      "differingPixels": 0,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase0-r0-stable-0",
+      "layer": "rgba",
+      "gpuSha256": "a1978776133904ef44ea37830cfa6fb2fe3da3557fe4cac6d4f8b8aa2291f74f",
+      "differingPixels": 0,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase0-r0-stable-1",
+      "layer": "indexed",
+      "gpuSha256": "f875bdf1fb826013ff0b4e8525124211287c51c0e6cdb577fced2954912be0fd",
+      "differingPixels": 0,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase0-r0-stable-1",
+      "layer": "rgba",
+      "gpuSha256": "a1978776133904ef44ea37830cfa6fb2fe3da3557fe4cac6d4f8b8aa2291f74f",
+      "differingPixels": 0,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase0-r1-legacy-0",
+      "layer": "indexed",
+      "gpuSha256": "d82f044aa58ae4f04362d648038208906f858d422c810763ddadf835fe5cab49",
+      "differingPixels": 0,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase0-r1-legacy-0",
+      "layer": "rgba",
+      "gpuSha256": "eed5b28b1d125acd51e87e78ff2a0be30c1282997b3af0c72854a0c2cd2298b8",
+      "differingPixels": 0,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase0-r1-legacy-1",
+      "layer": "indexed",
+      "gpuSha256": "d82f044aa58ae4f04362d648038208906f858d422c810763ddadf835fe5cab49",
+      "differingPixels": 0,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase0-r1-legacy-1",
+      "layer": "rgba",
+      "gpuSha256": "eed5b28b1d125acd51e87e78ff2a0be30c1282997b3af0c72854a0c2cd2298b8",
+      "differingPixels": 0,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase0-r1-stable-0",
+      "layer": "indexed",
+      "gpuSha256": "d82f044aa58ae4f04362d648038208906f858d422c810763ddadf835fe5cab49",
+      "differingPixels": 0,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase0-r1-stable-0",
+      "layer": "rgba",
+      "gpuSha256": "eed5b28b1d125acd51e87e78ff2a0be30c1282997b3af0c72854a0c2cd2298b8",
+      "differingPixels": 0,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase0-r1-stable-1",
+      "layer": "indexed",
+      "gpuSha256": "d82f044aa58ae4f04362d648038208906f858d422c810763ddadf835fe5cab49",
+      "differingPixels": 0,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase0-r1-stable-1",
+      "layer": "rgba",
+      "gpuSha256": "eed5b28b1d125acd51e87e78ff2a0be30c1282997b3af0c72854a0c2cd2298b8",
+      "differingPixels": 0,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase0-r2-legacy-0",
+      "layer": "indexed",
+      "gpuSha256": "77d7d65d3aa781a44f14319fcad6c04f3e82e84866ddd7d531f41324c2fd8bb0",
+      "differingPixels": 6,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase0-r2-legacy-0",
+      "layer": "rgba",
+      "gpuSha256": "df16eb1e1ace630b08e41396f947a3d2a0b97bf193b12ab3e8123eaea8fc12a0",
+      "differingPixels": 6,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase0-r2-legacy-1",
+      "layer": "indexed",
+      "gpuSha256": "77d7d65d3aa781a44f14319fcad6c04f3e82e84866ddd7d531f41324c2fd8bb0",
+      "differingPixels": 6,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase0-r2-legacy-1",
+      "layer": "rgba",
+      "gpuSha256": "df16eb1e1ace630b08e41396f947a3d2a0b97bf193b12ab3e8123eaea8fc12a0",
+      "differingPixels": 6,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase0-r2-stable-0",
+      "layer": "indexed",
+      "gpuSha256": "77d7d65d3aa781a44f14319fcad6c04f3e82e84866ddd7d531f41324c2fd8bb0",
+      "differingPixels": 6,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase0-r2-stable-0",
+      "layer": "rgba",
+      "gpuSha256": "df16eb1e1ace630b08e41396f947a3d2a0b97bf193b12ab3e8123eaea8fc12a0",
+      "differingPixels": 6,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase0-r2-stable-1",
+      "layer": "indexed",
+      "gpuSha256": "77d7d65d3aa781a44f14319fcad6c04f3e82e84866ddd7d531f41324c2fd8bb0",
+      "differingPixels": 6,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase0-r2-stable-1",
+      "layer": "rgba",
+      "gpuSha256": "df16eb1e1ace630b08e41396f947a3d2a0b97bf193b12ab3e8123eaea8fc12a0",
+      "differingPixels": 6,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase0-r3-legacy-0",
+      "layer": "indexed",
+      "gpuSha256": "950933650cf10509cb0f888b33b521496da3e9fd82dbddcf784b7b56d76abfc2",
+      "differingPixels": 5,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase0-r3-legacy-0",
+      "layer": "rgba",
+      "gpuSha256": "e45af87758276274a9628f20fdb409f2d0a452bf7419477e14a492d6680c3fba",
+      "differingPixels": 5,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase0-r3-legacy-1",
+      "layer": "indexed",
+      "gpuSha256": "950933650cf10509cb0f888b33b521496da3e9fd82dbddcf784b7b56d76abfc2",
+      "differingPixels": 5,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase0-r3-legacy-1",
+      "layer": "rgba",
+      "gpuSha256": "e45af87758276274a9628f20fdb409f2d0a452bf7419477e14a492d6680c3fba",
+      "differingPixels": 5,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase0-r3-stable-0",
+      "layer": "indexed",
+      "gpuSha256": "950933650cf10509cb0f888b33b521496da3e9fd82dbddcf784b7b56d76abfc2",
+      "differingPixels": 48,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase0-r3-stable-0",
+      "layer": "rgba",
+      "gpuSha256": "e45af87758276274a9628f20fdb409f2d0a452bf7419477e14a492d6680c3fba",
+      "differingPixels": 48,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase0-r3-stable-1",
+      "layer": "indexed",
+      "gpuSha256": "950933650cf10509cb0f888b33b521496da3e9fd82dbddcf784b7b56d76abfc2",
+      "differingPixels": 48,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase0-r3-stable-1",
+      "layer": "rgba",
+      "gpuSha256": "e45af87758276274a9628f20fdb409f2d0a452bf7419477e14a492d6680c3fba",
+      "differingPixels": 48,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase1-r0-legacy-0",
+      "layer": "indexed",
+      "gpuSha256": "65abeeef545fd1f6a2f85c1e28829cd7e8a69a6d97d8c6b396c556274ba0f5c8",
+      "differingPixels": 0,
+      "uploadedWorldBytes": 288,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase1-r0-legacy-0",
+      "layer": "rgba",
+      "gpuSha256": "6ea778ed22e53ce42c272c41b23e5d4fb919c80d6dd41e4a292abd39533e5f78",
+      "differingPixels": 0,
+      "uploadedWorldBytes": 288,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase1-r0-legacy-1",
+      "layer": "indexed",
+      "gpuSha256": "65abeeef545fd1f6a2f85c1e28829cd7e8a69a6d97d8c6b396c556274ba0f5c8",
+      "differingPixels": 0,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase1-r0-legacy-1",
+      "layer": "rgba",
+      "gpuSha256": "6ea778ed22e53ce42c272c41b23e5d4fb919c80d6dd41e4a292abd39533e5f78",
+      "differingPixels": 0,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase1-r0-stable-0",
+      "layer": "indexed",
+      "gpuSha256": "65abeeef545fd1f6a2f85c1e28829cd7e8a69a6d97d8c6b396c556274ba0f5c8",
+      "differingPixels": 0,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase1-r0-stable-0",
+      "layer": "rgba",
+      "gpuSha256": "6ea778ed22e53ce42c272c41b23e5d4fb919c80d6dd41e4a292abd39533e5f78",
+      "differingPixels": 0,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase1-r0-stable-1",
+      "layer": "indexed",
+      "gpuSha256": "65abeeef545fd1f6a2f85c1e28829cd7e8a69a6d97d8c6b396c556274ba0f5c8",
+      "differingPixels": 0,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase1-r0-stable-1",
+      "layer": "rgba",
+      "gpuSha256": "6ea778ed22e53ce42c272c41b23e5d4fb919c80d6dd41e4a292abd39533e5f78",
+      "differingPixels": 0,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase1-r1-legacy-0",
+      "layer": "indexed",
+      "gpuSha256": "11bf2e4ce054b0aff9b4354328e64dbc37f1df636cf7c1c5aa0e70e86aa97e9e",
+      "differingPixels": 0,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase1-r1-legacy-0",
+      "layer": "rgba",
+      "gpuSha256": "bd9a034723f758bc180ac3a4c3d6d908b1c118e5d77b3d95708aae783ca89d59",
+      "differingPixels": 0,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase1-r1-legacy-1",
+      "layer": "indexed",
+      "gpuSha256": "11bf2e4ce054b0aff9b4354328e64dbc37f1df636cf7c1c5aa0e70e86aa97e9e",
+      "differingPixels": 0,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase1-r1-legacy-1",
+      "layer": "rgba",
+      "gpuSha256": "bd9a034723f758bc180ac3a4c3d6d908b1c118e5d77b3d95708aae783ca89d59",
+      "differingPixels": 0,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase1-r1-stable-0",
+      "layer": "indexed",
+      "gpuSha256": "11bf2e4ce054b0aff9b4354328e64dbc37f1df636cf7c1c5aa0e70e86aa97e9e",
+      "differingPixels": 0,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase1-r1-stable-0",
+      "layer": "rgba",
+      "gpuSha256": "bd9a034723f758bc180ac3a4c3d6d908b1c118e5d77b3d95708aae783ca89d59",
+      "differingPixels": 0,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase1-r1-stable-1",
+      "layer": "indexed",
+      "gpuSha256": "11bf2e4ce054b0aff9b4354328e64dbc37f1df636cf7c1c5aa0e70e86aa97e9e",
+      "differingPixels": 0,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase1-r1-stable-1",
+      "layer": "rgba",
+      "gpuSha256": "bd9a034723f758bc180ac3a4c3d6d908b1c118e5d77b3d95708aae783ca89d59",
+      "differingPixels": 0,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase1-r2-legacy-0",
+      "layer": "indexed",
+      "gpuSha256": "28f9b393c2c960ad53536c82a5ac006fcc405f4894ca5a36f240a45fe48c83be",
+      "differingPixels": 2,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase1-r2-legacy-0",
+      "layer": "rgba",
+      "gpuSha256": "e942e0dc4d8d50880455081e291be5c589ab73f48ab29528a3147977fde1df91",
+      "differingPixels": 2,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase1-r2-legacy-1",
+      "layer": "indexed",
+      "gpuSha256": "28f9b393c2c960ad53536c82a5ac006fcc405f4894ca5a36f240a45fe48c83be",
+      "differingPixels": 2,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase1-r2-legacy-1",
+      "layer": "rgba",
+      "gpuSha256": "e942e0dc4d8d50880455081e291be5c589ab73f48ab29528a3147977fde1df91",
+      "differingPixels": 2,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase1-r2-stable-0",
+      "layer": "indexed",
+      "gpuSha256": "28f9b393c2c960ad53536c82a5ac006fcc405f4894ca5a36f240a45fe48c83be",
+      "differingPixels": 2,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase1-r2-stable-0",
+      "layer": "rgba",
+      "gpuSha256": "e942e0dc4d8d50880455081e291be5c589ab73f48ab29528a3147977fde1df91",
+      "differingPixels": 2,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase1-r2-stable-1",
+      "layer": "indexed",
+      "gpuSha256": "28f9b393c2c960ad53536c82a5ac006fcc405f4894ca5a36f240a45fe48c83be",
+      "differingPixels": 2,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase1-r2-stable-1",
+      "layer": "rgba",
+      "gpuSha256": "e942e0dc4d8d50880455081e291be5c589ab73f48ab29528a3147977fde1df91",
+      "differingPixels": 2,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase1-r3-legacy-0",
+      "layer": "indexed",
+      "gpuSha256": "f71e8d18873e9557b78e385381d1061f589df04a019ec426799a4aaba992c134",
+      "differingPixels": 5,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase1-r3-legacy-0",
+      "layer": "rgba",
+      "gpuSha256": "b122ea4ddad9063fe9a3aba244cd049054f7131f062af25a6cb3ba40b5b7e6cf",
+      "differingPixels": 5,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase1-r3-legacy-1",
+      "layer": "indexed",
+      "gpuSha256": "f71e8d18873e9557b78e385381d1061f589df04a019ec426799a4aaba992c134",
+      "differingPixels": 5,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase1-r3-legacy-1",
+      "layer": "rgba",
+      "gpuSha256": "b122ea4ddad9063fe9a3aba244cd049054f7131f062af25a6cb3ba40b5b7e6cf",
+      "differingPixels": 5,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase1-r3-stable-0",
+      "layer": "indexed",
+      "gpuSha256": "f71e8d18873e9557b78e385381d1061f589df04a019ec426799a4aaba992c134",
+      "differingPixels": 48,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase1-r3-stable-0",
+      "layer": "rgba",
+      "gpuSha256": "b122ea4ddad9063fe9a3aba244cd049054f7131f062af25a6cb3ba40b5b7e6cf",
+      "differingPixels": 48,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase1-r3-stable-1",
+      "layer": "indexed",
+      "gpuSha256": "f71e8d18873e9557b78e385381d1061f589df04a019ec426799a4aaba992c134",
+      "differingPixels": 48,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    },
+    {
+      "case": "phase1-r3-stable-1",
+      "layer": "rgba",
+      "gpuSha256": "b122ea4ddad9063fe9a3aba244cd049054f7131f062af25a6cb3ba40b5b7e6cf",
+      "differingPixels": 48,
+      "uploadedWorldBytes": 0,
+      "gpuError": 0,
+      "gpuComponents": 46
+    }
+  ]
+}

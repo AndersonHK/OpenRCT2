@@ -13,15 +13,18 @@
 #include <cassert>
 #include <cmath>
 #include <cstring>
+#include <openrct2/Context.h>
 #include <openrct2/SpriteIds.h>
 #include <openrct2/core/EnumUtils.hpp>
 #include <openrct2/drawing/Drawing.Sprite.h>
 #include <openrct2/drawing/Drawing.String.h>
 #include <openrct2/drawing/Drawing.h>
 #include <openrct2/drawing/G1Element.h>
+#include <openrct2/drawing/LightFX.h>
 #include <openrct2/drawing/RenderTarget.h>
 #include <openrct2/drawing/TTF.h>
 #include <openrct2/entity/EntityPresentationSnapshot.h>
+#include <openrct2/object/ObjectManager.h>
 #include <openrct2/world/Location.hpp>
 #include <openrct2/world/MapPresentationSnapshot.h>
 #include <ranges>
@@ -573,7 +576,8 @@ namespace OpenRCT2::Ui::Gpu
         return index;
     }
 
-    WorldSurfaceSpriteSet CommandDrawingContext::ResolveSurfaceSpriteSet(const ImageId image)
+    WorldSurfaceSpriteSet CommandDrawingContext::ResolveSurfaceSpriteSet(
+        const ImageId image, std::vector<uint64_t>* residencies, std::vector<uint32_t>* dependencies)
     {
         uint8_t primary = 0;
         uint8_t secondary = 0;
@@ -602,9 +606,23 @@ namespace OpenRCT2::Ui::Gpu
         for (int32_t zoom = static_cast<int32_t>(kWorldSurfaceMinimumZoom);
              zoom <= static_cast<int32_t>(kWorldSurfaceMaximumZoom); zoom++)
         {
-            const auto resolved = _textureCache.GetOrLoadImageSprite(image, ZoomLevel{ static_cast<int8_t>(zoom) });
+            std::optional<ResolvedSprite> resolved;
+            if (dependencies != nullptr)
+            {
+                const auto asset = _textureCache.ResolveAssetSprite(
+                    image, ZoomLevel{ static_cast<int8_t>(zoom) }, *dependencies);
+                if (!asset.sprite && !asset.noZoomDraw)
+                    throw std::runtime_error("GPU terrain base sprite is missing or unsupported");
+                resolved = asset.sprite;
+            }
+            else
+            {
+                resolved = _textureCache.GetOrLoadImageSprite(image, ZoomLevel{ static_cast<int8_t>(zoom) });
+            }
             if (!resolved.has_value())
                 continue;
+            if (residencies != nullptr)
+                residencies->push_back(resolved->residencyRevision);
             _surfaceUsesZeroCoverage |= resolved->zeroCoverage.has_value();
             result.variants[zoom - static_cast<int32_t>(kWorldSurfaceMinimumZoom)] = {
                 .spriteSize = { resolved->width, resolved->height },
@@ -696,28 +714,55 @@ namespace OpenRCT2::Ui::Gpu
     bool CommandDrawingContext::DrawCompleteTerrainScene(
         RenderTarget& rt, const PresentationGeneration& generation, const OrthographicCamera& camera)
     {
-        if ((!Terrain::kRuntimeAdmission && !_nativeTerrainFixture) || _admittingTerrainScene || !camera.nativeEntitiesAllowed
-            || camera.landscapeSmoothing != 0 || camera.rotation > 3 || camera.zoom < 0 || camera.zoom > 1
-            || generation.map == nullptr || generation.entities == nullptr
-            || generation.entities->GetCapturedEntityCount() != 0 || rt.width < 1 || rt.width > 1024
-            || rt.height < 1 || rt.height > 1024 || camera.viewX < -1048576 || camera.viewX > 1048576
-            || camera.viewY < -1048576 || camera.viewY > 1048576)
+        const bool nativePeeps = generation.entities && generation.entities->IsNativeOnly();
+        if ((!Terrain::kRuntimeAdmission && !_nativeTerrainFixture && !nativePeeps) || _admittingTerrainScene
+            || !camera.nativeEntitiesAllowed || camera.landscapeSmoothing != 0 || camera.rotation > 3 || camera.zoom < 0
+            || camera.zoom > 1 || generation.map == nullptr || generation.entities == nullptr
+            || (nativePeeps ? generation.entities->GetUnsupportedEntityCount() != 0
+                            : generation.entities->GetCapturedEntityCount() != 0)
+            || (nativePeeps
+                && (!generation.peeps || !generation.peepAnimations || LightFx::IsAvailable()
+                    || !std::isfinite(camera.entityInterpolation) || camera.entityInterpolation < 0
+                    || camera.entityInterpolation > 1))
+            || rt.width < 1 || rt.width > 3840 || rt.height < 1 || rt.height > 2160 || camera.viewX < -1048576
+            || camera.viewX > 1048576 || camera.viewY < -1048576 || camera.viewY > 1048576)
             return false;
         const ScreenRect clip = CalculateClipping(rt);
         // A later clipped viewport gets its own camera and depth interval. No partial CPU/native ownership.
-        if (clip.getLeft() != camera.clipLeft || clip.getTop() != camera.clipTop
-            || clip.getRight() != camera.clipRight || clip.getBottom() != camera.clipBottom)
+        if (clip.getLeft() != camera.clipLeft || clip.getTop() != camera.clipTop || clip.getRight() != camera.clipRight
+            || clip.getBottom() != camera.clipBottom)
             return false;
         _admittingTerrainScene = true;
-        struct Reset { bool& flag; ~Reset() { flag = false; } } reset{_admittingTerrainScene};
+        struct Reset
+        {
+            bool& flag;
+            ~Reset()
+            {
+                flag = false;
+            }
+        } reset{ _admittingTerrainScene };
         if (!_terrainBridge.Update(*generation.map) || !_terrainBridge.ResolveAssets(_textureCache))
             return false;
+        std::shared_ptr<const PeepAssetGeneration> peepAssets;
+        if (nativePeeps)
+        {
+            peepAssets = _peepAssets.Resolve(
+                _textureCache, generation.peepAnimations, GetContext()->GetObjectManager().GetPeepAnimationCatalog(),
+                _terrainBridge.GetSprites());
+            if (!peepAssets)
+                return false;
+        }
         const int32_t base = std::max(_drawCount, 1);
         if (base >= (1 << 22) - static_cast<int32_t>(Terrain::kDrawColumnCapacity))
             return false;
-        _commands->terrainScenes.push_back({ _terrainBridge.GetSnapshot(), _terrainBridge.GetSprites(),
-            {camera.viewX, camera.viewY, rt.width, rt.height, clip.getLeft(), clip.getTop(),
-                camera.rotation, camera.zoom, 0, 0, base} });
+        _commands->terrainScenes.push_back(
+            { _terrainBridge.GetSnapshot(),
+              peepAssets ? peepAssets->sprites : _terrainBridge.GetSprites(),
+              { camera.viewX, camera.viewY, rt.width, rt.height, clip.getLeft(), clip.getTop(), camera.rotation, camera.zoom, 0,
+                0, base, Terrain::kDrawColumnCapacity, Terrain::kDrawColumnCapacity, camera.entityInterpolation,
+                camera.entityInterpolationSourceTick },
+              nativePeeps ? generation.peeps : nullptr,
+              std::move(peepAssets) });
         _drawCount = base + static_cast<int32_t>(Terrain::kDrawColumnCapacity);
         return true;
     }
@@ -725,8 +770,24 @@ namespace OpenRCT2::Ui::Gpu
     NativeWorldCategories CommandDrawingContext::DrawWorldScene(
         RenderTarget& rt, std::shared_ptr<const PresentationGeneration> generation, const OrthographicCamera& camera)
     {
+        if (generation && generation->entities && generation->entities->IsTerrainOnly())
+        {
+            if (!generation->map)
+                throw std::runtime_error("Missing GPU-only terrain publication");
+            // Window splits may revisit the main viewport after higher-depth UI was already recorded.
+            // The first visit owns the full main target: never clear or reserve depth on a later visit.
+            if (_commands->worldSurfaces.has_value() || generation->map->GetSurfaceRecordCount() == 0)
+                return { false, false, 0, true };
+            Clear(rt, PaletteIndex::pi10);
+            // Partial GPU world ownership is intentional. Secondary viewports are left empty by ViewportPaint.
+            const bool surfaces = DrawWorldSurfaceScene(rt, generation, camera);
+            return { surfaces, false, 0, true };
+        }
         if (generation != nullptr && DrawCompleteTerrainScene(rt, *generation, camera))
-            return {true, false, static_cast<uint32_t>(_commands->terrainScenes.size() - 1), true};
+            return { true, false, static_cast<uint32_t>(_commands->terrainScenes.size() - 1), true };
+        // Diagnostic native-only rejection must not record partial world categories; the viewport fails the frame.
+        if (generation && generation->entities && generation->entities->IsNativeOnly())
+            return {};
         if (!_nativeBalloonFixture || _admittingBalloonFixture || generation == nullptr || !camera.nativeEntitiesAllowed
             || camera.rotation != 0 || camera.zoom != 0 || camera.landscapeSmoothing != 0 || rt.width <= 0 || rt.height <= 0
             || rt.width > static_cast<int32_t>(kBalloonMaximumExtent) || rt.height > static_cast<int32_t>(kBalloonMaximumExtent)
@@ -786,11 +847,19 @@ namespace OpenRCT2::Ui::Gpu
         assert(_inDraw);
         if (generation == nullptr || generation->map == nullptr || _commands->worldSurfaces.has_value())
             return false;
-        if (!generation->map->CanDrawSurfaceBaseIndependently()
-            || (!_admittingBalloonFixture && generation->entities != nullptr
-                && generation->entities->GetCapturedEntityCount() != 0)
-            || camera.landscapeSmoothing != 0)
+        const bool terrainOnly = generation->entities && generation->entities->IsTerrainOnly();
+        if (generation->map->GetSurfaceRecordCount() == 0)
+            return false; // An empty publication still belongs to the GPU-only viewport.
+        if (!terrainOnly
+            && (!generation->map->CanDrawSurfaceBaseIndependently()
+                || (!_admittingBalloonFixture && generation->entities != nullptr
+                    && generation->entities->GetCapturedEntityCount() != 0)
+                || camera.landscapeSmoothing != 0))
             return false;
+        if (terrainOnly
+            && (camera.rotation > 3 || camera.zoom < kWorldSurfaceMinimumZoom || camera.zoom > kWorldSurfaceMaximumZoom
+                || camera.viewX < -1048576 || camera.viewX > 1048576 || camera.viewY < -1048576 || camera.viewY > 1048576))
+            throw std::invalid_argument("GPU-only terrain camera is outside the supported range");
 
         const ScreenRect clip = CalculateClipping(rt);
         const Int4 cameraClip{
@@ -804,7 +873,11 @@ namespace OpenRCT2::Ui::Gpu
         // Validate before claiming the slot. Commit only after atlas resolution,
         // which can re-enter painting and advance the ordinary command sequence.
         if (!GetWorldSurfaceDepthRange(_drawCount, generation->map->GetSurfaceRecordCount()).has_value())
+        {
+            if (terrainOnly)
+                throw std::overflow_error("GPU-only terrain depth capacity exceeded");
             return false;
+        }
         // Claim the slot before atlas resolution: first residency can invalidate and re-enter viewport painting.
         _surfaceUsesZeroCoverage = false;
         auto& scene = _commands->worldSurfaces.emplace(WorldSurfaceSceneCommand{
@@ -827,8 +900,10 @@ namespace OpenRCT2::Ui::Gpu
             _surfaceSpriteCache.clear();
             _surfaceSpriteLookup.clear();
             _publishedSurfaceSprites.reset();
+            _surfaceAssetLease.reset();
         }
 
+        bool surfaceMembershipChanged = false;
         const auto& sourceChunks = generation->map->GetSurfaceChunks();
         _surfaceChunks.resize(sourceChunks.size());
         scene.chunks.resize(sourceChunks.size());
@@ -836,10 +911,15 @@ namespace OpenRCT2::Ui::Gpu
         {
             const auto& source = sourceChunks[chunkIndex];
             if (source == nullptr)
+            {
+                if (terrainOnly)
+                    throw std::runtime_error("GPU-only terrain publication has an absent surface chunk");
                 continue;
+            }
             auto& publishedChunk = _surfaceChunks[chunkIndex];
             if (publishedChunk.sourceRevision != source->revision || publishedChunk.gpu == nullptr)
             {
+                surfaceMembershipChanged = true;
                 auto converted = std::make_shared<WorldSurfaceChunk>();
                 converted->revision = source->revision;
                 publishedChunk.spriteSets.clear();
@@ -853,7 +933,7 @@ namespace OpenRCT2::Ui::Gpu
                     output.baseZ = input.baseZ;
                     // TileElementPaintSetup paints the declared map's border with
                     // BlankTilesPaint, not its stored surface. Preserve dense
-                    // snapshot indices but leave those tiles to ordinary commands.
+                    // snapshot indices. The partial GPU-only path intentionally omits this border.
                     const auto tileX = tileIndex % scene.width;
                     const auto tileY = tileIndex / scene.width;
                     output.valid = input.valid && tileX > 0 && tileY > 0 && tileX + 1 < scene.width && tileY + 1 < scene.height;
@@ -867,6 +947,8 @@ namespace OpenRCT2::Ui::Gpu
                             || output.distantSprites[rotation] == std::numeric_limits<uint32_t>::max())
                         {
                             _commands->worldSurfaces.reset();
+                            if (terrainOnly)
+                                throw std::overflow_error("GPU-only terrain sprite catalog capacity exceeded");
                             return false;
                         }
                         publishedChunk.spriteSets.push_back(output.detailedSprites[rotation]);
@@ -883,46 +965,67 @@ namespace OpenRCT2::Ui::Gpu
             scene.chunks[chunkIndex] = publishedChunk.gpu;
         }
 
-        std::vector<bool> activeSpriteSets(_surfaceSpriteCache.size());
-        for (const auto& chunk : _surfaceChunks)
+        // A retained asset lease validates every dependency and binds the atlas generation in O(1).
+        // Rebuild only after tile membership changes or an actual image invalidation. Unchanged frames
+        // neither walk active sprite sets nor repeat six zoom resolutions for every terrain image.
+        const bool reuseAssets = terrainOnly && !surfaceMembershipChanged && _publishedSurfaceSprites
+            && _textureCache.TryBindAssetLease(_surfaceAssetLease);
+        if (!reuseAssets)
         {
-            for (const auto spriteSet : chunk.spriteSets)
-                activeSpriteSets[spriteSet] = true;
-        }
-        bool spriteTableChanged = _publishedSurfaceSprites == nullptr
-            || _publishedSurfaceSprites->records.size() != _surfaceSpriteCache.size();
-        for (size_t index = 0; index < _surfaceSpriteCache.size(); index++)
-        {
-            if (!activeSpriteSets[index])
-                continue;
-            const auto resolved = ResolveSurfaceSpriteSet(_surfaceSpriteCache[index].image);
-            if (std::memcmp(&resolved, &_surfaceSpriteCache[index].record, sizeof(resolved)) != 0)
+            // A failed catalog refresh must not allow the previous lease to validate new chunk references on retry.
+            _surfaceAssetLease.reset();
+            std::vector<bool> activeSpriteSets(_surfaceSpriteCache.size());
+            for (const auto& chunk : _surfaceChunks)
+                for (const auto spriteSet : chunk.spriteSets)
+                    activeSpriteSets[spriteSet] = true;
+            bool spriteTableChanged = _publishedSurfaceSprites == nullptr
+                || _publishedSurfaceSprites->records.size() != _surfaceSpriteCache.size();
+            std::vector<uint64_t> residencies;
+            std::vector<uint32_t> dependencies;
+            for (size_t index = 0; index < _surfaceSpriteCache.size(); index++)
             {
-                _surfaceSpriteCache[index].record = resolved;
-                spriteTableChanged = true;
+                if (!activeSpriteSets[index])
+                    continue;
+                const auto resolved = ResolveSurfaceSpriteSet(
+                    _surfaceSpriteCache[index].image, terrainOnly ? &residencies : nullptr,
+                    terrainOnly ? &dependencies : nullptr);
+                if (std::memcmp(&resolved, &_surfaceSpriteCache[index].record, sizeof(resolved)) != 0)
+                {
+                    _surfaceSpriteCache[index].record = resolved;
+                    spriteTableChanged = true;
+                }
             }
-        }
-        if (_surfaceUsesZeroCoverage)
-        {
-            // The ordinary Vulkan sprite recorder supports explicit zero coverage. Keep native
-            // terrain ineligible until its own shader has equivalent representation and fixtures.
-            _commands->worldSurfaces.reset();
-            return false;
-        }
-        if (spriteTableChanged)
-        {
-            auto table = std::make_shared<WorldSurfaceSpriteTable>();
-            table->revision = ++_nextSurfaceSpriteRevision;
-            table->records.reserve(_surfaceSpriteCache.size());
-            for (const auto& entry : _surfaceSpriteCache)
-                table->records.push_back(entry.record);
-            _publishedSurfaceSprites = std::move(table);
+            if (_surfaceUsesZeroCoverage)
+            {
+                _commands->worldSurfaces.reset();
+                if (terrainOnly)
+                    throw std::runtime_error("GPU-only terrain does not support explicit covered-zero sprites");
+                return false;
+            }
+            if (spriteTableChanged)
+            {
+                auto table = std::make_shared<WorldSurfaceSpriteTable>();
+                table->revision = ++_nextSurfaceSpriteRevision;
+                table->records.reserve(_surfaceSpriteCache.size());
+                for (const auto& entry : _surfaceSpriteCache)
+                    table->records.push_back(entry.record);
+                _publishedSurfaceSprites = std::move(table);
+            }
+            if (terrainOnly)
+            {
+                auto lease = _textureCache.CreateAssetLease(residencies, dependencies);
+                if (!_textureCache.TryBindAssetLease(lease))
+                    throw std::runtime_error("GPU-only terrain atlas generation became invalid during preparation");
+                _surfaceAssetLease = std::move(lease);
+            }
         }
         scene.sprites = _publishedSurfaceSprites;
         const auto depthRange = GetWorldSurfaceDepthRange(_drawCount, scene.recordCount);
         if (scene.sprites == nullptr || !depthRange.has_value())
         {
             _commands->worldSurfaces.reset();
+            if (terrainOnly)
+                throw std::runtime_error("GPU-only terrain publication lost its assets or depth range");
             return false;
         }
         // Native base sprites precede the ordinary blank-tile/overlay commands

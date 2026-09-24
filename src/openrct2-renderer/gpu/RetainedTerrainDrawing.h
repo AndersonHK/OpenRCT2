@@ -1,26 +1,32 @@
 // Copyright (c) 2014-2026 OpenRCT2 developers. GPL-3.0-or-later.
 #pragma once
 #include "RetainedTerrain.h"
+
 #include <array>
 #include <vector>
 
+namespace OpenRCT2::Ui::Gpu
+{
+    class AtlasAssetLease;
+}
+
 namespace OpenRCT2::Ui::Gpu::Terrain
 {
-    constexpr uint32_t kDrawMaximumColumns = 65;
+    constexpr uint32_t kDrawMaximumColumns = 241;
     constexpr uint32_t kDrawColumnCapacity = 8192;
-    constexpr uint32_t kDrawSpriteCapacity = 8192;
+    constexpr uint32_t kDrawSpriteCapacity = 262144;
 
     struct DrawSpriteVariant
     {
         int32_t width{}, height{}, xOffset{}, yOffset{};
-        uint32_t asset{}, flags{}; // bit0 RLE; all other flags currently reject.
+        uint32_t asset{}, flags{}; // bit0 RLE; bit1 suppresses raster while retaining original parent culling.
         int32_t effectiveZoom{}, coordinateShift{};
     };
     struct DrawSpriteMetadata
     {
         uint32_t imageIndex{};
         int32_t width{}, height{}, xOffset{}, yOffset{}; // Original painter-cull metadata.
-        uint32_t flags{}, reserved0{}, reserved1{}; // Must be zero for this bounded path.
+        uint32_t flags{}, reserved0{}, reserved1{};      // Must be zero for this bounded path.
         std::array<DrawSpriteVariant, 2> variants;
     };
     struct DrawSpriteTable
@@ -28,11 +34,12 @@ namespace OpenRCT2::Ui::Gpu::Terrain
         uint64_t revision{};
         // Strictly increasing imageIndex. Atlas generation is part of revision.
         std::vector<DrawSpriteMetadata> records;
+        std::shared_ptr<const AtlasAssetLease> residency;
     };
     struct DrawCamera
     {
         int32_t x{}, y{}, width{}, height{}; // Logical world-plane target, not world tile coordinates.
-        int32_t clipX{}, clipY{}; // Framebuffer offset of target.
+        int32_t clipX{}, clipY{};            // Framebuffer offset of target.
         uint32_t rotation{};
         int32_t zoom{};
         uint32_t transparent{}, stableSort{};
@@ -41,6 +48,8 @@ namespace OpenRCT2::Ui::Gpu::Terrain
         // deliberate no-capacity diagnostic, never an unbounded sentinel.
         uint32_t parentCapacity = kDrawColumnCapacity;
         uint32_t commandCapacity = kDrawColumnCapacity;
+        float entityInterpolation = 1.0f;
+        uint32_t sourceTick{};
     };
     // Debug-visible GPU painter parent; no CPU producer of these records.
     struct DrawParent
@@ -62,4 +71,4 @@ namespace OpenRCT2::Ui::Gpu::Terrain
     static_assert(sizeof(DrawSpriteMetadata) == 96 && offsetof(DrawSpriteMetadata, variants) == 32);
     static_assert(sizeof(DrawParent) == 64 && offsetof(DrawParent, next) == 40);
     static_assert(sizeof(DrawColumnStatus) == 32 && offsetof(DrawColumnStatus, vertexCount) == 16);
-}
+} // namespace OpenRCT2::Ui::Gpu::Terrain

@@ -6,6 +6,7 @@
     #include "VulkanRenderService.h"
 
     #include "VulkanFrameExecutor.h"
+    #include "VulkanImageAliasPipeline.h"
     #include "VulkanPalettePipeline.h"
     #include "VulkanSubmissionSlots.h"
 
@@ -15,6 +16,7 @@
     #include <openrct2-renderer/gpu/GpuCommandDrawingContext.h>
     #include <openrct2/drawing/IDrawingEngine.h>
     #include <openrct2/drawing/RenderTarget.h>
+    #include <unordered_set>
 
 namespace OpenRCT2::Ui::Vulkan
 {
@@ -42,6 +44,7 @@ namespace OpenRCT2::Ui::Vulkan
             std::shared_ptr<DeviceContext> _context;
             SubmissionSlots _slots;
             FrameExecutor _executor;
+            ImageAliasPipeline _alias;
             PalettePipeline _palette;
             Image _output;
             RenderExtent _logical{};
@@ -96,6 +99,7 @@ namespace OpenRCT2::Ui::Vulkan
                 // A failed queue operation may have submitted before throwing.
                 // Retain all resources until the shared device retires that work.
                 _context->WaitIdle();
+                _alias.Dispose();
                 _palette.Dispose();
                 _output.Dispose();
                 _executor.Dispose();
@@ -103,6 +107,35 @@ namespace OpenRCT2::Ui::Vulkan
             RenderResult Execute(Job& job)
             {
                 const auto& request = job.request;
+                if (request.orderedAlias)
+                {
+                    _alias.Initialise(*_context, _options.shaderDirectory);
+                    const auto token = *_slots.Begin(0, true);
+                    bool submitted = false;
+                    try
+                    {
+                        const auto indices = _alias.Record(token, request);
+                        submitted = true;
+                        _slots.Submit(token);
+                        if (!_slots.Wait(token, UINT64_MAX))
+                            Fail(RenderErrorCode::timeout, "Ordered bitmap alias did not retire");
+                        token.upload->Invalidate(indices.offset, indices.size);
+                        RenderResult result{ .identity = job.completion->GetIdentity(),
+                                             .logicalExtent = request.logicalExtent,
+                                             .outputExtent = request.outputExtent,
+                                             .palette = request.palette };
+                        result.indexed.assign(indices.data, indices.data + request.initialIndices.size());
+                        return result;
+                    }
+                    catch (...)
+                    {
+                        if (!submitted)
+                            _slots.Abandon(token);
+                        else
+                            _context->WaitIdle();
+                        throw;
+                    }
+                }
                 if (_logical.width == 0)
                 {
                     _executor.Initialise(
@@ -207,8 +240,9 @@ namespace OpenRCT2::Ui::Vulkan
             const std::thread::id owner = std::this_thread::get_id();
             RenderServiceOptions options;
             DeviceProvider provider;
-            Gpu::TextureCache cache;
+            std::shared_ptr<Gpu::TextureCache> cache;
             std::mutex mutex;
+            std::unordered_set<uint32_t> pendingInvalidations;
             std::condition_variable condition;
             std::unique_ptr<Job> queued;
             std::shared_ptr<RenderCompletion> outstanding;
@@ -219,8 +253,18 @@ namespace OpenRCT2::Ui::Vulkan
             explicit ServiceState(RenderServiceOptions config, DeviceProvider deviceProvider)
                 : options(std::move(config))
                 , provider(std::move(deviceProvider))
-                , cache(options.atlasLayers)
+                , cache(std::make_shared<Gpu::TextureCache>(options.atlasLayers))
             {
+            }
+            void DrainImageInvalidations()
+            {
+                CheckOwner();
+                // The owner holds the busy recording slot. Worker producers only append IDs; retirement cannot
+                // admit another recorder. TextureCache preserves allocations already bound by this frame.
+                const std::lock_guard lock(mutex);
+                for (const auto image : pendingInvalidations)
+                    cache->InvalidateImage(image);
+                pendingInvalidations.clear();
             }
             void CheckOwner() const
             {
@@ -334,15 +378,18 @@ namespace OpenRCT2::Ui::Vulkan
             Session(std::shared_ptr<ServiceState> state, std::unique_ptr<Job> job)
                 : _state(std::move(state))
                 , _job(std::move(job))
-                , _bits(static_cast<size_t>(_job->request.logicalExtent.width) * _job->request.logicalExtent.height)
+                , _bits(
+                      _job->request.orderedAlias
+                          ? 0
+                          : static_cast<size_t>(_job->request.logicalExtent.width) * _job->request.logicalExtent.height)
                 , _target{ .bits = reinterpret_cast<PaletteIndex*>(_bits.data()),
                            .width = static_cast<int32_t>(_job->request.logicalExtent.width),
                            .height = static_cast<int32_t>(_job->request.logicalExtent.height) }
-                , _drawing(_target, _state->cache)
-                , _engine(*this, _state->cache)
+                , _drawing(_target, *_state->cache)
+                , _engine(*this, *_state->cache)
             {
                 _target.DrawingEngine = &_engine;
-                _state->cache.BeginFrame();
+                _state->cache->BeginFrame();
                 try
                 {
                     _drawing.Begin(_job->commands);
@@ -350,7 +397,7 @@ namespace OpenRCT2::Ui::Vulkan
                 }
                 catch (...)
                 {
-                    _state->cache.AbortFrame();
+                    _state->cache->AbortFrame();
                     throw;
                 }
             }
@@ -361,11 +408,17 @@ namespace OpenRCT2::Ui::Vulkan
             IDrawingContext& GetDrawingContext() override
             {
                 Check();
+                if (_job->request.orderedAlias)
+                    Fail(RenderErrorCode::invalidState, "Ordered bitmap alias cannot record drawing commands");
+                _state->DrainImageInvalidations();
                 return _drawing;
             }
             RenderTarget& GetRenderTarget() override
             {
                 Check();
+                if (_job->request.orderedAlias)
+                    Fail(RenderErrorCode::invalidState, "Ordered bitmap alias has no borrowed drawing target");
+                _state->DrainImageInvalidations();
                 return _target;
             }
             std::shared_ptr<IRenderCompletion> Submit() override
@@ -374,7 +427,7 @@ namespace OpenRCT2::Ui::Vulkan
                 _drawing.End();
                 try
                 {
-                    _job->residency = _state->cache.SealFrame(_job->commands);
+                    _job->residency = _state->cache->SealFrame(_job->commands);
                 }
                 catch (...)
                 {
@@ -387,7 +440,7 @@ namespace OpenRCT2::Ui::Vulkan
                     const std::lock_guard lock(_state->mutex);
                     if (_state->stopping)
                     {
-                        _state->cache.RetireFrame(_job->residency, Gpu::FrameRetirement::Failed);
+                        _state->cache->RetireFrame(_job->residency, Gpu::FrameRetirement::Failed);
                         _state->busy = false;
                         completion->Fail({ RenderErrorCode::shuttingDown, "Offscreen service stopped before submission" });
                         return completion;
@@ -408,7 +461,7 @@ namespace OpenRCT2::Ui::Vulkan
                 {
                     if (_drawing.IsActive())
                         _drawing.End();
-                    _state->cache.AbortFrame();
+                    _state->cache->AbortFrame();
                 }
                 catch (...)
                 {
@@ -469,7 +522,7 @@ namespace OpenRCT2::Ui::Vulkan
                     }
                     // Retire before result delivery and before admitting another
                     // recording. Cancelled deliveries still own leases until here.
-                    state->cache.RetireFrame(
+                    state->cache->RetireFrame(
                         job->residency, result ? Gpu::FrameRetirement::Presented : Gpu::FrameRetirement::Failed);
                     {
                         const std::lock_guard lock(state->mutex);
@@ -531,6 +584,7 @@ namespace OpenRCT2::Ui::Vulkan
                 }
                 try
                 {
+                    _state->DrainImageInvalidations();
                     return std::make_unique<Session>(_state, std::move(job));
                 }
                 catch (...)
@@ -540,6 +594,12 @@ namespace OpenRCT2::Ui::Vulkan
                     _state->outstanding.reset();
                     throw;
                 }
+            }
+            void InvalidateImage(uint32_t image) override
+            {
+                const std::lock_guard lock(_state->mutex);
+                if (!_state->stopping)
+                    _state->pendingInvalidations.insert(image);
             }
             void Shutdown() noexcept override
             {

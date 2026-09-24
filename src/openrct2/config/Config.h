@@ -41,7 +41,6 @@ namespace OpenRCT2::Config
         int32_t fullscreenHeight;
         float windowScale;
         bool inferDisplayDPI;
-        ::DrawingEngine drawingEngine;
         bool uncapFPS;
         bool useVSync;
         bool enableHdr10Output;

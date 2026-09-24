@@ -222,9 +222,15 @@ namespace OpenRCT2
         return captured;
     }
 
-    MapPresentationChangeBatch ConsumeMapPresentationChanges()
+    MapPresentationChangeBatch ConsumeMapPresentationChanges(const bool requireCompleteSnapshot)
     {
         PROFILED_FUNCTION();
+        if (requireCompleteSnapshot && !_presentationResetPending)
+        {
+            if (++_presentationEpoch == 0)
+                _presentationEpoch = 1;
+            _presentationResetPending = true;
+        }
         const auto& gameState = getGameState();
         const uint32_t surfaceWidth = gameState.mapSize.x;
         const uint32_t surfaceHeight = gameState.mapSize.y;

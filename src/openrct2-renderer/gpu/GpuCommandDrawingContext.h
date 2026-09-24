@@ -11,6 +11,7 @@
 
 #include "GpuCommandStream.h"
 #include "GpuTextureCache.h"
+#include "PeepAssetGeneration.h"
 #include "TerrainPresentationBridge.h"
 
 #include <array>
@@ -38,6 +39,7 @@ namespace OpenRCT2::Ui::Gpu
         bool _inDraw = false;
         bool _admittingTerrainScene{};
         Terrain::PresentationBridge _terrainBridge;
+        PeepAssetResolver _peepAssets;
         bool DrawCompleteTerrainScene(Drawing::RenderTarget&, const PresentationGeneration&, const OrthographicCamera&);
 
         struct ClippingCacheEntry
@@ -71,6 +73,7 @@ namespace OpenRCT2::Ui::Gpu
         std::vector<SurfaceSpriteCacheEntry> _surfaceSpriteCache;
         std::unordered_map<ImageId, uint32_t, ImageIdHash> _surfaceSpriteLookup;
         std::shared_ptr<const WorldSurfaceSpriteTable> _publishedSurfaceSprites;
+        std::shared_ptr<const AtlasAssetLease> _surfaceAssetLease;
         uint64_t _nextSurfaceSpriteRevision{};
         uint64_t _surfaceWorldEpoch{};
         uint32_t _surfaceWidth{};
@@ -95,11 +98,14 @@ namespace OpenRCT2::Ui::Gpu
             _nativeBalloonFixture = enabled;
         }
         // Only the isolated diagnostic frontend calls this; ordinary factories leave false.
-        void SetNativeTerrainFixtureForTesting(bool enabled) noexcept { _nativeTerrainFixture = enabled; }
+        void SetNativeTerrainFixtureForTesting(bool enabled) noexcept
+        {
+            _nativeTerrainFixture = enabled;
+        }
         [[nodiscard]] std::array<uint64_t, 4> GetTerrainPreparationForTesting() const noexcept
         {
             return { _terrainBridge.GetSnapshot().worldEpoch, _terrainBridge.GetMaterialMapCopies(),
-                _terrainBridge.GetSpriteCatalogBuilds(), _terrainBridge.GetResidencyRebinds() };
+                     _terrainBridge.GetSpriteCatalogBuilds(), _terrainBridge.GetResidencyRebinds() };
         }
         [[nodiscard]] static bool AreBalloonRecordsSupported(const Drawing::RetainedBalloonSnapshot& snapshot);
         Drawing::NativeWorldCategories DrawWorldScene(
@@ -134,7 +140,8 @@ namespace OpenRCT2::Ui::Gpu
 
     private:
         [[nodiscard]] uint32_t GetOrCreateSurfaceSpriteSet(ImageId image);
-        [[nodiscard]] WorldSurfaceSpriteSet ResolveSurfaceSpriteSet(ImageId image);
+        [[nodiscard]] WorldSurfaceSpriteSet ResolveSurfaceSpriteSet(
+            ImageId image, std::vector<uint64_t>* residencies = nullptr, std::vector<uint32_t>* dependencies = nullptr);
         RectCommand& AppendRect(CommandBatch<RectCommand>& batch, const ScreenRect& clip, Int4 bounds, float zoom = 1.0f);
         [[nodiscard]] ScreenRect CalculateClipping(const Drawing::RenderTarget& rt) const;
     };

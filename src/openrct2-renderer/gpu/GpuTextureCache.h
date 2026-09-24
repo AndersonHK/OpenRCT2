@@ -14,14 +14,14 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <mutex>
 #include <memory>
-#include <span>
-#include <utility>
+#include <mutex>
 #include <openrct2/drawing/ImageId.hpp>
 #include <openrct2/interface/ZoomLevel.h>
 #include <optional>
+#include <span>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 struct TTFSurface;
@@ -34,6 +34,26 @@ namespace OpenRCT2::Drawing
 
 namespace OpenRCT2::Ui::Gpu
 {
+    class TextureCache;
+    // A catalog owns this lease; packets retain it until GPU retirement. Destruction only queues work.
+    class AtlasAssetLease final
+    {
+        friend class TextureCache;
+        std::shared_ptr<TextureCache> _owner;
+        uint64_t _id{};
+        mutable bool _current = true; // Recording owner only; worker destruction does not read this flag.
+        AtlasAssetLease(std::shared_ptr<TextureCache> owner, uint64_t id)
+            : _owner(std::move(owner))
+            , _id(id)
+        {
+        }
+
+    public:
+        ~AtlasAssetLease();
+        AtlasAssetLease(const AtlasAssetLease&) = delete;
+        AtlasAssetLease& operator=(const AtlasAssetLease&) = delete;
+    };
+
     struct ResolvedSprite
     {
         Int2 atlasOrigin{};
@@ -48,20 +68,12 @@ namespace OpenRCT2::Ui::Gpu
         std::optional<TextureBinding> zeroCoverage;
         uint64_t residencyRevision{}; // Allocation identity, including identical asset replacements.
     };
-
-    // Non-owning with respect to atlas storage: this identity only validates a
-    // cached metadata catalog. Every use still binds the ordinary frame lease.
-    class ImageResidencyGeneration final
+    struct AssetSpriteResolution
     {
-        friend class TextureCache;
-        std::shared_ptr<const uint8_t> _cacheIdentity;
-        uint64_t _invalidations{};
-        ImageResidencyGeneration(std::shared_ptr<const uint8_t> identity, uint64_t invalidations)
-            : _cacheIdentity(std::move(identity)), _invalidations(invalidations) {}
-    public:
-        ImageResidencyGeneration() = default;
-        bool operator==(const ImageResidencyGeneration&) const = default;
+        std::optional<ResolvedSprite> sprite;
+        bool noZoomDraw{};
     };
+
     struct AtlasResidencyToken
     {
         uint64_t value = 0;
@@ -90,8 +102,10 @@ namespace OpenRCT2::Ui::Gpu
      * The recording owner applies all cache mutations. Backend threads only
      * enqueue completed-frame retirements for the next recording boundary.
      */
-    class TextureCache final
+    class TextureCache final : public std::enable_shared_from_this<TextureCache>
     {
+        friend class AtlasAssetLease;
+
     private:
         struct GlyphKey
         {
@@ -139,6 +153,7 @@ namespace OpenRCT2::Ui::Gpu
             uint64_t lastBoundFrame = 0;
             uint32_t pinCount = 0;
             bool retireWhenUnpinned = false;
+            std::vector<uint64_t> assetLeases;
         };
 
         struct TTFSurfaceEntry
@@ -158,9 +173,14 @@ namespace OpenRCT2::Ui::Gpu
             AtlasResidencyToken token{};
             FrameRetirement retirement{};
         };
+        struct AssetLeaseState
+        {
+            std::vector<AtlasAllocationId> allocations;
+            std::vector<uint32_t> dependencies;
+            std::weak_ptr<const AtlasAssetLease> lease;
+            uint64_t lastBoundFrame{};
+        };
 
-        const std::shared_ptr<const uint8_t> _imageResidencyIdentity = std::make_shared<const uint8_t>(0);
-        uint64_t _imageInvalidationSerial = 1;
         uint32_t _maxAtlasLayers;
         std::vector<AtlasPage> _atlases;
         std::vector<std::optional<ResidentImage>> _images;
@@ -174,6 +194,11 @@ namespace OpenRCT2::Ui::Gpu
         std::vector<AtlasAllocationId> _frameAllocations;
         std::vector<uint32_t> _deferredInvalidations;
         std::vector<PendingFrameRetirement> _pendingFrameRetirements;
+        std::unordered_map<uint64_t, AssetLeaseState> _assetLeases;
+        std::unordered_map<uint32_t, std::vector<uint64_t>> _assetDependencies;
+        std::vector<std::shared_ptr<const AtlasAssetLease>> _frameAssetLeases;
+        std::vector<uint64_t> _pendingAssetRetirements;
+        uint64_t _nextAssetLease = 1;
         uint64_t _nextAllocationSerial = 1;
         uint64_t _nextResidencyToken = 1;
         uint64_t _recordingFrameSerial = 0;
@@ -185,16 +210,17 @@ namespace OpenRCT2::Ui::Gpu
 
         [[nodiscard]] TextureBinding GetOrLoadImageTexture(ImageId imageId);
         [[nodiscard]] std::optional<ResolvedSprite> GetOrLoadImageSprite(ImageId imageId, ZoomLevel zoom);
+        // Catalog preparation only. Includes every parent/linked image consulted, even a noZoomDraw parent.
+        [[nodiscard]] AssetSpriteResolution ResolveAssetSprite(
+            ImageId imageId, ZoomLevel zoom, std::vector<uint32_t>& dependencies);
+        [[nodiscard]] std::shared_ptr<const AtlasAssetLease> CreateAssetLease(
+            std::span<const uint64_t> residencies, std::span<const uint32_t> dependencies);
+        // O(1) generation binding; no image walk, decoding, sorting or individual pin increments.
+        [[nodiscard]] bool TryBindAssetLease(const std::shared_ptr<const AtlasAssetLease>& lease);
         [[nodiscard]] TextureBinding GetOrLoadGlyphTexture(ImageId imageId, const Drawing::PaletteMap& palette);
 #ifndef DISABLE_TTF
         [[nodiscard]] TextureBinding GetOrLoadTTFTexture(const TTFSurface& surface);
 #endif
-        [[nodiscard]] ImageResidencyGeneration GetImageResidencyGeneration() const noexcept
-        { return { _imageResidencyIdentity, _imageInvalidationSerial }; }
-        // No decoding or metadata rebuilding. Validates the complete set before
-        // binding any allocation; unavailable/retired generations return false.
-        [[nodiscard]] bool TryBindImageResidencies(
-            const ImageResidencyGeneration& generation, std::span<const uint64_t> serials);
         void BeginFrame();
         [[nodiscard]] AtlasResidencyToken SealFrame(FrameCommandStream& commands);
         // Worker threads enqueue retirement only; the recording owner applies it at a frame boundary.
@@ -221,5 +247,8 @@ namespace OpenRCT2::Ui::Gpu
         void FreeIfUnpinned(uint64_t allocationSerial);
         void RemovePending(AtlasAllocationId allocation);
         void TrimTTFSurfaceCache(size_t targetSize);
+        void RetireAssetLease(uint64_t id) noexcept;
+        void ApplyAssetRetirement(uint64_t id);
+        bool IsAllocationBound(const AllocationState& state) const;
     };
 } // namespace OpenRCT2::Ui::Gpu

@@ -21,6 +21,9 @@ def captures():
                 "worldMotion":{"schema":1,"initialTick":100,"tickOffset":tick,"totalTicks":16,"pass":phase,
                     "positions":"authoritative; no tween","drawCount":{"before":ordinal + 2,"after":ordinal + 3},
                     "vehicles":{"schema":1,"count":1,"columns":list(range(25)),"records":[record],"scenarioRng":[tick,3]}}}
+            meta["worldMotion"]["consumedSourceTick"] = 100 + tick
+            meta["worldMotion"]["consumedVehicles"] = {key:copy.deepcopy(value)
+                for key,value in meta["worldMotion"]["vehicles"].items() if key != "scenarioRng"}
             result[f"motion-{tick}-{phase}"] = {"metadata":meta,"rgbaSha256":str(tick),"indexedSha256":str(tick)}
     return result
 
@@ -55,6 +58,20 @@ class WorldMotionReceiptTests(unittest.TestCase):
         for sample in data.values():
             sample["metadata"]["worldMotion"]["vehicles"]["records"] = copy.deepcopy(fixed)
         self.assertTrue(any("did not move" in x for x in runner.validate_world_motion_samples(data, 16)))
+
+    def test_identical_live_state_cannot_hide_different_consumed_publications(self):
+        for key in ("consumedSourceTick", "consumedVehicles"):
+            data = captures()
+            motion = data["motion-7-full"]["metadata"]["worldMotion"]
+            motion[key] = copy.deepcopy(data["motion-6-full"]["metadata"]["worldMotion"][key])
+            self.assertTrue(any("consumed publication changed at tick 7" in x
+                for x in runner.validate_world_motion_samples(data, 16)))
+
+    def test_unstamped_legacy_captures_cannot_qualify_motion(self):
+        data = captures()
+        del data["motion-7-full"]["metadata"]["worldMotion"]["consumedSourceTick"]
+        self.assertTrue(any("Missing or malformed consumed publication" in x
+            for x in runner.validate_world_motion_samples(data, 16)))
 
 
 if __name__ == "__main__":

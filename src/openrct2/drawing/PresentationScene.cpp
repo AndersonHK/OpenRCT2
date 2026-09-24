@@ -14,7 +14,9 @@
 #include "../entity/EntityPresentationSnapshot.h"
 #include "../world/MapPresentationSnapshot.h"
 #include "RetainedBalloonScene.h"
+#include "RetainedPeepState.h"
 
+#include <atomic>
 #include <cstring>
 #include <limits>
 #include <optional>
@@ -25,6 +27,20 @@ namespace OpenRCT2
 {
     namespace
     {
+        // A render consumer can outlive a scene owner. Allocate only at a complete combined-family
+        // bootstrap, so recreated owners cannot alias held snapshots or resident chunk revisions.
+        std::atomic<uint64_t> _nextRetainedPublicationEpoch{ 1 };
+        uint64_t NextRetainedPublicationEpoch()
+        {
+            auto epoch = _nextRetainedPublicationEpoch.load(std::memory_order_relaxed);
+            do
+            {
+                if (epoch == UINT64_MAX)
+                    throw std::overflow_error("Retained publication epoch exhausted");
+            } while (!_nextRetainedPublicationEpoch.compare_exchange_weak(epoch, epoch + 1, std::memory_order_relaxed));
+            return epoch;
+        }
+
         class MapPresentationPublisher final
         {
         private:
@@ -73,7 +89,9 @@ namespace OpenRCT2
                 if (_front == nullptr)
                 {
                     auto initial = std::make_shared<MapPresentationSnapshot>();
-                    initial->Apply(ConsumeMapPresentationChanges());
+                    auto changes = ConsumeMapPresentationChanges(true);
+                    sceneReset |= changes.reset;
+                    initial->Apply(changes);
                     _front = std::move(initial);
                 }
                 return { _front, sceneReset };
@@ -90,7 +108,7 @@ namespace OpenRCT2
                     sceneReset = std::exchange(_pendingReset, false);
                 }
 
-                auto changes = ConsumeMapPresentationChanges();
+                auto changes = ConsumeMapPresentationChanges(_front == nullptr);
                 sceneReset |= changes.reset;
                 if (_front == nullptr)
                 {
@@ -136,15 +154,84 @@ namespace OpenRCT2
 
             EntityPublicationProfile _profile = EntityPublicationProfile::legacyBulk;
             Drawing::RetainedBalloonScene _balloons;
+            Drawing::RetainedPeepScene _peeps;
+            std::shared_ptr<const Drawing::RetainedPeepAnimationCatalog> _peepAnimations;
+            std::vector<uint32_t> _peepObjectGenerations;
+            uint64_t _peepSourceEpoch{};
+            uint64_t _retainedPublicationEpoch{};
             // Lifetime-monotonic even across profile/reset bootstrap: the same epoch must never reuse GPU revisions.
             uint64_t _balloonSequence{};
             Drawing::BalloonPublicationCopyTotals _balloonCopyTotals{};
 
+            void CaptureRetainedFamilies(EntityPresentationSnapshot& target, EntityRegistry& registry)
+            {
+                if (_peepAnimations == nullptr)
+                    throw std::invalid_argument("Combined peep publication requires an owned animation catalog");
+                const bool bootstrap = _peeps.GetSnapshot() == nullptr || _peepSourceEpoch != registry.GetEntityVisualEpoch();
+                if (_balloonSequence == UINT64_MAX)
+                    throw std::overflow_error("Retained publication identity exhausted");
+                const auto epoch = bootstrap ? NextRetainedPublicationEpoch() : _retainedPublicationEpoch;
+                const auto sequence = _balloonSequence + 1;
+                auto input = registry.CaptureRetainedEntityPublication(
+                    getGameState().currentTicks, _peepObjectGenerations, bootstrap,
+                    _profile != EntityPublicationProfile::nativePeeps);
+                input.peeps.epoch = input.balloons.epoch = epoch;
+                // Existing balloon adapter validates handle epochs as well as batch identity.
+                for (auto& change : input.balloons.changes)
+                    change.handle.epoch = epoch;
+                auto nextPeeps = _peeps;
+                auto nextBalloons = _balloons;
+                nextPeeps.Apply(input.peeps, sequence);
+                if (_profile != EntityPublicationProfile::nativePeeps)
+                    nextBalloons.Apply(input.balloons, sequence);
+                Drawing::BalloonPublicationMetrics metrics{};
+                metrics.sourceTick = input.sourceTick;
+                metrics.worklistEntries = input.dirtyVisits;
+                metrics.worklistVisits = 2 * input.dirtyVisits; // Capture plus acknowledgement; no sorting.
+                metrics.bootstrapVisits = input.bootstrapVisits;
+                metrics.payloadCopiedBytes = input.balloons.payload.size();
+                const auto copied = nextBalloons.GetLastApplyMetrics();
+                metrics.compatibilityCopiedBytes = copied.compatibilityCopiedBytes;
+                metrics.recordCopiedBytes = copied.recordCopiedBytes;
+                if (_profile == EntityPublicationProfile::nativePeeps)
+                    target.CaptureNativeStorage(registry, nextPeeps.GetSnapshot(), _peepAnimations);
+                else
+                    target.CaptureStorage(
+                        registry, nextBalloons.GetSnapshot(), metrics, nextPeeps.GetSnapshot(), _peepAnimations);
+                // No mutation may intervene between prepare and this acknowledgement on the authoritative owner.
+                registry.AcknowledgeRetainedEntityPublication();
+                _peeps = std::move(nextPeeps);
+                _balloons = std::move(nextBalloons);
+                _peepSourceEpoch = input.sourceEpoch;
+                _retainedPublicationEpoch = epoch;
+                _balloonSequence = sequence;
+                ++_balloonCopyTotals.captures;
+                _balloonCopyTotals.worklistEntries += metrics.worklistEntries;
+                _balloonCopyTotals.worklistVisits += metrics.worklistVisits;
+                _balloonCopyTotals.payloadCopiedBytes += metrics.payloadCopiedBytes;
+                _balloonCopyTotals.compatibilityCopiedBytes += metrics.compatibilityCopiedBytes;
+                _balloonCopyTotals.recordCopiedBytes += metrics.recordCopiedBytes;
+                _balloonCopyTotals.bulkCopiedBytes += target.GetBalloonMetrics().bulkCopiedBytes;
+            }
+
             void Capture(EntityPresentationSnapshot& target, EntityRegistry& registry)
             {
+                if (_profile == EntityPublicationProfile::gpuTerrainOnly)
+                {
+                    // The first GPU-only layer owns no entity graphics yet. Leave simulation and its
+                    // coalesced mutation worklist intact; a later family activation bootstraps its state.
+                    target.CaptureNativeStorage(registry, {}, {});
+                    return;
+                }
                 if (_profile == EntityPublicationProfile::legacyBulk)
                 {
                     target.CaptureStorage(registry);
+                    return;
+                }
+                if ((_profile == EntityPublicationProfile::retainedPeepsAndBalloons
+                     || _profile == EntityPublicationProfile::nativePeeps))
+                {
+                    CaptureRetainedFamilies(target, registry);
                     return;
                 }
                 Drawing::BalloonPublicationMetrics metrics{};
@@ -219,6 +306,41 @@ namespace OpenRCT2
                 _recycle.reset();
                 _pendingGroup.reset();
                 _balloons = {};
+                _peeps = {};
+                _peepSourceEpoch = 0;
+            }
+
+            void SetPeepCatalog(JobPool& jobs, std::shared_ptr<const Drawing::RetainedPeepAnimationCatalog> catalog)
+            {
+                if (_profile != EntityPublicationProfile::retainedPeepsAndBalloons
+                    && _profile != EntityPublicationProfile::nativePeeps)
+                {
+                    _peepAnimations.reset();
+                    _peepObjectGenerations.clear();
+                    return;
+                }
+                if (catalog == nullptr || catalog->epoch == 0 || catalog->sequence == 0)
+                    throw std::invalid_argument("Combined publication requires an identified catalog");
+                if (catalog == _peepAnimations)
+                    return;
+                std::vector<uint32_t> generations;
+                for (const auto& [slot, entry] : catalog->slots)
+                {
+                    if (slot >= UINT16_MAX || entry.generation == 0)
+                        throw std::invalid_argument("Invalid peep catalog identity");
+                    if (entry.object == nullptr)
+                        continue;
+                    if (entry.object->descriptor.objectIndex != slot
+                        || entry.object->descriptor.objectGeneration != entry.generation)
+                        throw std::invalid_argument("Peep catalog descriptor differs from slot identity");
+                    if (generations.size() <= slot)
+                        generations.resize(slot + 1);
+                    generations[slot] = entry.generation;
+                }
+                // Object mutation is an exceptional dependency transition: discard prepared work and bootstrap once.
+                Reset(jobs);
+                _peepAnimations = std::move(catalog);
+                _peepObjectGenerations = std::move(generations);
             }
 
             Drawing::BalloonPublicationCopyTotals GetCopyTotals() const noexcept
@@ -297,6 +419,7 @@ namespace OpenRCT2
         std::shared_ptr<const PresentationGeneration> generation;
         uint32_t drawCount = std::numeric_limits<uint32_t>::max();
         EntityPublicationProfile profile = EntityPublicationProfile::legacyBulk;
+        bool retrySynchronously{};
     };
 
     PresentationScene::PresentationScene()
@@ -308,53 +431,91 @@ namespace OpenRCT2
 
     bool PresentationScene::BeginFrame(
         JobPool& jobs, EntityRegistry& entities, const uint32_t drawCount, const bool synchronousMapPublication,
-        const EntityPublicationProfile profile)
+        const EntityPublicationProfile profile, std::shared_ptr<const Drawing::RetainedPeepAnimationCatalog> peepAnimations)
     {
-        const bool profileChanged = _impl->profile != profile;
-        if (!profileChanged && _impl->drawCount == drawCount)
-            return false;
-        _impl->drawCount = drawCount;
-        _impl->entities.SetProfile(jobs, profile);
-        _impl->profile = profile;
-        const bool entityEpochChanged = _impl->generation != nullptr && _impl->generation->balloons != nullptr
-            && _impl->generation->balloons->epoch != entities.GetEntityVisualEpoch();
-        const bool synchronous = synchronousMapPublication || profileChanged || entityEpochChanged;
-
-        const bool worldEpochChanged = _impl->generation != nullptr && _impl->generation->map != nullptr
-            && _impl->generation->map->GetEpoch() != GetMapPresentationEpoch();
-        if (worldEpochChanged)
+        try
         {
-            // Park loading replaces map, object, ride, and entity registries together. No prepared work may cross that epoch.
-            _impl->map.Reset(jobs);
-            _impl->entities.Reset(jobs);
-            _impl->generation.reset();
+            if ((profile == EntityPublicationProfile::retainedPeepsAndBalloons
+                 || profile == EntityPublicationProfile::nativePeeps)
+                && peepAnimations == nullptr)
+                throw std::invalid_argument("Combined publication requires an owned animation catalog");
+            const bool catalogChanged = (profile == EntityPublicationProfile::retainedPeepsAndBalloons
+                                         || profile == EntityPublicationProfile::nativePeeps)
+                && (_impl->generation == nullptr || _impl->generation->peepAnimations != peepAnimations);
+            const bool profileChanged = _impl->profile != profile;
+            if (!_impl->retrySynchronously && !profileChanged && !catalogChanged && _impl->drawCount == drawCount)
+                return false;
+            _impl->entities.SetProfile(jobs, profile);
+            _impl->entities.SetPeepCatalog(jobs, std::move(peepAnimations));
+            _impl->profile = profile;
+            const bool entityEpochChanged = _impl->generation != nullptr
+                && _impl->generation->sourceEntityEpoch != entities.GetEntityVisualEpoch();
+            const bool synchronous = _impl->retrySynchronously || synchronousMapPublication || profileChanged
+                || entityEpochChanged || catalogChanged;
+
+            const bool worldEpochChanged = _impl->generation != nullptr && _impl->generation->map != nullptr
+                && _impl->generation->map->GetEpoch() != GetMapPresentationEpoch();
+            if (worldEpochChanged || _impl->retrySynchronously)
+            {
+                // A failed capture may already have consumed one source's dirty input. Wait/discard both
+                // preparations and request a complete cold bootstrap, including unchanged tiles/entities.
+                // Keep the previously exposed generation until the complete replacement succeeds.
+                _impl->map.Reset(jobs);
+                _impl->entities.Reset(jobs);
+            }
+
+            // Publication is all-or-nothing, including when one source had no changes to prepare.
+            if (!synchronous && (!_impl->map.IsReady() || !_impl->entities.IsReady()))
+                return false;
+
+            const auto map = synchronous ? _impl->map.AcquireSynchronously(jobs) : _impl->map.Acquire(jobs);
+            if (map.sceneReset)
+                _impl->entities.Reset(jobs);
+            const auto entitySnapshot = synchronous || profile == EntityPublicationProfile::gpuTerrainOnly
+                ? _impl->entities.AcquireSynchronously(jobs, entities)
+                : _impl->entities.Acquire(jobs, entities);
+            _impl->generation = std::make_shared<PresentationGeneration>(PresentationGeneration{
+                .map = map.snapshot,
+                .entities = entitySnapshot,
+                .balloons = entitySnapshot->GetRetainedBalloons(),
+                .sourceTick = entitySnapshot->GetSourceTick(),
+                .sourceEntityEpoch = entitySnapshot->GetSourceEpoch(),
+                .peeps = entitySnapshot->GetRetainedPeeps(),
+                .peepAnimations = entitySnapshot->GetPeepAnimations(),
+            });
+            _impl->drawCount = drawCount; // Failed preparation may retry this same draw boundary.
+            _impl->retrySynchronously = false;
+            return true;
         }
-
-        // Publication is all-or-nothing, including when one source had no changes to prepare.
-        if (!synchronous && (!_impl->map.IsReady() || !_impl->entities.IsReady()))
-            return false;
-
-        const auto map = synchronous ? _impl->map.AcquireSynchronously(jobs) : _impl->map.Acquire(jobs);
-        if (map.sceneReset)
-            _impl->entities.Reset(jobs);
-        const auto entitySnapshot = synchronous ? _impl->entities.AcquireSynchronously(jobs, entities)
-                                                : _impl->entities.Acquire(jobs, entities);
-        _impl->generation = std::make_shared<PresentationGeneration>(PresentationGeneration{
-            .map = map.snapshot,
-            .entities = entitySnapshot,
-            .balloons = entitySnapshot->GetRetainedBalloons(),
-        });
-        return true;
+        catch (...)
+        {
+            _impl->retrySynchronously = true;
+            throw;
+        }
     }
 
-    void PresentationScene::ScheduleNext(JobPool& jobs, EntityRegistry& entities)
+    void PresentationScene::ScheduleNext(
+        JobPool& jobs, EntityRegistry& entities, std::shared_ptr<const Drawing::RetainedPeepAnimationCatalog> peepAnimations)
     {
-        // Both captures must describe one source state. Do not queue a newer map while entities from
-        // an earlier tick are still pending (or vice versa).
-        if (_impl->map.HasPending() || _impl->entities.HasPending())
+        // Only BeginFrame may recover a failed coordinated publication. Do not drain more input meanwhile.
+        if (_impl->retrySynchronously)
             return;
-        _impl->map.Schedule(jobs);
-        _impl->entities.Schedule(jobs, entities);
+        try
+        {
+            _impl->entities.SetPeepCatalog(jobs, std::move(peepAnimations));
+            // Both captures must describe one source state. Do not queue a newer map while entities from
+            // an earlier tick are still pending (or vice versa).
+            if (_impl->map.HasPending() || _impl->entities.HasPending())
+                return;
+            _impl->map.Schedule(jobs);
+            if (_impl->profile != EntityPublicationProfile::gpuTerrainOnly)
+                _impl->entities.Schedule(jobs, entities);
+        }
+        catch (...)
+        {
+            _impl->retrySynchronously = true;
+            throw;
+        }
     }
 
     void PresentationScene::Reset(JobPool& jobs)
@@ -363,6 +524,7 @@ namespace OpenRCT2
         _impl->entities.Reset(jobs);
         _impl->generation.reset();
         _impl->drawCount = std::numeric_limits<uint32_t>::max();
+        _impl->retrySynchronously = false;
     }
 
     Drawing::BalloonPublicationCopyTotals PresentationScene::GetBalloonPublicationCopyTotals() const noexcept

@@ -5,6 +5,18 @@ This is the canonical renderer contract. Historical measurements and abandoned d
 The [Vulkan-only migration plan](vulkan-exclusive-migration-plan.md) tracks the parity evidence, auxiliary-target migration,
 and software removal required to reach an exclusive Vulkan renderer. The contracts below describe the current implementation.
 
+The graphical application now has one renderer: Vulkan. Its factory has no backend selector, old `drawing_engine` settings
+are ignored and removed on save, and Options exposes no renderer menu. Graphical builds require Vulkan support; failure to
+create a usable Vulkan device is an error. This early removal does not mean CPU rendering has been eliminated: ordinary
+world preparation and X8 auxiliary callers are deprecated and tracked in the
+[CPU retirement inventory](vulkan-cpu-rendering-retirement-inventory.md). Reference Software executes in separate pinned
+source/build artifacts; upstream comparisons are independent of the active fork.
+
+The replacement redraws the whole visible world each frame. Shared catalogs and raw instance state stay resident;
+slow-changing appearance/topology and fast-changing pose/action data have separate update streams. Shaders select visuals,
+expand components, transform and cull them, and resolve common world visibility. Nongraphical simulation state is not sent
+to the renderer. No world framebuffer preservation, dirty screen chunks or lazy repainting is part of this architecture.
+
 The owner additionally requires the final renderer to keep assets and world state resident in VRAM, submit bounded state deltas,
 and perform expensive world transforms and graphical processing in shaders. The present CPU painter/command path is transitional.
 Migration Gate P requires measured CPU/upload-bandwidth reductions, sustained VSync pacing and substantial large-park TPS headroom;

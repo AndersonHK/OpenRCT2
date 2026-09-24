@@ -12,6 +12,9 @@
 #ifdef ENABLE_SCRIPTING
 
     #include "CustomImages.h"
+    #include <algorithm>
+    #include <exception>
+    #include <functional>
 
     #include <openrct2/drawing/Drawing.String.h>
     #include <openrct2/drawing/Drawing.h>
@@ -32,6 +35,10 @@ namespace OpenRCT2::Scripting
         struct GraphicsData
         {
             Drawing::RenderTarget _rt{};
+            std::function<void(Drawing::RenderTarget&)> _prepare;
+            std::function<void(std::exception_ptr)> _recordingFailed;
+            std::function<bool(Drawing::RenderTarget&, ImageId, ScreenCoordsXY)> _orderedAlias;
+            bool _valid{ true };
 
             std::optional<uint8_t> _colour{};
             std::optional<uint8_t> _secondaryColour{};
@@ -78,12 +85,57 @@ namespace OpenRCT2::Scripting
                 delete data;
         }
 
-        JSValue New(JSContext* ctx, const Drawing::RenderTarget& rt)
+        JSValue New(
+            JSContext* ctx, const Drawing::RenderTarget& rt,
+            std::function<void(Drawing::RenderTarget&)> prepare = {},
+            std::function<void(std::exception_ptr)> recordingFailed = {},
+            std::function<bool(Drawing::RenderTarget&, ImageId, ScreenCoordsXY)> orderedAlias = {})
         {
-            return MakeWithOpaque(ctx, new GraphicsData{ rt });
+            auto* data = new GraphicsData{};
+            data->_rt = rt;
+            data->_prepare = std::move(prepare);
+            data->_recordingFailed = std::move(recordingFailed);
+            data->_orderedAlias = std::move(orderedAlias);
+            return MakeWithOpaque(ctx, data);
+        }
+
+        void Invalidate(JSValue value)
+        {
+            auto* data = GetOpaque<GraphicsData*>(value);
+            data->_valid = false;
+            data->_prepare = {};
+            data->_recordingFailed = {};
+            data->_orderedAlias = {};
+            data->_rt.bits = nullptr;
+            data->_rt.DrawingEngine = nullptr;
         }
 
     private:
+        static JSValue RecordingError(JSContext* ctx, JSValue value, const std::exception& e)
+        {
+            auto* data = gScGraphicsContext.GetOpaque<GraphicsData*>(value);
+            if (data->_recordingFailed)
+                data->_recordingFailed(std::current_exception());
+            return JS_ThrowInternalError(ctx, "%s", e.what());
+        }
+        static bool Prepare(JSContext* ctx, GraphicsData* data)
+        {
+            try
+            {
+                if (!data->_valid)
+                    throw std::runtime_error("Graphics context is only valid during its drawing callback");
+                if (data->_rt.width <= 0 || data->_rt.height <= 0)
+                    return true;
+                if (data->_prepare)
+                    data->_prepare(data->_rt);
+                return true;
+            }
+            catch (const std::exception& e)
+            {
+                JS_ThrowInternalError(ctx, "%s", e.what());
+                return false;
+            }
+        }
         static JSValue colour_get(JSContext* ctx, JSValue thisVal)
         {
             GraphicsData* data = gScGraphicsContext.GetOpaque<GraphicsData*>(thisVal);
@@ -206,82 +258,162 @@ namespace OpenRCT2::Scripting
 
         static JSValue box(JSContext* ctx, JSValue thisVal, int argc, JSValue* argv)
         {
-            JS_UNPACK_INT32(x, ctx, argv[0]);
-            JS_UNPACK_INT32(y, ctx, argv[1]);
-            JS_UNPACK_INT32(width, ctx, argv[2]);
-            JS_UNPACK_INT32(height, ctx, argv[3]);
-            GraphicsData* data = gScGraphicsContext.GetOpaque<GraphicsData*>(thisVal);
+            try
+            {
+                JS_UNPACK_INT32(x, ctx, argv[0]);
+                JS_UNPACK_INT32(y, ctx, argv[1]);
+                JS_UNPACK_INT32(width, ctx, argv[2]);
+                JS_UNPACK_INT32(height, ctx, argv[3]);
+                GraphicsData* data = gScGraphicsContext.GetOpaque<GraphicsData*>(thisVal);
+                if (!Prepare(ctx, data))
+                    return JS_EXCEPTION;
+                if (data->_rt.width <= 0 || data->_rt.height <= 0)
+                    return JS_UNDEFINED;
 
-            Drawing::Rectangle::fillInset(
-                data->_rt, { x, y, x + width - 1, y + height - 1 },
-                { static_cast<Drawing::Colour>(data->_colour.value_or(0)) });
-            return JS_UNDEFINED;
+                Drawing::Rectangle::fillInset(
+                    data->_rt, { x, y, x + width - 1, y + height - 1 },
+                    { static_cast<Drawing::Colour>(data->_colour.value_or(0)) });
+                return JS_UNDEFINED;
+            }
+            catch (const std::exception& e)
+            {
+                return RecordingError(ctx, thisVal, e);
+            }
         }
 
         static JSValue well(JSContext* ctx, JSValue thisVal, int argc, JSValue* argv)
         {
-            JS_UNPACK_INT32(x, ctx, argv[0]);
-            JS_UNPACK_INT32(y, ctx, argv[1]);
-            JS_UNPACK_INT32(width, ctx, argv[2]);
-            JS_UNPACK_INT32(height, ctx, argv[3]);
-            GraphicsData* data = gScGraphicsContext.GetOpaque<GraphicsData*>(thisVal);
+            try
+            {
+                JS_UNPACK_INT32(x, ctx, argv[0]);
+                JS_UNPACK_INT32(y, ctx, argv[1]);
+                JS_UNPACK_INT32(width, ctx, argv[2]);
+                JS_UNPACK_INT32(height, ctx, argv[3]);
+                GraphicsData* data = gScGraphicsContext.GetOpaque<GraphicsData*>(thisVal);
+                if (!Prepare(ctx, data))
+                    return JS_EXCEPTION;
+                if (data->_rt.width <= 0 || data->_rt.height <= 0)
+                    return JS_UNDEFINED;
 
-            Drawing::Rectangle::fillInset(
-                data->_rt, { x, y, x + width - 1, y + height - 1 }, { static_cast<Drawing::Colour>(data->_colour.value_or(0)) },
-                Drawing::Rectangle::BorderStyle::inset, Drawing::Rectangle::FillBrightness::light,
-                Drawing::Rectangle::FillMode::dontLightenWhenInset);
-            return JS_UNDEFINED;
+                Drawing::Rectangle::fillInset(
+                    data->_rt, { x, y, x + width - 1, y + height - 1 }, { static_cast<Drawing::Colour>(data->_colour.value_or(0)) },
+                    Drawing::Rectangle::BorderStyle::inset, Drawing::Rectangle::FillBrightness::light,
+                    Drawing::Rectangle::FillMode::dontLightenWhenInset);
+                return JS_UNDEFINED;
+            }
+            catch (const std::exception& e)
+            {
+                return RecordingError(ctx, thisVal, e);
+            }
         }
 
         static JSValue clear(JSContext* ctx, JSValue thisVal, int argc, JSValue* argv)
         {
-            GraphicsData* data = gScGraphicsContext.GetOpaque<GraphicsData*>(thisVal);
-            GfxClear(data->_rt, data->_fill);
-            return JS_UNDEFINED;
+            try
+            {
+                GraphicsData* data = gScGraphicsContext.GetOpaque<GraphicsData*>(thisVal);
+                if (!Prepare(ctx, data))
+                    return JS_EXCEPTION;
+                if (data->_rt.width <= 0 || data->_rt.height <= 0)
+                    return JS_UNDEFINED;
+                GfxClear(data->_rt, data->_fill);
+                return JS_UNDEFINED;
+            }
+            catch (const std::exception& e)
+            {
+                return RecordingError(ctx, thisVal, e);
+            }
         }
 
         static JSValue clip(JSContext* ctx, JSValue thisVal, int argc, JSValue* argv)
         {
-            JS_UNPACK_INT32(x, ctx, argv[0]);
-            JS_UNPACK_INT32(y, ctx, argv[1]);
-            JS_UNPACK_INT32(width, ctx, argv[2]);
-            JS_UNPACK_INT32(height, ctx, argv[3]);
-            GraphicsData* data = gScGraphicsContext.GetOpaque<GraphicsData*>(thisVal);
+            try
+            {
+                JS_UNPACK_INT32(x, ctx, argv[0]);
+                JS_UNPACK_INT32(y, ctx, argv[1]);
+                JS_UNPACK_INT32(width, ctx, argv[2]);
+                JS_UNPACK_INT32(height, ctx, argv[3]);
+                GraphicsData* data = gScGraphicsContext.GetOpaque<GraphicsData*>(thisVal);
+                if (!Prepare(ctx, data))
+                    return JS_EXCEPTION;
 
-            Drawing::RenderTarget newRT;
-            ClipRenderTarget(newRT, data->_rt, { x, y }, width, height);
-            data->_rt = newRT;
-            return JS_UNDEFINED;
+                auto& rt = data->_rt;
+                // Intersect in wide integers before forming a pixel pointer. The generic helper may move bits
+                // outside its allocation before reporting an empty intersection.
+                const int64_t left = std::max<int64_t>(rt.x, x);
+                const int64_t top = std::max<int64_t>(rt.y, y);
+                const int64_t right = std::min<int64_t>(int64_t{ rt.x } + rt.width, int64_t{ x } + width);
+                const int64_t bottom = std::min<int64_t>(int64_t{ rt.y } + rt.height, int64_t{ y } + height);
+                const auto stride = rt.LineStride();
+                if (rt.width <= 0 || rt.height <= 0 || width <= 0 || height <= 0 || left >= right || top >= bottom)
+                {
+                    // Empty clips remain empty across nested callbacks. Keep a safe pointer; drawing operations
+                    // return before recording, resolving sources or touching this target.
+                    rt.x = 0;
+                    rt.y = 0;
+                    rt.width = 0;
+                    rt.height = 0;
+                    rt.pitch = stride;
+                    return JS_UNDEFINED;
+                }
+                const auto offset = (top - rt.y) * stride + (left - rt.x);
+                rt.bits += static_cast<ptrdiff_t>(offset);
+                rt.x = static_cast<int32_t>(left - x);
+                rt.y = static_cast<int32_t>(top - y);
+                rt.width = static_cast<int32_t>(right - left);
+                rt.height = static_cast<int32_t>(bottom - top);
+                rt.pitch = stride - rt.width;
+                return JS_UNDEFINED;
+            }
+            catch (const std::exception& e)
+            {
+                return RecordingError(ctx, thisVal, e);
+            }
         }
 
         static JSValue image(JSContext* ctx, JSValue thisVal, int argc, JSValue* argv)
         {
-            JS_UNPACK_UINT32(id, ctx, argv[0]);
-            JS_UNPACK_INT32(x, ctx, argv[1]);
-            JS_UNPACK_INT32(y, ctx, argv[2]);
-            GraphicsData* data = gScGraphicsContext.GetOpaque<GraphicsData*>(thisVal);
-
-            ImageId img;
-            img = img.WithIndex(id);
-            if (data->_paletteId)
+            try
             {
-                img = img.WithRemap(*data->_paletteId);
-            }
-            else
-            {
-                if (data->_colour)
+                JS_UNPACK_UINT32(id, ctx, argv[0]);
+                JS_UNPACK_INT32(x, ctx, argv[1]);
+                JS_UNPACK_INT32(y, ctx, argv[2]);
+                GraphicsData* data = gScGraphicsContext.GetOpaque<GraphicsData*>(thisVal);
+                if (!data->_valid)
+                    throw std::runtime_error("Graphics context is only valid during its drawing callback");
+                if (data->_rt.width <= 0 || data->_rt.height <= 0)
+                    return JS_UNDEFINED;
+                ImageId img;
+                img = img.WithIndex(id);
+                if (data->_paletteId)
                 {
-                    img = img.WithPrimary(static_cast<Drawing::Colour>(*data->_colour));
+                    img = img.WithRemap(*data->_paletteId);
                 }
-                if (data->_secondaryColour)
+                else
                 {
-                    img = img.WithSecondary(static_cast<Drawing::Colour>(*data->_secondaryColour));
+                    if (data->_colour)
+                    {
+                        img = img.WithPrimary(static_cast<Drawing::Colour>(*data->_colour));
+                    }
+                    if (data->_secondaryColour)
+                    {
+                        img = img.WithSecondary(static_cast<Drawing::Colour>(*data->_secondaryColour));
+                    }
                 }
-            }
 
-            GfxDrawSprite(
-                data->_rt, img.WithTertiary(static_cast<Drawing::Colour>(data->_tertiaryColour.value_or(0))), { x, y });
-            return JS_UNDEFINED;
+                img = img.WithTertiary(static_cast<Drawing::Colour>(data->_tertiaryColour.value_or(0)));
+                if (data->_orderedAlias && data->_orderedAlias(data->_rt, img, { x, y }))
+                    return JS_UNDEFINED;
+                PrepareCustomImageSource(id);
+                if (!Prepare(ctx, data))
+                    return JS_EXCEPTION;
+                GfxDrawSprite(data->_rt, img, { x, y });
+                return JS_UNDEFINED;
+            }
+            catch (const std::exception& e)
+            {
+                return RecordingError(ctx, thisVal, e);
+            }
         }
 
         static void line(GraphicsData* data, int32_t x1, int32_t y1, int32_t x2, int32_t y2)
@@ -291,50 +423,83 @@ namespace OpenRCT2::Scripting
 
         static JSValue lineJS(JSContext* ctx, JSValue thisVal, int argc, JSValue* argv)
         {
-            JS_UNPACK_INT32(x1, ctx, argv[0]);
-            JS_UNPACK_INT32(y1, ctx, argv[1]);
-            JS_UNPACK_INT32(x2, ctx, argv[2]);
-            JS_UNPACK_INT32(y2, ctx, argv[3]);
-            GraphicsData* data = gScGraphicsContext.GetOpaque<GraphicsData*>(thisVal);
-            line(data, x1, y1, x2, y2);
-            return JS_UNDEFINED;
+            try
+            {
+                JS_UNPACK_INT32(x1, ctx, argv[0]);
+                JS_UNPACK_INT32(y1, ctx, argv[1]);
+                JS_UNPACK_INT32(x2, ctx, argv[2]);
+                JS_UNPACK_INT32(y2, ctx, argv[3]);
+                GraphicsData* data = gScGraphicsContext.GetOpaque<GraphicsData*>(thisVal);
+                if (!Prepare(ctx, data))
+                    return JS_EXCEPTION;
+                if (data->_rt.width <= 0 || data->_rt.height <= 0)
+                    return JS_UNDEFINED;
+                line(data, x1, y1, x2, y2);
+                return JS_UNDEFINED;
+            }
+            catch (const std::exception& e)
+            {
+                return RecordingError(ctx, thisVal, e);
+            }
         }
 
         static JSValue rect(JSContext* ctx, JSValue thisVal, int argc, JSValue* argv)
         {
-            JS_UNPACK_INT32(x, ctx, argv[0]);
-            JS_UNPACK_INT32(y, ctx, argv[1]);
-            JS_UNPACK_INT32(width, ctx, argv[2]);
-            JS_UNPACK_INT32(height, ctx, argv[3]);
-            GraphicsData* data = gScGraphicsContext.GetOpaque<GraphicsData*>(thisVal);
-
-            if (data->_stroke != Drawing::PaletteIndex::transparent)
+            try
             {
-                line(data, x, y, x + width, y);
-                line(data, x + width - 1, y + 1, x + width - 1, y + height - 1);
-                line(data, x, y + height - 1, x + width, y + height - 1);
-                line(data, x, y + 1, x, y + height - 1);
+                JS_UNPACK_INT32(x, ctx, argv[0]);
+                JS_UNPACK_INT32(y, ctx, argv[1]);
+                JS_UNPACK_INT32(width, ctx, argv[2]);
+                JS_UNPACK_INT32(height, ctx, argv[3]);
+                GraphicsData* data = gScGraphicsContext.GetOpaque<GraphicsData*>(thisVal);
+                if (!Prepare(ctx, data))
+                    return JS_EXCEPTION;
+                if (data->_rt.width <= 0 || data->_rt.height <= 0)
+                    return JS_UNDEFINED;
 
-                x++;
-                y++;
-                width -= 2;
-                height -= 2;
+                if (data->_stroke != Drawing::PaletteIndex::transparent)
+                {
+                    line(data, x, y, x + width, y);
+                    line(data, x + width - 1, y + 1, x + width - 1, y + height - 1);
+                    line(data, x, y + height - 1, x + width, y + height - 1);
+                    line(data, x, y + 1, x, y + height - 1);
+
+                    x++;
+                    y++;
+                    width -= 2;
+                    height -= 2;
+                }
+                if (data->_fill != Drawing::PaletteIndex::transparent)
+                {
+                    Drawing::Rectangle::fill(data->_rt, { x, y, x + width - 1, y + height - 1 }, data->_fill);
+                }
+                return JS_UNDEFINED;
             }
-            if (data->_fill != Drawing::PaletteIndex::transparent)
+            catch (const std::exception& e)
             {
-                Drawing::Rectangle::fill(data->_rt, { x, y, x + width - 1, y + height - 1 }, data->_fill);
+                return RecordingError(ctx, thisVal, e);
             }
-            return JS_UNDEFINED;
         }
 
         static JSValue text(JSContext* ctx, JSValue thisVal, int argc, JSValue* argv)
         {
-            JS_UNPACK_STR(text, ctx, argv[0]);
-            JS_UNPACK_INT32(x, ctx, argv[1]);
-            JS_UNPACK_INT32(y, ctx, argv[2]);
-            GraphicsData* data = gScGraphicsContext.GetOpaque<GraphicsData*>(thisVal);
-            drawText(data->_rt, { x, y }, text, { static_cast<Drawing::Colour>(data->_colour.value_or(0)) });
-            return JS_UNDEFINED;
+            try
+            {
+                JS_UNPACK_STR(text, ctx, argv[0]);
+                JS_UNPACK_INT32(x, ctx, argv[1]);
+                JS_UNPACK_INT32(y, ctx, argv[2]);
+                GraphicsData* data = gScGraphicsContext.GetOpaque<GraphicsData*>(thisVal);
+                if (!Prepare(ctx, data))
+                    return JS_EXCEPTION;
+                if (data->_rt.width <= 0 || data->_rt.height <= 0)
+                    return JS_UNDEFINED;
+                drawText(data->_rt, { x, y }, text, { static_cast<Drawing::Colour>(data->_colour.value_or(0)) });
+                return JS_UNDEFINED;
+            }
+            catch (const std::exception& e)
+            {
+                return RecordingError(ctx, thisVal, e);
+            }
         }
     };
 } // namespace OpenRCT2::Scripting

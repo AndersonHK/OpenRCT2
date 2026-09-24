@@ -53,8 +53,8 @@
     #include <openrct2/drawing/WeatherDrawer.h>
     #include <openrct2/interface/Screenshot.h>
     #include <openrct2/interface/Viewport.h>
-    #include <openrct2/ui/UiContext.h>
     #include <openrct2/profiling/Profiling.h>
+    #include <openrct2/ui/UiContext.h>
     #include <span>
     #include <stdexcept>
     #include <thread>
@@ -67,6 +67,7 @@ namespace OpenRCT2::Ui
     {
         static std::atomic_bool CaptureEnabled = false;
         static std::atomic_bool RetainedBalloonPublicationEnabled = false;
+        static std::atomic_bool RetainedPeepPublicationEnabled = false;
         static std::atomic_bool NativeBalloonFixtureEnabled = false;
         static std::atomic_bool NativeTerrainFixtureEnabled = false;
 
@@ -83,6 +84,10 @@ namespace OpenRCT2::Ui
         void SetRetainedBalloonPublicationForTesting(bool enabled)
         {
             RetainedBalloonPublicationEnabled.store(enabled);
+        }
+        void SetRetainedPeepPublicationForTesting(bool enabled)
+        {
+            RetainedPeepPublicationEnabled.store(enabled);
         }
 
         void EnableCaptureForTesting()
@@ -154,7 +159,7 @@ namespace OpenRCT2::Ui
     private:
         IUiContext& _uiContext;
         std::unique_ptr<Gpu::Backend> _backend;
-        Gpu::TextureCache _textureCache;
+        std::shared_ptr<Gpu::TextureCache> _textureCache = std::make_shared<Gpu::TextureCache>();
         Drawing::RenderTarget _mainTarget{};
         Gpu::CommandDrawingContext _drawingContext;
         Gpu::WeatherDrawer _weatherDrawer;
@@ -198,7 +203,7 @@ namespace OpenRCT2::Ui
             : _uiContext(uiContext)
             , _backend(Vulkan::CreateBackend(
                   Vulkan::Platform::CreatePresentationHost(static_cast<SDL_Window*>(uiContext.GetWindow())), std::move(owner)))
-            , _drawingContext(_mainTarget, _textureCache)
+            , _drawingContext(_mainTarget, *_textureCache)
         {
             _mainTarget.DrawingEngine = this;
             _recordingPacket = CreateRecordingPacket();
@@ -518,7 +523,7 @@ namespace OpenRCT2::Ui
             _drawingContext.SetNativeBalloonFixture(Vulkan::Diagnostic::NativeBalloonFixtureEnabled.load());
             _drawingContext.SetNativeTerrainFixtureForTesting(Vulkan::Diagnostic::NativeTerrainFixtureEnabled.load());
     #endif
-            _textureCache.BeginFrame();
+            _textureCache->BeginFrame();
             _drawingContext.Begin(_recordingPacket->commands);
         }
 
@@ -531,13 +536,14 @@ namespace OpenRCT2::Ui
             {
                 _drawingContext.End();
                 CaptureLightFx(_recordingPacket->commands);
-                _recordingPacket->residency = _textureCache.SealFrame(_recordingPacket->commands);
+                _recordingPacket->residency = _textureCache->SealFrame(_recordingPacket->commands);
                 sealed = true;
                 _recordingPacket->hasVisualFrame = true;
                 _recordingPacket->frameNumber = _frameNumber++;
     #ifdef OPENRCT2_VULKAN_DIAGNOSTICS
                 if (_recordingPacket->diagnosticCapture != nullptr)
-                    _recordingPacket->diagnosticCapture->BindFrame(_recordingPacket->frameNumber, _recordingPacket->residency.value,
+                    _recordingPacket->diagnosticCapture->BindFrame(
+                        _recordingPacket->frameNumber, _recordingPacket->residency.value,
                         _drawingContext.GetTerrainPreparationForTesting());
     #endif
                 _recordingPacket->presentation = {
@@ -579,7 +585,7 @@ namespace OpenRCT2::Ui
                 {
                     if (!sealed)
                     {
-                        _textureCache.AbortFrame();
+                        _textureCache->AbortFrame();
                     }
                     else if (_recordingPacket != nullptr && _recordingPacket->residency)
                     {
@@ -762,7 +768,7 @@ namespace OpenRCT2::Ui
             }
             if (packet.residency)
             {
-                _textureCache.RetireFrame(packet.residency, retirement);
+                _textureCache->RetireFrame(packet.residency, retirement);
                 packet.residency = {};
             }
         }
@@ -951,7 +957,7 @@ namespace OpenRCT2::Ui
             // The worker owns completion timing, but atlas maps remain single-writer state of this recording thread.
             try
             {
-                _textureCache.DrainFrameRetirements();
+                _textureCache->DrainFrameRetirements();
             }
             catch (...)
             {
@@ -1090,10 +1096,12 @@ namespace OpenRCT2::Ui
         EntityPublicationProfile GetEntityPublicationProfile() const override
         {
     #ifdef OPENRCT2_VULKAN_DIAGNOSTICS
+            if (Vulkan::Diagnostic::RetainedPeepPublicationEnabled.load())
+                return EntityPublicationProfile::nativePeeps;
             if (Vulkan::Diagnostic::RetainedBalloonPublicationEnabled.load())
                 return EntityPublicationProfile::retainedBalloons;
     #endif
-            return EntityPublicationProfile::legacyBulk;
+            return EntityPublicationProfile::gpuTerrainOnly;
         }
 
         DrawingEngineFlags GetFlags() override
@@ -1131,7 +1139,7 @@ namespace OpenRCT2::Ui
 
         void InvalidateImage(uint32_t image) override
         {
-            _textureCache.InvalidateImage(image);
+            _textureCache->InvalidateImage(image);
         }
     };
     std::unique_ptr<Drawing::IDrawingEngine> CreateVulkanDrawingEngine(

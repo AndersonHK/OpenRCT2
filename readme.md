@@ -48,7 +48,7 @@ More detail: [Transport ride routing rationale](docs/transport-ride-routing-rati
 
 ### Turbo mode stays smooth and responsive
 
-Fast simulation no longer makes presentation and input wait behind long batches of game updates. The park, mouse, windows, and controls remain responsive at Turbo speed, while Vulkan is the preferred accelerated renderer for this fork.
+Fast simulation no longer makes presentation and input wait behind long batches of game updates. The park, mouse, windows, and controls remain responsive at Turbo speed. Vulkan is the only selectable renderer in this fork; legacy renderer settings are ignored. Replacing CPU world preparation with GPU visual logic is ongoing, with progress and remaining performance gates in the [migration checklist](docs/vulkan-exclusive-migration-plan.md).
 
 More detail: [Vulkan renderer architecture](docs/vulkan-renderer-migration.md) and the archived
 [EverythingPark performance history](docs/archive/performance-320-tps-refactor-history.md).
@@ -187,6 +187,9 @@ Some \*BSD operating systems offer native packages:
 ---
 
 # 3. Building the game
+
+This fork requires Vulkan (or MoltenVK) and compiled shaders for graphical builds. Missing Vulkan support is a build/startup error; there is no Software renderer fallback. CMake `DISABLE_GUI=ON` remains available for headless tools. Remaining auxiliary CPU rendering dependencies are tracked in the [retirement inventory](docs/vulkan-cpu-rendering-retirement-inventory.md).
+
 - [Building OpenRCT2 on Linux](https://github.com/OpenRCT2/OpenRCT2/wiki/Building-OpenRCT2-on-Linux)
 - [Building OpenRCT2 on macOS using CMake](https://github.com/OpenRCT2/OpenRCT2/wiki/Building-OpenRCT2-on-macOS-using-CMake)
 - [Building OpenRCT2 on Windows](https://github.com/OpenRCT2/OpenRCT2/wiki/Building-OpenRCT2-on-Windows)

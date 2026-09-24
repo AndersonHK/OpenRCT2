@@ -9,6 +9,7 @@
 
 #include "../../../GameState.h"
 #include "../../../entity/EntityRegistry.h"
+#include "../../../entity/EntityPresentationSnapshot.h"
 #include "../../../entity/Guest.h"
 #include "../../../interface/Viewport.h"
 #include "../../../ride/Ride.h"
@@ -50,8 +51,8 @@ static void PaintFerrisWheelRiders(
 {
     for (int32_t i = 0; i < 32; i += 2)
     {
-        auto* peep = GetEntityForPresentation<Guest>(vehicle.peep[i]);
-        if (peep == nullptr || peep->state != PeepState::onRide)
+        const auto peep = GetGuestPresentationFacts(vehicle.peep[i]);
+        if (!peep || peep->state != static_cast<uint8_t>(PeepState::onRide))
             continue;
 
         auto frameNum = (vehicle.flatRideAnimationFrame + i * 4) % 128;

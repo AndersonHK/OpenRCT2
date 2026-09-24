@@ -362,8 +362,20 @@ namespace OpenRCT2
         };
         ObjectEntryIndex animationObjectIndex;
         PeepAnimationGroup animationGroup;
-        Drawing::Colour tShirtColour;
-        Drawing::Colour trousersColour;
+    private:
+        Drawing::Colour _tShirtColour{};
+        Drawing::Colour _trousersColour{};
+
+    protected:
+        void notifyAppearanceChanged();
+        void notifyAnimationChanged();
+
+    public:
+        const Drawing::Colour& getTShirtColour() const noexcept { return _tShirtColour; }
+        const Drawing::Colour& getTrousersColour() const noexcept { return _trousersColour; }
+        void setClothingColours(Drawing::Colour shirt, Drawing::Colour trousers);
+        void setTShirtColour(Drawing::Colour colour) { setClothingColours(colour, _trousersColour); }
+        void setTrousersColour(Drawing::Colour colour) { setClothingColours(_tShirtColour, colour); }
         union
         {
             uint16_t destinationX;

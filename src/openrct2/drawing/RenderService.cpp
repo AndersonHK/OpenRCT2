@@ -54,6 +54,21 @@ namespace OpenRCT2::Drawing
         if (request.scaleQuality != RenderScaleQuality::nearest && request.scaleQuality != RenderScaleQuality::linear
             && request.scaleQuality != RenderScaleQuality::smoothNearest)
             throw RenderServiceException({ RenderErrorCode::invalidRequest, "Unknown render scaling policy" });
+        if (request.orderedAlias)
+        {
+            const auto& alias = *request.orderedAlias;
+            const auto inside = [](uint32_t start, uint32_t length, uint32_t limit) {
+                return length != 0 && start < limit && length <= limit - start;
+            };
+            if (request.initialContents != RenderInitialContents::ownedIndices || !request.indexedOutput
+                || request.rgbaOutput || request.lightingEnabled || request.outputExtent != request.logicalExtent
+                || indexedBytes > kOrderedImageAliasMaxPixels
+                || !inside(alias.sourceX, alias.width, request.logicalExtent.width)
+                || !inside(alias.destinationX, alias.width, request.logicalExtent.width)
+                || !inside(alias.sourceY, alias.height, request.logicalExtent.height)
+                || !inside(alias.destinationY, alias.height, request.logicalExtent.height))
+                throw RenderServiceException({ RenderErrorCode::invalidRequest, "Invalid bounded ordered bitmap alias" });
+        }
     }
 
     RenderCompletion::RenderCompletion(
@@ -137,32 +152,44 @@ namespace OpenRCT2::Drawing
         if (std::this_thread::get_id() != _ownerThread)
             throw RenderServiceException(
                 { RenderErrorCode::wrongThread, "Render service acquisition requires the context thread" });
-        if (_shutdown)
-            throw RenderServiceException({ RenderErrorCode::shuttingDown, "Render service has shut down" });
-        if (_factory && !_factory->IsEnabled())
+        std::shared_ptr<IRenderServiceFactory> factory;
+        {
+            const std::lock_guard lock(_notificationMutex);
+            if (_shutdown)
+                throw RenderServiceException({ RenderErrorCode::shuttingDown, "Render service has shut down" });
+            factory = _factory;
+        }
+        // Factories may re-enter context code; do not hold the notification lock across callbacks.
+        if (factory && !factory->IsEnabled())
             throw RenderServiceException({ RenderErrorCode::unavailable, "The configured render service is not enabled" });
-        if (_service)
-            return *_service;
+        {
+            const std::lock_guard lock(_notificationMutex);
+            if (_service)
+                return *_service;
+        }
         if (_failure)
             std::rethrow_exception(_failure);
         if (_creating)
             throw RenderServiceException({ RenderErrorCode::invalidState, "Recursive render service creation" });
-        if (!_factory)
+        if (!factory)
             throw RenderServiceException(
                 { RenderErrorCode::unavailable, "No render service was supplied for image production" });
         _creating = true;
         try
         {
-            const auto factory = _factory;
             auto service = factory->Create();
             if (!service)
                 throw RenderServiceException({ RenderErrorCode::creationFailed, "Render service factory returned no service" });
-            if (_shutdown)
+            {
+                const std::lock_guard lock(_notificationMutex);
+                if (!_shutdown)
+                    _service = std::move(service);
+            }
+            if (service)
             {
                 service->Shutdown();
                 throw RenderServiceException({ RenderErrorCode::shuttingDown, "Render service shut down during creation" });
             }
-            _service = std::move(service);
         }
         catch (const RenderServiceException&)
         {
@@ -185,19 +212,35 @@ namespace OpenRCT2::Drawing
 
     bool LazyRenderService::IsCreated() const noexcept
     {
+        const std::lock_guard lock(_notificationMutex);
         return _service != nullptr;
+    }
+
+    void LazyRenderService::InvalidateImage(uint32_t image)
+    {
+        // Paint preparation workers may publish scrolling-text pixels. Serialise notification against service
+        // publication/removal without invoking a factory or touching recording/GPU state on those workers.
+        const std::lock_guard lock(_notificationMutex);
+        // A service created later reads the current assets. Never instantiate one for asset loading or teardown.
+        if (_service && !_shutdown)
+            _service->InvalidateImage(image);
     }
 
     void LazyRenderService::Shutdown() noexcept
     {
-        if (_shutdown)
-            return;
-        _shutdown = true;
-        if (_service)
+        std::unique_ptr<IRenderService> service;
+        std::shared_ptr<IRenderServiceFactory> factory;
         {
-            _service->Shutdown();
-            _service.reset();
+            const std::lock_guard lock(_notificationMutex);
+            if (_shutdown)
+                return;
+            _shutdown = true;
+            service = std::move(_service);
+            factory = std::move(_factory);
         }
-        _factory.reset();
+        // Existing notifications have returned, and new ones cannot reach the detached service. Shutdown and
+        // object destruction run outside the lock so their cleanup may safely notify the context again.
+        if (service)
+            service->Shutdown();
     }
 } // namespace OpenRCT2::Drawing

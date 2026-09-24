@@ -1,5 +1,9 @@
 # OpenRCT2 UI (main binary)
 
+if (NOT OPENRCT2_VULKAN_ENABLED)
+    message(FATAL_ERROR "The graphical application requires Vulkan (or MoltenVK) and compiled shaders. Install the SDK, or use DISABLE_GUI=ON for headless tools.")
+endif ()
+
 if (CMAKE_BINARY_DIR STREQUAL CMAKE_SOURCE_DIR)
     message(FATAL_ERROR "Building in-source is not supported! Create a build dir and remove ${CMAKE_SOURCE_DIR}/CMakeCache.txt")
 endif ()

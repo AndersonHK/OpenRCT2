@@ -2920,11 +2920,6 @@ STR_5871    :Planter ældes ikke
 STR_5872    :Slå planters ældning fra, så de ikke visner.
 STR_5873    :Tillad kædeløft på alle sportyper
 STR_5874    :Tillander at alle typer af spor, kan anvendes som kædeløft spor.
-STR_5875    :Visningsmotor:
-STR_5876    :Motoren der bliver brugt til visning i spillet.
-STR_5877    :Software
-STR_5878    :Software (hardware visning)
-STR_5879    :OpenGL (eksperimentel)
 STR_5880    :Kun valgte
 STR_5881    :Kun ikke valgte
 STR_5882    :Brugerdefineret valuta

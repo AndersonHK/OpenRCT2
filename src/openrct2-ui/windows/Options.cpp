@@ -32,7 +32,6 @@
 #include <openrct2/drawing/Drawing.Screen.h>
 #include <openrct2/drawing/Drawing.String.h>
 #include <openrct2/drawing/Drawing.h>
-#include <openrct2/drawing/IDrawingEngine.h>
 #include <openrct2/drawing/NewDrawing.h>
 #include <openrct2/drawing/ScrollingText.h>
 #include <openrct2/drawing/Text.h>
@@ -115,9 +114,6 @@ namespace OpenRCT2::Ui::Windows
         WIDX_SCALE_DOWN,
 
         WIDX_RENDERING_GROUP,
-        WIDX_DRAWING_ENGINE_LABEL,
-        WIDX_DRAWING_ENGINE,
-        WIDX_DRAWING_ENGINE_DROPDOWN,
         WIDX_FRAME_RATE_LIMIT_LABEL,
         WIDX_FRAME_RATE_LIMIT,
         WIDX_FRAME_RATE_LIMIT_DROPDOWN,
@@ -292,20 +288,17 @@ namespace OpenRCT2::Ui::Windows
         makeWidget        ({ 10, 102}, {145,  12}, WidgetType::label,        WindowColour::secondary, STR_UI_SCALING_DESC,                   STR_WINDOW_SCALE_TIP                     ), // Scale
         makeSpinnerWidgets({155, 102}, {145,  14}, WidgetType::spinner,      WindowColour::secondary, kStringIdNone,                         STR_WINDOW_SCALE_TIP                     ), // Scale spinner (3 widgets)
 
-        makeWidget        ({  5, 129}, {300,  83}, WidgetType::groupbox,     WindowColour::secondary, STR_GROUP_RENDERING                                                             ), // Rendering group
-        makeWidget        ({ 10, 146}, {145,  12}, WidgetType::label,        WindowColour::secondary, STR_DRAWING_ENGINE,                    STR_DRAWING_ENGINE_TIP                   ), // Drawing engine (label)
-        makeWidget        ({155, 145}, {145,  14}, WidgetType::dropdownMenu, WindowColour::secondary                                                                                  ), // Drawing engine (dropdown label)
-        makeWidget        ({288, 146}, { 11,  12}, WidgetType::button,       WindowColour::secondary, STR_DROPDOWN_GLYPH,                    STR_DRAWING_ENGINE_TIP                   ), // Drawing engine (chevron)
-        makeWidget        ({ 10, 161}, {145,  12}, WidgetType::label,        WindowColour::secondary, STR_FRAME_RATE_LIMIT_LABEL                                                      ), // Frame rate limit (label)
-        makeWidget        ({155, 160}, {145,  14}, WidgetType::dropdownMenu, WindowColour::secondary                                                                                  ), // Frame rate limit (dropdown label)
-        makeWidget        ({288, 161}, { 11,  12}, WidgetType::button,       WindowColour::secondary, STR_DROPDOWN_GLYPH                                                              ), // Frame rate limit (chevron)
-        makeWidget        ({ 11, 178}, {136,  12}, WidgetType::checkbox,     WindowColour::secondary, STR_SHOW_FPS,                          STR_SHOW_FPS_TIP                         ), // Show fps
-        makeWidget        ({155, 178}, {136,  12}, WidgetType::checkbox,     WindowColour::secondary, STR_MULTITHREADING,                    STR_MULTITHREADING_TIP                   ), // Multithreading
-        makeWidget        ({ 11, 193}, {280,  12}, WidgetType::checkbox,     WindowColour::secondary, STR_ENABLE_HDR10_OUTPUT,                STR_ENABLE_HDR10_OUTPUT_TIP               ), // HDR10 output
+        makeWidget        ({  5, 129}, {300,  68}, WidgetType::groupbox,     WindowColour::secondary, STR_GROUP_RENDERING                                                             ), // Rendering group
+        makeWidget        ({ 10, 146}, {145,  12}, WidgetType::label,        WindowColour::secondary, STR_FRAME_RATE_LIMIT_LABEL                                                      ), // Frame rate limit (label)
+        makeWidget        ({155, 145}, {145,  14}, WidgetType::dropdownMenu, WindowColour::secondary                                                                                  ), // Frame rate limit (dropdown label)
+        makeWidget        ({288, 146}, { 11,  12}, WidgetType::button,       WindowColour::secondary, STR_DROPDOWN_GLYPH                                                              ), // Frame rate limit (chevron)
+        makeWidget        ({ 11, 163}, {136,  12}, WidgetType::checkbox,     WindowColour::secondary, STR_SHOW_FPS,                          STR_SHOW_FPS_TIP                         ), // Show fps
+        makeWidget        ({155, 163}, {136,  12}, WidgetType::checkbox,     WindowColour::secondary, STR_MULTITHREADING,                    STR_MULTITHREADING_TIP                   ), // Multithreading
+        makeWidget        ({ 11, 178}, {280,  12}, WidgetType::checkbox,     WindowColour::secondary, STR_ENABLE_HDR10_OUTPUT,                STR_ENABLE_HDR10_OUTPUT_TIP               ), // HDR10 output
 
-        makeWidget        ({  5, 215}, {300,  49}, WidgetType::groupbox,     WindowColour::secondary, STR_GROUP_BEHAVIOUR                                                             ), // Behaviour group
-        makeWidget        ({ 11, 230}, {280,  12}, WidgetType::checkbox,     WindowColour::secondary, STR_MINIMISE_FULLSCREEN_ON_FOCUS_LOSS, STR_MINIMISE_FULLSCREEN_ON_FOCUS_LOSS_TIP), // Minimise fullscreen focus loss
-        makeWidget        ({ 11, 245}, {280,  12}, WidgetType::checkbox,     WindowColour::secondary, STR_DISABLE_SCREENSAVER,               STR_DISABLE_SCREENSAVER_TIP              )  // Disable screensaver
+        makeWidget        ({  5, 200}, {300,  49}, WidgetType::groupbox,     WindowColour::secondary, STR_GROUP_BEHAVIOUR                                                             ), // Behaviour group
+        makeWidget        ({ 11, 215}, {280,  12}, WidgetType::checkbox,     WindowColour::secondary, STR_MINIMISE_FULLSCREEN_ON_FOCUS_LOSS, STR_MINIMISE_FULLSCREEN_ON_FOCUS_LOSS_TIP), // Minimise fullscreen focus loss
+        makeWidget        ({ 11, 230}, {280,  12}, WidgetType::checkbox,     WindowColour::secondary, STR_DISABLE_SCREENSAVER,               STR_DISABLE_SCREENSAVER_TIP              )  // Disable screensaver
     );
 
     constexpr int32_t kFrameRenderingStart = 53;
@@ -484,31 +477,6 @@ namespace OpenRCT2::Ui::Windows
         window_options_advanced_widgets,
     };
     // clang-format on
-
-    struct DrawingEngineOption
-    {
-        DrawingEngine engine;
-        StringId stringId;
-    };
-
-    static constexpr DrawingEngineOption kDrawingEngineOptions[] = {
-        { DrawingEngine::softwareWithHardwareDisplay, STR_DRAWING_ENGINE_SOFTWARE },
-#ifdef ENABLE_VULKAN
-        { DrawingEngine::vulkan, STR_DRAWING_ENGINE_VULKAN },
-#endif
-    };
-
-    static constexpr size_t GetDrawingEngineOptionIndex(DrawingEngine engine)
-    {
-        for (size_t i = 0; i < std::size(kDrawingEngineOptions); i++)
-        {
-            if (kDrawingEngineOptions[i].engine == engine)
-            {
-                return i;
-            }
-        }
-        return 0;
-    }
 
 #pragma endregion
 
@@ -887,17 +855,6 @@ namespace OpenRCT2::Ui::Windows
 
                     gDropdown.items[Config::Get().general.fullscreenMode].setChecked(true);
                     break;
-                case WIDX_DRAWING_ENGINE_DROPDOWN:
-                {
-                    const auto numItems = static_cast<int32_t>(std::size(kDrawingEngineOptions));
-                    for (int32_t i = 0; i < numItems; i++)
-                    {
-                        gDropdown.items[i] = Dropdown::MenuLabel(kDrawingEngineOptions[i].stringId);
-                    }
-                    ShowDropdown(widget, numItems);
-                    gDropdown.items[GetDrawingEngineOptionIndex(Config::Get().general.drawingEngine)].setChecked(true);
-                    break;
-                }
                 case WIDX_SCALE_UP:
                     Config::Get().general.windowScale += 0.25f;
                     Config::Save();
@@ -967,16 +924,6 @@ namespace OpenRCT2::Ui::Windows
                         GfxInvalidateScreen();
                     }
                     break;
-                case WIDX_DRAWING_ENGINE_DROPDOWN:
-                    if (const auto dstEngine = kDrawingEngineOptions[dropdownIndex].engine;
-                        dstEngine != Config::Get().general.drawingEngine)
-                    {
-                        Config::Get().general.drawingEngine = dstEngine;
-                        RefreshVideo();
-                        Config::Save();
-                        invalidate();
-                    }
-                    break;
                 case WIDX_FRAME_RATE_LIMIT_DROPDOWN:
                 {
                     auto& config = Config::Get().general;
@@ -1022,8 +969,7 @@ namespace OpenRCT2::Ui::Windows
             setCheckboxValue(WIDX_MULTITHREADING_CHECKBOX, Config::Get().general.multiThreading);
             setCheckboxValue(WIDX_HDR10_OUTPUT_CHECKBOX, Config::Get().general.enableHdr10Output);
 #ifdef ENABLE_VULKAN
-            setWidgetDisabled(
-                WIDX_HDR10_OUTPUT_CHECKBOX, Config::Get().general.drawingEngine != DrawingEngine::vulkan);
+            setWidgetDisabled(WIDX_HDR10_OUTPUT_CHECKBOX, false);
 #else
             setWidgetDisabled(WIDX_HDR10_OUTPUT_CHECKBOX, true);
 #endif
@@ -1032,8 +978,6 @@ namespace OpenRCT2::Ui::Windows
 
             // Dropdown captions for straightforward strings.
             widgets[WIDX_FULLSCREEN].text = FullscreenModeNames[Config::Get().general.fullscreenMode];
-            widgets[WIDX_DRAWING_ENGINE].text =
-                kDrawingEngineOptions[GetDrawingEngineOptionIndex(Config::Get().general.drawingEngine)].stringId;
 
             static constexpr StringId kFrameRateLimitStringIds[] = {
                 STR_FRAME_RATE_LIMIT_DEFAULT,
@@ -1177,12 +1121,11 @@ namespace OpenRCT2::Ui::Windows
             widgets[WIDX_VIRTUAL_FLOOR].text = _virtualFloorStyleStrings[EnumValue(Config::Get().general.virtualFloorStyle)];
 
             setCheckboxValue(WIDX_ENABLE_LIGHT_FX_CHECKBOX, Config::Get().general.enableLightFx);
-            bool rendererSupportsLightFx =
-                Config::Get().general.drawingEngine == DrawingEngine::softwareWithHardwareDisplay;
 #ifdef ENABLE_VULKAN
-            rendererSupportsLightFx |= Config::Get().general.drawingEngine == DrawingEngine::vulkan;
+            const bool lightFxEnabled = Config::Get().general.dayNightCycle;
+#else
+            constexpr bool lightFxEnabled = false;
 #endif
-            const bool lightFxEnabled = Config::Get().general.dayNightCycle && rendererSupportsLightFx;
             setWidgetDisabled(WIDX_ENABLE_LIGHT_FX_CHECKBOX, !lightFxEnabled);
             if (!lightFxEnabled)
                 Config::Get().general.enableLightFx = false;

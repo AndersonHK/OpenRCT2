@@ -10,6 +10,7 @@
 #include "StaffSetColourAction.h"
 
 #include "../../Diagnostic.h"
+#include "../../GameState.h"
 #include "../../drawing/Drawing.Screen.h"
 #include "../../entity/EntityList.h"
 #include "../../entity/Staff.h"
@@ -65,8 +66,7 @@ namespace OpenRCT2::GameActions
         {
             if (peep->assignedStaffType == static_cast<StaffType>(_staffType))
             {
-                peep->tShirtColour = _colour;
-                peep->trousersColour = _colour;
+                peep->setClothingColours(_colour, _colour);
             }
         }
 

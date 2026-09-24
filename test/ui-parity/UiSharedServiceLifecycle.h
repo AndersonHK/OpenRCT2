@@ -9,6 +9,7 @@
 #include <openrct2-renderer/vulkan/VulkanDeviceContext.h>
 #include <openrct2-ui/drawing/engines/DrawingEngineFactory.hpp>
 #include <openrct2/drawing/IDrawingContext.h>
+#include <openrct2/drawing/IDrawingEngine.h>
 #include <openrct2/drawing/RenderService.h>
 #include <array>
 
@@ -16,10 +17,17 @@ namespace UiParitySharedService
 {
     using namespace OpenRCT2;
     using namespace OpenRCT2::Drawing;
+#ifdef OPENRCT2_VULKAN_ONLY
+    inline constexpr std::array<const char*, 6> kPhases{
+        "lifecycle-vulkan-initial", "lifecycle-vulkan-first", "lifecycle-vulkan-after-aux",
+        "lifecycle-vulkan-recreated", "lifecycle-vulkan-recreated-again", "lifecycle-vulkan-return"
+    };
+#else
     inline constexpr std::array<const char*, 6> kPhases{
         "lifecycle-software-initial", "lifecycle-vulkan-first", "lifecycle-vulkan-after-aux",
         "lifecycle-vulkan-recreated", "lifecycle-software-return", "lifecycle-vulkan-return"
     };
+#endif
 
     class Lifecycle final
     {
@@ -29,7 +37,12 @@ namespace UiParitySharedService
         std::unique_ptr<IRenderSession> _shutdownRecorder;
         uintptr_t _contextIdentity{}, _deviceIdentity{};
         uint32_t _previousWindow{};
+#ifdef OPENRCT2_VULKAN_ONLY
+        json_t _report{ { "version", 2 }, { "rendererContract", "vulkan-only-v1" },
+                        { "status", "incomplete" }, { "phases", json_t::array() } };
+#else
         json_t _report{ { "version", 1 }, { "status", "incomplete" }, { "phases", json_t::array() } };
+#endif
 
         static void Require(bool success, const char* message)
         {
@@ -118,18 +131,29 @@ namespace UiParitySharedService
             Require(phase < kPhases.size(), "Invalid lifecycle phase");
             if (phase == 0)
             {
+#ifdef OPENRCT2_VULKAN_ONLY
+                Require(_owner->IsCreated(), "Vulkan initialization did not create the shared owner");
+                _report["ownerCreatedAfterVulkanStartup"] = true;
+#else
                 Require(!_owner->IsCreated(), "Software initialization unexpectedly created the Vulkan owner");
                 _report["ownerUncreatedAfterSoftwareStartup"] = true;
+#endif
             }
             if (phase == 2)
                 RenderAuxiliary(context, output);
             if (phase == 1 || phase == 3 || phase == 4 || phase == 5)
             {
+#ifndef OPENRCT2_VULKAN_ONLY
                 const auto selected = phase == 4 ? DrawingEngine::softwareWithHardwareDisplay : DrawingEngine::vulkan;
                 Config::Get().general.drawingEngine = selected;
                 gIntegratedBenchmark.drawingEngine = selected;
+#endif
                 ContextRecreateWindow();
+#ifdef OPENRCT2_VULKAN_ONLY
+                Require(context.GetDrawingEngine() != nullptr, "Lifecycle recreation did not create the Vulkan engine");
+#else
                 Require(context.GetDrawingEngineType() == selected, "Lifecycle renderer switch selected the wrong engine");
+#endif
             }
         }
         void AfterPhase(size_t phase, IContext& context, uint32_t tick, const std::filesystem::path& output)
@@ -142,11 +166,17 @@ namespace UiParitySharedService
             if (phase == 2)
                 Require(windowId == _previousWindow, "Auxiliary rendering unexpectedly recreated the main window");
             _previousWindow = windowId;
+#ifdef OPENRCT2_VULKAN_ONLY
+            constexpr bool vulkan = true;
+#else
             const bool vulkan = context.GetDrawingEngineType() == DrawingEngine::vulkan;
             Require(vulkan == (phase != 0 && phase != 4), "Unexpected lifecycle renderer");
+#endif
             json_t observation{ { "name", kPhases[phase] }, { "windowId", windowId }, { "simulationTicks", tick },
                                 { "renderer", vulkan ? "vulkan" : "softwareWithHardwareDisplay" } };
+#ifndef OPENRCT2_VULKAN_ONLY
             if (phase != 0)
+#endif
                 ObserveDevice(observation);
             _report["phases"].push_back(std::move(observation));
             Json::WriteToFile((output / "shared-service-lifecycle.json").string(), _report);

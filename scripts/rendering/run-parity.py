@@ -121,12 +121,18 @@ def main():
     parser.add_argument("--build-receipt", type=Path, help="Bind this run to build-parity.py's immutable receipt")
     parser.add_argument("--terrain-rule-probe-receipt", type=Path,
                         help="Passing build-terrain-rule-probe.py receipt matched to the selected test build")
+    parser.add_argument("--peep-rule-probe-receipt", type=Path,
+                        help="Passing build-peep-rule-probe.py receipt matched to the selected test build")
     parser.add_argument("--terrain-emission-probe-receipt", type=Path,
                         help="Passing build-terrain-emission-probe.py receipt matched to the selected test build")
     parser.add_argument("--terrain-column-probe-receipt", type=Path,
                         help="Passing build-terrain-column-probe.py receipt matched to the selected test build")
     parser.add_argument("--terrain-draw-corpus-summary", type=Path,
                         help="Passing capture-terrain-column-corpus.py frozen repeat/current 32-case summary")
+    parser.add_argument("--mixed-corpus-summary", type=Path,
+                        help="Passing capture-mixed-fixture.py frozen fresh-repeat receipt.json")
+    parser.add_argument("--mixed-emission-probe-receipt", type=Path,
+                        help="Passing build-mixed-emission-probe.py receipt matched to this test binary")
     parser.add_argument("--validation", action="store_true", help="Require Khronos validation and synchronization checks")
     parser.add_argument("--full", action="store_true")
     args = parser.parse_args()
@@ -135,6 +141,11 @@ def main():
     fixture_manifest_path = root / "docs/vulkan-parity-fixtures.json"
     fixture_manifest_hash = sha256(fixture_manifest_path)
     fixture_manifest = json.loads(fixture_manifest_path.read_text(encoding="utf-8"))
+    if args.mixed_corpus_summary or args.mixed_emission_probe_receipt:
+        raise SystemExit("Mixed raster is an experimental diagnostic; invoke scripts/rendering/run-mixed-parity.py separately")
+    if ("VulkanPeepRulesTest" in fixture_manifest["requiredSuiteMinimumCounts"]
+            and not args.peep_rule_probe_receipt):
+        raise SystemExit("Required VulkanPeepRulesTest needs --peep-rule-probe-receipt")
     if ("VulkanTerrainSurfaceRulesTest" in fixture_manifest["requiredSuiteMinimumCounts"]
             and not args.terrain_rule_probe_receipt):
         raise SystemExit("Required VulkanTerrainSurfaceRulesTest needs --terrain-rule-probe-receipt")
@@ -186,6 +197,12 @@ def main():
             # OPENRCT2_VULKAN_SHADER_DIRECTORY, including before/after run audits.
             completion_shader_proof[relative] = digest
     probe_proof = None
+    peep_proof = None
+    if args.peep_rule_probe_receipt:
+        peep_shader, peep_inputs, peep_proof = terrain_probe_inputs(
+            root, args.peep_rule_probe_receipt, build_receipt,
+            builder_name="build-peep-rule-probe.py", shader_name="PeepRulesProbe.comp.spv")
+        pinned_inputs.update(peep_inputs)
     if args.terrain_rule_probe_receipt:
         probe_shader, probe_inputs, probe_proof = terrain_probe_inputs(root, args.terrain_rule_probe_receipt, build_receipt)
         pinned_inputs.update(probe_inputs)
@@ -213,6 +230,14 @@ def main():
     for key in list(env):
         if key.startswith(("OPENRCT2_", "VK_")):
             env.pop(key)
+    if peep_proof:
+        isolated_shader = output / "PeepRulesProbe.comp.spv"
+        shutil.copyfile(peep_shader, isolated_shader)
+        if sha256(isolated_shader) != peep_proof["shaderSha256"]:
+            raise SystemExit("Peep probe changed during isolated copy")
+        pinned_inputs[isolated_shader] = peep_proof["shaderSha256"]
+        env["OPENRCT2_PEEP_RULE_PROBE_SPV"] = str(isolated_shader)
+        env["OPENRCT2_PEEP_RULE_ARTIFACTS"] = str(output / "peep-rule-samples")
     if probe_proof:
         isolated_shader = output / "TerrainSurfaceRulesProbe.comp.spv"
         shutil.copyfile(probe_shader, isolated_shader)
@@ -287,7 +312,30 @@ def main():
     pinned_inputs[executable] = executable_before
     arguments = [str(executable), "--gtest_output=xml:" + str(output / "tests.xml")]
     if not args.full:
-        arguments.append("--gtest_filter=*Vulkan*ParityTest.*:VulkanCoverageCacheTest.*:PublicationSnapshotParityTest.*:SpriteAssetDecoderTest.*:GpuFoundationTest.*:VulkanRuntimeIntegrationTest.*:VulkanDiagnosticCaptureTest.*:AssetMetadataCorpusParityTest.*:RenderServiceContract.*:RenderServiceLazyLifetime.*:ScreenshotTilingTest.*:ViewportGenerationTest.*:VulkanPresentationHostTest.*:VulkanOffscreenDeviceTest.*:VulkanOffscreenDeviceOwnerTest.*:VulkanSubmissionSlotsContractTest.*:RetainedBalloonSceneTest.*:RetainedBalloonHookTest.*:TerrainSurfaceRulesTest.*:TerrainPresentationBridgeTest.*:TerrainSurfaceEmissionTest.*:VulkanTerrainSurfaceRulesTest.*:VulkanRetainedTerrainEmissionTest.*:VulkanRetainedTerrainDrawTest.*:VulkanTerrainCompletionTest.*:VulkanOffscreenRenderTest.*:VulkanHdrOutputTest.*:VulkanOffscreenServiceContract.*:VulkanBalloonPipelineTest.*:VulkanBalloonAdmissionTest.*")
+        arguments.append("--gtest_filter=*Vulkan*ParityTest.*:VulkanCoverageCacheTest.*:PublicationSnapshotParityTest.*:SpriteAssetDecoderTest.*:GpuFoundationTest.*:VulkanRuntimeIntegrationTest.*:VulkanDiagnosticCaptureTest.*:AssetMetadataCorpusParityTest.*:RenderServiceContract.*:RenderServiceLazyLifetime.*:RenderServiceProductionRecordingTest.*:ScreenshotTilingTest.*:ParkPreviewTest.*:*/TrackDesignPreviewTest.*:ScriptingTests.*CustomImage*:ViewportGenerationTest.*:VulkanPresentationHostTest.*:VulkanOffscreenDeviceTest.*:VulkanOffscreenDeviceOwnerTest.*:VulkanSubmissionSlotsContractTest.*:RetainedBalloonSceneTest.*:RetainedBalloonHookTest.*:TerrainSurfaceRulesTest.*:TerrainPresentationBridgeTest.*:TerrainSurfaceEmissionTest.*:VulkanTerrainSurfaceRulesTest.*:VulkanRetainedTerrainEmissionTest.*:VulkanRetainedTerrainDrawTest.*:VulkanTerrainCompletionTest.*:VulkanOffscreenRenderTest.*:VulkanHdrOutputTest.*:VulkanOffscreenServiceContract.*:VulkanBalloonPipelineTest.*:VulkanBalloonAdmissionTest.*:PaintOrderingTest.*:RetainedPeepStateTest.*:RetainedPeepCatalogTest.*:RetainedPeepCatalogGraphicsTest.*:RetainedPeepPublicationTest.*:PeepRulesTest.*:VulkanPeepRulesTest.*")
+    else:
+        arguments.append("--gtest_filter=*")
+    arguments[-1] += "-ExperimentalVulkanMixedFixtureTest.*"
+    # Discover only the excluded diagnostic so the summary records its actual
+    # membership. An added test cannot silently enlarge this narrow exclusion.
+    experimental_suite = "ExperimentalVulkanMixedFixtureTest"
+    experimental_test = experimental_suite + ".FrozenOriginalArtAllRotationsAndCameraOnlyZeroUpload"
+    listing = subprocess.run([str(executable), "--gtest_list_tests", "--gtest_filter=" + experimental_suite + ".*"],
+                             cwd=root / "bin", env=env, capture_output=True, text=True, check=True, timeout=60)
+    (output / "experimental-discovery.log").write_text(listing.stdout + listing.stderr, encoding="utf-8")
+    excluded_tests, current_suite = [], None
+    for line in listing.stdout.splitlines():
+        content = line.split("#", 1)[0].rstrip()
+        if content and not content[0].isspace() and content.endswith("."):
+            current_suite = content[:-1]
+        elif current_suite and content.startswith("  "):
+            excluded_tests.append(current_suite + "." + content.strip())
+    if excluded_tests not in ([], [experimental_test]):
+        raise SystemExit("Experimental exclusion membership changed; review required: " + repr(excluded_tests))
+    experimental_diagnostics = [{"suite": experimental_suite, "status": "not_run_experimental",
+        "discoveredExcludedTests": excluded_tests, "discoveredExcludedCount": len(excluded_tests),
+        "reason": "Mixed-depth hypothesis remains unqualified; test-only diagnostic, no runtime admission",
+        "runner": "scripts/rendering/run-mixed-parity.py"}]
     with (output / "tests.log").open("w", encoding="utf-8") as log:
         result = subprocess.run(arguments, cwd=root / "bin", env=env, stdout=log, stderr=subprocess.STDOUT)
     validation_messages = []
@@ -367,6 +415,12 @@ def main():
                      if not path.is_file() or sha256(path) != digest]
     terrain_artifacts = {path.relative_to(output).as_posix(): {"sha256": sha256(path), "bytes": path.stat().st_size}
                          for path in sorted((output / "terrain-rule-samples").rglob("*")) if path.is_file()}
+    if peep_proof:
+        peep_proof.update({"inputsUnchanged": not input_changes,
+                          "artifactSha256": {path.relative_to(output).as_posix():
+                                             {"sha256": sha256(path), "bytes": path.stat().st_size}
+                                             for path in sorted((output / "peep-rule-samples").rglob("*")) if path.is_file()},
+                          "scope": "Shared GLSL selection/projection contract readback; no sprite-pixel, mixed-scene or performance qualification."})
     if probe_proof:
         probe_proof.update({"inputsUnchanged": not input_changes, "artifactSha256": terrain_artifacts,
                             "scope": "Full-suite execution and raw evidence only; the dedicated no-window terrain probe "
@@ -420,6 +474,10 @@ def main():
         "testBinarySha256": executable_before, "testBinarySha256After": sha256(executable) if executable.is_file() else None,
         "inputsChangedDuringRun": input_changes, "terrainRuleProbe": probe_proof,
         "terrainEmissionProbe": emission_proof, "terrainDrawProbe": draw_proof,
+        "peepRuleProbe": peep_proof,
+        "mixedRasterProbe": {"status": "not_run_experimental", "runtimeAdmission": False},
+        "gateScope": "production-regressions-and-admitted-parity",
+        "gtestFilter": arguments[-1], "experimentalDiagnostics": experimental_diagnostics,
         "terrainCompletion": {"shaderSha256": completion_shader_proof, "reports": completion_reports,
                               "failures": completion_report_failures, "pixelParityClaim": False},
         "tests": len(tests), "parityTests": parity_count,

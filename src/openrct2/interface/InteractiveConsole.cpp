@@ -1564,7 +1564,7 @@ static void ConsoleCommandMpDesync(InteractiveConsole& console, const arguments_
                 auto* guest = guests[0];
                 if (guests.size() > 1)
                     guest = guests[UtilRand() % guests.size() - 1];
-                guest->tShirtColour = Drawing::getRandomColour();
+                guest->setTShirtColour(Drawing::getRandomColour());
                 guest->invalidate();
             }
             break;

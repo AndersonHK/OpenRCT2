@@ -1364,8 +1364,7 @@ namespace OpenRCT2::RCT1
             dst->nextFlags = src->NextFlags;
             dst->var37 = src->Var37;
             dst->stepProgress = src->StepProgress;
-            dst->tShirtColour = GetColour(src->TshirtColour);
-            dst->trousersColour = GetColour(src->TrousersColour);
+            dst->setClothingColours(GetColour(src->TshirtColour), GetColour(src->TrousersColour));
             dst->destinationX = src->DestinationX;
             dst->destinationY = src->DestinationY;
             dst->destinationTolerance = src->DestinationTolerance;
@@ -2934,15 +2933,15 @@ namespace OpenRCT2::RCT1
         // Balloons were always blue in RCT1 without AA/LL, umbrellas always red
         if (_gameVersion == FILE_VERSION_RCT1)
         {
-            dst->umbrellaColour = Drawing::Colour::brightRed;
-            dst->balloonColour = Drawing::Colour::lightBlue;
+            dst->setUmbrellaColour(Drawing::Colour::brightRed);
+            dst->setBalloonColour(Drawing::Colour::lightBlue);
         }
         else
         {
-            dst->umbrellaColour = GetColour(src->UmbrellaColour);
-            dst->balloonColour = GetColour(src->BalloonColour);
+            dst->setUmbrellaColour(GetColour(src->UmbrellaColour));
+            dst->setBalloonColour(GetColour(src->BalloonColour));
         }
-        dst->hatColour = GetColour(src->HatColour);
+        dst->setHatColour(GetColour(src->HatColour));
 
         dst->happiness = src->Happiness;
         dst->happinessTarget = src->HappinessTarget;

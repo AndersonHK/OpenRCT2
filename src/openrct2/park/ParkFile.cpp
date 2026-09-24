@@ -2166,7 +2166,11 @@ namespace OpenRCT2
                 }
             }
 
-            ReadWriteFields(cs, entity.tShirtColour, entity.trousersColour);
+            auto shirtColour = entity.getTShirtColour();
+            auto trousersColour = entity.getTrousersColour();
+            ReadWriteFields(cs, shirtColour, trousersColour);
+            if (cs.getMode() == OrcaStream::Mode::reading)
+                entity.setClothingColours(shirtColour, trousersColour);
             auto destinationX = entity.destinationX;
             auto destinationY = entity.destinationY;
             auto destinationTolerance = entity.destinationTolerance;
@@ -2425,11 +2429,16 @@ namespace OpenRCT2
                     guest->paidOnFood = ToMoney64(expenditures[2]);
                     guest->paidOnSouvenirs = ToMoney64(expenditures[3]);
 
+                    auto balloon = guest->getBalloonColour();
+                    auto umbrella = guest->getUmbrellaColour();
+                    auto hat = guest->getHatColour();
                     ReadWriteFields(
                         cs, guest->amountOfFood, guest->amountOfDrinks, guest->amountOfSouvenirs, guest->vandalismSeen,
                         guest->voucherType, guest->voucherRideId, guest->surroundingsThoughtTimeout, guest->angriness,
-                        guest->timeLost, guest->daysInQueue, guest->balloonColour, guest->umbrellaColour, guest->hatColour,
+                        guest->timeLost, guest->daysInQueue, balloon, umbrella, hat,
                         guest->favouriteRide, guest->favouriteRideRating);
+                    if (cs.getMode() == OrcaStream::Mode::reading)
+                        guest->setAccessoryColours(balloon, umbrella, hat);
                 }
                 else
                 {
@@ -2765,11 +2774,16 @@ namespace OpenRCT2
             cs.readWrite(thought.fresh_timeout);
             return true;
         });
+        auto balloon = guest.getBalloonColour();
+        auto umbrella = guest.getUmbrellaColour();
+        auto hat = guest.getHatColour();
         ReadWriteFields(
             cs, guest.litterCount, guest.disgustingCount, guest.amountOfFood, guest.amountOfDrinks, guest.amountOfSouvenirs,
             guest.vandalismSeen, guest.voucherType, guest.voucherRideId, guest.surroundingsThoughtTimeout, guest.angriness,
-            guest.timeLost, guest.daysInQueue, guest.balloonColour, guest.umbrellaColour, guest.hatColour, guest.favouriteRide,
+            guest.timeLost, guest.daysInQueue, balloon, umbrella, hat, guest.favouriteRide,
             guest.favouriteRideRating, guest.itemFlags);
+        if (cs.getMode() == OrcaStream::Mode::reading)
+            guest.setAccessoryColours(balloon, umbrella, hat);
     }
 
     template<>

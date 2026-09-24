@@ -1,5 +1,19 @@
 // Copyright (c) 2014-2026 OpenRCT2 developers. GPL-3.0-or-later.
 #pragma once
+#include <openrct2/core/Json.hpp>
+#include <openrct2/drawing/IDrawingEngine.h>
+#include <filesystem>
+#include <stdexcept>
+
+#ifdef OPENRCT2_VULKAN_ONLY
+namespace SoftwareTileDiagnostic
+{
+    inline json_t Run(int, const char**, const std::filesystem::path&)
+    {
+        throw std::runtime_error("Software tile diagnostics require the external frozen software reference.");
+    }
+}
+#else
 // Diagnostic only: unchanged linked X8 painter, fixed accepted giant-input-01 r2z0 camera.
 #include <openrct2/Game.h>
 #include <openrct2/core/Imaging.h>
@@ -147,3 +161,4 @@ namespace SoftwareTileDiagnostic
             { "renderer", "unchanged-linked-X8DrawingEngine" }, { "serviceCreations", 0 }, { "deviceCreations", 0 } };
     }
 }
+#endif

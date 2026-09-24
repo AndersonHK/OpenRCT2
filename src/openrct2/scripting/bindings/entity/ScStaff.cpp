@@ -12,6 +12,7 @@
     #include "ScStaff.hpp"
 
     #include "../../../Context.h"
+    #include "../../../GameState.h"
     #include "../../../entity/PatrolArea.h"
     #include "../../../entity/Staff.h"
     #include "../../../object/ObjectManager.h"
@@ -111,6 +112,7 @@ namespace OpenRCT2::Scripting
             // Reset state to walking to prevent invalid actions from carrying over
             peep->action = PeepActionType::walking;
             peep->animationType = peep->nextAnimationType = PeepAnimationType::walking;
+            getGameState().entities.PublishEntityVisualState(*peep);
             peep->invalidate();
         }
         return JS_UNDEFINED;
@@ -119,7 +121,7 @@ namespace OpenRCT2::Scripting
     JSValue ScStaff::colour_get(JSContext* ctx, JSValue thisVal)
     {
         auto peep = GetStaff(thisVal);
-        return JS_NewUint32(ctx, peep != nullptr ? EnumValue(peep->tShirtColour) : 0);
+        return JS_NewUint32(ctx, peep != nullptr ? EnumValue(peep->getTShirtColour()) : 0);
     }
 
     JSValue ScStaff::colour_set(JSContext* ctx, JSValue thisVal, JSValue jsValue)
@@ -129,7 +131,7 @@ namespace OpenRCT2::Scripting
         auto peep = GetStaff(thisVal);
         if (peep != nullptr)
         {
-            peep->tShirtColour = static_cast<Drawing::Colour>(value);
+            peep->setTShirtColour(static_cast<Drawing::Colour>(value));
             peep->invalidate();
         }
         return JS_UNDEFINED;
@@ -231,6 +233,7 @@ namespace OpenRCT2::Scripting
 
         peep->animationObjectIndex = costume->objectId;
         peep->animationGroup = costume->group;
+        getGameState().entities.PublishEntityVisualState(*peep);
         peep->invalidate();
         return JS_UNDEFINED;
     }

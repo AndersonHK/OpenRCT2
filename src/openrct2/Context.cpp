@@ -44,25 +44,29 @@
 #include "core/Guard.hpp"
 #include "core/Http.h"
 #include "core/JobPool.h"
+#include "core/Json.hpp"
 #include "core/MemoryStream.h"
 #include "core/Path.hpp"
 #include "core/String.hpp"
 #include "core/Timer.hpp"
 #include "drawing/ColourMap.h"
+#include "drawing/Drawing.Screen.h"
 #include "drawing/Drawing.Sprite.h"
 #include "drawing/Drawing.h"
-#include "drawing/PickupPeep.h"
 #include "drawing/Font.h"
 #include "drawing/IDrawingEngine.h"
 #include "drawing/Image.h"
 #include "drawing/LightFX.h"
 #include "drawing/Palette.h"
+#include "drawing/PickupPeep.h"
+#include "drawing/PresentationGeneration.h"
 #include "drawing/RenderService.h"
 #include "entity/EntityTweener.h"
 #include "entity/PatrolArea.h"
 #include "interface/Chat.h"
 #include "interface/StdInOutConsole.h"
 #include "interface/Viewport.h"
+#include "interface/WindowBase.h"
 #include "localisation/Formatter.h"
 #include "localisation/LocalisationService.h"
 #include "network/DiscordService.h"
@@ -125,8 +129,8 @@ namespace OpenRCT2
 
             std::vector<std::byte> buffer(bufferSize);
             if (!GetSystemCpuSetInformation(
-                    reinterpret_cast<PSYSTEM_CPU_SET_INFORMATION>(buffer.data()), bufferSize, &bufferSize,
-                    GetCurrentProcess(), 0))
+                    reinterpret_cast<PSYSTEM_CPU_SET_INFORMATION>(buffer.data()), bufferSize, &bufferSize, GetCurrentProcess(),
+                    0))
             {
                 return;
             }
@@ -168,29 +172,16 @@ namespace OpenRCT2
 #endif
         }
 
-        const char* GetDrawingEngineName(DrawingEngine drawingEngine)
-        {
-            switch (drawingEngine)
-            {
-                case DrawingEngine::softwareWithHardwareDisplay:
-                    return "software";
-                case DrawingEngine::vulkan:
-                    return "vulkan";
-                default:
-                    return "unknown";
-            }
-        }
-
         void PrintBenchmarkStateSnapshot(const utf8* label, const BenchmarkStateSnapshot& snapshot)
         {
             Console::WriteLine("%s simulation state:", label);
             Console::WriteLine("  simulation tick:    %u", snapshot.simulationTick);
             Console::WriteLine(
-                "  guests:             %zu (%zu inside, %zu outside)",
-                snapshot.guestsInsidePark + snapshot.guestsOutsidePark, snapshot.guestsInsidePark, snapshot.guestsOutsidePark);
+                "  guests:             %zu (%zu inside, %zu outside)", snapshot.guestsInsidePark + snapshot.guestsOutsidePark,
+                snapshot.guestsInsidePark, snapshot.guestsOutsidePark);
             Console::WriteLine(
-                "  guest states:       %zu walking, %zu queued, %zu on ride", snapshot.guestsWalking,
-                snapshot.guestsQueuing, snapshot.guestsOnRide);
+                "  guest states:       %zu walking, %zu queued, %zu on ride", snapshot.guestsWalking, snapshot.guestsQueuing,
+                snapshot.guestsOnRide);
             Console::WriteLine("  transport routes:   %zu active", snapshot.activeTransportRoutes);
             Console::WriteLine("  staff / vehicles:   %zu / %zu", snapshot.staff, snapshot.vehicles);
             Console::WriteLine(
@@ -231,7 +222,6 @@ namespace OpenRCT2
         Network::NetworkBase _network;
 #endif
 
-        DrawingEngine _drawingEngineType = DrawingEngine::softwareWithHardwareDisplay;
         std::unique_ptr<Drawing::IDrawingEngine> _drawingEngine;
         std::unique_ptr<Paint::Painter> _painter;
 
@@ -468,11 +458,6 @@ namespace OpenRCT2
             return _assetPackManager.get();
         }
 
-        DrawingEngine GetDrawingEngineType() override
-        {
-            return _drawingEngineType;
-        }
-
         Drawing::IDrawingEngine* GetDrawingEngine() override
         {
             return _drawingEngine.get();
@@ -481,6 +466,11 @@ namespace OpenRCT2
         Drawing::IRenderService& GetRenderService() override
         {
             return _renderService.Get();
+        }
+
+        void InvalidateRenderServiceImage(uint32_t image) override
+        {
+            _renderService.InvalidateImage(image);
         }
 
         Paint::Painter* GetPainter() override
@@ -769,12 +759,10 @@ namespace OpenRCT2
         void InitialiseDrawingEngine() final override
         {
             assert(_drawingEngine == nullptr);
-            _drawingEngineType = gIntegratedBenchmark.drawingEngine.value_or(Config::Get().general.drawingEngine);
-            _drawingEngine = _uiContext->GetDrawingEngineFactory()->Create(_drawingEngineType, *_uiContext);
+            _drawingEngine = _uiContext->GetDrawingEngineFactory()->Create(*_uiContext);
             if (_drawingEngine == nullptr)
             {
-                throw std::runtime_error(
-                    String::stdFormat("Unable to create requested renderer '%s'.", GetDrawingEngineName(_drawingEngineType)));
+                throw std::runtime_error("Unable to create the Vulkan renderer.");
             }
             _drawingEngine->Initialise();
             _drawingEngine->SetVSync(gIntegratedBenchmark.useVSync.value_or(Config::Get().general.useVSync));
@@ -1419,13 +1407,6 @@ namespace OpenRCT2
             if (_variableFrame == useVariableFrame)
                 return useVariableFrame;
 
-            if (_variableFrame)
-            {
-                // Fixed frames need authoritative end-of-tick positions.
-                auto& tweener = EntityTweener::get();
-                tweener.restore();
-                tweener.reset();
-            }
             _variableFrame = useVariableFrame;
             return useVariableFrame;
         }
@@ -1561,9 +1542,10 @@ namespace OpenRCT2
             std::sort(_benchmarkFrameIntervalsMilliseconds.begin(), _benchmarkFrameIntervalsMilliseconds.end());
 
             Console::WriteLine("Integrated UI benchmark:");
-            Console::WriteLine("  renderer:           %s", GetDrawingEngineName(_drawingEngineType));
+            Console::WriteLine("  renderer:           vulkan");
             Console::WriteLine(
-                "  VSync:              %s", gIntegratedBenchmark.useVSync.value_or(Config::Get().general.useVSync) ? "enabled" : "disabled");
+                "  VSync:              %s",
+                gIntegratedBenchmark.useVSync.value_or(Config::Get().general.useVSync) ? "enabled" : "disabled");
             Console::WriteLine("  elapsed:            %.6f s", _benchmarkTotals.elapsedSeconds);
             Console::WriteLine("  logical ticks:      %llu", static_cast<unsigned long long>(_benchmarkTotals.logicalTicks));
             Console::WriteLine("  actual logical TPS: %.3f", metrics.logicalTicksPerSecond);
@@ -1573,7 +1555,9 @@ namespace OpenRCT2
                 _benchmarkInitialDrawableSize.Height, finalDrawableSize.Width, finalDrawableSize.Height);
             Console::WriteLine(
                 "  monitor refresh:    %u Hz initial, %u Hz final", _benchmarkInitialRefreshRate, _uiContext->GetRefreshRate());
-            Console::WriteLine("  draws / FPS:        %llu / %.3f", static_cast<unsigned long long>(_benchmarkTotals.draws), metrics.framesPerSecond);
+            Console::WriteLine(
+                "  draws / FPS:        %llu / %.3f", static_cast<unsigned long long>(_benchmarkTotals.draws),
+                metrics.framesPerSecond);
             Console::WriteLine(
                 "  message / window:  %llu pumps / %llu updates (%.3f / %.3f Hz)",
                 static_cast<unsigned long long>(_benchmarkMessagePumps), static_cast<unsigned long long>(_benchmarkUiFrames),
@@ -1594,9 +1578,8 @@ namespace OpenRCT2
                 metrics.simulationUtilisationPercent, metrics.meanSimulationMicrosecondsPerLogicalTick);
             Console::WriteLine(
                 "  simulation batches: %llu (%.3f us mean, %.3f ms longest; %.3f ms longest UI-bounded slice)",
-                static_cast<unsigned long long>(_benchmarkTotals.simulationBatches),
-                metrics.meanSimulationMicrosecondsPerBatch, metrics.longestSimulationBatchMilliseconds,
-                metrics.longestSimulationSliceMilliseconds);
+                static_cast<unsigned long long>(_benchmarkTotals.simulationBatches), metrics.meanSimulationMicrosecondsPerBatch,
+                metrics.longestSimulationBatchMilliseconds, metrics.longestSimulationSliceMilliseconds);
             Console::WriteLine(
                 "  draw time:          %.6f s (%.1f%%, %.3f us/draw; includes presentation)", _benchmarkTotals.drawSeconds,
                 metrics.drawUtilisationPercent, metrics.meanDrawMicroseconds);
@@ -1683,6 +1666,77 @@ namespace OpenRCT2
             PrintBenchmarkStateSnapshot("Initial", _benchmarkInitialState);
             PrintBenchmarkStateSnapshot("Final", finalState);
             Console::WriteLine("Completed: %s", checksum.c_str());
+            if (gIntegratedBenchmark.finalScreenshot)
+            {
+                // phase is already complete; elapsed, draw/tick counters and all measured
+                // timing/upload samples above are frozen. Never add these samples to them.
+                try
+                {
+                    const auto* window = WindowGetMain();
+                    if (window == nullptr || window->viewport == nullptr)
+                        throw std::runtime_error("Final benchmark screenshot has no main viewport");
+                    const auto camera = [&]() {
+                        const auto& viewport = *window->viewport;
+                        return json_t{ { "viewPosition", { viewport.viewPos.x, viewport.viewPos.y } },
+                                       { "rotation", viewport.rotation },
+                                       { "zoom", static_cast<int8_t>(viewport.zoom) },
+                                       { "flags", viewport.flags } };
+                    };
+                    const auto beforeCamera = camera();
+                    const auto tick = getGameState().currentTicks;
+                    Drawing::GfxInvalidateScreen();
+                    Draw();
+                    _drawingEngine->DrainFrameTimings(_benchmarkRendererTimingScratch);
+                    // A timing boundary also completes when BeginFrame declined a busy
+                    // visual packet. Require this final draw to have actually presented,
+                    // otherwise a subsequent control-only readback could return old pixels.
+                    uint64_t finalFrameNumber = 0;
+                    size_t finalFrameCount = 0;
+                    for (const auto& sample : _benchmarkRendererTimingScratch)
+                    {
+                        if (sample.telemetryOnly)
+                            continue;
+                        ++finalFrameCount;
+                        finalFrameNumber = sample.frameNumber;
+                    }
+                    _benchmarkRendererTimingScratch.clear();
+                    if (finalFrameCount != 1 || finalFrameNumber == 0)
+                        throw std::runtime_error("Final benchmark draw did not produce exactly one completed frame");
+                    const auto screenshot = _drawingEngine->Screenshot();
+                    if (screenshot.empty())
+                        throw std::runtime_error("Final benchmark screenshot did not produce an owned image");
+                    if (getGameState().currentTicks != tick
+                        || getGameState().entities.getAllEntitiesChecksum().toString() != checksum || camera() != beforeCamera)
+                        throw std::runtime_error("Final benchmark screenshot changed authoritative state or camera");
+                    const auto drawable = _uiContext->GetDrawableSize();
+                    const auto generation = ViewportGetPresentationGeneration();
+                    const bool partial = _drawingEngine->GetEntityPublicationProfile()
+                        == EntityPublicationProfile::gpuTerrainOnly;
+                    json_t receipt{ { "schema", 1 },
+                                    { "path", screenshot },
+                                    { "outsideMeasurement", true },
+                                    { "completedFrameNumber", finalFrameNumber },
+                                    { "authoritativeStateUnchanged", true },
+                                    { "simulationTick", tick },
+                                    { "entityChecksum", checksum },
+                                    { "camera", beforeCamera },
+                                    { "partialRender", partial },
+                                    { "logicalExtent", { _uiContext->GetWidth(), _uiContext->GetHeight() } },
+                                    { "drawableExtent", { drawable.Width, drawable.Height } },
+                                    { "renderScope",
+                                      partial ? "GPU terrain/background/UI only; unsupported world categories omitted"
+                                              : "configured main renderer" } };
+                    // The displayed immutable generation may lag the final simulation tick.
+                    // Report that age honestly; no second render or publication reset is hidden.
+                    receipt["publicationSourceTick"] = generation ? json_t(generation->sourceTick) : json_t(nullptr);
+                    Console::WriteLine("Final benchmark screenshot v1: %s", receipt.dump().c_str());
+                }
+                catch (const std::exception& e)
+                {
+                    Console::Error::WriteLine("Final benchmark screenshot failed: %s", e.what());
+                    _benchmarkFailed = true;
+                }
+            }
             if (!gIntegratedBenchmark.profilePath.empty())
             {
                 if (!Profiling::exportData(gIntegratedBenchmark.profilePath))
@@ -1730,8 +1784,7 @@ namespace OpenRCT2
                     // This is process-local benchmark setup, not an in-game command or replay event.
                     gGameSpeed = kGameSpeedTurbo;
                     Console::WriteLine(
-                        "Integrated UI benchmark ready: renderer=%s, VSync=%s, %s window, ordinary Turbo.",
-                        GetDrawingEngineName(_drawingEngineType),
+                        "Integrated UI benchmark ready: renderer=%s, VSync=%s, %s window, ordinary Turbo.", "vulkan",
                         gIntegratedBenchmark.useVSync.value_or(Config::Get().general.useVSync) ? "enabled" : "disabled",
                         gIntegratedBenchmark.visible ? "visible" : "hidden");
                     if (gIntegratedBenchmark.warmupTicks == 0
@@ -1955,58 +2008,21 @@ namespace OpenRCT2
         {
             PROFILED_FUNCTION();
 
-            auto& tweener = EntityTweener::get();
-
             ProcessMessages();
 
-            bool canTween = true;
-            if (_ticksAccumulator >= updateTime)
-            {
-                // A completed logical tick must never begin from presentation-only interpolated coordinates, including when
-                // VSync has not yet requested another frame.
-                tweener.restore();
-                tweener.reset();
-                canTween = false;
-            }
+            // The GPU world pass consumes authoritative entity state. Presentation no longer scans visible entities or
+            // temporarily writes interpolated coordinates into simulation objects. Simulation and VSync keep separate clocks.
             while (_ticksAccumulator >= updateTime)
             {
-                // Only the final catch-up tick can contribute interpolation endpoints to this frame. Restore any positions
-                // tweened by the previous frame before the first intermediate tick, but defer the visible-entity scan until
-                // the final tick that will actually be drawn.
-                const bool captureTween = shouldDraw && _ticksAccumulator < (2.0f * updateTime);
-                if (captureTween)
-                {
-                    tweener.preTick();
-                }
-
                 Tick();
 
                 _ticksAccumulator -= updateTime;
 
                 const bool continueVariableFrame = ShouldRunVariableFrame();
-                if (captureTween)
-                {
-                    if (continueVariableFrame)
-                    {
-                        // Get the next position of each sprite only when this frame can consume the endpoints.
-                        tweener.postTick();
-                        canTween = true;
-                    }
-                    else
-                    {
-                        // The tick left every entity at its authoritative post-tick position. Fixed-frame mode cannot use the
-                        // captured pre-tick positions, so discard them without rescanning visible entities or restoring
-                        // positions which have not been tweened.
-                        tweener.reset();
-                        canTween = false;
-                    }
-                }
-
                 // A queued speed action can change the desired frame mode inside Tick(). Keep the remaining accumulated
                 // time for the next outer frame instead of running fixed-frame work through the stale variable path.
                 if (!continueVariableFrame)
                 {
-                    // The tween state is empty and entity positions are authoritative, so no transition restore remains.
                     _variableFrame = false;
                     break;
                 }
@@ -2024,18 +2040,11 @@ namespace OpenRCT2
                 }
             }
 
-            bool useVariableFrame = _variableFrame;
             if (shouldDraw || !ShouldDraw())
-                useVariableFrame = UpdateUi();
+                UpdateUi();
 
             if (shouldDraw)
             {
-                if (useVariableFrame && canTween)
-                {
-                    const float alpha = std::min(_ticksAccumulator / updateTime, 1.0f);
-                    tweener.tween(alpha);
-                }
-
                 Draw();
             }
         }
@@ -2063,8 +2072,7 @@ namespace OpenRCT2
                 return;
 
             _benchmarkTotals.draws++;
-            _benchmarkTotals.drawSeconds +=
-                std::chrono::duration<double>(IntegratedBenchmarkClock::now() - drawStart).count();
+            _benchmarkTotals.drawSeconds += std::chrono::duration<double>(IntegratedBenchmarkClock::now() - drawStart).count();
             _drawingEngine->TakeCompletedFrameTimings(_benchmarkRendererTimingScratch);
             AddIntegratedBenchmarkRendererTimings(_benchmarkRendererTimingScratch);
             _benchmarkRendererTimingScratch.clear();
@@ -2095,10 +2103,10 @@ namespace OpenRCT2
                     const auto simulationSeconds = std::chrono::duration<double>(benchmarkEnd - benchmarkStart).count();
                     _benchmarkTotals.simulationSeconds += simulationSeconds;
                     _benchmarkTotals.simulationBatches++;
-                    _benchmarkTotals.longestSimulationBatchSeconds =
-                        std::max(_benchmarkTotals.longestSimulationBatchSeconds, simulationSeconds);
-                    _benchmarkTotals.longestSimulationSliceSeconds =
-                        std::max(_benchmarkTotals.longestSimulationSliceSeconds, simulationSeconds);
+                    _benchmarkTotals.longestSimulationBatchSeconds = std::max(
+                        _benchmarkTotals.longestSimulationBatchSeconds, simulationSeconds);
+                    _benchmarkTotals.longestSimulationSliceSeconds = std::max(
+                        _benchmarkTotals.longestSimulationSliceSeconds, simulationSeconds);
                 }
                 else
                 {

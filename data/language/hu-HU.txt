@@ -2920,11 +2920,6 @@ STR_5871    :Elszáradó növények ki
 STR_5872    :A növények öregedésének kikapcsolása, hogy ne száradjanak el
 STR_5873    :Minden pályarész lehet láncos felvonó
 STR_5874    :Lehetővé teszi, hogy bármelyik pályarészből lehessen láncos felvonót csinálni
-STR_5875    :Grafikus motor:
-STR_5876    :A játék grafikus megjelenítő motorja.
-STR_5877    :Szoftveres
-STR_5878    :Szoftveres (hardveres gyorsítás)
-STR_5879    :OpenGL (kísérleti)
 STR_5880    :Csak a kiválasztottak
 STR_5881    :Csak a nem kiválasztottak
 STR_5882    :Egyedi pénznem

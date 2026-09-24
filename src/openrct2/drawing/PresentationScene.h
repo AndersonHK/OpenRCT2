@@ -47,8 +47,10 @@ namespace OpenRCT2
         /** Returns true when a new generation was admitted for this draw. */
         bool BeginFrame(
             JobPool& jobs, EntityRegistry& entities, uint32_t drawCount, bool synchronousMapPublication,
-            EntityPublicationProfile profile = EntityPublicationProfile::legacyBulk);
-        void ScheduleNext(JobPool& jobs, EntityRegistry& entities);
+            EntityPublicationProfile profile = EntityPublicationProfile::legacyBulk,
+            std::shared_ptr<const Drawing::RetainedPeepAnimationCatalog> peepAnimations = {});
+        void ScheduleNext(JobPool& jobs, EntityRegistry& entities,
+            std::shared_ptr<const Drawing::RetainedPeepAnimationCatalog> peepAnimations = {});
         void Reset(JobPool& jobs);
         // Producer-thread totals include prepared snapshots discarded before admission; lifetime of this scene owner.
         [[nodiscard]] Drawing::BalloonPublicationCopyTotals GetBalloonPublicationCopyTotals() const noexcept;

@@ -37,13 +37,15 @@ if (ENABLE_VULKAN AND NOT EMSCRIPTEN)
             "${VULKAN_SHADER_SOURCE_DIR}/world_surface_compact.comp"
             "${VULKAN_SHADER_SOURCE_DIR}/terrain_retained_emit.comp"
             "${VULKAN_SHADER_SOURCE_DIR}/terrain_columns.comp"
+            "${VULKAN_SHADER_SOURCE_DIR}/peep_fields.comp"
             "${VULKAN_SHADER_SOURCE_DIR}/indexed_transparent_rect.vert"
             "${VULKAN_SHADER_SOURCE_DIR}/indexed_transparent_rect.frag"
             "${VULKAN_SHADER_SOURCE_DIR}/indexed_transparency_compose.vert"
             "${VULKAN_SHADER_SOURCE_DIR}/indexed_transparency_compose.frag"
             "${VULKAN_SHADER_SOURCE_DIR}/indexed_weather.vert"
             "${VULKAN_SHADER_SOURCE_DIR}/indexed_weather.frag"
-            "${VULKAN_SHADER_SOURCE_DIR}/lightfx_accumulate.comp")
+            "${VULKAN_SHADER_SOURCE_DIR}/lightfx_accumulate.comp"
+            "${VULKAN_SHADER_SOURCE_DIR}/image_alias.comp")
         if (Vulkan_GLSLC_EXECUTABLE)
             set(OPENRCT2_VULKAN_SHADER_MODE "compile")
             set(OPENRCT2_VULKAN_ENABLED ON)
@@ -62,13 +64,15 @@ if (ENABLE_VULKAN AND NOT EMSCRIPTEN)
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/world_surface_compact.comp.spv"
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/terrain_retained_emit.comp.spv"
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/terrain_columns.comp.spv"
+                AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/peep_fields.comp.spv"
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_transparent_rect.vert.spv"
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_transparent_rect.frag.spv"
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_transparency_compose.vert.spv"
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_transparency_compose.frag.spv"
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_weather.vert.spv"
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/indexed_weather.frag.spv"
-                AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/lightfx_accumulate.comp.spv")
+                AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/lightfx_accumulate.comp.spv"
+                AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/image_alias.comp.spv")
             set(OPENRCT2_VULKAN_SHADER_MODE "precompiled")
             set(OPENRCT2_VULKAN_ENABLED ON)
             message(STATUS "Vulkan renderer foundation enabled with checked-in SPIR-V shaders")
@@ -84,6 +88,7 @@ if (OPENRCT2_VULKAN_ENABLED)
     target_sources(libopenrct2renderer PRIVATE
         "${CMAKE_CURRENT_LIST_DIR}/vulkan/VulkanFrameExecutor.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/vulkan/VulkanRenderService.cpp"
+        "${CMAKE_CURRENT_LIST_DIR}/vulkan/VulkanImageAliasPipeline.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/vulkan/VulkanBackend.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/vulkan/VulkanDevice.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/vulkan/VulkanDeviceContext.cpp"
@@ -96,6 +101,7 @@ if (OPENRCT2_VULKAN_ENABLED)
         "${CMAKE_CURRENT_LIST_DIR}/vulkan/VulkanWorldSurfacePipeline.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/vulkan/VulkanTerrainEmissionPipeline.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/vulkan/VulkanTerrainDrawPipeline.cpp"
+        "${CMAKE_CURRENT_LIST_DIR}/vulkan/VulkanPeepFieldPipeline.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/vulkan/VulkanTransparencyPipeline.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/vulkan/VulkanWeatherPipeline.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/vulkan/VulkanLightFxPipeline.cpp"
@@ -122,7 +128,8 @@ if (OPENRCT2_VULKAN_ENABLED)
         if (VULKAN_SHADER_NAME STREQUAL "terrain_retained_emit.comp")
             list(APPEND VULKAN_SHADER_INCLUDES "${VULKAN_SHADER_SOURCE_DIR}/terrain_surface_rules.glsl")
         elseif (VULKAN_SHADER_NAME STREQUAL "terrain_columns.comp")
-            list(APPEND VULKAN_SHADER_INCLUDES "${VULKAN_SHADER_SOURCE_DIR}/terrain_sprite_geometry.glsl")
+            list(APPEND VULKAN_SHADER_INCLUDES "${VULKAN_SHADER_SOURCE_DIR}/terrain_sprite_geometry.glsl"
+                "${VULKAN_SHADER_SOURCE_DIR}/peep_rules.glsl")
         endif ()
         if (OPENRCT2_VULKAN_SHADER_MODE STREQUAL "compile")
             add_custom_command(

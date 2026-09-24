@@ -21,6 +21,9 @@
 
 struct ScreenCoordsXY;
 
+// Borrowed legacy lookup metadata; callers retaining it across drawing must copy the entries immediately.
+std::optional<OpenRCT2::Drawing::PaletteMap> FASTCALL GfxDrawSpriteGetPalette(ImageId imageId);
+
 namespace OpenRCT2
 {
     struct IPlatformEnvironment;

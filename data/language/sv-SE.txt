@@ -2925,11 +2925,6 @@ STR_5871    :Växter vissnar inte
 STR_5872    :Hindrar växterna från att åldras, så att de inte vissnar
 STR_5873    :Tillåt lyftkedjor på alla spår
 STR_5874    :Tillåter alla delar i berg- och dalbanor att ha lyftkedjor som drar vagnarna
-STR_5875    :Grafikmotor:
-STR_5876    :Spelmotorn som ska användas för att rita spelet.
-STR_5877    :Mjukvara
-STR_5878    :Mjukvara (hårdvaruvisning)
-STR_5879    :OpenGL (experimentellt)
 STR_5880    :Ikryssade objekt
 STR_5881    :Ej ikryssade objekt
 STR_5882    :Egen valuta

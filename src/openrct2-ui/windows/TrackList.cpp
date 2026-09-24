@@ -12,6 +12,7 @@
 #include <openrct2-ui/ride/Construction.h>
 #include <openrct2-ui/windows/Windows.h>
 #include <openrct2/Context.h>
+#include <openrct2/Diagnostic.h>
 #include <openrct2/GameState.h>
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/SpriteIds.h>
@@ -34,6 +35,7 @@
 #include <openrct2/ride/TrackDesignRepository.h>
 #include <openrct2/ui/WindowManager.h>
 #include <openrct2/windows/Intent.h>
+#include <exception>
 #include <vector>
 
 using namespace OpenRCT2::Drawing;
@@ -212,7 +214,17 @@ namespace OpenRCT2::Ui::Windows
             _loadedTrackDesign = TrackDesignImport(path.c_str());
             if (_loadedTrackDesign != nullptr)
             {
-                TrackDesignDrawPreview(*_loadedTrackDesign, _trackDesignPreviewPixels, !gTrackDesignSceneryToggle);
+                try
+                {
+                    TrackDesignDrawPreview(*_loadedTrackDesign, _trackDesignPreviewPixels, !gTrackDesignSceneryToggle);
+                }
+                catch (const std::exception& error)
+                {
+                    LOG_ERROR("Unable to render track design preview: %s", error.what());
+                    std::fill(_trackDesignPreviewPixels.begin(), _trackDesignPreviewPixels.end(), PaletteIndex::transparent);
+                }
+                // The design remains usable even if its optional preview failed. Mark it loaded so a
+                // device failure does not repeatedly submit the same preview on every window repaint.
                 return true;
             }
             return false;

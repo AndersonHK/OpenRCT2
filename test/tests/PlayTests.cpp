@@ -1046,7 +1046,7 @@ TEST_F(PlayTests, NaturallyArrivingTrainPreservesStagedSeatsThroughUnloadAndBoar
     targetTrain->num_peeps = 1;
     targetTrain->next_free_seat = 1;
     targetTrain->peep[0] = alightingGuest->id;
-    targetTrain->peep_tshirt_colours[0] = alightingGuest->tShirtColour;
+    targetTrain->peep_tshirt_colours[0] = alightingGuest->getTShirtColour();
 
     constexpr size_t kStagedGuestCount = 4;
     std::array<Guest*, kStagedGuestCount> guests{};

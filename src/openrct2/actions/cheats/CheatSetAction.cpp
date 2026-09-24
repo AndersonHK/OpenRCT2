@@ -693,12 +693,12 @@ namespace OpenRCT2::GameActions
                     break;
                 case OBJECT_BALLOON:
                     peep->giveItem(ShopItem::balloon);
-                    peep->balloonColour = Drawing::getRandomColourNetworkSafe();
+                    peep->setBalloonColour(Drawing::getRandomColourNetworkSafe());
                     peep->updateAnimationGroup();
                     break;
                 case OBJECT_UMBRELLA:
                     peep->giveItem(ShopItem::umbrella);
-                    peep->umbrellaColour = Drawing::getRandomColourNetworkSafe();
+                    peep->setUmbrellaColour(Drawing::getRandomColourNetworkSafe());
                     peep->updateAnimationGroup();
                     break;
             }

@@ -28,7 +28,8 @@ namespace OpenRCT2
         topology = 1 << 4,
         lighting = 1 << 5,
         interaction = 1 << 6,
-        full = 0x7f,
+        animation = 1 << 7,
+        full = 0xff,
     };
 
     constexpr EntityVisualDirty operator|(const EntityVisualDirty lhs, const EntityVisualDirty rhs) noexcept

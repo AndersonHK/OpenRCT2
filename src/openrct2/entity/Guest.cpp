@@ -83,6 +83,16 @@
 
 namespace OpenRCT2
 {
+    void Guest::setAccessoryColours(Drawing::Colour balloon, Drawing::Colour umbrella, Drawing::Colour hat)
+    {
+        if (_balloonColour == balloon && _umbrellaColour == umbrella && _hatColour == hat)
+            return;
+        _balloonColour = balloon;
+        _umbrellaColour = umbrella;
+        _hatColour = hat;
+        notifyAppearanceChanged();
+    }
+
     static const uint8_t kTicksToGoUpSpiralSlide = 30;
     static constexpr int64_t kGuestRideValueIncomeScaleNumerator = 7;
     static constexpr int64_t kGuestRideValueIncomeScaleDenominator = 10;
@@ -534,8 +544,7 @@ namespace OpenRCT2
 
     void Guest::givePassingGuestPurpleClothes(Guest& passingPeep)
     {
-        passingPeep.tShirtColour = Drawing::Colour::brightPurple;
-        passingPeep.trousersColour = Drawing::Colour::brightPurple;
+        passingPeep.setClothingColours(Drawing::Colour::brightPurple, Drawing::Colour::brightPurple);
         passingPeep.invalidate();
     }
 
@@ -1614,16 +1623,16 @@ namespace OpenRCT2
         switch (shopItem)
         {
             case ShopItem::tShirt:
-                guest.tShirtColour = hasRandomShopColour ? Drawing::getRandomColourNetworkSafe() : ride.trackColours[0].main;
+                guest.setTShirtColour(hasRandomShopColour ? Drawing::getRandomColourNetworkSafe() : ride.trackColours[0].main);
                 break;
             case ShopItem::hat:
-                guest.hatColour = hasRandomShopColour ? Drawing::getRandomColourNetworkSafe() : ride.trackColours[0].main;
+                guest.setHatColour(hasRandomShopColour ? Drawing::getRandomColourNetworkSafe() : ride.trackColours[0].main);
                 break;
             case ShopItem::balloon:
-                guest.balloonColour = hasRandomShopColour ? Drawing::getRandomColourNetworkSafe() : ride.trackColours[0].main;
+                guest.setBalloonColour(hasRandomShopColour ? Drawing::getRandomColourNetworkSafe() : ride.trackColours[0].main);
                 break;
             case ShopItem::umbrella:
-                guest.umbrellaColour = hasRandomShopColour ? Drawing::getRandomColourNetworkSafe() : ride.trackColours[0].main;
+                guest.setUmbrellaColour(hasRandomShopColour ? Drawing::getRandomColourNetworkSafe() : ride.trackColours[0].main);
                 break;
             case ShopItem::map:
                 guest.resetPathfindGoal();
@@ -2703,7 +2712,7 @@ namespace OpenRCT2
         vehicle->next_free_seat++;
 
         vehicle->peep[guest->currentSeat] = guest->id;
-        vehicle->peep_tshirt_colours[guest->currentSeat] = guest->tShirtColour;
+        vehicle->peep_tshirt_colours[guest->currentSeat] = guest->getTShirtColour();
     }
 
     /** Charges the crossing-time fare once; paired-seat retries carry atEntrancePaid back through the same gate. */
@@ -3828,6 +3837,7 @@ namespace OpenRCT2
             {
                 destinationTolerance = 0;
                 orientation ^= (1 << 4);
+                getGameState().entities.PublishEntityVisualState(*this);
                 invalidate();
             }
         }
@@ -4651,6 +4661,7 @@ namespace OpenRCT2
         }
 
         animationImageIdOffset++;
+        getGameState().entities.PublishEntityVisualState(*this);
         if (animationImageIdOffset & 3)
             return;
 
@@ -5277,7 +5288,7 @@ namespace OpenRCT2
 
                     ride->slideInUse = 1;
                     ride->slidePeep = id;
-                    ride->slidePeepTShirtColour = tShirtColour;
+                    ride->slidePeepTShirtColour = getTShirtColour();
                     ride->spiralSlideProgress = 0;
                     spiralSlideSubstate = PeepSpiralSlideSubState::slidingDown;
 
@@ -7458,7 +7469,7 @@ namespace OpenRCT2
                     isBalloonPopped = true;
                     Audio::Play3D(Audio::SoundId::balloonPop, { x, y, z });
                 }
-                Balloon::create({ x, y, z + 9 }, balloonColour, isBalloonPopped);
+                Balloon::create({ x, y, z + 9 }, getBalloonColour(), isBalloonPopped);
             }
             removeItem(ShopItem::balloon);
             windowInvalidateFlags |= PEEP_INVALIDATE_PEEP_INVENTORY;
@@ -7908,10 +7919,10 @@ namespace OpenRCT2
         peep->timeLost = 0;
 
         uint8_t tshirtColour = static_cast<uint8_t>(ScenarioRand() % std::size(kTshirtColours));
-        peep->tShirtColour = kTshirtColours[tshirtColour];
+        peep->setTShirtColour(kTshirtColours[tshirtColour]);
 
         uint8_t trousersColour = static_cast<uint8_t>(ScenarioRand() % std::size(kTrouserColours));
-        peep->trousersColour = kTrouserColours[trousersColour];
+        peep->setTrousersColour(kTrouserColours[trousersColour]);
 
         /* Minimum energy is capped at 32 and maximum at 128, so this initialises
          * a peep with approx 34%-100% energy. (65 - 32) / (128 - 32) ≈ 34% */
@@ -8102,6 +8113,9 @@ namespace OpenRCT2
         if (!isActionWalking())
             return true;
 
+        // performNextAction temporarily changes idle to walking; unchanged queue waiting needs no publication.
+        if (previous_action != PeepActionType::idle || nextAnimationType != PeepAnimationType::watchRide)
+            getGameState().entities.PublishEntityVisualState(*this);
         action = PeepActionType::idle;
         nextAnimationType = PeepAnimationType::watchRide;
         if (previous_action != PeepActionType::idle)
@@ -8373,9 +8387,14 @@ namespace OpenRCT2
         stream << angriness;
         stream << timeLost;
         stream << daysInQueue;
-        stream << balloonColour;
-        stream << umbrellaColour;
-        stream << hatColour;
+        auto balloon = getBalloonColour();
+        auto umbrella = getUmbrellaColour();
+        auto hat = getHatColour();
+        stream << balloon;
+        stream << umbrella;
+        stream << hat;
+        if (stream.isLoading())
+            setAccessoryColours(balloon, umbrella, hat);
         stream << favouriteRide;
         stream << favouriteRideRating;
         stream << itemFlags;

@@ -252,7 +252,7 @@ def preflight(args, root, output, summary, evidence):
             parity.install_shader(original, copied, digest, evidence,
                                   summary["dataSha256"] if args.factory == "configured" else None)
             shader_hashes[original.name] = digest
-    require(set(shader_hashes) == parity.SHADER_NAMES, "Shader inventory differs from qualified E5/B1")
+    require(set(shader_hashes) == parity.SHADER_NAMES, "Shader inventory differs from the current receipt-qualified renderer")
     evidence.tree(shaders)
     summary["shaderSha256"] = shader_hashes
     if args.factory == "configured":

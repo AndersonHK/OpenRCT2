@@ -2925,11 +2925,6 @@ STR_5871    :Les plantes no envelleixen
 STR_5872    :Desactiva que les plantes es facin mústigues.
 STR_5873    :Més cadenes d’elevació
 STR_5874    :Permet que qualsevol secció de via pugui incorporar cadenes d’elevació.
-STR_5875    :Motor gràfic:
-STR_5876    :El programari que s’usarà per a renderitzar els gràfics.
-STR_5877    :Programari
-STR_5878    :Programari (via maquinari)
-STR_5879    :OpenGL (experimental)
 STR_5880    :Només els seleccionats
 STR_5881    :Només els no seleccionats
 STR_5882    :Moneda personalitzada

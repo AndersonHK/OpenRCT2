@@ -151,6 +151,7 @@ namespace OpenRCT2::Scripting
             {
                 peep->peepDirection = value;
                 peep->orientation = value << 3;
+                getGameState().entities.PublishEntityVisualState(*peep);
                 peep->invalidate();
             }
             return JS_UNDEFINED;

@@ -20,8 +20,6 @@ namespace OpenRCT2::Drawing
     struct IRenderServiceFactory;
 }
 
-enum class DrawingEngine : int32_t;
-
 enum class StartupAction
 {
     none,
@@ -47,12 +45,12 @@ struct IntegratedBenchmarkConfig
     bool enabled{};
     bool visible{};
     bool uploadTelemetry{};
+    bool finalScreenshot{};
     int32_t warmupSeconds{ 5 };
     int32_t measurementSeconds{ 30 };
     int32_t warmupTicks{ -1 };
     int32_t measurementTicks{ -1 };
     u8string profilePath;
-    std::optional<DrawingEngine> drawingEngine;
     std::optional<bool> useVSync;
 };
 

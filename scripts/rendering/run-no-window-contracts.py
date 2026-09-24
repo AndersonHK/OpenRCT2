@@ -20,13 +20,14 @@ def sha256(path):
 
 OFFSCREEN_FIXTURES = tuple(f"{kind}-{alpha}" for kind in ("clear", "owned") for alpha in range(3)) + (
     "offscreen-primitives", "owned-sprite-covered-zero")
+# Current offscreen runtime; this is not a historical reference package inventory.
 SHADER_NAMES = {
     "indexed_line.frag.spv", "indexed_line.vert.spv", "indexed_palette.frag.spv", "indexed_palette.vert.spv",
     "indexed_rect.frag.spv", "indexed_rect.vert.spv", "indexed_sprite.vert.spv",
     "indexed_transparency_compose.frag.spv", "indexed_transparency_compose.vert.spv",
     "indexed_transparent_rect.frag.spv", "indexed_transparent_rect.vert.spv",
-    "indexed_weather.frag.spv", "indexed_weather.vert.spv", "lightfx_accumulate.comp.spv",
-    "rgba_scale.frag.spv", "balloon.vert.spv", "balloon_order.comp.spv", "world_surface.vert.spv", "world_surface_compact.comp.spv", "terrain_retained_emit.comp.spv", "terrain_columns.comp.spv"}
+    "indexed_weather.frag.spv", "indexed_weather.vert.spv", "lightfx_accumulate.comp.spv", "image_alias.comp.spv",
+    "rgba_scale.frag.spv", "balloon.vert.spv", "balloon_order.comp.spv", "world_surface.vert.spv", "world_surface_compact.comp.spv", "terrain_retained_emit.comp.spv", "terrain_columns.comp.spv", "peep_fields.comp.spv"}
 
 
 DEPTH_EXTENTS = ((2048, 1440), (2047, 1439))
