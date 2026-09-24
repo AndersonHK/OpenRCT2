@@ -38,7 +38,6 @@ if (ENABLE_VULKAN AND NOT EMSCRIPTEN)
             "${VULKAN_SHADER_SOURCE_DIR}/world_filter_collect.frag"
             "${VULKAN_SHADER_SOURCE_DIR}/world_filter_resolve.comp"
             "${VULKAN_SHADER_SOURCE_DIR}/world_surface_compact.comp"
-            "${VULKAN_SHADER_SOURCE_DIR}/world_parent_columns.comp"
             "${VULKAN_SHADER_SOURCE_DIR}/terrain_retained_emit.comp"
             "${VULKAN_SHADER_SOURCE_DIR}/terrain_columns.comp"
             "${VULKAN_SHADER_SOURCE_DIR}/peep_fields.comp"
@@ -69,7 +68,6 @@ if (ENABLE_VULKAN AND NOT EMSCRIPTEN)
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/world_filter_collect.frag.spv"
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/world_filter_resolve.comp.spv"
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/world_surface_compact.comp.spv"
-                AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/world_parent_columns.comp.spv"
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/terrain_retained_emit.comp.spv"
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/terrain_columns.comp.spv"
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/peep_fields.comp.spv"
@@ -148,6 +146,7 @@ if (OPENRCT2_VULKAN_ENABLED)
                 "${VULKAN_SHADER_SOURCE_DIR}/world_track_station.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/world_track_photo.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/world_selection_emit.glsl"
+                "${VULKAN_SHADER_SOURCE_DIR}/world_selected_vehicle_emit.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/world_surface_tunnel.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/world_tunnel_rules.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/world_flat_ride_rules.glsl"
@@ -159,7 +158,7 @@ if (OPENRCT2_VULKAN_ENABLED)
                 "${VULKAN_SHADER_SOURCE_DIR}/world_entrance_emit.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/terrain_sprite_geometry.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/terrain_surface_rules.glsl")
-        elseif (VULKAN_SHADER_NAME STREQUAL "world_surface.vert" OR VULKAN_SHADER_NAME STREQUAL "world_parent_columns.comp")
+        elseif (VULKAN_SHADER_NAME STREQUAL "world_surface.vert")
             list(APPEND VULKAN_SHADER_INCLUDES "${VULKAN_SHADER_SOURCE_DIR}/terrain_sprite_geometry.glsl")
         elseif (VULKAN_SHADER_NAME STREQUAL "terrain_columns.comp")
             list(APPEND VULKAN_SHADER_INCLUDES "${VULKAN_SHADER_SOURCE_DIR}/terrain_sprite_geometry.glsl"

@@ -618,6 +618,31 @@ TEST_F(VulkanWorldObjectLayerTest, ForegroundTallPropWinsOverRearPropForEveryRot
                     static_cast<uint8_t>(Ink(1 + rotation) + 5));
     }
 }
+TEST_F(VulkanWorldObjectLayerTest, CameraPanPreservesPhysicalOcclusionWithoutObjectUploads)
+{
+    auto lower = Object(0, 2);
+    auto higher = Object(1, 4);
+    higher.baseZ = 24;
+    Objects({ lower, higher });
+    for (uint32_t rotation = 0; rotation < 4; ++rotation)
+    {
+        SCOPED_TRACE(rotation);
+        scene.rotation = rotation;
+        scene.view = { -128, -128 };
+        Run();
+        const auto original = pixels;
+        scene.view.x += 7;
+        scene.view.y += 11;
+        const auto telemetry = Run();
+        EXPECT_EQ(telemetry.worldBufferCopyCalls, 0u);
+        size_t mismatches = 0;
+        for (uint32_t y = 0; y + 11 < extent.height; ++y)
+            for (uint32_t x = 0; x + 7 < extent.width; ++x)
+                mismatches += pixels[y * extent.width + x] != original[(y + 11) * extent.width + x + 7];
+        EXPECT_EQ(mismatches, 0u);
+    }
+}
+
 TEST_F(VulkanWorldObjectLayerTest, TrackLookupUsesRawDirectionChainBrakeGhostAndRideColours)
 {
     // One style/type, one sequence, chain+brake mask: four variants times four directions.
@@ -692,6 +717,14 @@ TEST_F(VulkanWorldObjectLayerTest, TrackLookupUsesRawDirectionChainBrakeGhostAnd
         }
     Objects({ Object(4) });
     Run();
+    // A rail resting on terrain is a coplanar surface overlay, regardless of
+    // which primitive reaches rasterization first.
+    auto coplanar = std::make_shared<G::WorldSurfaceChunk>(*scene.chunks[0]);
+    coplanar->revision++;
+    coplanar->records[0].baseZ = 16;
+    scene.chunks[0] = coplanar;
+    Run();
+    EXPECT_EQ(pixels[115 * extent.width + 131], std::byte(Ink(1) + 3));
     words[words[3] + 4] = 4;
     sprites->revision++;
     // Only sprite/catalog buffers change; source+object arenas would add two copy calls.
@@ -1513,6 +1546,60 @@ TEST_F(VulkanWorldObjectLayerTest, CompactBoundsRangeFallbackMatchesOriginalArra
                 Run();
                 EXPECT_EQ(pixels, expected); // Every pixel, not only the final overlapping ink.
             }
+    scene.selectedVehicle.reset();
+    Run();
+    EXPECT_EQ(ColourCount(0), pixels.size());
+}
+
+// Append inside ENABLE_VULKAN in VulkanWorldObjectLayerTests.cpp after coherent integration.
+TEST_F(VulkanWorldObjectLayerTest, SelectedCarPhysicalDepthUsesOwnedPoseAndSurvivesEmptyTileAndRemoval)
+{
+    // This fixture normally supplies terrain only at zoom0. Both occlusion
+    // controls need a resident terrain sprite at the zoom being exercised.
+    sprites->records[0].variants[3] = sprites->records[0].variants[2];
+    sprites->records[0].variants[3].zoom = 1;
+    sprites->revision++;
+    auto source = std::make_shared<D::SelectedVehicleSnapshot>();
+    source->worldEpoch = scene.worldEpoch;
+    source->entityEpoch = 1;
+    source->sourceTick = scene.sourceTick;
+    for (int zoom : { 0, 1 })
+        for (int pan : { 100, 128 })
+            for (int anchor : { 0, 16 })
+            {
+                SCOPED_TRACE(::testing::Message() << zoom << '/' << pan << '/' << anchor);
+                scene.zoom = zoom;
+                scene.view = { -pan, -pan };
+                auto packet = std::make_shared<G::SelectedVehiclePaintPacket>();
+                packet->source = source;
+                auto& words = packet->words;
+                words.resize(16 + 12 + 12 + 16);
+                const std::array<uint32_t, 16> header{
+                    G::kSelectedVehiclePaintMagic, G::kSelectedVehiclePaintVersion,  1, 1, 16, 28, 40, 56, scene.sourceTick,
+                    uint32_t(scene.worldEpoch),    uint32_t(scene.worldEpoch >> 32), 1
+                };
+                std::copy(header.begin(), header.end(), words.begin());
+                // Both real poses project to (0,0). Their physical depths differ.
+                // Arbitrary legacy bounds must not influence the new hardware plane.
+                const G::SelectedVehicleCarRecord car{ 7, 1, 0, 1, 0, anchor, anchor, anchor, { -64, -64, 64, 64 } };
+                const G::SelectedVehicleParentRecord parent{ 0, 0, 999, 31, 31, 999, 0, 0, 256, 0, 8u | (8u << 16), 0 };
+                G::WorldSurfaceRecord component{};
+                component.valid = 17;
+                component.spriteSize = { 8, 8 };
+                component.asset = 1;
+                component.zoom = zoom;
+                std::memcpy(words.data() + 16, &car, sizeof(car));
+                std::memcpy(words.data() + 28, &parent, sizeof(parent));
+                std::memcpy(words.data() + 40, &component, sizeof(component));
+                scene.selectedVehicle = packet;
+                Run();
+                EXPECT_EQ(pixels[pan * extent.width + pan], std::byte(anchor == 0 ? Ink(0) : Ink(1)));
+            }
+    auto empty = std::make_shared<G::WorldSurfaceChunk>();
+    empty->revision = scene.chunks[0]->revision + 1;
+    scene.chunks = { empty };
+    Run();
+    EXPECT_GT(ColourCount(Ink(1)), 0u); // No terrain or object admission is required by the selected car.
     scene.selectedVehicle.reset();
     Run();
     EXPECT_EQ(ColourCount(0), pixels.size());

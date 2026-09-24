@@ -3,6 +3,7 @@
 #include "../entity/EntityVisualLifecycle.h"
 #include "../interface/ScreenCoords.hpp"
 #include "ImageId.hpp"
+
 #include <array>
 #include <memory>
 #include <span>
@@ -21,11 +22,16 @@ namespace OpenRCT2::Drawing
         bool operator==(const SelectedVehicleRequest&) const = default;
     };
 
-    enum class SelectedVehicleRelation : uint32_t { parent, child, attached };
+    enum class SelectedVehicleRelation : uint32_t
+    {
+        parent,
+        child,
+        attached
+    };
     struct SelectedVehicleComponent
     {
         std::array<int32_t, 6> bounds{}; // Exact compatibility begin/end, including inverted endpoints.
-        ScreenCoordsXY screen; // Unsnapped world projection; independent of the current camera translation.
+        ScreenCoordsXY screen;           // Unsnapped world projection; independent of the current camera translation.
         ImageId originalImage, image, maskImage;
         uint32_t parent{}, car{};
         SelectedVehicleRelation relation{};
@@ -34,7 +40,8 @@ namespace OpenRCT2::Drawing
     struct SelectedVehicleCar
     {
         EntityVisualHandle entity;
-        CoordsXY tile; // Authoritative spatial bucket, not image anchor or bounding-box origin.
+        CoordsXYZ position; // Owned authoritative car anchor for geometric depth.
+        CoordsXY tile;      // Authoritative spatial bucket, not image anchor or bounding-box origin.
         ScreenRect coarseCull;
         uint32_t first{}, count{};
     };
@@ -52,4 +59,4 @@ namespace OpenRCT2::Drawing
     };
     // Explicit bounded auxiliary compatibility authoring. No world traversal, sorting, rasterization or worker reads.
     std::shared_ptr<const SelectedVehicleSnapshot> CaptureSelectedVehicleSnapshot(std::span<const SelectedVehicleRequest>);
-}
+} // namespace OpenRCT2::Drawing

@@ -109,7 +109,6 @@ namespace
             "lightfx_accumulate.comp.spv",
             "world_surface.vert.spv",
             "world_surface_compact.comp.spv",
-            "world_parent_columns.comp.spv",
         };
         return std::all_of(requiredShaders.begin(), requiredShaders.end(), [&directory](const char* name) {
             std::error_code error;

@@ -1,54 +1,78 @@
 // Copyright (c) 2014-2026 OpenRCT2 developers. GPL-3.0-or-later.
-// GPU-authored painter metadata. No CPU draw list or inferred depth plane.
+// Physical-depth prototype. No painter bounds, quadrant lists or ordering SSBO.
 #ifndef OPENRCT2_WORLD_PARENT_CAPTURE
 #define OPENRCT2_WORLD_PARENT_CAPTURE
-const uint WORLD_PARENT_CAPACITY=1048576u;
-const uint WORLD_TILE_RANGE_OFFSET=WORLD_PARENT_CAPACITY*12u;
-layout(std430,set=0,binding=19) buffer ParentMetadata { uint words[]; } uParentMetadata;
-ivec3 worldParentBegin,worldParentEnd;
+const uint WORLD_DEPTH_CONSTANT=0u,WORLD_DEPTH_HORIZONTAL=1u,WORLD_DEPTH_UPRIGHT=2u,
+    WORLD_DEPTH_FIXED_X=3u,WORLD_DEPTH_FIXED_Y=4u;
+const uint WORLD_DEPTH_VALID=32u;
 uint worldParentRoot=0xffffffffu,worldParentFlags=0u;
+uint worldPhysicalRole=WORLD_DEPTH_UPRIGHT,worldPhysicalRootLayer=0u;
+bool worldPhysicalOverride=false,worldPhysicalFace=false;
+int worldPhysicalFaceIntercept=0;
 
-// 0 parent; 1 normal child (promoted if its parent is culled); 2 attached
-// (never promoted, prepended on its owning parent's attachment chain).
+// Keep finite recipe parent/child ownership; bounds no longer produce priorities.
+// Nonclassified art starts as an upright drawing-anchor plane, not a family rank.
 void worldSetPaintBounds(uvec2 tile,ivec3 offset,ivec3 size,uint flags)
 {
-    terrainParentPaintBounds(ivec2(tile*32u),offset,size,uScene.rotation,worldParentBegin,worldParentEnd);
-    worldParentFlags=flags;
-    if(flags==0u) worldParentRoot=0xffffffffu;
+    worldParentFlags=flags;worldPhysicalOverride=false;worldPhysicalFace=false;
+    if(flags==0u) { worldParentRoot=0xffffffffu;worldPhysicalRole=WORLD_DEPTH_UPRIGHT;worldPhysicalRootLayer=0u; }
+}
+void worldSetPhysicalRole(uint role)
+{
+    worldPhysicalRole=role;worldPhysicalOverride=true;worldPhysicalFace=false;
+}
+// Surface art/decal overlay; this is a local coplanar layer, never an owner/family rank.
+void worldSetCoplanarSurfaceLayer() { worldPhysicalRootLayer=1u; }
+// Exact physical face of this tile in camera-rotated world coordinates.
+// Edge0/1 are X/Y at +32; edge2/3 are Y/X at0. Art offsets30/-2
+// position original pixels but are not the physical boundary of a32-unit tile.
+void worldSetTerrainFace(uvec2 tile,int edge)
+{
+    ivec2 origin=terrainRotateXY(terrainPaintTileOrigin(ivec2(tile*32u),uScene.rotation),uScene.rotation);
+    bool fixedX=edge==0 || edge==3;
+    worldPhysicalRole=fixedX?WORLD_DEPTH_FIXED_X:WORLD_DEPTH_FIXED_Y;
+    worldPhysicalFaceIntercept=6*((fixedX?origin.x:origin.y)+(edge<2?32:0));
+    worldPhysicalOverride=true;worldPhysicalFace=true;
+}
+// Transitional classifier for track/static-ride recipes without authored roles.
+// This is approximate: legacy zero-thickness bounds are not physical mesh data.
+void worldSetPrototypeBoundsRole(ivec3 size)
+{
+    if(worldParentFlags==0u && size.x>0 && size.y>0 && size.z<=min(size.x,size.y)) {
+        worldSetPhysicalRole(WORLD_DEPTH_HORIZONTAL);
+        worldSetCoplanarSurfaceLayer();
+    }
 }
 void worldSetAttachment(uint parent)
 {
-    worldParentRoot=parent;
-    worldParentFlags=2u;
+    worldParentRoot=parent;worldParentFlags=2u;worldPhysicalOverride=false;worldPhysicalFace=false;
 }
 bool worldHasPaintOwner() { return worldParentFlags!=2u || worldParentRoot!=0xffffffffu; }
-void worldCapturePaint(uint component,uint sprite,uvec2 tile,bool writeRecords)
+
+// Only the invocation owning this tile reads/writes its recipe parents. reserved.y
+// counts local children/attachments; it is never an inter-object depth priority.
+void worldCapturePaint(uint component,uint sprite,uvec2 tile,bool writeRecords,inout OutputRecord record)
 {
     if(worldParentRoot==0xffffffffu) worldParentRoot=component;
     if(!writeRecords) return;
-    uint base=component*12u;
-    uParentMetadata.words[base]=uint(worldParentBegin.x);
-    uParentMetadata.words[base+1u]=uint(worldParentBegin.y);
-    uParentMetadata.words[base+2u]=uint(worldParentBegin.z);
-    uParentMetadata.words[base+3u]=uint(worldParentEnd.x);
-    uParentMetadata.words[base+4u]=uint(worldParentEnd.y);
-    uParentMetadata.words[base+5u]=uint(worldParentEnd.z);
-    uParentMetadata.words[base+6u]=worldParentRoot;
-    uParentMetadata.words[base+7u]=sprite;
-    uParentMetadata.words[base+8u]=worldParentFlags;
-    uParentMetadata.words[base+9u]=tile.y*uScene.width+tile.x;
-    uint previous=worldParentRoot==component?component:uParentMetadata.words[worldParentRoot*12u+10u];
-    uParentMetadata.words[base+10u]=previous;
-    uParentMetadata.words[base+11u]=0xffffffffu;
+    uint role=worldPhysicalRole,layer=worldPhysicalRootLayer;
+    ivec2 anchor=terrainPaintTileOrigin(record.world.xy,uScene.rotation);
+    anchor=terrainRotateXY(anchor,uScene.rotation);
+    int sum=anchor.x+anchor.y;
+    int twiceIntercept=role==WORLD_DEPTH_HORIZONTAL?6*record.world.z:
+        (role==WORLD_DEPTH_UPRIGHT?3*sum:2*(sum+record.world.z));
+    if(worldPhysicalFace) twiceIntercept=worldPhysicalFaceIntercept;
     if(worldParentRoot!=component) {
-        uParentMetadata.words[previous*12u+11u]=component;
-        uParentMetadata.words[worldParentRoot*12u+10u]=component;
+        OutputRecord parent=uOutputs.records[worldParentRoot];
+        uint child=uint(parent.reserved.y)+1u;
+        layer=((uint(parent.depth)>>4u)&255u)+child;
+        if(layer>255u) { atomicOr(uStatus.overflow,8u);record.valid=0;return; }
+        uOutputs.records[worldParentRoot].reserved.y=int(child);
+        if(!worldPhysicalOverride) { role=uint(parent.depth)&15u;twiceIntercept=parent.reserved.x; }
     }
+    record.depth=int(role|(layer<<4u));
+    record.reserved=ivec2(twiceIntercept,0);
+    record.valid|=int(WORLD_DEPTH_VALID);
 }
-void worldCaptureTile(uvec2 tile,uint first,uint count)
-{
-    uint base=WORLD_TILE_RANGE_OFFSET+(tile.y*uScene.width+tile.x)*2u;
-    uParentMetadata.words[base]=first;
-    uParentMetadata.words[base+1u]=count;
-}
+void worldCaptureTile(uvec2 tile,uint first,uint count) { }
 #endif

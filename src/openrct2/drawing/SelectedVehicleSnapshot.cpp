@@ -1,17 +1,19 @@
 // Copyright (c) 2014-2026 OpenRCT2 developers. GPL-3.0-or-later.
 #include "SelectedVehicleSnapshot.h"
+
 #include "../GameState.h"
 #include "../Limits.h"
 #include "../interface/Viewport.h"
 #include "../paint/Paint.h"
 #include "../paint/entity/Paint.Vehicle.h"
-#include "../ride/Vehicle.h"
 #include "../ride/TrackDesign.h"
+#include "../ride/Vehicle.h"
 #include "../world/Map.h"
 #include "../world/MapPresentationSnapshot.h"
 #include "../world/WorldObjectPresentation.h"
 #include "FilterPaletteIds.h"
 #include "RenderTarget.h"
+
 #include <algorithm>
 #include <stdexcept>
 #include <unordered_set>
@@ -25,9 +27,12 @@ namespace OpenRCT2::Drawing
         {
             switch (GetPaintStructVisibility(&ps, flags))
             {
-                case VisibilityKind::partial: return image.WithTransparency(FilterPaletteID::paletteDarken1);
-                case VisibilityKind::hidden: return {};
-                default: return image;
+                case VisibilityKind::partial:
+                    return image.WithTransparency(FilterPaletteID::paletteDarken1);
+                case VisibilityKind::hidden:
+                    return {};
+                default:
+                    return image;
             }
         }
         std::array<int32_t, 6> Bounds(const PaintStruct& ps)
@@ -51,10 +56,15 @@ namespace OpenRCT2::Drawing
             {
                 if (depth >= kMaximumComponents)
                     throw std::logic_error("Selected vehicle child chain is cyclic");
-                const auto index = Append(view, {
-                    .bounds = Bounds(*ps), .screen = ps->ScreenPos, .originalImage = ps->image_id,
-                    .image = VisibleImage(*ps, ps->image_id, view.request.viewFlags), .parent = predecessor, .car = car,
-                    .relation = parent ? SelectedVehicleRelation::parent : SelectedVehicleRelation::child });
+                const auto index = Append(
+                    view,
+                    { .bounds = Bounds(*ps),
+                      .screen = ps->ScreenPos,
+                      .originalImage = ps->image_id,
+                      .image = VisibleImage(*ps, ps->image_id, view.request.viewFlags),
+                      .parent = predecessor,
+                      .car = car,
+                      .relation = parent ? SelectedVehicleRelation::parent : SelectedVehicleRelation::child });
                 if (ps->Children != nullptr)
                 {
                     predecessor = index;
@@ -68,11 +78,17 @@ namespace OpenRCT2::Drawing
                 {
                     if (++attachments > kMaximumComponents)
                         throw std::logic_error("Selected vehicle attachment chain is cyclic");
-                    Append(view, { .bounds = Bounds(*ps), .screen = ps->ScreenPos + attached->RelativePos,
-                        .originalImage = attached->image_id,
-                        .image = VisibleImage(*ps, attached->image_id, view.request.viewFlags),
-                        .maskImage = attached->ColourImageId, .parent = index, .car = car,
-                        .relation = SelectedVehicleRelation::attached, .masked = attached->IsMasked });
+                    Append(
+                        view,
+                        { .bounds = Bounds(*ps),
+                          .screen = ps->ScreenPos + attached->RelativePos,
+                          .originalImage = attached->image_id,
+                          .image = VisibleImage(*ps, attached->image_id, view.request.viewFlags),
+                          .maskImage = attached->ColourImageId,
+                          .parent = index,
+                          .car = car,
+                          .relation = SelectedVehicleRelation::attached,
+                          .masked = attached->IsMasked });
                 }
                 break;
             }
@@ -83,10 +99,10 @@ namespace OpenRCT2::Drawing
                 return true;
             return ((request.viewFlags & VIEWPORT_FLAG_CLIP_VIEW_SEE_THROUGH) != 0
                     || vehicle.z <= request.clipHeight * kCoordsZStep)
-                && vehicle.x >= request.clipFirst.x && vehicle.x <= request.clipLast.x + 31
-                && vehicle.y >= request.clipFirst.y && vehicle.y <= request.clipLast.y + 31;
+                && vehicle.x >= request.clipFirst.x && vehicle.x <= request.clipLast.x + 31 && vehicle.y >= request.clipFirst.y
+                && vehicle.y <= request.clipLast.y + 31;
         }
-    }
+    } // namespace
 
     std::shared_ptr<const SelectedVehicleSnapshot> CaptureSelectedVehicleSnapshot(
         std::span<const SelectedVehicleRequest> requests)
@@ -133,14 +149,28 @@ namespace OpenRCT2::Drawing
             std::sort(cars.begin(), cars.end(), [](const auto* a, const auto* b) { return a->id < b->id; });
             for (const auto* vehicle : cars)
             {
-                if (vehicle->x == kLocationNull || !MapIsLocationValid(vehicle->getLocation()) || !ClipAllows(*vehicle, request))
+                if (vehicle->x == kLocationNull || !MapIsLocationValid(vehicle->getLocation())
+                    || !ClipAllows(*vehicle, request))
                     continue;
                 // No target pixels are allocated or touched. Parent allocation culling is deferred to GPU paint columns.
-                RenderTarget target{ .x = -1048576, .y = -1048576, .width = 2097152, .height = 2097152,
-                    .cullingX = -1048576, .cullingY = -1048576, .cullingWidth = 2097152, .cullingHeight = 2097152,
-                    .zoom_level = ZoomLevel{ request.zoom } };
+                RenderTarget target{ .x = -1048576,
+                                     .y = -1048576,
+                                     .width = 2097152,
+                                     .height = 2097152,
+                                     .cullingX = -1048576,
+                                     .cullingY = -1048576,
+                                     .cullingWidth = 2097152,
+                                     .cullingHeight = 2097152,
+                                     .zoom_level = ZoomLevel{ request.zoom } };
                 auto* session = PaintSessionAlloc(target, request.viewFlags, request.rotation);
-                struct Release { PaintSession* session; ~Release() { PaintSessionFree(session); } } release{ session };
+                struct Release
+                {
+                    PaintSession* session;
+                    ~Release()
+                    {
+                        PaintSessionFree(session);
+                    }
+                } release{ session };
                 session->CurrentlyDrawnEntity = vehicle;
                 session->SpritePosition = { vehicle->x, vehicle->y };
                 session->MapPosition = CoordsXY{ vehicle->x, vehicle->y }.toTileStart();
@@ -150,6 +180,7 @@ namespace OpenRCT2::Drawing
                 const auto carIndex = static_cast<uint32_t>(view.cars.size());
                 auto& car = view.cars.emplace_back(SelectedVehicleCar{
                     .entity = state.entities.GetEntityVisualHandle(vehicle->id),
+                    .position = vehicle->getLocation(),
                     .tile = { vehicle->x / 32, vehicle->y / 32 },
                     .coarseCull = { screen - ScreenCoordsXY{ vehicle->spriteData.width, vehicle->spriteData.heightMin },
                                     screen + ScreenCoordsXY{ vehicle->spriteData.width, vehicle->spriteData.heightMax } },
@@ -172,4 +203,4 @@ namespace OpenRCT2::Drawing
         }
         return result;
     }
-}
+} // namespace OpenRCT2::Drawing

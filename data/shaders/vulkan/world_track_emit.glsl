@@ -105,16 +105,17 @@ void visitTrack(uint index,uvec2 tile,uint destination,bool writeRecords,inout u
             p.bounds.x,p.bounds.y,p.bounds.z,p.size.x,p.size.y,p.size.z);
         parentParts[parentCount++]=int(i);
     }
-    WorldPathOrder order;order.count=0;
     // Common GPU columns arrange original creation order.
     [[dont_unroll]]
     for(int ordinal=0;ordinal<parentCount;ordinal++) {
-        int parent=parentParts[order.count==parentCount?order.indices[ordinal]:ordinal];
+        int parent=parentParts[ordinal];
         [[dont_unroll]]
         for(uint i=uint(parent);i<worldTrackDrawParts.count;i++) {
             WorldTrackDrawPart p=worldTrackDrawParts.parts[i];
             if(int(i)!=parent && p.geometry.parent!=parent) continue;
             worldSetPaintBounds(tile,p.geometry.bounds+ivec3(0,0,object.baseZ),p.geometry.size,int(i)==parent?0u:1u);
+            worldSetPrototypeBoundsRole(p.geometry.size);
+            if(p.geometry.colourRole>=4u) worldSetPhysicalRole(WORLD_DEPTH_HORIZONTAL);
             emitObjectSprite(tile,object.baseZ+p.geometry.offset.z,p.geometry.offset.xy,p.sprite,p.palettes,p.effects,
                 destination,writeRecords,count);
         }

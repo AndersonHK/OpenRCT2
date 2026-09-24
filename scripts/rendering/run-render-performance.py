@@ -202,12 +202,14 @@ def require_present_rate(result, minimum):
 def parse_world_gpu_profile(text):
     reports = [json.loads(value) for value in re.findall(r'VULKAN_WORLD_PROFILE (\{[^\r\n]*\})', text)]
     for report in reports:
-        if report.get('schema') != 1 or type(report.get('supported')) is not bool:
+        if report.get('schema') not in (1, 2) or type(report.get('supported')) is not bool:
             raise ValueError('Invalid world GPU profile schema')
         for field in ('samples', 'unavailable', 'discarded', 'pending'):
             if type(report.get(field)) is not int or report[field] < 0:
                 raise ValueError('Invalid world GPU profile counter: ' + field)
-        if set(report.get('stages', {})) != {'materialize', 'columnCount', 'columnPrefix', 'arrangeEmit', 'finalize', 'raster'}:
+        expected_stages = ({'materialize', 'raster'} if report.get('schema') == 2 else
+                           {'materialize', 'columnCount', 'columnPrefix', 'arrangeEmit', 'finalize', 'raster'})
+        if set(report.get('stages', {})) != expected_stages:
             raise ValueError('Incomplete world GPU stage profile')
         for stage in report['stages'].values():
             if not all(isinstance(stage.get(k), (int, float)) and math.isfinite(stage[k]) and stage[k] >= 0

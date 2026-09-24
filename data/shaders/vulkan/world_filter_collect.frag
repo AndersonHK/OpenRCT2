@@ -21,7 +21,6 @@ layout(location = 6) flat in float fZoom;
 layout(location = 7) flat in int fTexColourAtlas;
 layout(location = 8) flat in int fTexMaskAtlas;
 
-layout(location = 9) flat in uint fOrder;
 layout(set=1,binding=0,std430) buffer Heads { uint heads[]; };
 layout(set=1,binding=1,std430) buffer Nodes { uvec2 nodes[]; };
 layout(set=1,binding=2,std430) buffer Control { uint allocated, capacity, pixels, width, maxPerPixel; };
@@ -107,8 +106,11 @@ void main()
             discard;
     }
 
+    // Positive D32 values have monotone bit representations. Keep the existing
+    // high bit for literal operations, and order by the same depth as opaque pixels.
+    uint physicalOrder=0x3f800000u-floatBitsToUint(gl_FragCoord.z);
     uint pixel=uint(fragment.y)*width+uint(fragment.x);
-    if(pixel>=pixels || (isFilter && operation>255u) || fOrder>=0x80000000u) {
+    if(pixel>=pixels || (isFilter && operation>255u) || gl_FragCoord.z<0.0 || gl_FragCoord.z>1.0) {
         atomicOr(overflow, 4u); return;
     }
     uint index=atomicAdd(allocated,1u);
@@ -117,5 +119,5 @@ void main()
     }
     uint previous=atomicExchange(heads[pixel],index);
     nodes[index]=uvec2(previous | ((isFilter ? operation : texel & 255u)<<24u),
-        fOrder | (isFilter ? 0u : 0x80000000u));
+        physicalOrder | (isFilter ? 0u : 0x80000000u));
 }

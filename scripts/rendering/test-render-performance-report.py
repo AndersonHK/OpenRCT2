@@ -86,6 +86,14 @@ class PresentationEvidenceTest(unittest.TestCase):
 
 
 class WorldStageEvidenceTest(unittest.TestCase):
+    def test_physical_depth_profile_has_no_ordering_stages(self):
+        payload = dict(schema=2, supported=True, samples=120, unavailable=0, discarded=0, pending=0,
+                       stages={name: dict(meanUs=10, maxUs=20) for name in ('materialize', 'raster')})
+        self.assertEqual(report.parse_world_gpu_profile('VULKAN_WORLD_PROFILE ' + json.dumps(payload)), [payload])
+        payload['stages']['arrangeEmit'] = dict(meanUs=0, maxUs=0)
+        with self.assertRaisesRegex(ValueError, 'Incomplete'):
+            report.parse_world_gpu_profile('VULKAN_WORLD_PROFILE ' + json.dumps(payload))
+
     def test_bounds_coverage_reconciles_cache_and_fallback(self):
         payload = dict(schema=1, samples=2, nodes=1500, cachedNodes=1499, fallbackNodes=1,
                        comparisons=12000, maxColumnNodes=700, columns=4, activeColumns=3,

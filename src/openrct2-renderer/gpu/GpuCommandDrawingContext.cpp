@@ -884,6 +884,9 @@ namespace OpenRCT2::Ui::Gpu
                              .firstComponent = car.first,
                              .componentCount = car.count,
                              .tileIndex = static_cast<uint32_t>(car.tile.y) * width + static_cast<uint32_t>(car.tile.x),
+                             .x = car.position.x,
+                             .y = car.position.y,
+                             .z = car.position.z,
                              .coarseCull = { car.coarseCull.getLeft(), car.coarseCull.getTop(), car.coarseCull.getRight(),
                                              car.coarseCull.getBottom() } });
         }

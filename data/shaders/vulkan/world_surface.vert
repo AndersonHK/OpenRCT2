@@ -45,7 +45,8 @@ layout(location = 6) in uint vEffects;
 layout(location = 7) in int vDepth;
 layout(location = 8) in int vZoom;
 layout(location = 9) in int vCoordinateShift;
-layout(location = 10) in ivec2 vColumnClip;
+// Physical payload: twice plane intercept; local child counter (not consumed here).
+layout(location = 10) in ivec2 vPhysical;
 
 layout(location = 0) flat out ivec2 fPosition;
 layout(location = 1) flat out int fFlags;
@@ -68,7 +69,6 @@ int inverseZoom(int value, int zoom)
     return zoom < 0 ? value << -zoom : value >> zoom;
 }
 
-layout(location = 9) flat out uint fOrder;
 
 void main()
 {
@@ -131,18 +131,37 @@ void main()
         : vec2(-2.0 * vec2(uCamera.screen));
     if (visible) {
         ivec4 clip=uCamera.clip;
-        if((vValid&8)!=0) { clip.x=max(clip.x,vColumnClip.x);clip.z=min(clip.z,vColumnClip.y); }
         position=clamp(position,vec2(clip.xy),vec2(clip.zw));
     }
     vec2 ndc = (position * (2.0 / vec2(uCamera.screen))) - 1.0;
-    gl_Position = vec4(ndc, 1.0 - (float(vDepth) + 1.0) * DEPTH_INCREMENT, 1.0);
+    // Evaluate the world plane at the clipped vertex, not at a frame-dependent
+    // output index. Raster interpolation evaluates the same affine depth at pixel centres.
+    uint role=(vValid&32)!=0?uint(vDepth)&15u:2u;
+    uint localLayer=(vValid&32)!=0?(uint(vDepth)>>4u)&255u:0u;
+    float worldPerPixel=exp2(float(uCamera.zoom));
+    float worldU=(position.x-float(uCamera.clip.x)+float(uCamera.view.x))*worldPerPixel;
+    float worldV=(position.y-float(uCamera.clip.y)+float(uCamera.view.y))*worldPerPixel;
+    float intercept=(vValid&32)!=0?float(vPhysical.x)*0.5:1.5*float(rotated.x+rotated.y);
+    float physicalDepth=role==1u?2.0*worldV+intercept:(role==2u?intercept-worldV:
+        (role==3u?1.5*worldU+intercept-worldV:(role==4u?-1.5*worldU+intercept-worldV:intercept)));
+    // Initial whole-map bound. Host integration owns tighter precision/range qualification.
+    // Reserve the existing world interval so later UI remains in front.
+    float capacity=1048576.0; // Fixed reserved UI/world depth interval, not output allocation limit.
+    float guard=min(128.0,capacity*0.25);
+    float fraction=(physicalDepth+131072.0)/262144.0;
+    float priority=float(uCamera.depthBase)+guard+fraction*(capacity-2.0*guard);
+    float hardwareDepth=1.0-(priority+1.0)*DEPTH_INCREMENT;
+    // A local overlay advances representable D32 values, rather than adding a
+    // family rank. 128 priority units leave room for all255 two-ULP local steps.
+    uint depthBits=floatBitsToUint(hardwareDepth);
+    hardwareDepth=uintBitsToFloat(depthBits-min(localLayer*2u,depthBits));
+    gl_Position = vec4(ndc,hardwareDepth,1.0);
 
     SpriteAssetDescriptor asset = uSpriteAssets.assets[vAsset];
     int texelY = vZoom > 0 ? (1 << vZoom) - 1 - yModifier : 0;
     ivec2 texelOffset = originalPathGeometry ? geometry.texelOffset : ivec2(xModifier,texelY);
     vec4 texture = vec4(vec2(asset.atlasOrigin + texelOffset), ATLAS_DIMENSION, ATLAS_DIMENSION);
     fPosition = bounds.xy;
-    fOrder = uint(vDepth);
     fFlags = int(vEffects & 0xffffu);
     fColour = (vEffects >> 16u) & 0xffu;
     fTexColour = texture;

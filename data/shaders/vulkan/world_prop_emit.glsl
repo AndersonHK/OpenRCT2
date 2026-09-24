@@ -77,10 +77,9 @@ void visitProp(uint index,uvec2 tile,uint destination,bool writeRecords,inout ui
         parents[parentCount]=worldPathPart(p.imageOffset,p.x,p.y,p.z,p.boundsX,p.boundsY,p.boundsZ,p.sizeX,p.sizeY,p.sizeZ);
         recipe[parentCount++]=i;
     }
-    WorldPathOrder order; order.count=0;
     // Common GPU columns arrange original creation order.
     for(int ordinal=0;ordinal<parentCount;ordinal++) {
-        int selected=order.count==parentCount?order.indices[ordinal]:ordinal;
+        int selected=ordinal;
         int begin=recipe[selected];
         int end=begin+1;
         while(end<parts.count && parts.parts[end].child!=0) end++;

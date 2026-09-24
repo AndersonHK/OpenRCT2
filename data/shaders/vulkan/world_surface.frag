@@ -19,7 +19,6 @@ layout(location = 5) flat in ivec3 fPalettes;
 layout(location = 6) flat in float fZoom;
 layout(location = 7) flat in int fTexColourAtlas;
 layout(location = 8) flat in int fTexMaskAtlas;
-layout(location = 9) flat in uint fOrder;
 
 layout(location = 0) out uint oColour;
 
@@ -30,9 +29,6 @@ uint atlasTexel(vec4 bounds, int layer, ivec2 position)
 
 void main()
 {
-    // Keep the same vertex interface as collection, and reject invalid signed depths.
-    if (fOrder >= 0x80000000u)
-        discard;
     // Match the legacy rectangle shader's pixel-centre handling exactly.
     // Applying zoom to gl_FragCoord directly would introduce a half-pixel
     // offset at non-unit zoom levels.

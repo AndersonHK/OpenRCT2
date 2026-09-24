@@ -31,7 +31,6 @@ namespace OpenRCT2::Ui::Vulkan
         VkPipelineLayout _pipelineLayout = VK_NULL_HANDLE;
         VkRenderPass _renderPass = VK_NULL_HANDLE;
         VkPipeline _computePipeline = VK_NULL_HANDLE;
-        VkPipeline _parentOrderPipeline = VK_NULL_HANDLE;
         VkPipeline _pipeline = VK_NULL_HANDLE;
         VkPipeline _filterPipeline = VK_NULL_HANDLE;
         std::array<VkFramebuffer, kFramesInFlight> _framebuffers{};
@@ -54,9 +53,6 @@ namespace OpenRCT2::Ui::Vulkan
         Buffer _status;
         WorldFilterCompositor _filters;
         Buffer _visibleRecords;
-        Buffer _unorderedRecords;
-        Buffer _parentMetadata;
-        Buffer _parentWorkspace;
         Buffer _selectedVehicle;
         std::shared_ptr<const Gpu::SelectedVehiclePaintPacket> _uploadedSelectedVehicle;
         bool _selectedVehicleInitialised{};
@@ -72,19 +68,9 @@ namespace OpenRCT2::Ui::Vulkan
         uint32_t _uploadedHeight{};
         VkExtent2D _extent{};
         std::filesystem::path _shaderDirectory;
-        static constexpr uint32_t kProfilePointCount = 7;
+        static constexpr uint32_t kProfilePointCount = 3;
         VkQueryPool _profileQueries = VK_NULL_HANDLE;
         bool _profileRequested{};
-        struct BoundsProfileReadback
-        {
-            UploadRing* ring{};
-            UploadAllocation allocation{};
-        };
-        std::array<BoundsProfileReadback, kFramesInFlight> _boundsReadbacks{};
-        uint64_t _boundsSamples{}, _boundsNodes{}, _boundsCached{}, _boundsFallback{}, _boundsComparisons{},
-            _boundsCounterOverflow{};
-        uint32_t _boundsMaximumColumn{};
-        uint64_t _boundsColumns{}, _boundsActiveColumns{}, _boundsLargeColumns{};
         uint32_t _profileValidBits{};
         double _profilePeriodNs{};
         std::array<bool, kFramesInFlight> _profilePending{};

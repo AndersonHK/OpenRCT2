@@ -1,4 +1,9 @@
 // Copyright (c) 2014-2026 OpenRCT2 developers. GPL-3.0-or-later.
+#include "../../src/openrct2-renderer/gpu/GpuSelectedVehiclePaint.h"
+
+#include <algorithm>
+#include <cstdlib>
+#include <filesystem>
 #include <gtest/gtest.h>
 #include <openrct2/Context.h>
 #include <openrct2/GameState.h>
@@ -19,10 +24,6 @@
 #include <openrct2/world/Map.h>
 #include <openrct2/world/MapPresentationSnapshot.h>
 #include <openrct2/world/tile_element/SurfaceElement.h>
-#include "../../src/openrct2-renderer/gpu/GpuSelectedVehiclePaint.h"
-#include <algorithm>
-#include <cstdlib>
-#include <filesystem>
 #include <string_view>
 
 using namespace OpenRCT2;
@@ -93,7 +94,7 @@ namespace
             return { .viewport = 17, .entity = getGameState().entities.GetEntityVisualHandle(car.id), .rotation = rotation };
         }
     };
-}
+} // namespace
 
 TEST_F(SelectedVehicleSnapshotTest, OriginalCarRecipesOwnBoundsArtAndStableIdentityAcrossAllRotations)
 {
@@ -119,6 +120,8 @@ TEST_F(SelectedVehicleSnapshotTest, OriginalCarRecipesOwnBoundsArtAndStableIdent
         ASSERT_EQ(view.components.size(), 2u);
         EXPECT_EQ(view.cars[0].entity.id, first->id);
         EXPECT_EQ(view.cars[1].entity.id, second->id);
+        EXPECT_EQ(view.cars[0].position, (CoordsXYZ{ 96, 128, 48 }));
+        EXPECT_EQ(view.cars[1].position, (CoordsXYZ{ 129, 129, 64 }));
         EXPECT_EQ(view.components[0].originalImage.GetIndex(), SPR_WATER_PARTICLES_DENSE_0 + 1u);
         EXPECT_EQ(view.components[0].screen, Translate3DTo2DWithZ(r, first->getLocation()));
         EXPECT_EQ(view.components[0].bounds[2], first->z + 2);
@@ -141,7 +144,11 @@ TEST_F(SelectedVehicleSnapshotTest, OriginalCarRecipesOwnBoundsArtAndStableIdent
         EXPECT_TRUE(view.components.empty());
     EXPECT_EQ(held->sourceTick, 600u);
     EXPECT_EQ(held->views[0].components[0].screen, Translate3DTo2DWithZ(0, { 96, 128, 48 }));
+    EXPECT_EQ(held->views[0].cars[0].position, (CoordsXYZ{ 96, 128, 48 }));
     requests[0] = Request(*first);
+    const auto moved = CaptureSelectedVehicleSnapshot(std::span(requests).first(1));
+    ASSERT_EQ(moved->views[0].cars.size(), 1u);
+    EXPECT_EQ(moved->views[0].cars[0].position, (CoordsXYZ{ 256, 256, 96 }));
     requests[0].viewFlags = VIEWPORT_FLAG_HIGHLIGHT_PATH_ISSUES;
     EXPECT_TRUE(CaptureSelectedVehicleSnapshot(std::span(requests).first(1))->views[0].components.empty());
 }
@@ -230,22 +237,39 @@ TEST(SelectedVehiclePacketTest, RejectsCrossCarOrDiscontiguousGroupsAndTruncated
     using namespace OpenRCT2::Ui::Gpu;
     SelectedVehiclePaintPacket valid;
     auto source = std::make_shared<SelectedVehicleSnapshot>();
-    source->sourceTick = 7; source->worldEpoch = 9; source->entityEpoch = 11;
+    source->sourceTick = 7;
+    source->worldEpoch = 9;
+    source->entityEpoch = 11;
     valid.source = source;
     valid.words.resize(16 + 12 + 3 * 28);
     auto& w = valid.words;
-    const std::array<uint32_t, 16> header{ kSelectedVehiclePaintMagic, 1, 1, 3, 16, 28, 64, 112, 7, 9, 0, 11, 0 };
+    const std::array<uint32_t, 16> header{
+        kSelectedVehiclePaintMagic, kSelectedVehiclePaintVersion, 1, 3, 16, 28, 64, 112, 7, 9, 0, 11, 0
+    };
     std::copy(header.begin(), header.end(), w.begin());
-    w[16] = 2; w[17] = 1; w[18] = 0; w[19] = 3; w[20] = 34;
+    w[16] = 2;
+    w[17] = 1;
+    w[18] = 0;
+    w[19] = 3;
+    w[20] = 34;
     for (uint32_t i = 0; i < 3; ++i)
     {
         w[28 + i * 12 + 6] = i == 1 ? 0 : i;
         w[28 + i * 12 + 8] = i == 1 ? 257 : 256;
         w[28 + i * 12 + 9] = 34;
     }
+    w[21] = 96;
+    w[22] = 128;
+    w[23] = 48;
     EXPECT_NO_THROW(ValidateSelectedVehiclePaintPacket(valid));
-    for (const auto [word, value] : std::array<std::pair<size_t, uint32_t>, 6>{ {
-             { 9, 10 }, { 19, 4 }, { 34, 1 }, { 49, 35 }, { 58, 0 }, { 60, 259 } } })
+    auto oldProjectionOnly = valid;
+    oldProjectionOnly.words[1] = 1;
+    EXPECT_THROW(ValidateSelectedVehiclePaintPacket(oldProjectionOnly), std::invalid_argument);
+    auto invalidPosition = valid;
+    invalidPosition.words[21] = 0xffffffffu;
+    EXPECT_THROW(ValidateSelectedVehiclePaintPacket(invalidPosition), std::invalid_argument);
+    for (const auto [word, value] :
+         std::array<std::pair<size_t, uint32_t>, 6>{ { { 9, 10 }, { 19, 4 }, { 34, 1 }, { 49, 35 }, { 58, 0 }, { 60, 259 } } })
     {
         auto bad = valid;
         bad.words[word] = value;

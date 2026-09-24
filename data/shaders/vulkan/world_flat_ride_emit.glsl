@@ -2,7 +2,7 @@
 // Included after raw object declarations, emitObjectSprite and world_path_order.
 #ifndef OPENRCT2_WORLD_FLAT_RIDE_EMIT
 #define OPENRCT2_WORLD_FLAT_RIDE_EMIT
-#include "world_maze_order.glsl"
+#include "world_static_tower_maze_rules.glsl"
 #include "world_flat_ride_animation.glsl"
 layout(std430,set=0,binding=15) readonly buffer FlatRideCatalog { uint words[]; } uFlatRides;
 layout(std430,set=0,binding=17) readonly buffer RidePoseBuffer { uint words[]; } uRidePoses;
@@ -94,12 +94,11 @@ bool visitStaticRide(uint index,uvec2 tile,uint destination,bool writeRecords,in
     bool ghost=(object.flags&1u)!=0u;
     // Preserve the finite family parent/child structure. The common world traversal
     // provides cross-tile order; arbitrary inter-family paint-bound arrangement remains separate.
-    WorldMazeOrder mazeOrder;mazeOrder.count=0;
     // Common GPU columns arrange original creation order.
-    int partCount=family==23?(mazeOrder.count>0?mazeOrder.count:26):parts.count;
+    int partCount=family==23?26:parts.count;
     [[dont_unroll]] for(int i=0;i<partCount;i++) {
         WorldFlatPart part;
-        if(family==23) part=worldMazePart(mazeOrder.count>0?mazeOrder.indices[i]:i,int(object.rideIdAndMazeEntry>>16u),direction,int((uFlatRides.words[ride+8u]>>16u)&255u));
+        if(family==23) part=worldMazePart(i,int(object.rideIdAndMazeEntry>>16u),direction,int((uFlatRides.words[ride+8u]>>16u)&255u));
         else part=worldFlatAnimatePart(parts.parts[i],family,direction,int(uScene.rotation),pose);
         if(part.image<0) continue;
         uint image=uint(part.image)+(part.bank!=0?uFlatRides.words[ride+1u]:0u);
@@ -118,6 +117,7 @@ bool visitStaticRide(uint index,uvec2 tile,uint destination,bool writeRecords,in
         if(part.colour==5) { palettes=uFlatRides.words[7u];effects=1024u; }
         worldSetPaintBounds(tile,ivec3(part.bx,part.by,object.baseZ+part.bz),
             ivec3(part.sx,part.sy,part.sz),part.child!=0?1u:0u);
+        worldSetPrototypeBoundsRole(ivec3(part.sx,part.sy,part.sz));
         emitObjectSpriteWithFlags(tile,object.baseZ+part.z,ivec2(part.x,part.y),sprite,palettes,effects,
             worldFlatEntityPart(part,family,pose)?16u:0u,destination,writeRecords,count);
         WorldFlatPart overlay=worldFlatAnimationOverlay(part,family,direction,int(uScene.zoom),pose);

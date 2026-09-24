@@ -14,6 +14,7 @@ void worldEmitCliffStrip(uvec2 tile, int side, int tinyZ, int offset, uvec2 mate
     if(image >= (material.y&0x7fffffffu)) return;
     worldSetPaintBounds(tile,ivec3(side==0?30:0,side==0?0:30,tinyZ*16),
         ivec3(side==0?0:30,side==0?30:0,boundsHeight),0u);
+    worldSetTerrainFace(tile,side);
     emitSprite(tile,tinyZ*16,side==0?ivec2(30,0):ivec2(0,30),ivec2(0),
         material.x+image,destination,writeRecords,count);
 }
@@ -107,8 +108,10 @@ void worldEmitTerrainEdge(uvec2 tile,SourceRecord source,SourceRecord other,bool
     bool underground=(uScene.viewFlags&1u)!=0u;
     if(edge>=2 && !water && !underground) {
         uint image=uint((edge==2?33:30)+c2-c1+1);
-        if(image<(material.y&0x7fffffffu))
+        if(image<(material.y&0x7fffffffu)) {
+            worldSetTerrainFace(tile,edge);
             emitSprite(tile,source.baseZ,ivec2(0),ivec2(0,source.baseZ-c1*16),material.x+image,destination,writeRecords,count);
+        }
         return;
     }
     if(edge>=2) {
@@ -126,6 +129,7 @@ void worldEmitTerrainEdge(uvec2 tile,SourceRecord source,SourceRecord other,bool
             else if(current>=min(c1,c2)) image=current>=c1?2:1;
             if(bank+uint(image)<(material.y&0x7fffffffu)) {
                 worldSetPaintBounds(tile,ivec3(offset,current*16),ivec3(size,15),0u);
+                worldSetTerrainFace(tile,edge);
                 emitSprite(tile,current*16,offset,ivec2(0),material.x+bank+uint(image),destination,writeRecords,count);
             }
             current++;

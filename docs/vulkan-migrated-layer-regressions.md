@@ -131,3 +131,22 @@ The next implementation removes the legacy column arranger from the production G
 - [ ] Re-measure at4K for at least3000 ticks, then qualify12000 ticks with360TPS and stable approximately144 accepted presents/s.
 
 The physical-depth prototype is allowed to expose incomplete geometry while validating cost. Such failures are not new visual exceptions and cannot be called parity. The earlier legacy-arranger optimization checklist is superseded by this replacement.
+
+## Current physical-depth implementation
+
+The corrected-layer source checkpoint is `50f16fb7e5`. The main native world path now bypasses and deletes the legacy GPU parent-column arranger. Raw world state feeds physical depth geometry directly; the opaque z-buffer and per-pixel filter compositor share that depth. Approximately147.9MiB of redundant ordering buffers are removed per pipeline. See [physical depth checkpoint](vulkan-physical-depth-checkpoint.md) for measured controls and remaining geometry work.
+
+- [x] Remove all four parent-column ordering dispatches, ordering shader and redundant metadata/workspace/ordered-copy buffers.
+- [x] Use world-derived vertex depth and hardware occlusion, with explicit coplanar surface overlays and component-local layers.
+- [x] Preserve foreground UI and verify camera panning with identical shifted pixels and no object-buffer re-upload.
+- [x] Give cliff strips their actual tile-boundary vertical planes.
+- [x] Restore selected-car direct GPU emission outside the deleted arranger; retain actual XYZ in the immutable packet and verify depth, zoom, pan, empty tiles and removal.
+- [x] Run a matched3000-tick4K control:12878.441FPS/12.766ms GPU;129143.928FPS/3.169ms GPU; both359.82TPS and identical checksum. These are incomplete-image architecture measurements.
+- [x] Manually inspect all1536 expanded track128 specimen groups and all288 normal/inside129 groups. Retain exact comparison failures.
+- [ ] Finish131 original-art review after cliff/overlay corrections; repair slopes and partially buried building geometry.
+- [ ] Replace approximate recipe depth-role inference, finite coplanar bias and operation-based filter ties with authored geometry/layer contracts where images expose errors.
+- [ ] Complete persistent component topology; current raw state is retained, but GPU materialization still runs each frame.
+- [ ] Close long-frame attribution and repeat clean12000-tick pacing checks; first131 run reaches143.650 accepted presents/s but contains a62.747ms presentation gap.
+- [ ] Qualify contextual underground main view plus ordinary selected-vehicle preview, original-art parity and user interaction before deployment.
+
+Installed112 remains unchanged. The physical-depth candidate is an intentional architecture checkpoint with documented visual defects, not a claim of completed migration or a qualified deployment.

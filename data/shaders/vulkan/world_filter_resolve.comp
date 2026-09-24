@@ -22,8 +22,13 @@ void sortPixel(uint pixel) {
             if(current>=capacity || steps++>=maxPerPixel) { atomicOr(overflow,8u); return; }
             uint other=nodes[current].y & 0x7fffffffu;
             if(other>order) break;
-            // Equal painter ranks at one pixel indicate malformed overlapping column output.
-            if(other==order) { atomicOr(overflow,16u); return; }
+            if(other==order) {
+                // Initial deterministic coplanar policy, not an authored occlusion rule.
+                // Retain identical operations: repeated filters must compose repeatedly.
+                uint ownOperation=((nodes[source].y>>31u)<<8u)|(nodes[source].x>>24u);
+                uint otherOperation=((nodes[current].y>>31u)<<8u)|(nodes[current].x>>24u);
+                if(otherOperation>ownOperation) break;
+            }
             before=current; current=nextNode(current);
         }
         setNext(source,current);

@@ -27,7 +27,7 @@ SHADER_NAMES = {
     "indexed_transparent_rect.frag.spv", "indexed_transparent_rect.vert.spv",
     "indexed_weather.frag.spv", "indexed_weather.vert.spv", "lightfx_accumulate.comp.spv", "image_alias.comp.spv",
     "rgba_scale.frag.spv", "balloon.vert.spv", "balloon_order.comp.spv", "world_surface.vert.spv",
-    "world_surface_compact.comp.spv", "world_parent_columns.comp.spv", "world_filter_collect.frag.spv", "world_filter_resolve.comp.spv", "terrain_retained_emit.comp.spv", "terrain_columns.comp.spv", "peep_fields.comp.spv"}
+    "world_surface_compact.comp.spv", "world_filter_collect.frag.spv", "world_filter_resolve.comp.spv", "terrain_retained_emit.comp.spv", "terrain_columns.comp.spv", "peep_fields.comp.spv"}
 
 
 def sha(path):
