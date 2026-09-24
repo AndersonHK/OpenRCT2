@@ -91,6 +91,7 @@ void visitProp(uint index,uvec2 tile,uint destination,bool writeRecords,inout ui
             }
             worldSetPaintBounds(tile,ivec3(part.boundsX,part.boundsY,object.baseZ+part.boundsZ),
                 ivec3(part.sizeX,part.sizeY,part.sizeZ),i==begin?0u:1u);
+            worldSetCoplanarSurfaceLayer();
             emitObjectSprite(tile,object.baseZ+part.z,ivec2(part.x,part.y),spriteBase+uint(part.imageOffset),
                 palettes,effects,destination,writeRecords,count);
         }

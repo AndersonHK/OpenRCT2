@@ -44,9 +44,12 @@ void worldEmitSelected(uint workIndex,uint destination,bool writeRecords,inout u
         uvec2 tile=uvec2(tileIndex%uScene.width,tileIndex/uScene.width);
         // The rendered image anchor intentionally remains the original exact
         // inverse projection. Actual car XYZ is independent retained source data.
-        ivec2 anchor=terrainRotateXY(ivec2(uSelected.words[address+5u],uSelected.words[address+6u]),uScene.rotation);
-        int twiceIntercept=3*(anchor.x+anchor.y);
+        int componentDepth=worldComponentDepth(int(uSelected.words[address+5u]),
+            int(uSelected.words[address+6u]),int(uSelected.words[address+7u]),int(uScene.rotation));
         uint first=uSelected.words[address+2u],limit=first+uSelected.words[address+3u];
+        // Source owns actual XYZ per car, not per sprite. Keep that limitation
+        // explicit and distinguish authored components through bounded local layers.
+        if(limit-first>255u) { atomicOr(uStatus.overflow,8u);return; }
         bool admitted=false;
         worldParentRoot=0xffffffffu;worldParentFlags=0u;
         [[dont_unroll]] for(uint c=first;c<limit;c++) {
@@ -62,13 +65,13 @@ void worldEmitSelected(uint workIndex,uint destination,bool writeRecords,inout u
                 worldSetPaintBounds(tile,ivec3(0),ivec3(0),admitted?1u:0u);
             }
             bool root=worldParentRoot==0xffffffffu;
-            worldSetPhysicalRole(WORLD_DEPTH_UPRIGHT);
             if(writeRecords) {
                 if(destination+count>=uScene.outputCapacity) { atomicOr(uStatus.overflow,1u);return; }
-                // A selected car's owned anchor, not inverse-projected Z=0,
-                // supplies the same upright plane to its complete component group.
+                // The owned car anchor includes true Z; inverse-projected raster
+                // coordinates are never used for selected component depth.
                 worldCapturePaint(destination+count,0u,tile,true,record);
-                record.reserved.x=twiceIntercept;
+                record.reserved.x=componentDepth;
+                record.depth=int((c-first+1u)<<4u);
                 uOutputs.records[destination+count]=record;
             } else if(root) worldParentRoot=destination+count;
             admitted=true;

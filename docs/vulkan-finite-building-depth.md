@@ -1,4 +1,6 @@
-# Finite buried building depth: source-backed design boundary
+# Superseded: finite buried building depth
+
+The owner rejected the per-pixel plane/mesh approach after close-up inspection of build135. This historical investigation is retained for provenance only. Do not implement its split/mesh proposals: current work uses one constant depth per authored sprite component; see [the current contract](vulkan-constant-component-depth.md).
 
 Read-only investigation against build131 artifacts and current authored painters. No production or candidate shader mutation, build, GPU, or tests were executed for this investigation.
 

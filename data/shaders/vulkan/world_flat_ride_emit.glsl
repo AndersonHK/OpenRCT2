@@ -55,6 +55,14 @@ int worldFlatFenceMask(uint ride,uint stationIndex,uvec2 tile)
     }
     return result;
 }
+// Named original recipes explicitly place their body component origin sixteen
+// units beyond the raster anchor on both axes (3dCinema.cpp / MerryGoRound.cpp).
+// This trial is a constant authored anchor, not inferred footprint geometry.
+void worldSetNamedFlatBodyAnchor(uvec2 tile,int baseZ,int family,WorldFlatPart part)
+{
+    if((family==1 || family==8) && part.bank==1 && part.colour==2)
+        worldSetComponentDepthAnchor(tile,ivec3(part.x+16,part.y+16,baseZ+part.z));
+}
 bool visitStaticRide(uint index,uvec2 tile,uint destination,bool writeRecords,inout uint count)
 {
     // Old diagnostic packets bind an eight-word zero catalogue; do not touch variable data.
@@ -115,7 +123,8 @@ bool visitStaticRide(uint index,uvec2 tile,uint destination,bool writeRecords,in
         if(part.colour==5) { palettes=uFlatRides.words[7u];effects=1024u; }
         worldSetPaintBounds(tile,ivec3(part.bx,part.by,object.baseZ+part.bz),
             ivec3(part.sx,part.sy,part.sz),part.child!=0?1u:0u);
-        worldSetPrototypeBoundsRole(ivec3(part.sx,part.sy,part.sz));
+        worldSetCoplanarSurfaceLayer();
+        worldSetNamedFlatBodyAnchor(tile,object.baseZ,family,part);
         emitObjectSpriteWithFlags(tile,object.baseZ+part.z,ivec2(part.x,part.y),sprite,palettes,effects,
             worldFlatEntityPart(part,family,pose)?16u:0u,destination,writeRecords,count);
         WorldFlatPart overlay=worldFlatAnimationOverlay(part,family,direction,int(uScene.zoom),pose);
@@ -128,6 +137,8 @@ bool visitStaticRide(uint index,uvec2 tile,uint destination,bool writeRecords,in
             if(overlaySprite!=0xffffffffu) {
                 worldSetPaintBounds(tile,ivec3(overlay.bx,overlay.by,object.baseZ+overlay.bz),
                     ivec3(overlay.sx,overlay.sy,overlay.sz),overlay.child!=0?1u:0u);
+                worldSetCoplanarSurfaceLayer();
+                worldSetNamedFlatBodyAnchor(tile,object.baseZ,family,overlay);
                 emitObjectSpriteWithFlags(tile,object.baseZ+overlay.z,ivec2(overlay.x,overlay.y),overlaySprite,
                     overlayPalettes,overlayGhost?1u:(overlay.colour==7?2u:remaps),
                     worldFlatEntityPart(overlay,family,pose)?16u:0u,destination,writeRecords,count);

@@ -22,7 +22,6 @@ DEFAULT_FILTER = ':'.join((
     'SelectedVehicleSnapshotTest.*', 'SelectedVehiclePacketTest.*',
     'WorldPathPublicationTest.*', 'WorldObjectUsageTest.*', 'WorldPathRulesTest.*',
     'TerrainSurfaceRulesTest.FullMapShaderSteepCornersMatchAuthoritativeSlopeTable',
-    'WorldTerrainDepthTest.*',
     'GpuFoundationTest.*WorldSurface*',
     'GpuFoundationTest.NativeTerrainReservesPainterDepthBetweenEarlierCommandsAndLaterUi',
     'VulkanRuntimeIntegrationTest.HiddenWindowExercisesBackendLifecycleAndIndexedReadback',

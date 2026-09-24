@@ -14,7 +14,6 @@ void worldEmitCliffStrip(uvec2 tile, int side, int tinyZ, int offset, uvec2 mate
     if(image >= (material.y&0x7fffffffu)) return;
     worldSetPaintBounds(tile,ivec3(side==0?30:0,side==0?0:30,tinyZ*16),
         ivec3(side==0?0:30,side==0?30:0,boundsHeight),0u);
-    worldSetTerrainFace(tile,side);
     emitSprite(tile,tinyZ*16,side==0?ivec2(30,0):ivec2(0,30),ivec2(0),
         material.x+image,destination,writeRecords,count);
 }
@@ -41,10 +40,15 @@ void worldEmitTunnelRequest(uvec2 tile,int side,int worldZ,int type,uvec2 materi
     if(beginZ<16) { beginZ+=16;firstLength-=16; }
     ivec2 size=side==0?ivec2(32,1):ivec2(1,32);
     worldSetPaintBounds(tile,ivec3(0,0,beginZ),ivec3(size,firstLength-1),0u);
+    // Paint.Surface.cpp authors distinct back/front component origins even
+    // though both images use the same raster offset. Preserve that separation
+    // as one constant anchor per sprite, without recovering a depth plane.
+    worldSetComponentDepthAnchor(tile,ivec3(0,0,beginZ));
     emitSprite(tile,height*16,offset,ivec2(0),material.x+uint(image),destination,writeRecords,count);
     beginZ=height*16+worldTunnelBoundsOffset(type);
     if(beginZ==0) { beginZ+=16;length-=16; }
     worldSetPaintBounds(tile,ivec3(side==0?0:31,side==0?31:0,beginZ),ivec3(size,length-1),0u);
+    worldSetComponentDepthAnchor(tile,ivec3(side==0?0:31,side==0?31:0,beginZ));
     emitSprite(tile,height*16,offset,ivec2(0),material.x+uint(image+1),destination,writeRecords,count);
     cursor.current+=worldTunnelHeight(selected);
 }
@@ -109,7 +113,6 @@ void worldEmitTerrainEdge(uvec2 tile,SourceRecord source,SourceRecord other,bool
     if(edge>=2 && !water && !underground) {
         uint image=uint((edge==2?33:30)+c2-c1+1);
         if(image<(material.y&0x7fffffffu)) {
-            worldSetTerrainFace(tile,edge);
             emitSprite(tile,source.baseZ,ivec2(0),ivec2(0,source.baseZ-c1*16),material.x+image,destination,writeRecords,count);
         }
         return;
@@ -129,7 +132,6 @@ void worldEmitTerrainEdge(uvec2 tile,SourceRecord source,SourceRecord other,bool
             else if(current>=min(c1,c2)) image=current>=c1?2:1;
             if(bank+uint(image)<(material.y&0x7fffffffu)) {
                 worldSetPaintBounds(tile,ivec3(offset,current*16),ivec3(size,15),0u);
-                worldSetTerrainFace(tile,edge);
                 emitSprite(tile,current*16,offset,ivec2(0),material.x+bank+uint(image),destination,writeRecords,count);
             }
             current++;

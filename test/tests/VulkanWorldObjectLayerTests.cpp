@@ -1579,9 +1579,12 @@ TEST_F(VulkanWorldObjectLayerTest, SelectedCarPhysicalDepthUsesOwnedPoseAndSurvi
                     uint32_t(scene.worldEpoch),    uint32_t(scene.worldEpoch >> 32), 1
                 };
                 std::copy(header.begin(), header.end(), words.begin());
-                // Both real poses project to (0,0). Their physical depths differ.
-                // Arbitrary legacy bounds must not influence the new hardware plane.
-                const G::SelectedVehicleCarRecord car{ 7, 1, 0, 1, 0, anchor, anchor, anchor, { -64, -64, 64, 64 } };
+                // Hold the component's raster placement fixed while changing its
+                // owned pose. Avoid a coplanar tie: this checks actual XYZ depth,
+                // independently of arbitrary legacy bounds and local overlay order.
+                const G::SelectedVehicleCarRecord car{
+                    7, 1, 0, 1, 0, anchor, anchor, anchor == 0 ? -16 : anchor, { -64, -64, 64, 64 }
+                };
                 const G::SelectedVehicleParentRecord parent{ 0, 0, 999, 31, 31, 999, 0, 0, 256, 0, 8u | (8u << 16), 0 };
                 G::WorldSurfaceRecord component{};
                 component.valid = 17;
@@ -1603,6 +1606,68 @@ TEST_F(VulkanWorldObjectLayerTest, SelectedCarPhysicalDepthUsesOwnedPoseAndSurvi
     scene.selectedVehicle.reset();
     Run();
     EXPECT_EQ(ColourCount(0), pixels.size());
+}
+
+TEST_F(VulkanWorldObjectLayerTest, AuthoredSpriteDepthHasOneWinnerAcrossEntireTallOverlap)
+{
+    // These two opaque original-art stand-ins occupy the same 8x48 rectangle.
+    // A ground plane and an upright plane used to cross inside that rectangle,
+    // splitting the sprite. Actual anchor XYZ must instead decide every pixel.
+    for (int zoom : { 0, 1 })
+        sprites->records[0].variants[zoom + 2] = { { 8, 48 }, { 0, -16 }, 0, zoom, 0, 1 };
+    sprites->revision++;
+    auto source = std::make_shared<D::SelectedVehicleSnapshot>();
+    source->worldEpoch = scene.worldEpoch;
+    source->entityEpoch = 1;
+    source->sourceTick = scene.sourceTick;
+    for (int zoom : { 0, 1 })
+        for (int pan : { 96, 128 })
+            for (bool nearer : { false, true })
+            {
+                SCOPED_TRACE(::testing::Message() << "zoom=" << zoom << " pan=" << pan << " nearer=" << nearer);
+                scene.zoom = zoom;
+                scene.view = { -pan, -pan };
+                auto packet = std::make_shared<G::SelectedVehiclePaintPacket>();
+                packet->source = source;
+                auto& words = packet->words;
+                words.resize(56);
+                const std::array<uint32_t, 16> header{
+                    G::kSelectedVehiclePaintMagic, G::kSelectedVehiclePaintVersion,  1, 1, 16, 28, 40, 56, scene.sourceTick,
+                    uint32_t(scene.worldEpoch),    uint32_t(scene.worldEpoch >> 32), 1
+                };
+                std::copy(header.begin(), header.end(), words.begin());
+                // Terrain anchor D=0. Near pose D=24, far pose D=-8. The
+                // far sprite's offset compensates its projected +8 Y; neither
+                // the bitmap extent nor these unrelated bounds are a depth input.
+                const int32_t xy = nearer ? 8 : 0;
+                const int32_t z = nearer ? 8 : -8;
+                const int32_t offsetY = nearer ? -16 : -24;
+                const G::SelectedVehicleCarRecord car{ 7, 1, 0, 1, 0, xy, xy, z, { -64, -64, 64, 64 } };
+                const G::SelectedVehicleParentRecord parent{
+                    -128, -128, -256, 128, 128, 256, 0, 0, 256, 0, 8u | (48u << 16), uint32_t(uint16_t(offsetY)) << 16
+                };
+                G::WorldSurfaceRecord component{};
+                component.world = { xy, xy, z };
+                component.valid = 17;
+                component.spriteSize = { 8, 48 };
+                component.spriteOffset = { 0, offsetY };
+                component.asset = 1;
+                component.zoom = zoom;
+                std::memcpy(words.data() + 16, &car, sizeof(car));
+                std::memcpy(words.data() + 28, &parent, sizeof(parent));
+                std::memcpy(words.data() + 40, &component, sizeof(component));
+                G::ValidateSelectedVehiclePaintPacket(*packet);
+                scene.selectedVehicle = packet;
+                Run();
+                const auto winner = std::byte(nearer ? Ink(1) : Ink(0));
+                const int left = pan, top = pan - (16 >> zoom);
+                const int width = 8 >> zoom, height = 48 >> zoom;
+                for (int y = 0; y < height; ++y)
+                    for (int x = 0; x < width; ++x)
+                        ASSERT_EQ(pixels[(top + y) * extent.width + left + x], winner) << "overlap pixel " << x << ',' << y;
+                EXPECT_EQ(ColourCount(nearer ? Ink(0) : Ink(1)), 0u);
+                EXPECT_EQ(ColourCount(nearer ? Ink(1) : Ink(0)), size_t(width * height));
+            }
 }
 
 #endif

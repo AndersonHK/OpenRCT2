@@ -52,7 +52,6 @@ void worldEmitSelection(uvec2 tile, SourceRecord source, bool aboveWater,
             uint backup=worldParentRoot;
             if(aboveWater || type==5u) worldSetPaintBounds(tile,ivec3(0,0,height),ivec3(32,32,1),0u);
             else worldSetAttachment(backup);
-            worldSetTerrainPlane(tile,height,slope);
             worldSetCoplanarSurfaceLayer();
             emitObjectSprite(tile,height,ivec2(0),uCatalog.selectionSprites[family*19u+uint(worldSelectionShape(slope))],
             uCatalog.selectionPalettes[palette],1u,destination,writeRecords,count);
@@ -63,7 +62,6 @@ void worldEmitSelection(uvec2 tile, SourceRecord source, bool aboveWater,
         uint backup=worldParentRoot;
         if(aboveWater) worldSetPaintBounds(tile,ivec3(0,0,height),ivec3(32,32,0),0u);
         else worldSetAttachment(backup);
-        worldSetTerrainPlane(tile,height,slope);
         worldSetCoplanarSurfaceLayer();
         emitObjectSprite(tile,height,ivec2(0),uCatalog.selectionSprites[uint(worldSelectionShape(slope))],
         uCatalog.selectionPalettes[(flags&8u)!=0u?10u:4u],1u,destination,writeRecords,count);

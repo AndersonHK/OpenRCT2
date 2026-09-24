@@ -212,11 +212,6 @@ void visitPath(uint index, uvec2 tile, SourceRecord terrain, uint destination, b
             worldSetPaintBounds(tile,ivec3(part.boundsX,part.boundsY,path.baseZ+part.boundsZ),
                 ivec3(part.sizeX,part.sizeY,part.sizeZ),0u);
             if(selected<surfaceParents) {
-                if(sloped)
-                    worldSetTerrainPlane(tile,path.baseZ,
-                        terrainRelativeSlope(worldPathLandSlope(slope),int(uScene.rotation)));
-                else
-                    worldSetPhysicalRole(WORLD_DEPTH_HORIZONTAL);
                 worldSetCoplanarSurfaceLayer();
             }
             bool ghost=(path.flags & (additionPart[selected]?(1u<<5):(1u<<4)))!=0u;
@@ -230,7 +225,7 @@ void visitPath(uint index, uvec2 tile, SourceRecord terrain, uint destination, b
             {
                 worldSetPaintBounds(tile,ivec3(part.boundsX,part.boundsY,path.baseZ+part.boundsZ),
                     ivec3(part.sizeX,part.sizeY,part.sizeZ),1u);
-                // Deck children inherit their body's exact plane and local surface layer.
+                // Deck children keep their own anchor and inherit the local surface tie layer.
                 if(ghost)
                     emitObjectSprite(tile,path.baseZ+part.z,ivec2(part.x,part.y),uint(children[selected]),
                         uCatalog.reserved,1u,destination,writeRecords,count);
@@ -327,7 +322,6 @@ uint visitTile(uint orderIndex, uint destination, bool writeRecords)
                 }
             } else if (hasTerrain && offset<material.y) {
                 worldSetPaintBounds(tile,ivec3(0,0,source.baseZ),ivec3(32,32,-1),0u);
-                worldSetTerrainPlane(tile,source.baseZ,relativeSlope);
                 if((uScene.viewFlags&((1u<<12)|1u))!=0u)
                     emitObjectSprite(tile,source.baseZ,ivec2(0),material.x+offset,uCatalog.viewPalettes.x,
                         1u<<10,destination,writeRecords,count);
@@ -360,7 +354,6 @@ uint visitTile(uint orderIndex, uint destination, bool writeRecords)
                 const uint waterShapes[16]=uint[](0,0,0,0,0,0,0,2,0,0,0,3,0,1,4,0);
                 uint shape=source.waterHeight<=source.baseZ+16?waterShapes[relativeSlope&15]:0u;
                 worldSetPaintBounds(tile,ivec3(0,0,source.waterHeight),ivec3(32,32,-1),0u);
-                worldSetPhysicalRole(WORLD_DEPTH_HORIZONTAL);
                 emitSprite(tile,source.waterHeight,ivec2(0),ivec2(0),uCatalog.waterMask[shape],destination,writeRecords,count);
                 worldSetAttachment(worldParentRoot);
                 emitSprite(tile,source.waterHeight,ivec2(0),ivec2(0),(uScene.transparentWater!=0u || (uScene.viewFlags&1u)!=0u)?uCatalog.waterOverlay[shape]:uCatalog.waterOpaque[shape],destination,writeRecords,count);

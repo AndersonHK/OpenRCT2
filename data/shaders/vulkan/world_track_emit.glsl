@@ -110,8 +110,7 @@ void visitTrack(uint index,uvec2 tile,uint destination,bool writeRecords,inout u
             WorldTrackDrawPart p=worldTrackDrawParts.parts[i];
             if(int(i)!=parent && p.geometry.parent!=parent) continue;
             worldSetPaintBounds(tile,p.geometry.bounds+ivec3(0,0,object.baseZ),p.geometry.size,int(i)==parent?0u:1u);
-            worldSetPrototypeBoundsRole(p.geometry.size);
-            if(p.geometry.colourRole>=4u) worldSetPhysicalRole(WORLD_DEPTH_HORIZONTAL);
+            worldSetCoplanarSurfaceLayer();
             emitObjectSprite(tile,object.baseZ+p.geometry.offset.z,p.geometry.offset.xy,p.sprite,p.palettes,p.effects,
                 destination,writeRecords,count);
         }

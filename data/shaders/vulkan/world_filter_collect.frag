@@ -108,7 +108,7 @@ void main()
 
     // Positive D32 values have monotone bit representations. Keep the existing
     // high bit for literal operations, and order by the same depth as opaque pixels.
-    uint physicalOrder=0x3f800000u-floatBitsToUint(gl_FragCoord.z);
+    uint componentOrder=0x3f800000u-floatBitsToUint(gl_FragCoord.z);
     uint pixel=uint(fragment.y)*width+uint(fragment.x);
     if(pixel>=pixels || (isFilter && operation>255u) || gl_FragCoord.z<0.0 || gl_FragCoord.z>1.0) {
         atomicOr(overflow, 4u); return;
@@ -119,5 +119,5 @@ void main()
     }
     uint previous=atomicExchange(heads[pixel],index);
     nodes[index]=uvec2(previous | ((isFilter ? operation : texel & 255u)<<24u),
-        physicalOrder | (isFilter ? 0u : 0x80000000u));
+        componentOrder | (isFilter ? 0u : 0x80000000u));
 }

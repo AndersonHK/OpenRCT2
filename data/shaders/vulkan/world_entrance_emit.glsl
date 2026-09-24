@@ -80,6 +80,7 @@ void visitEntrance(uint index,uvec2 tile,uint destination,bool writeRecords,inou
             if(part.colourMode==4) { effects=1024u; palettes=uEntrances.words[6u]+uEntrances.words[ride+2u]; }
             worldSetPaintBounds(tile,ivec3(part.boundsX,part.boundsY,object.baseZ+part.boundsZ),
                 ivec3(part.sizeX,part.sizeY,part.sizeZ),i==begin?0u:1u);
+            worldSetCoplanarSurfaceLayer();
             emitObjectSprite(tile,object.baseZ+part.z,ivec2(part.x,part.y),sprite,palettes,effects,destination,writeRecords,count);
         }
     }

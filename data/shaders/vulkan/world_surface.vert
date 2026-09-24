@@ -1,7 +1,6 @@
 #version 450
 #extension GL_GOOGLE_include_directive : require
 #include "terrain_sprite_geometry.glsl"
-#include "world_terrain_depth.glsl"
 
 const float DEPTH_INCREMENT = 1.0 / float(1u << 22u);
 const float ATLAS_DIMENSION = 2048.0;
@@ -46,8 +45,8 @@ layout(location = 6) in uint vEffects;
 layout(location = 7) in int vDepth;
 layout(location = 8) in int vZoom;
 layout(location = 9) in int vCoordinateShift;
-// Physical payload: twice plane intercept; local child counter (not consumed here).
-layout(location = 10) in ivec2 vPhysical;
+// Constant component depth; local child counter (not consumed here).
+layout(location = 10) in ivec2 vComponent;
 
 layout(location = 0) flat out ivec2 fPosition;
 layout(location = 1) flat out int fFlags;
@@ -135,26 +134,15 @@ void main()
         position=clamp(position,vec2(clip.xy),vec2(clip.zw));
     }
     vec2 ndc = (position * (2.0 / vec2(uCamera.screen))) - 1.0;
-    // Evaluate the world plane at the clipped vertex, not at a frame-dependent
-    // output index. Raster interpolation evaluates the same affine depth at pixel centres.
-    uint role=(vValid&32)!=0?uint(vDepth)&15u:2u;
+    // All four vertices receive the SAME depth. Sprite pixels, clipped screen
+    // coordinates and texture offsets never participate in depth evaluation.
     uint localLayer=(vValid&32)!=0?(uint(vDepth)>>4u)&255u:0u;
-    float worldPerPixel=exp2(float(uCamera.zoom));
-    float worldU=(position.x-float(uCamera.clip.x)+float(uCamera.view.x))*worldPerPixel;
-    float worldV=(position.y-float(uCamera.clip.y)+float(uCamera.view.y))*worldPerPixel;
-    float intercept=(vValid&32)!=0?float(vPhysical.x)*0.5:1.5*float(rotated.x+rotated.y);
-    float physicalDepth=role==1u?2.0*worldV+intercept:(role==2u?intercept-worldV:
-        (role==3u?1.5*worldU+intercept-worldV:(role==4u?-1.5*worldU+intercept-worldV:intercept)));
-    if(role==5u) {
-        int dx=int((uint(vDepth)>>12u)&7u)-2;
-        int dy=int((uint(vDepth)>>15u)&7u)-2;
-        physicalDepth=worldTerrainDepthAt(dx,dy,vPhysical.x,worldU,worldV);
-    }
+    float componentDepth=(vValid&32)!=0?float(vComponent.x):float(rotated.x+rotated.y+vWorld.z);
     // Initial whole-map bound. Host integration owns tighter precision/range qualification.
     // Reserve the existing world interval so later UI remains in front.
     float capacity=1048576.0; // Fixed reserved UI/world depth interval, not output allocation limit.
     float guard=min(128.0,capacity*0.25);
-    float fraction=(physicalDepth+131072.0)/262144.0;
+    float fraction=(componentDepth+131072.0)/262144.0;
     float priority=float(uCamera.depthBase)+guard+fraction*(capacity-2.0*guard);
     float hardwareDepth=1.0-(priority+1.0)*DEPTH_INCREMENT;
     // A local overlay advances representable D32 values, rather than adding a

@@ -112,7 +112,6 @@
     <ClCompile Include="PublicationSnapshotParityTests.cpp" />
     <ClCompile Include="RetainedBalloonSceneTests.cpp" />
     <ClCompile Include="TerrainSurfaceRulesTests.cpp" />
-    <ClCompile Include="WorldTerrainDepthTests.cpp" />
     <ClCompile Include="RetainedPeepStateTests.cpp" />
     <ClCompile Include="NativePeepPublicationTests.cpp" />
     <ClCompile Include="PeepRulesTests.cpp" />

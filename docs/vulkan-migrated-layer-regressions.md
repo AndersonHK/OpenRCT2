@@ -164,3 +164,22 @@ An exact-build135 diagnostic repeat isolates12.114ms after vehicle group complet
 ## Current manual-test installation
 
 Owner-requested deployment on2026-09-24 installed build135/checkpoint `6e588a449b` at `D:/Games/Independent/OpenRCT2Mod` to investigate the known depth-geometry defects. All28 payload files were hash-verified;7 changed files have preserved backups. Receipt: `obj/vulkan-parity/deploy-physical-depth135-01/receipt.json`. This supersedes earlier installed112 status, but does not mark visual parity or pacing gates complete. No saves, objects or settings were changed.
+
+## Owner correction: constant depth per sprite
+
+The deployed135 close-up exposes sprite slicing caused by gradients across individual sprites. The current correction deletes terrain/billboard depth planes. Each authored sprite component receives a single constant depth; separate sprites supply separate depth units. The earlier mesh/finite-plane work items are superseded. Remaining anchor/layer errors must be fixed within this atomic-sprite model, without per-pixel gradients or rebuilding painter order. New implementation, close-up comparisons and4K performance validation are tracked in [constant-component depth](vulkan-constant-component-depth.md).
+
+### Current checkpoint: constant component depth, build137
+
+- [x] Delete per-sprite depth gradients and depth-role/terrain-plane inference. Each complete sprite has one depth, including its filter fragments.
+- [x] Verify whole-sprite overlap in an actual GPU regression at two zooms, two camera positions and both near/far poses. Final137 selected-car and filter checks also pass without validation diagnostics.
+- [x] Separate tunnel back/front depth anchors from their shared raster position; inspect all288 normal/underground groups against original art.
+- [x] Preserve explicit Cinema/Carousel body anchors. Cinema improves across all captured rotations/zooms; Carousel's same source-derived change still needs independent visual coverage.
+- [x] Deploy137 for the owner's manual testing: all28 files verified,3 replaced with backups, receipt `obj/vulkan-parity/deploy-constant-depth137-01/receipt.json`.
+- [x] Record underground skirts as an owner-accepted divergence in addition to the previously accepted exterior skirt. Exact reports remain unmasked.
+- [ ] Fix ordinary station/track-water ordering, partial shop coverage, underground grid/filter relationships and tower apertures. These remain failures, not accepted divergences.
+- [ ] Replace finite local-layer bias that can cross neighbouring object depths; qualify independent equal-depth ties.
+- [ ] Run a clean4K/12000-tick137 performance check when the owner's manual session has finished; do not compete with it or reuse135 timings as137 evidence.
+- [ ] Complete persistent component topology; GPU materialization still reconstructs components per frame from retained raw state.
+
+Pathological partially buried Cinema is now explicitly **low priority** at the owner's request; it remains a known mismatch rather than an exception. Original-art parity, other migrated-layer interactions and the intermittent long simulation/presentation stall remain open. See [the native-resolution visual review](vulkan-constant-component-depth-review.md).
