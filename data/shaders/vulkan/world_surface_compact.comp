@@ -1,13 +1,18 @@
 #version 450
 #extension GL_GOOGLE_include_directive : require
 #include "world_surface_rules.glsl"
+#include "world_path_order.glsl"
+#include "terrain_sprite_geometry.glsl"
 
 // Three bounded passes: local counts/prefixes, global block-prefix, then emission.
 // Work is linear in map tiles and visible emitted strips; no per-tile strip arrays.
 layout(local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
 const uint BLOCK_WIDTH = 1024u;
 const uint OUTPUT_CAPACITY = 1048576u;
-struct SourceRecord { int baseZ; int waterHeight; uint surfaceSlot; uint edgeSlot; uint slope; uint grass; uint present; uint kind; };
+struct SourceRecord { int baseZ; int waterHeight; uint surfaceSlot; uint edgeSlot; uint slope; uint grass; uint present; uint kind; uint pathFirst; uint pathCount; int pathMaxZ; };
+struct PathRecord { int baseZ; int clearanceZ; uint elementOrdinal; uint flags; uint surfaceSlot; uint railingsSlot; uint additionSlot; uint rideId; uint edgesAndCorners; uint slopeDirection; uint queueBannerDirection; uint additionStatus; };
+struct PathMaterial { uint surfaceBase; uint surfaceCount; uint queueBase; uint queueCount; uint railingsBase; uint railingsCount; uint bridgeBase; uint bridgeCount; uint flags; uint supportType; uint supportColour; uint reserved; };
+struct PathAdditionMaterial { uint base; uint count; uint flags; uint drawType; };
 struct SpriteVariant { ivec2 spriteSize; ivec2 spriteOffset; uint asset; int zoom; int coordinateShift; int valid; };
 struct SpriteSet { SpriteVariant variants[6]; uint palettes; uint effects; };
 struct Material { uint surfaceBase; uint surfaceCount; uint edgeBase; uint edgeCount; uint selectors[144]; };
@@ -17,9 +22,10 @@ layout(std430,set=0,binding=3) readonly buffer Sources { SourceRecord records[];
 layout(std430,set=0,binding=4) readonly buffer SpriteSets { SpriteSet records[]; } uSpriteSets;
 layout(std430,set=0,binding=5) writeonly buffer Outputs { OutputRecord records[]; } uOutputs;
 layout(std430,set=0,binding=6) buffer Commands { DrawIndirectCommand records[]; } uCommands;
-layout(std430,set=0,binding=7) readonly buffer Catalog { Material materials[255]; uint waterMask[5]; uint waterOverlay[5]; uint waterOpaque[5]; uint reserved; ivec4 spriteEnvelope[6]; } uCatalog;
+layout(std430,set=0,binding=7) readonly buffer Catalog { Material materials[255]; uint waterMask[5]; uint waterOverlay[5]; uint waterOpaque[5]; uint reserved; ivec4 spriteEnvelope[6]; PathMaterial paths[510]; PathAdditionMaterial additions[255]; } uCatalog;
 layout(std430,set=0,binding=8) buffer Prefixes { uint records[]; } uPrefixes;
 layout(std430,set=0,binding=9) buffer Status { uint emittedCount; uint capacity; uint overflow; uint reserved; } uStatus;
+layout(std430,set=0,binding=11) readonly buffer Paths { PathRecord records[]; } uPaths;
 layout(push_constant) uniform WorldSurfaceConstants {
     ivec2 screen; ivec2 view; ivec4 clip; uint width; uint height; uint recordCount; int zoom;
     uint rotation; uint spriteSetCount; int depthBase; uint phase; uint transparentWater; uint outputCapacity;
@@ -85,6 +91,7 @@ bool makeRecord(uvec2 tile, int z, ivec2 relative, ivec2 attached, uint spriteIn
     else if (uScene.rotation == 2u) rotated = -adjusted;
     else if (uScene.rotation == 3u) rotated = ivec2(-adjusted.y, adjusted.x);
     ivec2 projected = ivec2(rotated.y - rotated.x, ((rotated.x + rotated.y) >> 1) - z);
+    ivec2 fullProjected=projected;
     for (int i=0; i<sprite.coordinateShift; i++) { projected /= 2; attached /= 2; }
     sprite.spriteOffset += attached;
     ivec2 topLeft = projected + sprite.spriteOffset;
@@ -99,8 +106,15 @@ bool makeRecord(uvec2 tile, int z, ivec2 relative, ivec2 attached, uint spriteIn
         inverseZoom(topLeft.x+xm,sprite.zoom)+inverseZoom(sprite.spriteSize.x+wm,sprite.zoom),
         inverseZoom(topLeft.y,sprite.zoom)+inverseZoom(sprite.spriteSize.y+ym,sprite.zoom));
     bounds+=ivec4(uScene.clip.xy-uScene.view,uScene.clip.xy-uScene.view);
+    if ((sprite.valid&4)!=0 && uScene.zoom>=0 && uScene.zoom<=1) {
+        TerrainSpriteGeometry geometry=terrainSpriteGeometry(fullProjected,sprite.spriteSize,sprite.spriteOffset,
+            (sprite.valid&2)!=0,sprite.zoom,sprite.coordinateShift,uScene.zoom,
+            ivec4(uScene.view,uScene.clip.zw-uScene.clip.xy),uScene.clip.xy);
+        if (geometry.visible==0u) return false;
+        bounds=geometry.bounds;
+    }
     if (bounds.x>=uScene.clip.z || bounds.y>=uScene.clip.w || bounds.z<=uScene.clip.x || bounds.w<=uScene.clip.y) return false;
-    result=OutputRecord(world,1,sprite.spriteSize,sprite.spriteOffset,sprite.asset,spriteSet.palettes,spriteSet.effects,0,
+    result=OutputRecord(world,sprite.valid,sprite.spriteSize,sprite.spriteOffset,sprite.asset,spriteSet.palettes,spriteSet.effects,0,
         sprite.zoom,sprite.coordinateShift,ivec2(0));
     return true;
 }
@@ -119,12 +133,120 @@ void emitSprite(uvec2 tile, int z, ivec2 relative, ivec2 attached, uint image, u
     count++;
 }
 
+// The native checkpoint merges path stacks into each terrain tile interval. Original element order
+// is preserved within each height region; arbitrary Tile Inspector reordering remains unqualified.
+void visitPaths(uvec2 tile, SourceRecord terrain, int region, uint destination, bool writeRecords, inout uint count)
+{
+    for (uint index=0u; index<terrain.pathCount; index++) {
+        PathRecord path=uPaths.records[terrain.pathFirst+index];
+        if ((path.flags & ((1u<<4)|(1u<<9)))!=0u || path.surfaceSlot>=255u || path.railingsSlot>=255u) continue;
+        int pathRegion=path.baseZ<terrain.baseZ?0:(terrain.waterHeight>0 && path.baseZ>=terrain.waterHeight?2:1);
+        if (pathRegion!=region) continue;
+        uint bank=(path.flags & (1u<<7))!=0u?255u:0u;
+        PathMaterial surface=uCatalog.paths[bank+path.surfaceSlot];
+        PathMaterial railings=uCatalog.paths[bank+path.railingsSlot];
+        bool sloped=(path.flags&1u)!=0u;
+        bool queue=(path.flags&2u)!=0u;
+        bool noSlope=(surface.reserved&16u)!=0u;
+        bool overSupports=(railings.flags&2u)!=0u;
+        uint surfaceBase=queue?surface.queueBase:surface.surfaceBase;
+        uint surfaceCount=queue?surface.queueCount:surface.surfaceCount;
+        if (surfaceCount==0u || railings.railingsCount==0u) continue;
+        int edges=int(path.edgesAndCorners&15u), corners=int((path.edgesAndCorners>>4)&15u);
+        int rotation=int(uScene.rotation), slope=int(path.slopeDirection);
+        bool supports=worldPathNeedsSupports(path.baseZ,sloped,slope,terrain.present!=0u,
+            terrain.baseZ,int(terrain.slope),bank==0u && noSlope);
+        bool bridge=supports && path.baseZ>=terrain.baseZ && terrain.present!=0u;
+        int image=worldPathSurfaceOffset(edges,corners,slope,sloped,queue,rotation);
+        // Parent recipes retain their original creation order until the local legacy arranger runs.
+        // The bridge deck is a child, so it follows its parent without entering a quadrant itself.
+        WorldPathPart parents[12];
+        int children[12];
+        int parentCount=0;
+        WorldPathPart body=worldPathSurfacePart(image,worldPathRotateMask(edges,rotation),
+            terrain.present!=0u && path.baseZ>=terrain.baseZ,false);
+        if (bridge) {
+            int offset=worldPathBridgeOffset(worldPathRotateMask(edges,rotation),(slope+rotation)&3,sloped,railings.supportType==1u);
+            if (uint(offset)<railings.bridgeCount) {
+                parents[parentCount]=body;
+                parents[parentCount].imageOffset=int(railings.bridgeBase)+offset;
+                children[parentCount]=-1;
+                parentCount++;
+            }
+        }
+        if ((!bridge || queue || overSupports) && uint(image)<surfaceCount) {
+            if (parentCount!=0) children[0]=int(surfaceBase)+image;
+            else {
+                parents[parentCount]=body;
+                parents[parentCount].imageOffset=int(surfaceBase)+image;
+                children[parentCount]=-1;
+                parentCount++;
+            }
+        }
+        if (uScene.zoom<=1) {
+            if (path.additionSlot<255u && (path.flags&(1u<<5))==0u) {
+                PathAdditionMaterial addition=uCatalog.additions[path.additionSlot];
+                WorldPathParts parts=worldPathAdditions(edges,rotation,sloped,int(addition.drawType),
+                    (path.flags&(1u<<6))!=0u,int(path.additionStatus),false,uScene.zoom);
+                for(int i=0;i<parts.count;i++) {
+                    WorldPathPart part=parts.parts[i];
+                    if(uint(part.imageOffset)<addition.count) {
+                        part.imageOffset+=int(addition.base);
+                        parents[parentCount]=part;
+                        children[parentCount++]=-1;
+                    }
+                }
+            }
+            WorldPathParts fences=worldPathFences(edges,corners,slope,rotation,sloped,queue,supports,noSlope,
+                overSupports,(path.flags&(1u<<8))!=0u);
+            for(int i=0;i<fences.count;i++) {
+                WorldPathPart part=fences.parts[i];
+                if(uint(part.imageOffset)<railings.railingsCount) {
+                    part.imageOffset+=int(railings.railingsBase);
+                    parents[parentCount]=part;
+                    children[parentCount++]=-1;
+                }
+            }
+            // Static queue sign sprites; scrolling text and structural support columns remain separate families.
+            if(queue && (path.flags&(1u<<3))!=0u && (railings.flags&4u)==0u) {
+                uint direction=(path.queueBannerDirection+uScene.rotation)&3u;
+                int height=sloped && path.slopeDirection==path.queueBannerDirection?16:0;
+                const ivec2 bannerBounds[8]=ivec2[](ivec2(1,2),ivec2(1,29),ivec2(2,32),ivec2(29,32),
+                    ivec2(32,2),ivec2(32,29),ivec2(2,1),ivec2(29,1));
+                for(uint part=0u;part<2u;part++) {
+                    uint offset=28u+direction*2u+part;
+                    if(offset<railings.railingsCount) {
+                        ivec2 bounds=bannerBounds[direction*2u+part];
+                        parents[parentCount]=worldPathPart(int(railings.railingsBase+offset),0,0,height,
+                            bounds.x,bounds.y,height+2,1,1,21);
+                        children[parentCount++]=-1;
+                    }
+                }
+            }
+        }
+        // Counting is order-independent. Most distant paths have only a body: no arranger work.
+        WorldPathOrder order;
+        order.count=0;
+        if(writeRecords && parentCount>1) order=worldPathOrder(parents,parentCount,rotation);
+        for(int ordinal=0;ordinal<parentCount;ordinal++) {
+            int selected=order.count==parentCount?order.indices[ordinal]:ordinal;
+            WorldPathPart part=parents[selected];
+            emitSprite(tile,path.baseZ+part.z,ivec2(part.x,part.y),ivec2(0),
+                uint(part.imageOffset),destination,writeRecords,count);
+            if(children[selected]>=0)
+                emitSprite(tile,path.baseZ+part.z,ivec2(part.x,part.y),ivec2(0),
+                    uint(children[selected]),destination,writeRecords,count);
+        }
+    }
+}
+
 uint visitTile(uint orderIndex, uint destination, bool writeRecords)
 {
     if (orderIndex>=uScene.recordCount) return 0u;
     uvec2 tile=tileForOrder(orderIndex);
     SourceRecord source=uSources.records[tile.y*uScene.width+tile.x];
-    if (source.present==0u || source.kind!=1u || source.surfaceSlot>=255u) return 0u;
+    bool hasTerrain=source.present!=0u && source.kind==1u && source.surfaceSlot<255u;
+    if (!hasTerrain && source.pathCount==0u) return 0u;
     // Conservative catalog-derived envelope rejects offscreen tiles before any strip traversal.
     // All heights remain source facts; this does not retain visibility or raster results between frames.
     ivec2 corner=ivec2(tile*32u);
@@ -138,19 +260,20 @@ uint visitTile(uint orderIndex, uint destination, bool writeRecords)
     projected+=uScene.clip.xy-uScene.view;
     ivec4 envelope=uCatalog.spriteEnvelope[clamp(uScene.zoom+2,0,5)];
     int margin=inverseZoom(64,uScene.zoom)+4;
-    int maxHeight=inverseZoom(max(source.baseZ+32,source.waterHeight),uScene.zoom)+4;
+    int maxHeight=inverseZoom(max(max(source.baseZ+32,source.waterHeight),source.pathMaxZ),uScene.zoom)+4;
     if(projected.x+envelope.z+margin<=uScene.clip.x || projected.x+envelope.x-margin>=uScene.clip.z
         || projected.y+envelope.w+margin<=uScene.clip.y || projected.y-maxHeight+envelope.y-margin>=uScene.clip.w) return 0u;
     uint count=0u;
-    Material material=uCatalog.materials[source.surfaceSlot];
+    visitPaths(tile,source,0,destination,writeRecords,count);
+    Material material=uCatalog.materials[min(source.surfaceSlot,254u)];
     int relativeSlope=terrainRelativeSlope(int(source.slope),int(uScene.rotation)) | int(source.slope & 16u);
     const int shapeOffsets[32]=int[](0,2,1,3,8,10,9,11,4,6,5,7,12,14,13,15,0,0,0,0,0,0,0,17,0,0,0,16,0,18,15,0);
     uint selector=uint(terrainMaterialSelector(int(source.grass),int(uScene.rotation),int(tile.x),int(tile.y),uScene.zoom));
     uint offset=material.selectors[selector]*19u+uint(shapeOffsets[relativeSlope&31]);
-    if (offset<material.surfaceCount)
+    if (hasTerrain && offset<material.surfaceCount)
         emitSprite(tile,source.baseZ,ivec2(0),ivec2(0),material.surfaceBase+offset,destination,writeRecords,count);
     // Corner heights include the original four steep slopes; neighbours remain raw world facts.
-    if (source.edgeSlot<255u) {
+    if (hasTerrain && source.edgeSlot<255u) {
         Material edgeMaterial=uCatalog.materials[source.edgeSlot];
         for (int ordinal=0;ordinal<4;ordinal++) {
             int edge=ordinal<2?terrainRearEdgeForTraversal(ordinal):ordinal-2;
@@ -169,12 +292,14 @@ uint visitTile(uint orderIndex, uint destination, bool writeRecords)
             }
         }
     }
-    if(source.waterHeight>0) {
+    visitPaths(tile,source,1,destination,writeRecords,count);
+    if(hasTerrain && source.waterHeight>0) {
         const uint waterShapes[16]=uint[](0,0,0,0,0,0,0,2,0,0,0,3,0,1,4,0);
         uint shape=source.waterHeight<=source.baseZ+16?waterShapes[relativeSlope&15]:0u;
         emitSprite(tile,source.waterHeight,ivec2(0),ivec2(0),uCatalog.waterMask[shape],destination,writeRecords,count);
         emitSprite(tile,source.waterHeight,ivec2(0),ivec2(0),uScene.transparentWater!=0u?uCatalog.waterOverlay[shape]:uCatalog.waterOpaque[shape],destination,writeRecords,count);
     }
+    visitPaths(tile,source,2,destination,writeRecords,count);
     return count;
 }
 

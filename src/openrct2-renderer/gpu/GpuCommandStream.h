@@ -22,6 +22,11 @@
 #include <type_traits>
 #include <vector>
 
+namespace OpenRCT2
+{
+    struct PathPresentationMaterials;
+}
+
 namespace OpenRCT2::Drawing
 {
     struct RetainedBalloonSnapshot;
@@ -211,6 +216,25 @@ namespace OpenRCT2::Ui::Gpu
         Int2 reserved;
     };
 
+    struct WorldPathSourceRecord
+    {
+        int32_t baseZ{}, clearanceZ{};
+        uint32_t elementOrdinal{}, flags{}, surfaceSlot{}, railingsSlot{}, additionSlot{}, rideId{};
+        uint32_t edgesAndCorners{}, slopeDirection{}, queueBannerDirection{}, additionStatus{};
+    };
+
+    struct WorldPathMaterial
+    {
+        uint32_t surfaceBase{}, surfaceCount{}, queueBase{}, queueCount{};
+        uint32_t railingsBase{}, railingsCount{}, bridgeBase{}, bridgeCount{};
+        uint32_t flags{}, supportType{}, supportColour{}, reserved{};
+    };
+
+    struct WorldPathAdditionMaterial
+    {
+        uint32_t base{}, count{}, flags{}, drawType{};
+    };
+
     struct WorldSurfaceSourceRecord
     {
         int32_t baseZ;
@@ -221,6 +245,8 @@ namespace OpenRCT2::Ui::Gpu
         uint32_t grass;
         uint32_t present;
         uint32_t kind;
+        uint32_t pathFirst{}, pathCount{}; // Chunk-relative until the Vulkan upload assigns an arena range.
+        int32_t pathMaxZ{};
     };
 
     struct WorldSurfaceMaterial
@@ -235,6 +261,8 @@ namespace OpenRCT2::Ui::Gpu
         std::array<uint32_t, 5> waterMask{}, waterOverlay{}, waterOpaque{};
         uint32_t reserved{};
         std::array<Int4, 6> spriteEnvelope{};
+        std::array<WorldPathMaterial, 510> paths{};
+        std::array<WorldPathAdditionMaterial, 255> additions{};
     };
 
     struct WorldSurfaceStatus
@@ -443,11 +471,14 @@ namespace OpenRCT2::Ui::Gpu
     static_assert(offsetof(WorldSurfaceRecord, zoom) == 48);
     static_assert(offsetof(WorldSurfaceRecord, coordinateShift) == 52);
     static_assert(std::is_trivially_copyable_v<WorldSurfaceSourceRecord>);
-    static_assert(sizeof(WorldSurfaceSourceRecord) == 32);
+    static_assert(sizeof(WorldSurfaceSourceRecord) == 44);
+    static_assert(sizeof(WorldPathSourceRecord) == 48);
+    static_assert(sizeof(WorldPathMaterial) == 48);
+    static_assert(sizeof(WorldPathAdditionMaterial) == 16);
     static_assert(offsetof(WorldSurfaceSourceRecord, waterHeight) == 4);
     static_assert(offsetof(WorldSurfaceSourceRecord, present) == 24);
     static_assert(sizeof(WorldSurfaceMaterial) == 592);
-    static_assert(sizeof(WorldSurfaceCatalog) == 151120);
+    static_assert(sizeof(WorldSurfaceCatalog) == 179680);
     static_assert(sizeof(WorldSurfaceStatus) == 16);
     static_assert(std::is_trivially_copyable_v<WorldSurfaceSpriteVariant>);
     static_assert(sizeof(WorldSurfaceSpriteVariant) == 32);
@@ -470,6 +501,10 @@ namespace OpenRCT2::Ui::Gpu
         (kWorldSurfaceMaximumRecordCount + kWorldSurfaceComputeBlockWidth - 1) / kWorldSurfaceComputeBlockWidth);
     constexpr uint32_t kWorldSurfaceMaximumSpriteSetCount = 65536;
     constexpr uint32_t kWorldSurfaceOutputCapacity = 1u << 20;
+    constexpr uint32_t kWorldPathSourceCapacity = 1u << 20;
+    // Temporary dispatch safety budget: reject larger stacks, never truncate.
+    // Replace with bounded work slicing before admitting pathological per-tile populations.
+    constexpr uint32_t kWorldPathMaximumTileWork = 4096;
     constexpr int32_t kWorldSurfaceDepthCapacity = kWorldSurfaceOutputCapacity;
     static_assert(kWorldSurfaceMaximumRecordCount < kWorldSurfaceDepthCapacity);
 
@@ -557,6 +592,7 @@ namespace OpenRCT2::Ui::Gpu
     {
         uint64_t revision{};
         std::array<WorldSurfaceSourceRecord, kWorldSurfaceChunkWidth> records{};
+        std::vector<WorldPathSourceRecord> paths;
     };
 
     struct WorldSurfaceSpriteTable
@@ -565,6 +601,7 @@ namespace OpenRCT2::Ui::Gpu
         std::vector<WorldSurfaceSpriteSet> records;
         WorldSurfaceCatalog catalog{};
         std::shared_ptr<const TerrainPresentationMaterials> sourceMaterials;
+        std::shared_ptr<const PathPresentationMaterials> sourcePathMaterials;
         std::shared_ptr<const AtlasAssetLease> residency;
     };
 

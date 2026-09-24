@@ -72,8 +72,10 @@ namespace OpenRCT2::Ui::Gpu
         {
             dependencies.push_back(image);
             const auto* metadata = GetImageMetadata(image);
-            if (metadata == nullptr || metadata->width <= 0 || metadata->height <= 0)
+            if (metadata == nullptr || metadata->width < 0 || metadata->height < 0)
                 return {};
+            if (metadata->width == 0 || metadata->height == 0)
+                return { {}, false, !G1Flags{ metadata->flags }.has(G1Flag::isPalette) };
             if (remaining <= ZoomLevel{ 0 })
                 break;
             const G1Flags flags{ metadata->flags };

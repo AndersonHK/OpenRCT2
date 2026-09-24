@@ -56,12 +56,13 @@ namespace OpenRCT2::Ui::Gpu
 
         struct PublishedSurfaceChunk
         {
-            uint64_t sourceRevision{};
+            uint64_t sourceRevision{}, pathRevision{};
             std::shared_ptr<const WorldSurfaceChunk> gpu;
         };
         std::vector<PublishedSurfaceChunk> _surfaceChunks;
         std::shared_ptr<const WorldSurfaceSpriteTable> _publishedSurfaceSprites;
         uint64_t _nextSurfaceSpriteRevision{};
+        uint64_t _nextSurfaceChunkRevision{};
         uint64_t _surfaceWorldEpoch{};
         uint32_t _surfaceWidth{};
         uint32_t _surfaceHeight{};

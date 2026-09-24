@@ -1,0 +1,668 @@
+{
+  "schema": 1,
+  "date": "2026-09-23",
+  "scope": "Partial native paths checkpoint; full-world parity remains open",
+  "build": {
+    "path": "obj/vulkan-parity/build-98/receipt.json",
+    "sha256": "15d4ca6bb2cdefe27fc2335ccb5de26682eca597679f97aa3de1d8fe3b2471fb",
+    "status": "pass"
+  },
+  "focusedTests": {
+    "path": "obj/vulkan-parity/path97-focused/summary.json",
+    "sha256": "910857e1861a21aaba3de0bd0e87adfa6f691b4c28d8059a4bc6a5639a7c3fe6",
+    "counts": {
+      "tests": "97",
+      "failures": "0",
+      "disabled": "0",
+      "errors": "0",
+      "time": "73.086",
+      "timestamp": "2026-09-23T19:24:09.467",
+      "name": "AllTests"
+    },
+    "validationDiagnostics": []
+  },
+  "runs": [
+    {
+      "path": "obj/vulkan-parity/performance-path97-12000-01/summary.json",
+      "sha256": "4dfaa04d0dcd236034bf54e720620e8a5363a2ac5189d16b46c8f81c192b7e39",
+      "status": "pass",
+      "metrics": {
+        "renderer": "vulkan",
+        "vsync": "enabled",
+        "elapsedSeconds": 33.349148,
+        "logicalTicks": 12000,
+        "logicalTps": 359.829,
+        "draws": {
+          "count": 4802.0,
+          "fps": 143.992
+        },
+        "ui": {
+          "messagePumps": 11147.0,
+          "windowUpdates": 4802.0,
+          "messageHz": 334.251,
+          "windowHz": 143.992
+        },
+        "simulation": {
+          "seconds": 22.427498,
+          "utilisationPercent": 67.3,
+          "meanMicrosecondsPerTick": 1868.958
+        },
+        "simulationBatches": {
+          "count": 12000.0,
+          "meanMicroseconds": 1868.958,
+          "longestMilliseconds": 4.696,
+          "longestSliceMilliseconds": 4.696
+        },
+        "drawCpu": {
+          "seconds": 0.505568,
+          "utilisationPercent": 1.5,
+          "meanMicroseconds": 105.283
+        },
+        "applicationFrameIntervalsMs": {
+          "p50": 6.963,
+          "p95": 8.773,
+          "p99": 9.021,
+          "max": 9.616
+        },
+        "rendererCpu": {
+          "submitMeanUs": 75.703,
+          "presentMeanUs": 106.125,
+          "samples": 4802.0
+        },
+        "presentApi": {
+          "meanUs": 78.98,
+          "samples": 4802.0
+        },
+        "gpuFrame": {
+          "meanUs": 1372.23,
+          "samples": 4802.0
+        },
+        "gpuPasses": {
+          "uploadMeanUs": 1.797,
+          "drawMeanUs": 1334.855,
+          "lightFxMeanUs": 0.003,
+          "compositeMeanUs": 35.574
+        }
+      },
+      "state": {
+        "simulationTick": {
+          "tick": 3145931
+        },
+        "guests": {
+          "total": 17042,
+          "inside": 17025,
+          "outside": 17
+        },
+        "guestStates": {
+          "walking": 10398,
+          "queued": 2560,
+          "onRide": 2470
+        },
+        "transportRoutes": {
+          "active": 878
+        },
+        "staffVehicles": {
+          "staff": 2208,
+          "vehicles": 2128
+        },
+        "routeCache": {
+          "nodes": 6663,
+          "targets": 543,
+          "directionEntries": 3611346,
+          "distanceEntries": 3611346,
+          "singleRideTargets": 517,
+          "status": "current"
+        }
+      },
+      "entityChecksum": "07d58eaefde6aa6d000000000000000000000000",
+      "tickWindows": [
+        {
+          "drawSeconds": 0.11781230000000005,
+          "draws": 1200,
+          "elapsedSeconds": 8.3358889,
+          "endLogicalTick": 3000,
+          "simulationSeconds": 5.242042500000009,
+          "simulationTick": 3136931,
+          "startLogicalTick": 0
+        },
+        {
+          "drawSeconds": 0.13773680000000033,
+          "draws": 1203,
+          "elapsedSeconds": 8.3506751,
+          "endLogicalTick": 6000,
+          "simulationSeconds": 5.476936300000014,
+          "simulationTick": 3139931,
+          "startLogicalTick": 3000
+        },
+        {
+          "drawSeconds": 0.13173150000000067,
+          "draws": 1212,
+          "elapsedSeconds": 8.4152944,
+          "endLogicalTick": 9000,
+          "simulationSeconds": 5.712085999999985,
+          "simulationTick": 3142931,
+          "startLogicalTick": 6000
+        },
+        {
+          "drawSeconds": 0.11828760000000021,
+          "draws": 1187,
+          "elapsedSeconds": 8.247289499999997,
+          "endLogicalTick": 12000,
+          "simulationSeconds": 5.9964331999999025,
+          "simulationTick": 3145931,
+          "startLogicalTick": 9000
+        }
+      ]
+    },
+    {
+      "path": "obj/vulkan-parity/performance-path98-12000-01/summary.json",
+      "sha256": "8b13b35ab371f975f14467cf56f6c1206dc7a033a9147d41e1c9b4f415f710ce",
+      "status": "pass",
+      "metrics": {
+        "renderer": "vulkan",
+        "vsync": "enabled",
+        "elapsedSeconds": 33.337703,
+        "logicalTicks": 12000,
+        "logicalTps": 359.953,
+        "draws": {
+          "count": 4801.0,
+          "fps": 144.011
+        },
+        "ui": {
+          "messagePumps": 12390.0,
+          "windowUpdates": 4801.0,
+          "messageHz": 371.651,
+          "windowHz": 144.011
+        },
+        "simulation": {
+          "seconds": 22.425062,
+          "utilisationPercent": 67.3,
+          "meanMicrosecondsPerTick": 1868.755
+        },
+        "simulationBatches": {
+          "count": 12000.0,
+          "meanMicroseconds": 1868.755,
+          "longestMilliseconds": 4.25,
+          "longestSliceMilliseconds": 4.25
+        },
+        "drawCpu": {
+          "seconds": 0.513597,
+          "utilisationPercent": 1.5,
+          "meanMicroseconds": 106.977
+        },
+        "applicationFrameIntervalsMs": {
+          "p50": 7.149,
+          "p95": 8.714,
+          "p99": 9.01,
+          "max": 9.919
+        },
+        "rendererCpu": {
+          "submitMeanUs": 75.686,
+          "presentMeanUs": 108.509,
+          "samples": 4801.0
+        },
+        "presentApi": {
+          "meanUs": 80.916,
+          "samples": 4801.0
+        },
+        "gpuFrame": {
+          "meanUs": 1427.41,
+          "samples": 4801.0
+        },
+        "gpuPasses": {
+          "uploadMeanUs": 2.0,
+          "drawMeanUs": 1389.007,
+          "lightFxMeanUs": 0.003,
+          "compositeMeanUs": 36.399
+        }
+      },
+      "state": {
+        "simulationTick": {
+          "tick": 3145931
+        },
+        "guests": {
+          "total": 17042,
+          "inside": 17025,
+          "outside": 17
+        },
+        "guestStates": {
+          "walking": 10398,
+          "queued": 2560,
+          "onRide": 2470
+        },
+        "transportRoutes": {
+          "active": 878
+        },
+        "staffVehicles": {
+          "staff": 2208,
+          "vehicles": 2128
+        },
+        "routeCache": {
+          "nodes": 6663,
+          "targets": 543,
+          "directionEntries": 3611346,
+          "distanceEntries": 3611346,
+          "singleRideTargets": 517,
+          "status": "current"
+        }
+      },
+      "entityChecksum": "07d58eaefde6aa6d000000000000000000000000",
+      "tickWindows": [
+        {
+          "drawSeconds": 0.11978290000000001,
+          "draws": 1200,
+          "elapsedSeconds": 8.3358616,
+          "endLogicalTick": 3000,
+          "simulationSeconds": 5.246474499999994,
+          "simulationTick": 3136931,
+          "startLogicalTick": 0
+        },
+        {
+          "drawSeconds": 0.14399109999999987,
+          "draws": 1201,
+          "elapsedSeconds": 8.334373000000001,
+          "endLogicalTick": 6000,
+          "simulationSeconds": 5.510777299999981,
+          "simulationTick": 3139931,
+          "startLogicalTick": 3000
+        },
+        {
+          "drawSeconds": 0.13377479999999992,
+          "draws": 1199,
+          "elapsedSeconds": 8.331864,
+          "endLogicalTick": 9000,
+          "simulationSeconds": 5.734514599999995,
+          "simulationTick": 3142931,
+          "startLogicalTick": 6000
+        },
+        {
+          "drawSeconds": 0.11604820000000016,
+          "draws": 1201,
+          "elapsedSeconds": 8.335603600000002,
+          "endLogicalTick": 12000,
+          "simulationSeconds": 5.933295300000033,
+          "simulationTick": 3145931,
+          "startLogicalTick": 9000
+        }
+      ]
+    },
+    {
+      "path": "obj/vulkan-parity/performance-path98-12000-headroom/summary.json",
+      "sha256": "a1867253350de6643e76da691d7af53cc6992f6d7b0e5c360b15c9b333127a4d",
+      "status": "pass",
+      "metrics": {
+        "renderer": "vulkan",
+        "vsync": "enabled",
+        "elapsedSeconds": 28.532369,
+        "logicalTicks": 12000,
+        "logicalTps": 420.575,
+        "draws": {
+          "count": 4109.0,
+          "fps": 144.012
+        },
+        "ui": {
+          "messagePumps": 4110.0,
+          "windowUpdates": 4109.0,
+          "messageHz": 144.047,
+          "windowHz": 144.012
+        },
+        "simulation": {
+          "seconds": 21.957328,
+          "utilisationPercent": 77.0,
+          "meanMicrosecondsPerTick": 1829.777
+        },
+        "simulationBatches": {
+          "count": 12000.0,
+          "meanMicroseconds": 1829.777,
+          "longestMilliseconds": 6.047,
+          "longestSliceMilliseconds": 6.047
+        },
+        "drawCpu": {
+          "seconds": 0.436429,
+          "utilisationPercent": 1.5,
+          "meanMicroseconds": 106.213
+        },
+        "applicationFrameIntervalsMs": {
+          "p50": 6.963,
+          "p95": 8.125,
+          "p99": 8.54,
+          "max": 9.717
+        },
+        "rendererCpu": {
+          "submitMeanUs": 72.696,
+          "presentMeanUs": 104.684,
+          "samples": 4109.0
+        },
+        "presentApi": {
+          "meanUs": 78.082,
+          "samples": 4109.0
+        },
+        "gpuFrame": {
+          "meanUs": 1369.736,
+          "samples": 4109.0
+        },
+        "gpuPasses": {
+          "uploadMeanUs": 1.731,
+          "drawMeanUs": 1332.489,
+          "lightFxMeanUs": 0.003,
+          "compositeMeanUs": 35.513
+        }
+      },
+      "state": {
+        "simulationTick": {
+          "tick": 3145931
+        },
+        "guests": {
+          "total": 17042,
+          "inside": 17025,
+          "outside": 17
+        },
+        "guestStates": {
+          "walking": 10398,
+          "queued": 2560,
+          "onRide": 2470
+        },
+        "transportRoutes": {
+          "active": 878
+        },
+        "staffVehicles": {
+          "staff": 2208,
+          "vehicles": 2128
+        },
+        "routeCache": {
+          "nodes": 6663,
+          "targets": 543,
+          "directionEntries": 3611346,
+          "distanceEntries": 3611346,
+          "singleRideTargets": 517,
+          "status": "current"
+        }
+      },
+      "entityChecksum": "07d58eaefde6aa6d000000000000000000000000",
+      "tickWindows": [
+        {
+          "drawSeconds": 0.09834109999999996,
+          "draws": 956,
+          "elapsedSeconds": 6.6382763,
+          "endLogicalTick": 3000,
+          "simulationSeconds": 5.160499299999997,
+          "simulationTick": 3136931,
+          "startLogicalTick": 0
+        },
+        {
+          "drawSeconds": 0.11590439999999994,
+          "draws": 999,
+          "elapsedSeconds": 6.938630599999999,
+          "endLogicalTick": 6000,
+          "simulationSeconds": 5.352792200000008,
+          "simulationTick": 3139931,
+          "startLogicalTick": 3000
+        },
+        {
+          "drawSeconds": 0.11326930000000104,
+          "draws": 1045,
+          "elapsedSeconds": 7.2530619000000005,
+          "endLogicalTick": 9000,
+          "simulationSeconds": 5.558530500000039,
+          "simulationTick": 3142931,
+          "startLogicalTick": 6000
+        },
+        {
+          "drawSeconds": 0.10891440000000013,
+          "draws": 1109,
+          "elapsedSeconds": 7.702399500000002,
+          "endLogicalTick": 12000,
+          "simulationSeconds": 5.885505999999971,
+          "simulationTick": 3145931,
+          "startLogicalTick": 9000
+        }
+      ]
+    }
+  ],
+  "artComparison": {
+    "path": "obj/vulkan-parity/path97-art-review/summary.json",
+    "sha256": "cfa374516e5faed2b4fb849b31e01c50df798b7b0bac9866ccc219ffa0e00e43",
+    "result": {
+      "schema": 1,
+      "status": "fail",
+      "corpusManifestSha256": "a713169d2ca905db1cfc873d8298cf5c69665288ac90545c726dd8a553a9d198",
+      "cases": [
+        {
+          "name": "paths-r0-z0",
+          "differentIndexedPixels": 26062,
+          "bounds": [
+            0,
+            0,
+            960,
+            640
+          ],
+          "referenceSha256": "9d55ea83b5dd93c4a2012f7b0f98a8979fc821715251f83cf18dfd384e01619f",
+          "actualSha256": "f424589d2200f6e2dca98422dd1a67497fab126f13846e59b7eac9161a15bcc3"
+        },
+        {
+          "name": "paths-r1-z0",
+          "differentIndexedPixels": 26066,
+          "bounds": [
+            0,
+            0,
+            960,
+            640
+          ],
+          "referenceSha256": "2627442ab52321f81851b90f42f2f265d88a0ca5cd9729e0df56eca1daea7589",
+          "actualSha256": "cb85bb8963da634be15455c64c91b2f81ca055f68a8bea66a2332cab7a9d49f6"
+        },
+        {
+          "name": "paths-r2-z0",
+          "differentIndexedPixels": 26062,
+          "bounds": [
+            0,
+            0,
+            960,
+            640
+          ],
+          "referenceSha256": "a537ce4fff7a62844125a779cc145dc722459200c64e34cbc80d3bf607d3483f",
+          "actualSha256": "803b11124ad785b5cb6a4d8746ed5c50be84e33d9ca9ffef201bafa61a42c049"
+        },
+        {
+          "name": "paths-r3-z0",
+          "differentIndexedPixels": 26066,
+          "bounds": [
+            0,
+            0,
+            960,
+            640
+          ],
+          "referenceSha256": "a52457679c9cde64d333e5f743daac294dea222eda3910c313e551b639218eb5",
+          "actualSha256": "d0bcc63b2a4a58494767256249230ad0a509e7b8f0eb7751e4fea74ec5ef43f8"
+        },
+        {
+          "name": "paths-r0-z1",
+          "differentIndexedPixels": 384537,
+          "bounds": [
+            0,
+            0,
+            960,
+            640
+          ],
+          "referenceSha256": "37548a936b2cfdcb5c8fc919880baf3a13fa978c2ff9db37a12f374967233173",
+          "actualSha256": "dbf3d3573f286b613702e7f6d151a288bc5f7429d516ff6c52c146aad589e3bc"
+        },
+        {
+          "name": "paths-r1-z1",
+          "differentIndexedPixels": 384537,
+          "bounds": [
+            0,
+            0,
+            960,
+            640
+          ],
+          "referenceSha256": "9d58ff43246e0fcdd9fc3d16675d6054775d6d6b62e221987ccb6e9fd3129fdf",
+          "actualSha256": "633e3e5d75118fdc19192dbe6dac9227f0a4f92c910150258f538d8758e769eb"
+        },
+        {
+          "name": "paths-r2-z1",
+          "differentIndexedPixels": 384537,
+          "bounds": [
+            0,
+            0,
+            960,
+            640
+          ],
+          "referenceSha256": "6e03363210a1595c2167271691fbc993c6adf7786b46bb6122148b9511834d57",
+          "actualSha256": "22a4e256f9522fbc9e7036e060761b61a22f9432e4a86710df301caedd7b9e8f"
+        },
+        {
+          "name": "paths-r3-z1",
+          "differentIndexedPixels": 384537,
+          "bounds": [
+            0,
+            0,
+            960,
+            640
+          ],
+          "referenceSha256": "b6d2058768a66f8a46ecd81204d9bb26f7ccecdad36dfd2a1c9fe771d4e3e804",
+          "actualSha256": "508100e65090dace52d9a716b675e964e87b0d11ff2e68291fe5b1dfbec7555b"
+        }
+      ],
+      "displayPaletteSha256": "f1dbd3f4c62318deaf4e4b34d48db75f54025c0e6b57c3546990e1da386d9e73",
+      "scope": "Exact indexed comparison; sheets are reference left, candidate right; manual review separate"
+    },
+    "review": "docs/vulkan-native-path-visual-review.md"
+  },
+  "uploadComparison": {
+    "path": "obj/vulkan-parity/path98-upload-comparison/comparison.json",
+    "sha256": "4187e64c812dd9b006c2aba88ab19f061cfaaaaeeac08326600692f620a9b2ff",
+    "status": "pass",
+    "telemetry": {
+      "schema": 1,
+      "attemptedFrames": 4801,
+      "submittedFrames": 4801,
+      "auxiliarySamples": 0,
+      "allocatedBytes": 75809924,
+      "alignmentBytes": 28,
+      "allocationFailures": 0,
+      "captureRequests": 0,
+      "readbackRequests": 0,
+      "readbackBytes": 0,
+      "lostSamples": 0,
+      "statusReadbackRequests": 4801,
+      "statusReadbackBytes": 19204,
+      "worldBufferCopyCalls": 1108,
+      "overflow": false,
+      "attempted": [
+        [
+          4916224,
+          0,
+          4916224,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          5096,
+          832,
+          4264,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          7751744,
+          7751744,
+          0,
+          0,
+          0
+        ],
+        [
+          63117656,
+          0,
+          0,
+          63117656,
+          0
+        ]
+      ],
+      "submitted": [
+        [
+          4916224,
+          0,
+          4916224,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          5096,
+          832,
+          4264,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          7751744,
+          7751744,
+          0,
+          0,
+          0
+        ],
+        [
+          63117656,
+          0,
+          0,
+          63117656,
+          0
+        ]
+      ]
+    }
+  },
+  "deployment": {
+    "path": "obj/vulkan-parity/deployment-paths-build98-01/receipt.json",
+    "sha256": "a9d533ce9f58fa0061427f3282fd2c5208861d5fc5a455053f388b45006884a3",
+    "result": {
+      "schema": 1,
+      "status": "deployed-verified",
+      "destination": "D:\\Games\\Independent\\OpenRCT2Mod",
+      "manifest": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\deployment-paths-build98-01\\manifest.json",
+      "manifestSha256": "92486222a057c990030b96dfaa1b635f6d8c490ddded628a390c742e9b7058f5",
+      "changedFiles": 34,
+      "startedUtc": "2026-09-24T02:31:28.5041106Z",
+      "completedUtc": "2026-09-24T02:31:29.8674732Z",
+      "error": null
+    }
+  },
+  "remaining": [
+    "Owner interactive edit/camera review",
+    "Slope grass/railings sampling and cross-tile ordering",
+    "Physical supports, tunnels, queue text, construction overlays",
+    "Other world families, terrain modes, auxiliary views, HDR and CPU source retirement"
+  ],
+  "notes": [
+    "Build98 differs from focused-tested build97 only in screenshot scope label; all SPVs identical.",
+    "The second upload attempt was stopped for immediate deployment; the first completed log was verified against the matching instrumented control offline without rewriting failed evidence.",
+    "Outer cliff skirt retained at explicit owner request. No general pixel tolerance."
+  ]
+}

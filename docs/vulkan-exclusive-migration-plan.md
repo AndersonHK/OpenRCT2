@@ -2,6 +2,16 @@
 
 ## Current checkpoint
 
+**Native paths checkpoint, builds97–98:** [results, deployment and checklist](vulkan-native-path-checkpoint.md). Immutable raw path state now drives GPU surfaces, queues, slopes, railings and static additions. Two 4K/12,000-tick capped runs preserve **359.829–359.953 TPS / 143.992–144.011 application FPS**, with **0.105–0.107 ms CPU Draw** and **1.37–1.43 ms GPU**. All 97 focused checks pass; agents reviewed eight independent upstream comparison views and the final real-park image. Full path parity remains open at slope seams and in the missing features below. The owner explicitly accepts the outer cliff skirt as an aesthetic divergence.
+
+- [x] Add paths/additions through immutable generations and batched resident GPU state.
+- [x] Fix object-loading progress reentrancy, empty object image slots, local component ordering and path zoom 0/1 sampling.
+- [x] Preserve the 360 TPS / 144 FPS endurance target; separately measure 420.575 TPS uncapped headroom, about 389.5 TPS in the fullest window.
+- [ ] Finish slope-edge/railing differences, all zooms and cross-path/cross-tile ordering.
+- [ ] Restore physical path supports, tunnels, scrolling signs, construction ghosts and selection overlays.
+- [ ] Qualify the owner's installed interactive placement, terraforming and camera tests.
+- [ ] Add scenery, tracks/supports, entities and effects without regressing the measured target; close terrain modes, auxiliary views, HDR/LightFX and residual CPU retirement.
+
 **Accepted performance baseline:** implementation commit `775c86edf0` is checkpointed on `codex/gpu-snapshot-terrain-layers`. The owner is satisfied with the performance standard and the shown cliff/water image. Subsequent work prioritizes adding missing layers without performance regressions. Follow the [per-layer regression gate](vulkan-snapshot-terrain-checkpoint.md#baseline-for-adding-layers), comparing each candidate with build92 and the previous accepted layer; retain the 4K/12,000-tick workload and 360 TPS gameplay cap.
 
 **Immutable GPU terrain checkpoint, build92:** [results and active checklist](vulkan-snapshot-terrain-checkpoint.md). Two matched EverythingPark runs at **4K/VSync, 12,000 measured ticks** reach **358.825–359.958 TPS / 143.919–144.013 application FPS**, with **0.0807–0.0808 ms CPU Draw** and **1.015–1.031 ms GPU**. The corresponding build85 endurance control reaches 322.525 TPS and 0.3804 ms CPU Draw. All runs finish with 17,042 guests and matching entity checksums. Separate uncapped headroom is 423.672 TPS, approximately 388 TPS in the final 3000-tick window; ordinary Turbo remains capped at 360.
@@ -16,7 +26,7 @@
 - [ ] Qualify physical displayed pacing and residual occasional stalls: final worst application intervals are 28.913 and 9.907 ms; p99 is about 9.1 ms, not a claim of perfect scanout.
 - [ ] Restore auxiliary views, picking, LightFX/HDR fidelity and full pixel/feature parity; finish CPU painter/X8 deletion.
 
-This renderer is intentionally incomplete. General tree/track/vehicle ordering is not qualified while those families are absent. Installed checkpoint52 remains unchanged. The practical performance ceiling is the owner's 360 TPS / 144 FPS EverythingPark goal; higher uncapped performance is diagnostic, not an invitation to optimize academic worst cases.
+This renderer is intentionally incomplete. General tree/track/vehicle ordering is not qualified while those families are absent. Build98 with paths is installed for owner testing; preimages and verified hashes are recorded in the path checkpoint. The practical performance ceiling is the owner's 360 TPS / 144 FPS EverythingPark goal; higher uncapped performance is diagnostic, not an invitation to optimize academic worst cases.
 
 ## Historical checkpoints
 

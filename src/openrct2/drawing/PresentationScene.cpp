@@ -128,7 +128,8 @@ namespace OpenRCT2
                 }
                 else if (
                     changes.reset || !changes.changes.empty() || changes.sourceTick != _front->GetSourceTick()
-                    || changes.terrainMaterials != _front->GetTerrainMaterials())
+                    || changes.terrainMaterials != _front->GetTerrainMaterials()
+                    || changes.pathMaterials != _front->GetPathMaterials())
                 {
                     auto current = std::make_shared<MapPresentationSnapshot>(*_front);
                     current->Apply(changes);
@@ -144,7 +145,8 @@ namespace OpenRCT2
 
                 auto changes = ConsumeMapPresentationChanges(false, _profile);
                 if (!changes.reset && changes.changes.empty() && changes.sourceTick == _front->GetSourceTick()
-                    && changes.terrainMaterials == _front->GetTerrainMaterials())
+                    && changes.terrainMaterials == _front->GetTerrainMaterials()
+                    && changes.pathMaterials == _front->GetPathMaterials())
                     return;
 
                 _pendingReset = changes.reset;
@@ -451,6 +453,10 @@ namespace OpenRCT2
         JobPool& jobs, EntityRegistry& entities, const uint32_t drawCount, const bool synchronousMapPublication,
         const EntityPublicationProfile profile, std::shared_ptr<const Drawing::RetainedPeepAnimationCatalog> peepAnimations)
     {
+        // Object loading pumps progress UI. That draw must not capture a partial slot layout or
+        // consume dirty state; the first post-mutation boundary retries this same draw count.
+        if (gPathObjectMutationDepth.load(std::memory_order_acquire) != 0)
+            return false;
         try
         {
             if ((profile == EntityPublicationProfile::retainedPeepsAndBalloons
@@ -466,7 +472,9 @@ namespace OpenRCT2
             const bool terrainCatalogChanged = profile == EntityPublicationProfile::gpuTerrainOnly
                 && _impl->generation != nullptr && _impl->generation->map != nullptr
                 && (_impl->generation->map->GetTerrainMaterials() == nullptr
-                    || _impl->generation->map->GetTerrainMaterials()->revision != GetTerrainObjectRevision());
+                    || _impl->generation->map->GetTerrainMaterials()->revision != GetTerrainObjectRevision()
+                    || _impl->generation->map->GetPathMaterials() == nullptr
+                    || _impl->generation->map->GetPathMaterials()->revision != GetPathObjectRevision());
             if (!_impl->retrySynchronously && !profileChanged && !catalogChanged && !terrainCatalogChanged
                 && _impl->drawCount == drawCount)
                 return false;
@@ -529,7 +537,7 @@ namespace OpenRCT2
         JobPool& jobs, EntityRegistry& entities, std::shared_ptr<const Drawing::RetainedPeepAnimationCatalog> peepAnimations)
     {
         // Only BeginFrame may recover a failed coordinated publication. Do not drain more input meanwhile.
-        if (_impl->retrySynchronously)
+        if (_impl->retrySynchronously || gPathObjectMutationDepth.load(std::memory_order_acquire) != 0)
             return;
         try
         {
@@ -564,6 +572,11 @@ namespace OpenRCT2
 
     const std::shared_ptr<const PresentationGeneration>& PresentationScene::GetGeneration() const noexcept
     {
+        // Keep held facts alive, but never expose their asset addresses to a reentrant progress draw
+        // while object allocations may be freed/rebound. UI recording can continue without a world.
+        static const std::shared_ptr<const PresentationGeneration> unavailable;
+        if (gPathObjectMutationDepth.load(std::memory_order_acquire) != 0)
+            return unavailable;
         return _impl->generation;
     }
 } // namespace OpenRCT2

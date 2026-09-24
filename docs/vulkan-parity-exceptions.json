@@ -4,6 +4,22 @@
   "policy": "Exact pixels by default. Every divergence requires an agent's recorded manual visual inspection of reference, Vulkan and difference samples. A correction requires a root-cause explanation, bounded fixture/state, corrected expected image hash and review; no automatic tolerance, global masks or unreviewed rebaselining.",
   "exceptions": [
     {
+      "id": "TERRAIN-004-outer-cliff-skirt",
+      "date": "2026-09-23",
+      "reviewer": "/root/blind_architecture_three and /root",
+      "classification": "Owner-approved aesthetic divergence",
+      "status": "accepted: retain the native outer map cliff skirt",
+      "authorization": "I actually like the map having a skirt, it is nicer. Kind of like Sim City used to do it in its isometric titles. Let's keep that as a documented and intended divergent.",
+      "rootCause": "Native cliff planning treats non-drawn technical-border records as absent neighbors, extending adjacent visible faces to minimum land height. Upstream instead considers actual border terrain height; map and simulation data remain unchanged.",
+      "evidence": "docs/vulkan-native-path-visual-review.md",
+      "scope": "Outer map cliff skirt only; not interior terrain, path ordering, sprite sampling or background colour.",
+      "referenceSample": "obj/vulkan-parity/path-upstream-corpus-01/paths-r0-z0.indexed",
+      "referenceSha256": "9d55ea83b5dd93c4a2012f7b0f98a8979fc821715251f83cf18dfd384e01619f",
+      "reviewedCandidate": "obj/vulkan-parity/path96-art/samples/world-path-art/paths-r0-z0.indexed",
+      "reviewedCandidateSha256": "5c0e697a3f7b263217d75b5cc1e74ae03f6054ec1f9986ef2d12cc7c5af4db2e",
+      "acceptance": "Retain whole-image exact-diff evidence and manual review. No blanket pixel tolerance or exemption of unrelated differences; this candidate still contains separately tracked path defects."
+    },
+    {
       "id": "PUBLICATION-001-stale-synchronous-entity",
       "fixture": "MainPublication_EntityMove",
       "fixtureVersion": 1,

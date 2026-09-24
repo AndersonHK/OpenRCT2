@@ -30,6 +30,8 @@ def source_manifest(root):
             # and are not inputs of openrct2.proj or test/tests/tests.vcxproj.
             # Shared terrain fixtures and diagnostic shader inputs are bound to the real unit tests.
             if name and name != "test/peep-parity/PeepProducerBenchmark.cpp"
+            # The external upstream path fixture is linked only by its isolated driver builder.
+            and not name.startswith("test/path-parity/")
             # This standalone producer driver has its own receipt; its shared fixture remains pinned below.
             and (not name.startswith(("test/ui-parity/", "test/terrain-parity/"))
                          or name in ("test/terrain-parity/NonuniformTerrainRecipe.h",
@@ -119,7 +121,7 @@ def main():
         "builderSha256": sha256(Path(__file__)),
         "sourceRevision": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip(),
         "sourceSha256": before, "sourceChangesDuringBuild": changes,
-        "sourceManifestScope": "Production src/data/build metadata and ordinary tests; standalone UI/terrain drivers and PeepProducerBenchmark.cpp use separate build receipts; shared peep fixtures remain pinned",
+        "sourceManifestScope": "Production src/data/build metadata and ordinary tests; standalone UI/terrain/path drivers and PeepProducerBenchmark.cpp use separate build receipts; shared fixtures remain pinned",
         "artifactSha256": {path.relative_to(root).as_posix(): sha256(path) for path in artifacts if path.is_file()},
         "missingArtifacts": missing, "buildLogSha256": sha256(output / "build.log"),
     }

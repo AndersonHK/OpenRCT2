@@ -20,10 +20,12 @@ to the renderer. No world framebuffer preservation, dirty screen chunks or lazy 
 The current native terrain path admits a complete immutable map/entity generation once, before window traversal, and
 captures the next generation at that owner boundary. Unfinished publication leaves the previous generation available;
 workers and GPU submission never read live simulation state. Bootstrap and lifecycle recovery may synchronize explicitly.
-Native records carry raw height, slope, material and water facts; generation-owned tables supply shader image selection.
-Changed chunks share staging storage and one multi-region buffer copy, with catalog copies only when their generation changes.
-Surfaces, cliffs and water redraw every frame. The [current checkpoint](vulkan-snapshot-terrain-checkpoint.md) qualifies this
-partial implementation; other world families and complete mixed-scene ordering remain migration work.
+Native records carry raw height, slope, material, water and variable-length path facts; generation-owned tables supply shader
+image selection. Changed chunks share staging storage and batched buffer copies, with catalog copies only when their generation
+changes. Paths use a separate persistent arena. Surfaces, cliffs, water and the admitted path components redraw every frame.
+The [terrain baseline](vulkan-snapshot-terrain-checkpoint.md) and [path checkpoint](vulkan-native-path-checkpoint.md) track
+qualification of this partial implementation; other world families and complete mixed-scene ordering remain migration work.
+Progress-screen drawing during object replacement defers world publication until the catalog is coherent again.
 
 The owner additionally requires the final renderer to keep assets and world state resident in VRAM, submit bounded state deltas,
 and perform expensive world transforms and graphical processing in shaders. The present CPU painter/command path is transitional.

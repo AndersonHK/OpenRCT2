@@ -7,6 +7,7 @@
 #pragma once
 
 #include "MapLimits.h"
+#include "PathPresentation.h"
 #include "TerrainPresentation.h"
 #include "tile_element/TileElement.h"
 
@@ -40,6 +41,7 @@ namespace OpenRCT2
         std::vector<TileElement> elements;
         SurfacePresentationRecord surface;
         uint32_t surfaceIndex{ std::numeric_limits<uint32_t>::max() };
+        std::vector<PathPresentationRecord> paths;
     };
 
     struct MapPresentationChangeBatch
@@ -52,6 +54,7 @@ namespace OpenRCT2
         MapPublicationProfile profile{ MapPublicationProfile::legacyTiles };
         std::vector<MapPresentationTileChange> changes;
         std::shared_ptr<const TerrainPresentationMaterials> terrainMaterials;
+        std::shared_ptr<const PathPresentationMaterials> pathMaterials;
     };
 
     /** Owned tile storage and O(1) tile lookup for one presentation frame. */
@@ -68,6 +71,13 @@ namespace OpenRCT2
             std::array<SurfacePresentationRecord, kChunkWidth> records{};
         };
 
+        struct PathChunk
+        {
+            uint64_t revision{};
+            std::array<PathPresentationTileRange, kChunkWidth> tiles{};
+            std::vector<PathPresentationRecord> records;
+        };
+        using PathChunks = std::vector<std::shared_ptr<const PathChunk>>;
         using SurfaceChunks = std::vector<std::shared_ptr<const SurfaceChunk>>;
 
     private:
@@ -79,6 +89,10 @@ namespace OpenRCT2
         std::shared_ptr<const Chunks> _chunks;
         std::shared_ptr<const SurfaceChunks> _surfaceChunks;
         inline static const SurfaceChunks kEmptySurfaceChunks{};
+        std::shared_ptr<const PathChunks> _pathChunks;
+        inline static const PathChunks kEmptyPathChunks{};
+        uint64_t _nextPathRevision{};
+        std::shared_ptr<const PathPresentationMaterials> _pathMaterials;
         uint64_t _epoch{};
         uint32_t _sourceTick{};
         MapPublicationProfile _profile{ MapPublicationProfile::legacyTiles };
@@ -95,6 +109,14 @@ namespace OpenRCT2
         [[nodiscard]] const std::shared_ptr<const TerrainPresentationMaterials>& GetTerrainMaterials() const noexcept
         {
             return _terrainMaterials;
+        }
+        [[nodiscard]] const PathChunks& GetPathChunks() const noexcept
+        {
+            return _pathChunks == nullptr ? kEmptyPathChunks : *_pathChunks;
+        }
+        [[nodiscard]] const std::shared_ptr<const PathPresentationMaterials>& GetPathMaterials() const noexcept
+        {
+            return _pathMaterials;
         }
         [[nodiscard]] bool HasBoundedTerrainFacts() const noexcept
         {

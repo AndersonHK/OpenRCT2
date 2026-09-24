@@ -33,6 +33,7 @@ namespace OpenRCT2::Ui::Vulkan
         VkPipeline _pipeline = VK_NULL_HANDLE;
         std::array<VkFramebuffer, kFramesInFlight> _framebuffers{};
         Buffer _sourceRecords;
+        Buffer _pathRecords;
         Buffer _spriteSets;
         Buffer _catalog;
         Buffer _prefixes;
@@ -42,6 +43,8 @@ namespace OpenRCT2::Ui::Vulkan
         Buffer _visibleRecords;
         Buffer _indirectCommands;
         std::vector<uint64_t> _uploadedRevisions;
+        std::vector<uint32_t> _pathOffsets, _pathCapacities;
+        uint32_t _pathArenaEnd{};
         uint64_t _uploadedSpriteRevision{};
         uint64_t _uploadedEpoch{};
         uint32_t _uploadedWidth{};

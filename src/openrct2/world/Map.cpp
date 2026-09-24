@@ -29,7 +29,12 @@
 #include "../entity/Staff.h"
 #include "../interface/Cursors.h"
 #include "../interface/Viewport.h"
+#include "../object/FootpathObject.h"
+#include "../object/FootpathRailingsObject.h"
+#include "../object/FootpathSurfaceObject.h"
 #include "../object/LargeSceneryEntry.h"
+#include "../object/ObjectManager.h"
+#include "../object/PathAdditionObject.h"
 #include "../object/SmallSceneryEntry.h"
 #include "../object/TerrainEdgeObject.h"
 #include "../object/TerrainSurfaceObject.h"
@@ -172,6 +177,83 @@ namespace OpenRCT2
         return getGameState().tileElements;
     }
 
+    static std::shared_ptr<const PathPresentationMaterials> CapturePathMaterials()
+    {
+        static std::shared_ptr<const PathPresentationMaterials> captured;
+        const auto revision = GetPathObjectRevision();
+        if (gPathObjectMutationDepth.load(std::memory_order_acquire) != 0)
+            throw std::logic_error("Path catalog requested during object mutation");
+        if (captured != nullptr && captured->revision == revision)
+            return captured;
+        auto next = std::make_shared<PathPresentationMaterials>();
+        next->revision = revision;
+        auto& manager = GetContext()->GetObjectManager();
+        const auto surface = [](const Object& object, const PathSurfaceDescriptor& source) {
+            return PathPresentationSurfaceMaterial{ object.GetBaseImageId(), object.GetNumImages(), source.image, source.flags,
+                                                    true };
+        };
+        const auto railings = [](const Object& object, const PathRailingsDescriptor& source) {
+            return PathPresentationRailingsMaterial{ object.GetBaseImageId(),
+                                                     object.GetNumImages(),
+                                                     source.bridgeImage,
+                                                     source.railingsImage,
+                                                     static_cast<uint8_t>(source.supportType),
+                                                     static_cast<uint8_t>(source.supportColour),
+                                                     source.flags,
+                                                     source.scrollingMode,
+                                                     true };
+        };
+        for (uint16_t slot = 0; slot < 255; ++slot)
+        {
+            if (auto* object = manager.GetLoadedObject<FootpathSurfaceObject>(slot))
+                next->surfaces[slot] = surface(*object, object->GetDescriptor());
+            if (auto* object = manager.GetLoadedObject<FootpathRailingsObject>(slot))
+                next->railings[slot] = railings(*object, object->GetDescriptor());
+            if (auto* object = manager.GetLoadedObject<FootpathObject>(slot))
+            {
+                next->legacySurfaces[slot] = surface(*object, object->GetPathSurfaceDescriptor());
+                next->legacyQueueSurfaces[slot] = surface(*object, object->GetQueueSurfaceDescriptor());
+                next->legacyRailings[slot] = railings(*object, object->GetPathRailingsDescriptor());
+            }
+            if (auto* object = manager.GetLoadedObject<PathAdditionObject>(slot))
+            {
+                const auto& source = *static_cast<const PathAdditionEntry*>(object->GetLegacyData());
+                next->additions[slot] = { object->GetBaseImageId(),
+                                          object->GetNumImages(),
+                                          source.image,
+                                          source.flags,
+                                          static_cast<uint8_t>(source.draw_type),
+                                          true };
+            }
+        }
+        captured = next;
+        return captured;
+    }
+
+    static PathPresentationRecord CapturePathRecord(const PathElement& path, uint32_t ordinal)
+    {
+        using namespace PathPresentationFlags;
+        PathPresentationRecord record;
+        record.baseZ = path.getBaseZ();
+        record.clearanceZ = path.getClearanceZ();
+        record.elementOrdinal = ordinal;
+        record.flags = (path.isSloped() ? sloped : 0) | (path.isQueue() ? queue : 0) | (path.isWide() ? wide : 0)
+            | (path.hasQueueBanner() ? queueBanner : 0) | (path.isGhost() ? ghost : 0)
+            | (path.additionIsGhost() ? additionGhost : 0) | (path.isBroken() ? broken : 0)
+            | (path.hasLegacyPathEntry() ? legacy : 0) | (path.hasJunctionRailings() ? junctionRailings : 0)
+            | (path.isInvisible() ? invisible : 0) | (path.isBlockedByVehicle() ? blockedByVehicle : 0);
+        record.surfaceSlot = path.hasLegacyPathEntry() ? path.getLegacyPathEntryIndex() : path.getSurfaceEntryIndex();
+        record.railingsSlot = path.hasLegacyPathEntry() ? path.getLegacyPathEntryIndex() : path.getRailingsEntryIndex();
+        record.additionSlot = path.hasAddition() ? path.getAdditionEntryIndex() : UINT16_MAX;
+        // Preserve the legacy overlapping union observations; material rules decide which field is meaningful.
+        record.rideId = path.getRideIndex().ToUnderlying();
+        record.additionStatus = path.getAdditionStatus();
+        record.edgesAndCorners = path.getEdgesAndCorners();
+        record.slopeDirection = path.getSlopeDirection();
+        record.queueBannerDirection = path.getQueueBannerDirection();
+        return record;
+    }
+
     static std::shared_ptr<const TerrainPresentationMaterials> CaptureTerrainMaterials(uint64_t epoch)
     {
         static uint64_t capturedEpoch{};
@@ -245,6 +327,7 @@ namespace OpenRCT2
             .profile = profile,
         };
         batch.terrainMaterials = CaptureTerrainMaterials(batch.epoch);
+        batch.pathMaterials = CapturePathMaterials();
         const auto copyTile = [&batch](const uint32_t index, const uint32_t surfaceIndex) {
             const TileCoordsXY tilePos{ static_cast<int32_t>(index % kMaximumMapSizeTechnical),
                                         static_cast<int32_t>(index / kMaximumMapSizeTechnical) };
@@ -256,14 +339,17 @@ namespace OpenRCT2
                 return; // Publish absence as well as presence when a tile disappears.
             const TileElement* surface = nullptr;
             const bool singleElement = source->isLastForTile();
+            uint32_t ordinal = 0;
             do
             {
+                if (source->getType() == TileElementType::path)
+                    change.paths.push_back(CapturePathRecord(*source->asPath(), ordinal));
+                ++ordinal;
                 if (surface == nullptr && source->getType() == TileElementType::surface)
                     surface = source;
                 if (batch.profile == MapPublicationProfile::legacyTiles)
                     change.elements.push_back(*source);
-                else if (surface != nullptr)
-                    break; // Native capture does not copy or inspect unrelated elements after the surface.
+
             } while (!(source++)->isLastForTile());
             change.surface.requiresCategoryInterleaving = !singleElement;
             if (surface == nullptr || surface->isInvisible() || surface->isGhost())
@@ -422,6 +508,82 @@ namespace OpenRCT2
                 _terrainBlockingRecordCount--;
             surfaceRecord = change.surface;
         }
+        // Rebuild only path chunks whose tile lists changed. Empty replacements retire all old ranges;
+        // held snapshots keep the old chunk and material values alive across deletion/reuse.
+        std::shared_ptr<PathChunks> pathChunks;
+        if (surfaceLayoutChanged)
+        {
+            pathChunks = std::make_shared<PathChunks>((GetSurfaceRecordCount() + kChunkWidth - 1) / kChunkWidth);
+            _pathChunks = pathChunks;
+            _nextPathRevision = 0;
+        }
+        std::array<const std::vector<PathPresentationRecord>*, kChunkWidth> replacements{};
+        size_t pathChunkIndex = std::numeric_limits<size_t>::max();
+        const auto flushPaths = [&]() {
+            if (pathChunkIndex == std::numeric_limits<size_t>::max())
+                return;
+            const auto& old = GetPathChunks()[pathChunkIndex];
+            bool changed = false;
+            for (size_t tile = 0; tile < kChunkWidth; ++tile)
+            {
+                const auto* replacement = replacements[tile];
+                if (replacement == nullptr)
+                    continue;
+                const auto range = old == nullptr ? PathPresentationTileRange{} : old->tiles[tile];
+                if (range.count != replacement->size()
+                    || (range.count != 0
+                        && !std::equal(replacement->begin(), replacement->end(), old->records.begin() + range.first)))
+                    changed = true;
+            }
+            if (!changed)
+                return;
+            auto next = std::make_shared<PathChunk>();
+            size_t count = 0;
+            for (size_t tile = 0; tile < kChunkWidth; ++tile)
+                count += replacements[tile] != nullptr ? replacements[tile]->size()
+                    : old == nullptr                   ? 0
+                                                       : old->tiles[tile].count;
+            if (count > UINT32_MAX)
+                throw std::overflow_error("Path chunk record address space exhausted");
+            next->records.reserve(count);
+            for (size_t tile = 0; tile < kChunkWidth; ++tile)
+            {
+                auto& range = next->tiles[tile];
+                range.first = static_cast<uint32_t>(next->records.size());
+                if (const auto* replacement = replacements[tile])
+                    next->records.insert(next->records.end(), replacement->begin(), replacement->end());
+                else if (old != nullptr)
+                {
+                    const auto prior = old->tiles[tile];
+                    next->records.insert(
+                        next->records.end(), old->records.begin() + prior.first,
+                        old->records.begin() + prior.first + prior.count);
+                }
+                range.count = static_cast<uint32_t>(next->records.size()) - range.first;
+            }
+            next->revision = ++_nextPathRevision;
+            if (pathChunks == nullptr)
+            {
+                pathChunks = std::make_shared<PathChunks>(GetPathChunks());
+                _pathChunks = pathChunks;
+            }
+            (*pathChunks)[pathChunkIndex] = std::move(next);
+        };
+        for (const auto& change : batch.changes)
+        {
+            if (change.surfaceIndex >= GetSurfaceRecordCount())
+                continue;
+            const auto index = change.surfaceIndex / kChunkWidth;
+            if (index != pathChunkIndex)
+            {
+                flushPaths();
+                replacements.fill(nullptr);
+                pathChunkIndex = index;
+            }
+            replacements[change.surfaceIndex % kChunkWidth] = &change.paths;
+        }
+        flushPaths();
+        _pathMaterials = batch.pathMaterials;
         _terrainMaterials = batch.terrainMaterials;
         _epoch = batch.epoch;
         _sourceTick = batch.sourceTick;

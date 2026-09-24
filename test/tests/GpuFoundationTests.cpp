@@ -182,7 +182,8 @@ TEST(GpuFoundationTest, NativeTerrainReservesPainterDepthBetweenEarlierCommandsA
 TEST(GpuFoundationTest, WorldSurfaceAbiHasStableComputeBlocksAndDepthCapacity)
 {
     EXPECT_EQ(sizeof(WorldSurfaceRecord), 64u);
-    EXPECT_EQ(sizeof(WorldSurfaceSourceRecord), 32u);
+    EXPECT_EQ(sizeof(WorldSurfaceSourceRecord), 44u);
+    EXPECT_EQ(sizeof(WorldPathSourceRecord), 48u);
     EXPECT_EQ(sizeof(WorldSurfaceSpriteVariant), 32u);
     EXPECT_EQ(sizeof(WorldSurfaceSpriteSet), 200u);
     EXPECT_EQ(kWorldSurfaceChunkWidth, 256u);

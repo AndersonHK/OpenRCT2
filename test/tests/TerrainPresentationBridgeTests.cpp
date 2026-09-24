@@ -565,3 +565,60 @@ TEST(TerrainPresentationBridgeTest, PeepAssetCatalogFlattensOnceAndHoldsOriginal
     cache->AbortFrame();
     cache->DrainFrameRetirements();
 }
+
+TEST(TerrainPresentationBridgeTest, EmptyWorldAssetRetainsDependenciesAndDoesNotHideInvalidSprites)
+{
+    using namespace OpenRCT2::Ui::Gpu;
+    TwoTemporarySprites assets;
+    const auto visible = *GfxGetG1Element(SPR_TEMP_BEGIN);
+    G1Element empty{};
+    GfxSetG1Element(SPR_TEMP_BEGIN, &empty);
+    auto cache = std::make_shared<TextureCache>(1);
+    cache->BeginFrame();
+    std::vector<uint32_t> dependencies;
+    const auto blank = cache->ResolveAssetSprite(ImageId(SPR_TEMP_BEGIN + 1), ZoomLevel{ 1 }, dependencies);
+    EXPECT_TRUE(blank.empty);
+    EXPECT_FALSE(blank.sprite);
+    EXPECT_FALSE(blank.noZoomDraw);
+    ASSERT_EQ(dependencies, (std::vector<uint32_t>{ SPR_TEMP_BEGIN + 1, SPR_TEMP_BEGIN }));
+    const auto lease = cache->CreateAssetLease({}, dependencies);
+    ASSERT_TRUE(cache->TryBindAssetLease(lease));
+    FrameCommandStream packet;
+    const auto frame = cache->SealFrame(packet);
+    EXPECT_TRUE(packet.textureUploads.empty());
+    cache->RetireFrame(frame, FrameRetirement::Presented);
+
+    GfxSetG1Element(SPR_TEMP_BEGIN, &visible);
+    cache->InvalidateImage(SPR_TEMP_BEGIN);
+    cache->BeginFrame();
+    EXPECT_FALSE(cache->TryBindAssetLease(lease));
+    dependencies.clear();
+    const auto replacement = cache->ResolveAssetSprite(ImageId(SPR_TEMP_BEGIN + 1), ZoomLevel{ 1 }, dependencies);
+    EXPECT_TRUE(replacement.sprite);
+    EXPECT_FALSE(replacement.empty);
+    cache->AbortFrame();
+
+    // Only genuine zero-area art is accepted as empty, never an absent image or malformed/non-raster data.
+    cache->BeginFrame();
+    auto invalid = visible;
+    invalid.width = -1;
+    GfxSetG1Element(SPR_TEMP_BEGIN, &invalid);
+    cache->InvalidateImage(SPR_TEMP_BEGIN);
+    dependencies.clear();
+    const auto negative = cache->ResolveAssetSprite(ImageId(SPR_TEMP_BEGIN), ZoomLevel{ 0 }, dependencies);
+    EXPECT_FALSE(negative.sprite);
+    EXPECT_FALSE(negative.empty);
+    invalid = visible;
+    invalid.flags = { G1Flag::isPalette };
+    GfxSetG1Element(SPR_TEMP_BEGIN, &invalid);
+    cache->InvalidateImage(SPR_TEMP_BEGIN);
+    dependencies.clear();
+    EXPECT_THROW(
+        static_cast<void>(cache->ResolveAssetSprite(ImageId(SPR_TEMP_BEGIN), ZoomLevel{ 0 }, dependencies)),
+        std::invalid_argument); // SpriteAssetDecoder rejects non-indexed palette payloads explicitly.
+    dependencies.clear();
+    const auto missing = cache->ResolveAssetSprite(ImageId(kImageIndexUndefined), ZoomLevel{ 0 }, dependencies);
+    EXPECT_FALSE(missing.sprite);
+    EXPECT_FALSE(missing.empty);
+    cache->AbortFrame();
+}

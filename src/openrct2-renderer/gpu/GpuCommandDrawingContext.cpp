@@ -29,6 +29,7 @@
 #include <openrct2/paint/tile_element/Paint.Surface.h>
 #include <openrct2/world/Location.hpp>
 #include <openrct2/world/MapPresentationSnapshot.h>
+#include <openrct2/world/PathPresentation.h>
 #include <ranges>
 #include <stdexcept>
 
@@ -588,8 +589,18 @@ namespace OpenRCT2::Ui::Gpu
             {
                 const auto asset = _textureCache.ResolveAssetSprite(
                     image, ZoomLevel{ static_cast<int8_t>(zoom) }, *dependencies);
-                if (!asset.sprite && !asset.noZoomDraw)
-                    throw std::runtime_error("GPU terrain base sprite is missing or unsupported");
+                // Empty object slots still contribute their dependencies to the material lease. Replacing
+                // one with a visible sprite invalidates that lease; missing/invalid metadata remains an error.
+                if (!asset.sprite && !asset.noZoomDraw && !asset.empty)
+                {
+                    const auto terminalImage = dependencies->back();
+                    const auto* metadata = GfxGetG1Element(terminalImage);
+                    throw std::runtime_error(
+                        "GPU world sprite is missing or unsupported: image=" + std::to_string(image.GetIndex())
+                        + " terminal=" + std::to_string(terminalImage) + " zoom=" + std::to_string(zoom)
+                        + " width=" + std::to_string(metadata ? metadata->width : -1)
+                        + " height=" + std::to_string(metadata ? metadata->height : -1));
+                }
                 resolved = asset.sprite;
             }
             else
@@ -607,7 +618,7 @@ namespace OpenRCT2::Ui::Gpu
                 .asset = resolved->descriptorIndex,
                 .zoom = static_cast<int8_t>(resolved->zoom),
                 .coordinateShift = resolved->coordinateShift,
-                .valid = 1,
+                .valid = 1 | (resolved->hasRleCompression ? 2 : 0),
             };
         }
         return result;
@@ -878,6 +889,9 @@ namespace OpenRCT2::Ui::Gpu
         }
 
         const auto& sourceChunks = generation->map->GetSurfaceChunks();
+        const auto& pathChunks = generation->map->GetPathChunks();
+        if (!pathChunks.empty() && pathChunks.size() != sourceChunks.size())
+            throw std::runtime_error("GPU path chunk directory differs from terrain");
         _surfaceChunks.resize(sourceChunks.size());
         scene.chunks.resize(sourceChunks.size());
         for (size_t chunkIndex = 0; chunkIndex < sourceChunks.size(); chunkIndex++)
@@ -885,40 +899,74 @@ namespace OpenRCT2::Ui::Gpu
             const auto& source = sourceChunks[chunkIndex];
             if (source == nullptr)
                 throw std::runtime_error("GPU terrain publication has an absent surface chunk");
+            const auto paths = pathChunks.empty() ? nullptr : pathChunks[chunkIndex];
+            const auto pathRevision = paths ? paths->revision : 0;
             auto& published = _surfaceChunks[chunkIndex];
-            if (published.sourceRevision != source->revision || published.gpu == nullptr)
+            if (published.sourceRevision != source->revision || published.pathRevision != pathRevision
+                || published.gpu == nullptr)
             {
                 auto converted = std::make_shared<WorldSurfaceChunk>();
-                converted->revision = source->revision;
+                converted->revision = ++_nextSurfaceChunkRevision;
+                if (paths)
+                {
+                    converted->paths.reserve(paths->records.size());
+                    for (const auto& raw : paths->records)
+                        converted->paths.push_back({ raw.baseZ, raw.clearanceZ, raw.elementOrdinal, raw.flags, raw.surfaceSlot,
+                                                     raw.railingsSlot, raw.additionSlot, raw.rideId, raw.edgesAndCorners,
+                                                     raw.slopeDirection, raw.queueBannerDirection, raw.additionStatus });
+                }
                 for (size_t i = 0; i < source->records.size(); i++)
                 {
                     const auto& raw = source->records[i].terrain;
-                    converted->records[i] = { raw.baseZ, raw.waterHeight, raw.surfaceSlot, raw.edgeSlot,
-                                              raw.slope, raw.grass,       raw.present,     raw.kind };
+                    auto& target = converted->records[i];
+                    target = { raw.baseZ, raw.waterHeight, raw.surfaceSlot, raw.edgeSlot,
+                               raw.slope, raw.grass,       raw.present,     raw.kind };
+                    if (paths)
+                    {
+                        const auto range = paths->tiles[i];
+                        if (range.first > converted->paths.size() || range.count > converted->paths.size() - range.first)
+                            throw std::runtime_error("GPU path publication has an invalid tile range");
+                        target.pathFirst = range.first;
+                        target.pathCount = range.count;
+                        for (uint32_t p = range.first; p < range.first + range.count; p++)
+                            target.pathMaxZ = std::max(
+                                target.pathMaxZ, std::max(converted->paths[p].baseZ + 32, converted->paths[p].clearanceZ));
+                    }
                 }
-                // Only dirty publications are compared. Track-only mutations need no surface transfer.
+                // Only dirty publications are compared. Unrelated mutations need no world transfer.
                 if (!published.gpu
                     || std::memcmp(
                            published.gpu->records.data(), converted->records.data(),
                            converted->records.size() * sizeof(WorldSurfaceSourceRecord))
-                        != 0)
+                        != 0
+                    || published.gpu->paths.size() != converted->paths.size()
+                    || (!converted->paths.empty()
+                        && std::memcmp(
+                               published.gpu->paths.data(), converted->paths.data(),
+                               converted->paths.size() * sizeof(WorldPathSourceRecord))
+                            != 0))
                     published.gpu = std::move(converted);
                 published.sourceRevision = source->revision;
+                published.pathRevision = pathRevision;
             }
             scene.chunks[chunkIndex] = published.gpu;
         }
 
         const auto materials = generation->map->GetTerrainMaterials();
+        const auto pathMaterials = generation->map->GetPathMaterials();
         if (!materials)
             throw std::runtime_error("GPU terrain material generation is absent");
-        if (!_publishedSurfaceSprites || _publishedSurfaceSprites->sourceMaterials != materials || !terrainOnly
+        if (!_publishedSurfaceSprites || _publishedSurfaceSprites->sourceMaterials != materials
+            || _publishedSurfaceSprites->sourcePathMaterials != pathMaterials || !terrainOnly
             || !_textureCache.TryBindAssetLease(_publishedSurfaceSprites->residency))
         {
-            if (materials->revision != GetTerrainObjectRevision())
+            if (materials->revision != GetTerrainObjectRevision()
+                || (pathMaterials && pathMaterials->revision != GetPathObjectRevision()))
                 throw std::runtime_error("GPU terrain cannot resolve a retired material generation");
             auto table = std::make_shared<WorldSurfaceSpriteTable>();
             table->revision = ++_nextSurfaceSpriteRevision;
             table->sourceMaterials = materials;
+            table->sourcePathMaterials = pathMaterials;
             std::vector<uint64_t> residencies;
             std::vector<uint32_t> dependencies;
             const auto append = [&](ImageId image) {
@@ -960,6 +1008,65 @@ namespace OpenRCT2::Ui::Gpu
                     target.edgeCount = edge.imageCount;
                     for (uint32_t image = 0; image < edge.imageCount; image++)
                         append(ImageId(edge.imageBase + image));
+                }
+            }
+            if (pathMaterials)
+            {
+                // Resolve whole immutable material ranges once per catalog/atlas generation, never per path instance.
+                const auto appendRange = [&](uint32_t allocationBase, uint32_t allocationCount, uint32_t first, uint32_t limit,
+                                             uint32_t& base, uint32_t& count) {
+                    if (first < allocationBase || uint64_t(first) >= uint64_t(allocationBase) + allocationCount)
+                        throw std::runtime_error("GPU path material range exceeds its owning object allocation");
+                    base = static_cast<uint32_t>(table->records.size());
+                    count = static_cast<uint32_t>(
+                        std::min<uint64_t>(limit, uint64_t(allocationBase) + allocationCount - first));
+                    for (uint32_t i = 0; i < count; i++)
+                    {
+                        append(ImageId(first + i));
+                        for (auto& variant : table->records.back().variants)
+                            if (variant.valid != 0)
+                                variant.valid |= 4; // Path-only original bitmap/RLE sampling contract.
+                    }
+                };
+                for (uint32_t legacy = 0; legacy < 2; legacy++)
+                    for (size_t slot = 0; slot < 255; slot++)
+                    {
+                        auto& target = table->catalog.paths[legacy * 255 + slot];
+                        const auto& surface = legacy ? pathMaterials->legacySurfaces[slot] : pathMaterials->surfaces[slot];
+                        const auto& queue = legacy ? pathMaterials->legacyQueueSurfaces[slot] : surface;
+                        const auto& railings = legacy ? pathMaterials->legacyRailings[slot] : pathMaterials->railings[slot];
+                        if (surface.present)
+                        {
+                            appendRange(
+                                surface.imageBase, surface.imageCount, surface.surfaceImage, 51, target.surfaceBase,
+                                target.surfaceCount);
+                            target.reserved = surface.flags;
+                        }
+                        if (queue.present)
+                            appendRange(
+                                queue.imageBase, queue.imageCount, queue.surfaceImage, 20, target.queueBase, target.queueCount);
+                        if (railings.present)
+                        {
+                            appendRange(
+                                railings.imageBase, railings.imageCount, railings.railingsImage, 36, target.railingsBase,
+                                target.railingsCount);
+                            appendRange(
+                                railings.imageBase, railings.imageCount, railings.bridgeImage, 55, target.bridgeBase,
+                                target.bridgeCount);
+                            target.flags = railings.flags;
+                            target.supportType = railings.supportType;
+                            target.supportColour = railings.supportColour;
+                        }
+                    }
+                for (size_t slot = 0; slot < 255; slot++)
+                {
+                    const auto& addition = pathMaterials->additions[slot];
+                    if (!addition.present)
+                        continue;
+                    auto& target = table->catalog.additions[slot];
+                    appendRange(addition.imageBase, addition.imageCount, addition.image, 16, target.base, target.count);
+                    target.flags = addition.flags;
+                    target.drawType = addition.drawType;
                 }
             }
             for (uint32_t shape = 0; shape < 5; shape++)

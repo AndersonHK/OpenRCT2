@@ -125,6 +125,11 @@
     <ClCompile Include="VulkanRetainedTerrainDrawTests.cpp" />
     <ClCompile Include="VulkanNativePeepSceneTests.cpp" />
     <ClCompile Include="VulkanWorldSurfaceLayerTests.cpp" />
+    <ClCompile Include="VulkanWorldPathLayerTests.cpp" />
+    <ClCompile Include="VulkanWorldPathArtTests.cpp" />
+    <ClCompile Include="WorldPathPublicationTests.cpp" />
+    <ClCompile Include="WorldPathRulesTests.cpp" />
+    <ClCompile Include="WorldPathOrderTests.cpp" />
     <ClCompile Include="VulkanTerrainCompletionTests.cpp" />
     <ClCompile Include="SpriteAssetDecoderTests.cpp" />
     <ClCompile Include="LanguagePackTest.cpp" />

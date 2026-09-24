@@ -1,4 +1,6 @@
 #version 450
+#extension GL_GOOGLE_include_directive : require
+#include "terrain_sprite_geometry.glsl"
 
 const float DEPTH_INCREMENT = 1.0 / float(1u << 22u);
 const float ATLAS_DIMENSION = 2048.0;
@@ -81,6 +83,7 @@ void main()
     else if (uCamera.rotation == 3)
         rotated = ivec2(-adjusted.y, adjusted.x);
     ivec2 projected = ivec2(rotated.y - rotated.x, ((rotated.x + rotated.y) >> 1) - vWorld.z);
+    ivec2 fullProjected = projected;
     for (int i = 0; i < vCoordinateShift; i++)
         projected /= 2;
 
@@ -103,7 +106,14 @@ void main()
         inverseZoom(topLeft.x + xModifier, vZoom) + inverseZoom(vSpriteSize.x + widthModifier, vZoom),
         inverseZoom(topLeft.y, vZoom) + inverseZoom(vSpriteSize.y + yModifier, vZoom));
     bounds += ivec4(uCamera.clip.xy - uCamera.view, uCamera.clip.xy - uCamera.view);
-    bool visible = vValid != 0 && bounds.x < uCamera.clip.z && bounds.y < uCamera.clip.w
+    bool originalPathGeometry = (vValid & 4) != 0 && uCamera.zoom >= 0 && uCamera.zoom <= 1;
+    TerrainSpriteGeometry geometry = TerrainSpriteGeometry(ivec4(0),ivec2(0),1.0,0u);
+    if (originalPathGeometry) {
+        geometry = terrainSpriteGeometry(fullProjected,vSpriteSize,vSpriteOffset,(vValid & 2) != 0,
+            vZoom,vCoordinateShift,uCamera.zoom,ivec4(uCamera.view,uCamera.clip.zw-uCamera.clip.xy),uCamera.clip.xy);
+        bounds = geometry.bounds;
+    }
+    bool visible = vValid != 0 && (!originalPathGeometry || geometry.visible != 0u) && bounds.x < uCamera.clip.z && bounds.y < uCamera.clip.w
         && bounds.z > uCamera.clip.x && bounds.w > uCamera.clip.y;
     visible = visible && (((vEffects & 0x300u) != 0u) == (uCamera.phase == 4u));
     ivec2 corners[4] = ivec2[](ivec2(0, 0), ivec2(1, 0), ivec2(0, 1), ivec2(1, 1));
@@ -117,7 +127,8 @@ void main()
 
     SpriteAssetDescriptor asset = uSpriteAssets.assets[vAsset];
     int texelY = vZoom > 0 ? (1 << vZoom) - 1 - yModifier : 0;
-    vec4 texture = vec4(vec2(asset.atlasOrigin + ivec2(xModifier, texelY)), ATLAS_DIMENSION, ATLAS_DIMENSION);
+    ivec2 texelOffset = originalPathGeometry ? geometry.texelOffset : ivec2(xModifier,texelY);
+    vec4 texture = vec4(vec2(asset.atlasOrigin + texelOffset), ATLAS_DIMENSION, ATLAS_DIMENSION);
     fPosition = bounds.xy;
     fFlags = int(vEffects & 0xffffu);
     fColour = (vEffects >> 16u) & 0xffu;

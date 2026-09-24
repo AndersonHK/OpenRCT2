@@ -72,6 +72,7 @@ namespace OpenRCT2::Ui::Gpu
     {
         std::optional<ResolvedSprite> sprite;
         bool noZoomDraw{};
+        bool empty{}; // Existing non-palette metadata with a nonnegative zero-area raster.
     };
 
     struct AtlasResidencyToken

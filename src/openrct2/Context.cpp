@@ -1266,12 +1266,13 @@ namespace OpenRCT2
             }
             catch (const std::exception& e)
             {
+                // Report the original load failure before fallback can itself fail while drawing.
+                Console::Error::WriteLine(e.what());
                 // If loading the SV6 or SV4 failed return to the title screen if requested.
                 if (loadTitleScreenFirstOnFail)
                 {
                     _sceneManager->setActiveScene(_sceneManager->getTitleScene());
                 }
-                Console::Error::WriteLine(e.what());
             }
 
             CloseProgress();
@@ -1938,8 +1939,9 @@ namespace OpenRCT2
                                     { "logicalExtent", { _uiContext->GetWidth(), _uiContext->GetHeight() } },
                                     { "drawableExtent", { drawable.Width, drawable.Height } },
                                     { "renderScope",
-                                      partial ? "GPU terrain/background/UI only; unsupported world categories omitted"
-                                              : "configured main renderer" } };
+                                      partial
+                                          ? "GPU terrain, paths/additions, background and UI; other world categories omitted"
+                                          : "configured main renderer" } };
                     // The displayed immutable generation may lag the final simulation tick.
                     // Report that age honestly; no second render or publication reset is hidden.
                     receipt["publicationSourceTick"] = generation ? json_t(generation->sourceTick) : json_t(nullptr);

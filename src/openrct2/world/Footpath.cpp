@@ -917,6 +917,7 @@ namespace OpenRCT2
             {
                 lastPathElement->asPath()->setHasQueueBanner(true);
                 lastPathElement->asPath()->setQueueBannerDirection(lastPathDirection); // set the ride sign direction
+                MarkMapTilePresentationDirty(lastPath);
 
                 if (!lastPathElement->isGhost())
                 {
@@ -1411,7 +1412,10 @@ namespace OpenRCT2
         if (!(footpathPos.x & 0xE0) || (!(footpathPos.y & 0xE0)))
         {
             if (FootpathWideFlagsChanged(footpathPos, previousWideFlags))
+            {
                 MapTopology::InvalidatePathWideTileAndNeighbours(footpathPos);
+                MarkMapTilePresentationDirty(footpathPos);
+            }
             return;
         }
 
@@ -1590,7 +1594,10 @@ namespace OpenRCT2
         } while (!(tileElement++)->isLastForTile());
 
         if (FootpathWideFlagsChanged(footpathPos, previousWideFlags))
+        {
             MapTopology::InvalidatePathWideTileAndNeighbours(footpathPos);
+            MarkMapTilePresentationDirty(footpathPos);
+        }
     }
 
     bool FootpathIsBlockedByVehicle(const TileCoordsXYZ& position)

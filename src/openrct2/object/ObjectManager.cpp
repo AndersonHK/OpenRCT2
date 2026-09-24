@@ -8,8 +8,6 @@
  *****************************************************************************/
 
 #include "ObjectManager.h"
-#include "../world/TerrainPresentation.h"
-#include "../drawing/RetainedPeepState.h"
 
 #include "../Context.h"
 #include "../Diagnostic.h"
@@ -19,9 +17,12 @@
 #include "../core/Console.hpp"
 #include "../core/EnumUtils.hpp"
 #include "../core/JobPool.h"
+#include "../drawing/RetainedPeepState.h"
 #include "../localisation/StringIds.h"
 #include "../ride/Ride.h"
 #include "../ride/RideAudio.h"
+#include "../world/PathPresentation.h"
+#include "../world/TerrainPresentation.h"
 #include "BannerSceneryEntry.h"
 #include "LargeSceneryEntry.h"
 #include "Object.h"
@@ -59,7 +60,7 @@ namespace OpenRCT2
             } while (!_nextPeepAnimationCatalogEpoch.compare_exchange_weak(epoch, epoch + 1, std::memory_order_relaxed));
             return epoch;
         }
-    }
+    } // namespace
 
     /**
      * Represents an object that is to be loaded or is loaded and ready
@@ -123,9 +124,10 @@ namespace OpenRCT2
                     if (generations[slot] == UINT32_MAX)
                         throw std::overflow_error("Peep animation slot generation exhausted");
                     const auto generation = ++generations[slot];
-                    changes.push_back({ static_cast<uint32_t>(slot), generation,
-                        Drawing::CaptureRetainedPeepAnimationObject(
-                            *static_cast<const PeepAnimationsObject*>(object), static_cast<uint32_t>(slot), generation) });
+                    changes.push_back(
+                        { static_cast<uint32_t>(slot), generation,
+                          Drawing::CaptureRetainedPeepAnimationObject(
+                              *static_cast<const PeepAnimationsObject*>(object), static_cast<uint32_t>(slot), generation) });
                 }
                 // A fresh complete epoch also represents disappeared slots. Old readers keep their immutable facts.
                 // Conservatively refresh all loaded peep slots only at an object mutation, including alias/rebind/reset.
@@ -143,6 +145,36 @@ namespace OpenRCT2
             }
         }
 
+        static bool IsPathMaterialType(ObjectType type)
+        {
+            return type == ObjectType::paths || type == ObjectType::footpathSurface || type == ObjectType::footpathRailings
+                || type == ObjectType::pathAdditions;
+        }
+        // Covers slot layout changes as well as image allocation, including exceptional exits.
+        class PathMaterialMutation final
+        {
+            bool _active;
+
+        public:
+            explicit PathMaterialMutation(bool active = true)
+                : _active(active)
+            {
+                if (_active)
+                {
+                    AdvancePathObjectRevision();
+                    gPathObjectMutationDepth.fetch_add(1, std::memory_order_acq_rel);
+                }
+            }
+            ~PathMaterialMutation()
+            {
+                if (_active)
+                {
+                    AdvancePathObjectRevision();
+                    gPathObjectMutationDepth.fetch_sub(1, std::memory_order_release);
+                }
+            }
+        };
+
         class PeepAnimationMutation final
         {
             ObjectManager& _owner;
@@ -151,7 +183,8 @@ namespace OpenRCT2
 
         public:
             explicit PeepAnimationMutation(ObjectManager& owner, bool active = true) noexcept
-                : _owner(owner), _active(active && !owner._peepAnimationShutdown)
+                : _owner(owner)
+                , _active(active && !owner._peepAnimationShutdown)
             {
                 if (!_active)
                     return;
@@ -160,7 +193,10 @@ namespace OpenRCT2
                 // Load callbacks cannot acquire stale facts while images or slot bindings are changing.
                 _owner._peepAnimationCatalogAvailable = false;
             }
-            void Complete() noexcept { _complete = true; }
+            void Complete() noexcept
+            {
+                _complete = true;
+            }
             ~PeepAnimationMutation()
             {
                 if (!_active)
@@ -178,7 +214,6 @@ namespace OpenRCT2
             PeepAnimationMutation(const PeepAnimationMutation&) = delete;
             PeepAnimationMutation& operator=(const PeepAnimationMutation&) = delete;
         };
-
 
     public:
         explicit ObjectManager(IObjectRepository& objectRepository)
@@ -389,6 +424,7 @@ namespace OpenRCT2
 
         void ResetObjects() override
         {
+            PathMaterialMutation pathMutation;
             PeepAnimationMutation peepMutation(*this);
             for (auto& list : _loadedObjects)
             {
@@ -517,6 +553,7 @@ namespace OpenRCT2
             }
             if (slot)
             {
+                PathMaterialMutation pathMutation(IsPathMaterialType(objectType));
                 PeepAnimationMutation peepMutation(*this, objectType == ObjectType::peepAnimations);
                 auto* object = GetOrLoadObject(ori);
                 if (object != nullptr)
@@ -576,6 +613,7 @@ namespace OpenRCT2
             if (object == nullptr)
                 return;
 
+            PathMaterialMutation pathMutation(IsPathMaterialType(object->GetObjectType()));
             PeepAnimationMutation peepMutation(*this, object->GetObjectType() == ObjectType::peepAnimations);
             // Because it's possible to have the same loaded object for multiple
             // slots, we have to make sure find and set all of them to nullptr
@@ -734,6 +772,7 @@ namespace OpenRCT2
 
         void LoadObjects(std::vector<ObjectToLoad>& requiredObjects, bool reportProgress)
         {
+            PathMaterialMutation pathMutation;
             // The outer scope coalesces nested alias removals and publishes after the final slot layout is installed.
             PeepAnimationMutation peepMutation(*this);
             std::vector<Object*> objects;
@@ -865,8 +904,8 @@ namespace OpenRCT2
                     list.resize(otl.Index + 1);
                 }
                 list[otl.Index] = otl.LoadedObject;
-                    if (objectType == ObjectType::terrainSurface || objectType == ObjectType::terrainEdge)
-                        AdvanceTerrainObjectRevision();
+                if (objectType == ObjectType::terrainSurface || objectType == ObjectType::terrainEdge)
+                    AdvanceTerrainObjectRevision();
             }
 
             peepMutation.Complete();

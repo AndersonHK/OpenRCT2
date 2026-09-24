@@ -489,7 +489,11 @@ namespace OpenRCT2::GameActions
             if (!(it.element)->asPath()->hasAddition())
                 continue;
 
-            it.element->asPath()->setIsBroken(false);
+            if (it.element->asPath()->isBroken())
+            {
+                it.element->asPath()->setIsBroken(false);
+                MarkMapTilePresentationDirty(TileCoordsXY{ it.x, it.y }.toCoordsXY());
+            }
         } while (TileElementIteratorNext(&it));
 
         Drawing::GfxInvalidateScreen();
@@ -514,8 +518,12 @@ namespace OpenRCT2::GameActions
                 continue;
 
             auto* pathAdditionEntry = path->getAdditionEntry();
-            if (pathAdditionEntry != nullptr && pathAdditionEntry->flags & PATH_ADDITION_FLAG_IS_BIN)
+            if (pathAdditionEntry != nullptr && pathAdditionEntry->flags & PATH_ADDITION_FLAG_IS_BIN
+                && path->getAdditionStatus() != 0xFF)
+            {
                 path->setAdditionStatus(0xFF);
+                MarkMapTilePresentationDirty(TileCoordsXY{ it.x, it.y }.toCoordsXY());
+            }
 
         } while (TileElementIteratorNext(&it));
 
