@@ -9,8 +9,10 @@
     #include "VulkanWorldSurfacePipeline.h"
 
     #include "../gpu/GpuSelectedVehiclePaint.h"
+    #include "../gpu/GpuWorldBannerText.h"
     #include "../gpu/GpuWorldEntranceCatalog.h"
     #include "../gpu/GpuWorldFlatRideCatalog.h"
+    #include "../gpu/GpuWorldTrackCatalog.h"
     #include "VulkanShader.h"
 
     #include <array>
@@ -93,6 +95,7 @@ namespace OpenRCT2::Ui::Vulkan
         _shaderDirectory = std::move(shaderDirectory);
         const auto extent = resources.GetIndexedCanvas(0).GetExtent();
         _extent = { extent.width, extent.height };
+        constexpr VkDeviceSize textBytes = 64ull * 1024 * 1024;
         constexpr VkDeviceSize sourceBytes = Gpu::kWorldSurfaceMaximumChunkCount * Gpu::kWorldSurfaceChunkWidth
             * sizeof(Gpu::WorldSurfaceSourceRecord);
         constexpr VkDeviceSize pathBytes = Gpu::kWorldPathSourceCapacity * sizeof(Gpu::WorldPathSourceRecord);
@@ -102,13 +105,13 @@ namespace OpenRCT2::Ui::Vulkan
         constexpr VkDeviceSize indirectBytes = Gpu::kWorldSurfaceMaximumDrawCount * sizeof(VkDrawIndirectCommand);
         VkPhysicalDeviceProperties properties{};
         vkGetPhysicalDeviceProperties(device.GetPhysicalDevice(), &properties);
-        if (properties.limits.maxPerStageDescriptorStorageBuffers < 17 || properties.limits.maxDescriptorSetStorageBuffers < 17)
-            throw std::runtime_error("GPU world presentation requires seventeen storage-buffer descriptors");
+        if (properties.limits.maxPerStageDescriptorStorageBuffers < 18 || properties.limits.maxDescriptorSetStorageBuffers < 18)
+            throw std::runtime_error("GPU world presentation requires eighteen storage-buffer descriptors");
         if (properties.limits.maxPushConstantsSize < sizeof(WorldSurfaceConstants))
             throw std::runtime_error("GPU world presentation constants exceed the device push-constant range");
         if (properties.limits.maxComputeSharedMemorySize < 1025 * sizeof(uint32_t))
             throw std::runtime_error("GPU world materialization exceeds the device compute shared memory");
-        if (std::max({ sourceBytes, pathBytes, objectBytes, spriteBytes, visibleBytes })
+        if (std::max({ sourceBytes, pathBytes, objectBytes, spriteBytes, visibleBytes, textBytes })
             > properties.limits.maxStorageBufferRange)
             throw std::runtime_error("GPU terrain storage exceeds the device buffer range");
         _catalog.Initialise(
@@ -149,6 +152,9 @@ namespace OpenRCT2::Ui::Vulkan
         _selection.Initialise(
             device.GetPhysicalDevice(), _device, (16 + 262144) * sizeof(uint32_t),
             VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+        _bannerTexts.Initialise(
+            device.GetPhysicalDevice(), _device, textBytes,
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
         _selectedVehicle.Initialise(
             device.GetPhysicalDevice(), _device, kSelectedVehicleBytes,
             VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
@@ -174,6 +180,9 @@ namespace OpenRCT2::Ui::Vulkan
         _status.Dispose();
         _indirectCommands.Dispose();
         _visibleRecords.Dispose();
+        _bannerTexts.Dispose();
+        _uploadedBannerTexts.reset();
+        _bannerTextsInitialised = false;
         _selectedVehicle.Dispose();
         _uploadedSelectedVehicle.reset();
         _selectedVehicleInitialised = false;
@@ -189,6 +198,8 @@ namespace OpenRCT2::Ui::Vulkan
         _selection.Dispose();
         _uploadedSelection.reset();
         _selectionInitialised = false;
+        _uploadedBannerTexts.reset();
+        _bannerTextsInitialised = false;
         _uploadedRidePoses.reset();
         _ridePosesInitialised = false;
         _objectOffsets.clear();
@@ -286,9 +297,7 @@ namespace OpenRCT2::Ui::Vulkan
                     || uint64_t(props[family]) + uint64_t(props[family + 4]) * Gpu::kWorldPropMaterialWords > props.size())
                     throw std::invalid_argument("GPU prop catalog family range is invalid");
         }
-        if (!tracks.empty()
-            && (tracks.size() < 12 || tracks[0] != 0x5754524b || (tracks[1] & 255u) != 1 || tracks[11] != tracks.size()))
-            throw std::invalid_argument("GPU track catalog header is invalid");
+        Gpu::ValidateWorldTrackCatalog(tracks);
         if (_uploadedEpoch != scene.worldEpoch || _uploadedWidth != scene.width || _uploadedHeight != scene.height
             || _uploadedRevisions.size() != scene.chunks.size())
         {
@@ -696,6 +705,49 @@ namespace OpenRCT2::Ui::Vulkan
             _selectionInitialised = true;
         }
 
+        if (!_bannerTextsInitialised || _uploadedBannerTexts != scene.bannerTexts
+            || _uploadedTextDefault != scene.sprites->scrollingTextDefault)
+        {
+            constexpr std::array<uint32_t, 16> emptySelection{};
+            const auto source = scene.bannerTexts != nullptr ? std::span<const uint32_t>(scene.bannerTexts->words)
+                                                             : std::span<const uint32_t>(emptySelection);
+            if (source.size() < emptySelection.size() || source.size_bytes() > _bannerTexts.GetSize())
+                throw std::invalid_argument("GPU banner text columns exceeds its bounded buffer");
+            auto upload = frame.upload->Allocate(source.size_bytes(), alignof(uint32_t), Drawing::UploadCategory::world);
+            if (!upload)
+                throw std::runtime_error("Vulkan upload ring has no room for banner text columns");
+            std::memcpy(upload.data, source.data(), source.size_bytes());
+            std::memcpy(upload.data + 9 * sizeof(uint32_t), &scene.sprites->scrollingTextDefault, sizeof(uint32_t));
+            upload.RecordHostWrite();
+            VkBufferMemoryBarrier barrier{
+                .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+                .srcAccessMask = VK_ACCESS_SHADER_READ_BIT,
+                .dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+                .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                .buffer = _bannerTexts.GetBuffer(),
+                .offset = 0,
+                .size = VK_WHOLE_SIZE,
+            };
+            vkCmdPipelineBarrier(
+                frame.commandBuffer, (VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT),
+                VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 1, &barrier, 0, nullptr);
+            const VkBufferCopy copy{ upload.offset, 0, source.size_bytes() };
+            vkCmdCopyBuffer(frame.commandBuffer, upload.buffer, _bannerTexts.GetBuffer(), 1, &copy);
+            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            vkCmdPipelineBarrier(
+                frame.commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                (VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT), 0, 0, nullptr, 1, &barrier, 0,
+                nullptr);
+            upload.Record(Drawing::UploadMetric::bufferTransfer, source.size_bytes());
+            if (frame.telemetry)
+                frame.telemetry->Add(frame.telemetry->worldBufferCopyCalls, 1);
+            _uploadedBannerTexts = scene.bannerTexts;
+            _bannerTextsInitialised = true;
+            _uploadedTextDefault = scene.sprites->scrollingTextDefault;
+        }
+
         if (!_selectedVehicleInitialised || _uploadedSelectedVehicle != scene.selectedVehicle)
         {
             constexpr std::array<uint32_t, 16> emptySelection{};
@@ -1015,6 +1067,8 @@ namespace OpenRCT2::Ui::Vulkan
         _ridePosesInitialised = false;
         _uploadedSelection.reset();
         _selectionInitialised = false;
+        _uploadedBannerTexts.reset();
+        _bannerTextsInitialised = false;
         _uploadedSelectedVehicle.reset();
         _selectedVehicleInitialised = false;
     }
@@ -1040,6 +1094,8 @@ namespace OpenRCT2::Ui::Vulkan
             VkDescriptorSetLayoutBinding{ 16, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
             VkDescriptorSetLayoutBinding{ 17, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
             VkDescriptorSetLayoutBinding{ 18, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
+            VkDescriptorSetLayoutBinding{ 20, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
+                                          VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_FRAGMENT_BIT },
             VkDescriptorSetLayoutBinding{ 22, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
         };
         const VkDescriptorSetLayoutCreateInfo layoutInfo = {
@@ -1050,7 +1106,7 @@ namespace OpenRCT2::Ui::Vulkan
         CheckVk(vkCreateDescriptorSetLayout(_device, &layoutInfo, nullptr, &_descriptorSetLayout), "world surfaces layout");
         constexpr std::array poolSizes = {
             VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2 },
-            VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 17 },
+            VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 18 },
         };
         const VkDescriptorPoolCreateInfo poolInfo = {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
@@ -1083,6 +1139,7 @@ namespace OpenRCT2::Ui::Vulkan
         const VkDescriptorBufferInfo sources{ _sourceRecords.GetBuffer(), 0, _sourceRecords.GetSize() };
         const VkDescriptorBufferInfo spriteSets{ _spriteSets.GetBuffer(), 0, _spriteSets.GetSize() };
         const VkDescriptorBufferInfo outputs{ _visibleRecords.GetBuffer(), 0, _visibleRecords.GetSize() };
+        const VkDescriptorBufferInfo bannerTexts{ _bannerTexts.GetBuffer(), 0, _bannerTexts.GetSize() };
         const VkDescriptorBufferInfo selectedVehicle{ _selectedVehicle.GetBuffer(), 0, _selectedVehicle.GetSize() };
         const VkDescriptorBufferInfo commands{ _indirectCommands.GetBuffer(), 0, _indirectCommands.GetSize() };
         const VkDescriptorBufferInfo catalog{ _catalog.GetBuffer(), 0, _catalog.GetSize() };
@@ -1125,6 +1182,8 @@ namespace OpenRCT2::Ui::Vulkan
                                   VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &poses },
             VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 18, 0, 1,
                                   VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &selection },
+            VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 20, 0, 1,
+                                  VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &bannerTexts },
             VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 22, 0, 1,
                                   VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &selectedVehicle },
         };

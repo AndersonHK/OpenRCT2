@@ -27,6 +27,7 @@
 #include "../core/Numerics.hpp"
 #include "../core/UnitConversion.h"
 #include "../drawing/Drawing.Screen.h"
+#include "../drawing/ScrollingText.h"
 #include "../entity/EntityList.h"
 #include "../entity/EntityRegistry.h"
 #include "../entity/Guest.h"
@@ -4835,6 +4836,7 @@ namespace OpenRCT2
             formatNameTo(ft);
             FormatStringLegacy(rideNameBuffer, 256, STR_STRINGID, ft.Data());
         } while (nameExists(rideNameBuffer, id));
+        Drawing::ScrollingText::invalidate();
     }
 
     /**

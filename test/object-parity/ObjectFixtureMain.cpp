@@ -36,6 +36,7 @@
 #include <openrct2/object/ObjectRepository.h>
 #include <openrct2/object/PathAdditionObject.h>
 #include <openrct2/object/SmallSceneryObject.h>
+#include <openrct2/object/StationObject.h>
 #include <openrct2/object/WallObject.h>
 #include <openrct2/park/ParkFile.h>
 #include <openrct2/ride/RideData.h>
@@ -1033,6 +1034,101 @@ namespace
                             "travelling cars";
     }
 
+    void GlassEntrances(IContext& context, json_t& manifest)
+    {
+        auto& manager = context.GetObjectManager();
+        auto& state = getGameState();
+        const auto style = manager.GetLoadedObjectEntryIndex("rct2.station.space");
+        Require(style != kObjectEntryIndexNull, "Seed lacks futuristic station object");
+        const auto* stationObject = manager.GetLoadedObject<StationObject>(style);
+        Require(
+            stationObject != nullptr && stationObject->Flags.has(StationObjectFlag::isTransparent)
+                && stationObject->entranceBackGlassIndex != kImageIndexUndefined
+                && stationObject->entranceFrontGlassIndex != kImageIndexUndefined
+                && stationObject->exitBackGlassIndex != kImageIndexUndefined
+                && stationObject->exitFrontGlassIndex != kImageIndexUndefined,
+            "Seed lacks original futuristic glass entrance/exit art");
+        ride_type_t rideType = kRideTypeNull;
+        ObjectEntryIndex rideObject = kObjectEntryIndexNull;
+        for (const auto& ride : RideManager(state))
+            if (getTrackDrawerEntry(GetRideTypeDescriptor(ride.type)).trackStyle == TrackStyle::loopingRollerCoaster)
+            {
+                rideType = ride.type;
+                rideObject = ride.subtype;
+                break;
+            }
+        const auto grass = manager.GetLoadedObjectEntryIndex("rct2.terrain_surface.grass");
+        const auto rock = manager.GetLoadedObjectEntryIndex("rct2.terrain_edge.rock");
+        Require(
+            rideType != kRideTypeNull && grass != kObjectEntryIndexNull && rock != kObjectEntryIndexNull,
+            "Seed lacks glass fixture ride or terrain");
+        gameStateInitAll(state, TileCoordsXY{ 64, 64 });
+        for (int y = 0; y < 64; ++y)
+            for (int x = 0; x < 64; ++x)
+            {
+                auto* surface = MapGetSurfaceElementAt(TileCoordsXY{ x, y });
+                Require(surface != nullptr, "Glass fixture surface missing");
+                surface->setBaseZ(64);
+                surface->setClearanceZ(64);
+                surface->setSlope(0);
+                surface->setWaterHeight(0);
+                surface->setGrassLength(0);
+                surface->setOwnership(kUnowned);
+                surface->setParkFences(0);
+                surface->setSurfaceObjectIndex(grass);
+                surface->setEdgeObjectIndex(rock);
+            }
+        for (uint16_t i = 0; i < 16; ++i)
+        {
+            const uint8_t direction = static_cast<uint8_t>(i / 4);
+            const bool isExit = (i & 1) != 0, ghost = (i & 2) != 0;
+            const int x = 20 + (i % 4) * 8, y = 20 + (i / 4) * 8;
+            auto* ride = RideAllocateAtIndex(RideId::FromUnderlying(i));
+            Require(ride != nullptr, "Glass fixture ride allocation failed");
+            ride->type = rideType;
+            ride->subtype = rideObject;
+            ride->entranceStyle = style;
+            ride->status = RideStatus::closed;
+            ride->numStations = 1;
+            ride->customName = "Glass specimen " + std::to_string(i);
+            for (auto& colour : ride->trackColours)
+                colour = { direction % 2 == 0 ? Colour::lightBlue : Colour::brightRed, Colour::yellow, Colour::white };
+            auto& station = ride->getStation();
+            station.start = { (x - 1) * 32, y * 32 };
+            station.setBaseZ(64);
+            if (isExit)
+                station.exit = { x, y, 8, direction };
+            else
+                station.entrance = { x, y, 8, direction };
+            auto* entrance = TileElementInsert<EntranceElement>({ x * 32, y * 32, 64 }, 15);
+            Require(entrance != nullptr, "Glass fixture portal insertion failed");
+            entrance->setEntranceType(isExit ? EntranceType::rideExit : EntranceType::rideEntrance);
+            entrance->setRideIndex(ride->id);
+            entrance->setStationIndex(StationIndex::FromUnderlying(0));
+            entrance->setDirection(direction);
+            entrance->setClearanceZ(128);
+            entrance->setGhost(ghost);
+            manifest["objects"].push_back({ { "kind", "glassEntrance" },
+                                            { "x", x },
+                                            { "y", y },
+                                            { "baseZ", 64 },
+                                            { "ride", i },
+                                            { "station", style },
+                                            { "direction", direction },
+                                            { "isExit", isExit },
+                                            { "ghost", ghost },
+                                            { "primaryColour", static_cast<uint8_t>(ride->trackColours[0].main) },
+                                            { "label",
+                                              std::string(isExit ? "exit-" : "entrance-") + (ghost ? "ghost-" : "normal-")
+                                                  + std::to_string(direction) } });
+        }
+        state.ridesEndOfUsedRange = 16;
+        manifest["fixture"] = "original-futuristic-glass-entrances-v1";
+        manifest["scope"] = "Original futuristic entrance and exit back/front frames and glass, all four authored "
+                            "directions, normal and ghost, two primary colours; eight cameras; no simulation ticks. "
+                            "Original scrolling text remains in the reference and is not masked.";
+    }
+
     void StaticBuildings(IContext& context, json_t& manifest)
     {
         struct Specimen
@@ -1195,13 +1291,15 @@ int main(int argc, char** argv)
             && std::string_view(argv[3]) != "--track-regressions-opaque"
             && std::string_view(argv[3]) != "--track-regressions-inside" && std::string_view(argv[3]) != "--underground"
             && std::string_view(argv[3]) != "--construction-overlays" && std::string_view(argv[3]) != "--underground-view"
-            && std::string_view(argv[3]) != "--underground-view-control" && std::string_view(argv[3]) != "--photo-states"))
+            && std::string_view(argv[3]) != "--underground-view-control" && std::string_view(argv[3]) != "--photo-states"
+            && std::string_view(argv[3]) != "--glass-entrances" && std::string_view(argv[3]) != "--glass-entrances-inside"))
     {
         std::cerr << "Usage: object-fixture <new-output-directory> <seed-park> "
                      "[--static-buildings|--track-specials|--track-regressions|--track-regressions-opaque|--track-regressions-"
                      "inside|--underground|--underground-view|--underground-"
                      "view-control|--"
-                     "construction-overlays|--photo-states|--animated-buildings [0|1|2]]\n";
+                     "construction-overlays|--photo-states|--glass-entrances|--glass-entrances-inside|--animated-buildings "
+                     "[0|1|2]]\n";
         return EXIT_FAILURE;
     }
     int posePhase = 0;
@@ -1234,7 +1332,9 @@ int main(int argc, char** argv)
         || (argc == 4 && std::string_view(argv[3]) == "--underground");
     const bool overlays = argc == 4 && std::string_view(argv[3]) == "--construction-overlays";
     const bool photos = argc == 4 && std::string_view(argv[3]) == "--photo-states";
-    const bool largeFixture = buildings || specials || underground || overlays || photos;
+    const bool glassInside = argc == 4 && std::string_view(argv[3]) == "--glass-entrances-inside";
+    const bool glass = glassInside || (argc == 4 && std::string_view(argv[3]) == "--glass-entrances");
+    const bool largeFixture = buildings || specials || underground || overlays || photos || glass;
     json_t manifest = {
         { "schema", 1 },
         { "fixture", "original-world-object-art-v1" },
@@ -1277,7 +1377,9 @@ int main(int argc, char** argv)
         auto& manager = context->GetObjectManager();
         auto& state = getGameState();
         manifest["objectSources"] = ObjectSources(*context);
-        if (photos)
+        if (glass)
+            GlassEntrances(*context, manifest);
+        else if (photos)
             PhotoStates(*context, manifest);
         else if (overlays)
             ConstructionOverlays(*context, manifest);
@@ -1596,11 +1698,11 @@ int main(int argc, char** argv)
                 viewport.height = regressions ? 2304 : (largeFixture ? 2160 : 1024);
                 viewport.zoom = ZoomLevel{ static_cast<int8_t>(zoom) };
                 viewport.rotation = rotation;
-                if (undergroundView || regressionInside)
+                if (undergroundView || regressionInside || glassInside)
                     viewport.flags.set(ViewportFlag::undergroundInside);
                 const auto centre = Translate3DTo2DWithZ(
                     rotation,
-                    (specials || underground || overlays || photos)
+                    (specials || underground || overlays || photos || glass)
                         ? CoordsXYZ{ 1024, 1024, 128 }
                         : (buildings ? CoordsXYZ{ 896, 896, 64 } : CoordsXYZ{ 512, 512, 64 }));
                 viewport.viewPos = { centre.x - viewport.ViewWidth() / 2, centre.y - viewport.ViewHeight() / 2 };

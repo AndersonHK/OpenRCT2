@@ -504,6 +504,10 @@ namespace OpenRCT2
             const auto& ride = state.rides[i];
             if (ride.id.IsNull())
                 continue;
+            // Queue signs need authoritative status even for rides without a flat mechanism.
+            // Bit 0 retains its existing meaning: a supported mechanism pose is present.
+            words[0] = (ride.flags.has(RideFlag::brokenDown) ? 8u : 0u)
+                | (ride.status == RideStatus::open ? 16u : 0u);
             const auto style = getTrackDrawerEntry(GetRideTypeDescriptor(ride.type)).trackStyle;
             switch (style)
             {
@@ -523,7 +527,7 @@ namespace OpenRCT2
                 default:
                     continue;
             }
-            words[0] = 1u | (ride.flags.has(RideFlag::onTrack) ? 2u : 0u)
+            words[0] |= 1u | (ride.flags.has(RideFlag::onTrack) ? 2u : 0u)
                 | (ride.flags.has(RideFlag::breakdownPending) ? 4u : 0u) | (ride.flags.has(RideFlag::brokenDown) ? 8u : 0u);
             words[1] = uint32_t(ride.type) | (uint32_t(ride.subtype) << 16);
             if (style == TrackStyle::merryGoRound)
@@ -628,7 +632,7 @@ namespace OpenRCT2
                 out.allowedEdges = source.getAllowedEdges();
                 if (const auto* banner = source.getBanner(); banner != nullptr && !banner->isNull())
                 {
-                    out.objectSlot = banner->type;
+                    out.objectSlot = banner->getType();
                     out.primaryColour = static_cast<uint8_t>(banner->colour);
                 }
                 break;
@@ -784,6 +788,7 @@ namespace OpenRCT2
         batch.objectMaterials = CaptureWorldObjectMaterials();
         batch.rideMaterials = CaptureWorldRideMaterials(batch.epoch);
         batch.ridePoses = CaptureWorldRidePoses(batch.epoch, batch.sourceTick);
+        batch.bannerTexts = CaptureWorldBannerTexts(batch.rideMaterials);
         batch.clockHour = gRealTimeOfDay.hour;
         batch.clockMinute = gRealTimeOfDay.minute;
         const auto copyTile = [&batch](const uint32_t index, const uint32_t surfaceIndex) {
@@ -861,6 +866,7 @@ namespace OpenRCT2
             const auto& surfaceElement = *surface->asSurface();
             auto& terrain = change.surface.terrain;
             terrain.baseZ = surfaceElement.getBaseZ();
+            terrain.elementOrdinal = static_cast<uint32_t>(surface - firstElement);
             terrain.surfaceSlot = surfaceElement.getSurfaceObjectIndex();
             terrain.edgeSlot = surfaceElement.getEdgeObjectIndex();
             terrain.slope = surfaceElement.getSlope();
@@ -1235,6 +1241,7 @@ namespace OpenRCT2
         _objectMaterials = batch.objectMaterials;
         _rideMaterials = batch.rideMaterials;
         _ridePoses = batch.ridePoses;
+        _bannerTexts = batch.bannerTexts;
         _clockHour = batch.clockHour;
         _clockMinute = batch.clockMinute;
         _terrainMaterials = batch.terrainMaterials;

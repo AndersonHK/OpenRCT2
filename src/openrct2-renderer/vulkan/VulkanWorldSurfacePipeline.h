@@ -45,6 +45,10 @@ namespace OpenRCT2::Ui::Vulkan
         std::shared_ptr<const WorldRidePoseSnapshot> _uploadedRidePoses;
         bool _ridePosesInitialised{};
         Buffer _selection;
+        Buffer _bannerTexts;
+        std::shared_ptr<const Gpu::WorldBannerTextData> _uploadedBannerTexts;
+        uint32_t _uploadedTextDefault{ UINT32_MAX };
+        bool _bannerTextsInitialised{};
         std::shared_ptr<const std::vector<uint32_t>> _uploadedSelection;
         bool _selectionInitialised{};
         Buffer _spriteSets;

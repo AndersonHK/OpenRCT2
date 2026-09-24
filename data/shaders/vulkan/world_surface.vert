@@ -57,6 +57,7 @@ layout(location = 5) flat out ivec3 fPalettes;
 layout(location = 6) flat out float fZoom;
 layout(location = 7) flat out int fTexColourAtlas;
 layout(location = 8) flat out int fTexMaskAtlas;
+layout(location = 9) flat out uvec3 fBannerText;
 
 int euclideanRemainder(int value, int divisor)
 {
@@ -151,7 +152,11 @@ void main()
     hardwareDepth=uintBitsToFloat(depthBits-min(localLayer*2u,depthBits));
     gl_Position = vec4(ndc,hardwareDepth,1.0);
 
-    SpriteAssetDescriptor asset = uSpriteAssets.assets[vAsset];
+    // Procedural text uses an immutable column descriptor, not an atlas asset.
+    // Even an invisible text record must never dereference that offset as an asset.
+    bool bannerText=(vValid&64)!=0;
+    SpriteAssetDescriptor asset=SpriteAssetDescriptor(ivec2(0),0,0);
+    if(!bannerText) asset=uSpriteAssets.assets[vAsset];
     int texelY = vZoom > 0 ? (1 << vZoom) - 1 - yModifier : 0;
     ivec2 texelOffset = originalPathGeometry ? geometry.texelOffset : ivec2(xModifier,texelY);
     vec4 texture = vec4(vec2(asset.atlasOrigin + texelOffset), ATLAS_DIMENSION, ATLAS_DIMENSION);
@@ -165,4 +170,5 @@ void main()
     fZoom = vZoom >= 0 ? float(1 << vZoom) : 1.0 / float(1 << -vZoom);
     fTexColourAtlas = asset.atlasLayer;
     fTexMaskAtlas = asset.atlasLayer;
+    fBannerText=uvec3(vAsset,vPalettes,uCamera.sourceTick/2u);
 }

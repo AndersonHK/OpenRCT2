@@ -20,6 +20,7 @@
 #include "../core/Json.hpp"
 #include "../core/Path.hpp"
 #include "../core/String.hpp"
+#include "../drawing/ScrollingText.h"
 #include "../entity/EntityList.h"
 #include "../entity/Guest.h"
 #include "../entity/Peep.h"
@@ -576,6 +577,7 @@ static void renameRide(RideId rideId, u8string_view newName)
     }
 
     ride->customName = newName;
+    Drawing::ScrollingText::invalidate();
 }
 
 static void clearRideName(RideId rideId)

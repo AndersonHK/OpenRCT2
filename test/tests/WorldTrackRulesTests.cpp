@@ -9,6 +9,11 @@
 #include <set>
 #include <span>
 
+namespace TrackDepthRules
+{
+#include "../../data/shaders/vulkan/world_track_depth.glsl"
+}
+
 namespace
 {
     std::span<const uint32_t> RawRecipe(uint32_t style, uint32_t type, uint32_t sequence, uint32_t direction, uint32_t state)
@@ -82,6 +87,18 @@ namespace
                         }
         return { images.begin(), images.end() };
     }
+
+    std::vector<uint32_t> WithMetalSupportImages(const std::vector<uint32_t>& rails)
+    {
+        // Independent union of original MetalSupports.cpp base/slope, beam/joint
+        // and crossbeam banks. This must not add recipes to the rail sidecar or
+        // replace any rail image: residency alone includes these shared assets.
+        std::set<uint32_t> images(rails.begin(), rails.end());
+        for (const auto range : { std::pair{ 3124u, 3241u }, std::pair{ 3243u, 3389u }, std::pair{ 3658u, 3674u } })
+            for (uint32_t image = range.first; image <= range.second; ++image)
+                images.insert(image);
+        return { images.begin(), images.end() };
+    }
 } // namespace
 
 TEST(WorldTrackRulesTest, PresentLoopingRidesResolveOnlyTheirCompleteSharedStyle)
@@ -98,13 +115,23 @@ TEST(WorldTrackRulesTest, PresentLoopingRidesResolveOnlyTheirCompleteSharedStyle
         resolved.push_back(image);
         return image + 100000;
     });
-    const auto expected = StyleImages({ TrackStyle::loopingRollerCoaster });
-    ASSERT_FALSE(expected.empty());
+    const auto railImages = StyleImages({ TrackStyle::loopingRollerCoaster });
+    ASSERT_FALSE(railImages.empty());
+    const auto expected = WithMetalSupportImages(railImages);
     EXPECT_EQ(resolved, expected);
+    EXPECT_TRUE(std::includes(resolved.begin(), resolved.end(), railImages.begin(), railImages.end()));
     EXPECT_LT(resolved.size(), OpenRCT2::Drawing::GetNativeTrackRecipeImages().size());
     EXPECT_TRUE(std::binary_search(resolved.begin(), resolved.end(), 15004u));
     EXPECT_TRUE(std::binary_search(resolved.begin(), resolved.end(), 15009u));
     const auto& words = catalog.words;
+    ASSERT_EQ(words[1] & 255u, 2u);
+    const auto originalRails = OpenRCT2::Drawing::GetNativeTrackRecipeWords();
+    ASSERT_LE(words[2] + originalRails.size(), words.size());
+    EXPECT_TRUE(std::equal(originalRails.begin(), originalRails.end(), words.begin() + words[2]));
+    const auto originalSupports = OpenRCT2::Drawing::GetNativeTrackSupportWords();
+    ASSERT_EQ(words[13], originalSupports.size());
+    ASSERT_LE(words[12] + originalSupports.size(), words.size());
+    EXPECT_TRUE(std::equal(originalSupports.begin(), originalSupports.end(), words.begin() + words[12]));
     ASSERT_EQ(words[10], expected.size());
     for (size_t i = 0; i < expected.size(); ++i)
     {
@@ -148,7 +175,9 @@ TEST(WorldTrackRulesTest, InvertedRideResolvesBothSharedVariants)
         resolved.push_back(image);
         return image;
     });
-    EXPECT_EQ(resolved, StyleImages({ TrackStyle::flyingRollerCoaster, TrackStyle::flyingRollerCoasterInverted }));
+    EXPECT_EQ(
+        resolved,
+        WithMetalSupportImages(StyleImages({ TrackStyle::flyingRollerCoaster, TrackStyle::flyingRollerCoasterInverted })));
 }
 
 TEST(WorldTrackRulesTest, LoopingFlatOriginalIdsChainAndRotatedBounds)
@@ -175,6 +204,105 @@ TEST(WorldTrackRulesTest, LoopingFlatOriginalIdsChainAndRotatedBounds)
             EXPECT_EQ(recipe[10], 0u);
             EXPECT_EQ(recipe[11], UINT32_MAX);
         }
+}
+
+TEST(WorldTrackRulesTest, NamedLoopingFlatContactIsAboveItsCentreColumnWithoutMovingRaster)
+{
+    namespace Support = OpenRCT2::Ui::Gpu::MetalSupportRules;
+    constexpr int trackHeight = 128;
+    for (uint32_t direction = 0; direction < 4; ++direction)
+        for (uint32_t chain = 0; chain < 2; ++chain)
+        {
+            const auto rail = Recipe(
+                static_cast<uint32_t>(TrackStyle::loopingRollerCoaster),
+                static_cast<uint32_t>(OpenRCT2::TrackElemType::flat), 0, direction, chain);
+            ASSERT_EQ(rail.size(), 12u);
+            ASSERT_TRUE(TrackDepthRules::worldTrackHasCentreContactAnchor(0, 0, static_cast<int>(rail[0])));
+            // The immutable original draw offset remains (0,0,0). Only the
+            // explicitly named support contact supplies the depth anchor.
+            EXPECT_EQ(rail[1], 0u);
+            EXPECT_EQ(rail[2], 0u);
+            EXPECT_EQ(rail[3], 0u);
+            const int contactDepth = 16 + 16 + trackHeight;
+            for (int metal = 0; metal < 8; ++metal)
+            {
+                Support::WorldSupportState state;
+                Support::worldSupportInitialise(state);
+                Support::worldSupportSeedTerrain(state, 0, 0, 65535);
+                auto cursor = Support::worldMetalBegin(state, metal, 4, 4, direction, trackHeight, 0, false, false);
+                ASSERT_TRUE(cursor.accepted);
+                int maximumColumnDepth = -1;
+                int parts = 0;
+                while (cursor.phase >= 0)
+                {
+                    ASSERT_LT(parts, 64);
+                    const auto part = Support::worldMetalNext(cursor);
+                    if (part.imageOffset < 0)
+                        continue;
+                    ++parts;
+                    ASSERT_EQ(part.x, 16);
+                    ASSERT_EQ(part.y, 16);
+                    const int columnDepth = part.x + part.y + part.z;
+                    EXPECT_LT(columnDepth, contactDepth);
+                    maximumColumnDepth = std::max(maximumColumnDepth, columnDepth);
+                }
+                EXPECT_GT(parts, 0);
+                // The former raster-origin scalar puts the top beam in front
+                // of its own rail. This is the concrete regression covered.
+                EXPECT_GT(maximumColumnDepth, trackHeight);
+            }
+            EXPECT_FALSE(TrackDepthRules::worldTrackHasCentreContactAnchor(40, 0, static_cast<int>(rail[0])));
+            EXPECT_FALSE(TrackDepthRules::worldTrackHasCentreContactAnchor(0, 1, static_cast<int>(rail[0])));
+        }
+    EXPECT_FALSE(TrackDepthRules::worldTrackHasCentreContactAnchor(0, 0, 15350)); // Vertical loop art.
+}
+
+TEST(WorldTrackRulesTest, NamedStationFrontEaveIsBetweenOwnFenceAndAdjacentTallerBooth)
+{
+    // Original regular/inverted/tall shelter variants use roof heights22/30/46.
+    // The front cover includes that roof; its art still draws from (0,0,height).
+    constexpr int roofHeights[] = { 22, 30, 46 };
+    for (int variant = 0; variant < 3; ++variant)
+        for (int edge = 0; edge < 4; ++edge)
+        {
+            const auto marker = TrackDepthRules::worldTrackStationCoverMarker(edge, variant);
+            const auto anchor = TrackDepthRules::worldTrackStationCoverAnchor(marker);
+            if (edge == 0 || edge == 3)
+            {
+                EXPECT_EQ(marker, 0);
+                EXPECT_FALSE(anchor.valid); // Do not move the independent rear wall.
+                continue;
+            }
+            ASSERT_TRUE(anchor.valid);
+            EXPECT_EQ(anchor.x, edge == 1 ? 0 : 31);
+            EXPECT_EQ(anchor.y, edge == 1 ? 31 : 0);
+            EXPECT_EQ(anchor.z, roofHeights[variant] + 1);
+            const int eaveDepth = anchor.x + anchor.y + anchor.z;
+            // Regular platform height5/fence7; inverted platform6/fence8.
+            // The separately authored corner end-post (31,23) is not the
+            // front fence origin and need not sit behind the complete roof.
+            for (const int platformHeight : { 5, 6 })
+                EXPECT_GT(eaveDepth, 24 + platformHeight);
+            for (const int fenceHeight : { 7, 8 })
+                EXPECT_GT(eaveDepth, 31 + fenceHeight);
+            // The neighboring tile's front frame has explicit local(2,2).
+            // All cover variants remain behind a frame reaching above them.
+            const int tallerFrameHeight = roofHeights[variant] + 8;
+            EXPECT_LT(eaveDepth, 32 + 2 + 2 + tallerFrameHeight);
+            // The observed glass booth is30 units high: both ordinary and
+            // inverted roofs must leave it visible. A46-unit tall shelter is
+            // genuinely higher; do not invent a depth clamp for that case.
+            if (variant < 2)
+                EXPECT_LT(eaveDepth, 32 + 2 + 2 + 30);
+            else
+                EXPECT_GT(eaveDepth, 32 + 2 + 2 + 30);
+            const auto glassAnchor = TrackDepthRules::worldTrackStationCoverAnchor(marker);
+            EXPECT_EQ(glassAnchor.x, anchor.x);
+            EXPECT_EQ(glassAnchor.y, anchor.y);
+            EXPECT_EQ(glassAnchor.z, anchor.z);
+        }
+    for (const int ordinary : { 0, 15004, 22362, 22370, -2, -3, -4 })
+        EXPECT_FALSE(TrackDepthRules::worldTrackStationCoverAnchor(ordinary).valid);
 }
 
 TEST(WorldTrackRulesTest, EveryAuthoredRowStaysWithinItsImmutableCatalog)
@@ -606,4 +734,23 @@ TEST(WorldTrackRulesTest, WaterSplashFiltersRemainOrderedChildrenAndNeverBecomeI
             EXPECT_EQ(parts[35], 0u);
             EXPECT_EQ(parts[47], 0u);
         }
+}
+
+TEST(WorldTrackRulesTest, ProductionSupportCatalogIsAdmittedAndMalformedSupportRangesAreRejected)
+{
+    OpenRCT2::WorldRidePresentationMaterials source;
+    source.rides.resize(1);
+    source.rides[0].present = true;
+    source.rides[0].rideType = OpenRCT2::RIDE_TYPE_LOOPING_ROLLER_COASTER;
+    auto catalog = OpenRCT2::Ui::Gpu::BuildWorldTrackCatalog(source, [](uint32_t) { return 0u; });
+    EXPECT_NO_THROW(OpenRCT2::Ui::Gpu::ValidateWorldTrackCatalog(catalog.words));
+    const auto valid = catalog.words;
+    catalog.words[12] = static_cast<uint32_t>(catalog.words.size());
+    EXPECT_THROW(OpenRCT2::Ui::Gpu::ValidateWorldTrackCatalog(catalog.words), std::invalid_argument);
+    catalog.words = valid;
+    catalog.words[catalog.words[12] + 7]--;
+    EXPECT_THROW(OpenRCT2::Ui::Gpu::ValidateWorldTrackCatalog(catalog.words), std::invalid_argument);
+    catalog.words = valid;
+    catalog.words[1] = 3;
+    EXPECT_THROW(OpenRCT2::Ui::Gpu::ValidateWorldTrackCatalog(catalog.words), std::invalid_argument);
 }

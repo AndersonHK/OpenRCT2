@@ -13,6 +13,7 @@
 
     #include "../../../Context.h"
     #include "../../../core/UnitConversion.h"
+    #include "../../../drawing/ScrollingText.h"
     #include "../../../ride/Ride.h"
     #include "../../../ride/RideBreakdownMap.h"
     #include "../../../ride/RideData.h"
@@ -172,6 +173,7 @@ namespace OpenRCT2::Scripting
         if (ride != nullptr)
         {
             ride->customName = std::move(valueStr);
+            Drawing::ScrollingText::invalidate();
         }
         return JS_UNDEFINED;
     }

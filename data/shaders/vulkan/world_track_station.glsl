@@ -54,7 +54,8 @@ void worldStationCover(uint ride,uint edge,bool fence,int height,uint variant,
     if(edge==0u) {bounds=ivec3(0,1,height+1);size=ivec3(1,30,h);}
     if(edge==3u) {bounds=ivec3(1,0,height+1);size=ivec3(30,1,h);}
     uint palette=ghost?uCatalog.reserved:((colours&255u)+1u)|((((colours>>8u)&255u)+1u)<<8u);
-    WorldTrackPart p=worldStationPart(0u,ivec3(0,0,height),bounds,size,0u);
+    WorldTrackPart p=worldStationPart(uint(worldTrackStationCoverMarker(int(edge),int(variant))),
+        ivec3(0,0,height),bounds,size,0u);
     uint parent=worldTrackDrawParts.count;
     worldTrackAppend(p,base+offset,palette,ghost?1u:2u);
     uint glass=uEntrances.words[station+14u];

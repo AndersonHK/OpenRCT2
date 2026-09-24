@@ -343,10 +343,10 @@ namespace OpenRCT2::TileInspector
                 newBanner->id = newId;
 
                 // If the linked ride has been destroyed since copying, unlink the pasted banner
-                if (newBanner->flags.has(BannerFlag::linkedToRide) && GetRide(newBanner->rideIndex) == nullptr)
+                if (newBanner->getFlags().has(BannerFlag::linkedToRide) && GetRide(newBanner->getRideIndex()) == nullptr)
                 {
-                    newBanner->flags.unset(BannerFlag::linkedToRide);
-                    newBanner->rideIndex = RideId::GetNull();
+                    newBanner->setFlag(BannerFlag::linkedToRide, false);
+                    newBanner->setRideIndex(RideId::GetNull());
                 }
 
                 // Use the new banner index

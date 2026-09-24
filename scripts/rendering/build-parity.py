@@ -109,7 +109,7 @@ def main():
     after = source_manifest(root)
     changes = sorted(name for name in before.keys() | after.keys() if before.get(name) != after.get(name))
     artifacts = [root / "bin/tests.exe", root / "bin/openrct2.exe", root / "bin/openrct2-cli.exe",
-                 root / "bin/libopenrct2.lib"]
+                 root / "bin/libopenrct2.lib", root / "bin/libopenrct2renderer.lib"]
     artifacts.extend(sorted((root / "bin/data/shaders/vulkan").glob("*.spv")))
     missing = [str(path) for path in artifacts if not path.is_file()]
     shaders_compiled = 'PARITY_VULKAN_SHADERS_COMPILED' in (output / 'build.log').read_text(encoding='utf-8', errors='replace')

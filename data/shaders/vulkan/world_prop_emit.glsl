@@ -33,6 +33,7 @@ void visitProp(uint index,uvec2 tile,uint destination,bool writeRecords,inout ui
 {
     WorldObjectRecord object=uObjects.records[index];
     if(object.kind>=4u || (object.flags&2u)!=0u || object.objectSlot>=uProps.words[4u+object.kind]) return;
+    if(object.kind<2u && (uScene.viewFlags&(1u<<18))!=0u) return;
     uint material=uProps.words[object.kind]+object.objectSlot*16u;
     uint spriteBase=uProps.words[material],spriteCount=uProps.words[material+1u];
     if(spriteCount==0u) return;
@@ -92,9 +93,23 @@ void visitProp(uint index,uvec2 tile,uint destination,bool writeRecords,inout ui
             worldSetPaintBounds(tile,ivec3(part.boundsX,part.boundsY,object.baseZ+part.boundsZ),
                 ivec3(part.sizeX,part.sizeY,part.sizeZ),i==begin?0u:1u);
             worldSetCoplanarSurfaceLayer();
+            // Banner posts/front panel have separate authored anchors although
+            // both bitmaps are positioned at the tile origin, sixteen units low.
+            if(object.kind==3u)
+                worldSetComponentDepthAnchor(tile,ivec3(part.boundsX,part.boundsY,object.baseZ+part.boundsZ));
             emitObjectSprite(tile,object.baseZ+part.z,ivec2(part.x,part.y),spriteBase+uint(part.imageOffset),
                 palettes,effects,destination,writeRecords,count);
         }
+    }
+    if(object.kind==3u && parts.count!=0)
+        worldEmitOrdinaryBannerText(tile,object.baseZ,(direction+int(object.data0>>24u))&3,ghost,
+            object.reserved>>16u,uProps.words[material+11u],destination,writeRecords,count);
+    if(object.kind==0u)
+        worldSupportSmallScenery(worldSupportState,object.baseZ,int(uProps.words[material+4u]),int(flags),
+            int((object.data0>>8u)&255u),int(uScene.rotation));
+    else if(object.kind==1u) {
+        uint supportFlags=uProps.words[uProps.words[material+9u]+object.sequence*4u+3u];
+        worldSupportLargeScenery(worldSupportState,object.clearanceZ,(supportFlags&1u)!=0u,(supportFlags&2u)!=0u);
     }
 }
 #endif

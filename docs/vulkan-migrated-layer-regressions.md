@@ -1,5 +1,7 @@
 # Migrated-layer regression checkpoint
 
+Latest concise status: [native supports and sign text checkpoint](vulkan-supports-text-checkpoint.md).
+
 The preserved implementation checkpoint is `802f28341e`, deployed build112. It provides native static rides, portals, station pieces and expanded tracks, with two successful 4K/12,000-tick runs at358.9–359.8 TPS and143.9 CPU draw attempts per second (GPU timing samples closely matched those attempts). User testing on2026-09-24 accepted the progress but identified the issues below. This is not full renderer acceptance or measured display scanout.
 
 The next checkpoint closes behavior within migrated families before adding unrelated world categories. Previously parked flat-ride bodies now need their operating poses; this request supersedes that temporary deferral. Peep/general world vehicle migration remains a separate category, but existing vehicle-window previews must work.
@@ -179,7 +181,51 @@ The deployed135 close-up exposes sprite slicing caused by gradients across indiv
 - [x] Record underground skirts as an owner-accepted divergence in addition to the previously accepted exterior skirt. Exact reports remain unmasked.
 - [ ] Fix ordinary station/track-water ordering, partial shop coverage, underground grid/filter relationships and tower apertures. These remain failures, not accepted divergences.
 - [ ] Replace finite local-layer bias that can cross neighbouring object depths; qualify independent equal-depth ties.
-- [ ] Run a clean4K/12000-tick137 performance check when the owner's manual session has finished; do not compete with it or reuse135 timings as137 evidence.
+- [x] Run a clean4K/12000-tick137 check after the manual session:359.717TPS,143.977accepted presents/s,0.172msCPU draw,2.491msGPU; maximum presentation gap15.532ms. The earlier57ms stall did not recur; its cause remains open.
 - [ ] Complete persistent component topology; GPU materialization still reconstructs components per frame from retained raw state.
 
 Pathological partially buried Cinema is now explicitly **low priority** at the owner's request; it remains a known mismatch rather than an exception. Original-art parity, other migrated-layer interactions and the intermittent long simulation/presentation stall remain open. See [the native-resolution visual review](vulkan-constant-component-depth-review.md).
+
+
+### Next candidate: supports, footprint anchors and sign text
+
+Everything Park is the primary visual and performance sample at the owner's request. Inspect zoom0 closeups of the flat-ride row, queue signs, entrance styles and elevated paths/tracks. Do not substitute a downscaled full-park image for inspection of component order. Retain exact differences and separate unmigrated entities from regressions in migrated objects.
+
+- [x] Author camera-relative nearest-footprint tile anchors for whole multi-tile ride bodies; keep floors/fences tile-local and depth constant over each sprite.
+- [x] Separate entrance rear/front pane ownership and queue-banner pole anchors from common raster offsets.
+- [x] Author native path box/pole and metalA/B support generators, immutable track support programs and shared nine-segment terrain/element state. These are implementation milestones; visual acceptance is pending.
+- [x] Publish immutable banner/queue glyph columns only when text/assets change. Shader chooses scroll phase from the snapshot tick; no per-frame bitmap uploads.
+- [x] Pass original metal-support oracle, sprite-font column/lifecycle tests and actual-GPU tick-only scrolling checks (139:60/61, utility-mask correction141:8/8; no Vulkan validation diagnostics). The production catalog v2 admission regression is covered explicitly.
+- [ ] Inspect Everything Park zoom0 closeups against pristine upstream, including all camera rotations where anchors differ; fix any new support/deck intersections.
+- [x] Implement streamed wooden A/B support rules and immutable authoring programs, including named rail ownership for steep-transition caps. Authoring passes58 Python checks; C++/GPU/visual qualification is pending.
+- [ ] Complete station-specific supports, the six rejected authoring programs, generic helix helpers and static-ride support-state effects. General wooden/metal/path support implementation does not close these gaps.
+- [ ] Extend shared scrolling text to wall/large scenery signs and entrance/park signs with their own original positioning semantics.
+- [ ] Qualify TrueType text/hinting/font reload as well as sprite-font text; fix invalidation in the public hinting toggle.
+- [ ] Re-run4K/12000tick performance and pacing with the new layers. Build137 numbers do not qualify this candidate.
+- [ ] Deploy and preserve a commented checkpoint with the remaining failures.
+
+### Everything Park close-up findings, build141
+
+The four rotation3 zoom0 paired captures are in `obj/vulkan-parity/everything141-closeups-01`. Each image is1024x768 per renderer (upstream left, native right), with original assets and identical saved state/camera. Exact reports are unmasked:58,143 differing pixels in flats,106,022 in queues,167,943 in paths,41,320 in entrances. Missing guests/vehicles contribute to these totals; they do not excuse regressions in already migrated objects.
+
+Root and an agent inspected these images directly. Metal supports and queue/banner text are now visible, and Cinema/Haunted House bodies no longer collapse behind their floors. New support/rail overlaps and pale checkerboard path surfaces remain failures. Wooden lattice is still absent in this binary; its source integration follows141. Platform fencing requires its own named physical-edge anchor, separate from both the floor raster offset and whole-body footprint anchor. The entrance-area camera does not contain the futuristic glass entrance, so it cannot qualify that specific fix.
+
+The owner explicitly selected Everything Park over personal saves for this work. Future samples should use closer crops and additional cameras/rotations of this same park. Do not mark overall parity from a full-map thumbnail or from CPU rule tests alone.
+
+Build141 clean4K/12000-tick control (`performance-support-text141-12000-01`):359.958TPS,143.743accepted presents/s,0.153msCPU draw,3.192msGPU, with all4792submitted frames accepted and the same final simulation checksum as137. GPU cost rises0.701ms from137 as support/text geometry returns. P99accepted interval remains9.2ms; the maximum is33.135ms alongside a30.642ms simulation tick. Average throughput passes; intermittent pacing is not fixed. Pipeline preparation took14.519s with a137 cache seed, outside measured ticks. This is still partial-world performance, not full migration acceptance.
+
+The exact glass fixture is Everything Park ride360 (Mini Suspended Hoverboards), station object `rct2.station.abstract`: entrance tile94,117 and exit94,116. Camera3024,3744,336 at zoom0 targets both. Its adjacent queue banner is tile93,119. This is decoded from the saved park, not guessed from the screen; the source facts are retained in `obj/vulkan-parity/everything-glass-locator/decoded.json`.
+
+Build142 passes69 focused tests (including wooden oracle and new fence/path/flat-contact contracts) with zero validation diagnostics. Six zoom0 rotation3 Everything Park views were captured in `everything142-closeups-01`; initial paired differences are55,987flats,106,022queues,84,180paths,36,236entrances,83,607glass and56,893wooden-tree. The large wooden coaster lattice is restored, and the near platform fences improve visibly. The path checker pattern is unchanged: the source-proven under-deck support-depth correction did **not** fix that appearance and must not be credited as doing so. The flat view's missing silver transport deck is a separate track omission, not a checkerboard-path example.
+
+The glass capture distinguishes two issues: the small entrance/exit booth frames and panes look coherent in rotation3, but station shelter front/top panels are covered by their own platform/structure, and entrance text is blank. Candidate143 adds named front-eave anchors (roof and glass share one scalar, unchanged raster) and ride-entrance text from the existing immutable queue-name/closed columns. Other rotations and actual images remain required before accepting these changes. Curved/cross-element metal support intersections remain open; the qualified LoopingRC straight-flat contact anchor does not claim to fix them.
+
+**Reference correction:** The141/142 upstream closeup profiles omitted `general.rct1_path`. An environment/platform path alone does not enable `GfxLoadCsg`. Native explicitly loaded CSG; upstream used fallback images. The checker tile is `rct1aa.footpath_surface.tiles_grey`, whose normal images are CSG43881..43931 and whose no-CSG fallback is TARMAC/ROAD. Thus the checker tiles are correct native artwork, not a path regression. The numerical closeup differences above are retained as diagnostic history but **do not qualify equal-asset pixel parity**. Re-run with explicit RCT1/RCT2 configuration for both renderers. Support/rail and station-shelter overlap findings remain visually concrete; the path support/deck scalar constraint is a separate source-derived fix and did not change the checker art.
+
+Build142 clean4K/12000-tick control:359.959TPS,143.774accepted presents/s,0.141msCPU draw,3.274msGPU. All4793frames accepted; simulation checksum unchanged. Adding the wooden support layer costs another0.082msGPU relative to141. P99accepted interval9.1ms, maximum36.558ms alongside34.304ms simulation; the intermittent wait/pacing gate remains open. Pipeline preparation14.279s is outside measurement. Receipt: `performance-support-text142-12000-01/summary.json`.
+
+Build143 compiles without warnings/errors and passes71 focused tests without Vulkan validation diagnostics. Matched-art captures now explicitly seed identical RCT1/RCT2 configuration and hash CSG/G1 inputs. Native loaded-CSG state is observed in its capture report; pristine upstream remains a path-plumbed binary without an `IsCsgLoaded` diagnostic, so the receipt states that limitation instead of fabricating a runtime observation.
+
+Build 144 final qualification and deployment: the four enlarged glass-station comparisons confirm the r1/r2 roof-over-entrance regression is resolved. Roof, text and pane components retain constant scalar depths. Path/support gallery images use matched RCT1 art; blank front-row signs remain unclassified and must not be dismissed as deferred families. Detailed evidence and checklist: `vulkan-supports-text-checkpoint.md`.
+
+The final 4K, 12,000-tick run achieves 359.960 TPS and 143.774 accepted presents/s, 0.151 ms CPU draw and 3.271 ms GPU frame. All 4,793 submissions were accepted; P99 accepted interval is 9.1 ms, maximum 24.101 ms, with a longest simulation batch of 22.196 ms. Startup pipeline preparation is 15.324 s outside measurement. Hidden presentation is not scanout qualification, and neither pacing nor full-render parity is closed. Build 144 is deployed to OpenRCT2Mod with 28 files verified and 5 backed-up replacements; deployment receipt `obj/vulkan-parity/deploy-supports-text144-01/receipt.json` has SHA256 `dc7c0201f09e7512d218589f2f895d2ac9145913c06d10d8a9347c67b9099710`. Saves, profiles and objects were untouched.

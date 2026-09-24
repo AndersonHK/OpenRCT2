@@ -1302,7 +1302,7 @@ namespace OpenRCT2::Scripting
             case TileElementType::banner:
             {
                 auto* el = element->asBanner();
-                return JS_NewUint32(ctx, el->getBanner()->type);
+                return JS_NewUint32(ctx, el->getBanner()->getType());
             }
             default:
                 return JS_NULL;
@@ -1369,7 +1369,7 @@ namespace OpenRCT2::Scripting
             {
                 JS_UNPACK_UINT32(index, ctx, jsValue);
                 auto* el = element->asBanner();
-                el->getBanner()->type = index;
+                el->getBanner()->setType(index);
                 Invalidate(data);
                 break;
             }
@@ -1568,7 +1568,7 @@ namespace OpenRCT2::Scripting
             case TileElementType::banner:
             {
                 auto* el = element->asBanner();
-                return JS_NewUint32(ctx, EnumValue(el->getBanner()->textColour));
+                return JS_NewUint32(ctx, EnumValue(el->getBanner()->getTextColour()));
             }
             default:
                 return JS_NULL;
@@ -1606,7 +1606,7 @@ namespace OpenRCT2::Scripting
             case TileElementType::banner:
             {
                 auto* el = element->asBanner();
-                el->getBanner()->textColour = static_cast<Drawing::TextColour>(value);
+                el->getBanner()->setTextColour(static_cast<Drawing::TextColour>(value));
                 Invalidate(data);
                 break;
             }
@@ -2263,15 +2263,15 @@ namespace OpenRCT2::Scripting
         if (idx != BannerIndex::GetNull())
         {
             auto banner = GetBanner(idx);
-            banner->text = value;
+            banner->setText(value);
             if (element->getType() != TileElementType::banner)
             {
                 if (value.empty())
-                    banner->rideIndex = BannerGetClosestRideIndex({ banner->position.toCoordsXY(), 16 });
+                    banner->setRideIndex(BannerGetClosestRideIndex({ banner->position.toCoordsXY(), 16 }));
                 else
-                    banner->rideIndex = RideId::GetNull();
+                    banner->setRideIndex(RideId::GetNull());
 
-                banner->flags.set(BannerFlag::linkedToRide, !banner->rideIndex.IsNull());
+                banner->setFlag(BannerFlag::linkedToRide, !banner->getRideIndex().IsNull());
             }
         }
         return JS_UNDEFINED;
@@ -2282,7 +2282,7 @@ namespace OpenRCT2::Scripting
         auto data = gScTileElement.GetOpaque<OpaqueTileElementData*>(thisValue);
         auto* el = data->element->asBanner();
         if (el != nullptr)
-            return JS_NewBool(ctx, el->getBanner()->flags.has(BannerFlag::noEntry));
+            return JS_NewBool(ctx, el->getBanner()->getFlags().has(BannerFlag::noEntry));
         else
             return JS_NULL;
     }
@@ -2294,7 +2294,7 @@ namespace OpenRCT2::Scripting
         auto* el = data->element->asBanner();
         if (el != nullptr)
         {
-            el->getBanner()->flags.set(BannerFlag::noEntry, value);
+            el->getBanner()->setFlag(BannerFlag::noEntry, value);
             Invalidate(data, true);
         }
         return JS_UNDEFINED;
@@ -2397,15 +2397,15 @@ namespace OpenRCT2::Scripting
             GetContext()->GetScriptEngine().LogPluginInfo("No free banners available.");
         else
         {
-            banner->text = {};
+            banner->setText({});
             banner->colour = Drawing::Colour::black;
-            banner->textColour = Drawing::TextColour::black;
-            banner->flags = {};
+            banner->setTextColour(Drawing::TextColour::black);
+            banner->setFlags({});
             if (element->getType() == TileElementType::wall)
-                banner->flags.set(BannerFlag::isWall);
+                banner->setFlag(BannerFlag::isWall, true);
             if (element->getType() == TileElementType::largeScenery)
-                banner->flags.set(BannerFlag::isLargeScenery);
-            banner->type = 0;
+                banner->setFlag(BannerFlag::isLargeScenery, true);
+            banner->setType(0);
             banner->position = TileCoordsXY(coords);
 
             if (element->getType() == TileElementType::wall || element->getType() == TileElementType::largeScenery)
@@ -2413,8 +2413,8 @@ namespace OpenRCT2::Scripting
                 RideId rideIndex = BannerGetClosestRideIndex({ coords, element->baseHeight });
                 if (!rideIndex.IsNull())
                 {
-                    banner->rideIndex = rideIndex;
-                    banner->flags.set(BannerFlag::linkedToRide);
+                    banner->setRideIndex(rideIndex);
+                    banner->setFlag(BannerFlag::linkedToRide, true);
                 }
             }
 

@@ -99,6 +99,7 @@ namespace OpenRCT2::Ui::Gpu
             range(e, item, 4 + uint64_t(item.tiles.size()) * 4);
             result.words[e + 9] = static_cast<uint32_t>(result.words.size());
             result.words[e + 10] = static_cast<uint32_t>(item.tiles.size());
+            result.words[e + 11] = item.scrollingMode;
             for (const auto& tile : item.tiles)
             {
                 result.words.push_back(static_cast<uint32_t>(tile.zClearance));
@@ -116,6 +117,7 @@ namespace OpenRCT2::Ui::Gpu
             range(e, item, (item.flags & (1u << 4)) != 0 ? 36 : 37);
             result.words[e + 3] = item.flags2;
             result.words[e + 4] = item.height;
+            result.words[e + 11] = item.scrollingMode;
         }
         for (uint32_t slot = 0; slot < sizes[3]; slot++)
         {
@@ -123,6 +125,7 @@ namespace OpenRCT2::Ui::Gpu
             if (!item.present || (usage && !usage->Contains(3, slot)))
                 continue;
             range(start(3, slot), item, 8);
+            result.words[start(3, slot) + 11] = item.scrollingMode;
         }
         return result;
     }

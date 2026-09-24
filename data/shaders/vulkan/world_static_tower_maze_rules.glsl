@@ -12,7 +12,7 @@ STATIC_FN WorldFlatParts worldTowerParts(int family,int sequence,int direction,b
 {
     WorldFlatParts r;r.count=0;
 #ifdef __cplusplus
-    for(int i=0;i<WORLD_FLAT_PART_CAPACITY;i++) r.parts[i]=WorldFlatPart(0,0,0,0,0,0,0,0,0,0,0,0,0);
+    for(int i=0;i<WORLD_FLAT_PART_CAPACITY;i++) r.parts[i]=WorldFlatPart(0,0,0,0,0,0,0,0,0,0,0,0,0,0);
 #endif
     if(family<20 || family>22) return r;
     int segment=family==20?14987:(family==21?14565:14558);
@@ -41,7 +41,7 @@ STATIC_FN WorldFlatParts worldTowerParts(int family,int sequence,int direction,b
 // per-invocation parts array. image=-1 means the raw wall bits omit this part.
 STATIC_FN WorldFlatPart worldMazePart(int index,int rawEntry,int direction,int wallStyle)
 {
-    WorldFlatPart p=WorldFlatPart(-1,0,0,0,0,0,0,0,0,2,1,1,9);
+    WorldFlatPart p=WorldFlatPart(-1,0,0,0,0,0,0,0,0,2,1,1,9,0);
     if(index<0 || index>=26 || direction<0 || direction>3) return p;
     if(index==0) {
         p.image=2485;p.bz=0;p.sx=32;p.sy=32;p.sz=0;

@@ -20,6 +20,7 @@ namespace OpenRCT2
         int32_t waterHeight{};            // World Z units, zero means no water.
         uint8_t present{};                // Visible, non-ghost surface; independent of catalog/admission support.
         uint8_t bounded{};                // Historical 32x32 diagnostic eligibility, never a full-map presence predicate.
+        uint32_t elementOrdinal{};        // Surface position in the raw tile stack; support state starts here.
     };
     struct TerrainPresentationMaterial
     {

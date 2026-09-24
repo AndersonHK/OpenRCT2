@@ -467,5 +467,122 @@ class TunnelAuthoringTest(unittest.TestCase):
         self.assertEqual(result,[(123,2,3,44,5,6,47,8,9,10,0,-1)])
 
 
+class MetalSupportAuthoringTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.translator=EXTRACTOR.SupportTranslator(ROOT)
+
+    def capture(self,body,direction=0):
+        source=EXTRACTOR.Source('supports.cpp','void Fixture() {'+body+'}')
+        t=self.translator;t.support_ops=[];t.support_gaps=set();t.support_predicate=0;parts=[]
+        t.paint(source,'Fixture',0,direction,40,0,parts)
+        return parts,list(t.support_ops)
+
+    def test_checker_branches_are_conditional_and_keep_source_order(self):
+        body=(rail(100)+'if(TrackPaintUtilShouldPaintSupports(session.MapPosition)) {'
+            'MetalASupportsPaintSetup(session,supportType.metal,MetalSupportPlace::centre,0,height,session.SupportColours);'
+            '} else {MetalBSupportsPaintSetupRotated(session,MetalSupportType::fork,MetalSupportPlace::topCorner,direction,-8,height+16,session.SupportColours);}'
+            'PaintUtilSetSegmentSupportHeight(session,PaintUtilRotateSegments(EnumsToFlags(PaintSegment::top,PaintSegment::centre),direction),0xffff,0);'
+            'PaintUtilSetGeneralSupportHeight(session,height+32);'+rail(101))
+        parts,ops=self.capture(body,1)
+        self.assertEqual([p[0] for p in parts],[100,101])
+        self.assertEqual(ops,[(1,255,4,4,40,0,0,0,1,1,1,0),(2,1,0,1,56,-8,0,0,2,1,1,0),
+                             (3,0,0,4,65535,0,260,0,0,1,1,0),(4,0,0,4,72,0,0,32,0,1,1,0)])
+
+    def test_side_by_side_rotates_graphic_without_rotating_placement_twice(self):
+        for direction in range(4):
+            _,ops=self.capture('DrawSupportsSideBySide(session,direction,height,session.SupportColours,supportType.metal,4);',direction)
+            self.assertEqual([op[2] for op in ops],[6,7] if direction&1 else [5,8])
+            self.assertTrue(all(op[3]==direction and op[11]==1 for op in ops))
+
+    def test_all_eight_explicit_metal_types_and_negative_extra_remain_raw(self):
+        for expected,name in enumerate(('tubes','fork','boxed','stick','thick','truss','tubesInverted','boxedCoated')):
+            _,ops=self.capture('MetalBSupportsPaintSetup(session,MetalSupportType::'+name+
+                              ',MetalSupportPlace::bottomRightSide,-16,height-8,session.SupportColours);')
+            self.assertEqual(ops,[(2,expected,8,4,32,-16,0,0,0,1,0,0)])
+
+    def test_nested_checker_never_runs_contradictory_branch(self):
+        metal='MetalASupportsPaintSetup(session,supportType.metal,MetalSupportPlace::centre,0,height,session.SupportColours);'
+        _,ops=self.capture('if(TrackPaintUtilShouldPaintSupports(session.MapPosition)) {'
+                           'if(!TrackPaintUtilShouldPaintSupports(session.MapPosition)) {'+metal+'}}')
+        self.assertFalse(ops)
+
+    def test_unsupported_wooden_call_is_explicit_without_dropping_rail(self):
+        parts,ops=self.capture('WoodenASupportsPaintSetup(session);'+rail(77))
+        self.assertEqual(parts[0][0],77);self.assertFalse(ops)
+        self.assertIn('WoodenASupportsPaintSetup',self.translator.support_gaps)
+
+    def test_checker_cannot_silently_capture_a_rail_branch(self):
+        with self.assertRaises(EXTRACTOR.Unsupported):
+            self.capture('if(TrackPaintUtilShouldPaintSupports(session.MapPosition)) {'+rail(5)+'}')
+
+    def test_real_looping_flat_keeps_rails_and_all_three_support_operations(self):
+        t=self.translator
+        for direction in range(4):
+            source,name=t.getter(t.getters[39],0)
+            t.support_ops=[];t.support_gaps=set();t.support_predicate=0;parts=[]
+            t.paint(source,name,0,direction,0,0,parts,track_type=0)
+            self.assertEqual(parts[0][0],15004+(direction&1))
+            self.assertEqual([op[0] for op in t.support_ops],[1,3,4])
+            self.assertEqual(t.support_ops[0][8],1)
+            self.assertFalse(t.support_gaps)
+
+
+class WoodenAuthoringTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls): cls.t=EXTRACTOR.WoodenSupportTranslator(ROOT)
+    def capture(self,body,direction=0,sequence=0):
+        source=EXTRACTOR.Source('fixture.cpp','void Fixture(){'+body+'}')
+        t=self.t;t.support_ops=[];t.support_gaps=set();t.support_predicate=0;parts=[]
+        t.paint(source,'Fixture',sequence,direction,40,0,parts)
+        return parts,t.support_ops
+    def test_unrotated_direction_is_not_discarded(self):
+        _,ops=self.capture('WoodenASupportsPaintSetup(session,WoodenSupportType::mine,WoodenSupportSubType::corner2,height-8,session.SupportColours,WoodenSupportTransitionType::up25Deg,3);')
+        self.assertEqual(ops[0],(5,1,4,3,32,2,0,0,0,1,0,0))
+    def test_rotated_default_type_and_transition(self):
+        for d in range(4):
+            _,ops=self.capture('WoodenBSupportsPaintSetupRotated(session,supportType.wooden,WoodenSupportSubType::nwSe,direction,height,session.SupportColours);',d)
+            self.assertEqual(ops[0],(6,255,1,d,40,255,0,0,0,1,0,2))
+    def test_none_subtype_does_not_create_art(self):
+        _,ops=self.capture('WoodenASupportsPaintSetup(session,WoodenSupportType::truss,WoodenSupportSubType::null,height,session.SupportColours);')
+        self.assertEqual(ops,[])
+    def test_source_ted_flat_and_up25(self):
+        self.assertEqual(self.t.wooden_sequence(0,0),(0,255,0))
+        self.assertEqual(self.t.wooden_sequence(4,0),(0,2,0))
+        self.assertEqual(self.t.wooden_sequence(0,15),(6,255,0))
+        _,ops=self.capture('DrawSupportForSequenceA<TrackElemType::up25>(session,supportType.wooden,trackSequence,direction,height+16,session.SupportColours);',2)
+        self.assertEqual(ops[0],(5,255,0,2,56,2,0,0,0,1,0,2))
+    def test_non_template_ted_helper(self):
+        _,ops=self.capture('DrawSupportForSequenceB(session,WoodenSupportType::mine,TrackElemType::flat,trackSequence,direction,height,session.TrackColours);',3)
+        self.assertEqual(ops[0],(6,1,0,3,40,255,0,0,0,0,0,2))
+    def test_prepend_owns_actual_rail_part_and_retains_draw(self):
+        parts,ops=self.capture('PaintAddImageAsParent(session,session.TrackColours.WithIndex(100),{0,0,height},{32,20,2});session.WoodenSupportsPrependTo=PaintAddImageAsParent(session,session.TrackColours.WithIndex(101),{0,0,height},{32,20,2});WoodenASupportsPaintSetup(session,supportType.wooden,WoodenSupportSubType::neSw,height,session.SupportColours);')
+        self.assertEqual([p[0] for p in parts],[100,101])
+        self.assertEqual(ops[0][6],1)
+        self.assertEqual(ops[0][10:],(2,4))
+    def test_runtime_terrain_result_is_not_guessed(self):
+        with self.assertRaises(EXTRACTOR.Unsupported):
+            self.capture('if(WoodenASupportsPaintSetup(session,supportType.wooden,WoodenSupportSubType::neSw,height,session.SupportColours)){PaintAddImageAsParent(session,session.TrackColours.WithIndex(100),{0,0,height},{32,20,2});}')
+    def test_conditional_subtype_array(self):
+        _,ops=self.capture('WoodenSupportSubType subtype[]={WoodenSupportSubType::null,WoodenSupportSubType::corner1};if(subtype[direction]!=WoodenSupportSubType::null){WoodenASupportsPaintSetup(session,supportType.wooden,subtype[direction],height,session.SupportColours);}',1)
+        self.assertEqual(ops[0][2],3)
+    def test_prepend_maps_past_tunnel_metadata_and_rejects_wrong_baseline(self):
+        part=(100,0,0,0,0,0,0,1,1,1,0,-1)
+        marker=(EXTRACTOR.TUNNEL_PART,)+(0,)*11
+        op=(5,255,0,0,40,255,0,0,0,1,1,4)
+        self.assertEqual(EXTRACTOR.qualify_wooden_prepend([op],[part],[marker,part])[0][6],1)
+        with self.assertRaises(EXTRACTOR.Unsupported): EXTRACTOR.qualify_wooden_prepend([op],[part],[part,part])
+    def test_ted_extra_rotation_and_full_enum_range(self):
+        self.assertEqual(self.t.constants['WoodenSupportTransitionType_up60DegToFlatLongBaseSeq3'],20)
+        found=[]
+        for kind in range(350):
+            for seq in range(16):
+                try:
+                    subtype,transition,rotation=self.t.wooden_sequence(kind,seq)
+                    if rotation: found.append((kind,seq,rotation))
+                except EXTRACTOR.Unsupported: pass
+        self.assertTrue(found)
+
+
 if __name__ == '__main__':
     unittest.main()

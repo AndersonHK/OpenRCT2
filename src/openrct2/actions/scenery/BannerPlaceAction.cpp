@@ -137,10 +137,10 @@ namespace OpenRCT2::GameActions
             LOG_ERROR("No free banners available");
             return Result(Status::invalidParameters, STR_CANT_POSITION_THIS_HERE, STR_TOO_MANY_BANNERS_IN_GAME);
         }
-        banner->flags = {};
-        banner->text = {};
-        banner->textColour = Drawing::TextColour::white;
-        banner->type = _bannerType; // Banner must be deleted after this point in an early return
+        banner->setFlags({});
+        banner->setText({});
+        banner->setTextColour(Drawing::TextColour::white);
+        banner->setType(_bannerType); // Banner must be deleted after this point in an early return
         banner->colour = _primaryColour;
         banner->position = TileCoordsXY(_loc);
 

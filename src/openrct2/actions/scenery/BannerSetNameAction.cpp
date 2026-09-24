@@ -86,7 +86,7 @@ namespace OpenRCT2::GameActions
             return Result(Status::invalidParameters, STR_CANT_RENAME_BANNER, STR_ERR_BANNER_ELEMENT_NOT_FOUND);
         }
 
-        banner->text = _name;
+        banner->setText(_name);
 
         auto intent = Intent(INTENT_ACTION_UPDATE_BANNER);
         intent.PutExtra(INTENT_EXTRA_BANNER_INDEX, _bannerIndex);

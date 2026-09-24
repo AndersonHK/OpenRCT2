@@ -831,6 +831,8 @@ TEST(WorldEntranceCatalogTest, UsedDependenciesOnlyAndOwnedRangeValidation)
     station.entranceFront = 104;
     station.exitBack = 108;
     station.exitFront = 112;
+    station.height = 40;
+    station.scrollingMode = 22;     // Original Abstract entrance text band.
     objects->stations[3] = station; // Loaded, but never referenced.
     objects->parkEntrances[4] = { 200, 12, 200, 0, 0, true };
     objects->parkEntrances[5] = { 300, 12, 300, 0, 0, true };
@@ -853,6 +855,8 @@ TEST(WorldEntranceCatalogTest, UsedDependenciesOnlyAndOwnedRangeValidation)
     ASSERT_EQ(images.size(), 28u);
     EXPECT_EQ(images.front(), 100u);
     EXPECT_EQ(images.back(), 211u);
+    EXPECT_EQ(catalog.words[catalog.words[0] + 2 * 16 + 2], 40u);
+    EXPECT_EQ(catalog.words[catalog.words[0] + 2 * 16 + 3], 22u);
     EXPECT_NO_THROW(G::ValidateWorldEntranceCatalog(catalog.words, static_cast<uint32_t>(images.size())));
     auto bad = catalog.words;
     bad[bad[0] + 2 * 16 + 4] = 25;
@@ -862,6 +866,29 @@ TEST(WorldEntranceCatalogTest, UsedDependenciesOnlyAndOwnedRangeValidation)
     EXPECT_THROW(G::ValidateWorldEntranceCatalog(bad, 28), std::invalid_argument);
     objects->parkEntrances[4].imageCount = 11;
     EXPECT_THROW(static_cast<void>(G::BuildWorldEntranceCatalog(*objects, rides, &usage, 40, append)), std::runtime_error);
+}
+TEST(WorldEntranceRulesTest, ScrollingTextPreservesStationHeightAndAuthoritativeOpenBrokenState)
+{
+    using namespace EntranceRulesTest;
+    // Paint.Entrance.cpp passes ScrollingMode unchanged; there is no direction
+    // face gate or +direction mode adjustment as there is for queue banners.
+    const auto open = worldRideEntranceText(false, false, 22, 40, 336, 16);
+    EXPECT_EQ(open.mode, 22);
+    EXPECT_EQ(open.rasterZ, 376);
+    EXPECT_EQ(open.closed, 0); // No flat-mechanism-present bit is required.
+    EXPECT_EQ(worldRideEntranceText(false, false, 22, 40, 336, 0).closed, 1);
+    EXPECT_EQ(worldRideEntranceText(false, false, 22, 40, 336, 16 | 8).closed, 1);
+    EXPECT_EQ(worldRideEntranceText(true, false, 22, 40, 336, 16).mode, -1);
+    EXPECT_EQ(worldRideEntranceText(false, true, 22, 40, 336, 16).mode, -1);
+    EXPECT_EQ(worldRideEntranceText(false, false, 255, 40, 336, 16).mode, -1);
+    EXPECT_EQ(worldRideEntranceText(false, false, 37, 33, 64, 16).mode, 37);
+    EXPECT_EQ(worldRideEntranceText(false, false, 38, 33, 64, 16).mode, -1);
+    // Original text bounds begin at (2,2,height+StationObject::Height).
+    // Abstract text must therefore be ten units ahead of the +30 front frame,
+    // rather than inheriting the frame anchor below a neighboring station roof.
+    EXPECT_EQ(worldRideEntranceDepthAnchor(1, 336).z, 366);
+    EXPECT_EQ(open.rasterZ - worldRideEntranceDepthAnchor(1, 336).z, 10);
+    EXPECT_EQ(worldRideEntranceText(false, false, 2, 33, 64, 16).rasterZ, 97);
 }
 TEST(WorldEntranceRulesTest, OriginalParentBoundsAndGlassRemainAttached)
 {
@@ -937,6 +964,51 @@ TEST(WorldEntranceRulesTest, TwoParentOrderingMatchesGeneralRulesAndKeepsGlassAt
                 verify(worldParkEntranceParts(direction, sequence), rotation);
         }
     }
+}
+TEST(WorldEntranceRulesTest, AuthoredFrameAnchorsKeepRearGlassBehindFrontFrame)
+{
+    using namespace EntranceRulesTest;
+    // Source PaintRideEntranceExit: both image anchors remain (0,0,z), but
+    // the front frame's authored origin is30 units above the rear origin.
+    // Direction only swaps the rear XY extents, not either origin.
+    for (int direction = 0; direction < 4; ++direction)
+        for (const bool isExit : { false, true })
+            for (const int flags : { 4, 5, 6, 7 })
+                for (const int baseZ : { -16, 64, 4080 })
+                {
+                    SCOPED_TRACE(direction);
+                    SCOPED_TRACE(isExit);
+                    SCOPED_TRACE(flags);
+                    SCOPED_TRACE(baseZ);
+                    const auto parts = worldRideEntranceParts(direction, isExit, flags);
+                    ASSERT_EQ(parts.count, 4);
+                    const auto rear = worldRideEntranceDepthAnchor(0, baseZ);
+                    const auto front = worldRideEntranceDepthAnchor(1, baseZ);
+                    EXPECT_EQ(rear.x, 2);
+                    EXPECT_EQ(rear.y, 2);
+                    EXPECT_EQ(rear.z, baseZ);
+                    EXPECT_EQ(front.x, 2);
+                    EXPECT_EQ(front.y, 2);
+                    EXPECT_EQ(front.z, baseZ + 30);
+                    EXPECT_EQ(front.x + front.y + front.z - (rear.x + rear.y + rear.z), 30);
+                    for (int parent = 0; parent < 2; ++parent)
+                    {
+                        const auto anchor = worldRideEntranceDepthAnchor(parent, baseZ);
+                        const auto& frame = parts.parts[parent * 2];
+                        const auto& glass = parts.parts[parent * 2 + 1];
+                        EXPECT_EQ(frame.child, 0);
+                        EXPECT_EQ(glass.child, 1);
+                        EXPECT_EQ(glass.colourMode, 4);
+                        EXPECT_EQ(anchor.x, frame.boundsX);
+                        EXPECT_EQ(anchor.y, frame.boundsY);
+                        EXPECT_EQ(anchor.z, baseZ + frame.boundsZ);
+                        EXPECT_EQ(glass.boundsZ, frame.boundsZ);
+                        EXPECT_EQ(glass.x, frame.x);
+                        EXPECT_EQ(glass.y, frame.y);
+                        EXPECT_EQ(glass.z, frame.z);
+                        EXPECT_EQ(frame.x + frame.y + frame.z, 0);
+                    }
+                }
 }
 #endif
 

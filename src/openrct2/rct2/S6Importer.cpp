@@ -1155,24 +1155,24 @@ namespace OpenRCT2::RCT2
 
             *dst = {};
             dst->id = id;
-            dst->type = RCTEntryIndexToOpenRCT2EntryIndex(src->Type);
-            dst->flags = src->flags;
+            dst->setType(RCTEntryIndexToOpenRCT2EntryIndex(src->Type));
+            dst->setFlags(src->flags);
 
             if (!src->flags.has(BannerFlag::linkedToRide) && IsUserStringID(src->StringID))
             {
-                dst->text = GetUserString(src->StringID);
+                dst->setText(GetUserString(src->StringID));
             }
 
             if (src->flags.has(BannerFlag::linkedToRide))
             {
-                dst->rideIndex = RCT12RideIdToOpenRCT2RideId(src->RideIndex);
+                dst->setRideIndex(RCT12RideIdToOpenRCT2RideId(src->RideIndex));
             }
             else
             {
                 dst->colour = static_cast<Drawing::Colour>(src->Colour);
             }
 
-            dst->textColour = src->textColour;
+            dst->setTextColour(src->textColour);
             dst->position.x = src->x;
             dst->position.y = src->y;
         }

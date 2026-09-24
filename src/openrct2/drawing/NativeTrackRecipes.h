@@ -30,4 +30,22 @@ namespace OpenRCT2::Drawing
     // Enumerated once from shared definitions, never per tile or per frame.
     // Admission must resolve their original G1 art/zoom chain and hold atlas leases.
     std::span<const uint32_t> GetNativeTrackRecipeImages();
+
+    // Separate support program; rail definitions and their parent indices are unchanged.
+    // Header/descriptor/row layout matches recipes, magic=0x54535054, version=1.
+    // Up to64 ordered operations per row, 12 words each:
+    // opcode,type,placement,rotation,height,extra,segmentMask,slope,predicate,
+    // colourRole,railOrdinal,flags. Opcode: 1=metalA,2=metalB,3=segments,4=general,5=woodenA,6=woodenB.
+    // Type0..7 or255=ride descriptor metal type; rotation0..3 or4=unrotated.
+    // Heights are signed track-relative, except segment height65535 sentinel.
+    // Segment masks use PaintSegment bits (not MetalSupportPlace numbering).
+    // Predicate: 0=always,1=tile X/Y parity equal,2=parity unequal.
+    // Flag1: placement is already rotated, rotation still selects graphic.
+    // Wooden: type0=truss,1=mine,255=ride descriptor; placement is subtype0..5,
+    // rotation0..3 always selects transition direction, extra is transition0..20
+    // or255=none. Flag2 rotates subtype. Flag4 binds an original prepend owner:
+    // segmentMask stores its qualified baseline recipe ordinal (tunnel slots included).
+    // The named owner must exist; it cannot fall back to an independent parent.
+    // Unavailable programs have sequenceCount0; coverage gaps never remove rails.
+    std::span<const uint32_t> GetNativeTrackSupportWords();
 } // namespace OpenRCT2::Drawing

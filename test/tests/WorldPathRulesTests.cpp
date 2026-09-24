@@ -8,8 +8,171 @@
 namespace PathRules
 {
 #include "../../data/shaders/vulkan/world_path_order.glsl"
-}
+#include "../../data/shaders/vulkan/world_path_support_rules.glsl"
+} // namespace PathRules
 using namespace PathRules;
+
+TEST(WorldPathRulesTest, OwnDeckOccludesPoleFootingsAndSlopedSupportCapsWithoutMovingRasterAnchors)
+{
+    for (int edge = 0; edge < 4; edge++)
+        for (bool sloped : { false, true })
+        {
+            auto cursor = worldPathPoleBegin(64, 0, 80, edge, sloped, true, true);
+            int count = 0;
+            while (cursor.phase >= 0)
+            {
+                const auto part = worldPathPoleNext(cursor);
+                if (part.imageOffset < 0)
+                    continue;
+                EXPECT_EQ(part.x, worldPathPoleX(edge));
+                EXPECT_EQ(part.y, worldPathPoleY(edge));
+                const int authoredDepth = part.x + part.y + part.z;
+                EXPECT_LT(worldPathSupportDepth(part, 80), 80);
+                EXPECT_EQ(worldPathSupportDepth(part, 80), authoredDepth < 80 ? authoredDepth : 79);
+                count++;
+            }
+            EXPECT_EQ(count, sloped ? 3 : 2); // footing, short shaft, optional top cap
+        }
+    // An actually lower support retains its own depth; this is not a global
+    // support-family rank. The caller still emits the original image and XYZ.
+    auto lower = worldPathPart(22, 0, 0, 64, 0, 0, 64, 32, 32, 28);
+    EXPECT_EQ(worldPathSupportDepth(lower, 128), 64);
+    auto box = worldPathBoxBegin(64, 0, 96, 0, 0, true, 0, true);
+    EXPECT_EQ(worldPathSupportDepth(worldPathBoxNext(box), 96), 64);
+    const auto transition = worldPathBoxNext(box);
+    EXPECT_EQ(transition.z, 96);
+    EXPECT_EQ(transition.imageOffset, 55);
+    EXPECT_EQ(worldPathSupportDepth(transition, 96), 95);
+}
+
+TEST(WorldPathRulesTest, SupportSlopeTablesMatchOriginalWoodenAndMetalArt)
+{
+    constexpr std::array<int, 32> wood = { 0, 0, 1, 2, 3, 4, 5, 6,  7, 8, 9, 10, 11, 12, 13, 0,
+                                           0, 0, 0, 0, 0, 0, 0, 14, 0, 0, 0, 17, 0,  16, 15, 0 };
+    constexpr std::array<int, 32> metal = { 0, 1, 2, 3, 4, 5, 6, 7,  8, 9, 10, 11, 12, 13, 14, 0,
+                                            0, 0, 0, 0, 0, 0, 0, 15, 0, 0, 0,  16, 0,  17, 18, 0 };
+    for (int slope = 0; slope < 32; slope++)
+    {
+        EXPECT_EQ(worldPathWoodSlopeOffset(slope), wood[slope]);
+        EXPECT_EQ(worldPathPoleSlopeOffset(slope), metal[slope]);
+    }
+}
+
+TEST(WorldPathRulesTest, BoxSupportsSplitAtWaterAndRetainShortLastSegmentBounds)
+{
+    // Ground 64, water 80, path 128: split the first full section at water.
+    auto cursor = worldPathBoxBegin(64, 0, 128, 80, 1, false, 0, true);
+    constexpr std::array<int, 3> images = { 47, 47, 46 };
+    constexpr std::array<int, 3> heights = { 64, 80, 96 };
+    constexpr std::array<int, 3> boundsHeights = { 12, 12, 23 };
+    for (size_t i = 0; i < images.size(); i++)
+    {
+        auto part = worldPathBoxNext(cursor);
+        EXPECT_EQ(part.imageOffset, images[i]);
+        EXPECT_EQ(part.z, heights[i]);
+        EXPECT_EQ(part.sizeZ, boundsHeights[i]);
+    }
+    EXPECT_EQ(worldPathBoxNext(cursor).imageOffset, -1);
+    cursor = worldPathBoxBegin(64, 32, 64, 0, 0, false, 0, true);
+    auto cap = worldPathBoxNext(cursor);
+    EXPECT_EQ(cap.imageOffset, 48);
+    EXPECT_EQ(cap.z, 62);
+    EXPECT_EQ(cap.sizeZ, 0);
+    EXPECT_EQ(worldPathBoxNext(cursor).imageOffset, -1);
+}
+
+TEST(WorldPathRulesTest, BoxSupportsPreserveBothSteepFootingsAndSlopedPathTransition)
+{
+    for (int direction = 0; direction < 4; direction++)
+    {
+        auto cursor = worldPathBoxBegin(64, 23, 112, 0, 0, true, direction, true);
+        constexpr std::array<int, 3> expectedImages = { 14, 18, 23 };
+        for (int index = 0; index < 3; index++)
+        {
+            auto part = worldPathBoxNext(cursor);
+            EXPECT_EQ(part.imageOffset, expectedImages[index]);
+            EXPECT_EQ(part.z, 64 + index * 16);
+            EXPECT_EQ(part.sizeZ, index < 2 ? 11 : 7);
+        }
+        const auto transition = worldPathBoxNext(cursor);
+        EXPECT_EQ(transition.imageOffset, 55 + direction);
+        EXPECT_EQ(transition.z, 112);
+        EXPECT_EQ(transition.sizeX, 1);
+        EXPECT_EQ(transition.sizeZ, 4);
+        EXPECT_EQ(worldPathBoxNext(cursor).imageOffset, -1);
+    }
+    auto buried = worldPathBoxBegin(64, 23, 80, 0, 0, true, 0, true);
+    EXPECT_EQ(worldPathBoxNext(buried).imageOffset, -1);
+    auto beforeSurface = worldPathBoxBegin(64, 0, 128, 0, 0, false, 0, false);
+    EXPECT_EQ(worldPathBoxNext(beforeSurface).imageOffset, -1);
+}
+
+TEST(WorldPathRulesTest, PoleSupportsPreserveBaseAlignmentFourthJointAndSlopedExtension)
+{
+    // The initial alignment segment is not one of the four repeated sections.
+    auto cursor = worldPathPoleBegin(64, 30, 160, 2, true, true, true);
+    constexpr std::array<int, 8> images = { 55, 29, 35, 35, 35, 36, 35, 27 };
+    constexpr std::array<int, 8> heights = { 64, 70, 80, 96, 112, 128, 144, 160 };
+    for (size_t i = 0; i < images.size(); i++)
+    {
+        auto part = worldPathPoleNext(cursor);
+        EXPECT_EQ(part.imageOffset, images[i]);
+        EXPECT_EQ(part.z, heights[i]);
+        EXPECT_EQ(part.x, 28);
+        EXPECT_EQ(part.y, 16);
+        EXPECT_EQ(part.sizeZ, i == 0 ? 5 : (i == 1 ? 9 : (i == 7 ? 0 : 15)));
+    }
+    EXPECT_EQ(worldPathPoleNext(cursor).imageOffset, -1);
+    auto blocked = worldPathPoleBegin(65535, 0, 160, 0, true, true, true);
+    EXPECT_EQ(worldPathPoleNext(blocked).imageOffset, -1);
+}
+
+TEST(WorldPathRulesTest, PathSupportConsumptionDistinguishesQueueWideAndConnectedEdges)
+{
+    EXPECT_EQ(worldPathBlockedSupportSlots(0, 0, true, false), 511);
+    EXPECT_EQ(worldPathBlockedSupportSlots(0, 0, false, true), 511);
+    EXPECT_EQ(worldPathBlockedSupportSlots(255, 15, false, true), 480);
+    constexpr std::array<int, 4> places = { 6, 8, 7, 5 };
+    for (int edge = 0; edge < 4; edge++)
+    {
+        EXPECT_EQ(worldPathPolePlace(edge), places[edge]);
+        EXPECT_EQ(worldPathBlockedSupportSlots(1 << edge, 1 << edge, false, false), 16 | (1 << places[edge]));
+    }
+}
+
+TEST(WorldPathRulesTest, TallPathSupportsStreamEverySectionWithoutFixedComponentTruncation)
+{
+    auto pole = worldPathPoleBegin(0, 0, 4096, 0, false, false, true);
+    int sections = 0;
+    int joints = 0;
+    while (pole.phase >= 0)
+    {
+        const auto part = worldPathPoleNext(pole);
+        if (part.imageOffset < 0)
+            break;
+        ASSERT_LT(sections, 257);
+        EXPECT_EQ(part.z, sections * 16);
+        EXPECT_EQ(part.sizeZ, 15);
+        joints += part.imageOffset == 36;
+        sections++;
+    }
+    EXPECT_EQ(sections, 256);
+    EXPECT_EQ(joints, 63);
+    auto box = worldPathBoxBegin(0, 0, 4096, 0, 0, false, 0, true);
+    sections = 0;
+    while (box.phase >= 0)
+    {
+        const auto part = worldPathBoxNext(box);
+        if (part.imageOffset < 0)
+            break;
+        ASSERT_LT(sections, 129);
+        EXPECT_EQ(part.z, sections * 32);
+        EXPECT_EQ(part.imageOffset, 22);
+        EXPECT_EQ(part.sizeZ, sections == 127 ? 23 : 28);
+        sections++;
+    }
+    EXPECT_EQ(sections, 128);
+}
 
 TEST(WorldPathRulesTest, BoundedComponentOrderingPreservesEveryParentAcrossDegenerateAndOverlappingBounds)
 {

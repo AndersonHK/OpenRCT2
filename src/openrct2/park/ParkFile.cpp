@@ -1649,14 +1649,27 @@ namespace OpenRCT2
             {
                 cs.readWrite(banner.id);
             }
-            cs.readWrite(banner.type);
-            cs.readWrite(banner.flags.holder);
-            cs.readWrite(banner.text);
+            auto type = banner.getType();
+            auto flags = banner.getFlags();
+            auto text = banner.getRawText();
+            auto rideIndex = banner.getRideIndex();
+            auto textColour = banner.getTextColour();
+            cs.readWrite(type);
+            cs.readWrite(flags.holder);
+            cs.readWrite(text);
             cs.readWrite(banner.colour);
-            cs.readWrite(banner.rideIndex);
-            cs.readWrite(banner.textColour);
+            cs.readWrite(rideIndex);
+            cs.readWrite(textColour);
             cs.readWrite(banner.position.x);
             cs.readWrite(banner.position.y);
+            if (cs.getMode() == OrcaStream::Mode::reading)
+            {
+                banner.setType(type);
+                banner.setFlags(flags);
+                banner.setText(std::move(text));
+                banner.setRideIndex(rideIndex);
+                banner.setTextColour(textColour);
+            }
         }
 
         void ReadWriteRidesChunk(GameState_t& gameState, OrcaStream& os)

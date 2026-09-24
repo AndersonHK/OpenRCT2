@@ -13,6 +13,7 @@ namespace OpenRCT2::Drawing
     namespace
     {
 #include "NativeTrackRecipeData.inc"
+#include "NativeTrackSupportData.inc"
         static_assert(kNativeTrackRecipeWordCount >= 8 && kNativeTrackRecipeWordCount <= 16 * 1024 * 1024);
 
         std::vector<uint32_t> LoadRecipes()
@@ -119,5 +120,67 @@ namespace OpenRCT2::Drawing
             return result;
         }();
         return images;
+    }
+
+    std::span<const uint32_t> GetNativeTrackSupportWords()
+    {
+        static const auto words = [] {
+            static_assert(kNativeTrackSupportWordCount >= 8 && kNativeTrackSupportWordCount <= 16 * 1024 * 1024);
+            std::vector<uint32_t> result(kNativeTrackSupportWordCount);
+            uLongf size = static_cast<uLongf>(result.size() * sizeof(uint32_t));
+            uLong compressedSize = static_cast<uLong>(std::size(kNativeTrackSupportCompressed));
+            if (uncompress2(reinterpret_cast<Bytef*>(result.data()), &size, kNativeTrackSupportCompressed, &compressedSize)
+                    != Z_OK
+                || size != result.size() * sizeof(uint32_t) || compressedSize != std::size(kNativeTrackSupportCompressed))
+                throw std::runtime_error("Native track supports failed bounded decompression");
+            if constexpr (std::endian::native == std::endian::big)
+                for (auto& word : result)
+                    word = (word >> 24) | ((word >> 8) & 0xff00u) | ((word << 8) & 0xff0000u) | (word << 24);
+            if (result[0] != 0x54535054u || result[1] != 1 || result[2] != 81 || result[3] != 350 || result[4] != 8
+                || result[5] != 8 + 81 * 350 * 3 || result[5] > result[6] || result[6] > result.size()
+                || result[7] != result.size() || (result[6] - result[5]) % 2 != 0 || (result.size() - result[6]) % 12 != 0)
+                throw std::runtime_error("Native track support header is invalid");
+            const auto rows = (result[6] - result[5]) / 2;
+            const auto operations = (result.size() - result[6]) / 12;
+            for (size_t d = result[4]; d < result[5]; d += 3)
+            {
+                const auto sequences = result[d + 1], mask = result[d + 2];
+                if (sequences > 16 || mask >= 128
+                    || uint64_t(result[d]) + (uint64_t(1) << std::popcount(mask)) * sequences * 4 > rows)
+                    throw std::runtime_error("Native track support descriptor is invalid");
+            }
+            for (size_t r = result[5]; r < result[6]; r += 2)
+                if (result[r + 1] > 64 || uint64_t(result[r]) + result[r + 1] > operations)
+                    throw std::runtime_error("Native track support row is invalid");
+            for (size_t p = result[6]; p < result.size(); p += 12)
+            {
+                const auto opcode = result[p];
+                const auto height = static_cast<int32_t>(result[p + 4]);
+                const auto extra = static_cast<int32_t>(result[p + 5]);
+                if (opcode < 1 || opcode > 6 || result[p + 8] > 2 || result[p + 9] > 3 || result[p + 10] > 64 || height < -65535
+                    || height > 65535 || extra < -65535 || extra > 65535)
+                    throw std::runtime_error("Native track support operation is invalid");
+                if (opcode <= 2)
+                {
+                    if ((result[p + 1] >= 8 && result[p + 1] != 255) || result[p + 2] >= 9 || result[p + 3] > 4
+                        || result[p + 6] != 0 || result[p + 7] != 0 || result[p + 11] > 1
+                        || (result[p + 11] != 0 && result[p + 3] == 4))
+                        throw std::runtime_error("Native track metal support operation is invalid");
+                }
+                else if (opcode >= 5)
+                {
+                    if ((result[p + 1] > 1 && result[p + 1] != 255) || result[p + 2] > 5 || result[p + 3] > 3
+                        || (result[p + 5] > 20 && result[p + 5] != 255) || result[p + 7] != 0 || (result[p + 11] & ~6u) != 0
+                        || result[p + 6] >= 64 || ((result[p + 11] & 4u) == 0 && result[p + 6] != 0))
+                        throw std::runtime_error("Native track wooden support operation is invalid");
+                }
+                else if (
+                    result[p + 1] != 0 || result[p + 2] != 0 || result[p + 3] != 4 || extra != 0 || result[p + 6] > 511
+                    || result[p + 7] > 255 || result[p + 11] != 0 || (opcode == 4 && result[p + 6] != 0))
+                    throw std::runtime_error("Native track support state operation is invalid");
+            }
+            return result;
+        }();
+        return words;
     }
 } // namespace OpenRCT2::Drawing

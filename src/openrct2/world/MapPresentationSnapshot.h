@@ -9,6 +9,7 @@
 #include "MapLimits.h"
 #include "PathPresentation.h"
 #include "TerrainPresentation.h"
+#include "WorldBannerPresentation.h"
 #include "WorldObjectPresentation.h"
 #include "tile_element/TileElement.h"
 
@@ -61,6 +62,7 @@ namespace OpenRCT2
         std::shared_ptr<const WorldObjectPresentationMaterials> objectMaterials;
         std::shared_ptr<const WorldRidePresentationMaterials> rideMaterials;
         std::shared_ptr<const WorldRidePoseSnapshot> ridePoses;
+        std::shared_ptr<const WorldBannerPresentation> bannerTexts;
     };
 
     /** Owned tile storage and O(1) tile lookup for one presentation frame. */
@@ -115,6 +117,7 @@ namespace OpenRCT2
         std::shared_ptr<const WorldObjectPresentationMaterials> _objectMaterials;
         std::shared_ptr<const WorldRidePresentationMaterials> _rideMaterials;
         std::shared_ptr<const WorldRidePoseSnapshot> _ridePoses;
+        std::shared_ptr<const WorldBannerPresentation> _bannerTexts;
         uint8_t _clockHour{}, _clockMinute{};
         std::shared_ptr<const PathPresentationMaterials> _pathMaterials;
         uint64_t _epoch{};
@@ -161,6 +164,10 @@ namespace OpenRCT2
         [[nodiscard]] const std::shared_ptr<const WorldRidePoseSnapshot>& GetRidePoses() const noexcept
         {
             return _ridePoses;
+        }
+        [[nodiscard]] const std::shared_ptr<const WorldBannerPresentation>& GetBannerTexts() const noexcept
+        {
+            return _bannerTexts;
         }
         [[nodiscard]] uint8_t GetClockHour() const noexcept
         {

@@ -6,6 +6,7 @@ layout(std430,set=0,binding=14) readonly buffer TrackCatalog { uint words[]; } u
 #define WORLD_TRACK_WORD(index) uTracks.words[uTracks.words[2u]+(index)]
 #include "world_track_rules.glsl"
 #undef WORLD_TRACK_WORD
+#include "world_track_depth.glsl"
 
 uint worldTrackImage(uint image)
 {
@@ -21,19 +22,21 @@ uint worldTrackImage(uint image)
 }
 #include "world_track_station.glsl"
 #include "world_track_photo.glsl"
+#include "world_track_support_emit.glsl"
 
 bool worldTrackObjectRecipe(WorldObjectRecord object, out uvec2 recipe)
 {
     recipe=uvec2(0u);
     uint ride=object.rideIdAndMazeEntry&65535u;
-    if(uTracks.words[0u]!=0x5754524bu || (uTracks.words[1u]&255u)!=1u) return false;
+    uint version=uTracks.words[1u]&255u;
+    if(uTracks.words[0u]!=0x5754524bu || (version!=1u && version!=2u)) return false;
     uint type=object.trackTypeAndRideType&65535u,rideType=object.trackTypeAndRideType>>16u;
     if(ride>=uTracks.words[4u] || rideType>=uTracks.words[6u] || type>=uTracks.words[8u]) return false;
     uint rideOffset=uTracks.words[3u]+ride*8u;
     if(uTracks.words[rideOffset]==0u) return false;
     uint mapped=uTracks.words[uTracks.words[7u]+type];
     uint variant=((object.flags>>8u)&1u)|((mapped>>15u)&2u);
-    uint style=uTracks.words[uTracks.words[5u]+rideType*4u+variant];
+    uint style=uTracks.words[uTracks.words[5u]+rideType*4u+variant]&65535u;
     uint state=((object.flags>>6u)&1u)|((object.flags>>7u)&2u)|((object.flags>>7u)&4u);
     state|=((object.flags>>4u)&8u)|((uTracks.words[1u]>>4u)&16u)|((object.flags>>5u)&32u);
     if(worldStationHasPlatforms(ride)) state|=64u;
@@ -56,11 +59,15 @@ void visitTrack(uint index,uvec2 tile,uint destination,bool writeRecords,inout u
     bool ghost=(object.flags&1u)!=0u;
     worldTrackDrawParts.count=0u;
     int recipeToPart[16];
+    int partToQualifiedRail[16];
+    worldTrackQualifiedRailCount=recipe.y;
+    for(int i=0;i<16;i++) { partToQualifiedRail[i]=-1;worldTrackRailOwners[i]=0xffffffffu; }
     [[dont_unroll]]
     for(uint i=0u;i<recipe.y;i++) {
         WorldTrackPart part=worldTrackPart(recipe.x+i);
         recipeToPart[i]=int(worldTrackDrawParts.count);
         if(part.image==0xfffffffdu) continue;
+        uint qualified=i;
         if(part.image==0xfffffffcu) {
             recipeToPart[i]=int(worldTrackDrawParts.count)+2; // Last authored parent is the camera.
             uint direction=uint(part.offset.x);
@@ -88,6 +95,8 @@ void visitTrack(uint index,uvec2 tile,uint destination,bool writeRecords,inout u
         }
         uint sprite=worldTrackImage(part.image);
         if(sprite==0xffffffffu) continue;
+        if(part.parent<0 && worldTrackDrawParts.count<16u)
+            partToQualifiedRail[worldTrackDrawParts.count]=int(qualified);
         uint primary=part.colourRole==1u?((colours>>16u)&255u):(colours&255u);
         uint secondary=part.colourRole==3u?((colours>>16u)&255u):((colours>>8u)&255u);
         uint palettes=ghost?uCatalog.reserved:(part.colourRole==2u?1u:((primary+1u)|((secondary+1u)<<8u)));
@@ -111,9 +120,22 @@ void visitTrack(uint index,uvec2 tile,uint destination,bool writeRecords,inout u
             if(int(i)!=parent && p.geometry.parent!=parent) continue;
             worldSetPaintBounds(tile,p.geometry.bounds+ivec3(0,0,object.baseZ),p.geometry.size,int(i)==parent?0u:1u);
             worldSetCoplanarSurfaceLayer();
+            if(worldTrackHasCentreContactAnchor(int(object.trackTypeAndRideType&65535u),
+                int(object.sequence),int(p.geometry.image)))
+                worldSetComponentDepthAnchor(tile,ivec3(16,16,object.baseZ+p.geometry.offset.z));
+            WorldTrackStationCoverAnchor cover=worldTrackStationCoverAnchor(int(p.geometry.image));
+            if(cover.valid)
+                worldSetComponentDepthAnchor(tile,ivec3(cover.x,cover.y,object.baseZ+p.geometry.offset.z+cover.z));
+            uint first=count;
             emitObjectSprite(tile,object.baseZ+p.geometry.offset.z,p.geometry.offset.xy,p.sprite,p.palettes,p.effects,
                 destination,writeRecords,count);
+            if(count>first && partToQualifiedRail[i]>=0)
+                worldTrackRailOwners[partToQualifiedRail[i]]=destination+first;
         }
     }
+    // Only support state, not rail geometry, depends on these operations. Run
+    // their original ordered program after recording rail owners so steep
+    // wooden transitions can bind the exact captured prepend target.
+    worldEmitTrackSupports(object,tile,colours,destination,writeRecords,count);
 }
 #endif

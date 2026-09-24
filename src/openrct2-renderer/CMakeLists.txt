@@ -139,10 +139,20 @@ if (OPENRCT2_VULKAN_ENABLED)
                 "${VULKAN_SHADER_SOURCE_DIR}/world_parent_capture.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/world_component_depth.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/world_path_rules.glsl"
+                "${VULKAN_SHADER_SOURCE_DIR}/world_support_state.glsl"
+                "${VULKAN_SHADER_SOURCE_DIR}/world_object_support_state.glsl"
+                "${VULKAN_SHADER_SOURCE_DIR}/world_path_support_rules.glsl"
+                "${VULKAN_SHADER_SOURCE_DIR}/world_path_support_emit.glsl"
+                "${VULKAN_SHADER_SOURCE_DIR}/world_metal_support_rules.glsl"
+                "${VULKAN_SHADER_SOURCE_DIR}/world_wooden_support_rules.glsl"
+                "${VULKAN_SHADER_SOURCE_DIR}/world_track_support_emit.glsl"
+                "${VULKAN_SHADER_SOURCE_DIR}/world_banner_text.glsl"
+                "${VULKAN_SHADER_SOURCE_DIR}/world_banner_emit.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/world_path_order.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/world_prop_rules.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/world_prop_emit.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/world_track_rules.glsl"
+                "${VULKAN_SHADER_SOURCE_DIR}/world_track_depth.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/world_track_emit.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/world_track_station.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/world_track_photo.glsl"
@@ -161,6 +171,8 @@ if (OPENRCT2_VULKAN_ENABLED)
                 "${VULKAN_SHADER_SOURCE_DIR}/terrain_surface_rules.glsl")
         elseif (VULKAN_SHADER_NAME STREQUAL "world_surface.vert")
             list(APPEND VULKAN_SHADER_INCLUDES "${VULKAN_SHADER_SOURCE_DIR}/terrain_sprite_geometry.glsl")
+        elseif (VULKAN_SHADER_NAME STREQUAL "world_surface.frag")
+            list(APPEND VULKAN_SHADER_INCLUDES "${VULKAN_SHADER_SOURCE_DIR}/world_banner_text.glsl")
         elseif (VULKAN_SHADER_NAME STREQUAL "terrain_columns.comp")
             list(APPEND VULKAN_SHADER_INCLUDES "${VULKAN_SHADER_SOURCE_DIR}/terrain_sprite_geometry.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/peep_rules.glsl")

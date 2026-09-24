@@ -13,17 +13,46 @@
 
 namespace OpenRCT2::Ui::Gpu
 {
+    namespace MetalSupportRules
+    {
+#include "../../../data/shaders/vulkan/world_metal_support_rules.glsl"
+#include "../../../data/shaders/vulkan/world_wooden_support_rules.glsl"
+    }
     struct WorldTrackCatalog
     {
-        // Header (12 words): magic,version,recipeOffset,rideOffset,rideCount,
+        // Header (16 words): magic,version,recipeOffset,rideOffset,rideCount,
         // rideTypeOffset,rideTypeCount,trackTypeOffset,trackTypeCount,
-        // imageMapOffset,imageMapCount,totalWords.
+        // imageMapOffset,imageMapCount,totalWords,supportProgramOffset,supportProgramWords,reserved[2].
         // Ride entries: present,type,object/station,reserved, four raw colour triplets.
-        // Ride type entries: regular,inverted,covered,covered-inverted styles.
+        // Ride type entries: regular,inverted,covered,covered-inverted styles in
+        // low16 bits, with the descriptor's support type in bits16..23.
         // Track type entries: uncovered type (low16), covered bit16.
         // Sorted image map entries: original image ID,resident sprite-table index.
         std::vector<uint32_t> words;
     };
+
+    inline void ValidateWorldTrackCatalog(std::span<const uint32_t> words)
+    {
+        if (words.empty())
+            return;
+        if (words.size() < 12 || words[0] != 0x5754524b || words[11] != words.size())
+            throw std::invalid_argument("GPU track catalog header is invalid");
+        const auto version = words[1] & 255u;
+        if (version != 1 && version != 2)
+            throw std::invalid_argument("GPU track catalog version is unsupported");
+        if (version == 2)
+        {
+            if (words.size() < 16 || words[12] < 16 || words[12] > words.size() || words[13] < 8
+                || words[13] > words.size() - words[12])
+                throw std::invalid_argument("GPU track support program range is invalid");
+            const auto support = words.subspan(words[12], words[13]);
+            if (support[0] != 0x54535054 || support[1] != 1 || support[7] != support.size() || support[4] < 8
+                || support[4] > support[5] || support[5] > support[6] || support[6] > support[7]
+                || uint64_t(support[2]) * support[3] * 3 != support[5] - support[4] || (support[6] - support[5]) % 2 != 0
+                || (support[7] - support[6]) % 12 != 0)
+                throw std::invalid_argument("GPU track support program header is invalid");
+        }
+    }
 
     template<typename AppendImage>
     WorldTrackCatalog BuildWorldTrackCatalog(const WorldRidePresentationMaterials& source, AppendImage&& appendImage)
@@ -35,10 +64,10 @@ namespace OpenRCT2::Ui::Gpu
                 throw std::overflow_error("GPU track catalog exceeds address space");
             return static_cast<uint32_t>(words.size());
         };
-        words.resize(12);
+        words.resize(16);
         words[0] = 0x5754524b;
         const bool csgLoaded = IsCsgLoaded();
-        words[1] = 1u | (csgLoaded ? 1u << 8 : 0u);
+        words[1] = 2u | (csgLoaded ? 1u << 8 : 0u);
         words[2] = offset();
         const auto definitions = Drawing::GetNativeTrackRecipeWords();
         words.insert(words.end(), definitions.begin(), definitions.end());
@@ -60,8 +89,10 @@ namespace OpenRCT2::Ui::Gpu
             const auto& descriptor = GetRideTypeDescriptor(static_cast<ride_type_t>(type));
             const bool inverted = descriptor.flags.has(RtdFlag::hasInvertedVariant);
             for (const auto variant : { 0, 1, 2, 3 })
-                words.push_back(static_cast<uint32_t>(
-                    getTrackDrawerEntry(descriptor, inverted && (variant & 1) != 0, (variant & 2) != 0).trackStyle));
+            {
+                const auto& drawer = getTrackDrawerEntry(descriptor, inverted && (variant & 1) != 0, (variant & 2) != 0);
+                words.push_back(static_cast<uint32_t>(drawer.trackStyle) | (uint32_t(drawer.supportType.generic) << 16));
+            }
         }
         words[7] = offset();
         words[8] = static_cast<uint32_t>(TrackElemType::count);
@@ -70,6 +101,10 @@ namespace OpenRCT2::Ui::Gpu
             const auto track = static_cast<TrackElemType>(type);
             words.push_back(static_cast<uint32_t>(uncoverTrackType(track)) | (trackTypeIsCovered(track) ? 1u << 16 : 0u));
         }
+        words[12] = offset();
+        const auto supportDefinitions = Drawing::GetNativeTrackSupportWords();
+        words[13] = static_cast<uint32_t>(supportDefinitions.size());
+        words.insert(words.end(), supportDefinitions.begin(), supportDefinitions.end());
         words[9] = offset();
         // Residency follows shared styles belonging to present rides, never
         // placed track instances. Use the same RTD variant table as the GPU.
@@ -80,12 +115,40 @@ namespace OpenRCT2::Ui::Gpu
                 continue;
             for (uint32_t variant = 0; variant < 4; ++variant)
             {
-                const auto style = words[words[5] + ride.rideType * 4 + variant];
+                const auto style = words[words[5] + ride.rideType * 4 + variant] & 65535u;
                 if (style < requiredStyles.size())
                     requiredStyles[style] = true;
             }
         }
         std::vector<uint32_t> images;
+        bool needsMetal = false, needsWooden = false;
+        for (uint32_t style = 0; style < requiredStyles.size() && !(needsMetal && needsWooden); ++style)
+        {
+            if (!requiredStyles[style] || style >= supportDefinitions[2])
+                continue;
+            for (uint32_t type = 0; type < supportDefinitions[3] && !(needsMetal && needsWooden); ++type)
+            {
+                const auto descriptor = supportDefinitions[4] + (style * supportDefinitions[3] + type) * 3;
+                const auto count = (1u << std::popcount(supportDefinitions[descriptor + 2]))
+                    * supportDefinitions[descriptor + 1] * 4;
+                for (uint32_t i = 0; i < count && !(needsMetal && needsWooden); ++i)
+                {
+                    const auto row = supportDefinitions[5] + (supportDefinitions[descriptor] + i) * 2;
+                    for (uint32_t op = 0; op < supportDefinitions[row + 1]; ++op)
+                    {
+                        const auto opcode = supportDefinitions[supportDefinitions[6] + (supportDefinitions[row] + op) * 12];
+                        needsMetal |= opcode == 1 || opcode == 2;
+                        needsWooden |= opcode == 5 || opcode == 6;
+                    }
+                }
+            }
+        }
+        if (needsMetal)
+            for (int i = 0; i < MetalSupportRules::worldMetalAssetCount(); ++i)
+                images.push_back(static_cast<uint32_t>(MetalSupportRules::worldMetalAssetImage(i)));
+        if (needsWooden)
+            for (int i = 0; i < MetalSupportRules::worldWoodenAssetCount(); ++i)
+                images.push_back(static_cast<uint32_t>(MetalSupportRules::worldWoodenAssetImage(i)));
         bool needsStations = false;
         for (uint32_t style = 0; style < requiredStyles.size(); ++style)
         {

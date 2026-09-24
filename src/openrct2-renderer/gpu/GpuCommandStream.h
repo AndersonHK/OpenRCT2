@@ -256,6 +256,7 @@ namespace OpenRCT2::Ui::Gpu
         uint32_t objectFirst{}, objectCount{};
         int32_t objectMaxZ{};
         int32_t maxClearanceZ{}; // Exact raw whole-tile clearance/water bound, not just emitted families.
+        uint32_t surfaceOrdinal{};
     };
 
     struct WorldSurfaceMaterial
@@ -485,7 +486,7 @@ namespace OpenRCT2::Ui::Gpu
     static_assert(offsetof(WorldSurfaceRecord, zoom) == 48);
     static_assert(offsetof(WorldSurfaceRecord, coordinateShift) == 52);
     static_assert(std::is_trivially_copyable_v<WorldSurfaceSourceRecord>);
-    static_assert(sizeof(WorldSurfaceSourceRecord) == 60);
+    static_assert(sizeof(WorldSurfaceSourceRecord) == 64);
     static_assert(sizeof(WorldPathSourceRecord) == 48);
     static_assert(sizeof(WorldPathMaterial) == 48);
     static_assert(sizeof(WorldPathAdditionMaterial) == 16);
@@ -640,6 +641,7 @@ namespace OpenRCT2::Ui::Gpu
     struct WorldSurfaceSpriteTable
     {
         uint64_t revision{};
+        uint32_t scrollingTextDefault{ UINT32_MAX };
         std::vector<WorldSurfaceSpriteSet> records;
         WorldSurfaceCatalog catalog{};
         std::shared_ptr<const TerrainPresentationMaterials> sourceMaterials;
@@ -668,6 +670,7 @@ namespace OpenRCT2::Ui::Gpu
         uint32_t viewFlags{};
         std::shared_ptr<const std::vector<uint32_t>> selection;
         std::shared_ptr<const WorldRidePoseSnapshot> ridePoses;
+        std::shared_ptr<const struct WorldBannerTextData> bannerTexts;
         std::shared_ptr<const SelectedVehiclePaintPacket> selectedVehicle;
         std::vector<std::shared_ptr<const WorldSurfaceChunk>> chunks;
         std::shared_ptr<const WorldSurfaceSpriteTable> sprites;

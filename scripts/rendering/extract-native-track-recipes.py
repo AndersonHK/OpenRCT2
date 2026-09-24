@@ -123,7 +123,8 @@ def scalar_ast(values):
     text = re.sub(r'IsCsgLoaded\s*\(\s*\)', 'csgLoaded', text)
     for function,offset in (('DirectionNext',1),('DirectionPrev',3),('DirectionReverse',2)):
         text=re.sub(function+r'\s*\(\s*(\w+)\s*\)',r'((\1 + '+str(offset)+') & 3)',text)
-    text = re.sub(r'\b(TrackElemType|TrackStyle|JuniorRCSubType)\s*::\s*', '', text)
+    text = re.sub(r'\b(TrackElemType|TrackStyle|JuniorRCSubType|BlockedSegments)\s*::\s*', '', text)
+    text = re.sub(r'(MetalSupportType|MetalSupportPlace|WoodenSupportType|WoodenSupportSubType|WoodenSupportTransitionType)\s*::\s*', r'\1_', text)
     text=re.sub(r'PaintSegment\s*::\s*','PaintSegment_',text)
     for enum in ('TunnelSubType','TunnelGroup','TunnelType'):
         text=re.sub(enum+r'\s*::\s*',enum+'_',text)
@@ -525,7 +526,7 @@ class Source:
                 except Unsupported as e: self.errors[name] = str(e)
         # Numeric constexpr tables (including sequence remaps). Other C++
         # declarations remain unavailable and reject the affected graphics rule.
-        for match in re.finditer(r'(?:static\s+)?(?:constexpr|const)\s+(?:u?int\d+_t|ImageIndex|CoordsXY|CoordsXYZ|SpriteBb|SpriteBoundBox2|TunnelGroup|auto)\s+(\w+)\s*(?:\[[^;=]*\])?\s*=\s*([^;]+);', self.text):
+        for match in re.finditer(r'(?:static\s+)?(?:constexpr|const)\s+(?:u?int\d+_t|ImageIndex|CoordsXY|CoordsXYZ|SpriteBb|SpriteBoundBox2|TunnelGroup|WoodenSupportSubType|WoodenSupportTransitionType|auto)\s+(\w+)\s*(?:\[[^;=]*\])?\s*=\s*([^;]+);', self.text):
             self.globals[match[1]] = Deferred(tokens(match[2]))
         for match in re.finditer(r'(?:static\s+)?constexpr\s+(std::array<[^;=]+>)\s+(\w+)\s*=\s*([^;]+);',self.text):
             dimensions=re.findall(r',\s*([A-Za-z_]\w*|\d+)\s*>',match[1])[::-1]
@@ -695,7 +696,7 @@ class Translator:
 
     def execute(self, node, env, source, parts, depth, getter=False):
         kind = node[0]
-        if not getter and auxiliary(node): return None
+        if not getter and not getattr(self, 'capture_supports', False) and auxiliary(node): return None
         if kind == 'block':
             for item in node[1]:
                 flow = self.execute(item, env, source, parts, depth, getter)
@@ -1061,6 +1062,347 @@ class Translator:
         self.execute(source.functions[self.local_name(source,name)], env, source, parts, depth)
 
 
+class SupportTranslator(Translator):
+    """Separate source-authored support program. Rail tables are never rewritten."""
+    capture_supports = True
+
+    def __init__(self, root):
+        super().__init__(root)
+        self.support_ops = []
+        self.support_predicate = 0
+        self.support_gaps = set()
+        path = 'src/openrct2/paint/support/MetalSupports.h'
+        text = clean((root/path).read_text())
+        self.hashes[path] = hashlib.sha256((root/path).read_bytes()).hexdigest()
+        for enum in ('MetalSupportType', 'MetalSupportPlace'):
+            body = re.search(r'enum class '+enum+r'[^\{]*\{(.*?)\}', text, re.S)[1]
+            for name,value in re.findall(r'(\w+)\s*=\s*(\d+)',body):
+                self.constants[enum+'_'+name] = int(value)
+        path='src/openrct2/paint/track/Segment.h'
+        self.hashes[path]=hashlib.sha256((root/path).read_bytes()).hexdigest()
+        self.constants.update(Source(path,(root/path).read_text()).globals)
+        path='src/openrct2/paint/track/Support.h'
+        self.hashes[path]=hashlib.sha256((root/path).read_bytes()).hexdigest()
+        self.constants.update(Source(path,(root/path).read_text()).globals)
+        text=clean((root/'src/openrct2/ride/TrackPaint.h').read_text())
+        body=re.search(r'constexpr MetalSupportPlace kDiagSupportPlacement\[\]\s*=\s*(\{.*?\});',text,re.S)[1]
+        self.constants['kDiagSupportPlacement']=Deferred(tokens(body))
+
+    def value(self, values, env):
+        text = ''.join(values)
+        if text.startswith('BlockedSegments::'):
+            return self.value(tokens(text.split('::',1)[1]),env)
+        if text == 'supportType.metal':
+            return env.get('_metalType', 255)
+        if text == 'supportType' and isinstance(env.get('supportType'), int):
+            return env['supportType']
+        invoked = call(values)
+        if invoked and invoked[0] in ('PaintUtilRotateSegments', 'paintSegmentsRotate'):
+            mask, rotation = [self.value(a,env) for a in invoked[1]]
+            shift=(rotation&3)*2; outer=mask&255
+            return (mask&256)|(((outer<<shift)|(outer>>(8-shift)))&255)
+        if invoked and invoked[0] == 'EnumToFlag':
+            return 1 << self.value(invoked[1][0],env)
+        text = re.sub(r'(MetalSupportType|MetalSupportPlace)::',r'\1_',text)
+        return evaluate(tokens(text),env)
+
+    def append_support(self, opcode, parts, **values):
+        fields = dict(type=0,placement=0,rotation=4,height=0,extra=0,mask=0,slope=0,
+                      predicate=self.support_predicate,colour=1,railOrdinal=len(parts),reserved=0)
+        fields.update(values)
+        self.support_ops.append(tuple([opcode]+list(fields.values())))
+        if len(self.support_ops)>64: raise Unsupported('support program operation capacity')
+
+    def execute(self,node,env,source,parts,depth,getter=False):
+        if getter: return super().execute(node,env,source,parts,depth,getter)
+        if node[0]=='if':
+            condition=''.join(node[1]); negate=condition.startswith('!')
+            plain=condition[1:] if negate else condition
+            if plain=='TrackPaintUtilShouldPaintSupports(session.MapPosition)':
+                if not auxiliary_local_block(node[2]) or not auxiliary_local_block(node[3]):
+                    raise Unsupported('support checker controls non-support statements')
+                previous=self.support_predicate
+                try:
+                    for branch,predicate in ((node[2],2 if negate else 1),(node[3],1 if negate else 2)):
+                        if branch is None or (previous!=0 and previous!=predicate): continue
+                        self.support_predicate=predicate
+                        self.execute(branch,env,source,parts,depth)
+                finally: self.support_predicate=previous
+                return None
+        if node[0]=='expr':
+            invoked=call(node[1])
+            if invoked:
+                name,args=invoked
+                metal=re.fullmatch(r'Metal([AB])SupportsPaintSetup(Rotated)?',name)
+                if metal:
+                    rotated=bool(metal[2]); expected=7 if rotated else 6
+                    if len(args)!=expected: raise Unsupported('metal support call signature')
+                    role=image_value(args[-1],env).role
+                    if role>3: raise Unsupported('metal support colour role')
+                    self.append_support(1 if metal[1]=='A' else 2,parts,type=self.value(args[1],env),
+                        placement=self.value(args[2],env),rotation=self.value(args[3],env) if rotated else 4,
+                        extra=self.value(args[4 if rotated else 3],env),height=self.value(args[5 if rotated else 4],env),colour=role)
+                    return None
+                if name=='PaintUtilSetSegmentSupportHeight':
+                    if len(args)!=4: raise Unsupported('segment support signature')
+                    self.append_support(3,parts,mask=self.value(args[1],env),height=self.value(args[2],env),slope=self.value(args[3],env))
+                    return None
+                if name=='PaintUtilSetGeneralSupportHeight':
+                    if len(args) not in (2,3): raise Unsupported('general support signature')
+                    self.append_support(4,parts,height=self.value(args[1],env),slope=self.value(args[2],env) if len(args)==3 else 0x20)
+                    return None
+                if name=='DrawSupportsSideBySide':
+                    if len(args) not in (5,6): raise Unsupported('side by side support signature')
+                    direction=self.value(args[1],env)
+                    for placement in ((6,7) if direction&1 else (5,8)):
+                        self.append_support(1,parts,type=self.value(args[4],env),placement=placement,rotation=direction,
+                            height=self.value(args[2],env),extra=self.value(args[5],env) if len(args)==6 else 0,
+                            colour=image_value(args[3],env).role)
+                    # Placements above are already rotated; only graphic rotation remains.
+                    for i in (-1,-2):
+                        op=list(self.support_ops[i]);op[11]=1;self.support_ops[i]=tuple(op)
+                    return None
+                if name in ('DrawSBendLeftSupports','DrawSBendRightSupports',
+                            'TrackPaintUtilLeftCorkscrewUpSupports','TrackPaintUtilRightVerticalLoopSegments'):
+                    target=self.find(name,source);parameters=target.parameters[self.local_name(target,name)]
+                    if len(parameters)!=len(args): raise Unsupported('support helper signature '+name)
+                    local=ChainMap(dict(env.maps[0]),target.globals,self.constants)
+                    for parameter,arg in zip(parameters,args):
+                        if parameter=='session': continue
+                        local[parameter]=self.value(arg,env)
+                    return self.execute(target.functions[self.local_name(target,name)],local,target,parts,depth+1)
+                if name in STATION_CALLS:
+                    self.support_gaps.add('station internal supports: '+name)
+                if AUX.fullmatch(name) and not TUNNEL_CALL.fullmatch(name) and name not in STATION_CALLS:
+                    self.support_gaps.add(name)
+                    return None
+        return super().execute(node,env,source,parts,depth,getter)
+
+    def paint(self,source,name,*args,**kwargs):
+        if name.startswith('OpenRCT2::trackPaint'):
+            self.support_gaps.add('generic TED support helper: '+name)
+        return super().paint(source,name,*args,**kwargs)
+
+
+class WoodenSupportTranslator(SupportTranslator):
+    """DRAFT: preserve wooden calls as operations; never execute their terrain-dependent return value."""
+
+    def __init__(self, root):
+        super().__init__(root)
+        self.wooden_prepend = None
+        path='src/openrct2/paint/support/WoodenSupports.h'
+        header=clean((root/path).read_text())
+        self.hashes[path]=hashlib.sha256((root/path).read_bytes()).hexdigest()
+        for enum in ('WoodenSupportType','WoodenSupportSubType','WoodenSupportTransitionType'):
+            body=re.search(r'enum class '+enum+r'[^\{]*\{(.*?)\}',header,re.S)[1]
+            previous=-1
+            for member in split_top(tokens(body)):
+                if not member: continue
+                previous=evaluate(member[2:],self.constants) if len(member)>1 else previous+1
+                self.constants[enum+'_'+member[0]]=previous
+        self.wooden_sequences={};self.wooden_descriptors={}
+        paths=[root/'src/openrct2/ride/TrackData.cpp']+sorted((root/'src/openrct2/ride/ted').glob('TED.*.h'))
+        for path in paths:
+            text=clean(path.read_text())
+            self.hashes[str(path.relative_to(root)).replace('\\','/')]=hashlib.sha256(path.read_bytes()).hexdigest()
+            for match in re.finditer(r'constexpr\s+SequenceDescriptor\s+(\w+)\s*=\s*\{',text):
+                self.wooden_sequences[match[1]]=self.brace_body(text,match.end()-1)
+            for match in re.finditer(r'constexpr\s+auto\s+(\w+)\s*=\s*TrackElementDescriptor\s*\{',text):
+                self.wooden_descriptors[match[1]]=self.brace_body(text,match.end()-1)
+        source=clean((root/'src/openrct2/ride/TrackData.cpp').read_text())
+        table=re.search(r'kTrackElementDescriptors\s*=\s*std::to_array<TrackElementDescriptor>\(\{(.*?)\}\)',source,re.S)
+        if not table: raise Unsupported('wooden TED directory missing')
+        self.wooden_types=[x.strip() for x in table[1].split(',') if x.strip()]
+        for path in ('src/openrct2/paint/support/WoodenSupports.cpp','src/openrct2/paint/support/WoodenSupports.hpp',
+                     'src/openrct2/ride/ted/TrackElementDescriptor.h'):
+            self.hashes[path]=hashlib.sha256((root/path).read_bytes()).hexdigest()
+
+    @staticmethod
+    def brace_body(text,start):
+        depth=1;end=start+1
+        while depth and end<len(text):
+            if text[end]=='{': depth+=1
+            elif text[end]=='}': depth-=1
+            end+=1
+        if depth: raise Unsupported('unterminated TED initializer')
+        return text[start+1:end-1]
+
+    def value(self, values, env):
+        text=''.join(values)
+        if text=='supportType.wooden': return env.get('_woodenType',255)
+        text=re.sub(r'(WoodenSupportType|WoodenSupportSubType|WoodenSupportTransitionType)::',r'\1_',text)
+        text=text.replace('TrackElemType::','')
+        return super().value(tokens(text),env)
+
+    def wooden_sequence(self,track_type,sequence):
+        try: descriptor=self.wooden_descriptors[self.wooden_types[track_type]]
+        except (KeyError,IndexError): raise Unsupported('wooden TED descriptor unavailable')
+        table=re.search(r'\.sequenceData\s*=\s*\{\s*(\d+)\s*,\s*\{(.*?)\}\s*\}',descriptor,re.S)
+        if not table: raise Unsupported('wooden TED sequence directory unavailable')
+        names=[x.strip() for x in table[2].split(',') if x.strip()]
+        if len(names)!=int(table[1]) or sequence<0 or sequence>=16: raise Unsupported('wooden TED sequence range')
+        # TED owns a fixed 16-entry value-initialized array. The rail baseline may
+        # include ignored sequence values; their wooden descriptor is the null default.
+        if sequence>=len(names): return 6,255,0
+        try: body=self.wooden_sequences[names[sequence]]
+        except KeyError: raise Unsupported('wooden TED sequence initializer unavailable')
+        support=re.search(r'\.woodenSupports\s*=\s*\{(.*?)\}',body,re.S)
+        values=split_top(tokens(support[1])) if support else []
+        if len(values)>3: raise Unsupported('wooden TED support metadata changed')
+        subtype=self.value(values[0],self.constants) if values else 6
+        transition=self.value(values[1],self.constants) if len(values)>1 else 255
+        rotation=re.search(r'\.extraSupportRotation\s*=\s*([^,}]+)',body)
+        return subtype,transition,self.value(tokens(rotation[1]),self.constants) if rotation else 0
+
+    def wooden_op(self,parts,family,support_type,subtype,direction,height,role,transition,rotated):
+        if subtype==6: return
+        if support_type not in (0,1,255) or subtype not in range(6) or direction not in range(4):
+            raise Unsupported('wooden support type/subtype/direction range')
+        if transition!=255 and transition not in range(21): raise Unsupported('wooden transition range')
+        flags=(2 if rotated else 0)|(4 if self.wooden_prepend is not None else 0)
+        self.append_support(5 if family=='A' else 6,parts,type=support_type,placement=subtype,
+            rotation=direction,height=height,extra=transition,colour=role,
+            mask=self.wooden_prepend if self.wooden_prepend is not None else 0,reserved=flags)
+
+    def execute(self,node,env,source,parts,depth,getter=False):
+        if getter: return super().execute(node,env,source,parts,depth,getter)
+        if node[0]=='expr':
+            values=node[1]
+            if '=' in values and ''.join(values[:values.index('=')])=='session.WoodenSupportsPrependTo':
+                rhs=values[values.index('=')+1:]
+                if len(rhs)==1 and isinstance(env.get(rhs[0]),PaintHandle):
+                    self.wooden_prepend=env[rhs[0]].index;return None
+                if rhs==['nullptr'] or (len(rhs)==1 and rhs[0] in env and env[rhs[0]] is None):
+                    self.wooden_prepend=None;return None
+                before=len(parts)
+                result=super().execute(node,env,source,parts,depth)
+                self.wooden_prepend=before if len(parts)>before else None
+                return result
+            invoked=call(values)
+            if invoked:
+                name,args=invoked
+                direct=re.fullmatch(r'Wooden([AB])SupportsPaintSetup(Rotated)?',name)
+                if direct:
+                    rotated=bool(direct[2])
+                    if len(args) not in ((6,7) if rotated else (5,6,7)):
+                        raise Unsupported('wooden support call signature')
+                    colourIndex=5 if rotated else 4
+                    transition=self.value(args[colourIndex+1],env) if len(args)>colourIndex+1 else 255
+                    direction=self.value(args[3],env) if rotated else self.value(args[6],env) if len(args)==7 else 0
+                    self.wooden_op(parts,direct[1],self.value(args[1],env),self.value(args[2],env),direction,
+                        self.value(args[4 if rotated else 3],env),image_value(args[colourIndex],env).role,transition,rotated)
+                    return None
+                helper=re.fullmatch(r'DrawSupportForSequence([AB])(?:<(.*)>)?',name)
+                if helper:
+                    templated=helper[2] is not None
+                    if len(args)!=(6 if templated else 7): raise Unsupported('wooden sequence call signature')
+                    track_type=self.value(tokens(helper[2]),env) if templated else self.value(args[2],env)
+                    sequenceIndex=2 if templated else 3
+                    subtype,transition,extraRotation=self.wooden_sequence(track_type,self.value(args[sequenceIndex],env))
+                    self.wooden_op(parts,helper[1],self.value(args[1],env),subtype,
+                        (self.value(args[sequenceIndex+1],env)+extraRotation)&3,
+                        self.value(args[sequenceIndex+2],env),image_value(args[sequenceIndex+3],env).role,transition,True)
+                    return None
+        return super().execute(node,env,source,parts,depth,getter)
+
+    def paint(self,source,name,sequence,direction,height,state,parts,depth=0,track_type=0,dependencies=None):
+        if depth==0: self.wooden_prepend=None
+        return super().paint(source,name,sequence,direction,height,state,parts,depth,track_type,dependencies)
+
+
+def qualify_wooden_prepend(ops, source_parts, baseline_parts):
+    if not any(op[0] in (5,6) and op[11]&4 for op in ops): return ops
+    baseline=[(i,tuple(x&0xffffffff for x in part)) for i,part in enumerate(baseline_parts) if part[0]!=TUNNEL_PART]
+    source=[tuple(x&0xffffffff for x in part) for part in source_parts]
+    if source!=[part for _,part in baseline]: raise Unsupported('wooden prepend rail baseline identity mismatch')
+    result=[]
+    for original in ops:
+        op=list(original)
+        if op[0] in (5,6) and op[11]&4:
+            if op[6]>=len(baseline): raise Unsupported('wooden prepend rail ordinal range')
+            op[6]=baseline[op[6]][0]
+        result.append(tuple(op))
+    return result
+
+
+def build_supports(args):
+    """Read the already-qualified rail table; emit support coverage separately."""
+    baseline=args.support_baseline.read_bytes()
+    words=struct.unpack('<'+'I'*(len(baseline)//4),baseline)
+    if words[:5]!=(0x5452434b,1,81,350,8): raise Unsupported('support baseline header')
+    translator=WoodenSupportTranslator(args.root)
+    descriptors=[0]*(81*350*3);rows=[];ops=[];row_sets={};op_sets={};cache={};reports=[]
+    for style,getter in enumerate(translator.getters):
+        print('Authoring metal/wooden supports style %d/81 %s'%(style+1,getter),flush=True)
+        report=dict(style=style,supported=[],supportRejected={},omittedCalls={})
+        for track_type in range(350):
+            offset=(style*350+track_type)*3;sequences=words[8+offset+1]
+            if sequences==0:continue
+            key=(getter,track_type,sequences)
+            if key not in cache:
+                try:
+                    sampled={};dependencies=set();mask=words[8+offset+2];gaps=set()
+                    while True:
+                        for state in range(128):
+                            if state&~mask or state in sampled:continue
+                            source,name=translator.getter(getter,track_type,state=state,dependencies=dependencies)
+                            program=[]
+                            for sequence in range(sequences):
+                                for direction in range(4):
+                                    translator.support_ops=[];translator.support_gaps=set();translator.support_predicate=0
+                                    source_parts=[]
+                                    translator.paint(source,name,sequence,direction,0,state,source_parts,track_type=track_type,dependencies=dependencies)
+                                    baseline_mask=words[8+offset+2]
+                                    packed_state=sum(((state>>bit)&1)<<sum(bool(baseline_mask&(1<<j)) for j in range(bit))
+                                                     for bit in range(7) if baseline_mask&(1<<bit))
+                                    row=words[8+offset]+(packed_state*sequences+sequence)*4+direction
+                                    first,count=words[words[5]+row*2:words[5]+row*2+2]
+                                    baseline_parts=[words[words[6]+(first+i)*12:words[6]+(first+i+1)*12] for i in range(count)]
+                                    program.append(tuple(qualify_wooden_prepend(translator.support_ops,source_parts,baseline_parts)))
+                                    gaps.update(translator.support_gaps)
+                            sampled[state]=tuple(program)
+                        next_mask=mask|sum(dependencies)
+                        if next_mask==mask:break
+                        mask=next_mask
+                    variants=[sampled[state&mask] for state in range(128)]
+                    mask=next(m for m in range(128) if all(variants[s]==variants[s&m] for s in range(128)))
+                    cache[key]=(variants,mask,gaps)
+                except (Unsupported,KeyError,ZeroDivisionError,RecursionError) as error:cache[key]=str(error)
+            value=cache[key]
+            if isinstance(value,str):report['supportRejected'][str(track_type)]=value;continue
+            variants,mask,gaps=value;packed=[]
+            for state in range(128):
+                if state&~mask:continue
+                for program in variants[state]:
+                    if program not in op_sets:
+                        op_sets[program]=len(ops)//12
+                        for op in program:ops.extend(x&0xffffffff for x in op)
+                    packed.extend((op_sets[program],len(program)))
+            row_key=tuple(packed)
+            if row_key not in row_sets:row_sets[row_key]=len(rows)//2;rows.extend(packed)
+            descriptors[offset:offset+3]=[row_sets[row_key],sequences,mask];report['supported'].append(track_type)
+            if gaps:report['omittedCalls'][str(track_type)]=sorted(gaps)
+        reports.append(report)
+    result=[0x54535054,1,81,350,8,8+len(descriptors),8+len(descriptors)+len(rows),0]+descriptors+rows+ops
+    result[7]=len(result)
+    if len(result)>16*1024*1024:raise Unsupported('support word capacity')
+    binary=struct.pack('<'+'I'*len(result),*result);compressed=zlib.compress(binary,9)
+    args.output.mkdir(parents=True,exist_ok=True)
+    (args.output/'native-track-supports.bin').write_bytes(binary)
+    lines=['// Generated by extract-native-track-recipes.py --support-baseline; do not edit.',
+           'static constexpr uint32_t kNativeTrackSupportWordCount = %du;'%len(result),
+           'static constexpr uint8_t kNativeTrackSupportCompressed[] = {']
+    lines+=['    '+','.join('0x%02x'%v for v in compressed[i:i+24])+',' for i in range(0,len(compressed),24)]
+    (args.output/'NativeTrackSupportData.inc').write_text('\n'.join(lines+['};','']),encoding='utf-8')
+    report=dict(schema=1,baselineSha256=hashlib.sha256(baseline).hexdigest(),sourceSha256=translator.hashes,
+        authoringScriptSha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        supportSha256=hashlib.sha256(binary).hexdigest(),wordCount=len(result),styles=reports,
+        supportedStyleTypes=sum(len(s['supported']) for s in reports),
+        scope='DRAFT source-authored metal/wooden support programs; omitted calls and rejected support programs remain explicit. Rail baseline unchanged.')
+    (args.output/'support-coverage.json').write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8')
+    print('Supported metal/wooden program style/types:',report['supportedStyleTypes'])
+
+
 def build(args):
     global CAPTURE_TUNNELS
     translator = Translator(args.root)
@@ -1171,4 +1513,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', type=Path, default=Path(__file__).resolve().parents[2])
     parser.add_argument('--output', type=Path, required=True)
-    build(parser.parse_args())
+    parser.add_argument('--support-baseline',type=Path,help='Author support sidecar for this immutable rail binary without modifying it')
+    args=parser.parse_args()
+    if args.support_baseline: build_supports(args)
+    else: build(args)

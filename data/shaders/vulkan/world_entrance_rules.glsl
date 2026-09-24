@@ -8,6 +8,31 @@
 #else
 #define ENTRANCE_FN
 #endif
+// PaintRideEntranceExit authors the rear frame at (2,2,z) and the front
+// frame at (2,2,z+30), although both images are drawn at (0,0,z).
+// These named component anchors keep rear glass behind the front frame;
+// each glass child uses its own parent's anchor plus the local child layer.
+struct WorldEntranceDepthAnchor { int x; int y; int z; };
+// PaintRideEntranceExitScrollingText uses the station's mode unchanged for all
+// directions and authors its raster at the station height above the entrance.
+// Its authored bounds also begin at (2,2,baseZ+stationHeight), so the constant
+// component depth uses that text anchor, not the front frame's lower +30 anchor.
+// Status comes from the captured ride hot state.
+struct WorldEntranceText { int mode; int rasterZ; int closed; };
+ENTRANCE_FN WorldEntranceText worldRideEntranceText(bool isExit,bool ghost,int mode,int stationHeight,int baseZ,int rideFlags)
+{
+    WorldEntranceText text;
+    text.mode=(!isExit && !ghost && mode>=0 && mode<38)?mode:-1;
+    text.rasterZ=baseZ+stationHeight;
+    text.closed=((rideFlags&16)==0 || (rideFlags&8)!=0)?1:0;
+    return text;
+}
+ENTRANCE_FN WorldEntranceDepthAnchor worldRideEntranceDepthAnchor(int parentOrdinal,int baseZ)
+{
+    WorldEntranceDepthAnchor anchor;
+    anchor.x=2; anchor.y=2; anchor.z=baseZ+(parentOrdinal==0?0:30);
+    return anchor;
+}
 // imageOffset indexes the station's eight directional image groups; direction is applied by the GPU visitor.
 ENTRANCE_FN WorldPropParts worldRideEntranceParts(int direction,bool isExit,int flags)
 {

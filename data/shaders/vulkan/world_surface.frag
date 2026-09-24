@@ -1,4 +1,6 @@
 #version 450
+#extension GL_GOOGLE_include_directive : require
+#include "world_banner_text.glsl"
 
 const int MASK_REMAP_COUNT = 3;
 const int FLAG_NO_TEXTURE = (1 << 2);
@@ -19,6 +21,7 @@ layout(location = 5) flat in ivec3 fPalettes;
 layout(location = 6) flat in float fZoom;
 layout(location = 7) flat in int fTexColourAtlas;
 layout(location = 8) flat in int fTexMaskAtlas;
+layout(location = 9) flat in uvec3 fBannerText;
 
 layout(location = 0) out uint oColour;
 
@@ -34,6 +37,14 @@ void main()
     // offset at non-unit zoom levels.
     ivec2 fragment = ivec2(floor(gl_FragCoord.xy));
     ivec2 position = ivec2((vec2(fragment) - vec2(fPosition)) * fZoom);
+    if((uint(fFlags)&WORLD_BANNER_TEXT_EFFECT)!=0u) {
+        // Geometry clipping advances the source offset just as for raw G1 art.
+        uint text=worldBannerTextPixel(fBannerText.x,fBannerText.y,fBannerText.z,
+            ivec2(fTexColour.xy)+position);
+        if(text==0u) discard;
+        oColour=text;
+        return;
+    }
     uint texel;
     if ((fFlags & FLAG_NO_TEXTURE) == 0)
     {

@@ -61,6 +61,7 @@ namespace OpenRCT2::Ui::Gpu
         };
         std::vector<PublishedSurfaceChunk> _surfaceChunks;
         std::shared_ptr<const WorldSurfaceSpriteTable> _publishedSurfaceSprites;
+        std::shared_ptr<const WorldBannerTextData> _publishedBannerTexts;
         uint64_t _nextSurfaceSpriteRevision{};
         uint64_t _nextSurfaceChunkRevision{};
         uint64_t _surfaceWorldEpoch{};

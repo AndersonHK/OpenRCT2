@@ -429,7 +429,7 @@ namespace OpenRCT2::Editor
                     auto banner = iter.element->asBanner()->getBanner();
                     if (banner != nullptr)
                     {
-                        type = banner->type;
+                        type = banner->getType();
                         Editor::SetSelectedObject(ObjectType::banners, type, ObjectSelectionFlag::inUse);
                     }
                     break;

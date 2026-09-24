@@ -28,6 +28,7 @@ void visitEntrance(uint index,uvec2 tile,uint destination,bool writeRecords,inou
 {
     WorldObjectRecord object=uObjects.records[index];
     if(object.kind!=5u || (object.flags&2u)!=0u || uEntrances.words.length()<8 || uEntrances.words[7u]!=1u) return;
+    if((uScene.viewFlags&(1u<<18))!=0u) return;
     uint type=object.reserved&255u;
     if(type>2u) return;
     int direction=int((object.direction+uScene.rotation)&3u);
@@ -62,7 +63,7 @@ void visitEntrance(uint index,uvec2 tile,uint destination,bool writeRecords,inou
             uint sprite=0xffffffffu;
             if(type==2u) {
                 if(part.imageOffset<0) {
-                    uint slot=(object.reserved>>8u)&65535u;
+                    uint slot=(object.reserved>>8u)&255u;
                     if(slot<255u) {
                         PathMaterial surface=uCatalog.paths[slot+((object.flags&4096u)!=0u?255u:0u)];
                         uint offset=5u*(1u+(uint(direction)&1u));
@@ -81,8 +82,30 @@ void visitEntrance(uint index,uvec2 tile,uint destination,bool writeRecords,inou
             worldSetPaintBounds(tile,ivec3(part.boundsX,part.boundsY,object.baseZ+part.boundsZ),
                 ivec3(part.sizeX,part.sizeY,part.sizeZ),i==begin?0u:1u);
             worldSetCoplanarSurfaceLayer();
+            if(type!=2u) {
+                WorldEntranceDepthAnchor anchor=worldRideEntranceDepthAnchor(ordinal,object.baseZ);
+                worldSetComponentDepthAnchor(tile,ivec3(anchor.x,anchor.y,anchor.z));
+            }
             emitObjectSprite(tile,object.baseZ+part.z,ivec2(part.x,part.y),sprite,palettes,effects,destination,writeRecords,count);
         }
     }
+    if(type==0u && station!=0u) {
+        uint rideId=object.rideIdAndMazeEntry&65535u;
+        uint rideFlags=0u;
+        if(uRidePoses.words.length()>=4 && uRidePoses.words[1]==20u
+            && rideId<uRidePoses.words[0] && rideId<(uint(uRidePoses.words.length())-4u)/20u)
+            rideFlags=uRidePoses.words[4u+rideId*20u];
+        WorldEntranceText text=worldRideEntranceText(false,ghost,int(uEntrances.words[station+3u]),
+            int(uEntrances.words[station+2u]),object.baseZ,int(rideFlags));
+        uint descriptor=worldBannerTextDescriptor(true,rideId);
+        if(text.mode>=0 && descriptor!=0u) {
+            if(text.closed!=0) descriptor=uBannerTexts.words[6];
+            // PaintRideEntranceExitScrollingText authors this component's own
+            // bounds at (2,2,baseZ+stationHeight), above the front frame's +30.
+            worldEmitBannerText(tile,text.rasterZ,ivec3(2,2,text.rasterZ),descriptor,uint(text.mode),
+                destination,writeRecords,count);
+        }
+    }
+    worldSupportEntrance(worldSupportState,object.baseZ,int(type));
 }
 #endif

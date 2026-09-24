@@ -134,6 +134,9 @@
     <ClCompile Include="WorldSelectionTests.cpp" />
     <ClCompile Include="SelectedVehicleSnapshotTests.cpp" />
     <ClCompile Include="WorldPathRulesTests.cpp" />
+    <ClCompile Include="WorldBannerPublicationTests.cpp" />
+    <ClCompile Include="WorldMetalSupportRulesTests.cpp" />
+    <ClCompile Include="WorldWoodenSupportRulesTests.cpp" />
     <ClCompile Include="WorldPathOrderTests.cpp" />
     <ClCompile Include="VulkanTerrainCompletionTests.cpp" />
     <ClCompile Include="SpriteAssetDecoderTests.cpp" />

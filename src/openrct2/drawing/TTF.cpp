@@ -26,6 +26,7 @@
     #include "../localisation/LocalisationService.h"
     #include "../platform/Platform.h"
     #include "DrawingLock.hpp"
+    #include "ScrollingText.h"
     #include "TTF.h"
 
 using namespace OpenRCT2;
@@ -126,6 +127,7 @@ bool TTFInitialise()
     }
 
     TTFToggleHinting(true);
+    Drawing::ScrollingText::invalidate();
 
     _ttfInitialised = true;
 
@@ -201,6 +203,7 @@ void TTFToggleHinting()
 {
     DrawingUniqueLock<std::mutex> lock(_mutex);
     TTFToggleHinting(true);
+    Drawing::ScrollingText::invalidate();
 }
 
 TTFSurface* TTFSurfaceCacheGetOrAdd(TTF_Font* font, std::string_view text)

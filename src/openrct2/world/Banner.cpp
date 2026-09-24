@@ -11,23 +11,122 @@
 
 #include "../Diagnostic.h"
 #include "../GameState.h"
+#include "../OpenRCT2.h"
+#include "../drawing/PaletteIndex.h"
 #include "../drawing/ScrollingText.h"
 #include "../localisation/Formatter.h"
 #include "../localisation/Formatting.h"
+#include "../localisation/Language.h"
 #include "../object/WallSceneryEntry.h"
 #include "../ride/Ride.h"
 #include "../ride/RideData.h"
 #include "../ride/RideManager.hpp"
 #include "Map.h"
 #include "TileElementsView.h"
+#include "WorldBannerPresentation.h"
+#include "WorldObjectPresentation.h"
 #include "tile_element/BannerElement.h"
 #include "tile_element/TileElement.h"
 #include "tile_element/TrackElement.h"
 #include "tile_element/WallElement.h"
 
+#include <bitset>
 #include <limits>
 
 using namespace OpenRCT2;
+
+namespace
+{
+    std::bitset<kMaxBanners> _dirtyBannerText;
+    std::array<uint16_t, kMaxBanners> _dirtyBannerIds{};
+    size_t _dirtyBannerCount{};
+    uint64_t _bannerTextEpoch{ 1 };
+
+    void MarkBannerTextDirty(BannerIndex id) noexcept
+    {
+        const auto index = id.ToUnderlying();
+        if (index < kMaxBanners && !_dirtyBannerText.test(index))
+        {
+            _dirtyBannerText.set(index);
+            _dirtyBannerIds[_dirtyBannerCount++] = index;
+        }
+    }
+} // namespace
+
+Banner& Banner::operator=(const Banner& other)
+{
+    if (this != &other)
+    {
+        Banner copy(other);
+        *this = std::move(copy);
+    }
+    return *this;
+}
+
+Banner& Banner::operator=(Banner&& other) noexcept
+{
+    if (this != &other)
+    {
+        MarkBannerTextDirty(id);
+        id = other.id;
+        _type = other._type;
+        _flags = other._flags;
+        _text = std::move(other._text);
+        colour = other.colour;
+        _rideIndex = other._rideIndex;
+        _textColour = other._textColour;
+        position = other.position;
+        MarkBannerTextDirty(id);
+    }
+    return *this;
+}
+
+void Banner::setType(ObjectEntryIndex value)
+{
+    if (_type != value)
+    {
+        _type = value;
+        MarkBannerTextDirty(id);
+    }
+}
+void Banner::setFlags(BannerFlags value)
+{
+    if (_flags != value)
+    {
+        _flags = value;
+        MarkBannerTextDirty(id);
+    }
+}
+void Banner::setFlag(BannerFlag flag, bool value)
+{
+    auto flags = _flags;
+    flags.set(flag, value);
+    setFlags(flags);
+}
+void Banner::setText(std::string value)
+{
+    if (_text != value)
+    {
+        _text = std::move(value);
+        MarkBannerTextDirty(id);
+    }
+}
+void Banner::setRideIndex(RideId value)
+{
+    if (_rideIndex != value)
+    {
+        _rideIndex = value;
+        MarkBannerTextDirty(id);
+    }
+}
+void Banner::setTextColour(Drawing::TextColour value)
+{
+    if (_textColour != value)
+    {
+        _textColour = value;
+        MarkBannerTextDirty(id);
+    }
+}
 
 std::string Banner::getTextWithColour() const
 {
@@ -50,7 +149,7 @@ void Banner::formatTextWithColourTo(Formatter& ft) const
     // different viewport columns in parallel.
     thread_local std::string formattedTextBuffer;
 
-    auto formatToken = FormatTokenFromTextColour(textColour);
+    auto formatToken = FormatTokenFromTextColour(_textColour);
     formattedTextBuffer = FormatTokenToStringWithBraces(formatToken);
     ft.Add<StringId>(STR_STRING_STRINGID);
     ft.Add<const char*>(formattedTextBuffer.data());
@@ -60,13 +159,13 @@ void Banner::formatTextWithColourTo(Formatter& ft) const
 
 void Banner::formatTextTo(Formatter& ft) const
 {
-    if (flags.has(BannerFlag::noEntry))
+    if (_flags.has(BannerFlag::noEntry))
     {
         ft.Add<StringId>(STR_NO_ENTRY);
     }
-    else if (flags.has(BannerFlag::linkedToRide))
+    else if (_flags.has(BannerFlag::linkedToRide))
     {
-        auto ride = GetRide(rideIndex);
+        auto ride = GetRide(_rideIndex);
         if (ride != nullptr)
         {
             ride->formatNameTo(ft);
@@ -76,13 +175,13 @@ void Banner::formatTextTo(Formatter& ft) const
             ft.Add<StringId>(STR_DEFAULT_SIGN);
         }
     }
-    else if (text.empty())
+    else if (_text.empty())
     {
         ft.Add<StringId>(STR_DEFAULT_SIGN);
     }
     else
     {
-        ft.Add<StringId>(STR_STRING).Add<const char*>(text.c_str());
+        ft.Add<StringId>(STR_STRING).Add<const char*>(_text.c_str());
     }
 }
 
@@ -137,6 +236,9 @@ static BannerIndex BannerGetNewIndex()
 void BannerInit(GameState_t& gameState)
 {
     gameState.banners.clear();
+    ++_bannerTextEpoch;
+    _dirtyBannerText.reset();
+    _dirtyBannerCount = 0;
 }
 
 TileElement* BannerGetTileElement(BannerIndex bannerIndex)
@@ -280,7 +382,7 @@ static void BannerDeallocateUnlinked()
             auto* banner = GetBanner(bannerId);
             if (banner != nullptr)
             {
-                banner->type = kBannerNull;
+                banner->setType(kBannerNull);
             }
         }
     }
@@ -370,8 +472,8 @@ void UnlinkAllRideBanners()
     {
         if (!banner.isNull())
         {
-            banner.flags.unset(BannerFlag::linkedToRide);
-            banner.rideIndex = RideId::GetNull();
+            banner.setFlag(BannerFlag::linkedToRide, false);
+            banner.setRideIndex(RideId::GetNull());
         }
     }
 }
@@ -381,11 +483,11 @@ void UnlinkAllBannersForRide(RideId rideId)
     auto& gameState = getGameState();
     for (auto& banner : gameState.banners)
     {
-        if (!banner.isNull() && banner.flags.has(BannerFlag::linkedToRide) && banner.rideIndex == rideId)
+        if (!banner.isNull() && banner.getFlags().has(BannerFlag::linkedToRide) && banner.getRideIndex() == rideId)
         {
-            banner.flags.unset(BannerFlag::linkedToRide);
-            banner.rideIndex = RideId::GetNull();
-            banner.text = {};
+            banner.setFlag(BannerFlag::linkedToRide, false);
+            banner.setRideIndex(RideId::GetNull());
+            banner.setText({});
         }
     }
 }
@@ -418,6 +520,7 @@ Banner* GetOrCreateBanner(BannerIndex id)
         // Create the banner
         auto& banner = gameState.banners[index];
         banner.id = id;
+        MarkBannerTextDirty(id);
         return &banner;
     }
     return nullptr;
@@ -430,11 +533,11 @@ Banner* CreateBanner()
     if (banner != nullptr)
     {
         banner->id = bannerIndex;
-        banner->flags = {};
-        banner->type = 0;
-        banner->text = {};
+        banner->setFlags({});
+        banner->setType(0);
+        banner->setText({});
         banner->colour = OpenRCT2::Drawing::Colour::white;
-        banner->textColour = Drawing::TextColour::white;
+        banner->setTextColour(Drawing::TextColour::white);
     }
     return banner;
 }
@@ -481,4 +584,68 @@ bool HasReachedBannerLimit()
 {
     auto numBanners = GetNumBanners();
     return numBanners >= kMaxBanners;
+}
+
+std::shared_ptr<const WorldBannerPresentation> OpenRCT2::CaptureWorldBannerTexts(
+    const std::shared_ptr<const WorldRidePresentationMaterials>& rides)
+{
+    // Headless simulation does not own font assets. Native rendering is unavailable there.
+    if (gOpenRCT2NoGraphics)
+        return nullptr;
+    static std::shared_ptr<const WorldBannerPresentation> captured;
+    static std::shared_ptr<const WorldRidePresentationMaterials> capturedRides;
+    static uint64_t capturedEpoch{}, capturedAssets{}, nextRevision{};
+    const auto assets = Drawing::ScrollingText::getAssetRevision();
+    const bool reset = captured == nullptr || capturedEpoch != _bannerTextEpoch || capturedAssets != assets;
+    if (!reset && _dirtyBannerCount == 0 && capturedRides == rides)
+        return captured;
+
+    auto next = captured != nullptr && !reset ? std::make_shared<WorldBannerPresentation>(*captured)
+                                              : std::make_shared<WorldBannerPresentation>();
+    const auto compile = [](u8string_view text) {
+        return std::make_shared<const Drawing::ScrollingText::TextColumns>(
+            Drawing::ScrollingText::compileTextColumns(text, Drawing::PaletteIndex::transparent));
+    };
+    next->banners.resize(getGameState().banners.size());
+    const auto captureBanner = [&](size_t index) {
+        if (index >= next->banners.size())
+            return;
+        const auto* banner = GetBanner(BannerIndex::FromUnderlying(static_cast<uint16_t>(index)));
+        next->banners[index] = banner != nullptr ? compile(banner->getTextWithColour()) : nullptr;
+    };
+    if (reset)
+    {
+        for (size_t index = 0; index < next->banners.size(); ++index)
+            captureBanner(index);
+        next->queueClosed = compile(LanguageGetString(STR_RIDE_ENTRANCE_CLOSED));
+    }
+    else
+    {
+        for (size_t dirty = 0; dirty < _dirtyBannerCount; ++dirty)
+            captureBanner(_dirtyBannerIds[dirty]);
+    }
+    if (reset || capturedRides != rides)
+    {
+        next->queueNames.resize(rides != nullptr ? rides->rides.size() : 0);
+        for (size_t index = 0; index < next->queueNames.size(); ++index)
+        {
+            const auto* ride = GetRide(RideId::FromUnderlying(static_cast<uint16_t>(index)));
+            if (ride == nullptr)
+                next->queueNames[index].reset();
+            else
+            {
+                auto text = compile(Drawing::ScrollingText::kRideBannerColourPrefix + ride->getName());
+                if (next->queueNames[index] == nullptr || *next->queueNames[index] != *text)
+                    next->queueNames[index] = std::move(text);
+            }
+        }
+    }
+    next->revision = ++nextRevision;
+    captured = std::move(next);
+    capturedRides = rides;
+    capturedEpoch = _bannerTextEpoch;
+    capturedAssets = assets;
+    _dirtyBannerText.reset();
+    _dirtyBannerCount = 0;
+    return captured;
 }

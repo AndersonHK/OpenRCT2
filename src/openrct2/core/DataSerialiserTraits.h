@@ -971,24 +971,32 @@ namespace OpenRCT2
         static void encode(IStream* stream, const Banner& banner)
         {
             DataSerializerTraits<BannerIndex>().encode(stream, banner.id);
-            DataSerializerTraits<ObjectEntryIndex>().encode(stream, banner.type);
-            stream->WriteValue(banner.flags);
-            stream->WriteString(banner.text);
+            DataSerializerTraits<ObjectEntryIndex>().encode(stream, banner.getType());
+            stream->WriteValue(banner.getFlags());
+            stream->WriteString(banner.getRawText());
             stream->WriteValue(banner.colour);
-            DataSerializerTraits<RideId>().encode(stream, banner.rideIndex);
-            stream->WriteValue(banner.textColour);
+            DataSerializerTraits<RideId>().encode(stream, banner.getRideIndex());
+            stream->WriteValue(banner.getTextColour());
             DataSerializerTraits<TileCoordsXY>().encode(stream, banner.position);
         }
 
         static void decode(IStream* stream, Banner& banner)
         {
             DataSerializerTraits<BannerIndex>().decode(stream, banner.id);
-            DataSerializerTraits<ObjectEntryIndex>().decode(stream, banner.type);
-            stream->ReadValue(banner.flags);
-            banner.text = stream->ReadString();
+            ObjectEntryIndex type{};
+            DataSerializerTraits<ObjectEntryIndex>().decode(stream, type);
+            banner.setType(type);
+            BannerFlags flags{};
+            stream->ReadValue(flags);
+            banner.setFlags(flags);
+            banner.setText(stream->ReadString());
             stream->ReadValue(banner.colour);
-            DataSerializerTraits<RideId>().decode(stream, banner.rideIndex);
-            stream->ReadValue(banner.textColour);
+            RideId rideIndex{};
+            DataSerializerTraits<RideId>().decode(stream, rideIndex);
+            banner.setRideIndex(rideIndex);
+            Drawing::TextColour textColour{};
+            stream->ReadValue(textColour);
+            banner.setTextColour(textColour);
             DataSerializerTraits<TileCoordsXY>().decode(stream, banner.position);
         }
 
@@ -997,7 +1005,7 @@ namespace OpenRCT2
             char msg[128] = {};
             snprintf(
                 msg, sizeof(msg), "Banner(x = %d, y = %d, text = %s)", banner.position.x, banner.position.y,
-                banner.text.c_str());
+                banner.getRawText().c_str());
             stream->Write(msg, strlen(msg));
         }
     };

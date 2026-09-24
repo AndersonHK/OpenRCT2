@@ -150,7 +150,7 @@ namespace OpenRCT2::GameActions
                 banner->colour = static_cast<Drawing::Colour>(_parameter);
                 break;
             case BannerSetStyleType::textColour:
-                banner->textColour = static_cast<Drawing::TextColour>(_parameter);
+                banner->setTextColour(static_cast<Drawing::TextColour>(_parameter));
                 break;
             case BannerSetStyleType::noEntry:
             {
@@ -161,9 +161,9 @@ namespace OpenRCT2::GameActions
                     return Result(Status::unknown, STR_CANT_REPAINT_THIS, STR_ERR_BANNER_ELEMENT_NOT_FOUND);
                 }
 
-                banner->flags.set(BannerFlag::noEntry, (_parameter != 0));
+                banner->setFlag(BannerFlag::noEntry, (_parameter != 0));
                 uint8_t allowedEdges = 0xF;
-                if (banner->flags.has(BannerFlag::noEntry))
+                if (banner->getFlags().has(BannerFlag::noEntry))
                 {
                     allowedEdges &= ~(1 << bannerElement->getPosition());
                 }

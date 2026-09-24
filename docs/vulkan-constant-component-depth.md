@@ -57,7 +57,7 @@ Other sources inspected: [prop emission](../data/shaders/vulkan/world_prop_emit.
 - [ ] Verify child/glass/decal order and unrelated nearby owners, including equal-depth ties and maximum admitted local layers.
 - [ ] Verify selected-car normal/underground context, elevated pose, empty-tile coverage, removal and original image sampling.
 - [ ] Verify foreground UI, viewport clipping, range/overflow and queued-frame filter composition.
-- [ ] Run the same 4K 12,000-tick workload; retain accepted-present counters, checksum, CPU/GPU timings and pacing tails. Earlier build135 throughput and visual evidence do not qualify this replacement.
+- [x] Run the same 4K 12,000-tick workload; retain accepted-present counters, checksum, CPU/GPU timings and pacing tails. Earlier build135 throughput and visual evidence do not qualify this replacement.
 
 The audit above informed the implementation. Build136 established the constant-depth contract; build137 adds explicit component anchors for the bounded portal and ride-body cases. Both build receipts report successful forced shader compilation, no source mutations during build and no missing artifacts.
 
@@ -69,4 +69,6 @@ The [independent visual review](vulkan-constant-component-depth-review.md) accou
 
 At the owner's request, build137 was installed to `D:/Games/Independent/OpenRCT2Mod` on2026-09-24 for parallel manual testing. Deployment verifies all28 qualified payload files, changes3 and preserves backups. Receipt: `obj/vulkan-parity/deploy-constant-depth137-01/receipt.json`; build receipt SHA-256 `f9bac1d55bf9a5a892e868de0ec6a76ae48a0758e3751b415ffeb271ff538e76`. Saves, objects and settings are unchanged.
 
-A fresh4K/12000-tick benchmark is pending while the owner runs the installed game. Do not run a competing GPU benchmark or present build135's timings as measurements of137. The last measured135 baseline remains359.956TPS,143.743 accepted presents/s,0.166ms CPU draw and2.924ms GPU, with an unresolved57.097ms presentation gap. It qualifies neither137 performance nor full rendering parity.
+A fresh build137 3840×2160, V-sync144, 100-warmup/12,000-tick benchmark completed after the manual-test process closed. It measured **359.717 TPS, 143.977 accepted presents/s, 0.172 ms CPU draw and 2.491 ms GPU**. All4803 submissions were accepted, with no lost, discarded, unavailable or out-of-date presents. Presentation intervals: median7.2ms, p958.9ms, p999.2ms, maximum15.532ms. Simulation mean1.877ms; maximum8.662ms. Final populations:17,042 guests,2,208 staff,2,128 vehicles. Checksum `07d58eaefde6aa6d000000000000000000000000`.
+
+Evidence: `obj/vulkan-parity/performance-constant-depth137-12000-01/summary.json`. This is partial-render throughput, not full parity. Build135's57.097ms gap did not recur in this sample; the cause is still unproven. The subsequent support/text/footprint work requires its own measurement.

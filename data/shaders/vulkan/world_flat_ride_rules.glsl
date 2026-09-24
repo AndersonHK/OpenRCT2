@@ -14,6 +14,7 @@ struct WorldFlatPart {
     int image; int bank; int colour; int child;
     int x; int y; int z;
     int bx; int by; int bz; int sx; int sy; int sz;
+    int depthAnchor; // 0 raster origin; 1 nearest footprint tile; 2 named platform-fence edge.
 };
 const int WORLD_FLAT_PART_CAPACITY=8;
 struct WorldFlatParts { int count; WorldFlatPart parts[WORLD_FLAT_PART_CAPACITY]; };
@@ -25,7 +26,7 @@ FLAT_FN void worldFlatAdd(FLAT_REF(WorldFlatParts) r,int image,int bank,int colo
     if(r.count>=WORLD_FLAT_PART_CAPACITY) throw std::overflow_error("Static ride part capacity exceeded");
     WorldFlatPart p;
     p.image=image;p.bank=bank;p.colour=colour;p.child=child;
-    p.x=x;p.y=y;p.z=z;p.bx=bx;p.by=by;p.bz=bz;p.sx=sx;p.sy=sy;p.sz=sz;
+    p.x=x;p.y=y;p.z=z;p.bx=bx;p.by=by;p.bz=bz;p.sx=sx;p.sy=sy;p.sz=sz;p.depthAnchor=0;
     r.parts[r.count++]=p;
 }
 #else
@@ -33,8 +34,10 @@ FLAT_FN void worldFlatAdd(FLAT_REF(WorldFlatParts) r,int image,int bank,int colo
 // every append site. A single assignment preserves the shared recipe and avoids
 // that private-storage amplification. Arguments are side-effect-free recipe values.
 #define worldFlatAdd(r,image,bank,colour,child,x,y,z,bx,by,bz,sx,sy,sz) \
-    r.parts[r.count++]=WorldFlatPart(image,bank,colour,child,x,y,z,bx,by,bz,sx,sy,sz)
+    r.parts[r.count++]=WorldFlatPart(image,bank,colour,child,x,y,z,bx,by,bz,sx,sy,sz,0)
 #endif
+#define worldFlatAddBody(r,image,bank,colour,child,x,y,z,bx,by,bz,sx,sy,sz) \
+    do { worldFlatAdd(r,image,bank,colour,child,x,y,z,bx,by,bz,sx,sy,sz); r.parts[r.count-1].depthAnchor=1; } while(false)
 FLAT_FN int worldFlatSize(int family)
 {
     if(family==5 || family==17) return 4;
@@ -65,6 +68,35 @@ FLAT_FN int worldFlatSequence(int family,int sequence,int direction)
     if(n==16) return map4[direction*16+sequence];
     return sequence;
 }
+struct WorldFlatAnchor { int x; int y; };
+// Camera-relative displacement from this sequence tile to the nearest tile of
+// the authoritative TED footprint. A whole-body sprite must cover its own floor.
+// These are tile coordinates, never inferred from image bounds or opaque pixels.
+FLAT_FN WorldFlatAnchor worldFlatFrontAnchor(int family,int sequence,int direction)
+{
+    int s=worldFlatSequence(family,sequence,direction),n=worldFlatSize(family);
+    WorldFlatAnchor result;result.x=0;result.y=0;
+    if(s<0) return result;
+    if(family==9 || family==13 || family==14 || family==15) {
+        int axis=family==13?(s==0?64:(s<3?160-s*32:128-s*32)):
+            (s==0?32:(s==1?96:(s==2?64:0)));
+        if((direction&1)!=0) result.y=axis; else result.x=axis;
+    } else if(n==4) {
+        result.x=s>=2?0:32;result.y=(s&1)!=0?0:32;
+    } else if(n==16) {
+        result.x=96-(s/4)*32;result.y=96-(s%4)*32;
+    } else if(n==9) {
+#ifdef __cplusplus
+        const int x[9]={0,-32,-32,-32,0,0,32,32,32};
+        const int y[9]={0,-32,0,32,-32,32,-32,32,0};
+#else
+        const int x[9]=int[9](0,-32,-32,-32,0,0,32,32,32);
+        const int y[9]=int[9](0,-32,0,32,-32,32,-32,32,0);
+#endif
+        result.x=32-x[s];result.y=32-y[s];
+    }
+    return result;
+}
 // Edge bits match TrackPaint.h: NE=1, SE=2, SW=4, NW=8.
 FLAT_FN int worldFlatEdges(int family,int sequence,int direction)
 {
@@ -87,16 +119,18 @@ FLAT_FN int worldFlatEdges(int family,int sequence,int direction)
     if(family==14 || family==15 || family==13 || n==1) return 0;
     return n==4?edges2[sequence]:(n==16?edges4[sequence]:edges3[sequence]);
 }
+#define worldFlatAddFence(r,image,bank,colour,child,x,y,z,bx,by,bz,sx,sy,sz) \
+    do { worldFlatAdd(r,image,bank,colour,child,x,y,z,bx,by,bz,sx,sy,sz); r.parts[r.count-1].depthAnchor=2; } while(false)
 FLAT_FN void worldFlatFences(FLAT_REF(WorldFlatParts) r,int edges,int base,int bank,int colour,int special)
 {
-    if((edges&8)!=0) worldFlatAdd(r,base+3,bank,colour,1,0,0,0,0,2,2,32,1,7);
-    if((edges&1)!=0) worldFlatAdd(r,base,bank,colour,1,0,0,0,2,0,2,1,32,7);
+    if((edges&8)!=0) worldFlatAddFence(r,base+3,bank,colour,1,0,0,0,0,2,2,32,1,7);
+    if((edges&1)!=0) worldFlatAddFence(r,base,bank,colour,1,0,0,0,2,0,2,1,32,7);
     if(special==1 || special==3) {
-        if((edges&4)!=0) worldFlatAdd(r,base+2,bank,colour,0,0,0,0,29,0,special==3?3:2,1,28,7);
-        if((edges&2)!=0) worldFlatAdd(r,base+1,bank,colour,0,0,0,0,0,29,special==3?3:2,28,1,7);
+        if((edges&4)!=0) worldFlatAddFence(r,base+2,bank,colour,0,0,0,0,29,0,special==3?3:2,1,28,7);
+        if((edges&2)!=0) worldFlatAddFence(r,base+1,bank,colour,0,0,0,0,0,29,special==3?3:2,28,1,7);
     } else {
-        if((edges&2)!=0) worldFlatAdd(r,base+1,bank,colour,0,0,0,0,0,special==2?29:30,special==2?3:2,special==2?28:32,1,7);
-        if((edges&4)!=0) worldFlatAdd(r,base+2,bank,colour,0,0,0,0,30,0,2,1,32,7);
+        if((edges&2)!=0) worldFlatAddFence(r,base+1,bank,colour,0,0,0,0,0,special==2?29:30,special==2?3:2,special==2?28:32,1,7);
+        if((edges&4)!=0) worldFlatAddFence(r,base+2,bank,colour,0,0,0,0,30,0,2,1,32,7);
     }
 }
 // Colour roles: 0 black/station, 1 track main/additional, 2 vehicle body/trim,
@@ -107,7 +141,7 @@ FLAT_FN WorldFlatParts worldFlatParts(int family,int sequence,int direction,bool
     WorldFlatParts r;r.count=0;
 #ifdef __cplusplus
     // GLSL consumes only entries written by worldFlatAdd; avoid clearing unused private storage.
-    for(int i=0;i<WORLD_FLAT_PART_CAPACITY;i++) r.parts[i]=WorldFlatPart(0,0,0,0,0,0,0,0,0,0,0,0,0);
+    for(int i=0;i<WORLD_FLAT_PART_CAPACITY;i++) r.parts[i]=WorldFlatPart(0,0,0,0,0,0,0,0,0,0,0,0,0,0);
 #endif
     int s=worldFlatSequence(family,sequence,direction);
     if(s<0) return r;
@@ -139,13 +173,13 @@ FLAT_FN WorldFlatParts worldFlatParts(int family,int sequence,int direction,bool
     if(family==5) {
         if(platform) worldFlatAdd(r,14+(direction&1),1,3,0,0,0,0,0,0,0,32,32,1);
         if(!noPlatforms) worldFlatFences(r,edges&fenceMask,16,1,1,0);
-        if(s==1) worldFlatAdd(r,direction*3+2,1,1,0,16,16,0,16,0,3,16,16,108);
-        if(s==2) worldFlatAdd(r,direction*3,1,1,0,16,16,0,0,16,3,16,16,108);
+        if(s==1) worldFlatAddBody(r,direction*3+2,1,1,0,16,16,0,16,0,3,16,16,108);
+        if(s==2) worldFlatAddBody(r,direction*3,1,1,0,16,16,0,0,16,3,16,16,108);
         if(s==3) {
-            if(direction==1) worldFlatAdd(r,12,1,1,0,16,16,0,-12,0,3,2,16,108);
-            if(direction==2) worldFlatAdd(r,13,1,1,0,16,16,0,0,-12,3,16,2,108);
+            if(direction==1) worldFlatAddBody(r,12,1,1,0,16,16,0,-12,0,3,2,16,108);
+            if(direction==2) worldFlatAddBody(r,13,1,1,0,16,16,0,0,-12,3,16,2,108);
             int bx=direction==1?14:(direction==3?8:0),by=direction==0?8:(direction==2?14:0);
-            worldFlatAdd(r,direction*3+1,1,1,0,16,16,0,bx,by,3,direction==3?8:(direction==1?2:16),direction==0?8:(direction==2?2:16),108);
+            worldFlatAddBody(r,direction*3+1,1,1,0,16,16,0,bx,by,3,direction==3?8:(direction==1?2:16),direction==0?8:(direction==2?2:16),108);
         }
         return r;
     }
@@ -188,19 +222,19 @@ FLAT_FN WorldFlatParts worldFlatParts(int family,int sequence,int direction,bool
         int sx=(direction&1)!=0?16:(family==9 || family==13?31:32),sy=(direction&1)!=0?(family==9 || family==13?31:32):16;
         if(family==9 || family==13) {
             int base=family==9?22150:21994;
-            worldFlatAdd(r,base+(direction&1)*2,0,1,0,x,y,7,bx,by,7,sx,sy,family==9?127:80);
-            worldFlatAdd(r,family==9?direction*8:(direction&1)*9,1,2,1,x,y,7,bx,by,7,sx,sy,family==9?127:80);
-            worldFlatAdd(r,base+(direction&1)*2+1,0,1,1,x,y,7,bx,by,7,sx,sy,family==9?127:80);
+            worldFlatAddBody(r,base+(direction&1)*2,0,1,0,x,y,7,bx,by,7,sx,sy,family==9?127:80);
+            worldFlatAddBody(r,family==9?direction*8:(direction&1)*9,1,2,1,x,y,7,bx,by,7,sx,sy,family==9?127:80);
+            worldFlatAddBody(r,base+(direction&1)*2+1,0,1,1,x,y,7,bx,by,7,sx,sy,family==9?127:80);
         } else if(family==14) {
-            if((direction&2)!=0) worldFlatAdd(r,(direction&1)*16,1,2,0,x,y,7,bx,by,7,sx,sy,127);
-            worldFlatAdd(r,21998+direction,0,1,(direction&2)!=0?1:0,x,y,7,bx,by,7,sx,sy,127);
-            if((direction&2)==0) worldFlatAdd(r,(direction&1)*16,1,2,1,x,y,7,bx,by,7,sx,sy,127);
+            if((direction&2)!=0) worldFlatAddBody(r,(direction&1)*16,1,2,0,x,y,7,bx,by,7,sx,sy,127);
+            worldFlatAddBody(r,21998+direction,0,1,(direction&2)!=0?1:0,x,y,7,bx,by,7,sx,sy,127);
+            if((direction&2)==0) worldFlatAddBody(r,(direction&1)*16,1,2,1,x,y,7,bx,by,7,sx,sy,127);
         } else {
-            worldFlatAdd(r,22002+(direction&1)*2,0,1,0,x,y,7,bx,by,7,sx,sy,127);
-            worldFlatAdd(r,22006+(direction&1)*32,0,1,1,x,y,7,bx,by,7,sx,sy,127);
-            worldFlatAdd(r,direction,1,2,1,x,y,5,bx,by,7,sx,sy,127);
-            worldFlatAdd(r,22070+(direction&1)*32,0,1,1,x,y,7,bx,by,7,sx,sy,127);
-            worldFlatAdd(r,22003+(direction&1)*2,0,1,1,x,y,7,bx,by,7,sx,sy,127);
+            worldFlatAddBody(r,22002+(direction&1)*2,0,1,0,x,y,7,bx,by,7,sx,sy,127);
+            worldFlatAddBody(r,22006+(direction&1)*32,0,1,1,x,y,7,bx,by,7,sx,sy,127);
+            worldFlatAddBody(r,direction,1,2,1,x,y,5,bx,by,7,sx,sy,127);
+            worldFlatAddBody(r,22070+(direction&1)*32,0,1,1,x,y,7,bx,by,7,sx,sy,127);
+            worldFlatAddBody(r,22003+(direction&1)*2,0,1,1,x,y,7,bx,by,7,sx,sy,127);
         }
         return r;
     }
@@ -213,20 +247,20 @@ FLAT_FN WorldFlatParts worldFlatParts(int family,int sequence,int direction,bool
     if(family==12) {
         if(s==1 || s==2 || s==4 || s==8) return r;
         x=48-(s/4)*32;y=48-(s%4)*32;
-        worldFlatAdd(r,direction,1,2,0,x,y,7,0,0,7,24,24,48);
+        worldFlatAddBody(r,direction,1,2,0,x,y,7,0,0,7,24,24,48);
         return r;
     }
     if(family==17) {
         if(s==0) return r;
         x=s==1?16:-16;y=s==2?16:-16;
         if(direction==0 || direction==1) {
-            worldFlatAdd(r,direction,1,2,0,x,y,2,x,y,2,20,20,44);
-            worldFlatAdd(r,22154+direction,0,2,1,x,y,2,x,y,2,20,20,44);
-            worldFlatAdd(r,22158+direction,0,2,0,x,y,2,x+(direction==1?34:0),y+(direction==0?32:0),2,direction==1?2:20,direction==0?2:20,44);
+            worldFlatAddBody(r,direction,1,2,0,x,y,2,x,y,2,20,20,44);
+            worldFlatAddBody(r,22154+direction,0,2,1,x,y,2,x,y,2,20,20,44);
+            worldFlatAddBody(r,22158+direction,0,2,0,x,y,2,x+(direction==1?34:0),y+(direction==0?32:0),2,direction==1?2:20,direction==0?2:20,44);
         } else {
-            worldFlatAdd(r,22158+direction,0,2,0,x,y,2,x+(direction==3?-10:0),y+(direction==2?-10:0),2,direction==3?2:20,direction==2?2:20,44);
-            worldFlatAdd(r,22154+direction,0,2,0,x,y,2,x+(direction==3?5:0),y+(direction==2?5:0),2,20,20,44);
-            worldFlatAdd(r,direction,1,2,1,x,y,2,x+(direction==3?5:0),y+(direction==2?5:0),2,20,20,44);
+            worldFlatAddBody(r,22158+direction,0,2,0,x,y,2,x+(direction==3?-10:0),y+(direction==2?-10:0),2,direction==3?2:20,direction==2?2:20,44);
+            worldFlatAddBody(r,22154+direction,0,2,0,x,y,2,x+(direction==3?5:0),y+(direction==2?5:0),2,20,20,44);
+            worldFlatAddBody(r,direction,1,2,1,x,y,2,x+(direction==3?5:0),y+(direction==2?5:0),2,20,20,44);
         }
         return r;
     }
@@ -236,20 +270,22 @@ FLAT_FN WorldFlatParts worldFlatParts(int family,int sequence,int direction,bool
     if(family==3 || family==4) {
         if(s!=3 && s!=6 && s!=7) return r;
         int bx=s==3?6:(s==7?-16:0),by=s==6?6:(s==7?-16:0);
-        worldFlatAdd(r,direction,1,0,0,x,y,3,bx,by,3,s==3?42:(s==7?32:24),s==6?42:(s==7?32:24),127);
+        worldFlatAddBody(r,direction,1,0,0,x,y,3,bx,by,3,s==3?42:(s==7?32:24),s==6?42:(s==7?32:24),127);
     } else if(family==16) {
-        worldFlatAdd(r,572+(direction&1)*2,1,4,0,x,y,3,x+16,y+16,3,24,24,90);
-        worldFlatAdd(r,380+(direction&1)*48,1,1,1,x,y,3,x+16,y+16,3,24,24,90);
-        worldFlatAdd(r,direction*16,1,2,1,x,y,-7,x+16,y+16,3,24,24,90);
-        worldFlatAdd(r,476+(direction&1)*48,1,1,1,x,y,3,x+16,y+16,3,24,24,90);
-        worldFlatAdd(r,573+(direction&1)*2,1,4,1,x,y,3,x+16,y+16,3,24,24,90);
+        worldFlatAddBody(r,572+(direction&1)*2,1,4,0,x,y,3,x+16,y+16,3,24,24,90);
+        worldFlatAddBody(r,380+(direction&1)*48,1,1,1,x,y,3,x+16,y+16,3,24,24,90);
+        worldFlatAddBody(r,direction*16,1,2,1,x,y,-7,x+16,y+16,3,24,24,90);
+        worldFlatAddBody(r,476+(direction&1)*48,1,1,1,x,y,3,x+16,y+16,3,24,24,90);
+        worldFlatAddBody(r,573+(direction&1)*2,1,4,1,x,y,3,x+16,y+16,3,24,24,90);
     } else {
         int image=family==8?0:(family==11?((direction*88)%216)%24:direction);
         int z=family==1 || family==2?3:7;
-        worldFlatAdd(r,image,1,2,0,x,y,z,x+16,y+16,z,24,24,family==1 || family==2?47:48);
+        worldFlatAddBody(r,image,1,2,0,x,y,z,x+16,y+16,z,24,24,family==1 || family==2?47:48);
     }
     return r;
 }
 #undef FLAT_FN
 #undef FLAT_REF
+#undef worldFlatAddBody
+#undef worldFlatAddFence
 #endif

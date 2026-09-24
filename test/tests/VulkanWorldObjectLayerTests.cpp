@@ -6,6 +6,7 @@
     #include <cstdlib>
     #include <cstring>
     #include <openrct2-renderer/gpu/GpuSelectedVehiclePaint.h>
+    #include <openrct2-renderer/gpu/GpuWorldBannerText.h>
     #include <openrct2-renderer/gpu/GpuWorldFlatRideCatalog.h>
     #include <openrct2-renderer/gpu/GpuWorldPropCatalog.h>
     #include <openrct2-renderer/vulkan/VulkanFrameExecutor.h>
@@ -444,6 +445,88 @@ TEST_F(VulkanWorldObjectLayerTest, StationaryAnimationUsesSceneTickWithoutSource
     EXPECT_EQ(Run().worldBufferCopyCalls, 0u);
     EXPECT_EQ(pixels, first);
 }
+TEST_F(VulkanWorldObjectLayerTest, ScrollingBannerUsesImmutableColumnsTicksAndHeldGeneration)
+{
+    auto text = std::make_shared<D::ScrollingText::TextColumns>();
+    text->phaseWidth = 2;
+    text->repeat = false;
+    text->columns.resize(128);
+    for (size_t column = 0; column < text->columns.size(); column++)
+        for (size_t row = 0; row < 8; row++)
+            text->columns[column][row] = static_cast<uint8_t>(210 + (column & 1) + row * 2);
+    auto source = std::make_shared<OpenRCT2::WorldBannerPresentation>();
+    source->revision = 1;
+    source->banners = { text };
+    const auto held = G::BuildWorldBannerTextData(source);
+    const auto heldWords = held->words;
+    scene.bannerTexts = held;
+    auto banner = Object(3);
+    banner.direction = 3; // Ordinary banner direction3 exposes scrolling mode0.
+    banner.reserved = 0;  // BannerId0 is packed in the upper sixteen bits.
+    Objects({ banner });
+
+    const auto checkText = [&](const D::ScrollingText::TextColumns& expected, uint32_t phase) {
+        size_t checked = 0;
+        const auto& mode = D::ScrollingText::getModeColumns()[0];
+        for (size_t x = 0; x < mode.size(); x++)
+        {
+            const auto column = mode[x];
+            if (column.sourceColumn == UINT16_MAX)
+                continue;
+            const size_t sourceColumn = column.sourceColumn + phase;
+            ASSERT_LT(sourceColumn, expected.columns.size());
+            for (size_t row = 0; row < 8 && column.y + row < 40; row++)
+            {
+                // Tile0, rotation0, view(-128,-128), elementZ16: original
+                // text rasterZ22 and G1 offset(-32,0) give top-left(96,106).
+                const size_t pixel = (106 + column.y + row) * extent.width + 96 + x;
+                ASSERT_LT(pixel, pixels.size());
+                EXPECT_EQ(std::to_integer<uint8_t>(pixels[pixel]), expected.columns[sourceColumn][row])
+                    << "column=" << x << " row=" << row << " phase=" << phase;
+                checked++;
+            }
+        }
+        EXPECT_GT(checked, 0u);
+    };
+    scene.sourceTick = 0;
+    Run();
+    checkText(*text, 0);
+    const auto first = pixels;
+    scene.sourceTick = 1;
+    EXPECT_EQ(Run().worldBufferCopyCalls, 0u);
+    EXPECT_EQ(pixels, first); // Integer tick/2, not render-frame advancement.
+    scene.sourceTick = 2;
+    EXPECT_EQ(Run().worldBufferCopyCalls, 0u);
+    EXPECT_EQ(scene.bannerTexts, held);
+    checkText(*text, 1);
+    EXPECT_NE(pixels, first);
+
+    auto replacementText = std::make_shared<D::ScrollingText::TextColumns>(*text);
+    for (auto& column : replacementText->columns)
+        for (auto& pixel : column)
+            pixel = static_cast<uint8_t>(pixel + 20);
+    auto replacement = std::make_shared<OpenRCT2::WorldBannerPresentation>();
+    replacement->revision = 2;
+    replacement->banners = { replacementText };
+    scene.bannerTexts = G::BuildWorldBannerTextData(replacement);
+    scene.sourceTick = 0;
+    Run();
+    checkText(*replacementText, 0);
+    EXPECT_NE(pixels, first);
+    EXPECT_EQ(held->words, heldWords);
+    EXPECT_EQ(held->source, source);
+    scene.bannerTexts = held;
+    Run();
+    EXPECT_EQ(pixels, first);
+
+    banner.flags = 1; // Original ghost banners keep posts but suppress text.
+    Objects({ banner });
+    Run();
+    for (uint8_t colour = 210; colour <= 245; colour++)
+        EXPECT_EQ(ColourCount(colour), 0u);
+    EXPECT_GT(ColourCount(static_cast<uint8_t>(Ink(169) + 9)), 0u);
+}
+
 TEST_F(VulkanWorldObjectLayerTest, GlassUsesFixedBackgroundFilterAndGhostSuppressesGlass)
 {
     materials->walls[0].flags = 3;

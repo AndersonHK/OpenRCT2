@@ -5,9 +5,86 @@
 #include <openrct2-renderer/gpu/GpuWorldFlatRideCatalog.h>
 #include <openrct2/paint/Paint.h>
 #include <openrct2/ride/TrackPaint.h>
+#include <openrct2/ride/ted/TED.FlatRide.h>
 
 namespace G = OpenRCT2::Ui::Gpu;
 namespace F = G::FlatRideRules;
+
+TEST(WorldFlatRideRulesTest, WholeBodiesAnchorAtNearestAuthoritativeFootprintTile)
+{
+    using namespace OpenRCT2::TrackMetadata;
+    for (const auto [family, descriptor] :
+         { std::pair{ 1, &kTEDFlatTrack3x3 }, std::pair{ 5, &kTEDFlatTrack2x2 }, std::pair{ 12, &kTEDFlatTrack4x4 } })
+    {
+        const int size = F::worldFlatSize(family);
+        int nearestX = INT32_MIN, nearestY = INT32_MIN;
+        for (int s = 0; s < size; ++s)
+        {
+            nearestX = std::max(nearestX, int(descriptor->sequenceData.sequences[s].clearance.x));
+            nearestY = std::max(nearestY, int(descriptor->sequenceData.sequences[s].clearance.y));
+        }
+        for (int direction = 0; direction < 4; ++direction)
+            for (int sequence = 0; sequence < size; ++sequence)
+            {
+                const auto& tile = descriptor->sequenceData.sequences[F::worldFlatSequence(family, sequence, direction)]
+                                       .clearance;
+                const auto anchor = F::worldFlatFrontAnchor(family, sequence, direction);
+                EXPECT_EQ(tile.x + anchor.x, nearestX);
+                EXPECT_EQ(tile.y + anchor.y, nearestY);
+            }
+    }
+    // Original whole-body recipes opt in explicitly; flooring is still tile-local.
+    for (int family : { 1, 2, 3, 4, 8, 11, 12, 16, 17 })
+        for (int direction = 0; direction < 4; ++direction)
+        {
+            int bodies = 0;
+            for (int sequence = 0; sequence < F::worldFlatSize(family); ++sequence)
+            {
+                const auto parts = F::worldFlatParts(family, sequence, direction, true, false, 15, 128, 1, 4);
+                for (int i = 0; i < parts.count; ++i)
+                {
+                    bodies += parts.parts[i].depthAnchor == 1;
+                    if (parts.parts[i].bank == 0 && parts.parts[i].image >= 22134 && parts.parts[i].image <= 22137)
+                        EXPECT_EQ(parts.parts[i].depthAnchor, 0);
+                }
+            }
+            EXPECT_GT(bodies, 0) << family << ',' << direction;
+        }
+}
+
+TEST(WorldFlatRideRulesTest, PlatformFencesKeepIndependentPhysicalEdgesAroundWholeBody)
+{
+    // Carousel's four named platform edges must not collapse onto the floor's
+    // raster origin. Its near fences sit in front of the nearest body tile;
+    // far fences stay behind. Image offsets remain unchanged.
+    for (int direction = 0; direction < 4; ++direction)
+    {
+        int checked = 0;
+        for (int sequence = 0; sequence < 9; ++sequence)
+        {
+            const auto tile = OpenRCT2::TrackMetadata::kTEDFlatTrack3x3.sequenceData
+                                  .sequences[F::worldFlatSequence(8, sequence, direction)]
+                                  .clearance;
+            const auto parts = F::worldFlatParts(8, sequence, direction, true, false, 15, 128, 1, 1);
+            for (int i = 0; i < parts.count; ++i)
+            {
+                const auto& p = parts.parts[i];
+                if (p.image < 22138 || p.image > 22141 || p.bank != 0)
+                    continue;
+                EXPECT_EQ(p.depthAnchor, 2);
+                EXPECT_EQ(p.x, 0);
+                EXPECT_EQ(p.y, 0);
+                const int depth = tile.x + tile.y + p.bx + p.by + p.bz;
+                if ((p.image == 22139 && tile.y == 32 && tile.x == 32) || (p.image == 22140 && tile.x == 32 && tile.y == 32))
+                    EXPECT_GT(depth, 32 + 32 + 7); // Nearest whole-body anchor.
+                if (p.image == 22138 || p.image == 22141)
+                    EXPECT_LT(depth, 32 + 32 + 7);
+                ++checked;
+            }
+        }
+        EXPECT_EQ(checked, 12);
+    }
+}
 
 TEST(WorldFlatRideRulesTest, FootprintSequencesMatchAuthoritativeTrackMaps)
 {

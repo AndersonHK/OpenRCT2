@@ -2510,21 +2510,21 @@ namespace OpenRCT2::RCT1
                 type = _bannerTypeToEntryMap[type];
             else
                 type = kObjectEntryIndexNull;
-            dst->type = type;
+            dst->setType(type);
 
-            dst->flags = {};
+            dst->setFlags({});
             if (src->flags.has(BannerFlag::noEntry))
             {
-                dst->flags.set(BannerFlag::noEntry);
+                dst->setFlag(BannerFlag::noEntry, true);
             }
 
             if (IsUserStringID(src->StringID))
             {
-                dst->text = GetUserString(src->StringID);
+                dst->setText(GetUserString(src->StringID));
             }
 
             dst->colour = GetColour(src->Colour);
-            dst->textColour = src->textColour;
+            dst->setTextColour(src->textColour);
             dst->position.x = src->x;
             dst->position.y = src->y;
         }

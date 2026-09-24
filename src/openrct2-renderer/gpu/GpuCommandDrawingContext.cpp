@@ -10,6 +10,7 @@
 #include "GpuCommandDrawingContext.h"
 
 #include "GpuSelectedVehiclePaint.h"
+#include "GpuWorldBannerText.h"
 #include "GpuWorldEntranceCatalog.h"
 #include "GpuWorldFlatRideCatalog.h"
 #include "GpuWorldPropCatalog.h"
@@ -1117,7 +1118,8 @@ namespace OpenRCT2::Ui::Gpu
                               uint32_t(raw.age) | (uint32_t(raw.quadrant) << 8) | (uint32_t(raw.slope) << 16)
                                   | (uint32_t(raw.position) << 24),
                               uint32_t(raw.animationFrame) | (uint32_t(raw.allowedEdges) << 8),
-                              uint32_t(raw.entranceType) | (uint32_t(raw.pathSurfaceSlot) << 8),
+                              uint32_t(raw.entranceType) | (uint32_t(raw.pathSurfaceSlot) << 8)
+                                  | (uint32_t(raw.bannerId) << 16),
                               uint32_t(raw.trackType) | (uint32_t(raw.rideType) << 16),
                               uint32_t(raw.rideId) | (uint32_t(raw.mazeEntry) << 16),
                               uint32_t(raw.colourScheme) | (uint32_t(raw.stationIndex) << 8)
@@ -1131,6 +1133,7 @@ namespace OpenRCT2::Ui::Gpu
                     target = { raw.baseZ, raw.waterHeight, raw.surfaceSlot, raw.edgeSlot,
                                raw.slope, raw.grass,       raw.present,     raw.kind };
                     target.maxClearanceZ = raw.maxClearanceZ;
+                    target.surfaceOrdinal = raw.elementOrdinal;
                     if (objects)
                     {
                         const auto range = objects->tiles[i];
@@ -1230,6 +1233,7 @@ namespace OpenRCT2::Ui::Gpu
                 }
                 return index;
             };
+            table->scrollingTextDefault = append(ImageId(SPR_SCROLLING_TEXT_DEFAULT));
             for (size_t slot = 0; slot < materials->surfaces.size(); slot++)
             {
                 auto& target = table->catalog.materials[slot];
@@ -1294,11 +1298,12 @@ namespace OpenRCT2::Ui::Gpu
                                 railings.imageBase, railings.imageCount, railings.railingsImage, 36, target.railingsBase,
                                 target.railingsCount);
                             appendRange(
-                                railings.imageBase, railings.imageCount, railings.bridgeImage, 55, target.bridgeBase,
-                                target.bridgeCount);
+                                railings.imageBase, railings.imageCount, railings.bridgeImage,
+                                railings.supportType == 1 ? 56 : 59, target.bridgeBase, target.bridgeCount);
                             target.flags = railings.flags;
                             target.supportType = railings.supportType;
                             target.supportColour = railings.supportColour;
+                            target.reserved |= uint32_t(railings.scrollingMode) << 24;
                         }
                     }
                 for (size_t slot = 0; slot < 255; slot++)
@@ -1395,6 +1400,10 @@ namespace OpenRCT2::Ui::Gpu
         scene.sourceTick = generation->sourceTick;
         scene.selectedVehicle = ResolveSelectedVehiclePaint(*generation, camera);
         scene.ridePoses = generation->map->GetRidePoses();
+        const auto bannerTexts = generation->map->GetBannerTexts();
+        if (!_publishedBannerTexts || _publishedBannerTexts->source != bannerTexts)
+            _publishedBannerTexts = BuildWorldBannerTextData(bannerTexts);
+        scene.bannerTexts = _publishedBannerTexts;
         scene.clockMinute = generation->map->GetClockMinute();
         scene.clockHour = generation->map->GetClockHour();
         scene.transparentWater = Config::Get().general.transparentWater ? 1u : 0u;
