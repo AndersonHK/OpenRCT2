@@ -11,9 +11,12 @@
     #include "VulkanFrameExecutor.h"
 
     #include <algorithm>
+    #include <chrono>
+    #include <cstdio>
     #include <cstring>
     #include <limits>
     #include <openrct2-renderer/gpu/GpuTransparencyDepth.h>
+    #include <openrct2/core/Console.hpp>
     #include <stdexcept>
 namespace OpenRCT2::Ui::Vulkan
 {
@@ -43,6 +46,7 @@ namespace OpenRCT2::Ui::Vulkan
         _logicalExtent = logicalExtent;
         _enableWorldPasses = enableWorldPasses;
         _terrainStatuses.resize(frameCount);
+        _atlasAdmissions.resize(frameCount);
         try
         {
             const bool gpuLightFxSupported = _enableWorldPasses && LightFxPipeline::IsSupported(*_context, logicalExtent);
@@ -67,6 +71,7 @@ namespace OpenRCT2::Ui::Vulkan
         DisposeDrawingPipelines();
         _resources.Dispose();
         _terrainStatuses.clear();
+        _atlasAdmissions.clear();
         _terrainFailure.clear();
         _context.reset();
         _paletteVersion = 1;
@@ -168,6 +173,8 @@ namespace OpenRCT2::Ui::Vulkan
     {
         if (_terrainStatuses.empty()) // Uninitialized/disposed backend has no status to retire.
             return;
+        _atlasAdmissions.at(frameIndex).reset();
+        _worldSurfacePipeline.CompleteProfile(frameIndex);
         if (!_terrainFailure.empty())
             throw std::runtime_error(_terrainFailure);
         auto& pending = _terrainStatuses.at(frameIndex);
@@ -200,10 +207,11 @@ namespace OpenRCT2::Ui::Vulkan
     void FrameExecutor::Discard(uint32_t frameIndex)
     {
         _resources.DiscardFrameLayouts(frameIndex);
-        _worldSurfacePipeline.DiscardPendingUploads();
+        _worldSurfacePipeline.DiscardPendingUploads(frameIndex);
         _balloonPipeline.DiscardPendingUploads();
         _terrainPipeline.DiscardPendingUploads();
         _terrainStatuses.at(frameIndex).clear();
+        _atlasAdmissions.at(frameIndex).reset();
         if (_lightFalloffsRecorded)
         {
             _lightFalloffsDirty = true;
@@ -239,12 +247,29 @@ namespace OpenRCT2::Ui::Vulkan
         _lightFalloffsDirty = true;
     }
 
+    void FrameExecutor::EnableWorldPasses()
+    {
+        if (_enableWorldPasses)
+            return;
+        const auto cacheLock = _context->LockPipelineCache();
+        _worldSurfacePipeline.Initialise(*_context, _resources, _shaderDirectory);
+        _enableWorldPasses = true;
+    }
+
     void FrameExecutor::InitialiseDrawingPipelines(bool gpuLightFxSupported)
     {
         const auto cacheLock = _context->LockPipelineCache();
         _linePipeline.Initialise(*_context, _resources, _shaderDirectory);
         if (_enableWorldPasses)
+        {
+            const auto started = std::chrono::steady_clock::now();
+            Console::WriteLine("Vulkan startup: compiling native world pipeline");
+            std::fflush(stdout);
             _worldSurfacePipeline.Initialise(*_context, _resources, _shaderDirectory);
+            Console::WriteLine(
+                "Vulkan startup: native world pipeline ready in %.3f seconds",
+                std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count());
+        }
         _rectPipeline.Initialise(*_context, _resources, _shaderDirectory);
         _transparencyPipeline.Initialise(*_context, _resources, _shaderDirectory);
         _weatherPipeline.Initialise(*_context, _resources, _shaderDirectory);
@@ -357,6 +382,42 @@ namespace OpenRCT2::Ui::Vulkan
             return;
         }
 
+        // Resident art can exceed the ordinary frame ring during a park/catalog change.
+        // Admit that burst as one fence-owned allocation; do not enlarge every frame slot,
+        // split the frame, wait for the device or re-upload resident art on later frames.
+        const VkDeviceSize maximumAdmission = static_cast<VkDeviceSize>(_resources.GetAtlasLayers())
+            * (Gpu::kAtlasDimension * Gpu::kAtlasDimension
+               + Gpu::kAtlasSlotsPerLayer * (sizeof(Gpu::SpriteAssetDescriptor) + 3));
+        VkDeviceSize admissionBytes{};
+        for (const auto& upload : commands.textureUploads)
+        {
+            const VkDeviceSize bytes = ((static_cast<VkDeviceSize>(upload.pixels.size()) + 3) & ~VkDeviceSize{ 3 })
+                + sizeof(Gpu::SpriteAssetDescriptor);
+            if (bytes > maximumAdmission || admissionBytes > maximumAdmission - bytes)
+                throw std::invalid_argument("Vulkan atlas admission exceeds resident atlas capacity");
+            admissionBytes += bytes;
+        }
+        auto* staging = _activeToken->upload;
+        if (admissionBytes > staging->GetCapacity() / 2)
+        {
+            auto& admission = _atlasAdmissions.at(_activeToken->frameIndex);
+            if (admission)
+                throw std::logic_error("Vulkan atlas admission slot was not retired");
+            admission = std::make_unique<UploadRing>();
+            admission->Initialise(_context->GetPhysicalDevice(), _context->GetDevice(), admissionBytes);
+            admission->SetTelemetry(_activeToken->telemetry);
+            staging = admission.get();
+            Console::WriteLine(
+                "Vulkan atlas: admitting %llu bytes of resident art", static_cast<unsigned long long>(admissionBytes));
+        }
+        const auto stage = [&](std::span<const std::byte> bytes) {
+            auto allocation = staging->Allocate(bytes.size(), alignof(uint32_t), Drawing::UploadCategory::atlas);
+            if (!allocation)
+                throw std::runtime_error("Vulkan atlas admission has insufficient staging space");
+            std::memcpy(allocation.data, bytes.data(), bytes.size());
+            allocation.RecordHostWrite();
+            return allocation;
+        };
         _resources.BeginAtlasUploads(_activeToken->commandBuffer);
         for (const auto& upload : commands.textureUploads)
         {
@@ -366,17 +427,16 @@ namespace OpenRCT2::Ui::Vulkan
             {
                 throw std::invalid_argument("Vulkan texture upload payload does not match its bounds and pitch");
             }
-            const auto allocation = StageUpload(
-                upload.pixels, "Vulkan upload ring has no room for a sprite atlas upload", Drawing::UploadCategory::atlas);
+            const auto allocation = stage(upload.pixels);
             const std::span<const Gpu::SpriteAssetDescriptor> descriptor{ &upload.descriptor, 1 };
-            const auto descriptorAllocation = StageUpload(
-                std::as_bytes(descriptor), "Vulkan upload ring has no room for a sprite descriptor upload",
-                Drawing::UploadCategory::atlas);
+            const auto descriptorAllocation = stage(std::as_bytes(descriptor));
             _resources.RecordAtlasUpload(
                 _activeToken->commandBuffer, allocation, upload.atlas, upload.bounds, upload.sourcePitch);
             _resources.RecordSpriteDescriptorUpload(_activeToken->commandBuffer, descriptorAllocation, upload.descriptorIndex);
         }
         _resources.EndAtlasUploads(_activeToken->commandBuffer);
+        if (staging != _activeToken->upload)
+            staging->FlushWritten();
     }
 
     FrameOutput FrameExecutor::Record(
@@ -421,6 +481,12 @@ namespace OpenRCT2::Ui::Vulkan
                 initialIndices, "Vulkan upload ring has no room for initial indices", Drawing::UploadCategory::atlas);
             _resources.RecordInitialIndices(token.commandBuffer, token.frameIndex, allocation);
         }
+        // Opaque batches are depth ordered independently of submission order. Seed
+        // background ink before world filters sample it; later UI still wins its
+        // assigned depth test. Keep one batch per primitive type, without splitting
+        // or rebuilding a CPU world draw list.
+        _linePipeline.Record(token, commands.lines);
+        _rectPipeline.Record(token, commands.opaqueRects, commands.opaqueSprites);
         _terrainUploads = {};
         if (commands.worldSurfaces.has_value())
         {
@@ -464,8 +530,6 @@ namespace OpenRCT2::Ui::Vulkan
                 RecordTerrainStatus(token, scene.camera);
             }
         }
-        _linePipeline.Record(token, commands.lines);
-        _rectPipeline.Record(token, commands.opaqueRects, commands.opaqueSprites);
         bool finalComposite = false;
         if (!commands.transparentRects.empty())
         {

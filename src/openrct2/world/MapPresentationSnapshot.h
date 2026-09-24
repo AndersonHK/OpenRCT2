@@ -60,6 +60,7 @@ namespace OpenRCT2
         std::shared_ptr<const PathPresentationMaterials> pathMaterials;
         std::shared_ptr<const WorldObjectPresentationMaterials> objectMaterials;
         std::shared_ptr<const WorldRidePresentationMaterials> rideMaterials;
+        std::shared_ptr<const WorldRidePoseSnapshot> ridePoses;
     };
 
     /** Owned tile storage and O(1) tile lookup for one presentation frame. */
@@ -113,6 +114,7 @@ namespace OpenRCT2
         std::shared_ptr<const WorldObjectPresentationUsage> _objectUsage;
         std::shared_ptr<const WorldObjectPresentationMaterials> _objectMaterials;
         std::shared_ptr<const WorldRidePresentationMaterials> _rideMaterials;
+        std::shared_ptr<const WorldRidePoseSnapshot> _ridePoses;
         uint8_t _clockHour{}, _clockMinute{};
         std::shared_ptr<const PathPresentationMaterials> _pathMaterials;
         uint64_t _epoch{};
@@ -155,6 +157,10 @@ namespace OpenRCT2
         [[nodiscard]] const std::shared_ptr<const WorldRidePresentationMaterials>& GetRideMaterials() const noexcept
         {
             return _rideMaterials;
+        }
+        [[nodiscard]] const std::shared_ptr<const WorldRidePoseSnapshot>& GetRidePoses() const noexcept
+        {
+            return _ridePoses;
         }
         [[nodiscard]] uint8_t GetClockHour() const noexcept
         {
@@ -217,6 +223,9 @@ namespace OpenRCT2
     [[nodiscard]] MapPresentationChangeBatch ConsumeMapPresentationChanges(
         bool requireCompleteSnapshot = false, MapPublicationProfile profile = MapPublicationProfile::legacyTiles);
     [[nodiscard]] uint64_t GetMapPresentationEpoch() noexcept;
+    // Owner-thread, complete native raw snapshot for an auxiliary job. Does not consume dirty input,
+    // alter the live map epoch, or publish into the main-window generation.
+    [[nodiscard]] std::shared_ptr<const MapPresentationSnapshot> CaptureAuxiliaryMapPresentationSnapshot();
 
     /** Installs a snapshot only for map reads made by the current paint worker. */
     class ScopedMapPresentationSnapshot

@@ -52,6 +52,9 @@ namespace OpenRCT2::Ui::Vulkan
             bool worldSurface{};
         };
         std::vector<std::vector<PendingTerrainStatus>> _terrainStatuses;
+        // Large catalog admissions live until the submitting slot's existing fence retires.
+        // Ordinary frames continue to use the shared ring without another allocation.
+        std::vector<std::unique_ptr<UploadRing>> _atlasAdmissions;
         std::string _terrainFailure; // Terminal for this executor generation.
 
         TransparencyPipeline _transparencyPipeline;
@@ -115,6 +118,8 @@ namespace OpenRCT2::Ui::Vulkan
         // Owner must call after this slot's existing fence completes, before its upload ring resets.
         // Does not wait or reenter Device; safe from the slot-retirement callback.
         void CompleteTerrainStatus(uint32_t frameIndex);
+        // Auxiliary domains remain bitmap-only until their first recorded native world request.
+        void EnableWorldPasses();
         void Commit() noexcept;
         void Discard(uint32_t frameIndex);
 

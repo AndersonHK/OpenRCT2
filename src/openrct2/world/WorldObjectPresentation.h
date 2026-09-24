@@ -9,6 +9,7 @@
 #include <atomic>
 #include <bitset>
 #include <cstdint>
+#include <memory>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -172,6 +173,22 @@ namespace OpenRCT2
     {
         uint64_t revision{};
         std::vector<WorldRidePresentationRecord> rides;
+    };
+    // Hot mechanism state, independent of immutable object/station/colour catalogues.
+    // Words 0..3: raw ride flags, type/subtype, breakdown reason/modifier, slide state/colour.
+    // Four vehicle slots follow: entity ID, generation, frame/secondary/orientation/restraints,
+    // signed current_time (low 16 bits). UINT32_MAX identifies an absent vehicle.
+    struct WorldRidePoseRecord
+    {
+        std::array<uint32_t, 20> words{};
+        bool operator==(const WorldRidePoseRecord&) const = default;
+    };
+    static_assert(sizeof(WorldRidePoseRecord) == 80);
+    struct WorldRidePoseSnapshot
+    {
+        uint64_t epoch{}, entityEpoch{}, revision{};
+        uint32_t sourceTick{};
+        std::shared_ptr<const std::vector<WorldRidePoseRecord>> records;
     };
     inline std::atomic<uint64_t> gWorldObjectRevision{ 1 };
     inline uint64_t GetWorldObjectRevision() noexcept

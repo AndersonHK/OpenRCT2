@@ -20,11 +20,15 @@
     #include <openrct2/drawing/PaletteIndex.h>
     #include <openrct2/drawing/PresentationScene.h>
     #include <openrct2/drawing/RenderTarget.h>
+    #include <openrct2/drawing/WorldSelection.h>
     #include <openrct2/entity/EntityPresentationSnapshot.h>
     #include <openrct2/object/ObjectManager.h>
+    #include <openrct2/ride/Ride.h>
+    #include <openrct2/ride/Vehicle.h>
     #include <openrct2/world/Map.h>
     #include <openrct2/world/MapAnimation.h>
     #include <openrct2/world/MapPresentationSnapshot.h>
+    #include <openrct2/world/tile_element/TrackElement.h>
 
 namespace
 {
@@ -64,6 +68,7 @@ namespace
         bool oldHeadless = gOpenRCT2Headless;
         bool oldNoGraphics = gOpenRCT2NoGraphics;
         bool oldSmoothing{};
+        bool oldTransparentWater{};
         bool capturedConfig{};
         std::unique_ptr<IContext> context;
         void SetUp() override
@@ -91,13 +96,17 @@ namespace
             environment.SetBasePath(DirBase::openrct2, fs::path(shaders).parent_path().parent_path().string());
             ASSERT_TRUE(context->Initialise());
             oldSmoothing = Config::Get().general.landscapeSmoothing;
+            oldTransparentWater = Config::Get().general.transparentWater;
             capturedConfig = true;
             Config::Get().general.landscapeSmoothing = false;
         }
         void TearDown() override
         {
             if (capturedConfig)
+            {
                 Config::Get().general.landscapeSmoothing = oldSmoothing;
+                Config::Get().general.transparentWater = oldTransparentWater;
+            }
             context.reset();
             gOpenRCT2Headless = oldHeadless;
             gOpenRCT2NoGraphics = oldNoGraphics;
@@ -146,8 +155,39 @@ TEST_F(VulkanWorldPathArtTest, ImportedOriginalArtMatchesExternalUpstreamCorpus)
         context->GetObjectManager().LoadObjects(load.RequiredObjects);
         MapAnimations::ClearAll();
         importer->Import(getGameState());
+        Config::Get().general.transparentWater = entry.value("transparentWater", manifest.value("transparentWater", true));
         getGameState().entities.resetEntitySpatialIndices();
         ResetAllSpriteQuadrantPlacements();
+        if (manifest.contains("mechanismPoses"))
+            for (const auto& expected : manifest.at("mechanismPoses"))
+            {
+                SCOPED_TRACE(expected.dump());
+                const auto* ride = GetRide(RideId::FromUnderlying(expected.at("ride").get<uint16_t>()));
+                ASSERT_NE(ride, nullptr);
+                ASSERT_EQ(uint32_t(ride->type), expected.at("rideType").get<uint32_t>());
+                ASSERT_EQ(uint32_t(ride->subtype), expected.at("objectSlot").get<uint32_t>());
+                ASSERT_EQ(ride->flags.has(RideFlag::onTrack), expected.at("onTrack").get<bool>());
+                ASSERT_EQ(ride->flags.has(RideFlag::breakdownPending), expected.at("breakdownPending").get<bool>());
+                ASSERT_EQ(uint32_t(ride->breakdownReasonPending), expected.at("breakdownReason").get<uint32_t>());
+                ASSERT_EQ(uint32_t(ride->breakdownSoundModifier), expected.at("breakdownModifier").get<uint32_t>());
+                ASSERT_EQ(uint32_t(ride->slideInUse), expected.at("slideInUse").get<uint32_t>());
+                ASSERT_EQ(uint32_t(ride->spiralSlideProgress), expected.at("slideProgress").get<uint32_t>());
+                ASSERT_EQ(uint32_t(ride->slidePeepTShirtColour), expected.at("slideColour").get<uint32_t>());
+                for (const auto& pose : expected.at("vehicles"))
+                {
+                    const auto slot = pose.at("slot").get<size_t>();
+                    ASSERT_LT(slot, std::size(ride->vehicles));
+                    const auto id = EntityId::FromUnderlying(pose.at("entityId").get<uint16_t>());
+                    ASSERT_EQ(ride->vehicles[slot], id);
+                    const auto* vehicle = getGameState().entities.tryGetEntity<Vehicle>(id);
+                    ASSERT_NE(vehicle, nullptr);
+                    ASSERT_EQ(uint32_t(vehicle->flatRideAnimationFrame), pose.at("frame").get<uint32_t>());
+                    ASSERT_EQ(uint32_t(vehicle->flatRideSecondaryAnimationFrame), pose.at("secondary").get<uint32_t>());
+                    ASSERT_EQ(uint32_t(vehicle->orientation), pose.at("orientation").get<uint32_t>());
+                    ASSERT_EQ(uint32_t(vehicle->restraints_position), pose.at("restraints").get<uint32_t>());
+                    ASSERT_EQ(int32_t(vehicle->current_time), pose.at("currentTime").get<int32_t>());
+                }
+            }
         if (manifest.contains("ghostPatches"))
             for (const auto& patch : manifest.at("ghostPatches"))
             {
@@ -165,6 +205,62 @@ TEST_F(VulkanWorldPathArtTest, ImportedOriginalArtMatchesExternalUpstreamCorpus)
                 ASSERT_EQ(element->getClearanceZ(), patch.at("clearanceZ").get<int32_t>());
                 element->setGhost(true);
             }
+        if (manifest.contains("photoStates"))
+            for (const auto& expected : manifest.at("photoStates"))
+            {
+                SCOPED_TRACE(expected.dump());
+                auto* element = MapGetFirstElementAt(
+                    TileCoordsXY{ expected.at("x").get<int32_t>(), expected.at("y").get<int32_t>() });
+                ASSERT_NE(element, nullptr);
+                const TrackElement* photo = nullptr;
+                do
+                {
+                    const auto* track = element->asTrack();
+                    if (track != nullptr && track->getRideIndex().ToUnderlying() == expected.at("ride").get<uint16_t>())
+                    {
+                        ASSERT_EQ(photo, nullptr);
+                        photo = track;
+                    }
+                } while (!(element++)->isLastForTile());
+                ASSERT_NE(photo, nullptr);
+                ASSERT_EQ(photo->getBaseZ(), expected.at("baseZ").get<int32_t>());
+                ASSERT_EQ(photo->getClearanceZ(), expected.at("clearanceZ").get<int32_t>());
+                ASSERT_EQ(static_cast<uint16_t>(photo->getTrackType()), expected.at("trackType").get<uint16_t>());
+                ASSERT_EQ(photo->getSequenceIndex(), expected.at("sequence").get<uint8_t>());
+                ASSERT_EQ(photo->getDirection(), expected.at("direction").get<uint8_t>());
+                ASSERT_EQ(photo->getPhotoTimeout(), expected.at("photoTimeout").get<uint8_t>());
+                ASSERT_EQ(photo->isGhost(), expected.at("ghost").get<bool>());
+            }
+        if (manifest.contains("objects"))
+            for (const auto& expected : manifest.at("objects"))
+            {
+                if (!expected.contains("brakeClosed"))
+                    continue;
+                SCOPED_TRACE(expected.dump());
+                for (const auto& placement : expected.at("placements"))
+                {
+                    auto* element = MapGetFirstElementAt(
+                        TileCoordsXY{ placement.at("x").get<int32_t>(), placement.at("y").get<int32_t>() });
+                    ASSERT_NE(element, nullptr);
+                    const TrackElement* found = nullptr;
+                    do
+                    {
+                        const auto* track = element->asTrack();
+                        if (track != nullptr && track->getRideIndex().ToUnderlying() == expected.at("ride").get<uint16_t>()
+                            && track->getSequenceIndex() == placement.at("sequence").get<uint8_t>())
+                        {
+                            ASSERT_EQ(found, nullptr);
+                            found = track;
+                        }
+                    } while (!(element++)->isLastForTile());
+                    ASSERT_NE(found, nullptr);
+                    ASSERT_EQ(found->getBaseZ(), placement.at("baseZ").get<int32_t>());
+                    ASSERT_EQ(static_cast<uint16_t>(found->getTrackType()), placement.at("trackType").get<uint16_t>());
+                    ASSERT_EQ(found->isBrakeClosed(), expected.at("brakeClosed").get<bool>());
+                    ASSERT_EQ(found->hasChain(), expected.at("chain").get<bool>());
+                    ASSERT_EQ(found->isInverted(), expected.at("inverted").get<bool>());
+                }
+            }
         if (manifest.contains("clockHour") && manifest.contains("clockMinute"))
         {
             gRealTimeOfDay.hour = manifest.at("clockHour").get<uint8_t>();
@@ -177,8 +273,9 @@ TEST_F(VulkanWorldPathArtTest, ImportedOriginalArtMatchesExternalUpstreamCorpus)
         const G::Extent extent{ entry.at("width"), entry.at("height") };
         ASSERT_GT(extent.width, 0u);
         ASSERT_GT(extent.height, 0u);
-        ASSERT_LE(extent.width, 3840u);
-        ASSERT_LE(extent.height, 2160u);
+        const bool expandedTrackCorpus = manifest.value("fixture", std::string{}) == "original-track-regressions-v2";
+        ASSERT_LE(extent.width, expandedTrackCorpus ? 4096u : 3840u);
+        ASSERT_LE(extent.height, expandedTrackCorpus ? 2304u : 2160u);
         std::vector<D::PaletteIndex> addressSpace(static_cast<size_t>(extent.width) * extent.height);
         D::RenderTarget target{ .bits = addressSpace.data(),
                                 .width = static_cast<int32_t>(extent.width),
@@ -190,13 +287,35 @@ TEST_F(VulkanWorldPathArtTest, ImportedOriginalArtMatchesExternalUpstreamCorpus)
         drawing.Begin(commands);
         // Match ViewportRender's world background, including off-map pixels.
         drawing.Clear(target, D::PaletteIndex::pi10);
+        std::shared_ptr<const std::vector<uint32_t>> selection;
+        const auto* selectionJson = entry.contains("selection") ? &entry.at("selection")
+            : manifest.contains("selection")                    ? &manifest.at("selection")
+                                                                : nullptr;
+        if (selectionJson != nullptr)
+        {
+            const auto& value = *selectionJson;
+            const auto first = value.at("first").get<std::array<int32_t, 2>>();
+            const auto last = value.at("last").get<std::array<int32_t, 2>>();
+            const auto arrow = value.at("arrow").get<std::array<int32_t, 3>>();
+            std::vector<CoordsXY> tiles;
+            for (const auto& tile : value.at("tiles"))
+            {
+                const auto position = tile.get<std::array<int32_t, 2>>();
+                tiles.emplace_back(position[0], position[1]);
+            }
+            selection = std::make_shared<const std::vector<uint32_t>>(D::MakeWorldSelectionWords(
+                value.at("flags").get<uint32_t>(), value.at("type").get<uint32_t>(), { first[0], first[1] },
+                { last[0], last[1] }, { arrow[0], arrow[1], arrow[2] }, value.at("direction").get<uint32_t>(), tiles));
+        }
         const OrthographicCamera camera{ .viewX = entry.at("viewX"),
                                          .viewY = entry.at("viewY"),
                                          .clipRight = static_cast<int32_t>(extent.width),
                                          .clipBottom = static_cast<int32_t>(extent.height),
                                          .zoom = entry.at("zoom"),
                                          .rotation = entry.at("rotation"),
-                                         .nativeEntitiesAllowed = true };
+                                         .nativeEntitiesAllowed = true,
+                                         .viewFlags = entry.value("viewFlags", manifest.value("viewFlags", uint32_t{})),
+                                         .selection = std::move(selection) };
         ASSERT_TRUE(drawing.DrawWorldSurfaceScene(target, publication.GetGeneration(), camera));
         drawing.End();
         const auto residency = cache->SealFrame(commands);
@@ -251,6 +370,8 @@ TEST_F(VulkanWorldPathArtTest, ImportedOriginalArtMatchesExternalUpstreamCorpus)
         raw.write(reinterpret_cast<const char*>(actual.data()), static_cast<std::streamsize>(actual.size()));
         reports.push_back({ { "name", name },
                             { "differentIndexedPixels", differences },
+                            { "transparentWater", Config::Get().general.transparentWater },
+                            { "viewFlags", entry.value("viewFlags", manifest.value("viewFlags", 0u)) },
                             { "sourceTick", sourceTick },
                             { "finalTick", getGameState().currentTicks },
                             { "width", extent.width },

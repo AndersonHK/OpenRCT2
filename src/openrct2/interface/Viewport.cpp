@@ -35,6 +35,7 @@ namespace OpenRCT2::Drawing::Diagnostic
 #include "../Context.h"
 #include "../Diagnostic.h"
 #include "../GameState.h"
+#include "../Limits.h"
 #include "../OpenRCT2.h"
 #include "../config/Config.h"
 #include "../core/Guard.hpp"
@@ -45,10 +46,13 @@ namespace OpenRCT2::Drawing::Diagnostic
 #include "../drawing/Drawing.h"
 #include "../drawing/IDrawingContext.h"
 #include "../drawing/IDrawingEngine.h"
+#include "../drawing/Image.h"
 #include "../drawing/NewDrawing.h"
 #include "../drawing/PresentationGeneration.h"
 #include "../drawing/PresentationScene.h"
 #include "../drawing/Rectangle.h"
+#include "../drawing/RenderService.h"
+#include "../drawing/WorldSelection.h"
 #include "../drawing/RetainedBalloonScene.h"
 #include "../entity/EntityPresentationSnapshot.h"
 #include "../entity/EntityTweener.h"
@@ -60,6 +64,8 @@ namespace OpenRCT2::Drawing::Diagnostic
 #include "../object/WallSceneryEntry.h"
 #include "../paint/Paint.SessionFlags.h"
 #include "../paint/Paint.h"
+#include "../paint/entity/Paint.Vehicle.h"
+#include "../platform/Platform.h"
 #include "../profiling/Profiling.h"
 #include "../ride/Ride.h"
 #include "../ride/RideData.h"
@@ -84,6 +90,7 @@ namespace OpenRCT2::Drawing::Diagnostic
 #include <optional>
 #include <stdexcept>
 #include <utility>
+#include <unordered_map>
 
 namespace OpenRCT2
 {
@@ -102,6 +109,36 @@ namespace OpenRCT2
     uint8_t gShowConstructionRightsRefCount;
 
     static std::list<Viewport> _viewports;
+    struct SecondaryViewportPreview
+    {
+        std::vector<std::byte> pixels;
+        uint32_t image{ kImageIndexUndefined };
+        uint32_t updatedAt{};
+        uint32_t lastSeenDraw{};
+        uint64_t requestTicket{};
+        uint64_t worldEpoch{};
+        int32_t width{}, height{};
+        ZoomLevel zoom{};
+        uint8_t rotation{};
+        uint32_t flags{};
+        EntityId entity{ EntityId::GetNull() };
+        EntityVisualHandle entityHandle{};
+        std::shared_ptr<IRenderCompletion> pending;
+        std::shared_ptr<const PresentationGeneration> pendingGeneration;
+        Viewport pendingViewport{};
+        EntityId pendingEntity{ EntityId::GetNull() };
+        EntityVisualHandle pendingEntityHandle{};
+        bool recording{};
+        ~SecondaryViewportPreview()
+        {
+            if (pending)
+                pending->Cancel();
+            GfxObjectFreeImages(image, 1);
+        }
+    };
+    static std::unordered_map<const Viewport*, std::unique_ptr<SecondaryViewportPreview>> _secondaryPreviews;
+    static uint64_t _nextSecondaryPreviewTicket = 1;
+    static std::shared_ptr<const std::vector<uint32_t>> _frameSelection;
     Viewport* gMusicTrackingViewport;
 
     InteractionInfo::InteractionInfo(const PaintStruct* ps)
@@ -118,7 +155,8 @@ namespace OpenRCT2
     }
 
     static void ViewportPaint(
-        const Viewport* viewport, RenderTarget& rt, ViewportGenerationDomain domain = ViewportGenerationDomain::targetClip);
+        const Viewport* viewport, RenderTarget& rt, ViewportGenerationDomain domain,
+        std::shared_ptr<const PresentationGeneration> auxiliaryGeneration, uint64_t selectedVehicleViewport);
     static void ViewportUpdateFollowSprite(WindowBase* window);
     static void ViewportUpdateSmartFollowEntity(WindowBase* window);
     static void ViewportUpdateSmartFollowStaff(WindowBase* window, const Staff& peep);
@@ -241,6 +279,7 @@ namespace OpenRCT2
 
     void ViewportRemove(Viewport* viewport)
     {
+        _secondaryPreviews.erase(viewport);
         auto it = std::find_if(_viewports.begin(), _viewports.end(), [viewport](const auto& vp) { return &vp == viewport; });
         if (it == _viewports.end())
         {
@@ -700,6 +739,13 @@ namespace OpenRCT2
 
     void ViewportRender(RenderTarget& rt, const Viewport* viewport, ViewportGenerationDomain domain)
     {
+        ViewportRender(rt, viewport, domain, {});
+    }
+
+    void ViewportRender(
+        RenderTarget& rt, const Viewport* viewport, ViewportGenerationDomain domain,
+        std::shared_ptr<const PresentationGeneration> auxiliaryGeneration, uint64_t selectedVehicleViewport)
+    {
         if (viewport->flags & VIEWPORT_FLAG_RENDERING_INHIBITED)
             return;
 
@@ -712,7 +758,7 @@ namespace OpenRCT2
         if (rt.y >= viewport->pos.y + viewport->height)
             return;
 
-        ViewportPaint(viewport, rt, domain);
+        ViewportPaint(viewport, rt, domain, std::move(auxiliaryGeneration), selectedVehicleViewport);
     }
 
     static PresentationScene& GetPresentationScene()
@@ -723,6 +769,40 @@ namespace OpenRCT2
 
     void ViewportBeginPresentationFrame()
     {
+        std::vector<SelectedVehicleRequest> vehicleRequests;
+        const auto now = Platform::GetTicks();
+        WindowVisitEach([&](WindowBase* window) {
+            const auto* viewport = window->viewport;
+            if (viewport == nullptr || viewport == ViewportGetMain()
+                || getGameState().entities.getEntity<Vehicle>(window->viewportTargetSprite) == nullptr)
+                return;
+            const auto found = _secondaryPreviews.find(viewport);
+            if (found != _secondaryPreviews.end())
+            {
+                const auto& preview = *found->second;
+                if (preview.pending || (preview.image != kImageIndexUndefined
+                    && static_cast<uint32_t>(now - preview.updatedAt) < 34
+                    && preview.entityHandle == getGameState().entities.GetEntityVisualHandle(window->viewportTargetSprite)
+                    && preview.zoom == viewport->zoom && preview.rotation == viewport->rotation
+                    && preview.flags == viewport->flags))
+                    return;
+            }
+            vehicleRequests.push_back({ .viewport = reinterpret_cast<uintptr_t>(viewport),
+                .entity = getGameState().entities.GetEntityVisualHandle(window->viewportTargetSprite),
+                .viewFlags = viewport->flags, .zoom = static_cast<int8_t>(viewport->zoom), .rotation = viewport->rotation,
+                .clipHeight = gClipHeight, .clipFirst = gClipSelectionA, .clipLast = gClipSelectionB });
+        });
+        GetPresentationScene().SetSelectedVehicleRequests(std::move(vehicleRequests));
+        if (gMapSelectFlags.isEmpty())
+            _frameSelection.reset();
+        else
+        {
+            auto words = MakeWorldSelectionWords(
+                gMapSelectFlags.holder, EnumValue(gMapSelectType), gMapSelectPositionA, gMapSelectPositionB,
+                gMapSelectArrowPosition, gMapSelectArrowDirection, MapSelection::getSelectedTiles());
+            if (!_frameSelection || *_frameSelection != words)
+                _frameSelection = std::make_shared<const std::vector<uint32_t>>(std::move(words));
+        }
         auto& gameState = getGameState();
         auto& jobs = GetContext()->GetJobPool();
 
@@ -752,6 +832,21 @@ namespace OpenRCT2
         return GetPresentationScene().GetGeneration();
     }
 
+    std::shared_ptr<const PresentationGeneration> ViewportCaptureAuxiliaryGeneration()
+    {
+        auto map = CaptureAuxiliaryMapPresentationSnapshot();
+        auto entities = std::make_shared<EntityPresentationSnapshot>();
+        entities->CaptureNativeStorage(getGameState().entities, {}, {});
+        if (map->GetSourceTick() != entities->GetSourceTick())
+            throw std::logic_error("Auxiliary map and entity snapshot ticks differ");
+        return std::make_shared<PresentationGeneration>(PresentationGeneration{
+            .map = std::move(map),
+            .entities = entities,
+            .sourceTick = entities->GetSourceTick(),
+            .sourceEntityEpoch = entities->GetSourceEpoch(),
+        });
+    }
+
     Drawing::BalloonPublicationCopyTotals ViewportGetBalloonPublicationCopyTotals()
     {
         return GetPresentationScene().GetBalloonPublicationCopyTotals();
@@ -759,7 +854,139 @@ namespace OpenRCT2
 
     void ViewportDisposePresentation()
     {
+        _secondaryPreviews.clear();
         GetPresentationScene().Reset(GetContext()->GetJobPool());
+    }
+
+    static void DrawSecondaryViewport(
+        RenderTarget& rt, const Viewport& viewport, const std::shared_ptr<const PresentationGeneration>& generation)
+    {
+        if (viewport.width <= 0 || viewport.height <= 0 || viewport.width > 32767 || viewport.height > 32767
+            || static_cast<uint64_t>(viewport.width) * viewport.height > 4 * 1024 * 1024)
+            throw RenderServiceException({ RenderErrorCode::invalidRequest, "Secondary viewport exceeds bounded preview extent" });
+        EntityId selected = EntityId::GetNull();
+        WindowVisitEach([&](WindowBase* window) {
+            if (window->viewport == &viewport)
+                selected = window->viewportTargetSprite;
+        });
+        const auto selectedHandle = selected.IsNull() ? EntityVisualHandle{}
+                                                     : getGameState().entities.GetEntityVisualHandle(selected);
+        auto& entry = _secondaryPreviews[&viewport];
+        if (!entry)
+            entry = std::make_unique<SecondaryViewportPreview>();
+        auto& preview = *entry;
+        preview.lastSeenDraw = gCurrentDrawCount;
+        const auto now = Platform::GetTicks();
+        if (preview.recording)
+            return; // Asset discovery can pump progress drawing; do not re-enter an active auxiliary session.
+        preview.recording = true;
+        struct RecordingScope { bool& active; ~RecordingScope() { active = false; } } recording{ preview.recording };
+        if (preview.pending)
+        {
+            const auto outcome = preview.pending->Wait(std::chrono::milliseconds(0));
+            if (!outcome.error || outcome.error->code != RenderErrorCode::timeout)
+            {
+                if (outcome.error)
+                    throw RenderServiceException(*outcome.error);
+                const auto& captured = preview.pendingViewport;
+                const auto expectedPixels = static_cast<size_t>(captured.width) * captured.height;
+                if (!outcome.result || outcome.identity != preview.pending->GetIdentity()
+                    || outcome.result->identity != outcome.identity || outcome.result->indexed.size() != expectedPixels)
+                    throw RenderServiceException({ RenderErrorCode::executionFailed, "Secondary viewport readback differs" });
+                // A resized/retargeted window must never display an obsolete result in its new geometry.
+                if (captured.width == viewport.width && captured.height == viewport.height
+                    && captured.zoom == viewport.zoom && captured.rotation == viewport.rotation
+                    && captured.flags == viewport.flags && preview.pendingEntity == selected
+                    && preview.pendingEntityHandle == selectedHandle
+                    && preview.pendingGeneration->map->GetEpoch() == generation->map->GetEpoch())
+                {
+                    auto pixels = outcome.result->indexed;
+                    G1Element sprite{};
+                    sprite.offset = reinterpret_cast<uint8_t*>(pixels.data());
+                    sprite.width = static_cast<int16_t>(captured.width);
+                    sprite.height = static_cast<int16_t>(captured.height);
+                    if (preview.image == kImageIndexUndefined)
+                        preview.image = GfxObjectAllocateImages(&sprite, 1);
+                    else
+                    {
+                        GfxSetG1Element(preview.image, &sprite);
+                        DrawingEngineInvalidateImage(preview.image);
+                    }
+                    if (preview.image == kImageIndexUndefined)
+                        throw RenderServiceException({ RenderErrorCode::creationFailed, "Secondary viewport image allocation failed" });
+                    preview.pixels = std::move(pixels);
+                    preview.worldEpoch = preview.pendingGeneration->map->GetEpoch();
+                    preview.width = captured.width;
+                    preview.height = captured.height;
+                    preview.zoom = captured.zoom;
+                    preview.rotation = captured.rotation;
+                    preview.flags = captured.flags;
+                    preview.entity = selected;
+                    preview.entityHandle = selectedHandle;
+                }
+                preview.pending.reset();
+                preview.pendingGeneration.reset();
+            }
+        }
+        const bool changed = preview.image == kImageIndexUndefined || preview.width != viewport.width
+            || preview.height != viewport.height || preview.zoom != viewport.zoom || preview.rotation != viewport.rotation
+            || preview.flags != viewport.flags || preview.entityHandle != selectedHandle
+            || preview.worldEpoch != generation->map->GetEpoch();
+        // Auxiliary bitmap previews are intentionally rate limited. Main-world rendering never reads these pixels.
+        const bool vehicleTarget = getGameState().entities.getEntity<Vehicle>(selected) != nullptr;
+        bool coherentVehicle = !vehicleTarget;
+        if (vehicleTarget && generation->selectedVehicles != nullptr)
+        {
+            const auto handle = getGameState().entities.GetEntityVisualHandle(selected);
+            coherentVehicle = std::any_of(generation->selectedVehicles->views.begin(), generation->selectedVehicles->views.end(),
+                [&](const auto& view) {
+                    return view.request.viewport == reinterpret_cast<uintptr_t>(&viewport) && view.request.entity == handle
+                        && view.request.rotation == viewport.rotation && view.request.zoom == static_cast<int8_t>(viewport.zoom)
+                        && view.request.viewFlags == viewport.flags && view.request.clipHeight == gClipHeight
+                        && view.request.clipFirst == gClipSelectionA && view.request.clipLast == gClipSelectionB;
+                });
+        }
+        const bool due = coherentVehicle && !preview.pending
+            && (changed || static_cast<uint32_t>(now - preview.updatedAt) >= 34);
+        if (!due)
+            preview.requestTicket = 0;
+        if (due && preview.requestTicket == 0)
+            preview.requestTicket = _nextSecondaryPreviewTicket++;
+        const bool turn = std::none_of(_secondaryPreviews.begin(), _secondaryPreviews.end(), [&](const auto& item) {
+            const auto& other = *item.second;
+            return other.requestTicket != 0 && other.requestTicket < preview.requestTicket
+                && static_cast<uint32_t>(gCurrentDrawCount - other.lastSeenDraw) <= 1;
+        });
+        if (due && turn)
+        {
+            OffscreenRenderRequest request;
+            request.name = "secondary-viewport";
+            request.logicalExtent = request.outputExtent = {
+                static_cast<uint32_t>(viewport.width), static_cast<uint32_t>(viewport.height) };
+            request.clearIndex = EnumValue(PaletteIndex::pi10);
+            auto session = GetContext()->GetRenderService().TryBeginOffscreen(std::move(request));
+            if (session)
+            {
+                auto& target = session->GetRenderTarget();
+                Viewport isolated = viewport;
+                isolated.pos = { 0, 0 };
+                ViewportRender(target, &isolated, ViewportGenerationDomain::targetClip, generation,
+                    vehicleTarget ? reinterpret_cast<uintptr_t>(&viewport) : 0);
+                preview.pending = session->Submit();
+                if (!preview.pending)
+                    throw RenderServiceException({ RenderErrorCode::executionFailed, "Secondary viewport has no completion" });
+                preview.pendingGeneration = generation;
+                preview.pendingViewport = viewport;
+                preview.pendingEntity = selected;
+                preview.pendingEntityHandle = selectedHandle;
+                preview.updatedAt = now;
+                preview.requestTicket = 0;
+            }
+        }
+        if (preview.image != kImageIndexUndefined && preview.width == viewport.width && preview.height == viewport.height
+            && preview.zoom == viewport.zoom && preview.rotation == viewport.rotation && preview.flags == viewport.flags
+            && preview.entityHandle == selectedHandle && preview.worldEpoch == generation->map->GetEpoch())
+            GfxDrawSprite(rt, ImageId(preview.image), viewport.pos);
     }
 
     /**
@@ -772,17 +999,25 @@ namespace OpenRCT2
      *  edi: rt
      *  ebp: bottom
      */
-    static void ViewportPaint(const Viewport* viewport, RenderTarget& rt, [[maybe_unused]] ViewportGenerationDomain domain)
+    static void ViewportPaint(
+        const Viewport* viewport, RenderTarget& rt, [[maybe_unused]] ViewportGenerationDomain domain,
+        std::shared_ptr<const PresentationGeneration> auxiliaryGeneration, uint64_t selectedVehicleViewport)
     {
         PROFILED_FUNCTION();
         // The viewport has one world renderer. Missing GPU families deliberately remain absent while
         // this replacement is built; there is no CPU paint-session generation, ordering or fallback.
         const bool mainPresentation = rt.DrawingEngine == GetContext()->GetDrawingEngine();
         auto& presentation = GetPresentationScene();
-        const auto generation = mainPresentation ? presentation.GetGeneration() : nullptr;
+        const auto generation = mainPresentation ? presentation.GetGeneration()
+            : auxiliaryGeneration ? std::move(auxiliaryGeneration) : ViewportCaptureAuxiliaryGeneration();
         const bool terrainOnly = generation && generation->entities && generation->entities->IsTerrainOnly();
-        const bool terrainOnlyMain = terrainOnly && viewport == ViewportGetMain();
-        const bool terrainOnlySecondary = terrainOnly && !terrainOnlyMain;
+        const bool terrainOnlyMain = mainPresentation && terrainOnly && viewport == ViewportGetMain();
+        const bool terrainOnlySecondary = mainPresentation && terrainOnly && !terrainOnlyMain;
+        if (terrainOnlySecondary)
+        {
+            DrawSecondaryViewport(rt, *viewport, generation);
+            return;
+        }
         // Window drawing may split the main viewport around opaque UI. Record one full main-world
         // background, clipped only to its viewport and the engine target; later UI remains above it.
         const auto* source = terrainOnlyMain ? rt.DrawingEngine->getRT() : &rt;
@@ -829,14 +1064,16 @@ namespace OpenRCT2
                     && !gPaintBlockedTiles && !gTrackDesignSaveMode,
                 .entityInterpolation = EntityTweener::get().GetRenderAlpha(),
                 .entityInterpolationSourceTick = getGameState().currentTicks,
+                .viewFlags = viewport->flags,
+                .selection = terrainOnlyMain ? _frameSelection : nullptr,
+                .selectedVehicleViewport = selectedVehicleViewport,
             };
             const auto world = context->DrawWorldScene(worldRT, generation, camera);
             if (!world.completeTerrainScene)
                 throw std::runtime_error("GPU world renderer rejected its published scene");
             context->SealWorldScene(world);
         }
-        // Independent auxiliary world capture is not migrated in this partial checkpoint. Its target
-        // remains empty rather than invoking the retired CPU painter or borrowing stale main-world data.
+        // Auxiliary sessions own an independent immutable generation and the same native GPU world path.
     }
 
     /**

@@ -446,6 +446,9 @@ namespace OpenRCT2
         uint32_t drawCount = std::numeric_limits<uint32_t>::max();
         EntityPublicationProfile profile = EntityPublicationProfile::legacyBulk;
         bool retrySynchronously{};
+        std::vector<Drawing::SelectedVehicleRequest> selectedRequests;
+        std::shared_ptr<const Drawing::SelectedVehicleSnapshot> pendingSelected;
+        bool pendingSelectedCaptured{};
     };
 
     PresentationScene::PresentationScene()
@@ -454,6 +457,11 @@ namespace OpenRCT2
     }
 
     PresentationScene::~PresentationScene() = default;
+
+    void PresentationScene::SetSelectedVehicleRequests(std::vector<Drawing::SelectedVehicleRequest> requests)
+    {
+        _impl->selectedRequests = std::move(requests);
+    }
 
     bool PresentationScene::BeginFrame(
         JobPool& jobs, EntityRegistry& entities, const uint32_t drawCount, const bool synchronousMapPublication,
@@ -519,8 +527,14 @@ namespace OpenRCT2
                 _impl->entities.Reset(jobs);
             const auto entitySnapshot = synchronous ? _impl->entities.AcquireSynchronously(jobs, entities)
                                                     : _impl->entities.Acquire(jobs, entities);
+            const auto selected = _impl->pendingSelectedCaptured && !synchronous && !worldEpochChanged && !map.sceneReset
+                ? _impl->pendingSelected : Drawing::CaptureSelectedVehicleSnapshot(_impl->selectedRequests);
             if (map.snapshot->GetSourceTick() != entitySnapshot->GetSourceTick())
                 throw std::logic_error("Map and entity publication source ticks differ");
+            if (selected && (selected->sourceTick != map.snapshot->GetSourceTick()
+                || selected->worldEpoch != map.snapshot->GetEpoch()
+                || selected->entityEpoch != entitySnapshot->GetSourceEpoch()))
+                throw std::logic_error("Selected-vehicle and world publication identities differ");
             _impl->generation = std::make_shared<PresentationGeneration>(PresentationGeneration{
                 .map = map.snapshot,
                 .entities = entitySnapshot,
@@ -529,7 +543,10 @@ namespace OpenRCT2
                 .sourceEntityEpoch = entitySnapshot->GetSourceEpoch(),
                 .peeps = entitySnapshot->GetRetainedPeeps(),
                 .peepAnimations = entitySnapshot->GetPeepAnimations(),
+                .selectedVehicles = selected,
             });
+            _impl->pendingSelected.reset();
+            _impl->pendingSelectedCaptured = false;
             _impl->drawCount = drawCount; // Failed preparation may retry this same draw boundary.
             _impl->retrySynchronously = false;
             return true;
@@ -556,6 +573,8 @@ namespace OpenRCT2
                 return;
             _impl->map.Schedule(jobs);
             _impl->entities.Schedule(jobs, entities);
+            _impl->pendingSelected = Drawing::CaptureSelectedVehicleSnapshot(_impl->selectedRequests);
+            _impl->pendingSelectedCaptured = true;
         }
         catch (...)
         {
@@ -569,6 +588,8 @@ namespace OpenRCT2
         _impl->map.Reset(jobs);
         _impl->entities.Reset(jobs);
         _impl->generation.reset();
+        _impl->pendingSelected.reset();
+        _impl->pendingSelectedCaptured = false;
         _impl->drawCount = std::numeric_limits<uint32_t>::max();
         _impl->retrySynchronously = false;
     }

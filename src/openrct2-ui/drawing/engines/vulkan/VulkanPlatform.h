@@ -12,9 +12,10 @@
 #ifdef ENABLE_VULKAN
 
     #include <cstdint>
+    #include <functional>
     #include <memory>
-    #include <optional>
     #include <openrct2-renderer/vulkan/VulkanPresentationHost.h>
+    #include <optional>
     #include <vector>
     #include <vulkan/vulkan.h>
 
@@ -22,6 +23,8 @@ struct SDL_Window;
 
 namespace OpenRCT2::Ui::Vulkan::Platform
 {
+    // Keeps native paint/window events responsive while a driver compiles pipelines.
+    void PreparePipelines(SDL_Window* window, const std::function<void()>& work);
     // The caller owns the SDL window and must dispose the backend before destroying it.
     [[nodiscard]] std::unique_ptr<PresentationHost> CreatePresentationHost(SDL_Window* window);
     [[nodiscard]] uint32_t GetRequiredSdlWindowFlags() noexcept;

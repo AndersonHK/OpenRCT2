@@ -11,9 +11,12 @@
 
 #include "core/StringTypes.h"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <memory>
+#include <optional>
 
 namespace OpenRCT2
 {
@@ -118,6 +121,96 @@ namespace OpenRCT2
         double meanDrawMicroseconds{};
         double longestSimulationBatchMilliseconds{};
         double longestSimulationSliceMilliseconds{};
+    };
+
+    // Benchmark-only bounded storage. Timestamps are accepted queue presents,
+    // not UI draw attempts or fence-harvest times. Percentiles are upper bounds
+    // in 0.1 ms bins; intervals above 1000 ms have an explicit overflow bin.
+    class BenchmarkPresentationPacing
+    {
+        static constexpr uint64_t kBinNanoseconds = 100'000;
+        static constexpr size_t kLastFiniteBin = 10'000;
+        std::array<uint64_t, kLastFiniteBin + 2> _bins{};
+        uint64_t _begin = 0;
+        uint64_t _end = std::numeric_limits<uint64_t>::max();
+        uint64_t _last = 0;
+        uint64_t _samples = 0;
+        uint64_t _intervals = 0;
+        uint64_t _maximum = 0;
+        uint64_t _outOfOrder = 0;
+
+    public:
+        void Reset(uint64_t begin) noexcept
+        {
+            _bins.fill(0);
+            _begin = begin;
+            _end = std::numeric_limits<uint64_t>::max();
+            _last = _samples = _intervals = _maximum = _outOfOrder = 0;
+        }
+
+        void SetEnd(uint64_t end) noexcept
+        {
+            _end = end;
+        }
+
+        void Include(uint64_t timestamp) noexcept
+        {
+            if (timestamp < _begin || timestamp > _end)
+                return;
+            if (_samples != 0 && timestamp < _last)
+            {
+                ++_outOfOrder;
+                return;
+            }
+            if (_samples != 0)
+            {
+                const auto interval = timestamp - _last;
+                // Divide before rounding up, avoiding an addition overflow.
+                const auto bin = interval / kBinNanoseconds + (interval % kBinNanoseconds != 0);
+                ++_bins[bin <= kLastFiniteBin ? static_cast<size_t>(bin) : kLastFiniteBin + 1];
+                ++_intervals;
+                if (interval > _maximum)
+                    _maximum = interval;
+            }
+            _last = timestamp;
+            ++_samples;
+        }
+
+        uint64_t Samples() const noexcept
+        {
+            return _samples;
+        }
+        uint64_t Intervals() const noexcept
+        {
+            return _intervals;
+        }
+        uint64_t OverflowIntervals() const noexcept
+        {
+            return _bins.back();
+        }
+        uint64_t OutOfOrderSamples() const noexcept
+        {
+            return _outOfOrder;
+        }
+        double MaximumMilliseconds() const noexcept
+        {
+            return static_cast<double>(_maximum) / 1'000'000.0;
+        }
+
+        std::optional<double> PercentileUpperMilliseconds(uint32_t percent) const noexcept
+        {
+            if (_intervals == 0 || percent == 0 || percent > 100)
+                return std::nullopt;
+            const auto rank = (_intervals / 100) * percent + ((_intervals % 100) * percent + 99) / 100;
+            uint64_t cumulative = 0;
+            for (size_t bin = 0; bin <= kLastFiniteBin; ++bin)
+            {
+                cumulative += _bins[bin];
+                if (cumulative >= rank)
+                    return static_cast<double>(bin * kBinNanoseconds) / 1'000'000.0;
+            }
+            return std::nullopt;
+        }
     };
 
     [[nodiscard]] constexpr IntegratedBenchmarkMetrics CalculateIntegratedBenchmarkMetrics(

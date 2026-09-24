@@ -46,6 +46,7 @@ namespace OpenRCT2::Ui::Vulkan
         Gpu::BackendConfig _config;
         Drawing::RenderUploadTelemetry* _activeTelemetry = nullptr;
         uint64_t _lostTelemetrySamples = 0;
+        uint64_t _lostTimingSamples = 0;
         Device _device;
         FrameExecutor _executor;
         PalettePipeline _palettePipeline;
@@ -91,6 +92,7 @@ namespace OpenRCT2::Ui::Vulkan
         void AbandonFrame(const Gpu::FrameHandle& frame) override;
         [[nodiscard]] std::optional<Gpu::FrameTimings> GetLatestTimings() const override;
         void TakeCompletedTimings(std::vector<Gpu::FrameTimings>& samples) override;
+        [[nodiscard]] Drawing::FramePresentationCounters GetFramePresentationCounters() const override;
 
         [[nodiscard]] bool ReadbackLatestIndexedCanvas(Gpu::Extent extent, std::span<std::byte> destination) override;
         [[nodiscard]] bool RequestFrameCapture(const Gpu::FrameHandle& frame) override;

@@ -131,6 +131,8 @@
     <ClCompile Include="WorldFlatRideRulesTests.cpp" />
     <ClCompile Include="VulkanWorldPathArtTests.cpp" />
     <ClCompile Include="WorldPathPublicationTests.cpp" />
+    <ClCompile Include="WorldSelectionTests.cpp" />
+    <ClCompile Include="SelectedVehicleSnapshotTests.cpp" />
     <ClCompile Include="WorldPathRulesTests.cpp" />
     <ClCompile Include="WorldPathOrderTests.cpp" />
     <ClCompile Include="VulkanTerrainCompletionTests.cpp" />

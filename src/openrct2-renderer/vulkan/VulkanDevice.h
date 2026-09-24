@@ -11,16 +11,18 @@
 
 #ifdef ENABLE_VULKAN
 
-    #include "VulkanDeviceContext.h"
     #include "../gpu/GpuResourceLimits.h"
+    #include "VulkanDeviceContext.h"
 
     #include <algorithm>
     #include <array>
+    #include <atomic>
     #include <cstddef>
     #include <cstdint>
-    #include <mutex>
     #include <functional>
+    #include <mutex>
     #include <openrct2-renderer/vulkan/VulkanPresentationHost.h>
+    #include <openrct2/drawing/IDrawingEngine.h>
     #include <openrct2/drawing/RenderUploadTelemetry.h>
     #include <optional>
     #include <span>
@@ -31,6 +33,12 @@ namespace OpenRCT2::Ui::Vulkan
 {
     constexpr uint32_t kFramesInFlight = 3;
     constexpr VkDeviceSize kDefaultUploadRingSize = Gpu::kDefaultUploadRingBytes;
+
+    struct FramePresentResult
+    {
+        double callMicroseconds = 0;
+        std::optional<uint64_t> acceptedPresentNanoseconds;
+    };
 
     /**
      * Selects the presentation policy that best matches the renderer's
@@ -179,6 +187,10 @@ namespace OpenRCT2::Ui::Vulkan
         {
             return _cursor;
         }
+        [[nodiscard]] VkDeviceSize GetCapacity() const noexcept
+        {
+            return _capacity;
+        }
     };
 
     class SubmissionSlots;
@@ -252,6 +264,15 @@ namespace OpenRCT2::Ui::Vulkan
         double _timestampPeriodNanoseconds = 0.0;
         bool _gpuTimestampsSupported = false;
         mutable std::mutex _hostMutex;
+        std::atomic<uint64_t> _visualFrameSubmissions{ 0 };
+        std::atomic<uint64_t> _presentRequests{ 0 };
+        std::atomic<uint64_t> _presentAccepted{ 0 };
+        std::atomic<uint64_t> _presentOutOfDate{ 0 };
+        mutable std::atomic<uint64_t> _fenceCompletedFrames{ 0 };
+        mutable std::array<bool, kFramesInFlight> _visualFramePending{};
+
+        // Called only after the slot fence or existing device-idle boundary.
+        void CompleteVisualFrame(uint32_t slot) const noexcept;
 
     public:
         explicit Device(std::shared_ptr<DeviceContextOwner> owner = {});
@@ -266,6 +287,7 @@ namespace OpenRCT2::Ui::Vulkan
             float hdrPaperWhiteNits = 203.0f, bool enableDiagnosticCapture = false);
         void Dispose();
         void WaitIdle() const;
+        [[nodiscard]] Drawing::FramePresentationCounters GetFramePresentationCounters() const;
         [[nodiscard]] std::shared_ptr<DeviceContext> GetContext() const noexcept
         {
             return _context;
@@ -284,7 +306,7 @@ namespace OpenRCT2::Ui::Vulkan
         // It must not reenter Device. Exceptions abort reuse before the ring is overwritten.
         [[nodiscard]] std::optional<FrameToken> BeginFrame(
             bool waitForAvailability, const std::function<void(uint32_t)>& onSlotComplete = {});
-        [[nodiscard]] double EndFrame(const FrameToken& frame);
+        [[nodiscard]] FramePresentResult EndFrame(const FrameToken& frame);
         void AbandonFrame(const FrameToken& frame);
         void RecordGpuTimestamp(const SubmissionToken& frame, GpuTimestampPoint point) const;
         [[nodiscard]] std::optional<GpuTimestampDurations> TakeCompletedGpuTimings(uint32_t frameIndex);

@@ -16,6 +16,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <openrct2/drawing/IDrawingEngine.h>
 #include <optional>
 #include <span>
@@ -90,6 +91,10 @@ namespace OpenRCT2::Ui::Gpu
         float hdrPaperWhiteNits = 203.0f;
         uint64_t uploadRingBytesPerFrame = kDefaultUploadRingBytes;
         std::string shaderDirectory;
+        std::string pipelineCacheDirectory;
+        // UI hosts may execute driver compilation off-thread while pumping native messages.
+        // Device/window creation precedes this callback; it must finish the work before returning.
+        std::function<void(const std::function<void()>&)> preparePipelines;
         // Diagnostic-only swapchain transfer support. Ordinary frames never
         // copy or read back final output, even when this capability is enabled.
         bool enableDiagnosticCapture = false;
@@ -181,6 +186,10 @@ namespace OpenRCT2::Ui::Gpu
         // without touching the graphics API; WaitIdle is reserved for explicit
         // benchmark phase boundaries.
         virtual void TakeCompletedTimings(std::vector<FrameTimings>& samples) = 0;
+        [[nodiscard]] virtual Drawing::FramePresentationCounters GetFramePresentationCounters() const
+        {
+            return {};
+        }
 
         // Explicit blocking capture of the latest presented indexed canvas.
         // This is reserved for synchronous consumers such as screenshots.

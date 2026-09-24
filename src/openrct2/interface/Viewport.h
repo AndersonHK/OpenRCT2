@@ -213,6 +213,10 @@ namespace OpenRCT2
     void ViewportRender(Drawing::RenderTarget& rt, const Viewport* viewport);
     // Explicit screenshot subdivision policy; normal callers retain target-clip generation.
     void ViewportRender(Drawing::RenderTarget& rt, const Viewport* viewport, ViewportGenerationDomain domain);
+    void ViewportRender(
+        Drawing::RenderTarget& rt, const Viewport* viewport, ViewportGenerationDomain domain,
+        std::shared_ptr<const PresentationGeneration> auxiliaryGeneration, uint64_t selectedVehicleViewport = 0);
+    [[nodiscard]] std::shared_ptr<const PresentationGeneration> ViewportCaptureAuxiliaryGeneration();
     void ViewportBeginPresentationFrame();
     // Producer-thread observation only; never captures or consumes a publication worklist.
     [[nodiscard]] std::shared_ptr<const PresentationGeneration> ViewportGetPresentationGeneration();

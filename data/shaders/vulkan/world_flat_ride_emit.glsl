@@ -3,7 +3,30 @@
 #ifndef OPENRCT2_WORLD_FLAT_RIDE_EMIT
 #define OPENRCT2_WORLD_FLAT_RIDE_EMIT
 #include "world_maze_order.glsl"
+#include "world_flat_ride_animation.glsl"
 layout(std430,set=0,binding=15) readonly buffer FlatRideCatalog { uint words[]; } uFlatRides;
+layout(std430,set=0,binding=17) readonly buffer RidePoseBuffer { uint words[]; } uRidePoses;
+
+WorldFlatPose worldFlatReadPose(uint id,uint vehicle)
+{
+    WorldFlatPose pose=worldFlatEmptyPose();
+    if(id>=uRidePoses.words[0] || uRidePoses.words[1]!=20u || vehicle>=4u) return pose;
+    uint base=4u+id*20u,source=base+4u+vehicle*4u;
+    if((uRidePoses.words[base]&1u)==0u) return pose;
+    uint state=uRidePoses.words[source+2u];
+    pose.present=uRidePoses.words[source]!=0xffffffffu?1:0;
+    pose.onTrack=(uRidePoses.words[base]&2u)!=0u?1:0;
+    pose.frame=int(state&255u);pose.secondary=int((state>>8u)&255u);
+    pose.orientation=int((state>>16u)&255u);pose.restraints=int(state>>24u);
+    pose.currentTime=int(uRidePoses.words[source+3u]<<16u)>>16;
+    pose.breakdownFlags=int(uRidePoses.words[base]);
+    pose.breakdownReason=int(uRidePoses.words[base+2u]&255u);
+    pose.breakdownModifier=int((uRidePoses.words[base+2u]>>8u)&255u);
+    pose.slideInUse=int(uRidePoses.words[base+3u]&255u);
+    pose.slideProgress=int((uRidePoses.words[base+3u]>>8u)&255u);
+    pose.slideColour=int((uRidePoses.words[base+3u]>>16u)&255u);
+    return pose;
+}
 
 uint worldFlatImage(uint image)
 {
@@ -61,22 +84,23 @@ bool visitStaticRide(uint index,uvec2 tile,uint destination,bool writeRecords,in
     if(scheme>=4u) return true;
     uint track=uFlatRides.words[ride+8u+scheme];
     uint vehicleIndex=0u;
-    if(family==10 && uFlatRides.words[ride+5u]!=0u) {
+    if(family==10) {
         int sequence=worldFlatSequence(family,int(object.sequence),direction);
         int segment=sequence==0?0:(sequence==5?1:(sequence==7?2:3));
         vehicleIndex=uint((segment-direction)&3);
     }
-    uint vehicle=uFlatRides.words[ride+12u+vehicleIndex];
+    WorldFlatPose pose=worldFlatReadPose(id,vehicleIndex);
+    uint vehicle=uFlatRides.words[ride+12u+(uFlatRides.words[ride+5u]!=0u?vehicleIndex:0u)];
     bool ghost=(object.flags&1u)!=0u;
     // Preserve the finite family parent/child structure. The common world traversal
     // provides cross-tile order; arbitrary inter-family paint-bound arrangement remains separate.
     WorldMazeOrder mazeOrder;mazeOrder.count=0;
-    if(family==23 && writeRecords) mazeOrder=worldMazeOrder(int(object.rideIdAndMazeEntry>>16u),direction,int(uScene.rotation));
+    // Common GPU columns arrange original creation order.
     int partCount=family==23?(mazeOrder.count>0?mazeOrder.count:26):parts.count;
     [[dont_unroll]] for(int i=0;i<partCount;i++) {
         WorldFlatPart part;
         if(family==23) part=worldMazePart(mazeOrder.count>0?mazeOrder.indices[i]:i,int(object.rideIdAndMazeEntry>>16u),direction,int((uFlatRides.words[ride+8u]>>16u)&255u));
-        else part=parts.parts[i];
+        else part=worldFlatAnimatePart(parts.parts[i],family,direction,int(uScene.rotation),pose);
         if(part.image<0) continue;
         uint image=uint(part.image)+(part.bank!=0?uFlatRides.words[ride+1u]:0u);
         uint sprite=worldFlatImage(image);
@@ -92,7 +116,25 @@ bool visitStaticRide(uint index,uvec2 tile,uint destination,bool writeRecords,in
         if(part.colour==6) remaps=1u;
         uint palettes=worldObjectPalette(colours,int(remaps),ghost),effects=ghost?1u:remaps;
         if(part.colour==5) { palettes=uFlatRides.words[7u];effects=1024u; }
-        emitObjectSprite(tile,object.baseZ+part.z,ivec2(part.x,part.y),sprite,palettes,effects,destination,writeRecords,count);
+        worldSetPaintBounds(tile,ivec3(part.bx,part.by,object.baseZ+part.bz),
+            ivec3(part.sx,part.sy,part.sz),part.child!=0?1u:0u);
+        emitObjectSpriteWithFlags(tile,object.baseZ+part.z,ivec2(part.x,part.y),sprite,palettes,effects,
+            worldFlatEntityPart(part,family,pose)?16u:0u,destination,writeRecords,count);
+        WorldFlatPart overlay=worldFlatAnimationOverlay(part,family,direction,int(uScene.zoom),pose);
+        if(overlay.image>=0) {
+            uint overlaySprite=worldFlatImage(uint(overlay.image)+uFlatRides.words[ride+1u]);
+            uint overlayColours=overlay.colour==7?uint(pose.slideColour)|(1u<<8u):colours;
+            // The original slide rider uses its shirt/grey image directly, including on a ghost track.
+            bool overlayGhost=ghost && overlay.colour!=7;
+            uint overlayPalettes=worldObjectPalette(overlayColours,overlay.colour==7?2:int(remaps),overlayGhost);
+            if(overlaySprite!=0xffffffffu) {
+                worldSetPaintBounds(tile,ivec3(overlay.bx,overlay.by,object.baseZ+overlay.bz),
+                    ivec3(overlay.sx,overlay.sy,overlay.sz),overlay.child!=0?1u:0u);
+                emitObjectSpriteWithFlags(tile,object.baseZ+overlay.z,ivec2(overlay.x,overlay.y),overlaySprite,
+                    overlayPalettes,overlayGhost?1u:(overlay.colour==7?2u:remaps),
+                    worldFlatEntityPart(overlay,family,pose)?16u:0u,destination,writeRecords,count);
+            }
+        }
     }
     return true;
 }

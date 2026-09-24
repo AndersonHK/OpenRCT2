@@ -15,16 +15,24 @@
 #include <openrct2/object/ObjectManager.h>
 #include <openrct2/object/SmallSceneryObject.h>
 #include <openrct2/object/StationObject.h>
+#include <openrct2/ride/Vehicle.h>
 #include <openrct2/world/Map.h>
 #include <openrct2/world/MapPresentationSnapshot.h>
 #include <openrct2/world/Park.h>
 #include <openrct2/world/tile_element/EntranceElement.h>
 #include <openrct2/world/tile_element/PathElement.h>
 #include <openrct2/world/tile_element/SmallSceneryElement.h>
+#include <openrct2/world/tile_element/SurfaceElement.h>
 #include <openrct2/world/tile_element/TrackElement.h>
 #include <openrct2/world/tile_element/WallElement.h>
 
 using namespace OpenRCT2;
+
+TEST(WorldRidePoseLayoutTest, MechanismRecordsAreCompactAndContainNoBorrowedEntityState)
+{
+    EXPECT_EQ(sizeof(WorldRidePoseRecord), 80u);
+    EXPECT_TRUE(std::is_trivially_copyable_v<WorldRidePoseRecord>);
+}
 
 namespace
 {
@@ -55,6 +63,35 @@ namespace
         }
     };
 } // namespace
+
+TEST_F(WorldPathPublicationTest, AuxiliarySnapshotDoesNotConsumeMainDirtyStateAndOwnsItsEpoch)
+{
+    const auto baseline = Capture(true);
+    auto element = *MapGetFirstElementAt(TileCoordsXY{ 2, 2 });
+    element.setBaseZ(80);
+    element.setClearanceZ(80);
+    ASSERT_EQ(ReplaceTileElementsAt({ 2, 2 }, { element }), TileMutationStatus::ok);
+    const auto auxiliary = CaptureAuxiliaryMapPresentationSnapshot();
+    ASSERT_NE(auxiliary, nullptr);
+    EXPECT_NE(auxiliary->GetEpoch(), baseline.epoch);
+    EXPECT_EQ(GetMapPresentationEpoch(), baseline.epoch);
+    EXPECT_FALSE(auxiliary->HasLegacyTileStorage());
+    ASSERT_NE(auxiliary->GetSurfaceChunks()[0], nullptr);
+    EXPECT_EQ(auxiliary->GetSurfaceChunks()[0]->records[34].terrain.baseZ, 80);
+    const auto pending = Capture();
+    EXPECT_FALSE(pending.reset);
+    EXPECT_EQ(pending.epoch, baseline.epoch);
+    ASSERT_EQ(pending.changes.size(), 1u);
+    EXPECT_EQ(pending.changes[0].surface.terrain.baseZ, 80);
+    element.setBaseZ(96);
+    element.setClearanceZ(96);
+    ASSERT_EQ(ReplaceTileElementsAt({ 2, 2 }, { element }), TileMutationStatus::ok);
+    const auto next = CaptureAuxiliaryMapPresentationSnapshot();
+    EXPECT_NE(next->GetEpoch(), auxiliary->GetEpoch());
+    EXPECT_EQ(next->GetSurfaceChunks()[0]->records[34].terrain.baseZ, 96);
+    EXPECT_EQ(auxiliary->GetSurfaceChunks()[0]->records[34].terrain.baseZ, 80);
+    EXPECT_EQ(Capture().changes.size(), 1u);
+}
 
 TEST_F(WorldPathPublicationTest, NativeCapturePreservesStackOrderAllFieldsAndNoLegacyTiles)
 {
@@ -944,4 +981,143 @@ TEST_F(WorldPathPublicationTest, TowerTopologyIncludesHiddenUnrenderedSuccessors
     raw = chunk->records[chunk->tiles[34].first];
     EXPECT_EQ(raw.flags & (hasNext | hasLater), 0u);
     EXPECT_NE(held->records[index].flags & hasLater, 0u);
+}
+
+TEST_F(WorldPathPublicationTest, RidePosesOwnFramesAcrossRepeatedSkippedWrappedTicksRemovalAndReuse)
+{
+    auto& state = getGameState();
+    state.ridesEndOfUsedRange = 1;
+    auto& ride = state.rides[0];
+    ride.id = RideId::FromUnderlying(0);
+    ride.type = RIDE_TYPE_MERRY_GO_ROUND;
+    std::ranges::fill(ride.vehicles, EntityId::GetNull());
+    ride.flags.set(RideFlag::onTrack);
+    auto* vehicle = state.entities.createEntity<Vehicle>();
+    ASSERT_NE(vehicle, nullptr);
+    ride.vehicles[0] = vehicle->id;
+    vehicle->flatRideAnimationFrame = 19;
+    vehicle->orientation = 16;
+    vehicle->current_time = 12;
+    state.currentTicks = UINT32_MAX;
+    const auto first = Capture(true);
+    ASSERT_NE(first.ridePoses, nullptr);
+    ASSERT_EQ(first.ridePoses->records->size(), 1u);
+    EXPECT_EQ(first.ridePoses->epoch, first.epoch);
+    EXPECT_EQ(first.ridePoses->sourceTick, UINT32_MAX);
+    EXPECT_EQ((*first.ridePoses->records)[0].words[6] & 255u, 19u);
+    EXPECT_EQ(Capture().ridePoses->records, first.ridePoses->records); // Repeated or paused presentation.
+    state.currentTicks = 0;
+    vehicle->current_time = 13; // Ordinary carousel timer is not a graphical field.
+    const auto wrapped = Capture();
+    EXPECT_EQ(wrapped.ridePoses->sourceTick, 0u);
+    EXPECT_EQ(wrapped.ridePoses->records, first.ridePoses->records);
+    EXPECT_EQ(wrapped.rideMaterials, first.rideMaterials);
+    state.currentTicks = 300;
+    vehicle->flatRideAnimationFrame = 27;
+    const auto moved = Capture();
+    EXPECT_EQ(moved.ridePoses->sourceTick, 300u);
+    EXPECT_NE(moved.ridePoses->records, first.ridePoses->records);
+    EXPECT_EQ((*first.ridePoses->records)[0].words[6] & 255u, 19u);
+    EXPECT_EQ((*moved.ridePoses->records)[0].words[6] & 255u, 27u);
+    EXPECT_EQ(moved.rideMaterials, first.rideMaterials);
+    MapPresentationSnapshot snapshot;
+    snapshot.Apply(first);
+    const auto held = snapshot.GetRidePoses();
+    snapshot.Apply(moved);
+    EXPECT_EQ(snapshot.GetRidePoses(), moved.ridePoses);
+    EXPECT_EQ(held->sourceTick, UINT32_MAX);
+    const auto id = vehicle->id;
+    const auto oldGeneration = (*moved.ridePoses->records)[0].words[5];
+    state.entities.entityRemove(vehicle);
+    const auto removed = Capture();
+    EXPECT_EQ((*removed.ridePoses->records)[0].words[4], UINT32_MAX);
+    vehicle = state.entities.createEntityAt<Vehicle>(id);
+    ASSERT_NE(vehicle, nullptr);
+    vehicle->flatRideAnimationFrame = 3;
+    const auto reused = Capture();
+    EXPECT_GT((*reused.ridePoses->records)[0].words[5], oldGeneration);
+    EXPECT_EQ((*moved.ridePoses->records)[0].words[4], id.ToUnderlying());
+    ride.id = RideId::GetNull();
+    const auto absent = Capture();
+    EXPECT_EQ((*absent.ridePoses->records)[0].words[0], 0u);
+    ride.id = RideId::FromUnderlying(0);
+    ride.type = RIDE_TYPE_TOP_SPIN;
+    const auto replacement = Capture();
+    EXPECT_EQ((*replacement.ridePoses->records)[0].words[1] & 65535u, uint32_t(RIDE_TYPE_TOP_SPIN));
+    EXPECT_EQ((*first.ridePoses->records)[0].words[1] & 65535u, uint32_t(RIDE_TYPE_MERRY_GO_ROUND));
+}
+
+TEST_F(WorldPathPublicationTest, SpaceRingsCapturesExactlyItsFourIndependentBodiesAndSlideOwnsProgress)
+{
+    auto& state = getGameState();
+    state.ridesEndOfUsedRange = 1;
+    auto& ride = state.rides[0];
+    ride.id = RideId::FromUnderlying(0);
+    ride.type = RIDE_TYPE_SPACE_RINGS;
+    ride.flags.set(RideFlag::onTrack);
+    std::ranges::fill(ride.vehicles, EntityId::GetNull());
+    for (size_t i = 0; i < 5; ++i)
+    {
+        auto* vehicle = state.entities.createEntity<Vehicle>();
+        ASSERT_NE(vehicle, nullptr);
+        ride.vehicles[i] = vehicle->id;
+        vehicle->flatRideAnimationFrame = static_cast<uint8_t>(10 + i);
+    }
+    const auto captured = Capture(true).ridePoses;
+    for (size_t i = 0; i < 4; ++i)
+        EXPECT_EQ((*captured->records)[0].words[6 + i * 4] & 255u, 10 + i);
+    state.entities.getEntity<Vehicle>(ride.vehicles[4])->flatRideAnimationFrame = 30;
+    EXPECT_EQ(Capture().ridePoses->records, captured->records); // Original painter has exactly four segments.
+    ride.flags.unset(RideFlag::onTrack);
+    EXPECT_EQ((*Capture().ridePoses->records)[0].words[0] & 2u, 0u);
+    ride.type = RIDE_TYPE_SPIRAL_SLIDE;
+    ride.slideInUse = 1;
+    ride.spiralSlideProgress = 46;
+    ride.slidePeepTShirtColour = Drawing::Colour::brightRed;
+    const auto slide = Capture();
+    EXPECT_EQ((*slide.ridePoses->records)[0].words[3] & 65535u, 1u | (46u << 8));
+    ride.spiralSlideProgress = 47;
+    const auto next = Capture();
+    EXPECT_NE(next.ridePoses->records, slide.ridePoses->records);
+    EXPECT_EQ(next.rideMaterials, slide.rideMaterials);
+    EXPECT_EQ((*slide.ridePoses->records)[0].words[3] & 65535u, 1u | (46u << 8));
+}
+
+TEST_F(WorldPathPublicationTest, WholeTileClearanceIncludesHiddenElementsWaterAndHeldDirtyGenerations)
+{
+    auto surface = *MapGetFirstElementAt(TileCoordsXY{ 2, 2 });
+    surface.asSurface()->setWaterHeight(192);
+    surface.setLastForTile(false);
+    TileElement hidden{};
+    hidden.clearAs(TileElementType::wall);
+    hidden.setBaseZ(64);
+    hidden.setClearanceZ(256);
+    hidden.setInvisible(true);
+    hidden.setGhost(true);
+    hidden.setLastForTile(true);
+    ASSERT_EQ(ReplaceTileElementsAt({ 2, 2 }, { surface, hidden }), TileMutationStatus::ok);
+    MapPresentationSnapshot snapshot;
+    snapshot.Apply(Capture(true));
+    const auto held = snapshot.GetSurfaceChunks()[0];
+    ASSERT_NE(held, nullptr);
+    EXPECT_EQ(held->records[34].terrain.maxClearanceZ, 256);
+    hidden.setClearanceZ(512);
+    ASSERT_EQ(ReplaceTileElementsAt({ 2, 2 }, { surface, hidden }), TileMutationStatus::ok);
+    const auto changed = Capture();
+    ASSERT_EQ(changed.changes.size(), 1u);
+    EXPECT_EQ(changed.changes[0].surface.terrain.maxClearanceZ, 512);
+    snapshot.Apply(changed);
+    EXPECT_EQ(snapshot.GetSurfaceChunks()[0]->records[34].terrain.maxClearanceZ, 512);
+    EXPECT_EQ(held->records[34].terrain.maxClearanceZ, 256);
+    surface.setLastForTile(true);
+    ASSERT_EQ(ReplaceTileElementsAt({ 2, 2 }, { surface }), TileMutationStatus::ok);
+    snapshot.Apply(Capture());
+    EXPECT_EQ(snapshot.GetSurfaceChunks()[0]->records[34].terrain.maxClearanceZ, 192);
+    surface.setInvisible(true);
+    surface.asSurface()->setWaterHeight(320);
+    ASSERT_EQ(ReplaceTileElementsAt({ 2, 2 }, { surface }), TileMutationStatus::ok);
+    snapshot.Apply(Capture());
+    EXPECT_EQ(snapshot.GetSurfaceChunks()[0]->records[34].terrain.present, 0u);
+    EXPECT_EQ(snapshot.GetSurfaceChunks()[0]->records[34].terrain.maxClearanceZ, 320);
+    EXPECT_TRUE(Capture().changes.empty());
 }

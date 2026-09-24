@@ -178,6 +178,10 @@ namespace OpenRCT2::Ui
         uint32_t _width = 0;
         uint32_t _height = 0;
         uint64_t _frameNumber = 0;
+        std::atomic<uint64_t> _publishedVisualPackets{ 0 };
+        std::atomic<uint64_t> _supersededVisualPackets{ 0 };
+        std::atomic<uint64_t> _unavailableVisualPackets{ 0 };
+        std::atomic<uint64_t> _discardedVisualPackets{ 0 };
         uint64_t _graphicsLookupTablesVersion = 0;
         std::vector<std::byte> _lightFalloffs;
         std::array<std::byte, 256 * 256> _remapPalette{};
@@ -231,6 +235,10 @@ namespace OpenRCT2::Ui
             const uint32_t height = static_cast<uint32_t>(std::max(1, _uiContext.GetHeight()));
             _drawableExtent = QueryDrawableExtentOnUiThread(_uiContext);
             auto config = BuildBackendConfig(_uiContext, { width, height }, _drawableExtent, _vsync, shaderDirectory);
+            config.pipelineCacheDirectory = Path::Combine(environment.GetDirectoryPath(DirBase::cache), "vulkan-pipelines");
+            config.preparePipelines = [&](const std::function<void()>& work) {
+                Vulkan::Platform::PreparePipelines(static_cast<SDL_Window*>(_uiContext.GetWindow()), work);
+            };
             _hdrOutputRequested = config.outputColorMode == Gpu::OutputColorMode::Hdr10IfAvailable;
             RefreshHdrWhiteOnUiThread();
             config.hdrPaperWhiteNits = _hdrPaperWhiteNits;
@@ -574,6 +582,7 @@ namespace OpenRCT2::Ui
                     RethrowWorkerError();
                     throw std::runtime_error("Vulkan render worker is not accepting frame packets");
                 }
+                _publishedVisualPackets.fetch_add(1, std::memory_order_relaxed);
             }
             catch (...)
             {
@@ -751,6 +760,15 @@ namespace OpenRCT2::Ui
 
         void RetirePacket(Gpu::RecordedFramePacket& packet, Gpu::FrameRetirement retirement)
         {
+            if (packet.hasVisualFrame)
+            {
+                if (retirement == Gpu::FrameRetirement::Superseded)
+                    _supersededVisualPackets.fetch_add(1, std::memory_order_relaxed);
+                else if (retirement == Gpu::FrameRetirement::Busy)
+                    _unavailableVisualPackets.fetch_add(1, std::memory_order_relaxed);
+                else if (retirement != Gpu::FrameRetirement::Presented)
+                    _discardedVisualPackets.fetch_add(1, std::memory_order_relaxed);
+            }
     #ifdef OPENRCT2_VULKAN_DIAGNOSTICS
             if (packet.diagnosticCapture != nullptr && retirement != Gpu::FrameRetirement::Presented)
             {
@@ -1118,6 +1136,16 @@ namespace OpenRCT2::Ui
         void InvalidateImage(uint32_t image) override
         {
             _textureCache->InvalidateImage(image);
+        }
+
+        std::optional<Drawing::FramePresentationCounters> GetFramePresentationCounters() const override
+        {
+            auto result = _backend->GetFramePresentationCounters();
+            result.publishedVisualPackets = _publishedVisualPackets.load(std::memory_order_relaxed);
+            result.supersededVisualPackets = _supersededVisualPackets.load(std::memory_order_relaxed);
+            result.unavailableVisualPackets = _unavailableVisualPackets.load(std::memory_order_relaxed);
+            result.discardedVisualPackets = _discardedVisualPackets.load(std::memory_order_relaxed);
+            return result;
         }
     };
     std::unique_ptr<Drawing::IDrawingEngine> CreateVulkanDrawingEngine(

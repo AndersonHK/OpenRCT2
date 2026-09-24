@@ -125,6 +125,8 @@ namespace
             next->records[0].pathMaxZ = 0;
             for (const auto& path : next->paths)
                 next->records[0].pathMaxZ = std::max(next->records[0].pathMaxZ, path.clearanceZ);
+            next->records[0].maxClearanceZ = std::max(
+                std::max(next->records[0].baseZ, next->records[0].waterHeight), next->records[0].pathMaxZ);
             scene.chunks[0] = next;
         }
         static G::WorldPathSourceRecord Path(int32_t z, uint32_t flags = 0, uint32_t edges = 0)
@@ -242,10 +244,10 @@ TEST_F(VulkanWorldPathLayerTest, PathsMergeWithTerrainAndWaterByHeightAndRetryAb
     Paths({ under, submerged, above });
     Run(true);
     const auto first = Run();
-    EXPECT_EQ(first.worldBufferCopyCalls, 6u); // Includes two cleared absent building-catalog headers.
-    EXPECT_EQ(Pixel(18, 40), 140); // Water must not tint the higher queue.
-    EXPECT_EQ(Pixel(18, 52), 87);  // Submerged path80 filtered by water row7.
-    EXPECT_EQ(Pixel(18, 68), 20);  // Surface hides the lower path.
+    EXPECT_EQ(first.worldBufferCopyCalls, 9u); // Includes absent catalogs, pose and both selection headers.
+    EXPECT_EQ(Pixel(18, 40), 140);             // Water must not tint the higher queue.
+    EXPECT_EQ(Pixel(18, 52), 87);              // Submerged path80 filtered by water row7.
+    EXPECT_EQ(Pixel(18, 68), 20);              // Surface hides the lower path.
     ASSERT_GT(ColourCount(140, 140), 0u);
     ASSERT_GT(ColourCount(20, 20), 0u);
     const auto baseline = pixels;
@@ -276,10 +278,12 @@ TEST_F(VulkanWorldPathLayerTest, StackGrowthShrinkRemovalAndReuseCannotRevealSta
 {
     chunk->records[0].waterHeight = 0;
     std::vector<G::WorldPathSourceRecord> stack(97, Path(32));
-    stack.back() = Path(32, 2);
+    // Keep the capacity/reuse assertion independent of ambiguous coincident
+    // path bounds: the queue is above the other96 parents and has distinct ink.
+    stack.back() = Path(40, 2);
     Paths(stack); // Deliberately exceeds common small per-tile array limits.
     Run();
-    EXPECT_EQ(Pixel(18, 64), 140);
+    EXPECT_EQ(Pixel(18, 26), 140); // Only the elevated queue reaches this row.
     Paths({ Path(32, 0, 1) });
     auto telemetry = Run();
     EXPECT_EQ(telemetry.worldBufferCopyCalls, 2u);

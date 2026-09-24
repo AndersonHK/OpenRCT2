@@ -9,7 +9,6 @@ const int FLAG_ZERO_COVERAGE = (1 << 6);
 
 layout(set = 0, binding = 0) uniform usampler2DArray uSpriteAtlas;
 layout(set = 0, binding = 1) uniform usampler2D uRemapPalette;
-layout(set = 0, binding = 10) uniform usampler2D uLandBackground;
 
 layout(location = 0) flat in ivec2 fPosition;
 layout(location = 1) flat in int fFlags;
@@ -20,6 +19,7 @@ layout(location = 5) flat in ivec3 fPalettes;
 layout(location = 6) flat in float fZoom;
 layout(location = 7) flat in int fTexColourAtlas;
 layout(location = 8) flat in int fTexMaskAtlas;
+layout(location = 9) flat in uint fOrder;
 
 layout(location = 0) out uint oColour;
 
@@ -30,6 +30,9 @@ uint atlasTexel(vec4 bounds, int layer, ivec2 position)
 
 void main()
 {
+    // Keep the same vertex interface as collection, and reject invalid signed depths.
+    if (fOrder >= 0x80000000u)
+        discard;
     // Match the legacy rectangle shader's pixel-centre handling exactly.
     // Applying zoom to gl_FragCoord directly would introduce a half-pixel
     // offset at non-unit zoom levels.
@@ -71,18 +74,6 @@ void main()
         texel = fColour;
     }
 
-    if ((fFlags & (1 << 10)) != 0)
-    {
-        uint background = texelFetch(uLandBackground, fragment, 0).r;
-        oColour = texelFetch(uRemapPalette, ivec2(int(background), fPalettes.x), 0).r;
-        return;
-    }
-    if ((fFlags & (1 << 8)) != 0)
-    {
-        uint background = texelFetch(uLandBackground, fragment, 0).r;
-        oColour = texelFetch(uRemapPalette, ivec2(int(background), fPalettes.x + int(texel) - 1), 0).r;
-        return;
-    }
     int paletteCount = fFlags & MASK_REMAP_COUNT;
     if (paletteCount >= 3 && texel >= 0x2eu && texel < 0x3au)
         texel = texelFetch(uRemapPalette, ivec2(int(texel + 0xc5u), fPalettes.z), 0).r;

@@ -2,7 +2,7 @@
 
 This authoring tool parses source text; it never loads the game, calls a painter,
 or captures a draw stream. Unknown graphics expressions reject a style/type.
-Supports, tunnels, station scenery and vehicles are separate, omitted families.
+Supports and vehicles remain separate omitted families; tunnel requests and station markers are authored metadata.
 The checked-in result is runtime input, with raw state selecting each row on GPU.
 """
 import argparse
@@ -23,7 +23,11 @@ class Unsupported(ValueError):
 
 
 STATE_BITS = {'chain':1, 'inverted':2, 'brakeClosed':4, 'cable':8, 'csgLoaded':16, 'greenLight':32, 'hasPlatforms':64}
+PHOTO_PART = 0xfffffffc
+TUNNEL_PART = 0xfffffffd
 STATION_PART = 0xfffffffe
+CAPTURE_TUNNELS = False
+TUNNEL_CALL = re.compile(r"(?:PaintUtil(?:PushTunnel\w*|SetVerticalTunnel)|TrackPaintUtil(?:(?:Left|Right)QuarterTurn\w*Tunnel|DrawStationTunnel(?:Tall)?))$")
 STATION_CALLS = ('TrackPaintUtilDrawStation','TrackPaintUtilDrawStation2','TrackPaintUtilDrawStationInverted',
                  'TrackPaintUtilDrawNarrowStationPlatform','TrackPaintUtilDrawPier')
 
@@ -121,8 +125,11 @@ def scalar_ast(values):
         text=re.sub(function+r'\s*\(\s*(\w+)\s*\)',r'((\1 + '+str(offset)+') & 3)',text)
     text = re.sub(r'\b(TrackElemType|TrackStyle|JuniorRCSubType)\s*::\s*', '', text)
     text=re.sub(r'PaintSegment\s*::\s*','PaintSegment_',text)
-    text=re.sub(r'TunnelSubType\s*::\s*','TunnelSubType_',text)
+    for enum in ('TunnelSubType','TunnelGroup','TunnelType'):
+        text=re.sub(enum+r'\s*::\s*',enum+'_',text)
     text = re.sub(r'\b(0[xX][0-9a-fA-F]+|\d+)[uUlL]+\b', r'\1', text)
+    text = re.sub(r'\b0([0-7]+)\b',lambda m:str(int(m[0],8)),text)
+    text = text.replace('->','.')
     text = text.replace('&&', ' and ').replace('||', ' or ')
     text = re.sub(r'!(?!=)', ' not ', text).replace('/', '//').strip()
     try: return ast.parse(text, mode='eval').body
@@ -130,9 +137,49 @@ def scalar_ast(values):
 
 
 def evaluate(values, env):
+    # Strip only parentheses enclosing the complete expression. C++ conditional
+    # expressions are otherwise hidden from the top-level ternary parser.
+    while values and values[0]=='(' and values[-1]==')':
+        depth=0;wrapped=True
+        for i,value in enumerate(values):
+            if value=='(': depth+=1
+            elif value==')': depth-=1
+            if depth==0 and i<len(values)-1: wrapped=False;break
+        if not wrapped: break
+        values=values[1:-1]
     if not values: raise Unsupported('empty expression')
+    if values[0]=='&': return evaluate(values[1:],env)
+    if ''.join(values)=='stationObj!=nullptr&&stationObj->Flags.has(StationObjectFlag::noPlatforms)':
+        env['_dependencies'].add(64);return not env['hasPlatforms']
+    if ''.join(values)=='imageId.GetIndex()':
+        value=env['imageId']
+        return image_value(value.value,env).image if isinstance(value,Deferred) else value.image
+    door=re.fullmatch(r'kDoor(FlatTo25Deg)?Opening(Inwards|Outwards)ToImage\[trackElement\.getDoor([AB])State\(\)\]', ''.join(values))
+    if door:
+        return 256 | int(door[3]=='B') | (int(door[2]=='Inwards')<<1) | (int(bool(door[1]))<<2)
+    straight=re.fullmatch(r'GetTunnelDoorsImageStraightFlat\(trackElement,(.*)\)', ''.join(values))
+    if straight: return 258 if evaluate(tokens(straight[1]),env) in (0,3) else 257
     junior=re.fullmatch(r'JuniorRCGetSubTypeOffset<JuniorRCSubType::(junior|waterCoaster)>\(trackElement\)', ''.join(values))
     if junior: return (1 if junior[1]=='junior' else 2) if evaluate(['chain'],env) else 0
+    if len(values)>2 and values[0] in ('CoordsXY','CoordsXYZ','BoundBoxXYZ') and values[1]=='{':
+        return evaluate(values[1:],env)
+    constructor=call(values)
+    if constructor and constructor[0]=='flipTrackSequenceBoundBoxesXAxis':
+        if len(constructor[1])!=1: raise Unsupported('bound box mirror signature')
+        boxes=evaluate(constructor[1][0],env)
+        if len(boxes)!=4: raise Unsupported('bound box mirror views')
+        def flip(box): return [[box[0][1],box[0][0],box[0][2]],[box[1][1],box[1][0],box[1][2]]]
+        return [[[flip(box) for box in sequence] for sequence in view] for view in reversed(boxes)]
+    if constructor and constructor[0] in ('BoundBoxXYZ','CoordsXY','CoordsXYZ'):
+        name,args=constructor
+        if name=='BoundBoxXYZ':
+            if len(args)!=2: raise Unsupported('bounding box constructor')
+            result=[evaluate(a,env) for a in args]
+            return [v if v else [0,0,0] for v in result]
+        if not args or args==[[]]: return [0]*(2 if name=='CoordsXY' else 3)
+        result=[evaluate(a,env) for a in args]
+        if name=='CoordsXYZ' and len(result)==2 and isinstance(result[0],list): return result[0]+[result[1]]
+        return result
     flags=call(values)
     if flags and flags[0]=='EnumsToFlags':
         result=0
@@ -156,6 +203,17 @@ def evaluate(values, env):
             else:
                 branch = values[question + 1:i] if evaluate(values[:question], env) else values[i + 1:]
                 return evaluate(branch, env)
+    # A conditional inside an array subscript is still scalar C++ syntax.
+    # Evaluate only that subexpression; never reinterpret the surrounding call.
+    stack=[]
+    for i,value in enumerate(values):
+        if value=='[': stack.append(i)
+        elif value==']' and stack:
+            begin=stack.pop()
+            if '?' in values[begin+1:i]:
+                index=evaluate(values[begin+1:i],env)
+                if not isinstance(index,int): raise Unsupported('conditional array index')
+                return evaluate(list(values[:begin+1])+[str(index)]+list(values[i:]),env)
     node = scalar_ast(tuple(values))
 
     def walk(n):
@@ -168,6 +226,9 @@ def evaluate(values, env):
             if isinstance(value, Deferred): return value.resolve(env)
             if value is None: raise Unsupported('uninitialised local '+n.id)
             return value
+        if isinstance(n,ast.Call) and isinstance(n.func,ast.Attribute) and n.func.attr=='GetIndex' and not n.args:
+            value=walk(n.func.value)
+            if isinstance(value,ImageValue): return value.image
         if isinstance(n, ast.Subscript):
             try:
                 array,index=walk(n.value),walk(n.slice)
@@ -175,6 +236,17 @@ def evaluate(values, env):
                 if not isinstance(index,int) or index<0: raise IndexError(index)
                 return array[index]
             except (IndexError, TypeError) as e: raise Unsupported('array index') from e
+        if isinstance(n,ast.Attribute):
+            value=walk(n.value)
+            if isinstance(value,dict) and n.attr in value:
+                result=value[n.attr]
+                if result is None: raise Unsupported('uninitialised member '+n.attr)
+                return result
+            if n.attr in ('sprite_id','offset','bb_offset','bb_size') and isinstance(value,list) and len(value)==4:
+                return value[('sprite_id','offset','bb_offset','bb_size').index(n.attr)]
+            if n.attr in ('track','handrail','frontTrack','frontHandrail') and isinstance(value,list):
+                index=('track','handrail','frontTrack','frontHandrail').index(n.attr)
+                return value[index] if index<len(value) else 0xffffffff
         if isinstance(n,ast.Attribute) and n.attr in ('x','y','z'):
             value=walk(n.value);index=('x','y','z').index(n.attr)
             if isinstance(value,list) and index<len(value) and all(isinstance(v,int) for v in value): return value[index]
@@ -205,16 +277,78 @@ class Deferred:
     def resolve(self, env): return evaluate(self.value, env)
 
 
+class ArrayDeferred(Deferred):
+    def __init__(self,value,dimensions,box=False,record=False):
+        super().__init__(value);self.dimensions=dimensions;self.box=box;self.record=record
+    def resolve(self,env):
+        dimensions=[evaluate(tokens(d),env) for d in self.dimensions]
+        def zero(depth):
+            if depth==len(dimensions):
+                if self.record: return [0,0,[0,0,0],[[0,0,0],[0,0,0]]]
+                return [[0,0,0],[0,0,0]] if self.box else 0
+            return [zero(depth+1) for _ in range(dimensions[depth])]
+        def normalise(value,depth):
+            if depth==len(dimensions): return zero(depth) if self.record and not value else value
+            size=dimensions[depth]
+            while isinstance(value,list) and len(value)==1 and isinstance(value[0],list) and size!=1:
+                value=value[0]
+            if not isinstance(value,list) or len(value)>size: raise Unsupported('std::array initializer shape')
+            value=value+[zero(depth+1) for _ in range(size-len(value))]
+            return [normalise(child,depth+1) for child in value]
+        value=evaluate(self.value,env)
+        if isinstance(value,list) and all(isinstance(v,int) for v in value) and len(dimensions)>1:
+            def reshape(depth,start):
+                if depth==len(dimensions): return value[start],start+1
+                output=[]
+                for _ in range(dimensions[depth]):
+                    child,start=reshape(depth+1,start);output.append(child)
+                return output,start
+            size=1
+            for dimension in dimensions: size*=dimension
+            if len(value)!=size: raise Unsupported('flat std::array initializer shape')
+            return reshape(0,0)[0]
+        return normalise(value,0)
+
+
+class PaintHandle:
+    def __init__(self,index): self.index=index
+
+
+class FunctionValue:
+    def __init__(self,source,name): self.source,self.name=source,name
+
+
 class ImageValue:
     def __init__(self, image, role): self.image, self.role = image, role
 
 
 def image_value(values, env):
-    while values and values[0]=='(' and values[-1]==')': values=values[1:-1]
+    while values and values[0]=='(' and values[-1]==')':
+        depth=0;wrapped=True
+        for i,value in enumerate(values):
+            if value=='(': depth+=1
+            elif value==')': depth-=1
+            if depth==0 and i<len(values)-1: wrapped=False;break
+        if not wrapped: break
+        values=values[1:-1]
     text = ''.join(values)
-    if '?' in values:
-        question=values.index('?'); colon=values.index(':',question)
-        return image_value(values[question+1:colon] if evaluate(values[:question],env) else values[colon+1:],env)
+    if text=='ImageId(SPR_WATER_MASK).WithRemap(FilterPaletteID::paletteWater).WithBlended(true)':
+        return ImageValue(0,4)  # Shared water mask/filter; never an atlas image0.
+    if text=='ImageId(transparent?EnumValue(SPR_WATER_OVERLAY):EnumValue(SPR_G2_OPAQUE_WATER_OVERLAY))':
+        return ImageValue(0,5)  # GPU selects current transparency and viewport mode.
+    depth=0;question=None;nested=0
+    for i,value in enumerate(values):
+        if value in ('(','[','{'): depth+=1
+        elif value in (')',']','}'): depth-=1
+        elif depth==0 and value=='?':
+            if question is None: question=i
+            else: nested+=1
+        elif depth==0 and value==':' and question is not None:
+            if nested: nested-=1
+            else: return image_value(values[question+1:i] if evaluate(values[:question],env) else values[i+1:],env)
+    if re.fullmatch(r'ImageId\(\d+\)',text): return ImageValue(int(text[8:-1]),0)
+    if text=='ImageId(SPR_STATION_BASE_BORDERLESS,OpenRCT2::Drawing::Colour::black)':
+        return ImageValue(evaluate(['SPR_STATION_BASE_BORDERLESS'],env),2)
     if text == 'session.TrackColours': return ImageValue(0, 0)
     if text == 'session.SupportColours': return ImageValue(0, 1)
     if text == 'WoodenRCGetRailsColour(session)': return ImageValue(0, 0)
@@ -234,20 +368,42 @@ def image_value(values, env):
 
 
 def declaration(values, env):
-    if len(values) == 2 and values[0] in ('ImageId','TunnelSubType','int16_t','int32_t','uint16_t','uint32_t'):
+    if values and values[0] in ('ImageId','CoordsXY','CoordsXYZ','bool','int8_t','uint8_t','int16_t','int32_t','uint16_t','uint32_t') and '=' not in values:
+        names=split_top(values[1:])
+        if all(len(n)==1 and re.fullmatch(r'[A-Za-z_]\w*',n[0]) for n in names):
+            for name in names: env[name[0]]=None
+            return True
+    if len(values)==3 and values[:2]==['PaintStruct','*']:
+        env[values[2]]=None;return True
+    if len(values)==2 and values[0]=='BoundBoxXY':
+        env[values[1]]={'offset':None,'length':None};return True
+    if values and values[0]=='TunnelType' and '=' not in values:
+        names=split_top(values[1:])
+        if all(len(n)==1 for n in names):
+            for name in names: env[name[0]]=None
+            return True
+    if len(values) == 2 and values[0] in ('ImageId','CoordsXY','CoordsXYZ','TunnelSubType','int16_t','int32_t','uint16_t','uint32_t'):
         env[values[1]] = None  # Reading before a branch assigns it is rejected.
         return True
     if '=' not in values: return False
     index = values.index('='); lhs, rhs = values[:index], values[index + 1:]
     if any(v.startswith('PaintAddImage') or v == 'TrackPaint' for v in rhs):
         raise Unsupported('draw-valued declaration requires explicit ownership')
+    if 'SpriteBoundBox2' in lhs and '[' in lhs:
+        dimensions=re.findall(r'\[([^\]]+)\]',''.join(lhs))
+        env[lhs[lhs.index('[')-1]]=ArrayDeferred(rhs,dimensions,record=True);return True
     # First bracket belongs to the declared array, never to its initializer.
     if '[' in lhs: lhs = lhs[:lhs.index('[')]
+    if len(lhs)==3 and lhs[1]=='.' and isinstance(env.get(lhs[0]),dict):
+        if lhs[2] not in env[lhs[0]]: raise Unsupported('unknown member assignment')
+        env[lhs[0]][lhs[2]]=evaluate(rhs,env);return True
     if not lhs or not re.fullmatch(r'[A-Za-z_]\w*', lhs[-1]): return False
     name = lhs[-1]
+    if ''.join(rhs)=='trackElement.getTrackType()':
+        env[name]=env['trackType'];return True
     if any(token in rhs for token in ('TrackColours', 'SupportColours', 'WithIndex', 'WithIndexOffset',
                                     'WoodenRCGetTrackColour','WoodenRCGetRailsColour','GetTrackColour',
-                                    'GetStationColourScheme')) or (
+                                    'GetStationColourScheme','ImageId')) or (
             len(rhs) == 1 and isinstance(env.get(rhs[0]), ImageValue)):
         env[name] = image_value(rhs, env)
     elif len(lhs) == 1:
@@ -260,9 +416,9 @@ def declaration(values, env):
 # These calls exclusively belong to explicitly omitted component families or
 # painter bookkeeping. An unknown call is never silently discarded.
 AUX = re.compile(r'^(?:Metal[AB]SupportsPaintSetup(?:Rotated)?|Wooden[AB]SupportsPaintSetup(?:Rotated)?|'
-                 r'WoodenSupportsPrependTo|DrawSupportForSequence[AB]<[^>]+>|'
+                 r'WoodenSupportsPrependTo|ChairliftPaintUtilDrawSupports|DrawSupportForSequence[AB]<[^>]+>|'
                  r'PaintUtil(?:SetSegmentSupportHeight|SetGeneralSupportHeight|SetVerticalTunnel|PushTunnel\w*)|'
-                 r'TrackPaintUtil(?:DrawStation\w*|DrawSupports\w*|OnridePhotoPaint\w*|'
+                 r'TrackPaintUtil(?:DrawStation\w*|DrawSupports\w*|'
                  r'(?:Left|Right)QuarterTurn\w*Tunnel|RightVerticalLoopSegments|LeftCorkscrewUpSupports)|'
                  r'DrawSBend(?:Left|Right)Supports|DrawSupportsSideBySide)$')
 
@@ -285,7 +441,7 @@ AUXILIARY_CACHE = {}
 def auxiliary(node):
     if node is None: return True
     if node[0] == 'expr': return classify_auxiliary(node)
-    key = id(node)
+    key = (id(node), CAPTURE_TUNNELS)
     if key not in AUXILIARY_CACHE: AUXILIARY_CACHE[key] = (node, classify_auxiliary(node))
     return AUXILIARY_CACHE[key][1]
 
@@ -301,7 +457,7 @@ def classify_auxiliary(node):
     # Control flow is never auxiliary, even inside a block containing only
     # omitted support calls: break/return can prevent later rail emission.
     invoked=call(values)
-    if invoked and invoked[0] in STATION_CALLS: return False
+    if invoked and (invoked[0] in STATION_CALLS or (CAPTURE_TUNNELS and TUNNEL_CALL.fullmatch(invoked[0]))): return False
     return not values or bool(invoked and AUX.fullmatch(invoked[0]))
 
 
@@ -311,9 +467,16 @@ def auxiliary_local_block(node):
     Never discard assignments to outer variables, control flow, or graphics calls.
     """
     if node is None: return True
+    if node[0]=='switch':
+        # Break is local to this discarded switch. Returns and writes to outer
+        # variables are still rejected; no later rail control flow is removed.
+        return all(auxiliary_local_block(('block',[n for n in body if n != ('expr',['break'])]))
+                   for _,body in node[2])
+    if node[0]=='if': return auxiliary_local_block(node[2]) and auxiliary_local_block(node[3])
     if node[0] != 'block': return auxiliary(node)
     for item in node[1]:
         if auxiliary(item): continue
+        if item[0] in ('switch','if') and auxiliary_local_block(item): continue
         if item[0]!='expr': return False
         value=item[1]
         if not (len(value)>3 and value[0] in ('uint8_t','uint16_t','uint32_t','int8_t','int16_t','int32_t')
@@ -327,7 +490,7 @@ class Source:
         self.path, self.text, self.functions, self.globals = path, clean(text), {}, {}
         namespace=re.search(r'namespace\s+(OpenRCT2::\w+)\s*\{', self.text)
         self.namespace=namespace[1] if namespace else None
-        self.errors = {}
+        self.errors = {}; self.templates = {}; self.parameters = {}
         pattern = r'\b(?:void|TrackPaintFunction)\s+([\w:]+)\s*\(([^{};]*)\)\s*\{'
         for match in re.finditer(pattern, self.text):
             start = match.end() - 1; end = start + 1; depth = 1
@@ -336,6 +499,20 @@ class Source:
                 elif self.text[end] == '}': depth -= 1
                 end += 1
             values = tokens(self.text[start:end])
+            parameters=[]
+            for parameter in split_top(tokens(match[2])):
+                array=parameter.index('[') if '[' in parameter and parameter[0]!='[' else len(parameter)
+                names=[x for x in parameter[:array] if re.fullmatch(r'[A-Za-z_]\w*',x)]
+                parameters.append(names[-1] if names else '')
+            header=re.search(r'template\s*<(.*?)>\s*(?:static\s+)?(?:inline\s+)?$',self.text[max(0,match.start()-500):match.start()],re.S)
+            if header and ',' in header[1]:
+                # Non-type immutable parameters only; reject arbitrary C++ templates.
+                params=re.findall(r'(?:bool|(?:std::array<.*>))\s+(\w+)\s*(?:,|$)',header[1])
+                if len(params)==2 and params[0]=='isClassic':
+                    self.templates[match[1]]=(params,values,parameters)
+                image_params=re.findall(r'ImageIndex\s+(\w+)',header[1])
+                if len(image_params)==4:
+                    self.templates[match[1]]=(image_params,values,parameters)
             template = re.search(r'template\s*<\s*bool\s+(\w+)\s*>\s*(?:static\s+)?$', self.text[max(0,match.start()-100):match.start()])
             variants = ((match[1]+'<'+v+'>',[v if t==template[1] else t for t in values]) for v in ('false','true')) if template else [(match[1],values)]
             junior=re.search(r'template\s*<\s*JuniorRCSubType\s+(\w+)\s*>\s*(?:static\s+)?$',self.text[max(0,match.start()-100):match.start()])
@@ -343,12 +520,16 @@ class Source:
                 variants=[(match[1]+'<JuniorRCSubType::'+v+'>',tokens(' '.join(values).replace(junior[1],'JuniorRCSubType::'+v)))
                           for v in ('junior','waterCoaster')]
             for name, body in variants:
-                try: self.functions[name] = Parser(body).statement()
+                try:
+                    self.functions[name] = Parser(body).statement();self.parameters[name]=parameters
                 except Unsupported as e: self.errors[name] = str(e)
         # Numeric constexpr tables (including sequence remaps). Other C++
         # declarations remain unavailable and reject the affected graphics rule.
-        for match in re.finditer(r'(?:static\s+)?(?:constexpr|const)\s+(?:u?int\d+_t|ImageIndex|CoordsXY|CoordsXYZ|SpriteBb|SpriteBoundBox2|auto)\s+(\w+)\s*(?:\[[^;=]*\])?\s*=\s*([^;]+);', self.text):
+        for match in re.finditer(r'(?:static\s+)?(?:constexpr|const)\s+(?:u?int\d+_t|ImageIndex|CoordsXY|CoordsXYZ|SpriteBb|SpriteBoundBox2|TunnelGroup|auto)\s+(\w+)\s*(?:\[[^;=]*\])?\s*=\s*([^;]+);', self.text):
             self.globals[match[1]] = Deferred(tokens(match[2]))
+        for match in re.finditer(r'(?:static\s+)?constexpr\s+(std::array<[^;=]+>)\s+(\w+)\s*=\s*([^;]+);',self.text):
+            dimensions=re.findall(r',\s*([A-Za-z_]\w*|\d+)\s*>',match[1])[::-1]
+            if dimensions: self.globals[match[2]]=ArrayDeferred(tokens(match[3]),dimensions,'BoundBoxXYZ' in match[1])
         for match in re.finditer(r'\benum[^{}]*\{(.*?)\}', self.text, re.S):
             previous = None
             for member in split_top(tokens(match[1])):
@@ -372,13 +553,18 @@ class Translator:
         self.hashes.update({p:hashlib.sha256((root/p).read_bytes()).hexdigest() for p in extra})
         self.enum(root/inputs[0]); self.enum(root/inputs[1]); self.type_count = self.constants['count']
         self.enum(root/inputs[2]); self.constants['kNumOrthogonalDirections'] = 4
+        self.constants['kImageIndexUndefined']=0xffffffff
+        self.hashes['src/openrct2/drawing/ImageIndexType.h']=hashlib.sha256((root/'src/openrct2/drawing/ImageIndexType.h').read_bytes()).hexdigest()
         segment_text=clean((root/extra[-1]).read_text())
         segment_body=re.search(r'enum class PaintSegment[^\{]*\{(.*?)\}',segment_text,re.S)[1]
         for name,value in re.findall(r'(\w+)\s*=\s*(\d+)',segment_body): self.constants['PaintSegment_'+name]=int(value)
+        self.constants.update(Source(extra[-1],segment_text).globals)
         tunnel_path='src/openrct2/paint/tile_element/Paint.Tunnel.h'
         self.hashes[tunnel_path]=hashlib.sha256((root/tunnel_path).read_bytes()).hexdigest()
-        tunnel_body=re.search(r'enum class TunnelSubType[^\{]*\{(.*?)\}',clean((root/tunnel_path).read_text()),re.S)[1]
-        for name,value in re.findall(r'(\w+)\s*=\s*(\d+)',tunnel_body): self.constants['TunnelSubType_'+name]=int(value)
+        for enum in ('TunnelSubType','TunnelGroup','TunnelType'):
+            tunnel_body=re.search(r'enum class '+enum+r'[^\{]*\{(.*?)\}',clean((root/tunnel_path).read_text()),re.S)[1]
+            for name,value in re.findall(r'(\w+)\s*=\s*(\d+)',tunnel_body): self.constants[enum+'_'+name]=int(value)
+        self.hashes['src/openrct2/paint/tile_element/Paint.Tunnel.cpp']=hashlib.sha256((root/'src/openrct2/paint/tile_element/Paint.Tunnel.cpp').read_bytes()).hexdigest()
         shared_sources=[]
         for path in inputs[4:7]:
             shared = Source(path, (root/path).read_text()); self.constants.update(shared.globals)
@@ -389,6 +575,7 @@ class Translator:
                 if name not in self.by_name: self.by_name[name] = source
                 else: self.by_name[name] = None  # ambiguous names require namespace support
                 if source.namespace: self.by_name[source.namespace+'::'+name]=source
+        self.shared_sources=shared_sources
         for source in shared_sources:
             for name in source.functions:
                 if name not in self.by_name: self.by_name[name]=source
@@ -455,6 +642,21 @@ class Translator:
 
     def find(self, name, source=None):
         if source and name in source.functions: return source
+        template=re.fullmatch(r'([\w:]+)<((?:[A-Za-z_]\w*|true|false)(?:,(?:[A-Za-z_]\w*|true|false))+)>' ,name)
+        if template and source:
+            candidates=[s for s in self.sources if template[1] in s.templates]
+            candidates += [s for s in getattr(self,'shared_sources',[]) if template[1] in s.templates]
+            if len(candidates)==1:
+                original=candidates[0];params,body,parameters=original.templates[template[1]]
+                specialised=Source(original.path,'')
+                arguments=template[2].split(',')
+                if len(arguments)!=len(params): raise Unsupported('template argument count')
+                replacements=dict(zip(params,arguments))
+                specialised.functions[name]=Parser([replacements.get(v,v) for v in body]).statement()
+                specialised.globals=dict(original.globals);specialised.globals.update(source.globals)
+                source.functions[name]=specialised.functions[name];source.parameters[name]=parameters
+                source.globals.update({k:v for k,v in original.globals.items() if k not in source.globals})
+                return source
         result = self.by_name.get(name)
         if result is None:
             candidates=[s for n,s in self.by_name.items() if n.endswith('::'+name) and s is not None]
@@ -469,6 +671,13 @@ class Translator:
         return next(n for n in source.functions if n.endswith('::'+name))
 
     def getter(self, name, track_type, depth=0, state=0, dependencies=None):
+        if name=='getTrackPaintFunctionMultiDimensionRCInverted':
+            source=self.find(name)
+            entries=re.findall(r'fns\[EnumValue\((\w+)\)\]\s*=\s*(\w+)\s*;',source.text)
+            if not entries: raise Unsupported('missing inverted function table')
+            for type_name,function in entries:
+                if self.constants[type_name]==track_type: return source,function
+            return self.find('TrackPaintFunctionDummy'), 'TrackPaintFunctionDummy'
         if depth > 8: raise Unsupported('getter cycle')
         source = self.find(name); node = source.functions[self.local_name(source,name)]
         env = ChainMap(dict(trackType=track_type,csgLoaded=bool(state&16),
@@ -481,7 +690,7 @@ class Translator:
         function = ''.join(expression)
         if re.fullmatch(r'OpenRCT2::trackPaint(?:Left|Right)Quarter(?:Banked)?HelixLarge(?:Up|Down)<.*>',function):
             return source,function
-        if not re.fullmatch(r'[\w:]+(?:<(?:true|false|JuniorRCSubType::(?:junior|waterCoaster))>)?', function): raise Unsupported('template getter')
+        if not re.fullmatch(r'[\w:]+(?:<(?:true|false|JuniorRCSubType::(?:junior|waterCoaster))(?:,[A-Za-z_]\w*)?>)?', function): raise Unsupported('template getter')
         return self.find(function, source), function
 
     def execute(self, node, env, source, parts, depth, getter=False):
@@ -492,6 +701,25 @@ class Translator:
                 flow = self.execute(item, env, source, parts, depth, getter)
                 if flow: return flow
         elif kind == 'if':
+            if (env.get('_functionName')=='MultiDimensionRCTrackStation' and ''.join(node[1])==
+                    'stationObj!=nullptr&&!stationObj->Flags.has(StationObjectFlag::noPlatforms)'):
+                # This source block authors only the two station covers, with
+                # fence-dependent variants. Keep their selection on the GPU.
+                def cover_only(n):
+                    if n is None: return True
+                    if n[0]=='block': return all(cover_only(c) for c in n[1])
+                    if n[0]=='if': return cover_only(n[2]) and cover_only(n[3])
+                    if n[0]!='expr': return False
+                    v=n[1];rhs=v[v.index('=')+1:] if '=' in v else v
+                    invoked=call(rhs)
+                    return (v==['bool','hasFence'] or bool(invoked and invoked[0] in
+                        ('DrawSupportsSideBySide','GetStationColourScheme','TrackPaintUtilHasFence','TrackPaintUtilDrawStationCovers')))
+                if not cover_only(node[2]) or not auxiliary_local_block(node[3]):
+                    raise Unsupported('multidimension station cover block changed')
+                env['_dependencies'].add(64)
+                if env['hasPlatforms']:
+                    parts.append((STATION_PART,0,0,env['height'],0,0,0,0,6,0,0,-1))
+                return None
             if (call(node[1]) and call(node[1])[0]=='TrackPaintUtilShouldPaintSupports'
                     and auxiliary_local_block(node[2]) and auxiliary_local_block(node[3])):
                 return None
@@ -539,6 +767,14 @@ class Translator:
             if '=' in values:
                 equal = values.index('='); lhs, rhs = values[:equal], values[equal + 1:]
                 invoked=call(rhs)
+                if invoked and invoked[0].startswith('GetTrackPaintFunction') and len(invoked[1])==1:
+                    target,function=self.getter(invoked[0],evaluate(invoked[1][0],env),state=env['state'],dependencies=env['_dependencies'])
+                    env[lhs[-1]]=FunctionValue(target,function);return None
+                if invoked and invoked[0] in ('PaintAddImageAsParent','PaintAddImageAsParentRotated') and ''.join(lhs)!='session.WoodenSupportsPrependTo':
+                    if not (len(lhs)==1 or '*' in lhs): raise Unsupported('draw-valued declaration must be a local handle')
+                    start=len(parts);self.execute(('expr',list(rhs)),env,source,parts,depth)
+                    env[lhs[-1]]=PaintHandle(start) if len(parts)>start else None
+                    return None
                 if invoked and invoked[0] in STATION_CALLS:
                     self.execute(('expr',rhs),env,source,parts,depth)
                     env['_dependencies'].add(64)
@@ -547,8 +783,10 @@ class Translator:
                 # This exact support bookkeeping assignment still executes its
                 # RHS rail draw. Never treat an image-producing RHS as lazy data.
                 if ''.join(lhs) == 'session.WoodenSupportsPrependTo':
+                    if len(rhs)==1 and (isinstance(env.get(rhs[0]),PaintHandle) or (rhs[0] in env and env[rhs[0]] is None)):
+                        return None  # Only omitted wooden support ordering consumes this handle.
                     invoked = call(rhs)
-                    if not invoked or invoked[0] not in ('PaintAddImageAsParent','PaintAddImageAsParentRotated',
+                    if not invoked or invoked[0] not in ('PaintAddImageAsParent','PaintAddImageAsParentRotated','PaintAddImageAsParentHeight',
                                                          'TrackPaint<false>','TrackPaint<true>'):
                         raise Unsupported('support prepend pointer assignment')
                     self.execute(('expr',list(rhs)),env,source,parts,depth)
@@ -557,6 +795,15 @@ class Translator:
             invoked = call(values)
             if not invoked: raise Unsupported('statement ' + ' '.join(values[:12]))
             name, args = invoked
+            if isinstance(env.get(name),FunctionValue):
+                target=env[name]
+                if len(args)!=7: raise Unsupported('function alias signature')
+                self.paint(target.source,target.name,evaluate(args[2],env),evaluate(args[3],env),evaluate(args[4],env),
+                           env['state'],parts,depth+1,env['trackType'],env['_dependencies'])
+                return None
+            if CAPTURE_TUNNELS and TUNNEL_CALL.fullmatch(name):
+                self.tunnel(name,args,env,parts)
+                return None
             if name in STATION_CALLS:
                 # Preserve an authored station call in the immutable recipe.
                 # GPU station rules consume current shared station/entrance facts.
@@ -584,6 +831,21 @@ class Translator:
             if name in ('TrackPaintUtilOnridePhotoPlatformPaintBase','TrackPaintUtilOnridePhotoPlatformPaint'):
                 height=evaluate(args[1 if name.endswith('Base') else 2],env)
                 parts.append((22432,0,0,height,0,0,height,32,32,1,2,-1))
+                return None
+            if name in ('TrackPaintUtilOnridePhotoPaint','TrackPaintUtilOnridePhotoSmallPaint','TrackPaintUtilOnridePhotoPaint2'):
+                direction=evaluate(args[1],env)
+                if name.endswith('Paint2'):
+                    # The source overload has trackElement before height. The old
+                    # undeclared-definition overload is not silently guessed.
+                    if ''.join(args[2])!='trackElement': raise Unsupported('photo helper signature')
+                    base=evaluate(args[3],env)
+                    height=base+(evaluate(args[5],env) if len(args)>5 else 3)
+                else:
+                    height=evaluate(args[2],env)
+                if not 0<=direction<4: raise Unsupported('photo direction')
+                parts.append((PHOTO_PART,direction,int(name.endswith('SmallPaint')),height,0,0,0,0,0,0,2,-1))
+                if name.endswith('Paint2') and CAPTURE_TUNNELS:
+                    parts.append((TUNNEL_PART,direction&1,6,base,0,0,0,0,0,0,0,-1))
                 return None
             curve_maps={'TrackPaintUtilRightQuarterTurn5TilesPaint':'right_quarter_turn_5_tiles_sprite_map',
                         'TrackPaintUtilRightQuarterTurn3TilesPaint':'kRightQuarterTurn3TilesSpriteMap',
@@ -624,6 +886,29 @@ class Translator:
                 role=0 if extra or len(args)<11 else image_value(args[10],env).role
                 parts.append(tuple([sprites[direction]]+list(offset)+[height]+[bound[0],bound[1],height+bound[2]]+list(length)+[thickness,role,-1]))
                 return None
+            if name in ('TrackPaintUtilRightQuarterTurn3TilesPaint3','TrackPaintUtilRightQuarterTurn3TilesPaint4'):
+                if len(args)!=6: raise Unsupported('SpriteBb curve signature')
+                height,direction,sequence=[evaluate(a,env) for a in args[1:4]]
+                index=evaluate(tokens('kRightQuarterTurn3TilesSpriteMap['+str(sequence)+']'),env)
+                if index<0: return None
+                image,offset,bound,size=evaluate(args[5],env)[direction][index]
+                offset=offset[:2]+[offset[2]+height]
+                bound=offset if name.endswith('4') else bound[:2]+[bound[2]+height]
+                parts.append(tuple([image]+offset+bound+size+[image_value(args[4],env).role,-1]))
+                return None
+            if name=='TrackPaintUtilEighthToDiagTilesPaint':
+                if len(args)!=10: raise Unsupported('eighth curve signature')
+                height,direction,sequence=[evaluate(a,env) for a in args[2:5]]
+                index=evaluate(tokens('eighth_to_diag_sprite_map['+str(sequence)+']'),env)
+                if index<0: return None
+                thickness=evaluate(args[1],env)[direction][index]
+                image=evaluate(args[6],env)[direction][index]
+                offset=[0,0] if tuple(args[7])==('nullptr',) else evaluate(args[7],env)[direction][index]
+                length=evaluate(args[8],env)[direction][index]
+                bound=offset+[0] if tuple(args[9])==('nullptr',) else evaluate(args[9],env)[direction][index]
+                role=image_value(args[5],env).role
+                parts.append(tuple([image]+offset+[height]+bound[:2]+[height+bound[2]]+length+[thickness,role,-1]))
+                return None
             if name in ('WoodenRCTrackPaintBb<false>','WoodenRCTrackPaintBb<true>'):
                 value=evaluate(args[1][1:] if args[1][0]=='&' else args[1],env)
                 height=evaluate(args[2],env)
@@ -654,7 +939,9 @@ class Translator:
                     statement += [')']
                     self.execute(('expr',statement),env,source,parts,depth)
                 return None
-            if name in ('PaintAddImageAsParent', 'PaintAddImageAsChild', 'PaintAddImageAsParentRotated', 'PaintAddImageAsChildRotated'):
+            if name in ('PaintAddImageAsParent', 'PaintAddImageAsChild', 'PaintAddImageAsParentRotated', 'PaintAddImageAsChildRotated', 'PaintAddImageAsParentHeight'):
+                extra_height=evaluate(args[2],env) if name.endswith('Height') else 0
+                if name.endswith('Height'): args=args[:2]+args[3:]
                 rotated = name.endswith('Rotated'); shift = int(rotated)
                 direction = evaluate(args[1], env) if rotated else 0
                 selected = image_value(args[1 + shift], env)
@@ -663,33 +950,99 @@ class Translator:
                 if len(box) == 3 and all(isinstance(v, int) for v in box): box = [list(offset), box]
                 if len(offset) != 3 or len(box) != 2 or any(len(v) != 3 for v in box): raise Unsupported('bounds shape')
                 box = [list(v) for v in box]
+                offset[2]+=extra_height;box[0][2]+=extra_height
                 if direction & 1:
                     offset[0], offset[1] = offset[1], offset[0]
                     for v in box: v[0], v[1] = v[1], v[0]
+                if image==0xffffffff: return None
                 if not 0 <= image < 0x7ffff: raise Unsupported('image range')
                 parent = -1
                 if 'Child' in name:
-                    parent = next((i for i in range(len(parts)-1, -1, -1) if parts[i][-1] == -1), -1)
+                    parent = next((i for i in range(len(parts)-1, -1, -1) if parts[i][-1] == -1 and parts[i][0]!=TUNNEL_PART), -1)
                     if parent < 0: raise Unsupported('child without parent')
                 parts.append(tuple([image] + offset + box[0] + box[1] + [role, parent]))
                 if len(parts) > 64: raise Unsupported('component capacity')
             else:
                 target = self.find(name, source)
+                generic=(name in ('CompactInvertedRCTrackDiagFlatBase','InvertedRCTrackDiagFlatBase',
+                    'TrackPaintUtilLeftQuarterTurn3TilesPaintWithHeightOffset',
+                    'TrackPaintUtilRightQuarterTurn3TilesPaint2WithHeightOffset','TrackPaintUtilRightQuarterTurn3TilesPaint2',
+                    'TrackPaintUtilLeftQuarterTurn3TilesPaint','TrackPaintUtilLeftQuarterTurn1TilePaint',
+                    'TrackPaintUtilRightQuarterTurn5TilesPaint2','TrackPaintUtilRightQuarterTurn5TilesPaint3',
+                    'PaintRiverRapidsTrack25Deg','PaintRiverRapidsTrack25DegToFlatA','PaintRiverRapidsTrack25DegToFlatB') or name.startswith('classicStandUpRCTrackDiag'))
+                if generic:
+                    parameters=target.parameters[self.local_name(target,name)]
+                    if len(parameters)!=len(args): raise Unsupported('named helper signature '+name)
+                    local=ChainMap(dict(env.maps[0]),target.globals,self.constants)
+                    for parameter,arg in zip(parameters,args):
+                        if parameter in ('session','ride','trackElement','supportType'): continue
+                        local[parameter]=image_value(arg,env) if parameter=='colourFlags' else evaluate(arg,env)
+                    self.execute(target.functions[self.local_name(target,name)],local,target,parts,depth+1)
+                    return None
+                if name.startswith('TrackStraightBankTrack<') and len(args)==3:
+                    self.paint(target,name,env['trackSequence'],evaluate(args[1],env),evaluate(args[2],env),
+                               env['state'],parts,depth+1,env['trackType'],env['_dependencies'])
+                    return None
                 if len(args) != 7: raise Unsupported('helper signature ' + name)
                 self.paint(target, name, evaluate(args[2], env), evaluate(args[3], env), evaluate(args[4], env),
                            env['state'], parts, depth + 1,env['trackType'],env['_dependencies'])
         return None
 
+    def tunnel(self,name,args,env,parts):
+        values=[evaluate(a,env) for a in args[1:]]
+        group_map=((0,1,2,12,3),(6,7,8,14,9),(3,4,5,13,3))
+        def kind(v):
+            if len(v)==1:
+                if not (0<=v[0]<26 or 256<=v[0]<264): raise Unsupported('tunnel type range')
+                return v[0]
+            if len(v)!=2 or not 0<=v[0]<3 or not 0<=v[1]<5: raise Unsupported('tunnel group range')
+            return group_map[v[0]][v[1]]
+        def emit(side,z,t):
+            parts.append((TUNNEL_PART,side,t,z,0,0,0,0,0,0,0,-1))
+        if name in ('TrackPaintUtilDrawStationTunnel','TrackPaintUtilDrawStationTunnelTall'):
+            emit(values[0]&1,values[1],9 if name.endswith('Tall') else 6);return
+        if name=='PaintUtilSetVerticalTunnel': emit(2,values[0],0);return
+        if name=='PaintUtilPushTunnelRotated': emit(values[0]&1,values[1],kind(values[2:]));return
+        if name in ('PaintUtilPushTunnelLeft','PaintUtilPushTunnelRight'):
+            emit(int(name.endswith('Right')),values[0],kind(values[1:]));return
+        if 'QuarterTurn1TileTunnel' in name:
+            if len(values)==6: direction,height,start,first,end,last=values
+            else:
+                group,direction,height,start,first,end,last=values
+                first=kind([group,first]);last=kind([group,last])
+            if name.startswith('TrackPaintUtilRight'):
+                direction=(direction+3)&3;start,end=end,start;first,last=last,first
+            if direction==0: emit(0,height+start,first)
+            elif direction==2: emit(1,height+end,last)
+            elif direction==3: emit(1,height+start,first);emit(0,height+end,last)
+            return
+        if '25Deg' in name:
+            group,height,direction,sequence,first,last=values
+            first=kind([group,first]);last=kind([group,last]);delta=8 if 'Up' in name else -8
+            if sequence==0 and direction in (0,3): emit(0 if direction==0 else 1,height-delta,first)
+            if sequence==3 and direction in (0,1): emit(1 if direction==0 else 0,height+delta,last)
+            return
+        if len(values)==4: height,direction,sequence,t=values
+        else: group,sub,height,direction,sequence=values;t=kind([group,sub])
+        end=6 if '5Tiles' in name else 3
+        if name.startswith('TrackPaintUtilLeft'):
+            if sequence==0 and direction in (0,3): emit(0 if direction==0 else 1,height,t)
+            if sequence==end and direction in (2,3): emit(1 if direction==2 else 0,height,t)
+        else:
+            if sequence==0 and direction in (0,3): emit(0 if direction==0 else 1,height,t)
+            if sequence==end and direction in (0,1): emit(1 if direction==0 else 0,height,t)
+
     def paint(self, source, name, sequence, direction, height, state, parts, depth=0, track_type=0, dependencies=None):
         if depth > 16: raise Unsupported('call depth')
         env = ChainMap({}, source.globals, self.constants)
-        env.update(trackSequence=sequence, direction=direction, height=height, state=state,
+        env.update(_functionName=name,trackSequence=sequence, direction=direction, height=height, state=state,
                    chain=bool(state & 1), inverted=bool(state & 2), brakeClosed=bool(state & 4),
                    cable=bool(state&8),csgLoaded=bool(state&16),greenLight=bool(state&32),hasPlatforms=bool(state&64),trackType=track_type,
                    _dependencies=dependencies if dependencies is not None else set())
         helix=re.fullmatch(r'OpenRCT2::trackPaint((?:Left|Right)Quarter(?:Banked)?HelixLarge(?:Up|Down))<(.*)>',name)
         if helix:
             if sequence>=7: return
+            if CAPTURE_TUNNELS: raise Unsupported('generic TED tunnel metadata not yet authored')
             args=split_top(tokens(helix[2]))
             if len(args)!=7: raise Unsupported('quarter helix template signature')
             base=evaluate(args[0],env);map_name=''.join(args[1]).removeprefix('OpenRCT2::')
@@ -709,6 +1062,7 @@ class Translator:
 
 
 def build(args):
+    global CAPTURE_TUNNELS
     translator = Translator(args.root)
     descriptors = [0] * (81 * translator.type_count * 3)
     rows, parts = [], []; part_sets = {}; row_sets = {}; coverage = []
@@ -716,7 +1070,7 @@ def build(args):
     cache = {}
     for style, getter in enumerate(translator.getters):
         print('Translating style %d/%d %s' % (style+1,len(translator.getters),getter), flush=True)
-        style_report = dict(style=style, getter=getter, supported=[], rejected={})
+        style_report = dict(style=style, getter=getter, supported=[], rejected={}, tunnelRejected={})
         for track_type in range(translator.type_count):
             try:
                 key = (getter, track_type)
@@ -732,10 +1086,22 @@ def build(args):
                                 for direction in range(4):
                                     result=[]
                                     try:
-                                        translator.paint(source,name,sequence,direction,0,state,result,
-                                                         track_type=track_type,dependencies=dependencies)
+                                        CAPTURE_TUNNELS=True
+                                        try:
+                                            translator.paint(source,name,sequence,direction,0,state,result,
+                                                             track_type=track_type,dependencies=dependencies)
+                                        except Unsupported as tunnel_error:
+                                            # Retain existing rail coverage when a dynamic tunnel rule is
+                                            # not yet expressible. Record the missing tunnel rule explicitly.
+                                            CAPTURE_TUNNELS=False;result=[]
+                                            translator.paint(source,name,sequence,direction,0,state,result,
+                                                             track_type=track_type,dependencies=dependencies)
+                                            style_report['tunnelRejected'][str(track_type)]=str(tunnel_error)
+                                        finally: CAPTURE_TUNNELS=False
                                         markers=sum(p[0]==STATION_PART for p in result)
-                                        if len(result)+markers*8>16 or sum(p[-1]==-1 for p in result)+markers*6>12:
+                                        photos=sum(p[0]==PHOTO_PART for p in result)
+                                        graphics=[p for p in result if p[0]!=TUNNEL_PART]
+                                        if len(result)>16 or len(graphics)+markers*8+photos*2>16 or sum(p[-1]==-1 for p in graphics)+markers*6+photos*2>12:
                                             raise Unsupported('expanded station/component capacity')
                                         directions.append(tuple(result))
                                     except (Unsupported,ZeroDivisionError,RecursionError) as e:
@@ -794,7 +1160,7 @@ def build(args):
                   wordCount=len(words), rowCount=len(rows)//2, partCount=len(parts)//12,
                   supportedStyleCount=sum(bool(s['supported']) for s in coverage),
                   supportedStyleTypes=sum(len(s['supported']) for s in coverage), styles=coverage,
-                  omittedFamilies=['supports','tunnels','photo cameras','vehicles'],
+                  omittedFamilies=['supports','unsupported tunnel requests listed per style','vehicles'],
                   scope='Static source translation; runtime row selection executes on GPU; no raster qualification')
     (args.output/'coverage.json').write_text(json.dumps(report, indent=2)+'\n', encoding='utf-8')
     print(json.dumps({k:v for k,v in report.items() if k not in ('sourceSha256','styles')}))

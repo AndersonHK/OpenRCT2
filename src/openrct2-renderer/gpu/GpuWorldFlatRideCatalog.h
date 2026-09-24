@@ -13,8 +13,9 @@ namespace OpenRCT2::Ui::Gpu
 {
     namespace FlatRideRules
     {
+#include "../../../data/shaders/vulkan/world_flat_ride_animation.glsl"
 #include "../../../data/shaders/vulkan/world_maze_order.glsl"
-    }
+    } // namespace FlatRideRules
 
     struct WorldFlatRideCatalog
     {
@@ -225,9 +226,9 @@ namespace OpenRCT2::Ui::Gpu
                     {
                         const auto parts = family >= 20
                             ? FlatRideRules::worldTowerParts(
-                                static_cast<int>(family), sequence, direction, false, false, false, fenceMask)
+                                  static_cast<int>(family), sequence, direction, false, false, false, fenceMask)
                             : FlatRideRules::worldFlatParts(
-                                static_cast<int>(family), sequence, direction, true, false, fenceMask, 128, 0, 4);
+                                  static_cast<int>(family), sequence, direction, true, false, fenceMask, 128, 0, 4);
                         for (int i = 0; i < parts.count; i++)
                             collect(parts.parts[i]);
                     }
@@ -236,6 +237,61 @@ namespace OpenRCT2::Ui::Gpu
                 const auto parts = FlatRideRules::worldTowerParts(static_cast<int>(family), 0, 0, true, true, false, 15);
                 for (int i = 0; i < parts.count; i++)
                     collect(parts.parts[i]);
+            }
+            // Resident body sequences are object facts, independent of the current pose.
+            // Rider overlays have their own future entity stream and are not pinned here.
+            const auto collectRange = [&](int first, int end, int bank = 1) {
+                for (int image = first; image < end; ++image)
+                {
+                    FlatRideRules::WorldFlatPart part{};
+                    part.image = image;
+                    part.bank = bank;
+                    collect(part);
+                }
+            };
+            switch (family)
+            {
+                case 4:
+                    collectRange(4, 76);
+                    break;
+                case 5:
+                    collectRange(20, 204);
+                    break;
+                case 8:
+                    collectRange(0, 32);
+                    break;
+                case 9:
+                    collectRange(0, 32);
+                    break;
+                case 10:
+                    collectRange(0, 352);
+                    break;
+                case 11:
+                    collectRange(0, 24);
+                    break;
+                case 12:
+                    collectRange(0, 196);
+                    break;
+                case 13:
+                    for (int swing = 0; swing <= 18; ++swing)
+                        for (int side = 0; side < 2; ++side)
+                            collectRange(swing * 18 + side * 9, swing * 18 + side * 9 + 1);
+                    break;
+                case 14:
+                    collectRange(32, 174);
+                    break;
+                case 15:
+                    collectRange(22006, 22134, 0);
+                    break;
+                case 16:
+                    collectRange(0, 76);
+                    collectRange(380, 576);
+                    break;
+                case 17:
+                    collectRange(0, 140);
+                    break;
+                default:
+                    break;
             }
         }
         std::sort(images.begin(), images.end());

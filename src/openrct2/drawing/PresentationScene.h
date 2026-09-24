@@ -9,6 +9,8 @@
 
 #pragma once
 
+#include "SelectedVehicleSnapshot.h"
+
 #include "PresentationGeneration.h"
 
 #include <cstdint>
@@ -54,6 +56,7 @@ namespace OpenRCT2
             JobPool& jobs, EntityRegistry& entities,
             std::shared_ptr<const Drawing::RetainedPeepAnimationCatalog> peepAnimations = {});
         void Reset(JobPool& jobs);
+        void SetSelectedVehicleRequests(std::vector<Drawing::SelectedVehicleRequest> requests);
         // Producer-thread totals include prepared snapshots discarded before admission; lifetime of this scene owner.
         [[nodiscard]] Drawing::BalloonPublicationCopyTotals GetBalloonPublicationCopyTotals() const noexcept;
 

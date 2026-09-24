@@ -12,16 +12,21 @@
 #ifdef ENABLE_VULKAN
 
     #include <SDL.h>
+    #ifdef _WIN32
+        #include <SDL_syswm.h>
+    #endif
     #include <algorithm>
     #include <array>
     #include <chrono>
     #include <cstddef>
     #include <cstdint>
     #include <cstdlib>
+    #include <cstring>
     #include <filesystem>
     #include <memory>
     #include <openrct2-renderer/vulkan/VulkanBackend.h>
     #include <openrct2-renderer/vulkan/VulkanDevice.h>
+    #include <openrct2-renderer/vulkan/VulkanPipelineCacheData.h>
     #include <openrct2-ui/drawing/engines/vulkan/VulkanPlatform.h>
     #include <openrct2/drawing/LightFX.h>
     #include <optional>
@@ -104,6 +109,7 @@ namespace
             "lightfx_accumulate.comp.spv",
             "world_surface.vert.spv",
             "world_surface_compact.comp.spv",
+            "world_parent_columns.comp.spv",
         };
         return std::all_of(requiredShaders.begin(), requiredShaders.end(), [&directory](const char* name) {
             std::error_code error;
@@ -847,6 +853,71 @@ TEST(VulkanRuntimeIntegrationTest, HiddenWindowExercisesBackendLifecycleAndIndex
     ASSERT_TRUE(backend->ReadbackLatestIndexedCanvas(resizedLogicalExtent, readback));
     EXPECT_EQ(pixel(4, 5), 10);
     EXPECT_EQ(pixel(5, 6), 40);
+
+    // One resident-atlas admission exceeds this backend's 4 MiB frame ring.
+    // Exercise discard, in-flight slot reuse and rendering without another upload.
+    Gpu::FrameCommandStream catalogBurst;
+    catalogBurst.textureUploads.push_back({
+        .atlas = 0,
+        .bounds = { 0, 0, Gpu::kAtlasDimension, Gpu::kAtlasDimension },
+        .sourcePitch = Gpu::kAtlasDimension,
+        .descriptorIndex = 0,
+        .descriptor = { .atlasOrigin = { 0, 0 }, .atlasLayer = 0 },
+        .pixels = std::vector<std::byte>(Gpu::kAtlasDimension * Gpu::kAtlasDimension, std::byte{ 55 }),
+    });
+    catalogBurst.opaqueSprites.allocate() = uploadedSprite.opaqueSprites.data()[0];
+    backend->WaitIdle();
+    const auto countersBeforeBurst = backend->GetFramePresentationCounters();
+    EXPECT_EQ(countersBeforeBurst.visualFrameSubmissions, countersBeforeBurst.fenceCompletedFrames);
+    auto abandonedBurst = backend->BeginFrame(wraparoundFrame);
+    ASSERT_TRUE(abandonedBurst.has_value());
+    backend->Submit(*abandonedBurst, catalogBurst);
+    // Backend::Submit records commands; only Device::EndFrame submits them.
+    EXPECT_EQ(backend->GetFramePresentationCounters().visualFrameSubmissions, countersBeforeBurst.visualFrameSubmissions);
+    backend->AbandonFrame(*abandonedBurst);
+    backend->WaitIdle();
+    const auto afterAbandon = backend->GetFramePresentationCounters();
+    EXPECT_EQ(afterAbandon.visualFrameSubmissions, countersBeforeBurst.visualFrameSubmissions);
+    EXPECT_EQ(afterAbandon.presentRequests, countersBeforeBurst.presentRequests);
+    EXPECT_EQ(afterAbandon.fenceCompletedFrames, countersBeforeBurst.fenceCompletedFrames);
+    const auto firstBurstFrameNumber = wraparoundFrame;
+    for (uint32_t i = 0; i < Vulkan::kFramesInFlight + 1; ++i)
+    {
+        ASSERT_TRUE(PresentCommandFrame(*backend, wraparoundFrame++, catalogBurst).has_value());
+        catalogBurst.textureUploads.clear();
+    }
+    ASSERT_TRUE(backend->ReadbackLatestIndexedCanvas(resizedLogicalExtent, readback));
+    EXPECT_EQ(pixel(4, 5), 55);
+    EXPECT_EQ(pixel(5, 6), 55);
+    backend->WaitIdle();
+    const auto completedBurst = backend->GetFramePresentationCounters();
+    constexpr uint64_t burstFrames = Vulkan::kFramesInFlight + 1;
+    EXPECT_EQ(completedBurst.visualFrameSubmissions - countersBeforeBurst.visualFrameSubmissions, burstFrames);
+    EXPECT_EQ(completedBurst.presentRequests - countersBeforeBurst.presentRequests, burstFrames);
+    EXPECT_EQ(completedBurst.fenceCompletedFrames - countersBeforeBurst.fenceCompletedFrames, burstFrames);
+    EXPECT_EQ(
+        completedBurst.presentAccepted + completedBurst.presentOutOfDate - countersBeforeBurst.presentAccepted
+            - countersBeforeBurst.presentOutOfDate,
+        burstFrames);
+    std::vector<Gpu::FrameTimings> harvested;
+    backend->TakeCompletedTimings(harvested);
+    uint64_t acceptedBurstSamples = 0;
+    std::optional<uint64_t> lastAcceptedTimestamp;
+    for (const auto& sample : harvested)
+    {
+        if (sample.telemetryOnly || !sample.acceptedPresentNanoseconds)
+            continue;
+        if (lastAcceptedTimestamp)
+            EXPECT_GE(*sample.acceptedPresentNanoseconds, *lastAcceptedTimestamp);
+        lastAcceptedTimestamp = sample.acceptedPresentNanoseconds;
+        if (sample.frameNumber >= firstBurstFrameNumber)
+            ++acceptedBurstSamples;
+    }
+    EXPECT_EQ(acceptedBurstSamples, completedBurst.presentAccepted - countersBeforeBurst.presentAccepted);
+    // Sample consumption and repeated drains cannot reset/double-count work.
+    backend->WaitIdle();
+    EXPECT_EQ(backend->GetFramePresentationCounters().fenceCompletedFrames, completedBurst.fenceCompletedFrames);
+    EXPECT_EQ(backend->GetFramePresentationCounters().visualFrameSubmissions, completedBurst.visualFrameSubmissions);
 }
 
 TEST(VulkanRuntimeIntegrationTest, DiagnosticCaptureTracksFinalColourAndFrameLifetime)
@@ -1023,5 +1094,91 @@ TEST(VulkanRuntimeIntegrationTest, DiagnosticCaptureTracksFinalColourAndFrameLif
     backend->Dispose();
     EXPECT_FALSE(backend->ReadbackFrameRgba(16).has_value());
 }
+
+TEST(VulkanPipelineCacheTest, RejectsTruncatedCorruptAndForeignDriverCaches)
+{
+    VkPhysicalDeviceProperties device{};
+    device.vendorID = 17;
+    device.deviceID = 29;
+    device.driverVersion = 41;
+    device.pipelineCacheUUID[0] = 59;
+    VkPipelineCacheHeaderVersionOne header{};
+    header.headerSize = sizeof(header);
+    header.headerVersion = VK_PIPELINE_CACHE_HEADER_VERSION_ONE;
+    header.vendorID = device.vendorID;
+    header.deviceID = device.deviceID;
+    std::copy(std::begin(device.pipelineCacheUUID), std::end(device.pipelineCacheUUID), header.pipelineCacheUUID);
+    std::vector<std::byte> payload(sizeof(header) + 19, std::byte{ 0x5a });
+    std::memcpy(payload.data(), &header, sizeof(header));
+    const auto file = Vulkan::EncodePipelineCacheFile(payload, device);
+    ASSERT_FALSE(file.empty());
+    const auto decoded = Vulkan::DecodePipelineCacheFile(file, device);
+    EXPECT_TRUE(std::ranges::equal(decoded, payload));
+    for (size_t length = 0; length < file.size(); ++length)
+        EXPECT_TRUE(Vulkan::DecodePipelineCacheFile(std::span(file).first(length), device).empty());
+    auto changed = file;
+    changed.back() ^= std::byte{ 1 };
+    EXPECT_TRUE(Vulkan::DecodePipelineCacheFile(changed, device).empty());
+    changed = file;
+    changed[0] ^= std::byte{ 1 };
+    EXPECT_TRUE(Vulkan::DecodePipelineCacheFile(changed, device).empty());
+    auto foreign = device;
+    ++foreign.driverVersion;
+    EXPECT_TRUE(Vulkan::DecodePipelineCacheFile(file, foreign).empty());
+    foreign = device;
+    ++foreign.deviceID;
+    EXPECT_TRUE(Vulkan::DecodePipelineCacheFile(file, foreign).empty());
+    foreign = device;
+    ++foreign.pipelineCacheUUID[0];
+    EXPECT_TRUE(Vulkan::DecodePipelineCacheFile(file, foreign).empty());
+    payload[0] ^= std::byte{ 1 };
+    EXPECT_TRUE(Vulkan::EncodePipelineCacheFile(payload, device).empty());
+}
+
+TEST(VulkanStartupTest, PreparationRunsOffUiThreadAndRestoresWindowOnFailure)
+{
+    SdlVideoScope video;
+    ASSERT_TRUE(video.Initialise());
+    using WindowPtr = std::unique_ptr<SDL_Window, SdlWindowDeleter>;
+    WindowPtr window(
+        SDL_CreateWindow("Startup regression", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 640, 320, SDL_WINDOW_HIDDEN));
+    ASSERT_NE(window, nullptr);
+    const auto uiThread = std::this_thread::get_id();
+    std::thread::id workThread;
+    EXPECT_THROW(
+        Vulkan::Platform::PreparePipelines(
+            window.get(),
+            [&]() {
+                workThread = std::this_thread::get_id();
+                std::this_thread::sleep_for(std::chrono::milliseconds(80));
+                throw std::runtime_error("expected preparation failure");
+            }),
+        std::runtime_error);
+    EXPECT_NE(workThread, uiThread);
+    EXPECT_STREQ(SDL_GetWindowTitle(window.get()), "Startup regression");
+}
+
+    #ifdef _WIN32
+TEST(VulkanStartupTest, NativeWindowRemainsResponsiveDuringPreparation)
+{
+    SdlVideoScope video;
+    ASSERT_TRUE(video.Initialise());
+    using WindowPtr = std::unique_ptr<SDL_Window, SdlWindowDeleter>;
+    WindowPtr window(
+        SDL_CreateWindow("Responsive startup", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 640, 320, SDL_WINDOW_HIDDEN));
+    ASSERT_NE(window, nullptr);
+    SDL_SysWMinfo info{};
+    SDL_VERSION(&info.version);
+    ASSERT_EQ(SDL_GetWindowWMInfo(window.get(), &info), SDL_TRUE);
+    bool responded = false;
+    Vulkan::Platform::PreparePipelines(window.get(), [&]() {
+        DWORD_PTR result{};
+        // A cross-thread synchronous window message requires the UI thread to keep dispatching messages.
+        responded = SendMessageTimeoutW(info.info.win.window, WM_NULL, 0, 0, SMTO_ABORTIFHUNG, 1000, &result) != 0;
+    });
+    EXPECT_TRUE(responded);
+    EXPECT_STREQ(SDL_GetWindowTitle(window.get()), "Responsive startup");
+}
+    #endif
 
 #endif // ENABLE_VULKAN

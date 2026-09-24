@@ -15,8 +15,11 @@ import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_FILTER = ':'.join((
     'VulkanWorldSurfaceLayerTest.*', 'VulkanWorldPathLayerTest.*',
-    'VulkanWorldObjectLayerTest.*', 'WorldPropCatalogTest.*', 'WorldTrackRulesTest.*',
-    'WorldFlatRideRulesTest.*', 'WorldFlatRideCatalogTest.*', 'WorldEntranceRulesTest.*', 'WorldEntranceCatalogTest.*',
+    'VulkanWorldObjectLayerTest.*', 'VulkanWorldFilterQueuedTest.*', 'WorldPropCatalogTest.*', 'WorldTrackRulesTest.*',
+    'WorldFlatRideRulesTest.*', 'WorldFlatRideCatalogTest.*', 'WorldFlatRideAnimationTest.*',
+    'WorldEntranceRulesTest.*', 'WorldEntranceCatalogTest.*',
+    'VulkanPipelineCacheTest.*', 'VulkanStartupTest.*', 'WorldSelectionTest.*',
+    'SelectedVehicleSnapshotTest.*', 'SelectedVehiclePacketTest.*',
     'WorldPathPublicationTest.*', 'WorldObjectUsageTest.*', 'WorldPathRulesTest.*',
     'TerrainSurfaceRulesTest.FullMapShaderSteepCornersMatchAuthoritativeSlopeTable',
     'GpuFoundationTest.*WorldSurface*',
@@ -41,6 +44,8 @@ def main():
     parser.add_argument('--filter', default=DEFAULT_FILTER)
     parser.add_argument('--path-corpus', type=Path, help='External original-art corpus; select VulkanWorldPathArtTest.* explicitly')
     parser.add_argument('--timeout', type=int, default=300)
+    parser.add_argument('--quick-pipeline-compile', action='store_true', help='Diagnostic compiler A/B; never default production acceptance')
+    parser.add_argument('--world-gpu-profile', action='store_true', help='Validate the optional GPU timestamp/bounds readback path')
     args = parser.parse_args()
     receipt_path = args.build.resolve(strict=True)
     if receipt_path.is_dir():
@@ -71,6 +76,10 @@ def main():
                OPENRCT2_VULKAN_PARITY_ARTIFACTS=str(out / 'samples'))
     if args.path_corpus:
         env['OPENRCT2_PATH_ART_CORPUS'] = str(args.path_corpus.resolve(strict=True))
+    if args.quick_pipeline_compile:
+        env['OPENRCT2_VULKAN_QUICK_COMPILE'] = '1'
+    if args.world_gpu_profile:
+        env['OPENRCT2_VULKAN_PROFILE_WORLD'] = '1'
     (out / 'vk_layer_settings.txt').write_text('khronos_validation.validate_sync = true\n', encoding='utf-8')
     command = [str(ROOT / 'bin/tests.exe'), '--gtest_filter=' + args.filter,
                '--gtest_output=xml:' + str(out / 'tests.xml')]
@@ -94,6 +103,8 @@ def main():
               and counts.get('errors', '0') == '0' and not diagnostics
               and tree is not None and not tree.findall('.//skipped'))
     summary = dict(status='pass' if passed else 'fail', validationDiagnostics=diagnostics,
+                   quickPipelineCompile=args.quick_pipeline_compile,
+                   worldGpuProfile=args.world_gpu_profile,
                    exitCode=code, failure=failure, counts=counts, buildReceiptSha256=sha(receipt_path),
                    runnerSha256=sha(Path(__file__)), command=command, artifactSha256=inputs,
                    corpusSha256=corpus_hashes, corpusUnchanged=corpus_unchanged,

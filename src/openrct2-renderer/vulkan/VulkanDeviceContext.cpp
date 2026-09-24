@@ -10,13 +10,16 @@
 #ifdef ENABLE_VULKAN
     #include "VulkanDeviceContext.h"
 
+    #include "VulkanPipelineCacheData.h"
     #include "VulkanShader.h"
 
     #include <algorithm>
     #include <array>
     #include <cstring>
+    #include <fstream>
     #include <openrct2-renderer/gpu/GpuAtlas.h>
     #include <openrct2-renderer/gpu/GpuCommandStream.h>
+    #include <openrct2/core/Console.hpp>
     #include <stdexcept>
     #include <utility>
 
@@ -94,6 +97,90 @@ namespace OpenRCT2::Ui::Vulkan
         DestroyLogicalDevice();
         if (_instance != VK_NULL_HANDLE)
             vkDestroyInstance(_instance, nullptr);
+    }
+
+    void DeviceContext::LoadPipelineCache(const std::filesystem::path& directory) noexcept
+    {
+        if (directory.empty() || !_pipelineCachePath.empty())
+            return;
+        try
+        {
+            const auto lock = LockPipelineCache();
+            VkPhysicalDeviceProperties device{};
+            vkGetPhysicalDeviceProperties(_physicalDevice, &device);
+            std::string key = std::to_string(device.vendorID) + "-" + std::to_string(device.deviceID) + "-"
+                + std::to_string(device.driverVersion) + "-";
+            constexpr char hex[] = "0123456789abcdef";
+            for (auto byte : device.pipelineCacheUUID)
+            {
+                key += hex[byte >> 4];
+                key += hex[byte & 15];
+            }
+            _pipelineCachePath = directory / (key + ".bin");
+            std::ifstream input(_pipelineCachePath, std::ios::binary | std::ios::ate);
+            if (!input)
+            {
+                Console::WriteLine("Vulkan pipeline cache: cold start (no compatible cache)");
+                return;
+            }
+            const auto size = static_cast<std::streamoff>(input.tellg());
+            if (size < 0 || static_cast<uint64_t>(size) > kMaximumPipelineCacheBytes + sizeof(PipelineCacheFileHeader))
+                throw std::runtime_error("invalid cache size");
+            std::vector<std::byte> file(static_cast<size_t>(size));
+            input.seekg(0);
+            if (!input.read(reinterpret_cast<char*>(file.data()), static_cast<std::streamsize>(file.size())))
+                throw std::runtime_error("incomplete cache read");
+            const auto payload = DecodePipelineCacheFile(file, device);
+            if (payload.empty())
+                throw std::runtime_error("incompatible or damaged cache");
+            VkPipelineCache loaded{};
+            const VkPipelineCacheCreateInfo info{ .sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO,
+                                                  .initialDataSize = payload.size(),
+                                                  .pInitialData = payload.data() };
+            const auto result = vkCreatePipelineCache(_device, &info, nullptr, &loaded);
+            if (result != VK_SUCCESS)
+                throw std::runtime_error("driver rejected cache");
+            const auto merge = vkMergePipelineCaches(_device, _pipelineCache, 1, &loaded);
+            vkDestroyPipelineCache(_device, loaded, nullptr);
+            CheckVk(merge, "merge persisted pipeline cache");
+            Console::WriteLine("Vulkan pipeline cache: loaded %zu bytes", payload.size());
+        }
+        catch (const std::exception& error)
+        {
+            Console::WriteLine("Vulkan pipeline cache ignored: %s", error.what());
+        }
+    }
+
+    void DeviceContext::SavePipelineCache() noexcept
+    {
+        if (_pipelineCachePath.empty() || _device == VK_NULL_HANDLE)
+            return;
+        try
+        {
+            const auto lock = LockPipelineCache();
+            size_t size{};
+            CheckVk(vkGetPipelineCacheData(_device, _pipelineCache, &size, nullptr), "query pipeline cache size");
+            if (size > kMaximumPipelineCacheBytes)
+                throw std::runtime_error("pipeline cache exceeds file limit");
+            std::vector<std::byte> payload(size);
+            CheckVk(vkGetPipelineCacheData(_device, _pipelineCache, &size, payload.data()), "read pipeline cache");
+            payload.resize(size);
+            VkPhysicalDeviceProperties device{};
+            vkGetPhysicalDeviceProperties(_physicalDevice, &device);
+            const auto file = EncodePipelineCacheFile(payload, device);
+            if (file.empty())
+                throw std::runtime_error("invalid driver cache header");
+            std::filesystem::create_directories(_pipelineCachePath.parent_path());
+            // A truncated/concurrent write is safely rejected by the bounded header and digest on the next launch.
+            std::ofstream output(_pipelineCachePath, std::ios::binary | std::ios::trunc);
+            if (!output.write(reinterpret_cast<const char*>(file.data()), static_cast<std::streamsize>(file.size())))
+                throw std::runtime_error("cannot save pipeline cache");
+            Console::WriteLine("Vulkan pipeline cache: saved %zu bytes", payload.size());
+        }
+        catch (const std::exception& error)
+        {
+            Console::WriteLine("Vulkan pipeline cache save skipped: %s", error.what());
+        }
     }
 
     VkSurfaceKHR DeviceContext::CreateCompatibleSurface(PresentationHost& host)
@@ -286,6 +373,7 @@ namespace OpenRCT2::Ui::Vulkan
         const auto extensions = GetDeviceExtensions(_physicalDevice);
         VkPhysicalDeviceFeatures features{};
         features.multiDrawIndirect = VK_TRUE;
+        features.fragmentStoresAndAtomics = VK_TRUE;
         const VkDeviceCreateInfo deviceInfo = {
             .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
             .queueCreateInfoCount = queueCount,
@@ -403,7 +491,7 @@ namespace OpenRCT2::Ui::Vulkan
         vkGetPhysicalDeviceProperties(device, &properties);
         VkPhysicalDeviceFeatures features{};
         vkGetPhysicalDeviceFeatures(device, &features);
-        if (properties.apiVersion < VK_API_VERSION_1_1
+        if (properties.apiVersion < VK_API_VERSION_1_1 || !features.fragmentStoresAndAtomics
             || properties.limits.maxImageDimension2D < static_cast<uint32_t>(Gpu::kAtlasDimension)
             || properties.limits.maxImageArrayLayers < Gpu::kAtlasLayers
             || !Gpu::AreWorldSurfaceComputeLimitsSufficient(

@@ -20,6 +20,7 @@ layout(push_constant) uniform WorldSurfaceConstants
     uint phase;
     uint transparentWater; uint outputCapacity;
     uint sourceTick; uint clockMinute; uint clockHour;
+    uint viewFlags;
 } uCamera;
 
 struct SpriteAssetDescriptor
@@ -44,6 +45,7 @@ layout(location = 6) in uint vEffects;
 layout(location = 7) in int vDepth;
 layout(location = 8) in int vZoom;
 layout(location = 9) in int vCoordinateShift;
+layout(location = 10) in ivec2 vColumnClip;
 
 layout(location = 0) flat out ivec2 fPosition;
 layout(location = 1) flat out int fFlags;
@@ -66,6 +68,8 @@ int inverseZoom(int value, int zoom)
     return zoom < 0 ? value << -zoom : value >> zoom;
 }
 
+layout(location = 9) flat out uint fOrder;
+
 void main()
 {
     ivec2 adjusted = vWorld.xy;
@@ -84,6 +88,10 @@ void main()
     else if (uCamera.rotation == 3)
         rotated = ivec2(-adjusted.y, adjusted.x);
     ivec2 projected = ivec2(rotated.y - rotated.x, ((rotated.x + rotated.y) >> 1) - vWorld.z);
+    if((vValid&16)!=0 && uCamera.zoom>=1) {
+        int mask=uCamera.zoom>=2?3:1;
+        projected &= ivec2(~mask);
+    }
     ivec2 fullProjected = projected;
     for (int i = 0; i < vCoordinateShift; i++)
         projected /= 2;
@@ -114,15 +122,18 @@ void main()
             vZoom,vCoordinateShift,uCamera.zoom,ivec4(uCamera.view,uCamera.clip.zw-uCamera.clip.xy),uCamera.clip.xy);
         bounds = geometry.bounds;
     }
-    bool visible = vValid != 0 && (!originalPathGeometry || geometry.visible != 0u) && bounds.x < uCamera.clip.z && bounds.y < uCamera.clip.w
+    bool visible = (vValid & 1) != 0 && (!originalPathGeometry || geometry.visible != 0u) && bounds.x < uCamera.clip.z && bounds.y < uCamera.clip.w
         && bounds.z > uCamera.clip.x && bounds.w > uCamera.clip.y;
     visible = visible && (((vEffects & 0x700u) != 0u) == (uCamera.phase == 4u));
     ivec2 corners[4] = ivec2[](ivec2(0, 0), ivec2(1, 0), ivec2(0, 1), ivec2(1, 1));
     vec2 position = visible
         ? mix(vec2(bounds.xy), vec2(bounds.zw), vec2(corners[gl_VertexIndex]))
         : vec2(-2.0 * vec2(uCamera.screen));
-    if (visible)
-        position = clamp(position, vec2(uCamera.clip.xy), vec2(uCamera.clip.zw));
+    if (visible) {
+        ivec4 clip=uCamera.clip;
+        if((vValid&8)!=0) { clip.x=max(clip.x,vColumnClip.x);clip.z=min(clip.z,vColumnClip.y); }
+        position=clamp(position,vec2(clip.xy),vec2(clip.zw));
+    }
     vec2 ndc = (position * (2.0 / vec2(uCamera.screen))) - 1.0;
     gl_Position = vec4(ndc, 1.0 - (float(vDepth) + 1.0) * DEPTH_INCREMENT, 1.0);
 
@@ -131,6 +142,7 @@ void main()
     ivec2 texelOffset = originalPathGeometry ? geometry.texelOffset : ivec2(xModifier,texelY);
     vec4 texture = vec4(vec2(asset.atlasOrigin + texelOffset), ATLAS_DIMENSION, ATLAS_DIMENSION);
     fPosition = bounds.xy;
+    fOrder = uint(vDepth);
     fFlags = int(vEffects & 0xffffu);
     fColour = (vEffects >> 16u) & 0xffu;
     fTexColour = texture;

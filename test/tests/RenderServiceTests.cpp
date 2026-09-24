@@ -23,11 +23,15 @@
     #include <vector>
     #include <openrct2-renderer/vulkan/VulkanDeviceContext.h>
     #include <openrct2/Context.h>
+    #include <openrct2/GameState.h>
     #include <openrct2/PlatformEnvironment.h>
     #include <openrct2/SpriteIds.h>
     #include <openrct2/drawing/Drawing.Sprite.h>
     #include <openrct2/drawing/G1Element.h>
     #include <openrct2/drawing/IDrawingContext.h>
+    #include <openrct2/drawing/PresentationGeneration.h>
+    #include <openrct2/entity/EntityPresentationSnapshot.h>
+    #include <openrct2/world/MapPresentationSnapshot.h>
     #ifdef ENABLE_SCRIPTING
         #include <openrct2/scripting/ScriptEngine.h>
     #endif
@@ -550,6 +554,122 @@ TEST_F(RenderServiceProductionRecordingTest, RecordsFiveSpriteSizeClassesWithout
     service->Shutdown();
     EXPECT_FALSE(owner->IsCreated());
 }
+TEST_F(RenderServiceProductionRecordingTest, NativeWorldJobsRetainRevisionsAndRetireBeforeForegroundReuse)
+{
+    using namespace OpenRCT2;
+    const auto image = SPR_TEMP_BEGIN;
+    const auto original = *GfxGetG1Element(image);
+    struct RestoreSprite
+    {
+        ImageIndex image;
+        G1Element original;
+        ~RestoreSprite() { GfxSetG1Element(image, &original); }
+    } restore{ image, original };
+    std::array<uint8_t, 4> pixels{ 41, 42, 43, 44 };
+    const G1Element sprite{ .offset = pixels.data(), .width = 2, .height = 2 };
+    GfxSetG1Element(image, &sprite);
+    auto owner = std::make_shared<Ui::Vulkan::DeviceContextOwner>(false);
+    auto service = Renderer::CreateConfiguredRenderServiceFactory(owner)->Create();
+    auto request = Request();
+    request.name = "native-world-service-lifecycle";
+    request.logicalExtent = request.outputExtent = { 32, 32 };
+    request.rgbaOutput = false;
+    request.clearIndex = 10;
+
+    auto materials = std::make_shared<TerrainPresentationMaterials>();
+    materials->revision = GetTerrainObjectRevision();
+    materials->surfaces[0] = { .imageBase = image, .imageCount = 1, .supported = true };
+    auto entities = std::make_shared<EntityPresentationSnapshot>();
+    entities->CaptureNativeStorage(getGameState().entities, {}, {});
+    std::shared_ptr<MapPresentationSnapshot> map;
+    const auto generation = [&](int32_t height) {
+        MapPresentationChangeBatch batch;
+        batch.epoch = 8111;
+        batch.reset = map == nullptr;
+        batch.profile = MapPublicationProfile::rawTerrain;
+        batch.surfaceWidth = batch.surfaceHeight = 1;
+        batch.sourceTick = entities->GetSourceTick();
+        batch.terrainMaterials = materials;
+        MapPresentationTileChange change;
+        change.index = change.surfaceIndex = 0;
+        change.surface.baseZ = static_cast<uint16_t>(height);
+        change.surface.valid = 1;
+        change.surface.terrain = { .baseZ = height, .kind = 1, .present = 1 };
+        batch.changes.push_back(change);
+        map = map ? std::make_shared<MapPresentationSnapshot>(*map) : std::make_shared<MapPresentationSnapshot>();
+        map->Apply(batch);
+        return std::make_shared<const PresentationGeneration>(PresentationGeneration{
+            .map = map, .entities = entities, .sourceTick = batch.sourceTick,
+            .sourceEntityEpoch = entities->GetSourceEpoch() });
+    };
+    const OrthographicCamera camera{ .viewX = -8, .viewY = -16, .clipRight = 32, .clipBottom = 32 };
+    const auto record = [&](IRenderSession& session, const auto& scene) {
+        auto& drawing = session.GetDrawingContext();
+        const auto categories = drawing.DrawWorldScene(session.GetRenderTarget(), scene, camera);
+        EXPECT_TRUE(categories.completeTerrainScene);
+        EXPECT_TRUE(categories.surfaces);
+        drawing.SealWorldScene(categories);
+    };
+    const auto expected = [&](int y, std::array<uint8_t, 4> values) {
+        std::vector<std::byte> bytes(32 * 32, std::byte{ 10 });
+        for (int row = 0; row < 2; ++row)
+            for (int column = 0; column < 2; ++column)
+                bytes[(y + row) * 32 + 8 + column] = std::byte{ values[row * 2 + column] };
+        return bytes;
+    };
+
+    // Bitmap-only startup must not prevent later native world work in the same domain.
+    auto bitmap = service->TryBeginOffscreen(request);
+    ASSERT_NE(bitmap, nullptr);
+    EXPECT_EQ(service->TryBeginOffscreen(request), nullptr);
+    EXPECT_THROW(service->BeginOffscreen(request), RenderServiceException); // Nested recording cannot wait on itself.
+    auto firstBitmap = bitmap->Submit();
+    // Foreground admission is safe whether the previous GPU job has finished or is still running.
+    auto first = service->BeginOffscreen(request);
+    EXPECT_FALSE(firstBitmap->Wait(0ms).error.has_value());
+    const auto initial = generation(0);
+    record(*first, initial);
+    const auto held = first->Submit()->Wait(120s);
+    ASSERT_FALSE(held.error.has_value());
+    ASSERT_NE(held.result, nullptr);
+    EXPECT_EQ(held.result->indexed, expected(16, { 41, 42, 43, 44 }));
+    EXPECT_TRUE(owner->IsCreated());
+
+    auto second = service->BeginOffscreen(request);
+    const auto moved = generation(8); // Same epoch: restarted per-session GPU revision counters would miss this change.
+    EXPECT_EQ(initial->map->GetEpoch(), moved->map->GetEpoch());
+    record(*second, moved);
+    auto secondCompletion = second->Submit();
+    auto third = service->BeginOffscreen(request); // Also proves native status retired before this slot is reused.
+    const auto changed = secondCompletion->Wait(0ms);
+    ASSERT_FALSE(changed.error.has_value());
+    ASSERT_NE(changed.result, nullptr);
+    EXPECT_EQ(changed.result->indexed, expected(8, { 41, 42, 43, 44 }));
+    pixels = { 51, 52, 53, 54 };
+    service->InvalidateImage(image);
+    record(*third, moved);
+    const auto recoloured = third->Submit()->Wait(120s);
+    ASSERT_FALSE(recoloured.error.has_value());
+    ASSERT_NE(recoloured.result, nullptr);
+    EXPECT_EQ(recoloured.result->indexed, expected(8, { 51, 52, 53, 54 }));
+    EXPECT_EQ(held.result->indexed, expected(16, { 41, 42, 43, 44 }));
+
+    auto cancelled = service->BeginOffscreen(request);
+    record(*cancelled, generation(16));
+    cancelled->Cancel();
+    auto retry = service->BeginOffscreen(request);
+    record(*retry, initial);
+    auto delivery = retry->Submit();
+    delivery->Cancel(); // Delivery cancellation must not free the domain before the submitted frame retires.
+    auto foreground = service->BeginOffscreen(request);
+    record(*foreground, moved);
+    const auto final = foreground->Submit()->Wait(120s);
+    ASSERT_FALSE(final.error.has_value());
+    ASSERT_NE(final.result, nullptr);
+    EXPECT_EQ(final.result->indexed, expected(8, { 51, 52, 53, 54 }));
+    service->Shutdown();
+}
+
 TEST_F(RenderServiceProductionRecordingTest, WorkerInvalidationAfterBeginRefreshesFirstSpriteUse)
 {
     using namespace OpenRCT2;

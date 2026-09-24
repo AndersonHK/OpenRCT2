@@ -61,6 +61,7 @@
 #include "drawing/PickupPeep.h"
 #include "drawing/PresentationGeneration.h"
 #include "drawing/RenderService.h"
+#include "entity/EntityList.h"
 #include "entity/EntityTweener.h"
 #include "entity/PatrolArea.h"
 #include "interface/Chat.h"
@@ -81,6 +82,7 @@
 #include "profiling/Profiling.h"
 #include "rct2/RCT2.h"
 #include "ride/TrackDesignRepository.h"
+#include "ride/Vehicle.h"
 #include "scenario/Scenario.h"
 #include "scenario/ScenarioRepository.h"
 #include "scenes/SceneManager.h"
@@ -97,10 +99,12 @@
 #include <array>
 #include <chrono>
 #include <cmath>
+#include <cstdlib>
 #include <exception>
 #include <memory>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -275,6 +279,9 @@ namespace OpenRCT2
         Drawing::RenderUploadTotals _benchmarkUploads{};
         std::vector<double> _benchmarkFrameIntervalsMilliseconds;
         std::vector<Drawing::FrameTimings> _benchmarkRendererTimingScratch;
+        std::optional<Drawing::FramePresentationCounters> _benchmarkInitialPresentationCounters;
+        BenchmarkPresentationPacing _benchmarkPresentationPacing;
+        uint64_t _benchmarkAcceptedTimestampSamples = 0;
         bool _benchmarkFailed{};
 
         enum class BenchmarkWorkPhase : size_t
@@ -1649,6 +1656,11 @@ namespace OpenRCT2
                     _benchmarkUploads.Include(*timings.uploadTelemetry);
                 if (timings.telemetryOnly)
                     continue;
+                if (timings.acceptedPresentNanoseconds)
+                {
+                    ++_benchmarkAcceptedTimestampSamples;
+                    _benchmarkPresentationPacing.Include(*timings.acceptedPresentNanoseconds);
+                }
                 _benchmarkRenderer.rendererSamples++;
                 _benchmarkRenderer.submitMicroseconds += timings.cpuSubmitMicroseconds;
                 _benchmarkRenderer.presentMicroseconds += timings.cpuPresentMicroseconds;
@@ -1686,6 +1698,7 @@ namespace OpenRCT2
             _benchmarkTickWindowCount = 0;
             _benchmarkInitialLogicalTicks = gTotalSimulationTicks;
             _benchmarkRenderer = {};
+            _benchmarkAcceptedTimestampSamples = 0;
             _benchmarkUploads = {};
             _benchmarkMessagePumps = 0;
             _benchmarkUiFrames = 0;
@@ -1696,6 +1709,7 @@ namespace OpenRCT2
             {
                 _drawingEngine->DrainFrameTimings(_benchmarkRendererTimingScratch);
                 _benchmarkRendererTimingScratch.clear();
+                _benchmarkInitialPresentationCounters = _drawingEngine->GetFramePresentationCounters();
             }
             catch (const std::exception& e)
             {
@@ -1709,6 +1723,8 @@ namespace OpenRCT2
             _timer.Restart();
             _nextPresentationDeadline = IntegratedBenchmarkClock::now();
             _benchmarkPhaseStart = IntegratedBenchmarkClock::now();
+            _benchmarkPresentationPacing.Reset(static_cast<uint64_t>(
+                std::chrono::duration_cast<std::chrono::nanoseconds>(_benchmarkPhaseStart.time_since_epoch()).count()));
             _benchmarkPhase = IntegratedBenchmarkPhase::measurement;
             if (!gIntegratedBenchmark.profilePath.empty())
             {
@@ -1722,6 +1738,117 @@ namespace OpenRCT2
                 Console::WriteLine("Measuring integrated UI for %d seconds...", gIntegratedBenchmark.measurementSeconds);
         }
 
+        void PrintIntegratedBenchmarkPresentationCounters(
+            const std::optional<Drawing::FramePresentationCounters>& atEnd,
+            const std::optional<Drawing::FramePresentationCounters>& afterDrain, uint64_t rendererSamplesAtEnd,
+            uint64_t gpuSamplesAtEnd)
+        {
+            using Counters = Drawing::FramePresentationCounters;
+            json_t report{ { "schema", 1 },
+                           { "available", false },
+                           { "displayedFramesAvailable", false },
+                           { "elapsedSeconds", _benchmarkTotals.elapsedSeconds },
+                           { "drawAttempts", _benchmarkTotals.draws },
+                           { "drawAttemptFPS", _benchmarkTotals.draws / _benchmarkTotals.elapsedSeconds },
+                           { "rendererTimingSamples", _benchmarkRenderer.rendererSamples },
+                           { "gpuTimingSamples", _benchmarkRenderer.gpuSamples },
+                           { "lateRendererTimingSamples", _benchmarkRenderer.rendererSamples - rendererSamplesAtEnd },
+                           { "lateGpuTimingSamples", _benchmarkRenderer.gpuSamples - gpuSamplesAtEnd },
+                           { "presentMeaning", "Queue presentation accepted; not compositor/display scanout" } };
+            json_t pacing{ { "available", false },
+                           { "cohortTimestampSamples", _benchmarkAcceptedTimestampSamples },
+                           { "timestampSamples", _benchmarkPresentationPacing.Samples() },
+                           { "intervals", _benchmarkPresentationPacing.Intervals() },
+                           { "binWidthMicroseconds", 100 },
+                           { "percentilesAreUpperBounds", true },
+                           { "histogramLimitMilliseconds", 1000 },
+                           { "overflowIntervals", _benchmarkPresentationPacing.OverflowIntervals() },
+                           { "outOfOrderSamples", _benchmarkPresentationPacing.OutOfOrderSamples() },
+                           { "scope", "Accepted present timestamps inside measurement; excludes warmup and drain work" } };
+            if (_benchmarkInitialPresentationCounters && atEnd && afterDrain)
+            {
+                constexpr std::pair<const char*, uint64_t Counters::*> fields[] = {
+                    { "publishedVisualPackets", &Counters::publishedVisualPackets },
+                    { "supersededVisualPackets", &Counters::supersededVisualPackets },
+                    { "unavailableVisualPackets", &Counters::unavailableVisualPackets },
+                    { "discardedVisualPackets", &Counters::discardedVisualPackets },
+                    { "visualFrameSubmissions", &Counters::visualFrameSubmissions },
+                    { "presentRequests", &Counters::presentRequests },
+                    { "presentAccepted", &Counters::presentAccepted },
+                    { "presentOutOfDate", &Counters::presentOutOfDate },
+                    { "fenceCompletedFrames", &Counters::fenceCompletedFrames },
+                    { "lostTimingSamples", &Counters::lostTimingSamples },
+                };
+                const auto& initial = *_benchmarkInitialPresentationCounters;
+                bool monotonic = true;
+                for (const auto& [name, member] : fields)
+                {
+                    monotonic &= (*atEnd).*member >= initial.*member && (*afterDrain).*member >= (*atEnd).*member;
+                }
+                if (monotonic)
+                {
+                    report["available"] = true;
+                    for (const auto& [name, member] : fields)
+                    {
+                        report["intervalEnd"][name] = (*atEnd).*member - initial.*member;
+                        report["afterDrain"][name] = (*afterDrain).*member - initial.*member;
+                    }
+                    const auto intervalSubmissions = atEnd->visualFrameSubmissions - initial.visualFrameSubmissions;
+                    const auto intervalPresents = atEnd->presentAccepted - initial.presentAccepted;
+                    const auto drainedSubmissions = afterDrain->visualFrameSubmissions - initial.visualFrameSubmissions;
+                    const auto drainedPresents = afterDrain->presentAccepted - initial.presentAccepted;
+                    report["intervalSubmissionFPS"] = intervalSubmissions / _benchmarkTotals.elapsedSeconds;
+                    report["intervalAcceptedPresentFPS"] = intervalPresents / _benchmarkTotals.elapsedSeconds;
+                    report["drainedSubmissionFPS"] = drainedSubmissions / _benchmarkTotals.elapsedSeconds;
+                    report["drainedAcceptedPresentFPS"] = drainedPresents / _benchmarkTotals.elapsedSeconds;
+                    report["lateSubmissions"] = drainedSubmissions - intervalSubmissions;
+                    report["lateAcceptedPresents"] = drainedPresents - intervalPresents;
+                    report["lateFenceCompletions"] = afterDrain->fenceCompletedFrames - atEnd->fenceCompletedFrames;
+                    const auto lostSamples = afterDrain->lostTimingSamples - initial.lostTimingSamples;
+                    pacing["cohortAcceptedPresents"] = drainedPresents;
+                    if (lostSamples == 0 && _benchmarkPresentationPacing.OutOfOrderSamples() == 0
+                        && _benchmarkPresentationPacing.Intervals() != 0
+                        && _benchmarkAcceptedTimestampSamples == drainedPresents)
+                    {
+                        pacing["available"] = true;
+                        const auto percentile = [this](uint32_t percent) -> json_t {
+                            const auto value = _benchmarkPresentationPacing.PercentileUpperMilliseconds(percent);
+                            return value ? json_t(*value) : json_t(nullptr);
+                        };
+                        pacing["p50Ms"] = percentile(50);
+                        pacing["p95Ms"] = percentile(95);
+                        pacing["p99Ms"] = percentile(99);
+                        pacing["maxMs"] = _benchmarkPresentationPacing.MaximumMilliseconds();
+                    }
+                    else
+                    {
+                        pacing["unavailableReason"] = "Missing, lost, out-of-order or insufficient accepted-present timestamps";
+                    }
+                    Console::WriteLine(
+                        "  submitted / FPS:    %llu / %.3f (before drain)",
+                        static_cast<unsigned long long>(intervalSubmissions),
+                        intervalSubmissions / _benchmarkTotals.elapsedSeconds);
+                    Console::WriteLine(
+                        "  accepted presents:  %llu / %.3f FPS (before drain; not measured scanout)",
+                        static_cast<unsigned long long>(intervalPresents), intervalPresents / _benchmarkTotals.elapsedSeconds);
+                    Console::WriteLine(
+                        "  drained frames:     %llu submissions / %llu accepted presents / %llu fence completions",
+                        static_cast<unsigned long long>(drainedSubmissions), static_cast<unsigned long long>(drainedPresents),
+                        static_cast<unsigned long long>(afterDrain->fenceCompletedFrames - initial.fenceCompletedFrames));
+                }
+                else
+                {
+                    report["unavailableReason"] = "Renderer lifetime counters reset during measurement";
+                }
+            }
+            else
+            {
+                report["unavailableReason"] = "Renderer does not expose presentation counters";
+            }
+            report["acceptedPresentIntervals"] = std::move(pacing);
+            Console::WriteLine("Frame presentation v1: %s", report.dump().c_str());
+        }
+
         void FinishIntegratedBenchmarkMeasurement(IntegratedBenchmarkClock::time_point now)
         {
             if (!gIntegratedBenchmark.profilePath.empty())
@@ -1729,6 +1856,11 @@ namespace OpenRCT2
             _benchmarkPhase = IntegratedBenchmarkPhase::complete;
             _benchmarkTotals.elapsedSeconds = std::chrono::duration<double>(now - _benchmarkPhaseStart).count();
             _benchmarkTotals.logicalTicks = gTotalSimulationTicks - _benchmarkInitialLogicalTicks;
+            _benchmarkPresentationPacing.SetEnd(
+                static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count()));
+            const auto presentationAtEnd = _drawingEngine->GetFramePresentationCounters();
+            const auto rendererSamplesAtEnd = _benchmarkRenderer.rendererSamples;
+            const auto gpuSamplesAtEnd = _benchmarkRenderer.gpuSamples;
             // The wait and harvest occur outside elapsed/draw timing, but include every frame submitted during measurement.
             try
             {
@@ -1743,6 +1875,7 @@ namespace OpenRCT2
                 FailIntegratedBenchmark(message.c_str());
                 return;
             }
+            const auto presentationAfterDrain = _drawingEngine->GetFramePresentationCounters();
             const auto metrics = CalculateIntegratedBenchmarkMetrics(_benchmarkTotals);
             const auto finalState = CaptureBenchmarkStateSnapshot();
             const auto checksum = getGameState().entities.getAllEntitiesChecksum().toString();
@@ -1766,6 +1899,8 @@ namespace OpenRCT2
             Console::WriteLine(
                 "  draws / FPS:        %llu / %.3f", static_cast<unsigned long long>(_benchmarkTotals.draws),
                 metrics.framesPerSecond);
+            PrintIntegratedBenchmarkPresentationCounters(
+                presentationAtEnd, presentationAfterDrain, rendererSamplesAtEnd, gpuSamplesAtEnd);
             Console::WriteLine(
                 "  message / window:  %llu pumps / %llu updates (%.3f / %.3f Hz)",
                 static_cast<unsigned long long>(_benchmarkMessagePumps), static_cast<unsigned long long>(_benchmarkUiFrames),
@@ -1996,6 +2131,70 @@ namespace OpenRCT2
                         FailIntegratedBenchmark(
                             "Integrated UI benchmark cannot start while a modal or saving pause is active.");
                         return;
+                    }
+                    const auto* secondaryPreview = std::getenv("OPENRCT2_BENCHMARK_SECONDARY_VEHICLE");
+                    if (secondaryPreview != nullptr && std::string_view(secondaryPreview) == "1")
+                    {
+                        const auto checksum = getGameState().entities.getAllEntitiesChecksum().toString();
+                        Vehicle* selected = nullptr;
+                        for (auto* vehicle : EntityList<Vehicle>())
+                        {
+                            if (vehicle->x != kLocationNull && !vehicle->ride.IsNull())
+                            {
+                                selected = vehicle;
+                                break;
+                            }
+                        }
+                        if (selected == nullptr)
+                        {
+                            FailIntegratedBenchmark("Secondary viewport benchmark has no eligible vehicle.");
+                            return;
+                        }
+                        auto intent = Intent(WindowDetail::vehicle);
+                        intent.PutExtra(INTENT_EXTRA_VEHICLE, selected);
+                        auto* window = ContextOpenIntent(&intent);
+                        if (window == nullptr || window->viewport == nullptr
+                            || getGameState().entities.getAllEntitiesChecksum().toString() != checksum)
+                        {
+                            FailIntegratedBenchmark("Secondary viewport benchmark setup failed or changed entity state.");
+                            return;
+                        }
+                        Console::WriteLine(
+                            "Secondary viewport benchmark v1: ride=%u entity=%u tick=%u checksum=%s width=%d height=%d "
+                            "flags=%u",
+                            selected->ride.ToUnderlying(), selected->id.ToUnderlying(), getGameState().currentTicks,
+                            checksum.c_str(), window->viewport->width, window->viewport->height, window->viewport->flags);
+                    }
+                    const auto* undergroundView = std::getenv("OPENRCT2_BENCHMARK_UNDERGROUND_VIEW");
+                    if (undergroundView != nullptr && std::string_view(undergroundView) == "1")
+                    {
+                        auto* mainWindow = WindowGetMain();
+                        if (mainWindow == nullptr || mainWindow->viewport == nullptr)
+                        {
+                            FailIntegratedBenchmark("Underground viewport benchmark has no main viewport.");
+                            return;
+                        }
+                        auto& viewport = *mainWindow->viewport;
+                        const auto before = viewport;
+                        const auto tick = getGameState().currentTicks;
+                        const auto checksum = getGameState().entities.getAllEntitiesChecksum().toString();
+                        // Keep contextual secondary viewports on their ordinary flags. This only changes the main view.
+                        viewport.flags |= VIEWPORT_FLAG_UNDERGROUND_INSIDE;
+                        viewport.Invalidate();
+                        if (viewport.viewPos != before.viewPos || viewport.pos != before.pos || viewport.zoom != before.zoom
+                            || viewport.rotation != before.rotation || viewport.width != before.width
+                            || viewport.height != before.height || getGameState().currentTicks != tick
+                            || getGameState().entities.getAllEntitiesChecksum().toString() != checksum)
+                        {
+                            FailIntegratedBenchmark("Underground viewport benchmark setup changed camera or entity state.");
+                            return;
+                        }
+                        Console::WriteLine(
+                            "Underground viewport benchmark v1: tick=%u checksum=%s flagsBefore=%u flagsAfter=%u "
+                            "viewX=%d viewY=%d width=%d height=%d zoom=%d rotation=%u",
+                            tick, checksum.c_str(), before.flags, viewport.flags, viewport.viewPos.x, viewport.viewPos.y,
+                            viewport.width, viewport.height, static_cast<int8_t>(viewport.zoom),
+                            static_cast<unsigned>(viewport.rotation));
                     }
                     // This is process-local benchmark setup, not an in-game command or replay event.
                     gGameSpeed = kGameSpeedTurbo;

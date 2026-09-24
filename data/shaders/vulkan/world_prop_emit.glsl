@@ -78,7 +78,7 @@ void visitProp(uint index,uvec2 tile,uint destination,bool writeRecords,inout ui
         recipe[parentCount++]=i;
     }
     WorldPathOrder order; order.count=0;
-    if(writeRecords && parentCount>1) order=worldPathOrder(parents,parentCount,int(uScene.rotation));
+    // Common GPU columns arrange original creation order.
     for(int ordinal=0;ordinal<parentCount;ordinal++) {
         int selected=order.count==parentCount?order.indices[ordinal]:ordinal;
         int begin=recipe[selected];
@@ -93,6 +93,8 @@ void visitProp(uint index,uvec2 tile,uint destination,bool writeRecords,inout ui
                 effects=1024u;
                 palettes=uProps.words[8u]+(object.kind==0u?(object.colours&255u):(colours&255u));
             }
+            worldSetPaintBounds(tile,ivec3(part.boundsX,part.boundsY,object.baseZ+part.boundsZ),
+                ivec3(part.sizeX,part.sizeY,part.sizeZ),i==begin?0u:1u);
             emitObjectSprite(tile,object.baseZ+part.z,ivec2(part.x,part.y),spriteBase+uint(part.imageOffset),
                 palettes,effects,destination,writeRecords,count);
         }

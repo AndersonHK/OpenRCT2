@@ -1,0 +1,360 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_control_flow_attributes : require
+#include "terrain_sprite_geometry.glsl"
+// One invocation owns one original 32-world-unit paint column. The linked
+// arranger is the terrain_columns implementation, with a shared bounded arena
+// rather than a fixed 8192-node allocation for every viewport column.
+layout(local_size_x=1) in;
+layout(constant_id=0) const bool PROFILE_BOUNDS=false;
+const uint CAPACITY=1048576u,QUADRANTS=2002u,MAX_COLUMNS=8192u;
+const uint TILE_RANGES=CAPACITY*12u,COLUMN_WORDS=CAPACITY*7u;
+struct SpriteVariant { ivec2 spriteSize;ivec2 spriteOffset;uint asset;int zoom;int coordinateShift;int valid; };
+struct SpriteSet { SpriteVariant variants[6];uint palettes;uint effects; };
+struct OutputRecord { ivec3 world;int valid;ivec2 spriteSize;ivec2 spriteOffset;uint asset;uint palettes;uint effects;int depth;int zoom;int coordinateShift;ivec2 reserved; };
+struct DrawIndirectCommand { uint vertexCount;uint instanceCount;uint firstVertex;uint firstInstance; };
+layout(std430,set=0,binding=4) readonly buffer Sprites { SpriteSet records[]; } uSprites;
+layout(std430,set=0,binding=5) readonly buffer Unordered { OutputRecord records[]; } uUnordered;
+layout(std430,set=0,binding=6) buffer Commands { DrawIndirectCommand records[]; } uCommands;
+layout(std430,set=0,binding=9) buffer Status { uint emittedCount;uint capacity;uint overflow;uint reserved; } uStatus;
+layout(std430,set=0,binding=19) readonly buffer Metadata { uint words[]; } uMetadata;
+// Node words {component,groupEnd,next,quadrant|flags<<16|compact<<31, packedXY, packedZXe, packedYeZe}; then 8 words/column:
+// {nodeCount,drawCount,nodeBase,drawBase,head,error,reserved,reserved}.
+layout(std430,set=0,binding=20) buffer Workspace { uint words[]; } uWorkspace;
+layout(std430,set=0,binding=21) writeonly buffer Ordered { OutputRecord records[]; } uOrdered;
+layout(std430,set=0,binding=22) readonly buffer SelectedVehicle { uint words[]; } uSelected;
+layout(push_constant) uniform WorldSurfaceConstants {
+    ivec2 screen;ivec2 view;ivec4 clip;uint width;uint height;uint recordCount;int zoom;
+    uint rotation;uint spriteSetCount;int depthBase;uint phase;uint transparentWater;uint outputCapacity;
+    uint sourceTick;uint clockMinute;uint clockHour;uint viewFlags;
+} camera;
+shared int quadrantHeads[2002];
+uint column,columnCount,nodeCount,drawCount,nodeBase,drawBase,errorCode,backQuadrant,frontQuadrant;
+uint cachedNodes,comparisonCount;
+int head,columnLeft,columnRight;
+bool writing;
+int floorTo(int value,int interval) { int r=value%interval;return value-r-(r<0?interval:0); }
+int zoomOut(int v) { return camera.zoom<0?v<<-camera.zoom:v>>camera.zoom; }
+int zoomIn(int v) { return camera.zoom<0?v>>-camera.zoom:v<<camera.zoom; }
+uint columnAddress() { return COLUMN_WORDS+column*8u; }
+uint nodeAddress(int n) { return (nodeBase+uint(n))*7u; }
+int nextNode(int n) { return n==-2?head:int(uWorkspace.words[nodeAddress(n)+2u]); }
+void setNext(int n,int next) { if(n==-2) head=next;else uWorkspace.words[nodeAddress(n)+2u]=uint(next); }
+uint nodeFlags(int n) { return (uWorkspace.words[nodeAddress(n)+3u]>>16u)&255u; }
+uint nodeQuadrant(int n) { return uWorkspace.words[nodeAddress(n)+3u]&65535u; }
+void setFlags(int n,uint flags) { uint p=nodeAddress(n)+3u;uWorkspace.words[p]=(uWorkspace.words[p]&0x8000ffffu)|(flags<<16u); }
+bool auxiliary(uint c) { return (c&0x80000000u)!=0u; }
+uint metadata(uint c,uint field)
+{
+    return auxiliary(c)?uSelected.words[uSelected.words[5u]+(c&0x7fffffffu)*12u+field]:uMetadata.words[c*12u+field];
+}
+OutputRecord component(uint c)
+{
+    if(!auxiliary(c)) return uUnordered.records[c];
+    uint b=uSelected.words[6u]+(c&0x7fffffffu)*16u;
+    return OutputRecord(ivec3(uSelected.words[b],uSelected.words[b+1u],uSelected.words[b+2u]),int(uSelected.words[b+3u]),
+        ivec2(uSelected.words[b+4u],uSelected.words[b+5u]),ivec2(uSelected.words[b+6u],uSelected.words[b+7u]),
+        uSelected.words[b+8u],uSelected.words[b+9u],uSelected.words[b+10u],int(uSelected.words[b+11u]),
+        int(uSelected.words[b+12u]),int(uSelected.words[b+13u]),ivec2(0));
+}
+ivec3 boundBegin(uint c) { return ivec3(metadata(c,0u),metadata(c,1u),metadata(c,2u)); }
+ivec3 boundEnd(uint c) { return ivec3(metadata(c,3u),metadata(c,4u),metadata(c,5u)); }
+// Every endpoint is checked before packing. Oversized/malformed bounds retain the exact32-bit path.
+uint packPair(int a,int b) { return (uint(a)&65535u)|(uint(b)<<16u); }
+int lowSigned(uint p) { return int(p<<16u)>>16; }
+int highSigned(uint p) { return int(p)>>16; }
+void cacheNodeBounds(uint c,uint address)
+{
+    ivec3 p=boundBegin(c),e=boundEnd(c);
+    bool fits=all(greaterThanEqual(p,ivec3(-32768))) && all(lessThanEqual(p,ivec3(32767)))
+        && all(greaterThanEqual(e,ivec3(-32768))) && all(lessThanEqual(e,ivec3(32767)));
+    if(fits) {
+        uWorkspace.words[address+3u]|=0x80000000u;
+        uWorkspace.words[address+4u]=packPair(p.x,p.y);
+        uWorkspace.words[address+5u]=packPair(p.z,e.x);
+        uWorkspace.words[address+6u]=packPair(e.y,e.z);
+        if(PROFILE_BOUNDS) cachedNodes++;
+    }
+}
+void nodeBounds(int n,out ivec3 p,out ivec3 e)
+{
+    uint address=nodeAddress(n);
+    if((uWorkspace.words[address+3u]&0x80000000u)!=0u) {
+        uint a=uWorkspace.words[address+4u],b=uWorkspace.words[address+5u],c=uWorkspace.words[address+6u];
+        p=ivec3(lowSigned(a),highSigned(a),lowSigned(b));
+        e=ivec3(highSigned(b),lowSigned(c),highSigned(c));
+    } else {
+        uint c=uWorkspace.words[address];p=boundBegin(c);e=boundEnd(c);
+    }
+}
+
+uint kind(uint c) { return metadata(c,8u)&3u; }
+ivec2 project(ivec3 world)
+{
+    ivec2 p=terrainPaintTileOrigin(world.xy,camera.rotation);
+    p=terrainRotateXY(p,camera.rotation);
+    return ivec2(p.y-p.x,((p.x+p.y)>>1)-world.z);
+}
+bool imageInColumn(uint c)
+{
+    ivec2 size,offset;
+    if(auxiliary(c)) {
+        uint dimensions=metadata(c,10u),position=metadata(c,11u);
+        size=ivec2(dimensions&65535u,dimensions>>16u);
+        offset=ivec2(int(position<<16u)>>16,int(position)>>16);
+    } else {
+        uint sprite=metadata(c,7u);
+        if(sprite>=camera.spriteSetCount) { errorCode=3u;return false; }
+        size=uSprites.records[sprite].variants[2].spriteSize;
+        offset=uSprites.records[sprite].variants[2].spriteOffset;
+    }
+    ivec2 p=project(component(c).world)+offset;
+    // Full aligned column, unbounded Y, exactly as upstream ViewportRender.
+    int width=zoomOut(32),left=floorTo(columnLeft,width),right=left+width;
+    return camera.zoom<=0
+        ?zoomOut(p.x+size.x)>left && zoomOut(p.x)<right
+        :p.x+size.x>zoomIn(left) && p.x<zoomIn(right);
+}
+uint quadrant(uint c)
+{
+    ivec3 p=boundBegin(c);int hash=p.x+p.y;
+    if(camera.rotation==1u) hash=p.y-p.x+32032;
+    else if(camera.rotation==2u) hash=-(p.x+p.y)+64064;
+    else if(camera.rotation==3u) hash=p.x-p.y+32032;
+    return uint(clamp(hash/32,0,2001));
+}
+void addTile(ivec2 worldTile)
+{
+    ivec2 tile=worldTile/32;
+    if(errorCode!=0u || any(lessThan(worldTile,ivec2(0))) || tile.x>=int(camera.width) || tile.y>=int(camera.height)) return;
+    uint range=TILE_RANGES+(uint(tile.y)*camera.width+uint(tile.x))*2u;
+    uint first=uMetadata.words[range],count=uMetadata.words[range+1u];
+    if(first>uStatus.emittedCount || count>uStatus.emittedCount-first) { errorCode=1u;return; }
+    uint end=first+count;
+    [[dont_unroll]] for(uint c=first;c<end;c++) {
+        uint root=uMetadata.words[c*12u+6u];
+        if(root!=c) continue;
+        uint admitted=0xffffffffu,components=0u;
+        uint visited=0u;
+        [[dont_unroll]] for(uint part=c;part!=0xffffffffu;part=uMetadata.words[part*12u+11u]) {
+            if(part<first || part>=end || ++visited>count) { errorCode=1u;return; }
+            if(kind(part)==2u) { if(admitted!=0xffffffffu) components++; }
+            else if(imageInColumn(part)) { if(admitted==0xffffffffu) admitted=part;components++; }
+        }
+        if(admitted!=0xffffffffu) {
+            // Bound loop work before any linked-list operation. No silent truncation.
+            if(nodeCount>=8192u || components>camera.outputCapacity || drawCount>camera.outputCapacity-components) { errorCode=2u;return; }
+            if(writing) {
+                if(nodeBase+nodeCount>=CAPACITY) { errorCode=2u;return; }
+                uint q=quadrant(admitted),address=(nodeBase+nodeCount)*7u;
+                uWorkspace.words[address]=admitted;uWorkspace.words[address+1u]=count;
+                uWorkspace.words[address+2u]=uint(quadrantHeads[q]);uWorkspace.words[address+3u]=q;
+                cacheNodeBounds(admitted,address);
+                quadrantHeads[q]=int(nodeCount);backQuadrant=min(backQuadrant,q);frontQuadrant=max(frontQuadrant,q);
+            }
+            nodeCount++;drawCount+=components;
+        }
+    }
+}
+void addEntities(ivec2 worldTile)
+{
+    if(camera.zoom>2 || uSelected.words[0u]!=0x56504831u || uSelected.words[1u]!=1u || errorCode!=0u) return;
+    if(any(lessThan(worldTile,ivec2(0)))) return;
+    ivec2 tile=worldTile/32;
+    if(tile.x>=int(camera.width) || tile.y>=int(camera.height)) return;
+    uint tileIndex=uint(tile.y)*camera.width+uint(tile.x);
+    [[dont_unroll]] for(uint car=0u;car<uSelected.words[2u];car++) {
+        uint address=uSelected.words[4u]+car*12u;
+        if(uSelected.words[address+4u]!=tileIndex) continue;
+        ivec4 coarse=ivec4(uSelected.words[address+8u],uSelected.words[address+9u],uSelected.words[address+10u],uSelected.words[address+11u]);
+        for(int i=0;i<4;i++) coarse[i]=zoomOut(coarse[i]);
+        if(coarse.z<=columnLeft || coarse.x>=columnRight || coarse.w<=camera.view.y
+            || coarse.y>=camera.view.y+camera.clip.w-camera.clip.y) continue;
+        uint first=uSelected.words[address+2u],end=first+uSelected.words[address+3u];
+        [[dont_unroll]] for(uint c=first;c<end;) {
+            uint root=metadata(c|0x80000000u,6u),groupEnd=c+1u;
+            [[dont_unroll]] while(groupEnd<end && metadata(groupEnd|0x80000000u,6u)==root) groupEnd++;
+            uint admitted=0xffffffffu,components=0u;
+            [[dont_unroll]] for(uint p=c;p<groupEnd;p++) {
+                uint index=p|0x80000000u;
+                if(kind(index)>=2u) { if(admitted!=0xffffffffu) components++; }
+                else if(imageInColumn(index)) { if(admitted==0xffffffffu) admitted=index;components++; }
+            }
+            if(admitted!=0xffffffffu) {
+                if(nodeCount>=8192u || components>camera.outputCapacity || drawCount>camera.outputCapacity-components) { errorCode=2u;return; }
+                if(writing) {
+                    if(nodeBase+nodeCount>=CAPACITY) { errorCode=2u;return; }
+                    uint q=quadrant(admitted),n=(nodeBase+nodeCount)*7u;
+                    uWorkspace.words[n]=admitted;uWorkspace.words[n+1u]=groupEnd;
+                    uWorkspace.words[n+2u]=uint(quadrantHeads[q]);uWorkspace.words[n+3u]=q;
+                    cacheNodeBounds(admitted,n);
+                    quadrantHeads[q]=int(nodeCount);backQuadrant=min(backQuadrant,q);frontQuadrant=max(frontQuadrant,q);
+                }
+                nodeCount++;drawCount+=components;
+            }
+            c=groupEnd;
+        }
+    }
+}
+void generate()
+{
+    nodeCount=0u;drawCount=0u;cachedNodes=0u;comparisonCount=0u;head=-1;backQuadrant=0xffffffffu;frontQuadrant=0u;
+    if(writing) for(uint q=0u;q<QUADRANTS;q++) quadrantHeads[q]=-1;
+    int sx=floorTo(zoomIn(columnLeft),32),sy=floorTo(zoomIn(camera.view.y)-16,32);
+    uint r=(camera.rotation*3u)&3u;
+    ivec2 tile=terrainRotateXY(ivec2(sy-sx/2,sy+sx/2),r);
+    if((camera.rotation&1u)!=0u) tile.y-=16;
+    tile=ivec2(floorTo(tile.x,32),floorTo(tile.y,32));
+    ivec2 second=terrainRotateXY(ivec2(0,32),r),step=terrainRotateXY(ivec2(32),r);
+    uint vertical=uint((zoomIn(camera.clip.w-camera.clip.y)+2128)>>5);
+    [[dont_unroll]] for(uint i=0u;i<vertical && errorCode==0u;i++) {
+        addTile(tile);addEntities(tile);
+        addEntities(tile+terrainRotateXY(ivec2(-32,32),r));
+        addTile(tile+second);addEntities(tile+second);
+        addEntities(tile+terrainRotateXY(ivec2(32,0),r));tile+=step;
+    }
+    if(!writing || backQuadrant==0xffffffffu) return;
+    int tail=-2;
+    for(uint q=backQuadrant;q<=frontQuadrant;q++) {
+        int next=quadrantHeads[q];if(next==-1) continue;setNext(tail,next);
+        uint visited=0u;
+        [[dont_unroll]] while(next!=-1) {
+            if(++visited>nodeCount) { errorCode=4u;return; }
+            tail=next;next=nextNode(next);
+        }
+    }
+}
+bool intersects(ivec3 p,ivec3 e,int b)
+{
+    if(PROFILE_BOUNDS && comparisonCount!=0xffffffffu) comparisonCount++;
+    ivec3 q,f;nodeBounds(b,q,f);
+    if(camera.rotation==0u) return e.z>=q.z && e.y>=q.y && e.x>=q.x && !(p.z<f.z && p.y<f.y && p.x<f.x);
+    if(camera.rotation==1u) return e.z>=q.z && e.y>=q.y && e.x<q.x && !(p.z<f.z && p.y<f.y && p.x>=f.x);
+    if(camera.rotation==2u) return e.z>=q.z && e.y<q.y && e.x<q.x && !(p.z<f.z && p.y>=f.y && p.x>=f.x);
+    return e.z>=q.z && e.y<q.y && e.x>=q.x && !(p.z<f.z && p.y>=f.y && p.x<f.x);
+}
+int arrangeQuadrant(int start,uint q,uint flags)
+{
+    int before=start;uint budget=0u;
+    [[dont_unroll]] while(nextNode(before)!=-1 && nodeQuadrant(nextNode(before))<q) {
+        if(++budget>nodeCount) { errorCode=4u;return before; }before=nextNode(before);
+    }
+    int node=before;budget=0u;
+    [[dont_unroll]] while(nextNode(node)!=-1) {
+        if(++budget>nodeCount) { errorCode=4u;return before; }node=nextNode(node);
+        uint nq=nodeQuadrant(node);setFlags(node,nq>q+1u?128u:(nq==q+1u?3u:(nq==q?flags|1u:nodeFlags(node))));
+        if(nq>q+1u) break;
+    }
+    int cursor=before;uint visits=0u;
+    [[dont_unroll]] for(;;) {
+        int parent=cursor,child=nextNode(parent);budget=0u;
+        [[dont_unroll]] while(child!=-1 && (nodeFlags(child)&129u)==0u) {
+            if(++budget>nodeCount) { errorCode=4u;return before; }parent=child;child=nextNode(parent);
+        }
+        if(child==-1 || (nodeFlags(child)&128u)!=0u) break;
+        if(++visits>nodeCount) { errorCode=4u;return before; }
+        setFlags(child,nodeFlags(child)&~1u);
+        ivec3 initialBegin,initialEnd;nodeBounds(child,initialBegin,initialEnd);int scan=child;budget=0u;
+        [[dont_unroll]] for(;;) {
+            int next=nextNode(scan);if(next==-1 || (nodeFlags(next)&128u)!=0u) break;
+            if(++budget>nodeCount) { errorCode=4u;return before; }
+            if((nodeFlags(next)&2u)!=0u && intersects(initialBegin,initialEnd,next)) {
+                setNext(scan,nextNode(next));setNext(next,nextNode(parent));setNext(parent,next);
+            } else scan=next;
+        }
+        cursor=parent;
+    }
+    return before;
+}
+void emit(uint index,inout uint count)
+{
+    if(drawBase+count>=camera.outputCapacity) { errorCode=2u;return; }
+    OutputRecord record=component(index);
+    record.depth=camera.depthBase+int(count);
+    record.valid|=8; // Reserved fields carry this column's framebuffer X clip.
+    record.reserved=ivec2(columnLeft,columnRight)+ivec2(camera.clip.x-camera.view.x);
+    uOrdered.records[drawBase+count++]=record;
+}
+void arrangeAndEmit()
+{
+    if(head==-1 || errorCode!=0u) return;
+    int start=arrangeQuadrant(-2,backQuadrant,2u);
+    [[dont_unroll]] for(uint q=backQuadrant+1u;q<frontQuadrant && errorCode==0u;q++) start=arrangeQuadrant(start,q,0u);
+    uint visited=0u,count=0u;
+    [[dont_unroll]] for(int n=head;n!=-1 && errorCode==0u;n=nextNode(n)) {
+        if(++visited>nodeCount) { errorCode=4u;break; }
+        uint address=nodeAddress(n),first=uWorkspace.words[address],limit=uWorkspace.words[address+1u];
+        if(auxiliary(first)) {
+            [[dont_unroll]] for(uint c=first&0x7fffffffu;c<limit;c++) {
+                uint index=c|0x80000000u;
+                if(kind(index)>=2u || imageInColumn(index)) emit(index,count);
+            }
+            continue;
+        }
+        uint root=uMetadata.words[first*12u+6u],chainVisits=0u;
+        [[dont_unroll]] for(uint c=first;c!=0xffffffffu;c=uMetadata.words[c*12u+11u]) {
+            if(++chainVisits>limit) { errorCode=4u;break; }
+            if(kind(c)!=2u && imageInColumn(c)) emit(c,count);
+        }
+        // PaintAttachToPreviousPS prepends; these never become independent parents.
+        chainVisits=0u;
+        [[dont_unroll]] for(uint c=uMetadata.words[root*12u+10u];c!=root;c=uMetadata.words[c*12u+10u]) {
+            if(++chainVisits>limit) { errorCode=4u;break; }
+            if(kind(c)==2u) emit(c,count);
+        }
+    }
+    if(visited!=nodeCount || count!=drawCount) errorCode=4u;
+}
+void main()
+{
+    int columnWidth=zoomOut(32),viewRight=camera.view.x+camera.clip.z-camera.clip.x;
+    int first=floorTo(camera.view.x,columnWidth);
+    columnCount=uint((viewRight-first+columnWidth-1)/columnWidth);
+    column=gl_WorkGroupID.x;errorCode=0u;
+    if(camera.phase==6u) {
+        if(column!=0u) return;
+        uint totalNodes=0u,totalDraws=0u,error=uStatus.overflow;
+        for(uint c=0u;c<columnCount;c++) {
+            uint p=COLUMN_WORDS+c*8u;
+            uWorkspace.words[p+2u]=totalNodes;uWorkspace.words[p+3u]=totalDraws;
+            totalNodes+=uWorkspace.words[p];totalDraws+=uWorkspace.words[p+1u];error=max(error,uWorkspace.words[p+5u]);
+        }
+        if(totalNodes>CAPACITY || totalDraws>camera.outputCapacity) error=2u;
+        uStatus.overflow=error;uStatus.reserved=totalDraws;return;
+    }
+    if(camera.phase==8u) {
+        if(column!=0u) return;
+        uint error=uStatus.overflow;
+        for(uint c=0u;c<columnCount;c++) error=max(error,uWorkspace.words[COLUMN_WORDS+c*8u+5u]);
+        uStatus.overflow=error;uStatus.emittedCount=uStatus.reserved;
+        if(PROFILE_BOUNDS) {
+            uint total=0u,cached=0u,comparisons=0u,maximum=0u,nonempty=0u,largeColumns=0u,wrapped=0u;
+            for(uint c=0u;c<columnCount;c++) {
+                uint p=COLUMN_WORDS+c*8u,n=uWorkspace.words[p];
+                total+=n;cached+=uWorkspace.words[p+6u];maximum=max(maximum,n);if(n!=0u) nonempty++;if(n>512u) largeColumns++;
+                uint add=uWorkspace.words[p+7u];if(add==0xffffffffu) wrapped=1u;
+                if(add>0xffffffffu-comparisons) { comparisons=0xffffffffu;wrapped=1u; }
+                else comparisons+=add;
+            }
+            uint p=COLUMN_WORDS+MAX_COLUMNS*8u;
+            uWorkspace.words[p]=columnCount;uWorkspace.words[p+1u]=total;uWorkspace.words[p+2u]=cached;
+            uWorkspace.words[p+3u]=total-cached;uWorkspace.words[p+4u]=comparisons;
+            uWorkspace.words[p+5u]=maximum;uWorkspace.words[p+6u]=nonempty|(largeColumns<<16u);uWorkspace.words[p+7u]=wrapped;
+        }
+        for(uint c=0u;c<columnCount;c++) {
+            uint p=COLUMN_WORDS+c*8u;
+            uCommands.records[c]=DrawIndirectCommand(4u,error==0u?uWorkspace.words[p+1u]:0u,0u,uWorkspace.words[p+3u]);
+        }
+        return;
+    }
+    if(column>=columnCount || column>=MAX_COLUMNS) return;
+    columnLeft=max(first+int(column)*columnWidth,camera.view.x);columnRight=min(first+int(column+1u)*columnWidth,viewRight);
+    writing=camera.phase==7u;uint address=columnAddress();
+    if(PROFILE_BOUNDS && !writing) { uWorkspace.words[address+6u]=0u;uWorkspace.words[address+7u]=0u; }
+    nodeBase=writing?uWorkspace.words[address+2u]:0u;drawBase=writing?uWorkspace.words[address+3u]:0u;
+    if(uStatus.overflow!=0u) { if(!writing) { uWorkspace.words[address]=0u;uWorkspace.words[address+1u]=0u;uWorkspace.words[address+5u]=uStatus.overflow; }return; }
+    generate();
+    if(writing) { arrangeAndEmit();if(PROFILE_BOUNDS) { uWorkspace.words[address+6u]=cachedNodes;uWorkspace.words[address+7u]=comparisonCount; } }
+    else { uWorkspace.words[address]=nodeCount;uWorkspace.words[address+1u]=drawCount; }
+    uWorkspace.words[address+4u]=uint(head);uWorkspace.words[address+5u]=errorCode;
+}

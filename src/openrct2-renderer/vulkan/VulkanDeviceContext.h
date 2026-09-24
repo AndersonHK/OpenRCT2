@@ -11,6 +11,7 @@
 #ifdef ENABLE_VULKAN
     #include "VulkanPresentationHost.h"
 
+    #include <filesystem>
     #include <memory>
     #include <mutex>
     #include <optional>
@@ -100,6 +101,9 @@ namespace OpenRCT2::Ui::Vulkan
         VkResult Submit(const VkSubmitInfo& submit, VkFence fence);
         VkResult Present(const VkPresentInfoKHR& present);
         VkResult WaitIdle() const noexcept;
+        // Optional performance cache. Invalid or unavailable files never prevent startup.
+        void LoadPipelineCache(const std::filesystem::path& directory) noexcept;
+        void SavePipelineCache() noexcept;
         static SwapchainSupport QuerySwapchainSupport(VkPhysicalDevice device, VkSurfaceKHR surface);
 
     private:
@@ -124,6 +128,7 @@ namespace OpenRCT2::Ui::Vulkan
         VkQueue _graphicsQueue = VK_NULL_HANDLE;
         VkQueue _presentQueue = VK_NULL_HANDLE;
         VkPipelineCache _pipelineCache = VK_NULL_HANDLE;
+        std::filesystem::path _pipelineCachePath;
         QueueFamilies _queueFamilies;
         bool _hdrMetadataAvailable = false;
     #ifdef VK_EXT_HDR_METADATA_EXTENSION_NAME

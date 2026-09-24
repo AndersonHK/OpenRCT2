@@ -264,6 +264,7 @@
     <ClInclude Include="drawing\IDrawingContext.h" />
     <ClInclude Include="drawing\PresentationGeneration.h" />
     <ClInclude Include="drawing\PresentationScene.h" />
+    <ClInclude Include="drawing\SelectedVehicleSnapshot.h" />
     <ClInclude Include="drawing\RetainedBalloonScene.h" />
     <ClInclude Include="drawing\RetainedPeepState.h" />
     <ClInclude Include="drawing\IDrawingEngine.h" />
@@ -942,6 +943,7 @@
     <ClCompile Include="drawing\PaletteMap.cpp" />
     <ClCompile Include="drawing\PickupPeep.cpp" />
     <ClCompile Include="drawing\PresentationScene.cpp" />
+    <ClCompile Include="drawing\SelectedVehicleSnapshot.cpp" />
     <ClCompile Include="drawing\NativeTrackRecipes.cpp" />
     <ClCompile Include="drawing\RetainedBalloonScene.cpp" />
     <ClCompile Include="drawing\RetainedPeepState.cpp" />

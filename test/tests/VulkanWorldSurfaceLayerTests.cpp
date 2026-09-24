@@ -24,6 +24,8 @@ namespace
         std::shared_ptr<G::WorldSurfaceSpriteTable> sprites;
         G::WorldSurfaceSceneCommand scene;
         bool uploaded{};
+        bool authoredBackgroundAndForeground{};
+        bool edgeColumnPattern{};
         uint32_t sample{};
         std::vector<std::byte> pixels;
         void SetUp() override
@@ -94,6 +96,21 @@ namespace
         {
             G::FrameCommandStream commands;
             commands.worldSurfaces = scene;
+            if (authoredBackgroundAndForeground)
+            {
+                commands.opaqueRects.allocate() = { .clip = { 0, 0, 96, 96 },
+                                                    .flags = G::RectCommand::FLAG_NO_TEXTURE,
+                                                    .colour = 10,
+                                                    .bounds = { 0, 0, 96, 96 },
+                                                    .depth = 0,
+                                                    .zoom = 1.0f };
+                commands.opaqueRects.allocate() = { .clip = { 0, 0, 96, 96 },
+                                                    .flags = G::RectCommand::FLAG_NO_TEXTURE,
+                                                    .colour = 77,
+                                                    .bounds = { 16, 38, 18, 42 },
+                                                    .depth = scene.depthBase + G::kWorldSurfaceDepthCapacity,
+                                                    .zoom = 1.0f };
+            }
             if (!uploaded)
                 for (uint32_t asset = 0; asset < 4; asset++)
                 {
@@ -104,7 +121,7 @@ namespace
                                 asset == 0       ? 20
                                     : asset == 1 ? 1
                                     : asset == 2 ? (x == 0 ? 99 : 0)
-                                                 : 42);
+                                                 : (edgeColumnPattern ? 42 + x : 42));
                     commands.textureUploads.push_back(
                         { .atlas = 0,
                           .bounds = { int32_t(asset * 8), 0, int32_t(asset * 8 + 8), 40 },
@@ -180,11 +197,15 @@ TEST_F(VulkanWorldSurfaceLayerTest, RawFactsSelectImagesAndRenderCliffWaterLayer
 {
     Run(true); // Abandon the first catalog/chunk upload: the next accepted frame must resend it.
     const auto first = Run();
-    EXPECT_EQ(first.worldBufferCopyCalls, 5u); // Includes two cleared absent building-catalog headers.
-    EXPECT_EQ(Pixel(18, 40), 27); // Original20 filtered by mask row7.
-    EXPECT_EQ(Pixel(16, 40), 99); // Opaque ripple overlay, after the filter.
-    EXPECT_EQ(Pixel(18, 64), 20); // Terrain outside the water sprite.
-    EXPECT_EQ(Pixel(48, 65), 42); // Front cliff strip emitted independently.
+    EXPECT_EQ(first.worldBufferCopyCalls, 8u); // Includes absent catalogs, pose and both selection headers.
+    EXPECT_EQ(Pixel(18, 40), 27);              // Original20 filtered by mask row7.
+    EXPECT_EQ(Pixel(16, 40), 99);              // Opaque ripple overlay, after the filter.
+    EXPECT_EQ(Pixel(18, 64), 20);              // Terrain outside the water sprite.
+    // The synthetic front-right strip projects to world X30..38. Original tile
+    // visitation owns columns[-32,0) and[0,32), so the art must stop at world X32
+    // (framebuffer X48). Real edge art fits that footprint; our fake8px art crosses it.
+    EXPECT_EQ(Pixel(47, 65), 42); // Cliff remains visible inside its original column.
+    EXPECT_EQ(Pixel(48, 65), 0);  // It cannot bleed into a column that never visits this tile.
     const auto second = Run();
     EXPECT_EQ(second.worldBufferCopyCalls, 0u);
     EXPECT_EQ(second.bytes[size_t(D::UploadCategory::world)][size_t(D::UploadMetric::bufferTransfer)], 0u);
@@ -210,4 +231,39 @@ TEST_F(VulkanWorldSurfaceLayerTest, OverflowReportsFailureAndDrawsNoPartialWorld
     Run(false, true);
     EXPECT_TRUE(std::all_of(pixels.begin(), pixels.end(), [](std::byte pixel) { return pixel == std::byte{}; }));
 }
+TEST_F(VulkanWorldSurfaceLayerTest, TerrainFilterReadsAuthoredBackgroundAndPreservesLaterOpaqueForeground)
+{
+    authoredBackgroundAndForeground = true;
+    chunk->records[0].waterHeight = 0;
+    sprites->catalog.materials[0].edgeCount = 0;
+    sprites->catalog.viewPalettes[0] = 7;
+    scene.viewFlags = 1u << 12; // HIDE_BASE: surface coverage filters prior canvas, without an underground grid overlay.
+    Run();
+    EXPECT_EQ(Pixel(18, 40), 17); // Authored pi10 background through synthetic row7; never initial canvas0.
+    EXPECT_EQ(Pixel(17, 40), 77); // Higher-depth opaque UI is neither darkened nor covered by terrain.
+    EXPECT_EQ(Pixel(50, 20), 10); // Outside surface coverage, the authored clear remains unchanged.
+}
+TEST_F(VulkanWorldSurfaceLayerTest, ZoomedRleCliffRetainsOriginalOddOffsetSampling)
+{
+    // Original RLE drawing first subtracts the zoom mask from the projected
+    // origin, then rounds X after adding the G1 offset. At right-edge X30,
+    // offset1, zoom1, source column0 lands at framebuffer X23, not X24.
+    edgeColumnPattern = true;
+    chunk->records[0].waterHeight = 0;
+    scene.zoom = 1;
+    scene.view = { -8, -32 };
+    for (uint32_t i = 0; i < sprites->records.size(); ++i)
+    {
+        auto variant = sprites->records[i].variants[2];
+        variant.zoom = 1;
+        variant.valid |= 2;
+        if (i >= 19 && i < 56)
+            variant.spriteOffset.x = 1;
+        sprites->records[i].variants[3] = variant;
+    }
+    Run();
+    EXPECT_EQ(Pixel(23, 31), 42u);
+    EXPECT_EQ(Pixel(24, 31), 0u); // Original 32-world-unit column ends here.
+}
+
 #endif

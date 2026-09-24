@@ -75,7 +75,7 @@ def main():
     subprocess.run([os.sys.executable, str(root / "scripts/rendering/verify-software-reference.py")], check=True)
     command = [find_msbuild(args.msbuild), "openrct2.proj", "/m:1", "/nr:false",
                "/p:Configuration=Release", "/p:Platform=x64", "/p:EnableVulkan=true",
-               "/p:PreferredToolArchitecture=x64"]
+               "/p:PreferredToolArchitecture=x64", "/p:ParityForceShaderRebuild=true"]
     if args.toolset_version:
         command.append("/p:VCToolsVersion=" + args.toolset_version)
     output.mkdir(parents=True)
@@ -112,7 +112,8 @@ def main():
                  root / "bin/libopenrct2.lib"]
     artifacts.extend(sorted((root / "bin/data/shaders/vulkan").glob("*.spv")))
     missing = [str(path) for path in artifacts if not path.is_file()]
-    passed = result.returncode == 0 and not changes and not generated_changes and not missing
+    shaders_compiled = 'PARITY_VULKAN_SHADERS_COMPILED' in (output / 'build.log').read_text(encoding='utf-8', errors='replace')
+    passed = result.returncode == 0 and not changes and not generated_changes and not missing and shaders_compiled
     receipt = {
         "schema": 1, "status": "pass" if passed else "fail", "exitCode": result.returncode,
         "command": command,
@@ -122,6 +123,7 @@ def main():
         "sourceRevision": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip(),
         "sourceSha256": before, "sourceChangesDuringBuild": changes,
         "sourceManifestScope": "Production src/data/build metadata and ordinary tests; standalone UI/terrain/path drivers and PeepProducerBenchmark.cpp use separate build receipts; shared fixtures remain pinned",
+        "shadersCompiledFromSource": shaders_compiled,
         "artifactSha256": {path.relative_to(root).as_posix(): sha256(path) for path in artifacts if path.is_file()},
         "missingArtifacts": missing, "buildLogSha256": sha256(output / "build.log"),
     }

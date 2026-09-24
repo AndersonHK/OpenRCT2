@@ -1,0 +1,57 @@
+#version 450
+#extension GL_EXT_control_flow_attributes : require
+layout(local_size_x=64) in;
+layout(set=0,binding=0,std430) buffer Heads { uint heads[]; };
+layout(set=0,binding=1,std430) buffer Nodes { uvec2 nodes[]; };
+layout(set=0,binding=2,std430) readonly buffer Control { uint allocated, capacity, pixels, width, maxPerPixel; };
+layout(set=0,binding=3,std430) buffer Status { uint emitted, outputCapacity, overflow, reserved; };
+layout(set=0,binding=4) uniform usampler2D background;
+layout(set=0,binding=5) uniform usampler2D remap;
+layout(set=0,binding=6,std430) writeonly buffer Output { uint packed[]; };
+layout(push_constant) uniform Phase { uint phase; };
+const uint NIL=0x00ffffffu;
+uint nextNode(uint node) { return nodes[node].x & NIL; }
+void setNext(uint node,uint next) { nodes[node].x=(nodes[node].x & 0xff000000u)|next; }
+void sortPixel(uint pixel) {
+    uint source=heads[pixel], sorted=NIL, count=0u;
+    [[dont_unroll]] while(source!=NIL) {
+        if(source>=capacity || count++>=maxPerPixel) { atomicOr(overflow,8u); return; }
+        uint following=nextNode(source), order=nodes[source].y & 0x7fffffffu;
+        uint before=NIL, current=sorted, steps=0u;
+        [[dont_unroll]] while(current!=NIL) {
+            if(current>=capacity || steps++>=maxPerPixel) { atomicOr(overflow,8u); return; }
+            uint other=nodes[current].y & 0x7fffffffu;
+            if(other>order) break;
+            // Equal painter ranks at one pixel indicate malformed overlapping column output.
+            if(other==order) { atomicOr(overflow,16u); return; }
+            before=current; current=nextNode(current);
+        }
+        setNext(source,current);
+        if(before==NIL) sorted=source; else setNext(before,source);
+        source=following;
+    }
+    heads[pixel]=sorted;
+}
+uint foldPixel(uint pixel) {
+    uint colour=texelFetch(background,ivec2(pixel%width,pixel/width),0).r;
+    uint node=heads[pixel];
+    [[dont_unroll]] for(uint i=0u;i<maxPerPixel && node!=NIL;i++) {
+        uvec2 operation=nodes[node]; uint value=operation.x>>24u;
+        colour=(operation.y & 0x80000000u)!=0u ? value : texelFetch(remap,ivec2(colour,value),0).r;
+        node=operation.x & NIL;
+    }
+    return colour;
+}
+void main() {
+    uint word=gl_GlobalInvocationID.x, first=word*4u;
+    if(first>=pixels) return;
+    if(phase==0u) {
+        [[dont_unroll]] for(uint i=0u;i<4u && first+i<pixels;i++) sortPixel(first+i);
+    } else {
+        uint value=0u;
+        if(overflow==0u) {
+            [[dont_unroll]] for(uint i=0u;i<4u && first+i<pixels;i++) value|=foldPixel(first+i)<<(i*8u);
+        }
+        packed[word]=value;
+    }
+}

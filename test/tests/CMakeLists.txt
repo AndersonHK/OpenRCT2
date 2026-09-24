@@ -43,6 +43,8 @@ set(test_files
    "${CMAKE_CURRENT_SOURCE_DIR}/WorldFlatRideRulesTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/VulkanWorldPathArtTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/WorldPathPublicationTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/WorldSelectionTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/SelectedVehicleSnapshotTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/WorldPathRulesTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/WorldPathOrderTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/VulkanTerrainCompletionTests.cpp"

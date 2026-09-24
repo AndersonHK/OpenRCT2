@@ -18,18 +18,115 @@
     #include <SDL.h>
     #if defined(_WIN32)
         #include <SDL_syswm.h>
+        #include <commctrl.h>
     #else
         #include <SDL_vulkan.h>
     #endif
 
     #include <algorithm>
+    #include <chrono>
+    #include <cstdio>
     #include <cwchar>
+    #include <future>
     #include <openrct2-renderer/gpu/GpuBackend.h>
+    #include <openrct2/core/Console.hpp>
     #include <stdexcept>
     #include <string>
 
 namespace OpenRCT2::Ui::Vulkan::Platform
 {
+    void PreparePipelines(SDL_Window* window, const std::function<void()>& work)
+    {
+        using Clock = std::chrono::steady_clock;
+        const auto started = Clock::now();
+        Console::WriteLine("Vulkan startup: preparing graphics pipelines; cold driver compilation may take a while");
+        std::fflush(stdout);
+        struct Progress
+        {
+            SDL_Window* window;
+            std::string title;
+    #if defined(_WIN32)
+            HWND panel{};
+            HWND bar{};
+            HMODULE controlsLibrary{};
+    #endif
+            ~Progress()
+            {
+    #if defined(_WIN32)
+                if (panel != nullptr)
+                    DestroyWindow(panel);
+                if (controlsLibrary != nullptr)
+                    FreeLibrary(controlsLibrary);
+    #endif
+                SDL_SetWindowTitle(window, title.c_str());
+            }
+        } progress{ window, SDL_GetWindowTitle(window) };
+    #if defined(_WIN32)
+        SDL_SysWMinfo info{};
+        SDL_VERSION(&info.version);
+        if (SDL_GetWindowWMInfo(window, &info) == SDL_TRUE)
+        {
+            progress.panel = CreateWindowExW(
+                WS_EX_CLIENTEDGE, L"STATIC", L"Preparing graphics...", WS_CHILD | WS_VISIBLE | SS_CENTER, 0, 0, 560, 120,
+                info.info.win.window, nullptr, GetModuleHandleW(nullptr), nullptr);
+            if (progress.panel != nullptr)
+            {
+                SendMessageW(progress.panel, WM_SETFONT, reinterpret_cast<WPARAM>(GetStockObject(DEFAULT_GUI_FONT)), TRUE);
+                progress.controlsLibrary = LoadLibraryExW(L"comctl32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+                if (progress.controlsLibrary != nullptr)
+                {
+                    const auto initialise = reinterpret_cast<decltype(&InitCommonControlsEx)>(
+                        GetProcAddress(progress.controlsLibrary, "InitCommonControlsEx"));
+                    const INITCOMMONCONTROLSEX controls{ sizeof(controls), ICC_PROGRESS_CLASS };
+                    if (initialise != nullptr && initialise(&controls))
+                    {
+                        progress.bar = CreateWindowExW(
+                            0, PROGRESS_CLASSW, L"", WS_CHILD | WS_VISIBLE | PBS_MARQUEE, 24, 56, 512, 18, progress.panel,
+                            nullptr, GetModuleHandleW(nullptr), nullptr);
+                        if (progress.bar != nullptr)
+                            SendMessageW(progress.bar, PBM_SETMARQUEE, TRUE, 30);
+                    }
+                }
+            }
+        }
+    #endif
+        // Only Vulkan-owned resources are touched by this task. SDL and its event queue stay on the UI thread.
+        auto pending = std::async(std::launch::async, work);
+        auto nextStatus = started;
+        while (pending.wait_for(std::chrono::milliseconds(16)) != std::future_status::ready)
+        {
+            SDL_PumpEvents();
+            const auto now = Clock::now();
+            if (now < nextStatus)
+                continue;
+            nextStatus = now + std::chrono::milliseconds(250);
+            const auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - started).count();
+            const auto caption = std::string("OpenRCT2 - Preparing graphics (") + std::to_string(elapsed) + " s)";
+            SDL_SetWindowTitle(window, caption.c_str());
+    #if defined(_WIN32)
+            if (progress.panel != nullptr)
+            {
+                int width{}, height{};
+                SDL_GetWindowSize(window, &width, &height);
+                const auto panelWidth = std::min(560, std::max(1, width - 24));
+                SetWindowPos(
+                    progress.panel, HWND_TOP, (width - panelWidth) / 2, std::max(0, (height - 120) / 2), panelWidth, 120,
+                    SWP_NOACTIVATE);
+                if (progress.bar != nullptr)
+                    SetWindowPos(
+                        progress.bar, nullptr, 24, 56, std::max(1, panelWidth - 48), 18, SWP_NOZORDER | SWP_NOACTIVATE);
+                const auto text = L"\nPreparing graphics\n" + std::to_wstring(elapsed)
+                    + L" seconds\n\n\nFirst launch may take longer";
+                SetWindowTextW(progress.panel, text.c_str());
+                UpdateWindow(progress.panel);
+            }
+    #endif
+        }
+        pending.get();
+        const auto seconds = std::chrono::duration<double>(Clock::now() - started).count();
+        Console::WriteLine("Vulkan startup: graphics pipelines ready in %.3f seconds", seconds);
+    }
+
     namespace
     {
         class SdlPresentationHost final : public PresentationHost
@@ -199,8 +296,8 @@ namespace OpenRCT2::Ui::Vulkan::Platform
         {
             uint32_t pathCount = 0;
             uint32_t modeCount = 0;
-            if (GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &pathCount, &modeCount) != ERROR_SUCCESS
-                || pathCount > 256 || modeCount > 4096)
+            if (GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &pathCount, &modeCount) != ERROR_SUCCESS || pathCount > 256
+                || modeCount > 4096)
                 return std::nullopt;
             std::vector<DISPLAYCONFIG_PATH_INFO> paths(pathCount);
             std::vector<DISPLAYCONFIG_MODE_INFO> modes(modeCount);

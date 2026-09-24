@@ -71,8 +71,17 @@ namespace OpenRCT2::Ui::Vulkan
             config.enableDiagnosticCapture);
         try
         {
-            _executor.Initialise(_device.GetContext(), config.logicalExtent, config.shaderDirectory);
-            _palettePipeline.Initialise(_device, _executor.GetResources(), config.shaderDirectory, config.hdrPaperWhiteNits);
+            const auto prepare = [&]() {
+                _device.GetContext()->LoadPipelineCache(config.pipelineCacheDirectory);
+                _executor.Initialise(_device.GetContext(), config.logicalExtent, config.shaderDirectory);
+                _palettePipeline.Initialise(
+                    _device, _executor.GetResources(), config.shaderDirectory, config.hdrPaperWhiteNits);
+                _device.GetContext()->SavePipelineCache();
+            };
+            if (config.preparePipelines)
+                config.preparePipelines(prepare);
+            else
+                prepare();
         }
         catch (...)
         {
@@ -225,8 +234,8 @@ namespace OpenRCT2::Ui::Vulkan
 
         const bool waitForAvailability = _config.frameAcquireMode == Gpu::FrameAcquireMode::Wait;
         const auto frameIndex = _device.GetCurrentFrameIndex();
-        _activeToken = _device.BeginFrame(waitForAvailability,
-            [this](uint32_t slot) { _executor.CompleteTerrainStatus(slot); });
+        _activeToken = _device.BeginFrame(
+            waitForAvailability, [this](uint32_t slot) { _executor.CompleteTerrainStatus(slot); });
         HarvestGpuTimingsForFrame(frameIndex);
         if (!_activeToken.has_value())
         {
@@ -310,7 +319,9 @@ namespace OpenRCT2::Ui::Vulkan
         try
         {
             auto& timings = _frameTimings[frame.frameSlot];
-            timings->presentCallMicroseconds = _device.EndFrame(*_activeToken);
+            const auto present = _device.EndFrame(*_activeToken);
+            timings->presentCallMicroseconds = present.callMicroseconds;
+            timings->acceptedPresentNanoseconds = present.acceptedPresentNanoseconds;
             _executor.Commit();
             timings->hasPresentCallMeasurement = true;
         }
@@ -398,6 +409,14 @@ namespace OpenRCT2::Ui::Vulkan
             telemetry.lostSamples = std::exchange(_lostTelemetrySamples, 0);
             samples.push_back(Gpu::FrameTimings{ .uploadTelemetry = telemetry, .telemetryOnly = true });
         }
+    }
+
+    Drawing::FramePresentationCounters Backend::GetFramePresentationCounters() const
+    {
+        auto result = _device.GetFramePresentationCounters();
+        const std::lock_guard lock(_timingsMutex);
+        result.lostTimingSamples = _lostTimingSamples;
+        return result;
     }
 
     bool Backend::ReadbackLatestIndexedCanvas(Gpu::Extent extent, std::span<std::byte> destination)
@@ -631,6 +650,8 @@ namespace OpenRCT2::Ui::Vulkan
         }
         else
         {
+            if (!_completedTimings[_completedTimingStart].telemetryOnly)
+                ++_lostTimingSamples;
             if (_config.enableUploadTelemetry && _lostTelemetrySamples != std::numeric_limits<uint64_t>::max())
                 ++_lostTelemetrySamples;
             writeIndex = _completedTimingStart;

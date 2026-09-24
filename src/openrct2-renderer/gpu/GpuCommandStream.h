@@ -29,6 +29,7 @@ namespace OpenRCT2
     struct WorldObjectPresentationMaterials;
     struct WorldObjectPresentationUsage;
     struct WorldRidePresentationMaterials;
+    struct WorldRidePoseSnapshot;
 } // namespace OpenRCT2
 
 namespace OpenRCT2::Drawing
@@ -39,6 +40,7 @@ namespace OpenRCT2::Drawing
 
 namespace OpenRCT2::Ui::Gpu
 {
+    struct SelectedVehiclePaintPacket;
     class AtlasAssetLease;
     struct PeepAssetGeneration;
 #pragma pack(push, 1)
@@ -253,12 +255,15 @@ namespace OpenRCT2::Ui::Gpu
         int32_t pathMaxZ{};
         uint32_t objectFirst{}, objectCount{};
         int32_t objectMaxZ{};
+        int32_t maxClearanceZ{}; // Exact raw whole-tile clearance/water bound, not just emitted families.
     };
 
     struct WorldSurfaceMaterial
     {
         uint32_t surfaceBase{}, surfaceCount{}, edgeBase{}, edgeCount{};
         std::array<uint32_t, 9 * 4 * 4> selectors{};
+        std::array<uint32_t, 9 * 4 * 4> gridSelectors{};
+        std::array<uint32_t, 4 * 4> undergroundSelectors{};
     };
 
     struct WorldSurfaceCatalog
@@ -269,6 +274,9 @@ namespace OpenRCT2::Ui::Gpu
         std::array<Int4, 6> spriteEnvelope{};
         std::array<WorldPathMaterial, 510> paths{};
         std::array<WorldPathAdditionMaterial, 255> additions{};
+        std::array<uint32_t, 4> viewPalettes{};
+        std::array<uint32_t, 80> selectionSprites{};
+        std::array<uint32_t, 16> selectionPalettes{};
     };
 
     struct WorldSurfaceStatus
@@ -477,14 +485,16 @@ namespace OpenRCT2::Ui::Gpu
     static_assert(offsetof(WorldSurfaceRecord, zoom) == 48);
     static_assert(offsetof(WorldSurfaceRecord, coordinateShift) == 52);
     static_assert(std::is_trivially_copyable_v<WorldSurfaceSourceRecord>);
-    static_assert(sizeof(WorldSurfaceSourceRecord) == 56);
+    static_assert(sizeof(WorldSurfaceSourceRecord) == 60);
     static_assert(sizeof(WorldPathSourceRecord) == 48);
     static_assert(sizeof(WorldPathMaterial) == 48);
     static_assert(sizeof(WorldPathAdditionMaterial) == 16);
     static_assert(offsetof(WorldSurfaceSourceRecord, waterHeight) == 4);
     static_assert(offsetof(WorldSurfaceSourceRecord, present) == 24);
-    static_assert(sizeof(WorldSurfaceMaterial) == 592);
-    static_assert(sizeof(WorldSurfaceCatalog) == 179680);
+    static_assert(sizeof(WorldSurfaceMaterial) == 1232);
+    static_assert(offsetof(WorldSurfaceMaterial, gridSelectors) == 592);
+    static_assert(offsetof(WorldSurfaceMaterial, undergroundSelectors) == 1168);
+    static_assert(sizeof(WorldSurfaceCatalog) == 343280);
     static_assert(sizeof(WorldSurfaceStatus) == 16);
     static_assert(std::is_trivially_copyable_v<WorldSurfaceSpriteVariant>);
     static_assert(sizeof(WorldSurfaceSpriteVariant) == 32);
@@ -655,6 +665,10 @@ namespace OpenRCT2::Ui::Gpu
         uint32_t transparentWater{ 1 };
         uint32_t outputCapacity{ kWorldSurfaceOutputCapacity };
         uint32_t sourceTick{}, clockMinute{}, clockHour{};
+        uint32_t viewFlags{};
+        std::shared_ptr<const std::vector<uint32_t>> selection;
+        std::shared_ptr<const WorldRidePoseSnapshot> ridePoses;
+        std::shared_ptr<const SelectedVehiclePaintPacket> selectedVehicle;
         std::vector<std::shared_ptr<const WorldSurfaceChunk>> chunks;
         std::shared_ptr<const WorldSurfaceSpriteTable> sprites;
     };

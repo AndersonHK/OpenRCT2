@@ -1,8 +1,10 @@
 # Native GPU track definition coverage
 
-This records **authoring09**, the expansion after deployed build106. **22 focused Python authoring regressions pass**. Build110 compiled successfully and all46 focused CPU tests passed, including all nine track-rule/catalog tests. Build110 original-art review against corrected specials corpus02 is recorded below; the eight whole-frame comparisons still fail. Build107 compiled the preceding authoring06 code but subsequently hit DEVICE_LOST during runtime qualification; no raster pass is claimed for that batch or this expansion. Counts describe translated source definitions, not complete rides or visual parity. Prior build102 passed six structural/catalog tests. Build103 rendered eight original-art views but retained track/tree overlap differences; those results do not qualify the new station code.
+The checked-in authoring13 table contains57 styles /5039 style-type pairs. Counts describe translated source definitions, not complete ride families or visual parity. Authoring15 restores312 additional pairs; its data remains staged while the remaining ordinary helper gaps are corrected. Historical evidence below retains its original build numbers and failed whole-frame comparisons. No blanket missing-track completion claim is supported.
 
-## Scope and provenance
+
+
+## Authoring09 scope and provenance
 
 - **56 of 81 styles, 4,916 style/type pairs** (authoring05: 47 / 3,227).
 - **653,670 words, 157,160 rows, 21,191 deduplicated components, 18,555 original image IDs**. Station platforms and loaded station shelters are additional shared assets.
@@ -31,7 +33,7 @@ Evidence: `obj/vulkan-parity/native-track-recipe-authoring-09/{coverage.json,nat
 & "C:/Program Files/Python39/python.exe" scripts/rendering/extract-native-track-recipes.py --output obj/vulkan-parity/native-track-recipe-authoring-new
 ```
 
-## Translated definitions
+## Authoring09 translated definitions
 
 Type IDs refer to [TrackElemType.h](../src/openrct2/ride/ted/TrackElemType.h); ranges are inclusive. Empty rows can be intentional. Admission does not mean supports, tunnels, vehicles or all surrounding geometry render.
 
@@ -155,3 +157,26 @@ Both PNGs store **exactly the same 8,294,400 palette indices** (direct byte comp
 The receipts agree on rotation 3, zoom 2, view position `[458,-4370]`, simulation tick 3145931, publication source tick 3145930, entity checksum `07d58eaefde6aa6d000000000000000000000000`, workload inputs and the complete recorded shader hash map. Capture occurs after measurement and leaves authoritative state unchanged. Build112 PNG SHA-256: `d6e4ee7ba3e42cf166b5395ea9bbca795029075169ac4f2f87cbdea4af7248bd`; build110 PNG SHA-256: `6f718a1b489176d131c017ce6c95ba052edd49b4d76ccc6af3ff7f108eb9534f`.
 
 This checks one final camera after 12000 ticks across the CPU station-publication change. It does not qualify other cameras, motion, display pacing or omitted world categories. Existing support/tunnel/vehicle omissions and previously recorded original-art differences remain open.
+
+
+## Authoring11: track and tunnel metadata
+
+Authoring11 expanded to57 styles /5036 pairs (+120 from09), with740526 words,160700 rows,27839 deduplicated entries and19376 image IDs. The additions were Classic Standup8 +6, Ghost Train23 +2, GoKarts24 +40, Multidimension Inverted54 +71 and Side Friction61 +1. All29 Python tests passed;210800 previously admitted drawable rows compared exactly against09 after excluding new tunnel metadata and normalizing parent indices. This was source evidence, not a raster pass. Raw rows max6; compressed182385 bytes.
+
+Sentinel0xfffffffd carries authored left/right/vertical tunnel requests, never drawable sprites. Runtime streams raw path/track requests in tile-element order, preserving original65-request side capacity, height conversion, low-clearance substitutions and edge-object door capability. Generic TED quarter-helix tunnel metadata remained rejected for128 style/type pairs while their rail recipes rendered. Physical supports remained omitted. The then-open cross-parent ordering problem was handled in subsequent common-column work; this historical result alone does not qualify it.
+
+Authoring11 raw SHA256 `af8db26ca524a2f707689ad8df414337d132d97a43203f42e7a9264a2c95bc0f`; script `e67937e31d3ef4753f182ebdac9f321d2811f3a3f38762724e321d1958426478`; include `0b6206866c897f9483f0e77e7396d454a2790d00baa2207e18f2aebbeefa5002`; coverage `37e5a652953030fde6f94bdf69ce8eb11be5aecc21c5a1bc4c644edc08e77370`. Evidence: `obj/vulkan-parity/native-track-recipe-authoring-11`, including `previous-rail-regression.json`. External specials grew from42 to49 samples with four inverted Multidimension and three GoKarts cases.
+
+## Authoring12: station and static-family tunnel metadata
+
+Authoring12 corrects missing `TrackPaintUtilDrawStationTunnel`/`Tall` metadata: square-flat/type6 and square-tall/type9 requests, retaining direction/height. It retains57 styles /5036 pairs,742602 words,160700 rows and28012 entries. All30 Python regressions passed.214276 drawable rows against11 remained identical after excluding metadata and normalizing parent indices. Raw SHA256 `cfbc6fd005a6322afd8c62de9ee784afd322b8898ec61f7060a0272126d6a4b7`; script `2dde62ada8a9ae71f72df505613c83d5192ac5e76de9e7e2f14fd25cb86e6d5b`. Evidence: `obj/vulkan-parity/native-track-recipe-authoring-12/{coverage.json,previous-rail-regression.json}`.
+
+Static-family GPU rules also add Shop/Facility door-direction1/2 square-flat requests and tower centre-base+96/section+32 vertical endpoints, excluding sequence1 sections. Present tower styles retain aperture images1575..1578. These target underground117 station6/7,shop10,tower17 defects. The shared exact original-sprite geometry helper was restored for zoom0/1, with an odd-offset RLE cliff regression; this required full migrated-family image checks, not a portal-specific offset or waiver.
+
+## Authoring15: ordinary-piece restoration (staged)
+
+The table grows to57 styles /5351 pairs (+312),819162 words,179900 rows,31192 entries; compressed199598 bytes. All38 Python regressions pass. It restores support-predicate-aborted rails, immutable wooden template banks/curves/helixes, explicit bounds, Junior/Water sloped/eighth curves, Wild Mouse stations/curves, and Multidimension covers-only stations. No CPU per-instance painting is introduced.
+
+The214492-row comparison against13 has zero removed pairs and zero changed previously admitted rows.24 differences are newly admitted sequence tails1–3 of Inverted30 types119/121; both old sequence0 rows remain identical. Counts alone therefore do not prove sequence completeness. Evidence: `native-track-recipe-authoring-15/{coverage.json,previous-rail-regression.json,preservation-classification.json}` under `obj/vulkan-parity`. Raw SHA256 `80ca5380f7701f83322f5168f4a26562a255099dfd124c97358fdd483e5f681c`; script `2f435d7578dfc7581bc6daf6323b7a83ff74b5e44777dc337e78e56e669ee1a9`.
+
+Remaining15 ordinary gaps include Classic Wooden9 banked curves22/23/44/45, Classic Standup8 diagonal banks158–171, Compact/Inverted11/30 diagonal flat/brakes141/337/338, wooden waterSplash117 and Log Flume38 curves42/43. These are not waived as supports. Further corrections are underway before final data admission. Failed14 stopped at an out-of-range helper-tail probe; its log is retained. Corrected15 uses checked indexing and tests invalid tails. The new49-specimen original-art corpus covers full sequences in all rotations and zoom0/1; native qualification is pending.

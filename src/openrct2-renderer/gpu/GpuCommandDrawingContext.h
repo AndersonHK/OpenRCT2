@@ -127,6 +127,8 @@ namespace OpenRCT2::Ui::Gpu
             const OrthographicCamera& camera) override;
 
     private:
+        [[nodiscard]] std::shared_ptr<const SelectedVehiclePaintPacket> ResolveSelectedVehiclePaint(
+            const PresentationGeneration& generation, const OrthographicCamera& camera);
         [[nodiscard]] WorldSurfaceSpriteSet ResolveSurfaceSpriteSet(
             ImageId image, std::vector<uint64_t>* residencies = nullptr, std::vector<uint32_t>* dependencies = nullptr);
         RectCommand& AppendRect(CommandBatch<RectCommand>& batch, const ScreenRect& clip, Int4 bounds, float zoom = 1.0f);

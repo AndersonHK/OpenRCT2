@@ -9,6 +9,7 @@
 
 #include "GpuCommandDrawingContext.h"
 
+#include "GpuSelectedVehiclePaint.h"
 #include "GpuWorldEntranceCatalog.h"
 #include "GpuWorldFlatRideCatalog.h"
 #include "GpuWorldPropCatalog.h"
@@ -29,6 +30,7 @@
 #include <openrct2/drawing/LightFX.h>
 #include <openrct2/drawing/RenderTarget.h>
 #include <openrct2/drawing/TTF.h>
+#include <openrct2/drawing/WorldSelection.h>
 #include <openrct2/entity/EntityPresentationSnapshot.h>
 #include <openrct2/object/ObjectManager.h>
 #include <openrct2/paint/tile_element/Paint.Surface.h>
@@ -626,6 +628,17 @@ namespace OpenRCT2::Ui::Gpu
                 .valid = 1 | (resolved->hasRleCompression ? 2 : 0),
             };
         }
+        // Original parent allocation uses unzoomed G1 geometry even when the image draws no pixels.
+        // Keep this metadata for column culling and child promotion without inventing an atlas allocation.
+        auto& original = result.variants[-static_cast<int32_t>(kWorldSurfaceMinimumZoom)];
+        if ((original.valid & 1) == 0)
+        {
+            if (const auto* metadata = GfxGetG1Element(image.GetIndex()))
+            {
+                original.spriteSize = { metadata->width, metadata->height };
+                original.spriteOffset = { metadata->xOffset, metadata->yOffset };
+            }
+        }
         return result;
     }
 
@@ -771,8 +784,8 @@ namespace OpenRCT2::Ui::Gpu
             // The first visit owns the full main target: never clear or reserve depth on a later visit.
             if (_commands->worldSurfaces.has_value() || generation->map->GetSurfaceRecordCount() == 0)
                 return { false, false, 0, true };
-            Clear(rt, PaletteIndex::pi10);
-            // Partial GPU world ownership is intentional. Secondary viewports are left empty by ViewportPaint.
+            Clear(rt, (camera.viewFlags & (1u << 19)) != 0 ? PaletteIndex::transparent : PaletteIndex::pi10);
+            // Partial GPU world ownership is intentional. Auxiliary viewports use independent service sessions.
             const bool surfaces = DrawWorldSurfaceScene(rt, generation, camera);
             return { surfaces, false, 0, true };
         }
@@ -834,10 +847,172 @@ namespace OpenRCT2::Ui::Gpu
         _drawCount = base + static_cast<int32_t>(kBalloonRecordCapacity);
     }
 
+    std::shared_ptr<const SelectedVehiclePaintPacket> CommandDrawingContext::ResolveSelectedVehiclePaint(
+        const PresentationGeneration& generation, const OrthographicCamera& camera)
+    {
+        if (camera.selectedVehicleViewport == 0)
+            return {};
+        const auto& source = generation.selectedVehicles;
+        if (!source || source->worldEpoch != generation.map->GetEpoch() || source->sourceTick != generation.sourceTick
+            || source->entityEpoch != generation.sourceEntityEpoch || source->objectRevision != GetWorldObjectRevision())
+            throw std::runtime_error("Selected vehicle has no coherent current asset/world publication");
+        const auto found = std::find_if(source->views.begin(), source->views.end(), [&](const auto& view) {
+            return view.request.viewport == camera.selectedVehicleViewport && view.request.rotation == camera.rotation
+                && view.request.zoom == camera.zoom && view.request.viewFlags == camera.viewFlags;
+        });
+        if (found == source->views.end())
+            throw std::runtime_error("Selected vehicle camera has no captured recipe");
+        const auto& view = *found;
+        std::vector<SelectedVehicleCarRecord> cars;
+        std::vector<SelectedVehicleParentRecord> parents;
+        std::vector<WorldSurfaceRecord> components;
+        std::vector<uint64_t> residencies;
+        std::vector<uint32_t> dependencies;
+        cars.reserve(view.cars.size());
+        parents.reserve(view.components.size());
+        components.reserve(view.components.size());
+        const auto width = generation.map->GetSurfaceWidth();
+        const auto height = generation.map->GetSurfaceHeight();
+        for (const auto& car : view.cars)
+        {
+            if (car.tile.x < 0 || car.tile.y < 0 || static_cast<uint32_t>(car.tile.x) >= width
+                || static_cast<uint32_t>(car.tile.y) >= height || car.first > view.components.size()
+                || car.count > view.components.size() - car.first)
+                throw std::invalid_argument("Selected vehicle has an invalid tile/component range");
+            cars.push_back({ .entityId = car.entity.id.ToUnderlying(),
+                             .generation = car.entity.generation,
+                             .firstComponent = car.first,
+                             .componentCount = car.count,
+                             .tileIndex = static_cast<uint32_t>(car.tile.y) * width + static_cast<uint32_t>(car.tile.x),
+                             .coarseCull = { car.coarseCull.getLeft(), car.coarseCull.getTop(), car.coarseCull.getRight(),
+                                             car.coarseCull.getBottom() } });
+        }
+        for (uint32_t index = 0; index < view.components.size(); ++index)
+        {
+            const auto& part = view.components[index];
+            if (part.car >= cars.size() || part.parent > index || part.masked)
+                throw std::invalid_argument("Selected vehicle has an unsupported component relation/mask");
+            const auto* original = GfxGetG1Element(part.originalImage);
+            if (!original || original->width < 0 || original->height < 0)
+                throw std::runtime_error("Selected vehicle original sprite metadata is unavailable");
+            uint32_t root = index;
+            if (part.relation != SelectedVehicleRelation::parent)
+            {
+                if (part.parent == index || part.parent < cars[part.car].firstComponent)
+                    throw std::invalid_argument("Selected vehicle child has no preceding parent");
+                root = parents[part.parent].parentComponent;
+            }
+            parents.push_back(
+                { .x = part.bounds[0],
+                  .y = part.bounds[1],
+                  .z = part.bounds[2],
+                  .xe = part.bounds[3],
+                  .ye = part.bounds[4],
+                  .ze = part.bounds[5],
+                  .parentComponent = root,
+                  .flags = 256u
+                      | (part.relation == SelectedVehicleRelation::attached ? 3u : static_cast<uint32_t>(part.relation)),
+                  .tileIndex = cars[part.car].tileIndex,
+                  .reserved0 = uint32_t(static_cast<uint16_t>(original->width))
+                      | (uint32_t(static_cast<uint16_t>(original->height)) << 16),
+                  .reserved1 = uint32_t(static_cast<uint16_t>(original->xOffset))
+                      | (uint32_t(static_cast<uint16_t>(original->yOffset)) << 16) });
+            // Invert the exact integer 2D projection at z=0. PaintStruct stores the projected image anchor,
+            // not its original offset. Bounds and authoritative tile membership remain separate real world facts.
+            const int32_t projectedX = part.screen.y - (part.screen.x >> 1);
+            auto world = CoordsXY{ projectedX, projectedX + part.screen.x }.rotate(-int32_t(camera.rotation));
+            if (camera.rotation == 1 || camera.rotation == 2)
+                world.x -= 32;
+            if (camera.rotation == 2 || camera.rotation == 3)
+                world.y -= 32;
+            WorldSurfaceRecord output{};
+            output.world = { world.x, world.y, 0 };
+            if (part.image.GetIndex() != kImageIndexUndefined)
+            {
+                const auto resolved = _textureCache.ResolveAssetSprite(part.image, ZoomLevel{ camera.zoom }, dependencies);
+                if (!resolved.sprite && !resolved.empty && !resolved.noZoomDraw)
+                    throw std::runtime_error("Selected vehicle raster is unavailable");
+                if (resolved.sprite)
+                {
+                    const auto& sprite = *resolved.sprite;
+                    if (sprite.zeroCoverage)
+                        throw std::runtime_error("Selected vehicle uses unsupported covered-zero pixels");
+                    residencies.push_back(sprite.residencyRevision);
+                    output.valid = 1 | 4 | (sprite.hasRleCompression ? 2 : 0)
+                        | (part.relation == SelectedVehicleRelation::attached ? 0 : 16);
+                    output.spriteSize = { sprite.width, sprite.height };
+                    output.spriteOffset = { sprite.xOffset, sprite.yOffset };
+                    output.asset = sprite.descriptorIndex;
+                    output.zoom = static_cast<int8_t>(sprite.zoom);
+                    output.coordinateShift = sprite.coordinateShift;
+                }
+                uint8_t primary{}, secondary{}, tertiary{}, count{};
+                if (part.image.HasSecondary())
+                {
+                    primary = static_cast<uint8_t>(
+                        TextureCache::PaletteToY(static_cast<FilterPaletteID>(part.image.GetPrimary())));
+                    secondary = static_cast<uint8_t>(
+                        TextureCache::PaletteToY(static_cast<FilterPaletteID>(part.image.GetSecondary())));
+                    count = 2;
+                    if (part.image.HasTertiary())
+                    {
+                        tertiary = static_cast<uint8_t>(
+                            TextureCache::PaletteToY(static_cast<FilterPaletteID>(part.image.GetTertiary())));
+                        count = 3;
+                    }
+                }
+                else if (part.image.IsRemap() || part.image.IsBlended())
+                {
+                    primary = static_cast<uint8_t>(
+                        TextureCache::PaletteToY(static_cast<FilterPaletteID>(part.image.GetRemap())));
+                    count = 1;
+                }
+                output.palettes = SpriteCommand::PackPalettes(primary, secondary, tertiary, count);
+                output.effects = part.image.IsBlended() ? (1u << 10) : SpriteCommand::PackEffects(count, 0);
+            }
+            components.push_back(output);
+        }
+        auto packet = std::make_shared<SelectedVehiclePaintPacket>();
+        packet->source = source;
+        packet->residency = _textureCache.CreateAssetLease(residencies, dependencies);
+        if (!_textureCache.TryBindAssetLease(packet->residency))
+            throw std::runtime_error("Selected vehicle atlas changed during capture");
+        const uint32_t parentOffset = 16 + static_cast<uint32_t>(cars.size()) * 12;
+        const uint32_t componentOffset = parentOffset + static_cast<uint32_t>(parents.size()) * 12;
+        packet->words.resize(componentOffset + components.size() * 16);
+        const std::array<uint32_t, 16> header{ kSelectedVehiclePaintMagic,
+                                               kSelectedVehiclePaintVersion,
+                                               static_cast<uint32_t>(cars.size()),
+                                               static_cast<uint32_t>(components.size()),
+                                               16,
+                                               parentOffset,
+                                               componentOffset,
+                                               static_cast<uint32_t>(packet->words.size()),
+                                               source->sourceTick,
+                                               static_cast<uint32_t>(source->worldEpoch),
+                                               static_cast<uint32_t>(source->worldEpoch >> 32),
+                                               static_cast<uint32_t>(source->entityEpoch),
+                                               static_cast<uint32_t>(source->entityEpoch >> 32),
+                                               0,
+                                               0,
+                                               0 };
+        std::copy(header.begin(), header.end(), packet->words.begin());
+        if (!cars.empty())
+            std::memcpy(packet->words.data() + 16, cars.data(), cars.size() * sizeof(cars[0]));
+        if (!parents.empty())
+            std::memcpy(packet->words.data() + parentOffset, parents.data(), parents.size() * sizeof(parents[0]));
+        if (!components.empty())
+            std::memcpy(packet->words.data() + componentOffset, components.data(), components.size() * sizeof(components[0]));
+        ValidateSelectedVehiclePaintPacket(*packet);
+        return packet;
+    }
+
     bool CommandDrawingContext::DrawWorldSurfaceScene(
         RenderTarget& rt, std::shared_ptr<const PresentationGeneration> generation, const OrthographicCamera& camera)
     {
         assert(_inDraw);
+        if (camera.selection != nullptr)
+            ValidateWorldSelectionWords(*camera.selection);
         if (generation == nullptr || generation->map == nullptr || _commands->worldSurfaces.has_value())
             return false;
         const bool terrainOnly = generation->entities && generation->entities->IsTerrainOnly();
@@ -882,6 +1057,8 @@ namespace OpenRCT2::Ui::Gpu
             .view = { camera.viewX, camera.viewY },
             .zoom = camera.zoom,
             .rotation = camera.rotation & 3,
+            .viewFlags = camera.viewFlags,
+            .selection = camera.selection,
         });
 
         if (_surfaceWorldEpoch != scene.worldEpoch || _surfaceWidth != scene.width || _surfaceHeight != scene.height)
@@ -950,6 +1127,7 @@ namespace OpenRCT2::Ui::Gpu
                     auto& target = converted->records[i];
                     target = { raw.baseZ, raw.waterHeight, raw.surfaceSlot, raw.edgeSlot,
                                raw.slope, raw.grass,       raw.present,     raw.kind };
+                    target.maxClearanceZ = raw.maxClearanceZ;
                     if (objects)
                     {
                         const auto range = objects->tiles[i];
@@ -1026,6 +1204,7 @@ namespace OpenRCT2::Ui::Gpu
             table->sourceObjectUsage = objectUsage;
             table->sourceRideMaterials = rideMaterials;
             table->catalog.reserved = TextureCache::PaletteToY(FilterPaletteID::paletteGhost);
+            table->catalog.viewPalettes[0] = TextureCache::PaletteToY(FilterPaletteID::paletteDarken1);
             std::vector<uint64_t> residencies;
             std::vector<uint32_t> dependencies;
             const auto append = [&](ImageId image) {
@@ -1057,6 +1236,8 @@ namespace OpenRCT2::Ui::Gpu
                     target.surfaceBase = static_cast<uint32_t>(table->records.size());
                     target.surfaceCount = surface.imageCount;
                     target.selectors = surface.selectors;
+                    target.gridSelectors = surface.gridSelectors;
+                    target.undergroundSelectors = surface.undergroundSelectors;
                     for (uint32_t image = 0; image < surface.imageCount; image++)
                         append(ImageId(surface.imageBase + image));
                 }
@@ -1064,7 +1245,7 @@ namespace OpenRCT2::Ui::Gpu
                 if (edge.supported)
                 {
                     target.edgeBase = static_cast<uint32_t>(table->records.size());
-                    target.edgeCount = edge.imageCount;
+                    target.edgeCount = edge.imageCount | (edge.hasDoors ? 0x80000000u : 0u);
                     for (uint32_t image = 0; image < edge.imageCount; image++)
                         append(ImageId(edge.imageBase + image));
                 }
@@ -1177,6 +1358,27 @@ namespace OpenRCT2::Ui::Gpu
                 table->catalog.waterOpaque[shape] = append(ImageId(SPR_G2_OPAQUE_WATER_OVERLAY + shape));
                 table->records.back().effects |= 1u << 9;
             }
+            const std::array<uint32_t, 3> selectionBases{ SPR_TERRAIN_SELECTION_CORNER, SPR_TERRAIN_SELECTION_QUARTER,
+                                                          SPR_TERRAIN_SELECTION_EDGE };
+            for (uint32_t family = 0; family < selectionBases.size(); ++family)
+                for (uint32_t shape = 0; shape < 19; ++shape)
+                {
+                    table->catalog.selectionSprites[family * 19 + shape] = append(ImageId(selectionBases[family] + shape));
+                    for (auto& variant : table->records.back().variants)
+                        if (variant.valid)
+                            variant.valid |= 4;
+                }
+            for (uint32_t direction = 0; direction < 8; ++direction)
+            {
+                table->catalog.selectionSprites[57 + direction] = append(ImageId(PEEP_SPAWN_ARROW_0 + direction));
+                for (auto& variant : table->records.back().variants)
+                    if (variant.valid)
+                        variant.valid |= 4;
+            }
+            for (uint32_t row = 0; row < 11; ++row)
+                table->catalog.selectionPalettes[row] = TextureCache::PaletteToY(
+                    static_cast<FilterPaletteID>(EnumValue(FilterPaletteID::paletteLandMarker0) + row));
+            table->catalog.selectionPalettes[11] = TextureCache::PaletteToY(static_cast<FilterPaletteID>(Colour::yellow));
             if (_surfaceUsesZeroCoverage)
                 throw std::runtime_error("GPU terrain material has unsupported covered-zero pixels");
             if (terrainOnly)
@@ -1188,6 +1390,8 @@ namespace OpenRCT2::Ui::Gpu
             _publishedSurfaceSprites = std::move(table);
         }
         scene.sourceTick = generation->sourceTick;
+        scene.selectedVehicle = ResolveSelectedVehiclePaint(*generation, camera);
+        scene.ridePoses = generation->map->GetRidePoses();
         scene.clockMinute = generation->map->GetClockMinute();
         scene.clockHour = generation->map->GetClockHour();
         scene.transparentWater = Config::Get().general.transparentWater ? 1u : 0u;

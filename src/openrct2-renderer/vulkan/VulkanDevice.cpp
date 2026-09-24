@@ -276,8 +276,11 @@ namespace OpenRCT2::Ui::Vulkan
     {
         if (_device != VK_NULL_HANDLE)
         {
-            _context->WaitIdle();
+            if (_context->WaitIdle() == VK_SUCCESS)
+                for (uint32_t slot = 0; slot < kFramesInFlight; ++slot)
+                    CompleteVisualFrame(slot);
         }
+        _visualFramePending.fill(false);
 
         DestroySwapchain();
         if (_device != VK_NULL_HANDLE)
@@ -325,7 +328,40 @@ namespace OpenRCT2::Ui::Vulkan
         if (_device != VK_NULL_HANDLE)
         {
             CheckVk(_context->WaitIdle(), "vkDeviceWaitIdle");
+            for (uint32_t slot = 0; slot < kFramesInFlight; ++slot)
+                CompleteVisualFrame(slot);
         }
+    }
+
+    void Device::CompleteVisualFrame(uint32_t slot) const noexcept
+    {
+        if (_visualFramePending[slot])
+        {
+            _fenceCompletedFrames.fetch_add(1, std::memory_order_release);
+            _visualFramePending[slot] = false;
+        }
+    }
+
+    Drawing::FramePresentationCounters Device::GetFramePresentationCounters() const
+    {
+        // Never wait behind vkQueuePresent or a fence merely to sample an
+        // interval boundary. Each counter is monotonic; drain gives a settled
+        // cohort snapshot after the worker's existing completion boundary.
+        // Read effects before their causes. Acquire/release makes each causal
+        // predecessor visible before it is sampled, even while the worker
+        // advances: completed <= submitted, accepted+outOfDate <= requests.
+        const auto completed = _fenceCompletedFrames.load(std::memory_order_acquire);
+        const auto accepted = _presentAccepted.load(std::memory_order_acquire);
+        const auto outOfDate = _presentOutOfDate.load(std::memory_order_acquire);
+        const auto requests = _presentRequests.load(std::memory_order_acquire);
+        const auto submissions = _visualFrameSubmissions.load(std::memory_order_acquire);
+        return {
+            .visualFrameSubmissions = submissions,
+            .presentRequests = requests,
+            .presentAccepted = accepted,
+            .presentOutOfDate = outOfDate,
+            .fenceCompletedFrames = completed,
+        };
     }
 
     void Device::SetVSync(bool enabled)
@@ -361,8 +397,7 @@ namespace OpenRCT2::Ui::Vulkan
         _swapchainInvalid = true;
     }
 
-    std::optional<FrameToken> Device::BeginFrame(
-        bool waitForAvailability, const std::function<void(uint32_t)>& onSlotComplete)
+    std::optional<FrameToken> Device::BeginFrame(bool waitForAvailability, const std::function<void(uint32_t)>& onSlotComplete)
     {
         const std::lock_guard lock(_hostMutex);
         if (_swapchainInvalid)
@@ -384,6 +419,7 @@ namespace OpenRCT2::Ui::Vulkan
             }
             CheckVk(fenceStatus, "vkGetFenceStatus(frame)");
         }
+        CompleteVisualFrame(_currentFrame);
         if (onSlotComplete)
             onSlotComplete(_currentFrame);
         _slots->HarvestGpuTimestamps(frame);
@@ -438,7 +474,7 @@ namespace OpenRCT2::Ui::Vulkan
         };
     }
 
-    double Device::EndFrame(const FrameToken& token)
+    FramePresentResult Device::EndFrame(const FrameToken& token)
     {
         const std::lock_guard lock(_hostMutex);
         if (token.submission.frameIndex != _currentFrame || token.imageIndex >= _presentReady.size())
@@ -471,6 +507,8 @@ namespace OpenRCT2::Ui::Vulkan
             .pSignalSemaphores = &presentReady,
         };
         CheckVk(_context->Submit(submitInfo, frame.available), "vkQueueSubmit(frame)");
+        _visualFrameSubmissions.fetch_add(1, std::memory_order_release);
+        _visualFramePending[_currentFrame] = true;
         if (token.submission.telemetry != nullptr)
             token.submission.telemetry->submitted = true;
         frame.timestampPending = frame.timestampQueryPool != VK_NULL_HANDLE;
@@ -485,9 +523,19 @@ namespace OpenRCT2::Ui::Vulkan
         };
         const auto presentStart = std::chrono::steady_clock::now();
         const auto presentResult = _context->Present(presentInfo);
-        const auto presentCallMicroseconds = std::chrono::duration<double, std::micro>(
-                                                 std::chrono::steady_clock::now() - presentStart)
-                                                 .count();
+        const auto presentEnd = std::chrono::steady_clock::now();
+        FramePresentResult result{
+            .callMicroseconds = std::chrono::duration<double, std::micro>(presentEnd - presentStart).count()
+        };
+        _presentRequests.fetch_add(1, std::memory_order_release);
+        if (presentResult == VK_SUCCESS || presentResult == VK_SUBOPTIMAL_KHR)
+        {
+            _presentAccepted.fetch_add(1, std::memory_order_release);
+            result.acceptedPresentNanoseconds = static_cast<uint64_t>(
+                std::chrono::duration_cast<std::chrono::nanoseconds>(presentEnd.time_since_epoch()).count());
+        }
+        else if (presentResult == VK_ERROR_OUT_OF_DATE_KHR)
+            _presentOutOfDate.fetch_add(1, std::memory_order_release);
         if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR)
         {
             _swapchainInvalid = true;
@@ -498,7 +546,7 @@ namespace OpenRCT2::Ui::Vulkan
         }
 
         _currentFrame = (_currentFrame + 1) % kFramesInFlight;
-        return presentCallMicroseconds;
+        return result;
     }
 
     void Device::AbandonFrame(const FrameToken& token)

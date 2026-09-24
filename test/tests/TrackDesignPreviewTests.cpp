@@ -50,6 +50,7 @@ namespace
         TileCoordsXY temporaryMapSize{};
         uint64_t temporaryMapEpoch{};
         std::vector<OffscreenRenderRequest> requests;
+        std::vector<std::shared_ptr<const PresentationGeneration>> worldGenerations;
 
         void ObserveTemporaryWorld()
         {
@@ -68,9 +69,10 @@ namespace
     class PreviewProbeEngine final : public IDrawingEngine, public IDrawingContext
     {
         RenderTarget& _target;
+        FailureState& _state;
 
     public:
-        explicit PreviewProbeEngine(RenderTarget& target) : _target(target) {}
+        PreviewProbeEngine(RenderTarget& target, FailureState& state) : _target(target), _state(state) {}
         void Initialise() override {}
         void Resize(uint32_t, uint32_t) override {}
         void SetPalette(const GamePalette&) override {}
@@ -95,6 +97,16 @@ namespace
         void DrawSpriteSolid(RenderTarget&, ImageId, int32_t, int32_t, PaletteIndex) override {}
         void DrawGlyph(RenderTarget&, ImageId, int32_t, int32_t, const PaletteMap&) override {}
         void DrawTTFBitmap(RenderTarget&, const TextDrawInfo&, TTFSurface*, int32_t, int32_t, uint8_t) override {}
+        NativeWorldCategories DrawWorldScene(
+            RenderTarget&, std::shared_ptr<const PresentationGeneration> generation, const OrthographicCamera&) override
+        {
+            EXPECT_NE(generation, nullptr);
+            EXPECT_NE(generation->map, nullptr);
+            EXPECT_FALSE(generation->map->HasLegacyTileStorage());
+            EXPECT_EQ(generation->map->GetSurfaceWidth(), static_cast<uint32_t>(_state.temporaryMapSize.x));
+            _state.worldGenerations.push_back(std::move(generation));
+            return { true, false, 0, true };
+        }
     };
 
     class ProgressCompletion final : public IRenderCompletion
@@ -138,7 +150,7 @@ namespace
     public:
         ProgressSession(FailureState& state, OffscreenRenderRequest request, uint64_t ordinal)
             : _state(state), _request(std::move(request)), _ordinal(ordinal),
-              _bits(kTrackPreviewImageSize), _engine(_target)
+              _bits(kTrackPreviewImageSize), _engine(_target, state)
         {
             _target.bits = _bits.data();
             _target.width = 370;
@@ -369,6 +381,16 @@ TEST_P(TrackDesignPreviewTest, ServiceFailureRestoresLiveWorldAndPendingPublicat
         EXPECT_EQ(_failure.submits, 2u);
         EXPECT_EQ(_failure.waits, GetParam() == FailurePoint::secondWait ? 2u : 1u);
         EXPECT_EQ(_failure.successfulResults, 1u);
+        ASSERT_EQ(_failure.worldGenerations.size(), 2u);
+        EXPECT_EQ(_failure.worldGenerations[0], _failure.worldGenerations[1]);
+        const auto& capturedMap = *_failure.worldGenerations[0]->map;
+        EXPECT_NE(capturedMap.GetEpoch(), epoch);
+        size_t trackRecords = 0;
+        for (const auto& chunk : capturedMap.GetObjectChunks())
+            if (chunk)
+                for (const auto& object : chunk->records)
+                    trackRecords += object.kind == WorldObjectKind::track;
+        EXPECT_EQ(trackRecords, 1u);
     }
 }
 

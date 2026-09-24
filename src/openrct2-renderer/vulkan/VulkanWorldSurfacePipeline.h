@@ -10,6 +10,7 @@
 
     #include "VulkanDevice.h"
     #include "VulkanResources.h"
+    #include "VulkanWorldFilterCompositor.h"
 
     #include <array>
     #include <filesystem>
@@ -30,7 +31,9 @@ namespace OpenRCT2::Ui::Vulkan
         VkPipelineLayout _pipelineLayout = VK_NULL_HANDLE;
         VkRenderPass _renderPass = VK_NULL_HANDLE;
         VkPipeline _computePipeline = VK_NULL_HANDLE;
+        VkPipeline _parentOrderPipeline = VK_NULL_HANDLE;
         VkPipeline _pipeline = VK_NULL_HANDLE;
+        VkPipeline _filterPipeline = VK_NULL_HANDLE;
         std::array<VkFramebuffer, kFramesInFlight> _framebuffers{};
         Buffer _sourceRecords;
         Buffer _pathRecords;
@@ -39,13 +42,24 @@ namespace OpenRCT2::Ui::Vulkan
         Buffer _trackCatalog;
         Buffer _flatRideCatalog;
         Buffer _entranceCatalog;
+        Buffer _ridePoses;
+        std::shared_ptr<const WorldRidePoseSnapshot> _uploadedRidePoses;
+        bool _ridePosesInitialised{};
+        Buffer _selection;
+        std::shared_ptr<const std::vector<uint32_t>> _uploadedSelection;
+        bool _selectionInitialised{};
         Buffer _spriteSets;
         Buffer _catalog;
         Buffer _prefixes;
         Buffer _status;
-        Image _landBackground;
-        std::array<VkImage, kFramesInFlight> _indexedImages{};
+        WorldFilterCompositor _filters;
         Buffer _visibleRecords;
+        Buffer _unorderedRecords;
+        Buffer _parentMetadata;
+        Buffer _parentWorkspace;
+        Buffer _selectedVehicle;
+        std::shared_ptr<const Gpu::SelectedVehiclePaintPacket> _uploadedSelectedVehicle;
+        bool _selectedVehicleInitialised{};
         Buffer _indirectCommands;
         std::vector<uint64_t> _uploadedRevisions;
         std::vector<uint32_t> _pathOffsets, _pathCapacities;
@@ -58,6 +72,24 @@ namespace OpenRCT2::Ui::Vulkan
         uint32_t _uploadedHeight{};
         VkExtent2D _extent{};
         std::filesystem::path _shaderDirectory;
+        static constexpr uint32_t kProfilePointCount = 7;
+        VkQueryPool _profileQueries = VK_NULL_HANDLE;
+        bool _profileRequested{};
+        struct BoundsProfileReadback
+        {
+            UploadRing* ring{};
+            UploadAllocation allocation{};
+        };
+        std::array<BoundsProfileReadback, kFramesInFlight> _boundsReadbacks{};
+        uint64_t _boundsSamples{}, _boundsNodes{}, _boundsCached{}, _boundsFallback{}, _boundsComparisons{},
+            _boundsCounterOverflow{};
+        uint32_t _boundsMaximumColumn{};
+        uint64_t _boundsColumns{}, _boundsActiveColumns{}, _boundsLargeColumns{};
+        uint32_t _profileValidBits{};
+        double _profilePeriodNs{};
+        std::array<bool, kFramesInFlight> _profilePending{};
+        uint64_t _profileSamples{}, _profileUnavailable{}, _profileDiscarded{};
+        std::array<double, kProfilePointCount - 1> _profileTotalUs{}, _profileMaxUs{};
 
     public:
         WorldSurfacePipeline() = default;
@@ -69,7 +101,9 @@ namespace OpenRCT2::Ui::Vulkan
         void Initialise(const DeviceContext& device, const IndexedResources& resources, std::filesystem::path shaderDirectory);
         void Dispose();
         void Record(const SubmissionToken& frame, const Gpu::WorldSurfaceSceneCommand& scene);
-        void DiscardPendingUploads() noexcept;
+        void DiscardPendingUploads(uint32_t frameIndex = kFramesInFlight) noexcept;
+        // Called only after the existing submission fence retires; never waits.
+        void CompleteProfile(uint32_t frameIndex);
         [[nodiscard]] const Buffer& GetStatusBuffer() const noexcept
         {
             return _status;
@@ -80,6 +114,9 @@ namespace OpenRCT2::Ui::Vulkan
         void CreateRenderPass();
         void CreatePipeline();
         void CreateFramebuffers(const IndexedResources& resources);
+        void InitialiseProfile(const DeviceContext& device);
+        void ProfilePoint(const SubmissionToken& frame, uint32_t point) const;
+        void DisposeProfile();
     };
 } // namespace OpenRCT2::Ui::Vulkan
 

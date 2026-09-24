@@ -11,6 +11,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <vector>
 
 #define OPENRCT2_PRESENTATION_SOURCE_TICK_VERSION 1
 
@@ -21,6 +22,7 @@ namespace OpenRCT2
         struct RetainedBalloonSnapshot;
         struct RetainedPeepSnapshot;
         struct RetainedPeepAnimationCatalog;
+        struct SelectedVehicleSnapshot;
     } // namespace Drawing
     enum class EntityPublicationProfile : uint8_t
     {
@@ -47,6 +49,7 @@ namespace OpenRCT2
         uint64_t sourceEntityEpoch{};
         std::shared_ptr<const Drawing::RetainedPeepSnapshot> peeps;
         std::shared_ptr<const Drawing::RetainedPeepAnimationCatalog> peepAnimations;
+        std::shared_ptr<const Drawing::SelectedVehicleSnapshot> selectedVehicles;
     };
 
     /** Integer camera state latched with one world-scene submission. */
@@ -65,5 +68,8 @@ namespace OpenRCT2
         float entityInterpolation{ 1.0f };
         // Current render endpoint tick; a held older generation must not replay history with a newer alpha.
         uint32_t entityInterpolationSourceTick{};
+        uint32_t viewFlags{};
+        std::shared_ptr<const std::vector<uint32_t>> selection;
+        uint64_t selectedVehicleViewport{};
     };
 } // namespace OpenRCT2

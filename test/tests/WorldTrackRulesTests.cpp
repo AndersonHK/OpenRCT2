@@ -11,7 +11,7 @@
 
 namespace
 {
-    std::span<const uint32_t> Recipe(uint32_t style, uint32_t type, uint32_t sequence, uint32_t direction, uint32_t state)
+    std::span<const uint32_t> RawRecipe(uint32_t style, uint32_t type, uint32_t sequence, uint32_t direction, uint32_t state)
     {
         const auto words = OpenRCT2::Drawing::GetNativeTrackRecipeWords();
         if (style >= words[2] || type >= words[3] || direction >= 4 || state >= 128)
@@ -28,6 +28,18 @@ namespace
         return words.subspan(words[6] + words[row] * 12, words[row + 1] * 12);
     }
 
+    // Existing rail regressions compare drawable parts; tunnel requests are
+    // independently checked below and must never become resident sprite IDs.
+    std::vector<uint32_t> Recipe(uint32_t style, uint32_t type, uint32_t sequence, uint32_t direction, uint32_t state)
+    {
+        const auto raw = RawRecipe(style, type, sequence, direction, state);
+        std::vector<uint32_t> result;
+        for (size_t p = 0; p < raw.size(); p += 12)
+            if (raw[p] != 0xfffffffdu)
+                result.insert(result.end(), raw.begin() + p, raw.begin() + p + 12);
+        return result;
+    }
+
     std::vector<uint32_t> StyleImages(std::initializer_list<TrackStyle> styles)
     {
         // Independently enumerate the public selection contract, including all
@@ -41,14 +53,32 @@ namespace
                         {
                             if (bool(state & 16u) != IsCsgLoaded())
                                 continue;
-                            const auto recipe = Recipe(static_cast<uint32_t>(style), type, sequence, direction, state);
+                            const auto recipe = RawRecipe(static_cast<uint32_t>(style), type, sequence, direction, state);
                             for (size_t part = 0; part < recipe.size(); part += 12)
+                            {
+                                if (recipe[part + 10] >= 4)
+                                    continue; // Water uses shared terrain banks, not image0.
+                                if (recipe[part] == 0xfffffffdu)
+                                {
+                                    if (recipe[part + 1] == 2)
+                                        for (uint32_t image = 1575; image <= 1578; ++image)
+                                            images.insert(image);
+                                    continue;
+                                }
+                                if (recipe[part] == 0xfffffffcu)
+                                {
+                                    const uint32_t first = recipe[part + 2] != 0 ? 23485u : 25615u;
+                                    for (uint32_t image = first; image < first + 12; ++image)
+                                        images.insert(image);
+                                    continue;
+                                }
                                 if (recipe[part] != 0xfffffffeu)
                                     images.insert(recipe[part]);
                                 else
                                     for (uint32_t image = SPR_STATION_PLATFORM_SW_NE; image <= SPR_STATION_BASE_BORDERLESS;
                                          ++image)
                                         images.insert(image);
+                            }
                         }
         return { images.begin(), images.end() };
     }
@@ -195,10 +225,36 @@ TEST(WorldTrackRulesTest, EveryAuthoredRowStaysWithinItsImmutableCatalog)
         for (uint32_t i = 0; i < count; ++i)
         {
             const auto p = words[6] + (first + i) * 12;
-            EXPECT_TRUE(words[p] == 0xfffffffeu || std::binary_search(images.begin(), images.end(), words[p]));
-            EXPECT_LE(words[p + 10], 3u);
+            EXPECT_TRUE(
+                words[p + 10] >= 4 || words[p] == 0xfffffffcu || words[p] == 0xfffffffdu || words[p] == 0xfffffffeu
+                || std::binary_search(images.begin(), images.end(), words[p]));
+            EXPECT_LE(words[p + 10], 5u);
+            if (words[p + 10] >= 4)
+            {
+                EXPECT_EQ(words[p], 0u);
+                EXPECT_GE(static_cast<int32_t>(words[p + 11]), 0);
+            }
             const auto parent = static_cast<int32_t>(words[p + 11]);
             EXPECT_TRUE(parent == -1 || (parent >= 0 && static_cast<uint32_t>(parent) < i));
+            if (words[p] == 0xfffffffdu)
+            {
+                EXPECT_LE(words[p + 1], 2u);
+                EXPECT_TRUE(words[p + 2] < 26u || (words[p + 2] >= 256u && words[p + 2] < 264u));
+                EXPECT_EQ(parent, -1);
+                EXPECT_FALSE(std::binary_search(images.begin(), images.end(), words[p]));
+                --expanded;
+                continue;
+            }
+            if (words[p] == 0xfffffffcu)
+            {
+                EXPECT_LT(words[p + 1], 4u);
+                EXPECT_LE(words[p + 2], 1u);
+                EXPECT_EQ(words[p + 10], 2u);
+                EXPECT_EQ(parent, -1);
+                EXPECT_FALSE(std::binary_search(images.begin(), images.end(), words[p]));
+                expanded += 2;
+                parents += 2;
+            }
             parents += parent == -1;
             if (words[p] == 0xfffffffeu)
             {
@@ -306,4 +362,248 @@ TEST(WorldTrackRulesTest, JuniorWaterSBendsAndTransitionsKeepCompleteOriginalRai
                 EXPECT_NE(rail[0], chain[0]);
             }
     }
+}
+
+#include "../../data/shaders/vulkan/world_tunnel_rules.glsl"
+
+TEST(WorldTrackRulesTest, TunnelApertureUsesLowClearanceReplacementWithoutChangingDoorHeight)
+{
+    EXPECT_EQ(worldTunnelResolveType(2, 4, 6, 6), 0);
+    EXPECT_EQ(worldTunnelResolveType(2, 4, 7, 7), 2);
+    EXPECT_EQ(worldTunnelResolveType(5, 4, 7, 8), 3);
+    EXPECT_EQ(worldTunnelResolveType(9, 4, 6, 6), 6);
+    EXPECT_EQ(worldTunnelHeight(6), 2);
+    EXPECT_EQ(worldTunnelImageOffset(25, 1, false), 38);
+    EXPECT_EQ(worldTunnelImageOffset(25, 1, true), 102);
+    EXPECT_EQ(worldTunnelTinyZ(-8), 255);
+    EXPECT_EQ(worldTunnelTinyZ(80), 5);
+}
+
+TEST(WorldTrackRulesTest, ConnectedPathsSelectOriginalTunnelSidesAndSlopeHeights)
+{
+    // Paint.Path.cpp uses EDGE_SW=4, EDGE_SE=2, EDGE_NE=1, EDGE_NW=8,
+    // including its original direction comparisons against those constants.
+    for (int edges = 0; edges < 16; ++edges)
+        for (int direction = 0; direction < 4; ++direction)
+            for (bool sloped : { false, true })
+            {
+                const auto left = !(edges & 4) ? -1 : (sloped && direction == 2 ? 10 : (edges & 8 ? 11 : 10));
+                const auto right = !(edges & 2) ? -1 : (sloped && direction == 1 ? 10 : (edges & 1 ? 11 : 10));
+                EXPECT_EQ(worldPathTunnelType(edges, direction, sloped, 0), left);
+                EXPECT_EQ(worldPathTunnelType(edges, direction, sloped, 1), right);
+                EXPECT_EQ(worldPathTunnelZOffset(direction, sloped, 0), sloped && direction == 2 ? 16 : 0);
+                EXPECT_EQ(worldPathTunnelZOffset(direction, sloped, 1), sloped && direction == 1 ? 16 : 0);
+            }
+}
+
+TEST(WorldTrackRulesTest, FlatLoopingTunnelRequestsAreMetadataAndNeverImages)
+{
+    for (uint32_t direction = 0; direction < 4; ++direction)
+    {
+        const auto raw = RawRecipe(39, 0, 0, direction, 0);
+        uint32_t requests = 0;
+        for (size_t p = 0; p < raw.size(); p += 12)
+            if (raw[p] == 0xfffffffdu)
+            {
+                ++requests;
+                EXPECT_EQ(raw[p + 1], direction & 1);
+                EXPECT_EQ(raw[p + 2], 0u);
+                EXPECT_EQ(raw[p + 3], 0u);
+            }
+        EXPECT_EQ(requests, 1u);
+        EXPECT_EQ(Recipe(39, 0, 0, direction, 0).size(), 12u);
+    }
+}
+
+TEST(WorldTrackRulesTest, GhostTrainDoorSelectorsUseLiveRawDoorFrames)
+{
+    constexpr int outward[8] = { 16, 17, 17, 18, 17, 17, 16, 16 };
+    constexpr int inward[8] = { 16, 19, 19, 20, 19, 19, 16, 16 };
+    for (int a = 0; a < 8; ++a)
+        for (int b = 0; b < 8; ++b)
+        {
+            EXPECT_EQ(worldTunnelDoorType(256, a, b), outward[a]);
+            EXPECT_EQ(worldTunnelDoorType(257, a, b), outward[b]);
+            EXPECT_EQ(worldTunnelDoorType(258, a, b), inward[a]);
+            EXPECT_EQ(worldTunnelDoorType(263, a, b), inward[b] + 5);
+        }
+}
+
+TEST(WorldTrackRulesTest, ExpandedInvertedAndGoKartsPiecesRetainSourceImages)
+{
+    const auto invertedFlat = Recipe(54, 0, 0, 0, 0);
+    ASSERT_FALSE(invertedFlat.empty());
+    EXPECT_EQ(invertedFlat[0], 26227u);
+    const auto invertedCurve = Recipe(54, 16, 0, 0, 0);
+    ASSERT_FALSE(invertedCurve.empty());
+    EXPECT_EQ(invertedCurve[0], 26310u);
+    for (const auto& [type, firstImage] : { std::pair{ 5u, 35621u }, std::pair{ 7u, 35605u }, std::pair{ 8u, 35613u } })
+    {
+        const auto parts = Recipe(24, type, 0, 0, 0);
+        ASSERT_EQ(parts.size(), 24u);
+        EXPECT_EQ(parts[0], firstImage);
+        EXPECT_EQ(parts[12], firstImage + 1);
+    }
+}
+
+TEST(WorldTrackRulesTest, StationTunnelHelpersRetainSquareAndTallRequests)
+{
+    for (const auto style : { TrackStyle::loopingRollerCoaster, TrackStyle::invertedRollerCoaster })
+        for (uint32_t direction = 0; direction < 4; ++direction)
+        {
+            const auto raw = RawRecipe(static_cast<uint32_t>(style), 1, 0, direction, 0);
+            uint32_t requests = 0;
+            for (size_t p = 0; p < raw.size(); p += 12)
+                if (raw[p] == 0xfffffffdu)
+                {
+                    ++requests;
+                    EXPECT_EQ(raw[p + 1], direction & 1);
+                    EXPECT_EQ(raw[p + 2], style == TrackStyle::loopingRollerCoaster ? 6u : 9u);
+                    EXPECT_EQ(raw[p + 3], 0u);
+                }
+            EXPECT_EQ(requests, 1u);
+        }
+}
+
+TEST(WorldTrackRulesTest, StaticRideTunnelRequestsFollowOriginalDoorAndTowerBranches)
+{
+    for (int family = 1; family <= 23; ++family)
+        for (int direction = 0; direction < 4; ++direction)
+            for (int side = 0; side < 2; ++side)
+                EXPECT_EQ(
+                    worldStaticRideTunnelType(family, direction, side),
+                    (family == 18 || family == 19) && (direction == 1 || direction == 2) && side == (direction & 1) ? 6 : -1);
+    for (int family : { 20, 21, 22 })
+        for (int sequence = 0; sequence < 9; ++sequence)
+        {
+            EXPECT_EQ(worldStaticRideVerticalTunnelOffset(family, sequence, false), sequence == 0 ? 96 : -1);
+            EXPECT_EQ(worldStaticRideVerticalTunnelOffset(family, sequence, true), sequence == 1 ? -1 : 32);
+        }
+    EXPECT_EQ(worldStaticRideVerticalTunnelOffset(18, 0, false), -1);
+    OpenRCT2::WorldRidePresentationMaterials source;
+    source.rides.resize(1);
+    source.rides[0].present = true;
+    source.rides[0].rideType = OpenRCT2::RIDE_TYPE_OBSERVATION_TOWER;
+    std::set<uint32_t> images;
+    OpenRCT2::Ui::Gpu::BuildWorldTrackCatalog(source, [&](uint32_t image) {
+        images.insert(image);
+        return image;
+    });
+    for (uint32_t image = 1575; image <= 1578; ++image)
+        EXPECT_TRUE(images.contains(image));
+}
+
+namespace PhotoRules
+{
+    using uint = uint32_t;
+#include "../../data/shaders/vulkan/world_track_photo.glsl"
+} // namespace PhotoRules
+
+TEST(WorldTrackRulesTest, PhotoTimeoutSelectsOriginalCameraFlashWithUnchangedThreeParentGeometry)
+{
+    // Frozen tables from TrackPaintUtilOnridePhoto{Small,}Paint. In particular,
+    // the second sign is lower and only north/east cameras inherit that height.
+    constexpr int offsets[4][3][3] = {
+        { { 26, 0, 0 }, { 26, 28, -3 }, { 6, 0, 0 } },
+        { { 0, 6, 0 }, { 28, 6, -3 }, { 0, 26, 0 } },
+        { { 6, 0, 0 }, { 6, 28, -3 }, { 26, 28, -3 } },
+        { { 0, 26, 0 }, { 28, 26, -3 }, { 28, 6, -3 } },
+    };
+    constexpr uint32_t normal[4][3] = {
+        { 25623, 25617, 25621 },
+        { 25624, 25618, 25622 },
+        { 25625, 25615, 25619 },
+        { 25626, 25616, 25620 },
+    };
+    constexpr uint32_t small[4][3] = {
+        { 23493, 23487, 23491 },
+        { 23494, 23488, 23492 },
+        { 23495, 23485, 23489 },
+        { 23496, 23486, 23490 },
+    };
+    for (uint32_t direction = 0; direction < 4; ++direction)
+        for (uint32_t part = 0; part < 3; ++part)
+        {
+            EXPECT_EQ(PhotoRules::worldPhotoX(direction, part), offsets[direction][part][0]);
+            EXPECT_EQ(PhotoRules::worldPhotoY(direction, part), offsets[direction][part][1]);
+            EXPECT_EQ(PhotoRules::worldPhotoZ(direction, part), offsets[direction][part][2]);
+            for (uint32_t timeout : { 0u, 1u, 2u, 3u, 255u })
+            {
+                const auto column = part < 2 ? 0 : (timeout == 0 ? 1 : 2);
+                EXPECT_EQ(PhotoRules::worldPhotoImage(direction, false, timeout, part), normal[direction][column]);
+                EXPECT_EQ(PhotoRules::worldPhotoImage(direction, true, timeout, part), small[direction][column]);
+            }
+        }
+}
+
+TEST(WorldTrackRulesTest, AuthoredPhotoRecipesKeepLiveSelectionAndOwnEveryCameraState)
+{
+    const auto type = static_cast<uint32_t>(OpenRCT2::TrackElemType::onRidePhoto);
+    for (uint32_t direction = 0; direction < 4; ++direction)
+    {
+        const auto raw = RawRecipe(static_cast<uint32_t>(TrackStyle::loopingRollerCoaster), type, 0, direction, 0);
+        uint32_t photos = 0;
+        for (size_t p = 0; p < raw.size(); p += 12)
+            if (raw[p] == 0xfffffffcu)
+            {
+                ++photos;
+                EXPECT_EQ(raw[p + 1], direction);
+                EXPECT_EQ(raw[p + 2], 0u);
+                EXPECT_EQ(raw[p + 3], 3u);
+            }
+        EXPECT_EQ(photos, 1u);
+    }
+    OpenRCT2::WorldRidePresentationMaterials source;
+    source.rides.resize(1);
+    source.rides[0].present = true;
+    source.rides[0].rideType = OpenRCT2::RIDE_TYPE_LOOPING_ROLLER_COASTER;
+    std::set<uint32_t> images;
+    OpenRCT2::Ui::Gpu::BuildWorldTrackCatalog(source, [&](uint32_t image) {
+        images.insert(image);
+        return image;
+    });
+    for (uint32_t image = 25615; image <= 25626; ++image)
+        EXPECT_TRUE(images.contains(image));
+    EXPECT_FALSE(images.contains(0xfffffffcu));
+}
+
+TEST(WorldTrackRulesTest, RestoredOrdinaryCurvesAndStationsKeepTheirFullSequenceTails)
+{
+    for (const uint32_t style : { 9u, 10u, 79u })
+        for (const uint32_t type : { 16u, 17u, 22u, 23u })
+            for (uint32_t direction = 0; direction < 4; ++direction)
+                EXPECT_FALSE(Recipe(style, type, 6, direction, 0).empty());
+    for (const uint32_t type : { 119u, 121u })
+        for (uint32_t sequence = 0; sequence < 4; ++sequence)
+            for (uint32_t direction = 0; direction < 4; ++direction)
+                EXPECT_FALSE(Recipe(30, type, sequence, direction, 0).empty());
+    for (uint32_t direction = 0; direction < 4; ++direction)
+    {
+        const auto regular = Recipe(53, 1, 0, direction, 64);
+        const auto noPlatforms = Recipe(53, 1, 0, direction, 0);
+        ASSERT_EQ(regular.size(), 24u);
+        ASSERT_EQ(noPlatforms.size(), 12u);
+        EXPECT_EQ(regular[0], 15812u + (direction & 1u));
+        EXPECT_EQ(noPlatforms[0], 16220u + (direction & 1u));
+        EXPECT_EQ(regular[12], 0xfffffffeu);
+        EXPECT_EQ(regular[20], 6u); // Covers-only, no fabricated platform.
+    }
+}
+
+TEST(WorldTrackRulesTest, WaterSplashFiltersRemainOrderedChildrenAndNeverBecomeImageZero)
+{
+    const auto images = OpenRCT2::Drawing::GetNativeTrackRecipeImages();
+    EXPECT_FALSE(std::binary_search(images.begin(), images.end(), 0u));
+    for (const uint32_t style : { 9u, 10u, 79u })
+        for (uint32_t direction = 0; direction < 4; ++direction)
+        {
+            const auto parts = Recipe(style, 117, 0, direction, 0);
+            ASSERT_GE(parts.size(), 48u);
+            EXPECT_EQ(parts[24], 0u);
+            EXPECT_EQ(parts[34], 4u);
+            EXPECT_EQ(parts[36], 0u);
+            EXPECT_EQ(parts[46], 5u);
+            EXPECT_EQ(parts[35], 0u);
+            EXPECT_EQ(parts[47], 0u);
+        }
 }

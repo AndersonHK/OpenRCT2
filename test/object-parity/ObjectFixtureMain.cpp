@@ -22,6 +22,7 @@
 #include <openrct2/drawing/X8DrawingEngine.h>
 #include <openrct2/entity/EntityTweener.h>
 #include <openrct2/interface/Viewport.h>
+#include <openrct2/interface/ViewportFlags.h>
 #include <openrct2/localisation/Language.h>
 #include <openrct2/object/BannerObject.h>
 #include <openrct2/object/EntranceObject.h>
@@ -40,11 +41,13 @@
 #include <openrct2/ride/RideData.h>
 #include <openrct2/ride/RideManager.hpp>
 #include <openrct2/ride/TrackData.h>
+#include <openrct2/ride/Vehicle.h>
 #include <openrct2/ride/ted/TrackElemType.h>
 #include <openrct2/ride/ted/TrackElementDescriptor.h>
 #include <openrct2/world/Banner.h>
 #include <openrct2/world/Map.h>
 #include <openrct2/world/MapAnimation.h>
+#include <openrct2/world/MapSelection.h>
 #include <openrct2/world/tile_element/BannerElement.h>
 #include <openrct2/world/tile_element/EntranceElement.h>
 #include <openrct2/world/tile_element/LargeSceneryElement.h>
@@ -105,7 +108,115 @@ namespace
         return result;
     }
 
-    void TrackSpecials(IContext& context, json_t& manifest)
+    void ConstructionOverlays(IContext& context, json_t& manifest)
+    {
+        auto& manager = context.GetObjectManager();
+        ObjectEntryIndex pathSurface = kObjectEntryIndexNull, railings = kObjectEntryIndexNull;
+        for (ObjectEntryIndex i = 0; i < 255; ++i)
+        {
+            if (auto* surface = manager.GetLoadedObject<FootpathSurfaceObject>(i); surface != nullptr
+                && !(surface->Flags & FOOTPATH_ENTRY_FLAG_IS_QUEUE)
+                && !(surface->Flags & FOOTPATH_ENTRY_FLAG_SHOW_ONLY_IN_SCENARIO_EDITOR) && pathSurface == kObjectEntryIndexNull)
+                pathSurface = i;
+            if (railings == kObjectEntryIndexNull && manager.GetLoadedObject<FootpathRailingsObject>(i))
+                railings = i;
+        }
+        const auto grass = manager.GetLoadedObjectEntryIndex("rct2.terrain_surface.grass");
+        const auto rock = manager.GetLoadedObjectEntryIndex("rct2.terrain_edge.rock");
+        Require(
+            grass != kObjectEntryIndexNull && rock != kObjectEntryIndexNull && pathSurface != kObjectEntryIndexNull
+                && railings != kObjectEntryIndexNull,
+            "Seed lacks construction overlay terrain/path materials");
+        gameStateInitAll(getGameState(), TileCoordsXY{ 64, 64 });
+        for (int y = 0; y < 64; ++y)
+            for (int x = 0; x < 64; ++x)
+            {
+                auto* surface = MapGetSurfaceElementAt(TileCoordsXY{ x, y });
+                Require(surface != nullptr, "Construction fixture lacks surface");
+                const int z = x >= 38 && x <= 40 && y >= 27 && y <= 37 ? 128 : 64;
+                surface->setBaseZ(z);
+                surface->setClearanceZ(z);
+                surface->setSlope(x == 30 && y >= 30 && y <= 34 ? 12 : 0);
+                surface->setWaterHeight(x >= 31 && x <= 33 && y >= 31 && y <= 33 ? 96 : 0);
+                surface->setGrassLength(0);
+                surface->setOwnership(kUnowned);
+                surface->setParkFences(0);
+                surface->setSurfaceObjectIndex(grass);
+                surface->setEdgeObjectIndex(rock);
+            }
+        const auto path = [&](int x, int y, int z, uint8_t edges, bool ghost, bool sloped = false, uint8_t direction = 0) {
+            auto* element = TileElementInsert<PathElement>({ x * 32, y * 32, z }, 15);
+            Require(element != nullptr, "Construction path insertion failed");
+            element->setClearanceZ(z + (sloped ? 32 : 16));
+            element->setSurfaceEntryIndex(pathSurface);
+            element->setRailingsEntryIndex(railings);
+            element->setEdgesAndCorners(edges);
+            element->setSloped(sloped);
+            element->setSlopeDirection(direction);
+            element->setHasQueueBanner(false);
+            element->setAddition(0);
+            element->setGhost(ghost);
+            manifest["objects"].push_back({ { "kind", "constructionPath" },
+                                            { "x", x },
+                                            { "y", y },
+                                            { "baseZ", z },
+                                            { "edges", edges },
+                                            { "ghost", ghost },
+                                            { "sloped", sloped },
+                                            { "direction", direction } });
+        };
+        for (int x = 23; x <= 28; ++x)
+            path(x, 28, 128, 5, true);
+        path(22, 28, 112, 5, true, true, 2);
+        for (int y = 29; y <= 35; ++y)
+            path(27, y, 128, 10, true);
+        for (int x = 35; x <= 43; ++x)
+            path(x, 32, 64, 5, x >= 39);
+        path(37, 35, 64, 5, true, true, 0);
+        manifest["fixture"] = "original-construction-overlays-v1";
+        manifest["scope"] = "raw rectangular/corner/quarter/edge/water selections, irregular construction footprint and eight "
+                            "arrow directions across eight cameras; original ghost bridge/ramp and tunnel paths; no simulation "
+                            "ticks";
+    }
+    json_t ApplyConstructionSelection(uint8_t rotation, int zoom)
+    {
+        constexpr std::array<MapSelectType, 8> types{ MapSelectType::full,     MapSelectType::fullTerrainAndWater,
+                                                      MapSelectType::quarter0, MapSelectType::edge0,
+                                                      MapSelectType::corner0,  MapSelectType::fullWater,
+                                                      MapSelectType::quarter2, MapSelectType::edge2 };
+        const auto index = static_cast<size_t>(zoom * 4 + rotation);
+        gMapSelectFlags.clearAll();
+        gMapSelectFlags.set(MapSelectFlag::enable, MapSelectFlag::enableConstruct, MapSelectFlag::enableArrow);
+        if (zoom == 1)
+            gMapSelectFlags.set(MapSelectFlag::green);
+        gMapSelectType = types[index];
+        gMapSelectPositionA = { 30 * 32, 30 * 32 };
+        gMapSelectPositionB = { 34 * 32, 34 * 32 };
+        gMapSelectArrowPosition = { 27 * 32, 32 * 32, 128 };
+        gMapSelectArrowDirection = static_cast<uint8_t>(index);
+        MapSelection::clearSelectedTiles();
+        json_t tiles = json_t::array();
+        constexpr std::array<CoordsXY, 6> footprint{ { { 25 * 32, 28 * 32 },
+                                                       { 26 * 32, 28 * 32 },
+                                                       { 27 * 32, 28 * 32 },
+                                                       { 27 * 32, 29 * 32 },
+                                                       { 27 * 32, 30 * 32 },
+                                                       { 28 * 32, 30 * 32 } } };
+        for (const auto& tile : footprint)
+        {
+            MapSelection::addSelectedTile(tile);
+            tiles.push_back({ tile.x, tile.y });
+        }
+        return { { "flags", gMapSelectFlags.holder },
+                 { "type", EnumValue(gMapSelectType) },
+                 { "first", { gMapSelectPositionA.x, gMapSelectPositionA.y } },
+                 { "last", { gMapSelectPositionB.x, gMapSelectPositionB.y } },
+                 { "arrow", { gMapSelectArrowPosition.x, gMapSelectArrowPosition.y, gMapSelectArrowPosition.z } },
+                 { "direction", gMapSelectArrowDirection },
+                 { "tiles", std::move(tiles) } };
+    }
+
+    void TrackSpecials(IContext& context, json_t& manifest, bool regressions = false)
     {
         struct SeedRide
         {
@@ -117,12 +228,14 @@ namespace
         {
             SeedRide seed;
             TrackElemType type;
-            bool chain{}, station{};
+            bool chain{}, station{}, inverted{}, brakeClosed{};
         };
         auto& state = getGameState();
         auto& manager = context.GetObjectManager();
         std::vector<SeedRide> seeds;
-        for (int style : { 39, 27, 1, 56, 65, 3, 69, 31, 78 })
+        const std::vector<int> requiredStyles = regressions ? std::vector<int>{ 79, 9, 31, 78, 53, 67, 11, 30, 8, 38, 10 }
+                                                            : std::vector<int>{ 39, 27, 1, 56, 65, 3, 69, 31, 78, 53, 24 };
+        for (int style : requiredStyles)
         {
             bool found = false;
             for (const auto& ride : RideManager(state))
@@ -132,6 +245,35 @@ namespace
                     found = true;
                     break;
                 }
+            if (!found && regressions && (style == 8 || style == 9 || style == 10))
+            {
+                // Older EverythingPark seeds predate the separate classic ride
+                // types. Their original painters accept the corresponding held assets.
+                const auto assetStyle = style == 8 ? TrackStyle::standUpRollerCoaster : TrackStyle::woodenRollerCoaster;
+                for (const auto& ride : RideManager(state))
+                {
+                    if (getTrackDrawerEntry(GetRideTypeDescriptor(ride.type)).trackStyle != assetStyle)
+                        continue;
+                    for (uint32_t type = 0; type < static_cast<uint32_t>(RIDE_TYPE_COUNT); ++type)
+                        if (static_cast<int>(
+                                getTrackDrawerEntry(GetRideTypeDescriptor(static_cast<ride_type_t>(type))).trackStyle)
+                            == style)
+                        {
+                            seeds.push_back({ style, static_cast<ride_type_t>(type), ride.subtype, ride.entranceStyle });
+                            manifest["seedRideFallbacks"].push_back(
+                                { { "style", style },
+                                  { "rideType", type },
+                                  { "assetRideType", ride.type },
+                                  { "object", ride.subtype },
+                                  { "reason",
+                                    "classic original painter with corresponding existing vehicle/station assets" } });
+                            found = true;
+                            break;
+                        }
+                    if (found)
+                        break;
+                }
+            }
             Require(found, "Seed lacks a required track-specials ride style");
         }
         const auto seed = [&](int style) -> SeedRide {
@@ -141,31 +283,78 @@ namespace
             throw std::runtime_error("Missing track-specials seed metadata");
         };
         std::vector<Specimen> specimens;
-        for (uint16_t type = 102; type <= 109; ++type)
-            specimens.push_back({ seed(39), static_cast<TrackElemType>(type) });
-        for (int style : { 27, 1, 56, 65, 3, 69 })
-            specimens.push_back({ seed(style), TrackElemType::endStation, false, true });
-        for (int style : { 31, 78 })
+        if (regressions)
         {
-            for (const auto type : { TrackElemType::flat, TrackElemType::up25 })
+            // Complete TED placements for 49 curated source-admission regressions.
+            for (const auto type : { 16, 17, 18, 21, 22, 23, 44, 45, 87, 90, 91, 94, 137, 158, 178 })
+                specimens.push_back({ seed(79), static_cast<TrackElemType>(type) });
+            for (const auto type : { 16, 18 })
+                specimens.push_back({ seed(9), static_cast<TrackElemType>(type) });
+            for (int style : { 31, 78 })
+                for (const auto type : { 46, 47, 48, 49, 133, 134, 137, 138 })
+                    specimens.push_back({ seed(style), static_cast<TrackElemType>(type) });
+            for (int style : { 53, 67 })
+                specimens.push_back({ seed(style), TrackElemType::endStation, false, true });
+            for (const auto type : { 42, 46 })
+                specimens.push_back({ seed(67), static_cast<TrackElemType>(type) });
+            for (int style : { 11, 53 })
             {
-                specimens.push_back({ seed(style), type, false });
-                specimens.push_back({ seed(style), type, true });
+                for (const auto type : { 4, 6, 9, 24, 26 })
+                    specimens.push_back({ seed(style), static_cast<TrackElemType>(type), false, false, style == 53 });
+                specimens.push_back({ seed(style), TrackElemType::up25, true, false, style == 53 });
             }
-            for (const auto type :
-                 { TrackElemType::down25, TrackElemType::flatToUp25, TrackElemType::up25ToFlat,
-                   TrackElemType::leftQuarterTurn3Tiles, TrackElemType::rightQuarterTurn3Tiles, TrackElemType::sBendLeft,
-                   TrackElemType::sBendRight, TrackElemType::flatToUp60, TrackElemType::up60ToFlat })
-                specimens.push_back({ seed(style), type });
-            specimens.push_back({ seed(style), TrackElemType::endStation, false, true });
+            Require(specimens.size() == 49, "Original track-regression prefix changed");
+            // Append only: the original49 identities and tile placements remain fixed.
+            for (int type : { 22, 44 })
+                specimens.push_back({ seed(9), static_cast<TrackElemType>(type) });
+            for (int style : { 11, 30 })
+                for (int type : { 141, 337, 338 })
+                    specimens.push_back({ seed(style), static_cast<TrackElemType>(type), style == 11 && type == 141, false,
+                                          false, type == 338 });
+            for (int type : { 158, 171 })
+                specimens.push_back({ seed(8), static_cast<TrackElemType>(type) });
+            for (int type : { 42, 43 })
+                specimens.push_back({ seed(38), static_cast<TrackElemType>(type) });
+            for (int style : { 9, 10, 79 })
+                specimens.push_back({ seed(style), TrackElemType::waterSplash });
         }
-        Require(specimens.size() <= 49, "Track-specials grid capacity exceeded");
+        else
+        {
+            for (uint16_t type = 102; type <= 109; ++type)
+                specimens.push_back({ seed(39), static_cast<TrackElemType>(type) });
+            for (int style : { 27, 1, 56, 65, 3, 69 })
+                specimens.push_back({ seed(style), TrackElemType::endStation, false, true });
+            for (int style : { 31, 78 })
+            {
+                for (const auto type : { TrackElemType::flat, TrackElemType::up25 })
+                {
+                    specimens.push_back({ seed(style), type, false });
+                    specimens.push_back({ seed(style), type, true });
+                }
+                for (const auto type :
+                     { TrackElemType::down25, TrackElemType::flatToUp25, TrackElemType::up25ToFlat,
+                       TrackElemType::leftQuarterTurn3Tiles, TrackElemType::rightQuarterTurn3Tiles, TrackElemType::sBendLeft,
+                       TrackElemType::sBendRight, TrackElemType::flatToUp60, TrackElemType::up60ToFlat })
+                    specimens.push_back({ seed(style), type });
+                specimens.push_back({ seed(style), TrackElemType::endStation, false, true });
+            }
+            // Append after the original42 specimens so their identity and positions stay stable.
+            for (const auto type :
+                 { TrackElemType::flat, TrackElemType::up25, TrackElemType::leftQuarterTurn5Tiles, TrackElemType::sBendLeft })
+                specimens.push_back({ seed(53), type, false, false, true });
+            for (const auto type : { TrackElemType::up60, TrackElemType::up25ToUp60, TrackElemType::up60ToUp25 })
+                specimens.push_back({ seed(24), type });
+        }
+        Require(specimens.size() <= (regressions ? 64u : 49u), "Track-specials grid capacity exceeded");
+        if (regressions)
+            Require(specimens.size() == 64, "Track-regression coverage changed unexpectedly");
         const auto grass = manager.GetLoadedObjectEntryIndex("rct2.terrain_surface.grass");
         const auto rock = manager.GetLoadedObjectEntryIndex("rct2.terrain_edge.rock");
         Require(grass != kObjectEntryIndexNull && rock != kObjectEntryIndexNull, "Seed lacks grass/rock");
-        gameStateInitAll(state, TileCoordsXY{ 64, 64 });
-        for (int y = 0; y < 64; ++y)
-            for (int x = 0; x < 64; ++x)
+        const int mapSize = regressions ? 72 : 64;
+        gameStateInitAll(state, TileCoordsXY{ mapSize, mapSize });
+        for (int y = 0; y < mapSize; ++y)
+            for (int x = 0; x < mapSize; ++x)
             {
                 auto* surface = MapGetSurfaceElementAt(TileCoordsXY{ x, y });
                 Require(surface != nullptr, "Missing track-specials surface");
@@ -179,7 +368,11 @@ namespace
                 surface->setSurfaceObjectIndex(grass);
                 surface->setEdgeObjectIndex(rock);
             }
-        manifest["grid"] = { { "mapSize", 64 }, { "columns", 7 }, { "spacing", 8 }, { "count", specimens.size() } };
+        manifest["grid"] = { { "mapSize", mapSize },
+                             { "columns", regressions ? 8 : 7 },
+                             { "spacing", 8 },
+                             { "preservedPrefix", regressions ? 49 : 0 },
+                             { "count", specimens.size() } };
         for (size_t id = 0; id < specimens.size(); ++id)
         {
             const auto& spec = specimens[id];
@@ -197,7 +390,12 @@ namespace
                 maxY = std::max(maxY, int(c.y));
             }
             Require(maxX - minX <= 5 * 32 && maxY - minY <= 5 * 32, "Track-specials specimen exceeds separated grid cell");
-            const int cellX = 3 + static_cast<int>(id % 7) * 8, cellY = 3 + static_cast<int>(id / 7) * 8;
+            const int column = id < 49 ? static_cast<int>(id % 7) : (id < 56 ? 7 : static_cast<int>(id - 56));
+            const int row = id < 49 ? static_cast<int>(id / 7) : (id < 56 ? static_cast<int>(id - 49) : 7);
+            const int cellX = 3 + column * 8, cellY = 3 + row * 8;
+            Require(
+                cellX + (maxX - minX) / 32 < mapSize - 1 && cellY + (maxY - minY) / 32 < mapSize - 1,
+                "Track-specials specimen reaches technical map boundary");
             const int x = cellX * 32 - minX, y = cellY * 32 - minY, baseZ = 128 - minZ;
             auto& ride = *RideAllocateAtIndex(RideId::FromUnderlying(static_cast<uint16_t>(id)));
             ride.type = spec.seed.type;
@@ -236,6 +434,8 @@ namespace
                 track->setSequenceIndex(static_cast<uint8_t>(spec.station ? 0 : sequence));
                 track->setStationIndex(StationIndex::FromUnderlying(0));
                 track->setHasChain(spec.chain);
+                track->setInverted(spec.inverted);
+                track->setBrakeClosed(spec.brakeClosed);
                 track->setClearanceZ(pos.z + std::max(32, int(c.clearanceZ)));
                 track->setColourScheme(RideColourScheme::main);
                 placements.push_back({ { "x", pos.x / 32 },
@@ -257,28 +457,137 @@ namespace
                     portal->setDirection(exit ? 1 : 3);
                     portal->setClearanceZ(baseZ + 64);
                 }
-            manifest["objects"].push_back({ { "kind", spec.station ? "station" : "trackSpecial" },
-                                            { "specimen", id },
-                                            { "ride", id },
-                                            { "style", spec.seed.style },
-                                            { "rideType", spec.seed.type },
-                                            { "object", spec.seed.object },
-                                            { "station", spec.seed.station },
-                                            { "trackType", static_cast<uint16_t>(spec.type) },
-                                            { "chain", spec.chain },
-                                            { "direction", 0 },
-                                            { "x", x / 32 },
-                                            { "y", y / 32 },
-                                            { "baseZ", baseZ },
-                                            { "cellX", cellX },
-                                            { "cellY", cellY },
-                                            { "sequences", count },
-                                            { "placements", placements } });
+            manifest["objects"].push_back(
+                { { "kind", spec.station ? "station" : "trackSpecial" },
+                  { "specimen", id },
+                  { "ride", id },
+                  { "style", spec.seed.style },
+                  { "effectiveStyle",
+                    static_cast<uint32_t>(
+                        getTrackDrawerEntry(GetRideTypeDescriptor(spec.seed.type), spec.inverted, false).trackStyle) },
+                  { "rideType", spec.seed.type },
+                  { "object", spec.seed.object },
+                  { "station", spec.seed.station },
+                  { "trackType", static_cast<uint16_t>(spec.type) },
+                  { "chain", spec.chain },
+                  { "inverted", spec.inverted },
+                  { "brakeClosed", spec.brakeClosed },
+                  { "direction", 0 },
+                  { "x", x / 32 },
+                  { "y", y / 32 },
+                  { "baseZ", baseZ },
+                  { "cellX", cellX },
+                  { "cellY", cellY },
+                  { "sequences", count },
+                  { "placements", placements } });
         }
         state.ridesEndOfUsedRange = static_cast<uint16_t>(specimens.size());
-        manifest["fixture"] = "original-track-specials-v1";
-        manifest["scope"] = "Looping quarter-helix types102..109; six narrow/pier station families; Junior/Water flat, chain, "
-                            "slopes, curves, S-bends, steep transitions and stations; no vehicles or simulation ticks";
+        manifest["fixture"] = regressions ? "original-track-regressions-v2" : "original-track-specials-v1";
+        manifest["scope"] = regressions
+            ? "Wooden/classic ordinary and banked turns, helixes and diagonals; Junior/Water sloped three-tile turns "
+              "and eighths; MultiDimension/WildMouse stations and Mouse curves; Compact/MultiInverted25-degree "
+              "support-predicate "
+              "regressions; appended classic banks, inverted diagonal chain/brakes, classic stand-up diagonals, LogFlume "
+              "curves "
+              "and three wooden waterSplash families; complete TED sequences, no vehicles or simulation ticks"
+            : "Looping quarter-helix types102..109; six narrow/pier station families; Junior/Water flat, chain, "
+              "slopes, curves, S-bends, steep transitions and stations; no vehicles or simulation ticks";
+    }
+
+    void PhotoStates(IContext& context, json_t& manifest)
+    {
+        struct Seed
+        {
+            ride_type_t type;
+            ObjectEntryIndex object, station;
+        };
+        std::array<Seed, 2> seeds{};
+        auto& state = getGameState();
+        for (size_t family = 0; family < seeds.size(); ++family)
+        {
+            const auto wanted = family == 0 ? TrackStyle::loopingRollerCoaster : TrackStyle::woodenRollerCoaster;
+            bool found = false;
+            for (const auto& ride : RideManager(state))
+                if (getTrackDrawerEntry(GetRideTypeDescriptor(ride.type)).trackStyle == wanted)
+                {
+                    seeds[family] = { ride.type, ride.subtype, ride.entranceStyle };
+                    found = true;
+                    break;
+                }
+            Require(found, "Seed lacks normal/small photo track family");
+        }
+        auto& manager = context.GetObjectManager();
+        const auto grass = manager.GetLoadedObjectEntryIndex("rct2.terrain_surface.grass");
+        const auto rock = manager.GetLoadedObjectEntryIndex("rct2.terrain_edge.rock");
+        Require(grass != kObjectEntryIndexNull && rock != kObjectEntryIndexNull, "Photo fixture lacks terrain");
+        gameStateInitAll(state, TileCoordsXY{ 64, 64 });
+        for (int y = 0; y < 64; ++y)
+            for (int x = 0; x < 64; ++x)
+            {
+                auto* surface = MapGetSurfaceElementAt(TileCoordsXY{ x, y });
+                Require(surface != nullptr, "Photo fixture lacks surface");
+                surface->setBaseZ(64);
+                surface->setClearanceZ(64);
+                surface->setSlope(0);
+                surface->setWaterHeight(0);
+                surface->setGrassLength(0);
+                surface->setOwnership(kUnowned);
+                surface->setParkFences(0);
+                surface->setSurfaceObjectIndex(grass);
+                surface->setEdgeObjectIndex(rock);
+            }
+        manifest["photoStates"] = json_t::array();
+        uint16_t id = 0;
+        for (size_t family = 0; family < seeds.size(); ++family)
+            for (uint8_t timeout : { uint8_t(0), uint8_t(1), uint8_t(3) })
+                for (bool ghost : { false, true })
+                {
+                    const int x = 19 + int(id % 4) * 8, y = 23 + int(id / 4) * 8;
+                    const auto seed = seeds[family];
+                    auto* ride = RideAllocateAtIndex(RideId::FromUnderlying(id));
+                    Require(ride != nullptr, "Photo ride allocation failed");
+                    ride->type = seed.type;
+                    ride->subtype = seed.object;
+                    ride->entranceStyle = seed.station;
+                    ride->status = RideStatus::closed;
+                    ride->customName = "Photo state " + std::to_string(id);
+                    for (auto& colour : ride->trackColours)
+                        colour = { Colour::brightRed, Colour::yellow, Colour::white };
+                    auto* track = TileElementInsert<TrackElement>({ x * 32, y * 32, 64 }, 15);
+                    Require(track != nullptr, "Photo track insertion failed");
+                    track->setRideIndex(ride->id);
+                    track->setRideType(seed.type);
+                    track->setTrackType(TrackElemType::onRidePhoto);
+                    track->setDirection(0);
+                    track->setSequenceIndex(0);
+                    track->setClearanceZ(112);
+                    track->setColourScheme(RideColourScheme::main);
+                    track->setPhotoTimeout(timeout);
+                    track->setGhost(ghost);
+                    const json_t identity = { { "specimen", id },
+                                              { "x", x },
+                                              { "y", y },
+                                              { "baseZ", 64 },
+                                              { "clearanceZ", 112 },
+                                              { "ride", id },
+                                              { "rideType", seed.type },
+                                              { "trackType", static_cast<uint16_t>(TrackElemType::onRidePhoto) },
+                                              { "sequence", 0 },
+                                              { "direction", 0 },
+                                              { "photoTimeout", timeout },
+                                              { "small", family != 0 },
+                                              { "ghost", ghost } };
+                    manifest["photoStates"].push_back(identity);
+                    auto specimen = identity;
+                    specimen["kind"] = "photo";
+                    manifest["objects"].push_back(std::move(specimen));
+                    ++id;
+                }
+        state.ridesEndOfUsedRange = id;
+        manifest["fixture"] = "original-onride-photo-v1";
+        manifest["grid"] = { { "mapSize", 64 }, { "columns", 4 }, { "spacing", 8 }, { "count", id } };
+        manifest["scope"] = "Normal Looping and small Wooden camera/sign art, timeout0/1/3, ordinary/ghost, "
+                            "all four camera rotations and zoom0/1; no simulation ticks";
     }
 
     void Underground(IContext& context, json_t& manifest)
@@ -516,6 +825,214 @@ namespace
         manifest["grid"] = { { "mapSize", 64 }, { "columns", 4 }, { "spacing", 13 }, { "count", labels.size() } };
     }
 
+    void UndergroundView(IContext& context, json_t& manifest)
+    {
+        auto& state = getGameState();
+        ride_type_t towerType = kRideTypeNull;
+        ObjectEntryIndex towerObject = kObjectEntryIndexNull, stationStyle = kObjectEntryIndexNull;
+        for (const auto& ride : RideManager(state))
+            if (getTrackDrawerEntry(GetRideTypeDescriptor(ride.type)).trackStyle == TrackStyle::observationTower)
+            {
+                towerType = ride.type;
+                towerObject = ride.subtype;
+                stationStyle = ride.entranceStyle;
+                break;
+            }
+        Require(towerType != kRideTypeNull, "Seed lacks underground-view tower");
+        Underground(context, manifest);
+        for (int specimen = 0; specimen < 2; ++specimen)
+        {
+            const int x = 58, y = 8 + specimen * 18;
+            const int terrainZ = specimen == 0 ? 128 : 256;
+            for (int dy = -3; dy <= 3; ++dy)
+                for (int dx = -3; dx <= 3; ++dx)
+                {
+                    auto* surface = MapGetSurfaceElementAt(TileCoordsXY{ x + dx, y + dy });
+                    Require(surface != nullptr, "Missing underground-view tower terrain");
+                    surface->setBaseZ(terrainZ);
+                    surface->setClearanceZ(terrainZ);
+                }
+            const auto rideId = RideId::FromUnderlying(static_cast<uint16_t>(16 + specimen));
+            auto* allocated = RideAllocateAtIndex(rideId);
+            Require(allocated != nullptr, "Underground-view tower allocation failed");
+            auto& ride = *allocated;
+            ride.type = towerType;
+            ride.subtype = towerObject;
+            ride.entranceStyle = stationStyle;
+            ride.status = RideStatus::closed;
+            ride.customName = "Buried tower " + std::to_string(specimen);
+            ride.numStations = 1;
+            ride.getStation().start = { x * 32, y * 32 };
+            ride.getStation().setBaseZ(64);
+            for (auto& colour : ride.trackColours)
+                colour = { Colour::brightRed, Colour::yellow, Colour::white };
+            json_t placements = json_t::array();
+            const auto track = [&](CoordsXYZ position, TrackElemType type, uint8_t sequence, int clearance) {
+                auto* element = TileElementInsert<TrackElement>(position, 15);
+                Require(element != nullptr, "Underground-view tower track insertion failed");
+                element->setRideIndex(rideId);
+                element->setRideType(towerType);
+                element->setTrackType(type);
+                element->setSequenceIndex(sequence);
+                element->setDirection(0);
+                element->setStationIndex(StationIndex::FromUnderlying(0));
+                element->setColourScheme(RideColourScheme::main);
+                element->setClearanceZ(clearance);
+                placements.push_back({ { "x", position.x / 32 },
+                                       { "y", position.y / 32 },
+                                       { "baseZ", position.z },
+                                       { "clearanceZ", clearance },
+                                       { "trackType", static_cast<uint16_t>(type) },
+                                       { "sequence", sequence } });
+            };
+            const auto& base = TrackMetadata::GetTrackElementDescriptor(TrackElemType::towerBase).sequenceData;
+            for (uint8_t sequence = 0; sequence < base.numSequences; ++sequence)
+            {
+                const auto& c = base.sequences[sequence].clearance;
+                const CoordsXYZ position{ x * 32 + c.x, y * 32 + c.y, 64 + c.z };
+                track(position, TrackElemType::towerBase, sequence, position.z + 96);
+            }
+            for (int z = 160; z <= 256; z += 32)
+                track({ x * 32, y * 32, z }, TrackElemType::towerSection, 0, z + 32);
+            manifest["objects"].push_back({ { "kind", "undergroundTower" },
+                                            { "label", specimen == 0 ? "shallow-tower" : "deep-tower" },
+                                            { "x", x },
+                                            { "y", y },
+                                            { "baseZ", 64 },
+                                            { "terrainZ", terrainZ },
+                                            { "style", static_cast<int>(TrackStyle::observationTower) },
+                                            { "ride", rideId.ToUnderlying() },
+                                            { "placements", std::move(placements) } });
+        }
+        state.ridesEndOfUsedRange = 18;
+        manifest["fixture"] = "original-underground-view-v1";
+        manifest["scope"] = "Actual underground/inside viewport mode: buried paths, coaster stations, flat buildings and tower "
+                            "bases/sections under darkened transparent terrain; all four rotations and zoom0/1, no simulation "
+                            "ticks";
+    }
+
+    void AnimatedPoses(json_t& manifest, int phase)
+    {
+        Require(phase >= 0 && phase < 3, "Animated pose must be0,1 or2");
+        auto& state = getGameState();
+        manifest["mechanismPoses"] = json_t::array();
+        for (auto& ride : RideManager(state))
+        {
+            const auto style = getTrackDrawerEntry(GetRideTypeDescriptor(ride.type)).trackStyle;
+            int frame = 0, secondary = 0, restraints = 0;
+            bool mechanism = true;
+            switch (style)
+            {
+                case TrackStyle::hauntedHouse:
+                    frame = phase == 0 ? 1 : (phase == 1 ? 9 : 18);
+                    break;
+                case TrackStyle::merryGoRound:
+                    frame = phase == 0 ? 13 : (phase == 1 ? 31 : 7);
+                    break;
+                case TrackStyle::ferrisWheel:
+                    frame = phase == 0 ? 13 : (phase == 1 ? 64 : 127);
+                    break;
+                case TrackStyle::spaceRings:
+                    frame = 11;
+                    break;
+                case TrackStyle::twist:
+                    frame = phase == 0 ? 3 : (phase == 1 ? 11 : 23);
+                    break;
+                case TrackStyle::enterprise:
+                    frame = phase == 0 ? 12 : (phase == 1 ? 36 : 48);
+                    break;
+                case TrackStyle::swingingShip:
+                    frame = phase == 0 ? -3 : (phase == 1 ? 6 : -9);
+                    break;
+                case TrackStyle::swingingInverterShip:
+                    frame = phase == 0 ? -12 : (phase == 1 ? 24 : 36);
+                    break;
+                case TrackStyle::magicCarpet:
+                    frame = phase == 0 ? 8 : (phase == 1 ? 16 : 24);
+                    break;
+                case TrackStyle::topSpin:
+                    frame = phase == 0 ? 12 : (phase == 1 ? 24 : 0);
+                    secondary = phase == 0 ? 5 : (phase == 1 ? 11 : 0);
+                    restraints = phase == 2 ? 255 : 0;
+                    break;
+                case TrackStyle::motionSimulator:
+                    frame = phase == 0 ? 12 : (phase == 1 ? 34 : 0);
+                    restraints = phase == 2 ? 192 : 0;
+                    break;
+                case TrackStyle::spiralSlide:
+                    ride.slideInUse = 1;
+                    ride.spiralSlideProgress = static_cast<uint8_t>(phase == 0 ? 10 : (phase == 1 ? 30 : 47));
+                    ride.slidePeepTShirtColour = Colour::brightRed;
+                    mechanism = false;
+                    break;
+                default:
+                    continue;
+            }
+            ride.flags.set(RideFlag::onTrack, mechanism);
+            if (style == TrackStyle::merryGoRound && phase == 2)
+            {
+                ride.flags.set(RideFlag::breakdownPending);
+                ride.breakdownReasonPending = Breakdown::controlFailure;
+                ride.breakdownSoundModifier = 128;
+            }
+            json_t vehicles = json_t::array();
+            if (mechanism)
+            {
+                const int count = style == TrackStyle::spaceRings ? 4 : 1;
+                ride.numTrains = static_cast<uint8_t>(count);
+                ride.numCarsPerTrain = 1;
+                for (int slot = 0; slot < count; ++slot)
+                {
+                    auto* vehicle = state.entities.createEntity<Vehicle>();
+                    Require(vehicle != nullptr, "Mechanism vehicle allocation failed");
+                    ride.vehicles[slot] = vehicle->id;
+                    vehicle->ride = ride.id;
+                    vehicle->ride_subtype = ride.subtype;
+                    vehicle->vehicle_type = 0;
+                    vehicle->SubType = Vehicle::Type::head;
+                    vehicle->next_vehicle_on_train = EntityId::GetNull();
+                    vehicle->prev_vehicle_on_ride = vehicle->next_vehicle_on_ride = vehicle->id;
+                    vehicle->status = Vehicle::Status::waitingForPassengers;
+                    vehicle->num_peeps = vehicle->num_seats = 0;
+                    std::fill(std::begin(vehicle->peep), std::end(vehicle->peep), EntityId::GetNull());
+                    const int ringFrames[4] = { 0, 11, 41, 87 };
+                    vehicle->flatRideAnimationFrame = static_cast<uint8_t>(
+                        style == TrackStyle::spaceRings ? ringFrames[(slot + phase) % 4] : frame);
+                    vehicle->flatRideSecondaryAnimationFrame = static_cast<uint8_t>(secondary);
+                    vehicle->orientation = static_cast<uint8_t>((phase + 1) * 8);
+                    vehicle->restraints_position = static_cast<uint8_t>(restraints);
+                    vehicle->current_time = 8;
+                    // Null-position mechanism entities are intentionally rendered by their original
+                    // tile painter, not by the separate travelling-vehicle painter.
+                    vehicles.push_back({ { "slot", slot },
+                                         { "entityId", vehicle->id.ToUnderlying() },
+                                         { "frame", vehicle->flatRideAnimationFrame },
+                                         { "secondary", secondary },
+                                         { "orientation", vehicle->orientation },
+                                         { "restraints", restraints },
+                                         { "currentTime", 8 } });
+                }
+            }
+            manifest["mechanismPoses"].push_back({ { "ride", ride.id.ToUnderlying() },
+                                                   { "rideType", ride.type },
+                                                   { "objectSlot", ride.subtype },
+                                                   { "style", static_cast<int>(style) },
+                                                   { "onTrack", mechanism },
+                                                   { "breakdownPending", ride.flags.has(RideFlag::breakdownPending) },
+                                                   { "breakdownReason", static_cast<uint8_t>(ride.breakdownReasonPending) },
+                                                   { "breakdownModifier", ride.breakdownSoundModifier },
+                                                   { "slideInUse", ride.slideInUse },
+                                                   { "slideProgress", ride.spiralSlideProgress },
+                                                   { "slideColour", static_cast<uint8_t>(ride.slidePeepTShirtColour) },
+                                                   { "vehicles", vehicles } });
+        }
+        manifest["fixture"] = "original-animated-buildings-v1";
+        manifest["posePhase"] = phase;
+        manifest["scope"] = "Original upstream flat mechanism body painters with explicit simulation-owned pose fields; "
+                            "three separately saved poses, no wall-clock extrapolation, no simulation advance, no riders or "
+                            "travelling cars";
+    }
+
     void StaticBuildings(IContext& context, json_t& manifest)
     {
         struct Specimen
@@ -671,14 +1188,32 @@ namespace
 
 int main(int argc, char** argv)
 {
-    if (argc != 3
-        && (argc != 4
-            || (std::string_view(argv[3]) != "--static-buildings" && std::string_view(argv[3]) != "--track-specials"
-                && std::string_view(argv[3]) != "--underground")))
+    const bool animated = argc >= 4 && std::string_view(argv[3]) == "--animated-buildings";
+    if ((argc != 3 && argc != 4 && !(argc == 5 && animated))
+        || (argc >= 4 && !animated && std::string_view(argv[3]) != "--static-buildings"
+            && std::string_view(argv[3]) != "--track-specials" && std::string_view(argv[3]) != "--track-regressions"
+            && std::string_view(argv[3]) != "--track-regressions-opaque"
+            && std::string_view(argv[3]) != "--track-regressions-inside" && std::string_view(argv[3]) != "--underground"
+            && std::string_view(argv[3]) != "--construction-overlays" && std::string_view(argv[3]) != "--underground-view"
+            && std::string_view(argv[3]) != "--underground-view-control" && std::string_view(argv[3]) != "--photo-states"))
     {
-        std::cerr
-            << "Usage: object-fixture <new-output-directory> <seed-park> [--static-buildings|--track-specials|--underground]\n";
+        std::cerr << "Usage: object-fixture <new-output-directory> <seed-park> "
+                     "[--static-buildings|--track-specials|--track-regressions|--track-regressions-opaque|--track-regressions-"
+                     "inside|--underground|--underground-view|--underground-"
+                     "view-control|--"
+                     "construction-overlays|--photo-states|--animated-buildings [0|1|2]]\n";
         return EXIT_FAILURE;
+    }
+    int posePhase = 0;
+    if (argc == 5)
+    {
+        const std::string_view value(argv[4]);
+        if (value != "0" && value != "1" && value != "2")
+        {
+            std::cerr << "Animated pose must be0,1 or2\n";
+            return EXIT_FAILURE;
+        }
+        posePhase = value[0] - '0';
     }
     const fs::path output = fs::absolute(argv[1]);
     if (fs::exists(output))
@@ -687,10 +1222,19 @@ int main(int argc, char** argv)
         return EXIT_FAILURE;
     }
     fs::create_directories(output);
-    const bool buildings = argc == 4 && std::string_view(argv[3]) == "--static-buildings";
-    const bool specials = argc == 4 && std::string_view(argv[3]) == "--track-specials";
-    const bool underground = argc == 4 && std::string_view(argv[3]) == "--underground";
-    const bool largeFixture = buildings || specials || underground;
+    const bool buildings = animated || (argc == 4 && std::string_view(argv[3]) == "--static-buildings");
+    const bool regressionOpaque = argc == 4 && std::string_view(argv[3]) == "--track-regressions-opaque";
+    const bool regressionInside = argc == 4 && std::string_view(argv[3]) == "--track-regressions-inside";
+    const bool regressions = regressionOpaque || regressionInside
+        || (argc == 4 && std::string_view(argv[3]) == "--track-regressions");
+    const bool specials = regressions || (argc == 4 && std::string_view(argv[3]) == "--track-specials");
+    const bool undergroundView = argc == 4 && std::string_view(argv[3]) == "--underground-view";
+    const bool undergroundControl = argc == 4 && std::string_view(argv[3]) == "--underground-view-control";
+    const bool underground = undergroundView || undergroundControl
+        || (argc == 4 && std::string_view(argv[3]) == "--underground");
+    const bool overlays = argc == 4 && std::string_view(argv[3]) == "--construction-overlays";
+    const bool photos = argc == 4 && std::string_view(argv[3]) == "--photo-states";
+    const bool largeFixture = buildings || specials || underground || overlays || photos;
     json_t manifest = {
         { "schema", 1 },
         { "fixture", "original-world-object-art-v1" },
@@ -719,6 +1263,11 @@ int main(int argc, char** argv)
         Config::Get().general.dayNightCycle = false;
         Config::Get().general.enableLightFx = false;
         Config::Get().general.landscapeSmoothing = false;
+        if (regressions)
+        {
+            Config::Get().general.transparentWater = !regressionOpaque;
+            manifest["transparentWater"] = !regressionOpaque;
+        }
         Require(Config::SaveToPath(environment->GetFilePath(PathId::config)), "Could not seed isolated configuration");
         gOpenRCT2Headless = true;
         gOpenRCT2NoGraphics = false;
@@ -728,10 +1277,19 @@ int main(int argc, char** argv)
         auto& manager = context->GetObjectManager();
         auto& state = getGameState();
         manifest["objectSources"] = ObjectSources(*context);
-        if (underground)
+        if (photos)
+            PhotoStates(*context, manifest);
+        else if (overlays)
+            ConstructionOverlays(*context, manifest);
+        else if (undergroundView || undergroundControl)
+        {
+            UndergroundView(*context, manifest);
+            manifest["viewMode"] = undergroundView ? "underground-inside" : "normal-control";
+        }
+        else if (underground)
             Underground(*context, manifest);
         else if (specials)
-            TrackSpecials(*context, manifest);
+            TrackSpecials(*context, manifest, regressions);
         else if (buildings)
             StaticBuildings(*context, manifest);
         else
@@ -971,6 +1529,8 @@ int main(int argc, char** argv)
                                                     { "broken", condition == 2 } });
                 }
         }
+        if (animated)
+            AnimatedPoses(manifest, posePhase);
         gRealTimeOfDay = { 0, 23, 7 };
         manifest["clockHour"] = 7;
         manifest["clockMinute"] = 23;
@@ -993,8 +1553,8 @@ int main(int argc, char** argv)
         // fixture, and give the candidate loader exact identity-checked flag patches before capture.
         std::vector<TileElement*> ghosts;
         manifest["ghostPatches"] = json_t::array();
-        for (int y = 0; y < (largeFixture ? 64 : 32); ++y)
-            for (int x = 0; x < (largeFixture ? 64 : 32); ++x)
+        for (int y = 0; y < (regressions ? 72 : (largeFixture ? 64 : 32)); ++y)
+            for (int x = 0; x < (regressions ? 72 : (largeFixture ? 64 : 32)); ++x)
             {
                 auto* element = MapGetFirstElementAt(TileCoordsXY{ x, y });
                 if (element == nullptr)
@@ -1032,14 +1592,17 @@ int main(int argc, char** argv)
             {
                 const std::string name = "objects-r" + std::to_string(rotation) + "-z" + std::to_string(zoom);
                 Viewport viewport{};
-                viewport.width = largeFixture ? 3840 : 1664;
-                viewport.height = largeFixture ? 2160 : 1024;
+                viewport.width = regressions ? 4096 : (largeFixture ? 3840 : 1664);
+                viewport.height = regressions ? 2304 : (largeFixture ? 2160 : 1024);
                 viewport.zoom = ZoomLevel{ static_cast<int8_t>(zoom) };
                 viewport.rotation = rotation;
+                if (undergroundView || regressionInside)
+                    viewport.flags.set(ViewportFlag::undergroundInside);
                 const auto centre = Translate3DTo2DWithZ(
                     rotation,
-                    (specials || underground) ? CoordsXYZ{ 1024, 1024, 128 }
-                                              : (buildings ? CoordsXYZ{ 896, 896, 64 } : CoordsXYZ{ 512, 512, 64 }));
+                    (specials || underground || overlays || photos)
+                        ? CoordsXYZ{ 1024, 1024, 128 }
+                        : (buildings ? CoordsXYZ{ 896, 896, 64 } : CoordsXYZ{ 512, 512, 64 }));
                 viewport.viewPos = { centre.x - viewport.ViewWidth() / 2, centre.y - viewport.ViewHeight() / 2 };
                 std::vector<PaletteIndex> pixels(static_cast<size_t>(viewport.width) * viewport.height);
                 RenderTarget target{};
@@ -1047,6 +1610,9 @@ int main(int argc, char** argv)
                 target.width = viewport.width;
                 target.height = viewport.height;
                 target.DrawingEngine = &engine;
+                json_t selection;
+                if (overlays)
+                    selection = ApplyConstructionSelection(rotation, zoom);
                 ResetAllSpriteQuadrantPlacements();
                 engine.BeginDraw();
                 ViewportRender(target, &viewport);
@@ -1069,11 +1635,19 @@ int main(int argc, char** argv)
                                               { "height", viewport.height },
                                               { "rotation", rotation },
                                               { "zoom", zoom },
+                                              { "viewFlags", viewport.flags.holder },
                                               { "viewX", viewport.zoom.ApplyInversedTo(viewport.viewPos.x) },
                                               { "viewY", viewport.zoom.ApplyInversedTo(viewport.viewPos.y) },
                                               { "viewPosition", { viewport.viewPos.x, viewport.viewPos.y } },
                                               { "referenceIndexed", raw },
                                               { "referencePng", png } });
+                if (regressions)
+                    manifest["cases"].back()["transparentWater"] = !regressionOpaque;
+                if (overlays)
+                {
+                    manifest["cases"].back()["selection"] = std::move(selection);
+                    manifest["cases"].back()["viewFlags"] = 0;
+                }
             }
         Require(state.currentTicks == 0, "Reference rendering advanced simulation");
         manifest["status"] = "pass";

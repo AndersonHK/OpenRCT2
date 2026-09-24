@@ -488,6 +488,86 @@ namespace OpenRCT2
         return captured;
     }
 
+    static std::shared_ptr<const WorldRidePoseSnapshot> CaptureWorldRidePoses(uint64_t epoch, uint32_t sourceTick)
+    {
+        PROFILED_FUNCTION();
+        auto& state = getGameState();
+        static std::shared_ptr<const std::vector<WorldRidePoseRecord>> captured;
+        static std::vector<WorldRidePoseRecord> scratch;
+        static uint64_t nextRevision{}, capturedEpoch{}, capturedEntityEpoch{};
+        const auto entityEpoch = state.entities.GetEntityVisualEpoch();
+        scratch.resize(state.ridesEndOfUsedRange);
+        for (size_t i = 0; i < scratch.size(); ++i)
+        {
+            auto& words = scratch[i].words;
+            words = {};
+            const auto& ride = state.rides[i];
+            if (ride.id.IsNull())
+                continue;
+            const auto style = getTrackDrawerEntry(GetRideTypeDescriptor(ride.type)).trackStyle;
+            switch (style)
+            {
+                case TrackStyle::hauntedHouse:
+                case TrackStyle::spiralSlide:
+                case TrackStyle::merryGoRound:
+                case TrackStyle::ferrisWheel:
+                case TrackStyle::spaceRings:
+                case TrackStyle::twist:
+                case TrackStyle::enterprise:
+                case TrackStyle::swingingShip:
+                case TrackStyle::swingingInverterShip:
+                case TrackStyle::magicCarpet:
+                case TrackStyle::topSpin:
+                case TrackStyle::motionSimulator:
+                    break;
+                default:
+                    continue;
+            }
+            words[0] = 1u | (ride.flags.has(RideFlag::onTrack) ? 2u : 0u)
+                | (ride.flags.has(RideFlag::breakdownPending) ? 4u : 0u) | (ride.flags.has(RideFlag::brokenDown) ? 8u : 0u);
+            words[1] = uint32_t(ride.type) | (uint32_t(ride.subtype) << 16);
+            if (style == TrackStyle::merryGoRound)
+                words[2] = uint32_t(ride.breakdownReasonPending) | (uint32_t(ride.breakdownSoundModifier) << 8);
+            if (style == TrackStyle::spiralSlide)
+                words[3] = uint32_t(ride.slideInUse) | (uint32_t(ride.spiralSlideProgress) << 8)
+                    | (uint32_t(ride.slidePeepTShirtColour) << 16);
+            for (size_t slot = 0; slot < 4; ++slot)
+            {
+                const auto offset = 4 + slot * 4;
+                words[offset] = UINT32_MAX;
+                if (slot != 0 && style != TrackStyle::spaceRings)
+                    continue;
+                const auto* vehicle = state.entities.tryGetEntity<Vehicle>(ride.vehicles[slot]);
+                if (vehicle == nullptr)
+                    continue;
+                const auto handle = state.entities.GetEntityVisualHandle(vehicle->id);
+                words[offset] = vehicle->id.ToUnderlying();
+                words[offset + 1] = handle.generation;
+                words[offset + 2] = uint32_t(vehicle->flatRideAnimationFrame)
+                    | (uint32_t(vehicle->flatRideSecondaryAnimationFrame) << 8) | (uint32_t(vehicle->orientation) << 16)
+                    | (uint32_t(vehicle->restraints_position) << 24);
+                // Only the carousel's control-failure vibration consumes this timer.
+                // Ordinary mechanism time advances must not force an otherwise unchanged pose upload.
+                if (style == TrackStyle::merryGoRound && ride.flags.has(RideFlag::onTrack)
+                    && ride.flags.hasAny(RideFlag::breakdownPending, RideFlag::brokenDown)
+                    && ride.breakdownReasonPending == Breakdown::controlFailure && ride.breakdownSoundModifier >= 128)
+                    words[offset + 3] = static_cast<uint16_t>(vehicle->current_time);
+            }
+        }
+        if (captured == nullptr || capturedEpoch != epoch || capturedEntityEpoch != entityEpoch || *captured != scratch)
+        {
+            if (nextRevision == UINT64_MAX)
+                throw std::overflow_error("Ride pose revision exhausted");
+            auto next = std::make_shared<const std::vector<WorldRidePoseRecord>>(scratch);
+            captured = std::move(next);
+            capturedEpoch = epoch;
+            capturedEntityEpoch = entityEpoch;
+            ++nextRevision;
+        }
+        return std::make_shared<const WorldRidePoseSnapshot>(
+            WorldRidePoseSnapshot{ epoch, entityEpoch, nextRevision, sourceTick, captured });
+    }
+
     static WorldObjectPresentationRecord CaptureWorldObjectRecord(const TileElement& element, uint32_t ordinal)
     {
         using namespace WorldObjectPresentationFlags;
@@ -637,22 +717,29 @@ namespace OpenRCT2
                 const auto total = object->GetNumImages();
                 material.imageCount = offset < total ? total - offset : 0;
                 material.supported = material.imageCount != 0 && object->Colour == Drawing::kColourNull;
+                const auto selector = [&](uint32_t length, uint32_t rotation, uint32_t variation, bool grid, bool underground) {
+                    const auto image = object->GetImageId(
+                        CoordsXY{ static_cast<int32_t>((variation & 1) * 32), static_cast<int32_t>((variation >> 1) * 32) },
+                        length == 8 ? TerrainSurfaceObject::kNoValue : static_cast<uint8_t>(length),
+                        static_cast<uint8_t>(rotation), 0, grid, underground);
+                    const auto relative = image.GetIndex() - material.imageBase;
+                    material.supported = material.supported && !image.HasPrimary() && !image.HasSecondary() && !image.IsRemap()
+                        && !image.IsBlended() && relative % 19 == 0
+                        && static_cast<uint64_t>(relative) + 19 <= material.imageCount;
+                    return relative / 19;
+                };
                 for (uint32_t length = 0; length < 9; length++)
                     for (uint32_t rotation = 0; rotation < 4; rotation++)
                         for (uint32_t variation = 0; variation < 4; variation++)
                         {
                             // Enumerate immutable selectors, never a world tile or per-frame sprite decision.
-                            const auto image = object->GetImageId(
-                                CoordsXY{ static_cast<int32_t>((variation & 1) * 32),
-                                          static_cast<int32_t>((variation >> 1) * 32) },
-                                length == 8 ? TerrainSurfaceObject::kNoValue : static_cast<uint8_t>(length),
-                                static_cast<uint8_t>(rotation), 0, false, false);
-                            const auto relative = image.GetIndex() - material.imageBase;
-                            material.supported = material.supported && !image.HasPrimary() && !image.HasSecondary()
-                                && !image.IsRemap() && !image.IsBlended() && relative % 19 == 0
-                                && static_cast<uint64_t>(relative) + 19 <= material.imageCount;
-                            material.selectors[(length * 4 + rotation) * 4 + variation] = relative / 19;
+                            const auto index = (length * 4 + rotation) * 4 + variation;
+                            material.selectors[index] = selector(length, rotation, variation, false, false);
+                            material.gridSelectors[index] = selector(length, rotation, variation, true, false);
                         }
+                for (uint32_t rotation = 0; rotation < 4; rotation++)
+                    for (uint32_t variation = 0; variation < 4; variation++)
+                        material.undergroundSelectors[rotation * 4 + variation] = selector(1, rotation, variation, false, true);
             }
             if (const auto* object = TerrainEdgeObject::GetById(slot); object != nullptr)
             {
@@ -662,6 +749,7 @@ namespace OpenRCT2
                 const auto total = object->GetNumImages();
                 material.imageCount = offset < total ? total - offset : 0;
                 material.supported = material.imageCount >= 37;
+                material.hasDoors = object->HasDoors && !object->UsesFallbackImages();
             }
         }
         capturedEpoch = epoch;
@@ -669,11 +757,12 @@ namespace OpenRCT2
         return captured;
     }
 
-    MapPresentationChangeBatch ConsumeMapPresentationChanges(
-        const bool requireCompleteSnapshot, const MapPublicationProfile profile)
+    static MapPresentationChangeBatch CaptureMapPresentationChanges(
+        const bool requireCompleteSnapshot, const MapPublicationProfile profile, const bool consume,
+        const uint64_t auxiliaryEpoch = 0)
     {
         PROFILED_FUNCTION();
-        if (requireCompleteSnapshot && !_presentationResetPending)
+        if (consume && requireCompleteSnapshot && !_presentationResetPending)
         {
             if (++_presentationEpoch == 0)
                 _presentationEpoch = 1;
@@ -683,8 +772,8 @@ namespace OpenRCT2
         const uint32_t surfaceWidth = gameState.mapSize.x;
         const uint32_t surfaceHeight = gameState.mapSize.y;
         MapPresentationChangeBatch batch{
-            .epoch = _presentationEpoch,
-            .reset = _presentationResetPending,
+            .epoch = consume ? _presentationEpoch : auxiliaryEpoch,
+            .reset = !consume || _presentationResetPending,
             .surfaceWidth = surfaceWidth,
             .surfaceHeight = surfaceHeight,
             .sourceTick = gameState.currentTicks,
@@ -694,6 +783,7 @@ namespace OpenRCT2
         batch.pathMaterials = CapturePathMaterials();
         batch.objectMaterials = CaptureWorldObjectMaterials();
         batch.rideMaterials = CaptureWorldRideMaterials(batch.epoch);
+        batch.ridePoses = CaptureWorldRidePoses(batch.epoch, batch.sourceTick);
         batch.clockHour = gRealTimeOfDay.hour;
         batch.clockMinute = gRealTimeOfDay.minute;
         const auto copyTile = [&batch](const uint32_t index, const uint32_t surfaceIndex) {
@@ -712,6 +802,10 @@ namespace OpenRCT2
             uint32_t ordinal = 0;
             do
             {
+                auto& maxClearanceZ = change.surface.terrain.maxClearanceZ;
+                maxClearanceZ = std::max(maxClearanceZ, source->getClearanceZ());
+                if (source->getType() == TileElementType::surface)
+                    maxClearanceZ = std::max(maxClearanceZ, source->asSurface()->getWaterHeight());
                 if (source->getType() == TileElementType::path)
                     change.paths.push_back(CapturePathRecord(*source->asPath(), ordinal));
                 hasTrack |= source->getType() == TileElementType::track;
@@ -792,7 +886,7 @@ namespace OpenRCT2
                 || surfaceElement.getSlope() != 0 || surfaceElement.getWaterHeight() != 0
                 || surfaceElement.getParkFences() != 0;
         };
-        if (_presentationResetPending)
+        if (batch.reset)
         {
             batch.changes.reserve(static_cast<size_t>(surfaceWidth) * surfaceHeight);
             for (uint32_t y = 0; y < surfaceHeight; y++)
@@ -802,7 +896,8 @@ namespace OpenRCT2
                     copyTile(x + y * kMaximumMapSizeTechnical, x + y * surfaceWidth);
                 }
             }
-            _presentationResetPending = false;
+            if (consume)
+                _presentationResetPending = false;
         }
         else
         {
@@ -815,9 +910,31 @@ namespace OpenRCT2
                     copyTile(index, x + y * surfaceWidth);
             }
         }
-        _presentationDirtyWorklist.clear();
-        _presentationDirtyTiles.reset();
+        if (consume)
+        {
+            _presentationDirtyWorklist.clear();
+            _presentationDirtyTiles.reset();
+        }
         return batch;
+    }
+
+    MapPresentationChangeBatch ConsumeMapPresentationChanges(
+        const bool requireCompleteSnapshot, const MapPublicationProfile profile)
+    {
+        return CaptureMapPresentationChanges(requireCompleteSnapshot, profile, true);
+    }
+
+    std::shared_ptr<const MapPresentationSnapshot> CaptureAuxiliaryMapPresentationSnapshot()
+    {
+        // Auxiliary captures must not steal pending edits or change the main publication's identity.
+        // Give independently rebuilt chunk revisions a disjoint identity in the auxiliary namespace.
+        static uint64_t nextEpoch = uint64_t{ 1 } << 63;
+        if (nextEpoch == std::numeric_limits<uint64_t>::max())
+            throw std::overflow_error("Auxiliary map snapshot identity exhausted");
+        auto batch = CaptureMapPresentationChanges(true, MapPublicationProfile::rawTerrain, false, nextEpoch++);
+        auto result = std::make_shared<MapPresentationSnapshot>();
+        result->Apply(batch);
+        return result;
     }
 
     uint64_t GetMapPresentationEpoch() noexcept
@@ -1117,6 +1234,7 @@ namespace OpenRCT2
         _pathMaterials = batch.pathMaterials;
         _objectMaterials = batch.objectMaterials;
         _rideMaterials = batch.rideMaterials;
+        _ridePoses = batch.ridePoses;
         _clockHour = batch.clockHour;
         _clockMinute = batch.clockMinute;
         _terrainMaterials = batch.terrainMaterials;

@@ -8,15 +8,21 @@
 
     #include "VulkanWorldSurfacePipeline.h"
 
+    #include "../gpu/GpuSelectedVehiclePaint.h"
     #include "../gpu/GpuWorldEntranceCatalog.h"
     #include "../gpu/GpuWorldFlatRideCatalog.h"
     #include "VulkanShader.h"
 
     #include <array>
     #include <bit>
+    #include <cstdlib>
     #include <cstring>
+    #include <limits>
+    #include <locale>
+    #include <openrct2/core/Console.hpp>
     #include <ranges>
     #include <span>
+    #include <sstream>
     #include <stdexcept>
     #include <utility>
 
@@ -40,13 +46,23 @@ namespace OpenRCT2::Ui::Vulkan
             uint32_t transparentWater;
             uint32_t outputCapacity;
             uint32_t sourceTick, clockMinute, clockHour;
+            uint32_t viewFlags;
         };
-        static_assert(sizeof(WorldSurfaceConstants) == 84);
+        static_assert(sizeof(WorldSurfaceConstants) == 88);
         static_assert(offsetof(WorldSurfaceConstants, width) == 32);
         static_assert(offsetof(WorldSurfaceConstants, zoom) == 44);
         static_assert(offsetof(WorldSurfaceConstants, spriteSetCount) == 52);
         static_assert(offsetof(WorldSurfaceConstants, depthBase) == 56);
         static_assert(sizeof(VkDrawIndirectCommand) == 16);
+
+        constexpr uint32_t kMaximumPaintColumns = 8192;
+        constexpr uint32_t kMaximumSelectedComponents = 16384;
+        constexpr VkDeviceSize kSelectedVehicleBytes = (16ull + 255ull * 12ull + kMaximumSelectedComponents * 28ull)
+            * sizeof(uint32_t);
+        constexpr VkDeviceSize kParentMetadataBytes = Gpu::kWorldSurfaceOutputCapacity * 48ull
+            + Gpu::kWorldSurfaceMaximumRecordCount * 8ull;
+        constexpr VkDeviceSize kBoundsProfileOffset = Gpu::kWorldSurfaceOutputCapacity * 28ull + kMaximumPaintColumns * 32ull;
+        constexpr VkDeviceSize kParentWorkspaceBytes = kBoundsProfileOffset + 32;
 
         constexpr VkVertexInputBindingDescription kBinding = {
             .binding = 0,
@@ -64,6 +80,7 @@ namespace OpenRCT2::Ui::Vulkan
             VkVertexInputAttributeDescription{ 7, 0, VK_FORMAT_R32_SINT, offsetof(Gpu::WorldSurfaceRecord, depth) },
             VkVertexInputAttributeDescription{ 8, 0, VK_FORMAT_R32_SINT, offsetof(Gpu::WorldSurfaceRecord, zoom) },
             VkVertexInputAttributeDescription{ 9, 0, VK_FORMAT_R32_SINT, offsetof(Gpu::WorldSurfaceRecord, coordinateShift) },
+            VkVertexInputAttributeDescription{ 10, 0, VK_FORMAT_R32G32_SINT, offsetof(Gpu::WorldSurfaceRecord, reserved) },
         };
     } // namespace
 
@@ -88,10 +105,18 @@ namespace OpenRCT2::Ui::Vulkan
         constexpr VkDeviceSize objectBytes = Gpu::kWorldObjectSourceCapacity * sizeof(Gpu::WorldObjectSourceRecord);
         constexpr VkDeviceSize spriteBytes = Gpu::kWorldSurfaceMaximumSpriteSetCount * sizeof(Gpu::WorldSurfaceSpriteSet);
         constexpr VkDeviceSize visibleBytes = Gpu::kWorldSurfaceOutputCapacity * sizeof(Gpu::WorldSurfaceRecord);
-        constexpr VkDeviceSize indirectBytes = Gpu::kWorldSurfaceMaximumDrawCount * sizeof(VkDrawIndirectCommand);
+        constexpr VkDeviceSize indirectBytes = std::max(Gpu::kWorldSurfaceMaximumDrawCount, kMaximumPaintColumns)
+            * sizeof(VkDrawIndirectCommand);
         VkPhysicalDeviceProperties properties{};
         vkGetPhysicalDeviceProperties(device.GetPhysicalDevice(), &properties);
-        if (std::max({ sourceBytes, pathBytes, objectBytes, spriteBytes, visibleBytes })
+        if (properties.limits.maxPerStageDescriptorStorageBuffers < 20 || properties.limits.maxDescriptorSetStorageBuffers < 20)
+            throw std::runtime_error("GPU world presentation requires twenty storage-buffer descriptors");
+        if (properties.limits.maxPushConstantsSize < sizeof(WorldSurfaceConstants))
+            throw std::runtime_error("GPU world presentation constants exceed the device push-constant range");
+        if (properties.limits.maxComputeSharedMemorySize < 2002 * sizeof(uint32_t))
+            throw std::runtime_error("GPU world ordering exceeds the device compute shared memory");
+        if (std::max(
+                { sourceBytes, pathBytes, objectBytes, spriteBytes, visibleBytes, kParentMetadataBytes, kParentWorkspaceBytes })
             > properties.limits.maxStorageBufferRange)
             throw std::runtime_error("GPU terrain storage exceeds the device buffer range");
         _catalog.Initialise(
@@ -103,11 +128,7 @@ namespace OpenRCT2::Ui::Vulkan
         _status.Initialise(
             device.GetPhysicalDevice(), _device, sizeof(Gpu::WorldSurfaceStatus),
             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
-        _landBackground.Initialise(
-            device.GetPhysicalDevice(), _device, { _extent.width, _extent.height, 1 }, 1, VK_FORMAT_R8_UINT,
-            VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
-        for (uint32_t i = 0; i < _frameCount; i++)
-            _indexedImages[i] = resources.GetIndexedCanvas(i).GetImage();
+        _filters.Initialise(device, resources, _status, _shaderDirectory);
         _sourceRecords.Initialise(
             device.GetPhysicalDevice(), _device, sourceBytes,
             VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
@@ -130,6 +151,21 @@ namespace OpenRCT2::Ui::Vulkan
         _spriteSets.Initialise(
             device.GetPhysicalDevice(), _device, spriteBytes,
             VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+        _ridePoses.Initialise(
+            device.GetPhysicalDevice(), _device, 16 + Limits::kMaxRidesInPark * sizeof(WorldRidePoseRecord),
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+        _selection.Initialise(
+            device.GetPhysicalDevice(), _device, (16 + 262144) * sizeof(uint32_t),
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+        _selectedVehicle.Initialise(
+            device.GetPhysicalDevice(), _device, kSelectedVehicleBytes,
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+        _unorderedRecords.Initialise(device.GetPhysicalDevice(), _device, visibleBytes, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+        _parentMetadata.Initialise(
+            device.GetPhysicalDevice(), _device, kParentMetadataBytes, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+        _parentWorkspace.Initialise(
+            device.GetPhysicalDevice(), _device, kParentWorkspaceBytes,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
         _visibleRecords.Initialise(
             device.GetPhysicalDevice(), _device, visibleBytes,
             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
@@ -140,16 +176,24 @@ namespace OpenRCT2::Ui::Vulkan
         CreateRenderPass();
         CreatePipeline();
         CreateFramebuffers(resources);
+        InitialiseProfile(device);
     }
 
     void WorldSurfacePipeline::Dispose()
     {
-        _landBackground.Dispose();
+        DisposeProfile();
+        _filters.Dispose();
         _catalog.Dispose();
         _prefixes.Dispose();
         _status.Dispose();
         _indirectCommands.Dispose();
         _visibleRecords.Dispose();
+        _unorderedRecords.Dispose();
+        _parentMetadata.Dispose();
+        _parentWorkspace.Dispose();
+        _selectedVehicle.Dispose();
+        _uploadedSelectedVehicle.reset();
+        _selectedVehicleInitialised = false;
         _spriteSets.Dispose();
         _sourceRecords.Dispose();
         _pathRecords.Dispose();
@@ -158,6 +202,12 @@ namespace OpenRCT2::Ui::Vulkan
         _trackCatalog.Dispose();
         _flatRideCatalog.Dispose();
         _entranceCatalog.Dispose();
+        _ridePoses.Dispose();
+        _selection.Dispose();
+        _uploadedSelection.reset();
+        _selectionInitialised = false;
+        _uploadedRidePoses.reset();
+        _ridePosesInitialised = false;
         _objectOffsets.clear();
         _objectCapacities.clear();
         _objectArenaEnd = 0;
@@ -169,7 +219,9 @@ namespace OpenRCT2::Ui::Vulkan
             for (const auto framebuffer : _framebuffers)
                 vkDestroyFramebuffer(_device, framebuffer, nullptr);
             vkDestroyPipeline(_device, _computePipeline, nullptr);
+            vkDestroyPipeline(_device, _parentOrderPipeline, nullptr);
             vkDestroyPipeline(_device, _pipeline, nullptr);
+            vkDestroyPipeline(_device, _filterPipeline, nullptr);
             vkDestroyRenderPass(_device, _renderPass, nullptr);
             vkDestroyPipelineLayout(_device, _pipelineLayout, nullptr);
             vkDestroyDescriptorPool(_device, _descriptorPool, nullptr);
@@ -183,7 +235,9 @@ namespace OpenRCT2::Ui::Vulkan
         _pipelineLayout = VK_NULL_HANDLE;
         _renderPass = VK_NULL_HANDLE;
         _computePipeline = VK_NULL_HANDLE;
+        _parentOrderPipeline = VK_NULL_HANDLE;
         _pipeline = VK_NULL_HANDLE;
+        _filterPipeline = VK_NULL_HANDLE;
         _framebuffers = {};
         _uploadedRevisions.clear();
         _uploadedSpriteRevision = 0;
@@ -208,8 +262,23 @@ namespace OpenRCT2::Ui::Vulkan
             throw std::invalid_argument("Vulkan world-surface scene dimensions are inconsistent");
         if (scene.recordCount == 0)
             return;
+        if (scene.ridePoses != nullptr
+            && (scene.ridePoses->epoch != scene.worldEpoch || scene.ridePoses->sourceTick != scene.sourceTick
+                || scene.ridePoses->records == nullptr || scene.ridePoses->records->size() > Limits::kMaxRidesInPark))
+            throw std::invalid_argument("GPU ride poses do not belong to the submitted map boundary");
         if (!Gpu::GetWorldSurfaceDepthRange(scene.depthBase, scene.recordCount).has_value())
             throw std::invalid_argument("Vulkan world-surface painter depth interval is invalid");
+        if (scene.selectedVehicle != nullptr)
+        {
+            Gpu::ValidateSelectedVehiclePaintPacket(*scene.selectedVehicle);
+            const auto& words = scene.selectedVehicle->words;
+            for (uint32_t car = 0; car < words[2]; car++)
+                if (words[16 + car * 12 + 4] >= scene.recordCount)
+                    throw std::invalid_argument("Selected vehicle car tile is outside the submitted map");
+            if (scene.selectedVehicle->source->sourceTick != scene.sourceTick
+                || scene.selectedVehicle->source->worldEpoch != scene.worldEpoch)
+                throw std::invalid_argument("Selected vehicle packet is not the submitted scene boundary");
+        }
         const auto& props = scene.sprites->propCatalog;
         const auto& tracks = scene.sprites->trackCatalog;
         if (props.size() > Gpu::kWorldPropCatalogCapacity || tracks.size() > Gpu::kWorldTrackCatalogCapacity)
@@ -534,6 +603,157 @@ namespace OpenRCT2::Ui::Vulkan
                 barrierCount, barriers.data(), 0, nullptr);
         }
 
+        const auto poseRecords = scene.ridePoses != nullptr ? scene.ridePoses->records : nullptr;
+        const auto oldPoseRecords = _uploadedRidePoses != nullptr ? _uploadedRidePoses->records : nullptr;
+        if (!_ridePosesInitialised || poseRecords != oldPoseRecords)
+        {
+            const bool reset = !_ridePosesInitialised || _uploadedRidePoses == nullptr || scene.ridePoses == nullptr
+                || _uploadedRidePoses->epoch != scene.ridePoses->epoch
+                || _uploadedRidePoses->entityEpoch != scene.ridePoses->entityEpoch;
+            const size_t poseCount = poseRecords != nullptr ? poseRecords->size() : 0;
+            std::vector<std::pair<size_t, size_t>> ranges;
+            size_t changedCount = 0;
+            for (size_t i = 0; i < poseCount;)
+            {
+                const auto changed = [&](size_t index) {
+                    return reset || oldPoseRecords == nullptr || index >= oldPoseRecords->size()
+                        || (*poseRecords)[index] != (*oldPoseRecords)[index];
+                };
+                if (!changed(i))
+                {
+                    ++i;
+                    continue;
+                }
+                const auto first = i++;
+                while (i < poseCount && changed(i))
+                    ++i;
+                ranges.emplace_back(first, i - first);
+                changedCount += i - first;
+            }
+            // SourceTick already travels in the scene constants. The resident header is purely
+            // structural, so a paused/unchanged mechanism incurs no hot-buffer upload.
+            const std::array<uint32_t, 4> header{ static_cast<uint32_t>(poseCount), 20, 0, 0 };
+            const auto bytes = sizeof(header) + changedCount * sizeof(WorldRidePoseRecord);
+            auto upload = frame.upload->Allocate(bytes, alignof(uint32_t), Drawing::UploadCategory::world);
+            if (!upload)
+                throw std::runtime_error("Vulkan upload ring has no room for ride pose deltas");
+            std::memcpy(upload.data, header.data(), sizeof(header));
+            std::vector<VkBufferCopy> copies{ { upload.offset, 0, sizeof(header) } };
+            copies.reserve(ranges.size() + 1);
+            VkDeviceSize cursor = sizeof(header);
+            for (const auto& [first, count] : ranges)
+            {
+                const VkDeviceSize rangeBytes = count * sizeof(WorldRidePoseRecord);
+                std::memcpy(upload.data + cursor, poseRecords->data() + first, static_cast<size_t>(rangeBytes));
+                copies.push_back({ upload.offset + cursor, sizeof(header) + first * sizeof(WorldRidePoseRecord), rangeBytes });
+                cursor += rangeBytes;
+            }
+            upload.RecordHostWrite();
+            VkBufferMemoryBarrier barrier{
+                .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+                .srcAccessMask = VK_ACCESS_SHADER_READ_BIT,
+                .dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+                .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                .buffer = _ridePoses.GetBuffer(),
+                .offset = 0,
+                .size = VK_WHOLE_SIZE,
+            };
+            vkCmdPipelineBarrier(
+                frame.commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 1,
+                &barrier, 0, nullptr);
+            vkCmdCopyBuffer(
+                frame.commandBuffer, upload.buffer, _ridePoses.GetBuffer(), static_cast<uint32_t>(copies.size()),
+                copies.data());
+            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            vkCmdPipelineBarrier(
+                frame.commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, nullptr, 1,
+                &barrier, 0, nullptr);
+            upload.Record(Drawing::UploadMetric::bufferTransfer, bytes);
+            if (frame.telemetry)
+                frame.telemetry->Add(frame.telemetry->worldBufferCopyCalls, 1);
+            _ridePosesInitialised = true;
+        }
+        _uploadedRidePoses = scene.ridePoses;
+        if (!_selectionInitialised || _uploadedSelection != scene.selection)
+        {
+            constexpr std::array<uint32_t, 16> emptySelection{};
+            const auto source = scene.selection != nullptr ? std::span<const uint32_t>(*scene.selection)
+                                                           : std::span<const uint32_t>(emptySelection);
+            if (source.size() < emptySelection.size() || source.size_bytes() > _selection.GetSize())
+                throw std::invalid_argument("GPU selection state exceeds its bounded buffer");
+            auto upload = frame.upload->Allocate(source.size_bytes(), alignof(uint32_t), Drawing::UploadCategory::world);
+            if (!upload)
+                throw std::runtime_error("Vulkan upload ring has no room for selection state");
+            std::memcpy(upload.data, source.data(), source.size_bytes());
+            upload.RecordHostWrite();
+            VkBufferMemoryBarrier barrier{
+                .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+                .srcAccessMask = VK_ACCESS_SHADER_READ_BIT,
+                .dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+                .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                .buffer = _selection.GetBuffer(),
+                .offset = 0,
+                .size = VK_WHOLE_SIZE,
+            };
+            vkCmdPipelineBarrier(
+                frame.commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 1,
+                &barrier, 0, nullptr);
+            const VkBufferCopy copy{ upload.offset, 0, source.size_bytes() };
+            vkCmdCopyBuffer(frame.commandBuffer, upload.buffer, _selection.GetBuffer(), 1, &copy);
+            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            vkCmdPipelineBarrier(
+                frame.commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, nullptr, 1,
+                &barrier, 0, nullptr);
+            upload.Record(Drawing::UploadMetric::bufferTransfer, source.size_bytes());
+            if (frame.telemetry)
+                frame.telemetry->Add(frame.telemetry->worldBufferCopyCalls, 1);
+            _uploadedSelection = scene.selection;
+            _selectionInitialised = true;
+        }
+
+        if (!_selectedVehicleInitialised || _uploadedSelectedVehicle != scene.selectedVehicle)
+        {
+            constexpr std::array<uint32_t, 16> emptySelection{};
+            const auto source = scene.selectedVehicle != nullptr ? std::span<const uint32_t>(scene.selectedVehicle->words)
+                                                                 : std::span<const uint32_t>(emptySelection);
+            if (source.size() < emptySelection.size() || source.size_bytes() > _selectedVehicle.GetSize())
+                throw std::invalid_argument("GPU selected-vehicle recipes exceeds its bounded buffer");
+            auto upload = frame.upload->Allocate(source.size_bytes(), alignof(uint32_t), Drawing::UploadCategory::world);
+            if (!upload)
+                throw std::runtime_error("Vulkan upload ring has no room for selected-vehicle recipes");
+            std::memcpy(upload.data, source.data(), source.size_bytes());
+            upload.RecordHostWrite();
+            VkBufferMemoryBarrier barrier{
+                .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+                .srcAccessMask = VK_ACCESS_SHADER_READ_BIT,
+                .dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+                .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                .buffer = _selectedVehicle.GetBuffer(),
+                .offset = 0,
+                .size = VK_WHOLE_SIZE,
+            };
+            vkCmdPipelineBarrier(
+                frame.commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 1,
+                &barrier, 0, nullptr);
+            const VkBufferCopy copy{ upload.offset, 0, source.size_bytes() };
+            vkCmdCopyBuffer(frame.commandBuffer, upload.buffer, _selectedVehicle.GetBuffer(), 1, &copy);
+            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            vkCmdPipelineBarrier(
+                frame.commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, nullptr, 1,
+                &barrier, 0, nullptr);
+            upload.Record(Drawing::UploadMetric::bufferTransfer, source.size_bytes());
+            if (frame.telemetry)
+                frame.telemetry->Add(frame.telemetry->worldBufferCopyCalls, 1);
+            _uploadedSelectedVehicle = scene.selectedVehicle;
+            _selectedVehicleInitialised = true;
+        }
+
         const std::array outputToCompute = {
             VkBufferMemoryBarrier{
                 .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
@@ -578,8 +798,17 @@ namespace OpenRCT2::Ui::Vulkan
             .sourceTick = scene.sourceTick,
             .clockMinute = scene.clockMinute,
             .clockHour = scene.clockHour,
+            .viewFlags = scene.viewFlags,
         };
         const uint32_t drawCount = Gpu::GetWorldSurfaceDrawCount(scene.recordCount);
+        if (scene.zoom < -2 || scene.zoom > 3)
+            throw std::invalid_argument("GPU world column zoom is outside the resident variant range");
+        const int32_t columnWidth = scene.zoom < 0 ? 32 << -scene.zoom : 32 >> scene.zoom;
+        const int32_t firstColumn = scene.view.x & ~(columnWidth - 1);
+        const uint32_t columnCount = static_cast<uint32_t>(
+            (scene.view.x + scene.clip.z - scene.clip.x - firstColumn + columnWidth - 1) / columnWidth);
+        if (columnCount == 0 || columnCount > kMaximumPaintColumns)
+            throw std::overflow_error("GPU world column count exceeds the bounded arena");
         vkCmdBindPipeline(frame.commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, _computePipeline);
         vkCmdBindDescriptorSets(
             frame.commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, _pipelineLayout, 0, 1, &_descriptorSet, 0, nullptr);
@@ -591,6 +820,15 @@ namespace OpenRCT2::Ui::Vulkan
         vkCmdPipelineBarrier(
             frame.commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT,
             VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &previousCompute, 0, nullptr, 0, nullptr);
+        if (_profileQueries != VK_NULL_HANDLE)
+        {
+            if (_profilePending.at(frame.frameIndex))
+                throw std::logic_error("World GPU profile slot reused before fence retirement");
+            vkCmdResetQueryPool(
+                frame.commandBuffer, _profileQueries, frame.frameIndex * kProfilePointCount, kProfilePointCount);
+            _profilePending[frame.frameIndex] = true;
+            ProfilePoint(frame, 0);
+        }
         for (uint32_t phase = 0; phase < 3; phase++)
         {
             constants.phase = phase;
@@ -603,6 +841,44 @@ namespace OpenRCT2::Ui::Vulkan
             vkCmdPipelineBarrier(
                 frame.commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &between,
                 0, nullptr, 0, nullptr);
+        }
+
+        ProfilePoint(frame, 1);
+        vkCmdBindPipeline(frame.commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, _parentOrderPipeline);
+        for (uint32_t phase = 5; phase <= 8; phase++)
+        {
+            constants.phase = phase;
+            vkCmdPushConstants(
+                frame.commandBuffer, _pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_VERTEX_BIT, 0,
+                sizeof(constants), &constants);
+            vkCmdDispatch(frame.commandBuffer, phase == 6 || phase == 8 ? 1 : columnCount, 1, 1);
+            const VkMemoryBarrier between{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr, VK_ACCESS_SHADER_WRITE_BIT,
+                                           VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT };
+            vkCmdPipelineBarrier(
+                frame.commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &between,
+                0, nullptr, 0, nullptr);
+            ProfilePoint(frame, phase - 3);
+        }
+
+        if (_profileQueries != VK_NULL_HANDLE)
+        {
+            auto allocation = frame.upload->Allocate(32, 4);
+            if (!allocation)
+                throw std::runtime_error("World bounds profile readback allocation failed");
+            _boundsReadbacks.at(frame.frameIndex) = { frame.upload, allocation };
+            const VkMemoryBarrier ready{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr, VK_ACCESS_SHADER_WRITE_BIT,
+                                         VK_ACCESS_TRANSFER_READ_BIT };
+            vkCmdPipelineBarrier(
+                frame.commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 1, &ready, 0,
+                nullptr, 0, nullptr);
+            const VkBufferCopy copy{ kBoundsProfileOffset, allocation.offset, 32 };
+            vkCmdCopyBuffer(frame.commandBuffer, _parentWorkspace.GetBuffer(), allocation.buffer, 1, &copy);
+            const VkMemoryBarrier visible{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr,
+                                           VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT,
+                                           VK_ACCESS_HOST_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT };
+            vkCmdPipelineBarrier(
+                frame.commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                VK_PIPELINE_STAGE_HOST_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &visible, 0, nullptr, 0, nullptr);
         }
 
         const std::array computeToDraw = {
@@ -632,27 +908,7 @@ namespace OpenRCT2::Ui::Vulkan
             VK_PIPELINE_STAGE_VERTEX_INPUT_BIT | VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT, 0, 0, nullptr,
             static_cast<uint32_t>(computeToDraw.size()), computeToDraw.data(), 0, nullptr);
 
-        const auto imageBarrier = [&](VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
-                                      VkAccessFlags sourceAccess, VkAccessFlags destinationAccess,
-                                      VkPipelineStageFlags sourceStage, VkPipelineStageFlags destinationStage) {
-            const VkImageMemoryBarrier barrier{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-                                                nullptr,
-                                                sourceAccess,
-                                                destinationAccess,
-                                                oldLayout,
-                                                newLayout,
-                                                VK_QUEUE_FAMILY_IGNORED,
-                                                VK_QUEUE_FAMILY_IGNORED,
-                                                image,
-                                                { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 } };
-            vkCmdPipelineBarrier(frame.commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
-        };
-        // The descriptor is statically referenced by the fragment module even during the land-only phase.
-        // Prior scratch pixels are intentionally discarded; all sampled water background is copied anew below.
-        imageBarrier(
-            _landBackground.GetImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+        _filters.Begin(frame.commandBuffer);
         const VkRenderPassBeginInfo pass{ VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
                                           nullptr,
                                           _renderPass,
@@ -666,31 +922,6 @@ namespace OpenRCT2::Ui::Vulkan
         {
             if (phase == 4)
             {
-                imageBarrier(
-                    _indexedImages[frame.frameIndex], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT,
-                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
-                imageBarrier(
-                    _landBackground.GetImage(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                    VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                    VK_PIPELINE_STAGE_TRANSFER_BIT);
-                const VkImageCopy copy{ { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
-                                        { 0, 0, 0 },
-                                        { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
-                                        { 0, 0, 0 },
-                                        { _extent.width, _extent.height, 1 } };
-                vkCmdCopyImage(
-                    frame.commandBuffer, _indexedImages[frame.frameIndex], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                    _landBackground.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
-                imageBarrier(
-                    _indexedImages[frame.frameIndex], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_ACCESS_TRANSFER_READ_BIT,
-                    VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
-                imageBarrier(
-                    _landBackground.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                    VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
                 const VkMemoryBarrier depth{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr,
                                              VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
                                              VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT
@@ -707,23 +938,182 @@ namespace OpenRCT2::Ui::Vulkan
             vkCmdBeginRenderPass(frame.commandBuffer, &pass, VK_SUBPASS_CONTENTS_INLINE);
             vkCmdSetViewport(frame.commandBuffer, 0, 1, &viewport);
             vkCmdSetScissor(frame.commandBuffer, 0, 1, &scissor);
-            vkCmdBindPipeline(frame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline);
+            vkCmdBindPipeline(frame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, phase == 3 ? _pipeline : _filterPipeline);
             vkCmdBindDescriptorSets(
                 frame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineLayout, 0, 1, &_descriptorSet, 0, nullptr);
+            const auto filterSet = _filters.GetSet(frame.frameIndex);
+            vkCmdBindDescriptorSets(
+                frame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineLayout, 1, 1, &filterSet, 0, nullptr);
             const VkDeviceSize offset = 0;
             const auto buffer = _visibleRecords.GetBuffer();
             vkCmdBindVertexBuffers(frame.commandBuffer, 0, 1, &buffer, &offset);
-            vkCmdDrawIndirect(frame.commandBuffer, _indirectCommands.GetBuffer(), 0, drawCount, sizeof(VkDrawIndirectCommand));
+            vkCmdDrawIndirect(
+                frame.commandBuffer, _indirectCommands.GetBuffer(), 0, columnCount, sizeof(VkDrawIndirectCommand));
             vkCmdEndRenderPass(frame.commandBuffer);
         }
+        _filters.Resolve(frame.commandBuffer, frame.frameIndex);
+        ProfilePoint(frame, 6);
     }
 
-    void WorldSurfacePipeline::DiscardPendingUploads() noexcept
+    void WorldSurfacePipeline::InitialiseProfile(const DeviceContext& device)
     {
+        const auto* requested = std::getenv("OPENRCT2_VULKAN_PROFILE_WORLD");
+        _profileRequested = requested != nullptr && std::string_view(requested) == "1";
+        if (!_profileRequested)
+            return;
+        uint32_t count = 0;
+        vkGetPhysicalDeviceQueueFamilyProperties(device.GetPhysicalDevice(), &count, nullptr);
+        std::vector<VkQueueFamilyProperties> families(count);
+        vkGetPhysicalDeviceQueueFamilyProperties(device.GetPhysicalDevice(), &count, families.data());
+        const auto family = device.GetQueueFamilies().graphics;
+        if (!family || *family >= count)
+            return;
+        _profileValidBits = families[*family].timestampValidBits;
+        VkPhysicalDeviceProperties properties{};
+        vkGetPhysicalDeviceProperties(device.GetPhysicalDevice(), &properties);
+        _profilePeriodNs = properties.limits.timestampPeriod;
+        if (!properties.limits.timestampComputeAndGraphics || _profileValidBits == 0 || _profileValidBits > 64
+            || _profilePeriodNs <= 0)
+            return;
+        const VkQueryPoolCreateInfo query{ .sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
+                                           .queryType = VK_QUERY_TYPE_TIMESTAMP,
+                                           .queryCount = _frameCount * kProfilePointCount };
+        CheckVk(vkCreateQueryPool(_device, &query, nullptr, &_profileQueries), "world stage timestamp pool");
+    }
+
+    void WorldSurfacePipeline::ProfilePoint(const SubmissionToken& frame, uint32_t point) const
+    {
+        if (_profileQueries != VK_NULL_HANDLE)
+            vkCmdWriteTimestamp(
+                frame.commandBuffer, point == 6 ? VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT : VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                _profileQueries, frame.frameIndex * kProfilePointCount + point);
+    }
+
+    void WorldSurfacePipeline::CompleteProfile(uint32_t frameIndex)
+    {
+        if (_profileQueries == VK_NULL_HANDLE || frameIndex >= _profilePending.size() || !_profilePending[frameIndex])
+            return;
+        auto& bounds = _boundsReadbacks.at(frameIndex);
+        if (bounds.ring != nullptr)
+        {
+            bounds.ring->Invalidate(bounds.allocation.offset, bounds.allocation.size);
+            std::array<uint32_t, 8> values{};
+            std::memcpy(values.data(), bounds.allocation.data, sizeof(values));
+            ++_boundsSamples;
+            _boundsColumns += values[0];
+            _boundsActiveColumns += values[6] & 65535u;
+            _boundsLargeColumns += values[6] >> 16u;
+            _boundsNodes += values[1];
+            _boundsCached += values[2];
+            _boundsFallback += values[3];
+            _boundsComparisons += values[4];
+            _boundsMaximumColumn = std::max(_boundsMaximumColumn, values[5]);
+            _boundsCounterOverflow += values[7];
+            bounds = {};
+        }
+        // The caller already retired this slot's fence. Timestamp query availability
+        // is checked explicitly without WAIT; bounds counters above use the optional32-byte readback.
+        std::array<std::array<uint64_t, 2>, kProfilePointCount> values{};
+        const auto result = vkGetQueryPoolResults(
+            _device, _profileQueries, frameIndex * kProfilePointCount, kProfilePointCount, sizeof(values), values.data(),
+            sizeof(values[0]), VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WITH_AVAILABILITY_BIT);
+        _profilePending[frameIndex] = false;
+        if (result != VK_SUCCESS && result != VK_NOT_READY)
+            CheckVk(result, "completed world stage timestamp results");
+        if (result == VK_NOT_READY || std::ranges::any_of(values, [](const auto& value) { return value[1] == 0; }))
+        {
+            ++_profileUnavailable;
+            return;
+        }
+        const uint64_t mask = _profileValidBits == 64 ? std::numeric_limits<uint64_t>::max()
+                                                      : (uint64_t{ 1 } << _profileValidBits) - 1;
+        for (size_t i = 0; i < _profileTotalUs.size(); i++)
+        {
+            const auto ticks = (values[i + 1][0] - values[i][0]) & mask;
+            const double microseconds = static_cast<double>(ticks) * _profilePeriodNs / 1000.0;
+            _profileTotalUs[i] += microseconds;
+            _profileMaxUs[i] = std::max(_profileMaxUs[i], microseconds);
+        }
+        ++_profileSamples;
+    }
+
+    void WorldSurfacePipeline::DisposeProfile()
+    {
+        if (_profileRequested)
+        {
+            // One summary per pipeline lifetime. Outstanding slots are reported,
+            // never waited on or mistaken for completed samples during teardown.
+            constexpr std::array names{ "materialize", "columnCount", "columnPrefix", "arrangeEmit", "finalize", "raster" };
+            const auto pending = std::count(_profilePending.begin(), _profilePending.end(), true);
+            std::ostringstream json;
+            json.imbue(std::locale::classic());
+            json << "{\"schema\":1,\"supported\":" << (_profileQueries != VK_NULL_HANDLE ? "true" : "false")
+                 << ",\"timestampValidBits\":" << _profileValidBits << ",\"timestampPeriodNs\":" << _profilePeriodNs
+                 << ",\"samples\":" << _profileSamples << ",\"unavailable\":" << _profileUnavailable
+                 << ",\"discarded\":" << _profileDiscarded << ",\"pending\":" << pending << ",\"stages\":{";
+            for (size_t i = 0; i < names.size(); i++)
+            {
+                if (i != 0)
+                    json << ',';
+                json << '"' << names[i] << "\":{\"meanUs\":"
+                     << (_profileSamples != 0 ? _profileTotalUs[i] / static_cast<double>(_profileSamples) : 0.0)
+                     << ",\"maxUs\":" << _profileMaxUs[i] << '}';
+            }
+            json << "}}";
+            Console::WriteLine("VULKAN_WORLD_PROFILE %s", json.str().c_str());
+            std::ostringstream bounds;
+            bounds << "{\"schema\":1,\"samples\":" << _boundsSamples << ",\"nodes\":" << _boundsNodes
+                   << ",\"cachedNodes\":" << _boundsCached << ",\"fallbackNodes\":" << _boundsFallback
+                   << ",\"comparisons\":" << _boundsComparisons << ",\"maxColumnNodes\":" << _boundsMaximumColumn
+                   << ",\"columns\":" << _boundsColumns << ",\"activeColumns\":" << _boundsActiveColumns
+                   << ",\"columnsOver512\":" << _boundsLargeColumns << ",\"saturatedSamples\":" << _boundsCounterOverflow
+                   << '}';
+            Console::WriteLine("VULKAN_WORLD_BOUNDS_PROFILE %s", bounds.str().c_str());
+        }
+        if (_device != VK_NULL_HANDLE && _profileQueries != VK_NULL_HANDLE)
+            vkDestroyQueryPool(_device, _profileQueries, nullptr);
+        _profileQueries = VK_NULL_HANDLE;
+        _profileRequested = false;
+        _boundsReadbacks = {};
+        _boundsSamples = _boundsNodes = _boundsCached = _boundsFallback = _boundsComparisons = _boundsCounterOverflow = 0;
+        _boundsMaximumColumn = 0;
+        _boundsColumns = _boundsActiveColumns = _boundsLargeColumns = 0;
+        _profileValidBits = 0;
+        _profilePeriodNs = 0;
+        _profilePending = {};
+        _profileSamples = _profileUnavailable = _profileDiscarded = 0;
+        _profileTotalUs = _profileMaxUs = {};
+    }
+
+    void WorldSurfacePipeline::DiscardPendingUploads(uint32_t frameIndex) noexcept
+    {
+        if (frameIndex < _profilePending.size())
+        {
+            _profileDiscarded += _profilePending[frameIndex];
+            _profilePending[frameIndex] = false;
+        }
+        else
+        {
+            for (auto& pending : _profilePending)
+            {
+                _profileDiscarded += pending;
+                pending = false;
+            }
+        }
+        if (frameIndex < _boundsReadbacks.size())
+            _boundsReadbacks[frameIndex] = {};
+        else
+            _boundsReadbacks = {};
         // Revisions advance while transfer commands are recorded. An abandoned command buffer never executes those copies,
         // so the next accepted frame must republish every source buffer rather than trusting the recorded revisions.
         std::ranges::fill(_uploadedRevisions, 0);
         _uploadedSpriteRevision = 0;
+        _uploadedRidePoses.reset();
+        _ridePosesInitialised = false;
+        _uploadedSelection.reset();
+        _selectionInitialised = false;
+        _uploadedSelectedVehicle.reset();
+        _selectedVehicleInitialised = false;
     }
 
     void WorldSurfacePipeline::CreateDescriptors(const IndexedResources& resources)
@@ -739,13 +1129,18 @@ namespace OpenRCT2::Ui::Vulkan
             VkDescriptorSetLayoutBinding{ 7, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
             VkDescriptorSetLayoutBinding{ 8, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
             VkDescriptorSetLayoutBinding{ 9, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
-            VkDescriptorSetLayoutBinding{ 10, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
             VkDescriptorSetLayoutBinding{ 11, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
             VkDescriptorSetLayoutBinding{ 12, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
             VkDescriptorSetLayoutBinding{ 13, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
             VkDescriptorSetLayoutBinding{ 14, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
             VkDescriptorSetLayoutBinding{ 15, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
             VkDescriptorSetLayoutBinding{ 16, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
+            VkDescriptorSetLayoutBinding{ 17, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
+            VkDescriptorSetLayoutBinding{ 18, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
+            VkDescriptorSetLayoutBinding{ 19, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
+            VkDescriptorSetLayoutBinding{ 20, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
+            VkDescriptorSetLayoutBinding{ 21, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
+            VkDescriptorSetLayoutBinding{ 22, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
         };
         const VkDescriptorSetLayoutCreateInfo layoutInfo = {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
@@ -754,8 +1149,8 @@ namespace OpenRCT2::Ui::Vulkan
         };
         CheckVk(vkCreateDescriptorSetLayout(_device, &layoutInfo, nullptr, &_descriptorSetLayout), "world surfaces layout");
         constexpr std::array poolSizes = {
-            VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3 },
-            VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 14 },
+            VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2 },
+            VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 20 },
         };
         const VkDescriptorPoolCreateInfo poolInfo = {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
@@ -782,16 +1177,20 @@ namespace OpenRCT2::Ui::Vulkan
         const VkDescriptorBufferInfo tracks{ _trackCatalog.GetBuffer(), 0, _trackCatalog.GetSize() };
         const VkDescriptorBufferInfo flatRides{ _flatRideCatalog.GetBuffer(), 0, _flatRideCatalog.GetSize() };
         const VkDescriptorBufferInfo entrances{ _entranceCatalog.GetBuffer(), 0, _entranceCatalog.GetSize() };
+        const VkDescriptorBufferInfo poses{ _ridePoses.GetBuffer(), 0, _ridePoses.GetSize() };
+        const VkDescriptorBufferInfo selection{ _selection.GetBuffer(), 0, _selection.GetSize() };
         const VkDescriptorBufferInfo paths{ _pathRecords.GetBuffer(), 0, _pathRecords.GetSize() };
         const VkDescriptorBufferInfo sources{ _sourceRecords.GetBuffer(), 0, _sourceRecords.GetSize() };
         const VkDescriptorBufferInfo spriteSets{ _spriteSets.GetBuffer(), 0, _spriteSets.GetSize() };
-        const VkDescriptorBufferInfo outputs{ _visibleRecords.GetBuffer(), 0, _visibleRecords.GetSize() };
+        const VkDescriptorBufferInfo outputs{ _unorderedRecords.GetBuffer(), 0, _unorderedRecords.GetSize() };
+        const VkDescriptorBufferInfo ordered{ _visibleRecords.GetBuffer(), 0, _visibleRecords.GetSize() };
+        const VkDescriptorBufferInfo parentMetadata{ _parentMetadata.GetBuffer(), 0, _parentMetadata.GetSize() };
+        const VkDescriptorBufferInfo parentWorkspace{ _parentWorkspace.GetBuffer(), 0, _parentWorkspace.GetSize() };
+        const VkDescriptorBufferInfo selectedVehicle{ _selectedVehicle.GetBuffer(), 0, _selectedVehicle.GetSize() };
         const VkDescriptorBufferInfo commands{ _indirectCommands.GetBuffer(), 0, _indirectCommands.GetSize() };
         const VkDescriptorBufferInfo catalog{ _catalog.GetBuffer(), 0, _catalog.GetSize() };
         const VkDescriptorBufferInfo prefixes{ _prefixes.GetBuffer(), 0, _prefixes.GetSize() };
         const VkDescriptorBufferInfo status{ _status.GetBuffer(), 0, _status.GetSize() };
-        const VkDescriptorImageInfo background{ resources.GetNearestSampler(), _landBackground.GetView(),
-                                                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
         const std::array writes = {
             VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 0, 0, 1,
                                   VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &atlas },
@@ -813,8 +1212,6 @@ namespace OpenRCT2::Ui::Vulkan
                                   VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &prefixes },
             VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 9, 0, 1,
                                   VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &status },
-            VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 10, 0, 1,
-                                  VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &background },
             VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 11, 0, 1,
                                   VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &paths },
             VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 12, 0, 1,
@@ -827,6 +1224,18 @@ namespace OpenRCT2::Ui::Vulkan
                                   VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &flatRides },
             VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 16, 0, 1,
                                   VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &entrances },
+            VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 17, 0, 1,
+                                  VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &poses },
+            VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 18, 0, 1,
+                                  VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &selection },
+            VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 19, 0, 1,
+                                  VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &parentMetadata },
+            VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 20, 0, 1,
+                                  VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &parentWorkspace },
+            VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 21, 0, 1,
+                                  VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &ordered },
+            VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 22, 0, 1,
+                                  VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &selectedVehicle },
         };
         vkUpdateDescriptorSets(_device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
     }
@@ -852,9 +1261,12 @@ namespace OpenRCT2::Ui::Vulkan
             .pDepthStencilAttachment = &depth,
         };
         constexpr std::array dependencies = {
-            VkSubpassDependency{ VK_SUBPASS_EXTERNAL, 0, VK_PIPELINE_STAGE_TRANSFER_BIT,
+            VkSubpassDependency{ VK_SUBPASS_EXTERNAL, 0,
+                                 VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+                                     | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
                                  VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
-                                 VK_ACCESS_TRANSFER_WRITE_BIT,
+                                 VK_ACCESS_TRANSFER_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
+                                     | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
                                  VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
                                      | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT
                                      | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT },
@@ -876,12 +1288,13 @@ namespace OpenRCT2::Ui::Vulkan
 
     void WorldSurfacePipeline::CreatePipeline()
     {
+        const std::array layouts{ _descriptorSetLayout, _filters.GetLayout() };
         const VkPushConstantRange push{ VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_VERTEX_BIT, 0,
                                         sizeof(WorldSurfaceConstants) };
         const VkPipelineLayoutCreateInfo layout = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-            .setLayoutCount = 1,
-            .pSetLayouts = &_descriptorSetLayout,
+            .setLayoutCount = static_cast<uint32_t>(layouts.size()),
+            .pSetLayouts = layouts.data(),
             .pushConstantRangeCount = 1,
             .pPushConstantRanges = &push,
         };
@@ -893,8 +1306,17 @@ namespace OpenRCT2::Ui::Vulkan
             .module = computeShader,
             .pName = "main",
         };
+        VkPipelineCreateFlags computeFlags = 0;
+        // Explicit diagnostic A/B only; ordinary application builds keep driver optimization enabled.
+        const auto* quickCompile = std::getenv("OPENRCT2_VULKAN_QUICK_COMPILE");
+        if (quickCompile != nullptr && std::string_view(quickCompile) == "1")
+        {
+            computeFlags = VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT;
+            Console::WriteLine("Vulkan diagnostic: native world pipeline optimization disabled");
+        }
         const VkComputePipelineCreateInfo computeInfo = {
             .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+            .flags = computeFlags,
             .stage = computeStage,
             .layout = _pipelineLayout,
         };
@@ -902,6 +1324,18 @@ namespace OpenRCT2::Ui::Vulkan
             _device, _pipelineCache, 1, &computeInfo, nullptr, &_computePipeline);
         vkDestroyShaderModule(_device, computeShader, nullptr);
         CheckVk(computeResult, "world surfaces compute pipeline");
+        const auto orderShader = LoadShaderModule(_device, _shaderDirectory / "world_parent_columns.comp.spv");
+        auto orderInfo = computeInfo;
+        orderInfo.stage.module = orderShader;
+        const auto* profileBounds = std::getenv("OPENRCT2_VULKAN_PROFILE_WORLD");
+        const VkBool32 enableBoundsStats = profileBounds != nullptr && std::string_view(profileBounds) == "1";
+        const VkSpecializationMapEntry boundsEntry{ 0, 0, sizeof(enableBoundsStats) };
+        const VkSpecializationInfo boundsSpecialization{ 1, &boundsEntry, sizeof(enableBoundsStats), &enableBoundsStats };
+        orderInfo.stage.pSpecializationInfo = &boundsSpecialization;
+        const auto orderResult = vkCreateComputePipelines(
+            _device, _pipelineCache, 1, &orderInfo, nullptr, &_parentOrderPipeline);
+        vkDestroyShaderModule(_device, orderShader, nullptr);
+        CheckVk(orderResult, "world parent-column compute pipeline");
         constexpr VkPipelineDepthStencilStateCreateInfo depth = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
             .depthTestEnable = VK_TRUE,
@@ -923,6 +1357,20 @@ namespace OpenRCT2::Ui::Vulkan
                 .renderPass = _renderPass,
             },
             "world surfaces graphics pipeline");
+        auto filterDepth = depth;
+        filterDepth.depthWriteEnable = VK_FALSE;
+        _filterPipeline = CreateGraphicsPipeline(
+            _device, _pipelineCache,
+            { .vertexShader = _shaderDirectory / "world_surface.vert.spv",
+              .fragmentShader = _shaderDirectory / "world_filter_collect.frag.spv",
+              .vertexBindings = std::span{ &kBinding, 1 },
+              .vertexAttributes = kAttributes,
+              .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
+              .depthStencil = &filterDepth,
+              .colorWriteMask = 0,
+              .layout = _pipelineLayout,
+              .renderPass = _renderPass },
+            "world ordered filter collection pipeline");
     }
 
     void WorldSurfacePipeline::CreateFramebuffers(const IndexedResources& resources)

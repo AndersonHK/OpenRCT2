@@ -124,6 +124,112 @@ def numeric(text, pattern, names, label):
     return result
 
 
+def validate_frame_presentation(payload, metrics):
+    if payload.get('schema') != 1 or type(payload.get('available')) is not bool:
+        raise ValueError('Invalid frame presentation report')
+    if payload.get('displayedFramesAvailable') is not False:
+        raise ValueError('Accepted presents must not be represented as measured scanout')
+    if not payload['available']:
+        return
+    seconds = payload.get('elapsedSeconds')
+    if type(seconds) not in (int, float) or not math.isfinite(seconds) or seconds <= 0:
+        raise ValueError('Invalid presentation measurement duration')
+    if abs(seconds - metrics['elapsedSeconds']) > .00000051:
+        raise ValueError('Presentation and simulation measurement intervals differ')
+    if payload.get('drawAttempts') != metrics['draws']['count']:
+        raise ValueError('Presentation report paint attempts differ from the terminal report')
+    counters = ('publishedVisualPackets', 'supersededVisualPackets', 'unavailableVisualPackets',
+                'discardedVisualPackets', 'visualFrameSubmissions', 'presentRequests', 'presentAccepted',
+                'presentOutOfDate', 'fenceCompletedFrames', 'lostTimingSamples')
+    previous = None
+    for key in ('intervalEnd', 'afterDrain'):
+        current = payload.get(key, {})
+        if any(type(current.get(c)) is not int or current[c] < 0 for c in counters):
+            raise ValueError('Missing or invalid presentation counters: ' + key)
+        if previous is not None and any(current[c] < previous[c] for c in counters):
+            raise ValueError('Presentation counters regressed while draining')
+        if (current['presentAccepted'] + current['presentOutOfDate'] > current['presentRequests']
+                or current['presentRequests'] > current['visualFrameSubmissions']
+                or current['fenceCompletedFrames'] > current['visualFrameSubmissions']):
+            raise ValueError('Inconsistent frame submission/presentation/completion accounting')
+        previous = current
+    for field, checkpoint, counter in (
+            ('intervalSubmissionFPS', 'intervalEnd', 'visualFrameSubmissions'),
+            ('intervalAcceptedPresentFPS', 'intervalEnd', 'presentAccepted'),
+            ('drainedSubmissionFPS', 'afterDrain', 'visualFrameSubmissions'),
+            ('drainedAcceptedPresentFPS', 'afterDrain', 'presentAccepted')):
+        value = payload.get(field)
+        if type(value) not in (int, float) or not math.isfinite(value) or abs(value - payload[checkpoint][counter] / seconds) > .001:
+            raise ValueError('Presentation rate differs from its counter/interval: ' + field)
+    pacing = payload.get('acceptedPresentIntervals')
+    if pacing is not None:
+        if type(pacing.get('available')) is not bool:
+            raise ValueError('Invalid accepted-present pacing availability')
+        if pacing['available']:
+            if (pacing.get('cohortTimestampSamples') != payload['afterDrain']['presentAccepted']
+                    or pacing.get('cohortAcceptedPresents') != payload['afterDrain']['presentAccepted']
+                    or pacing.get('timestampSamples', 0) < 2
+                    or pacing.get('intervals') != pacing['timestampSamples'] - 1
+                    or pacing.get('outOfOrderSamples') != 0 or payload['afterDrain']['lostTimingSamples'] != 0
+                    or pacing.get('binWidthMicroseconds') != 100 or pacing.get('percentilesAreUpperBounds') is not True):
+                raise ValueError('Incomplete accepted-present pacing cohort')
+            maximum = pacing.get('maxMs')
+            if type(maximum) not in (int, float) or not math.isfinite(maximum) or maximum < 0:
+                raise ValueError('Invalid accepted-present maximum interval')
+            previous = 0
+            for field in ('p50Ms', 'p95Ms', 'p99Ms'):
+                value = pacing.get(field)
+                if value is None and pacing.get('overflowIntervals', 0) > 0:
+                    continue
+                if (type(value) not in (int, float) or not math.isfinite(value)
+                        or value < previous or value > maximum + 0.100001):
+                    raise ValueError('Invalid accepted-present interval percentile')
+                previous = value
+
+
+def require_present_rate(result, minimum):
+    if minimum is None:
+        return
+    report = result.get('framePresentation', {})
+    if report.get('available') is not True:
+        raise ValueError('Actual presentation evidence is required; CPU paint FPS cannot satisfy this gate')
+    if report['intervalAcceptedPresentFPS'] < minimum:
+        raise ValueError(f"Accepted-present rate {report['intervalAcceptedPresentFPS']:.3f} FPS is below {minimum:.3f}")
+    if report['afterDrain']['presentOutOfDate'] or report['afterDrain']['lostTimingSamples']:
+        raise ValueError('Presentation changed or timing samples were lost during qualification')
+
+
+def parse_world_gpu_profile(text):
+    reports = [json.loads(value) for value in re.findall(r'VULKAN_WORLD_PROFILE (\{[^\r\n]*\})', text)]
+    for report in reports:
+        if report.get('schema') != 1 or type(report.get('supported')) is not bool:
+            raise ValueError('Invalid world GPU profile schema')
+        for field in ('samples', 'unavailable', 'discarded', 'pending'):
+            if type(report.get(field)) is not int or report[field] < 0:
+                raise ValueError('Invalid world GPU profile counter: ' + field)
+        if set(report.get('stages', {})) != {'materialize', 'columnCount', 'columnPrefix', 'arrangeEmit', 'finalize', 'raster'}:
+            raise ValueError('Incomplete world GPU stage profile')
+        for stage in report['stages'].values():
+            if not all(isinstance(stage.get(k), (int, float)) and math.isfinite(stage[k]) and stage[k] >= 0
+                       for k in ('meanUs', 'maxUs')) or stage['meanUs'] > stage['maxUs'] + 0.01:
+                raise ValueError('Invalid world GPU stage duration')
+    return reports
+
+
+def parse_world_bounds_profile(text):
+    reports = [json.loads(value) for value in re.findall(r'VULKAN_WORLD_BOUNDS_PROFILE (\{[^\r\n]*\})', text)]
+    for report in reports:
+        fields = ('samples', 'nodes', 'cachedNodes', 'fallbackNodes', 'comparisons', 'maxColumnNodes',
+                  'columns', 'activeColumns', 'columnsOver512', 'saturatedSamples')
+        if report.get('schema') != 1 or any(type(report.get(k)) is not int or report[k] < 0 for k in fields):
+            raise ValueError('Invalid world bounds profile schema/counters')
+        if (report['cachedNodes'] + report['fallbackNodes'] != report['nodes']
+                or report['columnsOver512'] > report['activeColumns'] or report['activeColumns'] > report['columns']
+                or report['saturatedSamples'] > report['samples']):
+            raise ValueError('Inconsistent world bounds profile accounting')
+    return reports
+
+
 def parse_log(text):
     # Windows console output may retain ANSI resets even when redirected.
     text = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text).replace("\r\n", "\n")
@@ -215,6 +321,12 @@ def parse_log(text):
         payload = json.loads(one(metrics_text, r"Benchmark phase timing v1:\s+(\{.*\})", "benchmark phase timing"))
         validate_phase_timing(payload, metrics["logicalTicks"])
         result["phaseTiming"] = payload
+    if "Frame presentation v1:" in metrics_text:
+        payload = json.loads(one(metrics_text, r"Frame presentation v1:\s+(\{.*\})", "frame presentation"))
+        validate_frame_presentation(payload, metrics)
+        result['framePresentation'] = payload
+    else:
+        result['missingMetrics'].append('accepted presentation count is unavailable; draws/FPS counts CPU paint attempts')
     if "Benchmark simulation pacing:" in metrics_text:
         result["simulationPacing"] = one(metrics_text,
             r"Benchmark simulation pacing:\s+(ordinary Turbo 360 TPS target|uncapped headroom)", "simulation pacing")
@@ -448,7 +560,14 @@ def compare_summary(reference_dir, candidate):
     if sha256(path.parent / "config-input.ini") != reference["workload"]["configInputSha256"]:
         raise ValueError("Reference configuration input changed")
     reparsed = parse_log((path.parent / "benchmark.log").read_text(encoding="utf-8", errors="replace"))
-    if reparsed != reference["result"]:
+    # Older immutable reports predate the explicit warning about CPU paint
+    # attempts. Add only that diagnostic to the comparison copy; never invent
+    # presentation evidence or relax equality of any measured value.
+    reference_result = dict(reference['result'])
+    absent_presents = 'accepted presentation count is unavailable; draws/FPS counts CPU paint attempts'
+    if 'framePresentation' not in reference_result and absent_presents not in reference_result.get('missingMetrics', []):
+        reference_result['missingMetrics'] = [*reference_result.get('missingMetrics', []), absent_presents]
+    if reparsed != reference_result:
         raise ValueError("Reference parsed metrics/state disagree with original log")
     if reference["workload"] != candidate["workload"]:
         raise ValueError("Comparison workload/config/asset/visibility/profile inputs differ")
@@ -475,6 +594,7 @@ def main():
     parser.add_argument("--rct2-path", type=Path, required=True)
     parser.add_argument("--park", type=Path)
     parser.add_argument("--config-seed", type=Path)
+    parser.add_argument("--pipeline-cache-seed", type=Path, help="Copy a pinned cache directory into this isolated profile for a warm-start diagnostic")
     parser.add_argument("--warmup-ticks", type=int, default=100)
     parser.add_argument("--ticks", type=int, default=3000)
     parser.add_argument("--vsync", type=int, choices=(0, 1), default=1)
@@ -490,6 +610,8 @@ def main():
     parser.add_argument("--final-screenshot", action="store_true", help="Current-only one final main-canvas PNG after timing stops; excluded from measured workload")
     parser.add_argument("--uncapped-simulation", action="store_true", help="Current-only simulation headroom experiment; ordinary gameplay keeps its 360 TPS target")
     parser.add_argument("--upload-telemetry", action="store_true", help="Opt-in Vulkan API upload payload attribution; not clean TPS acceptance")
+    parser.add_argument("--world-gpu-profile", action="store_true", help="Separate GPU stage attribution run; never clean performance acceptance")
+    parser.add_argument("--minimum-present-fps", type=float, help="Require actual successful presentation evidence at this rate; CPU paint attempts do not qualify")
     args = parser.parse_args()
     output = args.output.resolve()
     if ROOT not in output.parents or output.exists():
@@ -504,6 +626,10 @@ def main():
         parser.error("--uncapped-simulation requires current-vulkan")
     if args.upload_telemetry and args.mode != "current-vulkan":
         parser.error("--upload-telemetry requires current-vulkan; the frozen executable is not instrumented")
+    if (args.world_gpu_profile or args.minimum_present_fps is not None) and args.mode != "current-vulkan":
+        parser.error("World profiling and presentation gates require current-vulkan")
+    if args.minimum_present_fps is not None and not 0 < args.minimum_present_fps < 100000:
+        parser.error("--minimum-present-fps must be positive and finite")
     output.mkdir(parents=True)
     summary = {"schema": 1, "status": "fail", "mode": args.mode, "failures": [], "qualification": "No Gate P acceptance claim",
                "runnerSha256": sha256(Path(__file__)), "startedUtc": datetime.datetime.now(datetime.timezone.utc).isoformat()}
@@ -526,6 +652,22 @@ def main():
         config_text = make_config(args)
         profile = output / "profile"
         profile.mkdir()
+        if args.pipeline_cache_seed:
+            if args.mode != "current-vulkan":
+                raise ValueError("Pipeline cache seeding requires current-vulkan")
+            cache_source = args.pipeline_cache_seed.resolve(strict=True)
+            if not cache_source.is_dir():
+                raise ValueError("Pipeline cache seed must be a directory")
+            files = sorted(cache_source.glob('*.bin'))
+            if not files or any(not p.is_file() or p.is_symlink() or p.stat().st_size > 64 * 1024 * 1024 + 48 for p in files):
+                raise ValueError("Empty or invalid bounded pipeline cache seed")
+            cache_target = profile / 'vulkan-pipelines'
+            cache_target.mkdir()
+            summary['pipelineCacheSeed'] = {'path': str(cache_source), 'sha256': {p.name: sha256(p) for p in files}}
+            for p in files:
+                shutil.copy2(p, cache_target / p.name)
+                if sha256(cache_target / p.name) != summary['pipelineCacheSeed']['sha256'][p.name]:
+                    raise ValueError("Pipeline cache seed changed during copy")
         (profile / "config.ini").write_text(config_text, encoding="utf-8")
         (output / "config-input.ini").write_text(config_text, encoding="utf-8")
         runtime = output / "runtime"
@@ -575,6 +717,9 @@ def main():
         relevant = {k: v for k, v in env.items() if k.startswith(("SDL_", "VK_", "OPENRCT2_", "__GL_", "DRI_", "MESA_"))}
         if any(any(word in key.upper() for word in ("CAPTURE", "VALIDATION", "LAYER", "PROFILE", "PARITY", "DIAGNOSTIC")) for key in relevant):
             raise ValueError("Inherited capture/validation/profile environment is not permitted: " + ", ".join(sorted(relevant)))
+        if args.world_gpu_profile:
+            env['OPENRCT2_VULKAN_PROFILE_WORLD'] = '1'
+            relevant['OPENRCT2_VULKAN_PROFILE_WORLD'] = '1'
         summary["environment"] = relevant
         summary["hostBefore"] = host_info()
         summary["workload"] = {"parkSha256": park_hash, "warmupTicks": args.warmup_ticks, "measuredTicks": args.ticks,
@@ -609,6 +754,18 @@ def main():
                 summary["exitCode"] = "timeout"
         summary["processElapsedSeconds"] = time.monotonic() - start
         summary["logSha256"] = sha256(log_path)
+        startup_log = log_path.read_text(encoding='utf-8', errors='replace')
+        summary['graphicsStartup'] = {
+            'pipelinePreparationSeconds': [float(x) for x in re.findall(r'Vulkan startup: graphics pipelines ready in ([0-9.]+) seconds', startup_log)],
+            'worldPipelineSeconds': [float(x) for x in re.findall(r'Vulkan startup: native world pipeline ready in ([0-9.]+) seconds', startup_log)],
+            'cacheMessages': re.findall(r'Vulkan pipeline cache[^\r\n]*', startup_log),
+            'quickCompileApplied': 'Vulkan diagnostic: native world pipeline optimization disabled' in startup_log,
+            'scope': 'Startup outside measured simulation ticks; cold/warm cache provenance is separate from steady-state performance',
+        }
+        if args.mode == 'current-vulkan' and summary['graphicsStartup']['quickCompileApplied'] != (env.get('OPENRCT2_VULKAN_QUICK_COMPILE') == '1'):
+            summary['failures'].append('Requested and observed pipeline optimization mode differ')
+        if args.pipeline_cache_seed and summary['pipelineCacheSeed']['sha256'] != {p.name: sha256(p) for p in files}:
+            raise ValueError("Pipeline cache source changed during run")
         summary["hostAfter"] = host_info()
         summary["runtimeAfter"] = file_inventory(runtime)
         summary["shaderAfter"] = file_inventory(shaders)
@@ -639,6 +796,29 @@ def main():
             summary["failures"].append("Runtime diagnostic requires investigation")
             summary["runtimeDiagnostics"] = suspicious
         summary["result"] = parse_log(text)
+        underground_requested = relevant.get('OPENRCT2_BENCHMARK_UNDERGROUND_VIEW') == '1'
+        underground_logged = 'Underground viewport benchmark v1:' in text
+        if underground_requested != underground_logged:
+            raise ValueError('Requested/actual underground benchmark view differs')
+        if underground_requested:
+            clean_log = re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]', '', text)
+            values = one(clean_log, r'Underground viewport benchmark v1: tick=(\d+) checksum=([0-9a-f]+) '
+                         r'flagsBefore=(\d+) flagsAfter=(\d+) viewX=(-?\d+) viewY=(-?\d+) '
+                         r'width=(\d+) height=(\d+) zoom=(-?\d+) rotation=(\d+)', 'underground view setup')
+            fields = ('tick', 'checksum', 'flagsBefore', 'flagsAfter', 'viewX', 'viewY', 'width', 'height', 'zoom', 'rotation')
+            setup = {k: v if k == 'checksum' else int(v) for k, v in zip(fields, values)}
+            if setup['flagsAfter'] != setup['flagsBefore'] | 1 or min(setup['width'], setup['height']) <= 0:
+                raise ValueError('Underground setup changed more than the inside-view flag')
+            summary['undergroundViewSetup'] = setup
+        world_profiles = parse_world_gpu_profile(text)
+        if bool(world_profiles) != args.world_gpu_profile:
+            raise ValueError('Requested/actual world GPU profiling mode differs')
+        if args.world_gpu_profile:
+            if not any(p['supported'] and p['samples'] > 0 for p in world_profiles):
+                raise ValueError('World GPU profiling produced no supported completed samples')
+            summary['worldGpuProfiles'] = world_profiles
+            summary['worldBoundsProfiles'] = parse_world_bounds_profile(startup_log)
+            summary['worldGpuProfileScope'] = 'Pipeline lifetime, including warmup and final capture; instrumented attribution, not clean acceptance'
         expected_pacing = "uncapped headroom" if args.uncapped_simulation else "ordinary Turbo 360 TPS target"
         if summary["result"].get("simulationPacing", "ordinary Turbo 360 TPS target") != expected_pacing:
             summary["failures"].append("Requested/actual benchmark simulation pacing differs")
@@ -649,6 +829,8 @@ def main():
                 text, profile, output, summary["result"], args.width, args.height)
             if summary["finalScreenshot"]["receipt"]["partialRender"]:
                 summary["qualification"] = "Partial GPU-only rendering throughput; omitted world categories prevent full-render performance acceptance"
+            if underground_requested and not summary['finalScreenshot']['receipt']['camera']['flags'] & 1:
+                raise ValueError('Final capture lost requested underground view')
         elif "Final benchmark screenshot v1:" in text:
             summary["failures"].append("Unexpected final screenshot in a no-capture process")
         if args.require_display_evidence:
@@ -666,6 +848,7 @@ def main():
                 "worldBufferCopyCalls": "Optional batched world vkCmdCopyBuffer call count; absent legacy field means zero",
                 "scope": "backend only; producer CPU copies, full ring flush/high-water and generation age remain unavailable"}
         m = summary["result"]["metrics"]
+        require_present_rate(summary['result'], args.minimum_present_fps)
         if m["renderer"] != renderer or m["vsync"] != ("enabled" if args.vsync else "disabled") or m["logicalTicks"] != args.ticks:
             summary["failures"].append("Actual renderer/VSync/tick count differs from requested workload")
         ready = "Integrated UI benchmark ready: renderer=" + renderer + ", VSync=" + ("enabled" if args.vsync else "disabled") + ", " + ("visible" if args.visible else "hidden") + " window, ordinary Turbo."
@@ -688,6 +871,8 @@ def main():
                                              "Single-run results do not establish a substantial TPS gain", "Initial checkpoint is a state census; initial entity checksum is unavailable"]
         if args.uncapped_simulation:
             summary["qualification"] += "; uncapped benchmark headroom, not ordinary 360 TPS gameplay pacing"
+        if args.world_gpu_profile:
+            summary["qualification"] += "; instrumented GPU stage attribution, not clean performance acceptance"
         if not summary["failures"]:
             summary["status"] = "pass"
     except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:

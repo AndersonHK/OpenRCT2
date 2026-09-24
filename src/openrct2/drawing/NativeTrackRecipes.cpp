@@ -44,19 +44,38 @@ namespace OpenRCT2::Drawing
             for (size_t row = words[5]; row < words[6]; row += 2)
             {
                 const auto first = words[row], count = words[row + 1];
-                if (count > 64 || uint64_t(first) + count > parts)
+                if (count > 16 || uint64_t(first) + count > parts)
                     throw std::runtime_error("Native track definition row is invalid");
                 uint32_t expandedCount = count, parentCount = 0;
                 for (uint32_t i = 0; i < count; ++i)
                 {
                     const auto p = words[6] + (first + i) * 12;
                     const auto parent = static_cast<int32_t>(words[p + 11]);
-                    if ((words[p] >= 0x7ffffu && words[p] != 0xfffffffeu) || words[p + 10] > 3
-                        || (parent != -1 && (parent < 0 || static_cast<uint32_t>(parent) >= i)))
+                    if ((words[p] >= 0x7ffffu && words[p] != 0xfffffffeu && words[p] != 0xfffffffdu && words[p] != 0xfffffffcu)
+                        || words[p + 10] > 5 || (parent != -1 && (parent < 0 || static_cast<uint32_t>(parent) >= i)))
                         throw std::runtime_error("Native track definition component is invalid");
+                    if (words[p + 10] >= 4 && (words[p] != 0 || parent < 0))
+                        throw std::runtime_error("Native track water component is invalid");
+                    if (words[p] == 0xfffffffdu)
+                    {
+                        if (words[p + 1] > 2 || (words[p + 2] >= 26 && (words[p + 2] < 256 || words[p + 2] >= 264))
+                            || parent != -1)
+                            throw std::runtime_error("Native track tunnel request is invalid");
+                        --expandedCount;
+                        continue;
+                    }
+                    if (words[p] == 0xfffffffcu)
+                    {
+                        if (words[p + 1] >= 4 || words[p + 2] > 1 || words[p + 10] != 2 || parent != -1)
+                            throw std::runtime_error("Native track photo request is invalid");
+                        expandedCount += 2;
+                        parentCount += 2;
+                    }
                     parentCount += parent == -1;
                     if (words[p] == 0xfffffffeu)
                     {
+                        if (words[p + 8] > 6 || parent != -1)
+                            throw std::runtime_error("Native track station request is invalid");
                         expandedCount += 8;
                         parentCount += 6;
                     }
@@ -80,8 +99,21 @@ namespace OpenRCT2::Drawing
             std::vector<uint32_t> result;
             const auto words = GetNativeTrackRecipeWords();
             for (size_t index = words[6]; index < words.size(); index += 12)
-                if (words[index] != 0xfffffffeu)
+            {
+                if (words[index + 10] >= 4)
+                    continue; // Symbolic water uses the already-resident terrain banks.
+                if (words[index] == 0xfffffffcu)
+                {
+                    const uint32_t first = words[index + 2] != 0 ? 23485u : 25615u;
+                    for (uint32_t image = first; image < first + 12; ++image)
+                        result.push_back(image);
+                }
+                if (words[index] != 0xfffffffeu && words[index] != 0xfffffffdu && words[index] != 0xfffffffcu)
                     result.push_back(words[index]);
+                if (words[index] == 0xfffffffdu && words[index + 1] == 2)
+                    for (uint32_t vertical = 1575; vertical <= 1578; ++vertical)
+                        result.push_back(vertical);
+            }
             std::sort(result.begin(), result.end());
             result.erase(std::unique(result.begin(), result.end()), result.end());
             return result;

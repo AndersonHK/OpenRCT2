@@ -206,7 +206,14 @@ namespace OpenRCT2::Drawing
     struct IRenderService
     {
         virtual ~IRenderService() = default;
+        // Foreground admission may wait for submitted auxiliary work to retire, but never for a nested recorder.
         virtual std::unique_ptr<IRenderSession> BeginOffscreen(OffscreenRenderRequest request) = 0;
+        // Asynchronous UI callers must use this nonblocking admission path. Null means bounded-domain backpressure.
+        // Unsupported implementations fail explicitly rather than delegating to a potentially blocking BeginOffscreen.
+        virtual std::unique_ptr<IRenderSession> TryBeginOffscreen(OffscreenRenderRequest)
+        {
+            throw RenderServiceException({ RenderErrorCode::unavailable, "Nonblocking auxiliary admission is unavailable" });
+        }
         // Thread-safe notification, including viewport preparation workers. Cached implementations queue changes and
         // apply them when the owner acquires its recording context/target; submitted jobs retain their owned assets.
         // Reacquire a session accessor after mutation, rather than retaining a drawing context across asset changes.

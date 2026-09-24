@@ -69,6 +69,18 @@ void worldTrackStation(WorldTrackPart marker,WorldObjectRecord object,uvec2 tile
     if(!worldStationHasPlatforms(ride)) return;
     uint direction=(object.direction+uScene.rotation)&3u,axis=direction&1u;
     uint type=object.trackTypeAndRideType&65535u,stationIndex=(object.trackData0>>8u)&255u;
+    if(marker.size.y==6) {
+        // MultiDimensionRCTrackStation authors two covers only, no deck or fences.
+        // A missing station object emits no covers (worldStationCover returns).
+        uint stationIndex=(object.trackData0>>8u)&255u;
+        uint backEdge=axis==0u?3u:0u,frontEdge=axis==0u?1u:2u;
+        bool ghost=(object.flags&1u)!=0u;
+        worldStationCover(ride,backEdge,worldStationFence(ride,stationIndex,tile,backEdge),
+            marker.offset.z,0u,colours,ghost);
+        worldStationCover(ride,frontEdge,worldStationFence(ride,stationIndex,tile,frontEdge),
+            marker.offset.z,0u,colours,ghost);
+        return;
+    }
     if(marker.size.y>=4) {
         // TrackPaintUtilDrawNarrowStationPlatform / DrawPier. The narrow
         // base's bounding-axis swap is authored and intentionally preserved.

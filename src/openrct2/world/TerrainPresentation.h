@@ -16,6 +16,7 @@ namespace OpenRCT2
         int32_t baseZ{};
         uint16_t surfaceSlot{}, edgeSlot{};
         uint8_t slope{}, grass{}, kind{}; // 0 absent, 1 surface, 2 declared map border
+        int32_t maxClearanceZ{};          // All raw tile elements and water, including invisible/unsupported categories.
         int32_t waterHeight{};            // World Z units, zero means no water.
         uint8_t present{};                // Visible, non-ghost surface; independent of catalog/admission support.
         uint8_t bounded{};                // Historical 32x32 diagnostic eligibility, never a full-map presence predicate.
@@ -24,7 +25,10 @@ namespace OpenRCT2
     {
         uint32_t imageBase{}, imageCount{};
         bool supported{};
+        bool hasDoors{}; // Edge objects only; excludes fallback allocations.
         std::array<uint32_t, 9 * 4 * 4> selectors{};
+        std::array<uint32_t, 9 * 4 * 4> gridSelectors{};
+        std::array<uint32_t, 4 * 4> undergroundSelectors{}; // Original underground overlay always uses length1.
     };
     struct TerrainPresentationMaterials
     {

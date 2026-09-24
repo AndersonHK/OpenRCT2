@@ -53,8 +53,7 @@ void visitEntrance(uint index,uvec2 tile,uint destination,bool writeRecords,inou
         recipe[parentCount++]=i;
     }
     int first=0;
-    if(writeRecords && parentCount==2)
-        first=worldEntranceFirstParent(parts.parts[recipe[0]],parts.parts[recipe[1]],int(uScene.rotation));
+    // Common GPU columns arrange original creation order.
     bool ghost=(object.flags&1u)!=0u;
     for(int ordinal=0;ordinal<parentCount;ordinal++) {
         int selected=parentCount==2 && first==1?1-ordinal:ordinal;
@@ -81,6 +80,8 @@ void visitEntrance(uint index,uvec2 tile,uint destination,bool writeRecords,inou
             uint palettes=worldObjectPalette(colours,part.colourMode,ghost);
             // The original transparent entrance glass keeps its colour filter even on a ghost entrance.
             if(part.colourMode==4) { effects=1024u; palettes=uEntrances.words[6u]+uEntrances.words[ride+2u]; }
+            worldSetPaintBounds(tile,ivec3(part.boundsX,part.boundsY,object.baseZ+part.boundsZ),
+                ivec3(part.sizeX,part.sizeY,part.sizeZ),i==begin?0u:1u);
             emitObjectSprite(tile,object.baseZ+part.z,ivec2(part.x,part.y),sprite,palettes,effects,destination,writeRecords,count);
         }
     }

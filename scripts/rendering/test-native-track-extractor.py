@@ -31,6 +31,28 @@ def rail(image):
 
 
 class NativeTrackExtractorTest(unittest.TestCase):
+    def test_support_only_switch_keeps_outer_break_and_return_semantics(self):
+        body = ('if (TrackPaintUtilShouldPaintSupports(session.MapPosition)) { switch(direction) {'
+                'case 0: MetalASupportsPaintSetup(session); break; '
+                'default: MetalASupportsPaintSetup(session); break; } } '+rail(901))
+        for direction in range(4): self.assertEqual(translate_fixture(body,direction)[0][0],901)
+        for control in ('return','break'):
+            dangerous=('if (TrackPaintUtilShouldPaintSupports(session.MapPosition)) { '
+                       +control+'; } '+rail(902))
+            with self.assertRaises(EXTRACTOR.Unsupported): translate_fixture(dangerous)
+        with self.assertRaises(EXTRACTOR.Unsupported):
+            translate_fixture('int32_t value=0; if (TrackPaintUtilShouldPaintSupports(session.MapPosition)) {'
+                              'switch(direction) { case 0: value=7; break; } } '+rail(903))
+
+    def test_local_track_type_alias_is_value_not_recursive_deferred_reference(self):
+        self.assertEqual(translate_fixture('auto trackType=trackElement.getTrackType(); '
+                         'if(trackType==0) {'+rail(904)+'}')[0][0],904)
+
+    def test_explicit_box_constructor_preserves_zero_and_signed_geometry(self):
+        self.assertEqual(EXTRACTOR.evaluate(EXTRACTOR.tokens('BoundBoxXYZ({0,2,-8},{32,32,2})'),{}),
+                         [[0,2,-8],[32,32,2]])
+        self.assertEqual(EXTRACTOR.evaluate(EXTRACTOR.tokens('BoundBoxXYZ({}, {})'),{}),[[0,0,0],[0,0,0]])
+
     def test_station_marker_preserves_parameters_and_platform_branch(self):
         body = ('bool drewStation = TrackPaintUtilDrawStation2(session, ride, direction, height, '
                 'trackElement, StationBaseType::b, -2, 5, 7); '
@@ -54,6 +76,22 @@ class NativeTrackExtractorTest(unittest.TestCase):
                                 ('WoodenRCGetRailsColour(session)',0),('GetTrackColour(session)',3)):
             body='PaintAddImageAsParent(session, '+expression+'.WithIndex(100), {0,0,height}, {32,20,2});'
             self.assertEqual(translate_fixture(body)[0][10],role)
+
+    def test_photo_markers_preserve_source_order_height_small_art_and_tunnel(self):
+        for direction in range(4):
+            for helper,small in (('TrackPaintUtilOnridePhotoPaint',0),('TrackPaintUtilOnridePhotoSmallPaint',1)):
+                parts=translate_fixture(rail(100)+helper+'(session,direction,height+5,trackElement);'+rail(101),direction)
+                self.assertEqual(parts[0][0],100)
+                self.assertEqual(parts[1],(EXTRACTOR.PHOTO_PART,direction,small,45,0,0,0,0,0,0,2,-1))
+                self.assertEqual(parts[2][0],101)
+            try:
+                EXTRACTOR.CAPTURE_TUNNELS=True
+                for tail,expected in (('',43),(',48',43),(',48,2',42)):
+                    parts=translate_fixture('TrackPaintUtilOnridePhotoPaint2(session,direction,trackElement,height'+tail+');',direction)
+                    self.assertEqual(parts,[(EXTRACTOR.PHOTO_PART,direction,0,expected,0,0,0,0,0,0,2,-1),
+                        (EXTRACTOR.TUNNEL_PART,direction&1,6,40,0,0,0,0,0,0,0,-1)])
+            finally:
+                EXTRACTOR.CAPTURE_TUNNELS=False
 
     def test_shared_cases_default_and_intentional_fallthrough(self):
         body = ('switch (direction) { '
@@ -251,6 +289,182 @@ class NativeTrackExpandedSourceTest(unittest.TestCase):
         for track_type in (87,88,89,90):
             for sequence in range(8):
                 for direction in range(4): self.parts(31,track_type,sequence,direction)
+
+
+    def test_inverted_slope_support_branch_does_not_discard_authored_rails(self):
+        for direction in range(4):
+            self.assertEqual(self.parts(11,4,direction=direction)[0],
+                (26569+direction,0,0,29,6 if direction&1 else 0,0 if direction&1 else 6,45,
+                 20 if direction&1 else 32,32 if direction&1 else 20,3,0,-1))
+            self.assertEqual(self.parts(11,4,direction=direction,state=1)[0][0],26621+direction)
+        for style in (11,28,30,35,54,71):
+            for kind in (4,6,9,10,12,15):
+                for direction in range(4): self.assertTrue(self.parts(style,kind,direction=direction))
+
+    def test_wooden_array_templates_keep_body_rail_child_and_classic_choice(self):
+        modern=self.parts(79,18)
+        self.assertEqual(modern[0][0],23497)
+        self.assertEqual(modern[0][-2:],(1,-1))
+        self.assertEqual(modern[1][-2:],(0,0))
+        classic=self.parts(9,18)
+        self.assertEqual(len(classic),1)
+        self.assertEqual(classic[0][0],23497)
+        self.assertEqual(classic[0][-2:],(0,-1))
+        for kind in (16,17,22,44,87,91,137,158,178):
+            for sequence in range({16:7,17:7,22:7,44:4,87:8,91:14,137:5,158:4,178:4}[kind]):
+                for direction in range(4): self.parts(79,kind,sequence,direction)
+
+    def test_restored_station_platform_and_brake_variants(self):
+        for direction in range(4):
+            axis=direction&1
+            for kind in (1,2,3):
+                for platforms in (False,True):
+                    for closed in (False,True):
+                        state=(64 if platforms else 0)|(4 if closed else 0)
+                        parts=self.parts(53,kind,direction=direction,state=state)
+                        expected=(15810 if platforms else 16218)+axis
+                        if kind==1: expected+=2+(2 if closed else 0)
+                        self.assertEqual(parts[0][0],expected)
+                        self.assertEqual(len(parts),2 if platforms else 1)
+                        if platforms: self.assertEqual(parts[1][8],6)
+                        mouse=self.parts(67,kind,direction=direction,state=state)
+                        self.assertTrue(any(p[0]==EXTRACTOR.STATION_PART for p in mouse))
+
+    def test_junior_eighth_and_sloped_curves_and_mouse_struct_geometry(self):
+        self.assertEqual(self.parts(31,133)[0],(28301,0,0,0,0,6,0,32,20,1,0,-1))
+        self.assertEqual(self.parts(31,46)[0],(28096,0,6,0,0,6,0,32,20,1,0,-1))
+        self.assertEqual(self.parts(67,42)[0],(17003,0,0,0,0,6,0,32,20,3,0,-1))
+        self.assertEqual(self.parts(67,46)[0],(17021,0,6,0,0,6,0,32,20,3,0,-1))
+        for style,kind,sequence in ((31,133,5),(67,42,4)):
+            with self.assertRaises(EXTRACTOR.Unsupported): self.parts(style,kind,sequence)
+        for style in (31,78):
+            for kind in (46,47,48,49,133,134,135,136,137,138,139,140):
+                for sequence in range(4 if kind<100 else 5):
+                    for direction in range(4): self.parts(style,kind,sequence,direction)
+        for kind in (42,43,46,47,48,49):
+            for sequence in range(4):
+                for direction in range(4): self.parts(67,kind,sequence,direction)
+
+    def test_classic_wooden_empty_bounding_entries_and_diagonal_helpers(self):
+        for kind in (22,23,44,45):
+            for sequence in range(7 if kind<40 else 4):
+                for direction in range(4): self.parts(9,kind,sequence,direction)
+        self.assertEqual(self.parts(9,23,sequence=1),[])
+        for style,thickness in ((11,3),(30,1)):
+            for kind in (141,337,338):
+                for sequence,direction in enumerate((3,0,2,1)):
+                    part=self.parts(style,kind,sequence,direction)[0]
+                    self.assertEqual(part[1:10],(-16,-16,29,-16,-16,29,32,32,thickness))
+            self.assertNotEqual(self.parts(style,141,0,3),self.parts(style,141,0,3,state=1))
+            if style==11:
+                self.assertNotEqual(self.parts(style,338,0,3),self.parts(style,338,0,3,state=4))
+            else:
+                # InvertedRC's diagonal block-brake getter deliberately reuses
+                # its static brake art; closed state changes no source sprite.
+                self.assertEqual(self.parts(style,338,0,3),self.parts(style,338,0,3,state=4))
+
+    def test_classic_standup_diagonal_templates_and_log_flume_bound_heights(self):
+        self.assertEqual(self.parts(8,158,0,3)[0][0],25726)
+        for kind in range(158,172):
+            for sequence in range(4):
+                for direction in range(4): self.parts(8,kind,sequence,direction)
+        for kind in (42,43):
+            for sequence in (0,2,3):
+                for direction in range(4):
+                    parts=self.parts(38,kind,sequence,direction)
+                    self.assertEqual(len(parts),2)
+                    self.assertEqual([p[6] for p in parts],[0,27])
+                    self.assertEqual([p[9] for p in parts],[2,0])
+
+    def test_wooden_water_splash_retains_symbolic_filters_in_child_order(self):
+        for style in (9,10,79):
+            for sequence in range(3):
+                for direction in range(4):
+                    parts=self.parts(style,117,sequence,direction)
+                    water=[(i,p) for i,p in enumerate(parts) if p[10]>=4]
+                    if water:
+                        self.assertEqual([p[10] for _,p in water],[4,5])
+                        self.assertEqual(water[1][0],water[0][0]+1)
+                        for _,part in water:
+                            self.assertEqual(part[0],0)
+                            self.assertGreaterEqual(part[-1],0)
+                            self.assertEqual(parts[part[-1]][-1],-1)
+        self.assertEqual([p[10] for p in self.parts(79,117)], [1,0,4,5,1,1,1,0])
+
+    def test_inverted_multidimension_function_table_selects_distinct_rails(self):
+        self.assertEqual(self.parts(54,0)[0][0],26227)
+        self.assertEqual(self.parts(54,16)[0][0],26310)
+        self.assertNotEqual(self.parts(54,0),self.parts(53,0))
+
+    def test_gokarts_height_relative_nested_array_art(self):
+        for kind,images in ((5,[35621,35622]),(7,[35605,35606]),(8,[35613,35614]),(16,[35723,35724])):
+            self.assertEqual([p[0] for p in self.parts(24,kind)],images)
+        # Undefined image entries are omitted just as GfxGetG1Element rejects them.
+        for direction in (1,2):
+            parts=self.parts(24,5,direction=direction)
+            self.assertEqual(len(parts),1)
+            self.assertEqual(parts[0][3],0)
+
+
+class TunnelAuthoringTest(unittest.TestCase):
+    def test_rotated_and_vertical_markers_keep_signed_world_height(self):
+        EXTRACTOR.CAPTURE_TUNNELS=True
+        try:
+            for direction in range(4):
+                result=translate_fixture('PaintUtilPushTunnelRotated(session,direction,height-8,2); '
+                    'PaintUtilSetVerticalTunnel(session,height+32);',direction)
+                self.assertEqual(result,[(EXTRACTOR.TUNNEL_PART,direction&1,2,32,0,0,0,0,0,0,0,-1),
+                                         (EXTRACTOR.TUNNEL_PART,2,0,72,0,0,0,0,0,0,0,-1)])
+        finally: EXTRACTOR.CAPTURE_TUNNELS=False
+
+    def test_station_tunnel_helpers_are_metadata_not_discarded_auxiliary(self):
+        EXTRACTOR.CAPTURE_TUNNELS=True
+        try:
+            for name,kind in (('TrackPaintUtilDrawStationTunnel',6),('TrackPaintUtilDrawStationTunnelTall',9)):
+                for direction in range(4):
+                    result=translate_fixture(rail(100)+name+'(session,direction,height);',direction)
+                    self.assertEqual(result[-1],(EXTRACTOR.TUNNEL_PART,direction&1,kind,40,0,0,0,0,0,0,0,-1))
+                    self.assertEqual(result[0][0],100)
+            translator=EXTRACTOR.Translator(ROOT)
+            for style,kind in ((39,6),(30,9)):
+                for direction in range(4):
+                    source,name=translator.getter(translator.getters[style],1,state=0)
+                    parts=[];translator.paint(source,name,0,direction,0,0,parts,track_type=1)
+                    requests=[p for p in parts if p[0]==EXTRACTOR.TUNNEL_PART]
+                    self.assertEqual(requests,[(EXTRACTOR.TUNNEL_PART,direction&1,kind,0,0,0,0,0,0,0,0,-1)])
+        finally: EXTRACTOR.CAPTURE_TUNNELS=False
+
+    def test_tunnel_branch_is_not_discarded_with_auxiliary_supports(self):
+        EXTRACTOR.CAPTURE_TUNNELS=True
+        try:
+            for direction in range(4):
+                result=translate_fixture('if(direction==0 || direction==3) { '
+                    'PaintUtilPushTunnelRotated(session,direction,height,0); }',direction)
+                self.assertEqual(len(result),int(direction in (0,3)))
+        finally: EXTRACTOR.CAPTURE_TUNNELS=False
+
+    def test_tunnel_does_not_steal_sprite_child_parent(self):
+        EXTRACTOR.CAPTURE_TUNNELS=True
+        try:
+            result=translate_fixture(rail(100)+'PaintUtilPushTunnelLeft(session,height,0); '
+                'PaintAddImageAsChild(session,session.TrackColours.WithIndex(101),{0,0,height},{32,20,2});')
+            self.assertEqual(result[-1][-1],0)
+        finally: EXTRACTOR.CAPTURE_TUNNELS=False
+
+    def test_ghost_train_doors_remain_dynamic_raw_selectors(self):
+        expected={'kDoorOpeningInwardsToImage[trackElement.getDoorAState()]':258,
+                  'kDoorOpeningOutwardsToImage[trackElement.getDoorBState()]':257,
+                  'kDoorFlatTo25DegOpeningInwardsToImage[trackElement.getDoorAState()]':262}
+        for expression,selector in expected.items():
+            self.assertEqual(EXTRACTOR.evaluate(EXTRACTOR.tokens(expression),{}),selector)
+        for direction in range(4):
+            self.assertEqual(EXTRACTOR.evaluate(EXTRACTOR.tokens('GetTunnelDoorsImageStraightFlat(trackElement,direction)'),
+                {'direction':direction}),258 if direction in (0,3) else 257)
+
+    def test_height_helper_offsets_both_image_and_bounds(self):
+        result=translate_fixture('PaintAddImageAsParentHeight(session,session.TrackColours.WithIndex(123),'
+            'height,{2,3,4},{{5,6,7},{8,9,10}});')
+        self.assertEqual(result,[(123,2,3,44,5,6,47,8,9,10,0,-1)])
 
 
 if __name__ == '__main__':

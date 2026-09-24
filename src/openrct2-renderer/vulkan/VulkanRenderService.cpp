@@ -167,6 +167,8 @@ namespace OpenRCT2::Ui::Vulkan
                         VK_FORMAT_R8G8B8A8_UNORM, { _outputExtent.width, _outputExtent.height }, std::span(&view, 1),
                         ++_outputGeneration, 0, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
                 }
+                if (job.commands.worldSurfaces || !job.commands.terrainScenes.empty() || !job.commands.balloons.empty())
+                    _executor.EnableWorldPasses();
                 auto palette = request.palette;
                 for (size_t index = 0; index < palette.size(); ++index)
                 {
@@ -206,7 +208,9 @@ namespace OpenRCT2::Ui::Vulkan
                     submitted = true;
                     _slots.Submit(token);
                     _executor.Commit();
-                    _slots.Wait(token, UINT64_MAX);
+                    if (!_slots.Wait(token, UINT64_MAX))
+                        Fail(RenderErrorCode::timeout, "Auxiliary world/image submission did not retire");
+                    _executor.CompleteTerrainStatus(0);
                     RenderResult result{ .identity = job.completion->GetIdentity(),
                                          .logicalExtent = request.logicalExtent,
                                          .outputExtent = request.outputExtent,
@@ -241,6 +245,8 @@ namespace OpenRCT2::Ui::Vulkan
             RenderServiceOptions options;
             DeviceProvider provider;
             std::shared_ptr<Gpu::TextureCache> cache;
+            RenderTarget recordingTarget{};
+            Gpu::CommandDrawingContext drawing;
             std::mutex mutex;
             std::unordered_set<uint32_t> pendingInvalidations;
             std::condition_variable condition;
@@ -249,11 +255,13 @@ namespace OpenRCT2::Ui::Vulkan
             std::optional<RenderError> failure;
             bool stopping = false;
             bool busy = false;
+            bool recording = false;
             uint64_t nextSubmission = 0;
             explicit ServiceState(RenderServiceOptions config, DeviceProvider deviceProvider)
                 : options(std::move(config))
                 , provider(std::move(deviceProvider))
                 , cache(std::make_shared<Gpu::TextureCache>(options.atlasLayers))
+                , drawing(recordingTarget, *cache)
             {
             }
             void DrainImageInvalidations()
@@ -360,8 +368,8 @@ namespace OpenRCT2::Ui::Vulkan
             std::shared_ptr<ServiceState> _state;
             std::unique_ptr<Job> _job;
             std::vector<std::byte> _bits;
-            RenderTarget _target;
-            Gpu::CommandDrawingContext _drawing;
+            RenderTarget& _target;
+            Gpu::CommandDrawingContext& _drawing;
             SessionEngine _engine;
             bool _recording = false;
             void Check()
@@ -382,13 +390,15 @@ namespace OpenRCT2::Ui::Vulkan
                       _job->request.orderedAlias
                           ? 0
                           : static_cast<size_t>(_job->request.logicalExtent.width) * _job->request.logicalExtent.height)
-                , _target{ .bits = reinterpret_cast<PaletteIndex*>(_bits.data()),
-                           .width = static_cast<int32_t>(_job->request.logicalExtent.width),
-                           .height = static_cast<int32_t>(_job->request.logicalExtent.height) }
-                , _drawing(_target, *_state->cache)
+                , _target(_state->recordingTarget)
+                , _drawing(_state->drawing)
                 , _engine(*this, *_state->cache)
             {
+                _target = { .bits = reinterpret_cast<PaletteIndex*>(_bits.data()),
+                            .width = static_cast<int32_t>(_job->request.logicalExtent.width),
+                            .height = static_cast<int32_t>(_job->request.logicalExtent.height) };
                 _target.DrawingEngine = &_engine;
+                _drawing.Resize(); // A persistent context must not retain clipping pointers from an earlier session target.
                 _state->cache->BeginFrame();
                 try
                 {
@@ -438,16 +448,18 @@ namespace OpenRCT2::Ui::Vulkan
                 const auto completion = _job->completion;
                 {
                     const std::lock_guard lock(_state->mutex);
+                    _state->recording = false;
                     if (_state->stopping)
                     {
                         _state->cache->RetireFrame(_job->residency, Gpu::FrameRetirement::Failed);
                         _state->busy = false;
+                        _state->condition.notify_all();
                         completion->Fail({ RenderErrorCode::shuttingDown, "Offscreen service stopped before submission" });
                         return completion;
                     }
                     _state->queued = std::move(_job);
                 }
-                _state->condition.notify_one();
+                _state->condition.notify_all();
                 return completion;
             }
             void Cancel() noexcept override
@@ -469,7 +481,9 @@ namespace OpenRCT2::Ui::Vulkan
                 _job->completion->Cancel();
                 const std::lock_guard lock(_state->mutex);
                 _state->busy = false;
+                _state->recording = false;
                 _state->outstanding.reset();
+                _state->condition.notify_all();
             }
         };
 
@@ -538,6 +552,7 @@ namespace OpenRCT2::Ui::Vulkan
                         if (error)
                             state->failure = error; // Failed domains are not silently reused.
                     }
+                    state->condition.notify_all();
                 }
             }
 
@@ -553,6 +568,14 @@ namespace OpenRCT2::Ui::Vulkan
             }
             std::unique_ptr<IRenderSession> BeginOffscreen(OffscreenRenderRequest request) override
             {
+                return Begin(std::move(request), true);
+            }
+            std::unique_ptr<IRenderSession> TryBeginOffscreen(OffscreenRenderRequest request) override
+            {
+                return Begin(std::move(request), false);
+            }
+            std::unique_ptr<IRenderSession> Begin(OffscreenRenderRequest request, bool wait)
+            {
                 _state->CheckOwner();
                 ValidateOffscreenRenderRequest(request);
                 if (request.lightingEnabled)
@@ -565,15 +588,24 @@ namespace OpenRCT2::Ui::Vulkan
                 auto job = std::make_unique<Job>();
                 job->request = std::move(request);
                 {
-                    const std::lock_guard lock(_state->mutex);
+                    std::unique_lock lock(_state->mutex);
                     if (_state->stopping)
                         Fail(RenderErrorCode::shuttingDown, "Offscreen service is shutting down");
                     if (_state->failure)
                         throw RenderServiceException(*_state->failure);
                     if (_state->busy)
-                        Fail(
-                            RenderErrorCode::invalidState,
-                            "The bounded auxiliary domain already has a recording or submission");
+                    {
+                        if (!wait)
+                            return nullptr;
+                        if (_state->recording)
+                            Fail(RenderErrorCode::invalidState, "Nested auxiliary recording cannot wait for its owner");
+                        // Worker packets own all inputs. No gameplay/cache lock is held while the domain retires.
+                        _state->condition.wait(lock, [&] { return !_state->busy || _state->stopping || _state->failure; });
+                        if (_state->stopping)
+                            Fail(RenderErrorCode::shuttingDown, "Offscreen service is shutting down");
+                        if (_state->failure)
+                            throw RenderServiceException(*_state->failure);
+                    }
                     if (_state->nextSubmission == std::numeric_limits<uint64_t>::max())
                         Fail(RenderErrorCode::invalidState, "Offscreen identity exhausted");
                     const auto sequence = ++_state->nextSubmission;
@@ -581,6 +613,7 @@ namespace OpenRCT2::Ui::Vulkan
                         RenderSubmissionIdentity{ sequence, 1, sequence, job->request.name }, job->request, _worker.get_id());
                     _state->outstanding = job->completion;
                     _state->busy = true;
+                    _state->recording = true;
                 }
                 try
                 {
@@ -591,7 +624,9 @@ namespace OpenRCT2::Ui::Vulkan
                 {
                     const std::lock_guard lock(_state->mutex);
                     _state->busy = false;
+                    _state->recording = false;
                     _state->outstanding.reset();
+                    _state->condition.notify_all();
                     throw;
                 }
             }
@@ -610,7 +645,7 @@ namespace OpenRCT2::Ui::Vulkan
                     if (_state->outstanding)
                         _state->outstanding->Fail({ RenderErrorCode::shuttingDown, "Offscreen service is shutting down" });
                 }
-                _state->condition.notify_one();
+                _state->condition.notify_all();
                 if (_worker.joinable())
                     _worker.join();
                 // A cancelled recorder may retain ServiceState after Context teardown.

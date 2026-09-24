@@ -201,8 +201,8 @@ TEST(WorldFlatRideRulesTest, ExhaustiveReachableVariantsFitEightPartsAndOverflow
                                     const auto parts = family >= 20
                                         ? F::worldTowerParts(family, sequence, direction, false, false, noPlatforms, fenceMask)
                                         : F::worldFlatParts(
-                                            family, sequence, direction, stationPresent, noPlatforms, fenceMask, 128,
-                                            stationCount, trains);
+                                              family, sequence, direction, stationPresent, noPlatforms, fenceMask, 128,
+                                              stationCount, trains);
                                     ASSERT_LE(parts.count, F::WORLD_FLAT_PART_CAPACITY);
                                     maximum = std::max(maximum, parts.count);
                                 }
@@ -289,4 +289,111 @@ TEST(WorldFlatRideRulesTest, EveryMazeWallMaskMatchesLegacyParentArrangement)
             for (auto q = session->QuadrantBackIndex; q <= session->QuadrantFrontIndex; q++)
                 session->Quadrants[q] = nullptr;
         }
+}
+
+TEST(WorldFlatRideAnimationTest, SimulationFramesSelectOriginalBodySequencesAndStoppedState)
+{
+    auto pose = F::worldFlatEmptyPose();
+    pose.present = pose.onTrack = 1;
+    pose.frame = 13;
+    auto wheel = F::worldFlatParts(9, 0, 3, true, true, 0, 128, 1, 1).parts[1];
+    EXPECT_EQ(F::worldFlatAnimatePart(wheel, 9, 3, 0, pose).image, 29);
+    auto carousel = F::worldFlatParts(8, 1, 0, true, true, 0, 128, 1, 1).parts[0];
+    pose.orientation = 16;
+    EXPECT_EQ(F::worldFlatAnimatePart(carousel, 8, 0, 3, pose).image, 13);
+    pose.breakdownFlags = 4;
+    pose.breakdownReason = 7;
+    pose.breakdownModifier = 128;
+    pose.currentTime = 8;
+    EXPECT_EQ(F::worldFlatAnimatePart(carousel, 8, 0, 0, pose).z, carousel.z + 4);
+    auto enterprise = F::worldFlatParts(12, 0, 0, true, true, 0, 128, 1, 1).parts[0];
+    EXPECT_EQ(F::worldFlatAnimatePart(enterprise, 12, 0, 1, pose).image, 55);
+    auto rings = F::worldFlatParts(10, 0, 0, true, true, 0, 128, 1, 4).parts[0];
+    EXPECT_EQ(F::worldFlatAnimatePart(rings, 10, 0, 0, pose).image, 52);
+    auto twist = F::worldFlatParts(11, 1, 0, true, true, 0, 128, 1, 1).parts[0];
+    EXPECT_EQ(F::worldFlatAnimatePart(twist, 11, 0, 0, pose).image, 21); // (13 + 2*16)%24
+    pose.onTrack = 0;
+    EXPECT_EQ(F::worldFlatAnimatePart(enterprise, 12, 0, 1, pose).image, enterprise.image);
+    EXPECT_EQ(F::worldFlatAnimatePart(carousel, 8, 0, 1, pose).z, carousel.z);
+    // Original Ferris/carousel body readers still use an existing vehicle when onTrack is clear.
+    EXPECT_EQ(F::worldFlatAnimatePart(wheel, 9, 3, 0, pose).image, 29);
+}
+
+TEST(WorldFlatRideAnimationTest, SignedSwingRestraintsAndMechanicalOffsetsMatchPainterConstants)
+{
+    auto pose = F::worldFlatEmptyPose();
+    pose.present = pose.onTrack = 1;
+    pose.frame = 253; // signed -3, not unsigned frame253.
+    auto ship = F::worldFlatParts(13, 0, 0, true, true, 0, 128, 1, 1).parts[1];
+    EXPECT_EQ(F::worldFlatAnimatePart(ship, 13, 0, 0, pose).image, 216);
+    EXPECT_EQ(F::worldFlatAnimatePart(ship, 13, 2, 0, pose).image, 54);
+    auto inverter = F::worldFlatParts(14, 0, 0, true, true, 0, 128, 1, 1).parts[1];
+    EXPECT_EQ(F::worldFlatAnimatePart(inverter, 14, 0, 0, pose).image, 168);
+    pose.frame = 8;
+    auto carpet = F::worldFlatParts(15, 0, 0, true, true, 0, 128, 1, 1);
+    EXPECT_EQ(F::worldFlatAnimatePart(carpet.parts[1], 15, 0, 0, pose).image, 22014);
+    auto seat = F::worldFlatAnimatePart(carpet.parts[2], 15, 0, 0, pose);
+    EXPECT_EQ(seat.x, carpet.parts[2].x - 32);
+    EXPECT_EQ(seat.z, 44); // base height+7+oscillation37.
+    pose.frame = 12;
+    pose.secondary = 5;
+    auto spin = F::worldFlatParts(16, 1, 0, true, true, 0, 128, 1, 1);
+    seat = F::worldFlatAnimatePart(spin.parts[2], 16, 0, 0, pose);
+    EXPECT_EQ(seat.image, 5);
+    EXPECT_EQ(seat.x, spin.parts[2].x - 34);
+    EXPECT_EQ(seat.z, 34); // base height+3+31.
+    pose.restraints = 255;
+    EXPECT_EQ(F::worldFlatAnimatePart(spin.parts[2], 16, 0, 0, pose).image, 66);
+    EXPECT_EQ(F::worldFlatAnimatePart(spin.parts[1], 16, 2, 0, pose).image, 416);
+    auto simulator = F::worldFlatParts(17, 1, 0, true, true, 0, 128, 1, 1).parts[0];
+    EXPECT_EQ(F::worldFlatAnimatePart(simulator, 17, 0, 0, pose).image, 12);
+    pose.restraints = 0;
+    EXPECT_EQ(F::worldFlatAnimatePart(simulator, 17, 0, 0, pose).image, 48);
+}
+
+TEST(WorldFlatRideAnimationTest, HauntedAndSlideOverlaysRespectAuthoritativeProgressAndZoom)
+{
+    auto pose = F::worldFlatEmptyPose();
+    pose.present = pose.onTrack = 1;
+    pose.frame = 18;
+    auto haunted = F::worldFlatParts(4, 3, 0, true, true, 0, 128, 1, 1).parts[0];
+    EXPECT_EQ(F::worldFlatAnimationOverlay(haunted, 4, 0, 0, pose).image, 21);
+    EXPECT_EQ(F::worldFlatAnimationOverlay(haunted, 4, 0, 1, pose).image, -1);
+    pose.onTrack = 0;
+    EXPECT_EQ(F::worldFlatAnimationOverlay(haunted, 4, 0, 0, pose).image, -1);
+    pose.slideInUse = 1;
+    pose.slideProgress = 46;
+    const auto slide = F::worldFlatParts(5, 3, 0, true, true, 0, 128, 1, 1).parts[0];
+    EXPECT_EQ(F::worldFlatAnimationOverlay(slide, 5, 0, 0, pose).image, 65);
+    pose.slideProgress = 47;
+    EXPECT_EQ(F::worldFlatAnimationOverlay(slide, 5, 0, 0, pose).image, 65);
+    pose.slideProgress = 48;
+    EXPECT_EQ(F::worldFlatAnimationOverlay(slide, 5, 0, 0, pose).image, -1);
+}
+
+TEST(WorldFlatRideCatalogTest, CompleteMechanismBodySequencesAreResidentBeforeAnyPoseArrives)
+{
+    auto objects = std::make_unique<OpenRCT2::WorldObjectPresentationMaterials>();
+    auto& object = objects->rideObjects[0];
+    object.present = true;
+    object.imageBase = object.carBaseImage = 50000;
+    object.imageCount = 576;
+    OpenRCT2::WorldRidePresentationMaterials rides;
+    rides.rides.resize(1);
+    rides.rides[0].present = true;
+    rides.rides[0].objectSlot = 0;
+    rides.rides[0].regularStyle = static_cast<uint16_t>(TrackStyle::topSpin);
+    std::vector<uint32_t> images;
+    const auto catalogue = G::BuildWorldFlatRideCatalog(*objects, rides, nullptr, 0, [&](uint32_t image) {
+        images.push_back(image);
+        return static_cast<uint32_t>(images.size() - 1);
+    });
+    G::ValidateWorldFlatRideCatalog(catalogue.words, images.size());
+    for (const auto image : { 50000u, 50075u, 50380u, 50475u, 50476u, 50575u })
+        EXPECT_NE(std::find(images.begin(), images.end(), image), images.end());
+    EXPECT_EQ(std::find(images.begin(), images.end(), 50076u), images.end()); // Rider overlay is a distinct stream.
+    object.imageCount = 575;
+    EXPECT_THROW(
+        static_cast<void>(G::BuildWorldFlatRideCatalog(*objects, rides, nullptr, 0, [](uint32_t) { return 0u; })),
+        std::runtime_error);
 }

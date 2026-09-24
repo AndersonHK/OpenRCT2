@@ -69,6 +69,7 @@
     <ClCompile Include="vulkan\VulkanBalloonPipeline.cpp" />
     <ClInclude Include="vulkan\VulkanWorldSurfacePipeline.h" />
     <ClCompile Include="vulkan\VulkanWorldSurfacePipeline.cpp" />
+    <ClCompile Include="vulkan\VulkanWorldFilterCompositor.cpp" />
     <ClInclude Include="vulkan\VulkanTerrainEmissionPipeline.h" />
     <ClInclude Include="vulkan\VulkanTerrainDrawPipeline.h" />
     <ClCompile Include="vulkan\VulkanTerrainEmissionPipeline.cpp" />
@@ -96,6 +97,7 @@
     <ClCompile Include="gpu\GpuCommandDrawingContext.cpp" />
     <ClInclude Include="gpu\GpuCommandDrawingContext.h" />
     <ClInclude Include="gpu\GpuCommandStream.h" />
+    <ClInclude Include="gpu\GpuSelectedVehiclePaint.h" />
     <ClInclude Include="gpu\GpuFrameMailbox.h" />
     <ClCompile Include="gpu\GpuGraphicsLookupTables.cpp" />
     <ClInclude Include="gpu\GpuGraphicsLookupTables.h" />

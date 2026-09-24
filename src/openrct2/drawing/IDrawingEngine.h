@@ -44,6 +44,24 @@ namespace OpenRCT2::Ui
 
 namespace OpenRCT2::Drawing
 {
+    // Lifetime counters, independent of the bounded timing-sample queue. Read
+    // before/after an explicit benchmark drain to distinguish late work from
+    // skipped draw attempts. Accepted presentation is not proof of scanout:
+    // MAILBOX/the compositor may replace an accepted image before display.
+    struct FramePresentationCounters
+    {
+        uint64_t publishedVisualPackets = 0;
+        uint64_t supersededVisualPackets = 0;
+        uint64_t unavailableVisualPackets = 0;
+        uint64_t discardedVisualPackets = 0;
+        uint64_t visualFrameSubmissions = 0;
+        uint64_t presentRequests = 0;
+        uint64_t presentAccepted = 0;
+        uint64_t presentOutOfDate = 0;
+        uint64_t fenceCompletedFrames = 0;
+        uint64_t lostTimingSamples = 0;
+    };
+
     struct FrameTimings
     {
         uint64_t frameNumber = 0;
@@ -57,6 +75,9 @@ namespace OpenRCT2::Drawing
         double gpuLightFxMicroseconds = 0.0;
         double gpuCompositeMicroseconds = 0.0;
         double presentCallMicroseconds = 0.0;
+        // steady_clock epoch, sampled immediately after an accepted queue
+        // present. Transported with the existing fence-complete timing sample.
+        std::optional<uint64_t> acceptedPresentNanoseconds;
         bool hasGpuTimestamp = false;
         bool hasGpuPassTimestamps = false;
         bool hasPresentCallMeasurement = false;
@@ -132,6 +153,11 @@ namespace OpenRCT2::Drawing
         virtual void DrainFrameTimings(std::vector<FrameTimings>& samples)
         {
             TakeCompletedFrameTimings(samples);
+        }
+
+        [[nodiscard]] virtual std::optional<FramePresentationCounters> GetFramePresentationCounters() const
+        {
+            return std::nullopt;
         }
 
         virtual void InvalidateImage(uint32_t image) = 0;

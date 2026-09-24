@@ -16,6 +16,13 @@ namespace OpenRCT2::Drawing
     // Colour roles: 0=main/additional, 1=support/additional, 2=black, 3=main/support.
     // Image0xfffffffe marks procedural station geometry; size.y selects the
     // regular/inverted/narrow/pier recipe. It is never an original sprite ID.
+    // Image0xfffffffd marks a tunnel request, not a drawable component:
+    // offset.x=left/right/vertical (0/1/2), offset.y=TunnelType (or 256+
+    // doorB/inward/flatToDown25 selector bits0/1/2), offset.z=relative
+    // world height. Remaining fields zero, parent=-1. Source call order is retained.
+    // Image0xfffffffc marks three photo parents: offset.x=direction,
+    // offset.y=small-art flag, offset.z=relative height. GPU camera/flash
+    // selection uses the captured photo timeout; colour role is black (2).
     // Geometry is camera-relative, with Z relative to the raw track base height.
     // Parent index -1 means a parent; other indices are local to that recipe.
     std::span<const uint32_t> GetNativeTrackRecipeWords();

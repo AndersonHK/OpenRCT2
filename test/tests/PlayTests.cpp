@@ -294,6 +294,66 @@ TEST_F(PlayTests, IntegratedBenchmarkMetricsHandleEmptyMeasurement)
     EXPECT_DOUBLE_EQ(metrics.longestSimulationSliceMilliseconds, 0.0);
 }
 
+TEST(BenchmarkPresentationPacingTest, LateHarvestUsesPresentTimestampsAndExcludesBoundaryWork)
+{
+    BenchmarkPresentationPacing pacing;
+    pacing.Reset(100'000'000);
+    pacing.Include(99'999'999); // Warmup must not become the first predecessor.
+    pacing.Include(100'000'000);
+    pacing.Include(106'950'000);
+    pacing.SetEnd(120'000'000);
+    // These samples were harvested by the final drain, but were presented in
+    // the measured interval. Work actually presented after the end is excluded.
+    pacing.Include(113'900'000);
+    pacing.Include(120'000'000);
+    pacing.Include(120'000'001);
+    EXPECT_EQ(pacing.Samples(), 4u);
+    EXPECT_EQ(pacing.Intervals(), 3u);
+    EXPECT_EQ(pacing.OutOfOrderSamples(), 0u);
+    ASSERT_TRUE(pacing.PercentileUpperMilliseconds(50));
+    EXPECT_DOUBLE_EQ(*pacing.PercentileUpperMilliseconds(50), 7.0);
+    EXPECT_DOUBLE_EQ(*pacing.PercentileUpperMilliseconds(95), 7.0);
+    EXPECT_DOUBLE_EQ(*pacing.PercentileUpperMilliseconds(99), 7.0);
+    EXPECT_DOUBLE_EQ(pacing.MaximumMilliseconds(), 6.95);
+}
+
+TEST(BenchmarkPresentationPacingTest, OverflowAndOutOfOrderSamplesAreExplicitAndResetClearsThem)
+{
+    BenchmarkPresentationPacing pacing;
+    pacing.Reset(0);
+    pacing.Include(1'000'000);
+    pacing.Include(1'001'000'001);
+    pacing.Include(2'000'000); // Never silently form an unsigned/wrapped gap.
+    EXPECT_EQ(pacing.Intervals(), 1u);
+    EXPECT_EQ(pacing.OverflowIntervals(), 1u);
+    EXPECT_EQ(pacing.OutOfOrderSamples(), 1u);
+    EXPECT_FALSE(pacing.PercentileUpperMilliseconds(95));
+    EXPECT_DOUBLE_EQ(pacing.MaximumMilliseconds(), 1000.000001);
+    pacing.Reset(50);
+    EXPECT_EQ(pacing.Samples(), 0u);
+    EXPECT_EQ(pacing.OverflowIntervals(), 0u);
+    EXPECT_EQ(pacing.OutOfOrderSamples(), 0u);
+    EXPECT_FALSE(pacing.PercentileUpperMilliseconds(50));
+}
+
+TEST(BenchmarkPresentationPacingTest, QuantilesUseIntervalRanksAndNeverRoundDown)
+{
+    BenchmarkPresentationPacing pacing;
+    pacing.Reset(0);
+    uint64_t time = 0;
+    pacing.Include(time);
+    for (uint32_t i = 1; i <= 100; ++i)
+    {
+        time += uint64_t{ i } * 100'000 + 1;
+        pacing.Include(time);
+    }
+    EXPECT_EQ(pacing.Intervals(), 100u);
+    EXPECT_DOUBLE_EQ(*pacing.PercentileUpperMilliseconds(50), 5.1);
+    EXPECT_DOUBLE_EQ(*pacing.PercentileUpperMilliseconds(95), 9.6);
+    EXPECT_DOUBLE_EQ(*pacing.PercentileUpperMilliseconds(99), 10.0);
+    EXPECT_DOUBLE_EQ(pacing.MaximumMilliseconds(), 10.000001);
+}
+
 TEST_F(PlayTests, GameSpeedsSelectTickRatesWithoutChangingTheLogicalUpdateShape)
 {
     EXPECT_EQ(GetGameSpeedMultiplier(1), 1u);

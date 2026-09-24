@@ -2194,6 +2194,7 @@ void TrackDesignDrawPreview(TrackDesign& td, TrackDesignPreviewBuffer& pixels, b
     // Commit all four rotations together. A failed job must not expose a partially replaced preview.
     std::vector<PaletteIndex> rendered(pixels.size());
     auto& service = GetContext()->GetRenderService();
+    const auto generation = ViewportCaptureAuxiliaryGeneration();
     const ScreenCoordsXY offset = { size_x / 2, size_y / 2 };
     for (Direction direction = 0; direction < kNumOrthogonalDirections; direction++)
     {
@@ -2217,7 +2218,7 @@ void TrackDesignDrawPreview(TrackDesign& td, TrackDesignPreviewBuffer& pixels, b
         if (rt.x != 0 || rt.y != 0 || rt.width != 370 || rt.height != 217 || rt.bits == nullptr || rt.DrawingEngine == nullptr
             || rt.pitch < 0)
             throw RenderServiceException({ RenderErrorCode::executionFailed, "Track preview render target differs" });
-        ViewportRender(rt, &view);
+        ViewportRender(rt, &view, ViewportGenerationDomain::targetClip, generation);
         auto completion = session->Submit();
         if (!completion)
             throw RenderServiceException({ RenderErrorCode::executionFailed, "Track preview has no completion" });

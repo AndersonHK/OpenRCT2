@@ -91,6 +91,13 @@ namespace OpenRCT2::Ui::Gpu
         {
             if (!requiredStyles[style])
                 continue;
+            // Static tower bodies dispatch through the flat-family catalogue,
+            // but their authored vertical openings use this shared G1 lookup.
+            if (style == static_cast<uint32_t>(TrackStyle::observationTower)
+                || style == static_cast<uint32_t>(TrackStyle::launchedFreefall)
+                || style == static_cast<uint32_t>(TrackStyle::rotoDrop))
+                for (uint32_t image = 1575; image <= 1578; ++image)
+                    images.push_back(image);
             for (uint32_t type = 0; type < definitions[3]; ++type)
             {
                 const auto descriptor = definitions[4] + (style * definitions[3] + type) * 3;
@@ -104,7 +111,27 @@ namespace OpenRCT2::Ui::Gpu
                     const auto row = definitions[5] + (definitions[descriptor] + index) * 2;
                     for (uint32_t part = 0; part < definitions[row + 1]; ++part)
                     {
-                        const auto image = definitions[definitions[6] + (definitions[row] + part) * 12];
+                        const auto partOffset = definitions[6] + (definitions[row] + part) * 12;
+                        // Water components use the terrain catalog's resident mask/overlay banks.
+                        if (definitions[partOffset + 10] >= 4)
+                            continue;
+                        const auto image = definitions[partOffset];
+                        if (image == 0xfffffffdu)
+                        {
+                            if (definitions[definitions[6] + (definitions[row] + part) * 12 + 1] == 2)
+                                for (uint32_t vertical = 1575; vertical <= 1578; ++vertical)
+                                    images.push_back(vertical);
+                            continue;
+                        }
+                        if (image == 0xfffffffcu)
+                        {
+                            const uint32_t first = definitions[definitions[6] + (definitions[row] + part) * 12 + 2] != 0
+                                ? 23485u
+                                : 25615u;
+                            for (uint32_t photo = first; photo < first + 12; ++photo)
+                                images.push_back(photo);
+                            continue;
+                        }
                         if (image != 0xfffffffeu)
                             images.push_back(image);
                         else
