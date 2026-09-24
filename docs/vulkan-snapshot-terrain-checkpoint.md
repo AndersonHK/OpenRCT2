@@ -31,6 +31,22 @@ The final separate upload-instrumented run, `performance-snapshot92-12000-upload
 
 The owner clarified that ordinary Turbo must remain capped at 360 TPS. The practical endurance workload is EverythingPark for 12,000 measured ticks as its guest population fills, at physical 3840×2160 with VSync and a 144 Hz display. Sustain approximately 360 TPS and 144 FPS with good pacing; higher uncapped throughput is only a secondary diagnostic. Hidden-window intervals do not establish physical scanout pacing.
 
+## Baseline for adding layers
+
+Implementation checkpoint **`775c86edf0`**, on `codex/gpu-snapshot-terrain-layers`, preserves build92. The owner accepts this performance standard and reports that the cliff/water image looks correct. That visual feedback applies to the shown sample; it does not close the remaining terrain modes or full-world parity checks. The priority now is restoring layers while preserving performance, rather than pursuing higher peak throughput.
+
+Apply this gate to each added family before making it the next baseline:
+
+- [ ] Capture raw graphical facts through the existing immutable publication boundary; keep shaders responsible for image selection, expansion, projection and culling. No live-state reads during rendering, per-object GPU calls or CPU painter fallback.
+- [ ] Add the family and remove its superseded preparation; inspect original-art output and ordering with adjacent layers. An agent manually reviews differences against the appropriate pinned upstream/reference samples and records any justified exception.
+- [ ] Run the same 4K/VSync EverythingPark workload for 100 warmup plus 12,000 measured ticks, checking all four 3000-tick windows and final state comparability. Preserve approximately 360 TPS and 144 application FPS as population fills.
+- [ ] Compare against both build92 and the immediately preceding accepted layer checkpoint. Report CPU Draw, simulation time, asynchronous submission/GPU time, frame interval percentiles and worst-phase events; a stable average must not conceal growing stalls.
+- [ ] Measure upload bytes and copy-call counts separately. Added geometry naturally consumes GPU budget, but unchanged instances must remain resident and unrelated field changes must not trigger broad uploads.
+- [ ] Use uncapped headroom as an early regression signal when capped TPS masks a slowdown. Repeat an apparent regression under matched conditions before attributing it to code; investigate reproducible cost increases before stacking another layer on top.
+- [ ] Capture the final image after timing, preserve receipts, run focused correctness/validation checks and commit the qualified layer. Keep physical displayed pacing and known residual stalls explicit until separately verified.
+
+The starting reference is 0.081 ms CPU Draw, roughly 1.02 ms GPU, p99 application intervals around 9.1 ms, and approximately 388 TPS uncapped in the fullest final window. These are measured comparison points, not independent hard limits or a license to consume all remaining headroom. First complete terrain/water gaps, then migrate paths/additions and scenery using this gate.
+
 ## Endurance control
 
 The pinned build85 control completed 100 warmup plus 12,000 measured ticks at 4K/VSync, with a hidden window on the 144 Hz display. It reached **322.525 TPS / 141.911 FPS**, with **0.380390 ms CPU Draw** and **0.503148 ms GPU**. Application intervals were p95 **8.568 ms**, p99 **9.102 ms**, maximum **96.622 ms**; the longest simulation tick was **94.407 ms**. The final census contained **17,042 guests**, 2,208 staff and 2,128 vehicles. This longer control supersedes the 3,000-tick number as the practical workload target.

@@ -2,6 +2,8 @@
 
 ## Current checkpoint
 
+**Accepted performance baseline:** implementation commit `775c86edf0` is checkpointed on `codex/gpu-snapshot-terrain-layers`. The owner is satisfied with the performance standard and the shown cliff/water image. Subsequent work prioritizes adding missing layers without performance regressions. Follow the [per-layer regression gate](vulkan-snapshot-terrain-checkpoint.md#baseline-for-adding-layers), comparing each candidate with build92 and the previous accepted layer; retain the 4K/12,000-tick workload and 360 TPS gameplay cap.
+
 **Immutable GPU terrain checkpoint, build92:** [results and active checklist](vulkan-snapshot-terrain-checkpoint.md). Two matched EverythingPark runs at **4K/VSync, 12,000 measured ticks** reach **358.825–359.958 TPS / 143.919–144.013 application FPS**, with **0.0807–0.0808 ms CPU Draw** and **1.015–1.031 ms GPU**. The corresponding build85 endurance control reaches 322.525 TPS and 0.3804 ms CPU Draw. All runs finish with 17,042 guests and matching entity checksums. Separate uncapped headroom is 423.672 TPS, approximately 388 TPS in the final 3000-tick window; ordinary Turbo remains capped at 360.
 
 - [x] Admit one immutable world generation before window traversal; defer unfinished publication and keep worker/GPU readers away from live simulation state.
