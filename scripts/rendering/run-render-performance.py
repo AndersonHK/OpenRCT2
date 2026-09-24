@@ -199,6 +199,65 @@ def require_present_rate(result, minimum):
         raise ValueError('Presentation changed or timing samples were lost during qualification')
 
 
+def parse_simulation_attribution(text):
+    reports = [json.loads(value) for value in re.findall(r'Benchmark simulation attribution v1: (\{[^\r\n]*\})', text)]
+    if not reports:
+        return None
+    if len(reports) != 1:
+        raise ValueError('Duplicate simulation attribution report')
+    report = reports[0]
+    phases = {'tickPrelude', 'logicPrelude', 'map', 'routes', 'peeps', 'restoreProvisional', 'vehicles',
+              'miscEntities', 'rides', 'park', 'researchRatings', 'newsAnimations', 'spatialIndex',
+              'actionsNetworkScripts', 'tickTail'}
+    if (set(report) != {'schema', 'capacityPerPhase', 'phases', 'parallel', 'scope'}
+            or report['schema'] != 1 or report['capacityPerPhase'] != 16
+            or set(report['phases']) != phases or set(report['parallel']) != {'peeps', 'vehicles'}):
+        raise ValueError('Unsupported simulation attribution schema')
+    def number(value):
+        return type(value) in (int, float) and math.isfinite(value) and value >= 0
+    def integer(value):
+        return type(value) is int and value >= 0
+    for parallel, groups in ((False, report['phases']), (True, report['parallel'])):
+        for sample in groups.values():
+            if (set(sample) != {'count', 'wallMs', 'threadCycles', 'threadCycleSamples', 'worst'}
+                    or not all(integer(sample[k]) for k in ('count', 'threadCycles', 'threadCycleSamples'))
+                    or not number(sample['wallMs']) or sample['threadCycleSamples'] > sample['count']
+                    or len(sample['worst']) != min(16, sample['count'])):
+                raise ValueError('Invalid bounded simulation attribution counters')
+            previous = math.inf
+            for event in sample['worst']:
+                expected = {'simulationTick', 'offsetMs', 'wallMs', 'threadCycles', 'threadCyclesAvailable'}
+                if parallel:
+                    expected.add('parallel')
+                if (set(event) != expected or not integer(event['simulationTick']) or event['simulationTick'] > 0xffffffff
+                        or not integer(event['threadCycles']) or type(event['threadCyclesAvailable']) is not bool
+                        or not number(event['offsetMs']) or not number(event['wallMs']) or event['wallMs'] > previous):
+                    raise ValueError('Invalid simulation attribution event')
+                previous = event['wallMs']
+                if not parallel:
+                    continue
+                item = event['parallel']
+                booleans = {'callerCyclesAvailable', 'waitCyclesAvailable', 'workerMaxWorkCyclesAvailable'}
+                integers = {'count', 'grain', 'submittedWorkers', 'callerCycles', 'waitCycles', 'completedWorkers',
+                            'retiredWorkers', 'remainingAtWait', 'workerTotalCycles', 'workerCycleSamples', 'workerMaxWorkCycles'}
+                durations = {'submitMs', 'callerMs', 'retireMs', 'waitMs', 'workerTotalWorkMs', 'workerMaxWorkMs',
+                             'workerMaxStartDelayMs', 'workerMaxCompletionLockMs', 'waitAcquireMutexMs',
+                             'conditionWaitMs', 'readyToResumeMs'}
+                if (set(item) != booleans | integers | durations
+                        or not all(type(item[k]) is bool for k in booleans)
+                        or not all(integer(item[k]) for k in integers) or not all(number(item[k]) for k in durations)
+                        or item['grain'] < 1 or item['count'] < 1
+                        or item['completedWorkers'] + item['retiredWorkers'] != item['submittedWorkers']
+                        or item['workerCycleSamples'] > item['completedWorkers']
+                        or item['remainingAtWait'] > item['completedWorkers']
+                        or item['readyToResumeMs'] > item['conditionWaitMs'] + 0.001
+                        or abs(sum(item[k] for k in ('submitMs', 'callerMs', 'retireMs', 'waitMs')) - event['wallMs']) > 0.001):
+                    raise ValueError('Invalid ParallelFor attribution event')
+    if report['phases']['peeps']['count'] == 0 or report['phases']['vehicles']['count'] == 0:
+        raise ValueError('Simulation attribution did not measure simulation')
+    return report
+
+
 def parse_world_gpu_profile(text):
     reports = [json.loads(value) for value in re.findall(r'VULKAN_WORLD_PROFILE (\{[^\r\n]*\})', text)]
     for report in reports:
@@ -612,6 +671,7 @@ def main():
     parser.add_argument("--final-screenshot", action="store_true", help="Current-only one final main-canvas PNG after timing stops; excluded from measured workload")
     parser.add_argument("--uncapped-simulation", action="store_true", help="Current-only simulation headroom experiment; ordinary gameplay keeps its 360 TPS target")
     parser.add_argument("--upload-telemetry", action="store_true", help="Opt-in Vulkan API upload payload attribution; not clean TPS acceptance")
+    parser.add_argument("--simulation-wait-profile", action="store_true", help="Separate named simulation/ParallelFor wall-cycle attribution; never clean acceptance")
     parser.add_argument("--world-gpu-profile", action="store_true", help="Separate GPU stage attribution run; never clean performance acceptance")
     parser.add_argument("--minimum-present-fps", type=float, help="Require actual successful presentation evidence at this rate; CPU paint attempts do not qualify")
     args = parser.parse_args()
@@ -628,7 +688,7 @@ def main():
         parser.error("--uncapped-simulation requires current-vulkan")
     if args.upload_telemetry and args.mode != "current-vulkan":
         parser.error("--upload-telemetry requires current-vulkan; the frozen executable is not instrumented")
-    if (args.world_gpu_profile or args.minimum_present_fps is not None) and args.mode != "current-vulkan":
+    if (args.simulation_wait_profile or args.world_gpu_profile or args.minimum_present_fps is not None) and args.mode != "current-vulkan":
         parser.error("World profiling and presentation gates require current-vulkan")
     if args.minimum_present_fps is not None and not 0 < args.minimum_present_fps < 100000:
         parser.error("--minimum-present-fps must be positive and finite")
@@ -719,6 +779,9 @@ def main():
         relevant = {k: v for k, v in env.items() if k.startswith(("SDL_", "VK_", "OPENRCT2_", "__GL_", "DRI_", "MESA_"))}
         if any(any(word in key.upper() for word in ("CAPTURE", "VALIDATION", "LAYER", "PROFILE", "PARITY", "DIAGNOSTIC")) for key in relevant):
             raise ValueError("Inherited capture/validation/profile environment is not permitted: " + ", ".join(sorted(relevant)))
+        if args.simulation_wait_profile:
+            env['OPENRCT2_PROFILE_SIMULATION_WAITS'] = '1'
+            relevant['OPENRCT2_PROFILE_SIMULATION_WAITS'] = '1'
         if args.world_gpu_profile:
             env['OPENRCT2_VULKAN_PROFILE_WORLD'] = '1'
             relevant['OPENRCT2_VULKAN_PROFILE_WORLD'] = '1'
@@ -812,6 +875,11 @@ def main():
             if setup['flagsAfter'] != setup['flagsBefore'] | 1 or min(setup['width'], setup['height']) <= 0:
                 raise ValueError('Underground setup changed more than the inside-view flag')
             summary['undergroundViewSetup'] = setup
+        simulation_attribution = parse_simulation_attribution(text)
+        if (simulation_attribution is not None) != args.simulation_wait_profile:
+            raise ValueError('Requested/actual simulation attribution mode differs')
+        if simulation_attribution is not None:
+            summary['simulationAttribution'] = simulation_attribution
         world_profiles = parse_world_gpu_profile(text)
         if bool(world_profiles) != args.world_gpu_profile:
             raise ValueError('Requested/actual world GPU profiling mode differs')
@@ -873,6 +941,8 @@ def main():
                                              "Single-run results do not establish a substantial TPS gain", "Initial checkpoint is a state census; initial entity checksum is unavailable"]
         if args.uncapped_simulation:
             summary["qualification"] += "; uncapped benchmark headroom, not ordinary 360 TPS gameplay pacing"
+        if args.simulation_wait_profile:
+            summary["qualification"] += "; instrumented simulation wait attribution, not clean performance acceptance"
         if args.world_gpu_profile:
             summary["qualification"] += "; instrumented GPU stage attribution, not clean performance acceptance"
         if not summary["failures"]:

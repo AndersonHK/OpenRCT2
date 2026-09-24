@@ -114,5 +114,99 @@ class WorldStageEvidenceTest(unittest.TestCase):
             report.parse_world_gpu_profile('VULKAN_WORLD_PROFILE ' + json.dumps(payload))
 
 
+class SimulationAttributionEvidenceTest(unittest.TestCase):
+    def payload(self):
+        names = ('tickPrelude', 'logicPrelude', 'map', 'routes', 'peeps', 'restoreProvisional',
+                 'vehicles', 'miscEntities', 'rides', 'park', 'researchRatings', 'newsAnimations',
+                 'spatialIndex', 'actionsNetworkScripts', 'tickTail')
+        event = dict(simulationTick=3134427, offsetMs=1400.0, wallMs=58.0,
+                     threadCycles=6472492, threadCyclesAvailable=True)
+        phase = dict(count=1, wallMs=58.0, threadCycles=6472492, threadCycleSamples=1, worst=[event])
+        worker = dict(count=32, grain=4, submittedWorkers=2, submitMs=0.1, callerMs=1.0,
+                      retireMs=0.1, waitMs=56.8, callerCycles=2200000, callerCyclesAvailable=True,
+                      waitCycles=8000, waitCyclesAvailable=True, completedWorkers=1, retiredWorkers=1,
+                      remainingAtWait=1, workerTotalWorkMs=2.0, workerTotalCycles=6400000,
+                      workerCycleSamples=1, workerMaxWorkMs=2.0, workerMaxWorkCycles=6400000,
+                      workerMaxWorkCyclesAvailable=True, workerMaxStartDelayMs=0.5,
+                      workerMaxCompletionLockMs=0.001, waitAcquireMutexMs=0.001,
+                      conditionWaitMs=56.7, readyToResumeMs=55.0)
+        parallel = copy.deepcopy(phase)
+        parallel['worst'][0]['parallel'] = worker
+        return dict(schema=1, capacityPerPhase=16, phases={name: copy.deepcopy(phase) for name in names},
+                    parallel={name: copy.deepcopy(parallel) for name in ('peeps', 'vehicles')},
+                    scope='Synthetic parser fixture; not measured evidence')
+
+    def parse(self, payload):
+        return report.parse_simulation_attribution(
+            'Benchmark simulation attribution v1: ' + json.dumps(payload) + '\n')
+
+    def test_optional_absent_report_preserves_legacy_clean_logs(self):
+        self.assertIsNone(report.parse_simulation_attribution('Integrated UI benchmark:\nclean legacy output\n'))
+
+    def test_complete_opt_in_report_preserves_wait_and_worker_evidence(self):
+        payload = self.payload()
+        self.assertEqual(self.parse(payload), payload)
+        observed = self.parse(payload)['parallel']['vehicles']['worst'][0]['parallel']
+        self.assertEqual(observed['completedWorkers'] + observed['retiredWorkers'], observed['submittedWorkers'])
+        self.assertEqual(observed['readyToResumeMs'], 55.0)
+
+    def test_duplicate_or_truncated_report_does_not_supply_complete_evidence(self):
+        line = 'Benchmark simulation attribution v1: ' + json.dumps(self.payload()) + '\n'
+        with self.assertRaisesRegex(ValueError, 'Duplicate'):
+            report.parse_simulation_attribution(line + line)
+        # A truncated object must fail rather than silently become valid evidence.
+        with self.assertRaises(ValueError):
+            report.parse_simulation_attribution(line[:-2])
+
+    def test_missing_named_phase_or_parallel_seam_is_rejected(self):
+        for container, key in (('phases', 'vehicles'), ('parallel', 'peeps')):
+            payload = self.payload()
+            del payload[container][key]
+            with self.subTest(container=container), self.assertRaisesRegex(ValueError, 'schema'):
+                self.parse(payload)
+
+    def test_top16_requires_complete_sorted_bounded_event_set(self):
+        for invalid in ('missing', 'seventeen', 'unsorted'):
+            payload = self.payload()
+            sample = payload['phases']['peeps']
+            sample['count'] = 20
+            sample['worst'] = [dict(sample['worst'][0], wallMs=float(30-i)) for i in range(16)]
+            if invalid == 'missing':
+                sample['worst'].pop()
+            elif invalid == 'seventeen':
+                sample['worst'].append(copy.deepcopy(sample['worst'][-1]))
+            else:
+                sample['worst'][1]['wallMs'] = 31
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                self.parse(payload)
+
+    def test_worker_retirement_and_duration_partition_cannot_be_fabricated(self):
+        for key, value in (('retiredWorkers', 2), ('remainingAtWait', 2),
+                           ('workerCycleSamples', 2), ('readyToResumeMs', 57.0),
+                           ('callerMs', 2.0), ('workerMaxWorkMs', float('nan'))):
+            payload = self.payload()
+            payload['parallel']['peeps']['worst'][0]['parallel'][key] = value
+            with self.subTest(key=key), self.assertRaisesRegex(ValueError, 'ParallelFor'):
+                self.parse(payload)
+
+    def test_invalid_phase_cycles_tick_duration_and_schema_are_rejected(self):
+        for key, value in (('threadCycles', True), ('simulationTick', 0x100000000),
+                           ('threadCyclesAvailable', 1), ('wallMs', -1), ('offsetMs', float('inf'))):
+            payload = self.payload()
+            payload['phases']['vehicles']['worst'][0][key] = value
+            with self.subTest(key=key), self.assertRaisesRegex(ValueError, 'event'):
+                self.parse(payload)
+        payload = self.payload()
+        payload['schema'] = 2
+        with self.assertRaisesRegex(ValueError, 'schema'):
+            self.parse(payload)
+
+    def test_empty_measurement_does_not_qualify_enabled_attribution(self):
+        payload = self.payload()
+        payload['phases']['peeps'] = dict(count=0, wallMs=0, threadCycles=0, threadCycleSamples=0, worst=[])
+        with self.assertRaisesRegex(ValueError, 'did not measure'):
+            self.parse(payload)
+
+
 if __name__ == '__main__':
     unittest.main()

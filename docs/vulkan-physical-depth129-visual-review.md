@@ -102,3 +102,64 @@ Each row sums8 original-art comparisons. Counts include peripheral differences w
 131 review inventory hashes:
 - `comparisons.json`: `31a8ccab6036590115b233945b91fbe3d53e0b2d19c58815af3977d52d8189d8`
 - `hashes.json`: `8410abef163e43ef228d0e841190b00cb0504f321952ad546050cfdefa3bf762`
+
+## Contextual131 main underground view and selected ride window
+
+Manually viewed `performance-physical-depth131-inside-preview-01/final-benchmark.png` full-frame and a nearest-neighbour crop of the upper-left ride window. PNG SHA256: `7f2bf13952e2b5d38a731a2df819f4f6367f0e7b3430b430868f8a094b665a2c`. The saved detail is `physical-depth131-underground-review/contextual-preview.png`.
+
+The main viewport shows the populated full park with underground terrain grid, exposed terrain side grids, many tracks, paths and buildings against the dark background. This is actual underground-main-view visual evidence, not only a tunnel-portal fixture. The ride window is populated and labelled “Merry-Go-Round1”, “Car1”, “Rotating”; it shows the orange/white carousel roof, adjacent entrance building and contextual yellow coaster track over ordinary green terrain. Its terrain retains the ordinary view rather than inheriting the main viewport's underground grid. The window border, controls and main toolbar remain visible.
+
+This single saved frame proves populated contextual output and view-mode separation. It does not independently prove that the selected-vehicle packet contributed the visible roof rather than the static ride body, correct moving-pose cadence, exact train/world occlusion, or original-art preview parity. The large brown area beneath the carousel roof and crossing tracks require a matching reference before claiming their geometry is correct. Known finite-body and slope depth gaps remain. Performance and pacing conclusions belong to the root's receipts; they are not inferred from a screenshot.
+
+## Follow-up132: exact planar terrain
+
+Reviewed all288 upstream/native/difference triplets from `underground-view132-specimens-01` and `underground-control132-specimens-01`: eighteen cases, four rotations, two zooms and two view modes. All sixteen contact sheets in `physical-depth132-underground-review` were manually viewed. The inventory verifies205 item PNGs byte-identical131 and83 changed; unchanged cases retain the previous visual findings. `comparisons.json` records every case's exact mismatch count and `hashes.json` pins every reviewed original item PNG plus its131 counterpart.
+
+The planar correction visibly improves the sloped grass/soil wedges and underground grid strips. In particular, the flat path beneath a sloped surface (item3) now agrees much more closely with the reference, and the raised-corner intersections (items12/13) lose broad erroneous bands. These cases use planar slope12; their residual differences must not be dismissed as unsupported nonplanar terrain.
+
+The matching path ramp (item2) regresses: the reference's sloping deck is increasingly hidden by native terrain. This is visible in both modes and all rotations, especially ordinary r0/r3. Source inspection identifies a concrete missing counterpart: `visitPath` still assigns horizontal depth to a sloped path body/deck and explicitly overrides the deck child to horizontal. The original painter's `kPathSlopeToLandSlope` mapping provides an exact independent path plane; a narrowly scoped follow-up was staged, but its output is not part of this132 review. The up25 track (item5) also acquires small rail/terrain overlap differences; its approximate track geometry remains separate from the path correction.
+
+|Case|Inside131→132|Ordinary131→132|Visual conclusion|
+|---|---:|---:|---|
+|2: matching path ramp|13,945→15,029|1,616→4,714|Regression; path deck still has horizontal depth|
+|3: flat path beneath slope|25,114→12,573|11,367→997|Large improvement; small residual seams remain|
+|5: up25 track through slope|1,523→2,092|624→1,060|New small track/terrain overlap differences|
+|9: fully buried cinema crop|12,068→11,979|655→540|Small peripheral change; no finite-body fix|
+|10: partly buried shop crop|6,457→6,368|5,637→5,522|Small peripheral change; no finite-body fix|
+|12: equal-base path on raised corners|30,720→21,170|15,577→7,686|Improved terrain intersections; residual path/edge pixels|
+|13: equal-base track on raised corners|18,014→7,895|11,574→4,806|Improved terrain intersections; residual track/edge pixels|
+
+Counts sum eight views per mode and include overlapping rectangles and peripheral exterior pixels. They are not unique full-frame error totals. All other case totals are unchanged. The cinema's missing lower white body/podium, shop base/cap differences, tower base gaps, tunnel/station intersections and absent physical supports remain visible;132 does not repair them. The populated underground grid and dark backing remain intact. The exterior cliff skirt remains the separately recorded intentional divergence, and does not excuse internal differences.
+
+Nonplanar and genuinely edge-on terrain still use the explicitly incomplete horizontal fallback. This corpus is not exhaustive validation of those forms. No active construction selection or UI is exercised by these sheets, so the shared selection-plane implementation is not visually qualified here. No builds, GPU work or game execution were performed by this reviewer.
+
+132 review inventory SHA256:
+
+- `comparisons.json`: `3350fc7ad9e276c6f0508f7eb4b6c0efd2a1e298cc3d358017cfb35cb905c4fc`
+- `hashes.json`: `40cc5c4ea37c945c0803ae2456caa610b83b2c802e668fddcb43505ebc2a06cd`
+
+## Follow-up135: path ramp plane
+
+Compared all288135 specimen triplets against132 and the same upstream reference. The SHA256 inventory proves272 item PNGs byte-identical132. Only matching path ramp item2 changes, in all sixteen mode/rotation/zoom combinations. All sixteen changed full-size upstream/native/difference strips were manually viewed; the272 identical groups reuse the completed132 review. Artifacts are in `physical-depth135-underground-review`, with per-case counts in `comparisons.json` and every reviewed PNG hash in `hashes.json`.
+
+The missing sloping deck recovers visibly. Ordinary r0/r3 now show the continuous dark ramp connecting its lower and upper flat path portions, where132 showed disconnected ends. Each of the sixteen comparisons has fewer exact mismatches. The ordinary sum falls4,714→1,960 and the inside sum15,029→13,829. This is a bounded improvement, not path or underground parity.
+
+|Rotation/zoom|Ordinary132→135|Inside132→135|
+|---|---:|---:|
+|r0/z0|1,498→621|5,757→5,583|
+|r1/z0|570→333|4,881→4,854|
+|r2/z0|405→179|687→582|
+|r3/z0|1,280→429|1,507→937|
+|r0/z1|377→150|813→690|
+|r1/z1|180→123|796→775|
+|r2/z1|97→45|198→173|
+|r3/z1|307→80|390→235|
+
+The remaining ordinary ramp differences are concentrated on the side railings and small edge details: native rails are partly hidden or shortened compared with the reference, especially r0/r3. Correct deck depth does not establish correct upright railing geometry. Inside views retain grid/filter coverage across the ramp and local railing differences; r0/r1 rectangles also include the unchanged exterior skirt. Those peripheral pixels do not explain away the internal ramp differences. No unrelated image regression is present in this288-group corpus, as all other images are byte-identical132. This statement is restricted to the captured views, not arbitrary scenes.
+
+The up25 track differences, finite cinema/shop/tower geometry gaps, support omissions, portal/station intersections, nonplanar and edge-on terrain approximations, and construction-selection/UI qualification gaps remain exactly as recorded for132. No further geometry change was made for this review. Saved-artifact processing and manual viewing only; no builds, tests, game or GPU execution by the reviewer.
+
+135 review inventory SHA256:
+
+- `comparisons.json`: `fa179c75b490a85d9e232278b3cf89303a1c4257f13ed43f5f6ab8e9466fb26f`
+- `hashes.json`: `6ca72fb797230caa67e823b5ef19e83a3cb32b10d9212c1045d14e7b43ca1560`

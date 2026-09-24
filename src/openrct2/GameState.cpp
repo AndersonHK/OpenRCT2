@@ -23,6 +23,7 @@
 #include "peep/GuestPathfinding.h"
 #include "platform/Platform.h"
 #include "profiling/Profiling.h"
+#include "profiling/SimulationAttribution.h"
 #include "ride/Vehicle.h"
 #include "scenario/Scenario.h"
 #include "scenes/editor/EditorScene.h"
@@ -107,6 +108,7 @@ namespace OpenRCT2
     void gameStateTick()
     {
         PROFILED_FUNCTION();
+        SimulationAttribution::Sequence attribution(SimulationAttribution::Phase::tickPrelude, getGameState().currentTicks);
 
         // Offline play always updates once. Its speed is selected by the outer scheduler cadence.
         uint32_t numUpdates = 1;
@@ -202,6 +204,7 @@ namespace OpenRCT2
         // Update the game one or more times. Only network catch-up can contain multiple logical updates; audio samples its
         // final state instead of rescanning vehicles and visible guests after every intermediate network state.
         bool didUpdatePresentationAudio = false;
+        attribution.Next(SimulationAttribution::Phase::count);
         for (uint32_t i = 0; i < numUpdates; i++)
         {
             const bool updatePresentationAudio = i + 1 == numUpdates;
@@ -227,6 +230,8 @@ namespace OpenRCT2
             if (GameIsPaused())
                 break;
         }
+
+        attribution.Next(SimulationAttribution::Phase::tickTail);
 
         // Input or a pause action can end a network catch-up batch before its planned final update.
         if (numUpdates != 0 && !didUpdatePresentationAudio)
@@ -273,6 +278,7 @@ namespace OpenRCT2
     void gameStateUpdateLogic(bool updatePresentationAudio)
     {
         PROFILED_FUNCTION();
+        SimulationAttribution::Sequence attribution(SimulationAttribution::Phase::logicPrelude, getGameState().currentTicks);
 
         gInUpdateCode = true;
 
@@ -332,6 +338,7 @@ namespace OpenRCT2
         auto day = gameState.date.GetDay();
 #endif
 
+        attribution.Next(SimulationAttribution::Phase::map);
         DateUpdate(gameState);
 
         ScenarioUpdate(gameState);
@@ -342,14 +349,21 @@ namespace OpenRCT2
         auto removeProvisionalIntent = Intent(INTENT_ACTION_REMOVE_PROVISIONAL_ELEMENTS);
         ContextBroadcastIntent(&removeProvisionalIntent);
 
+        attribution.Next(SimulationAttribution::Phase::routes);
         MapUpdatePathWideFlags();
         PathFinding::PrepareSharedRouteFields();
+        attribution.Next(SimulationAttribution::Phase::peeps);
         PeepUpdateAll();
+        attribution.Next(SimulationAttribution::Phase::restoreProvisional);
         auto restoreProvisionalIntent = Intent(INTENT_ACTION_RESTORE_PROVISIONAL_ELEMENTS);
         ContextBroadcastIntent(&restoreProvisionalIntent);
+        attribution.Next(SimulationAttribution::Phase::vehicles);
         VehicleUpdateAll();
+        attribution.Next(SimulationAttribution::Phase::miscEntities);
         gameState.entities.updateAllMiscEntities();
+        attribution.Next(SimulationAttribution::Phase::rides);
         Ride::updateAll();
+        attribution.Next(SimulationAttribution::Phase::park);
 
         if (!isInEditorMode())
         {
@@ -357,9 +371,11 @@ namespace OpenRCT2
             Park::Update(park, gameState);
         }
 
+        attribution.Next(SimulationAttribution::Phase::researchRatings);
         ResearchUpdate();
         RideRating::UpdateAll();
         RideMeasurementsUpdate();
+        attribution.Next(SimulationAttribution::Phase::newsAnimations);
         News::UpdateCurrentItem();
 
         MapAnimations::UpdateAll();
@@ -371,10 +387,14 @@ namespace OpenRCT2
         }
         EditorScene::OpenWindowsForCurrentStep();
 
+        attribution.Next(SimulationAttribution::Phase::spatialIndex);
+
         // Update windows
         // WindowDispatchUpdateAll();
 
         gameState.entities.updateEntitiesSpatialIndex();
+
+        attribution.Next(SimulationAttribution::Phase::actionsNetworkScripts);
 
         // Start autosave timer after update
         if (gLastAutoSaveUpdate == kAutosavePause)

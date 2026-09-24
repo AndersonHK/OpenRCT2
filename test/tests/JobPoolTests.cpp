@@ -28,11 +28,21 @@ TEST(JobPoolTest, ParallelForDoesNotWaitForQueuedEmptyConsumers)
     });
     started.get_future().wait();
     std::array<std::atomic_uint32_t, 64> visits{};
-    auto done = std::async(std::launch::async, [&]() { pool.ParallelFor(visits.size(), [&](size_t i) { ++visits[i]; }, 4); });
+    auto done = std::async(std::launch::async, [&]() {
+        namespace Attribution = OpenRCT2::SimulationAttribution;
+        Attribution::Begin(true, Attribution::Clock::now(), nullptr);
+        Attribution::Sequence phase(Attribution::Phase::peeps, 42);
+        pool.ParallelFor(visits.size(), [&](size_t i) { ++visits[i]; }, 4);
+        return Attribution::state.parallel[0];
+    });
     const auto status = done.wait_for(std::chrono::seconds(2));
     release.set_value();
-    done.get();
+    const auto samples = done.get();
     pool.Join();
+    EXPECT_EQ(samples.count, 1u);
+    EXPECT_EQ(samples.worst[0].worker.completed, 0u);
+    EXPECT_EQ(samples.worst[0].worker.retired, 1u);
+    EXPECT_EQ(samples.worst[0].worker.remainingAtWait, 0u);
     EXPECT_EQ(status, std::future_status::ready);
     for (const auto& count : visits)
         EXPECT_EQ(count.load(), 1u);
@@ -215,4 +225,95 @@ TEST(JobPoolTest, ForegroundTasksPreemptQueuedBackgroundWork)
     pool.Wait(foreground);
     pool.Wait(background);
     EXPECT_EQ(completionOrder, (std::vector<int32_t>{ 1, 2 }));
+}
+
+TEST(JobPoolTest, SimulationAttributionRetainsLargestSixteenWithoutClockAssumptions)
+{
+    using namespace OpenRCT2::SimulationAttribution;
+    Samples<Event> samples;
+    for (uint32_t i = 0; i < 40; ++i)
+        samples.Add(Event{ i, static_cast<double>(i), static_cast<double>(i), i, true });
+    EXPECT_EQ(samples.count, 40u);
+    EXPECT_EQ(samples.retained, 16u);
+    EXPECT_EQ(samples.wallMs, 780.0);
+    EXPECT_EQ(samples.cycles, 780u);
+    EXPECT_EQ(samples.cycleSamples, 40u);
+    for (const auto& event : samples.worst)
+        EXPECT_GE(event.tick, 24u);
+}
+
+TEST(JobPoolTest, SimulationAttributionPreservesWorkerExceptionAndBarrierOwnership)
+{
+    namespace Attribution = OpenRCT2::SimulationAttribution;
+    struct Reset
+    {
+        ~Reset()
+        {
+            Attribution::Begin(false, {}, nullptr);
+        }
+    } reset;
+    Attribution::Begin(true, Attribution::Clock::now(), nullptr);
+    JobPool pool(1);
+    std::promise<void> workerStarted, release;
+    auto started = workerStarted.get_future();
+    auto released = release.get_future();
+    const auto caller = std::this_thread::get_id();
+    std::atomic<size_t> visits{};
+    {
+        Attribution::Sequence phase(Attribution::Phase::vehicles, 1234);
+        EXPECT_THROW(
+            pool.ParallelFor(
+                2,
+                [&](size_t) {
+                    ++visits;
+                    if (std::this_thread::get_id() == caller)
+                    {
+                        started.wait();
+                        release.set_value();
+                    }
+                    else
+                    {
+                        workerStarted.set_value();
+                        released.wait();
+                        throw std::runtime_error("worker exception retained");
+                    }
+                }),
+            std::runtime_error);
+    }
+    EXPECT_EQ(visits.load(), 2u);
+    const auto& samples = Attribution::state.parallel[1];
+    EXPECT_EQ(samples.count, 1u);
+    EXPECT_EQ(samples.worst[0].tick, 1234u);
+    EXPECT_EQ(samples.worst[0].worker.completed, 1u);
+    EXPECT_EQ(samples.worst[0].worker.retired, 0u);
+    EXPECT_EQ(samples.worst[0].worker.cycleSamples, 0u);
+    EXPECT_FALSE(samples.worst[0].cyclesAvailable);
+    EXPECT_EQ(Attribution::state.phase, Attribution::Phase::count);
+    EXPECT_EQ(Attribution::state.phases[static_cast<size_t>(Attribution::Phase::vehicles)].count, 1u);
+    Attribution::Begin(false, {}, nullptr);
+    pool.ParallelFor(8, [&](size_t) { ++visits; });
+    EXPECT_EQ(visits.load(), 10u);
+    EXPECT_EQ(Attribution::state.parallel[1].count, 0u);
+}
+
+TEST(JobPoolTest, SimulationAttributionSeparatesNestedPhasesAndSkippedScope)
+{
+    namespace Attribution = OpenRCT2::SimulationAttribution;
+    Attribution::Begin(true, Attribution::Clock::now(), nullptr);
+    {
+        Attribution::Sequence outer(Attribution::Phase::tickPrelude, 900);
+        outer.Next(Attribution::Phase::count);
+        {
+            Attribution::Sequence logic(Attribution::Phase::logicPrelude, 900);
+            logic.Next(Attribution::Phase::peeps);
+            EXPECT_EQ(Attribution::state.tick, 900u);
+        }
+        EXPECT_EQ(Attribution::state.phase, Attribution::Phase::count);
+        outer.Next(Attribution::Phase::tickTail);
+    }
+    for (auto phase : { Attribution::Phase::tickPrelude, Attribution::Phase::logicPrelude, Attribution::Phase::peeps,
+                        Attribution::Phase::tickTail })
+        EXPECT_EQ(Attribution::state.phases[static_cast<size_t>(phase)].count, 1u);
+    EXPECT_EQ(Attribution::state.phase, Attribution::Phase::count);
+    Attribution::Begin(false, {}, nullptr);
 }

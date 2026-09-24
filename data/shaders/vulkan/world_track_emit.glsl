@@ -94,18 +94,14 @@ void visitTrack(uint index,uvec2 tile,uint destination,bool writeRecords,inout u
         if(part.parent>=0) part.parent=recipeToPart[part.parent];
         worldTrackAppend(part,sprite,palettes,ghost||part.colourRole==2u?1u:2u);
     }
-    // Arrange only this owner's authored parents, preserving every child with
-    // its parent. This does not claim a general cross-tile/object ordering fix.
-    WorldPathPart parents[12];int parentParts[12];int parentCount=0;
+    // Preserve recipe ownership for component-local layers; hardware depth resolves visibility.
+    int parentParts[12];int parentCount=0;
     [[dont_unroll]]
     for(uint i=0u;i<worldTrackDrawParts.count;i++) {
         WorldTrackPart p=worldTrackDrawParts.parts[i].geometry;
         if(p.parent>=0) continue;
-        parents[parentCount]=worldPathPart(0,p.offset.x,p.offset.y,p.offset.z,
-            p.bounds.x,p.bounds.y,p.bounds.z,p.size.x,p.size.y,p.size.z);
         parentParts[parentCount++]=int(i);
     }
-    // Common GPU columns arrange original creation order.
     [[dont_unroll]]
     for(int ordinal=0;ordinal<parentCount;ordinal++) {
         int parent=parentParts[ordinal];

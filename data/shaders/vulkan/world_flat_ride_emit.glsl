@@ -92,9 +92,7 @@ bool visitStaticRide(uint index,uvec2 tile,uint destination,bool writeRecords,in
     WorldFlatPose pose=worldFlatReadPose(id,vehicleIndex);
     uint vehicle=uFlatRides.words[ride+12u+(uFlatRides.words[ride+5u]!=0u?vehicleIndex:0u)];
     bool ghost=(object.flags&1u)!=0u;
-    // Preserve the finite family parent/child structure. The common world traversal
-    // provides cross-tile order; arbitrary inter-family paint-bound arrangement remains separate.
-    // Common GPU columns arrange original creation order.
+    // Preserve component ownership and local layers; physical depth resolves world visibility.
     int partCount=family==23?26:parts.count;
     [[dont_unroll]] for(int i=0;i<partCount;i++) {
         WorldFlatPart part;

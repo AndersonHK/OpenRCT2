@@ -52,11 +52,9 @@ void visitEntrance(uint index,uvec2 tile,uint destination,bool writeRecords,inou
         if(parentCount==2) return; // Reject a future recipe exceeding this visitor's explicit bound.
         recipe[parentCount++]=i;
     }
-    int first=0;
-    // Common GPU columns arrange original creation order.
     bool ghost=(object.flags&1u)!=0u;
     for(int ordinal=0;ordinal<parentCount;ordinal++) {
-        int selected=parentCount==2 && first==1?1-ordinal:ordinal;
+        int selected=ordinal;
         int begin=recipe[selected],end=begin+1;
         while(end<parts.count && parts.parts[end].child!=0) end++;
         for(int i=begin;i<end;i++) {

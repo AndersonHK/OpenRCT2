@@ -96,7 +96,7 @@ The migrated-animation audit found one additional real omission: track photo pla
 - [ ] Validate the shared parent-node cache at511/512/513 nodes against original CPU arrangement at every rotation. Columns larger than512 retain complete ordering; no truncation is permitted.
 - [ ] Validate ordered mixed palette/literal filters, opaque occlusion, viewport clipping, and bounded overflow on the GPU. Repeated underground darkening must compose correctly alongside water and glass.
 - [x] Repeat125 underground/normal captures and manually inspect all288 groups. All349 identified interior filter pixels are corrected, no previously correct pixel regresses in any full inside image, and all144 normal-control strips are unchanged. Outer-map skirt remains the only accepted visual divergence; missing physical supports remain an explicitly deferred layer. Later shader/recipe changes still require comparison.
-- [ ] Capture actual underground main-window rendering with a contextual ordinary secondary preview. Verify viewport flags, camera and simulation checksum rather than relying solely on isolated tunnel-mouth samples.
+- [x] Capture actual underground main-window rendering with a contextual ordinary secondary preview in131. View flags, camera and unchanged simulation checksum are recorded; exact original-art correctness remains open.
 - [ ] Measure the new compositor's cost, then qualify at4K/12,000 ticks with360TPS pacing and at least143 accepted presents/s. Record accepted-present interval percentiles and maximum separately from CPU attempt pacing.
 - [ ] Commit the coherent corrected source and deploy only a candidate that passes the performance and correctness gates. Deployed112 remains the manual-test fallback.
 
@@ -143,10 +143,20 @@ The corrected-layer source checkpoint is `50f16fb7e5`. The main native world pat
 - [x] Restore selected-car direct GPU emission outside the deleted arranger; retain actual XYZ in the immutable packet and verify depth, zoom, pan, empty tiles and removal.
 - [x] Run a matched3000-tick4K control:12878.441FPS/12.766ms GPU;129143.928FPS/3.169ms GPU; both359.82TPS and identical checksum. These are incomplete-image architecture measurements.
 - [x] Manually inspect all1536 expanded track128 specimen groups and all288 normal/inside129 groups. Retain exact comparison failures.
-- [ ] Finish131 original-art review after cliff/overlay corrections; repair slopes and partially buried building geometry.
+- [x] Inspect all288 normal/underground131 groups after cliff/overlay corrections; retain the residual failures.
+- [x] Complete expanded131 track review: all1536 groups accounted; station intersections and72 water-splash views remain failures.
+- [x] Implement exact planar terrain depth and the corresponding sloped path deck plane; verify all slope/direction coordinate combinations.
+- [x] Inspect final135 path correction: all16 changed ramp views improve;272 other normal/inside groups remain byte-identical132.
+- [ ] Repair nonplanar terrain, sloped track, partially buried building geometry and track-water/station intersections; path railing/filter differences remain open.
 - [ ] Replace approximate recipe depth-role inference, finite coplanar bias and operation-based filter ties with authored geometry/layer contracts where images expose errors.
 - [ ] Complete persistent component topology; current raw state is retained, but GPU materialization still runs each frame.
-- [ ] Close long-frame attribution and repeat clean12000-tick pacing checks; first131 run reaches143.650 accepted presents/s but contains a62.747ms presentation gap.
+- [ ] Close long-frame attribution and repeat clean12000-tick pacing checks; both131 runs exceed143 accepted presents/s but contain62.747ms and65.521ms presentation gaps; opt-in wait attribution is next.
 - [ ] Qualify contextual underground main view plus ordinary selected-vehicle preview, original-art parity and user interaction before deployment.
 
 Installed112 remains unchanged. The physical-depth candidate is an intentional architecture checkpoint with documented visual defects, not a claim of completed migration or a qualified deployment.
+
+The133 opt-in12,000-tick trace reaches143.976 accepted presents/s and identifies roughly5ms waits after vehicle batch work is complete. It does not reproduce the earlier60ms stalls; their gate remains open. Diagnostic state is disabled in ordinary gameplay and clean qualification. Detailed evidence: [simulation wait attribution](vulkan-simulation-wait-attribution.md).
+
+Final clean135:359.956TPS /143.743 accepted presents/s at4K for12000 ticks;0.166ms CPU draw /2.924ms GPU. All4792 frames accepted, same final checksum. P99 is9.2ms but maximum57.097ms, with a53.005ms simulation stall. Average throughput passes; stable-pacing and complete-art gates do not. Build135 passes22 focused CPU/GPU checks and19 Python parser tests, without Vulkan validation diagnostics. Source may be checkpointed with those explicit limitations; deployment remains unqualified.
+
+An exact-build135 diagnostic repeat isolates12.114ms after vehicle group completion within a14.618ms simulation tick. This strengthens the completion/wakeup attribution; it does not close the clean53ms stall. See the wait-attribution document before proposing scheduler changes.

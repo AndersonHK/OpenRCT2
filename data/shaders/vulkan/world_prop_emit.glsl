@@ -69,15 +69,12 @@ void visitProp(uint index,uvec2 tile,uint destination,bool writeRecords,inout ui
     bool ghost=(object.flags&1u)!=0u;
     uint colours=worldPropRemapColours(object,flags);
     // Parent order is local to this object's finite recipe. Children stay directly after their parent.
-    WorldPathPart parents[12]; int recipe[12]; int parentCount=0;
+    int recipe[12]; int parentCount=0;
     for(int i=0;i<parts.count;i++) {
         if(parts.parts[i].colourMode==4 && ghost) continue;
         if(parts.parts[i].child!=0 && parentCount!=0) continue;
-        WorldPropPart p=parts.parts[i];
-        parents[parentCount]=worldPathPart(p.imageOffset,p.x,p.y,p.z,p.boundsX,p.boundsY,p.boundsZ,p.sizeX,p.sizeY,p.sizeZ);
         recipe[parentCount++]=i;
     }
-    // Common GPU columns arrange original creation order.
     for(int ordinal=0;ordinal<parentCount;ordinal++) {
         int selected=ordinal;
         int begin=recipe[selected];

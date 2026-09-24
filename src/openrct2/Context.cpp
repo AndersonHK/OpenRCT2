@@ -80,6 +80,7 @@
 #include "platform/Crash.h"
 #include "platform/Platform.h"
 #include "profiling/Profiling.h"
+#include "profiling/SimulationAttributionJson.h"
 #include "rct2/RCT2.h"
 #include "ride/TrackDesignRepository.h"
 #include "ride/Vehicle.h"
@@ -1726,6 +1727,10 @@ namespace OpenRCT2
             _benchmarkPresentationPacing.Reset(static_cast<uint64_t>(
                 std::chrono::duration_cast<std::chrono::nanoseconds>(_benchmarkPhaseStart.time_since_epoch()).count()));
             _benchmarkPhase = IntegratedBenchmarkPhase::measurement;
+            const auto* simulationAttribution = std::getenv("OPENRCT2_PROFILE_SIMULATION_WAITS");
+            SimulationAttribution::Begin(
+                simulationAttribution != nullptr && std::string_view(simulationAttribution) == "1", _benchmarkPhaseStart,
+                ReadBenchmarkThreadCycles);
             if (!gIntegratedBenchmark.profilePath.empty())
             {
                 Profiling::resetData();
@@ -2010,6 +2015,12 @@ namespace OpenRCT2
                 Console::WriteLine("Upload telemetry v1: %s", out.str().c_str());
             }
             PrintBenchmarkPhaseSamples();
+            if (SimulationAttribution::state.enabled)
+            {
+                SimulationAttribution::state.enabled = false;
+                Console::WriteFormat(
+                    "Benchmark simulation attribution v1: %s\n", SimulationAttribution::Report().dump().c_str());
+            }
             Console::WriteLine(
                 "Benchmark simulation pacing: %s",
                 gIntegratedBenchmark.uncappedSimulation ? "uncapped headroom" : "ordinary Turbo 360 TPS target");

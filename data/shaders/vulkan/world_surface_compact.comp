@@ -136,8 +136,7 @@ void visitPath(uint index, uvec2 tile, SourceRecord terrain, uint destination, b
             terrain.baseZ,int(terrain.slope),bank==0u && noSlope);
         bool bridge=supports && path.baseZ>=terrain.baseZ && terrain.present!=0u;
         int image=worldPathSurfaceOffset(edges,corners,slope,sloped,queue,rotation);
-        // Parent recipes retain their original creation order for the common column arranger.
-        // The bridge deck is a child, so it follows its parent without entering a quadrant itself.
+        // Recipe ownership supplies local layers; the bridge deck inherits its body's physical plane.
         WorldPathPart parents[12];
         int children[12];
         bool additionPart[12];
@@ -163,7 +162,7 @@ void visitPath(uint index, uvec2 tile, SourceRecord terrain, uint destination, b
                 parentCount++;
             }
         }
-        int horizontalParents=parentCount;
+        int surfaceParents=parentCount;
         if (uScene.zoom<=1) {
             if (path.additionSlot<255u) {
                 PathAdditionMaterial addition=uCatalog.additions[path.additionSlot];
@@ -206,15 +205,18 @@ void visitPath(uint index, uvec2 tile, SourceRecord terrain, uint destination, b
                 }
             }
         }
-        // Counting is order-independent. Most distant paths have only a body: no arranger work.
         // Authored local component order supplies only child/overlay ownership.
         for(int ordinal=0;ordinal<parentCount;ordinal++) {
             int selected=ordinal;
             WorldPathPart part=parents[selected];
             worldSetPaintBounds(tile,ivec3(part.boundsX,part.boundsY,path.baseZ+part.boundsZ),
                 ivec3(part.sizeX,part.sizeY,part.sizeZ),0u);
-            if(selected<horizontalParents) {
-                worldSetPhysicalRole(WORLD_DEPTH_HORIZONTAL);
+            if(selected<surfaceParents) {
+                if(sloped)
+                    worldSetTerrainPlane(tile,path.baseZ,
+                        terrainRelativeSlope(worldPathLandSlope(slope),int(uScene.rotation)));
+                else
+                    worldSetPhysicalRole(WORLD_DEPTH_HORIZONTAL);
                 worldSetCoplanarSurfaceLayer();
             }
             bool ghost=(path.flags & (additionPart[selected]?(1u<<5):(1u<<4)))!=0u;
@@ -228,7 +230,7 @@ void visitPath(uint index, uvec2 tile, SourceRecord terrain, uint destination, b
             {
                 worldSetPaintBounds(tile,ivec3(part.boundsX,part.boundsY,path.baseZ+part.boundsZ),
                     ivec3(part.sizeX,part.sizeY,part.sizeZ),1u);
-                worldSetPhysicalRole(WORLD_DEPTH_HORIZONTAL);
+                // Deck children inherit their body's exact plane and local surface layer.
                 if(ghost)
                     emitObjectSprite(tile,path.baseZ+part.z,ivec2(part.x,part.y),uint(children[selected]),
                         uCatalog.reserved,1u,destination,writeRecords,count);
@@ -325,7 +327,7 @@ uint visitTile(uint orderIndex, uint destination, bool writeRecords)
                 }
             } else if (hasTerrain && offset<material.y) {
                 worldSetPaintBounds(tile,ivec3(0,0,source.baseZ),ivec3(32,32,-1),0u);
-                worldSetPhysicalRole(WORLD_DEPTH_HORIZONTAL);
+                worldSetTerrainPlane(tile,source.baseZ,relativeSlope);
                 if((uScene.viewFlags&((1u<<12)|1u))!=0u)
                     emitObjectSprite(tile,source.baseZ,ivec2(0),material.x+offset,uCatalog.viewPalettes.x,
                         1u<<10,destination,writeRecords,count);

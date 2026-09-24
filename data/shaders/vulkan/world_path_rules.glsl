@@ -60,12 +60,17 @@ PATH_FN int worldPathSurfaceOffset(int edges, int corners, int slopeDirection, b
     }
     return e;
 }
+// Exact raw path rise direction, matching Paint.Path.cpp kPathSlopeToLandSlope.
+PATH_FN int worldPathLandSlope(int slopeDirection)
+{
+    return slopeDirection==0 ? 12 : (slopeDirection==1 ? 9 : (slopeDirection==2 ? 3 : 6));
+}
 PATH_FN bool worldPathNeedsSupports(int pathBase, bool sloped, int slopeDirection, bool terrainPresent,
     int terrainBase, int terrainSlope, bool noSlopeRailings)
 {
     if (!terrainPresent) return true;
     if (terrainBase!=pathBase) return terrainBase<pathBase || !noSlopeRailings;
-    int matchingSlope=slopeDirection==0 ? 12 : (slopeDirection==1 ? 9 : (slopeDirection==2 ? 3 : 6));
+    int matchingSlope=worldPathLandSlope(slopeDirection);
     return terrainSlope!=(sloped ? matchingSlope : 0);
 }
 // Camera-relative bounds, BEFORE the ordinary painter's bounds rotation.

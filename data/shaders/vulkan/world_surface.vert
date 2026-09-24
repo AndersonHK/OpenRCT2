@@ -1,6 +1,7 @@
 #version 450
 #extension GL_GOOGLE_include_directive : require
 #include "terrain_sprite_geometry.glsl"
+#include "world_terrain_depth.glsl"
 
 const float DEPTH_INCREMENT = 1.0 / float(1u << 22u);
 const float ATLAS_DIMENSION = 2048.0;
@@ -144,6 +145,11 @@ void main()
     float intercept=(vValid&32)!=0?float(vPhysical.x)*0.5:1.5*float(rotated.x+rotated.y);
     float physicalDepth=role==1u?2.0*worldV+intercept:(role==2u?intercept-worldV:
         (role==3u?1.5*worldU+intercept-worldV:(role==4u?-1.5*worldU+intercept-worldV:intercept)));
+    if(role==5u) {
+        int dx=int((uint(vDepth)>>12u)&7u)-2;
+        int dy=int((uint(vDepth)>>15u)&7u)-2;
+        physicalDepth=worldTerrainDepthAt(dx,dy,vPhysical.x,worldU,worldV);
+    }
     // Initial whole-map bound. Host integration owns tighter precision/range qualification.
     // Reserve the existing world interval so later UI remains in front.
     float capacity=1048576.0; // Fixed reserved UI/world depth interval, not output allocation limit.

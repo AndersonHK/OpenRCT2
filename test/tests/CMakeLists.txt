@@ -25,6 +25,7 @@ set(test_files
    "${CMAKE_CURRENT_SOURCE_DIR}/PublicationSnapshotParityTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/RetainedBalloonSceneTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/TerrainSurfaceRulesTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/WorldTerrainDepthTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/RetainedPeepStateTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/NativePeepPublicationTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/PeepRulesTests.cpp"
