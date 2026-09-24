@@ -2391,10 +2391,10 @@ namespace OpenRCT2::PathFinding
             bool hasEntrance = false;
             for (const auto& station : ride.getStations())
             {
-                if (station.entrance.isNull())
+                if (station.getEntrance().isNull())
                     continue;
                 hasEntrance = true;
-                auto goal = TileCoordsXYZ{ station.entrance };
+                auto goal = TileCoordsXYZ{ station.getEntrance() };
                 GetRideQueueEnd(goal);
                 targets.push_back({ goal, ride.id });
             }
@@ -2402,7 +2402,7 @@ namespace OpenRCT2::PathFinding
             if (!hasEntrance && ride.getRideTypeDescriptor().flags.has(RtdFlag::isShopOrFacility))
             {
                 const auto& station = ride.getStation(StationIndex::FromUnderlying(0));
-                if (!station.start.isNull())
+                if (!station.getStartXY().isNull())
                 {
                     const auto stationStart = station.getStart();
                     if (MapGetTrackElementAtFromRide(stationStart, ride.id) != nullptr)
@@ -2438,7 +2438,7 @@ namespace OpenRCT2::PathFinding
         }
         else
         {
-            const auto entrance = ride->getStation(peep.currentRideStation).entrance;
+            const auto entrance = ride->getStation(peep.currentRideStation).getEntrance();
             if (entrance.isNull())
             {
                 peep.clearTransportRoute();
@@ -2744,17 +2744,17 @@ namespace OpenRCT2::PathFinding
         for (const auto& station : ride->getStations())
         {
             // Skip if stationNum has no entrance (so presumably an exit only station)
-            if (station.entrance.isNull())
+            if (station.getEntrance().isNull())
                 continue;
 
             const auto stationIndex = ride->getStationIndex(&station);
 
             const auto entranceIndex = static_cast<size_t>(numEntranceStations++);
             entranceStations[stationIndex.ToUnderlying()] = true;
-            entranceTargets[entranceIndex] = { TileCoordsXYZ{ station.entrance }, rideIndex };
+            entranceTargets[entranceIndex] = { TileCoordsXYZ{ station.getEntrance() }, rideIndex };
             entranceTargetStations[entranceIndex] = stationIndex;
 
-            TileCoordsXYZD entranceLocation = station.entrance;
+            TileCoordsXYZD entranceLocation = station.getEntrance();
             auto score = CalculateHeuristicPathingScore(entranceLocation, TileCoordsXYZ{ peep.nextLoc });
             if (score < bestScore)
             {
@@ -2789,14 +2789,14 @@ namespace OpenRCT2::PathFinding
         {
             // closestStationNum is always 0 here.
             const auto& closestStation = ride->getStation(closestStationNum);
-            auto entranceXY = TileCoordsXY(closestStation.start);
+            auto entranceXY = TileCoordsXY(closestStation.getStartXY());
             loc.x = entranceXY.x;
             loc.y = entranceXY.y;
-            loc.z = closestStation.height;
+            loc.z = closestStation.getHeight();
         }
         else
         {
-            TileCoordsXYZD entranceXYZD = ride->getStation(closestStationNum).entrance;
+            TileCoordsXYZD entranceXYZD = ride->getStation(closestStationNum).getEntrance();
             loc.x = entranceXYZD.x;
             loc.y = entranceXYZD.y;
             loc.z = entranceXYZD.z;

@@ -9,6 +9,8 @@
 
 #include "GpuCommandDrawingContext.h"
 
+#include "GpuWorldEntranceCatalog.h"
+#include "GpuWorldFlatRideCatalog.h"
 #include "GpuWorldPropCatalog.h"
 #include "GpuWorldTrackCatalog.h"
 
@@ -934,7 +936,8 @@ namespace OpenRCT2::Ui::Gpu
                                   | (uint32_t(raw.tertiaryColour) << 16),
                               uint32_t(raw.age) | (uint32_t(raw.quadrant) << 8) | (uint32_t(raw.slope) << 16)
                                   | (uint32_t(raw.position) << 24),
-                              uint32_t(raw.animationFrame) | (uint32_t(raw.allowedEdges) << 8), 0,
+                              uint32_t(raw.animationFrame) | (uint32_t(raw.allowedEdges) << 8),
+                              uint32_t(raw.entranceType) | (uint32_t(raw.pathSurfaceSlot) << 8),
                               uint32_t(raw.trackType) | (uint32_t(raw.rideType) << 16),
                               uint32_t(raw.rideId) | (uint32_t(raw.mazeEntry) << 16),
                               uint32_t(raw.colourScheme) | (uint32_t(raw.stationIndex) << 8)
@@ -1145,6 +1148,24 @@ namespace OpenRCT2::Ui::Gpu
                                                   variant.valid |= 4;
                                           return index;
                                       }).words;
+            if (objectMaterials && rideMaterials)
+            {
+                const auto appendObjectArt = [&](uint32_t image) {
+                    const auto index = append(ImageId(image));
+                    for (auto& variant : table->records.back().variants)
+                        if (variant.valid != 0)
+                            variant.valid |= 4;
+                    return index;
+                };
+                table->flatRideCatalog = BuildWorldFlatRideCatalog(
+                                             *objectMaterials, *rideMaterials, objectUsage.get(),
+                                             TextureCache::PaletteToY(FilterPaletteID::paletteDarken3), appendObjectArt)
+                                             .words;
+                table->entranceCatalog = BuildWorldEntranceCatalog(
+                                             *objectMaterials, *rideMaterials, objectUsage.get(),
+                                             TextureCache::PaletteToY(FilterPaletteID::paletteGlass), appendObjectArt)
+                                             .words;
+            }
             for (uint32_t shape = 0; shape < 5; shape++)
             {
                 // The water mask contains filter-row offsets, not ordinary remapped colours.

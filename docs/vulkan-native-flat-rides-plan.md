@@ -1,6 +1,6 @@
 # Native flat-ride bodies: next checkpoint plan
 
-Planning-only source audit, 2026-09-23. Implementation is pending the user's deployed-build review. No production changes, builds, tests, renderer runs or GPU execution were performed for this plan.
+Original planning audit, 2026-09-23. The owner subsequently approved implementation. The [static buildings checkpoint](vulkan-native-static-buildings-checkpoint.md) tracks the implemented families and current qualification; the inventory below preserves the pre-implementation analysis. Operating ride animation remains separate.
 
 ## Current coverage and the missing input
 

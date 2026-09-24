@@ -131,9 +131,9 @@ namespace OpenRCT2::Ui::Windows
         {
             return FormatStringID(kTransportRidePriceTargetCaptions[targetIndex]);
         }
-        const auto detail = ride.value == kRideValueUndefined
-            ? FormatStringID(STR_RIDE_PRICE_TARGET_WAITING_FOR_RATING)
-            : price == 0.00_GBP ? FormatStringID(STR_FREE) : FormatStringID(STR_CURRENCY2DP, price);
+        const auto detail = ride.value == kRideValueUndefined ? FormatStringID(STR_RIDE_PRICE_TARGET_WAITING_FOR_RATING)
+            : price == 0.00_GBP                               ? FormatStringID(STR_FREE)
+                                                              : FormatStringID(STR_CURRENCY2DP, price);
         return FormatStringID(kIncomeRidePriceTargetCaptions[targetIndex], detail.c_str());
     }
 
@@ -1607,7 +1607,7 @@ namespace OpenRCT2::Ui::Windows
 
             for (const auto& station : ride->getStations())
             {
-                if (!station.start.isNull() && viewSelectionIndex-- == 0)
+                if (!station.getStartXY().isNull() && viewSelectionIndex-- == 0)
                 {
                     const auto stationIndex = ride->getStationIndex(&station);
                     return std::make_optional(stationIndex);
@@ -2642,14 +2642,14 @@ namespace OpenRCT2::Ui::Windows
             // Entrance / exit
             if (ride->status == RideStatus::closed)
             {
-                if (station.entrance.isNull())
+                if (station.getEntrance().isNull())
                     stringId = STR_NO_ENTRANCE;
-                else if (station.exit.isNull())
+                else if (station.getExit().isNull())
                     stringId = STR_NO_EXIT;
             }
             else
             {
-                if (station.entrance.isNull())
+                if (station.getEntrance().isNull())
                     stringId = STR_EXIT_ONLY;
             }
             // Queue length
@@ -5727,8 +5727,7 @@ namespace OpenRCT2::Ui::Windows
         {
             if (!_selectedRatingLegOrigin.IsNull() && !_selectedRatingLegDestination.IsNull())
             {
-                const auto* selected =
-                    RideGetRatingLeg(ride, _selectedRatingLegOrigin, _selectedRatingLegDestination);
+                const auto* selected = RideGetRatingLeg(ride, _selectedRatingLegOrigin, _selectedRatingLegDestination);
                 if (selected != nullptr && selected->hasSamples())
                 {
                     return selected;
@@ -5901,8 +5900,8 @@ namespace OpenRCT2::Ui::Windows
                 {
                     const auto& selector = widgets[WIDX_RATING_LEG];
                     WindowDropdownShowTextCustomWidth(
-                        { windowPos.x + selector.left, windowPos.y + selector.top }, selector.height(), colours[1], 0,
-                        {}, itemCount, selector.width());
+                        { windowPos.x + selector.left, windowPos.y + selector.top }, selector.height(), colours[1], 0, {},
+                        itemCount, selector.width());
                 }
                 return;
             }
@@ -6093,15 +6092,14 @@ namespace OpenRCT2::Ui::Windows
                 rt, screenCoords, stringId, static_cast<uint32_t>(rating), static_cast<StringId>(RatingNames[nameIndex]));
         }
 
-        void DrawRideRatings(
-            RenderTarget& rt, ScreenCoordsXY& screenCoords, const RideRating::Tuple& ratings, bool available)
+        void DrawRideRatings(RenderTarget& rt, ScreenCoordsXY& screenCoords, const RideRating::Tuple& ratings, bool available)
         {
             DrawRideRatingRow(
                 rt, screenCoords, ratings.excitement,
                 available ? STR_EXCITEMENT_RATING : STR_EXCITEMENT_RATING_NOT_YET_AVAILABLE);
-            const auto intensityString = !available ? STR_INTENSITY_RATING_NOT_YET_AVAILABLE
+            const auto intensityString = !available             ? STR_INTENSITY_RATING_NOT_YET_AVAILABLE
                 : ratings.intensity >= RideRating::make(10, 00) ? STR_INTENSITY_RATING_RED
-                                                               : STR_INTENSITY_RATING;
+                                                                : STR_INTENSITY_RATING;
             DrawRideRatingRow(rt, screenCoords, ratings.intensity, intensityString);
             DrawRideRatingRow(
                 rt, screenCoords, ratings.nausea, available ? STR_NAUSEA_RATING : STR_NAUSEA_RATING_NOT_YET_AVAILABLE);
@@ -6249,8 +6247,7 @@ namespace OpenRCT2::Ui::Windows
                         }
                         if (ride->getRideTypeDescriptor().specialType == RtdSpecialType::miniGolf)
                         {
-                            DrawMeasurementRow(
-                                rt, screenCoords, STR_HOLES, static_cast<uint16_t>(ride->getDisplayNumHoles()));
+                            DrawMeasurementRow(rt, screenCoords, STR_HOLES, static_cast<uint16_t>(ride->getDisplayNumHoles()));
                         }
                         else
                         {
@@ -6259,8 +6256,7 @@ namespace OpenRCT2::Ui::Windows
                                 DrawMeasurementRow(
                                     rt, screenCoords, STR_MAX_SPEED, ToHumanReadableSpeed(ride->getDisplayMaxSpeed()));
                                 DrawMeasurementRow(
-                                    rt, screenCoords, STR_AVERAGE_SPEED,
-                                    ToHumanReadableSpeed(ride->getDisplayAverageSpeed()));
+                                    rt, screenCoords, STR_AVERAGE_SPEED, ToHumanReadableSpeed(ride->getDisplayAverageSpeed()));
                             }
 
                             // Ride time
@@ -6372,14 +6368,12 @@ namespace OpenRCT2::Ui::Windows
                         if (hasGForces)
                         {
                             DrawMeasurementRow(
-                                rt, screenCoords, STR_TOTAL_AIR_TIME,
-                                ToHumanReadableAirTime(ride->getDisplayTotalAirTime()));
+                                rt, screenCoords, STR_TOTAL_AIR_TIME, ToHumanReadableAirTime(ride->getDisplayTotalAirTime()));
                         }
 
                         if (ride->getRideTypeDescriptor().flags.has(RtdFlag::hasDrops))
                         {
-                            DrawMeasurementRow(
-                                rt, screenCoords, STR_DROPS, static_cast<uint16_t>(ride->getDisplayNumDrops()));
+                            DrawMeasurementRow(rt, screenCoords, STR_DROPS, static_cast<uint16_t>(ride->getDisplayNumDrops()));
                             DrawMeasurementRow(
                                 rt, screenCoords, STR_HIGHEST_DROP_HEIGHT,
                                 static_cast<int32_t>((ride->getDisplayHighestDropHeight() * 3) / 4));
@@ -6859,8 +6853,8 @@ namespace OpenRCT2::Ui::Windows
             auto& dropdownWidget = widgets[WIDX_PRIMARY_PRICE];
             const auto dropdownWidth = widgets[WIDX_PRIMARY_PRICE_INCREASE].right - dropdownWidget.left;
             WindowDropdownShowTextCustomWidth(
-                { windowPos.x + dropdownWidget.left, windowPos.y + dropdownWidget.top }, dropdownWidget.height(), colours[1],
-                0, { Dropdown::Flag::autoClose }, priceTargets.size(), dropdownWidth);
+                { windowPos.x + dropdownWidget.left, windowPos.y + dropdownWidget.top }, dropdownWidget.height(), colours[1], 0,
+                { Dropdown::Flag::autoClose }, priceTargets.size(), dropdownWidth);
 
             for (size_t i = 0; i < priceTargets.size(); i++)
             {
@@ -6881,14 +6875,12 @@ namespace OpenRCT2::Ui::Windows
         void IncomeAdjustPrice(bool primary, money64 adjustment)
         {
             auto ride = GetRide(rideId);
-            if (ride == nullptr
-                || (primary && (!IncomeCanModifyPrimaryPrice(*ride) || RideUsesTargetPricing(*ride))))
+            if (ride == nullptr || (primary && (!IncomeCanModifyPrimaryPrice(*ride) || RideUsesTargetPricing(*ride))))
                 return;
 
             const size_t priceIndex = primary ? 0 : 1;
             const auto minimumPrice = primary ? kRideMinPrice : 0.00_GBP;
-            IncomeSetPrice(
-                std::clamp(ride->price[priceIndex] + adjustment, minimumPrice, kRideMaxPrice), primary);
+            IncomeSetPrice(std::clamp(ride->price[priceIndex] + adjustment, minimumPrice, kRideMaxPrice), primary);
         }
 
         bool IncomeCanModifyPrimaryPrice(const Ride& ride)
@@ -6997,8 +6989,7 @@ namespace OpenRCT2::Ui::Windows
 
         void IncomeOnDropdown(WidgetIndex widgetIndex, int32_t dropdownIndex)
         {
-            if (dropdownIndex == -1
-                || (widgetIndex != WIDX_PRIMARY_PRICE && widgetIndex != WIDX_PRIMARY_PRICE_INCREASE))
+            if (dropdownIndex == -1 || (widgetIndex != WIDX_PRIMARY_PRICE && widgetIndex != WIDX_PRIMARY_PRICE_INCREASE))
                 return;
 
             const auto priceTarget = static_cast<RidePriceTarget>(gDropdown.items[dropdownIndex].value);
@@ -7520,7 +7511,7 @@ namespace OpenRCT2::Ui::Windows
         // View
         for (int32_t i = stationIndex.ToUnderlying(); i >= 0; i--)
         {
-            if (ride.getStations()[i].start.isNull())
+            if (ride.getStations()[i].getStartXY().isNull())
             {
                 stationIndex = StationIndex::FromUnderlying(stationIndex.ToUnderlying() - 1);
             }

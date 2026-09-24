@@ -13,20 +13,20 @@ struct WorldTrackPart
     int parent;
 };
 
-// state is raw chain/inverted/brakeClosed packed as bits0/1/2. Direction includes
+// state: chain/inverted/brakeClosed/cable/CSG/greenLight/platforms in bits0..6. Direction includes
 // camera rotation. Unsupported styles/types/sequences produce no components.
 bool worldTrackLookup(uint style, uint type, uint sequence, uint direction, uint state, out uvec2 span)
 {
     span=uvec2(0u);
     if (WORLD_TRACK_WORD(0u)!=0x5452434bu || WORLD_TRACK_WORD(1u)!=1u) return false;
     uint styles=WORLD_TRACK_WORD(2u), types=WORLD_TRACK_WORD(3u);
-    if(style>=styles || type>=types || direction>=4u || state>=8u) return false;
+    if(style>=styles || type>=types || direction>=4u || state>=128u) return false;
     uint descriptor=WORLD_TRACK_WORD(4u)+(style*types+type)*3u;
     uint first=WORLD_TRACK_WORD(descriptor);
     uint sequences=WORLD_TRACK_WORD(descriptor+1u), mask=WORLD_TRACK_WORD(descriptor+2u);
-    if(sequence>=sequences || mask>=8u) return false;
+    if(sequence>=sequences || mask>=128u) return false;
     uint variant=0u, shift=0u;
-    for(uint bit=0u;bit<3u;bit++)
+    for(uint bit=0u;bit<7u;bit++)
         if((mask&(1u<<bit))!=0u) { variant|=((state>>bit)&1u)<<shift; shift++; }
     uint row=WORLD_TRACK_WORD(5u)+(first+(variant*sequences+sequence)*4u+direction)*2u;
     span=uvec2(WORLD_TRACK_WORD(row),WORLD_TRACK_WORD(row+1u));

@@ -151,7 +151,7 @@ namespace OpenRCT2
             return type == ObjectType::paths || type == ObjectType::footpathSurface || type == ObjectType::footpathRailings
                 || type == ObjectType::pathAdditions || type == ObjectType::smallScenery || type == ObjectType::largeScenery
                 || type == ObjectType::walls || type == ObjectType::banners || type == ObjectType::ride
-                || type == ObjectType::station;
+                || type == ObjectType::station || type == ObjectType::parkEntrance;
         }
         // Covers slot layout changes as well as image allocation, including exceptional exits.
         class WorldMaterialMutation final

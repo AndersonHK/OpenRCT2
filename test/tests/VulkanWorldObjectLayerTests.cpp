@@ -4,6 +4,7 @@
     #include "VulkanParityTestSupport.h"
 
     #include <cstdlib>
+    #include <openrct2-renderer/gpu/GpuWorldFlatRideCatalog.h>
     #include <openrct2-renderer/gpu/GpuWorldPropCatalog.h>
     #include <openrct2-renderer/vulkan/VulkanFrameExecutor.h>
     #include <openrct2-renderer/vulkan/VulkanSubmissionSlots.h>
@@ -512,7 +513,7 @@ TEST_F(VulkanWorldObjectLayerTest, TrackLookupUsesRawDirectionChainBrakeGhostAnd
     words[words[3] + 4] = 4;
     sprites->revision++;
     // Only sprite/catalog buffers change; source+object arenas would add two copy calls.
-    EXPECT_EQ(Run().worldBufferCopyCalls, 4u);
+    EXPECT_EQ(Run().worldBufferCopyCalls, 6u); // Includes two cleared absent building-catalog headers.
     EXPECT_GT(ColourCount(static_cast<uint8_t>(Ink(1) + 5)), 0u);
     auto unsupported = Object(4);
     unsupported.trackTypeAndRideType = 1;
@@ -588,5 +589,63 @@ TEST(WorldPropCatalogTest, UsageResolvesOnlyReferencedMaterialSlots)
         first += counts[family];
     }
     EXPECT_EQ(appended, expected);
+}
+TEST_F(VulkanWorldObjectLayerTest, StaticRideBodyUsesRawDirectionGhostAndResidentCatalog)
+{
+    materials->rideObjects[0] = { 1, 4, 1, true };
+    OpenRCT2::WorldRidePresentationMaterials rides;
+    rides.rides.resize(1);
+    auto& ride = rides.rides[0];
+    ride.present = true;
+    ride.objectSlot = 0;
+    ride.regularStyle = static_cast<uint16_t>(TrackStyle::shop);
+    ride.trackColours[0].main = 2;
+    auto rebuild = [&]() {
+        sprites->flatRideCatalog = G::BuildWorldFlatRideCatalog(*materials, rides, nullptr, 17, [&](uint32_t image) {
+                                       EXPECT_GE(image, 1u);
+                                       EXPECT_LE(image, 4u);
+                                       return image; // Existing fixture sprites 1..4 own these exact source image identities.
+                                   }).words;
+        sprites->revision++;
+    };
+    rebuild();
+    auto body = Object(4);
+    body.trackTypeAndRideType = static_cast<uint32_t>(OpenRCT2::TrackElemType::flatTrack1x1A);
+    for (uint32_t rotation = 0; rotation < 4; rotation++)
+    {
+        SCOPED_TRACE(rotation);
+        scene.rotation = rotation;
+        body.flags = 0;
+        Objects({ body });
+        Run();
+        EXPECT_GT(ColourCount(static_cast<uint8_t>(Ink(1 + rotation) + 3)), 0u);
+        const auto held = pixels;
+        scene.sourceTick++;
+        EXPECT_EQ(Run().worldBufferCopyCalls, 0u);
+        EXPECT_EQ(pixels, held); // A new shared clock tick does not rebuild static ride state/art.
+        body.flags = 1;
+        Objects({ body });
+        Run();
+        EXPECT_GT(ColourCount(static_cast<uint8_t>(Ink(1 + rotation) + 9)), 0u);
+        EXPECT_EQ(ColourCount(static_cast<uint8_t>(Ink(1 + rotation) + 3)), 0u);
+    }
+    scene.rotation = 0;
+    body.flags = 0;
+    Objects({ body });
+    Run();
+    const auto heldChunk = scene.chunks[0];
+    ride.trackColours[0].main = 4;
+    rebuild();
+    Run();
+    EXPECT_EQ(scene.chunks[0], heldChunk);
+    EXPECT_GT(ColourCount(static_cast<uint8_t>(Ink(1) + 5)), 0u);
+    const auto recoloured = pixels;
+    Objects({});
+    Run();
+    EXPECT_EQ(ColourCount(static_cast<uint8_t>(Ink(1) + 5)), 0u);
+    Objects({ body });
+    Run(true);
+    Run();
+    EXPECT_EQ(pixels, recoloured);
 }
 #endif

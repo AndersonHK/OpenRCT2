@@ -67,8 +67,7 @@ protected:
     }
 
     static RideRating::TickScore ScoreLocalContext(
-        const RideRating::LocalContextScore& context, int32_t speed, int32_t coefficient = 1000,
-        bool isBoatHire = false)
+        const RideRating::LocalContextScore& context, int32_t speed, int32_t coefficient = 1000, bool isBoatHire = false)
     {
         RideRating::VehicleLocalContextCache cache{};
         cache.environment.context = context;
@@ -82,13 +81,12 @@ protected:
         return RideRating::GetVehicleRatingEnvironment(origin, ride, trackType, trackDirection, cache).context;
     }
 
-    static void InitialiseFixedRide(
-        Ride& ride, RideId id, ride_type_t type, const TileCoordsXY& stationTile, int32_t baseZ)
+    static void InitialiseFixedRide(Ride& ride, RideId id, ride_type_t type, const TileCoordsXY& stationTile, int32_t baseZ)
     {
         ride.id = id;
         ride.type = type;
         ride.numStations = 1;
-        ride.getStation().start = stationTile.toCoordsXY();
+        ride.getStation().setStart(stationTile.toCoordsXY());
         ride.getStation().setBaseZ(baseZ);
     }
 
@@ -119,8 +117,8 @@ protected:
     }
 
     static void AddMeasuredTransportLeg(
-        Ride& ride, uint8_t origin, uint8_t destination, int32_t distance, uint32_t ticks = 40,
-        int32_t speed = 0x80000, int32_t maxSpeed = 0x90000, bool sheltered = false)
+        Ride& ride, uint8_t origin, uint8_t destination, int32_t distance, uint32_t ticks = 40, int32_t speed = 0x80000,
+        int32_t maxSpeed = 0x90000, bool sheltered = false)
     {
         RideRatingAccumulator sample{};
         sample.originStation = StationIndex::FromUnderlying(origin);
@@ -140,8 +138,8 @@ protected:
     }
 
     static RideRatingAccumulator MakeRatingSample(
-        int64_t excitement, int64_t intensity, int64_t nausea, uint32_t ticks,
-        StationIndex origin = StationIndex::GetNull(), StationIndex destination = StationIndex::GetNull())
+        int64_t excitement, int64_t intensity, int64_t nausea, uint32_t ticks, StationIndex origin = StationIndex::GetNull(),
+        StationIndex destination = StationIndex::GetNull())
     {
         RideRatingAccumulator sample{};
         sample.excitement = excitement;
@@ -258,13 +256,12 @@ protected:
 
     void PlaceMazeTrack(const TileCoordsXY& tile, int32_t baseZ, int32_t clearanceZ, RideId trackRideId)
     {
-        auto* mazeElement = InsertTileElement<TrackElement>(
-            { tile.toCoordsXY(), baseZ }, 0, [&](TrackElement& mazeElement) {
-                mazeElement.setClearanceZ(clearanceZ);
-                mazeElement.setTrackType(TrackElemType::maze);
-                mazeElement.setRideType(RIDE_TYPE_MAZE);
-                mazeElement.setRideIndex(trackRideId);
-            });
+        auto* mazeElement = InsertTileElement<TrackElement>({ tile.toCoordsXY(), baseZ }, 0, [&](TrackElement& mazeElement) {
+            mazeElement.setClearanceZ(clearanceZ);
+            mazeElement.setTrackType(TrackElemType::maze);
+            mazeElement.setRideType(RIDE_TYPE_MAZE);
+            mazeElement.setRideIndex(trackRideId);
+        });
         ASSERT_NE(mazeElement, nullptr);
     }
 
@@ -272,14 +269,13 @@ protected:
         const TileCoordsXY& tile, int32_t baseZ, int32_t clearanceZ, RideId trackRideId,
         TrackElemType trackType = TrackElemType::flatTrack1x4A, Direction direction = 0)
     {
-        auto* trackElement = InsertTileElement<TrackElement>(
-            { tile.toCoordsXY(), baseZ }, 0, [&](TrackElement& trackElement) {
-                trackElement.setClearanceZ(clearanceZ);
-                trackElement.setTrackType(trackType);
-                trackElement.setDirection(direction);
-                trackElement.setRideType(RIDE_TYPE_MINIATURE_RAILWAY);
-                trackElement.setRideIndex(trackRideId);
-            });
+        auto* trackElement = InsertTileElement<TrackElement>({ tile.toCoordsXY(), baseZ }, 0, [&](TrackElement& trackElement) {
+            trackElement.setClearanceZ(clearanceZ);
+            trackElement.setTrackType(trackType);
+            trackElement.setDirection(direction);
+            trackElement.setRideType(RIDE_TYPE_MINIATURE_RAILWAY);
+            trackElement.setRideIndex(trackRideId);
+        });
         ASSERT_NE(trackElement, nullptr);
     }
 
@@ -302,11 +298,10 @@ protected:
 
     void PlacePath(const TileCoordsXY& tile, int32_t baseZ, int32_t clearanceZ, uint8_t edges = 0)
     {
-        auto* pathElement = InsertTileElement<PathElement>(
-            { tile.toCoordsXY(), baseZ }, 0, [&](PathElement& pathElement) {
-                pathElement.setClearanceZ(clearanceZ);
-                pathElement.setEdges(edges);
-            });
+        auto* pathElement = InsertTileElement<PathElement>({ tile.toCoordsXY(), baseZ }, 0, [&](PathElement& pathElement) {
+            pathElement.setClearanceZ(clearanceZ);
+            pathElement.setEdges(edges);
+        });
         ASSERT_NE(pathElement, nullptr);
     }
 
@@ -369,9 +364,8 @@ protected:
         {
             const auto& rtd = ride.getRideTypeDescriptor();
             const bool hasRequiredGate = !requireSummaryStatGate
-                || std::ranges::any_of(rtd.RatingsData.Modifiers, [](const auto& modifier) {
-                       return IsAggregateSummaryStatGate(modifier.type);
-                   });
+                || std::ranges::any_of(
+                    rtd.RatingsData.Modifiers, [](const auto& modifier) { return IsAggregateSummaryStatGate(modifier.type); });
             if (rtd.RatingsData.Type == RatingsCalculationType::normal && hasRequiredGate)
             {
                 return &ride;
@@ -993,9 +987,9 @@ TEST_F(RideRatings, TransportServiceCacheBuildsEveryDirectedJourneyAndRefreshesO
     {
         const auto index = StationIndex::FromUnderlying(static_cast<StationIndex::UnderlyingType>(stationIndex));
         auto& station = ride->getStation(index);
-        station.start = { static_cast<int32_t>(stationIndex * 10), static_cast<int32_t>(stationIndex * 20) };
-        station.entrance = { static_cast<int32_t>(10 + stationIndex), 20, 2, 0 };
-        station.exit = { static_cast<int32_t>(30 + stationIndex), 40, 2, 2 };
+        station.setStart({ static_cast<int32_t>(stationIndex * 10), static_cast<int32_t>(stationIndex * 20) });
+        station.setEntrance({ static_cast<int32_t>(10 + stationIndex), 20, 2, 0 });
+        station.setExit({ static_cast<int32_t>(30 + stationIndex), 40, 2, 2 });
         ride->stableStats.stations[stationIndex].SegmentLength = segmentLengthsMetres[stationIndex] << 16;
         ride->stableStats.stations[stationIndex].SegmentTime = segmentTimesSeconds[stationIndex];
     }
@@ -1013,8 +1007,8 @@ TEST_F(RideRatings, TransportServiceCacheBuildsEveryDirectedJourneyAndRefreshesO
     ASSERT_EQ(service.journeys.size(), 6u);
     EXPECT_EQ(service.quality.comfortPermille, 900);
     EXPECT_EQ(service.quality.decorationPermille, 1100);
-    EXPECT_EQ(service.stations[0].entrance, ride->getStation(StationIndex::FromUnderlying(0)).entrance);
-    EXPECT_EQ(service.stations[2].exit, ride->getStation(StationIndex::FromUnderlying(2)).exit);
+    EXPECT_EQ(service.stations[0].entrance, ride->getStation(StationIndex::FromUnderlying(0)).getEntrance());
+    EXPECT_EQ(service.stations[2].exit, ride->getStation(StationIndex::FromUnderlying(2)).getExit());
 
     size_t journeyIndex = 0;
     for (size_t boardingIndex = 0; boardingIndex < ride->numStations; boardingIndex++)
@@ -1026,8 +1020,7 @@ TEST_F(RideRatings, TransportServiceCacheBuildsEveryDirectedJourneyAndRefreshesO
             {
                 continue;
             }
-            const auto destination =
-                StationIndex::FromUnderlying(static_cast<StationIndex::UnderlyingType>(destinationIndex));
+            const auto destination = StationIndex::FromUnderlying(static_cast<StationIndex::UnderlyingType>(destinationIndex));
             const auto expected = RideGetTransportJourney(*ride, boarding, destination, service.quality);
             const auto& cached = service.journeys[journeyIndex++];
             EXPECT_EQ(cached.boardingStation, boarding);
@@ -1053,14 +1046,14 @@ TEST_F(RideRatings, TransportServiceCacheBuildsEveryDirectedJourneyAndRefreshesO
     EXPECT_EQ(afterLiveOverlays.journeys.front().journey.travelTimeMilliseconds, initialTravelTime);
 
     ride->stableStats.stations[0].SegmentTime = 90;
-    ride->getStation().entrance = { 50, 60, 3, 1 };
+    ride->getStation().setEntrance({ 50, 60, 3, 1 });
     const auto unchangedWithinTick = RideGetTransportService(transportRideId);
     EXPECT_EQ(unchangedWithinTick.stations[0].entrance, initialEntrance);
     EXPECT_EQ(unchangedWithinTick.journeys.front().journey.travelTimeMilliseconds, initialTravelTime);
 
     RideInvalidateTransportServiceCache(transportRideId);
     const auto afterMeasuredStats = RideGetTransportService(transportRideId);
-    EXPECT_EQ(afterMeasuredStats.stations[0].entrance, ride->getStation().entrance);
+    EXPECT_EQ(afterMeasuredStats.stations[0].entrance, ride->getStation().getEntrance());
     ASSERT_NE(afterMeasuredStats.getJourney(StationIndex::FromUnderlying(0), StationIndex::FromUnderlying(1)), nullptr);
     EXPECT_EQ(
         afterMeasuredStats.getJourney(StationIndex::FromUnderlying(0), StationIndex::FromUnderlying(1))
@@ -1091,10 +1084,10 @@ TEST_F(RideRatings, TransportServiceCacheTracksAvailabilityDeletionReuseAndReset
             return ride;
         ride->stableStats.stations[0].SegmentLength = 400 << 16;
         ride->stableStats.stations[1].SegmentLength = 600 << 16;
-        ride->getStation(StationIndex::FromUnderlying(0)).entrance = { entranceX, 20, 2, 0 };
-        ride->getStation(StationIndex::FromUnderlying(0)).exit = { 30, 20, 2, 2 };
-        ride->getStation(StationIndex::FromUnderlying(1)).entrance = { 40, 20, 2, 0 };
-        ride->getStation(StationIndex::FromUnderlying(1)).exit = { 50, 20, 2, 2 };
+        ride->getStation(StationIndex::FromUnderlying(0)).setEntrance({ entranceX, 20, 2, 0 });
+        ride->getStation(StationIndex::FromUnderlying(0)).setExit({ 30, 20, 2, 2 });
+        ride->getStation(StationIndex::FromUnderlying(1)).setEntrance({ 40, 20, 2, 0 });
+        ride->getStation(StationIndex::FromUnderlying(1)).setExit({ 50, 20, 2, 2 });
         return ride;
     };
 
@@ -1126,7 +1119,7 @@ TEST_F(RideRatings, TransportServiceCacheTracksAvailabilityDeletionReuseAndReset
     ASSERT_NE(replacement, nullptr);
     const auto afterReuse = RideGetTransportService(transportRideId);
     ASSERT_TRUE(afterReuse.isAvailable());
-    EXPECT_EQ(afterReuse.stations[0].entrance, replacement->getStation().entrance);
+    EXPECT_EQ(afterReuse.stations[0].entrance, replacement->getStation().getEntrance());
 
     RideInitAll();
     EXPECT_FALSE(RideGetTransportService(transportRideId).isAvailable());
@@ -1146,10 +1139,10 @@ TEST_F(RideRatings, TransportServiceSpatialQueriesAreStableAcrossBoundariesMoves
             return ride;
         ride->stableStats.stations[0].SegmentLength = 400 << 16;
         ride->stableStats.stations[1].SegmentLength = 600 << 16;
-        ride->getStation(StationIndex::FromUnderlying(0)).entrance = { firstEntrance, 2, 0 };
-        ride->getStation(StationIndex::FromUnderlying(0)).exit = { firstEntrance + TileCoordsXY{ 100, 0 }, 2, 2 };
-        ride->getStation(StationIndex::FromUnderlying(1)).entrance = { secondEntrance, 2, 0 };
-        ride->getStation(StationIndex::FromUnderlying(1)).exit = { secondEntrance + TileCoordsXY{ 100, 0 }, 2, 2 };
+        ride->getStation(StationIndex::FromUnderlying(0)).setEntrance({ firstEntrance, 2, 0 });
+        ride->getStation(StationIndex::FromUnderlying(0)).setExit({ firstEntrance + TileCoordsXY{ 100, 0 }, 2, 2 });
+        ride->getStation(StationIndex::FromUnderlying(1)).setEntrance({ secondEntrance, 2, 0 });
+        ride->getStation(StationIndex::FromUnderlying(1)).setExit({ secondEntrance + TileCoordsXY{ 100, 0 }, 2, 2 });
         return ride;
     };
 
@@ -1203,7 +1196,7 @@ TEST_F(RideRatings, TransportServiceSpatialQueriesAreStableAcrossBoundariesMoves
     // A candidate result owns copied references in its caller buffer, so a
     // different buffer remains valid while this ride is moved and rebuilt.
     const auto retainedCandidate = highRideBuffer.front();
-    highRide->getStation(StationIndex::FromUnderlying(0)).entrance = { 64, 64, 2, 0 };
+    highRide->getStation(StationIndex::FromUnderlying(0)).setEntrance({ 64, 64, 2, 0 });
     RideInvalidateTransportServiceCache(highRideId);
     std::vector<TransportRideServiceStationRef> movedBuffer;
     RideQueryTransportServiceStationsInBounds(
@@ -1401,14 +1394,10 @@ TEST_F(RideRatings, MultiStationSamplesPublishAuthoritativeLegsAndConservativeCo
     const auto* thirdLeg = RideGetRatingLeg(ride, third.originStation, third.destinationStation);
     ASSERT_NE(thirdLeg, nullptr);
     EXPECT_EQ(
-        ride.ratings.excitement,
-        std::min({ firstRatings.excitement, secondRatings.excitement, thirdLeg->ratings.excitement }));
+        ride.ratings.excitement, std::min({ firstRatings.excitement, secondRatings.excitement, thirdLeg->ratings.excitement }));
     EXPECT_EQ(
-        ride.ratings.intensity,
-        std::max({ firstRatings.intensity, secondRatings.intensity, thirdLeg->ratings.intensity }));
-    EXPECT_EQ(
-        ride.ratings.nausea,
-        std::max({ firstRatings.nausea, secondRatings.nausea, thirdLeg->ratings.nausea }));
+        ride.ratings.intensity, std::max({ firstRatings.intensity, secondRatings.intensity, thirdLeg->ratings.intensity }));
+    EXPECT_EQ(ride.ratings.nausea, std::max({ firstRatings.nausea, secondRatings.nausea, thirdLeg->ratings.nausea }));
     EXPECT_EQ(RideGetRatingsForStation(ride, first.originStation), firstRatings);
     EXPECT_EQ(RideGetRatingsForStation(ride, StationIndex::FromUnderlying(1)), thirdLeg->ratings);
 }
@@ -1446,8 +1435,7 @@ TEST_F(RideRatings, ThroughRiderCarsPublishOneLegThenStartCleanForTheNextLeg)
     }
 
     EXPECT_TRUE(RideRating::RecordActiveRiderSamples(ride, sampleEntities));
-    const auto* completedLeg = RideGetRatingLeg(
-        ride, StationIndex::FromUnderlying(0), StationIndex::FromUnderlying(2));
+    const auto* completedLeg = RideGetRatingLeg(ride, StationIndex::FromUnderlying(0), StationIndex::FromUnderlying(2));
     ASSERT_NE(completedLeg, nullptr);
     EXPECT_EQ(completedLeg->destinationStation, StationIndex::FromUnderlying(2));
     for (const auto& cleared : ride.activeRatingSamples)
@@ -1469,8 +1457,7 @@ TEST_F(RideRatings, ThroughRiderCarsPublishOneLegThenStartCleanForTheNextLeg)
         nextLeg->ticks = 15;
     }
     EXPECT_TRUE(RideRating::RecordActiveRiderSamples(ride, sampleEntities));
-    EXPECT_NE(
-        RideGetRatingLeg(ride, StationIndex::FromUnderlying(2), StationIndex::FromUnderlying(1)), nullptr);
+    EXPECT_NE(RideGetRatingLeg(ride, StationIndex::FromUnderlying(2), StationIndex::FromUnderlying(1)), nullptr);
 }
 
 TEST_F(RideRatings, DirectedLegStorageAllowsTwoDestinationsFromOneShuttleStation)
@@ -1519,10 +1506,8 @@ TEST_F(RideRatings, RatingLegDisplaySelectionReachesLaterEdgesInStableEndpointOr
     addLeg(1, 0);
 
     const std::array expected = {
-        std::pair{ uint8_t{ 0 }, uint8_t{ 1 } },
-        std::pair{ uint8_t{ 0 }, uint8_t{ 2 } },
-        std::pair{ uint8_t{ 1 }, uint8_t{ 0 } },
-        std::pair{ uint8_t{ 1 }, uint8_t{ 2 } },
+        std::pair{ uint8_t{ 0 }, uint8_t{ 1 } }, std::pair{ uint8_t{ 0 }, uint8_t{ 2 } },
+        std::pair{ uint8_t{ 1 }, uint8_t{ 0 } }, std::pair{ uint8_t{ 1 }, uint8_t{ 2 } },
         std::pair{ uint8_t{ 2 }, uint8_t{ 1 } },
     };
     for (size_t index = 0; index < expected.size(); index++)
@@ -1599,8 +1584,7 @@ TEST_F(RideRatings, TransportJourneyPrefersMoreShelteredEqualTimeAndFarePath)
     AddMeasuredTransportLeg(ride, 0, 2, 1'000, 40, 0x80000, 0x80000, true);
     AddMeasuredTransportLeg(ride, 2, 3, 1'000, 40, 0x80000, 0x80000, true);
 
-    const auto journey = RideGetTransportJourney(
-        ride, StationIndex::FromUnderlying(0), StationIndex::FromUnderlying(3));
+    const auto journey = RideGetTransportJourney(ride, StationIndex::FromUnderlying(0), StationIndex::FromUnderlying(3));
     ASSERT_EQ(journey.segmentCount, 2);
     EXPECT_EQ(journey.shelteredTravelTimeMilliseconds, journey.travelTimeMilliseconds);
 }
@@ -1624,8 +1608,7 @@ TEST_F(RideRatings, TransportJourneyKeepsBothMeasuredShuttleDepartures)
     EXPECT_EQ(towardStart.destinationStation, StationIndex::FromUnderlying(0));
     EXPECT_EQ(towardEnd.destinationStation, StationIndex::FromUnderlying(2));
     EXPECT_NE(towardStart.distanceMetres, towardEnd.distanceMetres);
-    const auto* measuredStartLeg = RideGetRatingLeg(
-        ride, StationIndex::FromUnderlying(1), StationIndex::FromUnderlying(0));
+    const auto* measuredStartLeg = RideGetRatingLeg(ride, StationIndex::FromUnderlying(1), StationIndex::FromUnderlying(0));
     ASSERT_NE(measuredStartLeg, nullptr);
     const auto measuredStartQuality = RideGetTransportLegQuality(*measuredStartLeg, {});
     EXPECT_EQ(measuredStartQuality.comfortPermille, 900);
@@ -1659,9 +1642,7 @@ TEST_F(RideRatings, SampledRatingProfilesApplyInitialRideTypeMultipliers)
 
     const auto defaultSpeed = RideRating::ScoreVehicleSpeedForTick(90, kSampledRideRatingProfileScale);
     const auto kartSpeed = RideRating::ScoreVehicleSpeedForTick(90, goKartsProfile.Speed);
-    ExpectTickScore(
-        kartSpeed,
-        { defaultSpeed.excitement * 3, defaultSpeed.intensity * 3, defaultSpeed.nausea * 3 });
+    ExpectTickScore(kartSpeed, { defaultSpeed.excitement * 3, defaultSpeed.intensity * 3, defaultSpeed.nausea * 3 });
 }
 
 TEST_F(RideRatings, SampledRatingProfileScalesEveryNonSpeedChannel)
@@ -1748,8 +1729,7 @@ TEST_F(RideRatings, VehicleGForceScoreMemoMatchesDirectScoringForHitsMissesAndSi
     RideRating::VehicleGForceScoreMemo memo{ profile, speedContext };
 
     const auto expectDirectScore = [&](int32_t verticalG, int32_t lateralG, int32_t longitudinalG) {
-        const auto direct = RideRating::ScoreGForcesForVehicleTick(
-            verticalG, lateralG, longitudinalG, profile, speedContext);
+        const auto direct = RideRating::ScoreGForcesForVehicleTick(verticalG, lateralG, longitudinalG, profile, speedContext);
         const auto memoized = memo.Get(verticalG, lateralG, longitudinalG);
         ExpectTickScore(memoized, direct);
     };
@@ -1804,11 +1784,8 @@ TEST_F(RideRatings, SceneryVisibilityMultiplierUsesRideTypePolicy)
         std::pair<int32_t, int32_t> expected;
     };
     constexpr TestCase testCases[] = {
-        { RIDE_TYPE_CIRCUS, { 0, 1 } },
-        { RIDE_TYPE_HAUNTED_HOUSE, { 1, 2 } },
-        { RIDE_TYPE_MAZE, { 1, 1 } },
-        { RIDE_TYPE_DODGEMS, { 1, 4 } },
-        { RIDE_TYPE_OBSERVATION_TOWER, { 1, 1 } },
+        { RIDE_TYPE_CIRCUS, { 0, 1 } },  { RIDE_TYPE_HAUNTED_HOUSE, { 1, 2 } },     { RIDE_TYPE_MAZE, { 1, 1 } },
+        { RIDE_TYPE_DODGEMS, { 1, 4 } }, { RIDE_TYPE_OBSERVATION_TOWER, { 1, 1 } },
     };
     for (const auto& [rideType, expected] : testCases)
     {
@@ -2012,9 +1989,8 @@ TEST_F(RideRatings, LocalContextRangeUsesHeightAboveLocalGround)
     scenerySurface->setClearanceZ(plateauZ);
 
     auto* sceneryElement = InsertTileElement<SmallSceneryElement>(
-        { sceneryTile.toCoordsXY(), plateauZ }, 0, [=](SmallSceneryElement& sceneryElement) {
-            sceneryElement.setClearanceZ(plateauZ + (4 * kCoordsZStep));
-        });
+        { sceneryTile.toCoordsXY(), plateauZ }, 0,
+        [=](SmallSceneryElement& sceneryElement) { sceneryElement.setClearanceZ(plateauZ + (4 * kCoordsZStep)); });
     ASSERT_NE(sceneryElement, nullptr);
 
     const auto plateauScore = RideRating::GetLocalContextScore(
@@ -2181,10 +2157,8 @@ TEST_F(RideRatings, LocalContextOneExposedSideScoresLessThanTwo)
     const auto twoSideOrigin = PlaceVehicleTrackWithTerrain(twoSideTile, trackZ, lowGroundZ, lowGroundZ);
     const auto oneSideOrigin = PlaceVehicleTrackWithTerrain(oneSideTile, trackZ, lowGroundZ, trackZ);
 
-    const auto twoSideScore = GetVehicleLocalContext(
-        twoSideOrigin, rideId, TrackElemType::flatTrack1x4A, trackDirection);
-    const auto oneSideScore = GetVehicleLocalContext(
-        oneSideOrigin, rideId, TrackElemType::flatTrack1x4A, trackDirection);
+    const auto twoSideScore = GetVehicleLocalContext(twoSideOrigin, rideId, TrackElemType::flatTrack1x4A, trackDirection);
+    const auto oneSideScore = GetVehicleLocalContext(oneSideOrigin, rideId, TrackElemType::flatTrack1x4A, trackDirection);
 
     EXPECT_GT(oneSideScore.trackHeightExposure, 0);
     EXPECT_LT(oneSideScore.trackHeightExposure, twoSideScore.trackHeightExposure);
@@ -2254,10 +2228,8 @@ TEST_F(RideRatings, LocalContextSameRideVerticalTrackScoresBelowForeignTrack)
     PlaceFlatTrack(
         ownTile, upperTrackZ, upperTrackZ + (2 * kCoordsZStep), rideId, TrackElemType::flatTrack1x4A, trackDirection);
 
-    const auto foreignScore = GetVehicleLocalContext(
-        foreignOrigin, rideId, TrackElemType::flatTrack1x4A, trackDirection);
-    const auto ownScore = GetVehicleLocalContext(
-        ownOrigin, rideId, TrackElemType::flatTrack1x4A, trackDirection);
+    const auto foreignScore = GetVehicleLocalContext(foreignOrigin, rideId, TrackElemType::flatTrack1x4A, trackDirection);
+    const auto ownScore = GetVehicleLocalContext(ownOrigin, rideId, TrackElemType::flatTrack1x4A, trackDirection);
 
     EXPECT_GT(foreignScore.trackVerticalInteraction, ownScore.ownTrackVerticalInteraction);
     EXPECT_EQ(foreignScore.ownTrackVerticalInteraction, 0);
@@ -2396,8 +2368,7 @@ TEST_F(RideRatings, LocalContextPathBelowVerticalLoopAddsLoopThrill)
     auto context = InitialiseMap();
 
     constexpr int32_t trackZ = 18 * kCoordsZStep;
-    const auto origin = PlaceVehicleTrackWithTerrain(
-        originTile, trackZ, trackZ, trackZ, TrackElemType::leftVerticalLoop);
+    const auto origin = PlaceVehicleTrackWithTerrain(originTile, trackZ, trackZ, trackZ, TrackElemType::leftVerticalLoop);
     PlacePath(originTile, trackZ - (3 * kCoordsZStep), trackZ - (2 * kCoordsZStep));
 
     const auto score = GetVehicleLocalContext(origin, rideId, TrackElemType::leftVerticalLoop, 0);

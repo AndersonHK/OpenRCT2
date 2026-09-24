@@ -14,9 +14,11 @@
 #include <openrct2/object/FootpathSurfaceObject.h>
 #include <openrct2/object/ObjectManager.h>
 #include <openrct2/object/SmallSceneryObject.h>
+#include <openrct2/object/StationObject.h>
 #include <openrct2/world/Map.h>
 #include <openrct2/world/MapPresentationSnapshot.h>
 #include <openrct2/world/Park.h>
+#include <openrct2/world/tile_element/EntranceElement.h>
 #include <openrct2/world/tile_element/PathElement.h>
 #include <openrct2/world/tile_element/SmallSceneryElement.h>
 #include <openrct2/world/tile_element/TrackElement.h>
@@ -399,20 +401,98 @@ TEST_F(WorldPathPublicationTest, WorldCatalogAndRideFactsOwnOldValuesAcrossRepla
     ride.id = RideId::FromUnderlying(0);
     ride.type = 0;
     ride.trackColours[0].main = static_cast<Drawing::Colour>(12);
+    ride.vehicleColours[3].Body = static_cast<Drawing::Colour>(23);
+    auto& highStation = ride.getStation(StationIndex::FromUnderlying(200));
+    highStation.setEntrance(TileCoordsXYZD{ 8, 9, 10, 3 });
     auto first = Capture();
     ASSERT_EQ(first.rideMaterials->rides.size(), 1u);
     EXPECT_EQ(Capture().rideMaterials, first.rideMaterials);
+    ASSERT_GT(first.rideMaterials->rides[0].stations.size(), 200u);
+    EXPECT_EQ(first.rideMaterials->rides[0].vehicleColours[3].body, 23);
+    EXPECT_TRUE(first.rideMaterials->rides[0].stations[200].entranceValid);
+    EXPECT_EQ(first.rideMaterials->rides[0].stations[200].entranceX, 8);
+    // Simulation ticks and colour schemes unused by static bodies must not republish the catalogue.
+    ++state.currentTicks;
+    ride.vehicleColours[200].Body = static_cast<Drawing::Colour>(25);
+    EXPECT_EQ(Capture().rideMaterials, first.rideMaterials);
+    auto movedEntrance = highStation.getEntrance();
+    movedEntrance.x = 11;
+    highStation.setEntrance(movedEntrance);
+    ride.vehicleColours[3].Body = static_cast<Drawing::Colour>(24);
     ride.trackColours[0].main = static_cast<Drawing::Colour>(14);
     auto recoloured = Capture();
     EXPECT_NE(recoloured.rideMaterials, first.rideMaterials);
     EXPECT_EQ(first.rideMaterials->rides[0].trackColours[0].main, 12);
     EXPECT_EQ(recoloured.rideMaterials->rides[0].trackColours[0].main, 14);
+    EXPECT_EQ(recoloured.rideMaterials->rides[0].stations[200].entranceX, 11);
+    EXPECT_EQ(recoloured.rideMaterials->rides[0].vehicleColours[3].body, 24);
+    EXPECT_EQ(first.rideMaterials->rides[0].stations[200].entranceX, 8);
+    EXPECT_EQ(first.rideMaterials->rides[0].vehicleColours[3].body, 23);
     manager.UnloadObjects({ tree->GetDescriptor() });
     auto removed = Capture();
     EXPECT_GT(removed.objectMaterials->revision, held->revision);
     EXPECT_FALSE(removed.objectMaterials->smallScenery[slot].present);
     EXPECT_TRUE(held->smallScenery[slot].present);
     EXPECT_EQ(held->smallScenery[slot].imageBase, base);
+}
+
+TEST_F(WorldPathPublicationTest, RideFactsFastPathDetectsHighStationChangesRemovalAndReuse)
+{
+    auto& state = getGameState();
+    state.ridesEndOfUsedRange = 1;
+    auto& ride = state.rides[0];
+    ride.id = RideId::FromUnderlying(0);
+    ride.type = 0;
+    auto& station = ride.getStation(StationIndex::FromUnderlying(254));
+    station.setStart({ 64, 96 });
+    station.setBaseZ(80);
+    station.setEntrance(TileCoordsXYZD{ 2, 3, 10, 0 });
+    station.setExit(TileCoordsXYZD{ 4, 5, 10, 0 });
+    auto first = Capture(true).rideMaterials;
+    ASSERT_EQ(first->rides[0].stations.size(), 255u);
+    EXPECT_EQ(Capture().rideMaterials, first);
+    auto previous = first;
+    const auto changed = [&]() {
+        auto next = Capture().rideMaterials;
+        EXPECT_NE(next, previous);
+        EXPECT_EQ(Capture().rideMaterials, next);
+        previous = std::move(next);
+    };
+    station.setStart(station.getStartXY() + CoordsXY{ 0, 32 });
+    changed();
+    station.setBaseZ(88);
+    changed();
+    auto raisedEntrance = station.getEntrance();
+    ++raisedEntrance.z;
+    station.setEntrance(raisedEntrance);
+    changed();
+    auto shiftedExit = station.getExit();
+    ++shiftedExit.x;
+    station.setExit(shiftedExit);
+    changed();
+    ride.vehicleColours[3].Trim = static_cast<Drawing::Colour>(7);
+    changed();
+    ++ride.numTrains;
+    changed();
+    station.clearStart();
+    station.clearEntrance();
+    station.clearExit();
+    changed();
+    EXPECT_LT(previous->rides[0].stations.size(), 255u);
+    station.setExit(TileCoordsXYZD{ 6, 7, 12, 0 });
+    changed();
+    ASSERT_EQ(previous->rides[0].stations.size(), 255u);
+    EXPECT_EQ(previous->rides[0].stations[254].exitX, 6);
+    EXPECT_EQ(first->rides[0].stations[254].startY, 96);
+    EXPECT_EQ(first->rides[0].stations[254].startZ, 80);
+    EXPECT_EQ(first->rides[0].stations[254].entranceZ, 10);
+    EXPECT_EQ(first->rides[0].stations[254].exitX, 4);
+    ride.id = RideId::GetNull();
+    changed();
+    EXPECT_FALSE(previous->rides[0].present);
+    ride.id = RideId::FromUnderlying(0);
+    changed();
+    EXPECT_TRUE(previous->rides[0].present);
 }
 
 TEST_F(WorldPathPublicationTest, ClockMetadataChangesWithoutDirtyTilesOrChunkCopies)
@@ -430,6 +510,58 @@ TEST_F(WorldPathPublicationTest, ClockMetadataChangesWithoutDirtyTilesOrChunkCop
     EXPECT_EQ(snapshot.GetClockHour(), 7);
     EXPECT_EQ(snapshot.GetClockMinute(), 23);
     EXPECT_EQ(snapshot.GetSurfaceChunks(), chunks);
+}
+
+TEST_F(WorldPathPublicationTest, StationGraphicalOwnerTracksAssignmentHeightNullAndNoOpWrites)
+{
+    auto& state = getGameState();
+    state.ridesEndOfUsedRange = 1;
+    auto& ride = state.rides[0];
+    ride.id = RideId::FromUnderlying(0);
+    ride.type = 0;
+    auto& station = ride.getStation(StationIndex::FromUnderlying(254));
+    station.setStart({ 64, 96 });
+    station.setBaseZ(80);
+    station.setEntrance({ 2, 3, 10, 0 });
+    station.setExit({ 4, 5, 10, 1 });
+    const auto original = Capture(true).rideMaterials;
+    auto revision = GetRideStationGraphicalRevision();
+    station.setStart(station.getStartXY());
+    station.setHeight(station.getHeight());
+    station.setEntrance(station.getEntrance());
+    station.setExit(station.getExit());
+    station.depart ^= 1; // Simulation-only updates never dirty the graphical owner.
+    EXPECT_EQ(GetRideStationGraphicalRevision(), revision);
+    EXPECT_EQ(Capture().rideMaterials, original);
+
+    station.setEntranceDirection(2);
+    EXPECT_GT(GetRideStationGraphicalRevision(), revision);
+    // Direction is not used by the current raw station geometry; the owned table stays identical.
+    EXPECT_EQ(Capture().rideMaterials, original);
+    revision = GetRideStationGraphicalRevision();
+    RideStation replacement = station;
+    replacement.setBaseZ(88);
+    replacement.clearEntrance();
+    revision = GetRideStationGraphicalRevision();
+    station = replacement;
+    EXPECT_GT(GetRideStationGraphicalRevision(), revision);
+    const auto copied = Capture().rideMaterials;
+    EXPECT_NE(copied, original);
+    EXPECT_EQ(copied->rides[0].stations[254].startZ, 88);
+    EXPECT_FALSE(copied->rides[0].stations[254].entranceValid);
+    revision = GetRideStationGraphicalRevision();
+    station = replacement;
+    EXPECT_EQ(GetRideStationGraphicalRevision(), revision);
+    replacement.clearStart();
+    replacement.clearExit();
+    revision = GetRideStationGraphicalRevision();
+    station = std::move(replacement);
+    EXPECT_GT(GetRideStationGraphicalRevision(), revision);
+    const auto removed = Capture().rideMaterials;
+    EXPECT_NE(removed, copied);
+    EXPECT_LT(removed->rides[0].stations.size(), 255u);
+    EXPECT_EQ(original->rides[0].stations[254].startZ, 80);
+    EXPECT_TRUE(original->rides[0].stations[254].entranceValid);
 }
 
 TEST_F(WorldPathPublicationTest, WaterPlantsPublishesOnlyChangedRawAges)
@@ -557,4 +689,259 @@ TEST(WorldObjectUsageTest, TracksMembershipAcrossMultiplicityMutationRemovalRese
     EXPECT_FALSE(resetHeld.GetObjectUsage()->Contains(0, 7));
     EXPECT_FALSE(resetHeld.GetObjectUsage()->Contains(2, 2047));
     EXPECT_TRUE(held.GetObjectUsage()->Contains(0, 7));
+}
+
+TEST_F(WorldPathPublicationTest, EntrancesPreserveRawFieldsAndResidencyDependencies)
+{
+    auto surface = *MapGetFirstElementAt(TileCoordsXY{ 2, 2 });
+    surface.setLastForTile(false);
+    TileElement park{};
+    park.clearAs(TileElementType::entrance);
+    park.setBaseZ(64);
+    park.setClearanceZ(144);
+    park.setDirection(3);
+    park.setGhost(true);
+    auto& entry = *park.asEntrance();
+    entry.setEntranceType(EntranceType::parkEntrance);
+    entry.setEntryIndex(7);
+    entry.setSequenceIndex(ParkEntranceSequence::right);
+    entry.setLegacyPathEntryIndex(9);
+    TileElement ride = park;
+    auto& exit = *ride.asEntrance();
+    exit.setEntranceType(EntranceType::rideExit);
+    exit.setRideIndex(RideId::FromUnderlying(11));
+    exit.setStationIndex(StationIndex::FromUnderlying(200));
+    ride.setLastForTile(true);
+    ASSERT_EQ(ReplaceTileElementsAt({ 2, 2 }, { surface, park, ride }), TileMutationStatus::ok);
+    auto batch = Capture(true);
+    MapPresentationSnapshot current;
+    current.Apply(batch);
+    ASSERT_FALSE(current.HasLegacyTileStorage());
+    const auto held = current.GetObjectChunks()[0];
+    const auto range = held->tiles[34];
+    ASSERT_EQ(range.count, 2u);
+    const auto& raw = held->records[range.first];
+    EXPECT_EQ(raw.kind, WorldObjectKind::entrance);
+    EXPECT_EQ(raw.entranceType, 2);
+    EXPECT_EQ(raw.sequence, 2);
+    EXPECT_EQ(raw.direction, 3);
+    EXPECT_EQ(raw.elementOrdinal, 1u);
+    EXPECT_EQ(raw.pathSurfaceSlot, 9);
+    EXPECT_EQ(raw.objectSlot, 7);
+    EXPECT_NE(raw.flags & WorldObjectPresentationFlags::legacyPath, 0u);
+    EXPECT_NE(raw.flags & WorldObjectPresentationFlags::ghost, 0u);
+    EXPECT_EQ(held->records[range.first + 1].rideId, 11);
+    EXPECT_EQ(held->records[range.first + 1].stationIndex, 200);
+    const auto used = current.GetObjectUsage();
+    EXPECT_TRUE(used->Contains(5, 7));
+    EXPECT_TRUE(used->ContainsRide(11));
+    EXPECT_FALSE(used->ContainsRide(7));
+    // A same-slot park entrance edit preserves residency; changing a ride reference must replace it.
+    entry.setSequenceIndex(ParkEntranceSequence::left);
+    exit.setRideIndex(RideId::FromUnderlying(12));
+    ASSERT_EQ(ReplaceTileElementsAt({ 2, 2 }, { surface, park, ride }), TileMutationStatus::ok);
+    current.Apply(Capture());
+    EXPECT_NE(current.GetObjectUsage(), used);
+    EXPECT_FALSE(current.GetObjectUsage()->ContainsRide(11));
+    EXPECT_TRUE(current.GetObjectUsage()->ContainsRide(12));
+    EXPECT_TRUE(used->ContainsRide(11));
+    surface.setLastForTile(true);
+    ASSERT_EQ(ReplaceTileElementsAt({ 2, 2 }, { surface }), TileMutationStatus::ok);
+    current.Apply(Capture());
+    EXPECT_FALSE(current.GetObjectUsage()->Contains(5, 7));
+    EXPECT_FALSE(current.GetObjectUsage()->ContainsRide(12));
+    EXPECT_EQ(held->records[range.first].sequence, 2);
+}
+
+TEST_F(WorldPathPublicationTest, StationCatalogOwnsFactsAcrossUnloadAndReload)
+{
+    auto& manager = context->GetObjectManager();
+    auto* object = manager.LoadObject("rct2.station.plain");
+    ASSERT_NE(object, nullptr);
+    const auto slot = manager.GetLoadedObjectEntryIndex(object);
+    const auto descriptor = object->GetDescriptor();
+    const auto held = Capture(true).objectMaterials;
+    ASSERT_TRUE(held->stations[slot].present);
+    const auto old = held->stations[slot];
+    EXPECT_EQ(Capture().objectMaterials, held);
+    manager.UnloadObjects({ descriptor });
+    const auto unloaded = Capture().objectMaterials;
+    EXPECT_FALSE(unloaded->stations[slot].present);
+    EXPECT_GT(unloaded->revision, held->revision);
+    ASSERT_NE(manager.LoadObject(descriptor, slot), nullptr);
+    const auto replaced = Capture().objectMaterials;
+    EXPECT_TRUE(replaced->stations[slot].present);
+    EXPECT_GT(replaced->revision, unloaded->revision);
+    EXPECT_EQ(held->stations[slot].entranceBack, old.entranceBack);
+    EXPECT_EQ(held->stations[slot].imageBase, old.imageBase);
+}
+
+#ifdef ENABLE_VULKAN
+    #include <openrct2-renderer/gpu/GpuWorldEntranceCatalog.h>
+namespace EntranceRulesTest
+{
+    #include "../../data/shaders/vulkan/world_entrance_rules.glsl"
+}
+TEST(WorldEntranceCatalogTest, UsedDependenciesOnlyAndOwnedRangeValidation)
+{
+    namespace G = OpenRCT2::Ui::Gpu;
+    auto objects = std::make_unique<WorldObjectPresentationMaterials>();
+    auto& station = objects->stations[2];
+    station.present = true;
+    station.imageBase = 100;
+    station.imageCount = 16;
+    station.entranceBack = 100;
+    station.entranceFront = 104;
+    station.exitBack = 108;
+    station.exitFront = 112;
+    objects->stations[3] = station; // Loaded, but never referenced.
+    objects->parkEntrances[4] = { 200, 12, 200, 0, 0, true };
+    objects->parkEntrances[5] = { 300, 12, 300, 0, 0, true };
+    WorldRidePresentationMaterials rides;
+    rides.rides.resize(8);
+    rides.rides[7].present = true;
+    rides.rides[7].stationStyle = 2;
+    rides.rides[7].stations.resize(201);
+    rides.rides[7].stations[200].entranceValid = true;
+    rides.rides[7].stations[200].entranceX = 5;
+    WorldObjectPresentationUsage usage;
+    usage.slots[6].set(7);
+    usage.slots[5].set(4);
+    std::vector<uint32_t> images;
+    const auto append = [&](uint32_t image) {
+        images.push_back(image);
+        return static_cast<uint32_t>(images.size() - 1);
+    };
+    auto catalog = G::BuildWorldEntranceCatalog(*objects, rides, &usage, 40, append);
+    ASSERT_EQ(images.size(), 28u);
+    EXPECT_EQ(images.front(), 100u);
+    EXPECT_EQ(images.back(), 211u);
+    EXPECT_NO_THROW(G::ValidateWorldEntranceCatalog(catalog.words, static_cast<uint32_t>(images.size())));
+    auto bad = catalog.words;
+    bad[bad[0] + 2 * 16 + 4] = 25;
+    EXPECT_THROW(G::ValidateWorldEntranceCatalog(bad, 28), std::invalid_argument);
+    bad = catalog.words;
+    bad[bad[4] + 7 * 8 + 5] = UINT32_MAX;
+    EXPECT_THROW(G::ValidateWorldEntranceCatalog(bad, 28), std::invalid_argument);
+    objects->parkEntrances[4].imageCount = 11;
+    EXPECT_THROW(static_cast<void>(G::BuildWorldEntranceCatalog(*objects, rides, &usage, 40, append)), std::runtime_error);
+}
+TEST(WorldEntranceRulesTest, OriginalParentBoundsAndGlassRemainAttached)
+{
+    using namespace EntranceRulesTest;
+    const auto entrance = worldRideEntranceParts(1, false, 7);
+    ASSERT_EQ(entrance.count, 4);
+    EXPECT_EQ(entrance.parts[0].sizeX, 8);
+    EXPECT_EQ(entrance.parts[0].sizeY, 28);
+    EXPECT_EQ(entrance.parts[1].child, 1);
+    EXPECT_EQ(entrance.parts[1].colourMode, 4);
+    EXPECT_EQ(entrance.parts[2].boundsZ, 30);
+    EXPECT_EQ(entrance.parts[2].sizeZ, 17);
+    const auto exit = worldRideEntranceParts(0, true, 0);
+    ASSERT_EQ(exit.count, 2);
+    EXPECT_EQ(exit.parts[0].imageOffset, 2);
+    EXPECT_EQ(exit.parts[1].sizeZ, 1);
+    const auto park = worldParkEntranceParts(3, 0);
+    ASSERT_EQ(park.count, 2);
+    EXPECT_EQ(park.parts[0].imageOffset, -1);
+    EXPECT_EQ(park.parts[1].imageOffset, 9);
+    EXPECT_EQ(worldParkEntranceParts(0, 3).count, 0);
+}
+TEST(WorldEntranceRulesTest, TwoParentOrderingMatchesGeneralRulesAndKeepsGlassAttached)
+{
+    using namespace EntranceRulesTest;
+    const auto verify = [](const WorldPropParts& parts, int rotation) {
+        WorldPathPart parents[12]{};
+        int recipes[2]{};
+        int count = 0;
+        for (int i = 0; i < parts.count; ++i)
+        {
+            const auto& p = parts.parts[i];
+            if (p.child != 0)
+                continue;
+            ASSERT_LT(count, 2);
+            recipes[count] = i;
+            parents[count++] = worldPathPart(
+                p.imageOffset, p.x, p.y, p.z, p.boundsX, p.boundsY, p.boundsZ, p.sizeX, p.sizeY, p.sizeZ);
+        }
+        ASSERT_GT(count, 0);
+        const auto general = worldPathOrder(parents, count, rotation);
+        ASSERT_EQ(general.count, count);
+        const int first = count == 2 ? worldEntranceFirstParent(parts.parts[recipes[0]], parts.parts[recipes[1]], rotation) : 0;
+        std::vector<int> expected;
+        std::vector<int> actual;
+        const auto appendFamily = [&](std::vector<int>& target, int parent) {
+            const int begin = recipes[parent];
+            target.push_back(begin);
+            for (int i = begin + 1; i < parts.count && parts.parts[i].child != 0; ++i)
+                target.push_back(i);
+        };
+        for (int ordinal = 0; ordinal < count; ++ordinal)
+        {
+            appendFamily(expected, general.indices[ordinal]);
+            appendFamily(actual, count == 2 && first == 1 ? 1 - ordinal : ordinal);
+        }
+        EXPECT_EQ(actual, expected);
+        EXPECT_EQ(actual.size(), static_cast<size_t>(parts.count));
+    };
+    for (int rotation = 0; rotation < 4; ++rotation)
+    {
+        SCOPED_TRACE(rotation);
+        for (int direction = 0; direction < 4; ++direction)
+        {
+            SCOPED_TRACE(direction);
+            for (int flags = 0; flags < 256; ++flags)
+            {
+                SCOPED_TRACE(flags);
+                verify(worldRideEntranceParts(direction, false, flags), rotation);
+                verify(worldRideEntranceParts(direction, true, flags), rotation);
+            }
+            for (int sequence = 0; sequence < 3; ++sequence)
+                verify(worldParkEntranceParts(direction, sequence), rotation);
+        }
+    }
+}
+#endif
+
+TEST_F(WorldPathPublicationTest, TowerTopologyIncludesHiddenUnrenderedSuccessorsAndUpdatesOnRemoval)
+{
+    auto surface = *MapGetFirstElementAt(TileCoordsXY{ 2, 2 });
+    surface.setLastForTile(false);
+    TileElement tower{};
+    tower.clearAs(TileElementType::track);
+    tower.setBaseZ(64);
+    tower.setClearanceZ(96);
+    TileElement gap{};
+    gap.clearAs(TileElementType::path);
+    gap.setBaseZ(80);
+    gap.setClearanceZ(88);
+    TileElement upper{};
+    upper.clearAs(TileElementType::path);
+    upper.setBaseZ(96);
+    upper.setClearanceZ(104);
+    upper.setGhost(true);
+    upper.setInvisible(true);
+    upper.setLastForTile(true);
+    ASSERT_EQ(ReplaceTileElementsAt({ 2, 2 }, { surface, tower, gap, upper }), TileMutationStatus::ok);
+    MapPresentationSnapshot snapshot;
+    snapshot.Apply(Capture(true));
+    const auto held = snapshot.GetObjectChunks()[0];
+    const auto index = held->tiles[34].first;
+    const auto hasNext = WorldObjectPresentationFlags::nextElementAtClearance;
+    const auto hasLater = WorldObjectPresentationFlags::anyLaterElementAtClearance;
+    EXPECT_EQ(held->records[index].flags & hasNext, 0u);
+    EXPECT_NE(held->records[index].flags & hasLater, 0u);
+    ASSERT_EQ(ReplaceTileElementsAt({ 2, 2 }, { surface, tower, upper }), TileMutationStatus::ok);
+    snapshot.Apply(Capture());
+    auto chunk = snapshot.GetObjectChunks()[0];
+    auto raw = chunk->records[chunk->tiles[34].first];
+    EXPECT_NE(raw.flags & hasNext, 0u);
+    EXPECT_NE(raw.flags & hasLater, 0u);
+    tower.setLastForTile(true);
+    ASSERT_EQ(ReplaceTileElementsAt({ 2, 2 }, { surface, tower }), TileMutationStatus::ok);
+    snapshot.Apply(Capture());
+    chunk = snapshot.GetObjectChunks()[0];
+    raw = chunk->records[chunk->tiles[34].first];
+    EXPECT_EQ(raw.flags & (hasNext | hasLater), 0u);
+    EXPECT_NE(held->records[index].flags & hasLater, 0u);
 }

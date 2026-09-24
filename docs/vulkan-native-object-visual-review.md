@@ -58,3 +58,5 @@ This is a useful composition checkpoint, **not original full-render parity**. Th
 
 The CPU-only pristine-upstream capture in `obj/vulkan-parity/object106-upstream-r3-01/reference.png` (SHA256 `fa08c56de93d16cf84abd8e685c6197f7f4a51a9974f90cd9855659fcdbbea62`) confirms both long rails outside the left map corner are authored tall-coaster spans. Root and the track agent inspected the capture. Missing connecting curves and supports make these spans look disconnected in build106; the lines themselves are not atlas corruption. The reference uses an approximate matching camera and the initial park state, so this diagnostic is not a pixel-parity result.
 
+
+Independent follow-up: I also opened the complete saved upstream reference above. The left horizontal and diagonal rails are visibly connected into the same tall coaster by curves and supported columns in upstream; this resolves the earlier source-versus-corruption uncertainty for those spans. The remaining native missing geometry is still open. No new capture or execution was performed.

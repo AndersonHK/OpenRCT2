@@ -512,6 +512,7 @@ namespace OpenRCT2::Ui::Gpu
     constexpr uint32_t kWorldObjectMaximumTileWork = 4096;
     constexpr uint32_t kWorldPropCatalogCapacity = 1u << 20;
     constexpr uint32_t kWorldTrackCatalogCapacity = 8u << 20;
+    constexpr uint32_t kWorldBuildingCatalogCapacity = 1u << 20;
     // Temporary dispatch safety budget: reject larger stacks, never truncate.
     // Replace with bounded work slicing before admitting pathological per-tile populations.
     constexpr uint32_t kWorldPathMaximumTileWork = 4096;
@@ -636,7 +637,7 @@ namespace OpenRCT2::Ui::Gpu
         std::shared_ptr<const WorldObjectPresentationMaterials> sourceObjectMaterials;
         std::shared_ptr<const WorldObjectPresentationUsage> sourceObjectUsage;
         std::shared_ptr<const WorldRidePresentationMaterials> sourceRideMaterials;
-        std::vector<uint32_t> propCatalog, trackCatalog;
+        std::vector<uint32_t> propCatalog, trackCatalog, flatRideCatalog, entranceCatalog;
         std::shared_ptr<const AtlasAssetLease> residency;
     };
 

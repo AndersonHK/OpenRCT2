@@ -37,7 +37,7 @@ namespace OpenRCT2::Drawing
             for (size_t d = words[4]; d < words[5]; d += 3)
             {
                 const auto sequences = words[d + 1], mask = words[d + 2];
-                if (sequences > 16 || mask >= 8
+                if (sequences > 16 || mask >= 128
                     || uint64_t(words[d]) + (uint64_t(1) << std::popcount(mask)) * sequences * 4 > rows)
                     throw std::runtime_error("Native track definition descriptor is invalid");
             }
@@ -46,14 +46,23 @@ namespace OpenRCT2::Drawing
                 const auto first = words[row], count = words[row + 1];
                 if (count > 64 || uint64_t(first) + count > parts)
                     throw std::runtime_error("Native track definition row is invalid");
+                uint32_t expandedCount = count, parentCount = 0;
                 for (uint32_t i = 0; i < count; ++i)
                 {
                     const auto p = words[6] + (first + i) * 12;
                     const auto parent = static_cast<int32_t>(words[p + 11]);
-                    if (words[p] >= 0x7ffffu || words[p + 10] > 1
+                    if ((words[p] >= 0x7ffffu && words[p] != 0xfffffffeu) || words[p + 10] > 3
                         || (parent != -1 && (parent < 0 || static_cast<uint32_t>(parent) >= i)))
                         throw std::runtime_error("Native track definition component is invalid");
+                    parentCount += parent == -1;
+                    if (words[p] == 0xfffffffeu)
+                    {
+                        expandedCount += 8;
+                        parentCount += 6;
+                    }
                 }
+                if (expandedCount > 16 || parentCount > 12)
+                    throw std::runtime_error("Native track expanded component capacity is invalid");
             }
             return words;
         }
@@ -71,7 +80,8 @@ namespace OpenRCT2::Drawing
             std::vector<uint32_t> result;
             const auto words = GetNativeTrackRecipeWords();
             for (size_t index = words[6]; index < words.size(); index += 12)
-                result.push_back(words[index]);
+                if (words[index] != 0xfffffffeu)
+                    result.push_back(words[index]);
             std::sort(result.begin(), result.end());
             result.erase(std::unique(result.begin(), result.end()), result.end());
             return result;

@@ -773,28 +773,28 @@ namespace OpenRCT2::RCT2
 
                 if (src->stationStarts[i].IsNull())
                 {
-                    destStation.start.setNull();
+                    destStation.clearStart();
                 }
                 else
                 {
                     auto tileStartLoc = TileCoordsXY(src->stationStarts[i].x, src->stationStarts[i].y);
-                    destStation.start = tileStartLoc.toCoordsXY();
+                    destStation.setStart(tileStartLoc.toCoordsXY());
                 }
-                destStation.height = src->stationHeights[i];
+                destStation.setHeight(src->stationHeights[i]);
                 destStation.length = src->stationLength[i];
                 destStation.depart = src->stationDepart[i];
                 destStation.trainAtStation = src->trainAtStation[i];
                 // Direction is fixed later.
 
                 if (src->entrances[i].IsNull())
-                    destStation.entrance.setNull();
+                    destStation.clearEntrance();
                 else
-                    destStation.entrance = { src->entrances[i].x, src->entrances[i].y, src->stationHeights[i], 0 };
+                    destStation.setEntrance({ src->entrances[i].x, src->entrances[i].y, src->stationHeights[i], 0 });
 
                 if (src->exits[i].IsNull())
-                    destStation.exit.setNull();
+                    destStation.clearExit();
                 else
-                    destStation.exit = { src->exits[i].x, src->exits[i].y, src->stationHeights[i], 0 };
+                    destStation.setExit({ src->exits[i].x, src->exits[i].y, src->stationHeights[i], 0 });
 
                 destStation.lastPeepInQueue = EntityId::FromUnderlying(src->lastPeepInQueue[i]);
 
@@ -811,10 +811,10 @@ namespace OpenRCT2::RCT2
                 StationIndex stationIndex = StationIndex::FromUnderlying(i);
                 auto& destStation = dst->getStation(stationIndex);
 
-                destStation.start.setNull();
+                destStation.clearStart();
                 destStation.trainAtStation = RideStation::kNoTrain;
-                destStation.entrance.setNull();
-                destStation.exit.setNull();
+                destStation.clearEntrance();
+                destStation.clearExit();
                 destStation.lastPeepInQueue = EntityId::GetNull();
             }
 

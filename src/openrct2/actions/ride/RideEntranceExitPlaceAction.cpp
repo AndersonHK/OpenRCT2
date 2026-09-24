@@ -87,7 +87,7 @@ namespace OpenRCT2::GameActions
         }
 
         const auto& station = ride->getStation(_stationNum);
-        const auto location = _isExit ? station.exit : station.entrance;
+        const auto location = _isExit ? station.getExit() : station.getEntrance();
 
         if (!location.isNull())
         {
@@ -163,7 +163,7 @@ namespace OpenRCT2::GameActions
         }
 
         auto& station = ride->getStation(_stationNum);
-        const auto location = _isExit ? station.exit : station.entrance;
+        const auto location = _isExit ? station.getExit() : station.getEntrance();
         if (!location.isNull())
         {
             auto rideEntranceExitRemove = RideEntranceExitRemoveAction(location.toCoordsXY(), _rideIndex, _stationNum, _isExit);
@@ -212,11 +212,11 @@ namespace OpenRCT2::GameActions
 
         if (_isExit)
         {
-            station.exit = TileCoordsXYZD(CoordsXYZD{ _loc, z, entranceElement->getDirection() });
+            station.setExit(TileCoordsXYZD(CoordsXYZD{ _loc, z, entranceElement->getDirection() }));
         }
         else
         {
-            station.entrance = TileCoordsXYZD(CoordsXYZD{ _loc, z, entranceElement->getDirection() });
+            station.setEntrance(TileCoordsXYZD(CoordsXYZD{ _loc, z, entranceElement->getDirection() }));
             station.lastPeepInQueue = EntityId::GetNull();
             station.queueLength = 0;
         }

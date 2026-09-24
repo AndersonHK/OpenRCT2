@@ -128,6 +128,7 @@
     <ClCompile Include="VulkanWorldPathLayerTests.cpp" />
     <ClCompile Include="VulkanWorldObjectLayerTests.cpp" />
     <ClCompile Include="WorldTrackRulesTests.cpp" />
+    <ClCompile Include="WorldFlatRideRulesTests.cpp" />
     <ClCompile Include="VulkanWorldPathArtTests.cpp" />
     <ClCompile Include="WorldPathPublicationTests.cpp" />
     <ClCompile Include="WorldPathRulesTests.cpp" />

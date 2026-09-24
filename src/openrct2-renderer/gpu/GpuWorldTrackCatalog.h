@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <bit>
 #include <limits>
+#include <openrct2/drawing/Drawing.Sprite.h>
 #include <openrct2/drawing/NativeTrackRecipes.h>
 #include <openrct2/ride/RideData.h>
 #include <openrct2/ride/ted/TrackElemType.h>
@@ -36,7 +37,8 @@ namespace OpenRCT2::Ui::Gpu
         };
         words.resize(12);
         words[0] = 0x5754524b;
-        words[1] = 1;
+        const bool csgLoaded = IsCsgLoaded();
+        words[1] = 1u | (csgLoaded ? 1u << 8 : 0u);
         words[2] = offset();
         const auto definitions = Drawing::GetNativeTrackRecipeWords();
         words.insert(words.end(), definitions.begin(), definitions.end());
@@ -84,6 +86,7 @@ namespace OpenRCT2::Ui::Gpu
             }
         }
         std::vector<uint32_t> images;
+        bool needsStations = false;
         for (uint32_t style = 0; style < requiredStyles.size(); ++style)
         {
             if (!requiredStyles[style])
@@ -95,12 +98,24 @@ namespace OpenRCT2::Ui::Gpu
                 const auto count = (1u << std::popcount(mask)) * sequences * 4;
                 for (uint32_t index = 0; index < count; ++index)
                 {
+                    const auto variant = index / (sequences * 4);
+                    if ((mask & 16u) != 0u && bool((variant >> std::popcount(mask & 15u)) & 1u) != csgLoaded)
+                        continue;
                     const auto row = definitions[5] + (definitions[descriptor] + index) * 2;
                     for (uint32_t part = 0; part < definitions[row + 1]; ++part)
-                        images.push_back(definitions[definitions[6] + (definitions[row] + part) * 12]);
+                    {
+                        const auto image = definitions[definitions[6] + (definitions[row] + part) * 12];
+                        if (image != 0xfffffffeu)
+                            images.push_back(image);
+                        else
+                            needsStations = true;
+                    }
                 }
             }
         }
+        if (needsStations)
+            for (uint32_t image = SPR_STATION_PLATFORM_SW_NE; image <= SPR_STATION_BASE_BORDERLESS; ++image)
+                images.push_back(image);
         std::sort(images.begin(), images.end());
         images.erase(std::unique(images.begin(), images.end()), images.end());
         words[10] = static_cast<uint32_t>(images.size());

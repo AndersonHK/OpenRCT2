@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_FILTER = ':'.join((
     'VulkanWorldSurfaceLayerTest.*', 'VulkanWorldPathLayerTest.*',
     'VulkanWorldObjectLayerTest.*', 'WorldPropCatalogTest.*', 'WorldTrackRulesTest.*',
+    'WorldFlatRideRulesTest.*', 'WorldFlatRideCatalogTest.*', 'WorldEntranceRulesTest.*', 'WorldEntranceCatalogTest.*',
     'WorldPathPublicationTest.*', 'WorldObjectUsageTest.*', 'WorldPathRulesTest.*',
     'TerrainSurfaceRulesTest.FullMapShaderSteepCornersMatchAuthoritativeSlopeTable',
     'GpuFoundationTest.*WorldSurface*',

@@ -37,6 +37,8 @@ namespace OpenRCT2::Ui::Vulkan
         Buffer _objectRecords;
         Buffer _propCatalog;
         Buffer _trackCatalog;
+        Buffer _flatRideCatalog;
+        Buffer _entranceCatalog;
         Buffer _spriteSets;
         Buffer _catalog;
         Buffer _prefixes;

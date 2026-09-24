@@ -915,7 +915,7 @@ namespace OpenRCT2
             return;
 
         const auto& currentStation = curRide->getStation(curRide->currentTestStation);
-        if (!currentStation.entrance.isNull())
+        if (!currentStation.getEntrance().isNull())
         {
             uint8_t test_segment = curRide->currentTestSegment;
             StationIndex stationIndex = StationIndex::FromUnderlying(test_segment);
@@ -992,7 +992,7 @@ namespace OpenRCT2
         {
             curRide->curTestTrackLocation = curTrackLoc;
 
-            if (currentStation.entrance.isNull())
+            if (currentStation.getEntrance().isNull())
                 return;
 
             auto trackElemType = GetTrackType();
@@ -1180,7 +1180,7 @@ namespace OpenRCT2
             }
         }
 
-        if (currentStation.entrance.isNull())
+        if (currentStation.getEntrance().isNull())
             return;
 
         if (x == kLocationNull)

@@ -817,10 +817,10 @@ namespace OpenRCT2
         if (ride != nullptr && (state == PeepState::answering || state == PeepState::headingToInspection)
             && (ScenarioRand() & 1))
         {
-            auto location = ride->getStation(currentRideStation).exit;
+            auto location = ride->getStation(currentRideStation).getExit();
             if (location.isNull())
             {
-                location = ride->getStation(currentRideStation).entrance;
+                location = ride->getStation(currentRideStation).getEntrance();
             }
 
             direction = DirectionFromTo(CoordsXY(x, y), location.toCoordsXY());
@@ -898,10 +898,10 @@ namespace OpenRCT2
         {
             /* Find location of the exit for the target ride station
              * or if the ride has no exit, the entrance. */
-            TileCoordsXYZD location = ride->getStation(currentRideStation).exit;
+            TileCoordsXYZD location = ride->getStation(currentRideStation).getExit();
             if (location.isNull())
             {
-                location = ride->getStation(currentRideStation).entrance;
+                location = ride->getStation(currentRideStation).getEntrance();
 
                 // If no entrance is present either. This is an incorrect state.
                 if (location.isNull())
@@ -1452,7 +1452,7 @@ namespace OpenRCT2
             return;
         }
 
-        if (ride->getStation(currentRideStation).exit.isNull())
+        if (ride->getStation(currentRideStation).getExit().isNull())
         {
             ride->flags.unset(RideFlag::dueInspection);
             setState(PeepState::falling);
@@ -1506,7 +1506,7 @@ namespace OpenRCT2
 
             if (pathingResult & PATHING_RIDE_ENTRANCE)
             {
-                if (!ride->getStation(exitIndex).exit.isNull())
+                if (!ride->getStation(exitIndex).getExit().isNull())
                 {
                     return;
                 }
@@ -1611,7 +1611,7 @@ namespace OpenRCT2
 
             if (pathingResult & PATHING_RIDE_ENTRANCE)
             {
-                if (!ride->getStation(exitIndex).exit.isNull())
+                if (!ride->getStation(exitIndex).getExit().isNull())
                 {
                     return;
                 }
@@ -2688,10 +2688,10 @@ namespace OpenRCT2
     {
         if (!firstRun)
         {
-            auto stationPosition = ride.getStation(currentRideStation).exit.toCoordsXY();
+            auto stationPosition = ride.getStation(currentRideStation).getExit().toCoordsXY();
             if (stationPosition.isNull())
             {
-                stationPosition = ride.getStation(currentRideStation).entrance.toCoordsXY();
+                stationPosition = ride.getStation(currentRideStation).getEntrance().toCoordsXY();
 
                 if (stationPosition.isNull())
                 {
@@ -2768,10 +2768,10 @@ namespace OpenRCT2
     {
         if (!firstRun)
         {
-            auto exitPosition = ride.getStation(currentRideStation).exit.toCoordsXY();
+            auto exitPosition = ride.getStation(currentRideStation).getExit().toCoordsXY();
             if (exitPosition.isNull())
             {
-                exitPosition = ride.getStation(currentRideStation).entrance.toCoordsXY();
+                exitPosition = ride.getStation(currentRideStation).getEntrance().toCoordsXY();
 
                 if (exitPosition.isNull())
                 {

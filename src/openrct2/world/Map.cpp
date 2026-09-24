@@ -32,6 +32,8 @@
 #include "../interface/Viewport.h"
 #include "../object/BannerObject.h"
 #include "../object/BannerSceneryEntry.h"
+#include "../object/EntranceEntry.h"
+#include "../object/EntranceObject.h"
 #include "../object/FootpathObject.h"
 #include "../object/FootpathRailingsObject.h"
 #include "../object/FootpathSurfaceObject.h"
@@ -39,8 +41,10 @@
 #include "../object/LargeSceneryObject.h"
 #include "../object/ObjectManager.h"
 #include "../object/PathAdditionObject.h"
+#include "../object/RideObject.h"
 #include "../object/SmallSceneryEntry.h"
 #include "../object/SmallSceneryObject.h"
+#include "../object/StationObject.h"
 #include "../object/TerrainEdgeObject.h"
 #include "../object/TerrainSurfaceObject.h"
 #include "../object/WallObject.h"
@@ -308,29 +312,155 @@ namespace OpenRCT2
                 };
             }
         }
+        for (uint16_t slot = 0; slot < next->stations.size(); ++slot)
+        {
+            if (auto* object = manager.GetLoadedObject<StationObject>(slot))
+            {
+                auto& out = next->stations[slot];
+                out.imageBase = object->GetBaseImageId();
+                out.imageCount = object->GetNumImages();
+                out.image = object->baseImageIndex;
+                out.flags = object->Flags.holder;
+                out.entranceBack = object->entranceBackIndex;
+                out.entranceFront = object->entranceFrontIndex;
+                out.exitBack = object->exitBackIndex;
+                out.exitFront = object->exitFrontIndex;
+                out.entranceBackGlass = object->entranceBackGlassIndex;
+                out.entranceFrontGlass = object->entranceFrontGlassIndex;
+                out.exitBackGlass = object->exitBackGlassIndex;
+                out.exitFrontGlass = object->exitFrontGlassIndex;
+                out.shelter = object->shelterIndex;
+                out.shelterGlass = object->shelterGlassIndex;
+                out.height = object->Height;
+                out.scrollingMode = object->ScrollingMode;
+                out.present = true;
+            }
+        }
+        for (uint16_t slot = 0; slot < next->parkEntrances.size(); ++slot)
+        {
+            if (auto* object = manager.GetLoadedObject<EntranceObject>(slot))
+            {
+                const auto& source = *static_cast<const EntranceEntry*>(object->GetLegacyData());
+                next->parkEntrances[slot] = { object->GetBaseImageId(), object->GetNumImages(), source.image_id,
+                                              source.scrolling_mode,    source.text_height,     true };
+            }
+        }
+        for (uint16_t slot = 0; slot < next->rideObjects.size(); ++slot)
+        {
+            if (auto* object = manager.GetLoadedObject<RideObject>(slot))
+                next->rideObjects[slot] = { object->GetBaseImageId(), object->GetNumImages(),
+                                            object->GetEntry().Cars[0].baseImageId, true };
+        }
         captured = next;
         return captured;
     }
 
+    static bool WorldRideFactsMatch(const WorldRidePresentationRecord& held, const Ride& ride)
+    {
+        if (held.present != !ride.id.IsNull())
+            return false;
+        if (!held.present)
+            return true;
+        if (held.rideType != ride.type || held.objectSlot != ride.subtype || held.stationStyle != ride.entranceStyle
+            || held.vehicleColourSettings != static_cast<uint8_t>(ride.vehicleColourSettings)
+            || held.numStations != ride.numStations || held.numTrains != ride.numTrains)
+            return false;
+        // Styles are immutable functions of rideType. Compare live graphical facts without
+        // clearing/repopulating scratch records or copying their colour/station arrays.
+        for (size_t i = 0; i < held.trackColours.size(); ++i)
+        {
+            const auto& a = held.trackColours[i];
+            const auto& b = ride.trackColours[i];
+            if (a.main != static_cast<uint8_t>(b.main) || a.additional != static_cast<uint8_t>(b.additional)
+                || a.supports != static_cast<uint8_t>(b.supports))
+                return false;
+        }
+        for (size_t i = 0; i < held.vehicleColours.size(); ++i)
+        {
+            const auto& a = held.vehicleColours[i];
+            const auto& b = ride.vehicleColours[i];
+            if (a.body != static_cast<uint8_t>(b.Body) || a.trim != static_cast<uint8_t>(b.Trim)
+                || a.tertiary != static_cast<uint8_t>(b.Tertiary))
+                return false;
+        }
+        return true;
+    }
+
     static std::shared_ptr<const WorldRidePresentationMaterials> CaptureWorldRideMaterials(uint64_t epoch)
     {
+        PROFILED_FUNCTION();
         static std::shared_ptr<const WorldRidePresentationMaterials> captured;
-        static uint64_t capturedEpoch{}, capturedObjects{}, nextRevision{};
+        static uint64_t capturedEpoch{}, capturedObjects{}, capturedStations{}, nextRevision{};
         const auto& state = getGameState();
+        const auto objects = GetWorldObjectRevision();
+        const auto stationRevision = GetRideStationGraphicalRevision();
+        if (captured != nullptr && capturedEpoch == epoch && capturedObjects == objects && capturedStations == stationRevision
+            && captured->rides.size() == state.ridesEndOfUsedRange)
+        {
+            size_t i = 0;
+            while (i < captured->rides.size() && WorldRideFactsMatch(captured->rides[i], state.rides[i]))
+                ++i;
+            if (i == captured->rides.size())
+                return captured;
+        }
         // Bounded ride facts comparison: no map walk or per-tile colour/image resolution.
         // Preserve the held table when no graphical fact changed.
         static std::vector<WorldRidePresentationRecord> facts;
-        facts.assign(state.ridesEndOfUsedRange, {});
+        facts.resize(state.ridesEndOfUsedRange);
         for (size_t i = 0; i < facts.size(); ++i)
         {
+            auto& out = facts[i];
+            // Reuse station storage on ordinary boundaries; only the published generation owns a new copy.
+            auto stationStorage = std::move(out.stations);
+            out = {};
+            out.stations = std::move(stationStorage);
+            out.stations.clear();
             const auto& ride = state.rides[i];
             if (ride.id.IsNull())
                 continue;
-            auto& out = facts[i];
             out.present = true;
             out.rideType = ride.type;
             out.objectSlot = ride.subtype;
             out.stationStyle = ride.entranceStyle;
+            out.vehicleColourSettings = static_cast<uint8_t>(ride.vehicleColourSettings);
+            out.numStations = ride.numStations;
+            out.numTrains = ride.numTrains;
+            for (size_t colour = 0; colour < out.vehicleColours.size(); ++colour)
+                out.vehicleColours[colour] = { static_cast<uint8_t>(ride.vehicleColours[colour].Body),
+                                               static_cast<uint8_t>(ride.vehicleColours[colour].Trim),
+                                               static_cast<uint8_t>(ride.vehicleColours[colour].Tertiary) };
+            const auto stations = ride.getStations();
+            size_t usedStations = stations.size();
+            while (usedStations != 0 && stations[usedStations - 1].getStartXY().isNull()
+                   && stations[usedStations - 1].getEntrance().isNull() && stations[usedStations - 1].getExit().isNull())
+                --usedStations;
+            out.stations.resize(usedStations);
+            for (size_t station = 0; station < usedStations; ++station)
+            {
+                const auto& source = stations[station];
+                auto& target = out.stations[station];
+                target.startValid = !source.getStartXY().isNull();
+                target.entranceValid = !source.getEntrance().isNull();
+                target.exitValid = !source.getExit().isNull();
+                if (target.startValid)
+                {
+                    target.startX = source.getStartXY().x;
+                    target.startY = source.getStartXY().y;
+                    target.startZ = source.getBaseZ();
+                }
+                if (target.entranceValid)
+                {
+                    target.entranceX = source.getEntrance().x;
+                    target.entranceY = source.getEntrance().y;
+                    target.entranceZ = source.getEntrance().z;
+                }
+                if (target.exitValid)
+                {
+                    target.exitX = source.getExit().x;
+                    target.exitY = source.getExit().y;
+                    target.exitZ = source.getExit().z;
+                }
+            }
             const auto& type = GetRideTypeDescriptor(ride.type);
             out.regularStyle = static_cast<uint16_t>(getTrackDrawerEntry(type).trackStyle);
             out.invertedStyle = static_cast<uint16_t>(getTrackDrawerEntry(type, true).trackStyle);
@@ -341,9 +471,11 @@ namespace OpenRCT2
                                              static_cast<uint8_t>(ride.trackColours[colour].additional),
                                              static_cast<uint8_t>(ride.trackColours[colour].supports) };
         }
-        const auto objects = GetWorldObjectRevision();
         if (captured != nullptr && capturedEpoch == epoch && capturedObjects == objects && captured->rides == facts)
+        {
+            capturedStations = stationRevision;
             return captured;
+        }
         auto next = std::make_shared<WorldRidePresentationMaterials>();
         if (nextRevision == UINT64_MAX)
             throw std::overflow_error("Ride graphical revision exhausted");
@@ -352,6 +484,7 @@ namespace OpenRCT2
         captured = next;
         capturedEpoch = epoch;
         capturedObjects = objects;
+        capturedStations = stationRevision;
         return captured;
     }
 
@@ -418,6 +551,20 @@ namespace OpenRCT2
                     out.objectSlot = banner->type;
                     out.primaryColour = static_cast<uint8_t>(banner->colour);
                 }
+                break;
+            }
+            case TileElementType::entrance:
+            {
+                const auto& source = *element.asEntrance();
+                out.kind = WorldObjectKind::entrance;
+                out.entranceType = static_cast<uint8_t>(source.getEntranceType());
+                out.objectSlot = source.getEntryIndex();
+                out.rideId = source.getRideIndex().ToUnderlying();
+                out.stationIndex = source.getStationIndex().ToUnderlying();
+                out.sequence = static_cast<uint16_t>(source.getSequenceIndex());
+                out.pathSurfaceSlot = source.hasLegacyPathEntry() ? source.getLegacyPathEntryIndex()
+                                                                  : source.getSurfaceEntryIndex();
+                out.flags |= source.hasLegacyPathEntry() ? legacyPath : 0;
                 break;
             }
             case TileElementType::track:
@@ -559,18 +706,22 @@ namespace OpenRCT2
             if (source == nullptr)
                 return; // Publish absence as well as presence when a tile disappears.
             const TileElement* surface = nullptr;
+            const auto* firstElement = source;
+            bool hasTrack = false;
             const bool singleElement = source->isLastForTile();
             uint32_t ordinal = 0;
             do
             {
                 if (source->getType() == TileElementType::path)
                     change.paths.push_back(CapturePathRecord(*source->asPath(), ordinal));
+                hasTrack |= source->getType() == TileElementType::track;
                 switch (source->getType())
                 {
                     case TileElementType::smallScenery:
                     case TileElementType::largeScenery:
                     case TileElementType::wall:
                     case TileElementType::banner:
+                    case TileElementType::entrance:
                     case TileElementType::track:
                         change.objects.push_back(CaptureWorldObjectRecord(*source, ordinal));
                         break;
@@ -584,6 +735,31 @@ namespace OpenRCT2
                     change.elements.push_back(*source);
 
             } while (!(source++)->isLastForTile());
+            if (hasTrack)
+            {
+                // Raw topology facts for tower caps, including hidden/ghost elements and categories not rendered yet.
+                // Original Observation Tower/Freefall inspect the immediate successor; Roto Drop examines every successor.
+                // The height domain is uint8, so one reverse pass needs no allocation and no quadratic suffix scans.
+                std::bitset<256> laterBaseHeights;
+                size_t objectIndex = change.objects.size();
+                for (const auto* cursor = source; cursor != firstElement;)
+                {
+                    --cursor;
+                    --ordinal;
+                    if (objectIndex != 0 && change.objects[objectIndex - 1].elementOrdinal == ordinal)
+                    {
+                        auto& record = change.objects[--objectIndex];
+                        if (record.kind == WorldObjectKind::track)
+                        {
+                            if (cursor + 1 != source && cursor->clearanceHeight == (cursor + 1)->baseHeight)
+                                record.flags |= WorldObjectPresentationFlags::nextElementAtClearance;
+                            if (laterBaseHeights[cursor->clearanceHeight])
+                                record.flags |= WorldObjectPresentationFlags::anyLaterElementAtClearance;
+                        }
+                    }
+                    laterBaseHeights.set(cursor->baseHeight);
+                }
+            }
             change.surface.requiresCategoryInterleaving = !singleElement;
             if (surface == nullptr || surface->isInvisible() || surface->isGhost())
                 return;
@@ -830,14 +1006,14 @@ namespace OpenRCT2
             objectUsage = std::make_shared<WorldObjectPresentationUsage>();
         }
         const auto changeObjectOccurrence = [&](const WorldObjectPresentationRecord& record, bool add) {
-            const auto kind = static_cast<uint32_t>(record.kind);
-            if (kind >= WorldObjectPresentationUsage::kKinds || record.objectSlot >= WorldObjectPresentationUsage::kSlots)
-                return; // Track uses its separate ride catalog; absent/malformed object slots have no asset dependency.
+            const auto [kind, slot] = WorldObjectPresentationUsage::Reference(record);
+            if (kind >= WorldObjectPresentationUsage::kKinds || slot >= WorldObjectPresentationUsage::kSlots)
+                return; // Absent/malformed references have no asset dependency.
             if (objectOccurrences == nullptr)
                 objectOccurrences = std::make_shared<ObjectOccurrenceCounts>(*_objectOccurrences);
             if (objectUsage == nullptr)
                 objectUsage = std::make_shared<WorldObjectPresentationUsage>(*_objectUsage);
-            auto& count = (*objectOccurrences)[kind][record.objectSlot];
+            auto& count = (*objectOccurrences)[kind][slot];
             if (add)
             {
                 if (count == UINT32_MAX)
@@ -850,7 +1026,7 @@ namespace OpenRCT2
                     throw std::logic_error("World object occurrence count underflow");
                 --count;
             }
-            objectUsage->slots[kind].set(record.objectSlot, count != 0);
+            objectUsage->slots[kind].set(slot, count != 0);
         };
         std::array<const std::vector<WorldObjectPresentationRecord>*, kChunkWidth> objectReplacements{};
         size_t objectChunkIndex = std::numeric_limits<size_t>::max();
@@ -870,7 +1046,9 @@ namespace OpenRCT2
                     && (range.count == 0
                         || std::equal(
                             replacement->begin(), replacement->end(), old->records.begin() + range.first,
-                            [](const auto& a, const auto& b) { return a.kind == b.kind && a.objectSlot == b.objectSlot; }));
+                            [](const auto& a, const auto& b) {
+                                return WorldObjectPresentationUsage::Reference(a) == WorldObjectPresentationUsage::Reference(b);
+                            }));
                 if (!sameReferences)
                 {
                     for (uint32_t i = 0; i < range.count; ++i)
@@ -3290,9 +3468,15 @@ namespace OpenRCT2
             auto stations = ride.getStations();
             for (auto& station : stations)
             {
-                shiftIfNotNull(station.start, amountToMove);
-                shiftIfNotNull(station.entrance, amount);
-                shiftIfNotNull(station.exit, amount);
+                auto start = station.getStartXY();
+                auto entrance = station.getEntrance();
+                auto exit = station.getExit();
+                shiftIfNotNull(start, amountToMove);
+                shiftIfNotNull(entrance, amount);
+                shiftIfNotNull(exit, amount);
+                station.setStart(start);
+                station.setEntrance(entrance);
+                station.setExit(exit);
             }
 
             shiftIfNotNull(ride.overallView, amountToMove);

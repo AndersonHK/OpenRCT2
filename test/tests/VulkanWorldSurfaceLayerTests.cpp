@@ -180,7 +180,7 @@ TEST_F(VulkanWorldSurfaceLayerTest, RawFactsSelectImagesAndRenderCliffWaterLayer
 {
     Run(true); // Abandon the first catalog/chunk upload: the next accepted frame must resend it.
     const auto first = Run();
-    EXPECT_EQ(first.worldBufferCopyCalls, 3u);
+    EXPECT_EQ(first.worldBufferCopyCalls, 5u); // Includes two cleared absent building-catalog headers.
     EXPECT_EQ(Pixel(18, 40), 27); // Original20 filtered by mask row7.
     EXPECT_EQ(Pixel(16, 40), 99); // Opaque ripple overlay, after the filter.
     EXPECT_EQ(Pixel(18, 64), 20); // Terrain outside the water sprite.

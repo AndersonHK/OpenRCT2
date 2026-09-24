@@ -192,8 +192,7 @@ void TrackDesign::NormaliseMazeOperationSetting()
     maze.type = RIDE_TYPE_MAZE;
     maze.mazeTiles = static_cast<uint16_t>(
         std::min<size_t>(mazeElements.size(), std::numeric_limits<decltype(maze.mazeTiles)>::max()));
-    operation.operationSetting = static_cast<uint8_t>(
-        maze.getClosestMazeCapacityModeForCapacity(operation.operationSetting));
+    operation.operationSetting = static_cast<uint8_t>(maze.getClosestMazeCapacityModeForCapacity(operation.operationSetting));
 }
 
 ResultWithMessage TrackDesign::CreateTrackDesignTrack(TrackDesignState& tds, const Ride& ride)
@@ -297,11 +296,11 @@ ResultWithMessage TrackDesign::CreateTrackDesignTrack(TrackDesignState& tds, con
             TileCoordsXYZD location;
             if (i == 0)
             {
-                location = station.entrance;
+                location = station.getEntrance();
             }
             else
             {
-                location = station.exit;
+                location = station.getExit();
             }
 
             if (location.isNull())
@@ -412,7 +411,7 @@ ResultWithMessage TrackDesign::CreateTrackDesignMaze(TrackDesignState& tds, cons
         x = 0;
     }
 
-    auto location = ride.getStation().entrance;
+    auto location = ride.getStation().getEntrance();
     if (location.isNull())
     {
         return { false, STR_TRACK_TOO_LARGE_OR_TOO_MUCH_SCENERY };
@@ -439,7 +438,7 @@ ResultWithMessage TrackDesign::CreateTrackDesignMaze(TrackDesignState& tds, cons
     mazeEntrance.isExit = false;
     entranceElements.push_back(mazeEntrance);
 
-    location = ride.getStation().exit;
+    location = ride.getStation().getExit();
     if (location.isNull())
     {
         return { false, STR_TRACK_TOO_LARGE_OR_TOO_MUCH_SCENERY };
@@ -2124,7 +2123,10 @@ void TrackDesignDrawPreview(TrackDesign& td, TrackDesignPreviewBuffer& pixels, b
     struct RestorePreviewMap
     {
         Ride* ride{};
-        RestorePreviewMap() { StashMap(); }
+        RestorePreviewMap()
+        {
+            StashMap();
+        }
         ~RestorePreviewMap()
         {
             if (ride != nullptr)
@@ -2212,8 +2214,8 @@ void TrackDesignDrawPreview(TrackDesign& td, TrackDesignPreviewBuffer& pixels, b
         if (!session)
             throw RenderServiceException({ RenderErrorCode::creationFailed, "Track preview has no render session" });
         auto& rt = session->GetRenderTarget();
-        if (rt.x != 0 || rt.y != 0 || rt.width != 370 || rt.height != 217 || rt.bits == nullptr
-            || rt.DrawingEngine == nullptr || rt.pitch < 0)
+        if (rt.x != 0 || rt.y != 0 || rt.width != 370 || rt.height != 217 || rt.bits == nullptr || rt.DrawingEngine == nullptr
+            || rt.pitch < 0)
             throw RenderServiceException({ RenderErrorCode::executionFailed, "Track preview render target differs" });
         ViewportRender(rt, &view);
         auto completion = session->Submit();

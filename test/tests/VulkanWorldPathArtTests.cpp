@@ -177,8 +177,8 @@ TEST_F(VulkanWorldPathArtTest, ImportedOriginalArtMatchesExternalUpstreamCorpus)
         const G::Extent extent{ entry.at("width"), entry.at("height") };
         ASSERT_GT(extent.width, 0u);
         ASSERT_GT(extent.height, 0u);
-        ASSERT_LE(extent.width, 2048u);
-        ASSERT_LE(extent.height, 2048u);
+        ASSERT_LE(extent.width, 3840u);
+        ASSERT_LE(extent.height, 2160u);
         std::vector<D::PaletteIndex> addressSpace(static_cast<size_t>(extent.width) * extent.height);
         D::RenderTarget target{ .bits = addressSpace.data(),
                                 .width = static_cast<int32_t>(extent.width),
@@ -188,7 +188,8 @@ TEST_F(VulkanWorldPathArtTest, ImportedOriginalArtMatchesExternalUpstreamCorpus)
         G::FrameCommandStream commands;
         cache->BeginFrame();
         drawing.Begin(commands);
-        drawing.Clear(target, static_cast<D::PaletteIndex>(0));
+        // Match ViewportRender's world background, including off-map pixels.
+        drawing.Clear(target, D::PaletteIndex::pi10);
         const OrthographicCamera camera{ .viewX = entry.at("viewX"),
                                          .viewY = entry.at("viewY"),
                                          .clipRight = static_cast<int32_t>(extent.width),
@@ -202,7 +203,7 @@ TEST_F(VulkanWorldPathArtTest, ImportedOriginalArtMatchesExternalUpstreamCorpus)
         V::FrameExecutor executor;
         executor.Initialise(device, extent, shaderEnv, 1);
         executor.SetRemapPalette(G::BuildRemapPalette());
-        V::SubmissionSlots slots(device, 64 * 1024 * 1024, 1);
+        V::SubmissionSlots slots(device, G::kDefaultUploadRingBytes, 1);
         const auto token = slots.Begin(0, true);
         ASSERT_TRUE(token.has_value());
         const auto rendered = executor.Record(*token, commands);

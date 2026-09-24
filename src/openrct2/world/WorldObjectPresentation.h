@@ -2,6 +2,7 @@
  * Copyright (c) 2014-2026 OpenRCT2 developers. GPL-3.0-or-later.
  *****************************************************************************/
 #pragma once
+#include "../Limits.h"
 #include "../object/ObjectLimits.h"
 
 #include <array>
@@ -9,6 +10,7 @@
 #include <bitset>
 #include <cstdint>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 namespace OpenRCT2
@@ -19,13 +21,15 @@ namespace OpenRCT2
         largeScenery,
         wall,
         banner,
-        track
+        track,
+        entrance
     };
     namespace WorldObjectPresentationFlags
     {
         constexpr uint32_t ghost = 1 << 0, invisible = 1 << 1, needsSupports = 1 << 2, wallAnimating = 1 << 3,
                            wallBackwards = 1 << 4, wallAcrossTrack = 1 << 5, chain = 1 << 6, cable = 1 << 7, inverted = 1 << 8,
-                           brakeClosed = 1 << 9, greenLight = 1 << 10, highlight = 1 << 11;
+                           brakeClosed = 1 << 9, greenLight = 1 << 10, highlight = 1 << 11, legacyPath = 1 << 12,
+                           nextElementAtClearance = 1 << 13, anyLaterElementAtClearance = 1 << 14;
     }
     // Immutable raw graphical state. Tile coordinates come from the owning tile range; no chosen image or quad.
     struct WorldObjectPresentationRecord
@@ -33,11 +37,11 @@ namespace OpenRCT2
         int32_t baseZ{}, clearanceZ{};
         uint32_t elementOrdinal{}, flags{};
         uint16_t objectSlot{ UINT16_MAX }, bannerId{ UINT16_MAX }, trackType{}, rideType{}, rideId{ UINT16_MAX }, mazeEntry{},
-            sequence{};
+            sequence{}, pathSurfaceSlot{ UINT16_MAX };
         WorldObjectKind kind{};
         uint8_t direction{}, quadrant{}, age{}, primaryColour{}, secondaryColour{}, tertiaryColour{}, animationFrame{}, slope{},
             position{}, allowedEdges{}, colourScheme{}, stationIndex{}, brakeBoosterSpeed{}, photoTimeout{}, seatRotation{},
-            doorA{}, doorB{};
+            doorA{}, doorB{}, entranceType{};
         bool operator==(const WorldObjectPresentationRecord&) const = default;
     };
     struct WorldObjectPresentationTileRange
@@ -77,14 +81,49 @@ namespace OpenRCT2
         uint8_t flags{}, scrollingMode{};
         bool present{};
     };
+    struct StationPresentationMaterial
+    {
+        uint32_t imageBase{}, imageCount{}, image{ UINT32_MAX }, flags{};
+        uint32_t entranceBack{ UINT32_MAX }, entranceFront{ UINT32_MAX }, exitBack{ UINT32_MAX }, exitFront{ UINT32_MAX };
+        uint32_t entranceBackGlass{ UINT32_MAX }, entranceFrontGlass{ UINT32_MAX }, exitBackGlass{ UINT32_MAX },
+            exitFrontGlass{ UINT32_MAX };
+        uint32_t shelter{ UINT32_MAX }, shelterGlass{ UINT32_MAX };
+        int32_t height{};
+        uint8_t scrollingMode{};
+        bool present{};
+    };
+    struct ParkEntrancePresentationMaterial
+    {
+        uint32_t imageBase{}, imageCount{}, image{};
+        uint8_t scrollingMode{}, textHeight{};
+        bool present{};
+    };
+    struct RideObjectPresentationMaterial
+    {
+        uint32_t imageBase{}, imageCount{}, carBaseImage{};
+        bool present{};
+    };
     struct WorldObjectPresentationUsage
     {
-        static constexpr size_t kKinds = 4;
+        static constexpr size_t kKinds = 7;
         static constexpr size_t kSlots = 2048;
         std::array<std::bitset<kSlots>, kKinds> slots{};
         [[nodiscard]] bool Contains(uint32_t kind, uint32_t slot) const noexcept
         {
             return kind < kKinds && slot < kSlots && slots[kind][slot];
+        }
+        // Families 4 and 6 are track and ride-entrance dependencies keyed by ride ID.
+        [[nodiscard]] bool ContainsRide(uint32_t rideId) const noexcept
+        {
+            return Contains(4, rideId) || Contains(6, rideId);
+        }
+        static std::pair<uint32_t, uint32_t> Reference(const WorldObjectPresentationRecord& record) noexcept
+        {
+            if (record.kind == WorldObjectKind::track)
+                return { 4, record.rideId };
+            if (record.kind == WorldObjectKind::entrance && record.entranceType != 2)
+                return { 6, record.rideId };
+            return { static_cast<uint32_t>(record.kind), record.objectSlot };
         }
         bool operator==(const WorldObjectPresentationUsage&) const = default;
     };
@@ -95,11 +134,26 @@ namespace OpenRCT2
         std::array<LargeSceneryPresentationMaterial, kMaxLargeSceneryObjects> largeScenery;
         std::array<WallPresentationMaterial, kMaxWallSceneryObjects> walls;
         std::array<BannerPresentationMaterial, kMaxBannerObjects> banners;
+        std::array<StationPresentationMaterial, kMaxStationObjects> stations;
+        std::array<ParkEntrancePresentationMaterial, kMaxParkEntranceObjects> parkEntrances;
+        std::array<RideObjectPresentationMaterial, kMaxRideObjects> rideObjects;
     };
     struct WorldTrackColour
     {
         uint8_t main{}, additional{}, supports{};
         bool operator==(const WorldTrackColour&) const = default;
+    };
+    struct WorldVehicleColour
+    {
+        uint8_t body{}, trim{}, tertiary{};
+        bool operator==(const WorldVehicleColour&) const = default;
+    };
+    struct WorldRideStation
+    {
+        int32_t startX{}, startY{}, startZ{};                                     // world units
+        int32_t entranceX{}, entranceY{}, entranceZ{}, exitX{}, exitY{}, exitZ{}; // tile units
+        bool startValid{}, entranceValid{}, exitValid{};
+        bool operator==(const WorldRideStation&) const = default;
     };
     struct WorldRidePresentationRecord
     {
@@ -107,6 +161,11 @@ namespace OpenRCT2
         uint16_t regularStyle{}, invertedStyle{}, coveredStyle{}, coveredInvertedStyle{};
         bool present{};
         std::array<WorldTrackColour, 4> trackColours{};
+        uint8_t vehicleColourSettings{}, numStations{}, numTrains{};
+        // Static flat-ride bodies consume exactly four colour schemes (including Space Rings).
+        // Moving vehicle colours belong to their future entity publication, not this world catalogue.
+        std::array<WorldVehicleColour, 4> vehicleColours{};
+        std::vector<WorldRideStation> stations;
         bool operator==(const WorldRidePresentationRecord&) const = default;
     };
     struct WorldRidePresentationMaterials

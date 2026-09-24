@@ -242,7 +242,7 @@ TEST_F(VulkanWorldPathLayerTest, PathsMergeWithTerrainAndWaterByHeightAndRetryAb
     Paths({ under, submerged, above });
     Run(true);
     const auto first = Run();
-    EXPECT_EQ(first.worldBufferCopyCalls, 4u);
+    EXPECT_EQ(first.worldBufferCopyCalls, 6u); // Includes two cleared absent building-catalog headers.
     EXPECT_EQ(Pixel(18, 40), 140); // Water must not tint the higher queue.
     EXPECT_EQ(Pixel(18, 52), 87);  // Submerged path80 filtered by water row7.
     EXPECT_EQ(Pixel(18, 68), 20);  // Surface hides the lower path.

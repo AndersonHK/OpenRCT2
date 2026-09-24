@@ -7,9 +7,38 @@
 
 namespace PathRules
 {
-#include "../../data/shaders/vulkan/world_path_rules.glsl"
+#include "../../data/shaders/vulkan/world_path_order.glsl"
 }
 using namespace PathRules;
+
+TEST(WorldPathRulesTest, BoundedComponentOrderingPreservesEveryParentAcrossDegenerateAndOverlappingBounds)
+{
+    uint32_t state = 0x72ad3019;
+    const auto next = [&]() { return state = state * 1664525u + 1013904223u; };
+    for (int sample = 0; sample < 10000; ++sample)
+    {
+        WorldPathPart parts[12]{};
+        const int count = 1 + next() % 12;
+        for (int i = 0; i < count; ++i)
+            parts[i] = worldPathPart(
+                i, 0, 0, 0, next() % 33, next() % 33, static_cast<int>(next() % 257) - 64, next() % 65, next() % 65,
+                next() % 257);
+        for (int rotation = 0; rotation < 4; ++rotation)
+        {
+            const auto order = worldPathOrder(parts, count, rotation);
+            ASSERT_EQ(order.count, count) << "sample=" << sample << " rotation=" << rotation;
+            uint32_t seen = 0;
+            for (int i = 0; i < count; ++i)
+            {
+                ASSERT_GE(order.indices[i], 0);
+                ASSERT_LT(order.indices[i], count);
+                EXPECT_EQ(seen & (1u << order.indices[i]), 0u);
+                seen |= 1u << order.indices[i];
+            }
+            EXPECT_EQ(seen, (1u << count) - 1u);
+        }
+    }
+}
 
 // Independently retained CPU painter table. oracle-ui-source-02 Paint.Path.cpp
 // SHA256 5ba44b2df3d5dd87262a4d50672c6065817026366fb5a54af06248acd40859a1.

@@ -1773,13 +1773,24 @@ namespace OpenRCT2
                     // Stations
                     cs.readWrite(ride.numStations);
                     cs.readWriteArray(ride.getStations(), [&cs, version](RideStation& station) {
-                        cs.readWrite(station.start);
-                        cs.readWrite(station.height);
+                        auto start = station.getStartXY();
+                        auto height = station.getHeight();
+                        auto entrance = station.getEntrance();
+                        auto exit = station.getExit();
+                        cs.readWrite(start);
+                        cs.readWrite(height);
                         cs.readWrite(station.length);
                         cs.readWrite(station.depart);
                         cs.readWrite(station.trainAtStation);
-                        cs.readWrite(station.entrance);
-                        cs.readWrite(station.exit);
+                        cs.readWrite(entrance);
+                        cs.readWrite(exit);
+                        if (cs.getMode() == OrcaStream::Mode::reading)
+                        {
+                            station.setStart(start);
+                            station.setHeight(height);
+                            station.setEntrance(entrance);
+                            station.setExit(exit);
+                        }
                         cs.readWrite(station.segmentLength);
                         MigrateLegacyRideLength(cs, station.segmentLength, version);
                         cs.readWrite(station.segmentTime);
@@ -2179,7 +2190,7 @@ namespace OpenRCT2
                 if (const auto* ride = GetRide(guest->currentRide);
                     ride != nullptr && guest->currentRideStation.ToUnderlying() < ride->numStations)
                 {
-                    const auto exit = ride->getStation(guest->currentRideStation).exit;
+                    const auto exit = ride->getStation(guest->currentRideStation).getExit();
                     if (!exit.isNull() && exit.direction < kNumOrthogonalDirections)
                     {
                         destinationX = static_cast<uint16_t>(
@@ -2435,8 +2446,8 @@ namespace OpenRCT2
                     ReadWriteFields(
                         cs, guest->amountOfFood, guest->amountOfDrinks, guest->amountOfSouvenirs, guest->vandalismSeen,
                         guest->voucherType, guest->voucherRideId, guest->surroundingsThoughtTimeout, guest->angriness,
-                        guest->timeLost, guest->daysInQueue, balloon, umbrella, hat,
-                        guest->favouriteRide, guest->favouriteRideRating);
+                        guest->timeLost, guest->daysInQueue, balloon, umbrella, hat, guest->favouriteRide,
+                        guest->favouriteRideRating);
                     if (cs.getMode() == OrcaStream::Mode::reading)
                         guest->setAccessoryColours(balloon, umbrella, hat);
                 }
@@ -2780,8 +2791,8 @@ namespace OpenRCT2
         ReadWriteFields(
             cs, guest.litterCount, guest.disgustingCount, guest.amountOfFood, guest.amountOfDrinks, guest.amountOfSouvenirs,
             guest.vandalismSeen, guest.voucherType, guest.voucherRideId, guest.surroundingsThoughtTimeout, guest.angriness,
-            guest.timeLost, guest.daysInQueue, balloon, umbrella, hat, guest.favouriteRide,
-            guest.favouriteRideRating, guest.itemFlags);
+            guest.timeLost, guest.daysInQueue, balloon, umbrella, hat, guest.favouriteRide, guest.favouriteRideRating,
+            guest.itemFlags);
         if (cs.getMode() == OrcaStream::Mode::reading)
             guest.setAccessoryColours(balloon, umbrella, hat);
     }

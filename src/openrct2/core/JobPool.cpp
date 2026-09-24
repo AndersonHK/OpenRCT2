@@ -9,6 +9,8 @@
 
 #include "JobPool.h"
 
+#include "../profiling/Profiling.h"
+
 #include <algorithm>
 #include <cassert>
 #include <stdexcept>
@@ -99,8 +101,7 @@ void JobPool::EnqueueTask(
         {
             throw std::logic_error("Cannot submit work to a stopped JobPool");
         }
-        _pending[static_cast<size_t>(priority)].push_back(
-            { std::move(workFn), std::move(completionFn), {}, std::move(group) });
+        _pending[static_cast<size_t>(priority)].push_back({ std::move(workFn), std::move(completionFn), {}, std::move(group) });
     }
     _condPending.notify_one();
 }
@@ -150,6 +151,7 @@ void JobPool::AddTask(TaskGroup& group, std::function<void()> workFn, TaskPriori
 
 void JobPool::Wait(TaskGroup& group)
 {
+    PROFILED_FUNCTION();
     if (group._owner != this || group._state == nullptr)
     {
         throw std::invalid_argument("Task group does not belong to this JobPool");
@@ -287,6 +289,30 @@ void JobPool::ParallelFor(
     catch (...)
     {
         firstError = std::current_exception();
+    }
+
+    if (nextIndex.load(std::memory_order_relaxed) >= count)
+    {
+        // All indices are claimed. Consumers still in the queue can only discover
+        // that there is no work. Retire them here instead of waiting for unrelated
+        // busy workers to wake just to run these empty closures. Already running
+        // consumers remain in the group and must complete before stack captures die.
+        size_t removed = 0;
+        {
+            std::scoped_lock lock(_mutex);
+            for (auto& queue : _pending)
+                removed += std::erase_if(queue, [&](const auto& task) { return task.Group == group._state; });
+            if (removed != 0)
+                _condComplete.notify_all();
+        }
+        if (removed != 0)
+        {
+            std::scoped_lock lock(group._state->Mutex);
+            assert(group._state->Remaining >= removed);
+            group._state->Remaining -= removed;
+            if (group._state->Remaining == 0)
+                group._state->Complete.notify_all();
+        }
     }
 
     try

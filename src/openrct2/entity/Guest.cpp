@@ -1632,7 +1632,8 @@ namespace OpenRCT2
                 guest.setBalloonColour(hasRandomShopColour ? Drawing::getRandomColourNetworkSafe() : ride.trackColours[0].main);
                 break;
             case ShopItem::umbrella:
-                guest.setUmbrellaColour(hasRandomShopColour ? Drawing::getRandomColourNetworkSafe() : ride.trackColours[0].main);
+                guest.setUmbrellaColour(
+                    hasRandomShopColour ? Drawing::getRandomColourNetworkSafe() : ride.trackColours[0].main);
                 break;
             case ShopItem::map:
                 guest.resetPathfindGoal();
@@ -2755,13 +2756,13 @@ namespace OpenRCT2
     {
         const bool admissionPaid = rideSubState == PeepRideSubState::atEntrancePaid;
         const auto& station = ride.getStation(currentRideStation);
-        if (station.entrance.isNull())
+        if (station.getEntrance().isNull())
         {
             removeFromQueue();
             return;
         }
 
-        auto location = station.entrance.toCoordsXYZD().toTileCentre();
+        auto location = station.getEntrance().toCoordsXYZD().toTileCentre();
         int16_t x_shift = DirectionOffsets[location.direction].x;
         int16_t y_shift = DirectionOffsets[location.direction].y;
 
@@ -3459,7 +3460,7 @@ namespace OpenRCT2
             auto* ride = GetRide(rideId);
             if (ride == nullptr)
                 continue;
-            const auto rideLocation = ride->getStation().start;
+            const auto rideLocation = ride->getStation().getStartXY();
             const auto distance = abs(rideLocation.x - guest.x) + abs(rideLocation.y - guest.y);
             if (distance >= closestRideDistance || (maximumWalkingDistance.has_value() && distance > *maximumWalkingDistance))
             {
@@ -3497,7 +3498,7 @@ namespace OpenRCT2
         {
             for (const auto& ride : RideManager(getGameState()))
             {
-                const auto location = ride.getStation().start;
+                const auto location = ride.getStation().getStartXY();
                 const auto distance = abs(location.x - guest.x) + abs(location.y - guest.y);
                 if (predicate(ride) && distance <= *maximumWalkingDistance)
                 {
@@ -3828,7 +3829,7 @@ namespace OpenRCT2
                 if (xy_distance < 16)
                 {
                     const auto& station = ride->getStation(currentRideStation);
-                    auto entrance = station.entrance.toCoordsXYZ();
+                    auto entrance = station.getEntrance().toCoordsXYZ();
                     actionZ = entrance.z + 2;
                 }
                 moveTo({ loc.value(), actionZ });
@@ -4017,11 +4018,11 @@ namespace OpenRCT2
     void Guest::updateRideLeaveEntranceWaypoints(const Ride& ride)
     {
         const auto& station = ride.getStation(currentRideStation);
-        if (station.entrance.isNull())
+        if (station.getEntrance().isNull())
         {
             return;
         }
-        uint8_t direction_entrance = station.entrance.direction;
+        uint8_t direction_entrance = station.getEntrance().direction;
 
         TileElement* tile_element = RideGetStationStartTrackElement(ride, currentRideStation);
 
@@ -4128,7 +4129,7 @@ namespace OpenRCT2
         if (ride->getRideTypeDescriptor().flags.has(RtdFlag::noVehicles))
         {
             const auto& station = ride->getStation(currentRideStation);
-            auto entranceLocation = station.entrance.toCoordsXYZD();
+            auto entranceLocation = station.getEntrance().toCoordsXYZD();
             if (entranceLocation.isNull())
             {
                 return;
@@ -4218,7 +4219,7 @@ namespace OpenRCT2
         guest.moveTo({ x, y, z });
 
         Guard::Assert(guest.currentRideStation.ToUnderlying() < Limits::kMaxStationsPerRide);
-        auto exit = ride.getStation(guest.currentRideStation).exit;
+        auto exit = ride.getStation(guest.currentRideStation).getExit();
         x = exit.x;
         y = exit.y;
         x *= 32;
@@ -4315,7 +4316,7 @@ namespace OpenRCT2
      */
     static void PeepUpdateRideNoFreeVehicleRejoinQueue(Guest& guest, Ride& ride)
     {
-        TileCoordsXYZD entranceLocation = ride.getStation(guest.currentRideStation).entrance;
+        TileCoordsXYZD entranceLocation = ride.getStation(guest.currentRideStation).getEntrance();
 
         int32_t x = entranceLocation.x * 32;
         int32_t y = entranceLocation.y * 32;
@@ -4340,18 +4341,18 @@ namespace OpenRCT2
         if (currentRideStation.ToUnderlying() < ride.numStations)
         {
             const auto& station = ride.getStation(currentRideStation);
-            if (preferQueue && !station.entrance.isNull() && station.entrance.direction < kNumOrthogonalDirections)
+            if (preferQueue && !station.getEntrance().isNull() && station.getEntrance().direction < kNumOrthogonalDirections)
             {
                 PeepUpdateRideNoFreeVehicleRejoinQueue(*this, ride);
                 return;
             }
-            if (!station.exit.isNull() && station.exit.direction < kNumOrthogonalDirections)
+            if (!station.getExit().isNull() && station.getExit().direction < kNumOrthogonalDirections)
             {
                 setState(PeepState::leavingRide);
-                PeepGoToRideExit(*this, ride, x, y, station.getBaseZ(), station.exit.direction);
+                PeepGoToRideExit(*this, ride, x, y, station.getBaseZ(), station.getExit().direction);
                 return;
             }
-            if (!station.entrance.isNull() && station.entrance.direction < kNumOrthogonalDirections)
+            if (!station.getEntrance().isNull() && station.getEntrance().direction < kNumOrthogonalDirections)
             {
                 PeepUpdateRideNoFreeVehicleRejoinQueue(*this, ride);
                 return;
@@ -4695,7 +4696,7 @@ namespace OpenRCT2
 
         if (!carEntry->flags.has(CarEntryFlag::loadingWaypoints))
         {
-            TileCoordsXYZD exitLocation = station.exit;
+            TileCoordsXYZD exitLocation = station.getExit();
             CoordsXYZD platformLocation;
             platformLocation.z = station.getBaseZ();
 
@@ -4812,7 +4813,7 @@ namespace OpenRCT2
             return;
         }
 
-        auto exitLocation = station.exit.toCoordsXYZD();
+        auto exitLocation = station.getExit().toCoordsXYZD();
         if (exitLocation.isNull())
         {
             return;
@@ -4873,7 +4874,7 @@ namespace OpenRCT2
         if (ride == nullptr || currentRideStation.ToUnderlying() >= std::size(ride->getStations()))
             return;
 
-        auto exit = ride->getStation(currentRideStation).exit;
+        auto exit = ride->getStation(currentRideStation).getExit();
         auto newDestination = exit.toCoordsXY().toTileCentre();
 
         auto [xShift, yShift] = [exit]() {
@@ -4966,7 +4967,7 @@ namespace OpenRCT2
 
     CoordsXY GetGuestWaypointLocationDefault(const Vehicle& vehicle, const Ride& ride, const StationIndex& currentRideStation)
     {
-        return ride.getStation(currentRideStation).start.toTileCentre();
+        return ride.getStation(currentRideStation).getStartXY().toTileCentre();
     }
 
     CoordsXY GetGuestWaypointLocationEnterprise(
@@ -5134,7 +5135,7 @@ namespace OpenRCT2
 
         var37 |= 3;
 
-        auto targetLoc = ride->getStation(currentRideStation).exit.toCoordsXYZD().toTileCentre();
+        auto targetLoc = ride->getStation(currentRideStation).getExit().toCoordsXYZD().toTileCentre();
         uint8_t exit_direction = DirectionReverse(targetLoc.direction);
 
         int16_t x_shift = DirectionOffsets[exit_direction].x;
@@ -5210,7 +5211,7 @@ namespace OpenRCT2
 
             if (lastRide)
             {
-                auto exit = ride->getStation(currentRideStation).exit;
+                auto exit = ride->getStation(currentRideStation).getExit();
                 waypoint = 1;
                 auto directionTemp = exit.direction;
                 if (exit.direction == kInvalidDirection)
@@ -5218,7 +5219,7 @@ namespace OpenRCT2
                     directionTemp = 0;
                 }
                 var37 = (directionTemp * 4) | (var37 & 0x30) | waypoint;
-                CoordsXY targetLoc = ride->getStation(currentRideStation).start;
+                CoordsXY targetLoc = ride->getStation(currentRideStation).getStartXY();
 
                 assert(rtd.specialType == RtdSpecialType::spiralSlide);
                 targetLoc += kSpiralSlideWalkingPath[var37];
@@ -5233,7 +5234,7 @@ namespace OpenRCT2
         // Actually increment the real peep waypoint
         var37++;
 
-        CoordsXY targetLoc = ride->getStation(currentRideStation).start;
+        CoordsXY targetLoc = ride->getStation(currentRideStation).getStartXY();
 
         assert(rtd.specialType == RtdSpecialType::spiralSlide);
         targetLoc += kSpiralSlideWalkingPath[var37];
@@ -5295,7 +5296,7 @@ namespace OpenRCT2
                     return;
                 case PeepSpiralSlideSubState::finishedSliding:
                 {
-                    auto newLocation = ride->getStation(currentRideStation).start;
+                    auto newLocation = ride->getStation(currentRideStation).getStartXY();
                     uint8_t dir = (var37 / 4) & 3;
 
                     // Set the location that the guest walks to go on slide again
@@ -5328,7 +5329,7 @@ namespace OpenRCT2
         uint8_t waypoint = 2;
         var37 = (var37 * 4 & 0x30) + waypoint;
 
-        CoordsXY targetLoc = ride->getStation(currentRideStation).start;
+        CoordsXY targetLoc = ride->getStation(currentRideStation).getStartXY();
 
         targetLoc += kSpiralSlideWalkingPath[var37];
 
@@ -5367,7 +5368,7 @@ namespace OpenRCT2
             waypoint--;
             // Actually decrement the peep waypoint
             var37--;
-            CoordsXY targetLoc = ride->getStation(currentRideStation).start;
+            CoordsXY targetLoc = ride->getStation(currentRideStation).getStartXY();
 
             [[maybe_unused]] const auto& rtd = ride->getRideTypeDescriptor();
             assert(rtd.specialType == RtdSpecialType::spiralSlide);
@@ -5380,7 +5381,7 @@ namespace OpenRCT2
         // Actually force the final waypoint
         var37 |= 3;
 
-        auto targetLoc = ride->getStation(currentRideStation).exit.toCoordsXYZD().toTileCentre();
+        auto targetLoc = ride->getStation(currentRideStation).getExit().toCoordsXYZD().toTileCentre();
 
         int16_t xShift = DirectionOffsets[DirectionReverse(targetLoc.direction)].x;
         int16_t yShift = DirectionOffsets[DirectionReverse(targetLoc.direction)].y;

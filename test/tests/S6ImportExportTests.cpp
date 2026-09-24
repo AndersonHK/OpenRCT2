@@ -10,6 +10,7 @@
 #include "TestData.h"
 
 #include <gtest/gtest.h>
+#include <limits>
 #include <openrct2/Context.h>
 #include <openrct2/Diagnostic.h>
 #include <openrct2/Game.h>
@@ -34,7 +35,6 @@
 #include <openrct2/ride/Vehicle.h>
 #include <openrct2/scenario/Scenario.h>
 #include <openrct2/world/MapAnimation.h>
-#include <limits>
 #include <string>
 
 using namespace OpenRCT2;
@@ -131,8 +131,8 @@ static std::unique_ptr<IContext> ImportBigMap()
 {
     auto context = CreateContext();
     MemoryStream stream;
-    if (!context->Initialise()
-        || !LoadFileToBuffer(stream, TestData::GetParkPath("BigMapTest.sv6")) || !ImportS6(stream, context, false))
+    if (!context->Initialise() || !LoadFileToBuffer(stream, TestData::GetParkPath("BigMapTest.sv6"))
+        || !ImportS6(stream, context, false))
         context.reset();
     return context;
 }
@@ -592,9 +592,9 @@ TEST(ParkFileMigration, PlatformGuestRoundTripsAndOlderTargetUsesStationExitReco
         ride->type = RIDE_TYPE_MONORAIL;
         ride->numStations = std::max<uint8_t>(ride->numStations, 1);
         auto& station = ride->getStation(StationIndex::FromUnderlying(0));
-        station.entrance = { 10, 10, 2, 0 };
-        station.exit = { 12, 10, 2, 2 };
-        exit = station.exit;
+        station.setEntrance({ 10, 10, 2, 0 });
+        station.setExit({ 12, 10, 2, 2 });
+        exit = station.getExit();
 
         auto* train = getGameState().entities.createEntity<Vehicle>();
         ASSERT_NE(train, nullptr);

@@ -963,10 +963,10 @@ namespace OpenRCT2
 
             for (const auto& station : ride->getStations())
             {
-                if (station.entrance.isNull())
+                if (station.getEntrance().isNull())
                     continue;
 
-                TileElement* tileElement = MapGetFirstElementAt(station.entrance);
+                TileElement* tileElement = MapGetFirstElementAt(station.getEntrance());
                 if (tileElement != nullptr)
                 {
                     do
@@ -980,7 +980,8 @@ namespace OpenRCT2
 
                         Direction direction = DirectionReverse(tileElement->getDirection());
                         FootpathChainRideQueue(
-                            rideIndex, ride->getStationIndex(&station), station.entrance.toCoordsXY(), tileElement, direction);
+                            rideIndex, ride->getStationIndex(&station), station.getEntrance().toCoordsXY(), tileElement,
+                            direction);
                     } while (!(tileElement++)->isLastForTile());
                 }
             }

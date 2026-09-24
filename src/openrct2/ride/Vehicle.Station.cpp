@@ -669,7 +669,7 @@ void Vehicle::UpdateWaitingForPassengers()
             return;
 
         auto& station = curRide->getStation(current_station);
-        if (station.entrance.isNull())
+        if (station.getEntrance().isNull())
         {
             station.trainAtStation = RideStation::kNoTrain;
             sub_state = 2;
@@ -824,7 +824,7 @@ void Vehicle::UpdateWaitingToDepart()
             }
             else
             {
-                if (!currentStation.exit.isNull())
+                if (!currentStation.getExit().isNull())
                 {
                     SetState(Status::unloadingPassengers);
                     return;
@@ -838,7 +838,7 @@ void Vehicle::UpdateWaitingToDepart()
             {
                 if (trainCar->num_peeps != 0)
                 {
-                    if (!currentStation.exit.isNull())
+                    if (!currentStation.getExit().isNull())
                     {
                         SetState(Status::unloadingPassengers);
                         return;
@@ -1064,7 +1064,7 @@ void Vehicle::UpdateUnloadingPassengers()
     }
     else
     {
-        if (currentStation.exit.isNull())
+        if (currentStation.getExit().isNull())
         {
             if (sub_state != 1)
                 return;
@@ -1101,8 +1101,7 @@ void Vehicle::UpdateUnloadingPassengers()
                 const auto passengers = std::span<Guest* const>{ originalPassengers.data(), train->num_peeps };
                 const auto unloadPlan = RideVehicle::StationDetail::BuildTransportPassengerUnloadPlan(
                     *curRide, current_station, passengers);
-                RideVehicle::StationDetail::ApplyTransportPassengerUnload(
-                    *train, passengers, unloadPlan);
+                RideVehicle::StationDetail::ApplyTransportPassengerUnload(*train, passengers, unloadPlan);
             }
             else
                 RideVehicle::StationDetail::ApplyOrdinaryPassengerUnload(*train, entities);
@@ -1145,9 +1144,8 @@ void Vehicle::UpdateDeparting()
         return;
 
     const auto& carEntry = rideEntry->Cars[vehicle_type];
-    const bool isGoKartRaceStart = curRide->mode == RideMode::race
-        && curRide->flags.has(RideFlag::passStationNoStopping) && carEntry.flags.has(CarEntryFlag::isGoKart)
-        && NumLaps == 0;
+    const bool isGoKartRaceStart = curRide->mode == RideMode::race && curRide->flags.has(RideFlag::passStationNoStopping)
+        && carEntry.flags.has(CarEntryFlag::isGoKart) && NumLaps == 0;
     if (RideVehicle::StationDetail::ConsumeGoKartRaceStartDelay(isGoKartRaceStart, var_C0))
     {
         velocity = 0;

@@ -164,6 +164,8 @@ void emitObjectSprite(uvec2 tile, int z, ivec2 relative, uint image, uint palett
 }
 
 #include "world_prop_emit.glsl"
+#include "world_flat_ride_emit.glsl"
+#include "world_entrance_emit.glsl"
 #include "world_track_emit.glsl"
 
 void visitPath(uint index, uvec2 tile, SourceRecord terrain, uint destination, bool writeRecords, inout uint count)
@@ -299,6 +301,8 @@ void visitObjects(uvec2 tile, SourceRecord source, int region, uint destination,
             if(path) visitPath(source.pathFirst+p,tile,source,destination,writeRecords,count);
             else if(uObjects.records[source.objectFirst+o].kind==4u)
                 visitTrack(source.objectFirst+o,tile,destination,writeRecords,count);
+            else if(uObjects.records[source.objectFirst+o].kind==5u)
+                visitEntrance(source.objectFirst+o,tile,destination,writeRecords,count);
             else visitProp(source.objectFirst+o,tile,destination,writeRecords,count);
         }
         if(path) p++; else o++;
@@ -324,7 +328,7 @@ uint visitTile(uint orderIndex, uint destination, bool writeRecords)
     ivec2 projected=ivec2(inverseZoom(corner.y-corner.x,uScene.zoom),inverseZoom((corner.x+corner.y)>>1,uScene.zoom));
     projected+=uScene.clip.xy-uScene.view;
     ivec4 envelope=uCatalog.spriteEnvelope[clamp(uScene.zoom+2,0,5)];
-    int margin=inverseZoom(64,uScene.zoom)+4;
+    int margin=inverseZoom(128,uScene.zoom)+4;
     int maxHeight=inverseZoom(max(max(source.baseZ+32,source.waterHeight),max(source.pathMaxZ,source.objectMaxZ)),uScene.zoom)+4;
     if(projected.x+envelope.z+margin<=uScene.clip.x || projected.x+envelope.x-margin>=uScene.clip.z
         || projected.y+envelope.w+margin<=uScene.clip.y || projected.y-maxHeight+envelope.y-margin>=uScene.clip.w) return 0u;

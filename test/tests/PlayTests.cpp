@@ -879,7 +879,7 @@ TEST_F(PlayTests, GuestPaysAtEntranceBeforeBoarding)
     ASSERT_NE(ride, nullptr);
     constexpr auto stationIndex = StationIndex::FromUnderlying(0);
     auto& station = ride->getStation(stationIndex);
-    ASSERT_FALSE(station.entrance.isNull());
+    ASSERT_FALSE(station.getEntrance().isNull());
 
     auto openResult = executeImmediate<GameActions::RideSetStatusAction>(ride->id, RideStatus::open);
     ASSERT_EQ(openResult.error, GameActions::Status::ok);
@@ -889,7 +889,7 @@ TEST_F(PlayTests, GuestPaysAtEntranceBeforeBoarding)
     ASSERT_EQ(priceResult.error, GameActions::Status::ok);
     ASSERT_EQ(RideGetPrice(*ride), admission);
 
-    auto* guest = Guest::generate(station.entrance.toCoordsXYZ());
+    auto* guest = Guest::generate(station.getEntrance().toCoordsXYZ());
     ASSERT_NE(guest, nullptr);
     guest->cashInPocket = 10.00_GBP;
     guest->currentRide = ride->id;
@@ -982,11 +982,11 @@ TEST_F(PlayTests, CoasterPlatformPreQueueRequiresOppositeLateralStationSides)
                 return false;
             auto& station = ride.getStation(stationIndex);
             coasterOrigin = ride.getOriginElement(stationIndex);
-            if (station.entrance.isNull() || station.exit.isNull() || coasterOrigin == nullptr)
+            if (station.getEntrance().isNull() || station.getExit().isNull() || coasterOrigin == nullptr)
                 return false;
             const auto stationDirection = coasterOrigin->getDirection();
-            station.entrance.direction = (stationDirection + 1) & kTileElementDirectionMask;
-            station.exit.direction = (stationDirection + 3) & kTileElementDirectionMask;
+            station.setEntranceDirection((stationDirection + 1) & kTileElementDirectionMask);
+            station.setExitDirection((stationDirection + 3) & kTileElementDirectionMask);
             return true;
         });
     auto* coaster = coasterTarget.ride;
@@ -1001,14 +1001,14 @@ TEST_F(PlayTests, CoasterPlatformPreQueueRequiresOppositeLateralStationSides)
     const auto coasterDirection = coasterOrigin->getDirection();
 
     RideClearAllStationPlatformPreQueues();
-    coasterStationData.entrance.direction = (coasterDirection + 1) & kTileElementDirectionMask;
-    coasterStationData.exit.direction = coasterStationData.entrance.direction;
+    coasterStationData.setEntranceDirection((coasterDirection + 1) & kTileElementDirectionMask);
+    coasterStationData.setExitDirection(coasterStationData.getEntrance().direction);
     EXPECT_FALSE(RideCaptureStationPlatformTemplate(*coaster, coasterStation, *coasterTrain));
     RideActivateStationPlatformPreQueue(*coaster, coasterStation);
     EXPECT_FALSE(RideStationPlatformPreQueueIsActive(*coaster, coasterStation));
     EXPECT_FALSE(RideReserveStationPlatformSlot(*coaster, coasterStation, EntityId::FromUnderlying(65000)).has_value());
 
-    auto* stagedGuest = Guest::generate(coasterStationData.entrance.toCoordsXYZ());
+    auto* stagedGuest = Guest::generate(coasterStationData.getEntrance().toCoordsXYZ());
     ASSERT_NE(stagedGuest, nullptr);
     stagedGuest->currentRide = coaster->id;
     stagedGuest->currentRideStation = coasterStation;
@@ -1019,12 +1019,12 @@ TEST_F(PlayTests, CoasterPlatformPreQueueRequiresOppositeLateralStationSides)
     EXPECT_EQ(stagedGuest->state, PeepState::leavingRide);
     EXPECT_EQ(stagedGuest->rideSubState, PeepRideSubState::approachExit);
 
-    coasterStationData.entrance.direction = coasterDirection;
-    coasterStationData.exit.direction = DirectionReverse(coasterDirection);
+    coasterStationData.setEntranceDirection(coasterDirection);
+    coasterStationData.setExitDirection(DirectionReverse(coasterDirection));
     EXPECT_FALSE(RideCaptureStationPlatformTemplate(*coaster, coasterStation, *coasterTrain));
 
-    coasterStationData.entrance.direction = (coasterDirection + 1) & kTileElementDirectionMask;
-    coasterStationData.exit.direction = (coasterDirection + 3) & kTileElementDirectionMask;
+    coasterStationData.setEntranceDirection((coasterDirection + 1) & kTileElementDirectionMask);
+    coasterStationData.setExitDirection((coasterDirection + 3) & kTileElementDirectionMask);
     EXPECT_TRUE(RideCaptureStationPlatformTemplate(*coaster, coasterStation, *coasterTrain));
 
     const auto transportTarget = FindCapturedPlatformTrain(
@@ -1032,9 +1032,9 @@ TEST_F(PlayTests, CoasterPlatformPreQueueRequiresOppositeLateralStationSides)
             if (!ride.getRideTypeDescriptor().flags.has(RtdFlag::isTransportRide))
                 return false;
             auto& station = ride.getStation(stationIndex);
-            if (station.entrance.isNull() || station.exit.isNull())
+            if (station.getEntrance().isNull() || station.getExit().isNull())
                 return false;
-            station.exit.direction = station.entrance.direction;
+            station.setExitDirection(station.getEntrance().direction);
             return true;
         });
     EXPECT_NE(transportTarget.ride, nullptr);
@@ -1054,11 +1054,11 @@ TEST_F(PlayTests, SameSideCoasterGuestContinuesOrdinaryBoarding)
                 return false;
             auto& station = ride.getStation(stationIndex);
             coasterOrigin = ride.getOriginElement(stationIndex);
-            if (station.entrance.isNull() || station.exit.isNull() || coasterOrigin == nullptr)
+            if (station.getEntrance().isNull() || station.getExit().isNull() || coasterOrigin == nullptr)
                 return false;
             const auto stationDirection = coasterOrigin->getDirection();
-            station.entrance.direction = (stationDirection + 1) & kTileElementDirectionMask;
-            station.exit.direction = (stationDirection + 3) & kTileElementDirectionMask;
+            station.setEntranceDirection((stationDirection + 1) & kTileElementDirectionMask);
+            station.setExitDirection((stationDirection + 3) & kTileElementDirectionMask);
             return true;
         });
 
@@ -1068,8 +1068,8 @@ TEST_F(PlayTests, SameSideCoasterGuestContinuesOrdinaryBoarding)
 
     auto& station = target.ride->getStation(target.station);
     const auto stationDirection = coasterOrigin->getDirection();
-    station.entrance.direction = (stationDirection + 1) & kTileElementDirectionMask;
-    station.exit.direction = station.entrance.direction;
+    station.setEntranceDirection((stationDirection + 1) & kTileElementDirectionMask);
+    station.setExitDirection(station.getEntrance().direction);
     RideClearStationPlatformPreQueue(*target.ride);
     EXPECT_FALSE(RideCaptureStationPlatformTemplate(*target.ride, target.station, *target.train));
     RideActivateStationPlatformPreQueue(*target.ride, target.station);
@@ -1084,7 +1084,7 @@ TEST_F(PlayTests, SameSideCoasterGuestContinuesOrdinaryBoarding)
     target.train->flags.unset(VehicleFlag::readyToDepart, VehicleFlag::waitingOnAdjacentStation);
     station.trainAtStation = target.trainIndex;
 
-    auto* guest = Guest::generate(station.entrance.toCoordsXYZ());
+    auto* guest = Guest::generate(station.getEntrance().toCoordsXYZ());
     ASSERT_NE(guest, nullptr);
     guest->currentRide = target.ride->id;
     guest->currentRideStation = target.station;
@@ -1151,7 +1151,7 @@ TEST_F(PlayTests, TrainCannotPublishStationWhileZeroPrefixPassengersAreStillAlig
     const auto target = FindCapturedPlatformTrain(
         gameState, [](const Ride& ride, const Vehicle&, uint8_t trainIndex, StationIndex stationIndex) {
             return trainIndex == 0 && ride.getRideTypeDescriptor().Category == RideCategory::rollerCoaster
-                && !ride.getStation(stationIndex).exit.isNull();
+                && !ride.getStation(stationIndex).getExit().isNull();
         });
     ASSERT_NE(target.ride, nullptr);
     ASSERT_NE(target.train, nullptr);
@@ -1191,15 +1191,15 @@ TEST_F(PlayTests, NaturallyArrivingTrainPreservesStagedSeatsThroughUnloadAndBoar
         auto* train = gameState.entities.getEntity<Vehicle>(ride.vehicles[0]);
         auto* origin = ride.getOriginElement(StationIndex::FromUnderlying(0));
         const auto trackLength = ride.getTotalLength();
-        if (station.entrance.isNull() || station.exit.isNull() || train == nullptr || origin == nullptr
+        if (station.getEntrance().isNull() || station.getExit().isNull() || train == nullptr || origin == nullptr
             || (train->num_seats & kVehicleSeatNumMask) == 0 || trackLength <= 0 || trackLength >= shortestTrack
             || RideVehicle::StationDetail::BuildTrainSeatSummary(*train).capacity < 4)
         {
             continue;
         }
         const auto stationDirection = origin->getDirection();
-        station.entrance.direction = (stationDirection + 1) & kTileElementDirectionMask;
-        station.exit.direction = (stationDirection + 3) & kTileElementDirectionMask;
+        station.setEntranceDirection((stationDirection + 1) & kTileElementDirectionMask);
+        station.setExitDirection((stationDirection + 3) & kTileElementDirectionMask);
         if (!RideCaptureStationPlatformTemplate(ride, StationIndex::FromUnderlying(0), *train))
         {
             continue;
@@ -1250,7 +1250,7 @@ TEST_F(PlayTests, NaturallyArrivingTrainPreservesStagedSeatsThroughUnloadAndBoar
     std::array<RideStationPlatformReservation, kStagedGuestCount> reservations{};
     for (size_t guestIndex = 0; guestIndex < guests.size(); guestIndex++)
     {
-        auto* guest = Guest::generate(targetRide->getStation(targetStation).entrance.toCoordsXYZ());
+        auto* guest = Guest::generate(targetRide->getStation(targetStation).getEntrance().toCoordsXYZ());
         ASSERT_NE(guest, nullptr);
         const auto reservation = RideReserveStationPlatformSlot(*targetRide, targetStation, guest->id);
         ASSERT_TRUE(reservation.has_value());

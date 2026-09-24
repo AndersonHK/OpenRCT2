@@ -422,7 +422,7 @@ namespace OpenRCT2
             return entranceExitCoords;
         }
 
-        auto stationStart = ride->getStation(gRideEntranceExitPlaceStationIndex).start;
+        auto stationStart = ride->getStation(gRideEntranceExitPlaceStationIndex).getStartXY();
         if (stationStart.isNull())
         {
             entranceExitCoords.setNull();

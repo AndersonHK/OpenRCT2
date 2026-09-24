@@ -8,6 +8,8 @@
 
     #include "VulkanWorldSurfacePipeline.h"
 
+    #include "../gpu/GpuWorldEntranceCatalog.h"
+    #include "../gpu/GpuWorldFlatRideCatalog.h"
     #include "VulkanShader.h"
 
     #include <array>
@@ -121,6 +123,10 @@ namespace OpenRCT2::Ui::Vulkan
         _trackCatalog.Initialise(
             device.GetPhysicalDevice(), _device, Gpu::kWorldTrackCatalogCapacity * sizeof(uint32_t),
             VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+        for (auto* catalog : { &_flatRideCatalog, &_entranceCatalog })
+            catalog->Initialise(
+                device.GetPhysicalDevice(), _device, Gpu::kWorldBuildingCatalogCapacity * sizeof(uint32_t),
+                VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
         _spriteSets.Initialise(
             device.GetPhysicalDevice(), _device, spriteBytes,
             VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
@@ -150,6 +156,8 @@ namespace OpenRCT2::Ui::Vulkan
         _objectRecords.Dispose();
         _propCatalog.Dispose();
         _trackCatalog.Dispose();
+        _flatRideCatalog.Dispose();
+        _entranceCatalog.Dispose();
         _objectOffsets.clear();
         _objectCapacities.clear();
         _objectArenaEnd = 0;
@@ -206,6 +214,19 @@ namespace OpenRCT2::Ui::Vulkan
         const auto& tracks = scene.sprites->trackCatalog;
         if (props.size() > Gpu::kWorldPropCatalogCapacity || tracks.size() > Gpu::kWorldTrackCatalogCapacity)
             throw std::overflow_error("GPU world rule catalog capacity exceeded");
+        if (scene.sprites->flatRideCatalog.size() > Gpu::kWorldBuildingCatalogCapacity
+            || scene.sprites->entranceCatalog.size() > Gpu::kWorldBuildingCatalogCapacity)
+            throw std::overflow_error("GPU building catalog capacity exceeded");
+        // Shared tables are immutable. Validate their variable ranges on admission, not once
+        // per draw while the same resident generation is reused.
+        if (_uploadedSpriteRevision != scene.sprites->revision || _uploadedEpoch != scene.worldEpoch
+            || _uploadedWidth != scene.width || _uploadedHeight != scene.height)
+        {
+            Gpu::ValidateWorldFlatRideCatalog(scene.sprites->flatRideCatalog, scene.sprites->records.size());
+            if (!scene.sprites->entranceCatalog.empty())
+                Gpu::ValidateWorldEntranceCatalog(
+                    scene.sprites->entranceCatalog, static_cast<uint32_t>(scene.sprites->records.size()));
+        }
         if (!props.empty())
         {
             if (props.size() < Gpu::kWorldPropCatalogHeaderWords)
@@ -215,7 +236,8 @@ namespace OpenRCT2::Ui::Vulkan
                     || uint64_t(props[family]) + uint64_t(props[family + 4]) * Gpu::kWorldPropMaterialWords > props.size())
                     throw std::invalid_argument("GPU prop catalog family range is invalid");
         }
-        if (!tracks.empty() && (tracks.size() < 12 || tracks[0] != 0x5754524b || tracks[1] != 1 || tracks[11] != tracks.size()))
+        if (!tracks.empty()
+            && (tracks.size() < 12 || tracks[0] != 0x5754524b || (tracks[1] & 255u) != 1 || tracks[11] != tracks.size()))
             throw std::invalid_argument("GPU track catalog header is invalid");
         if (_uploadedEpoch != scene.worldEpoch || _uploadedWidth != scene.width || _uploadedHeight != scene.height
             || _uploadedRevisions.size() != scene.chunks.size())
@@ -240,11 +262,21 @@ namespace OpenRCT2::Ui::Vulkan
                 dirtyChunks.push_back(i);
         // An absent table is legal only while no instance can reference it. Otherwise a reused
         // device buffer could expose an earlier generation's metadata after a malformed submission.
-        if (props.empty() || tracks.empty())
+        const auto hasFlatRide = [&](const Gpu::WorldObjectSourceRecord& object) {
+            const auto& flat = scene.sprites->flatRideCatalog;
+            const auto ride = object.rideIdAndMazeEntry & 65535u;
+            if (flat.empty() || ride >= flat[3])
+                return false;
+            const auto entry = flat[2] + ride * Gpu::kWorldFlatRideWords;
+            const auto type = object.trackTypeAndRideType & 65535u;
+            return flat[entry] != 0 && (type == flat[entry + 2] || type == flat[entry + 3]);
+        };
+        if (props.empty() || tracks.empty() || scene.sprites->entranceCatalog.empty())
             for (size_t i = 0; i < scene.chunks.size(); i++)
                 if (_uploadedRevisions[i] != scene.chunks[i]->revision || _uploadedSpriteRevision != scene.sprites->revision)
                     for (const auto& object : scene.chunks[i]->objects)
-                        if ((object.kind < 4 && props.empty()) || (object.kind == 4 && tracks.empty()))
+                        if ((object.kind < 4 && props.empty()) || (object.kind == 4 && tracks.empty() && !hasFlatRide(object))
+                            || (object.kind == 5 && scene.sprites->entranceCatalog.empty()))
                             throw std::invalid_argument("GPU world instance has no matching immutable catalog");
         // Validate every changed range before recording transfers. Admission never truncates a tile.
         for (const auto i : dirtyChunks)
@@ -311,7 +343,7 @@ namespace OpenRCT2::Ui::Vulkan
         const bool spritesChanged = _uploadedSpriteRevision != scene.sprites->revision;
         if (hasChangedChunks || spritesChanged)
         {
-            std::array<VkBufferMemoryBarrier, 7> barriers{};
+            std::array<VkBufferMemoryBarrier, 9> barriers{};
             uint32_t barrierCount = 0;
             const auto append = [&barriers, &barrierCount](const VkBuffer buffer) {
                 barriers[barrierCount++] = {
@@ -337,6 +369,8 @@ namespace OpenRCT2::Ui::Vulkan
                 append(_catalog.GetBuffer());
                 append(_propCatalog.GetBuffer());
                 append(_trackCatalog.GetBuffer());
+                append(_flatRideCatalog.GetBuffer());
+                append(_entranceCatalog.GetBuffer());
             }
             vkCmdPipelineBarrier(
                 frame.commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr,
@@ -437,16 +471,20 @@ namespace OpenRCT2::Ui::Vulkan
             if (frame.telemetry)
                 frame.telemetry->Add(frame.telemetry->worldBufferCopyCalls, 1);
             catalogUpload.Record(Drawing::UploadMetric::bufferTransfer, catalogCopy.size);
-            const auto uploadWords = [&](const std::vector<uint32_t>& words, const Buffer& target) {
-                if (words.empty())
+            const auto uploadWords = [&](const std::vector<uint32_t>& words, const Buffer& target, bool clearAbsent = false) {
+                if (words.empty() && !clearAbsent)
                     return;
-                const VkDeviceSize bytes = words.size() * sizeof(uint32_t);
+                // Clear absent headers too: a later generation must never consult a previous
+                // scene's shared catalog merely because this generation has no such family.
+                constexpr std::array<uint32_t, 16> emptyHeader{};
+                const auto source = words.empty() ? std::span<const uint32_t>(emptyHeader) : std::span<const uint32_t>(words);
+                const VkDeviceSize bytes = source.size_bytes();
                 if (bytes > target.GetSize())
                     throw std::overflow_error("GPU world rule catalog capacity exceeded");
                 auto upload = frame.upload->Allocate(bytes, alignof(uint32_t), Drawing::UploadCategory::world);
                 if (!upload)
                     throw std::runtime_error("Vulkan upload ring has no room for world rules");
-                std::memcpy(upload.data, words.data(), static_cast<size_t>(bytes));
+                std::memcpy(upload.data, source.data(), static_cast<size_t>(bytes));
                 upload.RecordHostWrite();
                 const VkBufferCopy copy{ upload.offset, 0, bytes };
                 vkCmdCopyBuffer(frame.commandBuffer, upload.buffer, target.GetBuffer(), 1, &copy);
@@ -456,11 +494,13 @@ namespace OpenRCT2::Ui::Vulkan
             };
             uploadWords(scene.sprites->propCatalog, _propCatalog);
             uploadWords(scene.sprites->trackCatalog, _trackCatalog);
+            uploadWords(scene.sprites->flatRideCatalog, _flatRideCatalog, true);
+            uploadWords(scene.sprites->entranceCatalog, _entranceCatalog, true);
             _uploadedSpriteRevision = scene.sprites->revision;
         }
         if (hasChangedChunks || spritesChanged)
         {
-            std::array<VkBufferMemoryBarrier, 7> barriers{};
+            std::array<VkBufferMemoryBarrier, 9> barriers{};
             uint32_t barrierCount = 0;
             const auto append = [&barriers, &barrierCount](const VkBuffer buffer) {
                 barriers[barrierCount++] = {
@@ -486,6 +526,8 @@ namespace OpenRCT2::Ui::Vulkan
                 append(_catalog.GetBuffer());
                 append(_propCatalog.GetBuffer());
                 append(_trackCatalog.GetBuffer());
+                append(_flatRideCatalog.GetBuffer());
+                append(_entranceCatalog.GetBuffer());
             }
             vkCmdPipelineBarrier(
                 frame.commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, nullptr,
@@ -702,6 +744,8 @@ namespace OpenRCT2::Ui::Vulkan
             VkDescriptorSetLayoutBinding{ 12, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
             VkDescriptorSetLayoutBinding{ 13, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
             VkDescriptorSetLayoutBinding{ 14, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
+            VkDescriptorSetLayoutBinding{ 15, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
+            VkDescriptorSetLayoutBinding{ 16, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
         };
         const VkDescriptorSetLayoutCreateInfo layoutInfo = {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
@@ -711,7 +755,7 @@ namespace OpenRCT2::Ui::Vulkan
         CheckVk(vkCreateDescriptorSetLayout(_device, &layoutInfo, nullptr, &_descriptorSetLayout), "world surfaces layout");
         constexpr std::array poolSizes = {
             VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3 },
-            VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 12 },
+            VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 14 },
         };
         const VkDescriptorPoolCreateInfo poolInfo = {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
@@ -736,6 +780,8 @@ namespace OpenRCT2::Ui::Vulkan
         const VkDescriptorBufferInfo objects{ _objectRecords.GetBuffer(), 0, _objectRecords.GetSize() };
         const VkDescriptorBufferInfo props{ _propCatalog.GetBuffer(), 0, _propCatalog.GetSize() };
         const VkDescriptorBufferInfo tracks{ _trackCatalog.GetBuffer(), 0, _trackCatalog.GetSize() };
+        const VkDescriptorBufferInfo flatRides{ _flatRideCatalog.GetBuffer(), 0, _flatRideCatalog.GetSize() };
+        const VkDescriptorBufferInfo entrances{ _entranceCatalog.GetBuffer(), 0, _entranceCatalog.GetSize() };
         const VkDescriptorBufferInfo paths{ _pathRecords.GetBuffer(), 0, _pathRecords.GetSize() };
         const VkDescriptorBufferInfo sources{ _sourceRecords.GetBuffer(), 0, _sourceRecords.GetSize() };
         const VkDescriptorBufferInfo spriteSets{ _spriteSets.GetBuffer(), 0, _spriteSets.GetSize() };
@@ -777,6 +823,10 @@ namespace OpenRCT2::Ui::Vulkan
                                   VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &props },
             VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 14, 0, 1,
                                   VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &tracks },
+            VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 15, 0, 1,
+                                  VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &flatRides },
+            VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 16, 0, 1,
+                                  VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &entrances },
         };
         vkUpdateDescriptorSets(_device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
     }

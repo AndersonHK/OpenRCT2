@@ -28,8 +28,8 @@
 #include "../world/Footpath.h"
 #include "../world/Location.hpp"
 #include "../world/Map.h"
-#include "../world/Park.h"
 #include "../world/MapTopology.h"
+#include "../world/Park.h"
 #include "../world/TileElementsView.h"
 #include "../world/tile_element/EntranceElement.h"
 #include "../world/tile_element/SurfaceElement.h"
@@ -528,10 +528,10 @@ static void SwapRideEntranceAndExit(RideId rideId)
     if (ride != nullptr)
     {
         auto& station = ride->getStation();
-        auto entranceCoords = station.exit;
-        auto exitCoords = station.entrance;
-        station.entrance = entranceCoords;
-        station.exit = exitCoords;
+        auto entranceCoords = station.getExit();
+        auto exitCoords = station.getEntrance();
+        station.setEntrance(entranceCoords);
+        station.setExit(exitCoords);
 
         auto entranceElement = MapGetRideExitElementAt(entranceCoords.toCoordsXYZD(), false);
         entranceElement->setEntranceType(EntranceType::rideEntrance);

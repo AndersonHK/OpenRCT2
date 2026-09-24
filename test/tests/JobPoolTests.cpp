@@ -10,11 +10,33 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <future>
 #include <gtest/gtest.h>
 #include <openrct2/core/JobPool.h>
 #include <stdexcept>
 #include <thread>
 #include <vector>
+
+TEST(JobPoolTest, ParallelForDoesNotWaitForQueuedEmptyConsumers)
+{
+    JobPool pool(1);
+    std::promise<void> started, release;
+    auto released = release.get_future().share();
+    pool.AddTask([&]() {
+        started.set_value();
+        released.wait();
+    });
+    started.get_future().wait();
+    std::array<std::atomic_uint32_t, 64> visits{};
+    auto done = std::async(std::launch::async, [&]() { pool.ParallelFor(visits.size(), [&](size_t i) { ++visits[i]; }, 4); });
+    const auto status = done.wait_for(std::chrono::seconds(2));
+    release.set_value();
+    done.get();
+    pool.Join();
+    EXPECT_EQ(status, std::future_status::ready);
+    for (const auto& count : visits)
+        EXPECT_EQ(count.load(), 1u);
+}
 
 TEST(JobPoolTest, ParallelForVisitsEveryIndexExactlyOnce)
 {

@@ -200,7 +200,7 @@ namespace OpenRCT2::GameActions
         ride->mazeTiles++;
         ride->updateMazeCapacityForConstruction();
         ride->getStation().setBaseZ(trackElement->getBaseZ());
-        ride->getStation().start = { 0, 0 };
+        ride->getStation().setStart({ 0, 0 });
 
         if (ride->mazeTiles == 1)
         {

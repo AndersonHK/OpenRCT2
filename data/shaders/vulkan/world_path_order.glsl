@@ -4,8 +4,10 @@
 #include "world_path_rules.glsl"
 #ifdef __cplusplus
 #define PATH_ORDER_FN constexpr
+#define PATH_ORDER_LOOP
 #else
 #define PATH_ORDER_FN
+#define PATH_ORDER_LOOP [[dont_unroll]]
 #endif
 
 struct WorldPathOrder
@@ -53,13 +55,20 @@ PATH_ORDER_FN WorldPathOrder worldPathOrder(WorldPathPart parts[12], int count, 
 {
     WorldPathOrder result;
     result.count=0;
-    for (int i=0;i<12;i++) result.indices[i]=-1;
+    PATH_ORDER_LOOP
+    for(int i=0;i<12;i++) result.indices[i]=-1;
     if (count<0 || count>12 || rotation<0 || rotation>3) return result;
     if (count==0) return result;
+    // Keep linked-list traversal finite even if a future recipe exposes a cycle.
+    // Valid lists need at most quadratic work per quadrant; this generous cubic
+    // budget preserves their ordering and falls back to authored order on failure.
+    int budget=4*count*count*count+64;
     int q[12]; int flags[12]; int next[13]; WorldPathBounds bounds[12];
-    for (int i=0;i<13;i++) next[i]=-1;
+    PATH_ORDER_LOOP
+    for(int i=0;i<13;i++) next[i]=-1;
     int minQ=2; int maxQ=0;
-    for (int i=0;i<count;i++)
+    PATH_ORDER_LOOP
+    for(int i=0;i<count;i++)
     {
         if (parts[i].boundsX<0 || parts[i].boundsX>32 || parts[i].boundsY<0 || parts[i].boundsY>32)
             return result;
@@ -71,35 +80,49 @@ PATH_ORDER_FN WorldPathOrder worldPathOrder(WorldPathPart parts[12], int count, 
     }
     // Equivalent to per-quadrant prepend followed by ascending quadrant link.
     int tail=12;
+    PATH_ORDER_LOOP
     for(int quadrant=minQ;quadrant<=maxQ;quadrant++)
+        PATH_ORDER_LOOP
         for(int i=count-1;i>=0;i--)
             if(q[i]==quadrant) { next[tail]=i; tail=i; }
     int first=12;
+    PATH_ORDER_LOOP
     for(int quadrant=minQ;quadrant==minQ || quadrant<maxQ;quadrant++)
     {
         // PaintStructsFirstInQuadrant: first remains the preceding node.
-        while(next[first]!=-1 && q[next[first]]<quadrant) first=next[first];
+        PATH_ORDER_LOOP
+        while(next[first]!=-1 && q[next[first]]<quadrant) {
+            if(--budget<=0) return result;
+            first=next[first];
+        }
         int node=next[first];
+        PATH_ORDER_LOOP
         while(node!=-1)
         {
+            if(--budget<=0) return result;
             if(q[node]>quadrant+1) { flags[node]=128; break; }
             if(q[node]==quadrant+1) flags[node]=3;
             else if(q[node]==quadrant) flags[node]=(quadrant==minQ ? 2 : 0)|1;
             node=next[node];
         }
         int search=first;
+        PATH_ORDER_LOOP
         for(;;)
         {
+            if(--budget<=0) return result;
             int parent=search;
             int child=next[parent];
+            PATH_ORDER_LOOP
             while(child!=-1 && (flags[child]&128)==0 && (flags[child]&1)==0)
-            { parent=child; child=next[parent]; }
+            { if(--budget<=0) return result; parent=child; child=next[parent]; }
             if(child==-1 || (flags[child]&128)!=0) break;
             flags[child]&=~1;
             WorldPathBounds initial=bounds[child];
             int scan=child;
+            PATH_ORDER_LOOP
             for(;;)
             {
+                if(--budget<=0) return result;
                 int previous=scan;
                 scan=next[scan];
                 if(scan==-1 || (flags[scan]&128)!=0) break;
@@ -116,6 +139,7 @@ PATH_ORDER_FN WorldPathOrder worldPathOrder(WorldPathPart parts[12], int count, 
         }
     }
     int node=next[12];
+    PATH_ORDER_LOOP
     while(node!=-1 && result.count<count)
     {
         result.indices[result.count++]=node;
@@ -123,5 +147,6 @@ PATH_ORDER_FN WorldPathOrder worldPathOrder(WorldPathPart parts[12], int count, 
     }
     return result;
 }
+#undef PATH_ORDER_LOOP
 #undef PATH_ORDER_FN
 #endif

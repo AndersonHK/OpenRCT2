@@ -1344,13 +1344,13 @@ namespace OpenRCT2
         const auto& rtd = ride.getRideTypeDescriptor();
         if (rtd.specialType == RtdSpecialType::maze)
         {
-            base.location = ride.getStation().entrance.toCoordsXY();
+            base.location = ride.getStation().getEntrance().toCoordsXY();
             base.baseZ = ride.getStation().getBaseZ();
             return true;
         }
 
         const auto& station = ride.getStation(stationIndex);
-        base.location = station.start;
+        base.location = station.getStartXY();
         base.baseZ = station.getBaseZ();
         base.trackType = rtd.StartTrackPiece;
 
@@ -2076,7 +2076,7 @@ namespace OpenRCT2
                 {
                     auto entranceIndex = tileElement->asTrack()->getStationIndex();
                     state.StationFlags &= ~RIDE_RATING_STATION_FLAG_NO_ENTRANCE;
-                    if (ride->getStation(entranceIndex).entrance.isNull())
+                    if (ride->getStation(entranceIndex).getEntrance().isNull())
                     {
                         state.StationFlags |= RIDE_RATING_STATION_FLAG_NO_ENTRANCE;
                     }
@@ -2224,10 +2224,10 @@ namespace OpenRCT2
 
         for (auto& station : ride->getStations())
         {
-            if (!station.start.isNull())
+            if (!station.getStartXY().isNull())
             {
                 state.StationFlags &= ~RIDE_RATING_STATION_FLAG_NO_ENTRANCE;
-                if (station.entrance.isNull())
+                if (station.getEntrance().isNull())
                 {
                     state.StationFlags |= RIDE_RATING_STATION_FLAG_NO_ENTRANCE;
                 }

@@ -1,0 +1,292 @@
+// Copyright (c) 2014-2026 OpenRCT2 developers. GPL-3.0-or-later.
+#include <array>
+#include <gtest/gtest.h>
+#include <memory>
+#include <openrct2-renderer/gpu/GpuWorldFlatRideCatalog.h>
+#include <openrct2/paint/Paint.h>
+#include <openrct2/ride/TrackPaint.h>
+
+namespace G = OpenRCT2::Ui::Gpu;
+namespace F = G::FlatRideRules;
+
+TEST(WorldFlatRideRulesTest, FootprintSequencesMatchAuthoritativeTrackMaps)
+{
+    for (int direction = 0; direction < 4; direction++)
+    {
+        for (int sequence = 0; sequence < 9; sequence++)
+            EXPECT_EQ(F::worldFlatSequence(1, sequence, direction), kTrackMap3x3[direction][sequence]);
+        for (int sequence = 0; sequence < 16; sequence++)
+            EXPECT_EQ(F::worldFlatSequence(12, sequence, direction), kTrackMap4x4[direction][sequence]);
+        for (int sequence = 0; sequence < 4; sequence++)
+        {
+            EXPECT_EQ(F::worldFlatSequence(5, sequence, direction), kTrackMap2x2[direction][sequence]);
+            EXPECT_EQ(F::worldFlatSequence(9, sequence, direction), kTrackMap1x4[direction][sequence]);
+        }
+    }
+}
+TEST(WorldFlatRideRulesTest, ParkedSeatAndRearBodyFrontOrderRemainPhysical)
+{
+    const auto spin = F::worldFlatParts(16, 1, 0, true, true, 15, 128, 0, 4);
+    ASSERT_EQ(spin.count, 5);
+    EXPECT_EQ(spin.parts[0].image, 572);
+    EXPECT_EQ(spin.parts[1].image, 380);
+    EXPECT_EQ(spin.parts[2].image, 0);
+    EXPECT_EQ(spin.parts[2].z, -7); // Original height+3 and parked seat-height offset -10.
+    EXPECT_EQ(spin.parts[3].image, 476);
+    EXPECT_EQ(spin.parts[4].image, 573);
+    EXPECT_EQ(spin.parts[0].child, 0);
+    for (int i = 1; i < spin.count; i++)
+        EXPECT_EQ(spin.parts[i].child, 1);
+    const auto wheel = F::worldFlatParts(9, 0, 0, true, true, 15, 128, 0, 4);
+    ASSERT_EQ(wheel.count, 3);
+    EXPECT_EQ(wheel.parts[0].image, 22150);
+    EXPECT_EQ(wheel.parts[1].bank, 1);
+    EXPECT_EQ(wheel.parts[1].image, 0);
+    EXPECT_EQ(wheel.parts[2].image, 22151);
+    const auto carpet = F::worldFlatParts(15, 0, 0, true, true, 15, 128, 0, 4);
+    ASSERT_EQ(carpet.count, 5);
+    EXPECT_EQ(carpet.parts[2].z, 5); // Original height+7 and parked gondola offset -2.
+}
+TEST(WorldFlatRideRulesTest, EveryFamilyHasBoundedBodiesAndRejectedSequencesStayEmpty)
+{
+    for (int family = 1; family <= 19; family++)
+    {
+        SCOPED_TRACE(family);
+        bool body = false;
+        for (int direction = 0; direction < 4; direction++)
+            for (int sequence = 0; sequence < F::worldFlatSize(family); sequence++)
+                for (int mask = 0; mask < 16; mask++)
+                {
+                    const auto parts = F::worldFlatParts(family, sequence, direction, true, false, mask, 128, 0, 4);
+                    ASSERT_GE(parts.count, 0);
+                    ASSERT_LE(parts.count, F::WORLD_FLAT_PART_CAPACITY);
+                    for (int i = 0; i < parts.count; i++)
+                    {
+                        body |= parts.parts[i].bank == 1;
+                        EXPECT_GE(parts.parts[i].image, 0);
+                    }
+                }
+        EXPECT_TRUE(body || family == 6 || family == 7);
+        EXPECT_EQ(F::worldFlatParts(family, F::worldFlatSize(family), 0, true, false, 15, 128, 0, 4).count, 0);
+    }
+}
+TEST(WorldFlatRideCatalogTest, SparseOwnedArtUsageAndStationRangesAreValidated)
+{
+    auto objects = std::make_unique<OpenRCT2::WorldObjectPresentationMaterials>();
+    objects->rideObjects[0] = { 50000, 32, 50003, true };
+    OpenRCT2::WorldRidePresentationMaterials rides;
+    rides.rides.resize(2);
+    for (auto& ride : rides.rides)
+    {
+        ride.present = true;
+        ride.objectSlot = 0;
+        ride.regularStyle = static_cast<uint16_t>(TrackStyle::_3DCinema);
+    }
+    rides.rides[0].stations.resize(7); // Beyond the obsolete four-station limit.
+    rides.rides[0].stations[6].entranceValid = true;
+    rides.rides[0].stations[6].entranceX = 300;
+    rides.rides[0].stations[6].entranceY = 301;
+    OpenRCT2::WorldObjectPresentationUsage usage;
+    std::vector<uint32_t> images;
+    const auto append = [&](uint32_t image) {
+        images.push_back(image);
+        return static_cast<uint32_t>(images.size() - 1);
+    };
+    const auto empty = G::BuildWorldFlatRideCatalog(*objects, rides, &usage, 10, append);
+    EXPECT_TRUE(images.empty());
+    G::ValidateWorldFlatRideCatalog(empty.words, 0);
+    usage.slots[4].set(0);
+    const auto catalogue = G::BuildWorldFlatRideCatalog(*objects, rides, &usage, 10, append);
+    G::ValidateWorldFlatRideCatalog(catalogue.words, images.size());
+    EXPECT_EQ(catalogue.words[8 + G::kWorldFlatRideWords], 0u);
+    EXPECT_EQ(catalogue.words[8 + 17], 7u);
+    const auto station = catalogue.words[8 + 16] + 6 * 5;
+    EXPECT_EQ(catalogue.words[station + 1], 300u);
+    EXPECT_EQ(catalogue.words[station + 2], 301u);
+    std::vector<uint32_t> objectImages;
+    for (auto image : images)
+        if (image >= 50000)
+            objectImages.push_back(image);
+    EXPECT_EQ(objectImages, (std::vector<uint32_t>{ 50003, 50004, 50005, 50006 }));
+    auto invalid = catalogue.words;
+    invalid[8 + 16] = UINT32_MAX;
+    EXPECT_THROW(G::ValidateWorldFlatRideCatalog(invalid, images.size()), std::invalid_argument);
+    invalid = catalogue.words;
+    invalid[invalid[4] + 1] = static_cast<uint32_t>(images.size());
+    EXPECT_THROW(G::ValidateWorldFlatRideCatalog(invalid, images.size()), std::invalid_argument);
+    objects->rideObjects[0].imageCount = 4;
+    images.clear();
+    EXPECT_THROW(static_cast<void>(G::BuildWorldFlatRideCatalog(*objects, rides, &usage, 10, append)), std::runtime_error);
+    EXPECT_TRUE(images.empty()); // Validate all owned references before invoking the atlas callback.
+}
+
+TEST(WorldFlatRideRulesTest, TowerCapsAndMazeWallTopologyUseRawState)
+{
+    for (int family = 20; family <= 22; family++)
+    {
+        const auto open = F::worldTowerParts(family, 0, 0, true, true, false, 15);
+        const auto covered = F::worldTowerParts(family, 0, 0, true, false, false, 15);
+        ASSERT_EQ(open.count, 2);
+        ASSERT_EQ(covered.count, 1);
+        EXPECT_EQ(open.parts[1].image, open.parts[0].image + 1);
+        EXPECT_EQ(open.parts[1].child, 1);
+        EXPECT_EQ(F::worldTowerParts(family, 1, 0, true, true, false, 15).count, 0);
+        for (int direction = 0; direction < 4; direction++)
+        {
+            const auto base = F::worldTowerParts(family, 0, direction, false, false, true, 0);
+            ASSERT_EQ(base.count, 3);
+            EXPECT_EQ(base.parts[1].z, 32);
+            EXPECT_EQ(base.parts[2].z, 64);
+            EXPECT_EQ(base.parts[0].image, family == 20 ? 14986 : family == 21 ? 14564 : 14560 + 2 * (direction & 1));
+        }
+    }
+    // A single quadrant wall rotates from top-left through the four source quadrants.
+    for (int direction = 0; direction < 4; direction++)
+        for (int quadrant = 0; quadrant < 4; quadrant++)
+            EXPECT_EQ(F::worldMazePart(quadrant + 1, 1 << 3, direction, 0).image, quadrant == direction ? 21951 : -1);
+    EXPECT_EQ(F::worldMazePart(0, 0, 0, 0).image, 2485);
+    for (int i = 1; i < 26; i++)
+        EXPECT_EQ(F::worldMazePart(i, 0, 0, 0).image, -1);
+    const auto centre = F::worldMazePart(25, 1 << 6, 0, 2);
+    EXPECT_EQ(centre.image, 21971);
+    EXPECT_EQ(centre.sz, 8);
+    EXPECT_EQ(F::worldMazePart(25, 1 << 3, 0, 2).image, -1);
+}
+TEST(WorldFlatRideCatalogTest, TowerAndMazeUseOnlyStaticG1ArtAndEntranceOnlyUsageDoesNotResolveBodies)
+{
+    auto objects = std::make_unique<OpenRCT2::WorldObjectPresentationMaterials>();
+    OpenRCT2::WorldRidePresentationMaterials rides;
+    rides.rides.resize(4);
+    const TrackStyle styles[] = { TrackStyle::observationTower, TrackStyle::launchedFreefall, TrackStyle::rotoDrop,
+                                  TrackStyle::maze };
+    OpenRCT2::WorldObjectPresentationUsage usage;
+    for (int i = 0; i < 4; i++)
+    {
+        rides.rides[i].present = true;
+        rides.rides[i].regularStyle = static_cast<uint16_t>(styles[i]);
+        usage.slots[6].set(i);
+    }
+    std::vector<uint32_t> images;
+    const auto append = [&](uint32_t image) {
+        images.push_back(image);
+        return static_cast<uint32_t>(images.size() - 1);
+    };
+    const auto empty = G::BuildWorldFlatRideCatalog(*objects, rides, &usage, 10, append);
+    EXPECT_TRUE(images.empty());
+    G::ValidateWorldFlatRideCatalog(empty.words, 0);
+    for (int i = 0; i < 4; i++)
+        usage.slots[4].set(i);
+    const auto catalogue = G::BuildWorldFlatRideCatalog(*objects, rides, &usage, 10, append);
+    G::ValidateWorldFlatRideCatalog(catalogue.words, images.size());
+    for (const uint32_t image : { 14559u, 14566u, 14988u, 2485u, 21938u, 21989u })
+        EXPECT_NE(std::find(images.begin(), images.end(), image), images.end());
+    EXPECT_EQ(catalogue.words[8 + 3], static_cast<uint32_t>(OpenRCT2::TrackElemType::towerSection));
+    EXPECT_EQ(catalogue.words[8 + 3 * G::kWorldFlatRideWords + 2], static_cast<uint32_t>(OpenRCT2::TrackElemType::maze));
+}
+
+TEST(WorldFlatRideRulesTest, ExhaustiveReachableVariantsFitEightPartsAndOverflowIsRejected)
+{
+    int maximum = 0;
+    for (int family = 1; family <= 22; family++)
+        for (int direction = 0; direction < 4; direction++)
+            for (int sequence = 0; sequence < F::worldFlatSize(family); sequence++)
+                for (bool stationPresent : { false, true })
+                    for (bool noPlatforms : { false, true })
+                        for (int fenceMask = 0; fenceMask < 16; fenceMask++)
+                            // Only Space Rings branches on train/station counts; counts >4
+                            // have the same visible-body predicate as4, station counts >1 as1.
+                            for (int stationCount = 0; stationCount <= (family == 10 ? 1 : 0); stationCount++)
+                                for (int trains = 0; trains <= (family == 10 ? 4 : 0); trains++)
+                                {
+                                    const auto parts = family >= 20
+                                        ? F::worldTowerParts(family, sequence, direction, false, false, noPlatforms, fenceMask)
+                                        : F::worldFlatParts(
+                                            family, sequence, direction, stationPresent, noPlatforms, fenceMask, 128,
+                                            stationCount, trains);
+                                    ASSERT_LE(parts.count, F::WORLD_FLAT_PART_CAPACITY);
+                                    maximum = std::max(maximum, parts.count);
+                                }
+    EXPECT_EQ(maximum, 8); // Top Spin and Swinging Ship reach the bound.
+    for (int family = 20; family <= 22; family++)
+        for (int direction = 0; direction < 4; direction++)
+            for (int sequence = 0; sequence < 9; sequence++)
+                for (bool cap : { false, true })
+                    ASSERT_LE(
+                        F::worldTowerParts(family, sequence, direction, true, cap, false, 15).count,
+                        F::WORLD_FLAT_PART_CAPACITY);
+    F::WorldFlatParts full{};
+    full.count = F::WORLD_FLAT_PART_CAPACITY;
+    EXPECT_THROW(F::worldFlatAdd(full, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), std::overflow_error);
+    EXPECT_EQ(full.count, F::WORLD_FLAT_PART_CAPACITY);
+}
+
+TEST(WorldFlatRideRulesTest, EveryMazeWallMaskMatchesLegacyParentArrangement)
+{
+    struct RestoreSort
+    {
+        bool previous = gPaintStableSort;
+        ~RestoreSort()
+        {
+            gPaintStableSort = previous;
+        }
+    } restore;
+    gPaintStableSort = false;
+    auto session = std::make_unique<PaintSessionCore>();
+    std::array<PaintStruct, 26> entries{};
+    constexpr CoordsXY tile{ 640, 672 };
+    constexpr int baseZ = 64;
+    for (int rotation = 0; rotation < 4; rotation++)
+        for (int mask = 0; mask <= 65535; mask++)
+        {
+            session->CurrentRotation = static_cast<uint8_t>(rotation);
+            session->QuadrantBackIndex = UINT32_MAX;
+            session->QuadrantFrontIndex = 0;
+            session->PaintHead = nullptr;
+            int count = 0;
+            // The bit-mask enumeration covers every rotation of raw mazeEntry as
+            // well; the independent camera rotation still changes paint bounds.
+            for (int i = 0; i < 26; i++)
+            {
+                const auto p = F::worldMazePart(i, mask, rotation, 0);
+                if (p.image < 0)
+                    continue;
+                auto origin = CoordsXY{ p.bx, p.by }.rotate((rotation * 3) & 3) + tile;
+                auto size = CoordsXY{ p.sx, p.sy };
+                if (rotation == 0 || rotation == 1)
+                    --size.x;
+                if (rotation == 0 || rotation == 3)
+                    --size.y;
+                size = size.rotate((rotation * 3) & 3);
+                auto& entry = entries[i];
+                entry = {};
+                entry.Bounds = { origin.x, origin.y, baseZ + p.bz, origin.x + size.x, origin.y + size.y, baseZ + p.bz + p.sz };
+                constexpr int range = MaxPaintQuadrants * 32;
+                int hash = rotation == 0 ? origin.x + origin.y
+                    : rotation == 1      ? origin.y - origin.x + range / 2
+                    : rotation == 2      ? -origin.y - origin.x + range
+                                         : origin.x - origin.y + range / 2;
+                const auto q = static_cast<uint32_t>(std::clamp(hash / 32, 0, MaxPaintQuadrants - 1));
+                entry.QuadrantIndex = static_cast<uint16_t>(q);
+                entry.NextQuadrantEntry = session->Quadrants[q];
+                session->Quadrants[q] = &entry;
+                session->QuadrantBackIndex = std::min(session->QuadrantBackIndex, q);
+                session->QuadrantFrontIndex = std::max(session->QuadrantFrontIndex, q);
+                count++;
+            }
+            PaintSessionArrange(*session);
+            const auto actual = F::worldMazeOrder(mask, rotation, rotation);
+            ASSERT_EQ(actual.count, count) << "mask=" << mask << " rotation=" << rotation;
+            auto* parent = session->PaintHead;
+            for (int i = 0; i < count; i++)
+            {
+                ASSERT_NE(parent, nullptr);
+                ASSERT_EQ(actual.indices[i], parent - entries.data()) << "mask=" << mask << " rotation=" << rotation;
+                parent = parent->NextQuadrantEntry;
+            }
+            ASSERT_EQ(parent, nullptr);
+            // Only two populated quadrants occur for these fixed maze bounds.
+            // Clear those instead of reallocating the full PaintSession each mask.
+            for (auto q = session->QuadrantBackIndex; q <= session->QuadrantFrontIndex; q++)
+                session->Quadrants[q] = nullptr;
+        }
+}

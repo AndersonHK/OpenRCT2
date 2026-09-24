@@ -21,8 +21,100 @@
 #include "Vehicle.Station.h"
 #include "Vehicle.h"
 
+#include <atomic>
+#include <stdexcept>
+
 namespace OpenRCT2
 {
+    static std::atomic<uint64_t> _stationGraphicalRevision{ 1 };
+
+    uint64_t GetRideStationGraphicalRevision() noexcept
+    {
+        return _stationGraphicalRevision.load(std::memory_order_acquire);
+    }
+
+    static void AdvanceStationGraphicalRevision()
+    {
+        auto previous = _stationGraphicalRevision.load(std::memory_order_relaxed);
+        do
+        {
+            if (previous == UINT64_MAX)
+                throw std::overflow_error("Ride station graphical revision exhausted");
+        } while (!_stationGraphicalRevision.compare_exchange_weak(previous, previous + 1, std::memory_order_release));
+    }
+
+    RideStation::GraphicalState& RideStation::GraphicalState::operator=(const GraphicalState& other)
+    {
+        if (start != other.start || height != other.height || entrance != other.entrance || exit != other.exit
+            || entrance.direction != other.entrance.direction || exit.direction != other.exit.direction)
+        {
+            start = other.start;
+            height = other.height;
+            entrance = other.entrance;
+            exit = other.exit;
+            AdvanceStationGraphicalRevision();
+        }
+        return *this;
+    }
+
+    void RideStation::setStart(CoordsXY value)
+    {
+        if (_graphical.start == value)
+            return;
+        _graphical.start = value;
+        AdvanceStationGraphicalRevision();
+    }
+    void RideStation::setHeight(uint8_t value)
+    {
+        if (_graphical.height == value)
+            return;
+        _graphical.height = value;
+        AdvanceStationGraphicalRevision();
+    }
+    void RideStation::setEntrance(TileCoordsXYZD value)
+    {
+        if (_graphical.entrance == value && _graphical.entrance.direction == value.direction)
+            return;
+        _graphical.entrance = value;
+        AdvanceStationGraphicalRevision();
+    }
+    void RideStation::setExit(TileCoordsXYZD value)
+    {
+        if (_graphical.exit == value && _graphical.exit.direction == value.direction)
+            return;
+        _graphical.exit = value;
+        AdvanceStationGraphicalRevision();
+    }
+    void RideStation::clearStart()
+    {
+        auto value = getStartXY();
+        value.setNull();
+        setStart(value);
+    }
+    void RideStation::clearEntrance()
+    {
+        auto value = getEntrance();
+        value.setNull();
+        setEntrance(value);
+    }
+    void RideStation::clearExit()
+    {
+        auto value = getExit();
+        value.setNull();
+        setExit(value);
+    }
+    void RideStation::setEntranceDirection(uint8_t value)
+    {
+        auto location = getEntrance();
+        location.direction = value;
+        setEntrance(location);
+    }
+    void RideStation::setExitDirection(uint8_t value)
+    {
+        auto location = getExit();
+        location.direction = value;
+        setExit(location);
+    }
 
     static void RideUpdateStationBlockSection(Ride& ride, StationIndex stationIndex);
     static void RideUpdateStationDodgems(Ride& ride, StationIndex stationIndex);
@@ -339,7 +431,7 @@ namespace OpenRCT2
      */
     static void RideInvalidateStationStart(Ride& ride, StationIndex stationIndex, bool greenLight, TileElement* stationElement)
     {
-        auto startPos = ride.getStation(stationIndex).start;
+        auto startPos = ride.getStation(stationIndex).getStartXY();
         TileElement* tileElement = stationElement != nullptr ? stationElement
                                                              : RideGetStationStartTrackElement(ride, stationIndex);
 
@@ -394,7 +486,7 @@ namespace OpenRCT2
     {
         for (const auto& station : ride.getStations())
         {
-            if (!station.exit.isNull())
+            if (!station.getExit().isNull())
             {
                 return ride.getStationIndex(&station);
             }
@@ -406,7 +498,7 @@ namespace OpenRCT2
     {
         for (const auto& station : ride.getStations())
         {
-            if (!station.start.isNull())
+            if (!station.getStartXY().isNull())
             {
                 return ride.getStationIndex(&station);
             }
@@ -418,7 +510,7 @@ namespace OpenRCT2
     {
         for (const auto& station : ride.getStations())
         {
-            if (station.start.isNull())
+            if (station.getStartXY().isNull())
             {
                 return ride.getStationIndex(&station);
             }
@@ -428,16 +520,16 @@ namespace OpenRCT2
 
     int32_t RideStation::getBaseZ() const
     {
-        return height * kCoordsZStep;
+        return _graphical.height * kCoordsZStep;
     }
 
     void RideStation::setBaseZ(int32_t newZ)
     {
-        height = newZ / kCoordsZStep;
+        setHeight(static_cast<uint8_t>(newZ / kCoordsZStep));
     }
 
     CoordsXYZ RideStation::getStart() const
     {
-        return { start, getBaseZ() };
+        return { _graphical.start, getBaseZ() };
     }
 } // namespace OpenRCT2
