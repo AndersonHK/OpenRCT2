@@ -176,3 +176,9 @@ The remaining main-thread budget is now explicit: roughly 0.727 ms drawing plus 
 
 Open rendering work remains: peep contact depth needs a full-park-safe implementation; foreground vehicle/rail and station overlaps, Chairlift stations/remaining recipe omissions, underground/construction/preview and rare-family qualification, and append-only catalog admissions. Do not retry the withdrawn166 shader as an ordinary benchmark. Any later shader investigation must isolate it from the qualified CPU path and preserve these failure receipts.
 Deployment167: `obj/vulkan-parity/deploy-async167-01/receipt.json` verifies all 28 files (2 changed) in `D:\Games\Independent\OpenRCT2Mod`. No automatic launch or settings/save changes.
+
+## Manual comparison save
+
+The exact benchmark input is available as `Documents/OpenRCT2/save/Everything Park - Renderer Test.park`, shared by the default unmodified and fork installations. Its SHA-256 is `c11bca8296bbf6d0b2673c4c80e3703139360b802e04b363d25cedd605459cf4`, matching both the current test fixture and frozen upstream fixture. No park state or object assets were changed for this copy. Receipt: `obj/vulkan-parity/deploy-async167-01/test-park-copy.json`.
+
+Future `deploy-render-checkpoint.ps1` runs call `copy-render-test-park.ps1`: an identical existing copy is reused, while an edited save is preserved and a numbered fresh copy is added. This lets the user inspect asset loading independently in both installed applications.

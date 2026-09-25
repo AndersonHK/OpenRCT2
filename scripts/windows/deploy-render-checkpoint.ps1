@@ -1,5 +1,6 @@
 # Deploy an explicitly selected, successful renderer build to the existing manual-test installation.
-# No build, mirroring, deletion, object traversal, profile/config/save writes, or automatic launch.
+# No build, mirroring, deletion, object traversal, config writes, or automatic launch.
+# Also add the exact benchmark park to the shared save folder, preserving existing saves.
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][string]$BuildReceipt,
@@ -163,7 +164,7 @@ $manifest = [ordered]@{
     schema = 1; status = 'backup-complete'; createdUtc = [DateTime]::UtcNow.ToString('o')
     destination = $destination; buildReceipt = $receiptPath; buildReceiptSha256 = $BuildReceiptSha256.ToLowerInvariant()
     helperSha256 = Get-Digest $PSCommandPath; backup = $backup; payload = $payload
-    scope = 'Launchers, all qualified SPVs, changed receipt-qualified non-object data. No deletions; objects/profiles/saves untouched.'
+    scope = 'Launchers, all qualified SPVs, changed receipt-qualified non-object data, exact Everything Park test save. No deletions; objects/config/existing saves preserved.'
     files = @($files.ToArray()); unchangedNonObjectData = @($unchangedData.ToArray())
 }
 $manifestPath = Join-Path $output 'manifest.json'
@@ -171,7 +172,7 @@ Save-Json $manifestPath $manifest
 $result = [ordered]@{
     schema = 1; status = 'deploying'; destination = $destination; manifest = $manifestPath
     manifestSha256 = Get-Digest $manifestPath; changedFiles = @($files | Where-Object { $_.changed }).Count
-    startedUtc = [DateTime]::UtcNow.ToString('o'); completedUtc = $null; error = $null
+    startedUtc = [DateTime]::UtcNow.ToString('o'); completedUtc = $null; error = $null; testPark = $null
 }
 $resultPath = Join-Path $output 'receipt.json'
 Save-Json $resultPath $result
@@ -191,6 +192,7 @@ try {
     }
     foreach ($file in $files) { Assert-Digest (Resolve-Child $destination $file.path) $file.sha256 }
     foreach ($file in $unchangedData) { Assert-Digest (Resolve-Child $destination $file.path) $file.sha256 }
+    $result.testPark = & (Join-Path $PSScriptRoot 'copy-render-test-park.ps1')
     $result.status = 'deployed-verified'
 } catch {
     $result.status = 'deploy-failed-backup-preserved'
@@ -202,3 +204,4 @@ try {
 }
 Write-Output "Deployed and verified $($files.Count) qualified files ($($result.changedFiles) changed) to $destination."
 Write-Output "Receipt: $resultPath"
+Write-Output "Test park: $($result.testPark.destination)"
