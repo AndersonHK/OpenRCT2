@@ -132,6 +132,8 @@ def main():
     parser.add_argument("--width", type=int, default=3840)
     parser.add_argument("--height", type=int, default=2160)
     parser.add_argument("--pipeline-cache-seed", type=Path)
+    parser.add_argument("--load-save-at-end", type=Path,
+                        help="After the warm title loop, load an isolated copy through the ordinary saved-game loader")
     args = parser.parse_args()
     if args.parks == 1 or args.parks < 0 or not 2 <= args.loops <= 4 or not 500 <= args.hold_ms <= 5000:
         parser.error("Use >=2 parks (or 0 for all), 2..4 loops and 500..5000 ms holds")
@@ -172,6 +174,18 @@ def main():
         profile = output / "profile"
         sequence_dir = profile / "sequence"
         sequence_dir.mkdir(parents=True)
+        probe_save = None
+        if args.load_save_at_end:
+            original_save = args.load_save_at_end.resolve(strict=True)
+            if not original_save.is_file() or original_save.suffix.lower() not in (".park", ".sv6", ".sv4"):
+                raise ValueError("Saved-game transition requires a regular .park, .sv6 or .sv4 file")
+            probe_save = profile / "save" / original_save.name
+            probe_save.parent.mkdir()
+            save_sha256 = p.sha256(original_save)
+            shutil.copy2(original_save, probe_save)
+            if p.sha256(probe_save) != save_sha256:
+                raise ValueError("Saved-game fixture changed while copying")
+            summary["savedGameFixture"] = {"source": str(original_save), "copy": str(probe_save), "sha256": save_sha256}
         archive = frozen / "package/data/sequence/openrct2.parkseq"
         fixture = prepare_sequence(archive, sequence_dir / (SEQUENCE + ".parkseq"), args.parks, args.loops, args.hold_ms)
         summary["fixture"] = fixture
@@ -212,8 +226,10 @@ def main():
                 del env[name]
         env["OPENRCT2_LOADING_REPORT"] = "1"
         env["OPENRCT2_TITLE_LOADING_EXIT_AT_END"] = "1"
+        if probe_save:
+            env["OPENRCT2_TITLE_LOADING_SAVE_AT_END"] = str(probe_save)
         summary["command"] = command
-        summary["environmentOverrides"] = {key: env[key] for key in ("OPENRCT2_LOADING_REPORT", "OPENRCT2_TITLE_LOADING_EXIT_AT_END")}
+        summary["environmentOverrides"] = {key: value for key, value in env.items() if key.startswith("OPENRCT2_")}
         summary["graphicsEnvironment"] = {key: value for key, value in env.items()
                                           if key.startswith(("SDL_", "VK_", "__GL_", "DRI_", "MESA_"))}
         if env.get("SDL_VIDEODRIVER", "").lower() == "dummy":
@@ -231,13 +247,31 @@ def main():
         summary["processWallSeconds"] = time.monotonic() - started
         text = (output / "loading.log").read_text(encoding="utf-8", errors="replace")
         summary["logSha256"] = p.sha256(output / "loading.log")
+        render_error = profile / "render-error.log"
+        if render_error.exists():
+            summary["renderErrors"] = render_error.read_text(encoding="utf-8", errors="replace")
         if "Title loading diagnostic: hidden window, dummy audio" not in text or "Opened wasapi audio output" in text:
             raise RuntimeError("Silent, hidden diagnostic contract was not confirmed")
         if timed_out:
             raise RuntimeError("Title playback timed out; owned process terminated, no success claim")
         if summary["exitCode"] != 0 or re.search(r"failed with error|VK_ERROR_DEVICE_LOST|VUID-|Unable to load park", text):
             raise ValueError("Title process or graphics/loading validation failed")
+        if summary.get("renderErrors", "").strip():
+            raise ValueError("Renderer recorded an error during loading or teardown")
         summary["measurements"] = parse_report(text, fixture)
+        if probe_save:
+            clean_text = re.sub(r"\x1b\[[0-9;]*m", "", text)
+            loaded = re.findall(r"^Loading saved park probe: status=loaded elapsed_ms=([0-9.]+)\s*$", clean_text, re.MULTILINE)
+            if len(loaded) != 1 or clean_text.count("Loading saved park probe: status=begin") != 1:
+                raise ValueError("Saved-game transition did not complete exactly once")
+            if "Loading saved park probe: status=failed" in clean_text or "Loading saved park probe: status=exception" in clean_text:
+                raise ValueError("Saved-game transition reported a failure")
+            if clean_text.count("Loading saved park probe: status=rendered") != 1:
+                raise ValueError("Saved-game transition did not render its post-load frame exactly once")
+            if p.sha256(probe_save) != summary["savedGameFixture"]["sha256"]:
+                raise ValueError("Saved-game fixture changed during the probe")
+            summary["savedGameTransition"] = {"elapsedMs": float(loaded[0]),
+                                              "scope": "Warm title to ordinary saved-game load at the outer frame boundary, including progress UI and a post-load world frame."}
         if p.sha256(runtime / "openrct2.exe") != current["artifactSha256"]["bin/openrct2.exe"]:
             raise ValueError("Runtime executable changed")
         for name, digest in current["artifactSha256"].items():

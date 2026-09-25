@@ -592,6 +592,11 @@ namespace OpenRCT2
             // injected factory is discarded without creating a loader/device or video subsystem.
             _renderService.Shutdown();
 
+            // Drain the final presentation and retire its atlas uploads before object unloading invalidates images.
+            // In particular, closing immediately after a cold park frame must not scan its entire pending upload list
+            // once for each unloaded image. All window and auxiliary users have already stopped.
+            _drawingEngine.reset();
+
             // Unload objects after closing all windows, this is to overcome windows like
             // the object selection window which loads objects when closed.
             if (_objectManager != nullptr)
@@ -2432,6 +2437,40 @@ namespace OpenRCT2
         {
             PROFILED_FUNCTION();
 
+            if (const auto path = TakeTitleLoadingSavedGameRequest())
+            {
+                // The title player has returned: loading may now replace its scene safely.
+                const auto start = IntegratedBenchmarkClock::now();
+                Console::WriteLine("Loading saved park probe: status=begin");
+                try
+                {
+                    if (!LoadParkFromFile(*path))
+                        throw std::runtime_error("Saved-game transition failed");
+                    Console::WriteLine(
+                        "Loading saved park probe: status=loaded elapsed_ms=%.3f",
+                        std::chrono::duration<double, std::milli>(IntegratedBenchmarkClock::now() - start).count());
+                    std::vector<Drawing::FrameTimings> samples;
+                    _drawingEngine->DrainFrameTimings(samples);
+                    const auto before = _drawingEngine->GetFramePresentationCounters();
+                    Draw();
+                    _drawingEngine->DrainFrameTimings(samples);
+                    const auto after = _drawingEngine->GetFramePresentationCounters();
+                    if (!before || !after || after->presentAccepted <= before->presentAccepted)
+                        throw std::runtime_error("Saved-game post-load frame was not presented");
+                    const auto screenshot = _drawingEngine->Screenshot();
+                    if (screenshot.empty())
+                        throw std::runtime_error("Saved-game post-load screenshot was not produced");
+                    Console::WriteLine("Loading saved park probe: screenshot=%s", screenshot.c_str());
+                    Console::WriteLine("Loading saved park probe: status=rendered");
+                }
+                catch (const std::exception& e)
+                {
+                    Console::Error::WriteLine("Loading saved park probe: status=exception error=%s", e.what());
+                }
+                Finish();
+                return;
+            }
+
             UpdateIntegratedBenchmark();
             if (_finished)
                 return;
@@ -2663,7 +2702,42 @@ namespace OpenRCT2
             }
             {
                 BenchmarkPhaseScope timing(*this, BenchmarkWorkPhase::drawPaint);
-                _painter->Paint(*_drawingEngine);
+                try
+                {
+                    _painter->Paint(*_drawingEngine);
+                }
+                catch (...)
+                {
+                    const auto failure = std::current_exception();
+                    try
+                    {
+                        _drawingEngine->AbortDraw();
+                    }
+                    catch (...)
+                    {
+                        // Keep the original paint failure, not a secondary cleanup error.
+                    }
+                    try
+                    {
+                        std::rethrow_exception(failure);
+                    }
+                    catch (const std::exception& e)
+                    {
+                        Console::Error::WriteLine("Frame recording failed: %s", e.what());
+                        try
+                        {
+                            const auto path = Path::Combine(_env->GetDirectoryPath(DirBase::user), "render-error.log");
+                            FileStream log(path, FileMode::append);
+                            const auto line = std::string("Frame recording failed: ") + e.what() + "\n";
+                            log.Write(line.data(), line.size());
+                        }
+                        catch (...)
+                        {
+                            // A log-write failure must not replace the original error either.
+                        }
+                    }
+                    std::rethrow_exception(failure);
+                }
             }
             {
                 BenchmarkPhaseScope timing(*this, BenchmarkWorkPhase::drawEnd);

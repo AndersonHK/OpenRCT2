@@ -109,7 +109,7 @@ int main(int argc, const char** argv)
         {
             const std::string message = std::string("OpenRCT2 could not continue:\n\n") + e.what();
             LOG_ERROR("Unhandled startup or runtime error: %s", e.what());
-            if (context != nullptr && !gOpenRCT2Headless && !gIntegratedBenchmark.enabled)
+            if (context != nullptr && !gOpenRCT2Headless && !gIntegratedBenchmark.enabled && !IsTitleLoadingDiagnostic())
             {
                 try
                 {
@@ -125,7 +125,7 @@ int main(int argc, const char** argv)
         catch (...)
         {
             LOG_ERROR("Unhandled non-standard startup or runtime error.");
-            if (context != nullptr && !gOpenRCT2Headless && !gIntegratedBenchmark.enabled)
+            if (context != nullptr && !gOpenRCT2Headless && !gIntegratedBenchmark.enabled && !IsTitleLoadingDiagnostic())
             {
                 try
                 {

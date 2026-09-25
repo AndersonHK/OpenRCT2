@@ -418,6 +418,20 @@ namespace OpenRCT2::Ui
             EndDrawQueued();
         }
 
+        void AbortDraw() override
+        {
+            if (!_drawingContext.IsActive())
+                return;
+            _drawingContext.End();
+            _textureCache->AbortFrame();
+    #ifdef OPENRCT2_VULKAN_DIAGNOSTICS
+            if (_recordingPacket->diagnosticCapture != nullptr)
+                _recordingPacket->diagnosticCapture->Fail(
+                    std::make_exception_ptr(std::runtime_error("Vulkan frame recording aborted")));
+    #endif
+            _recordingPacket->commands.clear();
+        }
+
     #ifdef OPENRCT2_VULKAN_DIAGNOSTICS
         std::shared_ptr<Vulkan::Diagnostic::CaptureRequest> ArmDiagnosticCapture(std::string name)
         {
@@ -490,7 +504,7 @@ namespace OpenRCT2::Ui
                 return;
             }
             const auto* viewport = WindowGetViewport(WindowGetMain());
-            if (viewport == nullptr)
+            if (viewport == nullptr || (viewport->flags & VIEWPORT_FLAG_RENDERING_INHIBITED))
             {
                 commands.lightFx.reset();
                 return;

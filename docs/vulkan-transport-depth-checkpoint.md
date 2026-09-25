@@ -32,6 +32,8 @@ Deployed build186 followed commit `68b3880700` / build176. Its qualification is 
 
 ## Evidence and checklist
 
+- [x] Save-loading crash root cause identified and corrected: inhibited progress UI must not publish the old park against replacement asset slots; failed paint must release frame ownership. See [save-loading regression](vulkan-save-loading-regression.md) for the dedicated warm-title transition and immediate-shutdown evidence.
+
 - [x] Build180: zero warnings/errors;146 focused CPU tests pass.
 - [x] Build182:206 focused CPU tests pass. Build186 compiles with zero warnings/errors and unchanged inputs.
 - [x] Actual GPU depth, filter composition, readback and cancellation checks pass after replacing stale fixtures. The stronger selected-car test found a real split-kernel distribution bug; its exact pixel checks pass in185 after the fix.

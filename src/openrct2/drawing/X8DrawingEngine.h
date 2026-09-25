@@ -95,6 +95,7 @@ namespace OpenRCT2
 #endif
             void BeginDraw() override;
             void EndDraw() override;
+            void AbortDraw() override;
 #ifdef __WARN_SUGGEST_FINAL_METHODS__
     #pragma GCC diagnostic pop
 #endif

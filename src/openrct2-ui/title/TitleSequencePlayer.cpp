@@ -102,6 +102,9 @@ namespace OpenRCT2::Title
 
         bool Update() override
         {
+            if (HasTitleLoadingSavedGameRequest())
+                return true;
+
             RestoreViewLocationIfResized();
 
             if (_sequence == nullptr)
@@ -136,8 +139,11 @@ namespace OpenRCT2::Title
                         if (std::holds_alternative<EndCommand>(currentCommand) && gLegacyScene == LegacyScene::titleSequence
                             && IsTitleLoadingDiagnostic())
                         {
-                            // Explicit isolated-profile diagnostic: use ordinary context teardown,
-                            // including render-worker drain, after the script's final camera hold.
+                            // The outer context consumes this after Update returns. A scene switch
+                            // here would invalidate the title player's active stack and commands.
+                            if (QueueTitleLoadingSavedGameRequest())
+                                return true;
+                            // Ordinary context teardown includes the render-worker drain.
                             GetContext()->Finish();
                             return true;
                         }

@@ -128,6 +128,10 @@ namespace OpenRCT2::Drawing
         }
         virtual void BeginDraw() = 0;
         virtual void EndDraw() = 0;
+        // Discard an unsubmitted frame after painting fails. Stateful recorders must release their frame ownership.
+        virtual void AbortDraw()
+        {
+        }
         virtual void PaintWindows() = 0;
         virtual void PaintWeather() = 0;
         virtual void CopyRect(int32_t x, int32_t y, int32_t width, int32_t height, int32_t dx, int32_t dy) = 0;

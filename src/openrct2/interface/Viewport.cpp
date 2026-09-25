@@ -774,9 +774,13 @@ namespace OpenRCT2
     {
         std::vector<SelectedVehicleRequest> vehicleRequests;
         const auto now = Platform::GetTicks();
+        bool hasRenderableViewport = false;
         WindowVisitEach([&](WindowBase* window) {
             const auto* viewport = window->viewport;
-            if (viewport == nullptr || viewport == ViewportGetMain()
+            if (viewport == nullptr || (viewport->flags & VIEWPORT_FLAG_RENDERING_INHIBITED))
+                return;
+            hasRenderableViewport = true;
+            if (viewport == ViewportGetMain()
                 || getGameState().entities.getEntity<Vehicle>(window->viewportTargetSprite) == nullptr)
                 return;
             const auto found = _secondaryPreviews.find(viewport);
@@ -799,6 +803,10 @@ namespace OpenRCT2
                                         .clipFirst = gClipSelectionA,
                                         .clipLast = gClipSelectionB });
         });
+        // Loading UI can repaint after objects have been replaced but before the park is imported.
+        // No viewport may draw that mixed state, so neither capture it nor consume its dirty input.
+        if (!hasRenderableViewport)
+            return;
         GetPresentationScene().SetSelectedVehicleRequests(std::move(vehicleRequests));
         {
             auto words = MakeWorldSelectionWords(
