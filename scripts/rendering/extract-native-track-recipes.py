@@ -24,6 +24,8 @@ class Unsupported(ValueError):
 
 STATE_BITS = {'chain':1, 'inverted':2, 'brakeClosed':4, 'cable':8, 'csgLoaded':16, 'greenLight':32, 'hasPlatforms':64}
 PHOTO_PART = 0xfffffffc
+SUPPORT_CONDITION_PART = 0xfffffffb
+PRIMARY_AS_SECONDARY = 64
 PHOTO_PLATFORM_FLOOR = 32  # Source helper owns a floor beneath its independent rail parent.
 TUNNEL_PART = 0xfffffffd
 STATION_PART = 0xfffffffe
@@ -464,6 +466,11 @@ def image_value(values, env):
     if text == 'GetTrackColour(session)': return ImageValue(0, 3)
     if text in ('WoodenRCGetTrackColour<false>(session)','WoodenRCGetTrackColour<true>(session)'):
         return ImageValue(0, 0 if '<true>' in text else 1)
+    primary=re.fullmatch(r'(.+)\.WithSecondary\((.+)\.GetPrimary\(\)\)',text)
+    if primary:
+        base=image_value(tokens(primary[1]),env);other=image_value(tokens(primary[2]),env)
+        if base.role==other.role==0: return ImageValue(base.image,PRIMARY_AS_SECONDARY)
+        raise Unsupported('unrepresented primary colour duplication')
     secondary=re.fullmatch(r'(.+)\.WithSecondary\((.+)\.GetSecondary\(\)\)',text)
     if secondary:
         base=image_value(tokens(secondary[1]),env);other=image_value(tokens(secondary[2]),env)
@@ -830,6 +837,44 @@ class Translator:
                 flow = self.execute(item, env, source, parts, depth, getter)
                 if flow: return flow
         elif kind == 'if':
+            if ''.join(node[1])=='!trackElement.isGhost()&&!trackElement.isHighlighted()':
+                # A draw-time palette override replaces both remaps for ghosts/highlights.
+                # Only this pure colour assignment commutes with that override.
+                body=node[2]
+                if body[0]=='block' and len(body[1])==1: body=body[1][0]
+                value=body[1] if body[0]=='expr' else []
+                text=''.join(value)
+                match=re.fullmatch(r'(\w+)=\1.WithSecondary\(\1.GetPrimary\(\)\)',text)
+                if not match or node[3] is not None: raise Unsupported('ghost guard controls non-palette work')
+                return self.execute(body,env,source,parts,depth,getter)
+            condition=call(node[1])
+            if condition and re.fullmatch(r'DrawSupportForSequence[AB]<[^>]+>',condition[0]):
+                if env.get('_supportCondition'): raise Unsupported('nested support-result condition')
+                if getattr(self,'capture_supports',False):
+                    helper=self
+                else:
+                    if not hasattr(self,'_conditional_support_translator'):
+                        self._conditional_support_translator=WoodenSupportTranslator(self.root)
+                        self.hashes.update(self._conditional_support_translator.hashes)
+                    helper=self._conditional_support_translator
+                    helper.support_ops=[]
+                before=len(helper.support_ops)
+                helper.execute(('expr',node[1]),env,source,parts,depth)
+                operations=helper.support_ops[before:]
+                if len(operations)!=1 or operations[0][0] not in (5,6) or operations[0][11]&4:
+                    raise Unsupported('support-result condition needs one independent wooden operation')
+                op=operations[0]
+                marker=len(parts);parts.append(None)
+                sizes=[]
+                for branch in node[2:]:
+                    start=len(parts)
+                    flow=self.execute(branch,env.new_child({'_supportCondition':True}),source,parts,depth,getter) if branch else None
+                    if flow: raise Unsupported('support-result branch escapes its scope')
+                    sizes.append(len(parts)-start)
+                # Immutable opcode/type/subtype/direction/height/transition/flags;
+                # the GPU evaluates the exact support return, then selects one span.
+                parts[marker]=tuple([SUPPORT_CONDITION_PART]+list(op[:6])+[op[11]]+sizes+[0,-1])
+                return None
             if (env.get('_functionName')=='MultiDimensionRCTrackStation' and ''.join(node[1])==
                     'stationObj!=nullptr&&!stationObj->Flags.has(StationObjectFlag::noPlatforms)'):
                 # This source block authors only the two station covers, with

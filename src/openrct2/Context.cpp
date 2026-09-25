@@ -260,6 +260,10 @@ namespace OpenRCT2
         uint64_t _benchmarkCameraStep{};
         std::optional<uint16_t> _benchmarkSecondaryRide;
         json_t _benchmarkSecondarySetup;
+        bool _benchmarkTrackGhost{};
+        uint64_t _benchmarkTrackGhostMoves{};
+        double _benchmarkTrackGhostMilliseconds{};
+        double _benchmarkTrackGhostWorstMilliseconds{};
         IntegratedBenchmarkClock::time_point _benchmarkPreviousDrawStart{};
         IntegratedBenchmarkTotals _benchmarkTotals{};
         BenchmarkStateSnapshot _benchmarkInitialState{};
@@ -1720,6 +1724,9 @@ namespace OpenRCT2
 
         void BeginIntegratedBenchmarkMeasurement()
         {
+            _benchmarkTrackGhostMoves = 0;
+            _benchmarkTrackGhostMilliseconds = 0;
+            _benchmarkTrackGhostWorstMilliseconds = 0;
             _benchmarkInitialState = CaptureBenchmarkStateSnapshot();
             _benchmarkInitialDrawableSize = _uiContext->GetDrawableSize();
             _benchmarkInitialRefreshRate = _uiContext->GetRefreshRate();
@@ -2318,6 +2325,30 @@ namespace OpenRCT2
                             static_cast<unsigned>(viewport.rotation));
                     }
                     // This is process-local benchmark setup, not an in-game command or replay event.
+                    if (const auto* design = std::getenv("OPENRCT2_BENCHMARK_TRACK_GHOST"))
+                    {
+                        TrackDesignFileRef ref{ "ghost diagnostic", design };
+                        auto intent = Intent(WindowClass::trackDesignPlace);
+                        intent.PutExtra(INTENT_EXTRA_TRACK_DESIGN, &ref);
+                        if (ContextOpenIntent(&intent) == nullptr)
+                        {
+                            FailIntegratedBenchmark("Track ghost benchmark could not open design");
+                            return;
+                        }
+                        auto* main = WindowGetMain();
+                        if (main == nullptr || main->viewport == nullptr)
+                        {
+                            FailIntegratedBenchmark("Track ghost benchmark has no main viewport");
+                            return;
+                        }
+                        auto& vp = *main->viewport;
+                        vp.zoom = ZoomLevel{ 1 };
+                        const CoordsXY centre{ 2048, 2048 };
+                        vp.viewPos = Translate3DTo2DWithZ(vp.rotation, { centre, TileElementHeight(centre) })
+                            - ScreenCoordsXY{ vp.ViewWidth() / 2, vp.ViewHeight() / 2 };
+                        main->savedViewPos = vp.viewPos;
+                        _benchmarkTrackGhost = true;
+                    }
                     const auto* cameraStress = std::getenv("OPENRCT2_CAMERA_STRESS");
                     _benchmarkCameraStress = cameraStress != nullptr && std::string_view(cameraStress) == "1";
                     _benchmarkCameraInitialTick = gTotalSimulationTicks;
@@ -2393,7 +2424,39 @@ namespace OpenRCT2
             }
             else if (_benchmarkPhase == IntegratedBenchmarkPhase::measurement && measurementComplete)
             {
+                if (_benchmarkTrackGhost)
+                    Console::WriteLine(
+                        "Track ghost benchmark v1: moves=%llu toolMs=%.3f worstToolMs=%.3f",
+                        static_cast<unsigned long long>(_benchmarkTrackGhostMoves), _benchmarkTrackGhostMilliseconds,
+                        _benchmarkTrackGhostWorstMilliseconds);
                 FinishIntegratedBenchmarkMeasurement(now);
+            }
+        }
+
+        void UpdateBenchmarkTrackGhost()
+        {
+            if (_benchmarkTrackGhost && _benchmarkPhase != IntegratedBenchmarkPhase::complete)
+            {
+                auto* tool = GetWindowManager()->FindByClass(WindowClass::trackDesignPlace);
+                auto* main = WindowGetMain();
+                if (tool == nullptr || main == nullptr || main->viewport == nullptr)
+                {
+                    FailIntegratedBenchmark("Track ghost benchmark lost its tool or viewport");
+                    return;
+                }
+                const auto& vp = *main->viewport;
+                const CoordsXY target{ 2048 + static_cast<int32_t>(_benchmarkTrackGhostMoves % 8) * 32, 2048 };
+                const auto point = Translate3DTo2DWithZ(
+                    vp.rotation, { target + CoordsXY{ 16, 16 }, TileElementHeight(target) });
+                const auto screen = vp.pos
+                    + ScreenCoordsXY{ vp.zoom.ApplyInversedTo(point.x - vp.viewPos.x),
+                                      vp.zoom.ApplyInversedTo(point.y - vp.viewPos.y) };
+                const auto begin = IntegratedBenchmarkClock::now();
+                tool->onToolUpdate(0, screen);
+                const auto ms = std::chrono::duration<double, std::milli>(IntegratedBenchmarkClock::now() - begin).count();
+                ++_benchmarkTrackGhostMoves;
+                _benchmarkTrackGhostMilliseconds += ms;
+                _benchmarkTrackGhostWorstMilliseconds = std::max(_benchmarkTrackGhostWorstMilliseconds, ms);
             }
         }
 
@@ -2677,6 +2740,9 @@ namespace OpenRCT2
         {
             PROFILED_FUNCTION();
 
+            // Apply the synthetic tool event after ordinary UI input, before snapshot capture.
+            // Never move a ghost during a frame or during the final diagnostic readback.
+            UpdateBenchmarkTrackGhost();
             const auto drawStart = IntegratedBenchmarkClock::now();
 
             const bool measuring = _benchmarkPhase == IntegratedBenchmarkPhase::measurement;

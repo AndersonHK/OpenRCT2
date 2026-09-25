@@ -92,7 +92,11 @@ namespace OpenRCT2::GameActions
         auto rideCreateAction = RideCreateAction(
             _td.trackAndVehicle.rtdIndex, entryIndex, 0, 0, gameState.lastEntranceStyle, _inspectionInterval);
         rideCreateAction.SetFlags(GetFlags());
-        auto r = ExecuteNested(&rideCreateAction, gameState);
+        // This is internal query scratch state, not a created ride. Validate it
+        // normally, but do not advertise its lifetime through plugin execute hooks.
+        auto r = QueryNested(&rideCreateAction, gameState);
+        if (r.error == Status::ok)
+            r = rideCreateAction.Execute(gameState, park);
         if (r.error != Status::ok)
         {
             return Result(Status::noFreeElements, STR_CANT_CREATE_NEW_RIDE_ATTRACTION, kStringIdNone);
@@ -108,6 +112,12 @@ namespace OpenRCT2::GameActions
 
         bool placeScenery = _placeScenery;
 
+        // Queries own an empty, unadvertised ride slot only. Nested placement
+        // queries cannot install tracks, guests, banners or operating vehicles.
+        // Release that slot on every exit without demolishing the entire park.
+        const auto releaseQueryRide = [](Ride* temporary) { temporary->remove(); };
+        std::unique_ptr<Ride, decltype(releaseQueryRide)> queryRide(ride, releaseQueryRide);
+
         CommandFlags flags = {};
         flags.set(CommandFlag::ghost, GetFlags().has(CommandFlag::ghost));
         flags.set(CommandFlag::replay, GetFlags().has(CommandFlag::replay));
@@ -118,11 +128,6 @@ namespace OpenRCT2::GameActions
             placeScenery = false;
             queryRes = TrackDesignPlace(_td, flags, placeScenery, *ride, _loc);
         }
-
-        auto gameAction = RideDemolishAction(ride->id, RideModifyType::demolish);
-        gameAction.SetFlags(GetFlags());
-
-        ExecuteNested(&gameAction, gameState);
 
         if (queryRes.error != Status::ok)
         {

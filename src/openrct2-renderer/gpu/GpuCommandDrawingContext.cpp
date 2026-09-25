@@ -15,6 +15,7 @@
 #include "GpuWorldFlatRideCatalog.h"
 #include "GpuWorldPeepCatalog.h"
 #include "GpuWorldPropCatalog.h"
+#include "GpuWorldRidePublication.h"
 #include "GpuWorldTrackCatalog.h"
 #include "GpuWorldVehicleCatalog.h"
 
@@ -24,6 +25,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
 #include <openrct2/Context.h>
 #include <openrct2/SpriteIds.h>
 #include <openrct2/config/Config.h>
@@ -1200,14 +1202,18 @@ namespace OpenRCT2::Ui::Gpu
         const auto objectUsage = generation->map->GetObjectUsage();
         const auto peepUsage = generation->peeps ? generation->peeps->usedObjects : nullptr;
         const auto rideMaterials = generation->map->GetRideMaterials();
+        const bool rideStateChanged = !_publishedRideCatalogs || _publishedRideCatalogs->source != rideMaterials
+            || !WorldRideUsageMatches(_publishedRideCatalogs->usage.get(), objectUsage.get());
         if (!materials)
             throw std::runtime_error("GPU terrain material generation is absent");
         if (!_publishedSurfaceSprites || _publishedSurfaceSprites->sourceMaterials != materials
             || _publishedSurfaceSprites->sourcePathMaterials != pathMaterials
             || _publishedSurfaceSprites->sourceObjectMaterials != objectMaterials
             || (_surfaceObjectUsage != objectUsage
-                && (!_surfaceObjectUsage || !objectUsage || _surfaceObjectUsage->slots != objectUsage->slots))
-            || _publishedSurfaceSprites->sourceRideMaterials != rideMaterials
+                && !WorldNonRideArtworkCovers(_publishedSurfaceSprites->sourceObjectUsage.get(), objectUsage.get()))
+            || (rideStateChanged && rideMaterials
+                && (!_publishedSurfaceSprites->rideArtCoverage
+                    || !_publishedSurfaceSprites->rideArtCoverage->Contains(*rideMaterials, objectUsage.get())))
             || _publishedSurfaceSprites->vehicleSource != (generation->vehicles ? generation->vehicles->catalog : nullptr)
             || _publishedSurfaceSprites->vehicleUsedCars != (generation->vehicles ? generation->vehicles->usedCars : nullptr)
             || (_publishedSurfaceSprites->peepAssets ? _publishedSurfaceSprites->peepAssets->catalog : nullptr)
@@ -1229,7 +1235,8 @@ namespace OpenRCT2::Ui::Gpu
             table->sourcePathMaterials = pathMaterials;
             table->sourceObjectMaterials = objectMaterials;
             table->sourceObjectUsage = objectUsage;
-            table->sourceRideMaterials = rideMaterials;
+            if (rideMaterials)
+                table->rideArtCoverage = std::make_shared<WorldRideArtCoverage>(*rideMaterials, objectUsage.get());
             const auto reportStage = [&](const char* stage) {
                 if (reportLoading)
                 {
@@ -1465,7 +1472,36 @@ namespace OpenRCT2::Ui::Gpu
                     table->records.size(), _textureCache.GetAtlasPageCount(),
                     std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - started).count());
             _publishedSurfaceSprites = std::move(table);
+            _publishedRideCatalogs.reset();
         }
+        if (rideMaterials && objectMaterials
+            && (!_publishedRideCatalogs || _publishedRideCatalogs->source != rideMaterials
+                || !WorldRideUsageMatches(_publishedRideCatalogs->usage.get(), objectUsage.get())))
+        {
+            // A new snapshot updates instance facts while retaining every image address,
+            // atlas lease and entity-art bank in the resident artwork generation.
+            const std::function<uint32_t(uint32_t)> noAdmission = [](uint32_t) -> uint32_t {
+                throw std::logic_error("Ride instance publication attempted to admit artwork");
+            };
+            auto instances = std::make_shared<WorldRideCatalogGeneration>();
+            instances->revision = ++_nextRideCatalogRevision;
+            instances->artworkRevision = _publishedSurfaceSprites->revision;
+            instances->source = rideMaterials;
+            instances->usage = objectUsage;
+            instances->track = WorldTrackInstanceData(*rideMaterials, _publishedSurfaceSprites->trackCatalog);
+            instances->flat = BuildWorldFlatRideCatalog(
+                                  *objectMaterials, *rideMaterials, objectUsage.get(),
+                                  TextureCache::PaletteToY(FilterPaletteID::paletteDarken3), noAdmission,
+                                  _publishedSurfaceSprites->flatRideCatalog)
+                                  .words;
+            instances->entrance = BuildWorldEntranceCatalog(
+                                      *objectMaterials, *rideMaterials, objectUsage.get(),
+                                      TextureCache::PaletteToY(FilterPaletteID::paletteGlass), noAdmission,
+                                      _publishedSurfaceSprites->entranceCatalog)
+                                      .words;
+            _publishedRideCatalogs = std::move(instances);
+        }
+        scene.rideCatalogs = _publishedRideCatalogs;
         // Remember the qualified source pointers without mutating the held
         // sprite table. Equal membership is compared once per publication.
         _surfaceObjectUsage = objectUsage;

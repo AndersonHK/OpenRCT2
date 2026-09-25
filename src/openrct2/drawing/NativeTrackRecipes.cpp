@@ -55,9 +55,19 @@ namespace OpenRCT2::Drawing
                     const auto colourRole = words[p + 10] & 7u;
                     const bool frontComponent = (words[p + 10] & 8u) != 0;
                     const bool floorComponent = (words[p + 10] & 32u) != 0;
+                    if (words[p] == 0xfffffffbu)
+                    {
+                        if ((words[p + 1] != 5 && words[p + 1] != 6) || (words[p + 2] > 1 && words[p + 2] != 255)
+                            || words[p + 3] > 5 || words[p + 4] > 3 || (words[p + 6] > 20 && words[p + 6] != 255)
+                            || (words[p + 7] & ~2u) != 0 || words[p + 8] > 16 || words[p + 9] > 16
+                            || i + 1 + words[p + 8] + words[p + 9] > count || words[p + 10] != 0 || parent != -1)
+                            throw std::runtime_error("Native track support condition is invalid");
+                        --expandedCount;
+                        continue;
+                    }
                     if ((words[p] >= 0x7ffffu && !IsNativeTrackAnimatedImage(words[p]) && words[p] != 0xfffffffeu
                          && words[p] != 0xfffffffdu && words[p] != 0xfffffffcu)
-                        || (words[p + 10] & ~47u) != 0 || colourRole > 5
+                        || (words[p + 10] & ~111u) != 0 || colourRole > 5 || ((words[p + 10] & 64u) != 0 && colourRole != 0)
                         || (frontComponent && (colourRole >= 4 || words[p] >= 0xfffffffcu))
                         || (floorComponent && (frontComponent || colourRole != 2 || words[p] >= 0xfffffffcu || parent != -1))
                         || (parent != -1 && (parent < 0 || static_cast<uint32_t>(parent) >= i)))
@@ -126,6 +136,8 @@ namespace OpenRCT2::Drawing
             const auto words = GetNativeTrackRecipeWords();
             for (size_t index = words[6]; index < words.size(); index += 12)
             {
+                if (words[index] == 0xfffffffbu)
+                    continue;
                 if ((words[index + 10] & 7u) >= 4)
                     continue; // Symbolic water uses the already-resident terrain banks.
                 if (words[index] == 0xfffffffcu)

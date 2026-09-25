@@ -60,7 +60,8 @@ namespace OpenRCT2::Ui::Gpu
     template<typename AppendImage>
     WorldEntranceCatalog BuildWorldEntranceCatalog(
         const WorldObjectPresentationMaterials& objects, const WorldRidePresentationMaterials& rides,
-        const WorldObjectPresentationUsage* usage, uint32_t glassPaletteRow, AppendImage&& appendImage)
+        const WorldObjectPresentationUsage* usage, uint32_t glassPaletteRow, AppendImage&& appendImage,
+        std::span<const uint32_t> resident = {})
     {
         WorldEntranceCatalog result;
         auto& words = result.words;
@@ -99,6 +100,13 @@ namespace OpenRCT2::Ui::Gpu
                                        station.entranceZ, station.exitX, station.exitY, station.exitZ })
                     words.push_back(static_cast<uint32_t>(value));
             }
+        }
+        if (!resident.empty())
+        {
+            // Station and park-entrance ranges contain only immutable object art.
+            // Ride slots and their station coordinates above belong to this snapshot.
+            std::copy(resident.begin() + resident[0], resident.begin() + resident[4], words.begin() + words[0]);
+            return result;
         }
         const auto range = [&](const auto& object, uint32_t image, uint32_t count) {
             if (image == UINT32_MAX)

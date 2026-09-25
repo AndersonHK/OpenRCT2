@@ -1,6 +1,8 @@
 // Copyright (c) 2014-2026 OpenRCT2 developers. GPL-3.0-or-later.
 #pragma once
+#include "GpuWorldTrackInstances.h"
 #include "NativeRailwayData.h"
+
 #include <algorithm>
 #include <bit>
 #include <limits>
@@ -65,9 +67,8 @@ namespace OpenRCT2::Ui::Gpu
         if (words[14] > words.size() || words[15] > words.size() - words[14] || words[15] < 8)
             throw std::invalid_argument("GPU railway catalog range is invalid");
         const auto data = words.subspan(words[14], words[15]);
-        if (data[0] != 0x5241494c || data[1] != 1 || data[3] != 8
-            || uint64_t(data[2]) * 2 + data[3] != data[4] || data[4] > data[5]
-            || (data[5] - data[4]) % 5 != 0 || uint64_t(data[6]) * 12 + data[5] != data.size())
+        if (data[0] != 0x5241494c || data[1] != 1 || data[3] != 8 || uint64_t(data[2]) * 2 + data[3] != data[4]
+            || data[4] > data[5] || (data[5] - data[4]) % 5 != 0 || uint64_t(data[6]) * 12 + data[5] != data.size())
             throw std::invalid_argument("GPU railway catalog header is invalid");
     }
 
@@ -88,17 +89,6 @@ namespace OpenRCT2::Ui::Gpu
         words[2] = offset();
         const auto definitions = Drawing::GetNativeTrackRecipeWords();
         words.insert(words.end(), definitions.begin(), definitions.end());
-        words[3] = offset();
-        words[4] = static_cast<uint32_t>(source.rides.size());
-        for (const auto& ride : source.rides)
-        {
-            words.push_back(ride.present ? 1u : 0u);
-            words.push_back(ride.rideType);
-            words.push_back(uint32_t(ride.objectSlot) | (uint32_t(ride.stationStyle) << 16));
-            words.push_back(0);
-            for (const auto& colour : ride.trackColours)
-                words.push_back(uint32_t(colour.main) | (uint32_t(colour.additional) << 8) | (uint32_t(colour.supports) << 16));
-        }
         words[5] = offset();
         words[6] = RIDE_TYPE_COUNT;
         for (uint32_t type = 0; type < RIDE_TYPE_COUNT; ++type)
@@ -207,6 +197,8 @@ namespace OpenRCT2::Ui::Gpu
                         if ((definitions[partOffset + 10] & 7u) >= 4)
                             continue;
                         const auto image = definitions[partOffset];
+                        if (image == 0xfffffffbu)
+                            continue; // Source support-result condition; both art branches are resident.
                         if (image == 0xfffffffdu)
                         {
                             if (definitions[definitions[6] + (definitions[row] + part) * 12 + 1] == 2)
@@ -256,6 +248,11 @@ namespace OpenRCT2::Ui::Gpu
             words.push_back(image);
             words.push_back(appendImage(image));
         }
+        // Mutable ride facts follow the immutable banks. Their count may change
+        // without relocating recipes or resident image addresses on the GPU.
+        words[3] = offset();
+        words[4] = static_cast<uint32_t>(source.rides.size());
+        AppendWorldTrackRideWords(words, source);
         words[11] = offset();
         ValidateWorldRailwayCatalog(words);
         return result;

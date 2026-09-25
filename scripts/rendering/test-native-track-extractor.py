@@ -31,6 +31,14 @@ def rail(image):
 
 
 class NativeTrackExtractorTest(unittest.TestCase):
+    def test_primary_duplication_is_palette_only_and_ghost_override_safe(self):
+        body=('auto colour=session.TrackColours; '
+              'if (!trackElement.isGhost() && !trackElement.isHighlighted()) '
+              '{ colour=colour.WithSecondary(colour.GetPrimary()); } '
+              'PaintAddImageAsParent(session,colour.WithIndex(123),{0,0,height},{32,20,1});')
+        self.assertEqual(translate_fixture(body)[0][10],64)
+        with self.assertRaises(EXTRACTOR.Unsupported):
+            translate_fixture('if (!trackElement.isGhost() && !trackElement.isHighlighted()) {'+rail(901)+'}')
     def test_support_only_switch_keeps_outer_break_and_return_semantics(self):
         body = ('if (TrackPaintUtilShouldPaintSupports(session.MapPosition)) { switch(direction) {'
                 'case 0: MetalASupportsPaintSetup(session); break; '
@@ -288,6 +296,31 @@ class NativeTrackExtractorTest(unittest.TestCase):
 
 
 class NativeTrackExpandedSourceTest(unittest.TestCase):
+    def test_air_powered_slope_keeps_every_sequence_and_conditional_floor(self):
+        for style,kind in ((1,124),(1,215),(56,124)):
+            for direction in range(4):
+                for sequence in range(7):
+                    parts=self.parts(style,kind,sequence,direction)
+                    self.assertTrue(parts,(style,kind,sequence,direction))
+                    markers=[p for p in parts if p[0]==EXTRACTOR.SUPPORT_CONDITION_PART]
+                    expected=1 if sequence==(1 if kind==215 else 5) else 0
+                    self.assertEqual(len(markers),expected)
+                    if markers:
+                        marker=markers[0]
+                        self.assertEqual(marker[1:4],(5,255,0))
+                        self.assertEqual(marker[6:10],(255,2,2,1))
+                        start=parts.index(marker)+1
+                        self.assertEqual(parts[start][0],3395+(direction&1))
+                        self.assertEqual(parts[start+1][-1],start)
+                        self.assertEqual(parts[start+2][-1],-1)
+                        self.assertEqual(parts[start+1][0],parts[start+2][0])
+
+    def test_air_powered_booster_keeps_original_art_and_primary_remap(self):
+        for direction in range(4):
+            parts=self.parts(1,100,0,direction)
+            self.assertEqual(parts[0][0],22164+(direction&1))
+            self.assertEqual(parts[0][10],64)
+
     @classmethod
     def setUpClass(cls):
         cls.translator=EXTRACTOR.Translator(ROOT)

@@ -311,4 +311,9 @@ SUPPORT_FN WorldWoodenPart worldWoodenNext(SUPPORT_INOUT(WorldWoodenCursor,c))
     }
     return worldWoodenPart(-1,0,0,0,0,0,0,0,0);
 }
+SUPPORT_FN bool worldWoodenHasSupports(WorldWoodenCursor c)
+{
+    // Final source return without streaming art. Transitions overwrite the result.
+    return c.accepted && (c.transition!=255?c.subtype<2:(c.phase<4 || c.steps>0));
+}
 #endif

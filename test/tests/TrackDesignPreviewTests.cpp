@@ -6,6 +6,7 @@
 #include <openrct2/GameState.h>
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/PlatformEnvironment.h>
+#include <openrct2/actions/track/TrackDesignAction.h>
 #include <openrct2/audio/AudioContext.h>
 #include <openrct2/config/Config.h>
 #include <openrct2/drawing/IDrawingContext.h>
@@ -21,6 +22,7 @@
 #include <openrct2/ui/UiContext.h>
 #include <openrct2/world/Map.h>
 #include <openrct2/world/MapPresentationSnapshot.h>
+#include <openrct2/world/tile_element/SurfaceElement.h>
 #ifdef ENABLE_SCRIPTING
     #include <openrct2/scripting/ScriptEngine.h>
 #endif
@@ -33,6 +35,60 @@
 
 using namespace OpenRCT2;
 using namespace OpenRCT2::Drawing;
+
+TEST(TrackDesignQueryTest, TemporaryRideQueriesPreserveTheLiveParkOnSuccessAndFailure)
+{
+    struct RestoreGlobals
+    {
+        bool headless = gOpenRCT2Headless;
+        bool noGraphics = gOpenRCT2NoGraphics;
+        ~RestoreGlobals()
+        {
+            gOpenRCT2Headless = headless;
+            gOpenRCT2NoGraphics = noGraphics;
+        }
+    } restore;
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+    auto context = CreateContext();
+    ASSERT_TRUE(context->Initialise());
+    auto& state = getGameState();
+    gameStateInitAll(state, { 16, 16 });
+    ASSERT_NE(context->GetObjectManager().LoadObject("rct2.ride.spboat"), nullptr);
+    state.cheats.ignoreResearchStatus = true;
+    for (int x = 1; x < 15; ++x)
+        for (int y = 1; y < 15; ++y)
+            MapGetSurfaceElementAt(TileCoordsXY{ x, y })->setOwnership({ OwnershipFlag::landOwned });
+    TrackDesign design;
+    design.trackAndVehicle.rtdIndex = RIDE_TYPE_SPLASH_BOATS;
+    design.trackAndVehicle.vehicleObject = ObjectEntryDescriptor("rct2.ride.spboat");
+    design.trackElements.push_back({ TrackElemType::flat });
+    const auto tiles = state.tileElements;
+    // A query must not recalculate park value or touch established rides/guests.
+    state.park.value = 123456;
+    const auto emptySlot = GetNextFreeRideId();
+    const auto checksum = state.entities.getAllEntitiesChecksum().toString();
+    for (int i = 0; i < 8; ++i)
+    {
+        const CoordsXY at{ (4 + i % 2) * 32, 5 * 32 };
+        GameActions::TrackDesignAction query({ at, TileElementHeight(at), 0 }, design, false, RideInspection::never);
+        query.SetFlags({ GameActions::CommandFlag::ghost, GameActions::CommandFlag::noSpend });
+        const auto result = query.Query(state, state.park);
+        EXPECT_EQ(result.error, GameActions::Status::ok) << result.getErrorMessage();
+        EXPECT_EQ(GetNextFreeRideId(), emptySlot);
+        EXPECT_EQ(RideManager(state).size(), 0u);
+        EXPECT_EQ(state.park.value, 123456);
+        EXPECT_EQ(state.entities.getAllEntitiesChecksum().toString(), checksum);
+        ASSERT_EQ(state.tileElements.size(), tiles.size());
+        EXPECT_EQ(std::memcmp(state.tileElements.data(), tiles.data(), tiles.size() * sizeof(TileElement)), 0);
+    }
+    GameActions::TrackDesignAction rejected({ 5 * 32, 5 * 32, 0, 0 }, design, false, RideInspection::never);
+    const auto result = rejected.Query(state, state.park);
+    EXPECT_NE(result.error, GameActions::Status::ok);
+    EXPECT_EQ(GetNextFreeRideId(), emptySlot);
+    EXPECT_EQ(RideManager(state).size(), 0u);
+    EXPECT_EQ(state.park.value, 123456);
+}
 
 namespace
 {

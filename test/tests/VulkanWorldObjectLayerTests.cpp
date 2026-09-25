@@ -650,6 +650,35 @@ TEST_F(VulkanWorldObjectLayerTest, EmptyCatalogCannotReuseResidentMetadataAndRet
     Run();
     EXPECT_EQ(pixels, accepted);
 }
+TEST_F(VulkanWorldObjectLayerTest, RideInstancePublicationRejectsMixedArtworkGenerationsBeforeUpload)
+{
+    Objects({ Object(0) });
+    Run();
+    const auto accepted = pixels;
+    auto instances = std::make_shared<G::WorldRideCatalogGeneration>();
+    instances->revision = 1;
+    instances->artworkRevision = sprites->revision + 1;
+    instances->track = G::WorldTrackInstanceData(OpenRCT2::WorldRidePresentationMaterials{}, sprites->trackCatalog);
+    instances->flat = sprites->flatRideCatalog;
+    instances->entrance = sprites->entranceCatalog;
+    scene.rideCatalogs = instances;
+    G::FrameCommandStream commands;
+    commands.worldSurfaces = scene;
+    D::RenderUploadTelemetry telemetry;
+    auto token = slots->Begin(0, true, &telemetry);
+    ASSERT_TRUE(token);
+    EXPECT_THROW(static_cast<void>(executor.Record(*token, commands)), std::invalid_argument);
+    EXPECT_EQ(telemetry.worldBufferCopyCalls, 0u);
+    slots->Abandon(*token);
+    executor.Discard(0);
+    auto matched = std::make_shared<G::WorldRideCatalogGeneration>(*instances);
+    matched->revision++;
+    matched->artworkRevision = sprites->revision;
+    scene.rideCatalogs = matched;
+    Run();
+    EXPECT_EQ(pixels, accepted);
+    EXPECT_EQ(instances->artworkRevision, sprites->revision + 1);
+}
 TEST_F(VulkanWorldObjectLayerTest, ForegroundTallPropWinsOverRearPropForEveryRotation)
 {
     scene.width = scene.height = 2;
@@ -782,14 +811,11 @@ TEST_F(VulkanWorldObjectLayerTest, TrackLookupUsesRawDirectionChainBrakeGhostAnd
             recipes[offset + 11] = UINT32_MAX;
         }
     auto& words = sprites->trackCatalog;
-    words.assign(12, 0);
+    words.assign(16, 0);
     words[0] = 0x5754524b;
     words[1] = 1;
-    words[2] = 12;
+    words[2] = 16;
     words.insert(words.end(), recipes.begin(), recipes.end());
-    words[3] = static_cast<uint32_t>(words.size());
-    words[4] = 1;
-    words.insert(words.end(), { 1, 0, 0, 0, 2, 2, 2, 2 });
     words[5] = static_cast<uint32_t>(words.size());
     words[6] = 1;
     words.insert(words.end(), { 0, 0, 0, 0 });
@@ -799,6 +825,9 @@ TEST_F(VulkanWorldObjectLayerTest, TrackLookupUsesRawDirectionChainBrakeGhostAnd
     words[9] = static_cast<uint32_t>(words.size());
     words[10] = 2;
     words.insert(words.end(), { 1000, 1, 1001, 2 });
+    words[3] = static_cast<uint32_t>(words.size());
+    words[4] = 1;
+    words.insert(words.end(), { 1, 0, 0, 0, 2, 2, 2, 2 });
     words[11] = static_cast<uint32_t>(words.size());
     sprites->revision++;
     for (uint32_t variant = 0; variant < 4; variant++)
@@ -879,6 +908,44 @@ TEST_F(VulkanWorldObjectLayerTest, TrackLookupUsesRawDirectionChainBrakeGhostAnd
     Run();
     EXPECT_GT(ColourCount(static_cast<uint8_t>(Ink(2) + 9)), 0u);
     EXPECT_EQ(ColourCount(static_cast<uint8_t>(Ink(2) + 5)), 0u);
+
+    // Warm ride publications retain the resident recipe/image bank. Recolouring,
+    // slot growth and cancellation update only the bounded header+ride tail.
+    Objects({ Object(4) });
+    scene.sourceTick = 0;
+    Run();
+    OpenRCT2::WorldRidePresentationMaterials rideState;
+    rideState.rides.resize(1);
+    rideState.rides[0].present = true;
+    rideState.rides[0].rideType = 0;
+    rideState.rides[0].trackColours[0].main = 6;
+    const auto publish = [&] {
+        auto generation = std::make_shared<G::WorldRideCatalogGeneration>();
+        generation->artworkRevision = scene.sprites->revision;
+        generation->track = G::WorldTrackInstanceData(rideState, words);
+        scene.rideCatalogs = generation;
+        const auto telemetry = Run();
+        EXPECT_EQ(telemetry.worldBufferCopyCalls, 3u);
+        EXPECT_EQ(
+            telemetry
+                .bytes[static_cast<size_t>(D::UploadCategory::world)][static_cast<size_t>(D::UploadMetric::bufferTransfer)],
+            generation->track.UploadBytes() + 2 * 16 * sizeof(uint32_t));
+    };
+    publish();
+    EXPECT_GT(ColourCount(static_cast<uint8_t>(Ink(1) + 7)), 0u);
+    const auto heldInstances = scene.rideCatalogs;
+    rideState.rides.resize(2);
+    rideState.rides[0].trackColours[0].main = 8;
+    publish();
+    EXPECT_GT(ColourCount(static_cast<uint8_t>(Ink(1) + 9)), 0u);
+    EXPECT_EQ(heldInstances->track.rides[4], 6u);
+    rideState.rides.clear();
+    publish();
+    EXPECT_EQ(ColourCount(static_cast<uint8_t>(Ink(1) + 9)), 0u);
+    EXPECT_GT(ColourCount(20), 0u);
+    scene.rideCatalogs.reset();
+    Run();
+    EXPECT_GT(ColourCount(static_cast<uint8_t>(Ink(1) + 5)), 0u);
 }
 TEST_F(VulkanWorldObjectLayerTest, GroundMineTransitionStaysAboveTerrainAndBelowItsRail)
 {

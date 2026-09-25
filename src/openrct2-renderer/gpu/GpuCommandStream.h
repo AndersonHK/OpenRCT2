@@ -9,6 +9,7 @@
 
 #pragma once
 #include "GpuWorldObject.h"
+#include "GpuWorldTrackInstances.h"
 #include "RetainedTerrainDrawing.h"
 
 #include <algorithm>
@@ -662,6 +663,16 @@ namespace OpenRCT2::Ui::Gpu
         std::vector<WorldObjectSourceRecord> objects;
     };
 
+    class WorldRideArtCoverage;
+    struct WorldRideCatalogGeneration
+    {
+        uint64_t revision{}, artworkRevision{};
+        std::shared_ptr<const WorldRidePresentationMaterials> source;
+        std::shared_ptr<const WorldObjectPresentationUsage> usage;
+        WorldTrackInstanceData track;
+        std::vector<uint32_t> flat, entrance;
+    };
+
     struct WorldSurfaceSpriteTable
     {
         uint64_t revision{};
@@ -677,7 +688,7 @@ namespace OpenRCT2::Ui::Gpu
         std::shared_ptr<const PathPresentationMaterials> sourcePathMaterials;
         std::shared_ptr<const WorldObjectPresentationMaterials> sourceObjectMaterials;
         std::shared_ptr<const WorldObjectPresentationUsage> sourceObjectUsage;
-        std::shared_ptr<const WorldRidePresentationMaterials> sourceRideMaterials;
+        std::shared_ptr<const WorldRideArtCoverage> rideArtCoverage;
         std::vector<uint32_t> propCatalog, trackCatalog, flatRideCatalog, entranceCatalog;
         std::shared_ptr<const AtlasAssetLease> residency;
     };
@@ -699,6 +710,7 @@ namespace OpenRCT2::Ui::Gpu
         uint32_t viewFlags{};
         std::shared_ptr<const std::vector<uint32_t>> selection;
         std::shared_ptr<const WorldRidePoseSnapshot> ridePoses;
+        std::shared_ptr<const WorldRideCatalogGeneration> rideCatalogs;
         std::shared_ptr<const struct WorldBannerTextData> bannerTexts;
         std::shared_ptr<const SelectedVehiclePaintPacket> selectedVehicle;
         std::shared_ptr<const Drawing::VehiclePresentationSnapshot> vehicles;

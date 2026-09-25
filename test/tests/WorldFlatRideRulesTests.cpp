@@ -2,7 +2,10 @@
 #include <array>
 #include <gtest/gtest.h>
 #include <memory>
+#include <openrct2-renderer/gpu/GpuWorldEntranceCatalog.h>
 #include <openrct2-renderer/gpu/GpuWorldFlatRideCatalog.h>
+#include <openrct2-renderer/gpu/GpuWorldRidePublication.h>
+#include <openrct2-renderer/gpu/GpuWorldTrackCatalog.h>
 #include <openrct2/paint/Paint.h>
 #include <openrct2/ride/TrackPaint.h>
 #include <openrct2/ride/ted/TED.FlatRide.h>
@@ -746,4 +749,126 @@ TEST(WorldFlatRideRulesTest, TowerShaftOwnsOneStationContactThroughEveryVertical
     EXPECT_NE(rebuilt.PackedHeight(), contact.PackedHeight());
     station.startValid = false;
     EXPECT_EQ(G::WorldTowerAssemblyContact(ride).PackedHeight(), 0u);
+}
+
+TEST(WorldRidePublicationTest, GhostMovementAndSlotReuseRetainArtworkAndPublishCurrentStationFacts)
+{
+    auto objects = std::make_unique<OpenRCT2::WorldObjectPresentationMaterials>();
+    auto& station = objects->stations[0];
+    station.present = true;
+    station.imageBase = 50000;
+    station.imageCount = 32;
+    station.entranceBack = 50000;
+    station.entranceFront = 50004;
+    station.exitBack = 50008;
+    station.exitFront = 50012;
+    OpenRCT2::WorldRidePresentationMaterials source;
+    source.rides.resize(1);
+    auto& ride = source.rides[0];
+    ride.present = true;
+    ride.rideType = OpenRCT2::RIDE_TYPE_ROTO_DROP;
+    ride.regularStyle = static_cast<uint16_t>(TrackStyle::rotoDrop);
+    ride.stationStyle = 0;
+    ride.numStations = 1;
+    ride.stations.push_back({ .startX = 320,
+                              .startY = 640,
+                              .startZ = 16,
+                              .entranceX = 10,
+                              .entranceY = 20,
+                              .startValid = true,
+                              .entranceValid = true });
+    OpenRCT2::WorldObjectPresentationUsage usage;
+    usage.slots[4].set(0);
+    usage.slots[6].set(0);
+    const G::WorldRideArtCoverage coverage(source, &usage);
+    const auto address = [](uint32_t image) { return image; };
+    const auto track = G::BuildWorldTrackCatalog(source, address);
+    const auto flat = G::BuildWorldFlatRideCatalog(*objects, source, &usage, 10, address);
+    const auto entrance = G::BuildWorldEntranceCatalog(*objects, source, &usage, 11, address);
+    const auto heldTrack = track.words;
+    const auto heldFlat = flat.words;
+    const auto heldEntrance = entrance.words;
+    const auto noAdmission = [](uint32_t) -> uint32_t {
+        ADD_FAILURE() << "Moving or recolouring a resident ride must not resolve an image";
+        return 0;
+    };
+    for (int change = 0; change < 4; ++change)
+    {
+        // Moving a large design recreates its ride. Also exercise a new slot and
+        // station-count changes, rather than relying on stable object identity.
+        source.rides.push_back(source.rides.back());
+        source.rides[source.rides.size() - 2].present = false;
+        auto& moved = source.rides.back();
+        moved.stations[0].startX += 32;
+        moved.stations[0].startZ += 8;
+        moved.stations[0].entranceX++;
+        moved.trackColours[0].main = static_cast<uint8_t>(change + 1);
+        moved.vehicleColours[0].body = static_cast<uint8_t>(change + 2);
+        moved.numTrains++;
+        if (change == 2)
+            moved.stations.push_back(moved.stations[0]);
+        usage.slots[4].reset();
+        usage.slots[6].reset();
+        usage.slots[4].set(source.rides.size() - 1);
+        usage.slots[6].set(source.rides.size() - 1);
+        ASSERT_TRUE(coverage.Contains(source, &usage));
+        const G::WorldTrackInstanceData warmTrack(source, track.words);
+        auto uploadedTrack = track.words;
+        uploadedTrack.resize(warmTrack.header[11]);
+        std::copy(warmTrack.header.begin(), warmTrack.header.end(), uploadedTrack.begin());
+        std::copy(warmTrack.rides.begin(), warmTrack.rides.end(), uploadedTrack.begin() + warmTrack.RideWordOffset());
+        EXPECT_EQ(warmTrack.UploadBytes(), 64u + source.rides.size() * 32u);
+        EXPECT_LT(warmTrack.UploadBytes(), track.words.size() * sizeof(uint32_t));
+        const auto warmFlat = G::BuildWorldFlatRideCatalog(*objects, source, &usage, 10, noAdmission, flat.words);
+        const auto warmEntrance = G::BuildWorldEntranceCatalog(*objects, source, &usage, 11, noAdmission, entrance.words);
+        EXPECT_EQ(uploadedTrack, G::BuildWorldTrackCatalog(source, address).words);
+        EXPECT_EQ(warmFlat.words, G::BuildWorldFlatRideCatalog(*objects, source, &usage, 10, address).words);
+        EXPECT_EQ(warmEntrance.words, G::BuildWorldEntranceCatalog(*objects, source, &usage, 11, address).words);
+        G::ValidateWorldTrackCatalog(uploadedTrack);
+        warmTrack.Validate(track.words);
+        G::ValidateWorldFlatRideCatalog(warmFlat.words, 100000);
+        G::ValidateWorldEntranceCatalog(warmEntrance.words, 100000);
+    }
+    auto malformedTrack = G::WorldTrackInstanceData(source, track.words);
+    malformedTrack.header[2]++;
+    EXPECT_THROW(malformedTrack.Validate(track.words), std::invalid_argument);
+    malformedTrack = G::WorldTrackInstanceData(source, track.words);
+    malformedTrack.rides.push_back(0);
+    EXPECT_THROW(malformedTrack.Validate(track.words), std::invalid_argument);
+    EXPECT_EQ(track.words, heldTrack);
+    EXPECT_EQ(flat.words, heldFlat);
+    EXPECT_EQ(entrance.words, heldEntrance);
+    // Cancellation does not require new art, and a later slot reuse remains warm.
+    const auto saved = source.rides.back();
+    source.rides.clear();
+    usage.slots[4].reset();
+    usage.slots[6].reset();
+    EXPECT_TRUE(coverage.Contains(source, &usage));
+    const auto removed = G::BuildWorldFlatRideCatalog(*objects, source, &usage, 10, noAdmission, flat.words);
+    EXPECT_EQ(removed.words[3], 0u);
+    G::ValidateWorldFlatRideCatalog(removed.words, 100000);
+    source.rides.push_back(saved);
+    usage.slots[4].set(0);
+    EXPECT_TRUE(coverage.Contains(source, &usage));
+    source.rides[0].stationStyle = 1;
+    EXPECT_FALSE(coverage.Contains(source, &usage));
+    source.rides[0] = saved;
+    source.rides[0].objectSlot = 100;
+    EXPECT_FALSE(coverage.Contains(source, &usage));
+    source.rides[0] = saved;
+    source.rides[0].rideType = OpenRCT2::RIDE_TYPE_MINIATURE_RAILWAY;
+    EXPECT_FALSE(coverage.Contains(source, &usage));
+}
+
+TEST(WorldRidePublicationTest, RideIdentityIsNotSceneryArtworkUsage)
+{
+    OpenRCT2::WorldObjectPresentationUsage admitted, changed;
+    admitted.slots[0].set(10);
+    changed = admitted;
+    admitted.slots[4].set(1);
+    changed.slots[4].set(500);
+    EXPECT_TRUE(G::WorldNonRideArtworkCovers(&admitted, &changed));
+    EXPECT_FALSE(G::WorldRideUsageMatches(&admitted, &changed));
+    changed.slots[0].set(11);
+    EXPECT_FALSE(G::WorldNonRideArtworkCovers(&admitted, &changed));
 }

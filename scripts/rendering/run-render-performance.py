@@ -750,6 +750,7 @@ def main():
     parser.add_argument("--world-gpu-profile", action="store_true", help="Separate GPU stage attribution run; never clean performance acceptance")
     parser.add_argument("--minimum-present-fps", type=float, help="Require actual successful presentation evidence at this rate; CPU paint attempts do not qualify")
     parser.add_argument("--camera-stress", action="store_true", help="Normal-speed pan/zoom tour with periodic screenshots and synchronization validation; NOT a performance measurement")
+    parser.add_argument("--track-design-ghost", type=Path, help="Move a real prebuilt-design tool through eight adjacent map tiles; separate construction workload")
     args = parser.parse_args()
     if args.secondary_ride is not None and (not args.secondary_vehicle or not 0 <= args.secondary_ride < 65535):
         parser.error("--secondary-ride requires --secondary-vehicle and a valid ride ID")
@@ -870,6 +871,13 @@ def main():
         if args.simulation_wait_profile:
             env['OPENRCT2_PROFILE_SIMULATION_WAITS'] = '1'
             relevant['OPENRCT2_PROFILE_SIMULATION_WAITS'] = '1'
+        if args.track_design_ghost:
+            if args.mode != 'current-vulkan':
+                raise ValueError('Track ghost diagnostic requires current Vulkan')
+            design = args.track_design_ghost.resolve(strict=True)
+            env['OPENRCT2_BENCHMARK_TRACK_GHOST'] = relevant['OPENRCT2_BENCHMARK_TRACK_GHOST'] = str(design)
+            env['OPENRCT2_LOADING_REPORT'] = relevant['OPENRCT2_LOADING_REPORT'] = '1'
+            summary['trackDesignGhost'] = {'path': str(design), 'sha256': sha256(design)}
         if args.world_gpu_profile:
             env['OPENRCT2_VULKAN_PROFILE_WORLD'] = '1'
             relevant['OPENRCT2_VULKAN_PROFILE_WORLD'] = '1'
@@ -959,6 +967,17 @@ def main():
             summary["failures"].append("Runtime diagnostic requires investigation")
             summary["runtimeDiagnostics"] = suspicious
         summary["result"] = parse_log(text)
+        if args.track_design_ghost:
+            clean_log = re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]', '', text)
+            moves, total_ms, worst_ms = one(clean_log, r'Track ghost benchmark v1: moves=(\d+) toolMs=([\d.]+) worstToolMs=([\d.]+)', 'ghost movement timing')
+            placements = re.findall(r'Ghost placement: error=(\d+) present=(\d+)', text)
+            if not placements or any(error != '0' or present != '1' for error, present in placements):
+                raise ValueError('Ghost diagnostic did not confirm successful visible placements')
+            if sha256(design) != summary['trackDesignGhost']['sha256']:
+                raise ValueError('Track design changed during measurement')
+            summary['trackDesignGhost'].update(moves=int(moves), toolMs=float(total_ms),
+                meanToolMs=float(total_ms) / max(1, int(moves)), worstToolMs=float(worst_ms),
+                confirmedPlacements=len(placements), timingScope='Measurement only; tool work is outside drawing CPU timer')
         if args.secondary_vehicle:
             clean_log = re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]', '', text)
             summary['secondaryVehicleSetup'] = json.loads(one(clean_log, r'Secondary viewport benchmark v2:\s+(\{.*\})', 'secondary vehicle setup'))

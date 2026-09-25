@@ -8,12 +8,6 @@ WorldWoodenCursor worldRailwaySupport(WorldTrackPart p,WorldObjectRecord object,
     return worldWoodenBegin(worldSupportState,p.offset.y==255?int(supportType):p.offset.y,
         p.offset.z,p.bounds.x,object.baseZ+p.bounds.y,p.bounds.z,p.offset.x==6,(p.size.z&2)!=0,false);
 }
-bool worldRailwayHasFloor(WorldWoodenCursor c)
-{
-    // Exact final return, derived before streaming any support art. A transition
-    // overwrites hasSupports even when base art exists; type-B flat caps differ.
-    return c.accepted && (c.transition!=255?c.subtype<2:(c.phase<4 || c.steps>0));
-}
 void worldRailwayDraw(WorldTrackPart p,WorldObjectRecord object,uvec2 tile,uint colours,
     uint destination,bool writeRecords,inout uint count,inout uint owner)
 {
@@ -123,7 +117,7 @@ bool visitRailway(WorldObjectRecord object,uvec2 tile,uint destination,bool writ
     uint colours=uTracks.words[rideOffset+4u+scheme],supportType=(styleAndSupport>>16u)&255u;
     bool hide=(uScene.viewFlags&(1u<<3))!=0u,invisible=hide&&(uScene.viewFlags&(1u<<29))!=0u;
     uint support=worldRailwayWord(row+4u);bool floor=false;
-    if(support!=0xffffffffu && !invisible) floor=worldRailwayHasFloor(worldRailwaySupport(worldRailwayPart(support),object,supportType));
+    if(support!=0xffffffffu && !invisible) floor=worldWoodenHasSupports(worldRailwaySupport(worldRailwayPart(support),object,supportType));
     uint first=worldRailwayWord(row+(floor?2u:0u)),n=worldRailwayWord(row+(floor?3u:1u));
     uint owner=0xffffffffu;
     int edges=type==0u?worldRailwayCrossingEdges(object,tile):-1;

@@ -70,6 +70,8 @@ namespace
                             {
                                 if ((recipe[part + 10] & 7u) >= 4)
                                     continue; // Water uses shared terrain banks, not image0.
+                                if (recipe[part] == 0xfffffffbu)
+                                    continue;
                                 if (recipe[part] == 0xfffffffdu)
                                 {
                                     if (recipe[part + 1] == 2)
@@ -151,6 +153,36 @@ TEST(WorldTrackRulesTest, PresentLoopingRidesResolveOnlyTheirCompleteSharedStyle
         OpenRCT2::Ui::Gpu::BuildWorldTrackCatalog(
             source, [](uint32_t) -> uint32_t { throw std::runtime_error("required atlas image unavailable"); }),
         std::runtime_error);
+}
+
+TEST(WorldTrackRulesTest, AirPoweredVerticalSlopesKeepAllSevenSequencesAndBothSupportOutcomes)
+{
+    for (const auto type : { 124u, 215u })
+        for (uint32_t direction = 0; direction < 4; ++direction)
+            for (uint32_t sequence = 0; sequence < 7; ++sequence)
+            {
+                const auto recipe = Recipe(1, type, sequence, direction, 0);
+                ASSERT_FALSE(recipe.empty());
+                if (sequence != (type == 124 ? 5u : 1u))
+                    continue;
+                ASSERT_EQ(recipe.size(), 48u);
+                EXPECT_EQ(recipe[0], 0xfffffffbu);
+                EXPECT_EQ(recipe[1], 5u);   // Exact type-A wooden support return, evaluated on GPU.
+                EXPECT_EQ(recipe[2], 255u); // Ride-selected support material.
+                EXPECT_EQ(recipe[8], 2u);   // Supported: floor parent plus column child.
+                EXPECT_EQ(recipe[9], 1u);   // Unsupported: independent column parent.
+                EXPECT_EQ(recipe[12], 3395u + (direction & 1u));
+                EXPECT_EQ(recipe[24], recipe[36]);
+                EXPECT_EQ(recipe[35], 1u);
+                EXPECT_EQ(recipe[47], 0xffffffffu);
+            }
+    for (uint32_t direction = 0; direction < 4; ++direction)
+    {
+        const auto booster = Recipe(1, 100, 0, direction, 0);
+        ASSERT_EQ(booster.size(), 12u);
+        EXPECT_EQ(booster[0], 22164u + (direction & 1u));
+        EXPECT_EQ(booster[10], 64u); // Primary colour fills both original remap channels.
+    }
 }
 
 TEST(WorldTrackRulesTest, MissingOrUnsupportedRidesResolveOnlySharedEntranceImages)
@@ -386,6 +418,21 @@ TEST(WorldTrackRulesTest, EveryAuthoredRowStaysWithinItsImmutableCatalog)
         for (uint32_t i = 0; i < count; ++i)
         {
             const auto p = words[6] + (first + i) * 12;
+            if (words[p] == 0xfffffffbu)
+            {
+                EXPECT_TRUE(words[p + 1] == 5u || words[p + 1] == 6u);
+                EXPECT_TRUE(words[p + 2] <= 1u || words[p + 2] == 255u);
+                EXPECT_LE(words[p + 3], 5u);
+                EXPECT_LE(words[p + 4], 3u);
+                EXPECT_TRUE(words[p + 6] <= 20u || words[p + 6] == 255u);
+                EXPECT_EQ(words[p + 7] & ~2u, 0u);
+                EXPECT_LE(i + 1u + words[p + 8] + words[p + 9], count);
+                EXPECT_EQ(words[p + 10], 0u);
+                EXPECT_EQ(words[p + 11], 0xffffffffu);
+                EXPECT_FALSE(std::binary_search(images.begin(), images.end(), words[p]));
+                --expanded;
+                continue;
+            }
             if ((words[p + 10] & 7u) < 4 && words[p] != 0xfffffffcu && words[p] != 0xfffffffdu && words[p] != 0xfffffffeu)
             {
                 const bool animated = OpenRCT2::Drawing::IsNativeTrackAnimatedImage(words[p]);
@@ -406,7 +453,9 @@ TEST(WorldTrackRulesTest, EveryAuthoredRowStaysWithinItsImmutableCatalog)
                 if (animated)
                     EXPECT_FALSE(std::binary_search(images.begin(), images.end(), words[p]));
             }
-            EXPECT_EQ(words[p + 10] & ~47u, 0u);
+            EXPECT_EQ(words[p + 10] & ~111u, 0u);
+            if ((words[p + 10] & 64u) != 0)
+                EXPECT_EQ(words[p + 10] & 7u, 0u);
             EXPECT_LE(words[p + 10] & 7u, 5u);
             if ((words[p + 10] & 32u) != 0)
             {

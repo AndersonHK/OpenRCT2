@@ -77,10 +77,25 @@ void visitTrack(uint index,uvec2 tile,uint destination,bool writeRecords,inout u
     int partToQualifiedRail[16];
     worldTrackQualifiedRailCount=recipe.y;
     worldTrackRailDepth=2147483647;
-    for(int i=0;i<16;i++) { partToQualifiedRail[i]=-1;worldTrackRailOwners[i]=0xffffffffu; }
+    for(int i=0;i<16;i++) { recipeToPart[i]=-1;partToQualifiedRail[i]=-1;worldTrackRailOwners[i]=0xffffffffu; }
+    uint skipFirst=0u,skipEnd=0u;
     [[dont_unroll]]
     for(uint i=0u;i<recipe.y;i++) {
+        if(i>=skipFirst && i<skipEnd) continue;
         WorldTrackPart part=worldTrackPart(recipe.x+i);
+        if(part.image==0xfffffffbu) {
+            uint mapped=uTracks.words[uTracks.words[7u]+(object.trackTypeAndRideType&65535u)];
+            uint variant=((object.flags>>8u)&1u)|((mapped>>15u)&2u);
+            uint styleAndSupport=uTracks.words[uTracks.words[5u]+(object.trackTypeAndRideType>>16u)*4u+variant];
+            int supportType=part.offset.y==255?int((styleAndSupport>>16u)&255u):part.offset.y;
+            bool invisible=(uScene.viewFlags&((1u<<3)|(1u<<29)))==((1u<<3)|(1u<<29));
+            bool supported=!invisible && worldWoodenHasSupports(worldWoodenBegin(worldSupportState,supportType,
+                part.offset.z,part.bounds.x,object.baseZ+part.bounds.y,part.bounds.z,
+                part.offset.x==6,(part.size.x&2)!=0,false));
+            skipFirst=i+1u+(supported?uint(part.size.y):0u);
+            skipEnd=skipFirst+uint(supported?part.size.z:part.size.y);
+            continue;
+        }
         recipeToPart[i]=int(worldTrackDrawParts.count);
         if(part.image==0xfffffffdu) continue;
         uint qualified=i;
@@ -116,7 +131,7 @@ void visitTrack(uint index,uvec2 tile,uint destination,bool writeRecords,inout u
         if(part.parent<0 && worldTrackDrawParts.count<16u)
             partToQualifiedRail[worldTrackDrawParts.count]=int(qualified);
         uint primary=colourRole==1u?((colours>>16u)&255u):(colours&255u);
-        uint secondary=colourRole==3u?((colours>>16u)&255u):((colours>>8u)&255u);
+        uint secondary=(part.colourRole&64u)!=0u?primary:colourRole==3u?((colours>>16u)&255u):((colours>>8u)&255u);
         uint palettes=ghost?uCatalog.reserved:(colourRole==2u?1u:((primary+1u)|((secondary+1u)<<8u)));
         if(part.parent>=0) part.parent=recipeToPart[part.parent];
         worldTrackAppend(part,sprite,palettes,ghost||colourRole==2u?1u:2u);

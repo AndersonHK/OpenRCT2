@@ -173,7 +173,8 @@ namespace OpenRCT2::Ui::Gpu
     template<typename AppendImage>
     WorldFlatRideCatalog BuildWorldFlatRideCatalog(
         const WorldObjectPresentationMaterials& objects, const WorldRidePresentationMaterials& source,
-        const WorldObjectPresentationUsage* usage, uint32_t darkenRow, AppendImage&& appendImage)
+        const WorldObjectPresentationUsage* usage, uint32_t darkenRow, AppendImage&& appendImage,
+        std::span<const uint32_t> resident = {})
     {
         WorldFlatRideCatalog result;
         auto& words = result.words;
@@ -235,6 +236,8 @@ namespace OpenRCT2::Ui::Gpu
                 words.push_back(static_cast<uint32_t>(station.exitX));
                 words.push_back(static_cast<uint32_t>(station.exitY));
             }
+            if (!resident.empty())
+                continue; // All body sequences already belong to the retained artwork generation.
             // Enumerate shared static asset recipes, never placed-instance image choices.
             const auto collect = [&](const FlatRideRules::WorldFlatPart& part) {
                 if (part.image < 0)
@@ -332,6 +335,14 @@ namespace OpenRCT2::Ui::Gpu
                 default:
                     break;
             }
+        }
+        if (!resident.empty())
+        {
+            words[4] = static_cast<uint32_t>(words.size());
+            words[5] = resident[5];
+            words.insert(words.end(), resident.begin() + resident[4], resident.end());
+            words[6] = static_cast<uint32_t>(words.size());
+            return result;
         }
         std::sort(images.begin(), images.end());
         images.erase(std::unique(images.begin(), images.end()), images.end());

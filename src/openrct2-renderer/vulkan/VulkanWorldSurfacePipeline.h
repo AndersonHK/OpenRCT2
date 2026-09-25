@@ -80,6 +80,7 @@ namespace OpenRCT2::Ui::Vulkan
         std::vector<uint32_t> _objectOffsets, _objectCapacities;
         uint32_t _objectArenaEnd{};
         uint64_t _uploadedSpriteRevision{};
+        std::shared_ptr<const Gpu::WorldRideCatalogGeneration> _uploadedRideCatalogs;
         uint64_t _uploadedEpoch{};
         uint32_t _uploadedWidth{};
         uint32_t _uploadedHeight{};
