@@ -41,3 +41,15 @@ The remaining depth error is now easier to see: the standard cabin roof/front co
 - [ ] Deploy after the next qualification. The manual-test installation remains at196;198 was not deployed or launched interactively.
 
 Remaining scope: sloped-path railing/guest overlap, elevated helix/booth and large-loop contacts, Texas custom-scenery ordering, and sustained360TPS/144 accepted presents per second remain open. This fix does not waive those gaps or the broader pixel-parity requirement. Map/underground skirts retain their previously accepted status.
+
+## Combined-source requalification, build199
+
+The source at `1b24ef5129902babbc9e09a54c3cad27b90e4d9c` contains both graphics checkpoint `d7e9d45b8e` and the routing fix. The intervening routing-only deployment was built separately from196 and excluded the graphics checkpoint; that binary choice did not remove the graphics changes from source. Build199 compiles the combined source with unchanged inputs, no warnings and no errors. All97 focused vehicle, snapshot, flat-ride, exact-routing, topology and pathfinding tests pass (`native199-routing-lift-01`).
+
+The silent Everything Park rerun at3840x2160,144Hz,VSync,100 warmup +12,000 measured ticks gives **341.924TPS /144.007 accepted presents/sec**, **0.662933ms CPU drawing /4.849855ms GPU**. Accepted-present p99<=8.9ms, maximum9.8154ms; all5054 submissions present and complete. Receipt: `obj/vulkan-parity/performance-entities199-12000-01/summary.json`. The immediately preceding routing-only control gave346.014TPS/143.913 accepted presents/sec. Both use the routing fix and finish with checksum `4e1d2382b99a04ac000000000000000000000000`; that checksum intentionally differs from the old routing behavior.
+
+No build or second benchmark was run alongside either measured run. The earlier228TPS/116FPS slowdown did not reproduce. Concurrent workload is plausible but is not retrospectively proven; this pair does not establish its cause. Performance has returned near the prior populated-park baseline with144 accepted presents/sec, while sustained360TPS and actual displayed scanout remain unqualified. Remaining Lift depth gaps above are unchanged.
+
+A separate3,000-tick run gives358.502TPS/143.879 accepted presents/sec (`performance-entities199-3000-capture-01`). Its final4K screenshot was manually inspected: world layers and UI remain present, with no black-world failure. This overview does not close the separately documented detailed depth contacts.
+
+Build199 is now deployed to `D:\Games\Independent\OpenRCT2Mod`:29 qualified files verified,2 executables changed, preimages backed up, shared Everything Park save retained. Receipt: `obj/vulkan-parity/deploy-checkpoint199-01/receipt.json`. The installed binary includes both source changes; no game was automatically launched. This supersedes the earlier198 deployment deferral above.
