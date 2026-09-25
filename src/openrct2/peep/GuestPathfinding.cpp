@@ -1834,6 +1834,24 @@ namespace OpenRCT2::PathFinding
             return kInvalidDirection;
 
         permittedEdges &= 0xF;
+
+        // An exact field strictly decreases distance on the current topology. Exploration history is only for the
+        // bounded heuristic: letting it veto a proven route can send a returning guest back into the same loop.
+        if (ignoreForeignQueues && peep.is<Guest>())
+        {
+            const auto routeStep = MapPathRouteCache::GetNextStep({ goal, queueRideIndex }, loc);
+            if (routeStep.has_value() && (permittedEdges & (1 << routeStep->direction)))
+            {
+                if (!DirectionValid(peep.pathfindGoal.direction) || peep.pathfindGoal != goal)
+                {
+                    peep.pathfindGoal = { goal, 0 };
+                    for (auto& history : peep.pathfindHistory)
+                        history.setNull();
+                }
+                return routeStep->direction;
+            }
+        }
+
         uint32_t edges = permittedEdges;
         if (isThin && peep.pathfindGoal == goal)
         {
@@ -1910,18 +1928,6 @@ namespace OpenRCT2::PathFinding
             return kInvalidDirection;
 
         int32_t chosenEdge = Numerics::bitScanForward(edges);
-
-        // Shared fields contain only exact, stable path topology. The proposed edge must still survive this guest's live
-        // banner and path-history mask above; unsupported targets and stale/inexact topology simply retain the heuristic.
-        if (ignoreForeignQueues && peep.is<Guest>())
-        {
-            const auto routeStep = MapPathRouteCache::GetNextStep({ goal, queueRideIndex }, loc);
-            if (routeStep.has_value() && (edges & (1 << routeStep->direction)))
-            {
-                chosenEdge = routeStep->direction;
-                edges = 1 << chosenEdge;
-            }
-        }
 
         // Peep has multiple edges still to try.
         if (edges & ~(1 << chosenEdge))
@@ -2545,6 +2551,155 @@ namespace OpenRCT2::PathFinding
 
         return StationIndex::FromUnderlying(0);
     }
+    static TileCoordsXYZ GetGuestRideDestination(const Guest& peep, const Ride& ride)
+    {
+        const auto rideIndex = ride.id;
+        auto loc = TileCoordsXYZ{ peep.nextLoc };
+        if (const auto sharedTarget = MapPathRouteCache::GetSingleTargetForRide(rideIndex); sharedTarget.has_value())
+        {
+            return sharedTarget->location;
+        }
+
+        /* Find the ride's closest entrance station to the peep.
+         * At the same time, count how many entrance stations there are and
+         * which stations are entrance stations. */
+        auto bestScore = std::numeric_limits<int32_t>::max();
+        StationIndex closestStationNum = StationIndex::FromUnderlying(0);
+
+        int32_t numEntranceStations = 0;
+        BitSet<Limits::kMaxStationsPerRide> entranceStations = {};
+        std::array<MapPathRouteCache::RouteTarget, Limits::kMaxStationsPerRide> entranceTargets{};
+        std::array<StationIndex, Limits::kMaxStationsPerRide> entranceTargetStations{};
+
+        for (const auto& station : ride.getStations())
+        {
+            // Skip if stationNum has no entrance (so presumably an exit only station)
+            if (station.getEntrance().isNull())
+                continue;
+
+            const auto stationIndex = ride.getStationIndex(&station);
+
+            const auto entranceIndex = static_cast<size_t>(numEntranceStations++);
+            entranceStations[stationIndex.ToUnderlying()] = true;
+            entranceTargets[entranceIndex] = { TileCoordsXYZ{ station.getEntrance() }, rideIndex };
+            entranceTargetStations[entranceIndex] = stationIndex;
+
+            TileCoordsXYZD entranceLocation = station.getEntrance();
+            auto score = CalculateHeuristicPathingScore(entranceLocation, TileCoordsXYZ{ peep.nextLoc });
+            if (score < bestScore)
+            {
+                bestScore = score;
+                closestStationNum = stationIndex;
+            }
+        }
+
+        // Ride has no stations with an entrance, so head to station 0.
+        if (numEntranceStations == 0)
+            closestStationNum = StationIndex::FromUnderlying(0);
+
+        if (numEntranceStations > 1 && (ride.departFlags & RIDE_DEPART_SYNCHRONISE_WITH_ADJACENT_STATIONS))
+        {
+            closestStationNum = GuestPathfindingSelectRandomStation(peep, numEntranceStations, entranceStations);
+        }
+        else if (numEntranceStations > 1)
+        {
+            for (int32_t index = 0; index < numEntranceStations; index++)
+            {
+                GetRideQueueEnd(entranceTargets[index].location);
+            }
+            const auto closestReachable = MapPathRouteCache::GetClosestReachableTargetIndex(
+                std::span{ entranceTargets }.first(numEntranceStations), TileCoordsXYZ{ peep.nextLoc });
+            if (closestReachable.has_value())
+            {
+                closestStationNum = entranceTargetStations[*closestReachable];
+            }
+        }
+
+        if (numEntranceStations == 0)
+        {
+            // closestStationNum is always 0 here.
+            const auto& closestStation = ride.getStation(closestStationNum);
+            auto entranceXY = TileCoordsXY(closestStation.getStartXY());
+            loc.x = entranceXY.x;
+            loc.y = entranceXY.y;
+            loc.z = closestStation.getHeight();
+        }
+        else
+        {
+            TileCoordsXYZD entranceXYZD = ride.getStation(closestStationNum).getEntrance();
+            loc.x = entranceXYZD.x;
+            loc.y = entranceXYZD.y;
+            loc.z = entranceXYZD.z;
+        }
+
+        GetRideQueueEnd(loc);
+
+        return loc;
+    }
+
+    // Resolve the same active target as the ordinary destination path before applying optional wide-path and
+    // no-backtracking preferences. Only a usable published step takes this branch; unsupported/unreachable fields
+    // keep the cheap corridor shortcut and bounded heuristic instead of starting a search on every path tile.
+    static std::optional<int32_t> GuestTryExactDestination(Guest& peep, const TileCoordsXYZ& loc, uint8_t permittedEdges)
+    {
+        if (peep.outsideOfPark || !peep.headingForRideOrParkExit() || !MapPathRouteCache::IsPreparedForCurrentTopology())
+            return std::nullopt;
+
+        TileCoordsXYZ goal;
+        auto targetRide = RideId::GetNull();
+        const bool leaving = peep.peepFlags.has(PeepFlag::leavingPark);
+        if (leaving)
+        {
+            // pathfindGoal is the boarding queue while a transport leg is active, not the park entrance.
+            if (!peep.hasTransportRoute() && peep.peepFlags.has(PeepFlag::parkEntranceChosen)
+                && MapGetParkEntranceElementAt(peep.pathfindGoal.toCoordsXYZ(), false) != nullptr)
+            {
+                goal = peep.pathfindGoal;
+            }
+            else
+            {
+                const auto entrance = GetBestParkEntrance(loc);
+                if (!entrance.has_value())
+                    return std::nullopt;
+                goal = TileCoordsXYZ{ *entrance };
+            }
+        }
+        else
+        {
+            const auto* ride = GetRide(peep.guestHeadingToRideId);
+            if (ride == nullptr || ride->status != RideStatus::open)
+                return std::nullopt;
+            targetRide = ride->id;
+            goal = GetGuestRideDestination(peep, *ride);
+        }
+
+        auto step = MapPathRouteCache::GetNextStep({ goal, targetRide }, loc);
+        if (!step.has_value() && peep.hasTransportRoute())
+        {
+            // A transport leg can connect otherwise disconnected walking components. Its field can still let us
+            // bypass soft movement filters; GuestPathFindToDestination revalidates service and topology before moving.
+            const auto* transport = GetRide(peep.previousRide);
+            if (transport != nullptr && !peep.currentRideStation.IsNull()
+                && peep.currentRideStation.ToUnderlying() < transport->numStations)
+            {
+                auto boardingGoal = TileCoordsXYZ{ transport->getStation(peep.currentRideStation).getEntrance() };
+                if (!boardingGoal.isNull())
+                {
+                    GetRideQueueEnd(boardingGoal);
+                    step = MapPathRouteCache::GetNextStep({ boardingGoal, transport->id }, loc);
+                }
+            }
+        }
+        if (!step.has_value() || !(permittedEdges & (1 << step->direction)))
+            return std::nullopt;
+
+        if (leaving)
+            peep.peepFlags.set(PeepFlag::parkEntranceChosen);
+        // Keep transport planning and service/weather revalidation in the common movement path, even when the
+        // final walking target is reachable. A direct exact route must not override a planned boarding destination.
+        return GuestPathFindToDestination(peep, goal, targetRide, permittedEdges);
+    }
+
     /**
      *
      *  rct2: 0x00694C35
@@ -2574,6 +2729,9 @@ namespace OpenRCT2::PathFinding
         {
             return GuestSurfacePathFinding(peep);
         }
+
+        if (const auto exactMovement = GuestTryExactDestination(peep, loc, edges); exactMovement.has_value())
+            return *exactMovement;
 
         if (!peep.outsideOfPark && peep.headingForRideOrParkExit())
         {
@@ -2725,84 +2883,7 @@ namespace OpenRCT2::PathFinding
             return GuestPathfindAimless(peep, edges);
         }
 
-        if (const auto sharedTarget = MapPathRouteCache::GetSingleTargetForRide(rideIndex); sharedTarget.has_value())
-        {
-            return GuestPathFindToDestination(peep, sharedTarget->location, rideIndex, edges);
-        }
-
-        /* Find the ride's closest entrance station to the peep.
-         * At the same time, count how many entrance stations there are and
-         * which stations are entrance stations. */
-        auto bestScore = std::numeric_limits<int32_t>::max();
-        StationIndex closestStationNum = StationIndex::FromUnderlying(0);
-
-        int32_t numEntranceStations = 0;
-        BitSet<Limits::kMaxStationsPerRide> entranceStations = {};
-        std::array<MapPathRouteCache::RouteTarget, Limits::kMaxStationsPerRide> entranceTargets{};
-        std::array<StationIndex, Limits::kMaxStationsPerRide> entranceTargetStations{};
-
-        for (const auto& station : ride->getStations())
-        {
-            // Skip if stationNum has no entrance (so presumably an exit only station)
-            if (station.getEntrance().isNull())
-                continue;
-
-            const auto stationIndex = ride->getStationIndex(&station);
-
-            const auto entranceIndex = static_cast<size_t>(numEntranceStations++);
-            entranceStations[stationIndex.ToUnderlying()] = true;
-            entranceTargets[entranceIndex] = { TileCoordsXYZ{ station.getEntrance() }, rideIndex };
-            entranceTargetStations[entranceIndex] = stationIndex;
-
-            TileCoordsXYZD entranceLocation = station.getEntrance();
-            auto score = CalculateHeuristicPathingScore(entranceLocation, TileCoordsXYZ{ peep.nextLoc });
-            if (score < bestScore)
-            {
-                bestScore = score;
-                closestStationNum = stationIndex;
-            }
-        }
-
-        // Ride has no stations with an entrance, so head to station 0.
-        if (numEntranceStations == 0)
-            closestStationNum = StationIndex::FromUnderlying(0);
-
-        if (numEntranceStations > 1 && (ride->departFlags & RIDE_DEPART_SYNCHRONISE_WITH_ADJACENT_STATIONS))
-        {
-            closestStationNum = GuestPathfindingSelectRandomStation(peep, numEntranceStations, entranceStations);
-        }
-        else if (numEntranceStations > 1)
-        {
-            for (int32_t index = 0; index < numEntranceStations; index++)
-            {
-                GetRideQueueEnd(entranceTargets[index].location);
-            }
-            const auto closestReachable = MapPathRouteCache::GetClosestReachableTargetIndex(
-                std::span{ entranceTargets }.first(numEntranceStations), TileCoordsXYZ{ peep.nextLoc });
-            if (closestReachable.has_value())
-            {
-                closestStationNum = entranceTargetStations[*closestReachable];
-            }
-        }
-
-        if (numEntranceStations == 0)
-        {
-            // closestStationNum is always 0 here.
-            const auto& closestStation = ride->getStation(closestStationNum);
-            auto entranceXY = TileCoordsXY(closestStation.getStartXY());
-            loc.x = entranceXY.x;
-            loc.y = entranceXY.y;
-            loc.z = closestStation.getHeight();
-        }
-        else
-        {
-            TileCoordsXYZD entranceXYZD = ride->getStation(closestStationNum).getEntrance();
-            loc.x = entranceXYZD.x;
-            loc.y = entranceXYZD.y;
-            loc.z = entranceXYZD.z;
-        }
-
-        GetRideQueueEnd(loc);
+        loc = GetGuestRideDestination(peep, *ride);
 
         return GuestPathFindToDestination(peep, loc, rideIndex, edges);
     }

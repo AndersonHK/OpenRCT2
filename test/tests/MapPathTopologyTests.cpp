@@ -624,7 +624,7 @@ TEST_F(MapPathTopologyTest, SharedRouteFieldsExcludeForeignQueuesAndAdmitTheTarg
     EXPECT_EQ(admitsTargetQueue->direction, south);
 }
 
-TEST_F(MapPathTopologyTest, SharedRouteProposalCannotBypassGuestJunctionHistory)
+TEST_F(MapPathTopologyTest, ExactRouteOverridesExplorationHistoryButFallbackRetainsIt)
 {
     constexpr Direction east = 2;
     constexpr Direction south = 1;
@@ -665,7 +665,10 @@ TEST_F(MapPathTopologyTest, SharedRouteProposalCannotBypassGuestJunctionHistory)
     guest.pathfindHistory[0] = { { start, 10 }, 1 << south };
 
     const auto chosen = PathFinding::ChooseDirection({ start, 10 }, target.location, guest, true, ride);
-    EXPECT_EQ(chosen, south);
+    EXPECT_EQ(chosen, east);
+
+    MapPathRouteCache::Reset();
+    EXPECT_EQ(PathFinding::ChooseDirection({ start, 10 }, target.location, guest, true, ride), south);
 }
 
 TEST_F(MapPathTopologyTest, ExplicitShopFacilityTargetsRespectSlopedTerminalHeight)
