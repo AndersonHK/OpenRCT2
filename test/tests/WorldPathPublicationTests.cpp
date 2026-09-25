@@ -883,11 +883,10 @@ TEST(WorldEntranceRulesTest, ScrollingTextPreservesStationHeightAndAuthoritative
     EXPECT_EQ(worldRideEntranceText(false, false, 255, 40, 336, 16).mode, -1);
     EXPECT_EQ(worldRideEntranceText(false, false, 37, 33, 64, 16).mode, 37);
     EXPECT_EQ(worldRideEntranceText(false, false, 38, 33, 64, 16).mode, -1);
-    // Original text bounds begin at (2,2,height+StationObject::Height).
-    // Abstract text must therefore be ten units ahead of the +30 front frame,
-    // rather than inheriting the frame anchor below a neighboring station roof.
-    EXPECT_EQ(worldRideEntranceDepthAnchor(1, 336).z, 366);
-    EXPECT_EQ(open.rasterZ - worldRideEntranceDepthAnchor(1, 336).z, 10);
+    // Text remains at the source raster height, independently of the ground
+    // contact shared with its front frame and attached glass.
+    EXPECT_EQ(worldRideEntranceDepthAnchor(1, 0, 336).z, 336);
+    EXPECT_EQ(open.rasterZ, 376);
     EXPECT_EQ(worldRideEntranceText(false, false, 2, 33, 64, 16).rasterZ, 97);
 }
 TEST(WorldEntranceRulesTest, OriginalParentBoundsAndGlassRemainAttached)
@@ -968,9 +967,9 @@ TEST(WorldEntranceRulesTest, TwoParentOrderingMatchesGeneralRulesAndKeepsGlassAt
 TEST(WorldEntranceRulesTest, AuthoredFrameAnchorsKeepRearGlassBehindFrontFrame)
 {
     using namespace EntranceRulesTest;
-    // Source PaintRideEntranceExit: both image anchors remain (0,0,z), but
-    // the front frame's authored origin is30 units above the rear origin.
-    // Direction only swaps the rear XY extents, not either origin.
+    // Both source raster origins remain (0,0,z). Their ground footprints,
+    // rather than the roof bounding-box height, own depth for the entire sprite.
+    // Rear glass must stay behind its front enclosure in every orientation.
     for (int direction = 0; direction < 4; ++direction)
         for (const bool isExit : { false, true })
             for (const int flags : { 4, 5, 6, 7 })
@@ -982,26 +981,32 @@ TEST(WorldEntranceRulesTest, AuthoredFrameAnchorsKeepRearGlassBehindFrontFrame)
                     SCOPED_TRACE(baseZ);
                     const auto parts = worldRideEntranceParts(direction, isExit, flags);
                     ASSERT_EQ(parts.count, 4);
-                    const auto rear = worldRideEntranceDepthAnchor(0, baseZ);
-                    const auto front = worldRideEntranceDepthAnchor(1, baseZ);
-                    EXPECT_EQ(rear.x, 2);
-                    EXPECT_EQ(rear.y, 2);
+                    const auto rear = worldRideEntranceDepthAnchor(0, direction, baseZ);
+                    const auto front = worldRideEntranceDepthAnchor(1, direction, baseZ);
+                    EXPECT_EQ(rear.x + rear.y, 38);
                     EXPECT_EQ(rear.z, baseZ);
-                    EXPECT_EQ(front.x, 2);
-                    EXPECT_EQ(front.y, 2);
-                    EXPECT_EQ(front.z, baseZ + 30);
-                    EXPECT_EQ(front.x + front.y + front.z - (rear.x + rear.y + rear.z), 30);
+                    EXPECT_EQ(front.x, 29);
+                    EXPECT_EQ(front.y, 29);
+                    EXPECT_EQ(front.z, baseZ);
+                    EXPECT_GT(front.x + front.y, rear.x + rear.y);
+                    // A station's near boundary is64. Both halves of the next
+                    // tile's booth must win; its rear used to be only32+4.
+                    EXPECT_GT(32 + rear.x + rear.y, 64);
+                    EXPECT_GT(32 + front.x + front.y, 64);
+                    // The booth's front still stays behind occupants at the
+                    // next ground tile's center, rather than crossing that tile.
+                    EXPECT_LT(front.x + front.y, 32 + 16 + 16);
                     for (int parent = 0; parent < 2; ++parent)
                     {
-                        const auto anchor = worldRideEntranceDepthAnchor(parent, baseZ);
+                        const auto anchor = worldRideEntranceDepthAnchor(parent, direction, baseZ);
                         const auto& frame = parts.parts[parent * 2];
                         const auto& glass = parts.parts[parent * 2 + 1];
                         EXPECT_EQ(frame.child, 0);
                         EXPECT_EQ(glass.child, 1);
                         EXPECT_EQ(glass.colourMode, 4);
-                        EXPECT_EQ(anchor.x, frame.boundsX);
-                        EXPECT_EQ(anchor.y, frame.boundsY);
-                        EXPECT_EQ(anchor.z, baseZ + frame.boundsZ);
+                        EXPECT_EQ(anchor.x, frame.boundsX + frame.sizeX - 1);
+                        EXPECT_EQ(anchor.y, frame.boundsY + frame.sizeY - 1);
+                        EXPECT_EQ(anchor.z, baseZ);
                         EXPECT_EQ(glass.boundsZ, frame.boundsZ);
                         EXPECT_EQ(glass.x, frame.x);
                         EXPECT_EQ(glass.y, frame.y);

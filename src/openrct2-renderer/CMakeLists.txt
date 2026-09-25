@@ -165,6 +165,8 @@ if (OPENRCT2_VULKAN_ENABLED)
                 "${VULKAN_SHADER_SOURCE_DIR}/world_track_depth.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/world_track_emit.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/world_track_station.glsl"
+                "${VULKAN_SHADER_SOURCE_DIR}/world_chairlift_station_rules.glsl"
+                "${VULKAN_SHADER_SOURCE_DIR}/world_chairlift_station_emit.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/world_track_photo.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/world_selection_emit.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/world_selected_vehicle_emit.glsl"
@@ -177,6 +179,8 @@ if (OPENRCT2_VULKAN_ENABLED)
                 "${VULKAN_SHADER_SOURCE_DIR}/world_maze_order.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/world_entrance_rules.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/world_entrance_emit.glsl"
+                "${VULKAN_SHADER_SOURCE_DIR}/world_entrance_support_emit.glsl"
+                "${VULKAN_SHADER_SOURCE_DIR}/world_foreground_depth.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/terrain_sprite_geometry.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/terrain_surface_rules.glsl")
         elseif (VULKAN_SHADER_NAME STREQUAL "world_surface.vert")

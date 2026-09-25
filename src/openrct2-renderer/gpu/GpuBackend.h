@@ -92,9 +92,8 @@ namespace OpenRCT2::Ui::Gpu
         uint64_t uploadRingBytesPerFrame = kDefaultUploadRingBytes;
         std::string shaderDirectory;
         std::string pipelineCacheDirectory;
-        // UI hosts may execute driver compilation off-thread while pumping native messages.
-        // Device/window creation precedes this callback; it must finish the work before returning.
-        std::function<void(const std::function<void()>&)> preparePipelines;
+        // Main-window startup can present ordinary UI before compiling the world pipelines.
+        bool deferWorldPipelines = false;
         // Diagnostic-only swapchain transfer support. Ordinary frames never
         // copy or read back final output, even when this capability is enabled.
         bool enableDiagnosticCapture = false;
@@ -150,6 +149,9 @@ namespace OpenRCT2::Ui::Gpu
         virtual ~Backend() = default;
 
         virtual void Initialise(const BackendConfig& config) = 0;
+        // runPreparation must finish its task and drain UI submissions before returning.
+        // Indexed resources must remain alive and keep their logical extent throughout.
+        virtual void PrepareWorldPipelines(const std::function<void(const std::function<void()>&)>& runPreparation) = 0;
         virtual void Dispose() = 0;
         [[nodiscard]] virtual bool SupportsGpuLightFxRasterization() const noexcept = 0;
 

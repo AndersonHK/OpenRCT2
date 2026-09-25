@@ -40,6 +40,19 @@ void worldStationImage(uint image,ivec3 offset,ivec3 bounds,ivec3 size,
     worldTrackAppend(worldStationPart(image,offset,bounds,size,base?2u:1u),worldTrackImage(image),palettes,
         ghost||base?1u:2u);
 }
+// Front rails/post components opt into the same authored contact anchor as path fences.
+// The role flag changes ordering only; raster offset and palette selection remain intact.
+void worldStationFrontFence(uint image,ivec3 offset,ivec3 size,int contactZ,uint colours,bool ghost)
+{
+    uint first=worldTrackDrawParts.count;
+    worldStationImage(image,offset,offset,size,colours,ghost,false);
+    if(worldTrackDrawParts.count>first) {
+        // Internal station role; static track recipe bit3 keeps its own authored
+        // edge endpoint. The station rail and shelter instead share one contact.
+        worldTrackDrawParts.parts[first].geometry.colourRole|=16u;
+        worldTrackDrawParts.parts[first].geometry.bounds.z=contactZ;
+    }
+}
 void worldStationCover(uint ride,uint edge,bool fence,int height,uint variant,
     uint colours,bool ghost)
 {
@@ -64,8 +77,10 @@ void worldStationCover(uint ride,uint edge,bool fence,int height,uint variant,
         worldTrackAppend(p,glass+offset,uEntrances.words[6u]+(colours&255u),1024u);
     }
 }
+#include "world_chairlift_station_emit.glsl"
 void worldTrackStation(WorldTrackPart marker,WorldObjectRecord object,uvec2 tile,uint colours)
 {
+    if(marker.size.y==8) {worldChairliftStation(marker,object,tile,colours);return;}
     uint ride=object.rideIdAndMazeEntry&65535u;
     if(marker.size.y==7) {
         // Direct source cover calls do not test StationObject::noPlatforms.
@@ -112,8 +127,8 @@ void worldTrackStation(WorldTrackPart marker,WorldObjectRecord object,uvec2 tile
         worldStationImage((pier?22404u:22412u)+axis,frontOffset,frontOffset,size,colours,ghost,false);
         if(frontFence) {
             ivec3 offset=axis==0u?ivec3(0,31,z+2):ivec3(31,0,z+2);
-            worldStationImage((pier?22410u:22370u)+axis,offset,offset,
-                axis==0u?ivec3(32,1,7):ivec3(1,32,7),colours,ghost,false);
+            worldStationFrontFence((pier?22410u:22370u)+axis,offset,
+                axis==0u?ivec3(32,1,7):ivec3(1,32,7),height,colours,ghost);
         }
         worldStationCover(ride,frontEdge,frontFence,height,0u,colours,ghost);
         return;
@@ -147,11 +162,11 @@ void worldTrackStation(WorldTrackPart marker,WorldObjectRecord object,uvec2 tile
         if(beginFront) image=(inverted?22394u:22372u)+axis;
         if(lightFront) image=(inverted?22396u:22386u)+axis;
         ivec3 offset=axis==0u?ivec3(0,31,height+b):ivec3(31,0,height+b);
-        worldStationImage(image,offset,offset,axis==0u?ivec3(32,1,7):ivec3(1,32,7),colours,ghost,false);
+        worldStationFrontFence(image,offset,axis==0u?ivec3(32,1,7):ivec3(1,32,7),height,colours,ghost);
     } else if(beginFront||lightFront) {
         uint image=(beginFront?22374u:22384u)+axis;
         ivec3 offset=axis==0u?ivec3(31,23,height+b):ivec3(23,31,height+b);
-        worldStationImage(image,offset,offset,axis==0u?ivec3(1,8,7):ivec3(8,1,7),colours,ghost,false);
+        worldStationFrontFence(image,offset,axis==0u?ivec3(1,8,7):ivec3(8,1,7),height,colours,ghost);
     }
     worldStationCover(ride,frontEdge,frontFence,height,variant,colours,ghost);
     if(beginFront||lightFront) {

@@ -12,6 +12,52 @@ namespace PathRules
 } // namespace PathRules
 using namespace PathRules;
 
+TEST(WorldPathRulesTest, ForegroundEdgeKeepsGuestsBehindRailAndOwnFixturesInFront)
+{
+    // A flat path owns one near contact, independent of the art's far-end
+    // raster origin. Edge fixtures must not be cut by their own railing.
+    for (int rotation = 0; rotation < 4; ++rotation)
+        for (int edges : { 5, 10 })
+        {
+            const auto parts = worldPathFences(edges, 0, 0, rotation, false, true, true, false, false, false);
+            ASSERT_EQ(parts.count, 2);
+            int foreground = 0;
+            for (int index = 0; index < parts.count; ++index)
+            {
+                const auto part = parts.parts[index];
+                if (part.boundsX < 27 && part.boundsY < 27)
+                    continue;
+                ++foreground;
+                const int contact = worldForegroundTileContact(80);
+                EXPECT_GT(contact, 80 + 28 + 24);         // Near-side walking guest.
+                EXPECT_LT(contact, 80 + 32 + 2 + 2 + 30); // Next tile's booth front.
+                EXPECT_LT(part.x + part.y + part.z, 16 + 16);
+                EXPECT_EQ(part.z, 0); // Original art remains at its unchanged offset.
+            }
+            EXPECT_EQ(foreground, 1);
+            for (int type : { 0, 1, 2 })
+                for (bool broken : { false, true })
+                    for (int status : { 0, 255 })
+                    {
+                        const auto additions = worldPathAdditions(edges, rotation, false, type, broken, status, false, 0);
+                        ASSERT_EQ(additions.count, 2);
+                        int frontFixtures = 0;
+                        for (int i = 0; i < additions.count; ++i)
+                        {
+                            const auto p = additions.parts[i];
+                            const bool nearEdge = p.x > 16 || p.y > 16;
+                            EXPECT_EQ(worldPathAdditionHasFrontContact(type, p.imageOffset), nearEdge);
+                            frontFixtures += nearEdge;
+                        }
+                        EXPECT_EQ(frontFixtures, 1);
+                    }
+        }
+    EXPECT_GT(WORLD_FOREGROUND_FIXTURE_LAYER, WORLD_FOREGROUND_RAIL_LAYER);
+    EXPECT_LT(WORLD_FOREGROUND_FIXTURE_LAYER, 16); // Local roles cannot cross one scalar anchor.
+    for (int image = 1; image <= 4; ++image)
+        EXPECT_FALSE(worldPathAdditionHasFrontContact(3, image)); // Fountain effects have their own ownership.
+}
+
 TEST(WorldPathRulesTest, OwnDeckOccludesPoleFootingsAndSlopedSupportCapsWithoutMovingRasterAnchors)
 {
     for (int edge = 0; edge < 4; edge++)

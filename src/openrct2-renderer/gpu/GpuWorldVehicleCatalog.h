@@ -1,6 +1,7 @@
 // Copyright (c) 2014-2026 OpenRCT2 developers. GPL-3.0-or-later.
 #pragma once
 #include <algorithm>
+#include <cstdlib>
 #include <openrct2/SpriteIds.h>
 #include <openrct2/core/Console.hpp>
 #include <openrct2/drawing/VehiclePresentation.h>
@@ -21,7 +22,9 @@ namespace OpenRCT2::Ui::Gpu
     };
     inline uint64_t WorldVehicleImageBankCount(const Drawing::VehiclePresentationCar& car)
     {
-        uint64_t count = uint64_t(car.carImages) * (1 + car.seatingRows);
+        if (car.riderImageBanks < car.seatingRows)
+            throw std::invalid_argument("Native vehicle rider-art domain omits seated rows");
+        uint64_t count = uint64_t(car.carImages) * (1u + car.riderImageBanks);
         // Specialized painters use authored layouts, not the generic sprite-group
         // stride calculated by RideObject::Load. Include their finite body/rider
         // ranges even when numCarImages only describes a 32-frame flat group.
@@ -80,6 +83,7 @@ namespace OpenRCT2::Ui::Gpu
         std::set<uint32_t> images;
         uint64_t bankImageCount = 0;
         size_t admittedCars = 0;
+        const bool reportBanks = std::getenv("OPENRCT2_VEHICLE_CATALOG_REPORT") != nullptr;
         const auto admitBank = [&](const Drawing::VehiclePresentationCar& car, uint64_t count) {
             if (car.baseImage < car.imageBase || count > car.imageCount
                 || uint64_t(car.baseImage) + count > uint64_t(car.imageBase) + car.imageCount)
@@ -115,6 +119,13 @@ namespace OpenRCT2::Ui::Gpu
                 w[p + 17 + g * 2] = c.groups[g][1];
             }
             admitBank(c, slot == source.cableCar ? c.imageCount : WorldVehicleImageBankCount(c));
+            if (reportBanks)
+                Console::WriteLine(
+                    "Vehicle image bank: slot=%u style=%u objectBase=%u objectCount=%u base=%u admitted=%llu carImages=%u "
+                    "rows=%u riderBanks=%u frames=%u flags=%llu",
+                    slot, c.paintStyle, c.imageBase, c.imageCount, c.baseImage,
+                    static_cast<unsigned long long>(slot == source.cableCar ? c.imageCount : WorldVehicleImageBankCount(c)),
+                    c.carImages, c.seatingRows, c.riderImageBanks, c.baseFrames, static_cast<unsigned long long>(c.flags));
             if (c.paintStyle == 5 || c.paintStyle == 6)
             {
                 // Both MiniGolf painters address Cars[0], including the player's

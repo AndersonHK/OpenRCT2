@@ -4,9 +4,14 @@
 // Caller supplies immutable selector/car words. The same code is CPU-testable.
 #ifdef __cplusplus
 #define VEHICLE_FN inline
+// Match SPIR-V OpSMod with positive32; C++ signed remainder differs below zero.
+#define VEHICLE_HEADING_WRAP(value) ((value)&31)
 #else
 #define VEHICLE_FN
+#define VEHICLE_HEADING_WRAP(value) ((value)%32)
 #endif
+// Keep the qualified170c GPU selector shape while the171 codegen variant is
+// investigated. This local integer flag is not a GPU buffer ABI requirement.
 struct WorldVehicleSelection { int car; int group; int rank; int yaw; int swing; };
 VEHICLE_FN WorldVehicleSelection worldVehicleSelect(int car,int pitch,int roll,int yaw,int flags,int trackType,int restraints)
 {
@@ -40,9 +45,9 @@ VEHICLE_FN WorldVehicleSelection worldVehicleSelect(int car,int pitch,int roll,i
         }
         if(group>=0 && (group==0 || group==37 || VEHICLE_GROUP_PRECISION(car,guardGroup)!=0)) {
             outValue.car=car;outValue.group=group;outValue.rank=rank;
-            outValue.yaw=(yaw+int(VEHICLE_RULE_WORD(p+2)))%32;return outValue;
+            outValue.yaw=VEHICLE_HEADING_WRAP(yaw+int(VEHICLE_RULE_WORD(p+2)));return outValue;
         }
-        yaw=(yaw+int(VEHICLE_RULE_WORD(p+5)))%32;node=int(VEHICLE_RULE_WORD(p+4));
+        yaw=VEHICLE_HEADING_WRAP(yaw+int(VEHICLE_RULE_WORD(p+5)));node=int(VEHICLE_RULE_WORD(p+4));
     }
     return outValue;
 }
@@ -93,5 +98,6 @@ VEHICLE_FN int worldVehicleRotoLayer(int ordinal)
 }
 VEHICLE_FN bool worldVehicleClassicLayersValid(int passengers)
 { return passengers>=0 && passengers<=32 && passengers/2<=14; }
+#undef VEHICLE_HEADING_WRAP
 #undef VEHICLE_FN
 #endif

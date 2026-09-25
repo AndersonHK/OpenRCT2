@@ -14,6 +14,7 @@ namespace OpenRCT2::Drawing
         uint32_t imageBase{}, imageCount{}, baseImage{}, baseFrames{}, carImages{}, seatingRows{}, paintStyle{}, drawOrder{},
             spinningFrames{}, effectVisual{};
         uint64_t flags{};
+        uint8_t riderImageBanks{}; // Car-owned complete row/animation domain, independent of the current pose.
         bool present{};
         // Original immutable image group starts/precision, never camera-selected images.
         std::array<std::array<uint32_t, 2>, kVehiclePresentationGroups> groups{};

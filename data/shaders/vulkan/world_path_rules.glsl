@@ -3,6 +3,7 @@
 // compiled as both GLSL and C++; production callers execute these rules on GPU.
 #ifndef OPENRCT2_WORLD_PATH_RULES
 #define OPENRCT2_WORLD_PATH_RULES
+#include "world_foreground_depth.glsl"
 #ifdef __cplusplus
 #define PATH_FN constexpr
 #else
@@ -178,6 +179,13 @@ PATH_FN bool worldPathBinFull(int status, int rotatedEdge, int rotation)
 {
     int rawEdge=(rotatedEdge-rotation+4)&3;
     return (status & (3<<(2*rawEdge)))==0;
+}
+// Each normal/broken/full addition bank contains the same four camera-facing
+// edge variants. Fountain sprites are independent effects, not edge fixtures.
+PATH_FN bool worldPathAdditionHasFrontContact(int drawType,int imageOffset)
+{
+    int edge=(imageOffset-1)&3;
+    return drawType>=0 && drawType<3 && (edge==1 || edge==2);
 }
 // drawType: PathAdditionDrawType {light=0,bin=1,bench=2,jumpingFountain=3}.
 // All offsets are relative to the addition allocation; z is relative to path.

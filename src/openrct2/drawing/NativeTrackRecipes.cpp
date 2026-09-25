@@ -52,11 +52,15 @@ namespace OpenRCT2::Drawing
                 {
                     const auto p = words[6] + (first + i) * 12;
                     const auto parent = static_cast<int32_t>(words[p + 11]);
+                    const auto colourRole = words[p + 10] & 7u;
+                    const bool frontComponent = (words[p + 10] & 8u) != 0;
                     if ((words[p] >= 0x7ffffu && !IsNativeTrackAnimatedImage(words[p]) && words[p] != 0xfffffffeu
                          && words[p] != 0xfffffffdu && words[p] != 0xfffffffcu)
-                        || words[p + 10] > 5 || (parent != -1 && (parent < 0 || static_cast<uint32_t>(parent) >= i)))
+                        || (words[p + 10] & ~15u) != 0 || colourRole > 5
+                        || (frontComponent && (colourRole >= 4 || words[p] >= 0xfffffffcu))
+                        || (parent != -1 && (parent < 0 || static_cast<uint32_t>(parent) >= i)))
                         throw std::runtime_error("Native track definition component is invalid");
-                    if (words[p + 10] >= 4 && (words[p] != 0 || parent < 0))
+                    if (colourRole >= 4 && (words[p] != 0 || parent < 0))
                         throw std::runtime_error("Native track water component is invalid");
                     if (words[p] == 0xfffffffdu)
                     {
@@ -76,7 +80,7 @@ namespace OpenRCT2::Drawing
                     parentCount += parent == -1;
                     if (words[p] == 0xfffffffeu)
                     {
-                        if (words[p + 8] > 7 || parent != -1)
+                        if (words[p + 8] > 8 || parent != -1)
                             throw std::runtime_error("Native track station request is invalid");
                         if (words[p + 8] == 7)
                         {
@@ -84,6 +88,14 @@ namespace OpenRCT2::Drawing
                                 || words[p + 6] != 0 || words[p + 7] != 0 || words[p + 9] != 0 || words[p + 10] != 0)
                                 throw std::runtime_error("Native track single cover request is invalid");
                             ++expandedCount; // Opaque parent plus optional glass child.
+                        }
+                        else if (words[p + 8] == 8)
+                        {
+                            if (words[p + 1] != 0 || words[p + 2] != 0 || words[p + 4] != 0 || words[p + 5] != 0
+                                || words[p + 6] != 0 || words[p + 7] != 0 || words[p + 9] != 0 || words[p + 10] != 0)
+                                throw std::runtime_error("Native chairlift station request is invalid");
+                            expandedCount += 10;
+                            parentCount += 7;
                         }
                         else
                         {
@@ -112,7 +124,7 @@ namespace OpenRCT2::Drawing
             const auto words = GetNativeTrackRecipeWords();
             for (size_t index = words[6]; index < words.size(); index += 12)
             {
-                if (words[index + 10] >= 4)
+                if ((words[index + 10] & 7u) >= 4)
                     continue; // Symbolic water uses the already-resident terrain banks.
                 if (words[index] == 0xfffffffcu)
                 {

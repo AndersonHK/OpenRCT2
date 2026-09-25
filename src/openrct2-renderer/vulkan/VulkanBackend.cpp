@@ -71,17 +71,12 @@ namespace OpenRCT2::Ui::Vulkan
             config.enableDiagnosticCapture);
         try
         {
-            const auto prepare = [&]() {
-                _device.GetContext()->LoadPipelineCache(config.pipelineCacheDirectory);
-                _executor.Initialise(_device.GetContext(), config.logicalExtent, config.shaderDirectory);
-                _palettePipeline.Initialise(
-                    _device, _executor.GetResources(), config.shaderDirectory, config.hdrPaperWhiteNits);
-                _device.GetContext()->SavePipelineCache();
-            };
-            if (config.preparePipelines)
-                config.preparePipelines(prepare);
-            else
-                prepare();
+            _device.GetContext()->LoadPipelineCache(config.pipelineCacheDirectory);
+            _executor.Initialise(
+                _device.GetContext(), config.logicalExtent, config.shaderDirectory, kFramesInFlight, Gpu::kAtlasLayers, true,
+                config.deferWorldPipelines);
+            _palettePipeline.Initialise(_device, _executor.GetResources(), config.shaderDirectory, config.hdrPaperWhiteNits);
+            _device.GetContext()->SavePipelineCache();
         }
         catch (...)
         {
@@ -90,6 +85,19 @@ namespace OpenRCT2::Ui::Vulkan
         }
 
         _ready = true;
+    }
+
+    void Backend::PrepareWorldPipelines(const std::function<void(const std::function<void()>&)>& runPreparation)
+    {
+        if (!_config.deferWorldPipelines)
+            return;
+        std::unique_ptr<WorldSurfacePipeline> prepared;
+        runPreparation([&]() { prepared = _executor.PrepareWorldPipeline(); });
+        // The owner has joined compilation and drained all UI packets. Publication
+        // is one boundary; frame retirement never sees partially initialized state.
+        _executor.PublishWorldPipeline(std::move(prepared));
+        _config.deferWorldPipelines = false;
+        _device.GetContext()->SavePipelineCache();
     }
 
     void Backend::Dispose()

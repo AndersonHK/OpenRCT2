@@ -10,27 +10,28 @@
 #endif
 // PaintRideEntranceExit authors the rear frame at (2,2,z) and the front
 // frame at (2,2,z+30), although both images are drawn at (0,0,z).
-// These named component anchors keep rear glass behind the front frame;
-// each glass child uses its own parent's anchor plus the local child layer.
+// Each authored entrance parent uses its camera-nearest ground footprint.
+// Front/back glass remains attached through the existing parent child layers.
 struct WorldEntranceDepthAnchor { int x; int y; int z; };
-// PaintRideEntranceExitScrollingText uses the station's mode unchanged for all
-// directions and authors its raster at the station height above the entrance.
-// Its authored bounds also begin at (2,2,baseZ+stationHeight), so the constant
-// component depth uses that text anchor, not the front frame's lower +30 anchor.
-// Status comes from the captured ride hot state.
-struct WorldEntranceText { int mode; int rasterZ; int closed; };
+// Text keeps its source raster height, but shares the front enclosure's contact.
+struct WorldEntranceText { int mode; int rasterZ; bool closed; };
 ENTRANCE_FN WorldEntranceText worldRideEntranceText(bool isExit,bool ghost,int mode,int stationHeight,int baseZ,int rideFlags)
 {
     WorldEntranceText text;
     text.mode=(!isExit && !ghost && mode>=0 && mode<38)?mode:-1;
     text.rasterZ=baseZ+stationHeight;
-    text.closed=((rideFlags&16)==0 || (rideFlags&8)!=0)?1:0;
+    text.closed=(rideFlags&16)==0 || (rideFlags&8)!=0;
     return text;
 }
-ENTRANCE_FN WorldEntranceDepthAnchor worldRideEntranceDepthAnchor(int parentOrdinal,int baseZ)
+ENTRANCE_FN WorldEntranceDepthAnchor worldRideEntranceDepthAnchor(int parentOrdinal,int direction,int baseZ)
 {
     WorldEntranceDepthAnchor anchor;
-    anchor.x=2; anchor.y=2; anchor.z=baseZ+(parentOrdinal==0?0:30);
+    // Back strip: authored (2,2) plus 8x28 or 28x8 ground extent.
+    // Front enclosure: authored (2,2) plus 28x28 ground extent.
+    // Bounds Z=30 describes the roof, not its contact with the floor.
+    anchor.x=parentOrdinal==0 && (direction&1)!=0?9:29;
+    anchor.y=parentOrdinal==0 && (direction&1)==0?9:29;
+    anchor.z=baseZ;
     return anchor;
 }
 // imageOffset indexes the station's eight directional image groups; direction is applied by the GPU visitor.

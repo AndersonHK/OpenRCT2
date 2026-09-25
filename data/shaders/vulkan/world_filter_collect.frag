@@ -126,7 +126,8 @@ void main()
     uint componentOrder=0x3f800000u-floatBitsToUint(gl_FragCoord.z);
     uint pixel=uint(fragment.y)*width+uint(fragment.x);
     if(pixel>=pixels || (isFilter && operation>255u) || gl_FragCoord.z<0.0 || gl_FragCoord.z>1.0) {
-        atomicOr(overflow, 4u); return;
+        // Keep malformed input distinct from exhausting the legal fragment pool.
+        atomicOr(overflow, 131072u); return;
     }
     uint index=atomicAdd(allocated,1u);
     if(index>=capacity) {

@@ -38,7 +38,7 @@ namespace OpenRCT2::Ui::Vulkan
         IndexedResources _resources;
         LinePipeline _linePipeline;
         RectPipeline _rectPipeline;
-        WorldSurfacePipeline _worldSurfacePipeline;
+        std::unique_ptr<WorldSurfacePipeline> _worldSurfacePipeline;
         BalloonPipeline _balloonPipeline;
         bool _balloonPipelineReady{};
         Gpu::TerrainUploadStats _terrainUploads{};
@@ -76,13 +76,15 @@ namespace OpenRCT2::Ui::Vulkan
         std::filesystem::path _shaderDirectory;
         Gpu::Extent _logicalExtent{};
         bool _enableWorldPasses = true;
+        bool _deferWorldPipelines = false;
         const SubmissionToken* _activeToken = nullptr;
 
     public:
         ~FrameExecutor();
         void Initialise(
             std::shared_ptr<DeviceContext> context, Gpu::Extent logicalExtent, std::filesystem::path shaderDirectory,
-            uint32_t frameCount = kFramesInFlight, uint32_t atlasLayers = Gpu::kAtlasLayers, bool enableWorldPasses = true);
+            uint32_t frameCount = kFramesInFlight, uint32_t atlasLayers = Gpu::kAtlasLayers, bool enableWorldPasses = true,
+            bool deferWorldPipelines = false);
         void Dispose();
         void Resize(Gpu::Extent logicalExtent);
         bool SupportsGpuLightFxRasterization() const noexcept
@@ -121,6 +123,9 @@ namespace OpenRCT2::Ui::Vulkan
         void CompleteTerrainStatus(uint32_t frameIndex);
         // Auxiliary domains remain bitmap-only until their first recorded native world request.
         void EnableWorldPasses();
+        // Prepare owns an unpublished pipeline; no frame can observe partial construction.
+        std::unique_ptr<WorldSurfacePipeline> PrepareWorldPipeline() const;
+        void PublishWorldPipeline(std::unique_ptr<WorldSurfacePipeline> pipeline);
         void Commit() noexcept;
         void Discard(uint32_t frameIndex);
 

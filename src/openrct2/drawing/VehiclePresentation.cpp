@@ -3,6 +3,7 @@
 
 #include "../Context.h"
 #include "../GameState.h"
+#include "../core/Console.hpp"
 #include "../entity/EntityList.h"
 #include "../entity/EntityTweener.h"
 #include "../entity/Guest.h"
@@ -17,6 +18,7 @@
 #include "../world/WorldObjectPresentation.h"
 
 #include <algorithm>
+#include <cstdlib>
 #include <stdexcept>
 
 namespace OpenRCT2::Drawing
@@ -33,12 +35,18 @@ namespace OpenRCT2::Drawing
             out.baseFrames = source.baseNumFrames;
             out.carImages = source.numCarImages;
             out.seatingRows = source.numSeatingRows;
+            out.riderImageBanks = source.getNumRiderImageBanks();
             out.paintStyle = EnumValue(source.paintStyle);
             out.drawOrder = source.drawOrder;
             out.spinningFrames = source.spinningNumFrames;
             out.effectVisual = EnumValue(source.effectVisual);
             out.flags = source.flags.holder;
             out.present = source.isVisible();
+            if (std::getenv("OPENRCT2_VEHICLE_CATALOG_REPORT") != nullptr && source.flags.has(CarEntryFlag::hasRiderAnimation))
+                Console::WriteLine(
+                    "Vehicle rider animation: objectBase=%u base=%u animation=%u frames=%u rows=%u riderBanks=%u", imageBase,
+                    source.baseImageId, EnumValue(source.animation), source.animationFrames, source.numSeatingRows,
+                    out.riderImageBanks);
             for (size_t i = 0; i < out.groups.size(); ++i)
                 out.groups[i] = { source.spriteGroups[i].imageId, EnumValue(source.spriteGroups[i].spritePrecision) };
             return out;
@@ -59,6 +67,11 @@ namespace OpenRCT2::Drawing
             for (uint16_t slot = 0; slot < kMaxRideObjects; ++slot)
                 if (const auto* object = manager.GetLoadedObject<RideObject>(slot))
                 {
+                    if (std::getenv("OPENRCT2_VEHICLE_CATALOG_REPORT") != nullptr)
+                        Console::WriteLine(
+                            "Vehicle object bank: slot=%u id=%.*s base=%u count=%u", slot,
+                            static_cast<int>(object->GetIdentifier().size()), object->GetIdentifier().data(),
+                            object->GetBaseImageId(), object->GetNumImages());
                     const auto& entry = object->GetEntry();
                     static_assert(std::size(entry.Cars) == kVehiclePresentationCarsPerObject);
                     for (uint32_t car = 0; car < kVehiclePresentationCarsPerObject; ++car)

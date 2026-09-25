@@ -24,6 +24,8 @@ bool worldStationHasPlatforms(uint rideId)
     // Missing style preserves the legacy default platforms; explicit noPlatforms suppresses them.
     return station==0u || (uEntrances.words[station+1u]&8u)==0u;
 }
+// Implemented after the shared original-art lookup and wooden support cursor.
+void worldEmitEntranceSupports(WorldObjectRecord object,uvec2 tile,uint destination,bool writeRecords,inout uint count);
 void visitEntrance(uint index,uvec2 tile,uint destination,bool writeRecords,inout uint count)
 {
     WorldObjectRecord object=uObjects.records[index];
@@ -83,7 +85,7 @@ void visitEntrance(uint index,uvec2 tile,uint destination,bool writeRecords,inou
                 ivec3(part.sizeX,part.sizeY,part.sizeZ),i==begin?0u:1u);
             worldSetCoplanarSurfaceLayer();
             if(type!=2u) {
-                WorldEntranceDepthAnchor anchor=worldRideEntranceDepthAnchor(ordinal,object.baseZ);
+                WorldEntranceDepthAnchor anchor=worldRideEntranceDepthAnchor(ordinal,direction,object.baseZ);
                 worldSetComponentDepthAnchor(tile,ivec3(anchor.x,anchor.y,anchor.z));
             }
             emitObjectSprite(tile,object.baseZ+part.z,ivec2(part.x,part.y),sprite,palettes,effects,destination,writeRecords,count);
@@ -99,10 +101,11 @@ void visitEntrance(uint index,uvec2 tile,uint destination,bool writeRecords,inou
             int(uEntrances.words[station+2u]),object.baseZ,int(rideFlags));
         uint descriptor=worldBannerTextDescriptor(true,rideId);
         if(text.mode>=0 && descriptor!=0u) {
-            if(text.closed!=0) descriptor=uBannerTexts.words[6];
-            // PaintRideEntranceExitScrollingText authors this component's own
-            // bounds at (2,2,baseZ+stationHeight), above the front frame's +30.
-            worldEmitBannerText(tile,text.rasterZ,ivec3(2,2,text.rasterZ),descriptor,uint(text.mode),
+            if(text.closed) descriptor=uBannerTexts.words[6];
+            // Text is attached to the front frame. Preserve its original raster
+            // height while sharing that parent's ground contact and child layer.
+            WorldEntranceDepthAnchor anchor=worldRideEntranceDepthAnchor(1,direction,object.baseZ);
+            worldEmitBannerText(tile,text.rasterZ,ivec3(anchor.x,anchor.y,anchor.z),descriptor,uint(text.mode),
                 destination,writeRecords,count);
         }
     }
@@ -114,6 +117,7 @@ void visitEntrance(uint index,uvec2 tile,uint destination,bool writeRecords,inou
                 destination,writeRecords,count);
         }
     }
+    worldEmitEntranceSupports(object,tile,destination,writeRecords,count);
     worldSupportEntrance(worldSupportState,object.baseZ,int(type));
 }
 #endif

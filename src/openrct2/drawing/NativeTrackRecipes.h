@@ -33,6 +33,7 @@ namespace OpenRCT2::Drawing
     // State bits: chain=1,inverted=2,brakeClosed=4,cable=8,CSG=16,greenLight=32,platforms=64.
     // sequenceCount=0 means unsupported.
     // Part (12 words): image,offsetXYZ,boundsXYZ,sizeXYZ,colourRole,parentIndex.
+    // colourRole low3 bits select palette; bit3 marks source-named frontTrack/frontHandrail contact.
     // Colour roles: 0=main/additional, 1=support/additional, 2=black, 3=main/support.
     // Image0xfffffffe marks procedural station geometry; size.y selects the
     // regular/inverted/narrow/pier recipe. It is never an original sprite ID.

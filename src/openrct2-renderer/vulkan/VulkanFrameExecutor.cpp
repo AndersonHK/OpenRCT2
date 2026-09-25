@@ -36,7 +36,7 @@ namespace OpenRCT2::Ui::Vulkan
     }
     void FrameExecutor::Initialise(
         std::shared_ptr<DeviceContext> context, Gpu::Extent logicalExtent, std::filesystem::path shaderDirectory,
-        uint32_t frameCount, uint32_t atlasLayers, bool enableWorldPasses)
+        uint32_t frameCount, uint32_t atlasLayers, bool enableWorldPasses, bool deferWorldPipelines)
     {
         Dispose();
         if (!context || shaderDirectory.empty() || logicalExtent.width == 0 || logicalExtent.height == 0)
@@ -45,6 +45,7 @@ namespace OpenRCT2::Ui::Vulkan
         _shaderDirectory = std::move(shaderDirectory);
         _logicalExtent = logicalExtent;
         _enableWorldPasses = enableWorldPasses;
+        _deferWorldPipelines = deferWorldPipelines;
         _terrainStatuses.resize(frameCount);
         _atlasAdmissions.resize(frameCount);
         _worldAdmissions.resize(frameCount);
@@ -156,7 +157,7 @@ namespace OpenRCT2::Ui::Vulkan
             0, nullptr);
         // WorldSurfaceStatus: emittedCount, capacity, overflow, reserved.
         const VkBufferCopy copy{ 2 * sizeof(uint32_t), allocation.offset, allocation.size };
-        vkCmdCopyBuffer(token.commandBuffer, _worldSurfacePipeline.GetStatusBuffer().GetBuffer(), allocation.buffer, 1, &copy);
+        vkCmdCopyBuffer(token.commandBuffer, _worldSurfacePipeline->GetStatusBuffer().GetBuffer(), allocation.buffer, 1, &copy);
         const VkMemoryBarrier visible{ .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
                                        .srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT,
                                        .dstAccessMask = VK_ACCESS_HOST_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT };
@@ -177,7 +178,8 @@ namespace OpenRCT2::Ui::Vulkan
             return;
         _atlasAdmissions.at(frameIndex).reset();
         _worldAdmissions.at(frameIndex).reset();
-        _worldSurfacePipeline.CompleteProfile(frameIndex);
+        if (_worldSurfacePipeline)
+            _worldSurfacePipeline->CompleteProfile(frameIndex);
         if (!_terrainFailure.empty())
             throw std::runtime_error(_terrainFailure);
         auto& pending = _terrainStatuses.at(frameIndex);
@@ -191,7 +193,7 @@ namespace OpenRCT2::Ui::Vulkan
                 if (error != 0 && _terrainFailure.empty())
                 {
                     _terrainFailure = std::string(
-                                          status.worldSurface ? "Vulkan world output overflow: slot="
+                                          status.worldSurface ? "Vulkan world rendering failure: slot="
                                                               : "Vulkan retained terrain GPU failure: slot=")
                         + std::to_string(frameIndex) + " viewport=" + std::to_string(status.viewport)
                         + " column=" + std::to_string(column) + " error=" + std::to_string(error);
@@ -200,6 +202,19 @@ namespace OpenRCT2::Ui::Vulkan
                         uint32_t tile{};
                         std::memcpy(&tile, status.allocation.data + sizeof(uint32_t), sizeof(tile));
                         _terrainFailure += " firstDetail=" + std::to_string(tile);
+                        if ((error & 4u) != 0)
+                            _terrainFailure += " [filter node capacity exhausted]";
+                        if ((error & 8u) != 0)
+                            _terrainFailure += " [filter list/per-pixel limit or selected-vehicle depth/layer invalid]";
+                        if ((error & 32u) != 0)
+                            _terrainFailure += " [component child layer overflow]";
+                        if ((error & 64u) != 0)
+                            _terrainFailure += " [component depth invalid]";
+                        if ((error & 65536u) != 0)
+                            _terrainFailure += " [vehicle image not resident: image="
+                                + std::to_string(tile == 0 ? 0 : tile - 1) + "]";
+                        if ((error & 131072u) != 0)
+                            _terrainFailure += " [filter pixel, operation or depth invalid]";
                     }
                 }
             }
@@ -213,13 +228,15 @@ namespace OpenRCT2::Ui::Vulkan
     {
         _resources.CommitFrameLayouts();
         _terrainPipeline.Commit();
-        _worldSurfacePipeline.Commit();
+        if (_worldSurfacePipeline)
+            _worldSurfacePipeline->Commit();
         _lightFalloffsRecorded = false;
     }
     void FrameExecutor::Discard(uint32_t frameIndex)
     {
         _resources.DiscardFrameLayouts(frameIndex);
-        _worldSurfacePipeline.DiscardPendingUploads(frameIndex);
+        if (_worldSurfacePipeline)
+            _worldSurfacePipeline->DiscardPendingUploads(frameIndex);
         _balloonPipeline.DiscardPendingUploads();
         _terrainPipeline.DiscardPendingUploads();
         _terrainStatuses.at(frameIndex).clear();
@@ -262,10 +279,9 @@ namespace OpenRCT2::Ui::Vulkan
 
     void FrameExecutor::EnableWorldPasses()
     {
-        if (_enableWorldPasses)
+        if (_worldSurfacePipeline)
             return;
-        _worldSurfacePipeline.Initialise(*_context, _resources, _shaderDirectory);
-        _enableWorldPasses = true;
+        PublishWorldPipeline(PrepareWorldPipeline());
     }
 
     void FrameExecutor::InitialiseDrawingPipelines(bool gpuLightFxSupported)
@@ -278,16 +294,30 @@ namespace OpenRCT2::Ui::Vulkan
             _weatherPipeline.Initialise(*_context, _resources, _shaderDirectory);
             _lightFxPipeline.Initialise(*_context, _resources, _shaderDirectory, gpuLightFxSupported);
         }
-        if (_enableWorldPasses)
-        {
-            const auto started = std::chrono::steady_clock::now();
-            Console::WriteLine("Vulkan startup: compiling native world pipeline");
-            std::fflush(stdout);
-            _worldSurfacePipeline.Initialise(*_context, _resources, _shaderDirectory);
-            Console::WriteLine(
-                "Vulkan startup: native world pipeline ready in %.3f seconds",
-                std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count());
-        }
+        if (_enableWorldPasses && !_deferWorldPipelines)
+            PublishWorldPipeline(PrepareWorldPipeline());
+    }
+
+    std::unique_ptr<WorldSurfacePipeline> FrameExecutor::PrepareWorldPipeline() const
+    {
+        const auto started = std::chrono::steady_clock::now();
+        Console::WriteLine("Vulkan startup: compiling native world pipeline");
+        std::fflush(stdout);
+        auto pipeline = std::make_unique<WorldSurfacePipeline>();
+        pipeline->Initialise(*_context, _resources, _shaderDirectory);
+        Console::WriteLine(
+            "Vulkan startup: native world pipeline ready in %.3f seconds",
+            std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count());
+        return pipeline;
+    }
+
+    void FrameExecutor::PublishWorldPipeline(std::unique_ptr<WorldSurfacePipeline> pipeline)
+    {
+        if (!pipeline)
+            throw std::invalid_argument("Cannot publish an incomplete Vulkan world pipeline");
+        _worldSurfacePipeline = std::move(pipeline);
+        _enableWorldPasses = true;
+        _deferWorldPipelines = false;
     }
 
     void FrameExecutor::DisposeDrawingPipelines()
@@ -296,7 +326,7 @@ namespace OpenRCT2::Ui::Vulkan
         _weatherPipeline.Dispose();
         _transparencyPipeline.Dispose();
         _rectPipeline.Dispose();
-        _worldSurfacePipeline.Dispose();
+        _worldSurfacePipeline.reset();
         _balloonPipeline.Dispose();
         _balloonPipelineReady = false;
         _terrainPipeline.Dispose();
@@ -463,6 +493,8 @@ namespace OpenRCT2::Ui::Vulkan
             throw std::out_of_range("Vulkan executor slot out of range");
         if ((commands.worldSurfaces || !commands.balloons.empty() || !commands.terrainScenes.empty()) && !_enableWorldPasses)
             throw std::invalid_argument("Native world resources are not admitted in this auxiliary domain");
+        if (commands.worldSurfaces && !_worldSurfacePipeline)
+            throw std::logic_error("Vulkan world pipeline has not finished loading");
         if (!initialIndices.empty()
             && initialIndices.size() != static_cast<size_t>(_logicalExtent.width) * _logicalExtent.height)
             throw std::invalid_argument("Initial indices do not match the Vulkan target");
@@ -511,7 +543,7 @@ namespace OpenRCT2::Ui::Vulkan
             // Catalog replacement is a bounded cold burst, not ordinary frame
             // traffic. Retain its staging with this submission's fence, leaving
             // every steady-state slot at its existing size.
-            if (_worldSurfacePipeline.NeedsSpriteAdmission(world) && spriteBytes > token.upload->GetCapacity() / 2)
+            if (_worldSurfacePipeline->NeedsSpriteAdmission(world) && spriteBytes > token.upload->GetCapacity() / 2)
             {
                 if (world.sprites->records.size() > Gpu::kWorldSurfaceMaximumSpriteSetCount)
                     throw std::invalid_argument("World sprite admission exceeds resident capacity");
@@ -524,7 +556,7 @@ namespace OpenRCT2::Ui::Vulkan
                 admission->SetTelemetry(token.telemetry);
                 worldToken.upload = admission.get();
             }
-            _worldSurfacePipeline.Record(worldToken, world);
+            _worldSurfacePipeline->Record(worldToken, world);
             if (worldToken.upload != token.upload)
                 worldToken.upload->FlushWritten();
             if (commands.worldSurfaces->recordCount != 0)

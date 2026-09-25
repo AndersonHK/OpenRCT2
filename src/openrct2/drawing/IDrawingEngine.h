@@ -18,6 +18,7 @@
 #include "WeatherDrawer.h"
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -98,6 +99,10 @@ namespace OpenRCT2::Drawing
             return EntityPublicationProfile::legacyBulk;
         }
         virtual void Initialise() = 0;
+        // UI assets are ready; prepare world resources while the owner draws only loading UI.
+        virtual void PrepareWorldRendering(const std::function<void()>&)
+        {
+        }
         virtual void Resize(uint32_t width, uint32_t height) = 0;
         // Display identity changed independently of the logical canvas size.
         virtual void NotifyDisplayChanged()

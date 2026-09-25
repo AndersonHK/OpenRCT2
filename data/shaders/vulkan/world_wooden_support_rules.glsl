@@ -263,6 +263,19 @@ SUPPORT_FN WorldWoodenCursor worldWoodenBegin(WorldSupportState state,int type,i
     c.accepted=true;
     return c;
 }
+// Entrance painters always request rotated truss NE/SW columns with no track
+// transition or orphan owner. Their immutable art exists even without rides.
+SUPPORT_FN WorldWoodenCursor worldEntranceWoodenBegin(WorldSupportState state,int direction,int height)
+{
+    return worldWoodenBegin(state,0,0,direction,height,255,false,true,false);
+}
+SUPPORT_FN int worldEntranceSupportAssetCount(){return 49;}
+SUPPORT_FN int worldEntranceSupportAssetImage(int index)
+{
+    if(index<0 || index>=worldEntranceSupportAssetCount())return -1;
+    // Two truss orientations: five column/base images,22 slope images each.
+    return index<5?3390+index:3514+index-5;
+}
 SUPPORT_FN WorldWoodenPart worldWoodenNext(SUPPORT_INOUT(WorldWoodenCursor,c))
 {
     if(c.phase<0)return worldWoodenPart(-1,0,0,0,0,0,0,0,0);

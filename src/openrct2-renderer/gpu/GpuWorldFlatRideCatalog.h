@@ -47,7 +47,7 @@ namespace OpenRCT2::Ui::Gpu
             const auto entry = words[2] + i * kWorldFlatRideWords;
             if (words[entry] == 0)
                 continue;
-            if (words[entry] > 23 || words[entry + 17] > 255 || !range(words[entry + 16], words[entry + 17], 5)
+            if (words[entry] > 24 || words[entry + 17] > 255 || !range(words[entry + 16], words[entry + 17], 5)
                 || words[entry + 16] < uint64_t(words[2]) + uint64_t(words[3]) * kWorldFlatRideWords
                 || uint64_t(words[entry + 16]) + uint64_t(words[entry + 17]) * 5 > words[4])
                 throw std::invalid_argument("GPU flat ride station range is invalid");
@@ -110,13 +110,15 @@ namespace OpenRCT2::Ui::Gpu
                 return 22;
             case TrackStyle::maze:
                 return 23;
+            case TrackStyle::lift:
+                return 24;
             default:
                 return 0;
         }
     }
     constexpr TrackElemType WorldFlatRideTrackType(uint32_t family)
     {
-        if (family >= 20 && family <= 22)
+        if ((family >= 20 && family <= 22) || family == 24)
             return TrackElemType::towerBase;
         if (family == 23)
             return TrackElemType::maze;
@@ -170,7 +172,7 @@ namespace OpenRCT2::Ui::Gpu
             words[entry + 1] = object && object->present ? object->carBaseImage : 0;
             words[entry + 2] = static_cast<uint32_t>(WorldFlatRideTrackType(family));
             words[entry + 3] = family == 18 ? static_cast<uint32_t>(TrackElemType::flatTrack1x1B) : words[entry + 2];
-            if (family >= 20 && family <= 22)
+            if ((family >= 20 && family <= 22) || family == 24)
                 words[entry + 3] = static_cast<uint32_t>(TrackElemType::towerSection);
             if (ride.stationStyle < objects.stations.size() && objects.stations[ride.stationStyle].present)
                 words[entry + 4] = 1u | ((objects.stations[ride.stationStyle].flags & (1u << 3)) != 0 ? 2u : 0u);

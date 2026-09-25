@@ -17,7 +17,7 @@ struct WorldTrackPart
     ivec3 offset;
     ivec3 bounds;
     ivec3 size;
-    uint colourRole;
+    uint colourRole; // Low3 bits: palette role; bit3: source-authored foreground contact.
     int parent;
 };
 

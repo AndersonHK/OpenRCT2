@@ -23,8 +23,9 @@ struct SDL_Window;
 
 namespace OpenRCT2::Ui::Vulkan::Platform
 {
-    // Keeps native paint/window events responsive while a driver compiles pipelines.
-    void PreparePipelines(SDL_Window* window, const std::function<void()>& work);
+    // Worker construction never touches the UI. The pump runs on the caller,
+    // and both success and failure join the worker before returning.
+    void PreparePipelines(const std::function<void()>& work, const std::function<void()>& pump);
     // The caller owns the SDL window and must dispose the backend before destroying it.
     [[nodiscard]] std::unique_ptr<PresentationHost> CreatePresentationHost(SDL_Window* window);
     [[nodiscard]] uint32_t GetRequiredSdlWindowFlags() noexcept;

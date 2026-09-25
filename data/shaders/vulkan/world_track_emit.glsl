@@ -86,8 +86,9 @@ void visitTrack(uint index,uvec2 tile,uint destination,bool writeRecords,inout u
             worldTrackStation(part,object,tile,colours);
             continue;
         }
-        if(part.colourRole>=4u) {
-            uint sprite=part.colourRole==4u?uCatalog.waterMask[0]:
+        uint colourRole=part.colourRole&7u;
+        if(colourRole>=4u) {
+            uint sprite=colourRole==4u?uCatalog.waterMask[0]:
                 ((uScene.transparentWater!=0u || (uScene.viewFlags&1u)!=0u)?uCatalog.waterOverlay[0]:uCatalog.waterOpaque[0]);
             if(part.parent>=0) part.parent=recipeToPart[part.parent];
             if(sprite<uScene.spriteSetCount)
@@ -99,11 +100,11 @@ void visitTrack(uint index,uvec2 tile,uint destination,bool writeRecords,inout u
         if(sprite==0xffffffffu) continue;
         if(part.parent<0 && worldTrackDrawParts.count<16u)
             partToQualifiedRail[worldTrackDrawParts.count]=int(qualified);
-        uint primary=part.colourRole==1u?((colours>>16u)&255u):(colours&255u);
-        uint secondary=part.colourRole==3u?((colours>>16u)&255u):((colours>>8u)&255u);
-        uint palettes=ghost?uCatalog.reserved:(part.colourRole==2u?1u:((primary+1u)|((secondary+1u)<<8u)));
+        uint primary=colourRole==1u?((colours>>16u)&255u):(colours&255u);
+        uint secondary=colourRole==3u?((colours>>16u)&255u):((colours>>8u)&255u);
+        uint palettes=ghost?uCatalog.reserved:(colourRole==2u?1u:((primary+1u)|((secondary+1u)<<8u)));
         if(part.parent>=0) part.parent=recipeToPart[part.parent];
-        worldTrackAppend(part,sprite,palettes,ghost||part.colourRole==2u?1u:2u);
+        worldTrackAppend(part,sprite,palettes,ghost||colourRole==2u?1u:2u);
     }
     // Preserve recipe ownership for component-local layers; hardware depth resolves visibility.
     int parentParts[12];int parentCount=0;
@@ -121,10 +122,19 @@ void visitTrack(uint index,uvec2 tile,uint destination,bool writeRecords,inout u
             WorldTrackDrawPart p=worldTrackDrawParts.parts[i];
             if(int(i)!=parent && p.geometry.parent!=parent) continue;
             worldSetPaintBounds(tile,p.geometry.bounds+ivec3(0,0,object.baseZ),p.geometry.size,int(i)==parent?0u:1u);
-            worldSetCoplanarSurfaceLayer();
+            worldComponentRootLayer=uint(WORLD_TRACK_RAIL_LAYER);
+            if((p.geometry.colourRole&8u)!=0u)
+                worldSetComponentDepthAnchor(tile,ivec3(
+                    worldForegroundContact(p.geometry.bounds.x,p.geometry.size.x),
+                    worldForegroundContact(p.geometry.bounds.y,p.geometry.size.y),
+                    object.baseZ+p.geometry.bounds.z));
+            if((p.geometry.colourRole&16u)!=0u)
+                worldSetForegroundTileContact(tile,object.baseZ+p.geometry.bounds.z,WORLD_FOREGROUND_RAIL_LAYER);
             WorldTrackStationCoverAnchor cover=worldTrackStationCoverAnchor(int(p.geometry.image));
-            if(cover.valid)
+            if(cover.valid) {
                 worldSetComponentDepthAnchor(tile,ivec3(cover.x,cover.y,object.baseZ+p.geometry.offset.z+cover.z));
+                worldComponentRootLayer=uint(WORLD_FOREGROUND_SHELL_LAYER);
+            }
             uint first=count;
             emitObjectSprite(tile,object.baseZ+p.geometry.offset.z,p.geometry.offset.xy,p.sprite,p.palettes,p.effects,
                 destination,writeRecords,count);

@@ -4,6 +4,8 @@ import importlib.util
 import json
 from pathlib import Path
 import unittest
+import tempfile
+from PIL import Image
 
 spec = importlib.util.spec_from_file_location('render_performance', Path(__file__).with_name('run-render-performance.py'))
 report = importlib.util.module_from_spec(spec)
@@ -112,6 +114,91 @@ class WorldStageEvidenceTest(unittest.TestCase):
         payload['stages']['arrangeEmit']['meanUs'] = float('nan')
         with self.assertRaisesRegex(ValueError, 'duration'):
             report.parse_world_gpu_profile('VULKAN_WORLD_PROFILE ' + json.dumps(payload))
+
+
+
+class ScreenshotEvidenceTest(unittest.TestCase):
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.root = Path(self.directory.name)
+        self.profile = self.root / 'profile'
+        self.screenshots = self.profile / 'screenshot'
+        self.screenshots.mkdir(parents=True)
+        self.output = self.root / 'review'
+        self.output.mkdir()
+        self.result = dict(states=dict(final=dict(simulationTick=dict(tick=3000))), finalEntityChecksum='abc')
+        path = self.png('final.png')
+        self.receipt = dict(schema=1, outsideMeasurement=True, authoritativeStateUnchanged=True,
+                            completedFrameNumber=4, simulationTick=3000, entityChecksum='abc', partialRender=False,
+                            logicalExtent=[64, 96], drawableExtent=[64, 96], path=str(path),
+                            camera=dict(viewPosition=[0, 0], rotation=0, zoom=0, flags=0))
+
+    def png(self, name, size=(64, 96), mode='P', directory=None):
+        path = (directory or self.screenshots) / name
+        Image.new(mode, size).save(path, format='PNG')
+        return path
+
+    def capture(self, path, **overrides):
+        record = dict(path=str(path), step=5, tick=128, viewPosition=[0, 0], zoom=2)
+        record.update(overrides)
+        return 'Camera stress capture v1: ' + json.dumps(record) + '\n'
+
+    def qualify(self, extra='', camera=False):
+        text = extra + 'Final benchmark screenshot v1: ' + json.dumps(self.receipt) + '\n'
+        return report.qualify_final_screenshot(text, self.profile, self.output, self.result, 64, 96, camera)
+
+    def test_ordinary_single_final_receipt_remains_valid(self):
+        self.assertEqual(self.qualify()['receipt'], self.receipt)
+
+    def test_declared_startup_and_camera_receipts_allow_only_their_images(self):
+        startup = self.png('startup.png')
+        camera = self.png('tour.png')
+        extra = 'Vulkan startup: loading UI capture: ' + str(startup) + '\n' + self.capture(camera)
+        self.assertEqual(self.qualify(extra, camera=True)['receipt'], self.receipt)
+
+    def test_ordinary_benchmark_rejects_camera_receipts(self):
+        with self.assertRaisesRegex(ValueError, 'not ordinary'):
+            self.qualify(self.capture(self.png('tour.png')))
+
+    def test_undeclared_png_is_rejected_even_during_camera_stress(self):
+        self.png('unclaimed.PNG')
+        with self.assertRaisesRegex(ValueError, 'Unexpected PNG'):
+            self.qualify(camera=True)
+
+    def test_declared_path_cannot_escape_profile(self):
+        with self.assertRaisesRegex(ValueError, 'escaped'):
+            self.qualify(self.capture(self.png('outside.png', directory=self.root)), camera=True)
+
+    def test_declared_capture_must_be_indexed_png_of_requested_extent(self):
+        for name, size, mode in [('wrong-size.png', (32, 96), 'P'), ('rgb.png', (64, 96), 'RGB')]:
+            path = self.png(name, size, mode)
+            with self.subTest(name=name), self.assertRaisesRegex(ValueError, 'indexed main canvas'):
+                self.qualify(self.capture(path), camera=True)
+            path.unlink()
+
+    def test_renamed_non_png_is_rejected(self):
+        path = self.screenshots / 'pretend.png'
+        Image.new('RGB', (64, 96)).save(path, format='BMP')
+        with self.assertRaisesRegex(ValueError, 'indexed main canvas'):
+            self.qualify(self.capture(path), camera=True)
+
+    def test_repeated_receipts_cannot_alias_the_final_frame(self):
+        with self.assertRaisesRegex(ValueError, 'reused final'):
+            self.qualify(self.capture(Path(self.receipt['path'])), camera=True)
+
+    def test_camera_receipt_fields_and_duplicate_steps_are_checked(self):
+        path = self.png('tour.png')
+        for override in [dict(step=True), dict(tick=-1), dict(zoom=4), dict(viewPosition=[0]), dict(extra=1)]:
+            with self.subTest(override=override), self.assertRaisesRegex(ValueError, 'receipt'):
+                self.qualify(self.capture(path, **override), camera=True)
+        with self.assertRaisesRegex(ValueError, 'duplicate'):
+            self.qualify(self.capture(path) * 2, camera=True)
+
+    def test_pacing_is_explicit_and_ordinary_default_unchanged(self):
+        self.assertEqual(report.expected_simulation_pacing(), 'ordinary Turbo 360 TPS target')
+        self.assertEqual(report.expected_simulation_pacing(uncapped=True), 'uncapped headroom')
+        self.assertEqual(report.expected_simulation_pacing(camera_stress=True), 'normal speed camera stress')
 
 
 class SimulationAttributionEvidenceTest(unittest.TestCase):

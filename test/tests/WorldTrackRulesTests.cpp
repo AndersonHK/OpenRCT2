@@ -66,7 +66,7 @@ namespace
                             const auto recipe = RawRecipe(static_cast<uint32_t>(style), type, sequence, direction, state);
                             for (size_t part = 0; part < recipe.size(); part += 12)
                             {
-                                if (recipe[part + 10] >= 4)
+                                if ((recipe[part + 10] & 7u) >= 4)
                                     continue; // Water uses shared terrain banks, not image0.
                                 if (recipe[part] == 0xfffffffdu)
                                 {
@@ -94,13 +94,14 @@ namespace
         return { images.begin(), images.end() };
     }
 
-    std::vector<uint32_t> WithMetalSupportImages(const std::vector<uint32_t>& rails)
+    std::vector<uint32_t> WithSharedSupportImages(const std::vector<uint32_t>& rails)
     {
         // Independent union of original MetalSupports.cpp base/slope, beam/joint
-        // and crossbeam banks. This must not add recipes to the rail sidecar or
+        // and crossbeam banks, plus shared entrance wooden supports. This must not add recipes to the rail sidecar or
         // replace any rail image: residency alone includes these shared assets.
         std::set<uint32_t> images(rails.begin(), rails.end());
-        for (const auto range : { std::pair{ 3124u, 3241u }, std::pair{ 3243u, 3389u }, std::pair{ 3658u, 3674u } })
+        for (const auto range : { std::pair{ 3124u, 3241u }, std::pair{ 3243u, 3389u }, std::pair{ 3390u, 3394u },
+                                  std::pair{ 3514u, 3557u }, std::pair{ 3658u, 3674u } })
             for (uint32_t image = range.first; image <= range.second; ++image)
                 images.insert(image);
         return { images.begin(), images.end() };
@@ -123,7 +124,7 @@ TEST(WorldTrackRulesTest, PresentLoopingRidesResolveOnlyTheirCompleteSharedStyle
     });
     const auto railImages = StyleImages({ TrackStyle::loopingRollerCoaster });
     ASSERT_FALSE(railImages.empty());
-    const auto expected = WithMetalSupportImages(railImages);
+    const auto expected = WithSharedSupportImages(railImages);
     EXPECT_EQ(resolved, expected);
     EXPECT_TRUE(std::includes(resolved.begin(), resolved.end(), railImages.begin(), railImages.end()));
     EXPECT_LT(resolved.size(), OpenRCT2::Drawing::GetNativeTrackRecipeImages().size());
@@ -150,24 +151,34 @@ TEST(WorldTrackRulesTest, PresentLoopingRidesResolveOnlyTheirCompleteSharedStyle
         std::runtime_error);
 }
 
-TEST(WorldTrackRulesTest, MissingOrUnsupportedRidesResolveNoImages)
+TEST(WorldTrackRulesTest, MissingOrUnsupportedRidesResolveOnlySharedEntranceImages)
 {
     OpenRCT2::WorldRidePresentationMaterials source;
-    const auto assertEmpty = [&] {
-        uint32_t calls = 0;
-        const auto catalog = OpenRCT2::Ui::Gpu::BuildWorldTrackCatalog(source, [&](uint32_t) { return ++calls; });
-        EXPECT_EQ(calls, 0u);
-        EXPECT_EQ(catalog.words[10], 0u);
+    std::vector<uint32_t> expected;
+    // Entrances can exist without any supported track style. These are the
+    // original truss neSw/nwSe base and column image banks, not rail art.
+    for (uint32_t image = 3390; image <= 3394; ++image)
+        expected.push_back(image);
+    for (uint32_t image = 3514; image <= 3557; ++image)
+        expected.push_back(image);
+    const auto assertEntranceOnly = [&] {
+        std::vector<uint32_t> resolved;
+        const auto catalog = OpenRCT2::Ui::Gpu::BuildWorldTrackCatalog(source, [&](uint32_t image) {
+            resolved.push_back(image);
+            return image;
+        });
+        EXPECT_EQ(resolved, expected);
+        EXPECT_EQ(catalog.words[10], 49u);
     };
-    assertEmpty();
+    assertEntranceOnly();
     source.rides.resize(1);
     source.rides[0].rideType = OpenRCT2::RIDE_TYPE_LOOPING_ROLLER_COASTER;
-    assertEmpty();
+    assertEntranceOnly();
     source.rides[0].present = true;
     source.rides[0].rideType = UINT16_MAX;
-    assertEmpty();
+    assertEntranceOnly();
     source.rides[0].rideType = OpenRCT2::RIDE_TYPE_MAZE;
-    assertEmpty();
+    assertEntranceOnly();
 }
 
 TEST(WorldTrackRulesTest, InvertedRideResolvesBothSharedVariants)
@@ -183,7 +194,7 @@ TEST(WorldTrackRulesTest, InvertedRideResolvesBothSharedVariants)
     });
     EXPECT_EQ(
         resolved,
-        WithMetalSupportImages(StyleImages({ TrackStyle::flyingRollerCoaster, TrackStyle::flyingRollerCoasterInverted })));
+        WithSharedSupportImages(StyleImages({ TrackStyle::flyingRollerCoaster, TrackStyle::flyingRollerCoasterInverted })));
 }
 
 TEST(WorldTrackRulesTest, LoopingFlatOriginalIdsChainAndRotatedBounds)
@@ -248,8 +259,8 @@ TEST(WorldTrackRulesTest, OwnRailEnvelopeOccludesCentreSupportsWithoutMovingEith
                     ASSERT_EQ(part.y, 16);
                     const int columnDepth = part.x + part.y + part.z;
                     const int supportedDepth = TrackDepthRules::worldTrackUnderRailDepth(columnDepth, trackHeight);
-                    EXPECT_LT(supportedDepth, trackHeight);
-                    EXPECT_EQ(supportedDepth, columnDepth < trackHeight ? columnDepth : trackHeight - 1);
+                    EXPECT_LE(supportedDepth, trackHeight);
+                    EXPECT_EQ(supportedDepth, columnDepth < trackHeight ? columnDepth : trackHeight);
                     maximumColumnDepth = std::max(maximumColumnDepth, columnDepth);
                 }
                 EXPECT_GT(parts, 0);
@@ -260,11 +271,10 @@ TEST(WorldTrackRulesTest, OwnRailEnvelopeOccludesCentreSupportsWithoutMovingEith
         }
 }
 
-TEST(WorldTrackRulesTest, NamedStationFrontEaveIsBetweenOwnFenceAndAdjacentTallerBooth)
+TEST(WorldTrackRulesTest, StationFootprintEnclosesOwnRailButStaysBehindAdjacentBooth)
 {
-    // Original regular/inverted/tall shelter variants use roof heights22/30/46.
-    // The front cover includes that roof; its art still draws from (0,0,height).
-    constexpr int roofHeights[] = { 22, 30, 46 };
+    // All three roof variants wrap the same station footprint. Roof height
+    // changes the sprite, not the contact of the station's near wall.
     for (int variant = 0; variant < 3; ++variant)
         for (int edge = 0; edge < 4; ++edge)
         {
@@ -272,40 +282,58 @@ TEST(WorldTrackRulesTest, NamedStationFrontEaveIsBetweenOwnFenceAndAdjacentTalle
             const auto anchor = TrackDepthRules::worldTrackStationCoverAnchor(marker);
             if (edge == 0 || edge == 3)
             {
-                EXPECT_EQ(marker, 0);
-                EXPECT_FALSE(anchor.valid); // Do not move the independent rear wall.
+                EXPECT_FALSE(anchor.valid); // Independent rear wall stays at its own contact.
                 continue;
             }
             ASSERT_TRUE(anchor.valid);
-            EXPECT_EQ(anchor.x, edge == 1 ? 0 : 31);
-            EXPECT_EQ(anchor.y, edge == 1 ? 31 : 0);
-            EXPECT_EQ(anchor.z, roofHeights[variant] + 1);
-            const int eaveDepth = anchor.x + anchor.y + anchor.z;
-            // Regular platform height5/fence7; inverted platform6/fence8.
-            // The separately authored corner end-post (31,23) is not the
-            // front fence origin and need not sit behind the complete roof.
-            for (const int platformHeight : { 5, 6 })
-                EXPECT_GT(eaveDepth, 24 + platformHeight);
-            for (const int fenceHeight : { 7, 8 })
-                EXPECT_GT(eaveDepth, 31 + fenceHeight);
-            // The neighboring tile's front frame has explicit local(2,2).
-            // All cover variants remain behind a frame reaching above them.
-            const int tallerFrameHeight = roofHeights[variant] + 8;
-            EXPECT_LT(eaveDepth, 32 + 2 + 2 + tallerFrameHeight);
-            // The observed glass booth is30 units high: both ordinary and
-            // inverted roofs must leave it visible. A46-unit tall shelter is
-            // genuinely higher; do not invent a depth clamp for that case.
-            if (variant < 2)
-                EXPECT_LT(eaveDepth, 32 + 2 + 2 + 30);
-            else
-                EXPECT_GT(eaveDepth, 32 + 2 + 2 + 30);
-            const auto glassAnchor = TrackDepthRules::worldTrackStationCoverAnchor(marker);
-            EXPECT_EQ(glassAnchor.x, anchor.x);
-            EXPECT_EQ(glassAnchor.y, anchor.y);
-            EXPECT_EQ(glassAnchor.z, anchor.z);
+            for (int elevation : { 0, 80, 336 })
+            {
+                const int shell = anchor.x + anchor.y + anchor.z + elevation;
+                const int rail = TrackDepthRules::worldForegroundTileContact(elevation);
+                EXPECT_EQ(shell, rail);
+                EXPECT_GT(rail, elevation + 28 + 24 + 8);      // Car/guest inside the platform corridor.
+                EXPECT_LT(shell, elevation + 32 + 2 + 2 + 30); // Adjacent entrance front must cover the station.
+                EXPECT_GT(TrackDepthRules::WORLD_FOREGROUND_SHELL_LAYER, TrackDepthRules::WORLD_FOREGROUND_RAIL_LAYER);
+                EXPECT_LE(TrackDepthRules::WORLD_FOREGROUND_SHELL_LAYER + 1, ComponentDepthRules::WORLD_COMPONENT_LAYER_MAX);
+                // The transparent child can filter its owner's surface without
+                // escaping the contact interval into the adjacent building.
+                EXPECT_TRUE(
+                    ComponentDepthRules::worldComponentDepthValid(shell, TrackDepthRules::WORLD_FOREGROUND_SHELL_LAYER + 1));
+            }
         }
     for (const int ordinary : { 0, 15004, 22362, 22370, -2, -3, -4 })
         EXPECT_FALSE(TrackDepthRules::worldTrackStationCoverAnchor(ordinary).valid);
+}
+
+TEST(WorldTrackRulesTest, AuthoredForegroundTrackContactsRemainSeparateFromStationGroups)
+{
+    // Source-named front track/handrail components retain their authored
+    // extent endpoint; they do not inherit the enclosing station footprint.
+    for (int axis = 0; axis < 2; ++axis)
+    {
+        const int x = axis == 0 ? 0 : 31, y = axis == 0 ? 31 : 0;
+        const int sx = axis == 0 ? 32 : 1, sy = axis == 0 ? 1 : 32;
+        const int depth = TrackDepthRules::worldForegroundContact(x, sx) + TrackDepthRules::worldForegroundContact(y, sy) + 7;
+        EXPECT_EQ(depth, 69);
+        EXPECT_GT(depth, 28 + 24 + 8); // Car/guest contact inside its platform corridor.
+        EXPECT_EQ(x + y + 7, 38);      // The prior raster-origin anchor cannot cover that corridor.
+    }
+    const auto words = OpenRCT2::Drawing::GetNativeTrackRecipeWords();
+    size_t foreground = 0, rear = 0;
+    for (size_t p = words[6]; p < words.size(); p += 12)
+    {
+        const auto role = words[p + 10];
+        if ((role & 8u) == 0)
+        {
+            ++rear;
+            continue;
+        }
+        ++foreground;
+        EXPECT_LT(role & 7u, 4u); // Never reinterpret water or station/tunnel markers.
+        EXPECT_LT(words[p], 0xfffffffcu);
+    }
+    EXPECT_GT(foreground, 0u);
+    EXPECT_GT(rear, foreground); // This is explicit source provenance, not an all-track depth shift.
 }
 
 TEST(WorldTrackRulesTest, EveryAuthoredRowStaysWithinItsImmutableCatalog)
@@ -356,7 +384,7 @@ TEST(WorldTrackRulesTest, EveryAuthoredRowStaysWithinItsImmutableCatalog)
         for (uint32_t i = 0; i < count; ++i)
         {
             const auto p = words[6] + (first + i) * 12;
-            if (words[p + 10] < 4 && words[p] != 0xfffffffcu && words[p] != 0xfffffffdu && words[p] != 0xfffffffeu)
+            if ((words[p + 10] & 7u) < 4 && words[p] != 0xfffffffcu && words[p] != 0xfffffffdu && words[p] != 0xfffffffeu)
             {
                 const bool animated = OpenRCT2::Drawing::IsNativeTrackAnimatedImage(words[p]);
                 ASSERT_TRUE(words[p] < 0x7ffffu || animated);
@@ -376,8 +404,9 @@ TEST(WorldTrackRulesTest, EveryAuthoredRowStaysWithinItsImmutableCatalog)
                 if (animated)
                     EXPECT_FALSE(std::binary_search(images.begin(), images.end(), words[p]));
             }
-            EXPECT_LE(words[p + 10], 5u);
-            if (words[p + 10] >= 4)
+            EXPECT_EQ(words[p + 10] & ~15u, 0u);
+            EXPECT_LE(words[p + 10] & 7u, 5u);
+            if ((words[p + 10] & 7u) >= 4)
             {
                 EXPECT_EQ(words[p], 0u);
                 EXPECT_GE(static_cast<int32_t>(words[p + 11]), 0);
@@ -406,12 +435,19 @@ TEST(WorldTrackRulesTest, EveryAuthoredRowStaysWithinItsImmutableCatalog)
             parents += parent == -1;
             if (words[p] == 0xfffffffeu)
             {
-                ASSERT_LE(words[p + 8], 7u);
+                ASSERT_LE(words[p + 8], 8u);
                 if (words[p + 8] == 7)
                 {
                     EXPECT_LT(words[p + 1], 4u);
                     EXPECT_LT(words[p + 2], 3u);
                     ++expanded;
+                }
+                else if (words[p + 8] == 8)
+                {
+                    for (uint32_t field : { 1u, 2u, 4u, 5u, 6u, 7u, 9u, 10u })
+                        EXPECT_EQ(words[p + field], 0u);
+                    expanded += 10; // Chairlift's eleven actual parts replace one marker.
+                    parents += 7;
                 }
                 else
                 {
@@ -818,15 +854,46 @@ TEST(WorldTrackRulesTest, ConstantComponentLayersCannotCrossAnAdjacentAuthoredAn
     EXPECT_TRUE(worldComponentDepthValid(WORLD_COMPONENT_DEPTH_MAX, 0));
 }
 
+TEST(WorldTrackRulesTest, GroundTransitionUsesLocalLayerWithoutBeingBuriedBelowTerrain)
+{
+    // Everything Park Heartline Tiger: flat terrain and down25ToFlat mine
+    // transition both at worldZ336. The previous rail-1 scalar was335.
+    constexpr int terrain = 336;
+    const int support = TrackDepthRules::worldTrackUnderRailDepth(336, 336);
+    EXPECT_EQ(support, terrain);
+    EXPECT_GT(TrackDepthRules::WORLD_TRACK_RAIL_LAYER, 1);
+    EXPECT_LT(TrackDepthRules::WORLD_TRACK_RAIL_LAYER, TrackDepthRules::WORLD_FOREGROUND_FIXTURE_LAYER);
+    EXPECT_LT(TrackDepthRules::WORLD_TRACK_RAIL_LAYER, TrackDepthRules::WORLD_FOREGROUND_SHELL_LAYER);
+    // Neighbor worldXY must still outrank the complete local layer interval.
+    EXPECT_GT(terrain + 32, support);
+
+    const auto words = OpenRCT2::Drawing::GetNativeTrackRecipeWords();
+    for (size_t row = words[5]; row < words[6]; row += 2)
+    {
+        const auto first = words[row], count = words[row + 1];
+        for (uint32_t parent = 0; parent < count; ++parent)
+        {
+            uint32_t children = 0;
+            for (uint32_t child = parent + 1; child < count; ++child)
+                children += words[words[6] + (first + child) * 12 + 11] == parent;
+            // Reserve one additional named wooden transition child. Generated
+            // station glass has one child at shell8, independently below15.
+            EXPECT_LE(
+                TrackDepthRules::WORLD_TRACK_RAIL_LAYER + static_cast<int>(children) + 1,
+                ComponentDepthRules::WORLD_COMPONENT_LAYER_MAX);
+        }
+    }
+}
+
 TEST(WorldTrackRulesTest, SupportContactConstraintDoesNotOrderOtherElementsOrLowerColumnSections)
 {
     // A column under a high rail may still stand in front of a different low
     // crossing rail: only its own element participates in the constraint.
     EXPECT_EQ(TrackDepthRules::worldTrackUnderRailDepth(180, 200), 180);
     EXPECT_GT(TrackDepthRules::worldTrackUnderRailDepth(180, 200), 100);
-    EXPECT_EQ(TrackDepthRules::worldTrackUnderRailDepth(200, 200), 199);
+    EXPECT_EQ(TrackDepthRules::worldTrackUnderRailDepth(200, 200), 200);
     EXPECT_EQ(TrackDepthRules::worldTrackUnderRailDepth(-40, -20), -40);
-    EXPECT_EQ(TrackDepthRules::worldTrackUnderRailDepth(-10, -20), -21);
+    EXPECT_EQ(TrackDepthRules::worldTrackUnderRailDepth(-10, -20), -20);
 }
 
 TEST(WorldTrackRulesTest, RiverRapidsImageClockKeepsFixedComponentOwnershipAcrossCompletePeriods)
@@ -966,4 +1033,18 @@ TEST(WorldTrackRulesTest, GoKartsStationsRetainGridSignalAndOrderedSingleCoverRe
                         EXPECT_EQ(parts[(4 + i) * 12], (light ? green : red)[direction][i]);
                 EXPECT_EQ(parts, Recipe(24, type, 0, direction, light | 64u));
             }
+}
+
+TEST(WorldTrackRulesTest, SharedOriginalArtIncludesEntranceColumnsWithoutTrackStyles)
+{
+    OpenRCT2::WorldRidePresentationMaterials source;
+    std::set<uint32_t> admitted;
+    OpenRCT2::Ui::Gpu::BuildWorldTrackCatalog(source, [&](uint32_t image) {
+        admitted.insert(image);
+        return image;
+    });
+    for (uint32_t image = 3390; image <= 3394; ++image)
+        EXPECT_TRUE(admitted.contains(image));
+    for (uint32_t image = 3514; image <= 3557; ++image)
+        EXPECT_TRUE(admitted.contains(image));
 }

@@ -44,6 +44,24 @@ class NativeTrackExtractorTest(unittest.TestCase):
             translate_fixture('int32_t value=0; if (TrackPaintUtilShouldPaintSupports(session.MapPosition)) {'
                               'switch(direction) { case 0: value=7; break; } } '+rail(903))
 
+    def test_front_track_field_provenance_keeps_anchor_pair_and_original_art(self):
+        helpers='static constexpr auto sprites={{100,101,102,103}};'
+        for classic in (False,True):
+            for direction in range(4):
+                prefix='TrackPaint<'+str(classic).lower()+'> (session,direction,'
+                back=translate_fixture(prefix+'sprites[0].track,sprites[0].handrail,{0,0,height},{{0,27,height+4},{32,1,9}});',
+                    direction,helpers)
+                front=translate_fixture(prefix+'sprites[0].frontTrack,sprites[0].frontHandrail,{0,0,height},{{0,27,height+4},{32,1,9}});',
+                    direction,helpers)
+                self.assertEqual([p[0] for p in front],[102] if classic else [102,103])
+                self.assertEqual([p[10] for p in front],[8] if classic else [9,8])
+                self.assertEqual([p[10] for p in back],[0] if classic else [1,0])
+                self.assertEqual([p[1:10]+p[11:] for p in front],[p[1:10]+p[11:] for p in back])
+                if not classic: self.assertEqual(front[0][4:10],front[1][4:10])
+        # A suggestive constant name alone does not authorize a new depth anchor.
+        self.assertEqual(translate_fixture('PaintAddImageAsParent(session,session.TrackColours.WithIndex(SPR_FAKE_FRONT_RAIL),'
+            '{0,0,height},{32,1,3});',helpers='constexpr uint32_t SPR_FAKE_FRONT_RAIL=102;')[0][10],0)
+
     def test_station_cover_requires_matching_owned_edge_and_never_folds_fence_branch(self):
         prefix=('const auto* stationObj=ride.getStationObject(); '
                 'auto colour=GetStationColourScheme(session,trackElement); '
@@ -827,6 +845,26 @@ class SupportCompletenessTest(unittest.TestCase):
                 self.assertEqual([op[0] for op in t.support_ops],([1] if sequence==3 else [])+[3,4])
                 if sequence==3:
                     self.assertEqual(t.support_ops[0][:6],(1,0,1,direction,100,0))
+
+    def test_chairlift_station_owns_neighbor_marker_and_unconditional_support_program(self):
+        for kind in (1,2,3):
+            for direction in range(4):
+                parts,ops,gaps=self.capture(6,kind,0,direction)
+                self.assertFalse(gaps)
+                self.assertEqual(parts,[(EXTRACTOR.STATION_PART,0,0,100,0,0,0,0,8,0,0,-1)])
+                self.assertEqual([op[0] for op in ops],[5,3,4])
+                self.assertEqual(ops[0][3],direction)
+                self.assertEqual(ops[0][9],2)  # Source station-black support palette.
+                self.assertEqual(ops[1][4:8],(65535,0,511,0))
+                self.assertEqual(ops[2][4],132)
+                source,name=self.t.getter(self.t.getters[6],kind)
+                try:
+                    EXTRACTOR.CAPTURE_TUNNELS=True
+                    tunnel_parts=[]
+                    EXTRACTOR.Translator.paint(self.t,source,name,0,direction,100,0,tunnel_parts,track_type=kind)
+                    self.assertEqual(tunnel_parts[-1],(EXTRACTOR.TUNNEL_PART,direction&1,6,100,0,0,0,0,0,0,0,-1))
+                finally:
+                    EXTRACTOR.CAPTURE_TUNNELS=False
 
 
 if __name__ == '__main__':

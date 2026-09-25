@@ -73,6 +73,7 @@ namespace OpenRCT2::Ui::Vulkan
         ~Backend() override;
 
         void Initialise(const Gpu::BackendConfig& config) override;
+        void PrepareWorldPipelines(const std::function<void(const std::function<void()>&)>& runPreparation) override;
         void Dispose() override;
         [[nodiscard]] bool SupportsGpuLightFxRasterization() const noexcept override;
 

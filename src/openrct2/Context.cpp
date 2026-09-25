@@ -93,6 +93,7 @@
 #include "scripting/ScriptEngine.h"
 #include "ui/UiContext.h"
 #include "ui/WindowManager.h"
+#include "world/Map.h"
 #include "world/MapAnimation.h"
 #include "world/MapSelection.h"
 
@@ -253,6 +254,9 @@ namespace OpenRCT2
 
         IntegratedBenchmarkPhase _benchmarkPhase = IntegratedBenchmarkPhase::waitingForPark;
         IntegratedBenchmarkClock::time_point _benchmarkPhaseStart{};
+        bool _benchmarkCameraStress{};
+        uint64_t _benchmarkCameraInitialTick{};
+        uint64_t _benchmarkCameraStep{};
         IntegratedBenchmarkClock::time_point _benchmarkPreviousDrawStart{};
         IntegratedBenchmarkTotals _benchmarkTotals{};
         BenchmarkStateSnapshot _benchmarkInitialState{};
@@ -725,6 +729,11 @@ namespace OpenRCT2
 
         void Quit() override
         {
+            if (_sceneManager && _sceneManager->getActiveScene() == _sceneManager->getPreloaderScene())
+            {
+                Finish();
+                return;
+            }
             gSavePromptMode = PromptMode::quit;
             ContextOpenWindow(WindowClass::savePrompt);
         }
@@ -886,6 +895,20 @@ namespace OpenRCT2
             {
                 auto* preloaderScene = static_cast<PreloaderScene*>(_sceneManager->getPreloaderScene());
                 _sceneManager->setActiveScene(preloaderScene);
+
+                // Base fonts/palette and the ordinary progress widget are ready.
+                // Compile world graphics independently while the same Vulkan UI
+                // renderer remains responsive; no simulation or repository job
+                // runs against incomplete world resources during this stage.
+                OpenProgress(STR_LOADING_GENERIC);
+                _drawingEngine->PrepareWorldRendering([this]() {
+                    _uiContext->ProcessMessages();
+                    GetWindowManager()->InvalidateByClass(WindowClass::progressWindow);
+                    Draw();
+                });
+                CloseProgress();
+                if (_finished)
+                    return false;
 
                 // TODO: preload the title scene in another (parallel) job.
                 preloaderScene->AddJob([this]() { InitialiseRepositories(); });
@@ -2023,7 +2046,9 @@ namespace OpenRCT2
             }
             Console::WriteLine(
                 "Benchmark simulation pacing: %s",
-                gIntegratedBenchmark.uncappedSimulation ? "uncapped headroom" : "ordinary Turbo 360 TPS target");
+                _benchmarkCameraStress
+                    ? "normal speed camera stress"
+                    : (gIntegratedBenchmark.uncappedSimulation ? "uncapped headroom" : "ordinary Turbo 360 TPS target"));
             PrintBenchmarkStateSnapshot("Initial", _benchmarkInitialState);
             PrintBenchmarkStateSnapshot("Final", finalState);
             Console::WriteLine("Completed: %s", checksum.c_str());
@@ -2071,8 +2096,7 @@ namespace OpenRCT2
                         throw std::runtime_error("Final benchmark screenshot changed authoritative state or camera");
                     const auto drawable = _uiContext->GetDrawableSize();
                     const auto generation = ViewportGetPresentationGeneration();
-                    const bool partial = _drawingEngine->GetEntityPublicationProfile()
-                        == EntityPublicationProfile::gpuWorld;
+                    const bool partial = _drawingEngine->GetEntityPublicationProfile() == EntityPublicationProfile::gpuWorld;
                     json_t receipt{ { "schema", 1 },
                                     { "path", screenshot },
                                     { "outsideMeasurement", true },
@@ -2123,6 +2147,46 @@ namespace OpenRCT2
             _benchmarkFailed = true;
             _benchmarkPhase = IntegratedBenchmarkPhase::complete;
             _finished = true;
+        }
+
+        void UpdateCameraStress()
+        {
+            // Diagnostic only: use ordinary scrolling/zoom logic while simulation and rendering keep running.
+            // Readbacks deliberately disturb pacing, so these results must never qualify performance.
+            const auto step = (gTotalSimulationTicks - _benchmarkCameraInitialTick) / 16;
+            if (step == _benchmarkCameraStep)
+                return;
+            _benchmarkCameraStep = step;
+            auto* window = WindowGetMain();
+            if (window == nullptr || window->viewport == nullptr)
+                throw std::runtime_error("Camera stress lost its main viewport");
+            if (step % 5 == 0)
+            {
+                const auto screenshot = _drawingEngine->Screenshot();
+                if (screenshot.empty())
+                    throw std::runtime_error("Camera stress readback failed");
+                Console::WriteLine(
+                    "Camera stress capture v1: %s",
+                    json_t{ { "step", step },
+                            { "tick", getGameState().currentTicks },
+                            { "path", screenshot },
+                            { "zoom", static_cast<int8_t>(window->viewport->zoom) },
+                            { "viewPosition", { window->viewport->viewPos.x, window->viewport->viewPos.y } } }
+                        .dump()
+                        .c_str());
+            }
+            constexpr std::array<int8_t, 8> zooms{ 0, 1, 2, 3, 2, 1, 0, -1 };
+            // Tour the populated interior; proportional coordinates also work for smaller diagnostic parks.
+            constexpr std::array<CoordsXY, 8> fractions{ CoordsXY{ 3, 4 }, { 5, 6 }, { 7, 4 }, { 5, 3 },
+                                                         { 3, 7 },         { 6, 7 }, { 7, 6 }, { 4, 5 } };
+            const auto extent = GetMapSizeUnits();
+            const auto fraction = fractions[(step / zooms.size()) % fractions.size()];
+            const CoordsXY location{ extent.x * fraction.x / 10, extent.y * fraction.y / 10 };
+            WindowZoomSet(*window, ZoomLevel{ zooms[step % zooms.size()] }, false);
+            WindowScrollToLocation(*window, CoordsXYZ{ location, TileElementHeight(location) });
+            Console::WriteLine(
+                "Camera stress step: %llu zoom=%d x=%d y=%d", static_cast<unsigned long long>(step),
+                static_cast<int8_t>(window->viewport->zoom), location.x, location.y);
         }
 
         void UpdateIntegratedBenchmark()
@@ -2208,11 +2272,15 @@ namespace OpenRCT2
                             static_cast<unsigned>(viewport.rotation));
                     }
                     // This is process-local benchmark setup, not an in-game command or replay event.
-                    gGameSpeed = kGameSpeedTurbo;
+                    const auto* cameraStress = std::getenv("OPENRCT2_CAMERA_STRESS");
+                    _benchmarkCameraStress = cameraStress != nullptr && std::string_view(cameraStress) == "1";
+                    _benchmarkCameraInitialTick = gTotalSimulationTicks;
+                    gGameSpeed = _benchmarkCameraStress ? 1 : kGameSpeedTurbo;
                     Console::WriteLine(
-                        "Integrated UI benchmark ready: renderer=%s, VSync=%s, %s window, ordinary Turbo.", "vulkan",
+                        "Integrated UI benchmark ready: renderer=%s, VSync=%s, %s window, %s.", "vulkan",
                         gIntegratedBenchmark.useVSync.value_or(Config::Get().general.useVSync) ? "enabled" : "disabled",
-                        gIntegratedBenchmark.visible ? "visible" : "hidden");
+                        gIntegratedBenchmark.visible ? "visible" : "hidden",
+                        _benchmarkCameraStress ? "normal speed camera stress" : "ordinary Turbo");
                     if (gIntegratedBenchmark.warmupTicks == 0
                         || (gIntegratedBenchmark.warmupTicks < 0 && gIntegratedBenchmark.warmupSeconds == 0))
                     {
@@ -2244,11 +2312,24 @@ namespace OpenRCT2
             }
 
             if (_sceneManager->getActiveScene() != _sceneManager->getGameScene() || GameIsPaused()
-                || Network::GetMode() != Network::Mode::none || gGameSpeed != kGameSpeedTurbo)
+                || Network::GetMode() != Network::Mode::none || gGameSpeed != (_benchmarkCameraStress ? 1 : kGameSpeedTurbo))
             {
                 FailIntegratedBenchmark(
                     "Integrated UI benchmark requires the game scene, an unpaused offline park, and ordinary Turbo speed.");
                 return;
+            }
+
+            if (_benchmarkCameraStress)
+            {
+                try
+                {
+                    UpdateCameraStress();
+                }
+                catch (const std::exception& e)
+                {
+                    FailIntegratedBenchmark(e.what());
+                    return;
+                }
             }
 
             const bool warmupComplete = gIntegratedBenchmark.warmupTicks >= 0

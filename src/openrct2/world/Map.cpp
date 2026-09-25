@@ -526,6 +526,12 @@ namespace OpenRCT2
             words[0] = (ride.flags.has(RideFlag::brokenDown) ? 8u : 0u)
                 | (ride.status == RideStatus::open ? 16u : 0u);
             const auto style = getTrackDrawerEntry(GetRideTypeDescriptor(ride.type)).trackStyle;
+            if (style == TrackStyle::chairlift)
+            {
+                words[1] = uint32_t(ride.type) | (uint32_t(ride.subtype) << 16);
+                words[3] = ride.chairliftBullwheelRotation;
+                continue;
+            }
             switch (style)
             {
                 case TrackStyle::hauntedHouse:

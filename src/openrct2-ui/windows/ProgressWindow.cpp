@@ -19,6 +19,7 @@
 #include <openrct2/drawing/RenderTarget.h>
 #include <openrct2/localisation/Formatting.h>
 #include <openrct2/localisation/StringIds.h>
+#include <openrct2/platform/Platform.h>
 #include <openrct2/ui/WindowManager.h>
 #include <random>
 
@@ -195,7 +196,9 @@ namespace OpenRCT2::Ui::Windows
             }
             else
             {
-                position = (vehicleWidth + width) / 2;
+                // Unknown work totals must not fabricate a completion percentage.
+                // Keep the ordinary loading train moving while a driver compiles.
+                position = -vehicleWidth + static_cast<int32_t>((Platform::GetTicks() % 3000) * (width + vehicleWidth) / 3000);
             }
 
             GfxDrawSprite(clipRT, variant.vehicle, ScreenCoordsXY(position, widget.bottom + 1));

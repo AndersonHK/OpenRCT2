@@ -86,7 +86,7 @@ TEST(WorldVehicleRulesTest, ImmutableSelectorMatchesOriginalPitchRollFallbacksAn
         }
         for (int pitch = 0; pitch < EnumValue(VehiclePitch::pitchCount); pitch++)
             for (int roll = 0; roll < EnumValue(VehicleRoll::rollCount); roll++)
-                for (int direction = 0; direction < 32; direction += 4)
+                for (int direction = 0; direction < 32; direction++)
                     for (int flags = 0; flags < 4; flags++)
                     {
                         SCOPED_TRACE(
@@ -110,8 +110,80 @@ TEST(WorldVehicleRulesTest, ImmutableSelectorMatchesOriginalPitchRollFallbacksAn
                             static_cast<SpriteGroupType>(selected.group), selected.yaw, static_cast<uint8_t>(selected.rank));
                         if (selected.swing)
                             image += vehicle.SwingSprite;
-                        EXPECT_EQ(image, VehicleOriginalOracle::images[0]);
+                        // Source has two negative-remainder fallback bugs. Keep
+                        // every other oracle result exact, but normalize this
+                        // documented divergence by one selected rotation bank.
+                        int effectivePitch = pitch, effectiveRoll = roll, effectiveYaw = direction;
+                        if (flags & 2)
+                        {
+                            effectivePitch = EnumValue(VehicleOriginalOracle::PitchInvertTable[pitch]);
+                            effectiveRoll = EnumValue(VehicleOriginalOracle::RollInvertTable[roll]);
+                            effectiveYaw = (direction + 16) & 31;
+                        }
+                        const bool correctedSourceYaw = effectiveYaw < 2
+                            && ((effectivePitch == 52 && effectiveRoll == 10) || (effectivePitch == 55 && effectiveRoll == 5))
+                            && !cars[2].groupEnabled(SpriteGroupType::slopes50Banked67);
+                        auto expected = VehicleOriginalOracle::images[0];
+                        if (correctedSourceYaw)
+                            expected += cars[selected.car].numRotationSprites(static_cast<SpriteGroupType>(selected.group))
+                                * cars[selected.car].baseNumFrames;
+                        EXPECT_GE(selected.yaw, 0);
+                        EXPECT_LT(selected.yaw, 32);
+                        EXPECT_EQ(image, expected);
                     }
+    }
+}
+
+TEST(WorldVehicleRulesTest, NegativeBankedFallbackWrapsBeforeSelectingAnImage)
+{
+    using namespace OpenRCT2;
+    std::array<CarEntry, 4> cars{};
+    VehicleRuleTest::cars = cars.data();
+    PaintSession session{};
+    Vehicle vehicle{};
+    vehicle.SwingSprite = 3;
+    for (bool bankedFallback : { false, true })
+    {
+        for (auto& car : cars)
+        {
+            car.drawOrder = 0;
+            car.baseNumFrames = 4;
+            car.effectVisual = EffectVisual::unknown1;
+            car.spriteGroups[EnumValue(SpriteGroupType::slopeFlat)].imageId = 40000;
+            car.spriteGroups[EnumValue(SpriteGroupType::slopeFlat)].spritePrecision = Entity::Yaw::SpritePrecision::sprites32;
+            car.spriteGroups[EnumValue(SpriteGroupType::slopes25Banked45)].imageId = 41000;
+            car.spriteGroups[EnumValue(SpriteGroupType::slopes25Banked45)].spritePrecision = bankedFallback
+                ? Entity::Yaw::SpritePrecision::sprites32
+                : Entity::Yaw::SpritePrecision::none;
+        }
+        for (int pitch : { 52, 55 })
+            for (int yaw = 0; yaw < 32; ++yaw)
+            {
+                const int roll = pitch == 52 ? 10 : 5;
+                SCOPED_TRACE(::testing::Message() << bankedFallback << '/' << pitch << '/' << yaw);
+                const int wrappedYaw = Entity::Yaw::Add(yaw, -2);
+                const auto selected = VehicleRuleTest::worldVehicleSelect(2, pitch, roll, yaw, 0, 0, 0);
+                ASSERT_EQ(selected.car, 2);
+                EXPECT_EQ(selected.yaw, wrappedYaw);
+                // Invoke the original fallback target with canonical yaw, not
+                // its buggy caller. Yaw0/1 must address30/31, never earlier art.
+                VehicleOriginalOracle::images.clear();
+                if (pitch == 52)
+                    VehicleOriginalOracle::VehiclePitchUp25BankedRight45(
+                        session, &vehicle, wrappedYaw, 64, &cars[2], VehicleOriginalOracle::kBoundBoxIndexUndefined);
+                else
+                    VehicleOriginalOracle::VehiclePitchDown25BankedLeft45(
+                        session, &vehicle, wrappedYaw, 64, &cars[2], VehicleOriginalOracle::kBoundBoxIndexUndefined);
+                ASSERT_EQ(VehicleOriginalOracle::images.size(), 1u);
+                const auto group = static_cast<SpriteGroupType>(selected.group);
+                const auto image = cars[2].getSpriteOffset(group, selected.yaw, static_cast<uint8_t>(selected.rank))
+                    + vehicle.SwingSprite;
+                EXPECT_EQ(image, VehicleOriginalOracle::images[0]);
+                const auto first = cars[2].groupImageId(group)
+                    + selected.rank * cars[2].numRotationSprites(group) * cars[2].baseNumFrames;
+                EXPECT_GE(image, first);
+                EXPECT_LT(image, first + cars[2].numRotationSprites(group) * cars[2].baseNumFrames);
+            }
     }
 }
 
@@ -128,6 +200,7 @@ TEST(WorldVehicleRulesTest, CatalogResolvesOnlyUsedCarBanksAndPreservesSelectorI
         car.imageCount = 100;
         car.carImages = 8;
         car.seatingRows = 2;
+        car.riderImageBanks = 2;
     }
     std::vector<uint32_t> appended;
     const std::array<uint32_t, 1> used{ 3 };
@@ -146,6 +219,87 @@ TEST(WorldVehicleRulesTest, CatalogResolvesOnlyUsedCarBanksAndPreservesSelectorI
     source.cars[3].imageCount = 23;
     EXPECT_THROW(
         OpenRCT2::Ui::Gpu::BuildWorldVehicleCatalog(source, used, 1, [](uint32_t i) { return i; }), std::invalid_argument);
+}
+
+TEST(WorldVehicleRulesTest, RiderAnimationDomainBelongsToCarMetadata)
+{
+    CarEntry car{};
+    car.numSeatingRows = 1;
+    car.animation = CarEntryAnimation::simpleVehicle;
+    car.animationFrames = 2;
+    EXPECT_EQ(car.getNumRiderImageBanks(), 1); // No rider animation flag.
+    car.flags.set(CarEntryFlag::hasRiderAnimation);
+    EXPECT_EQ(car.getNumRiderImageBanks(), 2); // Mandarin: one seat row, two animated images per direction.
+    car.animation = CarEntryAnimation::swanBoat;
+    EXPECT_EQ(car.getNumRiderImageBanks(), 3); // Original frame indices 0 and2, not 0 and 1.
+    car.animation = CarEntryAnimation::animalFlying;
+    car.animationFrames = 1;
+    EXPECT_EQ(car.getNumRiderImageBanks(), 4); // This source animation has a fixed four-frame cycle.
+    car.numSeatingRows = 7;
+    EXPECT_EQ(car.getNumRiderImageBanks(), 7); // Animated first row does not replace the other rows.
+    car.numSeatingRows = 0;
+    EXPECT_EQ(car.getNumRiderImageBanks(), 0); // Source rider painter cannot run without a row.
+    car.numSeatingRows = 1;
+    car.animation = CarEntryAnimation::swanBoat;
+    car.animationFrames = 255;
+    EXPECT_EQ(car.getNumRiderImageBanks(), 255); // Doubled byte indices wrap; no integer overflow/over-admission.
+    car.animationFrames = 0;
+    EXPECT_EQ(car.getNumRiderImageBanks(), 1); // Source update is disabled.
+}
+
+TEST(WorldVehicleRulesTest, MandarinAnimatedRiderImagesStayInTheExactOwningAllocation)
+{
+    using namespace OpenRCT2;
+    using namespace OpenRCT2::Drawing;
+    using namespace OpenRCT2::Ui::Gpu;
+    // Exact runtime failing bank: rct2ww.ride.mandarin has three preview
+    // images, 16 body directions and two 16-image rider animation banks.
+    CarEntry car{};
+    car.baseImageId = 306456;
+    car.numCarImages = 16;
+    car.baseNumFrames = 1;
+    car.numSeatingRows = 1;
+    car.animation = CarEntryAnimation::simpleVehicle;
+    car.animationFrames = 2;
+    car.flags.set(CarEntryFlag::hasRiderAnimation);
+    car.spriteGroups[0].imageId = car.baseImageId;
+    car.spriteGroups[0].spritePrecision = Entity::Yaw::SpritePrecision::sprites16;
+    car.effectVisual = EffectVisual::unknown1;
+    VehiclePresentationCatalog catalog;
+    catalog.cars.resize(1);
+    auto& captured = catalog.cars[0];
+    captured.present = true;
+    captured.imageBase = 306453;
+    captured.imageCount = 51;
+    captured.baseImage = car.baseImageId;
+    captured.carImages = car.numCarImages;
+    captured.seatingRows = car.numSeatingRows;
+    captured.riderImageBanks = car.getNumRiderImageBanks();
+    std::vector<uint32_t> admitted;
+    BuildWorldVehicleCatalog(catalog, std::array<uint32_t, 1>{ 0 }, 1, [&](uint32_t image) {
+        admitted.push_back(image);
+        return image;
+    });
+    EXPECT_EQ(std::count_if(admitted.begin(), admitted.end(), [](uint32_t image) { return image >= 306453; }), 48);
+    EXPECT_TRUE(std::binary_search(admitted.begin(), admitted.end(), 306500u));
+    EXPECT_FALSE(std::binary_search(admitted.begin(), admitted.end(), 306504u));
+    PaintSession session{};
+    Vehicle vehicle{};
+    vehicle.num_peeps = 2;
+    for (uint8_t frame = 0; frame < 2; ++frame)
+        for (int yaw = 0; yaw < 32; ++yaw)
+        {
+            vehicle.animation_frame = frame;
+            VehicleOriginalOracle::images.clear();
+            VehicleOriginalOracle::VehicleVisualDefault(session, yaw, 64, &vehicle, &car);
+            ASSERT_EQ(VehicleOriginalOracle::images.size(), 2u);
+            for (const auto image : VehicleOriginalOracle::images)
+                EXPECT_TRUE(std::binary_search(admitted.begin(), admitted.end(), image));
+        }
+    captured.imageCount = 50;
+    EXPECT_THROW(
+        BuildWorldVehicleCatalog(catalog, std::array<uint32_t, 1>{ 0 }, 1, [](uint32_t image) { return image; }),
+        std::invalid_argument); // Never widen residency outside this object's own art.
 }
 
 TEST(WorldVehicleRulesTest, ResidencyFollowsFamilyOwnershipRatherThanHotVehiclePose)

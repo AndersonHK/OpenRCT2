@@ -75,14 +75,14 @@ bool visitStaticRide(uint index,uvec2 tile,uint destination,bool writeRecords,in
     if(id>=uFlatRides.words[3u]) return false;
     uint ride=uFlatRides.words[2u]+id*20u;
     int family=int(uFlatRides.words[ride]);
-    if(family<1 || family>23) return false;
+    if(family<1 || family>24) return false;
     uint type=object.trackTypeAndRideType&65535u;
     if(type!=uFlatRides.words[ride+2u] && type!=uFlatRides.words[ride+3u]) return false;
     int direction=int((object.direction+uScene.rotation)&3u);
     uint stationFlags=uFlatRides.words[ride+4u];
     int fenceMask=worldFlatFenceMask(ride,(object.trackData0>>8u)&255u,tile);
     WorldFlatParts parts;parts.count=0;
-    if(family>=20 && family<=22) {
+    if((family>=20 && family<=22) || family==24) {
         bool section=type==uFlatRides.words[ride+3u];
         bool cap=(object.flags&(1u<<(family==22?14u:13u)))==0u;
         parts=worldTowerParts(family,int(object.sequence),direction,section,cap,(stationFlags&2u)!=0u,fenceMask);

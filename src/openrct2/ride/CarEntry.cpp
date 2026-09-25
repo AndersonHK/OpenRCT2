@@ -13,6 +13,7 @@
 #include "../drawing/SpriteAssetDecoder.h"
 #include "../entity/Yaw.hpp"
 
+#include <algorithm>
 #include <cstdint>
 
 uint32_t CarEntry::numRotationSprites(SpriteGroupType spriteGroup) const
@@ -39,6 +40,36 @@ uint32_t CarEntry::getSpriteOffset(SpriteGroupType spriteGroup, int32_t imageDir
 {
     return ((spriteByYaw(imageDirection, spriteGroup) + numRotationSprites(spriteGroup) * rankIndex) * baseNumFrames)
         + groupImageId(spriteGroup);
+}
+
+uint8_t CarEntry::getNumRiderImageBanks() const
+{
+    if (numSeatingRows == 0 || !flags.has(CarEntryFlag::hasRiderAnimation) || animationFrames == 0)
+        return numSeatingRows;
+
+    uint8_t animationBanks = 1;
+    switch (animation)
+    {
+        case CarEntryAnimation::simpleVehicle:
+        case CarEntryAnimation::steamLocomotive:
+        case CarEntryAnimation::monorailCycle:
+        case CarEntryAnimation::multiDimension:
+        case CarEntryAnimation::observationTower:
+            animationBanks = animationFrames;
+            break;
+        case CarEntryAnimation::swanBoat:
+            // AnimateSwanBoat doubles GetTargetFrame's index before storing it
+            // in a byte. Two authored frames therefore use rider banks 0 and 2.
+            animationBanks = static_cast<uint8_t>(std::min<uint16_t>((animationFrames - 1) * 2, 254) + 1);
+            break;
+        case CarEntryAnimation::animalFlying:
+            // UpdateAnimationAnimalFlying explicitly cycles modulo 4.
+            animationBanks = 4;
+            break;
+        default:
+            break;
+    }
+    return std::max(numSeatingRows, animationBanks);
 }
 
 /**

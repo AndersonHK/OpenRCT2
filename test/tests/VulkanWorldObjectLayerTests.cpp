@@ -15,6 +15,7 @@
     #include <openrct2-renderer/vulkan/VulkanSubmissionSlots.h>
     #include <openrct2/drawing/MoneyPresentation.h>
     #include <openrct2/drawing/RetainedBalloonScene.h>
+    #include <openrct2/drawing/WorldEffectSnapshot.h>
     #include <openrct2/paint/Paint.h>
 
 namespace
@@ -240,6 +241,50 @@ namespace
         }
     };
 } // namespace
+TEST_F(VulkanWorldObjectLayerTest, HeldEffectSnapshotRebindsAfterSpriteCatalogReplacement)
+{
+    PrepareEntityArt();
+    auto empty = std::make_shared<G::WorldSurfaceChunk>();
+    empty->revision = 2;
+    scene.chunks[0] = empty;
+    auto effects = std::make_shared<D::WorldEffectSnapshot>();
+    effects->sourceTick = scene.sourceTick;
+    effects->records.push_back({ .x = 8, .y = 8, .z = 8, .type = 4 });
+    scene.effects = effects;
+    // The production steam selector chooses G1 22637, offset 60 in the
+    // resident effects bank. Distinct atlas ink exposes a stale bank header.
+    sprites->effectSpriteBase = 1;
+    sprites->revision++;
+    Run();
+    EXPECT_EQ(ColourCount(Ink(61)), 64u);
+    EXPECT_EQ(ColourCount(Ink(62)), 0u);
+    const auto original = pixels;
+    EXPECT_EQ(Run().worldBufferCopyCalls, 0u);
+    EXPECT_EQ(pixels, original);
+
+    auto sameBank = std::make_shared<G::WorldSurfaceSpriteTable>(*sprites);
+    sameBank->revision++;
+    scene.sprites = sameBank;
+    const auto catalogOnly = Run();
+    EXPECT_EQ(pixels, original);
+
+    auto relocated = std::make_shared<G::WorldSurfaceSpriteTable>(*sameBank);
+    relocated->revision++;
+    relocated->effectSpriteBase = 2;
+    scene.sprites = relocated;
+    const auto rebound = Run();
+    EXPECT_EQ(scene.effects, effects);
+    EXPECT_EQ(ColourCount(Ink(61)), 0u);
+    EXPECT_EQ(ColourCount(Ink(62)), 64u);
+    EXPECT_EQ(rebound.worldBufferCopyCalls, catalogOnly.worldBufferCopyCalls + 1);
+    constexpr auto world = static_cast<size_t>(D::UploadCategory::world);
+    constexpr auto transfer = static_cast<size_t>(D::UploadMetric::bufferTransfer);
+    EXPECT_EQ(rebound.bytes[world][transfer], catalogOnly.bytes[world][transfer] + 16);
+    const auto relocatedPixels = pixels;
+    EXPECT_EQ(Run().worldBufferCopyCalls, 0u);
+    EXPECT_EQ(pixels, relocatedPixels);
+}
+
 TEST_F(VulkanWorldObjectLayerTest, CommonParentOrderKeepsChildrenAtomicAcrossRotationsAndZooms)
 {
     struct LegacyScope
@@ -874,6 +919,51 @@ TEST_F(VulkanWorldObjectLayerTest, TrackLookupUsesRawDirectionChainBrakeGhostAnd
     EXPECT_GT(ColourCount(static_cast<uint8_t>(Ink(2) + 9)), 0u);
     EXPECT_EQ(ColourCount(static_cast<uint8_t>(Ink(2) + 5)), 0u);
 }
+TEST_F(VulkanWorldObjectLayerTest, GroundMineTransitionStaysAboveTerrainAndBelowItsRail)
+{
+    PrepareEntityArt();
+    // Actual Heartline source recipe and mine-support cursor, with synthetic
+    // overlapping masks: half the support is uncovered and half is under rail.
+    // The old scalar rail-1 hides all uncovered support pixels behind terrain.
+    sprites->records[1].variants[2].spriteSize.x = 4;
+    OpenRCT2::WorldRidePresentationMaterials rides;
+    rides.rides.resize(1);
+    rides.rides[0].present = true;
+    rides.rides[0].rideType = OpenRCT2::RIDE_TYPE_HEARTLINE_TWISTER_COASTER;
+    sprites->trackCatalog = G::BuildWorldTrackCatalog(rides, [](uint32_t image) {
+                                for (int i = 0; i < G::MetalSupportRules::worldWoodenAssetCount(); ++i)
+                                    if (image == static_cast<uint32_t>(G::MetalSupportRules::worldWoodenAssetImage(i)))
+                                        return 2u;
+                                return 1u;
+                            }).words;
+    sprites->revision++;
+    chunk->records[0].baseZ = 336;
+    // Production snapshots include the raw whole-tile height bound. Leaving
+    // it at zero makes conservative tile culling reject this elevated fixture.
+    chunk->records[0].maxClearanceZ = 368;
+    chunk->revision++;
+    scene.view.y -= 336;
+    auto track = Object(4);
+    track.baseZ = 336;
+    track.clearanceZ = 368;
+    track.direction = 3;
+    track.flags = 1; // Fixed remap keeps source colour roles equally observable.
+    track.trackTypeAndRideType = (uint32_t(OpenRCT2::RIDE_TYPE_HEARTLINE_TWISTER_COASTER) << 16) | 15u;
+    for (uint32_t rotation = 0; rotation < 4; ++rotation)
+    {
+        SCOPED_TRACE(rotation);
+        scene.rotation = rotation;
+        Objects({ track });
+        Run();
+        EXPECT_EQ(ColourCount(static_cast<uint8_t>(Ink(1) + 9)), 32u);
+        EXPECT_EQ(ColourCount(static_cast<uint8_t>(Ink(2) + 9)), 32u);
+        EXPECT_EQ(ColourCount(Ink(0)), 0u);
+        const auto held = pixels;
+        EXPECT_EQ(Run().worldBufferCopyCalls, 0u);
+        EXPECT_EQ(pixels, held);
+    }
+}
+
 TEST_F(VulkanWorldObjectLayerTest, WoodenTrackFootingWinsOwnTerrainTieWithoutMovingItsAnchor)
 {
     // Use the admitted original wooden-flat recipe and support cursor. Mock

@@ -14,6 +14,28 @@ STATIC_FN WorldFlatParts worldTowerParts(int family,int sequence,int direction,b
 #ifdef __cplusplus
     for(int i=0;i<WORLD_FLAT_PART_CAPACITY;i++) r.parts[i]=WorldFlatPart(0,0,0,0,0,0,0,0,0,0,0,0,0,0);
 #endif
+    // Lift.cpp authors two independent cage parents per height segment. Keep
+    // their back/front bounds separate: a vehicle can pass between the halves.
+    if(family==24) {
+        if(direction<0 || direction>3 || sequence<0 || sequence>=9) return r;
+        if(section && sequence==1) return r;
+        int s=worldFlatSequence(24,sequence,direction);
+        if(section || s==0) {
+            int tiers=section?1:3;
+            for(int tier=0;tier<tiers;tier++) {
+                int image=14994+(!section && tier==0?2+direction*2:0);
+                int z=tier*32;
+                worldFlatAdd(r,image,0,1,0,0,0,z,2,2,z,2,2,30);
+                worldFlatAdd(r,image+1,0,1,0,0,0,z,28,28,z,2,2,30);
+            }
+        } else {
+            // Lift flooring is unconditional in the source, including stations
+            // whose object disables the ordinary tower platform artwork.
+            worldFlatAdd(r,14989,0,3,0,0,0,0,0,0,0,32,32,1);
+            worldFlatFences(r,worldFlatEdges(24,s,direction)&fenceMask,14990,0,1,0);
+        }
+        return r;
+    }
     if(family<20 || family>22) return r;
     int segment=family==20?14987:(family==21?14565:14558);
     if(section) {

@@ -236,7 +236,7 @@ def evaluate(values, env):
             if n.id not in env: raise Unsupported('identifier ' + n.id)
             if n.id in STATE_BITS and '_dependencies' in env: env['_dependencies'].add(STATE_BITS[n.id])
             value = env[n.id]
-            if isinstance(value, Deferred): return value.resolve(env)
+            if isinstance(value, Deferred): value=value.resolve(env)
             if value is None: raise Unsupported('uninitialised local '+n.id)
             return value
         if isinstance(n,ast.Call) and isinstance(n.func,ast.Attribute) and n.func.attr=='HasSecondary' and not n.args:
@@ -271,7 +271,7 @@ def evaluate(values, env):
                 return value[('sprite_id','offset','bb_offset','bb_size').index(n.attr)]
             if n.attr in ('track','handrail','frontTrack','frontHandrail') and isinstance(value,list):
                 index=('track','handrail','frontTrack','frontHandrail').index(n.attr)
-                return value[index] if index<len(value) else 0xffffffff
+                return FrontTrackImage(value[index]) if index>=2 and index<len(value) else value[index] if index<len(value) else 0xffffffff
         if isinstance(n,ast.Attribute) and n.attr in ('x','y','z'):
             value=walk(n.value);index=('x','y','z').index(n.attr)
             if isinstance(value,list) and index<len(value) and all(isinstance(v,int) for v in value): return value[index]
@@ -418,6 +418,11 @@ class AnimatedImageIndex:
         if not 0<=self.base or self.base+(1<<self.frame_bits)>0x7ffff:
             raise Unsupported('animated image range')
         return 0x80000000 | (self.shift<<19) | (self.frame_bits<<22) | self.base
+
+
+class FrontTrackImage(int):
+    """Image provenance from an authored frontTrack/frontHandrail field."""
+    pass
 
 
 class ImageValue:
@@ -1182,6 +1187,14 @@ class Translator:
 
     def paint(self, source, name, sequence, direction, height, state, parts, depth=0, track_type=0, dependencies=None):
         if depth > 16: raise Unsupported('call depth')
+        # Chairlift station endpoints depend on neighboring raw map state. Keep
+        # that decision on the GPU; the immutable marker owns the exact source
+        # station family, not a guessed generic station layout.
+        if name == 'ChairliftPaintStation':
+            parts.append((STATION_PART,0,0,height,0,0,0,0,8,0,0,-1))
+            if CAPTURE_TUNNELS:
+                parts.append((TUNNEL_PART,direction&1,6,height,0,0,0,0,0,0,0,-1))
+            return
         env = ChainMap({}, source.globals, self.constants)
         env.update(_functionName=name,trackSequence=sequence, direction=direction, height=height, state=state,
                    chain=bool(state & 1), inverted=bool(state & 2), brakeClosed=bool(state & 4),
@@ -1207,6 +1220,11 @@ class Translator:
                     parts.append(tuple([image,0,0,height,box[0][0],box[0][1],height+box[0][2]]+box[1]+[role,-1]))
             return
         self.execute(source.functions[self.local_name(source,name)], env, source, parts, depth)
+        if depth==0:
+            for i,part in enumerate(parts):
+                if isinstance(part[0],FrontTrackImage):
+                    if part[10]>3: raise Unsupported('front-track metadata on non-track component')
+                    item=list(part);item[0]=int(item[0]);item[10]|=8;parts[i]=tuple(item)
 
 
 class SupportTranslator(Translator):
@@ -1600,6 +1618,15 @@ class WoodenSupportTranslator(SupportTranslator):
 
     def paint(self,source,name,sequence,direction,height,state,parts,depth=0,track_type=0,dependencies=None):
         if depth==0: self.wooden_prepend=None
+        if name == 'ChairliftPaintStation':
+            # Both source axis functions unconditionally author these operations;
+            # endpoint/fence decisions alter only the marker's GPU station art.
+            self.wooden_op(parts,'A',self.constants['WoodenSupportType_truss'],
+                self.constants['WoodenSupportSubType_neSw'],direction,height,2,255,True)
+            Translator.paint(self,source,name,sequence,direction,height,state,parts,depth,track_type,dependencies)
+            self.append_support(3,parts,mask=self.value(['kSegmentsAll'],self.constants),height=65535,slope=0)
+            self.append_support(4,parts,height=height+self.value(['kDefaultGeneralSupportHeight'],self.constants),slope=0x20)
+            return
         if name.startswith('OpenRCT2::trackPaint'):
             # Emit the existing rail recipe first, then its source TED support
             # operations. Reversed image indexing does not reverse support ownership.
@@ -1740,11 +1767,12 @@ def build(args):
                                                              track_type=track_type,dependencies=dependencies)
                                             style_report['tunnelRejected'][str(track_type)]=str(tunnel_error)
                                         finally: CAPTURE_TUNNELS=False
-                                        markers=sum(p[0]==STATION_PART and p[8]!=7 for p in result)
+                                        markers=sum(p[0]==STATION_PART and p[8] not in (7,8) for p in result)
+                                        chairlifts=sum(p[0]==STATION_PART and p[8]==8 for p in result)
                                         covers=sum(p[0]==STATION_PART and p[8]==7 for p in result)
                                         photos=sum(p[0]==PHOTO_PART for p in result)
                                         graphics=[p for p in result if p[0]!=TUNNEL_PART]
-                                        if len(result)>16 or len(graphics)+markers*8+covers+photos*2>16 or sum(p[-1]==-1 for p in graphics)+markers*6+photos*2>12:
+                                        if len(result)>16 or len(graphics)+markers*8+chairlifts*10+covers+photos*2>16 or sum(p[-1]==-1 for p in graphics)+markers*6+chairlifts*7+photos*2>12:
                                             raise Unsupported('expanded station/component capacity')
                                         directions.append(tuple(result))
                                     except (Unsupported,ZeroDivisionError,RecursionError) as e:

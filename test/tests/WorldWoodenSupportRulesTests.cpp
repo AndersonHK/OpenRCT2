@@ -188,3 +188,33 @@ TEST(WorldWoodenSupportRulesTest, UnavailableCornerTransitionCanReturnFalseAfter
         worldWoodenNext(cursor);
     EXPECT_FALSE(cursor.hasSupports);
 }
+
+TEST(WorldWoodenSupportRulesTest, EntranceColumnsMatchOriginalAndStayInsideTheirIndependentArtDomain)
+{
+    auto session = std::make_unique<PaintSession>();
+    std::vector<int> art;
+    for (int i = 0; i < worldEntranceSupportAssetCount(); ++i)
+        art.push_back(worldEntranceSupportAssetImage(i));
+    for (int direction = 0; direction < 4; ++direction)
+        for (int slope = 0; slope <= 32; ++slope)
+            for (int height : { 64, 80, 96, 176, 4080 })
+            {
+                WorldSupportState state;
+                worldSupportInitialise(state);
+                worldSupportSeedTerrain(state, 64, slope, 96);
+                CompareWooden(*session, state, 0, 0, direction, height, 255, false, true, false);
+                auto cursor = worldEntranceWoodenBegin(state, direction, height);
+                std::vector<WoodenPart> actual;
+                while (cursor.phase >= 0)
+                {
+                    const auto p = worldWoodenNext(cursor);
+                    if (p.imageOffset < 0)
+                        continue;
+                    EXPECT_TRUE(std::binary_search(art.begin(), art.end(), p.imageOffset));
+                    EXPECT_EQ(p.orphan, 0);
+                    actual.push_back(
+                        { p.imageOffset, p.x, p.y, p.z, p.boundsX, p.boundsY, p.boundsZ, p.sizeX, p.sizeY, p.sizeZ, p.orphan });
+                }
+                EXPECT_EQ(actual, WoodenOracle::parts);
+            }
+}

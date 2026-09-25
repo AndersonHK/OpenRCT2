@@ -46,7 +46,7 @@ FLAT_FN int worldFlatSize(int family)
     if(family==13) return 5;
     if(family==18 || family==19) return 1;
     if(family==23) return 1;
-    return family>=1 && family<=22?9:0;
+    return family>=1 && family<=24?9:0;
 }
 FLAT_FN int worldFlatSequence(int family,int sequence,int direction)
 {

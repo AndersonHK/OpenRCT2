@@ -17,6 +17,7 @@
     #endif
     #include <algorithm>
     #include <array>
+    #include <atomic>
     #include <chrono>
     #include <cstddef>
     #include <cstdint>
@@ -1146,15 +1147,40 @@ TEST(VulkanStartupTest, PreparationRunsOffUiThreadAndRestoresWindowOnFailure)
     std::thread::id workThread;
     EXPECT_THROW(
         Vulkan::Platform::PreparePipelines(
-            window.get(),
             [&]() {
                 workThread = std::this_thread::get_id();
                 std::this_thread::sleep_for(std::chrono::milliseconds(80));
                 throw std::runtime_error("expected preparation failure");
-            }),
+            },
+            []() { SDL_PumpEvents(); }),
         std::runtime_error);
     EXPECT_NE(workThread, uiThread);
     EXPECT_STREQ(SDL_GetWindowTitle(window.get()), "Startup regression");
+}
+
+TEST(VulkanStartupTest, CallerOwnsProgressAndPumpFailureJoinsPreparation)
+{
+    const auto owner = std::this_thread::get_id();
+    std::atomic_bool release = false;
+    std::atomic_bool completed = false;
+    size_t pumps = 0;
+    EXPECT_THROW(
+        Vulkan::Platform::PreparePipelines(
+            [&]() {
+                while (!release.load())
+                    std::this_thread::yield();
+                std::this_thread::sleep_for(std::chrono::milliseconds(20));
+                completed.store(true);
+            },
+            [&]() {
+                EXPECT_EQ(std::this_thread::get_id(), owner);
+                ++pumps;
+                release.store(true);
+                throw std::runtime_error("expected UI pump failure");
+            }),
+        std::runtime_error);
+    EXPECT_EQ(pumps, 1u);
+    EXPECT_TRUE(completed.load());
 }
 
     #ifdef _WIN32
@@ -1170,11 +1196,13 @@ TEST(VulkanStartupTest, NativeWindowRemainsResponsiveDuringPreparation)
     SDL_VERSION(&info.version);
     ASSERT_EQ(SDL_GetWindowWMInfo(window.get(), &info), SDL_TRUE);
     bool responded = false;
-    Vulkan::Platform::PreparePipelines(window.get(), [&]() {
-        DWORD_PTR result{};
-        // A cross-thread synchronous window message requires the UI thread to keep dispatching messages.
-        responded = SendMessageTimeoutW(info.info.win.window, WM_NULL, 0, 0, SMTO_ABORTIFHUNG, 1000, &result) != 0;
-    });
+    Vulkan::Platform::PreparePipelines(
+        [&]() {
+            DWORD_PTR result{};
+            // A cross-thread synchronous window message requires the UI owner to keep dispatching messages.
+            responded = SendMessageTimeoutW(info.info.win.window, WM_NULL, 0, 0, SMTO_ABORTIFHUNG, 1000, &result) != 0;
+        },
+        []() { SDL_PumpEvents(); });
     EXPECT_TRUE(responded);
     EXPECT_STREQ(SDL_GetWindowTitle(window.get()), "Responsive startup");
 }

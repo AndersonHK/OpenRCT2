@@ -33,7 +33,9 @@
     #include <atomic>
     #include <chrono>
     #include <cmath>
+    #include <cstdlib>
     #include <cstring>
+    #include <ctime>
     #include <exception>
     #include <limits>
     #include <mutex>
@@ -42,6 +44,8 @@
     #include <openrct2/OpenRCT2.h>
     #include <openrct2/PlatformEnvironment.h>
     #include <openrct2/config/Config.h>
+    #include <openrct2/core/Console.hpp>
+    #include <openrct2/core/FileStream.h>
     #include <openrct2/core/Path.hpp>
     #include <openrct2/drawing/BlendColourMap.h>
     #include <openrct2/drawing/Drawing.Sprite.h>
@@ -54,6 +58,7 @@
     #include <openrct2/interface/Screenshot.h>
     #include <openrct2/interface/Viewport.h>
     #include <openrct2/profiling/Profiling.h>
+    #include <openrct2/scenes/SceneManager.h>
     #include <openrct2/ui/UiContext.h>
     #include <span>
     #include <stdexcept>
@@ -168,6 +173,7 @@ namespace OpenRCT2::Ui
         std::thread _renderWorker;
         std::mutex _workerErrorMutex;
         std::exception_ptr _workerError;
+        std::string _renderErrorPath;
         uint64_t _resizeVersion = 0;
         uint64_t _surfaceFormatVersion = 0;
         uint64_t _presentModeVersion = 0;
@@ -188,6 +194,8 @@ namespace OpenRCT2::Ui
         std::array<std::byte, 256 * 256> _blendPalette{};
         bool _hasBlendPalette = false;
         bool _initialised = false;
+        bool _preparingWorld = false;
+        std::optional<Gpu::Extent> _deferredResize;
         bool _graphicsLookupTablesReady = false;
         bool _hasPalette = false;
         bool _vsync = true;
@@ -229,6 +237,7 @@ namespace OpenRCT2::Ui
         void Initialise() override
         {
             auto& environment = GetContext()->GetPlatformEnvironment();
+            _renderErrorPath = Path::Combine(environment.GetDirectoryPath(DirBase::user), "render-error.log");
             const auto shaderRoot = environment.GetDirectoryPath(DirBase::openrct2, DirId::shaders);
             const auto shaderDirectory = Path::Combine(shaderRoot, "vulkan");
             const uint32_t width = static_cast<uint32_t>(std::max(1, _uiContext.GetWidth()));
@@ -236,9 +245,11 @@ namespace OpenRCT2::Ui
             _drawableExtent = QueryDrawableExtentOnUiThread(_uiContext);
             auto config = BuildBackendConfig(_uiContext, { width, height }, _drawableExtent, _vsync, shaderDirectory);
             config.pipelineCacheDirectory = Path::Combine(environment.GetDirectoryPath(DirBase::cache), "vulkan-pipelines");
-            config.preparePipelines = [&](const std::function<void()>& work) {
-                Vulkan::Platform::PreparePipelines(static_cast<SDL_Window*>(_uiContext.GetWindow()), work);
-            };
+            auto* sceneManager = GetContext()->GetSceneManager();
+            // Only the initial application bootstrap has a following UI-ready
+            // preparation boundary. Window recreation uses the complete cache.
+            config.deferWorldPipelines = !gOpenRCT2Headless && sceneManager != nullptr
+                && sceneManager->getActiveScene() == nullptr;
             _hdrOutputRequested = config.outputColorMode == Gpu::OutputColorMode::Hdr10IfAvailable;
             RefreshHdrWhiteOnUiThread();
             config.hdrPaperWhiteNits = _hdrPaperWhiteNits;
@@ -246,7 +257,11 @@ namespace OpenRCT2::Ui
             config.enableDiagnosticCapture = _diagnosticCaptureEnabled;
     #endif
             config.enableUploadTelemetry = gIntegratedBenchmark.enabled && gIntegratedBenchmark.uploadTelemetry;
+            const auto started = std::chrono::steady_clock::now();
             _backend->Initialise(config);
+            Console::WriteLine(
+                "Vulkan startup: UI pipelines ready in %.3f seconds",
+                std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count());
             _initialised = true;
             _gpuLightFxRasterization.store(_backend->SupportsGpuLightFxRasterization(), std::memory_order_relaxed);
             if (_hasPalette)
@@ -254,8 +269,49 @@ namespace OpenRCT2::Ui
             _renderWorker = std::thread(&VulkanDrawingEngine::RenderWorkerMain, this);
         }
 
+        void PrepareWorldRendering(const std::function<void()>& drawLoadingFrame) override
+        {
+            _preparingWorld = true;
+            try
+            {
+                // Submit and retire the first themed UI frame before compilation:
+                // this also settles any resize performed during window creation.
+                drawLoadingFrame();
+                std::vector<Drawing::FrameTimings> ignored;
+                DrainFrameTimings(ignored);
+                if (const auto* capture = std::getenv("OPENRCT2_LOADING_UI_CAPTURE");
+                    capture != nullptr && std::string_view(capture) == "1")
+                {
+                    const auto path = Screenshot();
+                    if (path.empty())
+                        throw std::runtime_error("Loading UI diagnostic screenshot was not produced");
+                    Console::WriteLine("Vulkan startup: loading UI capture: %s", path.c_str());
+                }
+                _backend->PrepareWorldPipelines([&](const std::function<void()>& work) {
+                    Vulkan::Platform::PreparePipelines(work, drawLoadingFrame);
+                    DrainFrameTimings(ignored);
+                });
+            }
+            catch (...)
+            {
+                _preparingWorld = false;
+                throw;
+            }
+            _preparingWorld = false;
+            if (const auto resize = std::exchange(_deferredResize, std::nullopt))
+                Resize(resize->width, resize->height);
+        }
+
         void Resize(uint32_t width, uint32_t height) override
         {
+            // World construction references immutable canvas views and dimensions.
+            // Keep pumping native window events, then apply the latest size once
+            // the unpublished pipeline has joined and become frame-owned.
+            if (_preparingWorld)
+            {
+                _deferredResize = Gpu::Extent{ width, height };
+                return;
+            }
     #ifdef OPENRCT2_VULKAN_DIAGNOSTICS
             // An already published packet owns its old extent and is still
             // captured before the worker applies any later resize packet.
@@ -428,7 +484,7 @@ namespace OpenRCT2::Ui
         {
             PROFILED_FUNCTION();
 
-            if (!Drawing::LightFx::IsAvailable())
+            if (_preparingWorld || !Drawing::LightFx::IsAvailable())
             {
                 commands.lightFx.reset();
                 return;
@@ -936,10 +992,51 @@ namespace OpenRCT2::Ui
 
         void StoreWorkerError(std::exception_ptr error) noexcept
         {
+            bool first = false;
             {
                 std::scoped_lock lock(_workerErrorMutex);
                 if (!_workerError)
+                {
                     _workerError = error;
+                    first = true;
+                }
+            }
+            if (first)
+            {
+                // Preserve the original renderer failure even if logging fails.
+                // The path is captured on the UI owner before starting this thread.
+                try
+                {
+                    std::string message = "unknown renderer exception";
+                    try
+                    {
+                        if (error)
+                            std::rethrow_exception(error);
+                    }
+                    catch (const std::exception& e)
+                    {
+                        message = e.what();
+                    }
+                    catch (...)
+                    {
+                    }
+                    Console::Error::WriteLine("Vulkan render worker stopped: %s", message.c_str());
+                    const auto timestamp = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+                    std::tm utc{};
+    #ifdef _WIN32
+                    gmtime_s(&utc, &timestamp);
+    #else
+                    gmtime_r(&timestamp, &utc);
+    #endif
+                    char date[32]{};
+                    std::strftime(date, sizeof(date), "%Y-%m-%d %H:%M:%S UTC", &utc);
+                    const auto line = std::string(date) + " Vulkan render worker stopped: " + message + "\n";
+                    FileStream log(_renderErrorPath, FileMode::append);
+                    log.Write(line.data(), line.size());
+                }
+                catch (...)
+                {
+                }
             }
     #ifdef OPENRCT2_VULKAN_DIAGNOSTICS
             {
@@ -987,6 +1084,13 @@ namespace OpenRCT2::Ui
     public:
         void PaintWindows() override
         {
+            if (_preparingWorld)
+            {
+                // A loading frame contains ordinary game widgets, never a world
+                // snapshot or partially loaded catalog. Viewports are inhibited.
+                WindowDrawAll(_mainTarget, 0, 0, static_cast<int32_t>(_width), static_cast<int32_t>(_height));
+                return;
+            }
             PROFILED_FUNCTION();
 
             WindowUpdateAllViewports();
@@ -1052,14 +1156,13 @@ namespace OpenRCT2::Ui
                 return {};
             }
 
+            RethrowWorkerError();
             auto readback = std::make_shared<Gpu::SynchronousReadback>(Gpu::Extent{ _width, _height });
             auto result = _frameMailbox.PublishReadback(readback);
-            if (result.released != nullptr)
-            {
-                result.released->Fail(std::make_exception_ptr(std::runtime_error(
-                    result.accepted ? "Vulkan screenshot request was superseded"
-                                    : "Vulkan render worker rejected a screenshot request")));
-            }
+            if (result.accepted && result.released != nullptr)
+                result.released->Fail(std::make_exception_ptr(std::runtime_error("Vulkan screenshot request was superseded")));
+            // On rejection released == readback. Preserve the worker's actual
+            // error before the single-assignment request receives any fallback.
             if (!result.accepted)
             {
                 try

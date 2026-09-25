@@ -199,7 +199,7 @@ TEST(WorldFlatRideCatalogTest, SparseOwnedArtUsageAndStationRangesAreValidated)
 
 TEST(WorldFlatRideRulesTest, TowerCapsAndMazeWallTopologyUseRawState)
 {
-    for (int family = 20; family <= 22; family++)
+    for (int family : { 20, 21, 22 })
     {
         const auto open = F::worldTowerParts(family, 0, 0, true, true, false, 15);
         const auto covered = F::worldTowerParts(family, 0, 0, true, false, false, 15);
@@ -264,7 +264,7 @@ TEST(WorldFlatRideCatalogTest, TowerAndMazeUseOnlyStaticG1ArtAndEntranceOnlyUsag
 TEST(WorldFlatRideRulesTest, ExhaustiveReachableVariantsFitEightPartsAndOverflowIsRejected)
 {
     int maximum = 0;
-    for (int family = 1; family <= 22; family++)
+    for (int family = 1; family <= 24; family++)
         for (int direction = 0; direction < 4; direction++)
             for (int sequence = 0; sequence < F::worldFlatSize(family); sequence++)
                 for (bool stationPresent : { false, true })
@@ -284,7 +284,7 @@ TEST(WorldFlatRideRulesTest, ExhaustiveReachableVariantsFitEightPartsAndOverflow
                                     maximum = std::max(maximum, parts.count);
                                 }
     EXPECT_EQ(maximum, 8); // Top Spin and Swinging Ship reach the bound.
-    for (int family = 20; family <= 22; family++)
+    for (int family : { 20, 21, 22, 24 })
         for (int direction = 0; direction < 4; direction++)
             for (int sequence = 0; sequence < 9; sequence++)
                 for (bool cap : { false, true })
@@ -473,4 +473,51 @@ TEST(WorldFlatRideCatalogTest, CompleteMechanismBodySequencesAreResidentBeforeAn
     EXPECT_THROW(
         static_cast<void>(G::BuildWorldFlatRideCatalog(*objects, rides, nullptr, 0, [](uint32_t) { return 0u; })),
         std::runtime_error);
+}
+
+TEST(WorldFlatRideRulesTest, LiftCageKeepsSeparateBackFrontParentsAndAllRotationsResident)
+{
+    EXPECT_EQ(G::WorldFlatRideFamily(TrackStyle::lift), 24u);
+    EXPECT_EQ(G::WorldFlatRideTrackType(24), OpenRCT2::TrackElemType::towerBase);
+    for (int direction = 0; direction < 4; ++direction)
+    {
+        const auto base = F::worldTowerParts(24, 0, direction, false, false, true, 15);
+        ASSERT_EQ(base.count, 6);
+        for (int tier = 0; tier < 3; ++tier)
+            for (int side = 0; side < 2; ++side)
+            {
+                const auto& part = base.parts[tier * 2 + side];
+                EXPECT_EQ(part.image, (tier == 0 ? 14996 + direction * 2 : 14994) + side);
+                EXPECT_EQ(part.bx, side == 0 ? 2 : 28);
+                EXPECT_EQ(part.by, part.bx);
+                EXPECT_EQ(part.z, tier * 32);
+                EXPECT_EQ(part.bz, part.z);
+                EXPECT_EQ(part.child, 0);
+            }
+        const auto section = F::worldTowerParts(24, 0, direction, true, true, false, 15);
+        ASSERT_EQ(section.count, 2);
+        EXPECT_EQ(section.parts[0].image, 14994);
+        EXPECT_EQ(section.parts[1].image, 14995);
+        EXPECT_EQ(F::worldTowerParts(24, 1, direction, true, true, false, 15).count, 0);
+        for (int sequence = 1; sequence < 9; ++sequence)
+        {
+            const auto platform = F::worldTowerParts(24, sequence, direction, false, false, true, 0);
+            ASSERT_EQ(platform.count, 1);
+            EXPECT_EQ(platform.parts[0].image, 14989);
+        }
+    }
+    auto objects = std::make_unique<OpenRCT2::WorldObjectPresentationMaterials>();
+    OpenRCT2::WorldRidePresentationMaterials rides;
+    rides.rides.resize(1);
+    rides.rides[0].present = true;
+    rides.rides[0].regularStyle = static_cast<uint16_t>(TrackStyle::lift);
+    std::vector<uint32_t> images;
+    const auto catalogue = G::BuildWorldFlatRideCatalog(*objects, rides, nullptr, 0, [&](uint32_t image) {
+        images.push_back(image);
+        return static_cast<uint32_t>(images.size() - 1);
+    });
+    G::ValidateWorldFlatRideCatalog(catalogue.words, images.size());
+    EXPECT_EQ(catalogue.words[8 + 3], static_cast<uint32_t>(OpenRCT2::TrackElemType::towerSection));
+    for (uint32_t image = 14989; image <= 15003; ++image)
+        EXPECT_NE(std::find(images.begin(), images.end(), image), images.end()) << image;
 }

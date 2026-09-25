@@ -390,7 +390,7 @@ def parse_log(text):
         result['missingMetrics'].append('accepted presentation count is unavailable; draws/FPS counts CPU paint attempts')
     if "Benchmark simulation pacing:" in metrics_text:
         result["simulationPacing"] = one(metrics_text,
-            r"Benchmark simulation pacing:\s+(ordinary Turbo 360 TPS target|uncapped headroom)", "simulation pacing")
+            r"Benchmark simulation pacing:\s+(ordinary Turbo 360 TPS target|uncapped headroom|normal speed camera stress)", "simulation pacing")
     if "Upload telemetry v1:" in metrics_text:
         payload = json.loads(one(metrics_text, r"Upload telemetry v1:\s+(\{.*\})", "upload telemetry"))
         validate_upload_telemetry(payload)
@@ -400,7 +400,47 @@ def parse_log(text):
     return result
 
 
-def qualify_final_screenshot(text, profile, output, result, width, height):
+def expected_simulation_pacing(uncapped=False, camera_stress=False):
+    if camera_stress:
+        return "normal speed camera stress"
+    return "uncapped headroom" if uncapped else "ordinary Turbo 360 TPS target"
+
+
+def declared_diagnostic_screenshots(text, profile, width, height, camera_stress=False):
+    from PIL import Image
+    root = (profile / "screenshot").resolve()
+    startup = re.findall(r'^Vulkan startup: loading UI capture: ([^\r\n]+)$', text, re.M)
+    if len(startup) > 1:
+        raise ValueError("Duplicate startup UI screenshot receipt")
+    captures = [json.loads(line) for line in re.findall(r'^Camera stress capture v1: (\{[^\r\n]*\})$', text, re.M)]
+    if captures and not camera_stress:
+        raise ValueError("Camera stress captures are not ordinary benchmark evidence")
+    steps = set()
+    for capture in captures:
+        if (set(capture) != {"path", "step", "tick", "viewPosition", "zoom"}
+                or type(capture["step"]) is not int or capture["step"] <= 0 or capture["step"] in steps
+                or type(capture["tick"]) is not int or not 0 <= capture["tick"] <= 0xffffffff
+                or type(capture["zoom"]) is not int or not -2 <= capture["zoom"] <= 3
+                or not isinstance(capture["viewPosition"], list) or len(capture["viewPosition"]) != 2
+                or any(type(v) is not int for v in capture["viewPosition"])):
+            raise ValueError("Invalid/duplicate camera stress screenshot receipt")
+        steps.add(capture["step"])
+    declared = set()
+    for value in startup + [capture["path"] for capture in captures]:
+        if not isinstance(value, str):
+            raise ValueError("Invalid diagnostic screenshot path")
+        path = Path(value).resolve(strict=True)
+        if root not in path.parents or path.suffix.lower() != ".png" or path in declared:
+            raise ValueError("Diagnostic screenshot escaped isolated directory or is duplicated")
+        with Image.open(path) as image:
+            image.load()
+            if image.format != "PNG" or image.size != (width, height) or image.mode != "P":
+                raise ValueError("Diagnostic screenshot is not the expected indexed main canvas")
+        declared.add(path)
+    return declared
+
+
+def qualify_final_screenshot(text, profile, output, result, width, height, camera_stress=False):
     from PIL import Image
     clean = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text).replace("\r\n", "\n")
     record = json.loads(one(clean, r"Final benchmark screenshot v1:\s+(\{.*\})", "final screenshot receipt"))
@@ -425,9 +465,10 @@ def qualify_final_screenshot(text, profile, output, result, width, height):
     roots = [(profile / "screenshot").resolve()]
     if not any(parent in source.parents for parent in roots) or source.suffix.lower() != ".png":
         raise ValueError("Final screenshot escaped the isolated screenshot directory")
-    screenshots = sorted(p for p in profile.rglob("*.png") if any(parent in p.resolve().parents for parent in roots))
-    if screenshots != [source]:
-        raise ValueError("Expected exactly one post-measurement production screenshot")
+    diagnostics = declared_diagnostic_screenshots(clean, profile, width, height, camera_stress)
+    screenshots = {p.resolve() for p in (profile / "screenshot").rglob("*") if p.suffix.lower() == ".png"}
+    if source in diagnostics or screenshots != diagnostics | {source}:
+        raise ValueError("Unexpected PNG or reused final screenshot; only declared captures are permitted")
     with Image.open(source) as image:
         image.load()
         if image.format != "PNG" or image.size != (width, height) or image.mode != "P":
@@ -674,7 +715,10 @@ def main():
     parser.add_argument("--simulation-wait-profile", action="store_true", help="Separate named simulation/ParallelFor wall-cycle attribution; never clean acceptance")
     parser.add_argument("--world-gpu-profile", action="store_true", help="Separate GPU stage attribution run; never clean performance acceptance")
     parser.add_argument("--minimum-present-fps", type=float, help="Require actual successful presentation evidence at this rate; CPU paint attempts do not qualify")
+    parser.add_argument("--camera-stress", action="store_true", help="Normal-speed pan/zoom tour with periodic screenshots and synchronization validation; NOT a performance measurement")
     args = parser.parse_args()
+    if args.camera_stress and (args.mode != "current-vulkan" or args.uncapped_simulation or args.compare_run or args.minimum_present_fps):
+        parser.error("Camera stress requires current Vulkan and cannot qualify throughput or compare performance")
     output = args.output.resolve()
     if ROOT not in output.parents or output.exists():
         parser.error("Use a new output directory inside the workspace")
@@ -785,6 +829,12 @@ def main():
         if args.world_gpu_profile:
             env['OPENRCT2_VULKAN_PROFILE_WORLD'] = '1'
             relevant['OPENRCT2_VULKAN_PROFILE_WORLD'] = '1'
+        if args.camera_stress:
+            for key, value in {'OPENRCT2_CAMERA_STRESS': '1', 'OPENRCT2_LOADING_UI_CAPTURE': '1',
+                               'OPENRCT2_VEHICLE_CATALOG_REPORT': '1',
+                               'VK_INSTANCE_LAYERS': 'VK_LAYER_KHRONOS_validation',
+                               'VK_LAYER_VALIDATE_SYNC': '1'}.items():
+                env[key] = relevant[key] = value
         summary["environment"] = relevant
         summary["hostBefore"] = host_info()
         summary["workload"] = {"parkSha256": park_hash, "warmupTicks": args.warmup_ticks, "measuredTicks": args.ticks,
@@ -796,6 +846,8 @@ def main():
             summary["workload"]["uploadTelemetry"] = 1
         if args.uncapped_simulation:
             summary["workload"]["simulationSpeed"] = "uncapped benchmark headroom (Turbo logical ticks)"
+        if args.camera_stress:
+            summary['workload'].update(simulationSpeed='normal speed', camera='scripted pan/zoom tour; cursor not injected')
         summary["postMeasurementScreenshotRequested"] = args.final_screenshot
         summary["command"] = command
         summary["runtimeBefore"] = file_inventory(runtime)
@@ -889,14 +941,14 @@ def main():
             summary['worldGpuProfiles'] = world_profiles
             summary['worldBoundsProfiles'] = parse_world_bounds_profile(startup_log)
             summary['worldGpuProfileScope'] = 'Pipeline lifetime, including warmup and final capture; instrumented attribution, not clean acceptance'
-        expected_pacing = "uncapped headroom" if args.uncapped_simulation else "ordinary Turbo 360 TPS target"
+        expected_pacing = expected_simulation_pacing(args.uncapped_simulation, args.camera_stress)
         if summary["result"].get("simulationPacing", "ordinary Turbo 360 TPS target") != expected_pacing:
             summary["failures"].append("Requested/actual benchmark simulation pacing differs")
         if "phaseTiming" in summary["result"]:
             summary["phaseTimingInstrumentation"] = "Fixed top16 per main-thread phase; clock/thread-cycle sampling included in elapsed time; no loop I/O or full profiler; nested phases overlap"
         if args.final_screenshot:
             summary["finalScreenshot"] = qualify_final_screenshot(
-                text, profile, output, summary["result"], args.width, args.height)
+                text, profile, output, summary["result"], args.width, args.height, args.camera_stress)
             if summary["finalScreenshot"]["receipt"]["partialRender"]:
                 summary["qualification"] = "Partial GPU-only rendering throughput; omitted world categories prevent full-render performance acceptance"
             if underground_requested and not summary['finalScreenshot']['receipt']['camera']['flags'] & 1:
@@ -921,7 +973,7 @@ def main():
         require_present_rate(summary['result'], args.minimum_present_fps)
         if m["renderer"] != renderer or m["vsync"] != ("enabled" if args.vsync else "disabled") or m["logicalTicks"] != args.ticks:
             summary["failures"].append("Actual renderer/VSync/tick count differs from requested workload")
-        ready = "Integrated UI benchmark ready: renderer=" + renderer + ", VSync=" + ("enabled" if args.vsync else "disabled") + ", " + ("visible" if args.visible else "hidden") + " window, ordinary Turbo."
+        ready = "Integrated UI benchmark ready: renderer=" + renderer + ", VSync=" + ("enabled" if args.vsync else "disabled") + ", " + ("visible" if args.visible else "hidden") + " window, " + ("normal speed camera stress" if args.camera_stress else "ordinary Turbo") + "."
         if text.count(ready) != 1:
             summary["failures"].append("Actual visibility/ordinary Turbo startup was not confirmed")
         if args.attribution_profile:
@@ -945,6 +997,30 @@ def main():
             summary["qualification"] += "; instrumented simulation wait attribution, not clean performance acceptance"
         if args.world_gpu_profile:
             summary["qualification"] += "; instrumented GPU stage attribution, not clean performance acceptance"
+        if args.camera_stress:
+            from PIL import Image
+            captures = [json.loads(record) for record in re.findall(r'Camera stress capture v1: (\{.*\})', text)]
+            steps = re.findall(r'Camera stress step: (\d+) zoom=(-?\d+) x=(-?\d+) y=(-?\d+)', text)
+            if len(captures) < 8 or len(set(s[1] for s in steps)) < 4:
+                raise ValueError('Camera stress did not exercise enough captures/zoom levels')
+            for capture in captures:
+                path = Path(capture['path']).resolve(strict=True)
+                if (profile / 'screenshot').resolve() not in path.parents:
+                    raise ValueError('Camera stress capture escaped isolated profile')
+                with Image.open(path) as im:
+                    if im.size != (args.width, args.height):
+                        raise ValueError('Camera stress capture dimensions changed')
+                    rgb = im.convert('RGB')
+                    world = rgb.crop((0, 64, im.width, im.height - 64))
+                    colours = world.getcolors(world.width * world.height)
+                    nonblack = sum(count for count, colour in colours if max(colour) > 8)
+                    capture.update(sha256=sha256(path), worldColours=len(colours),
+                                   worldNonblackFraction=nonblack / (world.width * world.height))
+                    if len(colours) < 16 or capture['worldNonblackFraction'] < 0.05:
+                        raise ValueError('Camera stress captured a blank/monochrome world: ' + str(path))
+            summary['cameraStress'] = {'captures': captures, 'steps': len(steps), 'zoomLevels': sorted(set(s[1] for s in steps))}
+            summary['qualification'] = 'Diagnostic normal-speed camera tour; NOT performance acceptance or full pixel parity'
+            summary['measurementLimitations'] += ['Periodic indexed readbacks and validation perturb pacing; screenshots do not validate final GPU colour conversion; cursor input is not exercised']
         if not summary["failures"]:
             summary["status"] = "pass"
     except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:

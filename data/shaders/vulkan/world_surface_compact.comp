@@ -122,6 +122,7 @@ void emitObjectSprite(uvec2 tile, int z, ivec2 relative, uint image, uint palett
 #include "world_flat_ride_emit.glsl"
 #include "world_entrance_emit.glsl"
 #include "world_track_emit.glsl"
+#include "world_entrance_support_emit.glsl"
 #include "world_surface_tunnel.glsl"
 #include "world_selection_emit.glsl"
 #include "world_path_support_emit.glsl"
@@ -151,7 +152,9 @@ void visitPath(uint index, uvec2 tile, SourceRecord terrain, uint destination, b
         int children[12];
         bool additionPart[12];
         bool bannerPart[12];
-        for(int i=0;i<12;i++) { additionPart[i]=false;bannerPart[i]=false; }
+        bool frontFencePart[12];
+        bool frontAdditionPart[12];
+        for(int i=0;i<12;i++) { additionPart[i]=false;bannerPart[i]=false;frontFencePart[i]=false;frontAdditionPart[i]=false; }
         int parentCount=0;
         WorldPathPart body=worldPathSurfacePart(image,worldPathRotateMask(edges,rotation),
             worldSupportPassedSurface(),false);
@@ -182,6 +185,7 @@ void visitPath(uint index, uvec2 tile, SourceRecord terrain, uint destination, b
                 for(int i=0;i<parts.count;i++) {
                     WorldPathPart part=parts.parts[i];
                     if(uint(part.imageOffset)<addition.count) {
+                        frontAdditionPart[parentCount]=worldPathAdditionHasFrontContact(int(addition.drawType),part.imageOffset);
                         part.imageOffset+=int(addition.base);
                         parents[parentCount]=part;
                         additionPart[parentCount]=true;
@@ -196,6 +200,9 @@ void visitPath(uint index, uvec2 tile, SourceRecord terrain, uint destination, b
                 if(uint(part.imageOffset)<railings.railingsCount) {
                     part.imageOffset+=int(railings.railingsBase);
                     parents[parentCount]=part;
+                    // This is an authored fence recipe, not a generic bounds heuristic.
+                    // Only the two camera-facing edges (including their corner posts) opt in.
+                    frontFencePart[parentCount]=part.boundsX>=27 || part.boundsY>=27;
                     children[parentCount++]=-1;
                 }
             }
@@ -226,6 +233,12 @@ void visitPath(uint index, uvec2 tile, SourceRecord terrain, uint destination, b
             if(selected<surfaceParents) {
                 worldSetCoplanarSurfaceLayer();
             }
+            // Flat front-edge members must share one contact. Moving only the
+            // fence lets it cut through its own bins/lamps. Slopes retain their
+            // prior authored anchors until their changing contact is qualified.
+            if(!sloped && (frontFencePart[selected] || frontAdditionPart[selected]))
+                worldSetForegroundTileContact(tile,path.baseZ,
+                    frontAdditionPart[selected]?WORLD_FOREGROUND_FIXTURE_LAYER:WORLD_FOREGROUND_RAIL_LAYER);
             if(bannerPart[selected])
                 worldSetComponentDepthAnchor(tile,ivec3(part.boundsX,part.boundsY,path.baseZ+part.boundsZ));
             bool ghost=(path.flags & (additionPart[selected]?(1u<<5):(1u<<4)))!=0u;

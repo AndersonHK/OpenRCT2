@@ -85,11 +85,11 @@ TUNNEL_FN int worldStaticRideTunnelType(int family, int direction, int side)
     return (family==18 || family==19) && (direction==1 || direction==2)
         && side==(direction&1)?6:-1;
 }
-// All three tower painters share centre sequence0 of kTrackMap3x3.
+// All tower painters, including Lift, share centre sequence0 of kTrackMap3x3.
 // Section sequence1 returns before any vertical-tunnel state mutation.
 TUNNEL_FN int worldStaticRideVerticalTunnelOffset(int family, int sequence, bool section)
 {
-    if(family<20 || family>22) return -1;
+    if((family<20 || family>22) && family!=24) return -1;
     if(section) return sequence==1?-1:32;
     return sequence==0?96:-1;
 }

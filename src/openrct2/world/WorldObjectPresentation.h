@@ -186,6 +186,7 @@ namespace OpenRCT2
     };
     // Hot mechanism state, independent of immutable object/station/colour catalogues.
     // Words 0..3: raw ride flags, type/subtype, breakdown reason/modifier, slide state/colour.
+    // Chairlift stores raw bullwheel rotation in word 3; mechanism-presence bit 0 remains clear.
     // Word 0 bit 4 is raw open status for every live ride; bit 3 is brokenDown for every ride.
     // Bit 0 still marks a supported flat mechanism, not merely a live ride.
     // Four vehicle slots follow: entity ID, generation, frame/secondary/orientation/restraints,

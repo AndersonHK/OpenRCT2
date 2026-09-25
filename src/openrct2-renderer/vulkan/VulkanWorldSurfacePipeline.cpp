@@ -209,6 +209,7 @@ namespace OpenRCT2::Ui::Vulkan
         _moneyRecords.Dispose();
         _uploadedVehicles.reset();
         _uploadedEffects.reset();
+        _uploadedEffectSpriteBase = 0;
         _uploadedMoney.reset();
         _moneyCatalog.reset();
         _uploadedVehicleCatalogRevision = 0;
@@ -911,12 +912,18 @@ namespace OpenRCT2::Ui::Vulkan
             uploadDynamic(_vehicleCatalog, {}, std::as_bytes(std::span(scene.sprites->vehicleCatalog)));
             _uploadedVehicleCatalogRevision = scene.sprites->revision;
         }
-        if (scene.effects && scene.effects != _uploadedEffects)
+        if (scene.effects
+            && (scene.effects != _uploadedEffects || scene.sprites->effectSpriteBase != _uploadedEffectSpriteBase))
         {
             std::array<uint32_t, 4> header{ static_cast<uint32_t>(scene.effects->records.size()),
                                             scene.sprites->effectSpriteBase, 0, 0 };
-            uploadDynamic(_effectRecords, std::as_bytes(std::span(header)), std::as_bytes(std::span(scene.effects->records)));
+            // A replacement art catalog can relocate the effect bank while the
+            // immutable effect state remains held. Only its header changes then.
+            const auto records = scene.effects != _uploadedEffects ? std::as_bytes(std::span(scene.effects->records))
+                                                                   : std::span<const std::byte>{};
+            uploadDynamic(_effectRecords, std::as_bytes(std::span(header)), records);
             _uploadedEffects = scene.effects;
+            _uploadedEffectSpriteBase = scene.sprites->effectSpriteBase;
         }
         if (scene.peeps && scene.sprites->peepAssets)
             _peepFields.Record(frame, scene.peeps, scene.sprites->peepAssets, false);
@@ -1252,6 +1259,7 @@ namespace OpenRCT2::Ui::Vulkan
         _peepFields.Discard();
         _uploadedVehicles.reset();
         _uploadedEffects.reset();
+        _uploadedEffectSpriteBase = 0;
         _uploadedMoney.reset();
         _moneyCatalog.reset();
         _uploadedVehicleCatalogRevision = 0;

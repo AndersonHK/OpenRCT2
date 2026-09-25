@@ -1,6 +1,7 @@
 // Copyright (c) 2014-2026 OpenRCT2 developers. GPL-3.0-or-later.
 #ifndef OPENRCT2_WORLD_TRACK_DEPTH
 #define OPENRCT2_WORLD_TRACK_DEPTH
+#include "world_foreground_depth.glsl"
 #ifdef __cplusplus
 #define TRACK_DEPTH_FN constexpr
 #else
@@ -8,17 +9,19 @@
 #endif
 // An under-rail support belongs to one authored track element. Preserve its
 // original anchor when already below that element's rails; cap only its contact
-// with those rails. Other track elements never enter this constraint.
+// with those rails. Equal contact uses support layer1 below rail layer2;
+// subtracting a world unit would bury ground-level supports beneath terrain.
+// Other track elements never enter this constraint.
+const int WORLD_TRACK_RAIL_LAYER=2;
 TRACK_DEPTH_FN int worldTrackUnderRailDepth(int authoredDepth,int ownRailDepth)
 {
-    return authoredDepth<ownRailDepth?authoredDepth:ownRailDepth-1;
+    return authoredDepth<ownRailDepth?authoredDepth:ownRailDepth;
 }
 // Internal, already-resolved station-cover recipes encode edge/variant here.
-// These values are never looked up as G1 image IDs. Front covers contain the
-// shelter roof as well as its fascia. Use the front edge's authored origin
-// (the same edge as the front fence), lifted to the explicit shelter height.
-// Do not add a midpoint along that edge: it pushes the whole roof in front of
-// a neighboring entrance. Back wall covers do not opt into this anchor.
+// These values are never looked up as G1 image IDs. Front covers enclose their
+// platform's rail at the same near contact, using a later local shell role.
+// Roof art height must not push the complete shell in front of the next tile's
+// entrance. Back walls retain their separate authored anchors.
 TRACK_DEPTH_FN int worldTrackStationCoverMarker(int edge,int variant)
 {
     return (edge==1 || edge==2) && variant>=0 && variant<=2 ? -256+variant*4+edge : 0;
@@ -30,10 +33,10 @@ TRACK_DEPTH_FN WorldTrackStationCoverAnchor worldTrackStationCoverAnchor(int mar
     a.x=0;a.y=0;a.z=0;a.valid=false;
     int encoded=marker+256;
     if(encoded<0 || encoded>10) return a;
-    int edge=encoded&3,variant=encoded/4;
+    int edge=encoded&3;
     if(edge!=1 && edge!=2) return a;
-    a.x=edge==1?0:31;a.y=edge==1?31:0;
-    a.z=1+(variant==0?22:(variant==1?30:46));a.valid=true;
+    a.x=WORLD_FOREGROUND_TILE_CORNER;a.y=WORLD_FOREGROUND_TILE_CORNER;
+    a.z=0;a.valid=true;
     return a;
 }
 #undef TRACK_DEPTH_FN

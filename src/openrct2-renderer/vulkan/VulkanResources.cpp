@@ -515,11 +515,13 @@ namespace OpenRCT2::Ui::Vulkan
             .baseArrayLayer = copy.imageSubresource.baseArrayLayer,
             .layerCount = copy.imageSubresource.layerCount,
         };
+        // Lookup images are sampled by both indexed fragments and the world filter compute resolve.
+        // Include both consumers when replacing an image and when publishing its new texels.
+        constexpr auto shaderStages = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
         RecordImageBarrier(
             commandBuffer, image.GetImage(),
             hasShaderLayout ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, range,
-            hasShaderLayout ? VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT : VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, range, hasShaderLayout ? shaderStages : VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
             VK_PIPELINE_STAGE_TRANSFER_BIT, hasShaderLayout ? VK_ACCESS_SHADER_READ_BIT : 0, VK_ACCESS_TRANSFER_WRITE_BIT);
         vkCmdCopyBufferToImage(
             commandBuffer, allocation.buffer, image.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
@@ -529,8 +531,7 @@ namespace OpenRCT2::Ui::Vulkan
                 * copy.imageSubresource.layerCount * bytesPerPixel);
         RecordImageBarrier(
             commandBuffer, image.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            range, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
-            VK_ACCESS_SHADER_READ_BIT);
+            range, VK_PIPELINE_STAGE_TRANSFER_BIT, shaderStages, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
         hasShaderLayout = true;
     }
 

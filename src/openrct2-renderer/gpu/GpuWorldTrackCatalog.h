@@ -121,6 +121,10 @@ namespace OpenRCT2::Ui::Gpu
             }
         }
         std::vector<uint32_t> images;
+        // The shared original-art map also serves park/ride entrance columns.
+        // Their bounded truss domain must exist even in a park without tracks.
+        for (int i = 0; i < MetalSupportRules::worldEntranceSupportAssetCount(); ++i)
+            images.push_back(static_cast<uint32_t>(MetalSupportRules::worldEntranceSupportAssetImage(i)));
         bool needsMetal = false, needsWooden = false;
         for (uint32_t style = 0; style < requiredStyles.size() && !(needsMetal && needsWooden); ++style)
         {
@@ -150,6 +154,7 @@ namespace OpenRCT2::Ui::Gpu
             for (int i = 0; i < MetalSupportRules::worldWoodenAssetCount(); ++i)
                 images.push_back(static_cast<uint32_t>(MetalSupportRules::worldWoodenAssetImage(i)));
         bool needsStations = false;
+        bool needsChairliftStations = false;
         for (uint32_t style = 0; style < requiredStyles.size(); ++style)
         {
             if (!requiredStyles[style])
@@ -158,7 +163,7 @@ namespace OpenRCT2::Ui::Gpu
             // but their authored vertical openings use this shared G1 lookup.
             if (style == static_cast<uint32_t>(TrackStyle::observationTower)
                 || style == static_cast<uint32_t>(TrackStyle::launchedFreefall)
-                || style == static_cast<uint32_t>(TrackStyle::rotoDrop))
+                || style == static_cast<uint32_t>(TrackStyle::rotoDrop) || style == static_cast<uint32_t>(TrackStyle::lift))
                 for (uint32_t image = 1575; image <= 1578; ++image)
                     images.push_back(image);
             for (uint32_t type = 0; type < definitions[3]; ++type)
@@ -176,7 +181,7 @@ namespace OpenRCT2::Ui::Gpu
                     {
                         const auto partOffset = definitions[6] + (definitions[row] + part) * 12;
                         // Water components use the terrain catalog's resident mask/overlay banks.
-                        if (definitions[partOffset + 10] >= 4)
+                        if ((definitions[partOffset + 10] & 7u) >= 4)
                             continue;
                         const auto image = definitions[partOffset];
                         if (image == 0xfffffffdu)
@@ -199,7 +204,10 @@ namespace OpenRCT2::Ui::Gpu
                             for (uint32_t frame = 0; frame < Drawing::GetNativeTrackImageFrameCount(image); ++frame)
                                 images.push_back(Drawing::GetNativeTrackImageAtTick(image, 0) + frame);
                         else
+                        {
                             needsStations = true;
+                            needsChairliftStations |= definitions[partOffset + 8] == 8;
+                        }
                     }
                 }
             }
@@ -207,6 +215,15 @@ namespace OpenRCT2::Ui::Gpu
         if (needsStations)
             for (uint32_t image = SPR_STATION_PLATFORM_SW_NE; image <= SPR_STATION_BASE_BORDERLESS; ++image)
                 images.push_back(image);
+        if (needsChairliftStations)
+        {
+            for (uint32_t image = 14567; image <= 14571; ++image)
+                images.push_back(image);
+            for (uint32_t image = 20502; image <= 20507; ++image)
+                images.push_back(image);
+            for (uint32_t image = 20540; image <= 20547; ++image)
+                images.push_back(image);
+        }
         std::sort(images.begin(), images.end());
         images.erase(std::unique(images.begin(), images.end()), images.end());
         words[10] = static_cast<uint32_t>(images.size());

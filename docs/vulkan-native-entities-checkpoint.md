@@ -1,6 +1,6 @@
 # Native entities checkpoint
 
-Current deployed checkpoint: build167, following build164 / commit `e132aaa338`. Chairlift station and foreground-track-anchor candidates remain staged outside production and are not included. Current remaining visual failures are listed in [the close-up review](vulkan-native-entities-visual-review.md).
+Current deployed checkpoint: build176, replacing build167. Includes Chairlift stations, Lift pieces, entrance supports, bounded foreground contacts, rider-bank residency and UI-first pipeline preparation. The complete Miniature Railway candidate and experimental Pirate Ship anchor change are withheld. Current remaining visual failures are listed in [the close-up review](vulkan-native-entities-visual-review.md); final qualification is recorded below. Historical build sections retain their original status at the time.
 
 This follows `2337f3b8da` (supports, signs and component anchors). Everything Park remains the common original-art visual and performance sample. The production world path now consumes owned graphical state for vehicles, peeps, balloons, litter, fountains, ducks, particles and money annotations. Runtime and visual qualification are in progress; implementation alone is not pixel parity.
 
@@ -13,6 +13,14 @@ World rendering does not build a CPU entity paint list. The previous selected-ve
 Each authored sprite receives one constant depth. Integer anchor priority dominates a bounded local layer. The corrected D32 encoding prevents child layers from jumping ahead of neighboring anchors. Monetary annotations have a separate bounded interval above the world and below UI; constant per-glyph priorities preserve overlapping outlines and hint blending. New RotoDrop seat anchors are explicit geometry requiring visual review, not claimed original source coordinates.
 
 ## Checklist
+
+- [x] Reproduce the persistent black world/monochrome UI failure, fix omitted Mandarin rider-bank residency, and pass the normal-speed 4K moving-camera reproduction (build176: 3,000 ticks, 189 camera steps, 37 captures).
+- [ ] Qualify shared foreground-contact anchors for camera-near path/station/ride fences against guests and vehicles, including all camera rotations.
+- [x] Bootstrap the normal Vulkan UI before world pipeline preparation and remove the separate native loading window.
+- [ ] Finish responsive loading through later object/catalog admission; qualify resize, minimize and close during every loading stage.
+- [x] Restore low-track mine support artwork at ground contact without changing the global depth formula; exact close-up matches upstream and GPU regression passes all four rotations.
+- [x] Restore independent entrance wooden supports; inspect the real Lift/entrance closeups.
+- [ ] Resolve remaining entrance roof/column, fence/glass, Pirate Ship and tower component ordering. Keep fixes local; the common Pirate Ship anchor adjustment was withdrawn after visual regressions.
 
 - [x] Preserve the preceding reviewed checkpoint in commit `2337f3b8da`.
 - [x] Connect raw entity snapshots to the production Vulkan world visitor.
@@ -28,7 +36,7 @@ Each authored sprite receives one constant depth. Integer anchor priority domina
 - [ ] Inspect matched-art Everything Park closeups, including all four rotations and underground/cutaway views.
 - [ ] Restore remaining whole-track recipe omissions from shared source adapters.
 - [x] Measure 4K, 12,000 ticks, 360 TPS cap and vsync; compare CPU draw, GPU time and long-frame distribution against build144.
-- [ ] Restore the 360 TPS target: build167 improves to 330.267 TPS / 143.804 accepted presents per second with 0.727 ms CPU draw; the target remains open.
+- [ ] Restore sustained 360 TPS and eliminate pacing outliers: build176 measures 346.942 TPS / 143.779 accepted presents per second with 0.680 ms CPU draw; maximum accepted-present interval is 22.780 ms.
 - [ ] Use stable resident catalog handles and append-only admissions; ordinary object/frame changes must not rebuild or re-upload the full catalog.
 - [x] Commit the qualified checkpoint with explicit remaining regressions (`e132aaa338`) and deploy for manual testing (28 files verified, 7 changed).
 
@@ -182,3 +190,71 @@ Deployment167: `obj/vulkan-parity/deploy-async167-01/receipt.json` verifies all 
 The exact benchmark input is available as `Documents/OpenRCT2/save/Everything Park - Renderer Test.park`, shared by the default unmodified and fork installations. Its SHA-256 is `c11bca8296bbf6d0b2673c4c80e3703139360b802e04b363d25cedd605459cf4`, matching both the current test fixture and frozen upstream fixture. No park state or object assets were changed for this copy. Receipt: `obj/vulkan-parity/deploy-async167-01/test-park-copy.json`.
 
 Future `deploy-render-checkpoint.ps1` runs call `copy-render-test-park.ps1`: an identical existing copy is reused, while an edited save is preserved and a numbered fresh copy is added. This lets the user inspect asset loading independently in both installed applications.
+
+## Stability and asset coverage follow-up (170c–171)
+
+The repeatable black screen has a concrete catalog cause: the Mandarin Duck boat's second rider-animation bank was omitted. Builds169 and170c stop at the same camera transition with missing image306500. `CarEntry::getNumRiderImageBanks()` now owns that immutable domain; the snapshot captures it once, and admission adds exactly16 images within the existing51-image object allocation. No per-frame catalog scan or full rebuild is introduced. Build171 passes79 focused CPU tests, including the original-painter Mandarin image checks and all32-heading selector comparisons.
+
+Build171's full4K camera qualification did **not** pass. During warmup it reported `VK_ERROR_DEVICE_LOST`; Windows recorded NVIDIA153 and Display4101 recovery at22:17:27–28 on2026-09-24. The failed test process was stopped after it remained in cleanup for several minutes. No new build has been deployed. Its receipt/logs remain in `obj/vulkan-parity/camera-stress171-01`. Source review found no new GPU buffer ABI change: rider-bank metadata is CPU-only, car catalog records stay96 words, vehicle records stay128 bytes, and the shader boolean is local state. This is not proof of a driver/compiler defect. A separate, explicitly unqualified diagnostic combines the171 executable with the byte-identical170c shaders to isolate the catalog correction from changed shader code.
+
+- [x] Reproduce and identify the persistent missing-image failure.
+- [x] Make the car metadata own rider-animation residency and test actual original-painter image selection.
+- [x] Replace the native duplicate startup bar with the normal themed UI before world pipeline compilation. Build171's fresh application-cache run reached UI readiness in0.295s, then compiled world pipelines in29.659s. This does not measure a cold driver cache.
+- [x] Audit transport source coverage and visually inspect Monorail, Suspended Monorail, Lift and Chairlift samples against upstream.
+- [x] Complete a3000-tick normal-speed4K camera tour without renderer/driver failure after the fix (final176).
+- [ ] Qualify shared foreground contacts and corrected entrance footprints in all camera rotations. Build170c still exposes an entrance-rear anchor defect and must not be labelled an ordering pass.
+- [x] Inspect restored entrance wooden supports visually (final176); emission is restored, while roof/column ordering remains open.
+- [ ] Integrate and qualify the staged complete Miniature Railway family (27 types); CPU authoring tests alone do not establish runtime parity.
+- [ ] Resolve tower/elevator component ownership and inspect an ascent filmstrip plus external elevated geometry; see `vulkan-tower-occlusion-review.md`.
+- [x] Re-run the clean12000-tick performance gate (final176:346.942TPS,143.779 accepted presents/s); deployment receipt is recorded separately.
+
+Terminology: **world XY** always means tile rows/columns plus sub-tile offsets; **world Z** is elevation; **screen XY** means projected pixels. Depth is a separate ordering value. Use domain enums, booleans and bounded operations at semantic boundaries, with behavior owned by the relevant object/module. Compact GPU integer storage is a serialization format, not a reason to expose untyped arithmetic throughout the implementation.
+
+## Follow-up qualification: build172b
+
+The catalog fix completed the original normal-speed camera reproduction in a diagnostic combination: build171 executable with all 26 byte-verified build170c shaders loaded through an isolated data directory. It completed 3,000 ticks and 37 screenshots across zoom levels -1 through 3 without validation or worker errors. This is diagnostic evidence, not a deployable build or clean performance measurement. Evidence: `obj/vulkan-parity/camera171-with170-shader-corrected`.
+
+The earlier `camera171-with170-shader-diagnostic` attempt was not a valid shader isolation: the normal UI engine does not consume `OPENRCT2_VULKAN_SHADER_DIRECTORY`, so it still used build171 shaders and encountered another driver recovery. Its receipt records that limitation. The corrected attempt supplied the verified shaders through the actual data path. Do not count the invalid attempt as evidence against the earlier shaders.
+
+An offline SPIR-V audit established that the previous GPU modulo already wraps negative headings correctly (`OpSMod`). The discrepancy was in the C++ test equivalent. Production restores the prior GPU selector structure and corrects the C++ equivalent; the unnecessary swing-boolean selector refactor is withdrawn. The observed association with the failed variant does not prove driver/compiler causation.
+
+Build172b includes the entrance footprint and independent wooden support domain. All 89 selected CPU tests and both focused GPU snapshot/residency tests pass. Three older catalog expectations were updated to include the mandatory 49-image entrance support domain even when no track style exists. Full-scene visual and performance qualification remains open; build167 is still the installed checkpoint.
+
+
+## Withheld Miniature Railway candidate (173)
+
+Build173 compiled successfully. Its new effect-header regression and two existing snapshot/residency GPU tests passed. One of 91 CPU tests failed because its blanket nonempty-row assertion contradicted the original diagonal transition painter; a source-verified test-only correction was archived with the candidate.
+
+The full Everything Park Miniature Railway capture then failed with `VK_ERROR_DEVICE_LOST` after pipeline compilation and resident atlas admission. Windows recorded NVIDIA153 at 22:58:47 and Display4101 recovery at 22:58:48 on 2026-09-24. No native screenshot was produced; Lift capture did not run. Evidence: `obj/vulkan-parity/everything173-minirail-01/failure-review.json`. Small GPU tests do not qualify this candidate, and this single comparison does not identify compiler/driver causation.
+
+The complete Miniature Railway implementation is quarantined in `obj/vulkan-parity/minirail-semantic-staging/quarantined-173`. All 15 preintegration production files were restored byte-for-byte, and the two candidate-only shader headers were removed after archiving. The unrelated effect-header lifetime correction remains. No failed shader variant is being retried. Build174 must match build172b shaders and pass its own full-camera/performance gates before deployment. Missing Miniature Railway track coverage remains an explicit gap.
+
+The new narrow visual diagnoses remain open: low-track dark support art is buried by the under-rail scalar clamp, and Pirate Ship components need a more precise contact than the complete five-tile ride footprint. Keep fixes local and preserve working ordering, per the owner's scope instruction.
+
+## Qualified checkpoint176
+
+The final build has zero warnings/errors and unchanged source/generated inputs. Its 90 focused CPU tests and actual-GPU ground-support test pass. The latter checks all four rotations and unchanged held-frame uploads. The effect-header catalog-replacement GPU regression passed in173 and175b; two existing immutable snapshot/residency GPU tests passed in173. The performance-report harness passes29 tests. These earlier GPU results are not represented as reruns on176.
+
+The low-track correction retains one constant depth per sprite: support and its own rail share the ground-contact scalar, with support layer1 behind rail layer2. The exact inspected upstream crop has zero differing RGB pixels. The common Pirate Ship anchor experiment is withdrawn after four-rotation inspection found new hull/platform/entrance regressions. No broad depth redesign or cascading offsets ship. See the visual review for evidence and remaining contacts.
+
+Normal-speed camera qualification (`obj/vulkan-parity/camera-stress176-01/summary.json`) passes at3840x2160 with VSync:3,000 measured ticks,189 camera steps,37 captures and five zoom levels(-1 through3), without renderer/validation failures. Capture readbacks and validation make this a stability test rather than a performance result. World compilation now leaves the themed UI responsive; later object/catalog admission remains synchronous and caused a noticeable first-world warmup pause.
+
+The separate warm-cache, screenshot-free measured loop (`obj/vulkan-parity/performance-entities176-12000-01/summary.json`) passes12,000 ticks at3840x2160, VSync and the unchanged360-TPS gameplay ceiling:
+
+| Metric | Deployed167 | Qualified176 |
+| --- | ---: | ---: |
+| Logical TPS |330.267|346.942|
+| Accepted presents/sec |143.804|143.779|
+| CPU draw/frame |0.727 ms|0.680 ms|
+| GPU frame |4.425 ms|3.757 ms|
+| Mean simulation tick |1.984 ms|1.900 ms|
+| Accepted-present P99 |9.0 ms|9.0 ms|
+| Maximum accepted-present interval |12.622 ms|22.780 ms|
+
+All4,973 measured submissions were accepted. The authoritative simulation checksum remains `07d58eaefde6aa6d000000000000000000000000`. This is one run per checkpoint, not proof of a causal speedup from graphical fixes. Sustained360TPS remains open, as do pacing outliers: the maximum interval worsened even though P99 stayed unchanged. Accepted presents are queue measurements, not display scanout. Root visually inspected the final4K screenshot; it shows intact world/UI but its wide view does not establish close-up parity. The final capture's immutable publication is one source tick behind simulation, consistent with the asynchronous boundary.
+
+Remaining work:37 source track-pair omissions (Miniature Railway19, Mini Golf11, Lattice Triangle Alt3, Air Powered Vertical3, Reverse Freefall1); nonstation Chairlift support coverage; Pirate Ship and tower/elevator component ownership; remaining fence/glass, entrance roof/column and passenger overlaps; wider underground/construction/preview qualification; responsive later loading/admission; append-only catalog updates; sustained360TPS and pacing. Intentional map/underground skirts remain accepted. Miniature Railway173 is withheld after device loss, with its failure evidence preserved; do not retry it as an ordinary benchmark.
+
+Receipts: `obj/vulkan-parity/build-176/receipt.json`, `native176-cpu/summary.json`, `native176-support-gpu/summary.json`, and `everything176-contacts-01/agent-visual-review.md` under the same evidence root. Build174 was not qualified: restoring old timestamps had left stale incremental output;174b rebuilt the touched source correctly. Final176 supersedes that intermediate evidence.
+
+Deployment176 is verified in `obj/vulkan-parity/deploy-176-01/receipt.json`:28 qualified files checked,4 changed, existing files backed up, no automatic launch. Installation: `D:\Games\Independent\OpenRCT2Mod`. The shared `Documents/OpenRCT2/save/Everything Park - Renderer Test.park` remains the identical benchmark input, available to both installations.

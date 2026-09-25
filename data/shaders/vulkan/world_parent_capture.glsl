@@ -3,6 +3,7 @@
 #ifndef OPENRCT2_WORLD_PARENT_CAPTURE
 #define OPENRCT2_WORLD_PARENT_CAPTURE
 #include "world_component_depth.glsl"
+#include "world_foreground_depth.glsl"
 const uint WORLD_COMPONENT_DEPTH_VALID=32u;
 uint worldParentRoot=0xffffffffu,worldParentFlags=0u;
 // Distinct hard-failure bits. reserved records the first write-pass tile index+1.
@@ -38,6 +39,11 @@ void worldSetComponentDepthAnchor(uvec2 tile,ivec3 anchor)
     ivec2 origin=terrainRotateXY(terrainPaintTileOrigin(ivec2(tile*32u),uScene.rotation),uScene.rotation);
     worldAuthoredComponentDepth=origin.x+origin.y+anchor.x+anchor.y+anchor.z;
     worldComponentAnchorOverride=true;
+}
+void worldSetForegroundTileContact(uvec2 tile,int baseZ,int layer)
+{
+    worldSetComponentDepthAnchor(tile,ivec3(WORLD_FOREGROUND_TILE_CORNER,WORLD_FOREGROUND_TILE_CORNER,baseZ));
+    worldComponentRootLayer=uint(layer);
 }
 void worldSetAttachment(uint parent)
 {

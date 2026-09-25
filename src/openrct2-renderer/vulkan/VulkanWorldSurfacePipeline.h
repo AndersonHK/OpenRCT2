@@ -43,6 +43,7 @@ namespace OpenRCT2::Ui::Vulkan
         std::shared_ptr<const Drawing::MoneyPresentationSnapshot> _uploadedMoney;
         std::shared_ptr<const Drawing::VehiclePresentationSnapshot> _uploadedVehicles;
         std::shared_ptr<const Drawing::WorldEffectSnapshot> _uploadedEffects;
+        uint32_t _uploadedEffectSpriteBase{};
         uint64_t _uploadedVehicleCatalogRevision{};
         std::shared_ptr<const Drawing::RetainedBalloonSnapshot> _uploadedBalloons;
         Buffer _sourceRecords;
