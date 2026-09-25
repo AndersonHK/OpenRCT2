@@ -24,16 +24,17 @@ namespace OpenRCT2::Ui::Gpu
     {
         if (car.riderImageBanks < car.seatingRows)
             throw std::invalid_argument("Native vehicle rider-art domain omits seated rows");
+        // Freefall's source painter owns exactly 9 body + four 3-image rider
+        // groups. RideObject::Load's nominal 32-rotation flat group is synthetic
+        // for this layout and exceeds the 21 images actually owned by SSC1.
+        if (car.paintStyle == 2)
+            return 21;
         uint64_t count = uint64_t(car.carImages) * (1u + car.riderImageBanks);
-        // Specialized painters use authored layouts, not the generic sprite-group
-        // stride calculated by RideObject::Load. Include their finite body/rider
-        // ranges even when numCarImages only describes a 32-frame flat group.
+        // Other specialized layouts retain their previously qualified union
+        // with the generic bank until their complete domains are audited.
         uint32_t specialized = 0;
         switch (car.paintStyle)
         {
-            case 2:
-                specialized = 21;
-                break; // Freefall: 9 body + four 3-image rider groups.
             case 3:
                 specialized = 36;
                 break; // Observation: final restraint pair is 34/35.

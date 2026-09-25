@@ -23,34 +23,36 @@
 
 namespace OpenRCT2::Drawing
 {
+    static_assert(EnumValue(SpriteGroupType::count) == kVehiclePresentationGroups);
+    VehiclePresentationCar VehiclePresentationCar::Capture(const CarEntry& source, uint32_t imageBase, uint32_t imageCount)
+    {
+        VehiclePresentationCar out;
+        out.imageBase = imageBase;
+        out.imageCount = imageCount;
+        out.baseImage = source.baseImageId;
+        out.baseFrames = source.baseNumFrames;
+        out.carImages = source.numCarImages;
+        out.seatingRows = source.numSeatingRows;
+        out.riderImageBanks = source.getNumRiderImageBanks();
+        out.paintStyle = EnumValue(source.paintStyle);
+        out.drawOrder = source.drawOrder;
+        out.spinningFrames = source.spinningNumFrames;
+        out.effectVisual = EnumValue(source.effectVisual);
+        out.flags = source.flags.holder;
+        // RideObject::Load allocates world art for enabled flat groups. The UI tab
+        // rotation mask may be zero for real vehicles, including every Lift cabin.
+        out.present = source.groupEnabled(SpriteGroupType::slopeFlat);
+        if (std::getenv("OPENRCT2_VEHICLE_CATALOG_REPORT") != nullptr && source.flags.has(CarEntryFlag::hasRiderAnimation))
+            Console::WriteLine(
+                "Vehicle rider animation: objectBase=%u base=%u animation=%u frames=%u rows=%u riderBanks=%u", imageBase,
+                source.baseImageId, EnumValue(source.animation), source.animationFrames, source.numSeatingRows,
+                out.riderImageBanks);
+        for (size_t i = 0; i < out.groups.size(); ++i)
+            out.groups[i] = { source.spriteGroups[i].imageId, EnumValue(source.spriteGroups[i].spritePrecision) };
+        return out;
+    }
     namespace
     {
-        static_assert(EnumValue(SpriteGroupType::count) == kVehiclePresentationGroups);
-        VehiclePresentationCar CaptureCar(const CarEntry& source, uint32_t imageBase, uint32_t imageCount)
-        {
-            VehiclePresentationCar out;
-            out.imageBase = imageBase;
-            out.imageCount = imageCount;
-            out.baseImage = source.baseImageId;
-            out.baseFrames = source.baseNumFrames;
-            out.carImages = source.numCarImages;
-            out.seatingRows = source.numSeatingRows;
-            out.riderImageBanks = source.getNumRiderImageBanks();
-            out.paintStyle = EnumValue(source.paintStyle);
-            out.drawOrder = source.drawOrder;
-            out.spinningFrames = source.spinningNumFrames;
-            out.effectVisual = EnumValue(source.effectVisual);
-            out.flags = source.flags.holder;
-            out.present = source.isVisible();
-            if (std::getenv("OPENRCT2_VEHICLE_CATALOG_REPORT") != nullptr && source.flags.has(CarEntryFlag::hasRiderAnimation))
-                Console::WriteLine(
-                    "Vehicle rider animation: objectBase=%u base=%u animation=%u frames=%u rows=%u riderBanks=%u", imageBase,
-                    source.baseImageId, EnumValue(source.animation), source.animationFrames, source.numSeatingRows,
-                    out.riderImageBanks);
-            for (size_t i = 0; i < out.groups.size(); ++i)
-                out.groups[i] = { source.spriteGroups[i].imageId, EnumValue(source.spriteGroups[i].spritePrecision) };
-            return out;
-        }
         std::shared_ptr<const VehiclePresentationCatalog> CaptureCatalog()
         {
             static std::shared_ptr<const VehiclePresentationCatalog> held;
@@ -75,11 +77,11 @@ namespace OpenRCT2::Drawing
                     const auto& entry = object->GetEntry();
                     static_assert(std::size(entry.Cars) == kVehiclePresentationCarsPerObject);
                     for (uint32_t car = 0; car < kVehiclePresentationCarsPerObject; ++car)
-                        result->cars[slot * kVehiclePresentationCarsPerObject + car] = CaptureCar(
+                        result->cars[slot * kVehiclePresentationCarsPerObject + car] = VehiclePresentationCar::Capture(
                             entry.Cars[car], object->GetBaseImageId(), object->GetNumImages());
                 }
             // Cable-lift sprites belong to the immutable original G1 bank.
-            result->cars[result->cableCar] = CaptureCar(
+            result->cars[result->cableCar] = VehiclePresentationCar::Capture(
                 // The original G1 cable car has no generic numCarImages stride.
                 // Its final slopes60 group is 32 rotations in each direction.
                 kCableLiftVehicle, kCableLiftVehicle.baseImageId,

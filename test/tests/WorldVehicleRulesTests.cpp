@@ -135,6 +135,64 @@ TEST(WorldVehicleRulesTest, ImmutableSelectorMatchesOriginalPitchRollFallbacksAn
     }
 }
 
+TEST(WorldVehicleRulesTest, WorldArtAdmissionIgnoresTheUiTabRotationMask)
+{
+    using namespace OpenRCT2;
+    using namespace OpenRCT2::Drawing;
+    using namespace OpenRCT2::Ui::Gpu;
+    // Lift cabins have four flat rotations and three restraint frames, but no
+    // rotating UI tab. The original world painter nevertheless emits their art.
+    CarEntry car{};
+    car.baseImageId = 100000;
+    car.baseNumFrames = 1;
+    car.numCarImages = 16;
+    car.numSeatingRows = 8;
+    car.drawOrder = 15;
+    car.flags.set(CarEntryFlag::isLift);
+    car.effectVisual = EffectVisual::unknown1;
+    car.spriteGroups[EnumValue(SpriteGroupType::slopeFlat)] = { 100000, Entity::Yaw::SpritePrecision::sprites4 };
+    car.spriteGroups[EnumValue(SpriteGroupType::restraintAnimation)] = { 100004, Entity::Yaw::SpritePrecision::sprites4 };
+    ASSERT_EQ(car.tabRotationMask, 0);
+    ASSERT_FALSE(car.isVisible());
+
+    auto source = std::make_shared<VehiclePresentationCatalog>();
+    source->cars.resize(kVehiclePresentationCarsPerObject);
+    source->cars[0] = VehiclePresentationCar::Capture(car, 100000, 144);
+    ASSERT_TRUE(source->cars[0].present);
+    VehiclePresentationSnapshot snapshot;
+    snapshot.catalog = source;
+    snapshot.records = std::make_shared<const std::vector<VehiclePresentationRecord>>(1);
+    UpdateVehiclePresentationResidency(snapshot, nullptr);
+    ASSERT_EQ(*snapshot.usedCars, (std::vector<uint32_t>{ 0 }));
+    std::vector<uint32_t> admitted;
+    const auto catalog = BuildWorldVehicleCatalog(*source, *snapshot.usedCars, 1, [&](uint32_t image) {
+        admitted.push_back(image);
+        return image;
+    });
+    EXPECT_EQ(catalog.words[16], 1u);
+
+    PaintSession session{};
+    Vehicle vehicle{};
+    vehicle.num_peeps = 16;
+    for (int yaw : { 0, 8, 16, 24 })
+        for (uint8_t restraints : { 0, 64, 128, 192 })
+        {
+            SCOPED_TRACE(::testing::Message() << yaw << '/' << int(restraints));
+            vehicle.restraints_position = restraints;
+            VehicleOriginalOracle::images.clear();
+            VehicleOriginalOracle::VehicleVisualDefault(session, yaw, 64, &vehicle, &car);
+            ASSERT_FALSE(VehicleOriginalOracle::images.empty());
+            for (auto image : VehicleOriginalOracle::images)
+                EXPECT_TRUE(std::binary_search(admitted.begin(), admitted.end(), image));
+        }
+
+    // A menu mask cannot fabricate world art for an unused/default car slot.
+    CarEntry empty{};
+    empty.tabRotationMask = 31;
+    EXPECT_TRUE(empty.isVisible());
+    EXPECT_FALSE(VehiclePresentationCar::Capture(empty, 100000, 144).present);
+}
+
 TEST(WorldVehicleRulesTest, NegativeBankedFallbackWrapsBeforeSelectingAnImage)
 {
     using namespace OpenRCT2;
@@ -447,7 +505,7 @@ TEST(WorldVehicleRulesTest, ResidencyFollowsFamilyOwnershipRatherThanHotVehicleP
     EXPECT_NE(next.records->front().x, first.records->front().x);
 }
 
-TEST(WorldVehicleRulesTest, SpecializedArtworkAdmissionCoversOriginalPainterOffsetsBeyondGenericBanks)
+TEST(WorldVehicleRulesTest, SpecializedArtworkAdmissionUsesThePainterDomainRatherThanSyntheticGroupSizes)
 {
     using namespace OpenRCT2::Drawing;
     using namespace OpenRCT2::Ui::Gpu;
@@ -460,9 +518,10 @@ TEST(WorldVehicleRulesTest, SpecializedArtworkAdmissionCoversOriginalPainterOffs
         auto& car = source.cars.front();
         car.present = true;
         car.paintStyle = style;
-        car.imageBase = car.baseImage = 100000;
-        car.carImages = 8;
-        car.imageCount = required;
+        car.imageBase = 100000;
+        car.baseImage = car.imageBase + 3; // The owning object also has three preview images.
+        car.carImages = 32;
+        car.imageCount = required + 3;
         std::vector<uint32_t> images;
         const std::array<uint32_t, 1> used{ 0 };
         BuildWorldVehicleCatalog(source, used, 1, [&](uint32_t image) {
@@ -472,7 +531,14 @@ TEST(WorldVehicleRulesTest, SpecializedArtworkAdmissionCoversOriginalPainterOffs
         for (uint32_t offset = 0; offset < required; ++offset)
             EXPECT_TRUE(std::binary_search(images.begin(), images.end(), car.baseImage + offset));
         EXPECT_FALSE(std::binary_search(images.begin(), images.end(), car.baseImage + required));
-        car.imageCount = required - 1;
+        car.imageCount = required + 2;
+        EXPECT_THROW(BuildWorldVehicleCatalog(source, used, 1, [](uint32_t image) { return image; }), std::invalid_argument);
+
+        // Never repair a short allocation by clipping to what happens to fit.
+        // A standard car really does address all of its generic group images.
+        car.paintStyle = 0;
+        car.carImages = required + 1;
+        car.imageCount = required + 3;
         EXPECT_THROW(BuildWorldVehicleCatalog(source, used, 1, [](uint32_t image) { return image; }), std::invalid_argument);
     }
     VehiclePresentationCatalog golf;

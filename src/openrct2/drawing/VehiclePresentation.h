@@ -5,6 +5,8 @@
 #include <memory>
 #include <vector>
 
+struct CarEntry;
+
 namespace OpenRCT2::Drawing
 {
     constexpr uint32_t kVehiclePresentationGroups = 40;
@@ -18,6 +20,8 @@ namespace OpenRCT2::Drawing
         bool present{};
         // Original immutable image group starts/precision, never camera-selected images.
         std::array<std::array<uint32_t, 2>, kVehiclePresentationGroups> groups{};
+
+        static VehiclePresentationCar Capture(const CarEntry& source, uint32_t imageBase, uint32_t imageCount);
     };
     struct VehiclePresentationCatalog
     {
