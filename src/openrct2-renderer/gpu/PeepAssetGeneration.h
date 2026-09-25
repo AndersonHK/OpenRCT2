@@ -17,7 +17,9 @@ namespace OpenRCT2::Ui::Gpu
     struct PeepAssetGeneration
     {
         uint64_t revision{};
+        uint32_t accessoryBase{}, balloonBase{};
         std::shared_ptr<const Drawing::RetainedPeepAnimationCatalog> catalog;
+        std::shared_ptr<const std::vector<uint32_t>> usedObjects;
         std::shared_ptr<const Terrain::DrawSpriteTable> terrainSprites;
         std::shared_ptr<const Terrain::DrawSpriteTable> sprites;
         // Slot-indexed descriptors; holes have generation/groupCount zero and cannot be selected.

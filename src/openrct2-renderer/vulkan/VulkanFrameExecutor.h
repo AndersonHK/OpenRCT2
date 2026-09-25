@@ -55,6 +55,7 @@ namespace OpenRCT2::Ui::Vulkan
         // Large catalog admissions live until the submitting slot's existing fence retires.
         // Ordinary frames continue to use the shared ring without another allocation.
         std::vector<std::unique_ptr<UploadRing>> _atlasAdmissions;
+        std::vector<std::unique_ptr<UploadRing>> _worldAdmissions;
         std::string _terrainFailure; // Terminal for this executor generation.
 
         TransparencyPipeline _transparencyPipeline;

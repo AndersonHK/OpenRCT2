@@ -25,7 +25,9 @@
 #include "../platform/Platform.h"
 #include "Drawing.Sprite.h"
 #include "RenderTarget.h"
+#include "SpriteAssetDecoder.h"
 #include "TTF.h"
+#include "TextGlyphRun.h"
 
 namespace OpenRCT2::Drawing
 {
@@ -451,7 +453,27 @@ namespace OpenRCT2::Drawing
         int32_t characterWidth = FontSpriteGetCodepointWidth(info.fontStyle, codepoint);
         auto sprite = FontSpriteGetCodepointSprite(info.fontStyle, codepoint);
 
-        if (!info.textDrawFlags.has(TextDrawFlag::noDraw))
+        if (info.glyphRun != nullptr)
+        {
+            TextGlyphPiece piece;
+            piece.waveOrdinal = info.glyphRun->waveCount++;
+            const auto* source = GfxGetG1Element(sprite);
+            if (source != nullptr)
+            {
+                piece.x = info.current.x + source->xOffset;
+                piece.y = info.current.y + source->yOffset;
+                piece.width = source->width;
+                piece.height = source->height;
+                const std::array<PaletteIndex, 8> palette{ PaletteIndex::transparent, info.palette.fill,
+                                                           info.palette.sunnyOutline, info.palette.shadowOutline };
+                const auto decoded = DecodeTrustedSpriteAsset(*source, palette);
+                piece.pixels.reserve(decoded.pixels.size());
+                for (const auto pixel : decoded.pixels)
+                    piece.pixels.push_back(EnumValue(pixel));
+                info.glyphRun->pieces.push_back(std::move(piece));
+            }
+        }
+        else if (!info.textDrawFlags.has(TextDrawFlag::noDraw))
         {
             auto screenCoords = info.current;
             if (info.textDrawFlags.has(TextDrawFlag::yOffsetEffect))
@@ -505,7 +527,33 @@ namespace OpenRCT2::Drawing
             return;
 
         auto drawingEngine = rt.DrawingEngine;
-        if (drawingEngine != nullptr)
+        if (info.glyphRun != nullptr)
+        {
+            const auto append = [&](int32_t dx, int32_t dy, PaletteIndex ink, uint32_t threshold) {
+                TextGlyphPiece piece;
+                piece.x = info.current.x + fontDesc->offset_x + dx;
+                piece.y = info.current.y + fontDesc->offset_y + dy;
+                piece.width = surface->w;
+                piece.height = surface->h;
+                piece.kind = 1;
+                piece.ink = EnumValue(ink);
+                piece.hintThreshold = threshold;
+                const auto* bytes = static_cast<const uint8_t*>(surface->pixels);
+                piece.pixels.assign(bytes, bytes + size_t(surface->w) * size_t(surface->h));
+                info.glyphRun->pieces.push_back(std::move(piece));
+            };
+            if (info.colourFlags.has(ColourFlag::withOutline))
+            {
+                append(1, 0, info.palette.shadowOutline, 0);
+                append(-1, 0, info.palette.shadowOutline, 0);
+                append(0, 1, info.palette.shadowOutline, 0);
+                append(0, -1, info.palette.shadowOutline, 0);
+            }
+            if (info.colourFlags.has(ColourFlag::inset))
+                append(1, 1, info.palette.shadowOutline, 0);
+            append(0, 0, info.palette.fill, Config::Get().fonts.enableHinting ? fontDesc->hinting_threshold : 0);
+        }
+        else if (drawingEngine != nullptr)
         {
             int32_t drawX = info.current.x + fontDesc->offset_x;
             int32_t drawY = info.current.y + fontDesc->offset_y;
@@ -569,7 +617,19 @@ namespace OpenRCT2::Drawing
                 auto g1 = GfxGetG1Element(imageId);
                 if (g1 != nullptr && g1->width <= 32 && g1->height <= 32)
                 {
-                    if (!info.textDrawFlags.has(TextDrawFlag::noDraw))
+                    if (info.glyphRun != nullptr)
+                    {
+                        TextGlyphPiece piece;
+                        piece.x = info.current.x + g1->xOffset;
+                        piece.y = info.current.y + g1->yOffset;
+                        piece.width = g1->width;
+                        piece.height = g1->height;
+                        const auto decoded = DecodeTrustedSpriteAsset(*g1);
+                        for (const auto pixel : decoded.pixels)
+                            piece.pixels.push_back(EnumValue(pixel));
+                        info.glyphRun->pieces.push_back(std::move(piece));
+                    }
+                    else if (!info.textDrawFlags.has(TextDrawFlag::noDraw))
                     {
                         GfxDrawSprite(rt, imageId, info.current);
                     }
@@ -811,6 +871,20 @@ namespace OpenRCT2::Drawing
      *
      *  rct2: 0x00682F28
      */
+    TextGlyphRun CompileTextGlyphRun(u8string_view text, ColourWithFlags colour, FontStyle fontStyle, bool forceSpriteFont)
+    {
+        TextGlyphRun result;
+        TextDrawInfo info{};
+        info.fontStyle = fontStyle;
+        info.glyphRun = &result;
+        if (!forceSpriteFont && LocalisationService_UseTrueTypeFont())
+            info.textDrawFlags.set(TextDrawFlag::ttf);
+        processInitialColour(colour, info);
+        RenderTarget unused{};
+        processString(unused, text, info);
+        return result;
+    }
+
     void drawStringWithYOffsets(
         RenderTarget& rt, const utf8* text, ColourWithFlags colour, const ScreenCoordsXY& coords, const int8_t* yOffsets,
         bool forceSpriteFont, FontStyle fontStyle)

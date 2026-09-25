@@ -13,9 +13,12 @@
 #include "../core/JobPool.h"
 #include "../entity/EntityPresentationSnapshot.h"
 #include "../world/MapPresentationSnapshot.h"
+#include "MoneyPresentation.h"
 #include "PresentationTask.h"
 #include "RetainedBalloonScene.h"
 #include "RetainedPeepState.h"
+#include "VehiclePresentation.h"
+#include "WorldEffectSnapshot.h"
 
 #include <atomic>
 #include <cstring>
@@ -26,21 +29,33 @@
 
 namespace OpenRCT2
 {
+    uint64_t NextRetainedPublicationEpoch()
+    {
+        static std::atomic<uint64_t> _nextRetainedPublicationEpoch{ 1 };
+        auto epoch = _nextRetainedPublicationEpoch.load(std::memory_order_relaxed);
+        do
+        {
+            if (epoch == UINT64_MAX)
+                throw std::overflow_error("Retained publication epoch exhausted");
+        } while (!_nextRetainedPublicationEpoch.compare_exchange_weak(epoch, epoch + 1, std::memory_order_relaxed));
+        return epoch;
+    }
+
     namespace
     {
+        bool SameRidePoseGeneration(
+            const std::shared_ptr<const WorldRidePoseSnapshot>& a, const std::shared_ptr<const WorldRidePoseSnapshot>& b)
+        {
+            if (a == b)
+                return true;
+            // Capture owns a fresh boundary wrapper even when all pose records are
+            // unchanged. Compare its immutable generation, not wrapper identity.
+            return a && b && a->epoch == b->epoch && a->entityEpoch == b->entityEpoch && a->revision == b->revision
+                && a->sourceTick == b->sourceTick && a->records == b->records;
+        }
+
         // A render consumer can outlive a scene owner. Allocate only at a complete combined-family
         // bootstrap, so recreated owners cannot alias held snapshots or resident chunk revisions.
-        std::atomic<uint64_t> _nextRetainedPublicationEpoch{ 1 };
-        uint64_t NextRetainedPublicationEpoch()
-        {
-            auto epoch = _nextRetainedPublicationEpoch.load(std::memory_order_relaxed);
-            do
-            {
-                if (epoch == UINT64_MAX)
-                    throw std::overflow_error("Retained publication epoch exhausted");
-            } while (!_nextRetainedPublicationEpoch.compare_exchange_weak(epoch, epoch + 1, std::memory_order_relaxed));
-            return epoch;
-        }
 
         class MapPresentationPublisher final
         {
@@ -131,6 +146,8 @@ namespace OpenRCT2
                     || changes.terrainMaterials != _front->GetTerrainMaterials()
                     || changes.pathMaterials != _front->GetPathMaterials()
                     || changes.objectMaterials != _front->GetObjectMaterials()
+                    || changes.bannerTexts != _front->GetBannerTexts()
+                    || !SameRidePoseGeneration(changes.ridePoses, _front->GetRidePoses())
                     || changes.rideMaterials != _front->GetRideMaterials() || changes.clockHour != _front->GetClockHour()
                     || changes.clockMinute != _front->GetClockMinute())
                 {
@@ -151,6 +168,8 @@ namespace OpenRCT2
                     && changes.terrainMaterials == _front->GetTerrainMaterials()
                     && changes.pathMaterials == _front->GetPathMaterials()
                     && changes.objectMaterials == _front->GetObjectMaterials()
+                    && changes.bannerTexts == _front->GetBannerTexts()
+                    && SameRidePoseGeneration(changes.ridePoses, _front->GetRidePoses())
                     && changes.rideMaterials == _front->GetRideMaterials() && changes.clockHour == _front->GetClockHour()
                     && changes.clockMinute == _front->GetClockMinute())
                     return;
@@ -214,8 +233,17 @@ namespace OpenRCT2
                 const auto copied = nextBalloons.GetLastApplyMetrics();
                 metrics.compatibilityCopiedBytes = copied.compatibilityCopiedBytes;
                 metrics.recordCopiedBytes = copied.recordCopiedBytes;
-                if (_profile == EntityPublicationProfile::nativePeeps)
-                    target.CaptureNativeStorage(registry, nextPeeps.GetSnapshot(), _peepAnimations);
+                if ((_profile == EntityPublicationProfile::nativePeeps || _profile == EntityPublicationProfile::gpuWorld))
+                    target.CaptureNativeStorage(
+                        registry, nextPeeps.GetSnapshot(), _peepAnimations, nextBalloons.GetSnapshot(),
+                        _profile == EntityPublicationProfile::gpuWorld
+                            ? Drawing::CaptureVehiclePresentationSnapshot(input.sourceTick)
+                            : nullptr,
+                        _profile == EntityPublicationProfile::gpuWorld ? Drawing::CaptureWorldEffects(input.sourceTick)
+                                                                       : nullptr,
+                        _profile == EntityPublicationProfile::gpuWorld
+                            ? Drawing::CaptureMoneyPresentationSnapshot(input.sourceTick)
+                            : nullptr);
                 else
                     target.CaptureStorage(
                         registry, nextBalloons.GetSnapshot(), metrics, nextPeeps.GetSnapshot(), _peepAnimations);
@@ -250,7 +278,7 @@ namespace OpenRCT2
                     return;
                 }
                 if ((_profile == EntityPublicationProfile::retainedPeepsAndBalloons
-                     || _profile == EntityPublicationProfile::nativePeeps))
+                     || _profile == EntityPublicationProfile::nativePeeps || _profile == EntityPublicationProfile::gpuWorld))
                 {
                     CaptureRetainedFamilies(target, registry);
                     return;
@@ -334,7 +362,7 @@ namespace OpenRCT2
             void SetPeepCatalog(JobPool& jobs, std::shared_ptr<const Drawing::RetainedPeepAnimationCatalog> catalog)
             {
                 if (_profile != EntityPublicationProfile::retainedPeepsAndBalloons
-                    && _profile != EntityPublicationProfile::nativePeeps)
+                    && _profile != EntityPublicationProfile::nativePeeps && _profile != EntityPublicationProfile::gpuWorld)
                 {
                     _peepAnimations.reset();
                     _peepObjectGenerations.clear();
@@ -474,16 +502,18 @@ namespace OpenRCT2
         try
         {
             if ((profile == EntityPublicationProfile::retainedPeepsAndBalloons
-                 || profile == EntityPublicationProfile::nativePeeps)
+                 || profile == EntityPublicationProfile::nativePeeps || profile == EntityPublicationProfile::gpuWorld)
                 && peepAnimations == nullptr)
                 throw std::invalid_argument("Combined publication requires an owned animation catalog");
             const bool catalogChanged = (profile == EntityPublicationProfile::retainedPeepsAndBalloons
-                                         || profile == EntityPublicationProfile::nativePeeps)
+                                         || profile == EntityPublicationProfile::nativePeeps
+                                         || profile == EntityPublicationProfile::gpuWorld)
                 && (_impl->generation == nullptr || _impl->generation->peepAnimations != peepAnimations);
             const bool profileChanged = _impl->profile != profile;
             // Terrain object replacement can retire atlas dependencies before an older queued map is admitted.
             // Refresh both sources at this exceptional lifecycle boundary; ordinary tile edits remain asynchronous.
-            const bool terrainCatalogChanged = profile == EntityPublicationProfile::gpuTerrainOnly
+            const bool terrainCatalogChanged = (profile == EntityPublicationProfile::gpuTerrainOnly
+                                                || profile == EntityPublicationProfile::gpuWorld)
                 && _impl->generation != nullptr && _impl->generation->map != nullptr
                 && (_impl->generation->map->GetTerrainMaterials() == nullptr
                     || _impl->generation->map->GetTerrainMaterials()->revision != GetTerrainObjectRevision()
@@ -496,16 +526,18 @@ namespace OpenRCT2
                 return false;
             _impl->map.SetProfile(
                 jobs,
-                profile == EntityPublicationProfile::gpuTerrainOnly ? MapPublicationProfile::rawTerrain
-                                                                    : MapPublicationProfile::legacyTiles);
+                (profile == EntityPublicationProfile::gpuTerrainOnly || profile == EntityPublicationProfile::gpuWorld)
+                    ? MapPublicationProfile::rawTerrain
+                    : MapPublicationProfile::legacyTiles);
             _impl->entities.SetProfile(jobs, profile);
             _impl->entities.SetPeepCatalog(jobs, std::move(peepAnimations));
             _impl->profile = profile;
             const bool entityEpochChanged = _impl->generation != nullptr
                 && _impl->generation->sourceEntityEpoch != entities.GetEntityVisualEpoch();
             const bool synchronous = _impl->retrySynchronously
-                || (synchronousMapPublication && profile != EntityPublicationProfile::gpuTerrainOnly) || profileChanged
-                || entityEpochChanged || catalogChanged || terrainCatalogChanged;
+                || (synchronousMapPublication
+                    && (profile != EntityPublicationProfile::gpuTerrainOnly && profile != EntityPublicationProfile::gpuWorld))
+                || profileChanged || entityEpochChanged || catalogChanged || terrainCatalogChanged;
 
             const bool worldEpochChanged = _impl->generation != nullptr && _impl->generation->map != nullptr
                 && _impl->generation->map->GetEpoch() != GetMapPresentationEpoch();
@@ -527,13 +559,15 @@ namespace OpenRCT2
                 _impl->entities.Reset(jobs);
             const auto entitySnapshot = synchronous ? _impl->entities.AcquireSynchronously(jobs, entities)
                                                     : _impl->entities.Acquire(jobs, entities);
-            const auto selected = _impl->pendingSelectedCaptured && !synchronous && !worldEpochChanged && !map.sceneReset
-                ? _impl->pendingSelected : Drawing::CaptureSelectedVehicleSnapshot(_impl->selectedRequests);
+            const auto selected = profile == EntityPublicationProfile::gpuWorld ? nullptr
+                : _impl->pendingSelectedCaptured && !synchronous && !worldEpochChanged && !map.sceneReset
+                ? _impl->pendingSelected
+                : Drawing::CaptureSelectedVehicleSnapshot(_impl->selectedRequests);
             if (map.snapshot->GetSourceTick() != entitySnapshot->GetSourceTick())
                 throw std::logic_error("Map and entity publication source ticks differ");
-            if (selected && (selected->sourceTick != map.snapshot->GetSourceTick()
-                || selected->worldEpoch != map.snapshot->GetEpoch()
-                || selected->entityEpoch != entitySnapshot->GetSourceEpoch()))
+            if (selected
+                && (selected->sourceTick != map.snapshot->GetSourceTick() || selected->worldEpoch != map.snapshot->GetEpoch()
+                    || selected->entityEpoch != entitySnapshot->GetSourceEpoch()))
                 throw std::logic_error("Selected-vehicle and world publication identities differ");
             _impl->generation = std::make_shared<PresentationGeneration>(PresentationGeneration{
                 .map = map.snapshot,
@@ -544,6 +578,9 @@ namespace OpenRCT2
                 .peeps = entitySnapshot->GetRetainedPeeps(),
                 .peepAnimations = entitySnapshot->GetPeepAnimations(),
                 .selectedVehicles = selected,
+                .vehicles = entitySnapshot->GetVehicles(),
+                .effects = entitySnapshot->GetEffects(),
+                .money = entitySnapshot->GetMoney(),
             });
             _impl->pendingSelected.reset();
             _impl->pendingSelectedCaptured = false;
@@ -573,7 +610,9 @@ namespace OpenRCT2
                 return;
             _impl->map.Schedule(jobs);
             _impl->entities.Schedule(jobs, entities);
-            _impl->pendingSelected = Drawing::CaptureSelectedVehicleSnapshot(_impl->selectedRequests);
+            _impl->pendingSelected = _impl->profile == EntityPublicationProfile::gpuWorld
+                ? nullptr
+                : Drawing::CaptureSelectedVehicleSnapshot(_impl->selectedRequests);
             _impl->pendingSelectedCaptured = true;
         }
         catch (...)

@@ -21,6 +21,12 @@
 #include <span>
 #include <vector>
 
+namespace OpenRCT2::Drawing
+{
+    struct VehiclePresentationSnapshot;
+    struct WorldEffectSnapshot;
+    struct MoneyPresentationSnapshot;
+} // namespace OpenRCT2::Drawing
 namespace OpenRCT2
 {
     /**
@@ -80,6 +86,9 @@ namespace OpenRCT2
         Drawing::BalloonPublicationMetrics _balloonMetrics{};
         std::shared_ptr<const Drawing::RetainedPeepSnapshot> _retainedPeeps;
         std::shared_ptr<const Drawing::RetainedPeepAnimationCatalog> _peepAnimations;
+        std::shared_ptr<const Drawing::VehiclePresentationSnapshot> _vehicles;
+        std::shared_ptr<const Drawing::WorldEffectSnapshot> _effects;
+        std::shared_ptr<const Drawing::MoneyPresentationSnapshot> _money;
 
     public:
         EntityPresentationSnapshot();
@@ -115,7 +124,23 @@ namespace OpenRCT2
         // Native snapshots own semantic state only, with no legacy entity copies or CPU spatial tables.
         void CaptureNativeStorage(
             EntityRegistry& registry, std::shared_ptr<const Drawing::RetainedPeepSnapshot> peeps,
-            std::shared_ptr<const Drawing::RetainedPeepAnimationCatalog> catalog);
+            std::shared_ptr<const Drawing::RetainedPeepAnimationCatalog> catalog,
+            std::shared_ptr<const Drawing::RetainedBalloonSnapshot> balloons = {},
+            std::shared_ptr<const Drawing::VehiclePresentationSnapshot> vehicles = {},
+            std::shared_ptr<const Drawing::WorldEffectSnapshot> effects = {},
+            std::shared_ptr<const Drawing::MoneyPresentationSnapshot> money = {});
+        const auto& GetMoney() const noexcept
+        {
+            return _money;
+        }
+        const auto& GetVehicles() const noexcept
+        {
+            return _vehicles;
+        }
+        const auto& GetEffects() const noexcept
+        {
+            return _effects;
+        }
         [[nodiscard]] bool IsNativeOnly() const noexcept
         {
             return _nativeOnly;

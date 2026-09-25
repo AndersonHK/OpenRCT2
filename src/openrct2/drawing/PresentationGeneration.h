@@ -23,6 +23,9 @@ namespace OpenRCT2
         struct RetainedPeepSnapshot;
         struct RetainedPeepAnimationCatalog;
         struct SelectedVehicleSnapshot;
+        struct VehiclePresentationSnapshot;
+        struct WorldEffectSnapshot;
+        struct MoneyPresentationSnapshot;
     } // namespace Drawing
     enum class EntityPublicationProfile : uint8_t
     {
@@ -30,7 +33,8 @@ namespace OpenRCT2
         retainedBalloons,
         retainedPeepsAndBalloons,
         nativePeeps,
-        gpuTerrainOnly
+        gpuTerrainOnly,
+        gpuWorld
     };
     class EntityPresentationSnapshot;
     class MapPresentationSnapshot;
@@ -50,6 +54,9 @@ namespace OpenRCT2
         std::shared_ptr<const Drawing::RetainedPeepSnapshot> peeps;
         std::shared_ptr<const Drawing::RetainedPeepAnimationCatalog> peepAnimations;
         std::shared_ptr<const Drawing::SelectedVehicleSnapshot> selectedVehicles;
+        std::shared_ptr<const Drawing::VehiclePresentationSnapshot> vehicles;
+        std::shared_ptr<const Drawing::WorldEffectSnapshot> effects;
+        std::shared_ptr<const Drawing::MoneyPresentationSnapshot> money;
     };
 
     /** Integer camera state latched with one world-scene submission. */

@@ -12,6 +12,7 @@
 #include "../Diagnostic.h"
 #include "../GameState.h"
 #include "../OpenRCT2.h"
+#include "../core/CodepointView.hpp"
 #include "../drawing/PaletteIndex.h"
 #include "../drawing/ScrollingText.h"
 #include "../localisation/Formatter.h"
@@ -595,9 +596,14 @@ std::shared_ptr<const WorldBannerPresentation> OpenRCT2::CaptureWorldBannerTexts
     static std::shared_ptr<const WorldBannerPresentation> captured;
     static std::shared_ptr<const WorldRidePresentationMaterials> capturedRides;
     static uint64_t capturedEpoch{}, capturedAssets{}, nextRevision{};
+    static std::string capturedParkName;
+    static bool capturedParkOpen{};
+    const auto& park = getGameState().park;
+    const bool parkOpen = park.flags.has(ParkFlag::parkOpen);
+    const bool parkChanged = capturedParkName != park.name || capturedParkOpen != parkOpen;
     const auto assets = Drawing::ScrollingText::getAssetRevision();
     const bool reset = captured == nullptr || capturedEpoch != _bannerTextEpoch || capturedAssets != assets;
-    if (!reset && _dirtyBannerCount == 0 && capturedRides == rides)
+    if (!reset && _dirtyBannerCount == 0 && capturedRides == rides && !parkChanged)
         return captured;
 
     auto next = captured != nullptr && !reset ? std::make_shared<WorldBannerPresentation>(*captured)
@@ -607,11 +613,29 @@ std::shared_ptr<const WorldBannerPresentation> OpenRCT2::CaptureWorldBannerTexts
             Drawing::ScrollingText::compileTextColumns(text, Drawing::PaletteIndex::transparent));
     };
     next->banners.resize(getGameState().banners.size());
+    next->plainBanners.resize(next->banners.size());
+    next->objectFontText.resize(next->banners.size());
     const auto captureBanner = [&](size_t index) {
         if (index >= next->banners.size())
             return;
         const auto* banner = GetBanner(BannerIndex::FromUnderlying(static_cast<uint16_t>(index)));
         next->banners[index] = banner != nullptr ? compile(banner->getTextWithColour()) : nullptr;
+        next->plainBanners[index] = banner != nullptr
+            ? std::make_shared<const Drawing::ScrollingText::TextColumns>(
+                  Drawing::ScrollingText::compileTextColumns(banner->getText(), Drawing::PaletteIndex::transparent, true))
+            : nullptr;
+        next->objectFontText[index].reset();
+        if (banner != nullptr)
+        {
+            Formatter formatter;
+            banner->formatTextTo(formatter);
+            char formatted[256]{};
+            FormatStringLegacy(formatted, sizeof(formatted), STR_STRINGID, formatter.Data());
+            auto codepoints = std::make_shared<std::vector<uint32_t>>();
+            for (const auto codepoint : CodepointView(formatted))
+                codepoints->push_back(codepoint);
+            next->objectFontText[index] = std::move(codepoints);
+        }
     };
     if (reset)
     {
@@ -640,11 +664,16 @@ std::shared_ptr<const WorldBannerPresentation> OpenRCT2::CaptureWorldBannerTexts
             }
         }
     }
+    if (reset || parkChanged)
+        next->parkEntrance = compile(
+            parkOpen ? Drawing::ScrollingText::kParkBannerColourPrefix + park.name : LanguageGetString(STR_BANNER_TEXT_CLOSED));
     next->revision = ++nextRevision;
     captured = std::move(next);
     capturedRides = rides;
     capturedEpoch = _bannerTextEpoch;
     capturedAssets = assets;
+    capturedParkName = park.name;
+    capturedParkOpen = parkOpen;
     _dirtyBannerText.reset();
     _dirtyBannerCount = 0;
     return captured;

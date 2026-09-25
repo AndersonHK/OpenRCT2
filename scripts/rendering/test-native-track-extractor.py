@@ -44,6 +44,56 @@ class NativeTrackExtractorTest(unittest.TestCase):
             translate_fixture('int32_t value=0; if (TrackPaintUtilShouldPaintSupports(session.MapPosition)) {'
                               'switch(direction) { case 0: value=7; break; } } '+rail(903))
 
+    def test_station_cover_requires_matching_owned_edge_and_never_folds_fence_branch(self):
+        prefix=('const auto* stationObj=ride.getStationObject(); '
+                'auto colour=GetStationColourScheme(session,trackElement); '
+                'bool fence=TrackPaintUtilHasFence(EDGE_NE,session.MapPosition,trackElement,ride,session.CurrentRotation); ')
+        cover='TrackPaintUtilDrawStationCovers(session,EDGE_NE,fence,stationObj,height,colour);'
+        self.assertEqual(translate_fixture(prefix+cover),[(EXTRACTOR.STATION_PART,0,0,40,0,0,0,0,7,0,0,-1)])
+        for bad in (cover.replace('EDGE_NE','EDGE_NW'),cover.replace('fence,','true,'),
+                    'if(fence) {'+rail(901)+'}',cover.replace('stationObj','otherObject')):
+            with self.assertRaises(EXTRACTOR.Unsupported): translate_fixture(prefix+bad)
+
+    def test_immutable_array_pointer_uses_pointee_not_declarator_extent(self):
+        env={'table':[[11,12],[21,22]]}
+        self.assertTrue(EXTRACTOR.declaration(EXTRACTOR.tokens('const uint32_t (*sprites)[2] = table'),env))
+        self.assertEqual(EXTRACTOR.evaluate(EXTRACTOR.tokens('sprites[1][0]'),env),21)
+        with self.assertRaises(EXTRACTOR.Unsupported):
+            EXTRACTOR.evaluate(EXTRACTOR.tokens('sprites[2][0]'),env)
+
+    def test_spritebb_brace_elision_retains_four_fields_and_rejects_missing_geometry(self):
+        fields='{7,{1,2,3},{4,5,6},{7,8,9},8,{2,3,4},{5,6,7},{8,9,10}}'
+        v=EXTRACTOR.SpriteBbCArrayDeferred(EXTRACTOR.tokens('{'+fields+'}'),['1','2']).resolve({})
+        self.assertEqual(v,[[[7,[1,2,3],[4,5,6],[7,8,9]],[8,[2,3,4],[5,6,7],[8,9,10]]]])
+        with self.assertRaises(EXTRACTOR.Unsupported):
+            EXTRACTOR.SpriteBbCArrayDeferred(EXTRACTOR.tokens('{{7,{1,2,3}}}'),['1','1']).resolve({})
+
+    def test_partial_box_array_keeps_zero_siblings_before_mirroring(self):
+        value=EXTRACTOR.ArrayDeferred(EXTRACTOR.tokens('{{{{{1,2,3},{4,5,6}}}}}'),['3'],box=True).resolve({})
+        self.assertEqual(value,[[[1,2,3],[4,5,6]],[[0,0,0],[0,0,0]],[[0,0,0],[0,0,0]]])
+
+    def test_animation_expressions_do_not_admit_time_dependent_branch_or_geometry(self):
+        expression='(getGameState().currentTicks / 2) & 7'
+        with self.assertRaises(EXTRACTOR.Unsupported):
+            translate_fixture('if ('+expression+') {'+rail(901)+'}')
+        with self.assertRaises(EXTRACTOR.Unsupported):
+            translate_fixture('auto frame='+expression+'; '+
+                'PaintAddImageAsParent(session, session.TrackColours.WithIndex(901), {0,0,height}, {32,20,frame});')
+        with self.assertRaises(EXTRACTOR.Unsupported):
+            EXTRACTOR.evaluate(EXTRACTOR.tokens('(getGameState().currentTicks / 3) % 7'),{})
+
+    def test_clock_indexed_images_require_exact_contiguous_table_and_preserve_colour_role(self):
+        frame=EXTRACTOR.evaluate(EXTRACTOR.tokens('(getGameState().currentTicks >> 2) & 3'),{})
+        value=EXTRACTOR.evaluate(EXTRACTOR.tokens('frames[frame]'),{'frames':[40,41,42,43],'frame':frame})
+        self.assertEqual(value.encode(),0x80000000 | (2<<19) | (2<<22) | 40)
+        for table in ([40,42,43,44],[40,41,42],[40,41,42,43,44]):
+            with self.assertRaises(EXTRACTOR.Unsupported):
+                EXTRACTOR.evaluate(EXTRACTOR.tokens('frames[frame]'),{'frames':table,'frame':frame})
+        body='auto support=session.SupportColours; auto track=session.TrackColours; '
+        body+='if(track.HasSecondary()) { support=support.WithSecondary(track.GetSecondary()); } '
+        body+='PaintAddImageAsParent(session,support.WithIndex(40),{0,0,height},{32,20,2});'
+        self.assertEqual(translate_fixture(body)[0][10],1)
+
     def test_local_track_type_alias_is_value_not_recursive_deferred_reference(self):
         self.assertEqual(translate_fixture('auto trackType=trackElement.getTrackType(); '
                          'if(trackType==0) {'+rail(904)+'}')[0][0],904)
@@ -229,6 +279,26 @@ class NativeTrackExpandedSourceTest(unittest.TestCase):
         result=[];t.paint(source,name,sequence,direction,0,state,result,track_type=track_type)
         return result
 
+    def test_go_karts_station_keeps_interleaved_covers_grid_and_signal_state(self):
+        # Literal source tables: middle/begin grid20764..67/front20768..71;
+        # end grid20756..59/front20760..63. Covers stay between calls.
+        red=((20808,20814),(20810,20816),(20811,20817),(20812,20818))
+        green=((20809,20815),(20810,20816),(20811,20817),(20813,20819))
+        for kind in (1,2,3):
+            for direction in range(4):
+                for light in (0,32):
+                    parts=self.parts(24,kind,direction=direction,state=light)
+                    self.assertEqual([p[0] for p in parts[:4]],[
+                        (20756 if kind==1 else 20764)+direction,EXTRACTOR.STATION_PART,
+                        (20760 if kind==1 else 20768)+direction,EXTRACTOR.STATION_PART])
+                    self.assertEqual([parts[i][1] for i in (1,3)],( [0,2] if direction&1 else [3,1]))
+                    self.assertTrue(all(parts[i][8]==7 and parts[i][2]==0 for i in (1,3)))
+                    self.assertEqual(parts[0][4:10],(2,0,0,28,32,1) if direction&1 else (0,2,0,32,28,1))
+                    self.assertEqual(parts[2][4:10],(29,0,2,1,32,3) if direction&1 else (0,29,2,32,1,3))
+                    self.assertEqual(tuple(p[0] for p in parts[4:]),(green if light else red)[direction] if kind==1 else ())
+                    self.assertEqual(parts,self.parts(24,kind,direction=direction,state=light|64))
+                    self.assertTrue(all(p[-1]==-1 for p in parts))
+
     def test_junior_water_chain_and_station_brakes_remain_distinct(self):
         for direction in range(4):
             for style,chain in ((31,27913),(78,27983)):
@@ -395,6 +465,99 @@ class NativeTrackExpandedSourceTest(unittest.TestCase):
         self.assertEqual(self.parts(54,0)[0][0],26227)
         self.assertEqual(self.parts(54,16)[0][0],26310)
         self.assertNotEqual(self.parts(54,0),self.parts(53,0))
+
+    def test_source_river_rapids_fixed_channel_and_all_slope_views(self):
+        for direction in range(4):
+            self.assertEqual([p[0] for p in self.parts(58,0,direction=direction)],
+                             [21132+direction,21136+direction])
+            for kind,base in ((4,21156),(6,21140),(9,21148),(10,21180),(12,21172),(15,21164)):
+                parts=self.parts(58,kind,direction=direction)
+                view=(direction+2)%4 if kind in (10,12,15) else direction
+                self.assertEqual([p[0] for p in parts],[base+view,base+view+4])
+            for kind in (1,2,3):
+                parts=self.parts(58,kind,direction=direction,state=64)
+                self.assertEqual([p[0] for p in parts[:2]],[21132+direction,21136+direction])
+                self.assertEqual(parts[2][0],EXTRACTOR.STATION_PART)
+        # Animated mechanisms are checked separately against complete source periods.
+
+    def test_river_rapids_animation_tags_match_every_source_frame_and_preserve_geometry(self):
+        for kind,shift,bits,count in ((112,1,3,5),(113,1,3,2),(120,2,4,3)):
+            for direction in range(4):
+                symbolic=self.parts(58,kind,direction=direction)
+                self.assertEqual(len(symbolic),count)
+                animated=[i for i,p in enumerate(symbolic) if p[0]&0x80000000]
+                self.assertEqual(animated,{112:[1,2,4],113:[0],120:[1]}[kind])
+                for i in animated:
+                    self.assertEqual((symbolic[i][0]>>19)&7,shift)
+                    self.assertEqual((symbolic[i][0]>>22)&7,bits)
+                try:
+                    for tick in list(range(1<<(shift+bits)))+[0xfffffffe,0xffffffff]:
+                        EXTRACTOR.AUTHORING_TICK_OVERRIDE=tick
+                        literal=self.parts(58,kind,direction=direction)
+                        self.assertEqual(len(literal),len(symbolic))
+                        for authored,original in zip(symbolic,literal):
+                            word=authored[0]
+                            expected=(word&0x7ffff)+((tick>>shift)&((1<<bits)-1)) if word&0x80000000 else word
+                            self.assertEqual(expected,original[0])
+                            self.assertEqual(authored[1:],original[1:])
+                finally: EXTRACTOR.AUTHORING_TICK_OVERRIDE=None
+        # Explicit source IDs guard against both paths accidentally sharing a bad base.
+        self.assertEqual([p[0]&0x7ffff for p in self.parts(58,112)],[21204,21212,21244,21208,21228])
+        self.assertEqual([p[0]&0x7ffff for p in self.parts(58,113,direction=1)],[21269,21277])
+        self.assertEqual(self.parts(58,120)[1][0]&0x7ffff,21278)
+
+    def test_source_five_tile_curves_and_gokart_eighths_cover_every_sequence(self):
+        for style in (1,14,15,65):
+            for kind in (16,17):
+                for direction in range(4):
+                    for sequence in range(7):
+                        parts=self.parts(style,kind,sequence,direction)
+                        self.assertEqual(bool(parts),sequence not in (1,4))
+                        if style==65 and parts: self.assertEqual(len(parts),2)
+        for kind in (134,135):
+            for direction in range(4):
+                for sequence in range(5):
+                    parts=self.parts(24,kind,sequence,direction)
+                    self.assertTrue(parts)
+                    self.assertTrue(all(p[0]!=0xffffffff for p in parts))
+
+    def test_gokarts_single_initialized_box_is_not_split_into_coordinates(self):
+        # GoKarts.cpp kGoKartsLeftQuarterTurn5TilesBoundBoxes[0][1] has
+        # one initialized box and two zero siblings inside std::array<...,3>.
+        part=self.parts(24,16,sequence=1,direction=0)[0]
+        self.assertEqual(part,(35725,0,0,0,0,16,0,16,16,1,0,-1))
+        part=self.parts(24,16,sequence=4,direction=2)[0]
+        self.assertEqual(part[4:10],(16,0,0,16,16,1))
+
+    def test_monorail_eighth_curve_tables_keep_authored_xy_bounds(self):
+        for kind in (133,134,135,136):
+            for direction in range(4):
+                rows=[self.parts(50,kind,sequence,direction) for sequence in range(5)]
+                self.assertEqual(sum(bool(row) for row in rows),4)
+                self.assertTrue(all(len(row)<=1 for row in rows))
+        self.assertEqual(self.parts(50,134)[0][4:10],(0,6,0,32,20,2))
+        self.assertEqual(self.parts(50,134,sequence=4)[0][4:10],(16,0,0,16,16,2))
+
+    def test_source_spinning_tunnels_keep_clock_frames_back_child_front_parent_and_colours(self):
+        for style in (5,23,46):
+            for direction in range(4):
+                symbolic=self.parts(style,173,direction=direction)
+                self.assertEqual([p[-1] for p in symbolic[-2:]],[0,-1])
+                self.assertEqual([p[10] for p in symbolic[-2:]],[1,1])
+                self.assertEqual(symbolic[-2][9],3 if style==23 else 1)
+                try:
+                    for tick in list(range(16))+[0xffffffff]:
+                        EXTRACTOR.AUTHORING_TICK_OVERRIDE=tick
+                        literal=self.parts(style,173,direction=direction)
+                        self.assertEqual([p[0] for p in literal[-2:]],
+                            [28865+(direction&1)*4+(tick//4)%4,28873+(direction&1)*4+(tick//4)%4])
+                        self.assertEqual(len(symbolic),len(literal))
+                        for authored,original in zip(symbolic,literal):
+                            word=authored[0]
+                            expected=(word&0x7ffff)+((tick>>2)&3) if word&0x80000000 else word
+                            self.assertEqual(expected,original[0])
+                            self.assertEqual(authored[1:],original[1:])
+                finally: EXTRACTOR.AUTHORING_TICK_OVERRIDE=None
 
     def test_gokarts_height_relative_nested_array_art(self):
         for kind,images in ((5,[35621,35622]),(7,[35605,35606]),(8,[35613,35614]),(16,[35723,35724])):
@@ -582,6 +745,88 @@ class WoodenAuthoringTest(unittest.TestCase):
                     if rotation: found.append((kind,seq,rotation))
                 except EXTRACTOR.Unsupported: pass
         self.assertTrue(found)
+
+
+class SupportCompletenessTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls): cls.t=EXTRACTOR.WoodenSupportTranslator(ROOT)
+    def capture(self,style,kind,sequence,direction,height=100,state=0):
+        t=self.t;source,name=t.getter(t.getters[style],kind,state=state)
+        t.support_ops=[];t.support_gaps=set();t.support_predicate=0;parts=[]
+        t.paint(source,name,sequence,direction,height,state,parts,track_type=kind)
+        return parts,list(t.support_ops),set(t.support_gaps)
+    def test_numeric_c_array_declared_zero_tail_and_signed_values(self):
+        source=EXTRACTOR.Source('fixture.cpp','static constexpr int8_t offsets[][7]={{0,0,0,0,0,0,-1},{-1},{0},{}};')
+        values=EXTRACTOR.evaluate(EXTRACTOR.tokens('offsets'),source.globals)
+        self.assertEqual(values,[[0,0,0,0,0,0,-1],[-1,0,0,0,0,0,0],[0]*7,[0]*7])
+        with self.assertRaises(EXTRACTOR.Unsupported):
+            EXTRACTOR.evaluate(EXTRACTOR.tokens('offsets[2][7]'),source.globals)
+    def test_all_six_previously_rejected_curve_support_programs(self):
+        for style in (31,51,78):
+            for kind in (16,17):
+                for sequence in range(7):
+                    for direction in range(4):
+                        _,ops,gaps=self.capture(style,kind,sequence,direction)
+                        self.assertEqual(ops[-1][0],4)
+                        self.assertEqual(ops[-1][4],132)
+                        self.assertFalse(gaps)
+                        metal=[op for op in ops if op[0] in (1,2)]
+                        self.assertEqual(len(metal),int(sequence in ((0,2,5,6) if style==51 else (0,6))))
+        # Right turn source direction0/last sequence deliberately lowers its cap1.
+        _,ops,_=self.capture(31,17,6,0)
+        self.assertEqual(ops[0][4],99)
+    def test_helix_supports_use_original_ted_not_reversed_image_indices(self):
+        for direction in range(4):
+            _,start,gaps=self.capture(2,106,0,direction)
+            self.assertFalse(gaps)
+            self.assertEqual(start[0][:6],(1,255,4,direction,100,4))
+            self.assertEqual(start[-1][4],148)
+            _,end,_=self.capture(2,106,6,direction)
+            self.assertEqual(end[0][:6],(1,255,4,(direction-1)&3,108,8))
+            _,down,_=self.capture(2,108,0,direction)
+            self.assertEqual(down[0][:6],(1,255,4,(direction+2)&3,108,8))
+        _,left,_=self.capture(2,106,0,0)
+        _,right,_=self.capture(2,107,0,0)
+        self.assertEqual(left[-2][6],419)
+        self.assertEqual(right[-2][6],302)
+        for kind in range(102,110):
+            for sequence in range(7):
+                for direction in range(4):
+                    _,ops,gaps=self.capture(2,kind,sequence,direction)
+                    self.assertFalse(gaps)
+                    self.assertEqual([op[0] for op in ops[-2:]],[3,4])
+    def test_station_art_helpers_do_not_report_fictitious_support_omissions(self):
+        for style in (1,3,30,39,69):
+            _,ops,gaps=self.capture(style,1,0,0,state=64)
+            self.assertFalse(gaps)
+    def test_photo_platform_columns_and_photo2_state_are_not_swallowed_by_art_adapter(self):
+        t=self.t
+        for direction in range(4):
+            source=EXTRACTOR.Source('fixture.cpp','void Fixture(){TrackPaintUtilOnridePhotoPlatformPaint(session,direction,height,MetalSupportType::tubes);TrackPaintUtilOnridePhotoPaint2(session,direction,trackElement,height,64,7);}')
+            t.support_ops=[];t.support_gaps=set();parts=[]
+            t.paint(source,'Fixture',0,direction,100,0,parts)
+            self.assertEqual([op[0] for op in t.support_ops],[1,1,3,4])
+            self.assertEqual([op[2] for op in t.support_ops[:2]],list((6,7) if direction&1 else (5,8)))
+            self.assertEqual([op[11] for op in t.support_ops[:2]],[1,1])
+            self.assertEqual(t.support_ops[-2][4:8],(65535,0,511,0))
+            self.assertEqual(t.support_ops[-1][4],164)
+            self.assertEqual(parts[0][0],22432)
+            self.assertEqual(parts[1][0],EXTRACTOR.PHOTO_PART)
+            self.assertEqual(parts[1][3],107)
+        source=EXTRACTOR.Source('fixture.cpp','void Fixture(){TrackPaintUtilOnridePhotoPaint2(session,direction,trackElement,height);}')
+        t.support_ops=[];t.paint(source,'Fixture',0,0,100,0,[])
+        self.assertEqual(t.support_ops[-1][4],148)
+    def test_diagonal_extra_helper_retains_non_owner_direction_supports(self):
+        t=self.t
+        source=EXTRACTOR.Source('fixture.cpp','void Fixture(){uint32_t sprites[4]={100,101,102,103};TrackPaintUtilDiagTilesPaintExtra(session,1,height,direction,trackSequence,sprites,MetalSupportType::tubes);}')
+        for sequence in range(4):
+            for direction in range(4):
+                t.support_ops=[];t.support_gaps=set();parts=[]
+                t.paint(source,'Fixture',sequence,direction,100,0,parts)
+                self.assertEqual(len(parts),int(direction==(3,0,2,1)[sequence]))
+                self.assertEqual([op[0] for op in t.support_ops],([1] if sequence==3 else [])+[3,4])
+                if sequence==3:
+                    self.assertEqual(t.support_ops[0][:6],(1,0,1,direction,100,0))
 
 
 if __name__ == '__main__':

@@ -17,7 +17,7 @@ namespace OpenRCT2::Ui::Gpu
     {
 #include "../../../data/shaders/vulkan/world_metal_support_rules.glsl"
 #include "../../../data/shaders/vulkan/world_wooden_support_rules.glsl"
-    }
+    } // namespace MetalSupportRules
     struct WorldTrackCatalog
     {
         // Header (16 words): magic,version,recipeOffset,rideOffset,rideCount,
@@ -196,7 +196,8 @@ namespace OpenRCT2::Ui::Gpu
                             continue;
                         }
                         if (image != 0xfffffffeu)
-                            images.push_back(image);
+                            for (uint32_t frame = 0; frame < Drawing::GetNativeTrackImageFrameCount(image); ++frame)
+                                images.push_back(Drawing::GetNativeTrackImageAtTick(image, 0) + frame);
                         else
                             needsStations = true;
                     }

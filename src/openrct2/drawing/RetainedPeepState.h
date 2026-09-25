@@ -100,7 +100,8 @@ namespace OpenRCT2::Drawing
 
     constexpr size_t kRetainedPeepChunkWidth = 64;
     constexpr size_t kRetainedPeepChunkCount = (kMaxEntities + kRetainedPeepChunkWidth - 1) / kRetainedPeepChunkWidth;
-    template<typename T> struct RetainedPeepFieldChunk
+    template<typename T>
+    struct RetainedPeepFieldChunk
     {
         std::array<T, kRetainedPeepChunkWidth> values{};
         // Latest absolute values accumulate all changes since any earlier same-epoch consumer revision.
@@ -118,10 +119,15 @@ namespace OpenRCT2::Drawing
     {
         uint64_t epoch{}, sequence{};
         size_t count{};
+        // Object-bank admission changes only when the first/last live owner changes. Motion,
+        // animation and recolouring share these immutable values with earlier snapshots.
+        std::shared_ptr<const std::map<uint32_t, uint32_t>> objectUseCounts;
+        std::shared_ptr<const std::vector<uint32_t>> usedObjects;
         std::array<std::shared_ptr<const RetainedPeepChunk>, kRetainedPeepChunkCount> chunks{};
         std::optional<RetainedPeepRecord> TryGet(EntityId id) const noexcept;
     };
-    template<typename T> struct RetainedPeepFieldUpdate
+    template<typename T>
+    struct RetainedPeepFieldUpdate
     {
         uint32_t id{}, generation{};
         T value;
@@ -150,13 +156,20 @@ namespace OpenRCT2::Drawing
     class RetainedPeepFieldConsumer
     {
         uint64_t _epoch{}, _sequence{};
+
     public:
         // Prepare is non-consuming. A dropped/failed GPU recording cannot lose changes or advance the base.
         RetainedPeepFieldDelta Prepare(std::shared_ptr<const RetainedPeepSnapshot> snapshot) const;
         // Commit all four groups together only after their owning submission is accepted. A stale prepared base fails.
         void Commit(const RetainedPeepFieldDelta& delta);
-        uint64_t GetEpoch() const noexcept { return _epoch; }
-        uint64_t GetSequence() const noexcept { return _sequence; }
+        uint64_t GetEpoch() const noexcept
+        {
+            return _epoch;
+        }
+        uint64_t GetSequence() const noexcept
+        {
+            return _sequence;
+        }
     };
     struct RetainedPeepBatch
     {
@@ -197,8 +210,14 @@ namespace OpenRCT2::Drawing
         // Sequences are lifetime-monotonic, even across epochs. Entity generations use half-range ordering;
         // a producer must not coalesce >= 2^31 slot reincarnations into one delta.
         bool Apply(const RetainedPeepBatch& batch, uint64_t sequence);
-        const std::shared_ptr<const RetainedPeepSnapshot>& GetSnapshot() const noexcept { return _snapshot; }
-        RetainedPeepApplyMetrics GetLastApplyMetrics() const noexcept { return _metrics; }
+        const std::shared_ptr<const RetainedPeepSnapshot>& GetSnapshot() const noexcept
+        {
+            return _snapshot;
+        }
+        RetainedPeepApplyMetrics GetLastApplyMetrics() const noexcept
+        {
+            return _metrics;
+        }
     };
 
     struct RetainedPeepAnimationFact
@@ -254,6 +273,6 @@ namespace OpenRCT2::Drawing
     // New immutable catalog, strong-owned object facts, no borrowed ObjectManager pointer.
     // Uses the same epoch/reset and lifetime-monotonic sequence contract as RetainedPeepScene.
     std::shared_ptr<const RetainedPeepAnimationCatalog> PublishRetainedPeepAnimationCatalog(
-        const std::shared_ptr<const RetainedPeepAnimationCatalog>& previous, uint64_t epoch, uint64_t sequence,
-        bool reset, std::span<const RetainedPeepAnimationChange> changes);
-}
+        const std::shared_ptr<const RetainedPeepAnimationCatalog>& previous, uint64_t epoch, uint64_t sequence, bool reset,
+        std::span<const RetainedPeepAnimationChange> changes);
+} // namespace OpenRCT2::Drawing

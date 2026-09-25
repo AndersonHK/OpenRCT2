@@ -9,6 +9,11 @@
 #include <set>
 #include <span>
 
+namespace ComponentDepthRules
+{
+#include "../../data/shaders/vulkan/world_component_depth.glsl"
+}
+
 namespace TrackDepthRules
 {
 #include "../../data/shaders/vulkan/world_track_depth.glsl"
@@ -78,7 +83,8 @@ namespace
                                     continue;
                                 }
                                 if (recipe[part] != 0xfffffffeu)
-                                    images.insert(recipe[part]);
+                                    for (uint32_t tick = 0; tick < 128; ++tick)
+                                        images.insert(OpenRCT2::Drawing::GetNativeTrackImageAtTick(recipe[part], tick));
                                 else
                                     for (uint32_t image = SPR_STATION_PLATFORM_SW_NE; image <= SPR_STATION_BASE_BORDERLESS;
                                          ++image)
@@ -206,7 +212,7 @@ TEST(WorldTrackRulesTest, LoopingFlatOriginalIdsChainAndRotatedBounds)
         }
 }
 
-TEST(WorldTrackRulesTest, NamedLoopingFlatContactIsAboveItsCentreColumnWithoutMovingRaster)
+TEST(WorldTrackRulesTest, OwnRailEnvelopeOccludesCentreSupportsWithoutMovingEitherRasterAnchor)
 {
     namespace Support = OpenRCT2::Ui::Gpu::MetalSupportRules;
     constexpr int trackHeight = 128;
@@ -214,16 +220,14 @@ TEST(WorldTrackRulesTest, NamedLoopingFlatContactIsAboveItsCentreColumnWithoutMo
         for (uint32_t chain = 0; chain < 2; ++chain)
         {
             const auto rail = Recipe(
-                static_cast<uint32_t>(TrackStyle::loopingRollerCoaster),
-                static_cast<uint32_t>(OpenRCT2::TrackElemType::flat), 0, direction, chain);
+                static_cast<uint32_t>(TrackStyle::loopingRollerCoaster), static_cast<uint32_t>(OpenRCT2::TrackElemType::flat),
+                0, direction, chain);
             ASSERT_EQ(rail.size(), 12u);
-            ASSERT_TRUE(TrackDepthRules::worldTrackHasCentreContactAnchor(0, 0, static_cast<int>(rail[0])));
-            // The immutable original draw offset remains (0,0,0). Only the
-            // explicitly named support contact supplies the depth anchor.
+            // Original rail and support draw offsets remain unchanged. The
+            // owner relation caps support depth, independent of image/style IDs.
             EXPECT_EQ(rail[1], 0u);
             EXPECT_EQ(rail[2], 0u);
             EXPECT_EQ(rail[3], 0u);
-            const int contactDepth = 16 + 16 + trackHeight;
             for (int metal = 0; metal < 8; ++metal)
             {
                 Support::WorldSupportState state;
@@ -243,7 +247,9 @@ TEST(WorldTrackRulesTest, NamedLoopingFlatContactIsAboveItsCentreColumnWithoutMo
                     ASSERT_EQ(part.x, 16);
                     ASSERT_EQ(part.y, 16);
                     const int columnDepth = part.x + part.y + part.z;
-                    EXPECT_LT(columnDepth, contactDepth);
+                    const int supportedDepth = TrackDepthRules::worldTrackUnderRailDepth(columnDepth, trackHeight);
+                    EXPECT_LT(supportedDepth, trackHeight);
+                    EXPECT_EQ(supportedDepth, columnDepth < trackHeight ? columnDepth : trackHeight - 1);
                     maximumColumnDepth = std::max(maximumColumnDepth, columnDepth);
                 }
                 EXPECT_GT(parts, 0);
@@ -251,10 +257,7 @@ TEST(WorldTrackRulesTest, NamedLoopingFlatContactIsAboveItsCentreColumnWithoutMo
                 // of its own rail. This is the concrete regression covered.
                 EXPECT_GT(maximumColumnDepth, trackHeight);
             }
-            EXPECT_FALSE(TrackDepthRules::worldTrackHasCentreContactAnchor(40, 0, static_cast<int>(rail[0])));
-            EXPECT_FALSE(TrackDepthRules::worldTrackHasCentreContactAnchor(0, 1, static_cast<int>(rail[0])));
         }
-    EXPECT_FALSE(TrackDepthRules::worldTrackHasCentreContactAnchor(0, 0, 15350)); // Vertical loop art.
 }
 
 TEST(WorldTrackRulesTest, NamedStationFrontEaveIsBetweenOwnFenceAndAdjacentTallerBooth)
@@ -353,9 +356,26 @@ TEST(WorldTrackRulesTest, EveryAuthoredRowStaysWithinItsImmutableCatalog)
         for (uint32_t i = 0; i < count; ++i)
         {
             const auto p = words[6] + (first + i) * 12;
-            EXPECT_TRUE(
-                words[p + 10] >= 4 || words[p] == 0xfffffffcu || words[p] == 0xfffffffdu || words[p] == 0xfffffffeu
-                || std::binary_search(images.begin(), images.end(), words[p]));
+            if (words[p + 10] < 4 && words[p] != 0xfffffffcu && words[p] != 0xfffffffdu && words[p] != 0xfffffffeu)
+            {
+                const bool animated = OpenRCT2::Drawing::IsNativeTrackAnimatedImage(words[p]);
+                ASSERT_TRUE(words[p] < 0x7ffffu || animated);
+                const auto frames = OpenRCT2::Drawing::GetNativeTrackImageFrameCount(words[p]);
+                const auto period = animated ? frames << ((words[p] >> 19) & 7u) : 1u;
+                const auto firstImage = OpenRCT2::Drawing::GetNativeTrackImageAtTick(words[p], 0);
+                uint32_t decodedFrames = 0;
+                for (uint32_t tick = 0; tick < period; ++tick)
+                {
+                    const auto image = OpenRCT2::Drawing::GetNativeTrackImageAtTick(words[p], tick);
+                    EXPECT_TRUE(std::binary_search(images.begin(), images.end(), image)) << image;
+                    ASSERT_GE(image, firstImage);
+                    ASSERT_LT(image - firstImage, frames);
+                    decodedFrames |= 1u << (image - firstImage);
+                }
+                EXPECT_EQ(decodedFrames, (1u << frames) - 1u);
+                if (animated)
+                    EXPECT_FALSE(std::binary_search(images.begin(), images.end(), words[p]));
+            }
             EXPECT_LE(words[p + 10], 5u);
             if (words[p + 10] >= 4)
             {
@@ -386,8 +406,18 @@ TEST(WorldTrackRulesTest, EveryAuthoredRowStaysWithinItsImmutableCatalog)
             parents += parent == -1;
             if (words[p] == 0xfffffffeu)
             {
-                expanded += 8;
-                parents += 6;
+                ASSERT_LE(words[p + 8], 7u);
+                if (words[p + 8] == 7)
+                {
+                    EXPECT_LT(words[p + 1], 4u);
+                    EXPECT_LT(words[p + 2], 3u);
+                    ++expanded;
+                }
+                else
+                {
+                    expanded += 8;
+                    parents += 6;
+                }
             }
         }
         EXPECT_LE(expanded, 16u);
@@ -753,4 +783,187 @@ TEST(WorldTrackRulesTest, ProductionSupportCatalogIsAdmittedAndMalformedSupportR
     catalog.words = valid;
     catalog.words[1] = 3;
     EXPECT_THROW(OpenRCT2::Ui::Gpu::ValidateWorldTrackCatalog(catalog.words), std::invalid_argument);
+}
+
+TEST(WorldTrackRulesTest, ConstantComponentLayersCannotCrossAnAdjacentAuthoredAnchorOrUi)
+{
+    using namespace ComponentDepthRules;
+    const auto encoded = [](int depth, uint32_t layer, uint32_t base) {
+        const float priority = static_cast<float>(base + worldComponentPriorityOffset(depth));
+        const float value = 1.0f - (priority + 1.0f) / static_cast<float>(1u << 22);
+        return std::bit_cast<float>(std::bit_cast<uint32_t>(value) - layer);
+    };
+    // Exercise every integer scalar, including every D32 exponent boundary, at
+    // representative reserved world positions. Smaller hardware Z is nearer.
+    for (uint32_t base : { 0u, 17u, 1048576u, 2097152u, 3145728u })
+    {
+        for (int depth = WORLD_COMPONENT_DEPTH_MIN; depth < WORLD_COMPONENT_DEPTH_MAX; ++depth)
+        {
+            ASSERT_GT(encoded(depth, WORLD_COMPONENT_LAYER_MAX, base), encoded(depth + 1, 0, base))
+                << depth << " at world base " << base;
+        }
+        const float precedingUi = 1.0f - static_cast<float>(base) / static_cast<float>(1u << 22);
+        const float followingUi = 1.0f - static_cast<float>(base + 1048576u + 1u) / static_cast<float>(1u << 22);
+        EXPECT_LT(encoded(WORLD_COMPONENT_DEPTH_MIN, 0, base), precedingUi);
+        EXPECT_GT(encoded(WORLD_COMPONENT_DEPTH_MAX, WORLD_COMPONENT_LAYER_MAX, base), followingUi);
+        for (int depth : { WORLD_COMPONENT_DEPTH_MIN, -1, 0, 65536, WORLD_COMPONENT_DEPTH_MAX })
+            for (uint32_t layer = 1; layer <= WORLD_COMPONENT_LAYER_MAX; ++layer)
+                EXPECT_LT(encoded(depth, layer, base), encoded(depth, layer - 1, base));
+    }
+    EXPECT_FALSE(worldComponentDepthValid(WORLD_COMPONENT_DEPTH_MIN - 1, 0));
+    EXPECT_FALSE(worldComponentDepthValid(WORLD_COMPONENT_DEPTH_MAX + 1, 0));
+    EXPECT_FALSE(worldComponentDepthValid(0, WORLD_COMPONENT_LAYER_MAX + 1));
+    EXPECT_FALSE(worldComponentDepthValid(0, -1));
+    EXPECT_TRUE(worldComponentDepthValid(WORLD_COMPONENT_DEPTH_MIN, WORLD_COMPONENT_LAYER_MAX));
+    EXPECT_TRUE(worldComponentDepthValid(WORLD_COMPONENT_DEPTH_MAX, 0));
+}
+
+TEST(WorldTrackRulesTest, SupportContactConstraintDoesNotOrderOtherElementsOrLowerColumnSections)
+{
+    // A column under a high rail may still stand in front of a different low
+    // crossing rail: only its own element participates in the constraint.
+    EXPECT_EQ(TrackDepthRules::worldTrackUnderRailDepth(180, 200), 180);
+    EXPECT_GT(TrackDepthRules::worldTrackUnderRailDepth(180, 200), 100);
+    EXPECT_EQ(TrackDepthRules::worldTrackUnderRailDepth(200, 200), 199);
+    EXPECT_EQ(TrackDepthRules::worldTrackUnderRailDepth(-40, -20), -40);
+    EXPECT_EQ(TrackDepthRules::worldTrackUnderRailDepth(-10, -20), -21);
+}
+
+TEST(WorldTrackRulesTest, RiverRapidsImageClockKeepsFixedComponentOwnershipAcrossCompletePeriods)
+{
+    using namespace OpenRCT2::Drawing;
+    for (uint32_t direction = 0; direction < 4; ++direction)
+        for (const uint32_t type : { 112u, 113u, 120u })
+        {
+            const auto parts = Recipe(58, type, 0, direction, 0);
+            const uint32_t count = type == 112 ? 5 : type == 113 ? 2 : 3;
+            ASSERT_EQ(parts.size(), count * 12);
+            for (uint32_t tick = 0; tick < 128; ++tick)
+            {
+                const auto frame8 = (tick / 2) % 8, frame16 = (tick / 4) % 16;
+                const std::vector<uint32_t> expected = type == 112
+                    ? std::vector<uint32_t>{ 21204 + direction, (direction & 1 ? 21220u : 21212u) + frame8,
+                                             (direction & 1 ? 21252u : 21244u) + frame8, 21208 + direction,
+                                             (direction & 1 ? 21236u : 21228u) + frame8 }
+                    : type == 113
+                    ? std::vector<uint32_t>{ (direction & 1 ? 21269u : 21260u) + frame8, direction & 1 ? 21277u : 21268u }
+                    : std::vector<uint32_t>{ 21132 + direction, 21278 + frame16, 21136 + direction };
+                for (uint32_t i = 0; i < count; ++i)
+                    EXPECT_EQ(GetNativeTrackImageAtTick(parts[i * 12], tick), expected[i]);
+            }
+            EXPECT_EQ(GetNativeTrackImageAtTick(parts[0], 0xffffffffu), GetNativeTrackImageAtTick(parts[0], 127u));
+            if (type == 112 || type == 120)
+                EXPECT_EQ(parts[12 + 11], 0u);
+            if (type == 112)
+                EXPECT_EQ(parts[48 + 11], 3u);
+        }
+    EXPECT_FALSE(IsNativeTrackAnimatedImage(0xffffffffu));
+    EXPECT_FALSE(IsNativeTrackAnimatedImage(0x80000000u));                       // No frame count.
+    EXPECT_FALSE(IsNativeTrackAnimatedImage(0x80200000u | (3u << 22) | 21212u)); // Period16 outside contract.
+    EXPECT_FALSE(IsNativeTrackAnimatedImage(0x82000000u | (1u << 19) | (3u << 22) | 21212u));
+    EXPECT_FALSE(IsNativeTrackAnimatedImage(0x80000000u | (1u << 19) | (4u << 22) | 0x7fff8u));
+}
+
+TEST(WorldTrackRulesTest, PresentRiverRapidsOwnsAllAnimationFramesWithoutResolvingEncodedIds)
+{
+    OpenRCT2::WorldRidePresentationMaterials source;
+    source.rides.resize(1);
+    source.rides[0].present = true;
+    source.rides[0].rideType = OpenRCT2::RIDE_TYPE_RIVER_RAPIDS;
+    std::set<uint32_t> images;
+    const auto catalog = OpenRCT2::Ui::Gpu::BuildWorldTrackCatalog(source, [&](uint32_t image) {
+        EXPECT_LT(image, 0x7ffffu);
+        images.insert(image);
+        return image;
+    });
+    ASSERT_FALSE(catalog.words.empty());
+    // Complete contiguous original waterfall, rapids and whirlpool art banks.
+    for (uint32_t image = 21204; image < 21294; ++image)
+        EXPECT_TRUE(images.contains(image)) << image;
+    const auto supports = OpenRCT2::Drawing::GetNativeTrackSupportWords();
+    for (const uint32_t type : { 112u, 113u, 120u })
+        EXPECT_GT(supports[supports[4] + (58 * supports[3] + type) * 3 + 1], 0u);
+}
+
+TEST(WorldTrackRulesTest, MonorailEighthTurnsRetainAllAuthoredSequenceBounds)
+{
+    for (uint32_t type : { 133u, 134u, 135u, 136u })
+        for (uint32_t direction = 0; direction < 4; ++direction)
+        {
+            uint32_t populated = 0;
+            for (uint32_t sequence = 0; sequence < 5; ++sequence)
+            {
+                const auto parts = Recipe(50, type, sequence, direction, 0);
+                EXPECT_LE(parts.size(), 12u);
+                populated += !parts.empty();
+            }
+            EXPECT_EQ(populated, 4u);
+        }
+    const auto entry = Recipe(50, 134, 0, 0, 0);
+    ASSERT_EQ(entry.size(), 12u);
+    EXPECT_EQ((std::vector<uint32_t>(entry.begin() + 4, entry.begin() + 10)), (std::vector<uint32_t>{ 0, 6, 0, 32, 20, 2 }));
+    const auto exit = Recipe(50, 134, 4, 0, 0);
+    ASSERT_EQ(exit.size(), 12u);
+    EXPECT_EQ((std::vector<uint32_t>(exit.begin() + 4, exit.begin() + 10)), (std::vector<uint32_t>{ 16, 0, 0, 16, 16, 2 }));
+}
+
+TEST(WorldTrackRulesTest, SpinningTunnelsKeepAnimatedBackChildFrontParentAndCompleteResidency)
+{
+    using namespace OpenRCT2::Drawing;
+    for (uint32_t style : { 5u, 23u, 46u })
+        for (uint32_t direction = 0; direction < 4; ++direction)
+        {
+            const auto parts = Recipe(style, 173, 0, direction, 0);
+            ASSERT_EQ(parts.size(), (style == 46 ? 4u : 3u) * 12u);
+            const auto back = parts.size() - 24, front = parts.size() - 12;
+            EXPECT_EQ(parts[back + 11], 0u);
+            EXPECT_EQ(parts[front + 11], UINT32_MAX);
+            EXPECT_EQ(parts[back + 10], 1u);
+            EXPECT_EQ(parts[front + 10], 1u);
+            EXPECT_EQ(parts[back + 9], style == 23 ? 3u : 1u);
+            for (uint32_t tick = 0; tick < 32; ++tick)
+            {
+                EXPECT_EQ(GetNativeTrackImageAtTick(parts[back], tick), 28865 + (direction & 1) * 4 + (tick / 4) % 4);
+                EXPECT_EQ(GetNativeTrackImageAtTick(parts[front], tick), 28873 + (direction & 1) * 4 + (tick / 4) % 4);
+            }
+        }
+    OpenRCT2::WorldRidePresentationMaterials source;
+    source.rides.resize(1);
+    source.rides[0].present = true;
+    source.rides[0].rideType = OpenRCT2::RIDE_TYPE_CAR_RIDE;
+    std::set<uint32_t> images;
+    OpenRCT2::Ui::Gpu::BuildWorldTrackCatalog(source, [&](uint32_t image) {
+        EXPECT_LT(image, 0x7ffffu);
+        images.insert(image);
+        return image;
+    });
+    for (uint32_t image = 28865; image <= 28880; ++image)
+        EXPECT_TRUE(images.contains(image)) << image;
+}
+
+TEST(WorldTrackRulesTest, GoKartsStationsRetainGridSignalAndOrderedSingleCoverRequests)
+{
+    constexpr uint32_t red[4][2] = { { 20808, 20814 }, { 20810, 20816 }, { 20811, 20817 }, { 20812, 20818 } };
+    constexpr uint32_t green[4][2] = { { 20809, 20815 }, { 20810, 20816 }, { 20811, 20817 }, { 20813, 20819 } };
+    for (uint32_t type : { 1u, 2u, 3u })
+        for (uint32_t direction = 0; direction < 4; ++direction)
+            for (uint32_t light : { 0u, 32u })
+            {
+                const auto parts = Recipe(24, type, 0, direction, light);
+                ASSERT_EQ(parts.size(), (type == 1 ? 6u : 4u) * 12u);
+                EXPECT_EQ(parts[0], (type == 1 ? 20756u : 20764u) + direction);
+                EXPECT_EQ(parts[24], (type == 1 ? 20760u : 20768u) + direction);
+                for (uint32_t i : { 1u, 3u })
+                {
+                    EXPECT_EQ(parts[i * 12], 0xfffffffeu);
+                    EXPECT_EQ(parts[i * 12 + 8], 7u);
+                    EXPECT_EQ(parts[i * 12 + 1], (direction & 1u) ? (i == 1 ? 0u : 2u) : (i == 1 ? 3u : 1u));
+                    EXPECT_EQ(parts[i * 12 + 2], 0u);
+                    EXPECT_EQ(static_cast<int32_t>(parts[i * 12 + 11]), -1);
+                }
+                if (type == 1)
+                    for (uint32_t i = 0; i < 2; ++i)
+                        EXPECT_EQ(parts[(4 + i) * 12], (light ? green : red)[direction][i]);
+                EXPECT_EQ(parts, Recipe(24, type, 0, direction, light | 64u));
+            }
 }

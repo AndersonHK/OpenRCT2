@@ -42,6 +42,9 @@ namespace OpenRCT2::Drawing::ScrollingText
         uint32_t phaseWidth{};
         bool repeat{};
         std::vector<std::array<uint8_t, 8>> columns;
+        // Optional initial-ink coverage, before any explicit formatting colour.
+        // Bits0..7 are solid pixels, bits8..15 are TTF hint pixels blended with transparent.
+        std::vector<uint16_t> initialInk;
         bool operator==(const TextColumns&) const = default;
     };
     struct ModeColumn
@@ -51,7 +54,7 @@ namespace OpenRCT2::Drawing::ScrollingText
     };
     using ModeColumns = std::array<std::array<ModeColumn, 64>, kMaxModes>;
 
-    TextColumns compileTextColumns(u8string_view string, PaletteIndex colour);
+    TextColumns compileTextColumns(u8string_view string, PaletteIndex colour, bool retainInitialInk = false);
     const ModeColumns& getModeColumns();
     uint64_t getAssetRevision() noexcept;
 

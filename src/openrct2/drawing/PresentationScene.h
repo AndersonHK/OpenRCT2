@@ -9,9 +9,8 @@
 
 #pragma once
 
-#include "SelectedVehicleSnapshot.h"
-
 #include "PresentationGeneration.h"
+#include "SelectedVehicleSnapshot.h"
 
 #include <cstdint>
 #include <memory>
@@ -21,6 +20,7 @@ class JobPool;
 namespace OpenRCT2
 {
     class EntityRegistry;
+    uint64_t NextRetainedPublicationEpoch();
     namespace Drawing
     {
         struct BalloonPublicationCopyTotals;

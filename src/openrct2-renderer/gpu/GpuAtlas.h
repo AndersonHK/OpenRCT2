@@ -21,11 +21,10 @@ namespace OpenRCT2::Ui::Gpu
 {
     constexpr int32_t kAtlasDimension = 2048;
     constexpr int32_t kSmallestAtlasSlot = 32;
-    // Resident terrain, scenery and track catalogs share this bounded indexed atlas.
-    // The EverythingPark object set exceeds the former 256 MiB (64-layer) limit.
-    constexpr uint32_t kAtlasLayers = 128;
-    constexpr uint32_t kAtlasSlotsPerLayer =
-        (kAtlasDimension / kSmallestAtlasSlot) * (kAtlasDimension / kSmallestAtlasSlot);
+    // Full world and entity art share this bounded indexed atlas. Everything
+    // Park exceeds 128 pages when resident peep/vehicle banks are admitted.
+    constexpr uint32_t kAtlasLayers = 256;
+    constexpr uint32_t kAtlasSlotsPerLayer = (kAtlasDimension / kSmallestAtlasSlot) * (kAtlasDimension / kSmallestAtlasSlot);
     constexpr uint32_t kSpriteAssetDescriptorCount = kAtlasLayers * kAtlasSlotsPerLayer;
 
     struct TextureBinding
@@ -67,32 +66,39 @@ namespace OpenRCT2::Ui::Gpu
 
     /**
      * One layer of the indexed sprite texture array. Each layer stores one
-     * power-of-two slot class so allocation and invalidation remain O(1), and
+     * rectangular power-of-two slot class so allocation and invalidation remain O(1), and
      * the same metadata can address explicit GPU array images.
      */
     class AtlasPage final
     {
     private:
         uint32_t _index = 0;
-        int32_t _imageSize = 0;
+        int32_t _slotWidth = 0;
+        int32_t _slotHeight = 0;
         int32_t _width = 0;
         int32_t _height = 0;
         int32_t _columns = 0;
         std::vector<uint32_t> _freeSlots;
 
     public:
-        AtlasPage(uint32_t index, int32_t imageSize)
+        AtlasPage(uint32_t index, int32_t slotWidth, int32_t slotHeight)
             : _index(index)
-            , _imageSize(imageSize)
+            , _slotWidth(slotWidth)
+            , _slotHeight(slotHeight)
         {
+            assert(slotWidth >= kSmallestAtlasSlot && slotHeight >= kSmallestAtlasSlot);
+            assert(std::has_single_bit(static_cast<uint32_t>(slotWidth)));
+            assert(std::has_single_bit(static_cast<uint32_t>(slotHeight)));
         }
 
         void Initialise(int32_t width, int32_t height)
         {
             _width = width;
             _height = height;
-            _columns = std::max(1, width / _imageSize);
-            const int32_t rows = std::max(1, height / _imageSize);
+            assert(width >= _slotWidth && height >= _slotHeight);
+            assert(width <= kAtlasDimension && height <= kAtlasDimension);
+            _columns = width / _slotWidth;
+            const int32_t rows = height / _slotHeight;
             _freeSlots.resize(static_cast<size_t>(_columns) * rows);
             for (size_t i = 0; i < _freeSlots.size(); i++)
             {
@@ -103,15 +109,16 @@ namespace OpenRCT2::Ui::Gpu
         [[nodiscard]] TextureLocation Allocate(int32_t actualWidth, int32_t actualHeight)
         {
             assert(!_freeSlots.empty());
+            assert(actualWidth > 0 && actualWidth <= _slotWidth && actualHeight > 0 && actualHeight <= _slotHeight);
             const uint32_t slot = _freeSlots.back();
             _freeSlots.pop_back();
             const int32_t row = static_cast<int32_t>(slot) / _columns;
             const int32_t column = static_cast<int32_t>(slot) % _columns;
             const Int4 bounds = {
-                _imageSize * column,
-                _imageSize * row,
-                _imageSize * column + actualWidth,
-                _imageSize * row + actualHeight,
+                _slotWidth * column,
+                _slotHeight * row,
+                _slotWidth * column + actualWidth,
+                _slotHeight * row + actualHeight,
             };
 
             TextureLocation result{};
@@ -130,12 +137,14 @@ namespace OpenRCT2::Ui::Gpu
         void Free(const TextureLocation& location)
         {
             assert(_index == location.index);
+            assert(location.slot < static_cast<uint32_t>(_columns * (_height / _slotHeight)));
             _freeSlots.push_back(location.slot);
         }
 
         [[nodiscard]] bool IsImageSuitable(int32_t actualWidth, int32_t actualHeight) const
         {
-            return CalculateImageSizeOrder(actualWidth, actualHeight) == std::countr_zero(static_cast<uint32_t>(_imageSize));
+            return CalculateImageSizeOrder(actualWidth) == std::countr_zero(static_cast<uint32_t>(_slotWidth))
+                && CalculateImageSizeOrder(actualHeight) == std::countr_zero(static_cast<uint32_t>(_slotHeight));
         }
 
         [[nodiscard]] int32_t GetFreeSlots() const noexcept
@@ -143,10 +152,10 @@ namespace OpenRCT2::Ui::Gpu
             return static_cast<int32_t>(_freeSlots.size());
         }
 
-        [[nodiscard]] static int32_t CalculateImageSizeOrder(int32_t actualWidth, int32_t actualHeight)
+        [[nodiscard]] static int32_t CalculateImageSizeOrder(int32_t actualSize)
         {
-            const auto actualSize = static_cast<uint32_t>(std::max(kSmallestAtlasSlot, std::max(actualWidth, actualHeight)));
-            return static_cast<int32_t>(std::bit_width(actualSize - 1));
+            const auto size = static_cast<uint32_t>(std::max(kSmallestAtlasSlot, actualSize));
+            return static_cast<int32_t>(std::bit_width(size - 1));
         }
     };
 } // namespace OpenRCT2::Ui::Gpu

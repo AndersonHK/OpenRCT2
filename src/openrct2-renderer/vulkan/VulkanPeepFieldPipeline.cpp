@@ -144,7 +144,7 @@ namespace OpenRCT2::Ui::Vulkan
     }
     void PeepFieldPipeline::Record(
         const SubmissionToken& frame, std::shared_ptr<const Drawing::RetainedPeepSnapshot> snapshot,
-        std::shared_ptr<const Gpu::PeepAssetGeneration> assets)
+        std::shared_ptr<const Gpu::PeepAssetGeneration> assets, bool buildTileBins)
     {
         if (!_pipeline || !frame.commandBuffer || !frame.upload || !snapshot || !assets || !assets->catalog
             || assets->revision == 0 || assets->descriptors.size() > kDescriptorCapacity
@@ -168,7 +168,8 @@ namespace OpenRCT2::Ui::Vulkan
         Barrier(
             frame.commandBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT,
             VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT);
-        const bool rebuildBins = _pending->reset || !_pending->lifecycle.empty() || !_pending->motion.empty();
+        const bool rebuildBins = buildTileBins
+            && (_pending->reset || !_pending->lifecycle.empty() || !_pending->motion.empty());
         if (rebuildBins)
             vkCmdFillBuffer(frame.commandBuffer, _bins.GetBuffer(), 0, _bins.GetSize(), 0);
         if (_pending->reset)
@@ -222,6 +223,8 @@ namespace OpenRCT2::Ui::Vulkan
             std::vector<uint32_t> catalog(4 + assets->descriptors.size() * 8 + assets->facts.size() * 4);
             catalog[0] = static_cast<uint32_t>(assets->descriptors.size());
             catalog[1] = static_cast<uint32_t>(assets->facts.size());
+            catalog[2] = assets->accessoryBase;
+            catalog[3] = assets->balloonBase;
             if (!assets->descriptors.empty())
                 std::memcpy(
                     catalog.data() + 4, assets->descriptors.data(),

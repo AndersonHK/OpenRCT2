@@ -63,12 +63,22 @@ namespace OpenRCT2
         uint8_t corners{}, walls{};
         bool hasSupports{}, allowSupportsAbove{};
     };
+    struct LargeSceneryPresentationFont
+    {
+        uint32_t image{};
+        uint16_t numImages{}, maxWidth{};
+        uint8_t flags{};
+        std::array<int32_t, 4> offsets{}; // x0,y0,x1,y1
+        // Original image offset, width and height; no camera-specific glyph choice.
+        std::array<uint32_t, 256> glyphs{};
+    };
     struct LargeSceneryPresentationMaterial
     {
         uint32_t imageBase{}, imageCount{}, image{}, flags{};
         uint8_t scrollingMode{};
         bool present{};
         std::vector<LargeSceneryPresentationTile> tiles;
+        std::shared_ptr<const LargeSceneryPresentationFont> font;
     };
     struct WallPresentationMaterial
     {

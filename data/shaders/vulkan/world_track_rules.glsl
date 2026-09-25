@@ -3,6 +3,14 @@
 #define OPENRCT2_WORLD_TRACK_RULES
 // Caller defines WORLD_TRACK_WORD(index) for binding14, addressing the start of
 // the immutable native-track table. Ride facts may follow it in the same buffer.
+// Authored image clock, evaluated from the immutable snapshot tick on GPU.
+uint worldTrackImageAtTick(uint image,uint tick)
+{
+    if((image&0xfe000000u)!=0x80000000u) return image;
+    uint shift=(image>>19u)&7u,frameBits=(image>>22u)&7u;
+    return (image&0x7ffffu)+((tick>>shift)&((1u<<frameBits)-1u));
+}
+
 struct WorldTrackPart
 {
     uint image;

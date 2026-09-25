@@ -5,6 +5,7 @@
 #include "world_prop_rules.glsl"
 layout(std430,set=0,binding=12) readonly buffer WorldObjects { WorldObjectRecord records[]; } uObjects;
 layout(std430,set=0,binding=13) readonly buffer PropCatalog { uint words[]; } uProps;
+#include "world_large_text_emit.glsl"
 
 uint worldObjectPalette(uint colours,int count,bool ghost)
 {
@@ -104,6 +105,18 @@ void visitProp(uint index,uvec2 tile,uint destination,bool writeRecords,inout ui
     if(object.kind==3u && parts.count!=0)
         worldEmitOrdinaryBannerText(tile,object.baseZ,(direction+int(object.data0>>24u))&3,ghost,
             object.reserved>>16u,uProps.words[material+11u],destination,writeRecords,count);
+    if(object.kind==1u && parts.count!=0)
+        worldEmitLargeObjectText(object,tile,material,direction,destination,writeRecords,count);
+    if((object.kind==1u || object.kind==2u) && parts.count!=0) {
+        int mode=worldPropScrollingMode(int(object.kind),int(flags),int(object.sequence),direction,
+            int(uProps.words[material+11u]),uScene.zoom);
+        if(mode>=0) {
+            WorldPropPart body=parts.parts[0];
+            worldEmitColouredBannerText(tile,object.baseZ+(object.kind==1u?25:8),
+                ivec3(body.boundsX,body.boundsY,object.baseZ+body.boundsZ),object.reserved>>16u,uint(mode),
+                ghost?1u:((object.colours>>8u)&255u),direction!=0,destination,writeRecords,count);
+        }
+    }
     if(object.kind==0u)
         worldSupportSmallScenery(worldSupportState,object.baseZ,int(uProps.words[material+4u]),int(flags),
             int((object.data0>>8u)&255u),int(uScene.rotation));

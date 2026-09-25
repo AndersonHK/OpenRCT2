@@ -1,6 +1,6 @@
 # Migrated-layer regression checkpoint
 
-Latest concise status: [native supports and sign text checkpoint](vulkan-supports-text-checkpoint.md).
+Latest implementation and qualification status: [native entities checkpoint](vulkan-native-entities-checkpoint.md). Last deployed baseline: [native supports and sign text checkpoint](vulkan-supports-text-checkpoint.md). The user has now authorized peeps, vehicles, balloons and remaining effects; the earlier separate-category deferral below is historical.
 
 The preserved implementation checkpoint is `802f28341e`, deployed build112. It provides native static rides, portals, station pieces and expanded tracks, with two successful 4K/12,000-tick runs at358.9–359.8 TPS and143.9 CPU draw attempts per second (GPU timing samples closely matched those attempts). User testing on2026-09-24 accepted the progress but identified the issues below. This is not full renderer acceptance or measured display scanout.
 

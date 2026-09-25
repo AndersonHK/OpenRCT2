@@ -10,6 +10,14 @@
 // successfully emitted named rail parents, never inferred from nearby sprites.
 uint worldTrackRailOwners[16];
 uint worldTrackQualifiedRailCount=0u;
+int worldTrackRailDepth=2147483647;
+void worldTrackSupportDepth(uvec2 tile,ivec3 anchor)
+{
+    if(worldTrackRailDepth==2147483647) return; // No admitted owner rail at this zoom.
+    worldSetComponentDepthAnchor(tile,anchor);
+    worldSetComponentDepthScalar(worldTrackUnderRailDepth(worldAuthoredComponentDepth,worldTrackRailDepth));
+}
+
 
 void worldEmitTrackSupports(WorldObjectRecord object,uvec2 tile,uint colours,
     uint destination,bool writeRecords,inout uint count)
@@ -64,7 +72,7 @@ void worldEmitTrackSupports(WorldObjectRecord object,uvec2 tile,uint colours,
                 WorldMetalPart part=worldMetalNext(cursor);
                 if(part.imageOffset<0) continue;
                 uint sprite=worldTrackImage(uint(part.imageOffset));
-                if(sprite==0xffffffffu) { atomicOr(uStatus.overflow,8u);continue; }
+                if(sprite==0xffffffffu) { worldReportComponentFailure(256u,tile,writeRecords);continue; }
                 uint role=uTracks.words[op+9u];
                 uint primary=role==1u?((colours>>16u)&255u):(colours&255u);
                 uint secondary=role==3u?((colours>>16u)&255u):((colours>>8u)&255u);
@@ -73,6 +81,10 @@ void worldEmitTrackSupports(WorldObjectRecord object,uvec2 tile,uint colours,
                 if(hide) { palettes=uCatalog.viewPalettes.x;effects=1u<<10; }
                 worldSetPaintBounds(tile,ivec3(part.boundsX,part.boundsY,part.boundsZ),
                     ivec3(part.sizeX,part.sizeY,part.sizeZ),0u);
+                // A footing may share the terrain's XYZ exactly. It is placed
+                // art, so it must win that local tie without moving its anchor.
+                worldSetCoplanarSurfaceLayer();
+                if(writeRecords) worldTrackSupportDepth(tile,ivec3(part.x,part.y,part.z));
                 emitObjectSprite(tile,part.z,ivec2(part.x,part.y),sprite,palettes,effects,
                     destination,writeRecords,count);
             }
@@ -88,7 +100,7 @@ void worldEmitTrackSupports(WorldObjectRecord object,uvec2 tile,uint colours,
                 WorldWoodenPart part=worldWoodenNext(cursor);
                 if(part.imageOffset<0) continue;
                 uint sprite=worldTrackImage(uint(part.imageOffset));
-                if(sprite==0xffffffffu) { atomicOr(uStatus.overflow,8u);continue; }
+                if(sprite==0xffffffffu) { worldReportComponentFailure(512u,tile,writeRecords);continue; }
                 uint owner=0xffffffffu;
                 if(part.orphan!=0) {
                     uint ordinal=uTracks.words[op+6u];
@@ -96,7 +108,8 @@ void worldEmitTrackSupports(WorldObjectRecord object,uvec2 tile,uint colours,
                     // Original AsOrphan is an explicit named owner relation.
                     // Losing that owner must never turn the transition into a
                     // free-standing parent or alias an unrelated component.
-                    if(owner==0xffffffffu) { atomicOr(uStatus.overflow,8u);continue; }
+                    if(owner==0xffffffffu) { worldReportComponentFailure(1024u,tile,writeRecords);continue; }
+                    if(writeRecords && owner>=uScene.outputCapacity) { worldReportComponentFailure(2048u,tile,true);continue; }
                 }
                 uint role=uTracks.words[op+9u];
                 uint primary=role==1u?((colours>>16u)&255u):(colours&255u);
@@ -106,7 +119,18 @@ void worldEmitTrackSupports(WorldObjectRecord object,uvec2 tile,uint colours,
                 if(hide) { palettes=uCatalog.viewPalettes.x;effects=1u<<10; }
                 worldSetPaintBounds(tile,ivec3(part.boundsX,part.boundsY,part.boundsZ),
                     ivec3(part.sizeX,part.sizeY,part.sizeZ),part.orphan!=0?1u:0u);
-                if(part.orphan!=0) worldParentRoot=owner;
+                if(part.orphan!=0) {
+                    worldParentRoot=owner;
+                    // Original WoodenSupports assigns this transition to the
+                    // exact rail's Children: it overlays that rail, not all rails.
+                    if(writeRecords) worldSetComponentDepthScalar(uOutputs.records[owner].reserved.x);
+                } else {
+                    // Whole wooden arch sprites start at ground Z. Layer zero
+                    // ties the terrain and LESS clips their ground-contact art.
+                    // Preserve the scalar and own-rail cap; only break that tie.
+                    worldSetCoplanarSurfaceLayer();
+                    if(writeRecords) worldTrackSupportDepth(tile,ivec3(part.x,part.y,part.z));
+                }
                 emitObjectSprite(tile,part.z,ivec2(part.x,part.y),sprite,palettes,effects,
                     destination,writeRecords,count);
             }

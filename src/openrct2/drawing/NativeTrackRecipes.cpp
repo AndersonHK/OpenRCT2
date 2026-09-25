@@ -52,7 +52,8 @@ namespace OpenRCT2::Drawing
                 {
                     const auto p = words[6] + (first + i) * 12;
                     const auto parent = static_cast<int32_t>(words[p + 11]);
-                    if ((words[p] >= 0x7ffffu && words[p] != 0xfffffffeu && words[p] != 0xfffffffdu && words[p] != 0xfffffffcu)
+                    if ((words[p] >= 0x7ffffu && !IsNativeTrackAnimatedImage(words[p]) && words[p] != 0xfffffffeu
+                         && words[p] != 0xfffffffdu && words[p] != 0xfffffffcu)
                         || words[p + 10] > 5 || (parent != -1 && (parent < 0 || static_cast<uint32_t>(parent) >= i)))
                         throw std::runtime_error("Native track definition component is invalid");
                     if (words[p + 10] >= 4 && (words[p] != 0 || parent < 0))
@@ -75,10 +76,20 @@ namespace OpenRCT2::Drawing
                     parentCount += parent == -1;
                     if (words[p] == 0xfffffffeu)
                     {
-                        if (words[p + 8] > 6 || parent != -1)
+                        if (words[p + 8] > 7 || parent != -1)
                             throw std::runtime_error("Native track station request is invalid");
-                        expandedCount += 8;
-                        parentCount += 6;
+                        if (words[p + 8] == 7)
+                        {
+                            if (words[p + 1] > 3 || words[p + 2] > 2 || words[p + 4] != 0 || words[p + 5] != 0
+                                || words[p + 6] != 0 || words[p + 7] != 0 || words[p + 9] != 0 || words[p + 10] != 0)
+                                throw std::runtime_error("Native track single cover request is invalid");
+                            ++expandedCount; // Opaque parent plus optional glass child.
+                        }
+                        else
+                        {
+                            expandedCount += 8;
+                            parentCount += 6;
+                        }
                     }
                 }
                 if (expandedCount > 16 || parentCount > 12)
@@ -110,7 +121,8 @@ namespace OpenRCT2::Drawing
                         result.push_back(image);
                 }
                 if (words[index] != 0xfffffffeu && words[index] != 0xfffffffdu && words[index] != 0xfffffffcu)
-                    result.push_back(words[index]);
+                    for (uint32_t frame = 0; frame < GetNativeTrackImageFrameCount(words[index]); ++frame)
+                        result.push_back(GetNativeTrackImageAtTick(words[index], 0) + frame);
                 if (words[index] == 0xfffffffdu && words[index + 1] == 2)
                     for (uint32_t vertical = 1575; vertical <= 1578; ++vertical)
                         result.push_back(vertical);

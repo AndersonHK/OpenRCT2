@@ -1,6 +1,6 @@
 # Native GPU track definition coverage
 
-The checked-in authoring13 table contains57 styles /5039 style-type pairs. Counts describe translated source definitions, not complete ride families or visual parity. Authoring15 restores312 additional pairs; its data remains staged while the remaining ordinary helper gaps are corrected. Historical evidence below retains its original build numbers and failed whole-frame comparisons. No blanket missing-track completion claim is supported.
+The latest **authoring19 candidate contains57 styles /5467 style-type pairs**,845522 words and32538 deduplicated entries. Its raw SHA-256 is `dcdf622f163b86f8edd76a3d18556cec9093e4b7159a4ee263ade023616d2be7`; this latest data batch still requires C++/GPU/original-art qualification. Counts describe translated source definitions, not complete ride families or visual parity. Supports now use a separately authored immutable operation table; tunnel requests, photo cameras and GPU station geometry are implemented, with independent visual limits. Older tables and omission statements below are historical evidence at their named checkpoint. No blanket missing-track completion claim is supported.
 
 
 
@@ -177,6 +177,78 @@ Static-family GPU rules also add Shop/Facility door-direction1/2 square-flat req
 
 The table grows to57 styles /5351 pairs (+312),819162 words,179900 rows,31192 entries; compressed199598 bytes. All38 Python regressions pass. It restores support-predicate-aborted rails, immutable wooden template banks/curves/helixes, explicit bounds, Junior/Water sloped/eighth curves, Wild Mouse stations/curves, and Multidimension covers-only stations. No CPU per-instance painting is introduced.
 
-The214492-row comparison against13 has zero removed pairs and zero changed previously admitted rows.24 differences are newly admitted sequence tails1–3 of Inverted30 types119/121; both old sequence0 rows remain identical. Counts alone therefore do not prove sequence completeness. Evidence: `native-track-recipe-authoring-15/{coverage.json,previous-rail-regression.json,preservation-classification.json}` under `obj/vulkan-parity`. Raw SHA256 `80ca5380f7701f83322f5168f4a26562a255099dfd124c97358fdd483e5f681c`; script `2f435d7578dfc7581bc6daf6323b7a83ff74b5e44777dc337e78e56e669ee1a9`.
+The214492-row comparison against13 has zero removed pairs and zero changed previously admitted rows.24 differences are newly admitted sequence tails1Ã¢â‚¬â€œ3 of Inverted30 types119/121; both old sequence0 rows remain identical. Counts alone therefore do not prove sequence completeness. Evidence: `native-track-recipe-authoring-15/{coverage.json,previous-rail-regression.json,preservation-classification.json}` under `obj/vulkan-parity`. Raw SHA256 `80ca5380f7701f83322f5168f4a26562a255099dfd124c97358fdd483e5f681c`; script `2f435d7578dfc7581bc6daf6323b7a83ff74b5e44777dc337e78e56e669ee1a9`.
 
-Remaining15 ordinary gaps include Classic Wooden9 banked curves22/23/44/45, Classic Standup8 diagonal banks158–171, Compact/Inverted11/30 diagonal flat/brakes141/337/338, wooden waterSplash117 and Log Flume38 curves42/43. These are not waived as supports. Further corrections are underway before final data admission. Failed14 stopped at an out-of-range helper-tail probe; its log is retained. Corrected15 uses checked indexing and tests invalid tails. The new49-specimen original-art corpus covers full sequences in all rotations and zoom0/1; native qualification is pending.
+Remaining15 ordinary gaps include Classic Wooden9 banked curves22/23/44/45, Classic Standup8 diagonal banks158Ã¢â‚¬â€œ171, Compact/Inverted11/30 diagonal flat/brakes141/337/338, wooden waterSplash117 and Log Flume38 curves42/43. These are not waived as supports. Further corrections are underway before final data admission. Failed14 stopped at an out-of-range helper-tail probe; its log is retained. Corrected15 uses checked indexing and tests invalid tails. The new49-specimen original-art corpus covers full sequences in all rotations and zoom0/1; native qualification is pending.
+
+
+## Post144 support completeness batch (runtime qualification pending)
+
+The support sidecar now covers all **5388 already-admitted rail style/type pairs**, with zero rejected programs and zero reported helper omissions. Authoring04 has 397646 words,73308 rows,13831 deduplicated operations and a maximum of5 operations per row (ABI capacity64). Its raw SHA-256 is `7f29894c67fedba5c93ea2832c3f2f5d6475999509fe814604e47d977e704fb6`. The rail include and its authoring16 raw baseline are unchanged; this is not an expansion of whole-rail admission.
+
+Source-backed corrections:
+
+- Junior31, Monorail Cycles51 and Water Coaster78 five-tile curves16/17 now retain all support sequences. The shared numeric C-array parser previously treated a declared seven-entry `{0}` row as length1 instead of C++ zero initialization.
+- All128 admitted generic quarter-helix style/type programs now read actual TED support placement, height, extra rotation, blocked segments and general support height. Reversed image sequence/direction selects the height-extra table; authoritative original TED sequence still owns support placement/rotation. Neither is guessed from rail pixels.
+- Twenty-three diagonal style/type programs now retain `TrackPaintUtilDiagTilesPaintExtra` support/state operations even in directions where its rail image is not emitted.
+- Twenty-six photo style/type programs retain platform side-by-side columns and `TrackPaintUtilOnridePhotoPaint2` segment/general support state. The old image adapters swallowed these operations without listing them as gaps.
+- Station helper omission labels were removed after inspecting their definitions: regular/inverted/narrow/pier helpers contain platform/fence/shelter art, already represented by procedural station markers, and do not contain physical support setup calls. A source guard rejects them if support calls appear later. This does not qualify station raster overlap.
+
+All64 Python authoring regressions passed. The binary audit found exactly six added programs,177 changed existing pairs limited to the helper classes above, no removed program, no changed sequence count and valid operation ranges. Evidence is `obj/vulkan-parity/native-track-support-authoring-04/{support-coverage.json,authoring-tests.log,program-delta-audit.json,landing.json}`;03 is retained intermediate evidence. C++ loading, device rendering, performance and fresh Everything Park comparisons remain pending.
+
+Whole-track limits remain separate. Authoring16 still rejects ordinary helper cases in already migrated styles, including AirPowered1 five-tile curve adapters; Dinghy14/FlyingSaucer15/SplashBoats65 curve adapters; GoKarts24 pointer/bounds helpers; MineTrain49 branches depending on the terrain support result; and RiverRapids58 water/dynamic helpers. Raw ride-mode-dependent LIM33 cases also remain unimplemented. The old authoring17 pointer/BoundBox stage has not produced an admitted runtime table. Existing Everything Park crops establish concrete support/rail occlusion and missing entities, but do not independently locate every omitted style/type; no screenshot location or completion claim is inferred from these rejection counts.
+
+
+## Authoring18: ordinary channels/curves and live River Rapids image clocks
+
+The candidate adds **72 style/type pairs** over16. Authoring17 restores69 through shared source adapters: Air Powered five-tile/banked curves, Dinghy covered/uncovered five-tile curves, Splash Boats curves, Go-Karts slopes and eighth turns, fixed River Rapids channel/stations/transitions/photo, and other pointer/geometry-driven ordinary pieces. Authoring18 adds River Rapids waterfall112, rapids113 and whirlpool120. This is source translation, not per-instance CPU painting.
+
+A checked image-word tag represents `base + ((sourceTick >> shift) & frameMask)`. Low19 bits hold the original base; bits19..21 hold the shift; bits22..24 hold log2(frame count); bit31 marks animation. Other upper bits are rejected. Admitted periods are1/2/4/8 ticks and2/4/8/16 frames. The current River Rapids source uses eight frames every two ticks or sixteen every four. Atlas ownership enumerates all frames once for present ride styles. GPU selection uses the existing snapshot clock; component geometry, parent/child links and whole-sprite constant depth remain unchanged. Time-dependent geometry and branches are rejected.
+
+Preservation evidence:
+
+- 16â†’17:235112 old rows compared;235052 are byte-identical. The remaining60 Go-Karts rows correct a source-proven partial `std::array<BoundBoxXYZ,3>` parsing error: a single initialized box was mistaken for an extra brace wrapper. Only bounds change; every old image, draw anchor, colour role and parent link remains identical. No pair or sequence tail is removed.
+- 17â†’18:all238940 old rows are byte-identical. Only the three animated River Rapids types are added.
+-Support06 adds corresponding72 programs; all5388 old support programs remain identical. It has405046 words,75724 rows,14045 deduplicated operations and maximum5 operations per row. No program is rejected. Six new Chairlift programs explicitly report omitted `ChairliftPaintUtilDrawSupports`; complete support rendering is not claimed for them.
+
+All72 Python regressions pass, including complete animation periods, unsigned tick wrap, source image IDs, immutable geometry/ownership, array zero initialization and malformed clock rejection. Two new C++ rule/catalog tests and the extended actual-GPU `TrackLookupUsesRawDirectionChainBrakeGhostAndRideColours` test cover resident frame ranges, raw-tick selection with zero source uploads, replacement/held catalogs and ghost colour. These C++/GPU checks have **not yet been run** for this candidate.
+
+Evidence is retained under `obj/vulkan-parity/native-track-recipe-authoring-17`, `native-track-recipe-authoring-18` and `native-track-support-authoring-06`: full coverage, source hashes, frozen generator copies, preservation audits and landing hashes. Authoring18 script SHA-256 `03d2725ba19f43a9cc36ef23ea22726ed1a6564a94457b9349809f115bd24d31`; support06 raw SHA-256 `8185f61d5e8713d11d1e96ef4606514f4d780f9a901019765b17658bb591bd4a`. Production include hashes are in18/landing.json.
+
+Concrete remaining whole-piece gaps in already migrated families:
+
+| Family/style | Rejected ordinary pieces or dependency |
+|---|---|
+| Go-Karts24 | Stations1â€“3: authored per-edge cover/fence decisions require procedural metadata. |
+| Chairlift6 | Stations1â€“3: first-track/ride-station ownership; six admitted slopes/curves also lack their special supports. |
+| Lattice Triangle Alt33 | Stations1â€“3: graphical powered-launch ride-mode branches. |
+| Miniature Railway49 | Flat/stations/curves/eighth/diagonal pieces depend on actual terrain support result and support subtype. This is **not Mine Train Coaster**. |
+| Mini Golf45 | Floor/quarter-turn fences, station fences and hole helpers201â€“205. |
+| Monorail50 | Eighth-turn types133â€“136: immutable `BoundBoxXY` tables are not yet registered by the general global parser. |
+| Air Powered1 / Reverse Freefall56 | Reverse-freefall slope124 (and Air Powered215) uses support-result-controlled art; Air Powered100 also checks ghost/highlight. |
+| Car Ride5 / Ghost Train23 / Mini Helicopters46 | Spinning tunnel173 requires live mechanism art. |
+
+These are not waived as physical-support-only omissions. No new claim of complete migrated-family parity is made. Everything Park captures and original-art closeups must qualify the new candidate after compilation; the earlier mismatched-CSG checkerboard diagnosis remains retracted.
+
+
+## Authoring19: Monorail eighth turns and shared spinning tunnels
+
+Seven additional pairs are restored: Monorail50 types133–136 and spinning tunnel173 for Car Ride5, Ghost Train23 and Mini Helicopters46. The Monorail correction registers ordinary immutable `BoundBoxXY`/`BoundBoxXYZ` globals, preserving all five sequence positions and their four populated image sequences. No guessed geometry or type-specific substitute art is introduced.
+
+The common spinning-tunnel source indexes a four-frame contiguous image table using `(sourceTick >> 2) & 3`. The authoring adapter proves that the entire indexed table is contiguous before using the existing image-clock tag; arbitrary/nonlinear tables remain rejected. The original animated back component remains a child of the rail, the front remains an independent parent, and support/additional remap ownership is retained. No new shader schema, per-frame CPU selection or depth adjustment is added.
+
+All75 Python regressions pass. The239132-row comparison against18 has **zero changed or removed rows and no sequence-count changes**. Two new C++ tests cover complete Monorail sequence bounds and spinning-tunnel frame/ownership/residency. They have not been executed for19. Root reported the18 River Rapids CPU animation tests and the extended actual-GPU phase/held-generation/ghost test passed in150; that does not qualify new19 image overlap or the normal park.
+
+The spinning tunnel front/back parts share their source raster origin. The current constant-depth rule can therefore let a local child layer outrank the separate front parent. Source front-contact bounds are `(2,28,height)` or `(28,2,height)`, versus back `(2,6,height)` or `(6,2,height)`. This is an explicit original-art visual gate; no generic bounding-box inference or unobserved anchor correction has been applied.
+
+Evidence: `obj/vulkan-parity/native-track-recipe-authoring-19/{coverage.json,authoring-tests.log,previous-rail-regression.json,source}` and the matching support07 folder. Authoring script SHA-256 `2f7bf32b7dcf76001bb390ed960c8466a8240e73d0aa14a7a8283d501a20a9ce`. The remaining-category table above describes18: its Monorail and spinning-tunnel rows are resolved by19; all other listed omissions remain explicit.
+
+Support07 admission audit: all5460 previously admitted support programs remain identical, exactly the same seven pairs are added, and no sequence count changes. There are75852 rows,14069 deduplicated operations and at most5 operations per row. All operation ranges pass validation. The six explicitly omitted Chairlift support helpers remain unchanged. Raw support SHA-256 `f37ba1565fb25e9f50db90ba9ae7850903cfc6352a338ebeaa278a2516b7c0df`. Both generated includes are now copied; exact file hashes are in19/landing.json. New19 C++/GPU and actual-park visual qualification remain pending.
+
+## Authoring20: complete Go-Karts station calls
+
+Go-Karts24 station types1/2/3 now retain original starting-grid/front-rail art, red/green signal state and two interleaved station cover calls. The single-cover station marker (variant7) carries authored edge, cover variant and height; GPU fence selection uses existing ride entrance/exit ownership. Each marker expands to at most one opaque parent plus its glass child. Direct cover calls do not test noPlatforms, matching the source. No CPU per-instance painter, sorting or new snapshot facts are used.
+
+All77 authoring tests pass, including all station types/directions/light states, literal source image IDs, bounds and call ordering, and rejection of mismatched fence/cover ownership. The new Go-Karts station C++ regression passes in build163. Full raster qualification remains open. The239404-row audit preserves every prior rail row byte-for-byte, with no removed pairs or sequence changes. The support audit preserves all5467 prior programs and adds the same three pairs; maximum5 operations/row,14083 deduplicated operations and75980 rows. The six Chairlift special-support omissions remain explicit.
+
+Authoring20 now admits5470 style/type pairs across57 styles. Raw rail SHA-256 `421a36923e14821a3c49f1f120dc0a7161bad6e381a9b96a23479820b55391f0`; exact source and landing hashes are in `obj/vulkan-parity/native-track-recipe-authoring-20`. Matching support data/audit are in `native-track-support-authoring-08`. The runtime and includes were landed together after build160; this is not a claim of visual correctness. Native auxiliary-preview-only PassedSurface override remains a separate qualification requirement for direct cover calls.

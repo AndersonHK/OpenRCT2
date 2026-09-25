@@ -2072,7 +2072,7 @@ namespace OpenRCT2
                     const auto drawable = _uiContext->GetDrawableSize();
                     const auto generation = ViewportGetPresentationGeneration();
                     const bool partial = _drawingEngine->GetEntityPublicationProfile()
-                        == EntityPublicationProfile::gpuTerrainOnly;
+                        == EntityPublicationProfile::gpuWorld;
                     json_t receipt{ { "schema", 1 },
                                     { "path", screenshot },
                                     { "outsideMeasurement", true },
@@ -2085,8 +2085,8 @@ namespace OpenRCT2
                                     { "logicalExtent", { _uiContext->GetWidth(), _uiContext->GetHeight() } },
                                     { "drawableExtent", { drawable.Width, drawable.Height } },
                                     { "renderScope",
-                                      partial ? "GPU terrain, paths/additions, scenery, static rides/entrances and supported "
-                                                "track/station recipes with ghosts; remaining categories omitted"
+                                      partial ? "GPU world snapshots including vehicles, peeps, balloons, effects and text; "
+                                                "track recipe and visual parity gaps remain under qualification"
                                               : "configured main renderer" } };
                     // The displayed immutable generation may lag the final simulation tick.
                     // Report that age honestly; no second render or publication reset is hidden.

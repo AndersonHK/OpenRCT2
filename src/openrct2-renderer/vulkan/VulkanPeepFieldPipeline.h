@@ -45,7 +45,7 @@ namespace OpenRCT2::Ui::Vulkan
         void Dispose(); // Owning executor retires all submissions first.
         void Record(
             const SubmissionToken&, std::shared_ptr<const Drawing::RetainedPeepSnapshot>,
-            std::shared_ptr<const Gpu::PeepAssetGeneration>);
+            std::shared_ptr<const Gpu::PeepAssetGeneration>, bool buildTileBins = true);
         void Commit(); // Only after accepted submission; never after mere recording.
         void Discard() noexcept;
         const Buffer& GetFields() const noexcept

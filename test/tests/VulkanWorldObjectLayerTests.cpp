@@ -9,8 +9,12 @@
     #include <openrct2-renderer/gpu/GpuWorldBannerText.h>
     #include <openrct2-renderer/gpu/GpuWorldFlatRideCatalog.h>
     #include <openrct2-renderer/gpu/GpuWorldPropCatalog.h>
+    #include <openrct2-renderer/gpu/GpuWorldTrackCatalog.h>
+    #include <openrct2-renderer/gpu/GpuWorldVehicleCatalog.h>
     #include <openrct2-renderer/vulkan/VulkanFrameExecutor.h>
     #include <openrct2-renderer/vulkan/VulkanSubmissionSlots.h>
+    #include <openrct2/drawing/MoneyPresentation.h>
+    #include <openrct2/drawing/RetainedBalloonScene.h>
     #include <openrct2/paint/Paint.h>
 
 namespace
@@ -139,6 +143,20 @@ namespace
         size_t ColourCount(uint8_t colour) const
         {
             return static_cast<size_t>(std::count(pixels.begin(), pixels.end(), std::byte(colour)));
+        }
+        void PrepareEntityArt()
+        {
+            // The prop catalog can repeat art across distinct recipe variants.
+            // Entity tests use a deliberately contiguous image bank instead.
+            sprites->records.clear();
+            sprites->propCatalog.clear();
+            for (uint32_t image = 0; image < assetCount; ++image)
+            {
+                G::WorldSurfaceSpriteSet sprite{};
+                sprite.variants[2] = { { 8, 8 }, { 0, 0 }, image, 0, 0, 5 };
+                sprite.variants[3] = { { 8, 8 }, { 0, 0 }, image, 1, 0, 5 };
+                sprites->records.push_back(sprite);
+            }
         }
         D::RenderUploadTelemetry Run(bool abandon = false, bool overflow = false)
         {
@@ -820,6 +838,77 @@ TEST_F(VulkanWorldObjectLayerTest, TrackLookupUsesRawDirectionChainBrakeGhostAnd
     EXPECT_EQ(ColourCount(static_cast<uint8_t>(Ink(1) + 5)), 0u);
     EXPECT_EQ(ColourCount(static_cast<uint8_t>(Ink(2) + 5)), 0u);
     EXPECT_GT(ColourCount(20), 0u);
+
+    // Fixed authored geometry with two resident frames: only snapshot time changes.
+    // The GPU must decode the image tag before the ordinary sorted image lookup.
+    Objects({ Object(4) });
+    words[words[2] + recipeParts] = 0x80000000u | (1u << 19) | (1u << 22) | 1000u;
+    sprites->revision++;
+    scene.sourceTick = 0;
+    Run();
+    EXPECT_GT(ColourCount(static_cast<uint8_t>(Ink(1) + 5)), 0u);
+    for (const auto tick : { 1u, 2u, 3u, 4u, 0xffffffffu, 0u })
+    {
+        scene.sourceTick = tick;
+        EXPECT_EQ(Run().worldBufferCopyCalls, 0u);
+        const uint32_t frame = (tick / 2) % 2;
+        EXPECT_GT(ColourCount(static_cast<uint8_t>(Ink(1 + frame) + 5)), 0u);
+        EXPECT_EQ(ColourCount(static_cast<uint8_t>(Ink(2 - frame) + 5)), 0u);
+    }
+    const auto heldAnimated = scene.sprites;
+    auto replacement = std::make_shared<G::WorldSurfaceSpriteTable>(*sprites);
+    replacement->revision++;
+    replacement->trackCatalog[replacement->trackCatalog[2] + recipeParts] = 1001;
+    scene.sprites = replacement;
+    Run();
+    EXPECT_GT(ColourCount(static_cast<uint8_t>(Ink(2) + 5)), 0u);
+    scene.sprites = heldAnimated;
+    scene.sourceTick = 0;
+    Run();
+    EXPECT_GT(ColourCount(static_cast<uint8_t>(Ink(1) + 5)), 0u);
+    auto animatedGhost = Object(4);
+    animatedGhost.flags = 1;
+    Objects({ animatedGhost });
+    scene.sourceTick = 2;
+    Run();
+    EXPECT_GT(ColourCount(static_cast<uint8_t>(Ink(2) + 9)), 0u);
+    EXPECT_EQ(ColourCount(static_cast<uint8_t>(Ink(2) + 5)), 0u);
+}
+TEST_F(VulkanWorldObjectLayerTest, WoodenTrackFootingWinsOwnTerrainTieWithoutMovingItsAnchor)
+{
+    // Use the admitted original wooden-flat recipe and support cursor. Mock
+    // opaque art isolates depth: the bottom 32-high arch and terrain occupy the
+    // exact same 8x8 coverage; the rail is 32 world units above it. Before the
+    // placed-art layer correction every footing pixel lost to terrain under LESS.
+    PrepareEntityArt();
+    OpenRCT2::WorldRidePresentationMaterials rides;
+    rides.rides.resize(1);
+    rides.rides[0].present = true;
+    rides.rides[0].rideType = OpenRCT2::RIDE_TYPE_WOODEN_ROLLER_COASTER;
+    sprites->trackCatalog = G::BuildWorldTrackCatalog(rides, [](uint32_t image) {
+                                for (int i = 0; i < G::MetalSupportRules::worldWoodenAssetCount(); ++i)
+                                    if (image == static_cast<uint32_t>(G::MetalSupportRules::worldWoodenAssetImage(i)))
+                                        return 2u;
+                                return 1u;
+                            }).words;
+    sprites->revision++;
+    auto track = Object(4);
+    track.baseZ = 32;
+    track.clearanceZ = 64;
+    track.flags = 1; // Fixed ghost remap makes both authored colour roles observable.
+    track.trackTypeAndRideType = uint32_t(OpenRCT2::RIDE_TYPE_WOODEN_ROLLER_COASTER) << 16;
+    for (uint32_t rotation = 0; rotation < 4; ++rotation)
+    {
+        SCOPED_TRACE(rotation);
+        scene.rotation = rotation;
+        Objects({ track });
+        Run();
+        EXPECT_EQ(ColourCount(static_cast<uint8_t>(Ink(2) + 9)), 64u);
+        EXPECT_EQ(ColourCount(Ink(0)), 0u);
+        const auto held = pixels;
+        EXPECT_EQ(Run().worldBufferCopyCalls, 0u);
+        EXPECT_EQ(pixels, held);
+    }
 }
 TEST(WorldPropCatalogTest, OwnedVariableMetadataAndMalformedImageRange)
 {
@@ -1753,4 +1842,267 @@ TEST_F(VulkanWorldObjectLayerTest, AuthoredSpriteDepthHasOneWinnerAcrossEntireTa
             }
 }
 
+TEST_F(VulkanWorldObjectLayerTest, ResidentCatalogBurstSurvivesDiscardAndRetiresBeforeSlotReuse)
+{
+    // This 20 MiB resident table exceeds the fixture's 8 MiB frame ring.
+    // Padding is never visited, so the expected image is the same terrain tile.
+    sprites->records.resize(100000);
+    Run(true);
+    Run();
+    EXPECT_GT(ColourCount(Ink(0)), 0u);
+    const auto held = pixels;
+    for (int frame = 0; frame < 3; ++frame)
+    {
+        const auto telemetry = Run();
+        EXPECT_EQ(pixels, held);
+        EXPECT_EQ(telemetry.worldBufferCopyCalls, 0u);
+    }
+}
+
+TEST_F(VulkanWorldObjectLayerTest, NativeEntitiesUseResidentFieldsAndImmutableHeldSnapshots)
+{
+    PrepareEntityArt();
+    // Here colours identify resident artwork, independently of the fixture's
+    // deliberately non-identity palette used by other remap tests.
+    std::array<std::byte, 256 * 256> identity{};
+    for (size_t i = 0; i < identity.size(); ++i)
+        identity[i] = std::byte(i & 255);
+    executor.SetRemapPalette(identity);
+    auto empty = std::make_shared<G::WorldSurfaceChunk>();
+    empty->revision = 2;
+    scene.chunks = { empty };
+    auto assets = std::make_shared<G::PeepAssetGeneration>();
+    assets->revision = 1;
+    assets->catalog = std::make_shared<D::RetainedPeepAnimationCatalog>();
+    assets->descriptors.push_back({ 0, 1, 1, 0, 1, 32, 0, 0 });
+    assets->facts.resize(37);
+    assets->facts[0] = { 1, 1, 0, 0 };
+    assets->balloonBase = 20;
+    sprites->peepAssets = assets;
+    sprites->revision++;
+    D::RetainedPeepRecord raw{};
+    raw.x = 8;
+    raw.y = 8;
+    raw.z = 8;
+    raw.previousX = raw.x;
+    raw.previousY = raw.y;
+    raw.previousZ = raw.z;
+    raw.id = 7;
+    raw.generation = 1;
+    raw.flags = 1;
+    raw.objectGeneration = 1;
+    raw.action = 254;
+    raw.width = 6;
+    raw.heightMin = 16;
+    raw.heightMax = 8;
+    auto fields = D::SplitRetainedPeepRecord(raw);
+    D::RetainedPeepBatch batch{};
+    batch.epoch = 177;
+    batch.reset = true;
+    batch.lifecycle.push_back({ 7, fields.lifecycle });
+    batch.motion.push_back({ 7, 1, fields.motion });
+    batch.appearance.push_back({ 7, 1, fields.appearance });
+    batch.animation.push_back({ 7, 1, fields.animation });
+    D::RetainedPeepScene peeps;
+    ASSERT_TRUE(peeps.Apply(batch, 1));
+    auto held = peeps.GetSnapshot();
+    scene.peeps = held;
+    auto balloons = std::make_shared<D::RetainedBalloonSnapshot>();
+    balloons->epoch = 177;
+    balloons->sequence = 1;
+    balloons->count = 1;
+    auto balloonChunk = std::make_shared<D::RetainedBalloonChunk>();
+    balloonChunk->revision = balloonChunk->gpuRevision = 1;
+    balloonChunk->records[9] = { 40, 8, 8, 9, 1, 0, 0, 0, 13, 22, 11, 1 };
+    balloons->chunks[0] = balloonChunk;
+    scene.balloons = balloons;
+    Run();
+    EXPECT_GT(ColourCount(Ink(1)), 0u);
+    EXPECT_GT(ColourCount(Ink(20)), 0u);
+    auto initial = pixels;
+    Run();
+    EXPECT_EQ(initial, pixels);
+    // Generation deletion cannot alter a held snapshot. Resubmit it after deleting the current identity.
+    D::RetainedPeepBatch deletion{};
+    deletion.epoch = 177;
+    deletion.lifecycle.push_back({ 7, { 1, 0 } });
+    ASSERT_TRUE(peeps.Apply(deletion, 2));
+    // A newer producer snapshot does not mutate the still-held renderer generation.
+    Run();
+    EXPECT_EQ(initial, pixels);
+    for (int rotation = 0; rotation < 4; ++rotation)
+    {
+        scene.rotation = rotation;
+        Run();
+        EXPECT_GT(ColourCount(Ink(1 + rotation)), 0u);
+        EXPECT_GT(ColourCount(Ink(20)), 0u);
+    }
+    scene.rotation = 0;
+    scene.peeps = peeps.GetSnapshot();
+    Run();
+    EXPECT_EQ(ColourCount(Ink(1)), 0u);
+    EXPECT_TRUE(held->TryGet(EntityId::FromUnderlying(7)).has_value());
+}
+
+TEST_F(VulkanWorldObjectLayerTest, NativeVehicleStateSelectsResidentHeadingAndRejectsMixedGenerations)
+{
+    PrepareEntityArt();
+    std::array<std::byte, 256 * 256> identity{};
+    for (size_t i = 0; i < identity.size(); ++i)
+        identity[i] = std::byte(i & 255);
+    executor.SetRemapPalette(identity);
+    auto empty = std::make_shared<G::WorldSurfaceChunk>();
+    empty->revision = 2;
+    scene.chunks = { empty };
+    auto source = std::make_shared<D::VehiclePresentationCatalog>();
+    source->cars.resize(1);
+    auto& car = source->cars[0];
+    car.present = true;
+    car.imageBase = car.baseImage = 100000;
+    car.imageCount = car.carImages = 32;
+    car.baseFrames = 1;
+    car.groups[0] = { car.baseImage, 6 }; // 32 authored headings.
+    auto used = std::make_shared<const std::vector<uint32_t>>(std::initializer_list<uint32_t>{ 0 });
+    sprites->vehicleSource = source;
+    sprites->vehicleUsedCars = used;
+    sprites->vehicleCatalog = G::BuildWorldVehicleCatalog(*source, *used, 1, [](uint32_t image) {
+                                  return image >= 100000 ? image - 100000 + 1 : 40;
+                              }).words;
+    sprites->revision++;
+    auto records = std::make_shared<std::vector<D::VehiclePresentationRecord>>(1);
+    (*records)[0].x = (*records)[0].y = (*records)[0].z = 8;
+    (*records)[0].entityId = 5;
+    (*records)[0].generation = 1;
+    auto vehicles = std::make_shared<D::VehiclePresentationSnapshot>();
+    vehicles->worldEpoch = scene.worldEpoch;
+    vehicles->sourceTick = scene.sourceTick;
+    vehicles->catalog = source;
+    vehicles->usedCars = used;
+    vehicles->records = records;
+    scene.vehicles = vehicles;
+    Run();
+    EXPECT_GT(ColourCount(Ink(1)), 0u);
+    auto heldPixels = pixels;
+    Run();
+    EXPECT_EQ(pixels, heldPixels);
+    scene.rotation = 1;
+    Run();
+    EXPECT_GT(ColourCount(Ink(9)), 0u);
+    auto mismatched = std::make_shared<D::VehiclePresentationSnapshot>(*vehicles);
+    mismatched->sourceTick++;
+    scene.vehicles = mismatched;
+    EXPECT_THROW(Run(), std::invalid_argument);
+}
+TEST_F(VulkanWorldObjectLayerTest, LargeObjectGlyphOverlapPreservesOriginalAttachmentTraversal)
+{
+    std::array<std::byte, 256 * 256> remap{};
+    for (uint32_t row = 0; row < 256; ++row)
+        for (uint32_t ink = 0; ink < 256; ++ink)
+            remap[row * 256 + ink] = std::byte(ink);
+    executor.SetRemapPalette(remap);
+
+    auto text = std::make_shared<OpenRCT2::WorldBannerPresentation>();
+    text->revision = 1;
+    text->banners.resize(1);
+    text->objectFontText = { std::make_shared<const std::vector<uint32_t>>(std::vector<uint32_t>{ 'A', 'B' }) };
+    scene.bannerTexts = G::BuildWorldBannerTextData(text);
+
+    struct Sample
+    {
+        uint32_t x, y, image;
+    };
+    struct Case
+    {
+        bool vertical;
+        uint32_t direction;
+        std::array<Sample, 3> samples;
+    };
+    // Glyph advance is one pixel but each original sprite is eight pixels wide.
+    // These independent expected pixels distinguish overlap ownership from
+    // accidentally reversing the phrase, its images, or its raster positions.
+    // Horizontal direction 0 appends A then B: B paints last. Direction 3 and
+    // vertical text prepend B before A: A paints last in the original painter.
+    const std::array<Case, 4> cases = { {
+        { false, 0, { Sample{ 130, 114, 104 }, Sample{ 127, 111, 102 }, Sample{ 135, 119, 104 } } },
+        { false, 3, { Sample{ 130, 114, 103 }, Sample{ 127, 112, 103 }, Sample{ 135, 112, 105 } } },
+        { true, 0, { Sample{ 130, 114, 100 }, Sample{ 130, 111, 100 }, Sample{ 130, 119, 102 } } },
+        { true, 3, { Sample{ 130, 115, 101 }, Sample{ 130, 112, 101 }, Sample{ 130, 120, 103 } } },
+    } };
+    for (const auto& item : cases)
+    {
+        SCOPED_TRACE(testing::Message() << "vertical=" << item.vertical << " direction=" << item.direction);
+        auto font = std::make_shared<OpenRCT2::LargeSceneryPresentationFont>();
+        font->image = 100;
+        font->numImages = 2;
+        font->maxWidth = 100;
+        font->flags = item.vertical ? 1 : 0;
+        font->glyphs['A'] = (1u << 8) | (1u << 16);
+        font->glyphs['B'] = 1u | (1u << 8) | (1u << 16);
+        auto& material = materials->largeScenery[0];
+        material.imageBase = 100;
+        material.imageCount = 32;
+        material.flags = 4; // Original object's three-dimensional font.
+        material.scrollingMode = 0;
+        material.font = font;
+        RebuildCatalog();
+        auto object = Object(1);
+        object.direction = item.direction;
+        Objects({ object });
+        Run();
+        for (const auto& point : item.samples)
+            EXPECT_EQ(std::to_integer<uint8_t>(pixels[point.y * extent.width + point.x]), Ink(point.image))
+                << point.x << ',' << point.y;
+    }
+    const auto held = pixels;
+    Run();
+    EXPECT_EQ(pixels, held);
+}
+
+TEST_F(VulkanWorldObjectLayerTest, MoneyCoverageComposesGlyphOrderAndZeroInkOverEarlierPixels)
+{
+    std::array<std::byte, 256 * 256> blend{};
+    for (uint32_t ink = 0; ink < 256; ++ink)
+        for (uint32_t background = 0; background < 256; ++background)
+            blend[ink * 256 + background] = std::byte((background + ink * 3 + 5) & 255);
+    executor.SetBlendPalette(blend);
+    auto run = std::make_shared<D::TextGlyphRun>();
+    D::TextGlyphPiece base;
+    base.width = base.height = 8;
+    base.pixels.assign(64, 40);
+    run->pieces.push_back(base);
+    D::TextGlyphPiece hinted = base;
+    hinted.kind = 1;
+    hinted.ink = 7;
+    hinted.hintThreshold = 64;
+    constexpr std::array<uint8_t, 8> coverage{ 0, 50, 100, 180, 181, 255, 100, 255 };
+    for (size_t i = 0; i < hinted.pixels.size(); ++i)
+        hinted.pixels[i] = coverage[i % 8];
+    run->pieces.push_back(hinted);
+    D::TextGlyphPiece zeroInk = hinted;
+    zeroInk.ink = 0;
+    for (size_t i = 0; i < zeroInk.pixels.size(); ++i)
+        zeroInk.pixels[i] = i % 8 == 6 ? 100 : (i % 8 == 7 ? 255 : 0);
+    run->pieces.push_back(zeroInk);
+    D::TextGlyphPiece laterOpaque = base;
+    for (size_t i = 0; i < laterOpaque.pixels.size(); ++i)
+        laterOpaque.pixels[i] = i % 8 == 5 ? 99 : 0;
+    run->pieces.push_back(laterOpaque);
+    auto catalog = std::make_shared<D::MoneyGlyphCatalog>();
+    catalog->runs.push_back(run);
+    auto money = std::make_shared<D::MoneyPresentationSnapshot>();
+    money->sourceTick = scene.sourceTick;
+    money->catalog = catalog;
+    money->records = std::make_shared<const std::vector<D::MoneyPresentationRecord>>(1);
+    scene.money = money;
+    Run();
+    // Matches the original coverage threshold and BlendColours(ink, destination),
+    // deliberately using a blend table distinct from the fixture's palette filters.
+    constexpr std::array<uint8_t, 8> expected{ 40, 40, 66, 66, 7, 99, 71, 0 };
+    for (uint32_t y = 128; y < 136; ++y)
+        for (uint32_t x = 0; x < 8; ++x)
+            EXPECT_EQ(std::to_integer<uint8_t>(pixels[y * extent.width + 128 + x]), expected[x]) << x << ',' << y;
+    const auto held = pixels;
+    Run();
+    EXPECT_EQ(pixels, held);
+}
 #endif

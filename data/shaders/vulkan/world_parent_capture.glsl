@@ -5,6 +5,14 @@
 #include "world_component_depth.glsl"
 const uint WORLD_COMPONENT_DEPTH_VALID=32u;
 uint worldParentRoot=0xffffffffu,worldParentFlags=0u;
+// Distinct hard-failure bits. reserved records the first write-pass tile index+1.
+// Count-pass status is reset by the global prefix pass; never leave stale diagnostics there.
+void worldReportComponentFailure(uint bit,uvec2 tile,bool writeRecords)
+{
+    if(!writeRecords) return;
+    atomicOr(uStatus.overflow,bit);
+    atomicCompSwap(uStatus.reserved,0u,tile.y*uScene.width+tile.x+1u);
+}
 uint worldComponentRootLayer=0u;
 bool worldComponentAnchorOverride=false;
 int worldAuthoredComponentDepth=0;
@@ -21,6 +29,10 @@ void worldSetCoplanarSurfaceLayer() { worldComponentRootLayer=1u; }
 // Explicit component anchor authored independently from its raster offset.
 // XY is camera-relative to the tile's facing origin; Z is absolute world height.
 // Only named recipes opt in. Never infer this anchor from generic bounding boxes.
+void worldSetComponentDepthScalar(int depth)
+{
+    worldAuthoredComponentDepth=depth;worldComponentAnchorOverride=true;
+}
 void worldSetComponentDepthAnchor(uvec2 tile,ivec3 anchor)
 {
     ivec2 origin=terrainRotateXY(terrainPaintTileOrigin(ivec2(tile*32u),uScene.rotation),uScene.rotation);
@@ -45,11 +57,17 @@ void worldCapturePaint(uint component,uint sprite,uvec2 tile,bool writeRecords,i
     int componentDepth=worldComponentDepth(anchor.x,anchor.y,record.world.z,int(uScene.rotation));
     if(worldComponentAnchorOverride) componentDepth=worldAuthoredComponentDepth;
     if(worldParentRoot!=component) {
+        if(worldParentRoot>=uScene.outputCapacity) {
+            worldReportComponentFailure(4096u,tile,true);record.valid=0;return;
+        }
         OutputRecord parent=uOutputs.records[worldParentRoot];
         uint child=uint(parent.reserved.y)+1u;
         layer=((uint(parent.depth)>>4u)&255u)+child;
-        if(layer>255u) { atomicOr(uStatus.overflow,8u);record.valid=0;return; }
+        if(layer>uint(WORLD_COMPONENT_LAYER_MAX)) { worldReportComponentFailure(32u,tile,true);record.valid=0;return; }
         uOutputs.records[worldParentRoot].reserved.y=int(child);
+    }
+    if(!worldComponentDepthValid(componentDepth,int(layer))) {
+        worldReportComponentFailure(64u,tile,true);record.valid=0;return;
     }
     record.depth=int(layer<<4u);
     record.reserved=ivec2(componentDepth,0);

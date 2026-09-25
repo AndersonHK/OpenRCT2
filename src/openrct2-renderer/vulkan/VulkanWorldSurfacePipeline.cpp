@@ -22,6 +22,9 @@
     #include <limits>
     #include <locale>
     #include <openrct2/core/Console.hpp>
+    #include <openrct2/drawing/RetainedBalloonScene.h>
+    #include <openrct2/drawing/VehiclePresentation.h>
+    #include <openrct2/drawing/WorldEffectSnapshot.h>
     #include <ranges>
     #include <span>
     #include <sstream>
@@ -49,8 +52,9 @@ namespace OpenRCT2::Ui::Vulkan
             uint32_t outputCapacity;
             uint32_t sourceTick, clockMinute, clockHour;
             uint32_t viewFlags;
+            uint32_t peepCount, balloonCount, vehicleCount, effectCount, moneyCount;
         };
-        static_assert(sizeof(WorldSurfaceConstants) == 88);
+        static_assert(sizeof(WorldSurfaceConstants) == 108);
         static_assert(offsetof(WorldSurfaceConstants, width) == 32);
         static_assert(offsetof(WorldSurfaceConstants, zoom) == 44);
         static_assert(offsetof(WorldSurfaceConstants, spriteSetCount) == 52);
@@ -93,6 +97,10 @@ namespace OpenRCT2::Ui::Vulkan
         _frameCount = resources.GetFrameCount();
         _pipelineCache = device.GetPipelineCache();
         _shaderDirectory = std::move(shaderDirectory);
+        // Nested field pipelines own their cache lock. Acquire this world's lock
+        // only after those independent initialisations have returned.
+        _peepFields.Initialise(device, _shaderDirectory / "peep_fields.comp.spv");
+        const auto cacheLock = device.LockPipelineCache();
         const auto extent = resources.GetIndexedCanvas(0).GetExtent();
         _extent = { extent.width, extent.height };
         constexpr VkDeviceSize textBytes = 64ull * 1024 * 1024;
@@ -105,8 +113,12 @@ namespace OpenRCT2::Ui::Vulkan
         constexpr VkDeviceSize indirectBytes = Gpu::kWorldSurfaceMaximumDrawCount * sizeof(VkDrawIndirectCommand);
         VkPhysicalDeviceProperties properties{};
         vkGetPhysicalDeviceProperties(device.GetPhysicalDevice(), &properties);
-        if (properties.limits.maxPerStageDescriptorStorageBuffers < 18 || properties.limits.maxDescriptorSetStorageBuffers < 18)
-            throw std::runtime_error("GPU world presentation requires eighteen storage-buffer descriptors");
+        // Both descriptor sets belong to the materialization pipeline layout:
+        // twenty-five world buffers and five shared filter-compositor buffers.
+        constexpr uint32_t requiredStorageBuffers = 25 + 5;
+        if (properties.limits.maxPerStageDescriptorStorageBuffers < requiredStorageBuffers
+            || properties.limits.maxDescriptorSetStorageBuffers < requiredStorageBuffers)
+            throw std::runtime_error("GPU world presentation requires thirty storage-buffer descriptors");
         if (properties.limits.maxPushConstantsSize < sizeof(WorldSurfaceConstants))
             throw std::runtime_error("GPU world presentation constants exceed the device push-constant range");
         if (properties.limits.maxComputeSharedMemorySize < 1025 * sizeof(uint32_t))
@@ -118,7 +130,7 @@ namespace OpenRCT2::Ui::Vulkan
             device.GetPhysicalDevice(), _device, sizeof(Gpu::WorldSurfaceCatalog),
             VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
         _prefixes.Initialise(
-            device.GetPhysicalDevice(), _device, Gpu::kWorldSurfaceMaximumRecordCount * sizeof(uint32_t),
+            device.GetPhysicalDevice(), _device, (Gpu::kWorldSurfaceMaximumRecordCount + 4 * 65536) * sizeof(uint32_t),
             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
         _status.Initialise(
             device.GetPhysicalDevice(), _device, sizeof(Gpu::WorldSurfaceStatus),
@@ -164,6 +176,21 @@ namespace OpenRCT2::Ui::Vulkan
         _indirectCommands.Initialise(
             device.GetPhysicalDevice(), _device, indirectBytes,
             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT);
+        _balloonRecords.Initialise(
+            device.GetPhysicalDevice(), _device, 65536ull * sizeof(Drawing::RetainedBalloonRecord),
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+        _vehicleRecords.Initialise(
+            device.GetPhysicalDevice(), _device, 16 * 4 + 65535ull * sizeof(Drawing::VehiclePresentationRecord),
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+        _vehicleCatalog.Initialise(
+            device.GetPhysicalDevice(), _device, 16 * 1024 * 1024,
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+        _effectRecords.Initialise(
+            device.GetPhysicalDevice(), _device, 16 + 65535ull * sizeof(Drawing::WorldEffectRecord),
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+        _moneyRecords.Initialise(
+            device.GetPhysicalDevice(), _device, 64ull * 1024 * 1024,
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
         CreateDescriptors(resources);
         CreateRenderPass();
         CreatePipeline();
@@ -174,6 +201,18 @@ namespace OpenRCT2::Ui::Vulkan
     void WorldSurfacePipeline::Dispose()
     {
         DisposeProfile();
+        _peepFields.Dispose();
+        _balloonRecords.Dispose();
+        _vehicleRecords.Dispose();
+        _vehicleCatalog.Dispose();
+        _effectRecords.Dispose();
+        _moneyRecords.Dispose();
+        _uploadedVehicles.reset();
+        _uploadedEffects.reset();
+        _uploadedMoney.reset();
+        _moneyCatalog.reset();
+        _uploadedVehicleCatalogRevision = 0;
+        _uploadedBalloons.reset();
         _filters.Dispose();
         _catalog.Dispose();
         _prefixes.Dispose();
@@ -260,6 +299,18 @@ namespace OpenRCT2::Ui::Vulkan
             throw std::invalid_argument("GPU ride poses do not belong to the submitted map boundary");
         if (!Gpu::GetWorldSurfaceDepthRange(scene.depthBase, scene.recordCount).has_value())
             throw std::invalid_argument("Vulkan world-surface painter depth interval is invalid");
+        if (scene.vehicles
+            && (scene.vehicles->sourceTick != scene.sourceTick || scene.vehicles->worldEpoch != scene.worldEpoch
+                || !scene.vehicles->records || scene.vehicles->records->size() > 65535
+                || scene.vehicles->catalog != scene.sprites->vehicleSource
+                || scene.vehicles->usedCars != scene.sprites->vehicleUsedCars))
+            throw std::invalid_argument("Vehicle state and resident art do not belong to the submitted world boundary");
+        if (scene.effects && (scene.effects->sourceTick != scene.sourceTick || scene.effects->records.size() > 65535))
+            throw std::invalid_argument("Effect state does not belong to the submitted world boundary");
+        if (scene.money
+            && (scene.money->sourceTick != scene.sourceTick || !scene.money->records
+                || scene.money->records->size() > Gpu::kWorldMoneyCapacity))
+            throw std::invalid_argument("Money state does not belong to the submitted world boundary");
         if (scene.selectedVehicle != nullptr)
         {
             Gpu::ValidateSelectedVehiclePaintPacket(*scene.selectedVehicle);
@@ -787,6 +838,153 @@ namespace OpenRCT2::Ui::Vulkan
             _selectedVehicleInitialised = true;
         }
 
+        const auto uploadDynamic = [&](Buffer& buffer, std::span<const std::byte> header, std::span<const std::byte> body,
+                                       VkDeviceSize destinationOffset = 0) {
+            const size_t bytes = header.size() + body.size();
+            if (destinationOffset > buffer.GetSize() || bytes > buffer.GetSize() - destinationOffset)
+                throw std::overflow_error("Native entity buffer capacity exceeded");
+            auto upload = frame.upload->Allocate(bytes, 4, Drawing::UploadCategory::world);
+            if (!upload)
+                throw std::runtime_error("Native entity upload ring capacity exceeded");
+            if (!header.empty())
+                std::memcpy(upload.data, header.data(), header.size());
+            if (!body.empty())
+                std::memcpy(upload.data + header.size(), body.data(), body.size());
+            upload.RecordHostWrite();
+            VkBufferMemoryBarrier b{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+                                     nullptr,
+                                     VK_ACCESS_SHADER_READ_BIT,
+                                     VK_ACCESS_TRANSFER_WRITE_BIT,
+                                     VK_QUEUE_FAMILY_IGNORED,
+                                     VK_QUEUE_FAMILY_IGNORED,
+                                     buffer.GetBuffer(),
+                                     0,
+                                     VK_WHOLE_SIZE };
+            vkCmdPipelineBarrier(
+                frame.commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 1, &b, 0, nullptr);
+            const VkBufferCopy copy{ upload.offset, destinationOffset, bytes };
+            vkCmdCopyBuffer(frame.commandBuffer, upload.buffer, buffer.GetBuffer(), 1, &copy);
+            if (frame.telemetry)
+                frame.telemetry->Add(frame.telemetry->worldBufferCopyCalls, 1);
+            b.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            b.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            vkCmdPipelineBarrier(
+                frame.commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 1, &b, 0, nullptr);
+            upload.Record(Drawing::UploadMetric::bufferTransfer, bytes);
+        };
+        if (scene.money)
+        {
+            if (!_moneyCatalog || _moneyCatalog->source != scene.money->catalog)
+            {
+                _moneyCatalog = Gpu::BuildWorldMoneyCatalog(scene.money->catalog);
+                if (!_moneyCatalog->words.empty())
+                    uploadDynamic(
+                        _moneyRecords, {}, std::as_bytes(std::span(_moneyCatalog->words)),
+                        Gpu::kWorldMoneyCatalogOffset * 4ull);
+                _uploadedMoney.reset();
+            }
+            if (!_uploadedMoney || _uploadedMoney->records != scene.money->records)
+            {
+                const auto packed = Gpu::PackWorldMoneyRecords(*scene.money, *_moneyCatalog);
+                uploadDynamic(_moneyRecords, {}, std::as_bytes(std::span(packed)));
+                _uploadedMoney = scene.money;
+            }
+        }
+        if (scene.vehicles && (!_uploadedVehicles || scene.vehicles->records != _uploadedVehicles->records))
+        {
+            std::array<uint32_t, 16> header{ 0x56535231,
+                                             1,
+                                             static_cast<uint32_t>(scene.vehicles->records->size()),
+                                             scene.vehicles->sourceTick,
+                                             uint32_t(scene.vehicles->worldEpoch),
+                                             uint32_t(scene.vehicles->worldEpoch >> 32),
+                                             uint32_t(scene.vehicles->entityEpoch),
+                                             uint32_t(scene.vehicles->entityEpoch >> 32) };
+            uploadDynamic(
+                _vehicleRecords, std::as_bytes(std::span(header)), std::as_bytes(std::span(*scene.vehicles->records)));
+            _uploadedVehicles = scene.vehicles;
+        }
+        if (scene.vehicles && _uploadedVehicleCatalogRevision != scene.sprites->revision)
+        {
+            uploadDynamic(_vehicleCatalog, {}, std::as_bytes(std::span(scene.sprites->vehicleCatalog)));
+            _uploadedVehicleCatalogRevision = scene.sprites->revision;
+        }
+        if (scene.effects && scene.effects != _uploadedEffects)
+        {
+            std::array<uint32_t, 4> header{ static_cast<uint32_t>(scene.effects->records.size()),
+                                            scene.sprites->effectSpriteBase, 0, 0 };
+            uploadDynamic(_effectRecords, std::as_bytes(std::span(header)), std::as_bytes(std::span(scene.effects->records)));
+            _uploadedEffects = scene.effects;
+        }
+        if (scene.peeps && scene.sprites->peepAssets)
+            _peepFields.Record(frame, scene.peeps, scene.sprites->peepAssets, false);
+        if (scene.balloons && scene.balloons != _uploadedBalloons)
+        {
+            const bool reset = !_uploadedBalloons || _uploadedBalloons->epoch != scene.balloons->epoch;
+            VkBufferMemoryBarrier barrier{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+                                           nullptr,
+                                           VK_ACCESS_SHADER_READ_BIT,
+                                           VK_ACCESS_TRANSFER_WRITE_BIT,
+                                           VK_QUEUE_FAMILY_IGNORED,
+                                           VK_QUEUE_FAMILY_IGNORED,
+                                           _balloonRecords.GetBuffer(),
+                                           0,
+                                           VK_WHOLE_SIZE };
+            vkCmdPipelineBarrier(
+                frame.commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 1,
+                &barrier, 0, nullptr);
+            if (reset)
+            {
+                vkCmdFillBuffer(frame.commandBuffer, _balloonRecords.GetBuffer(), 0, VK_WHOLE_SIZE, 0);
+                // Live chunks overwrite the cleared slots in the same command
+                // buffer; transfer order alone does not make those writes safe.
+                barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+                vkCmdPipelineBarrier(
+                    frame.commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 1,
+                    &barrier, 0, nullptr);
+            }
+            std::vector<uint32_t> dirty;
+            for (uint32_t i = 0; i < scene.balloons->chunks.size(); ++i)
+            {
+                auto& chunk = scene.balloons->chunks[i];
+                auto previous = _uploadedBalloons ? _uploadedBalloons->chunks[i] : nullptr;
+                if (chunk && (reset || !previous || chunk->gpuRevision != previous->gpuRevision))
+                    dirty.push_back(i);
+            }
+            constexpr size_t bytes = Drawing::kRetainedBalloonChunkWidth * sizeof(Drawing::RetainedBalloonRecord);
+            if (!dirty.empty())
+            {
+                auto upload = frame.upload->Allocate(dirty.size() * bytes, 4, Drawing::UploadCategory::world);
+                if (!upload)
+                    throw std::runtime_error("World balloon state upload exceeds ring capacity");
+                std::vector<VkBufferCopy> copies;
+                for (size_t i = 0; i < dirty.size(); ++i)
+                {
+                    std::memcpy(upload.data + i * bytes, scene.balloons->chunks[dirty[i]]->records.data(), bytes);
+                    copies.push_back({ upload.offset + i * bytes, dirty[i] * bytes, bytes });
+                }
+                upload.RecordHostWrite();
+                vkCmdCopyBuffer(
+                    frame.commandBuffer, upload.buffer, _balloonRecords.GetBuffer(), static_cast<uint32_t>(copies.size()),
+                    copies.data());
+                if (frame.telemetry)
+                    frame.telemetry->Add(frame.telemetry->worldBufferCopyCalls, 1);
+                upload.Record(Drawing::UploadMetric::bufferTransfer, dirty.size() * bytes);
+            }
+            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            vkCmdPipelineBarrier(
+                frame.commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, nullptr, 1,
+                &barrier, 0, nullptr);
+            _uploadedBalloons = scene.balloons;
+        }
+        const uint32_t peepCount = scene.peeps && scene.sprites->peepAssets ? 65535u : 0u;
+        const uint32_t balloonCount = scene.balloons && scene.sprites->peepAssets ? 65535u : 0u;
+        const uint32_t vehicleCount = scene.vehicles ? static_cast<uint32_t>(scene.vehicles->records->size()) : 0;
+        const uint32_t effectCount = scene.effects ? static_cast<uint32_t>(scene.effects->records.size()) : 0;
+        const uint32_t moneyCount = scene.money ? static_cast<uint32_t>(scene.money->records->size()) : 0;
         const std::array outputToCompute = {
             VkBufferMemoryBarrier{
                 .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
@@ -820,7 +1018,7 @@ namespace OpenRCT2::Ui::Vulkan
             .clip = scene.clip,
             .width = scene.width,
             .height = scene.height,
-            .recordCount = scene.recordCount,
+            .recordCount = scene.recordCount + peepCount + balloonCount + vehicleCount + effectCount + moneyCount,
             .zoom = scene.zoom,
             .rotation = static_cast<uint32_t>(scene.rotation),
             .spriteSetCount = static_cast<uint32_t>(scene.sprites->records.size()),
@@ -832,8 +1030,13 @@ namespace OpenRCT2::Ui::Vulkan
             .clockMinute = scene.clockMinute,
             .clockHour = scene.clockHour,
             .viewFlags = scene.viewFlags,
+            .peepCount = peepCount,
+            .balloonCount = balloonCount,
+            .vehicleCount = vehicleCount,
+            .effectCount = effectCount,
+            .moneyCount = moneyCount,
         };
-        const uint32_t drawCount = Gpu::GetWorldSurfaceDrawCount(scene.recordCount);
+        const uint32_t drawCount = Gpu::GetWorldSurfaceDrawCount(constants.recordCount);
         if (scene.zoom < -2 || scene.zoom > 3)
             throw std::invalid_argument("GPU world column zoom is outside the resident variant range");
         vkCmdBindPipeline(frame.commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, _computePipeline);
@@ -1046,6 +1249,13 @@ namespace OpenRCT2::Ui::Vulkan
 
     void WorldSurfacePipeline::DiscardPendingUploads(uint32_t frameIndex) noexcept
     {
+        _peepFields.Discard();
+        _uploadedVehicles.reset();
+        _uploadedEffects.reset();
+        _uploadedMoney.reset();
+        _moneyCatalog.reset();
+        _uploadedVehicleCatalogRevision = 0;
+        _uploadedBalloons.reset();
         if (frameIndex < _profilePending.size())
         {
             _profileDiscarded += _profilePending[frameIndex];
@@ -1097,6 +1307,14 @@ namespace OpenRCT2::Ui::Vulkan
             VkDescriptorSetLayoutBinding{ 20, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
                                           VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_FRAGMENT_BIT },
             VkDescriptorSetLayoutBinding{ 22, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
+            VkDescriptorSetLayoutBinding{ 23, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
+            VkDescriptorSetLayoutBinding{ 24, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
+            VkDescriptorSetLayoutBinding{ 27, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
+            VkDescriptorSetLayoutBinding{ 28, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
+                                          VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_FRAGMENT_BIT },
+            VkDescriptorSetLayoutBinding{ 21, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
+            VkDescriptorSetLayoutBinding{ 25, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
+            VkDescriptorSetLayoutBinding{ 26, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
         };
         const VkDescriptorSetLayoutCreateInfo layoutInfo = {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
@@ -1106,7 +1324,7 @@ namespace OpenRCT2::Ui::Vulkan
         CheckVk(vkCreateDescriptorSetLayout(_device, &layoutInfo, nullptr, &_descriptorSetLayout), "world surfaces layout");
         constexpr std::array poolSizes = {
             VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2 },
-            VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 18 },
+            VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 25 },
         };
         const VkDescriptorPoolCreateInfo poolInfo = {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
@@ -1145,7 +1363,22 @@ namespace OpenRCT2::Ui::Vulkan
         const VkDescriptorBufferInfo catalog{ _catalog.GetBuffer(), 0, _catalog.GetSize() };
         const VkDescriptorBufferInfo prefixes{ _prefixes.GetBuffer(), 0, _prefixes.GetSize() };
         const VkDescriptorBufferInfo status{ _status.GetBuffer(), 0, _status.GetSize() };
+        const VkDescriptorBufferInfo peepFields{ _peepFields.GetFields().GetBuffer(), 0, _peepFields.GetFields().GetSize() };
+        const VkDescriptorBufferInfo peepCatalog{ _peepFields.GetCatalog().GetBuffer(), 0, _peepFields.GetCatalog().GetSize() };
+        const VkDescriptorBufferInfo balloons{ _balloonRecords.GetBuffer(), 0, _balloonRecords.GetSize() };
+        const VkDescriptorBufferInfo vehicles{ _vehicleRecords.GetBuffer(), 0, _vehicleRecords.GetSize() };
+        const VkDescriptorBufferInfo vehicleCatalog{ _vehicleCatalog.GetBuffer(), 0, _vehicleCatalog.GetSize() };
+        const VkDescriptorBufferInfo effects{ _effectRecords.GetBuffer(), 0, _effectRecords.GetSize() };
+        const VkDescriptorBufferInfo money{ _moneyRecords.GetBuffer(), 0, _moneyRecords.GetSize() };
         const std::array writes = {
+            VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 28, 0, 1,
+                                  VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &money },
+            VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 23, 0, 1,
+                                  VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &vehicles },
+            VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 24, 0, 1,
+                                  VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &vehicleCatalog },
+            VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 27, 0, 1,
+                                  VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &effects },
             VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 0, 0, 1,
                                   VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &atlas },
             VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 1, 0, 1,
@@ -1186,6 +1419,12 @@ namespace OpenRCT2::Ui::Vulkan
                                   VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &bannerTexts },
             VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 22, 0, 1,
                                   VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &selectedVehicle },
+            VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 21, 0, 1,
+                                  VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &peepFields },
+            VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 25, 0, 1,
+                                  VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &balloons },
+            VkWriteDescriptorSet{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, _descriptorSet, 26, 0, 1,
+                                  VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &peepCatalog },
         };
         vkUpdateDescriptorSets(_device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
     }

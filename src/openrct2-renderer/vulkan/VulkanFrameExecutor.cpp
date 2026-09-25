@@ -47,6 +47,7 @@ namespace OpenRCT2::Ui::Vulkan
         _enableWorldPasses = enableWorldPasses;
         _terrainStatuses.resize(frameCount);
         _atlasAdmissions.resize(frameCount);
+        _worldAdmissions.resize(frameCount);
         try
         {
             const bool gpuLightFxSupported = _enableWorldPasses && LightFxPipeline::IsSupported(*_context, logicalExtent);
@@ -72,6 +73,7 @@ namespace OpenRCT2::Ui::Vulkan
         _resources.Dispose();
         _terrainStatuses.clear();
         _atlasAdmissions.clear();
+        _worldAdmissions.clear();
         _terrainFailure.clear();
         _context.reset();
         _paletteVersion = 1;
@@ -140,9 +142,9 @@ namespace OpenRCT2::Ui::Vulkan
 
     void FrameExecutor::RecordWorldSurfaceStatus(const SubmissionToken& token)
     {
-        // One safety word per complete world submission, retired by its existing fence.
+        // Safety flags and the first failing tile, retired by the existing fence.
         // No image download, owner-thread wait, or per-object operation is involved.
-        auto allocation = token.upload->Allocate(sizeof(uint32_t), alignof(uint32_t));
+        auto allocation = token.upload->Allocate(2 * sizeof(uint32_t), alignof(uint32_t));
         if (!allocation)
             throw std::runtime_error("Vulkan upload ring has no room for world completion status");
         _terrainStatuses.at(token.frameIndex).push_back({ token.upload, allocation, 0, 1, true });
@@ -153,7 +155,7 @@ namespace OpenRCT2::Ui::Vulkan
             token.commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 1, &ready, 0, nullptr,
             0, nullptr);
         // WorldSurfaceStatus: emittedCount, capacity, overflow, reserved.
-        const VkBufferCopy copy{ 2 * sizeof(uint32_t), allocation.offset, sizeof(uint32_t) };
+        const VkBufferCopy copy{ 2 * sizeof(uint32_t), allocation.offset, allocation.size };
         vkCmdCopyBuffer(token.commandBuffer, _worldSurfacePipeline.GetStatusBuffer().GetBuffer(), allocation.buffer, 1, &copy);
         const VkMemoryBarrier visible{ .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
                                        .srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT,
@@ -161,11 +163,11 @@ namespace OpenRCT2::Ui::Vulkan
         vkCmdPipelineBarrier(
             token.commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
             VK_PIPELINE_STAGE_HOST_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &visible, 0, nullptr, 0, nullptr);
-        _terrainUploads.statusReadbackBytes += sizeof(uint32_t);
+        _terrainUploads.statusReadbackBytes += allocation.size;
         if (token.telemetry != nullptr)
         {
             token.telemetry->statusReadbackRequests++;
-            token.telemetry->statusReadbackBytes += sizeof(uint32_t);
+            token.telemetry->statusReadbackBytes += allocation.size;
         }
     }
 
@@ -174,6 +176,7 @@ namespace OpenRCT2::Ui::Vulkan
         if (_terrainStatuses.empty()) // Uninitialized/disposed backend has no status to retire.
             return;
         _atlasAdmissions.at(frameIndex).reset();
+        _worldAdmissions.at(frameIndex).reset();
         _worldSurfacePipeline.CompleteProfile(frameIndex);
         if (!_terrainFailure.empty())
             throw std::runtime_error(_terrainFailure);
@@ -186,11 +189,19 @@ namespace OpenRCT2::Ui::Vulkan
                 uint32_t error{};
                 std::memcpy(&error, status.allocation.data + column * sizeof(error), sizeof(error));
                 if (error != 0 && _terrainFailure.empty())
+                {
                     _terrainFailure = std::string(
                                           status.worldSurface ? "Vulkan world output overflow: slot="
                                                               : "Vulkan retained terrain GPU failure: slot=")
                         + std::to_string(frameIndex) + " viewport=" + std::to_string(status.viewport)
                         + " column=" + std::to_string(column) + " error=" + std::to_string(error);
+                    if (status.worldSurface)
+                    {
+                        uint32_t tile{};
+                        std::memcpy(&tile, status.allocation.data + sizeof(uint32_t), sizeof(tile));
+                        _terrainFailure += " firstDetail=" + std::to_string(tile);
+                    }
+                }
             }
         }
         pending.clear();
@@ -202,6 +213,7 @@ namespace OpenRCT2::Ui::Vulkan
     {
         _resources.CommitFrameLayouts();
         _terrainPipeline.Commit();
+        _worldSurfacePipeline.Commit();
         _lightFalloffsRecorded = false;
     }
     void FrameExecutor::Discard(uint32_t frameIndex)
@@ -212,6 +224,7 @@ namespace OpenRCT2::Ui::Vulkan
         _terrainPipeline.DiscardPendingUploads();
         _terrainStatuses.at(frameIndex).clear();
         _atlasAdmissions.at(frameIndex).reset();
+        _worldAdmissions.at(frameIndex).reset();
         if (_lightFalloffsRecorded)
         {
             _lightFalloffsDirty = true;
@@ -251,15 +264,20 @@ namespace OpenRCT2::Ui::Vulkan
     {
         if (_enableWorldPasses)
             return;
-        const auto cacheLock = _context->LockPipelineCache();
         _worldSurfacePipeline.Initialise(*_context, _resources, _shaderDirectory);
         _enableWorldPasses = true;
     }
 
     void FrameExecutor::InitialiseDrawingPipelines(bool gpuLightFxSupported)
     {
-        const auto cacheLock = _context->LockPipelineCache();
-        _linePipeline.Initialise(*_context, _resources, _shaderDirectory);
+        {
+            const auto cacheLock = _context->LockPipelineCache();
+            _linePipeline.Initialise(*_context, _resources, _shaderDirectory);
+            _rectPipeline.Initialise(*_context, _resources, _shaderDirectory);
+            _transparencyPipeline.Initialise(*_context, _resources, _shaderDirectory);
+            _weatherPipeline.Initialise(*_context, _resources, _shaderDirectory);
+            _lightFxPipeline.Initialise(*_context, _resources, _shaderDirectory, gpuLightFxSupported);
+        }
         if (_enableWorldPasses)
         {
             const auto started = std::chrono::steady_clock::now();
@@ -270,10 +288,6 @@ namespace OpenRCT2::Ui::Vulkan
                 "Vulkan startup: native world pipeline ready in %.3f seconds",
                 std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count());
         }
-        _rectPipeline.Initialise(*_context, _resources, _shaderDirectory);
-        _transparencyPipeline.Initialise(*_context, _resources, _shaderDirectory);
-        _weatherPipeline.Initialise(*_context, _resources, _shaderDirectory);
-        _lightFxPipeline.Initialise(*_context, _resources, _shaderDirectory, gpuLightFxSupported);
     }
 
     void FrameExecutor::DisposeDrawingPipelines()
@@ -490,7 +504,29 @@ namespace OpenRCT2::Ui::Vulkan
         _terrainUploads = {};
         if (commands.worldSurfaces.has_value())
         {
-            _worldSurfacePipeline.Record(token, *commands.worldSurfaces);
+            const auto& world = *commands.worldSurfaces;
+            auto worldToken = token;
+            const VkDeviceSize spriteBytes = world.sprites ? world.sprites->records.size() * sizeof(Gpu::WorldSurfaceSpriteSet)
+                                                           : 0;
+            // Catalog replacement is a bounded cold burst, not ordinary frame
+            // traffic. Retain its staging with this submission's fence, leaving
+            // every steady-state slot at its existing size.
+            if (_worldSurfacePipeline.NeedsSpriteAdmission(world) && spriteBytes > token.upload->GetCapacity() / 2)
+            {
+                if (world.sprites->records.size() > Gpu::kWorldSurfaceMaximumSpriteSetCount)
+                    throw std::invalid_argument("World sprite admission exceeds resident capacity");
+                auto& admission = _worldAdmissions.at(token.frameIndex);
+                if (admission)
+                    throw std::logic_error("World admission slot was not retired");
+                admission = std::make_unique<UploadRing>();
+                admission->Initialise(
+                    _context->GetPhysicalDevice(), _context->GetDevice(), token.upload->GetCapacity() + spriteBytes);
+                admission->SetTelemetry(token.telemetry);
+                worldToken.upload = admission.get();
+            }
+            _worldSurfacePipeline.Record(worldToken, world);
+            if (worldToken.upload != token.upload)
+                worldToken.upload->FlushWritten();
             if (commands.worldSurfaces->recordCount != 0)
                 RecordWorldSurfaceStatus(token);
         }

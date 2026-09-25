@@ -30,6 +30,13 @@ namespace OpenRCT2
     struct WorldObjectPresentationUsage;
     struct WorldRidePresentationMaterials;
     struct WorldRidePoseSnapshot;
+    namespace Drawing
+    {
+        struct VehiclePresentationSnapshot;
+        struct VehiclePresentationCatalog;
+        struct WorldEffectSnapshot;
+        struct MoneyPresentationSnapshot;
+    } // namespace Drawing
 } // namespace OpenRCT2
 
 namespace OpenRCT2::Drawing
@@ -515,8 +522,12 @@ namespace OpenRCT2::Ui::Gpu
     constexpr uint32_t kWorldSurfaceComputeLocalSize = 128;
     constexpr uint32_t kWorldSurfaceComputeBlockWidth = 1024;
     constexpr uint32_t kWorldSurfaceMaximumDrawCount = static_cast<uint32_t>(
-        (kWorldSurfaceMaximumRecordCount + kWorldSurfaceComputeBlockWidth - 1) / kWorldSurfaceComputeBlockWidth);
-    constexpr uint32_t kWorldSurfaceMaximumSpriteSetCount = 65536;
+        (kWorldSurfaceMaximumRecordCount + 4 * 65536 + kWorldSurfaceComputeBlockWidth - 1) / kWorldSurfaceComputeBlockWidth);
+    // Everything Park requires over 402,000 sets, including complete specialized
+    // vehicle banks, referenced peep art and effects. Keep the full resident
+    // animation banks; 524,288 entries occupy 100 MiB, below Vulkan's minimum
+    // 128 MiB storage range and checked against the actual device limit.
+    constexpr uint32_t kWorldSurfaceMaximumSpriteSetCount = 524288;
     constexpr uint32_t kWorldSurfaceOutputCapacity = 1u << 20;
     constexpr uint32_t kWorldPathSourceCapacity = 1u << 20;
     constexpr uint32_t kWorldObjectSourceCapacity = 1u << 20;
@@ -528,6 +539,9 @@ namespace OpenRCT2::Ui::Gpu
     // Replace with bounded work slicing before admitting pathological per-tile populations.
     constexpr uint32_t kWorldPathMaximumTileWork = 4096;
     constexpr int32_t kWorldSurfaceDepthCapacity = kWorldSurfaceOutputCapacity;
+    // One world per command stream. Floating annotations reserve their own
+    // constant per-glyph priorities; later UI follows both complete intervals.
+    constexpr uint32_t kWorldSceneDepthReservation = 2 * kWorldSurfaceOutputCapacity + 1;
     static_assert(kWorldSurfaceMaximumRecordCount < kWorldSurfaceDepthCapacity);
 
     struct WorldSurfaceDepthRange
@@ -543,9 +557,9 @@ namespace OpenRCT2::Ui::Gpu
     {
         constexpr int32_t limit = (1 << 22) - 1;
         if (nextDepth < 0 || nextDepth >= limit || recordCount == 0 || recordCount > kWorldSurfaceMaximumRecordCount
-            || kWorldSurfaceOutputCapacity > static_cast<uint32_t>(limit - nextDepth))
+            || kWorldSceneDepthReservation > static_cast<uint32_t>(limit - nextDepth))
             return std::nullopt;
-        return WorldSurfaceDepthRange{ nextDepth, nextDepth + static_cast<int32_t>(kWorldSurfaceOutputCapacity) };
+        return WorldSurfaceDepthRange{ nextDepth, nextDepth + static_cast<int32_t>(kWorldSceneDepthReservation) };
     }
 
     [[nodiscard]] constexpr bool AreWorldSurfaceComputeLimitsSufficient(
@@ -642,8 +656,13 @@ namespace OpenRCT2::Ui::Gpu
     {
         uint64_t revision{};
         uint32_t scrollingTextDefault{ UINT32_MAX };
+        uint32_t effectSpriteBase{};
+        std::shared_ptr<const Drawing::VehiclePresentationCatalog> vehicleSource;
+        std::shared_ptr<const std::vector<uint32_t>> vehicleUsedCars;
+        std::vector<uint32_t> vehicleCatalog;
         std::vector<WorldSurfaceSpriteSet> records;
         WorldSurfaceCatalog catalog{};
+        std::shared_ptr<const PeepAssetGeneration> peepAssets;
         std::shared_ptr<const TerrainPresentationMaterials> sourceMaterials;
         std::shared_ptr<const PathPresentationMaterials> sourcePathMaterials;
         std::shared_ptr<const WorldObjectPresentationMaterials> sourceObjectMaterials;
@@ -672,6 +691,11 @@ namespace OpenRCT2::Ui::Gpu
         std::shared_ptr<const WorldRidePoseSnapshot> ridePoses;
         std::shared_ptr<const struct WorldBannerTextData> bannerTexts;
         std::shared_ptr<const SelectedVehiclePaintPacket> selectedVehicle;
+        std::shared_ptr<const Drawing::VehiclePresentationSnapshot> vehicles;
+        std::shared_ptr<const Drawing::WorldEffectSnapshot> effects;
+        std::shared_ptr<const Drawing::MoneyPresentationSnapshot> money;
+        std::shared_ptr<const Drawing::RetainedPeepSnapshot> peeps;
+        std::shared_ptr<const Drawing::RetainedBalloonSnapshot> balloons;
         std::vector<std::shared_ptr<const WorldSurfaceChunk>> chunks;
         std::shared_ptr<const WorldSurfaceSpriteTable> sprites;
     };

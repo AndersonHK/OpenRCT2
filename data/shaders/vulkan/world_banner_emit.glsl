@@ -14,13 +14,17 @@ ivec2 worldBannerFrontAnchor(int direction)
 void worldEmitBannerText(uvec2 tile,int rasterZ,ivec3 anchor,uint descriptor,uint mode,
     uint destination,bool writeRecords,inout uint count)
 {
-    if(!worldBannerTextValid() || descriptor<16u || !worldBannerTextRange(descriptor,4u) || mode>=38u
+    if(!worldBannerTextValid() || descriptor<16u || !worldBannerTextRange(descriptor,4u) || (mode&255u)>=38u
         || uScene.zoom>1 || worldParentRoot==0xffffffffu) return;
     worldSetPaintBounds(tile,anchor,ivec3(1,1,21),1u);
     worldSetComponentDepthAnchor(tile,anchor);
     if(uScene.zoom>0) {
         uint image=uBannerTexts.words[9];
-        if(image>=uScene.spriteSetCount) { atomicOr(uStatus.overflow,8u);return; }
+        if(image>=uScene.spriteSetCount) {
+            atomicOr(uStatus.overflow,8192u);
+            atomicCompSwap(uStatus.reserved,0u,image==0xffffffffu?0xffffffffu:image+1u);
+            return;
+        }
         emitSprite(tile,rasterZ,ivec2(0),ivec2(0),image,destination,writeRecords,count);
         return;
     }
@@ -30,6 +34,17 @@ void worldEmitBannerText(uvec2 tile,int rasterZ,ivec3 anchor,uint descriptor,uin
     if(writeRecords && destination+count<uScene.outputCapacity)
         uOutputs.records[destination+count]=record;
     count++;
+}
+
+// Wall and large scrolling signs use element secondary colour as their initial
+// ink. Explicit formatting colours stay in the shared immutable columns.
+void worldEmitColouredBannerText(uvec2 tile,int rasterZ,ivec3 anchor,uint bannerId,uint mode,uint colour,bool light,
+    uint destination,bool writeRecords,inout uint count)
+{
+    if(mode>=38u) return;
+    uint descriptor=worldBannerTextTableDescriptor(10u,bannerId);
+    uint ink=worldBannerTextInk(colour,light);
+    worldEmitBannerText(tile,rasterZ,anchor,descriptor,mode|(ink<<8u),destination,writeRecords,count);
 }
 
 // Paint.Banner.cpp: ordinary banners raster sixteen units below element base;

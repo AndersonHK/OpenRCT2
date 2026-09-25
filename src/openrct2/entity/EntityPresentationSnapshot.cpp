@@ -269,6 +269,9 @@ namespace OpenRCT2
         PROFILED_FUNCTION();
         _nativeOnly = false;
         _unsupportedEntityCount = 0;
+        _vehicles.reset();
+        _effects.reset();
+        _money.reset();
         _retainedBalloons = std::move(balloons);
         _balloonMetrics = metrics;
         _retainedPeeps = std::move(peeps);
@@ -280,7 +283,11 @@ namespace OpenRCT2
 
     void EntityPresentationSnapshot::CaptureNativeStorage(
         EntityRegistry& registry, std::shared_ptr<const Drawing::RetainedPeepSnapshot> peeps,
-        std::shared_ptr<const Drawing::RetainedPeepAnimationCatalog> catalog)
+        std::shared_ptr<const Drawing::RetainedPeepAnimationCatalog> catalog,
+        std::shared_ptr<const Drawing::RetainedBalloonSnapshot> balloons,
+        std::shared_ptr<const Drawing::VehiclePresentationSnapshot> vehicles,
+        std::shared_ptr<const Drawing::WorldEffectSnapshot> effects,
+        std::shared_ptr<const Drawing::MoneyPresentationSnapshot> money)
     {
         if (!_nativeOnly)
         {
@@ -295,7 +302,10 @@ namespace OpenRCT2
         }
         _nativeOnly = true;
         _bulkMode = false;
-        _retainedBalloons.reset();
+        _vehicles = std::move(vehicles);
+        _effects = std::move(effects);
+        _money = std::move(money);
+        _retainedBalloons = std::move(balloons);
         _balloonMetrics = {};
         _retainedPeeps = std::move(peeps);
         _peepAnimations = std::move(catalog);

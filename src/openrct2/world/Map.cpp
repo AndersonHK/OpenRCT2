@@ -289,6 +289,23 @@ namespace OpenRCT2
                 for (const auto& tile : source.tiles)
                     out.tiles.push_back({ tile.offset.x, tile.offset.y, tile.offset.z, tile.zClearance, tile.corners,
                                           tile.walls, tile.hasSupports, tile.allowSupportsAbove });
+                if (source.flags.has(LargeSceneryFlag::is3DText) && source.text != nullptr)
+                {
+                    auto font = std::make_shared<LargeSceneryPresentationFont>();
+                    font->image = source.text_image;
+                    font->numImages = source.text->num_images;
+                    font->maxWidth = source.text->maxWidth;
+                    font->flags = source.text->flags.holder;
+                    font->offsets = { source.text->offset[0].x, source.text->offset[0].y, source.text->offset[1].x,
+                                      source.text->offset[1].y };
+                    for (size_t i = 0; i < font->glyphs.size(); i++)
+                    {
+                        const auto& glyph = source.text->glyphs[i];
+                        font->glyphs[i] = uint32_t(glyph.image_offset) | (uint32_t(glyph.width) << 8)
+                            | (uint32_t(glyph.height) << 16);
+                    }
+                    out.font = std::move(font);
+                }
             }
         }
         for (uint16_t slot = 0; slot < next->walls.size(); ++slot)

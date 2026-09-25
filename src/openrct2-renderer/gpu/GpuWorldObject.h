@@ -6,6 +6,13 @@
 
 namespace OpenRCT2::Ui::Gpu
 {
+    // The path slot is one byte in this shared word. Its absent sentinel must not
+    // overwrite the separately owned banner identity in the upper half.
+    constexpr uint32_t PackWorldObjectMetadata(uint8_t entranceType, uint16_t pathSurfaceSlot, uint16_t bannerId)
+    {
+        return uint32_t(entranceType) | ((uint32_t(pathSurfaceSlot) & 0xFFu) << 8) | (uint32_t(bannerId) << 16);
+    }
+
     // Authoritative raw fields only. Packing is performed once when an immutable chunk changes.
     struct WorldObjectSourceRecord
     {

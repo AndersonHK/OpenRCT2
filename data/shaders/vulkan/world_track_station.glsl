@@ -67,6 +67,15 @@ void worldStationCover(uint ride,uint edge,bool fence,int height,uint variant,
 void worldTrackStation(WorldTrackPart marker,WorldObjectRecord object,uvec2 tile,uint colours)
 {
     uint ride=object.rideIdAndMazeEntry&65535u;
+    if(marker.size.y==7) {
+        // Direct source cover calls do not test StationObject::noPlatforms.
+        // Their edge and height are authored; only entrance ownership is dynamic.
+        if(!worldSupportPassedSurface()) return;
+        uint edge=uint(marker.offset.x),stationIndex=(object.trackData0>>8u)&255u;
+        worldStationCover(ride,edge,worldStationFence(ride,stationIndex,tile,edge),
+            marker.offset.z,uint(marker.offset.y),colours,(object.flags&1u)!=0u);
+        return;
+    }
     if(!worldStationHasPlatforms(ride)) return;
     uint direction=(object.direction+uScene.rotation)&3u,axis=direction&1u;
     uint type=object.trackTypeAndRideType&65535u,stationIndex=(object.trackData0>>8u)&255u;

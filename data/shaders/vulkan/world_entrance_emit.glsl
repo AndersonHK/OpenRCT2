@@ -106,6 +106,14 @@ void visitEntrance(uint index,uvec2 tile,uint destination,bool writeRecords,inou
                 destination,writeRecords,count);
         }
     }
+    if(type==2u && park!=0u && worldBannerTextValid()) {
+        int mode=worldParkEntranceScrollingMode(direction,int(object.sequence),ghost,int(uEntrances.words[park+2u]));
+        if(mode>=0) {
+            int height=object.baseZ+int(uEntrances.words[park+3u]);
+            worldEmitBannerText(tile,height,ivec3(2,2,height),uBannerTexts.words[12u],uint(mode),
+                destination,writeRecords,count);
+        }
+    }
     worldSupportEntrance(worldSupportState,object.baseZ,int(type));
 }
 #endif

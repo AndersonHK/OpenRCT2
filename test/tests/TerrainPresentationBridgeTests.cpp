@@ -1,6 +1,7 @@
 // Copyright (c) 2014-2026 OpenRCT2 developers. GPL-3.0-or-later.
 #include <cstdlib>
 #include <gtest/gtest.h>
+#include <openrct2-renderer/gpu/GpuWorldPeepCatalog.h>
 #include <openrct2-renderer/gpu/TerrainPresentationBridge.h>
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/PlatformEnvironment.h>
@@ -11,6 +12,42 @@
 
 using namespace OpenRCT2;
 namespace Terrain = OpenRCT2::Ui::Gpu::Terrain;
+
+TEST(TerrainPresentationBridgeTest, WorldPeepCatalogAdmitsOnlyLiveObjectBanks)
+{
+    using namespace OpenRCT2::Ui::Gpu;
+    auto catalog = std::make_shared<Drawing::RetainedPeepAnimationCatalog>();
+    const auto object = [](uint32_t slot, uint32_t base, uint32_t count) {
+        return Drawing::BuildRetainedPeepAnimationObject(
+            { slot, 1, 1, 0, base, count, 0, 0 }, std::array{ Drawing::RetainedPeepAnimationSource{ 0, 0, base } });
+    };
+    catalog->slots[2] = { 1, object(2, 100, 4) };
+    catalog->slots[3] = { 1, object(3, 1000000, 300000) };
+    auto usage = std::make_shared<const std::vector<uint32_t>>(std::vector<uint32_t>{ 2 });
+    std::vector<uint32_t> images;
+    const auto append = [&](ImageId image) {
+        images.push_back(image.GetIndex());
+        return static_cast<uint32_t>(images.size() - 1);
+    };
+    const auto selected = BuildWorldPeepAssets(catalog, usage, append);
+    ASSERT_NE(selected, nullptr);
+    EXPECT_EQ(selected->usedObjects, usage);
+    EXPECT_EQ(images.size(), 4u + 96u + 13u);
+    EXPECT_EQ((std::vector<uint32_t>(images.begin(), images.begin() + 4)), (std::vector<uint32_t>{ 100, 101, 102, 103 }));
+    ASSERT_EQ(selected->descriptors.size(), 3u);
+    EXPECT_EQ(selected->descriptors[2].imageCount, 4u);
+    EXPECT_EQ(selected->facts[0].baseImage, 0u);
+
+    images.clear();
+    const auto empty = BuildWorldPeepAssets(catalog, std::make_shared<const std::vector<uint32_t>>(), append);
+    EXPECT_TRUE(empty->descriptors.empty());
+    EXPECT_EQ(images.size(), 96u + 13u);
+    images.clear();
+    EXPECT_THROW(
+        BuildWorldPeepAssets(catalog, std::make_shared<const std::vector<uint32_t>>(std::vector<uint32_t>{ 4 }), append),
+        std::runtime_error);
+    EXPECT_TRUE(images.empty());
+}
 
 namespace
 {

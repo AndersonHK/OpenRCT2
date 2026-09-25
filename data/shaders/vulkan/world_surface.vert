@@ -1,6 +1,7 @@
 #version 450
 #extension GL_GOOGLE_include_directive : require
 #include "terrain_sprite_geometry.glsl"
+#include "world_component_depth.glsl"
 
 const float DEPTH_INCREMENT = 1.0 / float(1u << 22u);
 const float ATLAS_DIMENSION = 2048.0;
@@ -138,23 +139,21 @@ void main()
     // All four vertices receive the SAME depth. Sprite pixels, clipped screen
     // coordinates and texture offsets never participate in depth evaluation.
     uint localLayer=(vValid&32)!=0?(uint(vDepth)>>4u)&255u:0u;
-    float componentDepth=(vValid&32)!=0?float(vComponent.x):float(rotated.x+rotated.y+vWorld.z);
-    // Initial whole-map bound. Host integration owns tighter precision/range qualification.
-    // Reserve the existing world interval so later UI remains in front.
-    float capacity=1048576.0; // Fixed reserved UI/world depth interval, not output allocation limit.
-    float guard=min(128.0,capacity*0.25);
-    float fraction=(componentDepth+131072.0)/262144.0;
-    float priority=float(uCamera.depthBase)+guard+fraction*(capacity-2.0*guard);
+    int componentDepth=(vValid&32)!=0?vComponent.x:rotated.x+rotated.y+vWorld.z;
+    // Exact integer priority slots. One scalar step remains ahead of every
+    // local child layer; later UI is outside this reserved 2^20 world interval.
+    float priority=float(uCamera.depthBase+uint(worldComponentPriorityOffset(componentDepth)));
     float hardwareDepth=1.0-(priority+1.0)*DEPTH_INCREMENT;
-    // A local overlay advances representable D32 values, rather than adding a
-    // family rank. 128 priority units leave room for all255 two-ULP local steps.
     uint depthBits=floatBitsToUint(hardwareDepth);
-    hardwareDepth=uintBitsToFloat(depthBits-min(localLayer*2u,depthBits));
+    hardwareDepth=uintBitsToFloat(depthBits-localLayer);
+    // Floating annotations follow world paint. Their compacted glyph order
+    // preserves overlapping outlines and hints; UI follows the entire interval.
+    if((vValid&128)!=0) hardwareDepth=1.0-float(uCamera.depthBase+1048576+vDepth+1)*DEPTH_INCREMENT;
     gl_Position = vec4(ndc,hardwareDepth,1.0);
 
     // Procedural text uses an immutable column descriptor, not an atlas asset.
     // Even an invisible text record must never dereference that offset as an asset.
-    bool bannerText=(vValid&64)!=0;
+    bool bannerText=(vValid&(64|128))!=0;
     SpriteAssetDescriptor asset=SpriteAssetDescriptor(ivec2(0),0,0);
     if(!bannerText) asset=uSpriteAssets.assets[vAsset];
     int texelY = vZoom > 0 ? (1 << vZoom) - 1 - yModifier : 0;

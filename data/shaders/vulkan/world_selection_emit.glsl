@@ -1,7 +1,7 @@
 // Copyright (c) 2014-2026 OpenRCT2 developers. GPL-3.0-or-later.
 #ifndef OPENRCT2_WORLD_SELECTION_EMIT
 #define OPENRCT2_WORLD_SELECTION_EMIT
-layout(std430,set=0,binding=18) readonly buffer Selection { uint words[]; } uSelection;
+
 
 bool worldConstructionTile(uvec2 tile)
 {

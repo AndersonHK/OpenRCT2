@@ -1097,7 +1097,7 @@ namespace OpenRCT2::Ui
             if (Vulkan::Diagnostic::RetainedBalloonPublicationEnabled.load())
                 return EntityPublicationProfile::retainedBalloons;
     #endif
-            return EntityPublicationProfile::gpuTerrainOnly;
+            return EntityPublicationProfile::gpuWorld;
         }
 
         DrawingEngineFlags GetFlags() override

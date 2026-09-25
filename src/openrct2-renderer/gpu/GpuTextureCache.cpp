@@ -23,6 +23,7 @@
 #include <openrct2/drawing/TTF.h>
 #include <openrct2/profiling/Profiling.h>
 #include <stdexcept>
+#include <unordered_set>
 
 namespace OpenRCT2::Ui::Gpu
 {
@@ -514,12 +515,19 @@ namespace OpenRCT2::Ui::Gpu
                 throw std::logic_error("GPU atlas residency accounting is inconsistent");
             }
         }
-        if (retirement == FrameRetirement::Presented)
+        if (retirement == FrameRetirement::Presented && !leaseIt->second.persistentUploads.empty())
         {
-            for (const auto allocation : leaseIt->second.persistentUploads)
-            {
-                RemovePending(allocation);
-            }
+            // A full catalog can contain hundreds of thousands of uploads. Removing
+            // each individually repeatedly scans and compacts the same vector.
+            // Keep the complete allocation identity: a recycled atlas slot must
+            // never acknowledge a newer upload when an older frame completes.
+            const auto hash = [](const AtlasAllocationId& allocation) { return std::hash<uint64_t>{}(allocation.serial); };
+            const auto& completed = leaseIt->second.persistentUploads;
+            std::unordered_set<AtlasAllocationId, decltype(hash)> presented(
+                completed.begin(), completed.end(), completed.size(), hash);
+            std::erase_if(_pendingUploads, [&](const PendingUpload& pending) {
+                return presented.contains(pending.location.GetAllocationId());
+            });
         }
         for (const auto allocation : leaseIt->second.allocations)
         {
@@ -706,8 +714,9 @@ namespace OpenRCT2::Ui::Gpu
                     "GPU sprite atlas layer limit " + std::to_string(_maxAtlasLayers) + " reached for image "
                     + std::to_string(image) + " at " + std::to_string(width) + "x" + std::to_string(height));
             }
-            const int32_t order = AtlasPage::CalculateImageSizeOrder(width, height);
-            _atlases.emplace_back(static_cast<uint32_t>(_atlases.size()), 1 << order);
+            const int32_t widthOrder = AtlasPage::CalculateImageSizeOrder(width);
+            const int32_t heightOrder = AtlasPage::CalculateImageSizeOrder(height);
+            _atlases.emplace_back(static_cast<uint32_t>(_atlases.size()), 1 << widthOrder, 1 << heightOrder);
             target = &_atlases.back();
             target->Initialise(kResidentAtlasDimension, kResidentAtlasDimension);
         }

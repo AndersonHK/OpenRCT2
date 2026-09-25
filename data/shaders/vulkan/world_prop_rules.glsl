@@ -276,5 +276,25 @@ PROP_FN WorldPropParts worldWallPropParts(int flags,int flags2,int height,int di
     }
     return result;
 }
+// Paint.Wall/Paint.LargeScenery: only the two readable faces. Large signs
+// use the sequence's own face and disappear above zoom zero. Object-font 3D
+// lettering is a different geometry contract and must not use scrolling glyphs.
+PROP_FN int worldPropScrollingMode(int kind,int flags,int sequence,int direction,int mode,int zoom)
+{
+    if(mode<0 || mode>=38 || (direction!=0 && direction!=3)) return -1;
+    if(kind==2) {
+        if((flags&(1<<4))!=0) return -1; // Doors use a separate painter without scrolling text.
+    } else if(kind==1) {
+        if((flags&(1<<2))!=0 || zoom>0 || ((sequence-1)&3)!=direction) return -1;
+    } else return -1;
+    mode+=(direction+1)&3;
+    return mode<38?mode:-1;
+}
+PROP_FN int worldParkEntranceScrollingMode(int direction,int sequence,bool ghost,int mode)
+{
+    if(ghost || sequence!=0 || ((direction+1)&2)!=0 || mode<0 || mode>=38) return -1;
+    mode+=direction/2;
+    return mode<38?mode:-1;
+}
 #undef PROP_FN
 #endif

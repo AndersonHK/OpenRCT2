@@ -47,6 +47,8 @@ set(test_files
    "${CMAKE_CURRENT_SOURCE_DIR}/SelectedVehicleSnapshotTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/WorldPathRulesTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/WorldBannerPublicationTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/WorldVehicleRulesTests.cpp"
+   "${CMAKE_CURRENT_SOURCE_DIR}/MoneyPresentationTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/WorldMetalSupportRulesTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/WorldWoodenSupportRulesTests.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/WorldPathOrderTests.cpp"

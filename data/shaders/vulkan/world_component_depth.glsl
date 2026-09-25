@@ -16,5 +16,20 @@ COMPONENT_DEPTH_FN int worldComponentDepth(int x,int y,int z,int rotation)
     if(rotation==3) return x-y+z;
     return x+y+z;
 }
+// Each integer anchor owns four of the reserved 2^20 world priority units.
+// In the legal positive D32 interval this leaves at least sixteen ULPs between
+// adjacent anchors. Local layers use one ULP each and may NEVER cross that gap.
+const int WORLD_COMPONENT_DEPTH_MIN=-131072;
+const int WORLD_COMPONENT_DEPTH_MAX=131071;
+const int WORLD_COMPONENT_LAYER_MAX=15;
+COMPONENT_DEPTH_FN bool worldComponentDepthValid(int depth,int layer)
+{
+    return depth>=WORLD_COMPONENT_DEPTH_MIN && depth<=WORLD_COMPONENT_DEPTH_MAX
+        && layer>=0 && layer<=WORLD_COMPONENT_LAYER_MAX;
+}
+COMPONENT_DEPTH_FN int worldComponentPriorityOffset(int depth)
+{
+    return (depth-WORLD_COMPONENT_DEPTH_MIN)*4;
+}
 #undef COMPONENT_DEPTH_FN
 #endif

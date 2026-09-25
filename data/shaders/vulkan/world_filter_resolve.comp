@@ -8,6 +8,7 @@ layout(set=0,binding=3,std430) buffer Status { uint emitted, outputCapacity, ove
 layout(set=0,binding=4) uniform usampler2D background;
 layout(set=0,binding=5) uniform usampler2D remap;
 layout(set=0,binding=6,std430) writeonly buffer Output { uint packed[]; };
+layout(set=0,binding=7) uniform usampler2D blend;
 layout(push_constant) uniform Phase { uint phase; };
 const uint NIL=0x00ffffffu;
 uint nextNode(uint node) { return nodes[node].x & NIL; }
@@ -16,17 +17,17 @@ void sortPixel(uint pixel) {
     uint source=heads[pixel], sorted=NIL, count=0u;
     [[dont_unroll]] while(source!=NIL) {
         if(source>=capacity || count++>=maxPerPixel) { atomicOr(overflow,8u); return; }
-        uint following=nextNode(source), order=nodes[source].y & 0x7fffffffu;
+        uint following=nextNode(source), order=nodes[source].y & 0x3fffffffu;
         uint before=NIL, current=sorted, steps=0u;
         [[dont_unroll]] while(current!=NIL) {
             if(current>=capacity || steps++>=maxPerPixel) { atomicOr(overflow,8u); return; }
-            uint other=nodes[current].y & 0x7fffffffu;
+            uint other=nodes[current].y & 0x3fffffffu;
             if(other>order) break;
             if(other==order) {
                 // Initial deterministic coplanar policy, not an authored occlusion rule.
                 // Retain identical operations: repeated filters must compose repeatedly.
-                uint ownOperation=((nodes[source].y>>31u)<<8u)|(nodes[source].x>>24u);
-                uint otherOperation=((nodes[current].y>>31u)<<8u)|(nodes[current].x>>24u);
+                uint ownOperation=((nodes[source].y>>30u)<<8u)|(nodes[source].x>>24u);
+                uint otherOperation=((nodes[current].y>>30u)<<8u)|(nodes[current].x>>24u);
                 if(otherOperation>ownOperation) break;
             }
             before=current; current=nextNode(current);
@@ -42,7 +43,9 @@ uint foldPixel(uint pixel) {
     uint node=heads[pixel];
     [[dont_unroll]] for(uint i=0u;i<maxPerPixel && node!=NIL;i++) {
         uvec2 operation=nodes[node]; uint value=operation.x>>24u;
-        colour=(operation.y & 0x80000000u)!=0u ? value : texelFetch(remap,ivec2(colour,value),0).r;
+        if((operation.y & 0x80000000u)!=0u) colour=value;
+        else if((operation.y & 0x40000000u)!=0u) colour=texelFetch(blend,ivec2(colour,value),0).r;
+        else colour=texelFetch(remap,ivec2(colour,value),0).r;
         node=operation.x & NIL;
     }
     return colour;

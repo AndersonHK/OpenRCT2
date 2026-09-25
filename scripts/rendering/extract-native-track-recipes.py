@@ -26,7 +26,9 @@ STATE_BITS = {'chain':1, 'inverted':2, 'brakeClosed':4, 'cable':8, 'csgLoaded':1
 PHOTO_PART = 0xfffffffc
 TUNNEL_PART = 0xfffffffd
 STATION_PART = 0xfffffffe
+COVER_CALLS = ('TrackPaintUtilDrawStationCovers', 'TrackPaintUtilDrawStationCovers2')
 CAPTURE_TUNNELS = False
+AUTHORING_TICK_OVERRIDE = None
 TUNNEL_CALL = re.compile(r"(?:PaintUtil(?:PushTunnel\w*|SetVerticalTunnel)|TrackPaintUtil(?:(?:Left|Right)QuarterTurn\w*Tunnel|DrawStationTunnel(?:Tall)?))$")
 STATION_CALLS = ('TrackPaintUtilDrawStation','TrackPaintUtilDrawStation2','TrackPaintUtilDrawStationInverted',
                  'TrackPaintUtilDrawNarrowStationPlatform','TrackPaintUtilDrawPier')
@@ -149,6 +151,16 @@ def evaluate(values, env):
         if not wrapped: break
         values=values[1:-1]
     if not values: raise Unsupported('empty expression')
+    clock=re.fullmatch(r'\(getGameState\(\).currentTicks(/|>>)(\d+)\)([&%])(\d+)', ''.join(values))
+    if clock:
+        period=(1<<int(clock[2])) if clock[1]=='>>' and int(clock[2])<=3 else int(clock[2]) if clock[1]=='/' else 0
+        if period not in (1,2,4,8): raise Unsupported('animated image tick period')
+        frames=int(clock[4])+(clock[3]=='&')
+        if frames not in (2,4,8,16): raise Unsupported('animated image frame count')
+        if AUTHORING_TICK_OVERRIDE is not None:
+            return (AUTHORING_TICK_OVERRIDE//period)%frames
+        return AnimatedImageIndex(0,period.bit_length()-1,frames.bit_length()-1)
+
     if values[0]=='&': return evaluate(values[1:],env)
     if ''.join(values)=='stationObj!=nullptr&&stationObj->Flags.has(StationObjectFlag::noPlatforms)':
         env['_dependencies'].add(64);return not env['hasPlatforms']
@@ -227,12 +239,22 @@ def evaluate(values, env):
             if isinstance(value, Deferred): return value.resolve(env)
             if value is None: raise Unsupported('uninitialised local '+n.id)
             return value
+        if isinstance(n,ast.Call) and isinstance(n.func,ast.Attribute) and n.func.attr=='HasSecondary' and not n.args:
+            value=walk(n.func.value)
+            if isinstance(value,ImageValue): return value.role in (0,1,3)
         if isinstance(n,ast.Call) and isinstance(n.func,ast.Attribute) and n.func.attr=='GetIndex' and not n.args:
             value=walk(n.func.value)
             if isinstance(value,ImageValue): return value.image
         if isinstance(n, ast.Subscript):
             try:
                 array,index=walk(n.value),walk(n.slice)
+                if isinstance(index,AnimatedImageIndex):
+                    frames=1<<index.frame_bits
+                    if (index.base!=0 or not isinstance(array,list) or len(array)!=frames
+                        or not all(isinstance(x,int) for x in array)
+                        or any(x!=array[0]+i for i,x in enumerate(array))):
+                        raise Unsupported('nonlinear animated image table')
+                    return AnimatedImageIndex(array[0],index.shift,index.frame_bits)
                 # C++ indices never wrap to the end as Python negative indices do.
                 if not isinstance(index,int) or index<0: raise IndexError(index)
                 return array[index]
@@ -243,6 +265,8 @@ def evaluate(values, env):
                 result=value[n.attr]
                 if result is None: raise Unsupported('uninitialised member '+n.attr)
                 return result
+            if n.attr in ('offset','length') and isinstance(value,list) and len(value)==2:
+                return value[0 if n.attr=='offset' else 1]
             if n.attr in ('sprite_id','offset','bb_offset','bb_size') and isinstance(value,list) and len(value)==4:
                 return value[('sprite_id','offset','bb_offset','bb_size').index(n.attr)]
             if n.attr in ('track','handrail','frontTrack','frontHandrail') and isinstance(value,list):
@@ -289,9 +313,15 @@ class ArrayDeferred(Deferred):
                 return [[0,0,0],[0,0,0]] if self.box else 0
             return [zero(depth+1) for _ in range(dimensions[depth])]
         def normalise(value,depth):
-            if depth==len(dimensions): return zero(depth) if self.record and not value else value
+            if depth==len(dimensions): return zero(depth) if (self.record or self.box) and not value else value
+            def box_shape(v):
+                return (isinstance(v,list) and len(v)==2 and all(isinstance(n,list) and len(n)==3
+                    and all(isinstance(x,int) for x in n) for n in v))
             size=dimensions[depth]
             while isinstance(value,list) and len(value)==1 and isinstance(value[0],list) and size!=1:
+                # One initialized BoundBox is an array element, not an extra
+                # std::array brace wrapper; retain zero-initialized siblings.
+                if self.box and depth==len(dimensions)-1 and box_shape(value[0]): break
                 value=value[0]
             if not isinstance(value,list) or len(value)>size: raise Unsupported('std::array initializer shape')
             value=value+[zero(depth+1) for _ in range(size-len(value))]
@@ -311,12 +341,83 @@ class ArrayDeferred(Deferred):
         return normalise(value,0)
 
 
+class SpriteBbCArrayDeferred(Deferred):
+    """Normalize C aggregate brace elision without inventing sprite geometry."""
+    def __init__(self,value,dimensions):
+        super().__init__(value);self.dimensions=dimensions
+    def resolve(self,env):
+        value=evaluate(self.value,env)
+        dimensions=[evaluate(tokens(d),env) for d in self.dimensions]
+        def row(items,depth):
+            if depth==len(dimensions)-1:
+                # SpriteBb has four authored fields: image, offset, bbOffset, size.
+                if items and isinstance(items[0],int):
+                    if len(items)%4: raise Unsupported('SpriteBb elided initializer fields')
+                    items=[items[i:i+4] for i in range(0,len(items),4)]
+                if len(items)!=dimensions[depth]: raise Unsupported('SpriteBb row capacity')
+                for item in items:
+                    if len(item)!=4 or not isinstance(item[0],int) or any(
+                        not isinstance(v,list) or len(v)!=3 or not all(isinstance(x,int) for x in v)
+                        for v in item[1:]): raise Unsupported('SpriteBb initializer shape')
+                return items
+            if len(items)!=dimensions[depth]: raise Unsupported('SpriteBb array capacity')
+            return [row(child,depth+1) for child in items]
+        return row(value,0)
+
+
+class NumericCArrayDeferred(Deferred):
+    """Explicitly braced numeric C arrays retain declared zero-initialized tails."""
+    def __init__(self,value,dimensions):
+        super().__init__(value);self.dimensions=dimensions
+    def resolve(self,env):
+        value=evaluate(self.value,env)
+        dimensions=[evaluate(tokens(d),env) if d else None for d in self.dimensions]
+        if dimensions[0] is None: dimensions[0]=len(value)
+        if any(d is None or d<1 for d in dimensions): raise Unsupported('numeric C array dimensions')
+        def fill(items,depth):
+            if depth==len(dimensions):
+                if items==[]: return 0
+                if not isinstance(items,int): raise Unsupported('numeric C array scalar initializer')
+                return items
+            if not isinstance(items,list) or len(items)>dimensions[depth]:
+                raise Unsupported('numeric C array explicit initializer shape')
+            return [fill(items[i] if i<len(items) else [],depth+1) for i in range(dimensions[depth])]
+        return fill(value,0)
+
+
+class StationFenceValue:
+    def __init__(self,edge): self.edge=edge
+    def __bool__(self): raise Unsupported('station fence controls ordinary geometry')
+
+
+def station_edge(values):
+    edges={'EDGE_NE':0,'EDGE_SE':1,'EDGE_SW':2,'EDGE_NW':3}
+    text=''.join(values)
+    if text not in edges: raise Unsupported('station cover edge')
+    return edges[text]
+
+
 class PaintHandle:
     def __init__(self,index): self.index=index
 
 
 class FunctionValue:
     def __init__(self,source,name): self.source,self.name=source,name
+
+
+class AnimatedImageIndex:
+    """Restricted base + unsigned tick-frame expression, never dynamic geometry."""
+    def __init__(self,base,shift,frame_bits):
+        self.base,self.shift,self.frame_bits=base,shift,frame_bits
+    def __add__(self,value):
+        if not isinstance(value,int): raise Unsupported('nonlinear animated image expression')
+        return AnimatedImageIndex(self.base+value,self.shift,self.frame_bits)
+    __radd__=__add__
+    def __bool__(self): raise Unsupported('animated branch condition')
+    def encode(self):
+        if not 0<=self.base or self.base+(1<<self.frame_bits)>0x7ffff:
+            raise Unsupported('animated image range')
+        return 0x80000000 | (self.shift<<19) | (self.frame_bits<<22) | self.base
 
 
 class ImageValue:
@@ -357,6 +458,11 @@ def image_value(values, env):
     if text == 'GetTrackColour(session)': return ImageValue(0, 3)
     if text in ('WoodenRCGetTrackColour<false>(session)','WoodenRCGetTrackColour<true>(session)'):
         return ImageValue(0, 0 if '<true>' in text else 1)
+    secondary=re.fullmatch(r'(.+)\.WithSecondary\((.+)\.GetSecondary\(\)\)',text)
+    if secondary:
+        base=image_value(tokens(secondary[1]),env);other=image_value(tokens(secondary[2]),env)
+        if base.role==1 and other.role==0: return ImageValue(base.image,1)
+        raise Unsupported('unrepresented secondary colour role')
     match = re.fullmatch(r'(.+)\.(WithIndex|WithIndexOffset)\((.*)\)', text)
     if match:
         base = image_value(tokens(match[1]), env); index = evaluate(tokens(match[3]), env)
@@ -393,8 +499,19 @@ def declaration(values, env):
     if 'SpriteBoundBox2' in lhs and '[' in lhs:
         dimensions=re.findall(r'\[([^\]]+)\]',''.join(lhs))
         env[lhs[lhs.index('[')-1]]=ArrayDeferred(rhs,dimensions,record=True);return True
+    pointer=re.fullmatch(r'(?:const)?(?:u?int\d+_t|ImageIndex)\(\*(\w+)\)(?:\[\d+\])+',''.join(lhs))
+    if pointer:
+        env[pointer[1]]=evaluate(rhs,env);return True
     # First bracket belongs to the declared array, never to its initializer.
     if '[' in lhs: lhs = lhs[:lhs.index('[')]
+    if len(lhs)==3 and lhs[1]=='.' and lhs[2] in ('offset','length'):
+        value=env.get(lhs[0])
+        if isinstance(value,Deferred): value=value.resolve(env)
+        if isinstance(value,list) and len(value)==2 and all(isinstance(v,list) and len(v)==3 for v in value):
+            replacement=evaluate(rhs,env)
+            if not isinstance(replacement,list) or len(replacement)!=3: raise Unsupported('bounding member shape')
+            value=[list(v) for v in value];value[0 if lhs[2]=='offset' else 1]=replacement
+            env[lhs[0]]=value;return True
     if len(lhs)==3 and lhs[1]=='.' and isinstance(env.get(lhs[0]),dict):
         if lhs[2] not in env[lhs[0]]: raise Unsupported('unknown member assignment')
         env[lhs[0]][lhs[2]]=evaluate(rhs,env);return True
@@ -402,7 +519,7 @@ def declaration(values, env):
     name = lhs[-1]
     if ''.join(rhs)=='trackElement.getTrackType()':
         env[name]=env['trackType'];return True
-    if any(token in rhs for token in ('TrackColours', 'SupportColours', 'WithIndex', 'WithIndexOffset',
+    if any(token in rhs for token in ('TrackColours', 'SupportColours', 'WithIndex', 'WithIndexOffset', 'WithSecondary',
                                     'WoodenRCGetTrackColour','WoodenRCGetRailsColour','GetTrackColour',
                                     'GetStationColourScheme','ImageId')) or (
             len(rhs) == 1 and isinstance(env.get(rhs[0]), ImageValue)):
@@ -458,7 +575,7 @@ def classify_auxiliary(node):
     # Control flow is never auxiliary, even inside a block containing only
     # omitted support calls: break/return can prevent later rail emission.
     invoked=call(values)
-    if invoked and (invoked[0] in STATION_CALLS or (CAPTURE_TUNNELS and TUNNEL_CALL.fullmatch(invoked[0]))): return False
+    if invoked and (invoked[0] in STATION_CALLS+COVER_CALLS or (CAPTURE_TUNNELS and TUNNEL_CALL.fullmatch(invoked[0]))): return False
     return not values or bool(invoked and AUX.fullmatch(invoked[0]))
 
 
@@ -526,8 +643,13 @@ class Source:
                 except Unsupported as e: self.errors[name] = str(e)
         # Numeric constexpr tables (including sequence remaps). Other C++
         # declarations remain unavailable and reject the affected graphics rule.
-        for match in re.finditer(r'(?:static\s+)?(?:constexpr|const)\s+(?:u?int\d+_t|ImageIndex|CoordsXY|CoordsXYZ|SpriteBb|SpriteBoundBox2|TunnelGroup|WoodenSupportSubType|WoodenSupportTransitionType|auto)\s+(\w+)\s*(?:\[[^;=]*\])?\s*=\s*([^;]+);', self.text):
+        for match in re.finditer(r'(?:static\s+)?(?:constexpr|const)\s+(?:u?int\d+_t|ImageIndex|CoordsXY|CoordsXYZ|BoundBoxXY|BoundBoxXYZ|SpriteBb|SpriteBoundBox2|TunnelGroup|WoodenSupportSubType|WoodenSupportTransitionType|auto)\s+(\w+)\s*(?:\[[^;=]*\])?\s*=\s*([^;]+);', self.text):
             self.globals[match[1]] = Deferred(tokens(match[2]))
+        for match in re.finditer(r'(?:static\s+)?(?:constexpr|const)\s+SpriteBb\s+(\w+)\s*((?:\[[^\]]+\]\s*)+)\s*=\s*([^;]+);',self.text):
+            self.globals[match[1]]=SpriteBbCArrayDeferred(tokens(match[3]),re.findall(r'\[([^\]]+)\]',match[2]))
+        for match in re.finditer(r'(?:static\s+)?(?:constexpr|const)\s+(?:u?int\d+_t|ImageIndex)\s+(\w+)\s*((?:\[[^\]]*\]\s*)+)\s*=\s*([^;]+);',self.text):
+            dimensions=re.findall(r'\[([^\]]*)\]',match[2])
+            self.globals[match[1]]=NumericCArrayDeferred(tokens(match[3]),dimensions)
         for match in re.finditer(r'(?:static\s+)?constexpr\s+(std::array<[^;=]+>)\s+(\w+)\s*=\s*([^;]+);',self.text):
             dimensions=re.findall(r',\s*([A-Za-z_]\w*|\d+)\s*>',match[1])[::-1]
             if dimensions: self.globals[match[2]]=ArrayDeferred(tokens(match[3]),dimensions,'BoundBoxXYZ' in match[1])
@@ -768,6 +890,12 @@ class Translator:
             if '=' in values:
                 equal = values.index('='); lhs, rhs = values[:equal], values[equal + 1:]
                 invoked=call(rhs)
+                if invoked and invoked[0]=='TrackPaintUtilHasFence':
+                    args=invoked[1]
+                    if len(args)!=5 or [''.join(a) for a in args[1:]]!=[
+                            'session.MapPosition','trackElement','ride','session.CurrentRotation']:
+                        raise Unsupported('station fence owner')
+                    env[lhs[-1]]=StationFenceValue(station_edge(args[0]));return None
                 if invoked and invoked[0].startswith('GetTrackPaintFunction') and len(invoked[1])==1:
                     target,function=self.getter(invoked[0],evaluate(invoked[1][0],env),state=env['state'],dependencies=env['_dependencies'])
                     env[lhs[-1]]=FunctionValue(target,function);return None
@@ -804,6 +932,22 @@ class Translator:
                 return None
             if CAPTURE_TUNNELS and TUNNEL_CALL.fullmatch(name):
                 self.tunnel(name,args,env,parts)
+                return None
+            if name in COVER_CALLS:
+                if len(args)!=(6 if name==COVER_CALLS[0] else 7): raise Unsupported('station cover signature')
+                edge=station_edge(args[1]);fence=evaluate(args[2],env)
+                if not isinstance(fence,StationFenceValue) or fence.edge!=edge:
+                    raise Unsupported('station cover fence ownership')
+                station=env.get(''.join(args[3]))
+                if not isinstance(station,Deferred) or ''.join(station.value)!='ride.getStationObject()':
+                    raise Unsupported('station cover object ownership')
+                if image_value(args[-1],env).role!=2: raise Unsupported('station cover colour ownership')
+                variant=0 if name==COVER_CALLS[0] else evaluate(args[5],env)
+                if variant not in (0,1,2): raise Unsupported('station cover variant')
+                height=evaluate(args[4],env)
+                # One ordered opaque parent plus optional glass child. Variant7
+                # is a single cover, never a synthesized entire station.
+                parts.append((STATION_PART,edge,variant,height,0,0,0,0,7,0,0,-1))
                 return None
             if name in STATION_CALLS:
                 # Preserve an authored station call in the immutable recipe.
@@ -949,14 +1093,17 @@ class Translator:
                 image, role = selected.image, selected.role
                 offset = list(evaluate(args[2 + shift], env)); box = evaluate(args[3 + shift], env)
                 if len(box) == 3 and all(isinstance(v, int) for v in box): box = [list(offset), box]
-                if len(offset) != 3 or len(box) != 2 or any(len(v) != 3 for v in box): raise Unsupported('bounds shape')
+                if (len(offset)!=3 or not all(isinstance(v,int) for v in offset) or len(box)!=2
+                    or any(not isinstance(v,list) or len(v)!=3 or not all(isinstance(x,int) for x in v) for v in box)):
+                    raise Unsupported('bounds shape or animated geometry')
                 box = [list(v) for v in box]
                 offset[2]+=extra_height;box[0][2]+=extra_height
                 if direction & 1:
                     offset[0], offset[1] = offset[1], offset[0]
                     for v in box: v[0], v[1] = v[1], v[0]
-                if image==0xffffffff: return None
-                if not 0 <= image < 0x7ffff: raise Unsupported('image range')
+                if isinstance(image,AnimatedImageIndex): image=image.encode()
+                elif image==0xffffffff: return None
+                elif not 0 <= image < 0x7ffff: raise Unsupported('image range')
                 parent = -1
                 if 'Child' in name:
                     parent = next((i for i in range(len(parts)-1, -1, -1) if parts[i][-1] == -1 and parts[i][0]!=TUNNEL_PART), -1)
@@ -965,7 +1112,7 @@ class Translator:
                 if len(parts) > 64: raise Unsupported('component capacity')
             else:
                 target = self.find(name, source)
-                generic=(name in ('CompactInvertedRCTrackDiagFlatBase','InvertedRCTrackDiagFlatBase',
+                generic=(name in ('TrackPaintUtilSpinningTunnelPaint','CompactInvertedRCTrackDiagFlatBase','InvertedRCTrackDiagFlatBase',
                     'TrackPaintUtilLeftQuarterTurn3TilesPaintWithHeightOffset',
                     'TrackPaintUtilRightQuarterTurn3TilesPaint2WithHeightOffset','TrackPaintUtilRightQuarterTurn3TilesPaint2',
                     'TrackPaintUtilLeftQuarterTurn3TilesPaint','TrackPaintUtilLeftQuarterTurn1TilePaint',
@@ -1071,6 +1218,7 @@ class SupportTranslator(Translator):
         self.support_ops = []
         self.support_predicate = 0
         self.support_gaps = set()
+        self.station_no_support = set()
         path = 'src/openrct2/paint/support/MetalSupports.h'
         text = clean((root/path).read_text())
         self.hashes[path] = hashlib.sha256((root/path).read_bytes()).hexdigest()
@@ -1080,7 +1228,9 @@ class SupportTranslator(Translator):
                 self.constants[enum+'_'+name] = int(value)
         path='src/openrct2/paint/track/Segment.h'
         self.hashes[path]=hashlib.sha256((root/path).read_bytes()).hexdigest()
-        self.constants.update(Source(path,(root/path).read_text()).globals)
+        segment_globals=Source(path,(root/path).read_text()).globals
+        self.constants.update(segment_globals)
+        self.constants['diagBlockedSegments']=segment_globals['kDiagStraightFlat']
         path='src/openrct2/paint/track/Support.h'
         self.hashes[path]=hashlib.sha256((root/path).read_bytes()).hexdigest()
         self.constants.update(Source(path,(root/path).read_text()).globals)
@@ -1151,6 +1301,36 @@ class SupportTranslator(Translator):
                     if len(args) not in (2,3): raise Unsupported('general support signature')
                     self.append_support(4,parts,height=self.value(args[1],env),slope=self.value(args[2],env) if len(args)==3 else 0x20)
                     return None
+                if name=='TrackPaintUtilOnridePhotoPlatformPaint':
+                    if len(args)!=4: raise Unsupported('photo platform support signature')
+                    result=super().execute(node,env,source,parts,depth,getter)
+                    direction=self.value(args[1],env);height=self.value(args[2],env)
+                    for placement in ((6,7) if direction&1 else (5,8)):
+                        self.append_support(1,parts,type=self.value(args[3],env),placement=placement,
+                            rotation=direction,height=height,reserved=1)
+                    return result
+                if name=='TrackPaintUtilOnridePhotoPaint2':
+                    if not 4<=len(args)<=6 or ''.join(args[2])!='trackElement':
+                        raise Unsupported('photo2 support signature')
+                    result=super().execute(node,env,source,parts,depth,getter)
+                    height=self.value(args[3],env)
+                    extra=self.value(args[4],env) if len(args)>4 else self.value(tokens('kGeneralSupportHeightOnRidePhoto'),env)
+                    self.append_support(3,parts,mask=511,height=65535,slope=0)
+                    self.append_support(4,parts,height=height+extra,slope=32)
+                    return result
+                if name=='TrackPaintUtilDiagTilesPaintExtra':
+                    if len(args)!=7: raise Unsupported('diagonal extra support helper signature')
+                    result=super().execute(node,env,source,parts,depth,getter)
+                    direction=self.value(args[3],env);sequence=self.value(args[4],env)
+                    if not 0<=sequence<4: raise Unsupported('diagonal extra support sequence')
+                    if sequence==3:
+                        self.append_support(1,parts,type=self.value(args[6],env),placement=self.constants['MetalSupportPlace_leftCorner'],
+                            rotation=direction,height=self.value(args[2],env),colour=1)
+                    mask=self.value(tokens('diagBlockedSegments['+str(sequence)+']'),env)
+                    mask=self.value(tokens('PaintUtilRotateSegments('+str(mask)+','+str(direction)+')'),env)
+                    self.append_support(3,parts,mask=mask,height=65535,slope=0)
+                    self.append_support(4,parts,height=self.value(args[2],env)+32,slope=32)
+                    return result
                 if name=='DrawSupportsSideBySide':
                     if len(args) not in (5,6): raise Unsupported('side by side support signature')
                     direction=self.value(args[1],env)
@@ -1171,9 +1351,22 @@ class SupportTranslator(Translator):
                         if parameter=='session': continue
                         local[parameter]=self.value(arg,env)
                     return self.execute(target.functions[self.local_name(target,name)],local,target,parts,depth+1)
-                if name in STATION_CALLS:
-                    self.support_gaps.add('station internal supports: '+name)
-                if AUX.fullmatch(name) and not TUNNEL_CALL.fullmatch(name) and name not in STATION_CALLS:
+                if name in STATION_CALLS+COVER_CALLS:
+                    # These helpers paint platform/fence/shelter art, already
+                    # represented by the station marker; they have no support setup.
+                    helper='TrackPaintUtilDrawStationImpl' if name in ('TrackPaintUtilDrawStation','TrackPaintUtilDrawStation2') else name
+                    if helper not in self.station_no_support:
+                        text=clean((self.root/'src/openrct2/ride/TrackPaint.cpp').read_text())
+                        match=re.search(r'\b'+helper+r'\([^;{]*\)\s*\{',text)
+                        if not match: raise Unsupported('station helper definition missing '+helper)
+                        depth_count=1;end=match.end()
+                        while depth_count and end<len(text):
+                            depth_count+=(text[end]=='{')-(text[end]=='}');end+=1
+                        body=text[match.end():end-1]
+                        if depth_count or 'SupportsPaintSetup' in body or 'DrawSupports' in body:
+                            raise Unsupported('station helper acquired support operations')
+                        self.station_no_support.add(helper)
+                if AUX.fullmatch(name) and not TUNNEL_CALL.fullmatch(name) and name not in STATION_CALLS+COVER_CALLS:
                     self.support_gaps.add(name)
                     return None
         return super().execute(node,env,source,parts,depth,getter)
@@ -1200,6 +1393,12 @@ class WoodenSupportTranslator(SupportTranslator):
                 if not member: continue
                 previous=evaluate(member[2:],self.constants) if len(member)>1 else previous+1
                 self.constants[enum+'_'+member[0]]=previous
+        self.constants['kQuarterHelixSequenceCount']=7
+        map_limits=(root/'src/openrct2/world/MapLimits.h').read_text()
+        for constant in ('kCoordsZStep','kLandHeightStep'):
+            self.constants[constant]=evaluate(tokens(re.search(r'\b'+constant+r'\s*=\s*([^;]+)',map_limits)[1]),self.constants)
+        generic='src/openrct2/paint/track/TrackPaintGeneric.h'
+        self.hashes[generic]=hashlib.sha256((root/generic).read_bytes()).hexdigest()
         self.wooden_sequences={};self.wooden_descriptors={}
         paths=[root/'src/openrct2/ride/TrackData.cpp']+sorted((root/'src/openrct2/ride/ted').glob('TED.*.h'))
         for path in paths:
@@ -1233,6 +1432,100 @@ class WoodenSupportTranslator(SupportTranslator):
         text=re.sub(r'(WoodenSupportType|WoodenSupportSubType|WoodenSupportTransitionType)::',r'\1_',text)
         text=text.replace('TrackElemType::','')
         return super().value(tokens(text),env)
+
+    def ted_fields(self,name):
+        if name not in self.wooden_sequences: raise Unsupported('TED sequence initializer unavailable '+name)
+        result={}
+        for field in split_top(tokens(self.wooden_sequences[name])):
+            if len(field)>=4 and field[0]=='.' and field[2]=='=': result[field[1]]=field[3:]
+            elif field: raise Unsupported('TED designated sequence fields changed')
+        return result
+
+    def ted_field(self,name,field,default=None,depth=0):
+        if depth>16: raise Unsupported('TED field alias depth')
+        value=self.ted_fields(name).get(field,default)
+        if value is None: raise Unsupported('TED missing field '+field)
+        if len(value)==3 and value[1]=='.': return self.ted_field(value[0],value[2],default,depth+1)
+        return value
+
+    def ted_segments(self,name,index,depth=0):
+        if depth>16: raise Unsupported('TED segment alias depth')
+        value=self.ted_field(name,'blockedSegments',['{','{','0',',','0',',','0','}','}'])
+        invoked=call(value)
+        if invoked and invoked[0]=='blockedSegmentsFlipXAxis':
+            member=invoked[1][0]
+            if len(member)!=3 or tuple(member[1:])!=('.','blockedSegments'):
+                raise Unsupported('TED segment flip member')
+            mask=self.ted_segments(member[0],index,depth+1)
+            outer=int(format(mask&255,'08b')[::-1],2)
+            return (mask&256)|(((outer<<3)|(outer>>5))&255)
+        if len(value)==3 and value[1]=='.': return self.ted_segments(value[0],index,depth+1)
+        values=self.value(tokens(''.join(value).replace('PS::','PaintSegment::')),self.constants)
+        while len(values)==1 and isinstance(values[0],list): values=values[0]
+        if len(values)!=3: raise Unsupported('TED blocked segment type count')
+        return values[index]
+
+    def ted_general_height(self,name):
+        value=self.ted_field(name,'generalSupportHeight',['-32768'])
+        invoked=call(value)
+        if not invoked: return self.value(value,self.constants)
+        if invoked[0]!='calculateGeneralSupportHeight' or len(invoked[1])!=3:
+            raise Unsupported('TED general support expression')
+        member=invoked[1][0]
+        if len(member)!=3 or tuple(member[1:])!=('.','clearance'): raise Unsupported('TED clearance member')
+        clearance=self.ted_field(member[0],'clearance')
+        if clearance[0]!='{' or clearance[-1]!='}': raise Unsupported('TED clearance initializer')
+        fields=split_top(clearance[1:-1])
+        z=self.value(fields[2],self.constants);clearance_z=self.value(fields[3],self.constants)
+        offset=self.value(invoked[1][1],self.constants);half=self.value(invoked[1][2],self.constants)
+        step=self.constants['kCoordsZStep'];land=self.constants['kLandHeightStep']
+        half=(z+int(half)*step)%land==step
+        rounded=((clearance_z+(step if half else land)-1)//(step if half else land))*(step if half else land)
+        if half: rounded+=(rounded+step)%land
+        return rounded+offset*land
+
+    def helix_supports(self,source,name,sequence,direction,height,parts,track_type):
+        match=re.fullmatch(r'OpenRCT2::trackPaint((?:Left|Right)Quarter(?:Banked)?HelixLarge(?:Up|Down))<(.*)>',name)
+        if not match: return False
+        if sequence>=7: return True
+        args=split_top(tokens(match[2]))
+        if len(args)!=7: raise Unsupported('quarter helix support template signature')
+        descriptor=self.wooden_descriptors[self.wooden_types[track_type]]
+        table=re.search(r'\.sequenceData\s*=\s*\{\s*(\d+)\s*,\s*\{(.*?)\}\s*\}',descriptor,re.S)
+        names=[x.strip() for x in table[2].split(',') if x.strip()] if table else []
+        if len(names)!=7: raise Unsupported('quarter helix TED sequence count')
+        seq_name=names[sequence];fields=self.ted_fields(seq_name)
+        env=ChainMap({},source.globals,self.constants)
+        modified_sequence=sequence;modified_direction=direction
+        if match[1].endswith('Down'):
+            modified_sequence=self.value(self.ted_field(seq_name,'reversedTrackSequence'),env)
+            rotation=re.search(r'\.reversedRotationOffset\s*=\s*([^,}]+)',descriptor)
+            if not rotation: raise Unsupported('quarter helix TED reversed rotation')
+            modified_direction=(direction+self.value(tokens(rotation[1]),env))&3
+        extra_rotation=self.value(self.ted_field(seq_name,'extraSupportRotation',['0']),env)
+        support_rotation=(direction+extra_rotation)&3
+        if self.value(args[2],env):
+            value=self.ted_field(seq_name,'woodenSupports',['{','WoodenSupportSubType::null','}'])
+            values=split_top(value[1:-1]);subtype=self.value(values[0],env)
+            transition=self.value(values[1],env) if len(values)>1 else 255
+            support_height=self.value(values[2],env) if len(values)>2 else 0
+            self.wooden_op(parts,'A',255,subtype,support_rotation,height+support_height,1,transition,True)
+        else:
+            value=self.ted_field(seq_name,'metalSupports',['{','MetalSupportPlace::none','}'])
+            values=split_top(value[1:-1]);place=self.value(values[0],env)
+            support_height=self.value(values[2],env) if len(values)>2 else 0
+            if place!=self.constants['MetalSupportPlace_none']:
+                extras=self.value(args[3],env)
+                self.append_support(1,parts,type=255,placement=place,rotation=support_rotation,
+                    height=height+support_height,extra=extras[modified_sequence][modified_direction])
+        blocked=''.join(args[4]).split('::')[-1]
+        if blocked not in ('narrow','inverted','wide'): raise Unsupported('quarter helix blocked segment type')
+        mask=self.ted_segments(seq_name,('narrow','inverted','wide').index(blocked))
+        rotated=self.value(tokens('PaintUtilRotateSegments('+str(mask)+','+str(direction)+')'),env)
+        self.append_support(3,parts,mask=rotated,height=65535,slope=0)
+        general=self.ted_general_height(seq_name)
+        self.append_support(4,parts,height=height+32+general if general!=-32768 else 0,slope=32)
+        return True
 
     def wooden_sequence(self,track_type,sequence):
         try: descriptor=self.wooden_descriptors[self.wooden_types[track_type]]
@@ -1307,6 +1600,13 @@ class WoodenSupportTranslator(SupportTranslator):
 
     def paint(self,source,name,sequence,direction,height,state,parts,depth=0,track_type=0,dependencies=None):
         if depth==0: self.wooden_prepend=None
+        if name.startswith('OpenRCT2::trackPaint'):
+            # Emit the existing rail recipe first, then its source TED support
+            # operations. Reversed image indexing does not reverse support ownership.
+            result=Translator.paint(self,source,name,sequence,direction,height,state,parts,depth,track_type,dependencies)
+            if not self.helix_supports(source,name,sequence,direction,height,parts,track_type):
+                self.support_gaps.add('generic TED support helper: '+name)
+            return result
         return super().paint(source,name,sequence,direction,height,state,parts,depth,track_type,dependencies)
 
 
@@ -1440,10 +1740,11 @@ def build(args):
                                                              track_type=track_type,dependencies=dependencies)
                                             style_report['tunnelRejected'][str(track_type)]=str(tunnel_error)
                                         finally: CAPTURE_TUNNELS=False
-                                        markers=sum(p[0]==STATION_PART for p in result)
+                                        markers=sum(p[0]==STATION_PART and p[8]!=7 for p in result)
+                                        covers=sum(p[0]==STATION_PART and p[8]==7 for p in result)
                                         photos=sum(p[0]==PHOTO_PART for p in result)
                                         graphics=[p for p in result if p[0]!=TUNNEL_PART]
-                                        if len(result)>16 or len(graphics)+markers*8+photos*2>16 or sum(p[-1]==-1 for p in graphics)+markers*6+photos*2>12:
+                                        if len(result)>16 or len(graphics)+markers*8+covers+photos*2>16 or sum(p[-1]==-1 for p in graphics)+markers*6+photos*2>12:
                                             raise Unsupported('expanded station/component capacity')
                                         directions.append(tuple(result))
                                     except (Unsupported,ZeroDivisionError,RecursionError) as e:

@@ -9,12 +9,14 @@
 #ifdef ENABLE_VULKAN
 
     #include "VulkanDevice.h"
+    #include "VulkanPeepFieldPipeline.h"
     #include "VulkanResources.h"
     #include "VulkanWorldFilterCompositor.h"
 
     #include <array>
     #include <filesystem>
     #include <openrct2-renderer/gpu/GpuCommandStream.h>
+    #include <openrct2-renderer/gpu/GpuWorldMoney.h>
     #include <vector>
 
 namespace OpenRCT2::Ui::Vulkan
@@ -34,6 +36,15 @@ namespace OpenRCT2::Ui::Vulkan
         VkPipeline _pipeline = VK_NULL_HANDLE;
         VkPipeline _filterPipeline = VK_NULL_HANDLE;
         std::array<VkFramebuffer, kFramesInFlight> _framebuffers{};
+        PeepFieldPipeline _peepFields;
+        Buffer _balloonRecords;
+        Buffer _vehicleRecords, _vehicleCatalog, _effectRecords, _moneyRecords;
+        std::shared_ptr<const Gpu::WorldMoneyCatalog> _moneyCatalog;
+        std::shared_ptr<const Drawing::MoneyPresentationSnapshot> _uploadedMoney;
+        std::shared_ptr<const Drawing::VehiclePresentationSnapshot> _uploadedVehicles;
+        std::shared_ptr<const Drawing::WorldEffectSnapshot> _uploadedEffects;
+        uint64_t _uploadedVehicleCatalogRevision{};
+        std::shared_ptr<const Drawing::RetainedBalloonSnapshot> _uploadedBalloons;
         Buffer _sourceRecords;
         Buffer _pathRecords;
         Buffer _objectRecords;
@@ -91,6 +102,14 @@ namespace OpenRCT2::Ui::Vulkan
         void Initialise(const DeviceContext& device, const IndexedResources& resources, std::filesystem::path shaderDirectory);
         void Dispose();
         void Record(const SubmissionToken& frame, const Gpu::WorldSurfaceSceneCommand& scene);
+        [[nodiscard]] bool NeedsSpriteAdmission(const Gpu::WorldSurfaceSceneCommand& scene) const noexcept
+        {
+            return scene.sprites && scene.sprites->revision != _uploadedSpriteRevision;
+        }
+        void Commit()
+        {
+            _peepFields.Commit();
+        }
         void DiscardPendingUploads(uint32_t frameIndex = kFramesInFlight) noexcept;
         // Called only after the existing submission fence retires; never waits.
         void CompleteProfile(uint32_t frameIndex);

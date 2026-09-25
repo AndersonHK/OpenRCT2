@@ -12,6 +12,7 @@ namespace OpenRCT2::Ui::Gpu
     constexpr uint32_t kSelectedVehiclePaintHeaderWords = 16;
     constexpr uint32_t kSelectedVehicleMaximumCars = 255;
     constexpr uint32_t kSelectedVehicleMaximumComponents = 16384;
+    constexpr uint32_t kSelectedVehicleMaximumParentComponents = 15; // Root uses placed-art layer1.
     struct SelectedVehicleCarRecord
     {
         uint32_t entityId{}, generation{}, firstComponent{}, componentCount{};
@@ -61,6 +62,8 @@ namespace OpenRCT2::Ui::Gpu
                 const auto root = w[p + 6], flags = w[p + 8];
                 if (flags == 256)
                     currentRoot = i;
+                if (i - currentRoot >= kSelectedVehicleMaximumParentComponents)
+                    throw std::invalid_argument("Selected vehicle parent exceeds constant-depth local layer capacity");
                 if ((flags != 256 && flags != 257 && flags != 259) || w[p + 9] != w[c + 4] || root != currentRoot
                     || root < first || root > i || w[w[5] + root * 12 + 6] != root || w[w[5] + root * 12 + 8] != 256
                     || ((flags == 256) != (root == i)))

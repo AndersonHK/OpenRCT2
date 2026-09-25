@@ -42,3 +42,23 @@ TEST(WorldSelectionTest, InvalidPayloadCannotReachShaderBinarySearch)
     EXPECT_THROW(ValidateWorldSelectionWords(words), std::invalid_argument);
     EXPECT_THROW(MakeWorldSelectionWords(4, 0, {}, {}, {}, 8, {}), std::invalid_argument);
 }
+
+TEST(WorldSelectionTest, CutawayStateIsOwnedWithoutActiveConstructionSelection)
+{
+    auto first = CoordsXY{ 32, 64 };
+    auto last = CoordsXY{ 320, 640 };
+    const auto words = MakeWorldSelectionWords(0, 0, {}, {}, {}, 0, {}, 42, first, last);
+    first.x = 999;
+    last.y = 999;
+    EXPECT_EQ(words.size(), kWorldSelectionHeaderWords);
+    EXPECT_EQ(words[0], 0u);
+    EXPECT_EQ(words[11], 42u * kCoordsZStep);
+    EXPECT_EQ(words[12], 32u);
+    EXPECT_EQ(words[13], 64u);
+    EXPECT_EQ(words[14], 320u);
+    EXPECT_EQ(words[15], 640u);
+    EXPECT_NO_THROW(ValidateWorldSelectionWords(words));
+    auto invalid = words;
+    invalid[14] = 0;
+    EXPECT_THROW(ValidateWorldSelectionWords(invalid), std::invalid_argument);
+}

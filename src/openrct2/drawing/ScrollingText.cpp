@@ -1435,12 +1435,13 @@ static constexpr const int16_t* kScrollPositions[kMaxModes] = {
         return result;
     }
 
-    TextColumns compileTextColumns(u8string_view string, PaletteIndex colour)
+    TextColumns compileTextColumns(u8string_view string, PaletteIndex colour, bool retainInitialInk)
     {
         auto formatted = FormatStringID(STR_BANNER_TEXT_FORMAT, string);
         if (Config::Get().general.upperCaseBanners)
             formatted = String::toUpper(formatted);
         TextColumns result;
+        bool initialInk = retainInitialInk;
         result.phaseWidth = static_cast<uint32_t>(std::max(0, getStringWidth(formatted, FontStyle::tiny)));
 #ifndef DISABLE_TTF
         if (LocalisationService_UseTrueTypeFont())
@@ -1454,13 +1455,18 @@ static constexpr const int16_t* kScrollPositions[kMaxModes] = {
                     if (token.IsLiteral())
                         literal.append(token.text);
                     else if (FormatTokenIsColour(token.kind))
+                    {
                         colour = getTextColourMapping(FormatTokenToTextColour(token.kind)).fill;
+                        initialInk = false;
+                    }
                 }
                 const auto* surface = TTFSurfaceCacheGetOrAdd(font->font, literal.c_str());
                 result.repeat = true;
                 if (surface == nullptr || surface->w <= 0)
                     return result;
                 result.columns.resize(surface->w);
+                if (retainInitialInk)
+                    result.initialInk.resize(surface->w);
                 const auto* pixels = static_cast<const uint8_t*>(surface->pixels) + 2 * surface->w;
                 const auto firstRow = -font->offset_y;
                 const auto lastRow = std::min(surface->h - 2, firstRow + 7);
@@ -1475,9 +1481,17 @@ static constexpr const int16_t* kScrollPositions[kMaxModes] = {
                         const auto pixel = pixels[y * surface->w + x];
                         auto& out = result.columns[x][y - firstRow];
                         if ((!hinting && pixel != 0) || pixel > 140)
+                        {
                             out = EnumValue(colour);
+                            if (initialInk)
+                                result.initialInk[x] |= uint16_t(1u << (y - firstRow));
+                        }
                         else if (hinting && pixel > font->hinting_threshold)
+                        {
                             out = EnumValue(BlendColours(colour, PaletteIndex::transparent));
+                            if (initialInk)
+                                result.initialInk[x] |= uint16_t(1u << (y - firstRow + 8));
+                        }
                     }
                 }
                 return result;
@@ -1504,11 +1518,16 @@ static constexpr const int16_t* kScrollPositions[kMaxModes] = {
                                     column[y] = EnumValue(characterColour);
                             }
                             result.columns.push_back(column);
+                            if (retainInitialInk)
+                                result.initialInk.push_back(initialInk ? bitmap[x] : 0);
                         }
                     }
                 }
                 else if (FormatTokenIsColour(token.kind))
+                {
                     characterColour = getTextColourMapping(FormatTokenToTextColour(token.kind)).fill;
+                    initialInk = false;
+                }
             }
         }
         return result;

@@ -742,7 +742,12 @@ namespace OpenRCT2
                         | (static_cast<uint32_t>(guest.getUmbrellaColour()) << 16);
                 }
                 else
-                    accessories = static_cast<uint32_t>(static_cast<const Staff&>(peep).assignedStaffType) << 24;
+                {
+                    const auto type = static_cast<const Staff&>(peep).assignedStaffType;
+                    if (type >= StaffType::count)
+                        throw std::invalid_argument("Retained staff type is outside the source enum");
+                    accessories = static_cast<uint32_t>(type) << 24;
+                }
                 append(
                     input.peeps.appearance,
                     Drawing::RetainedPeepFieldUpdate<Drawing::RetainedPeepAppearance>{

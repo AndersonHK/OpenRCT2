@@ -13,8 +13,10 @@
 #include "GpuWorldBannerText.h"
 #include "GpuWorldEntranceCatalog.h"
 #include "GpuWorldFlatRideCatalog.h"
+#include "GpuWorldPeepCatalog.h"
 #include "GpuWorldPropCatalog.h"
 #include "GpuWorldTrackCatalog.h"
+#include "GpuWorldVehicleCatalog.h"
 
 #include <algorithm>
 #include <cassert>
@@ -23,6 +25,7 @@
 #include <openrct2/Context.h>
 #include <openrct2/SpriteIds.h>
 #include <openrct2/config/Config.h>
+#include <openrct2/core/Console.hpp>
 #include <openrct2/core/EnumUtils.hpp>
 #include <openrct2/drawing/Drawing.Sprite.h>
 #include <openrct2/drawing/Drawing.String.h>
@@ -777,7 +780,8 @@ namespace OpenRCT2::Ui::Gpu
     NativeWorldCategories CommandDrawingContext::DrawWorldScene(
         RenderTarget& rt, std::shared_ptr<const PresentationGeneration> generation, const OrthographicCamera& camera)
     {
-        if (generation && generation->entities && generation->entities->IsTerrainOnly())
+        if (generation && generation->entities && generation->entities->IsNativeOnly() && generation->map
+            && generation->map->IsRawTerrainOnly())
         {
             if (!generation->map)
                 throw std::runtime_error("Missing GPU-only terrain publication");
@@ -1019,7 +1023,8 @@ namespace OpenRCT2::Ui::Gpu
             ValidateWorldSelectionWords(*camera.selection);
         if (generation == nullptr || generation->map == nullptr || _commands->worldSurfaces.has_value())
             return false;
-        const bool terrainOnly = generation->entities && generation->entities->IsTerrainOnly();
+        const bool terrainOnly = generation->entities && generation->entities->IsNativeOnly() && generation->map
+            && generation->map->IsRawTerrainOnly();
         if (generation->map->GetSurfaceRecordCount() == 0)
             return false; // An empty publication still belongs to the GPU-only viewport.
         if (!terrainOnly
@@ -1118,8 +1123,7 @@ namespace OpenRCT2::Ui::Gpu
                               uint32_t(raw.age) | (uint32_t(raw.quadrant) << 8) | (uint32_t(raw.slope) << 16)
                                   | (uint32_t(raw.position) << 24),
                               uint32_t(raw.animationFrame) | (uint32_t(raw.allowedEdges) << 8),
-                              uint32_t(raw.entranceType) | (uint32_t(raw.pathSurfaceSlot) << 8)
-                                  | (uint32_t(raw.bannerId) << 16),
+                              PackWorldObjectMetadata(raw.entranceType, raw.pathSurfaceSlot, raw.bannerId),
                               uint32_t(raw.trackType) | (uint32_t(raw.rideType) << 16),
                               uint32_t(raw.rideId) | (uint32_t(raw.mazeEntry) << 16),
                               uint32_t(raw.colourScheme) | (uint32_t(raw.stationIndex) << 8)
@@ -1195,8 +1199,14 @@ namespace OpenRCT2::Ui::Gpu
             || _publishedSurfaceSprites->sourcePathMaterials != pathMaterials
             || _publishedSurfaceSprites->sourceObjectMaterials != objectMaterials
             || _publishedSurfaceSprites->sourceObjectUsage != objectUsage
-            || _publishedSurfaceSprites->sourceRideMaterials != rideMaterials || !terrainOnly
-            || !_textureCache.TryBindAssetLease(_publishedSurfaceSprites->residency))
+            || _publishedSurfaceSprites->sourceRideMaterials != rideMaterials
+            || _publishedSurfaceSprites->vehicleSource != (generation->vehicles ? generation->vehicles->catalog : nullptr)
+            || _publishedSurfaceSprites->vehicleUsedCars != (generation->vehicles ? generation->vehicles->usedCars : nullptr)
+            || (_publishedSurfaceSprites->peepAssets ? _publishedSurfaceSprites->peepAssets->catalog : nullptr)
+                != generation->peepAnimations
+            || (_publishedSurfaceSprites->peepAssets ? _publishedSurfaceSprites->peepAssets->usedObjects : nullptr)
+                != (generation->peeps ? generation->peeps->usedObjects : nullptr)
+            || !terrainOnly || !_textureCache.TryBindAssetLease(_publishedSurfaceSprites->residency))
         {
             if (materials->revision != GetTerrainObjectRevision()
                 || (pathMaterials && pathMaterials->revision != GetPathObjectRevision())
@@ -1387,8 +1397,33 @@ namespace OpenRCT2::Ui::Gpu
                 table->catalog.selectionPalettes[row] = TextureCache::PaletteToY(
                     static_cast<FilterPaletteID>(EnumValue(FilterPaletteID::paletteLandMarker0) + row));
             table->catalog.selectionPalettes[11] = TextureCache::PaletteToY(static_cast<FilterPaletteID>(Colour::yellow));
+            Console::WriteLine(
+                "Vulkan world: admitting resident entity artwork (%zu world sprite variants)", table->records.size());
+            table->peepAssets = BuildWorldPeepAssets(
+                generation->peepAnimations, generation->peeps ? generation->peeps->usedObjects : nullptr, append);
+            Console::WriteLine("Vulkan world: peep artwork admitted (%zu sprite sets)", table->records.size());
+            if (generation->vehicles)
+            {
+                table->vehicleSource = generation->vehicles->catalog;
+                table->vehicleUsedCars = generation->vehicles->usedCars;
+                table->vehicleCatalog = BuildWorldVehicleCatalog(
+                                            *table->vehicleSource, *table->vehicleUsedCars,
+                                            TextureCache::PaletteToY(FilterPaletteID::paletteGhost),
+                                            [&](uint32_t image) { return append(ImageId(image).WithPrimary(Colour::black)); })
+                                            .words;
+                Console::WriteLine("Vulkan world: vehicle artwork admitted (%zu sprite sets)", table->records.size());
+            }
+            if (generation->effects)
+            {
+                table->effectSpriteBase = static_cast<uint32_t>(table->records.size());
+                for (uint32_t image = 22577; image < 23189; ++image)
+                    append(ImageId(image));
+            }
             if (_surfaceUsesZeroCoverage)
                 throw std::runtime_error("GPU terrain material has unsupported covered-zero pixels");
+            Console::WriteLine(
+                "Vulkan world: %zu resident sprite sets ready in %zu atlas pages", table->records.size(),
+                _textureCache.GetAtlasPageCount());
             if (terrainOnly)
             {
                 table->residency = _textureCache.CreateAssetLease(residencies, dependencies);
@@ -1397,8 +1432,13 @@ namespace OpenRCT2::Ui::Gpu
             }
             _publishedSurfaceSprites = std::move(table);
         }
+        scene.vehicles = generation->vehicles;
+        scene.effects = generation->effects;
+        scene.money = generation->money;
+        scene.peeps = generation->peeps;
+        scene.balloons = generation->balloons;
         scene.sourceTick = generation->sourceTick;
-        scene.selectedVehicle = ResolveSelectedVehiclePaint(*generation, camera);
+        scene.selectedVehicle = generation->vehicles ? nullptr : ResolveSelectedVehiclePaint(*generation, camera);
         scene.ridePoses = generation->map->GetRidePoses();
         const auto bannerTexts = generation->map->GetBannerTexts();
         if (!_publishedBannerTexts || _publishedBannerTexts->source != bannerTexts)

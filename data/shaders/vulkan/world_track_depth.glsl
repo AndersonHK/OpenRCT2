@@ -6,13 +6,12 @@
 #else
 #define TRACK_DEPTH_FN
 #endif
-// LoopingRCTrackFlat authors one rail sprite at raster origin (0,0), but
-// explicitly locates its supporting column/contact socket at (16,16,height).
-// Use that named contact for depth only. This is not a bounds-derived rule for
-// other track styles, curved pieces, loop walls, or unrelated crossing rails.
-TRACK_DEPTH_FN bool worldTrackHasCentreContactAnchor(int trackType,int sequence,int image)
+// An under-rail support belongs to one authored track element. Preserve its
+// original anchor when already below that element's rails; cap only its contact
+// with those rails. Other track elements never enter this constraint.
+TRACK_DEPTH_FN int worldTrackUnderRailDepth(int authoredDepth,int ownRailDepth)
 {
-    return trackType==0 && sequence==0 && image>=15004 && image<=15009;
+    return authoredDepth<ownRailDepth?authoredDepth:ownRailDepth-1;
 }
 // Internal, already-resolved station-cover recipes encode edge/variant here.
 // These values are never looked up as G1 image IDs. Front covers contain the

@@ -99,6 +99,46 @@ TEST(RetainedPeepStateTest, SkippedSnapshotsRetainDeletionAndUnchangedChunks)
     EXPECT_EQ(scene.GetSnapshot()->TryGet(EntityId::GetNull()), std::nullopt);
 }
 
+TEST(RetainedPeepStateTest, ObjectBankUsageTracksOwnersWithoutRebuildingForPoseOrColourChanges)
+{
+    RetainedPeepScene scene;
+    auto first = MakeRecord(1);
+    auto second = MakeRecord(2);
+    first.objectIndex = second.objectIndex = 7;
+    ASSERT_TRUE(scene.Apply(FullPeepBatch(1, true, { first, second }), 1));
+    const auto initial = scene.GetSnapshot();
+    ASSERT_NE(initial->usedObjects, nullptr);
+    EXPECT_EQ(*initial->usedObjects, (std::vector<uint32_t>{ 7 }));
+    EXPECT_EQ(initial->objectUseCounts->at(7), 2u);
+
+    first.x = first.previousX = 128;
+    first.colours = 3;
+    first.frameOffset = 4;
+    ASSERT_TRUE(scene.Apply(FullPeepBatch(1, false, { first }), 2));
+    EXPECT_EQ(scene.GetSnapshot()->usedObjects, initial->usedObjects);
+    EXPECT_EQ(scene.GetSnapshot()->objectUseCounts, initial->objectUseCounts);
+    ASSERT_TRUE(scene.Apply(FullPeepBatch(1, false, { Tombstone(2, 1) }), 3));
+    EXPECT_EQ(scene.GetSnapshot()->usedObjects, initial->usedObjects);
+    EXPECT_EQ(scene.GetSnapshot()->objectUseCounts->at(7), 1u);
+    EXPECT_EQ(initial->objectUseCounts->at(7), 2u);
+
+    first.objectIndex = 9;
+    const auto beforeInvalid = scene.GetSnapshot();
+    auto invalid = FullPeepBatch(1, false, { first });
+    invalid.appearance.front().value.objectGeneration = 0;
+    EXPECT_THROW(scene.Apply(invalid, 4), std::invalid_argument);
+    EXPECT_EQ(scene.GetSnapshot(), beforeInvalid);
+    ASSERT_TRUE(scene.Apply(FullPeepBatch(1, false, { first }), 4));
+    EXPECT_EQ(*scene.GetSnapshot()->usedObjects, (std::vector<uint32_t>{ 9 }));
+    EXPECT_EQ(*initial->usedObjects, (std::vector<uint32_t>{ 7 }));
+    ASSERT_TRUE(scene.Apply(FullPeepBatch(1, false, { Tombstone(1, 1) }), 5));
+    EXPECT_TRUE(scene.GetSnapshot()->usedObjects->empty());
+    EXPECT_TRUE(scene.GetSnapshot()->objectUseCounts->empty());
+    ASSERT_TRUE(scene.Apply(FullPeepBatch(2, true, { second }), 6));
+    EXPECT_EQ(*scene.GetSnapshot()->usedObjects, (std::vector<uint32_t>{ 7 }));
+    EXPECT_EQ(scene.GetSnapshot()->objectUseCounts->at(7), 1u);
+}
+
 TEST(RetainedPeepStateTest, SameEpochResetCannotForgetTombstonesOrRecoverAnInputGap)
 {
     RetainedPeepScene scene;
@@ -375,6 +415,8 @@ TEST_F(RetainedPeepPublicationTest, StationaryUniformActionPublishesOnceAndPrese
     }
     const auto held = scene.GetSnapshot();
     const auto oldColours = held->TryGet(staff->id)->colours;
+    EXPECT_EQ(held->TryGet(staff->id)->accessoryColours >> 24, static_cast<uint32_t>(StaffType::handyman));
+    EXPECT_EQ(held->TryGet(unaffected->id)->accessoryColours >> 24, static_cast<uint32_t>(StaffType::mechanic));
 
     // These paused-capable actions must publish without movement or a simulation tick.
     EXPECT_EQ(

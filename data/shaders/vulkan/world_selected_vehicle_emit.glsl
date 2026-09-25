@@ -49,13 +49,16 @@ void worldEmitSelected(uint workIndex,uint destination,bool writeRecords,inout u
         uint first=uSelected.words[address+2u],limit=first+uSelected.words[address+3u];
         // Source owns actual XYZ per car, not per sprite. Keep that limitation
         // explicit and distinguish authored components through bounded local layers.
-        if(limit-first>255u) { atomicOr(uStatus.overflow,8u);return; }
+        if(!worldComponentDepthValid(componentDepth,1)) { atomicOr(uStatus.overflow,8u);return; }
+        uint sourceRoot=first;
         bool admitted=false;
         worldParentRoot=0xffffffffu;worldParentFlags=0u;
         [[dont_unroll]] for(uint c=first;c<limit;c++) {
             uint metadata=uSelected.words[5u]+c*12u;
             uint kind=uSelected.words[metadata+8u]&3u;
-            if(kind==0u) { admitted=false;worldParentRoot=0xffffffffu; }
+            if(kind==0u) { admitted=false;worldParentRoot=0xffffffffu;sourceRoot=c; }
+            uint layer=c-sourceRoot+1u;
+            if(layer>uint(WORLD_COMPONENT_LAYER_MAX)) { atomicOr(uStatus.overflow,8u);return; }
             OutputRecord record=worldSelectedComponent(c);
             if(kind>=2u) {
                 if(!admitted) continue;
@@ -71,7 +74,7 @@ void worldEmitSelected(uint workIndex,uint destination,bool writeRecords,inout u
                 // coordinates are never used for selected component depth.
                 worldCapturePaint(destination+count,0u,tile,true,record);
                 record.reserved.x=componentDepth;
-                record.depth=int((c-first+1u)<<4u);
+                record.depth=int(layer<<4u);
                 uOutputs.records[destination+count]=record;
             } else if(root) worldParentRoot=destination+count;
             admitted=true;

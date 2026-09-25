@@ -61,6 +61,7 @@ void visitTrack(uint index,uvec2 tile,uint destination,bool writeRecords,inout u
     int recipeToPart[16];
     int partToQualifiedRail[16];
     worldTrackQualifiedRailCount=recipe.y;
+    worldTrackRailDepth=2147483647;
     for(int i=0;i<16;i++) { partToQualifiedRail[i]=-1;worldTrackRailOwners[i]=0xffffffffu; }
     [[dont_unroll]]
     for(uint i=0u;i<recipe.y;i++) {
@@ -93,6 +94,7 @@ void visitTrack(uint index,uvec2 tile,uint destination,bool writeRecords,inout u
                 worldTrackAppend(part,sprite,uSpriteSets.records[sprite].palettes,uSpriteSets.records[sprite].effects);
             continue;
         }
+        part.image=worldTrackImageAtTick(part.image,uScene.sourceTick);
         uint sprite=worldTrackImage(part.image);
         if(sprite==0xffffffffu) continue;
         if(part.parent<0 && worldTrackDrawParts.count<16u)
@@ -120,17 +122,17 @@ void visitTrack(uint index,uvec2 tile,uint destination,bool writeRecords,inout u
             if(int(i)!=parent && p.geometry.parent!=parent) continue;
             worldSetPaintBounds(tile,p.geometry.bounds+ivec3(0,0,object.baseZ),p.geometry.size,int(i)==parent?0u:1u);
             worldSetCoplanarSurfaceLayer();
-            if(worldTrackHasCentreContactAnchor(int(object.trackTypeAndRideType&65535u),
-                int(object.sequence),int(p.geometry.image)))
-                worldSetComponentDepthAnchor(tile,ivec3(16,16,object.baseZ+p.geometry.offset.z));
             WorldTrackStationCoverAnchor cover=worldTrackStationCoverAnchor(int(p.geometry.image));
             if(cover.valid)
                 worldSetComponentDepthAnchor(tile,ivec3(cover.x,cover.y,object.baseZ+p.geometry.offset.z+cover.z));
             uint first=count;
             emitObjectSprite(tile,object.baseZ+p.geometry.offset.z,p.geometry.offset.xy,p.sprite,p.palettes,p.effects,
                 destination,writeRecords,count);
-            if(count>first && partToQualifiedRail[i]>=0)
+            if(count>first && partToQualifiedRail[i]>=0) {
                 worldTrackRailOwners[partToQualifiedRail[i]]=destination+first;
+                if(writeRecords && destination+first<uScene.outputCapacity && (uOutputs.records[destination+first].valid&1)!=0)
+                    worldTrackRailDepth=min(worldTrackRailDepth,uOutputs.records[destination+first].reserved.x);
+            }
         }
     }
     // Only support state, not rail geometry, depends on these operations. Run

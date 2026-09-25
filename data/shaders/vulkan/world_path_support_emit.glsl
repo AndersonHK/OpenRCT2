@@ -12,7 +12,7 @@ void worldEmitPathSupportPart(uvec2 tile,WorldPathPart part,int deckZ,PathMateri
     if(uint(part.imageOffset)>=railings.bridgeCount) {
         // An admitted path must retain its entire support allocation. Never
         // silently truncate a column when the immutable catalog is incomplete.
-        atomicOr(uStatus.overflow,8u);return;
+        worldReportComponentFailure(128u,tile,writeRecords);return;
     }
     worldSetPaintBounds(tile,ivec3(part.boundsX,part.boundsY,part.boundsZ),
         ivec3(part.sizeX,part.sizeY,part.sizeZ),0u);

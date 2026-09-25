@@ -1,6 +1,7 @@
 #version 450
 #extension GL_GOOGLE_include_directive : require
 #include "world_banner_text.glsl"
+#include "world_money_text.glsl"
 
 const int MASK_REMAP_COUNT = 3;
 const int FLAG_NO_TEXTURE = (1 << 2);
@@ -37,6 +38,12 @@ void main()
     // offset at non-unit zoom levels.
     ivec2 fragment = ivec2(floor(gl_FragCoord.xy));
     ivec2 position = ivec2((vec2(fragment) - vec2(fPosition)) * fZoom);
+    if((uint(fFlags)&WORLD_MONEY_TEXT_EFFECT)!=0u) {
+        uint text=worldMoneyPixel(fBannerText.x,ivec2(fTexColour.xy)+position);
+        if(text==WORLD_MONEY_NO_PIXEL) discard;
+        oColour=text;
+        return;
+    }
     if((uint(fFlags)&WORLD_BANNER_TEXT_EFFECT)!=0u) {
         // Geometry clipping advances the source offset just as for raw G1 art.
         uint text=worldBannerTextPixel(fBannerText.x,fBannerText.y,fBannerText.z,

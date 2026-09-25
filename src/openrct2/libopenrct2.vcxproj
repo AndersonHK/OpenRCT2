@@ -944,6 +944,9 @@
     <ClCompile Include="drawing\PickupPeep.cpp" />
     <ClCompile Include="drawing\PresentationScene.cpp" />
     <ClCompile Include="drawing\SelectedVehicleSnapshot.cpp" />
+    <ClCompile Include="drawing\VehiclePresentation.cpp" />
+    <ClCompile Include="drawing\WorldEffectSnapshot.cpp" />
+    <ClCompile Include="drawing\MoneyPresentation.cpp" />
     <ClCompile Include="drawing\NativeTrackRecipes.cpp" />
     <ClCompile Include="drawing\RetainedBalloonScene.cpp" />
     <ClCompile Include="drawing\RetainedPeepState.cpp" />

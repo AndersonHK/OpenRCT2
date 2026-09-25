@@ -29,10 +29,12 @@ layout(std430,set=0,binding=7) readonly buffer Catalog { Material materials[255]
 layout(std430,set=0,binding=8) buffer Prefixes { uint records[]; } uPrefixes;
 layout(std430,set=0,binding=9) buffer Status { uint emittedCount; uint capacity; uint overflow; uint reserved; } uStatus;
 layout(std430,set=0,binding=11) readonly buffer Paths { PathRecord records[]; } uPaths;
+layout(std430,set=0,binding=18) readonly buffer Selection { uint words[]; } uSelection;
 layout(push_constant) uniform WorldSurfaceConstants {
     ivec2 screen; ivec2 view; ivec4 clip; uint width; uint height; uint recordCount; int zoom;
     uint rotation; uint spriteSetCount; int depthBase; uint phase; uint transparentWater; uint outputCapacity;
     uint sourceTick; uint clockMinute; uint clockHour; uint viewFlags;
+    uint peepCount; uint balloonCount; uint vehicleCount; uint effectCount; uint moneyCount;
 } uScene;
 shared uint sPrefix[BLOCK_WIDTH];
 shared uint sTotal;
@@ -111,6 +113,10 @@ void emitObjectSprite(uvec2 tile, int z, ivec2 relative, uint image, uint palett
     emitObjectSpriteWithFlags(tile,z,relative,image,palettes,effects,0u,destination,writeRecords,count);
 }
 
+#include "world_entity_emit.glsl"
+#include "world_effect_emit.glsl"
+#include "world_money_emit.glsl"
+#include "world_vehicle_emit.glsl"
 #include "world_banner_emit.glsl"
 #include "world_prop_emit.glsl"
 #include "world_flat_ride_emit.glsl"
@@ -417,14 +423,16 @@ void main()
     uint lane=gl_LocalInvocationID.x;
     uint blocks=(uScene.recordCount+BLOCK_WIDTH-1u)/BLOCK_WIDTH;
     if(uScene.phase==1u) {
-        for(uint i=lane;i<BLOCK_WIDTH;i+=gl_WorkGroupSize.x) sPrefix[i]=i<blocks?uCommands.records[i].instanceCount:0u;
-        prefixScan(lane);
-        bool overflow=sTotal>uScene.outputCapacity;
-        for(uint i=lane;i<blocks;i+=gl_WorkGroupSize.x) {
-            uCommands.records[i].firstInstance=sPrefix[i];
-            if(overflow) uCommands.records[i].instanceCount=0u;
+        if(lane==0u) {
+            uint total=0u;
+            for(uint i=0u;i<blocks;i++) {
+                uCommands.records[i].firstInstance=total;
+                total+=uCommands.records[i].instanceCount;
+            }
+            bool overflow=total>uScene.outputCapacity;
+            if(overflow) for(uint i=0u;i<blocks;i++) uCommands.records[i].instanceCount=0u;
+            uStatus.emittedCount=total; uStatus.capacity=uScene.outputCapacity; uStatus.overflow=overflow?1u:0u; uStatus.reserved=0u;
         }
-        if(lane==0u) { uStatus.emittedCount=sTotal; uStatus.capacity=uScene.outputCapacity; uStatus.overflow=overflow?1u:0u; uStatus.reserved=0u; }
         return;
     }
     uint base=gl_WorkGroupID.x*BLOCK_WIDTH;
@@ -436,9 +444,15 @@ void main()
     [[dont_unroll]]
     for(uint i=lane;i<BLOCK_WIDTH;i+=gl_WorkGroupSize.x) {
         uint tileDestination=writeRecords && base+i<uScene.recordCount?destination+uPrefixes.records[base+i]:0u;
-        uint count=visitTile(base+i,tileDestination,writeRecords);
+        uint index=base+i, tileCount=uScene.width*uScene.height, count=0u;
+        if(index<tileCount) count=visitTile(index,tileDestination,writeRecords);
+        else if(index<tileCount+uScene.peepCount) visitWorldPeep(index-tileCount,tileDestination,writeRecords,count);
+        else if(index<tileCount+uScene.peepCount+uScene.balloonCount) visitWorldBalloon(index-tileCount-uScene.peepCount,tileDestination,writeRecords,count);
+        else if(index<tileCount+uScene.peepCount+uScene.balloonCount+uScene.vehicleCount) visitWorldVehicle(index-tileCount-uScene.peepCount-uScene.balloonCount,tileDestination,writeRecords,count);
+        else if(index<tileCount+uScene.peepCount+uScene.balloonCount+uScene.vehicleCount+uScene.effectCount) visitWorldEffect(index-tileCount-uScene.peepCount-uScene.balloonCount-uScene.vehicleCount,tileDestination,writeRecords,count);
+        else if(index<uScene.recordCount) visitWorldMoney(index-tileCount-uScene.peepCount-uScene.balloonCount-uScene.vehicleCount-uScene.effectCount,tileDestination,writeRecords,count);
         if(!writeRecords) sPrefix[i]=count;
-        else if(base+i<uScene.recordCount) worldCaptureTile(tileForOrder(base+i),tileDestination,count);
+        else if(base+i<uScene.width*uScene.height) worldCaptureTile(tileForOrder(base+i),tileDestination,count);
     }
     if(!writeRecords) {
         prefixScan(lane);

@@ -5,6 +5,26 @@
 
 namespace OpenRCT2::Drawing
 {
+    // Image-word tag: bit31 animated, base bits0..18, log2(tick period)
+    // bits19..21, log2(frame count) bits22..24. Other high bits must be zero.
+    // Only unsigned power-of-two clocks with 2..16 contiguous frames are admitted.
+    constexpr bool IsNativeTrackAnimatedImage(uint32_t image)
+    {
+        const auto shift = (image >> 19) & 7u, frames = (image >> 22) & 7u;
+        return (image & 0xfe000000u) == 0x80000000u && shift <= 3 && frames >= 1 && frames <= 4
+            && (image & 0x7ffffu) + (1u << frames) <= 0x7ffffu;
+    }
+    constexpr uint32_t GetNativeTrackImageFrameCount(uint32_t image)
+    {
+        return IsNativeTrackAnimatedImage(image) ? 1u << ((image >> 22) & 7u) : 1u;
+    }
+    constexpr uint32_t GetNativeTrackImageAtTick(uint32_t image, uint32_t tick)
+    {
+        return IsNativeTrackAnimatedImage(image)
+            ? (image & 0x7ffffu) + ((tick >> ((image >> 19) & 7u)) & (GetNativeTrackImageFrameCount(image) - 1u))
+            : image;
+    }
+
     // Immutable source-authored rules, shared by every instance. No live world
     // object or CPU painter is consulted when returning these tables.
     // Header: magic,version,styleCount,typeCount,descriptorWord,rowWord,partWord,totalWords.

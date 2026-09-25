@@ -279,3 +279,40 @@ TEST(SelectedVehiclePacketTest, RejectsCrossCarOrDiscontiguousGroupsAndTruncated
     truncated.words.pop_back();
     EXPECT_THROW(ValidateSelectedVehiclePaintPacket(truncated), std::invalid_argument);
 }
+
+TEST(SelectedVehiclePacketTest, LocalDepthCapacityIsPerParentAndNeverTruncatesAValidCar)
+{
+    using namespace OpenRCT2::Ui::Gpu;
+    SelectedVehiclePaintPacket packet;
+    packet.source = std::make_shared<SelectedVehicleSnapshot>();
+    constexpr uint32_t count = 30; // Two fifteen-component parent groups in one car.
+    packet.words.resize(28 + count * 28);
+    auto& w = packet.words;
+    w[0] = kSelectedVehiclePaintMagic;
+    w[1] = kSelectedVehiclePaintVersion;
+    w[2] = 1;
+    w[3] = count;
+    w[4] = 16;
+    w[5] = 28;
+    w[6] = 28 + count * 12;
+    w[7] = static_cast<uint32_t>(w.size());
+    w[16] = 2;
+    w[17] = 1;
+    w[19] = count;
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        const auto root = i < 15 ? 0u : 15u;
+        w[28 + i * 12 + 6] = root;
+        w[28 + i * 12 + 8] = i == root ? 256u : 257u;
+    }
+    EXPECT_NO_THROW(ValidateSelectedVehiclePaintPacket(packet));
+    // Move the group boundary one component forward: same total car capacity,
+    // but the first group no longer fits its scalar's finite overlay interval.
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        const auto root = i < 16 ? 0u : 16u;
+        w[28 + i * 12 + 6] = root;
+        w[28 + i * 12 + 8] = i == root ? 256u : 257u;
+    }
+    EXPECT_THROW(ValidateSelectedVehiclePaintPacket(packet), std::invalid_argument);
+}

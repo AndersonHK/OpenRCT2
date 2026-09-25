@@ -1,4 +1,7 @@
 #version 450
+#extension GL_GOOGLE_include_directive : require
+#include "world_money_text.glsl"
+#include "world_text_operation.glsl"
 layout(early_fragment_tests) in;
 
 const int MASK_REMAP_COUNT = 3;
@@ -20,6 +23,7 @@ layout(location = 5) flat in ivec3 fPalettes;
 layout(location = 6) flat in float fZoom;
 layout(location = 7) flat in int fTexColourAtlas;
 layout(location = 8) flat in int fTexMaskAtlas;
+layout(location = 9) flat in uvec3 fBannerText;
 
 layout(set=1,binding=0,std430) buffer Heads { uint heads[]; };
 layout(set=1,binding=1,std430) buffer Nodes { uvec2 nodes[]; };
@@ -40,7 +44,12 @@ void main()
     ivec2 fragment = ivec2(floor(gl_FragCoord.xy));
     ivec2 position = ivec2((vec2(fragment) - vec2(fPosition)) * fZoom);
     uint texel;
-    if ((fFlags & FLAG_NO_TEXTURE) == 0)
+    bool money=(uint(fFlags)&WORLD_MONEY_TEXT_EFFECT)!=0u;
+    if(money) {
+        texel=worldMoneyPixel(fBannerText.x,ivec2(fTexColour.xy)+position);
+        if(texel==WORLD_MONEY_NO_PIXEL) discard;
+    }
+    else if ((fFlags & FLAG_NO_TEXTURE) == 0)
     {
         texel = atlasTexel(fTexColour, fTexColourAtlas, position);
         if (texel == 0u)
@@ -77,6 +86,12 @@ void main()
 
     bool isFilter = (fFlags & ((1 << 10) | (1 << 8))) != 0;
     uint operation = (fFlags & (1 << 10)) != 0 ? uint(fPalettes.x) : uint(fPalettes.x) + texel - 1u;
+    bool isBlend=false;
+    if(money || ((fFlags&FLAG_TTF_TEXT)!=0 && (fFlags&0xff00)!=0)) {
+        int kind=worldTextOperationKind(int(texel));
+        operation=uint(worldTextOperationValue(int(texel)));
+        isBlend=kind==1;isFilter=false;texel=operation;
+    }
     int paletteCount = isFilter ? 0 : fFlags & MASK_REMAP_COUNT;
     if (paletteCount >= 3 && texel >= 0x2eu && texel < 0x3au)
         texel = texelFetch(uRemapPalette, ivec2(int(texel + 0xc5u), fPalettes.z), 0).r;
@@ -87,7 +102,7 @@ void main()
 
     // Index zero is a valid untextured canvas write (including cropped clears).
     // TTF source coverage was checked before applying the ink index, which may be zero.
-    if (texel == 0u && (fFlags & (FLAG_NO_TEXTURE | FLAG_TTF_TEXT)) == 0)
+    if (texel == 0u && !money && (fFlags & (FLAG_NO_TEXTURE | FLAG_TTF_TEXT)) == 0)
         discard;
     if ((fFlags & FLAG_CROSS_HATCH) != 0 && ((position.x + position.y) & 1) != 0)
         discard;
@@ -107,7 +122,7 @@ void main()
     }
 
     // Positive D32 values have monotone bit representations. Keep the existing
-    // high bit for literal operations, and order by the same depth as opaque pixels.
+    // high bits for literal/blend operations; positive D32 order fits 30 bits.
     uint componentOrder=0x3f800000u-floatBitsToUint(gl_FragCoord.z);
     uint pixel=uint(fragment.y)*width+uint(fragment.x);
     if(pixel>=pixels || (isFilter && operation>255u) || gl_FragCoord.z<0.0 || gl_FragCoord.z>1.0) {
@@ -118,6 +133,6 @@ void main()
         atomicMin(allocated,capacity); atomicOr(overflow,4u); return;
     }
     uint previous=atomicExchange(heads[pixel],index);
-    nodes[index]=uvec2(previous | ((isFilter ? operation : texel & 255u)<<24u),
-        componentOrder | (isFilter ? 0u : 0x80000000u));
+    nodes[index]=uvec2(previous | ((isFilter || isBlend ? operation : texel & 255u)<<24u),
+        componentOrder | (isBlend?0x40000000u:(isFilter ? 0u : 0x80000000u)));
 }

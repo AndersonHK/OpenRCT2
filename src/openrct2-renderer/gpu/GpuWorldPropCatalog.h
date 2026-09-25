@@ -107,6 +107,29 @@ namespace OpenRCT2::Ui::Gpu
                 result.words.push_back(tile.walls);
                 result.words.push_back(uint32_t(tile.hasSupports) | (uint32_t(tile.allowSupportsAbove) << 1));
             }
+            if (item.font)
+            {
+                const auto& font = *item.font;
+                const auto imageCount = uint32_t(font.numImages) * ((font.flags & 1u) != 0 ? 2u : 4u);
+                if (font.image < item.imageBase
+                    || uint64_t(font.image) + imageCount > uint64_t(item.imageBase) + item.imageCount)
+                    throw std::runtime_error("GPU object font exceeds its held allocation");
+                uint32_t imageBase = 0;
+                for (uint32_t i = 0; i < imageCount; i++)
+                {
+                    const auto image = appendImage(font.image + i);
+                    if (i == 0)
+                        imageBase = image;
+                    else if (image != imageBase + i)
+                        throw std::runtime_error("GPU object font images must be contiguous");
+                }
+                result.words[e + 12] = static_cast<uint32_t>(result.words.size());
+                result.words.insert(
+                    result.words.end(),
+                    { imageBase, imageCount, font.flags, font.maxWidth, uint32_t(font.offsets[0]), uint32_t(font.offsets[1]),
+                      uint32_t(font.offsets[2]), uint32_t(font.offsets[3]) });
+                result.words.insert(result.words.end(), font.glyphs.begin(), font.glyphs.end());
+            }
         }
         for (uint32_t slot = 0; slot < sizes[2]; slot++)
         {

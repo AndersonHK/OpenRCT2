@@ -82,17 +82,18 @@ namespace
 #endif
 } // namespace
 
-TEST(GpuFoundationTest, AtlasSizeOrdersUseTheLegacyPowerOfTwoClasses)
+TEST(GpuFoundationTest, AtlasSizeOrdersRoundEachAxisToPowerOfTwoWithMinimum32)
 {
-    EXPECT_EQ(AtlasPage::CalculateImageSizeOrder(1, 1), 5);
-    EXPECT_EQ(AtlasPage::CalculateImageSizeOrder(32, 32), 5);
-    EXPECT_EQ(AtlasPage::CalculateImageSizeOrder(33, 1), 6);
-    EXPECT_EQ(AtlasPage::CalculateImageSizeOrder(128, 129), 8);
+    EXPECT_EQ(AtlasPage::CalculateImageSizeOrder(1), 5);
+    EXPECT_EQ(AtlasPage::CalculateImageSizeOrder(32), 5);
+    EXPECT_EQ(AtlasPage::CalculateImageSizeOrder(33), 6);
+    EXPECT_EQ(AtlasPage::CalculateImageSizeOrder(128), 7);
+    EXPECT_EQ(AtlasPage::CalculateImageSizeOrder(129), 8);
 }
 
 TEST(GpuFoundationTest, AtlasAllocationRetainsLayerAndPixelBounds)
 {
-    AtlasPage page(7, 64);
+    AtlasPage page(7, 64, 32);
     page.Initialise(128, 128);
 
     const auto location = page.Allocate(40, 20);
@@ -101,10 +102,77 @@ TEST(GpuFoundationTest, AtlasAllocationRetainsLayerAndPixelBounds)
     EXPECT_EQ(location.bounds.w - location.bounds.y, 20);
     EXPECT_FLOAT_EQ(location.coords.z, 128.0f);
     EXPECT_FLOAT_EQ(location.coords.w, 128.0f);
-    EXPECT_EQ(page.GetFreeSlots(), 3);
+    EXPECT_EQ(page.GetFreeSlots(), 7);
 
     page.Free(location);
-    EXPECT_EQ(page.GetFreeSlots(), 4);
+    EXPECT_EQ(page.GetFreeSlots(), 8);
+}
+
+TEST(GpuFoundationTest, RectangularAtlasPacksSkinnyArtWithoutOverlapAndReusesFreedDescriptors)
+{
+    for (const auto vertical : { false, true })
+    {
+        const int32_t width = vertical ? 28 : 234;
+        const int32_t height = vertical ? 234 : 28;
+        AtlasPage page(7, vertical ? 32 : 256, vertical ? 256 : 32);
+        page.Initialise(kAtlasDimension, kAtlasDimension);
+        ASSERT_EQ(page.GetFreeSlots(), 512); // A square256 class held only64.
+        EXPECT_TRUE(page.IsImageSuitable(width, height));
+        EXPECT_FALSE(page.IsImageSuitable(height, width));
+        std::array<bool, kAtlasSlotsPerLayer> occupied{};
+        std::vector<TextureLocation> locations;
+        while (page.GetFreeSlots() != 0)
+        {
+            const auto location = page.Allocate(width, height);
+            EXPECT_EQ(location.GetDescriptorIndex(), 7u * kAtlasSlotsPerLayer + location.slot);
+            EXPECT_LT(location.slot, kAtlasSlotsPerLayer);
+            EXPECT_GE(location.bounds.x, 0);
+            EXPECT_GE(location.bounds.y, 0);
+            EXPECT_LE(location.bounds.z, kAtlasDimension);
+            EXPECT_LE(location.bounds.w, kAtlasDimension);
+            EXPECT_EQ(location.bounds.z - location.bounds.x, width);
+            EXPECT_EQ(location.bounds.w - location.bounds.y, height);
+            for (int32_t y = location.bounds.y / 32; y <= (location.bounds.w - 1) / 32; ++y)
+                for (int32_t x = location.bounds.x / 32; x <= (location.bounds.z - 1) / 32; ++x)
+                {
+                    const auto cell = y * 64 + x;
+                    ASSERT_FALSE(occupied[cell]);
+                    occupied[cell] = true;
+                }
+            locations.push_back(location);
+        }
+        EXPECT_TRUE(std::all_of(occupied.begin(), occupied.end(), [](bool used) { return used; }));
+        for (size_t i = 0; i < locations.size(); i += 2)
+            page.Free(locations[i]);
+        ASSERT_EQ(page.GetFreeSlots(), 256);
+        for (size_t i = locations.size() - 2;; i -= 2)
+        {
+            const auto reused = page.Allocate(width, height);
+            EXPECT_EQ(reused.GetDescriptorIndex(), locations[i].GetDescriptorIndex());
+            EXPECT_EQ(reused.bounds.x, locations[i].bounds.x);
+            EXPECT_EQ(reused.bounds.y, locations[i].bounds.y);
+            if (i == 0)
+                break;
+        }
+        EXPECT_EQ(page.GetFreeSlots(), 0);
+    }
+}
+
+TEST(GpuFoundationTest, EveryRectangularAtlasClassFitsDescriptorBudget)
+{
+    for (int32_t width = 32; width <= kAtlasDimension; width *= 2)
+        for (int32_t height = 32; height <= kAtlasDimension; height *= 2)
+        {
+            AtlasPage page(255, width, height);
+            page.Initialise(kAtlasDimension, kAtlasDimension);
+            const auto capacity = (kAtlasDimension / width) * (kAtlasDimension / height);
+            ASSERT_EQ(page.GetFreeSlots(), capacity);
+            ASSERT_LE(capacity, static_cast<int32_t>(kAtlasSlotsPerLayer));
+            const auto location = page.Allocate(width, height);
+            EXPECT_LT(location.GetDescriptorIndex(), kSpriteAssetDescriptorCount);
+            EXPECT_EQ(location.bounds.z, kAtlasDimension);
+            EXPECT_EQ(location.bounds.w, kAtlasDimension);
+        }
 }
 
 TEST(GpuFoundationTest, AtlasAllocationIdentityDistinguishesReusedSlots)
@@ -159,7 +227,7 @@ TEST(GpuFoundationTest, NativeTerrainReservesPainterDepthBetweenEarlierCommandsA
         const auto range = GetWorldSurfaceDepthRange(37, count);
         ASSERT_TRUE(range.has_value());
         EXPECT_EQ(range->first, 37);
-        EXPECT_EQ(range->next, 37 + static_cast<int32_t>(kWorldSurfaceOutputCapacity));
+        EXPECT_EQ(range->next, 37 + static_cast<int32_t>(kWorldSceneDepthReservation));
         const auto depth = [](int32_t key) { return 1.0f - (static_cast<float>(key) + 1.0f) / (1 << 22); };
         // Less depth wins. A later UI rectangle must beat every native tile,
         // while the first native tile must beat preceding ordinary commands.
@@ -167,12 +235,12 @@ TEST(GpuFoundationTest, NativeTerrainReservesPainterDepthBetweenEarlierCommandsA
         EXPECT_LT(depth(range->next), depth(range->next - 1));
         EXPECT_GT(depth(range->next), 0.0f);
         const auto following = GetWorldSurfaceDepthRange(range->next + 11, count);
-        ASSERT_TRUE(following.has_value());
-        EXPECT_GT(following->first, range->next);
+        // CommandStream owns one world; auxiliary views have separate executors.
+        EXPECT_FALSE(following.has_value());
     }
     constexpr int32_t limit = (1 << 22) - 1;
-    EXPECT_TRUE(GetWorldSurfaceDepthRange(limit - kWorldSurfaceOutputCapacity, 1024).has_value());
-    EXPECT_FALSE(GetWorldSurfaceDepthRange(limit - kWorldSurfaceOutputCapacity + 1, 1024).has_value());
+    EXPECT_TRUE(GetWorldSurfaceDepthRange(limit - kWorldSceneDepthReservation, 1024).has_value());
+    EXPECT_FALSE(GetWorldSurfaceDepthRange(limit - kWorldSceneDepthReservation + 1, 1024).has_value());
     EXPECT_FALSE(GetWorldSurfaceDepthRange(-1, 1024).has_value());
     EXPECT_FALSE(GetWorldSurfaceDepthRange(limit, 1).has_value());
     EXPECT_FALSE(GetWorldSurfaceDepthRange(0, 0).has_value());
@@ -197,14 +265,14 @@ TEST(GpuFoundationTest, WorldSurfaceAbiHasStableComputeBlocksAndDepthCapacity)
     EXPECT_GT(kWorldSurfaceDepthCapacity, kWorldSurfaceMaximumRecordCount);
     EXPECT_EQ(kWorldSurfaceComputeLocalSize, 128u);
     EXPECT_EQ(kWorldSurfaceComputeBlockWidth, 1024u);
-    EXPECT_EQ(kWorldSurfaceMaximumDrawCount, 979u);
+    EXPECT_EQ(kWorldSurfaceMaximumDrawCount, 1235u);
     EXPECT_EQ(GetWorldSurfaceDrawCount(0), 0u);
     EXPECT_EQ(GetWorldSurfaceDrawCount(1024), 1u);
     EXPECT_EQ(GetWorldSurfaceDrawCount(1025), 2u);
-    EXPECT_TRUE(AreWorldSurfaceComputeLimitsSufficient(128, 128, 979, 4100, true));
-    EXPECT_FALSE(AreWorldSurfaceComputeLimitsSufficient(127, 128, 979, 4100, true));
-    EXPECT_FALSE(AreWorldSurfaceComputeLimitsSufficient(128, 128, 978, 4100, true));
-    EXPECT_FALSE(AreWorldSurfaceComputeLimitsSufficient(128, 128, 979, 4100, false));
+    EXPECT_TRUE(AreWorldSurfaceComputeLimitsSufficient(128, 128, 1235, 4100, true));
+    EXPECT_FALSE(AreWorldSurfaceComputeLimitsSufficient(127, 128, 1235, 4100, true));
+    EXPECT_FALSE(AreWorldSurfaceComputeLimitsSufficient(128, 128, 1234, 4100, true));
+    EXPECT_FALSE(AreWorldSurfaceComputeLimitsSufficient(128, 128, 1235, 4100, false));
 
     WorldSurfaceRecord record{};
     record.world = { 64, 96, 32 };
@@ -235,6 +303,73 @@ TEST(GpuFoundationTest, WorldSurfaceAbiHasStableComputeBlocksAndDepthCapacity)
 }
 
 #ifndef DISABLE_TTF
+TEST(GpuFoundationTest, BatchUploadRetirementPreservesUnpresentedUploadsAndReusedSlots)
+{
+    constexpr uint64_t count = 256;
+    TextureCache cache(1);
+    std::array<std::byte, 8> pixels{};
+    const auto record = [&](uint64_t first, uint64_t last, FrameCommandStream& commands) {
+        cache.BeginFrame();
+        for (uint64_t id = first; id <= last; ++id)
+        {
+            pixels.fill(std::byte(id <= count ? id & 255 : 231));
+            if (id > count)
+                pixels.front() = std::byte(17); // Distinct from every uniform original glyph.
+            TTFSurface surface{ pixels.data(), 4, 2, id };
+            static_cast<void>(cache.GetOrLoadTTFTexture(surface));
+        }
+        return cache.SealFrame(commands);
+    };
+
+    FrameCommandStream initial;
+    const auto failed = record(1, count, initial);
+    ASSERT_EQ(initial.textureUploads.size(), count);
+    cache.RetireFrame(failed, FrameRetirement::Failed);
+    FrameCommandStream discarded;
+    const auto superseded = record(1, count, discarded);
+    ASSERT_EQ(discarded.textureUploads.size(), count);
+    cache.RetireFrame(superseded, FrameRetirement::Superseded);
+
+    // Present only half the pending catalog; unbound uploads must survive the
+    // one-pass removal even though they were present in the earlier packets.
+    FrameCommandStream subset;
+    const auto presentedSubset = record(1, count / 2, subset);
+    ASSERT_EQ(subset.textureUploads.size(), count / 2);
+    cache.RetireFrame(presentedSubset, FrameRetirement::Presented);
+    FrameCommandStream remaining;
+    const auto presentedRemaining = record(1, count, remaining);
+    ASSERT_EQ(remaining.textureUploads.size(), count / 2);
+    for (size_t i = 0; i < remaining.textureUploads.size(); ++i)
+    {
+        EXPECT_EQ(remaining.textureUploads[i].descriptorIndex, initial.textureUploads[i + count / 2].descriptorIndex);
+        EXPECT_EQ(remaining.textureUploads[i].pixels, initial.textureUploads[i + count / 2].pixels);
+    }
+    cache.RetireFrame(presentedRemaining, FrameRetirement::Presented);
+
+    // The bounded TTF cache evicts the oldest identity and reuses its physical
+    // atlas slot. The new bytes still require successful presentation of their
+    // own allocation, despite the slot's previously acknowledged upload.
+    FrameCommandStream replacement;
+    const auto failedReplacement = record(count + 1, count + 1, replacement);
+    ASSERT_EQ(replacement.textureUploads.size(), 1u);
+    const auto reused = std::find_if(initial.textureUploads.begin(), initial.textureUploads.end(), [&](const auto& upload) {
+        return upload.descriptorIndex == replacement.textureUploads.front().descriptorIndex;
+    });
+    ASSERT_NE(reused, initial.textureUploads.end());
+    EXPECT_NE(replacement.textureUploads.front().pixels, reused->pixels);
+    cache.RetireFrame(failedReplacement, FrameRetirement::Failed);
+    FrameCommandStream retry;
+    const auto presentedReplacement = record(count + 1, count + 1, retry);
+    ASSERT_EQ(retry.textureUploads.size(), 1u);
+    EXPECT_EQ(retry.textureUploads.front().pixels, replacement.textureUploads.front().pixels);
+    cache.RetireFrame(presentedReplacement, FrameRetirement::Presented);
+    FrameCommandStream committed;
+    const auto final = record(count + 1, count + 1, committed);
+    EXPECT_TRUE(committed.textureUploads.empty());
+    cache.RetireFrame(final, FrameRetirement::Presented);
+    cache.DrainFrameRetirements();
+}
+
 TEST(GpuFoundationTest, ResidencyLeaseDefersEvictedTtfSlotReuseUntilRetirement)
 {
     constexpr int32_t surfaceSize = 128;

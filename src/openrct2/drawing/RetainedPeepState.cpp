@@ -268,6 +268,47 @@ namespace OpenRCT2::Drawing
                                               : std::make_shared<RetainedPeepSnapshot>();
         next->epoch = batch.epoch;
         next->sequence = sequence;
+        std::shared_ptr<std::map<uint32_t, uint32_t>> objectUseCounts;
+        for (const auto& entry : pending)
+        {
+            const bool wasPresent = (entry.oldLife.flags & kRetainedPeepPresent) != 0;
+            const bool present = (entry.life.flags & kRetainedPeepPresent) != 0;
+            if (!entry.lifecycle && !entry.appearance)
+                continue;
+            uint32_t oldObject = 0;
+            if (wasPresent)
+                oldObject = _snapshot->chunks[entry.id / kRetainedPeepChunkWidth]
+                                ->appearance->values[entry.id % kRetainedPeepChunkWidth]
+                                .objectIndex;
+            const auto newObject = entry.appearance ? entry.appearance->value.objectIndex : oldObject;
+            if (wasPresent == present && (!present || oldObject == newObject))
+                continue;
+            if (!objectUseCounts)
+                objectUseCounts = next->objectUseCounts ? std::make_shared<std::map<uint32_t, uint32_t>>(*next->objectUseCounts)
+                                                        : std::make_shared<std::map<uint32_t, uint32_t>>();
+            if (wasPresent)
+            {
+                auto old = objectUseCounts->find(oldObject);
+                if (old == objectUseCounts->end() || old->second == 0)
+                    throw std::logic_error("Retained peep object usage is inconsistent");
+                if (--old->second == 0)
+                    objectUseCounts->erase(old);
+            }
+            if (present)
+                ++(*objectUseCounts)[newObject];
+        }
+        if (objectUseCounts || !next->usedObjects)
+        {
+            if (!objectUseCounts)
+                objectUseCounts = std::make_shared<std::map<uint32_t, uint32_t>>();
+            auto usedObjects = std::make_shared<std::vector<uint32_t>>();
+            usedObjects->reserve(objectUseCounts->size());
+            for (const auto& [object, owners] : *objectUseCounts)
+                usedObjects->push_back(object);
+            if (!next->usedObjects || *next->usedObjects != *usedObjects)
+                next->usedObjects = std::move(usedObjects);
+            next->objectUseCounts = std::move(objectUseCounts);
+        }
         RetainedPeepApplyMetrics metrics{};
         std::vector<WritablePeepChunk> writable;
         std::vector<uint32_t> chunkToWritable;

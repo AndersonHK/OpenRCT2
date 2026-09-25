@@ -209,6 +209,8 @@ namespace OpenRCT2::Ui::Gpu
     public:
         explicit TextureCache(uint32_t maxAtlasLayers = kAtlasLayers);
 
+        [[nodiscard]] size_t GetAtlasPageCount() const noexcept { return _atlases.size(); }
+
         [[nodiscard]] TextureBinding GetOrLoadImageTexture(ImageId imageId);
         [[nodiscard]] std::optional<ResolvedSprite> GetOrLoadImageSprite(ImageId imageId, ZoomLevel zoom);
         // Catalog preparation only. Includes every parent/linked image consulted, even a noZoomDraw parent.
