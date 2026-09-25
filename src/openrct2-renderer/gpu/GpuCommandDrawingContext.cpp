@@ -38,6 +38,7 @@
 #include <openrct2/entity/EntityPresentationSnapshot.h>
 #include <openrct2/object/ObjectManager.h>
 #include <openrct2/paint/tile_element/Paint.Surface.h>
+#include <openrct2/profiling/Profiling.h>
 #include <openrct2/world/Location.hpp>
 #include <openrct2/world/MapPresentationSnapshot.h>
 #include <openrct2/world/PathPresentation.h>
@@ -1018,6 +1019,7 @@ namespace OpenRCT2::Ui::Gpu
     bool CommandDrawingContext::DrawWorldSurfaceScene(
         RenderTarget& rt, std::shared_ptr<const PresentationGeneration> generation, const OrthographicCamera& camera)
     {
+        PROFILED_FUNCTION();
         assert(_inDraw);
         if (camera.selection != nullptr)
             ValidateWorldSelectionWords(*camera.selection);

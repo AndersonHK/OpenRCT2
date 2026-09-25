@@ -9,6 +9,7 @@
 #include "../localisation/Currency.h"
 #include "../localisation/Formatting.h"
 #include "../localisation/LocalisationService.h"
+#include "../profiling/Profiling.h"
 #include "Colour.h"
 #include "ScrollingText.h"
 
@@ -20,6 +21,7 @@ namespace OpenRCT2::Drawing
 {
     std::shared_ptr<const MoneyPresentationSnapshot> CaptureMoneyPresentationSnapshot(uint32_t sourceTick)
     {
+        PROFILED_FUNCTION();
         auto& state = getGameState();
         if (sourceTick != state.currentTicks)
             throw std::invalid_argument("Money publication requires current owner tick");

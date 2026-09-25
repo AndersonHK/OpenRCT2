@@ -129,6 +129,11 @@ namespace OpenRCT2
             std::shared_ptr<const Drawing::VehiclePresentationSnapshot> vehicles = {},
             std::shared_ptr<const Drawing::WorldEffectSnapshot> effects = {},
             std::shared_ptr<const Drawing::MoneyPresentationSnapshot> money = {});
+        // Completes an exclusively owned, unpublished native target from an owned
+        // worker batch. CaptureNativeStorage has already fixed its source identity.
+        void CompleteNativeRetainedStorage(
+            std::shared_ptr<const Drawing::RetainedPeepSnapshot> peeps,
+            std::shared_ptr<const Drawing::RetainedBalloonSnapshot> balloons, uint64_t sourceEpoch, uint32_t sourceTick);
         const auto& GetMoney() const noexcept
         {
             return _money;

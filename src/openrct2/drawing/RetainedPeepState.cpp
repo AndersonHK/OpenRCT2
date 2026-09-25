@@ -6,6 +6,7 @@
 
 #include "../object/PeepAnimationsObject.h"
 #include "../peep/PeepAnimations.h"
+#include "../profiling/Profiling.h"
 
 #include <algorithm>
 #include <limits>
@@ -145,6 +146,7 @@ namespace OpenRCT2::Drawing
 
     bool RetainedPeepScene::Apply(const RetainedPeepBatch& batch, uint64_t sequence)
     {
+        PROFILED_FUNCTION();
         if (_snapshot && batch.epoch == _snapshot->epoch && sequence != 0 && sequence <= _snapshot->sequence)
             return false;
         ValidateSequence(

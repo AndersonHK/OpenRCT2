@@ -1,5 +1,6 @@
 // Copyright (c) 2014-2026 OpenRCT2 developers. GPL-3.0-or-later.
 #include <array>
+#include <future>
 #include <gtest/gtest.h>
 #include <openrct2/Context.h>
 #include <openrct2/GameState.h>
@@ -8,6 +9,7 @@
 #include <openrct2/drawing/Colour.h>
 #include <openrct2/drawing/PresentationScene.h>
 #include <openrct2/drawing/RetainedPeepState.h>
+#include <openrct2/drawing/VehiclePresentation.h>
 #include <openrct2/entity/Balloon.h>
 #include <openrct2/entity/EntityPresentationSnapshot.h>
 #include <openrct2/entity/EntityTweener.h>
@@ -18,6 +20,7 @@
 #include <openrct2/interface/WindowBase.h>
 #include <openrct2/ride/Vehicle.h>
 #include <openrct2/world/Map.h>
+#include <openrct2/world/MapPresentationSnapshot.h>
 #include <stdexcept>
 #include <utility>
 
@@ -126,6 +129,292 @@ protected:
         tweener.postTick();
     }
 };
+
+TEST_F(NativePeepPublicationTest, AsyncGpuWorldPreparationOwnsOneBoundaryAndNeverMutatesHeldGeneration)
+{
+    JobPool jobs(1);
+    PresentationScene scene;
+    auto& state = getGameState();
+    auto& registry = state.entities;
+    auto* guest = NewPeep();
+    auto* balloon = registry.createEntity<Balloon>();
+    ASSERT_NE(balloon, nullptr);
+    balloon->frame = 1;
+    constexpr auto profile = EntityPublicationProfile::gpuWorld;
+    ASSERT_TRUE(scene.BeginFrame(jobs, registry, 1, true, profile, catalog));
+    const auto held = scene.GetGeneration();
+    std::promise<void> started, release;
+    auto released = release.get_future();
+    struct WorkerGate
+    {
+        std::promise<void>& release;
+        JobPool& jobs;
+        bool completed{};
+        void Complete()
+        {
+            if (!completed)
+            {
+                release.set_value();
+                completed = true;
+                jobs.Join();
+            }
+        }
+        ~WorkerGate()
+        {
+            Complete();
+        }
+    } gate{ release, jobs };
+    jobs.AddTask([&]() {
+        started.set_value();
+        released.wait();
+    });
+    started.get_future().wait();
+    state.currentTicks = 11;
+    guest->moveTo({ 96, 96, 16 });
+    balloon->frame = 2;
+    registry.PublishEntityVisualState(*balloon, EntityVisualDirty::animation);
+    scene.ScheduleNext(jobs, registry, catalog);
+    state.currentTicks = 12;
+    guest->moveTo({ 128, 96, 16 });
+    balloon->frame = 3;
+    registry.PublishEntityVisualState(*balloon, EntityVisualDirty::animation);
+    EXPECT_FALSE(scene.BeginFrame(jobs, registry, 2, true, profile, catalog));
+    EXPECT_EQ(scene.GetGeneration(), held);
+    scene.ScheduleNext(jobs, registry, catalog); // Must not consume newer state while the owned batch is pending.
+    gate.Complete();
+    ASSERT_TRUE(scene.BeginFrame(jobs, registry, 3, false, profile, catalog));
+    const auto prepared = scene.GetGeneration();
+    EXPECT_EQ(prepared->sourceTick, 11u);
+    EXPECT_EQ(prepared->map->GetSourceTick(), 11u);
+    EXPECT_EQ(prepared->entities->GetSourceTick(), 11u);
+    EXPECT_EQ(prepared->vehicles->sourceTick, 11u);
+    ASSERT_TRUE(prepared->peeps->TryGet(guest->id));
+    EXPECT_EQ(prepared->peeps->TryGet(guest->id)->x, 96);
+    ASSERT_NE(prepared->balloons->TryGet(balloon->id), nullptr);
+    EXPECT_EQ(prepared->balloons->TryGet(balloon->id)->frame, 2);
+    EXPECT_EQ(prepared->peeps->epoch, prepared->balloons->epoch);
+    EXPECT_EQ(prepared->peeps->sequence, prepared->balloons->sequence);
+    EXPECT_EQ(held->peeps->TryGet(guest->id)->x, 64);
+    EXPECT_EQ(held->balloons->TryGet(balloon->id)->frame, 1);
+    scene.ScheduleNext(jobs, registry, catalog);
+    jobs.Join();
+    ASSERT_TRUE(scene.BeginFrame(jobs, registry, 4, false, profile, catalog));
+    EXPECT_EQ(scene.GetGeneration()->sourceTick, 12u);
+    EXPECT_EQ(scene.GetGeneration()->peeps->TryGet(guest->id)->x, 128);
+    EXPECT_EQ(scene.GetGeneration()->balloons->TryGet(balloon->id)->frame, 3);
+    EXPECT_EQ(prepared->peeps->TryGet(guest->id)->x, 96);
+    scene.Reset(jobs);
+}
+
+TEST_F(NativePeepPublicationTest, AsyncGpuWorldFailureReportsOnceAndBootstrapsAcknowledgedInput)
+{
+    JobPool jobs(1);
+    PresentationScene scene;
+    auto& state = getGameState();
+    auto& registry = state.entities;
+    auto* guest = NewPeep();
+    constexpr auto profile = EntityPublicationProfile::gpuWorld;
+    ASSERT_TRUE(scene.BeginFrame(jobs, registry, 1, true, profile, catalog));
+    const auto held = scene.GetGeneration();
+    state.currentTicks = 11;
+    guest->moveTo({ 96, 96, 16 });
+    guest->orientation = 255; // Raw capture succeeds; worker validation rejects this owned motion sample.
+    EXPECT_NO_THROW(scene.ScheduleNext(jobs, registry, catalog));
+    jobs.Join();
+    EXPECT_EQ(scene.GetGeneration(), held);
+    EXPECT_TRUE(registry.CaptureRetainedEntityPublication(11, objectGenerations, false, true).peeps.motion.empty());
+    EXPECT_THROW(scene.BeginFrame(jobs, registry, 2, false, profile, catalog), std::invalid_argument);
+    EXPECT_EQ(scene.GetGeneration(), held);
+    // Deliberately no new dirty notification: recovery must reconstruct the fully
+    // acknowledged captured input rather than assuming it remains in the worklist.
+    guest->orientation = 0;
+    ASSERT_TRUE(scene.BeginFrame(jobs, registry, 2, false, profile, catalog));
+    const auto recovered = scene.GetGeneration();
+    EXPECT_EQ(recovered->sourceTick, 11u);
+    EXPECT_EQ(recovered->map->GetSourceTick(), 11u);
+    EXPECT_EQ(recovered->peeps->TryGet(guest->id)->x, 96);
+    EXPECT_EQ(recovered->peeps->TryGet(guest->id)->orientation, 0u);
+    EXPECT_GT(recovered->peeps->epoch, held->peeps->epoch);
+    EXPECT_EQ(held->peeps->TryGet(guest->id)->x, 64);
+    state.currentTicks = 12;
+    guest->moveTo({ 128, 96, 16 });
+    scene.ScheduleNext(jobs, registry, catalog);
+    jobs.Join();
+    ASSERT_TRUE(scene.BeginFrame(jobs, registry, 3, false, profile, catalog));
+    EXPECT_EQ(scene.GetGeneration()->peeps->TryGet(guest->id)->x, 128);
+    EXPECT_NO_THROW(scene.Reset(jobs));
+}
+
+TEST_F(NativePeepPublicationTest, AsyncGpuWorldPendingCaptureCannotSurviveEntityOrCatalogReset)
+{
+    JobPool jobs(1);
+    auto& state = getGameState();
+    auto& registry = state.entities;
+    constexpr auto profile = EntityPublicationProfile::gpuWorld;
+    for (bool replaceCatalog : { false, true })
+    {
+        SCOPED_TRACE(replaceCatalog);
+        registry.resetAllEntities();
+        state.currentTicks = 10;
+        PresentationScene scene;
+        auto* guest = NewPeep();
+        ASSERT_TRUE(scene.BeginFrame(jobs, registry, 1, true, profile, catalog));
+        const auto held = scene.GetGeneration();
+        state.currentTicks = 11;
+        guest->moveTo({ 96, 96, 16 });
+        scene.ScheduleNext(jobs, registry, catalog);
+        // Mutate live ownership before the old pending snapshot is admitted.
+        auto nextCatalog = catalog;
+        if (replaceCatalog)
+        {
+            auto replacement = std::make_shared<RetainedPeepAnimationCatalog>(*catalog);
+            ++replacement->epoch;
+            nextCatalog = replacement;
+            guest->moveTo({ 128, 96, 16 });
+        }
+        else
+        {
+            registry.resetAllEntities();
+            guest = NewPeep({ 128, 96, 16 });
+        }
+        state.currentTicks = 12;
+        jobs.Join();
+        ASSERT_TRUE(scene.BeginFrame(jobs, registry, 2, false, profile, nextCatalog));
+        const auto current = scene.GetGeneration();
+        EXPECT_EQ(current->sourceTick, 12u);
+        EXPECT_EQ(current->sourceEntityEpoch, registry.GetEntityVisualEpoch());
+        EXPECT_EQ(current->peepAnimations, nextCatalog);
+        EXPECT_EQ(current->peeps->TryGet(guest->id)->x, 128);
+        EXPECT_GT(current->peeps->epoch, held->peeps->epoch);
+        EXPECT_EQ(held->peeps->TryGet(guest->id)->x, 64);
+        scene.Reset(jobs);
+    }
+}
+
+TEST_F(NativePeepPublicationTest, HotUpdatesStayWithinFamilyButCoalescedReusePublishesBothTombstones)
+{
+    auto& registry = getGameState().entities;
+    auto* guest = NewPeep();
+    auto* balloon = registry.createEntity<Balloon>();
+    auto* vehicle = registry.createEntity<Vehicle>();
+    ASSERT_NE(balloon, nullptr);
+    ASSERT_NE(vehicle, nullptr);
+    const auto guestId = guest->id;
+    const auto balloonId = balloon->id;
+    RetainedPeepScene peeps;
+    RetainedBalloonScene balloons;
+    uint64_t sequence = 0;
+    const auto publish = [&](const RetainedEntityPublicationInput& input) {
+        ++sequence;
+        EXPECT_TRUE(peeps.Apply(input.peeps, sequence));
+        EXPECT_TRUE(balloons.Apply(input.balloons, sequence));
+        registry.AcknowledgeRetainedEntityPublication();
+    };
+    publish(registry.CaptureRetainedEntityPublication(10, objectGenerations, true, true));
+    const auto heldPeeps = peeps.GetSnapshot();
+    const auto heldBalloons = balloons.GetSnapshot();
+
+    guest->moveTo({ 96, 96, 16 });
+    registry.PublishEntityVisualState(*vehicle, EntityVisualDirty::transform);
+    ++balloon->frame;
+    registry.PublishEntityVisualState(*balloon, EntityVisualDirty::animation);
+    const auto moving = registry.CaptureRetainedEntityPublication(10, objectGenerations, false, true);
+    EXPECT_EQ(moving.dirtyVisits, 3u);
+    EXPECT_TRUE(moving.peeps.lifecycle.empty());
+    ASSERT_EQ(moving.peeps.motion.size(), 1u);
+    EXPECT_EQ(moving.peeps.motion.front().id, guestId.ToUnderlying());
+    ASSERT_EQ(moving.balloons.changes.size(), 1u);
+    EXPECT_EQ(moving.balloons.changes.front().handle.id, balloonId);
+    publish(moving);
+
+    registry.entityRemove(guest);
+    auto* newBalloon = registry.createEntity<Balloon>();
+    ASSERT_NE(newBalloon, nullptr);
+    ASSERT_EQ(newBalloon->id, guestId);
+    registry.PublishEntityVisualState(*newBalloon, EntityVisualDirty::transform);
+    const auto toBalloon = registry.CaptureRetainedEntityPublication(10, objectGenerations, false, true);
+    ASSERT_EQ(toBalloon.peeps.lifecycle.size(), 1u);
+    EXPECT_EQ(toBalloon.peeps.lifecycle.front().id, guestId.ToUnderlying());
+    EXPECT_EQ(toBalloon.peeps.lifecycle.front().value.flags, 0u);
+    ASSERT_EQ(toBalloon.balloons.changes.size(), 1u);
+    EXPECT_TRUE(toBalloon.balloons.changes.front().present);
+    EXPECT_EQ(toBalloon.balloons.changes.front().type, EntityType::balloon);
+    publish(toBalloon);
+    EXPECT_FALSE(peeps.GetSnapshot()->TryGet(guestId));
+    EXPECT_NE(balloons.GetSnapshot()->TryGet(guestId), nullptr);
+
+    registry.entityRemove(balloon);
+    auto* newGuest = NewPeep();
+    ASSERT_EQ(newGuest->id, balloonId);
+    const auto toPeep = registry.CaptureRetainedEntityPublication(10, objectGenerations, false, true);
+    ASSERT_EQ(toPeep.peeps.lifecycle.size(), 1u);
+    EXPECT_NE(toPeep.peeps.lifecycle.front().value.flags & kRetainedPeepPresent, 0u);
+    ASSERT_EQ(toPeep.balloons.changes.size(), 1u);
+    EXPECT_EQ(toPeep.balloons.changes.front().type, EntityType::guest);
+    publish(toPeep);
+    EXPECT_TRUE(peeps.GetSnapshot()->TryGet(balloonId));
+    EXPECT_EQ(balloons.GetSnapshot()->TryGet(balloonId), nullptr);
+    EXPECT_TRUE(heldPeeps->TryGet(guestId));
+    EXPECT_NE(heldBalloons->TryGet(balloonId), nullptr);
+
+    registry.entityRemove(newGuest);
+    registry.entityRemove(newBalloon);
+    const auto removed = registry.CaptureRetainedEntityPublication(10, objectGenerations, false, true);
+    EXPECT_EQ(removed.peeps.lifecycle.size(), 2u);
+    EXPECT_EQ(removed.balloons.changes.size(), 2u);
+    publish(removed);
+    EXPECT_EQ(peeps.GetSnapshot()->count, 0u);
+    EXPECT_EQ(balloons.GetSnapshot()->count, 0u);
+}
+
+TEST_F(NativePeepPublicationTest, VehicleCaptureUsesCanonicalIdOrderAndOnlyActivePassengerColours)
+{
+    auto& registry = getGameState().entities;
+    auto* first = registry.createEntity<Vehicle>();
+    auto* middle = registry.createEntity<Vehicle>();
+    auto* last = registry.createEntity<Vehicle>();
+    ASSERT_NE(first, nullptr);
+    ASSERT_NE(middle, nullptr);
+    ASSERT_NE(last, nullptr);
+    const auto reusedId = middle->id;
+    registry.entityRemove(middle);
+    middle = registry.createEntity<Vehicle>();
+    ASSERT_NE(middle, nullptr);
+    ASSERT_EQ(middle->id, reusedId);
+    for (auto* car : { first, middle, last })
+    {
+        car->ride_subtype = 0;
+        car->vehicle_type = 0;
+        car->num_peeps = 0;
+        for (auto& colour : car->peep_tshirt_colours)
+            colour = Colour::yellow;
+    }
+    first->num_peeps = 3;
+    const auto captured = CaptureVehiclePresentationSnapshot(10);
+    ASSERT_EQ(captured->records->size(), 3u);
+    EXPECT_EQ((*captured->records)[0].entityId, first->id.ToUnderlying());
+    EXPECT_EQ((*captured->records)[1].entityId, middle->id.ToUnderlying());
+    EXPECT_EQ((*captured->records)[2].entityId, last->id.ToUnderlying());
+    const auto yellow = static_cast<uint32_t>(Colour::yellow);
+    EXPECT_EQ(captured->records->front().riderColours[0], yellow | (yellow << 8) | (yellow << 16) | (yellow << 24));
+    for (size_t word = 1; word < 8; ++word)
+        EXPECT_EQ(captured->records->front().riderColours[word], 0u);
+    for (auto word : (*captured->records)[1].riderColours)
+        EXPECT_EQ(word, 0u);
+    // Inactive seat storage does not change the graphical publication.
+    first->peep_tshirt_colours[9] = Colour::brightRed;
+    EXPECT_EQ(CaptureVehiclePresentationSnapshot(10)->records, captured->records);
+    first->num_peeps = 32;
+    const auto full = CaptureVehiclePresentationSnapshot(10);
+    for (uint32_t seat = 0; seat < 32; ++seat)
+        EXPECT_EQ(
+            (full->records->front().riderColours[seat / 4] >> ((seat % 4) * 8)) & 255u,
+            static_cast<uint32_t>(first->peep_tshirt_colours[seat]));
+    first->num_peeps = 0;
+    const auto empty = CaptureVehiclePresentationSnapshot(10);
+    for (auto word : empty->records->front().riderColours)
+        EXPECT_EQ(word, 0u);
+}
 
 TEST_F(NativePeepPublicationTest, NativeCaptureReleasesLegacyStorageAndNeverRebuildsLegacyIndexes)
 {

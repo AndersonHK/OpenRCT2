@@ -1,6 +1,6 @@
 # Native entities checkpoint
 
-Current checkpoint candidate: build164. Chairlift station and foreground-track-anchor candidates remain staged outside production and are not included. Current remaining visual failures are listed in [the close-up review](vulkan-native-entities-visual-review.md).
+Current deployed checkpoint: build167, following build164 / commit `e132aaa338`. Chairlift station and foreground-track-anchor candidates remain staged outside production and are not included. Current remaining visual failures are listed in [the close-up review](vulkan-native-entities-visual-review.md).
 
 This follows `2337f3b8da` (supports, signs and component anchors). Everything Park remains the common original-art visual and performance sample. The production world path now consumes owned graphical state for vehicles, peeps, balloons, litter, fountains, ducks, particles and money annotations. Runtime and visual qualification are in progress; implementation alone is not pixel parity.
 
@@ -28,9 +28,9 @@ Each authored sprite receives one constant depth. Integer anchor priority domina
 - [ ] Inspect matched-art Everything Park closeups, including all four rotations and underground/cutaway views.
 - [ ] Restore remaining whole-track recipe omissions from shared source adapters.
 - [x] Measure 4K, 12,000 ticks, 360 TPS cap and vsync; compare CPU draw, GPU time and long-frame distribution against build144.
-- [ ] Restore the 360 TPS target: build164 sustains presentation cadence but measures282.54 TPS with1.61ms CPU draw.
+- [ ] Restore the 360 TPS target: build167 improves to 330.267 TPS / 143.804 accepted presents per second with 0.727 ms CPU draw; the target remains open.
 - [ ] Use stable resident catalog handles and append-only admissions; ordinary object/frame changes must not rebuild or re-upload the full catalog.
-- [ ] Commit the qualified checkpoint with explicit remaining regressions and deploy for manual testing.
+- [x] Commit the qualified checkpoint with explicit remaining regressions (`e132aaa338`) and deploy for manual testing (28 files verified, 7 changed).
 
 ## Integration findings
 
@@ -131,3 +131,48 @@ Matched-art Everything Park captures correct 852 pixels in paths-r3 and 3,083 in
 ## CPU regression source audit
 
 The main-thread drawPaint phase grew from 0.142 to 1.595 ms/frame. Native snapshot capture and retained-family application currently happen synchronously before scheduling a worker whose native BuildCapturedStorage path returns immediately. Added work includes dirty-registry capture, peep validation and copy-on-write, balloon application, full vehicle records, effects and money capture. Avoidable work identified for the next checkpoint includes notifying unrelated families on ordinary motion, sorting already entity-ID-ordered vehicles, and packing unused passenger colour slots. Their individual cost is not yet measured. Preserve immutable publication and lifecycle/reuse semantics while eliminating this work; move owned batch processing off the owner thread only with explicit publication and failure handling.
+
+Deployment receipt: `obj/vulkan-parity/deploy-entities164-01/receipt.json`. The existing installation at `D:\Games\Independent\OpenRCT2Mod` was updated without launching the game or changing settings/saves.
+
+## CPU attribution and first reduction (build165)
+
+A separate 4K/12,000-tick instrumented run attributes average native publication work as follows (nested scopes overlap): retained-family preparation 1.186 ms, dirty registry capture 0.254 ms, peep application 0.720 ms, balloon application 0.039 ms, vehicle capture 0.092 ms, effects 0.006 ms, money 0.003 ms and acknowledgement 0.007 ms. World draw-command preparation is 0.065 ms. Evidence: `obj/vulkan-parity/performance-entities165-12000-profile/profile.json`. Profiler throughput is not clean performance acceptance.
+
+The first reduction removes cross-family motion notifications, redundant sorting of already ordered vehicles, unused rider-colour packing, and empty native worker jobs. It preserves presence tombstones across removal/reuse and original odd-passenger paired colour lookup. All 49 selected publication/lifecycle/vehicle tests pass (`native-cpu165-01`). A separate clean 4K/12,000-tick run improves from 282.536 to 299.008 TPS, with 143.798 accepted presents/s and 1.398 ms CPU draw (previously 1.613 ms). Mean GPU time is 5.338 ms in this run; it is not a GPU improvement. P99 accepted-present interval is 9.2 ms, maximum 19.611 ms. The authoritative final checksum still matches. The 360 TPS gate remains open.
+
+- [x] Attribute the CPU regression to measured native publication stages.
+- [x] Remove redundant cross-family work and vehicle preparation; qualify lifecycle/reuse semantics.
+- [x] Move owned retained-family application off the simulation/UI thread, preserving coordinated generations and failure recovery (build167).
+- [x] Re-measure clean 4K/12,000 ticks after async publication; 360 TPS remains unfulfilled, with the presentation target sustained.
+- [ ] Restore original peep Z+5 depth anchor without moving raster position; qualify surface contact in four rotations and closeups.
+
+The reported pink-support circuit is not missing native geometry: Everything Park's Mini Coaster 1 (ride239) assigns invisible/invisible/bright-pink colours to all 193 track elements. Fresh upstream and Vulkan images agree. Save-byte and original G1-art evidence is in `obj/vulkan-parity/missing-pink-track239-verdict.json`; see the closeup review for genuine remaining contact/overlap differences in that same scene.
+
+## Async preparation and withdrawn shader candidate (builds166–167)
+
+The owner now captures one owned retained-family batch plus vehicle/effect/money records at the publication boundary. Peep/balloon validation and copy-on-write application run on the existing background worker pool. Both sources publish only after coordinated completion. A failed worker preserves the displayed generation and triggers a full bootstrap; acknowledgement occurs only after successful enqueue. Tests cover live mutation behind a blocked worker, retained generations, acknowledged-input recovery, and entity/catalog resets. Independent source review found no ownership defect.
+
+Build166 passed 54 focused tests including two actual-GPU tests with synchronization validation. However, its full Everything Park benchmark failed during warmup with VK_ERROR_DEVICE_LOST, and a subsequent single offscreen capture with validation also failed. Windows recorded Display4101/NVIDIA driver recoveries at 20:35:35 and 20:40:03 on 2026-09-24. Neither run provides performance/parity results. This candidate was never deployed.
+
+The peep Z+5 shader change and its test were withdrawn from production and archived at `obj/vulkan-parity/peep-contact166-withdrawn`. Build167 retains the async CPU change and restores all 26 shader binaries byte-for-byte to successful build165. Its 52 selected CPU/publication tests pass. Full-scene qualification remains necessary before deployment. The small GPU test passing does not qualify the withdrawn shader on the full park; the relationship to the two driver failures is being isolated, not declared proven. The two large atlas-upload log entries also exist in successful165, so they are not unique evidence of the166 failure.
+
+## Qualified asynchronous checkpoint (build167)
+
+Build167 has zero warnings/errors and passes all 52 selected CPU/publication tests. Its full-art offscreen Mini Coaster capture passes synchronization validation and is pixel-identical to build164 (zero changed pixels; 5,830 existing upstream differences). An agent manually inspected the complete native image and enlarged crowd contact region. The root inspected the final 4K benchmark screenshot. Peep Z+5 remains withdrawn, so this checkpoint preserves the previous visual state rather than claiming the contact defect fixed.
+
+| Metric | Entity-world build164 | Async build167 |
+| --- | ---: | ---: |
+| Logical TPS, 12,000 ticks | 282.536 | 330.267 |
+| Accepted presents/sec | 143.693 | 143.804 |
+| CPU draw/frame | 1.613 ms | 0.727 ms |
+| GPU frame | 4.181 ms | 4.425 ms |
+| Accepted-present P99 | 9.5 ms | 9.0 ms |
+| Maximum accepted-present interval | 17.035 ms | 12.622 ms |
+| Mean simulation tick | 1.921 ms | 1.984 ms |
+
+The completed run preserves the authoritative checksum `07d58eaefde6aa6d000000000000000000000000`, with 17,042 guests, 2,208 staff and 2,128 vehicles. All 5,225 measured submissions were accepted. It used the prior successful shader cache (0.094 s graphics preparation), not a cold-start measurement. No driver recovery was observed during this run. This success does not explain the two withdrawn166 failures or certify general driver stability. Evidence: `obj/vulkan-parity/performance-entities167-12000-01/summary.json` and `everything167-mini-01/summary.json`.
+
+The remaining main-thread budget is now explicit: roughly 0.727 ms drawing plus 1.647 ms UI/presentation work per frame, and 1.984 ms per simulation tick. At 144 frames/s and 360 ticks/s those averages require about 1.056 seconds of main-thread work per second, before other overhead. Recovering the remaining target therefore needs approximately 0.4 ms/frame or 0.16 ms/tick (or a combination), not a higher speed cap. The earlier separate profile attributes almost all UI time to presentation audio, including crowd/vehicle spatial processing; ride music also repeats listener preparation across emitters. Next work should measure and eliminate redundant presentation preparation, share listener state across one audio update, and examine retained batch allocation/validation and simulation local-context queries. Keep audio behavior, simulation checksum and full entity rendering intact. These are follow-up candidates, not implemented gains.
+
+Open rendering work remains: peep contact depth needs a full-park-safe implementation; foreground vehicle/rail and station overlaps, Chairlift stations/remaining recipe omissions, underground/construction/preview and rare-family qualification, and append-only catalog admissions. Do not retry the withdrawn166 shader as an ordinary benchmark. Any later shader investigation must isolate it from the qualified CPU path and preserve these failure receipts.
+Deployment167: `obj/vulkan-parity/deploy-async167-01/receipt.json` verifies all 28 files (2 changed) in `D:\Games\Independent\OpenRCT2Mod`. No automatic launch or settings/save changes.

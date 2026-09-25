@@ -8,6 +8,7 @@
 #include "../entity/Guest.h"
 #include "../object/ObjectManager.h"
 #include "../object/RideObject.h"
+#include "../profiling/Profiling.h"
 #include "../ride/CarEntry.h"
 #include "../ride/RideData.h"
 #include "../ride/Vehicle.h"
@@ -108,6 +109,7 @@ namespace OpenRCT2::Drawing
 
     std::shared_ptr<const VehiclePresentationSnapshot> CaptureVehiclePresentationSnapshot(uint32_t sourceTick)
     {
+        PROFILED_FUNCTION();
         static std::shared_ptr<const VehiclePresentationSnapshot> held;
         static uint64_t revision = 0;
         auto& state = getGameState();
@@ -152,7 +154,10 @@ namespace OpenRCT2::Drawing
             r.numPeeps = car->num_peeps;
             if (r.numPeeps > std::size(car->peep_tshirt_colours))
                 throw std::invalid_argument("Vehicle passenger count exceeds owned colour slots");
-            for (uint32_t i = 0; i < 32; ++i)
+            // Authored rider sprites can remap a pair, including the partner of
+            // an odd final rider. Preserve that source lookup, omit unused rows.
+            const auto riderColourCount = (r.numPeeps + 1u) & ~1u;
+            for (uint32_t i = 0; i < riderColourCount; ++i)
                 r.riderColours[i / 4] |= uint32_t(EnumValue(car->peep_tshirt_colours[i])) << ((i % 4) * 8);
             r.trackType = EnumValue(car->GetTrackType());
             r.trackProgress = car->track_progress;
@@ -173,7 +178,7 @@ namespace OpenRCT2::Drawing
                     throw std::invalid_argument("Inverted vehicle references an invalid adjacent car slot");
             }
         }
-        std::sort(records->begin(), records->end(), [](const auto& a, const auto& b) { return a.entityId < b.entityId; });
+        // EntityList's ascending membership already gives the GPU lookup its canonical ID order.
         const bool compatible = held && held->worldEpoch == result->worldEpoch && held->entityEpoch == result->entityEpoch;
         result->records = compatible && *held->records == *records ? held->records : records;
         UpdateVehiclePresentationResidency(*result, held.get());

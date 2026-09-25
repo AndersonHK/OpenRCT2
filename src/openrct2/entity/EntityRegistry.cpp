@@ -658,6 +658,7 @@ namespace OpenRCT2
         uint32_t sourceTick, std::span<const uint32_t> loadedObjectGenerations, bool bootstrap,
         bool includeBalloonCompatibility) const
     {
+        PROFILED_FUNCTION();
         if (!includeBalloonCompatibility && sourceTick != getGameState().currentTicks)
             throw std::invalid_argument("Native entity capture requires the current authoritative source tick");
         Drawing::RetainedEntityPublicationInput input{};
@@ -833,8 +834,15 @@ namespace OpenRCT2
             for (const auto id : _entityVisualDirtyEntities)
             {
                 const auto* entity = entities[id.ToUnderlying()];
-                appendPeep(id, entity, static_cast<EntityVisualDirty>(_entityVisualDirtyFlags[id.ToUnderlying()]));
-                appendBalloon(id, entity);
+                const auto dirty = static_cast<EntityVisualDirty>(_entityVisualDirtyFlags[id.ToUnderlying()]);
+                const bool presenceChanged = (static_cast<uint8_t>(dirty) & static_cast<uint8_t>(EntityVisualDirty::presence))
+                    != 0;
+                // Creation/removal flags survive coalescing, including cross-family slot reuse.
+                // Unrelated movement cannot change family membership and needs no tombstone.
+                if (presenceChanged || (entity && (entity->type == EntityType::guest || entity->type == EntityType::staff)))
+                    appendPeep(id, entity, dirty);
+                if (presenceChanged || (entity && entity->type == EntityType::balloon))
+                    appendBalloon(id, entity);
                 ++input.dirtyVisits;
             }
         }
@@ -843,6 +851,7 @@ namespace OpenRCT2
 
     void EntityRegistry::AcknowledgeRetainedEntityPublication()
     {
+        PROFILED_FUNCTION();
         // Commit only while the same authoritative owner barrier remains held, after all allocations,
         // validation and replacement-scene preparation succeeded. A failed preparation never calls this.
         for (const auto id : _entityVisualDirtyEntities)

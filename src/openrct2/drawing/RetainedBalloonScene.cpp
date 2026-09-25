@@ -5,6 +5,8 @@
  *****************************************************************************/
 #include "RetainedBalloonScene.h"
 
+#include "../profiling/Profiling.h"
+
 #include <bitset>
 #include <cstring>
 #include <stdexcept>
@@ -23,6 +25,7 @@ namespace OpenRCT2::Drawing
 
     bool RetainedBalloonScene::Apply(const EntityVisualChangeBatch& batch, uint64_t sequence)
     {
+        PROFILED_FUNCTION();
         if (_snapshot != nullptr && sequence <= _snapshot->sequence)
             return false;
         if (sequence == 0 || batch.epoch == 0 || (_snapshot == nullptr && !batch.reset)

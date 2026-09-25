@@ -321,6 +321,17 @@ namespace OpenRCT2
         _entityCount = _unsupportedEntityCount;
     }
 
+    void EntityPresentationSnapshot::CompleteNativeRetainedStorage(
+        std::shared_ptr<const Drawing::RetainedPeepSnapshot> peeps,
+        std::shared_ptr<const Drawing::RetainedBalloonSnapshot> balloons, uint64_t sourceEpoch, uint32_t sourceTick)
+    {
+        if (!_nativeOnly || _epoch != sourceEpoch || _sourceTick != sourceTick || !peeps || !balloons
+            || peeps->epoch != balloons->epoch || peeps->sequence != balloons->sequence)
+            throw std::logic_error("Native publication completion requires matching owned retained generations");
+        _retainedPeeps = std::move(peeps);
+        _retainedBalloons = std::move(balloons);
+    }
+
     void EntityPresentationSnapshot::BuildCapturedStorage()
     {
         PROFILED_FUNCTION();

@@ -7,10 +7,12 @@
 #include "../entity/JumpingFountain.h"
 #include "../entity/Litter.h"
 #include "../entity/Particle.h"
+#include "../profiling/Profiling.h"
 namespace OpenRCT2::Drawing
 {
     std::shared_ptr<const WorldEffectSnapshot> CaptureWorldEffects(uint32_t sourceTick)
     {
+        PROFILED_FUNCTION();
         auto result = std::make_shared<WorldEffectSnapshot>();
         auto& entities = getGameState().entities;
         result->epoch = entities.GetEntityVisualEpoch();
