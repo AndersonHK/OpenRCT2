@@ -13,11 +13,13 @@
     #include <algorithm>
     #include <chrono>
     #include <cstdio>
+    #include <cstdlib>
     #include <cstring>
     #include <limits>
     #include <openrct2-renderer/gpu/GpuTransparencyDepth.h>
     #include <openrct2/core/Console.hpp>
     #include <stdexcept>
+    #include <string_view>
 namespace OpenRCT2::Ui::Vulkan
 {
     namespace
@@ -211,8 +213,8 @@ namespace OpenRCT2::Ui::Vulkan
                         if ((error & 64u) != 0)
                             _terrainFailure += " [component depth invalid]";
                         if ((error & 65536u) != 0)
-                            _terrainFailure += " [vehicle image not resident: image="
-                                + std::to_string(tile == 0 ? 0 : tile - 1) + "]";
+                            _terrainFailure += " [vehicle image not resident: image=" + std::to_string(tile == 0 ? 0 : tile - 1)
+                                + "]";
                         if ((error & 131072u) != 0)
                             _terrainFailure += " [filter pixel, operation or depth invalid]";
                     }
@@ -425,6 +427,9 @@ namespace OpenRCT2::Ui::Vulkan
         {
             return;
         }
+        const auto* report = std::getenv("OPENRCT2_LOADING_REPORT");
+        const bool reportLoading = report != nullptr && std::string_view(report) == "1";
+        const auto started = reportLoading ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
 
         // Resident art can exceed the ordinary frame ring during a park/catalog change.
         // Admit that burst as one fence-owned allocation; do not enlarge every frame slot,
@@ -481,6 +486,12 @@ namespace OpenRCT2::Ui::Vulkan
         _resources.EndAtlasUploads(_activeToken->commandBuffer);
         if (staging != _activeToken->upload)
             staging->FlushWritten();
+        if (reportLoading)
+            Console::WriteLine(
+                "Loading atlas: epoch=%llu uploads=%zu bytes=%llu record_wall_ms=%.3f",
+                static_cast<unsigned long long>(commands.worldSurfaces ? commands.worldSurfaces->worldEpoch : 0),
+                commands.textureUploads.size(), static_cast<unsigned long long>(admissionBytes),
+                std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - started).count());
     }
 
     FrameOutput FrameExecutor::Record(

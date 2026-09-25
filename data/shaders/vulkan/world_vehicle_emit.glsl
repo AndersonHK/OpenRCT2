@@ -1,6 +1,7 @@
 // Copyright (c) 2014-2026 OpenRCT2 developers. GPL-3.0-or-later.
 #ifndef OPENRCT2_WORLD_VEHICLE_EMIT
 #define OPENRCT2_WORLD_VEHICLE_EMIT
+#include "world_tower_assembly.glsl"
 layout(std430,set=0,binding=23) readonly buffer WorldVehicles { uint words[]; } uVehicles;
 layout(std430,set=0,binding=24) readonly buffer WorldVehicleCatalog { uint words[]; } uVehicleCatalog;
 // Reset for every work item before any emission. Cutaway uses owned entity XYZ,
@@ -103,18 +104,13 @@ void worldVehicleSplash(uint a,int car,ivec3 xyz,uint layer,uint destination,boo
     image+=(((orientation/8u)+uScene.rotation)&3u)*8u+((uScene.sourceTick/2u)&7u);
     worldVehicleEmit(xyz,image,0u,0u,false,layer,destination,writeRecords,count);
 }
-void worldVehicleRotoRider(ivec3 raster,int slot,uint image,uint colour,uint layer,
+// The actual XYZ controls raster and cutaway. A tower's immutable contact owns
+// depth through ascent; front-parent passengers retain the source child order.
+void worldVehicleTowerPart(ivec3 raster,int depth,uint image,uint colours,uint remaps,bool ghost,uint layer,
     uint destination,bool writeRecords,inout uint count)
 {
-    ivec2 offset=ivec2(worldVehicleRotoDepthX(slot),worldVehicleRotoDepthY(slot));
-    if(uScene.rotation==1u) offset=ivec2(-offset.y,offset.x);
-    else if(uScene.rotation==2u) offset=-offset;
-    else if(uScene.rotation==3u) offset=ivec2(offset.y,-offset.x);
-    ivec3 anchor=raster+ivec3(offset,0);
-    int depth=worldComponentDepth(anchor.x,anchor.y,anchor.z,int(uScene.rotation));
-    if(!worldComponentDepthValid(depth,int(layer))) {atomicOr(uStatus.overflow,16u);return;}
     uint first=count;
-    worldVehicleEmit(raster,image,colour,1u,false,layer,destination,writeRecords,count);
+    worldVehicleEmit(raster,image,colours,remaps,ghost,layer,destination,writeRecords,count);
     if(writeRecords && count>first && destination+first<uScene.outputCapacity)
         uOutputs.records[destination+first].reserved.x=depth;
 }
@@ -186,13 +182,16 @@ void visitWorldVehicle(uint index,uint destination,bool writeRecords,inout uint 
             if(restraints>=64) base+=7u+uint(restraints/64);
             back=base;front=base+4u;
         }
-        worldVehicleEmit(xyz,back,colours,style==3u?3u:2u,ghost,layer++,destination,writeRecords,count);
-        worldVehicleEmit(xyz,front,colours,style==3u?3u:2u,ghost,layer++,destination,writeRecords,count);
+        int contact=worldComponentDepth(xyz.x,xyz.y,xyz.z,int(uScene.rotation));
+        worldTowerContact(uVehicles.words[a+27u]>>16u,contact);
+        worldVehicleTowerPart(xyz,contact,back,colours,style==3u?3u:2u,ghost,uint(WORLD_TOWER_REAR),destination,writeRecords,count);
+        worldVehicleTowerPart(xyz,contact,front,colours,style==3u?3u:2u,ghost,uint(WORLD_TOWER_FRONT),destination,writeRecords,count);
+        layer=uint(WORLD_TOWER_FRONT+WORLD_TOWER_FIRST_RIDER);
         if(style==2u && uScene.zoom<2 && !ghost) {
             [[dont_unroll]] for(uint row=0u;row<4u&&row*2u<peeps;row++) {
                 uint image=worldVehicleCarWord(car,2)+9u+(restraints/64==3?2u:0u)+((uint(yaw/8)+row)&3u)*3u;
                 uint rider=worldVehicleRiderColour(a,row*2u)|(worldVehicleRiderColour(a,row*2u+1u)<<8u);
-                worldVehicleEmit(xyz,image,rider,2u,false,layer++,destination,writeRecords,count);
+                worldVehicleTowerPart(xyz,contact,image,rider,2u,false,layer++,destination,writeRecords,count);
             }
         }
         if(style==9u && peeps!=0u && !ghost) {
@@ -202,8 +201,8 @@ void visitWorldVehicle(uint index,uint destination,bool writeRecords,inout uint 
                 if(passenger<0) continue;
                 uint image=worldVehicleCarWord(car,2)+20u+uint(slot);
                 if(restraints>=64) image+=64u+uint(restraints/64);
-                worldVehicleRotoRider(xyz,slot,image,worldVehicleRiderColour(a,uint(passenger)),
-                    uint(worldVehicleRotoLayer(ordinal)),destination,writeRecords,count);
+                worldVehicleTowerPart(xyz,contact,image,worldVehicleRiderColour(a,uint(passenger)),1u,false,
+                    layer++,destination,writeRecords,count);
             }
         }
     } else if(style==4u || style==15u) {

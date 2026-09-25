@@ -4,7 +4,14 @@
 #define OPENRCT2_WORLD_TRACK_EMIT
 layout(std430,set=0,binding=14) readonly buffer TrackCatalog { uint words[]; } uTracks;
 #define WORLD_TRACK_WORD(index) uTracks.words[uTracks.words[2u]+(index)]
+#define worldTrackPart worldTrackPartBase
 #include "world_track_rules.glsl"
+#undef worldTrackPart
+#include "world_railway_rules.glsl"
+WorldTrackPart worldTrackPart(uint index)
+{
+    return (index&0x80000000u)!=0u?worldRailwayPart(index&0x7fffffffu):worldTrackPartBase(index);
+}
 #undef WORLD_TRACK_WORD
 #include "world_track_depth.glsl"
 
@@ -23,6 +30,7 @@ uint worldTrackImage(uint image)
 #include "world_track_station.glsl"
 #include "world_track_photo.glsl"
 #include "world_track_support_emit.glsl"
+#include "world_railway_emit.glsl"
 
 bool worldTrackObjectRecipe(WorldObjectRecord object, out uvec2 recipe)
 {
@@ -37,6 +45,12 @@ bool worldTrackObjectRecipe(WorldObjectRecord object, out uvec2 recipe)
     uint mapped=uTracks.words[uTracks.words[7u]+type];
     uint variant=((object.flags>>8u)&1u)|((mapped>>15u)&2u);
     uint style=uTracks.words[uTracks.words[5u]+rideType*4u+variant]&65535u;
+    if(worldRailwayStyle(style)) {
+        uint row;
+        if(!worldRailwayLookup(mapped&65535u,object.sequence,(object.direction+uScene.rotation)&3u,row)) return false;
+        // Tunnel metadata is outcome invariant; ordinary callers see a tagged span.
+        recipe=uvec2(worldRailwayWord(row)|0x80000000u,worldRailwayWord(row+1u));return true;
+    }
     uint state=((object.flags>>6u)&1u)|((object.flags>>7u)&2u)|((object.flags>>7u)&4u);
     state|=((object.flags>>4u)&8u)|((uTracks.words[1u]>>4u)&16u)|((object.flags>>5u)&32u);
     if(worldStationHasPlatforms(ride)) state|=64u;
@@ -49,6 +63,7 @@ void visitTrack(uint index,uvec2 tile,uint destination,bool writeRecords,inout u
     WorldObjectRecord object=uObjects.records[index];
     if(object.kind!=4u || (object.flags&2u)!=0u) return;
     if(visitStaticRide(index,tile,destination,writeRecords,count)) return;
+    if(visitRailway(object,tile,destination,writeRecords,count)) return;
     uint ride=object.rideIdAndMazeEntry&65535u;
     uint rideOffset=uTracks.words[3u]+ride*8u;
     uvec2 recipe;

@@ -17,11 +17,13 @@ COMPONENT_DEPTH_FN int worldComponentDepth(int x,int y,int z,int rotation)
     return x+y+z;
 }
 // Each integer anchor owns four of the reserved 2^20 world priority units.
-// In the legal positive D32 interval this leaves at least sixteen ULPs between
-// adjacent anchors. Local layers use one ULP each and may NEVER cross that gap.
+// indexed_depth maps these to512 representable positive D32 values. Local
+// layers use one ULP each and may NEVER cross that contact boundary.
 const int WORLD_COMPONENT_DEPTH_MIN=-131072;
 const int WORLD_COMPONENT_DEPTH_MAX=131071;
-const int WORLD_COMPONENT_LAYER_MAX=15;
+const int WORLD_COMPONENT_LAYER_MAX=255;
+// A larger representable layer domain does not admit unbounded parent fanout.
+const int WORLD_COMPONENT_CHILD_MAX=15;
 COMPONENT_DEPTH_FN bool worldComponentDepthValid(int depth,int layer)
 {
     return depth>=WORLD_COMPONENT_DEPTH_MIN && depth<=WORLD_COMPONENT_DEPTH_MAX

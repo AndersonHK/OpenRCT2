@@ -20,7 +20,9 @@
 
 #include <algorithm>
 #include <cassert>
+#include <chrono>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <openrct2/Context.h>
 #include <openrct2/SpriteIds.h>
@@ -44,6 +46,7 @@
 #include <openrct2/world/PathPresentation.h>
 #include <ranges>
 #include <stdexcept>
+#include <string_view>
 
 namespace OpenRCT2::Ui::Gpu
 {
@@ -1078,7 +1081,8 @@ namespace OpenRCT2::Ui::Gpu
             _surfaceWidth = scene.width;
             _surfaceHeight = scene.height;
             _surfaceChunks.clear();
-            _publishedSurfaceSprites.reset();
+            // Map records belong to this epoch. Immutable art belongs to object
+            // generations and the atlas lease, qualified separately below.
         }
 
         const auto& sourceChunks = generation->map->GetSurfaceChunks();
@@ -1194,26 +1198,31 @@ namespace OpenRCT2::Ui::Gpu
         const auto pathMaterials = generation->map->GetPathMaterials();
         const auto objectMaterials = generation->map->GetObjectMaterials();
         const auto objectUsage = generation->map->GetObjectUsage();
+        const auto peepUsage = generation->peeps ? generation->peeps->usedObjects : nullptr;
         const auto rideMaterials = generation->map->GetRideMaterials();
         if (!materials)
             throw std::runtime_error("GPU terrain material generation is absent");
         if (!_publishedSurfaceSprites || _publishedSurfaceSprites->sourceMaterials != materials
             || _publishedSurfaceSprites->sourcePathMaterials != pathMaterials
             || _publishedSurfaceSprites->sourceObjectMaterials != objectMaterials
-            || _publishedSurfaceSprites->sourceObjectUsage != objectUsage
+            || (_surfaceObjectUsage != objectUsage
+                && (!_surfaceObjectUsage || !objectUsage || _surfaceObjectUsage->slots != objectUsage->slots))
             || _publishedSurfaceSprites->sourceRideMaterials != rideMaterials
             || _publishedSurfaceSprites->vehicleSource != (generation->vehicles ? generation->vehicles->catalog : nullptr)
             || _publishedSurfaceSprites->vehicleUsedCars != (generation->vehicles ? generation->vehicles->usedCars : nullptr)
             || (_publishedSurfaceSprites->peepAssets ? _publishedSurfaceSprites->peepAssets->catalog : nullptr)
                 != generation->peepAnimations
-            || (_publishedSurfaceSprites->peepAssets ? _publishedSurfaceSprites->peepAssets->usedObjects : nullptr)
-                != (generation->peeps ? generation->peeps->usedObjects : nullptr)
+            || (_surfacePeepUsage != peepUsage && (!_surfacePeepUsage || !peepUsage || *_surfacePeepUsage != *peepUsage))
             || !terrainOnly || !_textureCache.TryBindAssetLease(_publishedSurfaceSprites->residency))
         {
             if (materials->revision != GetTerrainObjectRevision()
                 || (pathMaterials && pathMaterials->revision != GetPathObjectRevision())
                 || (objectMaterials && objectMaterials->revision != GetWorldObjectRevision()))
                 throw std::runtime_error("GPU terrain cannot resolve a retired material generation");
+            const auto* report = std::getenv("OPENRCT2_LOADING_REPORT");
+            const bool reportLoading = report != nullptr && std::string_view(report) == "1";
+            auto stageStarted = reportLoading ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
+            const auto started = stageStarted;
             auto table = std::make_shared<WorldSurfaceSpriteTable>();
             table->revision = ++_nextSurfaceSpriteRevision;
             table->sourceMaterials = materials;
@@ -1221,8 +1230,21 @@ namespace OpenRCT2::Ui::Gpu
             table->sourceObjectMaterials = objectMaterials;
             table->sourceObjectUsage = objectUsage;
             table->sourceRideMaterials = rideMaterials;
+            const auto reportStage = [&](const char* stage) {
+                if (reportLoading)
+                {
+                    const auto now = std::chrono::steady_clock::now();
+                    Console::WriteLine(
+                        "Loading catalog: epoch=%llu revision=%llu stage=%s sprites=%zu pages=%zu wall_ms=%.3f",
+                        static_cast<unsigned long long>(scene.worldEpoch), static_cast<unsigned long long>(table->revision),
+                        stage, table->records.size(), _textureCache.GetAtlasPageCount(),
+                        std::chrono::duration<double, std::milli>(now - stageStarted).count());
+                    stageStarted = now;
+                }
+            };
             table->catalog.reserved = TextureCache::PaletteToY(FilterPaletteID::paletteGhost);
             table->catalog.viewPalettes[0] = TextureCache::PaletteToY(FilterPaletteID::paletteDarken1);
+            table->catalog.viewPalettes[1] = TextureCache::PaletteToY(FilterPaletteID::paletteDarken2);
             std::vector<uint64_t> residencies;
             std::vector<uint32_t> dependencies;
             const auto append = [&](ImageId image) {
@@ -1401,8 +1423,10 @@ namespace OpenRCT2::Ui::Gpu
             table->catalog.selectionPalettes[11] = TextureCache::PaletteToY(static_cast<FilterPaletteID>(Colour::yellow));
             Console::WriteLine(
                 "Vulkan world: admitting resident entity artwork (%zu world sprite variants)", table->records.size());
+            reportStage("world");
             table->peepAssets = BuildWorldPeepAssets(
                 generation->peepAnimations, generation->peeps ? generation->peeps->usedObjects : nullptr, append);
+            reportStage("peeps");
             Console::WriteLine("Vulkan world: peep artwork admitted (%zu sprite sets)", table->records.size());
             if (generation->vehicles)
             {
@@ -1415,6 +1439,7 @@ namespace OpenRCT2::Ui::Gpu
                                             .words;
                 Console::WriteLine("Vulkan world: vehicle artwork admitted (%zu sprite sets)", table->records.size());
             }
+            reportStage("vehicles");
             if (generation->effects)
             {
                 table->effectSpriteBase = static_cast<uint32_t>(table->records.size());
@@ -1432,8 +1457,19 @@ namespace OpenRCT2::Ui::Gpu
                 if (!_textureCache.TryBindAssetLease(table->residency))
                     throw std::runtime_error("GPU terrain atlas generation invalidated during preparation");
             }
+            reportStage("effects-lease");
+            if (reportLoading)
+                Console::WriteLine(
+                    "Loading catalog: epoch=%llu revision=%llu stage=total sprites=%zu pages=%zu wall_ms=%.3f",
+                    static_cast<unsigned long long>(scene.worldEpoch), static_cast<unsigned long long>(table->revision),
+                    table->records.size(), _textureCache.GetAtlasPageCount(),
+                    std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - started).count());
             _publishedSurfaceSprites = std::move(table);
         }
+        // Remember the qualified source pointers without mutating the held
+        // sprite table. Equal membership is compared once per publication.
+        _surfaceObjectUsage = objectUsage;
+        _surfacePeepUsage = peepUsage;
         scene.vehicles = generation->vehicles;
         scene.effects = generation->effects;
         scene.money = generation->money;

@@ -26,6 +26,8 @@
 #include <span>
 #include "SoftwareTileDiagnostic.h"
 #include "CaptureImageDiagnostic.h"
+#include "TowerFilmstripDiagnostic.h"
+#include "BatchScreenshotDiagnostic.h"
 
 namespace
 {
@@ -291,12 +293,16 @@ namespace
 int main(int argc, const char** argv)
 {
     const auto diagnostics = std::make_shared<Diagnostics>();
+    const auto* towerMode = std::getenv("OPENRCT2_CLI_TOWER_FILMSTRIP");
+    const bool towerFilmstrip = towerMode && std::string(towerMode) == "1";
+    const auto* batchMode = std::getenv("OPENRCT2_CLI_BATCH_SCREENSHOT");
+    const bool batchScreenshot = batchMode && std::string(batchMode) == "1";
     const auto* captureImageMode = std::getenv("OPENRCT2_CLI_CAPTURE_IMAGE");
     const bool captureImage = captureImageMode && std::string(captureImageMode) == "1";
     const auto* parkPreviewMode = std::getenv("OPENRCT2_CLI_PARK_PREVIEW");
     const bool parkPreview = parkPreviewMode && std::string(parkPreviewMode) == "1";
     const auto* giantMode = std::getenv("OPENRCT2_CLI_GIANT_PARITY");
-    diagnostics->giant = captureImage || (giantMode && std::string(giantMode) == "1");
+    diagnostics->giant = batchScreenshot || captureImage || (giantMode && std::string(giantMode) == "1");
     if (const auto* path = std::getenv("OPENRCT2_CLI_PARITY_ARTIFACTS"))
         diagnostics->directory = path;
     const auto* mode = std::getenv("OPENRCT2_DIAGNOSTIC_OFFSCREEN_SCREENSHOT");
@@ -312,6 +318,7 @@ int main(int argc, const char** argv)
     }
     else if (vulkan)
         factory = std::make_shared<Factory>(diagnostics);
+    const auto artifactRoot = diagnostics->directory;
     json_t softwareTiling;
     json_t imageOperationMetadata;
     int result = EXIT_FAILURE;
@@ -342,7 +349,36 @@ int main(int argc, const char** argv)
         if (!Config::SaveToPath(environment->GetFilePath(PathId::config)))
             throw std::runtime_error("Could not seed isolated screenshot profile");
         const auto* softwareTileMode = std::getenv("OPENRCT2_SOFTWARE_TILE_DIAGNOSTIC");
-        if (captureImage || parkPreview)
+        if (batchScreenshot)
+        {
+#ifdef OPENRCT2_VULKAN_ONLY
+            if (!configured || artifactRoot.empty() || captureImage || parkPreview || towerFilmstrip
+                || (giantMode && std::string(giantMode) == "1")
+                || (softwareTileMode && std::string(softwareTileMode) == "1"))
+                throw std::runtime_error("Batch screenshot requires isolated configured mode with no other diagnostic mode");
+            imageOperationMetadata = BatchScreenshotDiagnostic::Run(argc, argv, factory, artifactRoot,
+                [diagnostics](const std::filesystem::path& frame) { diagnostics->directory = frame; });
+            result = EXIT_SUCCESS;
+#else
+            throw std::runtime_error("Batch screenshot requires the current Vulkan-only build");
+#endif
+        }
+        else if (towerFilmstrip)
+        {
+#ifdef OPENRCT2_VULKAN_ONLY
+            if (!configured || artifactRoot.empty() || captureImage || parkPreview || diagnostics->giant
+                || (softwareTileMode && std::string(softwareTileMode) == "1"))
+                throw std::runtime_error("Tower filmstrip requires isolated configured mode with no other diagnostic mode");
+            imageOperationMetadata = TowerFilmstripDiagnostic::Run(argc, argv, factory, artifactRoot,
+                [diagnostics](const std::filesystem::path& frame) { diagnostics->directory = frame; });
+            result = imageOperationMetadata.at("coverageComplete").get<bool>() ? EXIT_SUCCESS : EXIT_FAILURE;
+            if (result != EXIT_SUCCESS)
+                error = "Tower filmstrip exhausted its real-tick budget before all ascent/descent boundary crossings";
+#else
+            throw std::runtime_error("Tower filmstrip requires the current Vulkan-only build");
+#endif
+        }
+        else if (captureImage || parkPreview)
         {
 #ifdef OPENRCT2_VULKAN_ONLY
             if (!configured || diagnostics->directory.empty() || (captureImage && parkPreview)
@@ -372,6 +408,7 @@ int main(int argc, const char** argv)
     }
     catch (const std::exception& exception)
     {
+        diagnostics->directory = artifactRoot;
         error = exception.what();
         std::cerr << error << '\n';
     }
@@ -426,6 +463,18 @@ int main(int argc, const char** argv)
 #endif
                 { "enabledChecks", diagnostics->enabledChecks }, { "ownerCreated", created },
                 { "deviceObservation", "persistent-owner-created-state" } };
+        }
+        if (batchScreenshot)
+        {
+            report["fixture"] = "static-camera-batch";
+            report["batch"] = imageOperationMetadata;
+        }
+        if (towerFilmstrip)
+        {
+            report["fixture"] = "tower-real-tick-filmstrip";
+            report["towerFilmstrip"] = imageOperationMetadata;
+            report["sessions"] = { { "begun", diagnostics->begunSessions }, { "retired", diagnostics->retiredSessions },
+                                   { "live", diagnostics->liveSessions }, { "peak", diagnostics->peakSessions } };
         }
         if (captureImage)
         {

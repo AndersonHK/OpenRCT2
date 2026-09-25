@@ -130,7 +130,7 @@ namespace OpenRCT2::Ui::Vulkan
             device.GetPhysicalDevice(), _device, sizeof(Gpu::WorldSurfaceCatalog),
             VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
         _prefixes.Initialise(
-            device.GetPhysicalDevice(), _device, (Gpu::kWorldSurfaceMaximumRecordCount + 4 * 65536) * sizeof(uint32_t),
+            device.GetPhysicalDevice(), _device, Gpu::kWorldSurfacePrefixCapacity * sizeof(uint32_t),
             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
         _status.Initialise(
             device.GetPhysicalDevice(), _device, sizeof(Gpu::WorldSurfaceStatus),
@@ -253,6 +253,7 @@ namespace OpenRCT2::Ui::Vulkan
             for (const auto framebuffer : _framebuffers)
                 vkDestroyFramebuffer(_device, framebuffer, nullptr);
             vkDestroyPipeline(_device, _computePipeline, nullptr);
+            vkDestroyPipeline(_device, _entityComputePipeline, nullptr);
             vkDestroyPipeline(_device, _pipeline, nullptr);
             vkDestroyPipeline(_device, _filterPipeline, nullptr);
             vkDestroyRenderPass(_device, _renderPass, nullptr);
@@ -268,6 +269,7 @@ namespace OpenRCT2::Ui::Vulkan
         _pipelineLayout = VK_NULL_HANDLE;
         _renderPass = VK_NULL_HANDLE;
         _computePipeline = VK_NULL_HANDLE;
+        _entityComputePipeline = VK_NULL_HANDLE;
         _pipeline = VK_NULL_HANDLE;
         _filterPipeline = VK_NULL_HANDLE;
         _framebuffers = {};
@@ -332,8 +334,7 @@ namespace OpenRCT2::Ui::Vulkan
             throw std::overflow_error("GPU building catalog capacity exceeded");
         // Shared tables are immutable. Validate their variable ranges on admission, not once
         // per draw while the same resident generation is reused.
-        if (_uploadedSpriteRevision != scene.sprites->revision || _uploadedEpoch != scene.worldEpoch
-            || _uploadedWidth != scene.width || _uploadedHeight != scene.height)
+        if (_uploadedSpriteRevision != scene.sprites->revision || NeedsSceneReset(scene))
         {
             Gpu::ValidateWorldFlatRideCatalog(scene.sprites->flatRideCatalog, scene.sprites->records.size());
             if (!scene.sprites->entranceCatalog.empty())
@@ -350,8 +351,7 @@ namespace OpenRCT2::Ui::Vulkan
                     throw std::invalid_argument("GPU prop catalog family range is invalid");
         }
         Gpu::ValidateWorldTrackCatalog(tracks);
-        if (_uploadedEpoch != scene.worldEpoch || _uploadedWidth != scene.width || _uploadedHeight != scene.height
-            || _uploadedRevisions.size() != scene.chunks.size())
+        if (NeedsSceneReset(scene))
         {
             _uploadedEpoch = scene.worldEpoch;
             _uploadedWidth = scene.width;
@@ -1025,7 +1025,8 @@ namespace OpenRCT2::Ui::Vulkan
             .clip = scene.clip,
             .width = scene.width,
             .height = scene.height,
-            .recordCount = scene.recordCount + peepCount + balloonCount + vehicleCount + effectCount + moneyCount,
+            .recordCount = Gpu::GetWorldEntityRecordBase(scene.recordCount) + peepCount + balloonCount + vehicleCount
+                + effectCount + moneyCount,
             .zoom = scene.zoom,
             .rotation = static_cast<uint32_t>(scene.rotation),
             .spriteSetCount = static_cast<uint32_t>(scene.sprites->records.size()),
@@ -1044,6 +1045,8 @@ namespace OpenRCT2::Ui::Vulkan
             .moneyCount = moneyCount,
         };
         const uint32_t drawCount = Gpu::GetWorldSurfaceDrawCount(constants.recordCount);
+        if (drawCount > Gpu::kWorldSurfaceMaximumDrawCount)
+            throw std::overflow_error("GPU world materialization block capacity exceeded");
         if (scene.zoom < -2 || scene.zoom > 3)
             throw std::invalid_argument("GPU world column zoom is outside the resident variant range");
         vkCmdBindPipeline(frame.commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, _computePipeline);
@@ -1072,7 +1075,28 @@ namespace OpenRCT2::Ui::Vulkan
             vkCmdPushConstants(
                 frame.commandBuffer, _pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_VERTEX_BIT, 0,
                 sizeof(constants), &constants);
-            vkCmdDispatch(frame.commandBuffer, phase == 1 ? 1 : drawCount, 1, 1);
+            const auto tileGroups = Gpu::GetWorldSurfaceDrawCount(scene.recordCount);
+            // Both kernels consume the same immutable state and write disjoint
+            // prefix/output ranges. Only two additional serial dispatches per
+            // frame, independent of the number of objects.
+            if (phase != 1)
+            {
+                vkCmdBindPipeline(frame.commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, _computePipeline);
+                vkCmdDispatch(frame.commandBuffer, tileGroups, 1, 1);
+            }
+            if (phase == 1 || drawCount > tileGroups)
+            {
+                if (phase != 1)
+                {
+                    const VkMemoryBarrier domains{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr, VK_ACCESS_SHADER_WRITE_BIT,
+                                                   VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT };
+                    vkCmdPipelineBarrier(
+                        frame.commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1,
+                        &domains, 0, nullptr, 0, nullptr);
+                }
+                vkCmdBindPipeline(frame.commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, _entityComputePipeline);
+                vkCmdDispatch(frame.commandBuffer, phase == 1 ? 1 : drawCount - tileGroups, 1, 1);
+            }
             const VkMemoryBarrier between{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr, VK_ACCESS_SHADER_WRITE_BIT,
                                            VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT };
             vkCmdPipelineBarrier(
@@ -1496,31 +1520,29 @@ namespace OpenRCT2::Ui::Vulkan
             .pPushConstantRanges = &push,
         };
         CheckVk(vkCreatePipelineLayout(_device, &layout, nullptr, &_pipelineLayout), "world surfaces pipeline layout");
-        const auto computeShader = LoadShaderModule(_device, _shaderDirectory / "world_surface_compact.comp.spv");
-        const VkPipelineShaderStageCreateInfo computeStage = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-            .stage = VK_SHADER_STAGE_COMPUTE_BIT,
-            .module = computeShader,
-            .pName = "main",
+        const auto createCompute = [&](const char* name, VkPipeline& pipeline) {
+            const auto shader = LoadShaderModule(_device, _shaderDirectory / name);
+            const VkPipelineShaderStageCreateInfo stage = {
+                .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                .stage = VK_SHADER_STAGE_COMPUTE_BIT,
+                .module = shader,
+                .pName = "main",
+            };
+            const auto* quickCompile = std::getenv("OPENRCT2_VULKAN_QUICK_COMPILE");
+            const VkComputePipelineCreateInfo info = {
+                .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+                .flags = quickCompile != nullptr && std::string_view(quickCompile) == "1"
+                    ? VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT
+                    : VkPipelineCreateFlags{},
+                .stage = stage,
+                .layout = _pipelineLayout,
+            };
+            const auto result = vkCreateComputePipelines(_device, _pipelineCache, 1, &info, nullptr, &pipeline);
+            vkDestroyShaderModule(_device, shader, nullptr);
+            CheckVk(result, name);
         };
-        VkPipelineCreateFlags computeFlags = 0;
-        // Explicit diagnostic A/B only; ordinary application builds keep driver optimization enabled.
-        const auto* quickCompile = std::getenv("OPENRCT2_VULKAN_QUICK_COMPILE");
-        if (quickCompile != nullptr && std::string_view(quickCompile) == "1")
-        {
-            computeFlags = VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT;
-            Console::WriteLine("Vulkan diagnostic: native world pipeline optimization disabled");
-        }
-        const VkComputePipelineCreateInfo computeInfo = {
-            .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
-            .flags = computeFlags,
-            .stage = computeStage,
-            .layout = _pipelineLayout,
-        };
-        const auto computeResult = vkCreateComputePipelines(
-            _device, _pipelineCache, 1, &computeInfo, nullptr, &_computePipeline);
-        vkDestroyShaderModule(_device, computeShader, nullptr);
-        CheckVk(computeResult, "world surfaces compute pipeline");
+        createCompute("world_surface_compact.comp.spv", _computePipeline);
+        createCompute("world_entities_compact.comp.spv", _entityComputePipeline);
         constexpr VkPipelineDepthStencilStateCreateInfo depth = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
             .depthTestEnable = VK_TRUE,

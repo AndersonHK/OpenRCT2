@@ -43,6 +43,7 @@ namespace OpenRCT2::Ui::Vulkan
         {
             std::shared_ptr<DeviceContext> _context;
             SubmissionSlots _slots;
+            UploadRing _readback;
             FrameExecutor _executor;
             ImageAliasPipeline _alias;
             PalettePipeline _palette;
@@ -55,10 +56,9 @@ namespace OpenRCT2::Ui::Vulkan
             UploadAllocation Readback(const SubmissionToken& token, const Image& image, VkImageLayout layout, uint32_t bpp)
             {
                 const auto extent = image.GetExtent();
-                const auto allocation = token.upload->Allocate(
-                    static_cast<VkDeviceSize>(extent.width) * extent.height * bpp, 4);
+                const auto allocation = _readback.Allocate(static_cast<VkDeviceSize>(extent.width) * extent.height * bpp, 4);
                 if (!allocation)
-                    throw std::runtime_error("Auxiliary readback exceeds its bounded upload ring");
+                    throw std::runtime_error("Auxiliary readback exceeds its target allocation");
                 const VkImageSubresourceRange range{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
                 RecordImageBarrier(
                     token.commandBuffer, image.GetImage(), layout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, range,
@@ -99,6 +99,7 @@ namespace OpenRCT2::Ui::Vulkan
                 // A failed queue operation may have submitted before throwing.
                 // Retain all resources until the shared device retires that work.
                 _context->WaitIdle();
+                _readback.Dispose();
                 _alias.Dispose();
                 _palette.Dispose();
                 _output.Dispose();
@@ -179,6 +180,20 @@ namespace OpenRCT2::Ui::Vulkan
                 }
                 static_assert(sizeof(RenderColour) == 4);
                 _executor.SetPalette(std::as_bytes(std::span(palette)));
+                // Readback capacity depends on the validated targets, not on how much
+                // sprite/catalog upload work happened in this submission. This domain
+                // waits for its sole job before reusing or resizing the mapped buffer.
+                const VkDeviceSize readbackBytes = (request.indexedOutput
+                                                        ? static_cast<VkDeviceSize>(request.logicalExtent.width)
+                                                            * request.logicalExtent.height
+                                                        : 0)
+                    + (request.rgbaOutput
+                           ? static_cast<VkDeviceSize>(request.outputExtent.width) * request.outputExtent.height * 4
+                           : 0)
+                    + 3;
+                if (_readback.GetCapacity() < readbackBytes)
+                    _readback.Initialise(_context->GetPhysicalDevice(), _context->GetDevice(), readbackBytes);
+                _readback.Reset();
                 const auto token = *_slots.Begin(0, true);
                 bool submitted = false;
                 try
@@ -218,7 +233,7 @@ namespace OpenRCT2::Ui::Vulkan
                     const auto copy = [&](const UploadAllocation& allocation, std::vector<std::byte>& bytes) {
                         if (!allocation)
                             return;
-                        token.upload->Invalidate(allocation.offset, allocation.size);
+                        _readback.Invalidate(allocation.offset, allocation.size);
                         bytes.assign(allocation.data, allocation.data + static_cast<size_t>(allocation.size));
                     };
                     copy(indices, result.indexed);

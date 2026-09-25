@@ -1,6 +1,8 @@
 #version 450
+#extension GL_GOOGLE_include_directive : require
+#include "indexed_depth.glsl"
 
-const float DEPTH_INCREMENT = 1.0 / float(1u << 22u);
+
 const float ATLAS_DIMENSION = 2048.0;
 layout(push_constant) uniform BalloonConstants
 {
@@ -39,7 +41,7 @@ void main()
     ivec2 corners[4] = ivec2[](ivec2(0,0), ivec2(1,0), ivec2(0,1), ivec2(1,1));
     ivec2 position = clamp(topLeft + vSpriteSize * corners[gl_VertexIndex], clip.xy, clip.zw);
     vec2 ndc = vec2(position) * (2.0 / vec2(uCamera.screen)) - 1.0;
-    gl_Position = vec4(ndc, 1.0 - (float(vDepth) + 1.0) * DEPTH_INCREMENT, 1.0);
+    gl_Position = vec4(ndc, indexedDepth(uint(vDepth),0u), 1.0);
     SpriteAssetDescriptor asset = uSpriteAssets.assets[vAsset];
     fPosition = topLeft;
     fFlags = int(vEffects);

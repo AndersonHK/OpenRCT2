@@ -9,7 +9,8 @@
 
 #include "TitleSequencePlayer.h"
 
-
+#include <chrono>
+#include <cstdlib>
 #include <memory>
 #include <openrct2-ui/windows/Windows.h>
 #include <openrct2/Context.h>
@@ -18,6 +19,7 @@
 #include <openrct2/GameState.h>
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/ParkImporter.h>
+#include <openrct2/TitleLoadingDiagnostic.h>
 #include <openrct2/core/Console.hpp>
 #include <openrct2/drawing/Drawing.h>
 #include <openrct2/drawing/Palette.h>
@@ -37,6 +39,7 @@
 #include <openrct2/windows/Intent.h>
 #include <openrct2/world/MapAnimation.h>
 #include <stdexcept>
+#include <string_view>
 
 namespace OpenRCT2::Title
 {
@@ -47,6 +50,7 @@ namespace OpenRCT2::Title
         int32_t _position = 0;
         int32_t _waitCounter = 0;
         bool _initialLoadCommand = true;
+        std::chrono::steady_clock::time_point _loadingReportStart{};
 
         int32_t _previousWindowWidth = 0;
         int32_t _previousWindowHeight = 0;
@@ -117,6 +121,27 @@ namespace OpenRCT2::Title
                 auto& currentCommand = _sequence->Commands[_position];
                 try
                 {
+                    const auto* report = std::getenv("OPENRCT2_LOADING_REPORT");
+                    const bool reportLoading = report != nullptr && std::string_view(report) == "1";
+                    if (reportLoading && _waitCounter == 0)
+                    {
+                        const auto now = std::chrono::steady_clock::now();
+                        if (_loadingReportStart == std::chrono::steady_clock::time_point{})
+                            _loadingReportStart = now;
+                        const char* commandName = std::visit(
+                            [](auto&& command) { return std::decay_t<decltype(command)>::Name; }, currentCommand);
+                        Console::WriteLine(
+                            "Loading title: sequence=%s command=%i kind=%s elapsed_ms=%.3f", _sequence->Name.c_str(), _position,
+                            commandName, std::chrono::duration<double, std::milli>(now - _loadingReportStart).count());
+                        if (std::holds_alternative<EndCommand>(currentCommand) && gLegacyScene == LegacyScene::titleSequence
+                            && IsTitleLoadingDiagnostic())
+                        {
+                            // Explicit isolated-profile diagnostic: use ordinary context teardown,
+                            // including render-worker drain, after the script's final camera hold.
+                            GetContext()->Finish();
+                            return true;
+                        }
+                    }
                     int framesToWait = std::visit([&](auto& command) { return command(_waitCounter); }, currentCommand);
                     if (framesToWait > _waitCounter)
                     {

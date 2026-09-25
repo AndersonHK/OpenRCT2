@@ -22,6 +22,7 @@
 #include "AssetPackManager.h"
 #include "Context.h"
 #include "Diagnostic.h"
+#include "TitleLoadingDiagnostic.h"
 #include "FileClassifier.h"
 #include "Game.h"
 #include "GameState.h"
@@ -1589,7 +1590,8 @@ namespace OpenRCT2
 
         bool ShouldDraw()
         {
-            return !gOpenRCT2Headless && (gIntegratedBenchmark.enabled || !_uiContext->IsMinimised());
+            return !gOpenRCT2Headless
+                && (gIntegratedBenchmark.enabled || IsTitleLoadingDiagnostic() || !_uiContext->IsMinimised());
         }
 
         bool IsVSyncPresentationPaced() const

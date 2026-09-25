@@ -6,9 +6,172 @@
 #include <openrct2/paint/Paint.h>
 #include <openrct2/ride/TrackPaint.h>
 #include <openrct2/ride/ted/TED.FlatRide.h>
+#include <openrct2/world/MapLimits.h>
+#include <openrct2/world/tile_element/TileElementBase.h>
 
 namespace G = OpenRCT2::Ui::Gpu;
 namespace F = G::FlatRideRules;
+
+TEST(WorldFlatRideRulesTest, SwingingShipComponentsRetainTileLocalBoundsAndAnimationOwnership)
+{
+    for (int direction = 0; direction < 4; ++direction)
+        for (int sequence = 0; sequence < 5; ++sequence)
+        {
+            const auto parts = F::worldFlatParts(13, sequence, direction, true, false, 15, 128, 1, 1);
+            int components = 0;
+            for (int i = 0; i < parts.count; ++i)
+            {
+                const auto& part = parts.parts[i];
+                if (part.depthAnchor != 3)
+                    continue;
+                // Original SwingingShipData owns a 31x16 strip, transposed for
+                // odd directions. Preserve the back frame -> hull -> front frame.
+                const auto contact = F::worldFlatAuthoredContact(part);
+                EXPECT_EQ(contact.x, (direction & 1) ? 23 : 31);
+                EXPECT_EQ(contact.y, (direction & 1) ? 31 : 23);
+                EXPECT_EQ(part.bz, 7);
+                EXPECT_EQ(part.child, components == 0 ? 0 : 1);
+                for (int frame : { 0, 1, 8, 248, 255 })
+                {
+                    auto pose = F::worldFlatEmptyPose();
+                    pose.present = pose.onTrack = 1;
+                    pose.frame = frame;
+                    const auto animated = F::worldFlatAnimatePart(part, 13, direction, 0, pose);
+                    EXPECT_EQ(animated.depthAnchor, part.depthAnchor);
+                    EXPECT_EQ(animated.child, part.child);
+                    EXPECT_EQ(animated.x, part.x);
+                    EXPECT_EQ(animated.y, part.y);
+                    EXPECT_EQ(animated.bz, part.bz);
+                }
+                ++components;
+            }
+            EXPECT_EQ(components, 3);
+            // The formerly broken front platform must remain below the local
+            // mechanical group; its raster height must not move the whole ship.
+            const auto& frame = parts.parts[parts.count - 3];
+            const auto contact = F::worldFlatAuthoredContact(frame);
+            for (int i = 0; i < parts.count - 3; ++i)
+            {
+                const auto& platform = parts.parts[i];
+                if (platform.z == 9)
+                    EXPECT_GT(contact.x + contact.y + frame.bz, platform.x + platform.y + platform.z);
+            }
+        }
+}
+
+TEST(WorldFlatRideRulesTest, LongitudinalComponentColumnsMatchOriginalTileVisitationInEveryRotation)
+{
+    // Independent replay of PaintSessionGenerateRotate's two tile visits per
+    // diagonal. This tests ownership against the frozen painter traversal, not
+    // just that the new clip helper returns its own expected arithmetic.
+    for (int rotation = 0; rotation < 4; ++rotation)
+    {
+        CoordsXY tile{ 64, 96 };
+        CoordsXY facing = tile;
+        if (rotation == 1 || rotation == 2)
+            facing.x += 32;
+        if (rotation == 2 || rotation == 3)
+            facing.y += 32;
+        const auto projected = facing.rotate(rotation);
+        const int left = F::worldFlatLongitudinalColumn(projected.y - projected.x) * 32;
+        int accepted = 0;
+        for (int column = -512; column <= 512; column += 32)
+        {
+            bool visited = false;
+            for (int row = -512; row <= 512; row += 32)
+            {
+                auto point = CoordsXY{ row - column / 2, row + column / 2 }.rotate(DirectionFlipXAxis(rotation));
+                if (rotation & 1)
+                    point.y -= 16;
+                point = point.toTileStart();
+                const auto adjacent = point + CoordsXY{ 0, 32 }.rotate(DirectionFlipXAxis(rotation));
+                visited |= point == tile || adjacent == tile;
+            }
+            EXPECT_EQ(visited, column >= left && column < left + 64) << rotation << ',' << column;
+            accepted += visited;
+        }
+        EXPECT_EQ(accepted, 2);
+        // The interval remains contiguous at both enlarged and minified zooms.
+        for (int zoom = -2; zoom <= 3; ++zoom)
+        {
+            const auto zoomed = [zoom](int value) { return zoom < 0 ? value * (1 << -zoom) : value >> zoom; };
+            EXPECT_EQ(zoomed(left + 64) - zoomed(left), zoomed(64));
+        }
+    }
+}
+
+TEST(WorldFlatRideRulesTest, SwingingShipLocalComponentsRespectBothSidesOfTheEverythingParkEntrances)
+{
+    // Ride22: track world tiles(102,234..238), Z320; entrance(103,235),
+    // exit(103,237). Opposite views require opposite overlap despite equal
+    // centre depth: one unrestricted common body scalar cannot satisfy both.
+    const auto facing = [](int tileX, int tileY, int rotation) {
+        CoordsXY point{ tileX * 32, tileY * 32 };
+        if (rotation == 1 || rotation == 2)
+            point.x += 32;
+        if (rotation == 2 || rotation == 3)
+            point.y += 32;
+        return point.rotate(rotation);
+    };
+    for (int rotation = 0; rotation < 4; ++rotation)
+        for (int entranceY : { 235, 237 })
+        {
+            const auto booth = facing(103, entranceY, rotation);
+            const int sampleScreenX = booth.y - booth.x;
+            const int boothDepth = booth.x + booth.y + 29 + 29 + 320;
+            const auto parts = F::worldFlatParts(13, 0, (1 + rotation) & 3, true, false, 15, 128, 1, 1);
+            const auto& frame = parts.parts[parts.count - 3];
+            ASSERT_EQ(frame.depthAnchor, 3);
+            const auto contact = F::worldFlatAuthoredContact(frame);
+            int nearestBody = INT32_MIN;
+            for (int tileY = 234; tileY <= 238; ++tileY)
+            {
+                const auto tile = facing(102, tileY, rotation);
+                const int left = F::worldFlatLongitudinalColumn(tile.y - tile.x) * 32;
+                if (sampleScreenX >= left && sampleScreenX < left + 64)
+                    nearestBody = std::max(nearestBody, tile.x + tile.y + contact.x + contact.y + 320 + frame.bz);
+            }
+            ASSERT_NE(nearestBody, INT32_MIN);
+            EXPECT_EQ(nearestBody > boothDepth, rotation == 1 || rotation == 2) << rotation << ',' << entranceY;
+        }
+}
+
+TEST(WorldFlatRideRulesTest, SwingingShipForegroundFenceKeepsItsOwnEdgeAheadOfTheHull)
+{
+    for (int direction = 0; direction < 4; ++direction)
+        for (int sequence = 0; sequence < 5; ++sequence)
+            for (int fences = 0; fences < 16; ++fences)
+            {
+                const auto parts = F::worldFlatParts(13, sequence, direction, true, false, fences, 128, 1, 1);
+                const auto& body = parts.parts[parts.count - 3];
+                const auto bodyContact = F::worldFlatAuthoredContact(body);
+                const int bodyDepth = bodyContact.x + bodyContact.y + body.bz;
+                for (int i = 0; i < parts.count - 3; ++i)
+                {
+                    const auto& fence = parts.parts[i];
+                    if (fence.depthAnchor != F::WORLD_FLAT_FOREGROUND_ANCHOR)
+                        continue;
+                    const auto contact = F::worldFlatAuthoredContact(fence);
+                    EXPECT_EQ(fence.child, 0);
+                    EXPECT_EQ(fence.bz, 11);
+                    if (fence.sx + fence.sy == 33)
+                    {
+                        // Full near edge spans the corridor. Its old raster
+                        // origin loses to the hull; the authored endpoint wins.
+                        EXPECT_LT(fence.x + fence.y + fence.z, bodyDepth);
+                        EXPECT_GT(contact.x + contact.y + fence.bz, bodyDepth);
+                        EXPECT_LT(contact.x + contact.y + fence.bz, 32 + 29 + 29);
+                    }
+                    else
+                    {
+                        // Entrance-opening caps keep their actual short extent.
+                        // The cap at the far end must not borrow the near corner.
+                        EXPECT_EQ(fence.sx + fence.sy, 9);
+                        EXPECT_EQ(contact.x + contact.y + fence.bz > bodyDepth, fence.x + fence.y > 31);
+                    }
+                }
+            }
+}
 
 TEST(WorldFlatRideRulesTest, WholeBodiesAnchorAtNearestAuthoritativeFootprintTile)
 {
@@ -520,4 +683,67 @@ TEST(WorldFlatRideRulesTest, LiftCageKeepsSeparateBackFrontParentsAndAllRotation
     EXPECT_EQ(catalogue.words[8 + 3], static_cast<uint32_t>(OpenRCT2::TrackElemType::towerSection));
     for (uint32_t image = 14989; image <= 15003; ++image)
         EXPECT_NE(std::find(images.begin(), images.end(), image), images.end()) << image;
+}
+
+TEST(WorldFlatRideRulesTest, TowerShaftTiersStayStrictlyBetweenRearAndFrontThroughLegalHeightDomain)
+{
+    // TileElementBase stores world height in uint8 units of kCoordsZStep.
+    // All tiers retain one world contact: only their bounded fine layer changes.
+    constexpr int maximumZ = OpenRCT2::kMaxTileElementHeight * kCoordsZStep;
+    static_assert(maximumZ / F::WORLD_TOWER_TIER_HEIGHT + 1 == F::WORLD_TOWER_MAX_TIERS);
+    int previousCap = F::WORLD_TOWER_REAR;
+    for (int z = 0; z <= maximumZ; z += F::WORLD_TOWER_TIER_HEIGHT)
+    {
+        const auto order = F::worldTowerShaftOrder(z);
+        EXPECT_GT(order.layer, previousCap) << z;
+        EXPECT_LE(order.layer + 1, F::WORLD_COMPONENT_LAYER_MAX);
+        EXPECT_LT(order.layer + 1, F::WORLD_TOWER_FRONT) << z;
+        previousCap = order.layer + 1;
+    }
+    EXPECT_EQ(previousCap + 1, F::WORLD_TOWER_FRONT);
+    EXPECT_EQ(F::worldTowerShaftOrder(-32).layer, F::WORLD_TOWER_SHAFT);
+    const auto highest = F::worldTowerShaftOrder(maximumZ);
+    EXPECT_EQ(F::worldTowerShaftOrder(maximumZ + 64).layer, highest.layer);
+    // Original RotoDrop occupancy admits at most13 child sprites (exhaustively
+    // covered in WorldVehicleRulesTests). Preserve their front-parent order.
+    EXPECT_LE(F::WORLD_TOWER_FRONT + 13, F::WORLD_COMPONENT_LAYER_MAX);
+}
+
+TEST(WorldFlatRideRulesTest, TowerShaftOwnsOneStationContactThroughEveryVerticalSegment)
+{
+    // The original tower has one station at the central base piece, not one
+    // station per shaft segment. A moving cabin and every segment share it.
+    OpenRCT2::WorldRidePresentationRecord ride;
+    ride.stations.resize(1);
+    auto& station = ride.stations[0];
+    station.startValid = true;
+    station.startX = 113 * 32;
+    station.startY = 197 * 32;
+    station.startZ = 336;
+    const G::WorldTowerAssemblyContact contact(ride);
+    EXPECT_EQ(contact.PackedXY() & 65535u, 3632u);
+    EXPECT_EQ(contact.PackedXY() >> 16, 6320u);
+    EXPECT_EQ(contact.PackedHeight(), 0x80000000u | 336u);
+    for (int family : { 20, 21, 22 })
+        for (int direction = 0; direction < 4; ++direction)
+        {
+            const auto base = F::worldTowerParts(family, 0, direction, false, false, false, 15);
+            int shaftCount = 0;
+            for (int i = 0; i < base.count; ++i)
+                shaftCount += base.parts[i].depthAnchor == F::WORLD_TOWER_SHAFT_ANCHOR;
+            EXPECT_EQ(shaftCount, 3);
+            const auto section = F::worldTowerParts(family, 0, direction, true, true, false, 15);
+            ASSERT_EQ(section.count, 2);
+            for (int i = 0; i < section.count; ++i)
+                EXPECT_EQ(section.parts[i].depthAnchor, F::WORLD_TOWER_SHAFT_ANCHOR);
+            // This verifies static ownership only. Sequential GPU captures,
+            // not repeated constant expressions, qualify moving overlap.
+            EXPECT_LT(F::WORLD_TOWER_REAR, F::WORLD_TOWER_SHAFT);
+            EXPECT_LT(F::WORLD_TOWER_SHAFT, F::WORLD_TOWER_FRONT);
+        }
+    station.startZ = 400;
+    const G::WorldTowerAssemblyContact rebuilt(ride);
+    EXPECT_NE(rebuilt.PackedHeight(), contact.PackedHeight());
+    station.startValid = false;
+    EXPECT_EQ(G::WorldTowerAssemblyContact(ride).PackedHeight(), 0u);
 }

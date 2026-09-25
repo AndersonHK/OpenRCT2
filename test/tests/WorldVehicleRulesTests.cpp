@@ -14,6 +14,7 @@
 #include <openrct2/ride/CarEntry.h>
 #include <openrct2/ride/Vehicle.h>
 #include <openrct2/ride/ted/TrackElemType.h>
+#include <set>
 
 namespace VehicleRuleTest
 {
@@ -302,6 +303,67 @@ TEST(WorldVehicleRulesTest, MandarinAnimatedRiderImagesStayInTheExactOwningAlloc
         std::invalid_argument); // Never widen residency outside this object's own art.
 }
 
+TEST(WorldVehicleRulesTest, BankUnionPreservesAscendingOriginalImageLookupAcrossOverlapAndEmptyBanks)
+{
+    using namespace OpenRCT2;
+    using namespace OpenRCT2::Drawing;
+    using namespace OpenRCT2::Ui::Gpu;
+    VehiclePresentationCatalog source;
+    source.cars.resize(6);
+    const std::array<std::pair<uint32_t, uint32_t>, 6> banks{ {
+        { 90000, 10000 },
+        { 95000, 15000 },
+        { 110000, 17 },
+        { 0, 0 },
+        { SPR_WATER_PARTICLES_DENSE_0, 13 },
+        { 90000, 10000 },
+    } };
+    for (size_t i = 0; i < banks.size(); ++i)
+    {
+        auto& car = source.cars[i];
+        car.present = true;
+        car.imageBase = car.baseImage = banks[i].first;
+        car.imageCount = car.carImages = banks[i].second;
+    }
+    const std::array<uint32_t, 7> used{ 2, 0, 4, 1, 5, 3, 0 };
+    // Independent prior-contract oracle: enumerate each authored bank and
+    // remove duplicate source IDs. No GPU-selected pose changes this domain.
+    std::set<uint32_t> expectedImages;
+    for (auto slot : used)
+        for (uint32_t offset = 0; offset < banks[slot].second; ++offset)
+            expectedImages.insert(banks[slot].first + offset);
+    for (uint32_t i = 0; i < 8; ++i)
+        expectedImages.insert(SPR_WATER_PARTICLES_DENSE_0 + i);
+    for (uint32_t i = 0; i < 32; ++i)
+    {
+        expectedImages.insert(SPR_SPLASH_EFFECT_1_NE_0 + i);
+        expectedImages.insert(SPR_SPLASH_EFFECT_3_NE_0 + i);
+        expectedImages.insert(SPR_SPLASH_EFFECT_5_NE_0 + i);
+    }
+    std::vector<uint32_t> appended;
+    const auto catalog = BuildWorldVehicleCatalog(source, used, 1, [&](uint32_t image) {
+        appended.push_back(image);
+        return static_cast<uint32_t>(appended.size() - 1) + 700;
+    });
+    EXPECT_EQ(appended, (std::vector<uint32_t>(expectedImages.begin(), expectedImages.end())));
+    ASSERT_EQ(catalog.words[7], appended.size());
+    ASSERT_EQ(catalog.words[6] + appended.size() * 2, catalog.words.size());
+    for (size_t i = 0; i < appended.size(); ++i)
+    {
+        EXPECT_EQ(catalog.words[catalog.words[6] + i * 2], appended[i]);
+        EXPECT_EQ(catalog.words[catalog.words[6] + i * 2 + 1], i + 700);
+    }
+    const auto empty = BuildWorldVehicleCatalog(source, std::span<const uint32_t>{}, 1, [](uint32_t) {
+        ADD_FAILURE() << "An empty usage set must not admit images";
+        return 0u;
+    });
+    EXPECT_EQ(empty.words[7], 0u);
+    source.cars[0].imageBase = source.cars[0].baseImage = UINT32_MAX - 2;
+    source.cars[0].imageCount = source.cars[0].carImages = 4;
+    EXPECT_THROW(
+        BuildWorldVehicleCatalog(source, std::array<uint32_t, 1>{ 0 }, 1, [](uint32_t) { return 0u; }), std::invalid_argument);
+}
+
 TEST(WorldVehicleRulesTest, ResidencyFollowsFamilyOwnershipRatherThanHotVehiclePose)
 {
     using namespace OpenRCT2::Drawing;
@@ -367,11 +429,22 @@ TEST(WorldVehicleRulesTest, ResidencyFollowsFamilyOwnershipRatherThanHotVehicleP
     next = first;
     ++next.worldEpoch;
     UpdateVehiclePresentationResidency(next, &first);
-    EXPECT_NE(next.usedCars, first.usedCars);
+    EXPECT_EQ(next.usedCars, first.usedCars);
+    EXPECT_NE(next.worldEpoch, first.worldEpoch);
     next = first;
     ++next.entityEpoch;
     UpdateVehiclePresentationResidency(next, &first);
-    EXPECT_NE(next.usedCars, first.usedCars);
+    EXPECT_EQ(next.usedCars, first.usedCars);
+    EXPECT_NE(next.entityEpoch, first.entityEpoch);
+    // Only cold family membership is shared across reloads. Hot records and
+    // their epoch qualification continue to belong to the new publication.
+    auto replacement = std::make_shared<std::vector<VehiclePresentationRecord>>(*records);
+    replacement->front().x = 224;
+    next.records = replacement;
+    UpdateVehiclePresentationResidency(next, &first);
+    EXPECT_EQ(next.usedCars, first.usedCars);
+    EXPECT_NE(next.records, first.records);
+    EXPECT_NE(next.records->front().x, first.records->front().x);
 }
 
 TEST(WorldVehicleRulesTest, SpecializedArtworkAdmissionCoversOriginalPainterOffsetsBeyondGenericBanks)
@@ -437,7 +510,7 @@ TEST(WorldVehicleRulesTest, SpecializedArtworkAdmissionCoversOriginalPainterOffs
     EXPECT_FALSE(std::binary_search(images.begin(), images.end(), 29294u));
 }
 
-TEST(WorldVehicleRulesTest, RotoDropInverseSeatLookupMatchesOriginalRingAndLayersStayBounded)
+TEST(WorldVehicleRulesTest, RotoDropInverseSeatLookupRetainsFrontParentChildOrder)
 {
     for (int animation = 0; animation < 256; animation += 4)
         for (int yaw = 0; yaw < 32; yaw += 8)
@@ -453,21 +526,19 @@ TEST(WorldVehicleRulesTest, RotoDropInverseSeatLookupMatchesOriginalRingAndLayer
                     slot = (slot + animation / 4 + (yaw / 8) * 16) & 63;
                     seats[slot] = passenger;
                 }
+                int children = 0;
                 for (int ordinal = 0; ordinal <= 48; ++ordinal)
                 {
                     const int slot = ordinal % 2 ? 48 - ordinal / 2 : ordinal / 2;
                     ASSERT_EQ(VehicleRuleTest::worldVehicleRotoVisibleSlot(ordinal), slot);
                     ASSERT_EQ(VehicleRuleTest::worldVehicleRotoPassenger(slot, animation, yaw, passengers), seats[slot]);
+                    if (seats[slot] >= 0)
+                        ++children;
                 }
+                // Original occupied angular slots share one residue modulo4:
+                // no more than13 of the49 visited slots can contain passengers.
+                EXPECT_LE(children, 13);
             }
-    for (int ordinal = 0; ordinal <= 48; ++ordinal)
-    {
-        const int slot = VehicleRuleTest::worldVehicleRotoVisibleSlot(ordinal);
-        EXPECT_LE(std::abs(VehicleRuleTest::worldVehicleRotoDepthX(slot)), 11);
-        EXPECT_LE(std::abs(VehicleRuleTest::worldVehicleRotoDepthY(slot)), 11);
-        EXPECT_GE(VehicleRuleTest::worldVehicleRotoLayer(ordinal), 3);
-        EXPECT_LE(VehicleRuleTest::worldVehicleRotoLayer(ordinal), 15);
-    }
 }
 
 TEST(WorldVehicleRulesTest, ClassicSpinnerDoesNotSilentlyTruncateLargeRiderGroups)
@@ -478,4 +549,18 @@ TEST(WorldVehicleRulesTest, ClassicSpinnerDoesNotSilentlyTruncateLargeRiderGroup
     EXPECT_FALSE(VehicleRuleTest::worldVehicleClassicLayersValid(30));
     EXPECT_FALSE(VehicleRuleTest::worldVehicleClassicLayersValid(32));
     EXPECT_FALSE(VehicleRuleTest::worldVehicleClassicLayersValid(33));
+}
+
+TEST(WorldVehicleRulesTest, TowerOwnerReferencePreservesStatusAndSnapshotWireSize)
+{
+    OpenRCT2::Drawing::VehiclePresentationRecord record;
+    record.SetStatusAndRide(17, 510);
+    EXPECT_EQ(record.GetRideId(), 510);
+    EXPECT_EQ(record.statusAndRide & 65535u, 17u);
+    EXPECT_EQ(sizeof(record), 128u);
+    const auto held = record;
+    record.SetStatusAndRide(18, 181);
+    EXPECT_EQ(held.GetRideId(), 510);
+    EXPECT_EQ(record.GetRideId(), 181);
+    EXPECT_NE(record, held);
 }

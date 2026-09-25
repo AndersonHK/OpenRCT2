@@ -61,6 +61,10 @@ namespace OpenRCT2::Ui::Gpu
         };
         std::vector<PublishedSurfaceChunk> _surfaceChunks;
         std::shared_ptr<const WorldSurfaceSpriteTable> _publishedSurfaceSprites;
+        // Usage belongs to scene publication; equal membership can reuse the
+        // same immutable resident art across independently recreated maps.
+        std::shared_ptr<const WorldObjectPresentationUsage> _surfaceObjectUsage;
+        std::shared_ptr<const std::vector<uint32_t>> _surfacePeepUsage;
         std::shared_ptr<const WorldBannerTextData> _publishedBannerTexts;
         uint64_t _nextSurfaceSpriteRevision{};
         uint64_t _nextSurfaceChunkRevision{};

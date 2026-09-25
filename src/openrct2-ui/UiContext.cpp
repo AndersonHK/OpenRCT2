@@ -32,6 +32,9 @@
 #include <openrct2-ui/interface/Window.h>
 #include <openrct2/Context.h>
 #include <openrct2/Diagnostic.h>
+#include <openrct2/TitleLoadingDiagnostic.h>
+#include <openrct2/core/Console.hpp>
+#include <stdexcept>
 #include <openrct2/Input.h>
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/Version.h>
@@ -909,7 +912,7 @@ private:
 
         // Create window in window first rather than fullscreen so we have the display the window is on first
         uint32_t flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
-        if (gIntegratedBenchmark.enabled && !gIntegratedBenchmark.visible)
+        if ((gIntegratedBenchmark.enabled && !gIntegratedBenchmark.visible) || IsTitleLoadingDiagnostic())
         {
             flags |= SDL_WINDOW_HIDDEN;
         }
@@ -920,17 +923,24 @@ private:
         {
             SDLException::Throw("SDL_CreateWindow");
         }
+        if (IsTitleLoadingDiagnostic())
+        {
+            if ((SDL_GetWindowFlags(_window) & SDL_WINDOW_HIDDEN) == 0)
+                throw std::runtime_error("Title loading diagnostic requires a hidden window");
+            Console::WriteLine("Title loading diagnostic: hidden window, dummy audio");
+        }
         UpdateWindowDisplayIndex();
 
-        ApplyScreenSaverLockSetting();
+        if (!IsTitleLoadingDiagnostic())
+            ApplyScreenSaverLockSetting();
 
         SDL_SetWindowMinimumSize(_window, 720, 480);
-        SetCursorTrap(gIntegratedBenchmark.enabled ? false : Config::Get().general.trapCursor);
+        SetCursorTrap(gIntegratedBenchmark.enabled || IsTitleLoadingDiagnostic() ? false : Config::Get().general.trapCursor);
         _platformUiContext->SetWindowIcon(_window);
 
         UpdateFullscreenResolutions();
 
-        if (!gIntegratedBenchmark.enabled)
+        if (!gIntegratedBenchmark.enabled && !IsTitleLoadingDiagnostic())
         {
             SetFullscreenMode(static_cast<FullscreenMode>(Config::Get().general.fullscreenMode));
         }

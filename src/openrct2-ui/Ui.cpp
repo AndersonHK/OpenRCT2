@@ -22,6 +22,7 @@
 #include <openrct2/Diagnostic.h>
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/PlatformEnvironment.h>
+#include <openrct2/TitleLoadingDiagnostic.h>
 #include <openrct2/audio/AudioContext.h>
 #include <openrct2/command_line/ExitCode.h>
 #include <openrct2/ui/UiContext.h>
@@ -73,7 +74,7 @@ int main(int argc, const char** argv)
                 // Run OpenRCT2 with a UI context
                 auto env = CreatePlatformEnvironment();
                 std::unique_ptr<IAudioContext> audioContext;
-                if (gIntegratedBenchmark.enabled)
+                if (gIntegratedBenchmark.enabled || IsTitleLoadingDiagnostic())
                 {
                     // The integrated benchmark exercises the full renderer without producing meeting-disrupting park audio.
                     audioContext = CreateDummyAudioContext();

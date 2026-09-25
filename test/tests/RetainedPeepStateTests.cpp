@@ -1032,6 +1032,10 @@ TEST_F(RetainedPeepCatalogGraphicsTest, ObjectManagerCatalogTracksAliasRebindAnd
     ASSERT_NE(loaded, nullptr);
     EXPECT_EQ(manager.GetLoadedObject(ObjectType::peepAnimations, 1), loaded);
     EXPECT_EQ(first->slots.at(1).object->descriptor.objectIndex, 1u);
+    manager.LoadObjects(aliases);
+    EXPECT_EQ(manager.GetPeepAnimationCatalog(), first);
+    EXPECT_EQ(manager.GetLoadedObject(ObjectType::peepAnimations, 0), loaded);
+    EXPECT_EQ(manager.GetLoadedObject(ObjectType::peepAnimations, 1), loaded);
     manager.ResetObjects();
     const auto reset = manager.GetPeepAnimationCatalog();
     ASSERT_NE(reset, nullptr);

@@ -73,29 +73,6 @@ VEHICLE_FN int worldVehicleRotoPassenger(int slot,int animation,int yaw,int pass
     }
     return passenger;
 }
-// Explicit finite seat-ring model: radius11 is the vehicle's authored horizontal
-// extent (-11..11). Original art supplies angular slots but no individual seat
-// XYZ. These component anchors need image qualification; raster anchors stay put.
-VEHICLE_FN int worldVehicleRotoSine(int angle)
-{
-    angle&=63;int sign=angle>=32?-1:1;angle&=31;
-    if(angle>16) angle=32-angle;
-    int value=angle<=8?angle:(angle<=10?9:(angle<=12?10:11));
-    return sign*value;
-}
-VEHICLE_FN int worldVehicleRotoDepthX(int slot) { return worldVehicleRotoSine(slot); }
-VEHICLE_FN int worldVehicleRotoDepthY(int slot) { return worldVehicleRotoSine(slot-16); }
-VEHICLE_FN int worldVehicleRotoLayer(int ordinal)
-{
-    int slot=worldVehicleRotoVisibleSlot(ordinal);
-    int depth=worldVehicleRotoDepthX(slot)+worldVehicleRotoDepthY(slot);
-    int layer=3;
-    for(int i=0;i<ordinal;i++) {
-        int previous=worldVehicleRotoVisibleSlot(i);
-        if(worldVehicleRotoDepthX(previous)+worldVehicleRotoDepthY(previous)==depth) layer++;
-    }
-    return layer;
-}
 VEHICLE_FN bool worldVehicleClassicLayersValid(int passengers)
 { return passengers>=0 && passengers<=32 && passengers/2<=14; }
 #undef VEHICLE_HEADING_WRAP

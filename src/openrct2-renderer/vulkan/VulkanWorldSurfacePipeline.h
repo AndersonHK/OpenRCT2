@@ -33,6 +33,7 @@ namespace OpenRCT2::Ui::Vulkan
         VkPipelineLayout _pipelineLayout = VK_NULL_HANDLE;
         VkRenderPass _renderPass = VK_NULL_HANDLE;
         VkPipeline _computePipeline = VK_NULL_HANDLE;
+        VkPipeline _entityComputePipeline = VK_NULL_HANDLE;
         VkPipeline _pipeline = VK_NULL_HANDLE;
         VkPipeline _filterPipeline = VK_NULL_HANDLE;
         std::array<VkFramebuffer, kFramesInFlight> _framebuffers{};
@@ -93,6 +94,12 @@ namespace OpenRCT2::Ui::Vulkan
         uint64_t _profileSamples{}, _profileUnavailable{}, _profileDiscarded{};
         std::array<double, kProfilePointCount - 1> _profileTotalUs{}, _profileMaxUs{};
 
+        [[nodiscard]] bool NeedsSceneReset(const Gpu::WorldSurfaceSceneCommand& scene) const noexcept
+        {
+            return _uploadedEpoch != scene.worldEpoch || _uploadedWidth != scene.width || _uploadedHeight != scene.height
+                || _uploadedRevisions.size() != scene.chunks.size();
+        }
+
     public:
         WorldSurfacePipeline() = default;
         ~WorldSurfacePipeline();
@@ -105,7 +112,10 @@ namespace OpenRCT2::Ui::Vulkan
         void Record(const SubmissionToken& frame, const Gpu::WorldSurfaceSceneCommand& scene);
         [[nodiscard]] bool NeedsSpriteAdmission(const Gpu::WorldSurfaceSceneCommand& scene) const noexcept
         {
-            return scene.sprites && scene.sprites->revision != _uploadedSpriteRevision;
+            // Record invalidates sprite residency when the owning scene resets,
+            // even if immutable art has the same revision. Cold staging must
+            // predict that exact reset before choosing the ordinary frame ring.
+            return scene.sprites && (NeedsSceneReset(scene) || scene.sprites->revision != _uploadedSpriteRevision);
         }
         void Commit()
         {

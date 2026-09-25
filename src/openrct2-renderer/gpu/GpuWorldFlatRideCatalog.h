@@ -17,11 +17,42 @@ namespace OpenRCT2::Ui::Gpu
 #include "../../../data/shaders/vulkan/world_maze_order.glsl"
     } // namespace FlatRideRules
 
+    // A tower is one vertical assembly. Its immutable station owns its contact;
+    // moving cabins update their raster XYZ without moving the shaft contact.
+    class WorldTowerAssemblyContact
+    {
+        uint32_t _xy{}, _heightAndValid{};
+
+    public:
+        explicit WorldTowerAssemblyContact(const WorldRidePresentationRecord& ride)
+        {
+            for (const auto& station : ride.stations)
+            {
+                if (!station.startValid)
+                    continue;
+                const int32_t x = station.startX + 16, y = station.startY + 16;
+                if (x < 0 || y < 0 || x >= 32032 || y >= 32032 || station.startZ < 0 || station.startZ > 65535)
+                    throw std::invalid_argument("Tower station contact is outside the world domain");
+                _xy = uint32_t(x) | (uint32_t(y) << 16);
+                _heightAndValid = uint32_t(station.startZ) | 0x80000000u;
+                break;
+            }
+        }
+        uint32_t PackedXY() const
+        {
+            return _xy;
+        }
+        uint32_t PackedHeight() const
+        {
+            return _heightAndValid;
+        }
+    };
+
     struct WorldFlatRideCatalog
     {
         // Header: magic,version,rideOffset,rideCount,imageMapOffset,imageMapCount,totalWords,darkenRow.
         // Ride stride20: family,carBase,typeA,typeB,stationFlags,perTrain,numStations,numTrains,
-        // trackColours[4],vehicleColours[4],stationOffset,stationCount,reserved[2].
+        // trackColours[4],vehicleColours[4],stationOffset,stationCount,towerContactXY,towerBaseZAndValid.
         // Station stride5: entrance/exit valid flags,entranceX/Y,exitX/Y (tile coordinates).
         // Sorted image map: original image ID,resident sprite-table index.
         std::vector<uint32_t> words;
@@ -179,6 +210,12 @@ namespace OpenRCT2::Ui::Gpu
             words[entry + 5] = ride.vehicleColourSettings == 1 ? 1u : 0u;
             words[entry + 6] = ride.numStations;
             words[entry + 7] = ride.numTrains;
+            if (FlatRideRules::worldTowerFamily(static_cast<int>(family)))
+            {
+                const WorldTowerAssemblyContact contact(ride);
+                words[entry + 18] = contact.PackedXY();
+                words[entry + 19] = contact.PackedHeight();
+            }
             for (uint32_t i = 0; i < 4; i++)
             {
                 const auto& track = ride.trackColours[i];

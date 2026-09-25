@@ -50,7 +50,8 @@ namespace OpenRCT2::RideAudio
     void StopAllChannels();
     void UpdateMusicChannels();
     void AdvanceMusicPosition(Ride& ride);
-    void CollectMusicInstance(const Ride& ride, const CoordsXYZ& rideCoords, uint16_t sampleRate);
+    void CollectMusicInstance(
+        const Ride& ride, const CoordsXYZ& rideCoords, uint16_t sampleRate, const Audio::SpatialAudioListener& listener);
     bool IsMusicInstanceHigherPriority(const ViewportRideMusicInstance& lhs, const ViewportRideMusicInstance& rhs);
 
     void DefaultStartRideMusicChannel(const ViewportRideMusicInstance& instance);

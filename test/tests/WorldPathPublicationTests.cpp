@@ -12,6 +12,7 @@
 #include <openrct2/drawing/PresentationScene.h>
 #include <openrct2/entity/EntityPresentationSnapshot.h>
 #include <openrct2/object/FootpathSurfaceObject.h>
+#include <openrct2/object/ObjectList.h>
 #include <openrct2/object/ObjectManager.h>
 #include <openrct2/object/SmallSceneryObject.h>
 #include <openrct2/object/StationObject.h>
@@ -63,6 +64,60 @@ namespace
         }
     };
 } // namespace
+
+TEST_F(WorldPathPublicationTest, ReloadKeepsUnchangedMaterialOwnershipButRebindPublishesNewCatalog)
+{
+    auto& manager = context->GetObjectManager();
+    ObjectList objects;
+    const ObjectEntryDescriptor tree(ObjectType::smallScenery, "rct2.scenery_small.tl0");
+    objects.SetObject(0, tree);
+    manager.LoadObjects(objects);
+    const auto first = Capture(true);
+    const auto* loaded = manager.GetLoadedObject(ObjectType::smallScenery, 0);
+    ASSERT_NE(loaded, nullptr);
+    ASSERT_TRUE(first.objectMaterials->smallScenery[0].present);
+    const auto imageBase = first.objectMaterials->smallScenery[0].imageBase;
+    manager.LoadObjects(objects);
+    const auto reload = Capture(true);
+    EXPECT_NE(reload.epoch, first.epoch);
+    EXPECT_EQ(manager.GetLoadedObject(ObjectType::smallScenery, 0), loaded);
+    EXPECT_EQ(reload.terrainMaterials, first.terrainMaterials);
+    EXPECT_EQ(reload.pathMaterials, first.pathMaterials);
+    EXPECT_EQ(reload.objectMaterials, first.objectMaterials);
+    EXPECT_EQ(reload.rideMaterials, first.rideMaterials);
+    ObjectList moved;
+    moved.SetObject(3, tree);
+    manager.LoadObjects(moved);
+    const auto rebound = Capture();
+    EXPECT_EQ(manager.GetLoadedObject(ObjectType::smallScenery, 3), loaded);
+    EXPECT_NE(rebound.objectMaterials, first.objectMaterials);
+    EXPECT_FALSE(rebound.objectMaterials->smallScenery[0].present);
+    EXPECT_TRUE(rebound.objectMaterials->smallScenery[3].present);
+    EXPECT_EQ(rebound.objectMaterials->smallScenery[3].imageBase, imageBase);
+    EXPECT_TRUE(first.objectMaterials->smallScenery[0].present);
+    EXPECT_EQ(first.objectMaterials->smallScenery[0].imageBase, imageBase);
+}
+
+TEST_F(WorldPathPublicationTest, ReloadRecapturesRideFactsBeforeReusingMaterialOwnership)
+{
+    auto& state = getGameState();
+    state.ridesEndOfUsedRange = 1;
+    auto& ride = state.rides[0];
+    ride.id = RideId::FromUnderlying(0);
+    ride.type = 0;
+    auto& station = ride.getStation(StationIndex::FromUnderlying(254));
+    station.setEntrance(TileCoordsXYZD{ 2, 3, 10, 0 });
+    const auto first = Capture(true);
+    const auto same = Capture(true);
+    EXPECT_NE(same.epoch, first.epoch);
+    EXPECT_EQ(same.rideMaterials, first.rideMaterials);
+    station.setEntrance(TileCoordsXYZD{ 4, 5, 10, 0 });
+    const auto changed = Capture(true);
+    ASSERT_EQ(changed.rideMaterials->rides[0].stations.size(), 255u);
+    EXPECT_NE(changed.rideMaterials, first.rideMaterials);
+    EXPECT_EQ(changed.rideMaterials->rides[0].stations[254].entranceX, 4);
+    EXPECT_EQ(first.rideMaterials->rides[0].stations[254].entranceX, 2);
+}
 
 TEST_F(WorldPathPublicationTest, AuxiliarySnapshotDoesNotConsumeMainDirtyStateAndOwnsItsEpoch)
 {

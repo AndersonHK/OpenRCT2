@@ -14,9 +14,10 @@ struct WorldFlatPart {
     int image; int bank; int colour; int child;
     int x; int y; int z;
     int bx; int by; int bz; int sx; int sy; int sz;
-    int depthAnchor; // 0 raster origin; 1 nearest footprint tile; 2 named platform-fence edge.
+    int depthAnchor; // 0 raster; 1 footprint; 2 fence origin; 3 longitudinal component; 4 tower; 5 front contact.
 };
 const int WORLD_FLAT_PART_CAPACITY=8;
+const int WORLD_FLAT_FOREGROUND_ANCHOR=5;
 struct WorldFlatParts { int count; WorldFlatPart parts[WORLD_FLAT_PART_CAPACITY]; };
 #ifdef __cplusplus
 FLAT_FN void worldFlatAdd(FLAT_REF(WorldFlatParts) r,int image,int bank,int colour,int child,
@@ -69,6 +70,22 @@ FLAT_FN int worldFlatSequence(int family,int sequence,int direction)
     return sequence;
 }
 struct WorldFlatAnchor { int x; int y; };
+// SwingingShip.cpp supplies five separate tile-local parent groups using the
+// same artwork. Original viewport columns restrict each group to the two
+// columns containing its tile; they are not five unrestricted whole bodies.
+// Each cropped component still has one constant depth across its whole quad.
+FLAT_FN WorldFlatAnchor worldFlatAuthoredContact(WorldFlatPart part)
+{
+    WorldFlatAnchor result;
+    result.x=part.bx+(part.sx>0?part.sx-1:0);
+    result.y=part.by+(part.sy>0?part.sy-1:0);
+    return result;
+}
+FLAT_FN int worldFlatLongitudinalColumn(int tileScreenX)
+{
+    // Tile projections are multiples of32, including negative map projections.
+    return tileScreenX/32-1;
+}
 // Camera-relative displacement from this sequence tile to the nearest tile of
 // the authoritative TED footprint. A whole-body sprite must cover its own floor.
 // These are tile coordinates, never inferred from image bounds or opaque pixels.
@@ -121,6 +138,8 @@ FLAT_FN int worldFlatEdges(int family,int sequence,int direction)
 }
 #define worldFlatAddFence(r,image,bank,colour,child,x,y,z,bx,by,bz,sx,sy,sz) \
     do { worldFlatAdd(r,image,bank,colour,child,x,y,z,bx,by,bz,sx,sy,sz); r.parts[r.count-1].depthAnchor=2; } while(false)
+#define worldFlatAddFrontFence(r,image,bank,colour,child,x,y,z,bx,by,bz,sx,sy,sz) \
+    do { worldFlatAdd(r,image,bank,colour,child,x,y,z,bx,by,bz,sx,sy,sz); r.parts[r.count-1].depthAnchor=WORLD_FLAT_FOREGROUND_ANCHOR; } while(false)
 FLAT_FN void worldFlatFences(FLAT_REF(WorldFlatParts) r,int edges,int base,int bank,int colour,int special)
 {
     if((edges&8)!=0) worldFlatAddFence(r,base+3,bank,colour,1,0,0,0,0,2,2,32,1,7);
@@ -199,10 +218,10 @@ FLAT_FN WorldFlatParts worldFlatParts(int family,int sequence,int direction,bool
                 worldFlatAdd(r,(s==2?22368:22362)+odd,0,1,0,odd!=0?24:0,odd!=0?0:24,9,odd!=0?24:0,odd!=0?0:24,9,odd!=0?8:32,odd!=0?32:8,1);
                 bool frontFence=(fenceMask&(odd!=0?4:2))!=0;
                 if(s==3) {
-                    if(frontFence) worldFlatAdd(r,22372+odd,0,1,0,odd!=0?31:0,odd!=0?0:31,11,odd!=0?31:0,odd!=0?0:31,11,odd!=0?1:32,odd!=0?32:1,7);
-                    else worldFlatAdd(r,22374+odd,0,1,0,odd!=0?23:31,odd!=0?31:23,11,odd!=0?23:31,odd!=0?31:23,11,odd!=0?8:1,odd!=0?1:8,7);
-                    worldFlatAdd(r,22374+odd,0,1,0,odd!=0?0:31,odd!=0?31:0,11,odd!=0?0:31,odd!=0?31:0,11,odd!=0?8:1,odd!=0?1:8,7);
-                } else if(frontFence) worldFlatAdd(r,22370+odd,0,1,0,odd!=0?31:0,odd!=0?0:31,11,odd!=0?31:0,odd!=0?0:31,11,odd!=0?1:32,odd!=0?32:1,7);
+                    if(frontFence) worldFlatAddFrontFence(r,22372+odd,0,1,0,odd!=0?31:0,odd!=0?0:31,11,odd!=0?31:0,odd!=0?0:31,11,odd!=0?1:32,odd!=0?32:1,7);
+                    else worldFlatAddFrontFence(r,22374+odd,0,1,0,odd!=0?23:31,odd!=0?31:23,11,odd!=0?23:31,odd!=0?31:23,11,odd!=0?8:1,odd!=0?1:8,7);
+                    worldFlatAddFrontFence(r,22374+odd,0,1,0,odd!=0?0:31,odd!=0?31:0,11,odd!=0?0:31,odd!=0?31:0,11,odd!=0?8:1,odd!=0?1:8,7);
+                } else if(frontFence) worldFlatAddFrontFence(r,22370+odd,0,1,0,odd!=0?31:0,odd!=0?0:31,11,odd!=0?31:0,odd!=0?0:31,11,odd!=0?1:32,odd!=0?32:1,7);
             }
         }
     } else {
@@ -225,6 +244,11 @@ FLAT_FN WorldFlatParts worldFlatParts(int family,int sequence,int direction,bool
             worldFlatAddBody(r,base+(direction&1)*2,0,1,0,x,y,7,bx,by,7,sx,sy,family==9?127:80);
             worldFlatAddBody(r,family==9?direction*8:(direction&1)*9,1,2,1,x,y,7,bx,by,7,sx,sy,family==9?127:80);
             worldFlatAddBody(r,base+(direction&1)*2+1,0,1,1,x,y,7,bx,by,7,sx,sy,family==9?127:80);
+            if(family==13) {
+                r.parts[r.count-3].depthAnchor=3;
+                r.parts[r.count-2].depthAnchor=3;
+                r.parts[r.count-1].depthAnchor=3;
+            }
         } else if(family==14) {
             if((direction&2)!=0) worldFlatAddBody(r,(direction&1)*16,1,2,0,x,y,7,bx,by,7,sx,sy,127);
             worldFlatAddBody(r,21998+direction,0,1,(direction&2)!=0?1:0,x,y,7,bx,by,7,sx,sy,127);
@@ -288,4 +312,5 @@ FLAT_FN WorldFlatParts worldFlatParts(int family,int sequence,int direction,bool
 #undef FLAT_REF
 #undef worldFlatAddBody
 #undef worldFlatAddFence
+#undef worldFlatAddFrontFence
 #endif

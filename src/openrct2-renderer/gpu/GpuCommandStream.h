@@ -523,6 +523,9 @@ namespace OpenRCT2::Ui::Gpu
     constexpr uint32_t kWorldSurfaceComputeBlockWidth = 1024;
     constexpr uint32_t kWorldSurfaceMaximumDrawCount = static_cast<uint32_t>(
         (kWorldSurfaceMaximumRecordCount + 4 * 65536 + kWorldSurfaceComputeBlockWidth - 1) / kWorldSurfaceComputeBlockWidth);
+    // Materialization admits whole blocks; the padded tile/entity boundary and
+    // the final block must fit the prefix allocation as well as indirect draws.
+    constexpr uint32_t kWorldSurfacePrefixCapacity = kWorldSurfaceMaximumDrawCount * kWorldSurfaceComputeBlockWidth;
     // Everything Park requires over 402,000 sets, including complete specialized
     // vehicle banks, referenced peep art and effects. Keep the full resident
     // animation banks; 524,288 entries occupy 100 MiB, below Vulkan's minimum
@@ -550,8 +553,8 @@ namespace OpenRCT2::Ui::Gpu
         int32_t next;
     };
 
-    // Zero depth is reserved by the transparency compositor. Every emitted painter
-    // key must produce a positive value under 1 - (key + 1) / 2^22.
+    // Zero depth is reserved by the transparency compositor. Keep the established
+    // 22-bit priority domain shared with indexed_depth.glsl's positive D32 mapping.
     [[nodiscard]] constexpr std::optional<WorldSurfaceDepthRange> GetWorldSurfaceDepthRange(
         int32_t nextDepth, uint32_t recordCount) noexcept
     {
@@ -637,6 +640,13 @@ namespace OpenRCT2::Ui::Gpu
     [[nodiscard]] constexpr uint32_t GetWorldSurfaceDrawCount(uint32_t recordCount) noexcept
     {
         return (recordCount + kWorldSurfaceComputeBlockWidth - 1) / kWorldSurfaceComputeBlockWidth;
+    }
+
+    // Entity kernels begin at a whole compaction block so tile/entity kernels
+    // never write the same prefix or indirect command.
+    [[nodiscard]] constexpr uint32_t GetWorldEntityRecordBase(uint32_t tileCount) noexcept
+    {
+        return GetWorldSurfaceDrawCount(tileCount) * kWorldSurfaceComputeBlockWidth;
     }
 
     [[nodiscard]] constexpr bool WorldSurfaceBoundsVisible(const Int4& bounds, const Int4& clip) noexcept

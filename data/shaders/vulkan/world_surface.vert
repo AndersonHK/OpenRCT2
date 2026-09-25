@@ -2,8 +2,8 @@
 #extension GL_GOOGLE_include_directive : require
 #include "terrain_sprite_geometry.glsl"
 #include "world_component_depth.glsl"
+#include "indexed_depth.glsl"
 
-const float DEPTH_INCREMENT = 1.0 / float(1u << 22u);
 const float ATLAS_DIMENSION = 2048.0;
 
 layout(push_constant) uniform WorldSurfaceConstants
@@ -127,13 +127,22 @@ void main()
     bool visible = (vValid & 1) != 0 && (!originalPathGeometry || geometry.visible != 0u) && bounds.x < uCamera.clip.z && bounds.y < uCamera.clip.w
         && bounds.z > uCamera.clip.x && bounds.w > uCamera.clip.y;
     visible = visible && (((vEffects & 0x700u) != 0u) == (uCamera.phase == 4u));
+    ivec4 componentClip=uCamera.clip;
+    if((vValid&256)!=0) {
+        // An authored longitudinal component owns two original viewport
+        // columns. Crop geometry only: UV origin and constant depth stay intact.
+        int left=inverseZoom((vDepth>>16)*32,uCamera.zoom)+uCamera.clip.x-uCamera.view.x;
+        componentClip.x=max(componentClip.x,left);
+        componentClip.z=min(componentClip.z,left+inverseZoom(64,uCamera.zoom));
+        visible=visible && componentClip.x<componentClip.z
+            && bounds.x<componentClip.z && bounds.z>componentClip.x;
+    }
     ivec2 corners[4] = ivec2[](ivec2(0, 0), ivec2(1, 0), ivec2(0, 1), ivec2(1, 1));
     vec2 position = visible
         ? mix(vec2(bounds.xy), vec2(bounds.zw), vec2(corners[gl_VertexIndex]))
         : vec2(-2.0 * vec2(uCamera.screen));
     if (visible) {
-        ivec4 clip=uCamera.clip;
-        position=clamp(position,vec2(clip.xy),vec2(clip.zw));
+        position=clamp(position,vec2(componentClip.xy),vec2(componentClip.zw));
     }
     vec2 ndc = (position * (2.0 / vec2(uCamera.screen))) - 1.0;
     // All four vertices receive the SAME depth. Sprite pixels, clipped screen
@@ -142,13 +151,11 @@ void main()
     int componentDepth=(vValid&32)!=0?vComponent.x:rotated.x+rotated.y+vWorld.z;
     // Exact integer priority slots. One scalar step remains ahead of every
     // local child layer; later UI is outside this reserved 2^20 world interval.
-    float priority=float(uCamera.depthBase+uint(worldComponentPriorityOffset(componentDepth)));
-    float hardwareDepth=1.0-(priority+1.0)*DEPTH_INCREMENT;
-    uint depthBits=floatBitsToUint(hardwareDepth);
-    hardwareDepth=uintBitsToFloat(depthBits-localLayer);
+    uint priority=uint(uCamera.depthBase)+uint(worldComponentPriorityOffset(componentDepth));
+    float hardwareDepth=indexedDepth(priority,localLayer);
     // Floating annotations follow world paint. Their compacted glyph order
     // preserves overlapping outlines and hints; UI follows the entire interval.
-    if((vValid&128)!=0) hardwareDepth=1.0-float(uCamera.depthBase+1048576+vDepth+1)*DEPTH_INCREMENT;
+    if((vValid&128)!=0) hardwareDepth=indexedDepth(uint(uCamera.depthBase+1048576+vDepth),0u);
     gl_Position = vec4(ndc,hardwareDepth,1.0);
 
     // Procedural text uses an immutable column descriptor, not an atlas asset.

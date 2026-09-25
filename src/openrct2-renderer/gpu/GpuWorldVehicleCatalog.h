@@ -5,9 +5,9 @@
 #include <openrct2/SpriteIds.h>
 #include <openrct2/core/Console.hpp>
 #include <openrct2/drawing/VehiclePresentation.h>
-#include <set>
 #include <span>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 namespace OpenRCT2::Ui::Gpu
@@ -80,16 +80,20 @@ namespace OpenRCT2::Ui::Gpu
         w[5] = static_cast<uint32_t>(std::size(kWorldVehicleSelector));
         w[9] = ghostRow;
         w[10] = SPR_WATER_PARTICLES_DENSE_0;
-        std::set<uint32_t> images;
+        // Original car banks are contiguous intervals. Union the bounded bank
+        // list before enumerating images, rather than allocating a tree node
+        // for every image (and reinserting overlapping rider/car banks).
+        std::vector<std::pair<uint32_t, uint64_t>> imageRanges;
         uint64_t bankImageCount = 0;
         size_t admittedCars = 0;
         const bool reportBanks = std::getenv("OPENRCT2_VEHICLE_CATALOG_REPORT") != nullptr;
         const auto admitBank = [&](const Drawing::VehiclePresentationCar& car, uint64_t count) {
             if (car.baseImage < car.imageBase || count > car.imageCount
-                || uint64_t(car.baseImage) + count > uint64_t(car.imageBase) + car.imageCount)
+                || uint64_t(car.baseImage) + count > uint64_t(car.imageBase) + car.imageCount
+                || uint64_t(car.baseImage) + count > uint64_t(UINT32_MAX) + 1)
                 throw std::invalid_argument("Native vehicle image bank exceeds owning object allocation");
-            for (uint32_t i = 0; i < count; i++)
-                images.insert(car.baseImage + i);
+            if (count != 0)
+                imageRanges.emplace_back(car.baseImage, uint64_t(car.baseImage) + count);
             bankImageCount += count;
         };
         for (const auto slot : usedCars)
@@ -136,28 +140,41 @@ namespace OpenRCT2::Ui::Gpu
         }
         if (!usedCars.empty())
         {
-            for (uint32_t i = 0; i < 8; i++)
-                images.insert(SPR_WATER_PARTICLES_DENSE_0 + i);
-            for (uint32_t i = 0; i < 32; i++)
-            {
-                images.insert(SPR_SPLASH_EFFECT_1_NE_0 + i);
-                images.insert(SPR_SPLASH_EFFECT_3_NE_0 + i);
-                images.insert(SPR_SPLASH_EFFECT_5_NE_0 + i);
-            }
+            imageRanges.emplace_back(SPR_WATER_PARTICLES_DENSE_0, uint64_t(SPR_WATER_PARTICLES_DENSE_0) + 8);
+            imageRanges.emplace_back(SPR_SPLASH_EFFECT_1_NE_0, uint64_t(SPR_SPLASH_EFFECT_1_NE_0) + 32);
+            imageRanges.emplace_back(SPR_SPLASH_EFFECT_3_NE_0, uint64_t(SPR_SPLASH_EFFECT_3_NE_0) + 32);
+            imageRanges.emplace_back(SPR_SPLASH_EFFECT_5_NE_0, uint64_t(SPR_SPLASH_EFFECT_5_NE_0) + 32);
         }
+        std::sort(imageRanges.begin(), imageRanges.end());
+        size_t mergedCount = 0;
+        for (const auto range : imageRanges)
+        {
+            if (mergedCount != 0 && range.first <= imageRanges[mergedCount - 1].second)
+                imageRanges[mergedCount - 1].second = std::max(imageRanges[mergedCount - 1].second, range.second);
+            else
+                imageRanges[mergedCount++] = range;
+        }
+        imageRanges.resize(mergedCount);
+        uint64_t uniqueImages = 0;
+        for (const auto [first, end] : imageRanges)
+            uniqueImages += end - first;
+        if (uniqueImages > UINT32_MAX)
+            throw std::length_error("Native vehicle image union exceeds the lookup capacity");
         w.insert(w.end(), std::begin(kWorldVehicleSelector), std::end(kWorldVehicleSelector));
         w[6] = static_cast<uint32_t>(w.size());
-        w[7] = static_cast<uint32_t>(images.size());
+        w[7] = static_cast<uint32_t>(uniqueImages);
         // Report the complete immutable union before any resident sprite allocation can fail.
         // This is catalog-build work only, never a per-frame or per-vehicle image selection.
         Console::WriteLine(
-            "Vulkan vehicle admission: usedSlots=%zu admittedBanks=%zu bankImages=%llu uniqueImagesIncludingEffects=%zu",
-            usedCars.size(), admittedCars, static_cast<unsigned long long>(bankImageCount), images.size());
-        for (auto image : images)
-        {
-            w.push_back(image);
-            w.push_back(appendImage(image));
-        }
+            "Vulkan vehicle admission: usedSlots=%zu admittedBanks=%zu bankImages=%llu uniqueImagesIncludingEffects=%llu",
+            usedCars.size(), admittedCars, static_cast<unsigned long long>(bankImageCount),
+            static_cast<unsigned long long>(uniqueImages));
+        for (const auto [first, end] : imageRanges)
+            for (uint64_t image = first; image < end; ++image)
+            {
+                w.push_back(static_cast<uint32_t>(image));
+                w.push_back(appendImage(static_cast<uint32_t>(image)));
+            }
         w[8] = static_cast<uint32_t>(w.size());
         ValidateWorldVehicleCatalog(w);
         return out;

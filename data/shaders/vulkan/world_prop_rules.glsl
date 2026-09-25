@@ -34,6 +34,9 @@ PROP_FN WorldPropParts worldEmptyPropParts()
     for(int i=0;i<6;i++) result.parts[i]=worldPropPart(0,0,0,0,0,0,0,0,0,0,0,0);
     return result;
 }
+// Walls and banner faces own physical tile-edge contacts. Their bitmap
+// placement offsets are not their edge origins (especially directions0/2).
+PROP_FN bool worldPropHasEdgeContact(int kind) { return kind==2 || kind==3; }
 PROP_FN bool worldPropFlag(int flags,int bit) { return (flags & (1 << bit))!=0; }
 PROP_FN int worldSmallColourMode(int flags)
 {

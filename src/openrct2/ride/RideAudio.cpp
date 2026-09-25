@@ -205,8 +205,7 @@ namespace OpenRCT2::RideAudio
             }
             const auto now = std::chrono::steady_clock::now();
             const auto elapsed = std::chrono::duration<float>(now - LastMotionUpdate).count();
-            const auto doppler = UpdateDopplerMotion(
-                Doppler, instance.Listener, instance.SourcePosition, elapsed, false);
+            const auto doppler = UpdateDopplerMotion(Doppler, instance.Listener, instance.SourcePosition, elapsed, false);
             LastMotionUpdate = now;
             if (Frequency != instance.Frequency)
             {
@@ -223,8 +222,7 @@ namespace OpenRCT2::RideAudio
     static std::vector<RideMusicChannel> _musicChannels;
     static std::chrono::steady_clock::time_point _lastMusicAudioReport{};
 
-    bool IsMusicInstanceHigherPriority(
-        const ViewportRideMusicInstance& lhs, const ViewportRideMusicInstance& rhs)
+    bool IsMusicInstanceHigherPriority(const ViewportRideMusicInstance& lhs, const ViewportRideMusicInstance& rhs)
     {
         return lhs.PriorityGain > rhs.PriorityGain;
     }
@@ -426,16 +424,12 @@ namespace OpenRCT2::RideAudio
      * Register an instance of audible ride music for this presentation frame. This samples authoritative music state but
      * never writes it: display cadence and an audio channel's wall-clock cursor cannot affect simulation or multiplayer state.
      */
-    void CollectMusicInstance(const Ride& ride, const CoordsXYZ& rideCoords, uint16_t sampleRate)
+    void CollectMusicInstance(
+        const Ride& ride, const CoordsXYZ& rideCoords, uint16_t sampleRate, const Audio::SpatialAudioListener& listener)
     {
         if (gLegacyScene != LegacyScene::scenarioEditor && !gGameSoundsOff)
         {
-            const auto listener = GetSpatialAudioListener();
-            if (!listener.has_value())
-                return;
-
-            const auto spatial = CalculateSpatialAudioParams(
-                *listener, rideCoords, 1.0f, SpatialAudioRolloff::rideMusic);
+            const auto spatial = CalculateSpatialAudioParams(listener, rideCoords, 1.0f, SpatialAudioRolloff::rideMusic);
             // Ride music is emitted by amplified park speakers rather than a point-sized mechanical source.
             // Its source calibration and compressed continuous rolloff keep a faint long-range bed.
             const auto musicGain = spatial.Gain * kRideMusicSourceGain;
@@ -462,7 +456,7 @@ namespace OpenRCT2::RideAudio
                     instance.Elevation = spatial.Elevation;
                     instance.Distance = spatial.Distance;
                     instance.LowPassCutoff = spatial.LowPassCutoff;
-                    instance.Listener = *listener;
+                    instance.Listener = listener;
                     instance.SourcePosition = rideCoords;
                     instance.Frequency = sampleRate;
                 }

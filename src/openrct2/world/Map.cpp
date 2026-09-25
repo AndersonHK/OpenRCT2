@@ -488,8 +488,11 @@ namespace OpenRCT2
                                              static_cast<uint8_t>(ride.trackColours[colour].additional),
                                              static_cast<uint8_t>(ride.trackColours[colour].supports) };
         }
-        if (captured != nullptr && capturedEpoch == epoch && capturedObjects == objects && captured->rides == facts)
+        if (captured != nullptr && capturedObjects == objects && captured->rides == facts)
         {
+            // Lifecycle switches still capture all facts above; equal immutable
+            // material data can retain its allocation independently of map state.
+            capturedEpoch = epoch;
             capturedStations = stationRevision;
             return captured;
         }
@@ -523,8 +526,7 @@ namespace OpenRCT2
                 continue;
             // Queue signs need authoritative status even for rides without a flat mechanism.
             // Bit 0 retains its existing meaning: a supported mechanism pose is present.
-            words[0] = (ride.flags.has(RideFlag::brokenDown) ? 8u : 0u)
-                | (ride.status == RideStatus::open ? 16u : 0u);
+            words[0] = (ride.flags.has(RideFlag::brokenDown) ? 8u : 0u) | (ride.status == RideStatus::open ? 16u : 0u);
             const auto style = getTrackDrawerEntry(GetRideTypeDescriptor(ride.type)).trackStyle;
             if (style == TrackStyle::chairlift)
             {
@@ -725,12 +727,11 @@ namespace OpenRCT2
         return record;
     }
 
-    static std::shared_ptr<const TerrainPresentationMaterials> CaptureTerrainMaterials(uint64_t epoch)
+    static std::shared_ptr<const TerrainPresentationMaterials> CaptureTerrainMaterials()
     {
-        static uint64_t capturedEpoch{};
         static std::shared_ptr<const TerrainPresentationMaterials> captured;
         const auto revision = GetTerrainObjectRevision();
-        if (captured != nullptr && capturedEpoch == epoch && captured->revision == revision)
+        if (captured != nullptr && captured->revision == revision)
             return captured;
         auto next = std::make_shared<TerrainPresentationMaterials>();
         next->revision = revision;
@@ -779,7 +780,6 @@ namespace OpenRCT2
                 material.hasDoors = object->HasDoors && !object->UsesFallbackImages();
             }
         }
-        capturedEpoch = epoch;
         captured = std::move(next);
         return captured;
     }
@@ -806,7 +806,7 @@ namespace OpenRCT2
             .sourceTick = gameState.currentTicks,
             .profile = profile,
         };
-        batch.terrainMaterials = CaptureTerrainMaterials(batch.epoch);
+        batch.terrainMaterials = CaptureTerrainMaterials();
         batch.pathMaterials = CapturePathMaterials();
         batch.objectMaterials = CaptureWorldObjectMaterials();
         batch.rideMaterials = CaptureWorldRideMaterials(batch.epoch);

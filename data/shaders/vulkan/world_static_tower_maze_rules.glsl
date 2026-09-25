@@ -2,6 +2,7 @@
 #ifndef OPENRCT2_WORLD_STATIC_TOWER_MAZE_RULES
 #define OPENRCT2_WORLD_STATIC_TOWER_MAZE_RULES
 #include "world_flat_ride_rules.glsl"
+#include "world_tower_assembly.glsl"
 #ifdef __cplusplus
 #define STATIC_FN constexpr
 #else
@@ -42,6 +43,7 @@ STATIC_FN WorldFlatParts worldTowerParts(int family,int sequence,int direction,b
         if(sequence==1) return r;
         worldFlatAdd(r,segment,0,1,0,0,0,0,8,8,0,2,2,30);
         if(cap) worldFlatAdd(r,segment+1,0,1,1,0,0,0,8,8,0,2,2,30);
+        for(int i=0;i<r.count;i++) r.parts[i].depthAnchor=WORLD_TOWER_SHAFT_ANCHOR;
         return r;
     }
     int s=worldFlatSequence(1,sequence,direction);
@@ -53,9 +55,11 @@ STATIC_FN WorldFlatParts worldTowerParts(int family,int sequence,int direction,b
     if(s==0) {
         int base=family==20?14986:(family==21?14564:14560+(direction&1)*2);
         int baseSegment=family==22?base+1:segment;
+        int shaftFirst=r.count;
         worldFlatAdd(r,base,0,1,0,0,0,0,8,8,3,2,2,27);
         worldFlatAdd(r,baseSegment,0,1,0,0,0,32,8,8,32,2,2,30);
         worldFlatAdd(r,baseSegment,0,1,0,0,0,64,8,8,64,2,2,30);
+        for(int i=shaftFirst;i<r.count;i++) r.parts[i].depthAnchor=WORLD_TOWER_SHAFT_ANCHOR;
     }
     return r;
 }

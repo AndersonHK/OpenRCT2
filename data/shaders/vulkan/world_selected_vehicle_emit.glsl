@@ -30,10 +30,14 @@ void worldEmitSelected(uint workIndex,uint destination,bool writeRecords,inout u
 {
     if(uScene.zoom>2 || uScene.recordCount==0u || uSelected.words[0u]!=0x56504831u || uSelected.words[1u]!=2u) return;
     uint carCount=uSelected.words[2u];
+    uint tileCount=uScene.width*uScene.height;
+    if(tileCount==0u) return;
     // Host validates all counts, identities, contiguous groups and packet offsets.
     // Independent tile invocations share this bounded car work without scanning
     // all cars for every tile; every car is emitted exactly once, even on a tiny map.
-    [[dont_unroll]] for(uint car=workIndex;car<carCount;car+=uScene.recordCount) {
+    // recordCount also includes padded entity work after kernel separation.
+    // Only actual tile invocations participate in this auxiliary distribution.
+    [[dont_unroll]] for(uint car=workIndex;car<carCount;car+=tileCount) {
         uint address=uSelected.words[4u]+car*12u;
         ivec4 coarse=ivec4(uSelected.words[address+8u],uSelected.words[address+9u],
             uSelected.words[address+10u],uSelected.words[address+11u]);
@@ -58,7 +62,7 @@ void worldEmitSelected(uint workIndex,uint destination,bool writeRecords,inout u
             uint kind=uSelected.words[metadata+8u]&3u;
             if(kind==0u) { admitted=false;worldParentRoot=0xffffffffu;sourceRoot=c; }
             uint layer=c-sourceRoot+1u;
-            if(layer>uint(WORLD_COMPONENT_LAYER_MAX)) { atomicOr(uStatus.overflow,8u);return; }
+            if(layer>uint(WORLD_COMPONENT_CHILD_MAX)) { atomicOr(uStatus.overflow,8u);return; }
             OutputRecord record=worldSelectedComponent(c);
             if(kind>=2u) {
                 if(!admitted) continue;

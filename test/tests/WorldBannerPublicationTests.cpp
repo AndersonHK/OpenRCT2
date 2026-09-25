@@ -497,3 +497,39 @@ TEST_F(WorldBannerPublicationTest, PausedScenePublishesCaptionAndQueueStatusWith
         scene.Reset(jobs);
     }
 }
+
+TEST(WorldWallContactRulesTest, BuriedLatticeEdgesStayBetweenTheirAdjacentRoadFloors)
+{
+    // Kahuna Point parking bays: WALLLT32 atZ224, flat tarmac atZ256.
+    // The white top edge must beat the floor behind it while the floor ahead
+    // still hides its buried lattice. These are the original Paint.Wall bounds.
+    constexpr std::array<CoordsXYZ, 4> originalContacts = { CoordsXYZ{ 1, 1, 1 }, { 2, 30, 1 }, { 30, 2, 1 }, { 1, 1, 1 } };
+    for (int rotation = 0; rotation < 4; ++rotation)
+        for (int worldDirection = 0; worldDirection < 4; ++worldDirection)
+        {
+            const int direction = (worldDirection + rotation) & 3;
+            const auto parts = worldWallPropParts(1, 0, 4, direction, 0, 0, false, 0);
+            ASSERT_EQ(parts.count, 1);
+            const auto& wall = parts.parts[0];
+            const auto& original = originalContacts[direction];
+            EXPECT_EQ(wall.boundsX, original.x);
+            EXPECT_EQ(wall.boundsY, original.y);
+            EXPECT_EQ(wall.boundsZ, original.z);
+            const int contact = 224 + wall.boundsX + wall.boundsY + wall.boundsZ;
+            const bool nearEdge = direction == 1 || direction == 2;
+            const int rearFloor = nearEdge ? 256 : 224;
+            EXPECT_GT(contact, rearFloor);
+            EXPECT_LT(contact, rearFloor + 32);
+            // The fix preserves source imagery and height, rather than raising
+            // all walls by their32-unit visible height.
+            EXPECT_EQ(wall.z, 0);
+            EXPECT_EQ(wall.imageOffset, (direction & 1) == 0 ? 1 : 0);
+            const int oldRasterContact = 224 + wall.x + wall.y;
+            EXPECT_GE(contact - oldRasterContact, 0);
+            EXPECT_LE(contact - oldRasterContact, 3);
+        }
+    EXPECT_TRUE(worldPropHasEdgeContact(2));
+    EXPECT_TRUE(worldPropHasEdgeContact(3));
+    EXPECT_FALSE(worldPropHasEdgeContact(0));
+    EXPECT_FALSE(worldPropHasEdgeContact(1));
+}

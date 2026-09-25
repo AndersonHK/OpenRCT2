@@ -1,5 +1,6 @@
 // Copyright (c) 2014-2026 OpenRCT2 developers. GPL-3.0-or-later.
 #pragma once
+#include "NativeRailwayData.h"
 #include <algorithm>
 #include <bit>
 #include <limits>
@@ -22,7 +23,7 @@ namespace OpenRCT2::Ui::Gpu
     {
         // Header (16 words): magic,version,recipeOffset,rideOffset,rideCount,
         // rideTypeOffset,rideTypeCount,trackTypeOffset,trackTypeCount,
-        // imageMapOffset,imageMapCount,totalWords,supportProgramOffset,supportProgramWords,reserved[2].
+        // imageMapOffset,imageMapCount,totalWords,supportProgramOffset,supportProgramWords,railwayOffset,railwayWords.
         // Ride entries: present,type,object/station,reserved, four raw colour triplets.
         // Ride type entries: regular,inverted,covered,covered-inverted styles in
         // low16 bits, with the descriptor's support type in bits16..23.
@@ -31,12 +32,15 @@ namespace OpenRCT2::Ui::Gpu
         std::vector<uint32_t> words;
     };
 
+    inline void ValidateWorldRailwayCatalog(std::span<const uint32_t> words);
+
     inline void ValidateWorldTrackCatalog(std::span<const uint32_t> words)
     {
         if (words.empty())
             return;
         if (words.size() < 12 || words[0] != 0x5754524b || words[11] != words.size())
             throw std::invalid_argument("GPU track catalog header is invalid");
+        ValidateWorldRailwayCatalog(words);
         const auto version = words[1] & 255u;
         if (version != 1 && version != 2)
             throw std::invalid_argument("GPU track catalog version is unsupported");
@@ -52,6 +56,19 @@ namespace OpenRCT2::Ui::Gpu
                 || (support[7] - support[6]) % 12 != 0)
                 throw std::invalid_argument("GPU track support program header is invalid");
         }
+    }
+
+    inline void ValidateWorldRailwayCatalog(std::span<const uint32_t> words)
+    {
+        if (words.size() < 16 || (words[1] & 255u) < 2u || words[14] == 0)
+            return;
+        if (words[14] > words.size() || words[15] > words.size() - words[14] || words[15] < 8)
+            throw std::invalid_argument("GPU railway catalog range is invalid");
+        const auto data = words.subspan(words[14], words[15]);
+        if (data[0] != 0x5241494c || data[1] != 1 || data[3] != 8
+            || uint64_t(data[2]) * 2 + data[3] != data[4] || data[4] > data[5]
+            || (data[5] - data[4]) % 5 != 0 || uint64_t(data[6]) * 12 + data[5] != data.size())
+            throw std::invalid_argument("GPU railway catalog header is invalid");
     }
 
     template<typename AppendImage>
@@ -105,6 +122,9 @@ namespace OpenRCT2::Ui::Gpu
         const auto supportDefinitions = Drawing::GetNativeTrackSupportWords();
         words[13] = static_cast<uint32_t>(supportDefinitions.size());
         words.insert(words.end(), supportDefinitions.begin(), supportDefinitions.end());
+        words[14] = offset();
+        words[15] = static_cast<uint32_t>(std::size(kNativeRailwayWords));
+        words.insert(words.end(), std::begin(kNativeRailwayWords), std::end(kNativeRailwayWords));
         words[9] = offset();
         // Residency follows shared styles belonging to present rides, never
         // placed track instances. Use the same RTD variant table as the GPU.
@@ -125,7 +145,10 @@ namespace OpenRCT2::Ui::Gpu
         // Their bounded truss domain must exist even in a park without tracks.
         for (int i = 0; i < MetalSupportRules::worldEntranceSupportAssetCount(); ++i)
             images.push_back(static_cast<uint32_t>(MetalSupportRules::worldEntranceSupportAssetImage(i)));
-        bool needsMetal = false, needsWooden = false;
+        const bool needsRailway = requiredStyles[static_cast<uint32_t>(TrackStyle::miniatureRailway)];
+        if (needsRailway)
+            images.insert(images.end(), std::begin(kNativeRailwayImages), std::end(kNativeRailwayImages));
+        bool needsMetal = false, needsWooden = needsRailway;
         for (uint32_t style = 0; style < requiredStyles.size() && !(needsMetal && needsWooden); ++style)
         {
             if (!requiredStyles[style] || style >= supportDefinitions[2])
@@ -153,7 +176,7 @@ namespace OpenRCT2::Ui::Gpu
         if (needsWooden)
             for (int i = 0; i < MetalSupportRules::worldWoodenAssetCount(); ++i)
                 images.push_back(static_cast<uint32_t>(MetalSupportRules::worldWoodenAssetImage(i)));
-        bool needsStations = false;
+        bool needsStations = needsRailway;
         bool needsChairliftStations = false;
         for (uint32_t style = 0; style < requiredStyles.size(); ++style)
         {
@@ -234,6 +257,7 @@ namespace OpenRCT2::Ui::Gpu
             words.push_back(appendImage(image));
         }
         words[11] = offset();
+        ValidateWorldRailwayCatalog(words);
         return result;
     }
 } // namespace OpenRCT2::Ui::Gpu

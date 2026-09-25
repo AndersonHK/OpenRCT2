@@ -38,6 +38,7 @@ if (ENABLE_VULKAN AND NOT EMSCRIPTEN)
             "${VULKAN_SHADER_SOURCE_DIR}/world_filter_collect.frag"
             "${VULKAN_SHADER_SOURCE_DIR}/world_filter_resolve.comp"
             "${VULKAN_SHADER_SOURCE_DIR}/world_surface_compact.comp"
+            "${VULKAN_SHADER_SOURCE_DIR}/world_entities_compact.comp"
             "${VULKAN_SHADER_SOURCE_DIR}/terrain_retained_emit.comp"
             "${VULKAN_SHADER_SOURCE_DIR}/terrain_columns.comp"
             "${VULKAN_SHADER_SOURCE_DIR}/peep_fields.comp"
@@ -68,6 +69,7 @@ if (ENABLE_VULKAN AND NOT EMSCRIPTEN)
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/world_filter_collect.frag.spv"
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/world_filter_resolve.comp.spv"
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/world_surface_compact.comp.spv"
+                AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/world_entities_compact.comp.spv"
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/terrain_retained_emit.comp.spv"
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/terrain_columns.comp.spv"
                 AND EXISTS "${VULKAN_SHADER_SOURCE_DIR}/peep_fields.comp.spv"
@@ -134,10 +136,12 @@ if (OPENRCT2_VULKAN_ENABLED)
         set(VULKAN_SHADER_INCLUDES)
         if (VULKAN_SHADER_NAME STREQUAL "terrain_retained_emit.comp")
             list(APPEND VULKAN_SHADER_INCLUDES "${VULKAN_SHADER_SOURCE_DIR}/terrain_surface_rules.glsl")
-        elseif (VULKAN_SHADER_NAME STREQUAL "world_surface_compact.comp")
-            list(APPEND VULKAN_SHADER_INCLUDES "${VULKAN_SHADER_SOURCE_DIR}/world_surface_rules.glsl"
+        elseif (VULKAN_SHADER_NAME STREQUAL "world_surface_compact.comp" OR VULKAN_SHADER_NAME STREQUAL "world_entities_compact.comp")
+            list(APPEND VULKAN_SHADER_INCLUDES "${VULKAN_SHADER_SOURCE_DIR}/world_materialize.glsl"
+                "${VULKAN_SHADER_SOURCE_DIR}/world_surface_rules.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/world_parent_capture.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/world_component_depth.glsl"
+                "${VULKAN_SHADER_SOURCE_DIR}/world_tower_assembly.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/world_path_rules.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/world_support_state.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/world_object_support_state.glsl"
@@ -162,6 +166,8 @@ if (OPENRCT2_VULKAN_ENABLED)
                 "${VULKAN_SHADER_SOURCE_DIR}/world_prop_rules.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/world_prop_emit.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/world_track_rules.glsl"
+                "${VULKAN_SHADER_SOURCE_DIR}/world_railway_rules.glsl"
+                "${VULKAN_SHADER_SOURCE_DIR}/world_railway_emit.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/world_track_depth.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/world_track_emit.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/world_track_station.glsl"
@@ -184,12 +190,16 @@ if (OPENRCT2_VULKAN_ENABLED)
                 "${VULKAN_SHADER_SOURCE_DIR}/terrain_sprite_geometry.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/terrain_surface_rules.glsl")
         elseif (VULKAN_SHADER_NAME STREQUAL "world_surface.vert")
-            list(APPEND VULKAN_SHADER_INCLUDES "${VULKAN_SHADER_SOURCE_DIR}/terrain_sprite_geometry.glsl")
+            list(APPEND VULKAN_SHADER_INCLUDES "${VULKAN_SHADER_SOURCE_DIR}/terrain_sprite_geometry.glsl"
+                "${VULKAN_SHADER_SOURCE_DIR}/world_component_depth.glsl")
         elseif (VULKAN_SHADER_NAME STREQUAL "world_surface.frag")
             list(APPEND VULKAN_SHADER_INCLUDES "${VULKAN_SHADER_SOURCE_DIR}/world_banner_text.glsl")
         elseif (VULKAN_SHADER_NAME STREQUAL "terrain_columns.comp")
             list(APPEND VULKAN_SHADER_INCLUDES "${VULKAN_SHADER_SOURCE_DIR}/terrain_sprite_geometry.glsl"
                 "${VULKAN_SHADER_SOURCE_DIR}/peep_rules.glsl")
+        endif ()
+        if (VULKAN_SHADER_NAME MATCHES "^(balloon|indexed_line|indexed_rect|indexed_sprite|indexed_transparent_rect|world_surface)\\.vert$")
+            list(APPEND VULKAN_SHADER_INCLUDES "${VULKAN_SHADER_SOURCE_DIR}/indexed_depth.glsl")
         endif ()
         if (OPENRCT2_VULKAN_SHADER_MODE STREQUAL "compile")
             add_custom_command(

@@ -239,7 +239,7 @@ namespace OpenRCT2
     static void RideInspectionUpdate(Ride& ride);
     static void RideMechanicStatusUpdate(Ride& ride, MechanicStatus mechanicStatus);
     static void RideMusicUpdate(Ride& ride, const RideTypeDescriptor& rtd);
-    static void RideMusicCollect(const Ride& ride, const RideTypeDescriptor& rtd);
+    static void RideMusicCollect(const Ride& ride, const RideTypeDescriptor& rtd, const Audio::SpatialAudioListener& listener);
     static void RideShopConnected(const Ride& ride);
 
     RideId GetNextFreeRideId()
@@ -1162,8 +1162,14 @@ namespace OpenRCT2
     void Ride::updatePresentationAudio()
     {
         WindowUpdateViewportRideMusic();
-        for (const auto& ride : RideManager(getGameState()))
-            RideMusicCollect(ride, ride.getRideTypeDescriptor());
+        // One listener sample belongs to this complete presentation update.
+        // Sampling per speaker repeats terrain projection and gives speakers
+        // different smoothed camera states within the same audio frame.
+        if (const auto listener = Audio::GetSpatialAudioListener())
+        {
+            for (const auto& ride : RideManager(getGameState()))
+                RideMusicCollect(ride, ride.getRideTypeDescriptor(), *listener);
+        }
         RideAudio::UpdateMusicChannels();
     }
 
@@ -2171,13 +2177,13 @@ namespace OpenRCT2
         rtd.MusicUpdateFunction(ride);
     }
 
-    static void RideMusicCollect(const Ride& ride, const RideTypeDescriptor& rtd)
+    static void RideMusicCollect(const Ride& ride, const RideTypeDescriptor& rtd, const Audio::SpatialAudioListener& listener)
     {
         if (!rtd.flags.hasAny(RtdFlag::hasMusicByDefault, RtdFlag::allowMusic) || ride.musicTuneId == kTuneIDNull)
             return;
 
         const auto rideCoords = ride.getStation().getStart().toTileCentre();
-        RideAudio::CollectMusicInstance(ride, rideCoords, RideMusicSampleRate(ride));
+        RideAudio::CollectMusicInstance(ride, rideCoords, RideMusicSampleRate(ride), listener);
     }
 
 #pragma endregion

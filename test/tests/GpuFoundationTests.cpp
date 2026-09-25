@@ -20,6 +20,7 @@
 #endif
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <cstddef>
 #include <limits>
 #include <openrct2/drawing/LightFX.h>
@@ -27,6 +28,11 @@
 #include <optional>
 #include <stdexcept>
 #include <utility>
+
+namespace IndexedDepthRules
+{
+#include "../../data/shaders/vulkan/indexed_depth.glsl"
+}
 
 using namespace OpenRCT2::Ui::Gpu;
 namespace LightFx = OpenRCT2::Drawing::LightFx;
@@ -228,7 +234,9 @@ TEST(GpuFoundationTest, NativeTerrainReservesPainterDepthBetweenEarlierCommandsA
         ASSERT_TRUE(range.has_value());
         EXPECT_EQ(range->first, 37);
         EXPECT_EQ(range->next, 37 + static_cast<int32_t>(kWorldSceneDepthReservation));
-        const auto depth = [](int32_t key) { return 1.0f - (static_cast<float>(key) + 1.0f) / (1 << 22); };
+        const auto depth = [](int32_t key) {
+            return std::bit_cast<float>(IndexedDepthRules::indexedDepthBits(static_cast<uint32_t>(key), 0));
+        };
         // Less depth wins. A later UI rectangle must beat every native tile,
         // while the first native tile must beat preceding ordinary commands.
         EXPECT_LT(depth(range->first), depth(36));
@@ -1116,6 +1124,28 @@ TEST(GpuFoundationTest, IntegratedTimingFieldsRemainExplicitlyOptional)
     EXPECT_FALSE(timings.hasGpuTimestamp);
     EXPECT_FALSE(timings.hasGpuPassTimestamps);
     EXPECT_FALSE(timings.hasPresentCallMeasurement);
+}
+
+TEST(GpuFoundationTest, MaterializationPrefixAllocationIncludesTheAcceptedPartialBlock)
+{
+    // Before kernel splitting the arena counted tiles plus entity records.
+    // A non-aligned maximum map now pads its tile boundary: this legal work
+    // count passed the rounded dispatch limit but overran that old allocation.
+    const auto tileCount = static_cast<uint32_t>(kWorldSurfaceMaximumRecordCount);
+    const uint32_t work = GetWorldEntityRecordBase(tileCount) + 4 * 65535u;
+    ASSERT_LE(GetWorldSurfaceDrawCount(work), kWorldSurfaceMaximumDrawCount);
+    ASSERT_GT(work, tileCount + 4 * 65536u);
+    EXPECT_LE(work, kWorldSurfacePrefixCapacity);
+    EXPECT_LE(work - 1, kWorldSurfacePrefixCapacity - 1);
+    // Every possible count in the final accepted block must have storage;
+    // the first count beyond it is rejected by the dispatch admission guard.
+    const auto first = (kWorldSurfaceMaximumDrawCount - 1) * kWorldSurfaceComputeBlockWidth + 1;
+    for (uint32_t count = first; count <= kWorldSurfacePrefixCapacity; ++count)
+    {
+        ASSERT_EQ(GetWorldSurfaceDrawCount(count), kWorldSurfaceMaximumDrawCount);
+        ASSERT_LT(count - 1, kWorldSurfacePrefixCapacity);
+    }
+    EXPECT_GT(GetWorldSurfaceDrawCount(kWorldSurfacePrefixCapacity + 1), kWorldSurfaceMaximumDrawCount);
 }
 
 TEST(GpuFoundationTest, WorldSurfaceDiagonalTraversalIsBijectiveAndMonotonicForRectangles)

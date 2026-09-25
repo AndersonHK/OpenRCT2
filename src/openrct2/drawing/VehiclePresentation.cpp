@@ -115,8 +115,9 @@ namespace OpenRCT2::Drawing
         for (uint32_t slot = 0; slot < resident.size(); ++slot)
             if (resident[slot])
                 used->push_back(slot);
-        const bool compatible = previous && previous->catalog == snapshot.catalog && previous->worldEpoch == snapshot.worldEpoch
-            && previous->entityEpoch == snapshot.entityEpoch;
+        // Membership selects cold artwork, not entity identity. Equal car slots
+        // in the same object generation remain valid across a new map/entity epoch.
+        const bool compatible = previous && previous->catalog == snapshot.catalog;
         snapshot.usedCars = compatible && previous->usedCars && *previous->usedCars == *used ? previous->usedCars : used;
     }
 
@@ -175,7 +176,7 @@ namespace OpenRCT2::Drawing
             r.trackType = EnumValue(car->GetTrackType());
             r.trackProgress = car->track_progress;
             r.velocity = car->velocity;
-            r.status = EnumValue(car->status);
+            r.SetStatusAndRide(EnumValue(car->status), car->ride.ToUnderlying());
             r.animationState = car->animationState;
             r.miniGolf = EnumValue(car->mini_golf_current_animation);
             if (car->num_peeps != 0)

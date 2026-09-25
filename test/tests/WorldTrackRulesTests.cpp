@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <bit>
 #include <gtest/gtest.h>
+#include <limits>
 #include <openrct2-renderer/gpu/GpuWorldTrackCatalog.h>
 #include <openrct2/drawing/NativeTrackRecipes.h>
 #include <openrct2/ride/TrackStyle.h>
@@ -11,8 +12,9 @@
 
 namespace ComponentDepthRules
 {
+#include "../../data/shaders/vulkan/indexed_depth.glsl"
 #include "../../data/shaders/vulkan/world_component_depth.glsl"
-}
+} // namespace ComponentDepthRules
 
 namespace TrackDepthRules
 {
@@ -294,7 +296,7 @@ TEST(WorldTrackRulesTest, StationFootprintEnclosesOwnRailButStaysBehindAdjacentB
                 EXPECT_GT(rail, elevation + 28 + 24 + 8);      // Car/guest inside the platform corridor.
                 EXPECT_LT(shell, elevation + 32 + 2 + 2 + 30); // Adjacent entrance front must cover the station.
                 EXPECT_GT(TrackDepthRules::WORLD_FOREGROUND_SHELL_LAYER, TrackDepthRules::WORLD_FOREGROUND_RAIL_LAYER);
-                EXPECT_LE(TrackDepthRules::WORLD_FOREGROUND_SHELL_LAYER + 1, ComponentDepthRules::WORLD_COMPONENT_LAYER_MAX);
+                EXPECT_LE(TrackDepthRules::WORLD_FOREGROUND_SHELL_LAYER + 1, ComponentDepthRules::WORLD_COMPONENT_CHILD_MAX);
                 // The transparent child can filter its owner's surface without
                 // escaping the contact interval into the adjacent building.
                 EXPECT_TRUE(
@@ -825,21 +827,19 @@ TEST(WorldTrackRulesTest, ConstantComponentLayersCannotCrossAnAdjacentAuthoredAn
 {
     using namespace ComponentDepthRules;
     const auto encoded = [](int depth, uint32_t layer, uint32_t base) {
-        const float priority = static_cast<float>(base + worldComponentPriorityOffset(depth));
-        const float value = 1.0f - (priority + 1.0f) / static_cast<float>(1u << 22);
-        return std::bit_cast<float>(std::bit_cast<uint32_t>(value) - layer);
+        return std::bit_cast<float>(indexedDepthBits(base + worldComponentPriorityOffset(depth), layer));
     };
     // Exercise every integer scalar, including every D32 exponent boundary, at
     // representative reserved world positions. Smaller hardware Z is nearer.
-    for (uint32_t base : { 0u, 17u, 1048576u, 2097152u, 3145728u })
+    for (uint32_t base : { 0u, 17u, 1048576u, 2097152u, INDEXED_DEPTH_PRIORITY_MAX - 1048576u })
     {
         for (int depth = WORLD_COMPONENT_DEPTH_MIN; depth < WORLD_COMPONENT_DEPTH_MAX; ++depth)
         {
             ASSERT_GT(encoded(depth, WORLD_COMPONENT_LAYER_MAX, base), encoded(depth + 1, 0, base))
                 << depth << " at world base " << base;
         }
-        const float precedingUi = 1.0f - static_cast<float>(base) / static_cast<float>(1u << 22);
-        const float followingUi = 1.0f - static_cast<float>(base + 1048576u + 1u) / static_cast<float>(1u << 22);
+        const float precedingUi = base == 0 ? 1.0f : std::bit_cast<float>(indexedDepthBits(base - 1, 0));
+        const float followingUi = std::bit_cast<float>(indexedDepthBits(base + 1048576u, 0));
         EXPECT_LT(encoded(WORLD_COMPONENT_DEPTH_MIN, 0, base), precedingUi);
         EXPECT_GT(encoded(WORLD_COMPONENT_DEPTH_MAX, WORLD_COMPONENT_LAYER_MAX, base), followingUi);
         for (int depth : { WORLD_COMPONENT_DEPTH_MIN, -1, 0, 65536, WORLD_COMPONENT_DEPTH_MAX })
@@ -852,6 +852,34 @@ TEST(WorldTrackRulesTest, ConstantComponentLayersCannotCrossAnAdjacentAuthoredAn
     EXPECT_FALSE(worldComponentDepthValid(0, -1));
     EXPECT_TRUE(worldComponentDepthValid(WORLD_COMPONENT_DEPTH_MIN, WORLD_COMPONENT_LAYER_MAX));
     EXPECT_TRUE(worldComponentDepthValid(WORLD_COMPONENT_DEPTH_MAX, 0));
+    EXPECT_EQ(WORLD_COMPONENT_CHILD_MAX, 15);
+}
+
+TEST(WorldTrackRulesTest, SharedIndexedDepthMappingPreservesTheFullPriorityDomainAndFilterEncoding)
+{
+    using namespace ComponentDepthRules;
+    uint32_t previous = 0x3f800000u;
+    for (uint32_t priority = 0; priority <= INDEXED_DEPTH_PRIORITY_MAX; ++priority)
+    {
+        const auto bits = indexedDepthBits(priority, 0);
+        ASSERT_LT(bits, previous) << priority;
+        ASSERT_EQ(previous - bits, 128u) << priority;
+        // These integer bounds exclude zero, denormals, infinities and NaNs.
+        ASSERT_GE(indexedDepthBits(priority, WORLD_COMPONENT_LAYER_MAX), 0x00800000u);
+        ASSERT_LT(bits, 0x3f800000u);
+        const uint32_t order = 0x3f800000u - indexedDepthBits(priority, WORLD_COMPONENT_LAYER_MAX);
+        ASSERT_LT(order, 0x40000000u);
+        ASSERT_EQ((order | 0xc0000000u) & 0x3fffffffu, order);
+        previous = bits;
+    }
+    EXPECT_GT(
+        std::bit_cast<float>(indexedDepthBits(INDEXED_DEPTH_PRIORITY_MAX, WORLD_COMPONENT_LAYER_MAX)),
+        std::numeric_limits<float>::min());
+    EXPECT_EQ(0x3f800000u - indexedDepthBits(INDEXED_DEPTH_PRIORITY_MAX, WORLD_COMPONENT_LAYER_MAX), 0x200000ffu);
+    // Fine layers are reserved only inside four-priority world contacts. They
+    // are not a permission to attach 255 layers to adjacent ordinary UI keys.
+    for (uint32_t layer = 0; layer <= WORLD_COMPONENT_LAYER_MAX; ++layer)
+        EXPECT_GT(indexedDepthBits(100, layer), indexedDepthBits(104, 0));
 }
 
 TEST(WorldTrackRulesTest, GroundTransitionUsesLocalLayerWithoutBeingBuriedBelowTerrain)
@@ -880,7 +908,7 @@ TEST(WorldTrackRulesTest, GroundTransitionUsesLocalLayerWithoutBeingBuriedBelowT
             // station glass has one child at shell8, independently below15.
             EXPECT_LE(
                 TrackDepthRules::WORLD_TRACK_RAIL_LAYER + static_cast<int>(children) + 1,
-                ComponentDepthRules::WORLD_COMPONENT_LAYER_MAX);
+                ComponentDepthRules::WORLD_COMPONENT_CHILD_MAX);
         }
     }
 }

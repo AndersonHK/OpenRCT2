@@ -94,9 +94,10 @@ void visitProp(uint index,uvec2 tile,uint destination,bool writeRecords,inout ui
             worldSetPaintBounds(tile,ivec3(part.boundsX,part.boundsY,object.baseZ+part.boundsZ),
                 ivec3(part.sizeX,part.sizeY,part.sizeZ),i==begin?0u:1u);
             worldSetCoplanarSurfaceLayer();
-            // Banner posts/front panel have separate authored anchors although
-            // both bitmaps are positioned at the tile origin, sixteen units low.
-            if(object.kind==3u)
+            // Named wall edges and banner faces use their source-authored
+            // contacts. Raster origins can put a wall behind a coplanar path;
+            // preserve its real edge and partial burial without lifting its Z.
+            if(worldPropHasEdgeContact(int(object.kind)))
                 worldSetComponentDepthAnchor(tile,ivec3(part.boundsX,part.boundsY,object.baseZ+part.boundsZ));
             emitObjectSprite(tile,object.baseZ+part.z,ivec2(part.x,part.y),spriteBase+uint(part.imageOffset),
                 palettes,effects,destination,writeRecords,count);

@@ -69,7 +69,9 @@ void worldCapturePaint(uint component,uint sprite,uvec2 tile,bool writeRecords,i
         OutputRecord parent=uOutputs.records[worldParentRoot];
         uint child=uint(parent.reserved.y)+1u;
         layer=((uint(parent.depth)>>4u)&255u)+child;
-        if(layer>uint(WORLD_COMPONENT_LAYER_MAX)) { worldReportComponentFailure(32u,tile,true);record.valid=0;return; }
+        if(child>uint(WORLD_COMPONENT_CHILD_MAX) || layer>uint(WORLD_COMPONENT_LAYER_MAX)) {
+            worldReportComponentFailure(32u,tile,true);record.valid=0;return;
+        }
         uOutputs.records[worldParentRoot].reserved.y=int(child);
     }
     if(!worldComponentDepthValid(componentDepth,int(layer))) {

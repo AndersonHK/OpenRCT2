@@ -287,125 +287,86 @@ TEST_F(VulkanWorldObjectLayerTest, HeldEffectSnapshotRebindsAfterSpriteCatalogRe
 
 TEST_F(VulkanWorldObjectLayerTest, CommonParentOrderKeepsChildrenAtomicAcrossRotationsAndZooms)
 {
-    struct LegacyScope
-    {
-        bool previous = gPaintStableSort;
-        LegacyScope()
-        {
-            gPaintStableSort = false;
-        }
-        ~LegacyScope()
-        {
-            gPaintStableSort = previous;
-        }
-    } legacy;
     auto empty = std::make_shared<G::WorldSurfaceChunk>();
     empty->revision = 2;
     scene.chunks = { empty };
     for (uint32_t rotation = 0; rotation < 4; rotation++)
         for (int zoom = -2; zoom <= 2; zoom++)
             for (bool promoteChild : { false, true })
-            {
-                SCOPED_TRACE(::testing::Message() << rotation << '/' << zoom << '/' << promoteChild);
-                scene.rotation = rotation;
-                scene.zoom = zoom;
-                auto source = std::make_shared<D::SelectedVehicleSnapshot>();
-                source->worldEpoch = scene.worldEpoch;
-                source->entityEpoch = 1;
-                source->sourceTick = scene.sourceTick;
-                auto packet = std::make_shared<G::SelectedVehiclePaintPacket>();
-                packet->source = source;
-                packet->words.resize(16 + 12 + 4 * 12 + 4 * 16);
-                auto& w = packet->words;
-                w[0] = G::kSelectedVehiclePaintMagic;
-                w[1] = G::kSelectedVehiclePaintVersion;
-                w[2] = 1;
-                w[3] = 4;
-                w[4] = 16;
-                w[5] = 28;
-                w[6] = 76;
-                w[7] = uint32_t(w.size());
-                w[8] = scene.sourceTick;
-                w[9] = uint32_t(scene.worldEpoch);
-                w[10] = uint32_t(scene.worldEpoch >> 32);
-                w[11] = 1;
-                const G::SelectedVehicleCarRecord car{ 7, 1, 0, 4, 0, 0, 0, 0, { -64, -64, 64, 64 } };
-                std::memcpy(w.data() + 16, &car, sizeof(car));
-                std::array<G::SelectedVehicleParentRecord, 4> metadata{};
-                std::array<PaintStruct, 4> paint{};
-                auto session = std::make_unique<PaintSessionCore>();
-                session->CurrentRotation = uint8_t(rotation);
-                session->QuadrantBackIndex = UINT32_MAX;
-                const std::array<int32_t, 4> heights{ 0, 3, 16, 8 };
-                for (uint32_t i = 0; i < 4; i++)
+                for (bool otherCarInFront : { false, true })
                 {
-                    // Independent CPU painter bounds and quadrant construction. All
-                    // sprites overlap exactly; their final ink exposes parent ordering.
-                    const auto begin = CoordsXY{ int32_t(i * 2), int32_t(i * 2) }.rotate((rotation * 3) & 3);
-                    auto size = CoordsXY{ 24, 24 };
-                    if (rotation == 0 || rotation == 1)
-                        --size.x;
-                    if (rotation == 0 || rotation == 3)
-                        --size.y;
-                    size = size.rotate((rotation * 3) & 3);
-                    auto& p = paint[i];
-                    p.Bounds = { begin.x, begin.y, heights[i], begin.x + size.x, begin.y + size.y, heights[i] + 15 };
-                    metadata[i] = { p.Bounds.x,
-                                    p.Bounds.y,
-                                    p.Bounds.z,
-                                    p.Bounds.x_end,
-                                    p.Bounds.y_end,
-                                    p.Bounds.z_end,
-                                    i == 1 ? 0u : i,
-                                    0,
-                                    i == 1 ? 257u : 256u,
-                                    0,
-                                    promoteChild && i == 0 ? 0u : (8u | (8u << 16)),
-                                    0 };
-                    G::WorldSurfaceRecord component{};
-                    // Undo the sprite-facing corner; every original projection is (0,0).
-                    component.world = { rotation == 1 || rotation == 2 ? -32 : 0, rotation == 2 || rotation == 3 ? -32 : 0, 0 };
-                    component.valid = 17;
-                    component.spriteSize = { 8, 8 };
-                    component.asset = i + 1;
-                    component.zoom = zoom;
-                    std::memcpy(w.data() + w[6] + i * 16, &component, sizeof(component));
-                    if (i == 0 && promoteChild)
-                        continue;
-                    if (i == 1 && !promoteChild)
-                        continue;
-                    int hash = begin.x + begin.y;
-                    if (rotation == 1)
-                        hash = begin.y - begin.x + MaxPaintQuadrants * 16;
-                    else if (rotation == 2)
-                        hash = -begin.x - begin.y + MaxPaintQuadrants * 32;
-                    else if (rotation == 3)
-                        hash = begin.x - begin.y + MaxPaintQuadrants * 16;
-                    const auto q = uint32_t(std::clamp(hash / 32, 0, MaxPaintQuadrants - 1));
-                    p.QuadrantIndex = uint16_t(q);
-                    p.NextQuadrantEntry = session->Quadrants[q];
-                    session->Quadrants[q] = &p;
-                    session->QuadrantBackIndex = std::min(session->QuadrantBackIndex, q);
-                    session->QuadrantFrontIndex = std::max(session->QuadrantFrontIndex, q);
+                    SCOPED_TRACE(
+                        ::testing::Message() << rotation << '/' << zoom << '/' << promoteChild << '/' << otherCarInFront);
+                    scene.rotation = rotation;
+                    scene.zoom = zoom;
+                    auto source = std::make_shared<D::SelectedVehicleSnapshot>();
+                    source->worldEpoch = scene.worldEpoch;
+                    source->entityEpoch = 1;
+                    source->sourceTick = scene.sourceTick;
+                    auto packet = std::make_shared<G::SelectedVehiclePaintPacket>();
+                    packet->source = source;
+                    auto& w = packet->words;
+                    w.resize(16 + 3 * 12 + 4 * 12 + 4 * 16);
+                    w[0] = G::kSelectedVehiclePaintMagic;
+                    w[1] = G::kSelectedVehiclePaintVersion;
+                    w[2] = 3;
+                    w[3] = 4;
+                    w[4] = 16;
+                    w[5] = 52;
+                    w[6] = 100;
+                    w[7] = uint32_t(w.size());
+                    w[8] = scene.sourceTick;
+                    w[9] = uint32_t(scene.worldEpoch);
+                    w[10] = uint32_t(scene.worldEpoch >> 32);
+                    w[11] = 1;
+                    // Owned worldXYZ determines inter-car depth. All raster quads
+                    // deliberately overlap, independently of those anchors. The
+                    // old fixture put every sprite in one car at XYZ (0,0,0), then used
+                    // the removed bounds sorter as an incompatible depth oracle.
+                    const std::array<G::SelectedVehicleCarRecord, 3> cars{
+                        G::SelectedVehicleCarRecord{ 7, 1, 0, 2, 0, 0, 0, 0, { -64, -64, 64, 64 } },
+                        G::SelectedVehicleCarRecord{ 8, 1, 2, 1, 0, 0, 0, otherCarInFront ? 1 : -1, { -64, -64, 64, 64 } },
+                        G::SelectedVehicleCarRecord{ 9, 1, 3, 1, 0, 0, 0, -2, { -64, -64, 64, 64 } }
+                    };
+                    std::memcpy(w.data() + w[4], cars.data(), sizeof(cars));
+                    for (uint32_t i = 0; i < 4; i++)
+                    {
+                        // A child's independent legacy bounds must not detach it
+                        // from its actual owner. In particular, this far-away
+                        // child bound cannot override the car one scalar ahead.
+                        const int32_t childBoundsZ = i == 1 ? 1000 : 0;
+                        const G::SelectedVehicleParentRecord parent{ 0,
+                                                                     0,
+                                                                     childBoundsZ,
+                                                                     31,
+                                                                     31,
+                                                                     childBoundsZ + 15,
+                                                                     i == 1 ? 0u : i,
+                                                                     0,
+                                                                     i == 1 ? 257u : 256u,
+                                                                     0,
+                                                                     promoteChild && i == 0 ? 0u : (8u | (8u << 16)),
+                                                                     0 };
+                        G::WorldSurfaceRecord component{};
+                        // Undo the sprite-facing corner so each original raster
+                        // projection stays at (0,0) for every camera rotation.
+                        component.world = { rotation == 1 || rotation == 2 ? -32 : 0, rotation == 2 || rotation == 3 ? -32 : 0,
+                                            0 };
+                        component.valid = 17;
+                        component.spriteSize = { 8, 8 };
+                        component.asset = i + 1;
+                        component.zoom = zoom;
+                        std::memcpy(w.data() + w[5] + i * 12, &parent, sizeof(parent));
+                        std::memcpy(w.data() + w[6] + i * 16, &component, sizeof(component));
+                    }
+                    ASSERT_NO_THROW(G::ValidateSelectedVehiclePaintPacket(*packet));
+                    scene.selectedVehicle = packet;
+                    Run();
+                    // Within a car the child covers its parent, including when
+                    // promoted after root culling. The car one world-depth unit
+                    // ahead must still cover that whole parent/child group.
+                    EXPECT_EQ(pixels[128 * extent.width + 128], std::byte(Ink(otherCarInFront ? 3 : 2)));
                 }
-                std::memcpy(w.data() + w[5], metadata.data(), sizeof(metadata));
-                PaintSessionArrange(*session);
-                auto* last = session->PaintHead;
-                ASSERT_NE(last, nullptr);
-                size_t visited = 1;
-                while (last->NextQuadrantEntry != nullptr && visited <= paint.size())
-                {
-                    last = last->NextQuadrantEntry;
-                    visited++;
-                }
-                ASSERT_EQ(visited, 3u);
-                const auto index = uint32_t(last - paint.data());
-                const auto expected = Ink(index == 0 ? 2 : index + 1);
-                scene.selectedVehicle = packet;
-                Run();
-                EXPECT_EQ(pixels[128 * extent.width + 128], std::byte(expected));
-            }
-    // Removing the auxiliary owner must not replay its previously uploaded words.
     scene.selectedVehicle.reset();
     Run();
     EXPECT_EQ(ColourCount(0), pixels.size());
@@ -1497,7 +1458,13 @@ TEST_F(VulkanWorldObjectLayerTest, OrderedWorldFiltersComposeAroundOpaqueAndWate
     auto empty = std::make_shared<G::WorldSurfaceChunk>();
     empty->revision = 2;
     scene.chunks = { empty };
-    scene.depthBase = (1 << 21) + 1; // Exercise the full painter-depth interval, not a truncated20-bit key.
+    // Reserve both world and annotation intervals at the largest legal base.
+    // The older fixture used 2^21+1, which now fails host admission before drawing.
+    scene.depthBase = ((1 << 22) - 1) - static_cast<int32_t>(G::kWorldSceneDepthReservation);
+    const auto interval = G::GetWorldSurfaceDepthRange(scene.depthBase, scene.recordCount);
+    ASSERT_TRUE(interval.has_value());
+    EXPECT_EQ(interval->next, (1 << 22) - 1);
+    EXPECT_GT(scene.depthBase + 4 * 131072, 1 << 21); // ActualXYZ (0,0,0) still exercises keys beyond 21 bits.
     std::array<std::byte, 256 * 256> palette{};
     for (uint32_t row = 0; row < 256; row++)
         for (uint32_t x = 0; x < 256; x++)
@@ -1947,6 +1914,17 @@ TEST_F(VulkanWorldObjectLayerTest, ResidentCatalogBurstSurvivesDiscardAndRetires
         EXPECT_EQ(pixels, held);
         EXPECT_EQ(telemetry.worldBufferCopyCalls, 0u);
     }
+    // A fresh auxiliary publication can replace the map epoch while holding
+    // identical immutable art. Record resets residency for the new owner;
+    // admission must reserve its cold staging before that reset takes place.
+    const auto heldCatalog = scene.sprites;
+    scene.worldEpoch++;
+    const auto replacement = Run();
+    EXPECT_EQ(scene.sprites, heldCatalog);
+    EXPECT_EQ(pixels, held);
+    EXPECT_GT(replacement.worldBufferCopyCalls, 0u);
+    EXPECT_EQ(Run().worldBufferCopyCalls, 0u);
+    EXPECT_EQ(pixels, held);
 }
 
 TEST_F(VulkanWorldObjectLayerTest, NativeEntitiesUseResidentFieldsAndImmutableHeldSnapshots)

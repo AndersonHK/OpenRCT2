@@ -1,6 +1,6 @@
 # Native entities checkpoint
 
-Current deployed checkpoint: build176, replacing build167. Includes Chairlift stations, Lift pieces, entrance supports, bounded foreground contacts, rider-bank residency and UI-first pipeline preparation. The complete Miniature Railway candidate and experimental Pirate Ship anchor change are withheld. Current remaining visual failures are listed in [the close-up review](vulkan-native-entities-visual-review.md); final qualification is recorded below. Historical build sections retain their original status at the time.
+Current deployed checkpoint: build186, replacing build176. Includes a fresh Miniature Railway implementation, authored Pirate Ship component contacts, a bounded tower depth hierarchy, restored parking markings, loading reuse, and allocation corrections. See [the current checkpoint and remaining checklist](vulkan-transport-depth-checkpoint.md). The earlier quarantined railway and whole-Ship-anchor experiments remain withdrawn. Historical build sections retain their original status at the time.
 
 This follows `2337f3b8da` (supports, signs and component anchors). Everything Park remains the common original-art visual and performance sample. The production world path now consumes owned graphical state for vehicles, peeps, balloons, litter, fountains, ducks, particles and money annotations. Runtime and visual qualification are in progress; implementation alone is not pixel parity.
 
@@ -10,7 +10,7 @@ The simulation boundary captures one immutable generation. Peeps retain their ex
 
 World rendering does not build a CPU entity paint list. The previous selected-vehicle CPU paint capture is bypassed in the production profile; auxiliary previews consume the same native vehicle generation. Resident asset leases keep art alive for held snapshots. Source tick and catalog ownership checks reject mixed generations.
 
-Each authored sprite receives one constant depth. Integer anchor priority dominates a bounded local layer. The corrected D32 encoding prevents child layers from jumping ahead of neighboring anchors. Monetary annotations have a separate bounded interval above the world and below UI; constant per-glyph priorities preserve overlapping outlines and hint blending. New RotoDrop seat anchors are explicit geometry requiring visual review, not claimed original source coordinates.
+Each authored sprite receives one constant depth. Integer anchor priority dominates a bounded local layer. Higher priority maps to smaller Vulkan D32 depth. Tower assemblies share a cold worldXY/base contact: rear vehicle, height-ordered shaft segments, front vehicle and riders occupy bounded local roles below the next world contact. The earlier moving seat-anchor approximation has been removed. Monetary annotations retain their separate interval above the world and below UI.
 
 ## Checklist
 

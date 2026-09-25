@@ -4,7 +4,7 @@
 #define OPENRCT2_WORLD_FLAT_RIDE_EMIT
 #include "world_static_tower_maze_rules.glsl"
 #include "world_flat_ride_animation.glsl"
-layout(std430,set=0,binding=15) readonly buffer FlatRideCatalog { uint words[]; } uFlatRides;
+#include "world_tower_assembly.glsl"
 layout(std430,set=0,binding=17) readonly buffer RidePoseBuffer { uint words[]; } uRidePoses;
 
 WorldFlatPose worldFlatReadPose(uint id,uint vehicle)
@@ -57,12 +57,34 @@ int worldFlatFenceMask(uint ride,uint stationIndex,uvec2 tile)
 }
 void worldSetFlatBodyAnchor(uvec2 tile,WorldObjectRecord object,int family,int direction,WorldFlatPart part)
 {
-    if(part.depthAnchor==1) {
+    if(part.depthAnchor==WORLD_TOWER_SHAFT_ANCHOR) {
+        int depth,baseZ;
+        if(worldTowerContact(object.rideIdAndMazeEntry&65535u,depth,baseZ)) {
+            WorldTowerShaftOrder order=worldTowerShaftOrder(object.baseZ+part.z-baseZ);
+            worldSetComponentDepthScalar(depth);
+            worldComponentRootLayer=uint(order.layer);
+        }
+    } else if(part.depthAnchor==1) {
         WorldFlatAnchor anchor=worldFlatFrontAnchor(family,int(object.sequence),direction);
         worldSetComponentDepthAnchor(tile,ivec3(anchor.x,anchor.y,object.baseZ+part.bz));
     } else if(part.depthAnchor==2) {
         // Named platform fences occupy their authored edge, not the floor raster origin.
         worldSetComponentDepthAnchor(tile,ivec3(part.bx,part.by,object.baseZ+part.bz));
+    } else if(part.depthAnchor==3 || part.depthAnchor==WORLD_FLAT_FOREGROUND_ANCHOR) {
+        WorldFlatAnchor anchor=worldFlatAuthoredContact(part);
+        worldSetComponentDepthAnchor(tile,ivec3(anchor.x,anchor.y,object.baseZ+part.bz));
+    }
+}
+void worldClipFlatLongitudinalComponent(uvec2 tile,uint first,uint end,bool writeRecords)
+{
+    if(!writeRecords) return;
+    ivec2 origin=terrainRotateXY(terrainPaintTileOrigin(ivec2(tile*32u),uScene.rotation),uScene.rotation);
+    int column=worldFlatLongitudinalColumn(origin.y-origin.x);
+    // High16 depth bits store the signed first column; low bits retain local
+    // parent/child layers. This payload does not change the output-record ABI.
+    for(uint index=first;index<end && index<uScene.outputCapacity;index++) {
+        uOutputs.records[index].depth=int((uint(uOutputs.records[index].depth)&65535u)|(uint(column)<<16u));
+        uOutputs.records[index].valid|=256;
     }
 }
 bool visitStaticRide(uint index,uvec2 tile,uint destination,bool writeRecords,inout uint count)
@@ -127,6 +149,7 @@ bool visitStaticRide(uint index,uvec2 tile,uint destination,bool writeRecords,in
             ivec3(part.sx,part.sy,part.sz),part.child!=0?1u:0u);
         worldSetCoplanarSurfaceLayer();
         worldSetFlatBodyAnchor(tile,object,family,direction,part);
+        uint firstComponent=destination+count;
         emitObjectSpriteWithFlags(tile,object.baseZ+part.z,ivec2(part.x,part.y),sprite,palettes,effects,
             worldFlatEntityPart(part,family,pose)?16u:0u,destination,writeRecords,count);
         WorldFlatPart overlay=worldFlatAnimationOverlay(part,family,direction,int(uScene.zoom),pose);
@@ -146,6 +169,8 @@ bool visitStaticRide(uint index,uvec2 tile,uint destination,bool writeRecords,in
                     worldFlatEntityPart(overlay,family,pose)?16u:0u,destination,writeRecords,count);
             }
         }
+        if(part.depthAnchor==3)
+            worldClipFlatLongitudinalComponent(tile,firstComponent,destination+count,writeRecords);
     }
     return true;
 }

@@ -501,6 +501,26 @@ TEST_F(VulkanOffscreenRenderTest, FrozenPrimitivesOwnedInitialContentsAndAllAlph
     }
 }
 
+TEST_F(VulkanOffscreenRenderTest, ReadbackCapacityIsIndependentOfTheUploadBudget)
+{
+    options.uploadBytes = 1024 * 1024;
+    auto service = Service();
+    auto request = Request();
+    request.logicalExtent = { 513, 512 };
+    request.outputExtent = request.logicalExtent;
+    for (const uint8_t colour : { 7, 93 })
+    {
+        request.clearIndex = colour;
+        auto session = service->BeginOffscreen(request);
+        const auto outcome = session->Submit()->Wait(30s);
+        ASSERT_FALSE(outcome.error) << outcome.error->message;
+        ASSERT_NE(outcome.result, nullptr);
+        const std::vector<std::byte> expected(513 * 512, static_cast<std::byte>(colour));
+        EXPECT_EQ(outcome.result->indexed, expected);
+        EXPECT_EQ(outcome.result->rgba, VulkanParitySupport::Expand(expected, EffectivePalette(request)));
+    }
+}
+
 TEST_F(VulkanOffscreenRenderTest, SharedDeviceAuxiliaryCompletionLeavesMainRecordingAndSlotUntouched)
 {
     Vulkan::SubmissionSlots mainSlots(context, 1024 * 1024, 1);
@@ -642,7 +662,9 @@ TEST_F(VulkanOffscreenRenderTest, TimeoutAndCancellationDoNotReleaseTheBusyDomai
     if (timeout.error)
         EXPECT_EQ(timeout.error->code, RenderErrorCode::timeout);
     completion->Cancel();
-    EXPECT_THROW(service->BeginOffscreen(Request()), RenderServiceException);
+    // BeginOffscreen waits for actual retirement. While this test deliberately
+    // holds the worker gate, the nonblocking API must still report the slot busy.
+    EXPECT_EQ(service->TryBeginOffscreen(Request()), nullptr);
     const auto cancelled = completion->Wait(0ms);
     EXPECT_TRUE(cancelled.error);
     if (cancelled.error)

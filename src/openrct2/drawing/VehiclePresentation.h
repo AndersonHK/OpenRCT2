@@ -33,7 +33,16 @@ namespace OpenRCT2::Drawing
         std::array<uint32_t, 8> riderColours{};
         uint32_t trackType{}, trackProgress{};
         int32_t velocity{};
-        uint32_t status{}, animationState{}, miniGolf{}, previousLink{}, nextLink{};
+        // Low16: raw status; high16: owning ride in the same immutable world snapshot.
+        uint32_t statusAndRide{}, animationState{}, miniGolf{}, previousLink{}, nextLink{};
+        constexpr void SetStatusAndRide(uint16_t status, uint16_t rideId)
+        {
+            statusAndRide = uint32_t(status) | (uint32_t(rideId) << 16);
+        }
+        constexpr uint16_t GetRideId() const
+        {
+            return static_cast<uint16_t>(statusAndRide >> 16);
+        }
         bool operator==(const VehiclePresentationRecord&) const = default;
     };
     static_assert(sizeof(VehiclePresentationRecord) == 128);
